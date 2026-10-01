@@ -431,6 +431,9 @@ void* UserHeap::malloc(uint32_t memSize)
         return nullptr;
     }
 
+    // Zero the heap block
+    std::memset(block, 0, memSize);
+
     const uint32_t blockSize = OriginalBlockSize(memSize);
     _Blocks.emplace(block, blockSize);
     _UsedBytes += blockSize;
