@@ -1,0 +1,76 @@
+# Builds main, runs the tests, and publishes a GitHub Release tagged v<version>.
+# Run it by hand from the Actions tab ("Release" -> "Run workflow"). The version is Nerdbank.GitVersioning's
+# major.minor.release.build for main's head (see version.json), so the tag always matches the version built
+# into the exe. If main hasn't moved since the last release, the tag already exists and the run stops.
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Only from main: nbgv treats main as a public release (publicReleaseRefSpec in version.json).
+    if: github.ref == 'refs/heads/main'
+    # The projects use toolset v145, which needs Visual Studio 2026.
+    runs-on: windows-2025-vs2026
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v5
+        with:
+          # nbgv counts commits, so it needs the full history.
+          fetch-depth: 0
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Get the version
+        id: version
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          $version = dotnet nbgv get-version -v Version
+          if ($LASTEXITCODE -ne 0 -or -not $version) { throw "nbgv could not compute the version." }
+          $tag = "v$version"
+          git ls-remote --exit-code --tags origin "refs/tags/$tag" | Out-Null
+          if ($LASTEXITCODE -eq 0) { throw "Tag $tag already exists: main has no new commits since that release." }
+          # ls-remote exits 2 when the tag is missing; don't let that fail the step.
+          $global:LASTEXITCODE = 0
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "Releasing $tag ($env:GITHUB_SHA)"
+
+      - name: Build
+        run: msbuild src\MCRedux.slnx -p:Configuration=Release -p:Platform=x64 -m
+
+      # The game: tests need the retail install (MC_GAME), which the runner doesn't have; they pass with a note.
+      - name: Test
+        run: src\build\bin\x64\Release\mc_tests.exe
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $bin = "src\build\bin\x64\Release"
+          $name = "MechCommanderRedux-${{ steps.version.outputs.tag }}"
+          New-Item -ItemType Directory -Force "dist\$name" | Out-Null
+          Copy-Item "$bin\MCRedux.exe", "$bin\SDL3.dll", src\docs\README.txt, src\docs\INSTALL.txt "dist\$name"
+          Compress-Archive -Path "dist\$name\*" -DestinationPath "dist\$name-win-x64.zip"
+          Compress-Archive -Path "$bin\MCRedux.pdb", "$bin\SDL3.pdb" -DestinationPath "dist\$name-win-x64-symbols.zip"
+
+      # gh creates the tag on the built commit.
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          gh release create $tag (Get-ChildItem dist\*.zip).FullName `
+            --target $env:GITHUB_SHA `
+            --title "MechCommander Redux $tag" `
+            --generate-notes

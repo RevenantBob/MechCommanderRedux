@@ -1,0 +1,6 @@
+Installing MechCommander Redux
+==============================
+
+1. Copy MCRedux.exe and SDL3.dll into your MechCommander Gold install folder (the one
+   containing SYSTEM.CFG).
+2. Run MCRedux.exe.

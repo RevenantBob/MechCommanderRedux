@@ -1,0 +1,56 @@
+#include "stdafx.h"
+#include "object/objevnt.h"
+#include "lib/heap.h"
+#include "object/gameobj.h"
+
+auto ObjectEvent::operator new(size_t size) noexcept -> void*
+{
+    return systemHeap->malloc(static_cast<uint32_t>(size));
+}
+
+auto ObjectEvent::operator delete(void* ptr) -> void
+{
+    systemHeap->free(ptr);
+}
+
+auto ObjectEvent::init(int32_t newId, aEvent* newEvent) -> void
+{
+    type = 0;
+    id = newId;
+
+    if (newEvent == nullptr)
+    {
+        event.type = 0x2401;
+        window = nullptr;
+    }
+    else
+    {
+        aObject* target = newEvent->target;
+        event = *newEvent;
+        window = target;
+    }
+
+    for (int32_t& value : unknown3C)
+    {
+        value = 0;
+    }
+
+    unknown54 = -1;
+}
+
+auto ObjectEvent::initCombat(int32_t newId, GameObject* attacker, GameObject* target) -> void
+{
+    type = 2;
+
+    if (attacker != nullptr)
+    {
+        attackerPartId = attacker->partId;
+    }
+
+    if (target != nullptr)
+    {
+        targetPartId = target->partId;
+    }
+
+    id = newId;
+}

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings shared by the port's own projects (MCCore, MCRedux, mc_tests). Each imports this after
+     Microsoft.Cpp.props. SDL keeps its own vcxproj (copied from OgreBattleCPP, already edited to output into src/build
+     and to use the static CRT). -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- The machine has user-wide vcpkg integration, and its x64-windows tree holds SDL2: with integration on, SDL2
+       gets auto-linked and its SDL_Init shadows SDL3's. Every project must keep this off. -->
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnabled>false</VcpkgEnabled>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)build\bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <MCLibDir>$(MSBuildThisFileDirectory)lib\</MCLibDir>
+    <MCGeneratedDir>$(MSBuildThisFileDirectory)build\generated\</MCGeneratedDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <!-- /bigobj: some reconstructed files (the ABL library, the logistics screens) are large. /utf-8: sources are UTF-8. -->
+      <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(MCLibDir)SDL-release-3.4.12\include;$(MCLibDir)MCCore;$(MCGeneratedDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(MCGeneratedDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Manifest>
+      <EnableSegmentHeap>true</EnableSegmentHeap>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- Version: Nerdbank.GitVersioning (nbgv, a local dotnet tool in dotnet-tools.json) computes it from version.json
+       and the git history: major.minor.release come from version.json, and the build number is the count of commits
+       since version.json's version last changed. MCCore (which every app references, so it builds first) writes it
+       to build\generated\MCVersion.h; the file is only rewritten when the version changes, so unchanged builds stay
+       incremental. Without dotnet or git (a source zip), the version falls back to 0.0.0.0. -->
+  <Target Name="MCGenerateVersionHeader" BeforeTargets="PrepareForBuild" Condition="'$(MCGenerateVersion)'=='true'">
+    <PropertyGroup>
+      <_MCRepoDir>$(MSBuildThisFileDirectory)..\</_MCRepoDir>
+    </PropertyGroup>
+    <Exec Command="dotnet tool restore" WorkingDirectory="$(_MCRepoDir)" StandardOutputImportance="low"
+          ContinueOnError="true" IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="_MCRestoreExitCode" />
+    </Exec>
+    <Exec Command="dotnet nbgv get-version -v Version" WorkingDirectory="$(_MCRepoDir)" ConsoleToMSBuild="true"
+          StandardOutputImportance="low" ContinueOnError="true" IgnoreExitCode="true"
+          Condition="'$(_MCRestoreExitCode)'=='0'">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MCVersion" />
+      <Output TaskParameter="ExitCode" PropertyName="_MCVersionExitCode" />
+    </Exec>
+    <Exec Command="dotnet nbgv get-version -v SemVer2" WorkingDirectory="$(_MCRepoDir)" ConsoleToMSBuild="true"
+          StandardOutputImportance="low" ContinueOnError="true" IgnoreExitCode="true"
+          Condition="'$(_MCVersionExitCode)'=='0'">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MCSemVer" />
+    </Exec>
+    <Exec Command="dotnet nbgv get-version -v GitCommitIdShort" WorkingDirectory="$(_MCRepoDir)"
+          ConsoleToMSBuild="true" StandardOutputImportance="low" ContinueOnError="true" IgnoreExitCode="true"
+          Condition="'$(_MCVersionExitCode)'=='0'">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MCCommit" />
+    </Exec>
+    <Warning Text="Could not get the version from nbgv (needs the .NET SDK and a git checkout); using 0.0.0.0."
+             Condition="'$(_MCVersionExitCode)'!='0'" />
+    <PropertyGroup Condition="'$(_MCVersionExitCode)'!='0'">
+      <_MCVersion>0.0.0.0</_MCVersion>
+      <_MCSemVer>0.0.0-unknown</_MCSemVer>
+      <_MCCommit>unknown</_MCCommit>
+    </PropertyGroup>
+    <ItemGroup>
+      <_MCVersionLine Include="// Generated by MechCommander.props from version.json and the git history. Do not edit." />
+      <_MCVersionLine Include="#pragma once" />
+      <_MCVersionLine Include="#define MC_VERSION &quot;$(_MCVersion)&quot;" />
+      <_MCVersionLine Include="#define MC_VERSION_COMMAS $(_MCVersion.Replace('.', ','))" />
+      <_MCVersionLine Include="#define MC_VERSION_SEMVER &quot;$(_MCSemVer)&quot;" />
+      <_MCVersionLine Include="#define MC_VERSION_COMMIT &quot;$(_MCCommit)&quot;" />
+    </ItemGroup>
+    <MakeDir Directories="$(MCGeneratedDir)" />
+    <WriteLinesToFile File="$(MCGeneratedDir)MCVersion.h" Lines="@(_MCVersionLine)" Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+    <Message Importance="high" Text="MechCommander Redux $(_MCVersion) ($(_MCCommit))" />
+  </Target>
+</Project>

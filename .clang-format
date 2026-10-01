@@ -1,0 +1,64 @@
+---
+# The port's C++ style: 4-space indent, Allman braces, 120 columns, and braces on
+# every if/else/for/while/do body, even a one-liner. Run tools/build/format.py to apply or check it.
+Language: Cpp
+BasedOnStyle: Microsoft
+Standard: Latest
+ColumnLimit: 120
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Allman
+
+# Braces around every control statement body.
+InsertBraces: true
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortLambdasOnASingleLine: All
+AllowShortEnumsOnASingleLine: false
+
+NamespaceIndentation: All
+IndentCaseLabels: true
+IndentPPDirectives: None
+AccessModifierOffset: -4
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpaceAfterTemplateKeyword: true
+SpaceBeforeParens: ControlStatements
+Cpp11BracedListStyle: true
+FixNamespaceComments: false
+InsertNewlineAtEOF: true
+KeepEmptyLines:
+  AtStartOfBlock: false
+  AtStartOfFile: false
+MaxEmptyLinesToKeep: 1
+SeparateDefinitionBlocks: Leave
+
+# Field offsets (// +0x1c) line up within a block of declarations.
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+SpacesBeforeTrailingComments: 1
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: Consecutive
+AlignEscapedNewlines: Left
+AlignAfterOpenBracket: Align
+BinPackArguments: true
+BinPackParameters: true
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+BreakConstructorInitializers: BeforeComma
+PackConstructorInitializers: NextLine
+BreakInheritanceList: BeforeComma
+
+# /// <summary> comments and long // Port fix: notes are written by hand; don't rewrap them.
+ReflowComments: Never
+CommentPragmas: '^ ?(<|Port fix:|MCX\.EXE @)'
+
+# Include order is left alone: stdafx.h must come first, and Windows headers depend on their order.
+SortIncludes: Never
+...

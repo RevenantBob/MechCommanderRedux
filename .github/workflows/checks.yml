@@ -1,0 +1,30 @@
+# Checks every pull request: the C++ is formatted (tools/build/format.py) and the .vcxproj/.filters files list
+# every source file (tools/build/sync_projects.py). Run either script without --check locally to fix what it reports.
+name: Checks
+
+on:
+  pull_request:
+
+jobs:
+  checks:
+    # The same image as the release build, so clang-format is Visual Studio's bundled copy, as it is locally.
+    runs-on: windows-2025-vs2026
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Find Visual Studio's clang-format
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $clangFormat = Join-Path $vs "VC\Tools\Llvm\x64\bin\clang-format.exe"
+          if (-not (Test-Path $clangFormat)) { throw "clang-format not found at $clangFormat" }
+          & $clangFormat --version
+          "CLANG_FORMAT=$clangFormat" >> $env:GITHUB_ENV
+
+      - name: Formatting
+        run: python tools/build/format.py --check
+
+      - name: Project files
+        if: success() || failure()
+        run: python tools/build/sync_projects.py --check

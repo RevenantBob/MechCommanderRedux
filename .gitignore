@@ -1,0 +1,154 @@
+# =============================================================================
+# MechCommander Gold: reverse engineering notes + modern C++/SDL3 port
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Original game files. The game reads the player's own install (--data), so nothing
+# from the retail game ever belongs in the tree. The rest of these rules are a safety net.
+# (Patterns are case-sensitive on Linux, hence both spellings.)
+# -----------------------------------------------------------------------------
+/data/
+/game/
+*.FST
+*.fst
+*.PAK
+*.pak
+*.MPK
+*.mpk
+*.PKK
+*.pkk
+*.SMK
+*.smk
+*.SOL
+*.sol
+*.fit
+*.FIT
+*.sav
+/**/MCX*.EXE
+# Output of mctool and the port's debug dumps (including the Ghidra export in dumps/ghidra).
+# *.png / *.wav aren't ignored globally because vendored libraries ship some.
+dumps/
+extract/
+captures/
+screenshots/
+
+# -----------------------------------------------------------------------------
+# Reverse engineering tooling (Ghidra projects live outside this repo; safety net)
+# -----------------------------------------------------------------------------
+*.gpr
+*.rep/
+*.lock
+*.lock~
+
+# -----------------------------------------------------------------------------
+# Build output. The solution puts everything in src/build (OutDir/IntDir are
+# $(SolutionDir)build\...); the rest catches a project or a vendored library
+# built on its own, where the solution directory is somewhere else.
+# -----------------------------------------------------------------------------
+build/
+out/
+[Dd]ebug/
+[Rr]elease/
+[Rr]el[Ww]ith[Dd]eb[Ii]nfo/
+[Mm]in[Ss]ize[Rr]el/
+# MSBuild's default $(Platform)\ folders, only where MSBuild would make them: our own projects
+# and vendored libraries' Visual Studio folders (SDL has real source dirs named x64/, win32/).
+/src/apps/*/[Xx]64/
+/src/apps/*/[Ww]in32/
+/src/apps/*/ARM64/
+/src/lib/MCCore/[Xx]64/
+/src/lib/MCCore/[Ww]in32/
+/src/lib/MCCore/ARM64/
+/src/lib/*/VisualC*/**/[Xx]64/
+/src/lib/*/VisualC*/**/[Ww]in32/
+/src/lib/*/VisualC*/**/ARM64/
+
+# Compiler and linker artifacts
+*.exe
+*.dll
+*.lib
+*.a
+*.so
+*.obj
+*.o
+*.pch
+*.ipch
+*.pdb
+*.idb
+*.ilk
+*.iobj
+*.ipdb
+*.exp
+*.tlog
+*.lastbuildstate
+*.recipe
+*.FileListAbsolute.txt
+*.log
+
+# Compiled shaders
+*.spv
+*.dxil
+*.dxbc
+
+# -----------------------------------------------------------------------------
+# CMake (for the Linux build to come; vendored libraries ship CMake builds)
+# -----------------------------------------------------------------------------
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+cmake-build-*/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+_deps/
+
+# -----------------------------------------------------------------------------
+# Editors and IDEs
+# -----------------------------------------------------------------------------
+# Visual Studio
+.vs/
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.aps
+*.user
+
+# VS Code
+.vscode/
+
+# JetBrains CLion / Rider
+.idea/
+
+# clangd
+.cache/
+.clangd/
+
+# Vendored libraries' own GitHub config (CI workflows, issue templates)
+/src/lib/*/.github/
+
+# -----------------------------------------------------------------------------
+# Local-only notes, scripts and build folders
+# -----------------------------------------------------------------------------
+/docs/
+/tools/
+/src -mbuild/
+
+# -----------------------------------------------------------------------------
+# OS clutter and temp files
+# -----------------------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+*.tmp
+*.bak
+*.swp
+*~
+
+# Python bytecode from scripts/
+__pycache__/
+*.pyc
