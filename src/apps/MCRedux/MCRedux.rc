@@ -1,8 +1,12 @@
-// MCRedux.exe's version resource (Explorer's file properties). The version comes from MCVersion.h, which MCCore's
-// build writes from version.json and the git history (see MechCommander.props).
+// MCRedux.exe's resources: the icon and the version (Explorer's file properties). The version comes from MCVersion.h,
+// which MCCore's build writes from version.json and the git history (see MechCommander.props).
 
 #include <winres.h>
 #include "MCVersion.h"
+
+// The exe's icon. It must stay the first icon resource: SDL gives its window class the exe's first icon, so this is
+// also the window's title bar and taskbar icon.
+1 ICON "..\\..\\res\\MCRedux.ico"
 
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION MC_VERSION_COMMAS
