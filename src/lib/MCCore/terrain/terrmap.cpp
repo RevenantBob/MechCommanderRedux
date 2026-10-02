@@ -2079,6 +2079,42 @@ auto TacticalMap::handleEvent(aEvent* event) -> void
     aObject::handleEvent(event);
 }
 
+auto TacticalMap::MouseWheel(int32_t steps) -> bool
+{
+    if (displayType > TACMAP_MAP && displayType <= TACMAP_SALVAGE)
+    {
+        aScrollTextObject* text = displayType == TACMAP_SALVAGE ? salvageText : infoText;
+        return text->MouseWheel(steps);
+    }
+
+    if (displayType == TACMAP_MAP)
+    {
+        // As clicking the zoom buttons (up in, down out), which are disabled at the ends.
+        for (; steps != 0; steps += steps < 0 ? 1 : -1)
+        {
+            aButton* button = scrollButtons[steps < 0 ? 4 : 5];
+
+            if (button->disabled != 0)
+            {
+                break;
+            }
+
+            if (steps < 0)
+            {
+                TMCZoomIn();
+            }
+            else
+            {
+                TMCZoomOut();
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 auto TacticalMap::display() -> void
 {
     if (IsShowing() == 0)

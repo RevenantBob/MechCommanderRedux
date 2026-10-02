@@ -427,6 +427,17 @@ public:
         return index < numDropTargets ? &dropTargets[index] : nullptr;
     } // slot 76
 
+    /// <summary>
+    /// Port-only (the original had no wheel): scrolls by <paramref name="steps"/> arrow clicks, negative up, positive
+    /// down. translateMessage offers the wheel to the object under the mouse, then to its parents, until one takes it.
+    /// </summary>
+    /// <returns>Whether the object scrolls (whether or not it could move); false passes the wheel to the parent.</returns>
+    virtual bool MouseWheel(int32_t steps)
+    {
+        (void)steps;
+        return false;
+    }
+
     /// <summary>Wipes a rectangle of the port to <paramref name="color"/>.</summary>
     /// <remarks>MCX.EXE @ 0x0060eec0</remarks>
     void FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color);

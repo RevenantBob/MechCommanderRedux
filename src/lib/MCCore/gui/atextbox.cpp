@@ -779,6 +779,21 @@ auto aScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
     draw();
 }
 
+auto aScrollTextObject::MouseWheel(int32_t steps) -> bool
+{
+    if (height() == port()->height())
+    {
+        return false;
+    }
+
+    for (; steps != 0; steps += steps < 0 ? 1 : -1)
+    {
+        ReceiveClick(steps < 0 ? -1 : 1, 0);
+    }
+
+    return true;
+}
+
 /// <remarks>MCX.EXE @ 0x00617b20</remarks>
 auto aTransparentTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
 {

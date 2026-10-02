@@ -2118,55 +2118,11 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
             }
             else if (key == keys[53] || key == keys[55])
             {
-                // Zoom in.
-                if (eye != nullptr && eye->cameraScale != 100)
-                {
-                    soundSystem->playDigitalSample(0x44, 1, nullptr, 0, 0);
-
-                    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
-                    {
-                        if (eye->cameraScale == 1)
-                        {
-                            eye->forceUpdate = 1;
-                            Terrain::forceRedraw = 1;
-                        }
-
-                        eye->cameraScale = 100;
-                    }
-
-                    Terrain::terrainTacticalMap->toggleZoom();
-                }
+                ZoomIn();
             }
             else if (key == keys[54] || key == keys[56])
             {
-                // Zoom out.
-                if (eye != nullptr && eye->cameraScale != 1)
-                {
-                    soundSystem->playDigitalSample(0x45, 1, nullptr, 0, 0);
-                    bool zoomed = false;
-
-                    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
-                    {
-                        if (eye->cameraScale != 1 && eye->cameraScale == 100)
-                        {
-                            eye->forceUpdate = 1;
-                            Terrain::forceRedraw = 1;
-                            eye->cameraScale = 1;
-                            eye->setPosition(eye->position);
-                            Terrain::terrainTacticalMap->toggleZoom();
-                            zoomed = true;
-                        }
-                        else
-                        {
-                            eye->cameraScale = 1;
-                        }
-                    }
-
-                    if (!zoomed)
-                    {
-                        Terrain::terrainTacticalMap->toggleZoom();
-                    }
-                }
+                ZoomOut();
             }
             else if (key == keys[2] && application->grabbedObject() == nullptr)
             {
@@ -3825,6 +3781,58 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
         {
             finish();
             return;
+        }
+    }
+}
+
+auto InterfaceObject::ZoomIn() -> void
+{
+    if (eye != nullptr && eye->cameraScale != 100)
+    {
+        soundSystem->playDigitalSample(0x44, 1, nullptr, 0, 0);
+
+        if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+        {
+            if (eye->cameraScale == 1)
+            {
+                eye->forceUpdate = 1;
+                Terrain::forceRedraw = 1;
+            }
+
+            eye->cameraScale = 100;
+        }
+
+        Terrain::terrainTacticalMap->toggleZoom();
+    }
+}
+
+auto InterfaceObject::ZoomOut() -> void
+{
+    if (eye != nullptr && eye->cameraScale != 1)
+    {
+        soundSystem->playDigitalSample(0x45, 1, nullptr, 0, 0);
+        bool zoomed = false;
+
+        if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+        {
+            if (eye->cameraScale != 1 && eye->cameraScale == 100)
+            {
+                eye->forceUpdate = 1;
+                Terrain::forceRedraw = 1;
+                eye->cameraScale = 1;
+                eye->setPosition(eye->position);
+                Terrain::terrainTacticalMap->toggleZoom();
+                zoomed = true;
+            }
+            else
+            {
+                eye->cameraScale = 1;
+            }
+        }
+
+        if (!zoomed)
+        {
+            Terrain::terrainTacticalMap->toggleZoom();
         }
     }
 }

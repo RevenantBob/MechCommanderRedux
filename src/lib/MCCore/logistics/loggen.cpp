@@ -2608,6 +2608,21 @@ auto lScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
     draw();
 }
 
+auto lScrollTextObject::MouseWheel(int32_t steps) -> bool
+{
+    if (height() == lport()->height())
+    {
+        return false;
+    }
+
+    for (; steps != 0; steps += steps < 0 ? 1 : -1)
+    {
+        ReceiveClick(steps < 0 ? -1 : 1, 0);
+    }
+
+    return true;
+}
+
 auto lScrollTextObject::getTextLine(int32_t line, char* dest, int32_t destSize) -> int
 {
     char* p = text;

@@ -262,6 +262,9 @@ public:
     /// <remarks>MCX.EXE @ 0x006e6f70</remarks>
     void ReceiveClick(int32_t direction, int32_t yPos);
 
+    /// <summary>Port-only: the mouse wheel scrolls a line per notch, as the arrows do. Not taken when the text fits.</summary>
+    bool MouseWheel(int32_t steps) override;
+
     /// <summary>Copies line <paramref name="line"/> (without its color byte) into <paramref name="dest"/>.</summary>
     /// <returns>-1 when the line exists, else 0.</returns>
     /// <remarks>MCX.EXE @ 0x006e7090</remarks>

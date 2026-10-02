@@ -1747,6 +1747,16 @@ auto MissionResultsScreen::destroy() -> void
     }
 }
 
+auto MissionResultsScreen::MouseWheel(int32_t steps) -> bool
+{
+    if (MPlayer != nullptr || textObject == nullptr)
+    {
+        return false;
+    }
+
+    return textObject->MouseWheel(steps);
+}
+
 auto MissionResultsScreen::handleEvent(aEvent* event) -> void
 {
     aObject::handleEvent(event);

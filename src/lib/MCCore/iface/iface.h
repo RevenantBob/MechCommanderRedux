@@ -387,6 +387,13 @@ public:
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006cc4c0</remarks>
     void handleEvent(aEvent* event);
+    /// <summary>
+    /// The zoom-in key: the main camera goes to full scale and the tool palette's zoom button flips. Inline in
+    /// <see cref="handleEvent"/> in the original; split out so the mouse wheel can share it.
+    /// </summary>
+    void ZoomIn();
+    /// <summary>The zoom-out key, as <see cref="ZoomIn"/>: the main camera goes to scale 1.</summary>
+    void ZoomOut();
 
     /// <summary>Makes the command parser, starts the scroll callback and the lance icons.</summary>
     /// <remarks>MCX.EXE @ 0x006d01c0</remarks>

@@ -219,6 +219,11 @@ public:
     /// <summary>Scroll-button clicks and auto-repeat timers, Escape (skip the animation), and the multiplayer timeout.</summary>
     /// <remarks>MCX.EXE @ 0x0072cc10 (vtable slot 21)</remarks>
     void handleEvent(aEvent* event) override;
+    /// <summary>
+    /// Port-only: the mouse wheel scrolls the text anywhere over the screen, as the scroll buttons do (single player
+    /// only, as they are).
+    /// </summary>
+    bool MouseWheel(int32_t steps) override;
 
     /// <summary>Dims the screen, advances the drawing steps that are due, and draws the window and its children.</summary>
     /// <remarks>MCX.EXE @ 0x0072cf00 (vtable slot 50)</remarks>

@@ -655,6 +655,44 @@ auto ScrollPane::handleEvent(aEvent* event) -> void
     setScrollPos(newScrollPos * 100.0f);
 }
 
+auto ScrollPane::MouseWheel(int32_t steps) -> bool
+{
+    if (contentPort == nullptr || sliderHeight == 0)
+    {
+        return false;
+    }
+
+    for (; steps != 0; steps += steps < 0 ? 1 : -1)
+    {
+        if (child(0) == nullptr)
+        {
+            setSliderPos(sliderPos + (steps < 0 ? -blackFont->height() : blackFont->height()));
+            continue;
+        }
+
+        // To the row boundary above or below the top of the view. The percent position can leave the offset a pixel
+        // short of a boundary, so going down counts that pixel as the boundary.
+        const int32_t rowHeight = child(0)->height();
+        const int32_t offset = getScrollOffset();
+        int32_t row;
+
+        if (steps < 0)
+        {
+            row = offset % rowHeight == 0 ? offset / rowHeight - 1 : offset / rowHeight;
+        }
+        else
+        {
+            row = (offset + 1) / rowHeight + 1;
+        }
+
+        setScrollPos(static_cast<float>(rowHeight * row) / static_cast<float>(contentPort->height()) * 100.0f);
+    }
+
+    // As releasing an arrow.
+    parent->draw();
+    return true;
+}
+
 auto ScrollPane::getScrollOffset() -> int32_t
 {
     return static_cast<int32_t>(static_cast<double>(scrollPos) * scrollUnit);

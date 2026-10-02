@@ -2592,6 +2592,97 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
             event.shiftKey = low & MK_SHIFT;
             break;
         }
+        case WM_MOUSEWHEEL:
+        {
+            // The original ignored the wheel. Over the battlefield (the main pane itself, not the interface drawn
+            // over it) it zooms like the zoom keys: up in, down out. Over anything else it scrolls the first of the
+            // object and its parents that has a scroll bar (aObject::MouseWheel).
+            if (screenWindow == nullptr || application->grabbedObject() != nullptr)
+            {
+                return 1;
+            }
+
+            const int16_t delta = static_cast<int16_t>(wParam >> 16);
+            aObject* target = nullptr;
+
+            if (EventsToMissionResultsScreen != 0 && mission != nullptr && mission->resultsScreen != nullptr)
+            {
+                target = mission->resultsScreen->findObject(cursor.x, cursor.y);
+            }
+            else
+            {
+                target = screenWindow->findObject(cursor.x, cursor.y);
+            }
+
+            if (target == nullptr)
+            {
+                return 1;
+            }
+
+            if (theInterface != nullptr && scenario != nullptr && turn > 0 && EventsToMissionResultsScreen == 0 &&
+                mainHolder != nullptr && target == mainHolder->GetActivePane())
+            {
+                // Not while the camera can't zoom (paused, the game menu, 45-pixel art only), where the keys would
+                // still flip the zoom button and leave it out of step.
+                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+                {
+                    if (delta > 0)
+                    {
+                        theInterface->ZoomIn();
+                    }
+                    else if (delta < 0)
+                    {
+                        theInterface->ZoomOut();
+                    }
+                }
+
+                return 1;
+            }
+
+            // A modal object only takes the wheel for itself and its children, as for other events.
+            if (application->modalObject() != nullptr)
+            {
+                aObject* owner = target;
+
+                while (owner != nullptr && owner != application->modalObject())
+                {
+                    owner = owner->parent;
+                }
+
+                if (owner == nullptr)
+                {
+                    return 1;
+                }
+            }
+
+            // A notch is 120; finer wheels and touchpads send less, so the remainder carries over. Wheel up scrolls
+            // up (negative steps).
+            static int32_t wheelRemainder = 0;
+
+            if ((wheelRemainder > 0 && delta < 0) || (wheelRemainder < 0 && delta > 0))
+            {
+                wheelRemainder = 0;
+            }
+
+            wheelRemainder += delta;
+            const int32_t steps = -(wheelRemainder / 120);
+            wheelRemainder %= 120;
+
+            if (steps == 0)
+            {
+                return 1;
+            }
+
+            for (aObject* object = target; object != nullptr; object = object->parent)
+            {
+                if (object->MouseWheel(steps))
+                {
+                    break;
+                }
+            }
+
+            return 1;
+        }
     }
 
     // Mouse moves and presses come from CheckMouse, not from here. Messages from WM_USER + 0x1000 up are posted

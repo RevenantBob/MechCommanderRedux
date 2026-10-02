@@ -83,6 +83,11 @@ public:
     /// </summary>
     /// <remarks>MCX.EXE @ 0x00728140</remarks>
     void handleEvent(aEvent* event) override;
+    /// <summary>
+    /// Port-only: the mouse wheel steps a row per notch, as the arrows do (a <c>blackFont</c> line of slider when
+    /// there are no children). Not taken when the content fits (no slider).
+    /// </summary>
+    bool MouseWheel(int32_t steps) override;
     /// <summary>The first content row shown.</summary>
     /// <remarks>MCX.EXE @ 0x00728dc0</remarks>
     int32_t getScrollOffset();

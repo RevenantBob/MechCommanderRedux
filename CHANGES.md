@@ -60,6 +60,10 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 
 - The mouse cursor is the system cursor, so it moves smoothly even when the game's frame rate drops.
 - An item dragged in the logistics inventory moves with the cursor.
+- The mouse wheel works; the original didn't use it. Over the battlefield, wheel up zooms in and wheel down zooms out,
+  as the zoom keys do. Over the tactical map it zooms the map, as its zoom buttons do. Over any list or text with a
+  scroll bar (mechs, pilots, vehicles, inventory, briefing, saved games, the tactical map's info and salvage pages, the
+  mission results, the multiplayer game list) it scrolls a row or line per notch, as the scroll arrows do.
 
 ### Sound
 
