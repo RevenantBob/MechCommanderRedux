@@ -429,12 +429,16 @@ public:
 
     /// <summary>
     /// Port-only (the original had no wheel): scrolls by <paramref name="steps"/> arrow clicks, negative up, positive
-    /// down. translateMessage offers the wheel to the object under the mouse, then to its parents, until one takes it.
+    /// down. translateMessage offers the wheel to the object under the mouse (at <paramref name="xPos"/>,
+    /// <paramref name="yPos"/>), then to its parents, until one takes it. The position lets an object that draws a
+    /// hidden child itself (the logistics weapon lists) pass the wheel on to that child.
     /// </summary>
     /// <returns>Whether the object scrolls (whether or not it could move); false passes the wheel to the parent.</returns>
-    virtual bool MouseWheel(int32_t steps)
+    virtual bool MouseWheel(int32_t steps, int32_t xPos, int32_t yPos)
     {
         (void)steps;
+        (void)xPos;
+        (void)yPos;
         return false;
     }
 

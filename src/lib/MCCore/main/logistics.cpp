@@ -2115,17 +2115,20 @@ auto LogMech::calcBR() -> int32_t
 
 auto LogMech::placeItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> void
 {
-    // The critical slots as one run: location * 12 + slot.
+    // An empty critical slot's item number.
+    constexpr uint8_t emptySlot = 0xff;
+    constexpr int32_t maxSlots = 12;
+    // The critical slots as one run: location * maxSlots + slot.
     ItemSlot* slots = &itemSlots[0][0];
     const auto number = static_cast<uint8_t>(itemNum);
     const auto damage = static_cast<uint8_t>(hits);
-    auto fill = [&](int32_t location, int32_t count, bool setMaster)
+    auto fill = [&](int32_t location, bool setMaster)
     {
-        for (int32_t slot = 0; slot < count; ++slot)
+        for (int32_t slot = 0; slot < NumLocationCriticalSpaces[location]; ++slot)
         {
-            ItemSlot& entry = slots[location * 12 + slot];
+            ItemSlot& entry = slots[location * maxSlots + slot];
 
-            if (entry.row == 0xff)
+            if (entry.row == emptySlot)
             {
                 entry.row = number;
                 entry.column = damage;
@@ -2140,11 +2143,11 @@ auto LogMech::placeItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> void
         }
     };
 
-    auto holds = [&](int32_t location, int32_t count)
+    auto holds = [&](int32_t location)
     {
-        for (int32_t slot = 0; slot < count; ++slot)
+        for (int32_t slot = 0; slot < NumLocationCriticalSpaces[location]; ++slot)
         {
-            if (slots[location * 12 + slot].masterID == masterID)
+            if (slots[location * maxSlots + slot].masterID == masterID)
             {
                 return true;
             }
@@ -2157,94 +2160,77 @@ auto LogMech::placeItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> void
     {
         switch (component(masterID).form)
         {
-            case 1:
-            case 2:
-            case 0xd:
-            case 0x10:
-            case 0x11:
+            case COMPONENT_FORM_COCKPIT:
+            case COMPONENT_FORM_SENSOR:
+            case COMPONENT_FORM_LIFESUPPORT:
+            case COMPONENT_FORM_ECM:
+            case COMPONENT_FORM_PROBE:
             {
                 // Head equipment (the component is not recorded).
-                fill(0, 6, false);
+                fill(MECH_BODY_LOCATION_HEAD, false);
                 return;
             }
-            case 3:
+            case COMPONENT_FORM_ACTUATOR:
             {
                 if (masterID != 4 && masterID != 0x21)
                 {
-                    // Leg parts: the left leg, or the right leg when the left already has one.
-                    if (holds(6, 6))
+                    // Leg actuators: the left leg, or the right leg when the left already has one.
+                    if (holds(MECH_BODY_LOCATION_LLEG))
                     {
-                        fill(7, 6, true);
+                        fill(MECH_BODY_LOCATION_RLEG, true);
                     }
                     else
                     {
-                        fill(6, 6, true);
+                        fill(MECH_BODY_LOCATION_LLEG, true);
                     }
 
                     return;
                 }
 
-                // Arm parts (4 and 0x21): the left arm, or the right arm when the left already has one.
-                if (holds(4, 12))
+                // Arm actuators (4 and 0x21): the left arm, or the right arm when the left already has one.
+                if (holds(MECH_BODY_LOCATION_LARM))
                 {
-                    fill(5, 12, true);
+                    fill(MECH_BODY_LOCATION_RARM, true);
                 }
                 else
                 {
-                    fill(4, 12, true);
+                    fill(MECH_BODY_LOCATION_LARM, true);
                 }
 
                 return;
             }
-            case 4:
-            case 0xe:
+            case COMPONENT_FORM_ENGINE:
+            case COMPONENT_FORM_GYROSCOPE:
             {
                 // Centre torso (the component is not recorded).
-                fill(1, 12, false);
+                fill(MECH_BODY_LOCATION_CTORSO, false);
                 return;
             }
-            case 0xb:
+            case COMPONENT_FORM_JUMPJET:
             {
-                // Jump jets: the leg with fewer of them (forms 10..13 by master id).
-                // Original behaviour (OB-092): the count only moves on through the slots when the left leg's slot
-                // matches, and every empty slot of the leg's first six gets this jet.
-                auto* bytes = reinterpret_cast<uint8_t*>(slots);
-                size_t offset = 7 * 36 + 2;
-                int32_t rightCount = 0;
-                int32_t leftCount = 0;
-
-                for (int32_t step = 0; step < 6; ++step)
+                // Jump jets: the leg with fewer of them, the left on a tie.
+                // OB-092 (fixed): MCX.EXE read both legs at one slot index that only moved on when the left leg's slot
+                // held a jet (and took master ids 10..13 as the jets), then put this jet in every empty slot of the
+                // chosen leg.
+                auto countJets = [&](int32_t location)
                 {
-                    const uint8_t left = bytes[offset - 0x24];
+                    int32_t count = 0;
 
-                    if (left >= 10 && left <= 13)
+                    for (int32_t slot = 0; slot < NumLocationCriticalSpaces[location]; ++slot)
                     {
-                        ++leftCount;
-                        offset += 3;
+                        if (slotForm(slots[location * maxSlots + slot].masterID) == COMPONENT_FORM_JUMPJET)
+                        {
+                            ++count;
+                        }
                     }
 
-                    const uint8_t right = bytes[offset];
+                    return count;
+                };
 
-                    if (right >= 10 && right <= 13)
-                    {
-                        ++rightCount;
-                    }
-                }
-
-                const int32_t location = 6 + (rightCount < leftCount ? 1 : 0);
-
-                for (int32_t slot = 0; slot < 6; ++slot)
-                {
-                    ItemSlot& entry = slots[location * 12 + slot];
-
-                    if (entry.row == 0xff)
-                    {
-                        entry.row = number;
-                        entry.column = damage;
-                        entry.masterID = masterID;
-                    }
-                }
-
+                const int32_t location = countJets(MECH_BODY_LOCATION_RLEG) < countJets(MECH_BODY_LOCATION_LLEG)
+                                             ? MECH_BODY_LOCATION_RLEG
+                                             : MECH_BODY_LOCATION_LLEG;
+                fill(location, true);
                 return;
             }
 
@@ -2253,79 +2239,50 @@ auto LogMech::placeItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> void
         }
     }
 
-    // Weapons: the arm or side torso (left arm, right arm, left torso, right torso) with the fewest of their size.
-    static constexpr int32_t weaponLocations[4] = {4, 5, 2, 3};
-    int32_t location = 0;
+    // Weapons: the arm or side torso with room and the fewest weapons of their size, ties going to the one searched
+    // first. Small weapons search the arms first, large weapons the side torsos.
+    // OB-092 (fixed): MCX.EXE started the large search from the left torso's count but with the left arm chosen, so
+    // large weapons piled into the left arm, and it wrote into a full location's slot 12 (the next location's first).
+    static constexpr int32_t smallWeaponOrder[4] = {MECH_BODY_LOCATION_LARM, MECH_BODY_LOCATION_RARM,
+                                                    MECH_BODY_LOCATION_LTORSO, MECH_BODY_LOCATION_RTORSO};
+    static constexpr int32_t largeWeaponOrder[4] = {MECH_BODY_LOCATION_LTORSO, MECH_BODY_LOCATION_RTORSO,
+                                                    MECH_BODY_LOCATION_LARM, MECH_BODY_LOCATION_RARM};
+    const bool large = getWeaponLarge(masterID) != 0;
+    int32_t location = -1;
+    int32_t fewest = 0;
 
-    if (getWeaponLarge(masterID) == 0)
+    for (const int32_t candidate : large ? largeWeaponOrder : smallWeaponOrder)
     {
-        const int32_t leftArm = getSmallWeaponCount(4);
-        const int32_t rightArm = getSmallWeaponCount(5);
-        int32_t fewest = leftArm;
+        bool hasRoom = false;
 
-        if (rightArm < leftArm)
+        for (int32_t slot = 0; slot < NumLocationCriticalSpaces[candidate]; ++slot)
         {
-            fewest = rightArm;
+            if (slots[candidate * maxSlots + slot].row == emptySlot)
+            {
+                hasRoom = true;
+                break;
+            }
         }
 
-        int32_t choice = rightArm < leftArm ? 1 : 0;
-        const int32_t leftTorso = getSmallWeaponCount(2);
-
-        if (leftTorso < fewest)
+        if (!hasRoom)
         {
-            choice = 2;
-            fewest = leftTorso;
+            continue;
         }
 
-        if (getSmallWeaponCount(3) < fewest)
+        const int32_t count = large ? getLargeWeaponCount(candidate) : getSmallWeaponCount(candidate);
+
+        if (location < 0 || count < fewest)
         {
-            choice = 3;
+            location = candidate;
+            fewest = count;
         }
-
-        location = weaponLocations[choice];
-    }
-    else
-    {
-        // Original behaviour (OB-092): the search starts from the left torso's count but with the left arm chosen,
-        // so a left torso with the fewest large weapons sends the weapon to the left arm.
-        int32_t choice = 0;
-        int32_t fewest = getLargeWeaponCount(2);
-        const int32_t rightTorso = getLargeWeaponCount(3);
-
-        if (rightTorso < fewest)
-        {
-            choice = 3;
-            fewest = rightTorso;
-        }
-
-        const int32_t leftArm = getLargeWeaponCount(4);
-
-        if (leftArm < fewest)
-        {
-            choice = 0;
-            fewest = leftArm;
-        }
-
-        if (getLargeWeaponCount(5) < fewest)
-        {
-            choice = 1;
-        }
-
-        location = weaponLocations[choice];
     }
 
-    int32_t slot = 0;
-
-    while (slot < 12 && slots[location * 12 + slot].row != 0xff)
+    // No arm or side torso has room: the weapon gets no critical slot.
+    if (location >= 0)
     {
-        ++slot;
+        fill(location, true);
     }
-
-    // Original behaviour (OB-092): with the location full, slot 12 is the next location's first slot.
-    ItemSlot& entry = slots[location * 12 + slot];
-    entry.row = number;
-    entry.column = damage;
-    entry.masterID = masterID;
 }
 
 auto LogMech::getWeaponLarge(uint8_t masterID) -> int32_t
@@ -2374,7 +2331,10 @@ auto LogMech::getSmallWeaponCount(int32_t location) -> int32_t
     {
         const int32_t form = slotForm(slot.masterID);
 
-        if ((form == 7 || form == 8 || form == 9 || form == 10) && getWeaponLarge(slot.masterID) == 0)
+        // Ammunition counts as a small weapon.
+        if ((form == COMPONENT_FORM_WEAPON_ENERGY || form == COMPONENT_FORM_WEAPON_BALLISTIC ||
+             form == COMPONENT_FORM_WEAPON_MISSILE || form == COMPONENT_FORM_AMMO) &&
+            getWeaponLarge(slot.masterID) == 0)
         {
             ++count;
         }

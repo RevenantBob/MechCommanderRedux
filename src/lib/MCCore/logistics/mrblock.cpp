@@ -225,6 +225,13 @@ namespace
         return static_cast<int32_t>(static_cast<double>(pane->scrollPos) * static_cast<double>(pane->scrollUnit));
     }
 
+    /// <summary>Whether a point is over the pane, scroll bar included (the area its clicks go to).</summary>
+    bool overPane(aObject* pane, int32_t xPos, int32_t yPos)
+    {
+        return pane != nullptr && pane->globalX() <= xPos && xPos <= pane->globalX() + pane->width() &&
+               pane->globalY() <= yPos && yPos <= pane->globalY() + pane->height();
+    }
+
     /// <summary>Whether the event is inside the pane, left of its scroll bar (all edges excluded).</summary>
     bool overPaneInside(aObject* pane, aEvent* event)
     {
@@ -2144,6 +2151,20 @@ auto MechRepairBlock::drawInventory(lPort* port) -> void
     delete work;
 }
 
+auto MechRepairBlock::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
+{
+    auto* pane = static_cast<ScrollPane*>(child(0));
+
+    if (!overPane(pane, xPos, yPos) || !pane->MouseWheel(steps, xPos, yPos))
+    {
+        return false;
+    }
+
+    // As a click on the list's scroll bar.
+    drawInventory(nullptr);
+    return true;
+}
+
 auto LogMech::calcStatus() -> float
 {
     statusValue = 0.0f;
@@ -3770,6 +3791,13 @@ auto BriefingBox::handleEvent(aEvent* event) -> void
     {
         pane->handleEvent(event);
     }
+}
+
+auto BriefingBox::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
+{
+    // The pane redraws the box (its parent) when it scrolls.
+    aObject* pane = child(0);
+    return overPane(pane, xPos, yPos) && pane->MouseWheel(steps, xPos, yPos);
 }
 
 auto BriefingBox::draw() -> void

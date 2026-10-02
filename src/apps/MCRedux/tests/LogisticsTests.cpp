@@ -7,6 +7,7 @@
 #include "logistics/logmain.h"
 #include "main/logistics.h"
 #include "object/cmponent.h"
+#include "object/mech.h"
 #include "object/objtype.h"
 
 namespace
@@ -50,6 +51,48 @@ namespace
         std::unique_ptr<Logistics> _Logistics;
         Logistics* _Saved = nullptr;
     };
+
+    /// <summary>Empties every critical slot of <paramref name="mech"/>, as the profile writer does before placing.</summary>
+    void ClearSlots(LogMech& mech)
+    {
+        for (auto& location : mech.itemSlots)
+        {
+            for (auto& slot : location)
+            {
+                slot = {0xff, 0, 0xff};
+            }
+        }
+    }
+
+    /// <summary>The used critical slots of <paramref name="location"/> that hold <paramref name="masterID"/>.</summary>
+    int32_t CountHeld(const LogMech& mech, int32_t location, uint8_t masterID)
+    {
+        int32_t count = 0;
+
+        for (const LogMech::ItemSlot& slot : mech.itemSlots[location])
+        {
+            if (slot.row != 0xff && slot.masterID == masterID)
+            {
+                ++count;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>The first master component of <paramref name="form"/>, or -1.</summary>
+    int32_t FindComponent(int32_t form, int32_t first, int32_t last)
+    {
+        for (int32_t id = first; id <= last && id < NumMasterComponents; ++id)
+        {
+            if (MasterComponentList[id].form == form)
+            {
+                return id;
+            }
+        }
+
+        return -1;
+    }
 }
 
 TEST_CASE("game: logistics reads a mech profile into its list")
@@ -177,4 +220,153 @@ TEST_CASE("game: logistics inventory lists add, count, remove and measure copies
     CHECK_EQ(list.numItems, 1);
     list.destroy();
     CHECK_EQ(list.numItems, 0);
+}
+
+TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    LogisticsFixture fixture;
+
+    LogMechList mechs;
+    LogMech* mech = mechs.addMech(const_cast<char*>("PM100100"), 0, 1, 0);
+    REQUIRE(mech != nullptr);
+
+    // A large weapon (master id 100) and the first small energy weapon.
+    const auto largeID = static_cast<uint8_t>(100);
+    REQUIRE(mech->getWeaponLarge(largeID) != 0);
+    int32_t smallID = -1;
+
+    for (int32_t id = 100; id < NumMasterComponents && smallID < 0; ++id)
+    {
+        if (MasterComponentList[id].form == COMPONENT_FORM_WEAPON_ENERGY &&
+            mech->getWeaponLarge(static_cast<uint8_t>(id)) == 0)
+        {
+            smallID = id;
+        }
+    }
+
+    REQUIRE(smallID >= 0);
+    const int32_t weaponLocations[4] = {MECH_BODY_LOCATION_LTORSO, MECH_BODY_LOCATION_RTORSO, MECH_BODY_LOCATION_LARM,
+                                        MECH_BODY_LOCATION_RARM};
+
+    // Eight large weapons: two in each arm and side torso, not all in the left arm (OB-092).
+    ClearSlots(*mech);
+
+    for (int32_t item = 0; item < 8; ++item)
+    {
+        mech->placeItem(largeID, item, 0);
+    }
+
+    for (const int32_t location : weaponLocations)
+    {
+        MCTest::Scope scope(std::to_string(location));
+        CHECK_EQ(CountHeld(*mech, location, largeID), 2);
+    }
+
+    // The first large weapon goes to a side torso, the first small weapon to an arm.
+    ClearSlots(*mech);
+    mech->placeItem(largeID, 0, 0);
+    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LTORSO, largeID), 1);
+    mech->placeItem(static_cast<uint8_t>(smallID), 1, 0);
+    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LARM, static_cast<uint8_t>(smallID)), 1);
+
+    // Four small weapons: one in each.
+    ClearSlots(*mech);
+
+    for (int32_t item = 0; item < 4; ++item)
+    {
+        mech->placeItem(static_cast<uint8_t>(smallID), item, 0);
+    }
+
+    for (const int32_t location : weaponLocations)
+    {
+        MCTest::Scope scope(std::to_string(location));
+        CHECK_EQ(CountHeld(*mech, location, static_cast<uint8_t>(smallID)), 1);
+    }
+
+    // A full left arm is passed over, and nothing spills into the right arm's first slot.
+    ClearSlots(*mech);
+
+    for (LogMech::ItemSlot& slot : mech->itemSlots[MECH_BODY_LOCATION_LARM])
+    {
+        slot = {50, 0, 0};
+    }
+
+    mech->itemSlots[MECH_BODY_LOCATION_RARM][0] = {51, 0, 0};
+    mech->placeItem(static_cast<uint8_t>(smallID), 52, 0);
+    CHECK_EQ(mech->itemSlots[MECH_BODY_LOCATION_RARM][0].row, 51);
+    CHECK_EQ(mech->itemSlots[MECH_BODY_LOCATION_RARM][1].row, 52);
+
+    // With every arm and side torso full, the weapon gets no slot and nothing is overwritten.
+    ClearSlots(*mech);
+
+    for (const int32_t location : weaponLocations)
+    {
+        for (LogMech::ItemSlot& slot : mech->itemSlots[location])
+        {
+            slot = {50, 0, 0};
+        }
+    }
+
+    mech->placeItem(largeID, 53, 0);
+
+    for (const auto& location : mech->itemSlots)
+    {
+        for (const LogMech::ItemSlot& slot : location)
+        {
+            CHECK(slot.row != 53);
+        }
+    }
+
+    CHECK_EQ(mech->itemSlots[MECH_BODY_LOCATION_LLEG][0].row, 0xff);
+    mechs.destroy();
+}
+
+TEST_CASE("game: logistics puts each jump jet in one slot of the leg with fewer")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    LogisticsFixture fixture;
+
+    LogMechList mechs;
+    LogMech* mech = mechs.addMech(const_cast<char*>("PM100100"), 0, 1, 0);
+    REQUIRE(mech != nullptr);
+    const int32_t jetID = FindComponent(COMPONENT_FORM_JUMPJET, 0, 99);
+    REQUIRE(jetID >= 0);
+    const auto jet = static_cast<uint8_t>(jetID);
+
+    // One jet takes one slot, in the left leg.
+    ClearSlots(*mech);
+    mech->placeItem(jet, 0, 0);
+    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LLEG, jet), 1);
+    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_RLEG, jet), 0);
+
+    // Four jets: two per leg.
+    for (int32_t item = 1; item < 4; ++item)
+    {
+        mech->placeItem(jet, item, 0);
+    }
+
+    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LLEG, jet), 2);
+    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_RLEG, jet), 2);
+
+    // Another component in the left leg's first slot doesn't stop the jets after it being counted.
+    ClearSlots(*mech);
+    mech->itemSlots[MECH_BODY_LOCATION_LLEG][0] = {40, 0, 0};
+
+    for (int32_t item = 0; item < 3; ++item)
+    {
+        mech->placeItem(jet, item, 0);
+    }
+
+    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LLEG, jet), 2);
+    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_RLEG, jet), 1);
+    mechs.destroy();
 }

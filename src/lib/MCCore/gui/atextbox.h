@@ -110,7 +110,7 @@ public:
     /// <remarks>MCX.EXE @ 0x006179f0</remarks>
     void ReceiveClick(int32_t direction, int32_t yPos);
     /// <summary>Port-only: the mouse wheel scrolls a line per notch, as the arrows do. Not taken when the text fits.</summary>
-    bool MouseWheel(int32_t steps) override;
+    bool MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) override;
 
     /// <summary>The first pixel row of the port shown.</summary>
     int32_t firstPixel = 0; // +0x4ac

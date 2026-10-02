@@ -167,7 +167,7 @@ public:
     /// Port-only: on the map page the mouse wheel zooms as the zoom buttons do (up in, down out); on the info,
     /// mission and salvage pages it scrolls the page's text as the page's arrows do.
     /// </summary>
-    bool MouseWheel(int32_t steps) override;
+    bool MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) override;
 
     /// <remarks>MCX.EXE @ 0x007405a0; slot 41</remarks>
     void enter() override { mouseInside = -1; }

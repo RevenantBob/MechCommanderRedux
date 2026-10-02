@@ -2608,7 +2608,7 @@ auto lScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
     draw();
 }
 
-auto lScrollTextObject::MouseWheel(int32_t steps) -> bool
+auto lScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
     if (height() == lport()->height())
     {

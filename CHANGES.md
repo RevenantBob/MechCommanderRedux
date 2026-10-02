@@ -62,8 +62,9 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - An item dragged in the logistics inventory moves with the cursor.
 - The mouse wheel works; the original didn't use it. Over the battlefield, wheel up zooms in and wheel down zooms out,
   as the zoom keys do. Over the tactical map it zooms the map, as its zoom buttons do. Over any list or text with a
-  scroll bar (mechs, pilots, vehicles, inventory, briefing, saved games, the tactical map's info and salvage pages, the
-  mission results, the multiplayer game list) it scrolls a row or line per notch, as the scroll arrows do.
+  scroll bar (mechs, pilots, vehicles, inventory, a mech's weapon list in the repair bay and briefing, saved games, the
+  tactical map's info and salvage pages, the mission results, the multiplayer game list) it scrolls a row or line per
+  notch, as the scroll arrows do. A list inside another list scrolls first.
 
 ### Sound
 
@@ -129,6 +130,13 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - The purchase and repair tickers no longer show garbage text.
 - The marks of a fourth or later drop zone no longer overwrite the drop zone data.
 - Fixed several memory leaks in the logistics screens.
+- Refitting a mech assigns its critical slots as intended. This changes how the game plays, because a component is
+  lost with the location that holds it.
+  - Large weapons are spread over the side torsos and arms. The original put nearly all of them in the left arm, so
+    losing that arm took most of a mech's firepower with it (the bug fixed by the community "left arm" patch).
+  - Each jump jet takes one slot, in the leg with fewer jets. The original miscounted the jets and put each one in
+    every empty slot of a leg.
+  - A weapon is never put in a full location. The original wrote it over the first slot of the next location.
 
 ### Mission Scripts
 
@@ -210,7 +218,6 @@ These bugs are in the original MechCommander Gold. Some of these bugs are kept o
 - Moving two mechs, vehicles or pilots in a row between lists can corrupt both lists.
 - Removing a unit from its drop slot, or loading a campaign, can remove the wrong pilot.
 - A lance holding only vehicles can show 0 tons.
-- Jump jets can be listed in several slots, and large weapons put in the left arm.
 - Ticker text wider than the ticker never scrolls.
 - Pilots of the same rank are listed in a scrambled order in the mission results.
 - Clicking the mission results' scroll bar scrolls to about 15 pixels below the click.

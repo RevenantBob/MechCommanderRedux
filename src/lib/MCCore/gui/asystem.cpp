@@ -2675,7 +2675,7 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
 
             for (aObject* object = target; object != nullptr; object = object->parent)
             {
-                if (object->MouseWheel(steps))
+                if (object->MouseWheel(steps, cursor.x, cursor.y))
                 {
                     break;
                 }

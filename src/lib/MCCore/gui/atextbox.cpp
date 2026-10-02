@@ -779,7 +779,7 @@ auto aScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
     draw();
 }
 
-auto aScrollTextObject::MouseWheel(int32_t steps) -> bool
+auto aScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
     if (height() == port()->height())
     {

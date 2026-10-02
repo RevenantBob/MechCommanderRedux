@@ -2079,12 +2079,12 @@ auto TacticalMap::handleEvent(aEvent* event) -> void
     aObject::handleEvent(event);
 }
 
-auto TacticalMap::MouseWheel(int32_t steps) -> bool
+auto TacticalMap::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
     if (displayType > TACMAP_MAP && displayType <= TACMAP_SALVAGE)
     {
         aScrollTextObject* text = displayType == TACMAP_SALVAGE ? salvageText : infoText;
-        return text->MouseWheel(steps);
+        return text->MouseWheel(steps, xPos, yPos);
     }
 
     if (displayType == TACMAP_MAP)

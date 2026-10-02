@@ -1747,14 +1747,14 @@ auto MissionResultsScreen::destroy() -> void
     }
 }
 
-auto MissionResultsScreen::MouseWheel(int32_t steps) -> bool
+auto MissionResultsScreen::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
     if (MPlayer != nullptr || textObject == nullptr)
     {
         return false;
     }
 
-    return textObject->MouseWheel(steps);
+    return textObject->MouseWheel(steps, xPos, yPos);
 }
 
 auto MissionResultsScreen::handleEvent(aEvent* event) -> void

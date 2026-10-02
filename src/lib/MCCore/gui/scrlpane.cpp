@@ -655,7 +655,7 @@ auto ScrollPane::handleEvent(aEvent* event) -> void
     setScrollPos(newScrollPos * 100.0f);
 }
 
-auto ScrollPane::MouseWheel(int32_t steps) -> bool
+auto ScrollPane::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
     if (contentPort == nullptr || sliderHeight == 0)
     {

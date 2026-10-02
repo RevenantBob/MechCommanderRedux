@@ -81,6 +81,12 @@ public:
     void drawInventory(lPort* port);
 
     /// <summary>
+    /// Port-only: over the weapon list the mouse wheel scrolls it, as its arrows do. The list's pane is hidden (the
+    /// block draws it), so the wheel finds the block, which would otherwise pass it on to the unit list.
+    /// </summary>
+    bool MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) override;
+
+    /// <summary>
     /// Draws the mech's status bar (colour by <c>LogMech::calcStatus</c>) into <paramref name="port"/>, or into the
     /// repair scroll pane at <see cref="slotIndex"/> when it is null.
     /// </summary>
@@ -284,6 +290,12 @@ public:
 
     /// <remarks>MCX.EXE @ 0x0071ebc0</remarks>
     void handleEvent(aEvent* event) override;
+
+    /// <summary>
+    /// Port-only: over the weapon list the mouse wheel scrolls it, as its arrows do (the list's pane is hidden, so the
+    /// wheel finds the box).
+    /// </summary>
+    bool MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) override;
 
     /// <remarks>MCX.EXE @ 0x0071ec10</remarks>
     void draw() override;

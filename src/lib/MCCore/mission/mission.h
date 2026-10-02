@@ -223,7 +223,7 @@ public:
     /// Port-only: the mouse wheel scrolls the text anywhere over the screen, as the scroll buttons do (single player
     /// only, as they are).
     /// </summary>
-    bool MouseWheel(int32_t steps) override;
+    bool MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) override;
 
     /// <summary>Dims the screen, advances the drawing steps that are due, and draws the window and its children.</summary>
     /// <remarks>MCX.EXE @ 0x0072cf00 (vtable slot 50)</remarks>
