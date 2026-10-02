@@ -1,6 +1,12 @@
 #include "stdafx.h"
 #include "MCPort.h"
 
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
+
 namespace MCPort
 {
     void ReportUnimplemented(const char* file, int line, const char* what)
@@ -144,6 +150,15 @@ namespace MCPort
     {
         ManualClockNs += nanoseconds;
         ManualClockReads = 0;
+    }
+
+    uint32_t ProcessId()
+    {
+#ifdef _WIN32
+        return static_cast<uint32_t>(_getpid());
+#else
+        return static_cast<uint32_t>(getpid());
+#endif
     }
 
     uint32_t Milliseconds()

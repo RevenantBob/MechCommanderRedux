@@ -1384,8 +1384,12 @@ auto Mission::EndScenario() -> void
 auto Mission::saveWindowStatus() -> void
 {
     FitIniFile windowFile;
+    // windows.tmp in the original: under the process ID, as copies of the game on one machine share the user folder
+    // and leave a multiplayer mission together.
+    char tempName[32];
+    std::snprintf(tempName, sizeof(tempName), "windows.%u.tmp", MCPort::ProcessId());
 
-    if (windowFile.open("windows.tmp", CREATE) != 0)
+    if (windowFile.open(tempName, CREATE) != 0)
     {
         return;
     }
@@ -1401,7 +1405,7 @@ auto Mission::saveWindowStatus() -> void
     windowFile.writeIdBoolean("ShowPalette", theInterface->tacticalMap->paletteFrame->IsShowing());
     windowFile.close();
     MCFileSystem::RemoveFile("windows.fit");
-    MCFileSystem::RenameFile("windows.tmp", "windows.fit");
+    MCFileSystem::RenameFile(tempName, "windows.fit");
 }
 
 auto Mission::loadWindowStatus() -> void

@@ -203,7 +203,9 @@ void systemInit()
     }
 
     readPath(systemFile, "savePath", savePath, " Could not find save path ");
-    std::snprintf(saveTempPath, sizeof(saveTempPath), "%stemp\\", savePath);
+    // Copies of the game on one machine share the user folder: each keeps its temp FITs under its process ID, or a
+    // multiplayer client loads the host's generated scenario (bridge.fit) or the reverse.
+    std::snprintf(saveTempPath, sizeof(saveTempPath), "%stemp\\%u\\", savePath, MCPort::ProcessId());
     MCFileSystem::MakeDirectory(saveTempPath);
     readPath(systemFile, "terrainPath", terrainPath, " Could not find terrain path ");
     readPath(systemFile, "palettePath", palettePath, " Could not find palette path ");

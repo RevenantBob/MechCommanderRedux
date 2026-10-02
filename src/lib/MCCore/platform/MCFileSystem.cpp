@@ -274,6 +274,19 @@ namespace MCFileSystem
         return std::filesystem::is_directory(folder, error);
     }
 
+    bool RemoveDirectory(std::string_view gamePath)
+    {
+        const std::filesystem::path folder = ResolveWrite(gamePath);
+        std::error_code error;
+
+        if (!std::filesystem::is_directory(folder, error) || !std::filesystem::is_empty(folder, error))
+        {
+            return false;
+        }
+
+        return std::filesystem::remove(folder, error);
+    }
+
     std::vector<std::string> FindFiles(std::string_view gamePattern)
     {
         std::string folder(gamePattern);

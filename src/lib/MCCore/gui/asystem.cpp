@@ -39,6 +39,7 @@
 #include "vfx/vfxfuncs.h"
 #include "platform/MCCursor.h"
 #include "platform/MCDisplay.h"
+#include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "platform/MCWin32Defs.h"
@@ -433,13 +434,24 @@ auto MCFollowWindowSize() -> bool
 
     if (screenWindow != nullptr)
     {
-        // The original's resolution-change broadcast (nothing in MCX.EXE sends it): the main window takes the
-        // screen's size and re-tiles its panes, the mech bar goes back to the bottom.
         screenWindow->resize(width, height);
-        aEvent event;
-        event.clear();
-        event.type = 0x12;
-        screenWindow->handleEvent(&event);
+
+        if (mainHolder != nullptr)
+        {
+            // The original's resolution-change broadcast (nothing in MCX.EXE sends it): the main window takes the
+            // screen's size and re-tiles its panes, the mech bar goes back to the bottom.
+            aEvent event;
+            event.clear();
+            event.type = 0x12;
+            screenWindow->handleEvent(&event);
+        }
+        else if (theInterface != nullptr && theInterface->mechBar != nullptr)
+        {
+            // Before the scenario's windows exist (StartScenario after the window was resized in the menus),
+            // aMechBar::handleEvent would pass the event to mainHolder's active pane: just move the bar down.
+            aMechBar* bar = theInterface->mechBar;
+            bar->moveTo(1, application->height() - bar->height() - 1, 0);
+        }
     }
 
     return true;
@@ -3459,6 +3471,8 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
 auto aSystem::stop() -> void
 {
     destroyAllFITFiles(saveTempPath);
+    // The temp folder is this process's own (temp\<pid>\, see systemInit): it goes with its files.
+    MCFileSystem::RemoveDirectory(saveTempPath);
     application->removeCallback(mouseTrackerCallback);
 
     if (mouseTrackerCallback != nullptr)

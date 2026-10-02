@@ -46,6 +46,9 @@ namespace MCPort
     /// <summary>Milliseconds since the port started, as the original's <c>timeGetTime</c> / <c>GetTickCount</c>.</summary>
     uint32_t Milliseconds();
 
+    /// <summary>The running process's ID (no two running processes share one).</summary>
+    uint32_t ProcessId();
+
     /// <summary>
     /// Port-only (tests): from now on <see cref="Milliseconds"/> and <see cref="PerformanceCounter"/> read a clock
     /// that only <see cref="AdvanceManualClock"/> moves, so a run doesn't depend on how fast the machine is.

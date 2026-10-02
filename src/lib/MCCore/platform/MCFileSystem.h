@@ -43,6 +43,10 @@ namespace MCFileSystem
     /// <returns>Whether the folder exists afterwards.</returns>
     bool MakeDirectory(std::string_view gamePath);
 
+    /// <summary>Deletes an empty folder (the CRT's <c>_rmdir</c>). Folders in the install are left alone.</summary>
+    /// <returns>Whether the folder was deleted.</returns>
+    bool RemoveDirectory(std::string_view gamePath);
+
     /// <summary>
     /// The files in a folder whose names match a DOS wildcard (<c>*</c>, <c>?</c>; case ignored), as the CRT's
     /// <c>_findfirst</c>/<c>_findnext</c> list them: names only, user folder and install merged.

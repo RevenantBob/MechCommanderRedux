@@ -4625,7 +4625,8 @@ auto Logistics::init() -> void
 
     showLogScreen(0, 0);
 
-    std::snprintf(saveTempPath, sizeof(saveTempPath), "%stemp\\", savePath);
+    // Under the process ID, as aSystem::init sets it: copies of the game on one machine share the user folder.
+    std::snprintf(saveTempPath, sizeof(saveTempPath), "%stemp\\%u\\", savePath, MCPort::ProcessId());
     // Port fix (OB-094): the original allocated a File here, and a FitIniFile after the sort tables, and never used or
     // freed either.
 
