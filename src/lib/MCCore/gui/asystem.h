@@ -1059,6 +1059,8 @@ extern int gStretchToFit;
 /// <summary>Port-only: draw the cursor into the frame as the original did, instead of showing it as the system
 /// cursor (PREFS "SoftwareCursor", read by systemInit).</summary>
 extern int gSoftwareCursor;
+/// <summary>Port-only: open the display's window hidden (the tests that run a mission).</summary>
+extern int gHiddenWindow;
 extern int applicationActive;
 extern uint32_t systemHeapSize;
 extern uint32_t guiHeapSize;

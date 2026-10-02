@@ -47,6 +47,15 @@ namespace MCPort
     uint32_t Milliseconds();
 
     /// <summary>
+    /// Port-only (tests): from now on <see cref="Milliseconds"/> and <see cref="PerformanceCounter"/> read a clock
+    /// that only <see cref="AdvanceManualClock"/> moves, so a run doesn't depend on how fast the machine is.
+    /// </summary>
+    void UseManualClock();
+
+    /// <summary>Port-only (tests): moves the manual clock on by <paramref name="nanoseconds"/>.</summary>
+    void AdvanceManualClock(uint64_t nanoseconds);
+
+    /// <summary>
     /// The machine's physical memory in bytes, as <c>GlobalMemoryStatus</c>'s <c>dwTotalPhys</c> (clamped to what a
     /// 32-bit field holds, as the original saw it).
     /// </summary>

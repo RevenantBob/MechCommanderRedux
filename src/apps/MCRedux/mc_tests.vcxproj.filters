@@ -31,7 +31,13 @@
     <ClCompile Include="tests\MCTest.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\MissionTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\ObjectQueueTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\PathfindingTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\PortTests.cpp">

@@ -107,8 +107,52 @@ namespace MCPort
         destination[length] = 0;
     }
 
+    namespace
+    {
+        /// <summary>Set by <see cref="UseManualClock"/>: the clocks read <see cref="ManualClockNs"/>.</summary>
+        std::atomic<bool> ManualClock = false;
+        /// <summary>The manual clock, in nanoseconds.</summary>
+        std::atomic<uint64_t> ManualClockNs = 0;
+        /// <summary>The thread that called <see cref="UseManualClock"/> (the game's).</summary>
+        std::thread::id ManualClockThread;
+        /// <summary>The game thread's reads since the clock last advanced.</summary>
+        uint32_t ManualClockReads = 0;
+
+        /// <summary>
+        /// The manual clock, read. Reads don't move it, so it is the same however often the game looks; but a busy
+        /// wait (the palette fade, the 50 ms waits) would never end, so past 100,000 reads on the game's thread
+        /// without an advance, each read moves it on a microsecond.
+        /// </summary>
+        uint64_t ReadManualClock()
+        {
+            if (std::this_thread::get_id() == ManualClockThread && ++ManualClockReads > 100000)
+            {
+                return ManualClockNs += 1000;
+            }
+
+            return ManualClockNs.load();
+        }
+    }
+
+    void UseManualClock()
+    {
+        ManualClockThread = std::this_thread::get_id();
+        ManualClock = true;
+    }
+
+    void AdvanceManualClock(uint64_t nanoseconds)
+    {
+        ManualClockNs += nanoseconds;
+        ManualClockReads = 0;
+    }
+
     uint32_t Milliseconds()
     {
+        if (ManualClock)
+        {
+            return static_cast<uint32_t>(ReadManualClock() / 1000000);
+        }
+
         return static_cast<uint32_t>(SDL_GetTicks());
     }
 
@@ -120,11 +164,21 @@ namespace MCPort
 
     int64_t PerformanceCounter()
     {
+        if (ManualClock)
+        {
+            return static_cast<int64_t>(ReadManualClock());
+        }
+
         return static_cast<int64_t>(SDL_GetPerformanceCounter());
     }
 
     int64_t PerformanceFrequency()
     {
+        if (ManualClock)
+        {
+            return 1000000000;
+        }
+
         return static_cast<int64_t>(SDL_GetPerformanceFrequency());
     }
 

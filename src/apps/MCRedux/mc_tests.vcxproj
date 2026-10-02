@@ -67,7 +67,9 @@
     <ClCompile Include="tests\MCTest.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="tests\MissionTests.cpp" />
     <ClCompile Include="tests\ObjectQueueTests.cpp" />
+    <ClCompile Include="tests\PathfindingTests.cpp" />
     <ClCompile Include="tests\PortTests.cpp" />
     <ClCompile Include="tests\SmackerTests.cpp" />
     <ClCompile Include="tests\TerrainGridTests.cpp" />
