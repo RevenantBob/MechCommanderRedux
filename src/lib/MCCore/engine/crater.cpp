@@ -189,8 +189,11 @@ auto CraterManager::addCrater(int32_t craterType, vector_3d& position, int32_t r
         ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
         const auto row = static_cast<uint32_t>(tileR);
         const auto col = static_cast<uint32_t>(tileC);
-        const bool visible = visibleBits->getFlag(row, col) != 0 || visibleBits->getFlag(row + 1, col) != 0 ||
-                             visibleBits->getFlag(row + 1, col + 1) != 0 || visibleBits->getFlag(row, col + 1) != 0;
+        const uint8_t corner0 = visibleBits->getFlag(row, col);
+        const uint8_t corner1 = visibleBits->getFlag(row + 1, col);
+        const uint8_t corner2 = visibleBits->getFlag(row + 1, col + 1);
+        const uint8_t corner3 = visibleBits->getFlag(row, col + 1);
+        const bool visible = corner0 != 0 || corner1 != 0 || corner2 != 0 || corner3 != 0;
 
         if (terrainType < 0x2b && overlayType != 0x3e && visible)
         {

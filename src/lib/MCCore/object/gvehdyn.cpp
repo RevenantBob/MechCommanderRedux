@@ -165,21 +165,21 @@ auto GroundVehicleDynamics::update() -> int32_t
         topSpeed = gvWalkSpeed;
     }
 
-    const float speedChange = topSpeed * throttle - velocity;
+    const float speedChange = static_cast<float>(static_cast<double>(topSpeed) * throttle - velocity);
 
     if ((speedChange < 0.0f && 0.0f < accel) || (0.0f < speedChange && accel < 0.0f))
     {
         accel = -accel;
     }
 
-    float step = frameLength * accel;
+    double step = static_cast<double>(frameLength) * accel;
 
-    if (std::fabs(speedChange) < std::fabs(frameLength * accel))
+    if (std::fabs(speedChange) < std::fabs(step))
     {
         step = speedChange;
     }
 
-    velocity = step + velocity;
+    velocity = static_cast<float>(step + velocity);
     return 1;
 }
 

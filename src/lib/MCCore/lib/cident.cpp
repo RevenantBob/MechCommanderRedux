@@ -24,7 +24,7 @@ namespace
 
 FullPathFileName::~FullPathFileName()
 {
-    FreeFullName(fullName);
+    destroy();
 }
 
 void FullPathFileName::destroy()

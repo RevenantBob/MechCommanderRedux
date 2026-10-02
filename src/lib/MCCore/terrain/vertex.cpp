@@ -30,7 +30,7 @@ namespace
     constexpr int32_t NO_BLOCK_FILE = static_cast<int32_t>(0xbaaa000e);
 
     /// <summary>Radians to degrees (the double at 0x0077c278).</summary>
-    constexpr double RADS_TO_DEGREES = 57.29577951308232;
+    constexpr double RADS_TO_DEGREES = 0x1.ca5dc1a6402aap+5;
 
     /// <summary>The tag at the start of a fast-shape table ("DNAH" read as a little-endian int).</summary>
     constexpr int32_t FAST_SHAPE_TAG = 'D' | ('N' << 8) | ('A' << 16) | ('H' << 24);
@@ -179,6 +179,26 @@ namespace
     }
 
     /// <summary>
+    void normalizeX87(vector_3d& v)
+    {
+        const double length = std::sqrt((static_cast<double>(v.x) * v.x + static_cast<double>(v.y) * v.y) +
+                                        static_cast<double>(v.z) * v.z);
+
+        if (length > 0.0)
+        {
+            v.x = static_cast<float>(v.x / length);
+            v.y = static_cast<float>(v.y / length);
+            v.z = static_cast<float>(v.z / length);
+        }
+    }
+
+    vector_3d crossX87(const vector_3d& a, const vector_3d& b)
+    {
+        return vector_3d(static_cast<float>(static_cast<double>(a.y) * b.z - static_cast<double>(a.z) * b.y),
+                         static_cast<float>(static_cast<double>(a.z) * b.x - static_cast<double>(a.x) * b.z),
+                         static_cast<float>(static_cast<double>(a.x) * b.y - static_cast<double>(a.y) * b.x));
+    }
+
     /// The two edge vectors of the face (triangle) of the tile under <paramref name="pos"/>, from its top-left
     /// corner, and that corner's height. Shared by terrainAngle and terrainNormal (the binary repeats it).
     /// </summary>
@@ -186,13 +206,13 @@ namespace
     {
         const float mpv = Terrain::metersPerVertex;
         const float oneOver = Terrain::OneOvermetersPerVertex;
-        const float cornerX = mpv * static_cast<float>(std::floor(oneOver * pos.x));
-        const float cornerY = static_cast<float>(mpv * (std::floor(oneOver * pos.y) + 1.0));
-        const float gridX = oneOver * cornerX;
+        const float cornerX = static_cast<float>(mpv * std::floor(static_cast<double>(oneOver) * pos.x));
+        const float cornerY = static_cast<float>(mpv * (std::floor(static_cast<double>(oneOver) * pos.y) + 1.0));
+        const double gridX = static_cast<double>(oneOver) * cornerX;
         const float gridY = oneOver * cornerY;
         const int32_t half = (Terrain::blocksMapSide * Terrain::verticesBlockSide) >> 1;
         const int32_t col = static_cast<int32_t>(std::floor(gridX)) + half;
-        const int32_t row = half - static_cast<int32_t>(std::floor(gridY));
+        const int32_t row = half - static_cast<int32_t>(std::floor(static_cast<double>(gridY)));
 
         const uint32_t tileA = mapTileAt(row, col).cells;
         const uint32_t tileB = mapTileAt(row, col + 1).cells;
@@ -200,29 +220,38 @@ namespace
         const uint32_t tileD = mapTileAt(row + 1, col).cells;
         const int32_t base = GameMap->baseElevation;
         const float mpe = Terrain::metersPerElevLevel;
+        const auto levelOf = [base](uint32_t cells) -> double
+        { return static_cast<double>(static_cast<int64_t>(tileElevation(cells) + base)); };
 
-        const float x0 = static_cast<float>(std::floor(gridX)) * mpv;
-        const float y0 = static_cast<float>(std::floor(gridY)) * mpv;
-        cornerZ = static_cast<float>(static_cast<int64_t>(tileElevation(tileA) + base)) * mpe;
-        const float dx = (x0 + mpv) - x0;
-        const float dy = (y0 - mpv) - y0;
-        const float zB = static_cast<float>(static_cast<int64_t>(tileElevation(tileB) + base)) * mpe;
-        const float zC = static_cast<float>(static_cast<int64_t>(tileElevation(tileC) + base)) * mpe;
-        const float zD = static_cast<float>(static_cast<int64_t>(tileElevation(tileD) + base)) * mpe;
+        const float x0 = static_cast<float>(std::floor(gridX) * mpv);
+        const float y0 = static_cast<float>(std::floor(static_cast<double>(gridY)) * mpv);
+        cornerZ = static_cast<float>(levelOf(tileA) * mpe);
+        const double xPlus = static_cast<double>(x0) + mpv;
+        const double offsetX = std::fabs(static_cast<double>(pos.x) - cornerX);
+        const double offsetY = std::fabs(static_cast<double>(cornerY) - pos.y);
 
         // The face is the triangle (A, D, C) nearer the x edge, else (A, B, C).
-        if (std::fabs(pos.x - cornerX) <= std::fabs(cornerY - pos.y))
+        if (!(offsetY >= offsetX))
         {
-            edge1 = vector_3d(0.0f, dy, zD - cornerZ);
+            const float zB = static_cast<float>(levelOf(tileB) * mpe);
+            const float y1 = y0 - mpv;
+            const float zC = static_cast<float>(levelOf(tileC) * mpe);
+            const float dx = static_cast<float>(xPlus - x0);
+            edge1 = vector_3d(dx, 0.0f, zB - cornerZ);
+            edge2 = vector_3d(dx, y1 - y0, zC - cornerZ);
         }
         else
         {
-            edge1 = vector_3d(dx, 0.0f, zB - cornerZ);
+            const float y1 = y0 - mpv;
+            const float zC = static_cast<float>(levelOf(tileC) * mpe);
+            const double zD = levelOf(tileD) * mpe;
+            const float dy = y1 - y0;
+            edge1 = vector_3d(0.0f, dy, static_cast<float>(zD - cornerZ));
+            edge2 = vector_3d(static_cast<float>(xPlus - x0), dy, zC - cornerZ);
         }
 
-        edge2 = vector_3d(dx, dy, zC - cornerZ);
-        edge1.normalize();
-        edge2.normalize();
+        normalizeX87(edge1);
+        normalizeX87(edge2);
     }
 }
 
@@ -598,19 +627,19 @@ auto MapBlockManager::terrainAngle(vector_3d& pos, vector_3d* normal) -> float
     vector_3d edge2;
     float cornerZ = 0.0f;
     faceVectors(pos, edge1, edge2, cornerZ);
-    vector_3d faceNormal = edge1 & edge2;
+    vector_3d faceNormal = crossX87(edge1, edge2);
 
     float angle = 0.0f;
 
-    if (faceNormal.z == 0.0f)
+    if (faceNormal.z == 0.0f || std::isnan(faceNormal.z))
     {
         // Faithful: a vertical face returns the corner's height, not an angle.
         angle = cornerZ;
     }
     else
     {
-        faceNormal.normalize();
-        angle = static_cast<float>(std::acos(faceNormal.z) * RADS_TO_DEGREES);
+        normalizeX87(faceNormal);
+        angle = static_cast<float>(acosMatherr(static_cast<double>(faceNormal.z)) * RADS_TO_DEGREES);
     }
 
     if (normal != nullptr)
@@ -627,14 +656,14 @@ auto MapBlockManager::terrainNormal(vector_3d& pos) -> vector_3d
     vector_3d edge2;
     float cornerZ = 0.0f;
     faceVectors(pos, edge1, edge2, cornerZ);
-    vector_3d faceNormal = edge2 & edge1;
+    vector_3d faceNormal = crossX87(edge2, edge1);
 
-    if (faceNormal.z < 0.0f)
+    if (!(faceNormal.z >= 0.0f))
     {
-        faceNormal = edge1 & edge2;
+        faceNormal = crossX87(edge1, edge2);
     }
 
-    faceNormal.normalize();
+    normalizeX87(faceNormal);
     return faceNormal;
 }
 
@@ -645,12 +674,13 @@ auto MapBlockManager::terrainElevation(vector_3d& pos) -> float
 
 auto terrainElevationAt(vector_3d& pos) -> float
 {
+    using ext = double;
     const float mpv = Terrain::metersPerVertex;
     const float oneOver = Terrain::OneOvermetersPerVertex;
-    const float cornerX = mpv * static_cast<float>(std::floor(oneOver * pos.x));
-    const float cornerY = static_cast<float>(mpv * (std::floor(oneOver * pos.y) + 1.0));
-    const float gridX = oneOver * cornerX;
-    const float gridY = oneOver * cornerY;
+    const float cornerX = static_cast<float>(mpv * std::floor(static_cast<double>(oneOver) * pos.x));
+    const float cornerY = static_cast<float>(mpv * (std::floor(static_cast<double>(oneOver) * pos.y) + 1.0));
+    const double gridX = static_cast<double>(oneOver) * cornerX;
+    const double gridY = static_cast<double>(static_cast<float>(oneOver * cornerY));
     const int32_t half = (Terrain::blocksMapSide * Terrain::verticesBlockSide) >> 1;
     const int32_t col = static_cast<int32_t>(std::floor(gridX)) + half;
     const int32_t row = half - static_cast<int32_t>(std::floor(gridY));
@@ -688,48 +718,102 @@ auto terrainElevationAt(vector_3d& pos) -> float
             level = std::max({level, levelB, levelC, levelD});
         }
 
-        return static_cast<float>(static_cast<int32_t>(GameMap->baseElevation + level)) * Terrain::metersPerElevLevel;
+        return static_cast<float>(static_cast<ext>(static_cast<int32_t>(GameMap->baseElevation + level)) *
+                                  Terrain::metersPerElevLevel);
     }
 
     const int32_t base = GameMap->baseElevation;
     const float mpe = Terrain::metersPerElevLevel;
-    const float x0 = static_cast<float>(std::floor(gridX)) * mpv;
-    const float y0 = static_cast<float>(std::floor(gridY)) * mpv;
-    const float cornerZ = static_cast<float>(static_cast<int64_t>(tileElevation(cellsA) + base)) * mpe;
+    const auto levelOf = [base](uint32_t cells)
+    {
+        return static_cast<int64_t>(static_cast<uint32_t>(static_cast<int32_t>(tileElevation(cells)) + base));
+    };
+    const float x0 = static_cast<float>(std::floor(gridX) * mpv);
+    const float y0 = static_cast<float>(std::floor(gridY) * mpv);
+    const ext elevA = static_cast<ext>(levelOf(cellsA)) * mpe;
     const float offsetX = std::fabs(pos.x - cornerX);
     const float offsetY = std::fabs(cornerY - pos.y);
-    const float dx = (x0 + mpv) - x0;
-    const float dy = (y0 - mpv) - y0;
+    const ext offsetXExt = std::fabs(static_cast<ext>(pos.x) - cornerX);
 
-    vector_3d edge1;
+    ext uX;
+    ext uY;
+    ext vX;
+    ext vY;
+    ext vZ;
+    float uZ;
 
-    if (offsetX <= offsetY)
+    if (offsetXExt > static_cast<ext>(offsetY))
     {
-        edge1 = vector_3d(0.0f, dy, static_cast<float>(tileElevation(cellsD) + base) * mpe - cornerZ);
+        const float elevB = static_cast<float>(static_cast<ext>(levelOf(cellsB)) * mpe);
+        const float y1 = static_cast<float>(y0 - mpv);
+        const float elevC = static_cast<float>(static_cast<ext>(levelOf(cellsC)) * mpe);
+        const ext spanX = (static_cast<ext>(x0) + mpv) - x0;
+        uZ = static_cast<float>(static_cast<ext>(elevB) - elevA);
+        uX = spanX;
+        uY = 0.0;
+        vX = static_cast<float>(spanX);
+        vY = static_cast<ext>(y1) - y0;
+        vZ = static_cast<ext>(elevC) - elevA;
     }
     else
     {
-        edge1 = vector_3d(dx, 0.0f, static_cast<float>(tileElevation(cellsB) + base) * mpe - cornerZ);
+        const float x1 = static_cast<float>(static_cast<ext>(x0) + mpv);
+        const float y1 = static_cast<float>(y0 - mpv);
+        const float elevC = static_cast<float>(static_cast<ext>(levelOf(cellsC)) * mpe);
+        const ext elevD = static_cast<ext>(levelOf(cellsD)) * mpe;
+        const float spanY = static_cast<float>(static_cast<ext>(y1) - y0);
+        uZ = static_cast<float>(elevD - elevA);
+        uX = 0.0;
+        uY = spanY;
+        vX = static_cast<ext>(x1) - x0;
+        vY = spanY;
+        vZ = static_cast<ext>(elevC) - elevA;
     }
 
-    vector_3d edge2(dx, dy, static_cast<float>(tileElevation(cellsC) + base) * mpe - cornerZ);
-    edge1.normalize();
-    edge2.normalize();
+    const float uYf = static_cast<float>(uY);
+    const ext lengthU = std::sqrt((static_cast<ext>(uYf) * uYf + static_cast<ext>(uZ) * uZ) + uX * uX);
 
-    vector_3d faceNormal = edge1 & edge2;
-
-    if (faceNormal.z == 0.0f)
+    if (lengthU != 0.0)
     {
-        return cornerZ;
+        uX = uX / lengthU;
+        uY = uY / lengthU;
+        uZ = static_cast<float>(static_cast<ext>(uZ) / lengthU);
     }
 
-    if (faceNormal.z < 0.0f)
+    const float vZf = static_cast<float>(vZ);
+    const float vYf = static_cast<float>(vY);
+    const ext lengthV = std::sqrt((vX * vX + static_cast<ext>(vZf) * vZf) + static_cast<ext>(vYf) * vYf);
+
+    if (lengthV != 0.0)
     {
-        faceNormal = vector_3d(-faceNormal.x, -faceNormal.y, -faceNormal.z);
+        vX = vX / lengthV;
+        vY = vY / lengthV;
+        vZ = vZ / lengthV;
     }
 
     // The plane through the corner: z = z0 - (nx/nz) * dx + (ny/nz) * dy.
-    return -((faceNormal.x / faceNormal.z) * offsetX + -offsetY * (faceNormal.y / faceNormal.z)) + cornerZ;
+    const float normalX = static_cast<float>(vZ * uY - vY * static_cast<ext>(uZ));
+    const float normalY = static_cast<float>(static_cast<ext>(uZ) * vX - vZ * uX);
+    const float normalZ = static_cast<float>(vY * uX - uY * vX);
+
+    if (normalZ == 0.0f)
+    {
+        return static_cast<float>(elevA);
+    }
+
+    ext nx = normalX;
+    ext ny = normalY;
+    ext nz = normalZ;
+
+    if (normalZ < 0.0f)
+    {
+        nx = -nx;
+        ny = -ny;
+        nz = -nz;
+    }
+
+    return static_cast<float>(elevA +
+                              -((ny / nz) * static_cast<ext>(-offsetY) + (nx / nz) * static_cast<ext>(offsetX)));
 }
 
 auto MapBlockManager::generateRandomBlock(PrecompVertex* block) -> void

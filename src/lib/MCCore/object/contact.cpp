@@ -483,36 +483,45 @@ auto SensorSystem::setRange(float newRange) -> void
     speedRange[2] = runFactor * newRange;
 }
 
+namespace
+{
+    double SkilledRangeUnrounded(SensorSystem& sensor)
+    {
+        if (!IsMover(sensor.owner))
+        {
+            return static_cast<double>(sensor.multiplier) * sensor.range;
+        }
+
+        const int32_t speedState = static_cast<Mover*>(sensor.owner)->getSpeedState();
+        const int32_t now = turn;
+        const double newRange = static_cast<double>(sensor.speedRange[speedState]) * sensor.multiplier;
+
+        if (newRange != sensor.currentRange && sensor.rangeChangeTurn == -1)
+        {
+            sensor.rangeChangeTurn = turn + 6;
+        }
+
+        if (sensor.rangeChangeTurn == -1)
+        {
+            return newRange;
+        }
+
+        if (sensor.rangeChangeTurn <= now)
+        {
+            sensor.currentRange = static_cast<float>(newRange);
+            sensor.rangeChangeTurn = -1;
+            return newRange;
+        }
+
+        return sensor.currentRange -
+               (sensor.currentRange - newRange) * (1.0 / static_cast<double>(sensor.rangeChangeTurn - now));
+    }
+}
+
 auto SensorSystem::getSkilledRange() -> float
 {
-    if (!IsMover(owner))
-    {
-        return multiplier * range;
-    }
-
-    const int32_t speedState = static_cast<Mover*>(owner)->getSpeedState();
-    const int32_t now = turn;
-    const float newRange = speedRange[speedState] * multiplier;
-
-    if (newRange != currentRange && rangeChangeTurn == -1)
-    {
-        rangeChangeTurn = turn + 6;
-    }
-
-    if (rangeChangeTurn == -1)
-    {
-        return newRange;
-    }
-
-    if (rangeChangeTurn <= now)
-    {
-        currentRange = newRange;
-        rangeChangeTurn = -1;
-        return newRange;
-    }
-
     // Ease toward the new range over the turns left.
-    return currentRange - (currentRange - newRange) * (1.0f / static_cast<float>(rangeChangeTurn - now));
+    return static_cast<float>(SkilledRangeUnrounded(*this));
 }
 
 auto SensorSystem::setTeam(Team* newTeam) -> void
@@ -884,7 +893,7 @@ auto SensorSystem::onSensors(GameObject* target) -> int
     }
 
     float distance;
-    float skilledRange;
+    double skilledRange;
 
     if (IsMover(owner))
     {
@@ -902,13 +911,14 @@ auto SensorSystem::onSensors(GameObject* target) -> int
 
         vector_3d targetPosition = target->getPosition();
         distance = owner->distanceFrom(targetPosition);
-        skilledRange = getSkilledRange();
+        skilledRange = SkilledRangeUnrounded(*this);
         // A working probe reaches hidden targets within its share of the range.
-        float probeRange = -1.0f;
+        double probeRange = -1.0;
 
         if (mover->probe != 0xff && mover->inventory[mover->probe].disabled == 0)
         {
-            probeRange = MasterComponentList[mover->inventory[mover->probe].masterID].rangeOrHeat * skilledRange;
+            probeRange = static_cast<double>(MasterComponentList[mover->inventory[mover->probe].masterID].rangeOrHeat) *
+                         skilledRange;
         }
 
         if (distance <= probeRange)
@@ -920,7 +930,7 @@ auto SensorSystem::onSensors(GameObject* target) -> int
     {
         vector_3d targetPosition = target->getPosition();
         distance = owner->distanceFrom(targetPosition);
-        skilledRange = getSkilledRange();
+        skilledRange = SkilledRangeUnrounded(*this);
     }
 
     if (target->status == 5)

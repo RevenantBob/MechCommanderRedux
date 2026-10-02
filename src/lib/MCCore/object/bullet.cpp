@@ -259,36 +259,40 @@ auto Bullet::update() -> int32_t
         to = *targetPosition;
     }
 
-    const float step = static_cast<BulletType*>(objType)->velocity * frameLength;
-    const float dx = to.x - from.x;
+    const double step = static_cast<double>(static_cast<BulletType*>(objType)->velocity) * frameLength;
+    const double dxWide = static_cast<double>(to.x) - from.x;
+    const auto dx = static_cast<float>(dxWide);
     const float dy = to.y - from.y;
     const float dz = to.z - from.z;
-    const float groundDistanceSq = dx * dx + dy * dy;
+    const double dxSq = static_cast<double>(dx) * dx;
+    const double dySq = static_cast<double>(dy) * dy;
+    const double groundDistanceSq = dxSq + dySq;
     const bool arrived = closestDistanceSq <= groundDistanceSq;
 
     if (!arrived)
     {
-        closestDistanceSq = groundDistanceSq;
+        closestDistanceSq = static_cast<float>(groundDistanceSq);
     }
 
     int32_t result = arrived ? 0 : 1;
 
     vector_3d velocity;
-    velocity.x = dx;
+    double unitX = dxWide;
     velocity.y = dy;
     velocity.z = dz;
-    const float length = std::sqrt(dz * dz + dx * dx + dy * dy);
+    const double length = std::sqrt(static_cast<double>(dz) * dz + dxSq + dySq);
+    const auto lengthF = static_cast<float>(length);
 
-    if (length != 0.0f)
+    if (length != 0.0)
     {
-        velocity.x = dx / length;
-        velocity.y = dy / length;
-        velocity.z = dz / length;
+        unitX = static_cast<double>(dx) / lengthF;
+        velocity.y = static_cast<float>(static_cast<double>(dy) / lengthF);
+        velocity.z = static_cast<float>(static_cast<double>(dz) / lengthF);
     }
 
-    velocity.x *= step;
-    velocity.y *= step;
-    velocity.z *= step;
+    velocity.x = static_cast<float>(unitX * step);
+    velocity.y = static_cast<float>(velocity.y * step);
+    velocity.z = static_cast<float>(velocity.z * step);
     bulletPosition.x += velocity.x;
     bulletPosition.y += velocity.y;
     bulletPosition.z += velocity.z;
@@ -333,7 +337,7 @@ auto Bullet::update() -> int32_t
             cosFacing = 1.0f;
         }
 
-        double facing = std::acos(static_cast<double>(cosFacing)) * RADIANS_TO_DEGREES;
+        double facing = acosMatherr(static_cast<double>(cosFacing)) * RADIANS_TO_DEGREES;
 
         if (frame.i.y < 0.0f)
         {

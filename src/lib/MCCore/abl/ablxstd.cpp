@@ -1777,12 +1777,12 @@ auto execHbObjectChangeSides(SymTableNodePtr routineIdPtr) -> void
 namespace
 {
     /// <summary>The distance in world units from <paramref name="object"/> to (x, y), ignoring height.</summary>
-    auto flatDistance(GameObject* object, float x, float y) -> float
+    auto flatDistance(GameObject* object, float x, float y) -> double
     {
         vector_3d objectPosition = object->getPosition();
-        float dx = x - objectPosition.x;
-        float dy = y - objectPosition.y;
-        return std::sqrt(dx * dx + dy * dy + 0.0f * 0.0f);
+        const float dx = x - objectPosition.x;
+        const float dy = y - objectPosition.y;
+        return std::sqrt(static_cast<double>(dx) * dx + static_cast<double>(dy) * dy + 0.0);
     }
 
     /// <summary>
@@ -1797,7 +1797,7 @@ namespace
 
             if (object)
             {
-                result = flatDistance(object, x, y) * metersPerWorldUnit;
+                result = static_cast<float>(flatDistance(object, x, y) * metersPerWorldUnit);
             }
 
             return;
@@ -1810,7 +1810,7 @@ namespace
         {
             if (moverList[i]->getExistsAndAwake())
             {
-                float distance = flatDistance(moverList[i], x, y);
+                const auto distance = static_cast<float>(flatDistance(moverList[i], x, y));
 
                 if (distance < closest)
                 {

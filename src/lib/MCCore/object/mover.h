@@ -178,7 +178,7 @@ public:
     /// <remarks>MCX.EXE @ 0x0065bb70</remarks>
     ~Mover() override { destroy(); }
     /// <summary>The constructor calls init (inlined in the derived types' createInstance).</summary>
-    Mover() { init(); }
+    Mover() { frame.reset_to_world_frame(); init(); }
 
     using BigGameObject::init;
     /// <summary>Resets every field (the constructor's work); counts the mover and makes the shared sort list.</summary>
@@ -739,7 +739,7 @@ public:
     /// <summary>The last position the mover could stand on.</summary>
     vector_3d lastValidPosition; // +0x7b0
     /// <summary>The way a mech pivots toward a target: 0 or 1, 0xff to choose again (BattleMech::pivotTo).</summary>
-    uint8_t pivotDirection = 0; // +0x7bc
+    uint8_t pivotDirection = 0xff; // +0x7bc
     /// <summary>-999 by init (updateHustleTime).</summary>
     float lastHustleTime = -999.0f; // +0x7c0
     /// <summary>A ground vehicle type's "AmmoTruck"; 0 for the others.</summary>

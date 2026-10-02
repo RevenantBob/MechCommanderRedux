@@ -3709,7 +3709,9 @@ auto aSystem::run() -> void
         {
             if (smackerWindow2 == nullptr && smackerWindow == nullptr)
             {
-                for (int32_t i = 0; i < numCallbacks; i++)
+                const int32_t count = numCallbacks;
+
+                for (int32_t i = 0; i < count; i++)
                 {
                     if (callbacks[i] != nullptr)
                     {

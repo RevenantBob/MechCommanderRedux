@@ -215,7 +215,7 @@ namespace
         toSound.z = 0.0f;
         up.normalize();
         toSound.normalize();
-        double angle = std::acos(static_cast<double>(up | toSound)) * 57.29577951308232;
+        double angle = acosMatherr(static_cast<double>(up | toSound)) * 0x1.ca5dc1a6402aap+5;
 
         if (upX * dy - upY * dx <= 0.0f)
         {

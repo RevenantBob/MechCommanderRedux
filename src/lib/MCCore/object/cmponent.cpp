@@ -180,7 +180,7 @@ auto MasterComponent::initEXCEL(char* dataLine, uint8_t, float weaponRangeFactor
             return 0;
         case COMPONENT_FORM_SENSOR:
         {
-            rangeOrHeat = static_cast<float>(std::atof(field)) * sensorRangeFactor;
+            rangeOrHeat = static_cast<float>(std::atof(field) * sensorRangeFactor);
             return 0;
         }
         case COMPONENT_FORM_ENGINE:
@@ -239,7 +239,7 @@ auto MasterComponent::initEXCEL(char* dataLine, uint8_t, float weaponRangeFactor
 
     for (float& range : weaponRange)
     {
-        range = static_cast<float>(std::atof(NextField())) * weaponRangeFactor;
+        range = static_cast<float>(std::atof(NextField()) * weaponRangeFactor);
     }
 
     weaponType = static_cast<int16_t>(std::atoi(NextField()));

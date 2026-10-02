@@ -345,6 +345,7 @@
     <ClInclude Include="logistics\ticker.h" />
     <ClInclude Include="main\honorb.h" />
     <ClInclude Include="main\logistics.h" />
+    <ClInclude Include="main\fixes.h" />
     <ClInclude Include="main\main.h" />
     <ClInclude Include="main\rmain.h" />
     <ClInclude Include="MCCore.h" />

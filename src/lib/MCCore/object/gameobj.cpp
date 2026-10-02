@@ -1208,12 +1208,11 @@ auto GameObject::getFrame() -> frame_of_ref
     return frame_of_ref(UnitX, UnitY, UnitZ);
 }
 
-auto GameObject::distanceFrom(vector_3d& goal) -> float
+auto GameObject::distanceFrom(vector_3d& goal) -> double
 {
-    const float dx = position.x - goal.x;
-    const float dy = position.y - goal.y;
-    return static_cast<float>(std::sqrt(static_cast<double>(dx) * dx + static_cast<double>(dy) * dy) *
-                              metersPerWorldUnit);
+    const double dx = static_cast<double>(position.x) - goal.x;
+    const double dy = static_cast<double>(position.y) - goal.y;
+    return std::sqrt(dy * dy + dx * dx) * metersPerWorldUnit;
 }
 
 auto GameObject::lineOfSight(vector_3d point) -> int
@@ -1231,12 +1230,12 @@ auto GameObject::lineOfSight(GameObject* target) -> int
     vector_3d start;
     start.x = position.x;
     start.y = position.y;
-    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 5.0 + position.z);
+    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + position.z);
     const vector_3d targetPosition = target->getPosition();
     vector_3d end;
     end.x = targetPosition.x;
     end.y = targetPosition.y;
-    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 5.0 + targetPosition.z);
+    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + targetPosition.z);
     setUseMe(0);
     target->setUseMe(0);
     const int result = GameMap->lineOfSight(start, end);
@@ -1250,12 +1249,12 @@ auto GameObject::lineOfFire(GameObject* target) -> int
     vector_3d start;
     start.x = position.x;
     start.y = position.y;
-    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 5.0 + position.z);
+    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + position.z);
     const vector_3d targetPosition = target->getPosition();
     vector_3d end;
     end.x = targetPosition.x;
     end.y = targetPosition.y;
-    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 5.0 + targetPosition.z);
+    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + targetPosition.z);
     setUseMe(0);
     target->setUseMe(0);
     const int result = GameMap->lineOfFire(start, end);
@@ -1279,18 +1278,20 @@ auto GameObject::relFacingTo(vector_3d goal, int32_t) -> float
     toGoal.x = goal.x - x;
     toGoal.y = goal.y - y;
     toGoal.z = 0.0f;
-    const float length = toGoal.magnitude();
+    const double length = std::sqrt((static_cast<double>(toGoal.x) * toGoal.x +
+                                     static_cast<double>(toGoal.y) * toGoal.y) +
+                                    static_cast<double>(toGoal.z) * toGoal.z);
 
-    if (length != 0.0f)
+    if (length != 0.0)
     {
-        toGoal.x = toGoal.x / length;
-        toGoal.y = toGoal.y / length;
-        toGoal.z = toGoal.z / length;
+        toGoal.x = static_cast<float>(toGoal.x / length);
+        toGoal.y = static_cast<float>(toGoal.y / length);
+        toGoal.z = static_cast<float>(toGoal.z / length);
     }
 
     const double cosine = static_cast<double>(toGoal.z) * facing.z + static_cast<double>(toGoal.y) * facing.y +
                           static_cast<double>(toGoal.x) * facing.x;
-    const float angle = static_cast<float>(std::acos(cosine) * RADIANS_TO_DEGREES_F);
+    const float angle = static_cast<float>(acosMatherr(cosine) * RADIANS_TO_DEGREES_F);
 
     // Negative to the left.
     if ((facing & toGoal).z >= 0.0f)

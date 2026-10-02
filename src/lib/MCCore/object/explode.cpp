@@ -12,8 +12,10 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/collsn.h"
+#include "object/gate.h"
 #include "object/object.h"
 #include "object/objque.h"
+#include "object/turret.h"
 #include "sound/soundsys.h"
 #include "sprite/actor.h"
 #include "terrain/terrain.h"
@@ -81,16 +83,16 @@ namespace
     /// For turrets and gates: false when the explosion's radius doesn't reach the collider's extent (measured
     /// centre to centre).
     /// </summary>
-    bool reachesExtent(GameObject* explosion, GameObject* collider)
+    bool reachesExtent(GameObject* explosion, GameObject* collider, float extent)
     {
         const vector_3d colliderPos = collider->getPosition();
         const vector_3d explosionPos = explosion->getPosition();
-        const float dx = colliderPos.x - explosionPos.x;
-        const float dy = colliderPos.y - explosionPos.y;
+        const double dx = static_cast<double>(colliderPos.x) - explosionPos.x;
+        const double dy = static_cast<double>(colliderPos.y) - explosionPos.y;
         const float dz = colliderPos.z - explosionPos.z;
-        const float distance = std::sqrt(dx * dx + dy * dy + dz * dz);
-        const float extent = collider->objType->extentRadius;
-        return !(extent < distance && explosion->getExtentRadius() < distance - extent);
+        const auto distance = static_cast<float>(std::sqrt((dx * dx + dy * dy) + static_cast<double>(dz) * dz));
+        return !(extent < distance &&
+                 static_cast<double>(explosion->getExtentRadius()) < static_cast<double>(distance) - extent);
     }
 } // namespace
 
@@ -211,7 +213,7 @@ auto ExplosionType::handleCollision(GameObject* collidee, GameObject* collider) 
 
         case TURRET:
         {
-            if (!reachesExtent(collidee, collider))
+            if (!reachesExtent(collidee, collider, static_cast<TurretType*>(collider->objType)->littleExtent))
             {
                 return 0;
             }
@@ -230,7 +232,7 @@ auto ExplosionType::handleCollision(GameObject* collidee, GameObject* collider) 
 
         case GATE:
         {
-            if (!reachesExtent(collidee, collider))
+            if (!reachesExtent(collidee, collider, static_cast<GateType*>(collider->objType)->littleExtent))
             {
                 return 0;
             }
@@ -377,9 +379,10 @@ auto Explosion::update() -> int32_t
         collisionsOn = 0;
     }
 
-    timeAlive += frameLength;
+    const double aliveSum = static_cast<double>(frameLength) + timeAlive;
+    timeAlive = static_cast<float>(aliveSum);
 
-    if (0.5f < timeAlive && collisionChecked == 0)
+    if (0.5 < aliveSum && collisionChecked == 0)
     {
         collisionChecked = 1;
         collisionsOn = 1;

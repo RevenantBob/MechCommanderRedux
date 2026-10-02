@@ -1105,7 +1105,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
             }
 
             vector_3d point = FirstWayPoint(this);
-            const float distance = vehicle->distanceFrom(point);
+            const double distance = vehicle->distanceFrom(point);
             const float margin = nextIsMove ? 8.0f : MoveMarginOfError[1];
 
             if (distance < margin)
@@ -1432,7 +1432,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                         refitee->getPilot()->orderPowerDown(unitOrder, 2);
                         time = scenarioTime;
                     }
-                    else if (time + 3.0f < scenarioTime)
+                    else if (static_cast<double>(time) + 3.0 < scenarioTime)
                     {
                         stage = currentStage + 1;
                         time = scenarioTime;
@@ -1444,7 +1444,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                     GroundVehicle* truck = static_cast<GroundVehicle*>(refitter);
                     truck->unknown8CC = 1;
 
-                    if (RefitTime + time < scenarioTime)
+                    if (static_cast<double>(RefitTime) + time < scenarioTime)
                     {
                         float pointsUsed = 0.0f;
                         const int ammoOnly = truck->ammoTruck;
@@ -1523,7 +1523,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                         pilot->orderPowerDown(unitOrder, 2);
                         time = scenarioTime;
                     }
-                    else if (time + 3.0f < scenarioTime)
+                    else if (static_cast<double>(time) + 3.0 < scenarioTime)
                     {
                         stage = currentStage + 1;
                         time = now;
@@ -1532,7 +1532,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                 }
                 case 3:
                 {
-                    if (RefitTime + time < scenarioTime)
+                    if (static_cast<double>(RefitTime) + time < scenarioTime)
                     {
                         float pointsUsed = 0.0f;
                         const int32_t finished = DoRefit(mover, bay->getRefitPoints(), pointsUsed, 0);
@@ -1602,10 +1602,11 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                 {
                     const vector_3d carrierPos = carrier->getPosition();
                     const vector_3d pos = pilot->vehicle->getPosition();
+                    const double dx = static_cast<double>(pos.x) - carrierPos.x;
+                    const double dy = static_cast<double>(pos.y) - carrierPos.y;
                     const float dz = pos.z - carrierPos.z;
 
-                    if (std::sqrt((pos.x - carrierPos.x) * (pos.x - carrierPos.x) + dz * dz +
-                                  (pos.y - carrierPos.y) * (pos.y - carrierPos.y)) < 200.0f)
+                    if (std::sqrt((dy * dy + static_cast<double>(dz) * dz) + dx * dx) < 200.0)
                     {
                         pilot->clearMoveOrders();
 
@@ -1623,7 +1624,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
                 case 2:
                 {
-                    if (time + 3.0f < scenarioTime)
+                    if (static_cast<double>(time) + 3.0 < scenarioTime)
                     {
                         for (int32_t i = 0; i < group->numMovers; i++)
                         {
@@ -1636,7 +1637,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                 }
                 case 3:
                 {
-                    if (scenarioTime <= time + 5.0f)
+                    if (scenarioTime <= static_cast<double>(time) + 5.0)
                     {
                         break;
                     }
@@ -1680,7 +1681,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
             done = 0;
 
-            if (scenarioTime <= time + 5.0f)
+            if (scenarioTime <= static_cast<double>(time) + 5.0)
             {
                 break;
             }
@@ -1806,23 +1807,25 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
 
             if (armor.curArmor < maxArmor)
             {
-                float share = shareBase / static_cast<float>(static_cast<int32_t>(locationsToFix));
+                double share = static_cast<double>(shareBase) / static_cast<int32_t>(locationsToFix);
 
                 if (pointsLeft < share)
                 {
                     share = pointsLeft;
                 }
 
-                float added = RefitCostArray[0][0] * share;
+                const double added = static_cast<double>(RefitCostArray[0][0]) * share;
+                float addedStored = static_cast<float>(added);
 
                 if (maxArmor < added + armor.curArmor)
                 {
-                    added = maxArmor - armor.curArmor;
-                    share = added / RefitCostArray[0][0];
+                    const double room = static_cast<double>(maxArmor) - armor.curArmor;
+                    addedStored = static_cast<float>(room);
+                    share = room / RefitCostArray[0][0];
                 }
 
-                armor.curArmor = added + armor.curArmor;
-                pointsLeft = pointsLeft - share;
+                armor.curArmor = static_cast<float>(static_cast<double>(addedStored) + armor.curArmor);
+                pointsLeft = static_cast<float>(pointsLeft - share);
             }
 
             if (location < mover->numBodyLocations)
@@ -1832,31 +1835,33 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
 
                 if (body.curInternalStructure < maxStructure)
                 {
-                    float share = shareBase / static_cast<float>(static_cast<int32_t>(locationsToFix));
+                    const double shareRaw = static_cast<double>(shareBase) / static_cast<int32_t>(locationsToFix);
+                    float share = static_cast<float>(shareRaw);
 
-                    if (pointsLeft < share)
+                    if (pointsLeft < shareRaw)
                     {
                         share = pointsLeft;
                     }
 
-                    float added = RefitCostArray[1][0] * share;
+                    double added = static_cast<double>(RefitCostArray[1][0]) * share;
 
                     if (maxStructure < added + body.curInternalStructure)
                     {
-                        added = maxStructure - body.curInternalStructure;
-                        share = added / RefitCostArray[1][0];
+                        added = static_cast<double>(maxStructure) - body.curInternalStructure;
+                        share = static_cast<float>(added / RefitCostArray[1][0]);
                     }
 
-                    body.curInternalStructure = added + body.curInternalStructure;
+                    const double newStructure = added + body.curInternalStructure;
+                    body.curInternalStructure = static_cast<float>(newStructure);
                     uint8_t damageState;
 
-                    if (body.curInternalStructure == 0.0f)
+                    if (newStructure == 0.0)
                     {
                         damageState = 2;
                     }
                     else
                     {
-                        damageState = 0.5f < body.curInternalStructure / maxStructure ? 0 : 1;
+                        damageState = 0.5 < newStructure / maxStructure ? 0 : 1;
                     }
 
                     if (mover->objectClass == BATTLEMECH && damageState != body.damageState)
@@ -1872,7 +1877,7 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
                         }
                     }
 
-                    pointsLeft = pointsLeft - share;
+                    pointsLeft = static_cast<float>(static_cast<double>(pointsLeft) - share);
                     body.damageState = damageState;
                 }
             }
@@ -1895,26 +1900,27 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
             }
 
             const int wasEmpty = curAmount == 0;
-            float share = shareBase / static_cast<float>(static_cast<int32_t>(ammoToFix));
+            double share = static_cast<double>(shareBase) / static_cast<int32_t>(ammoToFix);
 
             if (share > pointsLeft)
             {
                 share = pointsLeft;
             }
 
-            const float costPerPoint =
-                static_cast<float>(MasterComponentList[ammo.masterId].longValue) * RefitCostArray[2][0];
-            float added = costPerPoint * share;
+            const double costPerPoint =
+                static_cast<double>(MasterComponentList[ammo.masterId].longValue) * RefitCostArray[2][0];
+            const float costPerPointStored = static_cast<float>(costPerPoint);
+            float added = static_cast<float>(costPerPoint * share);
             const float current = static_cast<float>(curAmount);
 
-            if (static_cast<float>(maxAmount) < current + added)
+            if (static_cast<double>(maxAmount) < static_cast<double>(current) + added)
             {
                 added = static_cast<float>(maxAmount - curAmount);
-                share = added / costPerPoint;
+                share = static_cast<double>(maxAmount - curAmount) / costPerPointStored;
             }
 
-            ammo.curAmount = static_cast<int32_t>(current + added);
-            pointsLeft = pointsLeft - share;
+            ammo.curAmount = static_cast<int32_t>(static_cast<double>(current) + added);
+            pointsLeft = static_cast<float>(pointsLeft - share);
 
             if (wasEmpty)
             {

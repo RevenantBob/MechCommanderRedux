@@ -2754,7 +2754,16 @@ auto MechWarrior::calcWithdrawGoal(float withdrawRange) -> vector_3d
     escapeVector.y = escapeVector.y * stepLength;
     escapeVector.z = escapeVector.z * stepLength;
     vector_3d goal = mover->getPosition();
-    float distance = (goal - mover->getPosition()).magnitude() * metersPerWorldUnit;
+
+    auto withdrawDistance = [mover](const vector_3d& point) -> double
+    {
+        const vector_3d offset = point - mover->getPosition();
+        return std::sqrt((static_cast<double>(offset.z) * offset.z + static_cast<double>(offset.y) * offset.y) +
+                         static_cast<double>(offset.x) * offset.x) *
+               metersPerWorldUnit;
+    };
+
+    double distance = static_cast<float>(withdrawDistance(goal));
     int32_t lastTileR;
     int32_t lastTileC;
     GameMap->worldToMapTilePos(goal, lastTileR, lastTileC);
@@ -2787,7 +2796,7 @@ auto MechWarrior::calcWithdrawGoal(float withdrawRange) -> vector_3d
         goal.x = goal.x + escapeVector.x;
         goal.y = escapeVector.y + goal.y;
         goal.z = escapeVector.z + goal.z;
-        distance = (goal - mover->getPosition()).magnitude() * metersPerWorldUnit;
+        distance = withdrawDistance(goal);
     }
 
     return goal;
@@ -2846,12 +2855,13 @@ auto MechWarrior::movingOverBlownBridge() -> int
 auto MechWarrior::movementDecisionTree() -> int
 {
     // A move that makes no progress for MoveTimeOut seconds is given up.
-    if (static_cast<double>(moveOrders.timeOfLastStep) > -1.0 && moveOrders.timeOfLastStep < scenarioTime - MoveTimeOut)
+    if (static_cast<double>(moveOrders.timeOfLastStep) > -1.0 &&
+        moveOrders.timeOfLastStep < static_cast<double>(scenarioTime) - MoveTimeOut)
     {
         clearMoveOrders();
 
         if ((curTacOrder.isMoveOrder() != 0 || curTacOrder.isWayPathOrder() != 0) &&
-            curTacOrder.time < scenarioTime - MoveTimeOut)
+            curTacOrder.time < static_cast<double>(scenarioTime) - MoveTimeOut)
         {
             radioMessage(RADIO_MOVE_BLOCKED, 1);
             clearCurTacOrder(1, 0);
@@ -2967,11 +2977,11 @@ auto MechWarrior::movementDecisionTree() -> int
             }
 
             const vector_3d targetPosition = target->getPosition();
+            const double dx = static_cast<double>(targetPosition.x) - moveOrders.goalObjectPosition.x;
+            const double dy = static_cast<double>(targetPosition.y) - moveOrders.goalObjectPosition.y;
             const float dz = targetPosition.z - moveOrders.goalObjectPosition.z;
-            const float dy = targetPosition.y - moveOrders.goalObjectPosition.y;
-            const float dx = targetPosition.x - moveOrders.goalObjectPosition.x;
 
-            if (50.0 < std::sqrt(dz * dz + dy * dy + dx * dx))
+            if (50.0 < std::sqrt((dx * dx + dy * dy) + static_cast<double>(dz) * dz))
             {
                 vector_3d goal = target->getPosition();
                 setMoveGoal(static_cast<uint32_t>(target->partId), &goal, target);
@@ -3258,7 +3268,11 @@ auto MechWarrior::clearCurTacOrder(int updateTacOrder, int updateBrain) -> void
         numWarriorsInCombat--;
     }
 
-    Assert(numWarriorsInCombat >= 0, 0, "numWarriorsInCombat >= 0");
+    if (numWarriorsInCombat < 0)
+    {
+        Assert(false, 0, "numWarriorsInCombat >= 0");
+    }
+
     curTacOrder.init();
 
     if (updateTacOrder == 0)
@@ -4856,18 +4870,20 @@ auto MechWarrior::missionLog(File* file, int32_t unitLevel) -> int32_t
 
 auto MechWarrior::calcRank() -> void
 {
-    float weightedSum = 0.0f;
-    float totalWeight = 0.0f;
+    double weightedSum = 0.0;
+    double totalWeight = 0.0;
 
     for (int32_t i = 0; i < NUM_SKILLS; i++)
     {
-        weightedSum = skillRank[i] * SkillWeightings[i] + weightedSum;
+        weightedSum = static_cast<double>(skillRank[i]) * SkillWeightings[i] + weightedSum;
         totalWeight = totalWeight + SkillWeightings[i];
     }
 
+    const float rankValue = static_cast<float>(weightedSum / totalWeight);
+
     for (int32_t i = 0; i < 4; i++)
     {
-        if (weightedSum / totalWeight < WarriorRankScale[i])
+        if (rankValue < WarriorRankScale[i])
         {
             rank = static_cast<uint8_t>(i);
             return;

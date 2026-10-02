@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "object/mech.h"
+#include "main/fixes.h"
 #include "abl/abldbug.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
@@ -127,6 +128,19 @@ namespace
         const vector_3d oldI = frame.i;
         frame.i = frame.i * c + frame.j * s;
         frame.j = frame.j * c - oldI * s;
+    }
+
+    void rotateAboutKUnroundedCos(frame_of_ref& frame, float s, double c)
+    {
+        const vector_3d oldI = frame.i;
+        const vector_3d oldJ = frame.j;
+        const double sd = static_cast<double>(s);
+        frame.i.x = static_cast<float>(c * oldI.x + sd * oldJ.x);
+        frame.i.y = static_cast<float>(c * oldI.y) + s * oldJ.y;
+        frame.i.z = static_cast<float>(c * oldI.z) + s * oldJ.z;
+        frame.j.x = static_cast<float>(c * oldJ.x) - s * oldI.x;
+        frame.j.y = static_cast<float>(c * oldJ.y) - s * oldI.y;
+        frame.j.z = static_cast<float>(c * oldJ.z - static_cast<double>(s * oldI.z));
     }
 
     /// <summary>
@@ -732,8 +746,11 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
             collidee->setCollisionFreeTime(scenarioTime + 2.0f);
             const vector_3d velocity = collidee->getVelocity();
 
-            if (std::sqrt(velocity.y * velocity.y + velocity.z * velocity.z + velocity.x * velocity.x) <=
-                mechCollisionThreshold)
+            const double speed = std::sqrt((static_cast<double>(velocity.x) * velocity.x +
+                                            static_cast<double>(velocity.z) * velocity.z) +
+                                           static_cast<double>(velocity.y) * velocity.y);
+
+            if (!(speed > mechCollisionThreshold))
             {
                 static_cast<Mover*>(collidee)->bounceToAdjCell();
             }
@@ -768,8 +785,8 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
 
             if (deflection > 0.0)
             {
-                rotateAboutK(frame, static_cast<float>(std::sin(deflection * DEGREES_TO_RADIANS)),
-                             static_cast<float>(std::cos(deflection * DEGREES_TO_RADIANS)));
+                rotateAboutKUnroundedCos(frame, static_cast<float>(std::sin(deflection * DEGREES_TO_RADIANS)),
+                                         std::cos(deflection * DEGREES_TO_RADIANS));
                 collidee->setFrame(frame);
             }
             break;
@@ -1000,7 +1017,8 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
     const int32_t numGestures = static_cast<int32_t>(numHotSpotPackets);
     numFramesPerHotSpot =
         static_cast<uint32_t*>(ObjectTypeManager::objectTypeCache->malloc((numGestures + 1) * sizeof(uint32_t)));
-    numHotSpotsPerGesture.assign(static_cast<size_t>(numGestures), 0);
+    std::vector<uint32_t> packetSizes(static_cast<size_t>(numGestures), 0);
+    std::vector<uint32_t> outlineSizes(static_cast<size_t>(numGestures), 0);
 
     for (int32_t gesture = 0; gesture < numGestures; gesture++)
     {
@@ -1027,12 +1045,7 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
         }
 
         hotSpotFile.readPacket(gesture, gestureHotSpots[gesture]);
-
-        if (numFramesPerHotSpot[gesture] != 0)
-        {
-            numHotSpotsPerGesture[gesture] =
-                static_cast<uint32_t>(hotSpotFile.getPacketSize()) / (numFramesPerHotSpot[gesture] * 12);
-        }
+        packetSizes[gesture] = static_cast<uint32_t>(hotSpotFile.getPacketSize());
 
         if (outlineFile.seekPacket(gesture) == 0 && outlineFile.getPacketSize() != 0)
         {
@@ -1045,8 +1058,11 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
             }
 
             outlineFile.readPacket(gesture, gestureOutlines[gesture]);
+            outlineSizes[gesture] = static_cast<uint32_t>(outlineFile.getPacketSize());
         }
     }
+
+    layOutHotSpotPackets(packetSizes, outlineSizes);
 
     jumpData = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(jumpFile.fileSize()));
 
@@ -2673,7 +2689,7 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
     newThrottleSetting = static_cast<char>(controlData->throttle);
     newRotatePerSec = 0.0f;
     updateHustleTime();
-    const bool hustling = scenarioTime < lastHustleTime + 2.0f;
+    const bool hustling = static_cast<double>(scenarioTime) < static_cast<double>(lastHustleTime) + 2.0;
     warrior = pilot;
     Mover* point = warrior->getPoint();
     const bool groupMove = warrior->curTacOrder.isGroupOrder() != 0 && warrior->curTacOrder.isMoveOrder() != 0;
@@ -2887,7 +2903,7 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
             }
 
             newRotate = static_cast<char>(
-                static_cast<int32_t>(std::floor(static_cast<double>(newRotatePerSec / maxTurn * 64.0f))));
+                static_cast<int32_t>(std::floor(static_cast<double>(newRotatePerSec) / maxTurn * 64.0)));
         }
 
         return result;
@@ -3271,7 +3287,108 @@ namespace
     }
 
     /// <summary>Radians to degrees, as MCX.EXE stores it (MCX.EXE @ 0x0077c278).</summary>
-    constexpr double RADIANS_TO_DEGREES = 57.29577951308232;
+    constexpr double RADIANS_TO_DEGREES = 0x1.ca5dc1a6402aap+5;
+
+    double exactFrameFacing(const frame_of_ref& frame)
+    {
+        const float cosine = UnitX.z * frame.i.z + UnitX.y * frame.i.y + UnitX.x * frame.i.x;
+        double facing = frame.my_acos(cosine) * RADIANS_TO_DEGREES;
+
+        if (frame.i.y < 0.0f)
+        {
+            facing = -facing;
+        }
+
+        return facing;
+    }
+}
+
+auto BattleMechType::layOutHotSpotPackets(const std::vector<uint32_t>& packetSizes,
+                                          const std::vector<uint32_t>& outlineSizes) -> void
+{
+    struct Block
+    {
+        size_t size = 0;
+        const uint8_t* bytes = nullptr;
+    };
+
+    const auto blockTotal = [](size_t size)
+    {
+        const size_t total = (size + 0xb) & ~static_cast<size_t>(3);
+        return total < 0x10 ? static_cast<size_t>(0x10) : total;
+    };
+
+    const int32_t numGestures = static_cast<int32_t>(numHotSpotPackets);
+    const size_t pointerTable = static_cast<size_t>(numGestures) * 4 + 4;
+    std::vector<Block> blocks;
+    blocks.push_back({static_cast<size_t>(numWeapons) * 4, nullptr});
+    blocks.push_back({static_cast<size_t>(numGestures) * 32, hotSpotData});
+    blocks.push_back({pointerTable, nullptr});
+    blocks.push_back({pointerTable, nullptr});
+    blocks.push_back({pointerTable, nullptr});
+    std::vector<size_t> packetBlock(static_cast<size_t>(numGestures), 0);
+
+    for (int32_t gesture = 0; gesture < numGestures; gesture++)
+    {
+        packetBlock[gesture] = blocks.size();
+        blocks.push_back({packetSizes[gesture], gestureHotSpots[gesture]});
+
+        if (outlineSizes[gesture] != 0)
+        {
+            blocks.push_back({outlineSizes[gesture], gestureOutlines[gesture]});
+        }
+    }
+
+    const size_t declared = static_cast<size_t>(numWeapons) + numOthers;
+    hotSpotPackets.assign(static_cast<size_t>(numGestures), {});
+    hotSpotPacketShippedFloats.assign(static_cast<size_t>(numGestures), 0);
+
+    for (int32_t gesture = 0; gesture < numGestures; gesture++)
+    {
+        const size_t self = packetBlock[gesture];
+        const Block& own = blocks[self];
+        const size_t shipped = own.size / sizeof(float);
+        hotSpotPacketShippedFloats[gesture] = static_cast<uint32_t>(shipped);
+        const size_t wanted = std::max(shipped, static_cast<size_t>(numFramesPerHotSpot[gesture]) * declared * 3);
+        std::vector<float>& packet = hotSpotPackets[gesture];
+        packet.assign(3 + wanted, 0.0f);
+
+        if (self + 1 < blocks.size() && blocks[self + 1].bytes != nullptr && blocks[self + 1].size >= sizeof(float))
+        {
+            std::memcpy(&packet[0], blocks[self + 1].bytes + blocks[self + 1].size - sizeof(float), sizeof(float));
+        }
+
+        std::memcpy(&packet[3], own.bytes, shipped * sizeof(float));
+
+        std::vector<uint8_t> tail(blockTotal(own.size) - 8 - own.size, 0);
+        const size_t tailBytes = (wanted - shipped) * sizeof(float);
+
+        for (size_t above = self; above-- > 0 && tail.size() < tailBytes;)
+        {
+            const Block& block = blocks[above];
+            tail.insert(tail.end(), 8, 0);
+
+            if (block.bytes != nullptr)
+            {
+                tail.insert(tail.end(), block.bytes, block.bytes + block.size);
+            }
+            else
+            {
+                tail.insert(tail.end(), block.size, 0);
+            }
+
+            tail.insert(tail.end(), blockTotal(block.size) - 8 - block.size, 0);
+        }
+
+        tail.resize(tailBytes, 0);
+
+        if (tailBytes != 0)
+        {
+            std::memcpy(&packet[3 + shipped], tail.data(), tailBytes);
+        }
+
+        gestureHotSpots[gesture] = reinterpret_cast<uint8_t*>(&packet[3]);
+    }
 }
 
 auto BattleMech::getPositionFromHS(uint32_t hotSpot) -> vector_3d
@@ -3299,10 +3416,13 @@ auto BattleMech::getPositionFromHS(uint32_t hotSpot) -> vector_3d
     // mount's turn below still uses the real hot spot).
     uint32_t dataHotSpot = hotSpot;
 
-    if (gesture < mechType->numHotSpotsPerGesture.size() && mechType->numHotSpotsPerGesture[gesture] <= dataHotSpot)
+#if MCREDUX_FIX_SHORT_HOTSPOT_PACKETS
+    if (numFrames > 0 && gesture < mechType->hotSpotPacketShippedFloats.size() &&
+        mechType->hotSpotPacketShippedFloats[gesture] / (static_cast<uint32_t>(numFrames) * 3) <= dataHotSpot)
     {
         dataHotSpot = 0;
     }
+#endif
 
     const int32_t index = numFrames * static_cast<int32_t>(dataHotSpot) + frameNumber;
     const float offsetX = offsets[index * 3];
@@ -3310,15 +3430,9 @@ auto BattleMech::getPositionFromHS(uint32_t hotSpot) -> vector_3d
     const float offsetZ = offsets[index * 3 + 2];
 
     // The body's facing, plus the torso's (and an arm's) for the weapons mounted on them.
-    float facing = static_cast<float>(frame.my_acos(UnitX.z * frame.i.z + UnitX.y * frame.i.y + UnitX.x * frame.i.x) *
-                                      RADIANS_TO_DEGREES);
-
-    if (frame.i.y < 0.0f)
-    {
-        facing = -facing;
-    }
-
-    double turned = facing;
+    const double exactFacing = exactFrameFacing(frame);
+    const float facing = static_cast<float>(exactFacing);
+    double turned = exactFacing;
 
     if (hotSpot < mechType->numWeapons)
     {
@@ -3451,14 +3565,7 @@ auto BattleMech::getJumpPosition(int32_t jet) -> vector_3d
     const float offsetX = offsets[index * 3];
     const float offsetY = offsets[index * 3 + 1];
     const float offsetZ = offsets[index * 3 + 2];
-    float facing = static_cast<float>(frame.my_acos(UnitX.z * frame.i.z + UnitX.y * frame.i.y + UnitX.x * frame.i.x) *
-                                      RADIANS_TO_DEGREES);
-
-    if (frame.i.y < 0.0f)
-    {
-        facing = -facing;
-    }
-
+    const double facing = exactFrameFacing(frame);
     double s;
     double c;
     snappedFacing(facing, s, c);
@@ -3495,7 +3602,7 @@ auto BattleMech::crashAvoidanceSystem() -> int
         return 0;
     }
 
-    if (warrior->moveOrders.waitForPointTime > 1000000.0f)
+    if (static_cast<double>(warrior->moveOrders.waitForPointTime) > 999990.0)
     {
         return 0;
     }
@@ -3966,15 +4073,7 @@ namespace
     /// <summary>A frame's facing in degrees from the world's x axis, negative when its i axis points to -y.</summary>
     float frameFacing(frame_of_ref& frame)
     {
-        float facing = static_cast<float>(
-            frame.my_acos(UnitX.z * frame.i.z + UnitX.y * frame.i.y + UnitX.x * frame.i.x) * RADIANS_TO_DEGREES);
-
-        if (frame.i.y < 0.0f)
-        {
-            facing = -facing;
-        }
-
-        return facing;
+        return static_cast<float>(exactFrameFacing(frame));
     }
 
     /// <summary>
@@ -4092,7 +4191,8 @@ auto BattleMech::update() -> int32_t
         velocity.y = speed * turned.j.y;
         velocity.z = speed * turned.j.z;
         vector_3d newPosition;
-        newPosition.x = velocity.x * frameLength * worldUnitsPerMeter + position.x;
+        newPosition.x = static_cast<float>(static_cast<double>(velocity.x) * frameLength * worldUnitsPerMeter +
+                                           position.x);
         newPosition.y = velocity.y * frameLength * worldUnitsPerMeter + position.y;
         newPosition.z = velocity.z * frameLength * worldUnitsPerMeter + position.z;
         setPosition(newPosition);
@@ -4231,7 +4331,7 @@ auto BattleMech::update() -> int32_t
 
         const float velocityZ = velocity.z;
         vector_3d move;
-        move.x = velocity.x * frameLength * worldUnitsPerMeter;
+        move.x = static_cast<float>(static_cast<double>(velocity.x) * frameLength * worldUnitsPerMeter);
         move.y = velocity.y * frameLength * worldUnitsPerMeter;
         velocity.z = 0.0f;
         move.z = velocityZ * frameLength * worldUnitsPerMeter;
@@ -4272,7 +4372,10 @@ auto BattleMech::update() -> int32_t
         newPosition.y = move.y + position.y;
         newPosition.z = move.z + position.z;
         setPosition(newPosition);
-        unknown7C8 = std::sqrt(move.x * move.x + move.z * move.z + move.y * move.y) + unknown7C8;
+        unknown7C8 = static_cast<float>(std::sqrt((static_cast<double>(move.y) * move.y +
+                                                   static_cast<double>(move.z) * move.z) +
+                                                  static_cast<double>(move.x) * move.x) +
+                                        unknown7C8);
 
         if (isDisabled() == 0)
         {
@@ -4663,7 +4766,7 @@ auto BattleMech::render() -> void
 
 auto BattleMech::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
 {
-    float facing = Mover::relFacingTo(goal, -1);
+    double facing = Mover::relFacingTo(goal, -1);
 
     switch (bodyPart)
     {
@@ -4677,10 +4780,10 @@ auto BattleMech::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
             facing += torsoRotation;
             break;
         case 4:
-            facing = leftArmRotation + torsoRotation + facing;
+            facing += static_cast<double>(leftArmRotation) + torsoRotation;
             break;
         case 5:
-            facing = rightArmRotation + torsoRotation + facing;
+            facing += static_cast<double>(rightArmRotation) + torsoRotation;
             break;
         default:
             break;
@@ -4691,12 +4794,12 @@ auto BattleMech::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
         return static_cast<float>(facing + 360.0);
     }
 
-    if (180.0f < facing)
+    if (facing > 180.0f)
     {
-        facing = static_cast<float>(facing - 360.0);
+        facing -= 360.0;
     }
 
-    return facing;
+    return static_cast<float>(facing);
 }
 
 auto BattleMech::getBodyState() -> int32_t
@@ -4807,8 +4910,11 @@ auto BattleMech::calcHitLocation(GameObject* attacker, int32_t weaponIndex, int3
 
 auto BattleMech::transferHitLocation(int32_t hitLocation) -> int32_t
 {
-    Assert(hitLocation >= 0 && hitLocation < NUM_MECH_BODY_LOCATIONS, 0,
-           "(hitLocation >= 0) && (hitLocation < NUM_MECH_BODY_LOCATIONS)", "L:\\mcx\\Object\\Mech.cpp");
+    if (hitLocation < 0 || hitLocation >= NUM_MECH_BODY_LOCATIONS)
+    {
+        Assert(false, 0, "(hitLocation >= 0) && (hitLocation < NUM_MECH_BODY_LOCATIONS)", "L:\\mcx\\Object\\Mech.cpp");
+    }
+
     return MechTransferHitTable[hitLocation];
 }
 
@@ -4843,7 +4949,7 @@ auto BattleMech::getJumpRange(int32_t* numOffsets, int32_t* jumpCost) -> float
         *jumpCost = numJumpJets != 0 ? DefaultMechJumpCost : 0;
     }
 
-    return static_cast<float>(numJumpJets) * Terrain::metersPerVertex * static_cast<float>(2.0 / 3.0);
+    return static_cast<float>(static_cast<double>(numJumpJets) * Terrain::metersPerVertex * (2.0 / 3.0));
 }
 
 auto BattleMech::handleEjection() -> int
@@ -5829,7 +5935,7 @@ auto BattleMech::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChun
 namespace
 {
     /// <summary>Ammo count that marks a weapon as never running out.</summary>
-    constexpr int32_t UNLIMITED_SHOTS = 10000;
+    constexpr int32_t UNLIMITED_SHOTS = 9999;
 
     /// <summary>Packs a weapon fire chunk, checks that it unpacks the same, queues it and logs it.</summary>
     void sendWeaponFireChunk(BattleMech* mech, WeaponFireChunk& chunk, GameObject* target)
@@ -6723,7 +6829,7 @@ auto BattleMech::calcSpriteSpeed(float speed, uint32_t flags, int32_t& state, in
     if (speed <= walkSpeed)
     {
         state = 2;
-        throttle = static_cast<int32_t>(speed / walkSpeed * 100.0);
+        throttle = static_cast<int32_t>(static_cast<double>(speed) / walkSpeed * 100.0);
         return 0;
     }
 
@@ -6732,7 +6838,7 @@ auto BattleMech::calcSpriteSpeed(float speed, uint32_t flags, int32_t& state, in
         if ((flags & 1) != 0)
         {
             state = 2;
-            throttle = static_cast<int32_t>(speed / walkSpeed * 100.0);
+            throttle = static_cast<int32_t>(static_cast<double>(speed) / walkSpeed * 100.0);
             return 2;
         }
 

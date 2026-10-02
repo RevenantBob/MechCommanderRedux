@@ -567,7 +567,7 @@ auto TerrainObject::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayC
         MPlayer->addWeaponHitChunk(this, shotInfo, 0);
     }
 
-    float newDamage = getDamage() + shotInfo->damage;
+    double newDamage = static_cast<double>(getDamage()) + shotInfo->damage;
     const auto maxDamage = static_cast<float>(static_cast<int32_t>(static_cast<TerrainObjectType*>(objType)->dmgLevel));
 
     if (maxDamage < newDamage)

@@ -552,26 +552,27 @@ auto execExpression() -> TypePtr
         promoteOperands(operand1TypePtr, operand2TypePtr);
         float value1 = operand1Ptr->real;
         float value2 = operand2Ptr->real;
+        const bool unordered = value1 != value1 || value2 != value2;
 
         switch (op)
         {
             case TKN_LT:
-                result = value1 < value2;
+                result = unordered || value1 < value2;
                 break;
             case TKN_GT:
-                result = value1 > value2;
+                result = !unordered && value1 > value2;
                 break;
             case TKN_EQUALEQUAL:
-                result = value1 == value2;
+                result = unordered || value1 == value2;
                 break;
             case TKN_LE:
-                result = value1 <= value2;
+                result = unordered || value1 <= value2;
                 break;
             case TKN_GE:
-                result = value1 >= value2;
+                result = !unordered && value1 >= value2;
                 break;
             case TKN_NE:
-                result = value1 != value2;
+                result = !unordered && value1 != value2;
                 break;
             default:
                 break;

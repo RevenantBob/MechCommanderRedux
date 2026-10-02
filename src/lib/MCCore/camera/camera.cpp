@@ -1119,7 +1119,7 @@ auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
                 toCorner.z /= length;
             }
 
-            const double degrees = std::acos(static_cast<double>(toCorner.x)) * RADIANS_TO_DEGREES;
+            const double degrees = acosMatherr(static_cast<double>(toCorner.x)) * RADIANS_TO_DEGREES;
             cornerAngle[corner] = static_cast<float>(degrees);
 
             if (toCorner.y < 0.0f)

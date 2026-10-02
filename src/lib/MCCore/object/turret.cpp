@@ -703,7 +703,9 @@ auto Turret::update() -> int32_t
         const float dy = targetPosition.y - position.y;
         const float reach = getExtentRadius();
 
-        if (target->isDisabled() != 0 || target->isDestroyed() != 0 || reach * reach < dx * dx + dy * dy)
+        if (target->isDisabled() != 0 || target->isDestroyed() != 0 ||
+            static_cast<double>(reach) * reach <
+                static_cast<double>(dy) * dy + static_cast<double>(dx) * dx)
         {
             target = nullptr;
         }
@@ -1080,7 +1082,7 @@ auto Turret::getPositionFromHS(uint32_t nodeId) -> vector_3d
 
         if (nodeId != 0xffffffff)
         {
-            const double angle = (static_cast<double>(turretRotation) + 90.0) * DEGREES_TO_RADIANS;
+            const double angle = (static_cast<double>(turretRotation) + 45.0) * DEGREES_TO_RADIANS;
             muzzleX = static_cast<float>(std::sin(angle) * type->fireOffsetX);
             muzzleY = std::cos(angle) * type->fireOffsetX;
             muzzleZ = static_cast<float>(type->fireOffsetY);

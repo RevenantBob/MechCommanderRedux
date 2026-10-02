@@ -3,6 +3,18 @@
 // Original source: mcx\lib\cvmath.h (inline vector math) and lib\cvmath.cpp (the random-number helpers and the unit
 // vectors). World space is x/y on the ground and z up.
 
+#include <cmath>
+
+inline double acosMatherr(double cosine)
+{
+    if (cosine >= -1.0 && cosine <= 1.0)
+    {
+        return std::acos(cosine);
+    }
+
+    return cosine >= 1.0 ? 0.0 : 3.14159265359;
+}
+
 /// <summary>A 2D vector (screen or map coordinates).</summary>
 class vector_2d
 {
@@ -75,19 +87,23 @@ public:
 
     /// <summary>The length.</summary>
     /// <remarks>MCX.EXE @ 0x00664a30</remarks>
-    float magnitude() const { return std::sqrt(z * z + y * y + x * x); }
+    double magnitude() const
+    {
+        return std::sqrt((static_cast<double>(x) * x + static_cast<double>(y) * y) + static_cast<double>(z) * z);
+    }
 
     /// <summary>Scales to length 1 (a zero vector stays zero).</summary>
     /// <remarks>MCX.EXE @ 0x0066ea20</remarks>
     void normalize()
     {
-        const float length = std::sqrt(z * z + y * y + x * x);
+        const double length =
+            std::sqrt((static_cast<double>(x) * x + static_cast<double>(y) * y) + static_cast<double>(z) * z);
 
-        if (length != 0.0f)
+        if (length > 0.0)
         {
-            x = x / length;
-            y = y / length;
-            z = z / length;
+            x = static_cast<float>(x / length);
+            y = static_cast<float>(y / length);
+            z = static_cast<float>(z / length);
         }
     }
 
@@ -153,16 +169,18 @@ inline vector_3d operator*(const vector_3d& v, const float& scale)
 
 /// <summary>The dot product.</summary>
 /// <remarks>MCX.EXE @ 0x00658270</remarks>
-inline float operator|(const vector_3d& a, const vector_3d& b)
+inline double operator|(const vector_3d& a, const vector_3d& b)
 {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
+    return (static_cast<double>(a.z) * b.z + static_cast<double>(a.y) * b.y) + static_cast<double>(a.x) * b.x;
 }
 
 /// <summary>The cross product a x b.</summary>
 /// <remarks>MCX.EXE @ 0x006649e0</remarks>
 inline vector_3d operator&(const vector_3d& a, const vector_3d& b)
 {
-    return vector_3d(b.z * a.y - b.y * a.z, b.x * a.z - b.z * a.x, b.y * a.x - b.x * a.y);
+    return vector_3d(static_cast<float>(static_cast<double>(b.z) * a.y - static_cast<double>(b.y) * a.z),
+                     static_cast<float>(static_cast<double>(b.x) * a.z - static_cast<double>(b.z) * a.x),
+                     static_cast<float>(static_cast<double>(b.y) * a.x - static_cast<double>(b.x) * a.y));
 }
 
 /// <summary>An orientation: three orthonormal axes.</summary>
@@ -178,7 +196,7 @@ public:
 
     /// <summary>acos of <paramref name="cosine"/> clamped to [-1, 1].</summary>
     /// <remarks>MCX.EXE @ 0x0067af50</remarks>
-    float my_acos(float cosine)
+    double my_acos(float cosine) const
     {
         if (cosine < -1.0)
         {
@@ -190,7 +208,7 @@ public:
             cosine = 1.0f;
         }
 
-        return static_cast<float>(std::acos(static_cast<double>(cosine)));
+        return acosMatherr(static_cast<double>(cosine));
     }
 
     /// <remarks>MCX.EXE @ 0x0067d670</remarks>

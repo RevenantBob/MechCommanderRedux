@@ -629,10 +629,11 @@ auto Building::render() -> void
     }
     else
     {
-        burnTime = frameLength + burnTime;
+        const double burnSum = static_cast<double>(frameLength) + burnTime;
+        burnTime = static_cast<float>(burnSum);
         auto* type = static_cast<BuildingType*>(objType);
 
-        if (type->timeToBurnDamage < burnTime)
+        if (type->timeToBurnDamage < burnSum)
         {
             burnTime = 0.0f;
             _WeaponShotInfo shot;

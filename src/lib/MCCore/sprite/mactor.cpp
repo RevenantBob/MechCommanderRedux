@@ -84,7 +84,7 @@ namespace
     constexpr double TURN_ANGLE = 3.1415926535820002;
 
     /// <summary>The facing of <paramref name="obj"/> in degrees, negative to the right.</summary>
-    auto objectFacing(GameObject* obj) -> float
+    auto exactObjectFacing(GameObject* obj) -> double
     {
         const frame_of_ref frame = obj->getFrame();
         float cosFacing = UnitX.x * frame.i.x + UnitX.y * frame.i.y + UnitX.z * frame.i.z;
@@ -99,7 +99,7 @@ namespace
             cosFacing = 1.0f;
         }
 
-        float facing = static_cast<float>(std::acos(static_cast<double>(cosFacing)) * 57.29577951308232);
+        double facing = acosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
 
         if (frame.i.y < 0.0)
         {
@@ -107,6 +107,11 @@ namespace
         }
 
         return facing;
+    }
+
+    auto objectFacing(GameObject* obj) -> float
+    {
+        return static_cast<float>(exactObjectFacing(obj));
     }
 
     /// <summary>Wraps <paramref name="rotation"/> into -180..180 (one step each way).</summary>
@@ -257,9 +262,9 @@ auto MechActor::setGestureGoal(int32_t goal) -> int32_t
 
     // Running backwards (the torso turned past the side) is walking backwards for mirrored gestures.
     auto* mech = static_cast<BattleMech*>(owner);
-    const float facing = objectFacing(mech) + mech->torsoRotation;
+    const double facing = exactObjectFacing(mech) + mech->torsoRotation;
 
-    if (facing < 0.0f || facing >= 180.0)
+    if (!(facing >= 0.0f) || facing >= 180.0)
     {
         const GestureData& data = mechTree->gestures[goal];
 
@@ -369,7 +374,7 @@ auto MechActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
         currentTime[i] = 0.0f;
         lastFrame[i] = 0;
         frameRate[i] = 15.0f;
-        reverse[i] = 0;
+        unknownB4[i] = 0;
         partOrder[i] = 0;
     }
 
@@ -533,10 +538,11 @@ auto MechActor::getVelocityMagnitude() -> float
         if (startVelocity >= -1999.0 && endVelocity >= -1999.0)
         {
             const uint32_t numFrames = mechTree->gestures[gesture].numFrames;
-            return (endVelocity - startVelocity) *
-                       (1.0f - static_cast<float>(numFrames - static_cast<uint32_t>(currentFrame[MECH_PART_LEGS])) /
-                                   static_cast<float>(static_cast<int32_t>(numFrames))) +
-                   startVelocity;
+            const double framesLeft =
+                static_cast<double>(numFrames - static_cast<uint32_t>(currentFrame[MECH_PART_LEGS]));
+            const double t = 1.0 - framesLeft / static_cast<double>(static_cast<int32_t>(numFrames));
+            return static_cast<float>(
+                (static_cast<double>(endVelocity) - static_cast<double>(startVelocity)) * t + startVelocity);
         }
     }
     else if (velocity >= -1999.0)
@@ -668,22 +674,24 @@ auto MechActor::recalcBounds(Camera* cam) -> int
 
 auto calcRotation(float rotation, int32_t numRotations) -> int32_t
 {
-    if (rotation > 180.0)
+    double degrees = rotation;
+
+    if (degrees > 180.0)
     {
-        rotation = static_cast<float>(rotation - 360.0);
+        degrees -= 360.0;
     }
-    else if (rotation < -180.0)
+    else if (degrees < -180.0)
     {
-        rotation = static_cast<float>(rotation + 360.0);
+        degrees += 360.0;
     }
 
-    if (rotation < 0.0)
+    if (degrees < 0.0)
     {
-        rotation = static_cast<float>(rotation + 360.0);
+        degrees += 360.0;
     }
 
-    int32_t index = static_cast<int16_t>(static_cast<int32_t>(
-        std::floor(static_cast<double>(rotation * static_cast<float>(numRotations + 1)) * (1.0 / 360.0))));
+    int32_t index = static_cast<int16_t>(
+        static_cast<int32_t>(std::floor(degrees * static_cast<double>(numRotations + 1) * (1.0 / 360.0))));
 
     if (index > 0x1f)
     {
@@ -1321,19 +1329,19 @@ auto MechActor::update() -> int32_t
                 unknown100.x = jumpGoal.x - position.x;
                 unknown100.y = jumpGoal.y - position.y;
                 unknown100.z = jumpGoal.z - position.z;
-                unknown110 =
-                    std::sqrt(unknown100.z * unknown100.z + unknown100.y * unknown100.y + unknown100.x * unknown100.x);
-                const float length =
-                    std::sqrt(unknown100.z * unknown100.z + unknown100.y * unknown100.y + unknown100.x * unknown100.x);
+                const double length = std::sqrt((static_cast<double>(unknown100.x) * unknown100.x +
+                                                 static_cast<double>(unknown100.y) * unknown100.y) +
+                                                static_cast<double>(unknown100.z) * unknown100.z);
+                unknown110 = static_cast<float>(length);
 
-                if (length != 0.0)
+                if (length < 0.0 || length > 0.0)
                 {
-                    unknown100.x = unknown100.x / length;
-                    unknown100.y = unknown100.y / length;
-                    unknown100.z = unknown100.z / length;
+                    unknown100.x = static_cast<float>(unknown100.x / length);
+                    unknown100.y = static_cast<float>(unknown100.y / length);
+                    unknown100.z = static_cast<float>(unknown100.z / length);
                 }
 
-                const float distance = static_cast<float>(unknown110 * 0.4 + unknown110);
+                const float distance = static_cast<float>(unknown110 * 0.3 + unknown110);
                 unknown110 = distance;
 
                 // Find the frames in the air: from the bottom of the crouch to the top of the climb.
@@ -1372,9 +1380,10 @@ auto MechActor::update() -> int32_t
                 unknown11C = 0;
                 unknownE4 = 0;
                 unknown114 = 1;
-                const float speed = (distance / (static_cast<float>(airFrames) / jump.frameRate)) * metersPerWorldUnit;
-                jumpSpeed = speed;
-                jumpParameter = distance / speed;
+                const double speed =
+                    (distance / (static_cast<double>(airFrames) / jump.frameRate)) * metersPerWorldUnit;
+                jumpSpeed = static_cast<float>(speed);
+                jumpParameter = static_cast<float>(distance / speed);
                 mech->createJumpFX();
                 unknown174 = 0;
                 unknown178 = 0;
@@ -1539,15 +1548,15 @@ auto MechActor::update() -> int32_t
 
         if (singleStepMode == 0)
         {
-            const float interval = static_cast<float>(1.0 / frameRate[MECH_PART_LEGS]);
-            const float time = frameLength + currentTime[MECH_PART_LEGS];
-            currentTime[MECH_PART_LEGS] = time;
+            const double interval = 1.0 / frameRate[MECH_PART_LEGS];
+            const double time = static_cast<double>(frameLength) + currentTime[MECH_PART_LEGS];
+            currentTime[MECH_PART_LEGS] = static_cast<float>(time);
 
             if (interval <= time)
             {
                 step = static_cast<int32_t>(time * frameRate[MECH_PART_LEGS]);
                 // Original behaviour (OB-055): the time left is time / step - interval, not time - step * interval.
-                currentTime[MECH_PART_LEGS] = time / static_cast<float>(step) - interval;
+                currentTime[MECH_PART_LEGS] = static_cast<float>(time / step - interval);
             }
 
             // The footstep of the fall-down gestures.

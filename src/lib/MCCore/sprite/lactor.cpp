@@ -32,7 +32,7 @@ namespace
             cosFacing = 1.0f;
         }
 
-        double facing = std::acos(static_cast<double>(cosFacing)) * 57.29577951308232;
+        double facing = acosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
 
         if (frame.i.y < 0.0)
         {

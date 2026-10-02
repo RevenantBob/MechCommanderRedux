@@ -99,20 +99,20 @@ auto ElementalDynamics::update() -> int32_t
     }
 
     // Accelerate toward the throttle's share of the top speed.
-    const float speedChange = throttle * dynType->maxVelocity - velocity;
+    const float speedChange = static_cast<float>(static_cast<double>(throttle) * dynType->maxVelocity - velocity);
 
     if ((speedChange < 0.0f && 0.0f < accel) || (0.0f < speedChange && accel < 0.0f))
     {
         accel = -accel;
     }
 
-    float step = frameLength * accel;
+    double step = static_cast<double>(frameLength) * accel;
 
-    if (std::fabs(speedChange) < std::fabs(frameLength * accel))
+    if (std::fabs(speedChange) < std::fabs(step))
     {
         step = speedChange;
     }
 
-    velocity = step + velocity;
+    velocity = static_cast<float>(step + velocity);
     return 1;
 }

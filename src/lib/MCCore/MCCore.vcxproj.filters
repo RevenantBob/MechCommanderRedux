@@ -952,6 +952,9 @@
     <ClInclude Include="main\logistics.h">
       <Filter>main</Filter>
     </ClInclude>
+    <ClInclude Include="main\fixes.h">
+      <Filter>main</Filter>
+    </ClInclude>
     <ClInclude Include="main\main.h">
       <Filter>main</Filter>
     </ClInclude>

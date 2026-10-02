@@ -207,7 +207,7 @@ auto Jet::update() -> int32_t
         cosFacing = 1.0f;
     }
 
-    double facing = std::acos(static_cast<double>(cosFacing)) * RADIANS_TO_DEGREES;
+    double facing = acosMatherr(static_cast<double>(cosFacing)) * RADIANS_TO_DEGREES;
 
     if (frame.i.y < 0.0f)
     {
