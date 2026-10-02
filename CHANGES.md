@@ -70,6 +70,8 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - DirectPlay is replaced by TCP/UDP networking. One player hosts and the others connect to them.
 - LAN games are found automatically. Internet games connect by `host:port`; the default port is 28800.
 - Modem, serial cable, lobby (MPlayer, Zone) and host migration aren't supported.
+- Zoom works in multiplayer. The original locked multiplayer games to the zoomed-out view and greyed out the zoom
+  button. Zoom only changes what is drawn, so players zooming independently doesn't affect the game itself.
 
 ### Files and Saves
 
@@ -146,6 +148,8 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - Laser beams without a target position are no longer drawn from a random point.
 - Long mission briefing text, help text and rank names no longer run past their buffers.
 - Chat from an unknown player takes the first player's colour instead of crashing.
+- A mech icon part for a location without armor no longer divides by zero when it picks its colour. It shows red, as
+  in the original.
 
 ---
 
@@ -251,3 +255,5 @@ These only matter when writing or editing mission scripts (ABL).
   "Undefined ABL RoutineKey", and `getobjectmaxdmg` returns the damage taken.
 - `addprisoner` puts the prisoner in every empty slot of the prison, not just the first.
 - A camera block without `MinScrollSpeed` gets a `DistanceThreshold` of 90.
+- `getrepairstate` returns -2147483648 for a part that isn't a unit, or a unit with every location destroyed, so it
+  passes any "below n%" test.

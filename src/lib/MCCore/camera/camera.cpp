@@ -187,7 +187,7 @@ auto viewWindow::handleEvent(aEvent* event) -> void
             {
                 Camera* view = GetCamera();
 
-                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0 && MPlayer == nullptr)
+                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
                 {
                     view->forceUpdate = 1;
                     Terrain::forceRedraw = 1;
@@ -597,7 +597,7 @@ auto aMainWindow::ZoomActivePane() -> void
         return;
     }
 
-    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0 && MPlayer == nullptr)
+    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
     {
         view->cameraScale = view->cameraScale != 100 ? 100 : 1;
         view->forceUpdate = 1;

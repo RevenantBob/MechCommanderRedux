@@ -482,6 +482,13 @@ auto TogglePalette() -> void
 
 auto BlinkerHandleEvent(aObject* obj, aEvent* event) -> void
 {
+    // The port's resize broadcast (0x12, see MCFollowWindowSize) already reaches every object, and has no position:
+    // passed to what lies under (0, 0), the tactical map, it would come back here forever.
+    if (event->type == 0x12)
+    {
+        return;
+    }
+
     // Hides itself to find what lies under it, and passes the event there.
     obj->ShowGUIWindow(0);
     aObject* under = screenWindow->findObject(event->x, event->y);
@@ -808,6 +815,13 @@ auto ArtilleryButton::handleEvent(aEvent* event) -> void
             draw();
         }
 
+        return;
+    }
+
+    // The port's resize broadcast (0x12) has no position: passed to the tactical map under (0, 0), it would come back
+    // here forever (see BlinkerHandleEvent).
+    if (event->type == 0x12)
+    {
         return;
     }
 
@@ -1451,14 +1465,15 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
 
         if (i == 7)
         {
-            if (only45Pixel == 0 && MPlayer == nullptr)
+            // The original also disabled zoom in multiplayer; the port allows it.
+            if (only45Pixel == 0)
             {
                 button->action = ACTION_TOGGLE_ZOOM;
                 loadHelpText(button->helpText, 0x91);
             }
             else
             {
-                // No zoom: the 45-pixel view or multiplayer.
+                // No zoom: only the 45-pixel art is loaded.
                 button->setGrayPicture(const_cast<char*>("mfdcbn07a.tga"));
                 button->disabled = -1;
                 button->draw();

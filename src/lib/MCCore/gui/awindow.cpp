@@ -2169,13 +2169,13 @@ auto aEmptyTitleWindow::handleEvent(aEvent* event) -> void
 
         if (event->type == 0x1a)
         {
-            // Zoom: the camera flips between full scale (100) and 1; only 1 in multiplayer, while paused or asked,
-            // or when only the 45-degree art is loaded.
+            // Zoom: the camera flips between full scale (100) and 1; only 1 while paused or asked, or when only the
+            // 45-pixel art is loaded. The original also locked multiplayer to 1; the port allows zoom there.
             Camera* camera = pane->GetCamera();
 
             if (camera != nullptr)
             {
-                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0 && MPlayer == nullptr)
+                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
                 {
                     camera->cameraScale = camera->cameraScale != 100 ? 100 : 1;
                 }

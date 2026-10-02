@@ -4396,14 +4396,13 @@ auto execHbGetRepairState(SymTableNodePtr routineIdPtr) -> TypePtr
     int32_t partId = tos->integer;
     pop();
     // The percentage of internal structure and armor left, over the locations that aren't destroyed.
-    float current = 0.0f;
+    double sum = 0.0;
     int32_t maximum = 0;
     BaseObject* object = objectList->findObjectFromPart(partId);
 
     if (object && isMover(object))
     {
         Mover* mover = static_cast<Mover*>(object);
-        double sum = current;
 
         for (int32_t i = 0; i < mover->numBodyLocations; i++)
         {
@@ -4422,13 +4421,17 @@ auto execHbGetRepairState(SymTableNodePtr routineIdPtr) -> TypePtr
                 maximum += mover->armor[i].maxArmor;
             }
         }
+    }
 
-        // Original behaviour: with no locations (or no object) this is 0 / 0, which __ftol turns into 0x80000000.
+    if (maximum != 0)
+    {
         pushInteger(x87Ftol(sum * 100.0 / static_cast<double>(maximum)));
     }
     else
     {
-        pushInteger(x87Ftol(static_cast<double>(current) * 100.0 / static_cast<double>(maximum)));
+        // Original behaviour (OB-111): with no object, or no location left, MCX.EXE divides by zero and __ftol turns
+        // the NaN or infinity into 0x80000000.
+        pushInteger(INT32_MIN);
     }
 
     getCodeToken();

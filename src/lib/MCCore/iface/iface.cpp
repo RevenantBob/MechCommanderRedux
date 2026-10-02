@@ -210,6 +210,12 @@ namespace
     /// <summary>The percentage of <paramref name="current"/> out of <paramref name="maximum"/>, floored.</summary>
     int16_t armorPercent(float current, uint8_t maximum)
     {
+        // A location without armour divides by zero in MCX.EXE: __ftol returns 0x80000000, whose low half is 0.
+        if (maximum == 0)
+        {
+            return 0;
+        }
+
         return static_cast<int16_t>(std::floor(static_cast<double>(current) * 100.0 / static_cast<double>(maximum)));
     }
 
@@ -2117,7 +2123,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 {
                     soundSystem->playDigitalSample(0x44, 1, nullptr, 0, 0);
 
-                    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0 && MPlayer == nullptr)
+                    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
                     {
                         if (eye->cameraScale == 1)
                         {
@@ -2139,7 +2145,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     soundSystem->playDigitalSample(0x45, 1, nullptr, 0, 0);
                     bool zoomed = false;
 
-                    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0 && MPlayer == nullptr)
+                    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
                     {
                         if (eye->cameraScale != 1 && eye->cameraScale == 100)
                         {
