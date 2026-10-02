@@ -150,8 +150,10 @@ public:
     int32_t sourceHotSpot; // +0x98
     /// <summary>The object hit; the shot is applied to it.</summary>
     BaseObjectWatcher target; // +0x9c
-    /// <summary>Zeroed by init; not otherwise used in laser.cpp.</summary>
-    int32_t unknownA0; // +0xa0
+    /// <summary>
+    /// The target's hot spot that was hit, set by the launchers. The original never read it (OB-017); the beam ends there.
+    /// </summary>
+    int32_t targetHotSpot; // +0xa0
     /// <summary>Where the beam ends, allocated by <see cref="setTargetPosition"/>.</summary>
     vector_3d* targetPosition; // +0xa4
     /// <summary>The shot applied to the target.</summary>

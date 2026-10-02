@@ -242,9 +242,8 @@ auto Bullet::update() -> int32_t
 
     if (target != nullptr)
     {
-        // Original behaviour (OB-017): the flight follows the target's hot spot numbered like the owner's
-        // (ownerHotSpot), not targetHotSpot.
-        const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(ownerHotSpot);
+        // Port fix (OB-017): follow the hot spot the hit effect plays at (the original used ownerHotSpot).
+        const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(targetHotSpot);
         setTargetPosition(target->getPositionFromHS(hotSpot));
     }
 

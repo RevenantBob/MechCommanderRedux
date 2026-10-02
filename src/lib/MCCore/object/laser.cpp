@@ -418,7 +418,7 @@ auto Laser::init() -> void
     source.setWatcher(nullptr);
     target.setWatcher(nullptr);
     shotInfo.damage = 0.0f;
-    unknownA0 = 0;
+    targetHotSpot = 0;
     sourceHotSpot = 0;
     targetPosition = nullptr;
     hitEffectCreated = 0;
@@ -547,8 +547,8 @@ auto Laser::render() -> void
 
     if (victim != nullptr)
     {
-        // Original behaviour (OB-017): the target's hot spot is numbered like the shooter's (sourceHotSpot).
-        const uint32_t hotSpot = victim->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(sourceHotSpot);
+        // Port fix (OB-017): end at the hot spot that was hit (the original used sourceHotSpot).
+        const uint32_t hotSpot = victim->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(targetHotSpot);
         setTargetPosition(victim->getPositionFromHS(hotSpot));
     }
 

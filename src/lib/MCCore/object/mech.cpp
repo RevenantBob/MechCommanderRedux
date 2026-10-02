@@ -5961,7 +5961,7 @@ namespace
                 laser->source.setWatcher(mech);
                 laser->target.setWatcher(target);
                 laser->sourceHotSpot = sourceHotSpot;
-                laser->unknownA0 = targetHotSpot;
+                laser->targetHotSpot = targetHotSpot;
                 laser->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
             }
         }
