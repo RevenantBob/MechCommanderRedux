@@ -2994,7 +2994,7 @@ auto LogMechList::addMech(FitIniFile* file, int required, int sorted, int widget
     {
         chassisName = 0x4f;
 
-        if (mech->armorTonnage > 7.5f)
+        if (mech->armorTonnage > 7.0f)
         {
             chassisName = 0x65;
 

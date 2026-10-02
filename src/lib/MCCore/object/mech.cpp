@@ -2344,7 +2344,7 @@ auto BattleMech::updateJump() -> int
                 controlData->throttle = 100;
             }
         }
-        else if (distanceFrom(jumpGoal) > 12.0f)
+        else if (distanceFrom(jumpGoal) > 8.0f)
         {
             actor->setJumpParameters(jumpGoal, 0);
 
@@ -3054,7 +3054,7 @@ auto BattleMech::setControlSettings(char& newRotate, char& newThrottleSetting, f
     {
         mapCellToWorldPos(statusChunk.targetCellRC[0], statusChunk.targetCellRC[1], jumpGoal);
 
-        if (distanceFrom(jumpGoal) > 12.0f)
+        if (distanceFrom(jumpGoal) > 8.0f)
         {
             newGestureStateGoal = 6;
             startJump = true;
@@ -3271,7 +3271,7 @@ namespace
     }
 
     /// <summary>Radians to degrees, as MCX.EXE stores it (MCX.EXE @ 0x0077c278).</summary>
-    constexpr double RADIANS_TO_DEGREES = 57.29577951308232;
+    constexpr double RADIANS_TO_DEGREES = 0x1.ca5dc1a6402aap+5;
 }
 
 auto BattleMech::getPositionFromHS(uint32_t hotSpot) -> vector_3d
@@ -3495,7 +3495,7 @@ auto BattleMech::crashAvoidanceSystem() -> int
         return 0;
     }
 
-    if (warrior->moveOrders.waitForPointTime > 1000000.0f)
+    if (warrior->moveOrders.waitForPointTime > 999990.0f)
     {
         return 0;
     }

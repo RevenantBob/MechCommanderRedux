@@ -431,7 +431,10 @@ void* UserHeap::malloc(uint32_t memSize)
         return nullptr;
     }
 
-    // Zero the heap block
+    // Zero the heap block. The original differs: UserHeap::init (MCX.EXE @ 0x00647d40) filled the whole heap with 0xff,
+    // so a fresh block came back as 0xff bytes (a reused one kept its old contents). The port zeroes on purpose: code
+    // that relies on the 0xff (ABL statics reading -1 / NaN, unset MechActor fields) should be found and given explicit
+    // values, so the game can later move off this heap.
     std::memset(block, 0, memSize);
 
     const uint32_t blockSize = OriginalBlockSize(memSize);

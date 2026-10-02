@@ -655,7 +655,7 @@ auto Building::render() -> void
         uint8_t* shape;
         const char* shapeName;
 
-        if (100.0f < getTonnage())
+        if (50.0f < getTonnage())
         {
             shape = scenario->sensorContactShapes[0];
             shapeName = "blip1";

@@ -83,8 +83,8 @@ namespace
     /// <summary>The TerrainWindow::update result that makes init rebuild the window (never returned).</summary>
     constexpr int32_t REBUILD_WINDOW = static_cast<int32_t>(0xfabfaded);
 
-    /// <summary>The isometric view angle (30 degrees).</summary>
-    constexpr double VIEW_ANGLE = 0.5235987755982988;
+    /// <summary>The isometric view angle (30 degrees, as MCX.EXE stores it: 0.523598775597).</summary>
+    constexpr double VIEW_ANGLE = 0x1.0c152382d45b2p-1;
 
     /// <summary>Depth of the debug grid's lines.</summary>
     constexpr int32_t GRID_LINE_DEPTH = -78000000;

@@ -99,7 +99,7 @@ namespace
             cosFacing = 1.0f;
         }
 
-        float facing = static_cast<float>(std::acos(static_cast<double>(cosFacing)) * 57.29577951308232);
+        float facing = static_cast<float>(std::acos(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5);
 
         if (frame.i.y < 0.0)
         {
@@ -1333,7 +1333,7 @@ auto MechActor::update() -> int32_t
                     unknown100.z = unknown100.z / length;
                 }
 
-                const float distance = static_cast<float>(unknown110 * 0.4 + unknown110);
+                const float distance = static_cast<float>(unknown110 * 0.3 + unknown110);
                 unknown110 = distance;
 
                 // Find the frames in the air: from the bottom of the crouch to the top of the climb.

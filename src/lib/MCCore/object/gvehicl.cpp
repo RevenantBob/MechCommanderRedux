@@ -2580,7 +2580,7 @@ auto GroundVehicle::crashAvoidanceSystem() -> int
         return 0;
     }
 
-    if (warrior->moveOrders.waitForPointTime > 1000000.0f)
+    if (warrior->moveOrders.waitForPointTime > 999990.0f)
     {
         return 0;
     }
@@ -2944,7 +2944,7 @@ auto GroundVehicle::update() -> int32_t
     }
 
     normal.normalize();
-    const double slope = std::acos(heading | normal) * 57.29577951308232;
+    const double slope = std::acos(heading | normal) * 0x1.ca5dc1a6402aap+5;
 
     if (slope != 90.0)
     {

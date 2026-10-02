@@ -30,7 +30,7 @@ namespace
     constexpr int32_t NO_BLOCK_FILE = static_cast<int32_t>(0xbaaa000e);
 
     /// <summary>Radians to degrees (the double at 0x0077c278).</summary>
-    constexpr double RADS_TO_DEGREES = 57.29577951308232;
+    constexpr double RADS_TO_DEGREES = 0x1.ca5dc1a6402aap+5;
 
     /// <summary>The tag at the start of a fast-shape table ("DNAH" read as a little-endian int).</summary>
     constexpr int32_t FAST_SHAPE_TAG = 'D' | ('N' << 8) | ('A' << 16) | ('H' << 24);

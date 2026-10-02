@@ -580,7 +580,7 @@ auto MiscTerrainObject::drawBars(vector_2d screenPos) -> void
     const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
     const float barWidth = (eye->cameraScale != 1 ? 1.0f : 0.5f) * 38.0f;
     const float barHeight = (eye->cameraScale != 1 ? 1.0f : 0.5f) * 4.0f;
-    const float top = (screenPos.y - scale * 7.0f) - barHeight;
+    const float top = (screenPos.y - scale * 6.0f) - barHeight;
     const auto left = static_cast<float>(std::floor(static_cast<double>(screenPos.x - barWidth * 0.5f)));
     int32_t damageTaken = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(getDamage()))));
     const int32_t maxDamage = dmgLevelFor(static_cast<MiscTerrainObjectType*>(objType), terrainObjectKind);

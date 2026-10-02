@@ -38,7 +38,7 @@ namespace
             cosFacing = 1.0f;
         }
 
-        double facing = std::acos(static_cast<double>(cosFacing)) * 57.29577951308232;
+        double facing = std::acos(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
 
         if (frame.i.y < 0.0)
         {
@@ -522,8 +522,8 @@ auto GVAppearance::render(int32_t depthFixup) -> int32_t
         {
             // The turret sits turretOffset meters forward of the body's centre.
             const double distance = static_cast<double>(eyeScale()) * turretOffset * worldUnitsPerMeter;
-            offsetX = static_cast<float>(distance * std::sin(bodyRotation * 0.017453292519943295));
-            offsetY = static_cast<float>(distance * std::cos(bodyRotation * 0.017453292519943295) * 0.5);
+            offsetX = static_cast<float>(distance * std::sin(bodyRotation * 0x1.1df46a2526c7ap-6));
+            offsetY = static_cast<float>(distance * std::cos(bodyRotation * 0x1.1df46a2526c7ap-6) * 0.5);
         }
 
         uint8_t* fadeTable = nullptr;
@@ -670,7 +670,7 @@ auto GVAppearance::drawBars() -> void
     const float scale = eyeScale();
     const float barWidth = scale * 38.0f;
     const float barHeight = scale * 4.0f;
-    const float barY = (upperLeft.y - scale * 7.0f) - barHeight;
+    const float barY = (upperLeft.y - scale * 6.0f) - barHeight;
     const float barX = static_cast<float>(std::floor(static_cast<double>(screenPos.x - barWidth * 0.5f)));
 
     // How much of the unit is left, per class.

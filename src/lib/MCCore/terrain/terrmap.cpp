@@ -1074,7 +1074,7 @@ auto VideoWindow::draw() -> void
     const float mapY = static_cast<float>(tacMap()->globalY()) + position.y;
     starMapY = mapY;
 
-    if (starMapX < 7.0f || starMapX > 136.0f || mapY < 34.0f || mapY > 164.0f)
+    if (starMapX < 6.0f || starMapX > 136.0f || mapY < 34.0f || mapY > 164.0f)
     {
         starMapX = anchorX;
         starMapY = anchorY;

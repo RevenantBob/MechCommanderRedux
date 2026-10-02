@@ -573,7 +573,7 @@ auto ScenarioMap::init(int32_t newWidth, int32_t newHeight) -> void
     height = newHeight;
     VerticesMapSideDivTwo = static_cast<float>(Terrain::verticesBlockSide * Terrain::blocksMapSide) * 0.5f;
     MetersMapSideDivTwo = worldUnitsMapSide * 0.5f;
-    MapCellDiagonal = cellSide * metersPerWorldUnit * 1.4142135f;
+    MapCellDiagonal = cellSide * metersPerWorldUnit * 1.4142f;
     HalfMapCell = cellSide * 0.5f;
 
     const uint32_t numTiles = static_cast<uint32_t>(newWidth * newHeight);
@@ -598,7 +598,7 @@ auto ScenarioMap::init(int32_t newWidth, int32_t newHeight) -> void
 auto ScenarioMap::init(File* mapFile) -> int32_t
 {
     MetersPerCell = Terrain::metersPerVertexDivMAPCELL_DIM;
-    MapCellDiagonal = Terrain::metersPerVertex * (1.0f / 3.0f) * metersPerWorldUnit * 1.4142135f;
+    MapCellDiagonal = Terrain::metersPerVertex * (1.0f / 3.0f) * metersPerWorldUnit * 1.4142f;
     HalfMapCell = Terrain::metersPerVertex * (1.0f / 3.0f) * 0.5f;
     VerticesMapSideDivTwo = static_cast<float>((Terrain::verticesBlockSide * Terrain::blocksMapSide) / 2);
     MetersMapSideDivTwo = worldUnitsMapSide * 0.5f;

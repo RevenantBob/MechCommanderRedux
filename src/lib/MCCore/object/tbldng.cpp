@@ -686,7 +686,7 @@ auto TreeBuilding::render() -> void
         // A sensor contact: a blip sized by tonnage.
         uint8_t* shape;
 
-        if (100.0f < getTonnage())
+        if (50.0f < getTonnage())
         {
             shape = scenario->sensorContactShapes[0];
         }

@@ -1060,11 +1060,11 @@ auto TrainCar::render() -> void
             // A sensor contact: a blip sized by tonnage.
             uint8_t* shape;
 
-            if (100.0f < getTonnage())
+            if (50.0f < getTonnage())
             {
                 shape = scenario->sensorContactShapes[0];
             }
-            else if (70.0f < getTonnage())
+            else if (35.0f < getTonnage())
             {
                 shape = scenario->sensorContactShapes[2];
             }
@@ -1240,7 +1240,7 @@ auto TrainCar::derail(float angle) -> void
 
     if (angle <= 0.0f && 0.0f <= angle)
     {
-        swing = 100.0 - RandomNumber(100);
+        swing = 50.0 - RandomNumber(100);
     }
     else
     {

@@ -2023,11 +2023,11 @@ auto CompPurchaseBlock::init(_LogInventoryItem* newItem) -> void
     cLoadString(thisInstance, damageId, text, 0xfe);
     std::snprintf(damageText, sizeof(damageText), "%.2f (%s)", static_cast<double>(damage), text);
     float recycle = component.recycleTime;
-    uint32_t recycleId = recycle < 2.0f    ? 0x68u
-                         : recycle < 3.0f  ? 0x69u
-                         : recycle < 5.0f  ? 0x65u
-                         : recycle < 10.0f ? 0x6au
-                                           : 0x6bu;
+    uint32_t recycleId = recycle < 2.0f   ? 0x68u
+                         : recycle < 3.0f ? 0x69u
+                         : recycle < 5.0f ? 0x65u
+                         : recycle < 8.0f ? 0x6au
+                                          : 0x6bu;
     cLoadString(thisInstance, recycleId, text, 0xfe);
     std::snprintf(recycleText, sizeof(recycleText), "%.2f s (%s)", static_cast<double>(recycle), text);
 }

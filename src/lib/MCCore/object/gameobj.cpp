@@ -1227,16 +1227,16 @@ auto GameObject::lineOfSight(vector_3d point) -> int
 
 auto GameObject::lineOfSight(GameObject* target) -> int
 {
-    // From eye to eye, five meters up.
+    // From eye to eye, ten meters up.
     vector_3d start;
     start.x = position.x;
     start.y = position.y;
-    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 5.0 + position.z);
+    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + position.z);
     const vector_3d targetPosition = target->getPosition();
     vector_3d end;
     end.x = targetPosition.x;
     end.y = targetPosition.y;
-    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 5.0 + targetPosition.z);
+    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + targetPosition.z);
     setUseMe(0);
     target->setUseMe(0);
     const int result = GameMap->lineOfSight(start, end);
@@ -1250,12 +1250,12 @@ auto GameObject::lineOfFire(GameObject* target) -> int
     vector_3d start;
     start.x = position.x;
     start.y = position.y;
-    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 5.0 + position.z);
+    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + position.z);
     const vector_3d targetPosition = target->getPosition();
     vector_3d end;
     end.x = targetPosition.x;
     end.y = targetPosition.y;
-    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 5.0 + targetPosition.z);
+    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + targetPosition.z);
     setUseMe(0);
     target->setUseMe(0);
     const int result = GameMap->lineOfFire(start, end);

@@ -2639,7 +2639,8 @@ auto ScrollScreen() -> void
             speed = static_cast<int16_t>(speed / 2);
         }
 
-        const float step = frameLength * 15.0f * static_cast<float>(speed);
+        // MCX.EXE's constant is a hair under 15 (14.999999).
+        const float step = frameLength * 0x1.dffffep+3f * static_cast<float>(speed);
         bool scroll = true;
 
         if (theInterface->scrollDirection == -1)
