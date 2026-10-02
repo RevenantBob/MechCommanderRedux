@@ -44,6 +44,7 @@ int32_t displayMode = 0;
 DebuggerWindow* ABLDebuggerWindow = nullptr;
 aCallback* colorCallback = nullptr;
 int DebugGameSystem = 0;
+int gNoSound = 0;
 int ScreenSaverActive = 0;
 int LowPowerActive = 0;
 int PowerOffActive = 0;
@@ -156,6 +157,12 @@ void systemInit()
         }
     }
     else
+    {
+        useSound = 0;
+        useMusic = 0;
+    }
+
+    if (gNoSound != 0)
     {
         useSound = 0;
         useMusic = 0;

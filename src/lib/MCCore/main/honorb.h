@@ -27,6 +27,11 @@ extern DebuggerWindow* ABLDebuggerWindow;
 extern aCallback* colorCallback;
 /// <summary>Debug switch for the game system.</summary>
 extern int DebugGameSystem;
+/// <summary>
+/// Port-only: switch sound and music off whatever SYSTEM.CFG says (the tests that run a mission: playback runs on real
+/// time, and the radio and music roll the game's dice when a sound ends, so with sound two runs part).
+/// </summary>
+extern int gNoSound;
 /// <summary>The screen saver, low-power and power-off settings found at start-up (restored on exit).</summary>
 extern int ScreenSaverActive;
 extern int LowPowerActive;

@@ -1,5 +1,5 @@
-# Checks every pull request: the C++ is formatted (tools/build/format.py) and the .vcxproj/.filters files list
-# every source file (tools/build/sync_projects.py). Run either script without --check locally to fix what it reports.
+# Checks every pull request: the C++ is formatted (scripts/ci/format.py) and the .vcxproj/.filters files list
+# every source file (scripts/ci/sync_projects.py). Run either script without --check locally to fix what it reports.
 name: Checks
 
 on:
@@ -23,8 +23,8 @@ jobs:
           "CLANG_FORMAT=$clangFormat" >> $env:GITHUB_ENV
 
       - name: Formatting
-        run: python tools/build/format.py --check
+        run: python scripts/ci/format.py --check
 
       - name: Project files
         if: success() || failure()
-        run: python tools/build/sync_projects.py --check
+        run: python scripts/ci/sync_projects.py --check

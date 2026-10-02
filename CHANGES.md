@@ -7,9 +7,6 @@ damage, AI and mission scripts behave as they did in 1999. What changed is the l
 input, networking and files), plus fixes for bugs in the original that could crash the game or corrupt its memory.
 Bugs that have an impact on how the game *plays* may remain in the game, and are listed under [Known Issues](#known-issues).
 
-For developers: the technical details of every bug found in the original game are in
-[`docs/port/original-bugs.md`](docs/port/original-bugs.md).
-
 ## Table of Contents
 
 - [Changes](#changes)
@@ -104,6 +101,9 @@ For developers: the technical details of every bug found in the original game ar
 - Neutral turrets no longer use a map column as their visibility flags.
 - A turret no longer overruns its list of 8 contacts.
 - Mechs whose sprites hold fewer hot spots than they have weapons no longer read past the hot spot list.
+- Shots now fly to the spot they hit. In the original, bullets, laser beams and Gauss rifle (railgun) bolts flew to a
+  point on the target picked by the firing weapon's mount, while the impact played where the shot hit, so hits often
+  looked like misses. Damage is unchanged.
 
 ### Logistics and Menus
 
@@ -173,7 +173,6 @@ These bugs are in the original MechCommander Gold. Some of these bugs are kept o
 - An elemental pivoting to reverse keeps its old throttle.
 - Units can be filed under the wrong terrain block.
 - A player order given during an alarm is treated as an alarm response.
-- Bullets and laser beams end at an arbitrary point on their target.
 - Laser beams are widened in the wrong direction and can look twisted or collapse, never show their hot core colour,
   and friendly projectile lasers show enemy colours except at the tip.
 - Buildings with no team belong to the player's team.

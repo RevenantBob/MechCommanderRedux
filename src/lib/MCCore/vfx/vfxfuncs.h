@@ -3,7 +3,7 @@
 // Every VFX routine MechCommander uses: Miles Design's VFX (hand-written assembly in MCX.EXE, vfxa.asm and
 // vfx3d.asm; C names without the cdecl underscore of the asm symbols, _VFX_shape_draw -> VFX_shape_draw) and the
 // game's own additions in mcx\vfx\*.cpp (AG_*, fastShapeDraw, the alpha tables, the terrain tile drawer).
-// The types are in vfx/vfx.h; the shape table format is documented in docs/formats/vfx-shape.md.
+// The types are in vfx/vfx.h.
 //
 // Conventions shared by the routines that draw through a pane:
 // - coordinates are relative to the pane's (x0, y0); drawing is clipped to the pane intersected with the window;
@@ -495,7 +495,7 @@ int VFX_shape_scan(PANE* pane, uint8_t transparentColor, int hotX, int hotY, voi
 
 /// <summary>
 /// Draws shape <paramref name="shapeNum"/> of a "fast shape" table (the terrain overlay tiles, tables tagged "DNAH";
-/// not the VFX format: see docs/formats/vfx-shape.md), its hot spot at (hotX, hotY), each colour mapped through
+/// not the VFX format), its hot spot at (hotX, hotY), each colour mapped through
 /// <paramref name="xlat"/> when it isn't null. Run colour 255 is transparent; a shape whose first row begins with the
 /// word 1 is drawn translucent through <see cref="AlphaTable"/>.
 /// </summary>

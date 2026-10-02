@@ -11,9 +11,9 @@ class MechAIControl : public Control
 public:
     /// <summary>
     /// Resets the control data; for an awake mech, passes its pending requests (+0x8d0, +0x8d4) to the control
-    /// data, updates its damage-taken rate, then, if it isn't disabled and its pilot is conscious (state other than
-    /// 3, 5, 6), lets the pilot think and moves the mech; otherwise moves it only while Mover +0x17c or +0x184 is
-    /// set.
+    /// data, updates its damage-taken rate, then, if it isn't disabled and its pilot is alive (under 6 wounds) and at
+    /// the controls (state other than 3, 5, 6), lets the pilot think and moves the mech; otherwise moves it only
+    /// while Mover +0x17c or +0x184 is set.
     /// </summary>
     /// <returns>1.</returns>
     /// <remarks>MCX.EXE @ 0x0064db20</remarks>

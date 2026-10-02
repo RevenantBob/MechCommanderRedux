@@ -317,7 +317,8 @@ auto ProjectileLaser::update() -> int32_t
 
         if (target != nullptr)
         {
-            const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(ownerHotSpot);
+            // Port fix (OB-017): the original aimed at the target's hot spot numbered like the owner's (ownerHotSpot).
+            const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(targetHotSpot);
             setTargetPosition(target->getPositionFromHS(hotSpot));
         }
 
@@ -385,8 +386,8 @@ auto ProjectileLaser::update() -> int32_t
 
     if (target != nullptr)
     {
-        // Original behaviour (OB-017): the target's hot spot is numbered like the owner's.
-        const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(ownerHotSpot);
+        // Port fix (OB-017): aim at the hot spot the hit effect plays at (the original used ownerHotSpot).
+        const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(targetHotSpot);
         setTargetPosition(target->getPositionFromHS(hotSpot));
     }
 
@@ -474,7 +475,8 @@ auto ProjectileLaser::update() -> int32_t
 
         if (target != nullptr)
         {
-            const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(ownerHotSpot);
+            // Port fix (OB-017): see above.
+            const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(targetHotSpot);
             setTargetPosition(target->getPositionFromHS(hotSpot));
         }
 

@@ -4,7 +4,7 @@
 /// One entry of a FastFile's directory, as stored in the file: where the data is, its stored and unpacked sizes and
 /// its game path (<c>data\art\ACCESS00.tga</c>). <c>size == realSize</c> means stored raw, otherwise LZ-packed.
 /// </summary>
-/// <remarks>262 bytes on disk (docs/formats/fst.md).</remarks>
+/// <remarks>262 bytes on disk.</remarks>
 #pragma pack(push, 1)
 struct FILEENTRY
 {

@@ -41,7 +41,7 @@ auto MechNetControl::update() -> int32_t
         mech->updateCriticalHitChunks(1);
         mech->updateRadioChunks(1);
 
-        if (!mech->isDisabled() && pilot->wounds < 3.5f && pilot->status != 3 && pilot->status != 5 &&
+        if (!mech->isDisabled() && pilot->wounds < 6.0f && pilot->status != 3 && pilot->status != 5 &&
             pilot->status != 6)
         {
             pilot->checkAlarms();
@@ -86,7 +86,7 @@ auto GroundVehicleNetControl::update() -> int32_t
         vehicle->updateCriticalHitChunks(1);
         vehicle->updateRadioChunks(1);
 
-        if (!vehicle->isDisabled() && pilot->wounds < 3.5f)
+        if (!vehicle->isDisabled() && pilot->wounds < 6.0f)
         {
             pilot->checkAlarms();
             vehicle->netUpdateMovement();

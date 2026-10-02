@@ -3,7 +3,7 @@
 #include "platform/MCAudio.h"
 #include "platform/MCFileSystem.h"
 
-// The format is described in docs/formats/smacker.md. Everything here is written from that description.
+// Everything here is written from the public description of the format.
 
 namespace
 {

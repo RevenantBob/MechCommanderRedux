@@ -1,7 +1,7 @@
 #pragma once
 
 // Port-wide helpers shared by every reconstructed file: portable replacements for the MSVC CRT extensions the
-// original called, and the marker for code that is not reconstructed yet. See docs/port/translation.md.
+// original called, and the marker for code that is not reconstructed yet.
 
 /// <summary>
 /// Marks a code path of the original that the port doesn't reproduce yet. It logs the place once per run and carries
@@ -45,6 +45,15 @@ namespace MCPort
 
     /// <summary>Milliseconds since the port started, as the original's <c>timeGetTime</c> / <c>GetTickCount</c>.</summary>
     uint32_t Milliseconds();
+
+    /// <summary>
+    /// Port-only (tests): from now on <see cref="Milliseconds"/> and <see cref="PerformanceCounter"/> read a clock
+    /// that only <see cref="AdvanceManualClock"/> moves, so a run doesn't depend on how fast the machine is.
+    /// </summary>
+    void UseManualClock();
+
+    /// <summary>Port-only (tests): moves the manual clock on by <paramref name="nanoseconds"/>.</summary>
+    void AdvanceManualClock(uint64_t nanoseconds);
 
     /// <summary>
     /// The machine's physical memory in bytes, as <c>GlobalMemoryStatus</c>'s <c>dwTotalPhys</c> (clamped to what a

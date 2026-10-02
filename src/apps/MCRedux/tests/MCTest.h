@@ -36,6 +36,11 @@ namespace MCTest
         const char* File;
         /// <summary>The line it is declared on.</summary>
         int Line;
+        /// <summary>
+        /// Runs in a process of its own (<c>TEST_CASE_ISOLATED</c>): the runner starts the test program again with
+        /// <c>--only</c> and the test's name, so state other tests leave behind can't reach it, nor its theirs.
+        /// </summary>
+        bool Isolated;
     };
 
     /// <summary>Every test case, in registration order.</summary>
@@ -44,7 +49,7 @@ namespace MCTest
     /// <summary>Adds a test to <see cref="Registry"/> from a static initialiser; <c>TEST_CASE</c> declares one.</summary>
     struct Registrar
     {
-        Registrar(const char* name, void (*body)(), const char* file, int line);
+        Registrar(const char* name, void (*body)(), const char* file, int line, bool isolated = false);
     };
 
     /// <summary>Thrown by a failed <c>REQUIRE</c> to end the current test; the runner catches it.</summary>
@@ -137,8 +142,19 @@ namespace MCTest
     static const MCTest::Registrar OBTEST_CONCAT(body, _Registrar)(name, &body, __FILE__, __LINE__); \
     static void body()
 
+#define OBTEST_CASE_ISOLATED_IMPL(name, body)                                                              \
+    static void body();                                                                                    \
+    static const MCTest::Registrar OBTEST_CONCAT(body, _Registrar)(name, &body, __FILE__, __LINE__, true); \
+    static void body()
+
 /// <summary>Declares and registers a test; the braces that follow are its body.</summary>
 #define TEST_CASE(name) OBTEST_CASE_IMPL(name, OBTEST_CONCAT(MCTest_Case_, __COUNTER__))
+
+/// <summary>
+/// Declares a test that runs in a process of its own (one that brings up the whole game, say); the braces that follow
+/// are its body.
+/// </summary>
+#define TEST_CASE_ISOLATED(name) OBTEST_CASE_ISOLATED_IMPL(name, OBTEST_CONCAT(MCTest_Case_, __COUNTER__))
 
 /// <summary>Records a failure if <paramref name="expr"/> is false and carries on; evaluates to whether it held.</summary>
 #define CHECK(expr) MCTest::Check(static_cast<bool>(expr), __FILE__, __LINE__, #expr)

@@ -20,7 +20,7 @@ enum PacketStorage : uint8_t
 /// <remarks>
 /// Original source: <c>lib\packet.cpp</c>, 0x6c bytes. Layout: <c>int32 checksumOrMagic</c> (0xFEEDFACE when
 /// unchecked), <c>int32 firstPacketOffset</c> (so the table has <c>firstPacketOffset / 4 - 2</c> entries), the table,
-/// then the data (docs/formats/packet.md).
+/// then the data.
 /// </remarks>
 class PacketFile : public File
 {

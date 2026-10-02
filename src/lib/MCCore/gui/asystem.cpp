@@ -91,6 +91,7 @@ int gBitDepth = 8;
 int gFullScreen = 0;
 int gStretchToFit = 0;
 int gSoftwareCursor = 0;
+int gHiddenWindow = 0;
 int applicationActive = -1;
 uint32_t systemHeapSize = 0x100000;
 uint32_t guiHeapSize = 0x100000;
@@ -327,6 +328,7 @@ auto aSystem::startupDirectDraw(int32_t width, int32_t height, int32_t bitDepth)
     options.FollowWindow = true;
     options.Fullscreen = gFullScreen != 0;
     options.Stretch = gStretchToFit != 0;
+    options.Hidden = gHiddenWindow != 0;
     auto display = MCDisplay::Create(options);
 
     if (!display)

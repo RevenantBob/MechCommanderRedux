@@ -40,7 +40,7 @@ auto MechAIControl::update() -> int32_t
 
         mech->updateDamageTakenRate();
 
-        if (!mech->isDisabled() && pilot->wounds < 6.0 && pilot->status != 3 && pilot->status != 5 &&
+        if (!mech->isDisabled() && pilot->wounds < 6.0f && pilot->status != 3 && pilot->status != 5 &&
             pilot->status != 6)
         {
             pilot->mainDecisionTree();
@@ -83,7 +83,7 @@ auto GroundVehicleAIControl::update() -> int32_t
 
         vehicle->updateDamageTakenRate();
 
-        if (!vehicle->isDisabled() && pilot->wounds < 6.0)
+        if (!vehicle->isDisabled() && pilot->wounds < 6.0f)
         {
             pilot->mainDecisionTree();
             vehicle->updateMovement();
@@ -120,7 +120,7 @@ auto ElementalAIControl::update() -> int32_t
     {
         elemental->updateDamageTakenRate();
 
-        if (!elemental->isDisabled() && pilot->wounds < 6.0)
+        if (!elemental->isDisabled() && pilot->wounds < 6.0f)
         {
             pilot->mainDecisionTree();
             elemental->updateMovement();
