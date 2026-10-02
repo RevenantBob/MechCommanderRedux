@@ -4,7 +4,7 @@ class MCAudio;
 class MCAudioStream;
 
 /// <summary>
-/// A Smacker (<c>.SMK</c>) video decoder, written from the public description of the format (docs/formats/smacker.md).
+/// A Smacker (<c>.SMK</c>) video decoder, written from the public description of the format.
 /// It replaces RAD's SMACKW32.DLL, which MCX.EXE called for its movies (the opening, the ending, the logos, the
 /// radio videos in the mission panes and the pilot portraits).
 /// </summary>

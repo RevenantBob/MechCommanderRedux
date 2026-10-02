@@ -1,7 +1,7 @@
 #pragma once
 
 // Port-wide helpers shared by every reconstructed file: portable replacements for the MSVC CRT extensions the
-// original called, and the marker for code that is not reconstructed yet. See docs/port/translation.md.
+// original called, and the marker for code that is not reconstructed yet.
 
 /// <summary>
 /// Marks a code path of the original that the port doesn't reproduce yet. It logs the place once per run and carries

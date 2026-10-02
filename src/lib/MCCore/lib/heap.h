@@ -4,7 +4,7 @@
 // block of memory reserved and committed in pages (used directly as a raw buffer by bit flags, element pools, ...),
 // and UserHeap, a malloc/free heap inside such a block (systemHeap, guiHeap, the ABL, sprite and mission heaps).
 //
-// Per docs/port/translation.md the heaps keep their interfaces but allocate from the C++ heap: a HeapManager's block
+// In the port the heaps keep their interfaces but allocate from the C++ heap: a HeapManager's block
 // is one zeroed allocation of its size; a UserHeap hands out separate allocations and keeps its size and the bytes in
 // use only as bookkeeping, so coreLeft/totalCoreLeft still answer as the original's did while nothing runs out. The
 // original's block allocator internals (HeapBlock headers, relink, unlink, sort, mergeWithLower @ 0x00648690..

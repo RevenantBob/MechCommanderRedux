@@ -4,7 +4,7 @@
 // (through their stdafx.h), so MCCore headers can stay free of per-file standard includes.
 //
 // MCCore is the reconstructed game (the original mcx\ tree, one folder per original folder) plus the platform layer
-// that replaces Win32 and DirectX with SDL3 (platform\). See docs/port/translation.md.
+// that replaces Win32 and DirectX with SDL3 (platform\).
 
 // No Windows.h: the reconstructed game calls no Win32 at all (SDL does that), and leaving it out keeps its macros
 // (PlaySound, GetObject, RGB, ...) from colliding with the original's names. The Win32 constants the game's logic

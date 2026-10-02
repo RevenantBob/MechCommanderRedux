@@ -227,7 +227,7 @@ private:
 /// <see cref="MCSoundBuffer"/>s (the sound renderer's channels) and <see cref="MCAudioStream"/>s (movies) into it.
 /// </summary>
 /// <remarks>
-/// <para>What the original used, from <c>game os\sound renderer</c> (docs/port/platform.md has the details): one
+/// <para>What the original used, from <c>game os\sound renderer</c>: one
 /// DirectSound object with a 22050 Hz 16-bit stereo primary buffer, and per channel one secondary buffer, either a
 /// whole WAV (static, played once or looping) or a ring buffer the streaming music is written into from a timer
 /// thread with Lock/Unlock at the play cursor. Controls: volume, pan and frequency. No 3D, no effects.</para>

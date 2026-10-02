@@ -7,9 +7,6 @@ damage, AI and mission scripts behave as they did in 1999. What changed is the l
 input, networking and files), plus fixes for bugs in the original that could crash the game or corrupt its memory.
 Bugs that have an impact on how the game *plays* may remain in the game, and are listed under [Known Issues](#known-issues).
 
-For developers: the technical details of every bug found in the original game are in
-[`docs/port/original-bugs.md`](docs/port/original-bugs.md).
-
 ## Table of Contents
 
 - [Changes](#changes)

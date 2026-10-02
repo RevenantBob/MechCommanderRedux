@@ -71,7 +71,7 @@ inline int32_t MCVfxClipPane(const PANE* pane, MCVfxClip& clip)
 /// </summary>
 extern uint8_t VFXShapeLookaside[256];
 
-/// <summary>A shape's header in a VFX shape table (docs/formats/vfx-shape.md).</summary>
+/// <summary>A shape's header in a VFX shape table.</summary>
 struct MCVfxShapeHeader
 {
     int32_t Bounds; // +0x00

@@ -2,7 +2,7 @@
 #include "vfx/vfxint.h"
 
 // VFX's shape routines (vfxa.asm in MCX.EXE): drawing, translating, measuring and encoding the run-length shapes the
-// game's sprites, buttons and cursors are stored as. The format is documented in docs/formats/vfx-shape.md.
+// game's sprites, buttons and cursors are stored as.
 
 uint8_t VFXShapeLookaside[256];
 
