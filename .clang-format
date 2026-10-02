@@ -1,6 +1,6 @@
 ---
 # The port's C++ style: 4-space indent, Allman braces, 120 columns, and braces on
-# every if/else/for/while/do body, even a one-liner. Run tools/build/format.py to apply or check it.
+# every if/else/for/while/do body, even a one-liner. Run scripts/ci/format.py to apply or check it.
 Language: Cpp
 BasedOnStyle: Microsoft
 Standard: Latest

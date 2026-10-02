@@ -41,7 +41,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <!-- The file list and MCCore.vcxproj.filters (one filter per folder on disk) are written by
-       tools/build/sync_projects.py: run it after adding, moving or deleting a .cpp/.h. -->
+       scripts/ci/sync_projects.py: run it after adding, moving or deleting a .cpp/.h. -->
   <ItemGroup>
     <ClCompile Include="abl\abldbug.cpp" />
     <ClCompile Include="abl\abldecl.cpp" />
