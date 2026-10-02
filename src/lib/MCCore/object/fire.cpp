@@ -399,7 +399,7 @@ auto Fire::handleStaticCollision() -> void
 
     for (int32_t row = 0; row < 3; row++)
     {
-        int32_t block = row * Terrain::blocksMapSide + firstBlock;
+        int32_t block = (row == 0) ? firstBlock : (row - 1) * Terrain::blocksMapSide + firstBlock;
 
         for (int32_t col = 0; col < 3; col++, block++)
         {
@@ -868,7 +868,8 @@ auto Fire::init(ObjectType* objType) -> int32_t
         offset.y = scatter(offset.y, fireType->fireRandomOffsetY[i]);
         const float delay = fireType->fireDelay[i] + startDelays[i];
         startDelays[i] = delay;
-        startDelays[i] = (static_cast<float>(RandomNumber(fireType->fireRandomDelay[i])) + delay) * 0.1f;
+        startDelays[i] =
+            static_cast<float>((static_cast<double>(RandomNumber(fireType->fireRandomDelay[i])) + delay) * 0.1);
     }
 
     objectClass = FIRE;

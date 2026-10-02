@@ -1981,12 +1981,11 @@ namespace
     /// layer laying mines.
     /// </summary>
     /// <returns>1 at the path's end, else 0.</returns>
-    int steerAlongPath(GroundVehicle* vehicle, char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                       int32_t& newMoveState, int32_t& maxThrottle)
+    int steerAlongPath(GroundVehicle* vehicle, MovePath* path, char& newRotate, char& newThrottleSetting,
+                       float& newRotatePerSec, int32_t& newMoveState, int32_t& maxThrottle)
     {
         auto* dynType =
             static_cast<GroundVehicleDynamicsType*>(static_cast<GroundVehicleType*>(vehicle->objType)->dynamicsType);
-        MovePath* path = vehicle->pilot->getMovePath();
         int result = 0;
         const auto steer = [&]()
         {
@@ -2006,7 +2005,7 @@ namespace
 
             vector_3d destination = path->stepList[step].destination;
             vehicle->lastValidPosition = destination;
-            const float distance = vehicle->distanceFrom(destination);
+            const auto distance = static_cast<float>(vehicle->distanceFrom(destination));
             const int32_t numSteps = path->numSteps;
             const float margin = step == numSteps - 1 ? MoveMarginOfError[1] : MoveMarginOfError[0];
             MaxVelocityMag = worldUnitsPerMeter * 100.0f;
@@ -2146,7 +2145,7 @@ auto GroundVehicle::updateMovePath(char& newRotate, char& newThrottleSetting, fl
 {
     MechWarrior* warrior = pilot;
     auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
-    warrior->getMovePath();
+    MovePath* path = warrior->getMovePath();
     newThrottleSetting = static_cast<char>(controlData->throttle);
     const int32_t running = warrior->moveOrders.run;
     newRotatePerSec = 0.0f;
@@ -2196,7 +2195,7 @@ auto GroundVehicle::updateMovePath(char& newRotate, char& newThrottleSetting, fl
         warrior->moveOrders.waitForPointTime = -1.0f;
     }
 
-    int result = steerAlongPath(this, newRotate, newThrottleSetting, newRotatePerSec, newMoveState, maxThrottle);
+    int result = steerAlongPath(this, path, newRotate, newThrottleSetting, newRotatePerSec, newMoveState, maxThrottle);
     warrior = pilot;
 
     if (result != 0)
@@ -2395,17 +2394,17 @@ auto GroundVehicle::netUpdateMovePath(char& newRotate, char& newThrottleSetting,
                                       int32_t& newMoveState, int32_t& minThrottle, int32_t& maxThrottle) -> int
 {
     auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
-    pilot->getMovePath();
+    MovePath* path = pilot->getMovePath();
     newRotatePerSec = 0.0f;
     newThrottleSetting = static_cast<char>(controlData->throttle);
-    return steerAlongPath(this, newRotate, newThrottleSetting, newRotatePerSec, newMoveState, maxThrottle);
+    return steerAlongPath(this, path, newRotate, newThrottleSetting, newRotatePerSec, newMoveState, maxThrottle);
 }
 
 auto GroundVehicle::netUpdateMovement() -> void
 {
     auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
     MovePath* path = pilot->getMovePath();
-    const float distance = distanceFrom(path->stepList[path->curStep].destination);
+    const auto distance = static_cast<float>(distanceFrom(path->stepList[path->curStep].destination));
 
     if (path->curStep == path->numSteps - 1 && distance < MoveMarginOfError[1])
     {
@@ -2580,7 +2579,7 @@ auto GroundVehicle::crashAvoidanceSystem() -> int
         return 0;
     }
 
-    if (warrior->moveOrders.waitForPointTime > 999990.0f)
+    if (static_cast<double>(warrior->moveOrders.waitForPointTime) > 999990.0)
     {
         return 0;
     }
@@ -2934,17 +2933,32 @@ auto GroundVehicle::update() -> int32_t
     speed = -speed;
     vector_3d normal = land->getTerrainNormal(position);
     vector_3d heading = frame.j;
-    const float headingLength = heading.magnitude();
+    const double headingLength =
+        std::sqrt(static_cast<double>(heading.x) * heading.x + static_cast<double>(heading.y) * heading.y +
+                  static_cast<double>(heading.z) * heading.z);
 
     if (headingLength != 0.0)
     {
-        heading.x /= headingLength;
-        heading.y /= headingLength;
-        heading.z /= headingLength;
+        heading.x = static_cast<float>(heading.x / headingLength);
+        heading.y = static_cast<float>(heading.y / headingLength);
+        heading.z = static_cast<float>(heading.z / headingLength);
     }
 
-    normal.normalize();
-    const double slope = std::acos(heading | normal) * 0x1.ca5dc1a6402aap+5;
+    const double normalLength =
+        std::sqrt(static_cast<double>(normal.x) * normal.x + static_cast<double>(normal.y) * normal.y +
+                  static_cast<double>(normal.z) * normal.z);
+
+    if (normalLength != 0.0)
+    {
+        normal.x = static_cast<float>(normal.x / normalLength);
+        normal.y = static_cast<float>(normal.y / normalLength);
+        normal.z = static_cast<float>(normal.z / normalLength);
+    }
+
+    const double headingDotNormal = static_cast<double>(heading.z) * normal.z +
+                                    static_cast<double>(heading.y) * normal.y +
+                                    static_cast<double>(heading.x) * normal.x;
+    const double slope = acosMatherr(headingDotNormal) * 57.2957795132;
 
     if (slope != 90.0)
     {
@@ -2956,7 +2970,7 @@ auto GroundVehicle::update() -> int32_t
     velocity.x = turned.j.x * speed;
     velocity.z = turned.j.z * speed;
     vector_3d move;
-    move.x = velocity.x * frameLength * worldUnitsPerMeter;
+    move.x = static_cast<float>(static_cast<double>(velocity.x) * frameLength * worldUnitsPerMeter);
     move.y = velocity.y * frameLength * worldUnitsPerMeter;
     move.z = velocity.z * frameLength * worldUnitsPerMeter;
 
@@ -2990,7 +3004,10 @@ auto GroundVehicle::update() -> int32_t
         unknown20C = 0;
     }
 
-    unknown7C8 = std::sqrt(move.z * move.z + move.y * move.y + move.x * move.x) + unknown7C8;
+    unknown7C8 =
+        static_cast<float>(std::sqrt(static_cast<double>(move.x) * move.x + static_cast<double>(move.y) * move.y +
+                                     static_cast<double>(move.z) * move.z) +
+                           unknown7C8);
     vector_3d newPosition;
     newPosition.x = move.x + position.x;
     newPosition.y = move.y + position.y;
@@ -3259,7 +3276,7 @@ auto GroundVehicle::render() -> void
 
 auto GroundVehicle::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
 {
-    float facing = Mover::relFacingTo(goal, -1);
+    double facing = Mover::relFacingTo(goal, -1);
 
     if (bodyPart == GROUNDVEHICLE_LOCATION_TURRET)
     {
@@ -3273,10 +3290,10 @@ auto GroundVehicle::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
 
     if (180.0f < facing)
     {
-        facing = static_cast<float>(facing - 360.0);
+        facing = facing - 360.0;
     }
 
-    return facing;
+    return static_cast<float>(facing);
 }
 
 auto GroundVehicle::calcAttackChance(GameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
@@ -4071,7 +4088,7 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
             return 4;
         }
 
-        distance = distanceFrom(*targetPoint);
+        distance = static_cast<float>(distanceFrom(*targetPoint));
     }
     else
     {
@@ -4092,7 +4109,7 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
         }
 
         vector_3d targetPosition = target->getPosition();
-        distance = distanceFrom(targetPosition);
+        distance = static_cast<float>(distanceFrom(targetPosition));
     }
 
     const int32_t inRange = weaponInRange(weaponIndex, distance);

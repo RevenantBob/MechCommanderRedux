@@ -185,6 +185,7 @@ public:
     /// <summary>The ground height under a world position, interpolated over the tile's triangle.</summary>
     /// <remarks>MCX.EXE @ 0x006ba540</remarks>
     float getTerrainElevation(vector_3d position);
+    double getTerrainElevationUnrounded(vector_3d position);
     /// <summary>Whether the cell under a position lets line of sight through.</summary>
     /// <remarks>MCX.EXE @ 0x006baa80</remarks>
     int32_t getLOS(vector_3d position);

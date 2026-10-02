@@ -941,7 +941,7 @@ auto execHbGetContactRelativePosition(SymTableNodePtr routineIdPtr) -> TypePtr
     if (CurContact && CurObject)
     {
         vector_3d contactPosition = CurContact->getPosition();
-        *range = CurObject->distanceFrom(contactPosition);
+        *range = static_cast<float>(CurObject->distanceFrom(contactPosition));
         *angle = CurObject->relFacingTo(CurContact->getPosition(), -1);
         tos->integer = 0;
     }
@@ -1008,7 +1008,8 @@ auto execHbGetWeapons(SymTableNodePtr routineIdPtr, int32_t key) -> TypePtr
         else if (key == RTN_GET_WEAPONS_IN_RANGE && target)
         {
             vector_3d targetPosition = target->getPosition();
-            tos->integer = mover->getWeaponsInRange(weaponList, listSize, mover->distanceFrom(targetPosition));
+            tos->integer =
+                mover->getWeaponsInRange(weaponList, listSize, static_cast<float>(mover->distanceFrom(targetPosition)));
         }
         else
         {
@@ -1777,12 +1778,12 @@ auto execHbObjectChangeSides(SymTableNodePtr routineIdPtr) -> void
 namespace
 {
     /// <summary>The distance in world units from <paramref name="object"/> to (x, y), ignoring height.</summary>
-    auto flatDistance(GameObject* object, float x, float y) -> float
+    auto flatDistance(GameObject* object, float x, float y) -> double
     {
         vector_3d objectPosition = object->getPosition();
-        float dx = x - objectPosition.x;
-        float dy = y - objectPosition.y;
-        return std::sqrt(dx * dx + dy * dy + 0.0f * 0.0f);
+        const float dx = x - objectPosition.x;
+        const float dy = y - objectPosition.y;
+        return std::sqrt(static_cast<double>(dx) * dx + static_cast<double>(dy) * dy + 0.0);
     }
 
     /// <summary>
@@ -1797,7 +1798,7 @@ namespace
 
             if (object)
             {
-                result = flatDistance(object, x, y) * metersPerWorldUnit;
+                result = static_cast<float>(flatDistance(object, x, y) * metersPerWorldUnit);
             }
 
             return;
@@ -1810,7 +1811,7 @@ namespace
         {
             if (moverList[i]->getExistsAndAwake())
             {
-                float distance = flatDistance(moverList[i], x, y);
+                const auto distance = static_cast<float>(flatDistance(moverList[i], x, y));
 
                 if (distance < closest)
                 {

@@ -475,7 +475,7 @@ auto MoverGroup::handleTacticalOrder(TacticalOrder tacOrder, int32_t priority, v
                 }
 
                 vector_3d goalPosition = goal;
-                const float distance = mover->distanceFrom(goalPosition);
+                const auto distance = static_cast<float>(mover->distanceFrom(goalPosition));
 
                 if (numSorted >= 0 && numSorted < sortList->numItems)
                 {

@@ -624,20 +624,21 @@ auto ArtilleryType::handleCollision(GameObject* collidee, GameObject* collider) 
 
     const vector_3d colliderPos = collider->getPosition();
     const vector_3d strikePos = collidee->getPosition();
-    const float dx = colliderPos.x - strikePos.x;
-    const float dy = colliderPos.y - strikePos.y;
-    const float distance = std::sqrt(dy * dy + dx * dx) * metersPerWorldUnit;
+    const double dx = static_cast<double>(colliderPos.x) - strikePos.x;
+    const double dy = static_cast<double>(colliderPos.y) - strikePos.y;
+    const auto distance = static_cast<float>(std::sqrt(dx * dx + dy * dy) * metersPerWorldUnit);
 
     // A turret or gate counts as hit from anywhere within its little extent of the major range.
     if (collider->objectClass == TURRET || collider->objectClass == GATE)
     {
         // TurretType and GateType both keep littleExtent at +0x58.
-        const float extent = collider->objectClass == TURRET
-                                 ? static_cast<TurretType*>(collider->objType)->littleExtent * metersPerWorldUnit
-                                 : static_cast<GateType*>(collider->objType)->littleExtent * metersPerWorldUnit;
+        const double extent =
+            collider->objectClass == TURRET
+                ? static_cast<double>(static_cast<TurretType*>(collider->objType)->littleExtent) * metersPerWorldUnit
+                : static_cast<double>(static_cast<GateType*>(collider->objType)->littleExtent) * metersPerWorldUnit;
 
-        if (extent < distance &&
-            static_cast<ArtilleryType*>(collidee->getObjectType())->nominalMajorRange < distance - extent)
+        if (extent < distance && static_cast<ArtilleryType*>(collidee->getObjectType())->nominalMajorRange <
+                                     static_cast<float>(distance - extent))
         {
             return 0;
         }

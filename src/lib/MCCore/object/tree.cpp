@@ -382,9 +382,9 @@ auto Tree::update() -> int32_t
     // Every tree measures the type's extent radius from its appearance's diagonal.
     appearance->update();
     appearance->recalcBounds(eye);
-    const float dx = appearance->upperLeft.x - appearance->lowerRight.x;
-    const float dy = appearance->upperLeft.y - appearance->lowerRight.y;
-    const float radius = std::sqrt(dx * dx + dy * dy) / worldUnitsPerMeter;
+    const double dx = static_cast<double>(appearance->upperLeft.x) - appearance->lowerRight.x;
+    const double dy = static_cast<double>(appearance->upperLeft.y) - appearance->lowerRight.y;
+    const auto radius = static_cast<float>(std::sqrt(dy * dy + dx * dx) / worldUnitsPerMeter);
 
     if (static_cast<float>(CollisionSystem::gridRadius) < radius)
     {

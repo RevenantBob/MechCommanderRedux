@@ -703,7 +703,8 @@ auto Turret::update() -> int32_t
         const float dy = targetPosition.y - position.y;
         const float reach = getExtentRadius();
 
-        if (target->isDisabled() != 0 || target->isDestroyed() != 0 || reach * reach < dx * dx + dy * dy)
+        if (target->isDisabled() != 0 || target->isDestroyed() != 0 ||
+            static_cast<double>(reach) * reach < static_cast<double>(dy) * dy + static_cast<double>(dx) * dx)
         {
             target = nullptr;
         }
@@ -841,7 +842,7 @@ auto Turret::calcAttackChance(GameObject* target, int32_t* range) -> float
     }
 
     const int32_t pilotSkill = type->pilotSkill;
-    const float distance = distanceFrom(targetPosition);
+    const auto distance = static_cast<float>(distanceFrom(targetPosition));
 
     if (range != nullptr)
     {

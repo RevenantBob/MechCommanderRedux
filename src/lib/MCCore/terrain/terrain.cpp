@@ -949,14 +949,15 @@ auto Terrain::markRadiusSeen(vector_3d& looker, vector_3d& /*lookVector*/, float
         return;
     }
 
+    const float radius = static_cast<float>(static_cast<double>(3.34f) * range * OneOvermetersPerVertex);
     const float fromTop = mapTopLeft3d100.y - looker.y;
-    const double gridX = std::floor(OneOvermetersPerVertex * (looker.x - mapTopLeft3d100.x));
-    const double gridY = std::floor(OneOvermetersPerVertex * fromTop);
+    const double gridX = std::floor(OneOvermetersPerVertex * (static_cast<double>(looker.x) - mapTopLeft3d100.x));
+    const double gridY = std::floor(static_cast<double>(OneOvermetersPerVertex) * fromTop);
     const int32_t col = static_cast<int32_t>(std::floor(static_cast<float>(gridX)));
     const int32_t row = static_cast<int32_t>(std::floor(static_cast<float>(gridY)));
     ByteFlag* visibleBits = who == 1 ? terrainVisibleBits : ClanVisibleBits;
     visibleBits->setCircle(static_cast<uint32_t>(col), static_cast<uint32_t>(row),
-                           static_cast<uint32_t>(static_cast<int32_t>(range)));
+                           static_cast<uint32_t>(static_cast<int32_t>(radius)));
 }
 
 auto Terrain::flipBuffers() -> void

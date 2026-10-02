@@ -164,6 +164,7 @@ public:
     /// <summary>Reads the appearance's hot spots (weapon mounts, jump jets).</summary>
     /// <remarks>MCX.EXE @ 0x006760a0</remarks>
     int32_t loadHotSpots(FitIniFile* mechFile);
+    void layOutHotSpotPackets(const std::vector<uint32_t>& packetSizes, const std::vector<uint32_t>& outlineSizes);
 
     /// <summary>"ID".</summary>
     uint32_t mechId = 0; // +0x30
@@ -230,7 +231,8 @@ public:
     /// Port: the hot spots each gesture's packet actually holds (packet size / (numFramesPerHotSpot * 12)). The
     /// Commando's (cm.hsp) gestures 0-14 hold 3, not numWeapons + numOthers = 6.
     /// </summary>
-    std::vector<uint32_t> numHotSpotsPerGesture;
+    std::vector<std::vector<float>> hotSpotPackets;
+    std::vector<uint32_t> hotSpotPacketShippedFloats;
 };
 
 /// <summary>A BattleMech: legs and torso, arms, jump jets, heat, and the mech's movement and combat.</summary>

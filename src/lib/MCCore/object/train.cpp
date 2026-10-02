@@ -217,7 +217,7 @@ auto Train::Update() -> void
         {
             if (0.0f < speed)
             {
-                speed = frameLength * maxAccel + speed;
+                speed = static_cast<float>(static_cast<double>(frameLength) * maxAccel + speed);
 
                 if (speed < 0.0f)
                 {
@@ -227,7 +227,7 @@ auto Train::Update() -> void
 
             if (speed < 0.0f)
             {
-                speed = speed - frameLength * maxAccel;
+                speed = static_cast<float>(speed - static_cast<double>(frameLength) * maxAccel);
                 stop = 0.0f < speed;
             }
         }
@@ -237,7 +237,7 @@ auto Train::Update() -> void
             {
                 if (speed <= 0.0f)
                 {
-                    speed = speed - frameLength * maxAccel;
+                    speed = static_cast<float>(speed - static_cast<double>(frameLength) * maxAccel);
 
                     if (speed < desiredSpeed)
                     {
@@ -251,14 +251,14 @@ auto Train::Update() -> void
                 }
                 else
                 {
-                    speed = speed - frameLength * maxDecel;
+                    speed = static_cast<float>(speed - static_cast<double>(frameLength) * maxDecel);
                     stop = speed < 0.0f;
                 }
             }
         }
         else if (0.0f <= speed)
         {
-            speed = frameLength * maxAccel + speed;
+            speed = static_cast<float>(static_cast<double>(frameLength) * maxAccel + speed);
 
             if (desiredSpeed < speed)
             {
@@ -272,7 +272,7 @@ auto Train::Update() -> void
         }
         else
         {
-            speed = frameLength * maxDecel + speed;
+            speed = static_cast<float>(static_cast<double>(frameLength) * maxDecel + speed);
             stop = 0.0f < speed;
         }
     }
@@ -280,7 +280,7 @@ auto Train::Update() -> void
     {
         if (0.0f < speed)
         {
-            speed = speed - frameLength * maxDecel;
+            speed = static_cast<float>(speed - static_cast<double>(frameLength) * maxDecel);
 
             if (speed < 0.0f)
             {
@@ -290,7 +290,7 @@ auto Train::Update() -> void
 
         if (speed < 0.0f)
         {
-            speed = frameLength * maxDecel + speed;
+            speed = static_cast<float>(static_cast<double>(frameLength) * maxDecel + speed);
             stop = 0.0f < speed;
         }
     }
@@ -310,7 +310,7 @@ auto Train::Update() -> void
     {
         const float reach = -(worldUnitsPerMeter * speed);
         const frame_of_ref turned = TurnedFrame(entry->car->getFrame());
-        move.x = turned.j.x * reach * frameLength;
+        move.x = static_cast<float>(static_cast<double>(turned.j.x) * reach * frameLength);
         move.y = turned.j.y * reach * frameLength;
         move.z = turned.j.z * reach * frameLength;
     }
@@ -1203,7 +1203,7 @@ auto TrainCar::derail(float angle) -> void
     derailed = 1;
     const auto roll = static_cast<float>(RandomNumber(100));
     Train* oldTrain = train;
-    const bool slowEnough = std::abs(oldTrain->speed) * 5.0f <= roll;
+    const bool slowEnough = static_cast<double>(std::abs(oldTrain->speed)) * 5.0 <= roll;
 
     if ((speed <= 0.0f && slowEnough) || entry->next == nullptr)
     {
@@ -1364,18 +1364,20 @@ auto TrainCar::relFacingTo(vector_3d goal, int32_t) -> float
     toGoal.x = goal.x - x;
     toGoal.y = goal.y - y;
     toGoal.z = 0.0f;
-    const float length = toGoal.magnitude();
+    const double length =
+        std::sqrt((static_cast<double>(toGoal.x) * toGoal.x + static_cast<double>(toGoal.y) * toGoal.y) +
+                  static_cast<double>(toGoal.z) * toGoal.z);
 
-    if (length != 0.0f)
+    if (length != 0.0)
     {
-        toGoal.x = toGoal.x / length;
-        toGoal.y = toGoal.y / length;
-        toGoal.z = toGoal.z / length;
+        toGoal.x = static_cast<float>(toGoal.x / length);
+        toGoal.y = static_cast<float>(toGoal.y / length);
+        toGoal.z = static_cast<float>(toGoal.z / length);
     }
 
     const double cosine = static_cast<double>(toGoal.z) * facing.z + static_cast<double>(toGoal.y) * facing.y +
                           static_cast<double>(toGoal.x) * facing.x;
-    const float angle = static_cast<float>(std::acos(cosine) * RADIANS_TO_DEGREES_F);
+    const float angle = static_cast<float>(acosMatherr(cosine) * RADIANS_TO_DEGREES_F);
 
     // Negative to the left.
     if ((facing & toGoal).z >= 0.0f)

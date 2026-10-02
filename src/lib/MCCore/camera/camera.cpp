@@ -1119,7 +1119,7 @@ auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
                 toCorner.z /= length;
             }
 
-            const double degrees = std::acos(static_cast<double>(toCorner.x)) * RADIANS_TO_DEGREES;
+            const double degrees = acosMatherr(static_cast<double>(toCorner.x)) * RADIANS_TO_DEGREES;
             cornerAngle[corner] = static_cast<float>(degrees);
 
             if (toCorner.y < 0.0f)
@@ -1267,7 +1267,7 @@ auto Camera::update() -> int32_t
             scrollStart = newPosition;
             scrollJumped = 0;
             step = targetPosition - newPosition;
-            const float length = step.magnitude();
+            const auto length = static_cast<float>(step.magnitude());
 
             if (length != 0.0f)
             {
@@ -1336,7 +1336,7 @@ auto Camera::update() -> int32_t
                 speed = 0.0f / jumpThreshold * speedFactor + camSpeed;
             }
 
-            const float length = step.magnitude();
+            const auto length = static_cast<float>(step.magnitude());
 
             if (length != 0.0f)
             {
@@ -1384,7 +1384,7 @@ auto Camera::update() -> int32_t
             offset.z = behind * lastTargetFacing.z;
             const vector_3d goal = targetPosition + offset;
             velocity = goal - newPosition;
-            const float rate = velocity.magnitude() / distanceFactor;
+            const auto rate = static_cast<float>(velocity.magnitude() / distanceFactor);
             velocity.normalize();
             velocity *= camSpeed;
             velocity *= rate;

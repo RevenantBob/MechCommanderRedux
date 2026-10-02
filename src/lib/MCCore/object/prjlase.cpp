@@ -398,11 +398,14 @@ auto ProjectileLaser::update() -> int32_t
         to = *targetPosition;
     }
 
-    const float step = laserType->velocity * frameLength;
-    float dx = to.x - from.x;
+    const double step = static_cast<double>(laserType->velocity) * frameLength;
+    const double dxWide = static_cast<double>(to.x) - from.x;
+    const auto dx = static_cast<float>(dxWide);
     float dy = to.y - from.y;
     float dz = to.z - from.z;
-    const float groundDistanceSq = dx * dx + dy * dy;
+    const double dxSq = static_cast<double>(dx) * dx;
+    const double dySq = static_cast<double>(dy) * dy;
+    const double groundDistanceSq = dxSq + dySq;
 
     if (closestDistanceSq <= groundDistanceSq)
     {
@@ -410,48 +413,58 @@ auto ProjectileLaser::update() -> int32_t
     }
     else
     {
-        closestDistanceSq = groundDistanceSq;
+        closestDistanceSq = static_cast<float>(groundDistanceSq);
     }
 
-    float length = std::sqrt(dz * dz + dx * dx + dy * dy);
+    const double travelLength = std::sqrt(static_cast<double>(dz) * dz + dxSq + dySq);
+    const auto travelLengthF = static_cast<float>(travelLength);
+    double unitX = dxWide;
 
-    if (length != 0.0f)
+    if (travelLength != 0.0)
     {
-        dx /= length;
-        dy /= length;
-        dz /= length;
+        unitX = static_cast<double>(dx) / travelLengthF;
+        dy = static_cast<float>(static_cast<double>(dy) / travelLengthF);
+        dz = static_cast<float>(static_cast<double>(dz) / travelLengthF);
     }
 
-    headPosition.x = dx * step + headPosition.x;
-    headPosition.y = dy * step + headPosition.y;
-    headPosition.z = dz * step + headPosition.z;
+    const double moveX = unitX * step;
+    const auto moveY = static_cast<float>(dy * step);
+    const auto moveZ = static_cast<float>(dz * step);
+    headPosition.x = static_cast<float>(moveX + headPosition.x);
+    headPosition.y = moveY + headPosition.y;
+    headPosition.z = moveZ + headPosition.z;
 
     // The shape: a bulge bulgeLength behind the head, bulgeWidth to each side, and the tail projectileLength back.
-    float backX = -(dx * step);
-    float backY = -(dy * step);
-    float backZ = -(dz * step);
-    length = std::sqrt(backX * backX + backY * backY + backZ * backZ);
+    const auto backX = static_cast<float>(-moveX);
+    float backY = -moveY;
+    float backZ = -moveZ;
+    const double backLength = std::sqrt(static_cast<double>(backZ) * backZ + static_cast<double>(backY) * backY +
+                                        static_cast<double>(backX) * backX);
+    const auto backLengthF = static_cast<float>(backLength);
+    double backXWide = -moveX;
 
-    if (length != 0.0f)
+    if (backLength != 0.0)
     {
-        backX /= length;
-        backY /= length;
-        backZ /= length;
+        backXWide = static_cast<double>(backX) / backLengthF;
+        backY = static_cast<float>(static_cast<double>(backY) / backLengthF);
+        backZ = static_cast<float>(static_cast<double>(backZ) / backLengthF);
     }
 
     const float bulgeLength = laserType->bulgeLength;
     const float bulgeWidth = laserType->bulgeWidth;
     bulgeSide1.y = backY * bulgeLength + headPosition.y;
-    bulgeSide1.x = backX * bulgeLength + headPosition.x;
+    bulgeSide1.x = static_cast<float>(backXWide * bulgeLength + headPosition.x);
     bulgeSide1.z = backZ * bulgeLength + headPosition.z;
     bulgeSide2 = bulgeSide1;
     bulgeCenter = bulgeSide1;
-    bulgeSide2.x += backY * bulgeWidth;
-    bulgeSide2.y -= backX * bulgeWidth;
-    bulgeSide1.x -= backY * bulgeWidth;
-    bulgeSide1.y += backX * bulgeWidth;
+    const double backYWidth = static_cast<double>(backY) * bulgeWidth;
+    const auto backXWidth = static_cast<float>(backXWide * bulgeWidth);
+    bulgeSide2.x = static_cast<float>(backYWidth + bulgeSide2.x);
+    bulgeSide2.y -= backXWidth;
+    bulgeSide1.x = static_cast<float>(bulgeSide1.x - backYWidth);
+    bulgeSide1.y += backXWidth;
     tailPosition.y = backY * laserType->projectileLength + headPosition.y;
-    tailPosition.x = backX * laserType->projectileLength + headPosition.x;
+    tailPosition.x = static_cast<float>(backXWide * laserType->projectileLength + headPosition.x);
     tailPosition.z = backZ * laserType->projectileLength + headPosition.z;
 
     // With a smoke trail, arrival is instead the tail coming within closeDistance (plus a step) of the target.
@@ -478,8 +491,10 @@ auto ProjectileLaser::update() -> int32_t
         float sx = smokeTo.x - tail.x;
         float sy = smokeTo.y - tail.y;
         float sz = smokeTo.z - tail.z;
-        const float reach = smokeStep + laserType->closeDistance;
-        const float groundSq = sx * sx + sy * sy;
+        const double reach = static_cast<double>(smokeStep) + laserType->closeDistance;
+        const float sySq = sy * sy;
+        const float sxSq = sx * sx;
+        const double groundSq = static_cast<double>(sx) * sx + sySq;
 
         if (groundSq <= reach * reach)
         {
@@ -487,13 +502,13 @@ auto ProjectileLaser::update() -> int32_t
             arrived = 1;
         }
 
-        const float smokeLength = std::sqrt(sz * sz + groundSq);
+        const double smokeLength = std::sqrt(static_cast<double>(sz) * sz + sxSq + sySq);
 
-        if (smokeLength != 0.0f)
+        if (smokeLength != 0.0)
         {
-            sx /= smokeLength;
-            sy /= smokeLength;
-            sz /= smokeLength;
+            sx = static_cast<float>(sx / smokeLength);
+            sy = static_cast<float>(sy / smokeLength);
+            sz = static_cast<float>(sz / smokeLength);
         }
 
         vector_3d smokeVelocity;

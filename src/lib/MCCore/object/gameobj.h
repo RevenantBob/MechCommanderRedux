@@ -366,7 +366,7 @@ public:
     virtual int32_t write(File* objFile) { return 0; }
     /// <summary>The distance on the ground from the object to <paramref name="goal"/>, in meters.</summary>
     /// <remarks>MCX.EXE @ 0x00664e70</remarks>
-    virtual float distanceFrom(vector_3d& goal);
+    virtual double distanceFrom(vector_3d& goal);
     /// <summary>Whether the map gives the object sight of <paramref name="target"/> (both ignore themselves).</summary>
     /// <remarks>MCX.EXE @ 0x00664f10</remarks>
     virtual int lineOfSight(GameObject* target);

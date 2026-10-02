@@ -444,7 +444,8 @@ auto ElementalType::handleCollision(GameObject* collidee, GameObject* collider) 
 
             if (collidee->getTonnage() < tonnageCollisionThreshold)
             {
-                deflection = static_cast<float>(tonnageCollisionThreshold / collidee->getTonnage() * treeDeflection);
+                deflection = static_cast<float>(static_cast<double>(tonnageCollisionThreshold) /
+                                                collidee->getTonnage() * treeDeflection);
             }
 
             if (deflection > 0.0)
@@ -1121,7 +1122,7 @@ auto Elemental::updateJump() -> int
         }
 
         controlData->jump = 1;
-        controlData->jumpDistance = distanceFrom(jumpGoal);
+        controlData->jumpDistance = static_cast<float>(distanceFrom(jumpGoal));
         controlData->throttle = 0;
         return 1;
     }
@@ -1141,7 +1142,7 @@ auto Elemental::updateJump() -> int
         return 1;
     }
 
-    double turn = -(facing / frameLength);
+    double turn = -(static_cast<double>(facing) / frameLength);
 
     if (turn > maxTurn)
     {
@@ -1366,7 +1367,7 @@ auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float&
     newGestureStateGoal = 1;
     vector_3d destination = path->stepList[step].destination;
     lastValidPosition = destination;
-    const float distance = distanceFrom(destination);
+    const auto distance = static_cast<float>(distanceFrom(destination));
     // (The original also measures the distance to the path object itself, and drops it.)
     const float margin = step == path->numSteps - 1 ? MoveMarginOfError[1] : MoveMarginOfError[0];
 
@@ -1411,7 +1412,7 @@ auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float&
     // Turns toward the step, no faster than the yaw rate allows this frame.
     const auto steer = [&]()
     {
-        float maxTurn = static_cast<float>(dynType->maxElementalYawRate) * frameLength;
+        double maxTurn = static_cast<double>(dynType->maxElementalYawRate) * frameLength;
 
         if (maxTurn > 180.0)
         {
@@ -1420,10 +1421,10 @@ auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float&
 
         if (std::fabs(newRotatePerSec) > maxTurn)
         {
-            newRotatePerSec = newRotatePerSec <= 0.0 ? -maxTurn : maxTurn;
+            newRotatePerSec = static_cast<float>(newRotatePerSec <= 0.0 ? -maxTurn : maxTurn);
         }
 
-        newRotate = static_cast<char>(rotateRequest(newRotatePerSec, maxTurn));
+        newRotate = static_cast<char>(static_cast<int8_t>(static_cast<int32_t>(newRotatePerSec / maxTurn * 64.0f)));
         return 0;
     };
 
@@ -1523,7 +1524,7 @@ auto Elemental::setControlSettings(char& newRotate, char& newThrottleSetting, fl
         MovePath* path = pilot->getMovePath();
         path->numSteps = 0;
         jumpGoal = path->stepList[path->curStep].destination;
-        actor->setJumpParameters(distanceFrom(jumpGoal));
+        actor->setJumpParameters(static_cast<float>(distanceFrom(jumpGoal)));
     }
 
     MechWarrior* warrior = pilot;
@@ -1536,7 +1537,7 @@ auto Elemental::setControlSettings(char& newRotate, char& newThrottleSetting, fl
         jumpGoal.x = point[0];
         jumpGoal.y = point[1];
         jumpGoal.z = point[2];
-        actor->setJumpParameters(distanceFrom(jumpGoal));
+        actor->setJumpParameters(static_cast<float>(distanceFrom(jumpGoal)));
     }
 
     auto* controlData = static_cast<ElementalControlData*>(control->controlData);
@@ -1827,7 +1828,7 @@ auto Elemental::update() -> int32_t
         velocity.x = turned.j.x * speed;
         velocity.z = turned.j.z * speed;
         vector_3d move;
-        move.x = velocity.x * frameLength * worldUnitsPerMeter;
+        move.x = static_cast<float>(static_cast<double>(velocity.x) * frameLength * worldUnitsPerMeter);
         move.y = velocity.y * frameLength * worldUnitsPerMeter;
         move.z = velocity.z * frameLength * worldUnitsPerMeter;
         vector_3d newPosition;
@@ -1835,7 +1836,10 @@ auto Elemental::update() -> int32_t
         newPosition.y = move.y + position.y;
         newPosition.z = move.z + position.z;
         setPosition(newPosition);
-        unknown7C8 = std::sqrt(move.z * move.z + move.y * move.y + move.x * move.x) + unknown7C8;
+        unknown7C8 =
+            static_cast<float>(std::sqrt(static_cast<double>(move.x) * move.x + static_cast<double>(move.y) * move.y +
+                                         static_cast<double>(move.z) * move.z) +
+                               unknown7C8);
         position.z = land->getTerrainElevation(position);
 
         const int visibleNow = onScreen();
@@ -2041,7 +2045,7 @@ auto Elemental::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk
         return 0;
     }
 
-    curHealth = static_cast<int32_t>(curHealth - shotInfo->damage);
+    curHealth = static_cast<int32_t>(static_cast<double>(curHealth) - shotInfo->damage);
 
     if (curHealth < 1)
     {
@@ -2099,7 +2103,7 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
             return 4;
         }
 
-        distance = distanceFrom(*targetPoint);
+        distance = static_cast<float>(distanceFrom(*targetPoint));
     }
     else
     {
@@ -2120,7 +2124,7 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
         }
 
         vector_3d targetPosition = target->getPosition();
-        distance = distanceFrom(targetPosition);
+        distance = static_cast<float>(distanceFrom(targetPosition));
     }
 
     const int32_t inRange = weaponInRange(weaponIndex, distance);

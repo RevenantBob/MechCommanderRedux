@@ -76,7 +76,7 @@ namespace
         const float refX = -frame.j.x;
         const float refY = -frame.j.y;
         vector_3d reference(refX, refY, -frame.j.z);
-        const float refLength = reference.magnitude();
+        const auto refLength = static_cast<float>(reference.magnitude());
 
         if (refLength != 0.0f)
         {
@@ -87,7 +87,7 @@ namespace
 
         vector_3d direction(vx, vy, vz);
         direction.normalize();
-        double angle = std::acos(static_cast<double>(reference | direction)) * RADIANS_TO_DEGREES;
+        double angle = acosMatherr(static_cast<double>(reference | direction)) * RADIANS_TO_DEGREES;
 
         if (0.0f <= vy * refX - refY * vx)
         {
@@ -431,7 +431,8 @@ auto Smoke::update() -> int32_t
 
     if (now < endTime && nextSphereTime <= now)
     {
-        const auto interval = static_cast<int32_t>(std::floor((1.0f / smokeType->smokePerSecond) * 1000.0f));
+        const auto interval =
+            static_cast<int32_t>(std::floor(1.0 / static_cast<double>(smokeType->smokePerSecond) * 1000.0));
         nextSphereTime = static_cast<uint32_t>(interval) + now;
         newSmokeSphere();
     }
@@ -448,7 +449,8 @@ auto Smoke::update() -> int32_t
 
         const float stepY = frameLength * sphere.velocity.y;
         const float stepZ = frameLength * sphere.velocity.z;
-        sphere.position.x = sphere.velocity.x * frameLength + sphere.position.x;
+        sphere.position.x =
+            static_cast<float>(static_cast<double>(sphere.velocity.x) * frameLength + sphere.position.x);
         sphere.position.y = stepY + sphere.position.y;
         sphere.position.z = stepZ + sphere.position.z;
 

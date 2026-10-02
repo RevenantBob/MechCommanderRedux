@@ -384,7 +384,7 @@ auto ObjectQueueNode::findObject(vector_3d position, float& distance) -> BaseObj
             continue;
         }
 
-        const float objectDistance = gameObject->distanceFrom(position);
+        const auto objectDistance = static_cast<float>(gameObject->distanceFrom(position));
         ObjectType* type = gameObject->getObjectType();
         const float extent = type != nullptr ? type->extentRadius : 0.0f;
 

@@ -946,6 +946,9 @@
     <ClInclude Include="logistics\ticker.h">
       <Filter>logistics</Filter>
     </ClInclude>
+    <ClInclude Include="main\fixes.h">
+      <Filter>main</Filter>
+    </ClInclude>
     <ClInclude Include="main\honorb.h">
       <Filter>main</Filter>
     </ClInclude>

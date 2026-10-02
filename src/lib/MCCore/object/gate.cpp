@@ -503,9 +503,10 @@ auto Gate::blowAnyOffendingObject() -> void
     const vector_3d gatePos = getPosition();
     const float dx = gatePos.x - offenderPos.x;
     const float dy = gatePos.y - offenderPos.y;
-    const float reach = static_cast<GateType*>(objType)->littleExtent + offender->getObjectType()->extentRadius;
+    const double reach =
+        static_cast<double>(static_cast<GateType*>(objType)->littleExtent) + offender->getObjectType()->extentRadius;
 
-    if (reach * reach <= dx * dx + dy * dy)
+    if (reach * reach <= static_cast<double>(dy) * dy + static_cast<double>(dx) * dx)
     {
         return;
     }

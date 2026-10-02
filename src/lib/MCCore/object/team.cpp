@@ -334,7 +334,7 @@ auto Team::getContacts(GameObject* looker, int32_t* contacts, int32_t contactCri
         else if (sortType == 2)
         {
             vector_3d position = object->getPosition();
-            sortValues[numFound] = looker->distanceFrom(position);
+            sortValues[numFound] = static_cast<float>(looker->distanceFrom(position));
         }
 
         numFound++;
@@ -700,9 +700,9 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
     static vector_3d awayVectors[100];
     static float distances[100];
 
-    float sumX = 0.0f;
-    float sumY = 0.0f;
-    float sumZ = 0.0f;
+    double sumX = 0.0;
+    double sumY = 0.0;
+    double sumZ = 0.0;
     int32_t nearest = 0;
     int32_t farthest = 0;
 
@@ -717,9 +717,10 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
         }
 
         vector_3d otherPosition = other->getPosition();
-        const float distance = mover->distanceFrom(otherPosition);
+        const double unroundedDistance = mover->distanceFrom(otherPosition);
+        const float distance = static_cast<float>(unroundedDistance);
 
-        if (range < distance)
+        if (range < unroundedDistance)
         {
             distances[i] = -999.0f;
             continue;
@@ -749,19 +750,19 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
     {
         if (0.0f <= distances[i])
         {
-            const float scale = distances[farthest] / distances[i];
-            awayVectors[i].x = scale * awayVectors[i].x;
-            awayVectors[i].y = scale * awayVectors[i].y;
-            awayVectors[i].z = scale * awayVectors[i].z;
+            const double scale = static_cast<double>(distances[farthest]) / distances[i];
+            awayVectors[i].x = static_cast<float>(scale * awayVectors[i].x);
+            awayVectors[i].y = static_cast<float>(scale * awayVectors[i].y);
+            awayVectors[i].z = static_cast<float>(scale * awayVectors[i].z);
             sumX = sumX + awayVectors[i].x;
             sumY = sumY + awayVectors[i].y;
             sumZ = sumZ + awayVectors[i].z;
         }
     }
 
-    const float length = std::sqrt(sumX * sumX + sumZ * sumZ + sumY * sumY);
+    const double length = std::sqrt((sumY * sumY + sumZ * sumZ) + sumX * sumX);
 
-    if (length != 0.0f)
+    if (length != 0.0)
     {
         sumX = sumX / length;
         sumY = sumY / length;
@@ -769,9 +770,9 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
     }
 
     vector_3d result;
-    result.x = sumX;
-    result.z = sumZ;
-    result.y = sumY;
+    result.x = static_cast<float>(sumX);
+    result.z = static_cast<float>(sumZ);
+    result.y = static_cast<float>(sumY);
     return result;
 }
 

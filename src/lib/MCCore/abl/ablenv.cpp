@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "abl/ablenv.h"
+#include "main/fixes.h"
 #include "abl/abldbug.h"
 #include "abl/ablerr.h"
 #include "abl/ablexec.h"
@@ -397,6 +398,10 @@ auto ABLModule::init(int32_t moduleHandle) -> int32_t
                                   "ABL: Unable to AblStackHeap->malloc staticData address [Module %d]", id);
                     Fatal(0, err);
                 }
+
+#if !MCREDUX_FIX_ABL_UNINITIALIZED_STATICS
+                std::memset(staticData[i].address, 0xff, static_cast<size_t>(size));
+#endif
             }
         }
     }

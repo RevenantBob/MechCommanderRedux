@@ -636,9 +636,10 @@ auto TreeBuilding::render() -> void
     }
     else
     {
-        burnTime = frameLength + burnTime;
+        const double burnSum = static_cast<double>(frameLength) + burnTime;
+        burnTime = static_cast<float>(burnSum);
 
-        if (type->timeToBurnDamage < burnTime)
+        if (type->timeToBurnDamage < burnSum)
         {
             burnTime = 0.0f;
             _WeaponShotInfo shot;
@@ -1060,17 +1061,19 @@ auto TreeBuilding::createBuildingMarines() -> void
         offset.x = static_cast<float>(RandomNumber(static_cast<int32_t>(extent + extent))) - extent;
         offset.y = static_cast<float>(RandomNumber(static_cast<int32_t>(extent + extent))) - extent;
         offset.z = static_cast<float>(RandomNumber(0)) - 0.0f;
-        const float length = std::sqrt(offset.x * offset.x + offset.y * offset.y + offset.z * offset.z);
+        const double length =
+            std::sqrt(static_cast<double>(offset.z) * offset.z + static_cast<double>(offset.y) * offset.y +
+                      static_cast<double>(offset.x) * offset.x);
 
         if (length != 0.0)
         {
-            offset.x = offset.x / length;
-            offset.y = offset.y / length;
-            offset.z = offset.z / length;
+            offset.x = static_cast<float>(offset.x / length);
+            offset.y = static_cast<float>(offset.y / length);
+            offset.z = static_cast<float>(offset.z / length);
         }
 
-        offset.x = static_cast<float>(extent * offset.x * 1.5);
-        offset.y = static_cast<float>(extent * offset.y * 1.5);
+        offset.x = static_cast<float>(static_cast<double>(extent) * offset.x * 1.5);
+        offset.y = static_cast<float>(static_cast<double>(extent) * offset.y * 1.5);
         vector_3d marinePosition;
         marinePosition.x = offset.x + position.x;
         marinePosition.y = offset.y + position.y;

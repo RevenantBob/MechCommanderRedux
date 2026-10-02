@@ -157,13 +157,6 @@ namespace
         return (tile.cells & (0x4000u << shift)) >> (shift + 14);
     }
 
-    /// <summary>A tile's 6-bit elevation level plus the map's base elevation, in meters.</summary>
-    float TileElevation(uint32_t cells, int32_t baseElevation)
-    {
-        return static_cast<float>(static_cast<int32_t>((cells >> 7) & 0x3f) + baseElevation) *
-               Terrain::metersPerElevLevel;
-    }
-
     /// <summary>
     /// <see cref="tileColToWorldCoord"/>[tileC]. Port fix: the original reads past the table for a column off the
     /// map; the port computes such a column's edge the way the table was filled.
@@ -175,7 +168,8 @@ namespace
             return tileColToWorldCoord[tileC];
         }
 
-        return static_cast<float>(tileC) * Terrain::metersPerVertex - worldUnitsMapSide * 0.5f;
+        return static_cast<float>(static_cast<double>(tileC) * Terrain::metersPerVertex -
+                                  static_cast<double>(worldUnitsMapSide) * 0.5);
     }
 
     /// <summary>
@@ -189,28 +183,33 @@ namespace
             return tileRowToWorldCoord[tileR];
         }
 
-        return worldUnitsMapSide * 0.5f - static_cast<float>(tileR) * Terrain::metersPerVertex;
+        return static_cast<float>(static_cast<double>(worldUnitsMapSide) * 0.5 -
+                                  static_cast<double>(tileR) * Terrain::metersPerVertex);
     }
 }
 
 auto worldCoordToMapCoord(vector_3d pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC) -> void
 {
-    tileC = static_cast<int32_t>(Terrain::OneOvermetersPerVertex * pos.x + VerticesMapSideDivTwo);
-    tileR = static_cast<int32_t>((MetersMapSideDivTwo - pos.y) * Terrain::OneOvermetersPerVertex);
-    cellC = static_cast<int32_t>((pos.x - TileColToWorldCoord(tileC, GameMap->width)) / MetersPerCell);
-    cellR = static_cast<int32_t>((TileRowToWorldCoord(tileR, GameMap->height) - pos.y) / MetersPerCell);
+    tileC = static_cast<int32_t>(static_cast<double>(Terrain::OneOvermetersPerVertex) * pos.x + VerticesMapSideDivTwo);
+    tileR = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.y) * Terrain::OneOvermetersPerVertex);
+    cellC =
+        static_cast<int32_t>((static_cast<double>(pos.x) - TileColToWorldCoord(tileC, GameMap->width)) / MetersPerCell);
+    cellR = static_cast<int32_t>((static_cast<double>(TileRowToWorldCoord(tileR, GameMap->height)) - pos.y) /
+                                 MetersPerCell);
 }
 
 auto worldCoordToMapTile(vector_3d pos, int32_t& tileR, int32_t& tileC) -> void
 {
-    tileC = static_cast<int32_t>(Terrain::OneOvermetersPerVertex * pos.x + VerticesMapSideDivTwo);
-    tileR = static_cast<int32_t>((MetersMapSideDivTwo - pos.y) * Terrain::OneOvermetersPerVertex);
+    tileC = static_cast<int32_t>(static_cast<double>(Terrain::OneOvermetersPerVertex) * pos.x + VerticesMapSideDivTwo);
+    tileR = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.y) * Terrain::OneOvermetersPerVertex);
 }
 
 auto worldCoordToMapCell(vector_3d pos, int32_t& cellR, int32_t& cellC) -> void
 {
-    cellC = static_cast<int32_t>((MetersMapSideDivTwo + pos.x) / Terrain::metersPerVertexDivMAPCELL_DIM);
-    cellR = static_cast<int32_t>((MetersMapSideDivTwo - pos.y) / Terrain::metersPerVertexDivMAPCELL_DIM);
+    cellC = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) + pos.x) /
+                                 Terrain::metersPerVertexDivMAPCELL_DIM);
+    cellR = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.y) /
+                                 Terrain::metersPerVertexDivMAPCELL_DIM);
 }
 
 auto relativePositionToPoint(vector_3d pos, float angle, float distance, uint32_t flags) -> vector_3d
@@ -320,8 +319,10 @@ auto relativePositionToPoint(vector_3d pos, float angle, float distance, uint32_
 auto mapTileCellToWorldPos(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, vector_3d& worldPos) -> void
 {
     worldPos.z = 0.0f;
-    worldPos.x = tileColToWorldCoord[tileC] + cellToWorldCoord[cellC] + HalfMapCell;
-    worldPos.y = (tileRowToWorldCoord[tileR] - cellToWorldCoord[cellR]) - HalfMapCell;
+    worldPos.x =
+        static_cast<float>(static_cast<double>(tileColToWorldCoord[tileC]) + cellToWorldCoord[cellC] + HalfMapCell);
+    worldPos.y =
+        static_cast<float>(static_cast<double>(tileRowToWorldCoord[tileR]) - cellToWorldCoord[cellR] - HalfMapCell);
 }
 
 auto mapCellToWorldPos(int32_t cellR, int32_t cellC, vector_3d& worldPos) -> void
@@ -552,29 +553,31 @@ auto ScenarioMap::init(int32_t newWidth, int32_t newHeight) -> void
         tileMulMAPCELL_DIM[i] = i * MAPCELL_DIM;
     }
 
+    const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5;
+
     for (int32_t row = 0; row < newHeight; row++)
     {
-        tileRowToWorldCoord[row] = worldUnitsMapSide * 0.5f - static_cast<float>(row) * Terrain::metersPerVertex;
+        tileRowToWorldCoord[row] = static_cast<float>(mapHalf - static_cast<double>(row) * Terrain::metersPerVertex);
     }
 
     for (int32_t col = 0; col < newWidth; col++)
     {
-        tileColToWorldCoord[col] = static_cast<float>(col) * Terrain::metersPerVertex - worldUnitsMapSide * 0.5f;
+        tileColToWorldCoord[col] = static_cast<float>(static_cast<double>(col) * Terrain::metersPerVertex - mapHalf);
     }
 
-    const float cellSide = Terrain::metersPerVertex * (1.0f / 3.0f);
+    const double cellSide = static_cast<double>(Terrain::metersPerVertex) * (1.0f / 3.0f);
 
     for (int32_t cell = 0; cell < MAPCELL_DIM; cell++)
     {
-        cellToWorldCoord[cell] = static_cast<float>(cell) * cellSide;
+        cellToWorldCoord[cell] = static_cast<float>(static_cast<double>(cell) * cellSide);
     }
 
     width = newWidth;
     height = newHeight;
     VerticesMapSideDivTwo = static_cast<float>(Terrain::verticesBlockSide * Terrain::blocksMapSide) * 0.5f;
     MetersMapSideDivTwo = worldUnitsMapSide * 0.5f;
-    MapCellDiagonal = cellSide * metersPerWorldUnit * 1.4142f;
-    HalfMapCell = cellSide * 0.5f;
+    MapCellDiagonal = static_cast<float>(cellSide * metersPerWorldUnit * 1.4142);
+    HalfMapCell = static_cast<float>(cellSide * 0.5);
 
     const uint32_t numTiles = static_cast<uint32_t>(newWidth * newHeight);
     map = static_cast<MapTile*>(systemHeap->malloc(numTiles * sizeof(MapTile)));
@@ -598,8 +601,9 @@ auto ScenarioMap::init(int32_t newWidth, int32_t newHeight) -> void
 auto ScenarioMap::init(File* mapFile) -> int32_t
 {
     MetersPerCell = Terrain::metersPerVertexDivMAPCELL_DIM;
-    MapCellDiagonal = Terrain::metersPerVertex * (1.0f / 3.0f) * metersPerWorldUnit * 1.4142f;
-    HalfMapCell = Terrain::metersPerVertex * (1.0f / 3.0f) * 0.5f;
+    const double cellSide = static_cast<double>(Terrain::metersPerVertex) * (1.0f / 3.0f);
+    MapCellDiagonal = static_cast<float>(cellSide * metersPerWorldUnit * 1.4142);
+    HalfMapCell = static_cast<float>(cellSide * 0.5);
     VerticesMapSideDivTwo = static_cast<float>((Terrain::verticesBlockSide * Terrain::blocksMapSide) / 2);
     MetersMapSideDivTwo = worldUnitsMapSide * 0.5f;
 
@@ -611,31 +615,31 @@ auto ScenarioMap::init(File* mapFile) -> int32_t
         tileMulMAPCELL_DIM[i] = i * MAPCELL_DIM;
     }
 
+    const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5;
+
     for (int32_t row = 0; row < height; row++)
     {
-        tileRowToWorldCoord[row] = worldUnitsMapSide * 0.5f - static_cast<float>(row) * Terrain::metersPerVertex;
+        tileRowToWorldCoord[row] = static_cast<float>(mapHalf - static_cast<double>(row) * Terrain::metersPerVertex);
     }
 
     for (int32_t col = 0; col < width; col++)
     {
-        tileColToWorldCoord[col] = static_cast<float>(col) * Terrain::metersPerVertex - worldUnitsMapSide * 0.5f;
+        tileColToWorldCoord[col] = static_cast<float>(static_cast<double>(col) * Terrain::metersPerVertex - mapHalf);
     }
-
-    const float cellSide = Terrain::metersPerVertex * (1.0f / 3.0f);
 
     for (int32_t cell = 0; cell < MAPCELL_DIM; cell++)
     {
-        cellToWorldCoord[cell] = static_cast<float>(cell) * cellSide;
+        cellToWorldCoord[cell] = static_cast<float>(static_cast<double>(cell) * cellSide);
     }
 
     for (int32_t row = 0; row < height * MAPCELL_DIM; row++)
     {
-        cellRowToWorldCoord[row] = worldUnitsMapSide * 0.5f - static_cast<float>(row) * MetersPerCell;
+        cellRowToWorldCoord[row] = static_cast<float>(mapHalf - static_cast<double>(row) * MetersPerCell);
     }
 
     for (int32_t col = 0; col < width * MAPCELL_DIM; col++)
     {
-        cellColToWorldCoord[col] = static_cast<float>(col) * MetersPerCell - worldUnitsMapSide * 0.5f;
+        cellColToWorldCoord[col] = static_cast<float>(static_cast<double>(col) * MetersPerCell - mapHalf);
     }
 
     baseElevation = mapFile->readLong();
@@ -690,20 +694,20 @@ auto ScenarioMap::destroy() -> void
 
 auto ScenarioMap::worldToMapPos(vector_3d pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC) -> void
 {
-    tileC = static_cast<int16_t>(
-        static_cast<int32_t>(std::floor(Terrain::OneOvermetersPerVertex * pos.x + VerticesMapSideDivTwo)));
-    tileR = static_cast<int16_t>(
-        static_cast<int32_t>(std::floor((MetersMapSideDivTwo - pos.y) * Terrain::OneOvermetersPerVertex)));
-    cellC = static_cast<int32_t>((pos.x - TileColToWorldCoord(tileC, width)) / MetersPerCell);
-    cellR = static_cast<int32_t>((TileRowToWorldCoord(tileR, height) - pos.y) / MetersPerCell);
+    tileC = static_cast<int16_t>(static_cast<int32_t>(
+        std::floor(static_cast<double>(Terrain::OneOvermetersPerVertex) * pos.x + VerticesMapSideDivTwo)));
+    tileR = static_cast<int16_t>(static_cast<int32_t>(
+        std::floor((static_cast<double>(MetersMapSideDivTwo) - pos.y) * Terrain::OneOvermetersPerVertex)));
+    cellC = static_cast<int32_t>((static_cast<double>(pos.x) - TileColToWorldCoord(tileC, width)) / MetersPerCell);
+    cellR = static_cast<int32_t>((static_cast<double>(TileRowToWorldCoord(tileR, height)) - pos.y) / MetersPerCell);
 }
 
 auto ScenarioMap::worldToMapTilePos(vector_3d pos, int32_t& tileR, int32_t& tileC) -> void
 {
-    tileC = static_cast<int16_t>(
-        static_cast<int32_t>(std::floor(Terrain::OneOvermetersPerVertex * pos.x + VerticesMapSideDivTwo)));
-    tileR = static_cast<int16_t>(
-        static_cast<int32_t>(std::floor((MetersMapSideDivTwo - pos.y) * Terrain::OneOvermetersPerVertex)));
+    tileC = static_cast<int16_t>(static_cast<int32_t>(
+        std::floor(static_cast<double>(Terrain::OneOvermetersPerVertex) * pos.x + VerticesMapSideDivTwo)));
+    tileR = static_cast<int16_t>(static_cast<int32_t>(
+        std::floor((static_cast<double>(MetersMapSideDivTwo) - pos.y) * Terrain::OneOvermetersPerVertex)));
 }
 
 auto ScenarioMap::cellPassable(vector_3d pos) -> int
@@ -763,11 +767,12 @@ auto ScenarioMap::placeObject(vector_3d position, float radius) -> int32_t
     int32_t cellR = 0;
     int32_t cellC = 0;
     worldCoordToMapCell(position, cellR, cellC);
-    float depth = radius / (metersPerWorldUnit * Terrain::metersPerVertexDivMAPCELL_DIM);
+    double depth = static_cast<double>(radius) /
+                   (static_cast<double>(metersPerWorldUnit) * Terrain::metersPerVertexDivMAPCELL_DIM);
 
-    if (depth > 0.5f && depth < 1.0f)
+    if (depth > 0.5 && depth < 1.0)
     {
-        depth = 1.0f;
+        depth = 1.0;
     }
 
     spreadState(cellR, cellC, static_cast<int32_t>(depth));
@@ -891,15 +896,20 @@ auto ScenarioMap::restorePreservedMap() -> void
 
 auto ScenarioMap::getTerrainElevation(vector_3d position) -> float
 {
-    const float vertexX =
-        Terrain::metersPerVertex * static_cast<float>(std::floor(Terrain::OneOvermetersPerVertex * position.x));
-    const float vertexY = Terrain::metersPerVertex *
-                          (static_cast<float>(std::floor(Terrain::OneOvermetersPerVertex * position.y)) + 1.0f);
-    const float vertexCol = Terrain::OneOvermetersPerVertex * vertexX;
-    const float vertexRow = Terrain::OneOvermetersPerVertex * vertexY;
+    return static_cast<float>(getTerrainElevationUnrounded(position));
+}
+
+auto ScenarioMap::getTerrainElevationUnrounded(vector_3d position) -> double
+{
+    const float mpv = Terrain::metersPerVertex;
+    const float oneOver = Terrain::OneOvermetersPerVertex;
+    const float vertexX = static_cast<float>(mpv * std::floor(static_cast<double>(oneOver) * position.x));
+    const float vertexY = static_cast<float>(mpv * (std::floor(static_cast<double>(oneOver) * position.y) + 1.0));
+    const double vertexCol = static_cast<double>(oneOver) * vertexX;
+    const float vertexRow = oneOver * vertexY;
     const int32_t halfSide = (Terrain::blocksMapSide * Terrain::verticesBlockSide) >> 1;
     int32_t tileC = static_cast<int32_t>(std::floor(vertexCol)) + halfSide;
-    int32_t tileR = halfSide - static_cast<int32_t>(std::floor(vertexRow));
+    int32_t tileR = halfSide - static_cast<int32_t>(std::floor(static_cast<double>(vertexRow)));
     const int32_t maxTile = Terrain::blocksMapSide * Terrain::verticesBlockSide - 2;
 
     if (tileR < 0)
@@ -933,62 +943,87 @@ auto ScenarioMap::getTerrainElevation(vector_3d position) -> float
     Assert(inMap(tileR + 1, tileC + 1), 0, " Map Tile out of bounds ");
     const uint32_t cells11 = GameMap->map[GameMap->width * (tileR + 1) + tileC + 1].cells;
     Assert(inMap(tileR + 1, tileC), 0, " Map Tile out of bounds ");
-    uint32_t cells10 = GameMap->map[GameMap->width * (tileR + 1) + tileC].cells;
+    const uint32_t cells10 = GameMap->map[GameMap->width * (tileR + 1) + tileC].cells;
 
     const int32_t base = GameMap->baseElevation;
-    const float cornerX = static_cast<float>(std::floor(vertexCol)) * Terrain::metersPerVertex;
-    const float cornerY = static_cast<float>(std::floor(vertexRow)) * Terrain::metersPerVertex;
-    const float elevation00 = TileElevation(cells00, base);
-    const float dx = std::fabs(position.x - vertexX);
-    const float dy = std::fabs(vertexY - position.y);
+    const float mpe = Terrain::metersPerElevLevel;
+    const auto levelOf = [base](uint32_t cells) -> double
+    {
+        return static_cast<double>(
+            static_cast<int64_t>(static_cast<uint32_t>(static_cast<int32_t>((cells >> 7) & 0x3f) + base)));
+    };
+
+    const float cornerX = static_cast<float>(std::floor(vertexCol) * mpv);
+    const float cornerY = static_cast<float>(std::floor(static_cast<double>(vertexRow)) * mpv);
+    const float elevation00 = static_cast<float>(levelOf(cells00) * mpe);
+    const double offsetX = std::fabs(static_cast<double>(position.x) - vertexX);
+    const float dx = static_cast<float>(offsetX);
+    const float dy = static_cast<float>(std::fabs(static_cast<double>(vertexY) - position.y));
+    const double cornerXPlus = static_cast<double>(cornerX) + mpv;
 
     // The two edges of the tile's triangle holding the point, from its upper-left corner.
-    float edge1X;
-    float edge1Y;
-    const float edge2Y = (cornerY - Terrain::metersPerVertex) - cornerY;
+    double edge1X;
+    double edge1Y;
+    float edge1Z;
+    double edge2X;
+    double edge2Y;
+    double edge2Z;
 
-    if (dx <= dy)
+    if (offsetX > dy)
     {
-        edge1X = 0.0f;
-        edge1Y = edge2Y;
+        const float elevationB = static_cast<float>(levelOf(cells01) * mpe);
+        const float cornerYMinus = cornerY - mpv;
+        const float elevationC = static_cast<float>(levelOf(cells11) * mpe);
+        const double spanX = cornerXPlus - cornerX;
+        edge1X = spanX;
+        edge1Y = 0.0;
+        edge1Z = elevationB - elevation00;
+        edge2X = static_cast<float>(spanX);
+        edge2Y = cornerYMinus - cornerY;
+        edge2Z = elevationC - elevation00;
     }
     else
     {
-        edge1X = (cornerX + Terrain::metersPerVertex) - cornerX;
-        edge1Y = 0.0f;
-        cells10 = cells01;
+        const float cornerXPlusF = static_cast<float>(cornerXPlus);
+        const float cornerYMinus = cornerY - mpv;
+        const float elevationC = static_cast<float>(levelOf(cells11) * mpe);
+        const double elevationD = levelOf(cells10) * mpe;
+        const float spanY = cornerYMinus - cornerY;
+        edge1X = 0.0;
+        edge1Y = spanY;
+        edge1Z = static_cast<float>(elevationD - elevation00);
+        edge2X = static_cast<double>(cornerXPlusF) - cornerX;
+        edge2Y = spanY;
+        edge2Z = elevationC - elevation00;
     }
 
-    float edge1Z = TileElevation(cells10, base) - elevation00;
-    float edge2Z = TileElevation(cells11, base) - elevation00;
-    float edge2X = (cornerX + Terrain::metersPerVertex) - cornerX;
-    float edge2YN = edge2Y;
+    const float length1 =
+        static_cast<float>(std::sqrt((edge1Y * edge1Y + static_cast<double>(edge1Z) * edge1Z) + edge1X * edge1X));
 
-    float length = std::sqrt(edge1X * edge1X + edge1Z * edge1Z + edge1Y * edge1Y);
-
-    if (length != 0.0f)
+    if (length1 > 0.0f)
     {
-        edge1X = edge1X / length;
-        edge1Y = edge1Y / length;
-        edge1Z = edge1Z / length;
+        edge1X = edge1X / length1;
+        edge1Y = edge1Y / length1;
+        edge1Z = static_cast<float>(edge1Z / static_cast<double>(length1));
     }
 
-    length = std::sqrt(edge2Z * edge2Z + edge2X * edge2X + edge2YN * edge2YN);
+    const float length2 = static_cast<float>(std::sqrt((edge2Y * edge2Y + edge2X * edge2X) + edge2Z * edge2Z));
 
-    if (length != 0.0f)
+    if (length2 > 0.0f)
     {
-        edge2X = edge2X / length;
-        edge2YN = edge2YN / length;
-        edge2Z = edge2Z / length;
+        edge2X = edge2X / length2;
+        edge2Y = edge2Y / length2;
+        edge2Z = edge2Z / length2;
     }
 
-    float normalX = edge2Z * edge1Y - edge2YN * edge1Z;
-    float normalY = edge1Z * edge2X - edge2Z * edge1X;
-    float normalZ = edge2YN * edge1X - edge1Y * edge2X;
+    float normalX = static_cast<float>(edge2Z * edge1Y - edge2Y * edge1Z);
+    float normalY = static_cast<float>(edge1Z * edge2X - edge2Z * edge1X);
+    float normalZ = static_cast<float>(edge2Y * edge1X - edge1Y * edge2X);
 
-    if (normalZ == 0.0f)
+    if (normalZ == 0.0f || std::isnan(normalZ))
     {
         Fatal(0, " Vertical Terrain ");
+        return 0.0;
     }
 
     if (normalZ < 0.0f)
@@ -998,7 +1033,8 @@ auto ScenarioMap::getTerrainElevation(vector_3d position) -> float
         normalZ = -normalZ;
     }
 
-    return -((normalX / normalZ) * dx + -dy * (normalY / normalZ)) + elevation00;
+    return -((static_cast<double>(normalY) / normalZ) * -dy + (static_cast<double>(normalX) / normalZ) * dx) +
+           elevation00;
 }
 
 auto ScenarioMap::getLOS(vector_3d position) -> int32_t
@@ -1039,7 +1075,7 @@ auto ScenarioMap::getLOF(vector_3d position) -> int32_t
     int32_t cellC = 0;
     worldToMapPos(position, tileR, tileC, cellR, cellC);
 
-    if (position.z < getTerrainElevation(position))
+    if (position.z < getTerrainElevationUnrounded(position))
     {
         return 0;
     }
@@ -1061,11 +1097,11 @@ auto ScenarioMap::lineOfSight(vector_3d start, vector_3d target) -> int
     step.x = step.x * stepLength;
     step.y = step.y * stepLength;
     step.z = step.z * stepLength;
-    const float totalDistance = (start - target).magnitude() * metersPerWorldUnit;
+    const auto totalDistance = static_cast<float>((start - target).magnitude() * metersPerWorldUnit);
     updateMovingObjects();
 
     vector_3d current = start + step;
-    float distance = (current - start).magnitude() * metersPerWorldUnit;
+    auto distance = static_cast<float>((current - start).magnitude() * metersPerWorldUnit);
     int result = 1;
 
     while (distance < totalDistance)
@@ -1078,7 +1114,7 @@ auto ScenarioMap::lineOfSight(vector_3d start, vector_3d target) -> int
         current.x = current.x + step.x;
         current.y = current.y + step.y;
         current.z = current.z + step.z;
-        distance = (current - start).magnitude() * metersPerWorldUnit;
+        distance = static_cast<float>((current - start).magnitude() * metersPerWorldUnit);
 
         if (result == 0)
         {
@@ -1092,30 +1128,33 @@ auto ScenarioMap::lineOfSight(vector_3d start, vector_3d target) -> int
 
 auto ScenarioMap::lineOfFire(vector_3d start, vector_3d target) -> int
 {
-    float stepX = target.x - start.x;
-    float stepY = target.y - start.y;
-    const float length = std::sqrt(stepX * stepX + stepY * stepY);
+    double directionX = static_cast<double>(target.x) - start.x;
+    const double deltaY = static_cast<double>(target.y) - start.y;
+    float directionY = static_cast<float>(deltaY);
+    const double length = std::sqrt(deltaY * directionY + directionX * directionX);
 
-    if (length != 0.0f)
+    if (length > 0.0)
     {
-        stepX = stepX / length;
-        stepY = stepY / length;
+        directionX = directionX / length;
+        directionY = static_cast<float>(directionY / length);
     }
 
-    stepX = stepX * Terrain::metersPerVertexDivMAPCELL_DIM * 0.33f;
-    stepY = stepY * Terrain::metersPerVertexDivMAPCELL_DIM * 0.33f;
-    const float totalDistance =
-        std::sqrt((start.y - target.y) * (start.y - target.y) + (start.x - target.x) * (start.x - target.x));
+    const float stepLength = Terrain::metersPerVertexDivMAPCELL_DIM * 0.33f;
+    const float stepX = static_cast<float>(directionX * stepLength);
+    const float stepY = directionY * stepLength;
+    const double spanX = static_cast<double>(start.x) - target.x;
+    const double spanY = static_cast<double>(start.y) - target.y;
+    const float totalDistance = static_cast<float>(std::sqrt(spanX * spanX + spanY * spanY));
     float currentX = stepX + start.x;
     float currentY = stepY + start.y;
     int result = 1;
 
     do
     {
-        const float distanceSq =
-            (currentX - start.x) * (currentX - start.x) + (currentY - start.y) * (currentY - start.y);
+        const double travelledX = static_cast<double>(currentX) - start.x;
+        const double travelledY = static_cast<double>(currentY) - start.y;
 
-        if (totalDistance <= std::sqrt(distanceSq))
+        if (totalDistance <= std::sqrt(travelledY * travelledY + travelledX * travelledX))
         {
             return result;
         }
@@ -1136,21 +1175,35 @@ auto ScenarioMap::lineOfSensor(vector_3d start, vector_3d target, int32_t& numBl
                                int32_t& numBlockingObjects) -> void
 {
     vector_3d step = target - start;
-    const float length = step.magnitude();
+    const double length = std::sqrt((static_cast<double>(step.x) * step.x + static_cast<double>(step.y) * step.y) +
+                                    static_cast<double>(step.z) * step.z);
+    double directionZ = step.z;
 
-    if (length != 0.0f)
+    if (length > 0.0)
     {
-        step.x = step.x / length;
-        step.y = step.y / length;
-        step.z = step.z / length;
+        step.x = static_cast<float>(step.x / length);
+        step.y = static_cast<float>(step.y / length);
+        directionZ = step.z / length;
     }
 
-    const float stepLength = metersPerWorldUnit * Terrain::metersPerVertexDivMAPCELL_DIM * 2.0f;
-    step.x = step.x * stepLength;
-    step.y = step.y * stepLength;
-    step.z = step.z * stepLength;
-    const float totalDistance = (start - target).magnitude() * metersPerWorldUnit;
+    const double stepLength = static_cast<double>(metersPerWorldUnit) * Terrain::metersPerVertexDivMAPCELL_DIM * 2.0f;
+    step.x = static_cast<float>(step.x * stepLength);
+    step.y = static_cast<float>(step.y * stepLength);
+    step.z = static_cast<float>(directionZ * stepLength);
+    const vector_3d span = start - target;
+    const float totalDistance =
+        static_cast<float>(std::sqrt((static_cast<double>(span.x) * span.x + static_cast<double>(span.y) * span.y) +
+                                     static_cast<double>(span.z) * span.z) *
+                           metersPerWorldUnit);
     updateMovingObjects();
+
+    auto travelledDistance = [&](const vector_3d& travelled) -> double
+    {
+        return std::sqrt(
+                   (static_cast<double>(travelled.z) * travelled.z + static_cast<double>(travelled.y) * travelled.y) +
+                   static_cast<double>(travelled.x) * travelled.x) *
+               metersPerWorldUnit;
+    };
 
     vector_3d current = start + step;
     vector_3d travelled = current - start;
@@ -1160,7 +1213,7 @@ auto ScenarioMap::lineOfSensor(vector_3d start, vector_3d target, int32_t& numBl
     numBlockingTiles = 0;
     numBlockingObjects = 0;
 
-    if (travelled.magnitude() * metersPerWorldUnit < totalDistance)
+    if (!(static_cast<float>(travelledDistance(travelled)) >= totalDistance))
     {
         do
         {
@@ -1171,7 +1224,7 @@ auto ScenarioMap::lineOfSensor(vector_3d start, vector_3d target, int32_t& numBl
             // Port fix: the original counts blockers on tiles off the map too, reading outside it.
             if ((tileR != prevTileR || tileC != prevTileC) && onMap(tileR, tileC))
             {
-                if (getTerrainElevation(current) > current.z)
+                if (getTerrainElevationUnrounded(current) > current.z)
                 {
                     numBlockingTiles++;
                 }
@@ -1186,7 +1239,7 @@ auto ScenarioMap::lineOfSensor(vector_3d start, vector_3d target, int32_t& numBl
             current.y = current.y + step.y;
             current.z = step.z + current.z;
             travelled = current - start;
-        } while (travelled.magnitude() * metersPerWorldUnit < totalDistance);
+        } while (!(travelledDistance(travelled) >= totalDistance));
     }
 
     restorePreservedMap();
@@ -2222,11 +2275,13 @@ auto MovePath::setMoveChunk(MoveChunk* chunk) -> void
         step.tileC = static_cast<int16_t>(chunk->stepPos[i][1]);
         step.cellR = static_cast<int16_t>(chunk->stepPos[i][2]);
         step.cellC = static_cast<int16_t>(chunk->stepPos[i][3]);
-        step.destination.x = cellToWorldCoord[step.cellC] + tileColToWorldCoord[step.tileC] + HalfMapCell;
+        step.destination.x = static_cast<float>(static_cast<double>(cellToWorldCoord[step.cellC]) +
+                                                tileColToWorldCoord[step.tileC] + HalfMapCell);
         step.distanceToGoal = 0.0f;
         step.destination.z = 0.0f;
         step.direction = 0;
-        step.destination.y = (tileRowToWorldCoord[step.tileR] - cellToWorldCoord[step.cellR]) - HalfMapCell;
+        step.destination.y = static_cast<float>(static_cast<double>(tileRowToWorldCoord[step.tileR]) -
+                                                cellToWorldCoord[step.cellR] - HalfMapCell);
     }
 
     numStepsWhenNotPaused = stepCount;
@@ -3550,8 +3605,10 @@ auto GlobalMap::calcLinkCost(int32_t startDoor, int32_t thruArea, int32_t goalDo
     }
 
     vector_3d goalPos;
-    goalPos.x = (static_cast<float>(goalCol) + 0.5f) * MetersPerCell - worldUnitsMapSide * 0.5f;
-    goalPos.y = (worldUnitsMapSide * 0.5f - static_cast<float>(goalRow) * MetersPerCell) - MetersPerCell * 0.5f;
+    const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5f;
+    goalPos.x = static_cast<float>((static_cast<double>(goalCol) + 0.5) * MetersPerCell - mapHalf);
+    goalPos.y = static_cast<float>((mapHalf - static_cast<double>(goalRow) * MetersPerCell) -
+                                   static_cast<double>(MetersPerCell) * 0.5);
     goalPos.z = 0.0f;
 
     if (PathFindMap == nullptr)
@@ -3701,9 +3758,10 @@ auto GlobalMap::getDoorTiles(int32_t area, int32_t doorIndex, GlobalMapDoor* doo
 
 auto GlobalMap::getDoorWorldPos(int32_t, int32_t, int32_t* prevGoalCell) -> vector_3d
 {
-    const float x = (static_cast<float>(prevGoalCell[1]) + 0.5f) * MetersPerCell - worldUnitsMapSide * 0.5f;
-    const float y =
-        (worldUnitsMapSide * 0.5f - static_cast<float>(prevGoalCell[0]) * MetersPerCell) - MetersPerCell * 0.5f;
+    const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5f;
+    const float x = static_cast<float>((static_cast<double>(prevGoalCell[1]) + 0.5) * MetersPerCell - mapHalf);
+    const float y = static_cast<float>((mapHalf - static_cast<double>(prevGoalCell[0]) * MetersPerCell) -
+                                       static_cast<double>(MetersPerCell) * 0.5);
     const float z = GameMap->getTerrainElevation(vector_3d(x, y, 0.0f));
     return vector_3d(x, y, z);
 }
@@ -5143,9 +5201,10 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
     {
         if (goalR < 0 || goalR >= cellHeight || goalC < 0 || goalC >= cellWidth)
         {
-            const float x = (static_cast<float>(goalC) + 0.5f) * MetersPerCell - worldUnitsMapSide * 0.5f;
-            const float y =
-                (worldUnitsMapSide * 0.5f - static_cast<float>(goalR) * MetersPerCell) - MetersPerCell * 0.5f;
+            const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5f;
+            const float x = static_cast<float>((static_cast<double>(goalC) + 0.5) * MetersPerCell - mapHalf);
+            const float y = static_cast<float>((mapHalf - static_cast<double>(goalR) * MetersPerCell) -
+                                               static_cast<double>(MetersPerCell) * 0.5);
             char message[256];
             std::snprintf(message, sizeof(message), " Bad Move Goal: %d [%d(%d), %d(%d)], (%.2f, %.2f, %.2f)",
                           DebugMovePathType, goalR, cellHeight, goalC, cellWidth, static_cast<double>(x),
@@ -5366,9 +5425,10 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
         {
             goalWorldPos->z = 0.0f;
             path->goal.z = 0.0f;
-            const float x = (static_cast<float>(minCol + bestC) + 0.5f) * MetersPerCell - worldUnitsMapSide * 0.5f;
-            const float y =
-                (worldUnitsMapSide * 0.5f - static_cast<float>(minRow + bestR) * MetersPerCell) - MetersPerCell * 0.5f;
+            const double mapHalf = static_cast<double>(worldUnitsMapSide * 0.5f);
+            const float x = static_cast<float>((static_cast<double>(minCol + bestC) + 0.5) * MetersPerCell - mapHalf);
+            const float y = static_cast<float>((mapHalf - static_cast<double>(minRow + bestR) * MetersPerCell) -
+                                               static_cast<double>(MetersPerCell) * 0.5);
             goalWorldPos->x = x;
             goalWorldPos->y = y;
             path->goal.x = x;
@@ -5385,8 +5445,10 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
         const int32_t doorCol = minCol + adjTile[doorDirection][1] + bestC;
         goalCell[0] = doorRow;
         goalCell[1] = doorCol;
-        const float x = (static_cast<float>(doorCol) + 0.5f) * MetersPerCell - worldUnitsMapSide * 0.5f;
-        const float y = (worldUnitsMapSide * 0.5f - static_cast<float>(doorRow) * MetersPerCell) - MetersPerCell * 0.5f;
+        const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5f;
+        const float x = static_cast<float>((static_cast<double>(doorCol) + 0.5) * MetersPerCell - mapHalf);
+        const float y = static_cast<float>((mapHalf - static_cast<double>(doorRow) * MetersPerCell) -
+                                           static_cast<double>(MetersPerCell) * 0.5);
         path->setDestination(stepIndex, vector_3d(x, y, 0.0f));
         doorStep.distanceToGoal = 0.0f;
         doorStep.tileR = static_cast<int16_t>(doorRow / 3);
@@ -5405,13 +5467,13 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
 
     if (ready == 0)
     {
-        const float scale = metersPerWorldUnit * Terrain::metersPerVertexDivMAPCELL_DIM;
+        const double scale = static_cast<double>(metersPerWorldUnit) * Terrain::metersPerVertexDivMAPCELL_DIM;
 
         for (int32_t i = 0; i < NUM_CELL_OFFSETS; i++)
         {
-            const float dr = static_cast<float>(cellShift[i * 2]);
-            const float dc = static_cast<float>(cellShift[i * 2 + 1]);
-            cellShiftDistance[i] = std::sqrt(dc * dc + dr * dr) * scale;
+            const double dr = static_cast<double>(cellShift[i * 2]);
+            const double dc = static_cast<double>(cellShift[i * 2 + 1]);
+            cellShiftDistance[i] = static_cast<float>(std::sqrt(dr * dr + dc * dc) * scale);
         }
 
         ready = 1;
@@ -5426,8 +5488,10 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
         step.direction = static_cast<uint8_t>(reverseShift[node.parent]);
         const int32_t mapRow = minRow + r;
         const int32_t mapCol = minCol + c;
-        const float x = (static_cast<float>(mapCol) + 0.5f) * MetersPerCell;
-        const float y = (worldUnitsMapSide * 0.5f - static_cast<float>(mapRow) * MetersPerCell) - MetersPerCell * 0.5f;
+        const double mapHalf = static_cast<double>(worldUnitsMapSide * 0.5f);
+        const float x = static_cast<float>((static_cast<double>(mapCol) + 0.5) * MetersPerCell - mapHalf);
+        const float y = static_cast<float>((mapHalf - static_cast<double>(mapRow) * MetersPerCell) -
+                                           static_cast<double>(MetersPerCell) * 0.5);
 
         if (stepIndex == count - 1 && static_cast<int8_t>(step.direction) < 8)
         {
@@ -5440,7 +5504,7 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
             step.distanceToGoal = nextStep.distanceToGoal + cellShiftDistance[static_cast<int8_t>(nextStep.direction)];
         }
 
-        path->setDestination(stepIndex, vector_3d(x - worldUnitsMapSide * 0.5f, y, 0.0f));
+        path->setDestination(stepIndex, vector_3d(x, y, 0.0f));
         step.tileR = static_cast<int16_t>(mapRow / 3);
         step.tileC = static_cast<int16_t>(mapCol / 3);
         step.cellR = static_cast<int16_t>(mapRow - step.tileR * 3);

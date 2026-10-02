@@ -1389,12 +1389,13 @@ auto Mover::setPosition(vector_3d& newPosition) -> void
     {
         if (negHalfSide <= startY && halfSide >= clampedX && negHalfSide <= startX)
         {
-            const float limit = static_cast<float>(static_cast<double>(Terrain::verticesBlockSide) *
-                                                       Terrain::blocksMapSide * Terrain::metersPerVertex * 0.5f -
-                                                   1300.0);
-            const float diff = newPosition.y - newPosition.x;
+            const double limit = static_cast<double>(Terrain::verticesBlockSide) * Terrain::blocksMapSide *
+                                     Terrain::metersPerVertex * 0.5f -
+                                 1300.0;
+            const double diff = static_cast<double>(newPosition.y) - newPosition.x;
             const float sum = newPosition.x + newPosition.y;
-            onMap = diff <= limit && -limit <= diff && sum <= limit && -limit <= sum;
+            const float negLimit = static_cast<float>(-limit);
+            onMap = !(diff > limit) && diff >= negLimit && !(sum > limit) && sum >= negLimit;
         }
     }
     else
@@ -1503,18 +1504,20 @@ auto Mover::relFacingTo(vector_3d goal, int32_t) -> float
     toGoal.x = goal.x - x;
     toGoal.y = goal.y - y;
     toGoal.z = 0.0f;
-    const float length = toGoal.magnitude();
+    const double length =
+        std::sqrt((static_cast<double>(toGoal.x) * toGoal.x + static_cast<double>(toGoal.y) * toGoal.y) +
+                  static_cast<double>(toGoal.z) * toGoal.z);
 
-    if (length != 0.0f)
+    if (length != 0.0)
     {
-        toGoal.x = toGoal.x / length;
-        toGoal.y = toGoal.y / length;
-        toGoal.z = toGoal.z / length;
+        toGoal.x = static_cast<float>(toGoal.x / length);
+        toGoal.y = static_cast<float>(toGoal.y / length);
+        toGoal.z = static_cast<float>(toGoal.z / length);
     }
 
     const double cosine = static_cast<double>(toGoal.z) * facing.z + static_cast<double>(toGoal.y) * facing.y +
                           static_cast<double>(toGoal.x) * facing.x;
-    const float angle = static_cast<float>(std::acos(cosine) * RADIANS_TO_DEGREES_F);
+    const float angle = static_cast<float>(acosMatherr(cosine) * RADIANS_TO_DEGREES_F);
 
     // Negative to the left.
     if ((facing & toGoal).z >= 0.0f)
@@ -1527,7 +1530,7 @@ auto Mover::relFacingTo(vector_3d goal, int32_t) -> float
 
 auto Mover::getTerrainAngle() -> float
 {
-    return static_cast<float>(std::acos(static_cast<double>(terrainNormal.z)) * RADIANS_TO_DEGREES);
+    return static_cast<float>(acosMatherr(static_cast<double>(terrainNormal.z)) * RADIANS_TO_DEGREES);
 }
 
 auto Mover::getVelocityTilt() -> float
@@ -1536,7 +1539,7 @@ auto Mover::getVelocityTilt() -> float
     const double cosine = static_cast<double>(turned.j.z) * terrainNormal.z +
                           static_cast<double>(turned.j.y) * terrainNormal.y +
                           static_cast<double>(turned.j.x) * terrainNormal.x;
-    return static_cast<float>(std::acos(cosine) * RADIANS_TO_DEGREES);
+    return static_cast<float>(acosMatherr(cosine) * RADIANS_TO_DEGREES);
 }
 
 auto Mover::getFireArc() -> float
@@ -2171,7 +2174,7 @@ auto Mover::updateDamageTakenRate() -> void
         return;
     }
 
-    const int32_t damageRate = static_cast<int32_t>(damageRateTally / DamageRateFrequency);
+    const int32_t damageRate = static_cast<int32_t>(static_cast<double>(damageRateTally) / DamageRateFrequency);
 
     if (damageRate > 10)
     {
@@ -2539,21 +2542,22 @@ auto Mover::enemyRevealed() -> int
 
 auto Mover::getDamageClass(int32_t& damageClass, int& shutDown) -> void
 {
-    const float health = static_cast<float>(curCV) / static_cast<float>(maxCV);
+    const double quotient = static_cast<double>(curCV) / maxCV;
+    const float health = static_cast<float>(quotient);
 
-    if (health > 0.9f)
+    if (quotient > 0.9)
     {
         damageClass = 0;
     }
-    else if (health > 0.75f)
+    else if (health > 0.75)
     {
         damageClass = 1;
     }
-    else if (health > 0.5f)
+    else if (health > 0.5)
     {
         damageClass = 2;
     }
-    else if (health > 0.1f)
+    else if (health > 0.1)
     {
         damageClass = 3;
     }
@@ -2627,7 +2631,7 @@ auto Mover::calcOffsetMoveGoal(vector_3d target, vector_3d offset, vector_3d& go
     }
 
     vector_3d away = offset - target;
-    const float maxDistance = away.magnitude();
+    const float maxDistance = static_cast<float>(away.magnitude());
     float x = offset.x;
     float y = offset.y;
 
@@ -3719,7 +3723,7 @@ auto Mover::getWeaponsInRange(int32_t* list, int32_t listSize, float orderFireRa
     }
 
     vector_3d targetPosition = target->getPosition();
-    const float metersToTarget = distanceFrom(targetPosition);
+    const float metersToTarget = static_cast<float>(distanceFrom(targetPosition));
     int32_t numInRange = 0;
 
     if (listSize == -1)
@@ -4378,7 +4382,7 @@ auto Mover::calcAttackChance(GameObject* target, int32_t aimLocation, float targ
         }
     }
 
-    const float metersToTarget = distanceFrom(targetPosition);
+    const float metersToTarget = static_cast<float>(distanceFrom(targetPosition));
 
     if (range != nullptr)
     {
