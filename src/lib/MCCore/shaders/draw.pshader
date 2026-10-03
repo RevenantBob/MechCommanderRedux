@@ -1,0 +1,232 @@
+// The Vulkan renderer's draws (MCVulkanRenderer), with instance.vshader: every pixel of a resolved draw command, in
+// palette indices, as the software renderer (MCSoftwareRenderer) writes it.
+//
+// Targets are RGBA: red is the palette index. On the screen, green and blue stand in for the software renderer's op
+// plane: where a draw that maps the pixels under it meets the key colour (255) over the world view, the pixel stays
+// the key and green holds the world pixel under it mapped through every such draw so far (blue 1 marks it). The
+// composite shows green there instead of the world. A clear resets them; opaque draws leave them (a write mask).
+//
+// Each pixel: its value (the colour, or a source texel: red the value, green its state), the source's rules (state 0
+// draws nothing, 2 is a shape's skipped pixel, 3 a fast shape's run), the table before, the key tests, then for
+// draws that read the target the blend through AlphaTable and the table after, applied to the pixel under it.
+//
+// Bindings (SDL GPU, SPIR-V): textures and samplers in space2, fragment uniforms in space3.
+
+// The source: an atlas page (red value, green state), a picture (red), or a surface (red).
+Texture2D<float4> sourceTex : register(t0, space2);
+SamplerState sourceSampler : register(s0, space2);
+// The copy of the target taken before the draw (draws that read the target, or copy within it).
+Texture2D<float4> destTex : register(t1, space2);
+SamplerState destSampler : register(s1, space2);
+// The frame's tables: 256 wide, one row a table, row 0 the identity.
+Texture2D<float4> tableTex : register(t2, space2);
+SamplerState tableSampler : register(s2, space2);
+// AlphaTable: row = the colour drawn, column = the colour under it.
+Texture2D<float4> alphaTex : register(t3, space2);
+SamplerState alphaSampler : register(s3, space2);
+// The world surface shown under the screen (see-through draws).
+Texture2D<float4> worldTex : register(t4, space2);
+SamplerState worldSampler : register(s4, space2);
+
+cbuffer Frame : register(b0, space3)
+{
+    // The underlay on the target: left, top, width, height (width 0: none).
+    int4 underlay;
+    // The world surface's size in pixels (xy).
+    int4 world;
+};
+
+struct Input
+{
+    float4 position : SV_Position;
+    nointerpolation int4 rect : TEXCOORD0;
+    nointerpolation int4 source : TEXCOORD1;
+    nointerpolation uint4 op : TEXCOORD2;
+    nointerpolation int4 span : TEXCOORD3;
+    nointerpolation uint4 walk : TEXCOORD4;
+};
+
+// Kinds (op.x bits 0-3).
+static const uint KindFill = 0;
+static const uint KindHash = 1;
+static const uint KindTexture = 2;
+static const uint KindGouraud = 3;
+static const uint KindTexelWalk = 4;
+
+// Flags (op.x).
+static const uint OpaqueSource = 1u << 4;
+static const uint FillSkipped = 1u << 5;
+static const uint SkipRunKey = 1u << 6;
+static const uint TableBefore = 1u << 7;
+static const uint SkipKeyAfterTable = 1u << 8;
+static const uint ColorKey = 1u << 9;
+static const uint UseColor = 1u << 10;
+static const uint ReadsDest = 1u << 11;
+static const uint AlphaBlend = 1u << 12;
+static const uint TableAfter = 1u << 13;
+static const uint SeeThrough = 1u << 14;
+
+float4 Fetch(Texture2D<float4> tex, SamplerState samp, int2 texel)
+{
+    uint width;
+    uint height;
+    tex.GetDimensions(width, height);
+    return tex.SampleLevel(samp, (float2(texel) + 0.5) / float2(width, height), 0);
+}
+
+uint Byte(float value)
+{
+    return (uint)round(value * 255.0);
+}
+
+uint Table(uint row, uint index)
+{
+    return Byte(Fetch(tableTex, tableSampler, int2(index, row)).r);
+}
+
+float Out(uint index)
+{
+    return (float)index / 255.0;
+}
+
+float4 main(Input input) : SV_Target
+{
+    const int2 pixel = int2(floor(input.position.xy));
+    const uint flags = input.op.x;
+    const uint kind = flags & 15u;
+    const uint color = input.op.y & 255u;
+    uint value = color;
+    uint state = 1;
+
+    if (kind == KindHash)
+    {
+        // Every other pixel; rows an odd distance above the bottom row start one pixel in (span: the left column and
+        // the bottom row).
+        const int odd = (input.span.y - pixel.y) & 1;
+        const int column = pixel.x - input.span.x - odd;
+
+        if (column < 0 || (column & 1) != 0)
+        {
+            discard;
+        }
+    }
+    else if (kind == KindTexture)
+    {
+        const int2 texel = input.source.xy + (pixel - input.rect.xy) * input.source.zw;
+        const float4 sample = Fetch(sourceTex, sourceSampler, texel);
+        value = Byte(sample.r);
+        state = (flags & OpaqueSource) != 0 ? 1 : Byte(sample.g);
+    }
+    else if (kind == KindGouraud)
+    {
+        // The colour (16.16, wrapping) stepped once a pixel from the span's first column (source.x).
+        const uint j = (uint)(pixel.x - input.source.x);
+        value = (((uint)input.span.x + j * (uint)input.span.y) >> 16) & 255u;
+    }
+    else if (kind == KindTexelWalk)
+    {
+        // The texture offset after j steps: the step each pixel, plus what each carry of the u and v fractions adds.
+        // The source is the texture as rows of source.z texels, source.w of them; texels outside it draw nothing.
+        const uint j = (uint)(pixel.x - input.source.x);
+        const int carriesU = (int)((input.walk.x + j * input.walk.y) >> 16);
+        const int carriesV = (int)((input.walk.z + j * input.walk.w) >> 16);
+        const int offset =
+            input.span.x + (int)j * input.span.y + carriesU * input.span.z + carriesV * input.span.w;
+
+        if (offset < 0 || offset >= input.source.z * input.source.w)
+        {
+            discard;
+        }
+
+        value = Byte(Fetch(sourceTex, sourceSampler, int2(offset % input.source.z, offset / input.source.z)).r);
+    }
+
+    if (state == 0)
+    {
+        discard;
+    }
+
+    if (state == 2)
+    {
+        // A shape's skipped pixel: the fills write colour 0, the rest leave it.
+        if ((flags & FillSkipped) == 0)
+        {
+            discard;
+        }
+
+        return float4(0.0, 0.0, 0.0, 0.0);
+    }
+
+    if ((flags & UseColor) != 0)
+    {
+        value = color;
+    }
+
+    if ((flags & SkipRunKey) != 0 && state == 3 && value == 255)
+    {
+        discard;
+    }
+
+    if ((flags & ColorKey) != 0 && value == ((input.op.y >> 8) & 255u))
+    {
+        discard;
+    }
+
+    if ((flags & TableBefore) != 0)
+    {
+        value = Table(input.op.z, value);
+    }
+
+    if ((flags & SkipKeyAfterTable) != 0 && value == 255)
+    {
+        discard;
+    }
+
+    if ((flags & ReadsDest) == 0)
+    {
+        return float4(Out(value), 0.0, 0.0, 0.0);
+    }
+
+    const float4 dest = Fetch(destTex, destSampler, pixel);
+    const uint under = Byte(dest.r);
+    const bool seeThrough = (flags & SeeThrough) != 0 && under == 255;
+    uint result = under;
+
+    if (seeThrough)
+    {
+        // The key over the world: map what shows there (the world pixel, or what earlier draws made of it).
+        if (dest.b > 0.5)
+        {
+            result = Byte(dest.g);
+        }
+        else if (underlay.z > 0 && pixel.x >= underlay.x && pixel.y >= underlay.y &&
+                 pixel.x < underlay.x + underlay.z && pixel.y < underlay.y + underlay.w)
+        {
+            // The world pixel under this pixel's centre: (2 * offset + 1) * surface / (2 * shown).
+            const uint2 offset = uint2(pixel - underlay.xy);
+            const uint2 texel = (2u * offset + 1u) * uint2(world.xy) / (2u * uint2(underlay.zw));
+            result = Byte(Fetch(worldTex, worldSampler, int2(texel)).r);
+        }
+        else
+        {
+            result = 0;
+        }
+    }
+
+    if ((flags & AlphaBlend) != 0)
+    {
+        result = Byte(Fetch(alphaTex, alphaSampler, int2(result, value)).r);
+    }
+
+    if ((flags & TableAfter) != 0)
+    {
+        result = Table(input.op.w, result);
+    }
+
+    if (seeThrough)
+    {
+        return float4(Out(255), Out(result), 1.0, 0.0);
+    }
+
+    return float4(Out(result), dest.g, dest.b, dest.a);
+}

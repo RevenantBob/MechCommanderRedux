@@ -1148,6 +1148,9 @@ extern int gStretchToFit;
 extern int gSoftwareCursor;
 /// <summary>Port-only: open the display's window hidden (the tests that run a mission).</summary>
 extern int gHiddenWindow;
+/// <summary>Port-only: the renderer asked for, an <c>MCRendererKind</c> (PREFS "Renderer", read by systemInit, then
+/// the command line's <c>-renderer</c>).</summary>
+extern int gRenderer;
 extern int applicationActive;
 extern uint32_t systemHeapSize;
 extern uint32_t guiHeapSize;

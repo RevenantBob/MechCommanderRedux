@@ -28,6 +28,7 @@
 #include "object/warrior.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
+#include "platform/MCPresenter.h"
 #include "sound/soundsys.h"
 #include "sprite/sprtmgr.h"
 #include "terrain/terrtxm.h"
@@ -344,6 +345,17 @@ void systemInit()
     }
 
     gSoftwareCursor = softwareCursor != 0 ? 1 : 0;
+    // Port: a port-only key; "vulkan" (the default) or "software". The command line's -renderer wins.
+    char rendererName[32] = {};
+
+    if (prefsFile->readIdString("Renderer", rendererName, sizeof(rendererName) - 1) == 0)
+    {
+        if (const std::optional<MCRendererKind> kind = MCRendererKindFromName(rendererName))
+        {
+            gRenderer = static_cast<int>(*kind);
+        }
+    }
+
     int32_t resolution = 0;
 
     // Port: the mode is still read, but the screen is the window's size (aSystem::startupDirectDraw).

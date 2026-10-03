@@ -16,6 +16,9 @@
     <ClCompile Include="tests\FrameHashTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\GpuDrawingTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\GroundVehicleTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -47,6 +50,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\PortTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\PresenterTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\ScreenInput.cpp">

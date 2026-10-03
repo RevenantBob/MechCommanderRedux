@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "main/logistics.h"
+#include "platform/MCInput.h"
+#include "platform/MCDisplay.h"
 #include "gui/afont.h"
 #include "gui/asystem.h"
 #include "gui/scrlpane.h"
@@ -4351,9 +4353,9 @@ auto Logistics::init() -> void
     std::snprintf(logisticsTitle, sizeof(logisticsTitle), "%s -- %s", appName, "Logistics");
 
     // Port: SetWindowTextA -> the SDL window's title.
-    if (auto* window = static_cast<SDL_Window*>(application->window()))
+    if (MCDisplay* display = MCInput::Display())
     {
-        SDL_SetWindowTitle(window, logisticsTitle);
+        display->SetTitle(logisticsTitle);
     }
 
     std::strcpy(WindowTitle, logisticsTitle);
@@ -10204,9 +10206,9 @@ auto Logistics::processCheatCode(int16_t key) -> void
             std::snprintf(text, sizeof(text), "FreeMemory: %d", static_cast<int>(logisticsHeap->totalCoreLeft()));
 
             // Port: SetWindowTextA -> the SDL window's title.
-            if (auto* window = static_cast<SDL_Window*>(application->window()))
+            if (MCDisplay* display = MCInput::Display())
             {
-                SDL_SetWindowTitle(window, text);
+                display->SetTitle(text);
             }
             break;
         }

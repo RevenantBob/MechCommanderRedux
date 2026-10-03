@@ -153,6 +153,7 @@ viewWindow::~viewWindow()
 {
     // aTitleWindow's inline destructor.
     MCRenderer::RemoveUnderlay(this);
+    MCRenderer::RemoveFrameSurface(&WorldWindow);
     aTitleWindow::destroy();
 }
 
@@ -184,6 +185,7 @@ auto viewWindow::destroy() -> void
     }
 
     MCRenderer::RemoveUnderlay(this);
+    MCRenderer::RemoveFrameSurface(&WorldWindow);
     WorldPixels = {};
     WorldWindow = {};
     WorldPane = {};
@@ -539,6 +541,7 @@ auto viewWindow::UpdateWorldSurface() -> void
         WorldPane.x1 = surfaceWidth - 1;
         WorldPane.y1 = surfaceHeight - 1;
         Terrain::forceRedraw = 1;
+        MCRenderer::AddFrameSurface(&WorldWindow);
     }
 }
 

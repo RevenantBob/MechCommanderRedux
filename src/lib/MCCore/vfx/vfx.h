@@ -26,6 +26,11 @@ struct _window
     /// rather than pixels of its own; <c>buffer</c> is then null.
     /// </summary>
     MCView* View = nullptr;
+    /// <summary>
+    /// Port: counts the draws asked of the window's pixels (<see cref="MCRenderer::For"/>), so a hardware renderer
+    /// that took a copy of them knows when it may be stale.
+    /// </summary>
+    mutable uint32_t Version = 0;
 };
 
 using WINDOW = _window;

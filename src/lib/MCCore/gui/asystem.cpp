@@ -93,6 +93,7 @@ int gFullScreen = 0;
 int gStretchToFit = 0;
 int gSoftwareCursor = 0;
 int gHiddenWindow = 0;
+int gRenderer = 0;
 int applicationActive = -1;
 uint32_t systemHeapSize = 0x100000;
 uint32_t guiHeapSize = 0x100000;
@@ -339,6 +340,7 @@ auto aSystem::startupDirectDraw(int32_t width, int32_t height, int32_t bitDepth)
     options.Fullscreen = gFullScreen != 0;
     options.Stretch = gStretchToFit != 0;
     options.Hidden = gHiddenWindow != 0;
+    options.Renderer = static_cast<MCRendererKind>(gRenderer);
     auto display = MCDisplay::Create(options);
 
     if (!display)
@@ -2115,6 +2117,19 @@ auto ParseCommandLine(char* commandLine) -> void
                 if (globalGameSegment < 1 || globalGameSegment > 50)
                 {
                     globalGameSegment = 0;
+                }
+            }
+        }
+        else if (MCPort::StrICmp(word, "-renderer") == 0)
+        {
+            // Port: "-renderer vulkan|software" picks the renderer over PREFS "Renderer".
+            i++;
+
+            if (i < numWords)
+            {
+                if (const std::optional<MCRendererKind> kind = MCRendererKindFromName(words[i]))
+                {
+                    gRenderer = static_cast<int>(*kind);
                 }
             }
         }

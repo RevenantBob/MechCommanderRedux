@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform/MCPresenter.h"
+
 /// <summary>How <see cref="MCDisplay::Create"/> opens the window.</summary>
 struct MCDisplayOptions
 {
@@ -30,15 +32,8 @@ struct MCDisplayOptions
     /// screen starts at the window's size in pixels. The window is never resized to fit the screen.
     /// </summary>
     bool FollowWindow = false;
-};
-
-/// <summary>A rectangle in window pixels where the logical screen is shown.</summary>
-struct MCViewport
-{
-    float X = 0.0f;
-    float Y = 0.0f;
-    float W = 0.0f;
-    float H = 0.0f;
+    /// <summary>The renderer asked for; Vulkan falls back to software when it can't start.</summary>
+    MCRendererKind Renderer = MCRendererKind::Vulkan;
 };
 
 /// <summary>
@@ -48,14 +43,12 @@ struct MCViewport
 /// <remarks>
 /// <para>The game draws every frame into one 8-bit buffer, the VFX <c>_window</c> <see cref="Screen"/> returns,
 /// <see cref="Width"/> x <see cref="Height"/> palette indices with a pitch of <see cref="Width"/>. <see cref="Present"/>
-/// uploads it to an <c>SDL_PIXELFORMAT_INDEX8</c> streaming texture and draws it with SDL's GPU renderer (Vulkan):
-/// the palette lookup happens on the GPU, and <c>SDL_SetRenderLogicalPresentation</c> scales the screen to the
-/// window with borders (letterbox), sampling the nearest pixel unless <see cref="MCDisplayOptions::LinearFilter"/>.</para>
-/// <para>The screen's underlays (<see cref="MCRenderer::Underlays"/>: the world view, drawn at 1x into a surface of its
-/// own) are composited by a fragment shader (shaders/composite.pshader) over each underlay's rectangle: the screen's
-/// key pixels show the underlay's pixel (nearest), mapped through their op (the screen's op plane and the frame's op
-/// tables). Without the shader (no GPU renderer) the CPU composites the screen (<see cref="ComposeScreen"/>) and that
-/// is shown instead.</para>
+/// hands it to the presenter of the renderer in use (<see cref="MCPresenter"/>), with its op plane, its underlays
+/// (<see cref="MCRenderer::Underlays"/>: the world view, drawn at 1x into a surface of its own) and the palette.
+/// Vulkan (<see cref="MCVulkanPresenter"/>) composites them in a shader and scales the shown view into the window;
+/// software (<see cref="MCSdlPresenter"/>) composites on the CPU (<see cref="ComposeScreen"/>) and shows the result
+/// with SDL's 2D renderer. Either way the view is letterboxed into the window, nearest unless
+/// <see cref="MCDisplayOptions::LinearFilter"/>.</para>
 /// <para>Threads: <see cref="SetPalette"/>, <see cref="Screen"/> and the getters may be called from any thread
 /// (the palette is guarded); everything else, <see cref="Present"/> included, from the thread that created the
 /// display (SDL's video thread).</para>
@@ -73,8 +66,17 @@ public:
     /// <summary>The SDL window.</summary>
     SDL_Window* Window() const { return _Window; }
 
-    /// <summary>The SDL renderer.</summary>
-    SDL_Renderer* Renderer() const { return _Renderer; }
+    /// <summary>The renderer in use (Vulkan, or software when asked for or when Vulkan couldn't start).</summary>
+    MCRendererKind RendererKind() const { return _Presenter->Kind(); }
+
+    /// <summary>The renderer in use, for logs.</summary>
+    std::string RendererName() const { return _Presenter->Name(); }
+
+    /// <summary>
+    /// Sets the window's title (the original's <c>SetWindowTextA</c>), with the renderer in use after it
+    /// ("... [Vulkan]", "... [Software]").
+    /// </summary>
+    void SetTitle(const char* title);
 
     /// <summary>Whether the logical screen follows the window (<see cref="MCDisplayOptions::FollowWindow"/>).</summary>
     bool FollowsWindow() const { return _FollowWindow; }
@@ -190,7 +192,7 @@ public:
     std::vector<uint8_t> ComposeScreen() const;
 
     /// <summary>Whether the screen's underlays are composited by the shader (else by the CPU).</summary>
-    bool CompositesOnGpu() const { return _Composite != nullptr; }
+    bool CompositesOnGpu() const { return _Presenter->CompositesOnGpu(); }
 
     /// <summary>
     /// Draws the frame as <see cref="Present"/> would, at the screen's size, into an offscreen texture and reads it
@@ -207,14 +209,6 @@ public:
     /// <summary>Maps a point of the logical screen to window coordinates (for warping and clipping the mouse).</summary>
     void LogicalToWindow(float logicalX, float logicalY, float& windowX, float& windowY) const;
 
-    /// <summary>
-    /// Where a letterboxed logical screen lands in an output of <paramref name="outputWidth"/> x
-    /// <paramref name="outputHeight"/>: the largest scale that fits (a whole one with <paramref name="integerScale"/>),
-    /// centred. The same rule SDL's <c>SDL_LOGICAL_PRESENTATION_LETTERBOX</c> follows.
-    /// </summary>
-    static MCViewport ComputeLetterbox(int outputWidth, int outputHeight, int logicalWidth, int logicalHeight,
-                                       bool integerScale);
-
     /// <summary>Maps an output point through a viewport to the logical screen (the pure form of <see cref="WindowToLogical"/>).</summary>
     static bool MapToLogical(const MCViewport& viewport, int logicalWidth, int logicalHeight, float x, float y,
                              float& logicalX, float& logicalY);
@@ -228,61 +222,25 @@ public:
 private:
     MCDisplay() = default;
 
-    std::expected<void, std::string> CreateTexture();
-    void ApplyPresentation();
+    /// <summary>Resizes the window to the screen's size times its scale (windowed, not following the window).</summary>
     void ResizeWindowToScale();
-    /// <summary>Makes the composite shader and its fixed textures (leaves <see cref="_Composite"/> null without a GPU
-    /// renderer that takes SPIR-V).</summary>
-    void CreateComposite();
-    /// <summary>Uploads the screen (composited by the CPU when the shader can't), its ops, the op tables and the
-    /// underlays.</summary>
-    std::expected<void, std::string> UploadFrame();
+    /// <summary>Makes the screen's buffer and op plane for its size.</summary>
+    void MakeScreen();
     /// <summary>
-    /// Draws the uploaded frame: into <paramref name="target"/> at the screen's size, or with null to the window
-    /// through the logical presentation (the shown view).
+    /// This frame for the presenter: the screen, its ops, its underlays and the colours as shown (marked changed when
+    /// they changed since the last frame, or always with <paramref name="allColors"/>).
     /// </summary>
-    void DrawFrame(SDL_Texture* target);
-
-    /// <summary>An underlay's texture, grown as needed (only its top-left Width x Height is in use), and the render
-    /// state that composites it.</summary>
-    struct UnderlayTexture
-    {
-        SDL_Texture* Texture = nullptr;
-        int Width = 0;
-        int Height = 0;
-        /// <summary>Its composite state (made for this texture and the screen's op texture).</summary>
-        SDL_GPURenderState* State = nullptr;
-        SDL_Texture* StateOps = nullptr;
-        /// <summary>The rectangle of the screen it covers this frame (inclusive), and the surface's size.</summary>
-        int X0 = 0;
-        int Y0 = 0;
-        int X1 = -1;
-        int Y1 = -1;
-        int SourceWidth = 0;
-        int SourceHeight = 0;
-    };
+    MCFrame BuildFrame(bool allColors);
+    /// <summary>Where the shown view lands in the window, in window pixels.</summary>
+    MCViewport ShownViewport() const;
 
     SDL_Window* _Window = nullptr;
-    SDL_Renderer* _Renderer = nullptr;
-    SDL_Texture* _Texture = nullptr;
-    /// <summary>With linear filtering: the screen converted to RGBA at logical size, which is then scaled.</summary>
-    SDL_Texture* _Target = nullptr;
-    SDL_Palette* _SdlPalette = nullptr;
-    /// <summary>The underlays' textures, in the order of <see cref="MCRenderer::Underlays"/>; the first
-    /// <see cref="_UnderlaysUsed"/> are this frame's.</summary>
-    std::vector<UnderlayTexture> _UnderlayTextures;
-    size_t _UnderlaysUsed = 0;
-    /// <summary>The composite shader (null: the CPU composites), its sampler, and its textures: the screen's ops
-    /// (INDEX8 as R8), the op tables (256 x 256) and the palette (256 x 1 RGBA).</summary>
-    SDL_GPUShader* _Composite = nullptr;
-    SDL_GPUSampler* _CompositeSampler = nullptr;
-    SDL_Texture* _OpTexture = nullptr;
-    SDL_Texture* _TableTexture = nullptr;
-    SDL_Texture* _PaletteTexture = nullptr;
+    std::unique_ptr<MCPresenter> _Presenter;
     /// <summary>The screen's op plane (see <see cref="MCRenderer::SetOpPlane"/>).</summary>
     std::vector<uint8_t> _Ops;
-    /// <summary>The CPU's composite of the screen, shown without the shader.</summary>
-    std::vector<uint8_t> _Composed;
+    /// <summary>This frame's underlays on the screen, and the colours as shown.</summary>
+    std::vector<MCUnderlay> _FrameUnderlays;
+    std::array<SDL_Color, 256> _ShownColors{};
 
     int _Width = 0;
     int _Height = 0;
@@ -293,9 +251,6 @@ private:
     int _MinWidth = 0;
     int _MinHeight = 0;
     bool _FollowWindow = false;
-    bool _IntegerScale = false;
-    bool _Stretch = false;
-    bool _Linear = false;
     std::vector<uint8_t> _Pixels;
     _window _Screen{};
 

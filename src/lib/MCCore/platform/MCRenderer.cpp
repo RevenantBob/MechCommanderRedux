@@ -4,14 +4,33 @@
 
 namespace
 {
-    /// <summary>Every renderer there is (only the software renderer so far).</summary>
-    std::array<MCRenderer*, 1> AllRenderers()
+    /// <summary>The hardware renderer and who draws the frame surfaces.</summary>
+    MCRenderer* HardwareRenderer = nullptr;
+    MCGpuDrawing Drawing = MCGpuDrawing::Off;
+    std::optional<MCGpuDrawing> Requested;
+
+    /// <summary>Every renderer there is.</summary>
+    std::vector<MCRenderer*> AllRenderers()
     {
-        return {&MCSoftwareRenderer::Instance()};
+        std::vector<MCRenderer*> renderers{&MCSoftwareRenderer::Instance()};
+
+        if (HardwareRenderer != nullptr)
+        {
+            renderers.push_back(HardwareRenderer);
+        }
+
+        return renderers;
     }
 
     // The registries are never destroyed: the display and the view windows (globals, and objects on the game's heaps)
     // remove themselves from them as they go, which can be during the exit's static destruction.
+
+    /// <summary>The frame surfaces.</summary>
+    std::vector<const _window*>& FrameSurfaces()
+    {
+        static auto* surfaces = new std::vector<const _window*>();
+        return *surfaces;
+    }
 
     /// <summary>The underlays set (see <see cref="MCRenderer::SetUnderlay"/>).</summary>
     std::vector<MCUnderlay>& UnderlayList()
@@ -290,6 +309,110 @@ namespace
         int32_t _X = 0;
         int32_t _Y = 0;
     };
+
+    /// <summary>Mirror mode's renderer of the frame surfaces: each command goes to the hardware renderer, then the
+    /// software one.</summary>
+    class MCMirrorRenderer final : public MCRenderer
+    {
+    public:
+        void Clear(_window* target, const MCRect& rect, uint8_t color) override
+        {
+            Gpu().Clear(target, rect, color);
+            Cpu().Clear(target, rect, color);
+        }
+
+        void Hash(_window* target, const MCRect& rect, uint8_t color) override
+        {
+            Gpu().Hash(target, rect, color);
+            Cpu().Hash(target, rect, color);
+        }
+
+        void Copy(_window* target, const MCCopyCommand& command) override
+        {
+            Gpu().Copy(target, command);
+            Cpu().Copy(target, command);
+        }
+
+        void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) override
+        {
+            Gpu().AlphaBlit(target, command);
+            Cpu().AlphaBlit(target, command);
+        }
+
+        void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override
+        {
+            Gpu().Write(target, x, y, pixels, count);
+            Cpu().Write(target, x, y, pixels, count);
+        }
+
+        void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) override
+        {
+            Gpu().Pixel(target, x, y, color);
+            Cpu().Pixel(target, x, y, color);
+        }
+
+        void Shape(_window* target, const MCShapeCommand& command) override
+        {
+            Gpu().Shape(target, command);
+            Cpu().Shape(target, command);
+        }
+
+        void FastShape(_window* target, const MCFastShapeCommand& command) override
+        {
+            Gpu().FastShape(target, command);
+            Cpu().FastShape(target, command);
+        }
+
+        void Tile(_window* target, const MCTileCommand& command) override
+        {
+            Gpu().Tile(target, command);
+            Cpu().Tile(target, command);
+        }
+
+        void Polygon(_window* target, const MCPolygonCommand& command) override
+        {
+            Gpu().Polygon(target, command);
+            Cpu().Polygon(target, command);
+        }
+
+        void MapQuad(_window* target, const MCMapQuadCommand& command) override
+        {
+            Gpu().MapQuad(target, command);
+            Cpu().MapQuad(target, command);
+        }
+
+        void Line(_window* target, const MCLineCommand& command) override
+        {
+            Gpu().Line(target, command);
+            Cpu().Line(target, command);
+        }
+
+        void Ellipse(_window* target, const MCEllipseCommand& command) override
+        {
+            Gpu().Ellipse(target, command);
+            Cpu().Ellipse(target, command);
+        }
+
+        void StatusBar(_window* target, const MCStatusBarCommand& command) override
+        {
+            Gpu().StatusBar(target, command);
+            Cpu().StatusBar(target, command);
+        }
+
+        void Glyph(_window* target, const MCGlyphCommand& command) override
+        {
+            Gpu().Glyph(target, command);
+            Cpu().Glyph(target, command);
+        }
+
+    protected:
+        void OnAlphaTableChanged() override {}
+        void OnShapesForgotten(const void*, size_t) override {}
+
+    private:
+        static MCRenderer& Gpu() { return *HardwareRenderer; }
+        static MCRenderer& Cpu() { return MCSoftwareRenderer::Instance(); }
+    };
 }
 
 MCRenderer& MCRenderer::For(const _window* window)
@@ -300,7 +423,97 @@ MCRenderer& MCRenderer::For(const _window* window)
         return viewRenderer.Bind(window->View);
     }
 
+    if (Drawing != MCGpuDrawing::Off && FrameSurfaceOf(window) != nullptr)
+    {
+        static MCMirrorRenderer mirror;
+        return Drawing == MCGpuDrawing::Mirror ? static_cast<MCRenderer&>(mirror) : *HardwareRenderer;
+    }
+
+    if (window != nullptr)
+    {
+        ++window->Version;
+    }
+
     return MCSoftwareRenderer::Instance();
+}
+
+void MCRenderer::AddFrameSurface(const _window* window)
+{
+    auto& surfaces = FrameSurfaces();
+
+    if (std::ranges::find(surfaces, window) == surfaces.end())
+    {
+        surfaces.push_back(window);
+    }
+}
+
+void MCRenderer::RemoveFrameSurface(const _window* window)
+{
+    if (std::erase(FrameSurfaces(), window) != 0 && HardwareRenderer != nullptr)
+    {
+        HardwareRenderer->OnFrameSurfaceRemoved(window);
+    }
+}
+
+const _window* MCRenderer::FrameSurfaceOf(const _window* window)
+{
+    if (window == nullptr)
+    {
+        return nullptr;
+    }
+
+    for (const _window* surface : FrameSurfaces())
+    {
+        if (surface == window || (window->buffer != nullptr && window->buffer == surface->buffer))
+        {
+            return surface;
+        }
+    }
+
+    return nullptr;
+}
+
+void MCRenderer::SetHardware(MCRenderer* hardware, MCGpuDrawing drawing)
+{
+    HardwareRenderer = hardware;
+    Drawing = hardware != nullptr ? drawing : MCGpuDrawing::Off;
+}
+
+MCRenderer* MCRenderer::Hardware()
+{
+    return HardwareRenderer;
+}
+
+MCGpuDrawing MCRenderer::GpuDrawing()
+{
+    return Drawing;
+}
+
+MCGpuDrawing MCRenderer::RequestedGpuDrawing()
+{
+    if (Requested)
+    {
+        return *Requested;
+    }
+
+    const char* value = SDL_getenv("MC_GPU_DRAW");
+
+    if (value != nullptr && SDL_strcasecmp(value, "on") == 0)
+    {
+        return MCGpuDrawing::On;
+    }
+
+    if (value != nullptr && SDL_strcasecmp(value, "mirror") == 0)
+    {
+        return MCGpuDrawing::Mirror;
+    }
+
+    return MCGpuDrawing::Off;
+}
+
+void MCRenderer::RequestGpuDrawing(MCGpuDrawing drawing)
+{
+    Requested = drawing;
 }
 
 void MCRenderer::AlphaTableChanged()

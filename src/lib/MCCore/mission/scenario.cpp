@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "mission/scenario.h"
+#include "platform/MCInput.h"
+#include "platform/MCDisplay.h"
 #include "abl/ablenv.h"
 #include "abl/ablrtn.h"
 #include "abl/ablxstd.h"
@@ -1160,9 +1162,9 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     std::snprintf(windowTitle, sizeof(windowTitle), "%s - %s", appName, scenarioScript);
 
     // Port: SetWindowTextA -> the SDL window's title.
-    if (auto* window = static_cast<SDL_Window*>(application->window()))
+    if (MCDisplay* display = MCInput::Display())
     {
-        SDL_SetWindowTitle(window, windowTitle);
+        display->SetTitle(windowTitle);
     }
 
     std::strcpy(WindowTitle, windowTitle);

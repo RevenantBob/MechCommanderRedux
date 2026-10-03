@@ -339,6 +339,17 @@ struct MCUnderlay
     const _window* Source;
 };
 
+/// <summary>Who draws the frame surfaces (<see cref="MCRenderer::AddFrameSurface"/>).</summary>
+enum class MCGpuDrawing
+{
+    /// <summary>The software renderer, into the windows' memory (the presenter uploads them each frame).</summary>
+    Off,
+    /// <summary>The hardware renderer, on the GPU.</summary>
+    On,
+    /// <summary>Both, the hardware renderer's surfaces compared with the software's each frame (development).</summary>
+    Mirror
+};
+
 /// <summary>
 /// The renderer. Every call is made from the game's thread. The vfx front end asks <see cref="For"/> which renderer
 /// draws into a window, and issues its commands there.
@@ -349,10 +360,46 @@ public:
     virtual ~MCRenderer() = default;
 
     /// <summary>
-    /// The renderer that draws into <paramref name="window"/>: for a picture, the software renderer; for a view, one
-    /// that moves each command by the view's origin and hands it to its target's renderer (valid until the next call).
+    /// The renderer that draws into <paramref name="window"/>: for a frame surface, the hardware renderer when there is
+    /// one and it draws (or both, mirrored); for any other picture, the software renderer; for a view, one that moves
+    /// each command by the view's origin and hands it to its target's renderer (valid until the next call).
     /// </summary>
     static MCRenderer& For(const _window* window);
+
+    // Frame surfaces ----------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Makes <paramref name="window"/> a frame surface: a picture drawn every frame (the screen, the world view's
+    /// surface), which a hardware renderer keeps on the GPU. Windows over the same pixels count as the same surface.
+    /// </summary>
+    static void AddFrameSurface(const _window* window);
+
+    /// <summary>Makes <paramref name="window"/> an ordinary picture again (before its pixels go).</summary>
+    static void RemoveFrameSurface(const _window* window);
+
+    /// <summary>The frame surface <paramref name="window"/> is (or lies over the pixels of), or null.</summary>
+    static const _window* FrameSurfaceOf(const _window* window);
+
+    /// <summary>
+    /// Sets the hardware renderer (the Vulkan presenter's, or null) and who draws the frame surfaces; the drawing is
+    /// <see cref="MCGpuDrawing::Off"/> without one.
+    /// </summary>
+    static void SetHardware(MCRenderer* hardware, MCGpuDrawing drawing);
+
+    /// <summary>The hardware renderer, or null.</summary>
+    static MCRenderer* Hardware();
+
+    /// <summary>Who draws the frame surfaces now.</summary>
+    static MCGpuDrawing GpuDrawing();
+
+    /// <summary>
+    /// Who should draw the frame surfaces when a hardware renderer starts: <c>MC_GPU_DRAW</c> (off, on, mirror) unless
+    /// <see cref="RequestGpuDrawing"/> said otherwise; off by default.
+    /// </summary>
+    static MCGpuDrawing RequestedGpuDrawing();
+
+    /// <summary>Sets what <see cref="RequestedGpuDrawing"/> returns (tests, before the display is made).</summary>
+    static void RequestGpuDrawing(MCGpuDrawing drawing);
 
     // Commands --------------------------------------------------------------------------------------------------
 
@@ -471,4 +518,7 @@ protected:
 
     /// <summary>Shape data in [begin, begin + size) is going away: drop anything cached from it.</summary>
     virtual void OnShapesForgotten(const void* begin, size_t size) = 0;
+
+    /// <summary>A frame surface became an ordinary picture (its pixels are going): drop what was kept for it.</summary>
+    virtual void OnFrameSurfaceRemoved(const _window*) {}
 };

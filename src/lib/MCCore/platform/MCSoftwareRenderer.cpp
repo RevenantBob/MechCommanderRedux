@@ -305,60 +305,28 @@ void MCSoftwareRenderer::Pixel(_window* target, int32_t x, int32_t y, uint8_t co
 
 void MCSoftwareRenderer::Line(_window* target, const MCLineCommand& command)
 {
-    int32_t x = command.X;
-    int32_t y = command.Y;
-    uint32_t fraction = command.Fraction;
-
     MCSeeThrough seeThrough(target);
+    MCLinePixels(command,
+                 [&](int32_t x, int32_t y)
+                 {
+                     uint8_t* pixel = At(target, x, y);
 
-    for (int32_t count = command.Count; count != 0; --count)
-    {
-        uint8_t* pixel = At(target, x, y);
-
-        if (command.Table != nullptr && seeThrough.At(pixel))
-        {
-            seeThrough.Map(pixel, command.Table);
-        }
-        else
-        {
-            *pixel = command.Table != nullptr ? command.Table[*pixel] : command.Color;
-        }
-
-        const uint32_t before = fraction;
-        fraction += command.Slope;
-
-        if (fraction < before)
-        {
-            x += command.MinorX;
-            y += command.MinorY;
-        }
-
-        x += command.MajorX;
-        y += command.MajorY;
-    }
+                     if (command.Table != nullptr && seeThrough.At(pixel))
+                     {
+                         seeThrough.Map(pixel, command.Table);
+                     }
+                     else
+                     {
+                         *pixel = command.Table != nullptr ? command.Table[*pixel] : command.Color;
+                     }
+                 });
 }
 
-void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& command)
+void MCEllipseRuns(const MCEllipseCommand& command, const std::function<void(int32_t y, int32_t x0, int32_t x1)>& emit)
 {
     const MCRect& clip = command.Clip;
     const int32_t cx = command.CenterX;
     const int32_t cy = command.CenterY;
-    MCSeeThrough seeThrough(target);
-    const auto paint = [&](uint8_t* p)
-    {
-        if (!command.Alpha)
-        {
-            *p = command.Color;
-        }
-        else if (seeThrough.At(p))
-        {
-            seeThrough.Blend(p, command.Color);
-        }
-        else
-        {
-            *p = Blend(command.Color, *p);
-        }
-    };
 
     if (!command.Fill)
     {
@@ -367,7 +335,7 @@ void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& comman
         {
             if (x >= clip.X0 && x <= clip.X1 && y >= clip.Y0 && y <= clip.Y1)
             {
-                paint(At(target, x, y));
+                emit(y, x, x);
             }
         };
 
@@ -397,16 +365,6 @@ void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& comman
     // OB-122: the asm filled a row again at every step that stayed on it (blending translucent colours repeatedly),
     // and the middle row twice. Each row is filled once, at its widest: the walk's x never shrinks and its y never
     // grows, so that is the last step on the row.
-    const auto span = [&](int32_t row, int32_t left, int32_t right)
-    {
-        uint8_t* p = At(target, left, row);
-
-        for (int32_t count = right - left + 1; count != 0; --count, ++p)
-        {
-            paint(p);
-        }
-    };
-
     const auto rows = [&](int32_t x, int32_t y)
     {
         // The span cx - x .. cx + x, clamped; skipped when wholly outside.
@@ -422,14 +380,14 @@ void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& comman
 
         if (below >= clip.Y0 && below <= clip.Y1)
         {
-            span(below, left, right);
+            emit(below, left, right);
         }
 
         const int32_t above = cy - y;
 
         if (y != 0 && above >= clip.Y0 && above <= clip.Y1)
         {
-            span(above, left, right);
+            emit(above, left, right);
         }
     };
 
@@ -454,6 +412,32 @@ void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& comman
     {
         rows(pendingX, pendingY);
     }
+}
+
+void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& command)
+{
+    MCSeeThrough seeThrough(target);
+    MCEllipseRuns(command,
+                  [&](int32_t y, int32_t x0, int32_t x1)
+                  {
+                      uint8_t* p = At(target, x0, y);
+
+                      for (int32_t count = x1 - x0 + 1; count != 0; --count, ++p)
+                      {
+                          if (!command.Alpha)
+                          {
+                              *p = command.Color;
+                          }
+                          else if (seeThrough.At(p))
+                          {
+                              seeThrough.Blend(p, command.Color);
+                          }
+                          else
+                          {
+                              *p = Blend(command.Color, *p);
+                          }
+                      }
+                  });
 }
 
 void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& command)

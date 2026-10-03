@@ -312,12 +312,15 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
 
     if (staticNoise != 0 && noiseChance != 0)
     {
+        // Port: the original wrote the noise into the screen's memory; the row goes to the renderer.
+        std::vector<uint8_t> line(static_cast<size_t>(application->width() >> 1) * 2);
+
         for (int32_t row = 0; row < application->height(); row++)
         {
             if (RollDice(noiseChance) != 0)
             {
                 _window* screen = screenBuffer();
-                uint8_t* pixel = screen->buffer + (screen->x_max + 1) * row;
+                uint8_t* pixel = line.data();
 
                 for (int32_t i = 0; i < application->width() >> 1; i++)
                 {
@@ -326,6 +329,8 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
                     pixel[1] = static_cast<uint8_t>((noise >> 5) & 0x1f);
                     pixel += 2;
                 }
+
+                MCRenderer::For(screen).Write(screen, 0, row, line.data(), static_cast<int32_t>(line.size()));
             }
         }
     }
@@ -365,10 +370,10 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
                                -1);
         whiteFont->writeString(screenWindow->frame(), 0x20, 0xbb,
                                reinterpret_cast<uint8_t*>(const_cast<char*>("0   f/s")), -1);
+        // Port: the original set the two lines in the screen's memory.
         _window* screen = screenBuffer();
-        int32_t pitch = screen->x_max + 1;
-        std::memset(screen->buffer + pitch * 9 + 0x40, 0xff, 0x200);
-        std::memset(screen->buffer + pitch * 0xbf + 0x40, 0xff, 0x200);
+        MCRenderer::For(screen).Clear(screen, MCRect{0x40, 9, 0x40 + 0x1ff, 9}, 0xff);
+        MCRenderer::For(screen).Clear(screen, MCRect{0x40, 0xbf, 0x40 + 0x1ff, 0xbf}, 0xff);
 
         for (int32_t y = 0xaf; y > 10; y -= 0xf)
         {
