@@ -527,6 +527,8 @@ public:
     void display() override;
     /// <remarks>MCX.EXE @ 0x00683720</remarks>
     void draw() override;
+    /// <summary>Port: still paints a picture (in display), so it keeps one.</summary>
+    bool DrawsLive() override { return false; }
     /// <remarks>MCX.EXE @ 0x006829e0</remarks>
     virtual BattleMech* getMech() { return mech; }
 

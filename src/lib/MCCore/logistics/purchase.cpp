@@ -226,22 +226,14 @@ namespace
     }
 
     /// <summary>
-    /// Makes the drag icon: a 0x20 square copied from the store pane at (6, row top + <paramref name="yOffset"/>),
-    /// framed in colour 0xea, added to the purchase screen at (<paramref name="drag"/>.x, .y).
+    /// Makes the drag icon: a 0x20 square of the row (<paramref name="render"/>, the row's <c>OnBeginDrag</c>), framed
+    /// in colour 0xea, added to the purchase screen at (<paramref name="drag"/>.x, .y).
     /// </summary>
-    void makeDragIcon(const DragState& drag, int32_t row, int32_t yOffset)
+    void makeDragIcon(const DragState& drag, const std::function<void(lPort* surface)>& render)
     {
         auto* icon = new DragIcon;
         globalLogPtr->dragIcon = icon;
-        icon->init(drag.x, drag.y, 0x20, 0x20, nullptr, nullptr);
-        lPort* display = nullptr;
-        globalLogPtr->purchaseScreen->unitPane->getDisplayPort(display);
-        PANE* frame = globalLogPtr->dragIcon->lport()->frame();
-        VFX_pane_copy(display->frame(), 6, row * 0x70 + yOffset, frame, 0, 0, -1);
-        VFX_line_draw(globalLogPtr->dragIcon->lport()->frame(), 0, 0, 0x1f, 0, LD_DRAW, 0xea);
-        VFX_line_draw(globalLogPtr->dragIcon->lport()->frame(), 0, 1, 0, 0x1e, LD_DRAW, 0xea);
-        VFX_line_draw(globalLogPtr->dragIcon->lport()->frame(), 0x1f, 1, 0x1f, 0x1e, LD_DRAW, 0xea);
-        VFX_line_draw(globalLogPtr->dragIcon->lport()->frame(), 0, 0x1f, 0x1f, 0x1f, LD_DRAW, 0xea);
+        icon->Begin(drag.x, drag.y, 0x20, 0x20, render);
         globalLogPtr->purchaseScreen->addChild(globalLogPtr->dragIcon);
         globalLogPtr->dragIcon->ShowGUIWindow(1);
         globalLogPtr->dragIcon->setDepth(100);
@@ -454,16 +446,35 @@ namespace
         }
     }
 
-    /// <summary>Formats a description with the SMUTI text formatter into <paramref name="scratch"/> and copies it into <paramref name="port"/>.</summary>
-    void drawDescription(lPort* scratch, int32_t width, int32_t height, char* description, lPort* port, int32_t x,
-                         int32_t y)
+    /// <summary>A picture holding a copy of <paramref name="art"/>: where a shop row is put together.</summary>
+    lPort* newRowPicture(lPort* art)
     {
-        scratch->destroy();
-        scratch->init(width, height, 1);
-        VFX_pane_wipe(scratch->frame(), 0xff);
-        description[3] = '9';
-        application->textFormatter.process(reinterpret_cast<uint8_t*>(description), scratch, 0, 0);
-        scratch->copyTo(port->frame(), x, y, 1);
+        auto* row = new lPort;
+        row->init(art->width(), art->height(), 1);
+        art->copyTo(row->frame(), 0, 0, 0);
+        return row;
+    }
+
+    /// <summary>
+    /// Copies the art "<c>artPath</c>logart\..." (<paramref name="format"/> with the art path and a number) keyed into
+    /// <paramref name="port"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>).
+    /// </summary>
+    void copyArt(lPort* port, int32_t xPos, int32_t yPos, const char* format, int32_t number = 0)
+    {
+        if (lPort* art = logArtf(format, artPath, number))
+        {
+            art->copyTo(port->frame(), xPos, yPos, 1);
+        }
+    }
+
+    /// <summary>Fills a <paramref name="width"/> x <paramref name="height"/> box of <paramref name="port"/> with <paramref name="color"/>.</summary>
+    void fillBox(lPort* port, int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t color)
+    {
+        auto* box = new lPort;
+        box->init(width, height, 1);
+        VFX_pane_wipe(box->frame(), color);
+        VFX_pane_copy(box->frame(), 0, 0, port->frame(), xPos, yPos, -1);
+        delete box;
     }
 
     /// <summary>A text field set from a string table entry, on the logistics heap.</summary>
@@ -1094,7 +1105,7 @@ auto MechPurchaseBlock::handleEvent(aEvent* event) -> void
                 application->grab(this);
                 mechDrag.x = event->x - 0x10;
                 mechDrag.y = event->y - 0x10;
-                makeDragIcon(mechDrag, row, 0x21);
+                makeDragIcon(mechDrag, [this](lPort* surface) { OnBeginDrag(surface); });
                 return;
             }
 
@@ -1173,21 +1184,9 @@ auto MechPurchaseBlock::draw() -> void
 {
 }
 
-auto MechPurchaseBlock::drawBackground(int32_t rowIndex) -> void
+auto MechPurchaseBlock::drawBackground(int32_t) -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    auto* scratch = new lPort;
-    auto* work = new lPort;
-    ownPort = work;
-    work->init(screen->mechTabPort->width(), screen->mechTabPort->height(), 1);
-    screen->mechTabPort->copyTo(work->frame(), 0, 0, 0);
     PurMechData* data = purMech->variants[curVariant];
-    loadArt(scratch, "%slogart\\lspflma%02d.tga", data->nameIndex);
-    scratch->copyTo(work->frame(), 5, 4, 1);
-    scratch->destroy();
-    loadArt(scratch, "%slogart\\lscdsm%02d.tga", data->nameIndex);
-    scratch->copyTo(work->frame(), 0x13a, 6, 1);
-    delete scratch;
 
     if (picturePort == nullptr)
     {
@@ -1211,9 +1210,6 @@ auto MechPurchaseBlock::drawBackground(int32_t rowIndex) -> void
         }
     }
 
-    lPort* picture = picturePort;
-    auto* spare = new lPort;
-
     if (diagramPort == nullptr)
     {
         auto* diagram = new lPort;
@@ -1226,8 +1222,6 @@ auto MechPurchaseBlock::drawBackground(int32_t rowIndex) -> void
             AG_shape_draw(diagram->frame(), globalLogPtr->mechIconShapes[data->nameIndex], location, 3, 0);
         }
     }
-
-    picture->copyTo(work->frame(), 0xed, 6, 1);
 
     // The class texts.
     char text[256];
@@ -1250,23 +1244,45 @@ auto MechPurchaseBlock::drawBackground(int32_t rowIndex) -> void
                                              : 0x66u;
     cLoadString(thisInstance, internalId, text, 0xfe);
     setHeapText(internalText, text);
+    setBar();
+    PurMechData* current = purMech->variants[curVariant];
+
+    if (current->description == nullptr && current->descIndex > -1)
+    {
+        current->loadDescription(current->descIndex);
+    }
+
+    PrepareInfoDescription(current->description);
+}
+
+auto MechPurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
+{
+    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
+    lPort* row0 = newRowPicture(screen->mechTabPort);
+    PurMechData* data = purMech->variants[curVariant];
+    copyArt(row0, 5, 4, "%slogart\\lspflma%02d.tga", data->nameIndex);
+    copyArt(row0, 0x13a, 6, "%slogart\\lscdsm%02d.tga", data->nameIndex);
+
+    if (picturePort != nullptr)
+    {
+        picturePort->copyTo(row0->frame(), 0xed, 6, 1);
+    }
+
+    char text[256];
     char tons[32];
     cLoadString(thisInstance, 0x6e, tons, 0x1e);
-    data = purMech->variants[curVariant];
     std::snprintf(text, sizeof(text), "%.0f %s", static_cast<double>(data->curTonnage), tons);
-    lPort* row0 = ownPort;
     writeText(yellowDropFont, row0, 0x51, 0x23, text);
     writeText(yellowDropFont, row0, 0x51, 0x2c, weightClassText);
     writeText(yellowDropFont, row0, 0xa7, 0x23, armorText);
     writeText(yellowDropFont, row0, 0xa7, 0x2c, internalText);
     std::snprintf(text, sizeof(text), "%d m/s", data->maxRunSpeed);
     writeText(yellowDropFont, row0, 0x51, 0x35, text);
-    setBar();
 
     // The weapons and equipment, and the jump jets' rating.
     int32_t jumpJets = 0;
 
-    for (_LogInventoryItem* item = purMech->variants[curVariant]->inventory->items; item != nullptr; item = item->next)
+    for (_LogInventoryItem* item = data->inventory->items; item != nullptr; item = item->next)
     {
         if (MasterComponentList[item->masterID].form == COMPONENT_FORM_JUMPJET)
         {
@@ -1274,7 +1290,7 @@ auto MechPurchaseBlock::drawBackground(int32_t rowIndex) -> void
         }
     }
 
-    drawInventoryList(purMech->variants[curVariant]->inventory, ownPort, text, sizeof(text));
+    drawInventoryList(data->inventory, row0, text, sizeof(text));
 
     // An unlisted rating (jump jets beyond 8) shows whatever the text buffer last held.
     if (jumpJets == 0)
@@ -1308,146 +1324,108 @@ auto MechPurchaseBlock::drawBackground(int32_t rowIndex) -> void
 
     // The battle rating bar: 80 pixels at 18010, bottom at y 0x58.
     PANE* frame = row0->frame();
-    int32_t bar = static_cast<int32_t>(static_cast<double>(purMech->variants[curVariant]->battleRating) *
-                                       0x1.d1c6674f499a1p-15 * 80.0);
-    int32_t top = 0x57 - bar;
+    int32_t bar = static_cast<int32_t>(static_cast<double>(data->battleRating) * 0x1.d1c6674f499a1p-15 * 80.0);
     int32_t barTop = 0x58 - bar;
+    int32_t topLine = 0x57 - bar;
     VFX_line_draw(frame, 0xdb, 0x58, 0xdf, 0x58, LD_DRAW, 0xe5);
-    VFX_line_draw(row0->frame(), 0xda, top, 0xe0, top, LD_DRAW, 0xe3);
-    VFX_line_draw(row0->frame(), 0xda, 0x57, 0xda, barTop, LD_DRAW, 0xe3);
-    VFX_line_draw(row0->frame(), 0xe0, 0x57, 0xe0, barTop, LD_DRAW, 0xe5);
+    VFX_line_draw(frame, 0xda, topLine, 0xe0, topLine, LD_DRAW, 0xe3);
+    VFX_line_draw(frame, 0xda, 0x57, 0xda, barTop, LD_DRAW, 0xe3);
+    VFX_line_draw(frame, 0xe0, 0x57, 0xe0, barTop, LD_DRAW, 0xe5);
 
     for (int32_t x = 0xdb; x <= 0xdf; ++x)
     {
-        VFX_line_draw(row0->frame(), x, 0x57, x, barTop, LD_DRAW, 0xe4);
+        VFX_line_draw(frame, x, 0x57, x, barTop, LD_DRAW, 0xe4);
     }
 
-    VFX_line_draw(row0->frame(), 0xdb, 0x56 - bar, 0xdf, 0x56 - bar, LD_DRAW, 0x10);
-    VFX_pixel_write(row0->frame(), 0xdf, 0x57, 0xe5);
-    VFX_pixel_write(row0->frame(), 0xdb, barTop, 0xe3);
-    VFX_pixel_write(row0->frame(), 0xda, top, 0x10);
-    VFX_pixel_write(row0->frame(), 0xe0, top, 0x10);
-
-    lPort* display = nullptr;
-    screen->unitPane->getDisplayPort(display);
-    VFX_pane_copy(row0->frame(), 0, 0, display->frame(), 0, winHeight * rowIndex, -1);
+    VFX_line_draw(frame, 0xdb, 0x56 - bar, 0xdf, 0x56 - bar, LD_DRAW, 0x10);
+    VFX_pixel_write(frame, 0xdf, 0x57, 0xe5);
+    VFX_pixel_write(frame, 0xdb, barTop, 0xe3);
+    VFX_pixel_write(frame, 0xda, topLine, 0x10);
+    VFX_pixel_write(frame, 0xe0, topLine, 0x10);
+    VFX_pane_copy(row0->frame(), 0, 0, port->frame(), 0, top, -1);
     delete row0;
-    ownPort = nullptr;
 
     // The variant buttons (A, W, J), and the variant's name art over the row.
-    globalLogPtr->purchaseScreen->unitPane->getDisplayPort(display);
     int32_t variant = curVariant;
     PurMech* mech = purMech;
-    int32_t y = rowIndex * 0x70;
-    char fileName[256];
+    int32_t y = top;
 
     if (variant == 0)
     {
-        loadArt(spare, "%slogart\\lspflma%02d.tga", mech->variants[0]->nameIndex);
-        spare->copyTo(display->frame(), 5, y + 4, 1);
-        spare->destroy();
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lspbim04.tga", artPath);
+        copyArt(port, 5, y + 4, "%slogart\\lspflma%02d.tga", mech->variants[0]->nameIndex);
+        copyArt(port, 0x9a, y + 5, "%slogart\\lspbim04.tga");
     }
     else
     {
-        std::snprintf(fileName, sizeof(fileName),
-                      mech->variants[0]->numAvailable == 0 ? "%slogart\\lspbim07.tga" : "%slogart\\lspbim01.tga",
-                      artPath);
+        copyArt(port, 0x9a, y + 5,
+                mech->variants[0]->numAvailable == 0 ? "%slogart\\lspbim07.tga" : "%slogart\\lspbim01.tga");
     }
-
-    spare->init(fileName);
-    spare->copyTo(display->frame(), 0x9a, y + 5, 1);
 
     if (variant == 2)
     {
-        loadArt(spare, "%slogart\\lspflmj%02d.tga", mech->variants[2]->nameIndex);
-        spare->copyTo(display->frame(), 5, y + 4, 1);
-        spare->destroy();
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lspbim06.tga", artPath);
+        copyArt(port, 5, y + 4, "%slogart\\lspflmj%02d.tga", mech->variants[2]->nameIndex);
+        copyArt(port, 0xbe, y + 5, "%slogart\\lspbim06.tga");
     }
     else
     {
-        std::snprintf(fileName, sizeof(fileName),
-                      mech->variants[2]->numAvailable == 0 ? "%slogart\\lspbim09.tga" : "%slogart\\lspbim03.tga",
-                      artPath);
+        copyArt(port, 0xbe, y + 5,
+                mech->variants[2]->numAvailable == 0 ? "%slogart\\lspbim09.tga" : "%slogart\\lspbim03.tga");
     }
-
-    spare->init(fileName);
-    spare->copyTo(display->frame(), 0xbe, y + 5, 1);
 
     if (variant == 1)
     {
-        loadArt(spare, "%slogart\\lspflmw%02d.tga", mech->variants[1]->nameIndex);
-        spare->copyTo(display->frame(), 5, y + 4, 1);
-        spare->destroy();
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lspbim05.tga", artPath);
+        copyArt(port, 5, y + 4, "%slogart\\lspflmw%02d.tga", mech->variants[1]->nameIndex);
+        copyArt(port, 0xac, y + 5, "%slogart\\lspbim05.tga");
     }
     else
     {
-        std::snprintf(fileName, sizeof(fileName),
-                      mech->variants[1]->numAvailable == 0 ? "%slogart\\lspbim08.tga" : "%slogart\\lspbim02.tga",
-                      artPath);
+        copyArt(port, 0xac, y + 5,
+                mech->variants[1]->numAvailable == 0 ? "%slogart\\lspbim08.tga" : "%slogart\\lspbim02.tga");
     }
-
-    spare->init(fileName);
-    spare->copyTo(display->frame(), 0xac, y + 5, 1);
-    spare->destroy();
 
     PurMechData* shown = mech->variants[variant];
 
     if (shown->numAvailable != 0)
     {
-        VFX_pane_copy(diagramPort->frame(), 0, 0, display->frame(), 7, y + 0x22, -1);
+        if (diagramPort != nullptr)
+        {
+            VFX_pane_copy(diagramPort->frame(), 0, 0, port->frame(), 7, y + 0x22, -1);
+        }
     }
     else
     {
         // Sold out: the "sold out" name art, a blank diagram and picture, and the sold-out mark.
         static const char* const soldOut[3] = {"%slogart\\lspfdma%02d.tga", "%slogart\\lspfdmw%02d.tga",
                                                "%slogart\\lspfdmj%02d.tga"};
-        loadArt(spare, soldOut[variant], shown->nameIndex);
-        spare->copyTo(display->frame(), 5, y + 4, 1);
-        spare->destroy();
-        auto* blank = new lPort;
-        blank->init(0x1e, 0x1e, 1);
-        VFX_pane_wipe(blank->frame(), 0x10);
-        VFX_pane_copy(blank->frame(), 0, 0, display->frame(), 7, y + 0x22, -1);
-        blank->destroy();
-        blank->init(0x4b, 100, 1);
-        VFX_pane_wipe(blank->frame(), 0x10);
-        VFX_pane_copy(blank->frame(), 0, 0, display->frame(), 0xed, y + 5, -1);
-        blank->destroy();
-        AG_shape_draw(display->frame(), globalLogPtr->mechRepShapes[shown->nameIndex], 0x13, 0xed, y + 6);
-        delete blank;
+        copyArt(port, 5, y + 4, soldOut[variant], shown->nameIndex);
+        fillBox(port, 7, y + 0x22, 0x1e, 0x1e, 0x10);
+        fillBox(port, 0xed, y + 5, 0x4b, 100, 0x10);
+        AG_shape_draw(port->frame(), globalLogPtr->mechRepShapes[shown->nameIndex], 0x13, 0xed, y + 6);
     }
 
     // Stock and price.
-    if (mech->variants[variant]->numAvailable < 0)
+    if (shown->numAvailable < 0)
     {
         char format[256];
         cLoadString(thisInstance, 0x385, format, 0xfe);
-        std::snprintf(text, sizeof(text), format, mech->variants[variant]->numAvailable);
+        std::snprintf(text, sizeof(text), format, shown->numAvailable);
     }
     else
     {
-        std::snprintf(text, sizeof(text), "%d", mech->variants[variant]->numAvailable);
+        std::snprintf(text, sizeof(text), "%d", shown->numAvailable);
     }
 
-    writeText(yellowDropFont, display, 0x29, y + 0x12, text);
-    std::snprintf(text, sizeof(text), "%d", mech->variants[variant]->cost);
-    writeText(yellowDropFont, display, 0x52, y + 0x12, text);
-    PurMechData* current = mech->variants[variant];
+    writeText(yellowDropFont, port, 0x29, y + 0x12, text);
+    std::snprintf(text, sizeof(text), "%d", shown->cost);
+    writeText(yellowDropFont, port, 0x52, y + 0x12, text);
+    DrawInfoDescription(port, 0xc6, 0x25, shown->description, 6, y + 0x44);
+}
 
-    if (current->description == nullptr && current->descIndex > -1)
-    {
-        current->loadDescription(current->descIndex);
-    }
-
-    if (mech->variants[variant]->description != nullptr)
-    {
-        drawDescription(spare, 0xc6, 0x25, mech->variants[variant]->description, display, 6, y + 0x44);
-    }
-
-    delete spare;
+auto MechPurchaseBlock::OnBeginDrag(lPort* surface) -> void
+{
+    // The square at (6, 0x21) of the row, over the store's colour 0x10.
+    VFX_pane_wipe(surface->frame(), 0x10);
+    DragIcon::DrawFrom(surface, 6, 0x21, [this](lPort* port) { DrawRow(port, 0); });
 }
 
 auto MechPurchaseBlock::setBar() -> void
@@ -1766,7 +1744,7 @@ auto VehiclePurchaseBlock::handleEvent(aEvent* event) -> void
                 application->grab(this);
                 vehicleDrag.x = event->x - 0x10;
                 vehicleDrag.y = event->y - 0x10;
-                makeDragIcon(vehicleDrag, row, 0x21);
+                makeDragIcon(vehicleDrag, [this](lPort* surface) { OnBeginDrag(surface); });
                 return;
             }
             break;
@@ -1854,14 +1832,39 @@ auto VehiclePurchaseBlock::handleEvent(aEvent* event) -> void
     playSample(0x33);
 }
 
-auto VehiclePurchaseBlock::drawBackground(int32_t rowIndex) -> void
+auto VehiclePurchaseBlock::drawBackground(int32_t) -> void
+{
+    PurVehicleData* data = purVehicle->data;
+
+    if (data->numAvailable == 0)
+    {
+        PrepareInfoDescription(data->description);
+        return;
+    }
+
+    // The diagram, kept for the purchase dialog (the original parked the row's picture in picturePort first).
+    if (picturePort != nullptr)
+    {
+        delete picturePort;
+    }
+
+    auto* diagram = new lPort;
+    picturePort = diagram;
+    diagram->init(0x1e, 0x1e, 1);
+    VFX_pane_wipe(diagram->frame(), 0x10);
+
+    for (int32_t location = 0; location < 5; ++location)
+    {
+        AG_shape_draw(diagram->frame(), globalLogPtr->vehicleIconShapes[data->nameIndex], location, 4, 0);
+    }
+
+    PrepareInfoDescription(data->description);
+}
+
+auto VehiclePurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
 {
     PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    auto* scratch = new lPort;
-    auto* work = new lPort;
-    ownPort = work;
-    work->init(screen->vehicleTabPort->width(), screen->vehicleTabPort->height(), 1);
-    screen->vehicleTabPort->copyTo(work->frame(), 0, 0, 0);
+    lPort* work = newRowPicture(screen->vehicleTabPort);
     char tons[256];
     cLoadString(thisInstance, 0x6e, tons, 0xfe);
     PurVehicleData* data = purVehicle->data;
@@ -1880,29 +1883,17 @@ auto VehiclePurchaseBlock::drawBackground(int32_t rowIndex) -> void
     if (data->numAvailable == 0)
     {
         // Sold out: the "sold out" name art, a blank picture and the sold-out mark.
-        loadArt(scratch, "%slogart\\lspfdv%02d.tga", data->nameIndex);
-        scratch->copyTo(work->frame(), 5, 4, 1);
-        scratch->destroy();
-        scratch->init(0x4b, 100, 1);
-        VFX_pane_wipe(scratch->frame(), 0x10);
-        scratch->copyTo(work->frame(), 0xed, 6, -1);
+        copyArt(work, 5, 4, "%slogart\\lspfdv%02d.tga", data->nameIndex);
+        fillBox(work, 0xed, 6, 0x4b, 100, 0x10);
         AG_shape_draw(work->frame(), globalLogPtr->vehicleRepShapes[data->nameIndex], 6, 0xed, 6);
         stock = "0";
     }
     else
     {
         int32_t index = data->nameIndex;
-        loadArt(scratch, "%slogart\\lspflv%02d.tga", index);
-        scratch->copyTo(work->frame(), 5, 4, 1);
-
-        if (picturePort != nullptr)
-        {
-            delete picturePort;
-        }
-
-        // The picture, drawn into a port the original parked in picturePort before freeing it.
+        copyArt(work, 5, 4, "%slogart\\lspflv%02d.tga", index);
+        // The picture.
         auto* picture = new lPort;
-        picturePort = picture;
         picture->init(0x4b, 100, 1);
         VFX_pane_wipe(picture->frame(), 0x10);
         VFX_shape_lookaside(globalLogPtr->shapeLookaside[0]);
@@ -1914,16 +1905,10 @@ auto VehiclePurchaseBlock::drawBackground(int32_t rowIndex) -> void
 
         picture->copyTo(work->frame(), 0xed, 6, 1);
         delete picture;
-        // The diagram, on the row and kept for the purchase dialog.
-        auto* diagram = new lPort;
-        picturePort = diagram;
-        diagram->init(0x1e, 0x1e, 1);
-        VFX_pane_wipe(diagram->frame(), 0x10);
 
         for (int32_t location = 0; location < 5; ++location)
         {
             AG_shape_draw(work->frame(), globalLogPtr->vehicleIconShapes[index], location, 9, 0x22);
-            AG_shape_draw(diagram->frame(), globalLogPtr->vehicleIconShapes[index], location, 4, 0);
         }
 
         if (data->numAvailable < 1)
@@ -1940,17 +1925,16 @@ auto VehiclePurchaseBlock::drawBackground(int32_t rowIndex) -> void
     writeText(yellowDropFont, work, 0x25, 0x12, stock);
     std::snprintf(text, sizeof(text), "%d", data->cost);
     writeText(yellowDropFont, work, 0x52, 0x12, text);
-
-    if (data->description != nullptr)
-    {
-        drawDescription(scratch, 0xc6, 0x26, data->description, work, 6, 0x43);
-    }
-
-    VFX_pane_copy(work->frame(), 0, 0, screen->purVehiclePort->frame(), 0, winHeight * rowIndex, -1);
-    delete scratch;
+    DrawInfoDescription(work, 0xc6, 0x26, data->description, 6, 0x43);
+    VFX_pane_copy(work->frame(), 0, 0, port->frame(), 0, top, -1);
     delete work;
-    // Port fix: the original left ownPort pointing at the freed work port.
-    ownPort = nullptr;
+}
+
+auto VehiclePurchaseBlock::OnBeginDrag(lPort* surface) -> void
+{
+    // The square at (6, 0x21) of the row, over the store's colour 0x10.
+    VFX_pane_wipe(surface->frame(), 0x10);
+    DragIcon::DrawFrom(surface, 6, 0x21, [this](lPort* port) { DrawRow(port, 0); });
 }
 
 auto VehiclePurchaseBlock::setBar() -> void
@@ -2080,7 +2064,7 @@ auto CompPurchaseBlock::handleEvent(aEvent* event) -> void
                 application->grab(this);
                 compDrag.y = event->y - 0x10;
                 compDrag.x = event->x - 0x10;
-                makeDragIcon(compDrag, row, 0x21);
+                makeDragIcon(compDrag, [this](lPort* surface) { OnBeginDrag(surface); });
                 return;
             }
             break;
@@ -2172,13 +2156,15 @@ auto CompPurchaseBlock::handleEvent(aEvent* event) -> void
     playSample(0x33);
 }
 
-auto CompPurchaseBlock::drawBackground(int32_t rowIndex, int32_t) -> void
+auto CompPurchaseBlock::drawBackground(int32_t, int32_t) -> void
+{
+    PrepareInfoDescription(item->description);
+}
+
+auto CompPurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
 {
     PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    auto* work = new lPort;
-    ownPort = work;
-    work->init(screen->compTabPort->width(), screen->compTabPort->height(), 1);
-    screen->compTabPort->copyTo(work->frame(), 0, 0, 0);
+    lPort* work = newRowPicture(screen->compTabPort);
     _LogInventoryItem* shown = item;
     char text[1024];
 
@@ -2196,51 +2182,35 @@ auto CompPurchaseBlock::drawBackground(int32_t rowIndex, int32_t) -> void
     writeText(yellowDropFont, work, 0x26, 0x12, text);
     std::snprintf(text, sizeof(text), "%d", MasterComponentList[shown->masterID].resourcePoints);
     writeText(yellowDropFont, work, 0x52, 0x12, text);
-
-    auto* scratch = new lPort;
     int32_t picture = item->rangeIndex;
-    const char* nameArt;
 
     if (item->count == 0)
     {
         // Sold out: a blank icon, the "sold out" picture and name art.
-        scratch->init(0x1e, 0x1e, 1);
-        VFX_pane_wipe(scratch->frame(), 0x10);
-        scratch->copyTo(work->frame(), 7, 0x22, 1);
-        scratch->destroy();
-        loadArt(scratch, "%slogart\\lspidc%02d.tga", picture);
-        scratch->copyTo(work->frame(), 0xed, 6, 1);
-        nameArt = "%slogart\\lspfdc%02d.tga";
+        fillBox(work, 7, 0x22, 0x1e, 0x1e, 0x10);
+        copyArt(work, 0xed, 6, "%slogart\\lspidc%02d.tga", picture);
+        copyArt(work, 5, 4, "%slogart\\lspfdc%02d.tga", picture);
     }
     else
     {
-        loadArt(scratch, "%slogart\\lscicc%02d.tga", picture);
-        scratch->copyTo(work->frame(), 7, 0x22, 1);
-        scratch->destroy();
-        loadArt(scratch, "%slogart\\lspilc%02d.tga", picture);
-        scratch->copyTo(work->frame(), 0xed, 6, 1);
-        nameArt = "%slogart\\lspflc%02d.tga";
+        copyArt(work, 7, 0x22, "%slogart\\lscicc%02d.tga", picture);
+        copyArt(work, 0xed, 6, "%slogart\\lspilc%02d.tga", picture);
+        copyArt(work, 5, 4, "%slogart\\lspflc%02d.tga", picture);
     }
 
-    char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), nameArt, artPath, picture);
-    scratch->destroy();
-    scratch->init(fileName);
-    scratch->copyTo(work->frame(), 5, 4, 1);
     writeText(yellowDropFont, work, 0x52, 0x35, rangeText);
-    writeText(yellowDropFont, ownPort, 0x52, 0x2c, damageText);
-    writeText(yellowDropFont, ownPort, 0x52, 0x23, recycleText);
+    writeText(yellowDropFont, work, 0x52, 0x2c, damageText);
+    writeText(yellowDropFont, work, 0x52, 0x23, recycleText);
+    DrawInfoDescription(work, 0xc6, 0x25, item->description, 6, 0x44);
+    work->copyTo(port->frame(), 0, top, 1);
+    delete work;
+}
 
-    if (item->description != nullptr)
-    {
-        drawDescription(scratch, 0xc6, 0x25, item->description, ownPort, 6, 0x44);
-    }
-
-    lPort* row0 = ownPort;
-    row0->copyTo(screen->purCompPort->frame(), 0, winHeight * rowIndex, 1);
-    delete scratch;
-    delete row0;
-    ownPort = nullptr;
+auto CompPurchaseBlock::OnBeginDrag(lPort* surface) -> void
+{
+    // The square at (6, 0x21) of the row, over the store's colour 0x10.
+    VFX_pane_wipe(surface->frame(), 0x10);
+    DragIcon::DrawFrom(surface, 6, 0x21, [this](lPort* port) { DrawRow(port, 0); });
 }
 
 // PilotPurchaseBlock
@@ -2308,7 +2278,7 @@ auto PilotPurchaseBlock::handleEvent(aEvent* event) -> void
                 application->grab(this);
                 pilotDrag.y = event->y - 0x10;
                 pilotDrag.x = event->x - 0x10;
-                makeDragIcon(pilotDrag, row, 0x25);
+                makeDragIcon(pilotDrag, [this](lPort* surface) { OnBeginDrag(surface); });
                 return;
             }
             break;
@@ -2389,7 +2359,12 @@ auto PilotPurchaseBlock::handleEvent(aEvent* event) -> void
     }
 }
 
-auto PilotPurchaseBlock::drawBackground(int32_t rowIndex) -> void
+auto PilotPurchaseBlock::drawBackground(int32_t) -> void
+{
+    PrepareInfoDescription(pilot->description);
+}
+
+auto PilotPurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
 {
     PurPilotData* shown = pilot;
 
@@ -2400,17 +2375,9 @@ auto PilotPurchaseBlock::drawBackground(int32_t rowIndex) -> void
     }
 
     PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    auto* work = new lPort;
-    ownPort = work;
-    work->init(screen->pilotTabPort->width(), screen->pilotTabPort->height(), 1);
-    screen->pilotTabPort->copyTo(work->frame(), 0, 0, 0);
-    auto* scratch = new lPort;
-    loadArt(scratch, "%slogart\\lspflp%02d.tga", shown->nameIndex);
-    scratch->copyTo(work->frame(), 5, 4, 1);
-    scratch->destroy();
-    loadArt(scratch, "%slogart\\pilot%02d.tga", shown->nameIndex);
-    scratch->copyTo(work->frame(), 7, 0x26, 1);
-    scratch->destroy();
+    lPort* work = newRowPicture(screen->pilotTabPort);
+    copyArt(work, 5, 4, "%slogart\\lspflp%02d.tga", shown->nameIndex);
+    copyArt(work, 7, 0x26, "%slogart\\pilot%02d.tga", shown->nameIndex);
     char text[256];
     std::snprintf(text, sizeof(text), "%d", shown->cost);
     writeText(yellowDropFont, work, 0x1f, 0x12, text);
@@ -2437,15 +2404,16 @@ auto PilotPurchaseBlock::drawBackground(int32_t rowIndex) -> void
         VFX_pixel_write(work->frame(), x, 0x23, 0xcf);
     }
 
-    if (pilot->description != nullptr)
-    {
-        drawDescription(scratch, 0xc6, 0x25, pilot->description, work, 8, 0x48);
-    }
-
-    work->copyTo(screen->purPilotPort->frame(), 0, winHeight * rowIndex, 1);
-    delete scratch;
+    DrawInfoDescription(work, 0xc6, 0x25, pilot->description, 8, 0x48);
+    work->copyTo(port->frame(), 0, top, 1);
     delete work;
-    ownPort = nullptr;
+}
+
+auto PilotPurchaseBlock::OnBeginDrag(lPort* surface) -> void
+{
+    // The square at (6, 0x25) of the row, over the pilot list's colour 0xff.
+    VFX_pane_wipe(surface->frame(), 0xff);
+    DragIcon::DrawFrom(surface, 6, 0x25, [this](lPort* port) { DrawRow(port, 0); });
 }
 
 // PurPilotList

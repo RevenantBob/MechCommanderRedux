@@ -262,6 +262,17 @@ namespace
         aMechBar* bar = theInterface->mechBar;
         return bar != nullptr ? bar->lanceIcons[index] : nullptr;
     }
+
+    /// <summary>aObject::FillBox on any port: wipes the rectangle (port coordinates) of <paramref name="target"/>.</summary>
+    void fillPortBox(aPort* target, int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color)
+    {
+        _pane box = *target->frame();
+        box.x0 = left;
+        box.y0 = top;
+        box.x1 = right;
+        box.y1 = bottom;
+        VFX_pane_wipe(&box, color);
+    }
 } // namespace
 
 // aMechIcon
@@ -324,6 +335,17 @@ auto aMechIcon::destroy() -> void
 
 auto aMechIcon::draw() -> void
 {
+    // Port: the colours are brought up to date by UpdateModel (the original called GetColors here).
+    DrawIcon(displayPort);
+}
+
+auto aMechIcon::UpdateModel() -> void
+{
+    GetColors();
+}
+
+auto aMechIcon::DrawIcon(aPort* target) -> void
+{
     auto* shown = static_cast<GameObject*>(mover);
 
     if (shown == nullptr)
@@ -331,13 +353,12 @@ auto aMechIcon::draw() -> void
         return;
     }
 
-    GetColors();
-    DrawParts();
+    DrawParts(target);
 
     // Destroyed or disabled: the "destroyed" image over the diagram.
     if (shown->status == 1 || shown->status == 2)
     {
-        VFX_pane_copy(deadImage->frame(), 0, 0, displayPort->frame(), diagramX, diagramY, 0xfff);
+        VFX_pane_copy(deadImage->frame(), 0, 0, target->frame(), diagramX, diagramY, 0xfff);
     }
 }
 
@@ -364,7 +385,7 @@ auto aMechIcon::leave() -> void
     aObject::leave();
 }
 
-auto aMechIcon::DrawParts() -> void
+auto aMechIcon::DrawParts(aPort* target) -> void
 {
     for (int16_t i = 0; i < numParts; i++)
     {
@@ -372,23 +393,20 @@ auto aMechIcon::DrawParts() -> void
 
         if (color == 0xb)
         {
-            AG_shape_draw(port()->frame(), damageShapes, i, diagramX, diagramY);
+            AG_shape_draw(target->frame(), damageShapes, i, diagramX, diagramY);
         }
         else
         {
             AG_shape_lookaside(mechIconPartTable(color));
-            AG_shape_translate_draw(port()->frame(), damageShapes, i, diagramX, diagramY);
+            AG_shape_translate_draw(target->frame(), damageShapes, i, diagramX, diagramY);
         }
 
-        if (partDirty[i] != 0)
-        {
-            partDirty[i] = 0;
-        }
+        // Port: the original cleared each part's dirty flag here; nothing reads it (every part is drawn each time).
     }
 
     if (mover == nullptr)
     {
-        VFX_pane_copy(deadImage->frame(), 0, 0, displayPort->frame(), diagramX, diagramY, 0xfff);
+        VFX_pane_copy(deadImage->frame(), 0, 0, target->frame(), diagramX, diagramY, 0xfff);
     }
 }
 
@@ -471,12 +489,9 @@ auto aMechIcon::display() -> void
         return;
     }
 
-    if (lastUpdateTime + 500 < MCPort::Milliseconds())
-    {
-        draw();
-        lastUpdateTime = MCPort::Milliseconds();
-    }
-
+    // Port: the original redrew its picture every 500 ms here; the icon draws itself each frame, from a model
+    // brought up to date first.
+    UpdateModel();
     aObject::display();
 }
 
@@ -549,6 +564,13 @@ auto FriendlyMechIcon::destroy() -> void
         pilotImage->destroy();
         delete pilotImage;
         pilotImage = nullptr;
+    }
+
+    if (iconBackground != nullptr)
+    {
+        iconBackground->destroy();
+        delete iconBackground;
+        iconBackground = nullptr;
     }
 
     aMechIcon::destroy();
@@ -682,20 +704,65 @@ auto FriendlyMechIcon::enter() -> void
 
 auto FriendlyMechIcon::draw() -> void
 {
+    DrawIcon(displayPort);
+}
+
+auto FriendlyMechIcon::UpdateModel() -> void
+{
+    aMechIcon::UpdateModel();
+    auto* shown = static_cast<GameObject*>(mover);
+
+    if (shown == nullptr || active == 0)
+    {
+        return;
+    }
+
+    MechWarrior* pilot = shown->getPilot();
+
+    if (pilot == nullptr)
+    {
+        return;
+    }
+
+    // Wounded (6 or more wounds), then dead or gone: the portrait changes once. (The original did this as it drew
+    // the pilot.)
+    if (6.0f <= pilot->wounds && showingWoundedPilot == 0)
+    {
+        pilotImage->init(3);
+        showingWoundedPilot = 1;
+    }
+
+    const int32_t status = pilot->status;
+
+    if ((status == 3 || status == 5 || status == 6) && showingDeadPilot == 0)
+    {
+        pilotImage->init(4);
+        showingDeadPilot = 1;
+    }
+}
+
+auto FriendlyMechIcon::DrawIcon(aPort* target) -> void
+{
+    // The icon's picture held its background, drawn over each time.
+    if (iconBackground != nullptr)
+    {
+        iconBackground->copyTo(target->frame(), 0, 0, 0);
+    }
+
     auto* shown = static_cast<Mover*>(mover);
-    DrawWeapon();
-    aMechIcon::draw();
-    FillBox(2, 2, 0x31, 9, lanceColorArray[lance]);
+    DrawWeapon(target);
+    aMechIcon::DrawIcon(target);
+    fillPortBox(target, 2, 2, 0x31, 9, lanceColorArray[lance]);
 
     // A vehicle with a name shows it instead of its pilot.
     if (shown->objectClass == GROUNDVEHICLE && shown->getIfaceName() != nullptr)
     {
-        whiteFont->writeString(displayPort->frame(), 5, 3,
+        whiteFont->writeString(target->frame(), 5, 3,
                                reinterpret_cast<uint8_t*>(const_cast<char*>(shown->getIfaceName())), -1);
         return;
     }
 
-    DrawPilot();
+    DrawPilot(target);
 }
 
 auto FriendlyMechIcon::display() -> void
@@ -739,7 +806,7 @@ auto FriendlyMechIcon::drawBox(uint8_t color, int32_t left, int32_t top, int32_t
     VFX_line_draw(frame(), right, top, right, bottom, LD_DRAW, color);
 }
 
-auto FriendlyMechIcon::DrawPilot() -> void
+auto FriendlyMechIcon::DrawPilot(aPort* target) -> void
 {
     auto* shown = static_cast<GameObject*>(mover);
 
@@ -755,29 +822,15 @@ auto FriendlyMechIcon::DrawPilot() -> void
         return;
     }
 
-    // Wounded (6 or more wounds), then dead or gone: the portrait changes once.
-    if (6.0f <= pilot->wounds && showingWoundedPilot == 0)
-    {
-        pilotImage->init(3);
-        showingWoundedPilot = 1;
-    }
-
-    const int32_t status = shown->getPilot()->status;
-
-    if ((status == 3 || status == 5 || status == 6) && showingDeadPilot == 0)
-    {
-        pilotImage->init(4);
-        showingDeadPilot = 1;
-    }
+    // (The portrait was switched to the wounded or dead image here: see UpdateModel.)
 
     // The health bar loses 3 pixels per wound from its right end.
     if (0.0f < shown->getPilot()->wounds)
     {
         const auto left = static_cast<int16_t>(47.0f - shown->getPilot()->wounds * 3.0f);
-        FillBox(left, 0xb, 0x30, 0xd, 0x10);
+        fillPortBox(target, left, 0xb, 0x30, 0xd, 0x10);
     }
 
-    aPort* target = displayPort;
     VFX_pane_copy(pilotImage->frame(), 0, 0, target->frame(), 0x1c, 0xe, 0xfff);
 
     if (shown->objectClass == BATTLEMECH && shown->getPilot()->callsign != nullptr)
@@ -786,7 +839,7 @@ auto FriendlyMechIcon::DrawPilot() -> void
     }
 }
 
-auto FriendlyMechIcon::DrawWeapon() -> void
+auto FriendlyMechIcon::DrawWeapon(aPort* target) -> void
 {
     // The bar runs from x 2 on a mech (beside the portrait), from 0xd otherwise.
     int32_t start = 2;
@@ -794,12 +847,12 @@ auto FriendlyMechIcon::DrawWeapon() -> void
 
     if (shown == nullptr || shown->objectClass != BATTLEMECH)
     {
-        FillBox(2, 0xb, 0x2e, 0xc, 0x10);
+        fillPortBox(target, 2, 0xb, 0x2e, 0xc, 0x10);
         start = 0xd;
     }
     else
     {
-        FillBox(2, 0xb, 0x1b, 0xc, 0x10);
+        fillPortBox(target, 2, 0xb, 0x1b, 0xc, 0x10);
     }
 
     if (shown == nullptr)
@@ -832,7 +885,6 @@ auto FriendlyMechIcon::DrawWeapon() -> void
     }
 
     // A two-pixel bar, lit on its top and left, shaded (colour - 1) on its bottom and right.
-    aPort* target = displayPort;
     const int32_t end = length + start;
     VFX_line_draw(target->frame(), start, 0xb, start, 0xc, LD_DRAW, color);
     VFX_line_draw(target->frame(), start, 0xb, end, 0xb, LD_DRAW, color);
@@ -872,7 +924,15 @@ auto FriendlyMechIcon::SetID(int32_t newPartId) -> void
         sprintf(shapeName, "vi%i", object->getObjectType()->iconNumber);
     }
 
-    port()->init(const_cast<char*>("guiub00.tga"));
+    // Port: the original loaded the background into the icon's own picture; it is kept apart, and the icon's view
+    // takes its size.
+    if (iconBackground == nullptr)
+    {
+        iconBackground = new aPort;
+    }
+
+    iconBackground->init(const_cast<char*>("guiub00.tga"));
+    port()->initView(iconBackground->width(), iconBackground->height());
 
     FullPathFileName shapePath;
     shapePath.init(artPath, shapeName, ".shp");
@@ -910,7 +970,8 @@ auto FriendlyMechIcon::SetID(int32_t newPartId) -> void
     }
 
     isPoint = shown == shown->getPoint() ? 1 : 0;
-    draw();
+    // The original drew the icon here; it draws itself each frame.
+    UpdateModel();
 }
 
 // aSalvageIcon

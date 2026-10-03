@@ -79,6 +79,7 @@
     <ClCompile Include="tests\VfxGameHelperTests.cpp" />
     <ClCompile Include="tests\VfxPolygonTests.cpp" />
     <ClCompile Include="tests\VfxTransformTests.cpp" />
+    <ClCompile Include="tests\ZoomTests.cpp" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="tests\MCTest.h" />
     <ClInclude Include="tests\TestGame.h" />

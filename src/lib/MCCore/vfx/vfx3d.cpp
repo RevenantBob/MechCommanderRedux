@@ -37,6 +37,43 @@ namespace
 
         command.OriginX = x0;
         command.OriginY = y0;
+
+        if (window->View != nullptr)
+        {
+            // Port: a view's scissor can cut the clip rectangle from the left or the top, which the fillers can't
+            // express (they clip at 0 relative to the corner the vertices are given from). The vertices are moved to
+            // be relative to the cut corner instead.
+            int32_t cutX0 = x0;
+            int32_t cutY0 = y0;
+            int32_t cutX1 = x1;
+            int32_t cutY1 = y1;
+            MCClipToView(window, cutX0, cutY0, cutX1, cutY1);
+
+            if (cutX1 < cutX0 || cutY1 < cutY0)
+            {
+                return;
+            }
+
+            if (cutX0 != x0 || cutY0 != y0)
+            {
+                static std::vector<SCRNVERTEX> moved;
+                moved.assign(command.Vertices, command.Vertices + command.VertexCount);
+
+                for (SCRNVERTEX& vertex : moved)
+                {
+                    vertex.x -= cutX0 - x0;
+                    vertex.y -= cutY0 - y0;
+                }
+
+                command.Vertices = moved.data();
+            }
+
+            command.OriginX = cutX0;
+            command.OriginY = cutY0;
+            command.XMax = cutX1 - cutX0;
+            command.YMax = cutY1 - cutY0;
+        }
+
         MCRenderer::For(pane->window).Polygon(pane->window, command);
     }
 

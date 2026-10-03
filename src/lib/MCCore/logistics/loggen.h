@@ -38,9 +38,24 @@ public:
     /// <remarks>MCX.EXE @ 0x006e44e0</remarks>
     void destroy() override;
 
-    /// <summary>Draws the picture for the button's state (gray, pressed, over, up) or wipes to the back color.</summary>
+    /// <summary>
+    /// Port: draws the face the button shows (<see cref="updateFace"/>), then the background and children as an
+    /// lObject. Outside the frame pass a call is the original's paint: it <see cref="Refresh"/>es the face.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e49d0</remarks>
     void draw() override;
+
+    /// <summary>Port: the button draws itself each frame from the face it shows.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>Port: chooses the face again (as the original's paint did), then refreshes the children.</summary>
+    void Refresh() override;
+
+    /// <summary>
+    /// Port: the part of the original's draw that chose the picture (gray, pressed once, over, up; the back colour
+    /// when there is none), kept as the face until the next refresh, since the picture kept it.
+    /// </summary>
+    virtual void updateFace();
 
     /// <summary>
     /// On a click: plays the press sound and runs the callback (or the "disabled" sound when grayed), then passes the
@@ -60,7 +75,7 @@ public:
         if (overState)
         {
             overState = 0;
-            draw();
+            Refresh();
         }
     }
 
@@ -104,6 +119,13 @@ public:
     uint32_t pressSound = 0xf; // +0x4dc
     /// <summary>The digital sample played when the mouse comes over the button (the ini's OverSFX; -1 = none).</summary>
     uint32_t overSound = 0xffffffff; // +0x4e0
+
+    /// <summary>Port: the picture the button shows; null shows <see cref="faceColor"/>.</summary>
+    lPort* facePicture = nullptr;
+    /// <summary>Port: the colour shown without a picture (the port was wiped to 0 when the button was made).</summary>
+    uint8_t faceColor = 0;
+    /// <summary>Port: whether the picture is copied with 0xff as a colour key (the dialog buttons' was).</summary>
+    bool faceKeyed = false;
 };
 
 /// <summary>
@@ -139,13 +161,23 @@ public:
     /// <remarks>MCX.EXE @ 0x006e1400</remarks>
     void destroy() override;
 
-    /// <summary>Wipes the port and writes the text.</summary>
+    /// <summary>
+    /// Wipes the field, writes the text and draws the cursor when it has a valid position (lit, or in the field's
+    /// colour; the original drew the cursor in display, over the picture). Outside the frame pass a call is the
+    /// original's paint: it <see cref="Refresh"/>es the field.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e1460</remarks>
     void draw() override;
 
-    /// <summary>Draws the cursor (when it has a valid position), then displays as an <see cref="lObject"/>.</summary>
+    /// <summary>Displays as an <see cref="lObject"/> (the cursor is drawn by <see cref="draw"/>).</summary>
     /// <remarks>MCX.EXE @ 0x006e14b0</remarks>
     void display() override;
+
+    /// <summary>Port: the field draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>Port: the original's paint lit the cursor (the blink starts over).</summary>
+    void Refresh() override;
 
     /// <summary>Moves the cursor to character <paramref name="pos"/> and works out its pixel position.</summary>
     /// <remarks>MCX.EXE @ 0x006e1520</remarks>
@@ -224,9 +256,12 @@ public:
     /// <remarks>MCX.EXE @ 0x006e6650</remarks>
     void draw() override;
 
-    /// <summary>Copies the visible part of the port (scrolled by <see cref="firstPixel"/>) to the screen.</summary>
+    /// <summary>Draws the visible part of the lines (scrolled by <see cref="firstPixel"/>), then the children.</summary>
     /// <remarks>MCX.EXE @ 0x006e6990</remarks>
     void display() override;
+
+    /// <summary>Port: the list draws itself each frame; its port is a view as tall as all its lines.</summary>
+    bool DrawsLive() override { return true; }
 
     /// <remarks>MCX.EXE @ 0x006e6a20</remarks>
     void resize(int32_t width, int32_t height) override;
@@ -311,9 +346,18 @@ public:
     /// <remarks>MCX.EXE @ 0x006e7110</remarks>
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
 
-    /// <summary>Rebuilds the lines from the session list ("name  players" or "name FULL").</summary>
+    /// <summary>
+    /// Port: draws the lines as an <see cref="lScrollTextObject"/>; outside the frame pass a call is the original's
+    /// paint: it <see cref="Refresh"/>es the lines.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e7160</remarks>
     void draw() override;
+
+    /// <summary>
+    /// Port: the original's draw, which rebuilt the lines from the session list ("name  players" or "name FULL")
+    /// before drawing them.
+    /// </summary>
+    void Refresh() override;
 
     /// <summary>A click selects a game; a refresh (event 0x13) re-reads the sessions from the session manager.</summary>
     /// <remarks>MCX.EXE @ 0x006e72c0</remarks>
@@ -352,6 +396,9 @@ public:
     /// <remarks>MCX.EXE @ 0x006e7720</remarks>
     void draw() override;
 
+    /// <summary>Port: the slider draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
     /// <summary>Sets the value, clamped to [<see cref="minValue"/>, <see cref="maxValue"/>].</summary>
     /// <remarks>MCX.EXE @ 0x006e77b0</remarks>
     void setCurrentValue(int32_t value);
@@ -365,6 +412,26 @@ public:
     int32_t currentValue = 0; // +0x4c4
     /// <summary>The thumb picture.</summary>
     lPort* thumbPort = nullptr; // +0x4c8
+};
+
+/// <summary>
+/// Port: one of a <see cref="FileScrollPane"/>'s column headers (the selected save's operation, mission or
+/// resource points). The original made them plain lObjects and painted their pictures from the pane; this one keeps
+/// the text it was last given and draws it each frame (white on black).
+/// </summary>
+class FileColumnHeader : public lObject
+{
+public:
+    /// <summary>Wipes the header and writes its text.</summary>
+    void draw() override;
+
+    /// <summary>The header draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>The text shown (empty for none).</summary>
+    char text[16] = {};
+    /// <summary>Whether the pane has painted the header yet (until then it shows the zeros its picture held).</summary>
+    bool painted = false;
 };
 
 /// <summary>
@@ -386,9 +453,23 @@ public:
     /// <remarks>MCX.EXE @ 0x006e1e10</remarks>
     void destroy() override;
 
+    /// <summary>
+    /// Draws the pane (the files through <see cref="drawContent"/>). Outside the frame pass a call is the original's
+    /// paint: it <see cref="Refresh"/>es the pane.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e1fe0</remarks>
     void draw() override;
 
+    /// <summary>
+    /// Port: what the original's draw did to the pane's state while it is shown: the column headers take the selected
+    /// save's numbers (when the pane has a parent), and the column shows the splash arrows again.
+    /// </summary>
+    void Refresh() override;
+
+    /// <summary>Port: draws the file lines (<see cref="drawFiles"/>) into the content view.</summary>
+    void drawContent() override;
+
+    /// <summary>Draws the pane when shown, then the column headers and the children (the name entry).</summary>
     /// <remarks>MCX.EXE @ 0x006e2220</remarks>
     void display() override;
 
@@ -408,9 +489,15 @@ public:
     /// <remarks>MCX.EXE @ 0x006e2860</remarks>
     void setStartDirectory(char* directory);
 
-    /// <summary>Draws the file lines into the scroll port.</summary>
+    /// <summary>Draws the file lines into the content (a view while the pane draws).</summary>
     /// <remarks>MCX.EXE @ 0x006e28d0</remarks>
     void drawFiles();
+
+    /// <summary>
+    /// Port: the first part of the original's drawFiles: sizes the content to the files (at least the pane's height)
+    /// and resets the scroll when that changes it. Called when the list changes.
+    /// </summary>
+    void layoutFiles();
 
     /// <summary>
     /// Lists every <paramref name="extension"/> file of the directory, reading each save's mission and resource
@@ -430,7 +517,7 @@ public:
     int32_t selectedFile = -1; // +0x508
     int32_t multiplayer = 0;   // +0x50c
     /// <summary>The three column headers.</summary>
-    lObject* columnHeaders[3] = {}; // +0x510
+    FileColumnHeader* columnHeaders[3] = {}; // +0x510
     /// <summary>The scroll-up arrow picture.</summary>
     lPort* upArrowPort = nullptr; // +0x51c
     /// <summary>The scroll-down arrow picture.</summary>
@@ -487,6 +574,12 @@ public:
     /// <remarks>MCX.EXE @ 0x006e43e0</remarks>
     void handleEvent(aEvent* event) override;
 
+    /// <summary>Port: the screen draws its background art each frame (its port was the art).</summary>
+    void draw() override;
+
+    /// <summary>Port: the screen draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
     /// <summary>
     /// Shows or hides the screen; showing the load/save screen grays the buttons that have nothing to act on.
     /// </summary>
@@ -508,6 +601,32 @@ public:
     lButton* deleteButton = nullptr; // +0x4d4
     /// <summary>The cancel button (callback 11).</summary>
     lButton* cancelButton = nullptr; // +0x4d8
+
+    /// <summary>
+    /// Port: the background art, which the original loaded into the screen's own port (a splash screen's is the
+    /// shared <c>genericPort</c>, not owned).
+    /// </summary>
+    lPort* artPort = nullptr;
+};
+
+/// <summary>
+/// Port: a picture element of a generic screen (element type 6), which the original made as a plain lObject with the
+/// art loaded into its port. It draws the art each frame.
+/// </summary>
+class lImage : public lObject
+{
+public:
+    /// <summary>Frees the art.</summary>
+    void destroy() override;
+
+    /// <summary>Copies the art (opaque, as the picture was copied).</summary>
+    void draw() override;
+
+    /// <summary>The image draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>The picture (owned).</summary>
+    lPort* art = nullptr;
 };
 
 /// <summary>

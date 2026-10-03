@@ -111,7 +111,6 @@ namespace
         entry->cursorPixel = 0;
         entry->backgroundColor = 0x1f;
         entry->font = lgBlackFont;
-        VFX_pane_wipe(entry->lport()->frame(), 0x1f);
         return entry;
     }
 
@@ -209,7 +208,7 @@ namespace
                 button->callback()->setExec(callback == 8 ? LoadGame : SaveGame);
                 screen->loadSaveButton = button;
                 button->disabled = -1;
-                button->draw();
+                button->Refresh();
                 return true;
             }
             case 10:
@@ -217,7 +216,7 @@ namespace
                 button->callback()->setExec(DeleteGame);
                 screen->deleteButton = button;
                 button->disabled = -1;
-                button->draw();
+                button->Refresh();
                 return true;
             }
             case 11:
@@ -333,7 +332,10 @@ auto lButton::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, ch
     backgroundColor = 0;
     pressSound = 0xf;
     overSound = 0xffffffff;
-    VFX_pane_wipe(ownPort->frame(), 0);
+    // The port was wiped to 0, which it shows until the first paint.
+    facePicture = nullptr;
+    faceColor = 0;
+    faceKeyed = false;
     return 0;
 }
 
@@ -391,7 +393,7 @@ auto lButton::handleEvent(aEvent* event) -> void
         {
             pressed = -1;
             soundSystem->playDigitalSample(pressSound, 1, nullptr, 0, 0);
-            draw();
+            Refresh();
             UpdateDisplay(0, 0, 0, 0, 0);
             buttonCallback->execute();
         }
@@ -409,6 +411,32 @@ auto lButton::handleEvent(aEvent* event) -> void
 
 auto lButton::draw() -> void
 {
+    if (!ownPort->viewOpen())
+    {
+        Refresh();
+        return;
+    }
+
+    if (facePicture != nullptr)
+    {
+        facePicture->copyTo(ownPort->frame(), 0, 0, faceKeyed ? -1 : 0);
+    }
+    else
+    {
+        VFX_pane_wipe(ownPort->frame(), faceColor);
+    }
+
+    lObject::draw();
+}
+
+auto lButton::Refresh() -> void
+{
+    updateFace();
+    lObject::Refresh();
+}
+
+auto lButton::updateFace() -> void
+{
     lPort* picture = nullptr;
 
     if (disabled != 0)
@@ -419,13 +447,6 @@ auto lButton::draw() -> void
     {
         // Up, or rolled over; without the picture the button is its background colour.
         picture = overState == 0 ? upPicture : overPicture;
-
-        if (picture == nullptr)
-        {
-            VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(backgroundColor));
-            lObject::draw();
-            return;
-        }
     }
     else
     {
@@ -434,15 +455,9 @@ auto lButton::draw() -> void
         pressed = 0;
     }
 
-    if (picture != nullptr)
-    {
-        picture->copyTo(ownPort->frame(), 0, 0, 0);
-        lObject::draw();
-        return;
-    }
-
-    VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(backgroundColor));
-    lObject::draw();
+    facePicture = picture;
+    faceColor = static_cast<uint8_t>(backgroundColor);
+    faceKeyed = false;
 }
 
 auto lButton::enter() -> void
@@ -451,7 +466,7 @@ auto lButton::enter() -> void
     {
         overState = -1;
         soundSystem->playDigitalSample(overSound, 1, nullptr, 0, 0);
-        draw();
+        Refresh();
     }
 }
 
@@ -474,19 +489,30 @@ auto lTextObject::destroy() -> void
 
 auto lTextObject::draw() -> void
 {
-    VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(backgroundColor));
-    cursorOn = -1;
-    font->writeString(ownPort->frame(), 1, 1, reinterpret_cast<uint8_t*>(buffer), -1);
-}
+    if (!ownPort->viewOpen())
+    {
+        Refresh();
+        return;
+    }
 
-auto lTextObject::display() -> void
-{
+    VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(backgroundColor));
+    font->writeString(ownPort->frame(), 1, 1, reinterpret_cast<uint8_t*>(buffer), -1);
+
     if (cursorPos > -1 && cursorPos < bufferSize)
     {
         const uint32_t color = cursorOn == 0 ? 0x1f : 0x10;
         VFX_line_draw(ownPort->frame(), cursorPixel, 0, cursorPixel, height(), LD_DRAW, color);
     }
+}
 
+auto lTextObject::Refresh() -> void
+{
+    cursorOn = -1;
+    lObject::Refresh();
+}
+
+auto lTextObject::display() -> void
+{
     lObject::display();
 }
 
@@ -591,7 +617,7 @@ auto lTextObject::handleEvent(aEvent* event) -> void
                     }
 
                     setCursorPos(newPos);
-                    draw();
+                    Refresh();
                 }
             }
             else if (key == 0x0d)
@@ -606,7 +632,7 @@ auto lTextObject::handleEvent(aEvent* event) -> void
             {
                 buffer[textLength++] = static_cast<char>(key);
                 setCursorPos(cursorPos + 1);
-                draw();
+                Refresh();
             }
             break;
         }
@@ -634,7 +660,7 @@ auto lTextObject::handleEvent(aEvent* event) -> void
                 {
                     clearBuffer();
                     setCursorPos(0);
-                    draw();
+                    Refresh();
                 }
             }
             else if (event->data == 8)
@@ -696,7 +722,7 @@ auto lTextObject::setStringBuffer(char* text) -> int32_t
     }
 
     setCursorPos(length);
-    draw();
+    Refresh();
     return result;
 }
 
@@ -715,6 +741,8 @@ auto FileScrollPane::init(int32_t xPos, int32_t yPos, int32_t width, int32_t hei
     }
 
     ScrollPane::init(width, height, xPos, yPos, static_cast<char*>(nullptr));
+    // The files are drawn into the content each frame (drawContent).
+    contentPort->initView(width - SliderWidth, height);
 
     // The splash screens' own slider art over the scroll pane's.
     char fileName[256];
@@ -747,7 +775,7 @@ auto FileScrollPane::init(int32_t xPos, int32_t yPos, int32_t width, int32_t hei
 
     for (int32_t i = 0; i < 3; i++)
     {
-        auto* header = new lObject;
+        auto* header = new FileColumnHeader;
         columnHeaders[i] = header;
         header->init(headerRects[i][0], headerRects[i][1], headerRects[i][2], headerRects[i][3], nullptr, nullptr);
         addChild(header);
@@ -780,7 +808,7 @@ auto FileScrollPane::destroy() -> void
         nameEntry = nullptr;
     }
 
-    for (lObject*& header : columnHeaders)
+    for (FileColumnHeader*& header : columnHeaders)
     {
         if (header != nullptr)
         {
@@ -812,7 +840,33 @@ auto FileScrollPane::destroy() -> void
     ScrollPane::destroy();
 }
 
+auto FileColumnHeader::draw() -> void
+{
+    if (!painted)
+    {
+        return;
+    }
+
+    VFX_pane_wipe(lport()->frame(), 0x10);
+
+    if (text[0] != '\0')
+    {
+        lgWhiteFont->writeString(lport()->frame(), 2, 2, reinterpret_cast<uint8_t*>(text), -1);
+    }
+}
+
 auto FileScrollPane::draw() -> void
+{
+    if (!panePort->viewOpen())
+    {
+        Refresh();
+        return;
+    }
+
+    ScrollPane::draw();
+}
+
+auto FileScrollPane::Refresh() -> void
 {
     if (IsShowing() == 0)
     {
@@ -833,45 +887,42 @@ auto FileScrollPane::draw() -> void
             resourcePoints = fileResourcePoints[selectedFile];
         }
 
-        for (lObject* header : columnHeaders)
+        for (FileColumnHeader* header : columnHeaders)
         {
-            VFX_pane_wipe(header->lport()->frame(), 0x10);
+            header->text[0] = '\0';
+            header->painted = true;
         }
 
         if (operation > 0 && multiplayer == 0)
         {
-            char text[16];
-            std::snprintf(text, sizeof(text), "%i", operation);
-            lgWhiteFont->writeString(columnHeaders[0]->lport()->frame(), 2, 2, reinterpret_cast<uint8_t*>(text), -1);
-            std::snprintf(text, sizeof(text), "%i", mission);
-            lgWhiteFont->writeString(columnHeaders[1]->lport()->frame(), 2, 2, reinterpret_cast<uint8_t*>(text), -1);
-            std::snprintf(text, sizeof(text), "%i", static_cast<int32_t>(resourcePoints));
-            lgWhiteFont->writeString(columnHeaders[2]->lport()->frame(), 2, 2, reinterpret_cast<uint8_t*>(text), -1);
+            std::snprintf(columnHeaders[0]->text, sizeof(columnHeaders[0]->text), "%i", operation);
+            std::snprintf(columnHeaders[1]->text, sizeof(columnHeaders[1]->text), "%i", mission);
+            std::snprintf(columnHeaders[2]->text, sizeof(columnHeaders[2]->text), "%i",
+                          static_cast<int32_t>(resourcePoints));
         }
     }
 
+    // The splash arrows over whatever the column showed.
+    columnUpArt = upArrowPort;
+    columnDownArt = downArrowPort;
+    lObject::Refresh();
+}
+
+auto FileScrollPane::drawContent() -> void
+{
     drawFiles();
-    upArrowPort->copyTo(sliderPort->frame(), 0, 0, -1);
-    downArrowPort->copyTo(sliderPort->frame(), 0, height() - 0xf, -1);
-    ScrollPane::draw();
 }
 
 auto FileScrollPane::display() -> void
 {
     if (IsShowing() != 0)
     {
-        if (backgroundCopy != nullptr)
-        {
-            backgroundCopy->copyTo(framePane, 0, 0, -1);
-        }
-
-        contentPort->copyTo(framePane, 0, static_cast<int32_t>(-(static_cast<double>(scrollPos) * scrollUnit)), -1);
-        sliderPort->copyTo(framePane, winWidth - SliderWidth, 0, -1);
+        DrawInFramePass(panePort, 0, false, false);
     }
 
-    for (lObject* header : columnHeaders)
+    for (FileColumnHeader* header : columnHeaders)
     {
-        header->lport()->copyTo(header->frame(), 0, 0, 0);
+        header->display();
     }
 
     for (int32_t i = 0; i < numChildren; i++)
@@ -888,8 +939,8 @@ auto FileScrollPane::handleEvent(aEvent* event) -> void
     {
         case 1:
         {
-            upArrowPort->copyTo(sliderPort->frame(), 0, 0, -1);
-            downArrowPort->copyTo(sliderPort->frame(), 0, height() - 0xf, -1);
+            columnUpArt = upArrowPort;
+            columnDownArt = downArrowPort;
 
             if (nameEntry != nullptr && nameEntry->parent == this)
             {
@@ -908,7 +959,7 @@ auto FileScrollPane::handleEvent(aEvent* event) -> void
                 setSelectedFile(file);
             }
 
-            draw();
+            Refresh();
 
             if (savePane == 0)
             {
@@ -945,7 +996,6 @@ auto FileScrollPane::handleEvent(aEvent* event) -> void
             entry->cursorPixel = 0;
             entry->backgroundColor = 0x1f;
             entry->font = lgBlackFont;
-            VFX_pane_wipe(entry->lport()->frame(), 0x1f);
             entry->clearEmptyOnFocus = -1;
             entry->initBuffer(0x20, lTextObject::INPUT_ANY);
             entry->setStringBuffer(fileNames[selectedFile]);
@@ -971,8 +1021,8 @@ auto FileScrollPane::handleEvent(aEvent* event) -> void
 
         case 0x13:
         {
-            upArrowPort->copyTo(sliderPort->frame(), 0, 0, -1);
-            downArrowPort->copyTo(sliderPort->frame(), 0, height() - 0xf, -1);
+            columnUpArt = upArrowPort;
+            columnDownArt = downArrowPort;
             return;
         }
         case 0x1e:
@@ -1050,7 +1100,7 @@ auto FileScrollPane::setStartDirectory(char* directory) -> void
     getAllFiles(const_cast<char*>(multiplayer != 0 ? ".mpk" : ".sav"), true);
 }
 
-auto FileScrollPane::drawFiles() -> void
+auto FileScrollPane::layoutFiles() -> void
 {
     int32_t contentHeight = numFiles * lineHeight;
 
@@ -1065,7 +1115,10 @@ auto FileScrollPane::drawFiles() -> void
         port->resize(width() - 0x12, contentHeight);
         setDisplayPort(port, 0, -1);
     }
+}
 
+auto FileScrollPane::drawFiles() -> void
+{
     lPort* port = contentPort;
     VFX_pane_wipe(port->frame(), 0x10);
 
@@ -1295,7 +1348,7 @@ auto FileScrollPane::getAllFiles(char* extension, bool sort) -> void
         }
     }
 
-    drawFiles();
+    layoutFiles();
 }
 
 auto FileScrollPane::setSelectedFile(int32_t file) -> void
@@ -1311,7 +1364,7 @@ auto FileScrollPane::setSelectedFile(int32_t file) -> void
     if (file < 0 || file >= numFiles)
     {
         selectedFile = -1;
-        drawFiles();
+        layoutFiles();
 
         if (parent != nullptr)
         {
@@ -1335,7 +1388,7 @@ auto FileScrollPane::setSelectedFile(int32_t file) -> void
     }
 
     selectedFile = file;
-    drawFiles();
+    layoutFiles();
     event.type = 0x1e;
     event.data = 1;
     event.lParam = file;
@@ -1438,7 +1491,8 @@ auto GenericScreen::init(FitIniFile* screenFile) -> int32_t
 
                 result = lObject::init(left, top, width, height, nullptr, nullptr);
                 Assert(result == 0, result, " Could not start background Generic Screen ", nullptr);
-                result = lport()->init(art);
+                artPort = new lPort;
+                result = artPort->init(art);
                 Assert(result == 0, result, " Could not find background Art in Generic Screen ", nullptr);
                 elements[i] = this;
                 break;
@@ -1516,7 +1570,34 @@ auto GenericScreen::destroy() -> void
     numElements = 0;
     unknown4C4 = -1;
     numChildren = 0;
+    freePort(artPort);
     lObject::destroy();
+}
+
+auto GenericScreen::draw() -> void
+{
+    if (artPort != nullptr && lport()->viewOpen())
+    {
+        artPort->copyTo(lport()->frame(), 0, 0, 0);
+    }
+
+    lObject::draw();
+}
+
+auto lImage::destroy() -> void
+{
+    freePort(art);
+    lObject::destroy();
+}
+
+auto lImage::draw() -> void
+{
+    if (art != nullptr)
+    {
+        art->copyTo(lport()->frame(), 0, 0, 0);
+    }
+
+    lObject::draw();
 }
 
 auto GenericScreen::handleEvent(aEvent* event) -> void
@@ -1554,44 +1635,44 @@ auto GenericScreen::ShowGUIWindow(int show) -> void
         const int noMission = globalLogPtr->currentMission < 0 ? 1 : 0;
         auto* saveButton = static_cast<lButton*>(elements[2]);
         saveButton->disabled = Solo == 0 ? noMission : -1;
-        saveButton->draw();
+        saveButton->Refresh();
         auto* returnButton = static_cast<lButton*>(elements[7]);
         returnButton->disabled = noMission;
-        returnButton->draw();
+        returnButton->Refresh();
 
         char pattern[256];
         std::snprintf(pattern, sizeof(pattern), "%s*.sav", savePath);
         auto* loadButton = static_cast<lButton*>(elements[3]);
         loadButton->disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
-        loadButton->draw();
+        loadButton->Refresh();
         std::snprintf(pattern, sizeof(pattern), "%s*.sol", savePath);
         auto* soloLoadButton = static_cast<lButton*>(elements[10]);
         soloLoadButton->disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
-        soloLoadButton->draw();
+        soloLoadButton->Refresh();
 
         // Multiplayer needs 30 MB.
         if (MCPort::TotalPhysicalMemory() < 30000000)
         {
             auto* multiplayerButton = static_cast<lButton*>(elements[5]);
             multiplayerButton->disabled = -1;
-            multiplayerButton->draw();
+            multiplayerButton->Refresh();
         }
 
         if (InDemo != 0)
         {
             auto* button = static_cast<lButton*>(elements[4]);
             button->disabled = -1;
-            button->draw();
+            button->Refresh();
             button = static_cast<lButton*>(elements[5]);
             button->disabled = -1;
-            button->draw();
+            button->Refresh();
             std::snprintf(pattern, sizeof(pattern), "%sopening.smk", CDmoviePath);
             auto* cinemaButton = static_cast<lButton*>(elements[6]);
             cinemaButton->disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
-            cinemaButton->draw();
+            cinemaButton->Refresh();
         }
 
-        draw();
+        Refresh();
     }
     else if (this == globalLogPtr->saveScreen || this == globalLogPtr->loadScreen)
     {
@@ -1604,11 +1685,11 @@ auto GenericScreen::ShowGUIWindow(int show) -> void
             filePane->getAllFiles(const_cast<char*>(LoadingSolo == 0 ? ".sav" : ".sol"), true);
         }
 
-        draw();
+        Refresh();
     }
     else
     {
-        draw();
+        Refresh();
     }
 
     // The load and save screens (single player) and the preferences keep the current palette.
@@ -1620,7 +1701,7 @@ auto GenericScreen::ShowGUIWindow(int show) -> void
         if (palette != nullptr)
         {
             application->activatePalette(palette, 0, 0x100);
-            draw();
+            Refresh();
             showWindow = show;
             return;
         }
@@ -1648,7 +1729,8 @@ MCSplashScreen::MCSplashScreen()
 MCSplashScreen::~MCSplashScreen()
 {
     instanceCount--;
-    ownPort = nullptr;
+    // The shared art isn't this screen's to free.
+    artPort = nullptr;
 
     if (instanceCount == 0 && genericPort != nullptr)
     {
@@ -1733,10 +1815,10 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
                     palette = getPaletteFromArt(art);
                 }
 
-                result = lObject::init(left, top, width, height, nullptr, genericPort);
+                // The screen draws the shared art each frame (the original made the shared port its own).
+                result = lObject::init(left, top, width, height, nullptr, nullptr);
                 Assert(result == 0, result, " Could not start background Generic Screen ", nullptr);
-                sharedPort = nullptr;
-                ownPort = genericPort;
+                artPort = genericPort;
                 elements[i] = this;
                 continue;
             }
@@ -1856,10 +1938,11 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
             case 6:
             {
                 // A picture; elements 6 and the others go just behind the rest.
-                auto* image = new lObject;
+                auto* image = new lImage;
                 elements[i] = image;
                 image->init(left, top, width, height, nullptr, nullptr);
-                image->lport()->init(art);
+                image->art = new lPort;
+                image->art->init(art);
                 addChild(image);
                 elements[i]->setDepth(i == 6 ? -0xb : -0xa);
                 elements[i]->setEventRoutine(ImageHandleEvent);
@@ -2036,6 +2119,8 @@ auto MCSplashScreen::destroy() -> void
         blocks = nullptr;
     }
 
+    // The shared art isn't this screen's to free.
+    artPort = nullptr;
     GenericScreen::destroy();
 }
 
@@ -2191,6 +2276,7 @@ auto lScrollTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t 
     tab->ShowGUIWindow(-1);
     tab->setEventRoutine(LogScrollTabHandleEvent);
     tab->setPaintRoutine(LogPaintScrollTab);
+    tab->SetDrawsLive();
     tab->setDepth(1);
 
     text = static_cast<char*>(logAlloc(TextBufferSize + 1));
@@ -2322,7 +2408,7 @@ auto lScrollTextObject::draw() -> void
 
     for (int32_t i = 0; i < numChildren; i++)
     {
-        childList[i]->draw();
+        DrawChild(childList[i]);
     }
 }
 
@@ -2338,15 +2424,8 @@ auto lScrollTextObject::display() -> void
         return;
     }
 
-    if (lport() != nullptr)
-    {
-        VFX_pane_copy(lport()->frame(), 0, 0, framePane, 0, scrolling != 0 ? -firstPixel : 0, -1);
-    }
-
-    for (int32_t i = 0; i < numChildren; i++)
-    {
-        childList[i]->display();
-    }
+    // The lines scrolled by firstPixel (a list that doesn't scroll shows its top), then the children.
+    DrawInFramePass(lport(), scrolling != 0 ? firstPixel : 0);
 }
 
 auto lScrollTextObject::resize(int32_t width, int32_t height) -> void
@@ -2511,8 +2590,6 @@ auto lScrollTextObject::Clear() -> void
     {
         line = -1;
     }
-
-    draw();
 }
 
 auto lScrollTextObject::CalcFirstPixel(int32_t tabPos) -> void
@@ -2605,7 +2682,6 @@ auto lScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
     }
 
     PositionScrollTab();
-    draw();
 }
 
 auto lScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
@@ -2691,6 +2767,17 @@ auto GameList::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, c
 
 auto GameList::draw() -> void
 {
+    if (!lport()->viewOpen())
+    {
+        Refresh();
+        return;
+    }
+
+    lScrollTextObject::draw();
+}
+
+auto GameList::Refresh() -> void
+{
     firstPixel = 0;
     textLength = 0;
     numLines = 0;
@@ -2739,7 +2826,7 @@ auto GameList::draw() -> void
         }
     }
 
-    lScrollTextObject::draw();
+    lScrollTextObject::Refresh();
 }
 
 auto IsSessionDeleted(FIDPSession* session) -> int
@@ -2798,7 +2885,7 @@ auto GameList::handleEvent(aEvent* event) -> void
             selectedGuid = sessions[row];
         }
 
-        draw();
+        Refresh();
         aEvent selected;
         selected.type = 0x1e;
         selected.data = 3;
@@ -2865,7 +2952,7 @@ auto GameList::handleEvent(aEvent* event) -> void
             }
         }
 
-        draw();
+        Refresh();
     }
 }
 
@@ -2945,8 +3032,6 @@ auto lSlider::setCurrentValue(int32_t value) -> void
     {
         currentValue = value;
     }
-
-    draw();
 }
 
 auto lSlider::handleEvent(aEvent* event) -> void

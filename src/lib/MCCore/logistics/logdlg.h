@@ -19,9 +19,12 @@ public:
     /// <remarks>MCX.EXE @ 0x006e0e20</remarks>
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
 
-    /// <summary>Draws the down, pressed or up picture (or a plain fill when it has none).</summary>
+    /// <summary>
+    /// The original's draw: shows the gray, pressed or up picture, keyed (or a plain fill when it has none), as the
+    /// face (see <see cref="lButton::updateFace"/>).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e0e50</remarks>
-    void draw() override;
+    void updateFace() override;
 
     /// <summary>On a click: shows the pressed state, runs the callback and deactivates the parent dialog.</summary>
     /// <remarks>MCX.EXE @ 0x006e0f30</remarks>
@@ -54,11 +57,27 @@ public:
     void destroy() override;
 
     /// <summary>
-    /// Darkens a snapshot of the screen behind the box (the first time after <see cref="activate"/>), then draws
-    /// the frame, the spinner arrows, the buttons and the picture.
+    /// The first time after <see cref="activate"/>, shows a frame with the cursor hidden (the original also made a
+    /// darkened snapshot of the screen behind the box, which its fill then covered); then the box shows afresh: the
+    /// numbers as they are now, no pressed arrow or button. (The original painted the box here.)
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006df3d0</remarks>
     void drawBackground();
+
+    /// <summary>
+    /// Port: draws the box: its fill, the frame, the spinner arrows, the buttons and the picture, then the pressed
+    /// arrow or button shown over them.
+    /// </summary>
+    void draw() override;
+
+    /// <summary>Port: the box draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: shows <paramref name="name"/> (logart) at (<paramref name="xPos"/>, <paramref name="yPos"/>) over the box
+    /// until it next shows afresh (a pressed arrow or button, which the original copied over the picture).
+    /// </summary>
+    void showPressed(const char* name, int32_t xPos, int32_t yPos);
 
     /// <summary>Whether it shows a second (cancel) button.</summary>
     /// <remarks>MCX.EXE @ 0x006df730</remarks>
@@ -97,6 +116,17 @@ public:
     lPort* fadedBackground = nullptr; // +0x4d0
     /// <summary>Set by <see cref="activate"/>: take a new snapshot on the next <see cref="drawBackground"/>.</summary>
     int32_t needBackground = 0; // +0x4d4
+
+    /// <summary>Port: the pressed arrow or button shown over the box (null for none), and where.</summary>
+    lPort* pressedArt = nullptr;
+    int32_t pressedX = 0;
+    int32_t pressedY = 0;
+
+protected:
+    /// <summary>Port: draws the fill, the frame, the spinner arrows, the buttons and the picture.</summary>
+    void drawBox();
+    /// <summary>Port: draws the pressed arrow or button, if any.</summary>
+    void drawPressed();
 };
 
 /// <summary>
@@ -125,9 +155,16 @@ public:
     /// <remarks>MCX.EXE @ 0x006df9f0</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>The base box plus the texts, the costs, the quantity and the kind's picture.</summary>
+    /// <summary>
+    /// The base box's, plus the quantity and resource points shown taken as they are now. (The original painted the
+    /// box and then copied it into the screen's port as well; nothing showed that copy, since the screen's panes
+    /// cover it.)
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006dfef0</remarks>
     void drawBackground();
+
+    /// <summary>Port: draws the base box plus the texts, the costs, the quantity and the kind's picture.</summary>
+    void draw() override;
 
     /// <remarks>MCX.EXE @ 0x006e0330</remarks>
     void activate();
@@ -154,6 +191,13 @@ public:
     void (*purchaseCallback)(int, int32_t) = nullptr; // +0x4ec
     /// <summary>The cost of one (resource points).</summary>
     int32_t unitCost = 0; // +0x4f0
+
+    /// <summary>
+    /// Port: the quantity and resource points the box shows, taken when it last showed afresh (a click on an arrow
+    /// shows the old quantity until the button comes up, as the original's picture did).
+    /// </summary>
+    int32_t shownQuantity = 0;
+    int32_t shownResourcePoints = 0;
 };
 
 /// <summary>
@@ -177,6 +221,9 @@ public:
     /// <summary>Draws the frame and the text wrapped to the width.</summary>
     /// <remarks>MCX.EXE @ 0x006e0880</remarks>
     void draw() override;
+
+    /// <summary>Port: the dialog draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
 
     /// <summary>Enter presses OK (or Cancel on a one-button dialog), Escape cancels, the timeout closes it.</summary>
     /// <remarks>MCX.EXE @ 0x006e0a70</remarks>
@@ -237,9 +284,16 @@ public:
     /// <remarks>MCX.EXE @ 0x006e0fd0</remarks>
     void setText(char* newText);
 
-    /// <summary>Draws the frame, the header (string 0x54), the items and the footer (string 0x62), once.</summary>
+    /// <summary>Draws the frame, the header (string 0x54), the items and the footer (string 0x62).</summary>
     /// <remarks>MCX.EXE @ 0x006e1100</remarks>
     void draw() override;
+
+    /// <summary>
+    /// Port: the original painted the dialog once per <see cref="setText"/> (cutting the items apart in place);
+    /// later paints, its buttons' included, did nothing. The first refresh marks it painted and refreshes the
+    /// buttons.
+    /// </summary>
+    void Refresh() override;
 
     /// <summary>Writes <paramref name="string"/> word-wrapped from line <paramref name="yPos"/>.</summary>
     /// <returns>The y of the last line written.</returns>

@@ -527,6 +527,12 @@ int32_t VFX_shape_scan_asm(PANE* pane, uint8_t transparentColor, int32_t hotX, i
         return status;
     }
 
+    // Port: a view has no pixels to read.
+    if (clip.Buffer == nullptr)
+    {
+        return VFX_ERR_BAD_WINDOW;
+    }
+
     uint8_t* out = static_cast<uint8_t*>(buffer);
 
     if (out != nullptr)

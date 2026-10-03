@@ -55,10 +55,25 @@ public:
     /// <remarks>MCX.EXE @ 0x006c9430</remarks>
     void SetFullUpdate(int fullUpdate);
 
+    /// <summary>Port: icons draw themselves each frame (see <see cref="DrawIcon"/>).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: brings what the icon shows up to date with its mover: the part colours (and, for a friendly icon, the
+    /// wounded or dead portrait). The original did this as it drew, every 500 ms; it runs every frame now.
+    /// </summary>
+    virtual void UpdateModel();
+
+    /// <summary>
+    /// Port: draws the icon into <paramref name="target"/>: its port's view in the frame pass, or a picture (the
+    /// mission results screen copies the icon). What <see cref="draw"/> drew into the icon's picture.
+    /// </summary>
+    virtual void DrawIcon(aPort* target);
+
 protected:
-    /// <summary>Draws each body part's shape in its colour (translucent unless undamaged).</summary>
+    /// <summary>Draws each body part's shape in its colour (translucent unless undamaged) into <paramref name="target"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006c8ea0</remarks>
-    void DrawParts();
+    void DrawParts(aPort* target);
     /// <summary>Picks each body part's colour from its armour left (green, yellow, orange, red, destroyed).</summary>
     /// <remarks>MCX.EXE @ 0x006c9150</remarks>
     void GetColors();
@@ -128,13 +143,21 @@ public:
     /// <remarks>MCX.EXE @ 0x006c9bf0</remarks>
     void SetID(int32_t partId);
 
+    /// <summary>Port: the part colours, then the portrait switched to the wounded or dead image (once each).</summary>
+    void UpdateModel() override;
+    /// <summary>
+    /// Port: the background (<see cref="iconBackground"/>), weapon bar, damage diagram, lance colour strip, then the
+    /// pilot (or the mover's name).
+    /// </summary>
+    void DrawIcon(aPort* target) override;
+
 protected:
-    /// <summary>The pilot portrait (switched to the wounded or dead image), health bar and name.</summary>
+    /// <summary>The pilot portrait, health bar and name, into <paramref name="target"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006c9920</remarks>
-    void DrawPilot();
-    /// <summary>The weapon recycle bar.</summary>
+    void DrawPilot(aPort* target);
+    /// <summary>The weapon recycle bar, into <paramref name="target"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006c9a90</remarks>
-    void DrawWeapon();
+    void DrawWeapon(aPort* target);
 
 public:
     /// <summary>Nonzero once the mover is in play (the icon is shown and counts in its lance).</summary>
@@ -153,6 +176,11 @@ public:
     int32_t showingDeadPilot = 0; // +0x530
     /// <summary>Set once the portrait was switched to the wounded pilot image.</summary>
     int32_t showingWoundedPilot = 0; // +0x534
+    /// <summary>
+    /// Port: the icon's background (<c>guiub00.tga</c>), which the original loaded into the icon's own picture and
+    /// drew over.
+    /// </summary>
+    aPort* iconBackground = nullptr;
 };
 
 /// <summary>A salvage craft's marker: draws every object in its list at the object's screen position.</summary>
@@ -397,7 +425,7 @@ public:
     /// <summary>The zoom-out key, as <see cref="ZoomIn"/>: <paramref name="factor"/> times more lines. The wheel
     /// zooms without the sound.</summary>
     void ZoomOut(float factor = ZoomKeyStep, bool sound = true);
-    /// <summary>How far a zoom key press zooms (about two presses from one end to the other).</summary>
+    /// <summary>How far a zoom key press zooms (about four presses from one end to the other).</summary>
     static constexpr float ZoomKeyStep = 1.5f;
     /// <summary>How far a notch of the mouse wheel zooms.</summary>
     static constexpr float ZoomWheelStep = 1.1f;

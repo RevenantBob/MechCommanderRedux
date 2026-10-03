@@ -43,6 +43,61 @@ public:
     /// <summary>Frees the bitmap and pane.</summary>
     /// <remarks>MCX.EXE @ 0x00710910</remarks>
     void destroy() override;
+
+    /// <summary>Port: <see cref="aPort::initView"/> on the logistics heap.</summary>
+    int32_t initView(int32_t width, int32_t height) override;
+};
+
+/// <summary>
+/// Port: the logistics art file <paramref name="fileName"/> (as <see cref="lPort::init(char*)"/> takes it), loaded the
+/// first time it is asked for and kept until <see cref="ClearLogArt"/>. The screens draw from their state every frame,
+/// so they take their art from here instead of loading it again for each draw.
+/// </summary>
+/// <returns>The art, or null when the file can't be read (reported once, as lPort::init reports it).</returns>
+lPort* logArt(const char* fileName);
+
+/// <summary>Port: <see cref="logArt"/> of a name made by <c>snprintf</c> from <paramref name="format"/>.</summary>
+lPort* logArtf(const char* format, ...);
+
+/// <summary>Port: frees the art <see cref="logArt"/> loaded (before the logistics heap goes).</summary>
+void ClearLogArt();
+
+/// <summary>
+/// Port: what one of the main logistics screens (briefing, purchase, repair) shows in the places they share, which
+/// the original painted into each screen's own picture and which stayed there until painted over: the four screen
+/// buttons, the ticker line, the resource points and the clock. The screen draws it from here each frame.
+/// </summary>
+struct LogScreenChrome
+{
+    /// <summary>The picture each screen button shows (normal or grayed, opaque); null where none was painted.</summary>
+    lPort* buttonFaces[4] = {};
+    /// <summary>The picture keyed over a button's face since (lit under the mouse, or the briefing button's blink).</summary>
+    lPort* buttonOverlays[4] = {};
+
+    /// <summary>Whether the ticker painted its back pane here, at (<see cref="tickerX"/>, <see cref="tickerY"/>).</summary>
+    bool tickerPainted = false;
+    /// <summary>Whether it painted its text over the back pane (<see cref="tickerText"/>).</summary>
+    bool tickerTextShown = false;
+    int32_t tickerX = 0;
+    int32_t tickerY = 0;
+    /// <summary>The text as the ticker last painted it, and where in its text picture it starts.</summary>
+    char tickerText[256] = {};
+    int32_t tickerTextX = 0;
+    /// <summary>For text wider than the line: how far it was scrolled; -1 when it was painted whole.</summary>
+    int32_t tickerScroll = -1;
+    /// <summary>The width of the ticker's text picture and its visible width when it painted.</summary>
+    int32_t tickerTextWidth = 0;
+    int32_t tickerMaxWidth = 0;
+
+    /// <summary>Whether the resource points were painted, and the text.</summary>
+    bool resourceShown = false;
+    char resourceText[44] = {};
+    /// <summary>Whether the clock was painted, and the time shown.</summary>
+    bool clockShown = false;
+    char clockText[12] = {};
+
+    /// <summary>Forgets everything: the screen's background art was painted over all of it.</summary>
+    void Clear() { *this = LogScreenChrome{}; }
 };
 
 /// <summary>
@@ -101,6 +156,16 @@ public:
     /// <summary>Loads <paramref name="fileName"/> as the background port.</summary>
     /// <remarks>MCX.EXE @ 0x007110a0</remarks>
     int32_t setBackground(char* fileName) override;
+
+    /// <summary>Port: the shared places this screen shows (<see cref="LogScreenChrome"/>), or null for other objects.</summary>
+    virtual LogScreenChrome* Chrome() { return nullptr; }
+
+    /// <summary>
+    /// Port: the view an object draws itself into in the frame pass when its own port is still a picture: a screen
+    /// whose picture holds what isn't drawn from state yet (its canvas), which its draw copies before drawing the
+    /// rest. Null for an object whose own port is its view.
+    /// </summary>
+    lPort* livePort = nullptr;
 
 protected:
     /// <summary>The object's own port, when <see cref="init"/> got none.</summary>

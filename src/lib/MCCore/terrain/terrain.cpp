@@ -406,7 +406,7 @@ auto Terrain::init(char* fileName) -> int32_t
 
         const double sinAngle = std::sin(VIEW_ANGLE);
         const double cosAngle = std::cos(VIEW_ANGLE);
-        // The world view's surface is at most 1080 tall (viewWindow::ZoomFurthest), at the widest desktop's aspect.
+        // The world view's surface is at most 2160 tall (viewWindow::ZoomFurthest), at the widest desktop's aspect.
         const double widest = std::max(static_cast<double>(screenWidth) / screenHeight, 16.0 / 9.0);
         const double furthest = static_cast<double>(viewWindow::ZoomFurthest);
         const double needed = std::max(static_cast<double>(screenWidth) / cosAngle + screenHeight / sinAngle,
@@ -649,7 +649,7 @@ auto Terrain::init(char* fileName) -> int32_t
 
     theInterface->tacticalMap = terrainTacticalMap;
     screenWindow->addChild(terrainTacticalMap);
-    terrainTacticalMap->draw();
+    terrainTacticalMap->RefreshPage();
     terrainFile.close();
 
     const float sinAngle = static_cast<float>(std::sin(VIEW_ANGLE));

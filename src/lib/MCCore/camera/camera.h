@@ -141,15 +141,15 @@ public:
     void setWindowCamera(Camera* newCamera);
 
     // Port: the world surface and the zoom. The camera draws the world into a surface of its own, at 1x (camera
-    // scale 100), as tall as the zoom asks: ZoomHeight game pixels, 480 closest to 1080 furthest, whatever the
+    // scale 100), as tall as the zoom asks: ZoomHeight game pixels, 480 closest to 2160 furthest, whatever the
     // window's size. The surface has the view's aspect, is the screen's underlay over the view's rectangle (the
     // display scales it there), and the view's rectangle of the screen is left in the key colour for it to show
     // through. Unit overlays (health bars, selection marks) are drawn on the screen at its own scale.
 
     /// <summary>The closest zoom: the view shows 480 lines of the world (the original's 640x480 at camera scale 100).</summary>
     static constexpr float ZoomClosest = 480.0f;
-    /// <summary>The furthest zoom: 1080 lines of the world.</summary>
-    static constexpr float ZoomFurthest = 1080.0f;
+    /// <summary>The furthest zoom: 2160 lines of the world.</summary>
+    static constexpr float ZoomFurthest = 2160.0f;
 
     /// <summary>The world surface's pane (what the camera draws into), sized for the zoom first.</summary>
     _pane* WorldFrame();
@@ -161,7 +161,7 @@ public:
     /// <summary>The world surface's width and height.</summary>
     int32_t WorldWidth() const { return WorldWindow.x_max + 1; }
     int32_t WorldHeight() const { return WorldWindow.y_max + 1; }
-    /// <summary>The closest and furthest zoom for this view: 480 and 1080, or less where the terrain grid can't cover
+    /// <summary>The closest and furthest zoom for this view: 480 and 2160, or less where the terrain grid can't cover
     /// a surface that large (a very wide view).</summary>
     void ZoomLimits(float& closest, float& furthest);
     /// <summary>Moves the zoom toward <paramref name="height"/> (eased over a few frames), within the limits.</summary>
@@ -180,7 +180,8 @@ public:
     /// <summary>The zoom toggle (the original flipped the camera between scales 100 and 1): to
     /// <see cref="ZoomInHeight"/> when zoomed out, else to the furthest zoom.</summary>
     void ToggleZoom();
-    /// <summary>Eases <see cref="ZoomHeight"/> toward the target: called once a frame, before the camera renders.</summary>
+    /// <summary>Eases <see cref="ZoomHeight"/> toward the target: called once a frame by Camera::update, before the
+    /// objects place themselves on screen.</summary>
     void EaseZoom();
     /// <summary>Sets the zoom the first time it is needed: one world pixel per screen pixel, within the limits.</summary>
     void StartZoom();

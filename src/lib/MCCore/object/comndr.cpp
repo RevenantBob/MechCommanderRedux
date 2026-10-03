@@ -18,7 +18,7 @@ namespace
     {
         if (Terrain::terrainTacticalMap != nullptr && commander == HomeCommander)
         {
-            Terrain::terrainTacticalMap->draw();
+            Terrain::terrainTacticalMap->RefreshPage();
         }
     }
 }

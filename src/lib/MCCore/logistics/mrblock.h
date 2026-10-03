@@ -32,6 +32,12 @@ public:
     /// <remarks>MCX.EXE @ 0x00716180</remarks>
     void destroy() override;
 
+    /// <summary>
+    /// Port: draws the mech's details into the repair screen's info box (see <c>InvInfoBox</c>): its diagram,
+    /// tonnage, classes, speed and description.
+    /// </summary>
+    void DrawInfo(lPort* port);
+
     /// <summary>Takes the mech out of its drop slot.</summary>
     /// <remarks>MCX.EXE @ 0x007162a0</remarks>
     void undeployMech();
@@ -42,10 +48,40 @@ public:
 
     /// <summary>
     /// Draws the panel. <paramref name="row"/> &lt; 0 draws into <paramref name="port"/> (the briefing box);
-    /// otherwise into the repair screen's scroll pane at that row.
+    /// otherwise into the repair screen's scroll pane at that row. Port: the pane's rows are drawn each frame by
+    /// <see cref="DrawRow"/>; for them this keeps what the paint left (the frame, the darkening, the buttons and the
+    /// status shown) and does the rest of what the paint did (the battle rating, the weapon lists).
     /// </summary>
     /// <remarks>MCX.EXE @ 0x007191b0</remarks>
     void drawBackground(int32_t row, lPort* port);
+
+    /// <summary>
+    /// Port: draws the row into <paramref name="port"/> (the repair screen's unit pane) with its top at
+    /// <paramref name="top"/>: put together as the original painted it into the rows' picture, and darkened when it
+    /// was painted unselected.
+    /// </summary>
+    void DrawRow(lPort* port, int32_t top);
+
+    /// <summary>
+    /// Port: draws the picked-up pilot's drag icon into <paramref name="surface"/> (0x20 square): the row's square at
+    /// (5, 0x25), the portrait, over the unit list's colour 0xff. Before <see cref="clearPilot"/>.
+    /// </summary>
+    void OnBeginDragPilot(lPort* surface);
+
+    /// <summary>
+    /// Port: draws the picked-up mech's drag icon into <paramref name="surface"/> (0x20 square): its body diagram at
+    /// (2, 1) over colour 0x10.
+    /// </summary>
+    void OnBeginDragMech(lPort* surface);
+
+    /// <summary>
+    /// Port: draws the drag icon of <paramref name="item"/>, picked out of the weapon list, into
+    /// <paramref name="surface"/> (0x20 square): its picture (<c>lscicc</c>) at (1, 1).
+    /// </summary>
+    void OnBeginDragItem(lPort* surface, _LogInventoryItem* item);
+
+    /// <summary>Port: a repair button shown pressed, over the row until it is drawn again (<see cref="drawBackground"/>).</summary>
+    void ShowPressed(lPort* art, int32_t xPos, int32_t yPos);
 
     /// <summary>Draws the repair buttons, enabled when there is something to repair.</summary>
     /// <remarks>MCX.EXE @ 0x00719630</remarks>
@@ -151,6 +187,12 @@ public:
     /// <remarks>MCX.EXE @ 0x0071c8b0</remarks>
     void setInventory(ScrollPane* pane);
 
+    /// <summary>
+    /// Port: draws the weapon lists (headings and items) into <paramref name="content"/>, a weapon-list pane's view:
+    /// what <see cref="setInventory"/> painted into the pane's picture.
+    /// </summary>
+    void DrawWeaponList(lPort* content);
+
     /// <summary>The item on line <paramref name="line"/> of <paramref name="pane"/> (null on a heading).</summary>
     /// <remarks>MCX.EXE @ 0x0071ed40</remarks>
     _LogInventoryItem* getItemFromScrollPane(ScrollPane* pane, int32_t line, uint8_t* itemNum);
@@ -216,6 +258,48 @@ public:
     int32_t engineSliderStart = 0; // +0x57c
     /// <summary>The engine's inventory stat (its second byte is the damage level).</summary>
     _LogInventoryStat* engineStat = nullptr; // +0x580
+
+private:
+    // Port: the pieces of the panel, drawn into port with its top at top (row 0 of the briefing box's picture, or
+    // a row of the repair screen's unit pane).
+
+    /// <summary>The background, the name art, the tonnage line and (when <paramref name="framed"/>) the selection frame.</summary>
+    void PaintBase(lPort* port, int32_t top, bool briefing, bool framed);
+    /// <summary>The repair buttons, live when <paramref name="items"/> / <paramref name="structure"/>.</summary>
+    void PaintButtons(lPort* port, int32_t top, bool onRows, int32_t items, int32_t structure);
+    void PaintDiagram(lPort* port, int32_t top, int32_t xPos);
+    void PaintBR(lPort* port, int32_t top);
+    void PaintSlider(lPort* port, int32_t top, int32_t slider, bool briefing);
+    void PaintStatusBar(lPort* port, int32_t top, float status, bool repairLayout);
+    /// <summary>The status bar, the pilot's portrait, callsign, rank, skills and health.</summary>
+    void PaintPilot(lPort* port, int32_t top, float status, bool repairLayout);
+    /// <summary>The weapon list (its pane, as scrolled) and its slider column.</summary>
+    void PaintInventory(lPort* port, int32_t top);
+    /// <summary>The weapons' weight against the free weight.</summary>
+    void PaintTonnage(lPort* port, int32_t top);
+
+    // Port: what the rows' picture showed of the block (set when the original painted it).
+
+    /// <summary>The selection frame was drawn.</summary>
+    bool rowFramed = false;
+    /// <summary>The row was darkened (painted while another mech was selected).</summary>
+    bool rowDarkened = false;
+    /// <summary>The portrait's place was blanked (the pilot was picked up).</summary>
+    bool pilotLifted = false;
+    /// <summary>A pressed repair button's picture over the row, and where (relative to the row).</summary>
+    lPort* pressedArt = nullptr;
+    int32_t pressedX = 0;
+    int32_t pressedY = 0;
+    /// <summary>A status bar was drawn without a pilot (the sliders' and repairs' redraws).</summary>
+    bool statusShown = false;
+    /// <summary>The status shown and whether the repair screen's layout drew it.</summary>
+    float rowStatus = 0.0f;
+    bool rowStatusLayout = true;
+    /// <summary>The tonnage bar was drawn (<see cref="setInventory"/> got past its multiplayer check).</summary>
+    bool tonnageShown = false;
+    /// <summary>The repair buttons' states shown (<see cref="canRepairItems"/>, <see cref="canRepairStructure"/>).</summary>
+    int32_t shownRepairItems = 0;
+    int32_t shownRepairStructure = 0;
 };
 
 /// <summary>A vehicle's panel on the repair screen (vehicles can't be refitted: mostly a status bar).</summary>
@@ -243,6 +327,15 @@ public:
     /// <remarks>MCX.EXE @ 0x0071df00</remarks>
     void drawBackground(int32_t row, lPort* port);
 
+    /// <summary>Port: as <see cref="MechRepairBlock::DrawRow"/>.</summary>
+    void DrawRow(lPort* port, int32_t top);
+
+    /// <summary>
+    /// Port: draws the picked-up vehicle's drag icon into <paramref name="surface"/> (0x1e square): its body diagram
+    /// at (2, 0) over colour 0x10.
+    /// </summary>
+    void OnBeginDrag(lPort* surface);
+
     /// <summary>Draws the status bar into <paramref name="port"/> at row <paramref name="row"/>.</summary>
     /// <remarks>MCX.EXE @ 0x0071e410</remarks>
     void setBar(lPort* port, int32_t row);
@@ -263,6 +356,13 @@ public:
     LogVehicle* vehicle = nullptr; // +0x4c0
     /// <summary>Never touched by the code: the class is 0x4e0 bytes but ends its known fields at 0x4c4.</summary>
     int32_t unknown4C4[7] = {}; // +0x4c4
+
+private:
+    /// <summary>Port: the panel into <paramref name="port"/> with its top at <paramref name="top"/>.</summary>
+    void PaintRow(lPort* port, int32_t top, bool briefing, bool framed);
+
+    /// <summary>Port: the selection frame was drawn when the row was painted (otherwise it was darkened).</summary>
+    bool rowFramed = false;
 };
 
 /// <summary>The panel of the briefing screen showing the selected mech (its repair block) or vehicle.</summary>
@@ -283,6 +383,13 @@ public:
     /// <summary>Draws the mech's or vehicle's repair block into the box.</summary>
     /// <remarks>MCX.EXE @ 0x0071e7b0</remarks>
     void drawBackground();
+
+    /// <summary>
+    /// Port: draws the box (the unit's repair block, its weapon list and tonnage bar, darkened) at
+    /// (<paramref name="xPos"/>, <paramref name="yPos"/>) in <paramref name="target"/>: what
+    /// <see cref="drawBackground"/> painted into the briefing screen's picture.
+    /// </summary>
+    void PaintBox(PANE* target, int32_t xPos, int32_t yPos);
 
     /// <summary>Empty.</summary>
     /// <remarks>MCX.EXE @ 0x0071eba0</remarks>

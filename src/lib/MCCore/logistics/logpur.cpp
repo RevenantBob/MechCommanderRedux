@@ -64,6 +64,7 @@ auto PurchaseScreen::init() -> void
     std::snprintf(fileName, sizeof(fileName), "%slogart\\lspbk00.tga", artPath);
     result = lport()->init(fileName);
     Assert(result == 0, result, "Unable to init purchase screen image", nullptr);
+    initLiveView();
 
     // The mech inventory header.
     lPort* header = loadArt("lscdwm.tga");
@@ -148,6 +149,8 @@ auto PurchaseScreen::drawBackground() -> void
     lPort* background = loadArt("lspbk00.tga");
     VFX_pane_copy(background->frame(), 0, 0, lport()->frame(), 0, 0, -1);
     delete background;
+    chrome.Clear();
+    info.Clear();
 }
 
 auto PurchaseScreen::handleEvent(aEvent* event) -> void
@@ -182,12 +185,12 @@ auto PurchaseScreen::handleEvent(aEvent* event) -> void
             showHelp(0x286);
             lPort* highlight =
                 MPlayer == nullptr ? globalLogPtr->screenButtonPorts[0][1] : globalLogPtr->screenButtonPorts[1][1];
-            highlight->copyTo(lport()->frame(), 2, 0x10, -1);
+            globalLogPtr->litScreenButton(this, 0, highlight);
         }
         else if (inside(2, 0x22, 0xd0, 0x33))
         {
             showHelp(0x1e);
-            globalLogPtr->screenButtonPorts[2][1]->copyTo(lport()->frame(), 2, 0x22, -1);
+            globalLogPtr->litScreenButton(this, 1, globalLogPtr->screenButtonPorts[2][1]);
         }
         else if (inside(2, 0x34, 0xd0, 0x45))
         {
@@ -196,7 +199,7 @@ auto PurchaseScreen::handleEvent(aEvent* event) -> void
         else if (inside(2, 0x46, 0xd0, 0x57))
         {
             showHelp(0x42);
-            globalLogPtr->screenButtonPorts[4][1]->copyTo(lport()->frame(), 2, 0x46, -1);
+            globalLogPtr->litScreenButton(this, 3, globalLogPtr->screenButtonPorts[4][1]);
         }
         else if (inside(0x20c, 2, 0x24d, 0xd))
         {
@@ -362,7 +365,7 @@ auto PurchaseScreen::handleEvent(aEvent* event) -> void
             // Blink the briefing button.
             lPort* picture =
                 briefingBlink == 0 ? globalLogPtr->screenButtonPorts[2][0] : globalLogPtr->screenButtonPorts[2][1];
-            picture->copyTo(lport()->frame(), 2, 0x22, -1);
+            globalLogPtr->litScreenButton(this, 1, picture);
             briefingBlink = briefingBlink == 0 ? 1 : 0;
             break;
         }

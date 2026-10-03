@@ -727,7 +727,8 @@ int32_t VFX_color_scan(PANE* pane, uint32_t* colors)
     uint8_t seen[0x100] = {};
     MCVfxClip clip;
 
-    if (MCVfxClipPane(pane, clip) != 0)
+    // Port: a view has no pixels to read.
+    if (MCVfxClipPane(pane, clip) != 0 || clip.Buffer == nullptr)
     {
         return 0;
     }

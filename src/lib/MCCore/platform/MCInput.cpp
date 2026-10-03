@@ -603,7 +603,9 @@ namespace MCInput
         input.CursorX = point.x;
         input.CursorY = point.y;
 
-        if (input.Display != nullptr && input.Display->Window() != nullptr)
+        // A hidden window (the headless tests) has no mouse of its own: warping would move the user's.
+        if (input.Display != nullptr && input.Display->Window() != nullptr &&
+            (SDL_GetWindowFlags(input.Display->Window()) & SDL_WINDOW_HIDDEN) == 0)
         {
             float windowX = 0.0f;
             float windowY = 0.0f;

@@ -4643,6 +4643,7 @@ auto Logistics::init() -> void
     nameTicker->init();
     ticker = nameTicker;
     nameTicker->init(3, 3, 0xcd, 1, currentScreen->lport());
+    nameTicker->setScreen(currentScreen);
     currentScreen->addChild(nameTicker);
     nameTicker->setFont(medWhiteFont);
     nameTicker->bringToFront(0);
@@ -5199,6 +5200,7 @@ auto Logistics::destroy() -> void
     deleteScreen(loadScreen);
     deleteScreen(saveScreen);
     application->setCurrentObject(nullptr);
+    ClearLogArt();
     delete logisticsHeap;
     logisticsHeap = nullptr;
 
@@ -5874,6 +5876,7 @@ namespace
 
         screen->addChild(ticker);
         ticker->setPort(screen->lport());
+        ticker->setScreen(screen);
         ticker->setPos(3, 3);
     }
 
@@ -5899,9 +5902,9 @@ namespace
         }
 
         VFX_pane_wipe(scratch->frame(), 0xff);
-        VFX_pane_copy(pane->lport()->frame(), 0, pane->getScrollOffset(), scratch->frame(), 0, 0, -1);
+        pane->DrawContentTo(scratch->frame(), 0, 0);
         scratch->copyTo(dest->frame(), 0, 1, 1);
-        pane->sliderPort->copyTo(dest->frame(), dest->width() - 0xe, 1, 1);
+        pane->DrawSliderColumn(dest->frame(), dest->width() - 0xe, 1, true);
     }
 
     /// <summary>A scratch port the size of the purchase screen's unit pane (every screen's pane is that size).</summary>
@@ -6001,7 +6004,9 @@ auto Logistics::setUpPurchaseScreen(int animate) -> int32_t
         }
         else
         {
-            VFX_pane_copy(briefingScreen->lport()->frame(), 0xd3, 0x10, workPort1->frame(), 0, 0, -1);
+            lPort* look = briefingScreen->NewLookPicture();
+            VFX_pane_copy(look->frame(), 0xd3, 0x10, workPort1->frame(), 0, 0, -1);
+            delete look;
             direction = 0;
         }
 
@@ -6024,24 +6029,77 @@ auto Logistics::drawScreenButtons() -> void
     }
 
     // (The original also made and freed an unused lPort here.)
-    _pane* frame = screen->lport()->frame();
-    // Button 0 is the main menu in single player, exit in multiplayer; the current screen's button is grayed.
-    (MPlayer == nullptr ? screenButtonPorts[0][0] : screenButtonPorts[1][0])->copyTo(frame, 2, 0x10, 0);
-    screenButtonPorts[2][0]->copyTo(frame, 2, 0x22, 0);
-    screenButtonPorts[3][0]->copyTo(frame, 2, 0x34, 0);
-    screenButtonPorts[4][0]->copyTo(frame, 2, 0x46, 0);
+    // Button 0 is the main menu in single player, exit in multiplayer; the current screen's button is grayed. The
+    // screen keeps the faces (it painted them into its picture).
+    LogScreenChrome* chrome = screen->Chrome();
+    chrome->buttonFaces[0] = MPlayer == nullptr ? screenButtonPorts[0][0] : screenButtonPorts[1][0];
+    chrome->buttonFaces[1] = screenButtonPorts[2][0];
+    chrome->buttonFaces[2] = screenButtonPorts[3][0];
+    chrome->buttonFaces[3] = screenButtonPorts[4][0];
 
     if (screen == briefingScreen)
     {
-        screenButtonPorts[2][2]->copyTo(frame, 2, 0x22, 0);
+        chrome->buttonFaces[1] = screenButtonPorts[2][2];
     }
     else if (screen == purchaseScreen)
     {
-        screenButtonPorts[3][2]->copyTo(frame, 2, 0x34, 0);
+        chrome->buttonFaces[2] = screenButtonPorts[3][2];
     }
     else
     {
-        screenButtonPorts[4][2]->copyTo(frame, 2, 0x46, 0);
+        chrome->buttonFaces[3] = screenButtonPorts[4][2];
+    }
+
+    for (lPort*& overlay : chrome->buttonOverlays)
+    {
+        overlay = nullptr;
+    }
+}
+
+auto Logistics::litScreenButton(lObject* screen, int32_t button, lPort* picture) -> void
+{
+    if (LogScreenChrome* chrome = screen->Chrome(); chrome != nullptr)
+    {
+        chrome->buttonOverlays[button] = picture;
+    }
+}
+
+auto Logistics::drawScreenChrome(lObject* screen, _pane* target) -> void
+{
+    LogScreenChrome* chrome = screen->Chrome();
+
+    for (int32_t button = 0; button < 4; button++)
+    {
+        const int32_t top = 0x10 + button * 0x12;
+
+        if (chrome->buttonFaces[button] != nullptr)
+        {
+            chrome->buttonFaces[button]->copyTo(target, 2, top, 0);
+        }
+
+        if (chrome->buttonOverlays[button] != nullptr)
+        {
+            chrome->buttonOverlays[button]->copyTo(target, 2, top, -1);
+        }
+    }
+
+    if (ticker != nullptr)
+    {
+        ticker->drawPainted(*chrome, target);
+    }
+
+    if (chrome->resourceShown)
+    {
+        VFX_pane_copy(resourceBackPort->frame(), 0, 0, target, 0x209, 2, -1);
+        auto* bytes = reinterpret_cast<uint8_t*>(chrome->resourceText);
+        const int32_t textWidth = medWhiteFont->width(bytes);
+        medWhiteFont->writeString(target, 0x244 - textWidth, 4, bytes, -1);
+    }
+
+    if (chrome->clockShown)
+    {
+        VFX_pane_copy(clockBackPort->frame(), 0, 0, target, 0x24c, 2, -1);
+        medWhiteFont->writeString(target, 0x254, 4, reinterpret_cast<uint8_t*>(chrome->clockText), -1);
     }
 }
 
@@ -6059,10 +6117,7 @@ auto Logistics::setUpBriefingScreen(int animate) -> int32_t
     moveTicker(ticker, briefing);
     briefing->setUpDeploy();
 
-    // Blank the local player's empty drop slots, then the text area under them.
-    lPort* blank = newPort(0x32, 0x2c);
-    VFX_pane_wipe(blank->frame(), 0x10);
-
+    // Blank the local player's empty drop slots, then the text area under them (the screen draws them each frame).
     for (int32_t lance = 0; lance < 3; ++lance)
     {
         for (int32_t slot = 0; slot < 4; ++slot)
@@ -6071,17 +6126,12 @@ auto Logistics::setUpBriefingScreen(int animate) -> int32_t
 
             if (localDropSlot[index] != 0 && deploySlots[lance][slot].unit == deploySlots[lance][slot].vehicle)
             {
-                VFX_pane_copy(blank->frame(), 0, 0, briefing->lport()->frame(), briefing->slotRects[index].left,
-                              briefing->slotRects[index].top, -1);
+                briefing->CoverSlot(index, BriefingScreen::SlotCover::Blank);
             }
         }
     }
 
-    blank->destroy();
-    blank->init(0x1aa, 0x6e, 1);
-    VFX_pane_wipe(blank->frame(), 0x10);
-    VFX_pane_copy(blank->frame(), 0, 0, briefing->lport()->frame(), 0xd3, 0x16f, -1);
-    delete blank;
+    briefing->BlankBox();
 
     currentScreen = briefing;
     logisticsState = 3;
@@ -6149,7 +6199,9 @@ auto Logistics::setUpBriefingScreen(int animate) -> int32_t
 
     if (animate != 0)
     {
-        VFX_pane_copy(briefing->lport()->frame(), 0xd3, 0x10, workPort0->frame(), 0, 0, -1);
+        lPort* look = briefing->NewLookPicture();
+        VFX_pane_copy(look->frame(), 0xd3, 0x10, workPort0->frame(), 0, 0, -1);
+        delete look;
         lPort* from = workPort1;
         VFX_pane_wipe(from->frame(), 0x10);
         lPort* scratch = newPaneScratch(purchaseScreen->unitPane);
@@ -6268,7 +6320,9 @@ auto Logistics::setUpRepairScreen(int animate) -> int32_t
         }
         else
         {
-            VFX_pane_copy(briefingScreen->lport()->frame(), 0xd3, 0x10, workPort1->frame(), 0, 0, -1);
+            lPort* look = briefingScreen->NewLookPicture();
+            VFX_pane_copy(look->frame(), 0xd3, 0x10, workPort1->frame(), 0, 0, -1);
+            delete look;
         }
 
         repairScreen->unitPane->ShowGUIWindow(0);
@@ -10356,12 +10410,8 @@ auto Logistics::RemoveForceAtDropSlot(int32_t slotIndex, uint32_t playerID, int 
 
     if (teamTable != 0)
     {
-        // Draw the empty slot over it.
-        lPort* empty = newPort("%slogart\\lsbdf06.tga", artPath);
-        BriefingScreen* briefing = briefingScreen;
-        const RECT& rect = briefing->slotRects[slotIndex];
-        empty->copyTo(briefing->lport()->frame(), rect.left + 1, rect.top + 1, 1);
-        delete empty;
+        // Draw the empty slot over it (the screen draws its slots each frame).
+        briefingScreen->CoverSlot(slotIndex, BriefingScreen::SlotCover::Covered);
     }
 
     return mech != nullptr || vehicle != nullptr ? 1 : 0;

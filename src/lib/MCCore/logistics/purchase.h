@@ -312,9 +312,24 @@ public:
     /// <remarks>MCX.EXE @ 0x00721800</remarks>
     void draw() override;
 
-    /// <summary>Draws the row at list position <paramref name="row"/>.</summary>
+    /// <summary>
+    /// Draws the row at list position <paramref name="row"/>. Port: the row is drawn by <see cref="DrawRow"/>; this
+    /// makes the picture and diagram when missing, the class texts and the description.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00721810</remarks>
     void drawBackground(int32_t row);
+
+    /// <summary>
+    /// Port: draws the row into <paramref name="port"/> (the store's view) with its top at <paramref name="top"/>:
+    /// what the original's <c>drawBackground</c> painted into the store's picture.
+    /// </summary>
+    void DrawRow(lPort* port, int32_t top);
+
+    /// <summary>
+    /// Port: draws the drag icon's picture into <paramref name="surface"/>: a 0x20 square of the row, over the
+    /// store's background.
+    /// </summary>
+    void OnBeginDrag(lPort* surface);
 
     /// <summary>Empty.</summary>
     /// <remarks>MCX.EXE @ 0x00722d50</remarks>
@@ -327,7 +342,7 @@ public:
     int32_t nameIndex = 0; // +0x4c4
     /// <summary>The variant shown (0..2), -1 before <see cref="PurMechList::addMech"/> picks one.</summary>
     int32_t curVariant = -1; // +0x4c8
-    /// <summary>The mech's picture (0x4b x 100), built on first draw.</summary>
+    /// <summary>The mech's picture (0x4b x 100), built by the first <see cref="drawBackground"/>.</summary>
     lPort* picturePort = nullptr; // +0x4cc
     /// <summary>The small body diagram (0x1e x 0x1e), built on first draw.</summary>
     lPort* diagramPort = nullptr; // +0x4d0
@@ -357,9 +372,24 @@ public:
     /// <remarks>MCX.EXE @ 0x00723aa0</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the row at list position <paramref name="row"/>.</summary>
+    /// <summary>
+    /// Draws the row at list position <paramref name="row"/>. Port: the row is drawn by <see cref="DrawRow"/>; this
+    /// makes the diagram the purchase dialog shows.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00724270</remarks>
     void drawBackground(int32_t row);
+
+    /// <summary>
+    /// Port: draws the row into <paramref name="port"/> (the store's view) with its top at <paramref name="top"/>:
+    /// what the original's <c>drawBackground</c> painted into the store's picture.
+    /// </summary>
+    void DrawRow(lPort* port, int32_t top);
+
+    /// <summary>
+    /// Port: draws the drag icon's picture into <paramref name="surface"/>: a 0x20 square of the row, over the
+    /// store's background.
+    /// </summary>
+    void OnBeginDrag(lPort* surface);
 
     /// <summary>Empty.</summary>
     /// <remarks>MCX.EXE @ 0x00724bc0</remarks>
@@ -392,9 +422,24 @@ public:
     /// <remarks>MCX.EXE @ 0x00725050</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the row at list position <paramref name="row"/>.</summary>
+    /// <summary>
+    /// Draws the row at list position <paramref name="row"/>. Port: the row is drawn by <see cref="DrawRow"/>; this
+    /// readies the description.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00725860</remarks>
     void drawBackground(int32_t row, int32_t unused);
+
+    /// <summary>
+    /// Port: draws the row into <paramref name="port"/> (the store's view) with its top at <paramref name="top"/>:
+    /// what the original's <c>drawBackground</c> painted into the store's picture.
+    /// </summary>
+    void DrawRow(lPort* port, int32_t top);
+
+    /// <summary>
+    /// Port: draws the drag icon's picture into <paramref name="surface"/>: a 0x20 square of the row, over the
+    /// store's background.
+    /// </summary>
+    void OnBeginDrag(lPort* surface);
 
     int32_t row = 0; // +0x4bc
     /// <summary>The item's sort order (copied from <c>_LogInventoryItem::sortOrder</c> when the block is made).</summary>
@@ -425,9 +470,24 @@ public:
     /// <remarks>MCX.EXE @ 0x00725d20</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the row at list position <paramref name="row"/>.</summary>
+    /// <summary>
+    /// Draws the row at list position <paramref name="row"/>. Port: the row is drawn by <see cref="DrawRow"/>; this
+    /// readies the description.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00726510</remarks>
     void drawBackground(int32_t row);
+
+    /// <summary>
+    /// Port: draws the row into <paramref name="port"/> (the store's view) with its top at <paramref name="top"/>:
+    /// what the original's <c>drawBackground</c> painted into the store's picture.
+    /// </summary>
+    void DrawRow(lPort* port, int32_t top);
+
+    /// <summary>
+    /// Port: draws the drag icon's picture into <paramref name="surface"/>: a 0x20 square of the row, over the
+    /// store's background.
+    /// </summary>
+    void OnBeginDrag(lPort* surface);
 
     int32_t row = 0;               // +0x4bc
     PurPilotData* pilot = nullptr; // +0x4c0

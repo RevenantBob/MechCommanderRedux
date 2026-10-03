@@ -52,6 +52,13 @@ public:
     /// <remarks>MCX.EXE @ 0x007082d0</remarks>
     void drawBackground();
 
+    /// <summary>
+    /// Port: the unit pane's content for the force (as tall as its rows, at least the pane): a view its rows are drawn
+    /// into each frame (the original painted each block into a picture, and copied rows about in new ones as the
+    /// force changed).
+    /// </summary>
+    static lPort* NewUnitRowsView(ScrollPane* pane);
+
     /// <summary>The tabs, the screen buttons, the resource display toggle and the help text.</summary>
     /// <remarks>MCX.EXE @ 0x007083a0</remarks>
     void handleEvent(aEvent* event) override;

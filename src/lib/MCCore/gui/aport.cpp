@@ -95,7 +95,8 @@ namespace
     template <typename Alloc, typename Free>
     int32_t resizePort(aPort* port, int32_t width, int32_t height, Alloc allocPixels, Free freePixels)
     {
-        if (port != screenPort)
+        // Port: a view has no pixels to reallocate.
+        if (port != screenPort && !port->isView())
         {
             _window* window = port->portWindow;
 
@@ -327,8 +328,52 @@ auto aPort::resize(int32_t width, int32_t height) -> int32_t
     return resizePort(this, width, height, guiAlloc, guiFree);
 }
 
+auto aPort::initView(int32_t width, int32_t height) -> int32_t
+{
+    if (isView() && width == portWidth && height == portHeight)
+    {
+        return 0;
+    }
+
+    destroyPort(this, guiFree);
+    auto* window = static_cast<_window*>(guiHeap->malloc(sizeof(_window)));
+    auto* pane = static_cast<_pane*>(guiHeap->malloc(sizeof(_pane)));
+
+    if (window == nullptr || pane == nullptr)
+    {
+        return 3;
+    }
+
+    portWindow = window;
+    portPane = pane;
+    window->buffer = nullptr;
+    window->View = &view;
+    view = MCView{};
+    pane->x0 = 0;
+    pane->y0 = 0;
+    setExtent(window, pane, width, height);
+    portWidth = width;
+    portHeight = height;
+    return 0;
+}
+
+auto aPort::openView(_window* target, int32_t x, int32_t y, const MCRect& scissor, bool keyTransparent) -> void
+{
+    view.Target = target;
+    view.OriginX = x;
+    view.OriginY = y;
+    view.Scissor = scissor;
+    view.KeyTransparent = keyTransparent;
+}
+
 auto aPort::copyTo(_pane* dest, int32_t xPos, int32_t yPos, int transparent) -> void
 {
+    // Port: a view has no picture to copy (its owner draws itself in the frame pass).
+    if (isView())
+    {
+        return;
+    }
+
     if (transparent != 0)
     {
         _window* source = portPane->window;

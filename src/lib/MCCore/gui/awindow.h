@@ -65,6 +65,8 @@ public:
     void destroy() override;
     /// <remarks>MCX.EXE @ 0x00619cb0</remarks>
     void draw() override;
+    /// <summary>Port: draws itself each frame from its title and buttons.</summary>
+    bool DrawsLive() override { return true; }
     /// <summary>Drags the window (the parent) while the left button is held on the bar.</summary>
     /// <remarks>MCX.EXE @ 0x00619830</remarks>
     void handleEvent(aEvent* event) override;
@@ -125,6 +127,11 @@ public:
     void destroy() override;
     /// <remarks>MCX.EXE @ 0x00619180</remarks>
     void draw() override;
+    /// <summary>
+    /// Port: draws itself each frame (and so do its frame parts and title bar). Derived windows that still paint
+    /// into a picture outside draw say otherwise.
+    /// </summary>
+    bool DrawsLive() override { return true; }
     /// <summary>Resizes the window and moves and resizes its frame.</summary>
     /// <remarks>MCX.EXE @ 0x00619210</remarks>
     void resize(int32_t newWidth, int32_t newHeight) override;
@@ -165,6 +172,8 @@ public:
     void handleEvent(aEvent* event) override;
     /// <remarks>MCX.EXE @ 0x0061a2a0</remarks>
     void draw() override;
+    /// <summary>Port: draws itself each frame from its items and the highlighted one.</summary>
+    bool DrawsLive() override { return true; }
 
     /// <summary>Sizes the menu to its widest item and the item count.</summary>
     /// <remarks>MCX.EXE @ 0x0061a580</remarks>
@@ -272,6 +281,8 @@ class aWindowBar : public aObject
 public:
     /// <remarks>MCX.EXE @ 0x0061af00</remarks>
     aWindowBar();
+    /// <summary>Port: draws itself each frame (only its background; the buttons draw themselves).</summary>
+    bool DrawsLive() override { return true; }
 
     /// <remarks>MCX.EXE @ 0x0061af80</remarks>
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
@@ -306,7 +317,7 @@ public:
 };
 
 /// <summary>
-/// A window playing a Smacker movie, into its own pane or (full screen) straight to the display.
+/// A window playing a Smacker movie, into its own pane or (full screen, in the original) straight to the display.
 /// </summary>
 /// <remarks>Original source: <c>gui\awindow.cpp</c> and <c>gui\awindow.h</c>, 0x4c0 bytes. Vtable 0x0077bce0.</remarks>
 class aSmackerWindow : public aObject
@@ -334,11 +345,14 @@ public:
     virtual void endSmackerMovie(); // slot 77
     /// <remarks>MCX.EXE @ 0x0061b610</remarks>
     void checkSmackerPalette() override;
-    /// <summary>Shows the next frame; the movie's end ends it.</summary>
+    /// <summary>Decodes the next frame into <see cref="moviePane"/> and shows it; the movie's end ends it.</summary>
     /// <remarks>MCX.EXE @ 0x0061b690</remarks>
     void display() override;
+    /// <summary>Port: copies the movie frame in <see cref="moviePane"/> to the window.</summary>
     /// <remarks>MCX.EXE @ 0x0061b8c0</remarks>
     void draw() override;
+    /// <summary>Port: the window draws itself each frame (see <see cref="draw"/>).</summary>
+    bool DrawsLive() override { return true; }
     /// <summary>Decodes the current frame into the buffer and steps on.</summary>
     /// <returns>0 on the last frame, 1 otherwise.</returns>
     /// <remarks>MCX.EXE @ 0x0061b8d0 (unnamed in MCX.EXE)</remarks>
@@ -350,7 +364,10 @@ public:
     SmackTag* movie = nullptr; // +0x4ac
     /// <summary>Set until the first frame: the display clears the pane (or the screen) before decoding it.</summary>
     int32_t firstFrame = 1; // +0x4b0
-    /// <summary>The pane the movie decodes into (windowed play), from the GUI heap.</summary>
+    /// <summary>
+    /// The pane the movie decodes into, from the GUI heap: at the window's screen position in a buffer reaching from
+    /// the screen's corner to the window's. (The original had one for windowed play only.)
+    /// </summary>
     _pane* moviePane = nullptr; // +0x4b4
     int32_t fullScreen = 0;     // +0x4b8
     /// <summary>Smacker's surface type for the DirectDraw surface (full-screen play).</summary>
@@ -387,10 +404,14 @@ public:
     void doStatic();
     /// <remarks>MCX.EXE @ 0x0061bbf0</remarks>
     void endStatic();
+    /// <summary>Runs the next step of the sequence (<see cref="Step"/>) and shows the picture.</summary>
     /// <remarks>MCX.EXE @ 0x0061bc10</remarks>
     void display() override;
+    /// <summary>Port: copies <see cref="staticPort"/> to the window.</summary>
     /// <remarks>MCX.EXE @ 0x0061d490</remarks>
     void draw() override;
+    /// <summary>Port: the window draws itself each frame (see <see cref="draw"/>).</summary>
+    bool DrawsLive() override { return true; }
     /// <summary>Loads art packets 0x2d, 0x2e and 0x2f and picks a random start (0..11).</summary>
     /// <returns>0, -1 when out of memory, or the packet file's error.</returns>
     /// <remarks>MCX.EXE @ 0x0061d4a0</remarks>
@@ -407,6 +428,19 @@ public:
     int32_t textX = 0; // +0x4c0
     /// <summary>The uplink's end point: an index 0..11 into <see cref="startupRects"/>, picked by <see cref="setup"/>.</summary>
     int32_t randomStart = 0; // +0x4c4
+
+    /// <summary>
+    /// Port: the picture the sequence builds up (made by <see cref="setup"/>). The original drew it on the screen,
+    /// and the noise copies rows of what is already there, so the picture is the window's state; like a movie frame,
+    /// it is copied to the screen each frame.
+    /// </summary>
+    aPort* staticPort = nullptr;
+
+private:
+    /// <summary>Port: one step of the sequence: its sound and its drawing into <see cref="staticPort"/> (the body of the original's <see cref="display"/>).</summary>
+    void Step();
+    /// <summary>Port: <see cref="staticPort"/>'s pane, where the sequence draws.</summary>
+    _pane* StaticPane();
 };
 
 /// <summary>A window with a title bar and frame whose client area is an aHolderObject's two panes.</summary>

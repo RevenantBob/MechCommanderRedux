@@ -84,10 +84,11 @@ void CopySprite(PANE* pane, uint8_t* sprite, int x, int y, int width, int height
 {
     const WINDOW* window = pane->window;
     const int32_t stride = window->x_max + 1;
-    const int32_t cx0 = pane->x0 < 0 ? 0 : pane->x0;
-    const int32_t cy0 = pane->y0 < 0 ? 0 : pane->y0;
-    const int32_t cx1 = pane->x1 < stride ? pane->x1 : window->x_max;
-    const int32_t cy1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    int32_t cx0 = pane->x0 < 0 ? 0 : pane->x0;
+    int32_t cy0 = pane->y0 < 0 ? 0 : pane->y0;
+    int32_t cx1 = pane->x1 < stride ? pane->x1 : window->x_max;
+    int32_t cy1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    MCClipToView(window, cx0, cy0, cx1, cy1);
 
     // OB-115: (x, y) are relative to the pane's origin; the asm offset by its corner clipped to the window.
     int32_t left = x + pane->x0;

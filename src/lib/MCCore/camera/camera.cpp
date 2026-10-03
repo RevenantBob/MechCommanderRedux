@@ -337,8 +337,9 @@ auto viewWindow::display() -> void
     }
 
     // Port: the world shows through the view's rectangle of the screen, from its surface (kept from the last frame
-    // drawn when the scenario no longer renders).
-    EaseZoom();
+    // drawn when the scenario no longer renders). The zoom eased in Camera::update.
+    StartZoom();
+    ZoomShown = true;
     UpdateWorldSurface();
     const _pane* shown = frame();
     MCRenderer::SetUnderlay(
@@ -598,7 +599,6 @@ auto viewWindow::ToggleZoom() -> void
 auto viewWindow::EaseZoom() -> void
 {
     StartZoom();
-    ZoomShown = true;
     const uint32_t now = MCPort::Milliseconds();
     const auto elapsed = static_cast<double>(std::min<uint32_t>(now - ZoomClock, 100));
     ZoomClock = now;
@@ -1508,6 +1508,21 @@ auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
 
 auto Camera::update() -> int32_t
 {
+    // Port: the zoom eases here, before the objects update: they place themselves on screen from the view's size
+    // (screenPos, onScreen), so it must be this frame's size by then, as the terrain drawn later uses.
+    if (window != nullptr)
+    {
+        window->EaseZoom();
+        const _pane* surface = window->WorldFrame();
+        const auto surfaceWidth = static_cast<float>(surface->x1 - surface->x0);
+        const auto surfaceHeight = static_cast<float>(surface->y1 - surface->y0);
+
+        if (surfaceWidth != viewWidth || surfaceHeight != viewHeight)
+        {
+            setViewSize(this, surfaceWidth, surfaceHeight);
+        }
+    }
+
     vector_3d newPosition = position;
 
     if (cameraClass == POSITION_CAMERA)

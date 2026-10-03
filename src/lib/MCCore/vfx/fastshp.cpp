@@ -34,10 +34,11 @@ int32_t fastShapeDraw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t ho
     const int32_t width = static_cast<int32_t>(dims >> 16);
 
     const WINDOW* window = pane->window;
-    const int32_t clipX1 = std::min(pane->x1, window->x_max);
-    const int32_t clipY1 = std::min(pane->y1, window->y_max);
-    const int32_t clipX0 = std::max(pane->x0, 0);
-    const int32_t clipY0 = std::max(pane->y0, 0);
+    int32_t clipX1 = std::min(pane->x1, window->x_max);
+    int32_t clipY1 = std::min(pane->y1, window->y_max);
+    int32_t clipX0 = std::max(pane->x0, 0);
+    int32_t clipY0 = std::max(pane->y0, 0);
+    MCClipToView(window, clipX0, clipY0, clipX1, clipY1);
 
     // OB-115: the asm offset by the pane's origin clipped to the window. OB-116: and counted a shape starting on the
     // last column or row as outside.

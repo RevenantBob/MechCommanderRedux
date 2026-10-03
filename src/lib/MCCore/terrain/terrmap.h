@@ -158,8 +158,22 @@ public:
     /// <remarks>MCX.EXE @ 0x00740590; slot 8</remarks>
     void resize(int32_t w, int32_t h) override {}
 
+    /// <summary>
+    /// Port: draws the MFD from its state: the page's background, then its contents (the map, fog, view boxes and
+    /// units; or the info page's unit), then the status line. The original's draw rebuilt the info and mission
+    /// pages and drew them into the MFD's picture, over what earlier draws had left; the rebuilding is
+    /// <see cref="RefreshPage"/> now, and the MFD draws itself whole each frame.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x007438d0; slot 16</remarks>
     void draw() override;
+    /// <summary>Port: the MFD draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: what the original's draw did besides drawing: the info page's colours, weapon list and text, the
+    /// mission page's objectives. Run where the original drew the MFD (page and unit changes, and every 500 ms).
+    /// </summary>
+    void RefreshPage();
 
     /// <remarks>MCX.EXE @ 0x00742600; slot 21</remarks>
     void handleEvent(aEvent* event) override;
@@ -203,9 +217,25 @@ public:
     /// <remarks>MCX.EXE @ 0x007437d0</remarks>
     void tacMapToWorld(vector_3d& pos, int scrolled);
 
-    /// <summary>Draws the units, contacts and sensor ranges on the map.</summary>
+    /// <summary>Draws the objectives, units, contacts and sensor ranges on the map.</summary>
     /// <remarks>MCX.EXE @ 0x00744010</remarks>
     void drawObjects();
+
+    /// <summary>
+    /// Port: the map page's per-frame state, which the original updated as it drew the page: the mission timer's
+    /// text (once a second), the markers' blink, and the first reveal of the objectives' areas in the fog of war.
+    /// </summary>
+    void UpdateMapPage();
+
+    /// <summary>
+    /// Port: once a pending objective with a position exists, reveals every objective's area in the fog of war (the
+    /// visible bits game logic reads). The original did it as it drew the map's units, after the fog; the MFD runs it
+    /// after drawing the map page, at the same point of the frame.
+    /// </summary>
+    void RevealObjectives();
+
+    /// <summary>Port: draws the info page's unit (what the original's draw drew of it).</summary>
+    void DrawInfoPage();
 
     /// <summary>Switches the MFD page.</summary>
     /// <remarks>MCX.EXE @ 0x00744e10</remarks>
@@ -425,6 +455,17 @@ public:
     /// <summary>Colour remap for the map picture (0xff = unchanged; entries 0xe6 and 0xe8 map to 0x13).</summary>
     uint8_t colorRemap[256] = {}; // +0x814
     int32_t unknown914 = 0;       // +0x914
+
+    /// <summary>
+    /// Port: the info page's data view backgrounds (mfddwn01.tga home armor, mfddwn02.tga payload, mfddwn03.tga
+    /// enemy armor), which the original loaded each time it drew one.
+    /// </summary>
+    aPort* infoViewBackgrounds[3] = {};
+    /// <summary>Port: the mission timer as last written (once a second), and whether it is red (time up).</summary>
+    char mapTimeText[16] = {};
+    bool mapTimeRed = false;
+    /// <summary>Port: set once the timer has been written.</summary>
+    bool mapTimeShown = false;
 };
 
 /// <summary>Shows or hides the command palette.</summary>

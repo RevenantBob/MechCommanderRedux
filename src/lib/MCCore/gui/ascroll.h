@@ -10,6 +10,9 @@
 class aScrollButton : public aObject
 {
 public:
+    /// <summary>Port: an arrow only shows its background picture.</summary>
+    bool DrawsLive() override { return true; }
+
     /// <summary>Which arrow: 0x65 up, 0x66 down.</summary>
     uint8_t buttonId = 0; // +0x4ac
 };
@@ -65,6 +68,8 @@ public:
     void draw() override;
     /// <remarks>MCX.EXE @ 0x0060d630</remarks>
     void handleEvent(aEvent* event) override;
+    /// <summary>Port: the bar draws itself each frame (its thumb is placed by <see cref="ResizeAreas"/>).</summary>
+    bool DrawsLive() override { return true; }
 
     /// <summary>Sets the range (0 hides the thumb) and lays the bar out.</summary>
     /// <remarks>MCX.EXE @ 0x0060d7b0</remarks>

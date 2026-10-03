@@ -886,9 +886,25 @@ public:
     /// <remarks>MCX.EXE @ 0x006f3780</remarks>
     int32_t setUpPurchaseScreen(int mode);
 
-    /// <summary>Draws the screen switch buttons for the current screen.</summary>
+    /// <summary>
+    /// Shows the screen switch buttons on the current screen: each normal, the current screen's grayed (the original
+    /// painted them into the screen's picture; the screen keeps them in its <see cref="LogScreenChrome"/>).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006f3c30</remarks>
     void drawScreenButtons();
+
+    /// <summary>
+    /// Port: shows <paramref name="picture"/> keyed over screen button <paramref name="button"/> of
+    /// <paramref name="screen"/> (lit under the mouse, or the briefing button's blink), where the original copied it
+    /// into the screen's picture.
+    /// </summary>
+    void litScreenButton(lObject* screen, int32_t button, lPort* picture);
+
+    /// <summary>
+    /// Port: draws what <paramref name="screen"/> keeps of the shared places (<see cref="LogScreenChrome"/>): the
+    /// screen buttons, the ticker line, the resource points and the clock.
+    /// </summary>
+    void drawScreenChrome(lObject* screen, _pane* target);
 
     /// <summary>Switches to the briefing screen.</summary>
     /// <remarks>MCX.EXE @ 0x006f3dc0 (original name lost)</remarks>

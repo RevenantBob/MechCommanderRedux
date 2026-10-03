@@ -71,8 +71,235 @@ namespace
     }
 }
 
-MCRenderer& MCRenderer::For(const _window*)
+namespace
 {
+    /// <summary>
+    /// The renderer of a view: each command, already clipped to the view's window and scissor by the front end, is
+    /// moved by the view's origin and drawn on its target by the target's renderer.
+    /// </summary>
+    class MCViewRenderer final : public MCRenderer
+    {
+    public:
+        /// <summary>Draws into <paramref name="view"/> until the next call.</summary>
+        MCViewRenderer& Bind(const MCView* view)
+        {
+            SDL_assert(view->Target != nullptr && view->Target->View == nullptr);
+            _View = view;
+            _X = view->OriginX;
+            _Y = view->OriginY;
+            return *this;
+        }
+
+        void Clear(_window*, const MCRect& rect, uint8_t color) override
+        {
+            if (!Drops(color))
+            {
+                Target().Clear(_View->Target, Move(rect), color);
+            }
+        }
+
+        void Hash(_window*, const MCRect& rect, uint8_t color) override
+        {
+            if (!Drops(color))
+            {
+                Target().Hash(_View->Target, Move(rect), color);
+            }
+        }
+
+        void Copy(_window*, const MCCopyCommand& command) override
+        {
+            // A view has no pixels to copy from.
+            SDL_assert(command.Source->View == nullptr);
+
+            if (command.Source->View != nullptr)
+            {
+                return;
+            }
+
+            MCCopyCommand moved = command;
+            moved.X += _X;
+            moved.Y += _Y;
+
+            if (_View->KeyTransparent && !moved.ColorKey)
+            {
+                moved.ColorKey = true;
+                moved.Key = 0xff;
+            }
+
+            Target().Copy(_View->Target, moved);
+        }
+
+        void AlphaBlit(_window*, const MCAlphaBlitCommand& command) override
+        {
+            MCAlphaBlitCommand moved = command;
+            moved.Left += _X;
+            moved.Top += _Y;
+            Target().AlphaBlit(_View->Target, moved);
+        }
+
+        void Write(_window*, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override
+        {
+            if (!_View->KeyTransparent)
+            {
+                Target().Write(_View->Target, x + _X, y + _Y, pixels, count);
+                return;
+            }
+
+            // The runs between the key pixels.
+            int32_t start = 0;
+
+            while (start < count)
+            {
+                while (start < count && pixels[start] == 0xff)
+                {
+                    ++start;
+                }
+
+                int32_t end = start;
+
+                while (end < count && pixels[end] != 0xff)
+                {
+                    ++end;
+                }
+
+                if (end > start)
+                {
+                    Target().Write(_View->Target, x + start + _X, y + _Y, pixels + start, end - start);
+                }
+
+                start = end;
+            }
+        }
+
+        void Pixel(_window*, int32_t x, int32_t y, uint8_t color) override
+        {
+            if (!Drops(color))
+            {
+                Target().Pixel(_View->Target, x + _X, y + _Y, color);
+            }
+        }
+
+        void Shape(_window*, const MCShapeCommand& command) override
+        {
+            MCShapeCommand moved = command;
+            moved.Top += _Y;
+            moved.Left += _X;
+            moved.Lo += _X;
+            moved.Hi += _X;
+            Target().Shape(_View->Target, moved);
+        }
+
+        void FastShape(_window*, const MCFastShapeCommand& command) override
+        {
+            MCFastShapeCommand moved = command;
+            moved.Top += _Y;
+            moved.StartX += _X;
+            moved.ClipX0 += _X;
+            Target().FastShape(_View->Target, moved);
+        }
+
+        void Tile(_window*, const MCTileCommand& command) override
+        {
+            MCTileCommand moved = command;
+            moved.Left += _X;
+            moved.Top += _Y;
+            moved.Lo += _X;
+            moved.Hi += _X;
+            Target().Tile(_View->Target, moved);
+        }
+
+        void Polygon(_window*, const MCPolygonCommand& command) override
+        {
+            MCPolygonCommand moved = command;
+            moved.OriginX += _X;
+            moved.OriginY += _Y;
+            Target().Polygon(_View->Target, moved);
+        }
+
+        void MapQuad(_window*, const MCMapQuadCommand& command) override
+        {
+            MCMapQuadCommand moved = command;
+
+            for (MCMapQuadVertex& corner : moved.Corners)
+            {
+                corner.X += _X;
+                corner.Y += _Y;
+            }
+
+            moved.Clip = Move(command.Clip);
+            Target().MapQuad(_View->Target, moved);
+        }
+
+        void Line(_window*, const MCLineCommand& command) override
+        {
+            if (command.Table == nullptr && Drops(command.Color))
+            {
+                return;
+            }
+
+            MCLineCommand moved = command;
+            moved.X += _X;
+            moved.Y += _Y;
+            Target().Line(_View->Target, moved);
+        }
+
+        void Ellipse(_window*, const MCEllipseCommand& command) override
+        {
+            if (!command.Alpha && Drops(command.Color))
+            {
+                return;
+            }
+
+            MCEllipseCommand moved = command;
+            moved.CenterX += _X;
+            moved.CenterY += _Y;
+            moved.Clip = Move(command.Clip);
+            Target().Ellipse(_View->Target, moved);
+        }
+
+        void StatusBar(_window*, const MCStatusBarCommand& command) override
+        {
+            MCStatusBarCommand moved = command;
+            moved.Box = Move(command.Box);
+            moved.FrameTop += _Y;
+            moved.FrameBottom += _Y;
+            Target().StatusBar(_View->Target, moved);
+        }
+
+        void Glyph(_window*, const MCGlyphCommand& command) override
+        {
+            MCGlyphCommand moved = command;
+            moved.X += _X;
+            moved.Y += _Y;
+            Target().Glyph(_View->Target, moved);
+        }
+
+    protected:
+        void OnAlphaTableChanged() override {}
+        void OnShapesForgotten(const void*, size_t) override {}
+
+    private:
+        MCRenderer& Target() const { return MCRenderer::For(_View->Target); }
+
+        MCRect Move(const MCRect& rect) const { return MCRect{rect.X0 + _X, rect.Y0 + _Y, rect.X1 + _X, rect.Y1 + _Y}; }
+
+        /// <summary>Whether a write of <paramref name="color"/> draws nothing (0xff in a colour-keyed view).</summary>
+        bool Drops(uint8_t color) const { return _View->KeyTransparent && color == 0xff; }
+
+        const MCView* _View = nullptr;
+        int32_t _X = 0;
+        int32_t _Y = 0;
+    };
+}
+
+MCRenderer& MCRenderer::For(const _window* window)
+{
+    if (window != nullptr && window->View != nullptr)
+    {
+        static MCViewRenderer viewRenderer;
+        return viewRenderer.Bind(window->View);
+    }
+
     return MCSoftwareRenderer::Instance();
 }
 

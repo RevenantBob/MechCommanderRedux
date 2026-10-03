@@ -237,6 +237,7 @@ auto aScrollBar::init(int32_t xPos, int32_t yPos, int32_t, int32_t height, char*
         return OutOfMemory;
     }
 
+    scrollTab->SetDrawsLive();
     result = scrollTab->init(0, 0, 0x10, 0x10, nullptr);
 
     if (result != 0)

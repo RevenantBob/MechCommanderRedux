@@ -312,7 +312,7 @@ auto aScrollTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t 
         return 3;
     }
 
-    int32_t result = displayPort->init(width, height);
+    int32_t result = DrawsLive() ? displayPort->initView(width, height) : displayPort->init(width, height);
 
     if (result != 0)
     {
@@ -358,6 +358,7 @@ auto aScrollTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t 
         Fatal(0, "Not enough memory for scrollbar tab.");
     }
 
+    scrollTab->SetDrawsLive();
     result = scrollTab->init(0, 0, 9, height - 0x20, nullptr);
 
     if (result != 0)
@@ -488,7 +489,10 @@ auto aScrollTextObject::draw() -> void
 
     for (int32_t i = 0; i < numChildren; i++)
     {
-        childList[i]->draw();
+        if (DrawsChild(childList[i]))
+        {
+            childList[i]->draw();
+        }
     }
 }
 
@@ -502,6 +506,13 @@ auto aScrollTextObject::display() -> void
 
     if (IsHidden() != 0 && hideOffset == 0)
     {
+        return;
+    }
+
+    // Port: the port is the whole text (taller than the object), drawn each frame scrolled by firstPixel.
+    if (DrawsLive())
+    {
+        DrawInFramePass(port(), firstPixel);
         return;
     }
 
@@ -929,7 +940,6 @@ auto aChatInput::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height,
     teamButton = new aToolButton;
     result = teamButton->init(1, 1, 0xc, 0x1a, nullptr);
     teamButton->framed = 0;
-    teamButton->draw();
     // The picture loads return nothing, so every check repeats the init's.
     const int initOk = result == 0;
     Assert(initOk, static_cast<uint32_t>(result), " Couldn't init team button for chatsend window");
@@ -951,7 +961,8 @@ auto aChatInput::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height,
 
     inputFont = whiteFont;
     backgroundColor = 0x10;
-    draw();
+    // Port: the original drew the line here, which also restarted the caret's blink (see draw).
+    cursorVisible = 1;
     return 0;
 }
 
@@ -966,16 +977,23 @@ auto aChatInput::destroy() -> void
 auto aChatInput::draw() -> void
 {
     drawAndCheck(0);
+
+    // Port: the caret, which the original drew into the picture in display (a vertical line a text line high; in
+    // the background colour while cursorVisible, so it blinks).
+    const int32_t bottom = inputFont->height() + 3 + cursorY;
+    const int32_t color = cursorVisible != 0 ? 0x10 : 0x1f;
+    VFX_line_draw(displayPort->frame(), cursorX, cursorY, cursorX, bottom, LD_DRAW, color);
     aObject::draw();
 }
 
 /// <remarks>MCX.EXE @ 0x00617f60</remarks>
 auto aChatInput::drawAndCheck(int32_t maxLines) -> int
 {
+    // Port: drawing the whole line (maxLines 0) also set cursorVisible, restarting the caret's blink. The line is
+    // drawn every frame now, so the places that redrew it after an edit set it themselves.
     if (maxLines == 0)
     {
         VFX_pane_wipe(displayPort->frame(), backgroundColor);
-        cursorVisible = 1;
     }
 
     uint8_t* line = reinterpret_cast<uint8_t*>(text);
@@ -1019,10 +1037,7 @@ auto aChatInput::drawAndCheck(int32_t maxLines) -> int
 /// <remarks>MCX.EXE @ 0x006180d0</remarks>
 auto aChatInput::display() -> void
 {
-    // The caret: a vertical line a text line high.
-    const int32_t bottom = inputFont->height() + 3 + cursorY;
-    const int32_t color = cursorVisible != 0 ? 0x10 : 0x1f;
-    VFX_line_draw(displayPort->frame(), cursorX, cursorY, cursorX, bottom, LD_DRAW, color);
+    // The caret is drawn by draw, each frame (the original drew it into the picture here).
     aObject::display();
 }
 
@@ -1065,7 +1080,8 @@ auto aChatInput::handleEvent(aEvent* event) -> void
                     text[cursorPos - 1] = '\0';
                     cursorPos--;
                     setCursorPos(cursorPos);
-                    draw();
+                    // The original redrew the line here, which restarted the caret's blink.
+                    cursorVisible = 1;
                 }
             }
             else if (key == 0xd)
@@ -1099,7 +1115,7 @@ auto aChatInput::handleEvent(aEvent* event) -> void
                 cursorPos = 0;
                 setCursorPos(0);
                 application->releaseText();
-                draw();
+                cursorVisible = 1;
             }
             else if (cursorPos < 0xff && ((key > 0x1f && key < 0x7f) || (key > 0xbe && key < 0xfe)) && key != '%')
             {
@@ -1111,7 +1127,7 @@ auto aChatInput::handleEvent(aEvent* event) -> void
                 if (drawAndCheck(2) != 0)
                 {
                     setCursorPos(newPos);
-                    draw();
+                    cursorVisible = 1;
                 }
                 else
                 {
@@ -1208,7 +1224,8 @@ auto aChatWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height
     {
         addChild(chatInput);
         chatInput->ShowGUIWindow(1);
-        chatInput->draw();
+        // The original drew the input line here, restarting its caret's blink.
+        chatInput->cursorVisible = 1;
     }
 
     return result;
@@ -1253,12 +1270,45 @@ auto aChatWindow::processChatString(uint32_t playerId, char* text, int32_t color
     char line[0x800];
     std::sprintf(line, "%%fc%d%s: %%fc%d%s", playerColor[playerNumber], name, color, text);
 
-    // Scroll the window up by the new text's height and write it at the bottom.
+    // The original scrolled its picture up by the new text's height, wiped the bottom and wrote the text there; the
+    // line is kept and draw shows the lines that way. Lines scrolled wholly off the top are dropped.
     SMUTI& formatter = application->textFormatter;
     const int32_t textHeight = formatter.process(reinterpret_cast<uint8_t*>(line), nullptr, port()->width(), 0);
-    uint8_t* pixels = port()->bitmap()->buffer;
-    std::memmove(pixels, pixels + width() * textHeight, static_cast<size_t>((port()->height() - textHeight) * width()));
-    FillBox(0, static_cast<int16_t>(static_cast<int16_t>(port()->height()) - static_cast<int16_t>(textHeight) - 1),
-            static_cast<int16_t>(width() - 1), static_cast<int16_t>(port()->height() - 1), 0x10);
-    formatter.process(reinterpret_cast<uint8_t*>(line), port(), 0, (port()->height() - textHeight) - 1);
+    chatLines.push_back(ChatLine{line, textHeight});
+    int32_t below = 0;
+
+    for (size_t i = chatLines.size(); i > 0; i--)
+    {
+        below += chatLines[i - 1].height;
+
+        if (below > port()->height())
+        {
+            chatLines.erase(chatLines.begin(), chatLines.begin() + static_cast<std::ptrdiff_t>(i - 1));
+            break;
+        }
+    }
+}
+
+auto aChatWindow::draw() -> void
+{
+    // The picture was wiped to 0x10 at init, and every scroll wiped the rows it uncovered.
+    VFX_pane_wipe(port()->frame(), 0x10);
+    SMUTI& formatter = application->textFormatter;
+    // Each line lies above the ones after it; the newest ends a row above the bottom.
+    int32_t lineY = port()->height() - 1;
+
+    for (const ChatLine& chatLine : chatLines)
+    {
+        lineY -= chatLine.height;
+    }
+
+    for (const ChatLine& chatLine : chatLines)
+    {
+        char line[0x800];
+        std::snprintf(line, sizeof(line), "%s", chatLine.text.c_str());
+        formatter.process(reinterpret_cast<uint8_t*>(line), port(), 0, lineY);
+        lineY += chatLine.height;
+    }
+
+    aObject::draw();
 }

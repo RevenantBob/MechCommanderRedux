@@ -364,6 +364,8 @@ public:
 class DebuggerWindow : public aTitleWindow
 {
 public:
+    /// <summary>Port: its output window scrolls its picture, so it keeps one.</summary>
+    bool DrawsLive() override { return false; }
     /// <remarks>MCX.EXE @ 0x0075a850 (the deleting destructor)</remarks>
     ~DebuggerWindow() override;
 

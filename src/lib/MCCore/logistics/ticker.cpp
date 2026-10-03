@@ -68,26 +68,12 @@ auto Ticker::handleEvent(aEvent* event) -> void
         return;
     }
 
-    if (backPane != nullptr && ownPort != nullptr)
-    {
-        backPane->copyTo(ownPort->frame(), xPos, yPos, -1);
-        backPane->copyTo(windowPort->frame(), 0, 0, -1);
-    }
-
     if (maxWidth < width)
     {
         if (event->type == 0x13 && event->data == 7)
         {
             const int32_t pos = scrollPos;
-            VFX_pane_copy(textPort->frame(), pos, 0, windowPort->frame(), 0, 0, -1);
-
-            // Past the end the text starts again after it.
-            if (textWidth < pos + maxWidth)
-            {
-                textPort->copyTo(windowPort->frame(), textWidth - pos, 0, -1);
-            }
-
-            windowPort->copyTo(ownPort->frame(), xPos, yPos, -1);
+            paint(true, pos);
 
             if (textWidth < pos)
             {
@@ -98,10 +84,119 @@ auto Ticker::handleEvent(aEvent* event) -> void
                 scrollPos = pos + 2;
             }
         }
+        else
+        {
+            paint(false, -1);
+        }
     }
     else
     {
+        paint(true, -1);
+    }
+}
+
+auto Ticker::paint(bool withText, int32_t scroll) -> void
+{
+    LogScreenChrome* chrome = paintScreen != nullptr ? paintScreen->Chrome() : nullptr;
+
+    if (chrome != nullptr)
+    {
+        if (backPane != nullptr && ownPort != nullptr)
+        {
+            chrome->tickerPainted = true;
+            chrome->tickerTextShown = false;
+        }
+
+        chrome->tickerX = xPos;
+        chrome->tickerY = yPos;
+
+        if (withText)
+        {
+            chrome->tickerTextShown = true;
+            std::snprintf(chrome->tickerText, sizeof(chrome->tickerText), "%s", text);
+            chrome->tickerTextX = maxWidth < font->width(reinterpret_cast<uint8_t*>(text)) ? maxWidth / 2 : 0;
+            chrome->tickerScroll = scroll;
+            chrome->tickerTextWidth = textWidth;
+            chrome->tickerMaxWidth = maxWidth;
+        }
+
+        return;
+    }
+
+    if (backPane != nullptr && ownPort != nullptr)
+    {
+        backPane->copyTo(ownPort->frame(), xPos, yPos, -1);
+        backPane->copyTo(windowPort->frame(), 0, 0, -1);
+    }
+
+    if (!withText)
+    {
+        return;
+    }
+
+    if (scroll < 0)
+    {
         textPort->copyTo(ownPort->frame(), xPos, yPos, -1);
+        return;
+    }
+
+    VFX_pane_copy(textPort->frame(), scroll, 0, windowPort->frame(), 0, 0, -1);
+
+    // Past the end the text starts again after it.
+    if (textWidth < scroll + maxWidth)
+    {
+        textPort->copyTo(windowPort->frame(), textWidth - scroll, 0, -1);
+    }
+
+    windowPort->copyTo(ownPort->frame(), xPos, yPos, -1);
+}
+
+auto Ticker::drawPainted(const LogScreenChrome& chrome, _pane* target) -> void
+{
+    const int32_t x = chrome.tickerX;
+    const int32_t y = chrome.tickerY;
+
+    if (chrome.tickerPainted && backPane != nullptr)
+    {
+        backPane->copyTo(target, x, y, -1);
+    }
+
+    if (!chrome.tickerTextShown)
+    {
+        return;
+    }
+
+    // The text picture: the text at tickerTextX in a picture tickerTextWidth wide and a line high, keyed.
+    auto* bytes = reinterpret_cast<uint8_t*>(const_cast<char*>(chrome.tickerText));
+    const int32_t lineHeight = medWhiteFont->height();
+    auto writeClipped = [&](int32_t left, int32_t right, int32_t textX)
+    {
+        _pane clip = *target;
+        clip.x0 = target->x0 + left;
+        clip.y0 = target->y0 + y;
+        clip.x1 = target->x0 + right;
+        clip.y1 = target->y0 + y + lineHeight - 1;
+
+        if (clip.x0 <= clip.x1)
+        {
+            medWhiteFont->writeString(&clip, textX - left, 0, bytes, -1);
+        }
+    };
+
+    if (chrome.tickerScroll < 0)
+    {
+        writeClipped(x, x + chrome.tickerTextWidth - 1, x + chrome.tickerTextX);
+        return;
+    }
+
+    // Scrolled: the window shows the picture from tickerScroll, and from its start again after its end.
+    const int32_t windowRight = x + chrome.tickerMaxWidth - 1;
+    const int32_t pictureEnd = x + chrome.tickerTextWidth - chrome.tickerScroll;
+    writeClipped(x, std::min(windowRight, pictureEnd - 1), x - chrome.tickerScroll + chrome.tickerTextX);
+
+    if (chrome.tickerTextWidth < chrome.tickerScroll + chrome.tickerMaxWidth)
+    {
+        writeClipped(pictureEnd, windowRight, pictureEnd + chrome.tickerTextX);
     }
 }
 
@@ -116,7 +211,17 @@ auto Ticker::setString(char* string) -> void
     {
         if (backPane != nullptr && ownPort != nullptr)
         {
-            backPane->copyTo(ownPort->frame(), xPos, yPos, -1);
+            if (LogScreenChrome* chrome = paintScreen != nullptr ? paintScreen->Chrome() : nullptr; chrome != nullptr)
+            {
+                chrome->tickerPainted = true;
+                chrome->tickerTextShown = false;
+                chrome->tickerX = xPos;
+                chrome->tickerY = yPos;
+            }
+            else
+            {
+                backPane->copyTo(ownPort->frame(), xPos, yPos, -1);
+            }
         }
 
         text[0] = 0;

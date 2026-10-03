@@ -59,6 +59,7 @@ inline int32_t MCVfxClipPane(const PANE* pane, MCVfxClip& clip)
     clip.Y0 = pane->y0 > 0 ? pane->y0 : 0;
     clip.X1 = pane->x1 < clip.Stride - 1 ? pane->x1 : clip.Stride - 1;
     clip.Y1 = pane->y1 < clip.Height - 1 ? pane->y1 : clip.Height - 1;
+    MCClipToView(window, clip.X0, clip.Y0, clip.X1, clip.Y1);
 
     if (clip.X1 < clip.X0 || clip.Y1 < clip.Y0)
     {

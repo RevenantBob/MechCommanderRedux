@@ -7,10 +7,11 @@
 void AG_StatusBar(PANE* pane, int x0, int y0, int x1, int y1, int alphaColor, int barLength)
 {
     const WINDOW* window = pane->window;
-    const int32_t clipX0 = std::max(pane->x0, 0);
-    const int32_t clipY0 = std::max(pane->y0, 0);
-    const int32_t clipX1 = pane->x1 < window->x_max + 1 ? pane->x1 : window->x_max;
-    const int32_t clipY1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    int32_t clipX0 = std::max(pane->x0, 0);
+    int32_t clipY0 = std::max(pane->y0, 0);
+    int32_t clipX1 = pane->x1 < window->x_max + 1 ? pane->x1 : window->x_max;
+    int32_t clipY1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    MCClipToView(window, clipX0, clipY0, clipX1, clipY1);
 
     if (x0 > x1)
     {
@@ -106,10 +107,11 @@ int32_t DrawTransparent(PANE* pane, WINDOW* texture, int x, int y, int width, in
 {
     const WINDOW* window = pane->window;
     const int32_t stride = window->x_max + 1; // 0x00802408
-    const int32_t clipX0 = std::max(pane->x0, 0);
-    const int32_t clipY0 = std::max(pane->y0, 0);
-    const int32_t clipX1 = stride <= pane->x1 ? window->x_max : pane->x1;
-    const int32_t clipY1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    int32_t clipX0 = std::max(pane->x0, 0);
+    int32_t clipY0 = std::max(pane->y0, 0);
+    int32_t clipX1 = stride <= pane->x1 ? window->x_max : pane->x1;
+    int32_t clipY1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    MCClipToView(window, clipX0, clipY0, clipX1, clipY1);
 
     // OB-115: the asm offset by the pane's origin clipped to the window. OB-116: and counted a picture starting on
     // the last column or row as outside.

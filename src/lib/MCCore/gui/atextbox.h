@@ -15,6 +15,8 @@ public:
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
     /// <remarks>MCX.EXE @ 0x00616a70</remarks>
     void draw() override;
+    /// <summary>Port: draws itself each frame from its text (and the caret while it has the focus).</summary>
+    bool DrawsLive() override { return true; }
     /// <summary>A click takes the keyboard; characters edit the text.</summary>
     /// <remarks>MCX.EXE @ 0x00616920</remarks>
     void handleEvent(aEvent* event) override;
@@ -81,6 +83,8 @@ public:
     /// <summary>Draws the lines into the port.</summary>
     /// <remarks>MCX.EXE @ 0x00617110</remarks>
     void draw() override;
+    /// <summary>Port: draws itself each frame: the whole text in a port as tall as it, scrolled by firstPixel.</summary>
+    bool DrawsLive() override { return true; }
     /// <summary>Copies the visible part of the port (from <see cref="firstPixel"/>) to the screen.</summary>
     /// <remarks>MCX.EXE @ 0x00617420</remarks>
     void display() override;
@@ -154,6 +158,8 @@ public:
     void destroy() override;
     /// <remarks>MCX.EXE @ 0x00617f40</remarks>
     void draw() override;
+    /// <summary>Port: draws itself each frame from its text, caret and blink state.</summary>
+    bool DrawsLive() override { return true; }
     /// <remarks>MCX.EXE @ 0x006180d0</remarks>
     void display() override;
     /// <summary>Typing, editing keys, and Enter (sends the line to the chat window).</summary>
@@ -202,7 +208,25 @@ public:
     /// <remarks>MCX.EXE @ 0x00618730</remarks>
     void processChatString(uint32_t playerId, char* text, int32_t color);
 
+    /// <summary>
+    /// Port: draws the lines from the bottom up, each above the next. (The original scrolled its picture up by a
+    /// new line's height and drew the line at the bottom; the lines are kept instead.)
+    /// </summary>
+    void draw() override;
+    /// <summary>Port: draws itself each frame from its lines.</summary>
+    bool DrawsLive() override { return true; }
+
     aChatInput* chatInput = nullptr; // +0x4ac
+
+    /// <summary>Port: a line as the chat formatter takes it (with its colour codes), and its height.</summary>
+    struct ChatLine
+    {
+        std::string text;
+        int32_t height = 0;
+    };
+
+    /// <summary>Port: the lines still (partly) on show, oldest first.</summary>
+    std::vector<ChatLine> chatLines;
 };
 
 /// <summary>The scroll text thumb's paint routine.</summary>

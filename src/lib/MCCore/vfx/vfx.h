@@ -7,7 +7,10 @@
 //
 // Layouts checked against MCX.EXE: every VFX routine reads a pane as {window, x0, y0, x1, y1} and a window as
 // {buffer, x_max, y_max} with rows of x_max + 1 bytes (no separate pitch); the game's globals tempWINDOW
-// (0x007bbb48) and textureWindow (0x007f0970) are 12 bytes, and tempPANE (0x007bbb68) 20.
+// (0x007bbb48) and textureWindow (0x007f0970) are 12 bytes, and tempPANE (0x007bbb68) 20. The port's window adds a
+// view pointer.
+
+struct MCView;
 
 /// <summary>An 8-bit bitmap: <c>(x_max + 1) * (y_max + 1)</c> palette indices, rows of <c>x_max + 1</c> bytes.</summary>
 struct _window
@@ -18,6 +21,11 @@ struct _window
     int32_t x_max; // +0x04
     /// <summary>The last row (height - 1).</summary>
     int32_t y_max; // +0x08
+    /// <summary>
+    /// Port: set when the window is a view (a UI element's place on another window, see <see cref="MCView"/>)
+    /// rather than pixels of its own; <c>buffer</c> is then null.
+    /// </summary>
+    MCView* View = nullptr;
 };
 
 using WINDOW = _window;

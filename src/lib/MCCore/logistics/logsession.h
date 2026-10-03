@@ -30,9 +30,12 @@ public:
     /// <remarks>MCX.EXE @ 0x0070b820</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the gray, down (toggled), over (mouse over) or up picture.</summary>
+    /// <summary>
+    /// The original's draw: shows the gray, down (toggled), over (mouse over) or up picture (the face it chooses,
+    /// see <see cref="lButton::updateFace"/>).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0070b880</remarks>
-    void draw() override;
+    void updateFace() override;
 
     /// <summary>Nonzero while toggled on.</summary>
     int32_t toggled = 0; // +0x4e4
@@ -56,9 +59,12 @@ public:
     /// <remarks>MCX.EXE @ 0x0070ba00</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the down picture while held, else the up one.</summary>
+    /// <summary>
+    /// The original's draw: shows the down picture while held, else the up one; without that picture the face stays
+    /// as it was.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0070bb40</remarks>
-    void draw() override;
+    void updateFace() override;
 };
 
 /// <summary>

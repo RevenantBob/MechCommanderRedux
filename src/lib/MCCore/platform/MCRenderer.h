@@ -5,16 +5,14 @@
 // resolved. The renderer walks shape, tile, glyph and polygon data and writes palette
 // indices. MCSoftwareRenderer is the original pixel code; a hardware renderer implements the same commands.
 //
-// Targets: every WINDOW is a picture in memory (window->buffer), as in the original, and the software renderer draws
-// into it. Later the UI's ports become views (a place on the screen with an origin and a scissor), and the world and
-// the fog get surfaces of their own; windows over memory the game owns stay with the software renderer. Nothing is
-// locked, read back or re-uploaded each frame.
+// Targets: a WINDOW is a picture in memory (window->buffer), as in the original, or a view (window->View): a UI
+// element's place on another window, with an origin and a scissor, drawn into only while the element draws in the
+// frame pass. The world view has a surface of its own. Nothing is locked, read back or re-uploaded each frame.
 //
 // Coordinates in commands are window coordinates, rectangles inclusive. Tables are passed as pointers and read at
 // the time of the call.
 
-struct _window;
-struct SCRNVERTEX;
+#include "vfx/vfx.h"
 
 /// <summary>An inclusive rectangle in window coordinates.</summary>
 struct MCRect
@@ -24,6 +22,51 @@ struct MCRect
     int32_t X1;
     int32_t Y1;
 };
+
+/// <summary>
+/// A view: the window that points at it has no pixels; what is drawn into it lands on <c>Target</c>, its pixel
+/// (0, 0) at (<c>OriginX</c>, <c>OriginY</c>), cut to <c>Scissor</c>. The vfx front end clips each draw to the window
+/// and then to the scissor (moved into the window's coordinates), and <see cref="MCRenderer::For"/> hands the view's
+/// commands on to the target's renderer, moved by the origin. A UI element owns its view and opens the scissor only
+/// while it draws in the frame pass, so a draw at any other time (painting on an event) does nothing.
+/// </summary>
+struct MCView
+{
+    /// <summary>The window drawn on (a picture, not another view).</summary>
+    _window* Target = nullptr;
+    /// <summary>Where the view's pixel (0, 0) lies on the target.</summary>
+    int32_t OriginX = 0;
+    int32_t OriginY = 0;
+    /// <summary>The part of the target the view may draw on, inclusive; empty (X1 &lt; X0) draws nothing.</summary>
+    MCRect Scissor{0, 0, -1, -1};
+    /// <summary>
+    /// Whether writes of colour 0xff draw nothing: the element was a picture copied to the screen with 0xff as a
+    /// colour key (<c>aObject::transparent</c>), so what it painted in 0xff never reached the screen.
+    /// </summary>
+    bool KeyTransparent = false;
+
+    /// <summary>Whether the scissor is open.</summary>
+    bool Open() const { return Scissor.X0 <= Scissor.X1 && Scissor.Y0 <= Scissor.Y1; }
+};
+
+/// <summary>
+/// Narrows a clip rectangle in <paramref name="window"/>'s coordinates to its view's scissor (nothing happens for a
+/// window with pixels of its own). The vfx front end calls it wherever it clips a draw to its pane and window.
+/// </summary>
+inline void MCClipToView(const _window* window, int32_t& x0, int32_t& y0, int32_t& x1, int32_t& y1)
+{
+    const MCView* view = window->View;
+
+    if (view == nullptr)
+    {
+        return;
+    }
+
+    x0 = std::max(x0, view->Scissor.X0 - view->OriginX);
+    y0 = std::max(y0, view->Scissor.Y0 - view->OriginY);
+    x1 = std::min(x1, view->Scissor.X1 - view->OriginX);
+    y1 = std::min(y1, view->Scissor.Y1 - view->OriginY);
+}
 
 /// <summary>What a run-length shape draw does with each pixel it writes.</summary>
 enum class MCShapeOp
@@ -306,8 +349,8 @@ public:
     virtual ~MCRenderer() = default;
 
     /// <summary>
-    /// The renderer that draws into <paramref name="window"/>. Every window is a picture in memory for now, so this
-    /// is always the software renderer.
+    /// The renderer that draws into <paramref name="window"/>: for a picture, the software renderer; for a view, one
+    /// that moves each command by the view's origin and hands it to its target's renderer (valid until the next call).
     /// </summary>
     static MCRenderer& For(const _window* window);
 

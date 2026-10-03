@@ -389,14 +389,14 @@ auto aListBox::draw() -> void
 
         if (selectedItem == item)
         {
-            // Fill the selected line's inside with colour 0xb, straight into the port's pixels.
-            const int32_t fillWidth = width() - 2;
-
-            for (int16_t row = static_cast<int16_t>(lineY + 1); row < lineY + itemHeight; row++)
-            {
-                uint8_t* pixels = displayPort->buffer();
-                std::memset(pixels + width() * row + 1, 0xb, static_cast<size_t>(fillWidth));
-            }
+            // The selected line's inside is filled with colour 0xb. (The original wrote the port's pixels directly;
+            // the box draws itself now, so it wipes the same rectangle.)
+            _pane line = *displayPort->frame();
+            line.x0 = 1;
+            line.y0 = lineY + 1;
+            line.x1 = width() - 2;
+            line.y1 = lineY + itemHeight - 1;
+            VFX_pane_wipe(&line, 0xb);
         }
 
         itemFont->writeString(displayPort->frame(), 2, lineY + 4, reinterpret_cast<uint8_t*>(itemText), -1);

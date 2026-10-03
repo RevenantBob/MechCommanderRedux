@@ -52,7 +52,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - The terrain is built far enough to cover large screens. The original's terrain was sized for 640x480, so at higher
   resolutions the edges of the view were left unbuilt and the tactical map's view box jumped around.
 - Zoom is smooth and continuous instead of two fixed levels, and always uses the full-size art (the original swapped to
-  half-size sprites when zoomed out). The battlefield shows from 480 lines of the world (closest) to 1080 (furthest),
+  half-size sprites when zoomed out). The battlefield shows from 480 lines of the world (closest) to 2160 (furthest),
   whatever the window's size; the GPU scales it to the window. Health bars, selection marks, strike timers and the
   pause and question overlays stay the same size at every zoom, and still blend with the ground under them as before.
   The zoom keys step the zoom, the zoom button switches between the furthest zoom and one world pixel per screen

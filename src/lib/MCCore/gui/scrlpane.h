@@ -52,12 +52,29 @@ public:
     /// <summary>Moves every child by the change in the scroll offset since the last call.</summary>
     /// <remarks>MCX.EXE @ 0x00727cf0</remarks>
     void setChildren();
-    /// <summary>Does nothing: the content is drawn by its owner.</summary>
+    /// <summary>
+    /// Port: draws the background, the visible part of the content and the slider column (the original's draw did
+    /// nothing; its display copied these pictures to the screen).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00727da0</remarks>
     void draw() override;
-    /// <summary>Copies the background, the visible part of the content and the slider column to the frame.</summary>
+    /// <summary>Draws the pane in the frame pass (see <see cref="draw"/>); the children aren't shown.</summary>
     /// <remarks>MCX.EXE @ 0x00727db0</remarks>
     void display() override;
+    /// <summary>Port: the pane draws itself from its state each frame.</summary>
+    bool DrawsLive() override { return true; }
+    /// <summary>
+    /// Port: draws the content into <see cref="contentPort"/> when that is a view: the pane opens it scrolled into
+    /// place (0xff draws nothing, as the original's keyed copy of the content picture) for this call. A content port
+    /// that is a picture is copied instead, as the original did. By default the content port's own
+    /// <see cref="aPort::DrawContent"/> draws it.
+    /// </summary>
+    virtual void drawContent();
+    /// <summary>
+    /// Port: draws the content as the pane shows it, scrolled, into <paramref name="target"/> with its top left at
+    /// (<paramref name="xPos"/>, <paramref name="yPos"/>), opaque (a transition's picture of the pane).
+    /// </summary>
+    void DrawContentTo(_pane* target, int32_t xPos, int32_t yPos);
     /// <summary>Sizes the slider to the content (none when it fits) and draws its picture.</summary>
     /// <remarks>MCX.EXE @ 0x00727e30</remarks>
     virtual void setUpSlider(); // slot 77
@@ -123,4 +140,33 @@ public:
     float maxScroll = 0.0f; // +0x500
     /// <summary>The scroll position, in percent of the content's height (0..<see cref="maxScroll"/>).</summary>
     float scrollPos = 0.0f; // +0x504
+
+    /// <summary>Port: the pane's view (the original copied its pictures straight to the frame).</summary>
+    lPort* panePort = nullptr;
+    /// <summary>
+    /// Port: the arrow art the original copied into <see cref="trackImage"/> over the clean track (a pressed arrow,
+    /// or the normal one put back); null while the track is as <see cref="init"/> built it.
+    /// </summary>
+    lPort* trackUpArt = nullptr;
+    lPort* trackDownArt = nullptr;
+    /// <summary>
+    /// Port: what the slider column shows, which the original kept as the pixels of <see cref="sliderPort"/>: the
+    /// arrow art over the clean track (null = none), and the slider (none while its height is 0). The column only
+    /// takes the track's arrows when the slider is erased, and the slider stays until then.
+    /// </summary>
+    lPort* columnUpArt = nullptr;
+    lPort* columnDownArt = nullptr;
+    int32_t columnSliderPos = 0;
+    int32_t columnSliderHeight = 0;
+
+    /// <summary>
+    /// Port: draws the slider column as it shows into <paramref name="target"/> with its corner at
+    /// (<paramref name="xPos"/>, <paramref name="yPos"/>), with 0xff as a colour key when <paramref name="keyed"/>
+    /// (the code that copied <see cref="sliderPort"/>'s pixels elsewhere draws it from here).
+    /// </summary>
+    void DrawSliderColumn(_pane* target, int32_t xPos, int32_t yPos, bool keyed);
+
+protected:
+    /// <summary>Port: puts the slider image in the column at <paramref name="position"/> (the original's memcpy).</summary>
+    void showSlider(int32_t position);
 };

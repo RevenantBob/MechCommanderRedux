@@ -22,8 +22,12 @@ auto aFloatHelp::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height,
 
 auto aFloatHelp::tossBitmaps() -> void
 {
-    guiHeap->free(port()->frame()->window->buffer);
-    port()->frame()->window->buffer = nullptr;
+    // Port: a tag draws itself through a view, which has no pixels to free.
+    if (port()->frame()->window->buffer != nullptr)
+    {
+        guiHeap->free(port()->frame()->window->buffer);
+        port()->frame()->window->buffer = nullptr;
+    }
 }
 
 auto aFloatHelp::draw() -> void

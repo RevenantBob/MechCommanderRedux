@@ -25,6 +25,7 @@ namespace
         command.Clip.Y0 = std::max(pane->y0, 0);
         command.Clip.X1 = pane->x1 < window->x_max + 1 ? pane->x1 : window->x_max;
         command.Clip.Y1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+        MCClipToView(window, command.Clip.X0, command.Clip.Y0, command.Clip.X1, command.Clip.Y1);
 
         if (command.Clip.X1 < command.Clip.X0 || command.Clip.Y1 < command.Clip.Y0)
         {

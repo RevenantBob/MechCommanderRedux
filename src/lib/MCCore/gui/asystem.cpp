@@ -290,6 +290,15 @@ namespace
         return (MCInput::GetAsyncKeyState(vk) & 0x8000) != 0;
     }
 
+    /// <summary>
+    /// The scissors of the objects drawing in the frame pass around the one displaying now (innermost last), with the
+    /// window each is on: a child that draws itself is cut to its nearest such ancestor's.
+    /// </summary>
+    std::vector<std::pair<const _window*, MCRect>> viewClips;
+
+    /// <summary>The object drawing in the frame pass right now (its view open), or null.</summary>
+    aObject* drawingLive = nullptr;
+
     /// <summary>The test message <see cref="SendAndReceiveTestMessages"/> sends: a header, the frame and a count.</summary>
 #pragma pack(push, 1)
     struct TestMessage
@@ -566,7 +575,7 @@ auto aObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, ch
     }
 
     displayPort = new aPort;
-    const int32_t result = displayPort->init(width, height);
+    const int32_t result = DrawsLive() ? displayPort->initView(width, height) : displayPort->init(width, height);
 
     if (result != 0)
     {
@@ -1240,7 +1249,7 @@ auto aObject::draw() -> void
 
         for (int32_t i = 0; i < numChildren; i++)
         {
-            childList[i]->draw();
+            DrawChild(childList[i]);
         }
     }
 }
@@ -1257,6 +1266,13 @@ auto aObject::display() -> void
         return;
     }
 
+    if (DrawsLive())
+    {
+        SlideStep();
+        DrawInFramePass(displayPort);
+        return;
+    }
+
     if (winState == aSTATE_ICONIZED)
     {
         if (iconAnimation != nullptr)
@@ -1270,6 +1286,127 @@ auto aObject::display() -> void
         draw();
     }
 
+    SlideStep();
+
+    if (displayPort != nullptr)
+    {
+        displayPort->copyTo(framePane, 0, 0, transparent);
+    }
+
+    if (winState != aSTATE_ICONIZED)
+    {
+        for (int32_t i = 0; i < numChildren; i++)
+        {
+            childList[i]->display();
+        }
+    }
+}
+
+auto aObject::SetDrawsLive() -> void
+{
+    drawsLive = true;
+
+    if (displayPort != nullptr && !displayPort->isView())
+    {
+        displayPort->initView(width(), height());
+    }
+}
+
+auto aObject::DrawsChild(aObject* child) -> bool
+{
+    return !child->DrawsLive() && drawingLive != this;
+}
+
+auto aObject::DrawChild(aObject* child) -> void
+{
+    if (drawingLive == this)
+    {
+        return;
+    }
+
+    if (child->DrawsLive())
+    {
+        child->Refresh();
+    }
+    else
+    {
+        child->draw();
+    }
+}
+
+auto aObject::Refresh() -> void
+{
+    for (int32_t i = 0; i < numChildren; i++)
+    {
+        childList[i]->Refresh();
+    }
+}
+
+auto aObject::DrawInFramePass(aPort* port, int32_t scrollY, bool wipe, bool displayChildren) -> void
+{
+    // The view lies over the pane, on the window the pane is on (the screen, or a scroll pane's content), cut to the
+    // window and to the scissor of the nearest clipping ancestor on the same window.
+    _window* target = framePane->window;
+    MCRect scissor{std::max(framePane->x0, 0), std::max(framePane->y0, 0), std::min(framePane->x1, target->x_max),
+                   std::min(framePane->y1, target->y_max)};
+
+    if (!viewClips.empty() && viewClips.back().first == target)
+    {
+        const MCRect& outer = viewClips.back().second;
+        scissor.X0 = std::max(scissor.X0, outer.X0);
+        scissor.Y0 = std::max(scissor.Y0, outer.Y0);
+        scissor.X1 = std::min(scissor.X1, outer.X1);
+        scissor.Y1 = std::min(scissor.Y1, outer.Y1);
+    }
+
+    if (scissor.X1 < scissor.X0 || scissor.Y1 < scissor.Y0)
+    {
+        // An empty scissor: the shut one draws nothing either way, and the children are cut away by it.
+        scissor = MCRect{0, 0, -1, -1};
+    }
+
+    port->openView(target, framePane->x0, framePane->y0 - scrollY, scissor, transparent != 0);
+    aObject* const outerDrawing = drawingLive;
+    drawingLive = this;
+
+    // A picture that was never painted held zeros (the port's heap clears new blocks), and an opaque object copied
+    // them to the screen; a transparent one let what was under it show.
+    if (transparent == 0 && wipe)
+    {
+        VFX_pane_wipe(port->frame(), 0);
+    }
+
+    if (winState != aSTATE_ICONIZED || iconAnimation != nullptr)
+    {
+        draw();
+    }
+
+    drawingLive = outerDrawing;
+    port->closeView();
+
+    if (winState != aSTATE_ICONIZED && displayChildren)
+    {
+        const bool clips = ClipsChildren();
+
+        if (clips)
+        {
+            viewClips.emplace_back(target, scissor);
+        }
+
+        for (int32_t i = 0; i < numChildren; i++)
+        {
+            childList[i]->display();
+        }
+
+        if (clips)
+        {
+            viewClips.pop_back();
+        }
+    }
+}
+
+auto aObject::SlideStep() -> void
+{
     if (hideOffset != 0)
     {
         // A slide (HideMe) moves the whole offset each frame until the object is off the screen, or back home.
@@ -1310,19 +1447,6 @@ auto aObject::display() -> void
                 moveTo(homeX - parent->globalX(), homeYOffset, -1);
                 hideOffset = 0;
             }
-        }
-    }
-
-    if (displayPort != nullptr)
-    {
-        displayPort->copyTo(framePane, 0, 0, transparent);
-    }
-
-    if (winState != aSTATE_ICONIZED)
-    {
-        for (int32_t i = 0; i < numChildren; i++)
-        {
-            childList[i]->display();
         }
     }
 }
@@ -1618,6 +1742,11 @@ auto aObject::SetBit(int32_t xPos, int32_t yPos, uint8_t color) -> void
         if (displayPort->buffer() != nullptr)
         {
             displayPort->buffer()[rowLength * yPos + xPos] = color;
+        }
+        else if (displayPort->isView())
+        {
+            // Port: a view has no pixels; the pixel is drawn through it.
+            VFX_pixel_write(displayPort->frame(), xPos, yPos, color);
         }
     }
 }
@@ -5279,13 +5408,20 @@ auto aMessageBox::init(uint8_t* text) -> int32_t
     button->callback()->setExec(DestroyVersion);
     button->setDepth(100);
     addChild(button);
-    okButton->draw();
+    // The box is drawn by draw, each frame.
+    message = reinterpret_cast<const char*>(text);
+    return 0;
+}
+
+auto aMessageBox::draw() -> void
+{
     aPort* boxPort = displayPort;
     VFX_pane_wipe(boxPort->frame(), 0x11);
+    auto* text = reinterpret_cast<uint8_t*>(message.data());
     const int32_t textWidth = whiteFont->width(text);
-    whiteFont->writeString(boxPort->frame(), (boxWidth - textWidth) / 2, 8, text, -1);
+    whiteFont->writeString(boxPort->frame(), (width() - textWidth) / 2, 8, text, -1);
     drawBox(0x1f, -1, -1, -1, -1);
-    return 0;
+    aObject::draw();
 }
 
 auto aMessageBox::destroy() -> void

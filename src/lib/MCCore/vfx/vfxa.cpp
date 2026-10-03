@@ -42,8 +42,8 @@ int32_t VFX_pixel_write(PANE* pane, int32_t x, int32_t y, uint8_t color)
         return VFX_ERR_CLIPPED;
     }
 
-    // The pixel it replaces is returned (no caller uses it).
-    const int32_t previous = *clip.At(x, y);
+    // The pixel it replaces is returned (no caller uses it; a view has no pixels to read).
+    const int32_t previous = clip.Buffer != nullptr ? *clip.At(x, y) : 0;
     MCRenderer::For(pane->window).Pixel(pane->window, x, y, color);
     return previous;
 }
@@ -64,6 +64,12 @@ int32_t VFX_pixel_read(PANE* pane, int32_t x, int32_t y)
     if (x < clip.X0 || x > clip.X1 || y < clip.Y0 || y > clip.Y1)
     {
         return VFX_ERR_CLIPPED;
+    }
+
+    // Port: a view has no pixels to read.
+    if (clip.Buffer == nullptr)
+    {
+        return VFX_ERR_BAD_WINDOW;
     }
 
     return *clip.At(x, y);

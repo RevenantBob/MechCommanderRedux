@@ -206,7 +206,7 @@ auto lToolButton::handleEvent(aEvent* event) -> void
     aObject::handleEvent(event);
 }
 
-auto lToolButton::draw() -> void
+auto lToolButton::updateFace() -> void
 {
     lPort* picture;
 
@@ -230,16 +230,9 @@ auto lToolButton::draw() -> void
         picture = cursorX <= width() && cursorY <= height() ? overPicture : upPicture;
     }
 
-    if (picture != nullptr)
-    {
-        picture->copyTo(ownPort->frame(), 0, 0, 0);
-    }
-    else
-    {
-        VFX_pane_wipe(ownPort->frame(), backgroundColor);
-    }
-
-    lObject::draw();
+    facePicture = picture;
+    faceColor = static_cast<uint8_t>(backgroundColor);
+    faceKeyed = false;
 }
 
 // lSpinnerButton
@@ -256,7 +249,7 @@ auto lSpinnerButton::handleEvent(aEvent* event) -> void
             {
                 // Run the callback now, then repeat it after half a second held.
                 toggled = -1;
-                draw();
+                Refresh();
                 application->grab(this);
                 application->AddTimer(this, 1, 500, 0, 0, 0);
                 buttonCallback->execute();
@@ -270,7 +263,7 @@ auto lSpinnerButton::handleEvent(aEvent* event) -> void
         case 4:
         {
             toggled = 0;
-            draw();
+            Refresh();
             application->release();
             application->RemoveTimer(this, 1);
             application->RemoveTimer(this, 2);
@@ -297,21 +290,15 @@ auto lSpinnerButton::handleEvent(aEvent* event) -> void
     aObject::handleEvent(event);
 }
 
-auto lSpinnerButton::draw() -> void
+auto lSpinnerButton::updateFace() -> void
 {
-    if (toggled != 0)
-    {
-        if (downPicture != nullptr)
-        {
-            downPicture->copyTo(ownPort->frame(), 0, 0, 0);
-        }
-    }
-    else if (upPicture != nullptr)
-    {
-        upPicture->copyTo(ownPort->frame(), 0, 0, 0);
-    }
+    lPort* picture = toggled != 0 ? downPicture : upPicture;
 
-    lObject::draw();
+    if (picture != nullptr)
+    {
+        facePicture = picture;
+        faceKeyed = false;
+    }
 }
 
 // lChatInput

@@ -68,6 +68,15 @@ public:
     /// <remarks>MCX.EXE @ 0x00729a40</remarks>
     void setBackPane(lPort* port);
 
+    /// <summary>
+    /// Port: the screen whose port the ticker paints into (<see cref="setPort"/> gets only its port). A screen that
+    /// draws itself keeps what the ticker painted (<see cref="LogScreenChrome"/>) instead of pixels.
+    /// </summary>
+    void setScreen(lObject* screen) { paintScreen = screen; }
+
+    /// <summary>Port: draws the ticker line as <paramref name="chrome"/> says it was painted, into <paramref name="target"/>.</summary>
+    void drawPainted(const LogScreenChrome& chrome, _pane* target);
+
     /// <summary>The text shown.</summary>
     char text[256] = {}; // +0x4bc
     /// <summary>How far the text has scrolled, in pixels.</summary>
@@ -86,4 +95,14 @@ public:
     int32_t textWidth = 0; // +0x5d8
     /// <summary>The visible width.</summary>
     int32_t maxWidth = 0; // +0x5dc
+
+    /// <summary>Port: the screen painted into (see <see cref="setScreen"/>).</summary>
+    lObject* paintScreen = nullptr;
+
+private:
+    /// <summary>
+    /// Port: paints the back pane, and the text unless <paramref name="withText"/> is false (scrolled to
+    /// <paramref name="scroll"/>, or whole for -1): into the screen's chrome when it has one, else into the port.
+    /// </summary>
+    void paint(bool withText, int32_t scroll);
 };
