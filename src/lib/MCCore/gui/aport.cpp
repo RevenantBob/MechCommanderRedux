@@ -312,6 +312,7 @@ auto aPort::init(char* fileName) -> int32_t
     }
 
     std::memcpy(portPane->window->buffer, data + 0x312, static_cast<size_t>(height * width));
+    MCRenderer::PixelsChanged(portPane->window);
     std::free(data);
     return 0;
 }

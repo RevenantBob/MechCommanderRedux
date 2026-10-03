@@ -1151,6 +1151,17 @@ extern int gHiddenWindow;
 /// <summary>Port-only: the renderer asked for, an <c>MCRendererKind</c> (PREFS "Renderer", read by systemInit, then
 /// the command line's <c>-renderer</c>).</summary>
 extern int gRenderer;
+/// <summary>Port-only: the renderer PREFS "Renderer" asks for (the preferences screen's choice, written back by
+/// WritePrefs; it takes effect at the next start). <see cref="gRenderer"/> is what this run uses.</summary>
+extern int gRendererPreference;
+/// <summary>Port-only: draw the frame counter in the top-right corner (PREFS "ShowFps", read by systemInit, or the
+/// command line's <c>-fps</c>).</summary>
+extern int gShowFps;
+/// <summary>Port-only: PREFS "ShowFps" as read (written back by WritePrefs, whatever the command line said).</summary>
+extern int gShowFpsPreference;
+/// <summary>Port-only: wait for the display's refresh when showing a frame (cleared by the command line's
+/// <c>-novsync</c>).</summary>
+extern int gVSync;
 extern int applicationActive;
 extern uint32_t systemHeapSize;
 extern uint32_t guiHeapSize;

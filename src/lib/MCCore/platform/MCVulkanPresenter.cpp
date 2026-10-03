@@ -104,14 +104,7 @@ std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> MCVulkanPresenter
     }
 
     // The renderer of the frame surfaces, drawing when asked to.
-    MCGpuDrawing drawing = MCRenderer::RequestedGpuDrawing();
-
-    if (drawing == MCGpuDrawing::On)
-    {
-        // The composite doesn't read the GPU's surfaces yet: draw both and show the software renderer's.
-        SDL_Log("MCVulkanPresenter: GPU drawing alone isn't shown yet; mirroring the software renderer");
-        drawing = MCGpuDrawing::Mirror;
-    }
+    const MCGpuDrawing drawing = MCRenderer::RequestedGpuDrawing();
 
     if (drawing != MCGpuDrawing::Off)
     {
@@ -264,7 +257,32 @@ std::expected<void, std::string> MCVulkanPresenter::Ensure(Texture& texture, SDL
     return {};
 }
 
-std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer* commands, const MCFrame& frame)
+bool MCVulkanPresenter::ShowsGpuSurfaces(const MCFrame& frame) const
+{
+    uint32_t width = 0;
+    uint32_t height = 0;
+    return _Renderer != nullptr && MCRenderer::GpuDrawing() == MCGpuDrawing::On &&
+           _Renderer->SurfaceTexture(frame.Screen, width, height) != nullptr;
+}
+
+std::expected<void, std::string> MCVulkanPresenter::Prepare(SDL_GPUCommandBuffer* commands, const MCFrame& frame,
+                                                            bool& gpuSurfaces)
+{
+    if (_Renderer != nullptr && MCRenderer::GpuDrawing() != MCGpuDrawing::Off)
+    {
+        if (auto executed = _Renderer->Execute(commands, frame.Underlays); !executed)
+        {
+            return executed;
+        }
+    }
+
+    // Until the GPU has drawn the screen once, the screen's own (blank) pixels are shown.
+    gpuSurfaces = ShowsGpuSurfaces(frame);
+    return Upload(commands, frame, gpuSurfaces);
+}
+
+std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer* commands, const MCFrame& frame,
+                                                           bool gpuSurfaces)
 {
     const uint32_t width = static_cast<uint32_t>(frame.Width);
     const uint32_t height = static_cast<uint32_t>(frame.Height);
@@ -273,10 +291,7 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
     bool paletteNew = _Palette.Handle == nullptr;
 
     for (auto made :
-         {Ensure(_Screen, R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, width, height, true),
-          Ensure(_Ops, R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, width, height, true),
-          Ensure(_Tables, R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, 256, 256, true),
-          Ensure(_Palette, Rgba, SDL_GPU_TEXTUREUSAGE_SAMPLER, 256, 1, true),
+         {Ensure(_Palette, Rgba, SDL_GPU_TEXTUREUSAGE_SAMPLER, 256, 1, true),
           Ensure(_Frame, Rgba, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER, width, height, true)})
     {
         if (!made)
@@ -285,26 +300,8 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
         }
     }
 
-    if (_Underlays.size() < frame.Underlays.size())
-    {
-        _Underlays.resize(frame.Underlays.size());
-    }
-
-    for (size_t i = 0; i < frame.Underlays.size(); ++i)
-    {
-        const _window* source = frame.Underlays[i].Source;
-
-        if (auto made =
-                Ensure(_Underlays[i], R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, static_cast<uint32_t>(source->x_max + 1),
-                       static_cast<uint32_t>(source->y_max + 1), false);
-            !made)
-        {
-            return made;
-        }
-    }
-
-    // What goes up this frame: the screen always; with underlays their surfaces, the ops and the op tables in use;
-    // the palette when it changed.
+    // What goes up this frame: the palette when it changed; unless the GPU's surfaces are shown, the screen, and with
+    // underlays their surfaces, the ops and the op tables in use.
     struct Part
     {
         const void* Data;
@@ -316,9 +313,41 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
     };
 
     std::vector<Part> parts;
-    parts.push_back({frame.Pixels, _Screen.Handle, width, height, 1, 0});
 
-    if (!frame.Underlays.empty())
+    if (!gpuSurfaces)
+    {
+        for (auto made : {Ensure(_Screen, R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, width, height, true),
+                          Ensure(_Ops, R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, width, height, true),
+                          Ensure(_Tables, R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, 256, 256, true)})
+        {
+            if (!made)
+            {
+                return made;
+            }
+        }
+
+        if (_Underlays.size() < frame.Underlays.size())
+        {
+            _Underlays.resize(frame.Underlays.size());
+        }
+
+        for (size_t i = 0; i < frame.Underlays.size(); ++i)
+        {
+            const _window* source = frame.Underlays[i].Source;
+
+            if (auto made =
+                    Ensure(_Underlays[i], R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, static_cast<uint32_t>(source->x_max + 1),
+                           static_cast<uint32_t>(source->y_max + 1), false);
+                !made)
+            {
+                return made;
+            }
+        }
+
+        parts.push_back({frame.Pixels, _Screen.Handle, width, height, 1, 0});
+    }
+
+    if (!gpuSurfaces && !frame.Underlays.empty())
     {
         parts.push_back({frame.Ops, _Ops.Handle, width, height, 1, 0});
         parts.push_back(
@@ -336,6 +365,11 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
     {
         // SDL_Color is r, g, b, a bytes: RGBA's layout. The alpha isn't used.
         parts.push_back({frame.Colors, _Palette.Handle, 256, 1, 4, 0});
+    }
+
+    if (parts.empty())
+    {
+        return {};
     }
 
     uint32_t total = 0;
@@ -400,10 +434,26 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
     return {};
 }
 
-void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame& frame)
+void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame& frame, bool gpuSurfaces)
 {
     const float width = static_cast<float>(frame.Width);
     const float height = static_cast<float>(frame.Height);
+
+    // The screen's texture and its allocated size; the GPU's surfaces have no op plane or op tables (the screen is
+    // bound in their place, unread).
+    SDL_GPUTexture* screen = _Screen.Handle;
+    uint32_t screenWidth = static_cast<uint32_t>(frame.Width);
+    uint32_t screenHeight = static_cast<uint32_t>(frame.Height);
+
+    if (gpuSurfaces)
+    {
+        screen = _Renderer->SurfaceTexture(frame.Screen, screenWidth, screenHeight);
+    }
+
+    SDL_GPUTexture* ops = gpuSurfaces ? screen : _Ops.Handle;
+    SDL_GPUTexture* tables = gpuSurfaces ? screen : _Tables.Handle;
+    const float source = gpuSurfaces ? 1.0f : 0.0f;
+    const float screenSize[4] = {width, height, static_cast<float>(screenWidth), static_cast<float>(screenHeight)};
     SDL_GPUColorTargetInfo target{};
     target.texture = _Frame.Handle;
     // The first quad covers every pixel.
@@ -417,8 +467,7 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
     auto draw = [&](float x, float y, float w, float h, SDL_GPUTexture* world, const CompositeUniforms& uniforms)
     {
         const SDL_GPUTextureSamplerBinding bindings[5] = {
-            {_Screen.Handle, _Nearest}, {_Ops.Handle, _Nearest},     {world, _Nearest},
-            {_Tables.Handle, _Nearest}, {_Palette.Handle, _Nearest},
+            {screen, _Nearest}, {ops, _Nearest}, {world, _Nearest}, {tables, _Nearest}, {_Palette.Handle, _Nearest},
         };
 
         const QuadUniforms quad{{x, y, w, h}, {width, height, 0.0f, 0.0f}};
@@ -429,8 +478,11 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
     };
 
     // The screen alone, then each underlay's rectangle with its surface.
-    draw(0.0f, 0.0f, width, height, _Screen.Handle,
-         CompositeUniforms{{width, height, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {}});
+    draw(0.0f, 0.0f, width, height, screen,
+         CompositeUniforms{{screenSize[0], screenSize[1], screenSize[2], screenSize[3]},
+                           {0.0f, 0.0f, 1.0f, 1.0f},
+                           {1.0f, 1.0f, 1.0f, 1.0f},
+                           {0.0f, source, 0.0f, 0.0f}});
 
     for (size_t i = 0; i < frame.Underlays.size(); ++i)
     {
@@ -445,18 +497,45 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
             continue;
         }
 
+        // The world's texture: its size in use and allocated (the GPU's surface is exactly its size, as its draws
+        // saw it).
+        SDL_GPUTexture* world = nullptr;
+        float worldSize[4] = {};
+
+        if (!gpuSurfaces)
+        {
+            world = _Underlays[i].Handle;
+            worldSize[0] = static_cast<float>(underlay.Source->x_max + 1);
+            worldSize[1] = static_cast<float>(underlay.Source->y_max + 1);
+            worldSize[2] = static_cast<float>(_Underlays[i].Width);
+            worldSize[3] = static_cast<float>(_Underlays[i].Height);
+        }
+        else
+        {
+            uint32_t worldWidth = 0;
+            uint32_t worldHeight = 0;
+            world = _Renderer->SurfaceTexture(underlay.Source, worldWidth, worldHeight);
+
+            if (world == nullptr)
+            {
+                continue;
+            }
+
+            worldSize[0] = worldSize[2] = static_cast<float>(worldWidth);
+            worldSize[1] = worldSize[3] = static_cast<float>(worldHeight);
+        }
+
         const CompositeUniforms uniforms{
-            {width, height, 0.0f, 0.0f},
+            {screenSize[0], screenSize[1], screenSize[2], screenSize[3]},
             {static_cast<float>(underlay.Rect.X0), static_cast<float>(underlay.Rect.Y0),
              static_cast<float>(underlay.Rect.X1 - underlay.Rect.X0 + 1),
              static_cast<float>(underlay.Rect.Y1 - underlay.Rect.Y0 + 1)},
-            {static_cast<float>(underlay.Source->x_max + 1), static_cast<float>(underlay.Source->y_max + 1),
-             static_cast<float>(_Underlays[i].Width), static_cast<float>(_Underlays[i].Height)},
-            {1.0f, 0.0f, 0.0f, 0.0f},
+            {worldSize[0], worldSize[1], worldSize[2], worldSize[3]},
+            {1.0f, source, 0.0f, 0.0f},
         };
 
         draw(static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(x1 - x0 + 1),
-             static_cast<float>(y1 - y0 + 1), _Underlays[i].Handle, uniforms);
+             static_cast<float>(y1 - y0 + 1), world, uniforms);
     }
 
     SDL_EndGPURenderPass(pass);
@@ -471,24 +550,16 @@ std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame
         return std::unexpected(SdlError("SDL_AcquireGPUCommandBuffer"));
     }
 
-    if (auto uploaded = Upload(commands, frame); !uploaded)
+    bool gpuSurfaces = false;
+
+    if (auto prepared = Prepare(commands, frame, gpuSurfaces); !prepared)
     {
         SDL_CancelGPUCommandBuffer(commands);
-        return uploaded;
+        return prepared;
     }
 
     const bool drawing = _Renderer != nullptr && MCRenderer::GpuDrawing() != MCGpuDrawing::Off;
-
-    if (drawing)
-    {
-        if (auto executed = _Renderer->Execute(commands, frame.Underlays); !executed)
-        {
-            SDL_CancelGPUCommandBuffer(commands);
-            return executed;
-        }
-    }
-
-    Composite(commands, frame);
+    Composite(commands, frame, gpuSurfaces);
     SDL_GPUTexture* swapchain = nullptr;
     uint32_t swapchainWidth = 0;
     uint32_t swapchainHeight = 0;
@@ -550,13 +621,15 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
         return std::unexpected(SdlError("SDL_AcquireGPUCommandBuffer"));
     }
 
-    if (auto uploaded = Upload(commands, frame); !uploaded)
+    bool gpuSurfaces = false;
+
+    if (auto prepared = Prepare(commands, frame, gpuSurfaces); !prepared)
     {
         SDL_CancelGPUCommandBuffer(commands);
-        return std::unexpected(uploaded.error());
+        return std::unexpected(prepared.error());
     }
 
-    Composite(commands, frame);
+    Composite(commands, frame, gpuSurfaces);
     const uint32_t size = static_cast<uint32_t>(frame.Width) * static_cast<uint32_t>(frame.Height) * 4;
     SDL_GPUTransferBufferCreateInfo info{};
     info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
@@ -605,6 +678,32 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
     SDL_UnmapGPUTransferBuffer(_Device, download);
     SDL_ReleaseGPUTransferBuffer(_Device, download);
     return pixels;
+}
+
+std::expected<std::vector<uint8_t>, std::string> MCVulkanPresenter::ReadScreen(const MCFrame& frame)
+{
+    if (_Renderer != nullptr && MCRenderer::GpuDrawing() == MCGpuDrawing::On)
+    {
+        auto shown = _Renderer->ReadShown(frame.Screen, frame.Underlays);
+
+        if (!shown || !shown->empty())
+        {
+            return shown;
+        }
+    }
+
+    // The software renderer's pixels (also before the GPU has drawn the screen once, as the composite shows them).
+    return MCPresenter::ReadScreen(frame);
+}
+
+std::expected<void, std::string> MCVulkanPresenter::Discard(const MCFrame& frame)
+{
+    if (_Renderer == nullptr || MCRenderer::GpuDrawing() == MCGpuDrawing::Off)
+    {
+        return {};
+    }
+
+    return _Renderer->Flush(frame.Underlays);
 }
 
 MCViewport MCVulkanPresenter::Viewport(int viewWidth, int viewHeight) const

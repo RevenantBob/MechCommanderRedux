@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "MCTest.h"
 #include "TestGame.h"
 #include "camera/camera.h"
 #include "gui/asystem.h"
@@ -23,11 +24,14 @@ namespace MCTestGame
     {
         static const bool available = []
         {
-            const char* root = std::getenv("MC_GAME");
+            // --game <folder>, else the current folder when it holds the game (as the game looks for SYSTEM.CFG).
+            const char* option = MCTest::Option("game");
+            const std::filesystem::path root =
+                option != nullptr ? std::filesystem::path(option) : std::filesystem::current_path();
 
-            if (root == nullptr || !std::filesystem::is_directory(root))
+            if (!std::filesystem::is_regular_file(root / "SYSTEM.CFG"))
             {
-                std::cout << "  (skipped: set MC_GAME to the MechCommander Gold install)\n";
+                std::cout << "  (skipped: pass --game <the MechCommander Gold install>)\n";
                 return false;
             }
 
@@ -161,10 +165,10 @@ namespace MCTestGame
             gHiddenWindow = 1;
             gNoSound = 1;
             // Deterministic runs: game time only moves with RunFrame, and the dice start the same way (RealWinMain seeds
-            // them from the time of day). MC_TEST_SEED picks other dice. With the default, mission 1's Uller has its
+            // them from the time of day). --seed <n> picks other dice. With the default, mission 1's Uller has its
             // pilot knocked out (4 wounds) in the fight the mission tests stage.
             MCPort::UseManualClock();
-            const char* seed = std::getenv("MC_TEST_SEED");
+            const char* seed = MCTest::Option("seed");
             std::srand(seed != nullptr ? static_cast<uint32_t>(std::strtoul(seed, nullptr, 10)) : 10u);
             // The world view shows 480 lines (one world pixel per screen pixel in the 640x480 window) at any zoom
             // request, so what is on screen, and so updated, is the same every run.
@@ -217,10 +221,10 @@ namespace MCTestGame
 
         UpdateDisplay(0, staticNoise, noiseChance, 0, 0);
 
-        // MC_TEST_FRAMES=<file>: each frame's movers, to find where two runs part.
+        // --frames <file>: each frame's movers, to find where two runs part.
         static FILE* frameLog = []
         {
-            const char* name = std::getenv("MC_TEST_FRAMES");
+            const char* name = MCTest::Option("frames");
             return name != nullptr ? std::fopen(name, "w") : nullptr;
         }();
 

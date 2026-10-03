@@ -27,6 +27,13 @@ const char* MCRendererKindName(MCRendererKind kind)
     return kind == MCRendererKind::Software ? "software" : "vulkan";
 }
 
+std::expected<std::vector<uint8_t>, std::string> MCPresenter::ReadScreen(const MCFrame& frame)
+{
+    std::vector<uint8_t> pixels(frame.Pixels, frame.Pixels + static_cast<size_t>(frame.Width) * frame.Height);
+    MCRenderer::ComposeUnderlays(frame.Screen, pixels.data(), MCRect{0, 0, frame.Width - 1, frame.Height - 1});
+    return pixels;
+}
+
 MCViewport MCPresentViewport(int outputWidth, int outputHeight, int viewWidth, int viewHeight,
                              const MCPresentation& presentation)
 {

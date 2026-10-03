@@ -145,6 +145,7 @@ public:
     void Hash(_window* target, const MCRect& rect, uint8_t color) override;
     void Copy(_window* target, const MCCopyCommand& command) override;
     void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) override;
+    void ShapeBlit(_window* target, const MCShapeBlitCommand& command) override;
     void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override;
     void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) override;
     void Shape(_window* target, const MCShapeCommand& command) override;

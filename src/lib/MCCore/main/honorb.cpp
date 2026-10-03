@@ -345,6 +345,16 @@ void systemInit()
     }
 
     gSoftwareCursor = softwareCursor != 0 ? 1 : 0;
+    // Port: a port-only key; the frame counter in the top-right corner. The command line's -fps sets it too.
+    int showFps = 0;
+
+    if (prefsFile->readIdBoolean("ShowFps", showFps) != 0)
+    {
+        showFps = 0;
+    }
+
+    gShowFpsPreference = showFps != 0 ? 1 : 0;
+    gShowFps = showFps != 0 ? 1 : gShowFps;
     // Port: a port-only key; "vulkan" (the default) or "software". The command line's -renderer wins.
     char rendererName[32] = {};
 
@@ -355,6 +365,8 @@ void systemInit()
             gRenderer = static_cast<int>(*kind);
         }
     }
+
+    gRendererPreference = gRenderer;
 
     int32_t resolution = 0;
 

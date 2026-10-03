@@ -7,19 +7,24 @@
 // This is MCRenderer::ComposeUnderlays, which the CPU uses for screenshots, tests and the software renderer, done per
 // pixel.
 //
+// Two sources (mode.y): the software renderer's pixels uploaded each frame (the screen, the op plane and the world
+// R8), or the GPU renderer's own surfaces (MCVulkanRenderer, RGBA: red the index; on the screen, blue set marks a pixel
+// a see-through draw left, and green is the world pixel under it already mapped through those draws, see
+// draw.pshader). Red is read either way, so both bind the same textures.
+//
 // Bindings (SDL GPU, SPIR-V): textures and samplers in space2, fragment uniforms in space3. A replacement in the
 // shaders folder (composite.spv) must keep them.
 
-// The screen: one palette index per pixel.
-Texture2D<float> screenTex : register(t0, space2);
+// The screen: one palette index per pixel (red).
+Texture2D<float4> screenTex : register(t0, space2);
 SamplerState screenSampler : register(s0, space2);
-// The screen's op plane: one byte per screen pixel.
+// The screen's op plane: one byte per screen pixel (unused with the GPU's surfaces).
 Texture2D<float> opTex : register(t1, space2);
 SamplerState opSampler : register(s1, space2);
-// The world view's surface (unused without an underlay).
-Texture2D<float> worldTex : register(t2, space2);
+// The world view's surface (red; unused without an underlay).
+Texture2D<float4> worldTex : register(t2, space2);
 SamplerState worldSampler : register(s2, space2);
-// The op tables: 256 x 256, row = op, column = world index.
+// The op tables: 256 x 256, row = op, column = world index (unused with the GPU's surfaces).
 Texture2D<float> tableTex : register(t3, space2);
 SamplerState tableSampler : register(s3, space2);
 // The palette, 256 x 1, as shown (gamma applied).
@@ -28,34 +33,59 @@ SamplerState paletteSampler : register(s4, space2);
 
 cbuffer Composite : register(b0, space3)
 {
-    // The screen's size in pixels (xy).
+    // The screen's size in pixels (xy); the screen texture's allocated size (zw).
     float4 screenSize;
     // The underlay's rectangle on the screen: left, top, width, height.
     float4 shown;
     // The world surface's size in pixels (xy); the world texture's allocated size (zw).
     float4 worldSize;
-    // x: 1 when drawing an underlay's rectangle, 0 for the screen alone.
+    // x: 1 when drawing an underlay's rectangle, 0 for the screen alone. y: 1 when the textures are the GPU
+    // renderer's surfaces.
     float4 mode;
 };
 
+uint Byte(float value)
+{
+    return (uint)round(value * 255.0);
+}
+
+float4 TexelAt(Texture2D<float4> tex, SamplerState samp, float2 texel, float2 size)
+{
+    return tex.Sample(samp, (texel + 0.5) / size);
+}
+
 uint IndexAt(Texture2D<float> tex, SamplerState samp, float2 texel, float2 size)
 {
-    return (uint)round(tex.Sample(samp, (texel + 0.5) / size) * 255.0);
+    return Byte(tex.Sample(samp, (texel + 0.5) / size));
 }
 
 float4 main(float4 position : SV_Position) : SV_Target
 {
     const float2 pixel = floor(position.xy);
-    uint index = IndexAt(screenTex, screenSampler, pixel, screenSize.xy);
+    const float4 screen = TexelAt(screenTex, screenSampler, pixel, screenSize.zw);
+    uint index = Byte(screen.r);
 
     if (mode.x != 0.0 && index == 255)
     {
-        // The world pixel under this pixel's centre: (2 * offset + 1) * surface / (2 * shown), as the CPU picks it.
-        const float2 offset = pixel - shown.xy;
-        const float2 world = clamp(floor((2.0 * offset + 1.0) * worldSize.xy / (2.0 * shown.zw)), 0.0, worldSize.xy - 1.0);
-        const uint worldIndex = IndexAt(worldTex, worldSampler, world, worldSize.zw);
-        const uint op = IndexAt(opTex, opSampler, pixel, screenSize.xy);
-        index = IndexAt(tableTex, tableSampler, float2(worldIndex, op), float2(256.0, 256.0));
+        if (mode.y != 0.0 && Byte(screen.b) >= 128)
+        {
+            // A see-through draw already mapped the world pixel here.
+            index = Byte(screen.g);
+        }
+        else
+        {
+            // The world pixel under this pixel's centre: (2 * offset + 1) * surface / (2 * shown), as the CPU picks it.
+            const float2 offset = pixel - shown.xy;
+            const float2 world =
+                clamp(floor((2.0 * offset + 1.0) * worldSize.xy / (2.0 * shown.zw)), 0.0, worldSize.xy - 1.0);
+            index = Byte(TexelAt(worldTex, worldSampler, world, worldSize.zw).r);
+
+            if (mode.y == 0.0)
+            {
+                const uint op = IndexAt(opTex, opSampler, pixel, screenSize.zw);
+                index = IndexAt(tableTex, tableSampler, float2(index, op), float2(256.0, 256.0));
+            }
+        }
     }
 
     const float4 color = paletteTex.Sample(paletteSampler, float2((index + 0.5) / 256.0, 0.5));

@@ -49,7 +49,7 @@ jobs:
       - name: Build
         run: msbuild src\MCRedux.slnx -p:Configuration=Release -p:Platform=x64 -m
 
-      # The game: tests need the retail install (MC_GAME), which the runner doesn't have; they pass with a note.
+      # The game: tests need the retail install (--game), which the runner doesn't have; they pass with a note.
       - name: Test
         run: src\build\bin\x64\Release\mc_tests.exe
 

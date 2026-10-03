@@ -1,12 +1,16 @@
 #include "stdafx.h"
 #include "MCTest.h"
+#include "ScreenInput.h"
 #include "TestGame.h"
 #include "gui/asystem.h"
+#include "lib/inifile.h"
 #include "gui/scrlpane.h"
 #include "logistics/logmain.h"
 #include "logistics/logscrn.h"
 #include "logistics/lport.h"
 #include "main/logistics.h"
+#include "platform/MCFileSystem.h"
+#include "platform/MCPresenter.h"
 #include "vfx/vfxfuncs.h"
 
 namespace
@@ -115,4 +119,61 @@ TEST_CASE_ISOLATED("game: the logistics chat history draws as the original's pic
     chat->AddLine(lines[1].c_str());
     CHECK(same());
     original.destroy();
+}
+
+/// <summary>
+/// The preferences screen's RENDERER box: a click on SOFTWARE chooses it, CANCEL puts the old choice back, ACCEPT
+/// writes it to PREFS "Renderer"; the running game keeps its renderer (the choice is for the next start).
+/// </summary>
+TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves it in PREFS")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    // The tests' user folder overlays the install, so a PREFS written here would be every later test's.
+    const std::filesystem::path prefsPath = MCFileSystem::UserRoot() / "prefs.cfg";
+    std::filesystem::remove(prefsPath);
+    const int32_t running = gRenderer;
+    const int32_t chosen = gRendererPreference;
+    REQUIRE_EQ(chosen, static_cast<int32_t>(MCRendererKind::Vulkan));
+
+    const auto frames = []
+    {
+        for (int32_t frame = 0; frame < 5; frame++)
+        {
+            MCTestGame::RunFrame(1.0f / 15.0f);
+        }
+    };
+
+    // The SOFTWARE check: 7x7 at (513, 256).
+    ShowPreferences();
+    frames();
+    MCScreenInput::Click(516, 259);
+    frames();
+    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
+    CancelPrefs();
+    frames();
+    CHECK_EQ(gRendererPreference, chosen);
+
+    ShowPreferences();
+    frames();
+    MCScreenInput::Click(516, 259);
+    frames();
+    WritePrefs();
+    frames();
+    CHECK_EQ(gRenderer, running);
+
+    char renderer[32] = {};
+    {
+        FitIniFile prefs;
+        REQUIRE_EQ(prefs.open(prefsPath.string().c_str()), 0);
+        REQUIRE_EQ(prefs.seekBlock("MechCommander"), 0);
+        CHECK_EQ(prefs.readIdString("Renderer", renderer, sizeof(renderer) - 1), 0);
+    }
+
+    std::filesystem::remove(prefsPath);
+    CHECK(std::string_view(renderer) == "software");
 }

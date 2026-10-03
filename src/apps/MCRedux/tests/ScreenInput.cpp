@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
 #include "gui/aport.h"
@@ -40,7 +41,7 @@ namespace MCScreenInput
 
     void SaveShot(const std::string& name, uint32_t hash)
     {
-        const char* shots = std::getenv("MC_TEST_SHOTS");
+        const char* shots = MCTest::Option("shots");
 
         if (shots == nullptr || MCInput::Display() == nullptr)
         {

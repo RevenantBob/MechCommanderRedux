@@ -23,6 +23,7 @@
 #include "network/multplyr.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
+#include "platform/MCPresenter.h"
 #include "platform/MCRegistry.h"
 #include "sound/soundsys.h"
 #include "sprite/sprtmgr.h"
@@ -457,6 +458,123 @@ void SoloLoadScreen()
     globalLogPtr->loadScreen->filePane->setSelectedFile(-1);
 }
 
+namespace
+{
+    // Port: the renderer choice on the preferences screen, laid out and coloured as the DIFFICULTY box above it (in
+    // the panel art, prefs_00.tga): an outline of colour 0x13, the title and labels in 0xe3, 7x7 checks of 0x14 with
+    // the check art (prefs_01.tga) shown while chosen, a check every 13 rows.
+
+    /// <summary>The box's place on the screen (under DIFFICULTY, over ACCEPT) and size.</summary>
+    constexpr int32_t RendererBoxLeft = 480;
+    constexpr int32_t RendererBoxTop = 222;
+    constexpr int32_t RendererBoxWidth = 120;
+    constexpr int32_t RendererBoxHeight = 50;
+
+    /// <summary>The choices, top to bottom: their renderers and labels.</summary>
+    constexpr MCRendererKind RendererChoices[2] = {MCRendererKind::Vulkan, MCRendererKind::Software};
+    constexpr const char* RendererLabels[2] = {"VULKAN", "SOFTWARE"};
+
+    /// <summary>The RENDERER box: its outline, title, empty checks and labels, drawn each frame.</summary>
+    class RendererBox : public lObject
+    {
+    public:
+        void draw() override
+        {
+            const int16_t right = RendererBoxWidth - 1;
+            const int16_t bottom = RendererBoxHeight - 1;
+            FillBox(0, 0, right, 0, 0x13);
+            FillBox(0, bottom, right, bottom, 0x13);
+            FillBox(0, 0, 0, bottom, 0x13);
+            FillBox(right, 0, right, bottom, 0x13);
+            // (The font's glyphs start a column in, so the text is written a pixel left of the art's.)
+            writeLabel(32, 9, "RENDERER");
+
+            for (int16_t i = 0; i < 2; i++)
+            {
+                const int16_t top = static_cast<int16_t>(21 + i * 13);
+                FillBox(33, top, 39, top, 0x14);
+                FillBox(33, top + 6, 39, top + 6, 0x14);
+                FillBox(33, top, 33, top + 6, 0x14);
+                FillBox(39, top, 39, top + 6, 0x14);
+                writeLabel(42, top + 1, RendererLabels[i]);
+            }
+        }
+
+        bool DrawsLive() override { return true; }
+
+    private:
+        /// <summary>Writes <paramref name="text"/> in the panel's label colour.</summary>
+        void writeLabel(int32_t x, int32_t y, const char* text)
+        {
+            uint8_t saved[256];
+            std::memcpy(saved, whiteFont->colorTable, sizeof(saved));
+
+            // Every inked value (not 255, which the glyph draw leaves out) in the label colour.
+            for (uint8_t& color : whiteFont->colorTable)
+            {
+                color = color == 0xff ? 0xff : 0xe3;
+            }
+
+            whiteFont->writeString(lport()->frame(), x, y, reinterpret_cast<uint8_t*>(const_cast<char*>(text)), -1);
+            std::memcpy(whiteFont->colorTable, saved, sizeof(saved));
+        }
+    };
+
+    /// <summary>The checks, and the choice when the screen opened (for CancelPrefs).</summary>
+    lToolButton* rendererChecks[2] = {};
+    int32_t savedRendererPreference = 0;
+
+    /// <summary>Shows <see cref="gRendererPreference"/> on the checks.</summary>
+    void showRendererPreference()
+    {
+        for (int32_t i = 0; i < 2; i++)
+        {
+            if (rendererChecks[i] != nullptr)
+            {
+                rendererChecks[i]->toggled = gRendererPreference == static_cast<int32_t>(RendererChoices[i]) ? 1 : 0;
+            }
+        }
+    }
+
+    void VulkanCheck()
+    {
+        gRendererPreference = static_cast<int32_t>(MCRendererKind::Vulkan);
+        showRendererPreference();
+    }
+
+    void SoftwareCheck()
+    {
+        gRendererPreference = static_cast<int32_t>(MCRendererKind::Software);
+        showRendererPreference();
+    }
+}
+
+void AddRendererPreference(GenericScreen* screen)
+{
+    auto* box = new RendererBox;
+    box->init(RendererBoxLeft, RendererBoxTop, RendererBoxWidth, RendererBoxHeight, nullptr, nullptr);
+    box->SetTransparent(-1);
+    box->ShowGUIWindow(-1);
+    screen->addChild(box);
+
+    for (int32_t i = 0; i < 2; i++)
+    {
+        auto* check = new lToolButton;
+        check->init(RendererBoxLeft + 33, RendererBoxTop + 21 + i * 13, 7, 7, nullptr);
+        check->SetTransparent(-1);
+        check->setBackColor(0xff);
+        check->setDownPicture(const_cast<char*>("prefs_01.tga"));
+        check->overSound = static_cast<uint32_t>(-1);
+        check->pressSound = 16;
+        check->callback()->setExec(i == 0 ? VulkanCheck : SoftwareCheck);
+        check->ShowGUIWindow(-1);
+        screen->addChild(check);
+        rendererChecks[i] = check;
+    }
+
+    showRendererPreference();
+}
+
 void ShowPreferences()
 {
     if (!CheckRegistryVersionNumber())
@@ -474,6 +592,8 @@ void ShowPreferences()
     logistics->savedPrefs4 = soundSystem->radioVolume;
     logistics->savedPrefs5 = soundSystem->digitalMasterVolume;
     logistics->savedPrefs6 = GameDifficulty;
+    savedRendererPreference = gRendererPreference;
+    showRendererPreference();
     GenericScreen* screen = logistics->prefScreen;
     element<lSlider>(screen, 3)->setCurrentValue(brightness);
     element<lSlider>(screen, 4)->setCurrentValue(static_cast<int32_t>(globalLogPtr->savedPrefs3));
@@ -512,6 +632,7 @@ void CancelPrefs()
     }
 
     GameDifficulty = logistics->savedPrefs6;
+    gRendererPreference = savedRendererPreference;
     Cancel();
 }
 
@@ -534,6 +655,8 @@ void WritePrefs()
     // Port: keep the port-only key. Original behaviour (OB-101): the hidden "Resolution" key is not written back.
     prefs.writeIdBoolean("StretchToFit", gStretchToFit != 0);
     prefs.writeIdBoolean("SoftwareCursor", gSoftwareCursor != 0);
+    prefs.writeIdString("Renderer", MCRendererKindName(static_cast<MCRendererKind>(gRendererPreference)));
+    prefs.writeIdBoolean("ShowFps", gShowFpsPreference != 0);
     Cancel();
 }
 

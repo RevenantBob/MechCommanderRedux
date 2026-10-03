@@ -384,17 +384,7 @@ MCFrame MCDisplay::BuildFrame(bool allColors)
     frame.Height = _Height;
     frame.View = _View;
     frame.Ops = _Ops.data();
-    _FrameUnderlays.clear();
-
-    for (const MCUnderlay& underlay : MCRenderer::Underlays())
-    {
-        if (underlay.Target != nullptr && underlay.Target->buffer == _Screen.buffer && underlay.Source != nullptr &&
-            underlay.Source->buffer != nullptr)
-        {
-            _FrameUnderlays.push_back(underlay);
-        }
-    }
-
+    _FrameUnderlays = ScreenUnderlays();
     frame.Underlays = _FrameUnderlays;
 
     {
@@ -423,7 +413,7 @@ std::expected<void, std::string> MCDisplay::Present()
 
     if ((SDL_GetWindowFlags(_Window) & SDL_WINDOW_MINIMIZED) != 0)
     {
-        return {};
+        return _Presenter->Discard(BuildFrame(false));
     }
 
     return _Presenter->Present(BuildFrame(false));
@@ -436,9 +426,43 @@ std::expected<std::vector<SDL_Color>, std::string> MCDisplay::ReadFrame()
 
 std::vector<uint8_t> MCDisplay::ComposeScreen() const
 {
+    const std::vector<MCUnderlay> underlays = ScreenUnderlays();
+    MCFrame frame;
+    frame.Screen = &_Screen;
+    frame.Pixels = _Pixels.data();
+    frame.Width = _Width;
+    frame.Height = _Height;
+    frame.View = _View;
+    frame.Ops = _Ops.data();
+    frame.Underlays = underlays;
+    auto shown = _Presenter->ReadScreen(frame);
+
+    if (shown)
+    {
+        return std::move(*shown);
+    }
+
+    SDL_Log("MCDisplay: the screen can't be read (%s); composing the software renderer's pixels",
+            shown.error().c_str());
     std::vector<uint8_t> pixels = _Pixels;
     MCRenderer::ComposeUnderlays(&_Screen, pixels.data(), MCRect{0, 0, _Width - 1, _Height - 1});
     return pixels;
+}
+
+std::vector<MCUnderlay> MCDisplay::ScreenUnderlays() const
+{
+    std::vector<MCUnderlay> underlays;
+
+    for (const MCUnderlay& underlay : MCRenderer::Underlays())
+    {
+        if (underlay.Target != nullptr && underlay.Target->buffer == _Screen.buffer && underlay.Source != nullptr &&
+            underlay.Source->buffer != nullptr)
+        {
+            underlays.push_back(underlay);
+        }
+    }
+
+    return underlays;
 }
 
 bool MCDisplay::SetFullscreen(bool fullscreen)

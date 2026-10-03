@@ -926,6 +926,7 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
         case MCPolygonKind::Map:
         {
             const _window* texture = command.Texture;
+            NoteCpuRead(texture, "Polygon (map)");
             const uint8_t* texels = texture->buffer;
             const int64_t texSize = static_cast<int64_t>(texture->x_max + 1) * (texture->y_max + 1);
             const bool xlat = (command.MapFlags & MP_XLAT) != 0;
@@ -1335,6 +1336,7 @@ void MCMapQuadSpans(const MCMapQuadCommand& command, MCSpanState& state, const s
 
 void MCSoftwareRenderer::MapQuad(_window* target, const MCMapQuadCommand& command)
 {
+    NoteCpuRead(command.Texture, "MapQuad");
     const int32_t stride = target->x_max + 1;
     const uint8_t* texture = command.Texture->buffer;
     const int32_t textureStride = command.Texture->x_max + 1;

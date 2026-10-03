@@ -27,10 +27,17 @@ struct _window
     /// </summary>
     MCView* View = nullptr;
     /// <summary>
-    /// Port: counts the draws asked of the window's pixels (<see cref="MCRenderer::For"/>), so a hardware renderer
-    /// that took a copy of them knows when it may be stale.
+    /// Port: a stamp, new from one counter for every window at each draw asked of its pixels
+    /// (<see cref="MCRenderer::For"/>) and each change made to them directly (<see cref="MCRenderer::PixelsChanged"/>),
+    /// so a hardware renderer that took a copy of them knows when it may be stale, even when a window freed and made
+    /// again over the same memory has been drawn as often.
     /// </summary>
     mutable uint32_t Version = 0;
+    /// <summary>
+    /// Port: the pixels are a movie's frames, decoded on the CPU, so a hardware renderer uploads them whenever they
+    /// change (the one upload made every frame).
+    /// </summary>
+    bool Movie = false;
 };
 
 using WINDOW = _window;

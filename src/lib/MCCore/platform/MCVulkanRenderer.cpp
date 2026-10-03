@@ -89,7 +89,8 @@ namespace
         Shape = 1,
         FastShape,
         Tile,
-        Glyph
+        Glyph,
+        ShapeFill
     };
 
     uint64_t Seed(ImageKind kind, int32_t width, int32_t height)
@@ -213,6 +214,48 @@ namespace
         }
     }
 
+    /// <summary>
+    /// The picture AG_shape_fill makes of a shape in a buffer of its bounds: <paramref name="rows"/> rows of
+    /// <paramref name="width"/> bytes, drawn pixels as stored (through <paramref name="table"/> when there is one),
+    /// everything else colour 0, each row cut at the buffer's width.
+    /// </summary>
+    void FillShape(const uint8_t* data, int32_t rows, int32_t width, const uint8_t* table, uint8_t* out)
+    {
+        std::memset(out, 0, static_cast<size_t>(width) * rows);
+
+        for (int32_t row = 0; row < rows; ++row)
+        {
+            uint8_t* line = out + static_cast<size_t>(row) * width;
+            int32_t x = 0;
+
+            for (;;)
+            {
+                const uint8_t token = *data++;
+                const int32_t count = token >> 1;
+
+                if (count == 0)
+                {
+                    if ((token & 1) == 0)
+                    {
+                        break;
+                    }
+
+                    x += *data++;
+                    continue;
+                }
+
+                for (int32_t i = 0; i < count && x + i < width; ++i)
+                {
+                    const uint8_t pixel = (token & 1) ? data[i] : data[0];
+                    line[x + i] = table != nullptr ? table[pixel] : pixel;
+                }
+
+                data += (token & 1) ? count : 1;
+                x += count;
+            }
+        }
+    }
+
     uint16_t Read16(const uint8_t* p)
     {
         uint16_t value;
@@ -281,6 +324,32 @@ namespace
     uint32_t TileOffset(const uint8_t* tile, int32_t row)
     {
         return static_cast<uint32_t>(MCVfxRead32(tile + 4 + static_cast<intptr_t>(row) * 4));
+    }
+
+    /// <summary>
+    /// The index shown at (<paramref name="x"/>, <paramref name="y"/>) of the GPU's screen (<paramref name="pixel"/>,
+    /// RGBA) over an underlay shown in <paramref name="shown"/>: the index; at the key, the see-through value a draw
+    /// left (blue set), else the world pixel under the pixel's centre (<paramref name="world"/>, RGBA,
+    /// <paramref name="worldWidth"/> x <paramref name="worldHeight"/>). The composite shader's rule.
+    /// </summary>
+    uint8_t ShownIndex(const uint8_t* pixel, int32_t x, int32_t y, const MCRect& shown, const uint8_t* world,
+                       int64_t worldWidth, int64_t worldHeight)
+    {
+        if (pixel[0] != MCRenderer::UnderlayKey)
+        {
+            return pixel[0];
+        }
+
+        if (pixel[2] >= 128)
+        {
+            return pixel[1];
+        }
+
+        const int64_t shownWidth = shown.X1 - shown.X0 + 1;
+        const int64_t shownHeight = shown.Y1 - shown.Y0 + 1;
+        const auto wx = static_cast<size_t>((2 * (x - shown.X0) + 1) * worldWidth / (2 * shownWidth));
+        const auto wy = static_cast<size_t>((2 * (y - shown.Y0) + 1) * worldHeight / (2 * shownHeight));
+        return world[(wy * static_cast<size_t>(worldWidth) + wx) * 4];
     }
 }
 
@@ -782,6 +851,8 @@ auto MCVulkanRenderer::AtlasFor(uint64_t key, int32_t width, int32_t height,
     decode(QueueUpload(page->Texture.Handle, static_cast<uint32_t>(place.X), static_cast<uint32_t>(place.Y),
                        static_cast<uint32_t>(width), static_cast<uint32_t>(height), 2));
     _Atlas.emplace(key, place);
+    ++_FrameUploads.AtlasImages;
+    _FrameUploads.AtlasBytes += static_cast<int64_t>(width) * height * 2;
     return place;
 }
 
@@ -806,7 +877,7 @@ std::optional<uint32_t> MCVulkanRenderer::PictureFor(const _window* window)
     }
 
     const std::optional<uint32_t> index = PictureForBytes(window->buffer, static_cast<uint32_t>(window->x_max + 1),
-                                                          static_cast<uint32_t>(window->y_max + 1));
+                                                          static_cast<uint32_t>(window->y_max + 1), window->Movie);
 
     if (index)
     {
@@ -816,11 +887,19 @@ std::optional<uint32_t> MCVulkanRenderer::PictureFor(const _window* window)
     return index;
 }
 
-std::optional<uint32_t> MCVulkanRenderer::PictureForBytes(const uint8_t* pixels, uint32_t width, uint32_t height)
+std::optional<uint32_t> MCVulkanRenderer::PictureForBytes(const uint8_t* pixels, uint32_t width, uint32_t height,
+                                                          bool movie)
+{
+    const size_t size = static_cast<size_t>(width) * height;
+    const uint64_t key = HashBytes(pixels, size, static_cast<uint64_t>(width) << 32 | height);
+    return PictureForKey(key, width, height, [&](uint8_t* out) { std::memcpy(out, pixels, size); }, movie);
+}
+
+std::optional<uint32_t> MCVulkanRenderer::PictureForKey(uint64_t key, uint32_t width, uint32_t height,
+                                                        const std::function<void(uint8_t*)>& fill, bool movie)
 {
     BeginRecording();
     const size_t size = static_cast<size_t>(width) * height;
-    const uint64_t key = HashBytes(pixels, size, static_cast<uint64_t>(width) << 32 | height);
     auto found = _Pictures.find(key);
 
     if (found == _Pictures.end())
@@ -833,9 +912,19 @@ std::optional<uint32_t> MCVulkanRenderer::PictureForBytes(const uint8_t* pixels,
             return std::nullopt;
         }
 
-        std::memcpy(QueueUpload(picture.Texture.Handle, 0, 0, width, height, 1), pixels, size);
+        fill(QueueUpload(picture.Texture.Handle, 0, 0, width, height, 1));
         found = _Pictures.emplace(key, picture).first;
         _PictureBytes += size;
+
+        if (movie)
+        {
+            ++_FrameUploads.MovieFrames;
+        }
+        else
+        {
+            ++_FrameUploads.Pictures;
+            _FrameUploads.PictureBytes += static_cast<int64_t>(size);
+        }
     }
 
     found->second.LastFrame = _Frame;
@@ -949,6 +1038,64 @@ void MCVulkanRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& comm
     SyncAlphaTable();
     const int32_t at[4] = {command.Left, command.Top, command.Left + columns - 1, command.Top + rows - 1};
     const int32_t from[4] = {0, 0, 1, 1};
+    Add(surface, SourceKind::Picture, *picture, false, at, from, KindTexture | OpaqueSource | ReadsDest | AlphaBlend, 0,
+        0, 0);
+}
+
+void MCVulkanRenderer::ShapeBlit(_window* target, const MCShapeBlitCommand& command)
+{
+    const uint8_t* data = MCVfxShape(const_cast<void*>(command.ShapeTable), command.ShapeNum) + 0x18;
+    const int32_t width = command.Width;
+    const int32_t height = command.Height;
+    int32_t widest = 0;
+    const uint8_t* end = ShapeExtent(data, height, widest);
+    const auto fill = [&](uint8_t* out) { FillShape(data, height, width, command.Table, out); };
+
+    // Where the blit's first pixel lies in the shape's picture, and its steps: the bytes AlphaBlit reads, as
+    // coordinates (each run stays within a row of the picture).
+    const MCAlphaBlitCommand& blit = command.Blit;
+    const int32_t rows = blit.FullSize ? blit.Rows : static_cast<int32_t>(static_cast<uint32_t>(blit.Rows) >> 1);
+    const int32_t columns =
+        blit.FullSize ? blit.Columns : static_cast<int32_t>(static_cast<uint32_t>(blit.Columns) >> 1);
+    const int32_t stepX = (blit.FullSize ? 1 : 2) * (blit.Mirror ? -1 : 1);
+    const int32_t stepY = blit.FullSize ? 1 : 2;
+    const intptr_t first = blit.Offset + (blit.Mirror ? static_cast<intptr_t>(stepY) * width - 1 : 0);
+    const auto x0 = static_cast<int32_t>(first >= 0 ? first % width : width - 1 - (-first - 1) % width);
+    const auto y0 = static_cast<int32_t>((first - x0) / width);
+    const int32_t lastX = x0 + (columns - 1) * stepX;
+    const int32_t lastY = y0 + (rows - 1) * stepY;
+
+    if (rows <= 0 || columns <= 0)
+    {
+        return;
+    }
+
+    // CopySprite's clipping keeps every pixel read inside the picture (the mirrored half size reads the odd rows).
+    if (std::min(x0, lastX) < 0 || std::max(x0, lastX) >= width || y0 < 0 || lastY >= height)
+    {
+        NotSupported("ShapeBlit reading outside the shape's picture");
+        return;
+    }
+
+    uint64_t key = HashBytes(data, static_cast<size_t>(end - data), Seed(ImageKind::ShapeFill, width, height));
+
+    if (command.Table != nullptr)
+    {
+        key = HashBytes(command.Table, 256, key);
+    }
+
+    const std::optional<uint32_t> picture =
+        PictureForKey(key, static_cast<uint32_t>(width), static_cast<uint32_t>(height), fill);
+
+    if (!picture)
+    {
+        return;
+    }
+
+    const uint16_t surface = SurfaceFor(target);
+    SyncAlphaTable();
+    const int32_t at[4] = {blit.Left, blit.Top, blit.Left + columns - 1, blit.Top + rows - 1};
+    const int32_t from[4] = {x0, y0, stepX, stepY};
     Add(surface, SourceKind::Picture, *picture, false, at, from, KindTexture | OpaqueSource | ReadsDest | AlphaBlend, 0,
         0, 0);
 }
@@ -1920,6 +2067,8 @@ std::expected<void, std::string> MCVulkanRenderer::Execute(SDL_GPUCommandBuffer*
     _StripPixels.clear();
     _StripRows = 0;
     _PictureMemo.clear();
+    _LastFrameUploads = _FrameUploads;
+    _FrameUploads = UploadTally{};
     _Recording = false;
     ++_Frame;
     return {};
@@ -1957,36 +2106,51 @@ SDL_GPUTexture* MCVulkanRenderer::SurfaceTexture(const _window* window, uint32_t
     return nullptr;
 }
 
-auto MCVulkanRenderer::Compare(std::span<const MCUnderlay> underlays, const SDL_Color* colors)
-    -> std::expected<Comparison, std::string>
+std::expected<void, std::string> MCVulkanRenderer::Flush(std::span<const MCUnderlay> underlays)
 {
-    // Every live surface, downloaded at once.
-    struct Download
+    if (!_Recording && _Uploads.empty())
     {
-        const Surface* Surface;
-        uint32_t Offset;
-    };
-
-    std::vector<Download> downloads;
-    uint32_t total = 0;
-
-    for (const Surface& surface : _Surfaces)
-    {
-        if (surface.Target.Handle != nullptr && MCRenderer::FrameSurfaceOf(surface.Window) == surface.Window &&
-            surface.Window->buffer != nullptr &&
-            static_cast<uint32_t>(surface.Window->x_max + 1) == surface.Target.Width &&
-            static_cast<uint32_t>(surface.Window->y_max + 1) == surface.Target.Height)
-        {
-            downloads.push_back(Download{&surface, total});
-            total += surface.Target.Width * surface.Target.Height * 4;
-        }
+        return {};
     }
 
-    Comparison result;
+    SDL_GPUCommandBuffer* commands = SDL_AcquireGPUCommandBuffer(_Device);
 
-    if (downloads.empty())
+    if (commands == nullptr)
     {
-        return result;
+        return std::unexpected(SdlError("SDL_AcquireGPUCommandBuffer"));
+    }
+
+    if (auto executed = Execute(commands, underlays); !executed)
+    {
+        SDL_CancelGPUCommandBuffer(commands);
+        return executed;
+    }
+
+    if (!SDL_SubmitGPUCommandBuffer(commands))
+    {
+        return std::unexpected(SdlError("SDL_SubmitGPUCommandBuffer"));
+    }
+
+    return {};
+}
+
+auto MCVulkanRenderer::Download(std::span<const Surface* const> surfaces)
+    -> std::expected<std::vector<std::vector<uint8_t>>, std::string>
+{
+    std::vector<std::vector<uint8_t>> pixels(surfaces.size());
+
+    if (surfaces.empty())
+    {
+        return pixels;
+    }
+
+    std::vector<uint32_t> offsets;
+    uint32_t total = 0;
+
+    for (const Surface* surface : surfaces)
+    {
+        offsets.push_back(total);
+        total += surface->Target.Width * surface->Target.Height * 4;
     }
 
     SDL_GPUCommandBuffer* commands = SDL_AcquireGPUCommandBuffer(_Device);
@@ -2009,18 +2173,18 @@ auto MCVulkanRenderer::Compare(std::span<const MCUnderlay> underlays, const SDL_
 
     SDL_GPUCopyPass* pass = SDL_BeginGPUCopyPass(commands);
 
-    for (const Download& download : downloads)
+    for (size_t i = 0; i < surfaces.size(); ++i)
     {
         SDL_GPUTextureRegion source{};
-        source.texture = download.Surface->Target.Handle;
-        source.w = download.Surface->Target.Width;
-        source.h = download.Surface->Target.Height;
+        source.texture = surfaces[i]->Target.Handle;
+        source.w = surfaces[i]->Target.Width;
+        source.h = surfaces[i]->Target.Height;
         source.d = 1;
         SDL_GPUTextureTransferInfo destination{};
         destination.transfer_buffer = buffer;
-        destination.offset = download.Offset;
-        destination.pixels_per_row = download.Surface->Target.Width;
-        destination.rows_per_layer = download.Surface->Target.Height;
+        destination.offset = offsets[i];
+        destination.pixels_per_row = surfaces[i]->Target.Width;
+        destination.rows_per_layer = surfaces[i]->Target.Height;
         SDL_DownloadFromGPUTexture(pass, &source, &destination);
     }
 
@@ -2043,23 +2207,167 @@ auto MCVulkanRenderer::Compare(std::span<const MCUnderlay> underlays, const SDL_
         return std::unexpected(SdlError("SDL_MapGPUTransferBuffer(download)"));
     }
 
-    const auto gpuPixels = [&](const _window* window) -> const uint8_t*
+    for (size_t i = 0; i < surfaces.size(); ++i)
     {
-        for (const Download& download : downloads)
+        const size_t size = static_cast<size_t>(surfaces[i]->Target.Width) * surfaces[i]->Target.Height * 4;
+        pixels[i].assign(mapped + offsets[i], mapped + offsets[i] + size);
+    }
+
+    SDL_UnmapGPUTransferBuffer(_Device, buffer);
+    SDL_ReleaseGPUTransferBuffer(_Device, buffer);
+    return pixels;
+}
+
+auto MCVulkanRenderer::ReadShown(const _window* screen, std::span<const MCUnderlay> underlays)
+    -> std::expected<std::vector<uint8_t>, std::string>
+{
+    if (auto flushed = Flush(underlays); !flushed)
+    {
+        return std::unexpected(flushed.error());
+    }
+
+    const auto surfaceOf = [this](const _window* window) -> const Surface*
+    {
+        const _window* canonical = MCRenderer::FrameSurfaceOf(window);
+
+        for (const Surface& surface : _Surfaces)
         {
-            if (download.Surface->Window == MCRenderer::FrameSurfaceOf(window))
+            if (canonical != nullptr && surface.Window == canonical && surface.Target.Handle != nullptr)
             {
-                return mapped + download.Offset;
+                return &surface;
             }
         }
 
         return nullptr;
     };
 
-    for (const Download& download : downloads)
+    const Surface* screenSurface = surfaceOf(screen);
+
+    if (screenSurface == nullptr)
     {
-        const _window* window = download.Surface->Window;
-        const uint8_t* gpu = mapped + download.Offset;
+        return std::vector<uint8_t>{};
+    }
+
+    const auto width = static_cast<int32_t>(screenSurface->Target.Width);
+    const auto height = static_cast<int32_t>(screenSurface->Target.Height);
+
+    if (width != screen->x_max + 1 || height != screen->y_max + 1)
+    {
+        return std::unexpected(std::format("the screen's surface is {}x{}, the screen {}x{}", width, height,
+                                           screen->x_max + 1, screen->y_max + 1));
+    }
+
+    // The screen and the world surfaces under it, in the order the composite draws them (a later one over an earlier).
+    struct Shown
+    {
+        MCRect Rect;
+        size_t World;
+    };
+
+    std::vector<const Surface*> wanted{screenSurface};
+    std::vector<Shown> shown;
+
+    for (const MCUnderlay& underlay : underlays)
+    {
+        const Surface* world = surfaceOf(underlay.Source);
+
+        if (MCRenderer::FrameSurfaceOf(underlay.Target) != screenSurface->Window || world == nullptr ||
+            world == screenSurface)
+        {
+            continue;
+        }
+
+        const auto found = std::ranges::find(wanted, world);
+        shown.push_back(Shown{underlay.Rect, static_cast<size_t>(found - wanted.begin())});
+
+        if (found == wanted.end())
+        {
+            wanted.push_back(world);
+        }
+    }
+
+    auto downloaded = Download(wanted);
+
+    if (!downloaded)
+    {
+        return std::unexpected(downloaded.error());
+    }
+
+    const std::vector<uint8_t>& gpu = (*downloaded)[0];
+    std::vector<uint8_t> pixels(static_cast<size_t>(width) * height);
+
+    for (size_t i = 0; i < pixels.size(); ++i)
+    {
+        pixels[i] = gpu[i * 4];
+    }
+
+    for (const Shown& over : shown)
+    {
+        const Surface* world = wanted[over.World];
+        const uint8_t* worldPixels = (*downloaded)[over.World].data();
+
+        for (int32_t y = std::max(over.Rect.Y0, 0); y <= std::min(over.Rect.Y1, height - 1); ++y)
+        {
+            for (int32_t x = std::max(over.Rect.X0, 0); x <= std::min(over.Rect.X1, width - 1); ++x)
+            {
+                const size_t at = static_cast<size_t>(y) * width + x;
+                pixels[at] =
+                    ShownIndex(&gpu[at * 4], x, y, over.Rect, worldPixels, world->Target.Width, world->Target.Height);
+            }
+        }
+    }
+
+    return pixels;
+}
+
+auto MCVulkanRenderer::Compare(std::span<const MCUnderlay> underlays, const SDL_Color* colors)
+    -> std::expected<Comparison, std::string>
+{
+    // Every live surface, downloaded at once.
+    std::vector<const Surface*> surfaces;
+
+    for (const Surface& surface : _Surfaces)
+    {
+        if (surface.Target.Handle != nullptr && MCRenderer::FrameSurfaceOf(surface.Window) == surface.Window &&
+            surface.Window->buffer != nullptr &&
+            static_cast<uint32_t>(surface.Window->x_max + 1) == surface.Target.Width &&
+            static_cast<uint32_t>(surface.Window->y_max + 1) == surface.Target.Height)
+        {
+            surfaces.push_back(&surface);
+        }
+    }
+
+    Comparison result;
+
+    if (surfaces.empty())
+    {
+        return result;
+    }
+
+    auto downloaded = Download(surfaces);
+
+    if (!downloaded)
+    {
+        return std::unexpected(downloaded.error());
+    }
+
+    const auto gpuPixels = [&](const _window* window) -> const uint8_t*
+    {
+        for (size_t i = 0; i < surfaces.size(); ++i)
+        {
+            if (surfaces[i]->Window == MCRenderer::FrameSurfaceOf(window))
+            {
+                return (*downloaded)[i].data();
+            }
+        }
+
+        return nullptr;
+    };
+
+    for (size_t surfaceIndex = 0; surfaceIndex < surfaces.size(); ++surfaceIndex)
+    {
+        const _window* window = surfaces[surfaceIndex]->Window;
+        const uint8_t* gpu = (*downloaded)[surfaceIndex].data();
         const int32_t width = window->x_max + 1;
         const int32_t height = window->y_max + 1;
         const int64_t differentBefore = result.Different;
@@ -2084,11 +2392,10 @@ auto MCVulkanRenderer::Compare(std::span<const MCUnderlay> underlays, const SDL_
             }
         }
 
-        // MC_GPU_MIRROR_DUMP=<folder>: the first differing frame of each surface, as both renderers drew it.
-        const char* dump = SDL_getenv("MC_GPU_MIRROR_DUMP");
+        // -gpudump <folder>: the first differing frame of each surface, as both renderers drew it.
+        const std::filesystem::path& dump = MCRenderer::MirrorDumpFolder();
 
-        if (dump != nullptr && colors != nullptr && result.Different != differentBefore &&
-            _Dumped.insert(window).second)
+        if (!dump.empty() && colors != nullptr && result.Different != differentBefore && _Dumped.insert(window).second)
         {
             std::vector<uint8_t> drawn(static_cast<size_t>(width) * height);
 
@@ -2129,8 +2436,7 @@ auto MCVulkanRenderer::Compare(std::span<const MCUnderlay> underlays, const SDL_
                 }
 
                 const std::filesystem::path path =
-                    std::filesystem::path(dump) /
-                    std::format("mirror{}_{}x{}_{}.png", _Mirror.Frames, width, height, name);
+                    dump / std::format("mirror{}_{}x{}_{}.png", _Mirror.Frames, width, height, name);
                 SDL_SavePNG(image, path.string().c_str());
                 SDL_DestroySurface(image);
             }
@@ -2155,25 +2461,13 @@ auto MCVulkanRenderer::Compare(std::span<const MCUnderlay> underlays, const SDL_
             }
 
             const MCRect& shown = underlay.Rect;
-            const int64_t shownWidth = shown.X1 - shown.X0 + 1;
-            const int64_t shownHeight = shown.Y1 - shown.Y0 + 1;
-            const int64_t worldWidth = underlay.Source->x_max + 1;
-            const int64_t worldHeight = underlay.Source->y_max + 1;
 
             for (int32_t y = std::max(shown.Y0, 0); y <= std::min(shown.Y1, height - 1); ++y)
             {
                 for (int32_t x = std::max(shown.X0, 0); x <= std::min(shown.X1, width - 1); ++x)
                 {
-                    const uint8_t* pixel = gpu + (static_cast<size_t>(y) * width + x) * 4;
-                    uint8_t value = pixel[0];
-
-                    if (value == UnderlayKey)
-                    {
-                        const auto wx = static_cast<size_t>((2 * (x - shown.X0) + 1) * worldWidth / (2 * shownWidth));
-                        const auto wy = static_cast<size_t>((2 * (y - shown.Y0) + 1) * worldHeight / (2 * shownHeight));
-                        value = pixel[2] >= 128 ? pixel[1] : world[(wy * worldWidth + wx) * 4];
-                    }
-
+                    const uint8_t value = ShownIndex(gpu + (static_cast<size_t>(y) * width + x) * 4, x, y, shown, world,
+                                                     underlay.Source->x_max + 1, underlay.Source->y_max + 1);
                     const uint8_t cpu = composed[static_cast<size_t>(y) * width + x];
 
                     if (cpu != value)
@@ -2192,9 +2486,6 @@ auto MCVulkanRenderer::Compare(std::span<const MCUnderlay> underlays, const SDL_
             break;
         }
     }
-
-    SDL_UnmapGPUTransferBuffer(_Device, buffer);
-    SDL_ReleaseGPUTransferBuffer(_Device, buffer);
 
     if (result.Different != 0 || result.ShownDifferent != 0)
     {

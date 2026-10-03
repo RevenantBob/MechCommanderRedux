@@ -1522,6 +1522,8 @@ auto aSmackerWindow::display() -> void
 
     player->ToBuffer(moviePane->x0, moviePane->y0, moviePane->window->x_max + 1, player->Height(),
                      moviePane->window->buffer);
+    moviePane->window->Movie = true;
+    MCRenderer::PixelsChanged(moviePane->window);
 
     if (firstFrame != 0)
     {

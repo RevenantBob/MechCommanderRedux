@@ -25,11 +25,37 @@ namespace
     // The registries are never destroyed: the display and the view windows (globals, and objects on the game's heaps)
     // remove themselves from them as they go, which can be during the exit's static destruction.
 
-    /// <summary>The frame surfaces.</summary>
-    std::vector<const _window*>& FrameSurfaces()
+    /// <summary>A frame surface, and whether its memory is kept drawn too.</summary>
+    struct FrameSurface
     {
-        static auto* surfaces = new std::vector<const _window*>();
+        const _window* Window;
+        bool Kept;
+    };
+
+    /// <summary>The frame surfaces.</summary>
+    std::vector<FrameSurface>& FrameSurfaces()
+    {
+        static auto* surfaces = new std::vector<FrameSurface>();
         return *surfaces;
+    }
+
+    /// <summary>The frame surface <paramref name="window"/> is (or lies over the pixels of), or null.</summary>
+    const FrameSurface* FrameSurfaceEntry(const _window* window)
+    {
+        if (window == nullptr)
+        {
+            return nullptr;
+        }
+
+        for (const FrameSurface& surface : FrameSurfaces())
+        {
+            if (surface.Window == window || (window->buffer != nullptr && window->buffer == surface.Window->buffer))
+            {
+                return &surface;
+            }
+        }
+
+        return nullptr;
     }
 
     /// <summary>The underlays set (see <see cref="MCRenderer::SetUnderlay"/>).</summary>
@@ -154,6 +180,14 @@ namespace
             moved.Left += _X;
             moved.Top += _Y;
             Target().AlphaBlit(_View->Target, moved);
+        }
+
+        void ShapeBlit(_window*, const MCShapeBlitCommand& command) override
+        {
+            MCShapeBlitCommand moved = command;
+            moved.Blit.Left += _X;
+            moved.Blit.Top += _Y;
+            Target().ShapeBlit(_View->Target, moved);
         }
 
         void Write(_window*, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override
@@ -339,6 +373,12 @@ namespace
             Cpu().AlphaBlit(target, command);
         }
 
+        void ShapeBlit(_window* target, const MCShapeBlitCommand& command) override
+        {
+            Gpu().ShapeBlit(target, command);
+            Cpu().ShapeBlit(target, command);
+        }
+
         void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override
         {
             Gpu().Write(target, x, y, pixels, count);
@@ -423,33 +463,60 @@ MCRenderer& MCRenderer::For(const _window* window)
         return viewRenderer.Bind(window->View);
     }
 
-    if (Drawing != MCGpuDrawing::Off && FrameSurfaceOf(window) != nullptr)
+    if (Drawing != MCGpuDrawing::Off)
     {
-        static MCMirrorRenderer mirror;
-        return Drawing == MCGpuDrawing::Mirror ? static_cast<MCRenderer&>(mirror) : *HardwareRenderer;
+        if (const FrameSurface* surface = FrameSurfaceEntry(window); surface != nullptr)
+        {
+            // A kept surface's memory is read by the game, so the software renderer draws it as well.
+            static MCMirrorRenderer mirror;
+            return Drawing == MCGpuDrawing::Mirror || surface->Kept ? static_cast<MCRenderer&>(mirror)
+                                                                    : *HardwareRenderer;
+        }
     }
 
-    if (window != nullptr)
-    {
-        ++window->Version;
-    }
-
+    PixelsChanged(window);
     return MCSoftwareRenderer::Instance();
 }
 
-void MCRenderer::AddFrameSurface(const _window* window)
+void MCRenderer::PixelsChanged(const _window* window)
+{
+    static uint32_t stamp = 0;
+
+    if (window != nullptr)
+    {
+        window->Version = ++stamp;
+    }
+}
+
+void MCRenderer::AddFrameSurface(const _window* window, bool kept)
 {
     auto& surfaces = FrameSurfaces();
 
-    if (std::ranges::find(surfaces, window) == surfaces.end())
+    if (std::ranges::any_of(surfaces, [window](const FrameSurface& surface) { return surface.Window == window; }))
     {
-        surfaces.push_back(window);
+        return;
+    }
+
+    surfaces.push_back(FrameSurface{window, kept});
+
+    // A kept surface may hold pixels already: the GPU's copy starts from them.
+    if (kept && Drawing != MCGpuDrawing::Off && window->buffer != nullptr)
+    {
+        auto* target = const_cast<_window*>(window);
+        const int32_t width = window->x_max + 1;
+
+        for (int32_t y = 0; y <= window->y_max; ++y)
+        {
+            HardwareRenderer->Write(target, 0, y, window->buffer + static_cast<size_t>(y) * width, width);
+        }
     }
 }
 
 void MCRenderer::RemoveFrameSurface(const _window* window)
 {
-    if (std::erase(FrameSurfaces(), window) != 0 && HardwareRenderer != nullptr)
+    if (std::erase_if(FrameSurfaces(), [window](const FrameSurface& surface) { return surface.Window == window; }) !=
+            0 &&
+        HardwareRenderer != nullptr)
     {
         HardwareRenderer->OnFrameSurfaceRemoved(window);
     }
@@ -457,20 +524,14 @@ void MCRenderer::RemoveFrameSurface(const _window* window)
 
 const _window* MCRenderer::FrameSurfaceOf(const _window* window)
 {
-    if (window == nullptr)
-    {
-        return nullptr;
-    }
+    const FrameSurface* surface = FrameSurfaceEntry(window);
+    return surface != nullptr ? surface->Window : nullptr;
+}
 
-    for (const _window* surface : FrameSurfaces())
-    {
-        if (surface == window || (window->buffer != nullptr && window->buffer == surface->buffer))
-        {
-            return surface;
-        }
-    }
-
-    return nullptr;
+bool MCRenderer::KeptSurface(const _window* window)
+{
+    const FrameSurface* surface = FrameSurfaceEntry(window);
+    return surface != nullptr && surface->Kept;
 }
 
 void MCRenderer::SetHardware(MCRenderer* hardware, MCGpuDrawing drawing)
@@ -491,29 +552,74 @@ MCGpuDrawing MCRenderer::GpuDrawing()
 
 MCGpuDrawing MCRenderer::RequestedGpuDrawing()
 {
-    if (Requested)
-    {
-        return *Requested;
-    }
-
-    const char* value = SDL_getenv("MC_GPU_DRAW");
-
-    if (value != nullptr && SDL_strcasecmp(value, "on") == 0)
-    {
-        return MCGpuDrawing::On;
-    }
-
-    if (value != nullptr && SDL_strcasecmp(value, "mirror") == 0)
-    {
-        return MCGpuDrawing::Mirror;
-    }
-
-    return MCGpuDrawing::Off;
+    return Requested.value_or(MCGpuDrawing::On);
 }
 
 void MCRenderer::RequestGpuDrawing(MCGpuDrawing drawing)
 {
     Requested = drawing;
+}
+
+namespace
+{
+    std::filesystem::path& DumpFolder()
+    {
+        static auto* folder = new std::filesystem::path();
+        return *folder;
+    }
+}
+
+const std::filesystem::path& MCRenderer::MirrorDumpFolder()
+{
+    return DumpFolder();
+}
+
+void MCRenderer::SetMirrorDumpFolder(const std::filesystem::path& folder)
+{
+    DumpFolder() = folder;
+}
+
+std::optional<MCGpuDrawing> MCGpuDrawingFromName(std::string_view name)
+{
+    for (const auto& [text, drawing] : {std::pair{"off", MCGpuDrawing::Off}, std::pair{"on", MCGpuDrawing::On},
+                                        std::pair{"mirror", MCGpuDrawing::Mirror}})
+    {
+        if (name.size() == std::strlen(text) && SDL_strncasecmp(name.data(), text, name.size()) == 0)
+        {
+            return drawing;
+        }
+    }
+
+    return std::nullopt;
+}
+
+namespace
+{
+    int64_t StaleReads = 0;
+}
+
+void MCRenderer::NoteCpuRead(const _window* source, const char* command)
+{
+    const FrameSurface* surface = FrameSurfaceEntry(source);
+
+    if (Drawing != MCGpuDrawing::On || surface == nullptr || surface->Kept)
+    {
+        return;
+    }
+
+    static std::set<std::string> logged;
+
+    if (logged.insert(command).second)
+    {
+        SDL_Log("MCRenderer: %s reads a frame surface the GPU draws; its memory is stale", command);
+    }
+
+    ++StaleReads;
+}
+
+int64_t MCRenderer::StaleCpuReads()
+{
+    return StaleReads;
 }
 
 void MCRenderer::AlphaTableChanged()

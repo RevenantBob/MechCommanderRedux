@@ -4603,6 +4603,8 @@ auto Logistics::init() -> void
         openScreenFile(prefScreenFile, "prefScreen", " No Save Screen FIT File ");
         initSplashScreen(prefScreen, prefScreenFile, " Unable to start save screen ");
         prefScreen->setEventRoutine(PrefScreenHandleEvent);
+        // Port: the renderer choice.
+        AddRendererPreference(prefScreen);
         sessionScreen->init(0, 0, 0x280, 0x1e0, nullptr);
     }
 

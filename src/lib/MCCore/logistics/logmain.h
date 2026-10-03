@@ -7,6 +7,7 @@
 
 class aEvent;
 class aObject;
+class GenericScreen;
 class Logistics;
 
 // Campaign CD checks: each takes the dialog result and, once the right CD is found, carries on with its action.
@@ -71,6 +72,13 @@ void CancelPrefs();
 /// <summary>Leaves the preferences, saving the settings.</summary>
 /// <remarks>MCX.EXE @ 0x007026f0</remarks>
 void WritePrefs();
+
+/// <summary>
+/// Port-only: adds the renderer choice to the preferences screen <paramref name="screen"/> (a RENDERER box with
+/// VULKAN and SOFTWARE checks under DIFFICULTY, drawn like it). The choice is PREFS "Renderer"; it takes effect at the
+/// next start.
+/// </summary>
+void AddRendererPreference(GenericScreen* screen);
 
 /// <summary>Opens the multiplayer menu.</summary>
 /// <remarks>MCX.EXE @ 0x00702830</remarks>

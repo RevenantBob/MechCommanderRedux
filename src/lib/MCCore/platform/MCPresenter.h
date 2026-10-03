@@ -94,6 +94,19 @@ public:
     virtual std::expected<std::vector<SDL_Color>, std::string> ReadFrame(const MCFrame& frame) = 0;
 
     /// <summary>
+    /// The screen as shown, in palette indices with the screen's layout (screenshots, tests): the frame's pixels with
+    /// the underlays composited on the CPU (<see cref="MCRenderer::ComposeUnderlays"/>), or, where the GPU draws the
+    /// frame, its surfaces read back and resolved by the same rule. <see cref="MCFrame::Colors"/> isn't used.
+    /// </summary>
+    virtual std::expected<std::vector<uint8_t>, std::string> ReadScreen(const MCFrame& frame);
+
+    /// <summary>
+    /// A frame that isn't shown (the window is minimised): a GPU renderer still runs what was drawn for it, so what it
+    /// recorded doesn't pile up.
+    /// </summary>
+    virtual std::expected<void, std::string> Discard(const MCFrame&) { return {}; }
+
+    /// <summary>
     /// Where a view of <paramref name="viewWidth"/> x <paramref name="viewHeight"/> lands in the window now, in
     /// window pixels (not points).
     /// </summary>

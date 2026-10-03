@@ -32,6 +32,7 @@ public:
     void Hash(_window* target, const MCRect& rect, uint8_t color) override;
     void Copy(_window* target, const MCCopyCommand& command) override;
     void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) override;
+    void ShapeBlit(_window* target, const MCShapeBlitCommand& command) override;
     void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override;
     void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) override;
     void Shape(_window* target, const MCShapeCommand& command) override;
@@ -52,10 +53,25 @@ public:
     std::expected<void, std::string> Execute(SDL_GPUCommandBuffer* commands, std::span<const MCUnderlay> underlays);
 
     /// <summary>
+    /// Runs the commands recorded so far (<see cref="Execute"/>) in a command buffer of its own: before a read of the
+    /// surfaces ahead of the frame's present, or for a frame that isn't shown.
+    /// </summary>
+    std::expected<void, std::string> Flush(std::span<const MCUnderlay> underlays);
+
+    /// <summary>
     /// The texture of <paramref name="window"/>'s surface (RGBA, as <see cref="Execute"/> left it) and its size in use;
     /// null when the window has no surface yet.
     /// </summary>
     SDL_GPUTexture* SurfaceTexture(const _window* window, uint32_t& width, uint32_t& height) const;
+
+    /// <summary>
+    /// <paramref name="screen"/> as shown, in palette indices with its layout, as the composite shows the GPU's
+    /// surfaces: flushes, reads the screen's surface and its underlays' back (waiting for the GPU), and resolves each
+    /// key pixel over an underlay (the see-through value, else the world pixel under its centre). Empty when the screen
+    /// has no surface yet.
+    /// </summary>
+    std::expected<std::vector<uint8_t>, std::string> ReadShown(const _window* screen,
+                                                               std::span<const MCUnderlay> underlays);
 
     /// <summary>The result of <see cref="Compare"/>.</summary>
     struct Comparison
@@ -89,6 +105,22 @@ public:
 
     /// <summary>Starts the tally again.</summary>
     void ResetMirror() { _Mirror = MirrorTally{}; }
+
+    /// <summary>
+    /// What a frame sent to the GPU besides its draws and tables: new pictures, new movie frames (decoded on the CPU,
+    /// the one upload expected every frame) and new atlas images.
+    /// </summary>
+    struct UploadTally
+    {
+        int64_t MovieFrames = 0;
+        int64_t Pictures = 0;
+        int64_t PictureBytes = 0;
+        int64_t AtlasImages = 0;
+        int64_t AtlasBytes = 0;
+    };
+
+    /// <summary>The uploads of the last frame <see cref="Execute"/> ran.</summary>
+    const UploadTally& LastFrameUploads() const { return _LastFrameUploads; }
 
     /// <summary>The commands the GPU can't draw yet that were asked of it (each logged once).</summary>
     const std::map<std::string, int64_t>& Unsupported() const { return _Unsupported; }
@@ -188,7 +220,12 @@ private:
                  uint32_t color, uint32_t before, uint32_t after, const MCSpan& span, bool join);
     /// <summary>The frame's picture index of <paramref name="height"/> rows of <paramref name="width"/> bytes (uploaded
     /// when new).</summary>
-    std::optional<uint32_t> PictureForBytes(const uint8_t* pixels, uint32_t width, uint32_t height);
+    std::optional<uint32_t> PictureForBytes(const uint8_t* pixels, uint32_t width, uint32_t height, bool movie = false);
+    /// <summary>The frame's picture index of the picture keyed by <paramref name="key"/>; a new one is
+    /// <paramref name="width"/> x <paramref name="height"/> bytes that <paramref name="fill"/> writes (counted as a movie
+    /// frame with <paramref name="movie"/>).</summary>
+    std::optional<uint32_t> PictureForKey(uint64_t key, uint32_t width, uint32_t height,
+                                          const std::function<void(uint8_t*)>& fill, bool movie = false);
     /// <summary>The row of the frame's table texture holding <paramref name="table"/> (interned by content).</summary>
     uint32_t TableRow(const uint8_t* table);
     /// <summary>Makes sure the alpha table on the GPU is the current AlphaTable.</summary>
@@ -219,6 +256,8 @@ private:
     void Release(Texture& texture);
     /// <summary>Takes the copy of a surface's <paramref name="rect"/> (between render passes).</summary>
     void TakeCopy(SDL_GPUCommandBuffer* commands, Surface& surface, const MCRect& rect);
+    /// <summary>Reads <paramref name="surfaces"/>' textures back (RGBA, each its texture's size), waiting for the GPU.</summary>
+    std::expected<std::vector<std::vector<uint8_t>>, std::string> Download(std::span<const Surface* const> surfaces);
 
     SDL_GPUDevice* _Device = nullptr;
     SDL_GPUShader* _VertexShader = nullptr;
@@ -304,9 +343,12 @@ private:
     std::unordered_map<const _window*, PictureMemo> _PictureMemo;
 
     std::map<std::string, int64_t> _Unsupported;
+    /// <summary>The uploads of the frame being recorded, and of the last one run.</summary>
+    UploadTally _FrameUploads;
+    UploadTally _LastFrameUploads;
     /// <summary>The span walks' state (as the software renderer keeps its own).</summary>
     MCSpanState _Spans;
     MirrorTally _Mirror;
-    /// <summary>The surfaces dumped (MC_GPU_MIRROR_DUMP).</summary>
+    /// <summary>The surfaces dumped (-gpudump).</summary>
     std::set<const _window*> _Dumped;
 };

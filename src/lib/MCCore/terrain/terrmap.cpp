@@ -33,6 +33,7 @@
 #include "object/mover.h"
 #include "object/team.h"
 #include "object/warrior.h"
+#include "platform/MCRenderer.h"
 #include "platform/MCWin32Defs.h"
 #include "sound/radio.h"
 #include "sound/soundsys.h"
@@ -1258,6 +1259,9 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     guiHeap->free(visibilityPort->frame()->window->buffer);
     ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
     visibilityPort->frame()->window->buffer = visibleBits->flagHeap->getHeapPtr();
+    // Port: the fog of war is a kept frame surface: the reveals draw it on the GPU as well as in the flags the game
+    // reads, and the map page samples the GPU's copy instead of uploading the flags whenever they change.
+    MCRenderer::AddFrameSurface(visibilityPort->frame()->window, true);
 
     const float side = static_cast<float>(mapVertexSide) * static_cast<float>(mapVertexSide);
     mapDiagonal = std::sqrt(side + side) * Terrain::metersPerVertex;
@@ -1626,6 +1630,7 @@ auto TacticalMap::destroy() -> void
     if (visibilityPort != nullptr)
     {
         // The bitmap's pixels are the visible bits' heap; the original clears the pane's window first.
+        MCRenderer::RemoveFrameSurface(visibilityPort->frame()->window);
         visibilityPort->frame()->window = nullptr;
         visibilityPort->destroy();
         delete visibilityPort;

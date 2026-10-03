@@ -5,14 +5,16 @@
 
 /// <summary>
 /// The Vulkan renderer's presenter: an SDL GPU device (SPIR-V, Vulkan) that owns the window's swapchain. Each frame
-/// it uploads the screen, its op plane, the op tables, the underlays' surfaces and (when it changed) the palette,
-/// composites them in palette indices into the frame texture at the screen's size (quad.vshader +
-/// composite.pshader), and blits the shown view into the swapchain, letterboxed, nearest or linear.
+/// it composites the screen over its underlays in palette indices into the frame texture at the screen's size
+/// (quad.vshader + composite.pshader), and blits the shown view into the swapchain, letterboxed, nearest or linear.
 /// </summary>
 /// <remarks>
-/// Textures: the screen, its ops and each underlay are R8 (palette indices); the op tables R8 256 x 256 (row 0 the
-/// identity); the palette RGBA 256 x 1. The frame texture is RGBA: the palette is resolved in the composite, so
-/// palette fades and cycling recolour everything, as in the original.
+/// <para>What it composites: when its renderer draws the frame surfaces (<see cref="MCGpuDrawing::On"/>), their
+/// textures as the renderer left them, and only the palette goes up (when it changed). Otherwise (the software
+/// renderer draws them, or mirror mode) the screen, its op plane, the op tables in use and the underlays' surfaces are
+/// uploaded each frame: R8 (palette indices), the op tables R8 256 x 256 (row 0 the identity).</para>
+/// <para>The palette is RGBA 256 x 1 and the frame texture RGBA: the palette is resolved in the composite, so palette
+/// fades and cycling recolour everything, as in the original.</para>
 /// </remarks>
 class MCVulkanPresenter final : public MCPresenter
 {
@@ -30,6 +32,8 @@ public:
     void SetVSync(bool on) override;
     std::expected<void, std::string> Present(const MCFrame& frame) override;
     std::expected<std::vector<SDL_Color>, std::string> ReadFrame(const MCFrame& frame) override;
+    std::expected<std::vector<uint8_t>, std::string> ReadScreen(const MCFrame& frame) override;
+    std::expected<void, std::string> Discard(const MCFrame& frame) override;
     MCViewport Viewport(int viewWidth, int viewHeight) const override;
 
     /// <summary>The device.</summary>
@@ -55,10 +59,19 @@ private:
     std::expected<void, std::string> Ensure(Texture& texture, SDL_GPUTextureFormat format,
                                             SDL_GPUTextureUsageFlags usage, uint32_t width, uint32_t height,
                                             bool exact);
+    /// <summary>Whether the frame surfaces' GPU textures are composited (the renderer draws them and the screen has
+    /// one).</summary>
+    bool ShowsGpuSurfaces(const MCFrame& frame) const;
+    /// <summary>
+    /// Runs the renderer's recorded commands on <paramref name="commands"/> when it draws, then uploads the frame's
+    /// textures in a copy pass (with <paramref name="gpuSurfaces"/>, the palette only); sets
+    /// <paramref name="gpuSurfaces"/> to what the composite should read.
+    /// </summary>
+    std::expected<void, std::string> Prepare(SDL_GPUCommandBuffer* commands, const MCFrame& frame, bool& gpuSurfaces);
     /// <summary>Uploads the frame's textures in a copy pass on <paramref name="commands"/>.</summary>
-    std::expected<void, std::string> Upload(SDL_GPUCommandBuffer* commands, const MCFrame& frame);
-    /// <summary>Composites the uploaded frame into the frame texture.</summary>
-    void Composite(SDL_GPUCommandBuffer* commands, const MCFrame& frame);
+    std::expected<void, std::string> Upload(SDL_GPUCommandBuffer* commands, const MCFrame& frame, bool gpuSurfaces);
+    /// <summary>Composites the frame into the frame texture, from the uploaded textures or the GPU's surfaces.</summary>
+    void Composite(SDL_GPUCommandBuffer* commands, const MCFrame& frame, bool gpuSurfaces);
     void Release(Texture& texture);
 
     SDL_Window* _Window = nullptr;

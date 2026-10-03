@@ -315,6 +315,24 @@ struct MCAlphaBlitCommand
 };
 
 /// <summary>
+/// A shape transform (AG_shape_transform, AG_shape_translate_transform): shape <c>ShapeNum</c> filled into
+/// <c>Buffer</c>, a picture of its bounds (<c>Width</c> x <c>Height</c>: skipped pixels and the rest colour 0, drawn
+/// pixels mapped through <c>Table</c> when there is one), then blended onto the target as <c>Blit</c> says
+/// (<c>Blit.Sprite</c> is <c>Buffer</c>). A renderer that keeps the shape's picture itself may leave the buffer alone.
+/// </summary>
+struct MCShapeBlitCommand
+{
+    const void* ShapeTable;
+    int32_t ShapeNum;
+    /// <summary>The lookaside table of the translating transform, else null.</summary>
+    const uint8_t* Table;
+    uint8_t* Buffer;
+    int32_t Width;
+    int32_t Height;
+    MCAlphaBlitCommand Blit;
+};
+
+/// <summary>
 /// A picture shown under a window's key colour (<see cref="MCRenderer::UnderlayKey"/>): <c>Source</c> scaled into
 /// <c>Rect</c> of <c>Target</c>, each target pixel showing the source pixel under its centre (nearest). The world view
 /// is the screen's underlay: the camera draws the world into a surface of its own at 1x, the display's composite
@@ -350,6 +368,9 @@ enum class MCGpuDrawing
     Mirror
 };
 
+/// <summary>The drawing a name stands for ("off", "on", "mirror", any case); empty for another name.</summary>
+std::optional<MCGpuDrawing> MCGpuDrawingFromName(std::string_view name);
+
 /// <summary>
 /// The renderer. Every call is made from the game's thread. The vfx front end asks <see cref="For"/> which renderer
 /// draws into a window, and issues its commands there.
@@ -366,13 +387,24 @@ public:
     /// </summary>
     static MCRenderer& For(const _window* window);
 
+    /// <summary>
+    /// Says that <paramref name="window"/>'s pixels were changed outside the renderer (an image loaded into them, a
+    /// movie frame decoded), so nothing a renderer kept of them is used again.
+    /// </summary>
+    static void PixelsChanged(const _window* window);
+
     // Frame surfaces ----------------------------------------------------------------------------------------------
 
     /// <summary>
     /// Makes <paramref name="window"/> a frame surface: a picture drawn every frame (the screen, the world view's
     /// surface), which a hardware renderer keeps on the GPU. Windows over the same pixels count as the same surface.
+    /// A <paramref name="kept"/> surface is one the game also reads (the fog of war's flags): while the GPU draws, the
+    /// software renderer draws its memory too, and the GPU's copy starts from the pixels it has when added.
     /// </summary>
-    static void AddFrameSurface(const _window* window);
+    static void AddFrameSurface(const _window* window, bool kept = false);
+
+    /// <summary>Whether <paramref name="window"/> is (or lies over) a kept frame surface.</summary>
+    static bool KeptSurface(const _window* window);
 
     /// <summary>Makes <paramref name="window"/> an ordinary picture again (before its pixels go).</summary>
     static void RemoveFrameSurface(const _window* window);
@@ -393,13 +425,29 @@ public:
     static MCGpuDrawing GpuDrawing();
 
     /// <summary>
-    /// Who should draw the frame surfaces when a hardware renderer starts: <c>MC_GPU_DRAW</c> (off, on, mirror) unless
-    /// <see cref="RequestGpuDrawing"/> said otherwise; off by default.
+    /// Who should draw the frame surfaces when a hardware renderer starts: what <see cref="RequestGpuDrawing"/> set
+    /// (<c>-gpudraw off|on|mirror</c>, tests); on by default.
     /// </summary>
     static MCGpuDrawing RequestedGpuDrawing();
 
-    /// <summary>Sets what <see cref="RequestedGpuDrawing"/> returns (tests, before the display is made).</summary>
+    /// <summary>Sets what <see cref="RequestedGpuDrawing"/> returns (before the display is made).</summary>
     static void RequestGpuDrawing(MCGpuDrawing drawing);
+
+    /// <summary>Where mirror mode saves the first frame that differs (<c>-gpudump</c>); empty saves nothing.</summary>
+    static const std::filesystem::path& MirrorDumpFolder();
+
+    /// <summary>Sets <see cref="MirrorDumpFolder"/>.</summary>
+    static void SetMirrorDumpFolder(const std::filesystem::path& folder);
+
+    /// <summary>
+    /// Called where the software renderer reads <paramref name="source"/>'s pixels (for <paramref name="command"/>).
+    /// While the GPU draws the frame surfaces alone, a frame surface's memory is never drawn, so such a read sees stale
+    /// pixels: it is logged (once per command) and counted.
+    /// </summary>
+    static void NoteCpuRead(const _window* source, const char* command);
+
+    /// <summary>How many reads <see cref="NoteCpuRead"/> found stale.</summary>
+    static int64_t StaleCpuReads();
 
     // Commands --------------------------------------------------------------------------------------------------
 
@@ -417,6 +465,9 @@ public:
 
     /// <summary>Blends a bitmap onto the target (CopySprite).</summary>
     virtual void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) = 0;
+
+    /// <summary>Fills a shape into a picture and blends that onto the target (a shape transform).</summary>
+    virtual void ShapeBlit(_window* target, const MCShapeBlitCommand& command) = 0;
 
     /// <summary>Writes <paramref name="count"/> pixels as they are from (x, y) (the image decoders' rows).</summary>
     virtual void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) = 0;

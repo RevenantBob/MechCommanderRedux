@@ -11,5 +11,5 @@
 <!-- Functions reconstructed or changed, with MCX.EXE addresses, e.g. `Mech::update` @ 0x0064a1b0. Delete if none. -->
 
 ## Testing
-- [ ] `mc_tests` passes (with `MC_GAME` set for the `game:` tests)
+- [ ] `mc_tests` passes (with `--game <install>` for the `game:` tests)
 - [ ] Played in game: <!-- mission, screen or feature checked -->

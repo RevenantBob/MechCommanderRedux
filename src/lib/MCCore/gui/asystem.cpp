@@ -94,6 +94,10 @@ int gStretchToFit = 0;
 int gSoftwareCursor = 0;
 int gHiddenWindow = 0;
 int gRenderer = 0;
+int gRendererPreference = 0;
+int gShowFps = 0;
+int gShowFpsPreference = 0;
+int gVSync = 1;
 int applicationActive = -1;
 uint32_t systemHeapSize = 0x100000;
 uint32_t guiHeapSize = 0x100000;
@@ -341,6 +345,7 @@ auto aSystem::startupDirectDraw(int32_t width, int32_t height, int32_t bitDepth)
     options.Stretch = gStretchToFit != 0;
     options.Hidden = gHiddenWindow != 0;
     options.Renderer = static_cast<MCRendererKind>(gRenderer);
+    options.VSync = gVSync != 0;
     auto display = MCDisplay::Create(options);
 
     if (!display)
@@ -2131,6 +2136,39 @@ auto ParseCommandLine(char* commandLine) -> void
                 {
                     gRenderer = static_cast<int>(*kind);
                 }
+            }
+        }
+        else if (MCPort::StrICmp(word, "-gpudraw") == 0)
+        {
+            // Port: "-gpudraw off|on|mirror": who draws the frame with the Vulkan renderer (see MCGpuDrawing).
+            i++;
+
+            if (i < numWords)
+            {
+                if (const std::optional<MCGpuDrawing> drawing = MCGpuDrawingFromName(words[i]))
+                {
+                    MCRenderer::RequestGpuDrawing(*drawing);
+                }
+            }
+        }
+        else if (MCPort::StrICmp(word, "-fps") == 0)
+        {
+            // Port: "-fps" draws the frame counter (as PREFS "ShowFps").
+            gShowFps = 1;
+        }
+        else if (MCPort::StrICmp(word, "-novsync") == 0)
+        {
+            // Port: "-novsync" shows frames as soon as they are drawn instead of at the display's refresh.
+            gVSync = 0;
+        }
+        else if (MCPort::StrICmp(word, "-gpudump") == 0)
+        {
+            // Port: "-gpudump <folder>": mirror mode saves the first frame that differs there.
+            i++;
+
+            if (i < numWords)
+            {
+                MCRenderer::SetMirrorDumpFolder(words[i]);
             }
         }
         else if (MCPort::StrICmp(word, "-network") == 0)

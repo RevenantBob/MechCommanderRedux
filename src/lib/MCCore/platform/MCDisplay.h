@@ -187,7 +187,8 @@ public:
 
     /// <summary>
     /// The whole screen as the player sees it, at the screen's size: its pixels with the underlays' pixels in place of
-    /// the key, as <see cref="Present"/> shows them (nearest).
+    /// the key, as <see cref="Present"/> shows them (nearest). When the GPU draws the frame, read back from it (what was
+    /// drawn so far is run first).
     /// </summary>
     std::vector<uint8_t> ComposeScreen() const;
 
@@ -231,6 +232,8 @@ private:
     /// they changed since the last frame, or always with <paramref name="allColors"/>).
     /// </summary>
     MCFrame BuildFrame(bool allColors);
+    /// <summary>The underlays shown on the screen now (those that lie under it and have pixels).</summary>
+    std::vector<MCUnderlay> ScreenUnderlays() const;
     /// <summary>Where the shown view lands in the window, in window pixels.</summary>
     MCViewport ShownViewport() const;
 

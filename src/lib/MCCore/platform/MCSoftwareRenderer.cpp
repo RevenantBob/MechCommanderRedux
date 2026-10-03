@@ -163,6 +163,7 @@ void MCSoftwareRenderer::Hash(_window* target, const MCRect& rect, uint8_t color
 void MCSoftwareRenderer::Copy(_window* target, const MCCopyCommand& command)
 {
     const _window* source = command.Source;
+    NoteCpuRead(source, "Copy");
     const MCRect& rect = command.SourceRect;
     const int32_t width = rect.X1 + 1 - rect.X0;
     const int32_t height = rect.Y1 + 1 - rect.Y0;
@@ -291,6 +292,27 @@ void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& co
         s += pitch * 2 - step * halfColumns;
         destination += stride;
     }
+}
+
+void MCSoftwareRenderer::ShapeBlit(_window* target, const MCShapeBlitCommand& command)
+{
+    // The shape filled into the buffer (as AG_shape_fill draws it at its bounds' corner into a pane of the bounds),
+    // then blended.
+    std::memset(command.Buffer, 0, static_cast<size_t>(command.Width) * command.Height);
+    _window scratch{command.Buffer, command.Width - 1, command.Height - 1};
+    MCShapeCommand fill;
+    fill.ShapeTable = command.ShapeTable;
+    fill.ShapeNum = command.ShapeNum;
+    fill.SkipRows = 0;
+    fill.Rows = command.Height;
+    fill.Top = 0;
+    fill.Left = 0;
+    fill.Lo = 0;
+    fill.Hi = command.Width - 1;
+    fill.Op = command.Table != nullptr ? MCShapeOp::XlatFill : MCShapeOp::Fill;
+    fill.Table = command.Table;
+    Shape(&scratch, fill);
+    AlphaBlit(target, command.Blit);
 }
 
 void MCSoftwareRenderer::Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count)

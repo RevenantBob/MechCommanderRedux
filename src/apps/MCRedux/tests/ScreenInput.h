@@ -12,7 +12,7 @@ namespace MCScreenInput
     /// </summary>
     uint32_t ScreenHash();
 
-    /// <summary>MC_TEST_SHOTS=&lt;folder&gt;: saves the screen as <paramref name="name"/>.bmp there and prints its hash.</summary>
+    /// <summary>--shots &lt;folder&gt;: saves the screen as <paramref name="name"/>.bmp there and prints its hash.</summary>
     void SaveShot(const std::string& name, uint32_t hash);
 
     /// <summary>
