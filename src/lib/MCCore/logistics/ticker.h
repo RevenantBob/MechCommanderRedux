@@ -37,7 +37,10 @@ public:
     /// <remarks>MCX.EXE @ 0x006f03d0</remarks>
     void draw() override {}
 
-    /// <summary>On the scroll timer, advances the text two pixels (wrapping round) and copies it to the port.</summary>
+    /// <summary>
+    /// On the scroll timer, advances the text two pixels (wrapping round) and copies it to the port. Port: the line
+    /// is drawn by <see cref="DrawLine"/>; this keeps the scroll and whether a wide text shows.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00729660</remarks>
     void handleEvent(aEvent* event) override;
 
@@ -68,6 +71,18 @@ public:
     /// <remarks>MCX.EXE @ 0x00729a40</remarks>
     void setBackPane(lPort* port);
 
+    /// <summary>
+    /// Port: the screen whose port the ticker paints into (<see cref="setPort"/> gets only its port); that screen
+    /// draws the line (<see cref="DrawLine"/>).
+    /// </summary>
+    void setScreen(lObject* screen) { paintScreen = screen; }
+
+    /// <summary>
+    /// Port: draws the ticker line from its state into <paramref name="target"/>: the back pane, then the text (a wide
+    /// one scrolled, and only while it scrolls).
+    /// </summary>
+    void DrawLine(_pane* target);
+
     /// <summary>The text shown.</summary>
     char text[256] = {}; // +0x4bc
     /// <summary>How far the text has scrolled, in pixels.</summary>
@@ -86,4 +101,12 @@ public:
     int32_t textWidth = 0; // +0x5d8
     /// <summary>The visible width.</summary>
     int32_t maxWidth = 0; // +0x5dc
+
+    /// <summary>Port: the screen painted into (see <see cref="setScreen"/>).</summary>
+    lObject* paintScreen = nullptr;
+    /// <summary>
+    /// Port: a text wider than the line shows (the last event was a scroll step; any other event painted the back
+    /// pane alone).
+    /// </summary>
+    bool scrollShown = false;
 };

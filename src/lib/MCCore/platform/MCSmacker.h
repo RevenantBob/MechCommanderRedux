@@ -133,15 +133,17 @@ public:
 
     /// <summary>
     /// Writes the current frame into an 8-bit buffer as it is shown: rows doubled for a Y-doubled movie, every other
-    /// row for a Y-interlaced one (the rows in between are left as they are), and each pixel through
-    /// <paramref name="remap"/> when one is given.
+    /// row for a Y-interlaced one (the rows in between are left as they are, or filled with
+    /// <paramref name="gapColor"/>), and each pixel through <paramref name="remap"/> when one is given.
     /// </summary>
     /// <param name="dest">The top-left pixel the frame goes to.</param>
     /// <param name="pitch">Bytes from one destination row to the next.</param>
     /// <param name="maxWidth">Columns available at <paramref name="dest"/>; the frame is clipped to them.</param>
     /// <param name="maxHeight">Rows available at <paramref name="dest"/>; the frame is clipped to them.</param>
     /// <param name="remap">256 indices, or null.</param>
-    void CopyTo(uint8_t* dest, int pitch, int maxWidth, int maxHeight, const uint8_t* remap = nullptr) const;
+    /// <param name="gapColor">The colour of an interlaced movie's rows in between, or -1 to leave them.</param>
+    void CopyTo(uint8_t* dest, int pitch, int maxWidth, int maxHeight, const uint8_t* remap = nullptr,
+                int gapColor = -1) const;
 
     /// <summary>The 6-bit to 8-bit palette scale Smacker uses: <c>(v &lt;&lt; 2) | (v &gt;&gt; 4)</c>.</summary>
     static uint8_t ScalePaletteComponent(uint8_t sixBit)
@@ -259,7 +261,10 @@ public:
     /// <paramref name="height"/> rows from <paramref name="top"/> down. Null disables the copy.
     /// </summary>
     /// <remarks>MCX.EXE passed the movie's own height as RAD's <c>destheight</c> (aSmackerWindow::display
-    /// @ 0x0061b690), so it counts rows from <paramref name="top"/>, not rows of the whole buffer.</remarks>
+    /// @ 0x0061b690), so it counts rows from <paramref name="top"/>, not rows of the whole buffer. Every pixel of the
+    /// frame's rectangle is written: an interlaced movie's rows in between get 0, which RAD left as they were (the
+    /// game wiped them to 0 first), because the buffer may be fresh upload memory
+    /// (<see cref="MCRenderer::LockTexture"/>).</remarks>
     void ToBuffer(int left, int top, int pitch, int height, uint8_t* buffer);
 
     /// <summary>

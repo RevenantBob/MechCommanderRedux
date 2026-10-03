@@ -48,6 +48,7 @@ auto PolygonElement::draw() -> void
         textureWindow.x_max = data.textureWidth - 1;
         textureWindow.y_max = data.textureHeight - 1;
         textureWindow.buffer = data.texture;
+        textureWindow.Texture = data.textureHandle;
 
         if (data.fadeTable != nullptr)
         {

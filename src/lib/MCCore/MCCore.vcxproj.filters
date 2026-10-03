@@ -538,10 +538,22 @@
     <ClCompile Include="platform\MCFileSystem.cpp">
       <Filter>platform</Filter>
     </ClCompile>
+    <ClCompile Include="platform\MCFrameLog.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
     <ClCompile Include="platform\MCInput.cpp">
       <Filter>platform</Filter>
     </ClCompile>
+    <ClCompile Include="platform\MCPresenter.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
     <ClCompile Include="platform\MCRegistry.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCRenderer.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCSdlPresenter.cpp">
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCSmacker.cpp">
@@ -550,7 +562,25 @@
     <ClCompile Include="platform\MCSocket.cpp">
       <Filter>platform</Filter>
     </ClCompile>
+    <ClCompile Include="platform\MCSoftwareRenderer.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCSoftwareRendererPolygons.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCSoftwareRendererShapes.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
     <ClCompile Include="platform\MCStringTable.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCVulkanPresenter.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCVulkanRenderer.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCVulkanShaders.cpp">
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="sound\radio.cpp">
@@ -1137,10 +1167,22 @@
     <ClInclude Include="platform\MCFileSystem.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCFrameLog.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCInput.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCPresenter.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCRegistry.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCRenderer.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCSdlPresenter.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCSmacker.h">
@@ -1149,7 +1191,19 @@
     <ClInclude Include="platform\MCSocket.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCSoftwareRenderer.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCStringTable.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCVulkanPresenter.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCVulkanRenderer.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCVulkanShaders.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCWin32Defs.h">

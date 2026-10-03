@@ -51,6 +51,13 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   `Resolution` setting in `PREFS.CFG` is no longer used, and the fan resolution patches aren't needed.
 - The terrain is built far enough to cover large screens. The original's terrain was sized for 640x480, so at higher
   resolutions the edges of the view were left unbuilt and the tactical map's view box jumped around.
+- Zoom is smooth and continuous instead of two fixed levels, and always uses the full-size art (the original swapped to
+  half-size sprites when zoomed out). The battlefield shows from 480 lines of the world (closest) to 2160 (furthest),
+  whatever the window's size; the GPU scales it to the window. Health bars, selection marks, strike timers and the
+  pause and question overlays stay the same size at every zoom, and still blend with the ground under them as before.
+  The zoom keys step the zoom, the zoom button switches between the furthest zoom and one world pixel per screen
+  pixel, and scrolling keeps the same speed on screen at any zoom. The `Use90Pixel` and `Force45Pixel` settings in
+  `PREFS.CFG` are no longer used.
 - The menu and logistics screens are still 640x480, and are scaled up to fit the window.
 - The game still draws in 256 colours as the original did; the GPU (Vulkan where available) scales the picture to the
   window.
@@ -61,7 +68,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - The mouse cursor is the system cursor, so it moves smoothly even when the game's frame rate drops.
 - An item dragged in the logistics inventory moves with the cursor.
 - The mouse wheel works; the original didn't use it. Over the battlefield, wheel up zooms in and wheel down zooms out,
-  as the zoom keys do. Over the tactical map it zooms the map, as its zoom buttons do. Over any list or text with a
+  a little per notch. Over the tactical map it zooms the map, as its zoom buttons do. Over any list or text with a
   scroll bar (mechs, pilots, vehicles, inventory, a mech's weapon list in the repair bay and briefing, saved games, the
   tactical map's info and salvage pages, the mission results, the multiplayer game list) it scrolls a row or line per
   notch, as the scroll arrows do. A list inside another list scrolls first.

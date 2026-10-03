@@ -18,6 +18,8 @@ public:
     /// <summary>Draws the box and the text.</summary>
     /// <remarks>MCX.EXE @ 0x0060aea0</remarks>
     void draw() override;
+    /// <summary>Port: draws itself each frame from its text.</summary>
+    bool DrawsLive() override { return true; }
     /// <summary>
     /// Unless the game is paused, the tip is hidden or it has no object: centres the box below the object (a misc
     /// terrain object: 90 below its screen point; anything else: below its appearance's bounds, or its screen point,

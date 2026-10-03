@@ -2,6 +2,7 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "gui/mchwcursor.h"
+#include "gui/updisp.h"
 #include "lib/packet.h"
 #include "vfx/mcagshape.h"
 #include "vfx/vfxfuncs.h"
@@ -277,4 +278,51 @@ TEST_CASE("game: every cursor shape becomes a picture that draws exactly as the 
 
     // Cursors are arrows and crosshairs, not rectangles.
     CHECK_EQ(withTransparency, pak.getNumPackets());
+}
+
+TEST_CASE_ISOLATED("game: every cursor shape is made before play and switching between them makes none")
+{
+    if (!MCTestGame::Available() || !MCTestGame::StartMission(1))
+    {
+        return;
+    }
+
+    std::vector<size_t> shapes;
+
+    for (size_t shape = 0; shape < 128; ++shape)
+    {
+        if (cursorShapes[shape] != nullptr)
+        {
+            shapes.push_back(shape);
+        }
+    }
+
+    REQUIRE(shapes.size() > 2);
+    // The boot made one per shape; a settled palette and an unchanged window make no more, whatever is shown. (The
+    // slow part on Windows is the icon built when one is first shown over the window, which a hidden test window
+    // never has, so the count is what is checked.)
+    CHECK(MCCursor::CursorsMade() >= shapes.size());
+    const uint64_t before = MCCursor::CursorsMade();
+
+    for (int i = 0; i < 200; ++i)
+    {
+        MCCursor::ShowShape(shapes[static_cast<size_t>(i) % shapes.size()]);
+    }
+
+    CHECK_EQ(MCCursor::CursorsMade() - before, uint64_t{0});
+    CHECK_EQ(MCCursor::ColdCursors(), shapes.size());
+
+    // A dragged item's picture is made once while it doesn't change, and a new one for a new picture.
+    const MCCursorImage item = MCCursorImage::Blank(8, 8, 2, 2);
+    MCCursorImage otherItem = item;
+    otherItem.HotX = 3;
+
+    for (int i = 0; i < 10; ++i)
+    {
+        MCCursor::Show(item);
+    }
+
+    MCCursor::Show(otherItem);
+    MCCursor::ShowShape(shapes[0]);
+    CHECK_EQ(MCCursor::CursorsMade() - before, uint64_t{2});
 }

@@ -640,11 +640,13 @@ auto PUAppearance::stateExists(PUActorState state) -> int32_t
 
 auto PUAppearance::drawBars() -> void
 {
+    // Port: the bar is an overlay, on the screen over the view: it follows the sprite through the zoom, its size
+    // doesn't change.
     const float scale = zoomScale(eye);
     const float barWidth = scale * 38.0f;
     const float barHeight = scale * 4.0f;
-    const float barY = (upperLeft.y - scale * 7.0f) - barHeight;
-    const float barX = static_cast<float>(std::floor(static_cast<double>(screenPos.x - barWidth * 0.5f)));
+    const float barY = (MCOverlayY(upperLeft.y) - scale * 7.0f) - barHeight;
+    const float barX = static_cast<float>(std::floor(static_cast<double>(MCOverlayX(screenPos.x) - barWidth * 0.5f)));
 
     // A turret shows its bar only with its weapon deployed.
     GameObject* obj = owner;

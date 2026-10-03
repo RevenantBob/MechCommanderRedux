@@ -52,6 +52,13 @@ public:
     /// <remarks>MCX.EXE @ 0x007082d0</remarks>
     void drawBackground();
 
+    /// <summary>
+    /// Port: the unit pane's content for the force (as tall as its rows, at least the pane): a view its rows are drawn
+    /// into each frame (the original painted each block into a picture, and copied rows about in new ones as the
+    /// force changed).
+    /// </summary>
+    static lPort* NewUnitRowsView(ScrollPane* pane);
+
     /// <summary>The tabs, the screen buttons, the resource display toggle and the help text.</summary>
     /// <remarks>MCX.EXE @ 0x007083a0</remarks>
     void handleEvent(aEvent* event) override;
@@ -60,7 +67,10 @@ public:
     /// <remarks>MCX.EXE @ 0x00708c60</remarks>
     void ShowGUIWindow(int show) override;
 
-    /// <summary>Displays the screen and the resource figure chosen by <c>resourceDisplayState</c>.</summary>
+    /// <summary>
+    /// Displays the screen and the resource figure chosen by <c>resourceDisplayState</c>, and the clock, on the current
+    /// screen. Port: it updates the time; the screens draw the figure and the clock (<see cref="ResourceFigureText"/>).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00708ca0</remarks>
     void display() override;
 
@@ -72,3 +82,9 @@ public:
 
 /// <summary>Which resource figure the repair screen shows (0, 1 or 2).</summary>
 extern int32_t resourceDisplayState;
+
+/// <summary>
+/// Port: the resource figure the screens show (<see cref="resourceDisplayState"/>: the resource points, or the
+/// logistics heap's total or largest free block), into <paramref name="text"/>; empty for another state.
+/// </summary>
+void ResourceFigureText(char* text, size_t size);

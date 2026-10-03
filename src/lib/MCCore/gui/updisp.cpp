@@ -16,7 +16,9 @@
 #include "mission/mission.h"
 #include "platform/MCAudio.h"
 #include "platform/MCDisplay.h"
+#include "platform/MCFrameLog.h"
 #include "platform/MCInput.h"
+#include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
 
 int AG_oldMouseX = -1;
@@ -58,6 +60,48 @@ namespace
     _window* screenBuffer()
     {
         return screenPort->frame()->window;
+    }
+
+    /// <summary>
+    /// Port: the frame counter (<c>gShowFps</c>) in the shown view's top-right corner: frames a second and the mean
+    /// frame time over the last half second of real time, on a black box that only grows (so shorter text leaves no
+    /// digits behind where nothing else redraws the screen).
+    /// </summary>
+    void drawFrameCounter()
+    {
+        static std::chrono::steady_clock::time_point periodStart = std::chrono::steady_clock::now();
+        static int32_t periodFrames = 0;
+        static char text[48] = "-- fps";
+        static int32_t boxWidth = 0;
+        MCDisplay* display = MCInput::Display();
+        aFont* font = medWhiteFont;
+
+        if (display == nullptr || font == nullptr)
+        {
+            return;
+        }
+
+        periodFrames++;
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        const double seconds = std::chrono::duration<double>(now - periodStart).count();
+
+        if (seconds >= 0.5)
+        {
+            std::snprintf(text, sizeof(text), "%.0f fps  %.1f ms", periodFrames / seconds,
+                          seconds * 1000.0 / periodFrames);
+            periodStart = now;
+            periodFrames = 0;
+        }
+
+        uint8_t* characters = reinterpret_cast<uint8_t*>(text);
+        const int32_t textWidth = font->width(characters);
+        boxWidth = std::max(boxWidth, textWidth + 8);
+        const SDL_Rect view = display->View();
+        const int32_t right = view.x + view.w - 1;
+        const int32_t top = view.y;
+        _window* screen = screenBuffer();
+        MCRenderer::For(screen).Clear(screen, MCRect{right - boxWidth + 1, top, right, top + font->height() + 3}, 0);
+        font->writeString(screenPort->frame(), right - 3 - textWidth, top + 2, characters, -1);
     }
 
     /// <summary>
@@ -105,6 +149,7 @@ namespace
 
         if (display != nullptr)
         {
+            MCFrameLog::Scope present("present");
             updateDisplayView(display);
             (void)display->Present();
         }
@@ -134,6 +179,7 @@ namespace
         // Port fix: the cursor is the system's, which follows the mouse between frames; the original drew it here.
         if (gSoftwareCursor == 0)
         {
+            MCFrameLog::Scope cursor("cursor");
             MCHardwareCursorUpdate();
             return;
         }
@@ -276,6 +322,8 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
     InMouseCritSec = 1;
     // Port: dragged objects draw into the cursor while the frame is drawn (MCHardwareCursorCarry).
     MCHardwareCursorNewFrame();
+    // Port: a new frame's op tables (translucent UI over the world view; see MCUnderlay).
+    MCRenderer::ResetOpTables();
 
     if (application->smackerWindow == nullptr)
     {
@@ -283,6 +331,8 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
         {
             VFX_pane_wipe(screenWindow->frame(), 0);
         }
+
+        MCFrameLog::Scope draw("draw");
 
         for (int32_t i = 0; i < screenWindow->numberOfChildren(); i++)
         {
@@ -304,17 +354,29 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
     {
         shotNum++;
         std::snprintf(gifName, sizeof(gifName), "scrn%04d.tga", shotNum);
-        writeTGA8Bit(gifName, screenWindow->frame()->window->buffer, application->width(), application->height());
+        // Port: the screen as shown (the world view under the key, read back when the GPU draws the frame), not its
+        // memory.
+        MCDisplay* display = MCInput::Display();
+
+        if (display != nullptr)
+        {
+            std::vector<uint8_t> shown = display->ComposeScreen();
+            writeTGA8Bit(gifName, shown.data(), static_cast<uint32_t>(display->Width()),
+                         static_cast<uint32_t>(display->Height()));
+        }
     }
 
     if (staticNoise != 0 && noiseChance != 0)
     {
+        // Port: the original wrote the noise into the screen's memory; the row goes to the renderer.
+        std::vector<uint8_t> line(static_cast<size_t>(application->width() >> 1) * 2);
+
         for (int32_t row = 0; row < application->height(); row++)
         {
             if (RollDice(noiseChance) != 0)
             {
                 _window* screen = screenBuffer();
-                uint8_t* pixel = screen->buffer + (screen->x_max + 1) * row;
+                uint8_t* pixel = line.data();
 
                 for (int32_t i = 0; i < application->width() >> 1; i++)
                 {
@@ -323,6 +385,8 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
                     pixel[1] = static_cast<uint8_t>((noise >> 5) & 0x1f);
                     pixel += 2;
                 }
+
+                MCRenderer::For(screen).Write(screen, 0, row, line.data(), static_cast<int32_t>(line.size()));
             }
         }
     }
@@ -362,10 +426,10 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
                                -1);
         whiteFont->writeString(screenWindow->frame(), 0x20, 0xbb,
                                reinterpret_cast<uint8_t*>(const_cast<char*>("0   f/s")), -1);
+        // Port: the original set the two lines in the screen's memory.
         _window* screen = screenBuffer();
-        int32_t pitch = screen->x_max + 1;
-        std::memset(screen->buffer + pitch * 9 + 0x40, 0xff, 0x200);
-        std::memset(screen->buffer + pitch * 0xbf + 0x40, 0xff, 0x200);
+        MCRenderer::For(screen).Clear(screen, MCRect{0x40, 9, 0x40 + 0x1ff, 9}, 0xff);
+        MCRenderer::For(screen).Clear(screen, MCRect{0x40, 0xbf, 0x40 + 0x1ff, 0xbf}, 0xff);
 
         for (int32_t y = 0xaf; y > 10; y -= 0xf)
         {
@@ -385,6 +449,11 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
     if (keepScreenBlack != 0)
     {
         VFX_pane_wipe(screenPort->frame(), 0);
+    }
+
+    if (gShowFps != 0)
+    {
+        drawFrameCounter();
     }
 
     aUnlockScreen();

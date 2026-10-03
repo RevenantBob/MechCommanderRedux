@@ -29,6 +29,8 @@ namespace
     /// The screen box the selection marks go around: the type's "Bounds" (halved when zoomed out) about the screen
     /// position, or the appearance's own bounds when the type has none.
     /// </summary>
+    /// <remarks>Port: on the screen over the view (the marks are overlays), so the box follows the sprite through the
+    /// zoom and the marks keep their size.</remarks>
     void selectBounds(Appearance* appearance, float& left, float& top, float& right, float& bottom)
     {
         AppearanceType* type = appearance->getAppearanceType();
@@ -40,14 +42,20 @@ namespace
             top = appearance->upperLeft.y;
             right = appearance->lowerRight.x;
             bottom = appearance->lowerRight.y;
-            return;
+        }
+        else
+        {
+            const int32_t shift = eye->cameraScale == 1 ? 1 : 0;
+            left = static_cast<float>(type->boundsUpperLeftX >> shift) + appearance->screenPos.x;
+            top = static_cast<float>(type->boundsUpperLeftY >> shift) + appearance->screenPos.y;
+            right = static_cast<float>(type->boundsLowerRightX >> shift) + appearance->screenPos.x;
+            bottom = static_cast<float>(type->boundsLowerRightY >> shift) + appearance->screenPos.y;
         }
 
-        const int32_t shift = eye->cameraScale == 1 ? 1 : 0;
-        left = static_cast<float>(type->boundsUpperLeftX >> shift) + appearance->screenPos.x;
-        top = static_cast<float>(type->boundsUpperLeftY >> shift) + appearance->screenPos.y;
-        right = static_cast<float>(type->boundsLowerRightX >> shift) + appearance->screenPos.x;
-        bottom = static_cast<float>(type->boundsLowerRightY >> shift) + appearance->screenPos.y;
+        left = MCOverlayX(left);
+        top = MCOverlayY(top);
+        right = MCOverlayX(right);
+        bottom = MCOverlayY(bottom);
     }
 
     /// <summary>The marks' distance from the box: 5 pixels at full size, 2.5 zoomed out.</summary>

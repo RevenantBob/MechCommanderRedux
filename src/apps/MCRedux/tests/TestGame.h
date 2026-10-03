@@ -1,12 +1,12 @@
 #pragma once
 
 /// <summary>
-/// The retail install the <c>game:</c> tests read, from the <c>MC_GAME</c> environment variable. Without it those tests
-/// note that they were skipped and pass.
+/// The retail install the <c>game:</c> tests read: the runner's <c>--game &lt;folder&gt;</c>, else the current folder.
+/// Without one those tests note that they were skipped and pass.
 /// </summary>
 namespace MCTestGame
 {
-    /// <summary>Whether MC_GAME names an install; sets it as the game root the first time.</summary>
+    /// <summary>Whether --game (or the current folder) is an install; sets it as the game root the first time.</summary>
     bool Available();
 
     /// <summary>Opens the five FastFiles as the game does at startup (once per run).</summary>
@@ -21,6 +21,14 @@ namespace MCTestGame
     /// </summary>
     /// <returns>Whether the scenario is up.</returns>
     bool StartMission(int32_t segment);
+
+    /// <summary>
+    /// Boots the whole game as a plain start does (no <c>-mission</c>): the intro, then logistics' main menu. Runs
+    /// frames until the main menu is up. Same rules as <see cref="StartMission"/>: a TEST_CASE_ISOLATED test only, and
+    /// one boot per process (StartMission after it fails, and the reverse).
+    /// </summary>
+    /// <returns>Whether the main menu is up.</returns>
+    bool StartLogistics();
 
     /// <summary>
     /// Runs one pass of aSystem::run's frame loop (the per-frame callbacks and the display update), with the frame

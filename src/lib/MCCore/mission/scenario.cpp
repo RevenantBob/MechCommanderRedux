@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "mission/scenario.h"
+#include "platform/MCInput.h"
+#include "platform/MCDisplay.h"
 #include "abl/ablenv.h"
 #include "abl/ablrtn.h"
 #include "abl/ablxstd.h"
@@ -58,6 +60,7 @@
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/vfxfuncs.h"
+#include "platform/MCRenderer.h"
 
 Scenario* scenario = nullptr;
 float actualTime = 0.0f;
@@ -208,6 +211,7 @@ namespace
         // Port fix: the original freed the malloc'd waypoint shapes with operator delete.
         if (freeOld && oldShapes != nullptr)
         {
+            MCRenderer::UnregisterData(oldShapes);
             std::free(oldShapes);
         }
 
@@ -216,6 +220,7 @@ namespace
         if (shapes != nullptr)
         {
             shapeFile.read(shapes, static_cast<int32_t>(shapeFile.fileSize()));
+            MCRenderer::RegisterData(shapes, shapeFile.fileSize(), MCDataKind::Shapes);
         }
 
         shapeFile.close();
@@ -854,6 +859,8 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
             static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(sensorShapeFile.getPacketSize())));
         Assert(sensorContactShapes[i] != nullptr, static_cast<uint32_t>(result), " no RAM for Large Sensor Shape ");
         sensorShapeFile.readPacket(i, sensorContactShapes[i]);
+        MCRenderer::RegisterData(sensorContactShapes[i], static_cast<size_t>(sensorShapeFile.getPacketSize()),
+                                 MCDataKind::Shapes);
     }
 
     sensorShapeFile.close();
@@ -1160,9 +1167,9 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     std::snprintf(windowTitle, sizeof(windowTitle), "%s - %s", appName, scenarioScript);
 
     // Port: SetWindowTextA -> the SDL window's title.
-    if (auto* window = static_cast<SDL_Window*>(application->window()))
+    if (MCDisplay* display = MCInput::Display())
     {
-        SDL_SetWindowTitle(window, windowTitle);
+        display->SetTitle(windowTitle);
     }
 
     std::strcpy(WindowTitle, windowTitle);
@@ -2146,6 +2153,7 @@ auto Scenario::destroy() -> void
 
     openList = nullptr;
     ABLi_close();
+    MCRenderer::UnregisterData(waypointMarkers);
     std::free(waypointMarkers);
     waypointMarkers = nullptr;
 }

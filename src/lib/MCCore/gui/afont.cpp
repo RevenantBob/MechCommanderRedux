@@ -5,10 +5,16 @@
 #include "lib/file.h"
 #include "lib/heap.h"
 #include "logistics/logmain.h"
+#include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
 
 aFont::aFont()
 {
+}
+
+aFont::~aFont()
+{
+    MCRenderer::UnregisterData(colorTable, sizeof(colorTable));
 }
 
 auto aFont::init(char* fileName) -> int32_t
@@ -47,12 +53,14 @@ auto aFont::init(char* fileName) -> int32_t
 
     file.read(fontData, static_cast<int32_t>(size));
     file.close();
+    MCRenderer::RegisterData(fontData, size, MCDataKind::Shapes);
 
     for (int32_t i = 0; i < 0x100; i++)
     {
         colorTable[i] = static_cast<uint8_t>(i);
     }
 
+    MCRenderer::RegisterData(colorTable, sizeof(colorTable), MCDataKind::Tables);
     return 0;
 }
 

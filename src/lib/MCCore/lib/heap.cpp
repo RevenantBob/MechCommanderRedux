@@ -2,6 +2,7 @@
 #include "lib/heap.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
+#include "platform/MCRenderer.h"
 
 UserHeap* systemHeap = nullptr;
 UserHeap* guiHeap = nullptr;
@@ -372,8 +373,10 @@ int32_t UserHeap::init(uint32_t memSize, const char* heapId)
 
 void UserHeap::destroy()
 {
+    // Port: data registered in a block (shapes a renderer keeps) goes with it.
     for (auto& [block, size] : _Blocks)
     {
+        MCRenderer::UnregisterData(block, size - 8);
         std::free(block);
     }
 
@@ -461,6 +464,9 @@ int32_t UserHeap::free(void* memBlock)
     const uint32_t blockSize = found->second;
     _UsedBytes -= blockSize;
     _Blocks.erase(found);
+    // Port: data registered in the block (shapes a renderer keeps) goes with it; the payload is the original block
+    // less its 8-byte header, which no other block starts in.
+    MCRenderer::UnregisterData(memBlock, blockSize - 8);
     std::free(memBlock);
     return static_cast<int32_t>(blockSize);
 }

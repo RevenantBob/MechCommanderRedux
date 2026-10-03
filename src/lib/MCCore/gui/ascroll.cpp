@@ -237,6 +237,7 @@ auto aScrollBar::init(int32_t xPos, int32_t yPos, int32_t, int32_t height, char*
         return OutOfMemory;
     }
 
+    scrollTab->SetDrawsLive();
     result = scrollTab->init(0, 0, 0x10, 0x10, nullptr);
 
     if (result != 0)
@@ -373,7 +374,6 @@ auto aScrollBar::ResizeAreas() -> void
     upArea->resize(0x10, tabTop);
     downArea->resize(0x10, height() + (-0x11 - (tabTop + 0x10)));
     downArea->moveTo(1, tabTop + 0x19, 0);
-    draw();
 }
 
 /// <remarks>MCX.EXE @ 0x0060d8d0</remarks>

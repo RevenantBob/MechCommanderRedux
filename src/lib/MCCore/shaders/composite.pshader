@@ -1,0 +1,114 @@
+// The composite of the screen: the screen (UI) in palette indices over the world view's surface, then the palette.
+//
+// Drawn by MCVulkanPresenter into the frame texture (the screen's size), with quad.vshader: once over the whole
+// screen without an underlay, then over each underlay's rectangle with it. A screen pixel other than the key (255) is
+// shown as it is. Over an underlay, a key pixel shows the world pixel under its centre (nearest), mapped through the op
+// table its op names (row 0 is the identity): a translucent UI draw over the world recorded its palette table there.
+// This is MCRenderer::ComposeUnderlays, which the CPU uses for screenshots, tests and the software renderer, done per
+// pixel.
+//
+// Two sources (mode.y): the software renderer's pixels uploaded each frame (the screen, the op plane and the world
+// R8), or the GPU renderer's own surfaces' colours (MCVulkanRenderer: premultiplied RGBA, see draw.pshader), where the
+// screen is simply drawn over the world by its alpha (its key pixels are transparent, its translucent ones partly).
+//
+// Bindings (SDL GPU, SPIR-V): textures and samplers in space2, fragment uniforms in space3. A replacement in the
+// shaders folder (composite.spv) must keep them.
+
+// The screen: one palette index per pixel (red), or the GPU's colours.
+Texture2D<float4> screenTex : register(t0, space2);
+SamplerState screenSampler : register(s0, space2);
+// The screen's op plane: one byte per screen pixel (unused with the GPU's surfaces).
+Texture2D<float> opTex : register(t1, space2);
+SamplerState opSampler : register(s1, space2);
+// The world view's surface (red, or the GPU's colours; unused without an underlay).
+Texture2D<float4> worldTex : register(t2, space2);
+SamplerState worldSampler : register(s2, space2);
+// The op tables: 256 x 256, row = op, column = world index (unused with the GPU's surfaces).
+Texture2D<float> tableTex : register(t3, space2);
+SamplerState tableSampler : register(s3, space2);
+// The palette, 256 x 1, as shown (gamma applied).
+Texture2D<float4> paletteTex : register(t4, space2);
+SamplerState paletteSampler : register(s4, space2);
+
+cbuffer Composite : register(b0, space3)
+{
+    // The screen's size in pixels (xy); the screen texture's allocated size (zw).
+    float4 screenSize;
+    // The underlay's rectangle on the screen: left, top, width, height.
+    float4 shown;
+    // The world surface's size in pixels (xy); the world texture's allocated size (zw).
+    float4 worldSize;
+    // x: 1 when drawing an underlay's rectangle, 0 for the screen alone. y: 1 when the textures are the GPU
+    // renderer's surfaces.
+    float4 mode;
+    // The colour cycle (the water's, MCColorCycle): x the first index cycled, y the step (-1: none). Index x + i
+    // shows the colour of cycleSources[(i + y) & 7] (one source a component).
+    int4 cycle;
+    uint4 cycleSources[2];
+    // The screen fade (MCDisplay::SetFade): x, the amount taken off every component of the finished colour (0 none,
+    // 1 black). The scene fades between screens (aSystem::fadeDownCurrentPalette) are done here, not in the palette.
+    float4 fade;
+};
+
+// The finished colour through the screen fade.
+float4 Faded(float3 color)
+{
+    return float4(saturate(color - fade.x), 1.0);
+}
+
+uint Byte(float value)
+{
+    return (uint)round(value * 255.0);
+}
+
+float4 TexelAt(Texture2D<float4> tex, SamplerState samp, float2 texel, float2 size)
+{
+    return tex.Sample(samp, (texel + 0.5) / size);
+}
+
+uint IndexAt(Texture2D<float> tex, SamplerState samp, float2 texel, float2 size)
+{
+    return Byte(tex.Sample(samp, (texel + 0.5) / size));
+}
+
+// The colour index shows, through the colour cycle.
+float3 Shown(uint index)
+{
+    const uint cycled = index - (uint)cycle.x;
+
+    if (cycle.y >= 0 && cycled < 8u)
+    {
+        const uint source = (cycled + (uint)cycle.y) & 7u;
+        index = cycleSources[source >> 2][source & 3u];
+    }
+
+    return paletteTex.Sample(paletteSampler, float2((index + 0.5) / 256.0, 0.5)).rgb;
+}
+
+float4 main(float4 position : SV_Position) : SV_Target
+{
+    const float2 pixel = floor(position.xy);
+    const float4 screen = TexelAt(screenTex, screenSampler, pixel, screenSize.zw);
+    // The world pixel under this pixel's centre: (2 * offset + 1) * surface / (2 * shown), as the CPU picks it.
+    const float2 offset = pixel - shown.xy;
+    const float2 world = clamp(floor((2.0 * offset + 1.0) * worldSize.xy / (2.0 * shown.zw)), 0.0, worldSize.xy - 1.0);
+
+    if (mode.y != 0.0)
+    {
+        // The GPU's colours: the screen over the world, or over the key's colour where there's no world.
+        const float3 under =
+            mode.x != 0.0 ? TexelAt(worldTex, worldSampler, world, worldSize.zw).rgb : Shown(255);
+        return Faded(saturate(screen.rgb + under * (1.0 - screen.a)));
+    }
+
+    uint index = Byte(screen.r);
+
+    if (mode.x != 0.0 && index == 255)
+    {
+        index = Byte(TexelAt(worldTex, worldSampler, world, worldSize.zw).r);
+        const uint op = IndexAt(opTex, opSampler, pixel, screenSize.zw);
+        index = IndexAt(tableTex, tableSampler, float2(index, op), float2(256.0, 256.0));
+    }
+
+    return Faded(Shown(index));
+}

@@ -128,7 +128,6 @@ namespace
         dialog->okButton->setUpPicture(art(upArt));
         dialog->okButton->setDownPicture(art(downArt));
         dialog->okButton->disabled = 0;
-        dialog->okButton->draw();
     }
 }
 
@@ -143,7 +142,6 @@ void lToolButtonEventHandler(aObject* object, aEvent* event)
         if (button->disabled == 0)
         {
             button->toggled = button->toggled == 0 ? 1 : 0;
-            button->draw();
             button->callback()->execute();
         }
     }
@@ -169,7 +167,6 @@ void lScreenSwitchEventHandler(aObject* object, aEvent* event)
     if (event->type == 1 && button->disabled == 0 && button->toggled == 0)
     {
         button->toggled = -1;
-        button->draw();
         button->callback()->execute();
     }
 }
@@ -224,22 +221,17 @@ auto lToolButton::draw() -> void
     }
     else
     {
+        // The mouse can be over the button without overState (it was disabled when the mouse came).
         MCPoint cursor = MCInput::GetCursorPos();
         int32_t cursorX = cursor.x - globalX();
         int32_t cursorY = cursor.y - globalY();
-        picture = cursorX <= width() && cursorY <= height() ? overPicture : upPicture;
+        // OB-129 (fixed): the original tested only the right and bottom edges, so the cursor anywhere above or left
+        // of the button counted as over it.
+        const bool over = cursorX >= 0 && cursorY >= 0 && cursorX <= width() && cursorY <= height();
+        picture = over ? overPicture : upPicture;
     }
 
-    if (picture != nullptr)
-    {
-        picture->copyTo(ownPort->frame(), 0, 0, 0);
-    }
-    else
-    {
-        VFX_pane_wipe(ownPort->frame(), backgroundColor);
-    }
-
-    lObject::draw();
+    drawFace(picture, false);
 }
 
 // lSpinnerButton
@@ -256,7 +248,6 @@ auto lSpinnerButton::handleEvent(aEvent* event) -> void
             {
                 // Run the callback now, then repeat it after half a second held.
                 toggled = -1;
-                draw();
                 application->grab(this);
                 application->AddTimer(this, 1, 500, 0, 0, 0);
                 buttonCallback->execute();
@@ -270,7 +261,6 @@ auto lSpinnerButton::handleEvent(aEvent* event) -> void
         case 4:
         {
             toggled = 0;
-            draw();
             application->release();
             application->RemoveTimer(this, 1);
             application->RemoveTimer(this, 2);
@@ -299,16 +289,12 @@ auto lSpinnerButton::handleEvent(aEvent* event) -> void
 
 auto lSpinnerButton::draw() -> void
 {
-    if (toggled != 0)
+    // Original behaviour (OB-130): the gray picture is never shown, so a disabled spinner looks enabled.
+    lPort* picture = toggled != 0 ? downPicture : upPicture;
+
+    if (picture != nullptr)
     {
-        if (downPicture != nullptr)
-        {
-            downPicture->copyTo(ownPort->frame(), 0, 0, 0);
-        }
-    }
-    else if (upPicture != nullptr)
-    {
-        upPicture->copyTo(ownPort->frame(), 0, 0, 0);
+        picture->copyTo(ownPort->frame(), 0, 0, 0);
     }
 
     lObject::draw();
@@ -344,7 +330,7 @@ auto lChatInput::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height,
 
     font = whiteFont;
     backgroundColor = 0x10;
-    draw();
+    RestartBlink();
     return 0;
 }
 
@@ -362,7 +348,6 @@ auto lChatInput::destroy() -> void
 auto lChatInput::draw() -> void
 {
     VFX_pane_wipe(ownPort->frame(), backgroundColor);
-    cursorOn = -1;
     auto* line = reinterpret_cast<uint8_t*>(text);
     int32_t lineY = 1;
 
@@ -388,15 +373,20 @@ auto lChatInput::draw() -> void
         font->writeString(ownPort->frame(), 0x14, lineY, line, -1);
     }
 
+    // The caret, which the original's display drew into the picture each frame: a vertical line a text line high.
+    const int32_t bottom = font->height() + 3 + cursorY;
+    const int32_t color = cursorOn != 0 ? 0x10 : 0x1f;
+    VFX_line_draw(ownPort->frame(), cursorX, cursorY, cursorX, bottom, LD_DRAW, color);
     lObject::draw();
+}
+
+auto lChatInput::RestartBlink() -> void
+{
+    cursorOn = -1;
 }
 
 auto lChatInput::display() -> void
 {
-    // The caret: a vertical line a text line high.
-    const int32_t bottom = font->height() + 3 + cursorY;
-    const int32_t color = cursorOn != 0 ? 0x10 : 0x1f;
-    VFX_line_draw(ownPort->frame(), cursorX, cursorY, cursorX, bottom, LD_DRAW, color);
     lObject::display();
 }
 
@@ -423,7 +413,7 @@ auto lChatInput::handleEvent(aEvent* event) -> void
                     text[textLength - 1] = 0;
                     textLength--;
                     setCursorPos(textLength);
-                    draw();
+                    RestartBlink();
                 }
             }
             else if (key == 0xd)
@@ -450,7 +440,7 @@ auto lChatInput::handleEvent(aEvent* event) -> void
                 std::memset(text, 0, 0xff);
                 textLength = 0;
                 setCursorPos(0);
-                draw();
+                RestartBlink();
             }
             else if (textLength < 0xff && ((key > 0x1f && key < 0x7f) || (key > 0xbe && key < 0xfe)) && key != '%')
             {
@@ -458,7 +448,7 @@ auto lChatInput::handleEvent(aEvent* event) -> void
                 text[textLength] = static_cast<char>(key);
                 textLength++;
                 setCursorPos(textLength);
-                draw();
+                RestartBlink();
             }
             break;
         }
@@ -557,6 +547,17 @@ auto PlayerNameObject::destroy() -> void
 
 auto PlayerNameObject::draw() -> void
 {
+    if (!ownPort->viewOpen())
+    {
+        return;
+    }
+
+    if (numberArt != nullptr)
+    {
+        VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(numberBack));
+        numberArt->copyTo(ownPort->frame(), 1, 1, 0);
+    }
+
     const auto color = static_cast<uint8_t>(backgroundColor);
     const auto bottom = static_cast<int16_t>(height() - 1);
     FillBox(0x14, 1, static_cast<int16_t>(width() - 1), bottom, color);
@@ -585,7 +586,6 @@ auto PlayerNameObject::handleEvent(aEvent* event) -> void
 
                 application->grab(this);
                 startDrag(grabX, event->y - y());
-                draw();
             }
             break;
         }
@@ -604,7 +604,6 @@ auto PlayerNameObject::handleEvent(aEvent* event) -> void
                 dropped.type = 0x1d;
                 dropped.target = this;
                 parent->handleEvent(&dropped);
-                draw();
             }
             break;
         }
@@ -637,8 +636,6 @@ auto PlayerNameObject::setPlayerName(char* name) -> void
     {
         std::memcpy(playerName, name, size);
     }
-
-    draw();
 }
 
 auto PlayerNameObject::setPlayerId(uint32_t newPlayerId) -> void
@@ -735,14 +732,12 @@ void incrementTeam1RP()
 {
     SessionScreen* screen = globalLogPtr->sessionScreen;
     screen->setTeam1RP(std::atol(screen->team1RPText->buffer) + 1000);
-    globalLogPtr->sessionScreen->draw();
 }
 
 void incrementTeam2RP()
 {
     SessionScreen* screen = globalLogPtr->sessionScreen;
     screen->setTeam2RP(std::atol(screen->team2RPText->buffer) + 1000);
-    globalLogPtr->sessionScreen->draw();
 }
 
 void decrementTeam1RP()
@@ -756,7 +751,6 @@ void decrementTeam1RP()
     }
 
     screen->setTeam1RP(points);
-    globalLogPtr->sessionScreen->draw();
 }
 
 void decrementTeam2RP()
@@ -770,7 +764,6 @@ void decrementTeam2RP()
     }
 
     screen->setTeam2RP(points);
-    globalLogPtr->sessionScreen->draw();
 }
 
 void SessionScreenDrawRoutine(aObject* object)
@@ -890,7 +883,6 @@ auto SessionScreen::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
         Assert(result == 0, static_cast<uint32_t>(result), " Error initing load button art on session screen ");
         addChild(button);
         startButton->disabled = -1;
-        startButton->draw();
         startButton->SetTransparent(-1);
     }
 
@@ -1011,7 +1003,6 @@ auto SessionScreen::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
 
     for (int32_t slotY = UnassignedTop; slotY < 0x1da; slotY += UnassignedRow, ++slot)
     {
-        lPort picture;
         auto* nameObject = new PlayerNameObject;
         *slot = nameObject;
         nameObject->init(0xb, UnassignedTop, 0xa0, 0x10, nullptr);
@@ -1020,11 +1011,10 @@ auto SessionScreen::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
         nameObject->ShowGUIWindow(0);
         nameObject->SetTransparent(-1);
         ++number;
-        char fileName[12];
-        std::snprintf(fileName, sizeof(fileName), "ses_p%i.tga", number);
-        VFX_pane_wipe(nameObject->lport()->frame(), backgroundColor);
-        picture.init(fileName);
-        picture.copyTo(nameObject->lport()->frame(), 1, 1, 0);
+        // The original wiped the name's picture to the screen's background colour and pasted the number there; the
+        // name draws them each frame.
+        nameObject->numberBack = backgroundColor;
+        nameObject->numberArt = logArtf("ses_p%i.tga", number);
     }
 
     setBackground(art("ses_bk00.tga"));
@@ -1095,6 +1085,7 @@ auto SessionScreen::destroy() -> void
         mapName = nullptr;
     }
 
+    ClearMap();
     lObject::destroy();
 }
 
@@ -1107,6 +1098,7 @@ auto SessionScreen::draw() -> void
 
     lObject::draw();
     lPort* port = ownPort;
+    DrawMap(port->frame());
     medWhiteFont->writeString(port->frame(), 0x180, 199, reinterpret_cast<uint8_t*>(missionName), -1);
     medWhiteFont->writeString(port->frame(), 0x180, 0xe3, reinterpret_cast<uint8_t*>(mapName), -1);
     char noLabel[256];
@@ -1117,6 +1109,7 @@ auto SessionScreen::draw() -> void
     // Each team's resource points per player.
     if (MPlayer->clanGroupID == 0)
     {
+        globalLogPtr->drawScreenChrome(this, port->frame());
         return;
     }
 
@@ -1152,6 +1145,7 @@ auto SessionScreen::draw() -> void
 
     std::snprintf(text, sizeof(text), "%d", static_cast<int32_t>(std::atol(team2RPText->buffer) / divisor));
     lgWhiteFont->writeString(port->frame(), 0x219, 0x185, reinterpret_cast<uint8_t*>(text), -1);
+    globalLogPtr->drawScreenChrome(this, port->frame());
 }
 
 auto SessionScreen::handleEvent(aEvent* event) -> void
@@ -1256,12 +1250,9 @@ auto SessionScreen::activate(int refresh) -> void
     pingUntil = MCPort::Milliseconds() + 3000;
     pinging = -1;
     sessionButton->disabled = 0;
-    sessionButton->draw();
     exitButton->toggled = 0;
     exitButton->disabled = 0;
-    exitButton->draw();
     startButton->disabled = -1;
-    startButton->draw();
 
     if (launchedFromLobby != 0)
     {
@@ -1417,11 +1408,12 @@ auto SessionScreen::activate(int refresh) -> void
 
         addChild(ticker);
         ticker->setPort(lport());
+        // The ticker paints into this screen now (what it shows is kept in the screen's chrome).
+        ticker->setScreen(this);
         ticker->setPos(3, 3);
     }
 
     application->AddTimer(this, 0, 500, 0, 0, 0);
-    draw();
     MPlayer->chatCallback = LogisticsChatCallback;
 }
 
@@ -1469,7 +1461,6 @@ auto SessionScreen::assignPlayer(uint32_t playerId, char team, char slot, int re
             // Filling the screen: the player starts unassigned.
             numUnassigned++;
             checkGoodToGo();
-            draw();
             return;
         }
 
@@ -1541,14 +1532,12 @@ auto SessionScreen::assignPlayer(uint32_t playerId, char team, char slot, int re
         if (remote != 0)
         {
             checkGoodToGo();
-            draw();
             return;
         }
     }
     else if (remote != 0)
     {
         checkGoodToGo();
-        draw();
         return;
     }
 
@@ -1563,7 +1552,6 @@ auto SessionScreen::assignPlayer(uint32_t playerId, char team, char slot, int re
     }
 
     checkGoodToGo();
-    draw();
 }
 
 auto SessionScreen::setTeam1RP(int32_t resourcePoints) -> void
@@ -1584,15 +1572,13 @@ auto SessionScreen::setMap(char* fileName) -> void
 {
     if (fileName == nullptr)
     {
-        // No mission: clear the map box.
-        _pane box = *backgroundPort->frame();
-        box.x0 = 0xf4;
-        box.y0 = 0x33;
-        box.x1 = 0x177;
-        box.y1 = 0xb6;
-        VFX_pane_wipe(&box, 0x10);
+        // No mission: clear the map box (the original wiped it in the background picture).
+        ClearMap();
+        mapBoxWiped = true;
         return;
     }
+
+    ClearMap();
 
     auto* picture = new lPort;
     FullPathFileName path;
@@ -1604,9 +1590,31 @@ auto SessionScreen::setMap(char* fileName) -> void
         Fatal(result, " Unable to create Port for TacMap ");
     }
 
+    // The original stretched the map picture over the box in the background picture; the screen keeps the picture
+    // and draws it so each frame.
+    mapPicture = picture;
+}
+
+auto SessionScreen::DrawMap(_pane* target) -> void
+{
+    if (mapBoxWiped)
+    {
+        _pane box = *target;
+        box.x0 = 0xf4;
+        box.y0 = 0x33;
+        box.x1 = 0x177;
+        box.y1 = 0xb6;
+        VFX_pane_wipe(&box, 0x10);
+    }
+
+    if (mapPicture == nullptr)
+    {
+        return;
+    }
+
     // Stretch the map picture over the box.
-    const int32_t maxU = picture->frame()->window->x_max;
-    const int32_t maxV = picture->frame()->window->y_max;
+    const int32_t maxU = mapPicture->frame()->window->x_max;
+    const int32_t maxV = mapPicture->frame()->window->y_max;
     SCRNVERTEX corners[4] = {
         {0xf4, 0x33, 0, 0, 0, 0},
         {0x177, 0x33, 0, maxU << 16, 0, 0},
@@ -1614,10 +1622,17 @@ auto SessionScreen::setMap(char* fileName) -> void
         {0xf4, 0xb6, 0, 0, maxV << 16, 0},
     };
 
-    VFX_map_polygon(backgroundPort->frame(), 4, corners, picture->frame()->window, MP_XP);
-    draw();
-    picture->destroy();
-    delete picture;
+    VFX_map_polygon(target, 4, corners, mapPicture->frame()->window, MP_XP);
+}
+
+auto SessionScreen::ClearMap() -> void
+{
+    if (mapPicture != nullptr)
+    {
+        mapPicture->destroy();
+        delete mapPicture;
+        mapPicture = nullptr;
+    }
 }
 
 auto SessionScreen::setMissionName(char* name) -> void
@@ -1937,7 +1952,6 @@ auto SessionScreen::loadMission(char* fileName) -> void
                 globalLogPtr->messageDialog->activate();
             }
 
-            draw();
             return;
         }
     }
@@ -2033,7 +2047,6 @@ auto SessionScreen::checkGoodToGo() -> void
     }
 
     startButton->disabled = goodToGo == 0 ? 1 : 0;
-    startButton->draw();
 }
 
 auto SessionScreen::removePlayer(uint32_t playerId) -> void
@@ -2098,7 +2111,6 @@ auto SessionScreen::removePlayer(uint32_t playerId) -> void
     }
 
     checkGoodToGo();
-    draw();
 }
 
 auto SessionScreen::setTeamTechBase(char team, char techBase) -> void
@@ -2132,9 +2144,7 @@ auto SessionScreen::setTeamTechBase(char team, char techBase) -> void
     lToolButton* chosen = techBase == -1 ? clanButton : isButton;
     lToolButton* other = techBase == -1 ? isButton : clanButton;
     chosen->toggled = -1;
-    chosen->draw();
     other->toggled = 0;
-    other->draw();
 }
 
 auto SessionScreen::controlsOn() -> void
@@ -2149,7 +2159,6 @@ auto SessionScreen::controlsOn() -> void
     for (lSpinnerButton* spinner : {team1RPUp, team1RPDown, team2RPUp, team2RPDown})
     {
         spinner->disabled = 0;
-        spinner->draw();
     }
 
     for (lToolButton* techButton : {team1ISButton, team1ClanButton, team2ISButton, team2ClanButton})
@@ -2163,7 +2172,6 @@ auto SessionScreen::controlsOn() -> void
     }
 
     loadMissionButton->disabled = 0;
-    loadMissionButton->draw();
 }
 
 auto SessionScreen::controlsOff() -> void
@@ -2179,7 +2187,6 @@ auto SessionScreen::controlsOff() -> void
     for (lSpinnerButton* spinner : {team1RPUp, team1RPDown, team2RPUp, team2RPDown})
     {
         spinner->disabled = -1;
-        spinner->draw();
     }
 
     for (lToolButton* techButton : {team1ISButton, team1ClanButton, team2ISButton, team2ClanButton})
@@ -2193,7 +2200,6 @@ auto SessionScreen::controlsOff() -> void
     }
 
     loadMissionButton->disabled = -1;
-    loadMissionButton->draw();
 }
 
 auto SessionScreen::lockControls(int lock) -> void
@@ -2212,7 +2218,6 @@ auto SessionScreen::lockControls(int lock) -> void
         for (lSpinnerButton* spinner : {team1RPUp, team1RPDown, team2RPUp, team2RPDown})
         {
             spinner->disabled = -1;
-            spinner->draw();
         }
 
         for (lToolButton* techButton : {team1ISButton, team1ClanButton, team2ISButton, team2ClanButton})
@@ -2237,7 +2242,6 @@ auto SessionScreen::lockControls(int lock) -> void
     for (lSpinnerButton* spinner : {team1RPUp, team1RPDown, team2RPUp, team2RPDown})
     {
         spinner->disabled = 0;
-        spinner->draw();
     }
 
     for (lToolButton* techButton : {team1ISButton, team1ClanButton, team2ISButton, team2ClanButton})

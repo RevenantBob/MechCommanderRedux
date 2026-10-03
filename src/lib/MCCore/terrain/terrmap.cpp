@@ -33,6 +33,7 @@
 #include "object/mover.h"
 #include "object/team.h"
 #include "object/warrior.h"
+#include "platform/MCRenderer.h"
 #include "platform/MCWin32Defs.h"
 #include "sound/radio.h"
 #include "sound/soundsys.h"
@@ -408,12 +409,16 @@ namespace
         std::strncpy(helpText, buffer, 0x31);
     }
 
-    /// <summary>A plain aObject child with a picture: init, background, then added to <paramref name="parent"/>.</summary>
+    /// <summary>
+    /// A plain aObject child showing a picture. (The original loaded the picture into the object's own port; it is
+    /// the object's background now, and the object draws itself.)
+    /// </summary>
     aObject* makePicture(aObject* parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* picture)
     {
         auto* obj = new aObject;
+        obj->SetDrawsLive();
         obj->init(x, y, w, h, nullptr);
-        obj->port()->init(const_cast<char*>(picture));
+        obj->setBackground(const_cast<char*>(picture));
         return obj;
     }
 
@@ -477,7 +482,6 @@ auto TogglePalette() -> void
     }
 
     tacMap()->paletteButton->pushed = tacMap()->paletteFrame->IsShowing();
-    tacMap()->paletteButton->draw();
 }
 
 auto BlinkerHandleEvent(aObject* obj, aEvent* event) -> void
@@ -541,23 +545,20 @@ auto TMCZoomIn() -> void
     {
         aButton* zoomIn = map->scrollButtons[4];
         zoomIn->disabled = -1;
-        zoomIn->draw();
         map = tacMap();
     }
 
     aButton* zoomOut = map->scrollButtons[5];
     zoomOut->disabled = 0;
-    zoomOut->draw();
 
     // Zoomed in, the map can scroll.
     for (int32_t i = 0; i < 4; i++)
     {
         aButton* scroll = tacMap()->scrollButtons[i];
         scroll->disabled = 0;
-        scroll->draw();
     }
 
-    tacMap()->draw();
+    tacMap()->RefreshPage();
 }
 
 auto TMCZoomOut() -> void
@@ -588,23 +589,20 @@ auto TMCZoomOut() -> void
         // At 1x the whole map shows: no zooming out or scrolling.
         aButton* zoomOut = map->scrollButtons[5];
         zoomOut->disabled = -1;
-        zoomOut->draw();
 
         for (int32_t i = 0; i < 4; i++)
         {
             aButton* scroll = tacMap()->scrollButtons[i];
             scroll->disabled = -1;
-            scroll->draw();
             map = tacMap();
         }
     }
 
     aButton* zoomIn = map->scrollButtons[4];
     zoomIn->disabled = 0;
-    zoomIn->draw();
     map = tacMap();
     recentreAfterZoom(map);
-    map->draw();
+    map->RefreshPage();
 }
 
 auto ArmorFrontButton() -> void
@@ -781,8 +779,8 @@ auto ArtilleryButton::handleEvent(aEvent* event) -> void
                 return;
             }
 
-            vector_2d screenPos(static_cast<float>(screenX - pane->globalX()),
-                                static_cast<float>(screenY - pane->globalY()));
+            // Port: on the view's world surface, through the zoom.
+            vector_2d screenPos = MCWindowPoint(pane, screenX, screenY);
             vector_3d target3d;
             camera->inverseProject(screenPos, target3d);
             theInterface->CallStrike(commandId, &target3d, nullptr, -1, 0, -1.0f);
@@ -929,7 +927,6 @@ auto ToolPaletteButtonEvent(aObject* obj, aEvent* event) -> void
             if (other != button && other->pushed != 0)
             {
                 other->pushed = 0;
-                other->draw();
             }
         }
 
@@ -1048,13 +1045,30 @@ auto VideoWindow::init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* f
 
 auto VideoWindow::draw() -> void
 {
+    // The picture (the original painted it when no pilot spoke, and a name stayed over it until then).
+    if (backgroundPort != nullptr)
+    {
+        backgroundPort->copyTo(displayPort->frame(), 0, 0, -1);
+    }
+
     if (star == nullptr)
     {
-        if (backgroundPort != nullptr)
-        {
-            backgroundPort->copyTo(displayPort->frame(), 0, 0, -1);
-        }
+        return;
+    }
 
+    // The pilot's name.
+    lineFont->scaled = 0;
+    lineFont->scale = 1.0f;
+    FillBox(1, 1, static_cast<int16_t>(width() - 2), 0xb, 0x10);
+    lineFont->print(3, 3, star->callsign, 0xe3, displayPort->frame());
+    lineFont->scale = 2.0f;
+    lineFont->scaled = 1;
+}
+
+auto VideoWindow::Update() -> void
+{
+    if (star == nullptr)
+    {
         return;
     }
 
@@ -1073,37 +1087,38 @@ auto VideoWindow::draw() -> void
         }
     }
 
-    // The pilot's name.
-    lineFont->scaled = 0;
-    lineFont->scale = 1.0f;
-    FillBox(1, 1, static_cast<int16_t>(width() - 2), 0xb, 0x10);
-    lineFont->print(3, 3, star->callsign, 0xe3, displayPort->frame());
-    lineFont->scale = 2.0f;
-    lineFont->scaled = 1;
-
-    // Track the unit on the tactical map (the anchor when it is off the map area).
-    vector_3d position = star->vehicle->getPosition();
-    tacMap()->worldToTacMap(position, -1);
-    starMapX = static_cast<float>(tacMap()->globalX()) + position.x;
-    const float mapY = static_cast<float>(tacMap()->globalY()) + position.y;
-    starMapY = mapY;
-
-    if (starMapX < 6.0f || starMapX > 136.0f || mapY < 34.0f || mapY > 164.0f)
-    {
-        starMapX = anchorX;
-        starMapY = anchorY;
-    }
-
+    // Track the unit on the tactical map.
+    TrackStar(starMapX, starMapY);
     anchorX = static_cast<float>(width() / 2 + globalX());
     anchorY = static_cast<float>(globalY());
 }
 
+auto VideoWindow::TrackStar(float& mapX, float& mapY) -> void
+{
+    // The unit on the tactical map, or the window's anchor (its bottom centre) when it is off the map area.
+    vector_3d position = star->vehicle->getPosition();
+    tacMap()->worldToTacMap(position, -1);
+    mapX = static_cast<float>(tacMap()->globalX()) + position.x;
+    mapY = static_cast<float>(tacMap()->globalY()) + position.y;
+
+    if (mapX < 6.0f || mapX > 136.0f || mapY < 34.0f || mapY > 164.0f)
+    {
+        mapX = static_cast<float>(width() / 2 + globalX());
+        mapY = static_cast<float>(globalY());
+    }
+}
+
 auto VideoWindow::display() -> void
 {
+    // The line from the window to the unit, which it follows. (The original's line ran to where the unit was when
+    // the window last painted, and from where the window was the paint before.)
     if (star != nullptr)
     {
-        VFX_line_draw(tacMap()->frame(), static_cast<int32_t>(anchorX), static_cast<int32_t>(anchorY),
-                      static_cast<int32_t>(starMapX), static_cast<int32_t>(starMapY), 0, 0x1f);
+        float mapX = 0.0f;
+        float mapY = 0.0f;
+        TrackStar(mapX, mapY);
+        VFX_line_draw(tacMap()->frame(), width() / 2 + globalX(), globalY(), static_cast<int32_t>(mapX),
+                      static_cast<int32_t>(mapY), 0, 0x1f);
     }
 
     aObject::display();
@@ -1117,7 +1132,7 @@ auto VideoWindow::SetStar(MechWarrior* newStar) -> void
         star = newStar;
         blinkTime = static_cast<float>(scenarioTime - 0.5);
         theInterface->mechBar->layout.videoId = newStar->vehicle->partId;
-        draw();
+        Update();
         return;
     }
 
@@ -1130,7 +1145,7 @@ auto VideoWindow::SetStar(MechWarrior* newStar) -> void
         {
             vehicle->setSelected(1);
             star = nullptr;
-            draw();
+            Update();
             return;
         }
 
@@ -1138,7 +1153,7 @@ auto VideoWindow::SetStar(MechWarrior* newStar) -> void
     }
 
     star = nullptr;
-    draw();
+    Update();
 }
 
 TacticalMap::TacticalMap()
@@ -1231,9 +1246,13 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
         Fatal(result, " Unable to create Port for TacMap ");
     }
 
+    MCRenderer::DestroyTexture(visibilityPort->frame()->window);
     guiHeap->free(visibilityPort->frame()->window->buffer);
     ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
     visibilityPort->frame()->window->buffer = visibleBits->flagHeap->getHeapPtr();
+    // Port: the fog of war is a kept frame surface: the reveals draw it on the GPU as well as in the flags the game
+    // reads, and the map page samples the GPU's copy instead of uploading the flags whenever they change.
+    MCRenderer::AddFrameSurface(visibilityPort->frame()->window, true);
 
     const float side = static_cast<float>(mapVertexSide) * static_cast<float>(mapVertexSide);
     mapDiagonal = std::sqrt(side + side) * Terrain::metersPerVertex;
@@ -1242,6 +1261,20 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     mapBackground = loadBackground("mfdmwn00.tga", "Error reading tacmap MFD background");
     infoBackground = loadBackground("mfddwn00.tga", "Error reading info MFD background");
     missionBackground = loadBackground("mfdbwn00.tga", "Error reading mission MFD background");
+
+    // Port: the info page's data view backgrounds, which the original loaded each time it drew one (and skipped
+    // when one failed to load).
+    static const char* const viewBackgroundNames[3] = {"mfddwn01.tga", "mfddwn02.tga", "mfddwn03.tga"};
+
+    for (int32_t i = 0; i < 3; i++)
+    {
+        infoViewBackgrounds[i] = new aPort;
+
+        if (infoViewBackgrounds[i]->init(const_cast<char*>(viewBackgroundNames[i])) != 0)
+        {
+            destroyPort(infoViewBackgrounds[i]);
+        }
+    }
 
     result = aObject::init(xPos, yPos, 0x8c, 0xef, nullptr);
 
@@ -1273,30 +1306,33 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     addChild(tabTop);
 
     tabStrip = new aObject;
+    tabStrip->SetDrawsLive();
     tabStrip->init(width(), 4, 0xc, 0xe7, nullptr);
 
     if (MPlayer == nullptr)
     {
-        tabStrip->port()->init(const_cast<char*>("mfdmts01.tga"));
+        tabStrip->setBackground(const_cast<char*>("mfdmts01.tga"));
     }
     else
     {
         const int32_t blinkerTop = tabStrip->bottom() - 0x3a;
-        tabStrip->port()->init(const_cast<char*>("mfdmts03.tga"));
+        tabStrip->setBackground(const_cast<char*>("mfdmts03.tga"));
 
         chatBlinkerOff = new aObject;
+        chatBlinkerOff->SetDrawsLive();
         result = chatBlinkerOff->init(width() + 2, blinkerTop, 10, 0x3a, nullptr);
         Assert(result == 0, static_cast<uint32_t>(result), "Error initing chat blinker object");
-        chatBlinkerOff->port()->init(const_cast<char*>("mfdsts05.tga"));
+        chatBlinkerOff->setBackground(const_cast<char*>("mfdsts05.tga"));
         chatBlinkerOff->setDepth(10);
         addChild(chatBlinkerOff);
         chatBlinkerOff->ShowGUIWindow(0);
         chatBlinkerOff->setEventRoutine(BlinkerHandleEvent);
 
         chatBlinkerOn = new aObject;
+        chatBlinkerOn->SetDrawsLive();
         result = chatBlinkerOn->init(width(), blinkerTop, 10, 0x3a, nullptr);
         Assert(result == 0, static_cast<uint32_t>(result), "Error initing chat blinker object");
-        chatBlinkerOn->port()->init(const_cast<char*>("mfdsts04.tga"));
+        chatBlinkerOn->setBackground(const_cast<char*>("mfdsts04.tga"));
         chatBlinkerOn->setDepth(10);
         addChild(chatBlinkerOn);
         chatBlinkerOn->ShowGUIWindow(0);
@@ -1365,7 +1401,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
             makeButton<aToolButton>(spec.x, 0xcc, 0x20, 0xc, spec.pictures[0], spec.pictures[1], spec.pictures[2]);
         dataButtons[spec.index] = button;
         button->framed = 0;
-        button->draw();
         button->callback()->setExec(spec.callback);
         addChild(button);
     }
@@ -1400,7 +1435,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     scrollButtons[5] = zoomOutButton;
     zoomOutButton->callback()->setExec(TMCZoomOut);
     zoomOutButton->disabled = -1;
-    zoomOutButton->draw();
     addChild(zoomOutButton);
     aButton* zoomInButton = makeButton<aButton>(0x74, 0xb6, 0xd, 0xd, "mfdmbh05.tga", "mfdmbg05.tga", "mfdmbn05.tga");
     scrollButtons[4] = zoomInButton;
@@ -1411,25 +1445,25 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     {
         aButton* button = tacMap()->scrollButtons[i];
         button->disabled = -1;
-        button->draw();
     }
 
     // The command palette, hidden until the palette button opens it.
     paletteFrame = new aObject;
+    paletteFrame->SetDrawsLive();
     paletteFrame->init(0, 0xe9, 0x8c, 0x35, nullptr);
     paletteFrame->setDepth(10);
-    paletteFrame->port()->init(const_cast<char*>("mfdcwn00.tga"));
+    paletteFrame->setBackground(const_cast<char*>("mfdcwn00.tga"));
     addChild(paletteFrame);
     paletteFrame->ShowGUIWindow(0);
     paletteBottom = new aObject;
+    paletteBottom->SetDrawsLive();
     paletteBottom->init(paletteFrame->width(), 0, 2, 0x35, nullptr);
-    paletteBottom->port()->init(const_cast<char*>("mfdcwn01.tga"));
+    paletteBottom->setBackground(const_cast<char*>("mfdcwn01.tga"));
     paletteBottom->SetTransparent(-1);
     paletteFrame->addChild(paletteBottom);
 
     paletteButton = makeButton<aToolButton>(6, 0xe0, 9, 9, "mfdcwn02.tga", "mfdcwn03.tga", nullptr);
     paletteButton->framed = 0;
-    paletteButton->draw();
     paletteButton->callback()->setExec(TogglePalette);
     addChild(paletteButton);
 
@@ -1461,7 +1495,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
         std::snprintf(pictureName, sizeof(pictureName), "mfdcbn%02i.tga", i);
         button->setGrayPicture(pictureName);
         button->framed = 0;
-        button->draw();
 
         if (i == 7)
         {
@@ -1476,7 +1509,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
                 // No zoom: only the 45-pixel art is loaded.
                 button->setGrayPicture(const_cast<char*>("mfdcbn07a.tga"));
                 button->disabled = -1;
-                button->draw();
                 loadHelpText(button->helpText, 0x92);
             }
         }
@@ -1501,7 +1533,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     videoWindow->init(6, 0xaa, 0x30, 0x30, nullptr);
     videoWindow->setBackground(const_cast<char*>("mfdmwn01.tga"));
     addChild(videoWindow);
-    videoWindow->draw();
 
     infoText = new aScrollTextObject;
     Assert(infoText != nullptr, 0, "Not enough memory for text view object");
@@ -1547,7 +1578,7 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
 
     SetDataDisplayMode(0, -1);
     lastRefreshTime = 0;
-    draw();
+    RefreshPage();
 
     typeString[0] = loadHeapString(0x7c);
     typeString[1] = loadHeapString(0x7d);
@@ -1562,6 +1593,7 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     std::memset(colorRemap, 0xff, sizeof(colorRemap));
     colorRemap[0xe6] = 0x13;
     colorRemap[0xe8] = 0x13;
+    MCRenderer::RegisterData(colorRemap, sizeof(colorRemap), MCDataKind::Tables);
 
     for (GameObject*& item : salvage)
     {
@@ -1583,6 +1615,7 @@ auto TacticalMap::destroy() -> void
     if (visibilityPort != nullptr)
     {
         // The bitmap's pixels are the visible bits' heap; the original clears the pane's window first.
+        MCRenderer::RemoveFrameSurface(visibilityPort->frame()->window);
         visibilityPort->frame()->window = nullptr;
         visibilityPort->destroy();
         delete visibilityPort;
@@ -1626,6 +1659,11 @@ auto TacticalMap::destroy() -> void
     destroyPort(mapBackground);
     destroyPort(infoBackground);
 
+    for (aPort*& background : infoViewBackgrounds)
+    {
+        destroyPort(background);
+    }
+
     if (missionBackground != nullptr)
     {
         missionBackground->destroy();
@@ -1666,7 +1704,7 @@ auto TacticalMap::destroy() -> void
     }
 }
 
-auto TacticalMap::draw() -> void
+auto TacticalMap::RefreshPage() -> void
 {
     if (IsShowing() == 0)
     {
@@ -1682,149 +1720,43 @@ auto TacticalMap::draw() -> void
         if (obj == nullptr || (obj->objectClass != BATTLEMECH && obj->objectClass != GROUNDVEHICLE &&
                                obj->objectClass != ELEMENTAL && obj->objectClass != MOVER))
         {
-            FillBox(0xe, 0x2a, 0x2c, 0x4c, 0x10);
             infoText->ShowGUIWindow(0);
-            aObject::draw();
             return;
         }
-
-        MechWarrior* pilot = obj->getPilot();
-        auto* mover = static_cast<Mover*>(obj);
-        const bool showPilot = mover->netPlayerId >= 0;
-        aPort picture;
 
         if (dataDisplayMode == 2)
         {
             // Payload: the weapon list.
-            if (infoDirty != 0)
-            {
-                infoDirty = 0;
-
-                if (picture.init(const_cast<char*>("mfddwn02.tga")) == 0)
-                {
-                    VFX_pane_copy(picture.frame(), 0, 0, displayPort->frame(), 6, 0x5d, -1);
-                }
-
-                picture.destroy();
-            }
-
+            infoDirty = 0;
             text->ShowGUIWindow(-1);
             drawWeapons();
         }
         else
         {
-            // Armor: the part diagram, over the home side's or the enemy's background.
+            // Armor: the part diagram's colours.
             GetColors();
-
-            if (infoDirty != 0)
-            {
-                infoDirty = 0;
-                const char* background = obj->getTeam() == homeTeam ? "mfddwn01.tga" : "mfddwn03.tga";
-
-                if (picture.init(const_cast<char*>(background)) == 0)
-                {
-                    VFX_pane_copy(picture.frame(), 0, 0, displayPort->frame(), 6, 0x5d, -1);
-                }
-
-                picture.destroy();
-                const int32_t shape = obj->objectClass == BATTLEMECH
-                                          ? mover->numArmorLocations + 1 + mover->numBodyLocations
-                                          : mover->numBodyLocations;
-                AG_shape_draw(port()->frame(), partShapes, shape, 0x22, 0x65);
-            }
-
+            infoDirty = 0;
             infoText->ShowGUIWindow(0);
-            DrawParts();
         }
-
-        DrawBar();
-
-        char line[64];
 
         if (obj->objectClass == BATTLEMECH)
         {
-            if (showPilot)
-            {
-                drawPilot(pilot);
-            }
-            else
-            {
-                FillBox(6, 0x2a, 0x88, 0x4c, 0x10);
-            }
-
             aScrollTextObject* list = infoText;
             list->firstPixel = firstPixel;
             list->PositionScrollTab();
-            list->draw();
-
-            // "<name> <weight class> <tons>".
-            const int32_t tonnage = static_cast<int32_t>(obj->getTonnage());
-            uint32_t classId = 0x85;
-
-            if (tonnage < 0x28)
-            {
-                classId = 0x82;
-            }
-            else if (tonnage < 0x3c)
-            {
-                classId = 0x83;
-            }
-            else if (tonnage < 0x50)
-            {
-                classId = 0x84;
-            }
-
-            char buffer[256];
-            cLoadString(thisInstance, classId, buffer, 0xfe);
-            char weightClass[12];
-            std::strncpy(weightClass, buffer, 9);
-            weightClass[9] = 0;
-            cLoadString(thisInstance, 0x81, buffer, 0xfe);
-            std::snprintf(line, sizeof(line), buffer, mover->getIfaceName(), weightClass, tonnage);
-            const int32_t lineWidth = blueFont->width(reinterpret_cast<uint8_t*>(line));
-            blueFont->writeString(port()->frame(), 0x47 - lineWidth / 2, 0x54, reinterpret_cast<uint8_t*>(line), -1);
         }
         else if (obj->objectClass == GROUNDVEHICLE)
         {
-            FillBox(6, 0x2a, 0x88, 0x4c, 0x10);
-
             if (dataDisplayMode == 1)
             {
                 SetDataDisplayMode(0, 0);
             }
 
-            std::snprintf(line, sizeof(line), "%s", mover->getIfaceName());
-            // Measured in greenFont, written in blueFont (as the original).
-            const int32_t lineWidth = greenFont->width(reinterpret_cast<uint8_t*>(line));
-            blueFont->writeString(port()->frame(), 0x47 - lineWidth / 2, 0x54, reinterpret_cast<uint8_t*>(line), -1);
             aScrollTextObject* list = infoText;
             list->firstPixel = firstPixel;
             list->PositionScrollTab();
-            list->draw();
-
-            // The passengers, with their pictures.
-            auto* vehicle = static_cast<GroundVehicle*>(infoObject);
-            int32_t shown = 0;
-            int32_t xPos = 10;
-
-            for (int32_t seat = 0; seat < vehicle->seats; seat++)
-            {
-                MechWarrior* passenger = vehicle->passengers[seat];
-
-                if (passenger == nullptr)
-                {
-                    continue;
-                }
-
-                VFX_pane_copy(infoPorts[shown]->frame(), 0, 0, displayPort->frame(), xPos, 0xc4, 0xfff);
-                const int32_t yPos = 0xa6 - (greenFont->height() + 2) * shown;
-                greenFont->writeString(port()->frame(), xPos, yPos, reinterpret_cast<uint8_t*>(passenger->name), -1);
-                shown++;
-                xPos += 0x23;
-            }
         }
 
-        aObject::draw();
         return;
     }
 
@@ -1888,8 +1820,171 @@ auto TacticalMap::draw() -> void
         text->ResetPortSize();
         text->PositionScrollTab();
     }
+}
 
+auto TacticalMap::draw() -> void
+{
+    if (IsShowing() == 0)
+    {
+        return;
+    }
+
+    // The page's background, drawn with its holes (colour 0xff) open.
+    switch (displayType)
+    {
+        case TACMAP_MAP:
+        {
+            mapBackground->copyTo(displayPort->frame(), 0, 0, -1);
+            drawMapPage(this);
+            break;
+        }
+        case TACMAP_INFO:
+        {
+            if (infoObject == nullptr)
+            {
+                VFX_pane_wipe(displayPort->frame(), 0x10);
+            }
+
+            infoBackground->copyTo(displayPort->frame(), 0, 0, -1);
+            DrawInfoPage();
+            break;
+        }
+        case TACMAP_MISSION:
+        {
+            missionBackground->copyTo(displayPort->frame(), 0, 0, -1);
+            break;
+        }
+        case TACMAP_SALVAGE:
+        {
+            salvageBackground->copyTo(displayPort->frame(), 0, 0, -1);
+            break;
+        }
+    }
+
+    // The status line: a button's help, or the default text.
+    FillBox(0x15, 0xe2, 0x87, 0xe8, 0x10);
+    char buffer[256];
+    char* text = statusText;
+
+    if (text == nullptr)
+    {
+        cLoadString(thisInstance, 0x97, buffer, 0xfe);
+        text = buffer;
+    }
+
+    blueFont->writeString(port()->frame(), 0x15, 0xe2, reinterpret_cast<uint8_t*>(text), -1);
     aObject::draw();
+}
+
+auto TacticalMap::DrawInfoPage() -> void
+{
+    GameObject* obj = infoObject;
+
+    if (obj == nullptr || (obj->objectClass != BATTLEMECH && obj->objectClass != GROUNDVEHICLE &&
+                           obj->objectClass != ELEMENTAL && obj->objectClass != MOVER))
+    {
+        FillBox(0xe, 0x2a, 0x2c, 0x4c, 0x10);
+        return;
+    }
+
+    MechWarrior* pilot = obj->getPilot();
+    auto* mover = static_cast<Mover*>(obj);
+    const bool showPilot = mover->netPlayerId >= 0;
+
+    if (dataDisplayMode == 2)
+    {
+        // Payload: the weapon list's background (the list is the info text).
+        if (infoViewBackgrounds[1] != nullptr)
+        {
+            VFX_pane_copy(infoViewBackgrounds[1]->frame(), 0, 0, displayPort->frame(), 6, 0x5d, -1);
+        }
+    }
+    else
+    {
+        // Armor: the part diagram, over the home side's or the enemy's background.
+        aPort* background = infoViewBackgrounds[obj->getTeam() == homeTeam ? 0 : 2];
+
+        if (background != nullptr)
+        {
+            VFX_pane_copy(background->frame(), 0, 0, displayPort->frame(), 6, 0x5d, -1);
+        }
+
+        const int32_t shape = obj->objectClass == BATTLEMECH ? mover->numArmorLocations + 1 + mover->numBodyLocations
+                                                             : mover->numBodyLocations;
+        AG_shape_draw(port()->frame(), partShapes, shape, 0x22, 0x65);
+        DrawParts();
+    }
+
+    DrawBar();
+    char line[64];
+
+    if (obj->objectClass == BATTLEMECH)
+    {
+        if (showPilot)
+        {
+            drawPilot(pilot);
+        }
+        else
+        {
+            FillBox(6, 0x2a, 0x88, 0x4c, 0x10);
+        }
+
+        // "<name> <weight class> <tons>".
+        const int32_t tonnage = static_cast<int32_t>(obj->getTonnage());
+        uint32_t classId = 0x85;
+
+        if (tonnage < 0x28)
+        {
+            classId = 0x82;
+        }
+        else if (tonnage < 0x3c)
+        {
+            classId = 0x83;
+        }
+        else if (tonnage < 0x50)
+        {
+            classId = 0x84;
+        }
+
+        char buffer[256];
+        cLoadString(thisInstance, classId, buffer, 0xfe);
+        char weightClass[12];
+        std::strncpy(weightClass, buffer, 9);
+        weightClass[9] = 0;
+        cLoadString(thisInstance, 0x81, buffer, 0xfe);
+        std::snprintf(line, sizeof(line), buffer, mover->getIfaceName(), weightClass, tonnage);
+        const int32_t lineWidth = blueFont->width(reinterpret_cast<uint8_t*>(line));
+        blueFont->writeString(port()->frame(), 0x47 - lineWidth / 2, 0x54, reinterpret_cast<uint8_t*>(line), -1);
+    }
+    else if (obj->objectClass == GROUNDVEHICLE)
+    {
+        FillBox(6, 0x2a, 0x88, 0x4c, 0x10);
+        std::snprintf(line, sizeof(line), "%s", mover->getIfaceName());
+        // Measured in greenFont, written in blueFont (as the original).
+        const int32_t lineWidth = greenFont->width(reinterpret_cast<uint8_t*>(line));
+        blueFont->writeString(port()->frame(), 0x47 - lineWidth / 2, 0x54, reinterpret_cast<uint8_t*>(line), -1);
+
+        // The passengers, with their pictures.
+        auto* vehicle = static_cast<GroundVehicle*>(infoObject);
+        int32_t shown = 0;
+        int32_t xPos = 10;
+
+        for (int32_t seat = 0; seat < vehicle->seats; seat++)
+        {
+            MechWarrior* passenger = vehicle->passengers[seat];
+
+            if (passenger == nullptr)
+            {
+                continue;
+            }
+
+            VFX_pane_copy(infoPorts[shown]->frame(), 0, 0, displayPort->frame(), xPos, 0xc4, 0xfff);
+            const int32_t yPos = 0xa6 - (greenFont->height() + 2) * shown;
+            greenFont->writeString(port()->frame(), xPos, yPos, reinterpret_cast<uint8_t*>(passenger->name), -1);
+            shown++;
+            xPos += 0x23;
+        }
+    }
 }
 
 auto TacticalMap::handleEvent(aEvent* event) -> void
@@ -2122,23 +2217,11 @@ auto TacticalMap::display() -> void
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
-    {
-        // Hidden and at rest: just the picture and the children.
-        if (displayPort != nullptr)
-        {
-            displayPort->copyTo(frame(), 0, 0, 0);
-        }
+    // Hidden and at rest the MFD lies off the screen (but for its tabs); the original showed its picture as it was,
+    // without updating it.
+    const bool atRest = IsHidden() != 0 && hideOffset == 0;
 
-        for (int32_t i = 0; i < numChildren; i++)
-        {
-            childList[i]->display();
-        }
-
-        return;
-    }
-
-    if (hideOffset != 0)
+    if (!atRest && hideOffset != 0)
     {
         // Sliding: step, then stop once off screen (hiding) or back home (showing).
         moveTo(x() + hideOffset, y(), -1);
@@ -2165,12 +2248,14 @@ auto TacticalMap::display() -> void
         }
     }
 
-    if (IsHidden() == 0 || hideOffset != 0)
+    const bool updating = !atRest && (IsHidden() == 0 || hideOffset != 0);
+
+    if (updating)
     {
         switch (displayType)
         {
             case TACMAP_MAP:
-                drawMapPage(this);
+                UpdateMapPage();
                 break;
             case TACMAP_INFO:
             case TACMAP_MISSION:
@@ -2178,7 +2263,7 @@ auto TacticalMap::display() -> void
                 if (MCPort::Milliseconds() > lastRefreshTime + 500)
                 {
                     lastRefreshTime = MCPort::Milliseconds();
-                    draw();
+                    RefreshPage();
                 }
                 break;
             }
@@ -2193,27 +2278,8 @@ auto TacticalMap::display() -> void
             }
         }
 
-        if (statusDirty != 0)
-        {
-            // The status line: a button's help, or the default text.
-            FillBox(0x15, 0xe2, 0x87, 0xe8, 0x10);
-            char buffer[256];
-            char* text = statusText;
-
-            if (text == nullptr)
-            {
-                cLoadString(thisInstance, 0x97, buffer, 0xfe);
-                text = buffer;
-            }
-
-            blueFont->writeString(port()->frame(), 0x15, 0xe2, reinterpret_cast<uint8_t*>(text), -1);
-            statusDirty = 0;
-        }
-
-        if (displayPort != nullptr)
-        {
-            displayPort->copyTo(frame(), 0, 0, 0);
-        }
+        // The status line is drawn each frame now.
+        statusDirty = 0;
     }
 
     if (mouseInside != 0)
@@ -2221,23 +2287,100 @@ auto TacticalMap::display() -> void
         application->SetCurrentCursor(static_cast<CursorType>(0));
     }
 
-    if (winState != 2)
+    // Port: the MFD draws itself, then its children (the original copied its picture, then displayed them).
+    DrawInFramePass(displayPort);
+
+    // The original revealed the objectives' areas as it drew the map's units, after the fog of war.
+    if (updating && displayType == TACMAP_MAP)
     {
-        for (int32_t i = 0; i < numChildren; i++)
+        RevealObjectives();
+    }
+}
+
+auto TacticalMap::UpdateMapPage() -> void
+{
+    // The mission timer, rewritten once a second.
+    if (scenario->timeLimit >= 0 && lastMapTime + 1.0f < actualTime)
+    {
+        lastMapTime = actualTime;
+        const float remaining = static_cast<float>(scenario->timeLimit) - actualTime;
+
+        if (remaining >= 0.0f)
         {
-            childList[i]->display();
+            const auto seconds = static_cast<int32_t>(std::fmod(static_cast<double>(remaining), 60.0));
+            const auto minutes = static_cast<int32_t>(remaining * (1.0f / 60.0f));
+            std::snprintf(mapTimeText, sizeof(mapTimeText), "%02i:%02i", minutes, seconds);
+            mapTimeRed = false;
         }
+        else
+        {
+            std::snprintf(mapTimeText, sizeof(mapTimeText), "00:00");
+            mapTimeRed = true;
+        }
+
+        mapTimeShown = true;
+    }
+
+    // Markers blink five times a second.
+    tacFrameLength = frameLength + tacFrameLength;
+
+    if (tacFrameLength > 0.2)
+    {
+        tacFrameLength = 0.0f;
+        onNow = ~onNow;
+    }
+}
+
+auto TacticalMap::RevealObjectives() -> void
+{
+    if (objectivesRevealed != 0)
+    {
+        return;
+    }
+
+    // Once a pending objective with a position is found, every objective's area is revealed in the fog of war.
+    const int32_t numObjectives = static_cast<int32_t>(homeTeam->numObjectives);
+
+    for (int32_t i = 0; i < numObjectives; i++)
+    {
+        ScenarioObjective* objective = &scenario->objectives[homeTeam->firstObjective + i];
+
+        if (objective->position[0] == -99.0f || objective->position[1] == -99.0f || objective->position[2] == -99.0f ||
+            objective->status != 0)
+        {
+            continue;
+        }
+
+        for (int32_t j = 0; j < numObjectives; j++)
+        {
+            ScenarioObjective* area = &scenario->objectives[homeTeam->firstObjective + j];
+
+            if (area->radius <= 0.0)
+            {
+                continue;
+            }
+
+            const float column = static_cast<float>(std::floor(static_cast<double>(
+                Terrain::OneOvermetersPerVertex * (area->position[0] - Terrain::mapTopLeft3d100.x))));
+            const float row = static_cast<float>(std::floor(static_cast<double>(
+                Terrain::OneOvermetersPerVertex * (Terrain::mapTopLeft3d100.y - area->position[1]))));
+            const auto xc = static_cast<int32_t>(std::floor(static_cast<double>(column)));
+            const auto yc = static_cast<int32_t>(std::floor(static_cast<double>(row)));
+            const auto radius = static_cast<int32_t>(area->radius / metersPerPixel * worldUnitsPerMeter);
+            VFX_ellipse_fill(visibilityPort->frame(), xc, yc, radius, radius, 0x14);
+        }
+
+        objectivesRevealed = -1;
+        return;
     }
 }
 
 namespace
 {
-
     void drawMapPage(TacticalMap* map)
     {
-        // The mission timer (or the "no time limit" text), redrawn once a second.
+        // The mission timer (or the "no time limit" text), as UpdateMapPage last wrote it.
         char buffer[256];
-        char timeText[64];
         _pane* page = map->port()->frame();
 
         if (scenario->timeLimit < 0)
@@ -2245,24 +2388,11 @@ namespace
             cLoadString(thisInstance, 0xbc, buffer, 0xfe);
             whiteFont->writeString(page, 0x3c, 0xab, reinterpret_cast<uint8_t*>(buffer), -1);
         }
-        else if (map->lastMapTime + 1.0f < actualTime)
+        else if (map->mapTimeShown)
         {
-            map->lastMapTime = actualTime;
             map->FillBox(0x37, 0xaa, 0x88, 0xb2, 0x12);
-            const float remaining = static_cast<float>(scenario->timeLimit) - actualTime;
-
-            if (remaining >= 0.0f)
-            {
-                const auto seconds = static_cast<int32_t>(std::fmod(static_cast<double>(remaining), 60.0));
-                const auto minutes = static_cast<int32_t>(remaining * (1.0f / 60.0f));
-                std::snprintf(timeText, sizeof(timeText), "%02i:%02i", minutes, seconds);
-                whiteFont->writeString(page, 0x3c, 0xab, reinterpret_cast<uint8_t*>(timeText), -1);
-            }
-            else
-            {
-                std::snprintf(timeText, sizeof(timeText), "00:00");
-                redFont->writeString(page, 0x3c, 0xab, reinterpret_cast<uint8_t*>(timeText), -1);
-            }
+            aFont* font = map->mapTimeRed ? redFont : whiteFont;
+            font->writeString(page, 0x3c, 0xab, reinterpret_cast<uint8_t*>(map->mapTimeText), -1);
         }
 
         // The map picture, scrolled and zoomed, mapped onto the map area.
@@ -2327,7 +2457,9 @@ namespace
             Camera* camera = window->camera;
             viewWindow* view = camera->window;
             vector_2d screenTopLeft(0.0f, 0.0f);
-            vector_2d screenBottomRight(static_cast<float>(view->width()), static_cast<float>(view->height()));
+            // Port: the corners of the world surface the view shows (its size follows the zoom).
+            vector_2d screenBottomRight(static_cast<float>(view->WorldWidth()),
+                                        static_cast<float>(view->WorldHeight()));
             vector_3d topLeft;
             vector_3d bottomRight;
             camera->inverseProject(screenTopLeft, topLeft);
@@ -2497,16 +2629,10 @@ auto TacticalMap::tacMapToWorld(vector_3d& pos, int scrolled) -> void
 
 auto TacticalMap::drawObjects() -> void
 {
-    // Markers blink five times a second.
-    tacFrameLength = frameLength + tacFrameLength;
+    // (The markers' blink is stepped by UpdateMapPage, and the objectives' areas revealed by RevealObjectives: the
+    // original did both here.)
 
-    if (tacFrameLength > 0.2)
-    {
-        tacFrameLength = 0.0f;
-        onNow = ~onNow;
-    }
-
-    // The home side's pending objectives that have a position: a numbered dot, and (once) their areas revealed.
+    // The home side's pending objectives that have a position: a numbered dot.
     const int32_t numObjectives = static_cast<int32_t>(homeTeam->numObjectives);
 
     if (numObjectives != 0)
@@ -2547,31 +2673,6 @@ auto TacticalMap::drawObjects() -> void
                 char number[8];
                 std::snprintf(number, sizeof(number), "%d", i + 1);
                 lineFont->print(xPos, yPos, number, color, &mapPane);
-            }
-
-            if (objectivesRevealed == 0)
-            {
-                // Reveal every objective's area in the fog of war.
-                for (int32_t j = 0; j < numObjectives; j++)
-                {
-                    ScenarioObjective* area = &scenario->objectives[homeTeam->firstObjective + j];
-
-                    if (area->radius <= 0.0)
-                    {
-                        continue;
-                    }
-
-                    const float column = static_cast<float>(std::floor(static_cast<double>(
-                        Terrain::OneOvermetersPerVertex * (area->position[0] - Terrain::mapTopLeft3d100.x))));
-                    const float row = static_cast<float>(std::floor(static_cast<double>(
-                        Terrain::OneOvermetersPerVertex * (Terrain::mapTopLeft3d100.y - area->position[1]))));
-                    const auto xc = static_cast<int32_t>(std::floor(static_cast<double>(column)));
-                    const auto yc = static_cast<int32_t>(std::floor(static_cast<double>(row)));
-                    const auto radius = static_cast<int32_t>(area->radius / metersPerPixel * worldUnitsPerMeter);
-                    VFX_ellipse_fill(visibilityPort->frame(), xc, yc, radius, radius, 0x14);
-                }
-
-                objectivesRevealed = -1;
             }
         }
     }
@@ -2852,12 +2953,12 @@ auto TacticalMap::SetDisplayType(TacmapDisplayTypes type) -> void
         {
             if (tabHighlighted != 0)
             {
-                tabBottom->port()->init(const_cast<char*>("mfdmts02.tga"));
+                tabBottom->setBackground(const_cast<char*>("mfdmts02.tga"));
             }
 
-            tabStrip->port()->init(const_cast<char*>(MPlayer == nullptr ? "mfdmts01.tga" : "mfdmts03.tga"));
+            tabStrip->setBackground(const_cast<char*>(MPlayer == nullptr ? "mfdmts01.tga" : "mfdmts03.tga"));
             tabHighlighted = 0;
-            mapBackground->copyTo(displayPort->frame(), 0, 0, -1);
+            // (The original copied the page's background into the MFD's picture here; draw shows it each frame.)
 
             for (aButton* button : scrollButtons)
             {
@@ -2877,20 +2978,15 @@ auto TacticalMap::SetDisplayType(TacmapDisplayTypes type) -> void
 
             if (tabHighlighted != 0)
             {
-                tabBottom->port()->init(const_cast<char*>("mfddts02.tga"));
+                tabBottom->setBackground(const_cast<char*>("mfddts02.tga"));
             }
 
-            tabStrip->port()->init(const_cast<char*>(MPlayer == nullptr ? "mfddts01.tga" : "mfddts03.tga"));
+            tabStrip->setBackground(const_cast<char*>(MPlayer == nullptr ? "mfddts01.tga" : "mfddts03.tga"));
             tabHighlighted = 0;
 
-            if (infoObject == nullptr)
+            // (The original wiped the picture without a unit, and copied the page's background; draw does both.)
+            if (infoObject != nullptr)
             {
-                VFX_pane_wipe(displayPort->frame(), 0x10);
-                infoBackground->copyTo(displayPort->frame(), 0, 0, -1);
-            }
-            else
-            {
-                infoBackground->copyTo(displayPort->frame(), 0, 0, -1);
                 SetID(infoObject->partId);
             }
 
@@ -2899,7 +2995,7 @@ auto TacticalMap::SetDisplayType(TacmapDisplayTypes type) -> void
             infoText->ShowGUIWindow(-1);
             setPageRects(this, 0x5d, 0x68, 0xbe, 0xc9);
             infoText->firstPixel = 0;
-            draw();
+            RefreshPage();
             return;
         }
 
@@ -2907,27 +3003,25 @@ auto TacticalMap::SetDisplayType(TacmapDisplayTypes type) -> void
         {
             if (tabHighlighted != 0)
             {
-                tabBottom->port()->init(const_cast<char*>("mfdbts02.tga"));
+                tabBottom->setBackground(const_cast<char*>("mfdbts02.tga"));
             }
 
-            tabStrip->port()->init(const_cast<char*>(MPlayer == nullptr ? "mfdbts01.tga" : "mfdbts03.tga"));
+            tabStrip->setBackground(const_cast<char*>(MPlayer == nullptr ? "mfdbts01.tga" : "mfdbts03.tga"));
             tabHighlighted = 0;
-            missionBackground->copyTo(displayPort->frame(), 0, 0, -1);
             infoText->moveTo(5, 0x22, 0);
             infoText->resize(0x76, 0xb8);
             infoText->ShowGUIWindow(-1);
             setPageRects(this, 0x22, 0x2d, 0xcf, 0xda);
             pageRects[2][3] = 0xce;
-            draw();
+            RefreshPage();
             return;
         }
 
         case TACMAP_SALVAGE:
         {
-            tabBottom->port()->init(const_cast<char*>("mfdsts02.tga"));
-            tabStrip->port()->init(const_cast<char*>(MPlayer == nullptr ? "mfdsts01.tga" : "mfdsts03.tga"));
+            tabBottom->setBackground(const_cast<char*>("mfdsts02.tga"));
+            tabStrip->setBackground(const_cast<char*>(MPlayer == nullptr ? "mfdsts01.tga" : "mfdsts03.tga"));
             tabHighlighted = -1;
-            salvageBackground->copyTo(displayPort->frame(), 0, 0, -1);
 
             if (MPlayer == nullptr)
             {
@@ -2935,7 +3029,7 @@ auto TacticalMap::SetDisplayType(TacmapDisplayTypes type) -> void
                 refreshSalvageList();
                 setPageRects(this, 0x22, 0x2d, 0xcf, 0xda);
                 pageRects[2][3] = 0xce;
-                draw();
+                RefreshPage();
                 return;
             }
 
@@ -2957,7 +3051,7 @@ auto TacticalMap::SetDisplayType(TacmapDisplayTypes type) -> void
         }
     }
 
-    draw();
+    RefreshPage();
 }
 
 auto TacticalMap::centerOnObject(GameObject* obj) -> void
@@ -3087,7 +3181,6 @@ auto TacticalMap::AddSalvage(GameObject* obj) -> int
     realSalvageCount = numSalvage + 1;
     numSalvage = realSalvageCount;
     AddSalvageString(obj);
-    salvageText->draw();
     return -1;
 }
 
@@ -3155,7 +3248,6 @@ auto TacticalMap::refreshSalvageList() -> void
     text->firstPixel = firstPixel;
     text->ResetPortSize();
     text->PositionScrollTab();
-    text->draw();
 }
 
 auto TacticalMap::SetID(int32_t partId) -> void
@@ -3187,7 +3279,7 @@ auto TacticalMap::SetID(int32_t partId) -> void
     // held); the port keeps the last one, starting with the generic vehicle's.
     static char shapeName[32] = "vr106";
     File shapeFile;
-    infoBackground->copyTo(displayPort->frame(), 0, 0, -1);
+    // (The original copied the info page's background into the MFD's picture here; draw shows it each frame.)
     statusDirty = -1;
 
     if (obj->objectClass == BATTLEMECH)
@@ -3263,9 +3355,10 @@ auto TacticalMap::SetID(int32_t partId) -> void
     }
 
     shapeFile.read(partShapes, static_cast<int32_t>(shapeFile.getLength()));
+    MCRenderer::RegisterData(partShapes, shapeFile.getLength(), MCDataKind::Shapes);
     shapeFile.close();
     infoObject = obj;
-    draw();
+    RefreshPage();
 }
 
 auto TacticalMap::updateOrderPalette() -> void
@@ -3282,13 +3375,11 @@ auto TacticalMap::updateOrderPalette() -> void
                 if (button->pushed == 0)
                 {
                     button->pushed = -1;
-                    button->draw();
                 }
             }
             else if (button->pushed != 0)
             {
                 button->pushed = 0;
-                button->draw();
             }
         }
 
@@ -3312,8 +3403,6 @@ auto TacticalMap::updateOrderPalette() -> void
             if (button->disabled == 0)
             {
                 button->disabled = -1;
-                button->draw();
-                button->draw();
             }
         }
 
@@ -3328,7 +3417,6 @@ auto TacticalMap::updateOrderPalette() -> void
         if (button->pushed != 0)
         {
             button->pushed = 0;
-            button->draw();
         }
 
         if (button->action == 0x11)
@@ -3343,8 +3431,6 @@ auto TacticalMap::updateOrderPalette() -> void
         else if (button->disabled != 0)
         {
             button->disabled = 0;
-            button->draw();
-            button->draw();
         }
     }
 }
@@ -3374,7 +3460,6 @@ auto TacticalMap::toggleZoom() -> void
 {
     ToolPalButton* button = toolButtons[7];
     button->pushed = button->pushed == 0 ? 1 : 0;
-    button->draw();
 }
 
 auto TacticalMap::positionOnMap(vector_3d pos) -> vector_3d

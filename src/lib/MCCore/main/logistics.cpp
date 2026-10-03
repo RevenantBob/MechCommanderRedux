@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "main/logistics.h"
+#include "platform/MCInput.h"
+#include "platform/MCDisplay.h"
 #include "gui/afont.h"
 #include "gui/asystem.h"
 #include "gui/scrlpane.h"
@@ -40,6 +42,7 @@
 #include "object/mech.h"
 #include "object/objtype.h"
 #include "platform/MCRegistry.h"
+#include "platform/MCRenderer.h"
 
 /// <summary>Each mech name index's place in the logistics mech order (0x007977a4).</summary>
 int32_t mechSort[24] = {23, 19, 13, 10, 0, 3, 2, 6, 9, 8, 15, 14, 18, 20, 4, 16, 1, 12, 5, 11, 21, 7, 17, 22};
@@ -4051,7 +4054,6 @@ auto MPPlayerLights::init() -> void
     blinkPort = new lPort;
     std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_pg1.tga", artPath);
     blinkPort->init(fileName);
-    draw();
 }
 
 auto MPPlayerLights::destroy() -> void
@@ -4101,7 +4103,6 @@ auto MPPlayerLights::setPlayerStatus(uint32_t playerID, int32_t status) -> void
     if (status >= 0 && status < 3 && light < MAX_PLAYERS)
     {
         playerStatus[light] = status;
-        draw();
     }
 
     if (timerRunning == 0 && status == 2)
@@ -4113,41 +4114,34 @@ auto MPPlayerLights::setPlayerStatus(uint32_t playerID, int32_t status) -> void
 
 auto MPPlayerLights::draw() -> void
 {
-    auto* lightPort = new lPort;
-    auto* statusPort = new lPort;
-    char fileName[256];
+    _pane* target = lport()->frame();
 
-    if (backgroundParent != parent)
-    {
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_p0.tga", artPath);
-        lightPort->init(fileName);
-        lightPort->copyTo(static_cast<lObject*>(parent)->lport()->frame(), 0xd3, 0, 0);
-        lightPort->destroy();
-    }
-
-    for (int32_t light = 0; light < numPlayers; light++)
+    for (int32_t light = 0; light < std::min(numPlayers, MAX_PLAYERS); light++)
     {
         // The numbered light, then the status over it: 1 lit, 2 blinking (while the timer runs).
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_p%d.tga", artPath, light + 1);
-        lightPort->init(fileName);
-        lightPort->copyTo(lport()->frame(), lightPort->width() * light, 0, 0);
+        lPort* lightPort = logArtf("%slogart\\lsc_p%d.tga", artPath, light + 1);
+
+        if (lightPort == nullptr)
+        {
+            continue;
+        }
+
+        lightPort->copyTo(target, lightPort->width() * light, 0, 0);
         const int32_t status = playerStatus[light];
 
         if (status == 1)
         {
-            std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_ph.tga", artPath);
-            statusPort->init(fileName);
-            statusPort->copyTo(lport()->frame(), lightPort->width() * light, 2, 1);
+            if (lPort* statusPort = logArtf("%slogart\\lsc_ph.tga", artPath))
+            {
+                statusPort->copyTo(target, lightPort->width() * light, 2, 1);
+            }
         }
         else if (status == 2 && timerRunning != 0)
         {
             lPort* blink = blinkOn == 0 ? blinkPort : readyPort;
-            blink->copyTo(lport()->frame(), lightWidth * light, 2, 1);
+            blink->copyTo(target, lightWidth * light, 2, 1);
         }
     }
-
-    delete lightPort;
-    delete statusPort;
 }
 
 auto MPPlayerLights::handleEvent(aEvent* event) -> void
@@ -4160,7 +4154,6 @@ auto MPPlayerLights::handleEvent(aEvent* event) -> void
     if (event->type == 0x13)
     {
         blinkOn = blinkOn == 0 ? 1 : 0;
-        draw();
     }
 
     // Pointing at a light shows its player's name on the ticker.
@@ -4221,6 +4214,7 @@ namespace
         const int32_t read = file.read(static_cast<uint8_t*>(shapes), static_cast<int32_t>(length));
         Assert(static_cast<uint32_t>(read) == length, 0, sizeError);
         file.close();
+        MCRenderer::RegisterData(shapes, length, MCDataKind::Shapes);
         return shapes;
     }
 
@@ -4330,9 +4324,9 @@ auto Logistics::init() -> void
     std::snprintf(logisticsTitle, sizeof(logisticsTitle), "%s -- %s", appName, "Logistics");
 
     // Port: SetWindowTextA -> the SDL window's title.
-    if (auto* window = static_cast<SDL_Window*>(application->window()))
+    if (MCDisplay* display = MCInput::Display())
     {
-        SDL_SetWindowTitle(window, logisticsTitle);
+        display->SetTitle(logisticsTitle);
     }
 
     std::strcpy(WindowTitle, logisticsTitle);
@@ -4502,7 +4496,6 @@ auto Logistics::init() -> void
             playersField->setStringBuffer(const_cast<char*>("6"));
             auto* joinButton = screenElement<lButton>(screen, 6);
             joinButton->disabled = 1;
-            joinButton->draw();
             lanScreen->showBlock(0);
         }
 
@@ -4560,7 +4553,6 @@ auto Logistics::init() -> void
             auto* goButton = screenElement<lButton>(screen, 2);
             players->fontIndex = 1;
             goButton->disabled = 1;
-            goButton->draw();
         }
     }
 
@@ -4580,6 +4572,8 @@ auto Logistics::init() -> void
         openScreenFile(prefScreenFile, "prefScreen", " No Save Screen FIT File ");
         initSplashScreen(prefScreen, prefScreenFile, " Unable to start save screen ");
         prefScreen->setEventRoutine(PrefScreenHandleEvent);
+        // Port: the difficulty and renderer choices as drop-downs.
+        AddPreferenceDropDowns(prefScreen);
         sessionScreen->init(0, 0, 0x280, 0x1e0, nullptr);
     }
 
@@ -4643,6 +4637,7 @@ auto Logistics::init() -> void
     nameTicker->init();
     ticker = nameTicker;
     nameTicker->init(3, 3, 0xcd, 1, currentScreen->lport());
+    nameTicker->setScreen(currentScreen);
     currentScreen->addChild(nameTicker);
     nameTicker->setFont(medWhiteFont);
     nameTicker->bringToFront(0);
@@ -4717,6 +4712,8 @@ auto Logistics::init() -> void
         std::memset(shapeLookaside[i], 0xff, sizeof(shapeLookaside[i]));
         shapeLookaside[i][lookasideColors[i].from] = lookasideColors[i].to;
     }
+
+    MCRenderer::RegisterData(shapeLookaside, sizeof(shapeLookaside), MCDataKind::Tables);
 
     repairPorts[0] = newPort("%slogart\\lsrupm03.tga", artPath);
     repairPorts[1] = newPort("%slogart\\lsrupm01.tga", artPath);
@@ -4963,6 +4960,8 @@ auto Logistics::destroyMultiplayer() -> void
 
 auto Logistics::destroy() -> void
 {
+    MCRenderer::UnregisterData(shapeLookaside, sizeof(shapeLookaside));
+
     if (playerLights != nullptr)
     {
         delete playerLights;
@@ -5199,6 +5198,7 @@ auto Logistics::destroy() -> void
     deleteScreen(loadScreen);
     deleteScreen(saveScreen);
     application->setCurrentObject(nullptr);
+    ClearLogArt();
     delete logisticsHeap;
     logisticsHeap = nullptr;
 
@@ -5874,16 +5874,16 @@ namespace
 
         screen->addChild(ticker);
         ticker->setPort(screen->lport());
+        ticker->setScreen(screen);
         ticker->setPos(3, 3);
     }
 
-    /// <summary>Moves the multiplayer ready lights onto <paramref name="screen"/>, in front, and draws them.</summary>
+    /// <summary>Moves the multiplayer ready lights onto <paramref name="screen"/>, in front.</summary>
     void moveLights(MPPlayerLights* lights, lObject* screen)
     {
         lights->parent->removeChild(lights);
         screen->addChild(lights);
         lights->setDepth(100);
-        lights->draw();
     }
 
     /// <summary>
@@ -5899,9 +5899,9 @@ namespace
         }
 
         VFX_pane_wipe(scratch->frame(), 0xff);
-        VFX_pane_copy(pane->lport()->frame(), 0, pane->getScrollOffset(), scratch->frame(), 0, 0, -1);
+        pane->DrawContentTo(scratch->frame(), 0, 0);
         scratch->copyTo(dest->frame(), 0, 1, 1);
-        pane->sliderPort->copyTo(dest->frame(), dest->width() - 0xe, 1, 1);
+        pane->DrawSliderColumn(dest->frame(), dest->width() - 0xe, 1, true);
     }
 
     /// <summary>A scratch port the size of the purchase screen's unit pane (every screen's pane is that size).</summary>
@@ -6001,7 +6001,9 @@ auto Logistics::setUpPurchaseScreen(int animate) -> int32_t
         }
         else
         {
-            VFX_pane_copy(briefingScreen->lport()->frame(), 0xd3, 0x10, workPort1->frame(), 0, 0, -1);
+            lPort* look = briefingScreen->NewLookPicture();
+            VFX_pane_copy(look->frame(), 0xd3, 0x10, workPort1->frame(), 0, 0, -1);
+            delete look;
             direction = 0;
         }
 
@@ -6024,25 +6026,79 @@ auto Logistics::drawScreenButtons() -> void
     }
 
     // (The original also made and freed an unused lPort here.)
-    _pane* frame = screen->lport()->frame();
-    // Button 0 is the main menu in single player, exit in multiplayer; the current screen's button is grayed.
-    (MPlayer == nullptr ? screenButtonPorts[0][0] : screenButtonPorts[1][0])->copyTo(frame, 2, 0x10, 0);
-    screenButtonPorts[2][0]->copyTo(frame, 2, 0x22, 0);
-    screenButtonPorts[3][0]->copyTo(frame, 2, 0x34, 0);
-    screenButtonPorts[4][0]->copyTo(frame, 2, 0x46, 0);
+    screen->Chrome()->hoveredButton = -1;
+}
 
-    if (screen == briefingScreen)
+auto Logistics::hoverScreenButton(lObject* screen, int32_t button) -> void
+{
+    if (LogScreenChrome* chrome = screen->Chrome(); chrome != nullptr)
     {
-        screenButtonPorts[2][2]->copyTo(frame, 2, 0x22, 0);
+        chrome->hoveredButton = button;
     }
-    else if (screen == purchaseScreen)
+}
+
+auto Logistics::drawScreenChrome(lObject* screen, _pane* target) -> void
+{
+    const LogScreenChrome* chrome = screen->Chrome();
+
+    // The ready lights' backing, under the screen's lights (the original's lights painted it into their parent).
+    if (playerLights != nullptr && playerLights->parent == screen)
     {
-        screenButtonPorts[3][2]->copyTo(frame, 2, 0x34, 0);
+        if (lPort* back = logArtf("%slogart\\lsc_p0.tga", artPath))
+        {
+            back->copyTo(target, 0xd3, 0, 0);
+        }
     }
-    else
+
+    if (screen == briefingScreen || screen == purchaseScreen || screen == repairScreen)
     {
-        screenButtonPorts[4][2]->copyTo(frame, 2, 0x46, 0);
+        // Button 0 is the main menu in single player, exit in multiplayer; the screen's own button is grayed, the one
+        // under the mouse lit, and the briefing button blinks while the chat is unread.
+        lPort* const* const ports[4] = {MPlayer == nullptr ? screenButtonPorts[0] : screenButtonPorts[1],
+                                        screenButtonPorts[2], screenButtonPorts[3], screenButtonPorts[4]};
+        const int32_t own = screen == briefingScreen ? 1 : (screen == purchaseScreen ? 2 : 3);
+
+        for (int32_t button = 0; button < 4; button++)
+        {
+            const int32_t top = 0x10 + button * 0x12;
+
+            if (lPort* face = ports[button][button == own ? 2 : 0]; face != nullptr)
+            {
+                face->copyTo(target, 2, top, 0);
+            }
+
+            const bool blinking = button == 1 && chrome->blinkLit && briefingScreen->chatBlinking != 0;
+
+            if (button != own && (chrome->hoveredButton == button || blinking))
+            {
+                if (lPort* lit = ports[button][1]; lit != nullptr)
+                {
+                    lit->copyTo(target, 2, top, -1);
+                }
+            }
+        }
     }
+
+    if (ticker != nullptr && ticker->paintScreen == screen)
+    {
+        ticker->DrawLine(target);
+    }
+
+    // The resource points (not on the session screen) and the clock.
+    if (screen != sessionScreen)
+    {
+        char text[44];
+        ResourceFigureText(text, sizeof(text));
+        VFX_pane_copy(resourceBackPort->frame(), 0, 0, target, 0x209, 2, -1);
+        auto* bytes = reinterpret_cast<uint8_t*>(text);
+        const int32_t textWidth = medWhiteFont->width(bytes);
+        medWhiteFont->writeString(target, 0x244 - textWidth, 4, bytes, -1);
+    }
+
+    char time[sizeof(timeString)];
+    MCPort::StrTime(time);
+    VFX_pane_copy(clockBackPort->frame(), 0, 0, target, 0x24c, 2, -1);
+    medWhiteFont->writeString(target, 0x254, 4, reinterpret_cast<uint8_t*>(time), -1);
 }
 
 auto Logistics::setUpBriefingScreen(int animate) -> int32_t
@@ -6059,29 +6115,9 @@ auto Logistics::setUpBriefingScreen(int animate) -> int32_t
     moveTicker(ticker, briefing);
     briefing->setUpDeploy();
 
-    // Blank the local player's empty drop slots, then the text area under them.
-    lPort* blank = newPort(0x32, 0x2c);
-    VFX_pane_wipe(blank->frame(), 0x10);
-
-    for (int32_t lance = 0; lance < 3; ++lance)
-    {
-        for (int32_t slot = 0; slot < 4; ++slot)
-        {
-            const int32_t index = lance * 4 + slot;
-
-            if (localDropSlot[index] != 0 && deploySlots[lance][slot].unit == deploySlots[lance][slot].vehicle)
-            {
-                VFX_pane_copy(blank->frame(), 0, 0, briefing->lport()->frame(), briefing->slotRects[index].left,
-                              briefing->slotRects[index].top, -1);
-            }
-        }
-    }
-
-    blank->destroy();
-    blank->init(0x1aa, 0x6e, 1);
-    VFX_pane_wipe(blank->frame(), 0x10);
-    VFX_pane_copy(blank->frame(), 0, 0, briefing->lport()->frame(), 0xd3, 0x16f, -1);
-    delete blank;
+    // The original blanked the local player's empty drop slots here (the screen draws them each frame), then the box
+    // area under them.
+    briefing->BlankBox();
 
     currentScreen = briefing;
     logisticsState = 3;
@@ -6149,7 +6185,9 @@ auto Logistics::setUpBriefingScreen(int animate) -> int32_t
 
     if (animate != 0)
     {
-        VFX_pane_copy(briefing->lport()->frame(), 0xd3, 0x10, workPort0->frame(), 0, 0, -1);
+        lPort* look = briefing->NewLookPicture();
+        VFX_pane_copy(look->frame(), 0xd3, 0x10, workPort0->frame(), 0, 0, -1);
+        delete look;
         lPort* from = workPort1;
         VFX_pane_wipe(from->frame(), 0x10);
         lPort* scratch = newPaneScratch(purchaseScreen->unitPane);
@@ -6268,7 +6306,9 @@ auto Logistics::setUpRepairScreen(int animate) -> int32_t
         }
         else
         {
-            VFX_pane_copy(briefingScreen->lport()->frame(), 0xd3, 0x10, workPort1->frame(), 0, 0, -1);
+            lPort* look = briefingScreen->NewLookPicture();
+            VFX_pane_copy(look->frame(), 0xd3, 0x10, workPort1->frame(), 0, 0, -1);
+            delete look;
         }
 
         repairScreen->unitPane->ShowGUIWindow(0);
@@ -8955,16 +8995,62 @@ auto Logistics::getCurrentMission() -> void
     briefingScreen->drawBackground();
 }
 
+namespace
+{
+    /// <summary>
+    /// Port: the pane a screen change slides over the screen's right part (<see cref="Logistics::transition"/>). The
+    /// original wrote both pictures into its own picture each frame; it draws them from the slide's state instead.
+    /// </summary>
+    class TransitionWipe : public lObject
+    {
+    public:
+        /// <summary>Draws the two pictures as the slide stands (the original's loop body).</summary>
+        void draw() override
+        {
+            if (!lport()->viewOpen())
+            {
+                return;
+            }
+
+            _pane* target = lport()->frame();
+
+            if (direction == 0)
+            {
+                from->copyTo(target, 0, 0, 1);
+                VFX_pane_copy(to->frame(), 0x1ab - offset, 0, target, 0, 0, -1);
+            }
+            else
+            {
+                to->copyTo(target, 0, 0, 1);
+                VFX_pane_copy(from->frame(), offset, 0, target, 0, 0, -1);
+            }
+        }
+
+        /// <summary>The wipe draws itself each frame (its port is a view).</summary>
+        bool DrawsLive() override { return true; }
+
+        /// <summary>The screen shown before the change, and the one after.</summary>
+        lPort* from = nullptr;
+        lPort* to = nullptr;
+        /// <summary>0: the new picture slides in from the right; otherwise the old one slides out to the left.</summary>
+        int direction = 0;
+        /// <summary>How far the slide has gone, in pixels.</summary>
+        int32_t offset = 0;
+    };
+}
+
 auto Logistics::transition(lPort* from, lPort* to, int direction) -> void
 {
     // A pane over the screen's right part, redrawn each frame for a quarter of a second: direction 0 slides the new
     // picture in from the right over the old one, any other slides the old one out to the left off the new one.
-    auto* wipe = new lObject;
+    auto* wipe = new TransitionWipe;
     wipe->init(0xd3, 0x10, from->width(), from->height(), nullptr, nullptr);
+    wipe->from = from;
+    wipe->to = to;
+    wipe->direction = direction;
     currentScreen->addChild(wipe);
     wipe->ShowGUIWindow(1);
     wipe->setDepth(100);
-    lPort* wipePort = wipe->lport();
     soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
     const int64_t frequency = MCPort::PerformanceFrequency();
     float elapsed = 0.0f;
@@ -8972,19 +9058,7 @@ auto Logistics::transition(lPort* from, lPort* to, int direction) -> void
     do
     {
         const int64_t start = MCPort::PerformanceCounter();
-        const auto offset = static_cast<int32_t>(static_cast<double>(elapsed) * 4.0 * 427.0);
-
-        if (direction == 0)
-        {
-            from->copyTo(wipePort->frame(), 0, 0, 1);
-            VFX_pane_copy(to->frame(), 0x1ab - offset, 0, wipePort->frame(), 0, 0, -1);
-        }
-        else
-        {
-            to->copyTo(wipePort->frame(), 0, 0, 1);
-            VFX_pane_copy(from->frame(), offset, 0, wipePort->frame(), 0, 0, -1);
-        }
-
+        wipe->offset = static_cast<int32_t>(static_cast<double>(elapsed) * 4.0 * 427.0);
         UpdateDisplay(0, 0, 0, 0, 0);
         const int64_t end = MCPort::PerformanceCounter();
         // The original divided the low 32 bits of the tick difference by the low 32 bits of the frequency.
@@ -9015,17 +9089,21 @@ auto Logistics::darken(int32_t amount, char* fadeTable, lPort* port) -> void
         width = port->width();
     }
 
-    lPort* scratch = newPort(width, height);
-    const int32_t yPos = height * amount;
-    VFX_pane_copy(port->frame(), 0, yPos, scratch->frame(), 0, 0, -1);
+    DarkenRect(port, 0, height * amount, width, height, fadeTable);
+}
+
+void Logistics::DarkenRect(lPort* port, int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* fadeTable)
+{
     SCRNVERTEX corners[4] = {};
-    corners[1].x = width - 1;
-    corners[2].x = width - 1;
-    corners[2].y = height - 1;
-    corners[3].y = height - 1;
-    VFX_translate_polygon(scratch->frame(), 4, corners, fadeTable);
-    VFX_pane_copy(scratch->frame(), 0, 0, port->frame(), 0, yPos, -1);
-    delete scratch;
+    corners[0].x = xPos;
+    corners[0].y = yPos;
+    corners[1].x = xPos + width - 1;
+    corners[1].y = yPos;
+    corners[2].x = xPos + width - 1;
+    corners[2].y = yPos + height - 1;
+    corners[3].x = xPos;
+    corners[3].y = yPos + height - 1;
+    VFX_translate_polygon(port->frame(), 4, corners, fadeTable);
 }
 
 auto Logistics::reIndexInventory() -> int32_t
@@ -10087,9 +10165,9 @@ auto Logistics::processCheatCode(int16_t key) -> void
             std::snprintf(text, sizeof(text), "FreeMemory: %d", static_cast<int>(logisticsHeap->totalCoreLeft()));
 
             // Port: SetWindowTextA -> the SDL window's title.
-            if (auto* window = static_cast<SDL_Window*>(application->window()))
+            if (MCDisplay* display = MCInput::Display())
             {
-                SDL_SetWindowTitle(window, text);
+                display->SetTitle(text);
             }
             break;
         }
@@ -10354,16 +10432,7 @@ auto Logistics::RemoveForceAtDropSlot(int32_t slotIndex, uint32_t playerID, int 
         FindMPMechList(playerID, teamTable, nullptr)->removeMech(mech);
     }
 
-    if (teamTable != 0)
-    {
-        // Draw the empty slot over it.
-        lPort* empty = newPort("%slogart\\lsbdf06.tga", artPath);
-        BriefingScreen* briefing = briefingScreen;
-        const RECT& rect = briefing->slotRects[slotIndex];
-        empty->copyTo(briefing->lport()->frame(), rect.left + 1, rect.top + 1, 1);
-        delete empty;
-    }
-
+    // (The original painted the covered slot over a teammate's unit here; the screen draws its slots each frame.)
     return mech != nullptr || vehicle != nullptr ? 1 : 0;
 }
 
@@ -10408,7 +10477,6 @@ auto LostPlayerHandler(int32_t answer) -> void
     globalLogPtr->messageDialog->okButton->setDownPicture(downArt);
     lDialogButton* button = globalLogPtr->messageDialog->okButton;
     button->disabled = 0;
-    button->draw();
     dialog = globalLogPtr->messageDialog;
     dialog->timeout = 5000;
     dialog->timeoutResult = 1;

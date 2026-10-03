@@ -140,6 +140,9 @@ public:
     /// <remarks>MCX.EXE @ 0x0072c390 (vtable slot 50)</remarks>
     void display() override;
 
+    /// <summary>Port: the movie frame; during the wipe, the last frame <see cref="wipeLine"/> lines down.</summary>
+    void draw() override;
+
     /// <summary>Closes the movie and starts the wipe.</summary>
     /// <remarks>MCX.EXE @ 0x0072c420 (vtable slot 77)</remarks>
     void endSmackerMovie() override;
@@ -229,9 +232,19 @@ public:
     /// <remarks>MCX.EXE @ 0x0072cf00 (vtable slot 50)</remarks>
     void display() override;
 
+    /// <summary>Port: the screen draws itself each frame (see <see cref="draw"/>).</summary>
+    bool DrawsLive() override { return true; }
+
     /// <summary>
-    /// Redraws the multiplayer pilot list: the home side's pilots when <paramref name="showHomeSide"/> is nonzero,
-    /// the other side's otherwise (from the pilot switch button's state).
+    /// Port: the background, the move-on label, then what the steps have reached so far (single player) or the whole
+    /// summary (multiplayer). The original painted each step into the window's picture as it came.
+    /// </summary>
+    void draw() override;
+
+    /// <summary>
+    /// Shows the multiplayer pilot list of the home side when <paramref name="showHomeSide"/> is nonzero, of the other
+    /// side otherwise (from the pilot switch button's state). The original redrew the list here; it is drawn each frame
+    /// from <see cref="mpShowHomeSide"/> now.
     /// </summary>
     /// <remarks>MCX.EXE @ 0x0072e190</remarks>
     void drawMPPilots(int showHomeSide);
@@ -243,22 +256,44 @@ public:
     /// <remarks>MCX.EXE @ 0x0072e820</remarks>
     int32_t activate();
 
+    /// <summary>Port-only: whether every step is drawn (the debriefing text is up).</summary>
+    bool Finished() const { return drawState == 6; }
+
 protected:
-    /// <summary>Counts the resource points up, one step per call.</summary>
+    /// <summary>
+    /// Counts the resource points up, one step per call (the step's timing and sound; <see cref="draw"/> shows
+    /// <see cref="shownResourcePoints"/>).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0072d140</remarks>
     void drawRPs();
-    /// <summary>Draws the next kill/loss statistic.</summary>
+    /// <summary>Steps to the next kill/loss statistic.</summary>
     /// <remarks>MCX.EXE @ 0x0072d280</remarks>
     void drawStats();
-    /// <summary>Draws the next objective with its success or failure mark.</summary>
+    /// <summary>Steps to the next objective (and the tonnage bonus after the secondary ones).</summary>
     /// <remarks>MCX.EXE @ 0x0072d450</remarks>
     void drawObjectives();
-    /// <summary>Draws the next pilot's results.</summary>
+    /// <summary>Steps to the next pilot, taking the picture of the pilot's icon.</summary>
     /// <remarks>MCX.EXE @ 0x0072d900</remarks>
     void drawPilots();
-    /// <summary>Draws the objectives of a multiplayer game.</summary>
+    /// <summary>
+    /// Draws the objectives of a multiplayer game. (The original drew them once into the picture; <see cref="draw"/>
+    /// calls this each frame.)
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0072f800</remarks>
     void drawMPObjectives();
+
+    /// <summary>Port: the resource point box, once the count has started.</summary>
+    void DrawResourcePoints();
+    /// <summary>Port: the statistics the steps have reached.</summary>
+    void DrawStatistics();
+    /// <summary>Port: the objectives the steps have reached, laid out from the top of the list.</summary>
+    void DrawObjectiveList();
+    /// <summary>Port: pilot <paramref name="index"/>'s line, at its place in the single-player list.</summary>
+    void DrawPilot(int32_t index);
+    /// <summary>Port: the multiplayer pilot boxes, with the pilots of the side <see cref="mpShowHomeSide"/> picks.</summary>
+    void DrawMPPilotList();
+    /// <summary>Port: the multiplayer summary: the best pilot, the statistics, the time and the commanders.</summary>
+    void DrawMPSummary();
 
     /// <summary>Which part of the screen is being drawn (see the class remarks).</summary>
     int32_t drawState; // +0x4ac
@@ -272,7 +307,10 @@ protected:
     aPort* successPort = nullptr; // +0x4bc
     /// <summary>The "objective failed" mark (<c>guimr07.tga</c>).</summary>
     aPort* failurePort = nullptr; // +0x4c0
-    /// <summary>The move-on button's label image, copied onto the window in <see cref="activate"/> and freed.</summary>
+    /// <summary>
+    /// The move-on button's label image, picked in <see cref="activate"/>. (The original copied it onto the window there
+    /// and freed it; the window draws it each frame.)
+    /// </summary>
     aPort* moveOnPort = nullptr; // +0x4c4
     /// <summary>The "move on" button (closes the screen).</summary>
     aButton* moveOnButton = nullptr; // +0x4c8
@@ -316,6 +354,32 @@ protected:
     int32_t skipAnimation = 0; // +0x554
     /// <summary>Set once <see cref="destroy"/> has ended the scenario.</summary>
     int32_t scenarioEnded = 0; // +0x558
+
+    /// <summary>A commander's line on the multiplayer screen, as <see cref="activate"/> found it.</summary>
+    struct CommanderLine
+    {
+        /// <summary>The place (1-6) by kills.</summary>
+        int32_t place = 0;
+        /// <summary>The player's name (kept: the session may be left before the screen closes).</summary>
+        std::string name;
+        int32_t score = 0;
+    };
+
+    /// <summary>Port: the resource points the count shows; -1 before the count starts.</summary>
+    int32_t shownResourcePoints = -1;
+    /// <summary>
+    /// Port: each pilot line's icon picture (frame trimmed), taken when the line comes up (multiplayer: in
+    /// <see cref="activate"/>); null when the pilot has no icon.
+    /// </summary>
+    std::vector<aPort*> pilotIcons;
+    /// <summary>Port: the multiplayer best pilot's icon picture (taken before the list's, as the original drew it).</summary>
+    aPort* bestPilotIcon = nullptr;
+    /// <summary>Port: which side the multiplayer pilot list shows (see <see cref="drawMPPilots"/>).</summary>
+    int32_t mpShowHomeSide = 1;
+    /// <summary>Port: the multiplayer commanders by kills.</summary>
+    std::vector<CommanderLine> commanderLines;
+    /// <summary>Port: the multiplayer game's length, "mm:ss".</summary>
+    char timeText[32] = {};
 };
 
 /// <summary>The scenario callback: runs the scenario one frame and updates the sound system.</summary>

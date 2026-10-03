@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "engine/ceglist.h"
+#include "camera/camera.h"
 #include "engine/celement.h"
 #include "lib/heap.h"
 #include "object/objque.h"
@@ -23,7 +24,20 @@ auto ElementGroup::draw() -> void
 
     for (int32_t count = numElements; count > 0; count--)
     {
-        (*element)->draw();
+        // Port: a unit overlay (health bar, selection mark, strike timer) draws on the screen over the view, at the
+        // screen's scale (its position was mapped there when it was made); the rest into the world surface.
+        if (MCOverlay.Pane != nullptr && MCIsOverlayDepth((*element)->depth))
+        {
+            _pane* worldPane = globalPane;
+            globalPane = MCOverlay.Pane;
+            (*element)->draw();
+            globalPane = worldPane;
+        }
+        else
+        {
+            (*element)->draw();
+        }
+
         element++;
         ::numElements++;
     }

@@ -46,6 +46,12 @@ namespace MCTest
     /// <summary>Every test case, in registration order.</summary>
     std::vector<TestCase>& Registry();
 
+    /// <summary>
+    /// The value of the runner's option <c>--</c><paramref name="name"/> <c>&lt;value&gt;</c> (for example
+    /// <c>--game E:\mc2\MCX Original</c>), or null when it wasn't given. Isolated tests get the same options.
+    /// </summary>
+    const char* Option(std::string_view name);
+
     /// <summary>Adds a test to <see cref="Registry"/> from a static initialiser; <c>TEST_CASE</c> declares one.</summary>
     struct Registrar
     {

@@ -54,8 +54,11 @@ namespace
         picture = nullptr;
     }
 
-    /// <summary>Whether a mouse event lies on <paramref name="button"/> (its rectangle in its parent's coordinates).</summary>
-    bool eventOnButton(aButton* button, aEvent* event, bool redraw)
+    /// <summary>
+    /// Whether a mouse event lies on <paramref name="button"/> (its rectangle in its parent's coordinates). (The
+    /// original also redrew the button for a left-button release; the button draws itself each frame.)
+    /// </summary>
+    bool eventOnButton(aButton* button, aEvent* event)
     {
         RECT rect;
         rect.left = button->x();
@@ -67,12 +70,6 @@ namespace
         const int32_t eventX = event->x;
         const int32_t parentY = parent->globalY();
         const int32_t eventY = event->y;
-
-        if (redraw)
-        {
-            button->draw();
-        }
-
         POINT point;
         point.x = eventX - parentX;
         point.y = eventY - parentY;
@@ -155,7 +152,6 @@ auto aButton::handleEvent(aEvent* event) -> void
         case 1:
         {
             application->grab(this);
-            draw();
             break;
         }
         case 3:
@@ -167,7 +163,7 @@ auto aButton::handleEvent(aEvent* event) -> void
             {
                 application->release();
 
-                if (eventOnButton(this, event, true))
+                if (eventOnButton(this, event))
                 {
                     leftCallback->execute();
                 }
@@ -180,7 +176,7 @@ auto aButton::handleEvent(aEvent* event) -> void
             {
                 application->release();
 
-                if (eventOnButton(this, event, false))
+                if (eventOnButton(this, event))
                 {
                     rightButtonCallback->execute();
                 }
@@ -252,7 +248,7 @@ auto aCloseButton::handleEvent(aEvent* event) -> void
     {
         application->release();
 
-        if (eventOnButton(this, event, true))
+        if (eventOnButton(this, event))
         {
             // The window is closing: the event routine isn't run.
             leftCallback->execute();
@@ -265,7 +261,6 @@ auto aCloseButton::handleEvent(aEvent* event) -> void
     if (type == 1)
     {
         application->grab(this);
-        draw();
     }
     else if (type == 3)
     {
@@ -275,7 +270,7 @@ auto aCloseButton::handleEvent(aEvent* event) -> void
     {
         application->release();
 
-        if (eventOnButton(this, event, false))
+        if (eventOnButton(this, event))
         {
             rightButtonCallback->execute();
         }
@@ -300,7 +295,6 @@ auto aToolButton::handleEvent(aEvent* event) -> void
     if (event->type == 1 && disabled == 0)
     {
         pushed = pushed == 0 ? 1 : 0;
-        draw();
         leftCallback->execute();
         aObject::handleEvent(event);
         return;
@@ -376,7 +370,6 @@ auto aSpinnerButton::handleEvent(aEvent* event) -> void
         case 1:
         {
             pushed = -1;
-            draw();
             application->grab(this);
             application->AddTimer(this, 1, 1000, 0, 0, 0);
             leftCallback->execute();
@@ -385,7 +378,6 @@ auto aSpinnerButton::handleEvent(aEvent* event) -> void
         case 4:
         {
             pushed = 0;
-            draw();
             application->release();
             application->RemoveTimer(this, 1);
             application->RemoveTimer(this, 2);
@@ -486,8 +478,6 @@ auto aSpinner::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, c
     up->setDownPicture(0xd);
     down->setUpPicture(0x25);
     down->setDownPicture(0x26);
-    up->draw();
-    down->draw();
     const int32_t newWidth = down->width() < up->width() ? up->width() : down->width();
     resize(newWidth, up->height() + down->height());
     addChild(upButton);

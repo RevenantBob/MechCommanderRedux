@@ -8,6 +8,7 @@
 #include "lib/cvmath.h"
 #include "lib/file.h"
 #include "lib/heap.h"
+#include "platform/MCRenderer.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -125,6 +126,15 @@ namespace
 uint8_t* laserEffectBuffer = nullptr;
 _pane* laserPane = nullptr;
 _window* laserWindow = nullptr;
+
+namespace
+{
+    /// <summary>
+    /// The texture the PPC beam's polygons map: laserEffectBuffer as they read it (laserWindow's x_max bytes a row,
+    /// one fewer than the window draws it with).
+    /// </summary>
+    MCTexture* laserTexture = nullptr;
+}
 
 //---------------------------------------------------------------------------
 // LaserType
@@ -255,6 +265,7 @@ auto LaserType::init(File* objFile, uint32_t fileSize) -> int32_t
         }
 
         shapeFile.read(laserEffectShape, static_cast<int32_t>(size));
+        MCRenderer::RegisterData(laserEffectShape, size, MCDataKind::Shapes);
         shapeFile.close();
 
         if ((result = laserFile.seekBlock("PPCData")) != 0)
@@ -687,9 +698,12 @@ auto Laser::render() -> void
         laserWindow->x_max = shapeWidth + 1;
         laserWindow->y_max = shapeHeight + 1;
         laserPane->window = laserWindow;
+        laserTexture =
+            MCRenderer::CreateTexture(laserEffectBuffer, laserWindow->x_max, laserWindow->y_max, MCTextureUse::Dynamic);
     }
 
     AG_shape_draw(laserPane, type->laserEffectShape, ppcFrame, 0, 0);
+    MCRenderer::UnlockTexture(laserTexture);
     const float width = static_cast<float>(type->pixelWidth);
     const auto top = static_cast<int32_t>(startY);
     ElementList->openGroup(top, 1);
@@ -705,6 +719,7 @@ auto Laser::render() -> void
     data.texture = laserEffectBuffer;
     data.textureWidth = laserWindow->x_max;
     data.textureHeight = laserWindow->y_max;
+    data.textureHandle = laserTexture;
     data.fadeTable = nullptr;
     ElementList->add(new PolygonElement(&data, static_cast<int32_t>((endY + startY) * 0.5f)));
 }

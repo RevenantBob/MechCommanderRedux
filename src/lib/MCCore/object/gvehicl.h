@@ -423,6 +423,8 @@ public:
     void display() override;
     /// <remarks>MCX.EXE @ 0x006727e0</remarks>
     void draw() override;
+    /// <summary>Port: still paints a picture (in display), so it keeps one.</summary>
+    bool DrawsLive() override { return false; }
     /// <remarks>MCX.EXE @ 0x00672470 (inline in <c>object\gvehicl.h</c>)</remarks>
     virtual GroundVehicle* getVehicle() { return vehicle; }
 

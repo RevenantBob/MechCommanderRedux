@@ -19,15 +19,24 @@ public:
     /// <remarks>MCX.EXE @ 0x006e0e20</remarks>
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
 
-    /// <summary>Draws the down, pressed or up picture (or a plain fill when it has none).</summary>
+    /// <summary>
+    /// Shows the gray, pressed or up picture, keyed (or a plain fill when it has none). Port: drawn each frame from
+    /// the state.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e0e50</remarks>
     void draw() override;
 
-    /// <summary>On a click: shows the pressed state, runs the callback and deactivates the parent dialog.</summary>
+    /// <summary>
+    /// On a click: shows the pressed state, runs the callback and deactivates the parent dialog. Port: a release ends
+    /// the press shown.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e0f30</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Set while the button is drawn pressed (lButton's own <c>pressed</c> at +0x4bc is unused here).</summary>
+    /// <summary>
+    /// Set while the button is drawn pressed (lButton's own <c>pressed</c> at +0x4bc is unused here). Port: from the
+    /// click to the release, or until the dialog opens again (the original set it for the one paint).
+    /// </summary>
     int32_t pressedDown = 0; // +0x4e4
     /// <summary>The value the dialog's callback gets when this button closes it.</summary>
     int32_t result = 0; // +0x4e8
@@ -54,11 +63,31 @@ public:
     void destroy() override;
 
     /// <summary>
-    /// Darkens a snapshot of the screen behind the box (the first time after <see cref="activate"/>), then draws
-    /// the frame, the spinner arrows, the buttons and the picture.
+    /// The first time after <see cref="activate"/>, shows a frame with the cursor hidden (the original also made a
+    /// darkened snapshot of the screen behind the box, which its fill then covered); then no arrow or button shows
+    /// pressed any more. (The original painted the box here.)
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006df3d0</remarks>
     void drawBackground();
+
+    /// <summary>
+    /// Port: draws the box: its fill, the frame, the spinner arrows, the buttons and the picture, then the pressed
+    /// arrow or button shown over them.
+    /// </summary>
+    void draw() override;
+
+    /// <summary>Port: the box draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>Port: the part of the box shown pressed (the original copied its pressed art over the picture).</summary>
+    enum class PressedPart : int32_t
+    {
+        None,
+        Ok,
+        Cancel,
+        Up,
+        Down,
+    };
 
     /// <summary>Whether it shows a second (cancel) button.</summary>
     /// <remarks>MCX.EXE @ 0x006df730</remarks>
@@ -97,6 +126,15 @@ public:
     lPort* fadedBackground = nullptr; // +0x4d0
     /// <summary>Set by <see cref="activate"/>: take a new snapshot on the next <see cref="drawBackground"/>.</summary>
     int32_t needBackground = 0; // +0x4d4
+
+    /// <summary>Port: the arrow or button held down (until the release, or the box shows afresh).</summary>
+    PressedPart pressedPart = PressedPart::None;
+
+protected:
+    /// <summary>Port: draws the fill, the frame, the spinner arrows, the buttons and the picture.</summary>
+    void drawBox();
+    /// <summary>Port: draws the pressed arrow or button, if any.</summary>
+    void drawPressed();
 };
 
 /// <summary>
@@ -125,9 +163,15 @@ public:
     /// <remarks>MCX.EXE @ 0x006df9f0</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>The base box plus the texts, the costs, the quantity and the kind's picture.</summary>
+    /// <summary>
+    /// The base box's. (The original painted the box with the quantity and resource points as they were then, and
+    /// copied it into the screen's port as well; nothing showed that copy, since the screen's panes cover it.)
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006dfef0</remarks>
     void drawBackground();
+
+    /// <summary>Port: draws the base box plus the texts, the costs, the quantity and the kind's picture.</summary>
+    void draw() override;
 
     /// <remarks>MCX.EXE @ 0x006e0330</remarks>
     void activate();
@@ -177,6 +221,9 @@ public:
     /// <summary>Draws the frame and the text wrapped to the width.</summary>
     /// <remarks>MCX.EXE @ 0x006e0880</remarks>
     void draw() override;
+
+    /// <summary>Port: the dialog draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
 
     /// <summary>Enter presses OK (or Cancel on a one-button dialog), Escape cancels, the timeout closes it.</summary>
     /// <remarks>MCX.EXE @ 0x006e0a70</remarks>
@@ -237,7 +284,7 @@ public:
     /// <remarks>MCX.EXE @ 0x006e0fd0</remarks>
     void setText(char* newText);
 
-    /// <summary>Draws the frame, the header (string 0x54), the items and the footer (string 0x62), once.</summary>
+    /// <summary>Draws the frame, the header (string 0x54), the items and the footer (string 0x62).</summary>
     /// <remarks>MCX.EXE @ 0x006e1100</remarks>
     void draw() override;
 
@@ -251,7 +298,10 @@ public:
 
     /// <summary>The number of items in the list.</summary>
     int32_t numItems = 0; // +0x4ec
-    /// <summary>Set once the dialog has been drawn (it draws only once per <see cref="setText"/>).</summary>
+    /// <summary>
+    /// Set once the dialog has been drawn (the original drew it only once per <see cref="setText"/>). Port: not read;
+    /// the dialog is drawn each frame.
+    /// </summary>
     int32_t drawn = 0; // +0x4f0
 };
 

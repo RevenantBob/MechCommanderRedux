@@ -52,12 +52,29 @@ public:
     /// <summary>Moves every child by the change in the scroll offset since the last call.</summary>
     /// <remarks>MCX.EXE @ 0x00727cf0</remarks>
     void setChildren();
-    /// <summary>Does nothing: the content is drawn by its owner.</summary>
+    /// <summary>
+    /// Port: draws the background, the visible part of the content and the slider column (the original's draw did
+    /// nothing; its display copied these pictures to the screen).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00727da0</remarks>
     void draw() override;
-    /// <summary>Copies the background, the visible part of the content and the slider column to the frame.</summary>
+    /// <summary>Draws the pane in the frame pass (see <see cref="draw"/>); the children aren't shown.</summary>
     /// <remarks>MCX.EXE @ 0x00727db0</remarks>
     void display() override;
+    /// <summary>Port: the pane draws itself from its state each frame.</summary>
+    bool DrawsLive() override { return true; }
+    /// <summary>
+    /// Port: draws the content into <see cref="contentPort"/> when that is a view: the pane opens it scrolled into
+    /// place (0xff draws nothing, as the original's keyed copy of the content picture) for this call. A content port
+    /// that is a picture is copied instead, as the original did. By default the content port's own
+    /// <see cref="aPort::DrawContent"/> draws it.
+    /// </summary>
+    virtual void drawContent();
+    /// <summary>
+    /// Port: draws the content as the pane shows it, scrolled, into <paramref name="target"/> with its top left at
+    /// (<paramref name="xPos"/>, <paramref name="yPos"/>), opaque (a transition's picture of the pane).
+    /// </summary>
+    void DrawContentTo(_pane* target, int32_t xPos, int32_t yPos);
     /// <summary>Sizes the slider to the content (none when it fits) and draws its picture.</summary>
     /// <remarks>MCX.EXE @ 0x00727e30</remarks>
     virtual void setUpSlider(); // slot 77
@@ -68,7 +85,10 @@ public:
     /// </summary>
     /// <remarks>MCX.EXE @ 0x00727f80</remarks>
     void setDisplayPort(lPort* port, int deleteOld, int resetPosition);
-    /// <summary>Restores the slider column's track under the slider.</summary>
+    /// <summary>
+    /// Restored the slider column's track under the slider. Port: nothing to do, the column is drawn from the state
+    /// (<see cref="DrawSliderColumn"/>).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x007280c0</remarks>
     void eraseSlider();
     /// <summary>The content port.</summary>
@@ -123,4 +143,30 @@ public:
     float maxScroll = 0.0f; // +0x500
     /// <summary>The scroll position, in percent of the content's height (0..<see cref="maxScroll"/>).</summary>
     float scrollPos = 0.0f; // +0x504
+
+    /// <summary>Port: the pane's view (the original copied its pictures straight to the frame).</summary>
+    lPort* panePort = nullptr;
+    /// <summary>Port: the texture of <see cref="sliderImage"/>.</summary>
+    MCTexture* sliderTexture = nullptr;
+
+    /// <summary>
+    /// Port: draws the slider column from the state into <paramref name="target"/> with its corner at
+    /// (<paramref name="xPos"/>, <paramref name="yPos"/>), with 0xff as a colour key when <paramref name="keyed"/>:
+    /// the track and its arrows, an arrow held down in its pressed art (<see cref="PressedArrowArt"/>), and the
+    /// slider at <see cref="sliderPos"/> unless the content fits.
+    /// </summary>
+    void DrawSliderColumn(_pane* target, int32_t xPos, int32_t yPos, bool keyed);
+
+    /// <summary>
+    /// Port: the art an arrow shows while it is held down (<paramref name="down"/>: the bottom one), or null to show
+    /// the column's own. The original copied it into the track on the press and put the normal art back on the
+    /// release.
+    /// </summary>
+    virtual lPort* PressedArrowArt(bool down);
+
+    /// <summary>Port: makes <see cref="sliderTexture"/> for a new <see cref="sliderImage"/> (destroying the old one).</summary>
+    void MakeSliderTexture();
+
+    /// <summary>Port: which arrow of this pane is held down: 0 none, 1 up, 2 down.</summary>
+    int32_t HeldArrow() const;
 };

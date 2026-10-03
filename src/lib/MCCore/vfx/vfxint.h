@@ -2,7 +2,11 @@
 
 // Port-only helpers shared by the vfx/*.cpp files. The asm expanded the same prologue macro at the top of every
 // routine that draws through a pane; the port has it once here.
+//
+// The vfx routines are the renderer's front end: they keep the original's clip arithmetic and hand each draw, resolved,
+// to the renderer of the window (MCRenderer::For), which writes the pixels.
 
+#include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
 
 /// <summary>A pane resolved against its window, as the VFX prologue computes it.</summary>
@@ -55,6 +59,7 @@ inline int32_t MCVfxClipPane(const PANE* pane, MCVfxClip& clip)
     clip.Y0 = pane->y0 > 0 ? pane->y0 : 0;
     clip.X1 = pane->x1 < clip.Stride - 1 ? pane->x1 : clip.Stride - 1;
     clip.Y1 = pane->y1 < clip.Height - 1 ? pane->y1 : clip.Height - 1;
+    MCClipToView(window, clip.X0, clip.Y0, clip.X1, clip.Y1);
 
     if (clip.X1 < clip.X0 || clip.Y1 < clip.Y0)
     {

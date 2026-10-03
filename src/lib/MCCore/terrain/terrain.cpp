@@ -38,6 +38,7 @@ int32_t Terrain::blocksMapSide = 0;
 int32_t Terrain::blocksToCache = 0;
 int32_t Terrain::totalBlocks = 0;
 int32_t Terrain::visibleVerticesPerSide = 0;
+double MCTerrainGridReach = 0.0;
 int32_t Terrain::visibleBlocksPerSide = 0;
 float Terrain::metersPerElevLevel = 0.0f;
 float Terrain::metersPerVertex = 0.0f;
@@ -405,15 +406,21 @@ auto Terrain::init(char* fileName) -> int32_t
 
         const double sinAngle = std::sin(VIEW_ANGLE);
         const double cosAngle = std::cos(VIEW_ANGLE);
-        const double needed =
-            static_cast<double>(screenWidth) / cosAngle + static_cast<double>(screenHeight) / sinAngle;
+        // The world view's surface is at most 2160 tall (viewWindow::ZoomFurthest), at the widest desktop's aspect.
+        const double widest = std::max(static_cast<double>(screenWidth) / screenHeight, 16.0 / 9.0);
+        const double furthest = static_cast<double>(viewWindow::ZoomFurthest);
+        const double needed = std::max(static_cast<double>(screenWidth) / cosAngle + screenHeight / sinAngle,
+                                       furthest * widest / cosAngle + furthest / sinAngle);
         const double designed = 640.0 / cosAngle + 480.0 / sinAngle;
+        const int32_t dataVertices = visibleVerticesPerSide;
         const auto grown = static_cast<int32_t>(std::ceil(visibleVerticesPerSide * needed / designed));
 
         if (grown > visibleVerticesPerSide)
         {
             visibleVerticesPerSide = (grown + 1) & ~1;
         }
+
+        MCTerrainGridReach = designed * visibleVerticesPerSide / dataVertices;
     }
 
     if ((result = terrainFile.readIdLong("NumberOfWindows", numWindows)) != 0)
@@ -642,7 +649,7 @@ auto Terrain::init(char* fileName) -> int32_t
 
     theInterface->tacticalMap = terrainTacticalMap;
     screenWindow->addChild(terrainTacticalMap);
-    terrainTacticalMap->draw();
+    terrainTacticalMap->RefreshPage();
     terrainFile.close();
 
     const float sinAngle = static_cast<float>(std::sin(VIEW_ANGLE));
@@ -664,6 +671,8 @@ auto Terrain::init(char* fileName) -> int32_t
 
 auto Terrain::destroy() -> void
 {
+    MCTerrainForgetMesh();
+
     if (terrainTiles != nullptr)
     {
         // Faithful: destroyed twice (the second finds nothing left).
@@ -1349,9 +1358,38 @@ auto TerrainWindow::render(int32_t hazeFactor, uint8_t flags) -> void
         ElementList->openGroup(50000000, 0);
         numTerrainFaces = 0;
 
+        // Port: the GPU draws the pass from the map's ground mesh in one draw; the tiles below then only reach the
+        // software renderer (when it draws too). Where the mesh can't stand for the tiles, that's an error.
+        _window* target = globalPane->window;
+        const bool layer = MCRenderer::Hardware() != nullptr && MCRenderer::GpuDrawing() != MCGpuDrawing::Off &&
+                           MCRenderer::FrameSurfaceOf(target) != nullptr;
+
+        if (layer)
+        {
+            MCTerrainFrame ground;
+            auto drawn = MCTerrainGroundFrame(vertexList, numVertices, numBlocks, hazeFactor,
+                                              static_cast<int32_t>(stepX), static_cast<int32_t>(stepY),
+                                              static_cast<int32_t>(elevScreenStep), minX, maxX, minY, maxY, ground);
+
+            if (drawn)
+            {
+                drawn = MCRenderer::For(target).TerrainLayer(target, ground);
+            }
+
+            if (!drawn)
+            {
+                Fatal(-1, drawn.error().substr(0, 240).c_str());
+            }
+        }
+
         for (int16_t i = 0; i < numBlocks; i++)
         {
             blockList[i].draw(hazeFactor, flags);
+        }
+
+        if (layer)
+        {
+            MCRenderer::For(target).EndTerrainLayer(target);
         }
     }
 

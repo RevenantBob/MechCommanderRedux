@@ -13,7 +13,7 @@ public:
     /// <summary>Makes the window for the object with part id <paramref name="objectPartId"/>.</summary>
     /// <remarks>MCX.EXE @ 0x00694d00</remarks>
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t objectPartId);
-    /// <summary>Redraws (at most every 500 ms) while shown.</summary>
+    /// <summary>Shown while showing (the original redrew it at most every 500 ms; it draws itself each frame now).</summary>
     /// <remarks>MCX.EXE @ 0x00694d80</remarks>
     void display() override;
 

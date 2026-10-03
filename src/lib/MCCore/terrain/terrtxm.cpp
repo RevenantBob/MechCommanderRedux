@@ -6,6 +6,7 @@
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "terrain/vertex.h"
+#include "platform/MCRenderer.h"
 
 char tilePath[80] = "data\\tiles\\";
 char tile90Path[80] = "data\\tiles\\";
@@ -197,6 +198,7 @@ auto TerrainTiles::readTile(int32_t tileNum) -> TerrainTile*
     }
 
     file->readPacket(tileNum, data);
+    MCRenderer::RegisterData(data, static_cast<size_t>(size), MCDataKind::Shapes);
     tile->tileData = data;
     tile->lastTurnUsed = turn;
     return tile->tileData == TerrainTile::TILE_MISSING ? nullptr : tile;

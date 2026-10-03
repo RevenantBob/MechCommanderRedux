@@ -8,6 +8,7 @@
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/mission.h"
+#include "platform/MCRenderer.h"
 #include "sprite/vfxshape.h"
 
 SpriteManager* spriteManager = nullptr;
@@ -506,6 +507,8 @@ auto SpriteManager::destroy() -> void
 auto SpriteManager::mallocShapeRAM(uint32_t size) -> void*
 {
     void* block = shapeHeap->malloc(size);
+    // Port: the block holds shapes a renderer may keep (a GPU atlas); the heap unregisters it when freed.
+    MCRenderer::RegisterData(block, size, MCDataKind::Shapes);
     dumpedRecent = 0;
     return block;
 }

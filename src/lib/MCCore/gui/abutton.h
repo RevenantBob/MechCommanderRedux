@@ -28,6 +28,11 @@ public:
     /// </summary>
     /// <remarks>MCX.EXE @ 0x00609d40</remarks>
     void handleEvent(aEvent* event) override;
+    /// <summary>
+    /// Port: buttons (and every derived button) draw themselves each frame from their state (pictures, disabled,
+    /// grabbed, pushed).
+    /// </summary>
+    bool DrawsLive() override { return true; }
 
     /// <remarks>MCX.EXE @ 0x0060a890 (gui\abutton.h)</remarks>
     virtual aPort* getUpPicture() { return upPicture; } // slot 77
@@ -129,6 +134,8 @@ public:
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
     /// <remarks>MCX.EXE @ 0x0060a910</remarks>
     void destroy() override;
+    /// <summary>Port: draws itself each frame (nothing of its own; the arrows draw themselves).</summary>
+    bool DrawsLive() override { return true; }
 
     aSpinnerButton* upButton = nullptr;   // +0x4ac
     aSpinnerButton* downButton = nullptr; // +0x4b0

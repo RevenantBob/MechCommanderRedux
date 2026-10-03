@@ -10,7 +10,7 @@ struct MCPoint
 };
 
 /// <summary>A rectangle on the logical screen, right and bottom exclusive (Win32's RECT).</summary>
-struct MCRect
+struct MCClipRect
 {
     int32_t left = 0;
     int32_t top = 0;
@@ -124,7 +124,7 @@ namespace MCInput
     /// Confines the cursor to a rectangle of the logical screen (<c>ClipCursor</c>). Null frees it, back to the
     /// default: the picture while full screen and focused, anywhere otherwise.
     /// </summary>
-    void ClipCursor(const MCRect* rect);
+    void ClipCursor(const MCClipRect* rect);
 
     /// <summary>Recomputes the cursor's area after the picture moved in the window without a window event (a new
     /// logical size).</summary>

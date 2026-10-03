@@ -23,9 +23,12 @@
 #include "network/multplyr.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
+#include "platform/MCPresenter.h"
 #include "platform/MCRegistry.h"
+#include "platform/MCRenderer.h"
 #include "sound/soundsys.h"
 #include "sprite/sprtmgr.h"
+#include "vfx/vfxfuncs.h"
 
 int32_t GameDifficulty = 1;
 // The data paths are 80 bytes, as the game's other paths (gui\asystem.cpp's RealWinMain fills several of them).
@@ -68,11 +71,10 @@ namespace
         return element<lTextObject>(screen, index)->buffer;
     }
 
-    /// <summary>Enables or disables <paramref name="button"/> and redraws it.</summary>
+    /// <summary>Enables or disables <paramref name="button"/> (it shows the change on the next frame).</summary>
     void setDisabled(lButton* button, int disabled)
     {
         button->disabled = disabled;
-        button->draw();
     }
 
     /// <summary>Hides the screen shown and shows <paramref name="screen"/> as logistics state <paramref name="state"/>.</summary>
@@ -457,6 +459,137 @@ void SoloLoadScreen()
     globalLogPtr->loadScreen->filePane->setSelectedFile(-1);
 }
 
+namespace
+{
+    // Port: the preferences screen's DIFFICULTY and RENDERER choices are drop-downs, each in a box drawn as the panel
+    // art's DIFFICULTY box (prefs_00.tga): an outline of colour 0x13 on the panel's 0x10, the title in 0xe3. The
+    // DIFFICULTY box is drawn over the art's, which holds the original's three checks and labels; the checks
+    // (elements 8..10) are hidden.
+
+    /// <summary>A box's place on the screen and its size.</summary>
+    struct PrefsBoxPlace
+    {
+        /// <summary>The top left corner on the screen.</summary>
+        int32_t Left = 0;
+        int32_t Top = 0;
+        /// <summary>The size, outline included.</summary>
+        int32_t Width = 0;
+        int32_t Height = 0;
+    };
+
+    /// <summary>DIFFICULTY's box is the art's; RENDERER's is under it, over ACCEPT.</summary>
+    constexpr PrefsBoxPlace DifficultyBoxPlace{480, 155, 120, 63};
+    constexpr PrefsBoxPlace RendererBoxPlace{480, 222, 120, 50};
+
+    /// <summary>Where a drop-down lies in its box (under the title, the art's checks' column and first row), and its width.</summary>
+    constexpr int32_t DropDownLeft = 32;
+    constexpr int32_t DropDownTop = 21;
+    constexpr int32_t DropDownWidth = 76;
+
+    /// <summary>A preferences box: its back, outline and title, drawn each frame.</summary>
+    class PrefsBox : public lObject
+    {
+    public:
+        /// <summary>A box titled <paramref name="title"/>.</summary>
+        explicit PrefsBox(const char* title) : title(title) {}
+
+        void draw() override
+        {
+            const auto right = static_cast<int16_t>(width() - 1);
+            const auto bottom = static_cast<int16_t>(height() - 1);
+            FillBox(0, 0, right, bottom, 0x10);
+            FillBox(0, 0, right, 0, 0x13);
+            FillBox(0, bottom, right, bottom, 0x13);
+            FillBox(0, 0, 0, bottom, 0x13);
+            FillBox(right, 0, right, bottom, 0x13);
+            // (The font's glyphs start a column in, so the text is written a pixel left of the art's.)
+            VFX_string_draw(lport()->frame(), 32, 9, whiteFont->fontData, title, lComboBox::LabelColors());
+        }
+
+        bool DrawsLive() override { return true; }
+
+        /// <summary>
+        /// The box is part of the panel, as the art's boxes are: the mouse goes through it. (As an object it took
+        /// clicks, and a click brought it in front of the controls on it, which then took no more.)
+        /// </summary>
+        aObject* findObject(int32_t xPos, int32_t yPos) override
+        {
+            (void)xPos;
+            (void)yPos;
+            return nullptr;
+        }
+
+    private:
+        /// <summary>The title.</summary>
+        const char* title = nullptr;
+    };
+
+    /// <summary>The choice when the screen opened (for CancelPrefs).</summary>
+    int32_t savedRendererPreference = 0;
+
+    /// <summary>Says, in the message dialog, that the renderer chosen takes effect at the next start.</summary>
+    void showRestartNotice()
+    {
+        char text[] = "The new renderer takes effect when you restart MechCommander.";
+        ReusableDialog* dialog = globalLogPtr->messageDialog;
+        dialog->setText(text);
+        dialog->setTwoButton(0);
+        dialog->callback = nullptr;
+        dialog->okButton->setUpPicture(const_cast<char*>("bh_okay.tga"));
+        dialog->okButton->setDownPicture(const_cast<char*>("bg_okay.tga"));
+        dialog->okButton->disabled = 0;
+        dialog->activate();
+    }
+
+    /// <summary>The RENDERER drop-down chose <paramref name="renderer"/>: another one than this run's needs a restart.</summary>
+    void rendererChanged(int32_t renderer)
+    {
+        if (renderer != gRenderer)
+        {
+            showRestartNotice();
+        }
+    }
+
+    /// <summary>Adds a box titled <paramref name="title"/> at <paramref name="place"/> to <paramref name="screen"/>.</summary>
+    void addPrefsBox(GenericScreen* screen, const PrefsBoxPlace& place, const char* title)
+    {
+        auto* box = new PrefsBox(title);
+        box->init(place.Left, place.Top, place.Width, place.Height, nullptr, nullptr);
+        box->SetTransparent(-1);
+        box->ShowGUIWindow(-1);
+        screen->addChild(box);
+    }
+
+    /// <summary>Adds a drop-down editing <paramref name="setting"/> in the box at <paramref name="place"/>.</summary>
+    lComboBox* addDropDown(GenericScreen* screen, const PrefsBoxPlace& place, int32_t* setting,
+                           std::vector<lComboBox::Item> items, void (*changed)(int32_t value))
+    {
+        auto* dropDown = new lComboBox;
+        dropDown->init(place.Left + DropDownLeft, place.Top + DropDownTop, DropDownWidth, setting, std::move(items),
+                       changed);
+        dropDown->ShowGUIWindow(-1);
+        screen->addChild(dropDown);
+        return dropDown;
+    }
+}
+
+void AddPreferenceDropDowns(GenericScreen* screen)
+{
+    // The original's DIFFICULTY checks (easy, regular, hard) give way to the drop-down.
+    for (int32_t i = 0; i < 3; i++)
+    {
+        element<lToolButton>(screen, 8 + i)->ShowGUIWindow(0);
+    }
+
+    addPrefsBox(screen, DifficultyBoxPlace, "DIFFICULTY");
+    addPrefsBox(screen, RendererBoxPlace, "RENDERER");
+    addDropDown(screen, DifficultyBoxPlace, &GameDifficulty, {{"EASY", 0}, {"REGULAR", 1}, {"HARD", 2}}, nullptr);
+    addDropDown(screen, RendererBoxPlace, &gRendererPreference,
+                {{"VULKAN", static_cast<int32_t>(MCRendererKind::Vulkan)},
+                 {"SOFTWARE", static_cast<int32_t>(MCRendererKind::Software)}},
+                rendererChanged);
+}
+
 void ShowPreferences()
 {
     if (!CheckRegistryVersionNumber())
@@ -474,6 +607,7 @@ void ShowPreferences()
     logistics->savedPrefs4 = soundSystem->radioVolume;
     logistics->savedPrefs5 = soundSystem->digitalMasterVolume;
     logistics->savedPrefs6 = GameDifficulty;
+    savedRendererPreference = gRendererPreference;
     GenericScreen* screen = logistics->prefScreen;
     element<lSlider>(screen, 3)->setCurrentValue(brightness);
     element<lSlider>(screen, 4)->setCurrentValue(static_cast<int32_t>(globalLogPtr->savedPrefs3));
@@ -512,6 +646,7 @@ void CancelPrefs()
     }
 
     GameDifficulty = logistics->savedPrefs6;
+    gRendererPreference = savedRendererPreference;
     Cancel();
 }
 
@@ -534,6 +669,8 @@ void WritePrefs()
     // Port: keep the port-only key. Original behaviour (OB-101): the hidden "Resolution" key is not written back.
     prefs.writeIdBoolean("StretchToFit", gStretchToFit != 0);
     prefs.writeIdBoolean("SoftwareCursor", gSoftwareCursor != 0);
+    prefs.writeIdString("Renderer", MCRendererKindName(static_cast<MCRendererKind>(gRendererPreference)));
+    prefs.writeIdBoolean("ShowFps", gShowFpsPreference != 0);
     Cancel();
 }
 
@@ -685,7 +822,6 @@ void SaveGameCallback()
     }
 
     pane->getAllFiles(const_cast<char*>(".sav"), true);
-    pane->drawFiles();
 
     if (result == 0)
     {
@@ -822,22 +958,16 @@ void DeleteCallbackTrue()
     // The original cleared the file's read-only attribute first.
     MCFileSystem::RemoveFile(static_cast<char*>(fileName));
     pane->setSelectedFile(-1);
-    FileScrollPane* redrawn;
 
     if (LoadingSolo == 0)
     {
         globalLogPtr->loadScreen->filePane->getAllFiles(const_cast<char*>(".sav"), true);
-        globalLogPtr->loadScreen->filePane->draw();
         globalLogPtr->saveScreen->filePane->getAllFiles(const_cast<char*>(".sav"), true);
-        redrawn = globalLogPtr->saveScreen->filePane;
     }
     else
     {
         globalLogPtr->loadScreen->filePane->getAllFiles(const_cast<char*>(".sol"), true);
-        redrawn = globalLogPtr->loadScreen->filePane;
     }
-
-    redrawn->draw();
 }
 
 void DeleteCallbackFalse()
@@ -952,7 +1082,6 @@ void ShowModemScreen()
         const int32_t selected = modems->highlightLine[0];
         modems->Clear();
         modems->highlightLine[0] = selected;
-        modems->draw();
 
         for (int32_t i = 0;; i++)
         {
@@ -1543,7 +1672,6 @@ void ModemListHandleEvent(aObject* object, aEvent* event)
     if (list->getTextLine(line + 1, nullptr, 0) != 0)
     {
         list->highlightLine[0] = line;
-        list->draw();
     }
 }
 
@@ -1587,11 +1715,6 @@ void PlayerListHandleEvent(aObject* object, aEvent* event)
                     }
                 }
             }
-        }
-
-        if (MPlayer != nullptr && MPlayer->sessionManager != nullptr)
-        {
-            list->draw();
         }
     }
     else if (event->data == 4)
@@ -1654,8 +1777,6 @@ void ReadyRoomPlayerListHandleEvent(aObject* object, aEvent* event)
             }
         }
     }
-
-    list->draw();
 }
 
 void LanScreenHandleEvent(aObject* object, aEvent* event)
@@ -1887,11 +2008,6 @@ namespace
         {
             auto* toggle = element<lToolButton>(screen, 8 + i);
             toggle->toggled = i == difficulty ? 1 : 0;
-        }
-
-        for (int32_t i = 0; i < 3; i++)
-        {
-            element<lToolButton>(screen, 8 + i)->draw();
         }
 
         GameDifficulty = difficulty;

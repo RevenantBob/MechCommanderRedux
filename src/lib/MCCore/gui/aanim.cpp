@@ -5,6 +5,7 @@
 #include "lib/file.h"
 #include "lib/heap.h"
 #include "logistics/logbri.h"
+#include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
 
 namespace
@@ -110,6 +111,7 @@ auto aAnimation::loadShape(char* fileName) -> int32_t
 
     file.read(shapes, static_cast<int32_t>(size));
     file.close();
+    MCRenderer::RegisterData(shapes, size, MCDataKind::Shapes);
     numFrames = VFX_shape_count(shapes);
     curFrame = 0;
 

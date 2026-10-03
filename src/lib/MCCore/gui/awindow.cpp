@@ -16,6 +16,7 @@
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
 #include "vfx/vfxfuncs.h"
+#include "platform/MCRenderer.h"
 
 int32_t startupRects[24] = {};
 int32_t noiseSample = 0;
@@ -44,6 +45,8 @@ namespace
             Fatal(0, outOfMemory);
         }
 
+        // Port: a part only shows its paint routine or background, so it draws itself each frame.
+        part->SetDrawsLive();
         return part;
     }
 
@@ -164,10 +167,11 @@ namespace
     /// <summary>Clears the whole screen buffer (a full-screen movie's background).</summary>
     void clearScreen()
     {
-        // Port: the original cleared 640x480 bytes (0x96000 in 16-bit mode); the port clears the buffer at its
-        // real size.
-        _window* screen = screenPort->frame()->window;
-        std::memset(screen->buffer, 0, static_cast<size_t>(screen->x_max + 1) * static_cast<size_t>(screen->y_max + 1));
+        // Port: the original cleared 640x480 bytes (0x96000 in 16-bit mode) of the surface; the port wipes the
+        // screen at its real size, through the renderer.
+        _pane screen{screenPort->frame()->window, 0, 0, screenPort->frame()->window->x_max,
+                     screenPort->frame()->window->y_max};
+        VFX_pane_wipe(&screen, 0);
     }
 
     /// <summary>Remaps a windowed movie onto the game's current palette (<c>SmackColorRemap</c>).</summary>
@@ -1368,8 +1372,10 @@ auto aWindowBar::SetButtonSize(int32_t width, int32_t height) -> void
 //
 // Port: a full-screen movie (fullScreen set while the game is full screen) switched the original's display to
 // 16-bit and let Smacker draw to the DirectDraw surface in its own colours. The port's display stays 8-bit, so a
-// full-screen movie decodes straight into the window's frame and puts up its own palette (checkSmackerPalette), as
-// the original did in a windowed game. A windowed movie decodes into its own pane, remapped to the game palette.
+// full-screen movie puts up its own palette (checkSmackerPalette), as the original did in a windowed game; a windowed
+// movie is remapped to the game palette. Either way the movie decodes into the window's own pane (the original
+// decoded a full-screen movie straight onto the screen), and the window copies the pane to the screen in the frame
+// pass: movie frames are the one picture that changes under the renderer every frame.
 
 aSmackerWindow::aSmackerWindow()
 {
@@ -1395,12 +1401,7 @@ auto aSmackerWindow::startSmackerMovie(SmackTag* newMovie, int fullScreenPlay) -
     fullScreen = fullScreenPlay;
     movie = newMovie;
     movieOver = 0;
-
-    if (fullScreen != 0)
-    {
-        return 0;
-    }
-
+    // (The original returned here for a full-screen movie: it had no pane.)
     moviePane = static_cast<_pane*>(guiHeap->malloc(sizeof(_pane)));
 
     if (moviePane == nullptr)
@@ -1416,6 +1417,9 @@ auto aSmackerWindow::startSmackerMovie(SmackTag* newMovie, int fullScreenPlay) -
     {
         return static_cast<int32_t>(0xd4d40000);
     }
+
+    movieWindow->View = nullptr;
+    movieWindow->Texture = nullptr;
 
     if (moviePane->x1 < 0 || moviePane->y1 < 0)
     {
@@ -1433,7 +1437,13 @@ auto aSmackerWindow::startSmackerMovie(SmackTag* newMovie, int fullScreenPlay) -
         return static_cast<int32_t>(0xd4d40000);
     }
 
-    remapToGamePalette(movie);
+    MCRenderer::CreateTexture(movieWindow, MCTextureUse::Stream);
+
+    if (fullScreen == 0)
+    {
+        remapToGamePalette(movie);
+    }
+
     return 0;
 }
 
@@ -1442,18 +1452,15 @@ auto aSmackerWindow::destroy() -> void
     SmackClose(movie);
     movie = nullptr;
 
-    if (fullScreen == 0)
+    if (moviePane != nullptr && moviePane->window != nullptr)
     {
-        if (moviePane != nullptr && moviePane->window != nullptr)
-        {
-            guiHeap->free(moviePane->window->buffer);
-            guiHeap->free(moviePane->window);
-        }
-
-        guiHeap->free(moviePane);
-        moviePane = nullptr;
+        MCRenderer::DestroyTexture(moviePane->window);
+        guiHeap->free(moviePane->window->buffer);
+        guiHeap->free(moviePane->window);
     }
 
+    guiHeap->free(moviePane);
+    moviePane = nullptr;
     aObject::destroy();
     screenWindow->removeChild(this);
 }
@@ -1501,11 +1508,14 @@ auto aSmackerWindow::display() -> void
         {
             clearScreen();
         }
-        else
+
+        if (moviePane != nullptr)
         {
             VFX_pane_wipe(moviePane, 0);
         }
 
+        // (The original left the screen as it was.)
+        DrawInFramePass(displayPort);
         return;
     }
 
@@ -1517,16 +1527,11 @@ auto aSmackerWindow::display() -> void
         Fatal(0, "Movie is too big for its window");
     }
 
-    _pane* target = fullScreen == 0 ? moviePane : frame();
-    player->ToBuffer(target->x0, target->y0, target->window->x_max + 1, player->Height(), target->window->buffer);
-
     if (firstFrame != 0)
     {
-        if (fullScreen == 0)
-        {
-            VFX_pane_wipe(moviePane, 0);
-        }
-        else
+        VFX_pane_wipe(moviePane, 0);
+
+        if (fullScreen != 0)
         {
             clearScreen();
         }
@@ -1534,22 +1539,33 @@ auto aSmackerWindow::display() -> void
         firstFrame = 0;
     }
 
-    if (!player->Wait() && nextFrame() == 0)
+    // (The original set SmackToBuffer every display; the port locks the movie's rectangle of the texture only while
+    // a frame is decoded into it, so a display with no new frame sends nothing up.)
+    if (!player->Wait())
     {
-        movieOver = 1;
+        MCTexture* texture = moviePane->window->Texture;
+        const MCRect rect{moviePane->x0, moviePane->y0, moviePane->x0 + player->Width() - 1,
+                          moviePane->y0 + player->Height() - 1};
+        player->ToBuffer(0, 0, texture->Width, player->Height(), MCRenderer::LockTexture(texture, rect));
+        const int more = nextFrame();
+        MCRenderer::UnlockTexture(texture);
+        player->ToBuffer(0, 0, 0, 0, nullptr);
+
+        if (more == 0)
+        {
+            movieOver = 1;
+        }
     }
 
-    if (fullScreen == 0 && moviePane != nullptr)
-    {
-        VFX_pane_copy(moviePane, 0, 0, frame(), 0, 0, -1);
-    }
+    DrawInFramePass(displayPort);
 }
 
 auto aSmackerWindow::draw() -> void
 {
-    if (movie != nullptr)
+    // (The original drew the window's own picture, and only while the movie played.)
+    if (moviePane != nullptr && moviePane->window != nullptr && moviePane->window->buffer != nullptr)
     {
-        aObject::draw();
+        VFX_pane_copy(moviePane, 0, 0, port()->frame(), 0, 0, -1);
     }
 }
 
@@ -1593,8 +1609,16 @@ auto aStartupWindow::destroy() -> void
 {
     for (uint8_t*& image : staticImages)
     {
+        MCRenderer::UnregisterData(image);
         std::free(image);
         image = nullptr;
+    }
+
+    if (staticPort != nullptr)
+    {
+        staticPort->destroy();
+        delete staticPort;
+        staticPort = nullptr;
     }
 
     aObject::destroy();
@@ -1610,10 +1634,10 @@ auto aStartupWindow::doStatic() -> void
             // Now and then a whole row is copied from a random one.
             if (RollDice(0x32) != 0)
             {
-                uint8_t* buffer = frame()->window->buffer;
+                uint8_t* buffer = StaticPane()->window->buffer;
                 uint8_t* dest = buffer + width() * row;
                 const int32_t sourceRow = RandomNumber(height());
-                uint8_t* source = frame()->window->buffer + sourceRow * width();
+                uint8_t* source = StaticPane()->window->buffer + sourceRow * width();
                 std::memmove(dest, source, static_cast<size_t>(width()));
             }
         }
@@ -1621,7 +1645,7 @@ auto aStartupWindow::doStatic() -> void
         {
             for (int32_t column = 0; column < width(); column++)
             {
-                AG_pixel_write(frame(), column, row, static_cast<uint32_t>(std::rand()) & 0x1f);
+                AG_pixel_write(StaticPane(), column, row, static_cast<uint32_t>(std::rand()) & 0x1f);
             }
         }
     }
@@ -1629,7 +1653,7 @@ auto aStartupWindow::doStatic() -> void
 
 auto aStartupWindow::endStatic() -> void
 {
-    VFX_pane_wipe(frame(), 0);
+    VFX_pane_wipe(StaticPane(), 0);
 }
 
 auto aStartupWindow::display() -> void
@@ -1644,6 +1668,16 @@ auto aStartupWindow::display() -> void
         return;
     }
 
+    // (The original drew each step straight onto the screen.)
+    if (staticPort != nullptr)
+    {
+        Step();
+        DrawInFramePass(displayPort);
+    }
+}
+
+auto aStartupWindow::Step() -> void
+{
     SoundSystem* sounds = soundSystem;
     const int32_t step = startupState;
     startupState = step + 1;
@@ -1660,7 +1694,7 @@ auto aStartupWindow::display() -> void
         if (RollDice(10) != 0)
         {
             doStatic();
-            AG_shape_draw(frame(), staticImages[2], 0, 0x140, 0xf0);
+            AG_shape_draw(StaticPane(), staticImages[2], 0, 0x140, 0xf0);
             return;
         }
 
@@ -1671,7 +1705,7 @@ auto aStartupWindow::display() -> void
 
         soundSystem->update();
         doStatic();
-        AG_shape_draw(frame(), staticImages[2], 1, 0x140, 0xf0);
+        AG_shape_draw(StaticPane(), staticImages[2], 1, 0x140, 0xf0);
         return;
     }
 
@@ -1688,7 +1722,7 @@ auto aStartupWindow::display() -> void
     auto typeFirst = [&](int32_t lineX, int32_t lineY, const char* text)
     {
         setLarge(0);
-        font->print(lineX, lineY, const_cast<char*>(text), 0xfd, frame());
+        font->print(lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
         textX = font->printWidth(const_cast<char*>(text), 0);
     };
 
@@ -1696,28 +1730,28 @@ auto aStartupWindow::display() -> void
     {
         const int32_t typed = textX;
         setLarge(0);
-        font->print(typed + lineX, lineY, const_cast<char*>(text), 0xfd, frame());
+        font->print(typed + lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
         textX = font->printWidth(const_cast<char*>(measured), 0) + typed;
     };
 
     auto typeLast = [&](int32_t lineX, int32_t lineY, const char* text)
     {
         setLarge(0);
-        font->print(textX + lineX, lineY, const_cast<char*>(text), 0xfd, frame());
+        font->print(textX + lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
     };
 
     // The finished picture: the map, the bunker and its uplink to the chosen point.
     auto drawUplink = [&]()
     {
-        AG_shape_draw(frame(), staticImages[0], 0, 0x140, 0xf0);
-        AG_ellipse_fill(frame(), 0x10a, 0xe5, 3, 3, 0xfd);
-        VFX_line_draw(frame(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
+        AG_shape_draw(StaticPane(), staticImages[0], 0, 0x140, 0xf0);
+        AG_ellipse_fill(StaticPane(), 0x10a, 0xe5, 3, 3, 0xfd);
+        VFX_line_draw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
         setLarge(0);
-        font->print(0x1c2, 0x18b, const_cast<char*>("Forward Command Bunker"), 0xfd, frame());
+        font->print(0x1c2, 0x18b, const_cast<char*>("Forward Command Bunker"), 0xfd, StaticPane());
         setLarge(1);
-        font->print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, frame());
-        VFX_line_draw(frame(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
-        VFX_line_draw(frame(), pointX, pointY, 10, pointY, LD_DRAW, 0xfd);
+        font->print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, StaticPane());
+        VFX_line_draw(StaticPane(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
+        VFX_line_draw(StaticPane(), pointX, pointY, 10, pointY, LD_DRAW, 0xfd);
     };
 
     uint32_t sample = 0x10;
@@ -1726,18 +1760,18 @@ auto aStartupWindow::display() -> void
     {
         case 0:
         {
-            AG_shape_draw(frame(), staticImages[0], 0, 0x140, 0xf0);
+            AG_shape_draw(StaticPane(), staticImages[0], 0, 0x140, 0xf0);
             sample = 0x11;
             break;
         }
         case 9:
         {
-            AG_ellipse_fill(frame(), 0x10a, 0xe5, 3, 3, 0xfd);
+            AG_ellipse_fill(StaticPane(), 0x10a, 0xe5, 3, 3, 0xfd);
             sample = 0xf;
             break;
         }
         case 0x13:
-            VFX_line_draw(frame(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
+            VFX_line_draw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
             break;
         // "Forward Command Bunker"
         case 0x1d:
@@ -1774,11 +1808,11 @@ auto aStartupWindow::display() -> void
         case 0x27:
         {
             setLarge(1);
-            font->print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, frame());
+            font->print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, StaticPane());
             break;
         }
         case 0x31:
-            VFX_line_draw(frame(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
+            VFX_line_draw(StaticPane(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
             break;
         case 0x3b:
         {
@@ -1797,11 +1831,11 @@ auto aStartupWindow::display() -> void
         case 0x43:
         case 0x44:
         {
-            VFX_pane_wipe(frame(), 0);
+            VFX_pane_wipe(StaticPane(), 0);
             drawUplink();
             soundSystem->update();
             doStatic();
-            AG_shape_draw(frame(), staticImages[1], 0, 0x140, 0xf0);
+            AG_shape_draw(StaticPane(), staticImages[1], 0, 0x140, 0xf0);
             return;
         }
         case 0x45:
@@ -1810,7 +1844,7 @@ auto aStartupWindow::display() -> void
             drawUplink();
             soundSystem->playDigitalSample(0x10, 1, nullptr, 0, 0);
             soundSystem->update();
-            AG_ellipse_fill(frame(), pointX, pointY, 2, 2, 0xfc);
+            AG_ellipse_fill(StaticPane(), pointX, pointY, 2, 2, 0xfc);
             return;
         }
 
@@ -1908,16 +1942,16 @@ auto aStartupWindow::display() -> void
             break;
         // The field site
         case 0x77:
-            VFX_line_draw(frame(), pointX, pointY, 0xf3, 0x101, LD_DRAW, 0xfd);
+            VFX_line_draw(StaticPane(), pointX, pointY, 0xf3, 0x101, LD_DRAW, 0xfd);
             break;
         case 0x81:
         {
-            AG_ellipse_fill(frame(), 0xf3, 0x101, 5, 5, 0xfb);
+            AG_ellipse_fill(StaticPane(), 0xf3, 0x101, 5, 5, 0xfb);
             sample = 0xf;
             break;
         }
         case 0x8b:
-            VFX_line_draw(frame(), 0xf3, 0x101, 0x1b, 0x101, LD_DRAW, 0xfd);
+            VFX_line_draw(StaticPane(), 0xf3, 0x101, 0x1b, 0x101, LD_DRAW, 0xfd);
             break;
         // "Field Site Linking..."
         case 0x95:
@@ -1953,7 +1987,7 @@ auto aStartupWindow::display() -> void
         case 0x9f:
         {
             setLarge(1);
-            font->print(0x1b, 0x113, const_cast<char*>("GO"), 0xfd, frame());
+            font->print(0x1b, 0x113, const_cast<char*>("GO"), 0xfd, StaticPane());
             sample = 0x11;
             break;
         }
@@ -1962,7 +1996,7 @@ auto aStartupWindow::display() -> void
             noiseSample = sounds->playDigitalSample(0x21, 0, nullptr, 0, 0);
             soundSystem->update();
             doStatic();
-            AG_shape_draw(frame(), staticImages[2], 0, 0x140, 0xf0);
+            AG_shape_draw(StaticPane(), staticImages[2], 0, 0x140, 0xf0);
             return;
         }
         default:
@@ -1976,6 +2010,16 @@ auto aStartupWindow::display() -> void
 auto aStartupWindow::draw() -> void
 {
     aObject::draw();
+
+    if (staticPort != nullptr)
+    {
+        staticPort->copyTo(port()->frame(), 0, 0, 0);
+    }
+}
+
+auto aStartupWindow::StaticPane() -> _pane*
+{
+    return staticPort->frame();
 }
 
 auto aStartupWindow::setup() -> int32_t
@@ -2006,6 +2050,7 @@ auto aStartupWindow::setup() -> int32_t
         }
 
         file.read(image, static_cast<int32_t>(file.fileSize()));
+        MCRenderer::RegisterData(image, file.fileSize(), MCDataKind::Shapes);
         file.close();
         return 0;
     };
@@ -2018,6 +2063,13 @@ auto aStartupWindow::setup() -> int32_t
         {
             return result;
         }
+    }
+
+    staticPort = new aPort;
+
+    if (staticPort->init(width(), height()) != 0)
+    {
+        return -1;
     }
 
     frameCount = 0;
@@ -2169,19 +2221,16 @@ auto aEmptyTitleWindow::handleEvent(aEvent* event) -> void
 
         if (event->type == 0x1a)
         {
-            // Zoom: the camera flips between full scale (100) and 1; only 1 while paused or asked, or when only the
-            // 45-pixel art is loaded. The original also locked multiplayer to 1; the port allows zoom there.
+            // Zoom. Port: the view goes between the closest and the furthest zoom, not while paused or asked; the camera
+            // stays at full scale (the original flipped it between 100 and 1, only 1 while paused or asked, or when
+            // only the 45-pixel art is loaded, and locked multiplayer to 1).
             Camera* camera = pane->GetCamera();
 
             if (camera != nullptr)
             {
-                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+                if (gamePaused == 0 && gameAsked == 0 && camera->window != nullptr)
                 {
-                    camera->cameraScale = camera->cameraScale != 100 ? 100 : 1;
-                }
-                else
-                {
-                    camera->cameraScale = 1;
+                    camera->window->ToggleZoom();
                 }
 
                 camera->forceUpdate = 1;

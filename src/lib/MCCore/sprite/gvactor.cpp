@@ -667,11 +667,13 @@ auto GVAppearance::stateExists(GVActorState state) -> int32_t
 
 auto GVAppearance::drawBars() -> void
 {
+    // Port: the bar is an overlay, on the screen over the view: it follows the sprite through the zoom, its size
+    // doesn't change.
     const float scale = eyeScale();
     const float barWidth = scale * 38.0f;
     const float barHeight = scale * 4.0f;
-    const float barY = (upperLeft.y - scale * 6.0f) - barHeight;
-    const float barX = static_cast<float>(std::floor(static_cast<double>(screenPos.x - barWidth * 0.5f)));
+    const float barY = (MCOverlayY(upperLeft.y) - scale * 6.0f) - barHeight;
+    const float barX = static_cast<float>(std::floor(static_cast<double>(MCOverlayX(screenPos.x) - barWidth * 0.5f)));
 
     // How much of the unit is left, per class.
     GameObject* obj = owner;

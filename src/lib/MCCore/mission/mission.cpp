@@ -1456,7 +1456,8 @@ auto aOpeningSmackerWindow::display() -> void
     }
     else
     {
-        VFX_pane_copy(moviePane, 0, 0, frame(), 0, wipeLine, -1);
+        // (The original copied the frame onto the screen wipeLine lines down; draw does it.)
+        DrawInFramePass(displayPort);
         wipeLine += 20;
     }
 
@@ -1467,12 +1468,29 @@ auto aOpeningSmackerWindow::display() -> void
     }
 }
 
+auto aOpeningSmackerWindow::draw() -> void
+{
+    if (wipeLine < 1)
+    {
+        aSmackerWindow::draw();
+        return;
+    }
+
+    if (moviePane != nullptr && moviePane->window != nullptr && moviePane->window->buffer != nullptr)
+    {
+        VFX_pane_copy(moviePane, 0, 0, port()->frame(), 0, wipeLine, -1);
+    }
+}
+
 auto aOpeningSmackerWindow::endSmackerMovie() -> void
 {
     SmackClose(movie);
     movie = nullptr;
     wipeLine++;
     application->openingSmackerWindow = nullptr;
+    // Port: the lines above the sliding frame show what is under the window (the original didn't touch them); movie
+    // pixels of the key colour 0xff show through too.
+    transparent = 1;
 }
 
 auto aOpeningSmackerWindow::escapeSmackerMovie() -> void
@@ -1583,16 +1601,68 @@ namespace
     }
 
     /// <summary>
-    /// Moves the edges of <paramref name="icon"/>'s pane in by <paramref name="inset"/> (out when negative), so the
-    /// results screen copies the pilot picture without the icon's frame.
+    /// A picture of <paramref name="warrior"/>'s icon without its 2-pixel frame: the pilot's own portrait for a pilot
+    /// with status 3, whose icon shows the dead image. (The original redrew the icon's own picture with the portrait
+    /// swapped in, moved its pane's edges in by 2 and copied it onto the window; the icon draws itself through a view
+    /// now, so it is drawn into a picture, which the screen copies each frame.)
     /// </summary>
-    auto insetIconPane(FriendlyMechIcon* icon, int32_t inset) -> void
+    /// <returns>The picture, or null when the pilot's mover has no icon.</returns>
+    auto takeIconPicture(MechWarrior* warrior, int32_t partId) -> aPort*
     {
-        _pane* pane = icon->port()->frame();
-        pane->x0 += inset;
-        pane->y0 += inset;
-        pane->x1 -= inset;
-        pane->y1 -= inset;
+        FriendlyMechIcon* icon = theInterface->GetMechIconFromID(partId);
+
+        if (icon == nullptr)
+        {
+            return nullptr;
+        }
+
+        const int32_t status = warrior->status;
+
+        if (status == 3)
+        {
+            icon->pilotImage->init(warrior->picture);
+        }
+
+        auto* picture = new aPort;
+        picture->init(icon->port()->width(), icon->port()->height());
+        icon->UpdateModel();
+        icon->DrawIcon(picture);
+        _pane* pane = picture->frame();
+        pane->x0 += 2;
+        pane->y0 += 2;
+        pane->x1 -= 2;
+        pane->y1 -= 2;
+
+        if (status == 3)
+        {
+            icon->pilotImage->init(4);
+        }
+
+        return picture;
+    }
+
+    /// <summary>Copies an icon picture from <see cref="takeIconPicture"/> to (<paramref name="x"/>, <paramref name="y"/>) of <paramref name="target"/>.</summary>
+    auto drawIconPicture(aPort* picture, _pane* target, int32_t x, int32_t y) -> void
+    {
+        if (picture != nullptr)
+        {
+            picture->copyTo(target, x, y, 0);
+        }
+    }
+
+    /// <summary>The left and top of single-player pilot line <paramref name="index"/>'s box.</summary>
+    auto pilotBox(int32_t index, int32_t& left, int32_t& top) -> void
+    {
+        if (index < 6)
+        {
+            left = 0xe8;
+            top = index * 0x42 + 0x2c;
+        }
+        else
+        {
+            left = 0x18a;
+            top = index * 0x42 - 0x160;
+        }
     }
 
     /// <summary>The length in pixels of a skill bar for <paramref name="skill"/> (55 across the skill range).</summary>
@@ -1628,7 +1698,8 @@ auto MissionResultsScreen::init() -> int32_t
     int32_t result = aObject::init(0x28, 0xf, 0x230, 0x1bc, nullptr);
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
     char* backgroundName = MPlayer == nullptr ? const_cast<char*>("mr_bkgd.tga") : const_cast<char*>("mrm_bkgd.tga");
-    result = port()->init(backgroundName);
+    // (The original loaded the art into the window's own picture.)
+    result = setBackground(backgroundName);
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
 
     moveOnPort = new aPort();
@@ -1676,15 +1747,18 @@ auto MissionResultsScreen::init() -> int32_t
 
     if (MPlayer == nullptr)
     {
+        // (The original loaded the pictures into the objects' own ports.)
         scrollUpButton = new aObject();
+        scrollUpButton->SetDrawsLive();
         scrollUpButton->init(0, 0, 0xb, 0xb, nullptr);
-        scrollUpButton->port()->init(const_cast<char*>("mfddbg04.tga"));
+        scrollUpButton->setBackground(const_cast<char*>("mfddbg04.tga"));
         scrollUpButton->ShowGUIWindow(0);
         addChild(scrollUpButton);
 
         scrollDownButton = new aObject();
+        scrollDownButton->SetDrawsLive();
         scrollDownButton->init(0, 0, 0xb, 0xb, nullptr);
-        scrollDownButton->port()->init(const_cast<char*>("mfddbg05.tga"));
+        scrollDownButton->setBackground(const_cast<char*>("mfddbg05.tga"));
         scrollDownButton->ShowGUIWindow(0);
         addChild(scrollDownButton);
 
@@ -1705,6 +1779,16 @@ auto MissionResultsScreen::destroy() -> void
     pilotResults = nullptr;
     deletePort(successPort);
     deletePort(failurePort);
+    deletePort(moveOnPort);
+    deletePort(bestPilotIcon);
+
+    for (aPort*& picture : pilotIcons)
+    {
+        deletePort(picture);
+    }
+
+    pilotIcons.clear();
+    commanderLines.clear();
     deleteChild(this, moveOnButton);
     deleteChild(this, scrollUpButton);
     deleteChild(this, scrollDownButton);
@@ -1943,26 +2027,50 @@ auto MissionResultsScreen::display() -> void
         }
     }
 
+    // (The original copied the window's picture to the screen and displayed the children.)
     if (displayPort != nullptr)
     {
-        displayPort->copyTo(framePane, 0, 0, 0);
+        DrawInFramePass(displayPort);
+    }
+}
+
+auto MissionResultsScreen::draw() -> void
+{
+    aObject::draw();
+
+    if (moveOnPort != nullptr)
+    {
+        moveOnPort->copyTo(port()->frame(), 4, 4, 1);
     }
 
-    for (int32_t i = 0; i < numChildren; i++)
+    if (MPlayer == nullptr)
     {
-        childList[i]->display();
+        DrawResourcePoints();
+        DrawStatistics();
+        DrawObjectiveList();
+        // The pilots the steps have reached.
+        const int32_t pilots = drawState == 4 ? drawIndex : (drawState > 4 ? numPilotResults : 0);
+
+        for (int32_t i = 0; i < pilots; i++)
+        {
+            DrawPilot(i);
+        }
+    }
+    else
+    {
+        DrawMPSummary();
+        DrawMPPilotList();
+        drawMPObjectives();
     }
 }
 
 auto MissionResultsScreen::drawRPs() -> void
 {
-    char text[256];
-    FillBox(0x149, 9, 0x185, 0x14, 0x10);
     const int32_t shown = drawIndex * 1000;
 
     if (resourcePointsEarned < shown)
     {
-        std::snprintf(text, sizeof(text), "%i", resourcePointsEarned);
+        shownResourcePoints = resourcePointsEarned;
         drawIndex = 0;
         drawState++;
         nextDrawTime = resultsStepTicks + MouseTicks;
@@ -1974,7 +2082,7 @@ auto MissionResultsScreen::drawRPs() -> void
     }
     else
     {
-        std::snprintf(text, sizeof(text), "%i", shown);
+        shownResourcePoints = shown;
         nextDrawTime = resultsStepTicks / 20 + MouseTicks;
 
         if (skipAnimation == 0)
@@ -1984,14 +2092,23 @@ auto MissionResultsScreen::drawRPs() -> void
 
         drawIndex++;
     }
+}
 
+auto MissionResultsScreen::DrawResourcePoints() -> void
+{
+    if (shownResourcePoints < 0)
+    {
+        return;
+    }
+
+    char text[256];
+    FillBox(0x149, 9, 0x185, 0x14, 0x10);
+    std::snprintf(text, sizeof(text), "%i", shownResourcePoints);
     lgWhiteFont->writeString(port()->frame(), 0x14a, 10, reinterpret_cast<uint8_t*>(text), -1);
 }
 
 auto MissionResultsScreen::drawStats() -> void
 {
-    static constexpr int32_t statY[4] = {0x33, 0x40, 0x4d, 0x5a};
-    char text[8];
     nextDrawTime = resultsStepTicks / 2 + MouseTicks;
 
     switch (drawIndex)
@@ -2000,18 +2117,10 @@ auto MissionResultsScreen::drawStats() -> void
         case 1:
         case 2:
         case 3:
-        {
-            const int32_t values[4] = {enemyMechsHit, enemyMechsDestroyed, enemyPilotsKilled, playerMechsHit};
-            std::snprintf(text, sizeof(text), "%i", values[drawIndex]);
-            lgWhiteFont->writeString(port()->frame(), 0xcc, statY[drawIndex], reinterpret_cast<uint8_t*>(text), -1);
             drawIndex++;
             break;
-        }
-
         case 4:
         {
-            std::snprintf(text, sizeof(text), "%i", playerMechsDestroyed);
-            lgWhiteFont->writeString(port()->frame(), 0xcc, 0x67, reinterpret_cast<uint8_t*>(text), -1);
             drawIndex = 0;
             drawState++;
             nextDrawTime = resultsStepTicks + MouseTicks;
@@ -2027,18 +2136,27 @@ auto MissionResultsScreen::drawStats() -> void
     }
 }
 
+auto MissionResultsScreen::DrawStatistics() -> void
+{
+    static constexpr int32_t statY[5] = {0x33, 0x40, 0x4d, 0x5a, 0x67};
+    const int32_t values[5] = {enemyMechsHit, enemyMechsDestroyed, enemyPilotsKilled, playerMechsHit,
+                               playerMechsDestroyed};
+    // The statistics the steps have reached: each step shows one.
+    const int32_t shown = drawState == 1 ? drawIndex : (drawState > 1 ? 5 : 0);
+
+    for (int32_t i = 0; i < shown; i++)
+    {
+        char text[8];
+        std::snprintf(text, sizeof(text), "%i", values[i]);
+        lgWhiteFont->writeString(port()->frame(), 0xcc, statY[i], reinterpret_cast<uint8_t*>(text), -1);
+    }
+}
+
 auto MissionResultsScreen::drawObjectives() -> void
 {
-    char text[256];
-    char pointsName[256];
-    char bonusHeader[256];
-    char secondaryHeader[256];
     // drawState 2 lists the primary objectives (type 0), 3 the secondary ones (type 1).
     const uint32_t wantedType = drawState != 2 ? 1 : 0;
     int drew = 0;
-    cLoadString(thisInstance, 0x363, pointsName, 0xfe);
-    cLoadString(thisInstance, 0x360, bonusHeader, 0xfe);
-    cLoadString(thisInstance, 0x362, secondaryHeader, 0xfe);
 
     ScenarioObjective& objective = scenario->objectives[drawIndex];
 
@@ -2046,47 +2164,9 @@ auto MissionResultsScreen::drawObjectives() -> void
     {
         drew = 1;
 
-        if (wantedType == 1 && objectivesHeaderDrawn == 0)
+        if (wantedType == 1)
         {
-            medBlueFont->writeString(port()->frame(), 0xf, drawY, reinterpret_cast<uint8_t*>(secondaryHeader), -1);
             objectivesHeaderDrawn = 1;
-            drawY += 0xe;
-        }
-
-        aFont* font = greyFont;
-        bool listed = true;
-
-        if (objective.status == 1)
-        {
-            successPort->copyTo(port()->frame(), 0xb, drawY - 1, 0);
-            font = greenFont;
-        }
-        else if (objective.status == 2)
-        {
-            failurePort->copyTo(port()->frame(), 0xb, drawY - 1, 0);
-            font = redFont;
-        }
-        else if (objective.status != 0)
-        {
-            listed = false;
-        }
-
-        if (listed && font != nullptr)
-        {
-            font->writeString(port()->frame(), 0x17, drawY, reinterpret_cast<uint8_t*>(objective.name), -1);
-            const int32_t nameY = drawY;
-            drawY = nameY + 10;
-
-            if (MPlayer == nullptr && objective.points != 0)
-            {
-                std::snprintf(text, sizeof(text), "%i %s", objective.points, pointsName);
-                font->writeString(port()->frame(), 0x1d, nameY + 10, reinterpret_cast<uint8_t*>(text), -1);
-                drawY += 10;
-            }
-            else
-            {
-                drawY = nameY + 0xd;
-            }
         }
     }
 
@@ -2099,17 +2179,7 @@ auto MissionResultsScreen::drawObjectives() -> void
             Solo == 0)
         {
             soundSystem->playBettySample(10);
-            blueFont->writeString(port()->frame(), 0xf, drawY, reinterpret_cast<uint8_t*>(bonusHeader), -1);
-            const int32_t markY = drawY + 10;
-            drawY += 0xb;
-            successPort->copyTo(port()->frame(), 0xb, markY, 0);
-            greenFont->writeString(port()->frame(), 0x17, drawY, reinterpret_cast<uint8_t*>(bonus.name), -1);
-            const int32_t nameY = drawY;
-            drawY = nameY + 10;
-            std::snprintf(text, sizeof(text), "%i %s", bonus.points, pointsName);
-            greenFont->writeString(port()->frame(), 0x1d, nameY + 10, reinterpret_cast<uint8_t*>(text), -1);
             drew = 1;
-            drawY += 0xb;
         }
 
         drawIndex = 0;
@@ -2131,6 +2201,101 @@ auto MissionResultsScreen::drawObjectives() -> void
     }
 }
 
+auto MissionResultsScreen::DrawObjectiveList() -> void
+{
+    char text[256];
+    char pointsName[256];
+    char bonusHeader[256];
+    char secondaryHeader[256];
+    cLoadString(thisInstance, 0x363, pointsName, 0xfe);
+    cLoadString(thisInstance, 0x360, bonusHeader, 0xfe);
+    cLoadString(thisInstance, 0x362, secondaryHeader, 0xfe);
+    int32_t y = 0x92;
+    bool headerDrawn = false;
+
+    // Each step (state 2 or 3, objective 0..numObjectives) the steps have passed, laid out as the original drew them.
+    for (int32_t state = 2; state <= 3; state++)
+    {
+        const uint32_t wantedType = state != 2 ? 1 : 0;
+
+        for (int32_t index = 0; index <= static_cast<int32_t>(scenario->numObjectives); index++)
+        {
+            if (state > drawState || (state == drawState && index >= drawIndex))
+            {
+                return;
+            }
+
+            ScenarioObjective& objective = scenario->objectives[index];
+
+            if (objective.type == wantedType)
+            {
+                if (wantedType == 1 && !headerDrawn)
+                {
+                    medBlueFont->writeString(port()->frame(), 0xf, y, reinterpret_cast<uint8_t*>(secondaryHeader), -1);
+                    headerDrawn = true;
+                    y += 0xe;
+                }
+
+                aFont* font = greyFont;
+                bool listed = true;
+
+                if (objective.status == 1)
+                {
+                    successPort->copyTo(port()->frame(), 0xb, y - 1, 0);
+                    font = greenFont;
+                }
+                else if (objective.status == 2)
+                {
+                    failurePort->copyTo(port()->frame(), 0xb, y - 1, 0);
+                    font = redFont;
+                }
+                else if (objective.status != 0)
+                {
+                    listed = false;
+                }
+
+                if (listed && font != nullptr)
+                {
+                    font->writeString(port()->frame(), 0x17, y, reinterpret_cast<uint8_t*>(objective.name), -1);
+                    const int32_t nameY = y;
+                    y = nameY + 10;
+
+                    if (MPlayer == nullptr && objective.points != 0)
+                    {
+                        std::snprintf(text, sizeof(text), "%i %s", objective.points, pointsName);
+                        font->writeString(port()->frame(), 0x1d, nameY + 10, reinterpret_cast<uint8_t*>(text), -1);
+                        y += 10;
+                    }
+                    else
+                    {
+                        y = nameY + 0xd;
+                    }
+                }
+            }
+
+            if (index == static_cast<int32_t>(scenario->numObjectives))
+            {
+                ScenarioObjective& bonus = scenario->objectives[scenario->numObjectives];
+
+                if (MPlayer == nullptr && state == 3 && bonus.type == 3 && bonus.points > 0 && scenarioResult > 3 &&
+                    Solo == 0)
+                {
+                    blueFont->writeString(port()->frame(), 0xf, y, reinterpret_cast<uint8_t*>(bonusHeader), -1);
+                    const int32_t markY = y + 10;
+                    y += 0xb;
+                    successPort->copyTo(port()->frame(), 0xb, markY, 0);
+                    greenFont->writeString(port()->frame(), 0x17, y, reinterpret_cast<uint8_t*>(bonus.name), -1);
+                    const int32_t nameY = y;
+                    y = nameY + 10;
+                    std::snprintf(text, sizeof(text), "%i %s", bonus.points, pointsName);
+                    greenFont->writeString(port()->frame(), 0x1d, nameY + 10, reinterpret_cast<uint8_t*>(text), -1);
+                    y += 0xb;
+                }
+            }
+        }
+    }
+}
+
 auto MissionResultsScreen::drawPilots() -> void
 {
     const int32_t index = drawIndex;
@@ -2147,126 +2312,7 @@ auto MissionResultsScreen::drawPilots() -> void
 
     if (warrior != nullptr)
     {
-        const auto line = [this](int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t color)
-        { VFX_line_draw(port()->frame(), x0, y0, x1, y1, LD_DRAW, color); };
-        const auto pixel = [this](int32_t x, int32_t y) { AG_pixel_write(port()->frame(), x, y, 0x10); };
-
-        int32_t left;
-        int32_t top;
-
-        if (index < 6)
-        {
-            left = 0xe8;
-            top = index * 0x42 + 0x2c;
-        }
-        else
-        {
-            left = 0x18a;
-            top = index * 0x42 - 0x160;
-        }
-
-        char text[256];
-        uint32_t stringId;
-
-        if (warrior->status == 4)
-        {
-            stringId = 0x356;
-        }
-        else if (warrior->wounds <= 4.0f)
-        {
-            stringId = 0x358;
-        }
-        else
-        {
-            stringId = 0x357;
-        }
-
-        cLoadString(thisInstance, stringId, text, 0xfe);
-        const int32_t textY = top + 3;
-        whiteFont->writeString(port()->frame(), left + 3, textY, reinterpret_cast<uint8_t*>(text), -1);
-
-        // The rank; a rank outside 0..3 leaves the status text in the buffer.
-        const int32_t rank = static_cast<int8_t>(warrior->rank);
-
-        if (rank >= 0 && rank <= 3)
-        {
-            cLoadString(thisInstance, 0x70 + static_cast<uint32_t>(rank), text, 0xfe);
-        }
-
-        aFont* rankFont = pilotResults[drawIndex].oldRank < rank ? yellowFont : whiteFont;
-        rankFont->writeString(port()->frame(), left + 0x39, textY, reinterpret_cast<uint8_t*>(text), -1);
-
-        std::snprintf(text, sizeof(text), "%i", totalKills(warrior));
-        whiteFont->writeString(port()->frame(), left + 0x8c, textY, reinterpret_cast<uint8_t*>(text), -1);
-
-        // A bar per skill: the old value, and the gain in another colour.
-        int32_t barY = top + 0x18;
-
-        for (const int32_t skill : StevesOrderLUT)
-        {
-            const int32_t oldLength = skillBarLength(pilotResults[drawIndex].skills[skill]);
-            const int32_t newLength = skillBarLength(static_cast<int32_t>(warrior->skillRank[skill]));
-            const int32_t barLeft = left + 0x62;
-            line(barLeft, barY - 1, barLeft, barY, 0xe3);
-
-            if (oldLength == newLength)
-            {
-                const int32_t end = oldLength + barLeft;
-                const int32_t fillEnd = end - 2;
-                line(left + 99, barY - 2, fillEnd, barY - 2, 0xe3);
-                pixel(end - 1, barY - 2);
-                line(end, barY - 2, end, barY + 1, 0x10);
-                pixel(end - 1, barY + 1);
-                line(end - 1, barY - 1, end - 1, barY, 0xe3);
-                line(left + 99, barY + 1, fillEnd, barY + 1, 0xe5);
-                line(left + 99, barY - 1, fillEnd, barY - 1, 0xe4);
-                line(left + 99, barY, fillEnd, barY, 0xe4);
-            }
-            else
-            {
-                const int32_t oldEnd = oldLength + barLeft;
-                line(left + 99, barY - 2, oldEnd, barY - 2, 0xe3);
-                line(left + 99, barY - 1, oldEnd, barY - 1, 0xe4);
-                line(left + 99, barY, oldEnd, barY, 0xe4);
-                line(left + 99, barY + 1, oldEnd, barY + 1, 0xe5);
-                const int32_t end = barLeft + newLength;
-                const int32_t gainStart = oldEnd + 1;
-                line(gainStart, barY - 2, end - 2, barY - 2, 0xa3);
-                line(gainStart, barY - 1, end - 2, barY - 1, 0xf2);
-                line(gainStart, barY, end - 2, barY, 0xf2);
-                line(gainStart, barY + 1, end - 2, barY + 1, 0xf1);
-                pixel(end - 1, barY - 2);
-                line(end, barY - 2, end, barY + 1, 0x10);
-                pixel(end - 1, barY + 1);
-                line(end - 1, barY - 2, end - 1, barY + 1, 0xf1);
-            }
-
-            barY += 9;
-        }
-
-        FriendlyMechIcon* icon = theInterface->GetMechIconFromID(warrior->vehicle->partId);
-
-        if (icon != nullptr)
-        {
-            const int32_t status = warrior->status;
-
-            if (status == 3)
-            {
-                icon->pilotImage->init(warrior->picture);
-            }
-
-            icon->draw();
-            insetIconPane(icon, 2);
-            icon->port()->copyTo(port()->frame(), left + 4, top + 0x10, 0);
-            insetIconPane(icon, -2);
-
-            if (status == 3)
-            {
-                icon->pilotImage->init(4);
-                icon->draw();
-            }
-        }
-
+        pilotIcons[static_cast<size_t>(index)] = takeIconPicture(warrior, warrior->vehicle->partId);
         drawIndex++;
     }
 
@@ -2276,7 +2322,110 @@ auto MissionResultsScreen::drawPilots() -> void
     }
 }
 
+auto MissionResultsScreen::DrawPilot(int32_t index) -> void
+{
+    MechWarrior* warrior = pilotResults[index].warrior;
+
+    if (warrior == nullptr)
+    {
+        return;
+    }
+
+    const auto line = [this](int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t color)
+    { VFX_line_draw(port()->frame(), x0, y0, x1, y1, LD_DRAW, color); };
+    const auto pixel = [this](int32_t x, int32_t y) { AG_pixel_write(port()->frame(), x, y, 0x10); };
+
+    int32_t left;
+    int32_t top;
+    pilotBox(index, left, top);
+    char text[256];
+    uint32_t stringId;
+
+    if (warrior->status == 4)
+    {
+        stringId = 0x356;
+    }
+    else if (warrior->wounds <= 4.0f)
+    {
+        stringId = 0x358;
+    }
+    else
+    {
+        stringId = 0x357;
+    }
+
+    cLoadString(thisInstance, stringId, text, 0xfe);
+    const int32_t textY = top + 3;
+    whiteFont->writeString(port()->frame(), left + 3, textY, reinterpret_cast<uint8_t*>(text), -1);
+
+    // The rank; a rank outside 0..3 leaves the status text in the buffer.
+    const int32_t rank = static_cast<int8_t>(warrior->rank);
+
+    if (rank >= 0 && rank <= 3)
+    {
+        cLoadString(thisInstance, 0x70 + static_cast<uint32_t>(rank), text, 0xfe);
+    }
+
+    aFont* rankFont = pilotResults[index].oldRank < rank ? yellowFont : whiteFont;
+    rankFont->writeString(port()->frame(), left + 0x39, textY, reinterpret_cast<uint8_t*>(text), -1);
+
+    std::snprintf(text, sizeof(text), "%i", totalKills(warrior));
+    whiteFont->writeString(port()->frame(), left + 0x8c, textY, reinterpret_cast<uint8_t*>(text), -1);
+
+    // A bar per skill: the old value, and the gain in another colour.
+    int32_t barY = top + 0x18;
+
+    for (const int32_t skill : StevesOrderLUT)
+    {
+        const int32_t oldLength = skillBarLength(pilotResults[index].skills[skill]);
+        const int32_t newLength = skillBarLength(static_cast<int32_t>(warrior->skillRank[skill]));
+        const int32_t barLeft = left + 0x62;
+        line(barLeft, barY - 1, barLeft, barY, 0xe3);
+
+        if (oldLength == newLength)
+        {
+            const int32_t end = oldLength + barLeft;
+            const int32_t fillEnd = end - 2;
+            line(left + 99, barY - 2, fillEnd, barY - 2, 0xe3);
+            pixel(end - 1, barY - 2);
+            line(end, barY - 2, end, barY + 1, 0x10);
+            pixel(end - 1, barY + 1);
+            line(end - 1, barY - 1, end - 1, barY, 0xe3);
+            line(left + 99, barY + 1, fillEnd, barY + 1, 0xe5);
+            line(left + 99, barY - 1, fillEnd, barY - 1, 0xe4);
+            line(left + 99, barY, fillEnd, barY, 0xe4);
+        }
+        else
+        {
+            const int32_t oldEnd = oldLength + barLeft;
+            line(left + 99, barY - 2, oldEnd, barY - 2, 0xe3);
+            line(left + 99, barY - 1, oldEnd, barY - 1, 0xe4);
+            line(left + 99, barY, oldEnd, barY, 0xe4);
+            line(left + 99, barY + 1, oldEnd, barY + 1, 0xe5);
+            const int32_t end = barLeft + newLength;
+            const int32_t gainStart = oldEnd + 1;
+            line(gainStart, barY - 2, end - 2, barY - 2, 0xa3);
+            line(gainStart, barY - 1, end - 2, barY - 1, 0xf2);
+            line(gainStart, barY, end - 2, barY, 0xf2);
+            line(gainStart, barY + 1, end - 2, barY + 1, 0xf1);
+            pixel(end - 1, barY - 2);
+            line(end, barY - 2, end, barY + 1, 0x10);
+            pixel(end - 1, barY + 1);
+            line(end - 1, barY - 2, end - 1, barY + 1, 0xf1);
+        }
+
+        barY += 9;
+    }
+
+    drawIconPicture(pilotIcons[static_cast<size_t>(index)], port()->frame(), left + 4, top + 0x10);
+}
+
 auto MissionResultsScreen::drawMPPilots(int showHomeSide) -> void
+{
+    mpShowHomeSide = showHomeSide;
+}
+
+auto MissionResultsScreen::DrawMPPilotList() -> void
 {
     const auto line = [this](int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t color)
     { VFX_line_draw(port()->frame(), x0, y0, x1, y1, LD_DRAW, color); };
@@ -2331,7 +2480,7 @@ auto MissionResultsScreen::drawMPPilots(int showHomeSide) -> void
 
         const bool homeSide = warrior->alignment == homeTeam->alignment;
 
-        if (homeSide != (showHomeSide != 0))
+        if (homeSide != (mpShowHomeSide != 0))
         {
             continue;
         }
@@ -2374,33 +2523,54 @@ auto MissionResultsScreen::drawMPPilots(int showHomeSide) -> void
             barY += 9;
         }
 
-        FriendlyMechIcon* icon = theInterface->GetMechIconFromID(mover->partId);
-
-        if (icon != nullptr)
-        {
-            if (warrior->status == 3)
-            {
-                if (showHomeSide == 0)
-                {
-                    icon->draw();
-                }
-
-                icon->pilotImage->init(warrior->picture);
-            }
-
-            icon->draw();
-            insetIconPane(icon, 2);
-            icon->port()->copyTo(port()->frame(), left + 4, top + 0x10, 0);
-            insetIconPane(icon, -2);
-
-            if (warrior->status == 3)
-            {
-                icon->pilotImage->init(4);
-                icon->draw();
-            }
-        }
-
+        drawIconPicture(pilotIcons[static_cast<size_t>(i)], port()->frame(), left + 4, top + 0x10);
         rowBase += 0x42;
+    }
+}
+
+auto MissionResultsScreen::DrawMPSummary() -> void
+{
+    char text[256];
+
+    // Port fix: MCX.EXE reads the best pilot without checking there is one.
+    if (numPilotResults > 0)
+    {
+        // The best pilot.
+        MechWarrior* best = pilotResults[0].warrior;
+        auto* bestMover = static_cast<Mover*>(best->vehicle);
+        medWhiteFont->writeString(port()->frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->netName), 0x68);
+        cLoadString(thisInstance, best->alignment == homeTeam->alignment ? 0xb6 : 0xb7, text, 0xfe);
+        medWhiteFont->writeString(port()->frame(), 0x70, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
+        std::snprintf(text, sizeof(text), "%i", pilotResults[0].oldRank);
+        medWhiteFont->writeString(port()->frame(), 0xca, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
+        drawIconPicture(bestPilotIcon, port()->frame(), 0xb, 0x2f);
+    }
+
+    const int32_t statistics[5] = {enemyMechsHit, enemyMechsDestroyed, enemyPilotsKilled, playerMechsHit,
+                                   playerMechsDestroyed};
+    static constexpr int32_t statisticY[5] = {100, 0x70, 0x7c, 0x88, 0x94};
+
+    for (int32_t i = 0; i < 5; i++)
+    {
+        std::snprintf(text, sizeof(text), "%i", statistics[i]);
+        medWhiteFont->writeString(port()->frame(), 0xcc, statisticY[i], reinterpret_cast<uint8_t*>(text), -1);
+    }
+
+    medWhiteFont->writeString(port()->frame(), 0xb8, 0xa0, reinterpret_cast<uint8_t*>(timeText), -1);
+
+    // The commanders by kills.
+    int32_t row = 0;
+
+    for (const CommanderLine& commander : commanderLines)
+    {
+        std::snprintf(text, sizeof(text), "%i.", commander.place);
+        const int32_t rowY = static_cast<int16_t>(row) * 0xc + 0xbe;
+        medBlueFont->writeString(port()->frame(), 0x1a, rowY, reinterpret_cast<uint8_t*>(text), -1);
+        std::snprintf(text, sizeof(text), "%s", commander.name.c_str());
+        medWhiteFont->writeString(port()->frame(), 0x28, rowY, reinterpret_cast<uint8_t*>(text), 0x68);
+        std::snprintf(text, sizeof(text), "%i", commander.score);
+        medWhiteFont->writeString(port()->frame(), 0xcc, rowY, reinterpret_cast<uint8_t*>(text), -1);
+        row++;
     }
 }
 
@@ -2445,9 +2615,8 @@ auto MissionResultsScreen::activate() -> int32_t
                                                       : const_cast<char*>("mrm_ms00.tga"));
     }
 
+    // (The original copied the label onto the window here and freed it; draw shows it.)
     moveOnButton->draw();
-    moveOnPort->copyTo(port()->frame(), 4, 4, 1);
-    deletePort(moveOnPort);
 
     if (MPlayer == nullptr)
     {
@@ -2609,6 +2778,8 @@ auto MissionResultsScreen::activate() -> int32_t
 
         numPilotResults = filled;
         std::qsort(pilotResults, static_cast<size_t>(numPilotResults), sizeof(MissionPilotResult), ComparePilots);
+        pilotIcons.assign(static_cast<size_t>(numPilotResults), nullptr);
+        shownResourcePoints = -1;
 
         // Only the first nine objectives' points count.
         resourcePointsEarned = 0;
@@ -2754,59 +2925,33 @@ auto MissionResultsScreen::activate() -> int32_t
         Assert(numPilotResults == filled, static_cast<uint32_t>(numPilotResults), " warriorcount != warriorcount2! ");
         std::qsort(pilotResults, static_cast<size_t>(numPilotResults), sizeof(MissionPilotResult), ComparePilots);
 
-        char text[256];
-
+        // (The original drew the summary, the home side's pilots and the objectives into the window's picture here;
+        // draw shows them each frame from what is kept below.)
         // Port fix: MCX.EXE reads the best pilot without checking there is one.
         if (numPilotResults > 0)
         {
-            // The best pilot.
             MechWarrior* best = pilotResults[0].warrior;
-            auto* bestMover = static_cast<Mover*>(best->vehicle);
-            medWhiteFont->writeString(port()->frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->netName),
-                                      0x68);
-            cLoadString(thisInstance, best->alignment == homeTeam->alignment ? 0xb6 : 0xb7, text, 0xfe);
-            medWhiteFont->writeString(port()->frame(), 0x70, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
-            std::snprintf(text, sizeof(text), "%i", pilotResults[0].oldRank);
-            medWhiteFont->writeString(port()->frame(), 0xca, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
-            FriendlyMechIcon* icon = theInterface->GetMechIconFromID(bestMover->partId);
+            bestPilotIcon = takeIconPicture(best, static_cast<Mover*>(best->vehicle)->partId);
+        }
 
-            if (icon != nullptr)
+        pilotIcons.assign(static_cast<size_t>(numPilotResults), nullptr);
+
+        for (int32_t i = 0; i < numPilotResults; i++)
+        {
+            MechWarrior* warrior = pilotResults[i].warrior;
+
+            if (warrior != nullptr)
             {
-                if (best->status == 3)
-                {
-                    icon->pilotImage->init(best->picture);
-                }
-
-                icon->draw();
-                insetIconPane(icon, 2);
-                icon->port()->copyTo(port()->frame(), 0xb, 0x2f, 0);
-
-                if (best->status == 3)
-                {
-                    icon->pilotImage->init(4);
-                    icon->draw();
-                }
-
-                insetIconPane(icon, -2);
+                pilotIcons[static_cast<size_t>(i)] =
+                    takeIconPicture(warrior, static_cast<Mover*>(warrior->vehicle)->partId);
             }
         }
 
-        const int32_t statistics[5] = {enemyMechsHit, enemyMechsDestroyed, enemyPilotsKilled, playerMechsHit,
-                                       playerMechsDestroyed};
-        static constexpr int32_t statisticY[5] = {100, 0x70, 0x7c, 0x88, 0x94};
-
-        for (int32_t i = 0; i < 5; i++)
-        {
-            std::snprintf(text, sizeof(text), "%i", statistics[i]);
-            medWhiteFont->writeString(port()->frame(), 0xcc, statisticY[i], reinterpret_cast<uint8_t*>(text), -1);
-        }
-
         const int32_t seconds = static_cast<int32_t>(std::fmod(static_cast<double>(actualTime), 60.0));
-        std::snprintf(text, sizeof(text), "%02i:%02i", static_cast<int32_t>(actualTime) / 60, seconds);
-        medWhiteFont->writeString(port()->frame(), 0xb8, 0xa0, reinterpret_cast<uint8_t*>(text), -1);
+        std::snprintf(timeText, sizeof(timeText), "%02i:%02i", static_cast<int32_t>(actualTime) / 60, seconds);
 
         // The commanders by kills.
-        int32_t row = 0;
+        commanderLines.clear();
 
         for (int32_t i = 0; i < 6; i++)
         {
@@ -2815,19 +2960,12 @@ auto MissionResultsScreen::activate() -> int32_t
                 continue;
             }
 
-            std::snprintf(text, sizeof(text), "%i.", i + 1);
-            const int32_t rowY = static_cast<int16_t>(row) * 0xc + 0xbe;
-            medBlueFont->writeString(port()->frame(), 0x1a, rowY, reinterpret_cast<uint8_t*>(text), -1);
             FIDPPlayer* player = MPlayer->sessionManager->GetPlayerNumber(scores[i].commanderId);
-            medWhiteFont->writeString(port()->frame(), 0x28, rowY, reinterpret_cast<uint8_t*>(player->name), 0x68);
-            std::snprintf(text, sizeof(text), "%i", scores[i].score);
-            medWhiteFont->writeString(port()->frame(), 0xcc, rowY, reinterpret_cast<uint8_t*>(text), -1);
-            row++;
+            commanderLines.push_back({i + 1, player->name, scores[i].score});
         }
 
         drawMPPilots(1);
         drawY = 0x11d;
-        drawMPObjectives();
         soundSystem->playBettySample(homeSideLost(scenarioResult) ? 0xb : 0x12);
     }
 
@@ -2851,6 +2989,11 @@ auto MissionResultsScreen::drawMPObjectives() -> void
     cLoadString(thisInstance, 0x360, bonusHeader, 0xfe);
     cLoadString(thisInstance, 0x362, secondaryHeader, 0xfe);
 
+    // (The original drew once, stepping drawY and objectivesHeaderDrawn; draw calls this each frame, so it lays out
+    // from locals.)
+    int32_t y = drawY;
+    int32_t headerDrawn = objectivesHeaderDrawn;
+
     // Only the primary objectives (type 0) of the home team are listed; the loop over the types stops after the
     // first, so the secondary header below is never drawn.
     for (uint32_t type = 0; type < 1; type++)
@@ -2867,23 +3010,23 @@ auto MissionResultsScreen::drawMPObjectives() -> void
                 continue;
             }
 
-            if (type == 1 && objectivesHeaderDrawn == 0)
+            if (type == 1 && headerDrawn == 0)
             {
-                medBlueFont->writeString(port()->frame(), 0xf, drawY, reinterpret_cast<uint8_t*>(secondaryHeader), -1);
-                objectivesHeaderDrawn = 1;
-                drawY += 0xe;
+                medBlueFont->writeString(port()->frame(), 0xf, y, reinterpret_cast<uint8_t*>(secondaryHeader), -1);
+                headerDrawn = 1;
+                y += 0xe;
             }
 
             aFont* font = greyFont;
 
             if (objective.status == 1)
             {
-                successPort->copyTo(port()->frame(), 0xb, drawY - 1, 0);
+                successPort->copyTo(port()->frame(), 0xb, y - 1, 0);
                 font = greenFont;
             }
             else if (objective.status == 2)
             {
-                failurePort->copyTo(port()->frame(), 0xb, drawY - 1, 0);
+                failurePort->copyTo(port()->frame(), 0xb, y - 1, 0);
                 font = redFont;
             }
             else if (objective.status != 0)
@@ -2893,8 +3036,8 @@ auto MissionResultsScreen::drawMPObjectives() -> void
 
             if (font != nullptr)
             {
-                font->writeString(port()->frame(), 0x17, drawY, reinterpret_cast<uint8_t*>(objective.name), -1);
-                drawY += 0xd;
+                font->writeString(port()->frame(), 0x17, y, reinterpret_cast<uint8_t*>(objective.name), -1);
+                y += 0xd;
             }
         }
     }

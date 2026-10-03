@@ -1,11 +1,13 @@
 #include "stdafx.h"
 #include "gui/ahelp.h"
 #include "appear/appear.h"
+#include "camera/camera.h"
 #include "engine/font.h"
 #include "gui/aport.h"
 #include "lib/heap.h"
 #include "main/main.h"
 #include "object/bridge.h"
+#include "platform/MCFrameLog.h"
 #include "vfx/vfxfuncs.h"
 
 auto aFloatHelp::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
@@ -21,8 +23,13 @@ auto aFloatHelp::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height,
 
 auto aFloatHelp::tossBitmaps() -> void
 {
-    guiHeap->free(port()->frame()->window->buffer);
-    port()->frame()->window->buffer = nullptr;
+    // Port: a tag draws itself through a view, which has no pixels to free.
+    if (port()->frame()->window->buffer != nullptr)
+    {
+        MCRenderer::DestroyTexture(port()->frame()->window);
+        guiHeap->free(port()->frame()->window->buffer);
+        port()->frame()->window->buffer = nullptr;
+    }
 }
 
 auto aFloatHelp::draw() -> void
@@ -67,12 +74,18 @@ auto aFloatHelp::display() -> void
 
     float screenX;
     float screenY;
+    // Port: the tag sits on the screen where the main view shows the object (through the zoom); its offsets are in
+    // screen pixels.
+    viewWindow* view = MCMainView();
+    const auto shown = [view](vector_2d point) { return view != nullptr ? view->WorldToScreen(point) : point; };
 
     if (helpObject->objectClass == MISCTERRAINOBJECT)
     {
         vector_2d screenPos = static_cast<MiscTerrainObject*>(helpObject)->getScreenPos();
+        screenPos.y += 90.0f;
+        screenPos = shown(screenPos);
         screenX = screenPos.x;
-        screenY = screenPos.y + 90.0f;
+        screenY = screenPos.y;
     }
     else
     {
@@ -82,13 +95,15 @@ auto aFloatHelp::display() -> void
         }
 
         vector_2d screenPos = helpObject->getScreenPos(0);
-        screenX = screenPos.x;
-        screenY = screenPos.y;
 
         if (Appearance* appearance = helpObject->getAppearance())
         {
-            screenY = appearance->lowerRight.y;
+            screenPos.y = appearance->lowerRight.y;
         }
+
+        screenPos = shown(screenPos);
+        screenX = screenPos.x;
+        screenY = screenPos.y;
 
         switch (helpObject->objectClass)
         {
@@ -112,6 +127,13 @@ auto aFloatHelp::display() -> void
 
 auto aFloatHelp::SetHelpText(char* text) -> void
 {
+    if (MCFrameLog::Enabled() && std::strncmp(helpText, text, 0x3f) != 0)
+    {
+        std::string shown = text;
+        std::ranges::replace(shown, '\n', '/');
+        MCFrameLog::Note(std::format("tag text now '{}'", shown));
+    }
+
     if (strlen(text) < 0x40)
     {
         strcpy(helpText, text);
@@ -148,7 +170,6 @@ auto aFloatHelp::SetHelpText(char* text) -> void
 
             if (height() == numLines * lineHeight)
             {
-                draw();
                 return;
             }
         }
@@ -163,6 +184,4 @@ auto aFloatHelp::SetHelpText(char* text) -> void
         fontHeight &= 0xff;
         resize(lineFont->printWidth(helpText, -1) + 4, (fontHeight + 2) * numLines);
     }
-
-    draw();
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform/MCPresenter.h"
+
 /// <summary>How <see cref="MCDisplay::Create"/> opens the window.</summary>
 struct MCDisplayOptions
 {
@@ -30,15 +32,8 @@ struct MCDisplayOptions
     /// screen starts at the window's size in pixels. The window is never resized to fit the screen.
     /// </summary>
     bool FollowWindow = false;
-};
-
-/// <summary>A rectangle in window pixels where the logical screen is shown.</summary>
-struct MCViewport
-{
-    float X = 0.0f;
-    float Y = 0.0f;
-    float W = 0.0f;
-    float H = 0.0f;
+    /// <summary>The renderer asked for; Vulkan falls back to software when it can't start.</summary>
+    MCRendererKind Renderer = MCRendererKind::Vulkan;
 };
 
 /// <summary>
@@ -48,9 +43,12 @@ struct MCViewport
 /// <remarks>
 /// <para>The game draws every frame into one 8-bit buffer, the VFX <c>_window</c> <see cref="Screen"/> returns,
 /// <see cref="Width"/> x <see cref="Height"/> palette indices with a pitch of <see cref="Width"/>. <see cref="Present"/>
-/// uploads it to an <c>SDL_PIXELFORMAT_INDEX8</c> streaming texture and draws it with SDL's GPU renderer (Vulkan):
-/// the palette lookup happens on the GPU, and <c>SDL_SetRenderLogicalPresentation</c> scales the screen to the
-/// window with borders (letterbox), sampling the nearest pixel unless <see cref="MCDisplayOptions::LinearFilter"/>.</para>
+/// hands it to the presenter of the renderer in use (<see cref="MCPresenter"/>), with its op plane, its underlays
+/// (<see cref="MCRenderer::Underlays"/>: the world view, drawn at 1x into a surface of its own) and the palette.
+/// Vulkan (<see cref="MCVulkanPresenter"/>) composites them in a shader and scales the shown view into the window;
+/// software (<see cref="MCSdlPresenter"/>) composites on the CPU (<see cref="ComposeScreen"/>) and shows the result
+/// with SDL's 2D renderer. Either way the view is letterboxed into the window, nearest unless
+/// <see cref="MCDisplayOptions::LinearFilter"/>.</para>
 /// <para>Threads: <see cref="SetPalette"/>, <see cref="Screen"/> and the getters may be called from any thread
 /// (the palette is guarded); everything else, <see cref="Present"/> included, from the thread that created the
 /// display (SDL's video thread).</para>
@@ -68,8 +66,17 @@ public:
     /// <summary>The SDL window.</summary>
     SDL_Window* Window() const { return _Window; }
 
-    /// <summary>The SDL renderer.</summary>
-    SDL_Renderer* Renderer() const { return _Renderer; }
+    /// <summary>The renderer in use (Vulkan, or software when asked for or when Vulkan couldn't start).</summary>
+    MCRendererKind RendererKind() const { return _Presenter->Kind(); }
+
+    /// <summary>The renderer in use, for logs.</summary>
+    std::string RendererName() const { return _Presenter->Name(); }
+
+    /// <summary>
+    /// Sets the window's title (the original's <c>SetWindowTextA</c>), with the renderer in use after it
+    /// ("... [Vulkan]", "... [Software]").
+    /// </summary>
+    void SetTitle(const char* title);
 
     /// <summary>Whether the logical screen follows the window (<see cref="MCDisplayOptions::FollowWindow"/>).</summary>
     bool FollowsWindow() const { return _FollowWindow; }
@@ -145,7 +152,23 @@ public:
     /// <summary>The gamma set last.</summary>
     float Gamma() const { return _Gamma; }
 
-    /// <summary>The 256 colours as they are shown: the palette through the gamma and brightness.</summary>
+    /// <summary>
+    /// Sets the colour cycle shown over the palette (the water's): takes effect at the next <see cref="Present"/>
+    /// without changing the palette.
+    /// </summary>
+    void SetColorCycle(const MCColorCycle& cycle);
+
+    /// <summary>
+    /// Fades the whole picture toward black: <paramref name="levels"/> (0 none .. 255 black) are taken off every shown
+    /// colour's components, by the presenter (the composite shader on the GPU), whatever the surfaces hold. Takes effect
+    /// at the next <see cref="Present"/>; the palette isn't changed.
+    /// </summary>
+    void SetFade(int levels);
+
+    /// <summary>The fade set last.</summary>
+    int Fade() const { return _Fade; }
+
+    /// <summary>The 256 colours as they are shown: the palette through the gamma and brightness, then the cycle.</summary>
     void GetShownColors(SDL_Color* out) const;
 
     /// <summary>
@@ -172,8 +195,27 @@ public:
     /// <summary>Turns waiting for the display's refresh on or off.</summary>
     void SetVSync(bool on);
 
-    /// <summary>Writes the screen as it is now as an 8-bit PNG with its palette (the game's screenshot key).</summary>
+    /// <summary>
+    /// Writes the shown view as it is now (the screen with its underlays, at the screen's size) as an 8-bit PNG with its
+    /// palette (the game's screenshot key).
+    /// </summary>
     std::expected<void, std::string> SaveScreenshot(const std::filesystem::path& path) const;
+
+    /// <summary>
+    /// The whole screen as the player sees it, at the screen's size: its pixels with the underlays' pixels in place of
+    /// the key, as <see cref="Present"/> shows them (nearest). When the GPU draws the frame, read back from it (what was
+    /// drawn so far is run first).
+    /// </summary>
+    std::vector<uint8_t> ComposeScreen() const;
+
+    /// <summary>Whether the screen's underlays are composited by the shader (else by the CPU).</summary>
+    bool CompositesOnGpu() const { return _Presenter->CompositesOnGpu(); }
+
+    /// <summary>
+    /// Draws the frame as <see cref="Present"/> would, at the screen's size, into an offscreen texture and reads it
+    /// back as RGBA (tests compare it with <see cref="ComposeScreen"/>).
+    /// </summary>
+    std::expected<std::vector<SDL_Color>, std::string> ReadFrame();
 
     /// <summary>
     /// Maps a point in window coordinates (as SDL's mouse events give them) to the logical screen.
@@ -184,31 +226,47 @@ public:
     /// <summary>Maps a point of the logical screen to window coordinates (for warping and clipping the mouse).</summary>
     void LogicalToWindow(float logicalX, float logicalY, float& windowX, float& windowY) const;
 
-    /// <summary>
-    /// Where a letterboxed logical screen lands in an output of <paramref name="outputWidth"/> x
-    /// <paramref name="outputHeight"/>: the largest scale that fits (a whole one with <paramref name="integerScale"/>),
-    /// centred. The same rule SDL's <c>SDL_LOGICAL_PRESENTATION_LETTERBOX</c> follows.
-    /// </summary>
-    static MCViewport ComputeLetterbox(int outputWidth, int outputHeight, int logicalWidth, int logicalHeight,
-                                       bool integerScale);
-
     /// <summary>Maps an output point through a viewport to the logical screen (the pure form of <see cref="WindowToLogical"/>).</summary>
     static bool MapToLogical(const MCViewport& viewport, int logicalWidth, int logicalHeight, float x, float y,
                              float& logicalX, float& logicalY);
 
+    /// <summary>
+    /// Tests: called at the start of each <see cref="Present"/>, with the screen as it is about to be shown (frames
+    /// drawn inside the game's own loops, such as the logistics screen wipes, are seen too).
+    /// </summary>
+    std::function<void()> OnPresent;
+
 private:
     MCDisplay() = default;
 
-    std::expected<void, std::string> CreateTexture();
-    void ApplyPresentation();
+    /// <summary>Resizes the window to the screen's size times its scale (windowed, not following the window).</summary>
     void ResizeWindowToScale();
+    /// <summary>Makes the screen's buffer and op plane for its size.</summary>
+    void MakeScreen();
+    /// <summary>
+    /// This frame for the presenter: the screen, its ops, its underlays and the colours as shown (marked changed when
+    /// they changed since the last frame, or always with <paramref name="allColors"/>).
+    /// </summary>
+    MCFrame BuildFrame(bool allColors);
+    /// <summary>The underlays shown on the screen now (those that lie under it and have pixels).</summary>
+    std::vector<MCUnderlay> ScreenUnderlays() const;
+    /// <summary>
+    /// Ends the colour cycle when palette entries <paramref name="first"/>.. (<paramref name="count"/> of them) cover
+    /// any it remaps: setting them replaced the animated colours. Called with the palette lock held.
+    /// </summary>
+    void EndCycleOver(int first, int count);
+    /// <summary>Where the shown view lands in the window, in window pixels.</summary>
+    MCViewport ShownViewport() const;
 
     SDL_Window* _Window = nullptr;
-    SDL_Renderer* _Renderer = nullptr;
-    SDL_Texture* _Texture = nullptr;
-    /// <summary>With linear filtering: the screen converted to RGBA at logical size, which is then scaled.</summary>
-    SDL_Texture* _Target = nullptr;
-    SDL_Palette* _SdlPalette = nullptr;
+    std::unique_ptr<MCPresenter> _Presenter;
+    /// <summary>The screen's op plane (see <see cref="MCRenderer::SetOpPlane"/>).</summary>
+    std::vector<uint8_t> _Ops;
+    /// <summary>This frame's underlays on the screen, and the colours as shown.</summary>
+    std::vector<MCUnderlay> _FrameUnderlays;
+    std::array<SDL_Color, 256> _ShownColors{};
+    /// <summary>The palette's colours as shown, before the cycle.</summary>
+    std::array<SDL_Color, 256> _PaletteColors{};
 
     int _Width = 0;
     int _Height = 0;
@@ -219,15 +277,16 @@ private:
     int _MinWidth = 0;
     int _MinHeight = 0;
     bool _FollowWindow = false;
-    bool _IntegerScale = false;
-    bool _Stretch = false;
-    bool _Linear = false;
     std::vector<uint8_t> _Pixels;
     _window _Screen{};
 
     mutable std::mutex _PaletteLock;
     std::array<VFX_RGB, 256> _Palette{};
     bool _PaletteDirty = true;
+    MCColorCycle _Cycle;
+    bool _CycleDirty = false;
     float _Gamma = 1.0f;
     float _Brightness = 1.0f;
+    /// <summary>The screen fade (<see cref="SetFade"/>).</summary>
+    std::atomic<int> _Fade = 0;
 };

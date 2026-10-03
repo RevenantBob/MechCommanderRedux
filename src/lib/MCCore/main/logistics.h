@@ -795,8 +795,16 @@ public:
     /// <remarks>MCX.EXE @ 0x00700330</remarks>
     void setPlayerStatus(uint32_t playerID, int32_t status);
 
+    /// <summary>
+    /// Paints the lights: each player's numbered light, lit (<c>lsc_ph</c>) or blinking over it, and the backing
+    /// (<c>lsc_p0</c>) into the parent. Port: draws the lights from the state each frame; the parent screen draws the
+    /// backing (<see cref="Logistics::drawScreenChrome"/>).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x007003b0</remarks>
     void draw() override;
+
+    /// <summary>Port: the lights draw themselves each frame (their port is a view).</summary>
+    bool DrawsLive() override { return true; }
 
     /// <summary>The blink timer toggles the blink; pointing at a light shows the player's name on the ticker.</summary>
     /// <remarks>MCX.EXE @ 0x00700620</remarks>
@@ -886,9 +894,24 @@ public:
     /// <remarks>MCX.EXE @ 0x006f3780</remarks>
     int32_t setUpPurchaseScreen(int mode);
 
-    /// <summary>Draws the screen switch buttons for the current screen.</summary>
+    /// <summary>
+    /// Painted the screen switch buttons on the current screen: each normal, the current screen's grayed, none lit.
+    /// Port: the buttons are drawn each frame (<see cref="drawScreenChrome"/>); this puts out the lit one.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006f3c30</remarks>
     void drawScreenButtons();
+
+    /// <summary>
+    /// Port: screen button <paramref name="button"/> of <paramref name="screen"/> is under the mouse and shows lit
+    /// (the original copied the lit picture over it).
+    /// </summary>
+    void hoverScreenButton(lObject* screen, int32_t button);
+
+    /// <summary>
+    /// Port: draws the shared places of <paramref name="screen"/> from the state (<see cref="LogScreenChrome"/>): the
+    /// multiplayer lights' backing, the screen buttons, the ticker line, the resource points and the clock.
+    /// </summary>
+    void drawScreenChrome(lObject* screen, _pane* target);
 
     /// <summary>Switches to the briefing screen.</summary>
     /// <remarks>MCX.EXE @ 0x006f3dc0 (original name lost)</remarks>
@@ -947,6 +970,14 @@ public:
     /// <summary>Darkens <paramref name="port"/> through the fade table.</summary>
     /// <remarks>MCX.EXE @ 0x006fd090</remarks>
     void darken(int32_t amount, char* fadeTable, lPort* port);
+
+    /// <summary>
+    /// Port: <see cref="darken"/> of a <paramref name="width"/> x <paramref name="height"/> block of
+    /// <paramref name="port"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>), drawn in place: the fade
+    /// table's translate polygon over the block (the original copied the block out, translated it and copied it back,
+    /// which comes out the same). On the GPU it is one blended quad.
+    /// </summary>
+    static void DarkenRect(lPort* port, int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* fadeTable);
 
     /// <summary>Renumbers the component inventory's copies.</summary>
     /// <remarks>MCX.EXE @ 0x006fd200</remarks>

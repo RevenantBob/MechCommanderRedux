@@ -55,10 +55,25 @@ public:
     /// <remarks>MCX.EXE @ 0x006c9430</remarks>
     void SetFullUpdate(int fullUpdate);
 
+    /// <summary>Port: icons draw themselves each frame (see <see cref="DrawIcon"/>).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: brings what the icon shows up to date with its mover: the part colours (and, for a friendly icon, the
+    /// wounded or dead portrait). The original did this as it drew, every 500 ms; it runs every frame now.
+    /// </summary>
+    virtual void UpdateModel();
+
+    /// <summary>
+    /// Port: draws the icon into <paramref name="target"/>: its port's view in the frame pass, or a picture (the
+    /// mission results screen copies the icon). What <see cref="draw"/> drew into the icon's picture.
+    /// </summary>
+    virtual void DrawIcon(aPort* target);
+
 protected:
-    /// <summary>Draws each body part's shape in its colour (translucent unless undamaged).</summary>
+    /// <summary>Draws each body part's shape in its colour (translucent unless undamaged) into <paramref name="target"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006c8ea0</remarks>
-    void DrawParts();
+    void DrawParts(aPort* target);
     /// <summary>Picks each body part's colour from its armour left (green, yellow, orange, red, destroyed).</summary>
     /// <remarks>MCX.EXE @ 0x006c9150</remarks>
     void GetColors();
@@ -128,13 +143,21 @@ public:
     /// <remarks>MCX.EXE @ 0x006c9bf0</remarks>
     void SetID(int32_t partId);
 
+    /// <summary>Port: the part colours, then the portrait switched to the wounded or dead image (once each).</summary>
+    void UpdateModel() override;
+    /// <summary>
+    /// Port: the background (<see cref="iconBackground"/>), weapon bar, damage diagram, lance colour strip, then the
+    /// pilot (or the mover's name).
+    /// </summary>
+    void DrawIcon(aPort* target) override;
+
 protected:
-    /// <summary>The pilot portrait (switched to the wounded or dead image), health bar and name.</summary>
+    /// <summary>The pilot portrait, health bar and name, into <paramref name="target"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006c9920</remarks>
-    void DrawPilot();
-    /// <summary>The weapon recycle bar.</summary>
+    void DrawPilot(aPort* target);
+    /// <summary>The weapon recycle bar, into <paramref name="target"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006c9a90</remarks>
-    void DrawWeapon();
+    void DrawWeapon(aPort* target);
 
 public:
     /// <summary>Nonzero once the mover is in play (the icon is shown and counts in its lance).</summary>
@@ -153,6 +176,11 @@ public:
     int32_t showingDeadPilot = 0; // +0x530
     /// <summary>Set once the portrait was switched to the wounded pilot image.</summary>
     int32_t showingWoundedPilot = 0; // +0x534
+    /// <summary>
+    /// Port: the icon's background (<c>guiub00.tga</c>), which the original loaded into the icon's own picture and
+    /// drew over.
+    /// </summary>
+    aPort* iconBackground = nullptr;
 };
 
 /// <summary>A salvage craft's marker: draws every object in its list at the object's screen position.</summary>
@@ -388,12 +416,19 @@ public:
     /// <remarks>MCX.EXE @ 0x006cc4c0</remarks>
     void handleEvent(aEvent* event);
     /// <summary>
-    /// The zoom-in key: the main camera goes to full scale and the tool palette's zoom button flips. Inline in
-    /// <see cref="handleEvent"/> in the original; split out so the mouse wheel can share it.
+    /// The zoom-in key: the camera's view shows <paramref name="factor"/> times fewer lines of the world (eased), down
+    /// to the closest zoom, with the original's sound; the tactical map's zoom button follows. Inline in
+    /// <see cref="handleEvent"/> in the original (which switched the camera between scales 100 and 1); split out so
+    /// the mouse wheel can share it.
     /// </summary>
-    void ZoomIn();
-    /// <summary>The zoom-out key, as <see cref="ZoomIn"/>: the main camera goes to scale 1.</summary>
-    void ZoomOut();
+    void ZoomIn(float factor = ZoomKeyStep, bool sound = true);
+    /// <summary>The zoom-out key, as <see cref="ZoomIn"/>: <paramref name="factor"/> times more lines. The wheel
+    /// zooms without the sound.</summary>
+    void ZoomOut(float factor = ZoomKeyStep, bool sound = true);
+    /// <summary>How far a zoom key press zooms (about four presses from one end to the other).</summary>
+    static constexpr float ZoomKeyStep = 1.5f;
+    /// <summary>How far a notch of the mouse wheel zooms.</summary>
+    static constexpr float ZoomWheelStep = 1.1f;
 
     /// <summary>Makes the command parser, starts the scroll callback and the lance icons.</summary>
     /// <remarks>MCX.EXE @ 0x006d01c0</remarks>

@@ -32,97 +32,6 @@ namespace
         return info;
     }
 
-    /// <summary>Steps over one encoded row (up to and past its end token).</summary>
-    const uint8_t* SkipRow(const uint8_t* data)
-    {
-        for (;;)
-        {
-            const uint8_t token = *data++;
-            const uint32_t count = token >> 1;
-
-            if (count == 0)
-            {
-                if ((token & 1) == 0)
-                {
-                    return data;
-                }
-
-                ++data; // skip: the count byte
-            }
-            else if (token & 1)
-            {
-                data += count; // literal pixels
-            }
-            else
-            {
-                ++data; // run: its colour
-            }
-        }
-    }
-
-    /// <summary>
-    /// Draws one encoded row starting at window column <paramref name="x"/> into <paramref name="row"/> (the window
-    /// row's first pixel), writing only columns cx0..cx1, each pixel mapped through <paramref name="xlat"/> when it
-    /// isn't null.
-    /// </summary>
-    /// <returns>The next row's first token.</returns>
-    /// <remarks>
-    /// The asm has separate loops for rows needing no clipping, left clipping, right clipping and both, chosen from the
-    /// shape's bounds; they write the same pixels as this single loop for every shape whose rows stay within its
-    /// bounds. Port fix: a row running past its declared bounds is clipped here too, where the asm's unclipped loops
-    /// would have written past the pane.
-    /// </remarks>
-    const uint8_t* DrawRow(const uint8_t* data, uint8_t* row, int32_t x, int32_t cx0, int32_t cx1, const uint8_t* xlat)
-    {
-        for (;;)
-        {
-            const uint8_t token = *data++;
-            const int32_t count = token >> 1;
-
-            if (count == 0)
-            {
-                if ((token & 1) == 0)
-                {
-                    return data;
-                }
-
-                x += *data++;
-                continue;
-            }
-
-            // The part of [x, x + count) inside [cx0, cx1].
-            const int32_t first = std::max(x, cx0);
-            const int32_t last = std::min(x + count - 1, cx1);
-
-            if (token & 1)
-            {
-                for (int32_t i = first; i <= last; ++i)
-                {
-                    const uint8_t pixel = data[i - x];
-                    row[i] = xlat != nullptr ? xlat[pixel] : pixel;
-                }
-
-                data += count;
-            }
-            else
-            {
-                uint8_t color = *data++;
-
-                if (xlat != nullptr)
-                {
-                    color = xlat[color];
-                }
-
-                if (first <= last)
-                {
-                    std::memset(row + first, color, static_cast<size_t>(last - first + 1));
-                }
-            }
-
-            x += count;
-        }
-    }
-
     /// <summary>
     /// The common body of VFX_shape_draw and VFX_shape_translate_draw (the latter with the lookaside table as
     /// <paramref name="xlat"/>).
@@ -157,19 +66,30 @@ namespace
             return VFX_ERR_CLIPPED;
         }
 
-        const uint8_t* data = shape.Data;
-        int32_t y = y0;
+        // Rows above the pane are stepped over; each row drawn is clipped to the pane's columns. (The asm has separate
+        // loops for rows needing no clipping, left clipping, right clipping and both, chosen from the shape's bounds;
+        // they write the same pixels for every shape whose rows stay within its bounds. Port fix: a row running past
+        // its declared bounds is clipped too, where the asm's unclipped loops would have written past the pane.)
+        const int32_t top = std::max(y0, clip.Y0);
+        const int32_t rows = std::min(y1, clip.Y1) - top + 1;
 
-        for (; y < clip.Y0; ++y)
+        if (rows <= 0)
         {
-            data = SkipRow(data);
+            return 0;
         }
 
-        for (; y <= y1 && y <= clip.Y1; ++y)
-        {
-            data = DrawRow(data, clip.At(0, y), x0, clip.X0, clip.X1, xlat);
-        }
-
+        MCShapeCommand command;
+        command.ShapeTable = shapeTable;
+        command.ShapeNum = shapeNum;
+        command.SkipRows = top - y0;
+        command.Rows = rows;
+        command.Top = top;
+        command.Left = x0;
+        command.Lo = clip.X0;
+        command.Hi = clip.X1;
+        command.Op = xlat != nullptr ? MCShapeOp::Xlat : MCShapeOp::Draw;
+        command.Table = xlat;
+        MCRenderer::For(pane->window).Shape(pane->window, command);
         return 0;
     }
 }
@@ -182,6 +102,8 @@ int32_t VFX_shape_draw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t h
 void VFX_shape_lookaside(uint8_t* table)
 {
     std::memcpy(VFXShapeLookaside, table, sizeof(VFXShapeLookaside));
+    // The copy is the table draws read: registered (again) as new bytes.
+    MCRenderer::RegisterData(VFXShapeLookaside, sizeof(VFXShapeLookaside), MCDataKind::Tables);
 }
 
 int32_t VFX_shape_translate_draw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
@@ -225,6 +147,8 @@ int32_t VFX_shape_remap_colors(void* shapeTable, int32_t shapeNum)
         }
     }
 
+    // The shape's pixels changed under any copy a renderer made of them.
+    MCRenderer::DataChanged(shape.Header, static_cast<size_t>(data - shape.Header));
     return 0;
 }
 
@@ -603,6 +527,12 @@ int32_t VFX_shape_scan_asm(PANE* pane, uint8_t transparentColor, int32_t hotX, i
     if (status != 0)
     {
         return status;
+    }
+
+    // Port: a view has no pixels to read.
+    if (clip.Buffer == nullptr)
+    {
+        return VFX_ERR_BAD_WINDOW;
     }
 
     uint8_t* out = static_cast<uint8_t*>(buffer);

@@ -9,6 +9,7 @@
 
 char AlphaTable[ALPHA_COLORS * 256];
 char SpecialColor[ALPHA_COLORS];
+MCAlphaColor MCAlphaColors[ALPHA_COLORS];
 
 void writeTGA(char* fileName, uint8_t* image, uint32_t width, uint32_t height)
 {
@@ -130,6 +131,12 @@ void InitAlphaLookup(VFX_RGB* palette)
     file->close();
     delete file;
 
+    for (int32_t color = 0; color < ALPHA_COLORS; ++color)
+    {
+        const AlphaEntry& entry = entries[color];
+        MCAlphaColors[color] = MCAlphaColor{entry.r, entry.g, entry.b, entry.alpha, entry.backgroundWeight};
+    }
+
     // The x87 ran at 53-bit precision (the MSVC CRT default), so double arithmetic gives the same results.
     uint8_t* out = reinterpret_cast<uint8_t*>(AlphaTable);
 
@@ -180,6 +187,10 @@ void InitAlphaLookup(VFX_RGB* palette)
             }
         }
     }
+
+    // Its rows are tables too (the logistics darken table is one).
+    MCRenderer::RegisterData(AlphaTable, sizeof(AlphaTable), MCDataKind::Tables);
+    MCRenderer::AlphaTableChanged();
 }
 
 uint8_t FindClosest(VFX_RGB* palette, int r, int g, int b)

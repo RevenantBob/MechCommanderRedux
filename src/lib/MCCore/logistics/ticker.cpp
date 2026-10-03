@@ -68,26 +68,15 @@ auto Ticker::handleEvent(aEvent* event) -> void
         return;
     }
 
-    if (backPane != nullptr && ownPort != nullptr)
-    {
-        backPane->copyTo(ownPort->frame(), xPos, yPos, -1);
-        backPane->copyTo(windowPort->frame(), 0, 0, -1);
-    }
-
+    // A wide text shows only while it scrolls (each step on timer 7); every other event painted the back pane alone.
+    // Original behaviour (OB-072): the scroll timer has id 4, so a wide text is never shown.
     if (maxWidth < width)
     {
-        if (event->type == 0x13 && event->data == 7)
+        scrollShown = event->type == 0x13 && event->data == 7;
+
+        if (scrollShown)
         {
             const int32_t pos = scrollPos;
-            VFX_pane_copy(textPort->frame(), pos, 0, windowPort->frame(), 0, 0, -1);
-
-            // Past the end the text starts again after it.
-            if (textWidth < pos + maxWidth)
-            {
-                textPort->copyTo(windowPort->frame(), textWidth - pos, 0, -1);
-            }
-
-            windowPort->copyTo(ownPort->frame(), xPos, yPos, -1);
 
             if (textWidth < pos)
             {
@@ -99,9 +88,58 @@ auto Ticker::handleEvent(aEvent* event) -> void
             }
         }
     }
-    else
+}
+
+auto Ticker::DrawLine(_pane* target) -> void
+{
+    const int32_t x = xPos;
+    const int32_t y = yPos;
+
+    if (backPane != nullptr)
     {
-        textPort->copyTo(ownPort->frame(), xPos, yPos, -1);
+        backPane->copyTo(target, x, y, -1);
+    }
+
+    const bool wide = maxWidth < textWidth;
+
+    if (textWidth == 0 || (wide && !scrollShown))
+    {
+        return;
+    }
+
+    // The text picture: the text (after half a window of gap when it is wide) in a picture textWidth wide and a line
+    // high, keyed.
+    auto* bytes = reinterpret_cast<uint8_t*>(text);
+    const int32_t textX = wide ? maxWidth / 2 : 0;
+    const int32_t lineHeight = medWhiteFont->height();
+    auto writeClipped = [&](int32_t left, int32_t right, int32_t at)
+    {
+        _pane clip = *target;
+        clip.x0 = target->x0 + left;
+        clip.y0 = target->y0 + y;
+        clip.x1 = target->x0 + right;
+        clip.y1 = target->y0 + y + lineHeight - 1;
+
+        if (clip.x0 <= clip.x1)
+        {
+            medWhiteFont->writeString(&clip, at - left, 0, bytes, -1);
+        }
+    };
+
+    if (!wide)
+    {
+        writeClipped(x, x + textWidth - 1, x + textX);
+        return;
+    }
+
+    // Scrolled: the window shows the picture from scrollPos, and from its start again after its end.
+    const int32_t windowRight = x + maxWidth - 1;
+    const int32_t pictureEnd = x + textWidth - scrollPos;
+    writeClipped(x, std::min(windowRight, pictureEnd - 1), x - scrollPos + textX);
+
+    if (textWidth < scrollPos + maxWidth)
+    {
+        writeClipped(pictureEnd, windowRight, pictureEnd + textX);
     }
 }
 
@@ -114,11 +152,6 @@ auto Ticker::setString(char* string) -> void
 {
     if (string == nullptr || *string == 0)
     {
-        if (backPane != nullptr && ownPort != nullptr)
-        {
-            backPane->copyTo(ownPort->frame(), xPos, yPos, -1);
-        }
-
         text[0] = 0;
         textWidth = 0;
         scrollPos = 0;
@@ -133,21 +166,16 @@ auto Ticker::setString(char* string) -> void
     std::strncpy(text, string, 0xfe);
     const int32_t stringWidth = font->width(reinterpret_cast<uint8_t*>(text));
     textWidth = stringWidth;
-    freePort(textPort);
-    textPort = new lPort;
-    // A scrolling text gets half a window of gap before it repeats.
-    int32_t textX = 0;
 
+    // A scrolling text gets half a window of gap before it repeats. (The original rendered the text into textPort
+    // here; DrawLine writes it.)
     if (maxWidth < stringWidth)
     {
-        textX = maxWidth / 2;
-        textWidth = textX + stringWidth;
+        textWidth = maxWidth / 2 + stringWidth;
     }
 
-    textPort->init(textWidth, medWhiteFont->height(), -1);
-    VFX_pane_wipe(textPort->frame(), 0xff);
-    medWhiteFont->writeString(textPort->frame(), textX, 0, reinterpret_cast<uint8_t*>(string), -1);
     scrollPos = 0;
+    scrollShown = false;
 }
 
 auto Ticker::setPos(int32_t newX, int32_t newY) -> void

@@ -442,6 +442,30 @@ public:
         return false;
     }
 
+    /// <summary>
+    /// Port-only: whether the object draws itself in the frame pass instead of keeping a picture. Its port is then a
+    /// view (<see cref="aPort::initView"/>): each frame <see cref="display"/> opens the view's scissor (its rectangle
+    /// on the screen, cut to a clipping ancestor's: <see cref="ClipsChildren"/>), calls <see cref="draw"/>, which
+    /// renders the object from its state, and shuts it again; draws at any other time do nothing. Classes switch to this as their drawing moves out of
+    /// event handlers and setters into <see cref="draw"/>. A class decides for itself; a plain aObject draws itself
+    /// once its owner calls <see cref="SetDrawsLive"/>.
+    /// </summary>
+    virtual bool DrawsLive() { return drawsLive; }
+
+    /// <summary>
+    /// Port-only: makes this object draw itself in the frame pass (see <see cref="DrawsLive"/>): for an object
+    /// whose picture holds only what <see cref="draw"/> puts there (its background, animation and paint routine).
+    /// Its port becomes a view now, or when <see cref="init"/> makes it.
+    /// </summary>
+    void SetDrawsLive();
+
+    /// <summary>
+    /// Port-only: whether the children that draw themselves are cut to this object's rectangle. Not by default: the
+    /// original copied each picture to the screen on its own, and children often lie outside their parent (a scroll
+    /// thumb beside its text, a combo box's list below it). A pane that scrolls its children opts in.
+    /// </summary>
+    virtual bool ClipsChildren() { return false; }
+
     /// <summary>Wipes a rectangle of the port to <paramref name="color"/>.</summary>
     /// <remarks>MCX.EXE @ 0x0060eec0</remarks>
     void FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color);
@@ -517,6 +541,37 @@ public:
     int32_t numDropTargets = 0;                        // +0x4a4
     /// <summary>The drop targets (owned; <see cref="destroy"/> frees them with <c>delete[]</c>).</summary>
     tagRECT* dropTargets = nullptr; // +0x4a8
+    /// <summary>Port: set by <see cref="SetDrawsLive"/>.</summary>
+    bool drawsLive = false;
+
+protected:
+    /// <summary>
+    /// Port: steps a pending slide (<see cref="HideMe"/>) by its whole offset, stopping it once the object is off the
+    /// screen or back home. Part of <see cref="display"/>.
+    /// </summary>
+    void SlideStep();
+
+    /// <summary>
+    /// Port: the frame pass of an object that <see cref="DrawsLive"/>: draws it into <paramref name="port"/>'s view
+    /// over its pane (the view's pixel (0, <paramref name="scrollY"/>) at the pane's corner, for a port taller than
+    /// the object), then displays the children unless <paramref name="displayChildren"/> is false. Without
+    /// <paramref name="wipe"/>, an opaque object leaves what is under the parts it doesn't draw (the original copied
+    /// pieces to the screen, not a whole picture).
+    /// </summary>
+    void DrawInFramePass(aPort* port, int32_t scrollY = 0, bool wipe = true, bool displayChildren = true);
+
+    /// <summary>
+    /// Port: whether <see cref="draw"/> draws <paramref name="child"/> too: only a child with a picture, and not while
+    /// this object draws in the frame pass (the children display themselves after it).
+    /// </summary>
+    bool DrawsChild(aObject* child);
+
+    /// <summary>
+    /// Port: the children part of a <see cref="draw"/>: nothing in the frame pass (the children display themselves
+    /// after it); otherwise, as the original's paint, each child with a picture draws into it (a child that draws
+    /// itself is drawn in the frame pass only).
+    /// </summary>
+    void DrawChild(aObject* child);
 };
 
 /// <summary>A window holding up to two panes, tiled side by side (or stacked) or one at a time.</summary>
@@ -626,9 +681,17 @@ public:
     /// <summary>Passes events inside the box to the button.</summary>
     /// <remarks>MCX.EXE @ 0x0061ded0</remarks>
     void handleEvent(aEvent* event) override;
+    /// <summary>
+    /// Port: the box, its text and its outline (the original wrote them into the picture once, in init).
+    /// </summary>
+    void draw() override;
+    /// <summary>Port: draws itself each frame from its text.</summary>
+    bool DrawsLive() override { return true; }
 
     /// <summary>The OK button (an aButton).</summary>
     aObject* okButton = nullptr; // +0x4ac
+    /// <summary>Port: the text shown.</summary>
+    std::string message;
 };
 
 /// <summary>A running GUI timer: sends a timer event (or a given event) to an object every interval.</summary>
@@ -1076,6 +1139,20 @@ extern int gStretchToFit;
 extern int gSoftwareCursor;
 /// <summary>Port-only: open the display's window hidden (the tests that run a mission).</summary>
 extern int gHiddenWindow;
+/// <summary>Port-only: the renderer asked for, an <c>MCRendererKind</c> (PREFS "Renderer", read by systemInit, then
+/// the command line's <c>-renderer</c>).</summary>
+extern int gRenderer;
+/// <summary>Port-only: the renderer PREFS "Renderer" asks for (the preferences screen's choice, written back by
+/// WritePrefs; it takes effect at the next start). <see cref="gRenderer"/> is what this run uses.</summary>
+extern int gRendererPreference;
+/// <summary>Port-only: draw the frame counter in the top-right corner (PREFS "ShowFps", read by systemInit, or the
+/// command line's <c>-fps</c>).</summary>
+extern int gShowFps;
+/// <summary>Port-only: PREFS "ShowFps" as read (written back by WritePrefs, whatever the command line said).</summary>
+extern int gShowFpsPreference;
+/// <summary>Port-only: wait for the display's refresh when showing a frame (cleared by the command line's
+/// <c>-novsync</c>).</summary>
+extern int gVSync;
 extern int applicationActive;
 extern uint32_t systemHeapSize;
 extern uint32_t guiHeapSize;

@@ -122,7 +122,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
             }
 
             highlightedItem = item;
-            draw();
             break;
         }
 
@@ -161,7 +160,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
                     highlightedItem = item;
                 }
 
-                draw();
                 break;
             }
 
@@ -189,7 +187,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
                     highlightedItem = item;
                 }
 
-                draw();
                 break;
             }
 
@@ -202,7 +199,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
             }
 
             highlightedItem = item;
-            draw();
             break;
         }
 
@@ -235,7 +231,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
                         highlightedItem = selectedItem;
                     }
 
-                    draw();
                     break;
                 }
                 case 0x22: // Page Down
@@ -262,7 +257,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
                         highlightedItem = selectedItem;
                     }
 
-                    draw();
                     break;
                 }
 
@@ -273,7 +267,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
                     setBarPosition(top);
                     selectedItem = numItems - 1;
                     highlightedItem = numItems - 1;
-                    draw();
                     break;
                 }
 
@@ -283,7 +276,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
                     setBarPosition(0);
                     selectedItem = 0;
                     highlightedItem = 0;
-                    draw();
                     break;
                 }
                 case 0x26: // Up
@@ -306,7 +298,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
                     }
 
                     highlightedItem = selectedItem;
-                    draw();
                     break;
                 }
                 case 0x28: // Down
@@ -329,7 +320,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
                     }
 
                     highlightedItem = selectedItem;
-                    draw();
                     break;
                 }
                 default:
@@ -349,7 +339,6 @@ auto aListBox::handleEvent(aEvent* event) -> void
             }
 
             topItem = position;
-            draw();
             break;
         }
 
@@ -389,14 +378,14 @@ auto aListBox::draw() -> void
 
         if (selectedItem == item)
         {
-            // Fill the selected line's inside with colour 0xb, straight into the port's pixels.
-            const int32_t fillWidth = width() - 2;
-
-            for (int16_t row = static_cast<int16_t>(lineY + 1); row < lineY + itemHeight; row++)
-            {
-                uint8_t* pixels = displayPort->buffer();
-                std::memset(pixels + width() * row + 1, 0xb, static_cast<size_t>(fillWidth));
-            }
+            // The selected line's inside is filled with colour 0xb. (The original wrote the port's pixels directly;
+            // the box draws itself now, so it wipes the same rectangle.)
+            _pane line = *displayPort->frame();
+            line.x0 = 1;
+            line.y0 = lineY + 1;
+            line.x1 = width() - 2;
+            line.y1 = lineY + itemHeight - 1;
+            VFX_pane_wipe(&line, 0xb);
         }
 
         itemFont->writeString(displayPort->frame(), 2, lineY + 4, reinterpret_cast<uint8_t*>(itemText), -1);
@@ -462,7 +451,6 @@ auto aListBox::SelectItem(int16_t item) -> int32_t
     }
 
     selectedItem = item;
-    draw();
     return 0;
 }
 
@@ -601,15 +589,12 @@ auto aComboBox::handleEvent(aEvent* event) -> void
         // Close the list and take its selection.
         list->ShowGUIWindow(0);
         textField->setText(list->GetItemString(static_cast<int16_t>(list->selectedItem)));
-        textField->draw();
         dropButton->pushed = 0;
-        dropButton->draw();
         return;
     }
 
     list->ShowGUIWindow(1);
     dropButton->pushed = 1;
-    dropButton->draw();
 }
 
 /// <remarks>MCX.EXE @ 0x0060c2b0</remarks>
@@ -628,7 +613,6 @@ auto aComboBox::resize(int32_t newWidth, int32_t newHeight) -> void
     const int32_t buttonX = newWidth - (dropButton->width() + 2);
     dropButton->moveTo(buttonX, 2, 0);
     textField->resize(buttonX - 2, newHeight - 4);
-    draw();
 }
 
 /// <remarks>MCX.EXE @ 0x0060c360</remarks>
@@ -645,7 +629,6 @@ auto aComboBox::ChangeItemString(int16_t item, char* text) -> int32_t
     if (item == list->selectedItem)
     {
         textField->setText(text);
-        textField->draw();
     }
 
     return 0;
@@ -663,6 +646,5 @@ auto aComboBox::SelectItem(int16_t item) -> int32_t
     }
 
     textField->setText(list->GetItemString(item));
-    textField->draw();
     return 0;
 }

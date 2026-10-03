@@ -937,8 +937,10 @@ auto Artillery::render() -> void
     const int32_t seconds = std::abs(static_cast<int32_t>(std::floor(static_cast<double>(timeToImpact))));
     std::sprintf(timeString, "%01d:%02d", seconds / 60, seconds % 60);
     type = static_cast<ArtilleryType*>(objType);
-    screenPos.x = type->fontXOffset + screenPos.x + 6.0f;
-    screenPos.y = type->fontYOffset + screenPos.y;
+    // Port: the countdown is an overlay, on the screen over the view at its scale; the marker stays on the ground.
+    const vector_2d textPos = MCOverlayPoint(screenPos);
+    screenPos.x = type->fontXOffset + textPos.x + 6.0f;
+    screenPos.y = type->fontYOffset + textPos.y;
     // Blue after impact, yellow before (the original has the same code for both camera scales).
     aFont* font = timeToImpact <= 0.0f ? blueDropFont : yellowDropFont;
     ElementList->add(new FontElement(font, screenPos, timeString, -40000));

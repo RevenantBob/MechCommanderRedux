@@ -36,7 +36,7 @@ namespace
         /// <summary>The game's cursor as a system cursor, or null (SetGameCursor).</summary>
         SDL_Cursor* GameCursor = nullptr;
         /// <summary>The game's ClipCursor rectangle (logical screen), if it set one.</summary>
-        std::optional<MCRect> ClipRect;
+        std::optional<MCClipRect> ClipRect;
         /// <summary>The mouse is over the window's letterbox bars, not the picture.</summary>
         bool OutsidePicture = false;
         uint32_t DoubleClickTime = 500;
@@ -86,17 +86,17 @@ namespace
     }
 
     /// <summary>The shown part of the logical screen (the display's view, or 640x480 without one).</summary>
-    MCRect screenArea()
+    MCClipRect screenArea()
     {
         MCDisplay* display = state().Display;
 
         if (display == nullptr)
         {
-            return MCRect{0, 0, 640, 480};
+            return MCClipRect{0, 0, 640, 480};
         }
 
         const SDL_Rect view = display->View();
-        return MCRect{view.x, view.y, view.x + view.w, view.y + view.h};
+        return MCClipRect{view.x, view.y, view.x + view.w, view.y + view.h};
     }
 
     /// <summary>A window point on the logical screen, clamped to it.</summary>
@@ -112,7 +112,7 @@ namespace
             display->WindowToLogical(windowX, windowY, x, y);
         }
 
-        const MCRect area = screenArea();
+        const MCClipRect area = screenArea();
         point.x = std::clamp(static_cast<int32_t>(std::floor(x)), area.left, area.right - 1);
         point.y = std::clamp(static_cast<int32_t>(std::floor(y)), area.top, area.bottom - 1);
         return point;
@@ -216,7 +216,7 @@ namespace
         }
 
         SDL_Window* window = input.Display->Window();
-        std::optional<MCRect> logical = input.ClipRect;
+        std::optional<MCClipRect> logical = input.ClipRect;
 
         if (!logical && input.Active && input.Display->IsFullscreen())
         {
@@ -598,12 +598,14 @@ namespace MCInput
     void SetCursorPos(int32_t x, int32_t y)
     {
         MCInputState& input = state();
-        const MCRect area = screenArea();
+        const MCClipRect area = screenArea();
         MCPoint point{std::clamp(x, area.left, area.right - 1), std::clamp(y, area.top, area.bottom - 1)};
         input.CursorX = point.x;
         input.CursorY = point.y;
 
-        if (input.Display != nullptr && input.Display->Window() != nullptr)
+        // A hidden window (the headless tests) has no mouse of its own: warping would move the user's.
+        if (input.Display != nullptr && input.Display->Window() != nullptr &&
+            (SDL_GetWindowFlags(input.Display->Window()) & SDL_WINDOW_HIDDEN) == 0)
         {
             float windowX = 0.0f;
             float windowY = 0.0f;
@@ -634,7 +636,7 @@ namespace MCInput
         updateCursorVisibility();
     }
 
-    void ClipCursor(const MCRect* rect)
+    void ClipCursor(const MCClipRect* rect)
     {
         MCInputState& input = state();
 

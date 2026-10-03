@@ -31,21 +31,37 @@ namespace
     /// <summary>The blink phase of the briefing button's highlight, flipped by each timer event (DAT_00808678).</summary>
     int32_t briefingBlink = 0;
 
-    /// <summary>A port the size of the unit pane's contents for every mech and vehicle of the force.</summary>
-    lPort* newUnitPort(ScrollPane* pane)
+    /// <summary>
+    /// Draws the unit pane's rows into its view <paramref name="port"/>: every mech and vehicle of the force at its
+    /// block's row, over colour 0xff (what the blocks painted into the rows' picture).
+    /// </summary>
+    void drawUnitRows(aPort* port)
     {
-        auto* port = new lPort;
-        int32_t height =
-            (globalLogPtr->forceVehicleList->getVehicleCount() + globalLogPtr->forceMechList->getMechCount()) *
-            UnitBlockHeight;
+        auto* view = static_cast<lPort*>(port);
+        VFX_pane_wipe(view->frame(), 0xff);
+        const MCView& place = view->view;
 
-        if (height < pane->height())
+        auto drawRow = [&](auto* block)
         {
-            height = pane->height();
+            const int32_t top = block->slotIndex * UnitBlockHeight;
+            const int32_t screenTop = place.OriginY + top;
+
+            if (screenTop <= place.Scissor.Y1 && place.Scissor.Y0 < screenTop + UnitBlockHeight)
+            {
+                block->DrawRow(view, top);
+            }
+        };
+
+        for (LogMech* mech = globalLogPtr->forceMechList->mechs; mech != nullptr; mech = mech->next)
+        {
+            drawRow(mech->repairBlock);
         }
 
-        port->init(pane->width() - 0xd, height, -1);
-        return port;
+        for (LogVehicle* vehicle = globalLogPtr->forceVehicleList->vehicles; vehicle != nullptr;
+             vehicle = vehicle->next)
+        {
+            drawRow(vehicle->repairBlock);
+        }
     }
 
     /// <summary>
@@ -81,22 +97,12 @@ namespace
     }
 
     /// <summary>
-    /// Rebuilds the unit pane's port without the block in <paramref name="row"/>: the rows below it move up one.
+    /// Rebuilds the unit pane's port without the block in a row: the rows below it move up one (the original
+    /// copied them up in a new picture; the view draws each row where its block is).
     /// </summary>
-    void removeUnitRow(ScrollPane* pane, int32_t row)
+    void removeUnitRow(ScrollPane* pane)
     {
-        lPort* port = newUnitPort(pane);
-        auto* work = new lPort;
-        work->init(port->width(), port->height(), -1);
-        VFX_pane_wipe(port->frame(), 0xff);
-        VFX_pane_wipe(work->frame(), 0xff);
-        lPort* oldPort = nullptr;
-        pane->getDisplayPort(oldPort);
-        VFX_pane_copy(oldPort->frame(), 0, 0, port->frame(), 0, 0, -1);
-        VFX_pane_copy(oldPort->frame(), 0, (row + 1) * UnitBlockHeight, work->frame(), 0, 0, -1);
-        VFX_pane_copy(work->frame(), 0, 0, port->frame(), 0, row * UnitBlockHeight, -1);
-        pane->setDisplayPort(port, -1, 0);
-        delete work;
+        pane->setDisplayPort(RepairScreen::NewUnitRowsView(pane), -1, 0);
         placeUnitBlocks(pane);
     }
 
@@ -117,10 +123,9 @@ auto RepairScreen::init() -> void
     selectedVehicle = nullptr;
     int32_t result = lObject::init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
     Assert(result == 0, result, "Unable to init repair screen", nullptr);
+    // The original loaded the background (lsrbk00) as the screen's picture; the screen draws it each frame.
+    initLive("lsrbk00.tga");
     char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrbk00.tga", artPath);
-    result = lport()->init(fileName);
-    Assert(result == 0, result, "Unable to init repair screen image", nullptr);
 
     auto* pane = new ScrollPane;
 
@@ -241,63 +246,58 @@ auto RepairScreen::selectVehicle(LogVehicle* vehicle) -> void
 
 auto RepairScreen::addMechToList(LogMech*) -> void
 {
-    // The new mech is first in the force list: the old rows move down one block.
+    // The new mech is first in the force list: the old rows move down one block (the original copied them down in a
+    // new picture; the view draws each row where its block is).
     ScrollPane* pane = unitPane;
-    lPort* port = newUnitPort(globalLogPtr->repairScreen->unitPane);
-    VFX_pane_wipe(port->frame(), 0x10);
-    lPort* oldPort = nullptr;
-    pane->getDisplayPort(oldPort);
-    VFX_pane_copy(oldPort->frame(), 0, 0, port->frame(), 0, UnitBlockHeight, -1);
-    pane->setDisplayPort(port, -1, 0);
+    pane->setDisplayPort(NewUnitRowsView(pane), -1, 0);
     placeUnitBlocks(pane);
 }
 
 auto RepairScreen::addVehicleToList(LogVehicle* vehicle) -> void
 {
     // The new vehicle is first in the vehicle list, right after the mechs: the vehicle rows move down one block.
-    lPort* port = newUnitPort(globalLogPtr->repairScreen->unitPane);
-    auto* work = new lPort;
-    work->init(port->width(), port->height(), -1);
-    VFX_pane_wipe(port->frame(), 0x10);
-    VFX_pane_wipe(work->frame(), 0x10);
     ScrollPane* pane = unitPane;
-    lPort* oldPort = nullptr;
-    pane->getDisplayPort(oldPort);
-    VFX_pane_copy(oldPort->frame(), 0, 0, port->frame(), 0, 0, -1);
-    VFX_pane_copy(oldPort->frame(), 0, globalLogPtr->forceMechList->getMechCount() * UnitBlockHeight, work->frame(), 0,
-                  0, -1);
-    VFX_pane_copy(work->frame(), 0, 0, port->frame(), 0,
-                  (globalLogPtr->forceMechList->getMechCount() + 1) * UnitBlockHeight, -1);
-    pane->setDisplayPort(port, -1, 0);
+    pane->setDisplayPort(NewUnitRowsView(pane), -1, 0);
     vehicle->repairBlock->drawBackground(globalLogPtr->forceMechList->getMechCount(), nullptr);
-    delete work;
     placeUnitBlocks(pane);
 }
 
 auto RepairScreen::removeMechFromList(LogMech* mech) -> void
 {
-    removeUnitRow(unitPane, mech->repairBlock->slotIndex);
+    removeUnitRow(unitPane);
 }
 
 auto RepairScreen::removeVehicleFromList(LogVehicle* vehicle) -> void
 {
-    removeUnitRow(unitPane, vehicle->repairBlock->slotIndex);
+    removeUnitRow(unitPane);
+}
+
+auto RepairScreen::NewUnitRowsView(ScrollPane* pane) -> lPort*
+{
+    auto* port = new lPort;
+    int32_t height = (globalLogPtr->forceVehicleList->getVehicleCount() + globalLogPtr->forceMechList->getMechCount()) *
+                     UnitBlockHeight;
+
+    if (height < pane->height())
+    {
+        height = pane->height();
+    }
+
+    port->initView(pane->width() - 0xd, height);
+    port->DrawContent = drawUnitRows;
+    return port;
 }
 
 auto RepairScreen::drawBackground() -> void
 {
-    auto* port = new lPort;
-    char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrbk00.tga", artPath);
-    port->init(fileName);
-    VFX_pane_copy(port->frame(), 0, 0, lport()->frame(), 0, 0, -1);
+    // The background art was painted over everything the screen showed.
+    chrome.Clear();
+    info.Clear();
 
     if (selectedMech != nullptr && selectedMech->repairBlock != nullptr)
     {
         selectedMech->repairBlock->drawButtons(nullptr);
     }
-
-    delete port;
 }
 
 auto RepairScreen::handleEvent(aEvent* event) -> void
@@ -330,19 +330,17 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
         else if (inside(2, 0x10, 0xd1, 0x21))
         {
             showHelp(0x286);
-            lPort* highlight =
-                MPlayer == nullptr ? globalLogPtr->screenButtonPorts[0][1] : globalLogPtr->screenButtonPorts[1][1];
-            highlight->copyTo(lport()->frame(), 2, 0x10, -1);
+            globalLogPtr->hoverScreenButton(this, 0);
         }
         else if (inside(2, 0x22, 0xd1, 0x33))
         {
             showHelp(0x1e);
-            globalLogPtr->screenButtonPorts[2][1]->copyTo(lport()->frame(), 2, 0x22, -1);
+            globalLogPtr->hoverScreenButton(this, 1);
         }
         else if (inside(2, 0x34, 0xd1, 0x45))
         {
             showHelp(0x41);
-            globalLogPtr->screenButtonPorts[3][1]->copyTo(lport()->frame(), 2, 0x34, -1);
+            globalLogPtr->hoverScreenButton(this, 2);
         }
         else if (inside(2, 0x46, 0xd1, 0x57))
         {
@@ -518,9 +516,7 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
     if (event->type == 0x13)
     {
         // Blink the briefing button.
-        lPort* picture =
-            briefingBlink == 0 ? globalLogPtr->screenButtonPorts[2][0] : globalLogPtr->screenButtonPorts[2][1];
-        picture->copyTo(lport()->frame(), 2, 0x22, -1);
+        chrome.blinkLit = briefingBlink != 0;
         briefingBlink = briefingBlink == 0 ? 1 : 0;
     }
 }
@@ -543,36 +539,27 @@ auto RepairScreen::display() -> void
         return;
     }
 
-    // Port fix: the original left the text uninitialised for an unknown resourceDisplayState.
-    char text[44] = {};
+    // The figure and the clock are drawn by the screens each frame (Logistics::drawScreenChrome).
+    MCPort::StrTime(globalLogPtr->timeString);
+}
+
+auto ResourceFigureText(char* text, size_t size) -> void
+{
+    // The original left the text uninitialised for an unknown resourceDisplayState.
+    text[0] = '\0';
 
     switch (resourceDisplayState)
     {
         case 0:
-            std::snprintf(text, sizeof(text), "%d", ResourcePoints);
+            std::snprintf(text, size, "%d", ResourcePoints);
             break;
         case 1:
-            std::snprintf(text, sizeof(text), "%d", globalLogPtr->logisticsHeap->totalCoreLeft());
+            std::snprintf(text, size, "%d", globalLogPtr->logisticsHeap->totalCoreLeft());
             break;
         case 2:
-            std::snprintf(text, sizeof(text), "%d", globalLogPtr->logisticsHeap->coreLeft());
+            std::snprintf(text, size, "%d", globalLogPtr->logisticsHeap->coreLeft());
             break;
         default:
             break;
     }
-
-    if (globalLogPtr->currentScreen != globalLogPtr->sessionScreen)
-    {
-        VFX_pane_copy(globalLogPtr->resourceBackPort->frame(), 0, 0, globalLogPtr->currentScreen->lport()->frame(),
-                      0x209, 2, -1);
-        auto* bytes = reinterpret_cast<uint8_t*>(text);
-        int32_t textWidth = medWhiteFont->width(bytes);
-        medWhiteFont->writeString(globalLogPtr->currentScreen->lport()->frame(), 0x244 - textWidth, 4, bytes, -1);
-    }
-
-    VFX_pane_copy(globalLogPtr->clockBackPort->frame(), 0, 0, globalLogPtr->currentScreen->lport()->frame(), 0x24c, 2,
-                  -1);
-    MCPort::StrTime(globalLogPtr->timeString);
-    medWhiteFont->writeString(globalLogPtr->currentScreen->lport()->frame(), 0x254, 4,
-                              reinterpret_cast<uint8_t*>(globalLogPtr->timeString), -1);
 }

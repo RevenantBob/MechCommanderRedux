@@ -22,6 +22,7 @@ struct PolyElementData
         textureHeight = 0;
         fadeTable = nullptr;
         translate = 0;
+        textureHandle = nullptr;
     }
 
     PolyElementData() { init(); }
@@ -50,6 +51,8 @@ struct PolyElementData
     int32_t textureHeight; // +0xb4
     /// <summary>The fade table the polygon is translated through, or null.</summary>
     uint8_t* fadeTable; // +0xb8
+    /// <summary>Port: the texture's handle (<see cref="MCTexture"/>, the renderers read the texture through it).</summary>
+    MCTexture* textureHandle;
 };
 
 /// <summary>A polygon (see <see cref="PolyElementData"/>).</summary>

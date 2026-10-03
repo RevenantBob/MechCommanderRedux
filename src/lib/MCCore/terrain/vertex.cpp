@@ -13,7 +13,9 @@
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
+#include "object/elemntl.h"
 #include "object/team.h"
+#include "platform/MCRenderer.h"
 #include "terrain/terrain.h"
 #include "terrain/terrtxm.h"
 #include "vfx/vfx.h"
@@ -1057,4 +1059,297 @@ auto TerrainBlock::drawLine(int32_t color, int /*onlyTop*/) -> void
 
 auto TerrainBlock::drawHaze(int32_t /*hazeFactor*/, uint8_t /*flags*/) -> void
 {
+}
+
+// Port: the ground mesh -------------------------------------------------------------------------------------------
+
+namespace
+{
+    /// <summary>
+    /// The map's ground mesh (MCTerrainMesh) and what it was made with: the steps it places vertices by, the tile set,
+    /// and per mesh vertex the elevation and tile it holds (to check each frame's grid against).
+    /// </summary>
+    struct GroundMesh
+    {
+        MCTerrainMesh Mesh;
+        int32_t StepX = 0;
+        int32_t StepY = 0;
+        int32_t ElevStep = 0;
+        uint32_t TileSet = 0;
+        /// <summary>The mesh's vertices a side ((Cols + 1) = (Rows + 1)), from (Mesh.FirstRow, Mesh.FirstCol).</summary>
+        int32_t Side = 0;
+        std::vector<uint8_t> Elevations;
+        std::vector<int16_t> Textures;
+    };
+
+    std::unique_ptr<GroundMesh> groundMesh;
+    uint64_t groundMeshVersions = 0;
+
+    /// <summary>The map vertex at (<paramref name="row"/>, <paramref name="col"/>) as buildWindow finds it: in its
+    /// block, or in the off-map block.</summary>
+    const PrecompVertex* mapVertexAt(int32_t row, int32_t col)
+    {
+        const int32_t side = Terrain::verticesBlockSide;
+        const int32_t mapSide = Terrain::blocksMapSide * side;
+        int32_t blockNum = Terrain::blocksMapSide * Terrain::blocksMapSide;
+
+        if (row >= 0 && col >= 0 && row < mapSide && col < mapSide)
+        {
+            blockNum = (row / side) * Terrain::blocksMapSide + col / side;
+        }
+
+        const int32_t vertexY = ((row % side) + side) % side;
+        const int32_t vertexX = ((col % side) + side) % side;
+        return Terrain::mapBlockManager->blockPtr(blockNum) + vertexY * side + vertexX;
+    }
+
+    /// <summary>
+    /// Builds the ground mesh over the map and a ring of <paramref name="ring"/> off-map vertices around it, reading
+    /// every tile it uses.
+    /// </summary>
+    void buildGroundMesh(int32_t ring, int32_t stepX, int32_t stepY, int32_t elevStep, uint32_t tileSet)
+    {
+        auto built = std::make_unique<GroundMesh>();
+        built->StepX = stepX;
+        built->StepY = stepY;
+        built->ElevStep = elevStep;
+        built->TileSet = tileSet;
+        const int32_t mapSide = Terrain::blocksMapSide * Terrain::verticesBlockSide;
+        const int32_t side = mapSide + 2 * ring;
+        built->Side = side;
+        built->Elevations.resize(static_cast<size_t>(side) * side);
+        built->Textures.resize(static_cast<size_t>(side) * side);
+
+        for (int32_t r = 0; r < side; ++r)
+        {
+            for (int32_t c = 0; c < side; ++c)
+            {
+                const PrecompVertex* vertex = mapVertexAt(r - ring, c - ring);
+                built->Elevations[static_cast<size_t>(r) * side + c] = vertex->elevation;
+                built->Textures[static_cast<size_t>(r) * side + c] = vertex->textureData;
+            }
+        }
+
+        MCTerrainMesh& mesh = built->Mesh;
+        mesh.Version = ++groundMeshVersions;
+        mesh.FirstRow = -ring;
+        mesh.FirstCol = -ring;
+        mesh.Cols = side - 1;
+        mesh.Rows = side - 1;
+        mesh.CellTiles.resize(static_cast<size_t>(mesh.Cols) * mesh.Rows);
+        mesh.CellElevations.resize(mesh.CellTiles.size());
+        std::unordered_map<int32_t, uint32_t> tiles;
+
+        for (int32_t r = 0; r < mesh.Rows; ++r)
+        {
+            for (int32_t c = 0; c < mesh.Cols; ++c)
+            {
+                const size_t at = static_cast<size_t>(r) * side + c;
+                const size_t cell = static_cast<size_t>(r) * mesh.Cols + c;
+                mesh.CellElevations[cell] = static_cast<uint32_t>(built->Elevations[at]) |
+                                            static_cast<uint32_t>(built->Elevations[at + 1]) << 8 |
+                                            static_cast<uint32_t>(built->Elevations[at + side + 1]) << 16 |
+                                            static_cast<uint32_t>(built->Elevations[at + side]) << 24;
+
+                // The tile TerrainBlock::draw would draw: none for a negative number or a tile that can't be read.
+                const int32_t textureData = built->Textures[at];
+                uint32_t index = MCTerrainMesh::NoTile;
+
+                if (textureData >= 0)
+                {
+                    if (const auto found = tiles.find(textureData); found != tiles.end())
+                    {
+                        index = found->second;
+                    }
+                    else
+                    {
+                        const TerrainTile* tile = lookupTile(textureData);
+
+                        if (tile != nullptr && tile->tileData != nullptr)
+                        {
+                            const uint8_t* data = tile->tileData;
+                            uint32_t size = 0;
+                            std::memcpy(&size, data + 4 + static_cast<size_t>(data[2]) * 4, sizeof(size));
+                            index = static_cast<uint32_t>(mesh.Tiles.size());
+                            mesh.Tiles.emplace_back(data, data + size);
+                        }
+
+                        tiles.emplace(textureData, index);
+                    }
+                }
+
+                mesh.CellTiles[cell] = index;
+            }
+        }
+
+        groundMesh = std::move(built);
+    }
+
+    /// <summary>Whether the mesh's vertices take in the grid's, from (<paramref name="row"/>, <paramref name="col"/>).</summary>
+    bool meshCovers(int32_t row, int32_t col, int32_t perSide)
+    {
+        const int32_t first = groundMesh->Mesh.FirstRow;
+        return row >= first && col >= first && row + perSide <= first + groundMesh->Side &&
+               col + perSide <= first + groundMesh->Side;
+    }
+}
+
+std::expected<void, std::string> MCTerrainGroundFrame(const Vertex* vertexList, int32_t numVertices, int32_t numBlocks,
+                                                      int32_t hazeFactor, int32_t stepX, int32_t stepY,
+                                                      int32_t elevStep, int32_t minX, int32_t maxX, int32_t minY,
+                                                      int32_t maxY, MCTerrainFrame& frame)
+{
+    const int32_t perSide = Terrain::visibleVerticesPerSide;
+
+    if (useOldProject != 0 || projectAll != 0 || useNonIntegerAdditive != 0)
+    {
+        return std::unexpected("the ground mesh needs whole-pixel vertex steps (useOldProject, projectAll and "
+                               "useNonIntegerAdditive off)");
+    }
+
+    if (vertexList == nullptr || perSide < 2 || numVertices != perSide * perSide ||
+        numBlocks != (perSide - 1) * (perSide - 1))
+    {
+        return std::unexpected(std::format("the terrain grid has {} vertices and {} blocks for {} vertices a side",
+                                           numVertices, numBlocks, perSide));
+    }
+
+    ByteFlag* fog = homeTeam != nullptr ? homeVisibleBits() : nullptr;
+
+    if (fog == nullptr || fog->flagWindow == nullptr)
+    {
+        return std::unexpected("the ground mesh has no fog of war flags to read");
+    }
+
+    if (Terrain::mapBlockManager == nullptr || terrainTiles == nullptr || globalPane == nullptr)
+    {
+        return std::unexpected("the ground mesh is asked for without a terrain");
+    }
+
+    const uint32_t tileSet = eye->cameraScale == 1 ? 1 : 0;
+
+    // The grid's corner, from its first vertex's map position.
+    const uint32_t firstTile = vertexList[0].posTile;
+    const int32_t firstRow = static_cast<int32_t>(firstTile) >> 16;
+    const int32_t firstCol = static_cast<int16_t>(firstTile & 0xffff);
+
+    if (groundMesh == nullptr || groundMesh->StepX != stepX || groundMesh->StepY != stepY ||
+        groundMesh->ElevStep != elevStep || groundMesh->TileSet != tileSet || !meshCovers(firstRow, firstCol, perSide))
+    {
+        buildGroundMesh(perSide + 2, stepX, stepY, elevStep, tileSet);
+
+        if (!meshCovers(firstRow, firstCol, perSide))
+        {
+            return std::unexpected(std::format(
+                "the ground mesh doesn't cover the terrain grid from map vertex ({}, {})", firstRow, firstCol));
+        }
+    }
+
+    // Each grid vertex must be the map's vertex at its place, projected where the mesh puts it. The mesh is built again
+    // when the map's own data changed since (setTile).
+    const int32_t originX = vertexList[0].px - (firstCol - firstRow) * stepX;
+    const int32_t originY = vertexList[0].py - (firstRow + firstCol) * stepY +
+                            static_cast<int32_t>(vertexList[0].pVertex->elevation) * elevStep;
+
+    for (bool rebuilt = false;;)
+    {
+        bool current = true;
+
+        for (int32_t i = 0; i < numVertices; ++i)
+        {
+            const Vertex& vertex = vertexList[i];
+            const int32_t row = firstRow + i / perSide;
+            const int32_t col = firstCol + i % perSide;
+            const uint32_t elevation = vertex.pVertex->elevation;
+
+            if (vertex.posTile != static_cast<uint32_t>(row * 0x10000) + (static_cast<uint32_t>(col) & 0xffff))
+            {
+                return std::unexpected(std::format("terrain grid vertex {} isn't map vertex ({}, {}) (posTile {:08x})",
+                                                   i, row, col, vertex.posTile));
+            }
+
+            // OB-102's wrapped grid lands here.
+            if (vertex.pVertex != mapVertexAt(row, col))
+            {
+                return std::unexpected(std::format(
+                    "terrain grid vertex {} at map vertex ({}, {}) holds another vertex's data", i, row, col));
+            }
+
+            if (vertex.redraw == 0)
+            {
+                return std::unexpected(std::format("terrain grid vertex {} isn't redrawn this frame", i));
+            }
+
+            const int32_t x = originX + (col - row) * stepX;
+            const int32_t y = originY + (row + col) * stepY - static_cast<int32_t>(elevation) * elevStep;
+
+            if (vertex.px != x || vertex.py != y)
+            {
+                return std::unexpected(std::format("terrain grid vertex {} projects to ({}, {}); the mesh puts it at "
+                                                   "({}, {})",
+                                                   i, vertex.px, vertex.py, x, y));
+            }
+
+            const size_t at = static_cast<size_t>(row - groundMesh->Mesh.FirstRow) * groundMesh->Side +
+                              static_cast<size_t>(col - groundMesh->Mesh.FirstCol);
+            current = current && groundMesh->Elevations[at] == elevation &&
+                      groundMesh->Textures[at] == vertex.pVertex->textureData;
+        }
+
+        if (current)
+        {
+            break;
+        }
+
+        if (rebuilt)
+        {
+            return std::unexpected("the ground mesh doesn't hold the map's data even when built again");
+        }
+
+        buildGroundMesh(perSide + 2, stepX, stepY, elevStep, tileSet);
+        rebuilt = true;
+    }
+
+    frame.Mesh = &groundMesh->Mesh;
+    frame.OriginX = originX;
+    frame.OriginY = originY;
+    frame.StepX = stepX;
+    frame.StepY = stepY;
+    frame.ElevStep = elevStep;
+    frame.FirstRow = firstRow;
+    frame.FirstCol = firstCol;
+    frame.LastRow = firstRow + perSide - 2;
+    frame.LastCol = firstCol + perSide - 2;
+    frame.MinX = minX;
+    frame.MaxX = maxX;
+    frame.MinY = minY;
+    frame.MaxY = maxY;
+
+    // VFX_nTile_draw's clip: the pane within its window and view.
+    const _window* window = globalPane->window;
+    int32_t x0 = std::max(globalPane->x0, 0);
+    int32_t y0 = std::max(globalPane->y0, 0);
+    int32_t x1 = globalPane->x1 < window->x_max + 1 ? globalPane->x1 : window->x_max;
+    int32_t y1 = globalPane->y1 < window->y_max + 1 ? globalPane->y1 : window->y_max;
+    MCClipToView(window, x0, y0, x1, y1);
+    frame.PaneX = globalPane->x0;
+    frame.PaneY = globalPane->y0;
+    frame.Clip = MCRect{x0, y0, x1, y1};
+    frame.Fog = fog->flagWindow;
+    frame.AllFilled = hazeFactor == 0x7fff;
+
+    if (!frame.AllFilled)
+    {
+        for (uint32_t seen = 1; seen <= 3; ++seen)
+        {
+            frame.Haze[seen - 1] = hazePaletteFor(hazeFactor, seen);
+        }
+    }
+
+    return {};
+}
+
+void MCTerrainForgetMesh()
+{
+    groundMesh.reset();
 }
