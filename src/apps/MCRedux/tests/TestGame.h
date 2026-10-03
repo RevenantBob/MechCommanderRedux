@@ -23,6 +23,14 @@ namespace MCTestGame
     bool StartMission(int32_t segment);
 
     /// <summary>
+    /// Boots the whole game as a plain start does (no <c>-mission</c>): the intro, then logistics' main menu. Runs
+    /// frames until the main menu is up. Same rules as <see cref="StartMission"/>: a TEST_CASE_ISOLATED test only, and
+    /// one boot per process (StartMission after it fails, and the reverse).
+    /// </summary>
+    /// <returns>Whether the main menu is up.</returns>
+    bool StartLogistics();
+
+    /// <summary>
     /// Runs one pass of aSystem::run's frame loop (the per-frame callbacks and the display update), with the frame
     /// lasting <paramref name="seconds"/> instead of the measured time.
     /// </summary>

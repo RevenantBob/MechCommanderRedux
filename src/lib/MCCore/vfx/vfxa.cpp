@@ -42,9 +42,9 @@ int32_t VFX_pixel_write(PANE* pane, int32_t x, int32_t y, uint8_t color)
         return VFX_ERR_CLIPPED;
     }
 
-    uint8_t* pixel = clip.At(x, y);
-    const int32_t previous = *pixel;
-    *pixel = color;
+    // The pixel it replaces is returned (no caller uses it).
+    const int32_t previous = *clip.At(x, y);
+    MCRenderer::For(pane->window).Pixel(pane->window, x, y, color);
     return previous;
 }
 
@@ -118,17 +118,26 @@ namespace
         return (x < clip.X0 ? 8u : 0u) | (x > clip.X1 ? 4u : 0u) | (y < clip.Y0 ? 2u : 0u) | (y > clip.Y1 ? 1u : 0u);
     }
 
-    /// <summary>Plots one pixel of a line in LD_DRAW or LD_TRANSLATE mode.</summary>
-    void Plot(uint8_t* pixel, int32_t mode, intptr_t parm)
+    /// <summary>
+    /// Draws the resolved line in LD_DRAW or LD_TRANSLATE mode: <paramref name="count"/> pixels from (x, y), moving
+    /// by the major step each pixel and also by the minor step when the fraction carries.
+    /// </summary>
+    void DrawLine(WINDOW* window, int32_t x, int32_t y, int32_t count, int32_t majorX, int32_t majorY, int32_t minorX,
+                  int32_t minorY, uint32_t slope, uint32_t fraction, int32_t mode, intptr_t parm)
     {
-        if (mode == LD_TRANSLATE)
-        {
-            *pixel = reinterpret_cast<const uint8_t*>(parm)[*pixel];
-        }
-        else
-        {
-            *pixel = static_cast<uint8_t>(parm);
-        }
+        MCLineCommand command;
+        command.X = x;
+        command.Y = y;
+        command.Count = count;
+        command.MajorX = majorX;
+        command.MajorY = majorY;
+        command.MinorX = minorX;
+        command.MinorY = minorY;
+        command.Slope = slope;
+        command.Fraction = fraction;
+        command.Table = mode == LD_TRANSLATE ? reinterpret_cast<const uint8_t*>(parm) : nullptr;
+        command.Color = static_cast<uint8_t>(parm);
+        MCRenderer::For(window).Line(window, command);
     }
 }
 
@@ -162,7 +171,8 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
     int32_t endX = x1;
     int32_t endY = y1;
     int32_t count;
-    int32_t step;
+    int32_t stepX = 0;
+    int32_t stepY = 0;
 
     if (dx != 0 && dy != 0)
     {
@@ -293,7 +303,8 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
 
         const int32_t result = everClipped != 0 ? 1 : 0;
 
-        const int32_t rowStep = signY != 0 ? -clip.Stride : clip.Stride;
+        // The row each pixel moves to: up or down.
+        const int32_t rowStep = signY != 0 ? -1 : 1;
 
         if (adx != ady)
         {
@@ -328,17 +339,8 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
                     return result;
                 }
 
-                uint8_t* pixel = clip.At(startX, startY);
-                const int32_t xStep = signX != 0 ? -1 : 1;
-
-                for (; count != 0; --count)
-                {
-                    Plot(pixel, mode, parm);
-                    const uint32_t before = fraction;
-                    fraction += slope;
-                    pixel += rowStep + (fraction < before ? xStep : 0);
-                }
-
+                DrawLine(pane->window, startX, startY, count, 0, rowStep, signX != 0 ? -1 : 1, 0, slope, fraction, mode,
+                         parm);
                 return result;
             }
 
@@ -351,10 +353,10 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
                 const auto callback = reinterpret_cast<VFX_LINE_CALLBACK>(parm);
                 int32_t x = startX - pane->x0;
                 int32_t y = startY - pane->y0;
-                // Original behaviour: the asm steps x by the sign of dy and y by the sign of dx here (the y-major
-                // case's registers), so LD_EXECUTE walks x-major lines wrongly unless both run right and down.
-                const int32_t xStep = signY * 2 + 1;
-                const int32_t yStep = signX != 0 ? -1 : 1;
+                // OB-125: the asm stepped x by the sign of dy and y by the sign of dx here (the y-major case's
+                // registers), so LD_EXECUTE walked x-major lines wrongly unless both ran right and down.
+                const int32_t xStep = signX != 0 ? -1 : 1;
+                const int32_t yStep = signY * 2 + 1;
 
                 for (; count != 0; --count)
                 {
@@ -373,22 +375,12 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
                 return result;
             }
 
-            uint8_t* pixel = clip.At(startX, startY);
-            const int32_t xStep = signX != 0 ? -1 : 1;
-
-            for (; count != 0; --count)
-            {
-                Plot(pixel, mode, parm);
-                const uint32_t before = fraction;
-                fraction += slope;
-                pixel += xStep + (fraction < before ? rowStep : 0);
-            }
-
+            DrawLine(pane->window, startX, startY, count, signX != 0 ? -1 : 1, 0, 0, rowStep, slope, fraction, mode,
+                     parm);
             return result;
         }
 
         // 45 degrees: one row and one column per pixel.
-        step = rowStep + (signX != 0 ? -1 : 1);
         count = std::abs(endX - startX) + 1;
 
         if (mode == LD_EXECUTE)
@@ -407,13 +399,7 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
             return result;
         }
 
-        uint8_t* pixel = clip.At(startX, startY);
-
-        for (; count != 0; --count, pixel += step)
-        {
-            Plot(pixel, mode, parm);
-        }
-
+        DrawLine(pane->window, startX, startY, count, signX != 0 ? -1 : 1, rowStep, 0, 0, 0, 0, mode, parm);
         return result;
     }
 
@@ -439,7 +425,7 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
         startY = std::clamp(y0, clip.Y0, clip.Y1);
         endY = std::clamp(y1, clip.Y0, clip.Y1);
         startX = x0;
-        step = signY != 0 ? -clip.Stride : clip.Stride;
+        stepY = signY != 0 ? -1 : 1;
         count = std::abs(endY - startY) + 1;
     }
     else
@@ -462,7 +448,7 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
         startX = std::clamp(x0, clip.X0, clip.X1);
         endX = std::clamp(x1, clip.X0, clip.X1);
         startY = y0;
-        step = signX != 0 ? -1 : 1;
+        stepX = signX != 0 ? -1 : 1;
         count = std::abs(endX - startX) + 1;
     }
 
@@ -482,13 +468,7 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
         return 0;
     }
 
-    uint8_t* pixel = clip.At(startX, startY);
-
-    for (; count != 0; --count, pixel += step)
-    {
-        Plot(pixel, mode, parm);
-    }
-
+    DrawLine(pane->window, startX, startY, count, stepX, stepY, 0, 0, 0, 0, mode, parm);
     return 0;
 }
 
@@ -515,33 +495,7 @@ int32_t VFX_rectangle_hash(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32
 
     // The pattern's phase follows the number of rows below the current one: rows an even distance above y1 start
     // at x0, the others one pixel in.
-    const uint8_t* end = clip.Buffer + static_cast<intptr_t>(clip.Stride) * clip.Height;
-
-    for (int32_t y = y0; y <= y1; ++y)
-    {
-        uint8_t* pixel = clip.At(x0, y);
-        int32_t left = width;
-
-        if ((y1 - y) & 1)
-        {
-            ++pixel;
-            --left;
-        }
-
-        // Original behaviour: at least one pixel is written per row, even one past x1 when an odd row is one pixel
-        // wide. Port fix: never past the window's last pixel.
-        do
-        {
-            if (pixel < end)
-            {
-                *pixel = color;
-            }
-
-            pixel += 2;
-            left -= 2;
-        } while (left > 0);
-    }
-
+    MCRenderer::For(pane->window).Hash(pane->window, MCRect{x0, y0, x1, y1}, color);
     return 0;
 }
 
@@ -555,13 +509,8 @@ int32_t VFX_pane_wipe(PANE* pane, int32_t color)
         return status;
     }
 
-    const size_t width = static_cast<size_t>(clip.X1 + 1 - clip.X0);
-
-    for (int32_t y = clip.Y0; y <= clip.Y1; ++y)
-    {
-        std::memset(clip.At(clip.X0, y), static_cast<uint8_t>(color), width);
-    }
-
+    MCRenderer::For(pane->window)
+        .Clear(pane->window, MCRect{clip.X0, clip.Y0, clip.X1, clip.Y1}, static_cast<uint8_t>(color));
     return 0;
 }
 
@@ -610,89 +559,31 @@ int32_t VFX_pane_copy(PANE* source, int32_t sx, int32_t sy, PANE* target, int32_
     const int32_t toTop = std::max(tTop, sTop - offsetY);
     const int32_t toRight = std::min(tRight, sRight - offsetX);
     const int32_t toBottom = std::min(tBottom, sBottom - offsetY);
-    const int32_t width = right + 1 - left;
-    const int32_t height = bottom + 1 - top;
+    // The two areas in window coordinates.
+    const MCRect sourceRect{left + from.PaneX, top + from.PaneY, right + from.PaneX, bottom + from.PaneY};
+    const MCRect targetRect{toLeft + to.PaneX, toTop + to.PaneY, toRight + to.PaneX, toBottom + to.PaneY};
+    MCRenderer& renderer = MCRenderer::For(target->window);
 
-    // Copy in the order that survives overlap: rows downwards when the source row is below the target row (in pane
-    // coordinates), else upwards; columns likewise.
-    const uint8_t* src = from.Buffer + static_cast<intptr_t>(from.PaneY) * from.Stride + from.PaneX;
-    uint8_t* dst = to.Buffer + static_cast<intptr_t>(to.PaneY) * to.Stride + to.PaneX;
-    intptr_t srcRowStep;
-    intptr_t dstRowStep;
-
-    if (top > toTop)
-    {
-        src += static_cast<intptr_t>(top) * from.Stride;
-        dst += static_cast<intptr_t>(toTop) * to.Stride;
-        srcRowStep = from.Stride;
-        dstRowStep = to.Stride;
-    }
-    else
-    {
-        src += static_cast<intptr_t>(bottom) * from.Stride;
-        dst += static_cast<intptr_t>(toBottom) * to.Stride;
-        srcRowStep = -from.Stride;
-        dstRowStep = -to.Stride;
-    }
-
-    intptr_t pixelStep;
-
-    if (left > toLeft)
-    {
-        src += left;
-        dst += toLeft;
-        pixelStep = 1;
-    }
-    else
-    {
-        src += right;
-        dst += toRight;
-        pixelStep = -1;
-    }
-
-    if (fill < 0)
-    {
-        // Plain copy (NO_COLOR and every negative value).
-        for (int32_t row = 0; row < height; ++row, src += srcRowStep, dst += dstRowStep)
-        {
-            if (pixelStep > 0)
-            {
-                std::memmove(dst, src, static_cast<size_t>(width));
-            }
-            else
-            {
-                std::memmove(dst - (width - 1), src - (width - 1), static_cast<size_t>(width));
-            }
-        }
-    }
-    else if ((fill & 0xffffff00) == 0)
+    if (fill >= 0 && (fill & 0xffffff00) == 0)
     {
         // A colour: the target area is filled with it instead of copied.
-        for (int32_t row = 0; row < height; ++row, dst += dstRowStep)
-        {
-            std::memset(pixelStep > 0 ? dst : dst - (width - 1), fill, static_cast<size_t>(width));
-        }
-    }
-    else
-    {
-        // Above 255: a copy that leaves the pixels of colour (fill & 0xff) alone.
-        const uint8_t key = static_cast<uint8_t>(fill);
-
-        for (int32_t row = 0; row < height; ++row, src += srcRowStep, dst += dstRowStep)
-        {
-            const uint8_t* s = src;
-            uint8_t* d = dst;
-
-            for (int32_t i = 0; i < width; ++i, s += pixelStep, d += pixelStep)
-            {
-                if (*s != key)
-                {
-                    *d = *s;
-                }
-            }
-        }
+        renderer.Clear(target->window, targetRect, static_cast<uint8_t>(fill));
+        return 0;
     }
 
+    // A plain copy (NO_COLOR and every negative value), or above 255 one that leaves the pixels of colour
+    // (fill & 0xff) alone. Rows are copied downwards when the source row is below the target row (in pane
+    // coordinates), else upwards; columns likewise, so an overlapping copy within a window survives.
+    MCCopyCommand command;
+    command.Source = source->window;
+    command.SourceRect = sourceRect;
+    command.X = targetRect.X0;
+    command.Y = targetRect.Y0;
+    command.ColorKey = fill >= 0;
+    command.Key = static_cast<uint8_t>(fill);
+    command.Downwards = top > toTop;
+    command.Rightwards = left > toLeft;
+    renderer.Copy(target->window, command);
     return 0;
 }
 
@@ -772,181 +663,43 @@ int32_t VFX_pane_scroll(PANE* pane, int32_t dx, int32_t dy, int32_t mode, int32_
 
 namespace
 {
-    /// <summary>The state of the midpoint ellipse both ellipse routines step through (all 32-bit, as in the asm).</summary>
-    struct EllipseWalk
+    /// <summary>VFX_ellipse_draw and VFX_ellipse_fill: the midpoint ellipse, outlined or filled, clipped to the pane.</summary>
+    int32_t DrawEllipse(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color, bool fill)
     {
-        uint32_t A2;
-        uint32_t B2;
-        uint32_t TwoA2;
-        uint32_t TwoB2;
-        uint32_t Px;
-        uint32_t Py;
-        uint32_t P;
-        int32_t X;
-        int32_t Y;
-
-        EllipseWalk(int32_t a, int32_t b)
+        if (width == 0 || height == 0)
         {
-            B2 = static_cast<uint32_t>(b) * static_cast<uint32_t>(b);
-            TwoB2 = B2 << 1;
-            A2 = static_cast<uint32_t>(a) * static_cast<uint32_t>(a);
-            TwoA2 = A2 << 1;
-            Px = 0;
-            Py = TwoA2 * static_cast<uint32_t>(b);
-            P = (A2 >> 2) + B2 - A2 * static_cast<uint32_t>(b);
-            X = 0;
-            Y = b;
+            return VFX_line_draw(pane, xc - width, yc - height, xc + width, yc + height, LD_DRAW, color);
         }
 
-        /// <summary>Calls <paramref name="plot"/>(x, y) for each step of the first quadrant, from (0, b) to (a, 0).</summary>
-        template <typename Plot> void Walk(Plot plot)
+        MCVfxClip clip;
+        const int32_t status = MCVfxClipPane(pane, clip);
+
+        if (status != 0)
         {
-            int32_t rows = Y;
-
-            // Region 1: slope above -1, x advances every step.
-            while (static_cast<int32_t>(Px - Py) < 0)
-            {
-                plot(X, Y);
-
-                if (static_cast<int32_t>(P) >= 0)
-                {
-                    --Y;
-                    --rows;
-                    Py -= TwoA2;
-                    P -= Py;
-                }
-
-                ++X;
-                Px += TwoB2;
-                P += Px + B2;
-            }
-
-            // Region 2: y descends every step.
-            const int32_t diff = static_cast<int32_t>(A2 - B2);
-            P += static_cast<uint32_t>(((diff >> 1) + diff - static_cast<int32_t>(Px) - static_cast<int32_t>(Py)) >> 1);
-
-            for (;;)
-            {
-                plot(X, Y);
-
-                if (static_cast<int32_t>(P) < 0)
-                {
-                    ++X;
-                    Px += TwoB2;
-                    P += Px;
-                }
-
-                --Y;
-                Py -= TwoA2;
-                P -= Py - A2;
-
-                if (--rows < 0)
-                {
-                    break;
-                }
-            }
+            return status;
         }
-    };
+
+        MCEllipseCommand command;
+        command.CenterX = xc + clip.PaneX;
+        command.CenterY = yc + clip.PaneY;
+        command.Width = width;
+        command.Height = height;
+        command.Clip = MCRect{clip.X0, clip.Y0, clip.X1, clip.Y1};
+        command.Fill = fill;
+        command.Color = static_cast<uint8_t>(color);
+        command.Alpha = false;
+        MCRenderer::For(pane->window).Ellipse(pane->window, command);
+        // Original behaviour: the outline's asm returned whatever EAX held (a leftover of the stepping); 0 here.
+        return 0;
+    }
 }
 
 int32_t VFX_ellipse_draw(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color)
 {
-    if (width == 0 || height == 0)
-    {
-        return VFX_line_draw(pane, xc - width, yc - height, xc + width, yc + height, LD_DRAW, color);
-    }
-
-    MCVfxClip clip;
-    const int32_t status = MCVfxClipPane(pane, clip);
-
-    if (status != 0)
-    {
-        return status;
-    }
-
-    const int32_t cx = xc + clip.PaneX;
-    const int32_t cy = yc + clip.PaneY;
-    const auto put = [&](int32_t x, int32_t y)
-    {
-        if (x >= clip.X0 && x <= clip.X1 && y >= clip.Y0 && y <= clip.Y1)
-        {
-            *clip.At(x, y) = static_cast<uint8_t>(color);
-        }
-    };
-
-    EllipseWalk walk(width, height);
-    walk.Walk(
-        [&](int32_t x, int32_t y)
-        {
-            put(cx + x, cy + y);
-            put(cx + x, cy - y);
-            put(cx - x, cy + y);
-            put(cx - x, cy - y);
-        });
-    // Original behaviour: the asm returned whatever EAX held (a leftover of the stepping); 0 here.
-    return 0;
+    return DrawEllipse(pane, xc, yc, width, height, color, false);
 }
 
 int32_t VFX_ellipse_fill(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color)
 {
-    if (width == 0 || height == 0)
-    {
-        return VFX_line_draw(pane, xc - width, yc - height, xc + width, yc + height, LD_DRAW, color);
-    }
-
-    MCVfxClip clip;
-    const int32_t status = MCVfxClipPane(pane, clip);
-
-    if (status != 0)
-    {
-        return status;
-    }
-
-    const int32_t cx = xc + clip.PaneX;
-    const int32_t cy = yc + clip.PaneY;
-    EllipseWalk walk(width, height);
-    walk.Walk(
-        [&](int32_t x, int32_t y)
-        {
-            // The span cx - x .. cx + x, clamped; skipped when wholly outside.
-            int32_t right = cx + x;
-
-            if (right < clip.X0)
-            {
-                return;
-            }
-
-            right = std::min(right, clip.X1);
-            int32_t left = cx - x;
-
-            if (left > clip.X1)
-            {
-                return;
-            }
-
-            left = std::max(left, clip.X0);
-            const size_t length = static_cast<size_t>(right - left + 1);
-
-            const int32_t below = cy + y;
-
-            if (below < clip.Y0)
-            {
-                return;
-            }
-
-            if (below <= clip.Y1)
-            {
-                std::memset(clip.At(left, below), static_cast<uint8_t>(color), length);
-            }
-
-            const int32_t above = cy - y;
-
-            if (above < clip.Y0 || above > clip.Y1)
-            {
-                return;
-            }
-
-            std::memset(clip.At(left, above), static_cast<uint8_t>(color), length);
-        });
-    return 0;
+    return DrawEllipse(pane, xc, yc, width, height, color, true);
 }

@@ -442,6 +442,8 @@ void MCDisplay::PixelScale(float& scaleX, float& scaleY) const
 
 std::expected<void, std::string> MCDisplay::Present()
 {
+    MCPort::ManualClockPresented();
+
     if ((SDL_GetWindowFlags(_Window) & SDL_WINDOW_MINIMIZED) != 0)
     {
         return {};

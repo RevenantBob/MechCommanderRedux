@@ -13,6 +13,9 @@
     <ClCompile Include="tests\DirectPlayTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\FrameHashTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\GroundVehicleTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

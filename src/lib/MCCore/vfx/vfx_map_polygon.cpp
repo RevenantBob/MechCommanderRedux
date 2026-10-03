@@ -4,16 +4,9 @@
 // mcx\vfx\vfx_map_polygon.cpp: despite the name, the game's status bars, its pixel write and a transparent window
 // blit. (Inline assembly in the original.)
 
-namespace
-{
-    /// <summary>The AlphaTable row status-bar frames are darkened through (0x008011d0 in MCX.EXE).</summary>
-    constexpr int32_t STATUS_FRAME_ALPHA = 0x108;
-}
-
 void AG_StatusBar(PANE* pane, int x0, int y0, int x1, int y1, int alphaColor, int barLength)
 {
     const WINDOW* window = pane->window;
-    const int32_t stride = window->x_max + 1; // 0x00802408
     const int32_t clipX0 = std::max(pane->x0, 0);
     const int32_t clipY0 = std::max(pane->y0, 0);
     const int32_t clipX1 = pane->x1 < window->x_max + 1 ? pane->x1 : window->x_max;
@@ -77,49 +70,36 @@ void AG_StatusBar(PANE* pane, int x0, int y0, int x1, int y1, int alphaColor, in
         return;
     }
 
-    const uint8_t* frame = reinterpret_cast<const uint8_t*>(AlphaTable) + STATUS_FRAME_ALPHA * 256;
-    const uint8_t* fill = reinterpret_cast<const uint8_t*>(AlphaTable) + static_cast<intptr_t>(alphaColor) * 256;
-    uint8_t* p = window->buffer + static_cast<intptr_t>(y0) * stride + x0;
-
-    for (int32_t y = y0; y <= y1; ++y, p += stride)
-    {
-        if (y == topRow || y == bottomRow)
-        {
-            // The frame's top or bottom: the pixels between the corners.
-            for (int32_t i = 1; i < width; ++i)
-            {
-                p[i] = frame[p[i]];
-            }
-
-            continue;
-        }
-
-        p[0] = frame[p[0]];
-        p[width] = frame[p[width]];
-
-        if (barLength != 0)
-        {
-            for (int32_t i = 1; i <= barLength + 1; ++i)
-            {
-                p[i] = fill[p[i]];
-            }
-        }
-    }
+    // The frame (the box's top and bottom rows between the corners, its left and right columns) is darkened through
+    // AlphaTable row 0x108 (0x008011d0 in MCX.EXE), the bar through the alpha colour's row.
+    MCStatusBarCommand command;
+    command.Box = MCRect{x0, y0, x1, y1};
+    command.FrameTop = topRow;
+    command.FrameBottom = bottomRow;
+    command.BarLength = barLength;
+    command.AlphaColor = alphaColor;
+    MCRenderer::For(pane->window).StatusBar(pane->window, command);
 }
 
 void AG_pixel_write(PANE* pane, int32_t x, int32_t y, uint32_t color)
 {
-    x += pane->x0;
-    y += pane->y0;
+    MCVfxClip clip;
 
-    // Original behaviour: strictly inside the pane's rectangle; the window's size isn't checked.
-    if (x <= pane->x0 || x >= pane->x1 || y <= pane->y0 || y >= pane->y1)
+    if (MCVfxClipPane(pane, clip) != 0)
     {
         return;
     }
 
-    const WINDOW* window = pane->window;
-    window->buffer[static_cast<intptr_t>(window->x_max + 1) * y + x] = static_cast<uint8_t>(color);
+    x += pane->x0;
+    y += pane->y0;
+
+    // OB-120: the asm wrote only strictly inside the pane's rectangle, and didn't check the window's size.
+    if (x < clip.X0 || x > clip.X1 || y < clip.Y0 || y > clip.Y1)
+    {
+        return;
+    }
+
+    MCRenderer::For(pane->window).Pixel(pane->window, x, y, static_cast<uint8_t>(color));
 }
 
 int32_t DrawTransparent(PANE* pane, WINDOW* texture, int x, int y, int width, int height)
@@ -131,29 +111,32 @@ int32_t DrawTransparent(PANE* pane, WINDOW* texture, int x, int y, int width, in
     const int32_t clipX1 = stride <= pane->x1 ? window->x_max : pane->x1;
     const int32_t clipY1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
 
-    // Original behaviour: offset by the pane's origin clipped to the window, not the pane's own.
-    int32_t dx = x + clipX0;
-    int32_t dy = y + clipY0;
+    // OB-115: the asm offset by the pane's origin clipped to the window. OB-116: and counted a picture starting on
+    // the last column or row as outside.
+    int32_t dx = x + pane->x0;
+    int32_t dy = y + pane->y0;
 
-    if (dx >= clipX1 || dy >= clipY1 || clipX0 - width >= dx || clipY0 - height >= dy)
+    if (clipX1 < clipX0 || clipY1 < clipY0 || dx > clipX1 || dy > clipY1 || clipX0 - width >= dx ||
+        clipY0 - height >= dy)
     {
         return 1;
     }
 
-    const int32_t textureStride = texture->x_max + 1; // 0x00802410
-    const uint8_t* src = texture->buffer;
+    // Where in the texture the copy starts.
+    int32_t sourceX = 0;
+    int32_t sourceY = 0;
 
     if (dx < clipX0)
     {
         width += dx - clipX0;
-        src += clipX0 - dx;
+        sourceX = clipX0 - dx;
         dx = clipX0;
     }
 
     if (dy < clipY0)
     {
         height += dy - clipY0;
-        src += static_cast<intptr_t>(clipY0 - dy) * textureStride;
+        sourceY = clipY0 - dy;
         dy = clipY0;
     }
 
@@ -167,22 +150,17 @@ int32_t DrawTransparent(PANE* pane, WINDOW* texture, int x, int y, int width, in
         height = clipY1 - dy + 1;
     }
 
-    // The original copied 8 (MMX) or 4 bytes at a time with byte masks; the pixels written are the same.
-    uint8_t* dst = window->buffer + static_cast<intptr_t>(dy) * stride + dx;
-
-    do
-    {
-        for (int32_t i = 0; i < width; ++i)
-        {
-            if (src[i] != 0xff)
-            {
-                dst[i] = src[i];
-            }
-        }
-
-        dst += stride;
-        src += textureStride;
-    } while (--height != 0);
-
+    // Colour 255 is transparent. (The original copied 8 (MMX) or 4 bytes at a time with byte masks; the pixels
+    // written are the same.)
+    MCCopyCommand command;
+    command.Source = texture;
+    command.SourceRect = MCRect{sourceX, sourceY, sourceX + width - 1, sourceY + height - 1};
+    command.X = dx;
+    command.Y = dy;
+    command.ColorKey = true;
+    command.Key = 0xff;
+    command.Downwards = true;
+    command.Rightwards = true;
+    MCRenderer::For(pane->window).Copy(pane->window, command);
     return 0;
 }

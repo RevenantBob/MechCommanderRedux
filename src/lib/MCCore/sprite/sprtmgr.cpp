@@ -8,6 +8,7 @@
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/mission.h"
+#include "platform/MCRenderer.h"
 #include "sprite/vfxshape.h"
 
 SpriteManager* spriteManager = nullptr;
@@ -512,7 +513,9 @@ auto SpriteManager::mallocShapeRAM(uint32_t size) -> void*
 
 auto SpriteManager::freeShapeRAM(void* block) -> void
 {
-    shapeHeap->free(block);
+    // Port: a renderer may hold a copy of the block's shapes (a GPU atlas); it drops it with the block.
+    const int32_t size = shapeHeap->free(block);
+    MCRenderer::ForgetShapes(block, static_cast<size_t>(size));
 }
 
 auto SpriteManager::walkShapeHeap() -> void
@@ -589,6 +592,8 @@ auto SpriteManager::dumpALL() -> void
         shape = firstShape;
     }
 
+    // Port: every shape is gone, so a renderer can drop all it copied at once.
+    MCRenderer::ForgetShapes(nullptr, SIZE_MAX);
     dumpedRecent = 1;
 }
 

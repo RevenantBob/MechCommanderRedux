@@ -210,9 +210,11 @@ TEST_CASE("vfx: AG_ellipse_draw blends a special colour through AlphaTable")
 
     TestWindow w(41, 31, 50);
     AG_ellipse_draw(&w.Pane, 20, 15, 12, 8, 0x40);
-    // Points on the axes are plotted twice (as in the original), so they blend twice.
-    CHECK_EQ(w.At(32, 15), 52);
-    CHECK_EQ(w.At(20, 23), 52);
+    // Every point blends once, the ones on the axes too (MCX.EXE plotted those twice, OB-122).
+    CHECK_EQ(w.At(32, 15), 51);
+    CHECK_EQ(w.At(20, 23), 51);
+    CHECK_EQ(w.At(8, 15), 51);
+    CHECK_EQ(w.At(20, 7), 51);
     CHECK_EQ(w.At(20, 15), 50);
 }
 
@@ -255,7 +257,7 @@ TEST_CASE("vfx: AG_StatusBar darkens the frame and blends the bar")
     CHECK_EQ(w.At(5, 9), 10);
 }
 
-TEST_CASE("vfx: AG_pixel_write writes only strictly inside the pane")
+TEST_CASE("vfx: AG_pixel_write writes inside the pane, its edges included")
 {
     TestWindow w(10, 10);
     w.Pane = PANE{&w.Window, 2, 2, 7, 7};
@@ -263,10 +265,26 @@ TEST_CASE("vfx: AG_pixel_write writes only strictly inside the pane")
     AG_pixel_write(&w.Pane, 1, 1, 6);
     AG_pixel_write(&w.Pane, 5, 3, 0x107);
     AG_pixel_write(&w.Pane, 4, 4, 8);
-    CHECK_EQ(w.At(2, 2), 0);
+    AG_pixel_write(&w.Pane, 6, 0, 9);
+    AG_pixel_write(&w.Pane, -1, 2, 4);
+    CHECK_EQ(w.At(2, 2), 5);
     CHECK_EQ(w.At(3, 3), 6);
-    CHECK_EQ(w.At(7, 5), 0);
+    CHECK_EQ(w.At(7, 5), 7);
     CHECK_EQ(w.At(6, 6), 8);
+    CHECK_EQ(w.At(8, 2), 0);
+    CHECK_EQ(w.At(1, 4), 0);
+
+    // A pane reaching past the window: clipped to it.
+    TestWindow edge(10, 10);
+    edge.Pane = PANE{&edge.Window, 5, 5, 20, 20};
+    AG_pixel_write(&edge.Pane, 4, 4, 3);
+    AG_pixel_write(&edge.Pane, 5, 4, 3);
+    CHECK_EQ(edge.At(9, 9), 3);
+
+    for (int32_t x = 0; x < 10; ++x)
+    {
+        CHECK_EQ(edge.At(x, 0), 0);
+    }
 }
 
 TEST_CASE("vfx: DrawTransparent copies all but colour 255, clipped")
@@ -326,28 +344,20 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
     // Width field 5: rows of 6 pixels.
     auto table = MakeFastShape(5, {
                                       {0x82, 1, 2, 2, 0xff, 2, 3}, // literal 1 2, skip 2, run of 2 x 3
-                                      {0x82, 4, 5, 2, 0xff, 2, 6}, // (drawn twice: see below)
+                                      {0x82, 4, 5, 2, 0xff, 2, 6},
                                       {0x86, 7, 8, 9, 10, 11, 12},
                                   });
     TestWindow w(12, 8, 0x55);
     CHECK_EQ(fastShapeDraw(&w.Pane, table.data(), 0, 3, 2, nullptr, 0), 0);
+    // Each row from its own offset (MCX.EXE drew the first row's data twice and dropped the last row, OB-117).
     const uint8_t row0[] = {1, 2, 0x55, 0x55, 3, 3};
+    const uint8_t row1[] = {4, 5, 0x55, 0x55, 6, 6};
+    const uint8_t row2[] = {7, 8, 9, 10, 11, 12};
 
     for (int32_t i = 0; i < 6; ++i)
     {
         CHECK_EQ(w.At(3 + i, 2), row0[i]);
-    }
-
-    // Original behaviour: the second row reuses the first row's offset, and the third draws the second's data.
-    for (int32_t i = 0; i < 6; ++i)
-    {
-        CHECK_EQ(w.At(3 + i, 3), row0[i]);
-    }
-
-    const uint8_t row2[] = {4, 5, 0x55, 0x55, 6, 6};
-
-    for (int32_t i = 0; i < 6; ++i)
-    {
+        CHECK_EQ(w.At(3 + i, 3), row1[i]);
         CHECK_EQ(w.At(3 + i, 4), row2[i]);
     }
 
@@ -383,18 +393,39 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
     TestWindow l(12, 8, 0x55);
     l.Pane.x0 = 2;
     fastShapeDraw(&l.Pane, table.data(), 0, -1, 0, nullptr, 0);
-    // sx = 2 + -1 = 1: pixels 1..6; 1 is clipped. Rows land at y = 0..2, y = 2 drawing the second row's data.
+    // sx = 2 + -1 = 1: pixels 1..6; 1 is clipped. Rows land at y = 0..2.
     const uint8_t clipped0[] = {0x55, 2, 0x55, 0x55, 3, 3, 0x55};
-    const uint8_t clipped2[] = {0x55, 5, 0x55, 0x55, 6, 6, 0x55};
+    const uint8_t clipped1[] = {0x55, 5, 0x55, 0x55, 6, 6, 0x55};
+    const uint8_t clipped2[] = {0x55, 8, 9, 10, 11, 12, 0x55};
 
     for (int32_t i = 0; i < 7; ++i)
     {
         CHECK_EQ(l.At(1 + i, 0), clipped0[i]);
-        CHECK_EQ(l.At(1 + i, 1), clipped0[i]);
+        CHECK_EQ(l.At(1 + i, 1), clipped1[i]);
         CHECK_EQ(l.At(1 + i, 2), clipped2[i]);
     }
 
     CHECK_EQ(l.At(2, 3), 0x55);
+
+    // Clipped on the left through a table: the crossing packet lands at the pane's left, and a pixel translated to
+    // 255 stays transparent (MCX.EXE drew that packet one pixel to the right, 255 included, OB-118). The run of
+    // colour 255 translates to 99, so it is drawn.
+    TestWindow lx(12, 8, 0x55);
+    lx.Pane.x0 = 2;
+    fastShapeDraw(&lx.Pane, table.data(), 0, -1, 0, xlat, 0);
+    const uint8_t clippedX[] = {0x55, 0x55, 99, 99, 103, 103, 0x55};
+    const uint8_t clippedX2[] = {0x55, 108, 109, 110, 111, 112, 0x55};
+
+    for (int32_t i = 0; i < 7; ++i)
+    {
+        CHECK_EQ(lx.At(1 + i, 0), clippedX[i]);
+        CHECK_EQ(lx.At(1 + i, 2), clippedX2[i]);
+    }
+
+    // A shape starting on the pane's last column or row still shows that column or row.
+    TestWindow e(12, 8, 0x55);
+    fastShapeDraw(&e.Pane, table.data(), 0, 11, 7, nullptr, 0);
+    CHECK_EQ(e.At(11, 7), 1);
 }
 
 TEST_CASE("game: InitAlphaLookup builds the tables from AlphaPal.ini")

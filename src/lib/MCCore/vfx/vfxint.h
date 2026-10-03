@@ -2,7 +2,11 @@
 
 // Port-only helpers shared by the vfx/*.cpp files. The asm expanded the same prologue macro at the top of every
 // routine that draws through a pane; the port has it once here.
+//
+// The vfx routines are the renderer's front end: they keep the original's clip arithmetic and hand each draw, resolved,
+// to the renderer of the window (MCRenderer::For), which writes the pixels.
 
+#include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
 
 /// <summary>A pane resolved against its window, as the VFX prologue computes it.</summary>

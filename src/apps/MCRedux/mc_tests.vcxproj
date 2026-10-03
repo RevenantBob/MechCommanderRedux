@@ -59,6 +59,7 @@
     </ClCompile>
     <ClCompile Include="tests\CursorTests.cpp" />
     <ClCompile Include="tests\DirectPlayTests.cpp" />
+    <ClCompile Include="tests\FrameHashTests.cpp" />
     <ClCompile Include="tests\GroundVehicleTests.cpp" />
     <ClCompile Include="tests\IniFileTests.cpp" />
     <ClCompile Include="tests\InputTests.cpp" />

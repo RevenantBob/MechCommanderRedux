@@ -544,10 +544,22 @@
     <ClCompile Include="platform\MCRegistry.cpp">
       <Filter>platform</Filter>
     </ClCompile>
+    <ClCompile Include="platform\MCRenderer.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
     <ClCompile Include="platform\MCSmacker.cpp">
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCSocket.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCSoftwareRenderer.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCSoftwareRendererPolygons.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCSoftwareRendererShapes.cpp">
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCStringTable.cpp">
@@ -1143,10 +1155,16 @@
     <ClInclude Include="platform\MCRegistry.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCRenderer.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCSmacker.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCSocket.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCSoftwareRenderer.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCStringTable.h">

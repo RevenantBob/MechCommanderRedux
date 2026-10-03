@@ -1,0 +1,357 @@
+#pragma once
+
+// The port's renderer interface. The game's VFX/AG routines (vfx/*.cpp) are its front end: they keep their
+// signatures, clip each draw to its pane within the window, and hand the renderer commands that are already
+// resolved. The renderer walks shape, tile, glyph and polygon data and writes palette
+// indices. MCSoftwareRenderer is the original pixel code; a hardware renderer implements the same commands.
+//
+// Targets: every WINDOW is a picture in memory (window->buffer), as in the original, and the software renderer draws
+// into it. Later the UI's ports become views (a place on the screen with an origin and a scissor), and the world and
+// the fog get surfaces of their own; windows over memory the game owns stay with the software renderer. Nothing is
+// locked, read back or re-uploaded each frame.
+//
+// Coordinates in commands are window coordinates, rectangles inclusive. Tables are passed as pointers and read at
+// the time of the call.
+
+struct _window;
+struct SCRNVERTEX;
+
+/// <summary>An inclusive rectangle in window coordinates.</summary>
+struct MCRect
+{
+    int32_t X0;
+    int32_t Y0;
+    int32_t X1;
+    int32_t Y1;
+};
+
+/// <summary>What a run-length shape draw does with each pixel it writes.</summary>
+enum class MCShapeOp
+{
+    /// <summary>Runs and literals are written as stored.</summary>
+    Draw,
+    /// <summary>Each pixel becomes <c>AlphaTable[shape &lt;&lt; 8 | screen]</c>.</summary>
+    Alpha,
+    /// <summary>Each pixel is mapped through the table.</summary>
+    Xlat,
+    /// <summary>Blended as Alpha, then mapped through the table.</summary>
+    XlatAlpha,
+    /// <summary>As Draw, and skipped pixels are written as colour 0.</summary>
+    Fill,
+    /// <summary>As Xlat, and skipped pixels are written as colour 0.</summary>
+    XlatFill
+};
+
+/// <summary>
+/// A run-length shape (VFX's format: 0x18-byte header, then rows of tokens) with its clipping resolved: rows
+/// <c>SkipRows</c>.. of the shape are drawn from window row <c>Top</c>, each starting at window column <c>Left</c>,
+/// writing only columns <c>Lo</c>..<c>Hi</c>.
+/// </summary>
+struct MCShapeCommand
+{
+    /// <summary>The shape table and the shape's number in it.</summary>
+    const void* ShapeTable;
+    int32_t ShapeNum;
+    /// <summary>The encoded rows stepped over before the first drawn, and how many are drawn.</summary>
+    int32_t SkipRows;
+    int32_t Rows;
+    /// <summary>The window row of the first drawn row, and the window column every row starts at.</summary>
+    int32_t Top;
+    int32_t Left;
+    /// <summary>The columns written, inclusive.</summary>
+    int32_t Lo;
+    int32_t Hi;
+    MCShapeOp Op;
+    /// <summary>The 256-byte table of the Xlat ops (null otherwise).</summary>
+    const uint8_t* Table;
+};
+
+/// <summary>
+/// A "fast shape" (fastShapeDraw's DNAH format, the terrain overlay tiles) with its clipping resolved: shape rows
+/// <c>FirstRow</c>..<c>EndRow</c> - 1 from window row <c>Top</c>, each starting at column <c>StartX</c>, or, when
+/// <c>LeftSkip</c> is set, with that many pixels stepped over and the rest drawn from <c>ClipX0</c>; <c>Limit</c>
+/// pixels of each row are covered.
+/// </summary>
+struct MCFastShapeCommand
+{
+    /// <summary>The shape (its header, at the offset the table gives).</summary>
+    const uint8_t* Shape;
+    int32_t Top;
+    int32_t FirstRow;
+    int32_t EndRow;
+    int32_t StartX;
+    int32_t ClipX0;
+    int32_t LeftSkip;
+    int32_t Limit;
+    /// <summary>Whether the shape is translucent (its first row starts with the word 1).</summary>
+    bool Alpha;
+    /// <summary>The colour table, or null.</summary>
+    const uint8_t* Table;
+};
+
+/// <summary>A terrain tile (VFX_nTile_draw) with its clipping resolved.</summary>
+struct MCTileCommand
+{
+    /// <summary>The tile's data (format in vfx/vfxtile.cpp).</summary>
+    const uint8_t* Tile;
+    /// <summary>The window column of the tile's bounding box, and the window row of the first row drawn.</summary>
+    int32_t Left;
+    int32_t Top;
+    /// <summary>The first tile row drawn and one past the last.</summary>
+    int32_t FirstRow;
+    int32_t EndRow;
+    /// <summary>The columns written, inclusive; ignored when <c>Unclipped</c>.</summary>
+    int32_t Lo;
+    int32_t Hi;
+    /// <summary>Whether the tile lies wholly inside horizontally (its spans are written without clipping).</summary>
+    bool Unclipped;
+    /// <summary>Null: copied; VFX_TILE_FILL: colour 0x10; else a 256-byte table.</summary>
+    const uint8_t* Table;
+};
+
+/// <summary>Which vfx3d filler a <see cref="MCPolygonCommand"/> reproduces.</summary>
+enum class MCPolygonKind
+{
+    Flat,
+    Gouraud,
+    DitheredGouraud,
+    Translate,
+    Illuminate,
+    Map
+};
+
+/// <summary>
+/// A convex polygon (vfx3d.cpp). Its vertices are relative to the clipped pane's corner (<c>OriginX</c>,
+/// <c>OriginY</c>), and it is clipped to 0..<c>XMax</c>, 0..<c>YMax</c> from there.
+/// </summary>
+struct MCPolygonCommand
+{
+    MCPolygonKind Kind;
+    int32_t OriginX;
+    int32_t OriginY;
+    int32_t XMax;
+    int32_t YMax;
+    int32_t VertexCount;
+    const SCRNVERTEX* Vertices;
+    /// <summary>The dithered kinds' amount (16.16).</summary>
+    int32_t DitherAmount;
+    /// <summary>Translate: the destination table. Map: the lookaside table MP_XLAT maps texels through.</summary>
+    const uint8_t* Table;
+    /// <summary>Map: the texture and the MP_* flags.</summary>
+    const _window* Texture;
+    uint32_t MapFlags;
+};
+
+/// <summary>One corner of a <see cref="MCMapQuadCommand"/>: window position and texel.</summary>
+struct MCMapQuadVertex
+{
+    int32_t X;
+    int32_t Y;
+    int32_t U;
+    int32_t V;
+};
+
+/// <summary>
+/// VFX_shape_transform's textured quadrilateral: the corners clockwise from the shape's top left, clipped to
+/// <c>Clip</c>; texels of colour 255 are transparent.
+/// </summary>
+struct MCMapQuadCommand
+{
+    MCMapQuadVertex Corners[4];
+    MCRect Clip;
+    const _window* Texture;
+};
+
+/// <summary>
+/// A line with VFX_line_draw's clipping resolved into a walk: <c>Count</c> pixels from (X, Y). After each pixel the
+/// 0.32 fraction gains <c>Slope</c>; on a carry the position also moves by (MinorX, MinorY); then it moves by
+/// (MajorX, MajorY).
+/// </summary>
+struct MCLineCommand
+{
+    int32_t X;
+    int32_t Y;
+    int32_t Count;
+    int32_t MajorX;
+    int32_t MajorY;
+    int32_t MinorX;
+    int32_t MinorY;
+    uint32_t Slope;
+    uint32_t Fraction;
+    /// <summary>Null: every pixel becomes <c>Color</c>; else each is mapped through the table (LD_TRANSLATE).</summary>
+    const uint8_t* Table;
+    uint8_t Color;
+};
+
+/// <summary>
+/// An ellipse (VFX's midpoint walk, which the game's routines share) centred at window (<c>CenterX</c>,
+/// <c>CenterY</c>) with radii <c>Width</c> and <c>Height</c> (both non-zero), each point or span clipped to
+/// <c>Clip</c>. Points on the axes are plotted twice and filled rows filled again at every step that stays on them,
+/// which matters when the colour blends.
+/// </summary>
+struct MCEllipseCommand
+{
+    int32_t CenterX;
+    int32_t CenterY;
+    int32_t Width;
+    int32_t Height;
+    MCRect Clip;
+    /// <summary>Whether the ellipse is filled (two spans per step) or outlined (four points per step).</summary>
+    bool Fill;
+    uint8_t Color;
+    /// <summary>Whether the colour blends through its AlphaTable row (the game's routines, for special colours).</summary>
+    bool Alpha;
+};
+
+/// <summary>
+/// A copy of <c>SourceRect</c> of <c>Source</c> to (X, Y) of the target. Rows are copied downwards or upwards and
+/// columns rightwards or leftwards as the routine chose, so an overlapping copy within one window comes out as it did.
+/// </summary>
+struct MCCopyCommand
+{
+    const _window* Source;
+    MCRect SourceRect;
+    int32_t X;
+    int32_t Y;
+    /// <summary>Whether source pixels of colour <c>Key</c> are left out.</summary>
+    bool ColorKey;
+    uint8_t Key;
+    bool Downwards;
+    bool Rightwards;
+};
+
+/// <summary>AG_StatusBar with its clamping done.</summary>
+struct MCStatusBarCommand
+{
+    /// <summary>The clamped box.</summary>
+    MCRect Box;
+    /// <summary>The unclamped box's top and bottom rows: the frame rows (which may have been clipped away).</summary>
+    int32_t FrameTop;
+    int32_t FrameBottom;
+    /// <summary>The bar's length inside each row (0: none), and its AlphaTable row.</summary>
+    int32_t BarLength;
+    int32_t AlphaColor;
+};
+
+/// <summary>
+/// A font character (VFX_character_draw) with its clipping resolved: <c>Columns</c> x <c>Rows</c> of the glyph from
+/// (SourceX, SourceY), drawn at window (X, Y).
+/// </summary>
+struct MCGlyphCommand
+{
+    const void* Font;
+    int32_t Character;
+    int32_t X;
+    int32_t Y;
+    int32_t SourceX;
+    int32_t SourceY;
+    int32_t Columns;
+    int32_t Rows;
+    /// <summary>Null: every byte copied; else mapped through the table, 255 transparent.</summary>
+    const uint8_t* Table;
+};
+
+/// <summary>
+/// CopySprite with its clipping resolved: a bitmap blended onto the target through AlphaTable, at full size or
+/// halved (every other pixel of every other row), optionally mirrored.
+/// </summary>
+struct MCAlphaBlitCommand
+{
+    /// <summary>The bitmap, and where in it the first pixel read lies (it may be before the start when mirrored).</summary>
+    const uint8_t* Sprite;
+    intptr_t Offset;
+    int32_t Pitch;
+    /// <summary>The window position of the first pixel written.</summary>
+    int32_t Left;
+    int32_t Top;
+    /// <summary>The source columns and rows covered (before halving).</summary>
+    int32_t Columns;
+    int32_t Rows;
+    bool Mirror;
+    bool FullSize;
+};
+
+/// <summary>
+/// The renderer. Every call is made from the game's thread. The vfx front end asks <see cref="For"/> which renderer
+/// draws into a window, and issues its commands there.
+/// </summary>
+class MCRenderer
+{
+public:
+    virtual ~MCRenderer() = default;
+
+    /// <summary>
+    /// The renderer that draws into <paramref name="window"/>. Every window is a picture in memory for now, so this
+    /// is always the software renderer.
+    /// </summary>
+    static MCRenderer& For(const _window* window);
+
+    // Commands --------------------------------------------------------------------------------------------------
+
+    /// <summary>Fills <paramref name="rect"/> with <paramref name="color"/>.</summary>
+    virtual void Clear(_window* target, const MCRect& rect, uint8_t color) = 0;
+
+    /// <summary>
+    /// VFX_rectangle_hash's pattern over <paramref name="rect"/>: every other pixel, rows an even distance above its
+    /// bottom row starting at its left column, the others one pixel in.
+    /// </summary>
+    virtual void Hash(_window* target, const MCRect& rect, uint8_t color) = 0;
+
+    /// <summary>Copies a rectangle of one window into another (or the same).</summary>
+    virtual void Copy(_window* target, const MCCopyCommand& command) = 0;
+
+    /// <summary>Blends a bitmap onto the target (CopySprite).</summary>
+    virtual void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) = 0;
+
+    /// <summary>Writes <paramref name="count"/> pixels as they are from (x, y) (the image decoders' rows).</summary>
+    virtual void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) = 0;
+
+    /// <summary>One pixel.</summary>
+    virtual void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) = 0;
+
+    /// <summary>A run-length shape.</summary>
+    virtual void Shape(_window* target, const MCShapeCommand& command) = 0;
+
+    /// <summary>A fast shape.</summary>
+    virtual void FastShape(_window* target, const MCFastShapeCommand& command) = 0;
+
+    /// <summary>A terrain tile.</summary>
+    virtual void Tile(_window* target, const MCTileCommand& command) = 0;
+
+    /// <summary>A convex polygon.</summary>
+    virtual void Polygon(_window* target, const MCPolygonCommand& command) = 0;
+
+    /// <summary>A textured quadrilateral (a rotated or scaled shape).</summary>
+    virtual void MapQuad(_window* target, const MCMapQuadCommand& command) = 0;
+
+    /// <summary>A line.</summary>
+    virtual void Line(_window* target, const MCLineCommand& command) = 0;
+
+    /// <summary>An ellipse outline or fill.</summary>
+    virtual void Ellipse(_window* target, const MCEllipseCommand& command) = 0;
+
+    /// <summary>A status bar.</summary>
+    virtual void StatusBar(_window* target, const MCStatusBarCommand& command) = 0;
+
+    /// <summary>A font character.</summary>
+    virtual void Glyph(_window* target, const MCGlyphCommand& command) = 0;
+
+    // Shared state ----------------------------------------------------------------------------------------------
+
+    /// <summary>Tells every renderer the alpha table changed (InitAlphaLookup).</summary>
+    static void AlphaTableChanged();
+
+    /// <summary>
+    /// Tells every renderer that shape data in [begin, begin + size) was freed or changed (SpriteManager::freeShapeRAM,
+    /// VFX_shape_remap_colors), or with (null, SIZE_MAX) that all of it was (SpriteManager::dumpALL), so nothing cached
+    /// from it outlives it.
+    /// </summary>
+    static void ForgetShapes(const void* begin, size_t size);
+
+protected:
+    /// <summary>The alpha table changed: drop anything built from it.</summary>
+    virtual void OnAlphaTableChanged() = 0;
+
+    /// <summary>Shape data in [begin, begin + size) is going away: drop anything cached from it.</summary>
+    virtual void OnShapesForgotten(const void* begin, size_t size) = 0;
+};

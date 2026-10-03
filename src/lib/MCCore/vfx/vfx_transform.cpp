@@ -11,12 +11,6 @@ uint8_t* lookaside = nullptr;
 
 namespace
 {
-    /// <summary>A blend through the game's alpha table: <paramref name="sprite"/> over <paramref name="screen"/>.</summary>
-    inline uint8_t Blend(uint8_t sprite, uint8_t screen)
-    {
-        return static_cast<uint8_t>(AlphaTable[(static_cast<uint32_t>(sprite) << 8) | screen]);
-    }
-
     /// <summary>
     /// The body of AG_shape_transform and AG_shape_translate_transform: renders the shape into
     /// <paramref name="buffer"/> with <paramref name="fill"/>, then copies it to the pane.
@@ -95,13 +89,13 @@ void CopySprite(PANE* pane, uint8_t* sprite, int x, int y, int width, int height
     const int32_t cx1 = pane->x1 < stride ? pane->x1 : window->x_max;
     const int32_t cy1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
 
-    // (x, y) are relative to the clipped pane's corner.
-    int32_t left = x + cx0;
-    int32_t top = y + cy0;
+    // OB-115: (x, y) are relative to the pane's origin; the asm offset by its corner clipped to the window.
+    int32_t left = x + pane->x0;
+    int32_t top = y + pane->y0;
     const int32_t pitch = width;
     int32_t columns = width;
     int32_t rows = height;
-    const uint8_t* source = sprite;
+    intptr_t sourceOffset = 0;
 
     if (left < cx0)
     {
@@ -109,12 +103,12 @@ void CopySprite(PANE* pane, uint8_t* sprite, int x, int y, int width, int height
         if (fullSize != 0)
         {
             columns += over;
-            source += mirror != 0 ? over : -over;
+            sourceOffset += mirror != 0 ? over : -over;
         }
         else
         {
             columns += over * 2;
-            source += mirror != 0 ? over * 2 : -over * 2;
+            sourceOffset += mirror != 0 ? over * 2 : -over * 2;
         }
 
         left = cx0;
@@ -122,18 +116,18 @@ void CopySprite(PANE* pane, uint8_t* sprite, int x, int y, int width, int height
 
     if (top < cy0)
     {
-        // Original behaviour: the source steps down by the (possibly already clipped) column count, not the
-        // sprite's pitch, so a sprite clipped on the left and the top reads its rows skewed.
+        // OB-119: the asm stepped the source down by the (possibly already clipped) column count, not the sprite's
+        // pitch, so a sprite clipped on the left and the top read its rows skewed.
         const int32_t over = top - cy0; // negative
         if (fullSize != 0)
         {
             rows += over;
-            source += -over * columns;
+            sourceOffset += static_cast<intptr_t>(-over) * pitch;
         }
         else
         {
             rows += over * 2;
-            source += -over * columns * 2;
+            sourceOffset += static_cast<intptr_t>(-over) * pitch * 2;
         }
 
         top = cy0;
@@ -164,64 +158,38 @@ void CopySprite(PANE* pane, uint8_t* sprite, int x, int y, int width, int height
         }
     }
 
-    if (left >= cx1 || top >= cy1 || left <= cx0 - columns || top <= cy0 - rows || columns <= 0 || rows <= 0)
+    // OB-116: the asm counted a sprite starting on the last column or row as outside.
+    if (cx1 < cx0 || cy1 < cy0 || left > cx1 || top > cy1 || left <= cx0 - columns || top <= cy0 - rows ||
+        columns <= 0 || rows <= 0)
     {
         return;
     }
 
-    uint8_t* destination = window->buffer + static_cast<intptr_t>(stride) * top + left;
-
-    if (fullSize != 0)
+    // Half size: every other pixel of every other row; nothing when that leaves none.
+    if (fullSize == 0 && ((static_cast<uint32_t>(rows) >> 1) == 0 || (static_cast<uint32_t>(columns) >> 1) == 0))
     {
-        const uint8_t* s = mirror != 0 ? source + pitch - 1 : source;
-        const int32_t step = mirror != 0 ? -1 : 1;
-
-        for (int32_t row = 0; row < rows; ++row)
-        {
-            for (int32_t column = 0; column < columns; ++column)
-            {
-                destination[column] = Blend(*s, destination[column]);
-                s += step;
-            }
-
-            s += pitch - step * columns;
-            destination += stride;
-        }
+        return;
     }
-    else
-    {
-        // Half size: every other pixel of every other row.
-        const int32_t halfRows = static_cast<int32_t>(static_cast<uint32_t>(rows) >> 1);
-        const int32_t halfColumns = static_cast<int32_t>(static_cast<uint32_t>(columns) >> 1);
 
-        if (halfRows == 0 || halfColumns == 0)
-        {
-            return;
-        }
-
-        const uint8_t* s = mirror != 0 ? source + pitch * 2 - 1 : source;
-        const int32_t step = mirror != 0 ? -2 : 2;
-
-        for (int32_t row = 0; row < halfRows; ++row)
-        {
-            for (int32_t column = 0; column < halfColumns; ++column)
-            {
-                destination[column] = Blend(*s, destination[column]);
-                s += step;
-            }
-
-            s += pitch * 2 - step * halfColumns;
-            destination += stride;
-        }
-    }
+    MCAlphaBlitCommand command;
+    command.Sprite = sprite;
+    command.Offset = sourceOffset;
+    command.Pitch = pitch;
+    command.Left = left;
+    command.Top = top;
+    command.Columns = columns;
+    command.Rows = rows;
+    command.Mirror = mirror != 0;
+    command.FullSize = fullSize != 0;
+    MCRenderer::For(pane->window).AlphaBlit(pane->window, command);
 }
 
 void AG_shape_fill(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
 {
-    MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCAgPixelOp::Fill, {0, true, 1, false, false}, nullptr);
+    MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::Fill, nullptr);
 }
 
 void AG_shape_translate_fill(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
 {
-    MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCAgPixelOp::XlatFill, {0, true, 1, true, true}, lookaside);
+    MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::XlatFill, lookaside);
 }

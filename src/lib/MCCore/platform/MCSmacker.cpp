@@ -1228,14 +1228,26 @@ void MCSmackerPlayer::ColorRemap(const uint8_t* palette, int count)
     _RemapValid = true;
 }
 
+namespace
+{
+    /// <summary>
+    /// The movie clock, in microseconds: the game's performance counter, so that movies follow the tests' manual clock
+    /// (MCPort::UseManualClock) as the game does.
+    /// </summary>
+    uint64_t NowMicroseconds()
+    {
+        const auto counter = static_cast<uint64_t>(MCPort::PerformanceCounter());
+        const auto frequency = static_cast<uint64_t>(MCPort::PerformanceFrequency());
+        return counter / frequency * 1000000 + counter % frequency * 1000000 / frequency;
+    }
+}
+
 std::expected<void, std::string> MCSmackerPlayer::DoFrame()
 {
     if (!_Started)
     {
         _Started = true;
-        _StartTicks = static_cast<uint64_t>(
-            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
-                .count());
+        _StartTicks = NowMicroseconds();
         _FramesDone = 0;
     }
 
@@ -1286,10 +1298,7 @@ void MCSmackerPlayer::NextFrame()
 
 uint64_t MCSmackerPlayer::ElapsedMicroseconds() const
 {
-    const uint64_t now = static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
-            .count());
-    return now - _StartTicks;
+    return NowMicroseconds() - _StartTicks;
 }
 
 uint64_t MCSmackerPlayer::NextFrameTime() const

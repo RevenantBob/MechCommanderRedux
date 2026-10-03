@@ -180,6 +180,8 @@ void InitAlphaLookup(VFX_RGB* palette)
             }
         }
     }
+
+    MCRenderer::AlphaTableChanged();
 }
 
 uint8_t FindClosest(VFX_RGB* palette, int r, int g, int b)
