@@ -3199,6 +3199,10 @@ auto GroundVehicle::render() -> void
         vector_2d center = eyeProject(position);
         vector_2d size(radius, radius);
         ElementList->openGroup(-50000, 1);
+        // Port: an overlay, on the screen over the view: it follows the object through the zoom.
+        center = MCOverlayPoint(center);
+        size.x *= MCOverlay.ScaleX;
+        size.y *= MCOverlay.ScaleY;
         ElementList->add(new EllipseElement(center, size, 0xfe, -50000));
     }
 

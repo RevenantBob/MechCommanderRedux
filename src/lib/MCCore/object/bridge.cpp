@@ -575,6 +575,8 @@ auto MiscTerrainObject::render() -> void
 auto MiscTerrainObject::drawBars(vector_2d screenPos) -> void
 {
     // The damage bar over a selected wall, bridge or forest: green, then yellow under half, red at a fifth.
+    // Port: an overlay, on the screen over the view: it follows the object through the zoom, its size doesn't change.
+    screenPos = MCOverlayPoint(screenPos);
     PolyElementData data;
     data.init();
     const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;

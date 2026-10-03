@@ -343,6 +343,14 @@ void clearMoverList();
 /// <summary>Number of entries of <see cref="usedBlockList"/> and <see cref="moverBlockList"/> (0x510 bytes each).</summary>
 inline constexpr int32_t MAX_BLOCK_LIST = 324;
 
+/// <summary>Port: the isometric view angle (30 degrees, as MCX.EXE stores it).</summary>
+inline constexpr double MCTerrainViewAngle = 0x1.0c152382d45b2p-1;
+/// <summary>
+/// Port: how large a world view the visible terrain grid covers, as width / cos + height / sin of the view angle in
+/// pixels at camera scale 100 (0 before Terrain::init). A view's furthest zoom stays within it.
+/// </summary>
+extern double MCTerrainGridReach;
+
 /// <summary>The terrain.</summary>
 extern Terrain* land;
 /// <summary>Draw the terrain tiles (debug switch, default on).</summary>

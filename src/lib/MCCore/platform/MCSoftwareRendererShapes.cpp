@@ -13,6 +13,32 @@ namespace
         return static_cast<uint8_t>(AlphaTable[(static_cast<uint32_t>(color) << 8) | screen]);
     }
 
+    /// <summary>
+    /// Blends <paramref name="color"/> over <paramref name="p"/> (then maps it through <paramref name="xlat"/> for
+    /// XlatAlpha), or records that in its op when it is see-through.
+    /// </summary>
+    template <MCShapeOp Op> void BlendPixel(uint8_t* p, uint8_t color, const uint8_t* xlat, MCSeeThrough& seeThrough)
+    {
+        if (seeThrough.At(p))
+        {
+            seeThrough.Blend(p, color);
+
+            if constexpr (Op == MCShapeOp::XlatAlpha)
+            {
+                seeThrough.Map(p, xlat);
+            }
+
+            return;
+        }
+
+        *p = Blend(color, *p);
+
+        if constexpr (Op == MCShapeOp::XlatAlpha)
+        {
+            *p = xlat[*p];
+        }
+    }
+
     /// <summary>Steps over one encoded row (up to and past its end token).</summary>
     const uint8_t* SkipRow(const uint8_t* data)
     {
@@ -45,7 +71,8 @@ namespace
     /// within its bounds. Port fix: a row running past its declared bounds is clipped here too.
     /// </remarks>
     template <MCShapeOp Op>
-    const uint8_t* DrawRow(const uint8_t* data, uint8_t* row, int32_t x, int32_t lo, int32_t hi, const uint8_t* xlat)
+    const uint8_t* DrawRow(const uint8_t* data, uint8_t* row, int32_t x, int32_t lo, int32_t hi, const uint8_t* xlat,
+                           MCSeeThrough& seeThrough)
     {
         constexpr bool fill = Op == MCShapeOp::Fill || Op == MCShapeOp::XlatFill;
         constexpr bool translate = Op == MCShapeOp::Xlat || Op == MCShapeOp::XlatFill;
@@ -107,13 +134,9 @@ namespace
 
                     const uint8_t pixel = data[i];
 
-                    if constexpr (Op == MCShapeOp::Alpha)
+                    if constexpr (Op == MCShapeOp::Alpha || Op == MCShapeOp::XlatAlpha)
                     {
-                        row[column] = Blend(pixel, row[column]);
-                    }
-                    else if constexpr (Op == MCShapeOp::XlatAlpha)
-                    {
-                        row[column] = xlat[Blend(pixel, row[column])];
+                        BlendPixel<Op>(row + column, pixel, xlat, seeThrough);
                     }
                     else if constexpr (translate)
                     {
@@ -150,14 +173,10 @@ namespace
                         break;
                     }
 
-                    if constexpr (Op == MCShapeOp::Alpha)
-                    {
-                        row[column] = Blend(color, row[column]);
-                    }
-                    else if constexpr (Op == MCShapeOp::XlatAlpha)
+                    if constexpr (Op == MCShapeOp::Alpha || Op == MCShapeOp::XlatAlpha)
                     {
                         // OB-114: the asm blended only a run's first pixel with its colour, the rest with colour 0.
-                        row[column] = xlat[Blend(color, row[column])];
+                        BlendPixel<Op>(row + column, color, xlat, seeThrough);
                     }
                     else
                     {
@@ -174,10 +193,11 @@ namespace
     {
         const intptr_t stride = target->x_max + 1;
         uint8_t* row = target->buffer + command.Top * stride;
+        MCSeeThrough seeThrough(target);
 
         for (int32_t rows = command.Rows; rows > 0; --rows, row += stride)
         {
-            data = DrawRow<Op>(data, row, command.Left, command.Lo, command.Hi, command.Table);
+            data = DrawRow<Op>(data, row, command.Left, command.Lo, command.Hi, command.Table, seeThrough);
         }
     }
 

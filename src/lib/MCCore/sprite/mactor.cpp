@@ -1764,11 +1764,13 @@ auto DrawBox(float left, float top, float right, float bottom) -> void
 
 auto MechActor::drawBars() -> void
 {
+    // Port: the bar is an overlay, on the screen over the view: it follows the sprite through the zoom, its size
+    // doesn't change.
     const float scale = eyeScale();
     const float barWidth = scale * 38.0f;
     const float barHeight = scale * 4.0f;
-    const float barY = (upperLeft.y - scale * 24.0f) - barHeight;
-    const float barX = static_cast<float>(std::floor(static_cast<double>(screenPos.x - barWidth * 0.5f)));
+    const float barY = (MCOverlayY(upperLeft.y) - scale * 24.0f) - barHeight;
+    const float barX = static_cast<float>(std::floor(static_cast<double>(MCOverlayX(screenPos.x) - barWidth * 0.5f)));
 
     auto* mech = static_cast<Mover*>(owner);
 
@@ -1840,10 +1842,13 @@ auto MechActor::drawTargetDamage() -> void
     ObjectQueueNode* enemies = mech->getAlignment() == 1 ? clanMechList : innerSphereMechList;
 
     // A ring around the mech, with a line out to each enemy it can see, as long as its expected damage to it.
-    vector_2d center((upperLeft.x + lowerRight.x) * 0.5f, (upperLeft.y + lowerRight.y) * 0.5f);
+    // Port: overlays, on the screen over the view: the ring follows the sprite through the zoom.
+    vector_2d center =
+        MCOverlayPoint(vector_2d((upperLeft.x + lowerRight.x) * 0.5f, (upperLeft.y + lowerRight.y) * 0.5f));
     const float radius = std::sqrt((upperLeft.x - lowerRight.x) * (upperLeft.x - lowerRight.x) +
                                    (upperLeft.y - lowerRight.y) * (upperLeft.y - lowerRight.y)) *
-                         0.375f;
+                         0.375f * MCOverlay.ScaleX;
+    const vector_2d ownPos = MCOverlayPoint(screenPos);
     vector_2d size(radius, radius);
     BaseObject* current = nullptr;
 
@@ -1871,9 +1876,9 @@ auto MechActor::drawTargetDamage() -> void
         ElementList->openGroup(-50000, 1);
         ElementList->add(new EllipseElement(center, size, 0xb, -50000));
 
-        const vector_2d targetPos = target->getScreenPos(0);
-        const double dx = static_cast<double>(targetPos.x) - screenPos.x;
-        const double dy = static_cast<double>(targetPos.y) - screenPos.y;
+        const vector_2d targetPos = MCOverlayPoint(target->getScreenPos(0));
+        const double dx = static_cast<double>(targetPos.x) - ownPos.x;
+        const double dy = static_cast<double>(targetPos.y) - ownPos.y;
         const double angle = std::atan(dy / dx);
         const float c = static_cast<float>(std::fabs(std::cos(angle)));
         const float s = static_cast<float>(std::fabs(std::sin(angle)));

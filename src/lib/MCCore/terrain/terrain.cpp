@@ -38,6 +38,7 @@ int32_t Terrain::blocksMapSide = 0;
 int32_t Terrain::blocksToCache = 0;
 int32_t Terrain::totalBlocks = 0;
 int32_t Terrain::visibleVerticesPerSide = 0;
+double MCTerrainGridReach = 0.0;
 int32_t Terrain::visibleBlocksPerSide = 0;
 float Terrain::metersPerElevLevel = 0.0f;
 float Terrain::metersPerVertex = 0.0f;
@@ -405,15 +406,21 @@ auto Terrain::init(char* fileName) -> int32_t
 
         const double sinAngle = std::sin(VIEW_ANGLE);
         const double cosAngle = std::cos(VIEW_ANGLE);
-        const double needed =
-            static_cast<double>(screenWidth) / cosAngle + static_cast<double>(screenHeight) / sinAngle;
+        // The world view's surface is at most 1080 tall (viewWindow::ZoomFurthest), at the widest desktop's aspect.
+        const double widest = std::max(static_cast<double>(screenWidth) / screenHeight, 16.0 / 9.0);
+        const double furthest = static_cast<double>(viewWindow::ZoomFurthest);
+        const double needed = std::max(static_cast<double>(screenWidth) / cosAngle + screenHeight / sinAngle,
+                                       furthest * widest / cosAngle + furthest / sinAngle);
         const double designed = 640.0 / cosAngle + 480.0 / sinAngle;
+        const int32_t dataVertices = visibleVerticesPerSide;
         const auto grown = static_cast<int32_t>(std::ceil(visibleVerticesPerSide * needed / designed));
 
         if (grown > visibleVerticesPerSide)
         {
             visibleVerticesPerSide = (grown + 1) & ~1;
         }
+
+        MCTerrainGridReach = designed * visibleVerticesPerSide / dataVertices;
     }
 
     if ((result = terrainFile.readIdLong("NumberOfWindows", numWindows)) != 0)

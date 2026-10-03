@@ -17,6 +17,7 @@
 #include "platform/MCAudio.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
+#include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
 
 int AG_oldMouseX = -1;
@@ -276,6 +277,8 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
     InMouseCritSec = 1;
     // Port: dragged objects draw into the cursor while the frame is drawn (MCHardwareCursorCarry).
     MCHardwareCursorNewFrame();
+    // Port: a new frame's op tables (translucent UI over the world view; see MCUnderlay).
+    MCRenderer::ResetOpTables();
 
     if (application->smackerWindow == nullptr)
     {

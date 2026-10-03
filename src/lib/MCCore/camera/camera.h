@@ -140,8 +140,63 @@ public:
     /// <remarks>MCX.EXE @ 0x006ad820</remarks>
     void setWindowCamera(Camera* newCamera);
 
+    // Port: the world surface and the zoom. The camera draws the world into a surface of its own, at 1x (camera
+    // scale 100), as tall as the zoom asks: ZoomHeight game pixels, 480 closest to 1080 furthest, whatever the
+    // window's size. The surface has the view's aspect, is the screen's underlay over the view's rectangle (the
+    // display scales it there), and the view's rectangle of the screen is left in the key colour for it to show
+    // through. Unit overlays (health bars, selection marks) are drawn on the screen at its own scale.
+
+    /// <summary>The closest zoom: the view shows 480 lines of the world (the original's 640x480 at camera scale 100).</summary>
+    static constexpr float ZoomClosest = 480.0f;
+    /// <summary>The furthest zoom: 1080 lines of the world.</summary>
+    static constexpr float ZoomFurthest = 1080.0f;
+
+    /// <summary>The world surface's pane (what the camera draws into), sized for the zoom first.</summary>
+    _pane* WorldFrame();
+    /// <summary>
+    /// Sizes the world surface from <see cref="ZoomHeight"/> (the view's height until the zoom starts) and the view's
+    /// aspect; it is cleared when its size changes.
+    /// </summary>
+    void UpdateWorldSurface();
+    /// <summary>The world surface's width and height.</summary>
+    int32_t WorldWidth() const { return WorldWindow.x_max + 1; }
+    int32_t WorldHeight() const { return WorldWindow.y_max + 1; }
+    /// <summary>The closest and furthest zoom for this view: 480 and 1080, or less where the terrain grid can't cover
+    /// a surface that large (a very wide view).</summary>
+    void ZoomLimits(float& closest, float& furthest);
+    /// <summary>Moves the zoom toward <paramref name="height"/> (eased over a few frames), within the limits.</summary>
+    /// <returns>Whether the target moved.</returns>
+    bool ZoomTo(float height);
+    /// <summary>Zooms out by <paramref name="factor"/> (in when below 1) from the current target.</summary>
+    bool ZoomBy(float factor);
+    /// <summary>
+    /// The zoom the toggle (and a view's start) zooms in to: one world pixel per screen pixel, within the limits, or
+    /// the closest zoom when that is already the furthest.
+    /// </summary>
+    float ZoomInHeight();
+    /// <summary>Whether the target is nearer the furthest zoom than <see cref="ZoomInHeight"/> (the original's
+    /// zoomed-out camera scale 1).</summary>
+    bool ZoomedOut();
+    /// <summary>The zoom toggle (the original flipped the camera between scales 100 and 1): to
+    /// <see cref="ZoomInHeight"/> when zoomed out, else to the furthest zoom.</summary>
+    void ToggleZoom();
+    /// <summary>Eases <see cref="ZoomHeight"/> toward the target: called once a frame, before the camera renders.</summary>
+    void EaseZoom();
+    /// <summary>Sets the zoom the first time it is needed: one world pixel per screen pixel, within the limits.</summary>
+    void StartZoom();
+    /// <summary>Screen pixels per world surface pixel, across and down.</summary>
+    float WorldScaleX();
+    float WorldScaleY();
+    /// <summary>The point of the world surface under screen point (<paramref name="screenX"/>, <paramref name="screenY"/>).</summary>
+    vector_2d ScreenToWorld(int32_t screenX, int32_t screenY);
+    /// <summary>The window point (relative to this view) a point of the world surface is shown at.</summary>
+    vector_2d WorldToWindow(vector_2d point);
+    /// <summary>The screen point a point of the world surface is shown at.</summary>
+    vector_2d WorldToScreen(vector_2d point);
+
     /// <summary>The drag-selection box's corners (x0 y0 where the drag started, x1 y1 where the mouse is), zeroed
     /// by init and when the drag ends; display draws it unless x1 and y1 are both 0.</summary>
+    /// <remarks>Port: in the view's own (screen) coordinates, not the world surface's.</remarks>
     float selectionBox[4] = {}; // +0x4c0
     /// <summary>The camera shown.</summary>
     Camera* camera = nullptr; // +0x4d0
@@ -149,7 +204,62 @@ public:
     int32_t interfaceWindow = 0; // +0x4d4
     /// <summary>A copy of the last event handled.</summary>
     aEvent lastEvent; // +0x4d8
+
+    /// <summary>Port: how many lines of the world the view shows now (0 until the first frame sets it).</summary>
+    float ZoomHeight = 0.0f;
+    /// <summary>Port: the zoom <see cref="ZoomHeight"/> eases toward.</summary>
+    float ZoomTarget = 0.0f;
+    /// <summary>Port: when the zoom last eased (MCPort::Milliseconds).</summary>
+    uint32_t ZoomClock = 0;
+    /// <summary>Port: the view starts at the furthest zoom (its camera's "CameraScale" was 1, zoomed out).</summary>
+    bool ZoomStartsOut = false;
+    /// <summary>Port: the view has been shown; until then a zoom change takes effect at once, not eased.</summary>
+    bool ZoomShown = false;
+    /// <summary>Port: the world surface's pixels, window and pane.</summary>
+    std::vector<uint8_t> WorldPixels;
+    _window WorldWindow{};
+    _pane WorldPane{};
 };
+
+/// <summary>
+/// Port: the unit overlays. Health bars, selection marks and strike timers (the elements at depth -50000 and -40000)
+/// are drawn on the screen, over the view's rectangle, at the screen's scale: their positions follow the world through
+/// the zoom, their sizes don't. While a camera renders, this is the view's pane on the screen and the scale from the
+/// camera's world surface to it.
+/// </summary>
+struct MCOverlayTarget
+{
+    /// <summary>The pane the overlays draw into (null outside Camera::render).</summary>
+    _pane* Pane = nullptr;
+    /// <summary>Screen pixels per world surface pixel.</summary>
+    float ScaleX = 1.0f;
+    float ScaleY = 1.0f;
+};
+
+/// <summary>Port: where the overlays of the camera rendering go.</summary>
+extern MCOverlayTarget MCOverlay;
+
+/// <summary>
+/// Port-only (tests): when above 0, every view's zoom is fixed at this many lines of the world (both limits), so a run
+/// shows, and updates, the same area whatever the window.
+/// </summary>
+extern float MCFixedZoomHeight;
+
+/// <summary>Port: whether an element at <paramref name="depth"/> is a unit overlay (-50000 or -40000).</summary>
+bool MCIsOverlayDepth(float depth);
+/// <summary>Port: a point of the rendering camera's world surface, in the overlays' pane.</summary>
+vector_2d MCOverlayPoint(vector_2d point);
+/// <summary>Port: <see cref="MCOverlayPoint"/> of one coordinate.</summary>
+float MCOverlayX(float x);
+float MCOverlayY(float y);
+/// <summary>Port: the view of the main camera (camera 1), whose screen positions objects keep at index 0, or null.</summary>
+viewWindow* MCMainView();
+/// <summary>
+/// Port: screen point (<paramref name="screenX"/>, <paramref name="screenY"/>) in <paramref name="window"/>'s
+/// coordinates: for a camera's view, the point of its world surface under it (through the zoom), as the camera's
+/// projections take it; for other windows, relative to the window's corner.
+/// </summary>
+vector_2d MCWindowPoint(aObject* window, int32_t screenX, int32_t screenY);
 
 /// <summary>The screen-filling holder of the camera panes, with the mission clock pane.</summary>
 /// <remarks>Original source: <c>camera\camera.cpp</c>; 0x4c8 bytes.</remarks>

@@ -444,6 +444,19 @@
     <ClInclude Include="vfx\vfx.h" />
     <ClInclude Include="vfx\vfxfuncs.h" />
     <ClInclude Include="vfx\vfxint.h" />
-  </ItemGroup>  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  </ItemGroup>
+  <!-- HLSL shaders, compiled to SPIR-V headers in build\generated\shaders (the Vulkan SDK's dxc). -->
+  <ItemGroup>
+    <CustomBuild Include="shaders\composite.pshader">
+      <FileType>Document</FileType>
+      <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
+"$(VULKAN_SDK)\Bin\dxc.exe" -T ps_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+      <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
+      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+      <Message>Compiling HLSL fragment shader %(Filename).pshader</Message>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

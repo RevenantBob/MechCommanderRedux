@@ -51,6 +51,11 @@ struct MCViewport
 /// uploads it to an <c>SDL_PIXELFORMAT_INDEX8</c> streaming texture and draws it with SDL's GPU renderer (Vulkan):
 /// the palette lookup happens on the GPU, and <c>SDL_SetRenderLogicalPresentation</c> scales the screen to the
 /// window with borders (letterbox), sampling the nearest pixel unless <see cref="MCDisplayOptions::LinearFilter"/>.</para>
+/// <para>The screen's underlays (<see cref="MCRenderer::Underlays"/>: the world view, drawn at 1x into a surface of its
+/// own) are composited by a fragment shader (shaders/composite.pshader) over each underlay's rectangle: the screen's
+/// key pixels show the underlay's pixel (nearest), mapped through their op (the screen's op plane and the frame's op
+/// tables). Without the shader (no GPU renderer) the CPU composites the screen (<see cref="ComposeScreen"/>) and that
+/// is shown instead.</para>
 /// <para>Threads: <see cref="SetPalette"/>, <see cref="Screen"/> and the getters may be called from any thread
 /// (the palette is guarded); everything else, <see cref="Present"/> included, from the thread that created the
 /// display (SDL's video thread).</para>
@@ -172,8 +177,26 @@ public:
     /// <summary>Turns waiting for the display's refresh on or off.</summary>
     void SetVSync(bool on);
 
-    /// <summary>Writes the screen as it is now as an 8-bit PNG with its palette (the game's screenshot key).</summary>
+    /// <summary>
+    /// Writes the shown view as it is now (the screen with its underlays, at the screen's size) as an 8-bit PNG with its
+    /// palette (the game's screenshot key).
+    /// </summary>
     std::expected<void, std::string> SaveScreenshot(const std::filesystem::path& path) const;
+
+    /// <summary>
+    /// The whole screen as the player sees it, at the screen's size: its pixels with the underlays' pixels in place of
+    /// the key, as <see cref="Present"/> shows them (nearest).
+    /// </summary>
+    std::vector<uint8_t> ComposeScreen() const;
+
+    /// <summary>Whether the screen's underlays are composited by the shader (else by the CPU).</summary>
+    bool CompositesOnGpu() const { return _Composite != nullptr; }
+
+    /// <summary>
+    /// Draws the frame as <see cref="Present"/> would, at the screen's size, into an offscreen texture and reads it
+    /// back as RGBA (tests compare it with <see cref="ComposeScreen"/>).
+    /// </summary>
+    std::expected<std::vector<SDL_Color>, std::string> ReadFrame();
 
     /// <summary>
     /// Maps a point in window coordinates (as SDL's mouse events give them) to the logical screen.
@@ -202,6 +225,36 @@ private:
     std::expected<void, std::string> CreateTexture();
     void ApplyPresentation();
     void ResizeWindowToScale();
+    /// <summary>Makes the composite shader and its fixed textures (leaves <see cref="_Composite"/> null without a GPU
+    /// renderer that takes SPIR-V).</summary>
+    void CreateComposite();
+    /// <summary>Uploads the screen (composited by the CPU when the shader can't), its ops, the op tables and the
+    /// underlays.</summary>
+    std::expected<void, std::string> UploadFrame();
+    /// <summary>
+    /// Draws the uploaded frame: into <paramref name="target"/> at the screen's size, or with null to the window
+    /// through the logical presentation (the shown view).
+    /// </summary>
+    void DrawFrame(SDL_Texture* target);
+
+    /// <summary>An underlay's texture, grown as needed (only its top-left Width x Height is in use), and the render
+    /// state that composites it.</summary>
+    struct UnderlayTexture
+    {
+        SDL_Texture* Texture = nullptr;
+        int Width = 0;
+        int Height = 0;
+        /// <summary>Its composite state (made for this texture and the screen's op texture).</summary>
+        SDL_GPURenderState* State = nullptr;
+        SDL_Texture* StateOps = nullptr;
+        /// <summary>The rectangle of the screen it covers this frame (inclusive), and the surface's size.</summary>
+        int X0 = 0;
+        int Y0 = 0;
+        int X1 = -1;
+        int Y1 = -1;
+        int SourceWidth = 0;
+        int SourceHeight = 0;
+    };
 
     SDL_Window* _Window = nullptr;
     SDL_Renderer* _Renderer = nullptr;
@@ -209,6 +262,21 @@ private:
     /// <summary>With linear filtering: the screen converted to RGBA at logical size, which is then scaled.</summary>
     SDL_Texture* _Target = nullptr;
     SDL_Palette* _SdlPalette = nullptr;
+    /// <summary>The underlays' textures, in the order of <see cref="MCRenderer::Underlays"/>; the first
+    /// <see cref="_UnderlaysUsed"/> are this frame's.</summary>
+    std::vector<UnderlayTexture> _UnderlayTextures;
+    size_t _UnderlaysUsed = 0;
+    /// <summary>The composite shader (null: the CPU composites), its sampler, and its textures: the screen's ops
+    /// (INDEX8 as R8), the op tables (256 x 256) and the palette (256 x 1 RGBA).</summary>
+    SDL_GPUShader* _Composite = nullptr;
+    SDL_GPUSampler* _CompositeSampler = nullptr;
+    SDL_Texture* _OpTexture = nullptr;
+    SDL_Texture* _TableTexture = nullptr;
+    SDL_Texture* _PaletteTexture = nullptr;
+    /// <summary>The screen's op plane (see <see cref="MCRenderer::SetOpPlane"/>).</summary>
+    std::vector<uint8_t> _Ops;
+    /// <summary>The CPU's composite of the screen, shown without the shader.</summary>
+    std::vector<uint8_t> _Composed;
 
     int _Width = 0;
     int _Height = 0;

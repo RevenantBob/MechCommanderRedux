@@ -82,6 +82,39 @@ namespace
     }
 }
 
+void MCSeeThrough::Map(uint8_t* p, const uint8_t* table)
+{
+    if (table != _LastTable)
+    {
+        _LastTable = table;
+        _LastOp = MCRenderer::OpFor(table);
+        _LastIdentity = _LastOp == 0 && std::memcmp(table, MCRenderer::OpTables(), 256) == 0;
+    }
+
+    if (_LastIdentity)
+    {
+        return;
+    }
+
+    uint8_t& op = _Ops[p - _Base];
+    const uint8_t composed = _LastOp != 0 ? MCRenderer::ComposeOps(op, _LastOp) : 0;
+
+    // 0 is the identity, unless every op table is taken.
+    if (composed == 0 && (_LastOp == 0 || MCRenderer::OpTableCount() == 256))
+    {
+        // Every op table is taken: map the key itself, as an opaque pixel.
+        *p = table[*p];
+        return;
+    }
+
+    op = composed;
+}
+
+void MCSeeThrough::Blend(uint8_t* p, uint8_t color)
+{
+    Map(p, reinterpret_cast<const uint8_t*>(AlphaTable) + static_cast<intptr_t>(color) * 256);
+}
+
 MCSoftwareRenderer& MCSoftwareRenderer::Instance()
 {
     static MCSoftwareRenderer renderer;
@@ -91,10 +124,16 @@ MCSoftwareRenderer& MCSoftwareRenderer::Instance()
 void MCSoftwareRenderer::Clear(_window* target, const MCRect& rect, uint8_t color)
 {
     const size_t width = static_cast<size_t>(rect.X1 + 1 - rect.X0);
+    uint8_t* ops = OpPlane(target);
 
     for (int32_t y = rect.Y0; y <= rect.Y1; ++y)
     {
         std::memset(At(target, rect.X0, y), color, width);
+
+        if (ops != nullptr)
+        {
+            std::memset(ops + (At(target, rect.X0, y) - target->buffer), 0, width);
+        }
     }
 }
 
@@ -202,6 +241,18 @@ void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& co
     const int32_t pitch = command.Pitch;
     const uint8_t* source = command.Sprite + command.Offset;
     uint8_t* destination = At(target, command.Left, command.Top);
+    MCSeeThrough seeThrough(target);
+    const auto blend = [&](uint8_t* p, uint8_t color)
+    {
+        if (seeThrough.At(p))
+        {
+            seeThrough.Blend(p, color);
+        }
+        else
+        {
+            *p = Blend(color, *p);
+        }
+    };
 
     if (command.FullSize)
     {
@@ -212,7 +263,7 @@ void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& co
         {
             for (int32_t column = 0; column < command.Columns; ++column)
             {
-                destination[column] = Blend(*s, destination[column]);
+                blend(destination + column, *s);
                 s += step;
             }
 
@@ -233,7 +284,7 @@ void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& co
     {
         for (int32_t column = 0; column < halfColumns; ++column)
         {
-            destination[column] = Blend(*s, destination[column]);
+            blend(destination + column, *s);
             s += step;
         }
 
@@ -258,10 +309,21 @@ void MCSoftwareRenderer::Line(_window* target, const MCLineCommand& command)
     int32_t y = command.Y;
     uint32_t fraction = command.Fraction;
 
+    MCSeeThrough seeThrough(target);
+
     for (int32_t count = command.Count; count != 0; --count)
     {
         uint8_t* pixel = At(target, x, y);
-        *pixel = command.Table != nullptr ? command.Table[*pixel] : command.Color;
+
+        if (command.Table != nullptr && seeThrough.At(pixel))
+        {
+            seeThrough.Map(pixel, command.Table);
+        }
+        else
+        {
+            *pixel = command.Table != nullptr ? command.Table[*pixel] : command.Color;
+        }
+
         const uint32_t before = fraction;
         fraction += command.Slope;
 
@@ -281,7 +343,22 @@ void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& comman
     const MCRect& clip = command.Clip;
     const int32_t cx = command.CenterX;
     const int32_t cy = command.CenterY;
-    const auto paint = [&](uint8_t* p) { *p = command.Alpha ? Blend(command.Color, *p) : command.Color; };
+    MCSeeThrough seeThrough(target);
+    const auto paint = [&](uint8_t* p)
+    {
+        if (!command.Alpha)
+        {
+            *p = command.Color;
+        }
+        else if (seeThrough.At(p))
+        {
+            seeThrough.Blend(p, command.Color);
+        }
+        else
+        {
+            *p = Blend(command.Color, *p);
+        }
+    };
 
     if (!command.Fill)
     {
@@ -390,6 +467,18 @@ void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& co
     const int32_t width = box.X1 - box.X0;
     const int32_t stride = target->x_max + 1;
     uint8_t* p = At(target, box.X0, box.Y0);
+    MCSeeThrough seeThrough(target);
+    const auto map = [&](uint8_t* pixel, const uint8_t* table)
+    {
+        if (seeThrough.At(pixel))
+        {
+            seeThrough.Map(pixel, table);
+        }
+        else
+        {
+            *pixel = table[*pixel];
+        }
+    };
 
     for (int32_t y = box.Y0; y <= box.Y1; ++y, p += stride)
     {
@@ -398,20 +487,20 @@ void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& co
             // The frame's top or bottom: the pixels between the corners.
             for (int32_t i = 1; i < width; ++i)
             {
-                p[i] = frame[p[i]];
+                map(p + i, frame);
             }
 
             continue;
         }
 
-        p[0] = frame[p[0]];
-        p[width] = frame[p[width]];
+        map(p, frame);
+        map(p + width, frame);
 
         if (command.BarLength != 0)
         {
             for (int32_t i = 1; i <= command.BarLength + 1; ++i)
             {
-                p[i] = fill[p[i]];
+                map(p + i, fill);
             }
         }
     }

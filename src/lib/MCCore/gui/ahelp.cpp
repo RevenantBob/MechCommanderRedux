@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "gui/ahelp.h"
 #include "appear/appear.h"
+#include "camera/camera.h"
 #include "engine/font.h"
 #include "gui/aport.h"
 #include "lib/heap.h"
@@ -67,12 +68,18 @@ auto aFloatHelp::display() -> void
 
     float screenX;
     float screenY;
+    // Port: the tag sits on the screen where the main view shows the object (through the zoom); its offsets are in
+    // screen pixels.
+    viewWindow* view = MCMainView();
+    const auto shown = [view](vector_2d point) { return view != nullptr ? view->WorldToScreen(point) : point; };
 
     if (helpObject->objectClass == MISCTERRAINOBJECT)
     {
         vector_2d screenPos = static_cast<MiscTerrainObject*>(helpObject)->getScreenPos();
+        screenPos.y += 90.0f;
+        screenPos = shown(screenPos);
         screenX = screenPos.x;
-        screenY = screenPos.y + 90.0f;
+        screenY = screenPos.y;
     }
     else
     {
@@ -82,13 +89,15 @@ auto aFloatHelp::display() -> void
         }
 
         vector_2d screenPos = helpObject->getScreenPos(0);
-        screenX = screenPos.x;
-        screenY = screenPos.y;
 
         if (Appearance* appearance = helpObject->getAppearance())
         {
-            screenY = appearance->lowerRight.y;
+            screenPos.y = appearance->lowerRight.y;
         }
+
+        screenPos = shown(screenPos);
+        screenX = screenPos.x;
+        screenY = screenPos.y;
 
         switch (helpObject->objectClass)
         {

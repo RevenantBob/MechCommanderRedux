@@ -841,6 +841,7 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
         case MCPolygonKind::Translate:
         {
             const uint8_t* table = command.Table;
+            MCSeeThrough seeThrough(target);
             static const int offsets[1] = {0};
             WalkPolygon<0>(poly, vcnt, vlist, offsets,
                            [&](uint8_t* row, const Edge<0>& left, const Edge<0>& right, int32_t, int32_t)
@@ -882,7 +883,14 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
 
                                for (uint8_t* p = row + l; p <= row + r; ++p)
                                {
-                                   *p = table[*p];
+                                   if (seeThrough.At(p))
+                                   {
+                                       seeThrough.Map(p, table);
+                                   }
+                                   else
+                                   {
+                                       *p = table[*p];
+                                   }
                                }
                            });
             break;

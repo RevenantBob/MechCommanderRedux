@@ -2169,19 +2169,16 @@ auto aEmptyTitleWindow::handleEvent(aEvent* event) -> void
 
         if (event->type == 0x1a)
         {
-            // Zoom: the camera flips between full scale (100) and 1; only 1 while paused or asked, or when only the
-            // 45-pixel art is loaded. The original also locked multiplayer to 1; the port allows zoom there.
+            // Zoom. Port: the view goes between the closest and the furthest zoom, not while paused or asked; the camera
+            // stays at full scale (the original flipped it between 100 and 1, only 1 while paused or asked, or when
+            // only the 45-pixel art is loaded, and locked multiplayer to 1).
             Camera* camera = pane->GetCamera();
 
             if (camera != nullptr)
             {
-                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+                if (gamePaused == 0 && gameAsked == 0 && camera->window != nullptr)
                 {
-                    camera->cameraScale = camera->cameraScale != 100 ? 100 : 1;
-                }
-                else
-                {
-                    camera->cameraScale = 1;
+                    camera->window->ToggleZoom();
                 }
 
                 camera->forceUpdate = 1;

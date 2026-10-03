@@ -272,6 +272,31 @@ struct MCAlphaBlitCommand
 };
 
 /// <summary>
+/// A picture shown under a window's key colour (<see cref="MCRenderer::UnderlayKey"/>): <c>Source</c> scaled into
+/// <c>Rect</c> of <c>Target</c>, each target pixel showing the source pixel under its centre (nearest). The world view
+/// is the screen's underlay: the camera draws the world into a surface of its own at 1x, the display's composite
+/// shader scales it into the view, and the UI drawn on the screen lets it show through where it left the key.
+/// </summary>
+/// <remarks>
+/// A draw that maps the pixels under it (a translucent shape, a status bar, a translate polygon) can't map the world
+/// from the screen. Where it meets the key, it records its table in the target's op plane instead: the pixel stays the
+/// key, and its op names a table (<see cref="MCRenderer::OpTables"/>) the composite maps the world pixel through. A
+/// second such draw on the pixel records the two tables composed. The world under it comes out as the original's
+/// palette arithmetic made it.
+/// </remarks>
+struct MCUnderlay
+{
+    /// <summary>Who set it (a view window), to replace or remove it by.</summary>
+    const void* Owner;
+    /// <summary>The window it lies under (the screen).</summary>
+    const _window* Target;
+    /// <summary>Where it is shown, in target coordinates (may reach past the target).</summary>
+    MCRect Rect;
+    /// <summary>The picture, shown whole.</summary>
+    const _window* Source;
+};
+
+/// <summary>
 /// The renderer. Every call is made from the game's thread. The vfx front end asks <see cref="For"/> which renderer
 /// draws into a window, and issues its commands there.
 /// </summary>
@@ -347,6 +372,55 @@ public:
     /// from it outlives it.
     /// </summary>
     static void ForgetShapes(const void* begin, size_t size);
+
+    // Underlays -------------------------------------------------------------------------------------------------
+
+    /// <summary>The colour that shows a window's underlays.</summary>
+    static constexpr uint8_t UnderlayKey = 0xff;
+
+    /// <summary>Sets the underlay of <c>underlay.Owner</c> (replacing the one it set before).</summary>
+    static void SetUnderlay(const MCUnderlay& underlay);
+
+    /// <summary>Drops the underlay <paramref name="owner"/> set, if any.</summary>
+    static void RemoveUnderlay(const void* owner);
+
+    /// <summary>The underlays, in the order they were first set (later ones are shown over earlier ones).</summary>
+    static std::span<const MCUnderlay> Underlays();
+
+    /// <summary>
+    /// Gives <paramref name="target"/> an op plane: one byte per pixel, laid out as its pixels (null removes it).
+    /// Clearing the target clears its ops too.
+    /// </summary>
+    static void SetOpPlane(const _window* target, uint8_t* ops);
+
+    /// <summary>The op plane of <paramref name="target"/>, or null.</summary>
+    static uint8_t* OpPlane(const _window* target);
+
+    /// <summary>The op tables: 256 rows of 256 bytes, row 0 the identity; <see cref="OpTableCount"/> rows in use.</summary>
+    static const uint8_t* OpTables();
+
+    /// <summary>How many rows of <see cref="OpTables"/> are in use (at least 1).</summary>
+    static int32_t OpTableCount();
+
+    /// <summary>
+    /// The op of a 256-byte table: an existing row with the same bytes, or a new one; 0 when every row is taken
+    /// (the caller then maps the key itself).
+    /// </summary>
+    static uint8_t OpFor(const uint8_t* table);
+
+    /// <summary>The op that maps through <paramref name="first"/>'s table, then <paramref name="second"/>'s (0 when
+    /// every row is taken).</summary>
+    static uint8_t ComposeOps(uint8_t first, uint8_t second);
+
+    /// <summary>Starts a frame's op tables (once a frame, before anything is drawn, after the last present).</summary>
+    static void ResetOpTables();
+
+    /// <summary>
+    /// The picture as shown, in palette indices: in <paramref name="pixels"/>, a copy of <paramref name="target"/>'s
+    /// pixels with its layout, each key pixel of <paramref name="rect"/> over an underlay becomes the underlay's pixel,
+    /// mapped through its op (the composite shader's rule, for screenshots, tests and a display without shaders).
+    /// </summary>
+    static void ComposeUnderlays(const _window* target, uint8_t* pixels, const MCRect& rect);
 
 protected:
     /// <summary>The alpha table changed: drop anything built from it.</summary>

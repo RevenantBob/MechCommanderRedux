@@ -463,6 +463,10 @@ auto TerrainObject::render() -> void
         center.y =
             ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (position.z - eye->position.z);
         ElementList->openGroup(-50000, 1);
+        // Port: an overlay, on the screen over the view: it follows the object through the zoom.
+        center = MCOverlayPoint(center);
+        size.x *= MCOverlay.ScaleX;
+        size.y *= MCOverlay.ScaleY;
         ElementList->add(new EllipseElement(center, size, 0xfe, -50000));
     }
 }

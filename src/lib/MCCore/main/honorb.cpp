@@ -299,6 +299,11 @@ void systemInit()
         only45Pixel = 1;
     }
 
+    // Port: the full-size (90-pixel) mech art is always loaded and used: the camera stays at scale 100 and the zoom
+    // scales the world view instead (the prefs only mattered for machines short of memory).
+    use90PixelSprite = 1;
+    only45Pixel = 0;
+
     if (prefsFile->readIdBoolean("Force32Mb", force32MB) != 0)
     {
         force32MB = 0;

@@ -781,8 +781,8 @@ auto ArtilleryButton::handleEvent(aEvent* event) -> void
                 return;
             }
 
-            vector_2d screenPos(static_cast<float>(screenX - pane->globalX()),
-                                static_cast<float>(screenY - pane->globalY()));
+            // Port: on the view's world surface, through the zoom.
+            vector_2d screenPos = MCWindowPoint(pane, screenX, screenY);
             vector_3d target3d;
             camera->inverseProject(screenPos, target3d);
             theInterface->CallStrike(commandId, &target3d, nullptr, -1, 0, -1.0f);
@@ -2327,7 +2327,9 @@ namespace
             Camera* camera = window->camera;
             viewWindow* view = camera->window;
             vector_2d screenTopLeft(0.0f, 0.0f);
-            vector_2d screenBottomRight(static_cast<float>(view->width()), static_cast<float>(view->height()));
+            // Port: the corners of the world surface the view shows (its size follows the zoom).
+            vector_2d screenBottomRight(static_cast<float>(view->WorldWidth()),
+                                        static_cast<float>(view->WorldHeight()));
             vector_3d topLeft;
             vector_3d bottomRight;
             camera->inverseProject(screenTopLeft, topLeft);

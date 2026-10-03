@@ -2622,18 +2622,16 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
             if (theInterface != nullptr && scenario != nullptr && turn > 0 && EventsToMissionResultsScreen == 0 &&
                 mainHolder != nullptr && target == mainHolder->GetActivePane())
             {
-                // Not while the camera can't zoom (paused, the game menu, 45-pixel art only), where the keys would
-                // still flip the zoom button and leave it out of step.
-                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+                // A step per notch (finer wheels zoom finer); not while paused or asked.
+                const float step = std::pow(InterfaceObject::ZoomWheelStep, std::fabs(delta / 120.0f));
+
+                if (delta > 0)
                 {
-                    if (delta > 0)
-                    {
-                        theInterface->ZoomIn();
-                    }
-                    else if (delta < 0)
-                    {
-                        theInterface->ZoomOut();
-                    }
+                    theInterface->ZoomIn(step, false);
+                }
+                else if (delta < 0)
+                {
+                    theInterface->ZoomOut(step, false);
                 }
 
                 return 1;
@@ -2743,7 +2741,14 @@ auto ScrollScreen() -> void
         }
 
         // MCX.EXE's constant is a hair under 15 (14.999999).
-        const float step = frameLength * 0x1.dffffep+3f * static_cast<float>(speed);
+        float step = frameLength * 0x1.dffffep+3f * static_cast<float>(speed);
+
+        // Port: the same speed on the screen at any zoom (the world surface's pixels per screen pixel).
+        if (camera->window != nullptr && camera->window->WorldScaleY() > 0.0f)
+        {
+            step /= camera->window->WorldScaleY();
+        }
+
         bool scroll = true;
 
         if (theInterface->scrollDirection == -1)
@@ -2843,8 +2848,10 @@ auto ScrollScreen() -> void
         if (scroll && (dx != 0 || dy != 0))
         {
             // Keep the window's anchor point (selectionBox's first corner) on the same spot of the world.
+            // Port: the box is in the view's own coordinates, the projection on its world surface (through the zoom).
             viewWindow* window = camera->window;
-            vector_2d anchor(window->selectionBox[0], window->selectionBox[1]);
+            vector_2d anchor(window->selectionBox[0] / window->WorldScaleX(),
+                             window->selectionBox[1] / window->WorldScaleY());
             vector_3d point;
             camera->inverseProject(anchor, point);
             camera->scrollCamera(dx, dy);
@@ -2852,9 +2859,12 @@ auto ScrollScreen() -> void
             const float offsetX = (point.x - camera->position.x) * scale;
             const float offsetY = (point.y - camera->position.y) * scale;
             const float offsetZ = scale * (point.z - camera->position.z);
-            window->selectionBox[0] = offsetY * camera->cosAngle + offsetX * camera->cosAngle + camera->halfWidth;
-            window->selectionBox[1] =
-                ((offsetX * camera->sinAngle + camera->halfHeight) - offsetY * camera->sinAngle) - offsetZ;
+            const vector_2d moved(offsetY * camera->cosAngle + offsetX * camera->cosAngle + camera->halfWidth,
+                                  ((offsetX * camera->sinAngle + camera->halfHeight) - offsetY * camera->sinAngle) -
+                                      offsetZ);
+            const vector_2d shown = window->WorldToWindow(moved);
+            window->selectionBox[0] = shown.x;
+            window->selectionBox[1] = shown.y;
         }
     }
 

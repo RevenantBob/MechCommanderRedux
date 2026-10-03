@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
+#include "camera/camera.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
 #include "logistics/logmain.h"
@@ -11,7 +12,10 @@
 
 namespace
 {
-    /// <summary>FNV-1a of the screen's pixels, with its size folded in first.</summary>
+    /// <summary>
+    /// FNV-1a of the screen as shown (its pixels with the world view composited under the key, in palette indices),
+    /// with its size folded in first.
+    /// </summary>
     uint32_t ScreenHash()
     {
         const _window* screen = screenPort->bitmap();
@@ -20,7 +24,18 @@ namespace
         uint32_t hash = 0x811c9dc5;
         hash = (hash ^ static_cast<uint32_t>(width)) * 0x01000193;
         hash = (hash ^ static_cast<uint32_t>(height)) * 0x01000193;
-        const uint8_t* pixels = screen->buffer;
+        std::vector<uint8_t> shown;
+
+        if (MCInput::Display() != nullptr && MCInput::Display()->Screen()->buffer == screen->buffer)
+        {
+            shown = MCInput::Display()->ComposeScreen();
+        }
+        else
+        {
+            shown.assign(screen->buffer, screen->buffer + static_cast<size_t>(width) * static_cast<size_t>(height));
+        }
+
+        const uint8_t* pixels = shown.data();
 
         for (size_t i = 0; i < static_cast<size_t>(width) * static_cast<size_t>(height); i++)
         {
@@ -52,6 +67,9 @@ namespace
 /// <remarks>
 /// Baselines: the pre-renderer code drew 0x1888f902 (both frames: the lance stands still). Renderer phase 1 (the
 /// vfx clip fixes, OB-112..128) moved the terrain overlays up a row (OB-117), and nothing else, giving 0x2bc262d5.
+/// Renderer phase 2 (zoom): the mission starts zoomed out (camera scale 1, the half-size art) in the original; now
+/// the camera stays at scale 100 and the test fixes the zoom at 480 lines, one world pixel per screen pixel, so the
+/// frame shows the full-size art closer in: 0xd9566f22.
 /// </remarks>
 TEST_CASE_ISOLATED("game: mission 1's screen matches the recorded frames")
 {
@@ -71,8 +89,62 @@ TEST_CASE_ISOLATED("game: mission 1's screen matches the recorded frames")
 
     const uint32_t later = ScreenHash();
     SaveShot("mission1 later", later);
-    CHECK_EQ(started, 0x2bc262d5u);
-    CHECK_EQ(later, 0x2bc262d5u);
+    CHECK_EQ(started, 0xd9566f22u);
+    CHECK_EQ(later, 0xd9566f22u);
+}
+
+/// <summary>
+/// The composite shader shows what the CPU composite computes: in mission 1, at one world pixel per screen pixel and
+/// zoomed out and in (the world scaled into the view, the overlays and translucent bars over it), every pixel of the
+/// frame read back from the GPU is the CPU composite's palette colour.
+/// </summary>
+TEST_CASE_ISOLATED("game: the GPU composite matches the CPU composite")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartMission(1));
+    MCDisplay* display = MCInput::Display();
+    REQUIRE(display != nullptr);
+
+    if (!display->CompositesOnGpu())
+    {
+        std::cout << "  (skipped: no GPU composite on this machine)\n";
+        return;
+    }
+
+    for (const float zoom : {480.0f, 720.0f, 400.0f})
+    {
+        MCTest::Scope scope(std::format("{} lines", zoom));
+        MCFixedZoomHeight = zoom;
+
+        for (int32_t frame = 0; frame < 3; frame++)
+        {
+            MCTestGame::RunFrame(1.0f / 15.0f);
+        }
+
+        const auto read = display->ReadFrame();
+        REQUIRE(read.has_value());
+        const std::vector<uint8_t> composed = display->ComposeScreen();
+        SDL_Color colors[256];
+        display->GetShownColors(colors);
+        int32_t different = 0;
+
+        for (size_t i = 0; i < composed.size(); i++)
+        {
+            const SDL_Color& expected = colors[composed[i]];
+            const SDL_Color& actual = (*read)[i];
+
+            if (expected.r != actual.r || expected.g != actual.g || expected.b != actual.b)
+            {
+                different++;
+            }
+        }
+
+        CHECK_EQ(different, 0);
+    }
 }
 
 /// <summary>

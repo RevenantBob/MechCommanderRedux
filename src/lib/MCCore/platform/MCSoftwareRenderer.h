@@ -3,6 +3,36 @@
 #include "platform/MCRenderer.h"
 
 /// <summary>
+/// The see-through pixels of a draw's target: on a target with an op plane, a draw that maps the pixels under it
+/// leaves the key pixels as they are and records its table in their ops (see <see cref="MCUnderlay"/>).
+/// </summary>
+class MCSeeThrough
+{
+public:
+    explicit MCSeeThrough(const _window* target) : _Ops(MCRenderer::OpPlane(target)), _Base(target->buffer) {}
+
+    /// <summary>Whether the target has see-through pixels at all.</summary>
+    explicit operator bool() const { return _Ops != nullptr; }
+
+    /// <summary>Whether pixel <paramref name="p"/> of the target is see-through.</summary>
+    bool At(const uint8_t* p) const { return _Ops != nullptr && *p == MCRenderer::UnderlayKey; }
+
+    /// <summary>Maps see-through pixel <paramref name="p"/> through <paramref name="table"/>.</summary>
+    void Map(uint8_t* p, const uint8_t* table);
+
+    /// <summary>Blends <paramref name="color"/> over see-through pixel <paramref name="p"/> (its AlphaTable row).</summary>
+    void Blend(uint8_t* p, uint8_t color);
+
+private:
+    uint8_t* _Ops;
+    const uint8_t* _Base;
+    /// <summary>The op of the table mapped last.</summary>
+    const uint8_t* _LastTable = nullptr;
+    uint8_t _LastOp = 0;
+    bool _LastIdentity = true;
+};
+
+/// <summary>
 /// The software renderer: the original's pixel loops (from vfx/*.cpp), drawing into the windows' memory. It is the
 /// renderer of every window today, the headless renderer of the tests, and the reference a hardware renderer is
 /// compared with.

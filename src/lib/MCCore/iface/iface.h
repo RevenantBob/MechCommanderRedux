@@ -388,12 +388,19 @@ public:
     /// <remarks>MCX.EXE @ 0x006cc4c0</remarks>
     void handleEvent(aEvent* event);
     /// <summary>
-    /// The zoom-in key: the main camera goes to full scale and the tool palette's zoom button flips. Inline in
-    /// <see cref="handleEvent"/> in the original; split out so the mouse wheel can share it.
+    /// The zoom-in key: the camera's view shows <paramref name="factor"/> times fewer lines of the world (eased), down
+    /// to the closest zoom, with the original's sound; the tactical map's zoom button follows. Inline in
+    /// <see cref="handleEvent"/> in the original (which switched the camera between scales 100 and 1); split out so
+    /// the mouse wheel can share it.
     /// </summary>
-    void ZoomIn();
-    /// <summary>The zoom-out key, as <see cref="ZoomIn"/>: the main camera goes to scale 1.</summary>
-    void ZoomOut();
+    void ZoomIn(float factor = ZoomKeyStep, bool sound = true);
+    /// <summary>The zoom-out key, as <see cref="ZoomIn"/>: <paramref name="factor"/> times more lines. The wheel
+    /// zooms without the sound.</summary>
+    void ZoomOut(float factor = ZoomKeyStep, bool sound = true);
+    /// <summary>How far a zoom key press zooms (about two presses from one end to the other).</summary>
+    static constexpr float ZoomKeyStep = 1.5f;
+    /// <summary>How far a notch of the mouse wheel zooms.</summary>
+    static constexpr float ZoomWheelStep = 1.1f;
 
     /// <summary>Makes the command parser, starts the scroll callback and the lance icons.</summary>
     /// <remarks>MCX.EXE @ 0x006d01c0</remarks>

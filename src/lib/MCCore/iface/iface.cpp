@@ -926,7 +926,13 @@ auto aSalvageIcon::display() -> void
             continue;
         }
 
-        const vector_2d screenPos = object->getScreenPos(0);
+        vector_2d screenPos = object->getScreenPos(0);
+
+        // Port: from the main view's world surface to the view on the screen (through the zoom).
+        if (viewWindow* view = MCMainView(); view != nullptr)
+        {
+            screenPos = view->WorldToWindow(screenPos);
+        }
 
         if (displayPort != nullptr)
         {
@@ -2502,13 +2508,8 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
         return;
     }
 
-    // The mouse position in the event's window, and the world point under it.
-    auto windowPoint = [event](aObject* window)
-    {
-        const int32_t y = event->y - window->globalY();
-        const int32_t x = event->x - window->globalX();
-        return vector_2d(static_cast<float>(x), static_cast<float>(y));
-    };
+    // The mouse position in the event's window (port: in a view, on its world surface, through the zoom).
+    auto windowPoint = [event](aObject* window) { return MCWindowPoint(window, event->x, event->y); };
 
     // The command-mode reset after a lance link, then the usual redraw.
     auto endLanceLink = [&]()
@@ -2705,7 +2706,10 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                         continue;
                     }
 
-                    const vector_2d screenPos = member->getAppearance()->getScreenPos(dragTarget->GetCamera());
+                    // Port: the box is in the view's own coordinates; the mover's position is mapped there through
+                    // the zoom.
+                    const vector_2d screenPos =
+                        dragWindow->WorldToWindow(member->getAppearance()->getScreenPos(dragTarget->GetCamera()));
                     POINT point;
                     point.x = static_cast<int32_t>(screenPos.x);
                     point.y = static_cast<int32_t>(screenPos.y);
@@ -3785,55 +3789,45 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
     }
 }
 
-auto InterfaceObject::ZoomIn() -> void
+auto InterfaceObject::ZoomIn(float factor, bool sound) -> void
 {
-    if (eye != nullptr && eye->cameraScale != 100)
+    // Port: the view shows fewer lines of the world (the original switched the camera to scale 100); the tactical
+    // map's zoom button follows.
+    if (eye == nullptr || eye->window == nullptr || gamePaused != 0 || gameAsked != 0)
     {
-        soundSystem->playDigitalSample(0x44, 1, nullptr, 0, 0);
+        return;
+    }
 
-        if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+    if (eye->window->ZoomBy(1.0f / factor))
+    {
+        if (sound)
         {
-            if (eye->cameraScale == 1)
-            {
-                eye->forceUpdate = 1;
-                Terrain::forceRedraw = 1;
-            }
-
-            eye->cameraScale = 100;
+            soundSystem->playDigitalSample(0x44, 1, nullptr, 0, 0);
         }
 
-        Terrain::terrainTacticalMap->toggleZoom();
+        eye->forceUpdate = 1;
+        Terrain::forceRedraw = 1;
     }
 }
 
-auto InterfaceObject::ZoomOut() -> void
+auto InterfaceObject::ZoomOut(float factor, bool sound) -> void
 {
-    if (eye != nullptr && eye->cameraScale != 1)
+    // Port: the view shows more lines of the world (the original switched the camera to scale 1); the tactical map's
+    // zoom button follows.
+    if (eye == nullptr || eye->window == nullptr || gamePaused != 0 || gameAsked != 0)
     {
-        soundSystem->playDigitalSample(0x45, 1, nullptr, 0, 0);
-        bool zoomed = false;
+        return;
+    }
 
-        if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+    if (eye->window->ZoomBy(factor))
+    {
+        if (sound)
         {
-            if (eye->cameraScale != 1 && eye->cameraScale == 100)
-            {
-                eye->forceUpdate = 1;
-                Terrain::forceRedraw = 1;
-                eye->cameraScale = 1;
-                eye->setPosition(eye->position);
-                Terrain::terrainTacticalMap->toggleZoom();
-                zoomed = true;
-            }
-            else
-            {
-                eye->cameraScale = 1;
-            }
+            soundSystem->playDigitalSample(0x45, 1, nullptr, 0, 0);
         }
 
-        if (!zoomed)
-        {
-            Terrain::terrainTacticalMap->toggleZoom();
-        }
+        eye->forceUpdate = 1;
+        Terrain::forceRedraw = 1;
     }
 }
 
@@ -4760,9 +4754,8 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         }
     }
 
-    const int32_t mouseY = event->y - window->globalY();
-    const int32_t mouseX = event->x - window->globalX();
-    vector_2d mousePos(static_cast<float>(mouseX), static_cast<float>(mouseY));
+    // Port: in a view, on its world surface (through the zoom).
+    vector_2d mousePos = MCWindowPoint(window, event->x, event->y);
     auto setCursor = [](int32_t cursor) { application->SetCurrentCursor(static_cast<CursorType>(cursor)); };
 
     // A forced order (see handleEvent): a move, a move-and-attack (command 3) or a jump to the point.
