@@ -379,12 +379,6 @@ auto lObject::destroy() -> void
         ownPort = nullptr;
     }
 
-    if (livePort != nullptr)
-    {
-        delete livePort;
-        livePort = nullptr;
-    }
-
     if (framePane != nullptr)
     {
         logFree(framePane);
@@ -575,9 +569,9 @@ auto lObject::display() -> void
         }
     }
 
-    if (DrawsLive() && (livePort != nullptr || ownPort != nullptr))
+    if (DrawsLive() && ownPort != nullptr)
     {
-        DrawInFramePass(livePort != nullptr ? livePort : ownPort);
+        DrawInFramePass(ownPort);
         return;
     }
 

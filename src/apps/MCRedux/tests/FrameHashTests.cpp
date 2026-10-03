@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "MCTest.h"
+#include "ScreenInput.h"
 #include "TestGame.h"
 #include "camera/camera.h"
 #include "gui/aport.h"
@@ -17,111 +18,7 @@
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 
-namespace
-{
-    /// <summary>
-    /// FNV-1a of the screen as shown (its pixels with the world view composited under the key, in palette indices),
-    /// with its size folded in first.
-    /// </summary>
-    uint32_t ScreenHash()
-    {
-        const _window* screen = screenPort->bitmap();
-        const int32_t width = screen->x_max + 1;
-        const int32_t height = screen->y_max + 1;
-        uint32_t hash = 0x811c9dc5;
-        hash = (hash ^ static_cast<uint32_t>(width)) * 0x01000193;
-        hash = (hash ^ static_cast<uint32_t>(height)) * 0x01000193;
-        std::vector<uint8_t> shown;
-
-        if (MCInput::Display() != nullptr && MCInput::Display()->Screen()->buffer == screen->buffer)
-        {
-            shown = MCInput::Display()->ComposeScreen();
-        }
-        else
-        {
-            shown.assign(screen->buffer, screen->buffer + static_cast<size_t>(width) * static_cast<size_t>(height));
-        }
-
-        const uint8_t* pixels = shown.data();
-
-        for (size_t i = 0; i < static_cast<size_t>(width) * static_cast<size_t>(height); i++)
-        {
-            hash = (hash ^ pixels[i]) * 0x01000193;
-        }
-
-        return hash;
-    }
-
-    /// <summary>MC_TEST_SHOTS=&lt;folder&gt;: saves the screen as <paramref name="name"/>.bmp there and prints its hash.</summary>
-    void SaveShot(const std::string& name, uint32_t hash)
-    {
-        const char* shots = std::getenv("MC_TEST_SHOTS");
-
-        if (shots == nullptr || MCInput::Display() == nullptr)
-        {
-            return;
-        }
-
-        (void)MCInput::Display()->SaveScreenshot(std::filesystem::path(shots) / (name + ".bmp"));
-        std::printf("  %s: 0x%08x\n", name.c_str(), hash);
-    }
-
-    /// <summary>
-    /// Sends the game a mouse event at (<paramref name="x"/>, <paramref name="y"/>) as CheckMouse makes them (type 1
-    /// left down, 4 left up, 7 a move), with the cursor moved there first.
-    /// </summary>
-    void SendMouse(int32_t type, int32_t x, int32_t y, bool leftHeld)
-    {
-        // A motion event moves the game's cursor without warping the real mouse (SetCursorPos would).
-        if (MCDisplay* display = MCInput::Display(); display != nullptr)
-        {
-            SDL_Event motion{};
-            motion.type = SDL_EVENT_MOUSE_MOTION;
-            motion.motion.windowID = SDL_GetWindowID(display->Window());
-            display->LogicalToWindow(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, motion.motion.x,
-                                     motion.motion.y);
-            MCInput::HandleEvent(motion);
-        }
-
-        mouseScreenX = x;
-        mouseScreenY = y;
-        oldMouseX = x;
-        oldMouseY = y;
-        aEvent event;
-        event.clear();
-        event.type = static_cast<uint8_t>(type);
-        event.x = x;
-        event.y = y;
-        event.leftButton = type == 1 ? 0xff : (leftHeld ? 1 : 0);
-        // CheckMouse, run each frame, sees no button held and no move, so it adds no events of its own.
-        handleEvent(&event);
-    }
-
-    /// <summary>Moves the mouse to (<paramref name="x"/>, <paramref name="y"/>) and clicks there.</summary>
-    void Click(int32_t x, int32_t y)
-    {
-        SendMouse(7, x, y, false);
-        SendMouse(1, x, y, true);
-        MCTestGame::RunFrame(1.0f / 15.0f);
-        SendMouse(4, x, y, false);
-    }
-
-    /// <summary>Presses at (<paramref name="x0"/>, <paramref name="y0"/>), drags to (<paramref name="x1"/>, <paramref name="y1"/>) over a few frames and lets go.</summary>
-    void Drag(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
-    {
-        SendMouse(7, x0, y0, false);
-        SendMouse(1, x0, y0, true);
-        MCTestGame::RunFrame(1.0f / 15.0f);
-
-        for (int32_t step = 1; step <= 8; step++)
-        {
-            SendMouse(7, x0 + (x1 - x0) * step / 8, y0 + (y1 - y0) * step / 8, true);
-            MCTestGame::RunFrame(1.0f / 15.0f);
-        }
-
-        SendMouse(4, x1, y1, false);
-    }
-}
+using namespace MCScreenInput;
 
 /// <summary>
 /// Mission 1's screen, right after the scenario starts and 60 frames later, is pixel for pixel the recorded frame (a
@@ -346,7 +243,8 @@ TEST_CASE_ISOLATED("game: the mission results screen matches the recorded frames
 /// mission briefing tab, two units dragged into force group 1, a hovered screen button, a mech bought (drag, purchase
 /// dialog, quantity, accept), an inventory row and a variant button clicked, the shop scrolled, the "not enough
 /// points" message and its OK, the component inventory, and the mech bay's payload list and second mech. Those were
-/// recorded on the code before step 4, as was the fold of every frame of the run (wipes and dialogs included).
+/// recorded on the code before step 4, as was the fold of every frame of the run (wipes and dialogs included) and
+/// the fold of every present (which also sees the frames a screen change's wipe draws inside its own loop).
 /// </remarks>
 TEST_CASE_ISOLATED("game: the logistics screens match the pre-renderer frames")
 {
@@ -372,6 +270,38 @@ TEST_CASE_ISOLATED("game: the logistics screens match the pre-renderer frames")
         }
 
         return hash;
+    };
+
+    // Every frame presented is folded into one more hash, including those the screen wipes draw inside their own loop.
+    // MC_TEST_PRESENT_LOG=<file> lists each present's hash (to find the first that differs between two builds), and
+    // MC_TEST_PRESENT_SHOT=<n>,<n>... saves those presents into the MC_TEST_SHOTS folder.
+    uint32_t presents = 0x811c9dc5;
+    REQUIRE(MCInput::Display() != nullptr);
+    const char* logPath = std::getenv("MC_TEST_PRESENT_LOG");
+    std::unique_ptr<FILE, decltype(&std::fclose)> presentLog(logPath != nullptr ? std::fopen(logPath, "w") : nullptr,
+                                                             &std::fclose);
+    const char* shotList = std::getenv("MC_TEST_PRESENT_SHOT");
+    const std::string shotsWanted = shotList != nullptr ? std::format(",{},", shotList) : std::string();
+    int32_t presentIndex = 0;
+    MCInput::Display()->OnPresent = [&]
+    {
+        const uint32_t hash = ScreenHash();
+        presents = (presents ^ hash) * 0x01000193;
+
+        if (presentLog)
+        {
+            std::fprintf(presentLog.get(), "%d 0x%08x\n", presentIndex, hash);
+        }
+
+        const char* shots = std::getenv("MC_TEST_SHOTS");
+
+        if (shots != nullptr && shotsWanted.contains(std::format(",{},", presentIndex)))
+        {
+            (void)MCInput::Display()->SaveScreenshot(std::filesystem::path(shots) /
+                                                     std::format("present{}.bmp", presentIndex));
+        }
+
+        presentIndex++;
     };
 
     struct Step
@@ -503,6 +433,8 @@ TEST_CASE_ISOLATED("game: the logistics screens match the pre-renderer frames")
         index++;
     }
 
+    MCInput::Display()->OnPresent = nullptr;
     SaveShot("logistics every frame", frames);
     CHECK_EQ(frames, 0x16f4b349u);
+    CHECK_EQ(presents, 0x6919ededu);
 }

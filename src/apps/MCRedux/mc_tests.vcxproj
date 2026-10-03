@@ -65,6 +65,7 @@
     <ClCompile Include="tests\InputTests.cpp" />
     <ClCompile Include="tests\LibTests.cpp" />
     <ClCompile Include="tests\LogisticsTests.cpp" />
+    <ClCompile Include="tests\LogisticsViewTests.cpp" />
     <ClCompile Include="tests\MCTest.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -72,6 +73,8 @@
     <ClCompile Include="tests\ObjectQueueTests.cpp" />
     <ClCompile Include="tests\PathfindingTests.cpp" />
     <ClCompile Include="tests\PortTests.cpp" />
+    <ClCompile Include="tests\ScreenInput.cpp" />
+    <ClCompile Include="tests\SessionScreenTests.cpp" />
     <ClCompile Include="tests\SmackerTests.cpp" />
     <ClCompile Include="tests\TerrainGridTests.cpp" />
     <ClCompile Include="tests\TestGame.cpp" />
@@ -79,9 +82,11 @@
     <ClCompile Include="tests\VfxGameHelperTests.cpp" />
     <ClCompile Include="tests\VfxPolygonTests.cpp" />
     <ClCompile Include="tests\VfxTransformTests.cpp" />
+    <ClCompile Include="tests\VideoWindowTests.cpp" />
     <ClCompile Include="tests\ZoomTests.cpp" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="tests\MCTest.h" />
+    <ClInclude Include="tests\ScreenInput.h" />
     <ClInclude Include="tests\TestGame.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

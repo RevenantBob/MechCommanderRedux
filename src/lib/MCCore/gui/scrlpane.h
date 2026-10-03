@@ -3,6 +3,19 @@
 #include "logistics/lport.h"
 
 /// <summary>
+/// Port: what a <see cref="ScrollPane"/> shows at one moment: its scroll position and its slider column. Code that
+/// copied the pane's pictures somewhere at the time of an event keeps this and draws the pane as it was then.
+/// </summary>
+struct ScrollPaneLook
+{
+    float ScrollPos = 0.0f;
+    lPort* ColumnUpArt = nullptr;
+    lPort* ColumnDownArt = nullptr;
+    int32_t ColumnSliderPos = 0;
+    int32_t ColumnSliderHeight = 0;
+};
+
+/// <summary>
 /// A logistics-screen scrolling pane: its content is drawn into a tall port (<see cref="contentPort"/>), of which the
 /// pane shows a window, and a 13-pixel slider column on the right (art <c>scroll.tga</c>, with the up and down
 /// arrows <c>supbup.tga</c> / <c>sdnbup.tga</c>) moves it. The children are moved with the content.
@@ -75,6 +88,10 @@ public:
     /// (<paramref name="xPos"/>, <paramref name="yPos"/>), opaque (a transition's picture of the pane).
     /// </summary>
     void DrawContentTo(_pane* target, int32_t xPos, int32_t yPos);
+    /// <summary>Port: <see cref="DrawContentTo"/> scrolled as in <paramref name="look"/>.</summary>
+    void DrawContentTo(_pane* target, int32_t xPos, int32_t yPos, const ScrollPaneLook& look);
+    /// <summary>Port: what the pane shows now (see <see cref="ScrollPaneLook"/>).</summary>
+    ScrollPaneLook Look() const;
     /// <summary>Sizes the slider to the content (none when it fits) and draws its picture.</summary>
     /// <remarks>MCX.EXE @ 0x00727e30</remarks>
     virtual void setUpSlider(); // slot 77
@@ -165,6 +182,9 @@ public:
     /// (the code that copied <see cref="sliderPort"/>'s pixels elsewhere draws it from here).
     /// </summary>
     void DrawSliderColumn(_pane* target, int32_t xPos, int32_t yPos, bool keyed);
+
+    /// <summary>Port: <see cref="DrawSliderColumn"/> as the column showed in <paramref name="look"/>.</summary>
+    void DrawSliderColumn(_pane* target, int32_t xPos, int32_t yPos, bool keyed, const ScrollPaneLook& look);
 
 protected:
     /// <summary>Port: puts the slider image in the column at <paramref name="position"/> (the original's memcpy).</summary>

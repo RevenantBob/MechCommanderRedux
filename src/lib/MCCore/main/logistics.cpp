@@ -4113,41 +4113,62 @@ auto MPPlayerLights::setPlayerStatus(uint32_t playerID, int32_t status) -> void
 
 auto MPPlayerLights::draw() -> void
 {
-    auto* lightPort = new lPort;
-    auto* statusPort = new lPort;
-    char fileName[256];
-
-    if (backgroundParent != parent)
+    if (!lport()->viewOpen())
     {
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_p0.tga", artPath);
-        lightPort->init(fileName);
-        lightPort->copyTo(static_cast<lObject*>(parent)->lport()->frame(), 0xd3, 0, 0);
-        lightPort->destroy();
+        Refresh();
+        return;
     }
 
-    for (int32_t light = 0; light < numPlayers; light++)
+    _pane* target = lport()->frame();
+
+    for (int32_t light = 0; light < shownPlayers; light++)
     {
         // The numbered light, then the status over it: 1 lit, 2 blinking (while the timer runs).
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_p%d.tga", artPath, light + 1);
-        lightPort->init(fileName);
-        lightPort->copyTo(lport()->frame(), lightPort->width() * light, 0, 0);
-        const int32_t status = playerStatus[light];
+        lPort* lightPort = logArtf("%slogart\\lsc_p%d.tga", artPath, light + 1);
+
+        if (lightPort == nullptr)
+        {
+            continue;
+        }
+
+        lightPort->copyTo(target, lightPort->width() * light, 0, 0);
+        const int32_t status = shownStatus[light];
 
         if (status == 1)
         {
-            std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_ph.tga", artPath);
-            statusPort->init(fileName);
-            statusPort->copyTo(lport()->frame(), lightPort->width() * light, 2, 1);
+            if (lPort* statusPort = logArtf("%slogart\\lsc_ph.tga", artPath))
+            {
+                statusPort->copyTo(target, lightPort->width() * light, 2, 1);
+            }
         }
-        else if (status == 2 && timerRunning != 0)
+        else if (status == 2 && shownTimerRunning != 0)
         {
-            lPort* blink = blinkOn == 0 ? blinkPort : readyPort;
-            blink->copyTo(lport()->frame(), lightWidth * light, 2, 1);
+            lPort* blink = shownBlinkOn == 0 ? blinkPort : readyPort;
+            blink->copyTo(target, lightWidth * light, 2, 1);
+        }
+    }
+}
+
+auto MPPlayerLights::Refresh() -> void
+{
+    if (backgroundParent != parent)
+    {
+        if (LogScreenChrome* chrome = static_cast<lObject*>(parent)->Chrome(); chrome != nullptr)
+        {
+            // The parent screen shows the backing from now on (the original painted it into its picture).
+            chrome->lightsBackShown = true;
         }
     }
 
-    delete lightPort;
-    delete statusPort;
+    shownPlayers = std::min(numPlayers, MAX_PLAYERS);
+
+    for (int32_t light = 0; light < MAX_PLAYERS; light++)
+    {
+        shownStatus[light] = playerStatus[light];
+    }
+
+    shownTimerRunning = timerRunning;
+    shownBlinkOn = blinkOn;
 }
 
 auto MPPlayerLights::handleEvent(aEvent* event) -> void
@@ -6067,6 +6088,14 @@ auto Logistics::litScreenButton(lObject* screen, int32_t button, lPort* picture)
 auto Logistics::drawScreenChrome(lObject* screen, _pane* target) -> void
 {
     LogScreenChrome* chrome = screen->Chrome();
+
+    if (chrome->lightsBackShown)
+    {
+        if (lPort* back = logArtf("%slogart\\lsc_p0.tga", artPath))
+        {
+            back->copyTo(target, 0xd3, 0, 0);
+        }
+    }
 
     for (int32_t button = 0; button < 4; button++)
     {
@@ -9009,16 +9038,62 @@ auto Logistics::getCurrentMission() -> void
     briefingScreen->drawBackground();
 }
 
+namespace
+{
+    /// <summary>
+    /// Port: the pane a screen change slides over the screen's right part (<see cref="Logistics::transition"/>). The
+    /// original wrote both pictures into its own picture each frame; it draws them from the slide's state instead.
+    /// </summary>
+    class TransitionWipe : public lObject
+    {
+    public:
+        /// <summary>Draws the two pictures as the slide stands (the original's loop body).</summary>
+        void draw() override
+        {
+            if (!lport()->viewOpen())
+            {
+                return;
+            }
+
+            _pane* target = lport()->frame();
+
+            if (direction == 0)
+            {
+                from->copyTo(target, 0, 0, 1);
+                VFX_pane_copy(to->frame(), 0x1ab - offset, 0, target, 0, 0, -1);
+            }
+            else
+            {
+                to->copyTo(target, 0, 0, 1);
+                VFX_pane_copy(from->frame(), offset, 0, target, 0, 0, -1);
+            }
+        }
+
+        /// <summary>The wipe draws itself each frame (its port is a view).</summary>
+        bool DrawsLive() override { return true; }
+
+        /// <summary>The screen shown before the change, and the one after.</summary>
+        lPort* from = nullptr;
+        lPort* to = nullptr;
+        /// <summary>0: the new picture slides in from the right; otherwise the old one slides out to the left.</summary>
+        int direction = 0;
+        /// <summary>How far the slide has gone, in pixels.</summary>
+        int32_t offset = 0;
+    };
+}
+
 auto Logistics::transition(lPort* from, lPort* to, int direction) -> void
 {
     // A pane over the screen's right part, redrawn each frame for a quarter of a second: direction 0 slides the new
     // picture in from the right over the old one, any other slides the old one out to the left off the new one.
-    auto* wipe = new lObject;
+    auto* wipe = new TransitionWipe;
     wipe->init(0xd3, 0x10, from->width(), from->height(), nullptr, nullptr);
+    wipe->from = from;
+    wipe->to = to;
+    wipe->direction = direction;
     currentScreen->addChild(wipe);
     wipe->ShowGUIWindow(1);
     wipe->setDepth(100);
-    lPort* wipePort = wipe->lport();
     soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
     const int64_t frequency = MCPort::PerformanceFrequency();
     float elapsed = 0.0f;
@@ -9026,19 +9101,7 @@ auto Logistics::transition(lPort* from, lPort* to, int direction) -> void
     do
     {
         const int64_t start = MCPort::PerformanceCounter();
-        const auto offset = static_cast<int32_t>(static_cast<double>(elapsed) * 4.0 * 427.0);
-
-        if (direction == 0)
-        {
-            from->copyTo(wipePort->frame(), 0, 0, 1);
-            VFX_pane_copy(to->frame(), 0x1ab - offset, 0, wipePort->frame(), 0, 0, -1);
-        }
-        else
-        {
-            to->copyTo(wipePort->frame(), 0, 0, 1);
-            VFX_pane_copy(from->frame(), offset, 0, wipePort->frame(), 0, 0, -1);
-        }
-
+        wipe->offset = static_cast<int32_t>(static_cast<double>(elapsed) * 4.0 * 427.0);
         UpdateDisplay(0, 0, 0, 0, 0);
         const int64_t end = MCPort::PerformanceCounter();
         // The original divided the low 32 bits of the tick difference by the low 32 bits of the frequency.

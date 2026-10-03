@@ -211,12 +211,8 @@ auto BriefingScreen::init() -> void
     chatTimerOn = 0;
     int32_t result = lObject::init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
     Assert(result == 0, result, "Unable to init briefing screen", nullptr);
+    // The original loaded the background (lsbbk00) as the screen's picture; the screen draws it each frame.
     char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsbbk00.tga", artPath);
-    result = lport()->init(fileName);
-    Assert(result == 0, result, "Unable to init repair screen image", nullptr);
-    livePort = new lPort;
-    livePort->initView(width(), height());
 
     auto* pane = new ScrollPane;
 
@@ -709,10 +705,10 @@ auto BriefingScreen::display() -> void
 auto BriefingScreen::draw() -> void
 {
     // The original drew nothing here; the screen now draws its picture and the shared places in the frame pass.
-    if (livePort != nullptr && livePort->viewOpen())
+    if (lport()->viewOpen())
     {
-        PaintLook(livePort->frame());
-        globalLogPtr->drawScreenChrome(this, livePort->frame());
+        PaintLook(lport()->frame());
+        globalLogPtr->drawScreenChrome(this, lport()->frame());
     }
 }
 

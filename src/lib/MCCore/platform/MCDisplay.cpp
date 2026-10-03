@@ -498,6 +498,11 @@ std::expected<void, std::string> MCDisplay::Present()
 {
     MCPort::ManualClockPresented();
 
+    if (OnPresent)
+    {
+        OnPresent();
+    }
+
     if ((SDL_GetWindowFlags(_Window) & SDL_WINDOW_MINIMIZED) != 0)
     {
         return {};

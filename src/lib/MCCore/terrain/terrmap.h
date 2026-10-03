@@ -106,9 +106,21 @@ public:
     /// <remarks>MCX.EXE @ 0x00740140; slot 1</remarks>
     int32_t init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) override;
 
-    /// <summary>Draws the speaking pilot's name and tracks the unit's map position (or the idle picture).</summary>
+    /// <summary>
+    /// Draws the speaking pilot's name and tracks the unit's map position (or the idle picture). Port: in the frame
+    /// pass it draws the picture and the name as last painted; at any other time it is <see cref="Refresh"/>.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x00740170; slot 16</remarks>
     void draw() override;
+
+    /// <summary>Port: the window draws itself each frame (its port is a view).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: the original draw's work besides painting (the mech bar blink, the unit's place on the map), and what it
+    /// left shown: the pilot's name over the picture, or the picture alone.
+    /// </summary>
+    void Refresh() override;
 
     /// <summary>Draws the line from the window to the unit on the map, then the window.</summary>
     /// <remarks>MCX.EXE @ 0x00740390; slot 50</remarks>
@@ -130,6 +142,10 @@ public:
     float blinkTime = 0.0f; // +0x4c0
     /// <summary>Nonzero while the unit's marker is lit.</summary>
     int32_t blinkOn = 0; // +0x4c4
+
+    /// <summary>Port: whether the last paint wrote a pilot's name (<see cref="shownCallsign"/>) over the picture.</summary>
+    bool nameShown = false;
+    std::string shownCallsign;
 };
 
 /// <summary>

@@ -1,12 +1,12 @@
 #pragma once
 
+#include "gui/scrlpane.h"
 #include "logistics/lport.h"
 
 class aEvent;
 class aFont;
 class LogMech;
 class LogVehicle;
-class ScrollPane;
 struct _LogInventoryItem;
 struct _LogInventoryStat;
 
@@ -415,6 +415,16 @@ public:
     LogVehicle* vehicle = nullptr; // +0x4c0
     /// <summary>The mech's weapon lists (null for a vehicle).</summary>
     ScrollPane* inventoryPane = nullptr; // +0x4c4
+    /// <summary>
+    /// Port: the logistics screen that was current when <see cref="drawBackground"/> painted the box: the repair
+    /// block's look depends on it (its status bar's place, its frame), so <see cref="PaintBox"/> draws it as of then.
+    /// </summary>
+    lObject* shownOnScreen = nullptr;
+    /// <summary>
+    /// Port: the weapon list as the box last painted it (<see cref="drawBackground"/>, or <see cref="draw"/> when the
+    /// list scrolled): pressing an arrow scrolls the list, but the box shows it once the arrow is let go.
+    /// </summary>
+    ScrollPaneLook listLook;
 };
 
 /// <summary>Callback of the refit dialog when an item is dropped on a mech.</summary>

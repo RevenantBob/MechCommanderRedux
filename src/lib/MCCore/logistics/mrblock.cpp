@@ -3701,13 +3701,19 @@ auto BriefingBox::drawBackground() -> void
     if (mech != nullptr)
     {
         mech->repairBlock->setInventory(inventoryPane);
+        listLook = inventoryPane->Look();
     }
 
+    shownOnScreen = globalLogPtr->currentScreen;
     globalLogPtr->briefingScreen->ShowBox(this);
 }
 
 auto BriefingBox::PaintBox(PANE* target, int32_t xPos, int32_t yPos) -> void
 {
+    // The block paints as it did when the box was shown (it looks at the current screen); a screen change's wipe
+    // draws the box while another screen is current.
+    lObject* const current = globalLogPtr->currentScreen;
+    globalLogPtr->currentScreen = shownOnScreen != nullptr ? shownOnScreen : current;
     auto* work = new lPort;
     work->init(0x1ab, 0x6f, -1);
 
@@ -3723,14 +3729,15 @@ auto BriefingBox::PaintBox(PANE* target, int32_t xPos, int32_t yPos) -> void
         // The weapon list and its slider, then the tonnage bar.
         auto* list = new lPort;
         list->init(0x62, 0x58, -1);
-        pane->DrawContentTo(list->frame(), 0, 0);
+        pane->DrawContentTo(list->frame(), 0, 0, listLook);
         VFX_pane_copy(list->frame(), 0, 0, work->frame(), 0x143, 0x11, -1);
-        pane->DrawSliderColumn(work->frame(), pane->width() + 0x136, 0x11, false);
+        pane->DrawSliderColumn(work->frame(), pane->width() + 0x136, 0x11, false, listLook);
         int32_t fill = static_cast<int32_t>(static_cast<double>(mech->weaponTonnage) / mech->freeTonnage * 55.0);
         drawTonnageBar(work->frame(), 0x16c, fill);
         delete list;
     }
 
+    globalLogPtr->currentScreen = current;
     globalLogPtr->darken(0, g_logistic_fadetable, work);
     VFX_pane_copy(work->frame(), 0, 0, target, xPos, yPos, -1);
     delete work;
@@ -3766,7 +3773,11 @@ auto BriefingBox::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 auto BriefingBox::draw() -> void
 {
     // The original repainted the weapon list (scrolled) into the briefing screen's picture; the screen draws the
-    // whole box each frame (PaintBox).
+    // whole box each frame (PaintBox), with the list as of now.
+    if (mech != nullptr && inventoryPane != nullptr)
+    {
+        listLook = inventoryPane->Look();
+    }
 }
 
 auto BriefingBox::display() -> void

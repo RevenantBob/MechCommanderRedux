@@ -123,11 +123,9 @@ auto RepairScreen::init() -> void
     selectedVehicle = nullptr;
     int32_t result = lObject::init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
     Assert(result == 0, result, "Unable to init repair screen", nullptr);
+    // The original loaded the background (lsrbk00) as the screen's picture; the screen draws it each frame.
+    initLive("lsrbk00.tga");
     char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrbk00.tga", artPath);
-    result = lport()->init(fileName);
-    Assert(result == 0, result, "Unable to init repair screen image", nullptr);
-    initLiveView();
 
     auto* pane = new ScrollPane;
 
@@ -292,11 +290,7 @@ auto RepairScreen::NewUnitRowsView(ScrollPane* pane) -> lPort*
 
 auto RepairScreen::drawBackground() -> void
 {
-    auto* port = new lPort;
-    char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrbk00.tga", artPath);
-    port->init(fileName);
-    VFX_pane_copy(port->frame(), 0, 0, lport()->frame(), 0, 0, -1);
+    // The background art was painted over everything the screen showed.
     chrome.Clear();
     info.Clear();
 
@@ -304,8 +298,6 @@ auto RepairScreen::drawBackground() -> void
     {
         selectedMech->repairBlock->drawButtons(nullptr);
     }
-
-    delete port;
 }
 
 auto RepairScreen::handleEvent(aEvent* event) -> void
@@ -571,19 +563,16 @@ auto RepairScreen::display() -> void
 
     MCPort::StrTime(globalLogPtr->timeString);
 
-    // The current screen shows them from now on (the original painted them into its picture, which kept them).
-    if (LogScreenChrome* chrome = globalLogPtr->currentScreen->Chrome(); chrome != nullptr)
+    // The current screen shows them from now on (the original painted them into its picture, which kept them); the
+    // session screen shows only the clock.
+    LogScreenChrome* chrome = screen->Chrome();
+
+    if (screen != globalLogPtr->sessionScreen)
     {
         chrome->resourceShown = true;
         std::snprintf(chrome->resourceText, sizeof(chrome->resourceText), "%s", text);
-        chrome->clockShown = true;
-        std::snprintf(chrome->clockText, sizeof(chrome->clockText), "%s", globalLogPtr->timeString);
-        return;
     }
 
-    // The session screen shows only the clock.
-    VFX_pane_copy(globalLogPtr->clockBackPort->frame(), 0, 0, globalLogPtr->currentScreen->lport()->frame(), 0x24c, 2,
-                  -1);
-    medWhiteFont->writeString(globalLogPtr->currentScreen->lport()->frame(), 0x254, 4,
-                              reinterpret_cast<uint8_t*>(globalLogPtr->timeString), -1);
+    chrome->clockShown = true;
+    std::snprintf(chrome->clockText, sizeof(chrome->clockText), "%s", globalLogPtr->timeString);
 }

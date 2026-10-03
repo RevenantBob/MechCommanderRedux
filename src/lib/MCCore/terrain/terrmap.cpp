@@ -1052,13 +1052,37 @@ auto VideoWindow::init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* f
 
 auto VideoWindow::draw() -> void
 {
+    if (!displayPort->viewOpen())
+    {
+        Refresh();
+        return;
+    }
+
+    // The picture (the original painted it when no pilot spoke, and a name stayed over it until then).
+    if (backgroundPort != nullptr)
+    {
+        backgroundPort->copyTo(displayPort->frame(), 0, 0, -1);
+    }
+
+    if (!nameShown)
+    {
+        return;
+    }
+
+    // The pilot's name.
+    lineFont->scaled = 0;
+    lineFont->scale = 1.0f;
+    FillBox(1, 1, static_cast<int16_t>(width() - 2), 0xb, 0x10);
+    lineFont->print(3, 3, shownCallsign.data(), 0xe3, displayPort->frame());
+    lineFont->scale = 2.0f;
+    lineFont->scaled = 1;
+}
+
+auto VideoWindow::Refresh() -> void
+{
     if (star == nullptr)
     {
-        if (backgroundPort != nullptr)
-        {
-            backgroundPort->copyTo(displayPort->frame(), 0, 0, -1);
-        }
-
+        nameShown = false;
         return;
     }
 
@@ -1077,13 +1101,9 @@ auto VideoWindow::draw() -> void
         }
     }
 
-    // The pilot's name.
-    lineFont->scaled = 0;
-    lineFont->scale = 1.0f;
-    FillBox(1, 1, static_cast<int16_t>(width() - 2), 0xb, 0x10);
-    lineFont->print(3, 3, star->callsign, 0xe3, displayPort->frame());
-    lineFont->scale = 2.0f;
-    lineFont->scaled = 1;
+    // The pilot's name (draw writes it).
+    nameShown = true;
+    shownCallsign = star->callsign;
 
     // Track the unit on the tactical map (the anchor when it is off the map area).
     vector_3d position = star->vehicle->getPosition();

@@ -36,14 +36,14 @@ public:
     void display() override;
 
     /// <summary>
-    /// Port: draws the screen's picture (what isn't drawn from state yet) and the shared places
+    /// Port: draws the screen from its state (<see cref="PaintLook"/>) and the shared places
     /// (<see cref="LogScreenChrome"/>) in the frame pass. The original's draw did nothing (the screen was drawn
     /// piecewise into its picture).
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006db6d0</remarks>
     void draw() override;
 
-    /// <summary>Port: the screen draws itself each frame (into <see cref="livePort"/>).</summary>
+    /// <summary>Port: the screen draws itself each frame (its port is a view).</summary>
     bool DrawsLive() override { return true; }
 
     /// <summary>Port: see <see cref="LogScreenChrome"/>.</summary>

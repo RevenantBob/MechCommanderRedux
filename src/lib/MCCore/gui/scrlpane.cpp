@@ -353,6 +353,11 @@ auto ScrollPane::drawContent() -> void
 
 auto ScrollPane::DrawContentTo(_pane* target, int32_t xPos, int32_t yPos) -> void
 {
+    DrawContentTo(target, xPos, yPos, Look());
+}
+
+auto ScrollPane::DrawContentTo(_pane* target, int32_t xPos, int32_t yPos, const ScrollPaneLook& look) -> void
+{
     if (contentPort == nullptr)
     {
         return;
@@ -360,11 +365,12 @@ auto ScrollPane::DrawContentTo(_pane* target, int32_t xPos, int32_t yPos) -> voi
 
     if (!contentPort->isView())
     {
-        VFX_pane_copy(contentPort->frame(), 0, getScrollOffset(), target, xPos, yPos, -1);
+        const auto scrollOffset = static_cast<int32_t>(static_cast<double>(look.ScrollPos) * scrollUnit);
+        VFX_pane_copy(contentPort->frame(), 0, scrollOffset, target, xPos, yPos, -1);
         return;
     }
 
-    const auto offset = static_cast<int32_t>(-(static_cast<double>(scrollPos) * scrollUnit));
+    const auto offset = static_cast<int32_t>(-(static_cast<double>(look.ScrollPos) * scrollUnit));
     const MCRect scissor{target->x0 + xPos, target->y0 + yPos, target->x1, target->y1};
     contentPort->openView(target->window, target->x0 + xPos, target->y0 + yPos + offset, scissor, false);
     drawContent();
@@ -388,32 +394,43 @@ auto ScrollPane::showSlider(int32_t position) -> void
     columnSliderHeight = sliderHeight;
 }
 
+auto ScrollPane::Look() const -> ScrollPaneLook
+{
+    return ScrollPaneLook{scrollPos, columnUpArt, columnDownArt, columnSliderPos, columnSliderHeight};
+}
+
 auto ScrollPane::DrawSliderColumn(_pane* target, int32_t xPos, int32_t yPos, bool keyed) -> void
+{
+    DrawSliderColumn(target, xPos, yPos, keyed, Look());
+}
+
+auto ScrollPane::DrawSliderColumn(_pane* target, int32_t xPos, int32_t yPos, bool keyed, const ScrollPaneLook& look)
+    -> void
 {
     const int key = keyed ? -1 : 0;
     sliderPort->copyTo(target, xPos, yPos, key);
 
-    if (columnUpArt != nullptr)
+    if (look.ColumnUpArt != nullptr)
     {
-        columnUpArt->copyTo(target, xPos, yPos, key);
+        look.ColumnUpArt->copyTo(target, xPos, yPos, key);
     }
 
-    if (columnDownArt != nullptr)
+    if (look.ColumnDownArt != nullptr)
     {
-        columnDownArt->copyTo(target, xPos, yPos + height() - columnDownArt->height(), key);
+        look.ColumnDownArt->copyTo(target, xPos, yPos + height() - look.ColumnDownArt->height(), key);
     }
 
-    if (columnSliderHeight > 0 && sliderImage != nullptr)
+    if (look.ColumnSliderHeight > 0 && sliderImage != nullptr)
     {
         // The slider image is a 13-wide picture of whole rows.
-        const int32_t rows =
-            std::min(columnSliderHeight, static_cast<int32_t>(sliderImageSize / static_cast<uint32_t>(SliderWidth)));
+        const int32_t rows = std::min(look.ColumnSliderHeight,
+                                      static_cast<int32_t>(sliderImageSize / static_cast<uint32_t>(SliderWidth)));
         _window image{};
         image.buffer = sliderImage;
         image.x_max = SliderWidth - 1;
         image.y_max = rows - 1;
         _pane imagePane{&image, 0, 0, SliderWidth - 1, rows - 1};
-        VFX_pane_copy(&imagePane, 0, 0, target, xPos, yPos + columnSliderPos, -1);
+        VFX_pane_copy(&imagePane, 0, 0, target, xPos, yPos + look.ColumnSliderPos, -1);
     }
 }
 

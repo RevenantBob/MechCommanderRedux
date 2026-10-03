@@ -147,19 +147,23 @@ public:
     void removePilot(int32_t pilotIndex);
 
     /// <summary>
-    /// Port: draws the screen: its picture (what isn't drawn from state yet), then the shared places
-    /// (<see cref="LogScreenChrome"/>). Outside the frame pass it refreshes the children, as the original's paint.
+    /// Port: draws the screen: its background art, the info box and column header (<see cref="info"/>), then the
+    /// shared places (<see cref="LogScreenChrome"/>). Outside the frame pass it refreshes the children, as the
+    /// original's paint.
     /// </summary>
     void draw() override;
 
-    /// <summary>Port: the screen draws itself each frame (into <see cref="livePort"/>).</summary>
+    /// <summary>Port: the screen draws itself each frame (its port is a view).</summary>
     bool DrawsLive() override { return true; }
 
     /// <summary>Port: see <see cref="LogScreenChrome"/>.</summary>
     LogScreenChrome* Chrome() override { return &chrome; }
 
-    /// <summary>Port: makes the view the screen draws into, over its picture.</summary>
-    void initLiveView();
+    /// <summary>
+    /// Port: sets the screen's background art (<paramref name="artName"/> in <c>logart</c>, which the original loaded as
+    /// the screen's picture) and lists the screen for <see cref="Of"/>.
+    /// </summary>
+    void initLive(const char* artName);
 
     /// <summary>Port: forgets the screen (see <see cref="ForgetInfoSource"/>).</summary>
     ~LogInvScreen() override;
@@ -202,6 +206,8 @@ public:
 
     /// <summary>Port: what the screen shows of the shared places.</summary>
     LogScreenChrome chrome;
+    /// <summary>Port: the background art's file name in <c>logart</c> (<see cref="initLive"/>).</summary>
+    const char* backgroundArt = nullptr;
 };
 
 /// <summary>
@@ -252,6 +258,35 @@ public:
     /// <remarks>MCX.EXE @ 0x0070b640</remarks>
     void reset();
 
+    /// <summary>Port: draws the frame along the bottom (the history pane and the input line draw themselves).</summary>
+    void draw() override;
+
+    /// <summary>Port: the window draws itself each frame (its port is a view).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: adds <paramref name="line"/> (text with <c>SMUTI</c> codes) to the bottom of the history, the older lines
+    /// moving up by its height (the second half of <see cref="processChatString"/>).
+    /// </summary>
+    void AddLine(const char* line);
+
+    /// <summary>A line of the history, and the height the text formatter gave it.</summary>
+    struct HistoryLine
+    {
+        std::string Text;
+        int32_t Used = 0;
+    };
+
+    /// <summary>
+    /// Port: draws <paramref name="lines"/> (oldest first) into <paramref name="port"/> (the history's view, open) as
+    /// the original's history picture held them: each line was written along the bottom over a wiped strip one row
+    /// taller than its text, after the picture had moved up by its height, so a line's bottom row is wiped by the next.
+    /// </summary>
+    static void DrawHistory(aPort* port, const std::vector<HistoryLine>& lines);
+
+    /// <summary>Port: makes the history pane's content, a view that draws <see cref="lines"/>.</summary>
+    lPort* NewHistoryView(int32_t width, int32_t height);
+
     /// <summary>The history pane.</summary>
     ScrollPane* historyPane = nullptr; // +0x4bc
     /// <summary>The frame picture along the bottom (<c>lsbdw04</c>).</summary>
@@ -262,4 +297,10 @@ public:
     int32_t unknown4C8 = 0; // +0x4c8
     /// <summary>The history size given to <see cref="init"/>.</summary>
     int32_t historySize = 0; // +0x4cc
+
+    /// <summary>
+    /// Port: the history, oldest first (the original kept it as the pixels of the pane's picture). Lines that moved
+    /// off the top are dropped.
+    /// </summary>
+    std::vector<HistoryLine> lines;
 };

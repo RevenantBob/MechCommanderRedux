@@ -348,8 +348,13 @@ auto lChatInput::destroy() -> void
 
 auto lChatInput::draw() -> void
 {
+    if (!ownPort->viewOpen())
+    {
+        Refresh();
+        return;
+    }
+
     VFX_pane_wipe(ownPort->frame(), backgroundColor);
-    cursorOn = -1;
     auto* line = reinterpret_cast<uint8_t*>(text);
     int32_t lineY = 1;
 
@@ -375,15 +380,21 @@ auto lChatInput::draw() -> void
         font->writeString(ownPort->frame(), 0x14, lineY, line, -1);
     }
 
+    // The caret, which the original's display drew into the picture each frame: a vertical line a text line high.
+    const int32_t bottom = font->height() + 3 + cursorY;
+    const int32_t color = cursorOn != 0 ? 0x10 : 0x1f;
+    VFX_line_draw(ownPort->frame(), cursorX, cursorY, cursorX, bottom, LD_DRAW, color);
     lObject::draw();
+}
+
+auto lChatInput::Refresh() -> void
+{
+    cursorOn = -1;
+    lObject::Refresh();
 }
 
 auto lChatInput::display() -> void
 {
-    // The caret: a vertical line a text line high.
-    const int32_t bottom = font->height() + 3 + cursorY;
-    const int32_t color = cursorOn != 0 ? 0x10 : 0x1f;
-    VFX_line_draw(ownPort->frame(), cursorX, cursorY, cursorX, bottom, LD_DRAW, color);
     lObject::display();
 }
 
@@ -544,6 +555,17 @@ auto PlayerNameObject::destroy() -> void
 
 auto PlayerNameObject::draw() -> void
 {
+    if (!ownPort->viewOpen())
+    {
+        return;
+    }
+
+    if (numberArt != nullptr)
+    {
+        VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(numberBack));
+        numberArt->copyTo(ownPort->frame(), 1, 1, 0);
+    }
+
     const auto color = static_cast<uint8_t>(backgroundColor);
     const auto bottom = static_cast<int16_t>(height() - 1);
     FillBox(0x14, 1, static_cast<int16_t>(width() - 1), bottom, color);
@@ -998,7 +1020,6 @@ auto SessionScreen::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
 
     for (int32_t slotY = UnassignedTop; slotY < 0x1da; slotY += UnassignedRow, ++slot)
     {
-        lPort picture;
         auto* nameObject = new PlayerNameObject;
         *slot = nameObject;
         nameObject->init(0xb, UnassignedTop, 0xa0, 0x10, nullptr);
@@ -1007,11 +1028,10 @@ auto SessionScreen::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
         nameObject->ShowGUIWindow(0);
         nameObject->SetTransparent(-1);
         ++number;
-        char fileName[12];
-        std::snprintf(fileName, sizeof(fileName), "ses_p%i.tga", number);
-        VFX_pane_wipe(nameObject->lport()->frame(), backgroundColor);
-        picture.init(fileName);
-        picture.copyTo(nameObject->lport()->frame(), 1, 1, 0);
+        // The original wiped the name's picture to the screen's background colour and pasted the number there; the
+        // name draws them each frame.
+        nameObject->numberBack = backgroundColor;
+        nameObject->numberArt = logArtf("ses_p%i.tga", number);
     }
 
     setBackground(art("ses_bk00.tga"));
@@ -1082,6 +1102,7 @@ auto SessionScreen::destroy() -> void
         mapName = nullptr;
     }
 
+    ClearMapLayers();
     lObject::destroy();
 }
 
@@ -1092,8 +1113,17 @@ auto SessionScreen::draw() -> void
         return;
     }
 
+    if (!ownPort->viewOpen())
+    {
+        // The background was painted over everything the screen showed; the children paint (or refresh) themselves.
+        chrome.Clear();
+        lObject::draw();
+        return;
+    }
+
     lObject::draw();
     lPort* port = ownPort;
+    DrawMapLayers(port->frame());
     medWhiteFont->writeString(port->frame(), 0x180, 199, reinterpret_cast<uint8_t*>(missionName), -1);
     medWhiteFont->writeString(port->frame(), 0x180, 0xe3, reinterpret_cast<uint8_t*>(mapName), -1);
     char noLabel[256];
@@ -1104,6 +1134,7 @@ auto SessionScreen::draw() -> void
     // Each team's resource points per player.
     if (MPlayer->clanGroupID == 0)
     {
+        globalLogPtr->drawScreenChrome(this, port->frame());
         return;
     }
 
@@ -1139,6 +1170,7 @@ auto SessionScreen::draw() -> void
 
     std::snprintf(text, sizeof(text), "%d", static_cast<int32_t>(std::atol(team2RPText->buffer) / divisor));
     lgWhiteFont->writeString(port->frame(), 0x219, 0x185, reinterpret_cast<uint8_t*>(text), -1);
+    globalLogPtr->drawScreenChrome(this, port->frame());
 }
 
 auto SessionScreen::handleEvent(aEvent* event) -> void
@@ -1404,6 +1436,8 @@ auto SessionScreen::activate(int refresh) -> void
 
         addChild(ticker);
         ticker->setPort(lport());
+        // The ticker paints into this screen now (what it shows is kept in the screen's chrome).
+        ticker->setScreen(this);
         ticker->setPos(3, 3);
     }
 
@@ -1571,13 +1605,9 @@ auto SessionScreen::setMap(char* fileName) -> void
 {
     if (fileName == nullptr)
     {
-        // No mission: clear the map box.
-        _pane box = *backgroundPort->frame();
-        box.x0 = 0xf4;
-        box.y0 = 0x33;
-        box.x1 = 0x177;
-        box.y1 = 0xb6;
-        VFX_pane_wipe(&box, 0x10);
+        // No mission: clear the map box (the original wiped it in the background picture).
+        ClearMapLayers();
+        mapBoxWiped = true;
         return;
     }
 
@@ -1591,20 +1621,49 @@ auto SessionScreen::setMap(char* fileName) -> void
         Fatal(result, " Unable to create Port for TacMap ");
     }
 
-    // Stretch the map picture over the box.
-    const int32_t maxU = picture->frame()->window->x_max;
-    const int32_t maxV = picture->frame()->window->y_max;
-    SCRNVERTEX corners[4] = {
-        {0xf4, 0x33, 0, 0, 0, 0},
-        {0x177, 0x33, 0, maxU << 16, 0, 0},
-        {0x177, 0xb6, 0, maxU << 16, maxV << 16, 0},
-        {0xf4, 0xb6, 0, 0, maxV << 16, 0},
-    };
-
-    VFX_map_polygon(backgroundPort->frame(), 4, corners, picture->frame()->window, MP_XP);
+    // The original stretched the map picture over the box in the background picture; the screen keeps the picture
+    // and draws it so each frame.
+    mapLayers.push_back(picture);
     draw();
-    picture->destroy();
-    delete picture;
+}
+
+auto SessionScreen::DrawMapLayers(_pane* target) -> void
+{
+    if (mapBoxWiped)
+    {
+        _pane box = *target;
+        box.x0 = 0xf4;
+        box.y0 = 0x33;
+        box.x1 = 0x177;
+        box.y1 = 0xb6;
+        VFX_pane_wipe(&box, 0x10);
+    }
+
+    for (lPort* picture : mapLayers)
+    {
+        // Stretch the map picture over the box.
+        const int32_t maxU = picture->frame()->window->x_max;
+        const int32_t maxV = picture->frame()->window->y_max;
+        SCRNVERTEX corners[4] = {
+            {0xf4, 0x33, 0, 0, 0, 0},
+            {0x177, 0x33, 0, maxU << 16, 0, 0},
+            {0x177, 0xb6, 0, maxU << 16, maxV << 16, 0},
+            {0xf4, 0xb6, 0, 0, maxV << 16, 0},
+        };
+
+        VFX_map_polygon(target, 4, corners, picture->frame()->window, MP_XP);
+    }
+}
+
+auto SessionScreen::ClearMapLayers() -> void
+{
+    for (lPort* picture : mapLayers)
+    {
+        picture->destroy();
+        delete picture;
+    }
+
+    mapLayers.clear();
 }
 
 auto SessionScreen::setMissionName(char* name) -> void

@@ -831,20 +831,23 @@ auto LogInvScreen::removePilot(int32_t pilotIndex) -> void
 
 auto LogInvScreen::draw() -> void
 {
-    if (livePort != nullptr && livePort->viewOpen())
+    if (lport()->viewOpen())
     {
-        VFX_pane_copy(lport()->frame(), 0, 0, livePort->frame(), 0, 0, -1);
-        DrawInfo(livePort);
-        globalLogPtr->drawScreenChrome(this, livePort->frame());
+        if (lPort* art = logArtf("%slogart\\%s", artPath, backgroundArt))
+        {
+            VFX_pane_copy(art->frame(), 0, 0, lport()->frame(), 0, 0, -1);
+        }
+
+        DrawInfo(lport());
+        globalLogPtr->drawScreenChrome(this, lport()->frame());
     }
 
     lObject::draw();
 }
 
-auto LogInvScreen::initLiveView() -> void
+auto LogInvScreen::initLive(const char* artName) -> void
 {
-    livePort = new lPort;
-    livePort->initView(width(), height());
+    backgroundArt = artName;
     invScreens.push_back(this);
 }
 
@@ -944,8 +947,8 @@ auto LogInvScreen::ForgetInfoSource(lObject* source) -> void
 
 auto LogChatWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t historySize) -> void
 {
+    // The original wiped its picture to the key and pasted the frame (lsbdw04) along the bottom; draw shows the frame.
     lObject::init(xPos, yPos, width, height, nullptr, nullptr);
-    VFX_pane_wipe(lport()->frame(), 0xff);
     SetTransparent(-1);
     this->historySize = historySize;
     unknown4C8 = 0;
@@ -954,7 +957,6 @@ auto LogChatWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
     framePort = new lPort;
     std::snprintf(fileName, sizeof(fileName), "%slogart\\lsbdw04.tga", artPath);
     framePort->init(fileName);
-    framePort->copyTo(ownPort->frame(), 0, height - framePort->height(), -1);
 
     auto* pane = new ScrollPane;
 
@@ -969,10 +971,9 @@ auto LogChatWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
     addChild(pane);
     pane->ShowGUIWindow(-1);
 
-    auto* history = new lPort;
-    history->init(pane->lport()->width(), historySize / pane->lport()->width(), -1);
-    VFX_pane_wipe(history->frame(), 0x10);
-    pane->setDisplayPort(history, -1, -1);
+    // The history (wiped to 0x10, then written along the bottom as lines come) is drawn from lines.
+    lines.clear();
+    pane->setDisplayPort(NewHistoryView(pane->lport()->width(), historySize / pane->lport()->width()), -1, -1);
     pane->setScrollPos(100.0f);
 
     chatInput = new lChatInput;
@@ -1029,22 +1030,90 @@ auto LogChatWindow::processChatString(uint32_t fromPlayerId, char* string, int32
     char line[2048];
     std::snprintf(line, sizeof(line), "%%fc%d%s: %%fc%d%s", globalLogPtr->playerColors[playerNumber], name, textColor,
                   string);
+    AddLine(line);
+}
 
-    // Scroll the history up by the new text's height and write it along the bottom.
+auto LogChatWindow::AddLine(const char* line) -> void
+{
+    // The original moved the history picture up by the text's height, wiped the strip along the bottom and wrote the
+    // text there; the history keeps the line and draws it so each frame.
     ScrollPane* pane = historyPane;
-    auto* text = reinterpret_cast<uint8_t*>(line);
-    int32_t used = application->textFormatter.process(text, nullptr, pane->lport()->width(), 0);
-    uint8_t* pixels = pane->lport()->bitmap()->buffer;
-    int32_t portWidth = pane->lport()->width();
-    int32_t portHeight = pane->lport()->height();
-    std::memmove(pixels, pixels + portWidth * used, static_cast<size_t>((portHeight - used) * portWidth));
-    _pane bottom = *pane->lport()->frame();
-    bottom.x0 = 0;
-    bottom.y0 = portHeight - used - 1;
-    bottom.x1 = portWidth - 1;
-    bottom.y1 = portHeight - 1;
-    VFX_pane_wipe(&bottom, 0x10);
-    application->textFormatter.process(text, pane->lport(), 0, portHeight - used - 1);
+    std::string text = line;
+    const int32_t used =
+        application->textFormatter.process(reinterpret_cast<uint8_t*>(text.data()), nullptr, pane->lport()->width(), 0);
+    lines.push_back(HistoryLine{std::move(text), used});
+
+    // A line whose strip moved off the top shows nothing any more.
+    int32_t above = 0;
+    size_t first = lines.size();
+
+    while (first > 0 && above < pane->lport()->height())
+    {
+        first--;
+        above += lines[first].Used;
+    }
+
+    lines.erase(lines.begin(), lines.begin() + static_cast<std::ptrdiff_t>(first));
+}
+
+auto LogChatWindow::DrawHistory(aPort* port, const std::vector<HistoryLine>& lines) -> void
+{
+    _pane* frame = port->frame();
+    const int32_t portWidth = port->width();
+    const int32_t portHeight = port->height();
+    VFX_pane_wipe(frame, 0x10);
+
+    // How far each line moved up: the heights of the lines after it.
+    int32_t moved = 0;
+
+    for (const HistoryLine& line : lines)
+    {
+        moved += line.Used;
+    }
+
+    const MCRect scissor = port->view.Scissor;
+
+    for (const HistoryLine& line : lines)
+    {
+        moved -= line.Used;
+        const int32_t bottom = portHeight - 1 - moved;
+        const int32_t top = bottom - line.Used;
+
+        // The picture ended at its last row when the line was written: nothing of it lies below that.
+        port->view.Scissor.Y1 = std::min(scissor.Y1, port->view.OriginY + bottom);
+
+        if (port->view.Open())
+        {
+            _pane strip = *frame;
+            strip.x0 = 0;
+            strip.y0 = top;
+            strip.x1 = portWidth - 1;
+            strip.y1 = bottom;
+            VFX_pane_wipe(&strip, 0x10);
+            std::string text = line.Text;
+            application->textFormatter.process(reinterpret_cast<uint8_t*>(text.data()), port, 0, top);
+        }
+
+        port->view.Scissor = scissor;
+    }
+}
+
+auto LogChatWindow::NewHistoryView(int32_t width, int32_t height) -> lPort*
+{
+    auto* view = new lPort;
+    view->initView(width, height);
+    view->DrawContent = [this](aPort* port) { DrawHistory(port, lines); };
+    return view;
+}
+
+auto LogChatWindow::draw() -> void
+{
+    if (lport()->viewOpen())
+    {
+        framePort->copyTo(lport()->frame(), 0, height() - framePort->height(), -1);
+    }
+
+    lObject::draw();
 }
 
 auto LogChatWindow::handleEvent(aEvent* event) -> void
@@ -1061,16 +1130,13 @@ auto LogChatWindow::handleEvent(aEvent* event) -> void
 
 auto LogChatWindow::resize(int32_t height) -> void
 {
+    // The original wiped its picture and pasted the frame at the new bottom (draw shows it there).
     lObject::resize(width(), height);
-    VFX_pane_wipe(lport()->frame(), 0xff);
-    framePort->copyTo(ownPort->frame(), 0, height - framePort->height(), -1);
     chatInput->moveTo(6, height - 0x21, 0);
 
-    // Keep the history across the new pane.
-    auto* history = new lPort;
+    // Keep the history across the new pane (the original copied its picture into a new one).
     lPort* oldHistory = historyPane->contentPort;
-    history->init(oldHistory->width(), oldHistory->height(), -1);
-    oldHistory->copyTo(history->frame(), 0, 0, -1);
+    lPort* history = NewHistoryView(oldHistory->width(), oldHistory->height());
     delete historyPane;
 
     auto* pane = new ScrollPane;
@@ -1091,11 +1157,9 @@ auto LogChatWindow::resize(int32_t height) -> void
 
 auto LogChatWindow::reset() -> void
 {
-    auto* history = new lPort;
     ScrollPane* pane = historyPane;
     lPort* oldHistory = pane->contentPort;
-    history->init(oldHistory->width(), oldHistory->height(), -1);
-    VFX_pane_wipe(history->frame(), 0x10);
-    pane->setDisplayPort(history, -1, -1);
+    lines.clear();
+    pane->setDisplayPort(NewHistoryView(oldHistory->width(), oldHistory->height()), -1, -1);
     chatInput->text[0] = 0;
 }

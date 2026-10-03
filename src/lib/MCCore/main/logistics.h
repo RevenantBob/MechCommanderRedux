@@ -795,8 +795,22 @@ public:
     /// <remarks>MCX.EXE @ 0x00700330</remarks>
     void setPlayerStatus(uint32_t playerID, int32_t status);
 
+    /// <summary>
+    /// Paints the lights: each player's numbered light, lit (<c>lsc_ph</c>) or blinking over it, and the backing
+    /// (<c>lsc_p0</c>) into the parent. Port: in the frame pass it draws the lights as last painted; at any other time
+    /// it is <see cref="Refresh"/>.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x007003b0</remarks>
     void draw() override;
+
+    /// <summary>Port: the lights draw themselves each frame (their port is a view).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: what the original's paint left: the lights as they are now (kept in the <c>shown</c> fields), and the
+    /// backing in the parent screen (its <see cref="LogScreenChrome"/>).
+    /// </summary>
+    void Refresh() override;
 
     /// <summary>The blink timer toggles the blink; pointing at a light shows the player's name on the ticker.</summary>
     /// <remarks>MCX.EXE @ 0x00700620</remarks>
@@ -822,6 +836,15 @@ public:
     lPort* readyPort = nullptr; // +0x504
     /// <summary>The blinking light (<c>lsc_pg1.tga</c>).</summary>
     lPort* blinkPort = nullptr; // +0x508
+
+    /// <summary>
+    /// Port: the lights as the last paint (<see cref="Refresh"/>) left them: how many, each one's status, and whether
+    /// the blink showed and in which phase.
+    /// </summary>
+    int32_t shownPlayers = 0;
+    int32_t shownStatus[MAX_PLAYERS] = {};
+    int32_t shownTimerRunning = 0;
+    int32_t shownBlinkOn = 0;
 };
 
 /// <summary>

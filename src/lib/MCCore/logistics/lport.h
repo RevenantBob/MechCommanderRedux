@@ -95,6 +95,8 @@ struct LogScreenChrome
     /// <summary>Whether the clock was painted, and the time shown.</summary>
     bool clockShown = false;
     char clockText[12] = {};
+    /// <summary>Whether the multiplayer ready lights painted their backing (<c>lsc_p0</c>) at (0xd3, 0).</summary>
+    bool lightsBackShown = false;
 
     /// <summary>Forgets everything: the screen's background art was painted over all of it.</summary>
     void Clear() { *this = LogScreenChrome{}; }
@@ -159,13 +161,6 @@ public:
 
     /// <summary>Port: the shared places this screen shows (<see cref="LogScreenChrome"/>), or null for other objects.</summary>
     virtual LogScreenChrome* Chrome() { return nullptr; }
-
-    /// <summary>
-    /// Port: the view an object draws itself into in the frame pass when its own port is still a picture: a screen
-    /// whose picture holds what isn't drawn from state yet (its canvas), which its draw copies before drawing the
-    /// rest. Null for an object whose own port is its view.
-    /// </summary>
-    lPort* livePort = nullptr;
 
 protected:
     /// <summary>The object's own port, when <see cref="init"/> got none.</summary>

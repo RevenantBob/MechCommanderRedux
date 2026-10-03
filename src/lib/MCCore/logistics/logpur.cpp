@@ -31,16 +31,6 @@ namespace
         port = nullptr;
     }
 
-    /// <summary>A port loaded from "<c>artPath</c>logart\<paramref name="name"/>".</summary>
-    lPort* loadArt(const char* name)
-    {
-        char fileName[256];
-        auto* port = new lPort;
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\%s", artPath, name);
-        port->init(fileName);
-        return port;
-    }
-
     /// <summary>Puts string <paramref name="id"/> on the ticker.</summary>
     void showHelp(uint32_t id)
     {
@@ -60,16 +50,11 @@ auto PurchaseScreen::init() -> void
     purVehiclePort = nullptr;
     int32_t result = lObject::init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
     Assert(result == 0, result, "Unable to init purchase screen", nullptr);
+    // The original loaded the background (lspbk00) as the screen's picture and pasted the mech inventory header into
+    // it; the screen draws both each frame.
+    initLive("lspbk00.tga");
+    info.header = 0;
     char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lspbk00.tga", artPath);
-    result = lport()->init(fileName);
-    Assert(result == 0, result, "Unable to init purchase screen image", nullptr);
-    initLiveView();
-
-    // The mech inventory header.
-    lPort* header = loadArt("lscdwm.tga");
-    VFX_pane_copy(header->frame(), 0, 0, lport()->frame(), 0xc4, 0x65, -1);
-    delete header;
 
     auto* pane = new ScrollPane;
 
@@ -146,9 +131,7 @@ auto PurchaseScreen::destroy() -> void
 
 auto PurchaseScreen::drawBackground() -> void
 {
-    lPort* background = loadArt("lspbk00.tga");
-    VFX_pane_copy(background->frame(), 0, 0, lport()->frame(), 0, 0, -1);
-    delete background;
+    // The background art was painted over everything the screen showed.
     chrome.Clear();
     info.Clear();
 }

@@ -219,6 +219,12 @@ public:
     static bool MapToLogical(const MCViewport& viewport, int logicalWidth, int logicalHeight, float x, float y,
                              float& logicalX, float& logicalY);
 
+    /// <summary>
+    /// Tests: called at the start of each <see cref="Present"/>, with the screen as it is about to be shown (frames
+    /// drawn inside the game's own loops, such as the logistics screen wipes, are seen too).
+    /// </summary>
+    std::function<void()> OnPresent;
+
 private:
     MCDisplay() = default;
 
