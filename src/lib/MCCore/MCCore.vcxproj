@@ -457,50 +457,51 @@
     <ClInclude Include="vfx\vfxfuncs.h" />
     <ClInclude Include="vfx\vfxint.h" />
   </ItemGroup>
-  <!-- HLSL shaders, compiled to SPIR-V headers in build\generated\shaders (the Vulkan SDK's dxc). -->
+  <!-- HLSL shaders, compiled to SPIR-V headers in build\generated\shaders (the pinned dxc, $(MCDxc): see
+       MechCommander.props). -->
   <ItemGroup>
     <CustomBuild Include="shaders\composite.pshader">
       <FileType>Document</FileType>
       <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
-"$(VULKAN_SDK)\Bin\dxc.exe" -T ps_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+"$(MCDxc)" -T ps_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
       <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
-      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
       <Message>Compiling HLSL fragment shader %(Filename).pshader</Message>
       <BuildInParallel>true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="shaders\draw.pshader">
       <FileType>Document</FileType>
       <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
-"$(VULKAN_SDK)\Bin\dxc.exe" -T ps_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+"$(MCDxc)" -T ps_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
       <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
-      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
       <Message>Compiling HLSL fragment shader %(Filename).pshader</Message>
       <BuildInParallel>true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="shaders\instance.vshader">
       <FileType>Document</FileType>
       <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
-"$(VULKAN_SDK)\Bin\dxc.exe" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+"$(MCDxc)" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
       <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
-      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
       <Message>Compiling HLSL vertex shader %(Filename).vshader</Message>
       <BuildInParallel>true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="shaders\quad.vshader">
       <FileType>Document</FileType>
       <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
-"$(VULKAN_SDK)\Bin\dxc.exe" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+"$(MCDxc)" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
       <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
-      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
       <Message>Compiling HLSL vertex shader %(Filename).vshader</Message>
       <BuildInParallel>true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="shaders\terrain.vshader">
       <FileType>Document</FileType>
       <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
-"$(VULKAN_SDK)\Bin\dxc.exe" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+"$(MCDxc)" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
       <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
-      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
       <Message>Compiling HLSL vertex shader %(Filename).vshader</Message>
       <BuildInParallel>true</BuildInParallel>
     </CustomBuild>

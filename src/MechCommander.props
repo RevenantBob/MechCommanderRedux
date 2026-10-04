@@ -14,6 +14,16 @@
     <MCLibDir>$(MSBuildThisFileDirectory)lib\</MCLibDir>
     <MCGeneratedDir>$(MSBuildThisFileDirectory)build\generated\</MCGeneratedDir>
   </PropertyGroup>
+  <!-- The HLSL compiler: Microsoft's DirectXShaderCompiler release, pinned by version and SHA-256, so every machine
+       and CI compile the shaders with the same dxc. MCFetchDxc downloads it into build\tools on first use. To update
+       it, change the three values (the hash is the zip's, from the release page or Get-FileHash). -->
+  <PropertyGroup>
+    <MCDxcVersion>v1.9.2609</MCDxcVersion>
+    <MCDxcUrl>https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2609/dxc_2026_09_29.zip</MCDxcUrl>
+    <MCDxcSha256>AD31B1FC8443175D204F77A611FDB3EF2EC42759BDC2F1167368DE24A4A7E7F1</MCDxcSha256>
+    <MCDxcDir>$(MSBuildThisFileDirectory)build\tools\dxc-$(MCDxcVersion)\</MCDxcDir>
+    <MCDxc>$(MCDxcDir)bin\x64\dxc.exe</MCDxc>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -99,5 +109,26 @@
     <WriteLinesToFile File="$(MCGeneratedDir)MCVersion.h" Lines="@(_MCVersionLine)" Overwrite="true"
                       WriteOnlyWhenDifferent="true" />
     <Message Importance="high" Text="MechCommander Redux $(_MCVersion) ($(_MCCommit))" />
+  </Target>
+
+  <!-- Fetches the pinned dxc (see MCDxcVersion) before a project's shaders compile, when it isn't there yet. The zip
+       must match MCDxcSha256, or the build stops. -->
+  <Target Name="MCFetchDxc" BeforeTargets="CustomBuild" Condition="'@(CustomBuild)'!='' and !Exists('$(MCDxc)')">
+    <PropertyGroup>
+      <_MCDxcDownloads>$(MSBuildThisFileDirectory)build\tools\downloads\</_MCDxcDownloads>
+    </PropertyGroup>
+    <Message Importance="high" Text="Downloading dxc $(MCDxcVersion) from $(MCDxcUrl)" />
+    <DownloadFile SourceUrl="$(MCDxcUrl)" DestinationFolder="$(_MCDxcDownloads)" Retries="3">
+      <Output TaskParameter="DownloadedFile" PropertyName="_MCDxcZip" />
+    </DownloadFile>
+    <GetFileHash Files="$(_MCDxcZip)" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="_MCDxcZipHash" />
+    </GetFileHash>
+    <Delete Files="$(_MCDxcZip)" Condition="'$(_MCDxcZipHash)'!='$(MCDxcSha256)'" />
+    <Error Condition="'$(_MCDxcZipHash)'!='$(MCDxcSha256)'"
+           Text="dxc $(MCDxcVersion): the download's SHA-256 is $(_MCDxcZipHash), expected $(MCDxcSha256)." />
+    <Unzip SourceFiles="$(_MCDxcZip)" DestinationFolder="$(MCDxcDir)" />
+    <Delete Files="$(_MCDxcZip)" />
+    <Error Condition="!Exists('$(MCDxc)')" Text="dxc $(MCDxcVersion): $(MCDxc) isn't in the zip." />
   </Target>
 </Project>
