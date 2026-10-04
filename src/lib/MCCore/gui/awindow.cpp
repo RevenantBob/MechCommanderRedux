@@ -1514,8 +1514,13 @@ auto aSmackerWindow::display() -> void
             VFX_pane_wipe(moviePane, 0);
         }
 
-        // (The original left the screen as it was.)
-        DrawInFramePass(displayPort);
+        // (The original left the screen as it was.) An escaped movie has destroyed the window already (endSmackerMovie)
+        // while application->smackerWindow still names it until its owner clears it, so there is no pane to draw.
+        if (framePane != nullptr)
+        {
+            DrawInFramePass(displayPort);
+        }
+
         return;
     }
 
