@@ -83,7 +83,10 @@ namespace
         SDL_Cursor* Shown = nullptr;
         /// <summary>Cursors no longer wanted, freed once another is shown (SDL would show its arrow in between).</summary>
         std::vector<SDL_Cursor*> Retired;
-        /// <summary>Made but not yet shown over the window, where Windows builds the cursor (see warm).</summary>
+        /// <summary>
+        /// Made but not yet shown over the window, where Windows builds the cursor (see warm). Recoloured cursors of
+        /// shapes already shown aren't added (see ensure).
+        /// </summary>
         std::vector<SDL_Cursor*> Cold;
         float ScaleX = 0.0f;
         float ScaleY = 0.0f;
@@ -223,9 +226,19 @@ namespace
             return false;
         }
 
+        // Only a first cursor for the picture (or one replacing a cursor never shown) is warmed. Warming shows each
+        // cold cursor over the window, so warming every shape recoloured by a palette change (the brightness slider
+        // changes it with every mouse move) would flash the other shapes on screen; a recoloured shape builds its
+        // icon when it is next shown.
+        const bool wasCold = made.Cursor == nullptr || std::ranges::find(cursor.Cold, made.Cursor) != cursor.Cold.end();
         retire(cursor, made);
         made = {fresh, used};
-        cursor.Cold.push_back(fresh);
+
+        if (wasCold)
+        {
+            cursor.Cold.push_back(fresh);
+        }
+
         ++cursor.MadeCount;
         return true;
     }
