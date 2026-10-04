@@ -37,14 +37,6 @@ namespace
         }
     }
 
-    /// <summary>Loads "<c>artPath</c>logart\<paramref name="name"/>" into <paramref name="port"/>.</summary>
-    void loadArt(lPort* port, const char* name)
-    {
-        char fileName[256];
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\%s", artPath, name);
-        port->init(fileName);
-    }
-
     /// <summary>A copy of <paramref name="text"/> with the CRT's new (null stays null).</summary>
     char* copyString(const char* text)
     {
@@ -73,17 +65,7 @@ auto lDialogButton::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
 
 auto lDialogButton::draw() -> void
 {
-    lPort* picture = disabled != 0 ? grayPicture : (pressedDown != 0 ? downPicture : upPicture);
-
-    if (picture != nullptr)
-    {
-        picture->copyTo(ownPort->frame(), 0, 0, -1);
-        lObject::draw();
-        return;
-    }
-
-    VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(backgroundColor));
-    lObject::draw();
+    drawFace(disabled != 0 ? grayPicture : (pressedDown != 0 ? downPicture : upPicture), true);
 }
 
 auto lDialogButton::handleEvent(aEvent* event) -> void
@@ -93,12 +75,15 @@ auto lDialogButton::handleEvent(aEvent* event) -> void
         return;
     }
 
+    if (event->type == 4)
+    {
+        pressedDown = 0;
+    }
+
     if (event->type == 1)
     {
-        // Flash the press, then close the dialog with this button's result.
+        // Show the press, then close the dialog with this button's result.
         pressedDown = -1;
-        draw();
-        pressedDown = 0;
         UpdateDisplay(0, 0, 0, 0, 0);
         soundSystem->playDigitalSample(0x34, 1, nullptr, 0, 0);
         callback()->execute();
@@ -119,13 +104,8 @@ auto LogDialogBox::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heigh
     spinner = -1;
     callback = nullptr;
     picturePort = nullptr;
-    // The box's frame is its port.
-    auto* frame = new lPort;
-    loadArt(frame, "lspcb00.tga");
-    lObject::init(xPos, yPos, width, height, nullptr, frame);
-    lPort* port = sharedPort;
-    frame->copyTo(port->frame(), 0, 0, -1);
-    ownPort = port;
+    // The original loaded the box's frame (lspcb00) as its port; the box draws the frame each frame instead.
+    lObject::init(xPos, yPos, width, height, nullptr, nullptr);
     SetTransparent(-1);
     ShowGUIWindow(0);
     fadedBackground = nullptr;
@@ -144,63 +124,80 @@ auto LogDialogBox::drawBackground() -> void
 {
     if (needBackground != 0)
     {
-        if (fadedBackground == nullptr)
-        {
-            // What's under the box, darkened. (The fill that follows covers the darkening; kept as the original.)
-            fadedBackground = new lPort;
-            fadedBackground->init(ownPort->width(), ownPort->height(), -1);
-            VFX_pane_copy(screenWindow->frame(), x(), y(), fadedBackground->frame(), 0, 0, -1);
-            globalLogPtr->darken(0, g_logistic_dlgfade, fadedBackground);
-            VFX_pane_wipe(fadedBackground->frame(), 0x10);
-        }
-
+        // The original copied the screen under the box into fadedBackground here and darkened it, then filled it
+        // with 0x10, which is all the box shows of it.
         application->showCursor(0);
         UpdateDisplay(0, 0, 0, 0, 0);
         application->showCursor(-1);
         needBackground = 0;
     }
 
-    lPort* port = ownPort;
-    fadedBackground->copyTo(port->frame(), 0, 0, -1);
-    auto* piece = new lPort;
-    loadArt(piece, "lspcb00.tga");
-    piece->copyTo(port->frame(), 0, 0, -1);
+    pressedPart = PressedPart::None;
+}
 
-    if (spinner == 0)
+auto LogDialogBox::draw() -> void
+{
+    drawBox();
+    drawPressed();
+}
+
+auto LogDialogBox::drawPressed() -> void
+{
+    // Each part's pressed art and where it goes.
+    struct PressedArt
     {
-        // No spinner: a transparent block over its place.
-        piece->destroy();
-        piece->init(0xb, 0x11, -1);
-        VFX_pane_wipe(piece->frame(), 0xff);
-        piece->copyTo(port->frame(), 0x91, 0x52, -1);
-    }
-    else
+        const char* name;
+        int32_t x;
+        int32_t y;
+    };
+
+    static constexpr PressedArt arts[] = {{"lspcb03.tga", 0x3f, 0x82},
+                                          {"lspcb04.tga", 0x76, 0x82},
+                                          {"lspcb07.tga", 0x92, 0x53},
+                                          {"lspcb09.tga", 0x92, 0x5b}};
+
+    if (pressedPart == PressedPart::None)
     {
-        piece->destroy();
-        loadArt(piece, "lspcb05.tga");
-        VFX_pane_copy(piece->frame(), 0, 0, port->frame(), 0x92, 0x53, -1);
-        piece->destroy();
-        loadArt(piece, "lspcb06.tga");
-        VFX_pane_copy(piece->frame(), 0, 0, port->frame(), 0x92, 0x5b, -1);
+        return;
     }
 
-    piece->destroy();
-    loadArt(piece, "lspcb01.tga");
-    piece->copyTo(port->frame(), 0x3f, 0x82, -1);
+    const PressedArt& art = arts[static_cast<int32_t>(pressedPart) - 1];
+
+    if (lPort* picture = logArtf("%slogart\\%s", artPath, art.name); picture != nullptr)
+    {
+        picture->copyTo(ownPort->frame(), art.x, art.y, -1);
+    }
+}
+
+auto LogDialogBox::drawBox() -> void
+{
+    _pane* port = ownPort->frame();
+    // The box was its frame's picture: the fill covers the frame, not the whole pane.
+    lPort* frameArt = logArtf("%slogart\\lspcb00.tga", artPath);
+    _pane fill = *port;
+    fill.x1 = fill.x0 + frameArt->width() - 1;
+    fill.y1 = fill.y0 + frameArt->height() - 1;
+    VFX_pane_wipe(&fill, 0x10);
+    frameArt->copyTo(port, 0, 0, -1);
+
+    // Without a spinner its place is left as the frame is (the original copied a transparent block there).
+    if (spinner != 0)
+    {
+        VFX_pane_copy(logArtf("%slogart\\lspcb05.tga", artPath)->frame(), 0, 0, port, 0x92, 0x53, -1);
+        VFX_pane_copy(logArtf("%slogart\\lspcb06.tga", artPath)->frame(), 0, 0, port, 0x92, 0x5b, -1);
+    }
+
+    logArtf("%slogart\\lspcb01.tga", artPath)->copyTo(port, 0x3f, 0x82, -1);
 
     if (twoButton != 0)
     {
-        piece->destroy();
-        loadArt(piece, "lspcb02.tga");
-        piece->copyTo(port->frame(), 0x76, 0x82, -1);
+        logArtf("%slogart\\lspcb02.tga", artPath)->copyTo(port, 0x76, 0x82, -1);
     }
 
     if (picturePort != nullptr)
     {
-        picturePort->copyTo(port->frame(), 10, 0x1b, -1);
+        picturePort->copyTo(port, 10, 0x1b, -1);
     }
-
-    delete piece;
 }
 
 auto LogDialogBox::setTwoButton(int twoButtons) -> void
@@ -294,7 +291,6 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
 {
     const int32_t localX = event->x - globalX();
     const int32_t localY = event->y - globalY();
-    auto* piece = new lPort;
     // Spinner arrows only work for purchases (even types) and type 5.
     const bool arrowsLocked = (purchaseType & 1) != 0 && purchaseType != 5;
     auto canAddOne = [this]() { return quantity < maxQuantity && unitCost * (quantity + 1) <= ResourcePoints; };
@@ -307,8 +303,7 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
             {
                 // OK.
                 soundSystem->playDigitalSample(0xf, 1, nullptr, 0, 0);
-                loadArt(piece, "lspcb03.tga");
-                piece->copyTo(ownPort->frame(), 0x3f, 0x82, -1);
+                pressedPart = PressedPart::Ok;
                 UpdateDisplay(0, 0, 0, 0, 0);
                 deactivate(-1);
             }
@@ -316,8 +311,7 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
             {
                 // Cancel.
                 soundSystem->playDigitalSample(0xf, 1, nullptr, 0, 0);
-                loadArt(piece, "lspcb04.tga");
-                piece->copyTo(ownPort->frame(), 0x76, 0x82, -1);
+                pressedPart = PressedPart::Cancel;
                 UpdateDisplay(0, 0, 0, 0, 0);
                 deactivate(0);
             }
@@ -332,8 +326,7 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
                     }
 
                     drawBackground();
-                    loadArt(piece, "lspcb07.tga");
-                    piece->copyTo(ownPort->frame(), 0x92, 0x53, -1);
+                    pressedPart = PressedPart::Up;
                     spinUp = 1;
                     application->AddTimer(this, 6, 200, 0, 0, 0);
                     application->grab(this);
@@ -351,8 +344,7 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
                 {
                     // Down.
                     drawBackground();
-                    loadArt(piece, "lspcb09.tga");
-                    piece->copyTo(ownPort->frame(), 0x92, 0x5b, -1);
+                    pressedPart = PressedPart::Down;
                     spinUp = 0;
                     application->AddTimer(this, 6, 200, 0, 0, 0);
                     application->grab(this);
@@ -390,8 +382,6 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
         case 0x13:
         {
             // The held arrow repeats (up to 200).
-            int32_t arrowY = 0;
-
             if (spinUp == 0)
             {
                 if (quantity != 0)
@@ -400,8 +390,7 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
                 }
 
                 drawBackground();
-                loadArt(piece, "lspcb09.tga");
-                arrowY = 0x5b;
+                pressedPart = PressedPart::Down;
             }
             else
             {
@@ -411,78 +400,73 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
                 }
 
                 drawBackground();
-                loadArt(piece, "lspcb07.tga");
-                arrowY = 0x53;
+                pressedPart = PressedPart::Up;
             }
-
-            piece->copyTo(ownPort->frame(), 0x92, arrowY, -1);
             break;
         }
 
         default:
             break;
     }
-
-    delete piece;
 }
 
 auto PurchaseDlg::drawBackground() -> void
 {
     LogDialogBox::drawBackground();
+}
+
+auto PurchaseDlg::draw() -> void
+{
+    drawBox();
     char text[256];
-    lPort* port = ownPort;
+    _pane* port = ownPort->frame();
     // Labels: price, resource points, quantity, remaining.
     cLoadString(thisInstance, 0x48, text, 0xfe);
-    medWhiteFont->writeString(port->frame(), 0x15, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    medWhiteFont->writeString(port, 0x15, 0x47, reinterpret_cast<uint8_t*>(text), -1);
     cLoadString(thisInstance, 0x4b, text, 0xfe);
-    medWhiteFont->writeString(port->frame(), 0x91, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    medWhiteFont->writeString(port, 0x91, 0x47, reinterpret_cast<uint8_t*>(text), -1);
     cLoadString(thisInstance, 0x49, text, 0xfe);
-    medWhiteFont->writeString(port->frame(), 0x15, 0x57, reinterpret_cast<uint8_t*>(text), -1);
+    medWhiteFont->writeString(port, 0x15, 0x57, reinterpret_cast<uint8_t*>(text), -1);
     cLoadString(thisInstance, 0x4a, text, 0xfe);
-    medWhiteFont->writeString(port->frame(), 0x16, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    medWhiteFont->writeString(port, 0x16, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
     cLoadString(thisInstance, 0x4b, text, 0xfe);
-    medWhiteFont->writeString(port->frame(), 0x91, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    medWhiteFont->writeString(port, 0x91, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
 
     if (title != nullptr)
     {
-        medWhiteFont->writeString(port->frame(), 0x2a, 0x20, reinterpret_cast<uint8_t*>(title), -1);
+        medWhiteFont->writeString(port, 0x2a, 0x20, reinterpret_cast<uint8_t*>(title), -1);
     }
 
     if (subtitle != nullptr)
     {
         aFont* font = purchaseType == 3 ? medRedFont : medWhiteFont;
-        font->writeString(port->frame(), 0x2a, 0x2e, reinterpret_cast<uint8_t*>(subtitle), -1);
+        font->writeString(port, 0x2a, 0x2e, reinterpret_cast<uint8_t*>(subtitle), -1);
     }
 
     // The numbers are right-aligned at 0x8e, measured in the black font.
     std::snprintf(text, sizeof(text), "%d", unitCost < 0 ? -unitCost : unitCost);
     int32_t textWidth = medBlackFont->width(reinterpret_cast<uint8_t*>(text));
-    medWhiteFont->writeString(port->frame(), 0x8e - textWidth, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    medWhiteFont->writeString(port, 0x8e - textWidth, 0x47, reinterpret_cast<uint8_t*>(text), -1);
     std::snprintf(text, sizeof(text), "%d", ResourcePoints - quantity * unitCost);
     textWidth = medBlackFont->width(reinterpret_cast<uint8_t*>(text));
-    medWhiteFont->writeString(port->frame(), 0x8e - textWidth, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    medWhiteFont->writeString(port, 0x8e - textWidth, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
     std::snprintf(text, sizeof(text), "%d", quantity);
     textWidth = medBlackFont->width(reinterpret_cast<uint8_t*>(text));
-    medWhiteFont->writeString(port->frame(), (0x11 - textWidth) / 2 + 0x7e, 0x55, reinterpret_cast<uint8_t*>(text), -1);
+    medWhiteFont->writeString(port, (0x11 - textWidth) / 2 + 0x7e, 0x55, reinterpret_cast<uint8_t*>(text), -1);
 
     // The item kind's icon (mech, part, component, vehicle; sell/buy). Another type loads the quantity text as a
     // file name, as the original did.
     static constexpr const char* icons[8] = {"lspcbm00.tga", "lspcbm01.tga", "lspcbp00.tga", "lspcbp01.tga",
                                              "lspcbc00.tga", "lspcbc01.tga", "lspcbv00.tga", "lspcbv01.tga"};
-    auto* icon = new lPort;
+    lPort* icon =
+        purchaseType >= 0 && purchaseType < 8 ? logArtf("%slogart\\%s", artPath, icons[purchaseType]) : logArt(text);
 
-    if (purchaseType >= 0 && purchaseType < 8)
+    if (icon != nullptr)
     {
-        loadArt(icon, icons[purchaseType]);
-    }
-    else
-    {
-        icon->init(text);
+        icon->copyTo(port, 3, 3, -1);
     }
 
-    icon->copyTo(port->frame(), 3, 3, -1);
-    ownPort->copyTo(sharedPort->frame(), x(), y(), -1);
-    delete icon;
+    drawPressed();
 }
 
 auto PurchaseDlg::activate() -> void
@@ -641,7 +625,7 @@ auto ReusableDialog::draw() -> void
 
     for (int32_t i = 0; i < numChildren; i++)
     {
-        childList[i]->draw();
+        DrawChild(childList[i]);
     }
 }
 
@@ -685,7 +669,9 @@ auto ReusableDialog::handleEvent(aEvent* event) -> void
 auto ReusableDialog::activate() -> void
 {
     application->grab(this);
-    draw();
+    // The original painted the dialog afresh: a press left on its buttons was gone.
+    okButton->pressedDown = 0;
+    cancelButton->pressedDown = 0;
     moveTo(0x140 - width() / 2, 0xf0 - height() / 2, 0);
     ShowGUIWindow(-1);
 
@@ -796,12 +782,6 @@ auto RefitDialog::setText(char* newText) -> void
 
 auto RefitDialog::draw() -> void
 {
-    // Drawn once (the items are cut apart in place).
-    if (drawn != 0)
-    {
-        return;
-    }
-
     int32_t pieceY = 0;
 
     if (topPiece != nullptr)
@@ -831,22 +811,24 @@ auto RefitDialog::draw() -> void
 
     if (text != nullptr)
     {
-        drawn = -1;
-        char* item = text;
+        // One item per line, cut at the commas (in a copy: the original cut the text itself, once).
+        std::string items(text);
+        size_t item = 0;
 
         for (int32_t i = numItems; i > 0; i--)
         {
-            char* comma = std::strchr(item, ',');
+            const size_t comma = items.find(',', item);
 
-            if (comma != nullptr)
+            if (comma != std::string::npos)
             {
-                *comma = '\0';
+                items[comma] = '\0';
             }
 
-            medBlueFont->writeString(ownPort->frame(), 0x14, lineY, reinterpret_cast<uint8_t*>(item), -1);
+            medBlueFont->writeString(ownPort->frame(), 0x14, lineY, reinterpret_cast<uint8_t*>(items.data() + item),
+                                     -1);
             lineY += medBlueFont->height() + 3;
 
-            if (comma != nullptr)
+            if (comma != std::string::npos)
             {
                 item = comma + 1;
             }
@@ -859,7 +841,7 @@ auto RefitDialog::draw() -> void
 
     for (int32_t i = 0; i < numChildren; i++)
     {
-        childList[i]->draw();
+        DrawChild(childList[i]);
     }
 }
 

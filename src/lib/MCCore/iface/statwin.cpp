@@ -49,12 +49,7 @@ auto InfoWindow::display() -> void
         return;
     }
 
-    if (lastUpdateTime + 500 < MCPort::Milliseconds())
-    {
-        draw();
-        lastUpdateTime = MCPort::Milliseconds();
-    }
-
+    // Port: the original redrew its picture every 500 ms here; the window draws itself each frame.
     aObject::display();
 }
 

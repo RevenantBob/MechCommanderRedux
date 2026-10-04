@@ -201,15 +201,25 @@
     <ClCompile Include="platform\MCDirectPlay.cpp" />
     <ClCompile Include="platform\MCDisplay.cpp" />
     <ClCompile Include="platform\MCFileSystem.cpp" />
+    <ClCompile Include="platform\MCFrameLog.cpp" />
     <ClCompile Include="platform\MCInput.cpp" />
+    <ClCompile Include="platform\MCPresenter.cpp" />
     <ClCompile Include="platform\MCRegistry.cpp" />
+    <ClCompile Include="platform\MCRenderer.cpp" />
+    <ClCompile Include="platform\MCSdlPresenter.cpp" />
     <ClCompile Include="platform\MCSmacker.cpp" />
     <ClCompile Include="platform\MCSocket.cpp">
       <!-- The socket wrapper includes the system socket headers (winsock2.h drags in windows.h), which must not meet
            the game's Win32 stand-ins in the precompiled header. -->
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="platform\MCSoftwareRenderer.cpp" />
+    <ClCompile Include="platform\MCSoftwareRendererPolygons.cpp" />
+    <ClCompile Include="platform\MCSoftwareRendererShapes.cpp" />
     <ClCompile Include="platform\MCStringTable.cpp" />
+    <ClCompile Include="platform\MCVulkanPresenter.cpp" />
+    <ClCompile Include="platform\MCVulkanRenderer.cpp" />
+    <ClCompile Include="platform\MCVulkanShaders.cpp" />
     <ClCompile Include="sound\radio.cpp" />
     <ClCompile Include="sound\soundsys.cpp" />
     <ClCompile Include="sprite\actor.cpp" />
@@ -408,11 +418,19 @@
     <ClInclude Include="platform\MCDirectPlay.h" />
     <ClInclude Include="platform\MCDisplay.h" />
     <ClInclude Include="platform\MCFileSystem.h" />
+    <ClInclude Include="platform\MCFrameLog.h" />
     <ClInclude Include="platform\MCInput.h" />
+    <ClInclude Include="platform\MCPresenter.h" />
     <ClInclude Include="platform\MCRegistry.h" />
+    <ClInclude Include="platform\MCRenderer.h" />
+    <ClInclude Include="platform\MCSdlPresenter.h" />
     <ClInclude Include="platform\MCSmacker.h" />
     <ClInclude Include="platform\MCSocket.h" />
+    <ClInclude Include="platform\MCSoftwareRenderer.h" />
     <ClInclude Include="platform\MCStringTable.h" />
+    <ClInclude Include="platform\MCVulkanPresenter.h" />
+    <ClInclude Include="platform\MCVulkanRenderer.h" />
+    <ClInclude Include="platform\MCVulkanShaders.h" />
     <ClInclude Include="platform\MCWin32Defs.h" />
     <ClInclude Include="sound\radio.h" />
     <ClInclude Include="sound\soundsys.h" />
@@ -438,6 +456,56 @@
     <ClInclude Include="vfx\vfx.h" />
     <ClInclude Include="vfx\vfxfuncs.h" />
     <ClInclude Include="vfx\vfxint.h" />
-  </ItemGroup>  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  </ItemGroup>
+  <!-- HLSL shaders, compiled to SPIR-V headers in build\generated\shaders (the pinned dxc, $(MCDxc): see
+       MechCommander.props). -->
+  <ItemGroup>
+    <CustomBuild Include="shaders\composite.pshader">
+      <FileType>Document</FileType>
+      <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
+"$(MCDxc)" -T ps_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+      <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
+      <Message>Compiling HLSL fragment shader %(Filename).pshader</Message>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\draw.pshader">
+      <FileType>Document</FileType>
+      <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
+"$(MCDxc)" -T ps_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+      <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
+      <Message>Compiling HLSL fragment shader %(Filename).pshader</Message>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\instance.vshader">
+      <FileType>Document</FileType>
+      <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
+"$(MCDxc)" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+      <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
+      <Message>Compiling HLSL vertex shader %(Filename).vshader</Message>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\quad.vshader">
+      <FileType>Document</FileType>
+      <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
+"$(MCDxc)" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+      <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
+      <Message>Compiling HLSL vertex shader %(Filename).vshader</Message>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+    <CustomBuild Include="shaders\terrain.vshader">
+      <FileType>Document</FileType>
+      <Command>if not exist "$(MCGeneratedDir)shaders\" mkdir "$(MCGeneratedDir)shaders\"
+"$(MCDxc)" -T vs_6_0 -E main -spirv "%(FullPath)" -Fh "$(MCGeneratedDir)shaders\%(Filename).spv.h" -Vn MC_%(Filename)_spirv</Command>
+      <Outputs>$(MCGeneratedDir)shaders\%(Filename).spv.h</Outputs>
+      <AdditionalInputs>%(FullPath);$(MCDxc)</AdditionalInputs>
+      <Message>Compiling HLSL vertex shader %(Filename).vshader</Message>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

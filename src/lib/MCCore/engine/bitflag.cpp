@@ -2,6 +2,7 @@
 #include "engine/bitflag.h"
 #include "lib/heap.h"
 #include "lib/routines.h"
+#include "platform/MCRenderer.h"
 #include "vfx/vfx.h"
 #include "vfx/vfxfuncs.h"
 
@@ -189,6 +190,15 @@ auto ByteFlag::setCircle(uint32_t x, uint32_t y, uint32_t radius) -> void
 
 auto ByteFlag::resetAll(uint32_t value) -> void
 {
+    // Port: once the window is made, through the renderer (the tactical map shows the visible bits from a copy of
+    // them on the GPU, see TacticalMap::init).
+    if (flagWindow != nullptr)
+    {
+        MCRenderer::For(flagWindow)
+            .Clear(flagWindow, MCRect{0, 0, flagWindow->x_max, flagWindow->y_max}, value == 0 ? 0 : 0xff);
+        return;
+    }
+
     if (value == 0)
     {
         memclear(flagHeap->getHeapPtr(), static_cast<int>(totalRAM));
@@ -215,7 +225,7 @@ auto ByteFlag::setFlag(uint32_t r, uint32_t c) -> void
 {
     if (r < rows && c <= columns)
     {
-        flagHeap->getHeapPtr()[columns * r + c] = 0xff;
+        setBytes(columns * r + c, 1);
     }
 }
 
@@ -223,7 +233,31 @@ auto ByteFlag::setGroup(uint32_t r, uint32_t c, uint32_t length) -> void
 {
     if (length != 0 && r < rows && c <= columns && r * c + length < columns * rows)
     {
-        std::memset(flagHeap->getHeapPtr() + columns * r + c, 0xff, length);
+        setBytes(columns * r + c, length);
+    }
+}
+
+auto ByteFlag::setBytes(uint32_t first, uint32_t count) -> void
+{
+    // Each row's part goes through the renderer; what runs past the grid (column == columns on the last row, or a
+    // group longer than the rest of the grid) lands in the heap's slack, as in the original.
+    uint32_t done = 0;
+
+    while (done < count && first + done < totalRAM)
+    {
+        const uint32_t at = first + done;
+        const uint32_t row = at / columns;
+        const uint32_t column = at % columns;
+        const uint32_t length = std::min(count - done, columns - column);
+        const auto x = static_cast<int32_t>(column);
+        const auto y = static_cast<int32_t>(row);
+        MCRenderer::For(flagWindow).Clear(flagWindow, MCRect{x, y, x + static_cast<int32_t>(length) - 1, y}, 0xff);
+        done += length;
+    }
+
+    if (done < count)
+    {
+        std::memset(flagHeap->getHeapPtr() + first + done, 0xff, count - done);
     }
 }
 

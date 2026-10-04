@@ -32,6 +32,7 @@
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/vfxfuncs.h"
+#include "platform/MCRenderer.h"
 
 namespace
 {
@@ -68,6 +69,7 @@ namespace
         const uint32_t size = shadowFile.fileSize();
         shadow = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(size));
         shadowFile.read(shadow, static_cast<int32_t>(size));
+        MCRenderer::RegisterData(shadow, size, MCDataKind::Shapes);
         shadowFile.close();
         return 0;
     }
@@ -830,6 +832,10 @@ auto TreeBuilding::render() -> void
             ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (position.z - eye->position.z);
         vector_2d size(radius, radius);
         ElementList->openGroup(-50000, 1);
+        // Port: an overlay, on the screen over the view: it follows the object through the zoom.
+        center = MCOverlayPoint(center);
+        size.x *= MCOverlay.ScaleX;
+        size.y *= MCOverlay.ScaleY;
         ElementList->add(new EllipseElement(center, size, 0xfe, -50000));
     }
 }

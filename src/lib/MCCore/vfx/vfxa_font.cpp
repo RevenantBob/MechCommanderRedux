@@ -45,7 +45,9 @@ int32_t VFX_character_draw(PANE* pane, int32_t x, int32_t y, void* font, int32_t
         return 0;
     }
 
-    const uint8_t* source = glyph + 4;
+    // Where in the glyph the drawn part starts.
+    int32_t sourceX = 0;
+    int32_t sourceY = 0;
 
     // Clip right, left, bottom, top in that order, as the asm does.
     int32_t columns = width;
@@ -72,7 +74,7 @@ int32_t VFX_character_draw(PANE* pane, int32_t x, int32_t y, void* font, int32_t
             return width;
         }
 
-        source -= over;
+        sourceX -= over;
         x -= over;
     }
 
@@ -100,44 +102,36 @@ int32_t VFX_character_draw(PANE* pane, int32_t x, int32_t y, void* font, int32_t
         }
 
         y -= over;
-        source -= static_cast<intptr_t>(over) * width;
+        sourceY -= over;
     }
 
-    uint8_t* dest = clip.At(x, y);
-
-    for (; rows > 0; --rows)
-    {
-        if (colorTranslate == nullptr)
-        {
-            std::memcpy(dest, source, static_cast<size_t>(columns));
-        }
-        else
-        {
-            for (int32_t i = 0; i < columns; ++i)
-            {
-                const uint8_t pixel = colorTranslate[source[i]];
-
-                if (pixel != 0xff)
-                {
-                    dest[i] = pixel;
-                }
-            }
-        }
-
-        source += width;
-        dest += clip.Stride;
-    }
-
+    MCGlyphCommand command;
+    command.Font = font;
+    command.Character = character;
+    command.X = x;
+    command.Y = y;
+    command.SourceX = sourceX;
+    command.SourceY = sourceY;
+    command.Columns = columns;
+    command.Rows = rows;
+    command.Table = colorTranslate;
+    MCRenderer::For(pane->window).Glyph(pane->window, command);
     return width;
 }
 
 void VFX_string_draw(PANE* pane, int32_t x, int32_t y, void* font, const char* string, uint8_t* colorTranslate)
 {
-    // Original behaviour: the first character is drawn before the terminator is looked at, and a negative (error)
-    // result moves x back.
-    do
+    // OB-124: the asm drew the first character before looking for the terminator (an empty string drew character
+    // 0), and moved x back by a negative (error) result.
+    for (; *string != 0; ++string)
     {
-        x += VFX_character_draw(pane, x, y, font, static_cast<uint8_t>(*string), colorTranslate);
-        ++string;
-    } while (*string != 0);
+        const int32_t width = VFX_character_draw(pane, x, y, font, static_cast<uint8_t>(*string), colorTranslate);
+
+        if (width < 0)
+        {
+            return;
+        }
+
+        x += width;
+    }
 }

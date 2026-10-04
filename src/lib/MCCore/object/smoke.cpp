@@ -16,6 +16,7 @@
 #include "object/object.h"
 #include "terrain/terrain.h"
 #include "vfx/vfxfuncs.h"
+#include "platform/MCRenderer.h"
 
 namespace
 {
@@ -255,6 +256,7 @@ auto SmokeType::init(File* objFile, uint32_t fileSize) -> int32_t
         if (smokeShape != nullptr)
         {
             shapeFile.read(smokeShape, static_cast<int32_t>(size));
+            MCRenderer::RegisterData(smokeShape, size, MCDataKind::Shapes);
         }
     }
 

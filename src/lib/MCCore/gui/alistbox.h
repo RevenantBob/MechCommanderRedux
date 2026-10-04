@@ -25,6 +25,8 @@ public:
     /// <summary>Draws the visible lines, the selected one highlighted.</summary>
     /// <remarks>MCX.EXE @ 0x0060ba10</remarks>
     void draw() override;
+    /// <summary>Port: draws itself each frame from its items, top line and selection.</summary>
+    bool DrawsLive() override { return true; }
     /// <summary>Tracks the highlighted line under the mouse, selects on a click, scrolls on the scroll bar's messages.</summary>
     /// <remarks>MCX.EXE @ 0x0060b490</remarks>
     void handleEvent(aEvent* event) override;
@@ -76,6 +78,8 @@ public:
     void destroy() override;
     /// <remarks>MCX.EXE @ 0x0060c2b0</remarks>
     void draw() override;
+    /// <summary>Port: draws itself each frame (its frame; the list, button and text field draw themselves).</summary>
+    bool DrawsLive() override { return true; }
     /// <summary>Opens the list on the button's message (0x15); takes the list's selection into the text field.</summary>
     /// <remarks>MCX.EXE @ 0x0060c210</remarks>
     void handleEvent(aEvent* event) override;

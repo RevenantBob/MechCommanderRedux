@@ -26,11 +26,15 @@
 #include "object/objque.h"
 #include "object/objtype.h"
 #include "object/team.h"
+#include "platform/MCRenderer.h"
 #include "sprite/sprtmgr.h"
 #include "terrain/terrain.h"
+#include "terrain/terrmap.h"
 #include "terrain/vertex.h"
 #include "vfx/vfxfuncs.h"
 
+MCOverlayTarget MCOverlay;
+float MCFixedZoomHeight = 0.0f;
 Camera* eye = nullptr;
 uint8_t* scaleTable = nullptr;
 aMainWindow* mainHolder = nullptr;
@@ -102,7 +106,31 @@ namespace
         auto* shape = static_cast<uint8_t*>(ObjectTypeManager::objectCache->malloc(size));
         shapeFile.read(shape, static_cast<int32_t>(size));
         shapeFile.close();
+        MCRenderer::RegisterData(shape, size, MCDataKind::Shapes);
         return shape;
+    }
+
+    /// <summary>Port: how much of the way to its target the zoom eases in a millisecond (about 70 ms to settle most of
+    /// the way).</summary>
+    constexpr double ZOOM_EASE_TIME = 70.0;
+
+    /// <summary>
+    /// Port: keeps the tactical map's zoom button (pushed when zoomed out, as the original flipped it) in step with
+    /// the main view's zoom.
+    /// </summary>
+    auto syncZoomButton(viewWindow* view) -> void
+    {
+        TacticalMap* map = Terrain::terrainTacticalMap;
+
+        if (map == nullptr || view != MCMainView() || map->toolButtons[7] == nullptr)
+        {
+            return;
+        }
+
+        if ((map->toolButtons[7]->pushed != 0) != view->ZoomedOut())
+        {
+            map->toggleZoom();
+        }
     }
 
     /// <summary>Darkens the whole screen for the pause and asked overlays.</summary>
@@ -125,6 +153,8 @@ namespace
 viewWindow::~viewWindow()
 {
     // aTitleWindow's inline destructor.
+    MCRenderer::RemoveUnderlay(this);
+    MCRenderer::RemoveFrameSurface(&WorldWindow);
     aTitleWindow::destroy();
 }
 
@@ -155,6 +185,11 @@ auto viewWindow::destroy() -> void
         cameraList->remove(GetCamera());
     }
 
+    MCRenderer::RemoveUnderlay(this);
+    MCRenderer::RemoveFrameSurface(&WorldWindow);
+    WorldPixels = {};
+    WorldWindow = {};
+    WorldPane = {};
     aObject::destroy();
 }
 
@@ -183,22 +218,13 @@ auto viewWindow::handleEvent(aEvent* event) -> void
         }
         case 0x1a:
         {
-            if (GetCamera() != nullptr)
+            // Port: the zoom toggle goes between the closest and the furthest zoom; the camera stays at scale 100
+            // (the original flipped it between 100 and 1, and to 1 while paused or asked).
+            if (GetCamera() != nullptr && gamePaused == 0 && gameAsked == 0)
             {
-                Camera* view = GetCamera();
-
-                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
-                {
-                    view->forceUpdate = 1;
-                    Terrain::forceRedraw = 1;
-                    view->cameraScale = view->cameraScale != 100 ? 100 : 1;
-                }
-                else
-                {
-                    view->cameraScale = 1;
-                    view->forceUpdate = 1;
-                    Terrain::forceRedraw = 1;
-                }
+                GetCamera()->forceUpdate = 1;
+                Terrain::forceRedraw = 1;
+                ToggleZoom();
             }
             break;
         }
@@ -299,20 +325,29 @@ auto viewWindow::resize(int32_t w, int32_t h) -> void
     }
 
     Terrain::forceRedraw = 1;
-    setViewSize(camera, static_cast<float>(w), static_cast<float>(h));
+    // Port: the camera's view is the world surface, which keeps the zoom and takes the new aspect.
+    UpdateWorldSurface();
+    setViewSize(camera, static_cast<float>(WorldWidth()), static_cast<float>(WorldHeight()));
 }
 
 auto viewWindow::display() -> void
 {
-    if (showWindow == 0)
+    if (showWindow == 0 || (IsHidden() != 0 && hideOffset == 0))
     {
+        // Port: a view not shown shows no world.
+        MCRenderer::RemoveUnderlay(this);
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
-    {
-        return;
-    }
+    // Port: the world shows through the view's rectangle of the screen, from its surface (kept from the last frame
+    // drawn when the scenario no longer renders). The zoom eased in Camera::update.
+    StartZoom();
+    ZoomShown = true;
+    UpdateWorldSurface();
+    const _pane* shown = frame();
+    MCRenderer::SetUnderlay(
+        MCUnderlay{this, shown->window, MCRect{shown->x0, shown->y0, shown->x1, shown->y1}, &WorldWindow});
+    VFX_pane_wipe(frame(), MCRenderer::UnderlayKey);
 
     if (scenario != nullptr && (scenarioEndTurn == -1 || turn < scenarioEndTurn))
     {
@@ -418,6 +453,263 @@ auto viewWindow::setWindowCamera(Camera* newCamera) -> void
     {
         setBackColor(0xf8);
     }
+}
+
+auto viewWindow::WorldFrame() -> _pane*
+{
+    UpdateWorldSurface();
+    return &WorldPane;
+}
+
+auto viewWindow::ZoomLimits(float& closest, float& furthest) -> void
+{
+    closest = ZoomClosest;
+    furthest = ZoomFurthest;
+
+    if (MCFixedZoomHeight > 0.0f)
+    {
+        closest = MCFixedZoomHeight;
+        furthest = MCFixedZoomHeight;
+        return;
+    }
+
+    // The terrain grid covers a surface as far as MCTerrainGridReach (width / cos + height / sin of the view angle):
+    // a very wide view zooms out less.
+    if (MCTerrainGridReach > 0.0 && width() > 0 && height() > 0)
+    {
+        const double aspect = static_cast<double>(width()) / static_cast<double>(height());
+        const double reach =
+            MCTerrainGridReach / (aspect / std::cos(MCTerrainViewAngle) + 1.0 / std::sin(MCTerrainViewAngle));
+        furthest = static_cast<float>(std::min(static_cast<double>(furthest), reach));
+        closest = std::min(closest, furthest);
+    }
+}
+
+auto viewWindow::ZoomInHeight() -> float
+{
+    float closest = 0.0f;
+    float furthest = 0.0f;
+    ZoomLimits(closest, furthest);
+    const float oneToOne = std::clamp(static_cast<float>(height()), closest, furthest);
+    return oneToOne < furthest ? oneToOne : closest;
+}
+
+auto viewWindow::StartZoom() -> void
+{
+    if (ZoomHeight > 0.0f)
+    {
+        return;
+    }
+
+    // A view starts at one world pixel per screen pixel where it can, or zoomed out when its camera started at scale
+    // 1 (by then its size is the one the main window gave it).
+    float closest = 0.0f;
+    float furthest = 0.0f;
+    ZoomLimits(closest, furthest);
+    ZoomHeight = ZoomStartsOut ? furthest : std::clamp(static_cast<float>(height()), closest, furthest);
+    ZoomTarget = ZoomHeight;
+    ZoomClock = MCPort::Milliseconds();
+}
+
+auto viewWindow::UpdateWorldSurface() -> void
+{
+    float closest = 0.0f;
+    float furthest = 0.0f;
+    ZoomLimits(closest, furthest);
+    float shownHeight = ZoomStartsOut ? furthest : static_cast<float>(height());
+
+    if (ZoomHeight > 0.0f)
+    {
+        ZoomHeight = std::clamp(ZoomHeight, closest, furthest);
+        ZoomTarget = std::clamp(ZoomTarget, closest, furthest);
+        shownHeight = ZoomHeight;
+    }
+
+    shownHeight = std::clamp(shownHeight, closest, furthest);
+    const int32_t surfaceHeight = std::max(1, static_cast<int32_t>(std::lround(shownHeight)));
+    const int32_t surfaceWidth = std::max(
+        1, static_cast<int32_t>(std::lround(static_cast<double>(width()) * surfaceHeight / std::max(1, height()))));
+
+    if (WorldPixels.empty() || surfaceWidth != WorldWidth() || surfaceHeight != WorldHeight())
+    {
+        WorldPixels.assign(static_cast<size_t>(surfaceWidth) * static_cast<size_t>(surfaceHeight), 0);
+        WorldWindow.buffer = WorldPixels.data();
+        WorldWindow.x_max = surfaceWidth - 1;
+        WorldWindow.y_max = surfaceHeight - 1;
+        WorldPane.window = &WorldWindow;
+        WorldPane.x0 = 0;
+        WorldPane.y0 = 0;
+        WorldPane.x1 = surfaceWidth - 1;
+        WorldPane.y1 = surfaceHeight - 1;
+        Terrain::forceRedraw = 1;
+        MCRenderer::AddFrameSurface(&WorldWindow);
+    }
+}
+
+auto viewWindow::ZoomTo(float height) -> bool
+{
+    float closest = 0.0f;
+    float furthest = 0.0f;
+    ZoomLimits(closest, furthest);
+    StartZoom();
+    const float target = std::clamp(height, closest, furthest);
+
+    if (std::fabs(target - ZoomTarget) < 0.5f)
+    {
+        return false;
+    }
+
+    if (ZoomHeight == ZoomTarget)
+    {
+        ZoomClock = MCPort::Milliseconds();
+    }
+
+    ZoomTarget = target;
+
+    // Before the view is first shown (the mission start's zoom toggle), the zoom takes effect at once, as the
+    // original's camera scale switched.
+    if (!ZoomShown)
+    {
+        ZoomHeight = target;
+    }
+
+    syncZoomButton(this);
+    return true;
+}
+
+auto viewWindow::ZoomBy(float factor) -> bool
+{
+    StartZoom();
+    return ZoomTo(ZoomTarget * factor);
+}
+
+auto viewWindow::ZoomedOut() -> bool
+{
+    StartZoom();
+    float closest = 0.0f;
+    float furthest = 0.0f;
+    ZoomLimits(closest, furthest);
+    return ZoomTarget > (ZoomInHeight() + furthest) * 0.5f;
+}
+
+auto viewWindow::ToggleZoom() -> void
+{
+    float closest = 0.0f;
+    float furthest = 0.0f;
+    ZoomLimits(closest, furthest);
+    ZoomTo(ZoomedOut() ? ZoomInHeight() : furthest);
+}
+
+auto viewWindow::EaseZoom() -> void
+{
+    StartZoom();
+    const uint32_t now = MCPort::Milliseconds();
+    const auto elapsed = static_cast<double>(std::min<uint32_t>(now - ZoomClock, 100));
+    ZoomClock = now;
+
+    if (ZoomHeight == ZoomTarget)
+    {
+        return;
+    }
+
+    ZoomHeight += static_cast<float>((ZoomTarget - ZoomHeight) * (1.0 - std::exp(-elapsed / ZOOM_EASE_TIME)));
+
+    if (std::fabs(ZoomTarget - ZoomHeight) < 0.5f)
+    {
+        ZoomHeight = ZoomTarget;
+    }
+}
+
+auto viewWindow::WorldScaleX() -> float
+{
+    if (WorldPixels.empty())
+    {
+        UpdateWorldSurface();
+    }
+
+    return static_cast<float>(width()) / static_cast<float>(WorldWidth());
+}
+
+auto viewWindow::WorldScaleY() -> float
+{
+    if (WorldPixels.empty())
+    {
+        UpdateWorldSurface();
+    }
+
+    return static_cast<float>(height()) / static_cast<float>(WorldHeight());
+}
+
+auto viewWindow::ScreenToWorld(int32_t screenX, int32_t screenY) -> vector_2d
+{
+    if (WorldPixels.empty())
+    {
+        UpdateWorldSurface();
+    }
+
+    // The world pixel shown at the screen pixel's centre, as the display samples it.
+    const float x = (static_cast<float>(screenX - globalX()) + 0.5f) / WorldScaleX();
+    const float y = (static_cast<float>(screenY - globalY()) + 0.5f) / WorldScaleY();
+    return vector_2d(std::floor(x), std::floor(y));
+}
+
+auto viewWindow::WorldToWindow(vector_2d point) -> vector_2d
+{
+    if (WorldPixels.empty())
+    {
+        UpdateWorldSurface();
+    }
+
+    return vector_2d(point.x * WorldScaleX(), point.y * WorldScaleY());
+}
+
+auto viewWindow::WorldToScreen(vector_2d point) -> vector_2d
+{
+    const vector_2d window = WorldToWindow(point);
+    return vector_2d(window.x + static_cast<float>(globalX()), window.y + static_cast<float>(globalY()));
+}
+
+auto MCIsOverlayDepth(float depth) -> bool
+{
+    return depth == -50000.0f || depth == -40000.0f;
+}
+
+auto MCOverlayPoint(vector_2d point) -> vector_2d
+{
+    return vector_2d(MCOverlayX(point.x), MCOverlayY(point.y));
+}
+
+auto MCOverlayX(float x) -> float
+{
+    return x * MCOverlay.ScaleX;
+}
+
+auto MCOverlayY(float y) -> float
+{
+    return y * MCOverlay.ScaleY;
+}
+
+auto MCMainView() -> viewWindow*
+{
+    if (cameraList == nullptr)
+    {
+        return nullptr;
+    }
+
+    Camera* main = cameraList->findCameraFromIDNumber(1);
+    return main != nullptr ? main->window : nullptr;
+}
+
+auto MCWindowPoint(aObject* window, int32_t screenX, int32_t screenY) -> vector_2d
+{
+    Camera* camera = window->GetCamera();
+
+    if (camera != nullptr && camera->window == window)
+    {
+        return camera->window->ScreenToWorld(screenX, screenY);
+    }
+
+    return vector_2d(static_cast<float>(screenX - window->globalX()), static_cast<float>(screenY - window->globalY()));
 }
 
 auto ToggleZoom() -> void
@@ -597,15 +889,13 @@ auto aMainWindow::ZoomActivePane() -> void
         return;
     }
 
-    if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+    // Port: between the closest and the furthest zoom, not paused or asked; the camera stays at scale 100 (the
+    // original flipped it between 100 and 1, and to 1 while paused or asked).
+    if (gamePaused == 0 && gameAsked == 0 && view->window != nullptr)
     {
-        view->cameraScale = view->cameraScale != 100 ? 100 : 1;
-        view->forceUpdate = 1;
-        Terrain::forceRedraw = 1;
-        return;
+        view->window->ToggleZoom();
     }
 
-    view->cameraScale = 1;
     view->forceUpdate = 1;
     Terrain::forceRedraw = 1;
 }
@@ -726,6 +1016,10 @@ auto Camera::init(FitIniFile* cameraFile, int objectCamera, int32_t newCameraId)
         return result;
     }
 
+    // Port: always the full-size (1x) art and layout; the zoom is the world surface's size (viewWindow), which starts
+    // zoomed out where the camera started at scale 1.
+    const bool startsZoomedOut = cameraScale == 1;
+    cameraScale = 100;
     uint32_t windowLeft = 0;
     result = cameraFile->readIdULong("WindowLeft", windowLeft);
 
@@ -847,7 +1141,10 @@ auto Camera::init(FitIniFile* cameraFile, int objectCamera, int32_t newCameraId)
 
         cameraId = newCameraId;
         view->setWindowCamera(this);
-        setViewSize(this, static_cast<float>(windowRight - windowLeft), static_cast<float>(windowBottom - windowTop));
+        // Port: the view is the world surface.
+        view->ZoomStartsOut = startsZoomedOut;
+        view->UpdateWorldSurface();
+        setViewSize(this, static_cast<float>(view->WorldWidth()), static_cast<float>(view->WorldHeight()));
     }
     else
     {
@@ -942,7 +1239,10 @@ auto Camera::init(CamData* data, int objectCamera) -> int32_t
     position.z = data->position[2];
     backgroundColor = data->backgroundColor;
     hazeLevel = data->hazeLevel;
-    cameraScale = data->cameraScale;
+    // Port: always the full-size (1x) art and layout; the zoom is the world surface's size (viewWindow), which starts
+    // zoomed out where the camera started at scale 1.
+    const bool startsZoomedOut = data->cameraScale == 1;
+    cameraScale = 100;
     const auto windowBottom =
         static_cast<int32_t>(static_cast<double>(data->windowTop) + static_cast<double>(data->windowHeight));
     const auto windowRight =
@@ -973,7 +1273,10 @@ auto Camera::init(CamData* data, int objectCamera) -> int32_t
         }
     }
 
-    setViewSize(this, static_cast<float>(paneWidth), static_cast<float>(paneHeight));
+    // Port: the view is the world surface.
+    view->ZoomStartsOut = startsZoomedOut;
+    view->UpdateWorldSurface();
+    setViewSize(this, static_cast<float>(view->WorldWidth()), static_cast<float>(view->WorldHeight()));
     terrainWindow = land->newWindow(this);
 
     if (terrainWindow == nullptr)
@@ -1209,6 +1512,21 @@ auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
 
 auto Camera::update() -> int32_t
 {
+    // Port: the zoom eases here, before the objects update: they place themselves on screen from the view's size
+    // (screenPos, onScreen), so it must be this frame's size by then, as the terrain drawn later uses.
+    if (window != nullptr)
+    {
+        window->EaseZoom();
+        const _pane* surface = window->WorldFrame();
+        const auto surfaceWidth = static_cast<float>(surface->x1 - surface->x0);
+        const auto surfaceHeight = static_cast<float>(surface->y1 - surface->y0);
+
+        if (surfaceWidth != viewWidth || surfaceHeight != viewHeight)
+        {
+            setViewSize(this, surfaceWidth, surfaceHeight);
+        }
+    }
+
     vector_3d newPosition = position;
 
     if (cameraClass == POSITION_CAMERA)
@@ -1434,10 +1752,16 @@ auto Camera::render() -> void
     _pane* savedPane = globalPane;
     _window* savedWindow = globalWindow;
 
+    // Port: the world goes into the view's world surface; the unit overlays onto the screen over the view (they are
+    // drawn there at the screen's scale).
+    const MCOverlayTarget savedOverlay = MCOverlay;
+    MCOverlay = MCOverlayTarget{globalPane, 1.0f, 1.0f};
+
     if (window != nullptr)
     {
-        globalPane = window->frame();
-        globalWindow = window->frame()->window;
+        globalPane = window->WorldFrame();
+        globalWindow = globalPane->window;
+        MCOverlay = MCOverlayTarget{window->frame(), window->WorldScaleX(), window->WorldScaleY()};
     }
 
     prepareBackground();
@@ -1497,10 +1821,8 @@ auto Camera::render() -> void
         }
         else
         {
-            const int32_t mouseY = window->lastEvent.y - eventTarget->globalY();
-            const int32_t mouseX = window->lastEvent.x - eventTarget->globalX();
-            mouse.x = static_cast<float>(mouseX);
-            mouse.y = static_cast<float>(mouseY);
+            // Port: through the zoom, into the world surface.
+            mouse = window->ScreenToWorld(window->lastEvent.x, window->lastEvent.y);
         }
 
         vector_3d ground;
@@ -1517,6 +1839,12 @@ auto Camera::render() -> void
         AG_ellipse_fill(globalPane, centerX, centerY, 3, 3, 0xfe);
     }
 
+    // Port: the pause and asked shapes are drawn on the screen over the view, at its scale (centred as the original
+    // centred them in the view).
+    _pane* overlayPane = MCOverlay.Pane;
+    const auto overlayHalfWidth = static_cast<float>(overlayPane->x1 - overlayPane->x0) * 0.5f;
+    const auto overlayHalfHeight = static_cast<float>(overlayPane->y1 - overlayPane->y0) * 0.5f;
+
     if (gamePaused != 0)
     {
         darkenScreen();
@@ -1526,7 +1854,7 @@ auto Camera::render() -> void
             pauseShape = loadShape("pause", " Could not find Pause Shape ");
         }
 
-        AG_shape_draw(globalPane, pauseShape, 0, static_cast<int32_t>(halfWidth), 60);
+        AG_shape_draw(overlayPane, pauseShape, 0, static_cast<int32_t>(overlayHalfWidth), 60);
     }
 
     if (gameAsked != 0)
@@ -1538,8 +1866,8 @@ auto Camera::render() -> void
             askedShape = loadShape("asked", " Could not find Asked Shape ");
         }
 
-        const auto y = static_cast<int32_t>(halfHeight);
-        AG_shape_draw(globalPane, askedShape, 0, static_cast<int32_t>(halfWidth), y);
+        const auto y = static_cast<int32_t>(overlayHalfHeight);
+        AG_shape_draw(overlayPane, askedShape, 0, static_cast<int32_t>(overlayHalfWidth), y);
     }
 
     if (window != nullptr)
@@ -1547,6 +1875,8 @@ auto Camera::render() -> void
         globalPane = savedPane;
         globalWindow = savedWindow;
     }
+
+    MCOverlay = savedOverlay;
 
     currentScaleFactor = scale != 1 ? 1.0f : 0.5f;
 }

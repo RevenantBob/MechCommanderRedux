@@ -43,6 +43,55 @@ public:
     /// <summary>Frees the bitmap and pane.</summary>
     /// <remarks>MCX.EXE @ 0x00710910</remarks>
     void destroy() override;
+
+    /// <summary>Port: <see cref="aPort::initView"/> on the logistics heap.</summary>
+    int32_t initView(int32_t width, int32_t height) override;
+};
+
+/// <summary>
+/// Port: a block of another port drawn in place: a view whose pixel (0, 0) lies at (xPos, yPos) of the destination,
+/// cut to its size. It stands where the original painted a scratch picture and copied it there, so the drawing goes
+/// straight to the destination (on the GPU when that is the screen) instead of through a picture made each frame.
+/// <c>keyTransparent</c> says the copy was keyed on 0xff (0xff writes are left out).
+/// </summary>
+class lBlockPort : public lPort
+{
+public:
+    lBlockPort(_pane* dest, int32_t xPos, int32_t yPos, int32_t width, int32_t height, bool keyTransparent)
+    {
+        initView(width, height);
+        openViewOn(dest, xPos, yPos, keyTransparent);
+    }
+};
+
+/// <summary>
+/// Port: the logistics art file <paramref name="fileName"/> (as <see cref="lPort::init(char*)"/> takes it), loaded the
+/// first time it is asked for and kept until <see cref="ClearLogArt"/>. The screens draw from their state every frame,
+/// so they take their art from here instead of loading it again for each draw.
+/// </summary>
+/// <returns>The art, or null when the file can't be read (reported once, as lPort::init reports it).</returns>
+lPort* logArt(const char* fileName);
+
+/// <summary>Port: <see cref="logArt"/> of a name made by <c>snprintf</c> from <paramref name="format"/>.</summary>
+lPort* logArtf(const char* format, ...);
+
+/// <summary>Port: frees the art <see cref="logArt"/> loaded (before the logistics heap goes).</summary>
+void ClearLogArt();
+
+/// <summary>
+/// Port: the state of the places the main logistics screens share (the four screen buttons, the ticker line, the
+/// resource points and the clock), which <c>Logistics::drawScreenChrome</c> draws each frame. The original painted
+/// them into each screen's own picture when an event changed them.
+/// </summary>
+struct LogScreenChrome
+{
+    /// <summary>The screen button lit under the mouse, or -1.</summary>
+    int32_t hoveredButton = -1;
+    /// <summary>The briefing button's chat blink phase (lit while true; shown while the chat is unread).</summary>
+    bool blinkLit = false;
+
+    /// <summary>Back to no button lit and the blink unlit (the screen was set up again).</summary>
+    void Clear() { *this = LogScreenChrome{}; }
 };
 
 /// <summary>
@@ -101,6 +150,9 @@ public:
     /// <summary>Loads <paramref name="fileName"/> as the background port.</summary>
     /// <remarks>MCX.EXE @ 0x007110a0</remarks>
     int32_t setBackground(char* fileName) override;
+
+    /// <summary>Port: the shared places this screen shows (<see cref="LogScreenChrome"/>), or null for other objects.</summary>
+    virtual LogScreenChrome* Chrome() { return nullptr; }
 
 protected:
     /// <summary>The object's own port, when <see cref="init"/> got none.</summary>

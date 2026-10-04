@@ -17,6 +17,9 @@ MCCursorImage MCCursorImageFromShape(void* shapeTable, int32_t shapeNum);
 /// <summary>The whole of <paramref name="pane"/> as an opaque cursor picture with its hot spot at (hotX, hotY).</summary>
 MCCursorImage MCCursorImageFromPane(PANE* pane, int32_t hotX, int32_t hotY);
 
+/// <summary>Makes the system cursors of every loaded shape in <c>cursorShapes</c>; <c>aSystem::init</c> calls it.</summary>
+void MCHardwareCursorPreload();
+
 /// <summary>Forgets what the last frame's cursor carried; <c>UpdateDisplay</c> calls it before the GUI draws.</summary>
 void MCHardwareCursorNewFrame();
 

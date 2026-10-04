@@ -1,0 +1,305 @@
+// The Vulkan renderer's draws (MCVulkanRenderer), with instance.vshader: every pixel of a resolved draw command.
+//
+// A surface has two targets: its colours (RGBA8, premultiplied alpha: what the composite shows) and its palette
+// indices (R8: what draws that read a surface, the terrain's fog test and the mirror comparison read). An opaque pixel
+// writes the colour of its index (the frame's palette, through the colour cycle) and the index; on a surface shown over
+// another (the screen over the world view), the key colour 255 is written transparent. A translucent pixel is alpha
+// blended into the colours (the blend pipeline: ONE, ONE_MINUS_SRC_ALPHA) and leaves the index; nothing reads the
+// target.
+//
+// Translucency follows AlphaPal.ini (InitAlphaLookup's entries, the alpha texture), not AlphaTable: a special colour
+// is drawn as RGB * A over the pixel with 1 - B2 coverage, a colour-dodge entry (A and B2 both 0) as added light;
+// colours 0 and 255 draw nothing, the rest are drawn as themselves. A table applied to the pixel under a draw
+// (TableAfter: haze, fades) is drawn as the colour and coverage that fit what the table does to the palette (the fit
+// texture, one a table row, made each frame).
+//
+// A surface may be drawn at another size than its window's (the world view, drawn at the size it's shown, the zoom
+// being only that scale): each drawn pixel takes the window pixel under its centre, (2 * drawn + 1) * window /
+// (2 * size drawn), the composite's rule, and is worked out as that window pixel. So the scaled surface holds what
+// scaling the window's pixels would show. Reading such a surface as a source takes the drawn pixel holding a window
+// pixel's centre.
+//
+// Bindings (SDL GPU, SPIR-V): textures and samplers in space2, fragment uniforms in space3.
+
+// The source: an atlas page (red value, green state), a picture (red), or a surface's indices (red).
+Texture2D<float4> sourceTex : register(t0, space2);
+SamplerState sourceSampler : register(s0, space2);
+// The frame's tables: 256 wide, one row a table, row 0 the identity.
+Texture2D<float4> tableTex : register(t1, space2);
+SamplerState tableSampler : register(s1, space2);
+// The alpha colours, two texels each (column = the colour): row 0 x the kind (0 nothing, 1 opaque, 2 blended), row 1
+// the premultiplied colour and coverage.
+Texture2D<float4> alphaTex : register(t2, space2);
+SamplerState alphaSampler : register(s2, space2);
+// The tables' fits, one texel a table row (row = the table's row): the premultiplied colour and coverage.
+Texture2D<float4> fitTex : register(t3, space2);
+SamplerState fitSampler : register(s3, space2);
+// The palette, 256 x 1, as shown (gamma applied).
+Texture2D<float4> paletteTex : register(t4, space2);
+SamplerState paletteSampler : register(s4, space2);
+
+cbuffer Frame : register(b0, space3)
+{
+    // The target window's size (xy) and the size its surface is drawn at (zw).
+    int4 scale;
+    // The same for the source when it is a surface; else 1, 1, 1, 1.
+    int4 sourceScale;
+    // The colour cycle (the water's, MCColorCycle): x the first index cycled, y the step (-1: none), z 1 when the key
+    // colour is transparent on this surface. Index x + i shows the colour of cycleSources[(i + y) & 7].
+    int4 cycle;
+    uint4 cycleSources[2];
+};
+
+struct Input
+{
+    float4 position : SV_Position;
+    nointerpolation int4 rect : TEXCOORD0;
+    nointerpolation int4 source : TEXCOORD1;
+    nointerpolation uint4 op : TEXCOORD2;
+    nointerpolation int4 span : TEXCOORD3;
+    nointerpolation uint4 walk : TEXCOORD4;
+};
+
+struct Output
+{
+    float4 color : SV_Target0;
+    float4 index : SV_Target1;
+};
+
+// Kinds (op.x bits 0-3).
+static const uint KindFill = 0;
+static const uint KindHash = 1;
+static const uint KindTexture = 2;
+static const uint KindGouraud = 3;
+static const uint KindTexelWalk = 4;
+
+// Flags (op.x).
+static const uint OpaqueSource = 1u << 4;
+static const uint FillSkipped = 1u << 5;
+static const uint SkipRunKey = 1u << 6;
+static const uint TableBefore = 1u << 7;
+static const uint SkipKeyAfterTable = 1u << 8;
+static const uint ColorKey = 1u << 9;
+static const uint UseColor = 1u << 10;
+static const uint AlphaBlend = 1u << 12;
+static const uint TableAfter = 1u << 13;
+// The alpha colour is op.w, not the pixel's value.
+static const uint GivenAlpha = 1u << 14;
+
+// The alpha colours' kinds.
+static const uint AlphaNothing = 0;
+static const uint AlphaOpaque = 1;
+
+float4 Fetch(Texture2D<float4> tex, SamplerState samp, int2 texel)
+{
+    uint width;
+    uint height;
+    tex.GetDimensions(width, height);
+    return tex.SampleLevel(samp, (float2(texel) + 0.5) / float2(width, height), 0);
+}
+
+uint Byte(float value)
+{
+    return (uint)round(value * 255.0);
+}
+
+uint Table(uint row, uint index)
+{
+    return Byte(Fetch(tableTex, tableSampler, int2(index, row)).r);
+}
+
+// The colour index shows, through the colour cycle.
+float3 Shown(uint index)
+{
+    const uint cycled = index - (uint)cycle.x;
+
+    if (cycle.y >= 0 && cycled < 8u)
+    {
+        const uint source = (cycled + (uint)cycle.y) & 7u;
+        index = cycleSources[source >> 2][source & 3u];
+    }
+
+    return Fetch(paletteTex, paletteSampler, int2(index, 0)).rgb;
+}
+
+// An opaque pixel: its colour (none for the key on a surface shown over another) and its index.
+Output Opaque(uint index)
+{
+    Output output;
+    output.color = cycle.z != 0 && index == 255 ? float4(0.0, 0.0, 0.0, 0.0) : float4(Shown(index), 1.0);
+    output.index = float4((float)index / 255.0, 0.0, 0.0, 0.0);
+    return output;
+}
+
+// A blended pixel: premultiplied colour and coverage (the blend pipeline leaves the index).
+Output Blended(float4 color)
+{
+    Output output;
+    output.color = color;
+    output.index = float4(0.0, 0.0, 0.0, 0.0);
+    return output;
+}
+
+// The window pixel under drawn pixel p's centre, with sizes s (window xy, drawn zw).
+int2 WindowPixel(int2 p, int4 s)
+{
+    return int2((2u * uint2(p) + 1u) * uint2(s.xy) / (2u * uint2(s.zw)));
+}
+
+// The drawn pixel holding window pixel t's centre.
+int2 DrawnPixel(int2 t, int4 s)
+{
+    return int2((2u * uint2(t) + 1u) * uint2(s.zw) / (2u * uint2(s.xy)));
+}
+
+float4 FetchSource(int2 texel)
+{
+    return Fetch(sourceTex, sourceSampler, DrawnPixel(texel, sourceScale));
+}
+
+Output main(Input input)
+{
+    // The drawn pixel, and the window pixel it shows.
+    const int2 target = int2(floor(input.position.xy));
+    const int2 pixel = WindowPixel(target, scale);
+
+    if (any(pixel < input.rect.xy) || any(pixel > input.rect.zw))
+    {
+        discard;
+    }
+
+    const uint flags = input.op.x;
+    const uint kind = flags & 15u;
+    const uint color = input.op.y & 255u;
+    uint value = color;
+    uint state = 1;
+
+    if (kind == KindHash)
+    {
+        // Every other pixel; rows an odd distance above the bottom row start one pixel in (span: the left column and
+        // the bottom row).
+        const int odd = (input.span.y - pixel.y) & 1;
+        const int column = pixel.x - input.span.x - odd;
+
+        if (column < 0 || (column & 1) != 0)
+        {
+            discard;
+        }
+    }
+    else if (kind == KindTexture)
+    {
+        const int2 texel = input.source.xy + (pixel - input.rect.xy) * input.source.zw;
+        const float4 sample = FetchSource(texel);
+        value = Byte(sample.r);
+        state = (flags & OpaqueSource) != 0 ? 1 : Byte(sample.g);
+    }
+    else if (kind == KindGouraud)
+    {
+        // The colour (16.16, wrapping) stepped once a pixel from the span's first column (source.x).
+        const uint j = (uint)(pixel.x - input.source.x);
+        value = (((uint)input.span.x + j * (uint)input.span.y) >> 16) & 255u;
+    }
+    else if (kind == KindTexelWalk)
+    {
+        // The texture offset after j steps: the step each pixel, plus what each carry of the u and v fractions adds.
+        // The source is the texture as rows of source.z texels, source.w of them; texels outside it draw nothing.
+        const uint j = (uint)(pixel.x - input.source.x);
+        const int carriesU = (int)((input.walk.x + j * input.walk.y) >> 16);
+        const int carriesV = (int)((input.walk.z + j * input.walk.w) >> 16);
+        const int offset =
+            input.span.x + (int)j * input.span.y + carriesU * input.span.z + carriesV * input.span.w;
+
+        if (offset < 0 || offset >= input.source.z * input.source.w)
+        {
+            discard;
+        }
+
+        value = Byte(FetchSource(int2(offset % input.source.z, offset / input.source.z)).r);
+    }
+
+    if (state == 0)
+    {
+        discard;
+    }
+
+    if (state == 2)
+    {
+        // A shape's skipped pixel: the fills write colour 0, the rest leave it.
+        if ((flags & FillSkipped) == 0)
+        {
+            discard;
+        }
+
+        return Opaque(0);
+    }
+
+    if ((flags & UseColor) != 0)
+    {
+        value = color;
+    }
+
+    if ((flags & SkipRunKey) != 0 && state == 3 && value == 255)
+    {
+        discard;
+    }
+
+    if ((flags & ColorKey) != 0 && value == ((input.op.y >> 8) & 255u))
+    {
+        discard;
+    }
+
+    if ((flags & TableBefore) != 0)
+    {
+        value = Table(input.op.z, value);
+    }
+
+    if ((flags & SkipKeyAfterTable) != 0 && value == 255)
+    {
+        discard;
+    }
+
+    if ((flags & (AlphaBlend | TableAfter)) == 0)
+    {
+        return Opaque(value);
+    }
+
+    // The translucent colour (premultiplied, over the pixel), or an opaque one.
+    float4 blend = float4(0.0, 0.0, 0.0, 0.0);
+    bool opaque = false;
+
+    if ((flags & AlphaBlend) != 0)
+    {
+        const uint entry = (flags & GivenAlpha) != 0 ? input.op.w : value;
+        const uint alphaKind = (uint)round(Fetch(alphaTex, alphaSampler, int2(entry, 0)).x);
+
+        if (alphaKind == AlphaNothing && (flags & TableAfter) == 0)
+        {
+            discard;
+        }
+
+        opaque = alphaKind == AlphaOpaque;
+        blend = Fetch(alphaTex, alphaSampler, int2(entry, 1));
+    }
+
+    if ((flags & TableAfter) != 0)
+    {
+        // The table maps what lies under the draw: an opaque pixel's index, else the colour shown there.
+        if (opaque)
+        {
+            value = Table(input.op.w, value);
+        }
+        else
+        {
+            const float4 fit = Fetch(fitTex, fitSampler, int2(0, input.op.w));
+            blend = float4(blend.rgb * (1.0 - fit.a) + fit.rgb, 1.0 - (1.0 - blend.a) * (1.0 - fit.a));
+        }
+    }
+
+    // Drawn through the blend pipeline, full coverage replaces the pixel's colour.
+    if (opaque)
+    {
+        return Opaque(value);
+    }
+
+    return Blended(blend);
+}

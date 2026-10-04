@@ -97,7 +97,7 @@ void VFX_line_to_pane(PANE* pane, int32_t y, uint8_t* line, int32_t width)
         return;
     }
 
-    std::memcpy(clip.At(x, y), line, static_cast<size_t>(count));
+    MCRenderer::For(pane->window).Write(pane->window, x, y, line, count);
 }
 
 int32_t VFX_ILBM_draw(PANE* pane, uint8_t* ilbm)
@@ -658,9 +658,12 @@ void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
         }
     }
 
-    // Original behaviour: the accumulators are indexed by colour * 3 + channel, but only the first count - 1 bytes
-    // are reset to half a step; the others keep what earlier fades left.
-    std::memset(accumulators, largest >> 1, static_cast<size_t>(count - 1));
+    // Each faded colour's accumulators start at half a step. OB-128: the asm reset only the first count - 1 bytes
+    // (they are indexed by colour * 3 + channel), so the others kept what earlier fades left.
+    for (int32_t i = 0; i < count; ++i)
+    {
+        std::memset(accumulators + used[i] * 3, largest >> 1, 3);
+    }
 
     if (largest == 0)
     {
@@ -722,13 +725,20 @@ void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
 int32_t VFX_color_scan(PANE* pane, uint32_t* colors)
 {
     uint8_t seen[0x100] = {};
-    const int32_t lastColumn = pane->x1 - pane->x0;
-    const int32_t stride = pane->window->x_max + 1;
-    const uint8_t* row = pane->window->buffer + static_cast<intptr_t>(pane->y0) * stride + pane->x0;
+    MCVfxClip clip;
+
+    // Port: a view has no pixels to read.
+    if (MCVfxClipPane(pane, clip) != 0 || clip.Buffer == nullptr)
+    {
+        return 0;
+    }
+
+    // OB-123: rows y0..y1 and columns x1 down to x0; the asm didn't clip them to the window.
+    const int32_t lastColumn = clip.X1 - clip.X0;
+    const uint8_t* row = clip.At(clip.X0, clip.Y0);
     int32_t count = 0;
 
-    // Original behaviour: rows y0..y1 and columns x1 down to x0, with no clipping to the window.
-    for (int32_t rowsLeft = pane->y1 - pane->y0; rowsLeft >= 0; --rowsLeft, row += stride)
+    for (int32_t rowsLeft = clip.Y1 - clip.Y0; rowsLeft >= 0; --rowsLeft, row += clip.Stride)
     {
         for (int32_t x = lastColumn; x >= 0; --x)
         {

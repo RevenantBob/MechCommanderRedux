@@ -23,6 +23,22 @@ public:
     /// <summary>Copies the icon's port to the screen at its current position.</summary>
     /// <remarks>MCX.EXE @ 0x006fc7d0</remarks>
     void display() override;
+
+    /// <summary>
+    /// Port: makes the icon at (<paramref name="xPos"/>, <paramref name="yPos"/>), <paramref name="width"/> x
+    /// <paramref name="height"/>: its surface starts as colour 0 (the heap's fill), <paramref name="render"/> draws
+    /// the dragged item into it once (the item's <c>OnBeginDrag</c>), and its edge is outlined in colour 0xea. The
+    /// surface then stays as it is for the whole drag; <see cref="display"/> only draws it.
+    /// </summary>
+    void Begin(int32_t xPos, int32_t yPos, int32_t width, int32_t height,
+               const std::function<void(lPort* surface)>& render);
+
+    /// <summary>
+    /// Port: calls <paramref name="draw"/> with <paramref name="surface"/> moved so that what it draws at
+    /// (<paramref name="xPos"/>, <paramref name="yPos"/>) lands at the surface's (0, 0); the surface clips the rest.
+    /// For an item that draws itself at its place in a list.
+    /// </summary>
+    static void DrawFrom(lPort* surface, int32_t xPos, int32_t yPos, const std::function<void(lPort* port)>& draw);
 };
 
 /// <summary>
@@ -59,6 +75,25 @@ public:
     /// </remarks>
     void setEnabled(int32_t enable);
 
+    /// <summary>
+    /// Port: draws the row into <paramref name="port"/> with its top at <paramref name="top"/>: what the original's
+    /// <c>drawBackground</c> painted into the inventory tab's picture (the tab is now drawn from its rows each frame,
+    /// and <c>drawBackground</c> keeps only what it did besides painting). The base draws the blank row art.
+    /// </summary>
+    virtual void DrawRow(lPort* port, int32_t top);
+
+    /// <summary>
+    /// Port: draws the row's details into the info box under the inventory pane (see <c>InvInfoBox</c>); a
+    /// component's are kept in the box itself.
+    /// </summary>
+    virtual void DrawInfo(lPort* port) {}
+
+    /// <summary>
+    /// Port: draws the drag icon's picture into <paramref name="surface"/> (0x20 square): the row's square at (2, 1)
+    /// over colour 0x10.
+    /// </summary>
+    void OnBeginDrag(lPort* surface);
+
     // Fields are public: the inventory screen and the callbacks read and set them directly.
     /// <summary>Nonzero when the row is usable; zero makes <c>draw</c> call <see cref="drawDisabled"/>.</summary>
     int32_t enabled = 0; // +0x4bc
@@ -86,9 +121,18 @@ public:
     /// <remarks>MCX.EXE @ 0x006d47c0</remarks>
     void draw() override;
 
-    /// <summary>Draws the row: mech name, tonnage/class line and the damage diagram.</summary>
+    /// <summary>
+    /// Draws the row: mech name, tonnage/class line and the damage diagram (made here when missing). Port: the row is
+    /// drawn by <see cref="DrawRow"/>; this makes the diagram.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006d47d0</remarks>
     void drawBackground();
+
+    /// <summary>Port: see <see cref="InventoryBlock::DrawRow"/>.</summary>
+    void DrawRow(lPort* port, int32_t top) override;
+
+    /// <summary>Port: the diagram, tonnage, classes, speed and description.</summary>
+    void DrawInfo(lPort* port) override;
 
     /// <summary>Frees the cached damage diagram so the next draw rebuilds it.</summary>
     /// <remarks>MCX.EXE @ 0x006d49a0</remarks>
@@ -124,9 +168,18 @@ public:
     /// <remarks>MCX.EXE @ 0x006d6070</remarks>
     void draw() override;
 
-    /// <summary>Draws portrait, callsign, rank and skill bars; darkens the row when <see cref="greyedOut"/>.</summary>
+    /// <summary>
+    /// Draws portrait, callsign, rank and skill bars; darkens the row when <see cref="greyedOut"/>. Port: the row is
+    /// drawn by <see cref="DrawRow"/>; this sets <see cref="greyedOut"/> and moves the block to its row.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006d6080</remarks>
     void drawBackground();
+
+    /// <summary>Port: see <see cref="InventoryBlock::DrawRow"/>.</summary>
+    void DrawRow(lPort* port, int32_t top) override;
+
+    /// <summary>Port: the skills, portrait, rank, health and description.</summary>
+    void DrawInfo(lPort* port) override;
 
     /// <summary>Selection, drag onto a mech, and the info display.</summary>
     /// <remarks>MCX.EXE @ 0x006d6340</remarks>
@@ -174,9 +227,18 @@ public:
     /// <remarks>MCX.EXE @ 0x006d7680</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the row: name, class texts and picture.</summary>
+    /// <summary>
+    /// Draws the row: name, class texts and picture (made here when missing). Port: the row is drawn by
+    /// <see cref="DrawRow"/>; this makes the picture.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006d85b0</remarks>
     void drawBackground();
+
+    /// <summary>Port: see <see cref="InventoryBlock::DrawRow"/>.</summary>
+    void DrawRow(lPort* port, int32_t top) override;
+
+    /// <summary>Port: the picture, tonnage, classes, speed and description.</summary>
+    void DrawInfo(lPort* port) override;
 
     // Fields are public: the inventory screen and the callbacks read and set them directly.
     /// <summary>The cached vehicle picture (0x1c x 0x1e).</summary>
@@ -208,9 +270,15 @@ public:
     /// <remarks>MCX.EXE @ 0x006d8fb0</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the row; darkens it when the item can't fit on the selected mech.</summary>
+    /// <summary>
+    /// Draws the row; darkens it when the item can't fit on the selected mech. Port: the row is drawn by
+    /// <see cref="DrawRow"/>; this shows or hides the block and sets <see cref="cantMount"/>.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006da2c0</remarks>
     void drawBackground();
+
+    /// <summary>Port: see <see cref="InventoryBlock::DrawRow"/>.</summary>
+    void DrawRow(lPort* port, int32_t top) override;
 
     /// <summary>Range text ("%.1f m", or a short/medium/long word, or a label for equipment).</summary>
     char rangeText[12] = {}; // +0x4c4
@@ -251,6 +319,19 @@ void CompSellCallback(int confirmed, int32_t quantity);
 /// <summary>Sell-confirm callback of a vehicle (<see cref="globalVehicle"/>).</summary>
 /// <remarks>MCX.EXE @ 0x006d45c0</remarks>
 void VehicleSellCallback(int confirmed, int32_t quantity);
+
+/// <summary>
+/// Port: a description in the info box: formatted by the text formatter into a <paramref name="width"/> x
+/// <paramref name="height"/> picture and drawn keyed at (<paramref name="xPos"/>, <paramref name="yPos"/>) of
+/// <paramref name="port"/>; nothing without one.
+/// </summary>
+void DrawInfoDescription(lPort* port, int32_t width, int32_t height, char* description, int32_t xPos, int32_t yPos);
+
+/// <summary>
+/// Port: readies a description for the info box as the original did when it showed it: its fourth character (a
+/// colour code's digit) becomes '9'.
+/// </summary>
+void PrepareInfoDescription(char* description);
 
 /// <summary>How many entries of <see cref="restrictedComps"/> are used (5).</summary>
 extern int32_t numRestrictedComponents;

@@ -7,14 +7,8 @@
 
 namespace
 {
-    /// <summary>The cursor shapes as pictures, made the first time each is shown.</summary>
-    struct MCShapeCache
-    {
-        const void* Shape = nullptr;
-        MCCursorImage Image;
-    };
-
-    std::array<MCShapeCache, 128> shapeCache;
+    /// <summary>The cursor shapes as pictures, made by MCHardwareCursorPreload.</summary>
+    std::vector<MCCursorImage> shapeImages;
 
     /// <summary>What this frame's cursor carries (MCHardwareCursorCarry).</summary>
     bool carrying = false;
@@ -96,6 +90,21 @@ MCCursorImage MCCursorImageFromPane(PANE* pane, int32_t hotX, int32_t hotY)
     return image;
 }
 
+void MCHardwareCursorPreload()
+{
+    shapeImages.assign(128, {});
+
+    for (size_t shape = 0; shape < shapeImages.size() && cursorShapes != nullptr; ++shape)
+    {
+        if (cursorShapes[shape] != nullptr)
+        {
+            shapeImages[shape] = MCCursorImageFromShape(cursorShapes[shape], 0);
+        }
+    }
+
+    MCCursor::Preload(shapeImages);
+}
+
 void MCHardwareCursorNewFrame()
 {
     carrying = false;
@@ -133,32 +142,18 @@ bool MCHardwareCursorCarry(aObject* object, PANE* pixels)
 
 void MCHardwareCursorUpdate()
 {
-    MCCursorImage image;
     const int32_t shape = application->cursorShape;
-
-    if (cursorShapes != nullptr && shape >= 0 && shape < 128 && cursorShapes[shape] != nullptr)
-    {
-        MCShapeCache& cached = shapeCache[static_cast<size_t>(shape)];
-
-        if (cached.Shape != cursorShapes[shape])
-        {
-            cached.Image = MCCursorImageFromShape(cursorShapes[shape], 0);
-            cached.Shape = cursorShapes[shape];
-        }
-
-        image = cached.Image;
-    }
+    const bool hasShape = shape >= 0 && static_cast<size_t>(shape) < shapeImages.size() &&
+                          shapeImages[static_cast<size_t>(shape)].Width > 0;
 
     if (carrying)
     {
-        image = image.Width > 0 ? MCCursorImage::Overlay(carried, image) : carried;
+        carrying = false;
+        MCCursor::Show(hasShape ? MCCursorImage::Overlay(carried, shapeImages[static_cast<size_t>(shape)]) : carried);
     }
-
-    carrying = false;
-
-    if (image.Width > 0)
+    else if (hasShape)
     {
-        MCCursor::Show(image);
+        MCCursor::ShowShape(static_cast<size_t>(shape));
     }
     else
     {

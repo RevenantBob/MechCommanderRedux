@@ -71,7 +71,6 @@ namespace
         globalLogPtr->messageDialog->okButton->setDownPicture(downArt);
         lDialogButton* button = globalLogPtr->messageDialog->okButton;
         button->disabled = 0;
-        button->draw();
         globalLogPtr->messageDialog->activate();
     }
 
@@ -81,14 +80,6 @@ namespace
         char text[256];
         cLoadString(thisInstance, id, text, 0xfe);
         showMessage(text);
-    }
-
-    /// <summary>Loads <c>logart\</c><paramref name="name"/> into <paramref name="port"/>.</summary>
-    void loadArt(lPort* port, const char* name)
-    {
-        char fileName[256];
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\%s", artPath, name);
-        port->init(fileName);
     }
 
     /// <summary>
@@ -159,6 +150,13 @@ namespace
         return static_cast<int32_t>(static_cast<float>(curDeployTonnage) + sign * part->curTonnage);
     }
 
+    /// <summary>Fills a <paramref name="width"/> by <paramref name="height"/> box of <paramref name="target"/> with <paramref name="color"/>.</summary>
+    void fillBox(PANE* target, int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t color)
+    {
+        lBlockPort box(target, xPos, yPos, width, height, false);
+        VFX_pane_wipe(box.frame(), color);
+    }
+
     /// <summary>Whether <paramref name="part"/> fits under the drop tonnage limit.</summary>
     bool fitsTonnage(const LogPart* part)
     {
@@ -182,10 +180,8 @@ auto BriefingScreen::init() -> void
     chatTimerOn = 0;
     int32_t result = lObject::init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
     Assert(result == 0, result, "Unable to init briefing screen", nullptr);
+    // The original loaded the background (lsbbk00) as the screen's picture; the screen draws it each frame.
     char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsbbk00.tga", artPath);
-    result = lport()->init(fileName);
-    Assert(result == 0, result, "Unable to init repair screen image", nullptr);
 
     auto* pane = new ScrollPane;
 
@@ -250,32 +246,18 @@ auto BriefingScreen::init() -> void
 
 auto BriefingScreen::drawBackground() -> void
 {
-    auto* port = new lPort;
-    loadArt(port, "lsbbk00.tga");
-    VFX_pane_copy(port->frame(), 0, 0, lport()->frame(), 0, 0, -1);
+    // Port: the screen is drawn each frame (PaintLook) from its state; the slots that can't be filled show covered.
+    lPort* back = logArtf("%slogart\\lsbbk00.tga", artPath);
+    ClearLook();
+    chrome.Clear();
 
-    if (emptySlot == nullptr)
+    if (emptySlot == nullptr && back != nullptr)
     {
         emptySlot = new lPort;
         emptySlot->init(0x34, 0x2e, -1);
         VFX_pane_wipe(emptySlot->frame(), 0xff);
-        VFX_pane_copy(port->frame(), slotRects[0].left, slotRects[0].top, emptySlot->frame(), 0, 0, -1);
+        VFX_pane_copy(back->frame(), slotRects[0].left, slotRects[0].top, emptySlot->frame(), 0, 0, -1);
     }
-
-    port->destroy();
-
-    // The slots that can't be filled are covered.
-    loadArt(port, "lsbdf06.tga");
-
-    for (int32_t i = 0; i < 12; i++)
-    {
-        if (globalLogPtr->localDropSlot[i] == 0)
-        {
-            port->copyTo(lport()->frame(), slotRects[i].left + 1, slotRects[i].top + 1, -1);
-        }
-    }
-
-    port->destroy();
 
     // The mission's tac map picture, turned 45 degrees onto the map area.
     FullPathFileName mapName;
@@ -298,53 +280,315 @@ auto BriefingScreen::drawBackground() -> void
     Assert(result == 0, result, "Could not find variable MetersPerVertex in terrain .FIT file", nullptr);
     const int32_t mapSide = blocksMapSide * verticesBlockSide;
     terrainFile.close();
-    result = port->init(static_cast<char*>(mapName));
+    delete mapPicture;
+    mapPicture = new lPort;
+    result = mapPicture->init(static_cast<char*>(mapName));
 
     if (result != 0)
     {
         Fatal(result, " Unable to create Port for TacMap ", nullptr);
     }
 
-    WINDOW* map = port->frame()->window;
-    SCRNVERTEX vertices[4] = {};
-    vertices[0] = {0x159, 0x1a, 0, 0, 0, 0};
-    vertices[1] = {0x273, 0x1a, 0, map->x_max << 16, 0, 0};
-    vertices[2] = {0x273, 0x134, 0, map->x_max << 16, map->y_max << 16, 0};
-    vertices[3] = {0x159, 0x134, 0, 0, map->y_max << 16, 0};
-    VFX_map_polygon(lport()->frame(), 4, vertices, map, MP_XP);
-
-    loadArt(port, "lsbdf02.tga");
-    port->copyTo(lport()->frame(), 0xd6, 0x18, -1);
-    port->destroy();
-
     if (MPlayer != nullptr)
     {
-        // Each lance's label, with a line to its drop zone on the map.
+        // Each lance's label has a line to its drop zone on the map.
         const double side = static_cast<double>(mapSide);
-        const auto scale = static_cast<float>(std::sqrt(side * side + side * side) * metersPerVertex *
-                                              static_cast<double>(0.0017667845f));
-        const int32_t first = MPlayer->homeTeam == 1 ? 3 : 0;
-        drawDropZoneMarker(lport()->frame(), globalLogPtr->dropZonePositions[first], scale, 0x24);
+        markerScale = static_cast<float>(std::sqrt(side * side + side * side) * metersPerVertex *
+                                         static_cast<double>(0.0017667845f));
+        markedZone = MPlayer->homeTeam == 1 ? 3 : 0;
+    }
 
-        if (globalLogPtr->localDropSlot[4] != 0 || MPlayer != nullptr)
+    setUpMission();
+}
+
+auto BriefingScreen::ClearLook() -> void
+{
+    markedZone = -1;
+    launchPressed = false;
+    operationShown = false;
+    operationPictureShown = false;
+
+    for (MechBriefBlock*& block : slotBlocks)
+    {
+        block = nullptr;
+    }
+
+    boxShown = nullptr;
+}
+
+auto BriefingScreen::SlotAt(int32_t xPos, int32_t yPos) const -> int32_t
+{
+    for (int32_t i = 0; i < 12; i++)
+    {
+        if (slotRects[i].left == xPos && slotRects[i].top == yPos)
         {
-            loadArt(port, "lsbdf03.tga");
-            port->copyTo(lport()->frame(), 0xd6, 0x88, -1);
-            port->destroy();
-            drawDropZoneMarker(lport()->frame(), globalLogPtr->dropZonePositions[first + 1], scale, 0x94);
-
-            if (globalLogPtr->localDropSlot[8] != 0 || MPlayer != nullptr)
-            {
-                loadArt(port, "lsbdf04.tga");
-                port->copyTo(lport()->frame(), 0xd6, 0xf8, -1);
-                port->destroy();
-                drawDropZoneMarker(lport()->frame(), globalLogPtr->dropZonePositions[first + 2], scale, 0x104);
-            }
+            return i;
         }
     }
 
-    delete port;
-    setUpMission();
+    return -1;
+}
+
+auto BriefingScreen::PlaceInSlot(MechBriefBlock* block) -> void
+{
+    const int32_t slot = SlotAt(block->x(), block->y());
+
+    if (slot < 0)
+    {
+        return;
+    }
+
+    // A block left in any other slot has moved here.
+    for (MechBriefBlock*& other : slotBlocks)
+    {
+        if (other == block)
+        {
+            other = nullptr;
+        }
+    }
+
+    slotBlocks[slot] = block;
+}
+
+auto BriefingScreen::LiftFromSlot(MechBriefBlock* block) -> void
+{
+    for (MechBriefBlock*& other : slotBlocks)
+    {
+        if (other == block)
+        {
+            other = nullptr;
+        }
+    }
+}
+
+auto BriefingScreen::ShowBox(BriefingBox* box) -> void
+{
+    boxShown = box;
+}
+
+auto BriefingScreen::BlankBox() -> void
+{
+    boxShown = nullptr;
+}
+
+auto BriefingScreen::removeChild(aObject* child) -> void
+{
+    // OB-133 (fixed): the original left a removed block's or box's picture where it was, until something painted over
+    // it; the slot shows empty again, the box area blank.
+    for (MechBriefBlock*& block : slotBlocks)
+    {
+        if (child != nullptr && block == child)
+        {
+            block = nullptr;
+        }
+    }
+
+    if (child != nullptr && child == boxShown)
+    {
+        boxShown = nullptr;
+    }
+
+    lObject::removeChild(child);
+}
+
+auto BriefingScreen::LanceTons(int32_t lance) const -> int32_t
+{
+    if (MPlayer == nullptr)
+    {
+        return lanceTonnage(lance);
+    }
+
+    // Multiplayer: a lance counts once one of its slots holds a unit (the second lance always with two players).
+    bool occupied = lance == 1 && MPlayer->playersOnHomeTeam()->count == 2;
+
+    for (int32_t slot = 0; slot < 4 && !occupied; slot++)
+    {
+        const auto& deploy = globalLogPtr->deploySlots[lance][slot];
+
+        if (deploy.unit >= 0)
+        {
+            LogMech* mech = nullptr;
+            globalLogPtr->forceMechList->getMechInfo(deploy.unit, mech);
+            occupied = mech != nullptr;
+        }
+        else if (deploy.vehicle >= 0)
+        {
+            // Original behaviour (OB-082): the vehicle looked up is lance 0's, whatever the lance.
+            LogVehicle* vehicle = nullptr;
+            globalLogPtr->forceVehicleList->getVehicleInfo(globalLogPtr->deploySlots[0][slot].vehicle, vehicle);
+            occupied = vehicle != nullptr;
+        }
+    }
+
+    return occupied ? lanceTonnage(lance) : 0;
+}
+
+auto BriefingScreen::PaintLook(PANE* target) -> void
+{
+    if (lPort* back = logArtf("%slogart\\lsbbk00.tga", artPath))
+    {
+        VFX_pane_copy(back->frame(), 0, 0, target, 0, 0, -1);
+    }
+
+    if (mapPicture != nullptr)
+    {
+        WINDOW* map = mapPicture->frame()->window;
+        SCRNVERTEX vertices[4] = {};
+        vertices[0] = {0x159, 0x1a, 0, 0, 0, 0};
+        vertices[1] = {0x273, 0x1a, 0, map->x_max << 16, 0, 0};
+        vertices[2] = {0x273, 0x134, 0, map->x_max << 16, map->y_max << 16, 0};
+        vertices[3] = {0x159, 0x134, 0, 0, map->y_max << 16, 0};
+        VFX_map_polygon(target, 4, vertices, map, MP_XP);
+    }
+
+    // The lance labels, with their tonnage: the first lance's always, the others in multiplayer or when the mission
+    // gives the player their slots. (The original measured the first lance's figure in the black font and the
+    // others' in the blue one, and wrote them all in black.)
+    static constexpr int32_t LabelTops[3] = {0x18, 0x88, 0xf8};
+    const int32_t* local = globalLogPtr->localDropSlot;
+    const bool lanceShown[3] = {true, MPlayer != nullptr || local[4] != 0,
+                                MPlayer != nullptr || (local[4] != 0 && local[8] != 0)};
+
+    for (int32_t lance = 0; lance < 3; lance++)
+    {
+        if (!lanceShown[lance])
+        {
+            continue;
+        }
+
+        if (lPort* art = logArtf("%slogart\\lsbdf0%d.tga", artPath, lance + 2))
+        {
+            art->copyTo(target, 0xd6, LabelTops[lance], -1);
+        }
+
+        char text[32];
+        std::snprintf(text, sizeof(text), "%d", LanceTons(lance));
+        auto* bytes = reinterpret_cast<uint8_t*>(text);
+        const int32_t textWidth = lance == 0 && MPlayer == nullptr ? blackFont->width(bytes) : blueFont->width(bytes);
+        blackFont->writeString(target, 0x13f - textWidth, LabelTops[lance] + 4, bytes, -1);
+    }
+
+    if (markedZone >= 0)
+    {
+        static constexpr int32_t MarkerLines[3] = {0x24, 0x94, 0x104};
+
+        for (int32_t zone = 0; zone < 3; zone++)
+        {
+            drawDropZoneMarker(target, globalLogPtr->dropZonePositions[markedZone + zone], markerScale,
+                               MarkerLines[zone]);
+        }
+    }
+
+    // The tonnage bar and the launch button: pressed while clicked or locked (multiplayer launch), lit when the force
+    // can drop.
+    PaintTonnageBar(target, maxDeployTonnage, curDeployTonnage, globalLogPtr->hammerDown != 0);
+    const char* launchName = "lsbdf01.tga";
+
+    if (!launchPressed && buttonsLocked == 0)
+    {
+        bool ready = curDeployTonnage >= 1;
+
+        if (ready && (maxDeployTonnage < curDeployTonnage || globalLogPtr->requiredAssigned() == 0))
+        {
+            ready = globalLogPtr->hammerDown != 0;
+        }
+
+        launchName = ready ? "lsbdf00.tga" : "lsbdf00a.tga";
+    }
+
+    if (lPort* art = logArtf("%slogart\\%s", artPath, launchName))
+    {
+        art->copyTo(target, 0x20d, 0x148, -1);
+    }
+
+    // The tab, and over it the chat button while it blinks (multiplayer).
+    if (currentTab == 1 || currentTab == 2)
+    {
+        const char* tabName = currentTab == 1 ? (MPlayer == nullptr ? "lsbdw00.tga" : "lsbdw02.tga")
+                                              : (MPlayer == nullptr ? "lsbdw01.tga" : "lsbdw03.tga");
+
+        if (lPort* art = logArtf("%slogart\\%s", artPath, tabName))
+        {
+            art->copyTo(target, 0xc4, 0x65, 0);
+        }
+    }
+
+    if (chatTimerOn != 0)
+    {
+        if (chatBlinkOn != 0)
+        {
+            chatBlinkPort->copyTo(target, 0xc5, 0x65, -1);
+        }
+        else
+        {
+            chatRegularPort->copyTo(target, 0xc4, 0x65, -1);
+        }
+    }
+
+    // The operation area: its art, the operation picture over it before the movie, the closing art after the movie.
+    if (operationShown)
+    {
+        if (lPort* art = logArtf("%slogart\\lsb_op0.tga", artPath))
+        {
+            art->copyTo(target, 0xc, 0x6f, -1);
+        }
+    }
+
+    if (operationPictureShown && operationPicture != nullptr)
+    {
+        operationPicture->copyTo(target, 0xc, 0x6f, -1);
+    }
+
+    if (movieOver != 0 && InDemo == 0)
+    {
+        if (lPort* art = logArtf("%slogart\\lsb_op6.tga", artPath))
+        {
+            art->copyTo(target, 0xc, 0x6f, -1);
+        }
+    }
+
+    // The drop slots: covered when the player can't fill them, else blank (colour 0x10 inside the slot's border, as
+    // the screen's setup painted them), and the unit placed in it.
+    for (int32_t i = 0; i < 12; i++)
+    {
+        const RECT& area = slotRects[i];
+
+        if (globalLogPtr->localDropSlot[i] == 0)
+        {
+            if (lPort* art = logArtf("%slogart\\lsbdf06.tga", artPath))
+            {
+                art->copyTo(target, area.left + 1, area.top + 1, -1);
+            }
+        }
+        else
+        {
+            fillBox(target, area.left, area.top, 0x32, 0x2c, 0x10);
+        }
+
+        if (slotBlocks[i] != nullptr)
+        {
+            slotBlocks[i]->PaintBlock(target, area.left, area.top, true);
+        }
+    }
+
+    // The briefing box area: the box shown, or blank.
+    if (boxShown != nullptr)
+    {
+        boxShown->PaintBox(target, 0xd3, 0x16f);
+    }
+    else
+    {
+        fillBox(target, 0xd3, 0x16f, 0x1aa, 0x6e, 0x10);
+    }
+}
+
+auto BriefingScreen::NewLookPicture() -> lPort*
+{
+    auto* picture = new lPort;
+    picture->init(width(), height(), -1);
+    PaintLook(picture->frame());
+    globalLogPtr->drawScreenChrome(this, picture->frame());
+    return picture;
 }
 
 auto BriefingScreen::display() -> void
@@ -371,24 +615,29 @@ auto BriefingScreen::display() -> void
     }
     else if (InDemo == 0)
     {
-        // The movie is over: its window goes, and the last operation picture stays.
+        // The movie is over: its window goes, and the closing art shows (PaintLook).
         playMovie = 0;
         removeChild(smackerWindow);
-        auto* port = new lPort;
-        loadArt(port, "lsb_op6.tga");
-        port->copyTo(lport()->frame(), 0xc, 0x6f, -1);
-        delete port;
     }
 }
 
 auto BriefingScreen::draw() -> void
 {
+    // The original drew nothing here; the screen now draws its picture and the shared places in the frame pass.
+    if (lport()->viewOpen())
+    {
+        PaintLook(lport()->frame());
+        globalLogPtr->drawScreenChrome(this, lport()->frame());
+    }
 }
 
 auto BriefingScreen::destroy() -> void
 {
     StopSmackerMovies();
     screenWindow->removeChild(this);
+    ClearLook();
+    delete mapPicture;
+    mapPicture = nullptr;
     delete chatBlinkPort;
     chatBlinkPort = nullptr;
     delete chatRegularPort;
@@ -426,52 +675,14 @@ auto BriefingScreen::destroy() -> void
 
 auto BriefingScreen::mpCalcTonnages() -> void
 {
-    auto* port = new lPort;
+    // A lance counts once one of its slots holds a unit (LanceTons); the labels show each (PaintLook).
     curDeployTonnage = 0;
 
     for (int32_t lance = 0; lance < 3; lance++)
     {
-        int32_t tons = 0;
-        bool occupied = lance == 1 && MPlayer->playersOnHomeTeam()->count == 2;
-
-        for (int32_t slot = 0; slot < 4 && !occupied; slot++)
-        {
-            const auto& deploy = globalLogPtr->deploySlots[lance][slot];
-
-            if (deploy.unit >= 0)
-            {
-                LogMech* mech = nullptr;
-                globalLogPtr->forceMechList->getMechInfo(deploy.unit, mech);
-                occupied = mech != nullptr;
-            }
-            else if (deploy.vehicle >= 0)
-            {
-                // Original behaviour (OB-082): the vehicle looked up is lance 0's, whatever the lance.
-                LogVehicle* vehicle = nullptr;
-                globalLogPtr->forceVehicleList->getVehicleInfo(globalLogPtr->deploySlots[0][slot].vehicle, vehicle);
-                occupied = vehicle != nullptr;
-            }
-        }
-
-        if (occupied)
-        {
-            tons = lanceTonnage(lance);
-            curDeployTonnage += tons;
-        }
-
-        static constexpr int32_t LabelTops[3] = {0x18, 0x88, 0xf8};
-        const int32_t top = LabelTops[lance];
-        char text[256];
-        std::snprintf(text, sizeof(text), "%slogart\\lsbdf0%d.tga", artPath, lance + 2);
-        port->destroy();
-        port->init(text);
-        port->copyTo(lport()->frame(), 0xd6, top, -1);
-        std::snprintf(text, sizeof(text), "%d", tons);
-        const int32_t width = blueFont->width(reinterpret_cast<uint8_t*>(text));
-        blackFont->writeString(lport()->frame(), 0x13f - width, top + 4, reinterpret_cast<uint8_t*>(text), -1);
+        curDeployTonnage += LanceTons(lance);
     }
 
-    delete port;
     drawTonnageBar();
 }
 
@@ -483,60 +694,47 @@ auto BriefingScreen::calcTonnages() -> void
         return;
     }
 
-    auto* port = new lPort;
-    loadArt(port, "lsbdf02.tga");
-    port->copyTo(lport()->frame(), 0xd6, 0x18, -1);
-    int32_t tons = lanceTonnage(0);
-    curDeployTonnage = tons;
-    char text[256];
-    std::snprintf(text, sizeof(text), "%d", tons);
-    int32_t width = blackFont->width(reinterpret_cast<uint8_t*>(text));
-    blackFont->writeString(lport()->frame(), 0x13f - width, 0x1c, reinterpret_cast<uint8_t*>(text), -1);
+    // The labels show each lance's tonnage (PaintLook).
+    curDeployTonnage = LanceTons(0);
 
     if (globalLogPtr->localDropSlot[4] != 0)
     {
-        port->destroy();
-        loadArt(port, "lsbdf03.tga");
-        port->copyTo(lport()->frame(), 0xd6, 0x88, -1);
-        tons = lanceTonnage(1);
-        std::snprintf(text, sizeof(text), "%d", tons);
-        width = blueFont->width(reinterpret_cast<uint8_t*>(text));
-        blackFont->writeString(lport()->frame(), 0x13f - width, 0x8c, reinterpret_cast<uint8_t*>(text), -1);
-        curDeployTonnage += tons;
+        curDeployTonnage += LanceTons(1);
 
         if (globalLogPtr->localDropSlot[8] != 0)
         {
-            port->destroy();
-            loadArt(port, "lsbdf04.tga");
-            port->copyTo(lport()->frame(), 0xd6, 0xf8, -1);
-            tons = lanceTonnage(2);
-            std::snprintf(text, sizeof(text), "%d", tons);
-            width = blueFont->width(reinterpret_cast<uint8_t*>(text));
-            blackFont->writeString(lport()->frame(), 0x13f - width, 0xfc, reinterpret_cast<uint8_t*>(text), -1);
-            curDeployTonnage += tons;
+            curDeployTonnage += LanceTons(2);
         }
     }
 
-    // Port: the original never freed this port.
-    delete port;
     drawTonnageBar();
 }
 
 auto BriefingScreen::drawTonnageBar() -> void
 {
-    auto* port = new lPort;
-    loadArt(port, "lsbdf07.tga");
-    port->copyTo(lport()->frame(), 0x157, 0x13f, 0);
-    port->destroy();
+    // Port: the bar and the launch button are drawn each frame (PaintLook) with the figures of now; a new figure ends
+    // a press shown on the launch button (the original painted it up again).
+    if (buttonsLocked == 0)
+    {
+        launchPressed = false;
+    }
+}
+
+auto BriefingScreen::PaintTonnageBar(PANE* target, int32_t maxTons, int32_t tons, bool hammerDown) -> void
+{
+    if (lPort* art = logArtf("%slogart\\lsbdf07.tga", artPath))
+    {
+        art->copyTo(target, 0x157, 0x13f, 0);
+    }
 
     char text[256];
-    std::snprintf(text, sizeof(text), "%d", maxDeployTonnage);
+    std::snprintf(text, sizeof(text), "%d", maxTons);
     int32_t width = blueFont->width(reinterpret_cast<uint8_t*>(text));
-    aFont* font = globalLogPtr->hammerDown == 0 ? yellowDropFont : redFont;
-    font->writeString(lport()->frame(), 0x1d9 - width, 0x13f, reinterpret_cast<uint8_t*>(text), -1);
-    std::snprintf(text, sizeof(text), "%d", curDeployTonnage);
+    aFont* font = !hammerDown ? yellowDropFont : redFont;
+    font->writeString(target, 0x1d9 - width, 0x13f, reinterpret_cast<uint8_t*>(text), -1);
+    std::snprintf(text, sizeof(text), "%d", tons);
 
-    if (maxDeployTonnage < curDeployTonnage)
+    if (maxTons < tons)
     {
         width = redFont->width(reinterpret_cast<uint8_t*>(text));
         font = redFont;
@@ -547,15 +745,14 @@ auto BriefingScreen::drawTonnageBar() -> void
         font = yellowDropFont;
     }
 
-    font->writeString(lport()->frame(), 0x1d9 - width, 0x149, reinterpret_cast<uint8_t*>(text), -1);
+    font->writeString(target, 0x1d9 - width, 0x149, reinterpret_cast<uint8_t*>(text), -1);
 
-    auto* bar = new lPort;
     // Port fix: with no limit the original's bar width was the x87 integer indefinite (a negative port width).
     int32_t barWidth = 0;
 
-    if (maxDeployTonnage != 0)
+    if (maxTons != 0)
     {
-        barWidth = static_cast<int32_t>(static_cast<double>(curDeployTonnage) / maxDeployTonnage * 149.0);
+        barWidth = static_cast<int32_t>(static_cast<double>(tons) / maxTons * 149.0);
     }
 
     if (barWidth != 0)
@@ -565,29 +762,13 @@ auto BriefingScreen::drawTonnageBar() -> void
             barWidth = 0x95;
         }
 
-        bar->init(barWidth, 0xe, -1);
-        loadArt(port, "lsbdf05.tga");
-        port->copyTo(bar->frame(), 0, 0, 0);
-        bar->copyTo(lport()->frame(), 0x15b, 0x155, -1);
-    }
+        lBlockPort bar(target, 0x15b, 0x155, barWidth, 0xe, true);
 
-    if (buttonsLocked == 0)
-    {
-        // The launch button: lit when the force can drop.
-        port->destroy();
-        bool ready = curDeployTonnage >= 1;
-
-        if (ready && (maxDeployTonnage < curDeployTonnage || globalLogPtr->requiredAssigned() == 0))
+        if (lPort* art = logArtf("%slogart\\lsbdf05.tga", artPath))
         {
-            ready = globalLogPtr->hammerDown != 0;
+            art->copyTo(bar.frame(), 0, 0, 0);
         }
-
-        loadArt(port, ready ? "lsbdf00.tga" : "lsbdf00a.tga");
-        port->copyTo(lport()->frame(), 0x20d, 0x148, -1);
     }
-
-    delete port;
-    delete bar;
 }
 
 auto BriefingScreen::handleEvent(aEvent* event) -> void
@@ -642,9 +823,7 @@ auto BriefingScreen::handleEvent(aEvent* event) -> void
         else if (inside(2, 0x10, 0xd0, 0x21))
         {
             showHelp(0x286);
-            lPort* highlight =
-                MPlayer == nullptr ? globalLogPtr->screenButtonPorts[0][1] : globalLogPtr->screenButtonPorts[1][1];
-            highlight->copyTo(lport()->frame(), 2, 0x10, -1);
+            globalLogPtr->hoverScreenButton(this, 0);
         }
         else if (inside(2, 0x22, 0xd0, 0x33))
         {
@@ -656,7 +835,7 @@ auto BriefingScreen::handleEvent(aEvent* event) -> void
 
             if (buttonsLocked == 0)
             {
-                globalLogPtr->screenButtonPorts[3][1]->copyTo(lport()->frame(), 2, 0x34, -1);
+                globalLogPtr->hoverScreenButton(this, 2);
             }
         }
         else if (inside(2, 0x46, 0xd0, 0x57))
@@ -665,7 +844,7 @@ auto BriefingScreen::handleEvent(aEvent* event) -> void
 
             if (buttonsLocked == 0)
             {
-                globalLogPtr->screenButtonPorts[4][1]->copyTo(lport()->frame(), 2, 0x46, -1);
+                globalLogPtr->hoverScreenButton(this, 3);
             }
         }
         else if (inside(0x20c, 2, 0x24d, 0xd))
@@ -797,13 +976,8 @@ auto BriefingScreen::handleEvent(aEvent* event) -> void
                 return;
             }
 
-            {
-                auto* pressed = new lPort;
-                loadArt(pressed, "lsbdf01.tga");
-                pressed->copyTo(lport()->frame(), 0x20d, 0x148, -1);
-                UpdateDisplay(0, 0, 0, 0, 0);
-                delete pressed;
-            }
+            launchPressed = true;
+            UpdateDisplay(0, 0, 0, 0, 0);
 
             if (MPlayer == nullptr)
             {
@@ -841,6 +1015,8 @@ auto BriefingScreen::handleEvent(aEvent* event) -> void
         case 4:
         {
             mouseDown = 0;
+            // The launch button shows up again once let go (unless a multiplayer launch locked it).
+            launchPressed = false;
             globalX();
             globalY();
             return;
@@ -869,16 +1045,8 @@ auto BriefingScreen::handleEvent(aEvent* event) -> void
 
             if (event->data == 5)
             {
-                // The chat button blinks.
-                if (chatBlinkOn != 0)
-                {
-                    chatBlinkOn = 0;
-                    chatRegularPort->copyTo(lport()->frame(), 0xc4, 0x65, -1);
-                    return;
-                }
-
-                chatBlinkOn = -1;
-                chatBlinkPort->copyTo(lport()->frame(), 0xc5, 0x65, -1);
+                // The chat button blinks (PaintLook draws it).
+                chatBlinkOn = chatBlinkOn != 0 ? 0 : -1;
             }
             break;
         }
@@ -904,15 +1072,10 @@ auto BriefingScreen::setUpOperation() -> void
 {
     globalLogPtr->autoPlayMovie = 0;
     movieOver = 0;
-    auto* port = new lPort;
-    char tabName[256];
 
     if (MPlayer == nullptr)
     {
-        loadArt(port, "lsb_op0.tga");
-        port->copyTo(lport()->frame(), 0xc, 0x6f, -1);
-        port->destroy();
-        std::snprintf(tabName, sizeof(tabName), "%slogart\\lsbdw00.tga", artPath);
+        operationShown = true;
 
         if (playMovie == 0)
         {
@@ -944,13 +1107,9 @@ auto BriefingScreen::setUpOperation() -> void
         }
 
         chatBlinkOn = 0;
-        std::snprintf(tabName, sizeof(tabName), "%slogart\\lsbdw02.tga", artPath);
         globalLogPtr->chatWindow->ShowGUIWindow(-1);
     }
 
-    port->init(tabName);
-    port->copyTo(lport()->frame(), 0xc4, 0x65, 0);
-    delete port;
     missionPane->ShowGUIWindow(0);
     StopSmackerMovies();
     currentTab = 1;
@@ -962,7 +1121,7 @@ auto BriefingScreen::setUpOperation() -> void
 
     if (operationPicture != nullptr)
     {
-        operationPicture->copyTo(lport()->frame(), 0xc, 0x6f, -1);
+        operationPictureShown = true;
         soundSystem->playBettySample(0x1a);
 
         while (soundSystem->isChannelPlaying(0xe) != 0)
@@ -1000,10 +1159,7 @@ auto BriefingScreen::setUpOperation() -> void
 
 auto BriefingScreen::setUpMission() -> void
 {
-    auto* port = new lPort;
-    loadArt(port, MPlayer == nullptr ? "lsbdw01.tga" : "lsbdw03.tga");
-    port->copyTo(lport()->frame(), 0xc4, 0x65, 0);
-    delete port;
+    // The tab's art is drawn from currentTab (PaintLook).
     currentTab = 2;
 
     if (MPlayer == nullptr)
@@ -1115,8 +1271,20 @@ auto BriefingScreen::setUpDeploy() -> void
         }
     }
 
-    port->init(0xc5, height, -1);
-    VFX_pane_wipe(port->frame(), 0x10);
+    // Port: the pane's blocks are drawn into it each frame (the original painted each into this picture).
+    port->initView(0xc5, height);
+    port->DrawContent = [pane](aPort* view)
+    {
+        VFX_pane_wipe(view->frame(), 0x10);
+        const int32_t scroll = pane->getScrollOffset();
+
+        for (int32_t i = 0; i < pane->numberOfChildren(); i++)
+        {
+            auto* brief = static_cast<MechBriefBlock*>(pane->child(i));
+            brief->PaintBlock(view->frame(), brief->x(), brief->y() + scroll, false);
+        }
+    };
+
     const int32_t sliderPos = pane->sliderPos;
     pane->setDisplayPort(port, -1, -1);
     int32_t block = 0;
@@ -1414,15 +1582,6 @@ auto MechBriefBlock::handleEvent(aEvent* event) -> void
                         continue;
                     }
 
-                    // The slot is blanked.
-                    auto* blank = new lPort;
-                    blank->init(0x34, 0x2e, -1);
-                    VFX_pane_wipe(blank->frame(), 0x10);
-                    screen->emptySlot->copyTo(blank->frame(), 0, 0, -1);
-                    const RECT& area = screen->slotRects[lance * 4 + slot];
-                    blank->copyTo(screen->lport()->frame(), area.left, area.top, 0);
-                    delete blank;
-
                     auto& deploy = globalLogPtr->deploySlots[lance][slot];
                     bool fits;
 
@@ -1602,31 +1761,13 @@ auto MechBriefBlock::handleEvent(aEvent* event) -> void
     dragY = globalY();
     auto* icon = new DragIcon;
     globalLogPtr->dragIcon = icon;
-    icon->init(dragX, dragY, 0x34, 0x2e, nullptr, nullptr);
-    const int32_t scroll = owner == screen ? 0 : screen->deployPane->getScrollOffset();
-    PANE* iconPane = globalLogPtr->dragIcon->lport()->frame();
-    VFX_pane_copy(owner->lport()->frame(), x(), y() + scroll, iconPane, 0, 0, -1);
-    VFX_line_draw(iconPane, 0, 0, 0x33, 0, LD_DRAW, 0xea);
-    VFX_line_draw(iconPane, 0, 1, 0, 0x2d, LD_DRAW, 0xea);
-    VFX_line_draw(iconPane, 0, 0x2d, 0x33, 0x2d, LD_DRAW, 0xea);
-    VFX_line_draw(iconPane, 0x33, 0, 0x33, 0x2d, LD_DRAW, 0xea);
+    icon->Begin(dragX, dragY, 0x34, 0x2e, [this](lPort* surface) { OnBeginDrag(surface); });
 
-    // The block's place is blanked.
-    auto* blank = new lPort;
-    blank->init(0x34, 0x2e, -1);
-    VFX_pane_wipe(blank->frame(), 0x10);
-
+    // The block's place is blanked (in the deploy pane, setUpDeploy below rebuilds it without the block).
     if (owner == screen)
     {
-        screen->emptySlot->copyTo(blank->frame(), 0, 0, -1);
-        blank->copyTo(screen->lport()->frame(), x(), y(), 0);
+        screen->LiftFromSlot(this);
     }
-    else
-    {
-        VFX_pane_copy(blank->frame(), 0, 0, owner->lport()->frame(), x(), y(), -1);
-    }
-
-    delete blank;
 
     if (owner == screen)
     {
@@ -1729,30 +1870,64 @@ auto MechBriefBlock::handleEvent(aEvent* event) -> void
 
 auto MechBriefBlock::drawBackground() -> void
 {
-    auto* port = new lPort;
+    // Port: the block is drawn each frame by its parent (PaintBlock): the screen into its slot, or the deploy pane.
+    if (parent != nullptr && parent == globalLogPtr->briefingScreen)
+    {
+        globalLogPtr->briefingScreen->PlaceInSlot(this);
+    }
+}
+
+auto MechBriefBlock::OnBeginDrag(lPort* surface) -> void
+{
+    PANE* target = surface->frame();
+    BriefingScreen* screen = globalLogPtr->briefingScreen;
+
+    if (parent != nullptr && parent == screen)
+    {
+        // In a drop slot: framed, over the empty slot.
+        fillBox(target, 0, 0, 0x34, 0x2e, 0x10);
+
+        if (screen->emptySlot != nullptr)
+        {
+            screen->emptySlot->copyTo(target, 0, 0, -1);
+        }
+
+        PaintBlock(target, 0, 0, true);
+        return;
+    }
+
+    // The deploy pane is colour 0x10 around its blocks.
+    VFX_pane_wipe(target, 0x10);
+    PaintBlock(target, 0, 0, false);
+}
+
+auto MechBriefBlock::PaintBlock(PANE* target, int32_t xPos, int32_t yPos, bool framed) -> void
+{
+    // Drawn in place: the original put the block together in a picture of its art and copied it keyed on 0xff.
+    lPort* art = logArtf("%slogart\\%s", artPath, mech == nullptr ? "lscupv00.tga" : "lscupm00.tga");
+    lBlockPort port(target, xPos, yPos, art != nullptr ? art->width() : 1, art != nullptr ? art->height() : 1, true);
+
+    if (art != nullptr)
+    {
+        VFX_pane_copy(art->frame(), 0, 0, port.frame(), 0, 0, -1);
+    }
+
     char text[256];
 
     if (mech == nullptr)
     {
-        loadArt(port, "lscupv00.tga");
         std::snprintf(text, sizeof(text), "%s", vehicle->fileName);
         const int32_t textWidth = greenFont->width(reinterpret_cast<uint8_t*>(text));
-        greenFont->writeString(port->frame(), (width() - textWidth) / 2, 3, reinterpret_cast<uint8_t*>(text), -1);
-        auto* body = new lPort;
-        body->init(port->width(), port->height(), -1);
-        VFX_pane_wipe(body->frame(), 0xff);
+        greenFont->writeString(port.frame(), (width() - textWidth) / 2, 3, reinterpret_cast<uint8_t*>(text), -1);
+        lBlockPort body(port.frame(), 0, 0, port.width(), port.height(), true);
 
         for (int32_t location = 0; location < 5; location++)
         {
-            globalLogPtr->drawVehicleBodyLoc(vehicle, location, body, 0xd, 0xe);
+            globalLogPtr->drawVehicleBodyLoc(vehicle, location, &body, 0xd, 0xe);
         }
-
-        body->copyTo(port->frame(), 0, 0, -1);
-        delete body;
     }
     else
     {
-        loadArt(port, "lscupm00.tga");
         LogWarrior* warrior = nullptr;
 
         if (mech->localPart == 0)
@@ -1767,18 +1942,17 @@ auto MechBriefBlock::drawBackground() -> void
         // Port fix: a mech without a pilot shows no callsign (the original read through null).
         std::snprintf(text, sizeof(text), "%s", warrior != nullptr ? warrior->callsign : "");
         const int32_t textWidth = greenFont->width(reinterpret_cast<uint8_t*>(text));
-        greenFont->writeString(port->frame(), (width() - textWidth) / 2, 3, reinterpret_cast<uint8_t*>(text), -1);
+        greenFont->writeString(port.frame(), (width() - textWidth) / 2, 3, reinterpret_cast<uint8_t*>(text), -1);
 
-        auto* body = new lPort;
-        body->init(0x19, 0x1e, -1);
-        VFX_pane_wipe(body->frame(), 0x10);
-
-        for (int32_t location = 0; location < 8; location++)
         {
-            globalLogPtr->drawMechBodyLoc(mech, location, body, 0, 0);
-        }
+            lBlockPort body(port.frame(), 2, 0xe, 0x19, 0x1e, true);
+            VFX_pane_wipe(body.frame(), 0x10);
 
-        body->copyTo(port->frame(), 2, 0xe, -1);
+            for (int32_t location = 0; location < 8; location++)
+            {
+                globalLogPtr->drawMechBodyLoc(mech, location, &body, 0, 0);
+            }
+        }
 
         // The pilot's picture.
         if (warrior == nullptr)
@@ -1790,15 +1964,14 @@ auto MechBriefBlock::drawBackground() -> void
             std::snprintf(text, sizeof(text), "%s%s", artPath, warrior->picture);
         }
 
-        auto* picture = new lPort;
-        picture->init(text);
-        picture->copyTo(port->frame(), 0x1c, 0xe, -1);
-        delete body;
-        delete picture;
+        if (lPort* picture = logArt(text))
+        {
+            picture->copyTo(port.frame(), 0x1c, 0xe, -1);
+        }
 
         // The mech's status bar (green, yellow, red) and the pilot's health bar.
-        VFX_line_draw(port->frame(), 3, 0xb, 0x19, 0xb, LD_DRAW, 0x12);
-        VFX_line_draw(port->frame(), 3, 0xc, 0x19, 0xc, LD_DRAW, 0x12);
+        VFX_line_draw(port.frame(), 3, 0xb, 0x19, 0xb, LD_DRAW, 0x12);
+        VFX_line_draw(port.frame(), 3, 0xc, 0x19, 0xc, LD_DRAW, 0x12);
         const float status = mech->statusValue;
 
         if (status != 0.0f)
@@ -1819,15 +1992,15 @@ auto MechBriefBlock::drawBackground() -> void
             }
 
             const int32_t barEnd = static_cast<int32_t>(status * 23.0f) + 3;
-            VFX_line_draw(port->frame(), 3, 0xb, barEnd, 0xb, LD_DRAW, color);
-            VFX_line_draw(port->frame(), 3, 0xc, barEnd, 0xc, LD_DRAW, color);
+            VFX_line_draw(port.frame(), 3, 0xb, barEnd, 0xb, LD_DRAW, color);
+            VFX_line_draw(port.frame(), 3, 0xc, barEnd, 0xc, LD_DRAW, color);
         }
 
         if (warrior != nullptr && warrior->health < 6.0f)
         {
             const auto healthEnd = static_cast<int32_t>(warrior->health * 3.0f + 31.0f);
-            VFX_line_draw(port->frame(), healthEnd, 0xb, 0x2f, 0xb, LD_DRAW, 0x10);
-            VFX_line_draw(port->frame(), static_cast<int32_t>(warrior->health * 3.0f + 31.0f), 0xc, 0x2f, 0xc, LD_DRAW,
+            VFX_line_draw(port.frame(), healthEnd, 0xb, 0x2f, 0xb, LD_DRAW, 0x10);
+            VFX_line_draw(port.frame(), static_cast<int32_t>(warrior->health * 3.0f + 31.0f), 0xc, 0x2f, 0xc, LD_DRAW,
                           0x10);
         }
     }
@@ -1840,26 +2013,16 @@ auto MechBriefBlock::drawBackground() -> void
 
         if (index < 0)
         {
-            globalLogPtr->darken(0, g_logistic_fadetable, port);
+            globalLogPtr->darken(0, g_logistic_fadetable, &port);
         }
     }
 
-    // The parent is always a logistics object (the briefing screen or the deploy pane).
-    auto* owner = static_cast<lObject*>(parent);
-
-    if (owner != nullptr)
+    if (framed)
     {
-        if (owner == globalLogPtr->briefingScreen)
-        {
-            // In a slot: a bevelled frame.
-            VFX_line_draw(port->frame(), 0, 0, width() - 1, 0, LD_DRAW, 0x32);
-            VFX_line_draw(port->frame(), 0, 1, 0, height() - 2, LD_DRAW, 0x32);
-            VFX_line_draw(port->frame(), 0, height() - 1, width() - 1, height() - 1, LD_DRAW, 0x15);
-            VFX_line_draw(port->frame(), width() - 1, 0, width() - 1, height() - 2, LD_DRAW, 0x15);
-        }
-
-        port->copyTo(owner->lport()->frame(), x(), y(), -1);
+        // In a slot: a bevelled frame.
+        VFX_line_draw(port.frame(), 0, 0, width() - 1, 0, LD_DRAW, 0x32);
+        VFX_line_draw(port.frame(), 0, 1, 0, height() - 2, LD_DRAW, 0x32);
+        VFX_line_draw(port.frame(), 0, height() - 1, width() - 1, height() - 1, LD_DRAW, 0x15);
+        VFX_line_draw(port.frame(), width() - 1, 0, width() - 1, height() - 2, LD_DRAW, 0x15);
     }
-
-    delete port;
 }

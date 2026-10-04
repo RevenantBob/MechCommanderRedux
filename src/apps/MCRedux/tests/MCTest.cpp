@@ -22,6 +22,13 @@ namespace
         return state;
     }
 
+    /// <summary>The options given (<c>--name value</c>), by name without the dashes.</summary>
+    std::vector<std::pair<std::string, std::string>>& Options()
+    {
+        static std::vector<std::pair<std::string, std::string>> options;
+        return options;
+    }
+
     std::string Lower(std::string_view text)
     {
         std::string lower(text);
@@ -85,15 +92,37 @@ namespace MCTest
     }
 }
 
+const char* MCTest::Option(std::string_view name)
+{
+    for (const auto& [key, value] : Options())
+    {
+        if (key == name)
+        {
+            return value.c_str();
+        }
+    }
+
+    return nullptr;
+}
+
 namespace
 {
     /// <summary>
-    /// Runs an isolated test in a process of its own: this program again, with <c>--only</c> and the test's name.
+    /// Runs an isolated test in a process of its own: this program again, with <c>--only</c>, the test's name and the
+    /// options.
     /// </summary>
     /// <returns>Whether it passed (the child exited 0).</returns>
     bool RunIsolated(const char* program, const MCTest::TestCase& test)
     {
         std::string command = std::format("\"{}\" --only \"{}\"", program, test.Name);
+
+        for (const auto& [key, value] : Options())
+        {
+            // A folder's trailing backslash would escape the closing quote: doubled, it stays a backslash.
+            const size_t trailing = value.size() - (value.find_last_not_of('\\') + 1);
+            command += std::format(" --{} \"{}{}\"", key, value, std::string(trailing, '\\'));
+        }
+
 #ifdef _WIN32
         // cmd.exe drops the first and last quote of a command that starts with one.
         command = "\"" + command + "\"";
@@ -106,7 +135,8 @@ namespace
 /// <summary>
 /// Runs the registered tests. Arguments are name filters (a test runs when its name holds any of them, ignoring case);
 /// <c>--list</c> prints the names instead, and <c>--only &lt;name&gt;</c> runs the one test of exactly that name in this
-/// process (how isolated tests are run). Exits 0 when every selected test passed.
+/// process (how isolated tests are run). Any other <c>--name value</c> is an option the tests read
+/// (<see cref="MCTest::Option"/>). Exits 0 when every selected test passed.
 /// </summary>
 int main(int argc, char** argv)
 {
@@ -125,6 +155,10 @@ int main(int argc, char** argv)
         else if (arg == "--only" && i + 1 < argc)
         {
             only = argv[++i];
+        }
+        else if (arg.starts_with("--") && arg.size() > 2 && i + 1 < argc)
+        {
+            Options().emplace_back(std::string(arg.substr(2)), argv[++i]);
         }
         else
         {

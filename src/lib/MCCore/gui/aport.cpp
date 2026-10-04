@@ -35,6 +35,8 @@ namespace
 
         if (window != nullptr)
         {
+            MCRenderer::DestroyTexture(window);
+
             if (window->buffer != nullptr)
             {
                 freePixels(window->buffer);
@@ -51,6 +53,8 @@ namespace
             return 3;
         }
 
+        window->View = nullptr;
+        window->Texture = nullptr;
         window->x_max = width - 1;
         window->y_max = height - 1;
 
@@ -88,6 +92,12 @@ namespace
         setExtent(window, pane, width, height);
         port->portWidth = width;
         port->portHeight = height;
+
+        if (window->buffer != nullptr)
+        {
+            MCRenderer::CreateTexture(window, MCTextureUse::Dynamic);
+        }
+
         return 0;
     }
 
@@ -95,7 +105,8 @@ namespace
     template <typename Alloc, typename Free>
     int32_t resizePort(aPort* port, int32_t width, int32_t height, Alloc allocPixels, Free freePixels)
     {
-        if (port != screenPort)
+        // Port: a view has no pixels to reallocate.
+        if (port != screenPort && !port->isView())
         {
             _window* window = port->portWindow;
 
@@ -110,6 +121,7 @@ namespace
         port->portHeight = height;
         setExtent(port->portWindow, port->portPane, width, height);
         port->portWidth = width;
+        MCRenderer::ResizeTexture(port->portWindow);
         return 0;
     }
 
@@ -118,6 +130,8 @@ namespace
     {
         if (port->portWindow != nullptr)
         {
+            MCRenderer::DestroyTexture(port->portWindow);
+
             if (port->portWindow->buffer != nullptr)
             {
                 freePixels(port->portWindow->buffer);
@@ -310,7 +324,9 @@ auto aPort::init(char* fileName) -> int32_t
         Fatal(result, message);
     }
 
-    std::memcpy(portPane->window->buffer, data + 0x312, static_cast<size_t>(height * width));
+    MCTexture* texture = portPane->window->Texture;
+    std::memcpy(MCRenderer::LockTexture(texture), data + 0x312, static_cast<size_t>(height * width));
+    MCRenderer::UnlockTexture(texture);
     std::free(data);
     return 0;
 }
@@ -327,8 +343,90 @@ auto aPort::resize(int32_t width, int32_t height) -> int32_t
     return resizePort(this, width, height, guiAlloc, guiFree);
 }
 
+auto aPort::initView(int32_t width, int32_t height) -> int32_t
+{
+    if (isView() && width == portWidth && height == portHeight)
+    {
+        return 0;
+    }
+
+    destroyPort(this, guiFree);
+    auto* window = static_cast<_window*>(guiHeap->malloc(sizeof(_window)));
+    auto* pane = static_cast<_pane*>(guiHeap->malloc(sizeof(_pane)));
+
+    if (window == nullptr || pane == nullptr)
+    {
+        return 3;
+    }
+
+    portWindow = window;
+    portPane = pane;
+    window->buffer = nullptr;
+    window->Texture = nullptr;
+    window->View = &view;
+    view = MCView{};
+    pane->x0 = 0;
+    pane->y0 = 0;
+    setExtent(window, pane, width, height);
+    portWidth = width;
+    portHeight = height;
+    return 0;
+}
+
+auto aPort::openView(_window* target, int32_t x, int32_t y, const MCRect& scissor, bool keyTransparent) -> void
+{
+    view.Target = target;
+    view.OriginX = x;
+    view.OriginY = y;
+    view.Scissor = scissor;
+    view.KeyTransparent = keyTransparent;
+
+    // A view as the target (a block drawn in place, see lBlockPort): the view lands on that view's target, moved by
+    // its origin and cut to its scissor; shut when it is.
+    if (const MCView* outer = target != nullptr ? target->View : nullptr; outer != nullptr)
+    {
+        if (outer->Target == nullptr || !outer->Open())
+        {
+            view.Target = nullptr;
+            closeView();
+            return;
+        }
+
+        view.Target = outer->Target;
+        view.OriginX += outer->OriginX;
+        view.OriginY += outer->OriginY;
+        view.Scissor.X0 = std::max({scissor.X0, 0}) + outer->OriginX;
+        view.Scissor.Y0 = std::max({scissor.Y0, 0}) + outer->OriginY;
+        view.Scissor.X1 = std::min(scissor.X1, target->x_max) + outer->OriginX;
+        view.Scissor.Y1 = std::min(scissor.Y1, target->y_max) + outer->OriginY;
+        view.Scissor.X0 = std::max(view.Scissor.X0, outer->Scissor.X0);
+        view.Scissor.Y0 = std::max(view.Scissor.Y0, outer->Scissor.Y0);
+        view.Scissor.X1 = std::min(view.Scissor.X1, outer->Scissor.X1);
+        view.Scissor.Y1 = std::min(view.Scissor.Y1, outer->Scissor.Y1);
+        view.KeyTransparent = keyTransparent || outer->KeyTransparent;
+    }
+}
+
+auto aPort::openViewOn(_pane* dest, int32_t xPos, int32_t yPos, bool keyTransparent) -> void
+{
+    // The block in the destination window's coordinates: the pane cut to its window, and to the view's size.
+    _window* target = dest->window;
+    const int32_t originX = dest->x0 + xPos;
+    const int32_t originY = dest->y0 + yPos;
+    const MCRect scissor{std::max({dest->x0, 0, originX}), std::max({dest->y0, 0, originY}),
+                         std::min({dest->x1, target->x_max, originX + portWidth - 1}),
+                         std::min({dest->y1, target->y_max, originY + portHeight - 1})};
+    openView(target, originX, originY, scissor, keyTransparent);
+}
+
 auto aPort::copyTo(_pane* dest, int32_t xPos, int32_t yPos, int transparent) -> void
 {
+    // Port: a view has no picture to copy (its owner draws itself in the frame pass).
+    if (isView())
+    {
+        return;
+    }
+
     if (transparent != 0)
     {
         _window* source = portPane->window;

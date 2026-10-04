@@ -1,0 +1,586 @@
+#pragma once
+
+#include "platform/MCPresenter.h"
+#include "platform/MCSoftwareRenderer.h"
+
+/// <summary>
+/// The hardware renderer: draws the frame surfaces (the screen and the world view's surface, see
+/// <see cref="MCRenderer::AddFrameSurface"/>) on the GPU, through SDL GPU on Vulkan, on the presenter's device.
+/// </summary>
+/// <remarks>
+/// <para>Commands are recorded as they come (resolved into draws: shaders/instance.vshader's <c>Draw</c>) and run when the
+/// frame is presented (<see cref="Execute"/>), in order, so the presenter composites what they drew. What a command
+/// reads is taken at the time of the call, as the software renderer reads it: shapes, tiles, fast shapes and glyphs are
+/// decoded into an atlas (value + state), kept by the address they're read from in a registered data block until its
+/// owner says the bytes changed (<see cref="MCRenderer::RegisterData"/>); pictures are their textures
+/// (<see cref="MCTexture"/>); tables get a row of the table texture, kept by their address in the same way.</para>
+/// <para>A surface holds colours (premultiplied RGBA, what the composite shows) and palette indices (what draws that
+/// read a surface read, see shaders/draw.pshader). Opaque draws write both, with the frame's palette; translucent and
+/// table-mapped draws are alpha blended into the colours by the GPU's blend (AlphaPal.ini's colours, not AlphaTable's)
+/// and never read the target. A copy within a surface reads a copy of its indices taken before it; consecutive such
+/// draws that don't touch each other's pixels share one copy.</para>
+/// <para>Integer arithmetic throughout: the GPU writes the software renderer's indices exactly wherever nothing was
+/// blended. Mirror mode (<see cref="MCGpuDrawing::Mirror"/>) draws both and compares them every frame
+/// (<see cref="Compare"/>), leaving out the pixels blended draws covered.</para>
+/// </remarks>
+class MCVulkanRenderer final : public MCRenderer
+{
+public:
+    /// <summary>Makes the renderer's pipelines and fixed textures on <paramref name="device"/>.</summary>
+    static std::expected<std::unique_ptr<MCVulkanRenderer>, std::string> Create(SDL_GPUDevice* device);
+
+    ~MCVulkanRenderer() override;
+
+    void Clear(_window* target, const MCRect& rect, uint8_t color) override;
+    void Hash(_window* target, const MCRect& rect, uint8_t color) override;
+    void Copy(_window* target, const MCCopyCommand& command) override;
+    void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) override;
+    void ShapeBlit(_window* target, const MCShapeBlitCommand& command) override;
+    void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override;
+    void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) override;
+    void Shape(_window* target, const MCShapeCommand& command) override;
+    void FastShape(_window* target, const MCFastShapeCommand& command) override;
+    void Tile(_window* target, const MCTileCommand& command) override;
+    void Polygon(_window* target, const MCPolygonCommand& command) override;
+    void MapQuad(_window* target, const MCMapQuadCommand& command) override;
+    void Line(_window* target, const MCLineCommand& command) override;
+    void Ellipse(_window* target, const MCEllipseCommand& command) override;
+    void StatusBar(_window* target, const MCStatusBarCommand& command) override;
+    void Glyph(_window* target, const MCGlyphCommand& command) override;
+    /// <summary>
+    /// Draws the frame's terrain tiles from the mesh in one draw (shaders/terrain.vshader), uploading the mesh and its
+    /// tiles when it is new; the pass's tile commands are then left. An error when the mesh can't be held or the fog of
+    /// war isn't a frame surface.
+    /// </summary>
+    std::expected<void, std::string> TerrainLayer(_window* target, const MCTerrainFrame& frame) override;
+    void EndTerrainLayer(_window* target) override;
+
+    /// <summary>
+    /// The colours the next <see cref="Execute"/> draws with: the palette as shown (gamma applied, 256 entries; null
+    /// keeps the last) and the colour cycle shown over it.
+    /// </summary>
+    void SetColors(const SDL_Color* palette, const MCColorCycle& cycle);
+
+    /// <summary>
+    /// Runs the commands recorded since the last call on <paramref name="commands"/>: uploads what they read, then
+    /// draws into the surfaces. The kept surfaces (the fog of war the terrain reads) are drawn first, then the
+    /// underlays (<paramref name="underlays"/>), then the rest. On a surface shown over an underlay the key colour is
+    /// drawn transparent.
+    /// </summary>
+    std::expected<void, std::string> Execute(SDL_GPUCommandBuffer* commands, std::span<const MCUnderlay> underlays);
+
+    /// <summary>
+    /// Runs the commands recorded so far (<see cref="Execute"/>) in a command buffer of its own: before a read of the
+    /// surfaces ahead of the frame's present, or for a frame that isn't shown.
+    /// </summary>
+    std::expected<void, std::string> Flush(std::span<const MCUnderlay> underlays);
+
+    /// <summary>
+    /// The colour texture of <paramref name="window"/>'s surface (premultiplied RGBA, as <see cref="Execute"/> left it)
+    /// and its size in use; null when the window has no surface yet.
+    /// </summary>
+    SDL_GPUTexture* SurfaceTexture(const _window* window, uint32_t& width, uint32_t& height) const;
+
+    /// <summary>
+    /// <paramref name="screen"/> in palette indices with its layout, for screenshots and tests: flushes, reads the
+    /// indices of the screen's surface and its underlays' back (waiting for the GPU), and puts the world pixel under
+    /// each key pixel's centre over an underlay. Blended colours aren't indices: their pixels keep the index under
+    /// them. Empty when the screen has no surface yet.
+    /// </summary>
+    std::expected<std::vector<uint8_t>, std::string> ReadShown(const _window* screen,
+                                                               std::span<const MCUnderlay> underlays);
+
+    /// <summary>The result of <see cref="Compare"/>.</summary>
+    struct Comparison
+    {
+        /// <summary>Pixels whose index differs, over every surface (those blended draws covered left out).</summary>
+        int64_t Different = 0;
+        /// <summary>What differed first, for the log ("" when nothing did).</summary>
+        std::string First;
+    };
+
+    /// <summary>
+    /// Mirror mode: downloads every surface's indices (waiting for the GPU) and compares them with the window's own
+    /// pixels, which the software renderer drew from the same commands, except where the last frame's blended draws
+    /// went (the software renderer maps those pixels through AlphaTable, the GPU blends their colours).
+    /// </summary>
+    std::expected<Comparison, std::string> Compare(std::span<const MCUnderlay> underlays, const SDL_Color* colors);
+
+    /// <summary>The comparisons so far (<see cref="Compare"/> keeps them, and logs the first frames that differ).</summary>
+    struct MirrorTally
+    {
+        int64_t Frames = 0;
+        int64_t DifferentFrames = 0;
+        /// <summary>The first frame that differed (its number among those compared) and what differed first in it.</summary>
+        int64_t FirstFrame = -1;
+        std::string First;
+        Comparison Last;
+    };
+
+    const MirrorTally& Mirror() const { return _Mirror; }
+
+    /// <summary>Starts the tally again.</summary>
+    void ResetMirror() { _Mirror = MirrorTally{}; }
+
+    /// <summary>
+    /// What a frame sent to the GPU besides its draws and tables: new pictures (whole textures from their pixels),
+    /// new movie frames (stream textures' locked rectangles, decoded on the CPU straight into upload memory: the one
+    /// upload expected every frame), and new atlas images.
+    /// </summary>
+    struct UploadTally
+    {
+        int64_t MovieFrames = 0;
+        int64_t MovieBytes = 0;
+        int64_t Pictures = 0;
+        int64_t PictureBytes = 0;
+        int64_t AtlasImages = 0;
+        int64_t AtlasBytes = 0;
+    };
+
+    /// <summary>The uploads of the last frame <see cref="Execute"/> ran.</summary>
+    const UploadTally& LastFrameUploads() const { return _LastFrameUploads; }
+
+    /// <summary>The terrain layers drawn from the mesh so far.</summary>
+    int64_t TerrainLayersDrawn() const { return _TerrainLayersDrawn; }
+
+    /// <summary>The commands the GPU can't draw yet that were asked of it (each logged once).</summary>
+    const std::map<std::string, int64_t>& Unsupported() const { return _Unsupported; }
+
+protected:
+    /// <summary>The alpha colours go up again before the next draws.</summary>
+    void OnAlphaTableChanged() override { _AlphaColorsChanged = true; }
+    /// <summary>Drops the images and table rows made from the changed or freed bytes (atlas places are left until it
+    /// starts again).</summary>
+    void OnDataChanged(const void* begin, size_t size) override;
+
+    /// <summary>The surface is let go: its commands still run, then its textures go (after the next execution).</summary>
+    void OnFrameSurfaceRemoved(const _window* window) override;
+
+private:
+    MCVulkanRenderer() = default;
+
+    /// <summary>A texture and its allocated size.</summary>
+    struct Texture
+    {
+        SDL_GPUTexture* Handle = nullptr;
+        uint32_t Width = 0;
+        uint32_t Height = 0;
+    };
+
+    /// <summary>A frame surface on the GPU.</summary>
+    struct Surface
+    {
+        const _window* Window = nullptr;
+        /// <summary>
+        /// The surface's colours (premultiplied RGBA) and indices (R8), both colour targets, and the copy of the indices
+        /// draws that read the surface itself read.
+        /// </summary>
+        Texture Target;
+        Texture Index;
+        Texture Copy;
+        /// <summary>The window rectangles blended draws covered in the frame being recorded, and in the last one run.</summary>
+        std::vector<MCRect> Blended;
+        std::vector<MCRect> LastBlended;
+        /// <summary>The size the commands recorded last saw (the window's).</summary>
+        uint32_t RecordedWidth = 0;
+        uint32_t RecordedHeight = 0;
+        /// <summary>
+        /// The size it is drawn at: the window's, or for a surface shown as an underlay, the rectangle it's shown in.
+        /// Its draws are scaled into that (shaders/draw.pshader), so the zoom costs nothing and the composite shows it
+        /// pixel for pixel.
+        /// </summary>
+        uint32_t DrawnWidth = 0;
+        uint32_t DrawnHeight = 0;
+        /// <summary>Execution: the part of the surface the copy holds, and what was drawn since it was taken.</summary>
+        MCRect Copied{0, 0, -1, -1};
+        std::vector<MCRect> DrawnSinceCopy;
+    };
+
+    /// <summary>What a draw reads its pixels from.</summary>
+    enum class SourceKind : uint8_t
+    {
+        None,
+        /// <summary>An atlas page (<c>SourceIndex</c>).</summary>
+        Atlas,
+        /// <summary>A picture's texture (<c>SourceIndex</c> into the frame's picture list).</summary>
+        Picture,
+        /// <summary>Another surface (<c>SourceIndex</c>).</summary>
+        Surface,
+        /// <summary>The target's own copy (a copy within the surface).</summary>
+        TargetCopy,
+        /// <summary>The frame's strip of written pixels (<see cref="Write"/>).</summary>
+        Strip
+    };
+
+    /// <summary>One recorded command: a run of draws with the same target and bindings, or a surface resize.</summary>
+    struct Record
+    {
+        bool Resize = false;
+        uint16_t SurfaceIndex = 0;
+        SourceKind Source = SourceKind::None;
+        uint32_t SourceIndex = 0;
+        /// <summary>Whether the draws are blended into the colours (the blend pipeline), or opaque.</summary>
+        bool Blend = false;
+        /// <summary>Whether the draws read the target's copy, and the part of the target they read.</summary>
+        bool ReadsCopy = false;
+        MCRect Reads{0, 0, -1, -1};
+        /// <summary>The part of the target drawn.</summary>
+        MCRect Writes{0, 0, -1, -1};
+        uint32_t First = 0;
+        uint32_t Count = 0;
+        /// <summary>A terrain layer (an index into the frame's terrain draws), or -1.</summary>
+        int32_t TerrainDraw = -1;
+    };
+
+    /// <summary>A frame's terrain layer: where it goes, the fog it reads and the numbers that place it.</summary>
+    struct TerrainDraw
+    {
+        uint16_t FogIndex = 0;
+        MCTerrainFrame Frame;
+        uint32_t HazeRows[3] = {};
+        /// <summary>The mesh's cells drawn (the rows of the grid).</summary>
+        uint32_t FirstCell = 0;
+        uint32_t CellCount = 0;
+    };
+
+    /// <summary>The terrain mesh on the GPU: its tiles' atlas, its cells and images (shaders/terrain.vshader).</summary>
+    struct TerrainMeshState
+    {
+        uint64_t Version = 0;
+        bool Usable = false;
+        Texture Atlas;
+        SDL_GPUBuffer* Cells = nullptr;
+        SDL_GPUBuffer* Images = nullptr;
+        int32_t FirstRow = 0;
+        int32_t FirstCol = 0;
+        int32_t Cols = 0;
+        int32_t Rows = 0;
+    };
+
+    /// <summary>The surface for <paramref name="window"/> (made on first use); records a resize when its size changed.</summary>
+    uint16_t SurfaceFor(const _window* window);
+    /// <summary>Starts a frame's recording, if this is its first command.</summary>
+    void BeginRecording();
+    /// <summary>
+    /// Adds a draw to the frame; returns false (and draws nothing) when its rectangle is empty. With
+    /// <paramref name="join"/>, the draw belongs to the same command as the one before and touches none of its pixels,
+    /// so it can read the same copy of the target.
+    /// </summary>
+    bool Add(uint16_t surface, SourceKind source, uint32_t sourceIndex, const int32_t rect[4],
+             const int32_t sourceAt[4], uint32_t op, uint32_t color, uint32_t before, uint32_t after,
+             bool join = false);
+    /// <summary>What a draw reads from a window: its surface, the target's copy, or a picture of its pixels.</summary>
+    struct SourceRef
+    {
+        SourceKind Kind = SourceKind::None;
+        uint32_t Index = 0;
+    };
+
+    std::optional<SourceRef> SourceFor(uint16_t target, const _window* window);
+    /// <summary>
+    /// Adds a span of a polygon or quadrilateral (<paramref name="from"/>: the texture's width and height for a texel
+    /// walk), with its values.
+    /// </summary>
+    bool AddSpan(uint16_t surface, const SourceRef& source, const int32_t at[4], const int32_t from[4], uint32_t op,
+                 uint32_t color, uint32_t before, uint32_t after, const MCSpan& span, bool join);
+    /// <summary>The frame's picture index of the picture keyed by <paramref name="key"/>; a new one is
+    /// <paramref name="width"/> x <paramref name="height"/> bytes that <paramref name="fill"/> writes.</summary>
+    std::optional<uint32_t> PictureForKey(uint64_t key, uint32_t width, uint32_t height,
+                                          const std::function<void(uint8_t*)>& fill);
+    /// <summary>
+    /// The frame's picture index of <paramref name="texture"/>: its GPU copy, uploaded again first when its pixels
+    /// changed. Pixels changed after a draw of this frame read the copy go into a picture for the rest of the frame.
+    /// </summary>
+    std::optional<uint32_t> PictureOf(MCTexture* texture);
+    /// <summary>
+    /// Adds a blended blit (CopySprite) of a picture <paramref name="width"/> x <paramref name="height"/>, which
+    /// <paramref name="picture"/> gives once the blit is known to stay inside it (else <paramref name="command"/> is
+    /// noted as not supported).
+    /// </summary>
+    void BlitPicture(_window* target, const MCAlphaBlitCommand& blit, int32_t width, int32_t height,
+                     const char* command, const std::function<std::optional<uint32_t>()>& picture);
+    /// <summary>A registered table's row of the table texture, and a number no other table's bytes ever had.</summary>
+    struct TableSlot
+    {
+        uint32_t Row = 0;
+        uint64_t Id = 0;
+    };
+
+    /// <summary>
+    /// The slot of the table at <paramref name="table"/> (a row taken from its bytes the first time); null when it
+    /// lies outside every registered table block (noted as unregistered).
+    /// </summary>
+    const TableSlot* TableSlotOf(const uint8_t* table);
+    /// <summary>The table texture's row of <paramref name="table"/> (<see cref="TableSlotOf"/>; 0, the identity,
+    /// when unregistered).</summary>
+    uint32_t TableRow(const uint8_t* table);
+    /// <summary>Puts the alpha colours (MCAlphaColors) in the alpha texture's form into the uploads.</summary>
+    void UploadAlphaColors();
+    /// <summary>
+    /// Puts the new table rows into the uploads, with their fits (all of them when the colours changed or the textures
+    /// grew).
+    /// </summary>
+    std::expected<void, std::string> UploadTables();
+    /// <summary>
+    /// The fit of table row <paramref name="row"/> into <paramref name="fit"/>: the premultiplied colour and coverage
+    /// whose blend best gives what the table does to the palette's colours (least squares over the free colours).
+    /// </summary>
+    void FitTable(uint32_t row, float* fit) const;
+    /// <summary>
+    /// A new atlas place that <paramref name="decode"/> fills (width x height pixels of value + state); none when it
+    /// doesn't fit a page.
+    /// </summary>
+    struct AtlasPlace
+    {
+        uint32_t Page = 0;
+        int32_t X = 0;
+        int32_t Y = 0;
+    };
+
+    std::optional<AtlasPlace> AtlasFor(int32_t width, int32_t height, const std::function<void(uint8_t*)>& decode);
+    /// <summary>An encoded image's extent: its bytes, and the width and height it decodes to.</summary>
+    struct Extent
+    {
+        size_t Size = 0;
+        int32_t Width = 0;
+        int32_t Height = 0;
+    };
+
+    /// <summary>
+    /// An image made from registered data (<see cref="MCRenderer::RegisterData"/>): its extent, its atlas place (none
+    /// when it has no pixels or doesn't fit a page) or, for a shape transform's picture, its picture's number.
+    /// </summary>
+    struct DataImage
+    {
+        Extent Measured;
+        std::optional<AtlasPlace> Place;
+        uint64_t PictureId = 0;
+        /// <summary>Mirror mode: the bytes it was made from, to catch a change nobody announced.</summary>
+        std::vector<uint8_t> Bytes;
+    };
+
+    /// <summary>
+    /// The image encoded at <paramref name="data"/> (with <paramref name="seed"/>: what else its decoding depends on),
+    /// found by its address, or measured (<paramref name="measure"/> walks the encoding) and kept. Null when the data
+    /// lies outside every registered block, or reaches past its own (noted as unregistered, <paramref name="what"/>).
+    /// </summary>
+    DataImage* ImageOf(const uint8_t* data, uint64_t seed, const char* what, const std::function<Extent()>& measure);
+
+    /// <summary>
+    /// <see cref="ImageOf"/>, with the image in the atlas: <paramref name="decode"/> decodes it the first time.
+    /// </summary>
+    DataImage* AtlasForData(const uint8_t* data, uint64_t seed, const char* what,
+                            const std::function<Extent()>& measure,
+                            const std::function<void(uint8_t*, const Extent&)>& decode);
+    /// <summary>The frame's picture index of <paramref name="window"/>'s pixels (uploaded when new).</summary>
+    std::optional<uint32_t> PictureFor(const _window* window);
+    /// <summary>Queues <paramref name="size"/> bytes for an upload into a rectangle of a texture.</summary>
+    uint8_t* QueueUpload(SDL_GPUTexture* texture, uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+                         uint32_t bytesPerPixel);
+    /// <summary>Notes a command the GPU can't draw yet.</summary>
+    void NotSupported(const char* command);
+
+    std::expected<void, std::string> EnsureTexture(Texture& texture, SDL_GPUTextureFormat format,
+                                                   SDL_GPUTextureUsageFlags usage, uint32_t width, uint32_t height);
+    void Release(Texture& texture);
+    /// <summary>Takes the copy of a surface's <paramref name="rect"/> (window pixels; between render passes).</summary>
+    void TakeCopy(SDL_GPUCommandBuffer* commands, Surface& surface, const MCRect& rect);
+    /// <summary>Sets each surface's drawn size for this frame (<paramref name="underlays"/> are drawn as shown).</summary>
+    void PlaceSurfaces(std::span<const MCUnderlay> underlays);
+    /// <summary>(Re)makes a surface's textures at its drawn size and clears them, as a window's new pixels start.</summary>
+    std::expected<void, std::string> MakeSurfaceTextures(SDL_GPUCommandBuffer* commands, Surface& surface);
+    /// <summary>Puts <paramref name="mesh"/> on the GPU (its tiles in the terrain atlas, its cells and images).</summary>
+    std::expected<void, std::string> UploadTerrainMesh(const MCTerrainMesh& mesh);
+    /// <summary>Releases the terrain mesh's textures and buffers.</summary>
+    void ReleaseTerrainMesh();
+    /// <summary>Queues <paramref name="size"/> bytes for an upload into a buffer.</summary>
+    uint8_t* QueueBufferUpload(SDL_GPUBuffer* buffer, uint32_t size);
+    /// <summary>Execution: draws a terrain layer in the render pass under way.</summary>
+    void DrawTerrain(SDL_GPUCommandBuffer* commands, SDL_GPURenderPass* pass, const Surface& surface,
+                     const TerrainDraw& draw, const void* frameUniforms, size_t frameSize);
+    /// <summary>Reads <paramref name="surfaces"/>' indices back (each its texture's size), waiting for the GPU.</summary>
+    std::expected<std::vector<std::vector<uint8_t>>, std::string> Download(std::span<const Surface* const> surfaces);
+
+    SDL_GPUDevice* _Device = nullptr;
+    SDL_GPUShader* _VertexShader = nullptr;
+    SDL_GPUShader* _FragmentShader = nullptr;
+    /// <summary>Opaque draws (colours and indices written), and blended ones (alpha blended into the colours).</summary>
+    SDL_GPUGraphicsPipeline* _Opaque = nullptr;
+    SDL_GPUGraphicsPipeline* _Blend = nullptr;
+    /// <summary>The terrain layer's vertex shader and pipeline (opaque, with the draw fragment shader).</summary>
+    SDL_GPUShader* _TerrainShader = nullptr;
+    SDL_GPUGraphicsPipeline* _TerrainPipeline = nullptr;
+    TerrainMeshState _TerrainMesh;
+    std::vector<TerrainDraw> _TerrainDraws;
+    /// <summary>The surface whose tile commands a terrain layer drew (-1: none).</summary>
+    int32_t _TerrainLayerSurface = -1;
+    int64_t _TerrainLayersDrawn = 0;
+
+    /// <summary>Uploads into buffers waiting for the next <see cref="Execute"/>.</summary>
+    struct BufferUpload
+    {
+        SDL_GPUBuffer* Buffer;
+        uint32_t Size;
+        size_t Offset;
+    };
+
+    std::vector<BufferUpload> _BufferUploads;
+    SDL_GPUSampler* _Nearest = nullptr;
+    /// <summary>A 1x1 texture bound where a draw has no source or no world.</summary>
+    Texture _Blank;
+
+    std::vector<Surface> _Surfaces;
+
+    // The frame being recorded.
+    bool _Recording = false;
+    uint64_t _Frame = 0;
+    std::vector<Record> _Records;
+    std::vector<std::array<int32_t, 20>> _Draws;
+    /// <summary>
+    /// The table rows (256 bytes each, row 0 the identity) and the texture holding them. A row stays while its table
+    /// does; rows dropped (the table changed or went) are free again from the next frame on (<c>_ReleasedRows</c>,
+    /// the frame recorded may still read them), and new rows go up with their fits at <see cref="Execute"/>.
+    /// </summary>
+    std::vector<uint8_t> _Tables;
+    std::map<const uint8_t*, TableSlot> _TableSlots;
+    std::vector<uint32_t> _FreeRows;
+    std::vector<uint32_t> _ReleasedRows;
+    std::vector<uint32_t> _NewRows;
+    uint64_t _LastTableId = 0;
+    Texture _TableTexture;
+    /// <summary>
+    /// The alpha colours (RGBA32F, a column each: row 0 the kind, row 1 the premultiplied colour and coverage), whether
+    /// they must go up again, and the table rows' fits (RGBA32F, a row each).
+    /// </summary>
+    Texture _AlphaTexture;
+    bool _AlphaColorsChanged = true;
+    Texture _FitTexture;
+    /// <summary>The palette drawn with (RGBA8, 256 x 1), its colours, whether they changed, and the colour cycle.</summary>
+    Texture _PaletteTexture;
+    std::array<SDL_Color, 256> _Colors{};
+    bool _ColorsChanged = true;
+    MCColorCycle _Cycle;
+    /// <summary>The pixels <see cref="Write"/> was given this frame: a row each (StripWidth wide), and the texture.</summary>
+    std::vector<uint8_t> _StripPixels;
+    uint32_t _StripRows = 0;
+    Texture _Strip;
+
+    /// <summary>
+    /// Uploads waiting for the next <see cref="Execute"/>, run in order: from <c>Buffer</c> at <c>Offset</c>
+    /// (<c>_Transfer</c> when null; rows <c>RowPixels</c> apart, <c>Width</c> when 0), or with <c>From</c> set, a copy of
+    /// the same rectangle from that texture. A null <c>Texture</c> was dropped.
+    /// </summary>
+    struct Upload
+    {
+        SDL_GPUTexture* Texture;
+        uint32_t X;
+        uint32_t Y;
+        uint32_t Width;
+        uint32_t Height;
+        uint32_t BytesPerPixel;
+        size_t Offset;
+        SDL_GPUTransferBuffer* Buffer = nullptr;
+        uint32_t RowPixels = 0;
+        SDL_GPUTexture* From = nullptr;
+    };
+
+    std::vector<Upload> _Uploads;
+    std::vector<uint8_t> _Staging;
+    SDL_GPUTransferBuffer* _Transfer = nullptr;
+    uint32_t _TransferSize = 0;
+    SDL_GPUBuffer* _DrawBuffer = nullptr;
+    uint32_t _DrawBufferSize = 0;
+
+    /// <summary>The atlas: pages of value + state (R8G8), filled in shelves.</summary>
+    struct Page
+    {
+        Texture Texture;
+        int32_t ShelfX = 0;
+        int32_t ShelfY = 0;
+        int32_t ShelfHeight = 0;
+    };
+
+    std::vector<Page> _Pages;
+
+    /// <summary>The images made from registered data, by the address they're read from and their seed.</summary>
+    std::map<std::pair<const uint8_t*, uint64_t>, DataImage> _DataImages;
+    /// <summary>The last picture number handed out (<c>DataImage::PictureId</c>).</summary>
+    uint64_t _LastPictureId = 0;
+
+    /// <summary>Pictures (windows in memory) by content, and when each was used last.</summary>
+    struct Picture
+    {
+        Texture Texture;
+        uint64_t LastFrame = 0;
+    };
+
+    std::unordered_map<uint64_t, Picture> _Pictures;
+    size_t _PictureBytes = 0;
+
+    /// <summary>Marks <paramref name="picture"/> used this frame; returns its frame picture index.</summary>
+    uint32_t UsePicture(Picture& picture);
+
+    /// <summary>The frame's pictures in use (their textures).</summary>
+    std::vector<SDL_GPUTexture*> _FramePictures;
+
+    /// <summary>
+    /// What is kept for a texture (its <c>MCTexture::Hardware</c>): its GPU copy, and its place in
+    /// <c>_FramePictures</c> during frame <c>Frame</c>. <c>Behind</c>: the copy is older than the pixels (they changed
+    /// after a draw of that frame read it, and went into a picture of their own).
+    /// </summary>
+    struct TextureState
+    {
+        Texture Copy;
+        uint64_t Frame = ~0ull;
+        uint32_t Index = 0;
+        bool Behind = false;
+        /// <summary>Mirror mode: the pixels last uploaded, to catch a change nobody announced.</summary>
+        std::vector<uint8_t> Uploaded;
+        /// <summary>
+        /// A stream texture's upload memory (its size), and the frame and <c>_Uploads</c> entry of the stream upload
+        /// queued last.
+        /// </summary>
+        SDL_GPUTransferBuffer* Stream = nullptr;
+        uint32_t StreamSize = 0;
+        uint64_t StreamFrame = ~0ull;
+        size_t StreamUpload = 0;
+    };
+
+    /// <summary>What is kept for <paramref name="texture"/> (made when missing).</summary>
+    TextureState& StateOf(MCTexture* texture);
+    /// <summary>
+    /// Makes <paramref name="texture"/>'s GPU copy and uploads its pixels whole into it when it has none, its pixels
+    /// changed, or it is behind them.
+    /// </summary>
+    std::expected<void, std::string> UploadWhole(MCTexture* texture, TextureState& state);
+    /// <summary>
+    /// Draws of this frame that read <paramref name="state"/>'s picture keep what they read: they move to a copy of
+    /// it taken now (in upload order), so uploads queued from here on reach only the draws after them.
+    /// </summary>
+    std::expected<void, std::string> KeepFramePicture(MCTexture* texture, TextureState& state);
+    /// <summary>Maps <paramref name="texture"/>'s stream upload memory for its <c>Locked</c> rows.</summary>
+    std::expected<uint8_t*, std::string> MapStream(MCTexture* texture, TextureState& state);
+
+    /// <summary>Drops what is kept for a texture (its copy goes once the frame recorded has run).</summary>
+    void OnTextureReleased(MCTexture* texture) override;
+    /// <summary>Maps the texture's own upload memory, cycled so a frame in flight is never waited on.</summary>
+    uint8_t* OnLockStream(MCTexture* texture) override;
+    /// <summary>Queues the locked rectangle's upload from that memory (filled from <paramref name="pixels"/> when
+    /// given).</summary>
+    void OnUnlockStream(MCTexture* texture, const uint8_t* pixels) override;
+
+    /// <summary>Textures and transfer buffers to release after the next execution (the frame recorded may still read
+    /// them).</summary>
+    std::vector<Texture> _Retired;
+    std::vector<SDL_GPUTransferBuffer*> _RetiredTransfers;
+
+    std::map<std::string, int64_t> _Unsupported;
+    /// <summary>The uploads of the frame being recorded, and of the last one run.</summary>
+    UploadTally _FrameUploads;
+    UploadTally _LastFrameUploads;
+    /// <summary>The span walks' state (as the software renderer keeps its own).</summary>
+    MCSpanState _Spans;
+    MirrorTally _Mirror;
+    /// <summary>The surfaces dumped (-gpudump).</summary>
+    std::set<const _window*> _Dumped;
+};

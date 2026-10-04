@@ -7,6 +7,7 @@ class aSmackerWindow;
 class BriefingBox;
 class LogMech;
 class LogVehicle;
+class MechBriefBlock;
 class ScrollPane;
 struct SmackTag;
 
@@ -34,9 +35,19 @@ public:
     /// <remarks>MCX.EXE @ 0x006db5b0</remarks>
     void display() override;
 
-    /// <summary>Nothing: the screen is drawn piecewise.</summary>
+    /// <summary>
+    /// Port: draws the screen from its state (<see cref="PaintLook"/>) and the shared places
+    /// (<see cref="LogScreenChrome"/>) in the frame pass. The original's draw did nothing (the screen was drawn
+    /// piecewise into its picture).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006db6d0</remarks>
     void draw() override;
+
+    /// <summary>Port: the screen draws itself each frame (its port is a view).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>Port: see <see cref="LogScreenChrome"/>.</summary>
+    LogScreenChrome* Chrome() override { return &chrome; }
 
     /// <remarks>MCX.EXE @ 0x006db6e0</remarks>
     void destroy() override;
@@ -75,6 +86,37 @@ public:
     /// <summary>Refills the deploy scroll pane with a block for every undeployed mech and vehicle.</summary>
     /// <remarks>MCX.EXE @ 0x006dd410</remarks>
     void setUpDeploy();
+
+    /// <summary>Port: takes <paramref name="child"/> off the screen: a unit block leaves its drop slot, a box the box area.</summary>
+    void removeChild(aObject* child) override;
+
+    /// <summary>
+    /// Port: draws the screen from its state into <paramref name="target"/> (screen coordinates): the art, the map, the
+    /// lance labels, the tonnage bar and launch button, the tab, the operation area, the drop slots with their units
+    /// and the briefing box. The original painted these into the screen's picture as events changed them.
+    /// </summary>
+    void PaintLook(PANE* target);
+
+    /// <summary>Port: a new screen-sized picture holding <see cref="PaintLook"/> (for transitions).</summary>
+    lPort* NewLookPicture();
+
+    /// <summary>Port: the drop slot whose top left corner is (<paramref name="xPos"/>, <paramref name="yPos"/>), or -1.</summary>
+    int32_t SlotAt(int32_t xPos, int32_t yPos) const;
+
+    /// <summary>Port: <paramref name="block"/> is in the drop slot at its corner: drawn there from now on.</summary>
+    void PlaceInSlot(MechBriefBlock* block);
+
+    /// <summary>Port: <paramref name="block"/> was picked up out of its slot (which shows empty again).</summary>
+    void LiftFromSlot(MechBriefBlock* block);
+
+    /// <summary>Port: <paramref name="box"/> shows in the briefing box area.</summary>
+    void ShowBox(BriefingBox* box);
+
+    /// <summary>Port: the briefing box area shows blank (colour 0x10).</summary>
+    void BlankBox();
+
+    /// <summary>Port: lance <paramref name="lance"/>'s tonnage as its label shows it (what calcTonnages counts).</summary>
+    int32_t LanceTons(int32_t lance) const;
 
     /// <summary>How many mechs are waiting to be deployed.</summary>
     int32_t numUndeployed = 0; // +0x4bc
@@ -121,6 +163,38 @@ public:
     int32_t currentTab = 0; // +0x5c4
     /// <summary>Set once the operation movie has been started by <see cref="display"/>.</summary>
     int32_t movieStarted = 0; // +0x5c8
+
+    /// <summary>Port: what the screen shows of the shared places.</summary>
+    LogScreenChrome chrome;
+
+    // Port: the screen's own state that PaintLook draws (the rest is the game's: the drop slots, the tab, the chat
+    // blink, the tonnages). drawBackground (a new mission) resets it.
+
+    /// <summary>Port: the mission's tac map picture, turned onto the map area (null before drawBackground).</summary>
+    lPort* mapPicture = nullptr;
+    /// <summary>Port: the first drop zone marked on the map (multiplayer), or -1.</summary>
+    int32_t markedZone = -1;
+    /// <summary>Port: the map's world units per pixel, for the drop zone markers.</summary>
+    float markerScale = 0.0f;
+    /// <summary>Port: the launch button was clicked: it shows pressed until the release (or while locked).</summary>
+    bool launchPressed = false;
+    /// <summary>
+    /// Port: how far the operation area has got: its art shown (<see cref="setUpOperation"/>), and the operation
+    /// picture over it (before the movie). The movie's closing art shows over both once the movie is over.
+    /// </summary>
+    bool operationShown = false;
+    bool operationPictureShown = false;
+    /// <summary>Port: the block in each drop slot, if any.</summary>
+    MechBriefBlock* slotBlocks[12] = {};
+    /// <summary>Port: the box shown in the briefing box area (null: the area is blank).</summary>
+    BriefingBox* boxShown = nullptr;
+
+private:
+    /// <summary>Port: back to the screen's art alone: no units in the slots, no box, no operation art.</summary>
+    void ClearLook();
+
+    /// <summary>Port: draws the tonnage bar (what <see cref="drawTonnageBar"/> painted) into <paramref name="target"/>.</summary>
+    static void PaintTonnageBar(PANE* target, int32_t maxTons, int32_t tons, bool hammerDown);
 };
 
 /// <summary>
@@ -154,6 +228,19 @@ public:
     /// <summary>Draws the unit's picture, name and tonnage.</summary>
     /// <remarks>MCX.EXE @ 0x006deb90</remarks>
     void drawBackground();
+
+    /// <summary>
+    /// Port: draws the block's picture (the unit's picture and name, darkened when another player's, with a bevelled
+    /// frame when <paramref name="framed"/>) at (<paramref name="xPos"/>, <paramref name="yPos"/>) in
+    /// <paramref name="target"/>: what <see cref="drawBackground"/> painted into its parent's picture.
+    /// </summary>
+    void PaintBlock(PANE* target, int32_t xPos, int32_t yPos, bool framed);
+
+    /// <summary>
+    /// Port: draws the drag icon's picture into <paramref name="surface"/> (0x34 x 0x2e): the block framed over the
+    /// empty slot when it is in a drop slot, unframed over colour 0x10 in the deploy pane.
+    /// </summary>
+    void OnBeginDrag(lPort* surface);
 
     /// <summary>The mech shown, or null for a vehicle.</summary>
     LogMech* mech = nullptr; // +0x4bc

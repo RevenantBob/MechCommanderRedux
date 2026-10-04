@@ -31,16 +31,6 @@ namespace
         port = nullptr;
     }
 
-    /// <summary>A port loaded from "<c>artPath</c>logart\<paramref name="name"/>".</summary>
-    lPort* loadArt(const char* name)
-    {
-        char fileName[256];
-        auto* port = new lPort;
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\%s", artPath, name);
-        port->init(fileName);
-        return port;
-    }
-
     /// <summary>Puts string <paramref name="id"/> on the ticker.</summary>
     void showHelp(uint32_t id)
     {
@@ -60,15 +50,11 @@ auto PurchaseScreen::init() -> void
     purVehiclePort = nullptr;
     int32_t result = lObject::init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
     Assert(result == 0, result, "Unable to init purchase screen", nullptr);
+    // The original loaded the background (lspbk00) as the screen's picture and pasted the mech inventory header into
+    // it; the screen draws both each frame.
+    initLive("lspbk00.tga");
+    info.header = 0;
     char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lspbk00.tga", artPath);
-    result = lport()->init(fileName);
-    Assert(result == 0, result, "Unable to init purchase screen image", nullptr);
-
-    // The mech inventory header.
-    lPort* header = loadArt("lscdwm.tga");
-    VFX_pane_copy(header->frame(), 0, 0, lport()->frame(), 0xc4, 0x65, -1);
-    delete header;
 
     auto* pane = new ScrollPane;
 
@@ -145,9 +131,9 @@ auto PurchaseScreen::destroy() -> void
 
 auto PurchaseScreen::drawBackground() -> void
 {
-    lPort* background = loadArt("lspbk00.tga");
-    VFX_pane_copy(background->frame(), 0, 0, lport()->frame(), 0, 0, -1);
-    delete background;
+    // The background art was painted over everything the screen showed.
+    chrome.Clear();
+    info.Clear();
 }
 
 auto PurchaseScreen::handleEvent(aEvent* event) -> void
@@ -180,14 +166,12 @@ auto PurchaseScreen::handleEvent(aEvent* event) -> void
         else if (inside(2, 0x10, 0xd0, 0x21))
         {
             showHelp(0x286);
-            lPort* highlight =
-                MPlayer == nullptr ? globalLogPtr->screenButtonPorts[0][1] : globalLogPtr->screenButtonPorts[1][1];
-            highlight->copyTo(lport()->frame(), 2, 0x10, -1);
+            globalLogPtr->hoverScreenButton(this, 0);
         }
         else if (inside(2, 0x22, 0xd0, 0x33))
         {
             showHelp(0x1e);
-            globalLogPtr->screenButtonPorts[2][1]->copyTo(lport()->frame(), 2, 0x22, -1);
+            globalLogPtr->hoverScreenButton(this, 1);
         }
         else if (inside(2, 0x34, 0xd0, 0x45))
         {
@@ -196,7 +180,7 @@ auto PurchaseScreen::handleEvent(aEvent* event) -> void
         else if (inside(2, 0x46, 0xd0, 0x57))
         {
             showHelp(0x42);
-            globalLogPtr->screenButtonPorts[4][1]->copyTo(lport()->frame(), 2, 0x46, -1);
+            globalLogPtr->hoverScreenButton(this, 3);
         }
         else if (inside(0x20c, 2, 0x24d, 0xd))
         {
@@ -360,9 +344,7 @@ auto PurchaseScreen::handleEvent(aEvent* event) -> void
         case 0x13:
         {
             // Blink the briefing button.
-            lPort* picture =
-                briefingBlink == 0 ? globalLogPtr->screenButtonPorts[2][0] : globalLogPtr->screenButtonPorts[2][1];
-            picture->copyTo(lport()->frame(), 2, 0x22, -1);
+            chrome.blinkLit = briefingBlink != 0;
             briefingBlink = briefingBlink == 0 ? 1 : 0;
             break;
         }

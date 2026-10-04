@@ -7,6 +7,7 @@
 class aFont;
 class FitIniFile;
 class FIDPSession;
+class FileScrollPane;
 
 /// <summary>A button's callback on the logistics screens: an <see cref="aCallback"/> on the logistics heap.</summary>
 /// <remarks>Original source: <c>logistics\loggen.cpp</c>, 0x10 bytes (no fields of its own).</remarks>
@@ -38,13 +39,20 @@ public:
     /// <remarks>MCX.EXE @ 0x006e44e0</remarks>
     void destroy() override;
 
-    /// <summary>Draws the picture for the button's state (gray, pressed, over, up) or wipes to the back color.</summary>
+    /// <summary>
+    /// Shows the picture for the button's state: gray while disabled, down while <see cref="pressed"/> or held (grabbed
+    /// with the mouse over it), over while the mouse is over it, else up; the back colour when that picture is
+    /// missing. Port: drawn each frame from the state.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e49d0</remarks>
     void draw() override;
 
+    /// <summary>Port: the button draws itself each frame from its state.</summary>
+    bool DrawsLive() override { return true; }
+
     /// <summary>
     /// On a click: plays the press sound and runs the callback (or the "disabled" sound when grayed), then passes the
-    /// event to the event routine.
+    /// event to the event routine. Port: a release ends the press shown.
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006e4930</remarks>
     void handleEvent(aEvent* event) override;
@@ -53,16 +61,29 @@ public:
     /// <remarks>MCX.EXE @ 0x006e4af0</remarks>
     void enter() override;
 
-    /// <summary>The mouse left the button: drops the highlight.</summary>
+    /// <summary>The mouse left the button: drops the highlight (and a press still shown).</summary>
     /// <remarks>MCX.EXE @ 0x006e0690</remarks>
     void leave() override
     {
         if (overState)
         {
             overState = 0;
-            draw();
+
+            if (heldButton == this)
+            {
+                LetGoPress();
+            }
         }
     }
+
+    /// <summary>Port: the button shows pressed (a click on it); any other button's press ends.</summary>
+    void Press();
+
+    /// <summary>
+    /// Port: the press shown ends (the release, the mouse leaving or coming back, or a screen shown afresh: the
+    /// original's next paint showed the button up).
+    /// </summary>
+    static void LetGoPress();
 
     /// <remarks>MCX.EXE @ 0x006e06b0</remarks>
     virtual lPort* getUpPicture() { return upPicture; }
@@ -89,7 +110,10 @@ public:
     /// <remarks>MCX.EXE @ 0x006e4870</remarks>
     int32_t setDownPicture(char* fileName);
 
-    /// <summary>Nonzero for one draw after a click: shows the down picture.</summary>
+    /// <summary>
+    /// Nonzero from a click: shows the down picture. Port: until the release or the mouse leaving (the original's next
+    /// paint showed it up again).
+    /// </summary>
     int32_t pressed = 0;                 // +0x4bc
     lPort* upPicture = nullptr;          // +0x4c0
     lPort* downPicture = nullptr;        // +0x4c4
@@ -104,6 +128,17 @@ public:
     uint32_t pressSound = 0xf; // +0x4dc
     /// <summary>The digital sample played when the mouse comes over the button (the ini's OverSFX; -1 = none).</summary>
     uint32_t overSound = 0xffffffff; // +0x4e0
+
+    /// <summary>Port: the button shown pressed (one mouse: one press at a time), or null.</summary>
+    static inline lButton* heldButton = nullptr;
+
+protected:
+    /// <summary>
+    /// Port: draws <paramref name="picture"/> as the button's face (with 0xff as a colour key when
+    /// <paramref name="keyed"/>), or fills the button with its back colour when there is none, then the background and
+    /// children as an lObject. Only in the frame pass.
+    /// </summary>
+    void drawFace(lPort* picture, bool keyed);
 };
 
 /// <summary>
@@ -139,13 +174,24 @@ public:
     /// <remarks>MCX.EXE @ 0x006e1400</remarks>
     void destroy() override;
 
-    /// <summary>Wipes the port and writes the text.</summary>
+    /// <summary>
+    /// Wipes the field, writes the text and draws the cursor when it has a valid position (lit, or in the field's
+    /// colour; the original drew the cursor in display, over the picture).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006e1460</remarks>
     void draw() override;
 
-    /// <summary>Draws the cursor (when it has a valid position), then displays as an <see cref="lObject"/>.</summary>
+    /// <summary>Displays as an <see cref="lObject"/> (the cursor is drawn by <see cref="draw"/>).</summary>
     /// <remarks>MCX.EXE @ 0x006e14b0</remarks>
     void display() override;
+
+    /// <summary>Port: the field draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: an edit puts the cursor back to its first blink phase (the original's paint after an edit did).
+    /// </summary>
+    void RestartBlink();
 
     /// <summary>Moves the cursor to character <paramref name="pos"/> and works out its pixel position.</summary>
     /// <remarks>MCX.EXE @ 0x006e1520</remarks>
@@ -224,9 +270,12 @@ public:
     /// <remarks>MCX.EXE @ 0x006e6650</remarks>
     void draw() override;
 
-    /// <summary>Copies the visible part of the port (scrolled by <see cref="firstPixel"/>) to the screen.</summary>
+    /// <summary>Draws the visible part of the lines (scrolled by <see cref="firstPixel"/>), then the children.</summary>
     /// <remarks>MCX.EXE @ 0x006e6990</remarks>
     void display() override;
+
+    /// <summary>Port: the list draws itself each frame; its port is a view as tall as all its lines.</summary>
+    bool DrawsLive() override { return true; }
 
     /// <remarks>MCX.EXE @ 0x006e6a20</remarks>
     void resize(int32_t width, int32_t height) override;
@@ -311,9 +360,15 @@ public:
     /// <remarks>MCX.EXE @ 0x006e7110</remarks>
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
 
-    /// <summary>Rebuilds the lines from the session list ("name  players" or "name FULL").</summary>
+    /// <summary>Port: draws the lines as an <see cref="lScrollTextObject"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006e7160</remarks>
     void draw() override;
+
+    /// <summary>
+    /// Port: the first part of the original's draw: rebuilds the lines from the session list ("name  players" or
+    /// "name FULL", the selection highlighted). Called when the sessions or the selection change.
+    /// </summary>
+    void RebuildLines();
 
     /// <summary>A click selects a game; a refresh (event 0x13) re-reads the sessions from the session manager.</summary>
     /// <remarks>MCX.EXE @ 0x006e72c0</remarks>
@@ -352,6 +407,9 @@ public:
     /// <remarks>MCX.EXE @ 0x006e7720</remarks>
     void draw() override;
 
+    /// <summary>Port: the slider draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
     /// <summary>Sets the value, clamped to [<see cref="minValue"/>, <see cref="maxValue"/>].</summary>
     /// <remarks>MCX.EXE @ 0x006e77b0</remarks>
     void setCurrentValue(int32_t value);
@@ -365,6 +423,148 @@ public:
     int32_t currentValue = 0; // +0x4c4
     /// <summary>The thumb picture.</summary>
     lPort* thumbPort = nullptr; // +0x4c8
+};
+
+/// <summary>
+/// Port-only: a drop-down list for the logistics screens (the preferences screen's DIFFICULTY and RENDERER). A field
+/// shows the current choice; a click opens a list of the choices below it, a click on a row chooses it. The control
+/// edits a setting it points at (its model): what it shows is always the setting's value, so a setting changed
+/// elsewhere (CANCEL putting the old one back) shows at once. It draws every frame from its state, in the preferences
+/// panel's style: a 0x14 outline, white font in 0xe3, the hovered row lit in 0x14.
+/// </summary>
+/// <remarks>
+/// While open the control is taller (the list is part of it), in front of its siblings and holds the mouse grab, so
+/// every mouse and key event comes to it until it closes: a press outside closes it without a change. A choice that
+/// changes the setting runs the changed routine once, after the grab is let go.
+/// Mouse: a click on the field opens or closes; a release over a row chooses it (also at the end of a drag from the
+/// field); the wheel moves the choice (closed) or the lit row (open). Keys: up and down do the same, Return chooses the
+/// lit row, Escape closes. Keys reach a closed control while the mouse is over it, as for every logistics control.
+/// </remarks>
+class lComboBox : public lObject
+{
+public:
+    /// <summary>One choice: the text shown and the setting's value for it.</summary>
+    struct Item
+    {
+        /// <summary>The text shown (white font's characters).</summary>
+        std::string Label;
+        /// <summary>The setting's value for this choice.</summary>
+        int32_t Value = 0;
+    };
+
+    /// <summary>The field's height, and each row's in the list.</summary>
+    static constexpr int32_t FieldHeight = 11;
+    static constexpr int32_t RowHeight = 10;
+    /// <summary>The rows the list shows at most; longer lists scroll.</summary>
+    static constexpr int32_t MaxRows = 8;
+
+    /// <summary>Calls <see cref="destroy"/>.</summary>
+    ~lComboBox() override;
+
+    /// <summary>
+    /// Places the field at (<paramref name="xPos"/>, <paramref name="yPos"/>), <paramref name="width"/> wide, editing
+    /// <paramref name="setting"/> with <paramref name="items"/>; <paramref name="changed"/> (may be null) runs with the
+    /// new value after each choice that changes the setting.
+    /// </summary>
+    void init(int32_t xPos, int32_t yPos, int32_t width, int32_t* setting, std::vector<Item> items,
+              void (*changed)(int32_t value));
+
+    /// <summary>Closes the list (letting go of the grab) before the object goes.</summary>
+    void destroy() override;
+
+    /// <summary>Draws the field and, while open, the list, from the state.</summary>
+    void draw() override;
+
+    bool DrawsLive() override { return true; }
+
+    /// <summary>The mouse and keys, as the class remarks say.</summary>
+    void handleEvent(aEvent* event) override;
+
+    /// <summary>The wheel moves the choice while closed, the lit row while open.</summary>
+    bool MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) override;
+
+    /// <summary>Whether the list is open.</summary>
+    bool IsOpen() const { return _Open; }
+
+    /// <summary>The index of the item the setting holds, or -1 when it holds none of them.</summary>
+    int32_t Selected() const;
+
+    /// <summary>The lit row (an item index) while open.</summary>
+    int32_t Hovered() const { return _Hovered; }
+
+    /// <summary>The items.</summary>
+    const std::vector<Item>& Items() const { return _Items; }
+
+    /// <summary>Opens the list: the lit row is the current choice; the control comes in front and takes the mouse.</summary>
+    void Open();
+
+    /// <summary>Closes the list without a choice and lets go of the mouse.</summary>
+    void Close();
+
+    /// <summary>
+    /// Sets the setting to item <paramref name="index"/>'s value; when that changes it, runs the changed routine.
+    /// </summary>
+    void Choose(int32_t index);
+
+    /// <summary>The item under the screen point (<paramref name="xPos"/>, <paramref name="yPos"/>) in the open list, or -1.</summary>
+    int32_t RowAt(int32_t xPos, int32_t yPos);
+
+    /// <summary>White font's inked values in the label colour 0xe3 (255 stays out), registered once.</summary>
+    static uint8_t* LabelColors();
+
+private:
+    /// <summary>The rows the open list shows.</summary>
+    int32_t VisibleRows() const;
+
+    /// <summary>Shrinks the control back to its field (the mouse stays as it is).</summary>
+    void CloseList();
+
+    /// <summary>Lights row <paramref name="index"/> (clamped) and scrolls it into view.</summary>
+    void Hover(int32_t index);
+
+    /// <summary>Whether the screen point lies on the field.</summary>
+    bool InField(int32_t xPos, int32_t yPos);
+
+    /// <summary>Puts this object last among its parent's children of its depth, so it draws over them.</summary>
+    void RaiseAmongSiblings();
+
+    /// <summary>Writes <paramref name="text"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>) in the label colour.</summary>
+    void WriteLabel(int32_t xPos, int32_t yPos, const std::string& text);
+
+    /// <summary>The setting the control edits (its model).</summary>
+    int32_t* _Setting = nullptr;
+    /// <summary>The choices, top to bottom.</summary>
+    std::vector<Item> _Items;
+    /// <summary>Runs with the new value after a choice that changed the setting (may be null).</summary>
+    void (*_Changed)(int32_t value) = nullptr;
+    /// <summary>Whether the list is open.</summary>
+    bool _Open = false;
+    /// <summary>The lit row (an item index) while open.</summary>
+    int32_t _Hovered = -1;
+    /// <summary>The first item the open list shows.</summary>
+    int32_t _FirstRow = 0;
+    /// <summary>A press closed the list: the control keeps the mouse until that press is let go.</summary>
+    bool _HoldUntilRelease = false;
+};
+
+/// <summary>
+/// Port: one of a <see cref="FileScrollPane"/>'s column headers (the selected save's operation, mission or
+/// resource points). The original made them plain lObjects and painted their pictures from the pane; this one draws
+/// its column of the pane's selected save each frame (white on black).
+/// </summary>
+class FileColumnHeader : public lObject
+{
+public:
+    /// <summary>Wipes the header and writes the selected save's figure for its column, if it has one.</summary>
+    void draw() override;
+
+    /// <summary>The header draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>The pane whose selection the header shows.</summary>
+    FileScrollPane* pane = nullptr;
+    /// <summary>0 the operation, 1 the mission, 2 the resource points.</summary>
+    int32_t column = 0;
 };
 
 /// <summary>
@@ -386,9 +586,20 @@ public:
     /// <remarks>MCX.EXE @ 0x006e1e10</remarks>
     void destroy() override;
 
+    /// <summary>Draws the pane (the files through <see cref="drawContent"/>).</summary>
     /// <remarks>MCX.EXE @ 0x006e1fe0</remarks>
     void draw() override;
 
+    /// <summary>
+    /// Port: the splash arrows have no pressed art. (The original's draw put them back over the pressed art straight
+    /// away; see OB-132 for the plain arrows a release left.)
+    /// </summary>
+    lPort* PressedArrowArt(bool down) override;
+
+    /// <summary>Port: draws the file lines (<see cref="drawFiles"/>) into the content view.</summary>
+    void drawContent() override;
+
+    /// <summary>Draws the pane when shown, then the column headers and the children (the name entry).</summary>
     /// <remarks>MCX.EXE @ 0x006e2220</remarks>
     void display() override;
 
@@ -408,9 +619,15 @@ public:
     /// <remarks>MCX.EXE @ 0x006e2860</remarks>
     void setStartDirectory(char* directory);
 
-    /// <summary>Draws the file lines into the scroll port.</summary>
+    /// <summary>Draws the file lines into the content (a view while the pane draws).</summary>
     /// <remarks>MCX.EXE @ 0x006e28d0</remarks>
     void drawFiles();
+
+    /// <summary>
+    /// Port: the first part of the original's drawFiles: sizes the content to the files (at least the pane's height)
+    /// and resets the scroll when that changes it. Called when the list changes.
+    /// </summary>
+    void layoutFiles();
 
     /// <summary>
     /// Lists every <paramref name="extension"/> file of the directory, reading each save's mission and resource
@@ -430,7 +647,7 @@ public:
     int32_t selectedFile = -1; // +0x508
     int32_t multiplayer = 0;   // +0x50c
     /// <summary>The three column headers.</summary>
-    lObject* columnHeaders[3] = {}; // +0x510
+    FileColumnHeader* columnHeaders[3] = {}; // +0x510
     /// <summary>The scroll-up arrow picture.</summary>
     lPort* upArrowPort = nullptr; // +0x51c
     /// <summary>The scroll-down arrow picture.</summary>
@@ -487,6 +704,12 @@ public:
     /// <remarks>MCX.EXE @ 0x006e43e0</remarks>
     void handleEvent(aEvent* event) override;
 
+    /// <summary>Port: the screen draws its background art each frame (its port was the art).</summary>
+    void draw() override;
+
+    /// <summary>Port: the screen draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
     /// <summary>
     /// Shows or hides the screen; showing the load/save screen grays the buttons that have nothing to act on.
     /// </summary>
@@ -508,6 +731,32 @@ public:
     lButton* deleteButton = nullptr; // +0x4d4
     /// <summary>The cancel button (callback 11).</summary>
     lButton* cancelButton = nullptr; // +0x4d8
+
+    /// <summary>
+    /// Port: the background art, which the original loaded into the screen's own port (a splash screen's is the
+    /// shared <c>genericPort</c>, not owned).
+    /// </summary>
+    lPort* artPort = nullptr;
+};
+
+/// <summary>
+/// Port: a picture element of a generic screen (element type 6), which the original made as a plain lObject with the
+/// art loaded into its port. It draws the art each frame.
+/// </summary>
+class lImage : public lObject
+{
+public:
+    /// <summary>Frees the art.</summary>
+    void destroy() override;
+
+    /// <summary>Copies the art (opaque, as the picture was copied).</summary>
+    void draw() override;
+
+    /// <summary>The image draws itself each frame.</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>The picture (owned).</summary>
+    lPort* art = nullptr;
 };
 
 /// <summary>

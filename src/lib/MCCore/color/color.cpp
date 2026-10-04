@@ -6,7 +6,10 @@
 #include "lib/heap.h"
 #include "lib/inifile.h"
 #include "mission/scenario.h"
+#include "platform/MCDisplay.h"
 #include "platform/MCFileSystem.h"
+#include "platform/MCRenderer.h"
+#include "platform/MCInput.h"
 
 Palette* gamePalette = nullptr;
 uint8_t WaterMagicColors[8] = {0x5a, 0x59, 0x5a, 0x5b, 0x5d, 0x5c, 0x5b, 0x59};
@@ -1178,6 +1181,7 @@ int32_t Palette::loadFadePalettes(File& tableFile)
     }
 
     tableFile.read(fadePalettes, static_cast<int32_t>(size));
+    MCRenderer::RegisterData(fadePalettes, size, MCDataKind::Tables);
     numFadePalettes = size >> 8;
     return 0;
 }
@@ -1194,6 +1198,7 @@ int32_t Palette::loadAllFadePalettes(File& tableFile)
     }
 
     tableFile.read(allFadePalettes, static_cast<int32_t>(size));
+    MCRenderer::RegisterData(allFadePalettes, size, MCDataKind::Tables);
     numAllFadePalettes = size >> 8;
     return 0;
 }
@@ -1209,6 +1214,7 @@ void Palette::addFadePalette()
     std::memcpy(tables, old, size - 0x100);
     systemHeap->free(old);
     fadePalettes = tables;
+    MCRenderer::RegisterData(fadePalettes, size, MCDataKind::Tables);
 }
 
 void Palette::removeFadePalette(int32_t index)
@@ -1222,6 +1228,7 @@ void Palette::removeFadePalette(int32_t index)
     --numFadePalettes;
     systemHeap->free(old);
     fadePalettes = tables;
+    MCRenderer::RegisterData(fadePalettes, static_cast<size_t>(numFadePalettes) * 0x100, MCDataKind::Tables);
 }
 
 int32_t Palette::saveFadePalettes()
@@ -1305,14 +1312,24 @@ void cycleColors()
                 }
             }
 
+            // The original handed the eight entries to the display (gamePalette->animate(0xd8, 8)). The display shows
+            // them as an index remap instead, so the palette the GPU holds doesn't change every cycle; the next palette
+            // set over them ends the remap, as it overwrote the animated entries.
+            if (MCDisplay* display = MCInput::Display())
+            {
+                MCColorCycle cycle;
+                cycle.First = 0xd8;
+                std::copy_n(WaterMagicColors, 8, cycle.Sources.begin());
+                cycle.Step = currentMagic;
+                display->SetColorCycle(cycle);
+            }
+
             ++currentMagic;
 
             if (currentMagic > 7)
             {
                 currentMagic = 0;
             }
-
-            gamePalette->animate(0xd8, 8);
         }
     }
 }

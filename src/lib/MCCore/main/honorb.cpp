@@ -28,6 +28,7 @@
 #include "object/warrior.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
+#include "platform/MCPresenter.h"
 #include "sound/soundsys.h"
 #include "sprite/sprtmgr.h"
 #include "terrain/terrtxm.h"
@@ -299,6 +300,11 @@ void systemInit()
         only45Pixel = 1;
     }
 
+    // Port: the full-size (90-pixel) mech art is always loaded and used: the camera stays at scale 100 and the zoom
+    // scales the world view instead (the prefs only mattered for machines short of memory).
+    use90PixelSprite = 1;
+    only45Pixel = 0;
+
     if (prefsFile->readIdBoolean("Force32Mb", force32MB) != 0)
     {
         force32MB = 0;
@@ -339,6 +345,29 @@ void systemInit()
     }
 
     gSoftwareCursor = softwareCursor != 0 ? 1 : 0;
+    // Port: a port-only key; the frame counter in the top-right corner. The command line's -fps sets it too.
+    int showFps = 0;
+
+    if (prefsFile->readIdBoolean("ShowFps", showFps) != 0)
+    {
+        showFps = 0;
+    }
+
+    gShowFpsPreference = showFps != 0 ? 1 : 0;
+    gShowFps = showFps != 0 ? 1 : gShowFps;
+    // Port: a port-only key; "vulkan" (the default) or "software". The command line's -renderer wins.
+    char rendererName[32] = {};
+
+    if (prefsFile->readIdString("Renderer", rendererName, sizeof(rendererName) - 1) == 0)
+    {
+        if (const std::optional<MCRendererKind> kind = MCRendererKindFromName(rendererName))
+        {
+            gRenderer = static_cast<int>(*kind);
+        }
+    }
+
+    gRendererPreference = gRenderer;
+
     int32_t resolution = 0;
 
     // Port: the mode is still read, but the screen is the window's size (aSystem::startupDirectDraw).

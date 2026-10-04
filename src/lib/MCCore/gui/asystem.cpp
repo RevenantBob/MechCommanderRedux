@@ -9,6 +9,7 @@
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "gui/awindow.h"
+#include "gui/mchwcursor.h"
 #include "gui/updisp.h"
 #include "iface/icallbk.h"
 #include "iface/iface.h"
@@ -40,7 +41,9 @@
 #include "platform/MCCursor.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCFileSystem.h"
+#include "platform/MCFrameLog.h"
 #include "platform/MCInput.h"
+#include "platform/MCRenderer.h"
 #include "platform/MCSmacker.h"
 #include "platform/MCWin32Defs.h"
 
@@ -93,6 +96,11 @@ int gFullScreen = 0;
 int gStretchToFit = 0;
 int gSoftwareCursor = 0;
 int gHiddenWindow = 0;
+int gRenderer = 0;
+int gRendererPreference = 0;
+int gShowFps = 0;
+int gShowFpsPreference = 0;
+int gVSync = 1;
 int applicationActive = -1;
 uint32_t systemHeapSize = 0x100000;
 uint32_t guiHeapSize = 0x100000;
@@ -290,6 +298,15 @@ namespace
         return (MCInput::GetAsyncKeyState(vk) & 0x8000) != 0;
     }
 
+    /// <summary>
+    /// The scissors of the objects drawing in the frame pass around the one displaying now (innermost last), with the
+    /// window each is on: a child that draws itself is cut to its nearest such ancestor's.
+    /// </summary>
+    std::vector<std::pair<const _window*, MCRect>> viewClips;
+
+    /// <summary>The object drawing in the frame pass right now (its view open), or null.</summary>
+    aObject* drawingLive = nullptr;
+
     /// <summary>The test message <see cref="SendAndReceiveTestMessages"/> sends: a header, the frame and a count.</summary>
 #pragma pack(push, 1)
     struct TestMessage
@@ -330,6 +347,8 @@ auto aSystem::startupDirectDraw(int32_t width, int32_t height, int32_t bitDepth)
     options.Fullscreen = gFullScreen != 0;
     options.Stretch = gStretchToFit != 0;
     options.Hidden = gHiddenWindow != 0;
+    options.Renderer = static_cast<MCRendererKind>(gRenderer);
+    options.VSync = gVSync != 0;
     auto display = MCDisplay::Create(options);
 
     if (!display)
@@ -566,7 +585,7 @@ auto aObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, ch
     }
 
     displayPort = new aPort;
-    const int32_t result = displayPort->init(width, height);
+    const int32_t result = DrawsLive() ? displayPort->initView(width, height) : displayPort->init(width, height);
 
     if (result != 0)
     {
@@ -1240,7 +1259,7 @@ auto aObject::draw() -> void
 
         for (int32_t i = 0; i < numChildren; i++)
         {
-            childList[i]->draw();
+            DrawChild(childList[i]);
         }
     }
 }
@@ -1257,6 +1276,13 @@ auto aObject::display() -> void
         return;
     }
 
+    if (DrawsLive())
+    {
+        SlideStep();
+        DrawInFramePass(displayPort);
+        return;
+    }
+
     if (winState == aSTATE_ICONIZED)
     {
         if (iconAnimation != nullptr)
@@ -1270,6 +1296,112 @@ auto aObject::display() -> void
         draw();
     }
 
+    SlideStep();
+
+    if (displayPort != nullptr)
+    {
+        displayPort->copyTo(framePane, 0, 0, transparent);
+    }
+
+    if (winState != aSTATE_ICONIZED)
+    {
+        for (int32_t i = 0; i < numChildren; i++)
+        {
+            childList[i]->display();
+        }
+    }
+}
+
+auto aObject::SetDrawsLive() -> void
+{
+    drawsLive = true;
+
+    if (displayPort != nullptr && !displayPort->isView())
+    {
+        displayPort->initView(width(), height());
+    }
+}
+
+auto aObject::DrawsChild(aObject* child) -> bool
+{
+    return !child->DrawsLive() && drawingLive != this;
+}
+
+auto aObject::DrawChild(aObject* child) -> void
+{
+    if (drawingLive == this || child->DrawsLive())
+    {
+        return;
+    }
+
+    child->draw();
+}
+
+auto aObject::DrawInFramePass(aPort* port, int32_t scrollY, bool wipe, bool displayChildren) -> void
+{
+    // The view lies over the pane, on the window the pane is on (the screen, or a scroll pane's content), cut to the
+    // window and to the scissor of the nearest clipping ancestor on the same window.
+    _window* target = framePane->window;
+    MCRect scissor{std::max(framePane->x0, 0), std::max(framePane->y0, 0), std::min(framePane->x1, target->x_max),
+                   std::min(framePane->y1, target->y_max)};
+
+    if (!viewClips.empty() && viewClips.back().first == target)
+    {
+        const MCRect& outer = viewClips.back().second;
+        scissor.X0 = std::max(scissor.X0, outer.X0);
+        scissor.Y0 = std::max(scissor.Y0, outer.Y0);
+        scissor.X1 = std::min(scissor.X1, outer.X1);
+        scissor.Y1 = std::min(scissor.Y1, outer.Y1);
+    }
+
+    if (scissor.X1 < scissor.X0 || scissor.Y1 < scissor.Y0)
+    {
+        // An empty scissor: the shut one draws nothing either way, and the children are cut away by it.
+        scissor = MCRect{0, 0, -1, -1};
+    }
+
+    port->openView(target, framePane->x0, framePane->y0 - scrollY, scissor, transparent != 0);
+    aObject* const outerDrawing = drawingLive;
+    drawingLive = this;
+
+    // A picture that was never painted held zeros (the port's heap clears new blocks), and an opaque object copied
+    // them to the screen; a transparent one let what was under it show.
+    if (transparent == 0 && wipe)
+    {
+        VFX_pane_wipe(port->frame(), 0);
+    }
+
+    if (winState != aSTATE_ICONIZED || iconAnimation != nullptr)
+    {
+        draw();
+    }
+
+    drawingLive = outerDrawing;
+    port->closeView();
+
+    if (winState != aSTATE_ICONIZED && displayChildren)
+    {
+        const bool clips = ClipsChildren();
+
+        if (clips)
+        {
+            viewClips.emplace_back(target, scissor);
+        }
+
+        for (int32_t i = 0; i < numChildren; i++)
+        {
+            childList[i]->display();
+        }
+
+        if (clips)
+        {
+            viewClips.pop_back();
+        }
+    }
+}
+
+auto aObject::SlideStep() -> void
+{
     if (hideOffset != 0)
     {
         // A slide (HideMe) moves the whole offset each frame until the object is off the screen, or back home.
@@ -1310,19 +1442,6 @@ auto aObject::display() -> void
                 moveTo(homeX - parent->globalX(), homeYOffset, -1);
                 hideOffset = 0;
             }
-        }
-    }
-
-    if (displayPort != nullptr)
-    {
-        displayPort->copyTo(framePane, 0, 0, transparent);
-    }
-
-    if (winState != aSTATE_ICONIZED)
-    {
-        for (int32_t i = 0; i < numChildren; i++)
-        {
-            childList[i]->display();
         }
     }
 }
@@ -1618,6 +1737,11 @@ auto aObject::SetBit(int32_t xPos, int32_t yPos, uint8_t color) -> void
         if (displayPort->buffer() != nullptr)
         {
             displayPort->buffer()[rowLength * yPos + xPos] = color;
+        }
+        else if (displayPort->isView())
+        {
+            // Port: a view has no pixels; the pixel is drawn through it.
+            VFX_pixel_write(displayPort->frame(), xPos, yPos, color);
         }
     }
 }
@@ -1987,6 +2111,62 @@ auto ParseCommandLine(char* commandLine) -> void
                 {
                     globalGameSegment = 0;
                 }
+            }
+        }
+        else if (MCPort::StrICmp(word, "-renderer") == 0)
+        {
+            // Port: "-renderer vulkan|software" picks the renderer over PREFS "Renderer".
+            i++;
+
+            if (i < numWords)
+            {
+                if (const std::optional<MCRendererKind> kind = MCRendererKindFromName(words[i]))
+                {
+                    gRenderer = static_cast<int>(*kind);
+                }
+            }
+        }
+        else if (MCPort::StrICmp(word, "-gpudraw") == 0)
+        {
+            // Port: "-gpudraw off|on|mirror": who draws the frame with the Vulkan renderer (see MCGpuDrawing).
+            i++;
+
+            if (i < numWords)
+            {
+                if (const std::optional<MCGpuDrawing> drawing = MCGpuDrawingFromName(words[i]))
+                {
+                    MCRenderer::RequestGpuDrawing(*drawing);
+                }
+            }
+        }
+        else if (MCPort::StrICmp(word, "-fps") == 0)
+        {
+            // Port: "-fps" draws the frame counter (as PREFS "ShowFps").
+            gShowFps = 1;
+        }
+        else if (MCPort::StrICmp(word, "-framelog") == 0)
+        {
+            // Port: "-framelog <file>" writes the slow frames there, with what took their time (MCFrameLog).
+            i++;
+
+            if (i < numWords && !MCFrameLog::Open(words[i]))
+            {
+                SDL_Log("-framelog: can't write %s", words[i]);
+            }
+        }
+        else if (MCPort::StrICmp(word, "-novsync") == 0)
+        {
+            // Port: "-novsync" shows frames as soon as they are drawn instead of at the display's refresh.
+            gVSync = 0;
+        }
+        else if (MCPort::StrICmp(word, "-gpudump") == 0)
+        {
+            // Port: "-gpudump <folder>": mirror mode saves the first frame that differs there.
+            i++;
+
+            if (i < numWords)
+            {
+                MCRenderer::SetMirrorDumpFolder(words[i]);
             }
         }
         else if (MCPort::StrICmp(word, "-network") == 0)
@@ -2596,16 +2776,22 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
         {
             // The original ignored the wheel. Over the battlefield (the main pane itself, not the interface drawn
             // over it) it zooms like the zoom keys: up in, down out. Over anything else it scrolls the first of the
-            // object and its parents that has a scroll bar (aObject::MouseWheel).
-            if (screenWindow == nullptr || application->grabbedObject() != nullptr)
+            // object and its parents that has a scroll bar (aObject::MouseWheel). While an object holds the mouse,
+            // only that object is offered it (an open drop-down list; a dragged thumb doesn't take it).
+            if (screenWindow == nullptr)
             {
                 return 1;
             }
 
             const int16_t delta = static_cast<int16_t>(wParam >> 16);
+            aObject* const grabbed = application->grabbedObject();
             aObject* target = nullptr;
 
-            if (EventsToMissionResultsScreen != 0 && mission != nullptr && mission->resultsScreen != nullptr)
+            if (grabbed != nullptr)
+            {
+                target = grabbed;
+            }
+            else if (EventsToMissionResultsScreen != 0 && mission != nullptr && mission->resultsScreen != nullptr)
             {
                 target = mission->resultsScreen->findObject(cursor.x, cursor.y);
             }
@@ -2619,28 +2805,26 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
                 return 1;
             }
 
-            if (theInterface != nullptr && scenario != nullptr && turn > 0 && EventsToMissionResultsScreen == 0 &&
-                mainHolder != nullptr && target == mainHolder->GetActivePane())
+            if (grabbed == nullptr && theInterface != nullptr && scenario != nullptr && turn > 0 &&
+                EventsToMissionResultsScreen == 0 && mainHolder != nullptr && target == mainHolder->GetActivePane())
             {
-                // Not while the camera can't zoom (paused, the game menu, 45-pixel art only), where the keys would
-                // still flip the zoom button and leave it out of step.
-                if (only45Pixel == 0 && gamePaused == 0 && gameAsked == 0)
+                // A step per notch (finer wheels zoom finer); not while paused or asked.
+                const float step = std::pow(InterfaceObject::ZoomWheelStep, std::fabs(delta / 120.0f));
+
+                if (delta > 0)
                 {
-                    if (delta > 0)
-                    {
-                        theInterface->ZoomIn();
-                    }
-                    else if (delta < 0)
-                    {
-                        theInterface->ZoomOut();
-                    }
+                    theInterface->ZoomIn(step, false);
+                }
+                else if (delta < 0)
+                {
+                    theInterface->ZoomOut(step, false);
                 }
 
                 return 1;
             }
 
             // A modal object only takes the wheel for itself and its children, as for other events.
-            if (application->modalObject() != nullptr)
+            if (grabbed == nullptr && application->modalObject() != nullptr)
             {
                 aObject* owner = target;
 
@@ -2673,7 +2857,7 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
                 return 1;
             }
 
-            for (aObject* object = target; object != nullptr; object = object->parent)
+            for (aObject* object = target; object != nullptr; object = grabbed != nullptr ? nullptr : object->parent)
             {
                 if (object->MouseWheel(steps, cursor.x, cursor.y))
                 {
@@ -2743,7 +2927,14 @@ auto ScrollScreen() -> void
         }
 
         // MCX.EXE's constant is a hair under 15 (14.999999).
-        const float step = frameLength * 0x1.dffffep+3f * static_cast<float>(speed);
+        float step = frameLength * 0x1.dffffep+3f * static_cast<float>(speed);
+
+        // Port: the same speed on the screen at any zoom (the world surface's pixels per screen pixel).
+        if (camera->window != nullptr && camera->window->WorldScaleY() > 0.0f)
+        {
+            step /= camera->window->WorldScaleY();
+        }
+
         bool scroll = true;
 
         if (theInterface->scrollDirection == -1)
@@ -2843,8 +3034,10 @@ auto ScrollScreen() -> void
         if (scroll && (dx != 0 || dy != 0))
         {
             // Keep the window's anchor point (selectionBox's first corner) on the same spot of the world.
+            // Port: the box is in the view's own coordinates, the projection on its world surface (through the zoom).
             viewWindow* window = camera->window;
-            vector_2d anchor(window->selectionBox[0], window->selectionBox[1]);
+            vector_2d anchor(window->selectionBox[0] / window->WorldScaleX(),
+                             window->selectionBox[1] / window->WorldScaleY());
             vector_3d point;
             camera->inverseProject(anchor, point);
             camera->scrollCamera(dx, dy);
@@ -2852,9 +3045,12 @@ auto ScrollScreen() -> void
             const float offsetX = (point.x - camera->position.x) * scale;
             const float offsetY = (point.y - camera->position.y) * scale;
             const float offsetZ = scale * (point.z - camera->position.z);
-            window->selectionBox[0] = offsetY * camera->cosAngle + offsetX * camera->cosAngle + camera->halfWidth;
-            window->selectionBox[1] =
-                ((offsetX * camera->sinAngle + camera->halfHeight) - offsetY * camera->sinAngle) - offsetZ;
+            const vector_2d moved(offsetY * camera->cosAngle + offsetX * camera->cosAngle + camera->halfWidth,
+                                  ((offsetX * camera->sinAngle + camera->halfHeight) - offsetY * camera->sinAngle) -
+                                      offsetZ);
+            const vector_2d shown = window->WorldToWindow(moved);
+            window->selectionBox[0] = shown.x;
+            window->selectionBox[1] = shown.y;
         }
     }
 
@@ -3494,7 +3690,8 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
     for (int32_t i = 0; i < numCursors; i++)
     {
         cursorFile->seekPacket(i);
-        cursorShapes[i] = static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(cursorFile->getPacketSize())));
+        const auto size = static_cast<uint32_t>(cursorFile->getPacketSize());
+        cursorShapes[i] = static_cast<uint8_t*>(systemHeap->malloc(size));
 
         if (cursorShapes[i] == nullptr)
         {
@@ -3502,10 +3699,12 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
         }
 
         cursorFile->readPacket(i, cursorShapes[i]);
+        MCRenderer::RegisterData(cursorShapes[i], size, MCDataKind::Shapes);
     }
 
     cursorFile->close();
     delete cursorFile;
+    MCHardwareCursorPreload();
 
     MCInput::ShowCursor(false);
     cursorShape = -1;
@@ -3806,9 +4005,10 @@ auto aSystem::run() -> void
     do
     {
         startTime = MCPort::PerformanceCounter();
+        MCFrameLog::NextFrame();
 
         // Port: the PeekMessage / TranslateMessage / DispatchMessage loop, which stopped at WM_QUIT.
-        if (!MCInput::PumpMessages())
+        if (MCFrameLog::Scope pump("pump"); !MCInput::PumpMessages())
         {
             quit = -1;
         }
@@ -3817,6 +4017,7 @@ auto aSystem::run() -> void
         {
             if (smackerWindow2 == nullptr && smackerWindow == nullptr)
             {
+                MCFrameLog::Scope logic("logic");
                 const int32_t count = numCallbacks;
 
                 for (int32_t i = 0; i < count; i++)
@@ -4187,8 +4388,11 @@ auto aSystem::fadeDownCurrentPalette() -> void
         return;
     }
 
-    // Darkens entries 10..245 by a step that follows the time each step took (256 levels a second), waiting at
-    // least 1/256 s a step, until 256 levels are gone.
+    // Darkens the screen by a step that follows the time each step took (256 levels a second), waiting at least
+    // 1/256 s a step, until 256 levels are gone. The original took each step off palette entries 10..245; the port
+    // fades the shown picture (MCDisplay::SetFade): the GPU's surfaces hold colours, so a palette change alone doesn't
+    // reach what's already drawn, and the frame isn't redrawn during the fade.
+    MCDisplay* display = MCInput::Display();
     int32_t step = 1;
     int32_t faded = 0;
     const double frequency = static_cast<double>(countsPerSecond);
@@ -4196,25 +4400,14 @@ auto aSystem::fadeDownCurrentPalette() -> void
     do
     {
         const int64_t stepStart = MCPort::PerformanceCounter();
+        faded += step;
 
-        for (int i = 10; i < 0xf6; i++)
+        if (display != nullptr)
         {
-            VFX_RGB& color = currentPalette[i];
-            color.r = step < color.r ? static_cast<uint8_t>(color.r - step) : 0;
-            color.g = step < color.g ? static_cast<uint8_t>(color.g - step) : 0;
-            color.b = step < color.b ? static_cast<uint8_t>(color.b - step) : 0;
-            logicalPalette[i] = color;
-        }
-
-        showPalette(10, 0xec);
-
-        // Port fix: the palette only shows when presented (the original's SetEntries changed the screen at once).
-        if (MCDisplay* display = MCInput::Display())
-        {
+            display->SetFade(faded);
             (void)display->Present();
         }
 
-        faded += step;
         float elapsed;
 
         do
@@ -4224,6 +4417,21 @@ auto aSystem::fadeDownCurrentPalette() -> void
 
         step = static_cast<int32_t>(elapsed * 256.0f);
     } while (faded < 0x100);
+
+    // Where the original ends: entries 10..245 black until the next palette is set. The fade comes off with them, so
+    // the screen stays black.
+    for (int i = 10; i < 0xf6; i++)
+    {
+        currentPalette[i] = {};
+        logicalPalette[i] = {};
+    }
+
+    showPalette(10, 0xec);
+
+    if (display != nullptr)
+    {
+        display->SetFade(0);
+    }
 }
 
 auto aSystem::activatePalette(uint8_t* colors, int first, int count) -> void
@@ -5269,13 +5477,20 @@ auto aMessageBox::init(uint8_t* text) -> int32_t
     button->callback()->setExec(DestroyVersion);
     button->setDepth(100);
     addChild(button);
-    okButton->draw();
+    // The box is drawn by draw, each frame.
+    message = reinterpret_cast<const char*>(text);
+    return 0;
+}
+
+auto aMessageBox::draw() -> void
+{
     aPort* boxPort = displayPort;
     VFX_pane_wipe(boxPort->frame(), 0x11);
+    auto* text = reinterpret_cast<uint8_t*>(message.data());
     const int32_t textWidth = whiteFont->width(text);
-    whiteFont->writeString(boxPort->frame(), (boxWidth - textWidth) / 2, 8, text, -1);
+    whiteFont->writeString(boxPort->frame(), (width() - textWidth) / 2, 8, text, -1);
     drawBox(0x1f, -1, -1, -1, -1);
-    return 0;
+    aObject::draw();
 }
 
 auto aMessageBox::destroy() -> void

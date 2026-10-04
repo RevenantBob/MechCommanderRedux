@@ -3,8 +3,65 @@
 #include "logistics/lport.h"
 
 class aEvent;
+class CompInventoryBlock;
 class lChatInput;
 class ScrollPane;
+
+/// <summary>
+/// Port: what an inventory screen shows in its info box under the inventory pane (at (2, 0x18a)) and in the column
+/// header over the pane (at (0xc4, 0x65)); the screen draws it from here each frame. The original painted the blank
+/// box, the details of the row under the mouse and the header into the screen's picture, where they stayed until
+/// painted over.
+/// </summary>
+struct InvInfoBox
+{
+    /// <summary>Whose details the box shows.</summary>
+    enum class Kind
+    {
+        /// <summary>None: the blank box only.</summary>
+        None,
+        /// <summary>A <c>MechInventoryBlock</c>'s mech.</summary>
+        Mech,
+        /// <summary>A <c>PilotInventoryBlock</c>'s pilot.</summary>
+        Pilot,
+        /// <summary>A <c>VehicleInventoryBlock</c>'s vehicle.</summary>
+        Vehicle,
+        /// <summary>A <c>CompInventoryBlock</c>'s component (a row of the component tab).</summary>
+        Component,
+        /// <summary>A <c>CompInventoryBlock</c>'s component in a mech's weapon list on the repair screen.</summary>
+        RepairItem,
+        /// <summary>A <c>MechRepairBlock</c>'s mech on the repair screen.</summary>
+        RepairMech
+    };
+
+    /// <summary>The blank box shown (<c>Logistics::inventoryIconPorts</c>), or -1: the screen's picture shows.</summary>
+    int32_t art = -1;
+    Kind kind = Kind::None;
+    /// <summary>The block whose details are shown (not a component's); it takes itself out when it goes.</summary>
+    lObject* source = nullptr;
+    /// <summary>
+    /// A component's details, as they were when shown (the item can go while they are, as when it is dragged off a
+    /// mech): its picture (<c>lscicc&lt;n&gt;</c>), its block's texts and its description.
+    /// </summary>
+    int32_t componentPicture = 0;
+    char rangeText[12] = {};
+    char damageText[12] = {};
+    char recycleText[12] = {};
+    std::string description;
+    /// <summary>The tab whose column header is shown (0..3), or -1: the screen's picture shows.</summary>
+    int32_t header = -1;
+
+    /// <summary>The screen's background art was painted over all of it.</summary>
+    void Clear() { *this = InvInfoBox{}; }
+
+    /// <summary>The blank box of tab <paramref name="tab"/> was painted over the box.</summary>
+    void Blank(int32_t tab)
+    {
+        art = tab;
+        kind = Kind::None;
+        source = nullptr;
+    }
+};
 
 /// <summary>
 /// The common base of the purchase and repair screens: the inventory pane on the left, with tabs for mechs,
@@ -89,6 +146,52 @@ public:
     /// <remarks>MCX.EXE @ 0x0070abc0</remarks>
     void removePilot(int32_t pilotIndex);
 
+    /// <summary>
+    /// Port: draws the screen: its background art, the info box and column header (<see cref="info"/>), then the
+    /// shared places (<see cref="LogScreenChrome"/>). Outside the frame pass it refreshes the children, as the
+    /// original's paint.
+    /// </summary>
+    void draw() override;
+
+    /// <summary>Port: the screen draws itself each frame (its port is a view).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>Port: see <see cref="LogScreenChrome"/>.</summary>
+    LogScreenChrome* Chrome() override { return &chrome; }
+
+    /// <summary>
+    /// Port: sets the screen's background art (<paramref name="artName"/> in <c>logart</c>, which the original loaded as
+    /// the screen's picture) and lists the screen for <see cref="Of"/>.
+    /// </summary>
+    void initLive(const char* artName);
+
+    /// <summary>Port: forgets the screen (see <see cref="ForgetInfoSource"/>).</summary>
+    ~LogInvScreen() override;
+
+    /// <summary>
+    /// Port: shows the details of <paramref name="source"/> in the info box, over the blank box last shown
+    /// (the original painted them there right after it).
+    /// </summary>
+    void ShowInfo(InvInfoBox::Kind kind, lObject* source);
+
+    /// <summary>
+    /// Port: shows the details of <paramref name="block"/>'s component in the info box (as <see cref="ShowInfo"/>),
+    /// from a mech's weapon list when <paramref name="repairItem"/>.
+    /// </summary>
+    void ShowComponentInfo(CompInventoryBlock* block, bool repairItem);
+
+    /// <summary>Port: draws <see cref="info"/> into <paramref name="port"/> (the screen's view).</summary>
+    void DrawInfo(lPort* port);
+
+    /// <summary>Port: the inventory screen <paramref name="screen"/> is, or null for another screen.</summary>
+    static LogInvScreen* Of(aObject* screen);
+
+    /// <summary>Port: <paramref name="source"/> is going: no inventory screen shows its details any more.</summary>
+    static void ForgetInfoSource(lObject* source);
+
+    /// <summary>Port: see <see cref="InvInfoBox"/>.</summary>
+    InvInfoBox info;
+
     /// <summary>Set by the screens' <c>init</c> (0 on the purchase screen, -1 on the repair screen); use not seen.</summary>
     int32_t unknown4BC = 0; // +0x4bc
     /// <summary>
@@ -100,6 +203,11 @@ public:
     ScrollPane* inventoryPane = nullptr; // +0x4c4
     /// <summary>The unit pane: the store on the purchase screen, the vehicles on the repair screen.</summary>
     ScrollPane* unitPane = nullptr; // +0x4c8
+
+    /// <summary>Port: what the screen shows of the shared places.</summary>
+    LogScreenChrome chrome;
+    /// <summary>Port: the background art's file name in <c>logart</c> (<see cref="initLive"/>).</summary>
+    const char* backgroundArt = nullptr;
 };
 
 /// <summary>
@@ -150,6 +258,35 @@ public:
     /// <remarks>MCX.EXE @ 0x0070b640</remarks>
     void reset();
 
+    /// <summary>Port: draws the frame along the bottom (the history pane and the input line draw themselves).</summary>
+    void draw() override;
+
+    /// <summary>Port: the window draws itself each frame (its port is a view).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: adds <paramref name="line"/> (text with <c>SMUTI</c> codes) to the bottom of the history, the older lines
+    /// moving up by its height (the second half of <see cref="processChatString"/>).
+    /// </summary>
+    void AddLine(const char* line);
+
+    /// <summary>A line of the history, and the height the text formatter gave it.</summary>
+    struct HistoryLine
+    {
+        std::string Text;
+        int32_t Used = 0;
+    };
+
+    /// <summary>
+    /// Port: draws <paramref name="lines"/> (oldest first) into <paramref name="port"/> (the history's view, open) as
+    /// the original's history picture held them: each line was written along the bottom over a wiped strip one row
+    /// taller than its text, after the picture had moved up by its height, so a line's bottom row is wiped by the next.
+    /// </summary>
+    static void DrawHistory(aPort* port, const std::vector<HistoryLine>& lines);
+
+    /// <summary>Port: makes the history pane's content, a view that draws <see cref="lines"/>.</summary>
+    lPort* NewHistoryView(int32_t width, int32_t height);
+
     /// <summary>The history pane.</summary>
     ScrollPane* historyPane = nullptr; // +0x4bc
     /// <summary>The frame picture along the bottom (<c>lsbdw04</c>).</summary>
@@ -160,4 +297,10 @@ public:
     int32_t unknown4C8 = 0; // +0x4c8
     /// <summary>The history size given to <see cref="init"/>.</summary>
     int32_t historySize = 0; // +0x4cc
+
+    /// <summary>
+    /// Port: the history, oldest first (the original kept it as the pixels of the pane's picture). Lines that moved
+    /// off the top are dropped.
+    /// </summary>
+    std::vector<HistoryLine> lines;
 };

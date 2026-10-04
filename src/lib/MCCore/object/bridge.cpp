@@ -24,6 +24,7 @@
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "terrain/terrtxm.h"
+#include "platform/MCRenderer.h"
 
 namespace
 {
@@ -259,6 +260,7 @@ auto MiscTerrainObjectType::init(File* objFile, uint32_t fileSize) -> int32_t
     Assert(forestEdgeShapes != nullptr ? 1u : 0u, 0, " No RAM for Forest Edge Shapes ");
     size = edgesFile.fileSize();
     edgesFile.read(forestEdgeShapes, static_cast<int32_t>(size));
+    MCRenderer::RegisterData(forestEdgeShapes, size, MCDataKind::Shapes);
     edgesFile.close();
     return ObjectType::init(&bridgeFile);
 }
@@ -575,6 +577,8 @@ auto MiscTerrainObject::render() -> void
 auto MiscTerrainObject::drawBars(vector_2d screenPos) -> void
 {
     // The damage bar over a selected wall, bridge or forest: green, then yellow under half, red at a fifth.
+    // Port: an overlay, on the screen over the view: it follows the object through the zoom, its size doesn't change.
+    screenPos = MCOverlayPoint(screenPos);
     PolyElementData data;
     data.init();
     const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;

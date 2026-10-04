@@ -15,6 +15,7 @@
 #include "object/mech.h"
 #include "object/mover.h"
 #include "object/warrior.h"
+#include "platform/MCFrameLog.h"
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
@@ -332,6 +333,7 @@ auto UpdateMouseStateCallback() -> void
 {
     if (turn > 1)
     {
+        MCFrameLog::Scope part("logic.mouseState");
         theInterface->UpdateMouseState(nullptr);
     }
 }

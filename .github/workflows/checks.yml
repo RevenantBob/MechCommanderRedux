@@ -1,5 +1,6 @@
-# Checks every pull request: the C++ is formatted (scripts/ci/format.py) and the .vcxproj/.filters files list
-# every source file (scripts/ci/sync_projects.py). Run either script without --check locally to fix what it reports.
+# Checks every pull request: the C++ is formatted (scripts/ci/format.py), the .vcxproj/.filters files list
+# every source file (scripts/ci/sync_projects.py), and the solution builds and its tests pass as the release build
+# does (release.yml). Run either script without --check locally to fix what it reports.
 name: Checks
 
 on:
@@ -28,3 +29,24 @@ jobs:
       - name: Project files
         if: success() || failure()
         run: python scripts/ci/sync_projects.py --check
+
+  build:
+    # The release build's image and configuration, so a pull request that builds here builds for a release.
+    runs-on: windows-2025-vs2026
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          # nbgv counts commits for the version built into the exe, so it needs the full history.
+          fetch-depth: 0
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # The shaders' dxc is fetched by the build itself (MCFetchDxc in src/MechCommander.props).
+      - name: Build
+        run: msbuild src\MCRedux.slnx -p:Configuration=Release -p:Platform=x64 -m
+
+      # The game: tests need the retail install (--game), which the runner doesn't have; they pass with a note.
+      - name: Test
+        run: src\build\bin\x64\Release\mc_tests.exe

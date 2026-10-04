@@ -95,6 +95,12 @@ public:
     /// <remarks>MCX.EXE @ 0x00644830</remarks>
     uint8_t getFlag(uint32_t r, uint32_t c);
 
+    /// <summary>
+    /// Port-only: sets <paramref name="count"/> bytes of the grid from byte <paramref name="first"/> (rows run on into
+    /// the next) to 0xFF, through the renderer.
+    /// </summary>
+    void setBytes(uint32_t first, uint32_t count);
+
     /// <summary>The bytes.</summary>
     HeapManager* flagHeap; // +0x00
     /// <summary>The number of rows.</summary>

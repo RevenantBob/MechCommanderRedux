@@ -6,6 +6,7 @@ class vector_2d;
 class vector_3d;
 class PacketFile;
 struct TerrainTile;
+struct MCTerrainFrame;
 
 /// <summary>
 /// One vertex of a map block as stored in the terrain's <c>.elv</c> packet file: an elevation level and the terrain
@@ -268,6 +269,21 @@ public:
 /// doesn't use the manager.
 /// </remarks>
 float terrainElevationAt(vector_3d& pos);
+
+/// <summary>
+/// Port: the frame's terrain pass as a hardware renderer draws it from the map's ground mesh (built here, and again
+/// when the map's data changed since). Checks that every vertex of <paramref name="vertexList"/>'s grid (projected
+/// this frame) is the map's vertex at its place and lies where the mesh puts it; an error, saying which and how, when
+/// one doesn't (the mesh would draw another picture than the tiles).
+/// </summary>
+/// <param name="minX">The corner range of the projection (a vertex outside it is clipped); also maxX, minY, maxY.</param>
+std::expected<void, std::string> MCTerrainGroundFrame(const Vertex* vertexList, int32_t numVertices, int32_t numBlocks,
+                                                      int32_t hazeFactor, int32_t stepX, int32_t stepY,
+                                                      int32_t elevStep, int32_t minX, int32_t maxX, int32_t minY,
+                                                      int32_t maxY, MCTerrainFrame& frame);
+
+/// <summary>Port: lets go of the ground mesh (the terrain is destroyed).</summary>
+void MCTerrainForgetMesh();
 
 /// <summary>Terrain tile cache requests this mission (statistics).</summary>
 extern int32_t tileCacheReqs;

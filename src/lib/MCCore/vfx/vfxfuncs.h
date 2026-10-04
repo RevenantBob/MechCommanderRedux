@@ -453,6 +453,23 @@ extern char AlphaTable[ALPHA_COLORS * 256];
 /// <summary>1 for every alpha colour AlphaPal.ini defines (a translucent colour), else 0. 0x008021d0 in MCX.EXE.</summary>
 extern char SpecialColor[ALPHA_COLORS];
 
+/// <summary>An AlphaPal.ini entry: the colour's (8-bit) components, its weight A and the background's weight B2.</summary>
+struct MCAlphaColor
+{
+    float R = 0.0f;
+    float G = 0.0f;
+    float B = 0.0f;
+    float Alpha = 0.0f;
+    float BackgroundWeight = 0.0f;
+};
+
+/// <summary>
+/// The entries <see cref="InitAlphaLookup"/> read (port: the original kept them on its stack), for a renderer that
+/// blends the colours itself instead of looking the result up in <see cref="AlphaTable"/>. Zero where
+/// <see cref="SpecialColor"/> is 0.
+/// </summary>
+extern MCAlphaColor MCAlphaColors[ALPHA_COLORS];
+
 /// <summary>
 /// Builds <see cref="AlphaTable"/> and <see cref="SpecialColor"/> for <paramref name="palette"/> from
 /// <c>AlphaPal.ini</c>: lines of <c>index R G B A B2</c>; a special colour blended over background (r, g, b) (8-bit)
@@ -587,6 +604,12 @@ void AG_shape_translate_transform(PANE* pane, void* shapeTable, int32_t shapeNum
 /// </summary>
 /// <remarks>MCX.EXE @ 0x006b75c0</remarks>
 void CopySprite(PANE* pane, uint8_t* sprite, int x, int y, int width, int height, int mirror, int fullSize);
+
+/// <summary>
+/// Port: <see cref="CopySprite(PANE*, uint8_t*, int, int, int, int, int, int)"/> of a window's pixels, which the
+/// renderers read through its texture (the sprite is the whole window, <paramref name="width"/> its width).
+/// </summary>
+void CopySprite(PANE* pane, WINDOW* sprite, int x, int y, int width, int height, int mirror, int fullSize);
 
 /// <summary>
 /// Draws a shape opaque, its skipped pixels written as colour 0, with its hot spot at window coordinates

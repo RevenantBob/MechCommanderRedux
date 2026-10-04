@@ -252,10 +252,10 @@ auto ObjectQueueNode::findObjectFromEvent(ObjectEvent* event, int skipDisabled) 
                 continue;
             }
 
-            float mouseX = static_cast<float>(event->event.x);
-            float mouseY = static_cast<float>(event->event.y);
-            mouseX -= static_cast<float>(event->window->globalX());
-            mouseY -= static_cast<float>(event->window->globalY());
+            // Port: on the view's world surface, through the zoom.
+            const vector_2d mouse = MCWindowPoint(event->window, event->event.x, event->event.y);
+            const float mouseX = mouse.x;
+            const float mouseY = mouse.y;
             auto* misc = static_cast<MiscTerrainObject*>(object);
             int32_t block = misc->blockNumber;
             int32_t vertex = misc->vertexNumber;
@@ -310,10 +310,10 @@ auto ObjectQueueNode::findObjectFromEvent(ObjectEvent* event, int skipDisabled) 
         }
 
         appearance->recalcBounds(event->window->GetCamera());
-        float mouseX = static_cast<float>(event->event.x);
-        float mouseY = static_cast<float>(event->event.y);
-        mouseX -= static_cast<float>(event->window->globalX());
-        mouseY -= static_cast<float>(event->window->globalY());
+        // Port: on the view's world surface, through the zoom.
+        const vector_2d mouse = MCWindowPoint(event->window, event->event.x, event->event.y);
+        const float mouseX = mouse.x;
+        const float mouseY = mouse.y;
         AppearanceType* type = appearance->getAppearanceType();
 
         if (type != nullptr && (type->boundsUpperLeftX != 0 || type->boundsUpperLeftY != 0 ||

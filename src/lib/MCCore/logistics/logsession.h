@@ -30,7 +30,10 @@ public:
     /// <remarks>MCX.EXE @ 0x0070b820</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the gray, down (toggled), over (mouse over) or up picture.</summary>
+    /// <summary>
+    /// Shows the gray (disabled), down (toggled), over (mouse over) or up picture; the back colour when that picture
+    /// is missing. Port: drawn each frame from the state; outside the frame pass a call is the original's paint.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0070b880</remarks>
     void draw() override;
 
@@ -56,7 +59,10 @@ public:
     /// <remarks>MCX.EXE @ 0x0070ba00</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Draws the down picture while held, else the up one.</summary>
+    /// <summary>
+    /// Shows the down picture while held, else the up one (nothing without that picture). Port: drawn each frame
+    /// from the state; outside the frame pass a call is the original's paint.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0070bb40</remarks>
     void draw() override;
 };
@@ -79,11 +85,22 @@ public:
     /// <remarks>MCX.EXE @ 0x0070bd20</remarks>
     void destroy() override;
 
-    /// <summary>Clears the box and writes the text, wrapped.</summary>
+    /// <summary>
+    /// Clears the box and writes the text, wrapped; it also turned the cursor off. Port: draws the box, the text and
+    /// the cursor (which the original's display drew into the picture each frame).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0070bd50</remarks>
     void draw() override;
 
-    /// <summary>Draws the cursor (lit or not) and displays the line.</summary>
+    /// <summary>Port: the line draws itself each frame (its port is a view).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>
+    /// Port: an edit turns the cursor off, starting its blink over (the original's paint after an edit did).
+    /// </summary>
+    void RestartBlink();
+
+    /// <summary>Draws the cursor (lit or not) and displays the line. Port: the cursor is drawn by <see cref="draw"/>.</summary>
     /// <remarks>MCX.EXE @ 0x0070be80</remarks>
     void display() override;
 
@@ -127,9 +144,15 @@ public:
     /// <remarks>MCX.EXE @ 0x0070c2e0</remarks>
     void destroy() override;
 
-    /// <summary>Fills the box and writes the name (not while it is being dragged).</summary>
+    /// <summary>
+    /// Fills the box and writes the name (not while it is being dragged). Port: drawn each frame, over the player
+    /// number the session screen put on the left (<see cref="numberArt"/>).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0070c320</remarks>
     void draw() override;
+
+    /// <summary>Port: the name draws itself each frame (its port is a view).</summary>
+    bool DrawsLive() override { return true; }
 
     /// <summary>Dragging: grabbed on a press (when <see cref="draggable"/>), follows the mouse, dropped on release.</summary>
     /// <remarks>MCX.EXE @ 0x0070c390</remarks>
@@ -158,6 +181,13 @@ public:
     uint32_t playerId = 0xffffffff; // +0x4c8
     /// <summary>Nonzero when the name can be dragged (the host's screen).</summary>
     int32_t draggable = 0; // +0x4cc
+
+    /// <summary>
+    /// Port: what <c>SessionScreen::init</c> painted into the name's picture: a wipe to <see cref="numberBack"/> and
+    /// the player number picture (<c>ses_p&lt;n&gt;</c>) at (1, 1); null before.
+    /// </summary>
+    lPort* numberArt = nullptr;
+    int32_t numberBack = 0xff;
 };
 
 /// <summary>
@@ -178,9 +208,22 @@ public:
     /// <remarks>MCX.EXE @ 0x0070d970</remarks>
     void destroy() override;
 
-    /// <summary>Draws the mission and map names, the file name and each team's resource points per player.</summary>
+    /// <summary>
+    /// Draws the background, the unassigned list, the mission and map names, the file name and each team's resource
+    /// points per player. Port: draws them from the state, then the shared places (<see cref="LogScreenChrome"/>:
+    /// the ticker, the clock, the lights' backing).
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x0070dbe0</remarks>
     void draw() override;
+
+    /// <summary>Port: the screen draws itself each frame (its port is a view).</summary>
+    bool DrawsLive() override { return true; }
+
+    /// <summary>Port: see <see cref="LogScreenChrome"/>.</summary>
+    LogScreenChrome* Chrome() override { return &chrome; }
+
+    /// <summary>Port: what the screen shows of the shared places.</summary>
+    LogScreenChrome chrome;
 
     /// <summary>Name drops, chat keys and the RP text edits.</summary>
     /// <remarks>MCX.EXE @ 0x0070ddd0</remarks>
@@ -316,6 +359,20 @@ public:
     char* missionFile = nullptr; // +0x54c
     /// <summary>The loaded mission's map name (logistics heap).</summary>
     char* mapName = nullptr; // +0x550
+
+    /// <summary>
+    /// Port: the loaded mission's map picture (owned), drawn stretched over the map box, or null. (The original
+    /// stretched each map into the background picture over the ones before.)
+    /// </summary>
+    lPort* mapPicture = nullptr;
+    /// <summary>Port: the mission was taken away: the map box shows colour 0x10 rather than the background's art.</summary>
+    bool mapBoxWiped = false;
+
+    /// <summary>Port: draws the map box (<see cref="mapPicture"/>) into <paramref name="target"/>.</summary>
+    void DrawMap(_pane* target);
+
+    /// <summary>Port: frees <see cref="mapPicture"/>.</summary>
+    void ClearMap();
 };
 
 /// <summary>The default <see cref="lToolButton"/> event routine: a click flips the toggle and runs the callback.</summary>

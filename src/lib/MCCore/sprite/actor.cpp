@@ -780,6 +780,11 @@ auto MCDrawDamageBar(Appearance* appearance, AppearanceType* type, GameObject* o
         right = static_cast<float>(type->boundsLowerRightX >> shift) + screenPos.x;
     }
 
+    // Port: the bar is an overlay, on the screen over the view: it follows the sprite through the zoom, its size
+    // doesn't change.
+    left = MCOverlayX(left);
+    top = MCOverlayY(top);
+    right = MCOverlayX(right);
     const float scale = zoomScale(eye);
     const float gap = scale * 5.0f;
     const float barWidth = scale * 38.0f;

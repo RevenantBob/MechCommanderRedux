@@ -24,28 +24,6 @@ namespace
     int32_t arrowPressed = 0;
 
     /// <summary>
-    /// Copies the pixels of <c>logart\&lt;name&gt;</c> into <paramref name="track"/> (a 13-wide column
-    /// <paramref name="height"/> rows tall): at its top, or ending at its bottom when <paramref name="atBottom"/>.
-    /// </summary>
-    void copyArtToTrack(uint8_t* track, int32_t height, const char* name, bool atBottom)
-    {
-        char fileName[256];
-        sprintf(fileName, "%slogart\\%s", artPath, name);
-        lPort* art = new lPort;
-        art->init(fileName);
-        uint32_t size = static_cast<uint32_t>(art->height() * art->width());
-        uint8_t* dest = track;
-
-        if (atBottom)
-        {
-            dest = track + height * SliderWidth - art->height() * art->width();
-        }
-
-        memcpy(dest, art->frame()->window->buffer, size);
-        delete art;
-    }
-
-    /// <summary>
     /// Passes <paramref name="event"/> to the first child whose box holds the mouse, unless the mouse is over the
     /// slider column (or right of it).
     /// </summary>
@@ -193,6 +171,13 @@ auto ScrollPane::init(int32_t width, int32_t height, int32_t xPos, int32_t yPos,
     }
 
     memcpy(trackImage, slider->frame()->window->buffer, trackSize);
+
+    if (panePort == nullptr)
+    {
+        panePort = new lPort;
+    }
+
+    panePort->initView(width, height);
     setUpSlider();
     setScrollPos(0.0f);
     ShowGUIWindow(0);
@@ -226,6 +211,7 @@ auto ScrollPane::destroy() -> void
 
     if (sliderImage != nullptr)
     {
+        MCRenderer::DestroyTexture(sliderTexture);
         globalLogPtr->logisticsHeap->free(sliderImage);
         sliderImage = nullptr;
     }
@@ -234,6 +220,12 @@ auto ScrollPane::destroy() -> void
     {
         delete backgroundCopy;
         backgroundCopy = nullptr;
+    }
+
+    if (panePort != nullptr)
+    {
+        delete panePort;
+        panePort = nullptr;
     }
 }
 
@@ -257,7 +249,6 @@ auto ScrollPane::setScrollPos(float position) -> void
         int32_t newSliderPos = static_cast<int32_t>((winHeight - 32) * static_cast<double>(0.01f) * scrollPos + 16.0);
         setChildren();
         sliderPos = newSliderPos;
-        memcpy(sliderPort->bitmap()->buffer + newSliderPos * SliderWidth, sliderImage, sliderImageSize);
     }
 }
 
@@ -290,7 +281,6 @@ auto ScrollPane::setSliderPos(int32_t position) -> void
     }
 
     setChildren();
-    memcpy(sliderPort->bitmap()->buffer + sliderPos * SliderWidth, sliderImage, sliderImageSize);
 }
 
 auto ScrollPane::setChildren() -> void
@@ -309,6 +299,59 @@ auto ScrollPane::setChildren() -> void
 
 auto ScrollPane::draw() -> void
 {
+    _pane* view = panePort->frame();
+
+    if (backgroundCopy != nullptr)
+    {
+        backgroundCopy->copyTo(view, 0, 0, -1);
+    }
+
+    if (contentPort != nullptr)
+    {
+        const auto offset = static_cast<int32_t>(-(static_cast<double>(scrollPos) * scrollUnit));
+
+        if (contentPort->isView())
+        {
+            const MCView& pane = panePort->view;
+            contentPort->openView(pane.Target, pane.OriginX, pane.OriginY + offset, pane.Scissor, true);
+            drawContent();
+            contentPort->closeView();
+        }
+        else
+        {
+            contentPort->copyTo(view, 0, offset, -1);
+        }
+    }
+
+    DrawSliderColumn(view, winWidth - SliderWidth, 0, true);
+}
+
+auto ScrollPane::drawContent() -> void
+{
+    if (contentPort->DrawContent)
+    {
+        contentPort->DrawContent(contentPort);
+    }
+}
+
+auto ScrollPane::DrawContentTo(_pane* target, int32_t xPos, int32_t yPos) -> void
+{
+    if (contentPort == nullptr)
+    {
+        return;
+    }
+
+    if (!contentPort->isView())
+    {
+        VFX_pane_copy(contentPort->frame(), 0, getScrollOffset(), target, xPos, yPos, -1);
+        return;
+    }
+
+    const auto offset = static_cast<int32_t>(-(static_cast<double>(scrollPos) * scrollUnit));
+    const MCRect scissor{target->x0 + xPos, target->y0 + yPos, target->x1, target->y1};
+    contentPort->openView(target->window, target->x0 + xPos, target->y0 + yPos + offset, scissor, false);
+    drawContent();
+    contentPort->closeView();
 }
 
 auto ScrollPane::display() -> void
@@ -318,17 +361,65 @@ auto ScrollPane::display() -> void
         return;
     }
 
-    if (backgroundCopy != nullptr)
+    // The original copied its pieces over what the parent had shown there, and showed no children.
+    DrawInFramePass(panePort, 0, false, false);
+}
+
+auto ScrollPane::HeldArrow() const -> int32_t
+{
+    // An arrow shows held only while the content scrolls (the original put its art in the column when it erased
+    // the slider, and there is none to erase when the content fits).
+    if (sliderHeight == 0 || application->grabbedObject() != this)
     {
-        backgroundCopy->copyTo(framePane, 0, 0, -1);
+        return 0;
     }
 
-    if (contentPort != nullptr)
+    return arrowPressed;
+}
+
+auto ScrollPane::PressedArrowArt(bool down) -> lPort*
+{
+    return logArtf("%slogart\\%s", artPath, down ? "lscsb04.tga" : "lscsb03.tga");
+}
+
+auto ScrollPane::DrawSliderColumn(_pane* target, int32_t xPos, int32_t yPos, bool keyed) -> void
+{
+    const int key = keyed ? -1 : 0;
+    sliderPort->copyTo(target, xPos, yPos, key);
+    const int32_t held = HeldArrow();
+
+    if (held == 1)
     {
-        contentPort->copyTo(framePane, 0, static_cast<int32_t>(-(static_cast<double>(scrollPos) * scrollUnit)), -1);
+        if (lPort* art = PressedArrowArt(false); art != nullptr)
+        {
+            art->copyTo(target, xPos, yPos, key);
+        }
+    }
+    else if (held == 2)
+    {
+        if (lPort* art = PressedArrowArt(true); art != nullptr)
+        {
+            art->copyTo(target, xPos, yPos + height() - art->height(), key);
+        }
     }
 
-    sliderPort->copyTo(framePane, winWidth - SliderWidth, 0, -1);
+    if (sliderHeight > 0 && sliderTexture != nullptr)
+    {
+        // The slider image is a 13-wide picture of whole rows.
+        _window image{};
+        image.buffer = sliderImage;
+        image.x_max = SliderWidth - 1;
+        image.y_max = sliderTexture->Height - 1;
+        image.Texture = sliderTexture;
+        _pane imagePane{&image, 0, 0, SliderWidth - 1, sliderTexture->Height - 1};
+        VFX_pane_copy(&imagePane, 0, 0, target, xPos, yPos + sliderPos, -1);
+    }
+}
+
+auto ScrollPane::MakeSliderTexture() -> void
+{
+    MCRenderer::DestroyTexture(sliderTexture);
+    sliderTexture = MCRenderer::CreateTexture(sliderImage, SliderWidth, sliderHeight, MCTextureUse::Static);
 }
 
 auto ScrollPane::setUpSlider() -> void
@@ -343,6 +434,7 @@ auto ScrollPane::setUpSlider() -> void
 
     if (sliderImage != nullptr)
     {
+        MCRenderer::DestroyTexture(sliderTexture);
         globalLogPtr->logisticsHeap->free(sliderImage);
     }
 
@@ -373,11 +465,13 @@ auto ScrollPane::setUpSlider() -> void
     // The top row's highlight and the bottom row's shadow.
     memset(image + 3, 0x1c, 8);
     memset(image + size - 11, 0x17, 9);
+    MakeSliderTexture();
 }
 
 auto ScrollPane::setDisplayPort(lPort* port, int deleteOld, int resetPosition) -> void
 {
-    if (deleteOld != 0 && contentPort != nullptr)
+    // Port fix: not when the new content is the old one (the logistics store keeps its views and resizes them).
+    if (deleteOld != 0 && contentPort != nullptr && contentPort != port)
     {
         delete contentPort;
     }
@@ -416,10 +510,6 @@ auto ScrollPane::setDisplayPort(lPort* port, int deleteOld, int resetPosition) -
 
 auto ScrollPane::eraseSlider() -> void
 {
-    if (sliderHeight != 0)
-    {
-        memcpy(sliderPort->frame()->window->buffer, trackImage, static_cast<uint32_t>(height() * SliderWidth));
-    }
 }
 
 auto ScrollPane::lport() -> lPort*
@@ -492,7 +582,6 @@ auto ScrollPane::handleEvent(aEvent* event) -> void
                 }
 
                 // The down arrow.
-                copyArtToTrack(trackImage, height(), "lscsb04.tga", true);
                 application->AddTimer(this, 6, 200, 0, 0, 0);
 
                 if (this->child(0) == nullptr)
@@ -513,7 +602,6 @@ auto ScrollPane::handleEvent(aEvent* event) -> void
             }
 
             // The up arrow.
-            copyArtToTrack(trackImage, height(), "lscsb03.tga", false);
             arrowPressed = 1;
             application->AddTimer(this, 6, 200, 0, 0, 0);
 
@@ -547,28 +635,18 @@ auto ScrollPane::handleEvent(aEvent* event) -> void
                 dragY = -1;
             }
 
+            // OB-131 (fixed): the original let go of the arrow only on a release over the column. Let go elsewhere, it
+            // stayed pressed on screen and the slider could not be dragged until an arrow was released on the column.
+            const int32_t released = arrowPressed;
+            arrowPressed = 0;
+
             if (globalX() - 14 + winWidth <= event->x)
             {
-                // Releasing an arrow puts its art back.
-                if (arrowPressed == 1)
+                if (released != 0)
                 {
-                    application->release();
-                    arrowPressed = 0;
-                    copyArtToTrack(trackImage, height(), "supbup.tga", false);
-                }
-                else if (arrowPressed == 2)
-                {
-                    application->release();
-                    arrowPressed = 0;
-                    copyArtToTrack(trackImage, height(), "sdnbup.tga", true);
-                }
-                else
-                {
-                    return;
+                    setScrollPos(scrollPos);
                 }
 
-                setScrollPos(scrollPos);
-                parent->draw();
                 return;
             }
 
@@ -588,7 +666,6 @@ auto ScrollPane::handleEvent(aEvent* event) -> void
                 int32_t mouseY = event->y;
                 setSliderPos(sliderPos - dragY + mouseY);
                 dragY = mouseY;
-                parent->draw();
                 return;
             }
 
@@ -688,8 +765,6 @@ auto ScrollPane::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
         setScrollPos(static_cast<float>(rowHeight * row) / static_cast<float>(contentPort->height()) * 100.0f);
     }
 
-    // As releasing an arrow.
-    parent->draw();
     return true;
 }
 

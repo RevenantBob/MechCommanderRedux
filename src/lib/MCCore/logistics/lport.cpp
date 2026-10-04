@@ -23,6 +23,50 @@ namespace
     {
         globalLogPtr->logisticsHeap->free(block);
     }
+
+    /// <summary>The art <see cref="logArt"/> loaded, by file name (null for a file that couldn't be read).</summary>
+    std::unordered_map<std::string, lPort*> loadedArt;
+}
+
+auto logArt(const char* fileName) -> lPort*
+{
+    const auto found = loadedArt.find(fileName);
+
+    if (found != loadedArt.end())
+    {
+        return found->second;
+    }
+
+    auto* art = new lPort;
+
+    if (art->init(const_cast<char*>(fileName)) != 0)
+    {
+        delete art;
+        art = nullptr;
+    }
+
+    loadedArt.emplace(fileName, art);
+    return art;
+}
+
+auto logArtf(const char* format, ...) -> lPort*
+{
+    char fileName[256];
+    va_list args;
+    va_start(args, format);
+    std::vsnprintf(fileName, sizeof(fileName), format, args);
+    va_end(args);
+    return logArt(fileName);
+}
+
+auto ClearLogArt() -> void
+{
+    for (auto& [name, art] : loadedArt)
+    {
+        delete art;
+    }
+
+    loadedArt.clear();
 }
 
 // lPort
@@ -41,6 +85,8 @@ auto lPort::init(int32_t width, int32_t height, int allocBitmap) -> int32_t
 {
     if (portWindow != nullptr)
     {
+        MCRenderer::DestroyTexture(portWindow);
+
         if (portWindow->buffer != nullptr)
         {
             logFree(portWindow->buffer);
@@ -57,6 +103,8 @@ auto lPort::init(int32_t width, int32_t height, int allocBitmap) -> int32_t
         return 3;
     }
 
+    window->View = nullptr;
+    window->Texture = nullptr;
     window->x_max = width - 1;
     window->y_max = height - 1;
     // Port fix: the original left the buffer uninitialised without a bitmap (and destroy then freed it).
@@ -92,6 +140,12 @@ auto lPort::init(int32_t width, int32_t height, int allocBitmap) -> int32_t
     pane->x1 = width - 1;
     portHeight = height;
     pane->y1 = height - 1;
+
+    if (window->buffer != nullptr)
+    {
+        MCRenderer::CreateTexture(window, MCTextureUse::Dynamic);
+    }
+
     return 0;
 }
 
@@ -145,14 +199,51 @@ auto lPort::init(char* fileName) -> int32_t
         return result; // The original leaks the file data here.
     }
 
-    std::memcpy(portPane->window->buffer, data + 0x312, static_cast<size_t>(tgaHeight * tgaWidth));
+    MCTexture* texture = portPane->window->Texture;
+    std::memcpy(MCRenderer::LockTexture(texture), data + 0x312, static_cast<size_t>(tgaHeight * tgaWidth));
+    MCRenderer::UnlockTexture(texture);
     logFree(data);
+    return 0;
+}
+
+auto lPort::initView(int32_t width, int32_t height) -> int32_t
+{
+    if (isView() && width == portWidth && height == portHeight)
+    {
+        return 0;
+    }
+
+    destroy();
+    auto* window = static_cast<_window*>(logAlloc(sizeof(_window)));
+    auto* pane = static_cast<_pane*>(logAlloc(sizeof(_pane)));
+
+    if (window == nullptr || pane == nullptr)
+    {
+        return 3;
+    }
+
+    portWindow = window;
+    portPane = pane;
+    window->buffer = nullptr;
+    window->Texture = nullptr;
+    window->View = &view;
+    window->x_max = width - 1;
+    window->y_max = height - 1;
+    view = MCView{};
+    pane->window = window;
+    pane->x0 = 0;
+    pane->y0 = 0;
+    pane->x1 = width - 1;
+    pane->y1 = height - 1;
+    portWidth = width;
+    portHeight = height;
     return 0;
 }
 
 auto lPort::resize(int32_t width, int32_t height) -> int32_t
 {
-    if (this != screenPort)
+    // Port: a view has no pixels to reallocate.
+    if (this != screenPort && !isView())
     {
         if (portWindow->buffer != nullptr)
         {
@@ -169,6 +260,7 @@ auto lPort::resize(int32_t width, int32_t height) -> int32_t
     portWindow->x_max = width - 1;
     portWindow->y_max = height - 1;
     portWidth = width;
+    MCRenderer::ResizeTexture(portWindow);
     return 0;
 }
 
@@ -176,6 +268,8 @@ auto lPort::destroy() -> void
 {
     if (portWindow != nullptr)
     {
+        MCRenderer::DestroyTexture(portWindow);
+
         if (portWindow->buffer != nullptr)
         {
             logFree(portWindow->buffer);
@@ -243,7 +337,7 @@ auto lObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, ch
     if (port == nullptr)
     {
         ownPort = new lPort;
-        const int32_t result = ownPort->init(width, height, -1);
+        const int32_t result = DrawsLive() ? ownPort->initView(width, height) : ownPort->init(width, height, -1);
 
         if (result != 0)
         {
@@ -416,7 +510,7 @@ auto lObject::draw() -> void
 
         for (int32_t i = 0; i < numChildren; i++)
         {
-            childList[i]->draw();
+            DrawChild(childList[i]);
         }
     }
 }
@@ -433,17 +527,21 @@ auto lObject::display() -> void
         return;
     }
 
-    if (winState == aSTATE_ICONIZED)
+    // An object that draws itself does so after the slide has moved it.
+    if (!DrawsLive())
     {
-        if (iconAnimation != nullptr)
+        if (winState == aSTATE_ICONIZED)
         {
+            if (iconAnimation != nullptr)
+            {
+                draw();
+            }
+        }
+        else if (windowAnimation != nullptr)
+        {
+            windowAnimation->draw(ownPort->frame(), 0, 0);
             draw();
         }
-    }
-    else if (windowAnimation != nullptr)
-    {
-        windowAnimation->draw(ownPort->frame(), 0, 0);
-        draw();
     }
 
     if (hideOffset != 0)
@@ -485,6 +583,12 @@ auto lObject::display() -> void
                 hideOffset = 0;
             }
         }
+    }
+
+    if (DrawsLive() && ownPort != nullptr)
+    {
+        DrawInFramePass(ownPort);
+        return;
     }
 
     if (ownPort != nullptr)

@@ -51,12 +51,23 @@ namespace MCPort
 
     /// <summary>
     /// Port-only (tests): from now on <see cref="Milliseconds"/> and <see cref="PerformanceCounter"/> read a clock
-    /// that only <see cref="AdvanceManualClock"/> moves, so a run doesn't depend on how fast the machine is.
+    /// that only <see cref="AdvanceManualClock"/> moves, so a run doesn't depend on how fast the machine is, and
+    /// <see cref="GetSystemTime"/> and <see cref="GetLocalTime"/> read 2000-01-01 12:00:00 plus that clock.
     /// </summary>
     void UseManualClock();
 
     /// <summary>Port-only (tests): moves the manual clock on by <paramref name="nanoseconds"/>.</summary>
     void AdvanceManualClock(uint64_t nanoseconds);
+
+    /// <summary>
+    /// Port-only (tests): from now on each present after the first since the manual clock last advanced moves it on
+    /// by a 60 Hz refresh, as waiting for the display would. Loops that draw frames until some time has passed (the
+    /// logistics screen wipes) then end after the frames they would take on a real display.
+    /// </summary>
+    void AdvanceManualClockOnPresent();
+
+    /// <summary>Port-only: called by the display on every present (see <see cref="AdvanceManualClockOnPresent"/>).</summary>
+    void ManualClockPresented();
 
     /// <summary>
     /// The machine's physical memory in bytes, as <c>GlobalMemoryStatus</c>'s <c>dwTotalPhys</c> (clamped to what a

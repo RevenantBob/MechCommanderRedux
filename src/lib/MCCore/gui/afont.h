@@ -11,9 +11,9 @@ class aFont
 public:
     /// <remarks>MCX.EXE @ 0x0060a970</remarks>
     aFont();
-    /// <summary>Does nothing (the data is freed by <see cref="destroy"/>).</summary>
+    /// <summary>Unregisters the colour table (the data is freed by <see cref="destroy"/>).</summary>
     /// <remarks>MCX.EXE @ 0x0060a980</remarks>
-    ~aFont() {}
+    ~aFont();
     aFont(const aFont&) = delete;
     aFont& operator=(const aFont&) = delete;
 

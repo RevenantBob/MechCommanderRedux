@@ -12,6 +12,7 @@
 #include "object/team.h"
 #include "sprite/bactor.h"
 #include "terrain/terrain.h"
+#include "platform/MCRenderer.h"
 
 CraterManager* craterManager = nullptr;
 
@@ -120,6 +121,8 @@ auto CraterManager::init(int32_t numCraters, uint32_t unused, char* craterFileNa
             if (craterShapes[i] != nullptr)
             {
                 craterFile->readPacket(i, craterShapes[i]);
+                MCRenderer::RegisterData(craterShapes[i], static_cast<size_t>(craterFile->getPacketSize()),
+                                         MCDataKind::Shapes);
             }
         }
     }
@@ -166,6 +169,7 @@ auto CraterManager::getCrater(int32_t craterId) -> uint8_t*
         {
             dynamicFrameTiming = 0;
             craterFile->readPacket(craterId, shape);
+            MCRenderer::RegisterData(shape, static_cast<size_t>(craterFile->getPacketSize()), MCDataKind::Shapes);
         }
     }
 

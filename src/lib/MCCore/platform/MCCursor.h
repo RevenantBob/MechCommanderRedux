@@ -49,10 +49,27 @@ struct MCCursorBitmap
 namespace MCCursor
 {
     /// <summary>
-    /// Makes <paramref name="image"/> the cursor over the attached display's window. Cheap to call every frame: a new
-    /// SDL cursor is made only when the picture, its colours or the screen's scale changed.
+    /// Sets the game's cursor shapes and makes all their SDL cursors now. They are remade, all at once, only for a
+    /// new screen scale or when the palette settles on new colours for them (after a fade), so switching shapes in
+    /// play only selects one. Each is also shown once, unseen, the first time the mouse is over the window: Windows
+    /// builds a cursor's icon then, and that is the slow part.
+    /// </summary>
+    void Preload(std::vector<MCCursorImage> shapes);
+
+    /// <summary>Makes preloaded shape <paramref name="shape"/> the cursor; cheap to call every frame.</summary>
+    void ShowShape(size_t shape);
+
+    /// <summary>
+    /// Makes <paramref name="image"/>, not a preloaded shape (a dragged item over the cursor), the cursor over the
+    /// attached display's window. Its SDL cursor is remade whenever the picture changes; cheap while it doesn't.
     /// </summary>
     void Show(const MCCursorImage& image);
+
+    /// <summary>How many SDL cursors have been made (tests).</summary>
+    uint64_t CursorsMade();
+
+    /// <summary>How many made cursors Windows hasn't built yet (tests).</summary>
+    size_t ColdCursors();
 
     /// <summary>Shows no game cursor (the game hid its own).</summary>
     void Hide();

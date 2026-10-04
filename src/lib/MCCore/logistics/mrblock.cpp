@@ -239,15 +239,6 @@ namespace
                pane->globalY() < event->y && event->y < pane->globalY() + pane->height();
     }
 
-    /// <summary>Frames a 0x20 drag icon in colour 0xea.</summary>
-    void frameDragIcon(PANE* pane)
-    {
-        drawLine(pane, 0, 0, 0x1f, 0, 0xea);
-        drawLine(pane, 0, 1, 0, 0x1e, 0xea);
-        drawLine(pane, 0x1f, 1, 0x1f, 0x1e, 0xea);
-        drawLine(pane, 0, 0x1f, 0x1f, 0x1f, 0xea);
-    }
-
     void deleteDragIcon()
     {
         if (globalLogPtr->dragIcon != nullptr)
@@ -262,11 +253,8 @@ namespace
     /// Shows a component's info under the inventory: its picture (<c>lscicc</c>), the range, damage and recycle texts
     /// of its inventory block (made when missing) and its description.
     /// </summary>
-    void drawItemInfo(_LogInventoryItem* item, lPort* scratch, InventoryList* inventory)
+    void drawItemInfo(_LogInventoryItem* item, InventoryList* inventory)
     {
-        RepairScreen* screen = repairScreen();
-        VFX_pane_copy(scratch->frame(), 0, 0, screen->lport()->frame(), 9, 0x191, -1);
-
         if (item->inventoryBlock == nullptr)
         {
             auto* block = new CompInventoryBlock;
@@ -275,21 +263,8 @@ namespace
             inventory->loadDescription(0, item);
         }
 
-        CompInventoryBlock* block = item->inventoryBlock;
-        writeText(yellowDropFont, screen->lport()->frame(), 0x53, 0x1a5, block->rangeText);
-        writeText(yellowDropFont, screen->lport()->frame(), 0x53, 0x19c, block->damageText);
-        writeText(yellowDropFont, screen->lport()->frame(), 0x53, 0x193, block->recycleText);
-        scratch->destroy();
-        scratch->init(0xc5, 0x26, -1);
-        VFX_pane_wipe(scratch->frame(), 0xff);
-        char* description = item->description;
-
-        if (description != nullptr)
-        {
-            description[3] = '9';
-            application->textFormatter.process(reinterpret_cast<uint8_t*>(description), scratch, 0, 0);
-            scratch->copyTo(screen->lport()->frame(), 8, 0x1b3, -1);
-        }
+        PrepareInfoDescription(item->description);
+        repairScreen()->ShowComponentInfo(item->inventoryBlock, true);
     }
 
     /// <summary>Shows a message box with string <paramref name="id"/> and an enabled OK button.</summary>
@@ -307,7 +282,6 @@ namespace
         globalLogPtr->messageDialog->okButton->setDownPicture(downArt);
         lDialogButton* button = globalLogPtr->messageDialog->okButton;
         button->disabled = 0;
-        button->draw();
         globalLogPtr->messageDialog->activate();
     }
 
@@ -492,6 +466,8 @@ auto MechRepairBlock::init(LogMech* logMech) -> void
 
 auto MechRepairBlock::destroy() -> void
 {
+    LogInvScreen::ForgetInfoSource(this);
+
     if (inventoryPane != nullptr)
     {
         delete inventoryPane;
@@ -940,14 +916,8 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
 
                     if (item != nullptr)
                     {
-                        auto* scratch = new lPort;
                         repairScreen()->drawBlankInvInfoBlock(2);
-                        char fileName[256];
-                        std::snprintf(fileName, sizeof(fileName), "%slogart\\lscicc%02d.tga", artPath,
-                                      item->rangeIndex);
-                        scratch->init(fileName);
-                        drawItemInfo(item, scratch, mech->inventory);
-                        delete scratch;
+                        drawItemInfo(item, mech->inventory);
                         return;
                     }
                 }
@@ -955,7 +925,6 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
             else if (eventX < pane->globalX())
             {
                 // Over the mech: show its info.
-                auto* scratch = new lPort;
                 repairScreen()->drawBlankInvInfoBlock(0);
 
                 if (dragPort == nullptr)
@@ -976,33 +945,8 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
                     drawLine(dragPort->frame(), 1, 0x1b, 1, 0x1b - bar, 0xe4);
                 }
 
-                RepairScreen* screen = repairScreen();
-                dragPort->copyTo(screen->lport()->frame(), 0xb, 0x191, -1);
-                char tons[32];
-                cLoadString(thisInstance, 0x6e, tons, 0x1e);
-                LogMech* shown = mech;
-                char text[84];
-                std::snprintf(text, sizeof(text), "%.0f %s", static_cast<double>(shown->curTonnage), tons);
-                writeText(yellowDropFont, screen->lport()->frame(), 0x53, 0x193, text);
-                writeText(yellowDropFont, screen->lport()->frame(), 0x53, 0x19c, shown->weightClassName);
-                writeText(yellowDropFont, screen->lport()->frame(), 0xa8, 0x193, shown->chassisClassName);
-                writeText(yellowDropFont, screen->lport()->frame(), 0xa8, 0x19c, shown->extraName1);
-                writeText(yellowDropFont, screen->lport()->frame(), 0xa8, 0x1a5, shown->extraName2);
-                std::snprintf(text, sizeof(text), "%d m/s", shown->maxRunSpeed);
-                writeText(yellowDropFont, screen->lport()->frame(), 0x53, 0x1a5, text);
-                scratch->destroy();
-                scratch->init(0xc3, 0x26, -1);
-                VFX_pane_wipe(scratch->frame(), 0xff);
-                char* description = shown->description;
-
-                if (description != nullptr)
-                {
-                    description[3] = '9';
-                    application->textFormatter.process(reinterpret_cast<uint8_t*>(description), scratch, 0, 0);
-                    scratch->copyTo(screen->lport()->frame(), 8, 0x1b3, -1);
-                }
-
-                delete scratch;
+                PrepareInfoDescription(mech->description);
+                repairScreen()->ShowInfo(InvInfoBox::Kind::RepairMech, this);
             }
 
             if (leftDrag != 0)
@@ -1320,17 +1264,9 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
         dragX = 5;
         auto* icon = new DragIcon;
         globalLogPtr->dragIcon = icon;
-        icon->init(eventX - 0xf, eventY - 0xf, 0x20, 0x20, nullptr, nullptr);
-        lPort* rows = unitRowsPort();
-        VFX_pane_copy(rows->frame(), dragX, dragY, globalLogPtr->dragIcon->lport()->frame(), 0, 0, -1);
-        auto* blank = new lPort;
-        char fileName[256];
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrupm10.tga", artPath);
-        blank->init(fileName);
-        blank->copyTo(rows->frame(), 6, slotIndex * 0x70 + 0x21, -1);
-        delete blank;
+        icon->Begin(eventX - 0xf, eventY - 0xf, 0x20, 0x20, [this](lPort* surface) { OnBeginDragPilot(surface); });
+        clearPilot();
         repairScreen()->addChild(globalLogPtr->dragIcon);
-        frameDragIcon(globalLogPtr->dragIcon->lport()->frame());
         globalLogPtr->dragIcon->ShowGUIWindow(-1);
         globalLogPtr->dragIcon->setDepth(100);
         dragX = dragX + globalX();
@@ -1359,17 +1295,8 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
             dragX = eventX - 0x10;
             auto* icon = new DragIcon;
             globalLogPtr->dragIcon = icon;
-            icon->init(dragX, dragY, 0x20, 0x20, nullptr, nullptr);
-            VFX_pane_wipe(globalLogPtr->dragIcon->lport()->frame(), 0x10);
-            LogMech* dragged = mech;
-
-            for (int32_t location = 0; location < 8; ++location)
-            {
-                globalLogPtr->drawMechBodyLoc(dragged, location, globalLogPtr->dragIcon->lport(), 2, 1);
-            }
-
+            icon->Begin(dragX, dragY, 0x20, 0x20, [this](lPort* surface) { OnBeginDragMech(surface); });
             repairScreen()->addChild(globalLogPtr->dragIcon);
-            frameDragIcon(globalLogPtr->dragIcon->lport()->frame());
             globalLogPtr->dragIcon->ShowGUIWindow(-1);
             globalLogPtr->dragIcon->setDepth(100);
             globalLogPtr->dragIcon->moveTo(dragX, dragY, 0);
@@ -1419,7 +1346,6 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
 
         repairButtonDown = -1;
         bool shortOfPoints = false;
-        lPort* rows = unitRowsPort();
 
         if (localY < 0x17 || 0x26 < localY || canRepairStructure == 0)
         {
@@ -1438,8 +1364,7 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
             missing[0] = '\0';
             repairButtonDown = -1;
             playSample(0x35);
-            int32_t top = winHeight * slotIndex;
-            globalLogPtr->repairPorts[0]->copyTo(rows->frame(), 0xea, top + 3, -1);
+            pressedButton = 1;
             UpdateDisplay(0, 0, 0, 0, 0);
             bool anyMissing = false;
 
@@ -1505,7 +1430,6 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
             if (anyMissing)
             {
                 // Ask whether to strip the damaged items that have no replacement (RefitItemCallback).
-                globalLogPtr->repairPorts[1]->copyTo(rows->frame(), 0xeb, top + 4, -1);
                 application->release();
                 leftDrag = 0;
                 refitBlock = this;
@@ -1548,7 +1472,7 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
         }
 
         playSample(0x35);
-        globalLogPtr->repairPorts[2]->copyTo(rows->frame(), 0xea, winHeight * slotIndex + 0x17, -1);
+        pressedButton = 2;
         UpdateDisplay(0, 0, 0, 0, 0);
         _LogInventoryStat* engine = engineStat;
 
@@ -1614,7 +1538,6 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
 
         if (shortOfPoints)
         {
-            globalLogPtr->repairPorts[3]->copyTo(rows->frame(), 0xeb, winHeight * slotIndex + 0x1a, -1);
             application->release();
             leftDrag = 0;
             showMessage(0x57);
@@ -1634,27 +1557,72 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
 
 auto MechRepairBlock::drawBackground(int32_t row, lPort* port) -> void
 {
-    auto* art = new lPort;
-    bool briefing = false;
-    auto* back = new lPort;
-    ownPort = back;
-    // Port fix: the name buffer starts empty (a mech variant other than 0..2 loaded whatever it held).
-    char fileName[92] = {};
-    int32_t drawRow;
+    const bool framed =
+        globalLogPtr->currentScreen == globalLogPtr->repairScreen && repairScreen()->selectedMech == mech;
+    const bool hasPilot = mech->pilotIndex >= 0 || mech->networkPilot != nullptr;
 
-    if (row < 0)
+    if (port == nullptr)
     {
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lsbbkm00.tga", artPath);
-        back->init(fileName);
-        drawRow = 0;
-        briefing = true;
+        // The repair screen's rows are drawn each frame (DrawRow) from the state; the pilot is back in place and no
+        // button shows pressed. The rest is what the paint did besides painting (the weapon lists, the battle rating).
+        pilotLifted = false;
+        pressedButton = 0;
+
+        if (hasPilot)
+        {
+            setPilotStats(nullptr);
+            setPilotHealth(nullptr);
+        }
+
+        drawButtons(nullptr);
+        drawDamageDiagram(nullptr);
+        drawBR(nullptr);
+        drawArmorSlider(nullptr);
+        drawInternalSlider(nullptr);
+        drawEngineSlider(nullptr);
+        setInventory(nullptr);
+        drawInventory(nullptr);
+        return;
+    }
+
+    // The briefing box's picture.
+    PaintBase(port, 0, row < 0, framed);
+
+    if (hasPilot)
+    {
+        setPilotStats(port);
+        setPilotHealth(port);
+    }
+
+    drawButtons(port);
+    drawDamageDiagram(port);
+    drawBR(port);
+    drawArmorSlider(port);
+    drawInternalSlider(port);
+    drawEngineSlider(port);
+}
+
+auto MechRepairBlock::PaintBase(lPort* port, int32_t top, bool briefing, bool framed) -> void
+{
+    lPort* rowArt = briefing ? logArtf("%slogart\\lsbbkm00.tga", artPath) : globalLogPtr->repairBackPort;
+
+    if (rowArt == nullptr)
+    {
+        return;
+    }
+
+    // Drawn in place: the original put the base together in a new picture (zeroed, as the port's heap gives it) and
+    // copied it as it is.
+    lBlockPort back(port->frame(), 0, top, rowArt->width(), rowArt->height(), false);
+
+    if (briefing)
+    {
+        VFX_pane_copy(rowArt->frame(), 0, 0, back.frame(), 0, 0, -1);
     }
     else
     {
-        lPort* rowArt = globalLogPtr->repairBackPort;
-        back->init(rowArt->width(), rowArt->height(), -1);
-        rowArt->copyTo(back->frame(), 0, 0, -1);
-        drawRow = row;
+        VFX_pane_wipe(back.frame(), 0);
+        rowArt->copyTo(back.frame(), 0, 0, -1);
     }
 
     LogMech* logMech = mech;
@@ -1673,179 +1641,124 @@ auto MechRepairBlock::drawBackground(int32_t row, lPort* port) -> void
         chassisArt = "%slogart\\lscflmj%02d.tga";
     }
 
-    if (chassisArt != nullptr)
+    if (lPort* art = chassisArt != nullptr ? logArtf(chassisArt, artPath, logMech->nameIndex) : nullptr)
     {
-        std::snprintf(fileName, sizeof(fileName), chassisArt, artPath, logMech->nameIndex);
+        art->copyTo(back.frame(), 5, 4, -1);
     }
 
-    art->init(fileName);
-    art->copyTo(back->frame(), 5, 4, -1);
-    art->destroy();
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lscdsm%02d.tga", artPath, logMech->nameIndex);
-    art->init(fileName);
-    art->copyTo(back->frame(), briefing ? 0xdc : 0xd6, 8, -1);
-    delete art;
+    if (lPort* art = logArtf("%slogart\\lscdsm%02d.tga", artPath, logMech->nameIndex))
+    {
+        art->copyTo(back.frame(), briefing ? 0xdc : 0xd6, 8, -1);
+    }
 
     char format[256];
+    char text[92];
     cLoadString(thisInstance, 0x4e, format, 0xfe);
-    std::snprintf(fileName, sizeof(fileName), format, static_cast<double>(logMech->curTonnage),
-                  logMech->weightClassName);
-    writeText(blueDropFont, back->frame(), 6, 0x12, fileName);
+    std::snprintf(text, sizeof(text), format, static_cast<double>(logMech->curTonnage), logMech->weightClassName);
+    writeText(blueDropFont, back.frame(), 6, 0x12, text);
 
-    if (globalLogPtr->currentScreen == globalLogPtr->repairScreen && repairScreen()->selectedMech == logMech)
+    if (framed)
     {
         // The selected mech's frame.
-        drawLine(ownPort->frame(), 1, 0, width() + 1, 0, 0xf2);
-        drawLine(ownPort->frame(), 1, 0, 1, height() - 2, 0xf2);
-        drawLine(ownPort->frame(), 1, height() - 2, width() + 1, height() - 2, 0xf2);
-        drawLine(ownPort->frame(), width() + 1, 0, width() + 1, height() - 2, 0xf2);
-    }
-
-    lPort* destination = port;
-
-    if (row >= 0)
-    {
-        destination = unitRowsPort();
-    }
-
-    lPort* finished = ownPort;
-    VFX_pane_copy(finished->frame(), 0, 0, destination->frame(), 0, height() * drawRow, -1);
-
-    if (finished != nullptr)
-    {
-        delete finished;
-    }
-
-    ownPort = nullptr;
-
-    if (mech->pilotIndex >= 0 || mech->networkPilot != nullptr)
-    {
-        setPilotStats(port);
-        setPilotHealth(port);
-    }
-
-    drawButtons(port);
-    drawDamageDiagram(port);
-    drawBR(port);
-    drawArmorSlider(port);
-    drawInternalSlider(port);
-    drawEngineSlider(port);
-
-    if (port == nullptr)
-    {
-        setInventory(nullptr);
-        drawInventory(nullptr);
-
-        if (repairScreen()->selectedMech != mech)
-        {
-            globalLogPtr->darken(row, g_logistic_fadetable, nullptr);
-        }
+        drawLine(back.frame(), 1, 0, width() + 1, 0, 0xf2);
+        drawLine(back.frame(), 1, 0, 1, height() - 2, 0xf2);
+        drawLine(back.frame(), 1, height() - 2, width() + 1, height() - 2, 0xf2);
+        drawLine(back.frame(), width() + 1, 0, width() + 1, height() - 2, 0xf2);
     }
 }
 
 auto MechRepairBlock::drawButtons(lPort* port) -> void
 {
     bool onRows = port == nullptr;
-    int32_t row = 0;
+
+    // The buttons are live when there is something to repair. (Painting the briefing box, the original found
+    // nothing to repair: it only looked for the repair screen's rows.)
+    canRepairItems = onRows && ItemsDamaged() ? 1 : 0;
+    canRepairStructure = onRows && StructureDamaged() ? 1 : 0;
 
     if (onRows)
     {
-        port = unitRowsPort();
-        row = slotIndex;
+        // The rows draw their buttons each frame (DrawRow).
+        return;
     }
 
-    auto* work = new lPort;
-    ownPort = work;
-    work->init(width(), height(), -1);
-    VFX_pane_wipe(work->frame(), 0xff);
+    PaintButtons(port, 0, false, canRepairItems, canRepairStructure);
+}
 
-    // The item repair button is live when any weapon or equipment copy is damaged.
-    LogMech* logMech = mech;
-    canRepairItems = 0;
-
-    if (onRows)
+auto MechRepairBlock::ItemsDamaged() const -> bool
+{
+    // Any weapon or equipment copy damaged.
+    for (_LogInventoryItem* item = mech->inventory->items; item != nullptr; item = item->next)
     {
-        for (_LogInventoryItem* item = logMech->inventory->items; item != nullptr && canRepairItems == 0;
-             item = item->next)
+        int32_t form = componentForm(item->masterID);
+
+        if (!isWeapon(form) && !isEquipment(form) && form != 0x12)
         {
-            int32_t form = componentForm(item->masterID);
+            continue;
+        }
 
-            if (!isWeapon(form) && !isEquipment(form) && form != 0x12)
+        for (_LogInventoryStat* stat = item->stats; stat != nullptr; stat = stat->next)
+        {
+            if (stat->hits != 0)
             {
-                continue;
-            }
-
-            for (_LogInventoryStat* stat = item->stats; stat != nullptr; stat = stat->next)
-            {
-                if (stat->hits != 0)
-                {
-                    canRepairItems = 1;
-                    break;
-                }
+                return true;
             }
         }
     }
 
-    if (canRepairItems == 0)
+    return false;
+}
+
+auto MechRepairBlock::StructureDamaged() const -> bool
+{
+    // The engine, the internal structure or the armor damaged.
+    return engineStat->hits != 0 || sumPoints(mech->internals, 8, false) != sumPoints(mech->internals, 8, true) ||
+           sumPoints(mech->armor, 11, false) != sumPoints(mech->armor, 11, true);
+}
+
+auto MechRepairBlock::ShowsInventory() const -> bool
+{
+    // In multiplayer, only the player's own mechs (and the one in the briefing box) list their weapons.
+    return MPlayer == nullptr || globalLogPtr->forceMechList->getMechIndex(mech) >= 0 ||
+           mech->briefingBox == globalLogPtr->briefingScreen->briefingBox;
+}
+
+auto MechRepairBlock::PaintButtons(lPort* port, int32_t top, bool onRows, int32_t items, int32_t structure) -> void
+{
+    // Drawn in place: the original painted a scratch picture (wiped to 0xff) and copied it here keyed on 0xff.
+    lBlockPort work(port->frame(), 0, top, width(), height(), true);
+
+    if (items == 0)
     {
-        globalLogPtr->repairPorts[4]->copyTo(work->frame(), onRows ? 0xea : 0xf8, 3, -1);
+        globalLogPtr->repairPorts[4]->copyTo(work.frame(), onRows ? 0xea : 0xf8, 3, -1);
     }
     else
     {
-        globalLogPtr->repairPorts[1]->copyTo(work->frame(), 0xea, 3, -1);
+        globalLogPtr->repairPorts[1]->copyTo(work.frame(), 0xea, 3, -1);
     }
 
-    // The structure repair button: engine, internal structure or armor damaged.
-    canRepairStructure = 0;
-
-    if (onRows &&
-        (engineStat->hits != 0 || sumPoints(logMech->internals, 8, false) != sumPoints(logMech->internals, 8, true) ||
-         sumPoints(logMech->armor, 11, false) != sumPoints(logMech->armor, 11, true)))
+    if (structure == 0)
     {
-        canRepairStructure = 1;
-    }
-
-    if (canRepairStructure == 0)
-    {
-        globalLogPtr->repairPorts[5]->copyTo(work->frame(), onRows ? 0xea : 0xf8, 0x17, -1);
+        globalLogPtr->repairPorts[5]->copyTo(work.frame(), onRows ? 0xea : 0xf8, 0x17, -1);
     }
     else
     {
-        globalLogPtr->repairPorts[3]->copyTo(work->frame(), 0xea, 0x17, -1);
+        globalLogPtr->repairPorts[3]->copyTo(work.frame(), 0xea, 0x17, -1);
     }
-
-    lPort* finished = ownPort;
-    finished->copyTo(port->frame(), 0, height() * row, -1);
-
-    if (finished != nullptr)
-    {
-        delete finished;
-    }
-
-    ownPort = nullptr;
 }
 
 auto MechRepairBlock::drawDamageDiagram(lPort* port) -> void
 {
-    int32_t row = 0;
-    int32_t xPos;
-
-    if (port == nullptr)
+    if (port != nullptr)
     {
-        port = unitRowsPort();
-        row = slotIndex;
-        xPos = 0x88;
+        PaintDiagram(port, 0, 0x8e);
     }
-    else
-    {
-        xPos = 0x8e;
-    }
+}
 
-    auto* blank = new lPort;
-    blank->init(0x4b, 100, -1);
-    VFX_pane_wipe(blank->frame(), 0x10);
-    blank->copyTo(port->frame(), xPos, row * 0x70 + 8, -1);
-    delete blank;
+auto MechRepairBlock::PaintDiagram(lPort* port, int32_t top, int32_t xPos) -> void
+{
+    lBlockPort blank(port->frame(), xPos, top + 8, 0x4b, 100, true);
+    VFX_pane_wipe(blank.frame(), 0x10);
 
     // The internal structure (shape frames 11..18), then the armor over it (0..7), coloured by damage state.
     int32_t state[8];
@@ -1865,7 +1778,7 @@ auto MechRepairBlock::drawDamageDiagram(lPort* port) -> void
             if (state[location] == shade)
             {
                 VFX_shape_translate_draw(port->frame(), globalLogPtr->mechRepShapes[mech->nameIndex], location + 0xb,
-                                         xPos, height() * row + 8);
+                                         xPos, top + 8);
             }
         }
     }
@@ -1884,7 +1797,7 @@ auto MechRepairBlock::drawDamageDiagram(lPort* port) -> void
             if (state[location] == shade)
             {
                 VFX_shape_translate_draw(port->frame(), globalLogPtr->mechRepShapes[mech->nameIndex], location, xPos,
-                                         height() * row + 8);
+                                         top + 8);
             }
         }
     }
@@ -1893,45 +1806,39 @@ auto MechRepairBlock::drawDamageDiagram(lPort* port) -> void
 auto MechRepairBlock::drawBR(lPort* port) -> void
 {
     mech->calcBR();
-    int32_t row;
 
-    if (port == nullptr)
+    if (port != nullptr)
     {
-        port = unitRowsPort();
-        row = slotIndex;
+        PaintBR(port, 0);
     }
-    else
-    {
-        row = 0;
-    }
+}
 
-    auto* work = new lPort;
-    ownPort = work;
-    work->init(width(), height(), -1);
-    VFX_pane_wipe(work->frame(), 0xff);
+auto MechRepairBlock::PaintBR(lPort* port, int32_t top) -> void
+{
+    // Drawn in place: the original painted a scratch picture (wiped to 0xff) and copied it here keyed on 0xff.
+    lBlockPort work(port->frame(), 0, top, width(), height(), true);
 
     // The battle rating bar: 80 pixels at 18010, rising from y 0x58; the pilot modifier adds to it (or eats into it).
     int32_t rating = mech->battleRating;
     int32_t clamped = static_cast<int32_t>(rating > 18010.0 ? 18010.0 : static_cast<double>(rating));
     int32_t bar = static_cast<int32_t>(static_cast<double>(clamped) * (1.0 / 18010.0) * 80.0);
-    auto* art = new lPort;
-    char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrupm09.tga", artPath);
-    art->init(fileName);
-    art->copyTo(work->frame(), 0x72, 5, 0);
-    delete art;
 
-    PANE* pane = work->frame();
+    if (lPort* art = logArtf("%slogart\\lsrupm09.tga", artPath))
+    {
+        art->copyTo(work.frame(), 0x72, 5, 0);
+    }
+
+    PANE* pane = work.frame();
     int32_t barTop = 0x57 - bar;
     drawLine(pane, 0x74, 0x58, 0x78, 0x58, 0xe5);
     drawLine(pane, 0x74, barTop, 0x78, barTop, 0xe3);
-    int32_t top = 0x58 - bar;
-    drawLine(pane, 0x73, 0x57, 0x73, top, 0xe3);
-    drawLine(pane, 0x79, 0x57, 0x79, top, 0xe5);
+    int32_t top0 = 0x58 - bar;
+    drawLine(pane, 0x73, 0x57, 0x73, top0, 0xe3);
+    drawLine(pane, 0x79, 0x57, 0x79, top0, 0xe5);
 
     for (int32_t x = 0x74; x <= 0x78; ++x)
     {
-        drawLine(pane, x, 0x57, x, top, 0xe4);
+        drawLine(pane, x, 0x57, x, top0, 0xe4);
     }
 
     drawLine(pane, 0x74, 0x56 - bar, 0x78, 0x56 - bar, 0x10);
@@ -1979,26 +1886,16 @@ auto MechRepairBlock::drawBR(lPort* port) -> void
         {
             drawLine(pane, 0x74, barTop, 0x78, barTop, 0xae);
             int32_t bottom = taken - bar + 0x58;
-            drawLine(pane, 0x73, top, 0x73, bottom, 0xae);
+            drawLine(pane, 0x73, top0, 0x73, bottom, 0xae);
 
             for (int32_t x = 0x74; x <= 0x78; ++x)
             {
-                drawLine(pane, x, top, x, bottom, 0xce);
+                drawLine(pane, x, top0, x, bottom, 0xce);
             }
 
-            drawLine(pane, 0x79, top, 0x79, bottom, 0xed);
+            drawLine(pane, 0x79, top0, 0x79, bottom, 0xed);
         }
     }
-
-    lPort* finished = ownPort;
-    finished->copyTo(port->frame(), 0, height() * row, -1);
-
-    if (finished != nullptr)
-    {
-        delete finished;
-    }
-
-    ownPort = nullptr;
 }
 
 auto MechRepairBlock::drawArmorSlider(lPort* port) -> void
@@ -2008,8 +1905,14 @@ auto MechRepairBlock::drawArmorSlider(lPort* port) -> void
 
 auto MechRepairBlock::drawSlider(lPort* port, int32_t slider) -> void
 {
-    int32_t row = 0;
-    bool briefing = false;
+    if (port != nullptr)
+    {
+        PaintSlider(port, 0, slider, true);
+    }
+}
+
+auto MechRepairBlock::PaintSlider(lPort* port, int32_t top, int32_t slider, bool briefing) -> void
+{
     int32_t start = 0;
     int32_t position = 0;
     int32_t yPos = 0;
@@ -2033,30 +1936,17 @@ auto MechRepairBlock::drawSlider(lPort* port, int32_t slider) -> void
         yPos = 0x61;
     }
 
-    if (port == nullptr)
-    {
-        port = unitRowsPort();
-        row = slotIndex;
-    }
-    else
-    {
-        briefing = true;
-    }
+    // Drawn in place: the original painted a scratch picture (wiped to 0xff) and copied it here keyed on 0xff.
+    lBlockPort work(port->frame(), 0, top, width(), height(), true);
 
-    auto* work = new lPort;
-    ownPort = work;
-    work->init(width(), height(), -1);
-    VFX_pane_wipe(work->frame(), 0xff);
-    auto* art = new lPort;
-    char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrupm%d.tga", artPath, slider + 0xb);
-    art->init(fileName);
-    art->copyTo(work->frame(), briefing ? 0xf8 : 0xea, yPos, -1);
-    delete art;
+    if (lPort* art = logArtf("%slogart\\lsrupm%d.tga", artPath, slider + 0xb))
+    {
+        art->copyTo(work.frame(), briefing ? 0xf8 : 0xea, yPos, -1);
+    }
 
     // The track left of the knob: the part repaired before (grey), then the part repaired by this drag (red).
     int32_t shift = briefing ? 0xe : 0;
-    PANE* pane = work->frame();
+    PANE* pane = work.frame();
 
     if (0xec < position)
     {
@@ -2093,16 +1983,6 @@ auto MechRepairBlock::drawSlider(lPort* port, int32_t slider) -> void
     }
 
     VFX_pane_copy(sliderArtPort->frame(), 0, 0, pane, shift + position, yPos, -1);
-
-    lPort* finished = ownPort;
-    finished->copyTo(port->frame(), 0, height() * row, -1);
-
-    if (finished != nullptr)
-    {
-        delete finished;
-    }
-
-    ownPort = nullptr;
 }
 
 auto MechRepairBlock::drawInternalSlider(lPort* port) -> void
@@ -2125,30 +2005,102 @@ auto MechRepairBlock::draw() -> void
 
 auto MechRepairBlock::drawInventory(lPort* port) -> void
 {
-    int32_t row;
-
-    if (port == nullptr)
+    if (port != nullptr && mech->assigned != 0)
     {
-        port = unitRowsPort();
-        row = slotIndex;
+        PaintInventory(port, 0);
+    }
+}
+
+auto MechRepairBlock::PaintInventory(lPort* port, int32_t top) -> void
+{
+    lBlockPort work(port->frame(), 0x135, top + 0x11, 0x62, 0x58, false);
+    auto* pane = static_cast<ScrollPane*>(child(0));
+    pane->DrawContentTo(work.frame(), 0, 0);
+    pane->DrawSliderColumn(port->frame(), pane->width() + 0x128, top + 0x11, false);
+}
+
+auto MechRepairBlock::DrawRow(lPort* port, int32_t top) -> void
+{
+    // Put together as the original painted it into the rows' picture (over its colour 0xff): framed when selected,
+    // darkened when another mech is.
+    lBlockPort row(port->frame(), 0, top, 0x19d, 0x70, false);
+    VFX_pane_wipe(row.frame(), 0xff);
+    const bool selected = repairScreen()->selectedMech == mech;
+    PaintBase(&row, 0, false, selected);
+    LogMech* logMech = mech;
+    const float status = logMech->calcStatus();
+
+    if (logMech->pilotIndex >= 0 || logMech->networkPilot != nullptr)
+    {
+        PaintPilot(&row, 0, status, true);
     }
     else
     {
-        row = 0;
+        // OB-134 (fixed): without a pilot the original showed the status bar only once a slider or repair had
+        // painted it.
+        PaintStatusBar(&row, 0, status, true);
     }
 
-    if (mech->assigned == 0)
+    PaintButtons(&row, 0, true, ItemsDamaged() ? 1 : 0, StructureDamaged() ? 1 : 0);
+    PaintDiagram(&row, 0, 0x88);
+    PaintBR(&row, 0);
+    PaintSlider(&row, 0, 0, false);
+    PaintSlider(&row, 0, 1, false);
+    PaintSlider(&row, 0, 2, false);
+
+    if (ShowsInventory())
     {
-        return;
+        PaintTonnage(&row, 0);
     }
 
-    auto* work = new lPort;
-    work->init(0x62, 0x58, -1);
-    auto* pane = static_cast<ScrollPane*>(child(0));
-    VFX_pane_copy(pane->contentPort->frame(), 0, scrollPixels(pane), work->frame(), 0, 0, -1);
-    VFX_pane_copy(work->frame(), 0, 0, port->frame(), 0x135, height() * row + 0x11, -1);
-    VFX_pane_copy(pane->sliderPort->frame(), 0, 0, port->frame(), pane->width() + 0x128, height() * row + 0x11, -1);
-    delete work;
+    if (logMech->assigned != 0)
+    {
+        PaintInventory(&row, 0);
+    }
+
+    if (!selected)
+    {
+        globalLogPtr->darken(0, g_logistic_fadetable, &row);
+    }
+
+    if (pilotLifted)
+    {
+        if (lPort* blank = logArtf("%slogart\\lsrupm10.tga", artPath))
+        {
+            blank->copyTo(port->frame(), 6, top + 0x21, -1);
+        }
+    }
+
+    // A repair button held while its repair runs.
+    if (pressedButton != 0)
+    {
+        const bool items = pressedButton == 1;
+        globalLogPtr->repairPorts[items ? 0 : 2]->copyTo(port->frame(), 0xea, top + (items ? 3 : 0x17), -1);
+    }
+}
+
+auto MechRepairBlock::OnBeginDragPilot(lPort* surface) -> void
+{
+    VFX_pane_wipe(surface->frame(), 0xff);
+    DragIcon::DrawFrom(surface, 5, 0x25, [this](lPort* port) { DrawRow(port, 0); });
+}
+
+auto MechRepairBlock::OnBeginDragMech(lPort* surface) -> void
+{
+    VFX_pane_wipe(surface->frame(), 0x10);
+
+    for (int32_t location = 0; location < 8; ++location)
+    {
+        globalLogPtr->drawMechBodyLoc(mech, location, surface, 2, 1);
+    }
+}
+
+auto MechRepairBlock::OnBeginDragItem(lPort* surface, _LogInventoryItem* item) -> void
+{
+    if (lPort* art = logArtf("%slogart\\lscicc%02d.tga", artPath, item->rangeIndex))
+    {
+        art->copyTo(surface->frame(), 1, 1, -1);
+    }
 }
 
 auto MechRepairBlock::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
@@ -2267,18 +2219,21 @@ auto LogMech::calcStatus() -> float
 auto MechRepairBlock::drawStatusBar(lPort* port) -> void
 {
     float status = mech->calcStatus();
-    int32_t row = 0;
+    bool repairLayout = globalLogPtr->currentScreen != globalLogPtr->briefingScreen;
 
+    // The rows draw their status bar each frame (DrawRow).
     if (port == nullptr)
     {
-        port = unitRowsPort();
-        row = slotIndex;
+        return;
     }
 
-    bool repairLayout = globalLogPtr->currentScreen != globalLogPtr->briefingScreen;
-    auto* work = new lPort;
-    work->init(width(), height(), -1);
-    VFX_pane_wipe(work->frame(), 0xff);
+    PaintStatusBar(port, 0, status, repairLayout);
+}
+
+auto MechRepairBlock::PaintStatusBar(lPort* port, int32_t top, float status, bool repairLayout) -> void
+{
+    // Drawn in place: the original painted a scratch picture (wiped to 0xff) and copied it here keyed on 0xff.
+    lBlockPort work(port->frame(), 0, top, width(), height(), true);
     uint8_t color;
 
     if (status < 0.5f)
@@ -2295,10 +2250,8 @@ auto MechRepairBlock::drawStatusBar(lPort* port) -> void
 
     for (int32_t y = 2; y <= 5; ++y)
     {
-        drawLine(work->frame(), left, y, right, y, 0x13);
+        drawLine(work.frame(), left, y, right, y, 0x13);
     }
-
-    mech->statusValue = status;
 
     if (status != 0.0f)
     {
@@ -2306,12 +2259,9 @@ auto MechRepairBlock::drawStatusBar(lPort* port) -> void
 
         for (int32_t y = 2; y <= 5; ++y)
         {
-            drawLine(work->frame(), left, y, end, y, color);
+            drawLine(work.frame(), left, y, end, y, color);
         }
     }
-
-    work->copyTo(port->frame(), 0, height() * row, -1);
-    delete work;
 }
 
 auto MechRepairBlock::setEngineSlider(int32_t value) -> void
@@ -2381,13 +2331,7 @@ auto MechRepairBlock::setArmorSlider(int32_t value) -> void
 
 auto MechRepairBlock::clearPilot() -> void
 {
-    auto* blank = new lPort;
-    lPort* rows = unitRowsPort();
-    char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrupm10.tga", artPath);
-    blank->init(fileName);
-    blank->copyTo(rows->frame(), 6, slotIndex * 0x70 + 0x21, -1);
-    delete blank;
+    pilotLifted = true;
 }
 
 auto MechRepairBlock::setPilotStats(lPort* port) -> void
@@ -2399,17 +2343,21 @@ auto MechRepairBlock::setPilotStats(lPort* port) -> void
         return;
     }
 
-    int32_t row = slotIndex;
+    float status = mech->calcStatus();
+    bool repairLayout = globalLogPtr->currentScreen != globalLogPtr->briefingScreen;
 
+    // The rows draw their pilot each frame (DrawRow).
     if (port == nullptr)
     {
-        port = unitRowsPort();
-    }
-    else
-    {
-        row = 0;
+        return;
     }
 
+    PaintPilot(port, 0, status, repairLayout);
+}
+
+auto MechRepairBlock::PaintPilot(lPort* port, int32_t top, float status, bool repairLayout) -> void
+{
+    LogMech* logMech = mech;
     LogWarrior* warrior = nullptr;
 
     if (logMech->localPart == 0)
@@ -2421,29 +2369,15 @@ auto MechRepairBlock::setPilotStats(lPort* port) -> void
         globalLogPtr->assignedWarriorList->getWarriorInfo(logMech->pilotIndex, warrior);
     }
 
-    char text[256];
-
-    if (warrior == nullptr)
-    {
-        std::snprintf(text, sizeof(text), "%slogart\\pilot%02d.tga", artPath, logMech->pilotIndex);
-    }
-    else
-    {
-        std::snprintf(text, sizeof(text), "%slogart\\%s", artPath, warrior->picture);
-    }
-
     // The status bar, then the portrait.
-    auto* work = new lPort;
-    work->init(0x19d, 0x70, -1);
-    VFX_pane_wipe(work->frame(), 0xff);
-    drawStatusBar(work);
-    int32_t rowHeight = winHeight;
-    int32_t top = rowHeight * row;
-    work->copyTo(port->frame(), 0, top, -1);
-    work->destroy();
-    work->init(text);
-    work->copyTo(port->frame(), 6, top + 0x26, -1);
-    delete work;
+    PaintStatusBar(port, top, status, repairLayout);
+    lPort* portrait = warrior == nullptr ? logArtf("%slogart\\pilot%02d.tga", artPath, logMech->pilotIndex)
+                                         : logArtf("%slogart\\%s", artPath, warrior->picture);
+
+    if (portrait != nullptr)
+    {
+        portrait->copyTo(port->frame(), 6, top + 0x26, -1);
+    }
 
     // Port fix: without a pilot record the texts are skipped (the original read them through the null pointer).
     if (warrior == nullptr)
@@ -2451,18 +2385,35 @@ auto MechRepairBlock::setPilotStats(lPort* port) -> void
         return;
     }
 
-    writeText(yellowDropFont, port->frame(), 0x2d, row * 0x70 + 0x2a, warrior->callsign);
+    char text[256];
+    writeText(yellowDropFont, port->frame(), 0x2d, top + 0x2a, warrior->callsign);
+
+    // An out-of-range rank shows the portrait's file name, which the text buffer last held.
+    std::snprintf(text, sizeof(text), "%slogart\\%s", artPath, warrior->picture);
 
     if (warrior->rank >= 0 && warrior->rank <= 3)
     {
         cLoadString(thisInstance, 0x70 + static_cast<uint32_t>(warrior->rank), text, 0xfe);
     }
 
-    writeText(yellowDropFont, port->frame(), 0x2d, row * 0x70 + 0x3c, text);
-    globalLogPtr->drawPilotSkillBar(warrior, 3, 0x2e, 0x4a, row, 0x36, rowHeight, port);
-    globalLogPtr->drawPilotSkillBar(warrior, 0, 0x2e, 0x53, row, 0x36, rowHeight, port);
-    globalLogPtr->drawPilotSkillBar(warrior, 1, 0x2e, 0x5c, row, 0x36, rowHeight, port);
-    globalLogPtr->drawPilotSkillBar(warrior, 2, 0x2e, 0x65, row, 0x36, rowHeight, port);
+    writeText(yellowDropFont, port->frame(), 0x2d, top + 0x3c, text);
+    globalLogPtr->drawPilotSkillBar(warrior, 3, 0x2e, top + 0x4a, 0, 0x36, winHeight, port);
+    globalLogPtr->drawPilotSkillBar(warrior, 0, 0x2e, top + 0x53, 0, 0x36, winHeight, port);
+    globalLogPtr->drawPilotSkillBar(warrior, 1, 0x2e, top + 0x5c, 0, 0x36, winHeight, port);
+    globalLogPtr->drawPilotSkillBar(warrior, 2, 0x2e, top + 0x65, 0, 0x36, winHeight, port);
+
+    // One 2x2 pip per point of health.
+    auto pips = static_cast<int32_t>(warrior->health);
+    int32_t xPos = 0xc;
+
+    for (; pips > 0; --pips)
+    {
+        AG_pixel_write(port->frame(), xPos, top + 0x22, 0xcf);
+        AG_pixel_write(port->frame(), xPos + 1, top + 0x22, 0xcf);
+        AG_pixel_write(port->frame(), xPos + 1, top + 0x23, 0xee);
+        AG_pixel_write(port->frame(), xPos, top + 0x23, 0xcf);
+        xPos += 3;
+    }
 }
 
 auto Logistics::drawPilotSkillBar(LogWarrior* warrior, int32_t skill, int32_t xPos, int32_t yPos, int32_t row,
@@ -2506,56 +2457,9 @@ auto Logistics::drawPilotSkillBar(int32_t value, int32_t xPos, int32_t yPos, int
     VFX_pixel_write(pane, end, top + 3, 0x10);
 }
 
-auto MechRepairBlock::setPilotHealth(lPort* port) -> void
+auto MechRepairBlock::setPilotHealth(lPort*) -> void
 {
-    LogMech* logMech = mech;
-
-    if (logMech->pilotIndex < 0 && logMech->networkPilot == nullptr)
-    {
-        return;
-    }
-
-    LogWarrior* warrior = nullptr;
-
-    if (logMech->localPart == 0)
-    {
-        warrior = logMech->networkPilot;
-    }
-    else
-    {
-        globalLogPtr->assignedWarriorList->getWarriorInfo(logMech->pilotIndex, warrior);
-    }
-
-    if (warrior == nullptr)
-    {
-        return;
-    }
-
-    int32_t row = slotIndex;
-
-    if (port == nullptr)
-    {
-        port = unitRowsPort();
-    }
-    else
-    {
-        row = 0;
-    }
-
-    // One 2x2 pip per point of health.
-    auto pips = static_cast<int32_t>(warrior->health);
-    int32_t xPos = 0xc;
-    int32_t upper = row * 0x70 + 0x22;
-    int32_t lower = row * 0x70 + 0x23;
-
-    for (; pips > 0; --pips)
-    {
-        AG_pixel_write(port->frame(), xPos, upper, 0xcf);
-        AG_pixel_write(port->frame(), xPos + 1, upper, 0xcf);
-        AG_pixel_write(port->frame(), xPos + 1, lower, 0xee);
-        AG_pixel_write(port->frame(), xPos, lower, 0xcf);
-        xPos += 3;
-    }
+    // Drawn with the pilot's stats (PaintPilot).
 }
 
 auto MechRepairBlock::setMechStats() -> void
@@ -2957,16 +2861,9 @@ auto MechRepairBlock::setInventory(ScrollPane* pane) -> void
         }
     }
 
-    int32_t tonnageX;
-
     if (pane == nullptr)
     {
         pane = inventoryPane;
-        tonnageX = 0x15e;
-    }
-    else
-    {
-        tonnageX = 0x169;
     }
 
     auto* content = new lPort;
@@ -2990,10 +2887,29 @@ auto MechRepairBlock::setInventory(ScrollPane* pane) -> void
         contentHeight = pane->height();
     }
 
-    content->init(pane->width() - 0xd, contentHeight, -1);
-    PANE* frame = content->frame();
-    VFX_pane_wipe(frame, 0x10);
+    // Port: the list is drawn into the pane each frame (DrawWeaponList) from the lists made here.
+    content->initView(pane->width() - 0xd, contentHeight);
     setWeaponLists();
+    content->DrawContent = [this](aPort* view) { DrawWeaponList(static_cast<lPort*>(view)); };
+    pane->setDisplayPort(content, -1, 0);
+
+    // The tonnage bar (the weapons' weight against the free weight): the rows draw theirs each frame; the original
+    // also painted one into the briefing screen's picture for the box, which the box (drawn after) covered.
+}
+
+auto MechRepairBlock::PaintTonnage(lPort* port, int32_t top) -> void
+{
+    // Drawn in place: the original painted a scratch picture (wiped to 0xff) and copied it here keyed on 0xff.
+    lBlockPort work(port->frame(), 0, top, width(), height(), true);
+    int32_t fill = static_cast<int32_t>(static_cast<double>(mech->weaponTonnage) / mech->freeTonnage * 53.0);
+    drawTonnageBar(work.frame(), 0x15e, fill);
+}
+
+auto MechRepairBlock::DrawWeaponList(lPort* content) -> void
+{
+    PANE* frame = content->frame();
+    int32_t lineHeight = greenFont->height() + 2;
+    VFX_pane_wipe(frame, 0x10);
 
     // The four headings: a coloured stripe (the first three with a black line under it) and the title.
     auto heading = [&](int32_t top, uint8_t color, bool underline)
@@ -3074,33 +2990,6 @@ auto MechRepairBlock::setInventory(ScrollPane* pane) -> void
         aFont* font = itemHits[weapons + i] == 0 ? blueFont : greyFont;
         writeText(font, frame, 2, (greenFont->height() + 2) * line + 5, component.name);
     }
-
-    pane->setDisplayPort(content, -1, 0);
-
-    // The tonnage bar: the weapons' weight against the free weight.
-    auto* work = new lPort;
-    ownPort = work;
-    work->init(width(), height(), -1);
-    VFX_pane_wipe(work->frame(), 0xff);
-    int32_t fill = static_cast<int32_t>(static_cast<double>(mech->weaponTonnage) / mech->freeTonnage * 53.0);
-    drawTonnageBar(work->frame(), tonnageX, fill);
-    lPort* finished = ownPort;
-
-    if (tonnageX == 0x15e)
-    {
-        finished->copyTo(unitRowsPort()->frame(), 0, height() * slotIndex, -1);
-    }
-    else
-    {
-        finished->copyTo(globalLogPtr->briefingScreen->lport()->frame(), 0xd7, 0x187, -1);
-    }
-
-    if (finished != nullptr)
-    {
-        delete finished;
-    }
-
-    ownPort = nullptr;
 }
 
 auto MechRepairBlock::getItemFromScrollPane(ScrollPane* pane, int32_t line, uint8_t* itemNum) -> _LogInventoryItem*
@@ -3177,21 +3066,9 @@ auto MechRepairBlock::setUpItemDragIcon(_LogInventoryItem* item, uint8_t itemNum
     }
 
     repairScreen()->drawBlankInvInfoBlock(2);
-    char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lscicc%02d.tga", artPath, item->rangeIndex);
-    auto* art = new lPort;
-    art->init(fileName);
-    globalLogPtr->dragIcon->init(eventX - 0x10, eventY - 0x10, 0x20, 0x20, nullptr, nullptr);
-    art->copyTo(globalLogPtr->dragIcon->lport()->frame(), 1, 1, -1);
-    delete art;
-    PANE* iconPane = globalLogPtr->dragIcon->lport()->frame();
-    drawLine(iconPane, 0, 0, 0x1f, 0, 0xea);
-    drawLine(iconPane, 0x1f, 0, 0x1f, 0x1f, 0xea);
-    drawLine(iconPane, 0x1f, 0x1f, 0, 0x1f, 0xea);
-    drawLine(iconPane, 0, 0x1f, 0, 0, 0xea);
+    icon->Begin(eventX - 0x10, eventY - 0x10, 0x20, 0x20,
+                [this, item](lPort* surface) { OnBeginDragItem(surface, item); });
 
-    auto* scratch = new lPort;
-    scratch->init(fileName);
     float tonnage = MasterComponentList[masterID].tonnage;
 
     if (usesAmmo(masterID))
@@ -3222,8 +3099,7 @@ auto MechRepairBlock::setUpItemDragIcon(_LogInventoryItem* item, uint8_t itemNum
             globalLogPtr->darken(0, g_logistic_fadetable, globalLogPtr->dragIcon->lport());
         }
 
-        drawItemInfo(item, scratch, logMech->inventory);
-        delete scratch;
+        drawItemInfo(item, logMech->inventory);
         inventory->removeItem(masterID, stat->statID);
         repairScreen()->setUpCompInv(0, 0);
         setInventory(nullptr);
@@ -3237,9 +3113,28 @@ auto MechRepairBlock::setUpItemDragIcon(_LogInventoryItem* item, uint8_t itemNum
         globalLogPtr->dragIcon->setDepth(100);
         return;
     }
+}
 
-    // Port fix: the scratch port is freed when the copy is gone (the original leaked it).
-    delete scratch;
+auto MechRepairBlock::DrawInfo(lPort* port) -> void
+{
+    if (dragPort != nullptr)
+    {
+        dragPort->copyTo(port->frame(), 0xb, 0x191, -1);
+    }
+
+    char tons[32];
+    cLoadString(thisInstance, 0x6e, tons, 0x1e);
+    LogMech* shown = mech;
+    char text[84];
+    std::snprintf(text, sizeof(text), "%.0f %s", static_cast<double>(shown->curTonnage), tons);
+    writeText(yellowDropFont, port->frame(), 0x53, 0x193, text);
+    writeText(yellowDropFont, port->frame(), 0x53, 0x19c, shown->weightClassName);
+    writeText(yellowDropFont, port->frame(), 0xa8, 0x193, shown->chassisClassName);
+    writeText(yellowDropFont, port->frame(), 0xa8, 0x19c, shown->extraName1);
+    writeText(yellowDropFont, port->frame(), 0xa8, 0x1a5, shown->extraName2);
+    std::snprintf(text, sizeof(text), "%d m/s", shown->maxRunSpeed);
+    writeText(yellowDropFont, port->frame(), 0x53, 0x1a5, text);
+    DrawInfoDescription(port, 0xc3, 0x26, shown->description, 8, 0x1b3);
 }
 
 auto MechRepairBlock::DebugFunction1(int32_t arg1, int32_t arg2) -> int
@@ -3332,21 +3227,8 @@ auto VehicleRepairBlock::handleEvent(aEvent* event) -> void
                 vehicleDragX = eventX - 0xf;
                 auto* icon = new DragIcon;
                 globalLogPtr->dragIcon = icon;
-                icon->init(vehicleDragX, vehicleDragY, 0x1e, 0x1e, nullptr, nullptr);
-                VFX_pane_wipe(globalLogPtr->dragIcon->lport()->frame(), 0x10);
-                LogVehicle* dragged = vehicle;
-
-                for (int32_t location = 0; location < 5; ++location)
-                {
-                    globalLogPtr->drawVehicleBodyLoc(dragged, location, globalLogPtr->dragIcon->lport(), 2, 0);
-                }
-
+                icon->Begin(vehicleDragX, vehicleDragY, 0x1e, 0x1e, [this](lPort* surface) { OnBeginDrag(surface); });
                 repairScreen()->addChild(globalLogPtr->dragIcon);
-                PANE* iconPane = globalLogPtr->dragIcon->lport()->frame();
-                drawLine(iconPane, 0, 0, 0x1d, 0, 0xea);
-                drawLine(iconPane, 0, 1, 0, 0x1c, 0xea);
-                drawLine(iconPane, 0x1d, 1, 0x1d, 0x1c, 0xea);
-                drawLine(iconPane, 0, 0x1d, 0x1d, 0x1d, 0xea);
                 globalLogPtr->dragIcon->ShowGUIWindow(-1);
                 globalLogPtr->dragIcon->setDepth(100);
                 globalLogPtr->dragIcon->moveTo(vehicleDragX, vehicleDragY, 0);
@@ -3534,24 +3416,57 @@ auto VehicleRepairBlock::drawDamageDiagram(lPort* port) -> void
 
 auto VehicleRepairBlock::drawBackground(int32_t row, lPort* port) -> void
 {
-    char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), row < 0 ? "%slogart\\lsbbkv00.tga" : "%slogart\\lsrupv00.tga", artPath);
-    auto* art = new lPort;
-    auto* back = new lPort;
-    ownPort = back;
-    back->init(fileName);
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lscflv%02d.tga", artPath, vehicle->nameIndex);
-    art->init(fileName);
-    art->copyTo(back->frame(), 5, 4, -1);
-    delete art;
-    auto* mask = new lPort;
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\vmask%02d.tga", artPath, vehicle->nameIndex);
-    mask->init(fileName);
-    drawDamageDiagram(mask);
-    lPort* target = ownPort;
-    mask->copyTo(target->frame(), row < 0 ? 0x124 : 0x11d, 8, -1);
-    delete mask;
-    setBar(target, row >= 0 ? 0x11d : 0x124);
+    if (row >= 0)
+    {
+        // The repair screen's rows are drawn each frame (DrawRow).
+        return;
+    }
+
+    PaintRow(port, 0, true, false);
+}
+
+auto VehicleRepairBlock::DrawRow(lPort* port, int32_t top) -> void
+{
+    // Framed while selected (the original's frame stayed until the row was painted again).
+    PaintRow(port, top, false, repairScreen()->selectedVehicle == vehicle);
+}
+
+auto VehicleRepairBlock::OnBeginDrag(lPort* surface) -> void
+{
+    VFX_pane_wipe(surface->frame(), 0x10);
+
+    for (int32_t location = 0; location < 5; ++location)
+    {
+        globalLogPtr->drawVehicleBodyLoc(vehicle, location, surface, 2, 0);
+    }
+}
+
+auto VehicleRepairBlock::PaintRow(lPort* port, int32_t top, bool briefing, bool framed) -> void
+{
+    lPort* rowArt = logArtf(briefing ? "%slogart\\lsbbkv00.tga" : "%slogart\\lsrupv00.tga", artPath);
+
+    if (rowArt == nullptr)
+    {
+        return;
+    }
+
+    lBlockPort back(port->frame(), 0, top, rowArt->width(), rowArt->height(), true);
+    VFX_pane_copy(rowArt->frame(), 0, 0, back.frame(), 0, 0, -1);
+
+    if (lPort* art = logArtf("%slogart\\lscflv%02d.tga", artPath, vehicle->nameIndex))
+    {
+        art->copyTo(back.frame(), 5, 4, -1);
+    }
+
+    // The damage diagram, drawn over a copy of the vehicle's mask.
+    if (lPort* maskArt = logArtf("%slogart\\vmask%02d.tga", artPath, vehicle->nameIndex))
+    {
+        lBlockPort mask(back.frame(), briefing ? 0x124 : 0x11d, 8, maskArt->width(), maskArt->height(), true);
+        VFX_pane_copy(maskArt->frame(), 0, 0, mask.frame(), 0, 0, -1);
+        drawDamageDiagram(&mask);
+    }
+
+    setBar(&back, briefing ? 0x124 : 0x11d);
 
     // The equipment and weapons, one "count name" line each.
     LogVehicle* logVehicle = vehicle;
@@ -3567,7 +3482,7 @@ auto VehicleRepairBlock::drawBackground(int32_t row, lPort* port) -> void
         {
             _LogInventoryItem* item = logVehicle->inventory->getItemInfo(index);
             std::snprintf(text, sizeof(text), "%d %s", item->count, item->name);
-            writeText(greenFont, ownPort->frame(), 0x8e, (greenFont->height() + 1) * line + 0x16, text);
+            writeText(greenFont, back.frame(), 0x8e, (greenFont->height() + 1) * line + 0x16, text);
             ++line;
         }
 
@@ -3575,44 +3490,30 @@ auto VehicleRepairBlock::drawBackground(int32_t row, lPort* port) -> void
     }
 
     char format[256];
+    char fileName[256];
     cLoadString(thisInstance, 0x53, format, 0xfe);
     std::snprintf(fileName, sizeof(fileName), format, static_cast<double>(logVehicle->curTonnage),
                   logVehicle->inventoryBlock->weightClassText);
-    lPort* finished = ownPort;
-    writeText(blueFont, finished->frame(), 6, 0x11, fileName);
+    writeText(blueFont, back.frame(), 6, 0x11, fileName);
     std::snprintf(fileName, sizeof(fileName), "%d m/s", logVehicle->maxMoveSpeed);
-    writeText(yellowDropFont, finished->frame(), 6, 0x29, fileName);
-    writeText(yellowDropFont, finished->frame(), 6, 0x3b, logVehicle->inventoryBlock->weightClassText);
+    writeText(yellowDropFont, back.frame(), 6, 0x29, fileName);
+    writeText(yellowDropFont, back.frame(), 6, 0x3b, logVehicle->inventoryBlock->weightClassText);
 
-    int32_t top = 0;
-
-    if (row >= 0)
+    if (!briefing)
     {
-        if (repairScreen()->selectedVehicle == logVehicle)
+        if (framed)
         {
             // The selected vehicle's frame.
-            drawLine(ownPort->frame(), 1, 0, width(), 0, 0xf2);
-            drawLine(ownPort->frame(), 1, 0, 1, height() - 3, 0xf2);
-            drawLine(ownPort->frame(), 1, height() - 3, width(), height() - 3, 0xf2);
-            drawLine(finished->frame(), width(), 0, width(), height() - 3, 0xf2);
+            drawLine(back.frame(), 1, 0, width(), 0, 0xf2);
+            drawLine(back.frame(), 1, 0, 1, height() - 3, 0xf2);
+            drawLine(back.frame(), 1, height() - 3, width(), height() - 3, 0xf2);
+            drawLine(back.frame(), width(), 0, width(), height() - 3, 0xf2);
         }
         else
         {
-            globalLogPtr->darken(0, g_logistic_fadetable, finished);
+            globalLogPtr->darken(0, g_logistic_fadetable, &back);
         }
-
-        port = unitRowsPort();
-        top = winHeight * row;
     }
-
-    finished->copyTo(port->frame(), 0, top, -1);
-
-    if (finished != nullptr)
-    {
-        delete finished;
-    }
-
-    ownPort = nullptr;
 }
 
 auto VehicleRepairBlock::setBar(lPort* port, int32_t xPos) -> void
@@ -3744,33 +3645,42 @@ auto BriefingBox::destroy() -> void
 
 auto BriefingBox::drawBackground() -> void
 {
-    auto* work = new lPort;
-    work->init(0x1ab, 0x6f, -1);
+    // Port: the box is drawn each frame (PaintBox) by the briefing screen.
+    if (mech != nullptr)
+    {
+        mech->repairBlock->setInventory(inventoryPane);
+    }
+
+    globalLogPtr->briefingScreen->ShowBox(this);
+}
+
+auto BriefingBox::PaintBox(PANE* target, int32_t xPos, int32_t yPos) -> void
+{
+    // The block paints in the briefing screen's layout (it looks at the current screen); a screen change's wipe draws
+    // the box while another screen is current.
+    lObject* const current = globalLogPtr->currentScreen;
+    globalLogPtr->currentScreen = globalLogPtr->briefingScreen;
+    lBlockPort work(target, xPos, yPos, 0x1ab, 0x6f, false);
 
     if (mech == nullptr)
     {
-        vehicle->repairBlock->drawBackground(-1, work);
+        vehicle->repairBlock->drawBackground(-1, &work);
     }
     else
     {
         MechRepairBlock* block = mech->repairBlock;
-        block->drawBackground(-1, work);
+        block->drawBackground(-1, &work);
         ScrollPane* pane = inventoryPane;
-        block->setInventory(pane);
         // The weapon list and its slider, then the tonnage bar.
-        auto* list = new lPort;
-        list->init(0x62, 0x58, -1);
-        VFX_pane_copy(pane->contentPort->frame(), 0, scrollPixels(pane), list->frame(), 0, 0, -1);
-        VFX_pane_copy(list->frame(), 0, 0, work->frame(), 0x143, 0x11, -1);
-        VFX_pane_copy(pane->sliderPort->frame(), 0, 0, work->frame(), pane->width() + 0x136, 0x11, -1);
+        lBlockPort list(work.frame(), 0x143, 0x11, 0x62, 0x58, false);
+        pane->DrawContentTo(list.frame(), 0, 0);
+        pane->DrawSliderColumn(work.frame(), pane->width() + 0x136, 0x11, false);
         int32_t fill = static_cast<int32_t>(static_cast<double>(mech->weaponTonnage) / mech->freeTonnage * 55.0);
-        drawTonnageBar(work->frame(), 0x16c, fill);
-        delete list;
+        drawTonnageBar(work.frame(), 0x16c, fill);
     }
 
-    globalLogPtr->darken(0, g_logistic_fadetable, work);
-    VFX_pane_copy(work->frame(), 0, 0, globalLogPtr->briefingScreen->lport()->frame(), 0xd3, 0x16f, -1);
-    delete work;
+    globalLogPtr->currentScreen = current;
+    globalLogPtr->darken(0, g_logistic_fadetable, &work);
 }
 
 auto BriefingBox::drawVehicleBackground() -> void
@@ -3802,19 +3712,8 @@ auto BriefingBox::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 
 auto BriefingBox::draw() -> void
 {
-    if (mech == nullptr)
-    {
-        return;
-    }
-
-    auto* work = new lPort;
-    work->init(0x62, 0x58, -1);
-    ScrollPane* pane = inventoryPane;
-    VFX_pane_copy(pane->contentPort->frame(), 0, scrollPixels(pane), work->frame(), 0, 0, -1);
-    VFX_pane_copy(pane->sliderPort->frame(), 0, 0, work->frame(), pane->width() - 0xd, 0, -1);
-    globalLogPtr->darken(0, g_logistic_fadetable, work);
-    VFX_pane_copy(work->frame(), 0, 0, globalLogPtr->briefingScreen->lport()->frame(), 0x216, 0x180, -1);
-    delete work;
+    // The original repainted the weapon list (scrolled) into the briefing screen's picture; the screen draws the
+    // whole box each frame (PaintBox).
 }
 
 auto BriefingBox::display() -> void
