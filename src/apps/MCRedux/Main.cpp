@@ -2,12 +2,9 @@
 #include "MCConsole.h"
 #include "MCCrashTrace.h"
 #include "MCVersion.h"
-#include "abl/ablenv.h"
-#include "abl/ablexec.h"
-#include "abl/ablrtn.h"
-#include "abl/ablscan.h"
-#include "abl/ablxstmt.h"
-#include "main/rmain.h"
+#include "abl/MCAblRuntime.h"
+#include "gui/MCGuiStartup.h"
+#include "platform/MCAllocator.h"
 #include "platform/MCFileSystem.h"
 
 namespace
@@ -21,7 +18,7 @@ namespace
     };
 
     /// <summary>The command line's help text.</summary>
-    constexpr const char* UsageText =
+    constexpr std::string_view UsageText =
         "MechCommander Redux " MC_VERSION_SEMVER " (build " MC_VERSION ", commit " MC_VERSION_COMMIT ")\n\n"
         "MCRedux [-d|--data <install folder>] [--user <save folder>] [game options]\n\n"
         "  -d, --data     - The MechCommander Gold install; without it, or when it has no\n"
@@ -70,9 +67,10 @@ namespace
         std::error_code error;
         candidates.push_back(std::filesystem::current_path(error));
 
-        if (const char* basePath = SDL_GetBasePath(); basePath != nullptr)
+        // SDL keeps the base path (null when it can't tell).
+        if (SDL_GetBasePath() != nullptr)
         {
-            candidates.push_back(basePath);
+            candidates.emplace_back(SDL_GetBasePath());
         }
 
         std::string tried;
@@ -92,22 +90,23 @@ namespace
                                            tried));
     }
 
-    std::expected<MCLaunchOptions, std::string> ParseArguments(int argc, char** argv)
+    /// <summary>The launch options in <paramref name="arguments"/> (the program's name first, as main gets them).</summary>
+    std::expected<MCLaunchOptions, std::string> ParseArguments(std::span<const std::string_view> arguments)
     {
         MCLaunchOptions options;
 
-        for (int i = 1; i < argc; i++)
+        for (size_t i = 1; i < arguments.size(); i++)
         {
-            const std::string_view arg = argv[i];
+            const std::string_view arg = arguments[i];
 
             if (arg == "--data" || arg == "-d" || arg == "--user")
             {
-                if (i + 1 >= argc)
+                if (i + 1 >= arguments.size())
                 {
                     return std::unexpected(std::format("{} needs a folder", arg));
                 }
 
-                (arg == "--user" ? options.UserFolder : options.DataFolder) = argv[++i];
+                (arg == "--user" ? options.UserFolder : options.DataFolder) = arguments[++i];
             }
             else if (arg == "--help" || arg == "-h")
             {
@@ -135,65 +134,69 @@ namespace
 
         if (options.UserFolder.empty())
         {
-            char* prefPath = SDL_GetPrefPath(nullptr, "MechCommander Redux");
+            const std::unique_ptr<char, decltype(&SDL_free)> prefPath(SDL_GetPrefPath(nullptr, "MechCommander Redux"),
+                                                                      &SDL_free);
 
             if (prefPath == nullptr)
             {
                 return std::unexpected(std::format("No save folder: {}", SDL_GetError()));
             }
 
-            options.UserFolder = prefPath;
-            SDL_free(prefPath);
+            options.UserFolder = prefPath.get();
         }
 
         return options;
     }
 
-    /// <summary>Crash reporter: where the ABL interpreter was (module, routine, source line, code pointer).</summary>
+    /// <summary>Crash reporter: where the ABL interpreter was (module, routine, source line, code position).</summary>
     void ReportAblState()
     {
-        std::fprintf(stderr, "ABL: module %s (handle %d), library %s\n",
-                     CurModule != nullptr ? CurModule->getName() : "(none)", CurModuleHandle,
-                     CurLibrary != nullptr ? CurLibrary->getName() : "(none)");
+        const std::shared_ptr<MCAblRuntime> abl = AblRuntime();
 
-        if (CurRoutineIdPtr != nullptr)
+        if (abl == nullptr)
         {
-            const char* segment = CurRoutineIdPtr->defn.info.routine.codeSegment;
-            std::fprintf(stderr, "ABL: routine %s, code segment %p, codeSegmentPtr %p (+%lld), statement start +%lld\n",
-                         CurRoutineIdPtr->name, static_cast<const void*>(segment),
-                         static_cast<const void*>(codeSegmentPtr), static_cast<long long>(codeSegmentPtr - segment),
-                         static_cast<long long>(statementStartPtr - segment));
+            std::fprintf(stderr, "ABL: not running\n");
+            return;
         }
 
-        const char* sourceFile = "?";
+        const std::shared_ptr<MCAblModule> module = abl->CurrentModule();
+        std::fprintf(stderr, "ABL: module %s (handle %d)\n", module != nullptr ? module->Name().c_str() : "(none)",
+                     abl->CurrentModuleHandle());
 
-        if (CurModule != nullptr && CurModuleHandle >= 0 && ModuleRegistry != nullptr)
+        if (const MCAblSymbolId routineId = abl->CurrentRoutine(); routineId != MCAblSymbolId::None)
         {
-            const ModuleEntry& entry = ModuleRegistry[CurModuleHandle];
-
-            if (entry.sourceFiles != nullptr && FileNumber >= 0 && FileNumber < entry.numSourceFiles)
-            {
-                sourceFile = entry.sourceFiles[FileNumber];
-            }
+            const MCAblSymbol& routine = abl->Symbol(routineId);
+            std::fprintf(stderr, "ABL: routine %s, code segment %d, code position +%d, statement start +%d\n",
+                         routine.Name.c_str(), std::to_underlying(routine.Defn.Info.Routine.CodeSegment),
+                         abl->CodePosition(), abl->StatementStart());
         }
 
-        std::fprintf(stderr, "ABL: line %d of %s, statement %d, call depth %d\n", execLineNumber, sourceFile,
-                     execStatementCount, CallStackLevel);
+        std::fprintf(stderr, "ABL: line %d of %s, statement %d, call depth %d\n", abl->LineNumber(),
+                     module != nullptr ? std::string(abl->FileName()).c_str() : "?", abl->StatementCount(),
+                     abl->CallDepth());
     }
 }
 
 int main(int argc, char** argv)
 {
     MCConsole::AttachParent();
+
+    if (const auto allocator = MCInitializeAllocator(); !allocator)
+    {
+        Report(allocator.error(), true);
+        return 1;
+    }
+
     MCCrashTrace::Install();
     MCCrashTrace::SetReporter(ReportAblState);
-    auto options = ParseArguments(argc, argv);
+    const std::vector<std::string_view> arguments(argv, argv + argc);
+    auto options = ParseArguments(arguments);
 
     if (!options)
     {
         if (options.error().empty())
         {
-            Report(UsageText, false);
+            Report(std::string(UsageText), false);
             return 0;
         }
 
@@ -213,9 +216,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::vector<char> commandLine(options->GameCommandLine.begin(), options->GameCommandLine.end());
-    commandLine.push_back('\0');
-    const int result = WinMain(nullptr, nullptr, commandLine.data(), 1);
+    const int result = RunGame(options->GameCommandLine);
     SDL_Quit();
     return result;
 }

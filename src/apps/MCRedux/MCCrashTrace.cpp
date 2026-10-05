@@ -2,8 +2,17 @@
 #include "MCCrashTrace.h"
 #include "MCConsole.h"
 
-#include <cstdarg>
+#include <algorithm>
+#include <array>
+#include <csignal>
 #include <cstdio>
+#include <cstdlib>
+#include <format>
+#include <memory>
+#include <span>
+#include <string_view>
+
+#include "platform/MCNeverDestroyed.h"
 
 #ifdef _WIN32
 
@@ -11,28 +20,76 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <DbgHelp.h>
+#include <crtdbg.h>
 
 #pragma comment(lib, "dbghelp.lib")
 
 namespace
 {
-    /// <summary>The game-state printer set by <see cref="MCCrashTrace::SetReporter"/>, or null.</summary>
-    void (*Reporter)() = nullptr;
+    /// <summary>
+    /// Closes a Win32 handle (a thread, an event, a file), unless it is one the process only borrows or a failed call's
+    /// INVALID_HANDLE_VALUE.
+    /// </summary>
+    struct MCHandleCloser
+    {
+        /// <summary>Whether the handle is closed with the owner (stderr's handle is not).</summary>
+        bool Owned = true;
+
+        void operator()(HANDLE handle) const
+        {
+            if (Owned && handle != INVALID_HANDLE_VALUE)
+            {
+                CloseHandle(handle);
+            }
+        }
+    };
+
+    /// <summary>A Win32 handle owned alone, closed with the owner.</summary>
+    using MCWin32Handle = std::unique_ptr<void, MCHandleCloser>;
+
+    /// <summary>Whether <paramref name="handle"/> holds an open object (a failed call gives null or INVALID_HANDLE_VALUE).</summary>
+    bool IsOpen(const MCWin32Handle& handle)
+    {
+        return handle != nullptr && handle.get() != INVALID_HANDLE_VALUE;
+    }
+
+    /// <summary>What the handler keeps from <see cref="MCCrashTrace::Install"/> to the crash.</summary>
+    struct MCCrashState
+    {
+        /// <summary>The game-state printer set by <see cref="MCCrashTrace::SetReporter"/>, if any.</summary>
+        std::function<void()> Reporter;
+
+        /// <summary>
+        /// The thread that writes the report, made at <see cref="MCCrashTrace::Install"/> so a crash needs no stack,
+        /// heap or thread creation of its own: the crashed thread may have overflowed its stack or broken the heap.
+        /// </summary>
+        MCWin32Handle WorkerThread;
+
+        /// <summary>Set by the crashed thread to start the worker.</summary>
+        MCWin32Handle CrashEvent;
+
+        /// <summary>Set by the worker when the report and the dump are written.</summary>
+        MCWin32Handle DoneEvent;
+
+        /// <summary>Where the report goes: stderr's handle (borrowed), or MCRedux.crash.txt; empty when nowhere.</summary>
+        MCWin32Handle ReportFile;
+    };
 
     /// <summary>
-    /// The thread that writes the report, made at <see cref="MCCrashTrace::Install"/> so a crash needs no stack, heap or
-    /// thread creation of its own: the crashed thread may have overflowed its stack or broken the heap.
+    /// The handler's state, never destroyed: the worker waits on its events while the process ends, and a crash in a
+    /// static destructor still reaches it.
     /// </summary>
-    HANDLE WorkerThread = nullptr;
+    MCCrashState& State()
+    {
+        static MCNeverDestroyed<MCCrashState> state;
+        return *state;
+    }
 
-    /// <summary>Set by the crashed thread to start the worker.</summary>
-    HANDLE CrashEvent = nullptr;
+    /// <summary>The crash being reported, copied for the worker: its record and the crashed thread's registers.</summary>
+    EXCEPTION_RECORD CrashRecord{};
 
-    /// <summary>Set by the worker when the report and the dump are written.</summary>
-    HANDLE DoneEvent = nullptr;
-
-    /// <summary>The crash being reported, for the worker.</summary>
-    EXCEPTION_POINTERS* CrashException = nullptr;
+    /// <summary>See <see cref="CrashRecord"/>.</summary>
+    alignas(16) CONTEXT CrashContext{};
 
     /// <summary>The id of the thread that crashed.</summary>
     DWORD CrashThreadId = 0;
@@ -40,36 +97,42 @@ namespace
     /// <summary>Nonzero once a thread has entered the handler; a second one waits for the first to end the process.</summary>
     volatile LONG Handling = 0;
 
-    /// <summary>Where the report goes: stderr's handle, or MCRedux.crash.txt.</summary>
-    HANDLE ReportFile = INVALID_HANDLE_VALUE;
-
     /// <summary>The report's path when it goes to a file, else empty.</summary>
     wchar_t ReportPath[MAX_PATH] = {};
 
     /// <summary>Formats into a static buffer and writes it to the report, without touching the heap.</summary>
-    void Print(const char* format, ...)
+    template <typename... Args> void Print(std::format_string<Args...> format, Args&&... args)
     {
-        static char buffer[4096];
-        va_list args;
-        va_start(args, format);
-        const int length = std::vsnprintf(buffer, sizeof(buffer), format, args);
-        va_end(args);
+        static std::array<char, 4096> buffer;
+        const auto result = std::format_to_n(buffer.begin(), buffer.size(), format, std::forward<Args>(args)...);
+        const HANDLE file = State().ReportFile.get();
 
-        if (length <= 0 || ReportFile == INVALID_HANDLE_VALUE)
+        if (result.size <= 0 || !IsOpen(State().ReportFile))
         {
             return;
         }
 
-        const DWORD size = static_cast<DWORD>(length < static_cast<int>(sizeof(buffer)) ? length : sizeof(buffer) - 1);
+        const DWORD size = static_cast<DWORD>(std::min<ptrdiff_t>(result.size, buffer.size()));
         DWORD written = 0;
-        WriteFile(ReportFile, buffer, size, &written, nullptr);
+        WriteFile(file, buffer.data(), size, &written, nullptr);
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> in UTF-8, in a static buffer (cut at its size), for <see cref="Print"/>: no heap.
+    /// </summary>
+    std::string_view Narrow(std::wstring_view text)
+    {
+        static std::array<char, MAX_PATH * 3> buffer;
+        const int length = WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), buffer.data(),
+                                               static_cast<int>(buffer.size()), nullptr, nullptr);
+        return std::string_view(buffer.data(), static_cast<size_t>(std::max(length, 0)));
     }
 
     /// <summary>
     /// Fills <paramref name="path"/> with the executable's path, its extension replaced by
     /// <paramref name="extension"/>. False when the path doesn't fit.
     /// </summary>
-    bool GetPathBesideExecutable(wchar_t (&path)[MAX_PATH], const wchar_t* extension)
+    bool GetPathBesideExecutable(wchar_t (&path)[MAX_PATH], std::wstring_view extension)
     {
         const DWORD length = GetModuleFileNameW(nullptr, path, MAX_PATH);
 
@@ -78,14 +141,17 @@ namespace
             return false;
         }
 
-        wchar_t* dot = wcsrchr(path, L'.');
+        const size_t dot = std::wstring_view(path, length).rfind(L'.');
 
-        if (dot == nullptr)
+        if (dot == std::wstring_view::npos || dot + extension.size() >= MAX_PATH)
         {
             return false;
         }
 
-        return wcscpy_s(dot, MAX_PATH - (dot - path), extension) == 0;
+        const std::span<wchar_t, MAX_PATH> all(path);
+        std::ranges::copy(extension, all.begin() + static_cast<ptrdiff_t>(dot));
+        all[dot + extension.size()] = L'\0';
+        return true;
     }
 
     /// <summary>
@@ -99,82 +165,88 @@ namespace
             return false;
         }
 
-        HANDLE file = CreateFileW(path, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        const MCWin32Handle file(
+            CreateFileW(path, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
 
-        if (file == INVALID_HANDLE_VALUE)
+        if (!IsOpen(file))
         {
             return false;
         }
 
+        EXCEPTION_POINTERS exception{&CrashRecord, &CrashContext};
         MINIDUMP_EXCEPTION_INFORMATION info{};
         info.ThreadId = CrashThreadId;
-        info.ExceptionPointers = CrashException;
+        info.ExceptionPointers = &exception;
         info.ClientPointers = FALSE;
         const auto type = static_cast<MINIDUMP_TYPE>(MiniDumpWithDataSegs | MiniDumpWithIndirectlyReferencedMemory |
                                                      MiniDumpWithThreadInfo);
-        const bool written =
-            MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), file, type, &info, nullptr, nullptr) != FALSE;
-        CloseHandle(file);
-        return written;
+        return MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), file.get(), type, &info, nullptr,
+                                 nullptr) != FALSE;
     }
 
-    /// <summary>Prints one stack frame: the function and source line when the PDB has them, else the module offset.</summary>
-    void PrintFrame(HANDLE process, int index, DWORD64 address)
+    /// <summary>A SYMBOL_INFO with room for a name of MAX_SYM_NAME characters after it.</summary>
+    struct MCSymbolBuffer
     {
-        alignas(SYMBOL_INFO) static char symbolBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
-        auto* symbol = reinterpret_cast<SYMBOL_INFO*>(symbolBuffer);
-        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-        symbol->MaxNameLen = MAX_SYM_NAME;
+        SYMBOL_INFO Info;
+        std::array<char, MAX_SYM_NAME> Name;
+    };
+
+    /// <summary>Prints one stack frame: the function and source line when the PDB has them, else the module offset.</summary>
+    void PrintFrame(int index, DWORD64 address)
+    {
+        static MCSymbolBuffer symbol;
+        symbol.Info.SizeOfStruct = sizeof(SYMBOL_INFO);
+        symbol.Info.MaxNameLen = MAX_SYM_NAME;
         DWORD64 displacement = 0;
         IMAGEHLP_LINE64 line{};
         line.SizeOfStruct = sizeof(line);
         DWORD lineDisplacement = 0;
-        const bool haveSymbol = SymFromAddr(process, address, &displacement, symbol) != FALSE;
+        const HANDLE process = GetCurrentProcess();
+        const bool haveSymbol = SymFromAddr(process, address, &displacement, &symbol.Info) != FALSE;
         const bool haveLine = SymGetLineFromAddr64(process, address, &lineDisplacement, &line) != FALSE;
 
         if (haveSymbol && haveLine)
         {
-            Print("  #%02d %s+0x%llx  %s(%lu)\n", index, symbol->Name, static_cast<unsigned long long>(displacement),
-                  line.FileName, line.LineNumber);
+            Print("  #{:02} {}+0x{:x}  {}({})\n", index, std::string_view(symbol.Info.Name), displacement,
+                  std::string_view(line.FileName), line.LineNumber);
         }
         else if (haveSymbol)
         {
-            Print("  #%02d %s+0x%llx\n", index, symbol->Name, static_cast<unsigned long long>(displacement));
+            Print("  #{:02} {}+0x{:x}\n", index, std::string_view(symbol.Info.Name), displacement);
         }
         else
         {
             const DWORD64 base = SymGetModuleBase64(process, address);
-            Print("  #%02d 0x%llx (module 0x%llx + 0x%llx)\n", index, static_cast<unsigned long long>(address),
-                  static_cast<unsigned long long>(base), static_cast<unsigned long long>(address - base));
+            Print("  #{:02} 0x{:x} (module 0x{:x} + 0x{:x})\n", index, address, base, address - base);
         }
     }
 
     /// <summary>Prints the exception and the crashed thread's symbolized stack.</summary>
     void PrintStack()
     {
-        const EXCEPTION_RECORD* record = CrashException->ExceptionRecord;
-        Print("\nCrash: exception 0x%08lx at 0x%p on thread %lu", record->ExceptionCode, record->ExceptionAddress,
-              CrashThreadId);
+        const EXCEPTION_RECORD& record = CrashRecord;
+        Print("\nCrash: exception 0x{:08x} at 0x{:016X} on thread {}", record.ExceptionCode,
+              reinterpret_cast<uintptr_t>(record.ExceptionAddress), CrashThreadId);
 
-        if (record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && record->NumberParameters >= 2)
+        if (record.ExceptionCode == EXCEPTION_ACCESS_VIOLATION && record.NumberParameters >= 2)
         {
-            Print(" (%s 0x%llx)", record->ExceptionInformation[0] == 1 ? "writing" : "reading",
-                  static_cast<unsigned long long>(record->ExceptionInformation[1]));
+            Print(" ({} 0x{:x})", record.ExceptionInformation[0] == 1 ? "writing" : "reading",
+                  record.ExceptionInformation[1]);
         }
-        else if (record->ExceptionCode == EXCEPTION_STACK_OVERFLOW)
+        else if (record.ExceptionCode == EXCEPTION_STACK_OVERFLOW)
         {
             Print(" (stack overflow)");
         }
 
         Print("\n");
 
-        HANDLE process = GetCurrentProcess();
-        HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, CrashThreadId);
+        const HANDLE process = GetCurrentProcess();
+        const MCWin32Handle thread(OpenThread(THREAD_ALL_ACCESS, FALSE, CrashThreadId));
         SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
         SymInitialize(process, nullptr, TRUE);
 
         static CONTEXT context;
-        context = *CrashException->ContextRecord;
+        context = CrashContext;
         STACKFRAME64 frame{};
         frame.AddrPC.Offset = context.Rip;
         frame.AddrPC.Mode = AddrModeFlat;
@@ -184,11 +256,11 @@ namespace
         frame.AddrStack.Mode = AddrModeFlat;
 
         // A stack overflow is deep recursion: the top frames show where it loops, the bottom ones how it got there.
-        const int maxFrames = record->ExceptionCode == EXCEPTION_STACK_OVERFLOW ? 4096 : 64;
+        const int maxFrames = record.ExceptionCode == EXCEPTION_STACK_OVERFLOW ? 4096 : 64;
 
         for (int index = 0; index < maxFrames; ++index)
         {
-            if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, thread, &frame, &context, nullptr,
+            if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, thread.get(), &frame, &context, nullptr,
                              SymFunctionTableAccess64, SymGetModuleBase64, nullptr))
             {
                 break;
@@ -199,21 +271,16 @@ namespace
                 break;
             }
 
-            PrintFrame(process, index, frame.AddrPC.Offset);
+            PrintFrame(index, frame.AddrPC.Offset);
         }
 
         SymCleanup(process);
-
-        if (thread != nullptr)
-        {
-            CloseHandle(thread);
-        }
     }
 
     /// <summary>Runs the reporter, if any, its stderr going where the report goes.</summary>
     void RunReporter()
     {
-        if (Reporter == nullptr)
+        if (!State().Reporter)
         {
             return;
         }
@@ -229,8 +296,54 @@ namespace
             }
         }
 
-        Reporter();
+        State().Reporter();
         std::fflush(stderr);
+    }
+
+    /// <summary>
+    /// Opens the report: stderr, or, started without a terminal (stderr goes nowhere), MCRedux.crash.txt beside the
+    /// executable, whose path <see cref="ReportPath"/> then holds.
+    /// </summary>
+    void OpenReport()
+    {
+        MCWin32Handle& reportFile = State().ReportFile;
+
+        if (!MCConsole::HasOutput() && GetPathBesideExecutable(ReportPath, L".crash.txt"))
+        {
+            reportFile = MCWin32Handle(CreateFileW(ReportPath, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                   nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
+
+            if (!IsOpen(reportFile))
+            {
+                ReportPath[0] = L'\0';
+            }
+        }
+        else
+        {
+            ReportPath[0] = L'\0';
+            std::fflush(stderr);
+            reportFile = MCWin32Handle(GetStdHandle(STD_ERROR_HANDLE), MCHandleCloser{false});
+        }
+    }
+
+    /// <summary>Opens the report file again to add to it (when the report goes to a file).</summary>
+    void ReopenReport()
+    {
+        if (ReportPath[0] != L'\0')
+        {
+            State().ReportFile =
+                MCWin32Handle(CreateFileW(ReportPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+        }
+    }
+
+    /// <summary>Closes the report file, so the reporter's stdio can add to it (stderr stays as it is).</summary>
+    void CloseReport()
+    {
+        if (ReportPath[0] != L'\0')
+        {
+            State().ReportFile.reset();
+        }
     }
 
     /// <summary>
@@ -251,23 +364,7 @@ namespace
         {
         }
 
-        // Started without a terminal, stderr goes nowhere: the report goes to MCRedux.crash.txt instead.
-        if (!MCConsole::HasOutput() && GetPathBesideExecutable(ReportPath, L".crash.txt"))
-        {
-            ReportFile = CreateFileW(ReportPath, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                                     CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-
-            if (ReportFile == INVALID_HANDLE_VALUE)
-            {
-                ReportPath[0] = L'\0';
-            }
-        }
-        else
-        {
-            ReportPath[0] = L'\0';
-            std::fflush(stderr);
-            ReportFile = GetStdHandle(STD_ERROR_HANDLE);
-        }
+        OpenReport();
 
         __try
         {
@@ -281,18 +378,14 @@ namespace
 
         if (dumped)
         {
-            Print("Minidump: %ls\n", dumpPath);
+            Print("Minidump: {}\n", Narrow(dumpPath));
         }
         else
         {
-            Print("Minidump: not written (error %lu)\n", GetLastError());
+            Print("Minidump: not written (error {})\n", GetLastError());
         }
 
-        if (ReportPath[0] != L'\0')
-        {
-            CloseHandle(ReportFile);
-            ReportFile = INVALID_HANDLE_VALUE;
-        }
+        CloseReport();
 
         __try
         {
@@ -301,18 +394,9 @@ namespace
 
         __except (EXCEPTION_EXECUTE_HANDLER)
         {
-            if (ReportPath[0] != L'\0')
-            {
-                ReportFile = CreateFileW(ReportPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-            }
-
+            ReopenReport();
             Print("\n(the reporter faulted)\n");
-
-            if (ReportPath[0] != L'\0' && ReportFile != INVALID_HANDLE_VALUE)
-            {
-                CloseHandle(ReportFile);
-            }
+            CloseReport();
         }
 
         if (ReportPath[0] != L'\0')
@@ -326,9 +410,9 @@ namespace
     /// <summary>The worker: sleeps until a crash, then writes its report.</summary>
     DWORD WINAPI CrashWorker(void*)
     {
-        WaitForSingleObject(CrashEvent, INFINITE);
+        WaitForSingleObject(State().CrashEvent.get(), INFINITE);
         WriteCrashReport();
-        SetEvent(DoneEvent);
+        SetEvent(State().DoneEvent.get());
         return 0;
     }
 
@@ -341,13 +425,15 @@ namespace
             Sleep(INFINITE);
         }
 
-        CrashException = exception;
+        CrashRecord = *exception->ExceptionRecord;
+        CrashContext = *exception->ContextRecord;
         CrashThreadId = GetCurrentThreadId();
+        MCCrashState& state = State();
 
-        if (WorkerThread != nullptr)
+        if (state.WorkerThread != nullptr)
         {
-            SetEvent(CrashEvent);
-            WaitForSingleObject(DoneEvent, INFINITE);
+            SetEvent(state.CrashEvent.get());
+            WaitForSingleObject(state.DoneEvent.get(), INFINITE);
         }
         else
         {
@@ -358,23 +444,99 @@ namespace
     }
 }
 
+namespace
+{
+    /// <summary>The exception code a CRT failure is raised as (an application error code: 0xE0000000 | 'CRT').</summary>
+    constexpr DWORD CrtFailureException = 0xE0435254;
+
+    /// <summary>Ends a CRT failure as a crash the handler reports: the stack it shows is the failing code's.</summary>
+    [[noreturn]] void RaiseCrtFailure()
+    {
+        RaiseException(CrtFailureException, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+        std::_Exit(3);
+    }
+
+#ifdef _DEBUG
+    /// <summary>
+    /// A Debug CRT assertion or error (a checked iterator, "vector subscript out of range"): prints the CRT's message
+    /// and crashes, instead of the CRT's Abort/Retry/Ignore box.
+    /// </summary>
+    int __cdecl OnCrtReport(int reportType, char* message, int* returnValue)
+    {
+        if (reportType == _CRT_WARN)
+        {
+            return FALSE;
+        }
+
+        std::fprintf(stderr, "CRT %s: %s\n", reportType == _CRT_ASSERT ? "assertion" : "error",
+                     message != nullptr ? message : "");
+        std::fflush(stderr);
+
+        if (returnValue != nullptr)
+        {
+            *returnValue = 0;
+        }
+
+        RaiseCrtFailure();
+    }
+#endif
+
+    /// <summary>abort() (std::terminate, a failed assert()): a crash, not the CRT's "abort() has been called" box.</summary>
+    void __cdecl OnAbort(int)
+    {
+        std::fputs("abort() called\n", stderr);
+        std::fflush(stderr);
+        RaiseCrtFailure();
+    }
+
+    /// <summary>A CRT function given a bad argument.</summary>
+    void __cdecl OnInvalidParameter(const wchar_t* expression, const wchar_t* function, const wchar_t* file,
+                                    unsigned int line, uintptr_t)
+    {
+        std::fprintf(stderr, "invalid parameter: %ls in %ls (%ls:%u)\n", expression != nullptr ? expression : L"?",
+                     function != nullptr ? function : L"?", file != nullptr ? file : L"?", line);
+        std::fflush(stderr);
+        RaiseCrtFailure();
+    }
+
+    /// <summary>A pure virtual function called (an object used during its construction or destruction).</summary>
+    void __cdecl OnPureCall()
+    {
+        std::fputs("pure virtual function call\n", stderr);
+        std::fflush(stderr);
+        RaiseCrtFailure();
+    }
+}
+
 void MCCrashTrace::Install()
 {
-    CrashEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    DoneEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    // The CRT's own failures become crashes the handler below reports and dumps, never a dialog (which an unattended
+    // run would wait on forever); nor does Windows show its "stopped working" box after the dump is written.
+#ifdef _DEBUG
+    _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, OnCrtReport);
+#endif
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    std::signal(SIGABRT, OnAbort);
+    _set_invalid_parameter_handler(OnInvalidParameter);
+    _set_purecall_handler(OnPureCall);
+    SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 
-    if (CrashEvent != nullptr && DoneEvent != nullptr)
+    MCCrashState& state = State();
+    state.CrashEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    state.DoneEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+
+    if (state.CrashEvent != nullptr && state.DoneEvent != nullptr)
     {
-        WorkerThread =
-            CreateThread(nullptr, 1024 * 1024, CrashWorker, nullptr, STACK_SIZE_PARAM_IS_A_RESERVATION, nullptr);
+        state.WorkerThread.reset(
+            CreateThread(nullptr, 1024 * 1024, CrashWorker, nullptr, STACK_SIZE_PARAM_IS_A_RESERVATION, nullptr));
     }
 
     SetUnhandledExceptionFilter(OnUnhandledException);
 }
 
-void MCCrashTrace::SetReporter(void (*reporter)())
+void MCCrashTrace::SetReporter(std::function<void()> reporter)
 {
-    Reporter = reporter;
+    State().Reporter = std::move(reporter);
 }
 
 #else
@@ -383,7 +545,7 @@ void MCCrashTrace::Install()
 {
 }
 
-void MCCrashTrace::SetReporter(void (*)())
+void MCCrashTrace::SetReporter(std::function<void()>)
 {
 }
 

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCAudio.h"
+#include "platform/MCServices.h"
 
 /// <summary>
 /// What the mixer and every buffer share: the lock, the registered buffers and streams, and the master volume. It
@@ -8,19 +9,25 @@
 struct MCAudioCore
 {
     std::mutex Lock;
-    std::vector<MCSoundBuffer*> Buffers;
-    std::vector<MCAudioStream*> Streams;
+    /// <summary>The buffers and streams made and not yet dropped by their holders (expired ones are swept out).</summary>
+    std::vector<std::weak_ptr<MCSoundBuffer>> Buffers;
+    std::vector<std::weak_ptr<MCAudioStream>> Streams;
     float Master = 1.0f;
     std::vector<float> Block;
+    /// <summary>Told of every buffer's play and stop (the device that opened the mixer), or empty.</summary>
+    std::atomic<std::weak_ptr<MCAudioDevice>> Listener;
 
     /// <summary>Adds one buffer's contribution to <paramref name="out"/>. Called with the lock held.</summary>
-    void MixBuffer(MCSoundBuffer& buffer, float* out, int frames);
+    void MixBuffer(MCSoundBuffer& buffer, std::span<float> out) const;
 
     /// <summary>Adds one stream's contribution to <paramref name="out"/>. Called with the lock held.</summary>
-    void MixStream(MCAudioStream& stream, float* out, int frames);
+    void MixStream(MCAudioStream& stream, std::span<float> out) const;
 
     /// <summary>Mixes everything into <paramref name="out"/>, overwriting it.</summary>
-    void Render(float* out, int frames);
+    void Render(std::span<float> out);
+
+    /// <summary>Drops the entries of buffers and streams that are gone. Called with the lock held.</summary>
+    void Sweep();
 };
 
 namespace
@@ -43,7 +50,7 @@ namespace
     }
 
     /// <summary>One sample of PCM as a float in [-1, 1).</summary>
-    inline float SampleAt(const uint8_t* data, uint16_t bits, size_t index)
+    inline float SampleAt(std::span<const uint8_t> data, uint16_t bits, size_t index)
     {
         if (bits == 8)
         {
@@ -54,19 +61,21 @@ namespace
         return value * (1.0f / 32768.0f);
     }
 
-    uint32_t ReadU32(const uint8_t* p)
+    /// <summary>The little-endian 32-bit value at <paramref name="at"/>.</summary>
+    uint32_t ReadU32(std::span<const uint8_t> bytes, size_t at)
     {
-        return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) | (static_cast<uint32_t>(p[2]) << 16) |
-               (static_cast<uint32_t>(p[3]) << 24);
+        return static_cast<uint32_t>(bytes[at]) | (static_cast<uint32_t>(bytes[at + 1]) << 8) |
+               (static_cast<uint32_t>(bytes[at + 2]) << 16) | (static_cast<uint32_t>(bytes[at + 3]) << 24);
     }
 
-    uint16_t ReadU16(const uint8_t* p)
+    /// <summary>The little-endian 16-bit value at <paramref name="at"/>.</summary>
+    uint16_t ReadU16(std::span<const uint8_t> bytes, size_t at)
     {
-        return static_cast<uint16_t>(p[0] | (p[1] << 8));
+        return static_cast<uint16_t>(bytes[at] | (bytes[at + 1] << 8));
     }
 }
 
-void MCAudioCore::MixBuffer(MCSoundBuffer& buffer, float* out, int frames)
+void MCAudioCore::MixBuffer(MCSoundBuffer& buffer, std::span<float> out) const
 {
     if (!buffer._Playing)
     {
@@ -91,11 +100,12 @@ void MCAudioCore::MixBuffer(MCSoundBuffer& buffer, float* out, int frames)
     gainLeft *= Master;
     gainRight *= Master;
 
-    const uint8_t* data = buffer._Data.data();
+    const std::span<const uint8_t> data = buffer._Data;
     const bool stereo = format.Channels == 2;
     double position = buffer._Position;
+    const size_t frames = out.size() / 2;
 
-    for (int i = 0; i < frames; ++i)
+    for (size_t i = 0; i < frames; ++i)
     {
         if (position >= static_cast<double>(total))
         {
@@ -145,8 +155,10 @@ void MCAudioCore::MixBuffer(MCSoundBuffer& buffer, float* out, int frames)
     buffer._Position = position;
 }
 
-void MCAudioCore::MixStream(MCAudioStream& stream, float* out, int frames)
+void MCAudioCore::MixStream(MCAudioStream& stream, std::span<float> out) const
 {
+    const size_t frames = out.size() / 2;
+
     if (stream._Paused)
     {
         return;
@@ -162,7 +174,7 @@ void MCAudioCore::MixStream(MCAudioStream& stream, float* out, int frames)
 
     std::deque<float>& samples = stream._Samples;
 
-    for (int i = 0; i < frames; ++i)
+    for (size_t i = 0; i < frames; ++i)
     {
         const size_t queued = samples.size() / static_cast<size_t>(channels);
 
@@ -209,31 +221,47 @@ void MCAudioCore::MixStream(MCAudioStream& stream, float* out, int frames)
     }
 }
 
-void MCAudioCore::Render(float* out, int frames)
+void MCAudioCore::Render(std::span<float> out)
 {
-    std::fill(out, out + static_cast<size_t>(frames) * 2, 0.0f);
-    std::lock_guard lock(Lock);
+    std::ranges::fill(out, 0.0f);
 
-    for (MCSoundBuffer* buffer : Buffers)
     {
-        MixBuffer(*buffer, out, frames);
+        std::scoped_lock lock(Lock);
+        Sweep();
+
+        for (const std::weak_ptr<MCSoundBuffer>& entry : Buffers)
+        {
+            if (const std::shared_ptr<MCSoundBuffer> buffer = entry.lock())
+            {
+                MixBuffer(*buffer, out);
+            }
+        }
+
+        for (const std::weak_ptr<MCAudioStream>& entry : Streams)
+        {
+            if (const std::shared_ptr<MCAudioStream> stream = entry.lock())
+            {
+                MixStream(*stream, out);
+            }
+        }
     }
 
-    for (MCAudioStream* stream : Streams)
+    for (float& sample : out)
     {
-        MixStream(*stream, out, frames);
+        sample = std::clamp(sample, -1.0f, 1.0f);
     }
+}
 
-    for (int i = 0; i < frames * 2; ++i)
-    {
-        out[i] = std::clamp(out[i], -1.0f, 1.0f);
-    }
+void MCAudioCore::Sweep()
+{
+    std::erase_if(Buffers, [](const std::weak_ptr<MCSoundBuffer>& entry) { return entry.expired(); });
+    std::erase_if(Streams, [](const std::weak_ptr<MCAudioStream>& entry) { return entry.expired(); });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // MCSoundBuffer
 
-MCSoundBuffer::MCSoundBuffer(std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format, uint32_t bytes)
+MCSoundBuffer::MCSoundBuffer(Key, std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format, uint32_t bytes)
     : _Core(std::move(core)), _Format(format)
 {
     const uint32_t blockAlign = format.BlockAlign();
@@ -241,11 +269,7 @@ MCSoundBuffer::MCSoundBuffer(std::shared_ptr<MCAudioCore> core, const MCSoundFor
     _Data.assign(size, format.Bits == 8 ? uint8_t{0x80} : uint8_t{0});
 }
 
-MCSoundBuffer::~MCSoundBuffer()
-{
-    std::lock_guard lock(_Core->Lock);
-    std::erase(_Core->Buffers, this);
-}
+MCSoundBuffer::~MCSoundBuffer() = default;
 
 MCSoundBuffer::MCLockedRegion MCSoundBuffer::Lock(uint32_t offset, uint32_t bytes)
 {
@@ -259,58 +283,63 @@ MCSoundBuffer::MCLockedRegion MCSoundBuffer::Lock(uint32_t offset, uint32_t byte
 
     offset %= size;
     bytes = std::min(bytes, size);
-    region.Data1 = _Data.data() + offset;
-    region.Size1 = std::min(bytes, size - offset);
+    const uint32_t first = std::min(bytes, size - offset);
+    region.First = std::span(_Data).subspan(offset, first);
 
-    if (region.Size1 < bytes)
+    if (first < bytes)
     {
-        region.Data2 = _Data.data();
-        region.Size2 = bytes - region.Size1;
+        region.Second = std::span(_Data).first(bytes - first);
     }
 
     return region;
 }
 
-void MCSoundBuffer::Unlock(const MCLockedRegion& region)
+void MCSoundBuffer::Unlock([[maybe_unused]] const MCLockedRegion& region)
 {
-    (void)region;
     // The mixer reads the bytes under the core lock; taking it once orders these writes before its next read.
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
 }
 
 void MCSoundBuffer::Write(uint32_t offset, std::span<const uint8_t> data)
 {
     const MCLockedRegion region = Lock(offset, static_cast<uint32_t>(std::min<size_t>(data.size(), UINT32_MAX)));
 
-    if (region.Size1 != 0)
-    {
-        std::memcpy(region.Data1, data.data(), region.Size1);
-    }
-
-    if (region.Size2 != 0)
-    {
-        std::memcpy(region.Data2, data.data() + region.Size1, region.Size2);
-    }
+    std::ranges::copy(data.first(region.First.size()), region.First.begin());
+    std::ranges::copy(data.subspan(region.First.size(), region.Second.size()), region.Second.begin());
 
     Unlock(region);
 }
 
 void MCSoundBuffer::Play(bool looping)
 {
-    std::lock_guard lock(_Core->Lock);
-    _Playing = !_Data.empty();
-    _Looping = looping;
+    {
+        std::scoped_lock lock(_Core->Lock);
+        _Playing = !_Data.empty();
+        _Looping = looping;
+    }
+
+    if (const std::shared_ptr<MCAudioDevice> listener = _Core->Listener.load().lock())
+    {
+        listener->BufferPlayed(*this, looping);
+    }
 }
 
 void MCSoundBuffer::Stop()
 {
-    std::lock_guard lock(_Core->Lock);
-    _Playing = false;
+    {
+        std::scoped_lock lock(_Core->Lock);
+        _Playing = false;
+    }
+
+    if (const std::shared_ptr<MCAudioDevice> listener = _Core->Listener.load().lock())
+    {
+        listener->BufferStopped(*this);
+    }
 }
 
 uint32_t MCSoundBuffer::GetStatus() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     uint32_t status = 0;
 
     if (_Playing)
@@ -326,81 +355,68 @@ uint32_t MCSoundBuffer::GetStatus() const
     return status;
 }
 
-void MCSoundBuffer::GetCurrentPosition(uint32_t* play, uint32_t* write) const
+void MCSoundBuffer::GetCurrentPosition(uint32_t& play, uint32_t& write) const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     const uint32_t blockAlign = _Format.BlockAlign();
     const uint32_t size = Size();
-    const uint32_t playOffset = size == 0 ? 0 : (static_cast<uint32_t>(_Position) * blockAlign) % size;
-
-    if (play != nullptr)
-    {
-        *play = playOffset;
-    }
-
-    if (write != nullptr)
-    {
-        // The mixer has consumed up to the play cursor already; a frame beyond is always safe.
-        *write = size == 0 ? 0 : (playOffset + blockAlign) % size;
-    }
+    play = size == 0 ? 0 : (static_cast<uint32_t>(_Position) * blockAlign) % size;
+    // The mixer has consumed up to the play cursor already; a frame beyond is always safe.
+    write = size == 0 ? 0 : (play + blockAlign) % size;
 }
 
 void MCSoundBuffer::SetCurrentPosition(uint32_t offset)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     const uint32_t size = Size();
     _Position = size == 0 ? 0.0 : static_cast<double>((offset % size) / _Format.BlockAlign());
 }
 
 void MCSoundBuffer::SetVolume(int32_t hundredthsDb)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Volume = std::clamp(hundredthsDb, VolumeMin, VolumeMax);
 }
 
 int32_t MCSoundBuffer::GetVolume() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Volume;
 }
 
 void MCSoundBuffer::SetPan(int32_t pan)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Pan = std::clamp(pan, PanLeft, PanRight);
 }
 
 int32_t MCSoundBuffer::GetPan() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Pan;
 }
 
 void MCSoundBuffer::SetFrequency(uint32_t hz)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Frequency = hz == 0 ? 0 : std::clamp<uint32_t>(hz, 100, 100000);
 }
 
 uint32_t MCSoundBuffer::GetFrequency() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Frequency != 0 ? _Frequency : _Format.Rate;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // MCAudioStream
 
-MCAudioStream::MCAudioStream(std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format)
+MCAudioStream::MCAudioStream(Key, std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format)
     : _Core(std::move(core)), _Format(format)
 {
 }
 
-MCAudioStream::~MCAudioStream()
-{
-    std::lock_guard lock(_Core->Lock);
-    std::erase(_Core->Streams, this);
-}
+MCAudioStream::~MCAudioStream() = default;
 
 void MCAudioStream::Queue(std::span<const uint8_t> pcm)
 {
@@ -410,28 +426,28 @@ void MCAudioStream::Queue(std::span<const uint8_t> pcm)
 
     for (size_t i = 0; i < samples; ++i)
     {
-        converted[i] = SampleAt(pcm.data(), _Format.Bits, i);
+        converted[i] = SampleAt(pcm, _Format.Bits, i);
     }
 
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Samples.insert(_Samples.end(), converted.begin(), converted.end());
 }
 
 uint64_t MCAudioStream::QueuedFrames() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Samples.size() / _Format.Channels;
 }
 
 uint64_t MCAudioStream::PlayedFrames() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Played;
 }
 
 void MCAudioStream::Clear()
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Samples.clear();
     _Phase = 0.0;
     _Played = 0;
@@ -439,42 +455,48 @@ void MCAudioStream::Clear()
 
 void MCAudioStream::Pause(bool paused)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Paused = paused;
 }
 
 void MCAudioStream::SetVolume(int32_t hundredthsDb)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Volume = std::clamp(hundredthsDb, MCSoundBuffer::VolumeMin, MCSoundBuffer::VolumeMax);
 }
 
 void MCAudioStream::SetPan(int32_t pan)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Pan = std::clamp(pan, MCSoundBuffer::PanLeft, MCSoundBuffer::PanRight);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // MCAudio
 
-MCAudio::MCAudio() : _Core(std::make_shared<MCAudioCore>())
+MCAudio::MCAudio(Key) : _Core(std::make_shared<MCAudioCore>())
 {
 }
 
-MCAudio::~MCAudio()
-{
-    if (_Device != nullptr)
-    {
-        // Destroying the device stream stops the callback before it returns.
-        SDL_DestroyAudioStream(_Device);
-        _Device = nullptr;
-    }
-}
+MCAudio::~MCAudio() = default;
 
 std::unique_ptr<MCAudio> MCAudio::CreateSilent()
 {
-    return std::unique_ptr<MCAudio>(new MCAudio());
+    return std::make_unique<MCAudio>(Key{});
+}
+
+void MCAudio::SetListener(std::weak_ptr<MCAudioDevice> listener)
+{
+    _Core->Listener = std::move(listener);
+}
+
+std::unique_ptr<MCAudio> MCSdlAudioDevice::OpenMixer()
+{
+    // Without a playback device the game runs silent instead of stopping ("DirectSound was unable to initialize").
+    auto device = MCAudio::Open();
+    std::unique_ptr<MCAudio> mixer = device ? std::move(*device) : MCAudio::CreateSilent();
+    mixer->SetListener(weak_from_this());
+    return mixer;
 }
 
 std::expected<std::unique_ptr<MCAudio>, std::string> MCAudio::Open()
@@ -484,32 +506,31 @@ std::expected<std::unique_ptr<MCAudio>, std::string> MCAudio::Open()
         return std::unexpected(std::format("SDL_InitSubSystem(audio): {}", SDL_GetError()));
     }
 
-    std::unique_ptr<MCAudio> audio(new MCAudio());
+    auto audio = std::make_unique<MCAudio>(Key{});
     SDL_AudioSpec spec{};
     spec.format = SDL_AUDIO_F32;
     spec.channels = 2;
     spec.freq = static_cast<int>(OutputRate);
-    audio->_Device = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, Feed, audio->_Core.get());
+    audio->_Device.reset(SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, Feed, audio->_Core.get()));
 
     if (audio->_Device == nullptr)
     {
         return std::unexpected(std::format("SDL_OpenAudioDeviceStream: {}", SDL_GetError()));
     }
 
-    SDL_ResumeAudioStreamDevice(audio->_Device);
+    SDL_ResumeAudioStreamDevice(audio->_Device.get());
     return audio;
 }
 
-void SDLCALL MCAudio::Feed(void* user, SDL_AudioStream* stream, int additional, int total)
+void SDLCALL MCAudio::Feed(void* user, SDL_AudioStream* stream, int additional, [[maybe_unused]] int total)
 {
-    (void)total;
-    MCAudioCore* core = static_cast<MCAudioCore*>(user);
+    MCAudioCore& core = *static_cast<MCAudioCore*>(user);
     constexpr int chunk = 1024;
 
     // The block is only touched here, on the device thread.
-    if (core->Block.size() < chunk * 2)
+    if (core.Block.size() < chunk * 2)
     {
-        core->Block.resize(chunk * 2);
+        core.Block.resize(chunk * 2);
     }
 
     int frames = additional / static_cast<int>(sizeof(float) * 2);
@@ -517,8 +538,8 @@ void SDLCALL MCAudio::Feed(void* user, SDL_AudioStream* stream, int additional, 
     while (frames > 0)
     {
         const int now = std::min(frames, chunk);
-        core->Render(core->Block.data(), now);
-        SDL_PutAudioStreamData(stream, core->Block.data(), now * static_cast<int>(sizeof(float) * 2));
+        core.Render(std::span(core.Block).first(static_cast<size_t>(now) * 2));
+        SDL_PutAudioStreamData(stream, core.Block.data(), now * static_cast<int>(sizeof(float) * 2));
         frames -= now;
     }
 }
@@ -532,9 +553,10 @@ std::expected<std::shared_ptr<MCSoundBuffer>, std::string> MCAudio::CreateBuffer
                                            format.Channels, format.Bits));
     }
 
-    std::shared_ptr<MCSoundBuffer> buffer(new MCSoundBuffer(_Core, format, bytes));
-    std::lock_guard lock(_Core->Lock);
-    _Core->Buffers.push_back(buffer.get());
+    auto buffer = std::make_shared<MCSoundBuffer>(MCSoundBuffer::Key{}, _Core, format, bytes);
+    std::scoped_lock lock(_Core->Lock);
+    _Core->Sweep();
+    _Core->Buffers.push_back(buffer);
     return buffer;
 }
 
@@ -572,15 +594,16 @@ std::expected<std::shared_ptr<MCAudioStream>, std::string> MCAudio::CreateStream
                                            format.Channels, format.Bits));
     }
 
-    std::shared_ptr<MCAudioStream> stream(new MCAudioStream(_Core, format));
-    std::lock_guard lock(_Core->Lock);
-    _Core->Streams.push_back(stream.get());
+    auto stream = std::make_shared<MCAudioStream>(MCAudioStream::Key{}, _Core, format);
+    std::scoped_lock lock(_Core->Lock);
+    _Core->Sweep();
+    _Core->Streams.push_back(stream);
     return stream;
 }
 
 void MCAudio::SetMasterVolume(float volume)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Core->Master = std::clamp(volume, 0.0f, 1.0f);
 }
 
@@ -593,17 +616,17 @@ void MCAudio::PauseDevice(bool paused)
 
     if (paused)
     {
-        SDL_PauseAudioStreamDevice(_Device);
+        SDL_PauseAudioStreamDevice(_Device.get());
     }
     else
     {
-        SDL_ResumeAudioStreamDevice(_Device);
+        SDL_ResumeAudioStreamDevice(_Device.get());
     }
 }
 
-void MCAudio::Render(float* out, int frames)
+void MCAudio::Render(std::span<float> out)
 {
-    _Core->Render(out, frames);
+    _Core->Render(out);
 }
 
 float MCAudio::GainFromHundredthsDb(int32_t hundredthsDb)
@@ -631,36 +654,36 @@ std::expected<MCWaveData, std::string> MCAudio::ParseWave(std::span<const uint8_
     MCWaveData wave;
     bool haveFormat = false;
     bool haveData = false;
-    const size_t riffEnd = std::min<size_t>(file.size(), static_cast<size_t>(ReadU32(file.data() + 4)) + 8);
+    const size_t riffEnd = std::min<size_t>(file.size(), static_cast<size_t>(ReadU32(file, 4)) + 8);
     size_t offset = 12;
 
     while (offset + 8 <= riffEnd)
     {
-        const uint8_t* chunk = file.data() + offset;
-        const uint32_t size = ReadU32(chunk + 4);
+        const std::span<const uint8_t> chunk = file.subspan(offset, 8);
+        const uint32_t size = ReadU32(chunk, 4);
         const size_t body = offset + 8;
         const size_t available = std::min<size_t>(size, file.size() - body);
 
-        if (std::memcmp(chunk, "fmt ", 4) == 0)
+        if (std::memcmp(chunk.data(), "fmt ", 4) == 0)
         {
             if (available < 14)
             {
                 return std::unexpected(std::string("the fmt chunk is too short"));
             }
 
-            const uint16_t tag = ReadU16(file.data() + body);
+            const uint16_t tag = ReadU16(file, body);
 
             if (tag != 1)
             {
                 return std::unexpected(std::format("not PCM (format tag {})", tag));
             }
 
-            wave.Format.Channels = ReadU16(file.data() + body + 2);
-            wave.Format.Rate = ReadU32(file.data() + body + 4);
-            wave.Format.Bits = available >= 16 ? ReadU16(file.data() + body + 14) : 8;
+            wave.Format.Channels = ReadU16(file, body + 2);
+            wave.Format.Rate = ReadU32(file, body + 4);
+            wave.Format.Bits = available >= 16 ? ReadU16(file, body + 14) : 8;
             haveFormat = true;
         }
-        else if (std::memcmp(chunk, "data", 4) == 0)
+        else if (std::memcmp(chunk.data(), "data", 4) == 0)
         {
             wave.Samples = file.subspan(body, available);
             haveData = true;

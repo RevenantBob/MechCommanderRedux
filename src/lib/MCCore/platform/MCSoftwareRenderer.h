@@ -1,6 +1,7 @@
 #pragma once
 
 #include "platform/MCRenderer.h"
+#include "vfx/MCVfxFunctions.h"
 
 /// <summary>
 /// The see-through pixels of a draw's target: on a target with an op plane, a draw that maps the pixels under it
@@ -9,27 +10,60 @@
 class MCSeeThrough
 {
 public:
-    explicit MCSeeThrough(const _window* target) : _Ops(MCRenderer::OpPlane(target)), _Base(target->buffer) {}
+    explicit MCSeeThrough(const MCWindow& target)
+        : _Ops(MCRenderer::OpPlane(target))
+        , _Base(target.Pixels != nullptr ? MCAddressKey::Of(target.Pixels[0]) : MCAddressKey())
+    {
+    }
 
     /// <summary>Whether the target has see-through pixels at all.</summary>
-    explicit operator bool() const { return _Ops != nullptr; }
+    explicit operator bool() const { return !_Ops.empty(); }
 
     /// <summary>Whether pixel <paramref name="p"/> of the target is see-through.</summary>
-    bool At(const uint8_t* p) const { return _Ops != nullptr && *p == MCRenderer::UnderlayKey; }
+    bool At(const uint8_t& p) const { return !_Ops.empty() && p == MCRenderer::UnderlayKey; }
 
     /// <summary>Maps see-through pixel <paramref name="p"/> through <paramref name="table"/>.</summary>
-    void Map(uint8_t* p, const uint8_t* table);
+    void Map(uint8_t& p, MCColorTable table);
 
     /// <summary>Blends <paramref name="color"/> over see-through pixel <paramref name="p"/> (its AlphaTable row).</summary>
-    void Blend(uint8_t* p, uint8_t color);
+    void Blend(uint8_t& p, uint8_t color);
 
 private:
-    uint8_t* _Ops;
-    const uint8_t* _Base;
+    /// <summary>The target's op plane (for the one draw this lives for), and where the target's pixels start.</summary>
+    std::span<uint8_t> _Ops;
+    MCAddressKey _Base;
     /// <summary>The op of the table mapped last.</summary>
-    const uint8_t* _LastTable = nullptr;
+    MCAddressKey _LastTable;
     uint8_t _LastOp = 0;
 };
+
+/// <summary>Reads a little-endian 32-bit value at <paramref name="at"/> of <paramref name="bytes"/> (unaligned).</summary>
+inline int32_t MCRead32(std::span<const uint8_t> bytes, size_t at)
+{
+    int32_t value;
+    std::memcpy(&value, bytes.subspan(at, 4).data(), 4);
+    return value;
+}
+
+/// <summary>Reads a little-endian 16-bit value at <paramref name="at"/> of <paramref name="bytes"/> (unaligned).</summary>
+inline uint16_t MCRead16(std::span<const uint8_t> bytes, size_t at)
+{
+    uint16_t value;
+    std::memcpy(&value, bytes.subspan(at, 2).data(), 2);
+    return value;
+}
+
+/// <summary>Where shape <paramref name="shapeNum"/>'s header lies in a VFX shape table (its directory: 8 + 8n).</summary>
+inline size_t MCShapeOffset(std::span<const uint8_t> table, int32_t shapeNum)
+{
+    return static_cast<uint32_t>(MCRead32(table, 8 + static_cast<size_t>(shapeNum) * 8));
+}
+
+/// <summary>Row <paramref name="color"/> of AlphaTable: what <paramref name="color"/> drawn over each colour gives.</summary>
+inline MCColorTable MCAlphaRow(uint32_t color)
+{
+    return std::span<const uint8_t>(AlphaTable).subspan(static_cast<size_t>(color) * 256).first<256>();
+}
 
 /// <summary>
 /// One row of a polygon or mapped quadrilateral as the software renderer fills it: pixels <c>X0</c>..<c>X1</c> of row
@@ -140,22 +174,22 @@ public:
     /// <summary>The one software renderer.</summary>
     static MCSoftwareRenderer& Instance();
 
-    void Clear(_window* target, const MCRect& rect, uint8_t color) override;
-    void Hash(_window* target, const MCRect& rect, uint8_t color) override;
-    void Copy(_window* target, const MCCopyCommand& command) override;
-    void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) override;
-    void ShapeBlit(_window* target, const MCShapeBlitCommand& command) override;
-    void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override;
-    void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) override;
-    void Shape(_window* target, const MCShapeCommand& command) override;
-    void FastShape(_window* target, const MCFastShapeCommand& command) override;
-    void Tile(_window* target, const MCTileCommand& command) override;
-    void Polygon(_window* target, const MCPolygonCommand& command) override;
-    void MapQuad(_window* target, const MCMapQuadCommand& command) override;
-    void Line(_window* target, const MCLineCommand& command) override;
-    void Ellipse(_window* target, const MCEllipseCommand& command) override;
-    void StatusBar(_window* target, const MCStatusBarCommand& command) override;
-    void Glyph(_window* target, const MCGlyphCommand& command) override;
+    void Clear(MCWindow& target, const MCRect& rect, uint8_t color) override;
+    void Hash(MCWindow& target, const MCRect& rect, uint8_t color) override;
+    void Copy(MCWindow& target, const MCCopyCommand& command) override;
+    void AlphaBlit(MCWindow& target, const MCAlphaBlitCommand& command) override;
+    void ShapeBlit(MCWindow& target, const MCShapeBlitCommand& command) override;
+    void Write(MCWindow& target, int32_t x, int32_t y, std::span<const uint8_t> pixels) override;
+    void Pixel(MCWindow& target, int32_t x, int32_t y, uint8_t color) override;
+    void Shape(MCWindow& target, const MCShapeCommand& command) override;
+    void FastShape(MCWindow& target, const MCFastShapeCommand& command) override;
+    void Tile(MCWindow& target, const MCTileCommand& command) override;
+    void Polygon(MCWindow& target, const MCPolygonCommand& command) override;
+    void MapQuad(MCWindow& target, const MCMapQuadCommand& command) override;
+    void Line(MCWindow& target, const MCLineCommand& command) override;
+    void Ellipse(MCWindow& target, const MCEllipseCommand& command) override;
+    void StatusBar(MCWindow& target, const MCStatusBarCommand& command) override;
+    void Glyph(MCWindow& target, const MCGlyphCommand& command) override;
 
 protected:
     /// <summary>Nothing to do: every draw reads AlphaTable as it goes.</summary>
@@ -166,4 +200,8 @@ protected:
 private:
     /// <summary>The asm's globals the polygon and quadrilateral walks keep between calls.</summary>
     MCSpanState _Spans;
+    /// <summary>The picture a shape transform renders its shape into before blending it.</summary>
+    MCWindow _ShapeScratch;
+    /// <summary>How many pixels <see cref="_ShapeScratch"/>'s pixels hold (it grows, never shrinks).</summary>
+    size_t _ShapeScratchCapacity = 0;
 };

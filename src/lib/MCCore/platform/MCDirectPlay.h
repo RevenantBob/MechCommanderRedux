@@ -17,51 +17,48 @@
 // Differences from DirectPlay: every message is delivered in order (TCP), the guaranteed flag changes nothing; the
 // host cannot migrate (when it leaves, the others get DPSYS_SESSIONLOST); only the TCP/IP and IPX connections exist
 // (both are this transport; IPX means "search the LAN"); there is no lobby.
+// The port's types hold their strings and data (DirectPlay's pointers are strings, spans and std::function callbacks),
+// and a received system message gives offsets into itself where DirectPlay's held pointers into the receive buffer.
 
 /// <summary>DirectPlay's <c>DPNAME</c>: a player's or group's short and long name.</summary>
-/// <remarks>DirectPlay layout (32-bit): dwSize +0x0, dwFlags +0x4, lpszShortNameA +0x8, lpszLongNameA +0xc.</remarks>
 struct DPNAME
 {
-    uint32_t dwSize;
-    uint32_t dwFlags;
-    char* lpszShortNameA;
-    char* lpszLongNameA;
+    /// <summary>The short name; none where DirectPlay's pointer was null.</summary>
+    std::optional<std::string> ShortName;
+    /// <summary>The long name; none where DirectPlay's pointer was null.</summary>
+    std::optional<std::string> LongName;
 };
 
 /// <summary>DirectPlay's <c>DPSESSIONDESC2</c>: how a session is described when it is hosted, enumerated or joined.</summary>
-/// <remarks>
-/// DirectPlay layout (32-bit, 0x50 bytes): dwSize +0x0, dwFlags +0x4, guidInstance +0x8, guidApplication +0x18,
-/// dwMaxPlayers +0x28, dwCurrentPlayers +0x2c, lpszSessionNameA +0x30, lpszPasswordA +0x34, dwReserved1 +0x38,
-/// dwReserved2 +0x3c, dwUser1..4 +0x40..+0x4c.
-/// </remarks>
 struct DPSESSIONDESC2
 {
-    uint32_t dwSize;
+    uint32_t dwSize = 0;
     /// <summary>DPSESSION_* flags.</summary>
-    uint32_t dwFlags;
+    uint32_t dwFlags = 0;
     /// <summary>The session's own id.</summary>
-    _GUID guidInstance;
+    _GUID guidInstance{};
     /// <summary>The game's id (thisAppGUID).</summary>
-    _GUID guidApplication;
-    uint32_t dwMaxPlayers;
-    uint32_t dwCurrentPlayers;
-    char* lpszSessionNameA;
-    char* lpszPasswordA;
-    uint32_t dwReserved1;
-    uint32_t dwReserved2;
-    uint32_t dwUser1;
-    uint32_t dwUser2;
-    uint32_t dwUser3;
-    uint32_t dwUser4;
+    _GUID guidApplication{};
+    uint32_t dwMaxPlayers = 0;
+    uint32_t dwCurrentPlayers = 0;
+    /// <summary>The session's name; none where DirectPlay's pointer was null.</summary>
+    std::optional<std::string> SessionName;
+    /// <summary>The password; none where DirectPlay's pointer was null (an enumerated session's always is).</summary>
+    std::optional<std::string> Password;
+    uint32_t dwReserved1 = 0;
+    uint32_t dwReserved2 = 0;
+    uint32_t dwUser1 = 0;
+    uint32_t dwUser2 = 0;
+    uint32_t dwUser3 = 0;
+    uint32_t dwUser4 = 0;
 };
 
 /// <summary>DirectPlay's <c>DPCOMPOUNDADDRESSELEMENT</c>: one piece of a connection address.</summary>
-/// <remarks>DirectPlay layout (32-bit, 0x18 bytes): guidDataType +0x0, dwDataSize +0x10, lpData +0x14.</remarks>
 struct DPCOMPOUNDADDRESSELEMENT
 {
-    _GUID guidDataType;
-    uint32_t dwDataSize;
-    void* lpData;
+    _GUID guidDataType{};
+    /// <summary>The piece (a service provider's GUID, a host name...).</summary>
+    std::vector<uint8_t> Data;
 };
 
 /// <summary>DirectPlay's <c>DPMSG_GENERIC</c>: every system message starts with its DPSYS_* type.</summary>
@@ -70,10 +67,22 @@ struct DPMSG_GENERIC
     uint32_t dwType;
 };
 
+/// <summary>
+/// A name inside a received system message (DirectPlay's <c>DPNAME</c> there): where its strings lie, as offsets from the
+/// message's first byte, each null-terminated. Read it with <see cref="MCDirectPlayMessageName"/>.
+/// </summary>
+struct DPMSG_NAME
+{
+    uint32_t dwSize;
+    uint32_t dwFlags;
+    uint32_t dwShortNameOffset;
+    uint32_t dwLongNameOffset;
+};
+
 /// <summary>DirectPlay's <c>DPMSG_CREATEPLAYERORGROUP</c> (DPSYS_CREATEPLAYERORGROUP).</summary>
 /// <remarks>
-/// DirectPlay layout (32-bit): dwType +0x0, dwPlayerType +0x4, dpId +0x8, dwCurrentPlayers +0xc, lpData +0x10,
-/// dwDataSize +0x14, dpnName +0x18, dpIdParent +0x28, dwFlags +0x2c. The names point into the received buffer.
+/// DirectPlay's layout, with offsets from the message's first byte where it had pointers into the receive buffer
+/// (<c>dwDataOffset</c> 0: no data).
 /// </remarks>
 struct DPMSG_CREATEPLAYERORGROUP
 {
@@ -82,25 +91,25 @@ struct DPMSG_CREATEPLAYERORGROUP
     uint32_t dwPlayerType;
     uint32_t dpId;
     uint32_t dwCurrentPlayers;
-    void* lpData;
+    uint32_t dwDataOffset;
     uint32_t dwDataSize;
-    DPNAME dpnName;
+    DPMSG_NAME dpnName;
     uint32_t dpIdParent;
     uint32_t dwFlags;
 };
 
 /// <summary>DirectPlay's <c>DPMSG_DESTROYPLAYERORGROUP</c> (DPSYS_DESTROYPLAYERORGROUP).</summary>
-/// <remarks>DirectPlay layout (32-bit): dwType +0x0, dwPlayerType +0x4, dpId +0x8, then the data and name.</remarks>
+/// <remarks>DirectPlay's layout, with offsets where it had pointers (0: no data).</remarks>
 struct DPMSG_DESTROYPLAYERORGROUP
 {
     uint32_t dwType;
     uint32_t dwPlayerType;
     uint32_t dpId;
-    void* lpLocalData;
+    uint32_t dwLocalDataOffset;
     uint32_t dwLocalDataSize;
-    void* lpRemoteData;
+    uint32_t dwRemoteDataOffset;
     uint32_t dwRemoteDataSize;
-    DPNAME dpnName;
+    DPMSG_NAME dpnName;
     uint32_t dpIdParent;
     uint32_t dwFlags;
 };
@@ -118,22 +127,50 @@ struct DPMSG_ADDPLAYERTOGROUP
 };
 
 /// <summary>DirectPlay's <c>DPMSG_SETPLAYERORGROUPDATA</c> (DPSYS_SETPLAYERORGROUPDATA).</summary>
+/// <remarks>DirectPlay's layout, with an offset where it had a pointer (0: no data).</remarks>
 struct DPMSG_SETPLAYERORGROUPDATA
 {
     uint32_t dwType;
     uint32_t dwPlayerType;
     uint32_t dpId;
-    void* lpData;
+    uint32_t dwDataOffset;
     uint32_t dwDataSize;
 };
 
+/// <summary>A session's description inside a received system message (DirectPlay's <c>DPSESSIONDESC2</c> there).</summary>
+/// <remarks>DirectPlay's layout, with offsets where it had pointers (0: none).</remarks>
+struct DPMSG_SESSIONDESC
+{
+    uint32_t dwSize;
+    /// <summary>DPSESSION_* flags.</summary>
+    uint32_t dwFlags;
+    _GUID guidInstance;
+    _GUID guidApplication;
+    uint32_t dwMaxPlayers;
+    uint32_t dwCurrentPlayers;
+    uint32_t dwSessionNameOffset;
+    uint32_t dwPasswordOffset;
+    uint32_t dwReserved1;
+    uint32_t dwReserved2;
+    uint32_t dwUser1;
+    uint32_t dwUser2;
+    uint32_t dwUser3;
+    uint32_t dwUser4;
+};
+
 /// <summary>DirectPlay's <c>DPMSG_SETSESSIONDESC</c> (DPSYS_SETSESSIONDESC).</summary>
-/// <remarks>DirectPlay layout (32-bit): dwType +0x0, dpDesc +0x4 (so dpDesc.dwFlags is at +0x8).</remarks>
+/// <remarks>DirectPlay layout: dwType +0x0, dpDesc +0x4 (so dpDesc.dwFlags is at +0x8).</remarks>
 struct DPMSG_SETSESSIONDESC
 {
     uint32_t dwType;
-    DPSESSIONDESC2 dpDesc;
+    DPMSG_SESSIONDESC dpDesc;
 };
+
+/// <summary>The null-terminated string at <paramref name="offset"/> of a received system message (none for 0).</summary>
+std::optional<std::string> MCDirectPlayMessageString(std::span<const uint8_t> message, uint32_t offset);
+
+/// <summary>The names a received system message gives at <paramref name="name"/>.</summary>
+DPNAME MCDirectPlayMessageName(std::span<const uint8_t> message, const DPMSG_NAME& name);
 
 /// <summary>DirectPlay's error and success codes (HRESULTs), as the linkup layer compares them.</summary>
 enum : uint32_t
@@ -224,7 +261,7 @@ namespace MCDirectPlayGuids
     inline constexpr _GUID DPAID_Phone{0x78ec89a0, 0xe0af, 0x11cf, {0x9c, 0x4e, 0x00, 0xa0, 0xc9, 0x05, 0x42, 0x5e}};
     inline constexpr _GUID DPAID_Modem{0xf6dcc200, 0xa2fe, 0x11d0, {0x9c, 0x4f, 0x00, 0xa0, 0xc9, 0x05, 0x42, 0x5e}};
     inline constexpr _GUID DPAID_ComPort{0xf2f0ce00, 0xe0af, 0x11cf, {0x9c, 0x4e, 0x00, 0xa0, 0xc9, 0x05, 0x42, 0x5e}};
-    /// <summary>The lobby's own service provider (MCX.EXE @ 0x00784a38).</summary>
+    /// <summary>The lobby's own service provider.</summary>
     inline constexpr _GUID DPSPGUID_LOBBY{0xd8d29744, 0x208a, 0x11d0, {0xbc, 0x9d, 0x00, 0xa0, 0x24, 0x29, 0x67, 0xb6}};
 }
 
@@ -234,14 +271,19 @@ inline bool MCSameGuid(const _GUID& a, const _GUID& b)
     return std::memcmp(&a, &b, sizeof(_GUID)) == 0;
 }
 
-/// <summary>EnumConnections callback (LPDPENUMCONNECTIONSCALLBACK): return nonzero to go on.</summary>
-using MCEnumConnectionsCallback = int (*)(const _GUID* serviceProvider, void* connection, uint32_t connectionSize,
-                                          const DPNAME* name, uint32_t flags, void* context);
-/// <summary>EnumSessions callback (LPDPENUMSESSIONSCALLBACK2): return nonzero to go on.</summary>
-using MCEnumSessionsCallback = int (*)(const DPSESSIONDESC2* desc, uint32_t* timeout, uint32_t flags, void* context);
-/// <summary>EnumPlayers / EnumGroups callback (LPDPENUMPLAYERSCALLBACK2): return nonzero to go on.</summary>
-using MCEnumPlayersCallback = int (*)(uint32_t id, uint32_t playerType, const DPNAME* name, uint32_t flags,
-                                      void* context);
+/// <summary>
+/// EnumConnections callback (LPDPENUMCONNECTIONSCALLBACK): a service provider, its connection data and its name;
+/// returns whether to go on. What DirectPlay passed as the context is what the function captures.
+/// </summary>
+using MCEnumConnectionsCallback = std::function<bool(const _GUID& serviceProvider, std::span<const uint8_t> connection,
+                                                     const DPNAME& name, uint32_t flags)>;
+/// <summary>
+/// EnumSessions callback (LPDPENUMSESSIONSCALLBACK2): a session, or with DPESC_TIMEDOUT in the flags the end of the
+/// enumeration (the description is then empty, where DirectPlay's was null); returns whether to go on.
+/// </summary>
+using MCEnumSessionsCallback = std::function<bool(const DPSESSIONDESC2& desc, uint32_t flags)>;
+/// <summary>EnumPlayers / EnumGroups callback (LPDPENUMPLAYERSCALLBACK2): returns whether to go on.</summary>
+using MCEnumPlayersCallback = std::function<bool(uint32_t id, uint32_t playerType, const DPNAME& name, uint32_t flags)>;
 
 /// <summary>
 /// The stand-in for one IDirectPlay3A object: a connection, at most one open session, the players and groups of it,
@@ -263,70 +305,75 @@ public:
 
     /// <summary>
     /// The lobby's <c>CreateCompoundAddress</c>: packs the address <paramref name="elements"/> (a service provider
-    /// and, for TCP/IP, the host's address) into the connection data <see cref="InitializeConnection"/> takes. With a
-    /// null <paramref name="address"/> only the needed size is returned.
+    /// and, for TCP/IP, the host's address) into the connection data <see cref="InitializeConnection"/> takes
+    /// (<see cref="ConnectionDataSize"/> bytes).
     /// </summary>
-    /// <returns>DP_OK, DPERR_BUFFERTOOSMALL (with <paramref name="size"/> set) or DPERR_INVALIDPARAMS.</returns>
-    static uint32_t CreateCompoundAddress(const DPCOMPOUNDADDRESSELEMENT* elements, uint32_t count, void* address,
-                                          uint32_t* size);
+    static std::vector<uint8_t> CreateCompoundAddress(std::span<const DPCOMPOUNDADDRESSELEMENT> elements);
 
     /// <summary>Lists the connections (TCP/IP and IPX) with their connection data.</summary>
-    uint32_t EnumConnections(const _GUID* application, MCEnumConnectionsCallback callback, void* context,
-                             uint32_t flags);
+    static uint32_t EnumConnections(const MCEnumConnectionsCallback& callback, uint32_t flags);
 
     /// <summary>Selects the connection described by <paramref name="connection"/> (from EnumConnections or CreateCompoundAddress).</summary>
-    /// <returns>DP_OK, DPERR_ALREADYINITIALIZED, or DPERR_UNSUPPORTED for a modem or serial connection.</returns>
-    uint32_t InitializeConnection(const void* connection, uint32_t flags);
+    /// <returns>
+    /// DP_OK, DPERR_ALREADYINITIALIZED, DPERR_INVALIDPARAMS (too short), or DPERR_UNSUPPORTED for a modem or serial
+    /// connection.
+    /// </returns>
+    uint32_t InitializeConnection(std::span<const uint8_t> connection, uint32_t flags);
 
     /// <summary>
     /// Asks for sessions of <paramref name="desc"/>'s application and reports those that answered lately, then
     /// calls <paramref name="callback"/> once more with DPESC_TIMEDOUT.
     /// </summary>
-    uint32_t EnumSessions(const DPSESSIONDESC2* desc, uint32_t timeout, MCEnumSessionsCallback callback, void* context,
+    uint32_t EnumSessions(const DPSESSIONDESC2& desc, uint32_t timeout, const MCEnumSessionsCallback& callback,
                           uint32_t flags);
 
     /// <summary>Hosts (DPOPEN_CREATE) or joins (DPOPEN_JOIN, an enumerated session) the session <paramref name="desc"/>.</summary>
-    uint32_t Open(const DPSESSIONDESC2* desc, uint32_t flags);
+    uint32_t Open(const DPSESSIONDESC2& desc, uint32_t flags);
 
     /// <summary>Leaves the session (a host ends it for everyone).</summary>
     uint32_t Close();
 
-    /// <summary>Creates a player of this machine; <paramref name="playerID"/> receives its id.</summary>
-    /// <remarks><paramref name="event"/> (a HANDLE DirectPlay signalled on arrivals) is ignored.</remarks>
-    uint32_t CreatePlayer(uint32_t* playerID, const DPNAME* name, void* event, const void* data, uint32_t dataSize,
-                          uint32_t flags);
+    /// <summary>
+    /// Creates a player of this machine with <paramref name="data"/> as its data; <paramref name="playerID"/> receives
+    /// its id. (DirectPlay's event HANDLE, signalled on arrivals, has no counterpart.)
+    /// </summary>
+    uint32_t CreatePlayer(uint32_t& playerID, const DPNAME& name, std::span<const uint8_t> data, uint32_t flags);
 
     /// <summary>Creates a group; <paramref name="groupID"/> receives its id.</summary>
-    uint32_t CreateGroup(uint32_t* groupID, const DPNAME* name, const void* data, uint32_t dataSize, uint32_t flags);
+    uint32_t CreateGroup(uint32_t& groupID, const DPNAME& name, std::span<const uint8_t> data, uint32_t flags);
 
     uint32_t AddPlayerToGroup(uint32_t groupID, uint32_t playerID);
     uint32_t DeletePlayerFromGroup(uint32_t groupID, uint32_t playerID);
-    uint32_t SetGroupData(uint32_t groupID, const void* data, uint32_t dataSize, uint32_t flags);
-
-    /// <summary>The host changes the session's description (flags, user words, name...).</summary>
-    uint32_t SetSessionDesc(const DPSESSIONDESC2* desc, uint32_t flags);
+    uint32_t SetGroupData(uint32_t groupID, std::span<const uint8_t> data, uint32_t flags);
 
     /// <summary>
-    /// Lists the players of the open session, or with DPENUMPLAYERS_SESSION those an enumerated session
-    /// <paramref name="session"/> reported.
+    /// The host changes the session's description (flags, user words, name...); a description without a password
+    /// keeps the old one.
     /// </summary>
-    uint32_t EnumPlayers(const _GUID* session, MCEnumPlayersCallback callback, void* context, uint32_t flags);
+    uint32_t SetSessionDesc(const DPSESSIONDESC2& desc, uint32_t flags);
+
+    /// <summary>Lists the players of the open session.</summary>
+    uint32_t EnumPlayers(const MCEnumPlayersCallback& callback, uint32_t flags);
+
+    /// <summary>Lists the players an enumerated session <paramref name="session"/> reported (DPENUMPLAYERS_SESSION).</summary>
+    uint32_t EnumPlayers(const _GUID& session, const MCEnumPlayersCallback& callback, uint32_t flags);
 
     /// <summary>Lists the groups of the open session.</summary>
-    uint32_t EnumGroups(const _GUID* session, MCEnumPlayersCallback callback, void* context, uint32_t flags);
+    uint32_t EnumGroups(const MCEnumPlayersCallback& callback, uint32_t flags);
 
     /// <summary>
-    /// Sends <paramref name="size"/> bytes from local player <paramref name="fromID"/> to a player, a group, or
-    /// everyone (DPID_ALLPLAYERS). The sender never receives its own message.
+    /// Sends <paramref name="data"/> from local player <paramref name="fromID"/> to a player, a group, or everyone
+    /// (DPID_ALLPLAYERS). The sender never receives its own message.
     /// </summary>
-    uint32_t Send(uint32_t fromID, uint32_t toID, uint32_t flags, const void* data, uint32_t size);
+    uint32_t Send(uint32_t fromID, uint32_t toID, uint32_t flags, std::span<const uint8_t> data);
 
     /// <summary>
-    /// Takes the next message for this machine's players: a player's message, or a system message (sender
-    /// DPID_SYSMSG) laid out as a DPMSG_* structure whose pointers point into <paramref name="data"/>.
+    /// Takes the next message for this machine's players into <paramref name="data"/> (its size in
+    /// <paramref name="size"/>): a player's message, or a system message (sender DPID_SYSMSG) laid out as a DPMSG_*
+    /// structure followed by the strings and data its offsets name.
     /// </summary>
-    /// <returns>DP_OK, DPERR_NOMESSAGES, or DPERR_BUFFERTOOSMALL (with <paramref name="size"/> set).</returns>
-    uint32_t Receive(uint32_t* fromID, uint32_t* toID, uint32_t flags, void* data, uint32_t* size);
+    /// <returns>DP_OK, DPERR_NOMESSAGES, or DPERR_BUFFERTOOSMALL (with <paramref name="size"/> set to what it needs).</returns>
+    uint32_t Receive(uint32_t& fromID, uint32_t& toID, uint32_t flags, std::span<uint8_t> data, uint32_t& size);
 
     /// <summary>Does the network work that is due: accepts, reads, routes, answers queries, writes.</summary>
     void Pump();

@@ -9,21 +9,22 @@ namespace
     }
 }
 
-std::expected<std::unique_ptr<MCSdlPresenter>, std::string> MCSdlPresenter::Create(SDL_Window* window, bool vsync,
+std::expected<std::unique_ptr<MCSdlPresenter>, std::string> MCSdlPresenter::Create(std::shared_ptr<SDL_Window> window,
+                                                                                   bool vsync,
                                                                                    const MCPresentation& presentation)
 {
-    std::unique_ptr<MCSdlPresenter> presenter(new MCSdlPresenter());
-    presenter->_Window = window;
+    auto presenter = std::make_unique<MCSdlPresenter>(Key{});
+    presenter->_Window = std::move(window);
     presenter->_Presentation = presentation;
-    presenter->_Renderer = SDL_CreateRenderer(window, nullptr);
+    presenter->_Renderer.reset(SDL_CreateRenderer(presenter->_Window.get(), nullptr));
 
     if (presenter->_Renderer == nullptr)
     {
         return std::unexpected(SdlError("SDL_CreateRenderer"));
     }
 
-    SDL_SetRenderVSync(presenter->_Renderer, vsync ? 1 : 0);
-    presenter->_Palette = SDL_CreatePalette(256);
+    SDL_SetRenderVSync(presenter->_Renderer.get(), vsync ? 1 : 0);
+    presenter->_Palette.reset(SDL_CreatePalette(256));
 
     if (presenter->_Palette == nullptr)
     {
@@ -33,30 +34,13 @@ std::expected<std::unique_ptr<MCSdlPresenter>, std::string> MCSdlPresenter::Crea
     return presenter;
 }
 
-MCSdlPresenter::~MCSdlPresenter()
-{
-    for (SDL_Texture* texture : {_Target, _Texture})
-    {
-        if (texture != nullptr)
-        {
-            SDL_DestroyTexture(texture);
-        }
-    }
-
-    if (_Palette != nullptr)
-    {
-        SDL_DestroyPalette(_Palette);
-    }
-
-    if (_Renderer != nullptr)
-    {
-        SDL_DestroyRenderer(_Renderer);
-    }
-}
+// The textures go first, then the palette, the renderer and (if the display let it go) the window: the members'
+// order.
+MCSdlPresenter::~MCSdlPresenter() = default;
 
 std::string MCSdlPresenter::Name() const
 {
-    return std::format("software ({})", SDL_GetRendererName(_Renderer));
+    return std::format("software ({})", SDL_GetRendererName(_Renderer.get()));
 }
 
 void MCSdlPresenter::SetPresentation(const MCPresentation& presentation)
@@ -79,7 +63,7 @@ void MCSdlPresenter::SetPresentation(const MCPresentation& presentation)
 
 void MCSdlPresenter::SetVSync(bool on)
 {
-    SDL_SetRenderVSync(_Renderer, on ? 1 : 0);
+    SDL_SetRenderVSync(_Renderer.get(), on ? 1 : 0);
 }
 
 std::expected<void, std::string> MCSdlPresenter::EnsureTextures(int width, int height)
@@ -89,41 +73,37 @@ std::expected<void, std::string> MCSdlPresenter::EnsureTextures(int width, int h
         return {};
     }
 
-    for (SDL_Texture** texture : {&_Target, &_Texture})
-    {
-        if (*texture != nullptr)
-        {
-            SDL_DestroyTexture(*texture);
-            *texture = nullptr;
-        }
-    }
+    _Target.reset();
+    _Texture.reset();
 
     _Width = 0;
     _Height = 0;
-    _Texture = SDL_CreateTexture(_Renderer, SDL_PIXELFORMAT_INDEX8, SDL_TEXTUREACCESS_STREAMING, width, height);
+    _Texture.reset(
+        SDL_CreateTexture(_Renderer.get(), SDL_PIXELFORMAT_INDEX8, SDL_TEXTUREACCESS_STREAMING, width, height));
 
     if (_Texture == nullptr)
     {
         return std::unexpected(SdlError("SDL_CreateTexture(INDEX8)"));
     }
 
-    if (!SDL_SetTexturePalette(_Texture, _Palette))
+    if (!SDL_SetTexturePalette(_Texture.get(), _Palette.get()))
     {
         return std::unexpected(SdlError("SDL_SetTexturePalette"));
     }
 
-    SDL_SetTextureBlendMode(_Texture, SDL_BLENDMODE_NONE);
-    SDL_SetTextureScaleMode(_Texture, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureBlendMode(_Texture.get(), SDL_BLENDMODE_NONE);
+    SDL_SetTextureScaleMode(_Texture.get(), SDL_SCALEMODE_NEAREST);
 
     if (_Presentation.Linear)
     {
         // A palette lookup can't be filtered, so the screen is expanded to RGBA at its own size first.
-        _Target = SDL_CreateTexture(_Renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, width, height);
+        _Target.reset(
+            SDL_CreateTexture(_Renderer.get(), SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, width, height));
 
         if (_Target != nullptr)
         {
-            SDL_SetTextureBlendMode(_Target, SDL_BLENDMODE_NONE);
-            SDL_SetTextureScaleMode(_Target, SDL_SCALEMODE_LINEAR);
+            SDL_SetTextureBlendMode(_Target.get(), SDL_BLENDMODE_NONE);
+            SDL_SetTextureScaleMode(_Target.get(), SDL_SCALEMODE_LINEAR);
         }
     }
 
@@ -146,7 +126,7 @@ void MCSdlPresenter::ApplyPresentation(const SDL_Rect& view)
         mode = SDL_LOGICAL_PRESENTATION_INTEGER_SCALE;
     }
 
-    SDL_SetRenderLogicalPresentation(_Renderer, view.w, view.h, mode);
+    SDL_SetRenderLogicalPresentation(_Renderer.get(), view.w, view.h, mode);
 }
 
 std::expected<void, std::string> MCSdlPresenter::Upload(const MCFrame& frame)
@@ -169,20 +149,21 @@ std::expected<void, std::string> MCSdlPresenter::Upload(const MCFrame& frame)
                          static_cast<uint8_t>(std::max(color.b - frame.Fade, 0)), color.a};
         }
 
-        SDL_SetPaletteColors(_Palette, colors.data(), 0, 256);
+        SDL_SetPaletteColors(_Palette.get(), colors.data(), 0, 256);
         _Fade = frame.Fade;
     }
 
-    const uint8_t* pixels = frame.Pixels;
+    std::span<const uint8_t> pixels = frame.Pixels;
 
     if (!frame.Underlays.empty())
     {
-        _Composed.assign(frame.Pixels, frame.Pixels + static_cast<size_t>(frame.Width) * frame.Height);
-        MCRenderer::ComposeUnderlays(frame.Screen, _Composed.data(), MCRect{0, 0, frame.Width - 1, frame.Height - 1});
-        pixels = _Composed.data();
+        _Composed.assign(frame.Pixels.begin(),
+                         frame.Pixels.begin() + static_cast<ptrdiff_t>(frame.Width) * frame.Height);
+        MCRenderer::ComposeUnderlays(frame.Screen.get(), _Composed, MCRect{0, 0, frame.Width - 1, frame.Height - 1});
+        pixels = _Composed;
     }
 
-    if (!SDL_UpdateTexture(_Texture, nullptr, pixels, frame.Width))
+    if (!SDL_UpdateTexture(_Texture.get(), nullptr, pixels.data(), frame.Width))
     {
         return std::unexpected(SdlError("SDL_UpdateTexture"));
     }
@@ -202,28 +183,28 @@ std::expected<void, std::string> MCSdlPresenter::Present(const MCFrame& frame)
         return uploaded;
     }
 
-    SDL_SetRenderDrawColor(_Renderer, 0, 0, 0, 255);
-    SDL_RenderClear(_Renderer);
+    SDL_SetRenderDrawColor(_Renderer.get(), 0, 0, 0, 255);
+    SDL_RenderClear(_Renderer.get());
     const SDL_FRect view{static_cast<float>(frame.View.x), static_cast<float>(frame.View.y),
                          static_cast<float>(frame.View.w), static_cast<float>(frame.View.h)};
 
     if (_Target != nullptr)
     {
         // Converted at the screen's size, then filtered up.
-        SDL_SetRenderLogicalPresentation(_Renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
-        SDL_SetRenderTarget(_Renderer, _Target);
-        SDL_RenderTexture(_Renderer, _Texture, nullptr, nullptr);
-        SDL_SetRenderTarget(_Renderer, nullptr);
+        SDL_SetRenderLogicalPresentation(_Renderer.get(), 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+        SDL_SetRenderTarget(_Renderer.get(), _Target.get());
+        SDL_RenderTexture(_Renderer.get(), _Texture.get(), nullptr, nullptr);
+        SDL_SetRenderTarget(_Renderer.get(), nullptr);
         ApplyPresentation(frame.View);
-        SDL_RenderClear(_Renderer);
-        SDL_RenderTexture(_Renderer, _Target, &view, nullptr);
+        SDL_RenderClear(_Renderer.get());
+        SDL_RenderTexture(_Renderer.get(), _Target.get(), &view, nullptr);
     }
     else
     {
-        SDL_RenderTexture(_Renderer, _Texture, &view, nullptr);
+        SDL_RenderTexture(_Renderer.get(), _Texture.get(), &view, nullptr);
     }
 
-    if (!SDL_RenderPresent(_Renderer))
+    if (!SDL_RenderPresent(_Renderer.get()))
     {
         return std::unexpected(SdlError("SDL_RenderPresent"));
     }
@@ -239,18 +220,18 @@ std::expected<std::vector<SDL_Color>, std::string> MCSdlPresenter::ReadFrame(con
     }
 
     SDL_Texture* target =
-        SDL_CreateTexture(_Renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, frame.Width, frame.Height);
+        SDL_CreateTexture(_Renderer.get(), SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, frame.Width, frame.Height);
 
     if (target == nullptr)
     {
         return std::unexpected(SdlError("SDL_CreateTexture(read frame)"));
     }
 
-    SDL_SetRenderLogicalPresentation(_Renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
-    SDL_SetRenderTarget(_Renderer, target);
-    SDL_RenderTexture(_Renderer, _Texture, nullptr, nullptr);
-    SDL_Surface* read = SDL_RenderReadPixels(_Renderer, nullptr);
-    SDL_SetRenderTarget(_Renderer, nullptr);
+    SDL_SetRenderLogicalPresentation(_Renderer.get(), 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+    SDL_SetRenderTarget(_Renderer.get(), target);
+    SDL_RenderTexture(_Renderer.get(), _Texture.get(), nullptr, nullptr);
+    SDL_Surface* read = SDL_RenderReadPixels(_Renderer.get(), nullptr);
+    SDL_SetRenderTarget(_Renderer.get(), nullptr);
     SDL_DestroyTexture(target);
     ApplyPresentation(frame.View);
 
@@ -284,7 +265,7 @@ MCViewport MCSdlPresenter::Viewport(int viewWidth, int viewHeight) const
 {
     SDL_FRect rect{};
 
-    if (viewWidth == _View.w && viewHeight == _View.h && SDL_GetRenderLogicalPresentationRect(_Renderer, &rect) &&
+    if (viewWidth == _View.w && viewHeight == _View.h && SDL_GetRenderLogicalPresentationRect(_Renderer.get(), &rect) &&
         rect.w > 0.0f && rect.h > 0.0f)
     {
         return MCViewport{rect.x, rect.y, rect.w, rect.h};
@@ -292,6 +273,6 @@ MCViewport MCSdlPresenter::Viewport(int viewWidth, int viewHeight) const
 
     int width = 0;
     int height = 0;
-    SDL_GetRenderOutputSize(_Renderer, &width, &height);
+    SDL_GetRenderOutputSize(_Renderer.get(), &width, &height);
     return MCPresentViewport(width, height, viewWidth, viewHeight, _Presentation);
 }

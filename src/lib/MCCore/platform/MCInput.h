@@ -19,7 +19,7 @@ struct MCClipRect
 };
 
 /// <summary>
-/// The game's window procedure as the platform calls it: the original's WndProc (<c>FUN_00612080</c>, which hands
+/// The game's window procedure as the platform calls it: the original's WndProc (<c>0x00612080</c>, which hands
 /// input to <c>translateMessage</c> @ 0x00611860) without the HWND.
 /// </summary>
 /// <returns>The LRESULT. For WM_CLOSE, non-zero cancels the close (see <see cref="MCInput::PumpMessages"/>).</returns>
@@ -49,12 +49,13 @@ namespace MCInput
 {
     /// <summary>
     /// Connects the input to the display whose window it reads and whose logical screen it maps to, and starts SDL's
-    /// text input. Sends WM_ACTIVATEAPP(1) at once if the window already has focus.
+    /// text input. Sends WM_ACTIVATEAPP(1) at once if the window already has focus. The input refers to the display
+    /// while it lives; an empty one detaches it.
     /// </summary>
-    void Attach(MCDisplay* display);
+    void Attach(std::weak_ptr<MCDisplay> attached);
 
-    /// <summary>The display attached, or null.</summary>
-    MCDisplay* Display();
+    /// <summary>The display attached, held for the caller's use, or null.</summary>
+    std::shared_ptr<MCDisplay> Display();
 
     /// <summary>Sets the game's window procedure; every message goes to it.</summary>
     void SetWindowProc(MCWindowProc proc);
@@ -118,13 +119,13 @@ namespace MCInput
     /// The game's own cursor as a system cursor (<see cref="MCCursor"/>), or null when the game shows none. It is
     /// shown while the <see cref="ShowCursor"/> counter hides the system's arrow, letterbox bars included.
     /// </summary>
-    void SetGameCursor(SDL_Cursor* cursor);
+    void SetGameCursor(std::shared_ptr<SDL_Cursor> cursor);
 
     /// <summary>
-    /// Confines the cursor to a rectangle of the logical screen (<c>ClipCursor</c>). Null frees it, back to the
+    /// Confines the cursor to a rectangle of the logical screen (<c>ClipCursor</c>). None frees it, back to the
     /// default: the picture while full screen and focused, anywhere otherwise.
     /// </summary>
-    void ClipCursor(const MCClipRect* rect);
+    void ClipCursor(std::optional<MCClipRect> rect);
 
     /// <summary>Recomputes the cursor's area after the picture moved in the window without a window event (a new
     /// logical size).</summary>

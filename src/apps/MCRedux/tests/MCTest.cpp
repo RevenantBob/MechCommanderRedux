@@ -1,17 +1,24 @@
 #include "MCTest.h"
+#include "../MCCrashTrace.h"
 
 #include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <exception>
+#include <expected>
 #include <iostream>
+#include <string>
+
+#include "lib/MCFatal.h"
+#include "platform/MCAllocator.h"
 
 namespace
 {
     struct RunState
     {
         std::vector<std::string> Scopes;
+        std::string_view Current;
         size_t Passes = 0;
         size_t Failures = 0;
     };
@@ -59,14 +66,15 @@ namespace MCTest
         return registry;
     }
 
-    Registrar::Registrar(const char* name, void (*body)(), const char* file, int line, bool isolated)
+    Registrar::Registrar(std::string_view name, std::function<void()> body, std::string_view file, int line,
+                         bool isolated)
     {
-        Registry().push_back({name, body, file, line, isolated});
+        Registry().push_back({name, std::move(body), file, line, isolated});
     }
 
-    Scope::Scope(std::string text)
+    Scope::Scope(std::string_view text)
     {
-        State().Scopes.push_back(std::move(text));
+        State().Scopes.emplace_back(text);
     }
 
     Scope::~Scope()
@@ -74,7 +82,7 @@ namespace MCTest
         State().Scopes.pop_back();
     }
 
-    void ReportFailure(const char* file, int line, std::string_view message)
+    void ReportFailure(std::string_view file, int line, std::string_view message)
     {
         RunState& state = State();
         ++state.Failures;
@@ -92,17 +100,22 @@ namespace MCTest
     }
 }
 
-const char* MCTest::Option(std::string_view name)
+std::optional<std::string_view> MCTest::Option(std::string_view name)
 {
     for (const auto& [key, value] : Options())
     {
         if (key == name)
         {
-            return value.c_str();
+            return value;
         }
     }
 
-    return nullptr;
+    return std::nullopt;
+}
+
+std::string_view MCTest::CurrentTestName()
+{
+    return State().Current;
 }
 
 namespace
@@ -112,7 +125,7 @@ namespace
     /// options.
     /// </summary>
     /// <returns>Whether it passed (the child exited 0).</returns>
-    bool RunIsolated(const char* program, const MCTest::TestCase& test)
+    bool RunIsolated(std::string_view program, const MCTest::TestCase& test)
     {
         std::string command = std::format("\"{}\" --only \"{}\"", program, test.Name);
 
@@ -140,9 +153,19 @@ namespace
 /// </summary>
 int main(int argc, char** argv)
 {
+    if (const auto allocator = MCInitializeAllocator(); !allocator)
+    {
+        std::cerr << allocator.error() << "\n";
+        return 1;
+    }
+
+    // A fatal error fails the test process; a message box would wait for someone to click it. A crash (or a CRT
+    // assertion) prints its stack and writes mc_tests.dmp instead of showing a dialog.
+    MCNoMessageBoxes = true;
+    MCCrashTrace::Install();
     std::vector<std::string> filters;
     bool list = false;
-    const char* only = nullptr;
+    std::optional<std::string_view> only;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -166,76 +189,78 @@ int main(int argc, char** argv)
         }
     }
 
-    std::vector<const MCTest::TestCase*> selected;
+    std::vector<std::reference_wrapper<const MCTest::TestCase>> selected;
 
     for (const MCTest::TestCase& test : MCTest::Registry())
     {
-        if (only != nullptr ? std::string_view(test.Name) == only : Selected(test, filters))
+        if (only ? test.Name == *only : Selected(test, filters))
         {
-            selected.push_back(&test);
+            selected.emplace_back(test);
         }
     }
 
     if (list)
     {
-        for (const MCTest::TestCase* test : selected)
+        for (const MCTest::TestCase& test : selected)
         {
-            std::cout << test->Name << "\n";
+            std::cout << test.Name << "\n";
         }
 
         return 0;
     }
 
     RunState& state = State();
-    std::vector<const MCTest::TestCase*> failed;
+    std::vector<std::reference_wrapper<const MCTest::TestCase>> failed;
     const auto runStart = std::chrono::steady_clock::now();
 
-    for (const MCTest::TestCase* test : selected)
+    for (const MCTest::TestCase& test : selected)
     {
-        if (test->Isolated && only == nullptr)
+        if (test.Isolated && !only)
         {
-            std::cout << "[ PROC ] " << test->Name << std::endl;
+            std::cout << "[ PROC ] " << test.Name << std::endl;
 
-            if (!RunIsolated(argv[0], *test))
+            if (!RunIsolated(argv[0], test))
             {
                 ++state.Failures;
-                failed.push_back(test);
+                failed.emplace_back(test);
             }
 
             continue;
         }
 
-        std::cout << "[ RUN  ] " << test->Name << std::endl;
+        std::cout << "[ RUN  ] " << test.Name << std::endl;
         const size_t failuresBefore = state.Failures;
         const auto start = std::chrono::steady_clock::now();
+        state.Current = test.Name;
 
         try
         {
-            test->Body();
+            test.Body();
         }
         catch (const MCTest::RequireFailed&)
         {
         }
         catch (const std::exception& e)
         {
-            MCTest::ReportFailure(test->File, test->Line, std::string("uncaught exception: ") + e.what());
+            MCTest::ReportFailure(test.File, test.Line, std::string("uncaught exception: ") + e.what());
         }
         catch (...)
         {
-            MCTest::ReportFailure(test->File, test->Line, "uncaught exception");
+            MCTest::ReportFailure(test.File, test.Line, "uncaught exception");
         }
 
         state.Scopes.clear();
+        state.Current = {};
         const auto ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
         const bool passed = state.Failures == failuresBefore;
 
         if (!passed)
         {
-            failed.push_back(test);
+            failed.emplace_back(test);
         }
 
-        std::cout << (passed ? "[   OK ] " : "[ FAIL ] ") << test->Name << " (" << ms << " ms)" << std::endl;
+        std::cout << (passed ? "[   OK ] " : "[ FAIL ] ") << test.Name << " (" << ms << " ms)" << std::endl;
     }
 
     const auto totalMs =
@@ -244,9 +269,9 @@ int main(int argc, char** argv)
               << selected.size() - failed.size() << " of " << selected.size() << " tests passed, " << state.Passes
               << " checks passed, " << state.Failures << " failed (" << totalMs << " ms)\n";
 
-    for (const MCTest::TestCase* test : failed)
+    for (const MCTest::TestCase& test : failed)
     {
-        std::cout << "  FAILED: " << test->Name << "\n";
+        std::cout << "  FAILED: " << test.Name << "\n";
     }
 
     return failed.empty() ? 0 : 1;

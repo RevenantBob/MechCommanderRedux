@@ -9,8 +9,8 @@ namespace
         bool Enabled = false;
         uint64_t FrameStart = 0;
         uint64_t Frame = 0;
-        /// <summary>This frame's parts (names are string literals, compared by address) and their ticks.</summary>
-        std::vector<std::pair<const char*, uint64_t>> Parts;
+        /// <summary>This frame's parts and their ticks.</summary>
+        std::vector<std::pair<std::string, uint64_t>> Parts;
         std::vector<std::string> Notes;
         /// <summary>The last frames' times (ms), for what is usual.</summary>
         std::deque<double> Recent;
@@ -135,8 +135,12 @@ namespace MCFrameLog
         }
     }
 
-    Scope::Scope(const char* name) : _Name(name), _Start(state().Enabled ? SDL_GetPerformanceCounter() : 0)
+    Scope::Scope(std::string_view name) : _Start(state().Enabled ? SDL_GetPerformanceCounter() : 0)
     {
+        if (_Start != 0)
+        {
+            _Name = name;
+        }
     }
 
     Scope::~Scope()
@@ -147,7 +151,7 @@ namespace MCFrameLog
         }
 
         const uint64_t ticks = SDL_GetPerformanceCounter() - _Start;
-        std::vector<std::pair<const char*, uint64_t>>& parts = state().Parts;
+        std::vector<std::pair<std::string, uint64_t>>& parts = state().Parts;
 
         for (auto& [name, total] : parts)
         {

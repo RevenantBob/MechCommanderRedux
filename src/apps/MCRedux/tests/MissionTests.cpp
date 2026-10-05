@@ -1,78 +1,48 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
-#include "camera/camera.h"
-#include "main/main.h"
-#include "mission/scenario.h"
-#include "object/mech.h"
-#include "object/mechctrl.h"
-#include "object/mover.h"
-#include "object/objtype.h"
-#include "object/warrior.h"
-#include "sprite/mactor.h"
-#include "sprite/sprtmgr.h"
-#include "sprite/spritree.h"
-#include "sprite/vfxshape.h"
-#include "terrain/terrain.h"
-#include "vfx/vfxint.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
+#include "camera/MCCamera.h"
+#include "main/MCMissionGlobals.h"
+#include "mission/MCScenario.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMechControlData.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCObjectType.h"
+#include "object/MCMechWarrior.h"
+#include "sprite/MCMechActor.h"
+#include "sprite/MCSpriteManager.h"
+#include "sprite/MCSpriteTree.h"
+#include "sprite/MCShape.h"
+#include "terrain/MCTerrain.h"
+#include "vfx/MCVfxClip.h"
 
 namespace
 {
     /// <summary>Whether map cell (<paramref name="row"/>, <paramref name="col"/>) is passable (off the map: no).</summary>
     bool CellPassable(int32_t row, int32_t col)
     {
-        if (row < 0 || col < 0 || row >= GameMap->height * 3 || col >= GameMap->width * 3)
+        if (row < 0 || col < 0 || row >= GameMap().Height * 3 || col >= GameMap().Width * 3)
         {
             return false;
         }
 
-        return GameMap->map[(row / 3) * GameMap->width + col / 3].getCellPassable(row % 3, col % 3) != 0;
+        return GameMap().Map[(row / 3) * GameMap().Width + col / 3].GetCellPassable(row % 3, col % 3) != 0;
     }
 
     /// <summary>The map cell under <paramref name="position"/>, as row and column.</summary>
-    std::pair<int32_t, int32_t> CellAt(vector_3d position)
+    std::pair<int32_t, int32_t> CellAt(MCVector3D position)
     {
         int32_t tileR = 0;
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->worldToMapPos(position, tileR, tileC, cellR, cellC);
+        GameMap().WorldToMapPos(position, tileR, tileC, cellR, cellC);
         return {tileR * 3 + cellR, tileC * 3 + cellC};
-    }
-}
-
-/// <summary>
-/// Mission 1 boots headless and its movers start on passable cells (the game itself puts nothing on forest or water).
-/// </summary>
-TEST_CASE_ISOLATED("game: mission 1 boots and every mover stands on a passable cell")
-{
-    if (!MCTestGame::Available())
-    {
-        return;
-    }
-
-    REQUIRE(MCTestGame::StartMission(1));
-
-    for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
-    {
-        Mover* mover = getMoverFromPartId(partId);
-
-        if (mover == nullptr)
-        {
-            continue;
-        }
-
-        const vector_3d position = mover->getPosition();
-        const auto [row, col] = CellAt(position);
-
-        // Vehicles may be parked in a building's cells; only the mechs are held to it.
-        if (mover->objectClass == BATTLEMECH)
-        {
-            MCTest::Scope scope("part " + std::to_string(partId));
-            CHECK(CellPassable(row, col));
-        }
     }
 }
 
@@ -90,7 +60,7 @@ namespace
         /// <summary>Every blocked cell entered.</summary>
         int32_t blockedCells = 0;
         /// <summary>Its withdraw flag last frame.</summary>
-        int32_t withdrawing = 0;
+        bool withdrawing = false;
         /// <summary>The last frames.</summary>
         std::deque<std::string> trace;
         /// <summary>The frames up to the end of the longest run.</summary>
@@ -98,40 +68,40 @@ namespace
     };
 
     /// <summary>One frame of a mover, for the trace.</summary>
-    std::string DescribeMover(Mover* mover, std::pair<int32_t, int32_t> cell)
+    std::string DescribeMover(MCMover& mover, std::pair<int32_t, int32_t> cell)
     {
-        const vector_3d position = mover->getPosition();
+        const MCVector3D position = mover.GetPosition();
         std::string line =
-            std::format("    t={:.2f} pos ({:.1f},{:.1f}) cell ({},{}) p{}", scenarioTime, position.x, position.y,
+            std::format("    t={:.2f} pos ({:.1f},{:.1f}) cell ({},{}) p{}", ScenarioTime, position.X, position.Y,
                         cell.first, cell.second, CellPassable(cell.first, cell.second) ? 1 : 0);
 
-        if (mover->objectClass == BATTLEMECH)
+        if (mover.ObjectClass == MCObjectClass::BattleMech)
         {
-            auto* actor = static_cast<MechActor*>(mover->appearance);
-            line += std::format(" gesture {}/{} goal {} legs {}", actor->currentGesture, actor->currentStateGesture,
-                                actor->gestureGoal, static_cast<int32_t>(static_cast<BattleMech*>(mover)->legStatus));
+            auto& actor = static_cast<MCMechActor&>(*mover.Appearance);
+            line += std::format(" gesture {}/{} goal {} legs {}", actor.CurrentGesture, actor.CurrentStateGesture,
+                                actor.GestureGoal, static_cast<int32_t>(static_cast<MCBattleMech&>(mover).LegStatus));
         }
 
-        MechWarrior* pilot = mover->getPilot();
+        std::shared_ptr<MCMechWarrior> pilot = mover.GetPilot();
 
         if (pilot == nullptr)
         {
             return line;
         }
 
-        MovePath* path = pilot->getMovePath();
-        const int32_t numSteps = path != nullptr ? path->numStepsWhenNotPaused : -1;
-        const int32_t curStep = path != nullptr ? path->curStep : -1;
+        const MCMovePath& path = pilot->GetMovePath();
+        const int32_t numSteps = path.NumStepsWhenNotPaused;
+        const int32_t curStep = path.CurStep;
 
-        if (path != nullptr && curStep >= 0 && curStep < numSteps)
+        if (curStep >= 0 && curStep < numSteps)
         {
-            const PathStep& step = path->stepList[curStep];
-            const int32_t stepRow = step.tileR * 3 + step.cellR;
-            const int32_t stepCol = step.tileC * 3 + step.cellC;
+            const MCPathStep& step = path.StepList[curStep];
+            const int32_t stepRow = step.TileR * 3 + step.CellR;
+            const int32_t stepCol = step.TileC * 3 + step.CellC;
             line += std::format(" step {}/{} -> ({},{}) p{} dest ({:.1f},{:.1f}) dir {} facing {:.1f}", curStep,
-                                numSteps, stepRow, stepCol, CellPassable(stepRow, stepCol) ? 1 : 0, step.destination.x,
-                                step.destination.y, static_cast<int8_t>(step.direction),
-                                mover->relFacingTo(step.destination, -1));
+                                numSteps, stepRow, stepCol, CellPassable(stepRow, stepCol) ? 1 : 0, step.Destination.X,
+                                step.Destination.Y, static_cast<int8_t>(step.Direction),
+                                mover.RelFacingTo(step.Destination, -1));
         }
         else
         {
@@ -139,23 +109,23 @@ namespace
         }
 
         // MechAIControl::update only moves a mech whose pilot can (not disabled, wounds under 6, status 0..2 or 4).
-        line += std::format(" pilot wounds {:.1f} status {} disabled {} awake {}", pilot->wounds, pilot->status,
-                            mover->isDisabled(), mover->getAwake());
-        line +=
-            std::format(" order {} pathType {} withdraw {} moveState {}/{}",
-                        static_cast<int32_t>(pilot->curTacOrder.code), static_cast<int32_t>(pilot->moveOrders.pathType),
-                        mover->unknown79C, pilot->moveOrders.moveState, pilot->moveOrders.moveStateGoal);
+        line += std::format(" pilot wounds {:.1f} status {} disabled {} awake {}", pilot->Wounds, pilot->Status,
+                            mover.IsDisabled(), mover.GetAwake());
+        line += std::format(
+            " order {} pathType {} withdraw {} moveState {}/{}", static_cast<int32_t>(pilot->CurTacOrder.Code),
+            static_cast<int32_t>(pilot->MoveOrders.PathType), mover.Withdrawing,
+            std::to_underlying(pilot->MoveOrders.MoveState), std::to_underlying(pilot->MoveOrders.MoveStateGoal));
 
-        if (mover->objectClass == BATTLEMECH)
+        if (mover.ObjectClass == MCObjectClass::BattleMech)
         {
-            auto* controlData = static_cast<MechControlData*>(mover->control->controlData);
-            line += std::format(" rotate {} throttle {} pivot {}", static_cast<int32_t>(controlData->rotate),
-                                static_cast<int32_t>(controlData->throttle), controlData->pivot);
+            auto& controlData = static_cast<MCMechControlData&>(*mover.Control->ControlData);
+            line += std::format(" rotate {} throttle {} pivot {}", static_cast<int32_t>(controlData.Rotate),
+                                static_cast<int32_t>(controlData.Throttle), controlData.Pivot);
             // updateMovement's early exits.
-            line += std::format(" numSteps {} check {} u170 {:.1f} flags {}{}{} captured {} jump {}",
-                                path != nullptr ? path->numSteps : -1, mover->pilotingCheckPending, mover->unknown170,
-                                mover->disableThisFrame, mover->shutDownThisFrame, mover->startUpThisFrame,
-                                mover->isCaptured(), static_cast<BattleMech*>(mover)->inJump);
+            line += std::format(" numSteps {} check {} engineBlow {:.1f} flags {}{}{} captured {} jump {}",
+                                path.NumSteps, mover.PilotingCheckPending, mover.EngineBlowTime, mover.DisableThisFrame,
+                                mover.ShutDownThisFrame, mover.StartUpThisFrame, mover.IsCaptured(),
+                                static_cast<MCBattleMech&>(mover).InJump);
         }
 
         return line;
@@ -168,7 +138,8 @@ namespace
 /// wounds (the original's 6.0 misread), so the mech walked on in a straight line. Movers move only along passable
 /// cells, so none, the Uller or anyone else, may cross blocked cells. Cutting a corner between two diagonal cells can
 /// graze one blocked cell, so a run of one is allowed; two blocked cells in a row is walking through. The camera
-/// follows the Uller, as the player did.
+/// follows the Uller, as the player did. Before the battle, every mech starts on a passable cell (the game itself puts
+/// nothing on forest or water; vehicles may be parked in a building's cells).
 /// </summary>
 TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells")
 {
@@ -178,25 +149,37 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    Mover* uller = getMoverFromPartId(896);
+
+    for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
+    {
+        std::shared_ptr<MCMover> mover = GetMoverFromPartId(partId);
+
+        if (mover != nullptr && mover->ObjectClass == MCObjectClass::BattleMech)
+        {
+            MCTest::Scope scope(std::format("start of part {}", partId));
+            const auto [row, col] = CellAt(mover->GetPosition());
+            CHECK(CellPassable(row, col));
+        }
+    }
+
+    std::shared_ptr<MCMover> uller = GetMoverFromPartId(896);
     REQUIRE(uller != nullptr);
-    REQUIRE(uller->objectClass == BATTLEMECH);
-    REQUIRE_EQ(uller->getAlignment(), -1);
+    REQUIRE(uller->ObjectClass == MCObjectClass::BattleMech);
+    REQUIRE_EQ(uller->GetAlignment(), -1);
 
     // The player's attack command, as the interface sends it (icallbk.cpp: attack, any range, pursue).
     for (int32_t partId = 0x200; partId < 0x203; partId++)
     {
-        Mover* mover = getMoverFromPartId(partId);
+        std::shared_ptr<MCMover> mover = GetMoverFromPartId(partId);
         REQUIRE(mover != nullptr);
-        TacticalOrder order;
-        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
-        order.target = uller;
-        order.attackParams.type = 1;
-        order.attackParams.method = 0;
-        order.attackParams.range = -1;
-        order.attackParams.pursue = -1;
-        mover->handleTacticalOrder(order, 1, 0);
-        order.destroy();
+        MCTacticalOrder order;
+        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::AttackObject, 0);
+        order.Target = uller;
+        order.AttackParams.Type = 1;
+        order.AttackParams.Method = 0;
+        order.AttackParams.Range = -1;
+        order.AttackParams.Pursue = -1;
+        mover->HandleTacticalOrder(order, 1, 0);
     }
 
     constexpr float FrameSeconds = 1.0f / 15.0f;
@@ -212,43 +195,43 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
 
     while (framesLeft-- > 0 && !walkingThrough)
     {
-        if (!ullerGone && (uller->isDestroyed() != 0 || uller->getPilot()->status == 2))
+        if (!ullerGone && (uller->IsDestroyed() != 0 || uller->GetPilot()->Status == 2))
         {
             ullerGone = true;
-            const vector_3d position = uller->getPosition();
-            std::cout << "  t=" << scenarioTime << " the Uller is gone at (" << position.x << "," << position.y
-                      << "), damage " << uller->totalDamageTaken << ", destroyed " << uller->isDestroyed()
-                      << ", withdraw " << uller->unknown79C << "\n";
+            const MCVector3D position = uller->GetPosition();
+            std::cout << "  t=" << ScenarioTime << " the Uller is gone at (" << position.X << "," << position.Y
+                      << "), damage " << uller->TotalDamageTaken << ", destroyed " << uller->IsDestroyed()
+                      << ", withdraw " << uller->Withdrawing << "\n";
             framesLeft = std::min(framesLeft, AfterFrames);
         }
 
         if (!ullerGone)
         {
-            eye->setPosition(uller->getPosition());
+            Eye()->SetPosition(uller->GetPosition());
         }
 
         MCTestGame::RunFrame(FrameSeconds);
 
-        for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
+        for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
         {
-            Mover* mover = getMoverFromPartId(partId);
+            std::shared_ptr<MCMover> mover = GetMoverFromPartId(partId);
 
-            if (mover == nullptr || mover->isDestroyed() != 0)
+            if (mover == nullptr || mover->IsDestroyed() != 0)
             {
                 continue;
             }
 
             MoverTrack& track = tracks[partId];
-            const auto cell = CellAt(mover->getPosition());
+            const auto cell = CellAt(mover->GetPosition());
 
-            if (mover->unknown79C != track.withdrawing)
+            if (mover->Withdrawing != track.withdrawing)
             {
-                track.withdrawing = mover->unknown79C;
-                std::cout << "  t=" << scenarioTime << " part " << partId << " withdraw " << track.withdrawing
-                          << ", damage " << mover->totalDamageTaken << "\n";
+                track.withdrawing = mover->Withdrawing;
+                std::cout << "  t=" << ScenarioTime << " part " << partId << " withdraw " << track.withdrawing
+                          << ", damage " << mover->TotalDamageTaken << "\n";
             }
 
-            track.trace.push_back(DescribeMover(mover, cell));
+            track.trace.push_back(DescribeMover(*mover, cell));
 
             if (track.trace.size() > 150)
             {
@@ -307,9 +290,9 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
             continue;
         }
 
-        Mover* mover = getMoverFromPartId(partId);
-        std::cout << "  part " << partId << " (class " << static_cast<int32_t>(mover->objectClass) << ", type "
-                  << mover->getObjectType()->objTypeNum << ") entered " << track.blockedCells
+        std::shared_ptr<MCMover> mover = GetMoverFromPartId(partId);
+        std::cout << "  part " << partId << " (class " << static_cast<int32_t>(mover->ObjectClass) << ", type "
+                  << mover->GetObjectType()->ObjTypeNum << ") entered " << track.blockedCells
                   << " blocked cells, longest run " << track.longestRun << "\n";
         MCTest::Scope scope("part " + std::to_string(partId));
         CHECK(track.longestRun < 2);
@@ -329,29 +312,29 @@ TEST_CASE_ISOLATED("game: a mech whose pilot is wounded but alive keeps followin
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    Mover* mover = getMoverFromPartId(0x200);
+    std::shared_ptr<MCMover> mover = GetMoverFromPartId(0x200);
     REQUIRE(mover != nullptr);
-    REQUIRE(mover->objectClass == BATTLEMECH);
-    REQUIRE(mover->isDestroyed() == 0);
-    MechWarrior* pilot = mover->getPilot();
-    REQUIRE(pilot->wounds < 4.0f);
+    REQUIRE(mover->ObjectClass == MCObjectClass::BattleMech);
+    REQUIRE(mover->IsDestroyed() == 0);
+    std::shared_ptr<MCMechWarrior> pilot = mover->GetPilot();
+    REQUIRE(pilot->Wounds < 4.0f);
 
     // A goal 600 units away on a passable cell.
-    const vector_3d start = mover->getPosition();
-    vector_3d goal = start;
+    const MCVector3D start = mover->GetPosition();
+    MCVector3D goal = start;
     bool found = false;
 
     for (int32_t degrees = 0; degrees < 360 && !found; degrees += 15)
     {
         const double radians = degrees * 3.14159265358979 / 180.0;
-        goal = vector_3d(start.x + static_cast<float>(600.0 * std::cos(radians)),
-                         start.y + static_cast<float>(600.0 * std::sin(radians)), start.z);
+        goal = MCVector3D(start.X + static_cast<float>(600.0 * std::cos(radians)),
+                          start.Y + static_cast<float>(600.0 * std::sin(radians)), start.Z);
         const auto [row, col] = CellAt(goal);
         found = CellPassable(row, col);
     }
 
     REQUIRE(found);
-    pilot->orderMoveToPoint(0, 1, ORDER_ORIGIN_PLAYER, goal, -1, 0);
+    pilot->OrderMoveToPoint(0, 1, MCOrderOrigin::Player, goal, -1, 0);
 
     constexpr float FrameSeconds = 1.0f / 15.0f;
 
@@ -361,11 +344,11 @@ TEST_CASE_ISOLATED("game: a mech whose pilot is wounded but alive keeps followin
         MCTestGame::RunFrame(FrameSeconds);
     }
 
-    REQUIRE_EQ(pilot->injure(4.0f - pilot->wounds, 0), 0);
-    CHECK_EQ(pilot->wounds, 4.0f);
-    CHECK_EQ(pilot->status, 0);
+    REQUIRE_EQ(pilot->Injure(4.0f - pilot->Wounds, 0), 0);
+    CHECK_EQ(pilot->Wounds, 4.0f);
+    CHECK_EQ(pilot->Status, 0);
 
-    std::pair<int32_t, int32_t> lastCell = CellAt(mover->getPosition());
+    std::pair<int32_t, int32_t> lastCell = CellAt(mover->GetPosition());
     int32_t run = 0;
     int32_t longestRun = 0;
     bool arrived = false;
@@ -373,7 +356,7 @@ TEST_CASE_ISOLATED("game: a mech whose pilot is wounded but alive keeps followin
     for (int32_t frame = 0; frame < 15 * 90 && !arrived; frame++)
     {
         MCTestGame::RunFrame(FrameSeconds);
-        const auto cell = CellAt(mover->getPosition());
+        const auto cell = CellAt(mover->GetPosition());
 
         if (cell != lastCell)
         {
@@ -383,8 +366,8 @@ TEST_CASE_ISOLATED("game: a mech whose pilot is wounded but alive keeps followin
         }
 
         // Within a cell of the goal (world units, on the ground).
-        const vector_3d at = mover->getPosition();
-        arrived = std::hypot(at.x - goal.x, at.y - goal.y) < 64.0f;
+        const MCVector3D at = mover->GetPosition();
+        arrived = std::hypot(at.X - goal.X, at.Y - goal.Y) < 64.0f;
     }
 
     // And stops there: five seconds on, it hasn't walked past.
@@ -393,11 +376,11 @@ TEST_CASE_ISOLATED("game: a mech whose pilot is wounded but alive keeps followin
         MCTestGame::RunFrame(FrameSeconds);
     }
 
-    const vector_3d position = mover->getPosition();
-    std::cout << "  from (" << start.x << "," << start.y << ") to (" << goal.x << "," << goal.y << "), ended at ("
-              << position.x << "," << position.y << ") at t=" << scenarioTime << "\n";
+    const MCVector3D position = mover->GetPosition();
+    std::cout << "  from (" << start.X << "," << start.Y << ") to (" << goal.X << "," << goal.Y << "), ended at ("
+              << position.X << "," << position.Y << ") at t=" << ScenarioTime << "\n";
     CHECK(arrived);
-    CHECK(std::hypot(position.x - goal.x, position.y - goal.y) < 64.0f);
+    CHECK(std::hypot(position.X - goal.X, position.Y - goal.Y) < 64.0f);
     CHECK(longestRun < 2);
 }
 
@@ -414,38 +397,39 @@ TEST_CASE_ISOLATED("game: mission 3's mechs preload full-size part shapes")
     }
 
     REQUIRE(MCTestGame::StartMission(3));
-    // The shape list's part ranges (spritree.cpp): legs, torso, right arm, left arm, and each one's part PAK.
-    constexpr int32_t partStarts[5] = {0, 0x33c / 4, 0xebc / 4, 0x1a3c / 4, 0x96f};
-    constexpr int32_t fileParts[4] = {0, 1, 2, 3};
-    std::set<SpriteTree*> trees;
+    // The shape list's part ranges: legs, torso, right arm, left arm (in the part PAKs' order).
+    constexpr std::array<uint32_t, 5> partStarts = {PartShapeStart[0], PartShapeStart[1], PartShapeStart[2],
+                                                    PartShapeStart[3], TreeShapeCount};
+    std::set<std::shared_ptr<MCSpriteTree>> trees;
 
-    for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
+    for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
     {
-        Mover* mover = getMoverFromPartId(partId);
+        std::shared_ptr<MCMover> mover = GetMoverFromPartId(partId);
 
-        if (mover != nullptr && mover->objectClass == BATTLEMECH)
+        if (mover != nullptr && mover->ObjectClass == MCObjectClass::BattleMech)
         {
-            trees.insert(static_cast<MechActor*>(mover->appearance)->mechTree);
+            trees.insert(static_cast<MCMechActor*>(mover->Appearance.get())->MechTree);
         }
     }
 
     REQUIRE(!trees.empty());
     int32_t shapes = 0;
 
-    for (SpriteTree* tree : trees)
+    for (const std::shared_ptr<MCSpriteTree>& tree : trees)
     {
         // Preload again into an empty cache (the shapes stay in the sprite manager, ownerless, as on a tree's end).
-        for (int32_t i = 0; i < tree->numShapes; i++)
+        for (std::weak_ptr<MCShape>& slot : tree->ShapeList)
         {
-            if (tree->shapeList[i] != nullptr)
+            if (const std::shared_ptr<MCShape> shape = slot.lock())
             {
-                tree->shapeList[i]->owner = nullptr;
-                tree->shapeList[i] = nullptr;
+                shape->Owner.reset();
             }
+
+            slot.reset();
         }
 
-        tree->gesturesPreloaded = 0;
-        tree->preloadGestures(0, 0.0f);
+        tree->GesturesPreloaded = false;
+        tree->PreloadGestures();
 
         // Frame 0's bounds (XMin, YMin, XMax, YMax) tell the two sizes apart. Taken before loading anything else,
         // which may push preloaded shapes out of the cache.
@@ -460,28 +444,26 @@ TEST_CASE_ISOLATED("game: mission 3's mechs preload full-size part shapes")
 
         for (int32_t part = 0; part < 4; part++)
         {
-            for (int32_t i = partStarts[part]; i < partStarts[part + 1]; i++)
+            for (uint32_t i = partStarts[part]; i < partStarts[part + 1]; i++)
             {
-                if (const Shape* shape = tree->shapeList[i])
+                if (const std::shared_ptr<MCShape> shape = tree->ShapeList[i].lock())
                 {
-                    Preloaded entry{part, static_cast<uint32_t>(i - partStarts[part]), {}};
-                    std::memcpy(entry.bounds.data(), MCVfxShape(shape->frameList, 0) + 8, 16);
+                    Preloaded entry{part, i - partStarts[part], {}};
+                    std::memcpy(entry.bounds.data(), MCVfxShape(shape->FrameList(), 0).subspan(8, 16).data(), 16);
                     preloaded.push_back(entry);
                 }
             }
         }
 
-        const uint32_t fileNumbers[4] = {tree->legFileNumber, tree->torsoFileNumber, tree->rightArmFileNumber,
-                                         tree->leftArmFileNumber};
-
         for (const Preloaded& entry : preloaded)
         {
-            MCTest::Scope scope(
-                std::format("leg file {}, part {}, packet {}", tree->legFileNumber, entry.part, entry.packet));
-            const Shape* large = spriteManager->getMechShapeData(fileNumbers[entry.part], entry.packet,
-                                                                 fileParts[entry.part], turn, nullptr, 1);
+            MCTest::Scope scope(std::format("leg file {}, part {}, packet {}", tree->FileNumbers[MCMechPart::Legs],
+                                            entry.part, entry.packet));
+            const auto part = static_cast<MCMechPart>(entry.part);
+            const std::shared_ptr<MCShape> large =
+                SpriteManager()->GetMechShapeData(tree->FileNumbers[part], entry.packet, part, Turn, {}, true);
             REQUIRE(large != nullptr);
-            CHECK(std::memcmp(entry.bounds.data(), MCVfxShape(large->frameList, 0) + 8, 16) == 0);
+            CHECK(std::memcmp(entry.bounds.data(), MCVfxShape(large->FrameList(), 0).subspan(8, 16).data(), 16) == 0);
             shapes++;
         }
     }

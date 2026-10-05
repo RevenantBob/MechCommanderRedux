@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -47,9 +48,12 @@ namespace MCSocket
     /// <summary>A non-blocking TCP socket listening on <paramref name="port"/> of every interface.</summary>
     Handle ListenTcp(uint16_t port);
 
-    /// <summary>Accepts a pending connection on <paramref name="listener"/>, made non-blocking.</summary>
+    /// <summary>
+    /// Accepts a pending connection on <paramref name="listener"/>, made non-blocking; <paramref name="from"/> gets
+    /// its address.
+    /// </summary>
     /// <returns>The connection, or <see cref="InvalidHandle"/> when none is waiting.</returns>
-    Handle AcceptTcp(Handle listener, Address* from);
+    Handle AcceptTcp(Handle listener, Address& from);
 
     /// <summary>
     /// Connects to <paramref name="to"/>, waiting up to <paramref name="timeoutMs"/> milliseconds; the connected
@@ -58,13 +62,13 @@ namespace MCSocket
     /// <returns>The connection, or <see cref="InvalidHandle"/> when it failed or timed out.</returns>
     Handle ConnectTcp(const Address& to, int timeoutMs);
 
-    /// <summary>Sends what the connection takes of <paramref name="size"/> bytes without blocking.</summary>
+    /// <summary>Sends what the connection takes of <paramref name="data"/> without blocking.</summary>
     /// <returns>The bytes sent (0 when the connection is busy), or -1 when the connection failed.</returns>
-    int Send(Handle socket, const void* data, size_t size);
+    int Send(Handle socket, std::span<const uint8_t> data);
 
-    /// <summary>Reads what has arrived on a connection, up to <paramref name="size"/> bytes, without blocking.</summary>
+    /// <summary>Reads what has arrived on a connection into <paramref name="data"/>, without blocking.</summary>
     /// <returns>The bytes read (0 when nothing is waiting), or -1 when the connection closed or failed.</returns>
-    int Receive(Handle socket, void* data, size_t size);
+    int Receive(Handle socket, std::span<uint8_t> data);
 
     /// <summary>
     /// A non-blocking UDP socket bound to <paramref name="port"/> (0 = any free port), allowed to broadcast.
@@ -72,11 +76,14 @@ namespace MCSocket
     Handle OpenUdp(uint16_t port);
 
     /// <summary>Sends one datagram.</summary>
-    bool SendTo(Handle socket, const Address& to, const void* data, size_t size);
+    bool SendTo(Handle socket, const Address& to, std::span<const uint8_t> data);
 
-    /// <summary>Reads one waiting datagram (cut to <paramref name="size"/> bytes) without blocking.</summary>
+    /// <summary>
+    /// Reads one waiting datagram (cut to the size of <paramref name="data"/>) without blocking; <paramref name="from"/>
+    /// gets the sender.
+    /// </summary>
     /// <returns>Its size, 0 when none is waiting, or -1 on error.</returns>
-    int ReceiveFrom(Handle socket, void* data, size_t size, Address* from);
+    int ReceiveFrom(Handle socket, std::span<uint8_t> data, Address& from);
 
     /// <summary>The local port <paramref name="socket"/> is bound to.</summary>
     uint16_t LocalPort(Handle socket);
@@ -84,3 +91,56 @@ namespace MCSocket
     /// <summary>Closes <paramref name="socket"/> (nothing for <see cref="InvalidHandle"/>).</summary>
     void Close(Handle socket);
 }
+
+/// <summary>
+/// The network, as the port service MCDirectPlay talks through: the <c>MCSocket</c> calls (which forward to the
+/// current context's transport), each meaning what that function's summary says.
+/// </summary>
+class MCNetTransport
+{
+public:
+    virtual ~MCNetTransport() = default;
+
+    /// <summary>See <see cref="MCSocket::Startup"/>.</summary>
+    virtual bool Startup() = 0;
+    /// <summary>See <see cref="MCSocket::Resolve"/>.</summary>
+    virtual std::optional<uint32_t> Resolve(std::string_view host) = 0;
+    /// <summary>See <see cref="MCSocket::ListenTcp"/>.</summary>
+    virtual MCSocket::Handle ListenTcp(uint16_t port) = 0;
+    /// <summary>See <see cref="MCSocket::AcceptTcp"/>.</summary>
+    virtual MCSocket::Handle AcceptTcp(MCSocket::Handle listener, MCSocket::Address& from) = 0;
+    /// <summary>See <see cref="MCSocket::ConnectTcp"/>.</summary>
+    virtual MCSocket::Handle ConnectTcp(const MCSocket::Address& to, int timeoutMs) = 0;
+    /// <summary>See <see cref="MCSocket::Send"/>.</summary>
+    virtual int Send(MCSocket::Handle socket, std::span<const uint8_t> data) = 0;
+    /// <summary>See <see cref="MCSocket::Receive"/>.</summary>
+    virtual int Receive(MCSocket::Handle socket, std::span<uint8_t> data) = 0;
+    /// <summary>See <see cref="MCSocket::OpenUdp"/>.</summary>
+    virtual MCSocket::Handle OpenUdp(uint16_t port) = 0;
+    /// <summary>See <see cref="MCSocket::SendTo"/>.</summary>
+    virtual bool SendTo(MCSocket::Handle socket, const MCSocket::Address& to, std::span<const uint8_t> data) = 0;
+    /// <summary>See <see cref="MCSocket::ReceiveFrom"/>.</summary>
+    virtual int ReceiveFrom(MCSocket::Handle socket, std::span<uint8_t> data, MCSocket::Address& from) = 0;
+    /// <summary>See <see cref="MCSocket::LocalPort"/>.</summary>
+    virtual uint16_t LocalPort(MCSocket::Handle socket) = 0;
+    /// <summary>See <see cref="MCSocket::Close"/>.</summary>
+    virtual void Close(MCSocket::Handle socket) = 0;
+};
+
+/// <summary>The operating system's sockets (Winsock on Windows, BSD sockets elsewhere).</summary>
+class MCSocketTransport final : public MCNetTransport
+{
+public:
+    bool Startup() override;
+    std::optional<uint32_t> Resolve(std::string_view host) override;
+    MCSocket::Handle ListenTcp(uint16_t port) override;
+    MCSocket::Handle AcceptTcp(MCSocket::Handle listener, MCSocket::Address& from) override;
+    MCSocket::Handle ConnectTcp(const MCSocket::Address& to, int timeoutMs) override;
+    int Send(MCSocket::Handle socket, std::span<const uint8_t> data) override;
+    int Receive(MCSocket::Handle socket, std::span<uint8_t> data) override;
+    MCSocket::Handle OpenUdp(uint16_t port) override;
+    bool SendTo(MCSocket::Handle socket, const MCSocket::Address& to, std::span<const uint8_t> data) override;
+    int ReceiveFrom(MCSocket::Handle socket, std::span<uint8_t> data, MCSocket::Address& from) override;
+    uint16_t LocalPort(MCSocket::Handle socket) override;
+    void Close(MCSocket::Handle socket) override;
+};

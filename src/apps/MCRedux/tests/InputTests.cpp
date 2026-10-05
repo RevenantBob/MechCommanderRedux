@@ -56,7 +56,7 @@ TEST_CASE("game: MCX.EXE string table loads")
 
     for (uint32_t id = 0; id < 0x1000 && found == 0; id++)
     {
-        found = table.LoadString(id, buffer, sizeof(buffer));
+        found = table.LoadString(id, buffer);
     }
 
     CHECK(found > 0);

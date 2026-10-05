@@ -66,464 +66,977 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="abl\abldbug.cpp">
+    <ClCompile Include="abl\MCAblCallCompiler.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\abldecl.cpp">
+    <ClCompile Include="abl\MCAblCodeWriter.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablenv.cpp">
+    <ClCompile Include="abl\MCAblCompiler.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablerr.cpp">
+    <ClCompile Include="abl\MCAblDebugger.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablexec.cpp">
+    <ClCompile Include="abl\MCAblDebuggerWindow.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablexpr.cpp">
+    <ClCompile Include="abl\MCAblDeclarations.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablrtn.cpp">
+    <ClCompile Include="abl\MCAblErrors.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablscan.cpp">
+    <ClCompile Include="abl\MCAblExecExpressions.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablstd.cpp">
+    <ClCompile Include="abl\MCAblExecStatements.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablstmt.cpp">
+    <ClCompile Include="abl\MCAblExpressions.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablsymt.cpp">
+    <ClCompile Include="abl\MCAblMissionRoutines.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablxexpr.cpp">
+    <ClCompile Include="abl\MCAblModule.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablxstd.cpp">
+    <ClCompile Include="abl\MCAblObjectActionRoutines.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablxstmt.cpp">
+    <ClCompile Include="abl\MCAblObjectRoutines.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="ai\genordr.cpp">
+    <ClCompile Include="abl\MCAblOrderRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblRuntime.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblScanner.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblStatements.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblStdRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblSymbolTable.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblUnitRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCScrollingTextWindow.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCGlobalMap.cpp">
       <Filter>ai</Filter>
     </ClCompile>
-    <ClCompile Include="ai\move.cpp">
+    <ClCompile Include="ai\MCMoveChunk.cpp">
       <Filter>ai</Filter>
     </ClCompile>
-    <ClCompile Include="ai\tacordr.cpp">
+    <ClCompile Include="ai\MCMoveGeometry.cpp">
       <Filter>ai</Filter>
     </ClCompile>
-    <ClCompile Include="appear\appear.cpp">
+    <ClCompile Include="ai\MCMoveMap.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCMovePath.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCMovePathManager.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCMoveSystem.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCObjectMap.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCRefit.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCScenarioMap.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCTacticalOrder.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="appear\MCAppearance.cpp">
       <Filter>appear</Filter>
     </ClCompile>
-    <ClCompile Include="appear\apprtype.cpp">
+    <ClCompile Include="appear\MCAppearanceType.cpp">
       <Filter>appear</Filter>
     </ClCompile>
-    <ClCompile Include="appear\lineappr.cpp">
+    <ClCompile Include="appear\MCAppearanceTypeList.cpp">
       <Filter>appear</Filter>
     </ClCompile>
-    <ClCompile Include="camera\camera.cpp">
+    <ClCompile Include="camera\MCCamera.cpp">
       <Filter>camera</Filter>
     </ClCompile>
-    <ClCompile Include="camera\camlist.cpp">
+    <ClCompile Include="camera\MCCameraList.cpp">
       <Filter>camera</Filter>
     </ClCompile>
-    <ClCompile Include="color\color.cpp">
+    <ClCompile Include="camera\MCMainWindow.cpp">
+      <Filter>camera</Filter>
+    </ClCompile>
+    <ClCompile Include="camera\MCViewWindow.cpp">
+      <Filter>camera</Filter>
+    </ClCompile>
+    <ClCompile Include="color\MCPalette.cpp">
       <Filter>color</Filter>
     </ClCompile>
-    <ClCompile Include="engine\bitflag.cpp">
+    <ClCompile Include="color\MCWaterCycle.cpp">
+      <Filter>color</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\MCBitFlag.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\ceglist.cpp">
+    <ClCompile Include="engine\MCByteFlag.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\celement.cpp">
+    <ClCompile Include="engine\MCCraterManager.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\celine.cpp">
+    <ClCompile Include="engine\MCDeltaElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cellip.cpp">
+    <ClCompile Include="engine\MCElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cepane.cpp">
+    <ClCompile Include="engine\MCElementBuffer.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cepoly.cpp">
+    <ClCompile Include="engine\MCEllipseElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cevfx.cpp">
+    <ClCompile Include="engine\MCFont.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cfont.cpp">
+    <ClCompile Include="engine\MCFontElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\crater.cpp">
+    <ClCompile Include="engine\MCLineElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\font.cpp">
+    <ClCompile Include="engine\MCPolygonElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\scale.cpp">
+    <ClCompile Include="engine\MCScaleDraw.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\writegif.cpp">
+    <ClCompile Include="engine\MCVfxElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="gameos\soundchannel.cpp">
+    <ClCompile Include="engine\MCWriteTga.cpp">
+      <Filter>engine</Filter>
+    </ClCompile>
+    <ClCompile Include="gameos\MCSoundChannel.cpp">
       <Filter>gameos</Filter>
     </ClCompile>
-    <ClCompile Include="gameos\soundrenderer.cpp">
+    <ClCompile Include="gameos\MCSoundRenderer.cpp">
       <Filter>gameos</Filter>
     </ClCompile>
-    <ClCompile Include="gameos\soundresource.cpp">
+    <ClCompile Include="gameos\MCSoundResource.cpp">
       <Filter>gameos</Filter>
     </ClCompile>
-    <ClCompile Include="gameos\soundtimer.cpp">
-      <Filter>gameos</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\aanim.cpp">
+    <ClCompile Include="gui\MCFloatHelp.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\abutton.cpp">
+    <ClCompile Include="gui\MCGuiAnimation.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\afont.cpp">
+    <ClCompile Include="gui\MCGuiButton.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\ahelp.cpp">
+    <ClCompile Include="gui\MCGuiButtonBar.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\alistbox.cpp">
+    <ClCompile Include="gui\MCGuiCallback.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\aport.cpp">
+    <ClCompile Include="gui\MCGuiChatWindow.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\ascroll.cpp">
+    <ClCompile Include="gui\MCGuiComboBox.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\asystem.cpp">
+    <ClCompile Include="gui\MCGuiFont.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\atextbox.cpp">
+    <ClCompile Include="gui\MCGuiGlobals.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\awindow.cpp">
+    <ClCompile Include="gui\MCGuiHolderObject.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\mchwcursor.cpp">
+    <ClCompile Include="gui\MCGuiInput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\scrlpane.cpp">
+    <ClCompile Include="gui\MCGuiListBox.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\updisp.cpp">
+    <ClCompile Include="gui\MCGuiMenu.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="iface\icallbk.cpp">
+    <ClCompile Include="gui\MCGuiMessageBox.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiObject.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiPort.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiScrollBar.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiScrollTextObject.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiSmackerWindow.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiSpinner.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiStartup.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiStartupWindow.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiSystem.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiSystemDisplay.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTextObject.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTimerManager.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTitleBar.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTitleWindow.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTransparentTextObject.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCHardwareCursor.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCScrollPane.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCUpdateDisplay.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCCommandParser.cpp">
       <Filter>iface</Filter>
     </ClCompile>
-    <ClCompile Include="iface\iface.cpp">
+    <ClCompile Include="iface\MCFriendlyMechIcon.cpp">
       <Filter>iface</Filter>
     </ClCompile>
-    <ClCompile Include="iface\parser.cpp">
+    <ClCompile Include="iface\MCLanceIcon.cpp">
       <Filter>iface</Filter>
     </ClCompile>
-    <ClCompile Include="iface\statwin.cpp">
+    <ClCompile Include="iface\MCMechBar.cpp">
       <Filter>iface</Filter>
     </ClCompile>
-    <ClCompile Include="lib\aerror.cpp">
+    <ClCompile Include="iface\MCMechIcon.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCOrderSink.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterface.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterfaceClicks.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterfaceKeys.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterfaceMouseState.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterfaceSelection.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\MCDice.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\cident.cpp">
+    <ClCompile Include="lib\MCDiskFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\cvmath.cpp">
+    <ClCompile Include="lib\MCFastFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\fastfile.cpp">
+    <ClCompile Include="lib\MCFastFileSet.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\ffile.cpp">
+    <ClCompile Include="lib\MCFatal.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\file.cpp">
+    <ClCompile Include="lib\MCFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\hbtime.cpp">
+    <ClCompile Include="lib\MCFitIniFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\heap.cpp">
+    <ClCompile Include="lib\MCLzCompress.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\inifile.cpp">
+    <ClCompile Include="lib\MCLzDecompress.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\llist.cpp">
+    <ClCompile Include="lib\MCPacketFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\lzcomp.cpp">
+    <ClCompile Include="lib\MCPriorityQueue.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\lzdecomp.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\packet.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\pqueue.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\routines.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
-    <ClCompile Include="linkup\dpdialog.cpp">
+    <ClCompile Include="linkup\MCFidpGroup.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\dpmessage.cpp">
+    <ClCompile Include="linkup\MCFidpMessage.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\dpplayer.cpp">
+    <ClCompile Include="linkup\MCFidpNetworkProtocol.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\fidpgroup.cpp">
+    <ClCompile Include="linkup\MCFidpPlayer.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\filetransferinfo.cpp">
+    <ClCompile Include="linkup\MCFidpSession.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\linkedlist.cpp">
+    <ClCompile Include="linkup\MCFileTransferInfo.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\session.cpp">
+    <ClCompile Include="linkup\MCSessionManager.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\sessionmanager.cpp">
+    <ClCompile Include="linkup\MCSessionManagerPlayers.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\invblock.cpp">
+    <ClCompile Include="linkup\MCSessionManagerReceive.cpp">
+      <Filter>linkup</Filter>
+    </ClCompile>
+    <ClCompile Include="linkup\MCSessionManagerSend.cpp">
+      <Filter>linkup</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCBriefingBox.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logbri.cpp">
+    <ClCompile Include="logistics\MCBriefingScreen.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logdlg.cpp">
+    <ClCompile Include="logistics\MCCompInventoryBlock.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\loggen.cpp">
+    <ClCompile Include="logistics\MCCompPurchaseBlock.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logmain.cpp">
+    <ClCompile Include="logistics\MCConnectMenu.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logpur.cpp">
+    <ClCompile Include="logistics\MCDragIcon.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logrep.cpp">
+    <ClCompile Include="logistics\MCFileScrollPane.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logscrn.cpp">
+    <ClCompile Include="logistics\MCGameList.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logsession.cpp">
+    <ClCompile Include="logistics\MCGenericScreen.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\lport.cpp">
+    <ClCompile Include="logistics\MCInventoryBlock.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\misslog.cpp">
+    <ClCompile Include="logistics\MCLoadSaveMenu.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\mrblock.cpp">
+    <ClCompile Include="logistics\MCLogButton.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\purchase.cpp">
+    <ClCompile Include="logistics\MCLogChatInput.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\smuti.cpp">
+    <ClCompile Include="logistics\MCLogChatWindow.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\ticker.cpp">
+    <ClCompile Include="logistics\MCLogComboBox.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="main\honorb.cpp">
+    <ClCompile Include="logistics\MCLogDialogBox.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogDialogButton.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogInvScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogMenus.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogObject.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogPort.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogRows.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogScrollTextObject.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogSlider.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogTextObject.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogToolButton.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMainMenu.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMechBriefBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMechInventoryBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMechPurchaseBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMechRepairBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMissionLogisticsBridge.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPilotInventoryBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPilotPurchaseBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPlayerNameObject.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPreferencesMenu.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurchaseDlg.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurchaseScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurMechList.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurPilotList.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurProfile.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurVehicleList.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCRegistrySettings.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCRepairScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCReusableDialog.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCSessionScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCSmuti.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCSplashScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCStoreRow.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCTicker.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCUnitLimits.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCVehicleInventoryBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCVehiclePurchaseBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCVehicleRepairBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCAblDebuggerConsole.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="main\logistics.cpp">
+    <ClCompile Include="main\MCErrorReport.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="main\main.cpp">
+    <ClCompile Include="main\MCForceMessages.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="main\rmain.cpp">
+    <ClCompile Include="main\MCGameContext.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCGamePaths.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCGameSession.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCGameStrings.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCInventoryList.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogistics.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsCampaign.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsCheats.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsForce.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsMultiplayer.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsPurchasing.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsScenario.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsShared.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogMech.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogMechList.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogVehicle.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogVehicleList.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogWarrior.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogWarriorList.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCMissionGlobals.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCMPPlayerLights.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCSystemConfig.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="MCPort.cpp" />
-    <ClCompile Include="mission\mission.cpp">
+    <ClCompile Include="mission\MCDifficultySettings.cpp">
       <Filter>mission</Filter>
     </ClCompile>
-    <ClCompile Include="mission\scenario.cpp">
+    <ClCompile Include="mission\MCMission.cpp">
       <Filter>mission</Filter>
     </ClCompile>
-    <ClCompile Include="network\multplyr.cpp">
+    <ClCompile Include="mission\MCMissionResults.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCMissionResultsScreen.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCScenario.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCScenarioLoad.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCScenarioObjectives.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCScenarioPart.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="network\MCMultiPlayer.cpp">
       <Filter>network</Filter>
     </ClCompile>
-    <ClCompile Include="object\aictrl.cpp">
+    <ClCompile Include="network\MCMultiPlayerHandlers.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
+    <ClCompile Include="network\MCMultiPlayerSend.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
+    <ClCompile Include="network\MCWorldStateChunk.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCAIControl.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\artlry.cpp">
+    <ClCompile Include="object\MCArtillery.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\baseobj.cpp">
+    <ClCompile Include="object\MCArtilleryChunk.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\bldng.cpp">
+    <ClCompile Include="object\MCArtilleryType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\bridge.cpp">
+    <ClCompile Include="object\MCBaseObject.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\bullet.cpp">
+    <ClCompile Include="object\MCBattleMech.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\cmponent.cpp">
+    <ClCompile Include="object\MCBattleMechCombat.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\collsn.cpp">
+    <ClCompile Include="object\MCBattleMechMovement.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\comndr.cpp">
+    <ClCompile Include="object\MCBattleMechNetwork.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\contact.cpp">
+    <ClCompile Include="object\MCBattleMechType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\control.cpp">
+    <ClCompile Include="object\MCBigGameObject.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\debris.cpp">
+    <ClCompile Include="object\MCBuilding.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\dyn.cpp">
+    <ClCompile Include="object\MCBuildingMarines.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\elemctrl.cpp">
+    <ClCompile Include="object\MCBuildingType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\elemdyn.cpp">
+    <ClCompile Include="object\MCBullet.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\elemntl.cpp">
+    <ClCompile Include="object\MCBulletType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\explode.cpp">
+    <ClCompile Include="object\MCCameraDrone.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\fire.cpp">
+    <ClCompile Include="object\MCCameraDroneType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\gameobj.cpp">
+    <ClCompile Include="object\MCCollisionGrid.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\gate.cpp">
+    <ClCompile Include="object\MCCollisionSystem.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\group.cpp">
+    <ClCompile Include="object\MCCommander.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\gvehctrl.cpp">
+    <ClCompile Include="object\MCContactSystem.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\gvehdyn.cpp">
+    <ClCompile Include="object\MCDebris.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\gvehicl.cpp">
+    <ClCompile Include="object\MCDebrisType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\jet.cpp">
+    <ClCompile Include="object\MCDynamics.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\laser.cpp">
+    <ClCompile Include="object\MCEffectSystem.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\light.cpp">
+    <ClCompile Include="object\MCElemental.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\mech.cpp">
+    <ClCompile Include="object\MCElementalCombat.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\mechctrl.cpp">
+    <ClCompile Include="object\MCElementalDynamics.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\mechdyn.cpp">
+    <ClCompile Include="object\MCElementalGameSystem.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\mover.cpp">
+    <ClCompile Include="object\MCElementalMovement.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\netctrl.cpp">
+    <ClCompile Include="object\MCElementalType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\objblck.cpp">
+    <ClCompile Include="object\MCExplosion.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\object.cpp">
+    <ClCompile Include="object\MCExplosionType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\objevnt.cpp">
+    <ClCompile Include="object\MCFire.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\objque.cpp">
+    <ClCompile Include="object\MCFireType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\objtype.cpp">
+    <ClCompile Include="object\MCForces.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\objwtch.cpp">
+    <ClCompile Include="object\MCGameObject.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\plyrctrl.cpp">
+    <ClCompile Include="object\MCGate.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\prjlase.cpp">
+    <ClCompile Include="object\MCGateType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\smoke.cpp">
+    <ClCompile Include="object\MCGroundVehicle.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\smokmgr.cpp">
+    <ClCompile Include="object\MCGroundVehicleCombat.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\sortlist.cpp">
+    <ClCompile Include="object\MCGroundVehicleDynamics.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\tbldng.cpp">
+    <ClCompile Include="object\MCGroundVehicleGameSystem.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\team.cpp">
+    <ClCompile Include="object\MCGroundVehicleMovement.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\terrobj.cpp">
+    <ClCompile Include="object\MCGroundVehicleNetwork.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\train.cpp">
+    <ClCompile Include="object\MCGroundVehicleType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\tree.cpp">
+    <ClCompile Include="object\MCJet.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\turret.cpp">
+    <ClCompile Include="object\MCJetType.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\warrior.cpp">
+    <ClCompile Include="object\MCLaser.cpp">
       <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCLaserType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCLight.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCLightType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMasterComponent.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechDynamics.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechGameSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarrior.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarriorAlarms.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarriorCombat.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarriorMovement.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarriorOrders.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMiscTerrainObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMiscTerrainObjectType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMover.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMoverGameSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMoverGroup.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMoverMovement.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMoverWeapons.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCNetControl.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectBlockManager.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectDrawing.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectEvent.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectList.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectQueue.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectTypeManager.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCPilotOrders.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCPlayerControl.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCPotentialContact.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCProjectileLaser.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCProjectileLaserType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCSensorSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCSmoke.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCSmokeType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCSortList.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCStatusChunk.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTacOrderQueue.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTeam.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTerrainObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTerrainObjectType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTrain.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTrainCar.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTrainCarType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTrainManager.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTree.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTreeBuilding.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTreeBuildingType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTreeType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTurret.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTurretType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCVertexPlacement.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCWeaponChunkDebug.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCWeaponFireChunk.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCWeaponHitChunk.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCWeaponShotInfo.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCAllocator.cpp">
+      <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCAudio.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCBlockStore.cpp">
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCCursor.cpp">
@@ -547,6 +1060,9 @@
     <ClCompile Include="platform\MCPresenter.cpp">
       <Filter>platform</Filter>
     </ClCompile>
+    <ClCompile Include="platform\MCRegisteredBlock.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
     <ClCompile Include="platform\MCRegistry.cpp">
       <Filter>platform</Filter>
     </ClCompile>
@@ -554,6 +1070,9 @@
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCSdlPresenter.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCServices.cpp">
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCSmacker.cpp">
@@ -583,576 +1102,1083 @@
     <ClCompile Include="platform\MCVulkanShaders.cpp">
       <Filter>platform</Filter>
     </ClCompile>
-    <ClCompile Include="sound\radio.cpp">
+    <ClCompile Include="sound\MCRadio.cpp">
       <Filter>sound</Filter>
     </ClCompile>
-    <ClCompile Include="sound\soundsys.cpp">
+    <ClCompile Include="sound\MCRadioMessage.cpp">
       <Filter>sound</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\actor.cpp">
+    <ClCompile Include="sound\MCSoundSystem.cpp">
+      <Filter>sound</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCArmAppearance.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\armactor.cpp">
+    <ClCompile Include="sprite\MCArmAppearanceType.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\bactor.cpp">
+    <ClCompile Include="sprite\MCElementalActor.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\elmtree.cpp">
+    <ClCompile Include="sprite\MCElementalTree.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\gvactor.cpp">
+    <ClCompile Include="sprite\MCGVAppearance.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\lactor.cpp">
+    <ClCompile Include="sprite\MCGVAppearanceType.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\mactor.cpp">
+    <ClCompile Include="sprite\MCMechActor.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\puactor.cpp">
+    <ClCompile Include="sprite\MCPUAppearance.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\sprite.cpp">
+    <ClCompile Include="sprite\MCPUAppearanceType.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\spritree.cpp">
+    <ClCompile Include="sprite\MCShape.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\sprtmgr.cpp">
+    <ClCompile Include="sprite\MCSpriteManager.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\vfxshape.cpp">
+    <ClCompile Include="sprite\MCSpriteMath.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCSpriteTree.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCVfxAppearance.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCVfxAppearanceType.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCVfxBuildingAppearance.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCVfxBuildingAppearanceType.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
     <ClCompile Include="stdafx.cpp" />
-    <ClCompile Include="terrain\terrain.cpp">
+    <ClCompile Include="terrain\MCArtilleryButton.cpp">
       <Filter>terrain</Filter>
     </ClCompile>
-    <ClCompile Include="terrain\terrmap.cpp">
+    <ClCompile Include="terrain\MCGroundMesh.cpp">
       <Filter>terrain</Filter>
     </ClCompile>
-    <ClCompile Include="terrain\terrtxm.cpp">
+    <ClCompile Include="terrain\MCMapBlockManager.cpp">
       <Filter>terrain</Filter>
     </ClCompile>
-    <ClCompile Include="terrain\vertex.cpp">
+    <ClCompile Include="terrain\MCTacticalMap.cpp">
       <Filter>terrain</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\alphapalette.cpp">
+    <ClCompile Include="terrain\MCTacticalMapPages.cpp">
+      <Filter>terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain\MCTerrain.cpp">
+      <Filter>terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain\MCTerrainBlock.cpp">
+      <Filter>terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain\MCTerrainTiles.cpp">
+      <Filter>terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain\MCTerrainWindow.cpp">
+      <Filter>terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain\MCToolPalButton.cpp">
+      <Filter>terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain\MCVideoWindow.cpp">
+      <Filter>terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="vfx\MCAgEllipse.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\encode_vfx.cpp">
+    <ClCompile Include="vfx\MCAgShapeDraw.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\fastshp.cpp">
+    <ClCompile Include="vfx\MCAgShapeTransform.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx3d.cpp">
+    <ClCompile Include="vfx\MCAgStatusBar.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx_ellipse.cpp">
+    <ClCompile Include="vfx\MCAlphaPalette.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx_map_polygon.cpp">
+    <ClCompile Include="vfx\MCFastShape.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx_transform.cpp">
+    <ClCompile Include="vfx\MCVfxFont.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx_translatedraw.cpp">
+    <ClCompile Include="vfx\MCVfxImage.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa.cpp">
+    <ClCompile Include="vfx\MCVfxMath.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_font.cpp">
+    <ClCompile Include="vfx\MCVfxPolygon.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_image.cpp">
+    <ClCompile Include="vfx\MCVfxPrimitives.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_math.cpp">
+    <ClCompile Include="vfx\MCVfxShape.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_shape.cpp">
+    <ClCompile Include="vfx\MCVfxShapeScan.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_transform.cpp">
+    <ClCompile Include="vfx\MCVfxShapeTransform.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxtile.cpp">
+    <ClCompile Include="vfx\MCVfxTile.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="abl\abldbug.h">
+    <ClInclude Include="abl\MCAblCallCompiler.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\abldecl.h">
+    <ClInclude Include="abl\MCAblCode.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablenv.h">
+    <ClInclude Include="abl\MCAblCodeWriter.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablerr.h">
+    <ClInclude Include="abl\MCAblCompiler.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablexec.h">
+    <ClInclude Include="abl\MCAblDebugger.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablexpr.h">
+    <ClInclude Include="abl\MCAblDebuggerWindow.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablrtn.h">
+    <ClInclude Include="abl\MCAblErrors.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablscan.h">
+    <ClInclude Include="abl\MCAblModule.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablstd.h">
+    <ClInclude Include="abl\MCAblRoutineList.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablstmt.h">
+    <ClInclude Include="abl\MCAblRoutines.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablsymt.h">
+    <ClInclude Include="abl\MCAblRuntime.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablxexpr.h">
+    <ClInclude Include="abl\MCAblScanner.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablxstd.h">
+    <ClInclude Include="abl\MCAblSymbol.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablxstmt.h">
+    <ClInclude Include="abl\MCAblSymbolTable.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="ai\genordr.h">
+    <ClInclude Include="abl\MCAblToken.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblTokenLists.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCScrollingTextWindow.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCGlobalMap.h">
       <Filter>ai</Filter>
     </ClInclude>
-    <ClInclude Include="ai\move.h">
+    <ClInclude Include="ai\MCMoveChunk.h">
       <Filter>ai</Filter>
     </ClInclude>
-    <ClInclude Include="ai\tacordr.h">
+    <ClInclude Include="ai\MCMoveGeometry.h">
       <Filter>ai</Filter>
     </ClInclude>
-    <ClInclude Include="appear\appear.h">
+    <ClInclude Include="ai\MCMoveMap.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCMovePath.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCMovePathManager.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCMoveSystem.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCObjectMap.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCRefit.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCScenarioMap.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCTacticalOrder.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="appear\MCAppearance.h">
       <Filter>appear</Filter>
     </ClInclude>
-    <ClInclude Include="appear\apprtype.h">
+    <ClInclude Include="appear\MCAppearanceType.h">
       <Filter>appear</Filter>
     </ClInclude>
-    <ClInclude Include="appear\lineappr.h">
+    <ClInclude Include="appear\MCAppearanceTypeList.h">
       <Filter>appear</Filter>
     </ClInclude>
-    <ClInclude Include="camera\camera.h">
+    <ClInclude Include="camera\MCCamera.h">
       <Filter>camera</Filter>
     </ClInclude>
-    <ClInclude Include="camera\camlist.h">
+    <ClInclude Include="camera\MCCameraList.h">
       <Filter>camera</Filter>
     </ClInclude>
-    <ClInclude Include="color\color.h">
+    <ClInclude Include="camera\MCMainWindow.h">
+      <Filter>camera</Filter>
+    </ClInclude>
+    <ClInclude Include="camera\MCViewWindow.h">
+      <Filter>camera</Filter>
+    </ClInclude>
+    <ClInclude Include="color\MCPalette.h">
       <Filter>color</Filter>
     </ClInclude>
-    <ClInclude Include="engine\bitflag.h">
+    <ClInclude Include="color\MCWaterCycle.h">
+      <Filter>color</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\MCBitFlag.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\ceglist.h">
+    <ClInclude Include="engine\MCByteFlag.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\celement.h">
+    <ClInclude Include="engine\MCCraterManager.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\celine.h">
+    <ClInclude Include="engine\MCDeltaElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cellip.h">
+    <ClInclude Include="engine\MCElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cepane.h">
+    <ClInclude Include="engine\MCElementBuffer.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cepoly.h">
+    <ClInclude Include="engine\MCEllipseElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cevfx.h">
+    <ClInclude Include="engine\MCFont.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cfont.h">
+    <ClInclude Include="engine\MCFontElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\crater.h">
+    <ClInclude Include="engine\MCLineElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\font.h">
+    <ClInclude Include="engine\MCPolygonElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\scale.h">
+    <ClInclude Include="engine\MCScaleDraw.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\writegif.h">
+    <ClInclude Include="engine\MCVfxElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="gameos\soundchannel.h">
+    <ClInclude Include="engine\MCWriteTga.h">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="gameos\MCSoundChannel.h">
       <Filter>gameos</Filter>
     </ClInclude>
-    <ClInclude Include="gameos\soundrenderer.h">
+    <ClInclude Include="gameos\MCSoundRenderer.h">
       <Filter>gameos</Filter>
     </ClInclude>
-    <ClInclude Include="gameos\soundresource.h">
+    <ClInclude Include="gameos\MCSoundResource.h">
       <Filter>gameos</Filter>
     </ClInclude>
-    <ClInclude Include="gameos\soundtimer.h">
-      <Filter>gameos</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\aanim.h">
+    <ClInclude Include="gui\MCFloatHelp.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\abutton.h">
+    <ClInclude Include="gui\MCGuiAnimation.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\afont.h">
+    <ClInclude Include="gui\MCGuiButton.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\ahelp.h">
+    <ClInclude Include="gui\MCGuiButtonBar.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\alistbox.h">
+    <ClInclude Include="gui\MCGuiCallback.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\aport.h">
+    <ClInclude Include="gui\MCGuiChatWindow.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\ascroll.h">
+    <ClInclude Include="gui\MCGuiComboBox.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\asystem.h">
+    <ClInclude Include="gui\MCGuiEvent.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\atextbox.h">
+    <ClInclude Include="gui\MCGuiFont.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\awindow.h">
+    <ClInclude Include="gui\MCGuiGlobals.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\mchwcursor.h">
+    <ClInclude Include="gui\MCGuiHolderObject.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\scrlpane.h">
+    <ClInclude Include="gui\MCGuiInput.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\updisp.h">
+    <ClInclude Include="gui\MCGuiListBox.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="iface\icallbk.h">
+    <ClInclude Include="gui\MCGuiMenu.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiMessageBox.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiObject.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiOwned.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiPort.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiScrollBar.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiScrollTextObject.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiSmackerWindow.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiSpinner.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiStartup.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiStartupWindow.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiSystem.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTextObject.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTimerManager.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTitleBar.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTitleWindow.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTransparentTextObject.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCHardwareCursor.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCScrollPane.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCUpdateDisplay.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="iface\MCCommandParser.h">
       <Filter>iface</Filter>
     </ClInclude>
-    <ClInclude Include="iface\iface.h">
+    <ClInclude Include="iface\MCFriendlyMechIcon.h">
       <Filter>iface</Filter>
     </ClInclude>
-    <ClInclude Include="iface\parser.h">
+    <ClInclude Include="iface\MCInterfaceTypes.h">
       <Filter>iface</Filter>
     </ClInclude>
-    <ClInclude Include="iface\statwin.h">
+    <ClInclude Include="iface\MCLanceIcon.h">
       <Filter>iface</Filter>
     </ClInclude>
-    <ClInclude Include="lib\aerror.h">
+    <ClInclude Include="iface\MCMechBar.h">
+      <Filter>iface</Filter>
+    </ClInclude>
+    <ClInclude Include="iface\MCMechIcon.h">
+      <Filter>iface</Filter>
+    </ClInclude>
+    <ClInclude Include="iface\MCOrderSink.h">
+      <Filter>iface</Filter>
+    </ClInclude>
+    <ClInclude Include="iface\MCTacticalInterface.h">
+      <Filter>iface</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\MCDice.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\cident.h">
+    <ClInclude Include="lib\MCDiskFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\cvmath.h">
+    <ClInclude Include="lib\MCFastFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\fastfile.h">
+    <ClInclude Include="lib\MCFastFileSet.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\ffile.h">
+    <ClInclude Include="lib\MCFatal.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\file.h">
+    <ClInclude Include="lib\MCFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\hbtime.h">
+    <ClInclude Include="lib\MCFitIniFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\heap.h">
+    <ClInclude Include="lib\MCFrameOfRef.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\inifile.h">
+    <ClInclude Include="lib\MCIDString.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\llist.h">
+    <ClInclude Include="lib\MCLz.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\lzcomp.h">
+    <ClInclude Include="lib\MCMsvcSort.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\lzdecomp.h">
+    <ClInclude Include="lib\MCOptionalRef.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\packet.h">
+    <ClInclude Include="lib\MCPacketFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\pqueue.h">
+    <ClInclude Include="lib\MCPriorityQueue.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\routines.h">
+    <ClInclude Include="lib\MCVector2D.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\dpdialog.h">
+    <ClInclude Include="lib\MCVector3D.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="linkup\MCFidpGroup.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\dpmessage.h">
+    <ClInclude Include="linkup\MCFidpMessage.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\dpplayer.h">
+    <ClInclude Include="linkup\MCFidpNetworkProtocol.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\ficommonnetwork.h">
+    <ClInclude Include="linkup\MCFidpPlayer.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\fidpgroup.h">
+    <ClInclude Include="linkup\MCFidpSession.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\filetransferinfo.h">
+    <ClInclude Include="linkup\MCFileTransferInfo.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\linkedlist.h">
+    <ClInclude Include="linkup\MCLinkupMessages.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\linkedlist.hpp">
+    <ClInclude Include="linkup\MCSessionManager.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\session.h">
-      <Filter>linkup</Filter>
-    </ClInclude>
-    <ClInclude Include="linkup\sessionmanager.h">
-      <Filter>linkup</Filter>
-    </ClInclude>
-    <ClInclude Include="logistics\invblock.h">
+    <ClInclude Include="logistics\MCBriefingBox.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logbri.h">
+    <ClInclude Include="logistics\MCBriefingScreen.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logdlg.h">
+    <ClInclude Include="logistics\MCCompInventoryBlock.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\loggen.h">
+    <ClInclude Include="logistics\MCCompPurchaseBlock.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logmain.h">
+    <ClInclude Include="logistics\MCConnectMenu.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logpur.h">
+    <ClInclude Include="logistics\MCDragIcon.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logrep.h">
+    <ClInclude Include="logistics\MCFileScrollPane.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logscrn.h">
+    <ClInclude Include="logistics\MCGameList.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logsession.h">
+    <ClInclude Include="logistics\MCGenericScreen.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\lport.h">
+    <ClInclude Include="logistics\MCInventoryBlock.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\misslog.h">
+    <ClInclude Include="logistics\MCLoadSaveMenu.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\mrblock.h">
+    <ClInclude Include="logistics\MCLogButton.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\purchase.h">
+    <ClInclude Include="logistics\MCLogChatInput.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\smuti.h">
+    <ClInclude Include="logistics\MCLogChatWindow.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\ticker.h">
+    <ClInclude Include="logistics\MCLogComboBox.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="main\fixes.h">
+    <ClInclude Include="logistics\MCLogDialogBox.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogDialogButton.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogInvScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogMenus.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogObject.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogPort.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogRows.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogScrollTextObject.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogSlider.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogTextObject.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogToolButton.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMainMenu.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMechBriefBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMechInventoryBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMechPurchaseBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMechRepairBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMissionLogisticsBridge.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPilotInventoryBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPilotPurchaseBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPlayerNameObject.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPreferencesMenu.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurchaseDlg.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurchaseScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurMechList.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurPilotList.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurProfile.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurVehicleList.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCRegistrySettings.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCRepairScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCReusableDialog.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCSessionScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCSmuti.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCSplashScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCStoreRow.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCTicker.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCUnitLimits.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCVehicleInventoryBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCVehiclePurchaseBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCVehicleRepairBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCAblDebuggerConsole.h">
       <Filter>main</Filter>
     </ClInclude>
-    <ClInclude Include="main\honorb.h">
+    <ClInclude Include="main\MCDropSlot.h">
       <Filter>main</Filter>
     </ClInclude>
-    <ClInclude Include="main\logistics.h">
+    <ClInclude Include="main\MCErrorReport.h">
       <Filter>main</Filter>
     </ClInclude>
-    <ClInclude Include="main\main.h">
+    <ClInclude Include="main\MCForceMessages.h">
       <Filter>main</Filter>
     </ClInclude>
-    <ClInclude Include="main\rmain.h">
+    <ClInclude Include="main\MCGameContext.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCGamePaths.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCGameSession.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCGameStrings.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCInventoryList.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogistics.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogisticsShared.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogMech.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogMechList.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogPart.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogVehicle.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogVehicleList.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogWarrior.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogWarriorList.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCMissionGlobals.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCMPPlayerLights.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCOriginalBugFixes.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCSystemConfig.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="MCCore.h" />
     <ClInclude Include="MCPort.h" />
-    <ClInclude Include="mission\mission.h">
+    <ClInclude Include="mission\MCDifficultySettings.h">
       <Filter>mission</Filter>
     </ClInclude>
-    <ClInclude Include="mission\scenario.h">
+    <ClInclude Include="mission\MCMission.h">
       <Filter>mission</Filter>
     </ClInclude>
-    <ClInclude Include="network\multplyr.h">
+    <ClInclude Include="mission\MCMissionResults.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCMissionResultsScreen.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCScenario.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCScenarioObjectives.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCScenarioPart.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCScenarioReading.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="network\MCMultiPlayer.h">
       <Filter>network</Filter>
     </ClInclude>
-    <ClInclude Include="object\aictrl.h">
+    <ClInclude Include="network\MCMultiPlayerHandlers.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="network\MCMultiPlayerMessages.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="network\MCWorldStateChunk.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCAIControl.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\artlry.h">
+    <ClInclude Include="object\MCArtillery.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\baseobj.h">
+    <ClInclude Include="object\MCArtilleryChunk.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\bldng.h">
+    <ClInclude Include="object\MCArtilleryType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\bridge.h">
+    <ClInclude Include="object\MCBaseObject.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\bullet.h">
+    <ClInclude Include="object\MCBattleMech.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\cmponent.h">
+    <ClInclude Include="object\MCBattleMechType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\collsn.h">
+    <ClInclude Include="object\MCBigGameObject.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\comndr.h">
+    <ClInclude Include="object\MCBuilding.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\contact.h">
+    <ClInclude Include="object\MCBuildingMarines.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\control.h">
+    <ClInclude Include="object\MCBuildingType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\debris.h">
+    <ClInclude Include="object\MCBullet.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\dyn.h">
+    <ClInclude Include="object\MCBulletType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\elemctrl.h">
+    <ClInclude Include="object\MCCameraDrone.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\elemdyn.h">
+    <ClInclude Include="object\MCCameraDroneType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\elemntl.h">
+    <ClInclude Include="object\MCCollisionGrid.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\explode.h">
+    <ClInclude Include="object\MCCollisionSystem.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\fire.h">
+    <ClInclude Include="object\MCCommander.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\gameobj.h">
+    <ClInclude Include="object\MCContactSystem.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\gate.h">
+    <ClInclude Include="object\MCControl.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\group.h">
+    <ClInclude Include="object\MCDebris.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\gvehctrl.h">
+    <ClInclude Include="object\MCDebrisType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\gvehdyn.h">
+    <ClInclude Include="object\MCDynamics.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\gvehicl.h">
+    <ClInclude Include="object\MCEffectSystem.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\jet.h">
+    <ClInclude Include="object\MCElemental.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\laser.h">
+    <ClInclude Include="object\MCElementalControlData.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\light.h">
+    <ClInclude Include="object\MCElementalDynamics.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\mech.h">
+    <ClInclude Include="object\MCElementalGameSystem.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\mechctrl.h">
+    <ClInclude Include="object\MCElementalType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\mechdyn.h">
+    <ClInclude Include="object\MCExplosion.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\mover.h">
+    <ClInclude Include="object\MCExplosionType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\netctrl.h">
+    <ClInclude Include="object\MCFire.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\objblck.h">
+    <ClInclude Include="object\MCFireType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\object.h">
+    <ClInclude Include="object\MCForces.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\objevnt.h">
+    <ClInclude Include="object\MCGameObject.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\objque.h">
+    <ClInclude Include="object\MCGameSystemReader.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\objtype.h">
+    <ClInclude Include="object\MCGate.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\objwtch.h">
+    <ClInclude Include="object\MCGateType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\plyrctrl.h">
+    <ClInclude Include="object\MCGroundVehicle.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\prjlase.h">
+    <ClInclude Include="object\MCGroundVehicleControlData.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\smoke.h">
+    <ClInclude Include="object\MCGroundVehicleDynamics.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\smokmgr.h">
+    <ClInclude Include="object\MCGroundVehicleGameSystem.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\sortlist.h">
+    <ClInclude Include="object\MCGroundVehicleType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\tbldng.h">
+    <ClInclude Include="object\MCJet.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\team.h">
+    <ClInclude Include="object\MCJetType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\terrobj.h">
+    <ClInclude Include="object\MCLaser.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\train.h">
+    <ClInclude Include="object\MCLaserType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\tree.h">
+    <ClInclude Include="object\MCLight.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\turret.h">
+    <ClInclude Include="object\MCLightType.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\warrior.h">
+    <ClInclude Include="object\MCMasterComponent.h">
       <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMechControlData.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMechDynamics.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMechGameSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMechWarrior.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMiscTerrainObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMiscTerrainObjectType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMover.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMoverGameSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMoverGroup.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMoverMath.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMoverParts.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCNetControl.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectBlockManager.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectDrawing.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectEvent.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectList.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectQueue.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectTypeManager.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCPilotAlarm.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCPilotOrders.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCPlayerControl.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCPotentialContact.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCProjectileLaser.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCProjectileLaserType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSalvageItem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSensorSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSmoke.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSmokeType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSortList.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCStatusChunk.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTacOrderQueue.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTeam.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTerrainObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTerrainObjectType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTrain.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTrainCar.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTrainCarType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTrainManager.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTree.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTreeBuilding.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTreeBuildingType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTreeType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTurret.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTurretType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCVertexPlacement.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCWeaponChunkDebug.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCWeaponFireChunk.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCWeaponHitChunk.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCWeaponShotInfo.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCAddressKey.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCAllocator.h">
+      <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCAudio.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCBlockStore.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCCursor.h">
@@ -1173,7 +2199,13 @@
     <ClInclude Include="platform\MCInput.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCNeverDestroyed.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCPresenter.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCRegisteredBlock.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCRegistry.h">
@@ -1182,7 +2214,13 @@
     <ClInclude Include="platform\MCRenderer.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCSdlHandle.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCSdlPresenter.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCServices.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCSmacker.h">
@@ -1209,72 +2247,114 @@
     <ClInclude Include="platform\MCWin32Defs.h">
       <Filter>platform</Filter>
     </ClInclude>
-    <ClInclude Include="sound\radio.h">
+    <ClInclude Include="sound\MCRadio.h">
       <Filter>sound</Filter>
     </ClInclude>
-    <ClInclude Include="sound\soundsys.h">
+    <ClInclude Include="sound\MCRadioMessage.h">
       <Filter>sound</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\actor.h">
+    <ClInclude Include="sound\MCSoundSystem.h">
+      <Filter>sound</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCArmAppearance.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\armactor.h">
+    <ClInclude Include="sprite\MCArmAppearanceType.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\bactor.h">
+    <ClInclude Include="sprite\MCElementalActor.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\elmtree.h">
+    <ClInclude Include="sprite\MCElementalTree.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\gvactor.h">
+    <ClInclude Include="sprite\MCGVAppearance.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\lactor.h">
+    <ClInclude Include="sprite\MCGVAppearanceType.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\mactor.h">
+    <ClInclude Include="sprite\MCMechActor.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\puactor.h">
+    <ClInclude Include="sprite\MCPUAppearance.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\sprite.h">
+    <ClInclude Include="sprite\MCPUAppearanceType.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\spritree.h">
+    <ClInclude Include="sprite\MCShape.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\sprtmgr.h">
+    <ClInclude Include="sprite\MCSpriteManager.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\vfxshape.h">
+    <ClInclude Include="sprite\MCSpriteMath.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCSpriteTree.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCVfxAppearance.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCVfxAppearanceType.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCVfxBuildingAppearance.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCVfxBuildingAppearanceType.h">
       <Filter>sprite</Filter>
     </ClInclude>
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="terrain\terrain.h">
+    <ClInclude Include="terrain\MCArtilleryButton.h">
       <Filter>terrain</Filter>
     </ClInclude>
-    <ClInclude Include="terrain\terrmap.h">
+    <ClInclude Include="terrain\MCGroundMesh.h">
       <Filter>terrain</Filter>
     </ClInclude>
-    <ClInclude Include="terrain\terrtxm.h">
+    <ClInclude Include="terrain\MCMapBlockManager.h">
       <Filter>terrain</Filter>
     </ClInclude>
-    <ClInclude Include="terrain\vertex.h">
+    <ClInclude Include="terrain\MCTacticalMap.h">
       <Filter>terrain</Filter>
     </ClInclude>
-    <ClInclude Include="vfx\mcagshape.h">
+    <ClInclude Include="terrain\MCTacticalMapLayout.h">
+      <Filter>terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="terrain\MCTerrain.h">
+      <Filter>terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="terrain\MCTerrainTiles.h">
+      <Filter>terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="terrain\MCTerrainWindow.h">
+      <Filter>terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="terrain\MCToolPalButton.h">
+      <Filter>terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="terrain\MCVertex.h">
+      <Filter>terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="terrain\MCVideoWindow.h">
+      <Filter>terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="vfx\MCAgShape.h">
       <Filter>vfx</Filter>
     </ClInclude>
-    <ClInclude Include="vfx\vfx.h">
+    <ClInclude Include="vfx\MCVfx.h">
       <Filter>vfx</Filter>
     </ClInclude>
-    <ClInclude Include="vfx\vfxfuncs.h">
+    <ClInclude Include="vfx\MCVfxClip.h">
       <Filter>vfx</Filter>
     </ClInclude>
-    <ClInclude Include="vfx\vfxint.h">
+    <ClInclude Include="vfx\MCVfxFunctions.h">
+      <Filter>vfx</Filter>
+    </ClInclude>
+    <ClInclude Include="vfx\MCVfxView.h">
       <Filter>vfx</Filter>
     </ClInclude>
   </ItemGroup>

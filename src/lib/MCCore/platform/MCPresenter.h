@@ -20,7 +20,7 @@ enum class MCRendererKind
 std::optional<MCRendererKind> MCRendererKindFromName(std::string_view name);
 
 /// <summary>The name of a renderer kind, as <see cref="MCRendererKindFromName"/> reads it.</summary>
-const char* MCRendererKindName(MCRendererKind kind);
+std::string_view MCRendererKindName(MCRendererKind kind);
 
 /// <summary>A rectangle in window pixels where the logical screen is shown.</summary>
 struct MCViewport
@@ -66,31 +66,34 @@ struct MCColorCycle
     bool operator==(const MCColorCycle&) const = default;
 };
 
-/// <summary>One frame as the game left it, handed to <see cref="MCPresenter::Present"/>.</summary>
+/// <summary>
+/// One frame as the game left it, handed to <see cref="MCPresenter::Present"/>: it borrows the display's screen,
+/// pixels and colours for that one call.
+/// </summary>
 struct MCFrame
 {
     /// <summary>The screen as a VFX window (its pixels, <c>Width</c> bytes a row).</summary>
-    const _window* Screen = nullptr;
-    const uint8_t* Pixels = nullptr;
+    std::reference_wrapper<const MCWindow> Screen;
+    std::span<const uint8_t> Pixels;
     int Width = 0;
     int Height = 0;
     /// <summary>The part of the screen that is shown in the window.</summary>
     SDL_Rect View{};
     /// <summary>The screen's op plane (one byte a pixel, laid out as the pixels).</summary>
-    const uint8_t* Ops = nullptr;
+    std::span<const uint8_t> Ops;
     /// <summary>The screen's underlays this frame (only those that lie under the screen and have pixels).</summary>
     std::span<const MCUnderlay> Underlays;
     /// <summary>
     /// The 256 colours as shown (gamma applied, <see cref="Cycle"/> applied), and whether they changed since the last
     /// frame.
     /// </summary>
-    const SDL_Color* Colors = nullptr;
+    std::span<const SDL_Color> Colors;
     bool ColorsChanged = false;
     /// <summary>
     /// The palette's colours (gamma applied) without the cycle, and whether they changed since the last frame: a GPU
     /// presenter keeps these in a texture and applies <see cref="Cycle"/> in its shader.
     /// </summary>
-    const SDL_Color* PaletteColors = nullptr;
+    std::span<const SDL_Color> PaletteColors;
     bool PaletteChanged = false;
     MCColorCycle Cycle;
     /// <summary>

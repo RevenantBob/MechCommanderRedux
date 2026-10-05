@@ -3,6 +3,8 @@
 #include <concepts>
 #include <cstdint>
 #include <format>
+#include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -29,11 +31,11 @@ namespace MCTest
     struct TestCase
     {
         /// <summary>The name given to <c>TEST_CASE</c>; the runner's filter matches against it.</summary>
-        const char* Name;
+        std::string_view Name;
         /// <summary>The test's body.</summary>
-        void (*Body)();
+        std::function<void()> Body;
         /// <summary>The source file it is declared in.</summary>
-        const char* File;
+        std::string_view File;
         /// <summary>The line it is declared on.</summary>
         int Line;
         /// <summary>
@@ -48,14 +50,18 @@ namespace MCTest
 
     /// <summary>
     /// The value of the runner's option <c>--</c><paramref name="name"/> <c>&lt;value&gt;</c> (for example
-    /// <c>--game E:\mc2\MCX Original</c>), or null when it wasn't given. Isolated tests get the same options.
+    /// <c>--game E:\mc2\MCX Original</c>), or none when it wasn't given. Isolated tests get the same options.
     /// </summary>
-    const char* Option(std::string_view name);
+    std::optional<std::string_view> Option(std::string_view name);
+
+    /// <summary>The name of the test running in this process, or an empty string between tests.</summary>
+    std::string_view CurrentTestName();
 
     /// <summary>Adds a test to <see cref="Registry"/> from a static initialiser; <c>TEST_CASE</c> declares one.</summary>
     struct Registrar
     {
-        Registrar(const char* name, void (*body)(), const char* file, int line, bool isolated = false);
+        Registrar(std::string_view name, std::function<void()> body, std::string_view file, int line,
+                  bool isolated = false);
     };
 
     /// <summary>Thrown by a failed <c>REQUIRE</c> to end the current test; the runner catches it.</summary>
@@ -70,7 +76,7 @@ namespace MCTest
     class Scope
     {
     public:
-        explicit Scope(std::string text);
+        explicit Scope(std::string_view text);
         ~Scope();
         Scope(const Scope&) = delete;
         Scope& operator=(const Scope&) = delete;
@@ -80,7 +86,7 @@ namespace MCTest
     /// <param name="file">Source file of the check.</param>
     /// <param name="line">Line of the check.</param>
     /// <param name="message">What failed.</param>
-    void ReportFailure(const char* file, int line, std::string_view message);
+    void ReportFailure(std::string_view file, int line, std::string_view message);
 
     /// <summary>Notes one passed check, for the runner's totals.</summary>
     void ReportPass();
@@ -104,7 +110,7 @@ namespace MCTest
 
     /// <summary><c>CHECK</c> and <c>REQUIRE</c>.</summary>
     /// <returns>Whether the condition held.</returns>
-    inline bool Check(bool ok, const char* file, int line, const char* expression)
+    inline bool Check(bool ok, std::string_view file, int line, std::string_view expression)
     {
         if (ok)
         {
@@ -121,8 +127,8 @@ namespace MCTest
     /// <summary><c>CHECK_EQ</c> and <c>REQUIRE_EQ</c>: reports both values when they differ.</summary>
     /// <returns>Whether the values were equal.</returns>
     template <typename A, typename B>
-    bool CheckEqual(const A& actual, const B& expected, const char* file, int line, const char* actualText,
-                    const char* expectedText)
+    bool CheckEqual(const A& actual, const B& expected, std::string_view file, int line, std::string_view actualText,
+                    std::string_view expectedText)
     {
         const bool ok = actual == expected;
 

@@ -65,7 +65,7 @@ namespace
     {
         _GUID serviceProvider;
         /// <summary>The host to look for ("name" or "name:port"); empty = search the LAN.</summary>
-        char address[256];
+        std::array<char, 256> address; // Fixed layout: the connection data's host, null-terminated
     };
 
     static_assert(sizeof(ConnectionData) == MCDirectPlay::ConnectionDataSize);
@@ -234,19 +234,19 @@ namespace
         {
             Desc = desc;
             Desc.dwSize = sizeof(DPSESSIONDESC2);
-            Name = desc.lpszSessionNameA != nullptr ? desc.lpszSessionNameA : "";
-            Password = desc.lpszPasswordA != nullptr ? desc.lpszPasswordA : "";
+            Name = desc.SessionName.value_or("");
+            Password = desc.Password.value_or("");
         }
 
         /// <summary>
-        /// The description with its name pointer aimed at this object's copy. The password is never handed out (an
-        /// enumerated session's is null, as DirectPlay's were).
+        /// The description with its name. The password is never handed out (an enumerated session's is none, as
+        /// DirectPlay's were null).
         /// </summary>
-        DPSESSIONDESC2 View()
+        DPSESSIONDESC2 View() const
         {
             DPSESSIONDESC2 view = Desc;
-            view.lpszSessionNameA = Name.data();
-            view.lpszPasswordA = nullptr;
+            view.SessionName = Name;
+            view.Password.reset();
             return view;
         }
     };
@@ -302,11 +302,14 @@ namespace
             }
         }
 
-        void SetName(const DPNAME* name)
+        void SetName(const DPNAME& name)
         {
-            ShortName = (name != nullptr && name->lpszShortNameA != nullptr) ? name->lpszShortNameA : "";
-            LongName = (name != nullptr && name->lpszLongNameA != nullptr) ? name->lpszLongNameA : "";
+            ShortName = name.ShortName.value_or("");
+            LongName = name.LongName.value_or("");
         }
+
+        /// <summary>The names as DirectPlay hands them out (never null).</summary>
+        DPNAME Name() const { return DPNAME{ShortName, LongName}; }
     };
 
     /// <summary>A message waiting in <see cref="MCDirectPlay::Receive"/>'s queue.</summary>
@@ -456,7 +459,7 @@ struct MCDirectPlay::Impl
     {
         while (!link.Dead && !link.Output.empty())
         {
-            const int sent = MCSocket::Send(link.Socket, link.Output.data(), link.Output.size());
+            const int sent = MCSocket::Send(link.Socket, link.Output);
 
             if (sent < 0)
             {
@@ -481,11 +484,11 @@ struct MCDirectPlay::Impl
     /// <summary>Reads what arrived on <paramref name="link"/> and hands each whole frame to <paramref name="handle"/>.</summary>
     template <class Handler> static void ReadFrames(Link& link, Handler&& handle)
     {
-        uint8_t chunk[8192];
+        std::array<uint8_t, 8192> chunk{};
 
         while (!link.Dead)
         {
-            const int received = MCSocket::Receive(link.Socket, chunk, sizeof(chunk));
+            const int received = MCSocket::Receive(link.Socket, chunk);
 
             if (received < 0)
             {
@@ -498,14 +501,14 @@ struct MCDirectPlay::Impl
                 break;
             }
 
-            link.Input.insert(link.Input.end(), chunk, chunk + received);
+            link.Input.insert(link.Input.end(), chunk.begin(), chunk.begin() + received);
         }
 
         size_t position = 0;
 
         while (link.Input.size() - position >= 5)
         {
-            const uint8_t* p = link.Input.data() + position;
+            const std::span<const uint8_t> p = std::span<const uint8_t>(link.Input).subspan(position);
             const uint32_t size = p[0] | (p[1] << 8) | (p[2] << 16) | (static_cast<uint32_t>(p[3]) << 24);
 
             if (size == 0 || size > MaxFrameSize)
@@ -520,7 +523,7 @@ struct MCDirectPlay::Impl
             }
 
             const FrameType type = static_cast<FrameType>(p[4]);
-            handle(type, std::span<const uint8_t>(p + 5, size - 1));
+            handle(type, p.subspan(5, size - 1));
             position += 4 + size;
         }
 
@@ -931,7 +934,7 @@ struct MCDirectPlay::Impl
 
         for (;;)
         {
-            const MCSocket::Handle socket = MCSocket::AcceptTcp(Listener, &from);
+            const MCSocket::Handle socket = MCSocket::AcceptTcp(Listener, from);
 
             if (socket == MCSocket::InvalidHandle)
             {
@@ -983,19 +986,19 @@ struct MCDirectPlay::Impl
     /// <summary>Host: answers the UDP session queries for this game.</summary>
     void AnswerQueries()
     {
-        uint8_t datagram[1500];
+        std::array<uint8_t, 1500> datagram{};
         MCSocket::Address from;
 
         for (;;)
         {
-            const int size = MCSocket::ReceiveFrom(Udp, datagram, sizeof(datagram), &from);
+            const int size = MCSocket::ReceiveFrom(Udp, datagram, from);
 
             if (size <= 0)
             {
                 break;
             }
 
-            Reader in(std::span<const uint8_t>(datagram, size));
+            Reader in(std::span<const uint8_t>(datagram).first(static_cast<size_t>(size)));
             const uint32_t magic = in.U32();
             const uint8_t kind = in.U8();
             const _GUID application = in.Guid();
@@ -1012,28 +1015,28 @@ struct MCDirectPlay::Impl
             reply.U16(Port);
             Session.Desc.dwCurrentPlayers = PlayerCount();
             Session.Write(reply, false);
-            std::vector<const Entity*> players;
+            std::vector<std::reference_wrapper<const Entity>> players;
 
             for (const auto& [id, entity] : Entities)
             {
                 if (entity.Type == DPPLAYERTYPE_PLAYER)
                 {
-                    players.push_back(&entity);
+                    players.emplace_back(entity);
                 }
             }
 
             reply.U32(static_cast<uint32_t>(players.size()));
 
-            for (const Entity* player : players)
+            for (const Entity& player : players)
             {
-                reply.U32(player->Id);
-                reply.String(player->ShortName);
-                reply.String(player->LongName);
+                reply.U32(player.Id);
+                reply.String(player.ShortName);
+                reply.String(player.LongName);
             }
 
             if (reply.Bytes.size() <= sizeof(datagram))
             {
-                MCSocket::SendTo(Udp, from, reply.Bytes.data(), reply.Bytes.size());
+                MCSocket::SendTo(Udp, from, reply.Bytes);
             }
         }
     }
@@ -1226,19 +1229,19 @@ struct MCDirectPlay::Impl
             return;
         }
 
-        uint8_t datagram[1500];
+        std::array<uint8_t, 1500> datagram{};
         MCSocket::Address from;
 
         for (;;)
         {
-            const int size = MCSocket::ReceiveFrom(Udp, datagram, sizeof(datagram), &from);
+            const int size = MCSocket::ReceiveFrom(Udp, datagram, from);
 
             if (size <= 0)
             {
                 break;
             }
 
-            Reader in(std::span<const uint8_t>(datagram, size));
+            Reader in(std::span<const uint8_t>(datagram).first(static_cast<size_t>(size)));
             const uint32_t magic = in.U32();
             const uint8_t kind = in.U8();
 
@@ -1321,68 +1324,56 @@ MCDirectPlay::MCDirectPlay() : _Impl(std::make_unique<Impl>())
 
 MCDirectPlay::~MCDirectPlay() = default;
 
-uint32_t MCDirectPlay::CreateCompoundAddress(const DPCOMPOUNDADDRESSELEMENT* elements, uint32_t count, void* address,
-                                             uint32_t* size)
+std::vector<uint8_t> MCDirectPlay::CreateCompoundAddress(std::span<const DPCOMPOUNDADDRESSELEMENT> elements)
 {
-    if (size == nullptr || (elements == nullptr && count != 0))
-    {
-        return DPERR_INVALIDPARAMS;
-    }
-
     ConnectionData data{};
 
-    for (uint32_t i = 0; i < count; i++)
+    for (const DPCOMPOUNDADDRESSELEMENT& element : elements)
     {
-        const DPCOMPOUNDADDRESSELEMENT& element = elements[i];
-
-        if (MCSameGuid(element.guidDataType, DPAID_ServiceProvider) && element.lpData != nullptr &&
-            element.dwDataSize >= sizeof(_GUID))
+        if (MCSameGuid(element.guidDataType, DPAID_ServiceProvider) && element.Data.size() >= sizeof(_GUID))
         {
-            std::memcpy(&data.serviceProvider, element.lpData, sizeof(_GUID));
+            std::memcpy(&data.serviceProvider, element.Data.data(), sizeof(_GUID));
         }
-        else if (MCSameGuid(element.guidDataType, DPAID_INet) && element.lpData != nullptr)
+        else if (MCSameGuid(element.guidDataType, DPAID_INet))
         {
-            const size_t length = std::min<size_t>(
-                strnlen(static_cast<const char*>(element.lpData), element.dwDataSize), sizeof(data.address) - 1);
-            std::memcpy(data.address, element.lpData, length);
+            // The host's name, up to its terminator.
+            const auto end = std::ranges::find(element.Data, uint8_t{0});
+            const size_t length =
+                std::min<size_t>(static_cast<size_t>(end - element.Data.begin()), data.address.size() - 1);
+            std::memcpy(data.address.data(), element.Data.data(), length);
         }
     }
 
-    if (address == nullptr || *size < sizeof(ConnectionData))
-    {
-        *size = sizeof(ConnectionData);
-        return DPERR_BUFFERTOOSMALL;
-    }
-
-    std::memcpy(address, &data, sizeof(ConnectionData));
-    *size = sizeof(ConnectionData);
-    return DP_OK;
+    std::vector<uint8_t> address(sizeof(ConnectionData));
+    std::memcpy(address.data(), &data, sizeof(ConnectionData));
+    return address;
 }
 
-uint32_t MCDirectPlay::EnumConnections(const _GUID*, MCEnumConnectionsCallback callback, void* context, uint32_t)
+uint32_t MCDirectPlay::EnumConnections(const MCEnumConnectionsCallback& callback, uint32_t)
 {
-    if (callback == nullptr)
+    if (!callback)
     {
         return DPERR_INVALIDPARAMS;
     }
 
     struct Offer
     {
-        const _GUID* provider;
-        const char* name;
+        _GUID Provider;
+        std::string_view Name;
     };
 
     // The port offers its one transport twice: as TCP/IP (a typed-in host, or the LAN) and as IPX (the LAN).
-    static const Offer offers[] = {{&DPSPGUID_TCPIP, "Internet TCP/IP Connection For DirectPlay"},
-                                   {&DPSPGUID_IPX, "IPX Connection For DirectPlay"}};
+    static const Offer offers[] = {{DPSPGUID_TCPIP, "Internet TCP/IP Connection For DirectPlay"},
+                                   {DPSPGUID_IPX, "IPX Connection For DirectPlay"}};
 
     for (const Offer& offer : offers)
     {
         ConnectionData data{};
-        data.serviceProvider = *offer.provider;
-        DPNAME name{sizeof(DPNAME), 0, const_cast<char*>(offer.name), const_cast<char*>(offer.name)};
+        data.serviceProvider = offer.Provider;
+        const DPNAME name{std::string(offer.Name), std::string(offer.Name)};
 
-        if (callback(offer.provider, &data, sizeof(data), &name, 0, context) == 0)
+        if (!callback(offer.Provider, std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&data), sizeof(data)),
+                      name, 0))
         {
             break;
         }
@@ -1391,9 +1382,9 @@ uint32_t MCDirectPlay::EnumConnections(const _GUID*, MCEnumConnectionsCallback c
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::InitializeConnection(const void* connection, uint32_t)
+uint32_t MCDirectPlay::InitializeConnection(std::span<const uint8_t> connection, uint32_t)
 {
-    if (connection == nullptr)
+    if (connection.size() < sizeof(ConnectionData))
     {
         return DPERR_INVALIDPARAMS;
     }
@@ -1404,23 +1395,23 @@ uint32_t MCDirectPlay::InitializeConnection(const void* connection, uint32_t)
     }
 
     ConnectionData data;
-    std::memcpy(&data, connection, sizeof(data));
-    data.address[sizeof(data.address) - 1] = '\0';
+    std::memcpy(&data, connection.data(), sizeof(data));
+    data.address.back() = '\0';
 
     if (!MCSameGuid(data.serviceProvider, DPSPGUID_TCPIP) && !MCSameGuid(data.serviceProvider, DPSPGUID_IPX))
     {
         return DPERR_UNSUPPORTED;
     }
 
-    const auto [host, port] = SplitAddress(data.address);
+    const auto [host, port] = SplitAddress(data.address.data());
     _Impl->HostName = host;
     _Impl->Port = port;
     _Impl->Initialized = true;
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::EnumSessions(const DPSESSIONDESC2* desc, uint32_t, MCEnumSessionsCallback callback,
-                                    void* context, uint32_t flags)
+uint32_t MCDirectPlay::EnumSessions(const DPSESSIONDESC2& desc, uint32_t, const MCEnumSessionsCallback& callback,
+                                    uint32_t flags)
 {
     Impl& impl = *_Impl;
 
@@ -1429,7 +1420,7 @@ uint32_t MCDirectPlay::EnumSessions(const DPSESSIONDESC2* desc, uint32_t, MCEnum
         return DPERR_UNINITIALIZED;
     }
 
-    if (desc == nullptr || callback == nullptr)
+    if (!callback)
     {
         return DPERR_INVALIDPARAMS;
     }
@@ -1444,19 +1435,19 @@ uint32_t MCDirectPlay::EnumSessions(const DPSESSIONDESC2* desc, uint32_t, MCEnum
         Writer query;
         query.U32(ProtocolMagic);
         query.U8(DatagramQuery);
-        query.Guid(desc->guidApplication);
+        query.Guid(desc.guidApplication);
 
         if (!impl.HostName.empty())
         {
             if (const std::optional<uint32_t> ip = MCSocket::Resolve(impl.HostName))
             {
-                MCSocket::SendTo(impl.Udp, {*ip, impl.Port}, query.Bytes.data(), query.Bytes.size());
+                MCSocket::SendTo(impl.Udp, {*ip, impl.Port}, query.Bytes);
             }
         }
         else
         {
-            MCSocket::SendTo(impl.Udp, {MCSocket::BroadcastIp, impl.Port}, query.Bytes.data(), query.Bytes.size());
-            MCSocket::SendTo(impl.Udp, {MCSocket::LoopbackIp, impl.Port}, query.Bytes.data(), query.Bytes.size());
+            MCSocket::SendTo(impl.Udp, {MCSocket::BroadcastIp, impl.Port}, query.Bytes);
+            MCSocket::SendTo(impl.Udp, {MCSocket::LoopbackIp, impl.Port}, query.Bytes);
         }
 
         const uint64_t until = NowMs() + EnumListenMs;
@@ -1473,11 +1464,11 @@ uint32_t MCDirectPlay::EnumSessions(const DPSESSIONDESC2* desc, uint32_t, MCEnum
     const uint64_t now = NowMs();
     std::erase_if(impl.Found, [&](const FoundSession& found) { return now - found.SeenAt > SessionExpiryMs; });
 
-    for (FoundSession& found : impl.Found)
+    for (const FoundSession& found : impl.Found)
     {
         const DPSESSIONDESC2& info = found.Info.Desc;
 
-        if (!MCSameGuid(info.guidApplication, desc->guidApplication))
+        if (!MCSameGuid(info.guidApplication, desc.guidApplication))
         {
             continue;
         }
@@ -1494,21 +1485,17 @@ uint32_t MCDirectPlay::EnumSessions(const DPSESSIONDESC2* desc, uint32_t, MCEnum
             continue;
         }
 
-        DPSESSIONDESC2 view = found.Info.View();
-        uint32_t timeout = 0;
-
-        if (callback(&view, &timeout, 0, context) == 0)
+        if (!callback(found.Info.View(), 0))
         {
             return DP_OK;
         }
     }
 
-    uint32_t timeout = 0;
-    callback(nullptr, &timeout, DPESC_TIMEDOUT, context);
+    callback(DPSESSIONDESC2{}, DPESC_TIMEDOUT);
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::Open(const DPSESSIONDESC2* desc, uint32_t flags)
+uint32_t MCDirectPlay::Open(const DPSESSIONDESC2& desc, uint32_t flags)
 {
     Impl& impl = *_Impl;
 
@@ -1517,7 +1504,7 @@ uint32_t MCDirectPlay::Open(const DPSESSIONDESC2* desc, uint32_t flags)
         return DPERR_UNINITIALIZED;
     }
 
-    if (desc == nullptr || impl.State != Impl::Mode::None)
+    if (impl.State != Impl::Mode::None)
     {
         return DPERR_INVALIDPARAMS;
     }
@@ -1536,7 +1523,7 @@ uint32_t MCDirectPlay::Open(const DPSESSIONDESC2* desc, uint32_t flags)
             return DPERR_CANTCREATESESSION;
         }
 
-        impl.Session.Set(*desc);
+        impl.Session.Set(desc);
         impl.Session.Desc.guidInstance = NewGuid();
 
         if (impl.Session.Desc.dwMaxPlayers == 0)
@@ -1558,7 +1545,7 @@ uint32_t MCDirectPlay::Open(const DPSESSIONDESC2* desc, uint32_t flags)
     }
 
     const auto found = std::ranges::find_if(impl.Found, [&](const FoundSession& session)
-                                            { return MCSameGuid(session.Info.Desc.guidInstance, desc->guidInstance); });
+                                            { return MCSameGuid(session.Info.Desc.guidInstance, desc.guidInstance); });
 
     if (found == impl.Found.end())
     {
@@ -1577,9 +1564,9 @@ uint32_t MCDirectPlay::Open(const DPSESSIONDESC2* desc, uint32_t flags)
     impl.State = Impl::Mode::Joiner;
     Writer request;
     request.U32(ProtocolMagic);
-    request.Guid(desc->guidApplication);
-    request.Guid(desc->guidInstance);
-    request.String(desc->lpszPasswordA != nullptr ? desc->lpszPasswordA : "");
+    request.Guid(desc.guidApplication);
+    request.Guid(desc.guidInstance);
+    request.String(desc.Password.value_or(""));
     Impl::Queue(impl.Server, FrameType::JoinRequest, request);
     std::optional<std::vector<uint8_t>> reply = impl.WaitForReply(FrameType::JoinReply, std::nullopt);
     uint32_t result = DPERR_TIMEOUT;
@@ -1630,25 +1617,15 @@ uint32_t MCDirectPlay::Close()
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::CreatePlayer(uint32_t* playerID, const DPNAME* name, void*, const void* data, uint32_t dataSize,
+uint32_t MCDirectPlay::CreatePlayer(uint32_t& playerID, const DPNAME& name, std::span<const uint8_t> data,
                                     uint32_t flags)
 {
     Impl& impl = *_Impl;
-
-    if (playerID == nullptr)
-    {
-        return DPERR_INVALIDPARAMS;
-    }
-
     Entity entity;
     entity.Type = DPPLAYERTYPE_PLAYER;
     entity.Flags = flags;
     entity.SetName(name);
-
-    if (data != nullptr && dataSize != 0)
-    {
-        entity.Data.assign(static_cast<const uint8_t*>(data), static_cast<const uint8_t*>(data) + dataSize);
-    }
+    entity.Data.assign(data.begin(), data.end());
 
     if (impl.State == Impl::Mode::Host)
     {
@@ -1657,8 +1634,8 @@ uint32_t MCDirectPlay::CreatePlayer(uint32_t* playerID, const DPNAME* name, void
             return DPERR_CANTCREATEPLAYER;
         }
 
-        *playerID = impl.HostCreate(std::move(entity), -1);
-        impl.LocalPlayers.insert(*playerID);
+        playerID = impl.HostCreate(std::move(entity), -1);
+        impl.LocalPlayers.insert(playerID);
         return DP_OK;
     }
 
@@ -1692,33 +1669,22 @@ uint32_t MCDirectPlay::CreatePlayer(uint32_t* playerID, const DPNAME* name, void
     entity.Id = id;
     impl.Entities[id] = std::move(entity);
     impl.LocalPlayers.insert(id);
-    *playerID = id;
+    playerID = id;
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::CreateGroup(uint32_t* groupID, const DPNAME* name, const void* data, uint32_t dataSize,
-                                   uint32_t flags)
+uint32_t MCDirectPlay::CreateGroup(uint32_t& groupID, const DPNAME& name, std::span<const uint8_t> data, uint32_t flags)
 {
     Impl& impl = *_Impl;
-
-    if (groupID == nullptr)
-    {
-        return DPERR_INVALIDPARAMS;
-    }
-
     Entity entity;
     entity.Type = DPPLAYERTYPE_GROUP;
     entity.Flags = flags;
     entity.SetName(name);
-
-    if (data != nullptr && dataSize != 0)
-    {
-        entity.Data.assign(static_cast<const uint8_t*>(data), static_cast<const uint8_t*>(data) + dataSize);
-    }
+    entity.Data.assign(data.begin(), data.end());
 
     if (impl.State == Impl::Mode::Host)
     {
-        *groupID = impl.HostCreate(std::move(entity), -1);
+        groupID = impl.HostCreate(std::move(entity), -1);
         return DP_OK;
     }
 
@@ -1751,7 +1717,7 @@ uint32_t MCDirectPlay::CreateGroup(uint32_t* groupID, const DPNAME* name, const 
 
     entity.Id = id;
     impl.Entities[id] = std::move(entity);
-    *groupID = id;
+    groupID = id;
     return DP_OK;
 }
 
@@ -1821,7 +1787,7 @@ uint32_t MCDirectPlay::DeletePlayerFromGroup(uint32_t groupID, uint32_t playerID
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::SetGroupData(uint32_t groupID, const void* data, uint32_t dataSize, uint32_t)
+uint32_t MCDirectPlay::SetGroupData(uint32_t groupID, std::span<const uint8_t> data, uint32_t)
 {
     Impl& impl = *_Impl;
     const auto found = impl.Entities.find(groupID);
@@ -1831,12 +1797,7 @@ uint32_t MCDirectPlay::SetGroupData(uint32_t groupID, const void* data, uint32_t
         return DPERR_INVALIDGROUP;
     }
 
-    std::vector<uint8_t> bytes;
-
-    if (data != nullptr && dataSize != 0)
-    {
-        bytes.assign(static_cast<const uint8_t*>(data), static_cast<const uint8_t*>(data) + dataSize);
-    }
+    std::vector<uint8_t> bytes(data.begin(), data.end());
 
     if (impl.State == Impl::Mode::Host)
     {
@@ -1857,14 +1818,9 @@ uint32_t MCDirectPlay::SetGroupData(uint32_t groupID, const void* data, uint32_t
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::SetSessionDesc(const DPSESSIONDESC2* desc, uint32_t)
+uint32_t MCDirectPlay::SetSessionDesc(const DPSESSIONDESC2& desc, uint32_t)
 {
     Impl& impl = *_Impl;
-
-    if (desc == nullptr)
-    {
-        return DPERR_INVALIDPARAMS;
-    }
 
     if (impl.State != Impl::Mode::Host)
     {
@@ -1874,11 +1830,11 @@ uint32_t MCDirectPlay::SetSessionDesc(const DPSESSIONDESC2* desc, uint32_t)
     const _GUID instance = impl.Session.Desc.guidInstance;
     const _GUID application = impl.Session.Desc.guidApplication;
     const std::string password = impl.Session.Password;
-    impl.Session.Set(*desc);
+    impl.Session.Set(desc);
     impl.Session.Desc.guidInstance = instance;
     impl.Session.Desc.guidApplication = application;
 
-    if (desc->lpszPasswordA == nullptr)
+    if (!desc.Password)
     {
         impl.Session.Password = password;
     }
@@ -1890,41 +1846,41 @@ uint32_t MCDirectPlay::SetSessionDesc(const DPSESSIONDESC2* desc, uint32_t)
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::EnumPlayers(const _GUID* session, MCEnumPlayersCallback callback, void* context, uint32_t flags)
+uint32_t MCDirectPlay::EnumPlayers(const _GUID& session, const MCEnumPlayersCallback& callback, uint32_t)
 {
     Impl& impl = *_Impl;
 
-    if (callback == nullptr)
+    if (!callback)
     {
         return DPERR_INVALIDPARAMS;
     }
 
-    if ((flags & DPENUMPLAYERS_SESSION) != 0)
+    const auto found = std::ranges::find_if(impl.Found, [&](const FoundSession& candidate)
+                                            { return MCSameGuid(candidate.Info.Desc.guidInstance, session); });
+
+    if (found == impl.Found.end())
     {
-        if (session == nullptr)
+        return DPERR_NOSESSIONS;
+    }
+
+    for (const Entity& player : found->Players)
+    {
+        if (!callback(player.Id, DPPLAYERTYPE_PLAYER, player.Name(), 0))
         {
-            return DPERR_INVALIDPARAMS;
+            break;
         }
+    }
 
-        const auto found = std::ranges::find_if(impl.Found, [&](const FoundSession& candidate)
-                                                { return MCSameGuid(candidate.Info.Desc.guidInstance, *session); });
+    return DP_OK;
+}
 
-        if (found == impl.Found.end())
-        {
-            return DPERR_NOSESSIONS;
-        }
+uint32_t MCDirectPlay::EnumPlayers(const MCEnumPlayersCallback& callback, uint32_t)
+{
+    Impl& impl = *_Impl;
 
-        for (Entity& player : found->Players)
-        {
-            DPNAME name{sizeof(DPNAME), 0, player.ShortName.data(), player.LongName.data()};
-
-            if (callback(player.Id, DPPLAYERTYPE_PLAYER, &name, 0, context) == 0)
-            {
-                break;
-            }
-        }
-
-        return DP_OK;
+    if (!callback)
+    {
+        return DPERR_INVALIDPARAMS;
     }
 
     if (impl.State == Impl::Mode::None)
@@ -1943,11 +1899,9 @@ uint32_t MCDirectPlay::EnumPlayers(const _GUID* session, MCEnumPlayersCallback c
         }
     }
 
-    for (Entity& player : players)
+    for (const Entity& player : players)
     {
-        DPNAME name{sizeof(DPNAME), 0, player.ShortName.data(), player.LongName.data()};
-
-        if (callback(player.Id, DPPLAYERTYPE_PLAYER, &name, player.Flags, context) == 0)
+        if (!callback(player.Id, DPPLAYERTYPE_PLAYER, player.Name(), player.Flags))
         {
             break;
         }
@@ -1956,11 +1910,11 @@ uint32_t MCDirectPlay::EnumPlayers(const _GUID* session, MCEnumPlayersCallback c
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::EnumGroups(const _GUID*, MCEnumPlayersCallback callback, void* context, uint32_t)
+uint32_t MCDirectPlay::EnumGroups(const MCEnumPlayersCallback& callback, uint32_t)
 {
     Impl& impl = *_Impl;
 
-    if (callback == nullptr)
+    if (!callback)
     {
         return DPERR_INVALIDPARAMS;
     }
@@ -1980,11 +1934,9 @@ uint32_t MCDirectPlay::EnumGroups(const _GUID*, MCEnumPlayersCallback callback, 
         }
     }
 
-    for (Entity& group : groups)
+    for (const Entity& group : groups)
     {
-        DPNAME name{sizeof(DPNAME), 0, group.ShortName.data(), group.LongName.data()};
-
-        if (callback(group.Id, DPPLAYERTYPE_GROUP, &name, group.Flags, context) == 0)
+        if (!callback(group.Id, DPPLAYERTYPE_GROUP, group.Name(), group.Flags))
         {
             break;
         }
@@ -1993,7 +1945,7 @@ uint32_t MCDirectPlay::EnumGroups(const _GUID*, MCEnumPlayersCallback callback, 
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::Send(uint32_t fromID, uint32_t toID, uint32_t, const void* data, uint32_t size)
+uint32_t MCDirectPlay::Send(uint32_t fromID, uint32_t toID, uint32_t, std::span<const uint8_t> data)
 {
     Impl& impl = *_Impl;
 
@@ -2017,30 +1969,45 @@ uint32_t MCDirectPlay::Send(uint32_t fromID, uint32_t toID, uint32_t, const void
         return DPERR_INVALIDPLAYER;
     }
 
-    const std::span<const uint8_t> payload(static_cast<const uint8_t*>(data), data != nullptr ? size : 0);
-
     if (impl.State == Impl::Mode::Host)
     {
-        impl.Route(fromID, toID, payload);
+        impl.Route(fromID, toID, data);
         return DP_OK;
     }
 
     Writer frame;
     frame.U32(fromID);
     frame.U32(toID);
-    frame.Blob(payload);
+    frame.Blob(data);
     Impl::Queue(impl.Server, FrameType::Data, frame);
     return DP_OK;
 }
 
-uint32_t MCDirectPlay::Receive(uint32_t* fromID, uint32_t* toID, uint32_t, void* data, uint32_t* size)
+namespace
+{
+    /// <summary>A session's description as a system message carries it (its strings go after the message).</summary>
+    DPMSG_SESSIONDESC MessageSessionDesc(const DPSESSIONDESC2& desc)
+    {
+        DPMSG_SESSIONDESC fields{};
+        fields.dwSize = sizeof(DPMSG_SESSIONDESC);
+        fields.dwFlags = desc.dwFlags;
+        fields.guidInstance = desc.guidInstance;
+        fields.guidApplication = desc.guidApplication;
+        fields.dwMaxPlayers = desc.dwMaxPlayers;
+        fields.dwCurrentPlayers = desc.dwCurrentPlayers;
+        fields.dwReserved1 = desc.dwReserved1;
+        fields.dwReserved2 = desc.dwReserved2;
+        fields.dwUser1 = desc.dwUser1;
+        fields.dwUser2 = desc.dwUser2;
+        fields.dwUser3 = desc.dwUser3;
+        fields.dwUser4 = desc.dwUser4;
+        return fields;
+    }
+}
+
+uint32_t MCDirectPlay::Receive(uint32_t& fromID, uint32_t& toID, uint32_t, std::span<uint8_t> data, uint32_t& size)
 {
     Impl& impl = *_Impl;
-
-    if (size == nullptr || fromID == nullptr || toID == nullptr)
-    {
-        return DPERR_INVALIDPARAMS;
-    }
 
     if (impl.Inbox.empty())
     {
@@ -2058,38 +2025,47 @@ uint32_t MCDirectPlay::Receive(uint32_t* fromID, uint32_t* toID, uint32_t, void*
     {
         const uint32_t needed = static_cast<uint32_t>(message.Payload.size());
 
-        if (data == nullptr || *size < needed)
+        if (data.size() < needed)
         {
-            *size = needed;
+            size = needed;
             return DPERR_BUFFERTOOSMALL;
         }
 
-        std::memcpy(data, message.Payload.data(), needed);
-        *size = needed;
-        *fromID = message.From;
-        *toID = message.To;
+        std::ranges::copy(message.Payload, data.begin());
+        size = needed;
+        fromID = message.From;
+        toID = message.To;
         impl.Inbox.pop_front();
         return DP_OK;
     }
 
-    // A system message: the DPMSG_* structure first, the strings and data it points at after it, all inside the
-    // caller's buffer (as DirectPlay laid them out).
+    // A system message: the DPMSG_* structure first, the strings and data it names after it, all inside the caller's
+    // buffer (as DirectPlay laid them out), with offsets from the message's start where DirectPlay had pointers.
     std::vector<uint8_t> image;
-    std::vector<std::pair<size_t, size_t>> fixups; // (offset of a pointer field, offset of what it points at)
     const Entity& subject = message.Subject;
 
-    auto appendTail = [&](size_t pointerOffset, const void* bytes, size_t count, bool terminate)
+    const auto start = [&](const auto& msg)
     {
-        const size_t at = image.size();
-        image.insert(image.end(), static_cast<const uint8_t*>(bytes), static_cast<const uint8_t*>(bytes) + count);
+        image.resize(sizeof(msg));
+        std::memcpy(image.data(), &msg, sizeof(msg));
+    };
+
+    // Appends bytes (a string null-terminated) and writes their offset into the field at fieldOffset.
+    const auto appendTail = [&](size_t fieldOffset, std::span<const uint8_t> bytes, bool terminate)
+    {
+        const auto at = static_cast<uint32_t>(image.size());
+        image.insert(image.end(), bytes.begin(), bytes.end());
 
         if (terminate)
         {
             image.push_back(0);
         }
 
-        fixups.emplace_back(pointerOffset, at);
+        std::memcpy(image.data() + fieldOffset, &at, sizeof(at));
     };
+
+    const auto text = [](std::string_view value)
+    { return std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), value.size()); };
 
     switch (message.SystemType)
     {
@@ -2101,19 +2077,16 @@ uint32_t MCDirectPlay::Receive(uint32_t* fromID, uint32_t* toID, uint32_t, void*
             msg.dpId = subject.Id;
             msg.dwCurrentPlayers = impl.PlayerCount();
             msg.dwDataSize = static_cast<uint32_t>(subject.Data.size());
-            msg.dpnName.dwSize = sizeof(DPNAME);
+            msg.dpnName.dwSize = sizeof(DPMSG_NAME);
             msg.dpIdParent = subject.Parent;
             msg.dwFlags = subject.Flags;
-            image.assign(reinterpret_cast<uint8_t*>(&msg), reinterpret_cast<uint8_t*>(&msg) + sizeof(msg));
-            appendTail(offsetof(DPMSG_CREATEPLAYERORGROUP, dpnName.lpszShortNameA), subject.ShortName.data(),
-                       subject.ShortName.size(), true);
-            appendTail(offsetof(DPMSG_CREATEPLAYERORGROUP, dpnName.lpszLongNameA), subject.LongName.data(),
-                       subject.LongName.size(), true);
+            start(msg);
+            appendTail(offsetof(DPMSG_CREATEPLAYERORGROUP, dpnName.dwShortNameOffset), text(subject.ShortName), true);
+            appendTail(offsetof(DPMSG_CREATEPLAYERORGROUP, dpnName.dwLongNameOffset), text(subject.LongName), true);
 
             if (!subject.Data.empty())
             {
-                appendTail(offsetof(DPMSG_CREATEPLAYERORGROUP, lpData), subject.Data.data(), subject.Data.size(),
-                           false);
+                appendTail(offsetof(DPMSG_CREATEPLAYERORGROUP, dwDataOffset), subject.Data, false);
             }
 
             break;
@@ -2125,22 +2098,19 @@ uint32_t MCDirectPlay::Receive(uint32_t* fromID, uint32_t* toID, uint32_t, void*
             msg.dwType = message.SystemType;
             msg.dwPlayerType = subject.Type;
             msg.dpId = subject.Id;
-            msg.dpnName.dwSize = sizeof(DPNAME);
+            msg.dpnName.dwSize = sizeof(DPMSG_NAME);
             msg.dpIdParent = subject.Parent;
             msg.dwFlags = subject.Flags;
-            image.assign(reinterpret_cast<uint8_t*>(&msg), reinterpret_cast<uint8_t*>(&msg) + sizeof(msg));
-            appendTail(offsetof(DPMSG_DESTROYPLAYERORGROUP, dpnName.lpszShortNameA), subject.ShortName.data(),
-                       subject.ShortName.size(), true);
-            appendTail(offsetof(DPMSG_DESTROYPLAYERORGROUP, dpnName.lpszLongNameA), subject.LongName.data(),
-                       subject.LongName.size(), true);
+            start(msg);
+            appendTail(offsetof(DPMSG_DESTROYPLAYERORGROUP, dpnName.dwShortNameOffset), text(subject.ShortName), true);
+            appendTail(offsetof(DPMSG_DESTROYPLAYERORGROUP, dpnName.dwLongNameOffset), text(subject.LongName), true);
             break;
         }
 
         case DPSYS_ADDPLAYERTOGROUP:
         case DPSYS_DELETEPLAYERFROMGROUP:
         {
-            const DPMSG_ADDPLAYERTOGROUP msg{message.SystemType, message.Group, message.Player};
-            image.assign(reinterpret_cast<const uint8_t*>(&msg), reinterpret_cast<const uint8_t*>(&msg) + sizeof(msg));
+            start(DPMSG_ADDPLAYERTOGROUP{message.SystemType, message.Group, message.Player});
             break;
         }
 
@@ -2151,12 +2121,11 @@ uint32_t MCDirectPlay::Receive(uint32_t* fromID, uint32_t* toID, uint32_t, void*
             msg.dwPlayerType = subject.Type;
             msg.dpId = subject.Id;
             msg.dwDataSize = static_cast<uint32_t>(subject.Data.size());
-            image.assign(reinterpret_cast<uint8_t*>(&msg), reinterpret_cast<uint8_t*>(&msg) + sizeof(msg));
+            start(msg);
 
             if (!subject.Data.empty())
             {
-                appendTail(offsetof(DPMSG_SETPLAYERORGROUPDATA, lpData), subject.Data.data(), subject.Data.size(),
-                           false);
+                appendTail(offsetof(DPMSG_SETPLAYERORGROUPDATA, dwDataOffset), subject.Data, false);
             }
 
             break;
@@ -2166,45 +2135,51 @@ uint32_t MCDirectPlay::Receive(uint32_t* fromID, uint32_t* toID, uint32_t, void*
         {
             DPMSG_SETSESSIONDESC msg{};
             msg.dwType = message.SystemType;
-            msg.dpDesc = message.Session.Desc;
-            msg.dpDesc.lpszSessionNameA = nullptr;
-            msg.dpDesc.lpszPasswordA = nullptr;
-            image.assign(reinterpret_cast<uint8_t*>(&msg), reinterpret_cast<uint8_t*>(&msg) + sizeof(msg));
-            appendTail(offsetof(DPMSG_SETSESSIONDESC, dpDesc.lpszSessionNameA), message.Session.Name.data(),
-                       message.Session.Name.size(), true);
+            msg.dpDesc = MessageSessionDesc(message.Session.Desc);
+            start(msg);
+            appendTail(offsetof(DPMSG_SETSESSIONDESC, dpDesc.dwSessionNameOffset), text(message.Session.Name), true);
             break;
         }
 
         default:
         {
-            const DPMSG_GENERIC msg{message.SystemType};
-            image.assign(reinterpret_cast<const uint8_t*>(&msg), reinterpret_cast<const uint8_t*>(&msg) + sizeof(msg));
+            start(DPMSG_GENERIC{message.SystemType});
             break;
         }
     }
 
     const uint32_t needed = static_cast<uint32_t>(image.size());
 
-    if (data == nullptr || *size < needed)
+    if (data.size() < needed)
     {
-        *size = needed;
+        size = needed;
         return DPERR_BUFFERTOOSMALL;
     }
 
-    uint8_t* out = static_cast<uint8_t*>(data);
-    std::memcpy(out, image.data(), needed);
-
-    for (const auto& [pointerOffset, targetOffset] : fixups)
-    {
-        uint8_t* target = out + targetOffset;
-        std::memcpy(out + pointerOffset, &target, sizeof(target));
-    }
-
-    *size = needed;
-    *fromID = DPID_SYSMSG;
-    *toID = message.To;
+    std::ranges::copy(image, data.begin());
+    size = needed;
+    fromID = DPID_SYSMSG;
+    toID = message.To;
     impl.Inbox.pop_front();
     return DP_OK;
+}
+
+std::optional<std::string> MCDirectPlayMessageString(std::span<const uint8_t> message, uint32_t offset)
+{
+    if (offset == 0 || offset >= message.size())
+    {
+        return std::nullopt;
+    }
+
+    const std::span<const uint8_t> tail = message.subspan(offset);
+    const auto end = std::ranges::find(tail, uint8_t{0});
+    return std::string(tail.begin(), end);
+}
+
+DPNAME MCDirectPlayMessageName(std::span<const uint8_t> message, const DPMSG_NAME& name)
+{
+    return DPNAME{MCDirectPlayMessageString(message, name.dwShortNameOffset),
+                  MCDirectPlayMessageString(message, name.dwLongNameOffset)};
 }
 
 void MCDirectPlay::Pump()

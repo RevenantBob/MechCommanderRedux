@@ -4,16 +4,87 @@
     <Filter Include="tests">
       <UniqueIdentifier>{941e4064-a7ed-55bd-827f-2fe9663a2a97}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\fakes">
+      <UniqueIdentifier>{b8d10c10-6877-5cb7-a0fe-d3f1eaa572db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\fixtures">
+      <UniqueIdentifier>{b36fc39a-3bf2-577a-bdd9-5294152214d8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MCConsole.cpp" />
+    <ClCompile Include="MCCrashTrace.cpp" />
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="tests\AblRuntimeTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\AblTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\AiTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\AllocatorTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\BlockStoreTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\BriefingTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\CameraTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ColorTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ControlTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\CursorTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\DirectPlayTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\EffectTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ElementalTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\EngineTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCLoopbackTransport.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCManualClock.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCMemoryFileSource.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCNullAudioDevice.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCScriptedRandom.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fixtures\MCRetailData.cpp">
+      <Filter>tests\fixtures</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fixtures\MCTerrainGeometryScope.cpp">
+      <Filter>tests\fixtures</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fixtures\MCTinyMap.cpp">
+      <Filter>tests\fixtures</Filter>
+    </ClCompile>
     <ClCompile Include="tests\FrameHashTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\GameSessionTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\GpuDrawingTests.cpp">
@@ -22,13 +93,34 @@
     <ClCompile Include="tests\GroundVehicleTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\GuiControlTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\GuiObjectTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\GuiTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\IniFileTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\InputTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\InterfaceTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\LibTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\LinkupTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\LogisticsControlTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\LogisticsListTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\LogisticsTests.cpp">
@@ -40,10 +132,25 @@
     <ClCompile Include="tests\MCTest.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\MechTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\MissionTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\MoverTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\MultiPlayerTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ObjectCoreTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\ObjectQueueTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ObjectTypeTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\PathfindingTests.cpp">
@@ -55,7 +162,16 @@
     <ClCompile Include="tests\PresenterTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\PurchaseTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ScenarioTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\ScreenInput.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ServicesTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\SessionScreenTests.cpp">
@@ -64,10 +180,28 @@
     <ClCompile Include="tests\SmackerTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\SortTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\SoundTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\SpriteTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\StateHashTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\TerrainGridTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\TerrainTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\TestGame.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\TurretTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\VfxFontImageTests.cpp">
@@ -90,7 +224,39 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MCConsole.h" />
+    <ClInclude Include="MCCrashTrace.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="tests\fakes\MCLoopbackTransport.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fakes\MCManualClock.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fakes\MCMemoryFileSource.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fakes\MCNullAudioDevice.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fakes\MCScriptedRandom.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fixtures\MCRegisteredData.h">
+      <Filter>tests\fixtures</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fixtures\MCRetailData.h">
+      <Filter>tests\fixtures</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fixtures\MCTerrainGeometryScope.h">
+      <Filter>tests\fixtures</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fixtures\MCTinyMap.h">
+      <Filter>tests\fixtures</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\MCMock.h">
+      <Filter>tests</Filter>
+    </ClInclude>
     <ClInclude Include="tests\MCTest.h">
       <Filter>tests</Filter>
     </ClInclude>

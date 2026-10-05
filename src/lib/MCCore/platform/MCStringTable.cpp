@@ -238,29 +238,30 @@ std::expected<MCStringTable, std::string> MCStringTable::Load(const std::filesys
     return Parse(image);
 }
 
-const std::string* MCStringTable::Find(uint32_t id) const
+std::optional<std::string> MCStringTable::Find(uint32_t id) const
 {
     auto found = _Strings.find(id);
-    return found == _Strings.end() ? nullptr : &found->second;
+    return found == _Strings.end() ? std::nullopt : std::optional<std::string>(found->second);
 }
 
-int32_t MCStringTable::LoadString(uint32_t id, char* buffer, int bufferSize) const
+int32_t MCStringTable::LoadString(uint32_t id, std::span<char> buffer) const
 {
-    if (bufferSize <= 0)
+    if (buffer.empty())
     {
         return 0;
     }
 
-    const std::string* text = Find(id);
+    const auto found = _Strings.find(id);
 
-    if (text == nullptr)
+    if (found == _Strings.end())
     {
         buffer[0] = '\0';
         return 0;
     }
 
-    size_t count = std::min(text->size(), static_cast<size_t>(bufferSize - 1));
-    std::memcpy(buffer, text->data(), count);
+    const std::string& text = found->second;
+    const size_t count = std::min(text.size(), buffer.size() - 1);
+    std::memcpy(buffer.data(), text.data(), count);
     buffer[count] = '\0';
     return static_cast<int32_t>(count);
 }

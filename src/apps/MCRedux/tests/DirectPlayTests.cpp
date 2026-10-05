@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "MCTest.h"
+#include "lib/MCOptionalRef.h"
 #include "platform/MCDirectPlay.h"
 
 // The port's DirectPlay stand-in, driven the way linkup drives DirectPlay 3, with a host and a joiner in one process
@@ -28,60 +29,58 @@ namespace
         std::string Text() const { return std::string(Bytes.begin(), Bytes.end()); }
     };
 
-    /// <summary>Selects the TCP/IP connection to <paramref name="address"/> ("host:port").</summary>
-    uint32_t Connect(MCDirectPlay& directPlay, const char* address)
+    /// <summary>Text as the bytes sent.</summary>
+    std::span<const uint8_t> Bytes(std::string_view text)
     {
-        DPCOMPOUNDADDRESSELEMENT elements[2];
-        elements[0].guidDataType = DPAID_ServiceProvider;
-        elements[0].dwDataSize = sizeof(_GUID);
-        elements[0].lpData = const_cast<_GUID*>(&DPSPGUID_TCPIP);
-        elements[1].guidDataType = DPAID_INet;
-        elements[1].dwDataSize = static_cast<uint32_t>(std::strlen(address) + 1);
-        elements[1].lpData = const_cast<char*>(address);
-        uint8_t connection[MCDirectPlay::ConnectionDataSize];
-        uint32_t size = sizeof(connection);
-        const uint32_t result = MCDirectPlay::CreateCompoundAddress(elements, 2, connection, &size);
+        return std::span(reinterpret_cast<const uint8_t*>(text.data()), text.size());
+    }
 
-        if (result != DP_OK)
-        {
-            return result;
-        }
-
+    /// <summary>Selects the TCP/IP connection to <paramref name="address"/> ("host:port").</summary>
+    uint32_t Connect(MCDirectPlay& directPlay, std::string_view address)
+    {
+        const auto provider = std::bit_cast<std::array<uint8_t, sizeof(_GUID)>>(DPSPGUID_TCPIP);
+        std::vector<uint8_t> host(address.begin(), address.end());
+        host.push_back(0);
+        const std::array<DPCOMPOUNDADDRESSELEMENT, 2> elements{
+            DPCOMPOUNDADDRESSELEMENT{DPAID_ServiceProvider, std::vector<uint8_t>(provider.begin(), provider.end())},
+            DPCOMPOUNDADDRESSELEMENT{DPAID_INet, host}};
+        const std::vector<uint8_t> connection = MCDirectPlay::CreateCompoundAddress(elements);
+        CHECK_EQ(connection.size(), size_t{MCDirectPlay::ConnectionDataSize});
         return directPlay.InitializeConnection(connection, 0);
     }
 
     /// <summary>Hosts a session named <paramref name="name"/> for up to <paramref name="maxPlayers"/>.</summary>
-    uint32_t Host(MCDirectPlay& directPlay, const char* name, uint32_t maxPlayers)
+    uint32_t Host(MCDirectPlay& directPlay, std::string_view name, uint32_t maxPlayers)
     {
         DPSESSIONDESC2 desc{};
         desc.dwSize = sizeof(desc);
         desc.dwFlags = DPSESSION_KEEPALIVE | DPSESSION_MIGRATEHOST;
         desc.guidApplication = TestApplication;
         desc.dwMaxPlayers = maxPlayers;
-        desc.lpszSessionNameA = const_cast<char*>(name);
-        return directPlay.Open(&desc, DPOPEN_CREATE | DPOPEN_RETURNSTATUS);
+        desc.SessionName = name;
+        return directPlay.Open(desc, DPOPEN_CREATE | DPOPEN_RETURNSTATUS);
     }
 
-    uint32_t NewPlayer(MCDirectPlay& directPlay, const char* name, uint32_t* id)
+    uint32_t NewPlayer(MCDirectPlay& directPlay, std::string_view name, uint32_t& id)
     {
-        DPNAME dpName{sizeof(DPNAME), 0, const_cast<char*>(name), nullptr};
-        return directPlay.CreatePlayer(id, &dpName, nullptr, nullptr, 0, 0);
+        return directPlay.CreatePlayer(id, DPNAME{std::string(name), std::nullopt}, {}, 0);
     }
 
     /// <summary>The next message for <paramref name="directPlay"/>, pumping <paramref name="other"/> meanwhile.</summary>
-    std::optional<Received> Next(MCDirectPlay& directPlay, MCDirectPlay* other = nullptr, uint64_t waitMs = 2000)
+    std::optional<Received> Next(MCDirectPlay& directPlay, MCOptionalRef<MCDirectPlay> other = std::nullopt,
+                                 uint64_t waitMs = 2000)
     {
         const uint64_t until = SDL_GetTicks() + waitMs;
 
         for (;;)
         {
-            uint8_t buffer[512];
-            uint32_t size = sizeof(buffer);
+            std::array<uint8_t, 512> buffer{};
+            uint32_t size = 0;
             Received received;
 
-            if (directPlay.Receive(&received.From, &received.To, DPRECEIVE_ALL, buffer, &size) == DP_OK)
+            if (directPlay.Receive(received.From, received.To, DPRECEIVE_ALL, buffer, size) == DP_OK)
             {
-                received.Bytes.assign(buffer, buffer + size);
+                received.Bytes.assign(buffer.begin(), buffer.begin() + size);
                 return received;
             }
 
@@ -90,9 +89,9 @@ namespace
                 return std::nullopt;
             }
 
-            if (other != nullptr)
+            if (other)
             {
-                other->Pump();
+                other->get().Pump();
             }
 
             SDL_Delay(1);
@@ -100,7 +99,7 @@ namespace
     }
 
     /// <summary>Whether nothing arrives for <paramref name="directPlay"/> within a short while.</summary>
-    bool Quiet(MCDirectPlay& directPlay, MCDirectPlay* other = nullptr)
+    bool Quiet(MCDirectPlay& directPlay, MCOptionalRef<MCDirectPlay> other = std::nullopt)
     {
         return !Next(directPlay, other, 150).has_value();
     }
@@ -123,21 +122,19 @@ namespace
         {
             found = {};
             directPlay.EnumSessions(
-                &desc, 0,
-                [](const DPSESSIONDESC2* session, uint32_t*, uint32_t flags, void* context)
+                desc, 0,
+                [&](const DPSESSIONDESC2& session, uint32_t sessionFlags)
                 {
-                    Found& found = *static_cast<Found*>(context);
-
-                    if ((flags & DPESC_TIMEDOUT) != 0)
+                    if ((sessionFlags & DPESC_TIMEDOUT) != 0)
                     {
                         found.TimedOut = true;
-                        return 0;
+                        return false;
                     }
 
-                    found.Sessions.push_back(*session);
-                    return 1;
+                    found.Sessions.push_back(session);
+                    return true;
                 },
-                &found, flags);
+                flags);
             host.Pump();
         }
 
@@ -167,19 +164,19 @@ namespace
     std::map<uint32_t, std::string> Listed(MCDirectPlay& directPlay, bool groups)
     {
         std::map<uint32_t, std::string> listed;
-        auto collect = [](uint32_t id, uint32_t, const DPNAME* name, uint32_t, void* context)
+        auto collect = [&](uint32_t id, uint32_t, const DPNAME& name, uint32_t)
         {
-            (*static_cast<std::map<uint32_t, std::string>*>(context))[id] = name->lpszShortNameA;
-            return 1;
+            listed[id] = name.ShortName.value_or("");
+            return true;
         };
 
         if (groups)
         {
-            directPlay.EnumGroups(nullptr, collect, &listed, 0);
+            directPlay.EnumGroups(collect, 0);
         }
         else
         {
-            directPlay.EnumPlayers(nullptr, collect, &listed, 0);
+            directPlay.EnumPlayers(collect, 0);
         }
 
         return listed;
@@ -193,21 +190,21 @@ TEST_CASE("directplay: a joiner finds, joins and plays with a host")
     REQUIRE_EQ(Connect(host, "127.0.0.1:28871"), DP_OK);
     REQUIRE_EQ(Host(host, "Solaris VII", 6), DP_OK);
     uint32_t hostPlayer = 0;
-    REQUIRE_EQ(NewPlayer(host, "Commander", &hostPlayer), DP_OK);
+    REQUIRE_EQ(NewPlayer(host, "Commander", hostPlayer), DP_OK);
 
     // The session is found by name and shows its player count.
     REQUIRE_EQ(Connect(joiner, "127.0.0.1:28871"), DP_OK);
     const std::vector<DPSESSIONDESC2> sessions = Enumerate(joiner, host, DPENUMSESSIONS_AVAILABLE);
     REQUIRE_EQ(sessions.size(), size_t{1});
-    CHECK_EQ(std::string(sessions[0].lpszSessionNameA), std::string("Solaris VII"));
+    CHECK(sessions[0].SessionName == std::optional<std::string>("Solaris VII"));
     CHECK_EQ(sessions[0].dwCurrentPlayers, 1u);
     CHECK_EQ(sessions[0].dwMaxPlayers, 6u);
     CHECK(MCSameGuid(sessions[0].guidApplication, TestApplication));
 
     DPSESSIONDESC2 join = sessions[0];
-    REQUIRE_EQ(WithHostRunning(host, [&] { return joiner.Open(&join, DPOPEN_JOIN | DPOPEN_RETURNSTATUS); }), DP_OK);
+    REQUIRE_EQ(WithHostRunning(host, [&] { return joiner.Open(join, DPOPEN_JOIN | DPOPEN_RETURNSTATUS); }), DP_OK);
     uint32_t guestPlayer = 0;
-    REQUIRE_EQ(WithHostRunning(host, [&] { return NewPlayer(joiner, "Guest", &guestPlayer); }), DP_OK);
+    REQUIRE_EQ(WithHostRunning(host, [&] { return NewPlayer(joiner, "Guest", guestPlayer); }), DP_OK);
     CHECK(guestPlayer != hostPlayer);
     CHECK(guestPlayer > 1u);
 
@@ -218,8 +215,9 @@ TEST_CASE("directplay: a joiner finds, joins and plays with a host")
     CHECK_EQ(created->SystemType(), uint32_t{DPSYS_CREATEPLAYERORGROUP});
     CHECK_EQ(created->As<DPMSG_CREATEPLAYERORGROUP>().dwPlayerType, uint32_t{DPPLAYERTYPE_PLAYER});
     CHECK_EQ(created->As<DPMSG_CREATEPLAYERORGROUP>().dpId, guestPlayer);
-    CHECK_EQ(std::string(created->As<DPMSG_CREATEPLAYERORGROUP>().dpnName.lpszShortNameA), std::string("Guest"));
-    CHECK(Quiet(joiner, &host));
+    CHECK(MCDirectPlayMessageName(created->Bytes, created->As<DPMSG_CREATEPLAYERORGROUP>().dpnName).ShortName ==
+          std::optional<std::string>("Guest"));
+    CHECK(Quiet(joiner, host));
 
     // Both list both players.
     const std::map<uint32_t, std::string> expected{{hostPlayer, "Commander"}, {guestPlayer, "Guest"}};
@@ -227,15 +225,15 @@ TEST_CASE("directplay: a joiner finds, joins and plays with a host")
     CHECK(Listed(joiner, false) == expected);
 
     // A message to a player reaches it, from its sender.
-    REQUIRE_EQ(joiner.Send(guestPlayer, hostPlayer, 0, "hello", 5), DP_OK);
+    REQUIRE_EQ(joiner.Send(guestPlayer, hostPlayer, 0, Bytes("hello")), DP_OK);
     std::optional<Received> hello = Next(host);
     REQUIRE(hello.has_value());
     CHECK_EQ(hello->From, guestPlayer);
     CHECK_EQ(hello->Text(), std::string("hello"));
 
     // A message to everyone reaches everyone but the sender.
-    REQUIRE_EQ(host.Send(hostPlayer, DPID_ALLPLAYERS, 0, "all", 3), DP_OK);
-    std::optional<Received> all = Next(joiner, &host);
+    REQUIRE_EQ(host.Send(hostPlayer, DPID_ALLPLAYERS, 0, Bytes("all")), DP_OK);
+    std::optional<Received> all = Next(joiner, host);
     REQUIRE(all.has_value());
     CHECK_EQ(all->From, hostPlayer);
     CHECK_EQ(all->Text(), std::string("all"));
@@ -245,7 +243,7 @@ TEST_CASE("directplay: a joiner finds, joins and plays with a host")
     for (int i = 0; i < 50; i++)
     {
         const uint8_t value = static_cast<uint8_t>(i);
-        joiner.Send(guestPlayer, hostPlayer, 0, &value, 1);
+        joiner.Send(guestPlayer, hostPlayer, 0, std::span(&value, 1));
     }
 
     for (int i = 0; i < 50; i++)
@@ -259,15 +257,15 @@ TEST_CASE("directplay: a joiner finds, joins and plays with a host")
 
     // A group the host makes, and a player it adds, are announced to the joiner.
     uint32_t group = 0;
-    DPNAME groupName{sizeof(DPNAME), 0, const_cast<char*>("InnerSphereGroup"), nullptr};
-    REQUIRE_EQ(host.CreateGroup(&group, &groupName, nullptr, 0, 0), DP_OK);
+    const DPNAME groupName{std::string("InnerSphereGroup"), std::nullopt};
+    REQUIRE_EQ(host.CreateGroup(group, groupName, {}, 0), DP_OK);
     REQUIRE_EQ(host.AddPlayerToGroup(group, guestPlayer), DP_OK);
-    std::optional<Received> groupCreated = Next(joiner, &host);
+    std::optional<Received> groupCreated = Next(joiner, host);
     REQUIRE(groupCreated.has_value());
     CHECK_EQ(groupCreated->SystemType(), uint32_t{DPSYS_CREATEPLAYERORGROUP});
     CHECK_EQ(groupCreated->As<DPMSG_CREATEPLAYERORGROUP>().dwPlayerType, uint32_t{DPPLAYERTYPE_GROUP});
     CHECK_EQ(groupCreated->As<DPMSG_CREATEPLAYERORGROUP>().dpId, group);
-    std::optional<Received> added = Next(joiner, &host);
+    std::optional<Received> added = Next(joiner, host);
     REQUIRE(added.has_value());
     CHECK_EQ(added->SystemType(), uint32_t{DPSYS_ADDPLAYERTOGROUP});
     CHECK_EQ(added->As<DPMSG_ADDPLAYERTOGROUP>().dpIdGroup, group);
@@ -275,13 +273,13 @@ TEST_CASE("directplay: a joiner finds, joins and plays with a host")
     CHECK(Listed(joiner, true) == (std::map<uint32_t, std::string>{{group, "InnerSphereGroup"}}));
 
     // A message to the group reaches its members only.
-    REQUIRE_EQ(host.Send(hostPlayer, group, 0, "team", 4), DP_OK);
-    std::optional<Received> team = Next(joiner, &host);
+    REQUIRE_EQ(host.Send(hostPlayer, group, 0, Bytes("team")), DP_OK);
+    std::optional<Received> team = Next(joiner, host);
     REQUIRE(team.has_value());
     CHECK_EQ(team->Text(), std::string("team"));
-    REQUIRE_EQ(joiner.Send(guestPlayer, group, 0, "self", 4), DP_OK);
+    REQUIRE_EQ(joiner.Send(guestPlayer, group, 0, Bytes("self")), DP_OK);
     CHECK(Quiet(host));
-    CHECK(Quiet(joiner, &host));
+    CHECK(Quiet(joiner, host));
 
     // A joiner that leaves is taken out of its groups, then destroyed, on the host.
     joiner.Close();
@@ -303,20 +301,20 @@ TEST_CASE("directplay: joiners lose the session when the host leaves")
     REQUIRE_EQ(Connect(host, "127.0.0.1:28872"), DP_OK);
     REQUIRE_EQ(Host(host, "Short game", 6), DP_OK);
     uint32_t hostPlayer = 0;
-    REQUIRE_EQ(NewPlayer(host, "Commander", &hostPlayer), DP_OK);
+    REQUIRE_EQ(NewPlayer(host, "Commander", hostPlayer), DP_OK);
     REQUIRE_EQ(Connect(joiner, "127.0.0.1:28872"), DP_OK);
     std::vector<DPSESSIONDESC2> sessions = Enumerate(joiner, host, DPENUMSESSIONS_AVAILABLE);
     REQUIRE_EQ(sessions.size(), size_t{1});
-    REQUIRE_EQ(WithHostRunning(host, [&] { return joiner.Open(&sessions[0], DPOPEN_JOIN); }), DP_OK);
+    REQUIRE_EQ(WithHostRunning(host, [&] { return joiner.Open(sessions[0], DPOPEN_JOIN); }), DP_OK);
     uint32_t guestPlayer = 0;
-    REQUIRE_EQ(WithHostRunning(host, [&] { return NewPlayer(joiner, "Guest", &guestPlayer); }), DP_OK);
+    REQUIRE_EQ(WithHostRunning(host, [&] { return NewPlayer(joiner, "Guest", guestPlayer); }), DP_OK);
 
     host.Close();
     std::optional<Received> lost = Next(joiner);
     REQUIRE(lost.has_value());
     CHECK_EQ(lost->From, uint32_t{DPID_SYSMSG});
     CHECK_EQ(lost->SystemType(), uint32_t{DPSYS_SESSIONLOST});
-    CHECK_EQ(joiner.Send(guestPlayer, DPID_ALLPLAYERS, 0, "x", 1), uint32_t{DPERR_SESSIONLOST});
+    CHECK_EQ(joiner.Send(guestPlayer, DPID_ALLPLAYERS, 0, Bytes("x")), uint32_t{DPERR_SESSIONLOST});
 }
 
 TEST_CASE("directplay: a locked or full session takes no new players")
@@ -326,7 +324,7 @@ TEST_CASE("directplay: a locked or full session takes no new players")
     REQUIRE_EQ(Connect(host, "127.0.0.1:28873"), DP_OK);
     REQUIRE_EQ(Host(host, "Two only", 2), DP_OK);
     uint32_t hostPlayer = 0;
-    REQUIRE_EQ(NewPlayer(host, "Commander", &hostPlayer), DP_OK);
+    REQUIRE_EQ(NewPlayer(host, "Commander", hostPlayer), DP_OK);
     REQUIRE_EQ(Connect(joiner, "127.0.0.1:28873"), DP_OK);
     std::vector<DPSESSIONDESC2> sessions = Enumerate(joiner, host, DPENUMSESSIONS_AVAILABLE);
     REQUIRE_EQ(sessions.size(), size_t{1});
@@ -337,14 +335,14 @@ TEST_CASE("directplay: a locked or full session takes no new players")
     locked.dwSize = sizeof(locked);
     locked.dwFlags = DPSESSION_KEEPALIVE | DPSESSION_MIGRATEHOST | DPSESSION_NEWPLAYERSDISABLED;
     locked.dwMaxPlayers = 2;
-    locked.lpszSessionNameA = const_cast<char*>("Two only");
-    REQUIRE_EQ(host.SetSessionDesc(&locked, 0), DP_OK);
+    locked.SessionName = "Two only";
+    REQUIRE_EQ(host.SetSessionDesc(locked, 0), DP_OK);
     host.Pump();
     SDL_Delay(4100);
 
     // Enumeration is asynchronous: the first listing may still use an answer the host sent before locking.
     CHECK_EQ(Enumerate(joiner, host, 0).size(), size_t{1});
     CHECK(Enumerate(joiner, host, DPENUMSESSIONS_AVAILABLE).empty());
-    CHECK_EQ(WithHostRunning(host, [&] { return joiner.Open(&sessions[0], DPOPEN_JOIN); }),
+    CHECK_EQ(WithHostRunning(host, [&] { return joiner.Open(sessions[0], DPOPEN_JOIN); }),
              uint32_t{DPERR_NONEWPLAYERS});
 }

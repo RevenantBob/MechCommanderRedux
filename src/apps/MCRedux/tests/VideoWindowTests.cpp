@@ -2,12 +2,13 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "object/mover.h"
-#include "object/warrior.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCMechWarrior.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 using namespace MCScreenInput;
 
@@ -24,19 +25,19 @@ TEST_CASE_ISOLATED("game: the tactical map's video window matches the pre-render
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    TacticalMap* map = Terrain::terrainTacticalMap;
+    const std::shared_ptr<MCTacticalMap> map = TacticalMap();
     REQUIRE(map != nullptr);
-    REQUIRE(map->videoWindow != nullptr);
-    Mover* mover = getMoverFromPartId(0x200);
+    REQUIRE(map->VideoWindow != nullptr);
+    std::shared_ptr<MCMover> mover = GetMoverFromPartId(0x200);
     REQUIRE(mover != nullptr);
-    MechWarrior* pilot = mover->getPilot();
+    std::shared_ptr<MCMechWarrior> pilot = mover->GetPilot();
     REQUIRE(pilot != nullptr);
 
     uint32_t presents = 0x811c9dc5;
     REQUIRE(MCInput::Display() != nullptr);
-    MCInput::Display()->OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
+    MCTestGame::OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
 
-    const auto settle = [](const char* name)
+    const auto settle = [](std::string_view name)
     {
         for (int32_t frame = 0; frame < 10; frame++)
         {
@@ -44,15 +45,15 @@ TEST_CASE_ISOLATED("game: the tactical map's video window matches the pre-render
         }
 
         const uint32_t hash = ScreenHash();
-        SaveShot(std::string("video ") + name, hash);
+        SaveShot(std::format("video {}", name), hash);
         return hash;
     };
 
     CHECK_EQ(settle("idle"), 0xe4b58559u);
-    map->videoWindow->SetStar(pilot);
+    map->VideoWindow->SetStar(pilot);
     CHECK_EQ(settle("speaking"), 0x566829a5u);
-    map->videoWindow->SetStar(nullptr);
+    map->VideoWindow->SetStar(nullptr);
     CHECK_EQ(settle("done"), 0xd9566f22u);
-    MCInput::Display()->OnPresent = nullptr;
+    MCTestGame::OnPresent = nullptr;
     CHECK_EQ(presents, 0x861a964eu);
 }

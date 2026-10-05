@@ -1,25 +1,26 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "gui/mchwcursor.h"
-#include "gui/updisp.h"
-#include "lib/packet.h"
-#include "vfx/mcagshape.h"
-#include "vfx/vfxfuncs.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCHardwareCursor.h"
+#include "gui/MCUpdateDisplay.h"
+#include "lib/MCPacketFile.h"
+#include "vfx/MCAgShape.h"
+#include "vfx/MCVfxFunctions.h"
 
 // The system (hardware) cursor: cursor pictures, their colours and scaling, and the game's cursor shapes as pictures.
 
 namespace
 {
     /// <summary>A picture from rows of characters: '.' transparent, any other character that palette index.</summary>
-    MCCursorImage FromRows(std::initializer_list<const char*> rows, int hotX, int hotY)
+    MCCursorImage FromRows(std::initializer_list<std::string_view> rows, int hotX, int hotY)
     {
         const int height = static_cast<int>(rows.size());
-        const int width = static_cast<int>(std::strlen(*rows.begin()));
+        const int width = static_cast<int>(rows.begin()->size());
         MCCursorImage image = MCCursorImage::Blank(width, height, hotX, hotY);
         int y = 0;
 
-        for (const char* row : rows)
+        for (const std::string_view row : rows)
         {
             for (int x = 0; x < width; ++x)
             {
@@ -118,7 +119,7 @@ TEST_CASE("cursor: Rasterize colours each pixel from the palette and leaves tran
 {
     const std::array<SDL_Color, 256> colors = TestColors();
     const MCCursorImage image = FromRows({"\x10.", ".\xf0"}, 0, 0);
-    const MCCursorBitmap bitmap = MCCursor::Rasterize(image, colors.data(), 1.0f, 1.0f);
+    const MCCursorBitmap bitmap = MCCursor::Rasterize(image, colors, 1.0f, 1.0f);
     REQUIRE_EQ(bitmap.Width, 2);
     REQUIRE_EQ(bitmap.Height, 2);
     const std::vector<uint8_t> expected{
@@ -134,7 +135,7 @@ TEST_CASE("cursor: Rasterize scales by the nearest pixel and puts the hot spot o
     const MCCursorImage image = FromRows({"AB", "C."}, 1, 1);
 
     // Twice as large: each pixel becomes 2x2; the hot spot pixel (1, 1) starts at (2, 2).
-    const MCCursorBitmap doubled = MCCursor::Rasterize(image, colors.data(), 2.0f, 2.0f);
+    const MCCursorBitmap doubled = MCCursor::Rasterize(image, colors, 2.0f, 2.0f);
     REQUIRE_EQ(doubled.Width, 4);
     REQUIRE_EQ(doubled.Height, 4);
     CHECK_EQ(doubled.HotX, 2);
@@ -151,7 +152,7 @@ TEST_CASE("cursor: Rasterize scales by the nearest pixel and puts the hot spot o
     CHECK_EQ(alpha(doubled, 3, 3), 0);
 
     // A stretched screen scales across and down apart: 1280x1024 shown in 1920x1080 is 1.5 x ~1.05.
-    const MCCursorBitmap stretched = MCCursor::Rasterize(image, colors.data(), 1.5f, 1.0f);
+    const MCCursorBitmap stretched = MCCursor::Rasterize(image, colors, 1.5f, 1.0f);
     CHECK_EQ(stretched.Width, 3);
     CHECK_EQ(stretched.Height, 2);
     CHECK_EQ(stretched.HotX, 1);
@@ -164,19 +165,16 @@ TEST_CASE("cursor: Rasterize scales by the nearest pixel and puts the hot spot o
 TEST_CASE("cursor: a pane becomes an opaque picture with the given hot spot")
 {
     // A 3x2 pane at (1, 1) inside a 5x4 window.
-    std::vector<uint8_t> pixels(20);
+    const std::shared_ptr<MCWindow> window = MCWindow::Make(5, 4);
+    const std::span<uint8_t> pixels = window->Bytes();
 
     for (size_t i = 0; i < pixels.size(); ++i)
     {
         pixels[i] = static_cast<uint8_t>('a' + i);
     }
 
-    WINDOW window{};
-    window.buffer = pixels.data();
-    window.x_max = 4;
-    window.y_max = 3;
-    PANE pane{&window, 1, 1, 3, 2};
-    const MCCursorImage image = MCCursorImageFromPane(&pane, 2, 0);
+    const MCPane pane{window, 1, 1, 3, 2};
+    const MCCursorImage image = MCCursorImageFromPane(pane, 2, 0);
     CHECK_EQ(image.HotX, 2);
     CHECK_EQ(image.HotY, 0);
     const std::vector<std::string> expected{"ghi", "lmn"};
@@ -186,19 +184,17 @@ TEST_CASE("cursor: a pane becomes an opaque picture with the given hot spot")
 TEST_CASE("cursor: a shape becomes a picture that draws exactly as the game draws the shape")
 {
     // A hand-made shape: 3x3, origin at its centre, a plus sign of colour 7 with transparent corners.
-    std::vector<uint8_t> source(9 * 9, 0xff);
-    WINDOW sourceWindow{};
-    sourceWindow.buffer = source.data();
-    sourceWindow.x_max = 8;
-    sourceWindow.y_max = 8;
-    PANE sourcePane{&sourceWindow, 0, 0, 2, 2};
+    const std::shared_ptr<MCWindow> sourceWindow = MCWindow::Make(9, 9);
+    const std::span<uint8_t> source = sourceWindow->Bytes();
+    std::ranges::fill(source, uint8_t{0xff});
+    const MCPane sourcePane{sourceWindow, 0, 0, 2, 2};
     source[1] = 7;
     source[9 + 0] = 7;
     source[9 + 1] = 7;
     source[9 + 2] = 7;
     source[18 + 1] = 7;
     std::vector<uint8_t> shape(4096);
-    const int32_t size = VFX_shape_scan(&sourcePane, 0xff, 1, 1, shape.data());
+    const int32_t size = VfxShapeScan(sourcePane, 0xff, 1, 1, shape);
     REQUIRE(size > 0x18);
     // A one-shape table around it: version, count, the shape's offset and its (absent) palette's.
     std::vector<uint8_t> table(16 + static_cast<size_t>(size));
@@ -206,7 +202,7 @@ TEST_CASE("cursor: a shape becomes a picture that draws exactly as the game draw
     const int32_t header[3] = {1, 16, 0};
     std::memcpy(table.data() + 4, header, sizeof(header));
     std::memcpy(table.data() + 16, shape.data(), static_cast<size_t>(size));
-    const MCCursorImage image = MCCursorImageFromShape(table.data(), 0);
+    const MCCursorImage image = MCCursorImageFromShape(table, 0);
     CHECK_EQ(image.HotX, 1);
     CHECK_EQ(image.HotY, 1);
     const std::vector<std::string> expected{".\x07.", "\x07\x07\x07", ".\x07."};
@@ -221,21 +217,21 @@ TEST_CASE("game: every cursor shape becomes a picture that draws exactly as the 
     }
 
     MCTestGame::OpenFastFiles();
-    PacketFile pak;
-    REQUIRE_EQ(pak.open("data\\sprites\\cursors.pak"), 0);
-    REQUIRE(pak.getNumPackets() > 0);
+    MCPacketFile pak;
+    REQUIRE_EQ(pak.Open("data\\sprites\\cursors.pak"), 0);
+    REQUIRE(pak.GetNumPackets() > 0);
     int withTransparency = 0;
 
-    for (int32_t i = 0; i < pak.getNumPackets(); ++i)
+    for (int32_t i = 0; i < pak.GetNumPackets(); ++i)
     {
         MCTest::Scope scope(std::format("cursor {}", i));
-        REQUIRE_EQ(pak.seekPacket(i), 0);
-        std::vector<uint8_t> shape(static_cast<size_t>(pak.getPacketSize()) + 16);
-        pak.readPacket(i, shape.data());
+        REQUIRE_EQ(pak.SeekPacket(i), 0);
+        std::vector<uint8_t> shape(static_cast<size_t>(pak.GetPacketSize()) + 16);
+        pak.ReadPacket(i, shape);
         // The game's hardware cursor can't blend with the screen; no cursor asks it to.
-        CHECK(!MCAgShapeIsAlpha(shape.data(), 0));
+        CHECK(!MCAgShapeIsAlpha(shape, 0));
 
-        const MCCursorImage image = MCCursorImageFromShape(shape.data(), 0);
+        const MCCursorImage image = MCCursorImageFromShape(shape, 0);
         REQUIRE(image.Width > 0);
         CHECK(image.HotX >= 0 && image.HotX < image.Width);
         CHECK(image.HotY >= 0 && image.HotY < image.Height);
@@ -250,13 +246,11 @@ TEST_CASE("game: every cursor shape becomes a picture that draws exactly as the 
         constexpr int32_t mouseX = 30;
         constexpr int32_t mouseY = 30;
         constexpr uint8_t background = 0x37;
-        std::vector<uint8_t> drawn(side * side, background);
-        WINDOW window{};
-        window.buffer = drawn.data();
-        window.x_max = side - 1;
-        window.y_max = side - 1;
-        PANE pane{&window, 0, 0, side - 1, side - 1};
-        AG_shape_draw(&pane, shape.data(), 0, mouseX, mouseY);
+        const std::shared_ptr<MCWindow> window = MCWindow::Make(side, side);
+        const std::span<uint8_t> drawn = window->Bytes();
+        std::ranges::fill(drawn, background);
+        const MCPane pane = MCPane::Over(window);
+        AGShapeDraw(pane, shape, 0, mouseX, mouseY);
         std::vector<uint8_t> laid(side * side, background);
 
         for (int y = 0; y < image.Height; ++y)
@@ -273,11 +267,11 @@ TEST_CASE("game: every cursor shape becomes a picture that draws exactly as the 
             }
         }
 
-        CHECK(drawn == laid);
+        CHECK(std::ranges::equal(drawn, laid));
     }
 
     // Cursors are arrows and crosshairs, not rectangles.
-    CHECK_EQ(withTransparency, pak.getNumPackets());
+    CHECK_EQ(withTransparency, pak.GetNumPackets());
 }
 
 TEST_CASE_ISOLATED("game: every cursor shape is made before play and switching between them makes none")
@@ -291,7 +285,7 @@ TEST_CASE_ISOLATED("game: every cursor shape is made before play and switching b
 
     for (size_t shape = 0; shape < 128; ++shape)
     {
-        if (cursorShapes[shape] != nullptr)
+        if (!GuiSystem().CursorShapeData(static_cast<int32_t>(shape)).empty())
         {
             shapes.push_back(shape);
         }

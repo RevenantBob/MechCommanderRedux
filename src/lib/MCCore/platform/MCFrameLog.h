@@ -24,13 +24,15 @@ namespace MCFrameLog
     class Scope
     {
     public:
-        explicit Scope(const char* name);
+        /// <summary>Starts timing part <paramref name="name"/> (copied only while a log is open).</summary>
+        explicit Scope(std::string_view name);
         ~Scope();
         Scope(const Scope&) = delete;
         Scope& operator=(const Scope&) = delete;
 
     private:
-        const char* _Name;
+        /// <summary>The part's name (empty while no log is open).</summary>
+        std::string _Name;
         uint64_t _Start;
     };
 }

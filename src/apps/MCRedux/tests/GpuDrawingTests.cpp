@@ -1,34 +1,44 @@
 #include "stdafx.h"
 #include "MCTest.h"
+#include "fixtures/MCRegisteredData.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "ai/tacordr.h"
-#include "camera/camera.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
-#include "gui/awindow.h"
-#include "logistics/logbri.h"
-#include "gui/updisp.h"
-#include "logistics/logmain.h"
-#include "logistics/purchase.h"
-#include "main/logistics.h"
-#include "object/mover.h"
+#include "ai/MCTacticalOrder.h"
+#include "camera/MCCamera.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCGuiSmackerWindow.h"
+#include "logistics/MCMainMenu.h"
+#include "logistics/MCBriefingScreen.h"
+#include "gui/MCUpdateDisplay.h"
+#include "logistics/MCPurMechList.h"
+#include "logistics/MCPurPilotList.h"
+#include "logistics/MCPurVehicleList.h"
+#include "logistics/MCMechPurchaseBlock.h"
+#include "logistics/MCPilotPurchaseBlock.h"
+#include "logistics/MCVehiclePurchaseBlock.h"
+#include "logistics/MCCompPurchaseBlock.h"
+#include "logistics/MCUnitLimits.h"
+#include "logistics/MCPurProfile.h"
+#include "main/MCLogistics.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "platform/MCVulkanRenderer.h"
-#include "terrain/terrain.h"
-#include "vfx/mcagshape.h"
-#include "vfx/vfxfuncs.h"
+#include "terrain/MCTerrain.h"
+#include "vfx/MCAgShape.h"
+#include "vfx/MCVfxFunctions.h"
 
 using namespace MCScreenInput;
 
 namespace
 {
     /// <summary>The GPU renderer drawing in mirror mode, or null (with a note) when this machine has none.</summary>
-    MCVulkanRenderer* MirrorRenderer()
+    std::shared_ptr<MCVulkanRenderer> MirrorRenderer()
     {
-        auto* renderer = dynamic_cast<MCVulkanRenderer*>(MCRenderer::Hardware());
+        auto renderer = std::dynamic_pointer_cast<MCVulkanRenderer>(MCRenderer::Hardware());
 
         if (renderer == nullptr || MCRenderer::GpuDrawing() != MCGpuDrawing::Mirror)
         {
@@ -74,7 +84,7 @@ TEST_CASE_ISOLATED("game: the GPU draws mission 1 as the software renderer does"
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
     REQUIRE(MCTestGame::StartMission(1));
-    MCVulkanRenderer* renderer = MirrorRenderer();
+    const std::shared_ptr<MCVulkanRenderer> renderer = MirrorRenderer();
 
     if (renderer == nullptr)
     {
@@ -104,7 +114,7 @@ TEST_CASE_ISOLATED("game: the GPU draws mission 1 zoomed as the software rendere
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
     REQUIRE(MCTestGame::StartMission(1));
-    MCVulkanRenderer* renderer = MirrorRenderer();
+    const std::shared_ptr<MCVulkanRenderer> renderer = MirrorRenderer();
 
     if (renderer == nullptr)
     {
@@ -143,7 +153,7 @@ TEST_CASE_ISOLATED("game: the GPU draws mission 1's map edges as the software re
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
     REQUIRE(MCTestGame::StartMission(1));
-    MCVulkanRenderer* renderer = MirrorRenderer();
+    const std::shared_ptr<MCVulkanRenderer> renderer = MirrorRenderer();
 
     if (renderer == nullptr)
     {
@@ -151,7 +161,7 @@ TEST_CASE_ISOLATED("game: the GPU draws mission 1's map edges as the software re
     }
 
     const float far =
-        static_cast<float>(Terrain::verticesBlockSide * Terrain::blocksMapSide) * Terrain::metersPerVertex * 2.0f;
+        static_cast<float>(MCTerrain::VerticesBlockSide * MCTerrain::BlocksMapSide) * MCTerrain::MetersPerVertex * 2.0f;
     const float directions[][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
 
     for (const float zoom : {480.0f, 2160.0f})
@@ -166,10 +176,10 @@ TEST_CASE_ISOLATED("game: the GPU draws mission 1's map edges as the software re
 
             for (int32_t frame = 0; frame < 4; frame++)
             {
-                vector_3d position = eye->getPosition();
-                position.x = direction[0] * far;
-                position.y = direction[1] * far;
-                eye->setPosition(position);
+                MCVector3D position = Eye()->GetPosition();
+                position.X = direction[0] * far;
+                position.Y = direction[1] * far;
+                Eye()->SetPosition(position);
                 MCTestGame::RunFrame(1.0f / 15.0f);
             }
 
@@ -193,14 +203,13 @@ TEST_CASE_ISOLATED("game: the GPU draws the shape transforms as the software ren
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
     REQUIRE(MCTestGame::StartMission(1));
-    MCVulkanRenderer* renderer = MirrorRenderer();
+    const std::shared_ptr<MCVulkanRenderer> renderer = MirrorRenderer();
 
     if (renderer == nullptr)
     {
         return;
     }
 
-    std::vector<uint8_t> buffer(0x1fa40);
     std::array<uint8_t, 256> table{};
 
     for (size_t i = 0; i < table.size(); ++i)
@@ -208,16 +217,18 @@ TEST_CASE_ISOLATED("game: the GPU draws the shape transforms as the software ren
         table[i] = static_cast<uint8_t>(i * 7 + 3);
     }
 
-    MCRenderer::RegisterData(table.data(), table.size(), MCDataKind::Tables);
-    PANE* pane = screenPort->frame();
-    const int32_t width = pane->x1 - pane->x0 + 1;
-    const int32_t height = pane->y1 - pane->y0 + 1;
+    MCRenderer::RegisterData(std::span(table.data(), table.size()), MCDataKind::Tables);
+    MCPane& pane = ScreenPort()->Frame();
+    const int32_t width = pane.X1 - pane.X0 + 1;
+    const int32_t height = pane.Y1 - pane.Y0 + 1;
     const int32_t places[][2] = {{width / 2, height / 2}, {2, 3}, {width - 3, height - 2}, {width / 3, -4}};
     int32_t draws = 0;
 
     for (int32_t shape = 0; shape < 128; shape += 5)
     {
-        if (cursorShapes[shape] == nullptr)
+        const std::span<const uint8_t> shapeTable = GuiSystem().CursorShapeData(shape);
+
+        if (shapeTable.empty())
         {
             continue;
         }
@@ -231,14 +242,11 @@ TEST_CASE_ISOLATED("game: the GPU draws the shape transforms as the software ren
 
                 if ((variant & 4) != 0)
                 {
-                    AG_shape_lookaside(table.data());
-                    AG_shape_translate_transform(pane, cursorShapes[shape], 0, place[0], place[1], buffer.data(),
-                                                 mirror, fullSize);
+                    AGShapeTranslateTransform(pane, shapeTable, 0, place[0], place[1], mirror, fullSize, table);
                 }
                 else
                 {
-                    AG_shape_transform(pane, cursorShapes[shape], 0, place[0], place[1], buffer.data(), mirror,
-                                       fullSize);
+                    AGShapeTransform(pane, shapeTable, 0, place[0], place[1], mirror, fullSize);
                 }
 
                 ++draws;
@@ -247,10 +255,10 @@ TEST_CASE_ISOLATED("game: the GPU draws the shape transforms as the software ren
     }
 
     // The draws took their table rows when recorded.
-    MCRenderer::UnregisterData(table.data(), table.size());
+    MCRenderer::UnregisterData(std::span(table.data(), table.size()));
     REQUIRE(draws > 0);
     REQUIRE(renderer->Flush(MCRenderer::Underlays()).has_value());
-    const auto comparison = renderer->Compare(MCRenderer::Underlays(), nullptr);
+    const auto comparison = renderer->Compare(MCRenderer::Underlays(), {});
     REQUIRE(comparison.has_value());
 
     if (comparison->Different != 0)
@@ -278,7 +286,7 @@ TEST_CASE_ISOLATED("game: the GPU keeps shapes by their registered address")
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
     REQUIRE(MCTestGame::StartMission(1));
-    MCVulkanRenderer* renderer = MirrorRenderer();
+    const std::shared_ptr<MCVulkanRenderer> renderer = MirrorRenderer();
 
     if (renderer == nullptr)
     {
@@ -290,29 +298,35 @@ TEST_CASE_ISOLATED("game: the GPU keeps shapes by their registered address")
 
     for (int32_t shape = 0; shape < 128 && files.size() < 2; shape++)
     {
-        const MCDataBlock* block =
-            cursorShapes[shape] != nullptr ? MCRenderer::DataBlockOf(cursorShapes[shape]) : nullptr;
+        const std::span<const uint8_t> shapeTable = GuiSystem().CursorShapeData(shape);
 
-        if (block != nullptr && block->Begin == cursorShapes[shape] &&
+        if (shapeTable.empty())
+        {
+            continue;
+        }
+
+        const std::optional<MCDataBlock> block = MCRegisteredBlockOf(MCAddressKey::OfData(shapeTable));
+
+        if (block.has_value() && block->Begin == MCAddressKey::Of(shapeTable[0]) &&
             (files.empty() || block->End - block->Begin != static_cast<ptrdiff_t>(files[0].size())))
         {
-            files.emplace_back(block->Begin, block->End);
+            files.emplace_back(shapeTable.data(), static_cast<size_t>(block->End - block->Begin));
         }
     }
 
     REQUIRE_EQ(files.size(), size_t{2});
     std::vector<uint8_t> memory(std::max(files[0].size(), files[1].size()));
-    PANE* pane = screenPort->frame();
-    const int32_t x = (pane->x1 - pane->x0) / 2;
-    const int32_t y = (pane->y1 - pane->y0) / 2;
+    MCPane& pane = ScreenPort()->Frame();
+    const int32_t x = (pane.X1 - pane.X0) / 2;
+    const int32_t y = (pane.Y1 - pane.Y0) / 2;
 
     // Draws shape 0 of the memory and compares the screen with the software renderer's.
-    const auto drawAndCompare = [&](const char* step)
+    const auto drawAndCompare = [&](std::string_view step)
     {
         MCTest::Scope scope(step);
-        VFX_shape_draw(pane, memory.data(), 0, x, y);
+        VfxShapeDraw(pane, memory, 0, x, y);
         REQUIRE(renderer->Flush(MCRenderer::Underlays()).has_value());
-        const auto comparison = renderer->Compare(MCRenderer::Underlays(), nullptr);
+        const auto comparison = renderer->Compare(MCRenderer::Underlays(), {});
         REQUIRE(comparison.has_value());
 
         if (comparison->Different != 0)
@@ -324,7 +338,7 @@ TEST_CASE_ISOLATED("game: the GPU keeps shapes by their registered address")
     };
 
     std::ranges::copy(files[0], memory.begin());
-    MCRenderer::RegisterData(memory.data(), memory.size(), MCDataKind::Shapes);
+    MCRenderer::RegisterData(std::span(memory.data(), memory.size()), MCDataKind::Shapes);
     drawAndCompare("first drawn");
 
     // Recoloured in place: every colour moves on by 16.
@@ -335,24 +349,24 @@ TEST_CASE_ISOLATED("game: the GPU keeps shapes by their registered address")
         table[i] = static_cast<uint8_t>(i + 16);
     }
 
-    VFX_shape_lookaside(table.data());
-    VFX_shape_remap_colors(memory.data(), 0);
+    VfxShapeLookaside(table);
+    VfxShapeRemapColors(memory, 0);
     drawAndCompare("recoloured");
 
     // The memory reused for the other file.
-    MCRenderer::UnregisterData(memory.data(), memory.size());
+    MCRenderer::UnregisterData(std::span(memory.data(), memory.size()));
     std::ranges::fill(memory, uint8_t{0});
     std::ranges::copy(files[1], memory.begin());
-    MCRenderer::RegisterData(memory.data(), files[1].size(), MCDataKind::Shapes);
+    MCRenderer::RegisterData(std::span(memory.data(), files[1].size()), MCDataKind::Shapes);
     drawAndCompare("other shapes");
 
     // Unregistered: counted, and not drawn on the GPU.
-    MCRenderer::UnregisterData(memory.data(), memory.size());
+    MCRenderer::UnregisterData(std::span(memory.data(), memory.size()));
     const int64_t unregistered = MCRenderer::UnregisteredDraws();
     MCRenderer::ExpectUnregistered expected;
-    VFX_shape_draw(pane, memory.data(), 0, x, y);
+    VfxShapeDraw(pane, memory, 0, x, y);
     CHECK_EQ(MCRenderer::UnregisteredDraws() - unregistered, 1);
-    CHECK(MCRenderer::DataBlockOf(memory.data()) == nullptr);
+    CHECK(!MCIsRegistered(MCAddressKey::OfData(memory)));
 }
 
 /// <summary>
@@ -370,7 +384,7 @@ TEST_CASE_ISOLATED("game: the GPU keeps colour tables by their registered addres
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
     REQUIRE(MCTestGame::StartMission(1));
-    MCVulkanRenderer* renderer = MirrorRenderer();
+    const std::shared_ptr<MCVulkanRenderer> renderer = MirrorRenderer();
 
     if (renderer == nullptr)
     {
@@ -378,20 +392,22 @@ TEST_CASE_ISOLATED("game: the GPU keeps colour tables by their registered addres
     }
 
     // An opaque cursor shape (a translucent one is blended on the GPU, which the comparison leaves out).
-    void* shapes = nullptr;
+    std::span<const uint8_t> shapes;
 
-    for (int32_t shape = 0; shape < 128 && shapes == nullptr; shape++)
+    for (int32_t shape = 0; shape < 128 && shapes.empty(); shape++)
     {
-        if (cursorShapes[shape] != nullptr && !MCAgShapeIsAlpha(cursorShapes[shape], 0))
+        const std::span<const uint8_t> shapeTable = GuiSystem().CursorShapeData(shape);
+
+        if (!shapeTable.empty() && !MCAgShapeIsAlpha(shapeTable, 0))
         {
-            shapes = cursorShapes[shape];
+            shapes = shapeTable;
         }
     }
 
-    REQUIRE(shapes != nullptr);
-    PANE* pane = screenPort->frame();
-    const int32_t x = (pane->x1 - pane->x0) / 2;
-    const int32_t y = (pane->y1 - pane->y0) / 2;
+    REQUIRE(!shapes.empty());
+    MCPane& pane = ScreenPort()->Frame();
+    const int32_t x = (pane.X1 - pane.X0) / 2;
+    const int32_t y = (pane.Y1 - pane.Y0) / 2;
 
     // A block of bytes counting up: the table at offset n maps colour c to c + n.
     std::vector<uint8_t> memory(1024);
@@ -401,24 +417,23 @@ TEST_CASE_ISOLATED("game: the GPU keeps colour tables by their registered addres
         memory[i] = static_cast<uint8_t>(i);
     }
 
-    MCRenderer::RegisterData(memory.data(), memory.size(), MCDataKind::Tables);
+    MCRenderer::RegisterData(std::span(memory.data(), memory.size()), MCDataKind::Tables);
 
     // Draws the shape through each table (side by side, one frame) and compares the screen with the software
     // renderer's.
-    const auto drawAndCompare = [&](const char* step, std::initializer_list<size_t> offsets)
+    const auto drawAndCompare = [&](std::string_view step, std::initializer_list<size_t> offsets)
     {
         MCTest::Scope scope(step);
         int32_t left = x;
 
         for (const size_t offset : offsets)
         {
-            AG_shape_lookaside(memory.data() + offset);
-            AG_shape_translate_draw(pane, shapes, 0, left, y);
+            AGShapeTranslateDraw(pane, shapes, 0, left, y, MCColorTable(memory.data() + offset, 256));
             left += 40;
         }
 
         REQUIRE(renderer->Flush(MCRenderer::Underlays()).has_value());
-        const auto comparison = renderer->Compare(MCRenderer::Underlays(), nullptr);
+        const auto comparison = renderer->Compare(MCRenderer::Underlays(), {});
         REQUIRE(comparison.has_value());
 
         if (comparison->Different != 0)
@@ -434,18 +449,16 @@ TEST_CASE_ISOLATED("game: the GPU keeps colour tables by their registered addres
 
     // Changed in place: the table at 3 now maps every colour to 0x13 (drawn before and after, in one frame).
     std::fill(memory.begin() + 3, memory.begin() + 3 + 256, uint8_t{0x13});
-    MCRenderer::DataChanged(memory.data() + 3, 256);
+    MCRenderer::DataChanged(std::span(memory.data() + 3, 256));
     drawAndCompare("changed in place", {3, 100});
 
     // A table past the block's end reaches outside it: counted, and not drawn on the GPU.
     MCRenderer::ExpectUnregistered expected;
-    AG_shape_lookaside(memory.data() + memory.size() - 100);
-    AG_shape_translate_draw(pane, shapes, 0, x, y);
+    AGShapeTranslateDraw(pane, shapes, 0, x, y, MCColorTable(memory.data() + memory.size() - 100, 256));
     CHECK_EQ(MCRenderer::UnregisteredDraws() - unregistered, 1);
 
-    MCRenderer::UnregisterData(memory.data(), memory.size());
-    AG_shape_lookaside(memory.data() + 3);
-    AG_shape_translate_draw(pane, shapes, 0, x, y);
+    MCRenderer::UnregisterData(std::span(memory.data(), memory.size()));
+    AGShapeTranslateDraw(pane, shapes, 0, x, y, MCColorTable(memory.data() + 3, 256));
     CHECK_EQ(MCRenderer::UnregisteredDraws() - unregistered, 2);
 }
 
@@ -470,22 +483,22 @@ TEST_CASE_ISOLATED("game: the GPU blends translucent colours over what is shown"
         return;
     }
 
-    MCDisplay* display = MCInput::Display();
+    const std::shared_ptr<MCDisplay> display = MCInput::Display();
     REQUIRE(display != nullptr);
     MCTestGame::RunFrame(1.0f / 15.0f);
     const auto before = display->ReadFrame();
     REQUIRE(before.has_value());
-    PANE* pane = screenPort->frame();
+    MCPane& pane = ScreenPort()->Frame();
     const int32_t shadowX = 200;
     const int32_t lightX = 400;
     const int32_t y = 200;
-    AG_ellipse_fill(pane, shadowX, y, 20, 20, 254);
-    AG_ellipse_fill(pane, lightX, y, 20, 20, 4);
+    AGEllipseFill(pane, shadowX, y, 20, 20, 254);
+    AGEllipseFill(pane, lightX, y, 20, 20, 4);
     const auto after = display->ReadFrame();
     REQUIRE(after.has_value());
     const int32_t width = display->Width();
     const auto at = [&](const std::vector<SDL_Color>& frame, int32_t px, int32_t py)
-    { return frame[static_cast<size_t>(py + pane->y0) * width + px + pane->x0]; };
+    { return frame[static_cast<size_t>(py + pane.Y0) * width + px + pane.X0]; };
     const auto near = [](int32_t actual, int32_t expected) { return std::abs(actual - expected) <= 2; };
 
     for (int32_t dy = -10; dy <= 10; dy += 5)
@@ -522,7 +535,7 @@ TEST_CASE_ISOLATED("game: the GPU alone draws mission 1's battle without per-fra
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::On);
     REQUIRE(MCTestGame::StartMission(1));
-    auto* renderer = dynamic_cast<MCVulkanRenderer*>(MCRenderer::Hardware());
+    const auto renderer = std::dynamic_pointer_cast<MCVulkanRenderer>(MCRenderer::Hardware());
 
     if (renderer == nullptr || MCRenderer::GpuDrawing() != MCGpuDrawing::On)
     {
@@ -530,22 +543,21 @@ TEST_CASE_ISOLATED("game: the GPU alone draws mission 1's battle without per-fra
         return;
     }
 
-    Mover* uller = getMoverFromPartId(896);
+    std::shared_ptr<MCMover> uller = GetMoverFromPartId(896);
     REQUIRE(uller != nullptr);
 
     for (int32_t partId = 0x200; partId < 0x203; partId++)
     {
-        Mover* mover = getMoverFromPartId(partId);
+        std::shared_ptr<MCMover> mover = GetMoverFromPartId(partId);
         REQUIRE(mover != nullptr);
-        TacticalOrder order;
-        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
-        order.target = uller;
-        order.attackParams.type = 1;
-        order.attackParams.method = 0;
-        order.attackParams.range = -1;
-        order.attackParams.pursue = -1;
-        mover->handleTacticalOrder(order, 1, 0);
-        order.destroy();
+        MCTacticalOrder order;
+        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::AttackObject, 0);
+        order.Target = uller;
+        order.AttackParams.Type = 1;
+        order.AttackParams.Method = 0;
+        order.AttackParams.Range = -1;
+        order.AttackParams.Pursue = -1;
+        mover->HandleTacticalOrder(order, 1, 0);
     }
 
     int64_t frames = 0;
@@ -555,9 +567,9 @@ TEST_CASE_ISOLATED("game: the GPU alone draws mission 1's battle without per-fra
 
     for (int32_t frame = 0; frame < 15 * 60; frame++)
     {
-        if (uller->isDestroyed() == 0)
+        if (uller->IsDestroyed() == 0)
         {
-            eye->setPosition(uller->getPosition());
+            Eye()->SetPosition(uller->GetPosition());
         }
 
         MCTestGame::RunFrame(1.0f / 15.0f);
@@ -595,7 +607,7 @@ TEST_CASE_ISOLATED("game: the GPU draws the logistics screens as the software re
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
     REQUIRE(MCTestGame::StartLogistics());
-    MCVulkanRenderer* renderer = MirrorRenderer();
+    const std::shared_ptr<MCVulkanRenderer> renderer = MirrorRenderer();
 
     if (renderer == nullptr)
     {
@@ -621,20 +633,20 @@ TEST_CASE_ISOLATED("game: the GPU draws the logistics screens as the software re
     settle();
 
     // The operation movie (stream uploads, compared with the software frames).
-    BriefingScreen* briefing = globalLogPtr->briefingScreen;
+    MCBriefingScreen& briefing = *GlobalLog()->BriefingScreen;
     int32_t movieFrames = 0;
 
     for (int32_t frame = 0; frame < 300 && movieFrames < 30; frame++)
     {
         MCTestGame::RunFrame(1.0f / 30.0f);
-        movieFrames += briefing->smackerWindow != nullptr && briefing->smackerWindow->movie != nullptr ? 1 : 0;
+        movieFrames += briefing.SmackerWindow != nullptr && briefing.SmackerWindow->Movie != nullptr ? 1 : 0;
     }
 
     CHECK_EQ(movieFrames, 30);
     CHECK(renderer->LastFrameUploads().Pictures == 0);
-    globalLogPtr->setUpPurchaseScreen(-1);
+    GlobalLog()->SetUpPurchaseScreen(true);
     settle();
-    globalLogPtr->setUpRepairScreen(-1);
+    GlobalLog()->SetUpRepairScreen(true);
     settle();
     CheckMirror(*renderer);
 }
@@ -654,7 +666,7 @@ TEST_CASE_ISOLATED("game: the GPU draws damaged mechs' diagrams as the software 
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
     REQUIRE(MCTestGame::StartLogistics());
-    MCVulkanRenderer* renderer = MirrorRenderer();
+    const std::shared_ptr<MCVulkanRenderer> renderer = MirrorRenderer();
 
     if (renderer == nullptr)
     {
@@ -664,16 +676,17 @@ TEST_CASE_ISOLATED("game: the GPU draws damaged mechs' diagrams as the software 
     NewCampaign();
     int32_t mechs = 0;
 
-    for (LogMech* mech = globalLogPtr->forceMechList->mechs; mech != nullptr; mech = mech->next, mechs++)
+    for (const std::shared_ptr<MCLogMech>& mech : GlobalLog()->ForceMechList->Mechs)
     {
+        mechs++;
         // Left arm (5) gone: no armor, no internals. Right arm (4) and the torsos at the other damage states.
-        mech->armor[5].curArmor = 0;
-        mech->internals[5].curArmor = 0;
-        mech->armor[4].curArmor = 0;
-        mech->armor[1].curArmor = static_cast<uint8_t>(mech->armor[1].maxArmor / 5);
-        mech->armor[2].curArmor = static_cast<uint8_t>(mech->armor[2].maxArmor * 2 / 5);
-        mech->armor[3].curArmor = static_cast<uint8_t>(mech->armor[3].maxArmor * 3 / 5);
-        mech->calcStatus();
+        mech->Armor[5].CurArmor = 0;
+        mech->Internals[5].CurArmor = 0;
+        mech->Armor[4].CurArmor = 0;
+        mech->Armor[1].CurArmor = static_cast<uint8_t>(mech->Armor[1].MaxArmor / 5);
+        mech->Armor[2].CurArmor = static_cast<uint8_t>(mech->Armor[2].MaxArmor * 2 / 5);
+        mech->Armor[3].CurArmor = static_cast<uint8_t>(mech->Armor[3].MaxArmor * 3 / 5);
+        mech->CalcStatus();
     }
 
     REQUIRE(mechs > 0);
@@ -685,11 +698,11 @@ TEST_CASE_ISOLATED("game: the GPU draws damaged mechs' diagrams as the software 
         }
     };
 
-    globalLogPtr->setUpBriefingScreen(-1);
+    GlobalLog()->SetUpBriefingScreen(true);
     run();
-    globalLogPtr->setUpPurchaseScreen(-1);
+    GlobalLog()->SetUpPurchaseScreen(true);
     run();
-    globalLogPtr->setUpRepairScreen(-1);
+    GlobalLog()->SetUpRepairScreen(true);
     run();
     CheckMirror(*renderer);
 }
@@ -708,7 +721,7 @@ TEST_CASE_ISOLATED("game: a movie's frames go straight to the GPU, once each")
 
     MCRenderer::RequestGpuDrawing(MCGpuDrawing::On);
     REQUIRE(MCTestGame::StartLogistics());
-    auto* renderer = dynamic_cast<MCVulkanRenderer*>(MCRenderer::Hardware());
+    const auto renderer = std::dynamic_pointer_cast<MCVulkanRenderer>(MCRenderer::Hardware());
 
     if (renderer == nullptr || MCRenderer::GpuDrawing() != MCGpuDrawing::On)
     {
@@ -718,38 +731,38 @@ TEST_CASE_ISOLATED("game: a movie's frames go straight to the GPU, once each")
 
     // The operation movie starts after a delay.
     NewCampaign();
-    BriefingScreen* briefing = globalLogPtr->briefingScreen;
+    MCBriefingScreen& briefing = *GlobalLog()->BriefingScreen;
 
     for (int32_t frame = 0;
-         frame < 300 && (briefing->smackerWindow == nullptr || briefing->smackerWindow->movie == nullptr); frame++)
+         frame < 300 && (briefing.SmackerWindow == nullptr || briefing.SmackerWindow->Movie == nullptr); frame++)
     {
         MCTestGame::RunFrame(1.0f / 30.0f);
     }
 
-    aSmackerWindow* window = briefing->smackerWindow;
-    REQUIRE(window != nullptr && window->movie != nullptr);
-    MCTexture* texture = window->moviePane->window->Texture;
+    const std::shared_ptr<MCGuiSmackerWindow> window = briefing.SmackerWindow;
+    REQUIRE(window != nullptr && window->Movie != nullptr);
+    const std::shared_ptr<MCTexture> texture = window->MovieWindow->Texture.lock();
     REQUIRE(texture != nullptr);
     CHECK(texture->Use == MCTextureUse::Stream);
-    const MCSmackerPlayer* player = window->movie->Player.get();
-    const int64_t movieBytes = static_cast<int64_t>(player->Width()) * player->Height();
+    const MCSmackerPlayer& player = *window->Movie->Player;
+    const int64_t movieBytes = static_cast<int64_t>(player.Width()) * player.Height();
     int64_t decoded = 0;
     int64_t idle = 0;
     int64_t pictures = 0;
 
-    for (int32_t frame = 0; frame < 60 && window->movie != nullptr; frame++)
+    for (int32_t frame = 0; frame < 60 && window->Movie != nullptr; frame++)
     {
-        const uint32_t before = window->movie->Player->FrameNum();
+        const uint32_t before = window->Movie->Player->FrameNum();
         MCTestGame::RunFrame(1.0f / 30.0f);
         const MCVulkanRenderer::UploadTally& uploads = renderer->LastFrameUploads();
 
-        if (window->movie == nullptr)
+        if (window->Movie == nullptr)
         {
             break;
         }
 
         MCTest::Scope scope(std::format("frame {}", frame));
-        const bool advanced = window->movie->Player->FrameNum() != before;
+        const bool advanced = window->Movie->Player->FrameNum() != before;
         CHECK_EQ(uploads.MovieFrames, advanced ? 1 : 0);
         CHECK_EQ(uploads.MovieBytes, advanced ? movieBytes : 0);
         decoded += advanced ? 1 : 0;

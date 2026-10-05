@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCSoftwareRenderer.h"
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 // The software renderer's run-length shapes (the row loops of vfxa.asm's shape routines and the game's
 // vfx_translatedraw.cpp), fast shapes (fastshp.cpp) and terrain tiles (vfxtile.cpp).
@@ -10,14 +10,15 @@ namespace
     /// <summary>A blend through the game's alpha table: <paramref name="color"/> over <paramref name="screen"/>.</summary>
     uint8_t Blend(uint8_t color, uint8_t screen)
     {
-        return static_cast<uint8_t>(AlphaTable[(static_cast<uint32_t>(color) << 8) | screen]);
+        return AlphaTable[(static_cast<uint32_t>(color) << 8) | screen];
     }
 
     /// <summary>
     /// Blends <paramref name="color"/> over <paramref name="p"/> (then maps it through <paramref name="xlat"/> for
     /// XlatAlpha), or records that in its op when it is see-through.
     /// </summary>
-    template <MCShapeOp Op> void BlendPixel(uint8_t* p, uint8_t color, const uint8_t* xlat, MCSeeThrough& seeThrough)
+    template <MCShapeOp Op>
+    void BlendPixel(uint8_t& p, uint8_t color, const std::optional<MCColorTable>& xlat, MCSeeThrough& seeThrough)
     {
         if (seeThrough.At(p))
         {
@@ -25,26 +26,28 @@ namespace
 
             if constexpr (Op == MCShapeOp::XlatAlpha)
             {
-                seeThrough.Map(p, xlat);
+                seeThrough.Map(p, *xlat);
             }
 
             return;
         }
 
-        *p = Blend(color, *p);
+        p = Blend(color, p);
 
         if constexpr (Op == MCShapeOp::XlatAlpha)
         {
-            *p = xlat[*p];
+            p = (*xlat)[p];
         }
     }
 
-    /// <summary>Steps over one encoded row (up to and past its end token).</summary>
-    const uint8_t* SkipRow(const uint8_t* data)
+    /// <summary>Steps over one encoded row (up to and past its end token); returns the bytes read.</summary>
+    size_t SkipRow(std::span<const uint8_t> bytes)
     {
+        size_t data = 0;
+
         for (;;)
         {
-            const uint8_t token = *data++;
+            const uint8_t token = bytes[data++];
             const uint32_t count = token >> 1;
 
             if (count != 0)
@@ -63,7 +66,8 @@ namespace
     }
 
     /// <summary>
-    /// Draws one encoded row from window column <paramref name="x"/>, writing columns lo..hi of <paramref name="row"/>.
+    /// Draws one encoded row from window column <paramref name="x"/>, writing columns lo..hi of <paramref name="pixels"/>
+    /// (the target's row); returns the bytes read.
     /// </summary>
     /// <remarks>
     /// VFX's own routines had separate loops for rows needing no clipping, left clipping, right clipping and both;
@@ -71,15 +75,16 @@ namespace
     /// within its bounds. Port fix: a row running past its declared bounds is clipped here too.
     /// </remarks>
     template <MCShapeOp Op>
-    const uint8_t* DrawRow(const uint8_t* data, uint8_t* row, int32_t x, int32_t lo, int32_t hi, const uint8_t* xlat,
-                           MCSeeThrough& seeThrough)
+    size_t DrawRow(std::span<const uint8_t> bytes, std::span<uint8_t> pixels, int32_t x, int32_t lo, int32_t hi,
+                   const std::optional<MCColorTable>& table, MCSeeThrough& seeThrough)
     {
         constexpr bool fill = Op == MCShapeOp::Fill || Op == MCShapeOp::XlatFill;
         constexpr bool translate = Op == MCShapeOp::Xlat || Op == MCShapeOp::XlatFill;
+        size_t data = 0;
 
         for (;;)
         {
-            const uint8_t token = *data++;
+            const uint8_t token = bytes[data++];
             const int32_t count = token >> 1;
 
             if (count == 0)
@@ -89,7 +94,7 @@ namespace
                     return data;
                 }
 
-                const int32_t skip = *data++;
+                const int32_t skip = bytes[data++];
 
                 if constexpr (fill)
                 {
@@ -108,7 +113,7 @@ namespace
                             break;
                         }
 
-                        row[column] = 0;
+                        pixels[column] = 0;
                     }
                 }
 
@@ -132,19 +137,19 @@ namespace
                         break;
                     }
 
-                    const uint8_t pixel = data[i];
+                    const uint8_t pixel = bytes[data + i];
 
                     if constexpr (Op == MCShapeOp::Alpha || Op == MCShapeOp::XlatAlpha)
                     {
-                        BlendPixel<Op>(row + column, pixel, xlat, seeThrough);
+                        BlendPixel<Op>(pixels[column], pixel, table, seeThrough);
                     }
                     else if constexpr (translate)
                     {
-                        row[column] = xlat[pixel];
+                        pixels[column] = (*table)[pixel];
                     }
                     else
                     {
-                        row[column] = pixel;
+                        pixels[column] = pixel;
                     }
                 }
 
@@ -152,11 +157,11 @@ namespace
             }
             else
             {
-                uint8_t color = *data++;
+                uint8_t color = bytes[data++];
 
                 if constexpr (translate)
                 {
-                    color = xlat[color];
+                    color = (*table)[color];
                 }
 
                 for (int32_t i = 0; i < count; ++i)
@@ -176,11 +181,11 @@ namespace
                     if constexpr (Op == MCShapeOp::Alpha || Op == MCShapeOp::XlatAlpha)
                     {
                         // OB-114: the asm blended only a run's first pixel with its colour, the rest with colour 0.
-                        BlendPixel<Op>(row + column, color, xlat, seeThrough);
+                        BlendPixel<Op>(pixels[column], color, table, seeThrough);
                     }
                     else
                     {
-                        row[column] = color;
+                        pixels[column] = color;
                     }
                 }
             }
@@ -189,23 +194,19 @@ namespace
         }
     }
 
-    template <MCShapeOp Op> void DrawRows(_window* target, const MCShapeCommand& command, const uint8_t* data)
+    template <MCShapeOp Op>
+    void DrawRows(MCWindow& target, const MCShapeCommand& command, std::span<const uint8_t> data)
     {
-        const intptr_t stride = target->x_max + 1;
-        uint8_t* row = target->buffer + command.Top * stride;
+        const intptr_t stride = target.XMax + 1;
+        const std::span<uint8_t> pixels = target.Bytes();
+        auto row = static_cast<size_t>(command.Top * stride);
         MCSeeThrough seeThrough(target);
 
-        for (int32_t rows = command.Rows; rows > 0; --rows, row += stride)
+        for (int32_t rows = command.Rows; rows > 0; --rows, row += static_cast<size_t>(stride))
         {
-            data = DrawRow<Op>(data, row, command.Left, command.Lo, command.Hi, command.Table, seeThrough);
+            data = data.subspan(DrawRow<Op>(data, pixels.subspan(row, static_cast<size_t>(stride)), command.Left,
+                                            command.Lo, command.Hi, command.Table, seeThrough));
         }
-    }
-
-    uint16_t Read16(const uint8_t* p)
-    {
-        uint16_t value;
-        std::memcpy(&value, p, 2);
-        return value;
     }
 
     /// <summary>The four fast-shape variants, each an inline-asm loop of its own in the original.</summary>
@@ -218,18 +219,19 @@ namespace
     };
 
     /// <summary>Draws one fast-shape row: skips <paramref name="leftSkip"/> pixels, then draws until <paramref name="limit"/>.</summary>
-    void DrawFastRow(const uint8_t* data, uint8_t* row, int32_t startX, int32_t clipX0, int32_t leftSkip, int32_t limit,
-                     const uint8_t* xlat, FastMode mode)
+    void DrawFastRow(std::span<const uint8_t> bytes, std::span<uint8_t> pixels, int32_t startX, int32_t clipX0,
+                     int32_t leftSkip, int32_t limit, const std::optional<MCColorTable>& table, FastMode mode)
     {
+        size_t data = 0;
         int32_t count = 0;
-        uint8_t* dst;
+        size_t dst = 0;
 
         if (leftSkip > 0)
         {
             // Step over the clipped-off pixels; the packet that crosses the edge is drawn from the pane's left edge.
             for (;;)
             {
-                const uint32_t c = *data;
+                const uint32_t c = bytes[data];
 
                 if (c >= 0x80)
                 {
@@ -242,13 +244,14 @@ namespace
                         const int32_t rem = count - leftSkip;
                         count = rem;
                         data += n - rem;
-                        dst = row + clipX0;
+                        dst = static_cast<size_t>(clipX0);
 
                         switch (mode)
                         {
                             case FastMode::Plain:
                             {
-                                std::memcpy(dst, data, static_cast<size_t>(rem));
+                                std::ranges::copy(bytes.subspan(data, static_cast<size_t>(rem)),
+                                                  pixels.begin() + static_cast<ptrdiff_t>(dst));
                                 data += rem;
                                 dst += rem;
                                 break;
@@ -259,11 +262,11 @@ namespace
                                 // to the right, and didn't skip colour 255.
                                 for (int32_t i = 0; i < rem; ++i, ++dst)
                                 {
-                                    const uint8_t color = xlat[*data++];
+                                    const uint8_t color = (*table)[bytes[data++]];
 
                                     if (color != 0xff)
                                     {
-                                        *dst = color;
+                                        pixels[dst] = color;
                                     }
                                 }
                                 break;
@@ -272,7 +275,7 @@ namespace
                             {
                                 for (int32_t i = 0; i < rem; ++i, ++dst)
                                 {
-                                    *dst = Blend(*data++, *dst);
+                                    pixels[dst] = Blend(bytes[data++], pixels[dst]);
                                 }
                                 break;
                             }
@@ -280,11 +283,11 @@ namespace
                             {
                                 for (int32_t i = 0; i < rem; ++i, ++dst)
                                 {
-                                    const uint8_t color = xlat[*data++];
+                                    const uint8_t color = (*table)[bytes[data++]];
 
                                     if (color != 0xff)
                                     {
-                                        *dst = Blend(color, *dst);
+                                        pixels[dst] = Blend(color, pixels[dst]);
                                     }
                                 }
                                 break;
@@ -304,14 +307,14 @@ namespace
                     {
                         const int32_t rem = count - leftSkip;
                         count = rem;
-                        uint8_t color = *data++;
+                        uint8_t color = bytes[data++];
 
                         if (mode == FastMode::Translate || mode == FastMode::AlphaTranslate)
                         {
-                            color = xlat[color];
+                            color = (*table)[color];
                         }
 
-                        dst = row + clipX0;
+                        dst = static_cast<size_t>(clipX0);
 
                         if (color == 0xff)
                         {
@@ -319,14 +322,14 @@ namespace
                         }
                         else if (mode == FastMode::Plain || mode == FastMode::Translate)
                         {
-                            std::memset(dst, color, static_cast<size_t>(rem));
+                            std::fill_n(pixels.begin() + static_cast<ptrdiff_t>(dst), rem, color);
                             dst += rem;
                         }
                         else
                         {
                             for (int32_t i = 0; i < rem; ++i, ++dst)
                             {
-                                *dst = Blend(color, *dst);
+                                pixels[dst] = Blend(color, pixels[dst]);
                             }
                         }
                         break;
@@ -338,12 +341,12 @@ namespace
         }
         else
         {
-            dst = row + startX;
+            dst = static_cast<size_t>(startX);
         }
 
         while (count != limit)
         {
-            const uint32_t c = *data++;
+            const uint32_t c = bytes[data++];
 
             if (c >= 0x80)
             {
@@ -363,7 +366,7 @@ namespace
                     {
                         for (int32_t i = 0; i < n; ++i)
                         {
-                            *dst++ = *data++;
+                            pixels[dst++] = bytes[data++];
                         }
                         break;
                     }
@@ -371,12 +374,12 @@ namespace
                     {
                         for (int32_t i = 0; i < n; ++i)
                         {
-                            const uint8_t color = xlat[*data++];
+                            const uint8_t color = (*table)[bytes[data++]];
                             ++dst;
 
                             if (color != 0xff)
                             {
-                                dst[-1] = color;
+                                pixels[dst - 1] = color;
                             }
                         }
                         break;
@@ -385,7 +388,7 @@ namespace
                     {
                         for (int32_t i = 0; i < n; ++i, ++dst)
                         {
-                            *dst = Blend(*data++, *dst);
+                            pixels[dst] = Blend(bytes[data++], pixels[dst]);
                         }
                         break;
                     }
@@ -393,12 +396,12 @@ namespace
                     {
                         for (int32_t i = 0; i < n; ++i)
                         {
-                            const uint8_t color = xlat[*data++];
+                            const uint8_t color = (*table)[bytes[data++]];
                             ++dst;
 
                             if (color != 0xff)
                             {
-                                dst[-1] = Blend(color, dst[-1]);
+                                pixels[dst - 1] = Blend(color, pixels[dst - 1]);
                             }
                         }
                         break;
@@ -416,11 +419,11 @@ namespace
                     count = limit;
                 }
 
-                uint8_t color = *data++;
+                uint8_t color = bytes[data++];
 
                 if (mode == FastMode::Translate || mode == FastMode::AlphaTranslate)
                 {
-                    color = xlat[color];
+                    color = (*table)[color];
                 }
 
                 if (color == 0xff)
@@ -429,34 +432,39 @@ namespace
                 }
                 else if (mode == FastMode::Plain || mode == FastMode::Translate)
                 {
-                    std::memset(dst, color, static_cast<size_t>(n));
+                    std::fill_n(pixels.begin() + static_cast<ptrdiff_t>(dst), n, color);
                     dst += n;
                 }
                 else
                 {
                     for (int32_t i = 0; i < n; ++i, ++dst)
                     {
-                        *dst = Blend(color, *dst);
+                        pixels[dst] = Blend(color, pixels[dst]);
                     }
                 }
             }
         }
     }
 
-    /// <summary>Writes <paramref name="count"/> pixels of a tile span: copied, translated, or the fill colour.</summary>
-    void WriteSpan(uint8_t* destination, const uint8_t* source, int32_t count, const uint8_t* xlat)
+    /// <summary>
+    /// Writes <paramref name="destination"/>'s pixels of a tile span from <paramref name="source"/>: copied, translated,
+    /// or the fill colour.
+    /// </summary>
+    void WriteSpan(std::span<uint8_t> destination, std::span<const uint8_t> source, const MCTileCommand& command)
     {
-        if (xlat == VFX_TILE_FILL)
+        if (command.Fill)
         {
-            std::memset(destination, 0x10, static_cast<size_t>(count));
+            std::ranges::fill(destination, uint8_t{0x10});
         }
-        else if (xlat == nullptr)
+        else if (!command.Table.has_value())
         {
-            std::memcpy(destination, source, static_cast<size_t>(count));
+            std::ranges::copy(source.first(destination.size()), destination.begin());
         }
         else
         {
-            for (int32_t i = 0; i < count; ++i)
+            const MCColorTable xlat = *command.Table;
+
+            for (size_t i = 0; i < destination.size(); ++i)
             {
                 destination[i] = xlat[source[i]];
             }
@@ -464,19 +472,20 @@ namespace
     }
 
     /// <summary>Where tile row <paramref name="row"/> starts, from the tile's start.</summary>
-    uint32_t ReadOffset(const uint8_t* tile, int32_t row)
+    uint32_t ReadOffset(std::span<const uint8_t> tile, int32_t row)
     {
-        return static_cast<uint32_t>(MCVfxRead32(tile + 4 + static_cast<intptr_t>(row) * 4));
+        return static_cast<uint32_t>(MCRead32(tile, 4 + static_cast<size_t>(row) * 4));
     }
 }
 
-void MCSoftwareRenderer::Shape(_window* target, const MCShapeCommand& command)
+void MCSoftwareRenderer::Shape(MCWindow& target, const MCShapeCommand& command)
 {
-    const uint8_t* data = MCVfxShape(const_cast<void*>(command.ShapeTable), command.ShapeNum) + 0x18;
+    std::span<const uint8_t> data =
+        command.ShapeTable.subspan(MCShapeOffset(command.ShapeTable, command.ShapeNum) + 0x18);
 
     for (int32_t i = 0; i < command.SkipRows; ++i)
     {
-        data = SkipRow(data);
+        data = data.subspan(SkipRow(data));
     }
 
     switch (command.Op)
@@ -502,35 +511,37 @@ void MCSoftwareRenderer::Shape(_window* target, const MCShapeCommand& command)
     }
 }
 
-void MCSoftwareRenderer::FastShape(_window* target, const MCFastShapeCommand& command)
+void MCSoftwareRenderer::FastShape(MCWindow& target, const MCFastShapeCommand& command)
 {
-    const intptr_t stride = target->x_max + 1;
-    const uint8_t* shape = command.Shape;
-    const FastMode mode = command.Alpha ? (command.Table != nullptr ? FastMode::AlphaTranslate : FastMode::Alpha)
-                                        : (command.Table != nullptr ? FastMode::Translate : FastMode::Plain);
-    uint8_t* row = target->buffer + command.Top * stride;
+    const intptr_t stride = target.XMax + 1;
+    const std::span<const uint8_t> shape = command.Shape;
+    const FastMode mode = command.Alpha ? (command.Table.has_value() ? FastMode::AlphaTranslate : FastMode::Alpha)
+                                        : (command.Table.has_value() ? FastMode::Translate : FastMode::Plain);
+    const std::span<uint8_t> pixels = target.Bytes();
+    auto row = static_cast<size_t>(command.Top * stride);
 
     // OB-117: the asm advanced the row-offset pointer only after reading it for the second row, so the first two rows
     // drawn both started at the first row's offset.
     for (int32_t r = command.FirstRow; r < command.EndRow; ++r)
     {
-        const uint32_t offset = Read16(shape + 0xc + static_cast<intptr_t>(r) * 2);
-        DrawFastRow(shape + offset, row, command.StartX, command.ClipX0, command.LeftSkip, command.Limit, command.Table,
-                    mode);
-        row += stride;
+        const uint32_t offset = MCRead16(shape, 0xc + static_cast<size_t>(r) * 2);
+        DrawFastRow(shape.subspan(offset), pixels.subspan(row, static_cast<size_t>(stride)), command.StartX,
+                    command.ClipX0, command.LeftSkip, command.Limit, command.Table, mode);
+        row += static_cast<size_t>(stride);
     }
 }
 
-void MCSoftwareRenderer::Tile(_window* target, const MCTileCommand& command)
+void MCSoftwareRenderer::Tile(MCWindow& target, const MCTileCommand& command)
 {
-    const intptr_t stride = target->x_max + 1;
-    const uint8_t* tile = command.Tile;
-    uint8_t* row = target->buffer + command.Top * stride;
+    const intptr_t stride = target.XMax + 1;
+    const std::span<const uint8_t> tile = command.Tile;
+    const std::span<uint8_t> pixels = target.Bytes();
+    auto row = static_cast<size_t>(command.Top * stride);
     uint32_t offset = ReadOffset(tile, command.FirstRow);
 
     if (command.Unclipped)
     {
-        row += command.Left;
+        row += static_cast<size_t>(command.Left);
 
         for (int32_t i = command.FirstRow; i < command.EndRow; ++i)
         {
@@ -541,11 +552,12 @@ void MCSoftwareRenderer::Tile(_window* target, const MCTileCommand& command)
             // times in the asm; tiles have none.
             if (length > 1)
             {
-                WriteSpan(row + tile[offset], tile + offset + 1, length - 1, command.Table);
+                WriteSpan(pixels.subspan(row + tile[offset], static_cast<size_t>(length - 1)), tile.subspan(offset + 1),
+                          command);
             }
 
             offset = next;
-            row += stride;
+            row += static_cast<size_t>(stride);
         }
 
         return;
@@ -554,8 +566,8 @@ void MCSoftwareRenderer::Tile(_window* target, const MCTileCommand& command)
     for (int32_t i = command.FirstRow; i < command.EndRow; ++i)
     {
         const uint32_t next = ReadOffset(tile, i + 1);
-        const uint8_t* source = tile + offset;
-        const int32_t first = *source++ + command.Left;
+        size_t source = offset;
+        const int32_t first = tile[source++] + command.Left;
         int32_t count = static_cast<int32_t>(next - offset) - 1;
         const int32_t end = first + count;
         int32_t cut = 0;
@@ -563,7 +575,7 @@ void MCSoftwareRenderer::Tile(_window* target, const MCTileCommand& command)
         if (first < command.Lo)
         {
             cut = command.Lo - first;
-            source += cut;
+            source += static_cast<size_t>(cut);
         }
 
         const int32_t overhang = end > command.Hi ? end - command.Hi - 1 : 0;
@@ -571,10 +583,11 @@ void MCSoftwareRenderer::Tile(_window* target, const MCTileCommand& command)
 
         if (count > 0)
         {
-            WriteSpan(row + first + cut, source, count, command.Table);
+            WriteSpan(pixels.subspan(row + static_cast<size_t>(first + cut), static_cast<size_t>(count)),
+                      tile.subspan(source), command);
         }
 
         offset = next;
-        row += stride;
+        row += static_cast<size_t>(stride);
     }
 }
