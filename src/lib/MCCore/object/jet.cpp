@@ -255,7 +255,7 @@ auto Jet::render() -> void
     if (smoke != nullptr)
     {
         // Faithful: the smoke's depth bias takes the flame's draw rotation.
-        smoke->unknownB0 = drawRotation;
+        smoke->depthBias = drawRotation;
         smoke->render();
     }
 

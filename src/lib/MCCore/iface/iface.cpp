@@ -2069,7 +2069,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
 
                     if (button != nullptr && button->mover != nullptr && isMoverClass(button->mover))
                     {
-                        static_cast<Mover*>(button->mover)->unknown89C = 1;
+                        static_cast<Mover*>(button->mover)->drawOrderLines = 1;
                     }
                 }
             }
@@ -2426,8 +2426,8 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     BaseObject* selected = objectList->findObjectFromPart(selectedMechs[0]);
 
                     if (selected == nullptr || selected->objectClass != BATTLEMECH ||
-                        static_cast<BattleMech*>(selected)->unknown8D8 == 0 ||
-                        static_cast<BattleMech*>(selected)->unknown8DC < 1)
+                        static_cast<BattleMech*>(selected)->secondStepPrinted == 0 ||
+                        static_cast<BattleMech*>(selected)->firstStepPrinted < 1)
                     {
                         order.destroy();
                         return;
@@ -2494,7 +2494,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
 
                 if (button != nullptr && button->mover != nullptr && isMoverClass(button->mover))
                 {
-                    static_cast<Mover*>(button->mover)->unknown89C = 0;
+                    static_cast<Mover*>(button->mover)->drawOrderLines = 0;
                 }
             }
         }
@@ -4164,7 +4164,7 @@ auto InterfaceObject::SelectMech(int32_t partId) -> void
         }
 
         select.init(0x1c, nullptr);
-        select.unknown54 = index;
+        select.selectionIndex = index;
 
         if (object != nullptr)
         {
@@ -4277,7 +4277,7 @@ auto InterfaceObject::SelectEnemy(int32_t partId) -> void
     {
         BaseObject* object = objectList->findObjectFromPart(partId);
         select.init(0x1c, nullptr);
-        select.unknown54 = 0;
+        select.selectionIndex = 0;
 
         if (object != nullptr)
         {

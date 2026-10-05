@@ -50,8 +50,6 @@ public:
     int32_t heapSize = 0; // +0x00
     /// <summary>Two lists per block: TBlk (trees and light walls) then RBlk (everything else).</summary>
     std::unique_ptr<ObjectQueueNode*[]> objectLists; // +0x08
-    /// <summary>Zeroed by the constructor; not used in objblck.cpp.</summary>
-    int32_t unknown0C = 0; // +0x0c
     /// <summary>The current block packet (22000 bytes).</summary>
     std::unique_ptr<uint8_t[]> objectData; // +0x10
     /// <summary>The map's <c>.obj</c> packet file.</summary>

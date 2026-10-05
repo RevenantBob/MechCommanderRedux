@@ -62,10 +62,6 @@ char MechStateByGesture[28] = {0, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 5, 2, 2, 8, 7, 8
 int32_t NumLocationCriticalSpaces[NUM_MECH_BODY_LOCATIONS] = {6, 12, 12, 12, 12, 12, 6, 6};
 int32_t MechHitSectionTable[5] = {1, 1, 0, 2, 1};
 int32_t adjClippedCell[8][2] = {{0, 0}, {0, 2}, {2, 2}, {2, 4}, {4, 4}, {4, 6}, {6, 6}, {6, 0}};
-// MCX.EXE @ 0x00790c50, after adjClippedCell; its users aren't known yet.
-int32_t MechUnknown790C50 = 0;
-// MCX.EXE @ 0x00790c54, between MechHitSectionTable and RankVersusChassisCombatModifier; its users aren't known yet.
-float MechUnknownRanges[4] = {15.0f, 40.0f, 75.0f, 200.0f};
 float RankVersusChassisCombatModifier[4][5] = {{0.0f, 0.0f, -5.0f, -15.0f, -25.0f},
                                                {0.0f, 5.0f, 0.0f, -5.0f, -15.0f},
                                                {0.0f, 10.0f, 5.0f, 0.0f, -5.0f},
@@ -331,7 +327,6 @@ auto BattleMechType::init() -> void
     tonnageClass = 0.0f;
     endoSteel = 0;
     internalStructureTonnage = 0.0f;
-    unknown50 = 0;
     hotSpotData = nullptr;
     gestureHotSpots = nullptr;
     jumpData = nullptr;
@@ -829,9 +824,9 @@ auto BattleMechType::handleDestruction(GameObject* collidee, GameObject* collide
         mech->sensorSystem->disable();
     }
 
-    mech->unknown794 = 0.8f;
+    mech->deathTimer = 0.8f;
 
-    if (mech->unknown79C != 0)
+    if (mech->withdrawing != 0)
     {
         mech->getPilot()->handleAlarm(8, 0);
         theInterface->RemoveMech(mech->partId);
@@ -840,8 +835,8 @@ auto BattleMechType::handleDestruction(GameObject* collidee, GameObject* collide
 
     mech->getPilot()->handleAlarm(7, collider == nullptr ? 0 : collider->idNumber);
     mech->status = 2;
-    mech->unknown8EC = 0;
-    mech->unknown798 = 0;
+    mech->lyingDead = 0;
+    mech->deathExplosionDone = 0;
 
     for (int32_t location = 0; location < mech->numBodyLocations; location++)
     {
@@ -1218,23 +1213,23 @@ auto BattleMech::init() -> void
     jumpTime = -100.0f;
     inJump = 0;
     jumpGoal = vector_3d(0.0f, 0.0f, 0.0f);
-    unknown8C4 = -1.0f;
-    unknown8C8 = 0;
-    unknown8CC = 0;
+    centerTorsoInjuredTime = -1.0f;
+    hitFromBehindThisFrame = 0;
+    hitFromFrontThisFrame = 0;
     torsoRotation = 0.0f;
     leftArmRotation = 0.0f;
     rightArmRotation = 0.0f;
-    pendingControl8D0 = 0;
-    pendingControl8D4 = 0;
-    unknown8D8 = 0;
-    unknown8DC = 0;
-    unknown8EC = 0;
-    unknown8F0 = 0;
+    leftArmBlownThisFrame = 0;
+    rightArmBlownThisFrame = 0;
+    secondStepPrinted = 0;
+    firstStepPrinted = 0;
+    lyingDead = 0;
+    wreckDone = 0;
     statusWindow = nullptr;
     blipFrame = 0;
     overlayWeightClass = 1;
     captureable = 0;
-    unknown948 = 0;
+    steppedOnMine = 0;
 }
 
 auto BattleMech::init(ObjectType* objType) -> int32_t
@@ -1315,7 +1310,7 @@ auto BattleMech::init(ObjectType* objType) -> int32_t
 
     jumpFX[1] = nullptr;
     jumpFX[0] = nullptr;
-    unknown7C8 = 1000.0f;
+    distanceSinceMarkSeen = 1000.0f;
     return 0;
 }
 
@@ -2165,14 +2160,14 @@ auto BattleMech::mineCheck() -> void
     ScenarioMap* map = GameMap;
 
     // The mine state bits of a tile's overlay: Inner Sphere 11..12, Clan 13..14; the spread counts 25..26, 27..28.
-    if (unknown948 != 0)
+    if (steppedOnMine != 0)
     {
         const MapTile& tile = map->map[objPosition->tileR * map->width + objPosition->tileC];
         const uint32_t state = alignment == -1 ? tile.overlay >> 11 : tile.overlay >> 13;
 
         if ((state & 3) == 0)
         {
-            unknown948 = 0;
+            steppedOnMine = 0;
             const int32_t tileR = objPosition->tileR;
             const int32_t tileC = objPosition->tileC;
             MapTile& here = map->map[map->width * tileR + tileC];
@@ -2294,7 +2289,7 @@ auto BattleMech::mineCheck() -> void
         getPilot()->radioMessage(0x16, 1);
     }
 
-    unknown948 = 1;
+    steppedOnMine = 1;
 }
 
 auto BattleMech::updateJump() -> int
@@ -2354,7 +2349,6 @@ auto BattleMech::updateJump() -> int
         turn = turn < 0.0f ? -mechPivotAngle : mechPivotAngle;
     }
 
-    unknown8F8 = turn;
     const float maxRate = static_cast<float>(
         static_cast<MechDynamicsType*>(static_cast<BattleMechType*>(objType)->dynamicsType)->maxMechYawRate);
     double rate = -(static_cast<double>(turn) / frameLength);
@@ -2468,9 +2462,9 @@ auto BattleMech::pivotTo() -> int
 
                 pilot->moveOrders.moveState = MOVESTATE_FORWARD;
 
-                if (pilot->moveOrders.unknown1030 != 0)
+                if (pilot->moveOrders.moveStateGoalChanged != 0)
                 {
-                    pilot->moveOrders.unknown1030 = 0;
+                    pilot->moveOrders.moveStateGoalChanged = 0;
                 }
             }
         }
@@ -2513,9 +2507,9 @@ auto BattleMech::pivotTo() -> int
 
                 MechWarrior* orders = pilot;
 
-                if (orders->moveOrders.unknown1030 != 0)
+                if (orders->moveOrders.moveStateGoalChanged != 0)
                 {
-                    orders->moveOrders.unknown1030 = 0;
+                    orders->moveOrders.moveStateGoalChanged = 0;
                 }
 
                 if (moveStateGoal == MOVESTATE_REVERSE)
@@ -2635,15 +2629,15 @@ auto BattleMech::updateMoveStateGoal() -> void
     if (orders->moveOrders.moveStateGoal == MOVESTATE_FORWARD)
     {
         // The target is behind: walk backward.
-        if (torsoArc < delta && 180.0 - delta <= torsoArc && orders->moveOrders.unknown1030 == 0)
+        if (torsoArc < delta && 180.0 - delta <= torsoArc && orders->moveOrders.moveStateGoalChanged == 0)
         {
-            orders->moveOrders.unknown1030 = 1;
+            orders->moveOrders.moveStateGoalChanged = 1;
             orders->moveOrders.moveStateGoal = MOVESTATE_REVERSE;
         }
     }
-    else if (torsoArc < 180.0 - delta && delta <= torsoArc && orders->moveOrders.unknown1030 == 0)
+    else if (torsoArc < 180.0 - delta && delta <= torsoArc && orders->moveOrders.moveStateGoalChanged == 0)
     {
-        orders->moveOrders.unknown1030 = 1;
+        orders->moveOrders.moveStateGoalChanged = 1;
         orders->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
     }
 }
@@ -3107,11 +3101,11 @@ auto BattleMech::updateMovement() -> void
     {
         int32_t gesture = 8 - (RandomNumber(2) != 0 ? 1 : 0);
 
-        if (unknown8C8 != 0)
+        if (hitFromBehindThisFrame != 0)
         {
             gesture = 7;
         }
-        else if (unknown8CC != 0)
+        else if (hitFromFrontThisFrame != 0)
         {
             gesture = 8;
         }
@@ -3126,8 +3120,8 @@ auto BattleMech::updateMovement() -> void
             disableThisFrame = 0;
             shutDownThisFrame = 0;
             startUpThisFrame = 0;
-            unknown8CC = 0;
-            unknown8C8 = 0;
+            hitFromFrontThisFrame = 0;
+            hitFromBehindThisFrame = 0;
         }
 
         controlData->throttle = static_cast<int8_t>(maxThrottle);
@@ -3179,7 +3173,7 @@ auto BattleMech::updateMovement() -> void
         return;
     }
 
-    if (isCaptured() != 0 || unknown170 > -1.0f)
+    if (isCaptured() != 0 || engineBlowTime > -1.0f)
     {
         return;
     }
@@ -3902,11 +3896,11 @@ auto BattleMech::netUpdateMovement() -> void
     {
         int32_t gesture = 8 - (RandomNumber(2) != 0 ? 1 : 0);
 
-        if (unknown8C8 != 0)
+        if (hitFromBehindThisFrame != 0)
         {
             gesture = 7;
         }
-        else if (unknown8CC != 0)
+        else if (hitFromFrontThisFrame != 0)
         {
             gesture = 8;
         }
@@ -3916,8 +3910,8 @@ auto BattleMech::netUpdateMovement() -> void
             disableThisFrame = 0;
             shutDownThisFrame = 0;
             startUpThisFrame = 0;
-            unknown8CC = 0;
-            unknown8C8 = 0;
+            hitFromFrontThisFrame = 0;
+            hitFromBehindThisFrame = 0;
         }
 
         controlData->throttle = static_cast<int8_t>(maxThrottle);
@@ -3962,7 +3956,7 @@ auto BattleMech::netUpdateMovement() -> void
         return;
     }
 
-    if (status == 4 || status == 5 || status == 1 || isCaptured() != 0 || unknown170 > -1.0f)
+    if (status == 4 || status == 5 || status == 1 || isCaptured() != 0 || engineBlowTime > -1.0f)
     {
         return;
     }
@@ -4132,7 +4126,7 @@ auto BattleMech::update() -> int32_t
         collisionsOn = 0;
     }
 
-    if (unknown79C != 0 && pilot->status == 2)
+    if (withdrawing != 0 && pilot->status == 2)
     {
         collisionsOn = 0;
         return 1;
@@ -4183,31 +4177,32 @@ auto BattleMech::update() -> int32_t
         }
 
         // Once the death animation is done, it blows up and leaves a crater.
-        if (unknown8EC != 0 || (unknown8EC = actor->lyingStill) != 0)
+        if (lyingDead != 0 || (lyingDead = actor->lyingStill) != 0)
         {
-            unknown794 -= frameLength;
+            deathTimer -= frameLength;
 
-            if (unknown794 < 0.4 && unknown798 == 0)
+            if (deathTimer < 0.4 && deathExplosionDone == 0)
             {
                 auto* mechType = static_cast<BattleMechType*>(objType);
                 mechType->createExplosion(position, mechType->explDmg, mechType->explRad);
-                unknown798 = 1;
+                deathExplosionDone = 1;
                 return 1;
             }
 
-            if (unknown794 < 0.0 && unknown8F0 == 0)
+            if (deathTimer < 0.0 && wreckDone == 0)
             {
                 actor->wrecked = 1;
                 craterManager->addCrater(6, position, 0);
                 theInterface->RemoveMech(partId);
-                unknown8F0 = 1;
+                wreckDone = 1;
                 return 1;
             }
         }
     }
     else
     {
-        if (getAwake() != 0 && isDisabled() == 0 && scenario->godMode == 0 && Terrain::metersPerVertex <= unknown7C8)
+        if (getAwake() != 0 && isDisabled() == 0 && scenario->godMode == 0 &&
+            Terrain::metersPerVertex <= distanceSinceMarkSeen)
         {
             // Every vertex travelled, the mech marks what it sees.
             if (alignment == 1)
@@ -4219,7 +4214,7 @@ auto BattleMech::update() -> int32_t
                 land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 2);
             }
 
-            unknown7C8 = 0.0f;
+            distanceSinceMarkSeen = 0.0f;
         }
 
         if (deselectTime != 0.0f && deselectTime < scenarioTime)
@@ -4307,7 +4302,7 @@ auto BattleMech::update() -> int32_t
         velocity.z = 0.0f;
         move.z = velocityZ * frameLength * worldUnitsPerMeter;
 
-        if (unknown20C != 0)
+        if (newMoveChunk != 0)
         {
             // A new move chunk: warp to its first step when too far off.
             if (statusChunk.jumpOrder == 0)
@@ -4335,7 +4330,7 @@ auto BattleMech::update() -> int32_t
                 }
             }
 
-            unknown20C = 0;
+            newMoveChunk = 0;
         }
 
         vector_3d newPosition;
@@ -4343,10 +4338,10 @@ auto BattleMech::update() -> int32_t
         newPosition.y = move.y + position.y;
         newPosition.z = move.z + position.z;
         setPosition(newPosition);
-        unknown7C8 =
+        distanceSinceMarkSeen =
             static_cast<float>(std::sqrt((static_cast<double>(move.y) * move.y + static_cast<double>(move.z) * move.z) +
                                          static_cast<double>(move.x) * move.x) +
-                               unknown7C8);
+                               distanceSinceMarkSeen);
 
         if (isDisabled() == 0)
         {
@@ -4361,7 +4356,7 @@ auto BattleMech::update() -> int32_t
         auto* controlData = static_cast<MechControlData*>(control->controlData);
         auto* mechType = static_cast<BattleMechType*>(objType);
 
-        if (controlData->unknown18 != 0)
+        if (controlData->blowRightArm != 0)
         {
             if (0.0f <= facing + torsoRotation)
             {
@@ -4375,7 +4370,7 @@ auto BattleMech::update() -> int32_t
             actor->rightArmGone = 1;
         }
 
-        if (controlData->unknown14 != 0)
+        if (controlData->blowLeftArm != 0)
         {
             if (0.0f <= facing + torsoRotation)
             {
@@ -4391,7 +4386,7 @@ auto BattleMech::update() -> int32_t
 
         const int visibleNow = onScreen();
 
-        if (unknown79C != 0 && visibleNow == 0 && pilot->status != 2)
+        if (withdrawing != 0 && visibleNow == 0 && pilot->status != 2)
         {
             objType->handleDestruction(this, nullptr);
         }
@@ -4447,12 +4442,12 @@ auto BattleMech::update() -> int32_t
                 {
                     if (walking)
                     {
-                        unknown8D8 = 0;
+                        secondStepPrinted = 0;
                     }
                 }
-                else if (unknown8D8 == 0)
+                else if (secondStepPrinted == 0)
                 {
-                    unknown8D8 = 1;
+                    secondStepPrinted = 1;
                     const float stepFacing = frameFacing(frame);
                     const auto snapped = static_cast<int32_t>(std::floor(static_cast<double>(stepFacing * 0.025f)));
                     const float angle = static_cast<float>(snapped) * 40.0f;
@@ -4463,12 +4458,12 @@ auto BattleMech::update() -> int32_t
                 {
                     if (walking)
                     {
-                        unknown8DC = 0;
+                        firstStepPrinted = 0;
                     }
                 }
-                else if (unknown8DC == 0)
+                else if (firstStepPrinted == 0)
                 {
-                    unknown8DC = 1;
+                    firstStepPrinted = 1;
                     const float stepFacing = frameFacing(frame);
                     const int32_t direction = footprintDirection(stepFacing);
                     const auto snapped = static_cast<int32_t>(std::floor(static_cast<double>(stepFacing * 0.025f)));
@@ -4504,7 +4499,7 @@ auto BattleMech::update() -> int32_t
             smoke[i]->setOwnerPosition(getPositionFromHS(static_cast<uint32_t>(smokeHotSpot[i])));
             smoke[i]->ownerHotSpot = static_cast<uint32_t>(smokeHotSpot[i]);
             smoke[i]->setOwnerVelocity(velocity);
-            smoke[i]->unknownB0 = -50;
+            smoke[i]->depthBias = -50;
             smoke[i]->update();
         }
         else
@@ -4548,7 +4543,7 @@ auto BattleMech::render() -> void
         onScreen();
     }
 
-    if (unknown79C != 0 && pilot->status == 2)
+    if (withdrawing != 0 && pilot->status == 2)
     {
         return;
     }
@@ -4696,7 +4691,7 @@ auto BattleMech::render() -> void
         _QueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
         const int32_t numOrders = pilot->getTacOrderQueue(queue);
         vector_2d fromScreen = eyeProject(position);
-        const int32_t drawLines = unknown89C;
+        const int32_t drawLines = drawOrderLines;
 
         for (int32_t i = 0; i < numOrders; i++)
         {
@@ -4932,7 +4927,7 @@ auto BattleMech::handleEjection() -> int
     }
 
     getPilot()->eject();
-    unknown790 = 1;
+    ejectOrderGiven = 1;
     destroyBodyLocation(MECH_BODY_LOCATION_HEAD);
     // The ejection seat's beam, from the cockpit hot spot up and away.
     GameObject* beam = createObject(0x1e4);
@@ -5043,7 +5038,7 @@ auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
             case 4:
             {
                 smokeSpot = 1;
-                unknown170 = static_cast<float>(scenarioTime + 5.0);
+                engineBlowTime = static_cast<float>(scenarioTime + 5.0);
                 disable(1);
                 break;
             }
@@ -5192,7 +5187,7 @@ auto BattleMech::destroyBodyLocation(int32_t location) -> void
         case MECH_BODY_LOCATION_CTORSO:
         {
             // The center torso gone destroys the mech, unless it was already ruled dead.
-            if (unknown8C4 < scenarioTime && (unknown170 <= -1.0f || unknown170 < scenarioTime))
+            if (centerTorsoInjuredTime < scenarioTime && (engineBlowTime <= -1.0f || engineBlowTime < scenarioTime))
             {
                 disable(0);
                 return;
@@ -5214,12 +5209,12 @@ auto BattleMech::destroyBodyLocation(int32_t location) -> void
         }
         case MECH_BODY_LOCATION_LARM:
         {
-            pendingControl8D0 = 1;
+            leftArmBlownThisFrame = 1;
             return;
         }
         case MECH_BODY_LOCATION_RARM:
         {
-            pendingControl8D4 = 1;
+            rightArmBlownThisFrame = 1;
             return;
         }
         default:
@@ -5466,7 +5461,7 @@ auto BattleMech::buildStatusChunk() -> int32_t
         }
     }
 
-    statusChunk.ejectOrderGiven = unknown790;
+    statusChunk.ejectOrderGiven = ejectOrderGiven;
     statusChunk.pack(this);
 
     // Checks the chunk unpacks to what was packed.
@@ -5544,9 +5539,9 @@ auto BattleMech::handleStatusChunk(int32_t updateAge, uint32_t chunk) -> int32_t
         pilot->setLastTarget(target, 0, 0);
     }
 
-    if (unknown790 == 0 && statusChunk.ejectOrderGiven != 0)
+    if (ejectOrderGiven == 0 && statusChunk.ejectOrderGiven != 0)
     {
-        unknown790 = 1;
+        ejectOrderGiven = 1;
         handleEjection();
     }
 
@@ -5620,7 +5615,7 @@ auto BattleMech::handleMoveChunk(uint32_t chunk) -> int32_t
             path->curStep = step;
         }
 
-        unknown20C = 1;
+        newMoveChunk = 1;
     }
 
     return 0;
@@ -5630,9 +5625,9 @@ auto BattleMech::injureBodyLocation(int32_t bodyLocation, float damage) -> int
 {
     BodyLocation& location = bodyAt(bodyLocation);
 
-    if (bodyLocation == MECH_BODY_LOCATION_CTORSO && unknown8C4 < 0.0)
+    if (bodyLocation == MECH_BODY_LOCATION_CTORSO && centerTorsoInjuredTime < 0.0)
     {
-        unknown8C4 = scenarioTime;
+        centerTorsoInjuredTime = scenarioTime;
     }
 
     if (damage <= location.curInternalStructure)
@@ -5758,11 +5753,11 @@ auto BattleMech::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChun
 
     if (!(angle < -90.0 || 90.0 < angle))
     {
-        unknown8CC = 1;
+        hitFromFrontThisFrame = 1;
     }
     else if (angle <= -91.0 || 91.0 <= angle)
     {
-        unknown8C8 = 1;
+        hitFromBehindThisFrame = 1;
     }
 
     const int32_t bodyLocation = MechArmorToBodyLocation[hitLocation];

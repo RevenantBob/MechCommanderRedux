@@ -54,10 +54,6 @@ public:
     /// <remarks>MCX.EXE @ 0x00668d80 (inline in <c>object\gvehdyn.h</c>)</remarks>
     float getVelocity() override { return velocity; }
 
-    /// <summary>Zeroed by GroundVehicleDynamicsType::createInstance; not otherwise used.</summary>
-    int32_t unknown0C = 0; // +0x0c
-    /// <summary>Zeroed by GroundVehicleDynamicsType::createInstance; not otherwise used.</summary>
-    int32_t unknown10 = 0; // +0x10
     /// <summary>Acceleration (the type's maxAccel); its sign flips toward the target speed.</summary>
     float accel = 0.0f; // +0x14
     /// <summary>Current speed.</summary>

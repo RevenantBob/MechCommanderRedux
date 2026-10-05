@@ -63,11 +63,6 @@ public:
     int32_t numSmokeTypes = 0; // +0x0
     /// <summary>FIT "MaxSmokesPerType".</summary>
     int32_t maxSmokesPerType = 0; // +0x4
-    /// <summary>Never read or written in MCX.EXE.</summary>
-    int32_t unknown08 = 0; // +0x8
-    int32_t unknown0C = 0; // +0xc
-    int32_t unknown10 = 0; // +0x10
-    int32_t unknown14 = 0; // +0x14
     /// <summary>The spheres handed out and the smoke shapes (the original's sphere heap).</summary>
     MCBlockStore sphereBlocks; // +0x1c
     /// <summary>Spheres not handed out yet.</summary>

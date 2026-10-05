@@ -390,25 +390,15 @@ auto Bullet::update() -> int32_t
         effect->setPosition(*targetPosition);
     }
 
-    if (unknown2C == 0)
+    if (objectList->head != nullptr)
     {
-        if (objectList->head != nullptr)
-        {
-            objectList->head->addNode(effect);
-        }
-    }
-    else
-    {
-        delete effect;
+        objectList->head->addNode(effect);
     }
 
     // A miss leaves a crater and sets off a live mine where it lands.
     if (target == nullptr && targetPosition != nullptr)
     {
-        if (unknown2C == 0)
-        {
-            craterManager->addCrater(6, *targetPosition, 1);
-        }
+        craterManager->addCrater(6, *targetPosition, 1);
 
         int32_t tileR = 0;
         int32_t tileC = 0;
@@ -437,11 +427,6 @@ auto Bullet::update() -> int32_t
 
 auto Bullet::render() -> void
 {
-    if (unknown2C != 0)
-    {
-        return;
-    }
-
     const int32_t firstFrame = justCreated;
 
     if (firstFrame == 0 && appearance != nullptr)

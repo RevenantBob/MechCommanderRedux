@@ -35,9 +35,8 @@ extern SymTableNodePtr CurModuleIdPtr;
 extern SymTableNodePtr CurRoutineIdPtr;
 /// <summary>Nonzero while executing inside an orders block.</summary>
 extern int InOrdersBlock;
-/// <summary>Reset by ABLi_init / ABLi_preProcess; nothing else uses them.</summary>
+/// <summary>Reset by ABLi_init / ABLi_preProcess; nothing else uses it.</summary>
 extern int eofFlag;
-extern int32_t dummyCount;
 /// <summary>Token lists (zero-terminated) for synchronize.</summary>
 extern TokenCodeType followHeaderList[];
 extern TokenCodeType followModuleIdList[];

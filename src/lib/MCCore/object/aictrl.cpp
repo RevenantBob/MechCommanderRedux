@@ -26,16 +26,16 @@ auto MechAIControl::update() -> int32_t
 
     if (mech->getAwake())
     {
-        if (mech->pendingControl8D0 != 0)
+        if (mech->leftArmBlownThisFrame != 0)
         {
-            mech->pendingControl8D0 = 0;
-            data->unknown14 = 1;
+            mech->leftArmBlownThisFrame = 0;
+            data->blowLeftArm = 1;
         }
 
-        if (mech->pendingControl8D4 != 0)
+        if (mech->rightArmBlownThisFrame != 0)
         {
-            mech->pendingControl8D4 = 0;
-            data->unknown18 = 1;
+            mech->rightArmBlownThisFrame = 0;
+            data->blowRightArm = 1;
         }
 
         mech->updateDamageTakenRate();
@@ -76,11 +76,6 @@ auto GroundVehicleAIControl::update() -> int32_t
 
     if (vehicle->getAwake())
     {
-        if (vehicle->unknown8B0 != 0)
-        {
-            vehicle->unknown8B0 = 0;
-        }
-
         vehicle->updateDamageTakenRate();
 
         if (!vehicle->isDisabled() && pilot->wounds < 6.0f)

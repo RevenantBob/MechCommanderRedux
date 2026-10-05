@@ -12,7 +12,6 @@ auto GroundVehicleControlData::destroy() -> void
 
 auto GroundVehicleControlData::reset() -> void
 {
-    unknown0C = -1;
     buttonState &= 0xfffffff8;
     turretRotate = 0;
     rotate = 0;

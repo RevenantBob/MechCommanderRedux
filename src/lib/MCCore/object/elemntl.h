@@ -67,16 +67,10 @@ public:
     uint8_t alignment = 0; // +0x38
     /// <summary>"MaxHealth".</summary>
     uint8_t maxHealth = 0; // +0x39
-    /// <summary>Zeroed by init; never read.</summary>
-    int32_t unknown3C = 0; // +0x3c
-    /// <summary>Not accessed.</summary>
-    int32_t unknown40 = 0; // +0x40
     /// <summary>The dynamics type (an ElementalDynamicsType).</summary>
     DynamicsType* dynamicsType = nullptr; // +0x44
     /// <summary>"CanJump" (1 when missing): elementals jump; marines don't.</summary>
     int32_t canJump = 1; // +0x48
-    /// <summary>Zeroed by init; never read.</summary>
-    int32_t unknown4C = 0; // +0x4c
 };
 
 /// <summary>
@@ -139,7 +133,7 @@ public:
     /// <summary>A marine is an elemental that can't jump.</summary>
     /// <remarks>MCX.EXE @ 0x0065bc30 (inline in <c>object\elemntl.h</c>)</remarks>
     int isMarine() override { return canJump() == 0; }
-    /// <summary>Mover's, plus jump range, unknown8BC, max and current health.</summary>
+    /// <summary>Mover's, plus jump range, a zero word, max and current health.</summary>
     /// <remarks>MCX.EXE @ 0x0065f720</remarks>
     int32_t getVitalInfo(void* vitalInfo) override;
     /// <summary>Not while jumping.</summary>
@@ -221,17 +215,10 @@ public:
     int32_t inJump = 0; // +0x8a8
     /// <summary>Where the jump lands.</summary>
     vector_3d jumpGoal; // +0x8ac
-    /// <summary>Zeroed by init and when the elemental dies (update, handleWeaponHit, handleDestruction); read by
-    /// render and update.</summary>
-    int32_t unknown8B8 = 0; // +0x8b8
-    /// <summary>Only read (getVitalInfo).</summary>
-    int32_t unknown8BC = 0; // +0x8bc
     /// <summary>The type's "MaxHealth" (11 by init).</summary>
     int32_t maxHealth = 11; // +0x8c0
     /// <summary>Profile "CurHealth" (11 by init); the damage comes off it.</summary>
     int32_t curHealth = 11; // +0x8c4
-    /// <summary>Zeroed by init; never read.</summary>
-    int32_t unknown8C8 = 0; // +0x8c8
     /// <summary>The type's "CanJump": an elemental rather than a marine. A marine is taken off the map when it
     /// dies.</summary>
     int32_t elementalCanJump = 1; // +0x8cc

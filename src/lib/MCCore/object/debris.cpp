@@ -113,7 +113,6 @@ Debris::Debris()
     velocity.x = 0.0f;
     appearance = nullptr;
     decelRate = 0.0f;
-    unknown90 = 0;
     velocity.z = 0.0f;
     velocity.y = 0.0f;
     stopped = 0;

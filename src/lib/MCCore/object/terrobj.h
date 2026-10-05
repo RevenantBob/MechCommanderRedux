@@ -143,12 +143,6 @@ public:
     int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block.</summary>
     int32_t blockNumber = 0; // +0x98
-    /// <summary>Unknown: only set to 0 by the constructor.</summary>
-    int32_t unknown9C = 0; // +0x9c
-    /// <summary>Unknown: only set to 500000 by the constructor.</summary>
-    int32_t unknownA0 = 0; // +0xa0
-    /// <summary>Unknown: never accessed by these classes.</summary>
-    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The map cell column of its vertex.</summary>
     int32_t cellColumn = 0; // +0xb4
     /// <summary>The map cell row of its vertex.</summary>

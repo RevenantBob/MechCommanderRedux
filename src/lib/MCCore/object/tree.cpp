@@ -236,8 +236,6 @@ Tree::Tree()
     vertexNumber = 0;
     blockNumber = 0;
     fireStarted = 0;
-    unknown9C = 0;
-    unknownA0 = 500000;
     burnt = 0;
     fallen = 0;
     falling = 0;
@@ -408,12 +406,6 @@ auto Tree::handleEvent(ObjectEvent* event) -> int32_t
                 break;
             case 0x1d:
                 selected = 0;
-                break;
-            case 0x1e:
-                unknown2C = 1;
-                break;
-            case 0x1f:
-                unknown2C = 0;
                 break;
             default:
                 break;

@@ -98,7 +98,7 @@ namespace
                 mech->getObjectType()->handleDestruction(mech, nullptr);
                 break;
             case 'X':
-                data->unknown18 = 1;
+                data->blowRightArm = 1;
                 break;
             case 'J':
             {
@@ -124,7 +124,7 @@ namespace
                 actor->setCombatMode(0);
                 break;
             case 'C':
-                data->unknown14 = 1;
+                data->blowLeftArm = 1;
                 break;
             default:
                 break;

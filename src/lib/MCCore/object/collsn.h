@@ -197,16 +197,8 @@ public:
     CollisionGrid* collisionGrid = nullptr; // +0x00
     /// <summary>The collision records (maxCollisions).</summary>
     std::unique_ptr<CollisionRecord[]> collisionList; // +0x04
-    /// <summary>Cleared by init.</summary>
-    int32_t unknown08 = 0; // +0x08
     /// <summary>The first pending record.</summary>
     CollisionRecord* firstPending = nullptr; // +0x0c
-    /// <summary>Cleared by checkObjects.</summary>
-    int32_t unknown10 = 0; // +0x10
-    /// <summary>Cleared by init.</summary>
-    int32_t unknown14 = 0; // +0x14
-    /// <summary>Not written by collsn.cpp.</summary>
-    int32_t unknown18 = 0; // +0x18
     /// <summary>FIT "MaxPending".</summary>
     uint32_t maxPending = 0; // +0x1c
 

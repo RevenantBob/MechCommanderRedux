@@ -548,7 +548,6 @@ TrainCarType::TrainCarType()
     deceleration = 0.0f;
     tonnageClass = -1.0f;
     nameId = 0;
-    unknown48 = -1;
 }
 
 auto TrainCarType::createInstance() -> BaseObject*
@@ -731,7 +730,6 @@ auto TrainCar::init() -> void
     wrecked = 0;
     onMap = 1;
     damageTaken = 0.0f;
-    soundHandle = 0xffffffff;
     justCreated = 1;
 }
 
@@ -1077,34 +1075,13 @@ auto TrainCar::render() -> void
         }
         else if (contactType == 1)
         {
-            // Seen: drawn, with its looping sound.
+            // Seen: drawn. The original also started and stopped a looping sound here, from a type field nothing
+            // ever set (always -1), so a train car never makes one (OB-023).
             if (windowsVisible == turn)
             {
                 auto* carAppearance = static_cast<GVAppearance*>(appearance);
                 carAppearance->hazePalette = nullptr;
                 carAppearance->render(0);
-
-                if (soundHandle == 0xffffffff)
-                {
-                    const auto soundId = static_cast<uint32_t>(static_cast<TrainCarType*>(objType)->unknown48);
-
-                    if (soundId != 0xffffffff)
-                    {
-                        soundHandle = static_cast<uint32_t>(soundSystem->playDigitalSample(soundId, 0, this, 1, 0));
-                    }
-                }
-                else
-                {
-                    // Original behaviour (OB-023): a visible car stops its own looping sound when it is already
-                    // playing, so the sound restarts every other frame.
-                    soundSystem->stopDigitalSample(soundHandle);
-                    soundHandle = 0xffffffff;
-                }
-            }
-            else if (soundHandle != 0xffffffff)
-            {
-                soundSystem->stopDigitalSample(soundHandle);
-                soundHandle = 0xffffffff;
             }
         }
     }

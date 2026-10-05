@@ -140,7 +140,7 @@ namespace
         line +=
             std::format(" order {} pathType {} withdraw {} moveState {}/{}",
                         static_cast<int32_t>(pilot->curTacOrder.code), static_cast<int32_t>(pilot->moveOrders.pathType),
-                        mover->unknown79C, pilot->moveOrders.moveState, pilot->moveOrders.moveStateGoal);
+                        mover->withdrawing, pilot->moveOrders.moveState, pilot->moveOrders.moveStateGoal);
 
         if (mover->objectClass == BATTLEMECH)
         {
@@ -148,10 +148,10 @@ namespace
             line += std::format(" rotate {} throttle {} pivot {}", static_cast<int32_t>(controlData->rotate),
                                 static_cast<int32_t>(controlData->throttle), controlData->pivot);
             // updateMovement's early exits.
-            line += std::format(" numSteps {} check {} u170 {:.1f} flags {}{}{} captured {} jump {}",
-                                path != nullptr ? path->numSteps : -1, mover->pilotingCheckPending, mover->unknown170,
-                                mover->disableThisFrame, mover->shutDownThisFrame, mover->startUpThisFrame,
-                                mover->isCaptured(), static_cast<BattleMech*>(mover)->inJump);
+            line += std::format(" numSteps {} check {} engineBlow {:.1f} flags {}{}{} captured {} jump {}",
+                                path != nullptr ? path->numSteps : -1, mover->pilotingCheckPending,
+                                mover->engineBlowTime, mover->disableThisFrame, mover->shutDownThisFrame,
+                                mover->startUpThisFrame, mover->isCaptured(), static_cast<BattleMech*>(mover)->inJump);
         }
 
         return line;
@@ -214,7 +214,7 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
             const vector_3d position = uller->getPosition();
             std::cout << "  t=" << scenarioTime << " the Uller is gone at (" << position.x << "," << position.y
                       << "), damage " << uller->totalDamageTaken << ", destroyed " << uller->isDestroyed()
-                      << ", withdraw " << uller->unknown79C << "\n";
+                      << ", withdraw " << uller->withdrawing << "\n";
             framesLeft = std::min(framesLeft, AfterFrames);
         }
 
@@ -237,9 +237,9 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
             MoverTrack& track = tracks[partId];
             const auto cell = CellAt(mover->getPosition());
 
-            if (mover->unknown79C != track.withdrawing)
+            if (mover->withdrawing != track.withdrawing)
             {
-                track.withdrawing = mover->unknown79C;
+                track.withdrawing = mover->withdrawing;
                 std::cout << "  t=" << scenarioTime << " part " << partId << " withdraw " << track.withdrawing
                           << ", damage " << mover->totalDamageTaken << "\n";
             }

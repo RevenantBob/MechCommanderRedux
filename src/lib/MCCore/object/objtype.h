@@ -83,7 +83,6 @@ public:
         typeClass = -1;
         destroyedObject = -1;
         explosionObject = -1;
-        unknown18 = 0;
         appearName = 0;
         extentRadius = 0.0f;
         keepMe = 0;
@@ -113,8 +112,6 @@ public:
     int32_t destroyedObject = -1; // +0x10
     /// <summary>The type number of the explosion the object makes (-1: none).</summary>
     int32_t explosionObject = -1; // +0x14
-    /// <summary>Set to 0 by <see cref="init()"/>; nothing in MCX.EXE reads it.</summary>
-    int32_t unknown18 = 0; // +0x18
     /// <summary>The appearance type id (FIT "Appearance").</summary>
     uint32_t appearName = 0; // +0x1c
     /// <summary>The object's extent (collision) radius.</summary>

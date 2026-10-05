@@ -161,15 +161,13 @@ public:
     vector_3d* ownerVelocity = nullptr; // +0xa0
     /// <summary>The spheres, from the smoke manager.</summary>
     SmokeSphere* spheres = nullptr; // +0xa4
-    /// <summary>Zeroed by the constructor; never used otherwise.</summary>
-    int32_t unknownA8 = 0; // +0xa8
     /// <summary>How many spheres the smoke has.</summary>
     int32_t numSpheres = 0; // +0xac
     /// <summary>
-    /// Set to -200 by init(ObjectType*) and to -50 by BattleMech::update when it makes a smoke; probably the draw
-    /// depth of the render group.
+    /// Added to the render group's depth (the group is openGroup(depthBias - screen y)): -200 by init(ObjectType*),
+    /// -50 for a mech's equipment smoke (BattleMech::update), the flame's draw rotation for a jet's (Jet::render).
     /// </summary>
-    int32_t unknownB0 = 0; // +0xb0
+    int32_t depthBias = 0; // +0xb0
 };
 
 /// <summary>The scenario's smoke manager.</summary>

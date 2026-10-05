@@ -23,7 +23,7 @@ struct _WeaponShotInfo;
 /// type is made. In multiplayer 4-6 are turned into 0-2.
 /// </param>
 /// <param name="seconds">Seconds until impact; -1 keeps the type's nominal time, under 3 means -1.</param>
-/// <param name="randomOffset">Stored in the strike (<see cref="Artillery::unknownCC"/>).</param>
+/// <param name="randomOffset">Stored in the strike (<see cref="Artillery::randomOffset"/>).</param>
 /// <remarks>MCX.EXE @ 0x0064dda0</remarks>
 void CallArtillery(int32_t commanderId, int32_t strikeType, vector_3d location, int32_t seconds, int randomOffset);
 
@@ -156,7 +156,7 @@ class Artillery : public BigGameObject
 {
 public:
     /// <summary>
-    /// Calls <see cref="init()"/>, then sets the defaults (times -1, justCreated and unknownCC 1, the rest 0).
+    /// Calls <see cref="init()"/>, then sets the defaults (times -1, justCreated and randomOffset 1, the rest 0).
     /// </summary>
     /// <remarks>Inline in ArtilleryType::createInstance (MCX.EXE @ 0x0064e120).</remarks>
     Artillery();
@@ -243,10 +243,11 @@ public:
     /// <summary>The countdown text, "%01d:%02d".</summary>
     char timeString[8]{}; // +0xc4
     /// <summary>
-    /// The last argument of <see cref="CallArtillery"/> (default 1). Its only use: when nonzero, two
+    /// Whether the impact is scattered: the last argument of <see cref="CallArtillery"/> (default 1; every caller
+    /// passes 0). The scatter itself is gone from the original: when nonzero, two
     /// RandomNumber(500) draws are made (and discarded) at impact.
     /// </summary>
-    int32_t unknownCC = 0; // +0xcc
+    int32_t randomOffset = 0; // +0xcc
     /// <summary>Set once the incoming-shell sound has played.</summary>
     int32_t impactSoundPlayed = 0; // +0xd0
     /// <summary>One flag per entry of the type's explosion tables: set once that explosion went off.</summary>
@@ -354,10 +355,10 @@ public:
 
 /// <summary>The object type numbers made by <see cref="CallArtillery"/>, one per strike type.</summary>
 /// <remarks>
-/// At 0x0078e4f8 (unnamed in the symbols; <c>DAT_0078e4f8</c>), indexed by strike type. Initial values:
+/// At 0x0078e4f8 (no symbol; the name is the port's), indexed by strike type. Initial values:
 /// 249, 248, 250, 516, 508, 507, 509, 516.
 /// </remarks>
 extern int32_t artilleryTypeTable[8];
 /// <summary>How many camera drones have been launched; their part ids start at 0x802c8 (limit 1000).</summary>
-/// <remarks>At 0x007dd018 (unnamed in the symbols; <c>DAT_007dd018</c>).</remarks>
+/// <remarks>At 0x007dd018 (no symbol; the name is the port's).</remarks>
 extern int32_t numCameraDrones;

@@ -150,7 +150,7 @@ public:
     /// </summary>
     /// <remarks>MCX.EXE @ 0x00658e70</remarks>
     float getSkilledRange();
-    /// <summary>Leaves the old team's sensors and joins <paramref name="newTeam"/>'s (fatal for an unknown team).</summary>
+    /// <summary>Leaves the old team's sensors and joins <paramref name="newTeam"/>'s (fatal for a team id with no team).</summary>
     /// <remarks>MCX.EXE @ 0x00658f10</remarks>
     void setTeam(Team* newTeam);
     /// <summary>

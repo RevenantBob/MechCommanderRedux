@@ -517,3 +517,82 @@ TEST_CASE("game: pathfinding random long routes across mission 1 stay on passabl
     std::cout << "  routes planned: " << planned << "\n";
     CHECK(planned > 0);
 }
+
+TEST_CASE("game: pathfinding a global map written back matches the editor's file")
+{
+    if (!MapReady())
+    {
+        return;
+    }
+
+    // The retail file, as MCEditor wrote it.
+    File original;
+    REQUIRE_EQ(original.open("data\\terrain\\m0101.gmm"), 0);
+    std::vector<uint8_t> expected(original.getLength());
+    original.read(expected.data(), static_cast<int32_t>(expected.size()));
+    original.close();
+
+    // A map of its own: write recomputes the path cost table, which runs the door search.
+    GlobalMap map;
+    File in;
+    REQUIRE_EQ(in.open("data\\terrain\\m0101.gmm"), 0);
+    REQUIRE_EQ(map.init(&in), 0);
+    in.close();
+
+    const std::string path = (std::filesystem::temp_directory_path() / "mc_pathfinding_m0101.gmm").string();
+    {
+        File out;
+        REQUIRE_EQ(out.create(path.c_str()), 0);
+        REQUIRE_EQ(map.write(&out), 0);
+        out.close();
+    }
+
+    std::ifstream written(path, std::ios::binary);
+    const std::vector<uint8_t> actual((std::istreambuf_iterator<char>(written)), std::istreambuf_iterator<char>());
+    written.close();
+    std::filesystem::remove(path);
+    REQUIRE_EQ(actual.size(), expected.size());
+
+    // Every byte matches, except what the editor wrote from its own memory: each area record's doors pointer (+0x4)
+    // and uninitialised word at +0x15, and each door record's two link pointers (+0x17), which write gives as 0.
+    // Header words 1 and 2 (0) and the area words at +0x11 (-1), +0x1d .. +0x25 (0) are the editor's values, which
+    // nothing reads.
+    const size_t areaMapSize = static_cast<size_t>(map.width) * map.height * (map.numAreas < 256 ? 1 : 2);
+    const size_t areasStart = 48 + areaMapSize + static_cast<size_t>(map.numDoorInfos) * 3;
+    const size_t areasEnd = areasStart + static_cast<size_t>(map.numAreas) * GLOBALMAP_AREA_RECORD_SIZE;
+    const size_t doorsStart = areasEnd + static_cast<size_t>(map.numDoorLinks) * 7;
+    const size_t doorsEnd = doorsStart + static_cast<size_t>(map.numDoors + 2) * GLOBALMAP_DOOR_RECORD_SIZE;
+    int32_t differences = 0;
+
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        if (i >= areasStart && i < areasEnd)
+        {
+            const size_t field = (i - areasStart) % GLOBALMAP_AREA_RECORD_SIZE;
+
+            if ((field >= 0x4 && field < 0x8) || (field >= 0x15 && field < 0x19))
+            {
+                continue;
+            }
+        }
+
+        if (i >= doorsStart && i < doorsEnd)
+        {
+            const size_t field = (i - doorsStart) % GLOBALMAP_DOOR_RECORD_SIZE;
+
+            if (field >= 0x17 && field < 0x1f)
+            {
+                continue;
+            }
+        }
+
+        if (actual[i] != expected[i] && differences++ < 10)
+        {
+            MCTest::Scope scope("byte " + std::to_string(i));
+            CHECK_EQ(static_cast<int32_t>(actual[i]), static_cast<int32_t>(expected[i]));
+        }
+    }
+
+    CHECK_EQ(differences, 0);
+    map.destroy();
+}

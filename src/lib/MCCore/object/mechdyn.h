@@ -56,11 +56,4 @@ public:
     int32_t update() override;
     /// <remarks>MCX.EXE @ 0x00683940 (inline in <c>object\mechdyn.h</c>)</remarks>
     uint32_t getDynamicsClass() override { return 1; }
-
-    /// <summary>Zeroed by MechDynamicsType::createInstance; not otherwise used.</summary>
-    int32_t unknown0C = 0; // +0x0c
-    /// <summary>Zeroed by MechDynamicsType::createInstance; not otherwise used.</summary>
-    int32_t unknown10 = 0; // +0x10
-    /// <summary>Zeroed by MechDynamicsType::createInstance; not otherwise used.</summary>
-    int32_t unknown14 = 0; // +0x14
 };

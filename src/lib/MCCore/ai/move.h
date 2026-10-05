@@ -410,8 +410,6 @@ typedef struct _PathQueueRec
     MechWarrior* pilot = nullptr; // +0x4
     int32_t selectionIndex = 0;   // +0x8
     uint32_t moveParams = 0;      // +0xc
-    int32_t unknown10 = 0;        // +0x10
-    int32_t unknown14 = 0;        // +0x14
     /// <summary>Passed as the last argument of MechWarrior::calcMovePath.</summary>
     int32_t initPath = 0;          // +0x18
     _PathQueueRec* prev = nullptr; // +0x1c
@@ -474,7 +472,9 @@ static_assert(sizeof(DoorLink) == 7);
 /// The original name isn't known (MC2: GlobalMapArea). In the original a 0x29-byte packed record, read and written
 /// raw with the <c>doors</c> pointer inside; the port keeps natural layout and reads the record field by field
 /// (sectorR s16, sectorC s16, doors u32 (ignored, rebuilt from doorInfos), type s32, numDoors s8, then the rest).
-/// Offsets below are the file record's.
+/// Offsets below are the file record's. The record's words at +0x11, +0x15, +0x1d, +0x21 and +0x25 are written by
+/// the editor's calcAreas (-1, never set, 0, 0, 0) and read by neither the game nor the editor; the port skips them
+/// on reading and writes the editor's values.
 /// </remarks>
 typedef struct _GlobalMapArea
 {
@@ -484,16 +484,11 @@ typedef struct _GlobalMapArea
     DoorInfo* doors = nullptr; // +0x4
     /// <summary>0 normal, 1 a north-south bridge, 2 an east-west bridge (road or railroad; see
     /// GlobalMap::calcBridges).</summary>
-    int32_t type = 0;      // +0x8
-    char numDoors = 0;     // +0xc
-    int32_t open = 0;      // +0xd
-    int32_t unknown11 = 0; // +0x11 (initialised -1)
-    int32_t unknown15 = 0; // +0x15
+    int32_t type = 0;  // +0x8
+    char numDoors = 0; // +0xc
+    int32_t open = 0;  // +0xd
     /// <summary>Set by GlobalMap::closeArea.</summary>
-    int32_t closed = 0;    // +0x19
-    int32_t unknown1D = 0; // +0x1d
-    int32_t unknown21 = 0; // +0x21
-    int32_t unknown25 = 0; // +0x25
+    int32_t closed = 0; // +0x19
 } GlobalMapArea;
 /// <summary>Size of a <see cref="GlobalMapArea"/> record in the global map file.</summary>
 inline constexpr int32_t GLOBALMAP_AREA_RECORD_SIZE = 0x29;
@@ -539,14 +534,12 @@ typedef struct _GlobalMapDoor
 inline constexpr int32_t GLOBALMAP_DOOR_RECORD_SIZE = 0x3b;
 
 /// <summary>One step of a long-range path: an area to cross and the door to leave it by.</summary>
-/// <remarks>Original: <c>struct _GlobalPathStep</c>. 0x30 bytes.</remarks>
+/// <remarks>Original: <c>struct _GlobalPathStep</c>. 0x30 bytes; the words at +0x0 and +0xc .. +0x20 were never
+/// accessed and are gone.</remarks>
 typedef struct _GlobalPathStep
 {
-    int32_t unknown00 = 0; // +0x0
-    int32_t thruArea = 0;  // +0x4
-    int32_t goalDoor = 0;  // +0x8
-    /// <summary>Not written by GlobalMap::calcPath.</summary>
-    int32_t unknown0C[6]{}; // +0xc
+    int32_t thruArea = 0; // +0x4
+    int32_t goalDoor = 0; // +0x8
     /// <summary>The cell (row, column) the leg's path ended in (Mover::calcMovePath fills it); the next leg starts
     /// from it (MechWarrior::calcMovePath).</summary>
     int32_t goalCell[2]{};  // +0x24
@@ -571,8 +564,12 @@ public:
     /// <remarks>MCX.EXE @ 0x006bd480</remarks>
     int32_t init(File* mapFile);
     /// <summary>Computes the areas, doors and links of a scenario map (height/width -1: the map's).</summary>
-    /// <remarks>MCX.EXE @ 0x006bf8b0</remarks>
-    int32_t init(ScenarioMap* map, int32_t unknownA, int32_t unknownB, int32_t height = -1, int32_t width = -1);
+    /// <remarks>
+    /// MCX.EXE @ 0x006bf8b0. Editor code (MCEditor.exe @ 0x00466130, called as init(map, 0, 0, -1, -1)): the two
+    /// values it took after the map only went to the file header's words 1 and 2, which nothing reads, and are gone.
+    /// </remarks>
+    int32_t init(ScenarioMap* map, int32_t height = -1, int32_t width = -1);
+    /// <summary>Writes the global map file; header words 1 and 2 are written as 0, as the editor wrote them.</summary>
     /// <remarks>MCX.EXE @ 0x006bd860</remarks>
     int32_t write(File* mapFile);
     /// <remarks>MCX.EXE @ 0x006c0b20</remarks>
@@ -678,11 +675,8 @@ public:
     static int32_t minTileC;
     static int32_t maxTileC;
 
-    /// <summary>Stored in the file header; passed to init(ScenarioMap*, ...) by the scenario.</summary>
-    int32_t unknown00 = 0; // +0x0
-    int32_t unknown04 = 0; // +0x4
-    int32_t height = 0;    // +0x8
-    int32_t width = 0;     // +0xc
+    int32_t height = 0; // +0x8
+    int32_t width = 0;  // +0xc
     /// <summary>Sector side in tiles (10).</summary>
     int32_t sectorDim = 0;    // +0x10
     int32_t sectorHeight = 0; // +0x14
@@ -704,10 +698,8 @@ public:
     GlobalMapDoor* doorBuildList = nullptr; // +0x44
     /// <summary>numAreas x numAreas steps between areas (0 = no path, 0xff = 255 or more).</summary>
     uint8_t* pathCostTable = nullptr; // +0x48
-    /// <summary>Only counted up to numAreas by init(File*) (a leftover loop).</summary>
-    int32_t unknown4C = 0;   // +0x4c
-    int32_t goalSectorR = 0; // +0x50
-    int32_t goalSectorC = 0; // +0x54
+    int32_t goalSectorR = 0;          // +0x50
+    int32_t goalSectorC = 0;          // +0x54
     /// <summary>
     /// Owns the map's arrays and door lists. A computed map's areas and doors have their own door and link lists; a
     /// loaded one's point into doorInfos and doorLinks.

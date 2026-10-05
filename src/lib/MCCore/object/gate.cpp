@@ -203,7 +203,6 @@ auto GateType::init() -> void
     damageEffectId = 0xffffffff;
     explosionRadius = 0.0f;
     explosionDamage = 0.0f;
-    unknown40 = 0;
     buildingName = 0;
 }
 
@@ -345,10 +344,7 @@ Gate::Gate()
     vertexNumber = 0;
     blockNumber = 0;
     fireStarted = 0;
-    unknown9C = 0;
-    unknownA0 = 500000;
     destroyed = 0;
-    unknownD0 = 0;
     fireObject = nullptr;
     name.clear();
     lockedClosed = 0;
@@ -637,12 +633,6 @@ auto Gate::handleEvent(ObjectEvent* event) -> int32_t
                 break;
             case 0x1d:
                 selected = 0;
-                break;
-            case 0x1e:
-                unknown2C = 1;
-                break;
-            case 0x1f:
-                unknown2C = 0;
                 break;
             default:
                 break;

@@ -567,25 +567,15 @@ auto ProjectileLaser::update() -> int32_t
         effect->setPosition(*targetPosition);
     }
 
-    if (unknown2C == 0)
+    if (objectList->head != nullptr)
     {
-        if (objectList->head != nullptr)
-        {
-            objectList->head->addNode(effect);
-        }
-    }
-    else
-    {
-        delete effect;
+        objectList->head->addNode(effect);
     }
 
     // A miss leaves a crater and sets off a live mine where it lands.
     if (target == nullptr && targetPosition != nullptr)
     {
-        if (unknown2C == 0)
-        {
-            craterManager->addCrater(7, *targetPosition, 1);
-        }
+        craterManager->addCrater(7, *targetPosition, 1);
 
         int32_t tileR = 0;
         int32_t tileC = 0;
@@ -619,7 +609,7 @@ auto ProjectileLaser::render() -> void
         onScreen();
     }
 
-    if (justCreated != 0 || unknown2C != 0)
+    if (justCreated != 0)
     {
         return;
     }

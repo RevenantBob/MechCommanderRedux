@@ -108,8 +108,6 @@ public:
     Appearance* appearance = nullptr; // +0x88
     /// <summary>The last onScreen result, passed to the appearance's update.</summary>
     int32_t visible = 0; // +0x8c
-    /// <summary>Zeroed by the constructor; not otherwise used in debris.cpp.</summary>
-    int32_t unknown90 = 0; // +0x90
     /// <summary>The type's armFallDecelRate, copied on the first update.</summary>
     float decelRate = 0; // +0x94
     /// <summary>Set once the appearance's animation has finished: the debris then slows down.</summary>

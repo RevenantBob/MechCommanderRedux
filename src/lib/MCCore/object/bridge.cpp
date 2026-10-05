@@ -416,12 +416,6 @@ auto MiscTerrainObject::handleEvent(ObjectEvent* event) -> int32_t
             case 0x1d:
                 selected = 0;
                 break;
-            case 0x1e:
-                unknown2C = 1;
-                break;
-            case 0x1f:
-                unknown2C = 0;
-                break;
             default:
                 break;
         }

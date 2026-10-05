@@ -81,7 +81,6 @@ auto BuildingType::init() -> void
     typeClass = -1;
     destroyedObject = -1;
     explosionObject = -1;
-    unknown18 = 0;
     appearName = 0;
     extentRadius = 0.0f;
     keepMe = 0;
@@ -230,7 +229,6 @@ auto BuildingType::init(File* objFile, uint32_t fileSize) -> int32_t
 
     int32_t potentialContact = 0;
     bldgFile.readIdLong("PotentialContact", potentialContact);
-    unknown18 = potentialContact == 1 ? 1 : 0;
 
     if (bldgFile.readIdLong("TeamID", teamId) != 0)
     {
@@ -293,12 +291,9 @@ Building::Building()
     vertexNumber = 0;
     blockNumber = 0;
     burning = 0;
-    unknown9C = 0;
-    unknownA0 = 500000;
     tileNum = 0;
     burnTime = 0.0f;
     captureable = 0;
-    unknownE4 = 0;
     commanderId = static_cast<char>(0xff);
     name.clear();
     soundHandle = 0xffffffff;
@@ -524,12 +519,6 @@ auto Building::handleEvent(ObjectEvent* event) -> int32_t
                 break;
             case 0x1d:
                 selected = 0;
-                break;
-            case 0x1e:
-                unknown2C = 1;
-                break;
-            case 0x1f:
-                unknown2C = 0;
                 break;
         }
     }

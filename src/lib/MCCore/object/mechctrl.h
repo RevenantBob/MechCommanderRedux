@@ -32,14 +32,11 @@ public:
     int8_t leftArmRotate = 0; // +0x0c
     /// <summary>The gesture to start, -1 for none (passed to the appearance by MechDynamics::update).</summary>
     int32_t gestureGoal = -1; // +0x10
-    /// <summary>Set by the AI and network controls from the mech's pending flag at +0x8d0.</summary>
-    int32_t unknown14 = 0; // +0x14
-    /// <summary>Set by the AI and network controls from the mech's pending flag at +0x8d4.</summary>
-    int32_t unknown18 = 0; // +0x18
-    /// <summary>Cleared by reset.</summary>
-    int32_t unknown1C = 0; // +0x1c
-    /// <summary>Cleared by reset.</summary>
-    int32_t unknown20 = 0; // +0x20
+    /// <summary>Throw the left arm off this frame (BattleMech::leftArmBlownThisFrame, or the player's debug key).</summary>
+    int32_t blowLeftArm = 0; // +0x14
+    /// <summary>Throw the right arm off this frame (BattleMech::rightArmBlownThisFrame, or the player's debug
+    /// key).</summary>
+    int32_t blowRightArm = 0; // +0x18
     /// <summary>Nonzero while pivoting in place: MechDynamics turns at maxMechPivotRate instead.</summary>
     int32_t pivot = 0; // +0x24
 };

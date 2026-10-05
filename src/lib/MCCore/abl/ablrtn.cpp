@@ -29,7 +29,6 @@ SymTableNodePtr CurModuleIdPtr = nullptr;
 SymTableNodePtr CurRoutineIdPtr = nullptr;
 int InOrdersBlock = 0;
 int eofFlag = 0;
-int32_t dummyCount = 0;
 
 TokenCodeType followHeaderList[] = {TKN_SEMICOLON, TKN_EOF, TKN_NONE};
 TokenCodeType followModuleIdList[] = {TKN_LPAREN, TKN_COLON, TKN_SEMICOLON, TKN_EOF, TKN_NONE};
@@ -176,7 +175,6 @@ auto ABLi_init(uint32_t, uint32_t, uint32_t, uint32_t stackSize, uint32_t maxCod
     eofFlag = 0;
     ExitWithReturn = 0;
     ExitFromTacOrder = 0;
-    dummyCount = 0;
     numLibrariesLoaded = 0;
 
     for (auto& code : charTable)

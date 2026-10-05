@@ -14,7 +14,7 @@ class Smoke;
 /// </summary>
 /// <remarks>
 /// Original source: <c>object\prjlase.cpp</c>, 0x60 bytes. Read from the "ProjectileLaserData" block; loading it also
-/// loads the hit and miss object types. Its vector deleting destructor is FUN_006909a0 (unnamed in the symbols).
+/// loads the hit and miss object types. Its vector deleting destructor is at 0x006909a0 (no symbol).
 /// </remarks>
 class ProjectileLaserType : public ObjectType
 {

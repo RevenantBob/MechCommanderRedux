@@ -146,12 +146,6 @@ public:
     int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block it stands in.</summary>
     int32_t blockNumber = 0; // +0x98
-    /// <summary>Zeroed by the constructor; not used by the tree code.</summary>
-    int32_t unknown9C = 0; // +0x9c
-    /// <summary>Set to 500000 by the constructor; not used by the tree code.</summary>
-    int32_t unknownA0 = 0; // +0xa0
-    /// <summary>Never touched by the tree code.</summary>
-    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The move-map column of its tile.</summary>
     int32_t tileCol = 0; // +0xb4
     /// <summary>The move-map row of its tile.</summary>

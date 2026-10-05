@@ -1203,7 +1203,6 @@ auto Mover::init() -> void
     position.z = 0.0f;
     position.x = 0.0f;
     selected = 0;
-    unknown2C = 0;
     collisionsOn = 0;
     alignment = 0;
     status = 0;
@@ -1236,7 +1235,6 @@ auto Mover::init() -> void
     jammerTracker = nullptr;
     curCV = 0;
     maxCV = 0;
-    unknown100 = 0;
     body = nullptr;
     numBodyLocations = 0;
     armor = nullptr;
@@ -1245,8 +1243,7 @@ auto Mover::init() -> void
     damageRateCheckTime = 1.0f;
     totalDamageTaken = 0.0f;
     status = 0;
-    unknown170 = -1.0f;
-    unknown174 = 0;
+    engineBlowTime = -1.0f;
     maxRunSpeed = 0.0f;
     shutDownThisFrame = 0;
     startUpThisFrame = 0;
@@ -1254,16 +1251,10 @@ auto Mover::init() -> void
     team = nullptr;
     group = nullptr;
     selectionIndex = -1;
-    unknown190 = -1;
     pilotCheckModifier = -1;
-    unknown1A4 = 0;
-    unknown19C = 0;
-    unknown1A0 = 0;
     pilotingCheckPending = 0;
-    unknown1AC = 0;
-    unknown1B0 = -1.0f;
-    unknown1B4 = 0.0f;
-    unknown1B8 = 0.0f;
+    lastWeaponEffectivenessCalc = 0.0f;
+    lastOptimalRangeCalc = 0.0f;
     optimalRange = -1.0f;
     appearance = nullptr;
     control = nullptr;
@@ -1271,7 +1262,7 @@ auto Mover::init() -> void
     netOwnerID = 0;
     netPlayerId = -1;
     netRosterIndex = -1;
-    unknown20C = 0;
+    newMoveChunk = 0;
     statusChunk.init();
     moveChunk.init();
     numWeaponFireChunks[1] = 0;
@@ -1280,14 +1271,10 @@ auto Mover::init() -> void
     numCriticalHitChunks[0] = 0;
     numRadioChunks[1] = 0;
     numRadioChunks[0] = 0;
-    unknown790 = 0;
-    unknown794 = 1.0f;
-    unknown79C = 0;
-    unknown1C0 = 0xff;
+    ejectOrderGiven = 0;
+    deathTimer = 1.0f;
+    withdrawing = 0;
     numMovers++;
-    unknown7A0[0] = 0;
-    unknown7A0[1] = 0;
-    unknown7A0[2] = 0;
     lastHustleTime = -999.0f;
     collisionsOn = 1;
     challenger = nullptr;
@@ -1315,7 +1302,7 @@ auto Mover::init() -> void
     overlayWeightClass = 0;
     deselectTime = 0.0f;
     salvageRoll = -999;
-    unknown89C = 0;
+    drawOrderLines = 0;
 }
 
 auto Mover::setPartId(int32_t newPartId) -> void
@@ -1337,7 +1324,7 @@ auto Mover::setPartId(int32_t commanderId, int32_t groupId, int32_t index) -> vo
 auto Mover::setPosition(vector_3d& newPosition) -> void
 {
     // Kept on the map; a mover pushed off it (or into the corners, which the map's diamond cuts off) is destroyed
-    // when unknown79C asks for it.
+    // when the mover is withdrawing.
     const float halfSide = worldUnitsMapSide * 0.5f;
     const float negHalfSide = -halfSide;
     const float startX = newPosition.x;
@@ -1381,7 +1368,7 @@ auto Mover::setPosition(vector_3d& newPosition) -> void
         newPosition.y = halfSide;
     }
 
-    if (!onMap && unknown79C != 0)
+    if (!onMap && withdrawing != 0)
     {
         objType->handleDestruction(this, nullptr);
     }
@@ -1841,7 +1828,7 @@ auto Mover::handleEvent(ObjectEvent* event) -> int32_t
                 case 0x1c:
                 {
                     selected = 1;
-                    selectionIndex = event->unknown54;
+                    selectionIndex = event->selectionIndex;
                     return 0;
                 }
                 case 0x1d:
@@ -1851,13 +1838,8 @@ auto Mover::handleEvent(ObjectEvent* event) -> int32_t
                     return 0;
                 }
                 case 0x1e:
-                {
-                    unknown2C = 1;
-                    return 0;
-                }
                 case 0x1f:
                 {
-                    unknown2C = 0;
                     return 0;
                 }
                 default:
@@ -3751,7 +3733,7 @@ auto Mover::getWeaponAmmoLevel(int32_t weaponIndex) -> float
 auto Mover::calcWeaponEffectiveness(int setMax) -> void
 {
     int32_t effectiveness = 0;
-    unknown1B4 = scenarioTime;
+    lastWeaponEffectivenessCalc = scenarioTime;
     float gunneryFactor = 1.0f;
 
     if (pilot != nullptr)
@@ -3878,7 +3860,7 @@ auto Mover::calcAmmoTotals() -> void
 auto Mover::calcOptimalRange(GameObject* target) -> int
 {
     const float oldRange = optimalRange;
-    unknown1B8 = scenarioTime;
+    lastOptimalRangeCalc = scenarioTime;
 
     if (target == nullptr)
     {

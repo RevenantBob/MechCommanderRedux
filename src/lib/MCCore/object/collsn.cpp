@@ -422,7 +422,6 @@ auto CollisionSystem::init(FitIniFile* scenarioFile) -> int32_t
     // Read, then ignored: the collision heap is gone.
     static_cast<void>(heapSize);
     collisionList = std::make_unique<CollisionRecord[]>(maxCollisions);
-    unknown08 = 0;
 
     collisionGrid = new CollisionGrid;
 
@@ -432,7 +431,6 @@ auto CollisionSystem::init(FitIniFile* scenarioFile) -> int32_t
     }
 
     firstPending = nullptr;
-    unknown14 = 0;
 
     globalCollisionAlert = new GlobalCollisionAlert;
     return globalCollisionAlert->init(numAlerts);
@@ -446,7 +444,6 @@ auto CollisionSystem::checkObjects() -> void
     origin.z = 0.0f;
     collisionGrid->init(origin);
     globalCollisionAlert->purgeRecords();
-    unknown10 = 0;
     firstPending = nullptr;
     numCollisions = 0;
     std::memset(collisionList.get(), 0, maxCollisions * sizeof(CollisionRecord));

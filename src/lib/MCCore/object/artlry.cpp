@@ -277,7 +277,7 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, vector_3d location, 
     }
 
     auto* strike = static_cast<Artillery*>(createObject(artilleryTypeTable[strikeType]));
-    strike->unknownCC = randomOffset;
+    strike->randomOffset = randomOffset;
     strike->setAlignment(CommanderTable[commanderId]->getTeam()->alignment);
 
     if (objectList->head != nullptr && strike != nullptr)
@@ -667,7 +667,7 @@ Artillery::Artillery()
     timeToImpact = -1.0f;
     timeToLaunch = -1.0f;
     justCreated = 1;
-    unknownCC = 1;
+    randomOffset = 1;
     currentFrame = 0;
     frameTime = 0.0f;
     frameCount = 0;
@@ -794,7 +794,7 @@ auto Artillery::update() -> int32_t
             return 0;
         }
 
-        if (unknownCC != 0)
+        if (randomOffset != 0)
         {
             RandomNumber(500);
             RandomNumber(500);
@@ -930,12 +930,6 @@ auto Artillery::handleEvent(ObjectEvent* event) -> int32_t
                 break;
             case 0x1d:
                 selected = 0;
-                break;
-            case 0x1e:
-                unknown2C = 1;
-                break;
-            case 0x1f:
-                unknown2C = 0;
                 break;
             default:
                 break;
@@ -1409,12 +1403,6 @@ auto CameraDrone::handleEvent(ObjectEvent* event) -> int32_t
                 break;
             case 0x1d:
                 selected = 0;
-                break;
-            case 0x1e:
-                unknown2C = 1;
-                break;
-            case 0x1f:
-                unknown2C = 0;
                 break;
             default:
                 break;

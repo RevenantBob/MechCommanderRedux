@@ -54,8 +54,6 @@ public:
     uint32_t normalEffectId = 0; // +0x38
     /// <summary>FIT "DamageEffectId".</summary>
     uint32_t damageEffectId = 0; // +0x3c
-    /// <summary>Zeroed by init; not read by the gate code.</summary>
-    int32_t unknown40 = 0; // +0x40
     /// <summary>Horizontal pixel offset of the gate's base, replacing the placement's (FIT "BasePixelOffsetX").</summary>
     int32_t basePixelOffsetX = 0; // +0x44
     /// <summary>Vertical pixel offset of the gate's base (FIT "BasePixelOffsetY").</summary>
@@ -174,12 +172,6 @@ public:
     int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block it stands in.</summary>
     int32_t blockNumber = 0; // +0x98
-    /// <summary>Zeroed by the constructor; not used by the gate code (the same layout as Tree's).</summary>
-    int32_t unknown9C = 0; // +0x9c
-    /// <summary>Set to 500000 by the constructor; not used by the gate code (the same layout as Tree's).</summary>
-    int32_t unknownA0 = 0; // +0xa0
-    /// <summary>Never touched by the gate code.</summary>
-    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The move-map column of its tile.</summary>
     int32_t tileCol = 0; // +0xb4
     /// <summary>The move-map row of its tile.</summary>
@@ -194,8 +186,6 @@ public:
     int32_t fireStarted = 0; // +0xc8
     /// <summary>The fire burning on it, if any.</summary>
     Fire* fireObject = nullptr; // +0xcc
-    /// <summary>Zeroed by the constructor; not used by the gate code.</summary>
-    int32_t unknownD0 = 0; // +0xd0
     /// <summary>Set by destroyGate; the gate then no longer opens or closes.</summary>
     int32_t destroyed = 0; // +0xd4
     /// <summary>Set by destroyGate: the gate is blown open.</summary>

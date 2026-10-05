@@ -17,8 +17,6 @@ public:
     /// <remarks>MCX.EXE @ 0x0065c080 (inline in <c>object\elemctrl.h</c>)</remarks>
     uint32_t getControlDataClass() override { return 3; }
 
-    /// <summary>Reset to -1.</summary>
-    int32_t unknown04 = -1; // +0x04
     /// <summary>Set by Elemental::updateJump when a jump is due; Elemental::update then sets the actor's jump up.
     /// Cleared by reset.</summary>
     int32_t jump = 0; // +0x08

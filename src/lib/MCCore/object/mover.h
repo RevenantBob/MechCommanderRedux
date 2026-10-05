@@ -117,7 +117,6 @@ struct InventoryItem
     int32_t disabled = 0; // +0x04
     /// <summary>"FacesForward" (weapons).</summary>
     uint8_t facesForward = 0; // +0x08
-    uint8_t unknown09 = 0;    // +0x09
     /// <summary>An ammo bin's starting rounds.</summary>
     int16_t startAmount = 0; // +0x0a
     /// <summary>An ammo bin's rounds (calcAmmoTotals sums them per type).</summary>
@@ -128,7 +127,6 @@ struct InventoryItem
     float readyTime = 0; // +0x10
     /// <summary>The body location the item sits in (an ammo explosion hits it).</summary>
     uint8_t bodyLocation = 0; // +0x14
-    uint8_t unknown15 = 0;    // +0x15
     /// <summary>A weapon's effectiveness (calcWeaponEffectiveness sums it, scaled by gunnery).</summary>
     int16_t effectiveness = 0; // +0x16
     /// <summary>A weapon's ratings per range step (NumRangeRatings pairs: rating, then damage rate; objectCache,
@@ -549,8 +547,6 @@ public:
     /// <remarks>MCX.EXE @ 0x00688050</remarks>
     void setChallenger(GameObject* newChallenger);
 
-    /// <summary>Not accessed through Mover pointers.</summary>
-    int32_t unknown84 = 0; // +0x84
     /// <summary>The ground's normal under the mover (getTerrainAngle, getVelocityTilt).</summary>
     vector_3d terrainNormal; // +0x88
     /// <summary>Velocity in meters per second.</summary>
@@ -598,7 +594,6 @@ public:
     std::unique_ptr<BodyLocation[]> body; // +0xf8
     /// <summary>How many.</summary>
     int8_t numBodyLocations = 0; // +0xfc
-    int32_t unknown100 = 0;      // +0x100
     /// <summary>"Armor" "Type".</summary>
     uint8_t armorType = 0; // +0x104
     /// <summary>"Armor" "Tonnage".</summary>
@@ -661,9 +656,9 @@ public:
     float engineTonnage = 0.0f; // +0x168
     /// <summary>"Engine" "Rating".</summary>
     uint32_t engineRating = 0; // +0x16c
-    /// <summary>Set to -1 by init.</summary>
-    float unknown170 = -1.0f; // +0x170
-    int32_t unknown174 = 0;   // +0x174
+    /// <summary>When a disabled engine blows (5 s after the critical hit; -1 for never). A mover with one set no
+    /// longer moves; destroyBodyLocation checks it too.</summary>
+    float engineBlowTime = -1.0f; // +0x170
     /// <summary>Used by calcMovePath and calcEscapePath.</summary>
     /// <summary>"Engine" "MaxRunSpeed".</summary>
     float maxRunSpeed = 0.0f; // +0x178
@@ -680,25 +675,19 @@ public:
     /// TacticalOrder::selectionIndex); -1 by init.
     /// </summary>
     int32_t selectionIndex = -1; // +0x18c
-    int32_t unknown190 = -1;     // +0x190
     /// <summary>The commander's id.</summary>
     int8_t commanderId = 0; // +0x194
     /// <summary>-1 by init; forcePilotingCheck raises it to 0.</summary>
     int32_t pilotCheckModifier = -1; // +0x198
-    int32_t unknown19C = 0;          // +0x19c
-    int32_t unknown1A0 = 0;          // +0x1a0
-    int32_t unknown1A4 = 0;          // +0x1a4
     /// <summary>Cleared by pilotingCheck.</summary>
     int32_t pilotingCheckPending = 0; // +0x1a8
-    int32_t unknown1AC = 0;           // +0x1ac
-    float unknown1B0 = -1.0f;         // +0x1b0
-    /// <summary>Used by calcWeaponEffectiveness.</summary>
-    float unknown1B4 = 0.0f; // +0x1b4
-    /// <summary>Used by calcOptimalRange.</summary>
-    float unknown1B8 = 0.0f; // +0x1b8
+    /// <summary>When calcWeaponEffectiveness last ran (the AI recomputes its optimal range against a target whose
+    /// effectiveness is newer).</summary>
+    float lastWeaponEffectivenessCalc = 0.0f; // +0x1b4
+    /// <summary>When calcOptimalRange last ran.</summary>
+    float lastOptimalRangeCalc = 0.0f; // +0x1b8
     /// <summary>The mover challenging this one (getChallenger).</summary>
     GameObject* challenger = nullptr; // +0x1bc
-    uint8_t unknown1C0 = 0xff;        // +0x1c0
     /// <summary>The appearance.</summary>
     Appearance* appearance = nullptr; // +0x1c4
     /// <summary>The control.</summary>
@@ -715,7 +704,8 @@ public:
     int32_t netRosterIndex = -1; // +0x1dc
     /// <summary>The network status chunk.</summary>
     StatusChunk statusChunk; // +0x1e0
-    int32_t unknown20C = 0;  // +0x20c
+    /// <summary>Set when a network move chunk arrives; the next update warps to its first step if too far off.</summary>
+    int32_t newMoveChunk = 0; // +0x20c
     /// <summary>The network move chunk.</summary>
     MoveChunk moveChunk{}; // +0x210
     /// <summary>Weapon fire chunks queued, out (0) and in (1).</summary>
@@ -727,12 +717,17 @@ public:
     /// <summary>Radio chunks queued.</summary>
     int32_t numRadioChunks[2] = {};                // +0x778
     uint8_t radioChunks[2][MAX_RADIO_CHUNKS] = {}; // +0x780
-    int32_t unknown790 = 0;                        // +0x790
-    float unknown794 = 1.0f;                       // +0x794
-    int32_t unknown798 = 0;                        // +0x798
-    /// <summary>Used by setPosition.</summary>
-    int32_t unknown79C = 0;     // +0x79c
-    int32_t unknown7A0[4] = {}; // +0x7a0
+    /// <summary>Whether the pilot was ordered to eject (sent in the status chunk).</summary>
+    int32_t ejectOrderGiven = 0; // +0x790
+    /// <summary>
+    /// Seconds left of the death sequence, counted down once the mover lies dead (0.8 for a mech or elemental): the
+    /// death explosion goes off under 0.4, the wreck is left under 0.
+    /// </summary>
+    float deathTimer = 1.0f; // +0x794
+    /// <summary>Set once the death explosion has gone off.</summary>
+    int32_t deathExplosionDone = 0; // +0x798
+    /// <summary>Set by the withdraw order: the mover leaves the scenario once off the map or off screen.</summary>
+    int32_t withdrawing = 0; // +0x79c
     /// <summary>The last position the mover could stand on.</summary>
     vector_3d lastValidPosition; // +0x7b0
     /// <summary>The way a mech pivots toward a target: 0 or 1, 0xff to choose again (BattleMech::pivotTo).</summary>
@@ -741,8 +736,9 @@ public:
     float lastHustleTime = -999.0f; // +0x7c0
     /// <summary>A ground vehicle type's "AmmoTruck"; 0 for the others.</summary>
     int32_t ammoTruck = 0; // +0x7c4
-    /// <summary>1000 by BattleMech::init.</summary>
-    float unknown7C8 = 0.0f; // +0x7c8
+    /// <summary>Distance moved since the mover last marked what it sees (it marks again past Terrain::metersPerVertex; 1000 by
+    /// init, so the first update marks).</summary>
+    float distanceSinceMarkSeen = 0.0f; // +0x7c8
     /// <summary>Used by needsRefit and TacticalOrder::status.</summary>
     GameObject* refitBuddy = nullptr; // +0x7cc
     /// <summary>The type's "CrashAvoidSelf".</summary>
@@ -769,9 +765,9 @@ public:
     int32_t salvageRoll = -999; // +0x898
     /// <summary>
     /// Set by the interface while the player holds a forced-order key (ctrl, F9-F12) with this mover selected;
-    /// cleared on release. Its readers are not identified.
+    /// cleared on release. The mover's queued waypoints are then joined by lines.
     /// </summary>
-    int32_t unknown89C = 0; // +0x89c
+    int32_t drawOrderLines = 0; // +0x89c
 
     /// <summary>Movers alive (the last one's destroy frees <see cref="sortList"/>).</summary>
     static int32_t numMovers;

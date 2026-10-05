@@ -30,7 +30,7 @@ namespace
 
     /// <summary>
     /// Objects placed on each map vertex so far (up to 7), for their part ids; made by init and freed once the
-    /// .bdg file is read (unnamed global DAT_007e3708).
+    /// .bdg file is read (a global at 0x007e3708 in the original, with no symbol).
     /// </summary>
     std::vector<uint8_t> vertexObjectCount;
 

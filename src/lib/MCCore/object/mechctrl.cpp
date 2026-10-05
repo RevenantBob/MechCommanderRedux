@@ -18,9 +18,7 @@ auto MechControlData::reset() -> void
     rotate = 0;
     leftArmRotate = 0;
     rightArmRotate = 0;
-    unknown18 = 0;
-    unknown14 = 0;
-    unknown1C = 0;
-    unknown20 = 0;
+    blowRightArm = 0;
+    blowLeftArm = 0;
     pivot = 0;
 }

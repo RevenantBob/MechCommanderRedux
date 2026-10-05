@@ -19,7 +19,7 @@ struct _WeaponShotInfo;
 class TrainCarType : public ObjectType
 {
 public:
-    /// <summary>Clears every field; TonnageClass starts at -1 and <see cref="unknown48"/> at -1.</summary>
+    /// <summary>Clears every field; TonnageClass starts at -1.</summary>
     /// <remarks>Inline in ObjectTypeManager::load.</remarks>
     TrainCarType();
     /// <remarks>MCX.EXE @ 0x00690a40 (vector deleting destructor)</remarks>
@@ -62,8 +62,6 @@ public:
     float deceleration = 0; // +0x40
     /// <summary>Hit points of a car (FIT "Damage"); a car that has taken half of them may derail.</summary>
     int32_t damage = 0; // +0x44
-    /// <summary>Set to -1 by the constructor and never read in train.cpp.</summary>
-    int32_t unknown48 = 0; // +0x48
     /// <summary>FIT "TonnageClass", given to the car's tonnage (-1 until read).</summary>
     float tonnageClass = 0; // +0x4c
 };
@@ -162,8 +160,6 @@ public:
     float damageTaken = 0; // +0xc4
     /// <summary>The entry angle of the last hit; the car derails by it.</summary>
     float lastHitAngle = 0; // +0xc8
-    /// <summary>The moving sound's handle, or -1.</summary>
-    uint32_t soundHandle = 0; // +0xcc
     /// <summary>The train the car belongs to.</summary>
     Train* train = nullptr; // +0xd0
 };

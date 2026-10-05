@@ -19,12 +19,7 @@ auto ObjectEvent::init(int32_t newId, aEvent* newEvent) -> void
         window = target;
     }
 
-    for (int32_t& value : unknown3C)
-    {
-        value = 0;
-    }
-
-    unknown54 = -1;
+    selectionIndex = -1;
 }
 
 auto ObjectEvent::initCombat(int32_t newId, GameObject* attacker, GameObject* target) -> void

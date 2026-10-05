@@ -286,7 +286,6 @@ Smoke::Smoke()
     ownerHotSpot = 0;
     ownerPosition = nullptr;
     ownerVelocity = nullptr;
-    unknownA8 = 0;
     owner = nullptr;
 }
 
@@ -481,7 +480,7 @@ auto Smoke::render() -> void
         return;
     }
 
-    ElementList->openGroup(static_cast<int32_t>(static_cast<float>(unknownB0) - screenPos.y), 1);
+    ElementList->openGroup(static_cast<int32_t>(static_cast<float>(depthBias) - screenPos.y), 1);
     const auto* smokeType = static_cast<SmokeType*>(objType);
 
     for (int32_t i = 0; i < numSpheres; i++)
@@ -674,7 +673,7 @@ auto Smoke::init(ObjectType* objType) -> int32_t
     }
 
     objectClass = SMOKE;
-    unknownB0 = -200;
+    depthBias = -200;
     return 0;
 }
 

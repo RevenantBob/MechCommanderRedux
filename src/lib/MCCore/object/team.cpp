@@ -130,7 +130,6 @@ namespace
 
 auto Team::init() -> void
 {
-    unknown1C = 1;
     id = 0;
     alignment = 0;
     rosterSize = 0;

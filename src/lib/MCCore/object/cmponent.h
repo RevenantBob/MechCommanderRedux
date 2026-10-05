@@ -39,7 +39,7 @@ public:
     /// <summary>
     /// Reads one CSV row (tokenized in place with strtok). An "undefined" row leaves the id -1. Weapon ranges are
     /// scaled by <paramref name="weaponRangeFactor"/>, a sensor's range by <paramref name="sensorRangeFactor"/>.
-    /// Returns 0, -1 for an unknown form, -2 for a form with no stats (plain "Weapon").
+    /// Returns 0, -1 for a form name not in ComponentFormString, -2 for a form with no stats (plain "Weapon").
     /// </summary>
     /// <remarks>MCX.EXE @ 0x00655dd0</remarks>
     int32_t initEXCEL(char* dataLine, uint8_t index, float weaponRangeFactor, float sensorRangeFactor);

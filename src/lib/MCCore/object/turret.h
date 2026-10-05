@@ -238,12 +238,6 @@ public:
     int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block the turret stands on.</summary>
     int32_t blockNumber = 0; // +0x98
-    /// <summary>Set to 0 by the constructor; not used in turret.cpp.</summary>
-    int32_t unknown9C = 0; // +0x9c
-    /// <summary>Set to 500000 by the constructor; not used in turret.cpp.</summary>
-    int32_t unknownA0 = 0; // +0xa0
-    /// <summary>Never referenced in turret.cpp.</summary>
-    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The map tile column of the turret's vertex (vertices and tiles share a grid).</summary>
     int32_t tileCol = 0; // +0xb4
     /// <summary>The map tile row of the turret's vertex.</summary>
@@ -258,22 +252,16 @@ public:
     int32_t onFire = 0; // +0xc8
     /// <summary>The fire burning on the turret (its owner points back at the turret).</summary>
     Fire* fireObject = nullptr; // +0xcc
-    /// <summary>Set to 0 by the constructor; not used in turret.cpp.</summary>
-    int32_t unknownD0 = 0; // +0xd0
     /// <summary>Set when the turret is destroyed: it no longer acts.</summary>
     int32_t destroyed = 0; // +0xd4
     /// <summary>The turret's yaw in degrees, turned toward the target at the type's yaw rate.</summary>
     float turretRotation = 0; // +0xd8
-    /// <summary>Cleared by init; not otherwise used in turret.cpp.</summary>
-    int32_t unknownDC = 0; // +0xdc
     /// <summary>The result of getAwake, taken every update.</summary>
     int32_t awake = 0; // +0xe0
     /// <summary>Set when the turret is open (a pop-up turret has finished rising; always for a fixed one).</summary>
     int32_t weaponDeployed = 0; // +0xe4
     /// <summary>1 for a fixed (GV appearance) turret, 0 for a pop-up (PU appearance) one.</summary>
     int32_t fixedTurret = 0; // +0xe8
-    /// <summary>Set to 1 by init; not otherwise used in turret.cpp.</summary>
-    int32_t unknownEC = 0; // +0xec
     /// <summary>
     /// Must be nonzero for the weapon to be ready. Original behaviour (OB-014): nothing in MCX.EXE writes it, so the
     /// original read whatever the object heap held; the port's constructor sets it (see there).
@@ -285,8 +273,6 @@ public:
     int32_t markedSeenInnerSphere = 0; // +0xf8
     /// <summary>Set once a clan-side turret has revealed the map around it (visibility flag 2).</summary>
     int32_t markedSeenClan = 0; // +0xfc
-    /// <summary>Set to 0 by the constructor; not used in turret.cpp.</summary>
-    int32_t unknown100 = 0; // +0x100
     /// <summary>The object the turret is shooting at.</summary>
     GameObject* target = nullptr; // +0x104
     /// <summary>The scenario time the weapon is recycled at.</summary>
@@ -297,11 +283,6 @@ public:
     float lastFireTime = 0; // +0x110
     /// <summary>Smoke rising from the destroyed turret.</summary>
     Smoke* smoke = nullptr; // +0x114
-    /// <summary>
-    /// Cleared by init; when set, TurretType::handleCollision takes targets of any other alignment (not only those two
-    /// or more apart).
-    /// </summary>
-    int32_t unknown118 = 0; // +0x118
     /// <summary>The turret's index in the multiplayer turret roster, or -1.</summary>
     int32_t netRosterIndex = 0; // +0x11c
     /// <summary>How many chunks each weapon fire chunk list holds.</summary>

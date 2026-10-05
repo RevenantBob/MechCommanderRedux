@@ -25,7 +25,7 @@ inline constexpr int32_t MAX_LINES_PER_PAGE = 50;
 
 /// <summary>
 /// The tokens of ABL. The values are the original's: they are stored as single bytes in crunched code (see
-/// ablexec.h) and index TokenStrings. Reserved words map to TKN_CODE .. TKN_STATIC through reservedWordTable.
+/// ablexec.h) and index TokenStrings. Reserved words map to TKN_CODE .. TKN_STATIC through keywordTable.
 /// </summary>
 enum TokenCodeType
 {
@@ -139,7 +139,7 @@ struct Literal
 };
 
 /// <summary>An entry of a reserved-word table: the word and the token it scans as.</summary>
-/// <remarks>8 bytes in the original. The tables (reservedWord2 .. reservedWord11) are grouped by word length.</remarks>
+/// <remarks>8 bytes in the original. The tables (keywords2 .. keywords11) are grouped by word length.</remarks>
 struct ReservedWord
 {
     const char* string = nullptr; // +0x0
@@ -158,19 +158,19 @@ struct SourceFile
     int32_t lineNumber = 0; // +0x108
 };
 
-/// <summary>Reserved words of 2 .. 11 letters, each table ending with a null entry.</summary>
-extern ReservedWord reservedWord2[];
-extern ReservedWord reservedWord3[];
-extern ReservedWord reservedWord4[];
-extern ReservedWord reservedWord5[];
-extern ReservedWord reservedWord6[];
-extern ReservedWord reservedWord7[];
-extern ReservedWord reservedWord8[];
-extern ReservedWord reservedWord9[];
-extern ReservedWord reservedWord10[];
-extern ReservedWord reservedWord11[];
+/// <summary>The reserved words (keywords) of 2 .. 11 letters, each table ending with a null entry.</summary>
+extern ReservedWord keywords2[];
+extern ReservedWord keywords3[];
+extern ReservedWord keywords4[];
+extern ReservedWord keywords5[];
+extern ReservedWord keywords6[];
+extern ReservedWord keywords7[];
+extern ReservedWord keywords8[];
+extern ReservedWord keywords9[];
+extern ReservedWord keywords10[];
+extern ReservedWord keywords11[];
 /// <summary>The reserved-word tables by word length 0 .. 11 (entries 0 and 1 are null).</summary>
-extern ReservedWord* reservedWordTable[12];
+extern ReservedWord* keywordTable[12];
 
 /// <summary>Character class of every byte value.</summary>
 extern CharCodeType charTable[256];

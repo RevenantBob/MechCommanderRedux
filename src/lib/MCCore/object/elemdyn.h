@@ -40,8 +40,6 @@ public:
     /// <remarks>MCX.EXE @ 0x0065a5b0 (inline in <c>object\elemdyn.h</c>)</remarks>
     float getVelocity() override { return velocity; }
 
-    /// <summary>Zeroed by ElementalDynamicsType::createInstance; not otherwise used.</summary>
-    int32_t unknown0C = 0; // +0x0c
     /// <summary>Acceleration (the type's maxAccel); its sign flips toward the target speed.</summary>
     float accel = 0.0f; // +0x10
     /// <summary>Current speed.</summary>

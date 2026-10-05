@@ -2376,12 +2376,11 @@ namespace
         area.type = ReadRecordField<int32_t>(record);
         area.numDoors = ReadRecordField<char>(record);
         area.open = ReadRecordField<int32_t>(record);
-        area.unknown11 = ReadRecordField<int32_t>(record);
-        area.unknown15 = ReadRecordField<int32_t>(record);
+        // +0x11 and +0x15: editor-only words nothing reads.
+        ReadRecordField<int32_t>(record);
+        ReadRecordField<int32_t>(record);
         area.closed = ReadRecordField<int32_t>(record);
-        area.unknown1D = ReadRecordField<int32_t>(record);
-        area.unknown21 = ReadRecordField<int32_t>(record);
-        area.unknown25 = ReadRecordField<int32_t>(record);
+        // +0x1d .. +0x25: editor-only words nothing reads.
     }
 
     /// <summary>Encodes an area as its 0x29-byte file record (the doors pointer written as 0).</summary>
@@ -2393,12 +2392,13 @@ namespace
         WriteRecordField<int32_t>(record, area.type);
         WriteRecordField<char>(record, area.numDoors);
         WriteRecordField<int32_t>(record, area.open);
-        WriteRecordField<int32_t>(record, area.unknown11);
-        WriteRecordField<int32_t>(record, area.unknown15);
+        // The editor-only words, with the values the editor's calcAreas gives them.
+        WriteRecordField<int32_t>(record, -1);
+        WriteRecordField<int32_t>(record, 0);
         WriteRecordField<int32_t>(record, area.closed);
-        WriteRecordField<int32_t>(record, area.unknown1D);
-        WriteRecordField<int32_t>(record, area.unknown21);
-        WriteRecordField<int32_t>(record, area.unknown25);
+        WriteRecordField<int32_t>(record, 0);
+        WriteRecordField<int32_t>(record, 0);
+        WriteRecordField<int32_t>(record, 0);
     }
 
     /// <summary>Decodes a 0x3b-byte door record (the link pointers are left for the caller).</summary>
@@ -2521,8 +2521,9 @@ auto GlobalMap::init(File* mapFile) -> int32_t
         Fatal(version, " Bad version number in Global Map ");
     }
 
-    unknown00 = mapFile->readLong();
-    unknown04 = mapFile->readLong();
+    // Header words 1 and 2: written by the editor (always 0), read by nothing.
+    mapFile->readLong();
+    mapFile->readLong();
     height = mapFile->readLong();
     width = mapFile->readLong();
     sectorDim = mapFile->readLong();
@@ -2632,23 +2633,10 @@ auto GlobalMap::init(File* mapFile) -> int32_t
     }
 
     mapFile->read(pathCostTable, numAreas * numAreas);
-
-    // A leftover loop of the original: it only leaves unknown4C counted up to numAreas.
-    for (int32_t i = 0; i < numAreas; i++)
-    {
-        unknown4C = 0;
-
-        do
-        {
-            unknown4C++;
-        } while (unknown4C < numAreas);
-    }
-
     return 0;
 }
 
-auto GlobalMap::init(ScenarioMap* map, int32_t unknownA, int32_t unknownB, int32_t newHeight, int32_t newWidth)
-    -> int32_t
+auto GlobalMap::init(ScenarioMap* map, int32_t newHeight, int32_t newWidth) -> int32_t
 {
     if (newHeight == -1)
     {
@@ -2661,8 +2649,6 @@ auto GlobalMap::init(ScenarioMap* map, int32_t unknownA, int32_t unknownB, int32
     }
 
     init(newHeight, newWidth); // as the original: the map's height goes to init's width slot (maps are square)
-    unknown04 = unknownB;
-    unknown00 = unknownA;
     calcAreas(map);
     calcBridges(map);
     calcGlobalDoors(map);
@@ -2697,8 +2683,8 @@ auto GlobalMap::init(ScenarioMap* map, int32_t unknownA, int32_t unknownB, int32
 auto GlobalMap::write(File* mapFile) -> int32_t
 {
     mapFile->writeLong(GLOBALMAP_VERSION);
-    mapFile->writeLong(unknown00);
-    mapFile->writeLong(unknown04);
+    mapFile->writeLong(0);
+    mapFile->writeLong(0);
     mapFile->writeLong(height);
     mapFile->writeLong(width);
     mapFile->writeLong(sectorDim);
@@ -3078,11 +3064,7 @@ auto GlobalMap::calcAreas(ScenarioMap* map) -> void
         area.numDoors = 0;
         area.doors = nullptr;
         area.open = 1;
-        area.unknown11 = -1;
         area.closed = 0;
-        area.unknown1D = 0;
-        area.unknown21 = 0;
-        area.unknown25 = 0;
     }
 
     for (int32_t sectorR = 0; sectorR < sectorHeight; sectorR++)
@@ -3576,16 +3558,16 @@ auto GlobalMap::calcPathCostTable() -> void
 
     for (int32_t startArea = 0; startArea < numAreas; startArea++)
     {
-        for (unknown4C = 0; unknown4C < numAreas; unknown4C++)
+        for (int32_t goalArea = 0; goalArea < numAreas; goalArea++)
         {
-            if (startArea == unknown4C)
+            if (startArea == goalArea)
             {
-                pathCostTable[numAreas * startArea + unknown4C] = 0;
+                pathCostTable[numAreas * startArea + goalArea] = 0;
             }
             else
             {
-                pathCostTable[startArea * numAreas + unknown4C] =
-                    static_cast<uint8_t>(calcPath(startArea, unknown4C, path));
+                pathCostTable[startArea * numAreas + goalArea] =
+                    static_cast<uint8_t>(calcPath(startArea, goalArea, path));
             }
         }
     }

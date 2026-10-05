@@ -180,8 +180,6 @@ public:
     int32_t firstObjective = 0; // +0x14
     /// <summary>How many objectives are the team's (set by Scenario::init).</summary>
     uint32_t numObjectives = 0; // +0x18
-    /// <summary>Set to 1 by init.</summary>
-    int32_t unknown1C = 1; // +0x1c
     /// <summary>Sensors whose contacts updateSensors re-checks per frame (up to 3).</summary>
     int32_t sensorsPerUpdate = 3; // +0x20
     /// <summary>The next sensor updateSensors re-checks.</summary>

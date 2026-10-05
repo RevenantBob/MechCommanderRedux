@@ -34,8 +34,6 @@ public:
     aEvent event; // +0x10
     /// <summary>The window the GUI event came from (its target).</summary>
     aObject* window = nullptr; // +0x38
-    /// <summary>Cleared by init.</summary>
-    int32_t unknown3C[6] = {}; // +0x3c
-    /// <summary>Set to -1 by init; read by Mover::handleEvent.</summary>
-    int32_t unknown54 = -1; // +0x54
+    /// <summary>A selection event's (0x1c) selection index, which Mover::handleEvent takes (-1 by init).</summary>
+    int32_t selectionIndex = -1; // +0x54
 };

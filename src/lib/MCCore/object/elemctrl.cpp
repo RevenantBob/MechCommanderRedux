@@ -12,7 +12,6 @@ auto ElementalControlData::destroy() -> void
 
 auto ElementalControlData::reset() -> void
 {
-    unknown04 = -1;
     rotate = 0;
     jump = 0;
 }

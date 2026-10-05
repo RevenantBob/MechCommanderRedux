@@ -16,7 +16,8 @@ struct _PotentialContact;
 /// An item of the salvage an object leaves: ABL setsalvage appends them, getsalvage reads them back and
 /// <see cref="BigGameObject::destroy"/> walks and frees the list.
 /// </summary>
-/// <remarks>Original source: unknown; 8 bytes (ABL allocates them with operator new(8)).</remarks>
+/// <remarks>Has no out-of-line code, so the line tables don't name its file; 8 bytes (ABL allocates them with
+/// operator new(8)).</remarks>
 class SalvageItem
 {
 public:
@@ -510,11 +511,6 @@ public:
     int32_t collisionsOn = 0; // +0x24
     /// <summary>Nonzero while the player has the object selected.</summary>
     int32_t selected = 0; // +0x28
-    /// <summary>
-    /// Cleared by <see cref="init()"/>; set and cleared by object events 0x1e / 0x1f. A bullet skips drawing and
-    /// drops its hit effect when nonzero.
-    /// </summary>
-    int32_t unknown2C = 0; // +0x2c
     /// <summary>0 normal, 1 disabled, 2 destroyed.</summary>
     int32_t status = 0; // +0x30
     /// <summary>The side the object is on (the type's alignment to begin with).</summary>

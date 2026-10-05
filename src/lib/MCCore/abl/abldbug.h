@@ -232,7 +232,7 @@ public:
     int32_t sprintArrayValue(char* dest, SymTableNodePtr symbol, char* subscriptString);
 
     /// <summary>Writes the value of variable expression <paramref name="exprString"/> (a name, maybe subscripted).</summary>
-    /// <returns>0, or 1 for an unknown name.</returns>
+    /// <returns>0, or 1 when the name isn't in the symbol table.</returns>
     /// <remarks>MCX.EXE @ 0x006201d0</remarks>
     int32_t sprintValue(char* dest, char* exprString);
 

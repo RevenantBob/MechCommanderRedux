@@ -92,7 +92,6 @@ struct _AttackerRec
 /// <remarks>0x2c bytes. The original name isn't known (MC2: PilotAlarm).</remarks>
 struct _PilotAlarm
 {
-    uint8_t unknown00 = 0; // +0x00
     /// <summary>Triggers remembered (at most <see cref="MAX_ALARM_TRIGGERS"/>); 0 when not raised.</summary>
     uint8_t numTriggers = 0; // +0x01
     /// <summary>What raised it (a part id, a cause code, a path error).</summary>
@@ -186,8 +185,10 @@ struct _MoveOrders
     int32_t moveState = 0; // +0x1028
     /// <summary>1 by init; 5 to hold position while attacking.</summary>
     int32_t moveStateGoal = 0; // +0x102c
-    /// <summary>Nonzero keeps the movement tree from requesting new attack paths.</summary>
-    int32_t unknown1030 = 0; // +0x1030
+    /// <summary>Set when the vehicle switches moveStateGoal to back away from (or turn back to) a target outside its
+    /// torso or turret arc; cleared once it moves forward again or gets new orders. While set the movement tree
+    /// requests no new attack paths.</summary>
+    int32_t moveStateGoalChanged = 0; // +0x1030
     /// <summary>When yielding to a blocking mover, the time to give up and look again (-1 for none).</summary>
     float yieldTime = 0;    // +0x1034
     int32_t yieldState = 0; // +0x1038
@@ -586,10 +587,8 @@ public:
     int8_t skills[NUM_SKILLS] = {}; // +0x21
     /// <summary>"Professionalism" (40 by default).</summary>
     int8_t professionalism = 40; // +0x25
-    int8_t unknown26 = 0;        // +0x26
     /// <summary>"Decorum".</summary>
-    int8_t decorum = 40;  // +0x27
-    int8_t unknown28 = 0; // +0x28
+    int8_t decorum = 40; // +0x27
     /// <summary>"Aggressiveness".</summary>
     int8_t aggressiveness = 40; // +0x29
     /// <summary>"Courage".</summary>
@@ -597,13 +596,11 @@ public:
     /// <summary>The courage read ("Courage"), before morale changes it.</summary>
     int8_t baseCourage = 0; // +0x2b
     /// <summary>"Wounds"; 6 is death.</summary>
-    float wounds = 0.0f;   // +0x2c
-    int32_t unknown30 = 0; // +0x30
+    float wounds = 0.0f; // +0x2c
     /// <summary>The pilot's status: 0 normal, 2 withdrawn, 3 ejected, 4 dead.</summary>
     int32_t status = 0; // +0x34
     /// <summary>Rolled at load: survives ejection.</summary>
     int32_t escapesThruEjection = 0; // +0x38
-    int32_t unknown3C = 0;           // +0x3c
     /// <summary>When "under attack" was last called in (at most every 20 seconds).</summary>
     float lastUnderAttackTime = -1000.0f; // +0x40
     /// <summary>"Weapons at 50%" was called in.</summary>
@@ -632,10 +629,8 @@ public:
     int32_t numSkillSuccesses[NUM_SKILLS][2] = {}; // +0x8c
     /// <summary>Kills by kind (mech class 1-4, 5 vehicles and turrets, 6 elementals; the second counter counts).</summary>
     int32_t numKilled[7][2] = {}; // +0xac
-    int32_t unknownE4 = 0;        // +0xe4
     /// <summary>Enemy mechs rammed on an attack order (BattleMechType::handleCollision).</summary>
-    int32_t numRams = 0;   // +0xe8
-    int32_t unknownEC = 0; // +0xec
+    int32_t numRams = 0; // +0xe8
     /// <summary>Jumps landed on the jump order's target (BattleMechType::handleCollision).</summary>
     int32_t numJumpAttacks = 0; // +0xf0
     /// <summary>Per skill: the skill as a float.</summary>
@@ -704,20 +699,10 @@ public:
     _MoveOrders moveOrders; // +0xd90
     /// <summary>Attack orders.</summary>
     _AttackOrders attackOrders; // +0x1dd4
-    int32_t unknown1DFC = 0;    // +0x1dfc
-    int32_t unknown1E00 = 0;    // +0x1e00
-    float unknown1E04 = 10.0f;  // +0x1e04
-    float unknown1E08 = 10.0f;  // +0x1e08
-    /// <summary>Set by the attack orders.</summary>
-    int32_t unknown1E0C = 0; // +0x1e0c
-    int32_t unknown1E10 = 0; // +0x1e10
     /// <summary>The fire range ordered (orderUseFireRange), -1 for none.</summary>
     float orderFireRange = -1.0f; // +0x1e14
     /// <summary>The fire odds ordered (orderUseFireOdds), -1 for none.</summary>
     float orderFireOdds = -1.0f; // +0x1e18
-    int32_t unknown1E1C = 0;     // +0x1e1c
-    int32_t unknown1E20 = 0;     // +0x1e20
-    int32_t unknown1E24 = 1;     // +0x1e24
     /// <summary>The last target (getLastTarget).</summary>
     GameObject* lastTarget = nullptr; // +0x1e28
     /// <summary>When it was set, -1 for none.</summary>
@@ -739,8 +724,7 @@ public:
     /// <summary>The radio.</summary>
     Radio* radio = nullptr; // +0x1e4c
     /// <summary>"OldPilot".</summary>
-    uint8_t oldPilot = 0;    // +0x1e50
-    int32_t unknown1E54 = 0; // +0x1e54
+    uint8_t oldPilot = 0; // +0x1e50
     /// <summary>"Ammo out" was called in.</summary>
     int32_t ammoOutSent = 0; // +0x1e58
 

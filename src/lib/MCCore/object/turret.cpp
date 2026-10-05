@@ -324,7 +324,6 @@ auto TurretType::init() -> void
     typeClass = -1;
     destroyedObject = -1;
     explosionObject = -1;
-    unknown18 = 0;
     appearName = 0;
     extentRadius = 0.0f;
     keepMe = 0;
@@ -519,7 +518,7 @@ auto TurretType::handleCollision(GameObject* collidee, GameObject* collider) -> 
 
     const int32_t alignmentGap = std::abs(collider->getAlignment() - collidee->getAlignment());
 
-    if (!((turret->unknown118 != 0 && alignmentGap > 0) || alignmentGap > 1))
+    if (alignmentGap <= 1)
     {
         return 1;
     }
@@ -574,14 +573,10 @@ Turret::Turret()
     blockNumber = 0;
     onFire = 0;
     fireObject = nullptr;
-    unknown9C = 0;
-    unknownA0 = 500000;
     destroyed = 0;
-    unknownD0 = 0;
     name.clear();
     markedSeenInnerSphere = 0;
     markedSeenClan = 0;
-    unknown100 = 0;
     turretRotation = 0.0f;
     awake = 1;
     weaponDeployed = 1;
@@ -1367,12 +1362,6 @@ auto Turret::handleEvent(ObjectEvent* event) -> int32_t
             case 0x1d:
                 selected = 0;
                 break;
-            case 0x1e:
-                unknown2C = 1;
-                break;
-            case 0x1f:
-                unknown2C = 0;
-                break;
         }
     }
 
@@ -1679,7 +1668,6 @@ auto Turret::init(ObjectType* objType) -> int32_t
     auto* type = static_cast<TurretType*>(this->objType);
     objectClass = TURRET;
     destroyed = 0;
-    unknownEC = 1;
     alignment = -1;
     readyTime = 0.0f;
 
@@ -1701,9 +1689,7 @@ auto Turret::init(ObjectType* objType) -> int32_t
     char nameBuffer[256];
     cLoadString(thisInstance, static_cast<uint32_t>(type->buildingName), nameBuffer, 0xfe);
     name = nameBuffer;
-    unknownDC = 0;
     smoke = nullptr;
-    unknown118 = 0;
     target = nullptr;
     return 0;
 }

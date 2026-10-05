@@ -182,8 +182,6 @@ public:
     float internalStructureTonnage = 0.0f; // +0x44
     /// <summary>"InternalStructure" per body location.</summary>
     uint8_t internalStructure[NUM_MECH_BODY_LOCATIONS] = {}; // +0x48
-    int32_t unknown50 = 0;                                   // +0x50
-    int32_t unknown54 = 0;                                   // +0x54
     /// <summary>The dynamics type ("Dynamics" block, type 1).</summary>
     DynamicsType* dynamicsType = nullptr; // +0x58
     /// <summary>The hot spot file's last packet: 32 bytes per hot spot packet (objectTypeCache).</summary>
@@ -460,28 +458,33 @@ public:
     int32_t inJump = 0; // +0x8b4
     /// <summary>Where the jump lands.</summary>
     vector_3d jumpGoal; // +0x8b8
-    /// <summary>-1 by init (destroyBodyLocation, injureBodyLocation).</summary>
-    float unknown8C4 = -1.0f; // +0x8c4
-    int32_t unknown8C8 = 0;   // +0x8c8
-    int32_t unknown8CC = 0;   // +0x8cc
-    /// <summary>Pending flag the controls turn into MechControlData::unknown14.</summary>
-    int32_t pendingControl8D0 = 0; // +0x8d0
-    /// <summary>Pending flag the controls turn into MechControlData::unknown18.</summary>
-    int32_t pendingControl8D4 = 0; // +0x8d4
-    int32_t unknown8D8 = 0;        // +0x8d8
-    int32_t unknown8DC = 0;        // +0x8dc
+    /// <summary>When the center torso's internal structure was first injured (-1 before); destroyBodyLocation.</summary>
+    float centerTorsoInjuredTime = -1.0f; // +0x8c4
+    /// <summary>Set by a hit from behind (outside 90 degrees of the torso); a fall then goes forward (gesture 7).</summary>
+    int32_t hitFromBehindThisFrame = 0; // +0x8c8
+    /// <summary>Set by a hit from the front; a fall then goes backward (gesture 8). Both clear when the fall starts.</summary>
+    int32_t hitFromFrontThisFrame = 0; // +0x8cc
+    /// <summary>Set when the left arm is destroyed; the control turns it into MechControlData::blowLeftArm.</summary>
+    int32_t leftArmBlownThisFrame = 0; // +0x8d0
+    /// <summary>Set when the right arm is destroyed; the control turns it into MechControlData::blowRightArm.</summary>
+    int32_t rightArmBlownThisFrame = 0; // +0x8d4
+    /// <summary>The footprint of the gesture's second step (hot spot packet slot 4) is down; the walking gestures
+    /// re-arm it once past that frame.</summary>
+    int32_t secondStepPrinted = 0; // +0x8d8
+    /// <summary>The same for the first step (packet slot 0).</summary>
+    int32_t firstStepPrinted = 0; // +0x8dc
     /// <summary>Torso yaw in degrees, within the dynamics type's maxTorsoYaw.</summary>
     float torsoRotation = 0.0f; // +0x8e0
     /// <summary>Right arm yaw in degrees, within maxArmYaw.</summary>
     float rightArmRotation = 0.0f; // +0x8e4
     /// <summary>Left arm yaw in degrees, within maxArmYaw.</summary>
     float leftArmRotation = 0.0f; // +0x8e8
-    int32_t unknown8EC = 0;       // +0x8ec
-    int32_t unknown8F0 = 0;       // +0x8f0
+    /// <summary>Latched once the dead mech's actor lies still; the death sequence (deathTimer) runs from then.</summary>
+    int32_t lyingDead = 0; // +0x8ec
+    /// <summary>Set once the wreck and its crater are left and the mech is off the interface.</summary>
+    int32_t wreckDone = 0; // +0x8f0
     /// <summary>The status window.</summary>
     aTitleWindow* statusWindow = nullptr; // +0x8f4
-    /// <summary>Used by updateJump.</summary>
-    float unknown8F8 = 0.0f; // +0x8f8
     /// <summary>Smoke streaming from damaged equipment (hitInventoryItem).</summary>
     Smoke* smoke[4] = {}; // +0x8fc
     /// <summary>The hot spot each smoke streams from.</summary>
@@ -500,8 +503,9 @@ public:
     int32_t captureable = 0; // +0x940
     /// <summary>"NotMineYet" (1 when missing).</summary>
     int notMineYet = 0; // +0x944
-    /// <summary>Used by mineCheck.</summary>
-    int32_t unknown948 = 0; // +0x948
+    /// <summary>Set when a mine goes off under the mech; mineCheck then marks the next tile without its side's mine
+    /// state (state 1) and clears it.</summary>
+    int32_t steppedOnMine = 0; // +0x948
     /// <summary>"DescIndex": the interface name is string 300 + it (-1 when missing).</summary>
     int32_t descIndex = 0; // +0x94c
     /// <summary>"NameIndex".</summary>

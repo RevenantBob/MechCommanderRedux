@@ -28,8 +28,6 @@ public:
     int8_t throttle = 0; // +0x09
     /// <summary>Body yaw rate request.</summary>
     int8_t rotate = 0; // +0x0a
-    /// <summary>Reset to -1.</summary>
-    int32_t unknown0C = -1; // +0x0c
     /// <summary>Nonzero while pivoting in place: GroundVehicleDynamics turns at maxVehiclePivotRate instead.
     /// Cleared by reset.</summary>
     int32_t pivot = 0; // +0x10

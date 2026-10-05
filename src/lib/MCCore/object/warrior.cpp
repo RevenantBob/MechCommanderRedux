@@ -241,7 +241,6 @@ auto MechWarrior::init() -> void
     brainStr = nullptr;
     vehicle = nullptr;
     wounds = 0.0f;
-    unknown30 = 0;
     status = 0;
     escapesThruEjection = 0;
     rank = 0;
@@ -303,15 +302,8 @@ auto MechWarrior::init() -> void
     orderState = ORDERSTATE_GENERAL;
     moveOrders.init();
     attackOrders.init();
-    unknown1E24 = 1;
-    unknown1E04 = 10.0f;
-    unknown1E08 = 10.0f;
-    unknown1DFC = 0;
-    unknown1E00 = 0;
-    unknown1E0C = 0;
     orderFireRange = -1.0f;
     orderFireOdds = -1.0f;
-    unknown1E20 = 0;
 
     for (int32_t i = 0; i < 2; i++)
     {
@@ -364,7 +356,6 @@ auto MechWarrior::init() -> void
     }
 
     debugFlags = 0;
-    unknown1E54 = 0;
     numAttackers = 0;
     ammoOutSent = 0;
     numWarriors++;
@@ -645,7 +636,7 @@ auto _MoveOrders::init() -> void
     timeOfLastStep = -1.0f;
     moveState = 1;
     moveStateGoal = 1;
-    unknown1030 = 0;
+    moveStateGoalChanged = 0;
     yieldTime = -1.0f;
     yieldState = 0;
     waitForPointTime = -1.0f;
@@ -1465,7 +1456,7 @@ auto MechWarrior::clearMoveOrders() -> void
     moveOrders.moveState = 1;
     moveOrders.moveStateGoal = 1;
     moveOrders.yieldState = 0;
-    moveOrders.unknown1030 = 0;
+    moveOrders.moveStateGoalChanged = 0;
     moveOrders.yieldTime = -1.0f;
     moveOrders.waitForPointTime = -1.0f;
     moveOrders.timeOfLastStep = -1.0f;
@@ -2865,7 +2856,7 @@ auto MechWarrior::movementDecisionTree() -> int
         moveOrders.waitForPointTime = -1.0f;
         moveOrders.timeOfLastStep = -1.0f;
         moveOrders.yieldState = 0;
-        moveOrders.unknown1030 = 0;
+        moveOrders.moveStateGoalChanged = 0;
         setMoveGlobalPath(nullptr, 0);
         PathManager->remove(this);
     }
@@ -2933,7 +2924,7 @@ auto MechWarrior::movementDecisionTree() -> int
             {
                 // Moving to a point: plan again once the path is walked.
                 if (static_cast<double>(moveOrders.yieldTime) > -1.0 || isJumping(nullptr) != 0 ||
-                    moveOrders.unknown1030 != 0 || static_cast<double>(moveOrders.waitForPointTime) > -1.0 ||
+                    moveOrders.moveStateGoalChanged != 0 || static_cast<double>(moveOrders.waitForPointTime) > -1.0 ||
                     getMovePath()->numSteps != 0 || movePathRequest != nullptr)
                 {
                     return 1;
@@ -2976,7 +2967,7 @@ auto MechWarrior::movementDecisionTree() -> int
 
             if (IsMover(lastTargetNow))
             {
-                if (mover->unknown1B8 < static_cast<Mover*>(lastTargetNow)->unknown1B4 &&
+                if (mover->lastOptimalRangeCalc < static_cast<Mover*>(lastTargetNow)->lastWeaponEffectivenessCalc &&
                     mover->calcOptimalRange(nullptr) != 0)
                 {
                     wantMove = 1;
@@ -3079,7 +3070,7 @@ auto MechWarrior::movementDecisionTree() -> int
                         break;
                 }
 
-                if (hold && getMovePath()->numSteps == 0 && moveOrders.unknown1030 == 0)
+                if (hold && getMovePath()->numSteps == 0 && moveOrders.moveStateGoalChanged == 0)
                 {
                     moveOrders.moveStateGoal = 5;
                 }
@@ -3144,7 +3135,7 @@ auto MechWarrior::movementDecisionTree() -> int
             bool move = false;
 
             if (attackTarget != nullptr && IsMover(attackTarget) &&
-                mover->unknown1B8 < static_cast<Mover*>(attackTarget)->unknown1B4 &&
+                mover->lastOptimalRangeCalc < static_cast<Mover*>(attackTarget)->lastWeaponEffectivenessCalc &&
                 mover->calcOptimalRange(nullptr) != 0)
             {
                 wantMove = 1;
@@ -3196,7 +3187,7 @@ auto MechWarrior::movementDecisionTree() -> int
                         extraParams = 8;
                         move = true;
                     }
-                    else if (getMovePath()->numSteps == 0 && moveOrders.unknown1030 == 0)
+                    else if (getMovePath()->numSteps == 0 && moveOrders.moveStateGoalChanged == 0)
                     {
                         moveOrders.moveStateGoal = 5;
                     }
@@ -4365,7 +4356,6 @@ auto MechWarrior::orderAttackObject(int unitOrder, int32_t origin, GameObject* t
     setAttackTarget(target);
     attackOrders.pursue = pursue;
     attackOrders.aimLocation = aimLocation;
-    unknown1E0C = 1;
     setLastTarget(target, obliterate, conserveAmmo);
 
     if (origin == ORDER_ORIGIN_COMMANDER)
@@ -4411,7 +4401,6 @@ auto MechWarrior::orderAttackPoint(int unitOrder, int32_t origin, vector_3d loca
     setAttackTargetPoint(location);
     attackOrders.aimLocation = -1;
     attackOrders.pursue = pursue;
-    unknown1E0C = 1;
     setLastTarget(nullptr, 0, 0);
 
     if (origin == ORDER_ORIGIN_COMMANDER)
@@ -4433,7 +4422,7 @@ auto MechWarrior::orderWithdraw(int unitOrder, int32_t origin, vector_3d locatio
     const int32_t result = orderMoveToPoint(unitOrder, 1, origin, goal, -1, 1);
     Mover* mover = static_cast<Mover*>(vehicle);
     Assert(mover != nullptr, 0, " orderWithdraw:Warrior has no Vehicle ");
-    mover->unknown79C = 1;
+    mover->withdrawing = 1;
 
     if (origin == ORDER_ORIGIN_COMMANDER)
     {

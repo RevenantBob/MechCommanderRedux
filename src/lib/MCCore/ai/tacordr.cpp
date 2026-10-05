@@ -583,14 +583,14 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
     {
         if (vehicle->objectClass == GROUNDVEHICLE)
         {
-            static_cast<GroundVehicle*>(vehicle)->unknown8CC = 0;
+            static_cast<GroundVehicle*>(vehicle)->refitting = 0;
         }
 
         GameObject* buddy = vehicle->refitBuddy;
 
         if (buddy->objectClass == GROUNDVEHICLE)
         {
-            static_cast<GroundVehicle*>(buddy)->unknown8CC = 0;
+            static_cast<GroundVehicle*>(buddy)->refitting = 0;
         }
 
         if (IsMoverClass(buddy->objectClass))
@@ -1054,7 +1054,7 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
 
     if (code != TACTICAL_ORDER_WITHDRAW && static_cast<char>(pilot->vehicle->status) != 2)
     {
-        static_cast<Mover*>(pilot->vehicle)->unknown79C = 0;
+        static_cast<Mover*>(pilot->vehicle)->withdrawing = 0;
     }
 
     return result;
@@ -1431,7 +1431,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                 case 3:
                 {
                     GroundVehicle* truck = static_cast<GroundVehicle*>(refitter);
-                    truck->unknown8CC = 1;
+                    truck->refitting = 1;
 
                     if (static_cast<double>(RefitTime) + time < scenarioTime)
                     {
@@ -1462,7 +1462,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
                 case 4:
                 {
-                    static_cast<GroundVehicle*>(refitter)->unknown8CC = 0;
+                    static_cast<GroundVehicle*>(refitter)->refitting = 0;
                     refitee->getPilot()->orderPowerUp(unitOrder, 2);
                     done = 1;
                     refitee->refitBuddy = nullptr;

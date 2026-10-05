@@ -222,11 +222,7 @@ auto GroundVehicleType::init() -> void
     alignment = 0;
     chassis = 0;
     tonnageClass = 0.0f;
-    unknown40 = 0;
-    unknown44 = 0;
     internalStructureTonnage = 0.0f;
-    unknown54 = 0;
-    unknown60 = 0;
     ammoTruck = 0;
     mineSweeper = 0;
     refitPoints = 0;
@@ -556,12 +552,12 @@ auto GroundVehicleType::handleDestruction(GameObject* collidee, GameObject* coll
         vehicle->sensorSystem->disable();
     }
 
-    vehicle->unknown794 = 0.0f;
+    vehicle->deathTimer = 0.0f;
 
-    if (vehicle->unknown79C == 0)
+    if (vehicle->withdrawing == 0)
     {
         vehicle->getPilot()->triggerAlarm(7, collider == nullptr ? 0 : collider->idNumber);
-        vehicle->unknown798 = 0;
+        vehicle->deathExplosionDone = 0;
         vehicle->status = 2;
 
         if (vehicle->getAlignment() == homeTeam->alignment)
@@ -749,14 +745,13 @@ auto GroundVehicle::init() -> void
     weaponsDeployed = 1;
     numArmorLocations = NUM_GROUNDVEHICLE_LOCATIONS;
     turretRotation = 0.0f;
-    unknown8B0 = 0;
     smoke = nullptr;
     statusWindow = nullptr;
     captureable = 0;
     ammoTruck = 0;
     refitBuddy = nullptr;
     refitter = 0;
-    unknown8CC = 0;
+    refitting = 0;
     sweepTime = -1.0f;
     mineLayer = 0;
     minesToLay = 0;
@@ -908,7 +903,7 @@ auto GroundVehicle::init(ObjectType* objType) -> int32_t
     }
 
     objectClass = GROUNDVEHICLE;
-    unknown7C8 = 1000.0f;
+    distanceSinceMarkSeen = 1000.0f;
     return 0;
 }
 
@@ -1753,9 +1748,9 @@ auto GroundVehicle::pivotTo() -> int
 
                 pilot->moveOrders.moveState = MOVESTATE_FORWARD;
 
-                if (pilot->moveOrders.unknown1030 != 0)
+                if (pilot->moveOrders.moveStateGoalChanged != 0)
                 {
-                    pilot->moveOrders.unknown1030 = 0;
+                    pilot->moveOrders.moveStateGoalChanged = 0;
                 }
             }
         }
@@ -1797,9 +1792,9 @@ auto GroundVehicle::pivotTo() -> int
 
                 MechWarrior* orders = pilot;
 
-                if (orders->moveOrders.unknown1030 != 0)
+                if (orders->moveOrders.moveStateGoalChanged != 0)
                 {
-                    orders->moveOrders.unknown1030 = 0;
+                    orders->moveOrders.moveStateGoalChanged = 0;
                 }
 
                 if (moveStateGoal == MOVESTATE_REVERSE)
@@ -1933,15 +1928,15 @@ auto GroundVehicle::updateMoveStateGoal() -> void
     if (orders->moveOrders.moveStateGoal == MOVESTATE_FORWARD)
     {
         // The target is behind: drive backward.
-        if (turretArc < delta && 180.0 - delta <= turretArc && orders->moveOrders.unknown1030 == 0)
+        if (turretArc < delta && 180.0 - delta <= turretArc && orders->moveOrders.moveStateGoalChanged == 0)
         {
-            orders->moveOrders.unknown1030 = 1;
+            orders->moveOrders.moveStateGoalChanged = 1;
             orders->moveOrders.moveStateGoal = MOVESTATE_REVERSE;
         }
     }
-    else if (turretArc < 180.0 - delta && delta <= turretArc && orders->moveOrders.unknown1030 == 0)
+    else if (turretArc < 180.0 - delta && delta <= turretArc && orders->moveOrders.moveStateGoalChanged == 0)
     {
-        orders->moveOrders.unknown1030 = 1;
+        orders->moveOrders.moveStateGoalChanged = 1;
         orders->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
     }
 }
@@ -2330,7 +2325,7 @@ auto GroundVehicle::updateMovement() -> void
         return;
     }
 
-    if (unknown170 > -1.0f)
+    if (engineBlowTime > -1.0f)
     {
         return;
     }
@@ -2425,7 +2420,7 @@ auto GroundVehicle::netUpdateMovement() -> void
         return;
     }
 
-    if (unknown170 > -1.0f)
+    if (engineBlowTime > -1.0f)
     {
         return;
     }
@@ -2528,7 +2523,7 @@ auto GroundVehicle::onScreen() -> int
 auto GroundVehicle::disable(uint32_t cause) -> void
 {
     Mover::disable(cause);
-    unknown794 = 0.0f;
+    deathTimer = 0.0f;
     smoke = static_cast<Smoke*>(createObject(0x1c2));
 
     if (smoke != nullptr)
@@ -2700,9 +2695,9 @@ namespace
         smoke->setOwnerPosition(vehicle->position);
         smoke->setOwnerVelocity(vehicle->velocity);
         smoke->update();
-        vehicle->unknown794 -= frameLength;
+        vehicle->deathTimer -= frameLength;
 
-        if (vehicle->unknown794 > -30.0)
+        if (vehicle->deathTimer > -30.0)
         {
             return;
         }
@@ -2714,7 +2709,7 @@ namespace
 
 auto GroundVehicle::update() -> int32_t
 {
-    if (unknown79C != 0 && pilot->status == 2)
+    if (withdrawing != 0 && pilot->status == 2)
     {
         collisionsOn = 0;
         return 1;
@@ -2748,7 +2743,7 @@ auto GroundVehicle::update() -> int32_t
         selected = 0;
     }
 
-    if (isDestroyed() != 0 && unknown794 < 0.0)
+    if (isDestroyed() != 0 && deathTimer < 0.0)
     {
         // The wreck: only its appearance and smoke go on.
         if (appearance != nullptr)
@@ -2766,11 +2761,11 @@ auto GroundVehicle::update() -> int32_t
         return 1;
     }
 
-    if (isDestroyed() == 0 || unknown794 < 0.0)
+    if (isDestroyed() == 0 || deathTimer < 0.0)
     {
-        if (getAwake() == 0 || isDisabled() != 0 || unknown7C8 < Terrain::metersPerVertex)
+        if (getAwake() == 0 || isDisabled() != 0 || distanceSinceMarkSeen < Terrain::metersPerVertex)
         {
-            if (isDisabled() != 0 && unknown794 != 0.0f && smoke != nullptr)
+            if (isDisabled() != 0 && deathTimer != 0.0f && smoke != nullptr)
             {
                 updateSmoke(this);
             }
@@ -2787,15 +2782,15 @@ auto GroundVehicle::update() -> int32_t
                 land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 2);
             }
 
-            unknown7C8 = 0.0f;
+            distanceSinceMarkSeen = 0.0f;
         }
     }
     else
     {
         // Just destroyed: when the death timer runs out, it blows up and its crew bails out.
-        unknown794 -= frameLength;
+        deathTimer -= frameLength;
 
-        if (unknown794 < 0.0)
+        if (deathTimer < 0.0)
         {
             if (gvAppearance == 0)
             {
@@ -2814,7 +2809,7 @@ auto GroundVehicle::update() -> int32_t
 
             auto* vehicleType = static_cast<GroundVehicleType*>(objType);
             vehicleType->createExplosion(position, vehicleType->explDmg, vehicleType->explRad);
-            unknown798 = 1;
+            deathExplosionDone = 1;
             smoke = static_cast<Smoke*>(createObject(0x1c2));
             collisionsOn = 0;
 
@@ -2869,7 +2864,7 @@ auto GroundVehicle::update() -> int32_t
         {
             vehicleAppearance->setTypeId(GV_ACTOR_STATE_DAMAGED);
         }
-        else if (unknown8CC == 0)
+        else if (refitting == 0)
         {
             vehicleAppearance->setTypeId(GV_ACTOR_STATE_NORMAL);
         }
@@ -2896,7 +2891,7 @@ auto GroundVehicle::update() -> int32_t
         }
     }
 
-    if (unknown79C != 0 && visibleNow == 0 && pilot->status != 2)
+    if (withdrawing != 0 && visibleNow == 0 && pilot->status != 2)
     {
         objType->handleDestruction(this, nullptr);
     }
@@ -2948,7 +2943,7 @@ auto GroundVehicle::update() -> int32_t
     move.y = velocity.y * frameLength * worldUnitsPerMeter;
     move.z = velocity.z * frameLength * worldUnitsPerMeter;
 
-    if (unknown20C != 0)
+    if (newMoveChunk != 0)
     {
         // A new move chunk: warp to its first step when too far off.
         if (statusChunk.jumpOrder == 0)
@@ -2975,13 +2970,13 @@ auto GroundVehicle::update() -> int32_t
             }
         }
 
-        unknown20C = 0;
+        newMoveChunk = 0;
     }
 
-    unknown7C8 =
+    distanceSinceMarkSeen =
         static_cast<float>(std::sqrt(static_cast<double>(move.x) * move.x + static_cast<double>(move.y) * move.y +
                                      static_cast<double>(move.z) * move.z) +
-                           unknown7C8);
+                           distanceSinceMarkSeen);
     vector_3d newPosition;
     newPosition.x = move.x + position.x;
     newPosition.y = move.y + position.y;
@@ -3062,7 +3057,7 @@ auto GroundVehicle::render() -> void
         onScreen();
     }
 
-    if (unknown79C != 0 && pilot->status == 2)
+    if (withdrawing != 0 && pilot->status == 2)
     {
         return;
     }
@@ -3213,7 +3208,7 @@ auto GroundVehicle::render() -> void
         _QueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
         const int32_t numOrders = pilot->getTacOrderQueue(queue);
         vector_2d fromScreen = eyeProject(position);
-        const int32_t drawLines = unknown89C;
+        const int32_t drawLines = drawOrderLines;
 
         for (int32_t i = 0; i < numOrders; i++)
         {
@@ -3544,7 +3539,7 @@ auto GroundVehicle::buildStatusChunk() -> int32_t
         }
     }
 
-    statusChunk.ejectOrderGiven = unknown790;
+    statusChunk.ejectOrderGiven = ejectOrderGiven;
     statusChunk.pack(this);
 
     // Checks the chunk unpacks to what was packed.
@@ -3622,9 +3617,9 @@ auto GroundVehicle::handleStatusChunk(int32_t updateAge, uint32_t chunk) -> int3
         pilot->setLastTarget(target, 0, 0);
     }
 
-    if (unknown790 == 0 && statusChunk.ejectOrderGiven != 0)
+    if (ejectOrderGiven == 0 && statusChunk.ejectOrderGiven != 0)
     {
-        unknown790 = 1;
+        ejectOrderGiven = 1;
         handleEjection();
     }
 
@@ -3698,7 +3693,7 @@ auto GroundVehicle::handleMoveChunk(uint32_t chunk) -> int32_t
             path->curStep = step;
         }
 
-        unknown20C = 1;
+        newMoveChunk = 1;
     }
 
     return 0;

@@ -8,60 +8,60 @@
 #include "lib/aerror.h"
 #include "lib/file.h"
 
-ReservedWord reservedWord2[] = {
+ReservedWord keywords2[] = {
     {"if", TKN_IF}, {"or", TKN_OR}, {"do", TKN_DO}, {"to", TKN_TO}, {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord3[] = {
+ReservedWord keywords3[] = {
     {"and", TKN_AND}, {"for", TKN_FOR}, {"mod", TKN_MOD}, {"not", TKN_NOT}, {"var", TKN_VAR}, {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord4[] = {
+ReservedWord keywords4[] = {
     {"else", TKN_ELSE}, {"then", TKN_THEN}, {"case", TKN_CASE},
     {"code", TKN_CODE}, {"type", TKN_TYPE}, {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord5[] = {
+ReservedWord keywords5[] = {
     {"const", TKN_CONST}, {"until", TKN_UNTIL}, {"while", TKN_WHILE}, {"endif", TKN_END_IF}, {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord6[] = {
+ReservedWord keywords6[] = {
     {"module", TKN_MODULE}, {"repeat", TKN_REPEAT}, {"endfor", TKN_END_FOR},
     {"switch", TKN_SWITCH}, {"static", TKN_STATIC}, {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord7[] = {
+ReservedWord keywords7[] = {
     {"endcase", TKN_END_CASE},
     {"eternal", TKN_ETERNAL},
     {"library", TKN_LIBRARY},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord8[] = {
+ReservedWord keywords8[] = {
     {"function", TKN_FUNCTION},
     {"endwhile", TKN_END_WHILE},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord9[] = {
+ReservedWord keywords9[] = {
     {"endswitch", TKN_END_SWITCH},
     {"endmodule", TKN_END_MODULE},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord10[] = {
+ReservedWord keywords10[] = {
     {"endlibrary", TKN_END_LIBRARY},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord reservedWord11[] = {
+ReservedWord keywords11[] = {
     {"endfunction", TKN_END_FUNCTION},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord* reservedWordTable[12] = {
-    nullptr,       nullptr,       reservedWord2, reservedWord3, reservedWord4,  reservedWord5,
-    reservedWord6, reservedWord7, reservedWord8, reservedWord9, reservedWord10, reservedWord11,
+ReservedWord* keywordTable[12] = {
+    nullptr,   nullptr,   keywords2, keywords3, keywords4,  keywords5,
+    keywords6, keywords7, keywords8, keywords9, keywords10, keywords11,
 };
 
 const char* TokenStrings[NUM_TOKENS] = {
@@ -215,7 +215,7 @@ auto isReservedWord() -> int
         return 0;
     }
 
-    ReservedWord* rwp = reservedWordTable[wordLength];
+    ReservedWord* rwp = keywordTable[wordLength];
 
     if (rwp == nullptr)
     {

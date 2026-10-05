@@ -88,11 +88,10 @@ namespace
     /// <param name="deathTime">The death timer to set (0.8 when it goes quietly, 0 when shot).</param>
     void removeMarine(Elemental* marine, float deathTime)
     {
-        marine->unknown794 = deathTime;
+        marine->deathTimer = deathTime;
         marine->getPilot()->triggerAlarm(7, 0);
         marine->status = 2;
-        marine->unknown8B8 = 0;
-        marine->unknown798 = 0;
+        marine->deathExplosionDone = 0;
         theInterface->RemoveMech(marine->partId);
     }
 
@@ -257,8 +256,6 @@ auto ElementalType::init() -> void
     name.clear();
     alignment = 0;
     maxHealth = 0;
-    unknown3C = 0;
-    unknown4C = 0;
 }
 
 auto ElementalType::destroy() -> void
@@ -489,20 +486,19 @@ auto ElementalType::handleDestruction(GameObject* collidee, GameObject* collider
         elemental->sensorSystem->disable();
     }
 
-    if (elemental->unknown79C == 0)
+    if (elemental->withdrawing == 0)
     {
-        elemental->unknown794 = 0.8f;
+        elemental->deathTimer = 0.8f;
         elemental->getPilot()->triggerAlarm(7, collider == nullptr ? 0 : collider->idNumber);
     }
     else
     {
-        elemental->unknown794 = 0.0f;
+        elemental->deathTimer = 0.0f;
         elemental->getPilot()->triggerAlarm(8, 0);
     }
 
     elemental->status = 2;
-    elemental->unknown8B8 = 0;
-    elemental->unknown798 = 0;
+    elemental->deathExplosionDone = 0;
     theInterface->RemoveMech(elemental->partId);
 
     // Original behaviour (OB-003): the type's alignment (1 or 0xff) against the home team's (1 or -1), so a clan
@@ -555,10 +551,8 @@ auto Elemental::init() -> void
     jumpGoal.z = 0.0f;
     jumpGoal.y = 0.0f;
     jumpGoal.x = 0.0f;
-    unknown8B8 = 0;
     maxHealth = 11;
     curHealth = 11;
-    unknown8C8 = 0;
     elementalCanJump = 1;
     transport = nullptr;
 }
@@ -617,7 +611,7 @@ auto Elemental::init(ObjectType* objType) -> int32_t
     }
 
     objectClass = ELEMENTAL;
-    unknown7C8 = 1000.0f;
+    distanceSinceMarkSeen = 1000.0f;
     removed = 0;
     elementalCanJump = elementalType->canJump;
     return 0;
@@ -1725,17 +1719,17 @@ auto Elemental::update() -> int32_t
         }
 
         // The body: when the death timer runs low it blows up and leaves a crater.
-        unknown794 -= frameLength;
+        deathTimer -= frameLength;
 
-        if (unknown794 < 0.4 && unknown798 == 0 && unknown79C == 0)
+        if (deathTimer < 0.4 && deathExplosionDone == 0 && withdrawing == 0)
         {
             objType->createExplosion(position, 0.0f, 0.0f);
             craterManager->addCrater(7, position, 0);
-            unknown798 = 1;
+            deathExplosionDone = 1;
             return 1;
         }
 
-        if (unknown794 < 0.0)
+        if (deathTimer < 0.0)
         {
             return 1;
         }
@@ -1748,7 +1742,7 @@ auto Elemental::update() -> int32_t
             selected = 0;
         }
 
-        if (getAwake() != 0 && isDisabled() == 0 && Terrain::metersPerVertex <= unknown7C8)
+        if (getAwake() != 0 && isDisabled() == 0 && Terrain::metersPerVertex <= distanceSinceMarkSeen)
         {
             // Every vertex travelled, the elemental marks what it sees.
             if (alignment == 1)
@@ -1760,7 +1754,7 @@ auto Elemental::update() -> int32_t
                 land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 2);
             }
 
-            unknown7C8 = 0.0f;
+            distanceSinceMarkSeen = 0.0f;
         }
 
         int32_t result = control->update();
@@ -1814,16 +1808,16 @@ auto Elemental::update() -> int32_t
         newPosition.y = move.y + position.y;
         newPosition.z = move.z + position.z;
         setPosition(newPosition);
-        unknown7C8 =
+        distanceSinceMarkSeen =
             static_cast<float>(std::sqrt(static_cast<double>(move.x) * move.x + static_cast<double>(move.y) * move.y +
                                          static_cast<double>(move.z) * move.z) +
-                               unknown7C8);
+                               distanceSinceMarkSeen);
         position.z = land->getTerrainElevation(position);
 
         const int visibleNow = onScreen();
         const int offScreen = visibleNow == 0 ? 1 : 0;
 
-        if (unknown79C != 0)
+        if (withdrawing != 0)
         {
             if (visibleNow == 0)
             {
@@ -2402,7 +2396,8 @@ auto Elemental::getVitalInfo(void* vitalInfo) -> int32_t
         Mover::getVitalInfo(vitalInfo);
         auto* info = reinterpret_cast<uint8_t*>(vitalInfo) + size;
         std::memcpy(info, &jumpRange, 4);
-        std::memcpy(info + 4, &unknown8BC, 4);
+        const int32_t zero = 0; // the original copied a field nothing ever set
+        std::memcpy(info + 4, &zero, 4);
         std::memcpy(info + 8, &maxHealth, 4);
         std::memcpy(info + 12, &curHealth, 4);
     }

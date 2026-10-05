@@ -92,7 +92,6 @@ auto TreeBuildingType::init() -> void
     typeClass = -1;
     destroyedObject = -1;
     explosionObject = -1;
-    unknown18 = 0;
     appearName = 0;
     extentRadius = 0.0f;
     keepMe = 0;
@@ -272,8 +271,6 @@ TreeBuilding::TreeBuilding()
     vertexNumber = 0;
     blockNumber = 0;
     burning = 0;
-    unknown9C = 0;
-    unknownA0 = 500000;
     hitOnce = 0;
     collapsed = 0;
     collapsing = 0;
@@ -532,12 +529,6 @@ auto TreeBuilding::handleEvent(ObjectEvent* event) -> int32_t
                 break;
             case 0x1d:
                 selected = 0;
-                break;
-            case 0x1e:
-                unknown2C = 1;
-                break;
-            case 0x1f:
-                unknown2C = 0;
                 break;
         }
     }

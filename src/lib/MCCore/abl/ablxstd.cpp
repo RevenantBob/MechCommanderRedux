@@ -3032,7 +3032,7 @@ auto execHbGetObjDamage(SymTableNodePtr routineIdPtr) -> TypePtr
     double damage = object->getDamage();
     uint32_t damageLevel;
 
-    // Original behaviour: an unknown kind of misc terrain object gives its raw damage times 100.
+    // Original behaviour: a misc terrain object getDamageLevel doesn't list gives its raw damage times 100.
     if (getDamageLevel(object, damageLevel))
     {
         damage = damage / static_cast<double>(static_cast<int32_t>(damageLevel));
@@ -4225,7 +4225,7 @@ auto execHbGetUnitStatus(SymTableNodePtr routineIdPtr) -> TypePtr
             case MISCTERRAINOBJECT:
             {
                 uint32_t damageLevel = 0;
-                // Original behaviour: an unknown kind divides 0 by 0.
+                // Original behaviour: a kind getDamageLevel doesn't list divides 0 by 0.
                 getDamageLevel(object, damageLevel);
                 status = 1.0 - damageTaken(object, static_cast<int32_t>(damageLevel));
                 break;

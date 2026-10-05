@@ -90,7 +90,8 @@ namespace
 
     /// <summary>
     /// Appends the target line both debug routines print: the mover (roster index), terrain object, train car or
-    /// camera drone (part id), or map point, or "???" with the terrain objects of the target's vertex listed.
+    /// camera drone (part id), or map point, or else three question marks with the terrain objects of the target's
+    /// vertex listed.
     /// </summary>
     /// <param name="itemNumber">The item number used for the vertex listing (see OB-010).</param>
     /// <param name="cellC">The cell column used for a map point (see OB-010).</param>
@@ -950,7 +951,6 @@ GameObject::GameObject()
     position.y = 0.0f;
     position.x = 0.0f;
     selected = 0;
-    unknown2C = 0;
     collisionsOn = 0;
     alignment = 0;
     status = 0;
@@ -975,7 +975,6 @@ auto GameObject::init() -> void
     position.y = 0.0f;
     position.x = 0.0f;
     selected = 0;
-    unknown2C = 0;
     collisionsOn = 0;
     alignment = 0;
     status = 0;
@@ -1369,7 +1368,6 @@ auto BigGameObject::init() -> void
     flags = 5;
     alignment = 0;
     selected = 0;
-    unknown2C = 0;
     screenPos.x = 0.0f;
     screenPos.y = 0.0f;
     windowsVisible = 0;

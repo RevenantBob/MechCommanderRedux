@@ -54,8 +54,8 @@ extern float gvCollisionThreshold;
 extern float gvObjectCollisionThreshold;
 /// <summary>"GroundVehicle.Collision" "tonnageThreshold".</summary>
 extern float gvTonnageCollisionThreshold;
-/// <summary>"GroundVehicle.Collision" "treeDeflection". DAT_007de514: unnamed in the binary (file-static), the name is
-/// the port's.</summary>
+/// <summary>"GroundVehicle.Collision" "treeDeflection". At 0x007de514 (file-static, no symbol; the name is the
+/// port's).</summary>
 extern float gvTreeDeflection;
 /// <summary>"GroundVehicle.Movement" "SweeperSlowTime": how long a mine sweeper crawls after clearing a mine.</summary>
 extern float gvSweepTime;
@@ -121,22 +121,12 @@ public:
     uint8_t chassis = 0; // +0x39
     /// <summary>"TonnageClass".</summary>
     float tonnageClass = 0.0f; // +0x3c
-    /// <summary>Zeroed by init; never read (the mech type's EndoSteel slot).</summary>
-    int32_t unknown40 = 0; // +0x40
-    /// <summary>Zeroed by init; never read.</summary>
-    int32_t unknown44 = 0; // +0x44
     /// <summary>Zeroed by init, never read from the file; copied to Mover::internalStructureTonnage.</summary>
     float internalStructureTonnage = 0.0f; // +0x48
     /// <summary>"InternalStructure": "Front", "Left", "Right", "Rear", "Turret".</summary>
     uint8_t internalStructure[NUM_GROUNDVEHICLE_LOCATIONS] = {}; // +0x4c
-    /// <summary>Zeroed by init; never read.</summary>
-    int32_t unknown54 = 0; // +0x54
-    /// <summary>Not accessed.</summary>
-    int32_t unknown58 = 0; // +0x58
     /// <summary>The dynamics type (a GroundVehicleDynamicsType).</summary>
     DynamicsType* dynamicsType = nullptr; // +0x5c
-    /// <summary>Zeroed by init; never read.</summary>
-    int32_t unknown60 = 0; // +0x60
     /// <summary>"CrashAvoidSelf".</summary>
     int32_t crashAvoidSelf = 0; // +0x64
     /// <summary>"CrashAvoidPath".</summary>
@@ -340,17 +330,12 @@ public:
     /// <remarks>MCX.EXE @ 0x0066dc40</remarks>
     void createVehiclePilot();
 
-    /// <summary>Not accessed.</summary>
-    int32_t unknown8A0 = 0; // +0x8a0
     /// <summary>1 by init; a critical hit clears it. canMove returns it.</summary>
     int32_t movementEnabled = 1; // +0x8a4
     /// <summary>1 by init; a critical hit clears it.</summary>
     int32_t turretEnabled = 1; // +0x8a8
     /// <summary>The turret's yaw relative to the body (updateTurret; relFacingTo adds it).</summary>
     float turretRotation = 0.0f; // +0x8ac
-    /// <summary>A pending request flag: zeroed by init, cleared by the AI and network controls' update; never
-    /// set in this file.</summary>
-    int32_t unknown8B0 = 0; // +0x8b0
     /// <summary>Whether the weapons can fire: always for a turret vehicle; a pop-up turret once it is up.</summary>
     int32_t weaponsDeployed = 1; // +0x8b4
     /// <summary>1 with a GVAppearance (a vehicle), 0 with a PUAppearance (a pop-up turret).</summary>
@@ -363,8 +348,9 @@ public:
     int32_t captureable = 0; // +0x8c4
     /// <summary>Set when the type has refit points (the armor slot's refit pool at +0x20 of the armor block).</summary>
     int32_t refitter = 0; // +0x8c8
-    /// <summary>While stopped, update plays gesture 3 instead of 0 when set. Zeroed by init.</summary>
-    int32_t unknown8CC = 0; // +0x8cc
+    /// <summary>Set while a refit truck is refitting (TacticalOrder's refit, stage 3 until done); a stopped vehicle then
+    /// shows its extra (refit) state instead of the normal one.</summary>
+    int32_t refitting = 0; // +0x8cc
     /// <summary>The type's "MineSweeper".</summary>
     int32_t mineSweeper = 0; // +0x8d0
     /// <summary>Seconds since the sweeper last cleared a mine; -1 when it hasn't.</summary>
