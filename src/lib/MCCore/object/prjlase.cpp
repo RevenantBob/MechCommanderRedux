@@ -652,8 +652,8 @@ auto ProjectileLaser::render() -> void
 
     const int32_t depth = -side1.vertices[0].y;
     ElementList->openGroup(depth, 1);
-    ElementList->add(new PolygonElement(&side1, depth));
-    ElementList->add(new PolygonElement(&side2, depth));
+    ElementList->add(ElementPool::Make<PolygonElement>(&side1, depth));
+    ElementList->add(ElementPool::Make<PolygonElement>(&side2, depth));
 
     if (smoke != nullptr)
     {

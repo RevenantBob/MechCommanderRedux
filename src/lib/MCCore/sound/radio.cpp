@@ -5,7 +5,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -24,14 +23,10 @@ PacketFile* Radio::noiseFile = nullptr;
 int32_t Radio::messageInfoLoaded = 0;
 int32_t Radio::currentRadio = 0;
 int32_t Radio::radioListInitialized = 0;
-UserHeap* Radio::radioHeap = nullptr;
 
 namespace
 {
-    /// <summary>The radio heap's size.</summary>
-    constexpr uint32_t RADIO_HEAP_SIZE = 0x31fff;
-    /// <summary>What init and playMessage return when a radio can't be made or a message isn't played.</summary>
-    constexpr int32_t RADIO_NO_MEMORY = -0x152fffe;
+    /// <summary>What playMessage returns when a message isn't played.</summary>
     constexpr int32_t RADIO_NOT_PLAYED = -0x152fffd;
 
     /// <summary>Ends and deletes a message's video window.</summary>
@@ -56,9 +51,6 @@ int32_t Radio::init(char* fileName, uint32_t heapSize, char* movieName)
 
         radioListInitialized = 1;
         currentRadio = 0;
-        radioHeap = new UserHeap();
-        radioHeap->init(RADIO_HEAP_SIZE, nullptr);
-        radioHeap->unknown2C = 0;
     }
 
     FullPathFileName radioName;
@@ -73,19 +65,7 @@ int32_t Radio::init(char* fileName, uint32_t heapSize, char* movieName)
         return result;
     }
 
-    if (*movieName != '\0')
-    {
-        size_t size = std::strlen(movieName) + 1;
-        this->movieName = static_cast<char*>(radioHeap->malloc(static_cast<uint32_t>(size)));
-
-        if (this->movieName == nullptr)
-        {
-            return 0;
-        }
-
-        std::strncpy(this->movieName, movieName, size - 1);
-        this->movieName[size - 1] = '\0';
-    }
+    this->movieName = movieName;
 
     if (noiseFile == nullptr)
     {
@@ -169,17 +149,9 @@ int32_t Radio::playMessage(RadioMessageType msgType)
         }
     }
 
-    RadioData* message = static_cast<RadioData*>(radioHeap->malloc(sizeof(RadioData)));
-
-    if (message == nullptr)
-    {
-        return RADIO_NOT_PLAYED;
-    }
-
-    std::memset(message, 0, sizeof(RadioData));
+    auto* message = new RadioData();
     message->expirationDate = scenarioTime + info.shelfLife;
     message->msgType = msgType;
-    message->msgHeap = radioHeap;
     message->turnQueued = turn;
     message->msgId = static_cast<uint32_t>(info.msgId + variation);
     message->movieWindow = nullptr;
@@ -191,12 +163,12 @@ int32_t Radio::playMessage(RadioMessageType msgType)
     // The pilot's video, when the tactical map shows its video window.
     TacticalMap* tacMap = Terrain::terrainTacticalMap;
 
-    if (info.movieCode != 'x' && movieName != nullptr && owner->vehicle->objectClass == BATTLEMECH &&
+    if (info.movieCode != 'x' && !movieName.empty() && owner->vehicle->objectClass == BATTLEMECH &&
         tacMap->IsShowing() != 0 && tacMap->IsHidden() == 0 && tacMap->displayType == 0 &&
         tacMap->videoWindow != nullptr)
     {
         char videoName[80];
-        std::snprintf(videoName, sizeof(videoName), "%s%c", movieName, info.movieCode);
+        std::snprintf(videoName, sizeof(videoName), "%s%c", movieName.c_str(), info.movieCode);
         aSmackerWindow* window = new aSmackerWindow();
         tagRECT area = tacMap->GetVideoRect();
         window->init(&area, nullptr);
@@ -226,63 +198,23 @@ int32_t Radio::playMessage(RadioMessageType msgType)
 
         if (idPacket != 0 && radioFile->seekPacket(idPacket) == 0)
         {
-            message->data[0] = static_cast<uint8_t*>(radioHeap->malloc(radioFile->getPacketSize()));
-
-            if (message->data[0] == nullptr)
-            {
-                // The original freed the message before reading its window (from the freed block).
-                aSmackerWindow* window = message->movieWindow;
-                radioHeap->free(message);
-                closeMovieWindow(window);
-                return RADIO_NOT_PLAYED;
-            }
-
-            radioFile->readPacket(idPacket, message->data[0]);
+            // The original gave up on the message when the radio heap was full; the port's memory isn't.
+            message->data[0] = std::make_unique<uint8_t[]>(radioFile->getPacketSize());
+            radioFile->readPacket(idPacket, message->data[0].get());
             fragment = 1;
         }
     }
 
     if (radioFile->seekPacket(static_cast<int32_t>(message->msgId)) == 0)
     {
-        message->data[fragment] = static_cast<uint8_t*>(radioHeap->malloc(radioFile->getPacketSize()));
-
-        if (message->data[fragment] == nullptr)
-        {
-            for (int32_t i = fragment; i >= 0; i--)
-            {
-                radioHeap->free(message->data[i]);
-            }
-
-            aSmackerWindow* window = message->movieWindow;
-            radioHeap->free(message);
-            closeMovieWindow(window);
-            return RADIO_NOT_PLAYED;
-        }
-
-        radioFile->readPacket(static_cast<int32_t>(message->msgId), message->data[fragment]);
+        message->data[fragment] = std::make_unique<uint8_t[]>(radioFile->getPacketSize());
+        radioFile->readPacket(static_cast<int32_t>(message->msgId), message->data[fragment].get());
         int32_t noiseId = static_cast<int32_t>(message->noiseId);
 
         if (noiseFile->seekPacket(noiseId) == 0)
         {
-            message->noise[0] = static_cast<uint8_t*>(radioHeap->malloc(noiseFile->getPacketSize()));
-
-            if (message->noise[0] == nullptr)
-            {
-                // The message's own fragment leaks here (only the pilot's name is freed).
-                uint8_t* nameFragment = message->data[0];
-                aSmackerWindow* window = message->movieWindow;
-                radioHeap->free(message);
-
-                if (fragment > 0)
-                {
-                    radioHeap->free(nameFragment);
-                }
-
-                closeMovieWindow(window);
-                return RADIO_NOT_PLAYED;
-            }
-
-            noiseFile->readPacket(noiseId, message->noise[0]);
+            message->noise[0] = std::make_unique<uint8_t[]>(noiseFile->getPacketSize());
+            noiseFile->readPacket(noiseId, message->noise[0].get());
         }
     }
 
@@ -292,16 +224,7 @@ int32_t Radio::playMessage(RadioMessageType msgType)
     }
 
     closeMovieWindow(message->movieWindow);
-
-    for (int32_t i = 0; i < MAX_RADIO_FRAGMENTS; i++)
-    {
-        radioHeap->free(message->data[i]);
-        message->data[i] = nullptr;
-        radioHeap->free(message->noise[i]);
-        message->noise[i] = nullptr;
-    }
-
-    radioHeap->free(message);
+    delete message;
     return RADIO_NOT_PLAYED;
 }
 

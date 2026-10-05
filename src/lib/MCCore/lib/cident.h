@@ -64,8 +64,8 @@ public:
     void destroy();
 
     /// <summary>The path.</summary>
-    operator char*() { return fullName; }
+    operator char*() { return fullName.empty() ? nullptr : fullName.data(); }
 
-    /// <summary>The path, allocated from systemHeap once it is up.</summary>
-    char* fullName = nullptr; // +0x00
+    /// <summary>The path (empty before <see cref="init"/>).</summary>
+    std::string fullName; // +0x00
 };

@@ -136,8 +136,8 @@ public:
 
     /// <summary>The shadow PAK (open only while the shadows load).</summary>
     static PacketFile* shadows;
-    /// <summary>The shadow shapes (128 slots, from systemHeap).</summary>
-    static uint8_t** shadowShapes;
+    /// <summary>The shadow shapes (128 slots).</summary>
+    static std::vector<std::unique_ptr<uint8_t[]>> shadowShapes;
     /// <summary>The number of shadow shapes.</summary>
     static int32_t numShadows;
 

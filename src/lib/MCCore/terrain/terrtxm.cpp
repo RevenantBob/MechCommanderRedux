@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "terrain/terrtxm.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -13,36 +12,17 @@ char tile90Path[80] = "data\\tiles\\";
 
 namespace
 {
-    /// <summary>The heap could not be created or sized.</summary>
-    constexpr int32_t TILE_NO_HEAP = static_cast<int32_t>(0xbaaa0003);
     /// <summary>A tile file could not be created.</summary>
     constexpr int32_t TILE_NO_FILE = static_cast<int32_t>(0xbaaa0002);
-    /// <summary>The slot table didn't fit in the heap.</summary>
-    constexpr int32_t TILE_NO_TABLE = static_cast<int32_t>(0xbaaa0001);
 }
 
-auto TerrainTiles::init(char* tileFileName, int32_t heapSize) -> int32_t
+auto TerrainTiles::init(char* tileFileName) -> int32_t
 {
     tileCacheReqs = 0;
     tileCacheHits = 0;
     tileCacheMiss = 0;
     FullPathFileName tileName;
     FullPathFileName tile90Name;
-
-    UserHeap* heap = new UserHeap;
-    tileHeap = heap;
-
-    if (heap == nullptr)
-    {
-        return TILE_NO_HEAP;
-    }
-
-    int32_t result = heap->init(static_cast<uint32_t>(heapSize), nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
 
     tileFile = new PacketFile;
 
@@ -52,7 +32,7 @@ auto TerrainTiles::init(char* tileFileName, int32_t heapSize) -> int32_t
     }
 
     tileName.init(tilePath, tileFileName, ".pak");
-    result = tileFile->open(tileName, READ, 50);
+    const int32_t result = tileFile->open(tileName, READ, 50);
 
     if (result != 0)
     {
@@ -75,15 +55,9 @@ auto TerrainTiles::init(char* tileFileName, int32_t heapSize) -> int32_t
     tileSetOffset[0] = 0;
     tileSetOffset[1] = packets / 2;
 
-    tiles = static_cast<TerrainTile*>(heap->malloc(static_cast<uint32_t>(packets) * sizeof(TerrainTile)));
-
-    if (tiles == nullptr)
-    {
-        return TILE_NO_TABLE;
-    }
-
-    std::memset(tiles, 0, static_cast<size_t>(packets) * sizeof(TerrainTile));
-    tileHeap->unknown2C = 0;
+    // One slot more than the packets: readTile takes tileNum == numTiles (the original wrote past the table).
+    tiles.clear();
+    tiles.resize(static_cast<size_t>(std::max(packets, 0)) + 1);
     customTileSet = MCPort::StrICmp("tiles", tileFileName) != 0 ? 1 : 0;
     return 0;
 }
@@ -132,15 +106,29 @@ auto TerrainTiles::destroy() -> void
     }
 
     tile90File = nullptr;
-    delete tileHeap;
-    tileHeap = nullptr;
+
+    for (TerrainTile& tile : tiles)
+    {
+        tile.free();
+    }
+
+    tiles.clear();
+}
+
+auto TerrainTile::free() -> void
+{
+    if (storage != nullptr)
+    {
+        MCRenderer::UnregisterData(storage.get());
+        storage.reset();
+    }
+
+    tileData = nullptr;
 }
 
 auto TerrainTiles::dumpLRU(int32_t /*bytesNeeded*/) -> void
 {
-    UserHeap* heap = tileHeap;
-    heap->coreLeft();
-    TerrainTile* tile = tiles;
+    TerrainTile* tile = tiles.data();
 
     for (int32_t count = numTiles; count > 0; count--, tile++)
     {
@@ -153,8 +141,7 @@ auto TerrainTiles::dumpLRU(int32_t /*bytesNeeded*/) -> void
 
         if (lastUsed >= 0 && turn != lastUsed && turn - lastUsed >= 0)
         {
-            heap->free(tile->tileData);
-            tile->tileData = nullptr;
+            tile->free();
         }
     }
 }
@@ -184,22 +171,12 @@ auto TerrainTiles::readTile(int32_t tileNum) -> TerrainTile*
         return nullptr;
     }
 
-    auto* data = static_cast<uint8_t*>(tileHeap->malloc(static_cast<uint32_t>(size)));
-
-    if (data == nullptr)
-    {
-        dumpLRU(size);
-        data = static_cast<uint8_t*>(tileHeap->malloc(static_cast<uint32_t>(size)));
-
-        if (data == nullptr)
-        {
-            return nullptr;
-        }
-    }
-
-    file->readPacket(tileNum, data);
-    MCRenderer::RegisterData(data, static_cast<size_t>(size), MCDataKind::Shapes);
-    tile->tileData = data;
+    // The original flushed the cache (dumpLRU) when its heap was full; the port's never is.
+    tile->free();
+    tile->storage = std::make_unique<uint8_t[]>(static_cast<size_t>(size));
+    file->readPacket(tileNum, tile->storage.get());
+    MCRenderer::RegisterData(tile->storage.get(), static_cast<size_t>(size), MCDataKind::Shapes);
+    tile->tileData = tile->storage.get();
     tile->lastTurnUsed = turn;
     return tile->tileData == TerrainTile::TILE_MISSING ? nullptr : tile;
 }

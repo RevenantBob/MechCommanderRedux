@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "engine/bitflag.h"
-#include "lib/heap.h"
 #include "lib/routines.h"
 #include "platform/MCRenderer.h"
 #include "vfx/vfx.h"
@@ -31,46 +30,29 @@ auto BitFlag::init(uint32_t numRows, uint32_t numColumns, uint32_t initialValue)
     totalFlags = numRows * numColumns;
     totalRAM = size;
     colWidth = numColumns >> 3;
-    flagHeap = new HeapManager();
-
-    if (flagHeap == nullptr)
-    {
-        return -0x60000;
-    }
-
-    int32_t result = flagHeap->createHeap(size);
-
-    if (result == 0)
-    {
-        result = flagHeap->commitHeap(0);
-
-        if (result == 0)
-        {
-            resetAll(initialValue);
-            result = 0;
-        }
-    }
-
-    return result;
+    // One byte more than the grid: setFlag and getFlag take column == columns, which reaches one byte past the last
+    // row (the original's heap had page slack there).
+    flagData.assign(static_cast<size_t>(size) + 1, 0);
+    resetAll(initialValue);
+    return 0;
 }
 
 auto BitFlag::resetAll(uint32_t value) -> void
 {
     if (value == 0)
     {
-        memclear(flagHeap->getHeapPtr(), static_cast<int>(totalRAM));
+        memclear(flagData.data(), static_cast<int>(totalRAM));
         maskValue = 1;
         return;
     }
 
     maskValue = 1;
-    std::memset(flagHeap->getHeapPtr(), 0xff, totalRAM);
+    std::memset(flagData.data(), 0xff, totalRAM);
 }
 
 auto BitFlag::destroy() -> void
 {
-    delete flagHeap;
-    flagHeap = nullptr;
+    flagData = {};
     unknown04 = 0;
     columns = 0;
     rows = 0;
@@ -83,7 +65,7 @@ auto BitFlag::setFlag(uint32_t r, uint32_t c) -> void
 {
     if (r < rows && c <= columns)
     {
-        uint8_t* flags = flagHeap->getHeapPtr();
+        uint8_t* flags = flagData.data();
         flags[(c >> 3) + colWidth * r] |= static_cast<uint8_t>(1 << ((c % divValue) & 0x1f));
     }
 }
@@ -96,7 +78,7 @@ auto BitFlag::setGroup(uint32_t r, uint32_t c, uint32_t length) -> void
     }
 
     const uint8_t bit = static_cast<uint8_t>(c % divValue);
-    uint8_t* flags = flagHeap->getHeapPtr() + colWidth * r + (c >> 3);
+    uint8_t* flags = flagData.data() + colWidth * r + (c >> 3);
     const int32_t firstBits = 8 - bit;
 
     if (static_cast<int32_t>(length) <= firstBits)
@@ -134,7 +116,7 @@ auto BitFlag::getFlag(uint32_t r, uint32_t c) -> uint8_t
     if (r < rows && c <= columns)
     {
         const uint8_t bit = static_cast<uint8_t>(c % divValue);
-        uint8_t* flags = flagHeap->getHeapPtr();
+        uint8_t* flags = flagData.data();
         return static_cast<uint8_t>(
             (flags[(c >> 3) + colWidth * r] & static_cast<uint8_t>(maskValue << (bit & 0x1f))) >> (bit & 0x1f));
     }
@@ -149,37 +131,21 @@ auto ByteFlag::init(uint32_t numRows, uint32_t numColumns, uint32_t initialValue
     columns = numColumns;
     totalFlags = size;
     totalRAM = size;
-    flagHeap = new HeapManager();
-
-    if (flagHeap == nullptr)
-    {
-        return -0x60000;
-    }
-
-    int32_t result = flagHeap->createHeap(size);
-
-    if (result == 0)
-    {
-        result = flagHeap->commitHeap(0);
-
-        if (result == 0)
-        {
-            resetAll(initialValue);
-            flagPane = new _pane();
-            flagWindow = new _window();
-            flagPane->x0 = 0;
-            flagPane->y0 = 0;
-            flagPane->x1 = static_cast<int32_t>(numColumns);
-            flagPane->y1 = static_cast<int32_t>(numRows);
-            flagPane->window = flagWindow;
-            flagWindow->buffer = flagHeap->getHeapPtr();
-            flagWindow->x_max = static_cast<int32_t>(numColumns - 1);
-            result = 0;
-            flagWindow->y_max = static_cast<int32_t>(numRows - 1);
-        }
-    }
-
-    return result;
+    // One byte more than the grid: setFlag and getFlag take column == columns, which reaches one byte past the last
+    // row (the original's heap had page slack there).
+    flagData.assign(static_cast<size_t>(size) + 1, 0);
+    resetAll(initialValue);
+    flagPane = new _pane();
+    flagWindow = new _window();
+    flagPane->x0 = 0;
+    flagPane->y0 = 0;
+    flagPane->x1 = static_cast<int32_t>(numColumns);
+    flagPane->y1 = static_cast<int32_t>(numRows);
+    flagPane->window = flagWindow;
+    flagWindow->buffer = flagData.data();
+    flagWindow->x_max = static_cast<int32_t>(numColumns - 1);
+    flagWindow->y_max = static_cast<int32_t>(numRows - 1);
+    return 0;
 }
 
 auto ByteFlag::setCircle(uint32_t x, uint32_t y, uint32_t radius) -> void
@@ -201,17 +167,16 @@ auto ByteFlag::resetAll(uint32_t value) -> void
 
     if (value == 0)
     {
-        memclear(flagHeap->getHeapPtr(), static_cast<int>(totalRAM));
+        memclear(flagData.data(), static_cast<int>(totalRAM));
         return;
     }
 
-    std::memset(flagHeap->getHeapPtr(), 0xff, totalRAM);
+    std::memset(flagData.data(), 0xff, totalRAM);
 }
 
 auto ByteFlag::destroy() -> void
 {
-    delete flagHeap;
-    flagHeap = nullptr;
+    flagData = {};
     delete flagPane;
     flagPane = nullptr;
     delete flagWindow;
@@ -240,7 +205,8 @@ auto ByteFlag::setGroup(uint32_t r, uint32_t c, uint32_t length) -> void
 auto ByteFlag::setBytes(uint32_t first, uint32_t count) -> void
 {
     // Each row's part goes through the renderer; what runs past the grid (column == columns on the last row, or a
-    // group longer than the rest of the grid) lands in the heap's slack, as in the original.
+    // group longer than the rest of the grid) went into the original's heap slack, which nothing reads but the extra
+    // byte getFlag reaches; the rest is dropped.
     uint32_t done = 0;
 
     while (done < count && first + done < totalRAM)
@@ -255,9 +221,10 @@ auto ByteFlag::setBytes(uint32_t first, uint32_t count) -> void
         done += length;
     }
 
-    if (done < count)
+    if (done < count && first + done < flagData.size())
     {
-        std::memset(flagHeap->getHeapPtr() + first + done, 0xff, count - done);
+        std::memset(flagData.data() + first + done, 0xff,
+                    std::min<size_t>(count - done, flagData.size() - first - done));
     }
 }
 
@@ -265,7 +232,7 @@ auto ByteFlag::getFlag(uint32_t r, uint32_t c) -> uint8_t
 {
     if (r < rows && c <= columns)
     {
-        return flagHeap->getHeapPtr()[columns * r + c] == 0xff;
+        return flagData.data()[columns * r + c] == 0xff;
     }
 
     return 0;

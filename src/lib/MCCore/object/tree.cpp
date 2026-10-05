@@ -550,14 +550,15 @@ auto Tree::render() -> void
             if (type->destroyedShadow != nullptr)
             {
                 ElementList->openGroup(static_cast<int32_t>(screenPos.y), 1);
-                ElementList->add(
-                    new VFXElement(type->destroyedShadow, screenPos.x, screenPos.y, 0, 0, hazePalette, 0, 0));
+                ElementList->add(ElementPool::Make<VFXElement>(type->destroyedShadow, screenPos.x, screenPos.y, 0, 0,
+                                                               hazePalette, 0, 0));
             }
         }
         else if (type->normalShadow != nullptr)
         {
             ElementList->openGroup(static_cast<int32_t>(-screenPos.y), 1);
-            ElementList->add(new VFXElement(type->normalShadow, screenPos.x, screenPos.y, 0, 0, hazePalette, 0, 0));
+            ElementList->add(
+                ElementPool::Make<VFXElement>(type->normalShadow, screenPos.x, screenPos.y, 0, 0, hazePalette, 0, 0));
         }
     }
 
@@ -584,7 +585,7 @@ auto Tree::render() -> void
         center = MCOverlayPoint(center);
         size.x *= MCOverlay.ScaleX;
         size.y *= MCOverlay.ScaleY;
-        ElementList->add(new EllipseElement(center, size, 0xfe, -50000));
+        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
     }
 }
 

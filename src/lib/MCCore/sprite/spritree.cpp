@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "sprite/spritree.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "main/main.h"
 #include "sprite/sprtmgr.h"
@@ -89,18 +88,9 @@ namespace
 
             const uint32_t packet =
                 static_cast<uint32_t>(static_cast<int32_t>(packetFinderArray[gesture]) * numRotations + i);
-            const int32_t percentFree =
-                static_cast<int32_t>(static_cast<double>(static_cast<int32_t>(manager->shapeHeap->totalCoreLeft())) /
-                                     static_cast<int32_t>(manager->shapeHeapSize) * 100.0);
-
-            if (percentFree < 51)
-            {
-                manager->touchMechShapeData(fileNumber, packet, part);
-            }
-            else
-            {
-                tree->shapeList[listStart + packet] = manager->getMechShapeData(fileNumber, packet, part, 1, tree, 0);
-            }
+            // The original only read ahead (touchMechShapeData) once its shape heap was half full; the port's cache
+            // has no fill, so the shapes are always loaded.
+            tree->shapeList[listStart + packet] = manager->getMechShapeData(fileNumber, packet, part, 1, tree, 0);
         }
     }
 }

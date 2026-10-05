@@ -36,7 +36,7 @@
 MCOverlayTarget MCOverlay;
 float MCFixedZoomHeight = 0.0f;
 Camera* eye = nullptr;
-uint8_t* scaleTable = nullptr;
+std::vector<uint8_t> scaleTable;
 aMainWindow* mainHolder = nullptr;
 int32_t leaveSwoopyOff = 0;
 int32_t drawCameraCircle = 0;
@@ -910,16 +910,6 @@ auto aMainWindow::SetActivePane(aObject* pane) -> void
 // Camera
 //---------------------------------------------------------------------------
 
-auto Camera::operator new(size_t size) noexcept -> void*
-{
-    return cameraList->cameraHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto Camera::operator delete(void* ptr) -> void
-{
-    cameraList->cameraHeap->free(ptr);
-}
-
 auto Camera::getScaleFactor() -> float
 {
     if (cameraScale != 1)
@@ -937,14 +927,8 @@ auto Camera::getPosition() -> vector_3d
 
 auto Camera::buildScaleTable() -> int32_t
 {
-    scaleTable = static_cast<uint8_t*>(cameraList->cameraHeap->malloc(0x700));
-
-    if (scaleTable == nullptr)
-    {
-        return 0x12120001;
-    }
-
-    uint8_t* entry = scaleTable;
+    scaleTable.assign(0x700, 0);
+    uint8_t* entry = scaleTable.data();
 
     for (const int32_t divisor : scaleDivisors)
     {
@@ -961,7 +945,7 @@ auto Camera::init(FitIniFile* cameraFile, int objectCamera, int32_t newCameraId)
 {
     int32_t result;
 
-    if (scaleTable == nullptr && (result = buildScaleTable()) != 0)
+    if (scaleTable.empty() && (result = buildScaleTable()) != 0)
     {
         return result;
     }
@@ -1226,7 +1210,7 @@ auto Camera::init(CamData* data, int objectCamera) -> int32_t
 {
     int32_t result;
 
-    if (scaleTable == nullptr && (result = buildScaleTable()) != 0)
+    if (scaleTable.empty() && (result = buildScaleTable()) != 0)
     {
         return result;
     }

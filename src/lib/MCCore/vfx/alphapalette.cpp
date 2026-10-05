@@ -31,7 +31,7 @@ void writeTGA(char* fileName, uint8_t* image, uint32_t width, uint32_t height)
     header[17] = 0x20;
     file.write(header, 18);
 
-    const uint8_t* rgb = gamePalette->rgbData;
+    const uint8_t* rgb = gamePalette->rgbData.get();
     const int32_t count = static_cast<int32_t>(width * height);
 
     for (int32_t i = 0; i < count; ++i)

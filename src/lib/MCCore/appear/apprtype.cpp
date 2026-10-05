@@ -3,7 +3,6 @@
 #include "appear/lineappr.h"
 #include "lib/aerror.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
@@ -16,28 +15,7 @@
 #include "sprite/spritree.h"
 #include "sprite/sprtmgr.h"
 
-UserHeap* AppearanceTypeList::appearanceHeap = nullptr;
 AppearanceTypeList* appearanceTypeList = nullptr;
-
-auto AppearanceType::operator new(size_t size) noexcept -> void*
-{
-    void* block = nullptr;
-
-    if (AppearanceTypeList::appearanceHeap != nullptr && AppearanceTypeList::appearanceHeap->heapSize != 0)
-    {
-        block = AppearanceTypeList::appearanceHeap->malloc(static_cast<uint32_t>(size));
-    }
-
-    return block;
-}
-
-auto AppearanceType::operator delete(void* block) -> void
-{
-    if (AppearanceTypeList::appearanceHeap != nullptr && AppearanceTypeList::appearanceHeap->heapSize != 0)
-    {
-        AppearanceTypeList::appearanceHeap->free(block);
-    }
-}
 
 auto AppearanceType::initType(File* apprFile, uint32_t fileSize) -> int32_t
 {
@@ -159,22 +137,8 @@ auto AppearanceType::removeUsers(void* user) -> void
     spriteManager->freeDataRAM(node);
 }
 
-auto AppearanceTypeList::init(char* fileName, uint32_t heapSize) -> int32_t
+auto AppearanceTypeList::init(char* fileName) -> int32_t
 {
-    appearanceHeap = new UserHeap();
-
-    if (appearanceHeap == nullptr)
-    {
-        return -0x5225ffff;
-    }
-
-    int32_t result = appearanceHeap->init(heapSize, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
     FullPathFileName spriteName;
     spriteName.init(spritePath, fileName, ".pak");
     appearanceFile = new PacketFile();
@@ -188,7 +152,7 @@ auto AppearanceTypeList::init(char* fileName, uint32_t heapSize) -> int32_t
     {
         FullPathFileName cdName;
         cdName.init(CDspritePath, fileName, ".pak");
-        result = appearanceFile->open(cdName, READ, 0x32);
+        const int32_t result = appearanceFile->open(cdName, READ, 0x32);
 
         if (result != 0)
         {
@@ -349,18 +313,17 @@ auto AppearanceTypeList::destroy() -> void
     }
 
     appearanceFile = nullptr;
-    // The types are only destroyed, not deleted: they go with the heap.
+    // The original only destroyed the types and let them go with its appearance heap.
     AppearanceType* type = head;
 
     while (type != nullptr)
     {
         AppearanceType* next = type->next;
         type->destroy();
+        delete type;
         type = next;
     }
 
     last = nullptr;
     head = nullptr;
-    delete appearanceHeap;
-    appearanceHeap = nullptr;
 }

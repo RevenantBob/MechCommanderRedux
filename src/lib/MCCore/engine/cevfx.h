@@ -57,5 +57,7 @@ public:
 extern char CurrentVFX[8];
 /// <summary>The second name of the VFX element being drawn.</summary>
 extern char CurrentVFX2[8];
-/// <summary>The scratch buffer the scaled and transformed shape draws use (0x1fa40 bytes from systemHeap).</summary>
-extern uint8_t* tempBuffer;
+/// <summary>The size of <see cref="tempBuffer"/>.</summary>
+inline constexpr size_t TEMP_BUFFER_SIZE = 0x1fa40;
+/// <summary>The scratch buffer the scaled and transformed shape draws use.</summary>
+extern std::array<uint8_t, TEMP_BUFFER_SIZE> tempBuffer;

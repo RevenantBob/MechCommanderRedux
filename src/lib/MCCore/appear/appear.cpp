@@ -5,7 +5,6 @@
 #include "engine/ceglist.h"
 #include "engine/celine.h"
 #include "lib/cvmath.h"
-#include "lib/heap.h"
 #include "object/gameobj.h"
 
 namespace
@@ -22,7 +21,7 @@ namespace
         vector_2d end;
         end.x = x1;
         end.y = y1;
-        ElementList->add(new LineElement(start, end, color, nullptr, SELECT_DEPTH, -1));
+        ElementList->add(ElementPool::Make<LineElement>(start, end, color, nullptr, SELECT_DEPTH, -1));
     }
 
     /// <summary>
@@ -69,26 +68,6 @@ namespace
         }
 
         return scale * 5.0f;
-    }
-}
-
-auto Appearance::operator new(size_t size) noexcept -> void*
-{
-    void* block = nullptr;
-
-    if (AppearanceTypeList::appearanceHeap != nullptr && AppearanceTypeList::appearanceHeap->heapSize != 0)
-    {
-        block = AppearanceTypeList::appearanceHeap->malloc(static_cast<uint32_t>(size));
-    }
-
-    return block;
-}
-
-auto Appearance::operator delete(void* block) -> void
-{
-    if (AppearanceTypeList::appearanceHeap != nullptr && AppearanceTypeList::appearanceHeap->heapSize != 0)
-    {
-        AppearanceTypeList::appearanceHeap->free(block);
     }
 }
 

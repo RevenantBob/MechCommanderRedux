@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "camera/camlist.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "terrain/terrain.h"
 
@@ -17,33 +16,14 @@ namespace
     }
 }
 
-auto CameraList::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto CameraList::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
-
 auto CameraList::destroy() -> void
 {
     destroying = 1;
     removeAll();
-    ::operator delete(unknown18);
-    unknown18 = nullptr;
-
-    if (cameraHeap != nullptr)
-    {
-        delete cameraHeap;
-    }
-
-    cameraHeap = nullptr;
     currentClass = NO_CAMERA;
     currentCamera = nullptr;
     lastCamera = nullptr;
-    scaleTable = nullptr;
+    scaleTable = {};
     pauseShape = nullptr;
     askedShape = nullptr;
 
@@ -55,22 +35,9 @@ auto CameraList::destroy() -> void
     }
 }
 
-auto CameraList::init(char* fileName, int32_t heapSize) -> int32_t
+auto CameraList::init(char* fileName) -> int32_t
 {
-    cameraHeap = new UserHeap;
-
-    if (cameraHeap == nullptr)
-    {
-        return -0x3544fffc;
-    }
-
-    int32_t result = cameraHeap->init(static_cast<uint32_t>(heapSize), nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
+    int32_t result = 0;
     FullPathFileName cameraName;
     cameraName.init(cameraPath, fileName, ".fit");
     FitIniFile cameraFile;

@@ -12,8 +12,7 @@ class GameObject;
 /// camera and <see cref="render"/>, which adds draw elements to the global <c>ElementList</c>.
 /// </summary>
 /// <remarks>
-/// Original source: <c>appear\appear.h</c> (inline virtuals) and <c>appear\appear.cpp</c>, 0x38 bytes. Allocated
-/// from <c>AppearanceTypeList::appearanceHeap</c>. The constructor was inlined at every <c>new</c> site: it sets
+/// Original source: <c>appear\appear.h</c> (inline virtuals) and <c>appear\appear.cpp</c>, 0x38 bytes. The constructor was inlined at every <c>new</c> site: it sets
 /// <see cref="unknown04"/> to 0x70000000 and clears the rest.
 /// </remarks>
 class Appearance
@@ -24,12 +23,6 @@ public:
     /// <summary>Calls <see cref="destroy"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006512a0 (vector deleting destructor); slot 2</remarks>
     virtual ~Appearance() { init(nullptr, nullptr); }
-
-    /// <summary>Allocates from <c>AppearanceTypeList::appearanceHeap</c> (null when it isn't there).</summary>
-    /// <remarks>MCX.EXE @ 0x006ab820</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006ab850</remarks>
-    static void operator delete(void* block);
 
     /// <summary>Binds the appearance to its type and its object.</summary>
     /// <remarks>MCX.EXE @ 0x00651220; slot 0</remarks>

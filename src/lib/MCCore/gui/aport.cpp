@@ -331,6 +331,11 @@ auto aPort::init(char* fileName) -> int32_t
     return 0;
 }
 
+auto aPort::freePixels(uint8_t* pixels) -> void
+{
+    guiFree(pixels);
+}
+
 auto aPort::destroy() -> void
 {
     portHeight = -1;

@@ -4,7 +4,6 @@
 #include "lib/llist.h"
 
 class aObject;
-class UserHeap;
 
 /// <summary>Where the camera files are ("data\cameras\").</summary>
 /// <remarks>One of the 80-byte path globals at 0x007942ec.. (objectPath, missionPath, cameraPath, ...), whose owner
@@ -25,35 +24,28 @@ public:
 
 /// <summary>
 /// The game's cameras: read from the camera FIT file ("CameraInfo", then "Camera%d" / "ObjectCamera%d" blocks),
-/// with the active one, the one before it, and the heap cameras allocate from.
+/// with the active one and the one before it.
 /// </summary>
 /// <remarks>Original source: <c>camera\camlist.cpp</c>; 0x28 bytes.</remarks>
 class CameraList : public LinkedList
 {
 public:
-    /// <summary>Allocates from systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x006b02f0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x006b0310</remarks>
-    static void operator delete(void* ptr);
     /// <remarks>MCX.EXE @ 0x00736820 (vector deleting destructor)</remarks>
     ~CameraList() override { destroy(); }
 
     /// <summary>
-    /// Deletes the cameras, the buffer and the heap; clears the scale table and pause shape; destroys the main
-    /// holder.
+    /// Deletes the cameras; frees the scale table and clears the pause shape; destroys the main holder.
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006b0330</remarks>
     void destroy();
     /// <summary>
-    /// Makes the camera heap (<paramref name="heapSize"/> bytes), then reads <paramref name="fileName"/> (in
-    /// cameraPath): "NumCameras" (at most 4), and a camera per "Camera%d" or "ObjectCamera%d" block.
+    /// Reads <paramref name="fileName"/> (in cameraPath): "NumCameras" (at most 4), and a camera per "Camera%d" or
+    /// "ObjectCamera%d" block. (The original first made the camera heap, of the scenario's CameraHeapSize.)
     /// </summary>
-    /// <returns>0, -0x3544fffc without a heap, -0x3544fffb for too many cameras, -0x3544fffd for a missing block,
-    /// or the error of the heap, the file or the camera.</returns>
+    /// <returns>0, -0x3544fffb for too many cameras, -0x3544fffd for a missing block, or the error of the file or the
+    /// camera.</returns>
     /// <remarks>MCX.EXE @ 0x006b03c0</remarks>
-    int32_t init(char* fileName, int32_t heapSize);
+    int32_t init(char* fileName);
     /// <summary>Appends a node for <paramref name="camera"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006b0950</remarks>
     int32_t add(Camera* camera);
@@ -120,10 +112,6 @@ public:
     Camera* lastCamera = nullptr; // +0x10
     /// <summary>The current camera.</summary>
     Camera* currentCamera = nullptr; // +0x14
-    /// <summary>A block freed by destroy (never allocated in this file).</summary>
-    void* unknown18 = nullptr; // +0x18
-    /// <summary>The heap cameras and the scale table come from.</summary>
-    UserHeap* cameraHeap = nullptr; // +0x1c
     /// <summary>"NumCameras".</summary>
     uint32_t numCameras = 0; // +0x20
     /// <summary>Set while destroy runs: remove then does nothing.</summary>

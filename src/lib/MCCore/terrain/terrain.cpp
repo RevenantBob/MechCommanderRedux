@@ -10,7 +10,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/cvmath.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "mission/scenario.h"
@@ -47,12 +46,11 @@ float Terrain::OneOververticesBlockSide = 0.0f;
 int32_t Terrain::verticesMapSide = 0;
 float Terrain::metersPerVertexDivMAPCELL_DIM = 0.0f;
 float Terrain::metersBlockSide = 0.0f;
-UserHeap* Terrain::terrainHeap = nullptr;
 _pane* Terrain::terrainPane = nullptr;
 char* Terrain::terrainName = nullptr;
-int32_t* Terrain::screenPosX = nullptr;
-int32_t* Terrain::screenPosY = nullptr;
-int32_t* Terrain::blockOffsets = nullptr;
+std::vector<int32_t> Terrain::screenPosX;
+std::vector<int32_t> Terrain::screenPosY;
+std::vector<int32_t> Terrain::blockOffsets;
 int Terrain::forceRedraw = 0;
 vector_2d Terrain::mapTopLeft2d100;
 vector_3d Terrain::mapTopLeft3d100;
@@ -111,10 +109,10 @@ namespace
     /// </summary>
     void addGridQuad(vector_2d& p0, vector_2d& p1, vector_2d& p2, vector_2d& p3, int32_t color)
     {
-        ElementList->add(new LineElement(p1, p2, color, nullptr, GRID_LINE_DEPTH, -1));
-        ElementList->add(new LineElement(p2, p3, color, nullptr, GRID_LINE_DEPTH, -1));
-        ElementList->add(new LineElement(p3, p0, color, nullptr, GRID_LINE_DEPTH, -1));
-        ElementList->add(new LineElement(p1, p0, color, nullptr, GRID_LINE_DEPTH, -1));
+        ElementList->add(ElementPool::Make<LineElement>(p1, p2, color, nullptr, GRID_LINE_DEPTH, -1));
+        ElementList->add(ElementPool::Make<LineElement>(p2, p3, color, nullptr, GRID_LINE_DEPTH, -1));
+        ElementList->add(ElementPool::Make<LineElement>(p3, p0, color, nullptr, GRID_LINE_DEPTH, -1));
+        ElementList->add(ElementPool::Make<LineElement>(p1, p0, color, nullptr, GRID_LINE_DEPTH, -1));
     }
 
     /// <summary>
@@ -438,6 +436,7 @@ auto Terrain::init(char* fileName) -> int32_t
         return result;
     }
 
+    // The tile heap's size is still read (and required), then ignored.
     uint32_t tileHeapSize = 0;
 
     if ((result = terrainFile.readIdULong("TerrainTileHeapSize", tileHeapSize)) != 0)
@@ -452,30 +451,12 @@ auto Terrain::init(char* fileName) -> int32_t
         return result;
     }
 
-    terrainHeap = new UserHeap;
-
-    if (terrainHeap == nullptr)
-    {
-        return TERRAIN_INIT_FAILED;
-    }
-
-    // The block cache's vertices and pointers, plus a hundredth of the FIT's size.
-    terrainHeapSize =
-        static_cast<uint32_t>((verticesBlockSide * verticesBlockSide * 8 + 4) * blocksMapSide * blocksMapSide + 0x18) +
-        terrainHeapSize / 100;
-    terrainHeap->init(terrainHeapSize, nullptr);
     totalBlocks = blocksMapSide * blocksMapSide;
     verticesPerBlock = verticesBlockSide * verticesBlockSide;
     const int32_t mapVertices = totalBlocks * verticesBlockSide * verticesBlockSide;
-    screenPosX = static_cast<int32_t*>(terrainHeap->malloc(static_cast<uint32_t>(mapVertices * sizeof(int32_t))));
-    screenPosY = static_cast<int32_t*>(terrainHeap->malloc(static_cast<uint32_t>(mapVertices * sizeof(int32_t))));
-
-    for (int32_t i = 0; i < mapVertices; i++)
-    {
-        screenPosX[i] = 0x11111111;
-    }
-
-    blockOffsets = static_cast<int32_t*>(terrainHeap->malloc(static_cast<uint32_t>(totalBlocks * sizeof(int32_t))));
+    screenPosX.assign(static_cast<size_t>(mapVertices), 0x11111111);
+    screenPosY.assign(static_cast<size_t>(mapVertices), 0);
+    blockOffsets.assign(static_cast<size_t>(totalBlocks), 0);
 
     for (int32_t i = 0, offset = 0; i < totalBlocks; i++, offset += verticesBlockSide * verticesBlockSide)
     {
@@ -484,7 +465,7 @@ auto Terrain::init(char* fileName) -> int32_t
 
     terrainTiles = new TerrainTiles;
 
-    if ((result = terrainTiles->init(tileFileName, static_cast<int32_t>(tileHeapSize))) != 0)
+    if ((result = terrainTiles->init(tileFileName)) != 0)
     {
         return result;
     }
@@ -556,11 +537,6 @@ auto Terrain::init(char* fileName) -> int32_t
 
     mapBlockManager = new MapBlockManager;
 
-    if (mapBlockManager != nullptr)
-    {
-        mapBlockManager->HeapManager::init();
-    }
-
     if (mapBlockManager->init(fileName, totalBlocks, verticesBlockSide * verticesBlockSide * 8) != 0)
     {
         return TERRAIN_INIT_FAILED;
@@ -573,31 +549,16 @@ auto Terrain::init(char* fileName) -> int32_t
         visibleVerticesPerSide * visibleVerticesPerSide * static_cast<int32_t>(sizeof(Vertex));
     vertexManager = new VertexManager;
 
-    if (vertexManager != nullptr)
+    if (vertexManager->vertexLists.empty())
     {
-        vertexManager->HeapManager::init();
-    }
-
-    if (vertexManager->vertexLists == nullptr)
-    {
-        if ((result = vertexManager->createHeap(
-                 static_cast<uint32_t>((vertexListSize + sizeof(Vertex*)) * numWindows))) != 0)
-        {
-            return result;
-        }
-
-        if ((result = vertexManager->commitHeap(0)) != 0)
-        {
-            return result;
-        }
-
-        // Port fix: the pointer table is sized for 8-byte pointers (4 bytes per window in the original).
-        vertexManager->vertexLists = reinterpret_cast<Vertex**>(vertexManager->getHeapPtr());
-        uint8_t* lists = vertexManager->getHeapPtr() + numWindows * sizeof(Vertex*);
+        // Zeroed raw storage, as the original's committed heap: the grids are filled by buildWindow.
+        vertexManager->storage.assign(static_cast<size_t>(vertexListSize) * numWindows, 0);
+        vertexManager->vertexLists.resize(static_cast<size_t>(numWindows));
 
         for (int32_t i = 0; i < numWindows; i++)
         {
-            vertexManager->vertexLists[i] = reinterpret_cast<Vertex*>(lists + static_cast<size_t>(i) * vertexListSize);
+            vertexManager->vertexLists[i] =
+                reinterpret_cast<Vertex*>(vertexManager->storage.data() + static_cast<size_t>(i) * vertexListSize);
         }
     }
 
@@ -605,31 +566,15 @@ auto Terrain::init(char* fileName) -> int32_t
         visibleVerticesPerSide * visibleVerticesPerSide * static_cast<int32_t>(sizeof(TerrainBlock));
     terrainTileManager = new TerrainTileManager;
 
-    if (terrainTileManager != nullptr)
+    if (terrainTileManager->blockLists.empty())
     {
-        terrainTileManager->HeapManager::init();
-    }
-
-    if (terrainTileManager->blockLists == nullptr)
-    {
-        if ((result = terrainTileManager->createHeap(
-                 static_cast<uint32_t>((blockListSize + sizeof(TerrainBlock*)) * numWindows))) != 0)
-        {
-            return result;
-        }
-
-        if ((result = terrainTileManager->commitHeap(0)) != 0)
-        {
-            return result;
-        }
-
-        terrainTileManager->blockLists = reinterpret_cast<TerrainBlock**>(terrainTileManager->getHeapPtr());
-        uint8_t* lists = terrainTileManager->getHeapPtr() + numWindows * sizeof(TerrainBlock*);
+        terrainTileManager->storage.assign(static_cast<size_t>(blockListSize) * numWindows, 0);
+        terrainTileManager->blockLists.resize(static_cast<size_t>(numWindows));
 
         for (int32_t i = 0; i < numWindows; i++)
         {
-            terrainTileManager->blockLists[i] =
-                reinterpret_cast<TerrainBlock*>(lists + static_cast<size_t>(i) * blockListSize);
+            terrainTileManager->blockLists[i] = reinterpret_cast<TerrainBlock*>(terrainTileManager->storage.data() +
+                                                                                static_cast<size_t>(i) * blockListSize);
         }
     }
 
@@ -703,9 +648,9 @@ auto Terrain::destroy() -> void
 
     if (vertexManager != nullptr)
     {
-        vertexManager->HeapManager::destroy();
+        vertexManager->storage = {};
         vertexManager->unknown1C = 0;
-        vertexManager->vertexLists = nullptr;
+        vertexManager->vertexLists = {};
         delete vertexManager;
     }
 
@@ -713,9 +658,9 @@ auto Terrain::destroy() -> void
 
     if (terrainTileManager != nullptr)
     {
-        terrainTileManager->HeapManager::destroy();
+        terrainTileManager->storage = {};
         terrainTileManager->unknown1C = 0;
-        terrainTileManager->blockLists = nullptr;
+        terrainTileManager->blockLists = {};
         delete terrainTileManager;
     }
 
@@ -760,12 +705,9 @@ auto Terrain::destroy() -> void
         terrainTacticalMap = nullptr;
     }
 
-    if (terrainHeap != nullptr)
-    {
-        terrainHeap->destroy();
-        delete terrainHeap;
-        terrainHeap = nullptr;
-    }
+    screenPosX = {};
+    screenPosY = {};
+    blockOffsets = {};
 
     delete[] terrainName;
     terrainName = nullptr;
@@ -975,16 +917,6 @@ auto Terrain::flipBuffers() -> void
 
 auto Terrain::copyBuffers(int32_t /*from*/, int32_t /*to*/) -> void
 {
-}
-
-auto TerrainWindow::operator new(size_t size) noexcept -> void*
-{
-    return Terrain::terrainHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto TerrainWindow::operator delete(void* ptr) -> void
-{
-    Terrain::terrainHeap->free(ptr);
 }
 
 auto TerrainWindow::init(Camera* cam, int32_t newWindowNum) -> int32_t

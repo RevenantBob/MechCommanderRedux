@@ -568,8 +568,8 @@ auto MiscTerrainObject::render() -> void
     }
 
     ElementList->openGroup(static_cast<int32_t>(-screenPos.y - static_cast<float>(depthOffset)), 1);
-    auto* element = new VFXElement(static_cast<MiscTerrainObjectType*>(objType)->forestEdgeShapes, screenPos.x,
-                                   screenPos.y, frame, 0, hazePalette, 1, 0);
+    auto* element = ElementPool::Make<VFXElement>(static_cast<MiscTerrainObjectType*>(objType)->forestEdgeShapes,
+                                                  screenPos.x, screenPos.y, frame, 0, hazePalette, 1, 0);
     std::strcpy(element->name, "terobj");
     ElementList->add(element);
 }
@@ -635,7 +635,7 @@ auto MiscTerrainObject::drawBars(vector_2d screenPos) -> void
 
     if (0 < data.barPercent)
     {
-        ElementList->add(new PolygonElement(&data, -50000));
+        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
     }
 }
 

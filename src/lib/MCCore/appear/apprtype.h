@@ -3,7 +3,6 @@
 class File;
 class PacketFile;
 class Shape;
-class UserHeap;
 
 /// <summary>
 /// The appearance classes: the top byte of an appearance type id (<c>typeId &gt;&gt; 24</c>) picks the class
@@ -37,8 +36,7 @@ struct AppearanceUser
 /// packet of the sprite PAK and reference counted by <see cref="AppearanceTypeList"/>.
 /// </summary>
 /// <remarks>
-/// Original source: <c>appear\apprtype.cpp</c>, <c>appear\apprtype.h</c>; 0x2c bytes. Allocated from
-/// <c>AppearanceTypeList::appearanceHeap</c>. Its packet is a FIT text file; <see cref="initType"/> reads the
+/// Original source: <c>appear\apprtype.cpp</c>, <c>appear\apprtype.h</c>; 0x2c bytes. Its packet is a FIT text file; <see cref="initType"/> reads the
 /// "Bounds" block after the derived class's <see cref="init"/>.
 /// </remarks>
 class AppearanceType
@@ -48,12 +46,6 @@ public:
     /// <summary>Calls <see cref="destroy"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006ac890 (vector deleting destructor); slot 2</remarks>
     virtual ~AppearanceType() { AppearanceType::destroy(); }
-
-    /// <summary>Allocates from <c>AppearanceTypeList::appearanceHeap</c> (null when it isn't there).</summary>
-    /// <remarks>MCX.EXE @ 0x006ac080</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006ac0b0</remarks>
-    static void operator delete(void* block);
 
     /// <summary>
     /// Loads the type from <paramref name="apprFile"/> (its packet, <paramref name="fileSize"/> bytes).
@@ -110,11 +102,11 @@ class AppearanceTypeList
 {
 public:
     /// <summary>
-    /// Creates the appearance heap (<paramref name="heapSize"/> bytes) and opens the PAK <paramref name="fileName"/>
-    /// from the sprite path, or the CD's.
+    /// Opens the PAK <paramref name="fileName"/> from the sprite path, or the CD's (the original also made the
+    /// appearance heap here).
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006ac2d0</remarks>
-    int32_t init(char* fileName, uint32_t heapSize);
+    int32_t init(char* fileName);
 
     /// <summary>
     /// The type <paramref name="appearanceId"/>: the loaded one (with its user count raised) or a new one of the
@@ -127,12 +119,9 @@ public:
     /// <remarks>MCX.EXE @ 0x006aca80</remarks>
     int32_t removeAppearance(AppearanceType* which);
 
-    /// <summary>Closes the PAK, destroys every type and frees the appearance heap.</summary>
+    /// <summary>Closes the PAK and destroys and deletes every type.</summary>
     /// <remarks>MCX.EXE @ 0x006acae0</remarks>
     void destroy();
-
-    /// <summary>The heap appearances and their types are allocated from.</summary>
-    static UserHeap* appearanceHeap;
 
     /// <summary>The first loaded type.</summary>
     AppearanceType* head = nullptr; // +0x00

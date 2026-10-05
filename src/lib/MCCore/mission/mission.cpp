@@ -826,7 +826,7 @@ auto Mission::run() -> int32_t
             {
                 application->resetDirectDraw(application->width(), application->height(), 8);
                 application->paletteCycle = 1;
-                application->activatePalette(gamePalette->rgbData, 0, 0x100);
+                application->activatePalette(gamePalette->rgbData.get(), 0, 0x100);
             }
 
             toLogistics = true;
@@ -1173,7 +1173,7 @@ auto Mission::StartScenario(char* scenarioName) -> void
                          static_cast<float>(elapsed.wSecond) + static_cast<float>(elapsed.wMilliseconds / 1000);
 
     gamePalette->activate(0, 0);
-    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData));
+    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData.get()));
     application->paletteCycle = 1;
     application->showCursor(0);
 

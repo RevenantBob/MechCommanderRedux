@@ -2,12 +2,11 @@
 #include "engine/cevfx.h"
 #include "camera/camera.h"
 #include "engine/scale.h"
-#include "lib/heap.h"
 #include "vfx/vfxfuncs.h"
 
 char CurrentVFX[8] = {};
 char CurrentVFX2[8] = {};
-uint8_t* tempBuffer = nullptr;
+std::array<uint8_t, TEMP_BUFFER_SIZE> tempBuffer{};
 
 VFXElement::VFXElement(uint8_t* _shape, int32_t _x, int32_t _y, int32_t frame, int _reverse, uint8_t* fadeTbl,
                        int _noScaleDraw, int _scaleUp)
@@ -81,17 +80,12 @@ auto VFXElement::draw() -> void
         return;
     }
 
-    if (tempBuffer == nullptr)
-    {
-        tempBuffer = static_cast<uint8_t*>(systemHeap->malloc(0x1fa40));
-    }
-
     if (fadeTable != nullptr)
     {
         AG_shape_lookaside(fadeTable);
-        AG_shape_translate_transform(globalPane, shapeTable, frameNum, x, y, tempBuffer, reverse, 1);
+        AG_shape_translate_transform(globalPane, shapeTable, frameNum, x, y, tempBuffer.data(), reverse, 1);
         return;
     }
 
-    AG_shape_transform(globalPane, shapeTable, frameNum, x, y, tempBuffer, reverse, 1);
+    AG_shape_transform(globalPane, shapeTable, frameNum, x, y, tempBuffer.data(), reverse, 1);
 }

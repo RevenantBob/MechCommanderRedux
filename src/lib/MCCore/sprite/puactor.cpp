@@ -457,11 +457,12 @@ auto PUAppearance::render(int32_t depthFixup) -> int32_t
 
         if (fadeTableIndex != -1 && fadeTableIndex >= 0)
         {
-            fadeTable = gamePalette->fadePalettes + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+            fadeTable =
+                gamePalette->fadePalettes.get() + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
         }
 
-        ElementList->add(
-            new VFXElement(currentShape->frameList, screenPos.x, screenPos.y, currentFrame, 0, fadeTable, 1, 0));
+        ElementList->add(ElementPool::Make<VFXElement>(currentShape->frameList, screenPos.x, screenPos.y, currentFrame,
+                                                       0, fadeTable, 1, 0));
     }
 
     const int32_t selected = owner->selected;
@@ -729,6 +730,6 @@ auto PUAppearance::drawBars() -> void
 
     if (data.barPercent > 0)
     {
-        ElementList->add(new PolygonElement(&data, -50000));
+        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
     }
 }

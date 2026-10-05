@@ -547,8 +547,9 @@ auto VFXAppearance::render(int32_t depthFixup) -> int32_t
         if (shape != nullptr && shape->frameList != nullptr && type->scaled != 0)
         {
             ElementList->openGroup(depth, 1);
-            auto* element = new DeltaElement(shape->frameList, static_cast<int32_t>(screenPos.x),
-                                             static_cast<int32_t>(screenPos.y), currentFrame, 0, fadeTable, 1, 0);
+            auto* element =
+                ElementPool::Make<DeltaElement>(shape->frameList, static_cast<int32_t>(screenPos.x),
+                                                static_cast<int32_t>(screenPos.y), currentFrame, 0, fadeTable, 1, 0);
             ElementList->add(element);
         }
     }
@@ -557,8 +558,8 @@ auto VFXAppearance::render(int32_t depthFixup) -> int32_t
         ElementList->openGroup(depth, 1);
         // Scaled types have their own zoomed out shapes, so they draw unscaled.
         const int noScaleDraw = type->scaled != 0 ? 1 : 0;
-        auto* element =
-            new VFXElement(shape->frameList, screenPos.x, screenPos.y, currentFrame, 0, fadeTable, noScaleDraw, 0);
+        auto* element = ElementPool::Make<VFXElement>(shape->frameList, screenPos.x, screenPos.y, currentFrame, 0,
+                                                      fadeTable, noScaleDraw, 0);
 
         // Port fix: the original copies the debug name through a null element too.
         if (element != nullptr)
@@ -840,7 +841,7 @@ auto MCDrawDamageBar(Appearance* appearance, AppearanceType* type, GameObject* o
 
     if (data.barPercent > 0)
     {
-        ElementList->add(new PolygonElement(&data, -50000));
+        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
     }
 }
 

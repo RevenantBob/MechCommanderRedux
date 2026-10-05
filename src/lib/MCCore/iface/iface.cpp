@@ -193,7 +193,7 @@ namespace
     uint8_t* mechIconPartTable(uint8_t color)
     {
         const int32_t row = gamePalette->numBitmapHazeLevels;
-        uint8_t* fades = gamePalette->fadePalettes;
+        uint8_t* fades = gamePalette->fadePalettes.get();
 
         switch (color)
         {

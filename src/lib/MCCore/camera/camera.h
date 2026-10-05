@@ -67,8 +67,8 @@ static_assert(sizeof(CamData) == 0x40);
 /// <summary>The camera the scene is being rendered through (CameraList::renderView sets it per camera).</summary>
 extern Camera* eye;
 /// <summary>7 x 256 bytes: for each divisor of <c>scaleDivisors</c>, i / (divisor + 1) (Camera::buildScaleTable).
-/// Allocated from the camera heap.</summary>
-extern uint8_t* scaleTable;
+/// Freed with the camera list.</summary>
+extern std::vector<uint8_t> scaleTable;
 /// <summary>The main window that holds the camera panes (made by the first camera with "MainWindow" set).</summary>
 extern aMainWindow* mainHolder;
 /// <summary>"SwoopyCamOff": when set, cameras don't swoop to their target.</summary>
@@ -309,17 +309,11 @@ public:
 /// A camera: projects the terrain and objects into its <see cref="viewWindow"/>, either from a fixed position or
 /// following (swooping to, scrolling after) a target object.
 /// </summary>
-/// <remarks>Original source: <c>camera\camera.cpp</c>, <c>camera\camera.h</c>; 0x100 bytes. Allocated from the
-/// camera list's heap. The original's destructor is not virtual and the vtable has none.</remarks>
+/// <remarks>Original source: <c>camera\camera.cpp</c>, <c>camera\camera.h</c>; 0x100 bytes. The original's
+/// destructor is not virtual and the vtable has none.</remarks>
 class Camera
 {
 public:
-    /// <summary>Allocates from the camera list's heap.</summary>
-    /// <remarks>MCX.EXE @ 0x006adeb0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into the camera list's heap.</summary>
-    /// <remarks>MCX.EXE @ 0x006aded0</remarks>
-    static void operator delete(void* ptr);
     /// <summary>The inline constructor: clears the name, then the defaults of init().</summary>
     Camera() { init(); }
     /// <summary>The inline destructor (CameraList::removeAll): destroys and frees the window; part number 0,

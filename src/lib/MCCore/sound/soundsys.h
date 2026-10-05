@@ -4,7 +4,6 @@ class File;
 class GameObject;
 class MechWarrior;
 class PacketFile;
-class UserHeap;
 class SoundSystem;
 struct RadioData;
 
@@ -31,17 +30,17 @@ constexpr int32_t MAX_QUEUED_MESSAGES = 8;
 struct SoundBite
 {
     /// <summary>"priority".</summary>
-    uint32_t priority; // +0x00
+    uint32_t priority = 0; // +0x00
     /// <summary>"cache".</summary>
-    uint32_t cache; // +0x04
+    uint32_t cache = 0; // +0x04
     /// <summary>"soundId".</summary>
-    uint32_t soundId; // +0x08
+    uint32_t soundId = 0; // +0x08
     /// <summary>The wave's size.</summary>
-    uint32_t biteSize; // +0x0c
-    /// <summary>The wave, when loaded (sound heap).</summary>
-    uint8_t* biteData; // +0x10
+    uint32_t biteSize = 0; // +0x0c
+    /// <summary>The wave, when loaded.</summary>
+    std::unique_ptr<uint8_t[]> biteData; // +0x10
     /// <summary>"volume" (0..1).</summary>
-    float volume; // +0x14
+    float volume = 0.0f; // +0x14
 };
 
 /// <summary>Where a positional effect's channel was started (x, y; the third is zeroed).</summary>
@@ -64,7 +63,7 @@ extern int32_t RadioVolume;
 extern int32_t SFXVolume;
 /// <summary>The game's sound system.</summary>
 extern SoundSystem* soundSystem;
-/// <summary>The sound heap's size ("soundHeapSize").</summary>
+/// <summary>The sound heap's size ("soundHeapSize"; read, then ignored).</summary>
 extern uint32_t soundHeapSize;
 /// <summary>Music state: the player's forces are fighting.</summary>
 extern int32_t inCombat;
@@ -80,10 +79,10 @@ extern int32_t justInCombat;
 extern int32_t currentPilotSpeech;
 /// <summary>The last Betty sample played.</summary>
 extern int32_t lastBettyId;
-/// <summary>The logistics screen's pilot speech (logistics heap); freed once it has played.</summary>
-extern uint8_t* pilotLogisticsSpeechPtr;
+/// <summary>The logistics screen's pilot speech; freed once it has played.</summary>
+extern std::unique_ptr<uint8_t[]> pilotLogisticsSpeechPtr;
 /// <summary>The radio static wave.</summary>
-extern uint8_t* noiseData;
+extern std::unique_ptr<uint8_t[]> noiseData;
 
 /// <summary>Whether <paramref name="data"/> starts with a RIFF WAVE header.</summary>
 /// <remarks>MCX.EXE @ 0x00738210</remarks>
@@ -244,8 +243,6 @@ public:
     uint32_t bitDepth = 8; // +0x18
     /// <summary>"channels" (2).</summary>
     uint32_t channels = 2; // +0x1c
-    /// <summary>The sound heap.</summary>
-    UserHeap* soundHeap = nullptr; // +0x20
     /// <summary>The sound renderer resource on each channel.</summary>
     void* channelResource[NUM_SOUND_CHANNELS] = {}; // +0x24
     /// <summary>The sample each effect channel plays; -1 for none.</summary>
@@ -258,10 +255,10 @@ public:
     int32_t fadeDown[NUM_SAMPLE_CHANNELS] = {}; // +0x1ac
     /// <summary>"numBites".</summary>
     uint32_t numSoundBites = 0; // +0x1ec
-    /// <summary>The sound bites (sound heap).</summary>
-    SoundBite* sounds = nullptr; // +0x1f0
-    /// <summary>The Betty sample loaded (sound heap).</summary>
-    uint8_t* bettySoundBite = nullptr; // +0x1f4
+    /// <summary>The sound bites ("numBites" of them).</summary>
+    std::vector<SoundBite> sounds; // +0x1f0
+    /// <summary>The Betty sample loaded.</summary>
+    std::unique_ptr<uint8_t[]> bettySoundBite; // +0x1f4
     /// <summary>"MaxSoundDistance".</summary>
     float maxSoundDistance = 0.0f; // +0x1f8
     /// <summary>The sound bites' waves (&lt;name&gt;.pak).</summary>
@@ -278,10 +275,10 @@ public:
     int32_t unknown218[2] = {}; // +0x218
     /// <summary>Each music stream's file.</summary>
     File* streamFile[2] = {}; // +0x220
-    /// <summary>"DMS%d": each music's file name (sound heap).</summary>
-    char** digitalMusicIds = nullptr; // +0x228
+    /// <summary>"DMS%d": each music's file name.</summary>
+    std::vector<std::string> digitalMusicIds; // +0x228
     /// <summary>"DMSLoop%d".</summary>
-    int32_t* digitalMusicLoopFlags = nullptr; // +0x22c
+    std::vector<int32_t> digitalMusicLoopFlags; // +0x22c
     /// <summary>"NumDMS".</summary>
     int32_t numDMS = 0; // +0x230
     /// <summary>"DigitalStreamBufferSize".</summary>

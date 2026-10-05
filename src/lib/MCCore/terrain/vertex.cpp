@@ -257,16 +257,6 @@ namespace
     }
 }
 
-auto MapBlockManager::operator new(size_t size) noexcept -> void*
-{
-    return Terrain::terrainHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto MapBlockManager::operator delete(void* ptr) -> void
-{
-    Terrain::terrainHeap->free(ptr);
-}
-
 auto MapBlockManager::destroy() -> void
 {
     if (blockFile != nullptr)
@@ -276,9 +266,8 @@ auto MapBlockManager::destroy() -> void
     }
 
     blockFile = nullptr;
-    systemHeap->free(blocks);
-    blocks = nullptr;
-    HeapManager::destroy();
+    blocks = {};
+    blockData = {};
 }
 
 auto MapBlockManager::init(char* fileName, int32_t numBlocks, int32_t blockSize) -> int32_t
@@ -306,46 +295,28 @@ auto MapBlockManager::init(char* fileName, int32_t numBlocks, int32_t blockSize)
         Fatal(-1, " Old Map format.  Resave in Teditor! ");
     }
 
-    if (blocks == nullptr)
+    if (blocks.empty())
     {
         // Every block plus the off-map one.
         const int32_t count = numBlocks + 1;
-
-        if ((result = createHeap(static_cast<uint32_t>(count * blockSize))) != 0)
-        {
-            return result;
-        }
-
-        if ((result = commitHeap(0)) != 0)
-        {
-            return result;
-        }
-
-        uint8_t* heap = getHeapPtr();
-        blocks =
-            static_cast<PrecompVertex**>(systemHeap->malloc(static_cast<uint32_t>(count) * sizeof(PrecompVertex*)));
+        blockData.assign(static_cast<size_t>(count) * blockSize, 0);
+        blocks.resize(static_cast<size_t>(count));
 
         for (int32_t i = 0; i < count; i++)
         {
             const int32_t perBlock = Terrain::verticesBlockSide * Terrain::verticesBlockSide;
-            auto* block =
-                reinterpret_cast<PrecompVertex*>(heap + static_cast<size_t>(perBlock) * i * sizeof(PrecompVertex));
+            auto* block = reinterpret_cast<PrecompVertex*>(blockData.data() +
+                                                           static_cast<size_t>(perBlock) * i * sizeof(PrecompVertex));
             blocks[i] = block;
             blockFile->readPacket(i, reinterpret_cast<uint8_t*>(block));
         }
     }
 
-    const uint32_t tableSize = static_cast<uint32_t>(numBlocks) * sizeof(int32_t);
-    lastBlock = static_cast<int32_t*>(Terrain::terrainHeap->malloc(tableSize));
-    currentBlock = static_cast<int32_t*>(Terrain::terrainHeap->malloc(tableSize));
-    blockSteps = static_cast<int32_t*>(Terrain::terrainHeap->malloc(tableSize));
-    vertexOffsets =
-        static_cast<float*>(Terrain::terrainHeap->malloc(static_cast<uint32_t>(numBlocks * 2 * sizeof(float))));
-
-    for (int32_t i = 0; i < numBlocks; i++)
-    {
-        lastBlock[i] = -1;
-    }
+    // Per-window tables, sized by the block count as the original's.
+    lastBlock.assign(static_cast<size_t>(numBlocks), -1);
+    currentBlock.assign(static_cast<size_t>(numBlocks), 0);
+    blockSteps.assign(static_cast<size_t>(numBlocks), 0);
+    vertexOffsets.assign(static_cast<size_t>(numBlocks) * 2, 0.0f);
 
     blockFile->close();
     return 0;
@@ -829,26 +800,6 @@ auto MapBlockManager::generateRandomBlock(PrecompVertex* block) -> void
     }
 }
 
-auto VertexManager::operator new(size_t size) noexcept -> void*
-{
-    return Terrain::terrainHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto VertexManager::operator delete(void* ptr) -> void
-{
-    Terrain::terrainHeap->free(ptr);
-}
-
-auto TerrainTileManager::operator new(size_t size) noexcept -> void*
-{
-    return Terrain::terrainHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto TerrainTileManager::operator delete(void* ptr) -> void
-{
-    Terrain::terrainHeap->free(ptr);
-}
-
 auto TerrainBlock::init(Vertex* v0, Vertex* v1, Vertex* v2, Vertex* v3) -> int32_t
 {
     vertices[0] = v0;
@@ -1053,7 +1004,7 @@ auto TerrainBlock::drawLine(int32_t color, int /*onlyTop*/) -> void
         Vertex* to = vertices[(edge + 1) & 3];
         vector_2d start(static_cast<float>(from->px), static_cast<float>(from->py));
         vector_2d end(static_cast<float>(to->px), static_cast<float>(to->py));
-        ElementList->add(new LineElement(start, end, color, nullptr, depth, -1));
+        ElementList->add(ElementPool::Make<LineElement>(start, end, color, nullptr, depth, -1));
     }
 }
 

@@ -2,7 +2,6 @@
 #include "sprite/sprtmgr.h"
 #include "lib/aerror.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/packet.h"
 #include "lib/routines.h"
 #include "logistics/logmain.h"
@@ -38,11 +37,10 @@ namespace
         return result;
     }
 
-    /// <summary>
-    /// Allocates a part table (25 entries from the system heap, cleared) and opens its part PAK into entry 0.
-    /// </summary>
-    auto openPartFile(PacketFile**& table, const char* name) -> int32_t
+    /// <summary>Makes a part table (25 null entries) and opens its part PAK into entry 0.</summary>
+    auto openPartFile(std::vector<PacketFile*>& table, const char* name) -> int32_t
     {
+        table.assign(NUM_MECH_PART_FILES + 1, nullptr);
         auto* file = new PacketFile;
         table[0] = file;
 
@@ -61,14 +59,14 @@ namespace
     /// </summary>
     auto appearanceFile(SpriteManager* manager, uint32_t appearanceNum) -> PacketFile*
     {
-        PacketFile** files = manager->spriteFiles;
+        PacketFile** files = manager->spriteFiles.data();
 
         if (files[appearanceNum] != nullptr)
         {
             return files[appearanceNum];
         }
 
-        PacketFile** files90 = manager->spriteFiles90;
+        PacketFile** files90 = manager->spriteFiles90.data();
 
         if (files90[appearanceNum] != nullptr)
         {
@@ -173,7 +171,7 @@ namespace
 
             if (data == nullptr)
             {
-                // Faithful: the Shape record just allocated is not freed.
+                manager->freeDataRAM(shape);
                 manager->dumpALL();
                 gRestartRender = 1;
                 return nullptr;
@@ -207,8 +205,13 @@ namespace
     }
 
     /// <summary>Closes entry 0 of a part table, deletes every entry and frees the table.</summary>
-    auto destroyPartTable(PacketFile**& table, bool checkParent) -> void
+    auto destroyPartTable(std::vector<PacketFile*>& table, bool checkParent) -> void
     {
+        if (table.empty())
+        {
+            return;
+        }
+
         if (!checkParent || table[0] != nullptr)
         {
             table[0]->close();
@@ -224,14 +227,17 @@ namespace
         }
 
         delete table[0];
-        table[0] = nullptr;
-        systemHeap->free(table);
-        table = nullptr;
+        table.clear();
     }
 
-    /// <summary>Closes entry 0 of an appearance table and deletes every entry (the table itself stays).</summary>
-    auto destroyAppearanceTable(PacketFile** table, int32_t numAppearances) -> void
+    /// <summary>Closes entry 0 of an appearance table, deletes every entry and frees the table.</summary>
+    auto destroyAppearanceTable(std::vector<PacketFile*>& table, int32_t numAppearances) -> void
     {
+        if (table.empty())
+        {
+            return;
+        }
+
         table[0]->close();
 
         for (int32_t i = 1; i <= numAppearances; i++)
@@ -244,45 +250,13 @@ namespace
         }
 
         delete table[0];
-        table[0] = nullptr;
+        table.clear();
     }
 }
 
-auto SpriteManager::init(uint32_t newShapeHeapSize, uint32_t dataHeapSize, char* spriteFileName) -> int32_t
+auto SpriteManager::init(char* spriteFileName) -> int32_t
 {
     constexpr int32_t NO_RAM = static_cast<int32_t>(0xccdd0001);
-
-    dataHeapSize += 0x7d000;
-    shapeHeapSize = newShapeHeapSize;
-    shapeHeap = new UserHeap;
-
-    if (shapeHeap == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    int32_t result = shapeHeap->init(newShapeHeapSize, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    shapeHeap->unknown2C = 0;
-
-    dataHeap = new UserHeap;
-
-    if (dataHeap == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    result = dataHeap->init(dataHeapSize, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
 
     // Count the appearances in the preferred PAK ("<name>90.pak", or "<name>.pak" in the demo).
     const char* preferredExt = (InDemo == 0) ? "90.pak" : ".pak";
@@ -295,7 +269,7 @@ auto SpriteManager::init(uint32_t newShapeHeapSize, uint32_t dataHeapSize, char*
 
     FullPathFileName fileName;
     fileName.init(spritePath, spriteFileName, preferredExt);
-    result = probe->open(fileName, READ, 50);
+    int32_t result = probe->open(fileName, READ, 50);
 
     if (result != 0)
     {
@@ -315,23 +289,8 @@ auto SpriteManager::init(uint32_t newShapeHeapSize, uint32_t dataHeapSize, char*
     probe->close();
     delete probe;
 
-    const uint32_t tableSize = static_cast<uint32_t>(numFiles + 1) * sizeof(PacketFile*);
-    spriteFiles = static_cast<PacketFile**>(dataHeap->malloc(tableSize));
-
-    if (spriteFiles == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    memclear(spriteFiles, tableSize);
-    spriteFiles90 = static_cast<PacketFile**>(dataHeap->malloc(tableSize));
-
-    if (spriteFiles90 == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    memclear(spriteFiles90, tableSize);
+    spriteFiles.assign(static_cast<size_t>(numFiles + 1), nullptr);
+    spriteFiles90.assign(static_cast<size_t>(numFiles + 1), nullptr);
 
     spriteFiles[0] = new PacketFile;
 
@@ -382,42 +341,6 @@ auto SpriteManager::init(uint32_t newShapeHeapSize, uint32_t dataHeapSize, char*
 
 auto SpriteManager::initMechPacketFiles() -> int32_t
 {
-    constexpr int32_t NO_RAM = static_cast<int32_t>(0xface0004);
-    constexpr uint32_t TABLE_SIZE = (NUM_MECH_PART_FILES + 1) * sizeof(PacketFile*);
-
-    legFiles = static_cast<PacketFile**>(systemHeap->malloc(TABLE_SIZE));
-
-    if (legFiles == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    torsoFiles = static_cast<PacketFile**>(systemHeap->malloc(TABLE_SIZE));
-
-    if (torsoFiles == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    rArmFiles = static_cast<PacketFile**>(systemHeap->malloc(TABLE_SIZE));
-
-    if (rArmFiles == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    lArmFiles = static_cast<PacketFile**>(systemHeap->malloc(TABLE_SIZE));
-
-    if (lArmFiles == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    memclear(legFiles, TABLE_SIZE);
-    memclear(torsoFiles, TABLE_SIZE);
-    memclear(rArmFiles, TABLE_SIZE);
-    memclear(lArmFiles, TABLE_SIZE);
-
     int32_t result = openPartFile(legFiles, "legs");
 
     if (result == 0)
@@ -440,20 +363,11 @@ auto SpriteManager::initMechPacketFiles() -> int32_t
         return result;
     }
 
-    legFiles90 = static_cast<PacketFile**>(systemHeap->malloc(TABLE_SIZE));
-    torsoFiles90 = static_cast<PacketFile**>(systemHeap->malloc(TABLE_SIZE));
-
-    if (torsoFiles90 == nullptr)
-    {
-        return NO_RAM;
-    }
-
-    rArmFiles90 = static_cast<PacketFile**>(systemHeap->malloc(TABLE_SIZE));
-    lArmFiles90 = static_cast<PacketFile**>(systemHeap->malloc(TABLE_SIZE));
-    memclear(legFiles90, TABLE_SIZE);
-    memclear(torsoFiles90, TABLE_SIZE);
-    memclear(rArmFiles90, TABLE_SIZE);
-    memclear(lArmFiles90, TABLE_SIZE);
+    // The 90-pixel tables exist (empty) even when their PAKs aren't opened.
+    legFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
+    torsoFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
+    rArmFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
+    lArmFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
 
     if (use90PixelSprite == 0)
     {
@@ -495,19 +409,30 @@ auto SpriteManager::destroy() -> void
     destroyPartTable(lArmFiles90, true);
     destroyPartTable(rArmFiles90, true);
 
-    // Faithful: spriteFiles90's table is not freed (it goes with the heap).
-    dataHeap->free(spriteFiles);
-    spriteFiles = nullptr;
-    delete dataHeap;
-    dataHeap = nullptr;
-    delete shapeHeap;
-    shapeHeap = nullptr;
+    // What is still allocated (the shapes in the cache, the types' data) goes with the manager, as it went with the
+    // original's heaps.
+    for (const auto& [block, data] : shapeBlocks)
+    {
+        MCRenderer::UnregisterData(block);
+    }
+
+    shapeBlocks.clear();
+    dataBlocks.clear();
+    firstShape = nullptr;
+    lastShape = nullptr;
 }
 
 auto SpriteManager::mallocShapeRAM(uint32_t size) -> void*
 {
-    void* block = shapeHeap->malloc(size);
-    // Port: the block holds shapes a renderer may keep (a GPU atlas); the heap unregisters it when freed.
+    if (size == 0)
+    {
+        return nullptr;
+    }
+
+    auto data = std::make_unique<uint8_t[]>(size);
+    uint8_t* block = data.get();
+    shapeBlocks.emplace(block, std::move(data));
+    // Port: the block holds shapes a renderer may keep (a GPU atlas); freeShapeRAM unregisters it.
     MCRenderer::RegisterData(block, size, MCDataKind::Shapes);
     dumpedRecent = 0;
     return block;
@@ -515,27 +440,30 @@ auto SpriteManager::mallocShapeRAM(uint32_t size) -> void*
 
 auto SpriteManager::freeShapeRAM(void* block) -> void
 {
-    shapeHeap->free(block);
-}
-
-auto SpriteManager::walkShapeHeap() -> void
-{
-    spriteManager->shapeHeap->walkHeap(0, 0, nullptr);
-}
-
-auto SpriteManager::walkDataHeap() -> void
-{
-    spriteManager->dataHeap->walkHeap(0, 0, nullptr);
+    // As the original's heap: a block that isn't one of the manager's is ignored.
+    if (const auto found = shapeBlocks.find(block); found != shapeBlocks.end())
+    {
+        MCRenderer::UnregisterData(block);
+        shapeBlocks.erase(found);
+    }
 }
 
 auto SpriteManager::mallocDataRAM(uint32_t size) -> void*
 {
-    return dataHeap->malloc(size);
+    if (size == 0)
+    {
+        return nullptr;
+    }
+
+    auto data = std::make_unique<uint8_t[]>(size);
+    void* block = data.get();
+    dataBlocks.emplace(block, std::move(data));
+    return block;
 }
 
 auto SpriteManager::freeDataRAM(void* block) -> void
 {
-    dataHeap->free(block);
+    dataBlocks.erase(block);
 }
 
 auto SpriteManager::dumpLRU(int32_t) -> void
@@ -630,16 +558,16 @@ auto SpriteManager::getMechShapeData(uint32_t mechNum, uint32_t packetNum, int32
     switch (part)
     {
         case 0:
-            table = use90 ? legFiles90 : legFiles;
+            table = use90 ? legFiles90.data() : legFiles.data();
             break;
         case 1:
-            table = use90 ? torsoFiles90 : torsoFiles;
+            table = use90 ? torsoFiles90.data() : torsoFiles.data();
             break;
         case 2:
-            table = use90 ? rArmFiles90 : rArmFiles;
+            table = use90 ? rArmFiles90.data() : rArmFiles.data();
             break;
         case 3:
-            table = use90 ? lArmFiles90 : lArmFiles;
+            table = use90 ? lArmFiles90.data() : lArmFiles.data();
             break;
         default:
             // Port fix: the original seeks a null file here.
@@ -675,16 +603,16 @@ auto SpriteManager::touchMechShapeData(uint32_t mechNum, uint32_t packetNum, int
     switch (part)
     {
         case 0:
-            table = legFiles;
+            table = legFiles.data();
             break;
         case 1:
-            table = torsoFiles;
+            table = torsoFiles.data();
             break;
         case 2:
-            table = rArmFiles;
+            table = rArmFiles.data();
             break;
         case 3:
-            table = lArmFiles;
+            table = lArmFiles.data();
             break;
         default:
             // Port fix: the original seeks a null file here.
@@ -711,10 +639,8 @@ auto SpriteManager::touchMechShapeData(uint32_t mechNum, uint32_t packetNum, int
     }
 
     // Read the packet once so the file cache holds it, then drop it.
-    void* data = mallocShapeRAM(size);
-    Assert(data != nullptr, size, " Preloader Crapped out.  Again. ");
-    file->readPacket(static_cast<int32_t>(packetNum), static_cast<uint8_t*>(data));
-    freeShapeRAM(data);
+    std::vector<uint8_t> data(size);
+    file->readPacket(static_cast<int32_t>(packetNum), data.data());
 }
 
 auto SpriteManager::getShapeSize(uint32_t appearanceNum, uint32_t packetNum) -> int32_t

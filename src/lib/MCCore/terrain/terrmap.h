@@ -174,6 +174,9 @@ public:
     /// <remarks>MCX.EXE @ 0x00742120; slot 2</remarks>
     void destroy() override;
 
+    /// <summary>Unregisters and frees <see cref="partShapes"/>.</summary>
+    void freePartShapes();
+
     /// <summary>Does nothing (the MFD has a fixed size).</summary>
     /// <remarks>MCX.EXE @ 0x00740590; slot 8</remarks>
     void resize(int32_t w, int32_t h) override {}
@@ -444,8 +447,8 @@ public:
     /// <summary>The current page.</summary>
     TacmapDisplayTypes displayType = TACMAP_MAP; // +0x7c4
     int32_t unknown7C8 = 0;                      // +0x7c8
-    /// <summary>The part diagram shapes of the info page (from guiHeap).</summary>
-    uint8_t* partShapes = nullptr; // +0x7cc
+    /// <summary>The part diagram shapes of the info page.</summary>
+    std::unique_ptr<uint8_t[]> partShapes; // +0x7cc
     /// <summary>The part diagram's colour of each armor location (GetColors).</summary>
     uint8_t armorColors[11] = {}; // +0x7d0
     /// <summary>The part diagram's colour of each internal structure (body) location (GetColors).</summary>
@@ -546,9 +549,9 @@ extern int16_t RangeColorArray[4];
 /// <summary>"Calling ..." text of the video window.</summary>
 extern char callingText[64];
 /// <summary>The unit status strings of the info page (string table 0x78-0x7b).</summary>
-extern char* statusString[4];
+extern std::string statusString[4];
 /// <summary>The unit type strings of the info page (string table 0x7c-0x80).</summary>
-extern char* typeString[5];
+extern std::string typeString[5];
 /// <summary>The world point at the centre of the tactical map.</summary>
 extern vector_3d tacMapCenter;
 /// <summary>Salvage objects listed (mirrors TacticalMap::numSalvage).</summary>

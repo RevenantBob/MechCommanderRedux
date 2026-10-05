@@ -4,7 +4,6 @@
 #include "color/color.h"
 #include "engine/ceglist.h"
 #include "engine/celine.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "object/gameobj.h"
 
@@ -38,6 +37,7 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
         return result;
     }
 
+    // The type's heap size: the states lived in a heap of this size, so a size of 0 fails as the original did.
     uint32_t heapSize = 0;
     result = iniFile.readIdULong("HeapSize", heapSize);
 
@@ -46,31 +46,13 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
         return result;
     }
 
-    lineHeap = new UserHeap();
-
-    if (lineHeap == nullptr)
-    {
-        return -0x4152fff7;
-    }
-
-    result = lineHeap->init(heapSize, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    if (lineHeap->heapSize != 0)
-    {
-        states = static_cast<LineStateData*>(lineHeap->malloc(NUM_LINE_STATES * sizeof(LineStateData)));
-    }
-
-    LineStateData* state = states;
-
-    if (state == nullptr)
+    if (heapSize == 0)
     {
         return -0x4152fff6;
     }
+
+    states.assign(NUM_LINE_STATES, LineStateData{});
+    LineStateData* state = states.data();
 
     result = iniFile.seekBlock("States");
 
@@ -147,11 +129,7 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
 
 auto LineAppearanceType::destroy() -> void
 {
-    if (lineHeap != nullptr)
-    {
-        delete lineHeap;
-        lineHeap = nullptr;
-    }
+    states.clear();
 }
 
 auto LineAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
@@ -230,10 +208,11 @@ auto LineAppearance::render() -> int32_t
 
     if (state.fadeTable != -1 && state.fadeTable > -1)
     {
-        fadeTable = gamePalette->fadePalettes + (state.fadeTable + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+        fadeTable = gamePalette->fadePalettes.get() + (state.fadeTable + gamePalette->numBitmapHazeLevels * 2) * 0x100;
     }
 
-    ElementList->add(new LineElement(screenStart, screenEnd, state.startColor, fadeTable, depth, state.endColor));
+    ElementList->add(
+        ElementPool::Make<LineElement>(screenStart, screenEnd, state.startColor, fadeTable, depth, state.endColor));
 
     if (owner != nullptr && owner->selected != 0)
     {

@@ -659,7 +659,7 @@ auto Laser::render() -> void
             screenVertex(static_cast<int32_t>(endX - crossX), static_cast<int32_t>(endY - crossY), color, 0, 0);
         data.vertices[1] =
             screenVertex(static_cast<int32_t>(crossX + endX), static_cast<int32_t>(endY + crossY), color, 0, 0);
-        ElementList->add(new PolygonElement(&data, depth));
+        ElementList->add(ElementPool::Make<PolygonElement>(&data, depth));
 
         if (hotColor == coolColor)
         {
@@ -678,7 +678,7 @@ auto Laser::render() -> void
             screenVertex(static_cast<int32_t>(endX - crossX), static_cast<int32_t>(endY - crossY), color, 0, 0);
         data.vertices[1] =
             screenVertex(static_cast<int32_t>(crossX + endX), static_cast<int32_t>(endY + crossY), color, 0, 0);
-        ElementList->add(new PolygonElement(&data, depth));
+        ElementList->add(ElementPool::Make<PolygonElement>(&data, depth));
         return;
     }
 
@@ -721,7 +721,7 @@ auto Laser::render() -> void
     data.textureHeight = laserWindow->y_max;
     data.textureHandle = laserTexture;
     data.fadeTable = nullptr;
-    ElementList->add(new PolygonElement(&data, static_cast<int32_t>((endY + startY) * 0.5f)));
+    ElementList->add(ElementPool::Make<PolygonElement>(&data, static_cast<int32_t>((endY + startY) * 0.5f)));
 }
 
 auto Laser::setTargetPosition(vector_3d position) -> void

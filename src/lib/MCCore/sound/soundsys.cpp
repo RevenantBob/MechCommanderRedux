@@ -9,7 +9,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
@@ -35,8 +34,8 @@ int32_t inCombat = 0;
 int32_t justInCombat = 0;
 int32_t currentPilotSpeech = 0;
 int32_t lastBettyId = 0;
-uint8_t* pilotLogisticsSpeechPtr = nullptr;
-uint8_t* noiseData = nullptr;
+std::unique_ptr<uint8_t[]> pilotLogisticsSpeechPtr;
+std::unique_ptr<uint8_t[]> noiseData;
 
 namespace
 {
@@ -82,17 +81,13 @@ namespace
         }
     }
 
-    /// <summary>Frees a radio message's fragments and noise, and ends and deletes its video window.</summary>
+    /// <summary>Frees a radio message's fragments and noise.</summary>
     void freeRadioData(RadioData* message)
     {
-        UserHeap* heap = message->msgHeap;
-
         for (int32_t i = 0; i < MAX_RADIO_FRAGMENTS; i++)
         {
-            heap->free(message->data[i]);
-            message->data[i] = nullptr;
-            heap->free(message->noise[i]);
-            message->noise[i] = nullptr;
+            message->data[i].reset();
+            message->noise[i].reset();
         }
     }
 
@@ -325,8 +320,7 @@ SoundSystem::~SoundSystem()
 
 void SoundSystem::init()
 {
-    sounds = nullptr;
-    soundHeap = nullptr;
+    sounds.clear();
     soundOn = 0;
     SoundRendererInstall(NUM_SOUND_CHANNELS);
     SmackSoundUseDirectSound(g_SRData.directSound.get());
@@ -341,7 +335,6 @@ void SoundSystem::init()
     sampleRate = 22050;
     bitDepth = 8;
     channels = 2;
-    soundHeap = nullptr;
     currentMusicId = -1;
 
     for (int32_t i = 0; i < NUM_SAMPLE_CHANNELS; i++)
@@ -356,7 +349,7 @@ void SoundSystem::init()
     channelResource[MUSIC_CHANNEL_A] = nullptr;
     channelResource[MUSIC_CHANNEL_B] = nullptr;
     numSoundBites = 0;
-    sounds = nullptr;
+    sounds.clear();
     soundDataFile = nullptr;
     cdDevice = 0;
     streamUnknown208[0] = 0;
@@ -369,7 +362,8 @@ void SoundSystem::init()
     unknown218[1] = 0;
     streamFile[0] = nullptr;
     streamFile[1] = nullptr;
-    digitalMusicIds = nullptr;
+    digitalMusicIds.clear();
+    digitalMusicLoopFlags.clear();
     numDMS = 0;
     digitalStreamBufferSize = 0;
 
@@ -398,7 +392,7 @@ void SoundSystem::init()
     digitalMasterVolume = 127;
     radioVolume = 127;
     musicVolume = 127;
-    bettySoundBite = nullptr;
+    bettySoundBite.reset();
     bettyDataFile = nullptr;
 }
 
@@ -415,13 +409,12 @@ void SoundSystem::destroy()
     closeFile(streamFile[1]);
     closeFile(soundDataFile);
     closeFile(bettyDataFile);
-
-    if (soundHeap != nullptr)
-    {
-        delete soundHeap;
-    }
-
-    soundHeap = nullptr;
+    // The original deleted its sound heap here, and everything in it.
+    sounds.clear();
+    bettySoundBite.reset();
+    digitalMusicIds.clear();
+    digitalMusicLoopFlags.clear();
+    noiseData.reset();
 }
 
 void SoundSystem::startSmackerSound()
@@ -450,6 +443,7 @@ int32_t SoundSystem::init(char* soundFileName)
         uint32_t directSound = 0;
         result = soundFile.readIdULong("DirectSound", directSound);
         Assert(result == 0, result, " Couldn't find DirectSound in .SND file ");
+        // The sound heap's size is still read (and required), then ignored.
         result = soundFile.readIdULong("soundHeapSize", soundHeapSize);
         Assert(result == 0, result, " Couldn't find soundHeapSize in .SND file ");
         musicVolume = static_cast<uint8_t>(MusicVolume);
@@ -466,10 +460,6 @@ int32_t SoundSystem::init(char* soundFileName)
         Assert(result == 0, result, " Couldn't find a variable in .SND file ");
         result = soundFile.readIdULong("wcChannels", wcChannels);
         Assert(result == 0, result, " Couldn't find a variable in .SND file ");
-        soundHeap = new UserHeap();
-        Assert(soundHeap != nullptr, result, " Couldn't allocate soundHeap ");
-        result = soundHeap->init(soundHeapSize);
-        Assert(result == 0, result, " Couldn't init soundHeap ");
 
         // The original turned sound off here when waveOutGetNumDevs found no device ("No Digital Sound Hardware
         // Installed"). The port's renderer plays silent without one.
@@ -497,10 +487,8 @@ int32_t SoundSystem::init(char* soundFileName)
         Assert(result == 0, result, " Couldn't find a variable in betty file ");
         result = soundFile.readIdULong("numBites", numSoundBites);
         Assert(result == 0, result, " Couldn't find a variable in betty file ");
-        uint32_t biteCount = numSoundBites;
-        sounds = static_cast<SoundBite*>(soundHeap->malloc(biteCount * sizeof(SoundBite)));
-        Assert(sounds != nullptr, 0xabba000c, " Couldn't allocate soundBiteList ");
-        std::memset(sounds, 0, biteCount * sizeof(SoundBite));
+        sounds.clear();
+        sounds.resize(numSoundBites);
         char blockName[16];
 
         for (int32_t i = 0; i < static_cast<int32_t>(numSoundBites); i++)
@@ -539,11 +527,8 @@ int32_t SoundSystem::init(char* soundFileName)
         result = soundFile.readIdULong("DigitalStreamBufferSize", digitalStreamBufferSize);
         Assert(result == 0, result, " Couldn't find a variable in sound file ");
         int32_t musicCount = numDMS;
-        // Port fix: the tables held 4-byte pointers; they are sized for the port's.
-        digitalMusicIds = static_cast<char**>(soundHeap->malloc(musicCount * sizeof(char*)));
-        Assert(digitalMusicIds != nullptr, result, " Couldn't allocate digitalMusicIds ");
-        digitalMusicLoopFlags = static_cast<int32_t*>(soundHeap->malloc(musicCount * sizeof(int32_t)));
-        Assert(digitalMusicLoopFlags != nullptr, result, " Couldn't allocate digitalMusicLoopFlags ");
+        digitalMusicIds.assign(static_cast<size_t>(std::max(musicCount, 0)), std::string());
+        digitalMusicLoopFlags.assign(static_cast<size_t>(std::max(musicCount, 0)), 0);
         char musicName[16];
         char loopName[16];
 
@@ -551,9 +536,10 @@ int32_t SoundSystem::init(char* soundFileName)
         {
             std::snprintf(musicName, sizeof(musicName), "DMS%d", i);
             std::snprintf(loopName, sizeof(loopName), "DMSLoop%d", i);
-            digitalMusicIds[i] = static_cast<char*>(soundHeap->malloc(30));
-            result = soundFile.readIdString(musicName, digitalMusicIds[i], 29);
+            char musicId[30] = {};
+            result = soundFile.readIdString(musicName, musicId, 29);
             Assert(result == 0, result, " Couldn't find a variable in sound file ");
+            digitalMusicIds[i] = musicId;
             result = soundFile.readIdBoolean(loopName, digitalMusicLoopFlags[i]);
             Assert(result == 0, result, " Couldn't find a variable in sound file ");
         }
@@ -611,15 +597,10 @@ SoundBite* SoundSystem::preloadSoundBite(int32_t biteId)
     if (sounds[biteId].biteSize == 0 || bite->biteData == nullptr)
     {
         bite->biteSize = size;
-        bite->biteData = static_cast<uint8_t*>(soundHeap->malloc(size));
-
-        if (bite->biteData == nullptr)
-        {
-            return nullptr;
-        }
+        bite->biteData = std::make_unique<uint8_t[]>(size);
     }
 
-    file->readPacket(biteId, bite->biteData);
+    file->readPacket(biteId, bite->biteData.get());
     return bite;
 }
 
@@ -636,16 +617,10 @@ uint8_t* SoundSystem::loadBettySample(int32_t bettyId)
 
     if (size != 0)
     {
-        soundHeap->free(bettySoundBite);
-        bettySoundBite = static_cast<uint8_t*>(soundHeap->malloc(size));
-
-        if (bettySoundBite == nullptr)
-        {
-            return nullptr;
-        }
+        bettySoundBite = std::make_unique<uint8_t[]>(size);
     }
 
-    uint8_t* sample = bettySoundBite;
+    uint8_t* sample = bettySoundBite.get();
     lastBettyId = bettyId;
     file->readPacket(bettyId, sample);
     return sample;
@@ -665,7 +640,6 @@ void SoundSystem::removeQueuedMessage(int32_t index)
         return;
     }
 
-    UserHeap* heap = message->msgHeap;
     freeRadioData(message);
 
     if (message->movieWindow != nullptr)
@@ -677,7 +651,7 @@ void SoundSystem::removeQueuedMessage(int32_t index)
         message->movie = nullptr;
     }
 
-    heap->free(message);
+    delete message;
 
     if (messagesInQueue != 0)
     {
@@ -860,17 +834,9 @@ void SoundSystem::purgeSoundSystem()
 
     for (uint32_t i = 0; i < numSoundBites; i++)
     {
-        soundHeap->free(sounds[i].biteData);
-        sounds[i].biteData = nullptr;
+        sounds[i].biteData.reset();
         sounds[i].biteSize = 0;
     }
-
-    if (Radio::radioHeap != nullptr)
-    {
-        delete Radio::radioHeap;
-    }
-
-    Radio::radioHeap = nullptr;
 
     if (Radio::noiseFile != nullptr)
     {
@@ -881,8 +847,7 @@ void SoundSystem::purgeSoundSystem()
     Radio::currentRadio = 0;
     Radio::radioListInitialized = 0;
     Radio::messageInfoLoaded = 0;
-    soundHeap->free(bettySoundBite);
-    bettySoundBite = nullptr;
+    bettySoundBite.reset();
 }
 
 void SoundSystem::playStaticNoise()
@@ -908,10 +873,10 @@ void SoundSystem::playStaticNoise()
 
     if (noiseData == nullptr)
     {
-        noiseData = static_cast<uint8_t*>(soundHeap->malloc(Radio::noiseFile->getPacketSize()));
+        noiseData = std::make_unique<uint8_t[]>(Radio::noiseFile->getPacketSize());
     }
 
-    Radio::noiseFile->readPacket(2, noiseData);
+    Radio::noiseFile->readPacket(2, noiseData.get());
 
     if (useSound == 0)
     {
@@ -923,8 +888,8 @@ void SoundSystem::playStaticNoise()
         gos_DestroySoundResource(channelResource[NOISE_CHANNEL]);
     }
 
-    gos_CreateSoundResource(&channelResource[NOISE_CHANNEL], reinterpret_cast<char*>(noiseData), SOUND_RESOURCE_MEMORY,
-                            0);
+    gos_CreateSoundResource(&channelResource[NOISE_CHANNEL], reinterpret_cast<char*>(noiseData.get()),
+                            SOUND_RESOURCE_MEMORY, 0);
     uint32_t volume = radioVolume;
     // Marked to fade out at once: update lowers the static until it stops.
     fadeDown[NOISE_CHANNEL] = 1;
@@ -937,8 +902,7 @@ void SoundSystem::playStaticNoise()
 void SoundSystem::stopStaticNoise()
 {
     stopDigitalSample(NOISE_CHANNEL);
-    soundHeap->free(noiseData);
-    noiseData = nullptr;
+    noiseData.reset();
 }
 
 void SoundSystem::update()
@@ -965,8 +929,7 @@ void SoundSystem::update()
             }
 
             channelResource[PILOT_SPEECH_CHANNEL] = nullptr;
-            globalLogPtr->logisticsHeap->free(pilotLogisticsSpeechPtr);
-            pilotLogisticsSpeechPtr = nullptr;
+            pilotLogisticsSpeechPtr.reset();
         }
     }
 
@@ -993,7 +956,7 @@ void SoundSystem::update()
                     }
 
                     gos_CreateSoundResource(&channelResource[PILOT_SPEECH_CHANNEL],
-                                            reinterpret_cast<char*>(message->noise[currentFragment]),
+                                            reinterpret_cast<char*>(message->noise[currentFragment].get()),
                                             SOUND_RESOURCE_MEMORY, 0);
                     gos_SetChannelVolume(PILOT_SPEECH_CHANNEL, channelVolume(radioVolume));
                     gos_PlayChannel(PILOT_SPEECH_CHANNEL, channelResource[PILOT_SPEECH_CHANNEL]);
@@ -1016,7 +979,7 @@ void SoundSystem::update()
                         }
 
                         gos_CreateSoundResource(&channelResource[PILOT_SPEECH_CHANNEL],
-                                                reinterpret_cast<char*>(message->data[currentFragment]),
+                                                reinterpret_cast<char*>(message->data[currentFragment].get()),
                                                 SOUND_RESOURCE_MEMORY, 0);
                         gos_SetChannelVolume(PILOT_SPEECH_CHANNEL, channelVolume(radioVolume));
                         gos_PlayChannel(PILOT_SPEECH_CHANNEL, channelResource[PILOT_SPEECH_CHANNEL]);
@@ -1045,7 +1008,7 @@ void SoundSystem::update()
             }
 
             channelResource[PILOT_SPEECH_CHANNEL] = nullptr;
-            uint8_t* noise = currentMessage->noise[currentFragment];
+            uint8_t* noise = currentMessage->noise[currentFragment].get();
 
             if (noise == nullptr)
             {
@@ -1213,7 +1176,7 @@ void SoundSystem::update()
                     gos_DestroySoundResource(channelResource[NOISE_CHANNEL]);
                 }
 
-                gos_CreateSoundResource(&channelResource[NOISE_CHANNEL], reinterpret_cast<char*>(fire->biteData),
+                gos_CreateSoundResource(&channelResource[NOISE_CHANNEL], reinterpret_cast<char*>(fire->biteData.get()),
                                         SOUND_RESOURCE_MEMORY, 0);
                 gos_SetChannelLooping(NOISE_CHANNEL, true);
                 gos_SetChannelPanning(NOISE_CHANNEL, 0.0f);
@@ -1291,7 +1254,7 @@ int32_t SoundSystem::playDigitalMusic(int32_t musicId, bool loop)
         return 0;
     }
 
-    if (std::strncmp(digitalMusicIds[musicId], "NONE", 4) == 0)
+    if (digitalMusicIds[musicId].starts_with("NONE"))
     {
         return 0;
     }
@@ -1339,7 +1302,7 @@ int32_t SoundSystem::playDigitalMusic(int32_t musicId, bool loop)
     }
 
     FullPathFileName musicName;
-    musicName.init(soundPath, digitalMusicIds[musicId], ".wav");
+    musicName.init(soundPath, digitalMusicIds[musicId].c_str(), ".wav");
 
     if (fileExists(musicName) != 0)
     {
@@ -1545,7 +1508,7 @@ int32_t SoundSystem::playDigitalSample(uint32_t sampleId, uint32_t channelType, 
         gos_DestroySoundResource(channelResource[channel]);
     }
 
-    uint8_t* wave = sounds[sampleId].biteData;
+    uint8_t* wave = sounds[sampleId].biteData.get();
 
     if (wave != nullptr && WaveDataOK(wave) != 0)
     {
@@ -1648,13 +1611,7 @@ int32_t SoundSystem::playPilotSpeech(char* fileName, int32_t speechId)
         return result;
     }
 
-    pilotLogisticsSpeechPtr =
-        static_cast<uint8_t*>(globalLogPtr->logisticsHeap->malloc(static_cast<uint32_t>(speechFile.getPacketSize())));
-
-    if (pilotLogisticsSpeechPtr == nullptr)
-    {
-        return 1;
-    }
+    pilotLogisticsSpeechPtr = std::make_unique<uint8_t[]>(static_cast<size_t>(speechFile.getPacketSize()));
 
     if (channelResource[PILOT_SPEECH_CHANNEL] != nullptr)
     {
@@ -1662,9 +1619,9 @@ int32_t SoundSystem::playPilotSpeech(char* fileName, int32_t speechId)
     }
 
     channelResource[PILOT_SPEECH_CHANNEL] = nullptr;
-    speechFile.readPacket(speechId, pilotLogisticsSpeechPtr);
-    gos_CreateSoundResource(&channelResource[PILOT_SPEECH_CHANNEL], reinterpret_cast<char*>(pilotLogisticsSpeechPtr),
-                            SOUND_RESOURCE_MEMORY, 0);
+    speechFile.readPacket(speechId, pilotLogisticsSpeechPtr.get());
+    gos_CreateSoundResource(&channelResource[PILOT_SPEECH_CHANNEL],
+                            reinterpret_cast<char*>(pilotLogisticsSpeechPtr.get()), SOUND_RESOURCE_MEMORY, 0);
     fadeDown[PILOT_SPEECH_CHANNEL] = 0;
     gos_SetChannelPanning(PILOT_SPEECH_CHANNEL, 0.0f);
     gos_SetChannelVolume(PILOT_SPEECH_CHANNEL, channelVolume(radioVolume));
@@ -1734,7 +1691,6 @@ void SoundSystem::removeCurrentMessage()
 
     if (message != nullptr)
     {
-        UserHeap* heap = message->msgHeap;
         freeRadioData(message);
 
         if (message->movieWindow != nullptr)
@@ -1752,7 +1708,7 @@ void SoundSystem::removeCurrentMessage()
             message->movie = nullptr;
         }
 
-        heap->free(message);
+        delete message;
         currentMessage = nullptr;
     }
 

@@ -2,9 +2,7 @@
 
 #include "lib/cvmath.h"
 
-class HeapManager;
 class PacketFile;
-class UserHeap;
 
 /// <summary>A crater or footprint on the ground (0x14 bytes).</summary>
 struct CraterData
@@ -59,15 +57,10 @@ protected:
     /// <remarks>MCX.EXE @ 0x006b42f0</remarks>
     uint8_t* getCrater(int32_t craterId);
 
+    /// <summary>Reads shape <paramref name="craterId"/> from the PAK (seeked to it) and registers it.</summary>
+    void loadShape(int32_t craterId);
+
 public:
-    /// <summary>The heap of the crater list.</summary>
-    HeapManager* craterPosHeap; // +0x00
-    /// <summary>The heap of the shapes.</summary>
-    UserHeap* craterShpHeap; // +0x04
-    /// <summary>The crater list heap's size (numCraters * 0x1c; only 0x14 per crater is used).</summary>
-    uint32_t craterPosHeapSize; // +0x08
-    /// <summary>The shape heap's size (every packet plus 100 bytes each).</summary>
-    uint32_t craterShpHeapSize; // +0x0c
     /// <summary>The crater PAK.</summary>
     PacketFile* craterFile; // +0x10
     /// <summary>The number of crater slots.</summary>
@@ -75,13 +68,13 @@ public:
     /// <summary>The slot the next crater goes in.</summary>
     int32_t currentCrater; // +0x18
     /// <summary>The slots.</summary>
-    CraterData* craterList; // +0x1c
+    std::vector<CraterData> craterList; // +0x1c
     /// <summary>The number of shapes (packets).</summary>
     int32_t numCraterShapes; // +0x20
     /// <summary>Half of that: added to the shape id when the camera is zoomed out.</summary>
     int32_t numCraterTypes; // +0x24
-    /// <summary>The shapes (numCraterShapes pointers).</summary>
-    uint8_t** craterShapes; // +0x28
+    /// <summary>The shapes (numCraterShapes of them, at least 11; null until loaded).</summary>
+    std::vector<std::unique_ptr<uint8_t[]>> craterShapes; // +0x28
 };
 
 /// <summary>The game's crater manager.</summary>

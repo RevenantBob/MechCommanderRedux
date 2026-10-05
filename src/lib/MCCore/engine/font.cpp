@@ -2,7 +2,6 @@
 #include "engine/font.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "logistics/logmain.h"
 #include "vfx/vfxfuncs.h"
 
@@ -24,9 +23,7 @@ auto Font::init(char* fontName) -> int32_t
     scale = 2.0f;
     unknown14 = 0;
     scaled = 1;
-    fontData = nullptr;
-    systemHeap->free(nullptr);
-    fontData = nullptr;
+    fontData.reset();
 
     for (int32_t i = 0; i < 0x100; i++)
     {
@@ -43,14 +40,8 @@ auto Font::init(char* fontName) -> int32_t
         return result;
     }
 
-    fontData = static_cast<uint8_t*>(systemHeap->malloc(file.fileSize()));
-
-    if (fontData == nullptr)
-    {
-        return -0x33340000;
-    }
-
-    file.read(fontData, static_cast<int32_t>(file.fileSize()));
+    fontData = std::make_unique<uint8_t[]>(file.fileSize());
+    file.read(fontData.get(), static_cast<int32_t>(file.fileSize()));
     file.close();
     fontHeight = getHeight();
     return 0;
@@ -60,7 +51,7 @@ auto Font::find(uint8_t letter) -> uint8_t*
 {
     uint8_t* data = letterCache[letter];
 
-    if (data == reinterpret_cast<uint8_t*>(static_cast<intptr_t>(-1)) && (data = fontData) != nullptr)
+    if (data == reinterpret_cast<uint8_t*>(static_cast<intptr_t>(-1)) && (data = fontData.get()) != nullptr)
     {
         while (true)
         {
@@ -173,7 +164,7 @@ auto Font::printWidth(char* text, int multiLine) -> int32_t
 
 auto Font::getHeight() -> uint8_t
 {
-    uint8_t* data = fontData;
+    uint8_t* data = fontData.get();
     uint8_t height = 0;
 
     while (*data != 0)

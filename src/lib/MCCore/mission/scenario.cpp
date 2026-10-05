@@ -635,7 +635,7 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     if (palette != nullptr)
     {
         palette->numColors = 0;
-        palette->rgbData = nullptr;
+        palette->rgbData.reset();
         palette->init();
     }
 
@@ -643,8 +643,8 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     Assert(palette != nullptr, static_cast<uint32_t>(result), " no RAM for gamePalette ");
     result = gamePalette->init(paletteSystem);
     requireOk(result, " could not start gamePalette ");
-    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData));
-    application->activatePalette(gamePalette->rgbData, 10, 0xf6);
+    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData.get()));
+    application->activatePalette(gamePalette->rgbData.get(), 10, 0xf6);
     UpdateDisplay(0, 1, 20, 1, 7);
 
     //---------------------------------------------------------------------------------------------------------------
@@ -879,16 +879,7 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     result = scenarioFile->readIdString("CraterFile", craterFileName, 15);
     requireOk(result, " could not find CraterFile in CraterSystem Block in Scenario File ");
 
-    // The heap block is never constructed in the original; the port constructs it in place.
-    if (void* block = systemHeap->malloc(sizeof(CraterManager)))
-    {
-        craterManager = ::new (block) CraterManager;
-    }
-    else
-    {
-        craterManager = nullptr;
-    }
-
+    craterManager = new CraterManager;
     Assert(craterManager != nullptr, static_cast<uint32_t>(result), " no RAM for Crater Manager ");
     result = craterManager->init(numCraters, craterShapeSize, craterFileName);
     requireOk(result, " could not Start CraterManager ");
@@ -901,7 +892,7 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     requireOk(result, " could not Find CameraFileName in CameraSystem Block ");
     cameraList = new CameraList;
     Assert(cameraList != nullptr, static_cast<uint32_t>(result), " no RAM for CameraList ");
-    result = cameraList->init(cameraFileName, static_cast<int32_t>(cameraHeapSize));
+    result = cameraList->init(cameraFileName);
     requireOk(result, " could start CameraSystem ");
     UpdateDisplay(0, 1, 30, 1, 20);
 
@@ -955,38 +946,13 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     result = scenarioFile->readIdULong("TotalMechs", totalMechs);
     requireOk(result, " could not Find TotalMechs in SpriteManager Block ");
 
-    // The shape heap: the FIT's total, halved for the small sprites, doubled for the 90-pixel ones on a big machine.
-    const auto shapeHeapTotal =
-        static_cast<int32_t>(spriteManagerHeapSize + legHeapSize + torsoHeapSize + rightArmHeapSize + leftArmHeapSize);
-    const uint32_t totalPhysicalMemory = MCPort::TotalPhysicalMemory();
-    int32_t shapeHeapSize = 0;
-
-    if (use90PixelSprite == 0 || totalPhysicalMemory < 60000000 || force32MB != 0 || force16MB != 0)
-    {
-        shapeHeapSize = shapeHeapTotal >> 1;
-
-        if (use90PixelSprite != 0 && 31999999 < totalPhysicalMemory && force16MB == 0)
-        {
-            shapeHeapSize = shapeHeapTotal + shapeHeapSize;
-        }
-    }
-    else
-    {
-        shapeHeapSize = shapeHeapTotal * 2;
-    }
-
-    result = spriteManager->init(static_cast<uint32_t>(shapeHeapSize), spriteDataHeapSize, shapeFileName);
+    // The original sized the sprite manager's heaps from the sizes above (still read, then ignored).
+    result = spriteManager->init(shapeFileName);
     requireOk(result, " could not Start SpriteManager ");
 
     appearanceTypeList = new AppearanceTypeList;
-
-    if (appearanceTypeList != nullptr)
-    {
-        AppearanceTypeList::appearanceHeap = nullptr;
-    }
-
     Assert(appearanceTypeList != nullptr, static_cast<uint32_t>(result), " no RAM for AppearanceList ");
-    result = appearanceTypeList->init(spriteFileName, spriteHeapSize);
+    result = appearanceTypeList->init(spriteFileName);
     // Faithful: tests the list, not the result.
     Assert(appearanceTypeList != nullptr, static_cast<uint32_t>(result), " could not start AppearanceList ");
 
@@ -1949,7 +1915,7 @@ auto Scenario::destroy() -> void
     if (craterManager != nullptr)
     {
         craterManager->destroy();
-        systemHeap->free(craterManager);
+        delete craterManager;
         craterManager = nullptr;
     }
 
@@ -2010,8 +1976,8 @@ auto Scenario::destroy() -> void
     }
 
     destroyMechShadows();
-    systemHeap->free(tempBuffer);
-    tempBuffer = nullptr;
+    // The original freed the scratch buffer; the next mission's came back zeroed.
+    tempBuffer.fill(0);
 
     Assert(parts != nullptr, 0, " parts already NULL ");
     systemHeap->free(parts);

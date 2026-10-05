@@ -3,7 +3,6 @@
 #include "gui/asystem.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "mission/scenario.h"
 #include "platform/MCDisplay.h"
@@ -22,12 +21,6 @@ int32_t Palette::lastHazePercent = 0;
 
 namespace
 {
-    /// <summary>Whether systemHeap is up (the palette's allocations test it first).</summary>
-    bool SystemHeapReady()
-    {
-        return systemHeap != nullptr && systemHeap->heapSize != 0;
-    }
-
     /// <summary>A 32-bit left shift as x86 does it: the count taken mod 32.</summary>
     int32_t Shl(int32_t value, int32_t count)
     {
@@ -90,24 +83,6 @@ namespace
     }
 }
 
-void* PaletteBlock::operator new(size_t size) noexcept
-{
-    if (!SystemHeapReady())
-    {
-        return nullptr;
-    }
-
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-void PaletteBlock::operator delete(void* block)
-{
-    if (SystemHeapReady())
-    {
-        systemHeap->free(block);
-    }
-}
-
 void PaletteBlock::initRgbData(uint8_t* data)
 {
     const int16_t count = *reinterpret_cast<int16_t*>(data + 2);
@@ -115,38 +90,17 @@ void PaletteBlock::initRgbData(uint8_t* data)
     numColors = count;
     const uint32_t size = static_cast<uint32_t>(count * 3);
 
-    if (rgbData == nullptr && SystemHeapReady())
+    if (rgbData == nullptr)
     {
-        rgbData = static_cast<uint8_t*>(systemHeap->malloc(size));
+        rgbData = std::make_unique<uint8_t[]>(size);
     }
 
-    if (rgbData != nullptr)
-    {
-        std::memcpy(rgbData, data + 4, size);
-    }
+    std::memcpy(rgbData.get(), data + 4, size);
 }
 
 void PaletteBlock::destroy()
 {
-    if (rgbData != nullptr)
-    {
-        if (SystemHeapReady())
-        {
-            systemHeap->free(rgbData);
-        }
-
-        rgbData = nullptr;
-    }
-}
-
-void* ColorRange::operator new(size_t size) noexcept
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-void ColorRange::operator delete(void* block)
-{
-    systemHeap->free(block);
+    rgbData.reset();
 }
 
 ColorRange::ColorRange(ColorRangeData& data, Palette* _palette)
@@ -240,7 +194,7 @@ uint8_t* Palette::getHazePalette(int32_t hazeLevel)
             hazeLevel = numBitmapHazeLevels;
         }
 
-        return fadePalettes + (hazeLevel * 0x100 - 0x100);
+        return fadePalettes.get() + (hazeLevel * 0x100 - 0x100);
     }
 
     int32_t level = static_cast<int32_t>(0u - static_cast<uint32_t>(hazeLevel));
@@ -250,7 +204,7 @@ uint8_t* Palette::getHazePalette(int32_t hazeLevel)
         level = numBitmapHazeLevels;
     }
 
-    return fadePalettes + (level * 0x100 - 0x100 + hazePaletteOffset);
+    return fadePalettes.get() + (level * 0x100 - 0x100 + hazePaletteOffset);
 }
 
 int32_t Palette::findColorRange(int32_t colorIndex)
@@ -360,7 +314,7 @@ void Palette::fullCycleOn()
 
 void Palette::fullCycleOff()
 {
-    initRgbData(originalPalette);
+    initRgbData(originalPalette.get());
     activate(0, 0);
 }
 
@@ -371,12 +325,12 @@ void Palette::fadeToPalette(float& fadePercent, uint8_t* targetPalette)
         fadePercent = 1.0f;
     }
 
-    uint8_t* shown = rgbData;
+    uint8_t* shown = rgbData.get();
     const uint8_t* target = targetPalette + 4;
 
     if (fadeDeltasValid == 0)
     {
-        const uint8_t* original = originalPalette + 4;
+        const uint8_t* original = originalPalette.get() + 4;
         const int32_t count = static_cast<int32_t>(paletteSize) - 4;
         maxFadeDelta = 0;
 
@@ -476,7 +430,7 @@ void Palette::fadeToOriginalPalette(float& fadePercent)
         fadeDeltasValid = 0;
     }
 
-    fadeToPalette(fadePercent, originalPalette);
+    fadeToPalette(fadePercent, originalPalette.get());
 }
 
 void Palette::fadeToBlackAndWhite(float& fadePercent)
@@ -487,7 +441,7 @@ void Palette::fadeToBlackAndWhite(float& fadePercent)
         fadeDeltasValid = 0;
     }
 
-    fadeToPalette(fadePercent, bwPalette);
+    fadeToPalette(fadePercent, bwPalette.get());
 }
 
 void Palette::recalculateDepthVsHazeInfo(int32_t altitude)
@@ -503,7 +457,7 @@ void Palette::recalculateDepthVsHazeInfo(int32_t altitude)
         table = numDepthAtHazeLevelTables - 1;
     }
 
-    currentDepthTable = depthHazeTables + Shl(table, numDepthHazeEntriesShift);
+    currentDepthTable = depthHazeTables.get() + Shl(table, numDepthHazeEntriesShift);
     minHazeDepth = currentDepthTable[0];
     lastMinDepth = -1;
     maxHazeDepth = currentDepthTable[numDepthHazeEntries - 1];
@@ -511,7 +465,7 @@ void Palette::recalculateDepthVsHazeInfo(int32_t altitude)
 
 void Palette::animate(int start, int count)
 {
-    application->activatePalette(rgbData, start, count);
+    application->activatePalette(rgbData.get(), start, count);
 }
 
 void Palette::activate(int32_t which, int32_t extractIndex)
@@ -522,7 +476,7 @@ void Palette::activate(int32_t which, int32_t extractIndex)
 
         if (extractIndex < numExtractPalettes && extractIndex >= 0)
         {
-            colors = extractPalettes + 4 + extractIndex * PALETTE_FILE_SIZE;
+            colors = extractPalettes.get() + 4 + extractIndex * PALETTE_FILE_SIZE;
         }
 
         application->activatePalette(colors, 0, 0x100);
@@ -531,12 +485,12 @@ void Palette::activate(int32_t which, int32_t extractIndex)
 
     if (which != 2)
     {
-        application->activatePalette(rgbData, 0, 0x100);
+        application->activatePalette(rgbData.get(), 0, 0x100);
         return;
     }
 
     // Original behaviour: the black-and-white palette is handed over with its 4-byte .pal header.
-    application->activatePalette(bwPalette, 0, 0x100);
+    application->activatePalette(bwPalette.get(), 0, 0x100);
 }
 
 void Palette::tweakPalette(int start, int count, VFX_RGB* colors)
@@ -545,21 +499,21 @@ void Palette::tweakPalette(int start, int count, VFX_RGB* colors)
 
     for (int index = start; index < start + count; ++index)
     {
-        std::memcpy(gamePalette->rgbData + (index & 0xff) * 3, source, 3);
+        std::memcpy(gamePalette->rgbData.get() + (index & 0xff) * 3, source, 3);
         source += 3;
     }
 }
 
 void Palette::init()
 {
-    originalPalette = nullptr;
-    fadeDeltas = nullptr;
-    bwPalette = nullptr;
-    extractPalettes = nullptr;
-    fadePalettes = nullptr;
-    depthHazeTables = nullptr;
-    colorRanges = nullptr;
-    rgbData = nullptr;
+    originalPalette.reset();
+    fadeDeltas.reset();
+    bwPalette.reset();
+    extractPalettes.reset();
+    fadePalettes.reset();
+    depthHazeTables.reset();
+    colorRanges.clear();
+    rgbData.reset();
 }
 
 int32_t Palette::init(char* paletteFileName)
@@ -634,47 +588,25 @@ int32_t Palette::init(FitIniFile& paletteFile)
 void Palette::destroy()
 {
     PaletteBlock::destroy();
-
-    if (originalPalette != nullptr)
-    {
-        systemHeap->free(originalPalette);
-        originalPalette = nullptr;
-    }
-
-    if (fadeDeltas != nullptr)
-    {
-        systemHeap->free(fadeDeltas);
-        fadeDeltas = nullptr;
-    }
-
-    if (bwPalette != nullptr)
-    {
-        systemHeap->free(bwPalette);
-        bwPalette = nullptr;
-    }
+    originalPalette.reset();
+    fadeDeltas.reset();
+    bwPalette.reset();
 
     if (fadePalettes != nullptr)
     {
-        systemHeap->free(fadePalettes);
-        fadePalettes = nullptr;
+        MCRenderer::UnregisterData(fadePalettes.get());
+        fadePalettes.reset();
     }
 
     if (allFadePalettes != nullptr)
     {
-        systemHeap->free(allFadePalettes);
-        allFadePalettes = nullptr;
+        MCRenderer::UnregisterData(allFadePalettes.get());
+        allFadePalettes.reset();
     }
 
-    if (extractPalettes != nullptr)
-    {
-        systemHeap->free(extractPalettes);
-        extractPalettes = nullptr;
-    }
-
-    systemHeap->free(depthHazeTables);
-    depthHazeTables = nullptr;
-    ::operator delete(colorRanges);
-    colorRanges = nullptr;
+    extractPalettes.reset();
+    depthHazeTables.reset();
+    colorRanges.clear();
 }
 
 int32_t Palette::loadPaletteInfo(FitIniFile& paletteFile)
@@ -752,9 +684,7 @@ int32_t Palette::loadColorRanges(FitIniFile& paletteFile)
     }
 
     const int32_t count = numColorRanges;
-    // The original sized this with the global operator new (count * 0x24), which destroy frees with the global
-    // operator delete.
-    colorRanges = static_cast<ColorRange*>(::operator new(static_cast<size_t>(count) * sizeof(ColorRange)));
+    colorRanges.assign(static_cast<size_t>(std::max(count, 0)), ColorRange{});
 
     for (int32_t i = 0; i < count; ++i)
     {
@@ -819,7 +749,7 @@ int32_t Palette::loadColorRanges(FitIniFile& paletteFile)
             return result;
         }
 
-        ::new (&colorRanges[i]) ColorRange(data, this);
+        colorRanges[i] = ColorRange(data, this);
     }
 
     return 0;
@@ -887,27 +817,17 @@ int32_t Palette::loadPalette(FitIniFile& paletteFile)
     }
 
     const uint32_t size = file.fileSize();
-    originalPalette = static_cast<uint8_t*>(systemHeap->malloc(size));
+    originalPalette = std::make_unique<uint8_t[]>(size);
 
-    if (originalPalette == nullptr)
-    {
-        return static_cast<int32_t>(0xabda0001);
-    }
-
-    file.read(originalPalette, static_cast<int32_t>(size));
-    initRgbData(originalPalette);
+    file.read(originalPalette.get(), static_cast<int32_t>(size));
+    initRgbData(originalPalette.get());
     fadeDeltasValid = 0;
     fadeTarget = -1;
     fadeBlue = 0;
     fadeGreen = 0;
     fadeRed = 0;
     paletteSize = size;
-    fadeDeltas = static_cast<int8_t*>(systemHeap->malloc(size));
-
-    if (fadeDeltas == nullptr)
-    {
-        return static_cast<int32_t>(0xabda0002);
-    }
+    fadeDeltas = std::make_unique<int8_t[]>(size);
 
     file.close();
     return 0;
@@ -929,16 +849,11 @@ int32_t Palette::loadPalette()
 
     if (originalPalette == nullptr)
     {
-        originalPalette = static_cast<uint8_t*>(systemHeap->malloc(size));
-
-        if (originalPalette == nullptr)
-        {
-            return static_cast<int32_t>(0xabda0001);
-        }
+        originalPalette = std::make_unique<uint8_t[]>(size);
     }
 
-    file.read(originalPalette, static_cast<int32_t>(size));
-    initRgbData(originalPalette);
+    file.read(originalPalette.get(), static_cast<int32_t>(size));
+    initRgbData(originalPalette.get());
     fadeDeltasValid = 0;
     fadeTarget = -1;
     fadeBlue = 0;
@@ -948,12 +863,7 @@ int32_t Palette::loadPalette()
 
     if (fadeDeltas == nullptr)
     {
-        fadeDeltas = static_cast<int8_t*>(systemHeap->malloc(size));
-
-        if (fadeDeltas == nullptr)
-        {
-            return static_cast<int32_t>(0xabda0002);
-        }
+        fadeDeltas = std::make_unique<int8_t[]>(size);
     }
 
     file.close();
@@ -978,7 +888,7 @@ int32_t Palette::savePalette()
 
     file.writeShort(0);
     file.writeShort(0x100);
-    file.write(rgbData, 0x300);
+    file.write(rgbData.get(), 0x300);
     file.close();
     return 0;
 }
@@ -1003,14 +913,9 @@ int32_t Palette::loadBWPalette(FitIniFile& paletteFile)
     }
 
     const uint32_t size = file.fileSize();
-    bwPalette = static_cast<uint8_t*>(systemHeap->malloc(size));
+    bwPalette = std::make_unique<uint8_t[]>(size);
 
-    if (bwPalette == nullptr)
-    {
-        return static_cast<int32_t>(0xabda0003);
-    }
-
-    file.read(bwPalette, static_cast<int32_t>(size));
+    file.read(bwPalette.get(), static_cast<int32_t>(size));
     file.close();
     return 0;
 }
@@ -1031,15 +936,10 @@ int32_t Palette::loadBWPalette()
 
     if (bwPalette == nullptr)
     {
-        bwPalette = static_cast<uint8_t*>(systemHeap->malloc(size));
-
-        if (bwPalette == nullptr)
-        {
-            return static_cast<int32_t>(0xabda0003);
-        }
+        bwPalette = std::make_unique<uint8_t[]>(size);
     }
 
-    file.read(bwPalette, static_cast<int32_t>(size));
+    file.read(bwPalette.get(), static_cast<int32_t>(size));
     file.close();
     return 0;
 }
@@ -1060,7 +960,7 @@ int32_t Palette::saveBWPalette()
         return result;
     }
 
-    file.write(bwPalette, PALETTE_FILE_SIZE);
+    file.write(bwPalette.get(), PALETTE_FILE_SIZE);
     file.close();
     return 0;
 }
@@ -1085,15 +985,10 @@ int32_t Palette::loadExtractPalette(FitIniFile& paletteFile)
     }
 
     const uint32_t size = file.fileSize();
-    extractPalettes = static_cast<uint8_t*>(systemHeap->malloc(size));
-
-    if (extractPalettes == nullptr)
-    {
-        return static_cast<int32_t>(0xabda0007);
-    }
+    extractPalettes = std::make_unique<uint8_t[]>(size);
 
     numExtractPalettes = static_cast<int32_t>(size / PALETTE_FILE_SIZE);
-    file.read(extractPalettes, static_cast<int32_t>(size));
+    file.read(extractPalettes.get(), static_cast<int32_t>(size));
     file.close();
     return 0;
 }
@@ -1114,16 +1009,11 @@ int32_t Palette::loadExtractPalette()
 
     if (extractPalettes == nullptr)
     {
-        extractPalettes = static_cast<uint8_t*>(systemHeap->malloc(size));
-
-        if (extractPalettes == nullptr)
-        {
-            return static_cast<int32_t>(0xabda0007);
-        }
+        extractPalettes = std::make_unique<uint8_t[]>(size);
     }
 
     numExtractPalettes = static_cast<int32_t>(size / PALETTE_FILE_SIZE);
-    file.read(extractPalettes, static_cast<int32_t>(size));
+    file.read(extractPalettes.get(), static_cast<int32_t>(size));
     file.close();
     return 0;
 }
@@ -1144,7 +1034,7 @@ int32_t Palette::saveExtractPalette()
         return result;
     }
 
-    file.write(extractPalettes, numExtractPalettes * PALETTE_FILE_SIZE);
+    file.write(extractPalettes.get(), numExtractPalettes * PALETTE_FILE_SIZE);
     file.close();
     return 0;
 }
@@ -1157,15 +1047,8 @@ int32_t Palette::loadDepthHazeTables(File& tableFile)
     }
 
     const uint32_t size = tableFile.fileSize();
-    uint8_t* tables = static_cast<uint8_t*>(systemHeap->malloc(size));
-    depthHazeTables = reinterpret_cast<int32_t*>(tables);
-
-    if (tables == nullptr)
-    {
-        return static_cast<int32_t>(0xabda0005);
-    }
-
-    tableFile.read(tables, static_cast<int32_t>(tableFile.fileSize()));
+    depthHazeTables = std::make_unique<int32_t[]>(size / sizeof(int32_t));
+    tableFile.read(reinterpret_cast<uint8_t*>(depthHazeTables.get()), static_cast<int32_t>(size));
     return 0;
 }
 
@@ -1173,15 +1056,9 @@ int32_t Palette::loadFadePalettes(File& tableFile)
 {
     const uint32_t size = tableFile.fileSize();
     numFadePalettes = size;
-    fadePalettes = static_cast<uint8_t*>(systemHeap->malloc(size));
-
-    if (fadePalettes == nullptr)
-    {
-        return static_cast<int32_t>(0xabda0006);
-    }
-
-    tableFile.read(fadePalettes, static_cast<int32_t>(size));
-    MCRenderer::RegisterData(fadePalettes, size, MCDataKind::Tables);
+    fadePalettes = std::make_unique<uint8_t[]>(size);
+    tableFile.read(fadePalettes.get(), static_cast<int32_t>(size));
+    MCRenderer::RegisterData(fadePalettes.get(), size, MCDataKind::Tables);
     numFadePalettes = size >> 8;
     return 0;
 }
@@ -1190,15 +1067,9 @@ int32_t Palette::loadAllFadePalettes(File& tableFile)
 {
     const uint32_t size = tableFile.fileSize();
     numAllFadePalettes = size;
-    allFadePalettes = static_cast<uint8_t*>(systemHeap->malloc(size));
-
-    if (allFadePalettes == nullptr)
-    {
-        return static_cast<int32_t>(0xabda0006);
-    }
-
-    tableFile.read(allFadePalettes, static_cast<int32_t>(size));
-    MCRenderer::RegisterData(allFadePalettes, size, MCDataKind::Tables);
+    allFadePalettes = std::make_unique<uint8_t[]>(size);
+    tableFile.read(allFadePalettes.get(), static_cast<int32_t>(size));
+    MCRenderer::RegisterData(allFadePalettes.get(), size, MCDataKind::Tables);
     numAllFadePalettes = size >> 8;
     return 0;
 }
@@ -1207,28 +1078,28 @@ void Palette::addFadePalette()
 {
     ++numFadePalettes;
     const uint32_t size = numFadePalettes * 0x100;
-    uint8_t* tables = static_cast<uint8_t*>(systemHeap->malloc(size));
-    uint8_t* old = fadePalettes;
+    auto tables = std::make_unique<uint8_t[]>(size);
     // Original behaviour: the old tables are copied and the new last one is left as the heap gave it (the
     // declaration's "a copy of the last one" was never done).
-    std::memcpy(tables, old, size - 0x100);
-    systemHeap->free(old);
-    fadePalettes = tables;
-    MCRenderer::RegisterData(fadePalettes, size, MCDataKind::Tables);
+    std::memcpy(tables.get(), fadePalettes.get(), size - 0x100);
+    MCRenderer::UnregisterData(fadePalettes.get());
+    fadePalettes = std::move(tables);
+    MCRenderer::RegisterData(fadePalettes.get(), size, MCDataKind::Tables);
 }
 
 void Palette::removeFadePalette(int32_t index)
 {
-    uint8_t* tables = static_cast<uint8_t*>(systemHeap->malloc((numFadePalettes - 1) * 0x100));
-    uint8_t* old = fadePalettes;
+    auto tables = std::make_unique<uint8_t[]>((numFadePalettes - 1) * 0x100);
+    const uint8_t* old = fadePalettes.get();
     // Original behaviour: both copies start at the beginning of the old tables, so the tables before the removed one
     // are overwritten by the first ones again and the tables after it are lost (only the first count - 1 survive).
-    std::memcpy(tables, old, static_cast<size_t>(static_cast<uint32_t>(index) & 0xffffff) << 8);
-    std::memcpy(tables, old, static_cast<size_t>((numFadePalettes - static_cast<uint32_t>(index) - 1) & 0xffffff) << 8);
+    std::memcpy(tables.get(), old, static_cast<size_t>(static_cast<uint32_t>(index) & 0xffffff) << 8);
+    std::memcpy(tables.get(), old,
+                static_cast<size_t>((numFadePalettes - static_cast<uint32_t>(index) - 1) & 0xffffff) << 8);
     --numFadePalettes;
-    systemHeap->free(old);
-    fadePalettes = tables;
-    MCRenderer::RegisterData(fadePalettes, static_cast<size_t>(numFadePalettes) * 0x100, MCDataKind::Tables);
+    MCRenderer::UnregisterData(old);
+    fadePalettes = std::move(tables);
+    MCRenderer::RegisterData(fadePalettes.get(), static_cast<size_t>(numFadePalettes) * 0x100, MCDataKind::Tables);
 }
 
 int32_t Palette::saveFadePalettes()
@@ -1243,7 +1114,7 @@ int32_t Palette::saveFadePalettes()
         return result;
     }
 
-    file.write(fadePalettes, static_cast<int32_t>(numFadePalettes << 8));
+    file.write(fadePalettes.get(), static_cast<int32_t>(numFadePalettes << 8));
     file.close();
     return 0;
 }
@@ -1252,32 +1123,29 @@ void Palette::addExtractPalette()
 {
     ++numExtractPalettes;
     const uint32_t size = static_cast<uint32_t>(numExtractPalettes * PALETTE_FILE_SIZE);
-    uint8_t* palettes = static_cast<uint8_t*>(systemHeap->malloc(size));
-    uint8_t* old = extractPalettes;
-    std::memcpy(palettes, old, size - PALETTE_FILE_SIZE);
-    systemHeap->free(old);
-    extractPalettes = palettes;
+    auto palettes = std::make_unique<uint8_t[]>(size);
+    std::memcpy(palettes.get(), extractPalettes.get(), size - PALETTE_FILE_SIZE);
+    extractPalettes = std::move(palettes);
 }
 
 void Palette::removeExtractPalette(int32_t index)
 {
     const int32_t count = numExtractPalettes;
-    uint8_t* palettes =
-        static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(count * PALETTE_FILE_SIZE - PALETTE_FILE_SIZE)));
-    uint8_t* old = extractPalettes;
+    auto palettes = std::make_unique<uint8_t[]>(static_cast<size_t>(count * PALETTE_FILE_SIZE - PALETTE_FILE_SIZE));
+    const uint8_t* old = extractPalettes.get();
     // Original behaviour: as removeFadePalette, both copies start at the beginning of the old palettes.
-    std::memcpy(palettes, old, static_cast<size_t>(static_cast<uint32_t>(index * 0xc1) & 0x3fffffff) * 4);
-    std::memcpy(palettes, old, static_cast<size_t>(static_cast<uint32_t>((count - index - 1) * 0xc1) & 0x3fffffff) * 4);
+    std::memcpy(palettes.get(), old, static_cast<size_t>(static_cast<uint32_t>(index * 0xc1) & 0x3fffffff) * 4);
+    std::memcpy(palettes.get(), old,
+                static_cast<size_t>(static_cast<uint32_t>((count - index - 1) * 0xc1) & 0x3fffffff) * 4);
     numExtractPalettes = count - 1;
-    systemHeap->free(old);
-    extractPalettes = palettes;
+    extractPalettes = std::move(palettes);
 }
 
 void Palette::copyNormalToExtractPalette(int32_t index)
 {
     if (index < numExtractPalettes && index > -1)
     {
-        std::memcpy(extractPalettes + index * PALETTE_FILE_SIZE, originalPalette, PALETTE_FILE_SIZE);
+        std::memcpy(extractPalettes.get() + index * PALETTE_FILE_SIZE, originalPalette.get(), PALETTE_FILE_SIZE);
     }
 }
 
@@ -1302,7 +1170,7 @@ void cycleColors()
             for (int32_t i = 0; i < 8; ++i)
             {
                 uint8_t color[3];
-                std::memcpy(color, gamePalette->rgbData + WaterMagicColors[magic] * 3, 3);
+                std::memcpy(color, gamePalette->rgbData.get() + WaterMagicColors[magic] * 3, 3);
                 gamePalette->tweakPalette(i + 0xd8, 1, reinterpret_cast<VFX_RGB*>(color));
                 ++magic;
 

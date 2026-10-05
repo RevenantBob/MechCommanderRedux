@@ -16,7 +16,7 @@ typedef struct _PQNode
     int32_t col; // +0x0c
 } PQNode;
 
-/// <summary>A fixed-capacity binary heap of <see cref="PQNode"/>s, allocated from systemHeap.</summary>
+/// <summary>A fixed-capacity binary heap of <see cref="PQNode"/>s.</summary>
 class PriorityQueue
 {
 public:
@@ -74,7 +74,7 @@ protected:
     void downHeap(int32_t curIndex);
 
     /// <summary>The slots (maxItems + 2 of them).</summary>
-    PQNode* pqList = nullptr; // +0x00
+    std::vector<PQNode> pqList; // +0x00
     /// <summary>The number of slots.</summary>
     int32_t maxItems = 0; // +0x04
     /// <summary>The number of queued items.</summary>

@@ -21,15 +21,10 @@ static_assert(sizeof(PaletteFileHeader) == 4);
 inline constexpr int32_t PALETTE_FILE_SIZE = 0x304;
 
 /// <summary>A block of palette colours: a range of indices and their RGB values.</summary>
-/// <remarks>Original source: <c>color\color.cpp</c>, 8 bytes. Allocated from <c>systemHeap</c>.</remarks>
+/// <remarks>Original source: <c>color\color.cpp</c>, 8 bytes.</remarks>
 class PaletteBlock
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006b2130</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006b2160</remarks>
-    static void operator delete(void* block);
-
     /// <summary>
     /// Takes the range and colours from a <c>.pal</c> image (<see cref="PaletteFileHeader"/> then the triples),
     /// allocating <see cref="rgbData"/> the first time.
@@ -42,11 +37,11 @@ public:
     void destroy();
 
     /// <summary>The number of colours.</summary>
-    int16_t numColors; // +0x00
+    int16_t numColors = 0; // +0x00
     /// <summary>The first palette index.</summary>
-    int16_t firstColor; // +0x02
+    int16_t firstColor = 0; // +0x02
     /// <summary>The colours (6 bits per channel); for a <see cref="Palette"/>, the palette the game shows.</summary>
-    uint8_t* rgbData; // +0x04
+    std::unique_ptr<uint8_t[]> rgbData; // +0x04
 };
 
 #pragma pack(push, 1)
@@ -71,15 +66,10 @@ static_assert(sizeof(ColorRangeData) == 10);
 /// A run of palette indices shading one base colour, from lit to hazed: the unit the depth-haze and lighting
 /// lookups work on.
 /// </summary>
-/// <remarks>Original source: <c>color\color.cpp</c>, 0x24 bytes. Allocated from <c>systemHeap</c>.</remarks>
+/// <remarks>Original source: <c>color\color.cpp</c>, 0x24 bytes.</remarks>
 class ColorRange
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006b2220</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006b2240</remarks>
-    static void operator delete(void* block);
-
     ColorRange() = default;
 
     /// <summary>A range from its FIT data, belonging to <paramref name="_palette"/>.</summary>
@@ -312,11 +302,11 @@ public:
     /// <summary>The loaded palette file's size.</summary>
     uint32_t paletteSize = 0; // +0x08
     /// <summary>The black-and-white palette (a <c>.pal</c> image).</summary>
-    uint8_t* bwPalette = nullptr; // +0x0c
+    std::unique_ptr<uint8_t[]> bwPalette; // +0x0c
     /// <summary>Per byte of the palette, the signed distance to the fade target.</summary>
-    int8_t* fadeDeltas = nullptr; // +0x10
+    std::unique_ptr<int8_t[]> fadeDeltas; // +0x10
     /// <summary>The extract palettes (0x304 bytes each).</summary>
-    uint8_t* extractPalettes = nullptr; // +0x14
+    std::unique_ptr<uint8_t[]> extractPalettes; // +0x14
     /// <summary>The largest of <see cref="fadeDeltas"/>.</summary>
     int32_t maxFadeDelta = 0; // +0x18
     /// <summary>Nonzero once <see cref="fadeDeltas"/> is computed for the current target.</summary>
@@ -328,7 +318,7 @@ public:
     uint8_t fadeGreen = 0; // +0x25
     uint8_t fadeBlue = 0;  // +0x26
     /// <summary>The depth-vs-haze tables (depths at which each haze step starts).</summary>
-    int32_t* depthHazeTables = nullptr; // +0x28
+    std::unique_ptr<int32_t[]> depthHazeTables; // +0x28
     /// <summary>FIT "NumDepthAtHazeLevelTables": one table per altitude step.</summary>
     int32_t numDepthAtHazeLevelTables = 0; // +0x2c
     /// <summary>The table for the camera's altitude.</summary>
@@ -352,7 +342,7 @@ public:
     /// <summary>FIT "AllFadeTableFile".</summary>
     char allFadeTableFile[8] = {}; // +0x68
     /// <summary>The loaded <c>.pal</c> image.</summary>
-    uint8_t* originalPalette = nullptr; // +0x70
+    std::unique_ptr<uint8_t[]> originalPalette; // +0x70
     /// <summary>Set to 0 by loadPaletteInfo; never read in MCX.EXE.</summary>
     int32_t unknown74 = 0; // +0x74
     /// <summary>Set to <see cref="numBitmapHazeLevels"/> by loadPaletteInfo; never read in MCX.EXE.</summary>
@@ -364,15 +354,15 @@ public:
     /// <summary>The number of extract palettes.</summary>
     int32_t numExtractPalettes = 0; // +0x84
     /// <summary>The colour ranges.</summary>
-    ColorRange* colorRanges = nullptr; // +0x88
+    std::vector<ColorRange> colorRanges; // +0x88
     /// <summary>The number of all-fade tables.</summary>
     uint32_t numAllFadePalettes = 0; // +0x8c
     /// <summary>The number of fade tables.</summary>
     uint32_t numFadePalettes = 0; // +0x90
     /// <summary>The fade tables (256 bytes each); the haze tables are among them.</summary>
-    uint8_t* fadePalettes = nullptr; // +0x94
+    std::unique_ptr<uint8_t[]> fadePalettes; // +0x94
     /// <summary>The all-fade tables (256 bytes each).</summary>
-    uint8_t* allFadePalettes = nullptr; // +0x98
+    std::unique_ptr<uint8_t[]> allFadePalettes; // +0x98
     /// <summary>FIT "HazeShift": haze percentages are fixed point with this many bits.</summary>
     int32_t hazeShift = 0; // +0x9c
     /// <summary>1 &lt;&lt; <see cref="hazeShift"/>: full haze.</summary>

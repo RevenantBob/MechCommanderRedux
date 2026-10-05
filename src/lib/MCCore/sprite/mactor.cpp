@@ -11,7 +11,6 @@
 #include "engine/cevfx.h"
 #include "lib/aerror.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -29,7 +28,7 @@
 #include "platform/MCRenderer.h"
 
 PacketFile* MechActor::shadows = nullptr;
-uint8_t** MechActor::shadowShapes = nullptr;
+std::vector<std::unique_ptr<uint8_t[]>> MechActor::shadowShapes;
 int32_t MechActor::numShadows = 0;
 
 char hotSpotFinderArray[28] = {0,  0,  0,  1,  2,  3,  4,  5,  6,  2,  3,  7, 8,  9,
@@ -179,7 +178,7 @@ namespace
     /// <summary>Adds the line from <paramref name="start"/> to <paramref name="end"/> in <paramref name="color"/>.</summary>
     auto addLine(vector_2d start, vector_2d end, int32_t color) -> void
     {
-        ElementList->add(new LineElement(start, end, color, nullptr, -50000, -1));
+        ElementList->add(ElementPool::Make<LineElement>(start, end, color, nullptr, -50000, -1));
     }
 }
 
@@ -308,15 +307,9 @@ auto MechActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
     unknown18C = 0;
 
     // The shadow shapes are loaded once, for every mech.
-    if (shadowShapes == nullptr)
+    if (shadowShapes.empty())
     {
-        shadowShapes = static_cast<uint8_t**>(systemHeap->malloc(0x80 * sizeof(uint8_t*)));
-
-        for (int32_t i = 0; i < 0x80; i++)
-        {
-            shadowShapes[i] = nullptr;
-        }
-
+        shadowShapes.resize(0x80);
         shadows = new PacketFile;
 
         if (shadows != nullptr)
@@ -345,15 +338,9 @@ auto MechActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
                 {
                     shadows->seekPacket(i);
                     const int32_t size = shadows->getPacketSize();
-                    shadowShapes[i] = static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(size)));
-
-                    if (shadowShapes[i] == nullptr)
-                    {
-                        Fatal(-1, " no RAM for shadows ", nullptr);
-                    }
-
-                    shadows->readPacket(i, shadowShapes[i]);
-                    MCRenderer::RegisterData(shadowShapes[i], static_cast<size_t>(size), MCDataKind::Shapes);
+                    shadowShapes[i] = std::make_unique<uint8_t[]>(static_cast<size_t>(size));
+                    shadows->readPacket(i, shadowShapes[i].get());
+                    MCRenderer::RegisterData(shadowShapes[i].get(), static_cast<size_t>(size), MCDataKind::Shapes);
                 }
 
                 shadows->close();
@@ -833,8 +820,8 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
 
     // The shadow, one of 32 facings.
     ElementList->openGroup(static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(-y)))), 1);
-    auto* shadow =
-        new VFXElement(shadowShapes[0], x, y, calcRotation(facing, 0x20), 0, nullptr, 0, use90PixelSprite != 0 ? 1 : 0);
+    auto* shadow = ElementPool::Make<VFXElement>(shadowShapes[0].get(), x, y, calcRotation(facing, 0x20), 0, nullptr, 0,
+                                                 use90PixelSprite != 0 ? 1 : 0);
 
     // Port fix: the original copies the debug name through a null element too.
     if (shadow != nullptr)
@@ -862,7 +849,8 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
 
         if (fadeTableIndex != -1 && fadeTableIndex >= 0)
         {
-            fadeTable = gamePalette->fadePalettes + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+            fadeTable =
+                gamePalette->fadePalettes.get() + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
         }
 
         // Walking and running: a mirrored part runs half a cycle off the part it follows, so the stride
@@ -950,8 +938,8 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
             currentFrame[part] = 0;
         }
 
-        auto* element = new VFXElement(partShape[part]->frameList, screenPos.x, screenPos.y, currentFrame[part],
-                                       reverse[part], fadeTable, 1, 0);
+        auto* element = ElementPool::Make<VFXElement>(partShape[part]->frameList, screenPos.x, screenPos.y,
+                                                      currentFrame[part], reverse[part], fadeTable, 1, 0);
 
         // Port fix: the original writes the debug names through a null element too, and "%i" can overrun name2.
         if (element != nullptr)
@@ -1735,19 +1723,20 @@ auto MechActor::update() -> int32_t
 
 auto destroyMechShadows() -> void
 {
-    if (MechActor::shadowShapes == nullptr || MechActor::numShadows == 0)
+    if (MechActor::shadowShapes.empty() || MechActor::numShadows == 0)
     {
         return;
     }
 
-    for (int32_t i = 0; i < MechActor::numShadows; i++)
+    for (std::unique_ptr<uint8_t[]>& shape : MechActor::shadowShapes)
     {
-        systemHeap->free(MechActor::shadowShapes[i]);
-        MechActor::shadowShapes[i] = nullptr;
+        if (shape != nullptr)
+        {
+            MCRenderer::UnregisterData(shape.get());
+        }
     }
 
-    systemHeap->free(MechActor::shadowShapes);
-    MechActor::shadowShapes = nullptr;
+    MechActor::shadowShapes.clear();
 }
 
 auto MechActor::destroy() -> void
@@ -1826,7 +1815,7 @@ auto MechActor::drawBars() -> void
 
     if (mech->isDisabled() == 0 && mech->isDestroyed() == 0)
     {
-        ElementList->add(new PolygonElement(&data, -50000));
+        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
     }
 }
 
@@ -1876,7 +1865,7 @@ auto MechActor::drawTargetDamage() -> void
         }
 
         ElementList->openGroup(-50000, 1);
-        ElementList->add(new EllipseElement(center, size, 0xb, -50000));
+        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xb, -50000));
 
         const vector_2d targetPos = MCOverlayPoint(target->getScreenPos(0));
         const double dx = static_cast<double>(targetPos.x) - ownPos.x;
@@ -1889,6 +1878,6 @@ auto MechActor::drawTargetDamage() -> void
         vector_2d start(signX * c * radius + center.x, signY * s * radius + center.y);
         const float length = (damage / mech->maxTargetDamage) * 60.0f;
         vector_2d end(signX * length * c + start.x, signY * length * s + start.y);
-        ElementList->add(new LineElement(start, end, 0xef, nullptr, -50000, -1));
+        ElementList->add(ElementPool::Make<LineElement>(start, end, 0xef, nullptr, -50000, -1));
     }
 }

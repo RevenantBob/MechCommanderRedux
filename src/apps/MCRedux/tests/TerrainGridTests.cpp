@@ -66,11 +66,12 @@ namespace
                 _BlockTable[MapBlocks * MapBlocks][i].textureData = -1;
             }
 
-            _Manager.blocks = _BlockTable.data();
-            _Manager.lastBlock = &_LastBlock;
-            _Manager.currentBlock = &_CurrentBlock;
-            _Manager.blockSteps = &_BlockSteps;
-            _Manager.vertexOffsets = _Offsets;
+            _Manager.blocks.assign(_BlockTable.begin(), _BlockTable.end());
+            // One window's tables.
+            _Manager.lastBlock.assign(1, -1);
+            _Manager.currentBlock.assign(1, 0);
+            _Manager.blockSteps.assign(1, 0);
+            _Manager.vertexOffsets.assign(2, 0.0f);
         }
 
         ~TerrainGridFixture()
@@ -150,10 +151,6 @@ namespace
         Terrain* _Land = nullptr;
         std::vector<PrecompVertex> _Blocks;
         std::array<PrecompVertex*, MapBlocks * MapBlocks + 1> _BlockTable{};
-        int32_t _LastBlock = -1;
-        int32_t _CurrentBlock = 0;
-        int32_t _BlockSteps = 0;
-        float _Offsets[2]{};
 
         int32_t _SavedBlockSide = 0;
         int32_t _SavedMapSide = 0;

@@ -60,6 +60,7 @@
     <ClCompile Include="tests\AllocatorTests.cpp" />
     <ClCompile Include="tests\CursorTests.cpp" />
     <ClCompile Include="tests\DirectPlayTests.cpp" />
+    <ClCompile Include="tests\EngineTests.cpp" />
     <ClCompile Include="tests\fakes\MCLoopbackTransport.cpp" />
     <ClCompile Include="tests\fakes\MCManualClock.cpp" />
     <ClCompile Include="tests\fakes\MCMemoryFileSource.cpp" />
@@ -87,6 +88,7 @@
     <ClCompile Include="tests\ServicesTests.cpp" />
     <ClCompile Include="tests\SessionScreenTests.cpp" />
     <ClCompile Include="tests\SmackerTests.cpp" />
+    <ClCompile Include="tests\SpriteTests.cpp" />
     <ClCompile Include="tests\StateHashTests.cpp" />
     <ClCompile Include="tests\TerrainGridTests.cpp" />
     <ClCompile Include="tests\TestGame.cpp" />

@@ -1,7 +1,6 @@
 #pragma once
 
 class PacketFile;
-class UserHeap;
 
 /// <summary>
 /// A cache slot for one terrain tile: the tile's bitmap (a VFX tile shape, one packet of the tile file) while it is
@@ -16,16 +15,21 @@ struct TerrainTile
     /// <summary>The value of <see cref="tileData"/> for a tile whose packet is missing.</summary>
     static inline uint8_t* const TILE_MISSING = reinterpret_cast<uint8_t*>(static_cast<intptr_t>(-1));
 
-    /// <summary>The tile's VFX shape data (from <c>TerrainTiles::tileHeap</c>).</summary>
-    uint8_t* tileData; // +0x00
+    /// <summary>Unregisters and frees the tile's data; the slot reads as not loaded.</summary>
+    void free();
+
+    /// <summary>The tile's VFX shape data (<see cref="storage"/>, or <see cref="TILE_MISSING"/>).</summary>
+    uint8_t* tileData = nullptr; // +0x00
     /// <summary>The <c>turn</c> the tile was last used (-1: never flush).</summary>
-    int32_t lastTurnUsed; // +0x04
+    int32_t lastTurnUsed = 0; // +0x04
+    /// <summary>The loaded tile's data.</summary>
+    std::unique_ptr<uint8_t[]> storage;
 };
 
 /// <summary>
 /// The terrain tile cache: the tile bitmaps of the terrain's tile set, read on demand from two packet files
-/// (<c>&lt;tilePath&gt;&lt;name&gt;.pak</c> and the rotated set <c>&lt;tile90Path&gt;&lt;name&gt;90.pak</c>) into a
-/// private heap, flushed least-recently-used when it fills.
+/// (<c>&lt;tilePath&gt;&lt;name&gt;.pak</c> and the rotated set <c>&lt;tile90Path&gt;&lt;name&gt;90.pak</c>). The
+/// original's cache was a private heap, flushed least-recently-used when it filled; the port's never fills.
 /// </summary>
 /// <remarks>
 /// Original source: <c>terrain\terrtxm.cpp</c>, 0x20 bytes. The slot table has one entry per packet of the first
@@ -36,18 +40,15 @@ struct TerrainTile
 class TerrainTiles
 {
 public:
-    /// <summary>
-    /// Creates the tile heap (<paramref name="heapSize"/> bytes), opens both tile files and allocates the slot
-    /// table.
-    /// </summary>
+    /// <summary>Opens both tile files and allocates the slot table.</summary>
     /// <remarks>MCX.EXE @ 0x00747820</remarks>
-    int32_t init(char* tileFileName, int32_t heapSize);
+    int32_t init(char* tileFileName);
 
     /// <summary>Loads the tiles listed in <c>&lt;terrainPath&gt;&lt;terrainName&gt;.pre</c> (never flushed).</summary>
     /// <remarks>MCX.EXE @ 0x00747a30</remarks>
     int32_t preload(char* terrainName);
 
-    /// <summary>Closes the tile files and frees the heap.</summary>
+    /// <summary>Closes the tile files and frees the tiles.</summary>
     /// <remarks>MCX.EXE @ 0x00747af0</remarks>
     void destroy();
 
@@ -64,14 +65,12 @@ public:
     int32_t numTiles = 0; // +0x00
     /// <summary>Added to a vertex's tile index: [0] = 0 for the normal view, [1] = numTiles / 2 for the rotated one.</summary>
     int32_t tileSetOffset[2] = {}; // +0x04
-    /// <summary>The slots.</summary>
-    TerrainTile* tiles = nullptr; // +0x0c
+    /// <summary>The slots (one more than <see cref="numTiles"/>).</summary>
+    std::vector<TerrainTile> tiles; // +0x0c
     /// <summary><c>&lt;name&gt;.pak</c>.</summary>
     PacketFile* tileFile = nullptr; // +0x10
     /// <summary><c>&lt;name&gt;90.pak</c>, the tiles for the rotated view.</summary>
     PacketFile* tile90File = nullptr; // +0x14
-    /// <summary>The heap the tiles are read into.</summary>
-    UserHeap* tileHeap = nullptr; // +0x18
     /// <summary>1 unless the tile set is the default one ("tiles").</summary>
     int32_t customTileSet = 0; // +0x1c
 };

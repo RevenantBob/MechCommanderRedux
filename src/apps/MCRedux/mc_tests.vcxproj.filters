@@ -22,6 +22,9 @@
     <ClCompile Include="tests\DirectPlayTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\EngineTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\fakes\MCLoopbackTransport.cpp">
       <Filter>tests\fakes</Filter>
     </ClCompile>
@@ -95,6 +98,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\SmackerTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\SpriteTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\StateHashTests.cpp">

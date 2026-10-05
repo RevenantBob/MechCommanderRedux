@@ -376,7 +376,7 @@ auto ArmAppearance::render(int32_t depthFixup) -> int32_t
 
     if (fadeTableIndex != -1 && fadeTableIndex >= 0)
     {
-        fadeTable = gamePalette->fadePalettes + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+        fadeTable = gamePalette->fadePalettes.get() + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
     }
 
     ElementList->openGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - screenPos.y), 1);
@@ -386,8 +386,8 @@ auto ArmAppearance::render(int32_t depthFixup) -> int32_t
         return 0;
     }
 
-    auto* element =
-        new VFXElement(currentShape->frameList, screenPos.x, screenPos.y, currentFrame, reverse, fadeTable, 0, 0);
+    auto* element = ElementPool::Make<VFXElement>(currentShape->frameList, screenPos.x, screenPos.y, currentFrame,
+                                                  reverse, fadeTable, 0, 0);
 
     // Port fix: the original writes the debug names through a null element too, and "%i" of a type number
     // can overrun name2.

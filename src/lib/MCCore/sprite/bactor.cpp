@@ -24,7 +24,7 @@ namespace
     /// <summary>Adds a VFX element of frame <paramref name="frame"/> of <paramref name="shapeTable"/>.</summary>
     auto addShape(uint8_t* shapeTable, float x, float y, int32_t frame, uint8_t* fadeTable, const char* name) -> void
     {
-        auto* element = new VFXElement(shapeTable, x, y, frame, 0, fadeTable, 1, 0);
+        auto* element = ElementPool::Make<VFXElement>(shapeTable, x, y, frame, 0, fadeTable, 1, 0);
 
         // Port fix: the original copies the debug name through a null element too.
         if (element != nullptr)

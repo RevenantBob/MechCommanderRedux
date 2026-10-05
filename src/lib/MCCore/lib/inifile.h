@@ -22,7 +22,7 @@ inline constexpr int32_t DATA_NOT_CORRECT_TYPE = static_cast<int32_t>(0xFADA0002
 inline constexpr int32_t BUFFER_TOO_SMALL = static_cast<int32_t>(0xFADA0003);
 /// <summary>The file doesn't start with <c>FITini</c>.</summary>
 inline constexpr int32_t NOT_A_FITINIFILE = static_cast<int32_t>(0xFADA0004);
-/// <summary>The block table couldn't be allocated (also a file with no blocks while systemHeap exists).</summary>
+/// <summary>The block table couldn't be allocated (also a file with no blocks).</summary>
 inline constexpr int32_t NO_RAM_FOR_INI_BLOCKS = static_cast<int32_t>(0xFADA0005);
 /// <summary>findNextBlockStart reached the end of the file.</summary>
 inline constexpr int32_t NO_MORE_BLOCKS = static_cast<int32_t>(0xFADA0006);
@@ -331,7 +331,7 @@ protected:
     /// <summary>Number of blocks.</summary>
     int32_t totalBlocks = 0; // +0x4c
     /// <summary>The block table.</summary>
-    IniBlockNode* fileBlocks = nullptr; // +0x50
+    std::vector<IniBlockNode> fileBlocks; // +0x50
     /// <summary>The current block's name (points into <see cref="fileBlocks"/>).</summary>
     char* currentBlockId = nullptr; // +0x54
     /// <summary>Where the current block's entries start.</summary>

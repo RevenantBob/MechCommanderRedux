@@ -1932,7 +1932,8 @@ auto Elemental::render() -> void
                     }
 
                     ElementList->openGroup(-100000, 1);
-                    ElementList->add(new VFXElement(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
+                    ElementList->add(
+                        ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
                     blipFrame++;
                 }
             }
@@ -1993,7 +1994,7 @@ auto Elemental::render() -> void
             vector_2d fromScreen = project(from);
             vector_2d toScreen = project(to);
             ElementList->openGroup(-100000, 1);
-            ElementList->add(new LineElement(fromScreen, toScreen, 0xfe, nullptr, -100000, -1));
+            ElementList->add(ElementPool::Make<LineElement>(fromScreen, toScreen, 0xfe, nullptr, -100000, -1));
         }
     }
 }

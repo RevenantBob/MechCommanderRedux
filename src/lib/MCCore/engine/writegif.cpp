@@ -26,7 +26,7 @@ auto writeTGA8Bit(char* fileName, uint8_t* pixels, uint32_t width, uint32_t heig
     header.pixelDepth = 8;
     header.imageDescriptor = 0x20;
     file.write(reinterpret_cast<uint8_t*>(&header), 0x12);
-    const uint8_t* rgb = gamePalette->rgbData;
+    const uint8_t* rgb = gamePalette->rgbData.get();
 
     for (int32_t i = 0; i < 0x100; i++, rgb += 3)
     {

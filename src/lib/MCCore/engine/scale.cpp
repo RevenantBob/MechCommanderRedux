@@ -3,7 +3,6 @@
 #include "camera/camera.h"
 #include "engine/cevfx.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "vfx/vfxfuncs.h"
 
 auto scaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int reverse, uint8_t* fadeTable, int scaleUp)
@@ -41,11 +40,6 @@ auto scaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int reve
         return -1;
     }
 
-    if (tempBuffer == nullptr)
-    {
-        tempBuffer = static_cast<uint8_t*>(systemHeap->malloc(0x1fa40));
-    }
-
     if (static_cast<int32_t>(height * static_cast<uint32_t>(width)) > 0x1fa3f)
     {
         Fatal(-1, " Sprite too damned big ", nullptr);
@@ -61,8 +55,8 @@ auto scaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int reve
             return bounds;
         }
 
-        AG_shape_translate_transform(globalPane, shape, static_cast<int32_t>(frameNum), x, y, tempBuffer, reverse,
-                                     scaleUp);
+        AG_shape_translate_transform(globalPane, shape, static_cast<int32_t>(frameNum), x, y, tempBuffer.data(),
+                                     reverse, scaleUp);
         return bounds;
     }
 
@@ -72,6 +66,6 @@ auto scaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int reve
         return bounds;
     }
 
-    AG_shape_transform(globalPane, shape, static_cast<int32_t>(frameNum), x, y, tempBuffer, reverse, scaleUp);
+    AG_shape_transform(globalPane, shape, static_cast<int32_t>(frameNum), x, y, tempBuffer.data(), reverse, scaleUp);
     return bounds;
 }

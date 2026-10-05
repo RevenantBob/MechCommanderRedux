@@ -556,7 +556,8 @@ auto Smoke::render() -> void
 
         if (smokeType->hasRotation == 0)
         {
-            element = new VFXElement(sphere.shape, screenPos.x, screenPos.y, sphere.frame, 0, nullptr, 0, 0);
+            element =
+                ElementPool::Make<VFXElement>(sphere.shape, screenPos.x, screenPos.y, sphere.frame, 0, nullptr, 0, 0);
             std::strcpy(element->name, "smoke2");
         }
         else
@@ -564,8 +565,8 @@ auto Smoke::render() -> void
             // Rotated smoke picks its facing's set of frames.
             const int32_t rotation = rotationIndex(sphere.velocity);
             const int32_t framesPerRotation = VFX_shape_count(sphere.shape) / smokeType->numRotations;
-            element = new VFXElement(sphere.shape, screenPos.x, screenPos.y,
-                                     framesPerRotation * rotation + sphere.frame, 0, nullptr, 0, 0);
+            element = ElementPool::Make<VFXElement>(sphere.shape, screenPos.x, screenPos.y,
+                                                    framesPerRotation * rotation + sphere.frame, 0, nullptr, 0, 0);
             std::strcpy(element->name, "smoke1");
         }
 

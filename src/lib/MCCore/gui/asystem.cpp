@@ -3612,9 +3612,7 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
     lineFont->scale = 2.0f;
     lineFont->unknown14 = 0;
     lineFont->scaled = -1;
-    lineFont->fontData = nullptr;
-    systemHeap->free(lineFont->fontData);
-    lineFont->fontData = nullptr;
+    lineFont->fontData.reset();
 
     for (uint8_t*& letter : lineFont->letterCache)
     {
@@ -3640,7 +3638,7 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
         Fatal(paletteResult, " Unable to initialize game palette ");
     }
 
-    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData));
+    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData.get()));
 
     artFile = new PacketFile;
     Assert(artFile != nullptr, 0, "Not enough RAM for artFile (Something's way wrong...)");
@@ -3895,8 +3893,7 @@ auto aSystem::stop() -> void
     if (lineFont != nullptr)
     {
         // Font's destroy and destructor, inlined: frees the font data and forgets the cached letters.
-        systemHeap->free(lineFont->fontData);
-        lineFont->fontData = nullptr;
+        lineFont->fontData.reset();
 
         for (uint8_t*& letter : lineFont->letterCache)
         {

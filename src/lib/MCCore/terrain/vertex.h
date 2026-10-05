@@ -1,7 +1,5 @@
 #pragma once
 
-#include "lib/heap.h"
-
 class vector_2d;
 class vector_3d;
 class PacketFile;
@@ -110,24 +108,19 @@ public:
 
 /// <summary>
 /// The terrain's block cache: every map block's vertices (<see cref="PrecompVertex"/>) read from the terrain's
-/// <c>.elv</c> packet file into one committed heap, plus the per-window bookkeeping of which block each terrain
+/// <c>.elv</c> packet file into one buffer, plus the per-window bookkeeping of which block each terrain
 /// window's top-left corner lies in.
 /// </summary>
 /// <remarks>
-/// Original source: <c>terrain\vertex.cpp</c>, 0x3c bytes; allocated from <c>Terrain::terrainHeap</c>. The packet
+/// Original source: <c>terrain\vertex.cpp</c>, 0x3c bytes (a HeapManager in the original). The packet
 /// file has <c>blocksMapSide * blocksMapSide</c> packets (one per block); the extra block pointer at index
 /// <c>blocksMapSide * blocksMapSide</c> is the "off the map" block that out-of-range lookups return. Files of the
 /// old formats (0x23318 or 0x4f2ec bytes) are refused with "Old Map format".
 /// </remarks>
-class MapBlockManager : public HeapManager
+class MapBlockManager
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00747cf0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00747d10</remarks>
-    static void operator delete(void* ptr);
-
-    /// <summary>Closes the block file, frees the block table and the heap.</summary>
+    /// <summary>Closes the block file, frees the block table and the blocks.</summary>
     /// <remarks>MCX.EXE @ 0x00747d30</remarks>
     void destroy();
 
@@ -203,15 +196,14 @@ public:
     /// <remarks>MCX.EXE @ 0x00749500</remarks>
     void generateRandomBlock(PrecompVertex* block);
 
-    /// <summary>
-    /// Each block's vertices in the committed heap (<c>blocksMapSide * blocksMapSide + 1</c> entries, from
-    /// systemHeap).
-    /// </summary>
-    PrecompVertex** blocks = nullptr; // +0x1c
+    /// <summary>Every block's vertices, as read from the block file.</summary>
+    std::vector<uint8_t> blockData;
+    /// <summary>Each block's vertices in <see cref="blockData"/> (<c>blocksMapSide * blocksMapSide + 1</c> entries).</summary>
+    std::vector<PrecompVertex*> blocks; // +0x1c
     /// <summary>Per window: the block its corner was in last update (-1 initially).</summary>
-    int32_t* lastBlock = nullptr; // +0x20
+    std::vector<int32_t> lastBlock; // +0x20
     /// <summary>Per window: the block its top-left corner is in.</summary>
-    int32_t* currentBlock = nullptr; // +0x24
+    std::vector<int32_t> currentBlock; // +0x24
     /// <summary>Block column of the corner being built.</summary>
     int32_t topLeftBlockX = 0; // +0x28
     /// <summary>Block row of the corner being built.</summary>
@@ -219,45 +211,37 @@ public:
     /// <summary>The <c>.elv</c> block file (closed after init; kept for getTopLeftElevation).</summary>
     PacketFile* blockFile = nullptr; // +0x30
     /// <summary>Per window: the vertex offset (x, y) of the top-left corner within its block, 8 bytes each.</summary>
-    float* vertexOffsets = nullptr; // +0x34
+    std::vector<float> vertexOffsets; // +0x34
     /// <summary>Per window: block-step counter bumped by buildWindow as the corner crosses blocks.</summary>
-    int32_t* blockSteps = nullptr; // +0x38
+    std::vector<int32_t> blockSteps; // +0x38
 };
 
 /// <summary>
-/// The committed heap holding every terrain window's <see cref="Vertex"/> grid
-/// (<c>visibleVerticesPerSide^2</c> vertices each).
+/// The storage of every terrain window's <see cref="Vertex"/> grid (<c>visibleVerticesPerSide^2</c> vertices each).
 /// </summary>
-/// <remarks>Original source: <c>terrain\vertex.cpp</c>, 0x24 bytes; allocated from <c>Terrain::terrainHeap</c>.</remarks>
-class VertexManager : public HeapManager
+/// <remarks>Original source: <c>terrain\vertex.cpp</c>, 0x24 bytes (a HeapManager in the original).</remarks>
+class VertexManager
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00749540</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00749560</remarks>
-    static void operator delete(void* ptr);
-
     int32_t unknown1C = 0; // +0x1c (cleared by the constructor and Terrain::destroy only)
-    /// <summary>Per window: its vertex grid (a table at the start of the heap).</summary>
-    Vertex** vertexLists = nullptr; // +0x20
+    /// <summary>The grids' storage (zeroed, never constructed: buildWindow fills it).</summary>
+    std::vector<uint8_t> storage;
+    /// <summary>Per window: its vertex grid in <see cref="storage"/>.</summary>
+    std::vector<Vertex*> vertexLists; // +0x20
 };
 
 /// <summary>
-/// The committed heap holding every terrain window's <see cref="TerrainBlock"/> list
-/// (<c>visibleVerticesPerSide^2</c> blocks each).
+/// The storage of every terrain window's <see cref="TerrainBlock"/> list (<c>visibleVerticesPerSide^2</c> blocks each).
 /// </summary>
-/// <remarks>Original source: <c>terrain\vertex.cpp</c>, 0x24 bytes; allocated from <c>Terrain::terrainHeap</c>.</remarks>
-class TerrainTileManager : public HeapManager
+/// <remarks>Original source: <c>terrain\vertex.cpp</c>, 0x24 bytes (a HeapManager in the original).</remarks>
+class TerrainTileManager
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00749580</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x007495a0</remarks>
-    static void operator delete(void* ptr);
-
     int32_t unknown1C = 0; // +0x1c (cleared by the constructor and Terrain::destroy only)
-    /// <summary>Per window: its block list (a table at the start of the heap).</summary>
-    TerrainBlock** blockLists = nullptr; // +0x20
+    /// <summary>The lists' storage (zeroed, never constructed: buildWindow fills it).</summary>
+    std::vector<uint8_t> storage;
+    /// <summary>Per window: its block list in <see cref="storage"/>.</summary>
+    std::vector<TerrainBlock*> blockLists; // +0x20
 };
 
 /// <summary>

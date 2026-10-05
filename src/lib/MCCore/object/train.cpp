@@ -1086,7 +1086,8 @@ auto TrainCar::render() -> void
                 }
 
                 ElementList->openGroup(-100000, 1);
-                ElementList->add(new VFXElement(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
+                ElementList->add(
+                    ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
                 blipFrame++;
             }
         }
@@ -1147,7 +1148,7 @@ auto TrainCar::render() -> void
         center = MCOverlayPoint(center);
         size.x *= MCOverlay.ScaleX;
         size.y *= MCOverlay.ScaleY;
-        ElementList->add(new EllipseElement(center, size, 0xfe, -50000));
+        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
     }
 }
 

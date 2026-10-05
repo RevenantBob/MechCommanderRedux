@@ -13,7 +13,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -44,8 +43,8 @@
 int32_t buttonActions[8] = {15, 14, 13, 12, 19, 17, 3, 53};
 int16_t RangeColorArray[4] = {0x0e, 0xe5, 0xee, 0x14};
 char callingText[64] = {};
-char* statusString[4] = {};
-char* typeString[5] = {};
+std::string statusString[4];
+std::string typeString[5];
 vector_3d tacMapCenter;
 int32_t realSalvageCount = 0;
 float tacFrameLength = 0.0f;
@@ -221,7 +220,7 @@ namespace
     uint8_t* partColorTable(TacticalMap* map, uint8_t color)
     {
         const int32_t row = gamePalette->numBitmapHazeLevels;
-        uint8_t* fades = gamePalette->fadePalettes;
+        uint8_t* fades = gamePalette->fadePalettes.get();
 
         switch (color)
         {
@@ -390,15 +389,12 @@ namespace
         tacMap()->videoWindow->SetStar(nullptr);
     }
 
-    /// <summary>Allocates a copy of string <paramref name="id"/> from systemHeap.</summary>
-    char* loadHeapString(uint32_t id)
+    /// <summary>String <paramref name="id"/> of the string table.</summary>
+    std::string loadHeapString(uint32_t id)
     {
         char buffer[256];
         cLoadString(thisInstance, id, buffer, 0xfe);
-        const size_t length = std::strlen(buffer) + 1;
-        auto* copy = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(length)));
-        std::memcpy(copy, buffer, length);
-        return copy;
+        return buffer;
     }
 
     /// <summary>Loads string <paramref name="id"/> into a help text (0x31 characters, as strncpy).</summary>
@@ -1210,7 +1206,7 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     infoObject = nullptr;
     zoomOffset = 0;
     objectivesRevealed = 0;
-    partShapes = nullptr;
+    freePartShapes();
     tacMapCenter = vector_3d(0.0f, 0.0f, 0.0f);
     mapVertexSide = Terrain::verticesBlockSide * Terrain::blocksMapSide;
     unknown554 = 0;
@@ -1247,9 +1243,9 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     }
 
     MCRenderer::DestroyTexture(visibilityPort->frame()->window);
-    guiHeap->free(visibilityPort->frame()->window->buffer);
+    aPort::freePixels(visibilityPort->frame()->window->buffer);
     ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
-    visibilityPort->frame()->window->buffer = visibleBits->flagHeap->getHeapPtr();
+    visibilityPort->frame()->window->buffer = visibleBits->flagData.data();
     // Port: the fog of war is a kept frame surface: the reveals draw it on the GPU as well as in the flags the game
     // reads, and the map page samples the GPU's copy instead of uploading the flags whenever they change.
     MCRenderer::AddFrameSurface(visibilityPort->frame()->window, true);
@@ -1603,6 +1599,15 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     return result;
 }
 
+auto TacticalMap::freePartShapes() -> void
+{
+    if (partShapes != nullptr)
+    {
+        MCRenderer::UnregisterData(partShapes.get());
+        partShapes.reset();
+    }
+}
+
 auto TacticalMap::destroy() -> void
 {
     if (mapPort != nullptr)
@@ -1686,21 +1691,18 @@ auto TacticalMap::destroy() -> void
     destroyChild(chatWindow);
     destroyChild(chatBlinkerOff);
     destroyChild(chatBlinkerOn);
-    guiHeap->free(partShapes);
-    partShapes = nullptr;
+    freePartShapes();
     mouseInside = 0;
     aObject::destroy();
 
-    for (char*& text : typeString)
+    for (std::string& text : typeString)
     {
-        systemHeap->free(text);
-        text = nullptr;
+        text.clear();
     }
 
-    for (char*& text : statusString)
+    for (std::string& text : statusString)
     {
-        systemHeap->free(text);
-        text = nullptr;
+        text.clear();
     }
 }
 
@@ -1794,7 +1796,7 @@ auto TacticalMap::RefreshPage() -> void
                 std::snprintf(line, sizeof(line), "%d--%s", i + 1, objective->name);
                 text->PrintWrapped(line, color, -1);
                 const uint32_t type = objective->type + 1 > 3 ? 4 : objective->type + 1;
-                std::snprintf(line, sizeof(line), "      %s", typeString[type]);
+                std::snprintf(line, sizeof(line), "      %s", typeString[type].c_str());
                 text->PrintWrapped(line, color, -1);
                 const float timeLeft = scenario->checkObjectiveTimer(objectiveNum);
 
@@ -1808,7 +1810,7 @@ auto TacticalMap::RefreshPage() -> void
                 else
                 {
                     const uint32_t status = objective->status > 2 ? 3 : objective->status;
-                    std::snprintf(line, sizeof(line), "      %s", statusString[status]);
+                    std::snprintf(line, sizeof(line), "      %s", statusString[status].c_str());
                 }
 
                 text->PrintWrapped(line, color, -1);
@@ -1911,7 +1913,7 @@ auto TacticalMap::DrawInfoPage() -> void
 
         const int32_t shape = obj->objectClass == BATTLEMECH ? mover->numArmorLocations + 1 + mover->numBodyLocations
                                                              : mover->numBodyLocations;
-        AG_shape_draw(port()->frame(), partShapes, shape, 0x22, 0x65);
+        AG_shape_draw(port()->frame(), partShapes.get(), shape, 0x22, 0x65);
         DrawParts();
     }
 
@@ -3341,21 +3343,10 @@ auto TacticalMap::SetID(int32_t partId) -> void
         Fatal(0, "Unable to open damage display shape file");
     }
 
-    if (partShapes != nullptr)
-    {
-        guiHeap->free(partShapes);
-    }
-
-    partShapes = static_cast<uint8_t*>(guiHeap->malloc(shapeFile.getLength()));
-
-    if (partShapes == nullptr)
-    {
-        shapeFile.close();
-        Fatal(0, "Not enough memory for damage display shape file");
-    }
-
-    shapeFile.read(partShapes, static_cast<int32_t>(shapeFile.getLength()));
-    MCRenderer::RegisterData(partShapes, shapeFile.getLength(), MCDataKind::Shapes);
+    freePartShapes();
+    partShapes = std::make_unique<uint8_t[]>(shapeFile.getLength());
+    shapeFile.read(partShapes.get(), static_cast<int32_t>(shapeFile.getLength()));
+    MCRenderer::RegisterData(partShapes.get(), shapeFile.getLength(), MCDataKind::Shapes);
     shapeFile.close();
     infoObject = obj;
     RefreshPage();
@@ -3691,7 +3682,8 @@ auto TacticalMap::DrawParts() -> void
 
     if (dataDisplayMode == 1)
     {
-        AG_shape_draw(port()->frame(), partShapes, mover->numBodyLocations + mover->numArmorLocations, 0x22, 0x65);
+        AG_shape_draw(port()->frame(), partShapes.get(), mover->numBodyLocations + mover->numArmorLocations, 0x22,
+                      0x65);
         first = 8;
         end = mover->numArmorLocations;
     }
@@ -3704,7 +3696,7 @@ auto TacticalMap::DrawParts() -> void
     for (int32_t i = first; i < end; i++)
     {
         AG_shape_lookaside(partColorTable(this, armorColors[i]));
-        AG_shape_translate_draw(port()->frame(), partShapes, i, 0x22, 0x65);
+        AG_shape_translate_draw(port()->frame(), partShapes.get(), i, 0x22, 0x65);
     }
 
     // A mech's front view also shows its internal structure.
@@ -3714,7 +3706,7 @@ auto TacticalMap::DrawParts() -> void
         {
             const int8_t numArmor = mover->numArmorLocations;
             AG_shape_lookaside(partColorTable(this, bodyColors[i]));
-            AG_shape_translate_draw(port()->frame(), partShapes, static_cast<int16_t>(numArmor + i), 0x22, 0x65);
+            AG_shape_translate_draw(port()->frame(), partShapes.get(), static_cast<int16_t>(numArmor + i), 0x22, 0x65);
         }
     }
 }
@@ -3827,13 +3819,7 @@ auto TacticalMap::drawWeapons() -> void
 
     // The weapons, sorted by range bracket (up to 75, 150, beyond) and then damage.
     const int32_t numWeapons = mover->numWeapons;
-    auto* weapons =
-        static_cast<WeaponEntry*>(::operator new(static_cast<size_t>(numWeapons) * sizeof(WeaponEntry), std::nothrow));
-
-    if (weapons == nullptr)
-    {
-        return;
-    }
+    std::vector<WeaponEntry> weapons(static_cast<size_t>(std::max(numWeapons, 0)));
 
     const int32_t firstWeapon = mover->numOther;
 
@@ -3870,7 +3856,7 @@ auto TacticalMap::drawWeapons() -> void
         }
     }
 
-    std::qsort(weapons, static_cast<size_t>(numWeapons), sizeof(WeaponEntry), CompareWeapons);
+    std::qsort(weapons.data(), static_cast<size_t>(numWeapons), sizeof(WeaponEntry), CompareWeapons);
 
     // Three sections under their headers: red when damaged, yellow without ammo, green ready. Clan weapons get the
     // bracket's clan icon.
@@ -3924,8 +3910,6 @@ auto TacticalMap::drawWeapons() -> void
             sectionCounts[bracket]++;
         }
     }
-
-    ::operator delete(weapons);
 
     // The equipment: sensor, ECM, jammer, probe; red when disabled or destroyed.
     cLoadString(thisInstance, 0x37e, header, 0xfe);

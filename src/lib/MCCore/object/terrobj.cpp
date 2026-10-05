@@ -467,7 +467,7 @@ auto TerrainObject::render() -> void
         center = MCOverlayPoint(center);
         size.x *= MCOverlay.ScaleX;
         size.y *= MCOverlay.ScaleY;
-        ElementList->add(new EllipseElement(center, size, 0xfe, -50000));
+        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
     }
 }
 

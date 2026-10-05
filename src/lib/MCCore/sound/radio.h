@@ -3,7 +3,6 @@
 class aSmackerWindow;
 class MechWarrior;
 class PacketFile;
-class UserHeap;
 struct SmackTag;
 
 /// <summary>
@@ -85,36 +84,34 @@ struct RadioMessageInfo
 static_assert(sizeof(RadioMessageInfo) == 0x1c);
 
 /// <summary>A radio message on its way to the speakers: its sound fragments, noise and video.</summary>
-/// <remarks>Original source: <c>sound\radio.cpp</c>, <c>sound\soundsys.cpp</c>; 0xac bytes, from the radio heap.
-/// Field names follow MechCommander 2's RadioData.</remarks>
+/// <remarks>Original source: <c>sound\radio.cpp</c>, <c>sound\soundsys.cpp</c>; 0xac bytes, from the radio heap in
+/// the original. Field names follow MechCommander 2's RadioData.</remarks>
 struct RadioData
 {
     /// <summary>The packet played (msgId plus the variation).</summary>
-    uint32_t msgId; // +0x00
+    uint32_t msgId = 0; // +0x00
     /// <summary>The message type.</summary>
-    RadioMessageType msgType; // +0x04
+    RadioMessageType msgType{}; // +0x04
     /// <summary>The noise file packet played under it.</summary>
-    uint32_t noiseId; // +0x08
+    uint32_t noiseId = 0; // +0x08
     /// <summary>How many fragments there are.</summary>
-    int32_t numSegments; // +0x0c
-    /// <summary>The fragments' wave data (radio heap).</summary>
-    uint8_t* data[MAX_RADIO_FRAGMENTS]; // +0x10
-    /// <summary>The noise under each fragment (radio heap).</summary>
-    uint8_t* noise[MAX_RADIO_FRAGMENTS]; // +0x50
-    /// <summary>The heap the data came from.</summary>
-    UserHeap* msgHeap; // +0x90
+    int32_t numSegments = 0; // +0x0c
+    /// <summary>The fragments' wave data.</summary>
+    std::unique_ptr<uint8_t[]> data[MAX_RADIO_FRAGMENTS]; // +0x10
+    /// <summary>The noise under each fragment.</summary>
+    std::unique_ptr<uint8_t[]> noise[MAX_RADIO_FRAGMENTS]; // +0x50
     /// <summary>The turn it was queued.</summary>
-    int32_t turnQueued; // +0x94
+    int32_t turnQueued = 0; // +0x94
     /// <summary>The pilot's video window, if the message has a movie.</summary>
-    aSmackerWindow* movieWindow; // +0x98
+    aSmackerWindow* movieWindow = nullptr; // +0x98
     /// <summary>The open Smacker video.</summary>
-    SmackTag* movie; // +0x9c
+    SmackTag* movie = nullptr; // +0x9c
     /// <summary>The message type's priority.</summary>
-    uint8_t priority; // +0xa0
+    uint8_t priority = 0; // +0xa0
     /// <summary>Scenario time after which it isn't worth playing.</summary>
-    float expirationDate; // +0xa4
+    float expirationDate = 0.0f; // +0xa4
     /// <summary>Who speaks.</summary>
-    MechWarrior* pilot; // +0xa8
+    MechWarrior* pilot = nullptr; // +0xa8
 };
 
 /// <summary>The message types' rows of radio.csv.</summary>
@@ -129,11 +126,11 @@ class Radio
 {
 public:
     /// <summary>
-    /// The first radio clears the list and makes the radio heap. Opens the pilot's sound file (<paramref
+    /// The first radio clears the list (the original also made the radio heap). Opens the pilot's sound file (<paramref
     /// name="fileName"/>.pak in CDsoundPath) and the shared noise file, keeps the movie name, loads radio.csv once,
     /// and joins the list.
     /// </summary>
-    /// <returns>0, -0x152fffe out of memory, or the file error.</returns>
+    /// <returns>0, or the file error.</returns>
     /// <remarks>MCX.EXE @ 0x00692cc0</remarks>
     int32_t init(char* fileName, uint32_t heapSize, char* movieName);
     /// <summary>
@@ -156,18 +153,15 @@ public:
     static int32_t messageInfoLoaded;
     /// <summary>How many radios are in the list.</summary>
     static int32_t currentRadio;
-    /// <summary>Set once the first radio has cleared the list and made the heap (DAT_007e3fb0; the name is the
-    /// port's).</summary>
+    /// <summary>Set once the first radio has cleared the list (DAT_007e3fb0; the name is the port's).</summary>
     static int32_t radioListInitialized;
-    /// <summary>The heap messages are built in.</summary>
-    static UserHeap* radioHeap;
 
     /// <summary>The pilot's sound packets.</summary>
     PacketFile* radioFile = nullptr; // +0x00
     /// <summary>The pilot.</summary>
     MechWarrior* owner = nullptr; // +0x04
-    /// <summary>The pilot's movie name (radio heap); null for none.</summary>
-    char* movieName = nullptr; // +0x08
+    /// <summary>The pilot's movie name; empty for none.</summary>
+    std::string movieName; // +0x08
     /// <summary>Whether the radio plays.</summary>
     int32_t enabled = 0; // +0x0c
 };

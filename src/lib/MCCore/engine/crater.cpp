@@ -6,7 +6,6 @@
 #include "engine/ceglist.h"
 #include "engine/cevfx.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
 #include "object/team.h"
@@ -25,40 +24,13 @@ namespace
 auto CraterManager::init(int32_t numCraters, uint32_t unused, char* craterFileName) -> int32_t
 {
     (void)unused;
-    craterPosHeap = nullptr;
-    craterShpHeap = nullptr;
-    craterShpHeapSize = 0;
     currentCrater = 0;
-    craterList = nullptr;
+    craterList.clear();
     numCraterShapes = 0;
     numCraterTypes = 0;
-    craterShapes = nullptr;
+    craterShapes.clear();
     craterFile = nullptr;
     maxCraters = numCraters;
-    craterPosHeapSize = static_cast<uint32_t>(numCraters * 0x1c);
-    // Port fix: at least one CraterData per slot (0x14 in the original, which sized the heap at 0x1c a slot).
-    const uint32_t posHeapSize =
-        std::max<uint32_t>(craterPosHeapSize, static_cast<uint32_t>(numCraters * sizeof(CraterData)));
-    craterPosHeap = new HeapManager();
-
-    if (craterPosHeap == nullptr)
-    {
-        return -0x3520ffff;
-    }
-
-    int32_t result = craterPosHeap->createHeap(posHeapSize);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    result = craterPosHeap->commitHeap(posHeapSize);
-
-    if (result != 0)
-    {
-        return result;
-    }
 
     FullPathFileName craterPath;
     craterPath.init(spritePath, craterFileName, ".pak");
@@ -74,7 +46,7 @@ auto CraterManager::init(int32_t numCraters, uint32_t unused, char* craterFileNa
     {
         FullPathFileName cdPath;
         cdPath.init(CDspritePath, craterFileName, ".pak");
-        result = packetFile->open(cdPath, READ, 0x32);
+        const int32_t result = packetFile->open(cdPath, READ, 0x32);
 
         if (result != 0)
         {
@@ -84,52 +56,22 @@ auto CraterManager::init(int32_t numCraters, uint32_t unused, char* craterFileNa
 
     numCraterShapes = packetFile->getNumPackets();
     numCraterTypes = numCraterShapes >> 1;
-    craterShpHeapSize = 0;
-
-    for (int32_t i = 0; i < numCraterShapes; i++)
-    {
-        packetFile->seekPacket(i);
-        craterShpHeapSize += static_cast<uint32_t>(packetFile->getPacketSize() + 100);
-    }
-
-    craterShpHeap = new UserHeap();
-
-    if (craterShpHeap == nullptr)
-    {
-        return -0x3520ffff;
-    }
-
-    result = craterShpHeap->init(craterShpHeapSize, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
 
     // Port fix: one pointer per shape. The original allocated 11 whatever the PAK held.
-    const int32_t shapeSlots = std::max(numCraterShapes, ORIGINAL_SHAPE_SLOTS);
-    craterShapes = static_cast<uint8_t**>(craterShpHeap->malloc(static_cast<uint32_t>(shapeSlots * sizeof(uint8_t*))));
-    std::memset(craterShapes, 0, shapeSlots * sizeof(uint8_t*));
+    craterShapes.resize(static_cast<size_t>(std::max(numCraterShapes, ORIGINAL_SHAPE_SLOTS)));
 
     for (int32_t i = 0; i < numCraterShapes; i++)
     {
         if (craterFile->seekPacket(i) == 0)
         {
-            craterShapes[i] =
-                static_cast<uint8_t*>(craterShpHeap->malloc(static_cast<uint32_t>(craterFile->getPacketSize())));
-
-            if (craterShapes[i] != nullptr)
-            {
-                craterFile->readPacket(i, craterShapes[i]);
-                MCRenderer::RegisterData(craterShapes[i], static_cast<size_t>(craterFile->getPacketSize()),
-                                         MCDataKind::Shapes);
-            }
+            loadShape(i);
         }
     }
 
     craterFile->close();
-    craterList = reinterpret_cast<CraterData*>(craterPosHeap->getHeapPtr());
-    std::memset(craterPosHeap->getHeapPtr(), 0xff, craterPosHeapSize);
+    // Every slot starts as 0xFF bytes: a shape id of -1 (free) and NaN positions.
+    craterList.resize(static_cast<size_t>(std::max(numCraters, 0)));
+    std::memset(static_cast<void*>(craterList.data()), 0xff, craterList.size() * sizeof(CraterData));
     return 0;
 }
 
@@ -142,13 +84,17 @@ auto CraterManager::destroy() -> void
     }
 
     craterFile = nullptr;
-    delete craterShpHeap;
-    craterShpHeap = nullptr;
-    delete craterPosHeap;
-    craterPosHeap = nullptr;
-    craterShpHeapSize = 0;
-    craterPosHeapSize = 0;
-    craterList = nullptr;
+
+    for (std::unique_ptr<uint8_t[]>& shape : craterShapes)
+    {
+        if (shape != nullptr)
+        {
+            MCRenderer::UnregisterData(shape.get());
+        }
+    }
+
+    craterShapes.clear();
+    craterList = {};
     currentCrater = 0;
 }
 
@@ -159,21 +105,21 @@ auto CraterManager::getCrater(int32_t craterId) -> uint8_t*
         return nullptr;
     }
 
-    uint8_t*& shape = craterShapes[craterId];
-
-    if (shape == nullptr && craterFile->seekPacket(craterId) == 0)
+    if (craterShapes[craterId] == nullptr && craterFile->seekPacket(craterId) == 0)
     {
-        shape = static_cast<uint8_t*>(craterShpHeap->malloc(static_cast<uint32_t>(craterFile->getPacketSize())));
-
-        if (shape != nullptr)
-        {
-            dynamicFrameTiming = 0;
-            craterFile->readPacket(craterId, shape);
-            MCRenderer::RegisterData(shape, static_cast<size_t>(craterFile->getPacketSize()), MCDataKind::Shapes);
-        }
+        dynamicFrameTiming = 0;
+        loadShape(craterId);
     }
 
-    return shape;
+    return craterShapes[craterId].get();
+}
+
+auto CraterManager::loadShape(int32_t craterId) -> void
+{
+    const int32_t size = craterFile->getPacketSize();
+    craterShapes[craterId] = std::make_unique<uint8_t[]>(static_cast<size_t>(size));
+    craterFile->readPacket(craterId, craterShapes[craterId].get());
+    MCRenderer::RegisterData(craterShapes[craterId].get(), static_cast<size_t>(size), MCDataKind::Shapes);
 }
 
 auto CraterManager::addCrater(int32_t craterType, vector_3d& position, int32_t rotation) -> int32_t
@@ -234,7 +180,7 @@ auto CraterManager::render() -> void
     ElementList->openGroup(30000000, 0);
     const int32_t paneWidth = globalPane->x1 - globalPane->x0;
     const int32_t paneHeight = globalPane->y1 - globalPane->y0;
-    CraterData* crater = craterList;
+    CraterData* crater = craterList.data();
 
     for (int32_t count = maxCraters; count > 0; count--, crater++)
     {
@@ -270,8 +216,8 @@ auto CraterManager::render() -> void
         if (0.0f < screenX && 0.0f < screenY && screenX < static_cast<float>(paneWidth) &&
             screenY < static_cast<float>(paneHeight))
         {
-            ElementList->add(
-                new VFXElement(craterShapes[shapeId], screenX, screenY, crater->rotation, 0, nullptr, 1, 0));
+            ElementList->add(ElementPool::Make<VFXElement>(craterShapes[shapeId].get(), screenX, screenY,
+                                                           crater->rotation, 0, nullptr, 1, 0));
         }
     }
 }

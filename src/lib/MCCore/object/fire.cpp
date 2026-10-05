@@ -767,7 +767,7 @@ auto Fire::render() -> void
     }
 
     ElementList->openGroup(-100000, 1);
-    ElementList->add(new VFXElement(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
+    ElementList->add(ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
     blipTime = frameLength + blipTime;
 
     if (0.067 < blipTime)

@@ -1,8 +1,6 @@
 #pragma once
 
-class HeapManager;
-
-/// <summary>A grid of 1-bit flags (rows x columns), in its own heap.</summary>
+/// <summary>A grid of 1-bit flags (rows x columns), in its own buffer.</summary>
 /// <remarks>Original source: <c>engine\bitflag.cpp</c>, 0x24 bytes.</remarks>
 class BitFlag
 {
@@ -36,8 +34,8 @@ public:
     /// <remarks>MCX.EXE @ 0x00644580</remarks>
     uint8_t getFlag(uint32_t r, uint32_t c);
 
-    /// <summary>The bits.</summary>
-    HeapManager* flagHeap; // +0x00
+    /// <summary>The bits (one byte more than <see cref="totalRAM"/>).</summary>
+    std::vector<uint8_t> flagData; // +0x00
     /// <summary>Cleared by destroy; never otherwise used.</summary>
     uint8_t unknown04; // +0x04
     /// <summary>The number of rows.</summary>
@@ -57,7 +55,7 @@ public:
 };
 
 /// <summary>
-/// A grid of byte flags (0 or 0xFF), in its own heap, with a VFX window and pane over it so shapes (circles) can be
+/// A grid of byte flags (0 or 0xFF), in its own buffer, with a VFX window and pane over it so shapes (circles) can be
 /// drawn into it. The terrain keeps its visibility this way.
 /// </summary>
 /// <remarks>Original source: <c>engine\bitflag.cpp</c>, 0x1c bytes.</remarks>
@@ -101,8 +99,8 @@ public:
     /// </summary>
     void setBytes(uint32_t first, uint32_t count);
 
-    /// <summary>The bytes.</summary>
-    HeapManager* flagHeap; // +0x00
+    /// <summary>The bytes (one more than <see cref="totalRAM"/>).</summary>
+    std::vector<uint8_t> flagData; // +0x00
     /// <summary>The number of rows.</summary>
     uint32_t rows; // +0x04
     /// <summary>The number of columns.</summary>

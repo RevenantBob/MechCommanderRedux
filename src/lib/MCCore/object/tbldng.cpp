@@ -715,7 +715,8 @@ auto TreeBuilding::render() -> void
             }
 
             ElementList->openGroup(-100000, 1);
-            ElementList->add(new VFXElement(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
+            ElementList->add(
+                ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
             blipTime = frameLength + blipTime;
 
             if (0.067 < blipTime)
@@ -804,7 +805,7 @@ auto TreeBuilding::render() -> void
         if (shadow != nullptr)
         {
             ElementList->openGroup(static_cast<int32_t>(screenPos.y), 1);
-            ElementList->add(new VFXElement(shadow, screenPos.x, screenPos.y, 0, 0, hazePalette, 0, 0));
+            ElementList->add(ElementPool::Make<VFXElement>(shadow, screenPos.x, screenPos.y, 0, 0, hazePalette, 0, 0));
         }
 
         if (soundHandle == 0xffffffff && type->normalEffectId != 0xffffffff)
@@ -836,7 +837,7 @@ auto TreeBuilding::render() -> void
         center = MCOverlayPoint(center);
         size.x *= MCOverlay.ScaleX;
         size.y *= MCOverlay.ScaleY;
-        ElementList->add(new EllipseElement(center, size, 0xfe, -50000));
+        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
     }
 }
 

@@ -464,7 +464,7 @@ auto MechWarrior::init(FitIniFile* warriorFile) -> int32_t
         {
             // Radio's inline constructor.
             newRadio->radioFile = nullptr;
-            newRadio->movieName = nullptr;
+            newRadio->movieName.clear();
             newRadio->enabled = 1;
         }
 

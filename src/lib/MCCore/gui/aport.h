@@ -34,6 +34,9 @@ public:
     /// <returns>0, or 3 when out of memory.</returns>
     /// <remarks>MCX.EXE @ 0x0060c470</remarks>
     virtual int32_t init(int32_t width, int32_t height); // slot 0
+
+    /// <summary>Frees a bitmap <see cref="init(int32_t, int32_t)"/> made (for a caller that swaps it out).</summary>
+    static void freePixels(uint8_t* pixels);
     /// <summary>Frees the bitmap and the pane.</summary>
     /// <remarks>MCX.EXE @ 0x0060ca70</remarks>
     virtual void destroy(); // slot 1

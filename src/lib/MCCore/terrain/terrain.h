@@ -12,7 +12,6 @@ class TacticalMap;
 class TerrainBlock;
 class TerrainTileManager;
 class TerrainTiles;
-class UserHeap;
 class Vertex;
 class VertexManager;
 struct _pane;
@@ -33,13 +32,6 @@ public:
     /// <summary>Calls <see cref="destroy"/>.</summary>
     /// <remarks>MCX.EXE @ 0x0073bd30 (vector deleting destructor); slot 0</remarks>
     virtual ~TerrainWindow() { destroy(); }
-
-    /// <summary>Allocates from <c>Terrain::terrainHeap</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0073c700</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into <c>Terrain::terrainHeap</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0073c720 (no symbol kept)</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>
     /// Binds the window to <paramref name="cam"/> as window <paramref name="windowNum"/>: takes that window's vertex
@@ -297,17 +289,15 @@ public:
     static float metersPerVertexDivMAPCELL_DIM;
     /// <summary>Meters along a block's side.</summary>
     static float metersBlockSide;
-    /// <summary>The heap of every terrain allocation.</summary>
-    static UserHeap* terrainHeap;
     static _pane* terrainPane;
     /// <summary>The terrain's name (the .fit file's base name).</summary>
     static char* terrainName;
     /// <summary>Screen x of every map vertex (by blockOffsets[block] + vertex), 0x11111111 when unknown.</summary>
-    static int32_t* screenPosX;
+    static std::vector<int32_t> screenPosX;
     /// <summary>Screen y of every map vertex.</summary>
-    static int32_t* screenPosY;
+    static std::vector<int32_t> screenPosY;
     /// <summary>Index of each block's first vertex in screenPosX/screenPosY.</summary>
-    static int32_t* blockOffsets;
+    static std::vector<int32_t> blockOffsets;
     /// <summary>Set when the whole view must be redrawn.</summary>
     static int forceRedraw;
     /// <summary>The map's top-left corner at full zoom, in screen space.</summary>

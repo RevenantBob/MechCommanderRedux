@@ -4655,7 +4655,8 @@ auto BattleMech::render() -> void
                 }
 
                 ElementList->openGroup(-100000, 1);
-                auto* element = new VFXElement(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 1);
+                auto* element =
+                    ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 1);
                 std::strcpy(element->name, shapeName);
                 ElementList->add(element);
                 blipTime = frameLength + blipTime;
@@ -4711,7 +4712,7 @@ auto BattleMech::render() -> void
             vector_2d fromScreen = eyeProject(from);
             vector_2d toScreen = eyeProject(to);
             ElementList->openGroup(-100000, 1);
-            ElementList->add(new LineElement(fromScreen, toScreen, 0xfc, nullptr, -100000, -1));
+            ElementList->add(ElementPool::Make<LineElement>(fromScreen, toScreen, 0xfc, nullptr, -100000, -1));
         }
     }
 
@@ -4746,16 +4747,16 @@ auto BattleMech::render() -> void
             if (drawLines != 0)
             {
                 ElementList->openGroup(-99999, 1);
-                ElementList->add(new LineElement(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
+                ElementList->add(ElementPool::Make<LineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
                 fromScreen = toScreen;
                 marker++;
             }
 
             const int32_t bounds = VFX_shape_bounds(waypointMarkers, marker);
             ElementList->openGroup(-100000, 1);
-            auto* element =
-                new VFXElement(waypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.x,
-                               toScreen.y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1, 0);
+            auto* element = ElementPool::Make<VFXElement>(
+                waypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.x,
+                toScreen.y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1, 0);
             std::strcpy(element->name, "mwp");
             ElementList->add(element);
         }

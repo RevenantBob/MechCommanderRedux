@@ -74,8 +74,8 @@ public:
     int32_t unknown14; // +0x14
     /// <summary>Nonzero to scale sizes by <see cref="scale"/> (rounded down); 1 after init.</summary>
     int32_t scaled; // +0x18
-    /// <summary>The font file (from systemHeap).</summary>
-    uint8_t* fontData; // +0x1c
+    /// <summary>The font file.</summary>
+    std::unique_ptr<uint8_t[]> fontData; // +0x1c
     /// <summary>Each letter's strokes once looked up; -1 (as a pointer) until then.</summary>
     uint8_t* letterCache[256]; // +0x20
 };

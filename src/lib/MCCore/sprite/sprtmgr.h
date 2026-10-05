@@ -3,10 +3,9 @@
 class AppearanceType;
 class PacketFile;
 class Shape;
-class UserHeap;
 
 /// <summary>
-/// The sprite cache: the heaps shapes and appearance data come from, the sprite PAKs (one per appearance, full size
+/// The sprite cache: the blocks shapes and appearance data live in, the sprite PAKs (one per appearance, full size
 /// and 90-pixel), the mech part PAKs (legs, torsos, right and left arms, each in both sizes), and the loaded shapes
 /// in least-recently-used order.
 /// </summary>
@@ -17,51 +16,36 @@ class UserHeap;
 class SpriteManager
 {
 public:
-    /// <summary>Clears the heaps, the appearance tables and the shape list (the part tables are left to init).</summary>
-    /// <remarks>MCX.EXE: inlined at its one `new` in Scenario::init.</remarks>
-    SpriteManager()
-    {
-        dataHeap = nullptr;
-        shapeHeap = nullptr;
-        spriteFiles90 = nullptr;
-        spriteFiles = nullptr;
-        numAppearances = 0;
-        lastShape = nullptr;
-        firstShape = nullptr;
-    }
-
     /// <summary>
-    /// Creates the shape heap (<paramref name="shapeHeapSize"/> bytes) and the data heap
-    /// (<paramref name="dataHeapSize"/>), opens the sprite PAK <paramref name="spriteFileName"/> (and its 90-pixel
-    /// twin) and the mech part PAKs.
+    /// Opens the sprite PAK <paramref name="spriteFileName"/> (and its 90-pixel twin) and the mech part PAKs. The
+    /// original made its shape and data heaps here, sized by the scenario.
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006427e0</remarks>
-    int32_t init(uint32_t shapeHeapSize, uint32_t dataHeapSize, char* spriteFileName);
+    int32_t init(char* spriteFileName);
 
     /// <summary>Opens legs, torsos, rArms, lArms and their "90" versions.</summary>
     /// <remarks>MCX.EXE @ 0x00642b00</remarks>
     int32_t initMechPacketFiles();
 
-    /// <summary>Closes the sprite PAKs.</summary>
+    /// <summary>Closes the sprite PAKs and frees every block still allocated.</summary>
     /// <remarks>
     /// MCX.EXE @ 0x00643190 (FUN_00643190, called from Scenario's teardown; no symbol, the name is the port's).
     /// </remarks>
     void destroy();
 
-    /// <summary>Allocates shape (packet) memory.</summary>
+    /// <summary>Allocates zeroed shape (packet) memory, registered with the renderers; null for a size of 0.</summary>
     /// <remarks>MCX.EXE @ 0x00643630</remarks>
     void* mallocShapeRAM(uint32_t size);
+    /// <summary>Unregisters and frees a block of <see cref="mallocShapeRAM"/> (anything else is ignored).</summary>
     /// <remarks>MCX.EXE @ 0x00643650</remarks>
     void freeShapeRAM(void* block);
-    /// <summary>Walks the shape heap (a debug check).</summary>
-    /// <remarks>MCX.EXE @ 0x00643670</remarks>
-    void walkShapeHeap();
-    /// <summary>Walks the data heap (a debug check).</summary>
-    /// <remarks>MCX.EXE @ 0x00643690</remarks>
-    void walkDataHeap();
-    /// <summary>Allocates appearance data (types' tables, <see cref="Shape"/> records, user lists).</summary>
+    /// <summary>
+    /// Allocates zeroed appearance data (types' tables, <see cref="Shape"/> records, user lists); null for a size of
+    /// 0.
+    /// </summary>
     /// <remarks>MCX.EXE @ 0x006436b0</remarks>
     void* mallocDataRAM(uint32_t size);
+    /// <summary>Frees a block of <see cref="mallocDataRAM"/> (anything else is ignored).</summary>
     /// <remarks>MCX.EXE @ 0x006436d0</remarks>
     void freeDataRAM(void* block);
 
@@ -106,44 +90,44 @@ public:
     /// <remarks>MCX.EXE @ 0x00643f80 (FUN_00643f80: no symbol; the name is the port's).</remarks>
     int32_t getNumShapes(uint32_t appearanceNum);
 
-    /// <summary>The shapes' heap.</summary>
-    UserHeap* shapeHeap; // +0x00
-    /// <summary>The appearance data heap.</summary>
-    UserHeap* dataHeap; // +0x04
+    /// <summary>
+    /// The blocks of <see cref="mallocShapeRAM"/> (the original's shape heap). Phase 3 gives each block its owner.
+    /// </summary>
+    std::unordered_map<void*, std::unique_ptr<uint8_t[]>> shapeBlocks; // +0x00
+    /// <summary>The blocks of <see cref="mallocDataRAM"/> (the original's data heap).</summary>
+    std::unordered_map<void*, std::unique_ptr<uint8_t[]>> dataBlocks; // +0x04
     /// <summary>The number of appearances in the sprite PAK.</summary>
-    int32_t numAppearances; // +0x08
-    /// <summary>The shape heap's size.</summary>
-    uint32_t shapeHeapSize; // +0x0c
+    int32_t numAppearances = 0; // +0x08
     /// <summary>
     /// [0] the preferred sprite PAK ("&lt;name&gt;90.pak", "&lt;name&gt;.pak" in the demo), then each appearance's
     /// own PAK once opened from it.
     /// </summary>
-    PacketFile** spriteFiles; // +0x10
+    std::vector<PacketFile*> spriteFiles; // +0x10
     /// <summary>
     /// [0] "&lt;name&gt;.pak", the fallback for appearances whose packet is empty in the preferred PAK; then their
     /// own PAKs. (The port's names: the original picks between the two by packet size, not by zoom.)
     /// </summary>
-    PacketFile** spriteFiles90; // +0x14
+    std::vector<PacketFile*> spriteFiles90; // +0x14
     /// <summary>[0] legs.pak, then each mech's legs PAK (25 entries).</summary>
-    PacketFile** legFiles; // +0x18
+    std::vector<PacketFile*> legFiles; // +0x18
     /// <summary>[0] torsos.pak, then each mech's.</summary>
-    PacketFile** torsoFiles; // +0x1c
+    std::vector<PacketFile*> torsoFiles; // +0x1c
     /// <summary>[0] rArms.pak, then each mech's.</summary>
-    PacketFile** rArmFiles; // +0x20
+    std::vector<PacketFile*> rArmFiles; // +0x20
     /// <summary>[0] lArms.pak, then each mech's.</summary>
-    PacketFile** lArmFiles; // +0x24
+    std::vector<PacketFile*> lArmFiles; // +0x24
     /// <summary>legs90.pak and each mech's.</summary>
-    PacketFile** legFiles90; // +0x28
+    std::vector<PacketFile*> legFiles90; // +0x28
     /// <summary>torsos90.pak and each mech's.</summary>
-    PacketFile** torsoFiles90; // +0x2c
+    std::vector<PacketFile*> torsoFiles90; // +0x2c
     /// <summary>rArms90.pak and each mech's.</summary>
-    PacketFile** rArmFiles90; // +0x30
+    std::vector<PacketFile*> rArmFiles90; // +0x30
     /// <summary>lArms90.pak and each mech's.</summary>
-    PacketFile** lArmFiles90; // +0x34
+    std::vector<PacketFile*> lArmFiles90; // +0x34
     /// <summary>The oldest loaded shape.</summary>
-    Shape* firstShape; // +0x38
+    Shape* firstShape = nullptr; // +0x38
     /// <summary>The newest loaded shape.</summary>
-    Shape* lastShape; // +0x3c
+    Shape* lastShape = nullptr; // +0x3c
 };
 
 /// <summary>The game's sprite manager.</summary>

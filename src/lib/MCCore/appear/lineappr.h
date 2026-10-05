@@ -3,8 +3,6 @@
 #include "appear/appear.h"
 #include "appear/apprtype.h"
 
-class UserHeap;
-
 /// <summary>The states of a line appearance (the type's FIT has exactly 3).</summary>
 enum LineState : int32_t
 {
@@ -52,14 +50,12 @@ public:
     /// <remarks>MCX.EXE @ 0x006acb70</remarks>
     int32_t loadIniFile(File* apprFile, uint32_t fileSize);
 
-    /// <summary>Frees the type's heap.</summary>
+    /// <summary>Frees the states.</summary>
     /// <remarks>MCX.EXE @ 0x006ace10; slot 1</remarks>
     void destroy() override;
 
-    /// <summary>The three states (allocated from <see cref="lineHeap"/>).</summary>
-    LineStateData* states = nullptr; // +0x2c
-    /// <summary>The type's own heap (FIT "HeapSize" bytes).</summary>
-    UserHeap* lineHeap = nullptr; // +0x30
+    /// <summary>The three states.</summary>
+    std::vector<LineStateData> states; // +0x2c
 };
 
 /// <summary>An appearance drawn as a line between two world points (in its state's colours).</summary>

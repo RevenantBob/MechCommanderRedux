@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "lib/inifile.h"
-#include "lib/heap.h"
 
 char fitIniHeader[] = "FITini";
 char fitIniFooter[] = "FITend";
@@ -227,24 +226,14 @@ int32_t FitIniFile::afterOpen()
     }
 
     totalBlocks = countBlocks();
-    const uint32_t tableSize = static_cast<uint32_t>(totalBlocks) * sizeof(IniBlockNode);
 
-    if (systemHeap != nullptr)
-    {
-        fileBlocks = static_cast<IniBlockNode*>(systemHeap->malloc(tableSize));
-    }
-    else
-    {
-        fileBlocks = static_cast<IniBlockNode*>(std::malloc(tableSize));
-    }
-
-    // Original behaviour: with systemHeap up, a file without blocks fails here (its malloc(0) returns null).
-    if (fileBlocks == nullptr)
+    // Original behaviour: a file without blocks fails here (systemHeap's malloc(0) returned null).
+    if (totalBlocks <= 0)
     {
         return NO_RAM_FOR_INI_BLOCKS;
     }
 
-    std::memset(fileBlocks, 0, tableSize);
+    fileBlocks.assign(static_cast<size_t>(totalBlocks), IniBlockNode{});
 
     int32_t blocksFound = 0;
 
@@ -303,24 +292,7 @@ void FitIniFile::atClose()
         write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
     }
 
-    if (systemHeap != nullptr)
-    {
-        // Port fix: a table allocated before systemHeap existed came from malloc.
-        if (fileBlocks != nullptr && !systemHeap->owns(fileBlocks))
-        {
-            std::free(fileBlocks);
-        }
-        else
-        {
-            systemHeap->free(fileBlocks);
-        }
-    }
-    else
-    {
-        std::free(fileBlocks);
-    }
-
-    fileBlocks = nullptr;
+    fileBlocks.clear();
 }
 
 float FitIniFile::textToFloat(char* num)

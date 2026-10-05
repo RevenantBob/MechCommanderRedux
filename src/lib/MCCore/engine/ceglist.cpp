@@ -2,25 +2,14 @@
 #include "engine/ceglist.h"
 #include "camera/camera.h"
 #include "engine/celement.h"
-#include "lib/heap.h"
 #include "object/objque.h"
 
-Element** ElementBuffer::sortQueue = nullptr;
 ElementBuffer* ElementList = nullptr;
 int32_t numElements = 0;
 
-namespace
-{
-    /// <summary>The group pointer list, which follows the groups in the buffer's heap.</summary>
-    ElementGroup** groupList(ElementBuffer* buffer)
-    {
-        return reinterpret_cast<ElementGroup**>(buffer->groups + buffer->maxGroups);
-    }
-}
-
 auto ElementGroup::draw() -> void
 {
-    Element** element = buffer->elements + firstElement;
+    Element** element = buffer->elements.data() + firstElement;
 
     for (int32_t count = numElements; count > 0; count--)
     {
@@ -50,9 +39,9 @@ auto ElementGroup::sort() -> void
         return;
     }
 
-    if (numElements > 1 && ElementBuffer::sortQueue == nullptr)
+    if (numElements > 1)
     {
-        Element** first = buffer->elements + firstElement;
+        Element** first = buffer->elements.data() + firstElement;
         Element** end = first + numElements;
 
         // Deepest first: each slot takes the deepest of the elements from it on.
@@ -84,16 +73,6 @@ auto ElementGroup::reset(ElementBuffer* _buffer) -> void
     firstElement = _buffer->numElements;
 }
 
-auto ElementBuffer::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto ElementBuffer::operator delete(void* block) -> void
-{
-    systemHeap->free(block);
-}
-
 auto ElementBuffer::add(Element* element) -> void
 {
     if (element != nullptr && numElements < maxElements)
@@ -118,7 +97,7 @@ auto ElementBuffer::add(Element* element) -> void
 
 auto ElementBuffer::draw() -> void
 {
-    ElementGroup** group = groupList(this);
+    ElementGroup** group = groupList.data();
 
     for (int32_t count = numGroups; count > 0; count--)
     {
@@ -138,33 +117,13 @@ auto ElementBuffer::init(int32_t numElements, int32_t unused, int32_t numGroups)
 
     maxGroups = numGroups;
     maxElements = numElements;
-    // Port fix: sized from the port's types. The original's (numElements + numGroups * 12) * 4 counts 4-byte
-    // pointers and 0x2c-byte groups.
-    const uint32_t size = static_cast<uint32_t>(numElements * sizeof(Element*) +
-                                                numGroups * (sizeof(ElementGroup) + sizeof(ElementGroup*)));
-    elementHeap = new HeapManager();
-
-    if (elementHeap == nullptr)
-    {
-        return -0x1114fffd;
-    }
-
-    int32_t result = elementHeap->createHeap(size);
-
-    if (result == 0)
-    {
-        result = elementHeap->commitHeap(size);
-
-        if (result == 0)
-        {
-            elements = reinterpret_cast<Element**>(elementHeap->getHeapPtr());
-            groups = reinterpret_cast<ElementGroup*>(elementHeap->getHeapPtr() + numElements * sizeof(Element*));
-            reset();
-            result = 0;
-        }
-    }
-
-    return result;
+    // The original laid the three lists out in one heap; reset uses the first group even when maxGroups is 0.
+    const size_t groupCount = static_cast<size_t>(std::max(numGroups, 1));
+    elements.assign(static_cast<size_t>(std::max(numElements, 0)), nullptr);
+    groups.assign(groupCount, ElementGroup{});
+    groupList.assign(groupCount, nullptr);
+    reset();
+    return 0;
 }
 
 auto ElementBuffer::sort() -> void
@@ -178,7 +137,7 @@ auto ElementBuffer::sort() -> void
 
     currentGroup->sort();
     ElementGroup** last = lastGroupPtr;
-    ElementGroup** first = groupList(this);
+    ElementGroup** first = groupList.data();
 
     // A bubble sort, deepest first, of at most numGroups passes.
     while (first != last)
@@ -213,26 +172,18 @@ auto ElementBuffer::sort() -> void
 
 auto ElementBuffer::free() -> void
 {
-    if (elementHeap != nullptr)
-    {
-        delete elementHeap;
-        elementHeap = nullptr;
-    }
-
-    if (sortQueue != nullptr)
-    {
-        ::operator delete(sortQueue);
-        sortQueue = nullptr;
-    }
+    elements = {};
+    groups = {};
+    groupList = {};
 }
 
 auto ElementBuffer::reset() -> void
 {
     numElements = 0;
-    currentGroup = groups;
+    currentGroup = groups.data();
     numGroups = 1;
-    groups->reset(this);
-    lastGroupPtr = groupList(this);
+    groups[0].reset(this);
+    lastGroupPtr = groupList.data();
     *lastGroupPtr = currentGroup;
 }
 

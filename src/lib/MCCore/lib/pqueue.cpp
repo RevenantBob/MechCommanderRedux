@@ -1,18 +1,11 @@
 #include "stdafx.h"
 #include "lib/pqueue.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 int32_t PriorityQueue::init(int32_t maxQueueItems, int32_t keyMinimum)
 {
     // Port fix: one slot more than the original's maxItems + 2, since insert can fill slot maxItems + 2 (see insert).
-    pqList = static_cast<PQNode*>(systemHeap->malloc(static_cast<uint32_t>(maxQueueItems + 3) * sizeof(PQNode)));
-
-    if (pqList == nullptr)
-    {
-        Fatal(0, " Unable to init PriorityQueue ");
-    }
-
+    pqList.assign(static_cast<size_t>(maxQueueItems + 3), PQNode{});
     maxItems = maxQueueItems + 2;
     keyMin = keyMinimum;
     return 0;
@@ -111,8 +104,7 @@ int32_t PriorityQueue::find(int32_t id)
 
 void PriorityQueue::destroy()
 {
-    systemHeap->free(pqList);
-    pqList = nullptr;
+    pqList.clear();
     maxItems = 0;
     numItems = 0;
 }

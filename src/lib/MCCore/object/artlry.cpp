@@ -932,7 +932,7 @@ auto Artillery::render() -> void
     }
 
     ElementList->openGroup(-40000, 1);
-    ElementList->add(new VFXElement(shape, screenPos.x, screenPos.y, frame, 0, nullptr, 1, 0));
+    ElementList->add(ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, frame, 0, nullptr, 1, 0));
 
     const int32_t seconds = std::abs(static_cast<int32_t>(std::floor(static_cast<double>(timeToImpact))));
     std::sprintf(timeString, "%01d:%02d", seconds / 60, seconds % 60);
@@ -943,7 +943,7 @@ auto Artillery::render() -> void
     screenPos.y = type->fontYOffset + textPos.y;
     // Blue after impact, yellow before (the original has the same code for both camera scales).
     aFont* font = timeToImpact <= 0.0f ? blueDropFont : yellowDropFont;
-    ElementList->add(new FontElement(font, screenPos, timeString, -40000));
+    ElementList->add(ElementPool::Make<FontElement>(font, screenPos, timeString, -40000));
 }
 
 auto Artillery::handleEvent(ObjectEvent* event) -> int32_t

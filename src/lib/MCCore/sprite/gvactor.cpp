@@ -530,11 +530,12 @@ auto GVAppearance::render(int32_t depthFixup) -> int32_t
 
         if (fadeTableIndex != -1 && fadeTableIndex >= 0)
         {
-            fadeTable = gamePalette->fadePalettes + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+            fadeTable =
+                gamePalette->fadePalettes.get() + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
         }
 
-        auto* element = new VFXElement(currentShape[part]->frameList, screenPos.x - offsetX, screenPos.y - offsetY,
-                                       currentFrame[part], 0, fadeTable, 0, 0);
+        auto* element = ElementPool::Make<VFXElement>(currentShape[part]->frameList, screenPos.x - offsetX,
+                                                      screenPos.y - offsetY, currentFrame[part], 0, fadeTable, 0, 0);
 
         // Port fix: the original copies the debug name through a null element too.
         if (element != nullptr)
@@ -769,6 +770,6 @@ auto GVAppearance::drawBars() -> void
 
     if (data.barPercent > 0)
     {
-        ElementList->add(new PolygonElement(&data, -50000));
+        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
     }
 }
