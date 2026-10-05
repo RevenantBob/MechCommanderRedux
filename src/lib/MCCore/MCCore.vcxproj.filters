@@ -532,6 +532,9 @@
     <ClCompile Include="platform\MCAudio.cpp">
       <Filter>platform</Filter>
     </ClCompile>
+    <ClCompile Include="platform\MCBlockStore.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
     <ClCompile Include="platform\MCCursor.cpp">
       <Filter>platform</Filter>
     </ClCompile>
@@ -1168,6 +1171,9 @@
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCAudio.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCBlockStore.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCCursor.h">

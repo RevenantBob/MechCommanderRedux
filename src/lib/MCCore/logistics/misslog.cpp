@@ -674,8 +674,8 @@ auto MissionLogisticsBridge::missionResultsMechProfileWriter(char* fileName, Bat
     file.writeBlock("Header");
     file.writeIdString("FileType", "MechProfile");
     file.writeBlock("General");
-    file.writeIdString("MechType", mech->ifaceName);
-    file.writeIdString("Name", mech->debugStatus);
+    file.writeIdString("MechType", mech->ifaceName.c_str());
+    file.writeIdString("Name", mech->debugStatus.c_str());
     file.writeIdFloat("CurTonnage", mech->getTonnage());
     file.writeIdString("icon", mech->iconName);
     file.writeIdChar("Status", static_cast<char>(mech->status));
@@ -782,11 +782,11 @@ auto MissionLogisticsBridge::missionResultsVehicleProfileWriter(char* fileName, 
     file.writeBlock("Header");
     file.writeIdString("FileType", "GroundVehicleProfile");
     file.writeBlock("General");
-    file.writeIdString("Name", vehicle->debugStatus);
+    file.writeIdString("Name", vehicle->debugStatus.c_str());
     file.writeIdFloat("CurTonnage", vehicle->getTonnage());
     file.writeIdString("icon", vehicle->iconName);
     file.writeIdChar("Status", static_cast<char>(vehicle->status));
-    file.writeIdString("Crew", vehicle->crewName);
+    file.writeIdString("Crew", vehicle->crewName.c_str());
     file.writeIdULong("Chassis", static_cast<uint32_t>(vehicle->getObjectType()->objTypeNum));
     file.writeIdBoolean("Assigned", 1);
     file.writeIdBoolean("NotMineYet", vehicle->notMineYet);

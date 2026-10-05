@@ -2500,7 +2500,8 @@ auto MissionResultsScreen::DrawMPPilotList() -> void
 
         char text[256];
         auto* mover = static_cast<Mover*>(warrior->vehicle);
-        whiteFont->writeString(port()->frame(), left + 3, top + 2, reinterpret_cast<uint8_t*>(mover->netName), -1);
+        whiteFont->writeString(port()->frame(), left + 3, top + 2, reinterpret_cast<uint8_t*>(mover->netName.get()),
+                               -1);
         std::snprintf(text, sizeof(text), "%i", totalKills(warrior));
         whiteFont->writeString(port()->frame(), left + 0x8c, top + 3, reinterpret_cast<uint8_t*>(text), -1);
 
@@ -2538,7 +2539,8 @@ auto MissionResultsScreen::DrawMPSummary() -> void
         // The best pilot.
         MechWarrior* best = pilotResults[0].warrior;
         auto* bestMover = static_cast<Mover*>(best->vehicle);
-        medWhiteFont->writeString(port()->frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->netName), 0x68);
+        medWhiteFont->writeString(port()->frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->netName.get()),
+                                  0x68);
         cLoadString(thisInstance, best->alignment == homeTeam->alignment ? 0xb6 : 0xb7, text, 0xfe);
         medWhiteFont->writeString(port()->frame(), 0x70, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
         std::snprintf(text, sizeof(text), "%i", pilotResults[0].oldRank);

@@ -30,17 +30,10 @@ enum ComponentForm : int32_t
 /// weight, critical spaces and, by <see cref="form"/>, its stats. <see cref="MasterComponentList"/> holds them by
 /// id.
 /// </summary>
-/// <remarks>Original source: <c>object\cmponent.cpp</c>; 0x84 bytes. Allocated from systemHeap.</remarks>
+/// <remarks>Original source: <c>object\cmponent.cpp</c>; 0x84 bytes.</remarks>
 class MasterComponent
 {
 public:
-    /// <summary>Allocates from systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x00655d80</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x00655da0</remarks>
-    static void operator delete(void* ptr);
-
     /// <remarks>MCX.EXE @ 0x00655dc0</remarks>
     void destroy();
     /// <summary>
@@ -139,7 +132,7 @@ void multiplyMasterWeaponRanges(float factor);
 /// <summary>The form names, by <see cref="ComponentForm"/>, null-terminated.</summary>
 extern const char* ComponentFormString[21];
 /// <summary>The master component table.</summary>
-extern MasterComponent* MasterComponentList;
+extern std::unique_ptr<MasterComponent[]> MasterComponentList;
 /// <summary>Rows in <see cref="MasterComponentList"/>.</summary>
 extern int32_t NumMasterComponents;
 /// <summary>The arm actuator's master id (from the file's header).</summary>

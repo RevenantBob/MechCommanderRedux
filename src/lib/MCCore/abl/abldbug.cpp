@@ -12,7 +12,6 @@
 #include "gui/atextbox.h"
 #include "gui/updisp.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
 #include "vfx/vfxfuncs.h"
@@ -57,21 +56,11 @@ namespace
     }
 }
 
-auto WatchManager::operator new(size_t mySize) noexcept -> void*
-{
-    return AblStackHeap->malloc(static_cast<uint32_t>(mySize));
-}
-
-auto WatchManager::operator delete(void* us) -> void
-{
-    AblStackHeap->free(us);
-}
-
 auto WatchManager::init(int32_t max) -> int32_t
 {
     maxWatches = max;
     numWatches = 0;
-    watches = static_cast<WatchPtr>(AblStackHeap->malloc(static_cast<uint32_t>(max * sizeof(Watch))));
+    watches = AblMemory.AllocateArray<Watch>(static_cast<size_t>(max));
     return watches ? 0 : -1;
 }
 
@@ -79,7 +68,7 @@ auto WatchManager::destroy() -> void
 {
     if (watches)
     {
-        AblStackHeap->free(watches);
+        AblMemory.Free(watches);
         watches = nullptr;
     }
 
@@ -272,21 +261,11 @@ auto WatchManager::print() -> void
 {
 }
 
-auto BreakPointManager::operator new(size_t mySize) noexcept -> void*
-{
-    return AblStackHeap->malloc(static_cast<uint32_t>(mySize));
-}
-
-auto BreakPointManager::operator delete(void* us) -> void
-{
-    AblStackHeap->free(us);
-}
-
 auto BreakPointManager::init(int32_t max) -> int32_t
 {
     maxBreakPoints = max;
     numBreakPoints = 0;
-    breakPoints = static_cast<int32_t*>(AblStackHeap->malloc(static_cast<uint32_t>(max * sizeof(int32_t))));
+    breakPoints = AblMemory.AllocateArray<int32_t>(static_cast<size_t>(max));
     return breakPoints ? 0 : -1;
 }
 
@@ -294,7 +273,7 @@ auto BreakPointManager::destroy() -> void
 {
     if (breakPoints)
     {
-        AblStackHeap->free(breakPoints);
+        AblMemory.Free(breakPoints);
         breakPoints = nullptr;
     }
 
@@ -384,16 +363,6 @@ auto BreakPointManager::isBreakPoint(int32_t lineNumber) -> int
 
 auto BreakPointManager::print() -> void
 {
-}
-
-auto Debugger::operator new(size_t mySize) noexcept -> void*
-{
-    return AblStackHeap->malloc(static_cast<uint32_t>(mySize));
-}
-
-auto Debugger::operator delete(void* us) -> void
-{
-    AblStackHeap->free(us);
 }
 
 auto Debugger::init(void (*callback)(char* s), ABLModule* _module) -> int32_t

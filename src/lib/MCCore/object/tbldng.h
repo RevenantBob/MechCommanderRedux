@@ -52,45 +52,45 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>The damage that destroys the building; 0 means it starts destroyed (FIT "DmgLevel").</summary>
-    uint32_t dmgLevel; // +0x30
+    uint32_t dmgLevel = 0; // +0x30
     /// <summary>
     /// The object type made when the building is set burning or destroyed (a fire), or -1 (FIT "BlownEffectId").
     /// </summary>
-    uint32_t blownEffectId; // +0x34
+    uint32_t blownEffectId = 0; // +0x34
     /// <summary>The looping sound played while the building is visible, or 0xffffffff (FIT "NormalEffectId").</summary>
-    uint32_t normalEffectId; // +0x38
+    uint32_t normalEffectId = 0; // +0x38
     /// <summary>The sound played when the building is destroyed, or 0xffffffff (FIT "DamageEffectId").</summary>
-    uint32_t damageEffectId; // +0x3c
-    /// <summary>The shadow shape of the standing building (FIT "NormalShadow", objectTypeCache).</summary>
-    uint8_t* normalShadow; // +0x40
-    /// <summary>The shadow shape of the destroyed building (FIT "DestroyedShadow", objectTypeCache).</summary>
-    uint8_t* destroyedShadow; // +0x44
+    uint32_t damageEffectId = 0; // +0x3c
+    /// <summary>The shadow shape of the standing building (FIT "NormalShadow").</summary>
+    uint8_t* normalShadow = nullptr; // +0x40
+    /// <summary>The shadow shape of the destroyed building (FIT "DestroyedShadow").</summary>
+    uint8_t* destroyedShadow = nullptr; // +0x44
     /// <summary>The range of the building's sensor, or -1 for none (FIT "SensorRange").</summary>
-    float sensorRange; // +0x48
+    float sensorRange = 0; // +0x48
     /// <summary>The team (index into TeamTable) the building belongs to, or -1 (FIT "TeamID").</summary>
-    int32_t teamId; // +0x4c
+    int32_t teamId = 0; // +0x4c
     /// <summary>FIT "Tonnage" (default 20).</summary>
-    float baseTonnage; // +0x50
+    float baseTonnage = 0; // +0x50
     /// <summary>FIT "ExplosionDamage".</summary>
-    float explDmg; // +0x54
+    float explDmg = 0; // +0x54
     /// <summary>FIT "ExplosionRadius".</summary>
-    float explRad; // +0x58
+    float explRad = 0; // +0x58
     /// <summary>Seconds between burn damage while on fire (FIT "TimeToBurnDamage", default 5).</summary>
-    float timeToBurnDamage; // +0x5c
+    float timeToBurnDamage = 0; // +0x5c
     /// <summary>The damage burning deals each time (FIT "BurnDamagePerTime", default 1).</summary>
-    float burnDamagePerTime; // +0x60
+    float burnDamagePerTime = 0; // +0x60
     /// <summary>FIT "DamageLvlForBurn" (default the damage level).</summary>
-    float damageLvlForBurn; // +0x64
+    float damageLvlForBurn = 0; // +0x64
     /// <summary>The string resource id of the building's name (FIT "BuildingName", default 0xa3).</summary>
-    int32_t buildingName; // +0x68
+    int32_t buildingName = 0; // +0x68
     /// <summary>The building's combat value (FIT "BattleRating", default 20).</summary>
-    int32_t battleRating; // +0x6c
+    int32_t battleRating = 0; // +0x6c
     /// <summary>How many marines come out when it is destroyed (FIT "NumMarines").</summary>
-    int32_t numMarines; // +0x70
+    int32_t numMarines = 0; // +0x70
     /// <summary>Whether the building repairs units (FIT "CanRefit").</summary>
-    int32_t canRefit; // +0x74
+    int32_t canRefit = 0; // +0x74
     /// <summary>Whether a refit building is a mech bay (FIT "MechBay", read only when CanRefit).</summary>
-    int32_t mechBay; // +0x78
+    int32_t mechBay = 0; // +0x78
 };
 
 /// <summary>
@@ -199,69 +199,69 @@ public:
     void createBuildingMarines();
 
     /// <summary>Set until the first update has placed the building in the world.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The building's VFX appearance.</summary>
-    Appearance* appearance; // +0x88
+    Appearance* appearance = nullptr; // +0x88
     /// <summary>The pixel offset X of the building from its vertex.</summary>
-    int32_t pixelOffsetX; // +0x8c
+    int32_t pixelOffsetX = 0; // +0x8c
     /// <summary>The pixel offset Y of the building from its vertex.</summary>
-    int32_t pixelOffsetY; // +0x90
+    int32_t pixelOffsetY = 0; // +0x90
     /// <summary>The terrain vertex within its block.</summary>
-    int32_t vertexNumber; // +0x94
+    int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block.</summary>
-    int32_t blockNumber; // +0x98
+    int32_t blockNumber = 0; // +0x98
     /// <summary>Unknown: only set to 0 by the constructor.</summary>
-    int32_t unknown9C; // +0x9c
+    int32_t unknown9C = 0; // +0x9c
     /// <summary>Unknown: only set to 500000 by the constructor.</summary>
-    int32_t unknownA0; // +0xa0
+    int32_t unknownA0 = 0; // +0xa0
     /// <summary>Unknown: never accessed by these classes.</summary>
-    int32_t unknownA4[4]; // +0xa4
+    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The map cell column of its vertex.</summary>
-    int32_t cellColumn; // +0xb4
+    int32_t cellColumn = 0; // +0xb4
     /// <summary>The map cell row of its vertex.</summary>
-    int32_t cellRow; // +0xb8
+    int32_t cellRow = 0; // +0xb8
     /// <summary>The world X of its vertex.</summary>
-    float vertexWorldX; // +0xbc
+    float vertexWorldX = 0; // +0xbc
     /// <summary>The world Y of its vertex.</summary>
-    float vertexWorldY; // +0xc0
+    float vertexWorldY = 0; // +0xc0
     /// <summary>The elevation of its map cell, in meters.</summary>
-    float cellElevation; // +0xc4
+    float cellElevation = 0; // +0xc4
     /// <summary>Set while the building is burning.</summary>
-    int32_t burning; // +0xc8
+    int32_t burning = 0; // +0xc8
     /// <summary>The fire burning on the building.</summary>
-    Fire* fireObject; // +0xcc
+    Fire* fireObject = nullptr; // +0xcc
     /// <summary>Seconds since the last burn damage.</summary>
-    float burnTime; // +0xd0
+    float burnTime = 0; // +0xd0
     /// <summary>The type's team (TeamTable[teamId]), set by init.</summary>
-    Team* typeTeam; // +0xd4
+    Team* typeTeam = nullptr; // +0xd4
     /// <summary>Set while the collapse animation plays.</summary>
-    int32_t collapsing; // +0xd8
+    int32_t collapsing = 0; // +0xd8
     /// <summary>Set once the collapse animation has finished.</summary>
-    int32_t collapsed; // +0xdc
+    int32_t collapsed = 0; // +0xdc
     /// <summary>
     /// Set once the building has taken a hit (or starts destroyed); chooses the collapse animation (1 when clear, 4
     /// when set).
     /// </summary>
-    int32_t hitOnce; // +0xe0
+    int32_t hitOnce = 0; // +0xe0
     /// <summary>The building's frame of reference (identity at construction).</summary>
     frame_of_ref frame; // +0xe4
     /// <summary>The handle of the looping sound playing while it is visible, or 0xffffffff.</summary>
-    uint32_t soundHandle; // +0x108
+    uint32_t soundHandle = 0; // +0x108
     /// <summary>The building's sensor, if it has one.</summary>
-    SensorSystem* sensorSystem; // +0x10c
+    SensorSystem* sensorSystem = nullptr; // +0x10c
     /// <summary>Nonzero when it can be captured (set by the ABL SetCaptureable).</summary>
-    int32_t captureable; // +0x110
+    int32_t captureable = 0; // +0x110
     /// <summary>The commander id (0xff = none).</summary>
-    char commanderId; // +0x114
-    /// <summary>The building's name, loaded from its string resource (systemHeap).</summary>
-    char* name; // +0x118
+    char commanderId = 0; // +0x114
+    /// <summary>The building's name, loaded from its string resource.</summary>
+    std::string name; // +0x118
     /// <summary>The prison slots: the pilots held here (<see cref="isPrison"/> is true when any is set). Nothing in
     /// tbldng.cpp sets them; capturing the building moves them into the capturing vehicle's passenger seats.</summary>
-    MechWarrior* prisonSlots[4]; // +0x11c
+    MechWarrior* prisonSlots[4]{}; // +0x11c
     /// <summary>Whether the building repairs units (from the type).</summary>
-    int32_t canRefit; // +0x12c
+    int32_t canRefit = 0; // +0x12c
     /// <summary>Whether the refit building is a mech bay (from the type).</summary>
-    int32_t mechBay; // +0x130
+    int32_t mechBay = 0; // +0x130
     /// <summary>The unit being refitted here, if any (checked by the ABL refit order; cleared by init).</summary>
-    GameObject* refitBuddy; // +0x134
+    GameObject* refitBuddy = nullptr; // +0x134
 };

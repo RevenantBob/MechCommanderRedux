@@ -12,7 +12,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -139,16 +138,6 @@ float carOffset = 84.0f;
 //---------------------------------------------------------------------------
 // Train
 //---------------------------------------------------------------------------
-
-auto Train::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto Train::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
 
 Train::Train()
 {
@@ -737,7 +726,7 @@ auto TrainCar::init() -> void
 {
     appearance = nullptr;
     train = nullptr;
-    name = nullptr;
+    name.clear();
     speed = 0.0f;
     wrecked = 0;
     onMap = 1;
@@ -833,8 +822,7 @@ auto TrainCar::init(ObjectType* objType) -> int32_t
         auto* carType = static_cast<TrainCarType*>(objType);
         char nameBuffer[256];
         cLoadString(thisInstance, static_cast<uint32_t>(carType->nameId), nameBuffer, 0xfe);
-        name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-        std::strcpy(name, nameBuffer);
+        name = nameBuffer;
         damage = static_cast<float>(carType->damage);
         setTonnage(carType->tonnageClass);
         collisionsOn = 1;
@@ -875,11 +863,7 @@ auto TrainCar::init(ObjectType* objType) -> int32_t
 
 auto TrainCar::destroy() -> void
 {
-    if (name != nullptr)
-    {
-        systemHeap->free(name);
-        name = nullptr;
-    }
+    name.clear();
 }
 
 auto TrainCar::setPartId(int32_t trainNumber, int32_t carNumber) -> void
@@ -1567,16 +1551,6 @@ auto TrainCar::GetMaxSpeed() -> float
 // TrainListEntry
 //---------------------------------------------------------------------------
 
-auto TrainListEntry::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto TrainListEntry::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
-
 TrainListEntry::TrainListEntry()
 {
     init();
@@ -1592,16 +1566,6 @@ auto TrainListEntry::init() -> void
 //---------------------------------------------------------------------------
 // TrainManager
 //---------------------------------------------------------------------------
-
-auto TrainManager::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto TrainManager::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
 
 auto TrainManager::init() -> void
 {
@@ -1619,9 +1583,9 @@ auto TrainManager::destroy() -> void
     {
         if (trains[i] != nullptr)
         {
-            // Faithful: freed without running the destructor.
+            // The original freed the train without its destructor, which only repeats destroy.
             trains[i]->destroy();
-            systemHeap->free(trains[i]);
+            delete trains[i];
             trains[i] = nullptr;
         }
     }

@@ -961,29 +961,12 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     result = sensorSystemManager->init(gameSystemFile);
     requireOk(result, " could not start Sensor System Manager ");
 
-    if (void* block = systemHeap->malloc(sizeof(PotentialContactManager)))
-    {
-        potentialContactManager = ::new (block) PotentialContactManager;
-    }
-    else
-    {
-        potentialContactManager = nullptr;
-    }
-
-    Assert(potentialContactManager != nullptr, static_cast<uint32_t>(result), " no RAM for PotentialContactManager ");
+    potentialContactManager = new PotentialContactManager;
     result = potentialContactManager->init(scenarioFile);
     requireOk(result, " could not start PotentialContactManager ");
     UpdateDisplay(0, 1, 20, 1, 25);
 
-    void* smokeBlock = systemHeap->malloc(sizeof(SmokeManager));
-
-    if (smokeBlock == nullptr)
-    {
-        smokeManager = nullptr;
-        return static_cast<int32_t>(0xdcdc0017);
-    }
-
-    smokeManager = ::new (smokeBlock) SmokeManager;
+    smokeManager = new SmokeManager;
     result = smokeManager->init(scenarioFile);
 
     if (result != 0)
@@ -1955,7 +1938,7 @@ auto Scenario::destroy() -> void
     if (potentialContactManager != nullptr)
     {
         potentialContactManager->destroy();
-        systemHeap->free(potentialContactManager);
+        delete potentialContactManager;
         potentialContactManager = nullptr;
     }
 
@@ -2019,7 +2002,7 @@ auto Scenario::destroy() -> void
     if (smokeManager != nullptr)
     {
         smokeManager->destroy();
-        systemHeap->free(smokeManager);
+        delete smokeManager;
         smokeManager = nullptr;
     }
 
@@ -2097,8 +2080,7 @@ auto Scenario::destroy() -> void
         PathManager = nullptr;
     }
 
-    systemHeap->free(Fire::maxFiresList);
-    Fire::maxFiresList = nullptr;
+    Fire::maxFiresList.reset();
 
     destroyWarriors();
 

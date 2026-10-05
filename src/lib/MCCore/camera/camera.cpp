@@ -13,7 +13,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/logbri.h"
@@ -103,7 +102,7 @@ namespace
         const int32_t result = shapeFile.open(shapeName, READ, 50);
         Assert(result == 0, static_cast<uint32_t>(result), errorMessage);
         const uint32_t size = shapeFile.fileSize();
-        auto* shape = static_cast<uint8_t*>(ObjectTypeManager::objectCache->malloc(size));
+        auto* shape = static_cast<uint8_t*>(ObjectTypeManager::objectCache.Allocate(size));
         shapeFile.read(shape, static_cast<int32_t>(size));
         shapeFile.close();
         MCRenderer::RegisterData(shape, size, MCDataKind::Shapes);

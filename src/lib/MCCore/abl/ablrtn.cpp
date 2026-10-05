@@ -12,7 +12,6 @@
 #include "abl/ablxstd.h"
 #include "abl/ablxstmt.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 int32_t MaxBreaks = 50;
 int32_t MaxWatches = 50;
@@ -21,8 +20,6 @@ int AssertEnabled = 0;
 int StringFunctionsEnabled = 1;
 int ProfileABL = 0;
 int ABLenabled = 0;
-UserHeap* AblStackHeap = nullptr;
-UserHeap* AblCodeHeap = nullptr;
 int32_t* StaticVariablesSizes = nullptr;
 int32_t NumStaticVariables = 0;
 int32_t MaxStaticVariables = 0;
@@ -44,36 +41,6 @@ TokenCodeType followRoutineDeclsList[] = {TKN_SEMICOLON, TKN_CODE, TKN_EOF, TKN_
 
 namespace
 {
-    /// <summary>Creates one of ABL's heaps; failing is fatal (the original dumps the system heap and exits).</summary>
-    auto createAblHeap(uint32_t size, const char* failMessage) -> UserHeap*
-    {
-        UserHeap* heap = new UserHeap;
-
-        if (heap->init(size, nullptr) != 0)
-        {
-            systemHeap->MemoryDump();
-            std::printf("%s", failMessage);
-            std::exit(0);
-        }
-
-        return heap;
-    }
-
-    /// <summary>A copy of <paramref name="text"/> in AblStackHeap (failing is fatal).</summary>
-    auto copyString(const char* text, const char* failMessage) -> char*
-    {
-        size_t size = std::strlen(text) + 1;
-        char* copy = static_cast<char*>(AblStackHeap->malloc(static_cast<uint32_t>(size)));
-
-        if (!copy)
-        {
-            Fatal(0, failMessage);
-        }
-
-        std::memcpy(copy, text, size);
-        return copy;
-    }
-
     /// <summary>Clears a new routine or module symbol's definition (no parameters, locals or code yet).</summary>
     void clearRoutineDefinition(SymTableNodePtr routineIdPtr, DefinitionType key)
     {
@@ -136,9 +103,9 @@ namespace
     }
 }
 
-auto ABLi_init(uint32_t symbolTableHeapSize, uint32_t stackHeapSize, uint32_t codeHeapSize, uint32_t stackSize,
-               uint32_t maxCodeBufferSize, uint32_t maxModules, uint32_t maxStaticVariables,
-               void (*debuggerPrintCallback)(char* s), int debugInfo, int debug, int profile) -> void
+auto ABLi_init(uint32_t, uint32_t, uint32_t, uint32_t stackSize, uint32_t maxCodeBufferSize, uint32_t maxModules,
+               uint32_t maxStaticVariables, void (*debuggerPrintCallback)(char* s), int debugInfo, int debug,
+               int profile) -> void
 {
     MaxWatchesPerModule = 20;
     MaxBreakPointsPerModule = 20;
@@ -180,9 +147,6 @@ auto ABLi_init(uint32_t symbolTableHeapSize, uint32_t stackHeapSize, uint32_t co
     IncludeDebugInfo = 1;
     ProfileABL = profile;
     Crunch = 1;
-    AblSymTableHeap = nullptr;
-    AblStackHeap = nullptr;
-    AblCodeHeap = nullptr;
     level = 0;
     lineNumber = 0;
     FileNumber = 0;
@@ -215,10 +179,6 @@ auto ABLi_init(uint32_t symbolTableHeapSize, uint32_t stackHeapSize, uint32_t co
     dummyCount = 0;
     numLibrariesLoaded = 0;
 
-    AblSymTableHeap = createAblHeap(symbolTableHeapSize, "unable to create ABL symbol table heap\n");
-    AblStackHeap = createAblHeap(stackHeapSize, "unable to create ABL stack heap\n");
-    AblCodeHeap = createAblHeap(codeHeapSize, "unable to create ABL code heap\n");
-
     for (auto& code : charTable)
     {
         code = CHR_SPECIAL;
@@ -243,12 +203,7 @@ auto ABLi_init(uint32_t symbolTableHeapSize, uint32_t stackHeapSize, uint32_t co
     charTable[0x7f] = CHR_EOF;
 
     MaxCodeBufferSize = static_cast<int32_t>(maxCodeBufferSize);
-    codeBuffer = static_cast<char*>(AblCodeHeap->malloc(maxCodeBufferSize));
-
-    if (!codeBuffer)
-    {
-        Fatal(0, " ABL: Unable to AblCodeHeap->malloc preprocess code buffer ");
-    }
+    codeBuffer = AblMemory.AllocateArray<char>(maxCodeBufferSize);
 
     NumStaticVariables = 0;
     MaxStaticVariables = static_cast<int32_t>(maxStaticVariables);
@@ -257,23 +212,12 @@ auto ABLi_init(uint32_t symbolTableHeapSize, uint32_t stackHeapSize, uint32_t co
 
     if (MaxStaticVariables > 0)
     {
-        StaticVariablesSizes =
-            static_cast<int32_t*>(AblStackHeap->malloc(static_cast<size_t>(MaxStaticVariables) * sizeof(int32_t)));
-
-        if (!StaticVariablesSizes)
-        {
-            Fatal(0, " ABL: Unable to AblStackHeap->malloc StaticVariablesSizes ");
-        }
+        StaticVariablesSizes = AblMemory.AllocateArray<int32_t>(static_cast<size_t>(MaxStaticVariables));
     }
 
     // The original took stackSize bytes of 4-byte items; the port takes at least MAXSIZE_STACK items (see ablexec.h).
     size_t stackItems = std::max<size_t>((stackSize & ~3u) / 4, MAXSIZE_STACK);
-    stack = static_cast<StackItemPtr>(AblStackHeap->malloc(static_cast<uint32_t>(stackItems * sizeof(StackItem))));
-
-    if (!stack)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc stack ");
-    }
+    stack = AblMemory.AllocateArray<StackItem>(stackItems);
 
     initSymTable();
     initModuleRegistry(static_cast<int32_t>(maxModules));
@@ -399,32 +343,20 @@ auto ABLi_preProcess(char* sourceFileName, int32_t* numErrors, int32_t* numLines
     // Register the module.
     int32_t moduleHandle = NumModulesRegistered;
     ModuleEntry& entry = ModuleRegistry[moduleHandle];
-    entry.fileName =
-        copyString(MCPort::StrLwr(sourceFileName), " ABL: Unable to AblStackHeap->malloc module filename ");
+    entry.fileName = AblMemory.CopyString(MCPort::StrLwr(sourceFileName));
     entry.moduleIdPtr = moduleIdPtr;
     entry.numSourceFiles = NumSourceFiles;
-    entry.sourceFiles = static_cast<char**>(AblStackHeap->malloc(static_cast<size_t>(NumSourceFiles) * sizeof(char*)));
-
-    if (!entry.sourceFiles)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc sourceFiles ");
-    }
+    entry.sourceFiles = AblMemory.AllocateArray<char*>(static_cast<size_t>(NumSourceFiles));
 
     for (int32_t i = 0; i < NumSourceFiles; i++)
     {
-        entry.sourceFiles[i] = copyString(SourceFiles[i], " ABL: Unable to AblStackHeap->malloc sourceFiles ");
+        entry.sourceFiles[i] = AblMemory.CopyString(SourceFiles[i]);
     }
 
     if (NumLibrariesUsed > 0)
     {
         entry.numLibrariesUsed = NumLibrariesUsed;
-        entry.librariesUsed =
-            static_cast<ABLModule**>(AblStackHeap->malloc(static_cast<size_t>(NumLibrariesUsed) * sizeof(ABLModule*)));
-
-        if (!entry.librariesUsed)
-        {
-            Fatal(0, " ABL: Unable to AblStackHeap->malloc librariesUsed ");
-        }
+        entry.librariesUsed = AblMemory.AllocateArray<ABLModule*>(static_cast<size_t>(NumLibrariesUsed));
 
         for (int32_t i = 0; i < NumLibrariesUsed; i++)
         {
@@ -438,13 +370,7 @@ auto ABLi_preProcess(char* sourceFileName, int32_t* numErrors, int32_t* numLines
 
     if (NumStaticVariables != 0)
     {
-        entry.sizeStaticVars =
-            static_cast<int32_t*>(AblStackHeap->malloc(static_cast<size_t>(NumStaticVariables) * sizeof(int32_t)));
-
-        if (!entry.sizeStaticVars)
-        {
-            Fatal(0, " ABL: Unable to AblStackHeap->malloc module sizeStaticVars ");
-        }
+        entry.sizeStaticVars = AblMemory.AllocateArray<int32_t>(static_cast<size_t>(NumStaticVariables));
 
         for (int32_t i = 0; i < NumStaticVariables; i++)
         {
@@ -535,7 +461,7 @@ auto ABLi_execute(SymTableNodePtr moduleIdPtr, SymTableNodePtr, ABLParam* paramL
                 if (formalTypePtr->form == FRM_ARRAY)
                 {
                     int32_t size = formalTypePtr->size;
-                    Address copy = static_cast<Address>(AblStackHeap->malloc(size));
+                    Address copy = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
 
                     if (!copy)
                     {
@@ -585,23 +511,9 @@ auto ABLi_close() -> void
     destroyModuleRegistry();
     destroyLibraryRegistry();
 
-    if (StaticVariablesSizes)
-    {
-        AblStackHeap->free(StaticVariablesSizes);
-        StaticVariablesSizes = nullptr;
-    }
-
-    if (codeBuffer)
-    {
-        AblCodeHeap->free(codeBuffer);
-        codeBuffer = nullptr;
-    }
-
-    if (stack)
-    {
-        AblStackHeap->free(stack);
-        stack = nullptr;
-    }
+    StaticVariablesSizes = nullptr;
+    codeBuffer = nullptr;
+    stack = nullptr;
 
     if (debugger)
     {
@@ -610,23 +522,7 @@ auto ABLi_close() -> void
         debugger = nullptr;
     }
 
-    if (AblSymTableHeap)
-    {
-        delete AblSymTableHeap;
-        AblSymTableHeap = nullptr;
-    }
-
-    if (AblStackHeap)
-    {
-        delete AblStackHeap;
-        AblStackHeap = nullptr;
-    }
-
-    if (AblCodeHeap)
-    {
-        delete AblCodeHeap;
-        AblCodeHeap = nullptr;
-    }
+    AblMemory.Clear();
 
     ABL_CloseProfileLog();
     ABLenabled = 0;
@@ -671,16 +567,7 @@ auto ABLi_createParamList(int32_t numParameters) -> ABLParam*
     }
 
     // Room for one parameter more than asked, as in the original.
-    size_t size = static_cast<size_t>(numParameters + 1) * sizeof(ABLParam);
-    ABLParam* paramList = static_cast<ABLParam*>(AblStackHeap->malloc(static_cast<uint32_t>(size)));
-
-    if (!paramList)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc paramList ");
-    }
-
-    std::memset(paramList, 0, size);
-    return paramList;
+    return AblMemory.AllocateArray<ABLParam>(static_cast<size_t>(numParameters + 1));
 }
 
 auto ABLi_setIntegerParam(ABLParam* paramList, int32_t index, int32_t value) -> void
@@ -705,7 +592,7 @@ auto ABLi_deleteParamList(ABLParam* paramList) -> void
 {
     if (paramList)
     {
-        AblStackHeap->free(paramList);
+        AblMemory.Free(paramList);
     }
 }
 

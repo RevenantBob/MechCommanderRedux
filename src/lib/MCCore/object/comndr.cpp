@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "object/comndr.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "object/group.h"
 #include "object/mover.h"
 #include "terrain/terrain.h"
@@ -21,16 +20,6 @@ namespace
             Terrain::terrainTacticalMap->RefreshPage();
         }
     }
-}
-
-auto Commander::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto Commander::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
 }
 
 auto Commander::init() -> void

@@ -15,7 +15,6 @@
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -3774,24 +3773,12 @@ auto execHbWasEverCapturable(SymTableNodePtr routineIdPtr) -> TypePtr
 
 namespace
 {
-    /// <summary>Replaces <paramref name="name"/> (systemHeap) with a copy of string resource
-    /// <paramref name="stringId"/>.</summary>
-    auto setNameFromResource(char*& name, uint32_t stringId) -> void
+    /// <summary>Replaces <paramref name="name"/> with string resource <paramref name="stringId"/>.</summary>
+    auto setNameFromResource(std::string& name, uint32_t stringId) -> void
     {
         char buffer[256];
         cLoadString(thisInstance, stringId, buffer, 0xfe);
-
-        if (name)
-        {
-            systemHeap->free(name);
-        }
-
-        name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(buffer) + 1)));
-
-        if (name)
-        {
-            std::strcpy(name, buffer);
-        }
+        name = buffer;
     }
 
     /// <summary>What <c>__ftol</c> gives: the value truncated, or 0x80000000 for NaN or out of range.</summary>
@@ -4111,7 +4098,7 @@ namespace
     auto mechStatus(Mover* mech) -> float
     {
         // Armor locations: 0 head, 1 center torso, 2 / 3 arms, 4 / 5 side torsos, 8 rear center torso, 9 / 10 legs.
-        ArmorLocation* armor = mech->armor;
+        ArmorLocation* armor = mech->armor.get();
         float centerArmor = armor[1].curArmor;
         uint8_t centerMax = armor[1].maxArmor;
 
@@ -4138,7 +4125,7 @@ namespace
     /// <summary>getunitstatus of a ground vehicle: the product of its five armor locations' factors.</summary>
     auto vehicleStatus(Mover* vehicle) -> float
     {
-        ArmorLocation* armor = vehicle->armor;
+        ArmorLocation* armor = vehicle->armor.get();
         double turret = 1.0;
 
         if (armor[4].maxArmor != 0)

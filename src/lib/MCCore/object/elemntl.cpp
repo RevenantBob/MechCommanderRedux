@@ -13,7 +13,6 @@
 #include "iface/iface.h"
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -255,7 +254,7 @@ auto ElementalType::init() -> void
 {
     canJump = 1;
     elementalId = 0;
-    name = nullptr;
+    name.clear();
     alignment = 0;
     maxHealth = 0;
     unknown3C = 0;
@@ -264,12 +263,7 @@ auto ElementalType::init() -> void
 
 auto ElementalType::destroy() -> void
 {
-    if (name != nullptr)
-    {
-        systemHeap->free(name);
-        name = nullptr;
-    }
-
+    name.clear();
     delete dynamicsType;
     dynamicsType = nullptr;
     ObjectType::destroy();
@@ -330,8 +324,7 @@ auto ElementalType::init(File* objFile, uint32_t fileSize) -> int32_t
     alignment = fileAlignment < 2 ? alignmentMap[fileAlignment] : 0;
     char nameBuffer[128];
     elementalFile.readIdString("Name", nameBuffer, 127);
-    name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(name, nameBuffer);
+    name = nameBuffer;
 
     if ((result = elementalFile.readIdUChar("MaxHealth", maxHealth)) != 0)
     {
@@ -723,8 +716,7 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
 
     char nameBuffer[128];
     elementalFile->readIdString("Name", nameBuffer, 127);
-    debugStatus = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(debugStatus, nameBuffer);
+    debugStatus = nameBuffer;
 
     if ((result = elementalFile->readIdFloat("CurTonnage", tonnage)) != 0)
     {
@@ -783,13 +775,7 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
     const int32_t firstWeapon = numOther;
     const int32_t firstAmmo = numOther + numWeapons;
     const int32_t numItems = numOther + numAmmos + numWeapons;
-    inventory = static_cast<InventoryItem*>(
-        ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(numItems * sizeof(InventoryItem))));
-
-    if (inventory == nullptr)
-    {
-        return -2;
-    }
+    inventory = std::make_unique<InventoryItem[]>(static_cast<size_t>(numItems));
 
     numAntiMissileSystems = 0;
     // An anti-missile system joins the list, whether it is listed with the other equipment or the weapons.
@@ -903,15 +889,7 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
             static_cast<int16_t>(static_cast<int32_t>(component.damage * 10.0 / component.recycleTime));
         weapon.effectiveness = static_cast<int16_t>(static_cast<int32_t>(
             static_cast<double>(component.weaponRange[3]) * weapon.effectiveness * static_cast<double>(1.0f / 24.0f)));
-        weapon.rangeRatings =
-            static_cast<float*>(ObjectTypeManager::objectCache->malloc(NumRangeRatings * 2 * sizeof(float)));
-
-        if (weapon.rangeRatings == nullptr)
-        {
-            Fatal(0, " No RAM for Weapon Range Ratings ");
-        }
-
-        std::memset(weapon.rangeRatings, 0, NumRangeRatings * 2 * sizeof(float));
+        weapon.rangeRatings = new float[NumRangeRatings * 2]();
 
         if (MasterComponentList[inventory[item].masterID].form == COMPONENT_FORM_WEAPON_BALLISTIC)
         {

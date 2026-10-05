@@ -41,29 +41,29 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Sample played when fired (FIT "SoundEffectId"); 0xFFFFFFFF for none.</summary>
-    uint32_t soundEffectId; // +0x30
+    uint32_t soundEffectId = 0; // +0x30
     /// <summary>Object type created where it hits its target (FIT "ProjectileHitEffect").</summary>
-    uint32_t projectileHitEffect; // +0x34
+    uint32_t projectileHitEffect = 0; // +0x34
     /// <summary>Object type created where a shot without a target lands (FIT "ProjectileMissEffect").</summary>
-    uint32_t projectileMissEffect; // +0x38
+    uint32_t projectileMissEffect = 0; // +0x38
     /// <summary>Object type of the smoke trail (FIT "SmokeObjectId", default -1).</summary>
-    uint32_t smokeObjectId; // +0x3c
+    uint32_t smokeObjectId = 0; // +0x3c
     /// <summary>Object type of the light travelling with it (FIT "LightObjectId", default -1).</summary>
-    uint32_t lightObjectId; // +0x40
+    uint32_t lightObjectId = 0; // +0x40
     /// <summary>Speed in world units per second (FIT "Velocity").</summary>
-    float velocity; // +0x44
+    float velocity = 0; // +0x44
     /// <summary>Distance from the target at which the smoke trail stops (FIT "CloseDistance").</summary>
-    float closeDistance; // +0x48
+    float closeDistance = 0; // +0x48
     /// <summary>The four colours used when the owner is friendly (FIT "f0Color".."f3Color").</summary>
-    uint8_t fColor[4]; // +0x4c
+    uint8_t fColor[4]{}; // +0x4c
     /// <summary>The four colours used when the owner is an enemy (FIT "e0Color".."e3Color").</summary>
-    uint8_t eColor[4]; // +0x50
+    uint8_t eColor[4]{}; // +0x50
     /// <summary>Distance from the head to the tail (FIT "ProjectileLength").</summary>
-    float projectileLength; // +0x54
+    float projectileLength = 0; // +0x54
     /// <summary>Distance from the head to the bulge (FIT "BulgeLength").</summary>
-    float bulgeLength; // +0x58
+    float bulgeLength = 0; // +0x58
     /// <summary>Half width of the bulge (FIT "BulgeWidth").</summary>
-    float bulgeWidth; // +0x5c
+    float bulgeWidth = 0; // +0x5c
 };
 
 /// <summary>
@@ -128,23 +128,23 @@ public:
     void connect(GameObject* source, vector_3d targetPos, _WeaponShotInfo* shotInfo, int32_t sourceHotSpot);
 
     /// <summary>Set by the constructor and init; the first update clears it, places the shot and plays the sound.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The object that fired (stored as a BaseObject by <see cref="setOwner"/>).</summary>
-    GameObject* owner; // +0x88
+    GameObject* owner = nullptr; // +0x88
     /// <summary>The owner's hot spot the shot leaves from.</summary>
-    int32_t ownerHotSpot; // +0x8c
+    int32_t ownerHotSpot = 0; // +0x8c
     /// <summary>The object the shot flies to and damages; null for a shot at a position.</summary>
-    GameObject* target; // +0x90
+    GameObject* target = nullptr; // +0x90
     /// <summary>The target's hot spot where the hit effect is placed (not used for class 0x1e targets).</summary>
-    int32_t targetHotSpot; // +0x94
+    int32_t targetHotSpot = 0; // +0x94
     /// <summary>Where the shot flies to, allocated by <see cref="setTargetPosition"/>.</summary>
-    vector_3d* targetPosition; // +0x98
+    vector_3d* targetPosition = nullptr; // +0x98
     /// <summary>The smallest squared ground distance to the target so far (starts at 1e8); growing again means arrival.</summary>
-    float closestDistanceSq; // +0x9c
+    float closestDistanceSq = 0; // +0x9c
     /// <summary>The arm appearance.</summary>
-    Appearance* appearance; // +0xa0
+    Appearance* appearance = nullptr; // +0xa0
     /// <summary>The shot applied to the target on arrival.</summary>
-    _WeaponShotInfo shotInfo; // +0xa4
+    _WeaponShotInfo shotInfo{}; // +0xa4
     /// <summary>The head of the shot: its own flight position.</summary>
     vector_3d headPosition; // +0xb8
     /// <summary>One side point of the bulge (bulgeLength behind the head, bulgeWidth to one side).</summary>
@@ -156,13 +156,13 @@ public:
     /// <summary>The centre of the bulge (bulgeLength behind the head).</summary>
     vector_3d bulgeCenter; // +0xe8
     /// <summary>The smoke trail.</summary>
-    Smoke* smoke; // +0xf4
+    Smoke* smoke = nullptr; // +0xf4
     /// <summary>The total the smoke has been moved by (accumulated each update; not read in prjlase.cpp).</summary>
     vector_3d smokeDisplacement; // +0xf8
     /// <summary>Orientation, returned by <see cref="getFrame"/>; the owner's frame on the first update.</summary>
     frame_of_ref frame; // +0x104
     /// <summary>The light travelling with the shot.</summary>
-    GameObject* light; // +0x128
+    GameObject* light = nullptr; // +0x128
     /// <summary>The draw rotation of the appearance: -150, or 150 when a mech owner faces the other way.</summary>
-    int32_t drawRotation; // +0x12c
+    int32_t drawRotation = 0; // +0x12c
 };

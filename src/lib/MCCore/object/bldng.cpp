@@ -10,7 +10,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/cvmath.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -301,7 +300,7 @@ Building::Building()
     captureable = 0;
     unknownE4 = 0;
     commanderId = static_cast<char>(0xff);
-    name = nullptr;
+    name.clear();
     soundHandle = 0xffffffff;
     team = nullptr;
     fireObject = nullptr;
@@ -817,8 +816,7 @@ auto Building::destroy() -> void
         sensorSystem = nullptr;
     }
 
-    systemHeap->free(name);
-    name = nullptr;
+    name.clear();
 }
 
 auto Building::setDamage(float newDamage) -> void
@@ -923,8 +921,7 @@ auto Building::init(ObjectType* objType) -> int32_t
     curCV = type->battleRating;
     char nameBuffer[256];
     cLoadString(thisInstance, static_cast<uint32_t>(type->buildingName), nameBuffer, 0xfe);
-    name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(name, nameBuffer);
+    name = nameBuffer;
 
     // Original behaviour (OB-016): a building with no team (TeamID -1) reads TeamTable[-1], the global before it in
     // MCX.EXE: homeTeam.

@@ -3,21 +3,10 @@
 #include "abl/ablenv.h"
 #include "abl/ablrtn.h"
 #include "abl/ablxstd.h"
-#include "lib/heap.h"
 #include "object/gameobj.h"
 #include "object/warrior.h"
 
 ABLParam* GeneralOrder::orderParams = nullptr;
-
-auto GeneralOrder::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto GeneralOrder::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
 
 auto GeneralOrder::init() -> void
 {

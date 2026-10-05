@@ -5,8 +5,6 @@
 
 #include "abl/ablenv.h"
 
-class UserHeap;
-
 /// <summary>What kind of code block is being compiled (blockType).</summary>
 enum BlockType
 {
@@ -25,9 +23,6 @@ extern int StringFunctionsEnabled;
 extern int ProfileABL;
 /// <summary>Nonzero between ABLi_init and ABLi_close.</summary>
 extern int ABLenabled;
-/// <summary>The heaps for runtime data (stack, statics, arrays, registries) and for code segments.</summary>
-extern UserHeap* AblStackHeap;
-extern UserHeap* AblCodeHeap;
 /// <summary>Sizes of the static variables of the module being compiled (0 for scalars, bytes for arrays).</summary>
 extern int32_t* StaticVariablesSizes;
 extern int32_t NumStaticVariables;
@@ -53,10 +48,10 @@ extern TokenCodeType followModuleDeclsList[];
 extern TokenCodeType followRoutineDeclsList[];
 
 /// <summary>
-/// Starts ABL: creates its three heaps (symbol tables, stack/data, code), the code buffer, the stack of
-/// <paramref name="stackSize"/> bytes (the port allocates at least MAXSIZE_STACK items), the symbol table with the
-/// standard routines and the registries; with <paramref name="debug"/>, the debugger printing through
-/// <paramref name="debuggerPrintCallback"/>; with <paramref name="profile"/>, the profile log.
+/// Starts ABL: creates the code buffer, the stack of <paramref name="stackSize"/> bytes (the port allocates at least
+/// MAXSIZE_STACK items), the symbol table with the standard routines and the registries; with
+/// <paramref name="debug"/>, the debugger printing through <paramref name="debuggerPrintCallback"/>; with
+/// <paramref name="profile"/>, the profile log. The three heap sizes are ignored (ABL's heaps are gone).
 /// </summary>
 /// <remarks>MCX.EXE @ 0x00623f40</remarks>
 void ABLi_init(uint32_t symbolTableHeapSize, uint32_t stackHeapSize, uint32_t codeHeapSize, uint32_t stackSize,

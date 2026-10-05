@@ -11,7 +11,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -67,7 +66,7 @@ namespace
         }
 
         const uint32_t size = shadowFile.fileSize();
-        shadow = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(size));
+        shadow = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(size));
         shadowFile.read(shadow, static_cast<int32_t>(size));
         MCRenderer::RegisterData(shadow, size, MCDataKind::Shapes);
         shadowFile.close();
@@ -139,9 +138,9 @@ auto TreeBuildingType::createInstance() -> BaseObject*
 
 auto TreeBuildingType::destroy() -> void
 {
-    ObjectTypeManager::objectTypeCache->free(normalShadow);
+    ObjectTypeManager::objectTypeCache.Free(normalShadow);
     normalShadow = nullptr;
-    ObjectTypeManager::objectTypeCache->free(destroyedShadow);
+    ObjectTypeManager::objectTypeCache.Free(destroyedShadow);
     destroyedShadow = nullptr;
 }
 
@@ -279,7 +278,7 @@ TreeBuilding::TreeBuilding()
     collapsed = 0;
     collapsing = 0;
     burnTime = 0.0f;
-    name = nullptr;
+    name.clear();
     fireObject = nullptr;
     sensorSystem = nullptr;
     soundHandle = 0xffffffff;
@@ -852,8 +851,7 @@ auto TreeBuilding::destroy() -> void
         sensorSystem = nullptr;
     }
 
-    systemHeap->free(name);
-    name = nullptr;
+    name.clear();
 }
 
 auto TreeBuilding::setSensorData(Team* newTeam, float range, int setTeam) -> void
@@ -945,8 +943,7 @@ auto TreeBuilding::init(ObjectType* objType) -> int32_t
     mechBay = type->mechBay;
     char nameBuffer[256];
     cLoadString(thisInstance, static_cast<uint32_t>(type->buildingName), nameBuffer, 0xfe);
-    name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(name, nameBuffer);
+    name = nameBuffer;
 
     // Original behaviour (OB-016): with no team (TeamID -1) this reads TeamTable[-1], which in MCX.EXE is homeTeam.
     typeTeam = type->teamId == -1 ? homeTeam : TeamTable[type->teamId];

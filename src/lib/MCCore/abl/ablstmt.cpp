@@ -8,7 +8,6 @@
 #include "abl/ablscan.h"
 #include "abl/ablsymt.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 TokenCodeType statementStartList[] = {TKN_FOR, TKN_IF, TKN_REPEAT, TKN_WHILE, TKN_SWITCH, TKN_IDENTIFIER, TKN_NONE};
 TokenCodeType statementEndList[] = {TKN_SEMICOLON,  TKN_END_IF,       TKN_END_WHILE, TKN_END_FOR,
@@ -175,12 +174,7 @@ auto forStatement() -> void
 
 auto caseLabel(CaseItemPtr& caseItemHead, CaseItemPtr& caseItemTail, int32_t& caseLabelCount) -> TypePtr
 {
-    auto* newCaseItem = static_cast<CaseItemPtr>(AblStackHeap->malloc(sizeof(CaseItem)));
-
-    if (newCaseItem == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc case item ");
-    }
+    CaseItemPtr newCaseItem = AblMemory.Make<CaseItem>();
 
     if (caseItemHead == nullptr)
     {
@@ -378,7 +372,7 @@ auto switchStatement() -> void
         crunchInteger(caseItem->labelValue);
         crunchOffset(caseItem->branchLocation);
         CaseItemPtr nextCaseItem = caseItem->next;
-        AblStackHeap->free(caseItem);
+        AblMemory.Free(caseItem);
         caseItem = nextCaseItem;
     }
 

@@ -3,7 +3,6 @@
 #include "ai/move.h"
 #include "iface/iface.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/mover.h"
@@ -64,16 +63,6 @@ namespace
             }
         }
     }
-}
-
-auto MoverGroup::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto MoverGroup::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
 }
 
 auto MoverGroup::init() -> void

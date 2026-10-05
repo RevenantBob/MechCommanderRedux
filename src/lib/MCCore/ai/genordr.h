@@ -10,11 +10,6 @@ struct ABLParam;
 class GeneralOrder
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006b8d20</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006b8d40</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Clears the order and creates the shared parameter list (3 entries) on first use.</summary>
     /// <remarks>MCX.EXE @ 0x006b8d60</remarks>
     void init();
@@ -32,9 +27,9 @@ public:
     /// <remarks>MCX.EXE @ 0x00802508</remarks>
     static ABLParam* orderParams;
 
-    GameObject* object;  // +0x0
-    int32_t objectClass; // +0x4
+    GameObject* object = nullptr; // +0x0
+    int32_t objectClass = 0;      // +0x4
     /// <summary>The object's pilot, for movers (object classes 2, 3, 4, 8).</summary>
-    MechWarrior* warrior; // +0x8
-    ABLModule* brain;     // +0xc
+    MechWarrior* warrior = nullptr; // +0x8
+    ABLModule* brain = nullptr;     // +0xc
 };

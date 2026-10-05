@@ -11,7 +11,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -256,8 +255,7 @@ auto MiscTerrainObjectType::init(File* objFile, uint32_t fileSize) -> int32_t
     }
 
     uint32_t size = edgesFile.fileSize();
-    forestEdgeShapes = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(size));
-    Assert(forestEdgeShapes != nullptr ? 1u : 0u, 0, " No RAM for Forest Edge Shapes ");
+    forestEdgeShapes = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(size));
     size = edgesFile.fileSize();
     edgesFile.read(forestEdgeShapes, static_cast<int32_t>(size));
     MCRenderer::RegisterData(forestEdgeShapes, size, MCDataKind::Shapes);

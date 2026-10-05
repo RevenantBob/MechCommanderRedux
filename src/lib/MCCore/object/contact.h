@@ -52,42 +52,34 @@ struct _PotentialContact
     void updateStatus(Team* team);
 
     /// <summary>Index in the manager's pool (and in the sensors' contact lists).</summary>
-    uint16_t id; // +0x00
+    uint16_t id = 0; // +0x00
     /// <summary>The object.</summary>
-    BigGameObject* object; // +0x02
+    BigGameObject* object = nullptr; // +0x02
     /// <summary>The manager list it is on (<see cref="PotentialContactType"/>).</summary>
-    int8_t contactType; // +0x06
+    int8_t contactType = 0; // +0x06
     /// <summary>How visible it is: 2 can't be sensed at all, 3 can't be seen by line of sight.</summary>
-    int8_t visibility; // +0x07
+    int8_t visibility = 0; // +0x07
     /// <summary>Per team: <see cref="ContactStatus"/>.</summary>
-    uint8_t contactStatus[3]; // +0x08
+    uint8_t contactStatus[3]{}; // +0x08
     /// <summary>Per team: how many of its sensors hold the contact.</summary>
-    int8_t numSensors[3]; // +0x0b
+    int8_t numSensors[3]{}; // +0x0b
     /// <summary>Per team: it went from visual to sensor contact (BigGameObject::getContactType's tagged).</summary>
-    uint8_t lostVisual[3]; // +0x0e
+    uint8_t lostVisual[3]{}; // +0x0e
     /// <summary>Per sensor: the contact's slot in that sensor's list, 0xff for none.</summary>
-    uint8_t sensorSlot[MAX_SENSORS]; // +0x11
+    uint8_t sensorSlot[MAX_SENSORS]{}; // +0x11
     /// <summary>Per team: the contact's slot in that team's LOS or sensor list, -1 for none.</summary>
-    int16_t teamSlot[3]; // +0x52
+    int16_t teamSlot[3]{}; // +0x52
     /// <summary>Previous on the manager list.</summary>
-    _PotentialContact* prev; // +0x58
+    _PotentialContact* prev = nullptr; // +0x58
     /// <summary>Next on the manager list (or the free list).</summary>
-    _PotentialContact* next; // +0x5c
+    _PotentialContact* next = nullptr; // +0x5c
 };
 
 /// <summary>The pool of potential contacts and the three lists they are on.</summary>
-/// <remarks>Original source: <c>object\contact.cpp</c>; 0x1c bytes. Allocated from
-/// <c>ObjectTypeManager::objectCache</c>.</remarks>
+/// <remarks>Original source: <c>object\contact.cpp</c>; 0x1c bytes.</remarks>
 class PotentialContactManager
 {
 public:
-    /// <summary>Allocates from <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x00658780</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x006587a0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// Reads "MaxPotentialContacts" from the "PotentialContactManager" block (fatal below 2) and chains that many
     /// contacts into the free list.
@@ -124,7 +116,7 @@ public:
     /// <summary>The first contact of each <see cref="PotentialContactType"/> list.</summary>
     _PotentialContact* contactList[3] = {}; // +0x08
     /// <summary>The pool.</summary>
-    _PotentialContact* contacts = nullptr; // +0x14
+    std::unique_ptr<_PotentialContact[]> contacts; // +0x14
     /// <summary>The first free contact.</summary>
     _PotentialContact* freeList = nullptr; // +0x18
 };
@@ -133,18 +125,10 @@ public:
 /// One object's sensors: a range (by the owner's speed and its pilot's sensor skill), scaled by the enemy's
 /// jammers and ECM, and the contacts it currently holds. Pooled by the <see cref="SensorSystemManager"/>.
 /// </summary>
-/// <remarks>Original source: <c>object\contact.cpp</c>; 0x1ec bytes. Allocated from
-/// <c>ObjectTypeManager::objectCache</c>.</remarks>
+/// <remarks>Original source: <c>object\contact.cpp</c>; 0x1ec bytes.</remarks>
 class SensorSystem
 {
 public:
-    /// <summary>Allocates from <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x00658c60</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x00658c80</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// Takes the next sensor id, no owner, team or range; staggers the first scan by id (0.1 s each, from 0.25 s);
     /// scans every ContactUpdateFrequency seconds; makes the shared sort list with the first sensor.
@@ -269,18 +253,10 @@ public:
 };
 
 /// <summary>The pool of <see cref="MAX_SENSORS"/> sensor systems.</summary>
-/// <remarks>Original source: <c>object\contact.cpp</c>; 0xc bytes. Allocated from
-/// <c>ObjectTypeManager::objectCache</c>.</remarks>
+/// <remarks>Original source: <c>object\contact.cpp</c>; 0xc bytes.</remarks>
 class SensorSystemManager
 {
 public:
-    /// <summary>Allocates from <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x006597b0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x006597d0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Makes the sensors and chains them into the free list; fatal without memory.</summary>
     /// <remarks>MCX.EXE @ 0x006597f0</remarks>
     int32_t init(FitIniFile* file);
@@ -300,7 +276,7 @@ public:
     /// <summary>Sensors on the free list.</summary>
     int32_t numFree = 0; // +0x00
     /// <summary>Every sensor, by id.</summary>
-    SensorSystem** sensors = nullptr; // +0x04
+    std::unique_ptr<SensorSystem*[]> sensors; // +0x04
     /// <summary>The first free sensor.</summary>
     SensorSystem* freeList = nullptr; // +0x08
 };

@@ -14,18 +14,10 @@ constexpr int32_t MAX_MOVERGROUP_COUNT = 12;
 /// A lance: up to twelve movers under one id, one of them the point. Orders given to the group go to every member's
 /// pilot.
 /// </summary>
-/// <remarks>Original source: <c>object\group.cpp</c>, <c>object\group.h</c>; 0x44 bytes. Allocated from
-/// systemHeap.</remarks>
+/// <remarks>Original source: <c>object\group.cpp</c>, <c>object\group.h</c>; 0x44 bytes.</remarks>
 class MoverGroup
 {
 public:
-    /// <summary>Allocates from systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x006676d0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x006676f0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>No id, no members, no point.</summary>
     /// <remarks>MCX.EXE @ 0x006583c0 (inline in <c>object\group.h</c>)</remarks>
     virtual void init();

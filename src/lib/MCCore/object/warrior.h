@@ -83,29 +83,29 @@ enum PilotAlarmType
 struct _AttackerRec
 {
     /// <summary>The attacker's part id.</summary>
-    uint32_t attackerId; // +0x00
+    uint32_t attackerId = 0; // +0x00
     /// <summary>Scenario time of the last attack.</summary>
-    float lastTime; // +0x04
+    float lastTime = 0; // +0x04
 };
 
 /// <summary>An alarm raised on a pilot: its triggers since it was last handled.</summary>
 /// <remarks>0x2c bytes. The original name isn't known (MC2: PilotAlarm).</remarks>
 struct _PilotAlarm
 {
-    uint8_t unknown00; // +0x00
+    uint8_t unknown00 = 0; // +0x00
     /// <summary>Triggers remembered (at most <see cref="MAX_ALARM_TRIGGERS"/>); 0 when not raised.</summary>
-    uint8_t numTriggers; // +0x01
+    uint8_t numTriggers = 0; // +0x01
     /// <summary>What raised it (a part id, a cause code, a path error).</summary>
-    uint32_t trigger[MAX_ALARM_TRIGGERS]; // +0x04
+    uint32_t trigger[MAX_ALARM_TRIGGERS]{}; // +0x04
 };
 
 /// <summary>A queued player order as the queue keeps it: its id, first way point and packed data.</summary>
 /// <remarks>0x18 bytes. The original name is <c>_QueuedTacOrder</c> (from <see cref="TacOrderQueue"/>'s type).</remarks>
 struct _QueuedTacOrder
 {
-    int32_t id;             // +0x00
-    vector_3d point;        // +0x04
-    uint32_t packedData[2]; // +0x10
+    int32_t id = 0;           // +0x00
+    vector_3d point;          // +0x04
+    uint32_t packedData[2]{}; // +0x10
 };
 
 /// <summary>A brain memory cell: an integer or a real ("MemType" 0 or 1).</summary>
@@ -135,66 +135,66 @@ struct _MoveOrders
     void init();
 
     /// <summary>Scenario time the orders were given.</summary>
-    float time; // +0x00
+    float time = 0; // +0x00
     /// <summary>Who gave them.</summary>
-    int8_t origin; // +0x04
+    int8_t origin = 0; // +0x04
     /// <summary>How fast to move (setMoveSpeedType).</summary>
-    int32_t speedType; // +0x08
+    int32_t speedType = 0; // +0x08
     /// <summary>A set speed (setMoveSpeedVelocity).</summary>
-    float speedVelocity; // +0x0c
+    float speedVelocity = 0; // +0x0c
     /// <summary>Speed state for the set speed.</summary>
-    int8_t speedState; // +0x10
+    int8_t speedState = 0; // +0x10
     /// <summary>Throttle for the set speed.</summary>
-    int8_t speedThrottle; // +0x11
+    int8_t speedThrottle = 0; // +0x11
     /// <summary>The goal: -1 none, 0 a location, else the goal object's part id.</summary>
-    int32_t goalType; // +0x14
+    int32_t goalType = 0; // +0x14
     /// <summary>The goal object.</summary>
-    GameObject* goalObject; // +0x18
+    GameObject* goalObject = nullptr; // +0x18
     /// <summary>The goal object's position when the path was requested.</summary>
     vector_3d goalObjectPosition; // +0x1c
     /// <summary>The goal location (-999999 for none).</summary>
     vector_3d goalLocation; // +0x28
     /// <summary>When the path was last planned plus MovementUpdateFrequency.</summary>
-    float nextUpdate; // +0x34
+    float nextUpdate = 0; // +0x34
     /// <summary>Set by ABL setmovegoal (hasmovegoal / hasmovepath test it); only init clears it.</summary>
-    int32_t scriptGoal; // +0x38
+    int32_t scriptGoal = 0; // +0x38
     /// <summary>The way points (setMoveWayPath, addMoveWayPoint).</summary>
     vector_3d wayPath[MAX_WAYPTS]; // +0x3c
     /// <summary>Way points held.</summary>
-    int8_t numWayPts; // +0xf0
+    int8_t numWayPts = 0; // +0xf0
     /// <summary>The way point being walked to.</summary>
-    int8_t curWayPt; // +0xf1
+    int8_t curWayPt = 0; // +0xf1
     /// <summary>1 to patrol (walk the way path back and forth).</summary>
-    int8_t curWayDir; // +0xf2
+    int8_t curWayDir = 0; // +0xf2
     /// <summary>0 none, 1 a single (local) path, 2 a global path.</summary>
-    int8_t pathType; // +0xf3
+    int8_t pathType = 0; // +0xf3
     /// <summary>The goal as first asked for (-999999 by init).</summary>
     vector_3d originalGlobalGoal[2]; // +0xf4
     /// <summary>The goal the path actually reaches (-666666 by init).</summary>
     vector_3d globalGoalLocation; // +0x10c
     /// <summary>The global path, area by area.</summary>
-    GlobalPathStep globalPath[MAX_GLOBAL_PATH]; // +0x118
+    GlobalPathStep globalPath[MAX_GLOBAL_PATH]{}; // +0x118
     /// <summary>Steps of the global path.</summary>
-    int8_t numGlobalSteps; // +0x1018
+    int8_t numGlobalSteps = 0; // +0x1018
     /// <summary>The global step being walked.</summary>
-    int8_t curGlobalStep; // +0x1019
+    int8_t curGlobalStep = 0; // +0x1019
     /// <summary>The move paths: the one walked, and the next leg (made by MechWarrior::init).</summary>
-    MovePath* path[2]; // +0x101c
+    MovePath* path[2]{}; // +0x101c
     /// <summary>When the move was ordered; the move times out MoveTimeOut after it (-1 for none).</summary>
-    float timeOfLastStep; // +0x1024
+    float timeOfLastStep = 0; // +0x1024
     /// <summary>1 by init; 3-5 are the combat moves calcMovePath resets.</summary>
-    int32_t moveState; // +0x1028
+    int32_t moveState = 0; // +0x1028
     /// <summary>1 by init; 5 to hold position while attacking.</summary>
-    int32_t moveStateGoal; // +0x102c
+    int32_t moveStateGoal = 0; // +0x102c
     /// <summary>Nonzero keeps the movement tree from requesting new attack paths.</summary>
-    int32_t unknown1030; // +0x1030
+    int32_t unknown1030 = 0; // +0x1030
     /// <summary>When yielding to a blocking mover, the time to give up and look again (-1 for none).</summary>
-    float yieldTime;    // +0x1034
-    int32_t yieldState; // +0x1038
+    float yieldTime = 0;    // +0x1034
+    int32_t yieldState = 0; // +0x1038
     /// <summary>When waiting for the group's point to move (-1 for none).</summary>
-    float waitForPointTime; // +0x103c
+    float waitForPointTime = 0; // +0x103c
     /// <summary>Run to the goal.</summary>
-    int32_t run; // +0x1040
+    int32_t run = 0; // +0x1040
 };
 
 /// <summary>A pilot's attack orders.</summary>
@@ -206,21 +206,21 @@ struct _AttackOrders
     void init();
 
     /// <summary>Scenario time the orders were given.</summary>
-    float time; // +0x00
+    float time = 0; // +0x00
     /// <summary>Who gave them.</summary>
-    int8_t origin; // +0x04
+    int8_t origin = 0; // +0x04
     /// <summary>The attack type.</summary>
-    int32_t type; // +0x08
+    int32_t type = 0; // +0x08
     /// <summary>The target.</summary>
-    GameObject* target; // +0x0c
+    GameObject* target = nullptr; // +0x0c
     /// <summary>The point attacked.</summary>
     vector_3d targetPoint; // +0x10
     /// <summary>Body location aimed at; -1 for any.</summary>
-    int32_t aimLocation; // +0x1c
+    int32_t aimLocation = 0; // +0x1c
     /// <summary>Whether to follow the target.</summary>
-    int32_t pursue; // +0x20
+    int32_t pursue = 0; // +0x20
     /// <summary>Scenario time the target was set (setAttackTarget), -1 for none.</summary>
-    float targetTime; // +0x24
+    float targetTime = 0; // +0x24
 };
 
 /// <summary>
@@ -228,19 +228,12 @@ struct _AttackOrders
 /// the current one and the queue), move and attack orders, and the radio. Drives its vehicle through the decision
 /// trees.
 /// </summary>
-/// <remarks>Original source: <c>object\warrior.cpp</c>, <c>object\warrior.h</c>; 0x1e5c bytes. Allocated from
-/// systemHeap. Field names are the port's where the original's aren't known (MechCommander 2's where the layout
+/// <remarks>Original source: <c>object\warrior.cpp</c>, <c>object\warrior.h</c>; 0x1e5c bytes.
+/// Field names are the port's where the original's aren't known (MechCommander 2's where the layout
 /// matches).</remarks>
 class MechWarrior
 {
 public:
-    /// <summary>Allocates from systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x006a17d0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x006a17f0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Drops the brain and its callbacks.</summary>
     /// <remarks>MCX.EXE @ 0x006a1810</remarks>
     void lobotomy();
@@ -571,17 +564,17 @@ public:
     /// <remarks>MCX.EXE @ 0x006ab200</remarks>
     int32_t loadBrainParameters(FitIniFile* brainFile, int32_t warriorId);
 
-    /// <summary>"Name" (systemHeap).</summary>
+    /// <summary>"Name".</summary>
     char* name = nullptr; // +0x00
-    /// <summary>"Callsign" (systemHeap).</summary>
+    /// <summary>"Callsign".</summary>
     char* callsign = nullptr; // +0x04
-    /// <summary>"Picture", default "pilotx.gif" (systemHeap).</summary>
+    /// <summary>"Picture", default "pilotx.gif".</summary>
     char* picture = nullptr; // +0x08
-    /// <summary>"pilotVideo" (systemHeap).</summary>
+    /// <summary>"pilotVideo".</summary>
     char* videoStr = nullptr; // +0x0c
-    /// <summary>"pilotAudio" (systemHeap).</summary>
+    /// <summary>"pilotAudio".</summary>
     char* audioStr = nullptr; // +0x10
-    /// <summary>The brain's name (systemHeap).</summary>
+    /// <summary>The brain's name.</summary>
     char* brainStr = nullptr; // +0x14
     /// <summary>The pilot's index in Scenario::warriors (selectwarrior / getwarriorstatus take it).</summary>
     int32_t index = 0; // +0x18
@@ -778,7 +771,7 @@ public:
     /// <summary>How many.</summary>
     int32_t numWarriors = 0; // +0x00
     /// <summary>The warriors.</summary>
-    MechWarrior** warriors = nullptr; // +0x04
+    std::unique_ptr<MechWarrior*[]> warriors; // +0x04
 };
 
 /// <summary>A pilot's status window.</summary>

@@ -456,7 +456,7 @@ auto Test3() -> void
                 item.ammoIndex = 0;
             }
 
-            AmmoTally* ammo = mover->ammoTypeTotal;
+            AmmoTally* ammo = mover->ammoTypeTotal.get();
             ammo->masterId = MasterComponentList[0x70].ammoMasterId;
             ammo->curAmount = 0x14d;
             ammo->startAmount = 0x14d;

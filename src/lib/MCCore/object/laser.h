@@ -46,41 +46,41 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Beam width in pixels (FIT "PixelWidth").</summary>
-    uint8_t pixelWidth; // +0x30
+    uint8_t pixelWidth = 0; // +0x30
     /// <summary>Stages per beam (FIT "NumStages"); the stage arrays hold 2 * numStages entries (friendly, then enemy).</summary>
-    uint8_t numStages; // +0x31
+    uint8_t numStages = 0; // +0x31
     /// <summary>Per stage: its duration in seconds (FIT "StageDuration").</summary>
-    float* stageDuration; // +0x34
+    float* stageDuration = nullptr; // +0x34
     /// <summary>Per stage: the outer (cool) palette colour (FIT "StageCool").</summary>
-    uint8_t* stageCool; // +0x38
+    uint8_t* stageCool = nullptr; // +0x38
     /// <summary>Per stage: the core (hot) palette colour (FIT "StageHot").</summary>
-    uint8_t* stageHot; // +0x3c
+    uint8_t* stageHot = nullptr; // +0x3c
     /// <summary>FIT "DmgLevel".</summary>
-    uint32_t dmgLevel; // +0x40
+    uint32_t dmgLevel = 0; // +0x40
     /// <summary>Sample played when the laser fires (FIT "SoundEffectId").</summary>
-    uint32_t soundEffectId; // +0x44
+    uint32_t soundEffectId = 0; // +0x44
     /// <summary>Object type created where the beam hits its target (FIT "LaserHitEffect").</summary>
-    uint32_t laserHitEffect; // +0x48
+    uint32_t laserHitEffect = 0; // +0x48
     /// <summary>Object type created where a beam without a target lands (FIT "LaserMissEffect").</summary>
-    uint32_t laserMissEffect; // +0x4c
+    uint32_t laserMissEffect = 0; // +0x4c
     /// <summary>The PPC effect shape file's data (FIT "LaserEffectShape"), or null for a plain beam.</summary>
-    uint8_t* laserEffectShape; // +0x50
+    uint8_t* laserEffectShape = nullptr; // +0x50
     /// <summary>Frames of the PPC effect (FIT "numPPCFrames"); the beam ends after the last.</summary>
-    uint32_t numPPCFrames; // +0x54
+    uint32_t numPPCFrames = 0; // +0x54
     /// <summary>Left edge of the effect in its shape (FIT "lPPC").</summary>
-    uint32_t lPPC; // +0x58
+    uint32_t lPPC = 0; // +0x58
     /// <summary>Top edge (FIT "tPPC").</summary>
-    uint32_t tPPC; // +0x5c
+    uint32_t tPPC = 0; // +0x5c
     /// <summary>Right edge (FIT "rPPC").</summary>
-    uint32_t rPPC; // +0x60
+    uint32_t rPPC = 0; // +0x60
     /// <summary>Bottom edge (FIT "bPPC").</summary>
-    uint32_t bPPC; // +0x64
+    uint32_t bPPC = 0; // +0x64
     /// <summary>The frame at which the PPC hits and deals its damage (FIT "hitPPC").</summary>
-    uint32_t hitPPC; // +0x68
+    uint32_t hitPPC = 0; // +0x68
     /// <summary>Seconds per PPC frame (FIT "lengthPPC").</summary>
-    float lengthPPC; // +0x6c
+    float lengthPPC = 0; // +0x6c
     /// <summary>Animation period of the PPC effect (FIT "animPPC").</summary>
-    float animPPC; // +0x70
+    float animPPC = 0; // +0x70
 };
 
 /// <summary>
@@ -137,44 +137,44 @@ public:
     void connect(GameObject* source, vector_3d targetPos, _WeaponShotInfo* shotInfo, int32_t sourceHotSpot);
 
     /// <summary>The current colour stage; 0xff before the first update.</summary>
-    uint8_t currentStage; // +0x84
+    uint8_t currentStage = 0; // +0x84
     /// <summary>Seconds left in the current stage.</summary>
-    float stageTimeLeft; // +0x88
+    float stageTimeLeft = 0; // +0x88
     /// <summary>The current stage's outer (cool) colour.</summary>
-    uint32_t coolColor; // +0x8c
+    uint32_t coolColor = 0; // +0x8c
     /// <summary>The current stage's core (hot) colour; the core is drawn only when it differs from the outer.</summary>
-    uint32_t hotColor; // +0x90
+    uint32_t hotColor = 0; // +0x90
     /// <summary>The object that fired.</summary>
     BaseObjectWatcher source; // +0x94
     /// <summary>The source's hot spot the beam starts at.</summary>
-    int32_t sourceHotSpot; // +0x98
+    int32_t sourceHotSpot = 0; // +0x98
     /// <summary>The object hit; the shot is applied to it.</summary>
     BaseObjectWatcher target; // +0x9c
     /// <summary>
     /// The target's hot spot that was hit, set by the launchers. The original never read it (OB-017); the beam ends there.
     /// </summary>
-    int32_t targetHotSpot; // +0xa0
+    int32_t targetHotSpot = 0; // +0xa0
     /// <summary>Where the beam ends, allocated by <see cref="setTargetPosition"/>.</summary>
-    vector_3d* targetPosition; // +0xa4
+    vector_3d* targetPosition = nullptr; // +0xa4
     /// <summary>The shot applied to the target.</summary>
-    _WeaponShotInfo shotInfo; // +0xa8
+    _WeaponShotInfo shotInfo{}; // +0xa8
     /// <summary>Set once the hit or miss effect has been created.</summary>
-    int32_t hitEffectCreated; // +0xbc
+    int32_t hitEffectCreated = 0; // +0xbc
     /// <summary>The current frame of the PPC effect.</summary>
-    int32_t ppcFrame; // +0xc0
+    int32_t ppcFrame = 0; // +0xc0
     /// <summary>Time left in the PPC effect's animation period (restarts at the type's animPPC).</summary>
-    float ppcAnimTimeLeft; // +0xc4
+    float ppcAnimTimeLeft = 0; // +0xc4
     /// <summary>Time left in the current PPC frame (restarts at the type's lengthPPC).</summary>
-    float ppcFrameTimeLeft; // +0xc8
+    float ppcFrameTimeLeft = 0; // +0xc8
     /// <summary>Set by init; the first update of a PPC clears it and plays the sound.</summary>
-    int32_t justCreated; // +0xcc
+    int32_t justCreated = 0; // +0xcc
     /// <summary>Set once the shot has been applied to the target.</summary>
-    int32_t damageApplied; // +0xd0
+    int32_t damageApplied = 0; // +0xd0
 };
 
 /// <summary>The 256x256 8-bit buffer the PPC effect shape is drawn into (allocated on first use).</summary>
-extern uint8_t* laserEffectBuffer;
+extern std::unique_ptr<uint8_t[]> laserEffectBuffer;
 /// <summary>The pane over laserEffectBuffer.</summary>
-extern _pane* laserPane;
+extern std::unique_ptr<_pane> laserPane;
 /// <summary>The window over laserEffectBuffer.</summary>
-extern _window* laserWindow;
+extern std::unique_ptr<_window> laserWindow;

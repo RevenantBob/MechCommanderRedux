@@ -1,7 +1,6 @@
 #pragma once
 
 class PacketFile;
-class UserHeap;
 struct ObjectQueueNode;
 
 /// <summary>
@@ -20,7 +19,7 @@ public:
     /// <remarks>MCX.EXE @ 0x0068d120</remarks>
     void destroy();
     /// <summary>
-    /// Opens <c>terrainPath\&lt;fileName&gt;.obj</c>, sizes the heap from its packet count, sets up every block's
+    /// Opens <c>terrainPath\&lt;fileName&gt;.obj</c>, sizes heapSize from its packet count, sets up every block's
     /// object lists (update(1)), then places the misc terrain objects of <c>&lt;fileName&gt;.bdg</c>.
     /// </summary>
     /// <returns>0, a file error, or 0xbaaa00nn when out of memory.</returns>
@@ -47,16 +46,14 @@ protected:
     int32_t setupObjectQueue(uint32_t listIndex, uint32_t packetSize);
 
 public:
-    /// <summary>Size of <see cref="objectHeap"/>: 0x5600 plus 0x18 per block.</summary>
+    /// <summary>The original's heap size, 0x5600 plus 0x18 per block (unused).</summary>
     int32_t heapSize = 0; // +0x00
-    /// <summary>The heap the lists table and the packet buffer come from.</summary>
-    UserHeap* objectHeap = nullptr; // +0x04
     /// <summary>Two lists per block: TBlk (trees and light walls) then RBlk (everything else).</summary>
-    ObjectQueueNode** objectLists = nullptr; // +0x08
+    std::unique_ptr<ObjectQueueNode*[]> objectLists; // +0x08
     /// <summary>Zeroed by the constructor; not used in objblck.cpp.</summary>
     int32_t unknown0C = 0; // +0x0c
     /// <summary>The current block packet (22000 bytes).</summary>
-    uint8_t* objectData = nullptr; // +0x10
+    std::unique_ptr<uint8_t[]> objectData; // +0x10
     /// <summary>The map's <c>.obj</c> packet file.</summary>
     PacketFile* objectFile = nullptr; // +0x14
 };

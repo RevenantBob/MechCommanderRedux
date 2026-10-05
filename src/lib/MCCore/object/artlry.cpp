@@ -13,7 +13,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -312,27 +311,6 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, vector_3d location, 
     }
 }
 
-void* ArtilleryChunk::operator new(size_t size) noexcept
-{
-    if (systemHeap != nullptr)
-    {
-        return systemHeap->malloc(static_cast<uint32_t>(size));
-    }
-
-    return std::malloc(size);
-}
-
-void ArtilleryChunk::operator delete(void* ptr)
-{
-    if (systemHeap != nullptr)
-    {
-        systemHeap->free(ptr);
-        return;
-    }
-
-    std::free(ptr);
-}
-
 auto ArtilleryChunk::build(int32_t newCommanderId, int32_t newStrikeType, vector_3d location, int32_t newSeconds)
     -> void
 {
@@ -410,12 +388,9 @@ auto ArtilleryType::destroy() -> void
 {
     spriteManager->freeShapeRAM(shapeData);
     shapeData = nullptr;
-    systemHeap->free(explosionOffsetX);
-    explosionOffsetX = nullptr;
-    systemHeap->free(explosionOffsetY);
-    explosionOffsetY = nullptr;
-    systemHeap->free(explosionDelay);
-    explosionDelay = nullptr;
+    explosionOffsetX.reset();
+    explosionOffsetY.reset();
+    explosionDelay.reset();
 }
 
 auto ArtilleryType::init(File* objFile, uint32_t fileSize) -> int32_t
@@ -534,10 +509,9 @@ auto ArtilleryType::init(File* objFile, uint32_t fileSize) -> int32_t
         }
 
         const int32_t count = numExplosions;
-        const uint32_t tableSize = static_cast<uint32_t>(count) * sizeof(float);
-        explosionOffsetX = static_cast<float*>(systemHeap->malloc(tableSize));
-        explosionOffsetY = static_cast<float*>(systemHeap->malloc(tableSize));
-        explosionDelay = static_cast<float*>(systemHeap->malloc(tableSize));
+        explosionOffsetX = std::make_unique<float[]>(static_cast<size_t>(count));
+        explosionOffsetY = std::make_unique<float[]>(static_cast<size_t>(count));
+        explosionDelay = std::make_unique<float[]>(static_cast<size_t>(count));
         char keyName[52];
 
         for (int32_t i = 0; i < count; i++)
@@ -729,12 +703,11 @@ auto Artillery::init(ObjectType* objType) -> int32_t
     if (type->nominalDamage != 0.0f)
     {
         const uint32_t count = static_cast<uint32_t>(type->numExplosions);
-        explosionsDone = static_cast<int32_t*>(systemHeap->malloc(count * sizeof(int32_t)));
-        std::memset(explosionsDone, 0, count * sizeof(int32_t));
+        explosionsDone = std::make_unique<int32_t[]>(count);
         return 0;
     }
 
-    explosionsDone = nullptr;
+    explosionsDone.reset();
     return 0;
 }
 
@@ -747,7 +720,7 @@ auto Artillery::destroy() -> void
         sensorSystem = nullptr;
     }
 
-    systemHeap->free(explosionsDone);
+    explosionsDone.reset();
 }
 
 auto Artillery::update() -> int32_t

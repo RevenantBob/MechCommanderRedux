@@ -32,9 +32,9 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Nonzero when the light's effect plays once and the light is then done (FIT "OneShotFlag").</summary>
-    int32_t oneShotFlag; // +0x30 (read as a FIT boolean)
+    int32_t oneShotFlag = 0; // +0x30 (read as a FIT boolean)
     /// <summary>Added to the light's altitude every update (FIT "AltitudeOffset").</summary>
-    float altitudeOffset; // +0x34
+    float altitudeOffset = 0; // +0x34
 };
 
 /// <summary>A light effect (a VFX appearance) at a point of the map, rising by its type's altitude offset.</summary>
@@ -72,9 +72,9 @@ public:
     virtual Appearance* getAppearancePtr() { return appearance; }
 
     /// <summary>The VFX appearance that draws the light.</summary>
-    Appearance* appearance; // +0x84
+    Appearance* appearance = nullptr; // +0x84
     /// <summary>Set by init; the first update clears it (and the base field at +0x24).</summary>
-    int32_t justCreated; // +0x88
+    int32_t justCreated = 0; // +0x88
     /// <summary>Set once a one-shot light's effect has finished: it no longer updates or draws.</summary>
-    int32_t finished; // +0x8c
+    int32_t finished = 0; // +0x8c
 };

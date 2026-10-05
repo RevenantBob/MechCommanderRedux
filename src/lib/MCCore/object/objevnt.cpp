@@ -1,17 +1,6 @@
 #include "stdafx.h"
 #include "object/objevnt.h"
-#include "lib/heap.h"
 #include "object/gameobj.h"
-
-auto ObjectEvent::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto ObjectEvent::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
 
 auto ObjectEvent::init(int32_t newId, aEvent* newEvent) -> void
 {

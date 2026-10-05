@@ -47,25 +47,25 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>String resource id of the car's name (FIT "Name").</summary>
-    int32_t nameId; // +0x30
+    int32_t nameId = 0; // +0x30
     /// <summary>FIT "Explosion Chance".</summary>
-    uint8_t explosionChance; // +0x34
+    uint8_t explosionChance = 0; // +0x34
     /// <summary>FIT "Explosion Damage"; also the size of the explosion made by handleDestruction.</summary>
-    uint8_t explosionDamage; // +0x35
+    uint8_t explosionDamage = 0; // +0x35
     /// <summary>FIT "Velocity Multiplier".</summary>
-    uint8_t velocityMultiplier; // +0x36
+    uint8_t velocityMultiplier = 0; // +0x36
     /// <summary>Top speed (FIT "TopSpeed"); <see cref="TrainCar::GetMaxSpeed"/>.</summary>
-    float topSpeed; // +0x38
+    float topSpeed = 0; // +0x38
     /// <summary>FIT "Acceleration"; <see cref="TrainCar::GetMaxAccel"/>.</summary>
-    float acceleration; // +0x3c
+    float acceleration = 0; // +0x3c
     /// <summary>FIT "Deceleration"; <see cref="TrainCar::GetMaxDecel"/>.</summary>
-    float deceleration; // +0x40
+    float deceleration = 0; // +0x40
     /// <summary>Hit points of a car (FIT "Damage"); a car that has taken half of them may derail.</summary>
-    int32_t damage; // +0x44
+    int32_t damage = 0; // +0x44
     /// <summary>Set to -1 by the constructor and never read in train.cpp.</summary>
-    int32_t unknown48; // +0x48
+    int32_t unknown48 = 0; // +0x48
     /// <summary>FIT "TonnageClass", given to the car's tonnage (-1 until read).</summary>
-    float tonnageClass; // +0x4c
+    float tonnageClass = 0; // +0x4c
 };
 
 /// <summary>
@@ -142,67 +142,57 @@ public:
     /// <remarks>MCX.EXE @ 0x0069c330</remarks>
     float GetMaxSpeed();
 
-    /// <summary>The car's name, loaded from the type's string resource (heap copy).</summary>
-    char* name; // +0x84
+    /// <summary>The car's name, loaded from the type's string resource.</summary>
+    std::string name; // +0x84
     /// <summary>The car's GV appearance.</summary>
-    Appearance* appearance; // +0x88
+    Appearance* appearance = nullptr; // +0x88
     /// <summary>The car's orientation.</summary>
     frame_of_ref frame; // +0x8c (0x24 bytes)
     /// <summary>The car's speed, copied from its train every update.</summary>
-    float speed; // +0xb0
+    float speed = 0; // +0xb0
     /// <summary>1 once the car is off the rails; the train then stops moving it.</summary>
-    int32_t derailed; // +0xb4
+    int32_t derailed = 0; // +0xb4
     /// <summary>Set when the car is wrecked for good (on a mine-marked tile in update, or derailed onto a tile of terrain type 0x2b): no update or draw.</summary>
-    int32_t wrecked; // +0xb8
+    int32_t wrecked = 0; // +0xb8
     /// <summary>Whether the car's cell is inside the map.</summary>
-    int32_t onMap; // +0xbc
+    int32_t onMap = 0; // +0xbc
     /// <summary>Set by init; the first update clears it.</summary>
-    int32_t justCreated; // +0xc0
+    int32_t justCreated = 0; // +0xc0
     /// <summary>Damage taken so far; past half the type's hit points the car may derail.</summary>
-    float damageTaken; // +0xc4
+    float damageTaken = 0; // +0xc4
     /// <summary>The entry angle of the last hit; the car derails by it.</summary>
-    float lastHitAngle; // +0xc8
+    float lastHitAngle = 0; // +0xc8
     /// <summary>The moving sound's handle, or -1.</summary>
-    uint32_t soundHandle; // +0xcc
+    uint32_t soundHandle = 0; // +0xcc
     /// <summary>The train the car belongs to.</summary>
-    Train* train; // +0xd0
+    Train* train = nullptr; // +0xd0
 };
 
 /// <summary>A node of a train's list of cars.</summary>
-/// <remarks>Original source: <c>object\train.cpp</c>, 0xc bytes. Allocated from the system heap.</remarks>
+/// <remarks>Original source: <c>object\train.cpp</c>, 0xc bytes.</remarks>
 class TrainListEntry
 {
 public:
-    /// <remarks>MCX.EXE @ 0x0069c340</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x0069c360</remarks>
-    static void operator delete(void* ptr);
-
     /// <remarks>MCX.EXE @ 0x0069c380</remarks>
     TrainListEntry();
     /// <summary>Clears the car and the links.</summary>
     /// <remarks>MCX.EXE @ 0x0069c390</remarks>
     void init();
 
-    TrainCar* car; // +0x0
+    TrainCar* car = nullptr; // +0x0
     /// <summary>The car behind.</summary>
-    TrainListEntry* next; // +0x4
+    TrainListEntry* next = nullptr; // +0x4
     /// <summary>The car ahead.</summary>
-    TrainListEntry* prev; // +0x8
+    TrainListEntry* prev = nullptr; // +0x8
 };
 
 /// <summary>
 /// A train: a list of cars moved together along the track, with a speed limited by its slowest car.
 /// </summary>
-/// <remarks>Original source: <c>object\train.cpp</c>, 0x2c bytes. Allocated from the system heap.</remarks>
+/// <remarks>Original source: <c>object\train.cpp</c>, 0x2c bytes.</remarks>
 class Train
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006991b0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006991d0</remarks>
-    static void operator delete(void* ptr);
-
     /// <remarks>MCX.EXE @ 0x006991f0</remarks>
     Train();
     /// <summary>Frees the car list.</summary>
@@ -239,38 +229,33 @@ public:
     float GetTotalTonnage();
 
     /// <summary>The lead car's list entry.</summary>
-    TrainListEntry* cars; // +0x0
-    int32_t numCars;      // +0x4
+    TrainListEntry* cars = nullptr; // +0x0
+    int32_t numCars = 0;            // +0x4
     /// <summary>The current speed (negative when backing).</summary>
-    float speed; // +0x8
+    float speed = 0; // +0x8
     /// <summary>The best acceleration of the cars.</summary>
-    float maxAccel; // +0xc
+    float maxAccel = 0; // +0xc
     /// <summary>The best deceleration of the cars.</summary>
-    float maxDecel; // +0x10
+    float maxDecel = 0; // +0x10
     /// <summary>The lowest top speed of the cars.</summary>
-    float maxSpeed; // +0x14
+    float maxSpeed = 0; // +0x14
     /// <summary>The speed the train drives toward (set by the scenario; clamped to +/- maxSpeed).</summary>
-    float desiredSpeed; // +0x18
+    float desiredSpeed = 0; // +0x18
     /// <summary>
     /// The track direction in degrees, set by the scenario; -45 and 135 mark cells along one axis, anything else the
     /// other, when the cars' move-map marks are moved.
     /// </summary>
-    int32_t trackDirection; // +0x1c
+    int32_t trackDirection = 0; // +0x1c
     /// <summary>The lead car's position at the last RecalcInfo.</summary>
     vector_3d leadPosition; // +0x20
 };
 
 /// <summary>Keeps every train of the mission (up to 64) and updates them each frame.</summary>
-/// <remarks>Original source: <c>object\train.cpp</c>, 0x104 bytes. Allocated from the system heap.</remarks>
+/// <remarks>Original source: <c>object\train.cpp</c>, 0x104 bytes.</remarks>
 class TrainManager
 {
 public:
     static constexpr int32_t MAX_TRAINS = 64;
-
-    /// <remarks>MCX.EXE @ 0x0069c3a0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x0069c3c0</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>Clears the train list.</summary>
     /// <remarks>MCX.EXE @ 0x0069c3e0</remarks>
@@ -288,8 +273,8 @@ public:
     /// <remarks>MCX.EXE @ 0x0069c4e0</remarks>
     void UpdateTrains();
 
-    Train* trains[MAX_TRAINS]; // +0x0
-    int32_t numTrains;         // +0x100
+    Train* trains[MAX_TRAINS]{}; // +0x0
+    int32_t numTrains = 0;       // +0x100
 };
 
 /// <summary>The distance between two cars of a train (added along the track axis by <see cref="Train::AddCar"/>).</summary>

@@ -10,7 +10,7 @@ class BaseObject;
 class ObjectWatcherList
 {
 public:
-    /// <summary>Makes room for 200 watchers (from <c>systemHeap</c>); <paramref name="maxWatchers"/> is ignored.</summary>
+    /// <summary>Makes room for 200 watchers ; <paramref name="maxWatchers"/> is ignored.</summary>
     /// <remarks>MCX.EXE @ 0x00690bd0</remarks>
     void init(int32_t maxWatchers);
     /// <summary>Frees the watcher table.</summary>
@@ -36,7 +36,7 @@ public:
     /// <summary>The table's size (200).</summary>
     int32_t maxWatchers = 0; // +0x04
     /// <summary>The registered watchers: each the address of a pointer to an object.</summary>
-    BaseObject*** watchers = nullptr; // +0x08
+    std::unique_ptr<BaseObject**[]> watchers; // +0x08
 };
 
 /// <summary>

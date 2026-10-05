@@ -44,10 +44,10 @@ public:
     /// <summary>Makes a <see cref="Smoke"/> of this type and gives it the next object id.</summary>
     /// <remarks>MCX.EXE @ 0x00693630</remarks>
     BaseObject* createInstance() override;
-    /// <summary>Frees the shape from the smoke manager's sphere heap.</summary>
+    /// <summary>Frees the shape from the smoke manager's sphere blocks.</summary>
     /// <remarks>MCX.EXE @ 0x00693760</remarks>
     void destroy() override;
-    /// <summary>Reads the "SmokeData" block and loads the smoke shape into the sphere heap.</summary>
+    /// <summary>Reads the "SmokeData" block and loads the smoke shape into the smoke manager's sphere blocks.</summary>
     /// <remarks>MCX.EXE @ 0x00693780</remarks>
     int32_t init(File* objFile, uint32_t fileSize) override;
     /// <remarks>MCX.EXE @ 0x00693b30</remarks>
@@ -56,31 +56,31 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>FIT "zVelocity": the spheres' rising speed, stored in world units per second.</summary>
-    float zVelocity; // +0x30
+    float zVelocity = 0; // +0x30
     /// <summary>FIT "SmokePerSecond": spheres made per second.</summary>
-    float smokePerSecond; // +0x34
+    float smokePerSecond = 0; // +0x34
     /// <summary>FIT "SlowDownPercent": the fraction of the owner's velocity a new sphere keeps.</summary>
-    float slowDownPercent; // +0x38
+    float slowDownPercent = 0; // +0x38
     /// <summary>FIT "MaxSmokeSpheres": spheres per smoke.</summary>
-    uint32_t maxSmokeSpheres; // +0x3c
-    /// <summary>FIT "SmokeShape": the VFX shape file, in the smoke manager's sphere heap.</summary>
-    uint8_t* smokeShape; // +0x40
+    uint32_t maxSmokeSpheres = 0; // +0x3c
+    /// <summary>FIT "SmokeShape": the VFX shape file, in the smoke manager's sphere blocks.</summary>
+    uint8_t* smokeShape = nullptr; // +0x40
     /// <summary>FIT "Duration", seconds of puffing.</summary>
-    int32_t duration; // +0x44
+    int32_t duration = 0; // +0x44
     /// <summary>FIT "randomVelX/Y/Z": random spread added to a new sphere's velocity.</summary>
-    float randomVelX; // +0x48
-    float randomVelY; // +0x4c
-    float randomVelZ; // +0x50
+    float randomVelX = 0; // +0x48
+    float randomVelY = 0; // +0x4c
+    float randomVelZ = 0; // +0x50
     /// <summary>FIT "randomPosX/Y/Z": random spread added to a new sphere's position.</summary>
-    float randomPosX; // +0x54
-    float randomPosY; // +0x58
-    float randomPosZ; // +0x5c
+    float randomPosX = 0; // +0x54
+    float randomPosY = 0; // +0x58
+    float randomPosZ = 0; // +0x5c
     /// <summary>FIT "HasRotation": the shape holds numRotations facings; spheres never settle on the ground.</summary>
-    int32_t hasRotation; // +0x60
+    int32_t hasRotation = 0; // +0x60
     /// <summary>FIT "NumRotations".</summary>
-    int32_t numRotations; // +0x64
+    int32_t numRotations = 0; // +0x64
     /// <summary>FIT "FrameRate" (default 15), frames per second.</summary>
-    float frameRate; // +0x68
+    float frameRate = 0; // +0x68
 };
 
 /// <summary>
@@ -88,8 +88,7 @@ public:
 /// on until the last sphere has faded.
 /// </summary>
 /// <remarks>
-/// Original source: <c>object\smoke.cpp</c>, <c>object\smoke.h</c>; 0xb4 bytes, allocated from the smoke
-/// manager's smoke heap.
+/// Original source: <c>object\smoke.cpp</c>, <c>object\smoke.h</c>; 0xb4 bytes.
 /// </remarks>
 class Smoke : public BigGameObject
 {
@@ -99,12 +98,6 @@ public:
     Smoke();
     /// <remarks>MCX.EXE @ 0x00693710 (vector deleting destructor)</remarks>
     ~Smoke() override { destroy(); }
-
-    /// <summary>Allocates from the smoke manager's smoke heap and counts the smokes.</summary>
-    /// <remarks>MCX.EXE @ 0x00693b50</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00693b80</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>Does nothing.</summary>
     /// <remarks>MCX.EXE @ 0x006936e0 (inline in <c>object\smoke.h</c>)</remarks>
@@ -151,35 +144,33 @@ public:
     void setOwnerVelocity(vector_3d velocity);
 
     /// <summary>Set by init and startSmoking; the next update starts the duration.</summary>
-    int32_t justStarted; // +0x84
+    int32_t justStarted = 0; // +0x84
     /// <summary>Tick count (ms) the puffing ends.</summary>
-    uint32_t endTime; // +0x88
+    uint32_t endTime = 0; // +0x88
     /// <summary>Tick count (ms) of the next sphere.</summary>
-    uint32_t nextSphereTime; // +0x8c
+    uint32_t nextSphereTime = 0; // +0x8c
     /// <summary>The sphere the next puff reuses (cycles through all of them).</summary>
-    int32_t nextSphere; // +0x90
+    int32_t nextSphere = 0; // +0x90
     /// <summary>The object the smoke follows, if any.</summary>
-    BaseObject* owner; // +0x94
+    BaseObject* owner = nullptr; // +0x94
     /// <summary>The owner's hot spot the smoke comes from (set by BattleMech::update).</summary>
-    uint32_t ownerHotSpot; // +0x98
+    uint32_t ownerHotSpot = 0; // +0x98
     /// <summary>Where new spheres start (allocated by setOwnerPosition).</summary>
-    vector_3d* ownerPosition; // +0x9c
+    vector_3d* ownerPosition = nullptr; // +0x9c
     /// <summary>The owner's velocity (allocated by setOwnerVelocity).</summary>
-    vector_3d* ownerVelocity; // +0xa0
+    vector_3d* ownerVelocity = nullptr; // +0xa0
     /// <summary>The spheres, from the smoke manager.</summary>
-    SmokeSphere* spheres; // +0xa4
+    SmokeSphere* spheres = nullptr; // +0xa4
     /// <summary>Zeroed by the constructor; never used otherwise.</summary>
-    int32_t unknownA8; // +0xa8
+    int32_t unknownA8 = 0; // +0xa8
     /// <summary>How many spheres the smoke has.</summary>
-    int32_t numSpheres; // +0xac
+    int32_t numSpheres = 0; // +0xac
     /// <summary>
     /// Set to -200 by init(ObjectType*) and to -50 by BattleMech::update when it makes a smoke; probably the draw
     /// depth of the render group.
     /// </summary>
-    int32_t unknownB0; // +0xb0
+    int32_t unknownB0 = 0; // +0xb0
 };
 
-/// <summary>How many <see cref="Smoke"/> objects exist.</summary>
-extern uint32_t totalSmokes;
 /// <summary>The scenario's smoke manager.</summary>
 extern SmokeManager* smokeManager;

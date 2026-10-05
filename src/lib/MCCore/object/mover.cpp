@@ -5,7 +5,6 @@
 #include "engine/bitflag.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
@@ -171,8 +170,8 @@ namespace
         {
             if (IsMover(target))
             {
-                std::snprintf(line, sizeof(line), "target = %s (%d)\n", static_cast<Mover*>(target)->debugStatus,
-                              target->partId);
+                std::snprintf(line, sizeof(line), "target = %s (%d)\n",
+                              static_cast<Mover*>(target)->debugStatus.c_str(), target->partId);
             }
             else
             {
@@ -370,27 +369,6 @@ namespace
 //---------------------------------------------------------------------------
 // StatusChunk
 //---------------------------------------------------------------------------
-
-auto StatusChunk::operator new(size_t size) noexcept -> void*
-{
-    if (systemHeap != nullptr)
-    {
-        return systemHeap->malloc(static_cast<uint32_t>(size));
-    }
-
-    return std::malloc(size);
-}
-
-auto StatusChunk::operator delete(void* ptr) -> void
-{
-    if (systemHeap != nullptr)
-    {
-        systemHeap->free(ptr);
-        return;
-    }
-
-    std::free(ptr);
-}
 
 auto StatusChunk::init() -> void
 {
@@ -1107,7 +1085,7 @@ auto DebugStatusChunk(Mover* mover, StatusChunk* chunk1, StatusChunk* chunk2) ->
     }
     else
     {
-        std::snprintf(line, sizeof(line), "\nmover = %s (%d)\n", mover->debugStatus, mover->partId);
+        std::snprintf(line, sizeof(line), "\nmover = %s (%d)\n", mover->debugStatus.c_str(), mover->partId);
         std::strcat(ChunkDebugMsg, line);
     }
 
@@ -1237,8 +1215,8 @@ auto Mover::init() -> void
     }
     else
     {
-        netName = static_cast<char*>(ObjectTypeManager::objectTypeCache->malloc(0x100));
-        cLoadString(thisInstance, 0xb9, netName, 0xfe);
+        netName = std::make_unique<char[]>(0x100);
+        cLoadString(thisInstance, 0xb9, netName.get(), 0xfe);
     }
 
     cockpit = 0xff;
@@ -1250,7 +1228,7 @@ auto Mover::init() -> void
     jammer = 0xff;
     selected = 0;
     statusChunk.bodyState = 0;
-    debugStatus = nullptr;
+    debugStatus.clear();
     pilot = nullptr;
     inventory = nullptr;
     sensorSystem = nullptr;
@@ -1559,10 +1537,7 @@ auto Mover::getFireArc() -> float
 
 auto Mover::destroy() -> void
 {
-    if (netName != nullptr)
-    {
-        ObjectTypeManager::objectTypeCache->free(netName);
-    }
+    netName.reset();
 
     if (sensorSystem != nullptr)
     {
@@ -1582,11 +1557,7 @@ auto Mover::destroy() -> void
         jammerTracker = nullptr;
     }
 
-    if (debugStatus != nullptr)
-    {
-        systemHeap->free(debugStatus);
-        debugStatus = nullptr;
-    }
+    debugStatus.clear();
 
     if (body != nullptr)
     {
@@ -1594,20 +1565,18 @@ auto Mover::destroy() -> void
         {
             if (bodyAt(i).criticalSpaces != nullptr)
             {
-                ObjectTypeManager::objectCache->free(bodyAt(i).criticalSpaces);
+                delete[] bodyAt(i).criticalSpaces;
                 bodyAt(i).criticalSpaces = nullptr;
             }
         }
 
-        ObjectTypeManager::objectCache->free(body);
-        body = nullptr;
+        body.reset();
         numBodyLocations = 0;
     }
 
     if (armor != nullptr)
     {
-        ObjectTypeManager::objectCache->free(armor);
-        armor = nullptr;
+        armor.reset();
         numArmorLocations = 0;
     }
 
@@ -1617,21 +1586,19 @@ auto Mover::destroy() -> void
         {
             if (inventory[i].rangeRatings != nullptr)
             {
-                ObjectTypeManager::objectCache->free(inventory[i].rangeRatings);
+                delete[] inventory[i].rangeRatings;
                 inventory[i].rangeRatings = nullptr;
             }
         }
 
-        ObjectTypeManager::objectCache->free(inventory);
-        inventory = nullptr;
+        inventory.reset();
     }
 
     numAmmoTypes = 0;
 
     if (ammoTypeTotal != nullptr)
     {
-        ObjectTypeManager::objectCache->free(ammoTypeTotal);
-        ammoTypeTotal = nullptr;
+        ammoTypeTotal.reset();
     }
 
     if (potentialContact != nullptr)
@@ -3038,9 +3005,9 @@ auto Mover::calcMoveGoal(GameObject* target, vector_3d moveGoal, int32_t isGroup
     // The 20 best cells, best first. A cell better than only the last goes in last.
     struct GoalCandidate
     {
-        int32_t row;
-        int32_t col;
-        int32_t value;
+        int32_t row = 0;
+        int32_t col = 0;
+        int32_t value = 0;
     };
 
     GoalCandidate best[20];
@@ -3904,14 +3871,8 @@ auto Mover::calcAmmoTotals() -> void
         }
     }
 
-    ammoTypeTotal = static_cast<AmmoTally*>(ObjectTypeManager::objectCache->malloc(numTypes * sizeof(AmmoTally)));
-
-    if (ammoTypeTotal == nullptr)
-    {
-        Fatal(0, " No RAM for ammo type list ");
-    }
-
-    std::memcpy(ammoTypeTotal, tally, numTypes * sizeof(AmmoTally));
+    ammoTypeTotal = std::make_unique<AmmoTally[]>(static_cast<size_t>(numTypes));
+    std::copy_n(tally, numTypes, ammoTypeTotal.get());
 }
 
 auto Mover::calcOptimalRange(GameObject* target) -> int
@@ -3996,7 +3957,7 @@ auto Mover::calcOptimalRange(GameObject* target) -> int
         }
 
         sortList->sort(1);
-        const SortListNode* node = sortList->list;
+        const SortListNode* node = sortList->list.get();
         bestStep = node[0].id;
 
         if (node[1].value == node[0].value)
@@ -4639,8 +4600,8 @@ auto Mover::getGroupId() -> int32_t
 auto Mover::getVitalInfo(void* vitalInfo) -> int32_t
 {
     int32_t size = BigGameObject::getVitalInfo(nullptr);
-    size = static_cast<int32_t>(std::strlen(debugStatus) + 1) + size +
-           (static_cast<int32_t>(std::strlen(iconName) + 1) - 2) + (numAmmos + numWeapons + 9 + numOther) * 0x1c;
+    size = static_cast<int32_t>(debugStatus.size() + 1) + size + (static_cast<int32_t>(std::strlen(iconName) + 1) - 2) +
+           (numAmmos + numWeapons + 9 + numOther) * 0x1c;
 
     for (const int32_t criticalSpaces : NumLocationCriticalSpaces)
     {

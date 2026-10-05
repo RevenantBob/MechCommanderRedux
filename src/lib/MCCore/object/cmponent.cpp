@@ -2,13 +2,12 @@
 #include "object/cmponent.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 
 const char* ComponentFormString[21] = {
     "Simple",       "Cockpit",         "Sensors",       "Actuator", "Engine",  "HeatSink", "Weapon",
     "EnergyWeapon", "BallisticWeapon", "MissileWeapon", "Ammo",     "JumpJet", "Case",     "LifeSupport",
     "Gyroscope",    "PowerAmplifier",  "ECM",           "Probe",    "Jammer",  "Bulk",     nullptr};
-MasterComponent* MasterComponentList = nullptr;
+std::unique_ptr<MasterComponent[]> MasterComponentList;
 int32_t NumMasterComponents = 0;
 int32_t MasterArmActuatorID = -1;
 int32_t MasterLegActuatorID = -1;
@@ -49,16 +48,6 @@ namespace
 
         return 0;
     }
-}
-
-auto MasterComponent::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto MasterComponent::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
 }
 
 auto MasterComponent::destroy() -> void
@@ -271,12 +260,12 @@ auto MasterComponent::multiplyWeaponRanges(float factor) -> void
 auto initMasterComponentListEXCEL(char* fileName, int32_t numComponents, float weaponRangeFactor,
                                   float sensorRangeFactor) -> int32_t
 {
-    MasterComponentList = static_cast<MasterComponent*>(systemHeap->malloc(numComponents * sizeof(MasterComponent)));
+    MasterComponentList = std::make_unique<MasterComponent[]>(static_cast<size_t>(numComponents));
     NumMasterComponents = numComponents;
 
     for (int32_t i = 0; i < numComponents; i++)
     {
-        MasterComponent* component = ::new (&MasterComponentList[i]) MasterComponent;
+        MasterComponent* component = &MasterComponentList[i];
         component->masterID = -1;
         component->name[0] = 0;
         component->abbreviation[0] = 0;

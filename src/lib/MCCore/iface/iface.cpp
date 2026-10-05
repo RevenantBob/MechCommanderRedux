@@ -4677,22 +4677,22 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     {
                         if (object->objectClass == BUILDING)
                         {
-                            sprintf(text, "%s", static_cast<Building*>(object)->name);
+                            sprintf(text, "%s", static_cast<Building*>(object)->name.c_str());
                         }
 
                         if (object->objectClass == TREEBUILDING)
                         {
-                            sprintf(text, "%s", static_cast<TreeBuilding*>(object)->name);
+                            sprintf(text, "%s", static_cast<TreeBuilding*>(object)->name.c_str());
                         }
 
                         if (object->objectClass == TURRET)
                         {
-                            sprintf(text, "%s", static_cast<Turret*>(object)->name);
+                            sprintf(text, "%s", static_cast<Turret*>(object)->name.c_str());
                         }
 
                         if (object->objectClass == GATE)
                         {
-                            sprintf(text, "%s", static_cast<Gate*>(object)->name);
+                            sprintf(text, "%s", static_cast<Gate*>(object)->name.c_str());
                         }
 
                         if (object->objectClass == MISCTERRAINOBJECT)
@@ -4792,7 +4792,7 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     case TRAINCAR:
                     {
                         tag->helpObject = object;
-                        sprintf(text, "%s", static_cast<TrainCar*>(object)->name);
+                        sprintf(text, "%s", static_cast<TrainCar*>(object)->name.c_str());
                         tag->setBackColor(0x1f);
                         tag->textColor = 0xc;
 

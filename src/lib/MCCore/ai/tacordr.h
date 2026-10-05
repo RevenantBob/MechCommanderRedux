@@ -62,12 +62,12 @@ enum TacticalOrderCode
 /// <remarks>Original: <c>struct _WayPath</c> (MechWarrior::setMoveWayPath). 0xcc bytes.</remarks>
 typedef struct _WayPath
 {
-    int32_t numPoints; // +0x0
-    int32_t curPoint;  // +0x4
+    int32_t numPoints = 0; // +0x0
+    int32_t curPoint = 0;  // +0x4
     /// <summary>x, y, z of each waypoint.</summary>
-    float points[MAX_WAYPTS * 3]; // +0x8
+    float points[MAX_WAYPTS * 3]{}; // +0x8
     /// <summary>Per waypoint, 1 to run to it.</summary>
-    uint8_t mode[MAX_WAYPTS]; // +0xbc
+    uint8_t mode[MAX_WAYPTS]{}; // +0xbc
 } WayPath;
 
 /// <summary>The movement part of a tactical order.</summary>
@@ -75,15 +75,15 @@ typedef struct _WayPath
 /// (MC2: TacOrderMoveParams); the flag names are MC2's, their use in MCX noted.</remarks>
 typedef struct _TacOrderMoveParams
 {
-    WayPath wayPath; // +0x0
+    WayPath wayPath{}; // +0x0
     /// <summary>MOVETO_OBJECT: passed as move flag 4 (default 1).</summary>
-    int32_t faceObject; // +0xcc
+    int32_t faceObject = 0; // +0xcc
     /// <summary>MOVETO_POINT: move flag 2.</summary>
-    int32_t wait; // +0xd0
+    int32_t wait = 0; // +0xd0
     /// <summary>1 adds move flag 8.</summary>
-    int32_t mode; // +0xd4
+    int32_t mode = 0; // +0xd4
     /// <summary>MOVETO_POINT: move flag 0x40.</summary>
-    int32_t escapeTile; // +0xd8
+    int32_t escapeTile = 0; // +0xd8
 } TacOrderMoveParams;
 
 /// <summary>The attack part of a tactical order.</summary>
@@ -91,16 +91,16 @@ typedef struct _TacOrderMoveParams
 typedef struct _TacOrderAttackParams
 {
     /// <summary>Attack type (default 1, packed in 2 bits).</summary>
-    int32_t type; // +0x0
+    int32_t type = 0; // +0x0
     /// <summary>Attack method (2 = ramming, see TacticalOrder::getRamTarget).</summary>
-    int32_t method; // +0x4
+    int32_t method = 0; // +0x4
     /// <summary>Fire range: a Mover::getFireRange selector, -4..2 (packed + 4 in 3 bits).</summary>
-    int32_t range; // +0x8
+    int32_t range = 0; // +0x8
     /// <summary>Aimed location, -1 for none (packed + 2 in 4 bits; Mover::sortWeapons aims with it).</summary>
-    int32_t aimLocation;   // +0xc
-    int32_t pursue;        // +0x10
-    int32_t obliterate;    // +0x14
-    vector_3d targetPoint; // +0x18
+    int32_t aimLocation = 0; // +0xc
+    int32_t pursue = 0;      // +0x10
+    int32_t obliterate = 0;  // +0x14
+    vector_3d targetPoint;   // +0x18
 } TacOrderAttackParams;
 
 /// <summary>
@@ -113,11 +113,6 @@ typedef struct _TacOrderAttackParams
 class TacticalOrder
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006c54a0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006c54c0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Copies an order and destroys the (by-value) source.</summary>
     /// <remarks>MCX.EXE @ 0x006a6b50 (inline in the original's tacordr.h)</remarks>
     void operator=(TacticalOrder copy);
@@ -179,30 +174,30 @@ public:
     /// <remarks>MCX.EXE @ 0x006c7a30</remarks>
     void destroy();
 
-    int32_t id; // +0x0
+    int32_t id = 0; // +0x0
     /// <summary>Scenario time the order was given (and when it is next due).</summary>
-    float time; // +0x4
+    float time = 0; // +0x4
     /// <summary>Scenario time to wait for before executing, -1 for none.</summary>
-    float delayedTime; // +0x8
-    float lastTime;    // +0xc
+    float delayedTime = 0; // +0x8
+    float lastTime = 0;    // +0xc
     /// <summary>Nonzero for an order given to a group.</summary>
-    int unitOrder;                     // +0x10
-    OrderOriginType origin;            // +0x14
-    TacticalOrderCode code;            // +0x18
-    TacOrderMoveParams moveParams;     // +0x1c
+    int unitOrder = 0;                 // +0x10
+    OrderOriginType origin{};          // +0x14
+    TacticalOrderCode code{};          // +0x18
+    TacOrderMoveParams moveParams{};   // +0x1c
     TacOrderAttackParams attackParams; // +0xf8
-    GameObject* target;                // +0x11c
+    GameObject* target = nullptr;      // +0x11c
     /// <summary>The target's object class (copied from target + 4).</summary>
-    int32_t targetObjectClass; // +0x120
-    int32_t selectionIndex;    // +0x124
+    int32_t targetObjectClass = 0; // +0x120
+    int32_t selectionIndex = 0;    // +0x124
     /// <summary>Progress of the order (1 at start, 0xff when done).</summary>
-    uint8_t stage; // +0x128
+    uint8_t stage = 0; // +0x128
     /// <summary>Local id of the point mover in a group order, 0xf for none.</summary>
-    char pointLocalMoverId; // +0x129
+    char pointLocalMoverId = 0; // +0x129
     /// <summary>Bit per local mover id of the commander's movers in the order.</summary>
-    uint32_t groupFlags; // +0x12c
+    uint32_t groupFlags = 0; // +0x12c
     /// <summary>The packed order (<see cref="pack"/>).</summary>
-    uint32_t data[2]; // +0x130
+    uint32_t data[2]{}; // +0x130
 };
 
 /// <summary>Repairs and reloads a mover from a refit vehicle's points.</summary>

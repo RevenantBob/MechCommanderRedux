@@ -6,7 +6,6 @@
 #include "abl/ablrtn.h"
 #include "abl/ablxstmt.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 int IncludeDebugInfo = 1;
 int Crunch = 1;
@@ -166,13 +165,7 @@ auto createCodeSegment() -> char*
     // Port fix: one more byte, a TKN_NONE after the code. execStatement's semicolon loop reads the token after a
     // routine's final ";", one byte past its segment (OB-108). The original's heap always had bytes there; an
     // exact-size block can end on a page boundary, and the read faults.
-    char* codeSegment = static_cast<char*>(AblCodeHeap->malloc(codeSize + 1));
-
-    if (!codeSegment)
-    {
-        Fatal(0, " ABL: Unable to AblCodeHeap->malloc code segment ");
-    }
-
+    char* codeSegment = AblMemory.AllocateArray<char>(codeSize + 1);
     codeSegmentLimit = codeSegment + codeSize;
     std::memcpy(codeSegment, codeBuffer, codeSize);
     codeSegment[codeSize] = TKN_NONE;
@@ -326,7 +319,7 @@ auto allocLocal(TypePtr typePtr) -> void
                 break;
             case FRM_ARRAY:
             {
-                char* localArray = static_cast<char*>(AblStackHeap->malloc(static_cast<uint32_t>(typePtr->size)));
+                char* localArray = AblMemory.AllocateArray<char>(static_cast<size_t>(typePtr->size));
 
                 if (!localArray)
                 {
@@ -356,7 +349,7 @@ auto freeLocal(SymTableNodePtr idPtr) -> void
             return;
         }
 
-        AblStackHeap->free(dataPtr->address);
+        AblMemory.Free(dataPtr->address);
     }
 }
 

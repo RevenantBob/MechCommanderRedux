@@ -38,11 +38,6 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, vector_3d location, 
 class ArtilleryChunk
 {
 public:
-    /// <remarks>MCX.EXE @ 0x0064dfa0 (allocates from systemHeap)</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x0064dfd0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Fills the chunk for a strike at <paramref name="location"/> (converted to a map cell).</summary>
     /// <remarks>MCX.EXE @ 0x0064e000</remarks>
     void build(int32_t commanderId, int32_t strikeType, vector_3d location, int32_t seconds);
@@ -56,14 +51,14 @@ public:
     /// <remarks>MCX.EXE @ 0x0064e0c0</remarks>
     int equalTo(ArtilleryChunk* chunk);
 
-    int8_t commanderId; // +0x0
-    int8_t strikeType;  // +0x1
-    int32_t cellRow;    // +0x4
-    int32_t cellCol;    // +0x8
+    int8_t commanderId = 0; // +0x0
+    int8_t strikeType = 0;  // +0x1
+    int32_t cellRow = 0;    // +0x4
+    int32_t cellCol = 0;    // +0x8
     /// <summary>Seconds to impact (-1 = the type's nominal time).</summary>
-    int8_t seconds; // +0xc
+    int8_t seconds = 0; // +0xc
     /// <summary>The packed word sent over the network.</summary>
-    uint32_t data; // +0x10
+    uint32_t data = 0; // +0x10
 };
 
 /// <summary>
@@ -99,57 +94,57 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>The countdown sprite (a VFX shape file), in the sprite manager's shape RAM.</summary>
-    uint8_t* shapeData; // +0x30
+    uint8_t* shapeData = nullptr; // +0x30
     /// <summary>FIT "FrameCount".</summary>
-    uint32_t frameCount; // +0x34
+    uint32_t frameCount = 0; // +0x34
     /// <summary>FIT "StartFrame".</summary>
-    uint32_t startFrame; // +0x38
+    uint32_t startFrame = 0; // +0x38
     /// <summary>FIT "FrameRate", frames per second.</summary>
-    float frameRate; // +0x3c
+    float frameRate = 0; // +0x3c
     /// <summary>FIT "NominalTimeToImpact", seconds.</summary>
-    float nominalTimeToImpact; // +0x40
+    float nominalTimeToImpact = 0; // +0x40
     /// <summary>FIT "NominalTimeToLaunch", seconds (default: time to impact - 10).</summary>
-    float nominalTimeToLaunch; // +0x44
+    float nominalTimeToLaunch = 0; // +0x44
     /// <summary>FIT "NominalDamage": damage per hit; 0 for a sensor probe.</summary>
-    float nominalDamage; // +0x48
+    float nominalDamage = 0; // +0x48
     /// <summary>FIT "NominalMajorRange", meters.</summary>
-    float nominalMajorRange; // +0x4c
+    float nominalMajorRange = 0; // +0x4c
     /// <summary>FIT "NominalMajorHits".</summary>
-    float nominalMajorHits; // +0x50
+    float nominalMajorHits = 0; // +0x50
     /// <summary>FIT "NominalMinorRange", meters.</summary>
-    float nominalMinorRange; // +0x54
+    float nominalMinorRange = 0; // +0x54
     /// <summary>FIT "NominalMinorHits".</summary>
-    float nominalMinorHits; // +0x58
+    float nominalMinorHits = 0; // +0x58
     /// <summary>FIT "NominalSensorTime", seconds the sensor probe lasts.</summary>
-    float nominalSensorTime; // +0x5c
+    float nominalSensorTime = 0; // +0x5c
     /// <summary>FIT "NominalSensorRange", meters.</summary>
-    float nominalSensorRange; // +0x60
+    float nominalSensorRange = 0; // +0x60
     /// <summary>FIT "fontScale".</summary>
-    float fontScale; // +0x64
+    float fontScale = 0; // +0x64
     /// <summary>FIT "fontXOffset": where the countdown text goes, relative to the sprite.</summary>
-    float fontXOffset; // +0x68
+    float fontXOffset = 0; // +0x68
     /// <summary>FIT "fontYOffset".</summary>
-    float fontYOffset; // +0x6c
+    float fontYOffset = 0; // +0x6c
     /// <summary>FIT "fontColor".</summary>
-    uint32_t fontColor; // +0x70
+    uint32_t fontColor = 0; // +0x70
     /// <summary>FIT "NumExplosions": entries of the three tables below (only read when there is damage).</summary>
-    int32_t numExplosions; // +0x74
-    /// <summary>FIT "ExplosionOffsetX%d", world units from the strike point (systemHeap).</summary>
-    float* explosionOffsetX; // +0x78
+    int32_t numExplosions = 0; // +0x74
+    /// <summary>FIT "ExplosionOffsetX%d", world units from the strike point.</summary>
+    std::unique_ptr<float[]> explosionOffsetX; // +0x78
     /// <summary>FIT "ExplosionOffsetY%d".</summary>
-    float* explosionOffsetY; // +0x7c
+    std::unique_ptr<float[]> explosionOffsetY; // +0x7c
     /// <summary>FIT "ExplosionDelay%d", seconds after impact.</summary>
-    float* explosionDelay; // +0x80
+    std::unique_ptr<float[]> explosionDelay; // +0x80
     /// <summary>FIT "ExplosionsPerExplosion": explosions made at each entry.</summary>
-    int32_t explosionsPerExplosion; // +0x84
+    int32_t explosionsPerExplosion = 0; // +0x84
     /// <summary>FIT "ExplosionRandomOffsetX": random spread of each explosion.</summary>
-    int32_t explosionRandomOffsetX; // +0x88
+    int32_t explosionRandomOffsetX = 0; // +0x88
     /// <summary>FIT "ExplosionRandomOffsetY".</summary>
-    int32_t explosionRandomOffsetY; // +0x8c
+    int32_t explosionRandomOffsetY = 0; // +0x8c
     /// <summary>
     /// FIT "MinArtilleryHeadRange" (default 5), meters: beyond it a hit lands on hit-location table 4, else 2.
     /// </summary>
-    int32_t minArtilleryHeadRange; // +0x90
+    int32_t minArtilleryHeadRange = 0; // +0x90
 };
 
 /// <summary>
@@ -216,46 +211,46 @@ public:
     void drawSelectBox(uint8_t color);
 
     /// <summary>Set until the first update or render has run <see cref="setJustCreated"/>.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The sprite frame drawn (wraps at the type's frame count).</summary>
-    uint32_t currentFrame; // +0x88
+    uint32_t currentFrame = 0; // +0x88
     /// <summary>Seconds the sprite has been animating.</summary>
-    float frameTime; // +0x8c
+    float frameTime = 0; // +0x8c
     /// <summary>floor(frameTime * frameRate) at the last frame advance.</summary>
-    int32_t frameCount; // +0x90
+    int32_t frameCount = 0; // +0x90
     /// <summary>Screen bounds of the sprite: left, top.</summary>
-    float boundsLeft; // +0x94
-    float boundsTop;  // +0x98
+    float boundsLeft = 0; // +0x94
+    float boundsTop = 0;  // +0x98
     /// <summary>Screen bounds of the sprite: right, bottom.</summary>
-    float boundsRight;  // +0x9c
-    float boundsBottom; // +0xa0
+    float boundsRight = 0;  // +0x9c
+    float boundsBottom = 0; // +0xa0
     /// <summary>Seconds to impact (negative after it; -1 until set).</summary>
-    float timeToImpact; // +0xa4
+    float timeToImpact = 0; // +0xa4
     /// <summary>Seconds to launch (counts down with timeToImpact).</summary>
-    float timeToLaunch; // +0xa8
+    float timeToLaunch = 0; // +0xa8
     /// <summary>The sensor probe's current range, world units.</summary>
-    float sensorRange; // +0xac
+    float sensorRange = 0; // +0xac
     /// <summary>Seconds of sensor time left.</summary>
-    float sensorTime; // +0xb0
+    float sensorTime = 0; // +0xb0
     /// <summary>The sensor probe's sensor (from the SensorSystemManager).</summary>
-    SensorSystem* sensorSystem; // +0xb4
+    SensorSystem* sensorSystem = nullptr; // +0xb4
     /// <summary>Scenario time the strike was made.</summary>
-    float startTime; // +0xb8
+    float startTime = 0; // +0xb8
     /// <summary>Set once the strike has hit (from then on it collides and explodes).</summary>
-    int32_t hasImpacted; // +0xbc
+    int32_t hasImpacted = 0; // +0xbc
     /// <summary>Set once the sensor probe's sensor is running.</summary>
-    int32_t sensorActive; // +0xc0
+    int32_t sensorActive = 0; // +0xc0
     /// <summary>The countdown text, "%01d:%02d".</summary>
-    char timeString[8]; // +0xc4
+    char timeString[8]{}; // +0xc4
     /// <summary>
     /// The last argument of <see cref="CallArtillery"/> (default 1). Its only use: when nonzero, two
     /// RandomNumber(500) draws are made (and discarded) at impact.
     /// </summary>
-    int32_t unknownCC; // +0xcc
+    int32_t unknownCC = 0; // +0xcc
     /// <summary>Set once the incoming-shell sound has played.</summary>
-    int32_t impactSoundPlayed; // +0xd0
+    int32_t impactSoundPlayed = 0; // +0xd0
     /// <summary>One flag per entry of the type's explosion tables: set once that explosion went off.</summary>
-    int32_t* explosionsDone; // +0xd4
+    std::unique_ptr<int32_t[]> explosionsDone; // +0xd4
 };
 
 /// <summary>The type of a <see cref="CameraDrone"/>: speed, hit points and battle value.</summary>
@@ -284,11 +279,11 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>FIT "maxVelocity", meters per second.</summary>
-    float maxVelocity; // +0x30
+    float maxVelocity = 0; // +0x30
     /// <summary>FIT "maxDamage": hit points.</summary>
-    int32_t maxDamage; // +0x34
+    int32_t maxDamage = 0; // +0x34
     /// <summary>FIT "BRValue" (default 0): the drone's max and current CV.</summary>
-    int32_t brValue; // +0x38
+    int32_t brValue = 0; // +0x38
 };
 
 /// <summary>
@@ -339,22 +334,22 @@ public:
     void findNextTargetTile();
 
     /// <summary>The spiral leg's direction, 0-3 (-1 before the first).</summary>
-    int8_t spiralDirection; // +0x84
+    int8_t spiralDirection = 0; // +0x84
     /// <summary>The spiral leg's length in tiles.</summary>
-    int8_t spiralLength; // +0x85
+    int8_t spiralLength = 0; // +0x85
     /// <summary>The map tile being flown to.</summary>
-    int32_t targetTileRow; // +0x88
-    int32_t targetTileCol; // +0x8c
+    int32_t targetTileRow = 0; // +0x88
+    int32_t targetTileCol = 0; // +0x8c
     /// <summary>Meters per second (from the type).</summary>
-    float maxVelocity; // +0x90
+    float maxVelocity = 0; // +0x90
     /// <summary>Hit points left.</summary>
-    int32_t hitPoints; // +0x94
+    int32_t hitPoints = 0; // +0x94
     /// <summary>The drone's orientation.</summary>
     frame_of_ref frame; // +0x98
     /// <summary>Scenario time the drone was launched (-1 until then).</summary>
-    float launchTime; // +0xbc
+    float launchTime = 0; // +0xbc
     /// <summary>The drone's GV appearance.</summary>
-    Appearance* appearance; // +0xc0
+    Appearance* appearance = nullptr; // +0xc0
 };
 
 /// <summary>The object type numbers made by <see cref="CallArtillery"/>, one per strike type.</summary>

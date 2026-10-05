@@ -46,15 +46,15 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>FIT "DmgLevel".</summary>
-    uint32_t dmgLevel; // +0x30
+    uint32_t dmgLevel = 0; // +0x30
     /// <summary>The NormalShadow shape file, loaded whole into the object type cache.</summary>
-    uint8_t* normalShadow; // +0x34
+    uint8_t* normalShadow = nullptr; // +0x34
     /// <summary>The DestroyedShadow shape file, loaded whole into the object type cache.</summary>
-    uint8_t* destroyedShadow; // +0x38
+    uint8_t* destroyedShadow = nullptr; // +0x38
     /// <summary>FIT "ExplosionDamage".</summary>
-    float explosionDamage; // +0x3c
+    float explosionDamage = 0; // +0x3c
     /// <summary>FIT "ExplosionRadius".</summary>
-    float explosionRadius; // +0x40
+    float explosionRadius = 0; // +0x40
 };
 
 /// <summary>
@@ -135,43 +135,43 @@ public:
     void lightOnFire(float timeToBurn);
 
     /// <summary>Set by init; the first update places the tree and clears it.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The tree's VFX appearance (a <c>VFXAppearance</c>).</summary>
-    Appearance* appearance; // +0x88
+    Appearance* appearance = nullptr; // +0x88
     /// <summary>Horizontal pixel offset of its base on the tile.</summary>
-    int32_t pixelOffsetX; // +0x8c
+    int32_t pixelOffsetX = 0; // +0x8c
     /// <summary>Vertical pixel offset of its base on the tile.</summary>
-    int32_t pixelOffsetY; // +0x90
+    int32_t pixelOffsetY = 0; // +0x90
     /// <summary>The terrain vertex it stands on, within its block.</summary>
-    int32_t vertexNumber; // +0x94
+    int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block it stands in.</summary>
-    int32_t blockNumber; // +0x98
+    int32_t blockNumber = 0; // +0x98
     /// <summary>Zeroed by the constructor; not used by the tree code.</summary>
-    int32_t unknown9C; // +0x9c
+    int32_t unknown9C = 0; // +0x9c
     /// <summary>Set to 500000 by the constructor; not used by the tree code.</summary>
-    int32_t unknownA0; // +0xa0
+    int32_t unknownA0 = 0; // +0xa0
     /// <summary>Never touched by the tree code.</summary>
-    int32_t unknownA4[4]; // +0xa4
+    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The move-map column of its tile.</summary>
-    int32_t tileCol; // +0xb4
+    int32_t tileCol = 0; // +0xb4
     /// <summary>The move-map row of its tile.</summary>
-    int32_t tileRow; // +0xb8
+    int32_t tileRow = 0; // +0xb8
     /// <summary>World X of its tile's corner.</summary>
-    float tileWorldX; // +0xbc
+    float tileWorldX = 0; // +0xbc
     /// <summary>World Y of its tile's corner.</summary>
-    float tileWorldY; // +0xc0
+    float tileWorldY = 0; // +0xc0
     /// <summary>Elevation of its map tile, in meters.</summary>
-    float tileElevation; // +0xc4
+    float tileElevation = 0; // +0xc4
     /// <summary>Set once a fire has been started on the tree; cleared by render when the fire is gone.</summary>
-    int32_t fireStarted; // +0xc8
+    int32_t fireStarted = 0; // +0xc8
     /// <summary>The fire burning on it, if any.</summary>
-    Fire* fireObject; // +0xcc
+    Fire* fireObject = nullptr; // +0xcc
     /// <summary>Set by TreeType::handleCollision while the tree is falling; render clears it when the fall ends.</summary>
-    int32_t falling; // +0xd0
+    int32_t falling = 0; // +0xd0
     /// <summary>Set once the tree has fallen; it can't be knocked down again.</summary>
-    int32_t fallen; // +0xd4
+    int32_t fallen = 0; // +0xd4
     /// <summary>Set once a weapon has hit (burnt) the tree: it falls with the burnt animation.</summary>
-    int32_t burnt; // +0xd8
+    int32_t burnt = 0; // +0xd8
     /// <summary>The tree's orientation, the identity until it is knocked down.</summary>
     frame_of_ref treeFrame; // +0xdc
 };

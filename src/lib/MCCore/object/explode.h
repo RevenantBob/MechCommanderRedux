@@ -40,15 +40,15 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>The damage the explosion deals (FIT "DmgLevel").</summary>
-    uint32_t dmgLevel; // +0x30
+    uint32_t dmgLevel = 0; // +0x30
     /// <summary>Sample played when the explosion starts (FIT "SoundEffectId"); 0xFFFFFFFF for none.</summary>
-    uint32_t soundEffectId; // +0x34
+    uint32_t soundEffectId = 0; // +0x34
     /// <summary>Object type of the light the explosion creates (FIT "LightObjectId"); -1 for none.</summary>
-    uint32_t lightObjectId; // +0x38
+    uint32_t lightObjectId = 0; // +0x38
     /// <summary>The blast radius (FIT "ExplosionRadius"); 0 means the explosion damages nothing around it.</summary>
-    int32_t explosionRadius; // +0x3c
+    int32_t explosionRadius = 0; // +0x3c
     /// <summary>The largest single hit the damage is split into (FIT "DamageChunkSize", default 5).</summary>
-    float damageChunkSize; // +0x40
+    float damageChunkSize = 0; // +0x40
 };
 
 /// <summary>
@@ -99,17 +99,17 @@ public:
     virtual Appearance* getAppearancePtr() { return appearance; }
 
     /// <summary>The VFX appearance that draws the explosion.</summary>
-    Appearance* appearance; // +0x84
+    Appearance* appearance = nullptr; // +0x84
     /// <summary>Set by init; the first update clears it (and the base field at +0x24) and plays the sound.</summary>
-    int32_t justCreated; // +0x88
+    int32_t justCreated = 0; // +0x88
     /// <summary>Seconds since the explosion started.</summary>
-    float timeAlive; // +0x8c
+    float timeAlive = 0; // +0x8c
     /// <summary>A copy of the type's damageChunkSize.</summary>
-    float damageChunkSize; // +0x90
+    float damageChunkSize = 0; // +0x90
     /// <summary>Set once the explosion has been checked for collisions (0.5 s in); the check is not repeated.</summary>
-    int32_t collisionChecked; // +0x94
+    int32_t collisionChecked = 0; // +0x94
     /// <summary>The light of the type's lightObjectId, kept at the explosion's position.</summary>
-    GameObject* light; // +0x98
+    GameObject* light = nullptr; // +0x98
 };
 
 /// <summary>

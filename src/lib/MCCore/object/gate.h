@@ -47,31 +47,31 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Damage that destroys the gate (FIT "DmgLevel").</summary>
-    uint32_t dmgLevel; // +0x30
+    uint32_t dmgLevel = 0; // +0x30
     /// <summary>Object type of the fire started when the gate burns or is destroyed; -1 for none (FIT "BlownEffectId").</summary>
-    uint32_t blownEffectId; // +0x34
+    uint32_t blownEffectId = 0; // +0x34
     /// <summary>FIT "NormalEffectId".</summary>
-    uint32_t normalEffectId; // +0x38
+    uint32_t normalEffectId = 0; // +0x38
     /// <summary>FIT "DamageEffectId".</summary>
-    uint32_t damageEffectId; // +0x3c
+    uint32_t damageEffectId = 0; // +0x3c
     /// <summary>Zeroed by init; not read by the gate code.</summary>
-    int32_t unknown40; // +0x40
+    int32_t unknown40 = 0; // +0x40
     /// <summary>Horizontal pixel offset of the gate's base, replacing the placement's (FIT "BasePixelOffsetX").</summary>
-    int32_t basePixelOffsetX; // +0x44
+    int32_t basePixelOffsetX = 0; // +0x44
     /// <summary>Vertical pixel offset of the gate's base (FIT "BasePixelOffsetY").</summary>
-    int32_t basePixelOffsetY; // +0x48
+    int32_t basePixelOffsetY = 0; // +0x48
     /// <summary>FIT "ExplosionDamage".</summary>
-    float explosionDamage; // +0x4c
+    float explosionDamage = 0; // +0x4c
     /// <summary>FIT "ExplosionRadius".</summary>
-    float explosionRadius; // +0x50
+    float explosionRadius = 0; // +0x50
     /// <summary>How close a friendly unit must be for the gate to open (FIT "OpenRadius"); also its extent radius.</summary>
-    float openRadius; // +0x54
+    float openRadius = 0; // +0x54
     /// <summary>Radius, added to an object's extent, within which a closing gate crushes it (FIT "LittleExtent", default 20).</summary>
-    float littleExtent; // +0x58
+    float littleExtent = 0; // +0x58
     /// <summary>String resource id of the gate's name (FIT "BuildingName", default 0xa5).</summary>
-    int32_t buildingName; // +0x5c
+    int32_t buildingName = 0; // +0x5c
     /// <summary>Nonzero when the closed gate blocks line of fire (FIT "BlocksLineOfFire").</summary>
-    int32_t blocksLineOfFire; // +0x60
+    int32_t blocksLineOfFire = 0; // +0x60
 };
 
 /// <summary>
@@ -163,59 +163,59 @@ public:
     void destroyGate(int fromNetwork);
 
     /// <summary>Set by init; the first update places the gate and clears it.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The gate's PU appearance (a <c>PUAppearance</c>).</summary>
-    Appearance* appearance; // +0x88
+    Appearance* appearance = nullptr; // +0x88
     /// <summary>Horizontal pixel offset of its base on the tile.</summary>
-    int32_t pixelOffsetX; // +0x8c
+    int32_t pixelOffsetX = 0; // +0x8c
     /// <summary>Vertical pixel offset of its base on the tile.</summary>
-    int32_t pixelOffsetY; // +0x90
+    int32_t pixelOffsetY = 0; // +0x90
     /// <summary>The terrain vertex it stands on, within its block.</summary>
-    int32_t vertexNumber; // +0x94
+    int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block it stands in.</summary>
-    int32_t blockNumber; // +0x98
+    int32_t blockNumber = 0; // +0x98
     /// <summary>Zeroed by the constructor; not used by the gate code (the same layout as Tree's).</summary>
-    int32_t unknown9C; // +0x9c
+    int32_t unknown9C = 0; // +0x9c
     /// <summary>Set to 500000 by the constructor; not used by the gate code (the same layout as Tree's).</summary>
-    int32_t unknownA0; // +0xa0
+    int32_t unknownA0 = 0; // +0xa0
     /// <summary>Never touched by the gate code.</summary>
-    int32_t unknownA4[4]; // +0xa4
+    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The move-map column of its tile.</summary>
-    int32_t tileCol; // +0xb4
+    int32_t tileCol = 0; // +0xb4
     /// <summary>The move-map row of its tile.</summary>
-    int32_t tileRow; // +0xb8
+    int32_t tileRow = 0; // +0xb8
     /// <summary>World X of its tile's corner.</summary>
-    float tileWorldX; // +0xbc
+    float tileWorldX = 0; // +0xbc
     /// <summary>World Y of its tile's corner.</summary>
-    float tileWorldY; // +0xc0
+    float tileWorldY = 0; // +0xc0
     /// <summary>Elevation of its map tile, in meters.</summary>
-    float tileElevation; // +0xc4
+    float tileElevation = 0; // +0xc4
     /// <summary>Set once a fire has been started on the gate.</summary>
-    int32_t fireStarted; // +0xc8
+    int32_t fireStarted = 0; // +0xc8
     /// <summary>The fire burning on it, if any.</summary>
-    Fire* fireObject; // +0xcc
+    Fire* fireObject = nullptr; // +0xcc
     /// <summary>Zeroed by the constructor; not used by the gate code.</summary>
-    int32_t unknownD0; // +0xd0
+    int32_t unknownD0 = 0; // +0xd0
     /// <summary>Set by destroyGate; the gate then no longer opens or closes.</summary>
-    int32_t destroyed; // +0xd4
+    int32_t destroyed = 0; // +0xd4
     /// <summary>Set by destroyGate: the gate is blown open.</summary>
-    int32_t blownOpen; // +0xd8
+    int32_t blownOpen = 0; // +0xd8
     /// <summary>When set the gate stays shut (like forceGatesClosed); never set in gate.cpp.</summary>
-    int32_t lockedClosed; // +0xdc
+    int32_t lockedClosed = 0; // +0xdc
     /// <summary>Set when a friendly unit comes within the open radius; cleared after openGate.</summary>
-    int32_t openRequested; // +0xe0
+    int32_t openRequested = 0; // +0xe0
     /// <summary>The gate animation is fully open.</summary>
-    int32_t isOpen; // +0xe4
+    int32_t isOpen = 0; // +0xe4
     /// <summary>The gate animation is opening.</summary>
-    int32_t isOpening; // +0xe8
+    int32_t isOpening = 0; // +0xe8
     /// <summary>The gate animation is fully closed.</summary>
-    int32_t isClosed; // +0xec
+    int32_t isClosed = 0; // +0xec
     /// <summary>The gate animation is closing.</summary>
-    int32_t isClosing; // +0xf0
+    int32_t isClosing = 0; // +0xf0
     /// <summary>Set to 1 at the start of destroyGate and back to 0 at its end.</summary>
-    int32_t destroying; // +0xf4
-    /// <summary>The gate's name, loaded from the type's string resource (system heap).</summary>
-    char* name; // +0xf8
+    int32_t destroying = 0; // +0xf4
+    /// <summary>The gate's name, loaded from the type's string resource.</summary>
+    std::string name; // +0xf8
     /// <summary>A unit standing in the gateway, to be crushed if the gate closes on it.</summary>
-    GameObject* offendingObject; // +0xfc
+    GameObject* offendingObject = nullptr; // +0xfc
 };

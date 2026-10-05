@@ -4,7 +4,6 @@
 
 class FitIniFile;
 class GameObject;
-class UserHeap;
 
 // The collision system (original source: object\collsn.cpp). Each frame the objects are sorted into a grid of
 // cells; each object is checked against those of its own and the next cells, and colliding pairs get their types'
@@ -15,9 +14,9 @@ class UserHeap;
 struct CollisionGridNode
 {
     /// <summary>The object.</summary>
-    GameObject* object; // +0x00
+    GameObject* object = nullptr; // +0x00
     /// <summary>The next in the cell.</summary>
-    CollisionGridNode* next; // +0x04
+    CollisionGridNode* next = nullptr; // +0x04
 };
 
 /// <summary>Two objects that collided this frame.</summary>
@@ -25,13 +24,13 @@ struct CollisionGridNode
 struct CollisionRecord
 {
     /// <summary>One object (cleared once handled or destroyed).</summary>
-    GameObject* obj1; // +0x00
+    GameObject* obj1 = nullptr; // +0x00
     /// <summary>The other.</summary>
-    GameObject* obj2; // +0x04
+    GameObject* obj2 = nullptr; // +0x04
     /// <summary>When (seconds from now).</summary>
-    float time; // +0x08
+    float time = 0; // +0x08
     /// <summary>The next pending record.</summary>
-    CollisionRecord* next; // +0x0c
+    CollisionRecord* next = nullptr; // +0x0c
 };
 
 /// <summary>Two movers about to collide (for their pilots' collision avoidance).</summary>
@@ -39,13 +38,13 @@ struct CollisionRecord
 struct CollisionAlertRecord
 {
     /// <summary>One mover.</summary>
-    GameObject* object1; // +0x00
+    GameObject* object1 = nullptr; // +0x00
     /// <summary>The other.</summary>
-    GameObject* object2; // +0x04
+    GameObject* object2 = nullptr; // +0x04
     /// <summary>Their squared distance at the closest point.</summary>
-    float distance; // +0x08
+    float distance = 0; // +0x08
     /// <summary>Seconds until then.</summary>
-    float time; // +0x0c
+    float time = 0; // +0x0c
 };
 
 /// <summary>This frame's collision alerts.</summary>
@@ -53,7 +52,7 @@ struct CollisionAlertRecord
 class GlobalCollisionAlert
 {
 public:
-    /// <summary>Makes room for <paramref name="maxCollisionAlerts"/> alerts (systemHeap); 0 or 0xccef000a.</summary>
+    /// <summary>Makes room for <paramref name="maxCollisionAlerts"/> alerts; 0 or 0xccef000a.</summary>
     /// <remarks>MCX.EXE @ 0x00656ad0 (the original's name is lost)</remarks>
     int32_t init(uint32_t maxCollisionAlerts);
     /// <summary>Frees the alerts.</summary>
@@ -71,7 +70,7 @@ public:
     void purgeRecords();
 
     /// <summary>The alerts.</summary>
-    CollisionAlertRecord* collisionAlerts = nullptr; // +0x00
+    std::unique_ptr<CollisionAlertRecord[]> collisionAlerts; // +0x00
     /// <summary>Room for.</summary>
     uint32_t maxAlerts = 0; // +0x04
     /// <summary>Alerts this frame.</summary>
@@ -79,18 +78,10 @@ public:
 };
 
 /// <summary>The grid objects are sorted into each frame; objects bigger than a cell go on the giant list.</summary>
-/// <remarks>Original source: <c>object\collsn.cpp</c>; 0x48 bytes. Allocated from
-/// <see cref="CollisionSystem::collisionHeap"/>.</remarks>
+/// <remarks>Original source: <c>object\collsn.cpp</c>; 0x48 bytes.</remarks>
 class CollisionGrid
 {
 public:
-    /// <summary>Allocates from the collision heap (null when it isn't up).</summary>
-    /// <remarks>MCX.EXE @ 0x00656c30</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into the collision heap.</summary>
-    /// <remarks>MCX.EXE @ 0x00656c60</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// The first time, sizes the grid from the system's settings and allocates it; every time, empties it and
     /// sets its origin. 0, or 0xccf00000 / 0xccf00001 without memory.
@@ -126,9 +117,9 @@ public:
     /// <summary>Objects bigger than a cell.</summary>
     CollisionGridNode* giantObjects = nullptr; // +0x10
     /// <summary>Each cell's list.</summary>
-    CollisionGridNode** grid = nullptr; // +0x14
+    std::unique_ptr<CollisionGridNode*[]> grid; // +0x14
     /// <summary>The node pool.</summary>
-    CollisionGridNode* nodes = nullptr; // +0x18
+    std::unique_ptr<CollisionGridNode[]> nodes; // +0x18
     /// <summary>The next free node.</summary>
     uint32_t nextAvailableNode = 0; // +0x1c
     /// <summary>The grid's origin.</summary>
@@ -151,18 +142,11 @@ public:
 
 /// <summary>The collision system: settings from the "CollisionSystem" FIT block, the grid, and the collisions
 /// found.</summary>
-/// <remarks>Original source: <c>object\collsn.cpp</c>. Allocated from systemHeap.</remarks>
+/// <remarks>Original source: <c>object\collsn.cpp</c>.</remarks>
 class CollisionSystem
 {
 public:
-    /// <summary>Allocates from systemHeap (null when it isn't up).</summary>
-    /// <remarks>MCX.EXE @ 0x00657190</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x006571c0</remarks>
-    static void operator delete(void* ptr);
-
-    /// <summary>Reads the settings, makes the collision heap, the records, the grid and the alerts.</summary>
+    /// <summary>Reads the settings, makes the records, the grid and the alerts.</summary>
     /// <remarks>MCX.EXE @ 0x006571e0</remarks>
     int32_t init(FitIniFile* scenarioFile);
     /// <summary>Rebuilds the grid from every list's objects and checks it.</summary>
@@ -205,14 +189,14 @@ public:
     /// <summary>Seconds until two moving objects touch within this frame; 0 when already touching.</summary>
     /// <remarks>MCX.EXE @ 0x00657f60</remarks>
     float timeToImpact(GameObject* obj1, GameObject* obj2);
-    /// <summary>Deletes the grid, the collision heap and the alerts.</summary>
+    /// <summary>Deletes the grid, the records and the alerts.</summary>
     /// <remarks>MCX.EXE @ 0x00658290</remarks>
     void destroy();
 
     /// <summary>The grid.</summary>
     CollisionGrid* collisionGrid = nullptr; // +0x00
-    /// <summary>The collision records (maxCollisions, from the collision heap).</summary>
-    CollisionRecord* collisionList = nullptr; // +0x04
+    /// <summary>The collision records (maxCollisions).</summary>
+    std::unique_ptr<CollisionRecord[]> collisionList; // +0x04
     /// <summary>Cleared by init.</summary>
     int32_t unknown08 = 0; // +0x08
     /// <summary>The first pending record.</summary>
@@ -242,8 +226,6 @@ public:
     static float warningDist;
     /// <summary>FIT "AlertTime".</summary>
     static float alertTime;
-    /// <summary>The collision heap (FIT "CollisionHeapSize", forced to 0xffff).</summary>
-    static UserHeap* collisionHeap;
 };
 
 /// <summary>The collision alerts.</summary>

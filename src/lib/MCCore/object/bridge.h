@@ -48,29 +48,29 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Damage that destroys a heavy wall (kind 7; FIT "WallDmgLevel").</summary>
-    uint32_t wallDmgLevel; // +0x30
+    uint32_t wallDmgLevel = 0; // +0x30
     /// <summary>Damage that destroys a medium wall (kind 8; FIT "MediumWallDmgLevel", default half the wall's).</summary>
-    uint32_t mediumWallDmgLevel; // +0x34
+    uint32_t mediumWallDmgLevel = 0; // +0x34
     /// <summary>Damage that destroys a light wall (kind 9; FIT "LightWallDmgLevel").</summary>
-    uint32_t lightWallDmgLevel; // +0x38
+    uint32_t lightWallDmgLevel = 0; // +0x38
     /// <summary>Damage that destroys a bridge (kind 5; FIT "BridgeDmgLevel").</summary>
-    uint32_t bridgeDmgLevel; // +0x3c
+    uint32_t bridgeDmgLevel = 0; // +0x3c
     /// <summary>Damage that burns down a forest tile (kind 6; FIT "ForestDmgLevel").</summary>
-    uint32_t forestDmgLevel; // +0x40
+    uint32_t forestDmgLevel = 0; // +0x40
     /// <summary>FIT "BlownEffectId".</summary>
-    uint32_t blownEffectId; // +0x44
+    uint32_t blownEffectId = 0; // +0x44
     /// <summary>FIT "NormalEffectId".</summary>
-    uint32_t normalEffectId; // +0x48
+    uint32_t normalEffectId = 0; // +0x48
     /// <summary>FIT "DamageEffectId".</summary>
-    uint32_t damageEffectId; // +0x4c
+    uint32_t damageEffectId = 0; // +0x4c
     /// <summary>Object type of a wall's fire (FIT "WallFireFX").</summary>
-    uint32_t wallFireFX; // +0x50
+    uint32_t wallFireFX = 0; // +0x50
     /// <summary>Object type of a bridge's fire (FIT "BridgeFireFX").</summary>
-    uint32_t bridgeFireFX; // +0x54
+    uint32_t bridgeFireFX = 0; // +0x54
     /// <summary>Object type of the fire started on a forest tile (FIT "ForestFireFX").</summary>
-    uint32_t forestFireFX; // +0x58
+    uint32_t forestFireFX = 0; // +0x58
     /// <summary>The ForestEdges shape file, loaded whole into the object type cache; drawn over burnt forest edges.</summary>
-    uint8_t* forestEdgeShapes; // +0x5c
+    uint8_t* forestEdgeShapes = nullptr; // +0x5c
 };
 
 /// <summary>
@@ -169,21 +169,21 @@ public:
     static int32_t cellArray[9];
 
     /// <summary>Set by init; the first update places the object and clears it.</summary>
-    int32_t justCreated; // +0x38
+    int32_t justCreated = 0; // +0x38
     /// <summary>The terrain vertex it stands on, within its block.</summary>
-    int32_t vertexNumber; // +0x3c
+    int32_t vertexNumber = 0; // +0x3c
     /// <summary>The terrain block it stands in.</summary>
-    int32_t blockNumber; // +0x40
+    int32_t blockNumber = 0; // +0x40
     /// <summary>Set when setDamage has swapped the overlay tile for the destroyed one; the first update clears it.</summary>
-    int32_t overlayDestroyed; // +0x44
-    float damage;             // +0x48
+    int32_t overlayDestroyed = 0; // +0x44
+    float damage = 0;             // +0x48
     /// <summary>
     /// Which feature it is: 5 bridge, 6 forest, 7 heavy wall, 8 medium wall, 9 light wall (set by the object block
     /// manager when it places the object).
     /// </summary>
-    int32_t terrainObjectKind; // +0x4c
+    int32_t terrainObjectKind = 0; // +0x4c
     /// <summary>The fire burning on it (made from the type's forest fire effect), if any.</summary>
-    Fire* fireObject; // +0x50
+    Fire* fireObject = nullptr; // +0x50
     /// <summary>Set once destroyed: further hits are ignored and render updates the map's passability.</summary>
-    int32_t destroyed; // +0x54
+    int32_t destroyed = 0; // +0x54
 };

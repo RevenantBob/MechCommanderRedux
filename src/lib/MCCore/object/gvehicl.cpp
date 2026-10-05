@@ -15,7 +15,6 @@
 #include "gui/asystem.h"
 #include "iface/iface.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -219,7 +218,7 @@ auto GroundVehicleType::init() -> void
     crashBlockSelf = DefaultGroundVehicleCrashBlockSelf;
     crashBlockPath = DefaultGroundVehicleCrashBlockPath;
     vehicleId = 0;
-    name = nullptr;
+    name.clear();
     alignment = 0;
     chassis = 0;
     tonnageClass = 0.0f;
@@ -241,12 +240,7 @@ auto GroundVehicleType::init() -> void
 
 auto GroundVehicleType::destroy() -> void
 {
-    if (name != nullptr)
-    {
-        systemHeap->free(name);
-        name = nullptr;
-    }
-
+    name.clear();
     delete dynamicsType;
     dynamicsType = nullptr;
     ObjectType::destroy();
@@ -304,8 +298,7 @@ auto GroundVehicleType::init(File* objFile, uint32_t fileSize) -> int32_t
     alignment = fileAlignment < 2 ? alignmentMap[fileAlignment] : 0;
     char nameBuffer[128];
     vehicleFile.readIdString("Name", nameBuffer, 127);
-    name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(name, nameBuffer);
+    name = nameBuffer;
 
     if ((result = vehicleFile.readIdUChar("Chassis", chassis)) != 0)
     {
@@ -748,11 +741,9 @@ auto GroundVehicle::handleStaticCollision() -> void
 auto GroundVehicle::init() -> void
 {
     objectClass = GROUNDVEHICLE;
-    body = static_cast<BodyLocation*>(
-        ObjectTypeManager::objectCache->malloc(sizeof(BodyLocation) * NUM_GROUNDVEHICLE_LOCATIONS));
+    body = std::make_unique<BodyLocation[]>(NUM_GROUNDVEHICLE_LOCATIONS);
     numBodyLocations = NUM_GROUNDVEHICLE_LOCATIONS;
-    armor = static_cast<ArmorLocation*>(
-        ObjectTypeManager::objectCache->malloc(sizeof(ArmorLocation) * NUM_GROUNDVEHICLE_LOCATIONS));
+    armor = std::make_unique<ArmorLocation[]>(NUM_GROUNDVEHICLE_LOCATIONS);
     movementEnabled = 1;
     turretEnabled = 1;
     weaponsDeployed = 1;
@@ -1031,8 +1022,7 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
 
     char crewBuffer[128];
     vehicleFile->readIdString("Crew", crewBuffer, 127);
-    crewName = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(crewBuffer) + 1)));
-    std::strcpy(crewName, crewBuffer);
+    crewName = crewBuffer;
 
     if (vehicleFile->readIdBoolean("NotMineYet", notMineYet) != 0)
     {
@@ -1046,8 +1036,7 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
 
     char ifaceNameBuffer[256];
     cLoadString(thisInstance, descIndex + 700, ifaceNameBuffer, 0xfe);
-    debugStatus = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(ifaceNameBuffer) + 1)));
-    std::strcpy(debugStatus, ifaceNameBuffer);
+    debugStatus = ifaceNameBuffer;
 
     if ((result = vehicleFile->readIdLong("NameIndex", nameIndex)) != 0)
     {
@@ -1172,13 +1161,7 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
     const int32_t firstWeapon = numOther;
     const int32_t firstAmmo = numOther + numWeapons;
     const int32_t numItems = numOther + numAmmos + numWeapons;
-    inventory = static_cast<InventoryItem*>(
-        ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(numItems * sizeof(InventoryItem))));
-
-    if (inventory == nullptr)
-    {
-        return -2;
-    }
+    inventory = std::make_unique<InventoryItem[]>(static_cast<size_t>(numItems));
 
     numAntiMissileSystems = 0;
     char blockName[32];
@@ -1270,15 +1253,7 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
             static_cast<int16_t>(static_cast<int32_t>(component.damage * 10.0 / component.recycleTime));
         weapon.effectiveness = static_cast<int16_t>(static_cast<int32_t>(
             static_cast<double>(component.weaponRange[3]) * weapon.effectiveness * static_cast<double>(1.0f / 24.0f)));
-        weapon.rangeRatings =
-            static_cast<float*>(ObjectTypeManager::objectCache->malloc(NumRangeRatings * 2 * sizeof(float)));
-
-        if (weapon.rangeRatings == nullptr)
-        {
-            Fatal(0, " No RAM for Weapon Range Ratings ");
-        }
-
-        std::memset(weapon.rangeRatings, 0, NumRangeRatings * 2 * sizeof(float));
+        weapon.rangeRatings = new float[NumRangeRatings * 2]();
         objectTypeManager->load(
             static_cast<int32_t>(
                 weaponFXTable[static_cast<int8_t>(MasterComponentList[inventory[item].masterID].weaponEffect)]),
@@ -1494,8 +1469,7 @@ auto GroundVehicle::calcCV(int calcMax) -> int32_t
 
 auto GroundVehicle::destroy() -> void
 {
-    systemHeap->free(crewName);
-    crewName = nullptr;
+    crewName.clear();
 
     if (statusWindow != nullptr)
     {
@@ -3782,7 +3756,7 @@ auto GroundVehicle::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayC
         }
         else if (isMoverClass(attacker))
         {
-            std::strcpy(attackerName, static_cast<Mover*>(attacker)->debugStatus);
+            std::strcpy(attackerName, static_cast<Mover*>(attacker)->debugStatus.c_str());
         }
         else
         {
@@ -4622,7 +4596,7 @@ namespace
 
         char title[256];
         std::snprintf(title, sizeof(title), "%s %s (%s)", AlignmentNames[vehicle->getAlignment() + 1],
-                      vehicle->debugStatus, vehicle->getPilot()->callsign);
+                      vehicle->debugStatus.c_str(), vehicle->getPilot()->callsign);
         window->setTitle(title);
     }
 }

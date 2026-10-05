@@ -8,7 +8,6 @@
 #include "abl/ablxexpr.h"
 #include "abl/ablxstd.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 int32_t MaxLoopIterations = 100001;
 int32_t ProfileLogFunctionTimeLimit = 5;
@@ -284,7 +283,7 @@ auto execActualParams(SymTableNodePtr routineIdPtr) -> void
             {
                 int32_t size = formalTypePtr->size;
                 Address source = tos->address;
-                Address copy = static_cast<Address>(AblStackHeap->malloc(size));
+                Address copy = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
 
                 if (!copy)
                 {

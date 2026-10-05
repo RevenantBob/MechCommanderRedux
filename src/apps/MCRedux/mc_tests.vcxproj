@@ -57,7 +57,9 @@
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="tests\AblTests.cpp" />
     <ClCompile Include="tests\AllocatorTests.cpp" />
+    <ClCompile Include="tests\BlockStoreTests.cpp" />
     <ClCompile Include="tests\CursorTests.cpp" />
     <ClCompile Include="tests\DirectPlayTests.cpp" />
     <ClCompile Include="tests\EngineTests.cpp" />
@@ -81,6 +83,7 @@
     </ClCompile>
     <ClCompile Include="tests\MissionTests.cpp" />
     <ClCompile Include="tests\ObjectQueueTests.cpp" />
+    <ClCompile Include="tests\ObjectTypeTests.cpp" />
     <ClCompile Include="tests\PathfindingTests.cpp" />
     <ClCompile Include="tests\PortTests.cpp" />
     <ClCompile Include="tests\PresenterTests.cpp" />

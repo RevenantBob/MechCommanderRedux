@@ -129,33 +129,33 @@ enum LiteralType
 /// <remarks>0x808 bytes in the original (curLiteral @ 0x007c4528).</remarks>
 struct Literal
 {
-    LiteralType type; // +0x0
+    LiteralType type{}; // +0x0
     struct
     {
-        int32_t integer;                 // +0x4
-        float real;                      // +0x8
-        char string[MAXLEN_TOKENSTRING]; // +0xc
-    } value;
+        int32_t integer = 0;               // +0x4
+        float real = 0;                    // +0x8
+        char string[MAXLEN_TOKENSTRING]{}; // +0xc
+    } value{};
 };
 
 /// <summary>An entry of a reserved-word table: the word and the token it scans as.</summary>
 /// <remarks>8 bytes in the original. The tables (reservedWord2 .. reservedWord11) are grouped by word length.</remarks>
 struct ReservedWord
 {
-    const char* string;      // +0x0
-    TokenCodeType tokenCode; // +0x4
+    const char* string = nullptr; // +0x0
+    TokenCodeType tokenCode{};    // +0x4
 };
 
 /// <summary>A source file open for scanning; openFiles stacks them for #include.</summary>
 /// <remarks>0x10c bytes in the original (openFiles @ 0x007c3ee0, an unnamed global).</remarks>
 struct SourceFile
 {
-    char fileName[MAXLEN_FILENAME]; // +0x0
+    char fileName[MAXLEN_FILENAME]{}; // +0x0
     /// <summary>Its index in SourceFiles (FileNumber while it is scanned).</summary>
-    uint8_t fileNumber; // +0x100
-    File* filePtr;      // +0x104
+    uint8_t fileNumber = 0;  // +0x100
+    File* filePtr = nullptr; // +0x104
     /// <summary>The line the including file had reached, restored when this one closes.</summary>
-    int32_t lineNumber; // +0x108
+    int32_t lineNumber = 0; // +0x108
 };
 
 /// <summary>Reserved words of 2 .. 11 letters, each table ending with a null entry.</summary>

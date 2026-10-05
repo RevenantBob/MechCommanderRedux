@@ -5,7 +5,6 @@
 #include "camera/camlist.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
@@ -138,8 +137,8 @@ namespace
         {
             if (IsMover(target))
             {
-                std::snprintf(line, sizeof(line), "target = %s (%d)\n", static_cast<Mover*>(target)->debugStatus,
-                              target->partId);
+                std::snprintf(line, sizeof(line), "target = %s (%d)\n",
+                              static_cast<Mover*>(target)->debugStatus.c_str(), target->partId);
             }
             else
             {
@@ -349,27 +348,6 @@ auto _WeaponShotInfo::setEntryAngle(float shotEntryAngle) -> void
 //---------------------------------------------------------------------------
 // WeaponFireChunk
 //---------------------------------------------------------------------------
-
-auto WeaponFireChunk::operator new(size_t size) noexcept -> void*
-{
-    if (systemHeap != nullptr)
-    {
-        return systemHeap->malloc(static_cast<uint32_t>(size));
-    }
-
-    return std::malloc(size);
-}
-
-auto WeaponFireChunk::operator delete(void* ptr) -> void
-{
-    if (systemHeap != nullptr)
-    {
-        systemHeap->free(ptr);
-        return;
-    }
-
-    std::free(ptr);
-}
 
 auto WeaponFireChunk::init() -> void
 {
@@ -680,27 +658,6 @@ auto WeaponFireChunk::equalTo(WeaponFireChunk* chunk) -> int
 // WeaponHitChunk
 //---------------------------------------------------------------------------
 
-auto WeaponHitChunk::operator new(size_t size) noexcept -> void*
-{
-    if (systemHeap != nullptr)
-    {
-        return systemHeap->malloc(static_cast<uint32_t>(size));
-    }
-
-    return std::malloc(size);
-}
-
-auto WeaponHitChunk::operator delete(void* ptr) -> void
-{
-    if (systemHeap != nullptr)
-    {
-        systemHeap->free(ptr);
-        return;
-    }
-
-    std::free(ptr);
-}
-
 auto WeaponHitChunk::buildMoverTarget(BigGameObject* target, int32_t hitCause, float hitDamage, int32_t location,
                                       float angle, int isRefit) -> void
 {
@@ -923,8 +880,8 @@ auto DebugWeaponFireChunk(WeaponFireChunk* chunk1, WeaponFireChunk* chunk2, Game
     {
         if (IsMover(attacker))
         {
-            std::snprintf(line, sizeof(line), "attacker = %s (%d)\n", static_cast<Mover*>(attacker)->debugStatus,
-                          attacker->partId);
+            std::snprintf(line, sizeof(line), "attacker = %s (%d)\n",
+                          static_cast<Mover*>(attacker)->debugStatus.c_str(), attacker->partId);
         }
         else
         {

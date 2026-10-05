@@ -1740,7 +1740,7 @@ auto CompInventoryBlock::init(_LogInventoryItem* newItem) -> void
 {
     item = newItem;
     InventoryBlock::init(0, 0, globalLogPtr->purchaseScreen->lport());
-    MasterComponent* list = MasterComponentList;
+    MasterComponent* list = MasterComponentList.get();
     MasterComponent& component = list[item->masterID];
     int32_t form = component.form;
     tonnage = component.tonnage;

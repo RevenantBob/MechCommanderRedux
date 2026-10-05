@@ -33,9 +33,9 @@ enum ABLParamType : uint8_t
 struct ABLParam
 {
     /// <summary>An ABLParamType.</summary>
-    char type;       // +0x0
-    int32_t integer; // +0x4
-    float real;      // +0x8
+    char type = 0;       // +0x0
+    int32_t integer = 0; // +0x4
+    float real = 0;      // +0x8
 };
 
 /// <summary>A compiled module (ModuleRegistry): its code and what its instances need.</summary>
@@ -43,22 +43,22 @@ struct ABLParam
 struct ModuleEntry
 {
     /// <summary>The main source file's name.</summary>
-    char* fileName; // +0x0
+    char* fileName = nullptr; // +0x0
     /// <summary>The module symbol: its code, parameters and symbol tree.</summary>
-    SymTableNodePtr moduleIdPtr; // +0x4
-    int32_t numSourceFiles;      // +0x8
+    SymTableNodePtr moduleIdPtr = nullptr; // +0x4
+    int32_t numSourceFiles = 0;            // +0x8
     /// <summary>Every source file compiled into it (the index is a statement marker's file number).</summary>
-    char** sourceFiles;        // +0xc
-    int32_t numLibrariesUsed;  // +0x10
-    ABLModule** librariesUsed; // +0x14
-    int32_t numStaticVars;     // +0x18
+    char** sourceFiles = nullptr;        // +0xc
+    int32_t numLibrariesUsed = 0;        // +0x10
+    ABLModule** librariesUsed = nullptr; // +0x14
+    int32_t numStaticVars = 0;           // +0x18
     /// <summary>Per static variable, the bytes of its array block, or 0 for a scalar.</summary>
-    int32_t* sizeStaticVars; // +0x1c
+    int32_t* sizeStaticVars = nullptr; // +0x1c
     /// <summary>
     /// numStaticVars * 4 plus the array blocks (bookkeeping for the debugger; it counts the original's 4-byte slots).
     /// </summary>
-    int32_t totalSizeStaticVars; // +0x20
-    int32_t numInstances;        // +0x24
+    int32_t totalSizeStaticVars = 0; // +0x20
+    int32_t numInstances = 0;        // +0x24
 };
 
 /// <summary>
@@ -66,7 +66,7 @@ struct ModuleEntry
 /// own static variables; the code and symbols are shared through ModuleRegistry.
 /// </summary>
 /// <remarks>
-/// Original source: <c>abl\ablenv.cpp</c>, 0x48 bytes, allocated through its own operator new (systemHeap). Other
+/// Original source: <c>abl\ablenv.cpp</c>, 0x48 bytes, allocated through its own operator new. Other
 /// classes (MechWarrior, GeneralOrder, Scenario) read its fields directly.
 /// </remarks>
 class ABLModule
@@ -88,13 +88,6 @@ public:
         traceEntry = 0;
         traceExit = 0;
     }
-
-    /// <summary>Allocates from systemHeap (null if it is gone).</summary>
-    /// <remarks>MCX.EXE @ 0x00622260 (unnamed in the symbols)</remarks>
-    static void* operator new(size_t mySize) noexcept;
-    /// <summary>Frees to systemHeap, or the C heap once systemHeap is gone.</summary>
-    /// <remarks>MCX.EXE @ 0x00622290 (unnamed in the symbols)</remarks>
-    static void operator delete(void* us);
 
     /// <summary>
     /// Makes this an instance of registered module <paramref name="moduleHandle"/>: allocates its static data (and
@@ -173,23 +166,23 @@ public:
     int32_t getReturnValue() const { return returnVal; }
 
     /// <summary>Instance number (the order of init calls), or -1.</summary>
-    int32_t id;                    // +0x0
-    char name[MAX_ABLMODULE_NAME]; // +0x4
+    int32_t id = 0;                  // +0x0
+    char name[MAX_ABLMODULE_NAME]{}; // +0x4
     /// <summary>Index of its compiled module in ModuleRegistry, or -1.</summary>
-    int32_t handle; // +0x20
+    int32_t handle = 0; // +0x20
     /// <summary>The instance's static variables, one StackItem each (arrays as pointers to their blocks).</summary>
-    StackItemPtr staticData; // +0x24
+    StackItemPtr staticData = nullptr; // +0x24
     /// <summary>The integer the last execution returned.</summary>
-    int32_t returnVal; // +0x28
+    int32_t returnVal = 0; // +0x28
     /// <summary>Nonzero once the module's <c>init</c> function has run.</summary>
-    int32_t initCalled;                   // +0x2c
-    WatchManager* watchManager;           // +0x30
-    BreakPointManager* breakPointManager; // +0x34
+    int32_t initCalled = 0;                         // +0x2c
+    WatchManager* watchManager = nullptr;           // +0x30
+    BreakPointManager* breakPointManager = nullptr; // +0x34
     /// <summary>Debugger modes for this instance (copied into the Debugger by setModule).</summary>
-    int32_t trace;      // +0x38
-    int32_t step;       // +0x3c
-    int32_t traceEntry; // +0x40
-    int32_t traceExit;  // +0x44
+    int32_t trace = 0;      // +0x38
+    int32_t step = 0;       // +0x3c
+    int32_t traceEntry = 0; // +0x40
+    int32_t traceExit = 0;  // +0x44
 };
 
 typedef ABLModule* ABLModulePtr;

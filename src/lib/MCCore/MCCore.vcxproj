@@ -199,6 +199,7 @@
     <ClCompile Include="object\warrior.cpp" />
     <ClCompile Include="platform\MCAllocator.cpp" />
     <ClCompile Include="platform\MCAudio.cpp" />
+    <ClCompile Include="platform\MCBlockStore.cpp" />
     <ClCompile Include="platform\MCCursor.cpp" />
     <ClCompile Include="platform\MCDirectPlay.cpp" />
     <ClCompile Include="platform\MCDisplay.cpp" />
@@ -419,6 +420,7 @@
     <ClInclude Include="object\warrior.h" />
     <ClInclude Include="platform\MCAllocator.h" />
     <ClInclude Include="platform\MCAudio.h" />
+    <ClInclude Include="platform\MCBlockStore.h" />
     <ClInclude Include="platform\MCCursor.h" />
     <ClInclude Include="platform\MCDirectPlay.h" />
     <ClInclude Include="platform\MCDisplay.h" />

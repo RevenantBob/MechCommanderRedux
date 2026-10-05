@@ -12,7 +12,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -63,7 +62,7 @@ namespace
         }
 
         const uint32_t size = shadowFile.fileSize();
-        shadow = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(size));
+        shadow = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(size));
         shadowFile.read(shadow, static_cast<int32_t>(size));
         MCRenderer::RegisterData(shadow, size, MCDataKind::Shapes);
         shadowFile.close();
@@ -111,9 +110,9 @@ auto TreeType::createInstance() -> BaseObject*
 
 auto TreeType::destroy() -> void
 {
-    ObjectTypeManager::objectTypeCache->free(normalShadow);
+    ObjectTypeManager::objectTypeCache.Free(normalShadow);
     normalShadow = nullptr;
-    ObjectTypeManager::objectTypeCache->free(destroyedShadow);
+    ObjectTypeManager::objectTypeCache.Free(destroyedShadow);
     destroyedShadow = nullptr;
 }
 

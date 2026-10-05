@@ -8,7 +8,6 @@
 #include "abl/ablstmt.h"
 #include "abl/ablsymt.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 TokenCodeType relationalOperatorList[] = {TKN_LT, TKN_LE, TKN_EQUALEQUAL, TKN_NE, TKN_GE, TKN_GT, TKN_NONE};
 TokenCodeType addOperatorList[] = {TKN_PLUS, TKN_MINUS, TKN_OR, TKN_NONE};
@@ -266,15 +265,7 @@ auto factor() -> TypePtr
             {
                 typePtr = makeStringType(length);
                 literalIdPtr->typePtr = typePtr;
-                literalIdPtr->literalString =
-                    static_cast<char*>(AblSymTableHeap->malloc(static_cast<uint32_t>(length + 1)));
-
-                if (literalIdPtr->literalString == nullptr)
-                {
-                    Fatal(0, " ABL: Unable to AblSymTableHeap->malloc string literal ");
-                }
-
-                strcpy(literalIdPtr->literalString, curLiteral.value.string);
+                literalIdPtr->literalString = AblMemory.CopyString(curLiteral.value.string);
             }
 
             crunchSymTableNodePtr(literalIdPtr);

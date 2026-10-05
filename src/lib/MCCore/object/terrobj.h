@@ -44,25 +44,25 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>The damage that destroys the object; 0 means it starts destroyed (FIT "DmgLevel").</summary>
-    uint32_t dmgLevel; // +0x30
+    uint32_t dmgLevel = 0; // +0x30
     /// <summary>Replaces the placement's pixel offset X when nonzero (FIT "BasePixelOffsetX").</summary>
-    int32_t basePixelOffsetX; // +0x34
+    int32_t basePixelOffsetX = 0; // +0x34
     /// <summary>Replaces the placement's pixel offset Y when nonzero (FIT "BasePixelOffsetY").</summary>
-    int32_t basePixelOffsetY; // +0x38
+    int32_t basePixelOffsetY = 0; // +0x38
     /// <summary>Replaces the pixel offset X when placing the object in the world (FIT "CollisionOffsetX").</summary>
-    int32_t collisionOffsetX; // +0x3c
+    int32_t collisionOffsetX = 0; // +0x3c
     /// <summary>Replaces the pixel offset Y when placing the object in the world (FIT "CollisionOffsetY").</summary>
-    int32_t collisionOffsetY; // +0x40
+    int32_t collisionOffsetY = 0; // +0x40
     /// <summary>FIT "SetImpassable".</summary>
-    int32_t setImpassable; // +0x44
+    int32_t setImpassable = 0; // +0x44
     /// <summary>FIT "XImpasse".</summary>
-    int32_t xImpasse; // +0x48
+    int32_t xImpasse = 0; // +0x48
     /// <summary>FIT "YImpasse".</summary>
-    int32_t yImpasse; // +0x4c
+    int32_t yImpasse = 0; // +0x4c
     /// <summary>FIT "ExplosionDamage".</summary>
-    float explDmg; // +0x50
+    float explDmg = 0; // +0x50
     /// <summary>FIT "ExplosionRadius".</summary>
-    float explRad; // +0x54
+    float explRad = 0; // +0x54
 };
 
 /// <summary>
@@ -132,35 +132,35 @@ public:
     void lightOnFire(float timeToBurn);
 
     /// <summary>Set until the first update has placed the object in the world.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The object's VFX appearance.</summary>
-    Appearance* appearance; // +0x88
+    Appearance* appearance = nullptr; // +0x88
     /// <summary>The pixel offset X of the object from its vertex.</summary>
-    int32_t pixelOffsetX; // +0x8c
+    int32_t pixelOffsetX = 0; // +0x8c
     /// <summary>The pixel offset Y of the object from its vertex.</summary>
-    int32_t pixelOffsetY; // +0x90
+    int32_t pixelOffsetY = 0; // +0x90
     /// <summary>The terrain vertex within its block.</summary>
-    int32_t vertexNumber; // +0x94
+    int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block.</summary>
-    int32_t blockNumber; // +0x98
+    int32_t blockNumber = 0; // +0x98
     /// <summary>Unknown: only set to 0 by the constructor.</summary>
-    int32_t unknown9C; // +0x9c
+    int32_t unknown9C = 0; // +0x9c
     /// <summary>Unknown: only set to 500000 by the constructor.</summary>
-    int32_t unknownA0; // +0xa0
+    int32_t unknownA0 = 0; // +0xa0
     /// <summary>Unknown: never accessed by these classes.</summary>
-    int32_t unknownA4[4]; // +0xa4
+    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The map cell column of its vertex.</summary>
-    int32_t cellColumn; // +0xb4
+    int32_t cellColumn = 0; // +0xb4
     /// <summary>The map cell row of its vertex.</summary>
-    int32_t cellRow; // +0xb8
+    int32_t cellRow = 0; // +0xb8
     /// <summary>The world X of its vertex.</summary>
-    float vertexWorldX; // +0xbc
+    float vertexWorldX = 0; // +0xbc
     /// <summary>The world Y of its vertex.</summary>
-    float vertexWorldY; // +0xc0
+    float vertexWorldY = 0; // +0xc0
     /// <summary>The elevation of its map cell, in meters.</summary>
-    float cellElevation; // +0xc4
+    float cellElevation = 0; // +0xc4
     /// <summary>Set while the object is burning.</summary>
-    int32_t burning; // +0xc8
+    int32_t burning = 0; // +0xc8
     /// <summary>The fire burning on the object.</summary>
-    Fire* fireObject; // +0xcc
+    Fire* fireObject = nullptr; // +0xcc
 };

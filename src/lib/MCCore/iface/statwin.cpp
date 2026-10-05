@@ -75,12 +75,12 @@ auto DrawMechInfo(aObject* window) -> void
         return;
     }
 
-    sprintf(text, "Damaged bits of %s", mover->debugStatus);
+    sprintf(text, "Damaged bits of %s", mover->debugStatus.c_str());
     whiteFont->writeString(pane, 2, 10, reinterpret_cast<uint8_t*>(text), -1);
 
     int32_t yPos = 0x1e;
     int32_t numItems = mover->numOther + mover->numAmmos + mover->numWeapons;
-    InventoryItem* item = mover->inventory;
+    InventoryItem* item = mover->inventory.get();
 
     for (; numItems != 0; numItems--, item++)
     {

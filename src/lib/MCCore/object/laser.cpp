@@ -7,7 +7,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "platform/MCRenderer.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
@@ -123,9 +122,9 @@ namespace
     }
 } // namespace
 
-uint8_t* laserEffectBuffer = nullptr;
-_pane* laserPane = nullptr;
-_window* laserWindow = nullptr;
+std::unique_ptr<uint8_t[]> laserEffectBuffer;
+std::unique_ptr<_pane> laserPane;
+std::unique_ptr<_window> laserWindow;
 
 namespace
 {
@@ -182,18 +181,12 @@ auto LaserType::createInstance() -> BaseObject*
 
 auto LaserType::destroy() -> void
 {
-    UserHeap* cache = ObjectTypeManager::objectTypeCache;
-
-    if (cache == nullptr || cache->heapSize == 0)
-    {
-        return;
-    }
-
-    cache->free(stageDuration);
+    MCBlockStore& cache = ObjectTypeManager::objectTypeCache;
+    cache.Free(stageDuration);
     stageDuration = nullptr;
-    cache->free(stageCool);
+    cache.Free(stageCool);
     stageCool = nullptr;
-    cache->free(stageHot);
+    cache.Free(stageHot);
     stageHot = nullptr;
 }
 
@@ -257,7 +250,7 @@ auto LaserType::init(File* objFile, uint32_t fileSize) -> int32_t
         }
 
         const uint32_t size = shapeFile.fileSize();
-        laserEffectShape = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(size));
+        laserEffectShape = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(size));
 
         if (laserEffectShape == nullptr)
         {
@@ -319,31 +312,12 @@ auto LaserType::init(File* objFile, uint32_t fileSize) -> int32_t
     }
 
     // The stage arrays: numStages friendly stages, then numStages enemy ones.
-    UserHeap* cache = ObjectTypeManager::objectTypeCache;
-
-    if (cache != nullptr && cache->heapSize != 0)
     {
-        const uint32_t count = numStages;
-        stageDuration = static_cast<float*>(cache->malloc(count * 2 * sizeof(float)));
-
-        if (stageDuration == nullptr)
-        {
-            return static_cast<int32_t>(0xdcdc0001);
-        }
-
-        stageCool = static_cast<uint8_t*>(cache->malloc(count * 2 * sizeof(uint8_t)));
-
-        if (stageCool == nullptr)
-        {
-            return static_cast<int32_t>(0xdcdc0001);
-        }
-
-        stageHot = static_cast<uint8_t*>(cache->malloc(count * 2 * sizeof(uint8_t)));
-
-        if (stageHot == nullptr)
-        {
-            return static_cast<int32_t>(0xdcdc0001);
-        }
+        MCBlockStore& cache = ObjectTypeManager::objectTypeCache;
+        const size_t count = numStages;
+        stageDuration = cache.AllocateArray<float>(count * 2);
+        stageCool = cache.AllocateArray<uint8_t>(count * 2);
+        stageHot = cache.AllocateArray<uint8_t>(count * 2);
     }
 
     const int32_t count = numStages;
@@ -685,24 +659,24 @@ auto Laser::render() -> void
     // A PPC: the current frame of the effect shape, drawn into its own buffer and stretched along the beam.
     if (laserEffectBuffer == nullptr)
     {
-        laserEffectBuffer = static_cast<uint8_t*>(systemHeap->malloc(0x10000));
-        laserPane = static_cast<_pane*>(systemHeap->malloc(sizeof(_pane)));
-        laserWindow = static_cast<_window*>(systemHeap->malloc(sizeof(_window)));
+        laserEffectBuffer = std::make_unique<uint8_t[]>(0x10000);
+        laserPane = std::make_unique<_pane>();
+        laserWindow = std::make_unique<_window>();
         const auto shapeWidth = static_cast<int32_t>(type->rPPC - type->lPPC);
         const auto shapeHeight = static_cast<int32_t>(type->bPPC - type->tPPC);
         laserPane->x0 = 0;
         laserPane->y0 = 0;
         laserPane->x1 = shapeWidth;
         laserPane->y1 = shapeHeight;
-        laserWindow->buffer = laserEffectBuffer;
+        laserWindow->buffer = laserEffectBuffer.get();
         laserWindow->x_max = shapeWidth + 1;
         laserWindow->y_max = shapeHeight + 1;
-        laserPane->window = laserWindow;
-        laserTexture =
-            MCRenderer::CreateTexture(laserEffectBuffer, laserWindow->x_max, laserWindow->y_max, MCTextureUse::Dynamic);
+        laserPane->window = laserWindow.get();
+        laserTexture = MCRenderer::CreateTexture(laserEffectBuffer.get(), laserWindow->x_max, laserWindow->y_max,
+                                                 MCTextureUse::Dynamic);
     }
 
-    AG_shape_draw(laserPane, type->laserEffectShape, ppcFrame, 0, 0);
+    AG_shape_draw(laserPane.get(), type->laserEffectShape, ppcFrame, 0, 0);
     MCRenderer::UnlockTexture(laserTexture);
     const float width = static_cast<float>(type->pixelWidth);
     const auto top = static_cast<int32_t>(startY);
@@ -716,7 +690,7 @@ auto Laser::render() -> void
     data.vertices[2] =
         screenVertex(right, static_cast<int32_t>(endY - width), 0, laserPane->x1 << 16, laserPane->y1 << 16);
     data.vertices[1] = screenVertex(right, static_cast<int32_t>(endY), 0, laserPane->x1 << 16, laserPane->y0 << 16);
-    data.texture = laserEffectBuffer;
+    data.texture = laserEffectBuffer.get();
     data.textureWidth = laserWindow->x_max;
     data.textureHeight = laserWindow->y_max;
     data.textureHandle = laserTexture;

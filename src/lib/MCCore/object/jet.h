@@ -36,14 +36,14 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Sample played when the jet starts (FIT "SoundEffectId"); 0xFFFFFFFF for none.</summary>
-    uint32_t soundEffectId; // +0x30
+    uint32_t soundEffectId = 0; // +0x30
     /// <summary>Object type of the <see cref="Smoke"/> trail the jet creates (FIT "SmokeObjectId"); -1 for none.</summary>
-    uint32_t smokeObjectId; // +0x34
+    uint32_t smokeObjectId = 0; // +0x34
     /// <summary>
     /// Object type of a second object the jet creates and keeps on the terrain under itself; -1 for none. Never read
     /// from the FIT, so always -1 in practice.
     /// </summary>
-    uint32_t groundObjectId; // +0x38
+    uint32_t groundObjectId = 0; // +0x38
 };
 
 /// <summary>
@@ -90,21 +90,21 @@ public:
     void setOwner(BaseObject* newOwner);
 
     /// <summary>Set by the constructor and init; the first update clears it, plays the sound and sets the position.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The jumping mech (<see cref="setOwner"/> stores a BaseObject; every use is as a BattleMech).</summary>
-    BattleMech* owner; // +0x88
+    BattleMech* owner = nullptr; // +0x88
     /// <summary>The jump jet passed to BattleMech::getJumpPosition; zeroed by the constructor and never set.</summary>
-    int32_t jetNumber; // +0x8c
+    int32_t jetNumber = 0; // +0x8c
     /// <summary>The jet flame (an ArmAppearance).</summary>
-    Appearance* appearance; // +0x90
+    Appearance* appearance = nullptr; // +0x90
     /// <summary>The smoke trail.</summary>
-    Smoke* smoke; // +0x94
+    Smoke* smoke = nullptr; // +0x94
     /// <summary>The altitude at the previous update, to tell when the owner starts coming down.</summary>
-    float lastAltitude; // +0x98
+    float lastAltitude = 0; // +0x98
     /// <summary>Set once the owner is landing and the jet is falling: the flame is no longer drawn and the smoke stops.</summary>
-    int32_t landing; // +0x9c
+    int32_t landing = 0; // +0x9c
     /// <summary>The object of the type's groundObjectId, kept at terrain elevation under the jet.</summary>
-    GameObject* groundObject; // +0xa0
+    GameObject* groundObject = nullptr; // +0xa0
     /// <summary>The draw rotation of the flame and smoke: 150 or -150 by the owner's heading.</summary>
-    int32_t drawRotation; // +0xa4
+    int32_t drawRotation = 0; // +0xa4
 };

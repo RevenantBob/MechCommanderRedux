@@ -7,18 +7,10 @@ class GameObject;
 /// What a mover's controller asks of it this frame (throttle, turning, firing): the base of the per-kind control
 /// data (<see cref="MechControlData"/>, <see cref="GroundVehicleControlData"/>, <see cref="ElementalControlData"/>).
 /// </summary>
-/// <remarks>Original source: <c>object\control.cpp</c>, <c>object\control.h</c>. Allocated from
-/// <c>ObjectTypeManager::objectCache</c>.</remarks>
+/// <remarks>Original source: <c>object\control.cpp</c>, <c>object\control.h</c>.</remarks>
 class ControlData
 {
 public:
-    /// <summary>Allocates from <c>ObjectTypeManager::objectCache</c> (null when it isn't up).</summary>
-    /// <remarks>MCX.EXE @ 0x006599e0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x00659a10</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>The original's destructor is not virtual: it resets the vtable and calls destroy.</summary>
     ~ControlData() { destroy(); }
 
@@ -39,18 +31,10 @@ public:
 /// What drives a mover each frame: its AI, the player, or the network. The subclasses fill the mover's
 /// <see cref="ControlData"/> in update.
 /// </summary>
-/// <remarks>Original source: <c>object\control.cpp</c>, <c>object\control.h</c>. Allocated from
-/// <c>ObjectTypeManager::objectCache</c>.</remarks>
+/// <remarks>Original source: <c>object\control.cpp</c>, <c>object\control.h</c>.</remarks>
 class Control
 {
 public:
-    /// <summary>Allocates from <c>ObjectTypeManager::objectCache</c> (null when it isn't up).</summary>
-    /// <remarks>MCX.EXE @ 0x00659a60</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x00659a90</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>The original's destructor is not virtual: it resets the vtable and calls destroy.</summary>
     ~Control() { destroy(); }
 

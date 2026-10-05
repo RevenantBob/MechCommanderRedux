@@ -32,15 +32,15 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Base yaw added by <see cref="Debris::randomAngle"/> (FIT "ArmFallYaw").</summary>
-    float armFallYaw; // +0x30
+    float armFallYaw = 0; // +0x30
     /// <summary>Random spread of the yaw (FIT "ArmFallYawRange").</summary>
-    float armFallYawRange; // +0x34
+    float armFallYawRange = 0; // +0x34
     /// <summary>Base speed the debris is thrown with (FIT "ArmFallVelMag").</summary>
-    float armFallVelMag; // +0x38
+    float armFallVelMag = 0; // +0x38
     /// <summary>Random spread of the speed (FIT "ArmFallVelRange").</summary>
-    float armFallVelRange; // +0x3c
+    float armFallVelRange = 0; // +0x3c
     /// <summary>Deceleration while it slides after the fall animation (FIT "ArmFallDecelRate").</summary>
-    float armFallDecelRate; // +0x40
+    float armFallDecelRate = 0; // +0x40
 };
 
 /// <summary>
@@ -103,19 +103,19 @@ public:
     void setPaintScheme(int32_t paintScheme);
 
     /// <summary>Set by the constructor and init; the first update clears it after scaling the velocity.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The arm appearance.</summary>
-    Appearance* appearance; // +0x88
+    Appearance* appearance = nullptr; // +0x88
     /// <summary>The last onScreen result, passed to the appearance's update.</summary>
-    int32_t visible; // +0x8c
+    int32_t visible = 0; // +0x8c
     /// <summary>Zeroed by the constructor; not otherwise used in debris.cpp.</summary>
-    int32_t unknown90; // +0x90
+    int32_t unknown90 = 0; // +0x90
     /// <summary>The type's armFallDecelRate, copied on the first update.</summary>
-    float decelRate; // +0x94
+    float decelRate = 0; // +0x94
     /// <summary>Set once the appearance's animation has finished: the debris then slows down.</summary>
-    int32_t fallDone; // +0x98
+    int32_t fallDone = 0; // +0x98
     /// <summary>Set once the debris has slowed to a stop: it no longer moves.</summary>
-    int32_t stopped; // +0x9c
+    int32_t stopped = 0; // +0x9c
     /// <summary>Velocity in meters per second (converted with worldUnitsPerMeter when moving).</summary>
     vector_3d velocity; // +0xa0
     /// <summary>Orientation, returned by <see cref="getFrame"/>.</summary>

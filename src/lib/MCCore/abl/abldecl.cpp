@@ -8,7 +8,6 @@
 #include "abl/ablstmt.h"
 #include "abl/ablsymt.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 TokenCodeType followRoutineList[] = {TKN_SEMICOLON, TKN_EOF, TKN_NONE};
 TokenCodeType followDeclarationList[] = {TKN_SEMICOLON, TKN_IDENTIFIER, TKN_EOF, TKN_NONE};
@@ -112,12 +111,6 @@ auto constDefinitions() -> void
 auto makeStringType(int32_t length) -> TypePtr
 {
     TypePtr stringTypePtr = createType();
-
-    if (stringTypePtr == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc stringType ");
-    }
-
     stringTypePtr->form = FRM_ARRAY;
     stringTypePtr->size = length;
     stringTypePtr->typeIdPtr = nullptr;
@@ -221,14 +214,7 @@ auto doConst(SymTableNodePtr constantIdPtr) -> void
         }
         else
         {
-            value.stringPtr = static_cast<char*>(AblSymTableHeap->malloc(static_cast<uint32_t>(length + 1)));
-
-            if (value.stringPtr == nullptr)
-            {
-                Fatal(0, " ABL: Unable to AblStackHeap->malloc array string constant ");
-            }
-
-            strcpy(value.stringPtr, curLiteral.value.string);
+            value.stringPtr = AblMemory.CopyString(curLiteral.value.string);
             constantIdPtr->typePtr = makeStringType(length);
         }
     }
@@ -309,12 +295,6 @@ auto doType() -> TypePtr
 
     // "type[d1, d2, ...]": one array type per dimension, each the element type of the one before.
     TypePtr arrayTypePtr = createType();
-
-    if (arrayTypePtr == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc array type ");
-    }
-
     TypePtr dimensionTypePtr = arrayTypePtr;
 
     while (true)
@@ -371,12 +351,6 @@ auto doType() -> TypePtr
 
         TypePtr nextDimensionTypePtr = createType();
         dimensionTypePtr->info.array.elementTypePtr = nextDimensionTypePtr;
-
-        if (nextDimensionTypePtr == nullptr)
-        {
-            Fatal(0, " ABL: Unable to AblStackHeap->malloc array element Type ");
-        }
-
         dimensionTypePtr = nextDimensionTypePtr;
     }
 
@@ -399,12 +373,6 @@ auto enumerationType() -> TypePtr
     int32_t constantValue = -1;
 
     TypePtr typePtr = createType();
-
-    if (typePtr == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc enumeration type ");
-    }
-
     typePtr->form = FRM_ENUM;
     typePtr->size = 4;
     typePtr->typeIdPtr = nullptr;
@@ -593,14 +561,13 @@ auto varOrFieldDeclarations(SymTableNodePtr routineIdPtr, TypePtr, int32_t offse
 
                     if (typePtr->form == FRM_ARRAY)
                     {
-                        slot.address = static_cast<Address>(AblStackHeap->malloc(static_cast<uint32_t>(size)));
+                        slot.address = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
 
+                        // An empty array got no block from the heap, which was fatal.
                         if (slot.address == nullptr)
                         {
                             Fatal(0, " ABL: Unable to AblStackHeap->malloc eternal array ");
                         }
-
-                        memset(slot.address, 0, static_cast<size_t>(size));
                     }
 
                     eternalOffset++;

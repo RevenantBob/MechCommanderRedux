@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "object/sortlist.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "object/objtype.h"
 
 namespace
@@ -16,14 +15,8 @@ namespace
 auto SortList::init(int32_t numItems) -> int32_t
 {
     this->numItems = numItems;
-    list = static_cast<SortListNode*>(ObjectTypeManager::objectCache->malloc(numItems * sizeof(SortListNode)));
-
-    if (list == nullptr)
-    {
-        Fatal(0, " Unable to init sortList ");
-    }
-
-    return list == nullptr ? 1 : 0;
+    list = std::make_unique<SortListNode[]>(static_cast<size_t>(numItems));
+    return 0;
 }
 
 auto SortList::clear(int setToMin) -> void
@@ -81,17 +74,16 @@ auto SortList::sort(int descending) -> void
 {
     if (descending != 0)
     {
-        std::qsort(list, numItems, sizeof(SortListNode), descendingCompare);
+        std::qsort(list.get(), numItems, sizeof(SortListNode), descendingCompare);
         return;
     }
 
-    std::qsort(list, numItems, sizeof(SortListNode), ascendingCompare);
+    std::qsort(list.get(), numItems, sizeof(SortListNode), ascendingCompare);
 }
 
 auto SortList::destroy() -> void
 {
-    // The original frees into systemHeap although init allocated from objectCache; systemHeap ignores the foreign
-    // block, so it stays allocated until objectCache goes.
-    systemHeap->free(list);
-    list = nullptr;
+    // The original freed into systemHeap although init allocated from objectCache, so the block stayed allocated
+    // until objectCache went; nothing reads it after destroy.
+    list.reset();
 }

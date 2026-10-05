@@ -5,7 +5,6 @@
 #include "iface/parser.h"
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
-#include "lib/heap.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/bldng.h"
@@ -81,16 +80,6 @@ namespace
 
         return true;
     }
-}
-
-auto TacticalOrder::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto TacticalOrder::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
 }
 
 auto TacticalOrder::operator=(TacticalOrder copy) -> void

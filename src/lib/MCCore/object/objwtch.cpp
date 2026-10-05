@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "object/objwtch.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 ObjectWatcherList* objectWatchers = nullptr;
 
@@ -13,13 +12,12 @@ auto ObjectWatcherList::init(int32_t) -> void
 {
     // Faithful: the size asked for is ignored; the list always holds 200.
     maxWatchers = 200;
-    watchers = static_cast<BaseObject***>(systemHeap->malloc(200 * sizeof(BaseObject**)));
+    watchers = std::make_unique<BaseObject**[]>(200);
 }
 
 auto ObjectWatcherList::free() -> void
 {
-    systemHeap->free(watchers);
-    watchers = nullptr;
+    watchers.reset();
 }
 
 auto ObjectWatcherList::watch(BaseObject** watcher) -> void

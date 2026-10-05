@@ -43,7 +43,7 @@ enum ObjectClass : int32_t
 
 /// <summary>
 /// The root of every object in the world: its class, id, part id, and the link that chains it into an
-/// <c>ObjectQueue</c>. Objects are allocated from <c>ObjectTypeManager::objectCache</c> and made by their
+/// <c>ObjectQueue</c>. Objects are made by their
 /// <see cref="ObjectType"/>'s <c>createInstance</c>.
 /// </summary>
 /// <remarks>
@@ -119,18 +119,12 @@ public:
         vertexNumber = -1;
     }
 
-    /// <summary>Allocates from <c>ObjectTypeManager::objectCache</c>; fatal when it is full.</summary>
-    /// <remarks>MCX.EXE @ 0x006519b0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006519f0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>What the object is.</summary>
-    ObjectClass objectClass; // +0x04
+    ObjectClass objectClass{}; // +0x04
     /// <summary>The unique id <c>ObjectType::createInstance</c> gives it (from <c>NextIdNumber</c>).</summary>
-    uint32_t idNumber; // +0x08
+    uint32_t idNumber = 0; // +0x08
     /// <summary>The object's part id in the scenario (-1 when it has none).</summary>
-    int32_t partId; // +0x0c
+    int32_t partId = 0; // +0x0c
     /// <summary>The next object in the <c>ObjectQueue</c> list that holds it.</summary>
-    BaseObject* next; // +0x10
+    BaseObject* next = nullptr; // +0x10
 };

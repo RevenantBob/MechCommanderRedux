@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform/MCBlockStore.h"
+
 // ABL symbol tables and types. Every identifier the compiler meets (constant, type, variable, parameter, function,
 // module, library) is a _SymTableNode in a binary tree per scope; SymTableDisplay holds the scopes open while
 // compiling (0 = the global/library scope, 1 = the module, 2 = a function). Types are refcounted _Type records.
@@ -9,7 +11,6 @@
 // comments are the original's. Nothing here is ever written to a file.
 
 class ABLModule;
-class UserHeap;
 struct _Watch;
 struct _SymTableNode;
 struct _Type;
@@ -297,11 +298,11 @@ union Value
 struct _Type
 {
     /// <summary>How many symbols share this type.</summary>
-    int32_t numInstances; // +0x0
-    FormType form;        // +0x4
-    int32_t size;         // +0x8
+    int32_t numInstances = 0; // +0x0
+    FormType form{};          // +0x4
+    int32_t size = 0;         // +0x8
     /// <summary>The type's name, if it has one.</summary>
-    SymTableNodePtr typeIdPtr; // +0xc
+    SymTableNodePtr typeIdPtr = nullptr; // +0xc
     union
     {
         struct
@@ -317,14 +318,14 @@ struct _Type
             TypePtr elementTypePtr; // +0x14
             int32_t elementCount;   // +0x18
         } array;
-    } info;
+    } info{};
 };
 
 /// <summary>What a symbol stands for, by DefinitionType (the original's <c>Definition</c>).</summary>
 /// <remarks>0x24 bytes in the original (+0x18 .. +0x3c of _SymTableNode; extractSymTable copies it as 9 words).</remarks>
 struct Definition
 {
-    DefinitionType key; // +0x18
+    DefinitionType key{}; // +0x18
     union
     {
         /// <summary>DFN_CONST.</summary>
@@ -357,19 +358,19 @@ struct Definition
             /// <summary>Slot index: in the stack frame, the static data, or the eternal area (by varType).</summary>
             int32_t offset; // +0x20
         } data;
-    } info;
+    } info{};
 };
 
 /// <summary>A symbol: a node of a scope's binary tree (ordered by strcmp of the name).</summary>
-/// <remarks>0x4c bytes in the original (enterSymTable), allocated from AblSymTableHeap.</remarks>
+/// <remarks>0x4c bytes in the original (enterSymTable).</remarks>
 struct _SymTableNode
 {
-    SymTableNodePtr left;   // +0x0
-    SymTableNodePtr parent; // +0x4
-    SymTableNodePtr right;  // +0x8
+    SymTableNodePtr left = nullptr;   // +0x0
+    SymTableNodePtr parent = nullptr; // +0x4
+    SymTableNodePtr right = nullptr;  // +0x8
     /// <summary>The next symbol of a list (parameters, locals, enumeration values).</summary>
-    SymTableNodePtr next; // +0xc
-    char* name;           // +0x10
+    SymTableNodePtr next = nullptr; // +0xc
+    char* name = nullptr;           // +0x10
     union
     {
         /// <summary>The debugger's watch on this symbol (WatchManager), or null.</summary>
@@ -381,20 +382,30 @@ struct _SymTableNode
         char* literalString; // +0x14
     };
 
-    Definition defn; // +0x18
-    TypePtr typePtr; // +0x3c
+    Definition defn{};         // +0x18
+    TypePtr typePtr = nullptr; // +0x3c
     /// <summary>The library that defines this symbol, or null for the module being compiled.</summary>
-    ABLModule* library; // +0x40
+    ABLModule* library = nullptr; // +0x40
     /// <summary>The scope level it was declared at (0 global, 1 module, 2 function).</summary>
-    int32_t level;      // +0x44
-    int32_t labelIndex; // +0x48
+    int32_t level = 0;      // +0x44
+    int32_t labelIndex = 0; // +0x48
 };
 
 /// <summary>The open scopes (0 .. level), each the root of a symbol tree.</summary>
 extern SymTableNodePtr SymTableDisplay[MAX_NESTING_LEVEL];
 /// <summary>The innermost open scope while compiling; the current routine's level while executing.</summary>
 extern int32_t level;
-extern UserHeap* AblSymTableHeap;
+
+/// <summary>
+/// The memory ABL owns between ABLi_init and ABLi_close: symbol nodes, types, names and string literals, the code
+/// buffer and segments, the stack, the registries, static data and array blocks. ABLi_close clears it; many blocks
+/// (symbol nodes, static arrays) are only ever freed that way.
+/// </summary>
+/// <remarks>
+/// Port: replaces the original's three ABL heaps (AblSymTableHeap, AblStackHeap, AblCodeHeap, sized from the mission
+/// files). Nothing runs out, so the "unable to malloc" paths are gone.
+/// </remarks>
+extern MCBlockStore AblMemory;
 /// <summary>The predefined types.</summary>
 extern TypePtr IntegerTypePtr;
 extern TypePtr CharTypePtr;

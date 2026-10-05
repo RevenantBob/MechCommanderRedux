@@ -10,17 +10,17 @@ class ObjectEvent;
 struct ObjData
 {
     /// <summary>The building's type number; -1 for a non-building, and for the end record.</summary>
-    int16_t objTypeNum; // +0x00
+    int16_t objTypeNum = 0; // +0x00
     /// <summary>Building::pixelOffsetX.</summary>
-    int16_t pixelOffsetX; // +0x02
+    int16_t pixelOffsetX = 0; // +0x02
     /// <summary>Building::pixelOffsetY.</summary>
-    int16_t pixelOffsetY; // +0x04
+    int16_t pixelOffsetY = 0; // +0x04
     /// <summary>Building::vertexNumber.</summary>
-    int16_t vertexNumber; // +0x06
+    int16_t vertexNumber = 0; // +0x06
     /// <summary>Building::blockNumber.</summary>
-    int16_t blockNumber; // +0x08
+    int16_t blockNumber = 0; // +0x08
     /// <summary>The building's damage, truncated.</summary>
-    uint8_t damage; // +0x0a
+    uint8_t damage = 0; // +0x0a
 };
 #pragma pack(pop)
 

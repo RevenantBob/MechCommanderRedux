@@ -19,7 +19,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
@@ -326,7 +325,7 @@ auto BattleMechType::init() -> void
     crashBlockSelf = DefaultMechCrashBlockSelf;
     crashBlockPath = DefaultMechCrashBlockPath;
     mechId = 0;
-    name = nullptr;
+    name.clear();
     mechType = 0;
     chassis = 0;
     tonnageClass = 0.0f;
@@ -402,8 +401,7 @@ auto BattleMechType::init(File* objFile, uint32_t fileSize) -> int32_t
     mechType = type < 2 ? typeMap[type] : 0;
     char nameBuffer[128];
     mechFile.readIdString("Name", nameBuffer, 127);
-    name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(name, nameBuffer);
+    name = nameBuffer;
 
     if ((result = mechFile.readIdUChar("Chassis", chassis)) != 0)
     {
@@ -544,12 +542,7 @@ auto BattleMechType::init(File* objFile, uint32_t fileSize) -> int32_t
 
 auto BattleMechType::destroy() -> void
 {
-    if (name != nullptr)
-    {
-        systemHeap->free(name);
-        name = nullptr;
-    }
-
+    name.clear();
     delete dynamicsType;
     dynamicsType = nullptr;
     ObjectType::destroy();
@@ -953,7 +946,8 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
     }
 
     const uint32_t weaponCount = numWeapons;
-    weaponHotSpots = static_cast<uint32_t*>(ObjectTypeManager::objectTypeCache->malloc(weaponCount * sizeof(uint32_t)));
+    weaponHotSpots =
+        static_cast<uint32_t*>(ObjectTypeManager::objectTypeCache.Allocate(weaponCount * sizeof(uint32_t)));
 
     if (weaponHotSpots == nullptr)
     {
@@ -972,7 +966,7 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
     }
 
     const uint32_t hotSpotDataSize = numHotSpotPackets * 32;
-    hotSpotData = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(hotSpotDataSize));
+    hotSpotData = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(hotSpotDataSize));
 
     if (hotSpotData == nullptr)
     {
@@ -995,7 +989,7 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
     // Port fix: pointer tables sized by the pointer, not the original's 4 bytes.
     const size_t tableSize = (static_cast<size_t>(dataPacket) + 1) * sizeof(uint8_t*);
     gestureHotSpots =
-        static_cast<uint8_t**>(ObjectTypeManager::objectTypeCache->malloc(static_cast<uint32_t>(tableSize)));
+        static_cast<uint8_t**>(ObjectTypeManager::objectTypeCache.Allocate(static_cast<uint32_t>(tableSize)));
 
     if (gestureHotSpots == nullptr)
     {
@@ -1005,7 +999,7 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
     std::memset(gestureHotSpots, 0, tableSize);
     const size_t outlineTableSize = (static_cast<size_t>(numHotSpotPackets) + 1) * sizeof(uint8_t*);
     gestureOutlines =
-        static_cast<uint8_t**>(ObjectTypeManager::objectTypeCache->malloc(static_cast<uint32_t>(outlineTableSize)));
+        static_cast<uint8_t**>(ObjectTypeManager::objectTypeCache.Allocate(static_cast<uint32_t>(outlineTableSize)));
 
     if (gestureOutlines == nullptr)
     {
@@ -1016,7 +1010,7 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
 
     const int32_t numGestures = static_cast<int32_t>(numHotSpotPackets);
     numFramesPerHotSpot =
-        static_cast<uint32_t*>(ObjectTypeManager::objectTypeCache->malloc((numGestures + 1) * sizeof(uint32_t)));
+        static_cast<uint32_t*>(ObjectTypeManager::objectTypeCache.Allocate((numGestures + 1) * sizeof(uint32_t)));
     std::vector<uint32_t> packetSizes(static_cast<size_t>(numGestures), 0);
     std::vector<uint32_t> outlineSizes(static_cast<size_t>(numGestures), 0);
 
@@ -1037,7 +1031,7 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
         }
 
         gestureHotSpots[gesture] =
-            static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(hotSpotFile.getPacketSize()));
+            static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(hotSpotFile.getPacketSize()));
 
         if (gestureHotSpots[gesture] == nullptr)
         {
@@ -1050,7 +1044,7 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
         if (outlineFile.seekPacket(gesture) == 0 && outlineFile.getPacketSize() != 0)
         {
             gestureOutlines[gesture] =
-                static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(outlineFile.getPacketSize()));
+                static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(outlineFile.getPacketSize()));
 
             if (gestureOutlines[gesture] == nullptr)
             {
@@ -1064,7 +1058,7 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
 
     layOutHotSpotPackets(packetSizes, outlineSizes);
 
-    jumpData = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache->malloc(jumpFile.fileSize()));
+    jumpData = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(jumpFile.fileSize()));
 
     if (jumpData == nullptr)
     {
@@ -1201,7 +1195,7 @@ auto BattleMech::handleStaticCollision() -> void
 auto BattleMech::init() -> void
 {
     objectClass = BATTLEMECH;
-    body = static_cast<BodyLocation*>(ObjectTypeManager::objectCache->malloc(sizeof(BodyLocation) * 8));
+    body = std::make_unique<BodyLocation[]>(8);
     numBodyLocations = 8;
 
     for (int32_t location = 0; location < 8; location++)
@@ -1215,7 +1209,7 @@ auto BattleMech::init() -> void
         bodyAt(location).damageState = 0;
     }
 
-    armor = static_cast<ArmorLocation*>(ObjectTypeManager::objectCache->malloc(sizeof(ArmorLocation) * 11));
+    armor = std::make_unique<ArmorLocation[]>(11);
     numArmorLocations = 11;
     mechClass = 1;
     legStatus = 0;
@@ -1439,8 +1433,7 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
 
     char nameBuffer[128];
     mechFile->readIdString("Name", nameBuffer, 127);
-    debugStatus = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(debugStatus, nameBuffer);
+    debugStatus = nameBuffer;
     if (mechFile->readIdLong("ChassisBR", chassisBR) != 0)
     {
         chassisBR = 100;
@@ -1458,8 +1451,7 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
 
     char ifaceNameBuffer[256];
     cLoadString(thisInstance, descIndex + 300, ifaceNameBuffer, 0xfe);
-    ifaceName = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(ifaceNameBuffer) + 1)));
-    std::strcpy(ifaceName, ifaceNameBuffer);
+    ifaceName = ifaceNameBuffer;
 
     if ((result = mechFile->readIdLong("NameIndex", nameIndex)) != 0)
     {
@@ -1613,13 +1605,7 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
     const int32_t firstWeapon = numOther;
     const int32_t firstAmmo = numOther + numWeapons;
     const int32_t numItems = numAmmos + numOther + numWeapons;
-    inventory = static_cast<InventoryItem*>(
-        ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(numItems * sizeof(InventoryItem))));
-
-    if (inventory == nullptr)
-    {
-        return -2;
-    }
+    inventory = std::make_unique<InventoryItem[]>(static_cast<size_t>(numItems));
 
     numAntiMissileSystems = 0;
     char blockName[32];
@@ -1687,15 +1673,7 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
             static_cast<int16_t>(static_cast<int32_t>(component.damage * 10.0 / component.recycleTime));
         weapon.effectiveness = static_cast<int16_t>(static_cast<int32_t>(
             static_cast<double>(component.weaponRange[3]) * weapon.effectiveness * static_cast<double>(1.0f / 24.0f)));
-        weapon.rangeRatings =
-            static_cast<float*>(ObjectTypeManager::objectCache->malloc(NumRangeRatings * 2 * sizeof(float)));
-
-        if (weapon.rangeRatings == nullptr)
-        {
-            Fatal(0, " No RAM for Weapon Range Ratings ");
-        }
-
-        std::memset(weapon.rangeRatings, 0, NumRangeRatings * 2 * sizeof(float));
+        weapon.rangeRatings = new float[NumRangeRatings * 2]();
         objectTypeManager->load(
             static_cast<int32_t>(
                 weaponFXTable[static_cast<int8_t>(MasterComponentList[inventory[item].masterID].weaponEffect)]),
@@ -1794,14 +1772,8 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
         }
 
         const int32_t numSpaces = NumLocationCriticalSpaces[location];
-        bodyLocation.criticalSpaces = static_cast<CriticalSpace*>(
-            ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(numSpaces * sizeof(CriticalSpace))));
+        bodyLocation.criticalSpaces = new CriticalSpace[static_cast<size_t>(numSpaces)]();
         bodyLocation.totalSpaces = 0;
-
-        if (bodyLocation.criticalSpaces == nullptr)
-        {
-            return -3;
-        }
 
         for (int32_t space = 0; space < numSpaces; space++)
         {
@@ -1982,7 +1954,7 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
 auto BattleMech::write(File* objFile) -> int32_t
 {
     BigGameObject::write(objFile);
-    objFile->writeString(debugStatus);
+    objFile->writeString(debugStatus.c_str());
     objFile->writeString(iconName);
     objFile->writeByte(chassis);
     objFile->writeLong(endoSteel);
@@ -2002,7 +1974,7 @@ auto BattleMech::write(File* objFile) -> int32_t
 
     objFile->writeByte(armorType);
     objFile->writeFloat(armorTonnage);
-    objFile->write(reinterpret_cast<const uint8_t*>(armor), 0x58);
+    objFile->write(reinterpret_cast<const uint8_t*>(armor.get()), 0x58);
     const int32_t otherCount = numOther;
     const int32_t weaponCount = numWeapons;
     const int32_t ammoCount = numAmmos;
@@ -2174,8 +2146,7 @@ auto BattleMech::canPowerUp() -> int
 
 auto BattleMech::destroy() -> void
 {
-    systemHeap->free(ifaceName);
-    ifaceName = nullptr;
+    ifaceName.clear();
 
     if (statusWindow != nullptr)
     {
@@ -5031,9 +5002,9 @@ auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
             char line[200];
             GameSystemWindow->print(const_cast<char*>(""));
             GameSystemWindow->print(const_cast<char*>("***********************************"));
-            std::snprintf(line, sizeof(line), "INTERNAL COMPONENT HIT: %s (%s)", debugStatus, pilot->name);
+            std::snprintf(line, sizeof(line), "INTERNAL COMPONENT HIT: %s (%s)", debugStatus.c_str(), pilot->name);
             GameSystemWindow->print(line);
-            const char* attackerName = BadGuy != nullptr ? static_cast<Mover*>(BadGuy)->debugStatus : "???";
+            const char* attackerName = BadGuy != nullptr ? static_cast<Mover*>(BadGuy)->debugStatus.c_str() : "???";
             std::snprintf(line, sizeof(line), "%s in %s by %s", MasterComponentList[masterId].name,
                           locationNames[location], attackerName);
             GameSystemWindow->print(line);
@@ -7044,7 +7015,7 @@ auto BattleMech::getTotalEffectiveness() -> float
     {
         // Head, arms, centre torso (the worse of front and back) and side torsos (front and back), each as a share
         // of its full armor.
-        const ArmorLocation* locations = armor;
+        const ArmorLocation* locations = armor.get();
         const float head = locations[MECH_BODY_LOCATION_HEAD].curArmor /
                                static_cast<float>(locations[MECH_BODY_LOCATION_HEAD].maxArmor) * 0.6f +
                            0.4f;
@@ -7147,8 +7118,8 @@ auto MechStatusWindow::display() -> void
     if (shown != nullptr)
     {
         char line[256];
-        std::snprintf(line, sizeof(line), "%s %s (%s)", AlignmentNames[shown->getAlignment() + 1], shown->debugStatus,
-                      shown->getPilot()->callsign);
+        std::snprintf(line, sizeof(line), "%s %s (%s)", AlignmentNames[shown->getAlignment() + 1],
+                      shown->debugStatus.c_str(), shown->getPilot()->callsign);
         setTitle(line);
         aPort* port = displayPort;
         systemFont->writeString(port->frame(), 2, 10, reinterpret_cast<uint8_t*>(const_cast<char*>("Status:")), -1);
@@ -7233,8 +7204,8 @@ auto MechStatusWindow::draw() -> void
     if (mech != nullptr)
     {
         char title[256];
-        std::snprintf(title, sizeof(title), "%s %s (%s)", AlignmentNames[mech->getAlignment() + 1], mech->debugStatus,
-                      mech->getPilot()->callsign);
+        std::snprintf(title, sizeof(title), "%s %s (%s)", AlignmentNames[mech->getAlignment() + 1],
+                      mech->debugStatus.c_str(), mech->getPilot()->callsign);
         setTitle(title);
     }
 

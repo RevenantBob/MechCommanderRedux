@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "object/contact.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "main/main.h"
 #include "object/cmponent.h"
@@ -121,16 +120,6 @@ auto _PotentialContact::updateStatus(Team* team) -> void
 // PotentialContactManager
 //---------------------------------------------------------------------------
 
-auto PotentialContactManager::operator new(size_t size) noexcept -> void*
-{
-    return ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(size));
-}
-
-auto PotentialContactManager::operator delete(void* ptr) -> void
-{
-    ObjectTypeManager::objectCache->free(ptr);
-}
-
 auto PotentialContactManager::init(FitIniFile* file) -> int32_t
 {
     maxContacts = 0;
@@ -161,13 +150,7 @@ auto PotentialContactManager::init(FitIniFile* file) -> int32_t
     }
 
     // Port fix: sized by the port's struct (0x60 bytes in the original).
-    contacts = static_cast<_PotentialContact*>(
-        ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(maxContacts * sizeof(_PotentialContact))));
-
-    if (contacts == nullptr)
-    {
-        Fatal(static_cast<int32_t>(0xdddd0002), " No RAM For Potential Contact Manager ");
-    }
+    contacts = std::make_unique<_PotentialContact[]>(static_cast<size_t>(maxContacts));
 
     // Chain the pool into the free list; the rest of each contact is set when add() takes it.
     contacts[0].id = 0;
@@ -189,7 +172,7 @@ auto PotentialContactManager::init(FitIniFile* file) -> int32_t
     last.prev = &contacts[maxContacts - 2];
     last.next = nullptr;
 
-    freeList = contacts;
+    freeList = contacts.get();
     numFree = maxContacts;
     return 0;
 }
@@ -379,8 +362,7 @@ auto PotentialContactManager::updateStatus() -> void
 
 auto PotentialContactManager::destroy() -> void
 {
-    ObjectTypeManager::objectCache->free(contacts);
-    contacts = nullptr;
+    contacts.reset();
     maxContacts = 0;
     numFree = 0;
     freeList = nullptr;
@@ -389,16 +371,6 @@ auto PotentialContactManager::destroy() -> void
 //---------------------------------------------------------------------------
 // SensorSystem
 //---------------------------------------------------------------------------
-
-auto SensorSystem::operator new(size_t size) noexcept -> void*
-{
-    return ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(size));
-}
-
-auto SensorSystem::operator delete(void* ptr) -> void
-{
-    ObjectTypeManager::objectCache->free(ptr);
-}
 
 auto SensorSystem::init() -> void
 {
@@ -676,7 +648,7 @@ auto SensorSystem::addSensorContact(_PotentialContact* contact) -> void
 
 auto SensorSystem::removeSensorContact(int32_t index) -> void
 {
-    _PotentialContact* pool = potentialContactManager->contacts;
+    _PotentialContact* pool = potentialContactManager->contacts.get();
     _PotentialContact& contact = pool[contacts[index]];
     contact.sensorSlot[id] = 0xff;
     contact.numSensors[teamIndex]--;
@@ -945,26 +917,10 @@ auto SensorSystem::onSensors(GameObject* target) -> int
 // SensorSystemManager
 //---------------------------------------------------------------------------
 
-auto SensorSystemManager::operator new(size_t size) noexcept -> void*
-{
-    return ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(size));
-}
-
-auto SensorSystemManager::operator delete(void* ptr) -> void
-{
-    ObjectTypeManager::objectCache->free(ptr);
-}
-
 auto SensorSystemManager::init(FitIniFile*) -> int32_t
 {
     // Port fix: sized by the port's pointer (0x104 bytes in the original).
-    sensors = static_cast<SensorSystem**>(
-        ObjectTypeManager::objectCache->malloc(static_cast<uint32_t>(MAX_SENSORS * sizeof(SensorSystem*))));
-
-    if (sensors == nullptr)
-    {
-        Fatal(0, " No RAM For Sensor System Manager ");
-    }
+    sensors = std::make_unique<SensorSystem*[]>(MAX_SENSORS);
 
     for (int32_t i = 0; i < MAX_SENSORS; i++)
     {
@@ -1055,8 +1011,7 @@ auto SensorSystemManager::destroy() -> void
         sensors[i] = nullptr;
     }
 
-    ObjectTypeManager::objectCache->free(sensors);
-    sensors = nullptr;
+    sensors.reset();
     numFree = 0;
     freeList = nullptr;
 }

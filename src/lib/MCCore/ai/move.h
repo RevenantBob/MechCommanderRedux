@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lib/cvmath.h"
+#include "platform/MCBlockStore.h"
 
 class File;
 class FitIniFile;
@@ -56,8 +57,8 @@ inline constexpr int32_t GLOBALMAP_VERSION = 0x22569;
 /// </remarks>
 typedef struct _MapTile
 {
-    uint32_t cells;   // +0x0
-    uint32_t overlay; // +0x4
+    uint32_t cells = 0;   // +0x0
+    uint32_t overlay = 0; // +0x4
 
     /// <summary>Whether cell (cellR, cellC) can be entered.</summary>
     /// <remarks>MCX.EXE @ 0x00686910</remarks>
@@ -89,9 +90,9 @@ static_assert(sizeof(MapTile) == 8, "MapTile is read raw from the map file");
 /// <remarks>8 bytes. The name is the port's (the original's isn't known).</remarks>
 struct PreservedTile
 {
-    int16_t row;    // +0x0
-    int16_t col;    // +0x2
-    uint32_t cells; // +0x4
+    int16_t row = 0;    // +0x0
+    int16_t col = 0;    // +0x2
+    uint32_t cells = 0; // +0x4
 };
 
 /// <summary>
@@ -102,11 +103,6 @@ struct PreservedTile
 class ScenarioMap
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006b9660</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006b9680</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// Allocates an empty map of newHeight x newWidth tiles and fills the tile coordinate tables (not the cell ones).
     /// </summary>
@@ -220,31 +216,31 @@ public:
     /// <remarks>MCX.EXE @ 0x006bb1d0. Its name wasn't kept; this one is the port's.</remarks>
     int32_t getOverlayWeight(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, Mover* mover);
 
-    MapTile* map;   // +0x0
-    int32_t height; // +0x4
-    int32_t width;  // +0x8
+    std::unique_ptr<MapTile[]> map; // +0x0
+    int32_t height = 0;             // +0x4
+    int32_t width = 0;              // +0x8
     /// <summary>Elevation level added to every tile's 6-bit elevation.</summary>
-    int32_t baseElevation;                             // +0xc
-    int32_t numPreservedTiles;                         // +0x10
-    PreservedTile preservedTiles[MAX_PRESERVED_TILES]; // +0x14
+    int32_t baseElevation = 0;                           // +0xc
+    int32_t numPreservedTiles = 0;                       // +0x10
+    PreservedTile preservedTiles[MAX_PRESERVED_TILES]{}; // +0x14
     /// <summary>Per tile, how many marked paths cross it (<see cref="MovePath::mark"/>).</summary>
-    uint8_t* pathMap; // +0x974
+    std::unique_ptr<uint8_t[]> pathMap; // +0x974
 };
 
 /// <summary>Where an object sits in the <see cref="ObjectMap"/>: a node of its tile row's list, sorted by column.</summary>
 /// <remarks>Original: <c>struct _ObjectPosition</c> (GameObject::getObjPosition). 0x24 bytes.</remarks>
 typedef struct _ObjectPosition
 {
-    GameObject* object; // +0x0
-    int32_t tileR;      // +0x4
-    int32_t tileC;      // +0x8
-    int32_t cellR;      // +0xc
-    int32_t cellC;      // +0x10
+    GameObject* object = nullptr; // +0x0
+    int32_t tileR = 0;            // +0x4
+    int32_t tileC = 0;            // +0x8
+    int32_t cellR = 0;            // +0xc
+    int32_t cellC = 0;            // +0x10
     /// <summary>Row in map cells (tileMulMAPCELL_DIM[tileR] + cellR).</summary>
-    int32_t mapCellR;      // +0x14
-    int32_t mapCellC;      // +0x18
-    _ObjectPosition* prev; // +0x1c
-    _ObjectPosition* next; // +0x20
+    int32_t mapCellR = 0;            // +0x14
+    int32_t mapCellC = 0;            // +0x18
+    _ObjectPosition* prev = nullptr; // +0x1c
+    _ObjectPosition* next = nullptr; // +0x20
 } ObjectPosition;
 
 /// <summary>Which objects stand on which tile: per tile row, a list of <see cref="ObjectPosition"/> by column.</summary>
@@ -252,11 +248,6 @@ typedef struct _ObjectPosition
 class ObjectMap
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006bb430</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006bb450</remarks>
-    static void operator delete(void* ptr);
-
     /// <remarks>MCX.EXE @ 0x006bb470</remarks>
     void init(ScenarioMap* map);
     /// <summary>Adds an object at its current position.</summary>
@@ -277,11 +268,11 @@ public:
     /// <remarks>MCX.EXE @ 0x006bba50</remarks>
     void destroy();
 
-    ScenarioMap* map; // +0x0
-    int32_t height;   // +0x4
-    int32_t width;    // +0x8
+    ScenarioMap* map = nullptr; // +0x0
+    int32_t height = 0;         // +0x4
+    int32_t width = 0;          // +0x8
     /// <summary>Per tile row, the first node of its list.</summary>
-    ObjectPosition** rows; // +0xc
+    std::unique_ptr<ObjectPosition*[]> rows; // +0xc
 };
 
 /// <summary>
@@ -292,11 +283,6 @@ public:
 class MoveChunk
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006bc060</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006bc090</remarks>
-    static void operator delete(void* ptr);
-
     /// <remarks>MCX.EXE @ 0x0065b5b0 (inline in the original's move.h)</remarks>
     void init()
     {
@@ -323,31 +309,31 @@ public:
     int equalTo(Mover* mover, MoveChunk* chunk);
 
     /// <summary>Per step: tileR, tileC, cellR, cellC.</summary>
-    int32_t stepPos[MOVECHUNK_NUM_STEPS][4]; // +0x0
+    int32_t stepPos[MOVECHUNK_NUM_STEPS][4]{}; // +0x0
     /// <summary>Direction (0-7) from each step to the next.</summary>
-    int32_t stepRelPos[MOVECHUNK_NUM_STEPS - 1]; // +0x40
-    int32_t numSteps;                            // +0x4c
-    int32_t run;                                 // +0x50
+    int32_t stepRelPos[MOVECHUNK_NUM_STEPS - 1]{}; // +0x40
+    int32_t numSteps = 0;                          // +0x4c
+    int32_t run = 0;                               // +0x50
     /// <summary>The packed chunk: start cell row/col, numSteps - 1, run, then the three step directions.</summary>
-    uint32_t data; // +0x54
+    uint32_t data = 0; // +0x54
 };
 
 /// <summary>One step of a <see cref="MovePath"/>: a cell and its world position.</summary>
 /// <remarks>0x1c bytes. The original name isn't known; MechCommander 2 calls it PathStep.</remarks>
 typedef struct _PathStep
 {
-    int16_t tileR; // +0x0
-    int16_t tileC; // +0x2
-    int16_t cellR; // +0x4
-    int16_t cellC; // +0x6
+    int16_t tileR = 0; // +0x0
+    int16_t tileC = 0; // +0x2
+    int16_t cellR = 0; // +0x4
+    int16_t cellC = 0; // +0x6
     /// <summary>Distance from this step to the end of the path, in meters.</summary>
-    float distanceToGoal;  // +0x8
-    vector_3d destination; // +0xc
+    float distanceToGoal = 0; // +0x8
+    vector_3d destination;    // +0xc
     /// <summary>
     /// The offset (index of <see cref="cellShift"/>) stepped from the previous step: 0-7 a neighbour, above 7 a jump.
     /// Read as a signed char; MoveChunk::build sends it as the chunk's step direction.
     /// </summary>
-    uint8_t direction; // +0x18
+    uint8_t direction = 0; // +0x18
 } PathStep;
 
 /// <summary>A mover's cell path: up to 200 steps.</summary>
@@ -355,11 +341,6 @@ typedef struct _PathStep
 class MovePath
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006bc9b0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006bc9e0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Sets the step counts; returns the count when it is the most seen so far, else -1.</summary>
     /// <remarks>MCX.EXE @ 0x006bca10</remarks>
     int32_t init(int32_t numSteps);
@@ -410,14 +391,14 @@ public:
     vector_3d goal; // +0x0
     /// <summary>Copied from <see cref="MoveMap::target"/> when the path is calculated.</summary>
     vector_3d target;                          // +0xc
-    int32_t numSteps;                          // +0x18
-    int32_t numStepsWhenNotPaused;             // +0x1c
-    int32_t curStep;                           // +0x20
-    int32_t cost;                              // +0x24
+    int32_t numSteps = 0;                      // +0x18
+    int32_t numStepsWhenNotPaused = 0;         // +0x1c
+    int32_t curStep = 0;                       // +0x20
+    int32_t cost = 0;                          // +0x24
     PathStep stepList[MAX_STEPS_PER_MOVEPATH]; // +0x28
-    int32_t marked;                            // +0x1608
+    int32_t marked = 0;                        // +0x1608
     /// <summary>The <see cref="GlobalPathStep"/> this path walks, -1 for none.</summary>
-    int32_t globalStep; // +0x160c
+    int32_t globalStep = 0; // +0x160c
 };
 
 /// <summary>A queued path request of <see cref="MovePathManager"/>.</summary>
@@ -425,16 +406,16 @@ public:
 typedef struct _PathQueueRec
 {
     /// <summary>Sort key; higher is served first (ties in order of request).</summary>
-    float priority;         // +0x0
-    MechWarrior* pilot;     // +0x4
-    int32_t selectionIndex; // +0x8
-    uint32_t moveParams;    // +0xc
-    int32_t unknown10;      // +0x10
-    int32_t unknown14;      // +0x14
+    float priority = 0;           // +0x0
+    MechWarrior* pilot = nullptr; // +0x4
+    int32_t selectionIndex = 0;   // +0x8
+    uint32_t moveParams = 0;      // +0xc
+    int32_t unknown10 = 0;        // +0x10
+    int32_t unknown14 = 0;        // +0x14
     /// <summary>Passed as the last argument of MechWarrior::calcMovePath.</summary>
-    int32_t initPath;    // +0x18
-    _PathQueueRec* prev; // +0x1c
-    _PathQueueRec* next; // +0x20
+    int32_t initPath = 0;          // +0x18
+    _PathQueueRec* prev = nullptr; // +0x1c
+    _PathQueueRec* next = nullptr; // +0x20
 } PathQueueRec;
 
 /// <summary>Spreads path calculation over frames: pilots queue requests, a few are served per update.</summary>
@@ -442,11 +423,6 @@ typedef struct _PathQueueRec
 class MovePathManager
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006bd0e0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006bd100</remarks>
-    static void operator delete(void* ptr);
-
     /// <remarks>MCX.EXE @ 0x006bd120</remarks>
     int32_t init();
     /// <remarks>MCX.EXE @ 0x006bd180</remarks>
@@ -466,10 +442,10 @@ public:
     /// <remarks>MCX.EXE @ 0x006bd350</remarks>
     void update();
 
-    PathQueueRec pool[MAX_PATH_QUEUE_RECS]; // +0x0
-    PathQueueRec* queueFront;               // +0x2a30
-    PathQueueRec* queueEnd;                 // +0x2a34
-    PathQueueRec* freeList;                 // +0x2a38
+    PathQueueRec pool[MAX_PATH_QUEUE_RECS]{}; // +0x0
+    PathQueueRec* queueFront = nullptr;       // +0x2a30
+    PathQueueRec* queueEnd = nullptr;         // +0x2a34
+    PathQueueRec* freeList = nullptr;         // +0x2a38
 };
 
 #pragma pack(push, 1)
@@ -477,8 +453,8 @@ public:
 /// <remarks>Original: <c>struct _DoorInfo</c>. 3 bytes, stored packed in the global map file.</remarks>
 typedef struct _DoorInfo
 {
-    int16_t doorIndex; // +0x0
-    char doorSide;     // +0x2
+    int16_t doorIndex = 0; // +0x0
+    char doorSide = 0;     // +0x2
 } DoorInfo;
 static_assert(sizeof(DoorInfo) == 3);
 
@@ -486,9 +462,9 @@ static_assert(sizeof(DoorInfo) == 3);
 /// <remarks>7 bytes, stored packed in the global map file. The original name isn't known (MC2: DoorLink).</remarks>
 typedef struct _DoorLink
 {
-    int16_t doorIndex; // +0x0
-    char doorSide;     // +0x2
-    int32_t cost;      // +0x3
+    int16_t doorIndex = 0; // +0x0
+    char doorSide = 0;     // +0x2
+    int32_t cost = 0;      // +0x3
 } DoorLink;
 static_assert(sizeof(DoorLink) == 7);
 #pragma pack(pop)
@@ -502,22 +478,22 @@ static_assert(sizeof(DoorLink) == 7);
 /// </remarks>
 typedef struct _GlobalMapArea
 {
-    int16_t sectorR; // +0x0
-    int16_t sectorC; // +0x2
+    int16_t sectorR = 0; // +0x0
+    int16_t sectorC = 0; // +0x2
     /// <summary>The area's entries in GlobalMap::doorInfos.</summary>
-    DoorInfo* doors; // +0x4
+    DoorInfo* doors = nullptr; // +0x4
     /// <summary>0 normal, 1 a north-south bridge, 2 an east-west bridge (road or railroad; see
     /// GlobalMap::calcBridges).</summary>
-    int32_t type;      // +0x8
-    char numDoors;     // +0xc
-    int32_t open;      // +0xd
-    int32_t unknown11; // +0x11 (initialised -1)
-    int32_t unknown15; // +0x15
+    int32_t type = 0;      // +0x8
+    char numDoors = 0;     // +0xc
+    int32_t open = 0;      // +0xd
+    int32_t unknown11 = 0; // +0x11 (initialised -1)
+    int32_t unknown15 = 0; // +0x15
     /// <summary>Set by GlobalMap::closeArea.</summary>
-    int32_t closed;    // +0x19
-    int32_t unknown1D; // +0x1d
-    int32_t unknown21; // +0x21
-    int32_t unknown25; // +0x25
+    int32_t closed = 0;    // +0x19
+    int32_t unknown1D = 0; // +0x1d
+    int32_t unknown21 = 0; // +0x21
+    int32_t unknown25 = 0; // +0x25
 } GlobalMapArea;
 /// <summary>Size of a <see cref="GlobalMapArea"/> record in the global map file.</summary>
 inline constexpr int32_t GLOBALMAP_AREA_RECORD_SIZE = 0x29;
@@ -533,31 +509,31 @@ inline constexpr int32_t GLOBALMAP_AREA_RECORD_SIZE = 0x29;
 /// </remarks>
 typedef struct _GlobalMapDoor
 {
-    int16_t row;   // +0x0
-    int16_t col;   // +0x2
-    uint8_t cellR; // +0x4
-    uint8_t cellC; // +0x5
+    int16_t row = 0;   // +0x0
+    int16_t col = 0;   // +0x2
+    uint8_t cellR = 0; // +0x4
+    uint8_t cellC = 0; // +0x5
     /// <summary>Length in cells.</summary>
-    char length;         // +0x6
-    int32_t open;        // +0x7
-    int16_t area[2];     // +0xb
-    int16_t areaCost[2]; // +0xf
+    char length = 0;       // +0x6
+    int32_t open = 0;      // +0x7
+    int16_t area[2]{};     // +0xb
+    int16_t areaCost[2]{}; // +0xf
     /// <summary>Exit direction from each side's area.</summary>
-    char direction[2]; // +0x13
+    char direction[2]{}; // +0x13
     /// <summary>Per side, the link count; links[side] has numLinks + 2 entries (room for the start and goal doors).</summary>
-    char numLinks[2];   // +0x15
-    DoorLink* links[2]; // +0x17
+    char numLinks[2]{};   // +0x15
+    DoorLink* links[2]{}; // +0x17
     /// <summary>Cost of the link the search reached this door by.</summary>
-    int32_t cost; // +0x1f
+    int32_t cost = 0; // +0x1f
     /// <summary>A* parent door.</summary>
-    int32_t parent; // +0x23
+    int32_t parent = 0; // +0x23
     /// <summary>Which of <see cref="area"/> (0 or 1) the search reached the door from.</summary>
-    int32_t fromAreaIndex; // +0x27
+    int32_t fromAreaIndex = 0; // +0x27
     /// <summary>A* list flags: 1 open, 2 closed.</summary>
-    uint32_t flags; // +0x2b
-    int32_t g;      // +0x2f
-    int32_t hPrime; // +0x33
-    int32_t fPrime; // +0x37
+    uint32_t flags = 0; // +0x2b
+    int32_t g = 0;      // +0x2f
+    int32_t hPrime = 0; // +0x33
+    int32_t fPrime = 0; // +0x37
 } GlobalMapDoor;
 /// <summary>Size of a <see cref="GlobalMapDoor"/> record in the global map file.</summary>
 inline constexpr int32_t GLOBALMAP_DOOR_RECORD_SIZE = 0x3b;
@@ -566,15 +542,15 @@ inline constexpr int32_t GLOBALMAP_DOOR_RECORD_SIZE = 0x3b;
 /// <remarks>Original: <c>struct _GlobalPathStep</c>. 0x30 bytes.</remarks>
 typedef struct _GlobalPathStep
 {
-    int32_t unknown00; // +0x0
-    int32_t thruArea;  // +0x4
-    int32_t goalDoor;  // +0x8
+    int32_t unknown00 = 0; // +0x0
+    int32_t thruArea = 0;  // +0x4
+    int32_t goalDoor = 0;  // +0x8
     /// <summary>Not written by GlobalMap::calcPath.</summary>
-    int32_t unknown0C[6]; // +0xc
+    int32_t unknown0C[6]{}; // +0xc
     /// <summary>The cell (row, column) the leg's path ended in (Mover::calcMovePath fills it); the next leg starts
     /// from it (MechWarrior::calcMovePath).</summary>
-    int32_t goalCell[2]; // +0x24
-    int32_t costToGoal;  // +0x2c
+    int32_t goalCell[2]{};  // +0x24
+    int32_t costToGoal = 0; // +0x2c
 } GlobalPathStep;
 
 /// <summary>
@@ -585,11 +561,6 @@ typedef struct _GlobalPathStep
 class GlobalMap
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006bd370</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006bd390</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// Allocates an empty area map of newHeight x newWidth tiles (both multiples of 10); the sector grid is sized
     /// from the width alone.
@@ -708,49 +679,54 @@ public:
     static int32_t maxTileC;
 
     /// <summary>Stored in the file header; passed to init(ScenarioMap*, ...) by the scenario.</summary>
-    int32_t unknown00; // +0x0
-    int32_t unknown04; // +0x4
-    int32_t height;    // +0x8
-    int32_t width;     // +0xc
+    int32_t unknown00 = 0; // +0x0
+    int32_t unknown04 = 0; // +0x4
+    int32_t height = 0;    // +0x8
+    int32_t width = 0;     // +0xc
     /// <summary>Sector side in tiles (10).</summary>
-    int32_t sectorDim;    // +0x10
-    int32_t sectorHeight; // +0x14
-    int32_t sectorWidth;  // +0x18
-    int32_t numAreas;     // +0x1c
-    int32_t numDoors;     // +0x20
-    int32_t numDoorInfos; // +0x24
-    int32_t numDoorLinks; // +0x28
+    int32_t sectorDim = 0;    // +0x10
+    int32_t sectorHeight = 0; // +0x14
+    int32_t sectorWidth = 0;  // +0x18
+    int32_t numAreas = 0;     // +0x1c
+    int32_t numDoors = 0;     // +0x20
+    int32_t numDoorInfos = 0; // +0x24
+    int32_t numDoorLinks = 0; // +0x28
     /// <summary>Area per tile when there are fewer than 256 areas (0xff = none); else <see cref="areaMap"/>.</summary>
-    uint8_t* smallAreaMap; // +0x2c
+    uint8_t* smallAreaMap = nullptr; // +0x2c
     /// <summary>Area per tile (-1 = none).</summary>
-    int16_t* areaMap;     // +0x30
-    GlobalMapArea* areas; // +0x34
+    int16_t* areaMap = nullptr;     // +0x30
+    GlobalMapArea* areas = nullptr; // +0x34
     /// <summary>numDoors + 2 doors (the last two are the temporary start and goal doors).</summary>
-    GlobalMapDoor* doors; // +0x38
-    DoorInfo* doorInfos;  // +0x3c
-    DoorLink* doorLinks;  // +0x40
+    GlobalMapDoor* doors = nullptr; // +0x38
+    DoorInfo* doorInfos = nullptr;  // +0x3c
+    DoorLink* doorLinks = nullptr;  // +0x40
     /// <summary>Doors collected while computing the map (MAX_BUILD_DOORS).</summary>
-    GlobalMapDoor* doorBuildList; // +0x44
+    GlobalMapDoor* doorBuildList = nullptr; // +0x44
     /// <summary>numAreas x numAreas steps between areas (0 = no path, 0xff = 255 or more).</summary>
-    uint8_t* pathCostTable; // +0x48
+    uint8_t* pathCostTable = nullptr; // +0x48
     /// <summary>Only counted up to numAreas by init(File*) (a leftover loop).</summary>
-    int32_t unknown4C;   // +0x4c
-    int32_t goalSectorR; // +0x50
-    int32_t goalSectorC; // +0x54
+    int32_t unknown4C = 0;   // +0x4c
+    int32_t goalSectorR = 0; // +0x50
+    int32_t goalSectorC = 0; // +0x54
+    /// <summary>
+    /// Owns the map's arrays and door lists. A computed map's areas and doors have their own door and link lists; a
+    /// loaded one's point into doorInfos and doorLinks.
+    /// </summary>
+    MCBlockStore blocks;
 };
 
 /// <summary>One cell of a <see cref="MoveMap"/>.</summary>
 /// <remarks>0x18 bytes. The original name isn't known (MC2: MoveMapNode).</remarks>
 typedef struct _MoveMapNode
 {
-    int32_t cost;   // +0x0
-    int32_t parent; // +0x4
+    int32_t cost = 0;   // +0x0
+    int32_t parent = 0; // +0x4
     /// <summary>MOVEFLAG bits: 1 on the open list, 2 closed, 4 on the found path, 8 goal, 0x10 a mover stands
     /// here.</summary>
-    uint32_t flags; // +0x8
-    int32_t g;      // +0xc
-    int32_t hPrime; // +0x10
-    int32_t fPrime; // +0x14
+    uint32_t flags = 0; // +0x8
+    int32_t g = 0;      // +0xc
+    int32_t hPrime = 0; // +0x10
+    int32_t fPrime = 0; // +0x14
 } MoveMapNode;
 
 /// <summary>The short-range cell path finder: an A* over a window of the scenario map's cells.</summary>
@@ -758,11 +734,6 @@ typedef struct _MoveMapNode
 class MoveMap
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006c0c60</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006c0c80</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Allocates the cells for a window of up to newMaxHeight x newMaxWidth tiles.</summary>
     /// <remarks>MCX.EXE @ 0x006c0ca0</remarks>
     void init(int32_t newMaxWidth, int32_t newMaxHeight);
@@ -833,46 +804,46 @@ protected:
 
 public:
     /// <summary>Upper-left tile of the window.</summary>
-    int32_t ULr; // +0x0
-    int32_t ULc; // +0x4
+    int32_t ULr = 0; // +0x0
+    int32_t ULc = 0; // +0x4
     /// <summary>Upper-left cell of the window (ULr * 3, ULc * 3).</summary>
-    int32_t minRow; // +0x8
-    int32_t minCol; // +0xc
+    int32_t minRow = 0; // +0x8
+    int32_t minCol = 0; // +0xc
     /// <remarks>init(maxHeight, maxWidth) stores its first argument here; the maps are square, so which side is
     /// which isn't certain.</remarks>
-    int32_t maxWidth;  // +0x10
-    int32_t maxHeight; // +0x14
+    int32_t maxWidth = 0;  // +0x10
+    int32_t maxHeight = 0; // +0x14
     /// <summary>Row stride of <see cref="map"/>, in cells.</summary>
-    int32_t maxCellWidth;  // +0x18
-    int32_t maxCellHeight; // +0x1c
-    int32_t width;         // +0x20
-    int32_t height;        // +0x24
-    int32_t cellWidth;     // +0x28
-    int32_t cellHeight;    // +0x2c
-    MoveMapNode* map;      // +0x30
-    vector_3d startPos;    // +0x34
-    int32_t startR;        // +0x40
-    int32_t startC;        // +0x44
-    vector_3d goalPos;     // +0x48
-    int32_t goalR;         // +0x54
-    int32_t goalC;         // +0x58
+    int32_t maxCellWidth = 0;           // +0x18
+    int32_t maxCellHeight = 0;          // +0x1c
+    int32_t width = 0;                  // +0x20
+    int32_t height = 0;                 // +0x24
+    int32_t cellWidth = 0;              // +0x28
+    int32_t cellHeight = 0;             // +0x2c
+    std::unique_ptr<MoveMapNode[]> map; // +0x30
+    vector_3d startPos;                 // +0x34
+    int32_t startR = 0;                 // +0x40
+    int32_t startC = 0;                 // +0x44
+    vector_3d goalPos;                  // +0x48
+    int32_t goalR = 0;                  // +0x54
+    int32_t goalC = 0;                  // +0x58
     /// <summary>The goal door, when the goal is a door (<see cref="GoalIsDoor"/>).</summary>
-    int32_t door;     // +0x5c
-    int32_t doorSide; // +0x60
+    int32_t door = 0;     // +0x5c
+    int32_t doorSide = 0; // +0x60
     /// <summary>Direction the goal door is entered from, -1 when the goal isn't a door.</summary>
-    int32_t doorDirection; // +0x64
-    vector_3d target;      // +0x68
+    int32_t doorDirection = 0; // +0x64
+    vector_3d target;          // +0x68
     /// <summary>
     /// The cost of a plain passable cell (setUp's moveLevel); overlays, locks and mines add to it.
     /// </summary>
-    int32_t moveLevel; // +0x74
+    int32_t moveLevel = 0; // +0x74
     /// <summary>Added to the cost of the jump offsets (the ones past the eight neighbours); with
     /// <see cref="JumpOnBlocked"/> it is their whole cost.</summary>
-    int32_t jumpCost; // +0x78
+    int32_t jumpCost = 0; // +0x78
     /// <summary>How many of the NUM_CELL_OFFSETS offsets the search tries.</summary>
-    int32_t numOffsets;          // +0x7c
-    float calcTime;              // +0x80
-    int32_t* overlayWeightTable; // +0x84
+    int32_t numOffsets = 0;                // +0x7c
+    float calcTime = 0;                    // +0x80
+    int32_t* overlayWeightTable = nullptr; // +0x84
 };
 
 /// <remarks>MCX.EXE @ 0x006b8eb0</remarks>

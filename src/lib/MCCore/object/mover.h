@@ -37,13 +37,6 @@ constexpr int32_t MAX_PATH_RANGE_LOCKS = 10;
 class StatusChunk
 {
 public:
-    /// <summary>Allocates from systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x00685460</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x00685490</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Clears everything; no target cell.</summary>
     /// <remarks>MCX.EXE @ 0x0065b5d0 (inline in <c>object\mover.h</c>)</remarks>
     void init();
@@ -86,71 +79,71 @@ public:
 struct CriticalSpace
 {
     /// <summary>The inventory index, 0xff for an empty space.</summary>
-    uint8_t inventoryID; // +0x00
+    uint8_t inventoryID = 0; // +0x00
     /// <summary>The second byte of the "Component%d" entry.</summary>
-    int32_t hit; // +0x04
+    int32_t hit = 0; // +0x04
 };
 
 /// <summary>One of a mover's body locations (a mech's head, torso, arms, legs; a vehicle's sides).</summary>
-/// <remarks>0x14 bytes; the array is allocated from <c>ObjectTypeManager::objectCache</c>. Field meanings are
+/// <remarks>0x14 bytes. Field meanings are
 /// settled with mech.cpp.</remarks>
 struct BodyLocation
 {
     /// <summary>"CASE".</summary>
-    int32_t hasCASE; // +0x00
+    int32_t hasCASE = 0; // +0x00
     /// <summary>The critical spaces the location's components need (their criticalSpacesReq, summed per space).</summary>
-    int32_t totalSpaces; // +0x04
-    /// <summary>The location's critical spaces (objectCache).</summary>
-    CriticalSpace* criticalSpaces; // +0x08
-    float curInternalStructure;    // +0x0c
+    int32_t totalSpaces = 0; // +0x04
+    /// <summary>The location's critical spaces.</summary>
+    CriticalSpace* criticalSpaces = nullptr; // +0x08
+    float curInternalStructure = 0;          // +0x0c
     /// <summary>"HotSpotNumber".</summary>
-    uint8_t hotSpotNumber; // +0x10
+    uint8_t hotSpotNumber = 0; // +0x10
     /// <summary>The type's internal structure for the location.</summary>
-    uint8_t maxInternalStructure; // +0x11
+    uint8_t maxInternalStructure = 0; // +0x11
     /// <summary>2 when destroyed (BattleMech::calcLegStatus).</summary>
-    uint8_t damageState; // +0x12
+    uint8_t damageState = 0; // +0x12
 };
 
 /// <summary>One of a mover's inventory items (a component, weapon or ammo bin).</summary>
-/// <remarks>0x1c bytes; the array is allocated from <c>ObjectTypeManager::objectCache</c>. Field meanings beyond
+/// <remarks>0x1c bytes. Field meanings beyond
 /// these are settled with mover.cpp.</remarks>
 struct InventoryItem
 {
     /// <summary>The item's master component id.</summary>
-    uint8_t masterID; // +0x00
+    uint8_t masterID = 0; // +0x00
     /// <summary>Hits it has taken (MasterComponent::health minus this is what getInventoryDamage gives).</summary>
-    uint8_t health; // +0x01
+    uint8_t health = 0; // +0x01
     /// <summary>Nonzero when destroyed or disabled.</summary>
-    int32_t disabled; // +0x04
+    int32_t disabled = 0; // +0x04
     /// <summary>"FacesForward" (weapons).</summary>
-    uint8_t facesForward; // +0x08
-    uint8_t unknown09;    // +0x09
+    uint8_t facesForward = 0; // +0x08
+    uint8_t unknown09 = 0;    // +0x09
     /// <summary>An ammo bin's starting rounds.</summary>
-    int16_t startAmount; // +0x0a
+    int16_t startAmount = 0; // +0x0a
     /// <summary>An ammo bin's rounds (calcAmmoTotals sums them per type).</summary>
-    int16_t amount; // +0x0c
+    int16_t amount = 0; // +0x0c
     /// <summary>A weapon's (or anti-missile system's) ammo type: its index in Mover::ammoTypeTotal.</summary>
-    int16_t ammoIndex; // +0x0e
+    int16_t ammoIndex = 0; // +0x0e
     /// <summary>Scenario time a weapon is ready again (startWeaponRecycle).</summary>
-    float readyTime; // +0x10
+    float readyTime = 0; // +0x10
     /// <summary>The body location the item sits in (an ammo explosion hits it).</summary>
-    uint8_t bodyLocation; // +0x14
-    uint8_t unknown15;    // +0x15
+    uint8_t bodyLocation = 0; // +0x14
+    uint8_t unknown15 = 0;    // +0x15
     /// <summary>A weapon's effectiveness (calcWeaponEffectiveness sums it, scaled by gunnery).</summary>
-    int16_t effectiveness; // +0x16
+    int16_t effectiveness = 0; // +0x16
     /// <summary>A weapon's ratings per range step (NumRangeRatings pairs: rating, then damage rate; objectCache,
     /// freed with the inventory).</summary>
-    float* rangeRatings; // +0x18
+    float* rangeRatings = nullptr; // +0x18
 };
 
 /// <summary>One of a mover's armor locations.</summary>
-/// <remarks>8 bytes; the array is allocated from <c>ObjectTypeManager::objectCache</c>.</remarks>
+/// <remarks>8 bytes.</remarks>
 struct ArmorLocation
 {
     /// <summary>Armor left.</summary>
-    float curArmor; // +0x00
+    float curArmor = 0; // +0x00
     /// <summary>Full armor (needsRefit).</summary>
-    uint8_t maxArmor; // +0x04
+    uint8_t maxArmor = 0; // +0x04
 };
 
 /// <summary>A mover's ammo of one type.</summary>
@@ -158,11 +151,11 @@ struct ArmorLocation
 struct AmmoTally
 {
     /// <summary>The ammo's master component id.</summary>
-    int32_t masterId; // +0x00
+    int32_t masterId = 0; // +0x00
     /// <summary>Rounds left.</summary>
-    int32_t curAmount; // +0x04
+    int32_t curAmount = 0; // +0x04
     /// <summary>Rounds at the start.</summary>
-    int32_t startAmount; // +0x08
+    int32_t startAmount = 0; // +0x08
 };
 
 /// <summary>
@@ -564,9 +557,9 @@ public:
     vector_3d velocity; // +0x94
     /// <summary>Orientation.</summary>
     frame_of_ref frame; // +0xa0
-    /// <summary>A systemHeap string: the mover's long name (the string table entry of its profile; GroundVehicle's
+    /// <summary>The mover's long name (the string table entry of its profile; GroundVehicle's
     /// getIfaceName returns it). Also printed by the debug status chunks.</summary>
-    char* debugStatus = nullptr; // +0xc4
+    std::string debugStatus; // +0xc4
     /// <summary>Profile "icon" (up to 19 characters).</summary>
     char iconName[20] = {}; // +0xc8
     /// <summary>The type's "Chassis"; indexes TileThrottleMultiplier / OverlayThrottleMultiplier.</summary>
@@ -601,8 +594,8 @@ public:
         return body[location];
     }
 
-    /// <summary>The body locations (objectCache).</summary>
-    BodyLocation* body = nullptr; // +0xf8
+    /// <summary>The body locations.</summary>
+    std::unique_ptr<BodyLocation[]> body; // +0xf8
     /// <summary>How many.</summary>
     int8_t numBodyLocations = 0; // +0xfc
     int32_t unknown100 = 0;      // +0x100
@@ -610,20 +603,20 @@ public:
     uint8_t armorType = 0; // +0x104
     /// <summary>"Armor" "Tonnage".</summary>
     float armorTonnage = 0.0f; // +0x108
-    /// <summary>The armor locations (objectCache).</summary>
-    ArmorLocation* armor = nullptr; // +0x10c
+    /// <summary>The armor locations.</summary>
+    std::unique_ptr<ArmorLocation[]> armor; // +0x10c
     /// <summary>How many.</summary>
     int8_t numArmorLocations = 0; // +0x110
-    /// <summary>The inventory: other items, then weapons, then ammo (objectCache).</summary>
-    InventoryItem* inventory = nullptr; // +0x114
+    /// <summary>The inventory: other items, then weapons, then ammo.</summary>
+    std::unique_ptr<InventoryItem[]> inventory; // +0x114
     /// <summary>Items before the weapons.</summary>
     uint8_t numOther = 0; // +0x118
     /// <summary>Weapons.</summary>
     uint8_t numWeapons = 0; // +0x119
     /// <summary>Ammo bins.</summary>
     uint8_t numAmmos = 0; // +0x11a
-    /// <summary>Ammo by type (objectCache).</summary>
-    AmmoTally* ammoTypeTotal = nullptr; // +0x11c
+    /// <summary>Ammo by type.</summary>
+    std::unique_ptr<AmmoTally[]> ammoTypeTotal; // +0x11c
     /// <summary>How many.</summary>
     int8_t numAmmoTypes = 0; // +0x120
     /// <summary>The pilot.</summary>
@@ -714,8 +707,8 @@ public:
     Dynamics* dynamics = nullptr; // +0x1cc
     /// <summary>The DPID of the player whose mover this is (multiplayer; set when the scenario starts).</summary>
     uint32_t netOwnerID = 0; // +0x1d0
-    /// <summary>Networked: a 256-byte name buffer (objectTypeCache; string 0xb9).</summary>
-    char* netName = nullptr; // +0x1d4
+    /// <summary>Networked: a 256-byte name buffer (string 0xb9); null in single player.</summary>
+    std::unique_ptr<char[]> netName; // +0x1d4
     /// <summary>-1 by init; networked: the owning player.</summary>
     int32_t netPlayerId = -1; // +0x1d8
     /// <summary>-1 by init; networked: the roster slot.</summary>
@@ -724,7 +717,7 @@ public:
     StatusChunk statusChunk; // +0x1e0
     int32_t unknown20C = 0;  // +0x20c
     /// <summary>The network move chunk.</summary>
-    MoveChunk moveChunk; // +0x210
+    MoveChunk moveChunk{}; // +0x210
     /// <summary>Weapon fire chunks queued, out (0) and in (1).</summary>
     int32_t numWeaponFireChunks[2] = {};                      // +0x268
     uint32_t weaponFireChunks[2][MAX_WEAPONFIRE_CHUNKS] = {}; // +0x270

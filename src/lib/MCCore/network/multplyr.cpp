@@ -2328,7 +2328,7 @@ auto handleAppStartScenario(uint32_t fromID, const void* msg) -> void
 
             if (mover->netName != nullptr)
             {
-                std::strncpy(mover->netName, player->name, 0xff);
+                std::strncpy(mover->netName.get(), player->name, 0xff);
             }
         }
     }

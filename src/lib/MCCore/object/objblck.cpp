@@ -4,7 +4,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
 #include "network/multplyr.h"
@@ -33,7 +32,7 @@ namespace
     /// Objects placed on each map vertex so far (up to 7), for their part ids; made by init and freed once the
     /// .bdg file is read (unnamed global DAT_007e3708).
     /// </summary>
-    uint8_t* vertexObjectCount = nullptr;
+    std::vector<uint8_t> vertexObjectCount;
 
     /// <summary>
     /// The next part id for an object on (<paramref name="blockNumber"/>, <paramref name="vertexNumber"/>): the
@@ -128,8 +127,8 @@ namespace
 auto ObjectBlockManager::destroy() -> void
 {
     destroyAllObjects();
-    delete objectHeap;
-    objectHeap = nullptr;
+    objectLists.reset();
+    objectData.reset();
 
     if (objectFile != nullptr)
     {
@@ -164,47 +163,15 @@ auto ObjectBlockManager::init(const char* fileName) -> int32_t
         Fatal(-1, " Tried to use old Style Object Data ");
     }
 
-    // The heap: the lists table and the block packet buffer.
+    // The lists table and the block packet buffer (heapSize is the original's heap size, kept for reference).
     const int32_t numPackets = objectFile->getNumPackets();
     heapSize = numPackets * 0x18 + 0x5600;
-    objectHeap = new UserHeap;
-
-    if (objectHeap == nullptr)
-    {
-        return static_cast<int32_t>(0xbaaa0015);
-    }
-
-    if ((result = objectHeap->init(static_cast<uint32_t>(heapSize))) != 0)
-    {
-        return result;
-    }
-
-    // Port fix: the original allocated numPackets * 8 bytes, two 4-byte pointers per block; sized by the pointer here.
-    objectLists = static_cast<ObjectQueueNode**>(
-        objectHeap->malloc(static_cast<uint32_t>(numPackets) * 2 * sizeof(ObjectQueueNode*)));
-
-    if (objectLists == nullptr)
-    {
-        return static_cast<int32_t>(0xbaaa0017);
-    }
-
-    for (int32_t i = 0; i < numPackets * 2; i++)
-    {
-        objectLists[i] = nullptr;
-    }
-
-    objectData = static_cast<uint8_t*>(objectHeap->malloc(OBJECT_DATA_SIZE));
-
-    if (objectData == nullptr)
-    {
-        return static_cast<int32_t>(0xbaaa0018);
-    }
-
-    *reinterpret_cast<int32_t*>(objectData) = -1;
+    objectLists = std::make_unique<ObjectQueueNode*[]>(static_cast<size_t>(numPackets) * 2);
+    objectData = std::make_unique<uint8_t[]>(OBJECT_DATA_SIZE);
+    *reinterpret_cast<int32_t*>(objectData.get()) = -1;
     const int32_t mapSide = Terrain::blocksMapSide * Terrain::verticesBlockSide;
     const auto countSize = static_cast<size_t>(mapSide) * static_cast<size_t>(mapSide);
-    vertexObjectCount = static_cast<uint8_t*>(std::malloc(countSize));
-    std::memset(vertexObjectCount, 0, countSize);
+    vertexObjectCount.assign(countSize, 0);
 
     if ((result = update(1)) != 0)
     {
@@ -302,8 +269,7 @@ auto ObjectBlockManager::init(const char* fileName) -> int32_t
         }
 
         bdgFile.close();
-        std::free(vertexObjectCount);
-        vertexObjectCount = nullptr;
+        vertexObjectCount = {};
     }
 
     return 0;
@@ -331,7 +297,7 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
     objectList->addList(restList);
 
     // Each record: type, pixel offset, vertex, block, then damage (low nibble) and commander (high nibble).
-    const uint8_t* record = objectData;
+    const uint8_t* record = objectData.get();
 
     for (uint32_t n = packetSize / OBJECT_RECORD_SIZE; n != 0; n--, record += OBJECT_RECORD_SIZE)
     {
@@ -473,15 +439,10 @@ auto ObjectBlockManager::update(int reload) -> int32_t
 
     if (objectData == nullptr)
     {
-        objectData = static_cast<uint8_t*>(objectHeap->malloc(OBJECT_DATA_SIZE));
-
-        if (objectData == nullptr)
-        {
-            return static_cast<int32_t>(0xbaaa0018);
-        }
+        objectData = std::make_unique<uint8_t[]>(OBJECT_DATA_SIZE);
     }
 
-    std::memset(objectData, 0xff, OBJECT_DATA_SIZE);
+    std::memset(objectData.get(), 0xff, OBJECT_DATA_SIZE);
 
     if (objectFile == nullptr || objectFile->isOpen() == 0)
     {
@@ -497,7 +458,7 @@ auto ObjectBlockManager::update(int reload) -> int32_t
             continue;
         }
 
-        objectFile->readPacket(listIndex / 2, objectData);
+        objectFile->readPacket(listIndex / 2, objectData.get());
         const int32_t result =
             setupObjectQueue(static_cast<uint32_t>(listIndex), static_cast<uint32_t>(objectFile->getPacketSize()));
 

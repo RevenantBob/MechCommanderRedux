@@ -10,7 +10,6 @@
 #include "engine/cevfx.h"
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -579,7 +578,7 @@ Turret::Turret()
     unknownA0 = 500000;
     destroyed = 0;
     unknownD0 = 0;
-    name = nullptr;
+    name.clear();
     markedSeenInnerSphere = 0;
     markedSeenClan = 0;
     unknown100 = 0;
@@ -1596,8 +1595,7 @@ auto Turret::destroy() -> void
         fireObject = nullptr;
     }
 
-    systemHeap->free(name);
-    name = nullptr;
+    name.clear();
 }
 
 auto Turret::init(ObjectType* objType) -> int32_t
@@ -1702,8 +1700,7 @@ auto Turret::init(ObjectType* objType) -> int32_t
     explRadius = type->explosionRadius;
     char nameBuffer[256];
     cLoadString(thisInstance, static_cast<uint32_t>(type->buildingName), nameBuffer, 0xfe);
-    name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(name, nameBuffer);
+    name = nameBuffer;
     unknownDC = 0;
     smoke = nullptr;
     unknown118 = 0;

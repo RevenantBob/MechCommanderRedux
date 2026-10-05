@@ -38,19 +38,19 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Sample played when the bullet is fired (FIT "SoundEffectId"); 0xFFFFFFFF for none.</summary>
-    uint32_t soundEffectId; // +0x30
+    uint32_t soundEffectId = 0; // +0x30
     /// <summary>Object type created where the bullet hits its target (FIT "BulletHitEffect").</summary>
-    uint32_t bulletHitEffect; // +0x34
+    uint32_t bulletHitEffect = 0; // +0x34
     /// <summary>Object type created where a bullet without a target lands (FIT "BulletMissEffect").</summary>
-    uint32_t bulletMissEffect; // +0x38
+    uint32_t bulletMissEffect = 0; // +0x38
     /// <summary>Object type of the smoke trail (FIT "SmokeObjectId"); -1 for none.</summary>
-    uint32_t smokeObjectId; // +0x3c
+    uint32_t smokeObjectId = 0; // +0x3c
     /// <summary>Object type of the light that travels with the bullet (FIT "LightObjectId"); -1 for none.</summary>
-    uint32_t lightObjectId; // +0x40
+    uint32_t lightObjectId = 0; // +0x40
     /// <summary>Speed in world units per second (FIT "Velocity").</summary>
-    float velocity; // +0x44
+    float velocity = 0; // +0x44
     /// <summary>FIT "CloseDistance"; not used by bullet.cpp.</summary>
-    float closeDistance; // +0x48
+    float closeDistance = 0; // +0x48
 };
 
 /// <summary>
@@ -105,31 +105,31 @@ public:
     void connect(GameObject* source, vector_3d targetPos, int32_t sourceHotSpot);
 
     /// <summary>Set by the constructor and init; the first update clears it, plays the sound and places the bullet.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>The object that fired the bullet (stored as a BaseObject by <see cref="setOwner"/>).</summary>
-    GameObject* owner; // +0x88
+    GameObject* owner = nullptr; // +0x88
     /// <summary>The owner's hot spot the bullet leaves from.</summary>
-    int32_t ownerHotSpot; // +0x8c
+    int32_t ownerHotSpot = 0; // +0x8c
     /// <summary>The object the bullet flies to and damages; null for a shot at a position.</summary>
-    GameObject* target; // +0x90
+    GameObject* target = nullptr; // +0x90
     /// <summary>The target's hot spot where the hit effect is placed (not used for class 0x1e targets).</summary>
-    int32_t targetHotSpot; // +0x94
+    int32_t targetHotSpot = 0; // +0x94
     /// <summary>Where the bullet flies to, allocated by <see cref="setTargetPosition"/>.</summary>
-    vector_3d* targetPosition; // +0x98
+    vector_3d* targetPosition = nullptr; // +0x98
     /// <summary>The smallest squared ground distance to the target so far (starts at 1e8); growing again means arrival.</summary>
-    float closestDistanceSq; // +0x9c
+    float closestDistanceSq = 0; // +0x9c
     /// <summary>The arm appearance of the bullet.</summary>
-    Appearance* appearance; // +0xa0
+    Appearance* appearance = nullptr; // +0xa0
     /// <summary>How many entries of shotInfo are applied on arrival.</summary>
-    int32_t numShots; // +0xa4
+    int32_t numShots = 0; // +0xa4
     /// <summary>The shots applied to the target on arrival (0x14 bytes each).</summary>
-    _WeaponShotInfo shotInfo[5]; // +0xa8
+    _WeaponShotInfo shotInfo[5]{}; // +0xa8
     /// <summary>The smoke trail.</summary>
-    Smoke* smoke; // +0x10c
+    Smoke* smoke = nullptr; // +0x10c
     /// <summary>The bullet's own flight position (the object position follows the owner's hot spot).</summary>
     vector_3d bulletPosition; // +0x110
     /// <summary>The light that travels with the bullet.</summary>
-    GameObject* light; // +0x11c
+    GameObject* light = nullptr; // +0x11c
     /// <summary>The draw rotation of the appearance: -150, or 150 when a mech owner faces the other way.</summary>
-    int32_t drawRotation; // +0x120
+    int32_t drawRotation = 0; // +0x120
 };

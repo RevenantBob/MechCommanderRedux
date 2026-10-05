@@ -5,9 +5,9 @@
 struct SortListNode
 {
     /// <summary>The value sorted on.</summary>
-    float value; // +0x00
+    float value = 0; // +0x00
     /// <summary>The caller's id (clear numbers the entries 0..n-1).</summary>
-    int32_t id; // +0x04
+    int32_t id = 0; // +0x04
 };
 
 /// <summary>
@@ -17,8 +17,7 @@ struct SortListNode
 class SortList
 {
 public:
-    /// <summary>Allocates <paramref name="numItems"/> entries from <c>ObjectTypeManager::objectCache</c>; fatal
-    /// when that fails. Returns 1 on failure, 0 on success.</summary>
+    /// <summary>Allocates <paramref name="numItems"/> entries. Returns 0.</summary>
     /// <remarks>MCX.EXE @ 0x006b4d90</remarks>
     int32_t init(int32_t numItems);
     /// <summary>
@@ -30,12 +29,12 @@ public:
     /// <summary>Sorts by value, descending when <paramref name="descending"/>, else ascending.</summary>
     /// <remarks>MCX.EXE @ 0x006b4ea0</remarks>
     void sort(int descending);
-    /// <summary>Frees the entries (into systemHeap, as the original did: see the .cpp).</summary>
+    /// <summary>Frees the entries.</summary>
     /// <remarks>MCX.EXE @ 0x006b4ee0</remarks>
     void destroy();
 
     /// <summary>The entries.</summary>
-    SortListNode* list = nullptr; // +0x00
+    std::unique_ptr<SortListNode[]> list; // +0x00
     /// <summary>How many.</summary>
     int32_t numItems = 0; // +0x04
 };

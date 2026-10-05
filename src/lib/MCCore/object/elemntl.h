@@ -61,8 +61,8 @@ public:
 
     /// <summary>"ID".</summary>
     uint32_t elementalId = 0; // +0x30
-    /// <summary>"Name" (systemHeap).</summary>
-    char* name = nullptr; // +0x34
+    /// <summary>"Name".</summary>
+    std::string name; // +0x34
     /// <summary>"Type", mapped 0 -> 1, 1 -> 0xff: the alignment (compared with the home team's id).</summary>
     uint8_t alignment = 0; // +0x38
     /// <summary>"MaxHealth".</summary>

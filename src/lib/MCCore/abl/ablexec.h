@@ -15,7 +15,7 @@
 //    a StackItem (a scalar local / static / eternal) or to an element in array memory; the interpreter fetches and
 //    stores 4-byte integers and reals through them, which works for both.
 //  - The push functions clear the whole item before storing, so the upper half of a slot never holds stale bits.
-//  - Arrays are never stack items: a slot of array type holds `address`, pointing to heap memory (AblStackHeap)
+//  - Arrays are never stack items: a slot of array type holds `address`, pointing to a block of AblMemory
 //    laid out with the ABL type sizes (4-byte integers and reals, 1-byte chars), exactly as in the original.
 //  - A frame starts with a 4-item StackFrameHeader (function value, static link, dynamic link, return address);
 //    parameters follow from item 4 and locals after them. The links are StackItem pointers, the return address a
@@ -75,13 +75,13 @@ static_assert(sizeof(StackItem) == sizeof(void*), "StackItem is one pointer-size
 struct StackFrameHeader
 {
     /// <summary>A function's result.</summary>
-    StackItem functionValue; // item 0
+    StackItem functionValue{}; // item 0
     /// <summary>The frame of the enclosing scope (for variables of outer levels).</summary>
-    StackItem staticLink; // item 1
+    StackItem staticLink{}; // item 1
     /// <summary>The caller's frame.</summary>
-    StackItem dynamicLink; // item 2
+    StackItem dynamicLink{}; // item 2
     /// <summary>Where to continue in the caller's code.</summary>
-    StackItem returnAddress; // item 3
+    StackItem returnAddress{}; // item 3
 };
 
 typedef StackFrameHeader* StackFrameHeaderPtr;
@@ -168,7 +168,7 @@ void crunchInteger(int32_t value);
 /// <remarks>MCX.EXE @ 0x00623150</remarks>
 void crunchOffset(Address address);
 
-/// <summary>Copies the compiled code to a new segment from AblCodeHeap and empties the buffer.</summary>
+/// <summary>Copies the compiled code to a new segment in AblMemory and empties the buffer.</summary>
 /// <returns>The segment.</returns>
 /// <remarks>MCX.EXE @ 0x006231a0</remarks>
 char* createCodeSegment();
@@ -226,7 +226,7 @@ void pushAddress(Address address);
 /// <remarks>MCX.EXE @ 0x00623430 (unnamed in the symbols)</remarks>
 void pushStackFrameHeader(int32_t oldLevel, int32_t newLevel);
 
-/// <summary>Pushes a local of <paramref name="typePtr"/>: zero, or a new array block from AblStackHeap (not cleared).</summary>
+/// <summary>Pushes a local of <paramref name="typePtr"/>: zero, or a new, zeroed array block in AblMemory.</summary>
 /// <remarks>MCX.EXE @ 0x006234a0</remarks>
 void allocLocal(TypePtr typePtr);
 

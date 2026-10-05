@@ -168,8 +168,8 @@ public:
 
     /// <summary>"ID".</summary>
     uint32_t mechId = 0; // +0x30
-    /// <summary>"Name" (systemHeap).</summary>
-    char* name = nullptr; // +0x34
+    /// <summary>"Name".</summary>
+    std::string name; // +0x34
     /// <summary>"Type", mapped.</summary>
     uint8_t mechType = 0; // +0x38
     /// <summary>"Chassis".</summary>
@@ -368,7 +368,7 @@ public:
     /// <remarks>MCX.EXE @ 0x0067e6a0</remarks>
     int handleEjection() override;
     /// <remarks>MCX.EXE @ 0x00676960</remarks>
-    const char* getIfaceName() override { return ifaceName; }
+    const char* getIfaceName() override { return ifaceName.c_str(); }
 
     // Slots 219.. are BattleMech's own.
 
@@ -492,8 +492,8 @@ public:
     GameObject* jumpFX[2] = {}; // +0x92c
     /// <summary>calcMaxTargetDamage.</summary>
     float maxTargetDamage = 0.0f; // +0x934
-    /// <summary>The name the interface shows (systemHeap).</summary>
-    char* ifaceName = nullptr; // +0x938
+    /// <summary>The name the interface shows.</summary>
+    std::string ifaceName; // +0x938
     /// <summary>"Pilot" (-1 when missing).</summary>
     int32_t pilotId = 0; // +0x93c
     /// <summary>Whether the mech can be captured.</summary>

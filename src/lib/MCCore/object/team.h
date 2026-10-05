@@ -17,19 +17,19 @@ constexpr int32_t MAX_TEAM_CONTACTS = 500;
 /// A jammer or ECM a team carries (<see cref="Team::addJammer"/>, <see cref="Team::addECM"/>): kept in a list sorted
 /// by strength, strongest first.
 /// </summary>
-/// <remarks>Original source: <c>object\team.cpp</c>; 0x14 bytes, allocated from systemHeap.</remarks>
+/// <remarks>Original source: <c>object\team.cpp</c>; 0x14 bytes.</remarks>
 struct _SystemTracker
 {
     /// <summary>The object carrying it; cleared when removed.</summary>
-    GameObject* owner; // +0x00
+    GameObject* owner = nullptr; // +0x00
     /// <summary>Its component, in MasterComponentList.</summary>
-    int32_t masterId; // +0x04
+    int32_t masterId = 0; // +0x04
     /// <summary>The component's range/strength (MasterComponent +0x54), the list's sort key.</summary>
-    float effect; // +0x08
+    float effect = 0; // +0x08
     /// <summary>Previous (stronger) entry.</summary>
-    _SystemTracker* prev; // +0x0c
+    _SystemTracker* prev = nullptr; // +0x0c
     /// <summary>Next (weaker) entry.</summary>
-    _SystemTracker* next; // +0x10
+    _SystemTracker* next = nullptr; // +0x10
 };
 
 /// <summary>
@@ -43,7 +43,7 @@ public:
     /// <summary>Clears everything; three sensors updated a frame.</summary>
     /// <remarks>MCX.EXE @ 0x00697050</remarks>
     virtual void init();
-    /// <summary>Sets the team id and makes room for <paramref name="maxSensors"/> sensors (from systemHeap).</summary>
+    /// <summary>Sets the team id and makes room for <paramref name="maxSensors"/> sensors.</summary>
     /// <remarks>MCX.EXE @ 0x006970b0</remarks>
     virtual int32_t init(int32_t newId, int32_t maxSensors);
     /// <remarks>MCX.EXE @ 0x007367d0 (inline in <c>object\team.h</c>)</remarks>
@@ -174,8 +174,8 @@ public:
     int32_t alignment = 0; // +0x08
     /// <summary>Movers on the roster.</summary>
     int32_t rosterSize = 0; // +0x0c
-    /// <summary>The roster's part ids (systemHeap).</summary>
-    int32_t* roster = nullptr; // +0x10
+    /// <summary>The roster's part ids.</summary>
+    std::unique_ptr<int32_t[]> roster; // +0x10
     /// <summary>The team's first objective in <c>Scenario::objectives</c> (the tactical map's mission page).</summary>
     int32_t firstObjective = 0; // +0x14
     /// <summary>How many objectives are the team's (set by Scenario::init).</summary>
@@ -196,8 +196,8 @@ public:
     int32_t numSensorContacts = 0; // +0x7fc
     /// <summary>Enemy contacts (incNumEnemyContacts / decNumEnemyContacts).</summary>
     int32_t numEnemyContacts = 0; // +0x800
-    /// <summary>The team's sensors (systemHeap).</summary>
-    SensorSystem** sensors = nullptr; // +0x804
+    /// <summary>The team's sensors.</summary>
+    std::unique_ptr<SensorSystem*[]> sensors; // +0x804
     /// <summary>Room in <see cref="sensors"/>.</summary>
     int32_t maxSensors = 0; // +0x808
     /// <summary>Sensors on the list.</summary>

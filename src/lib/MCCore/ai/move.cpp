@@ -3,7 +3,6 @@
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "lib/pqueue.h"
@@ -341,8 +340,8 @@ auto DebugOpenList(char* msg) -> void
 
     if (MovingObject != nullptr)
     {
-        std::snprintf(line, sizeof(line), "MovingObject = %s [%d]\n", static_cast<Mover*>(MovingObject)->debugStatus,
-                      MovingObject->partId);
+        std::snprintf(line, sizeof(line), "MovingObject = %s [%d]\n",
+                      static_cast<Mover*>(MovingObject)->debugStatus.c_str(), MovingObject->partId);
         debugFile->writeString(line);
 
         if (MovingObject->objectClass == ELEMENTAL)
@@ -388,8 +387,8 @@ auto calcTileTypeFromIndex(int32_t tileIndex) -> int32_t
 
     static constexpr struct
     {
-        int32_t limit;
-        int32_t type;
+        int32_t limit = 0;
+        int32_t type = 0;
     } bands[] = {
         {0xc6e, 0x29}, {0xc84, 0x2a}, {0xc88, 0x2b}, {0xc96, 0x2c}, {0xca4, 0x2d}, {0xcb0, 0x2e},
         {0xcbc, 0x2f}, {0xcc8, 0x30}, {0xcd4, 0x31}, {0xce0, 0x32}, {0xcec, 0x33}, {0xcf4, 0x34},
@@ -534,16 +533,6 @@ auto calcOverlayTypeFromIndex(int32_t overlayIndex) -> int32_t
     return overlayIndex - 0xdd5;
 }
 
-auto ScenarioMap::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto ScenarioMap::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
-
 auto ScenarioMap::init(int32_t newWidth, int32_t newHeight) -> void
 {
     MetersPerCell = Terrain::metersPerVertexDivMAPCELL_DIM;
@@ -579,23 +568,9 @@ auto ScenarioMap::init(int32_t newWidth, int32_t newHeight) -> void
     MapCellDiagonal = static_cast<float>(cellSide * metersPerWorldUnit * 1.4142);
     HalfMapCell = static_cast<float>(cellSide * 0.5);
 
-    const uint32_t numTiles = static_cast<uint32_t>(newWidth * newHeight);
-    map = static_cast<MapTile*>(systemHeap->malloc(numTiles * sizeof(MapTile)));
-
-    if (map == nullptr)
-    {
-        Fatal(0, "Not enough Memory for ScenarioMap");
-    }
-
-    memclear(map, static_cast<int>(numTiles * sizeof(MapTile)));
-    pathMap = static_cast<uint8_t*>(systemHeap->malloc(numTiles));
-
-    if (pathMap == nullptr)
-    {
-        Fatal(0, " No RAM for pathMap ");
-    }
-
-    memclear(pathMap, static_cast<int>(numTiles));
+    const size_t numTiles = static_cast<size_t>(newWidth * newHeight);
+    map = std::make_unique<MapTile[]>(numTiles);
+    pathMap = std::make_unique<uint8_t[]>(numTiles);
 }
 
 auto ScenarioMap::init(File* mapFile) -> int32_t
@@ -643,23 +618,10 @@ auto ScenarioMap::init(File* mapFile) -> int32_t
     }
 
     baseElevation = mapFile->readLong();
-    const uint32_t numTiles = static_cast<uint32_t>(width * height);
-    map = static_cast<MapTile*>(systemHeap->malloc(numTiles * sizeof(MapTile)));
-
-    if (map == nullptr)
-    {
-        Fatal(0, "Not enough Memory for ScenarioMap");
-    }
-
-    mapFile->read(reinterpret_cast<uint8_t*>(map), static_cast<int32_t>(numTiles * sizeof(MapTile)));
-    pathMap = static_cast<uint8_t*>(systemHeap->malloc(numTiles));
-
-    if (pathMap == nullptr)
-    {
-        Fatal(0, " No RAM for pathMap ");
-    }
-
-    memclear(pathMap, static_cast<int>(numTiles));
+    const size_t numTiles = static_cast<size_t>(width * height);
+    map = std::make_unique<MapTile[]>(numTiles);
+    mapFile->read(reinterpret_cast<uint8_t*>(map.get()), static_cast<int32_t>(numTiles * sizeof(MapTile)));
+    pathMap = std::make_unique<uint8_t[]>(numTiles);
     return 0;
 }
 
@@ -673,23 +635,14 @@ auto ScenarioMap::write(File* mapFile) -> int32_t
     mapFile->writeLong(height);
     mapFile->writeLong(width);
     mapFile->writeLong(baseElevation);
-    mapFile->write(reinterpret_cast<const uint8_t*>(map), static_cast<int32_t>(width * height * sizeof(MapTile)));
+    mapFile->write(reinterpret_cast<const uint8_t*>(map.get()), static_cast<int32_t>(width * height * sizeof(MapTile)));
     return 0;
 }
 
 auto ScenarioMap::destroy() -> void
 {
-    if (map != nullptr)
-    {
-        systemHeap->free(map);
-        map = nullptr;
-    }
-
-    if (pathMap != nullptr)
-    {
-        systemHeap->free(pathMap);
-        pathMap = nullptr;
-    }
+    map.reset();
+    pathMap.reset();
 }
 
 auto ScenarioMap::worldToMapPos(vector_3d pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC) -> void
@@ -811,8 +764,7 @@ auto ScenarioMap::placeTerrainObjects(ObjectBlockManager* blockManager) -> void
     const int32_t numTiles = width * height;
     // Original behaviour (OB-033): never written (placeTerrainObject does nothing), so the tiles' overlay bits 7-8
     // all end up cleared.
-    uint8_t* footprint = static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(numTiles)));
-    memclear(footprint, numTiles);
+    std::vector<uint8_t> footprint(static_cast<size_t>(numTiles));
 
     for (int32_t block = 0; block < Terrain::blocksMapSide * Terrain::blocksMapSide; block++)
     {
@@ -829,21 +781,14 @@ auto ScenarioMap::placeTerrainObjects(ObjectBlockManager* blockManager) -> void
             continue;
         }
 
-        uint8_t* data = static_cast<uint8_t*>(systemHeap->malloc(packetSize));
-
-        if (data == nullptr)
-        {
-            Fatal(0, "Cannot place terrain objects");
-        }
-
-        std::memset(data, 0xff, packetSize);
-        objectFile->readPacket(block, data);
+        std::vector<uint8_t> data(packetSize, 0xff);
+        objectFile->readPacket(block, data.data());
         const uint32_t numRecords = packetSize / sizeof(ObjData);
 
         for (uint32_t i = 0; i < numRecords; i++)
         {
             ObjData record;
-            std::memcpy(&record, data + i * sizeof(ObjData), sizeof(ObjData));
+            std::memcpy(&record, data.data() + i * sizeof(ObjData), sizeof(ObjData));
 
             if (record.objTypeNum == -1)
             {
@@ -859,8 +804,6 @@ auto ScenarioMap::placeTerrainObjects(ObjectBlockManager* blockManager) -> void
             placeTerrainObject(object);
             delete object;
         }
-
-        systemHeap->free(data);
     }
 
     for (int32_t row = 0; row < height; row++)
@@ -872,8 +815,6 @@ auto ScenarioMap::placeTerrainObjects(ObjectBlockManager* blockManager) -> void
                 (static_cast<uint32_t>(footprint[row * width + col] & 0xfe) << 6) | (tile.overlay & 0xfffffe7f);
         }
     }
-
-    systemHeap->free(footprint);
 }
 
 auto ScenarioMap::updateMovingObjects() -> void
@@ -1309,29 +1250,12 @@ auto ScenarioMap::getOverlayWeight(int32_t tileR, int32_t tileC, int32_t cellR, 
                               cellR * MAPCELL_DIM];
 }
 
-auto ObjectMap::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto ObjectMap::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
-
 auto ObjectMap::init(ScenarioMap* newMap) -> void
 {
     map = newMap;
     width = newMap->width;
     height = newMap->height;
-    rows = static_cast<ObjectPosition**>(systemHeap->malloc(static_cast<uint32_t>(height * sizeof(ObjectPosition*))));
-
-    if (rows == nullptr)
-    {
-        Fatal(0, "Not enough Memory for ObjectMap");
-    }
-
-    memclear(rows, static_cast<int>(height * sizeof(ObjectPosition*)));
+    rows = std::make_unique<ObjectPosition*[]>(static_cast<size_t>(height));
 }
 
 namespace
@@ -1421,7 +1345,7 @@ namespace
             node->object->setObjPosition(nullptr);
         }
 
-        systemHeap->free(node);
+        delete node;
     }
 }
 
@@ -1432,13 +1356,7 @@ auto ObjectMap::addObject(GameObject* object) -> void
     int32_t cellR = 0;
     int32_t cellC = 0;
     GameMap->worldToMapPos(object->getPosition(), tileR, tileC, cellR, cellC);
-    ObjectPosition* node = static_cast<ObjectPosition*>(systemHeap->malloc(sizeof(ObjectPosition)));
-
-    if (node == nullptr)
-    {
-        Fatal(0, " No RAM for ObjectPosition ");
-    }
-
+    auto* node = new ObjectPosition{};
     node->object = object;
     node->tileR = tileR;
     node->tileC = tileC;
@@ -1447,7 +1365,7 @@ auto ObjectMap::addObject(GameObject* object) -> void
     node->prev = nullptr;
     node->next = nullptr;
     object->setObjPosition(node);
-    InsertObjectPosition(rows, node);
+    InsertObjectPosition(rows.get(), node);
 }
 
 auto ObjectMap::updateObject(GameObject* object, int) -> int
@@ -1487,10 +1405,10 @@ auto ObjectMap::updateObject(GameObject* object, int) -> int
 
     if (tileR != node->tileR || tileC != node->tileC)
     {
-        UnlinkObjectPosition(rows, node);
+        UnlinkObjectPosition(rows.get(), node);
         node->tileR = tileR;
         node->tileC = tileC;
-        InsertObjectPosition(rows, node);
+        InsertObjectPosition(rows.get(), node);
     }
 
     node->cellR = cellR;
@@ -1506,10 +1424,10 @@ auto ObjectMap::removeObject(GameObject* object) -> void
 
     if (node != nullptr)
     {
-        UnlinkObjectPosition(rows, node);
+        UnlinkObjectPosition(rows.get(), node);
     }
 
-    systemHeap->free(node);
+    delete node;
     object->setObjPosition(nullptr);
 }
 
@@ -1594,8 +1512,7 @@ auto ObjectMap::destroy() -> void
         }
     }
 
-    systemHeap->free(rows);
-    rows = nullptr;
+    rows.reset();
 }
 
 auto cellDirToCell(int32_t fromTileR, int32_t fromTileC, int32_t fromCellR, int32_t fromCellC, int32_t toTileR,
@@ -1622,7 +1539,7 @@ auto DebugMoveChunk(Mover* mover, MoveChunk* chunk1, MoveChunk* chunk2) -> void
 
     if (mover != nullptr)
     {
-        std::snprintf(line, sizeof(line), "Mover = %s (%d)\n", mover->debugStatus, mover->partId);
+        std::snprintf(line, sizeof(line), "Mover = %s (%d)\n", mover->debugStatus.c_str(), mover->partId);
         std::strcat(ChunkDebugMsg, line);
         std::snprintf(line, sizeof(line), "Mover World Pos = (%.4f, %.4f, %.4f)\n",
                       static_cast<double>(mover->getPosition().x), static_cast<double>(mover->getPosition().y),
@@ -1687,27 +1604,6 @@ auto DebugMoveChunk(Mover* mover, MoveChunk* chunk1, MoveChunk* chunk2) -> void
     debugFile->close();
     delete debugFile;
     ExceptionGameMsg = ChunkDebugMsg;
-}
-
-auto MoveChunk::operator new(size_t size) noexcept -> void*
-{
-    if (systemHeap != nullptr)
-    {
-        return systemHeap->malloc(static_cast<uint32_t>(size));
-    }
-
-    return std::malloc(size);
-}
-
-auto MoveChunk::operator delete(void* ptr) -> void
-{
-    if (systemHeap != nullptr)
-    {
-        systemHeap->free(ptr);
-        return;
-    }
-
-    std::free(ptr);
 }
 
 namespace
@@ -1978,27 +1874,6 @@ auto MoveChunk::equalTo(Mover* mover, MoveChunk* chunk) -> int
     }
 
     return 1;
-}
-
-auto MovePath::operator new(size_t size) noexcept -> void*
-{
-    if (systemHeap != nullptr)
-    {
-        return systemHeap->malloc(static_cast<uint32_t>(size));
-    }
-
-    return std::malloc(size);
-}
-
-auto MovePath::operator delete(void* ptr) -> void
-{
-    if (systemHeap != nullptr)
-    {
-        systemHeap->free(ptr);
-        return;
-    }
-
-    std::free(ptr);
 }
 
 auto MovePath::init(int32_t newNumSteps) -> int32_t
@@ -2304,16 +2179,6 @@ auto MovePath::setDestination(int32_t stepNumber, vector_3d position) -> void
     stepList[stepNumber].destination = position;
 }
 
-auto MovePathManager::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto MovePathManager::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
-
 auto MovePathManager::init() -> int32_t
 {
     for (int32_t i = 0; i < MAX_PATH_QUEUE_RECS; i++)
@@ -2483,16 +2348,6 @@ auto MovePathManager::update() -> void
     }
 }
 
-auto GlobalMap::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto GlobalMap::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
-
 namespace
 {
     /// <summary>Reads a little-endian field from a file record and steps past it.</summary>
@@ -2625,7 +2480,7 @@ auto GlobalMap::init(int32_t newWidth, int32_t newHeight) -> void
 {
     width = newWidth;
     height = newHeight;
-    areaMap = static_cast<int16_t*>(systemHeap->malloc(static_cast<uint32_t>(newWidth * newHeight * sizeof(int16_t))));
+    areaMap = static_cast<int16_t*>(blocks.Allocate(static_cast<uint32_t>(newWidth * newHeight * sizeof(int16_t))));
 
     if (areaMap == nullptr)
     {
@@ -2683,7 +2538,7 @@ auto GlobalMap::init(File* mapFile) -> int32_t
     if (numAreas < 256)
     {
         const int32_t size = width * height;
-        smallAreaMap = static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(size)));
+        smallAreaMap = static_cast<uint8_t*>(blocks.Allocate(static_cast<uint32_t>(size)));
 
         if (smallAreaMap == nullptr)
         {
@@ -2695,7 +2550,7 @@ auto GlobalMap::init(File* mapFile) -> int32_t
     else
     {
         const int32_t size = width * height * 2;
-        areaMap = static_cast<int16_t*>(systemHeap->malloc(static_cast<uint32_t>(size)));
+        areaMap = static_cast<int16_t*>(blocks.Allocate(static_cast<uint32_t>(size)));
 
         if (areaMap == nullptr)
         {
@@ -2705,7 +2560,7 @@ auto GlobalMap::init(File* mapFile) -> int32_t
         mapFile->read(reinterpret_cast<uint8_t*>(areaMap), size);
     }
 
-    doorInfos = static_cast<DoorInfo*>(systemHeap->malloc(static_cast<uint32_t>(numDoorInfos * sizeof(DoorInfo))));
+    doorInfos = static_cast<DoorInfo*>(blocks.Allocate(static_cast<uint32_t>(numDoorInfos * sizeof(DoorInfo))));
 
     if (doorInfos == nullptr)
     {
@@ -2715,8 +2570,7 @@ auto GlobalMap::init(File* mapFile) -> int32_t
     mapFile->read(reinterpret_cast<uint8_t*>(doorInfos), numDoorInfos * static_cast<int32_t>(sizeof(DoorInfo)));
 
     // Port fix: room for the spare area setTempArea writes (the original allocated exactly numAreas here).
-    areas =
-        static_cast<GlobalMapArea*>(systemHeap->malloc(static_cast<uint32_t>((numAreas + 1) * sizeof(GlobalMapArea))));
+    areas = static_cast<GlobalMapArea*>(blocks.Allocate(static_cast<uint32_t>((numAreas + 1) * sizeof(GlobalMapArea))));
 
     if (areas == nullptr)
     {
@@ -2736,7 +2590,7 @@ auto GlobalMap::init(File* mapFile) -> int32_t
 
     std::memset(&areas[numAreas], 0, sizeof(GlobalMapArea));
 
-    doorLinks = static_cast<DoorLink*>(systemHeap->malloc(static_cast<uint32_t>(numDoorLinks * sizeof(DoorLink))));
+    doorLinks = static_cast<DoorLink*>(blocks.Allocate(static_cast<uint32_t>(numDoorLinks * sizeof(DoorLink))));
 
     if (doorLinks == nullptr)
     {
@@ -2746,7 +2600,7 @@ auto GlobalMap::init(File* mapFile) -> int32_t
     mapFile->read(reinterpret_cast<uint8_t*>(doorLinks), numDoorLinks * static_cast<int32_t>(sizeof(DoorLink)));
 
     const int32_t totalDoors = numDoors + 2;
-    doors = static_cast<GlobalMapDoor*>(systemHeap->malloc(static_cast<uint32_t>(totalDoors * sizeof(GlobalMapDoor))));
+    doors = static_cast<GlobalMapDoor*>(blocks.Allocate(static_cast<uint32_t>(totalDoors * sizeof(GlobalMapDoor))));
 
     if (doors == nullptr)
     {
@@ -2770,7 +2624,7 @@ auto GlobalMap::init(File* mapFile) -> int32_t
         }
     }
 
-    pathCostTable = static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(numAreas * numAreas)));
+    pathCostTable = static_cast<uint8_t*>(blocks.Allocate(static_cast<uint32_t>(numAreas * numAreas)));
 
     if (pathCostTable == nullptr)
     {
@@ -2817,7 +2671,7 @@ auto GlobalMap::init(ScenarioMap* map, int32_t unknownA, int32_t unknownB, int32
 
     if (numAreas < 256)
     {
-        smallAreaMap = static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(height * width)));
+        smallAreaMap = static_cast<uint8_t*>(blocks.Allocate(static_cast<uint32_t>(height * width)));
 
         if (smallAreaMap == nullptr)
         {
@@ -2833,7 +2687,7 @@ auto GlobalMap::init(ScenarioMap* map, int32_t unknownA, int32_t unknownB, int32
             }
         }
 
-        systemHeap->free(areaMap);
+        blocks.Free(areaMap);
         areaMap = nullptr;
     }
 
@@ -2908,13 +2762,13 @@ auto GlobalMap::destroy() -> void
 {
     if (smallAreaMap != nullptr)
     {
-        systemHeap->free(smallAreaMap);
+        blocks.Free(smallAreaMap);
         smallAreaMap = nullptr;
     }
 
     if (areaMap != nullptr)
     {
-        systemHeap->free(areaMap);
+        blocks.Free(areaMap);
         areaMap = nullptr;
     }
 
@@ -2927,13 +2781,13 @@ auto GlobalMap::destroy() -> void
             {
                 if (areas[i].doors != nullptr)
                 {
-                    systemHeap->free(areas[i].doors);
+                    blocks.Free(areas[i].doors);
                     areas[i].doors = nullptr;
                 }
             }
         }
 
-        systemHeap->free(areas);
+        blocks.Free(areas);
         areas = nullptr;
     }
 
@@ -2947,34 +2801,37 @@ auto GlobalMap::destroy() -> void
                 {
                     if (doors[i].links[side] != nullptr)
                     {
-                        systemHeap->free(doors[i].links[side]);
+                        blocks.Free(doors[i].links[side]);
                         doors[i].links[side] = nullptr;
                     }
                 }
             }
         }
 
-        systemHeap->free(doors);
+        blocks.Free(doors);
         doors = nullptr;
     }
 
     if (doorInfos != nullptr)
     {
-        systemHeap->free(doorInfos);
+        blocks.Free(doorInfos);
         doorInfos = nullptr;
     }
 
     if (doorLinks != nullptr)
     {
-        systemHeap->free(doorLinks);
+        blocks.Free(doorLinks);
         doorLinks = nullptr;
     }
 
     if (pathCostTable != nullptr)
     {
-        systemHeap->free(pathCostTable);
+        blocks.Free(pathCostTable);
         pathCostTable = nullptr;
     }
+
+    // Blocks nothing points to any more (a path cost table recomputed over an older one, an unused build list).
+    blocks.Clear();
 }
 
 auto GlobalMap::setTempArea(int32_t tileR, int32_t tileC, int32_t) -> int32_t
@@ -3212,7 +3069,7 @@ auto GlobalMap::calcAreas(ScenarioMap* map) -> void
 
     // One spare area past the last, for setTempArea.
     const int32_t count = numAreas + 1;
-    areas = static_cast<GlobalMapArea*>(systemHeap->malloc(static_cast<uint32_t>(count * sizeof(GlobalMapArea))));
+    areas = static_cast<GlobalMapArea*>(blocks.Allocate(static_cast<uint32_t>(count * sizeof(GlobalMapArea))));
 
     for (int32_t i = 0; i < count; i++)
     {
@@ -3277,7 +3134,7 @@ auto GlobalMap::calcBridges(ScenarioMap* map) -> void
 
 auto GlobalMap::beginDoorProcessing() -> void
 {
-    doorBuildList = static_cast<GlobalMapDoor*>(systemHeap->malloc(MAX_BUILD_DOORS * sizeof(GlobalMapDoor)));
+    doorBuildList = static_cast<GlobalMapDoor*>(blocks.Allocate(MAX_BUILD_DOORS * sizeof(GlobalMapDoor)));
 
     if (doorBuildList == nullptr)
     {
@@ -3329,9 +3186,9 @@ auto GlobalMap::endDoorProcessing() -> void
     }
 
     const uint32_t size = static_cast<uint32_t>((numDoors + 2) * sizeof(GlobalMapDoor));
-    doors = static_cast<GlobalMapDoor*>(systemHeap->malloc(size));
+    doors = static_cast<GlobalMapDoor*>(blocks.Allocate(size));
     std::memcpy(doors, doorBuildList, size);
-    systemHeap->free(doorBuildList);
+    blocks.Free(doorBuildList);
     doorBuildList = nullptr;
 }
 
@@ -3541,7 +3398,7 @@ auto GlobalMap::calcAreaDoors() -> void
             continue;
         }
 
-        area.doors = static_cast<DoorInfo*>(systemHeap->malloc(static_cast<uint32_t>(area.numDoors * 3)));
+        area.doors = static_cast<DoorInfo*>(blocks.Allocate(static_cast<uint32_t>(area.numDoors * 3)));
         getAreaDoors(i, area.doors);
     }
 }
@@ -3662,7 +3519,7 @@ auto GlobalMap::calcDoorLinks() -> void
             const int32_t areaDoors = areas[area].numDoors;
             door.numLinks[side] = static_cast<char>(areaDoors - 1);
             door.links[side] =
-                static_cast<DoorLink*>(systemHeap->malloc(static_cast<uint32_t>((door.numLinks[side] + 2) * 7)));
+                static_cast<DoorLink*>(blocks.Allocate(static_cast<uint32_t>((door.numLinks[side] + 2) * 7)));
             numDoorLinks += door.numLinks[side] + 2;
 
             if (door.links[side] == nullptr)
@@ -3700,10 +3557,10 @@ auto GlobalMap::calcDoorLinks() -> void
         GlobalMapDoor& door = doors[doorIndex];
         door.numLinks[0] = static_cast<char>(maxAreaDoors);
         numDoorLinks += door.numLinks[0] + 2;
-        door.links[0] = static_cast<DoorLink*>(systemHeap->malloc(static_cast<uint32_t>((door.numLinks[0] + 2) * 7)));
+        door.links[0] = static_cast<DoorLink*>(blocks.Allocate(static_cast<uint32_t>((door.numLinks[0] + 2) * 7)));
         door.numLinks[1] = 0;
         numDoorLinks += door.numLinks[1] + 2;
-        door.links[1] = static_cast<DoorLink*>(systemHeap->malloc(static_cast<uint32_t>((door.numLinks[1] + 2) * 7)));
+        door.links[1] = static_cast<DoorLink*>(blocks.Allocate(static_cast<uint32_t>((door.numLinks[1] + 2) * 7)));
     }
 }
 
@@ -3713,7 +3570,7 @@ auto GlobalMap::calcSectorPaths(ScenarioMap*, int32_t, int32_t) -> void
 
 auto GlobalMap::calcPathCostTable() -> void
 {
-    pathCostTable = static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(numAreas * numAreas)));
+    pathCostTable = static_cast<uint8_t*>(blocks.Allocate(static_cast<uint32_t>(numAreas * numAreas)));
     Assert(pathCostTable != nullptr ? 1 : 0, 0, " GlobalMap.calcPathCostTable: unable to malloc pathCostTable ");
     GlobalPathStep path[MAX_GLOBAL_PATH];
 
@@ -4256,16 +4113,6 @@ auto GlobalMap::calcArea(int32_t tileR, int32_t tileC) -> int32_t
     return area == 0xff ? -1 : area;
 }
 
-auto MoveMap::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto MoveMap::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
-
 namespace
 {
     /// <summary>The "no position" value MoveMap::clear and setStart/setGoal store (0xc97423f0).</summary>
@@ -4325,14 +4172,7 @@ auto MoveMap::init(int32_t newMaxWidth, int32_t newMaxHeight) -> void
     height = newMaxHeight;
     maxCellWidth = newMaxWidth * MAPCELL_DIM;
     cellWidth = newMaxWidth * MAPCELL_DIM;
-    map = static_cast<MoveMapNode*>(
-        systemHeap->malloc(static_cast<uint32_t>(maxCellHeight * maxCellWidth * sizeof(MoveMapNode))));
-
-    if (map == nullptr)
-    {
-        Fatal(0, "Not enough Memory for MoveMap");
-    }
-
+    map = std::make_unique<MoveMapNode[]>(static_cast<size_t>(maxCellHeight * maxCellWidth));
     clear();
 }
 
@@ -4382,8 +4222,8 @@ auto MoveMap::init(FitIniFile* mapFile) -> int32_t
     init(height, width); // as the original: the height goes to init's width slot (maps are square)
     const int32_t tileRows = height;
     const int32_t tileCols = width;
-    char* vertexCost = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(tileRows * tileCols)));
-    result = mapFile->readIdCharArray("VertexCost", vertexCost, static_cast<uint32_t>(tileRows * tileCols));
+    std::vector<char> vertexCost(static_cast<size_t>(tileRows * tileCols));
+    result = mapFile->readIdCharArray("VertexCost", vertexCost.data(), static_cast<uint32_t>(tileRows * tileCols));
 
     if (result != 0)
     {
@@ -4404,7 +4244,6 @@ auto MoveMap::init(FitIniFile* mapFile) -> int32_t
         }
     }
 
-    systemHeap->free(vertexCost);
     return 0;
 }
 
@@ -5665,8 +5504,5 @@ auto MoveMap::writeDebug(File* debugFile) -> void
 
 auto MoveMap::destroy() -> void
 {
-    if (map != nullptr)
-    {
-        systemHeap->free(map);
-    }
+    map.reset();
 }

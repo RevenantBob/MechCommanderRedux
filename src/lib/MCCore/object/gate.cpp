@@ -11,7 +11,6 @@
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -351,7 +350,7 @@ Gate::Gate()
     destroyed = 0;
     unknownD0 = 0;
     fireObject = nullptr;
-    name = nullptr;
+    name.clear();
     lockedClosed = 0;
     blownOpen = 0;
     isOpen = 0;
@@ -817,8 +816,7 @@ auto Gate::destroy() -> void
 {
     delete appearance;
     appearance = nullptr;
-    systemHeap->free(name);
-    name = nullptr;
+    name.clear();
 }
 
 auto Gate::init(ObjectType* objType) -> int32_t
@@ -878,8 +876,7 @@ auto Gate::init(ObjectType* objType) -> int32_t
     explRadius = gateType->explosionRadius;
     char nameBuffer[256];
     cLoadString(thisInstance, static_cast<uint32_t>(gateType->buildingName), nameBuffer, 0xfe);
-    name = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(nameBuffer) + 1)));
-    std::strcpy(name, nameBuffer);
+    name = nameBuffer;
     return 0;
 }
 

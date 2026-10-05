@@ -29,7 +29,7 @@ public:
     /// <remarks>MCX.EXE @ 0x00660640</remarks>
     void destroy() override;
     /// <summary>
-    /// Reads the "FireData" block, allocates the per-shape arrays (from systemHeap) and reads each shape's
+    /// Reads the "FireData" block, allocates the per-shape arrays and reads each shape's
     /// FireOffsetX/Y, FireDelay and their random spreads, then the common type data.
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006606c0</remarks>
@@ -44,35 +44,35 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Damage level (FIT "DmgLevel").</summary>
-    uint32_t dmgLevel; // +0x30
+    uint32_t dmgLevel = 0; // +0x30
     /// <summary>FIT "SoundEffectId"; 0xFFFFFFFF for none.</summary>
-    uint32_t soundEffectId; // +0x34
+    uint32_t soundEffectId = 0; // +0x34
     /// <summary>Object type of the fire's light (FIT "LightObjectId"); -1 for none.</summary>
-    uint32_t lightObjectId; // +0x38
+    uint32_t lightObjectId = 0; // +0x38
     /// <summary>First frame of the looped part of the animation (FIT "startLoopFrame").</summary>
-    uint32_t startLoopFrame; // +0x3c
+    uint32_t startLoopFrame = 0; // +0x3c
     /// <summary>Last frame of the looped part (FIT "endLoopFrame").</summary>
-    uint32_t endLoopFrame; // +0x40
+    uint32_t endLoopFrame = 0; // +0x40
     /// <summary>How many times each shape loops (FIT "numLoops"); the start of each shape's loop count.</summary>
-    uint32_t numLoops; // +0x44
+    uint32_t numLoops = 0; // +0x44
     /// <summary>The fire's extent radius once it burns out and turns on collision (FIT "maxExtentRadius", default 0).</summary>
-    float maxExtentRadius; // +0x48
+    float maxExtentRadius = 0; // +0x48
     /// <summary>FIT "TimeToMaxExtent" (default 0); not used by fire.cpp.</summary>
-    float timeToMaxExtent; // +0x4c
+    float timeToMaxExtent = 0; // +0x4c
     /// <summary>How many flame shapes make up the fire (FIT "TotalFireShapes", default 1): the arrays' length.</summary>
-    int32_t totalFireShapes; // +0x50
+    int32_t totalFireShapes = 0; // +0x50
     /// <summary>Per shape: X offset from the fire's position (FIT "FireOffsetX%d").</summary>
-    float* fireOffsetX; // +0x54
+    std::unique_ptr<float[]> fireOffsetX; // +0x54
     /// <summary>Per shape: Y offset (FIT "FireOffsetY%d").</summary>
-    float* fireOffsetY; // +0x58
+    std::unique_ptr<float[]> fireOffsetY; // +0x58
     /// <summary>Per shape: seconds before it starts (FIT "FireDelay%d").</summary>
-    float* fireDelay; // +0x5c
+    std::unique_ptr<float[]> fireDelay; // +0x5c
     /// <summary>Per shape: random spread of the X offset (FIT "FireRandomOffsetX%d").</summary>
-    int32_t* fireRandomOffsetX; // +0x60
+    std::unique_ptr<int32_t[]> fireRandomOffsetX; // +0x60
     /// <summary>Per shape: random spread of the Y offset (FIT "FireRandomOffsetY%d").</summary>
-    int32_t* fireRandomOffsetY; // +0x64
+    std::unique_ptr<int32_t[]> fireRandomOffsetY; // +0x64
     /// <summary>Per shape: random extra delay (FIT "FireRandomDelay%d").</summary>
-    int32_t* fireRandomDelay; // +0x68
+    std::unique_ptr<int32_t[]> fireRandomDelay; // +0x68
 };
 
 /// <summary>
@@ -143,39 +143,39 @@ public:
     /// <remarks>MCX.EXE @ 0x00661010</remarks>
     void addTimeLeftToBurn(float extraTime);
 
-    /// <summary>Per shape: its VFX appearance (totalFireShapes entries, from systemHeap).</summary>
-    Appearance** appearances; // +0x84
+    /// <summary>Per shape: its VFX appearance (totalFireShapes entries).</summary>
+    std::unique_ptr<Appearance*[]> appearances; // +0x84
     /// <summary>The appearance class (top byte of the appearance type's id); must be 2 (VFX).</summary>
-    uint32_t appearanceClass; // +0x88
+    uint32_t appearanceClass = 0; // +0x88
     /// <summary>Set by init; the first update clears it and moves the fire to the end of the object list.</summary>
-    int32_t justCreated; // +0x8c
+    int32_t justCreated = 0; // +0x8c
     /// <summary>
     /// Per shape: loops left (from the type's numLoops); 999 while burn time remains, 2 for the end sequence, 0 once
     /// finished.
     /// </summary>
-    int32_t* loopsLeft; // +0x90
+    std::unique_ptr<int32_t[]> loopsLeft; // +0x90
     /// <summary>Per shape: seconds of burning left (starts at maxFireBurnTime).</summary>
-    float* timeLeftToBurn; // +0x94
+    std::unique_ptr<float[]> timeLeftToBurn; // +0x94
     /// <summary>The fire's extent radius (0 until it burns out, then the type's maxExtentRadius).</summary>
-    float extentRadius; // +0x98
+    float extentRadius = 0; // +0x98
     /// <summary>Set once the fire is burning out: collision is on and it ends when every shape is finished.</summary>
-    int32_t burningOut; // +0x9c
+    int32_t burningOut = 0; // +0x9c
     /// <summary>
     /// The object that is burning (set by the objects' lightOnFire, not in fire.cpp); when the fire ends it is
     /// damaged (a class 0x18 object in state 6) and released (its vtable slot 25, killFireObject).
     /// </summary>
-    GameObject* burningObject; // +0xa0
-    /// <summary>Per shape: its offset from the fire's position (from systemHeap).</summary>
-    vector_3d* shapeOffsets; // +0xa4
+    GameObject* burningObject = nullptr; // +0xa0
+    /// <summary>Per shape: its offset from the fire's position.</summary>
+    std::unique_ptr<vector_3d[]> shapeOffsets; // +0xa4
     /// <summary>Per shape: seconds before it starts.</summary>
-    float* startDelays; // +0xa8
+    std::unique_ptr<float[]> startDelays; // +0xa8
     /// <summary>The fire's light, kept at its position.</summary>
-    GameObject* light; // +0xac
+    GameObject* light = nullptr; // +0xac
     /// <summary>The turn a shape was last visible on screen; shapes are drawn only on that turn.</summary>
-    int32_t lastVisibleTurn; // +0xb0
+    int32_t lastVisibleTurn = 0; // +0xb0
 
-    /// <summary>The fires burning, maxFiresBurning entries (from systemHeap, made by the first fire).</summary>
-    static Fire** maxFiresList;
+    /// <summary>The fires burning, maxFiresBurning entries (made by the first fire).</summary>
+    static std::unique_ptr<Fire*[]> maxFiresList;
 };
 
 /// <summary>The longest a fire's shape can burn, in seconds.</summary>

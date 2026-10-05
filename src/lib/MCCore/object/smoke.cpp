@@ -9,7 +9,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -108,7 +107,6 @@ namespace
     }
 } // namespace
 
-uint32_t totalSmokes = 0;
 SmokeManager* smokeManager = nullptr;
 
 //---------------------------------------------------------------------------
@@ -135,9 +133,9 @@ auto SmokeType::createInstance() -> BaseObject*
 
 auto SmokeType::destroy() -> void
 {
-    if (smokeManager != nullptr && smokeManager->sphereHeap != nullptr)
+    if (smokeManager != nullptr)
     {
-        smokeManager->sphereHeap->free(smokeShape);
+        smokeManager->sphereBlocks.Free(smokeShape);
     }
 }
 
@@ -248,9 +246,9 @@ auto SmokeType::init(File* objFile, uint32_t fileSize) -> int32_t
 
     if (size != 0)
     {
-        if (smokeManager != nullptr && smokeManager->sphereHeap != nullptr)
+        if (smokeManager != nullptr)
         {
-            smokeShape = static_cast<uint8_t*>(smokeManager->sphereHeap->malloc(size));
+            smokeShape = static_cast<uint8_t*>(smokeManager->sphereBlocks.Allocate(size));
         }
 
         if (smokeShape != nullptr)
@@ -290,28 +288,6 @@ Smoke::Smoke()
     ownerVelocity = nullptr;
     unknownA8 = 0;
     owner = nullptr;
-}
-
-auto Smoke::operator new(size_t size) noexcept -> void*
-{
-    totalSmokes++;
-
-    if (smokeManager == nullptr || smokeManager->smokeHeap == nullptr)
-    {
-        return nullptr;
-    }
-
-    return smokeManager->smokeHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto Smoke::operator delete(void* ptr) -> void
-{
-    totalSmokes--;
-
-    if (smokeManager != nullptr && smokeManager->smokeHeap != nullptr)
-    {
-        smokeManager->smokeHeap->free(ptr);
-    }
 }
 
 auto Smoke::init() -> void

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform/MCBlockStore.h"
+
 #include "lib/cvmath.h"
 #include "lib/llist.h"
 
@@ -9,7 +11,6 @@ class File;
 class FitIniFile;
 class GameObject;
 class PacketFile;
-class UserHeap;
 
 /// <summary>
 /// The id the next object made gets (<see cref="BaseObject::idNumber"/>); every <c>createInstance</c> takes it and
@@ -102,13 +103,6 @@ public:
     /// <remarks>MCX.EXE @ 0x0068f610</remarks>
     void createExplosion(vector_3d& position, float damage, float radius);
 
-    /// <summary>Allocates from <c>ObjectTypeManager::objectTypeCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0068f470</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees unless objects still use the type (<see cref="numUsers"/> above 0).</summary>
-    /// <remarks>MCX.EXE @ 0x0068f490</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>The type's number: its packet in the object file.</summary>
     int32_t objTypeNum = 0; // +0x04
     /// <summary>How many objects of this type exist; the type is freed when the last goes (unless kept).</summary>
@@ -135,19 +129,19 @@ public:
 
 /// <summary>
 /// Loads and keeps the object types: a list of <see cref="ObjectTypeNode"/>s, the object packet file, and the two
-/// heaps types and objects are allocated from.
+/// block stores for type and object data that has no other owner yet.
 /// </summary>
 /// <remarks>Original source: <c>object\objtype.cpp</c>; 0xc bytes (the LinkedList).</remarks>
 class ObjectTypeManager : public LinkedList
 {
 public:
     /// <summary>
-    /// Opens the object packet file <paramref name="objectFileName"/>.pak and makes the type heap
-    /// (<paramref name="objectTypeCacheSize"/> bytes) and the object heap (<paramref name="objectCacheSize"/>).
+    /// Opens the object packet file <paramref name="objectFileName"/>.pak. The two heap sizes are ignored (the
+    /// original's type and object heaps are gone).
     /// </summary>
     /// <remarks>MCX.EXE @ 0x0068f6f0</remarks>
     int32_t init(char* objectFileName, int32_t objectTypeCacheSize, int32_t objectCacheSize);
-    /// <summary>Closes the packet file and frees both heaps.</summary>
+    /// <summary>Closes the packet file, deletes the types still loaded and empties both block stores.</summary>
     /// <remarks>MCX.EXE @ 0x0068f850</remarks>
     void destroy();
     /// <summary>Adds a loaded type to the list.</summary>
@@ -184,8 +178,13 @@ public:
 
     /// <summary>The object packet file every type is read from.</summary>
     static PacketFile* objectFile;
-    /// <summary>The heap object types are allocated from.</summary>
-    static UserHeap* objectTypeCache;
-    /// <summary>The heap objects are allocated from.</summary>
-    static UserHeap* objectCache;
+    /// <summary>
+    /// Type data the types load (shapes, hot spot and stage tables): the original's type heap, which freed whatever
+    /// a type left when the object system stopped.
+    /// </summary>
+    static MCBlockStore objectTypeCache;
+    /// <summary>
+    /// Object data with no single owner (the camera's pause and asked shapes): the original's object heap.
+    /// </summary>
+    static MCBlockStore objectCache;
 };

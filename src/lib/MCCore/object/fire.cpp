@@ -10,7 +10,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "main/main.h"
 #include "mission/mission.h"
@@ -106,7 +105,7 @@ namespace
     }
 } // namespace
 
-Fire** Fire::maxFiresList = nullptr;
+std::unique_ptr<Fire*[]> Fire::maxFiresList;
 float maxFireBurnTime = 5.0f;
 int32_t maxFiresBurning = 0;
 int32_t currentFireIndex = 0;
@@ -151,18 +150,12 @@ auto FireType::createInstance() -> BaseObject*
 
 auto FireType::destroy() -> void
 {
-    systemHeap->free(fireOffsetX);
-    systemHeap->free(fireOffsetY);
-    systemHeap->free(fireDelay);
-    fireOffsetX = nullptr;
-    fireOffsetY = nullptr;
-    fireDelay = nullptr;
-    systemHeap->free(fireRandomOffsetX);
-    systemHeap->free(fireRandomOffsetY);
-    systemHeap->free(fireRandomDelay);
-    fireRandomOffsetX = nullptr;
-    fireRandomOffsetY = nullptr;
-    fireRandomDelay = nullptr;
+    fireOffsetX.reset();
+    fireOffsetY.reset();
+    fireDelay.reset();
+    fireRandomOffsetX.reset();
+    fireRandomOffsetY.reset();
+    fireRandomDelay.reset();
 }
 
 auto FireType::init(File* objFile, uint32_t fileSize) -> int32_t
@@ -226,13 +219,13 @@ auto FireType::init(File* objFile, uint32_t fileSize) -> int32_t
     }
 
     const int32_t numShapes = totalFireShapes;
-    const uint32_t size = static_cast<uint32_t>(numShapes) * 4;
-    fireOffsetX = static_cast<float*>(systemHeap->malloc(size));
-    fireOffsetY = static_cast<float*>(systemHeap->malloc(size));
-    fireDelay = static_cast<float*>(systemHeap->malloc(size));
-    fireRandomOffsetX = static_cast<int32_t*>(systemHeap->malloc(size));
-    fireRandomOffsetY = static_cast<int32_t*>(systemHeap->malloc(size));
-    fireRandomDelay = static_cast<int32_t*>(systemHeap->malloc(size));
+    const auto count = static_cast<size_t>(numShapes);
+    fireOffsetX = std::make_unique<float[]>(count);
+    fireOffsetY = std::make_unique<float[]>(count);
+    fireDelay = std::make_unique<float[]>(count);
+    fireRandomOffsetX = std::make_unique<int32_t[]>(count);
+    fireRandomOffsetY = std::make_unique<int32_t[]>(count);
+    fireRandomDelay = std::make_unique<int32_t[]>(count);
 
     for (int32_t i = 0; i < numShapes; i++)
     {
@@ -788,16 +781,11 @@ auto Fire::destroy() -> void
         appearances[i] = nullptr;
     }
 
-    systemHeap->free(appearances);
-    appearances = nullptr;
-    systemHeap->free(shapeOffsets);
-    shapeOffsets = nullptr;
-    systemHeap->free(startDelays);
-    startDelays = nullptr;
-    systemHeap->free(loopsLeft);
-    loopsLeft = nullptr;
-    systemHeap->free(timeLeftToBurn);
-    timeLeftToBurn = nullptr;
+    appearances.reset();
+    shapeOffsets.reset();
+    startDelays.reset();
+    loopsLeft.reset();
+    timeLeftToBurn.reset();
     delete light;
     light = nullptr;
 }
@@ -814,11 +802,12 @@ auto Fire::init(ObjectType* objType) -> int32_t
     const auto* fireType = static_cast<FireType*>(objType);
     const int32_t numShapes = fireType->totalFireShapes;
     justCreated = 1;
-    appearances = static_cast<Appearance**>(systemHeap->malloc(numShapes * sizeof(Appearance*)));
-    shapeOffsets = static_cast<vector_3d*>(systemHeap->malloc(numShapes * sizeof(vector_3d)));
-    startDelays = static_cast<float*>(systemHeap->malloc(numShapes * sizeof(float)));
-    loopsLeft = static_cast<int32_t*>(systemHeap->malloc(numShapes * sizeof(int32_t)));
-    timeLeftToBurn = static_cast<float*>(systemHeap->malloc(numShapes * sizeof(float)));
+    const auto count = static_cast<size_t>(numShapes);
+    appearances = std::make_unique<Appearance*[]>(count);
+    shapeOffsets = std::make_unique<vector_3d[]>(count);
+    startDelays = std::make_unique<float[]>(count);
+    loopsLeft = std::make_unique<int32_t[]>(count);
+    timeLeftToBurn = std::make_unique<float[]>(count);
     const uint32_t appearId = objType->appearName;
 
     for (int32_t i = 0; i < numShapes; i++)
@@ -880,12 +869,7 @@ auto Fire::init(ObjectType* objType) -> int32_t
     // Fires share a ring of maxFiresBurning slots; taking a slot finishes the fire that held it.
     if (maxFiresList == nullptr)
     {
-        maxFiresList = static_cast<Fire**>(systemHeap->malloc(maxFiresBurning * sizeof(Fire*)));
-
-        for (int32_t i = 0; i < maxFiresBurning; i++)
-        {
-            maxFiresList[i] = nullptr;
-        }
+        maxFiresList = std::make_unique<Fire*[]>(static_cast<size_t>(maxFiresBurning));
     }
 
     currentFireIndex++;

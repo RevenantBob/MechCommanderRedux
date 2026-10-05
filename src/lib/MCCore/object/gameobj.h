@@ -64,15 +64,15 @@ struct _WeaponShotInfo
     void setEntryAngle(float shotEntryAngle);
 
     /// <summary>Who fired.</summary>
-    GameObject* attacker; // +0x00
+    GameObject* attacker = nullptr; // +0x00
     /// <summary>The weapon's master component id (an index into <c>MasterComponentList</c>).</summary>
-    int32_t masterId; // +0x04
+    int32_t masterId = 0; // +0x04
     /// <summary>Damage points (0 to 255).</summary>
-    float damage; // +0x08
+    float damage = 0; // +0x08
     /// <summary>The body location hit (-1: none).</summary>
-    int32_t hitLocation; // +0x0c
+    int32_t hitLocation = 0; // +0x0c
     /// <summary>The angle the shot comes from, relative to the target's facing, in degrees.</summary>
-    float entryAngle; // +0x10
+    float entryAngle = 0; // +0x10
 };
 
 /// <summary>
@@ -116,40 +116,34 @@ public:
     /// <remarks>MCX.EXE @ 0x00663400</remarks>
     int equalTo(WeaponFireChunk* chunk);
 
-    /// <summary>Allocates from <c>systemHeap</c> (or the C heap before it exists).</summary>
-    /// <remarks>MCX.EXE @ 0x00661e80</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00661eb0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>0 mover, 1 terrain object, 2 train car or camera drone, 3 map location.</summary>
-    int8_t targetType; // +0x00
+    int8_t targetType = 0; // +0x00
     /// <summary>The mover's roster index, or the target's part id.</summary>
-    int32_t targetId; // +0x04
+    int32_t targetId = 0; // +0x04
     /// <summary>Terrain: the block; train: the train number (0x80 for a camera drone).</summary>
-    int32_t targetBlockOrTrainNumber; // +0x08
+    int32_t targetBlockOrTrainNumber = 0; // +0x08
     /// <summary>Terrain: the vertex; train: the car number (camera drone: its part id minus 0x802c8).</summary>
-    int32_t targetVertexOrCarNumber; // +0x0c
+    int32_t targetVertexOrCarNumber = 0; // +0x0c
     /// <summary>Terrain: the object's item number on its vertex (0 to 7).</summary>
-    int8_t targetItemNumber; // +0x10
+    int8_t targetItemNumber = 0; // +0x10
     /// <summary>Location: the target cell's row and column.</summary>
-    uint16_t targetCell[2]; // +0x12
+    uint16_t targetCell[2]{}; // +0x12
     /// <summary>The weapon's index among the attacker's weapons.</summary>
-    uint8_t weaponIndex; // +0x16
+    uint8_t weaponIndex = 0; // +0x16
     /// <summary>Nonzero when the shot hit.</summary>
-    int32_t hit; // +0x18
+    int32_t hit = 0; // +0x18
     /// <summary>The entry angle's quadrant: 0 front, 1 rear, 2 left, 3 right.</summary>
-    int8_t entryAngle; // +0x1c
+    int8_t entryAngle = 0; // +0x1c
     /// <summary>Missiles fired (0 for a weapon that fires none).</summary>
-    int8_t numMissiles; // +0x1d
+    int8_t numMissiles = 0; // +0x1d
     /// <summary>Missiles left after the target's anti-missile system (equal to numMissiles when none).</summary>
-    int8_t numMissilesPastAMS; // +0x1e
+    int8_t numMissilesPastAMS = 0; // +0x1e
     /// <summary>Shots the target's anti-missile system fired.</summary>
-    int8_t numAntiMissileShots; // +0x1f
+    int8_t numAntiMissileShots = 0; // +0x1f
     /// <summary>The body location hit (-1 to 11; -1 after <see cref="init"/>).</summary>
-    int8_t hitLocation; // +0x20
+    int8_t hitLocation = 0; // +0x20
     /// <summary>The packed chunk.</summary>
-    uint32_t data; // +0x24
+    uint32_t data = 0; // +0x24
 };
 
 /// <summary>
@@ -182,37 +176,31 @@ public:
     /// <remarks>MCX.EXE @ 0x00664490 (unnamed in Ghidra)</remarks>
     int equalTo(WeaponHitChunk* chunk);
 
-    /// <summary>Allocates from <c>systemHeap</c> (or the C heap before it exists).</summary>
-    /// <remarks>MCX.EXE @ 0x00663d50</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00663d80</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>0 mover, 1 terrain object, 2 train car or camera drone.</summary>
-    int8_t targetType; // +0x00
+    int8_t targetType = 0; // +0x00
     /// <summary>The mover's roster index, or the target's part id.</summary>
-    int32_t targetId; // +0x04
+    int32_t targetId = 0; // +0x04
     /// <summary>Terrain: the block; train: the train number (0x80 for a camera drone).</summary>
-    int32_t targetBlockOrTrainNumber; // +0x08
+    int32_t targetBlockOrTrainNumber = 0; // +0x08
     /// <summary>Terrain: the vertex; train: the car number.</summary>
-    int32_t targetVertexOrCarNumber; // +0x0c
+    int32_t targetVertexOrCarNumber = 0; // +0x0c
     /// <summary>Terrain: the object's item number on its vertex.</summary>
-    int8_t targetItemNumber; // +0x10
+    int8_t targetItemNumber = 0; // +0x10
     /// <summary>
     /// What caused the hit (-7 to 0): 0 or the shot's master id adjusted by <see cref="build"/> (-4 for a
     /// component whose form is 10).
     /// </summary>
-    int8_t cause; // +0x11
+    int8_t cause = 0; // +0x11
     /// <summary>Damage points.</summary>
-    float damage; // +0x14
+    float damage = 0; // +0x14
     /// <summary>The body location hit (-1 to 11).</summary>
-    int8_t hitLocation; // +0x18
+    int8_t hitLocation = 0; // +0x18
     /// <summary>The entry angle's quadrant: 0 front, 1 rear, 2 left, 3 right.</summary>
-    int8_t entryAngle; // +0x19
+    int8_t entryAngle = 0; // +0x19
     /// <summary>Nonzero when the "hit" is a refit (repairs rather than damages).</summary>
-    int32_t refit; // +0x1c
+    int32_t refit = 0; // +0x1c
     /// <summary>The packed chunk.</summary>
-    uint32_t data; // +0x20
+    uint32_t data = 0; // +0x20
 };
 
 /// <summary>
@@ -512,25 +500,25 @@ public:
     virtual int32_t getNumAttackers() { return 0; }
 
     /// <summary>The object's type.</summary>
-    ObjectType* objType; // +0x14
+    ObjectType* objType = nullptr; // +0x14
     /// <summary>The object's world position.</summary>
     vector_3d position; // +0x18
     /// <summary>
     /// Nonzero when the object takes part in collisions (<c>CollisionGrid::add</c> skips it otherwise). Movers
     /// start with 1; a destroyed tree building sets 0.
     /// </summary>
-    int32_t collisionsOn; // +0x24
+    int32_t collisionsOn = 0; // +0x24
     /// <summary>Nonzero while the player has the object selected.</summary>
-    int32_t selected; // +0x28
+    int32_t selected = 0; // +0x28
     /// <summary>
     /// Cleared by <see cref="init()"/>; set and cleared by object events 0x1e / 0x1f. A bullet skips drawing and
     /// drops its hit effect when nonzero.
     /// </summary>
-    int32_t unknown2C; // +0x2c
+    int32_t unknown2C = 0; // +0x2c
     /// <summary>0 normal, 1 disabled, 2 destroyed.</summary>
-    int32_t status; // +0x30
+    int32_t status = 0; // +0x30
     /// <summary>The side the object is on (the type's alignment to begin with).</summary>
-    int32_t alignment; // +0x34
+    int32_t alignment = 0; // +0x34
 };
 
 /// <summary>
@@ -727,40 +715,40 @@ public:
     virtual int32_t getVitalInfo(void* vitalInfo);
 
     /// <summary>Tonnage (weight class of a mech).</summary>
-    float tonnage; // +0x38
+    float tonnage = 0; // +0x38
     /// <summary>The object's record in the object map (<c>GameObjectMap</c>), or null.</summary>
-    _ObjectPosition* objPosition; // +0x3c
+    _ObjectPosition* objPosition = nullptr; // +0x3c
     /// <summary>The team the object belongs to.</summary>
-    Team* team; // +0x40
+    Team* team = nullptr; // +0x40
     /// <summary>The object's entry in the potential contact manager, or null when it is no sensor contact.</summary>
-    _PotentialContact* potentialContact; // +0x44
+    _PotentialContact* potentialContact = nullptr; // +0x44
     /// <summary>Damage taken.</summary>
-    float damage; // +0x48
+    float damage = 0; // +0x48
     /// <summary>The object this one may overlap without colliding, while <see cref="collisionFreeTime"/> runs.</summary>
-    GameObject* collisionFreeFrom; // +0x4c
-    float collisionFreeTime;       // +0x50
+    GameObject* collisionFreeFrom = nullptr; // +0x4c
+    float collisionFreeTime = 0;             // +0x50
     /// <summary>The object's screen position, computed by <see cref="onScreen"/>.</summary>
     vector_2d screenPos; // +0x54
     /// <summary>Bit 0 awake, bit 1 exists, bit 2 use me, bit 3 captured (5 after init).</summary>
-    uint8_t flags; // +0x5c
+    uint8_t flags = 0; // +0x5c
     /// <summary>The turn the object was last on screen.</summary>
-    int32_t windowsVisible; // +0x60
+    int32_t windowsVisible = 0; // +0x60
     /// <summary>The radius of the object's explosion.</summary>
-    float explRadius; // +0x64
+    float explRadius = 0; // +0x64
     /// <summary>The damage the object's explosion does.</summary>
-    float explDamage; // +0x68
+    float explDamage = 0; // +0x68
     /// <summary>The salvage the object leaves: a list chained through each item's next pointer.</summary>
-    SalvageItem* salvage; // +0x6c
+    SalvageItem* salvage = nullptr; // +0x6c
     /// <summary>Maximum combat value.</summary>
-    int32_t maxCV; // +0x70
+    int32_t maxCV = 0; // +0x70
     /// <summary>Current combat value.</summary>
-    int32_t curCV; // +0x74
+    int32_t curCV = 0; // +0x74
     /// <summary>The sensor blip's animation frame (BattleMech::render).</summary>
-    int32_t blipFrame; // +0x78
+    int32_t blipFrame = 0; // +0x78
     /// <summary>Seconds since the sensor blip's last frame.</summary>
-    float blipTime; // +0x7c
+    float blipTime = 0; // +0x7c
     /// <summary>How many movers are attacking the object.</summary>
-    int32_t numAttackers; // +0x80
+    int32_t numAttackers = 0; // +0x80
 };
 
 /// <summary>Prints the fields of one or two weapon fire chunks (and the attacker) to the chunk debug message.</summary>

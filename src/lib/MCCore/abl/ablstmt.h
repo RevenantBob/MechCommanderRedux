@@ -6,13 +6,13 @@
 #include "abl/ablsymt.h"
 
 /// <summary>A case label of the switch being compiled, until switchStatement writes the jump table.</summary>
-/// <remarks>0xc bytes in the original, allocated from AblStackHeap.</remarks>
+/// <remarks>0xc bytes in the original.</remarks>
 struct CaseItem
 {
-    int32_t labelValue; // +0x0
+    int32_t labelValue = 0; // +0x0
     /// <summary>Where the branch's code starts in the code buffer.</summary>
-    char* branchLocation; // +0x4
-    CaseItem* next;       // +0x8
+    char* branchLocation = nullptr; // +0x4
+    CaseItem* next = nullptr;       // +0x8
 };
 
 typedef CaseItem* CaseItemPtr;

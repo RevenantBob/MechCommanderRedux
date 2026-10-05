@@ -3,7 +3,6 @@
 #include "appear/apprtype.h"
 #include "lib/aerror.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "object/artlry.h"
@@ -36,26 +35,12 @@
 uint32_t NextIdNumber = 0x30000001;
 char objectPath[80] = "data\\objects\\";
 PacketFile* ObjectTypeManager::objectFile = nullptr;
-UserHeap* ObjectTypeManager::objectTypeCache = nullptr;
-UserHeap* ObjectTypeManager::objectCache = nullptr;
+MCBlockStore ObjectTypeManager::objectTypeCache;
+MCBlockStore ObjectTypeManager::objectCache;
 
 //---------------------------------------------------------------------------
 // ObjectType
 //---------------------------------------------------------------------------
-
-auto ObjectType::operator new(size_t size) noexcept -> void*
-{
-    return ObjectTypeManager::objectTypeCache->malloc(static_cast<uint32_t>(size));
-}
-
-auto ObjectType::operator delete(void* ptr) -> void
-{
-    // A type still in use stays allocated.
-    if (static_cast<ObjectType*>(ptr)->numUsers < 1)
-    {
-        ObjectTypeManager::objectTypeCache->free(ptr);
-    }
-}
 
 auto ObjectType::createInstance() -> BaseObject*
 {
@@ -192,34 +177,6 @@ auto ObjectTypeManager::init(char* objectFileName, int32_t objectTypeCacheSize, 
         return result;
     }
 
-    objectTypeCache = new UserHeap;
-
-    if (objectTypeCache == nullptr)
-    {
-        return static_cast<int32_t>(0xbeef0009);
-    }
-
-    result = objectTypeCache->init(static_cast<uint32_t>(objectTypeCacheSize), "ObjectTypeHeap");
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    objectCache = new UserHeap;
-
-    if (objectCache == nullptr)
-    {
-        return static_cast<int32_t>(0xbeef000a);
-    }
-
-    result = objectCache->init(static_cast<uint32_t>(objectCacheSize), "ObjectHeap");
-
-    if (result != 0)
-    {
-        return result;
-    }
-
     return 0;
 }
 
@@ -232,10 +189,18 @@ auto ObjectTypeManager::destroy() -> void
 
     delete objectFile;
     objectFile = nullptr;
-    delete objectTypeCache;
-    objectTypeCache = nullptr;
-    delete objectCache;
-    objectCache = nullptr;
+
+    // The original's heap went with the types still loaded (kept or still used) without running their destructors;
+    // the port deletes them, then frees the blocks nothing freed.
+    while (head != nullptr)
+    {
+        auto* node = static_cast<ObjectTypeNode*>(head);
+        delete node->objType;
+        Destroy(node);
+    }
+
+    objectTypeCache.Clear();
+    objectCache.Clear();
 }
 
 auto ObjectTypeManager::add(ObjectType* objType) -> void

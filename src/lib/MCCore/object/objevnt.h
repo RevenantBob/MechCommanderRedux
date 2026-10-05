@@ -8,17 +8,10 @@ class GameObject;
 /// An event sent to game objects: a mouse event over the map (type 0, with the GUI event and the window it came
 /// from) or a combat event between two objects (type 2, by their part ids).
 /// </summary>
-/// <remarks>Original source: <c>object\objevnt.cpp</c>; 0x58 bytes. Allocated from systemHeap.</remarks>
+/// <remarks>Original source: <c>object\objevnt.cpp</c>; 0x58 bytes.</remarks>
 class ObjectEvent
 {
 public:
-    /// <summary>Allocates from systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x0068e3e0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x0068e400</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// A mouse event: copies the GUI event (or makes an empty one of type 0x2401 when null), remembers its target
     /// window, and clears the rest.

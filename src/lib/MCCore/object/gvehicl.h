@@ -113,8 +113,8 @@ public:
 
     /// <summary>"ID".</summary>
     uint32_t vehicleId = 0; // +0x30
-    /// <summary>"Name" (systemHeap).</summary>
-    char* name = nullptr; // +0x34
+    /// <summary>"Name".</summary>
+    std::string name; // +0x34
     /// <summary>"Alignment", mapped 0 -> 1, 1 -> 0xff; copied to GameObject::alignment.</summary>
     uint8_t alignment = 0; // +0x38
     /// <summary>"Chassis".</summary>
@@ -297,7 +297,7 @@ public:
     int canMove() override;
     /// <summary>The long name (Mover::debugStatus).</summary>
     /// <remarks>MCX.EXE @ 0x0066a380 (inline in <c>object\gvehicl.h</c>)</remarks>
-    const char* getIfaceName() override { return debugStatus; }
+    const char* getIfaceName() override { return debugStatus.c_str(); }
     // Slots 219.. are GroundVehicle's own.
     /// <summary>Does nothing: vehicles make no piloting checks.</summary>
     /// <remarks>MCX.EXE @ 0x0066b8a0</remarks>
@@ -387,8 +387,8 @@ public:
     MechWarrior* passengers[4] = {}; // +0x914
     /// <summary>The type's "Seats".</summary>
     uint8_t seats = 0; // +0x924
-    /// <summary>Profile "Crew" (systemHeap).</summary>
-    char* crewName = nullptr; // +0x928
+    /// <summary>Profile "Crew".</summary>
+    std::string crewName; // +0x928
     /// <summary>Profile "NotMineYet" (1 when missing).</summary>
     int32_t notMineYet = 0; // +0x92c
     /// <summary>The marine who bailed out (createVehiclePilot).</summary>

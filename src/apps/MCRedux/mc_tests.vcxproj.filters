@@ -13,7 +13,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="tests\AblTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\AllocatorTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\BlockStoreTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\CursorTests.cpp">
@@ -77,6 +83,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\ObjectQueueTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ObjectTypeTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\PathfindingTests.cpp">

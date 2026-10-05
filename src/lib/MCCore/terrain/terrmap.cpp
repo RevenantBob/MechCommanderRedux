@@ -3612,11 +3612,11 @@ auto TacticalMap::AddSalvageString(GameObject* obj) -> void
 
         if (obj->objectClass == BUILDING)
         {
-            std::snprintf(line, sizeof(line), "%s", static_cast<Building*>(obj)->name);
+            std::snprintf(line, sizeof(line), "%s", static_cast<Building*>(obj)->name.c_str());
         }
         else if (obj->objectClass == TREEBUILDING)
         {
-            std::snprintf(line, sizeof(line), "%s", static_cast<TreeBuilding*>(obj)->name);
+            std::snprintf(line, sizeof(line), "%s", static_cast<TreeBuilding*>(obj)->name.c_str());
         }
         else
         {

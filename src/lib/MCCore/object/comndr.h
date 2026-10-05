@@ -13,18 +13,10 @@ constexpr int32_t MAX_COMMANDERS = 6;
 /// A side's commander: its team, its 32 groups (lances), and the support it can call in (air strikes, sensor
 /// probes, camera drones).
 /// </summary>
-/// <remarks>Original source: <c>object\comndr.cpp</c>, <c>object\comndr.h</c>; 0x9c bytes. Allocated from
-/// systemHeap.</remarks>
+/// <remarks>Original source: <c>object\comndr.cpp</c>, <c>object\comndr.h</c>; 0x9c bytes.</remarks>
 class Commander
 {
 public:
-    /// <summary>Allocates from systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x00658300</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into systemHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x00658320</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>No id or team; makes the 32 groups (ids 0..31); no support.</summary>
     /// <remarks>MCX.EXE @ 0x00658340</remarks>
     virtual void init();

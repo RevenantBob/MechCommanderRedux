@@ -13,13 +13,6 @@ class GameObject;
 class DynamicsType
 {
 public:
-    /// <summary>Allocates from <c>ObjectTypeManager::objectTypeCache</c> (null when it isn't up).</summary>
-    /// <remarks>MCX.EXE @ 0x0065a390</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into <c>ObjectTypeManager::objectTypeCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0065a3c0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>The original's destructor is not virtual: it resets the vtable and calls destroy.</summary>
     ~DynamicsType() { destroy(); }
 
@@ -36,18 +29,10 @@ public:
 };
 
 /// <summary>Moves one mover each frame within its <see cref="DynamicsType"/>'s limits, from its control data.</summary>
-/// <remarks>Original source: <c>object\dyn.cpp</c>, <c>object\dyn.h</c>; 0xc bytes. Allocated from
-/// <c>ObjectTypeManager::objectCache</c>.</remarks>
+/// <remarks>Original source: <c>object\dyn.cpp</c>, <c>object\dyn.h</c>; 0xc bytes.</remarks>
 class Dynamics
 {
 public:
-    /// <summary>Allocates from <c>ObjectTypeManager::objectCache</c> (null when it isn't up).</summary>
-    /// <remarks>MCX.EXE @ 0x0065a450</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <summary>Frees into <c>ObjectTypeManager::objectCache</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0065a480</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>The original's destructor is not virtual: it resets the vtable and calls destroy.</summary>
     ~Dynamics() { destroy(); }
 

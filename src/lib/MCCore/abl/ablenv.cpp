@@ -10,7 +10,6 @@
 #include "abl/ablsymt.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 
 int32_t MaxWatchesPerModule = 20;
 int32_t MaxBreakPointsPerModule = 20;
@@ -107,8 +106,9 @@ namespace
                     if (formalTypePtr->form == FRM_ARRAY)
                     {
                         int32_t size = formalTypePtr->size;
-                        Address copy = static_cast<Address>(AblStackHeap->malloc(size));
+                        Address copy = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
 
+                        // An empty array got no block from the heap, which was fatal.
                         if (!copy)
                         {
                             char err[256];
@@ -243,33 +243,13 @@ auto ABL_AddToProfileLog(char* profileEntry) -> void
 auto initModuleRegistry(int32_t maxModules) -> void
 {
     MaxModules = maxModules;
-    ModuleRegistry =
-        static_cast<ModuleEntry*>(AblStackHeap->malloc(static_cast<uint32_t>(maxModules * sizeof(ModuleEntry))));
-
-    if (!ModuleRegistry)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc Module Registry ");
-    }
-
-    std::memset(ModuleRegistry, 0, static_cast<size_t>(MaxModules) * sizeof(ModuleEntry));
-
-    ModuleInstanceRegistry =
-        static_cast<ABLModule**>(AblStackHeap->malloc(static_cast<uint32_t>(MaxModules * sizeof(ABLModule*))));
-
-    if (!ModuleInstanceRegistry)
-    {
-        Fatal(0, " ABL: Unable to malloc AblStackHeap->Module Instance Registry ");
-    }
-
-    for (int32_t i = 0; i < MaxModules; i++)
-    {
-        ModuleInstanceRegistry[i] = nullptr;
-    }
+    ModuleRegistry = AblMemory.AllocateArray<ModuleEntry>(static_cast<size_t>(maxModules));
+    ModuleInstanceRegistry = AblMemory.AllocateArray<ABLModule*>(static_cast<size_t>(MaxModules));
 }
 
 auto destroyModuleRegistry() -> void
 {
-    if (!AblStackHeap)
+    if (!ModuleRegistry)
     {
         return;
     }
@@ -277,46 +257,35 @@ auto destroyModuleRegistry() -> void
     for (int32_t i = 0; i < NumModulesRegistered; i++)
     {
         ModuleEntry& entry = ModuleRegistry[i];
-        AblStackHeap->free(entry.fileName);
+        AblMemory.Free(entry.fileName);
         entry.fileName = nullptr;
         entry.moduleIdPtr = nullptr;
 
         // Port fix: frees module i's source file names. The original indexed the registry with the file counter
         // (ModuleRegistry[j].sourceFiles[j], while j < ModuleRegistry[j].numSourceFiles), freeing the wrong names
-        // and reading past the used entries. Only frees memory: the heap goes away right after.
+        // and reading past the used entries. Only frees memory: ABLi_close clears the rest right after.
         for (int32_t j = 0; j < entry.numSourceFiles; j++)
         {
-            AblStackHeap->free(entry.sourceFiles[j]);
+            AblMemory.Free(entry.sourceFiles[j]);
             entry.sourceFiles[j] = nullptr;
         }
     }
 
-    AblStackHeap->free(ModuleRegistry);
+    AblMemory.Free(ModuleRegistry);
     ModuleRegistry = nullptr;
-    AblStackHeap->free(ModuleInstanceRegistry);
+    AblMemory.Free(ModuleInstanceRegistry);
     ModuleInstanceRegistry = nullptr;
 }
 
 auto initLibraryRegistry(int32_t maxLibraries) -> void
 {
     MaxLibraries = maxLibraries;
-    LibraryInstanceRegistry =
-        static_cast<ABLModule**>(AblStackHeap->malloc(static_cast<uint32_t>(maxLibraries * sizeof(ABLModule*))));
-
-    if (!LibraryInstanceRegistry)
-    {
-        Fatal(0, " ABL: Unable to malloc AblStackHeap->Library Instance Registry ");
-    }
-
-    for (int32_t i = 0; i < MaxLibraries; i++)
-    {
-        LibraryInstanceRegistry[i] = nullptr;
-    }
+    LibraryInstanceRegistry = AblMemory.AllocateArray<ABLModule*>(static_cast<size_t>(maxLibraries));
 }
 
 auto destroyLibraryRegistry() -> void
 {
-    if (!AblStackHeap)
+    if (!LibraryInstanceRegistry)
     {
         return;
     }
@@ -334,29 +303,8 @@ auto destroyLibraryRegistry() -> void
         LibraryInstanceRegistry[i] = nullptr;
     }
 
-    AblStackHeap->free(LibraryInstanceRegistry);
+    AblMemory.Free(LibraryInstanceRegistry);
     LibraryInstanceRegistry = nullptr;
-}
-
-auto ABLModule::operator new(size_t mySize) noexcept -> void*
-{
-    if (systemHeap && systemHeap->heapSize != 0)
-    {
-        return systemHeap->malloc(static_cast<uint32_t>(mySize));
-    }
-
-    return nullptr;
-}
-
-auto ABLModule::operator delete(void* us) -> void
-{
-    if (systemHeap && systemHeap->heapSize != 0)
-    {
-        systemHeap->free(us);
-        return;
-    }
-
-    std::free(us);
 }
 
 auto ABLModule::init(int32_t moduleHandle) -> int32_t
@@ -371,15 +319,7 @@ auto ABLModule::init(int32_t moduleHandle) -> int32_t
 
     if (numStatics != 0)
     {
-        staticData =
-            static_cast<StackItemPtr>(AblStackHeap->malloc(static_cast<uint32_t>(numStatics * sizeof(StackItem))));
-
-        if (!staticData)
-        {
-            char err[256];
-            std::snprintf(err, sizeof(err), "ABL: Unable to AblStackHeap->malloc staticData [Module %d]", id);
-            Fatal(0, err);
-        }
+        staticData = AblMemory.AllocateArray<StackItem>(static_cast<size_t>(numStatics));
 
         for (int32_t i = 0; i < numStatics; i++)
         {
@@ -388,16 +328,7 @@ auto ABLModule::init(int32_t moduleHandle) -> int32_t
 
             if (size > 0)
             {
-                staticData[i].address = static_cast<Address>(AblStackHeap->malloc(size));
-
-                // Port fix: tests the new block (the original tested staticData again).
-                if (!staticData[i].address)
-                {
-                    char err[256];
-                    std::snprintf(err, sizeof(err),
-                                  "ABL: Unable to AblStackHeap->malloc staticData address [Module %d]", id);
-                    Fatal(0, err);
-                }
+                staticData[i].address = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
 
 #if !MCREDUX_FIX_ABL_UNINITIALIZED_STATICS
                 std::memset(staticData[i].address, 0xff, static_cast<size_t>(size));
@@ -414,22 +345,12 @@ auto ABLModule::init(int32_t moduleHandle) -> int32_t
     {
         watchManager = new WatchManager;
 
-        if (!watchManager)
-        {
-            Fatal(0, " Unable to AblStackHeap->malloc WatchManager ");
-        }
-
         if (watchManager->init(MaxWatchesPerModule) != 0)
         {
             Fatal(0, " Unable to AblStackHeap->malloc WatchManager ");
         }
 
         breakPointManager = new BreakPointManager;
-
-        if (!breakPointManager)
-        {
-            Fatal(0, " Unable to AblStackHeap->malloc BreakPointManager ");
-        }
 
         if (breakPointManager->init(MaxBreakPointsPerModule) != 0)
         {
@@ -675,7 +596,7 @@ auto ABLModule::destroy() -> void
     // Faithful: the static arrays' own blocks are not freed.
     if (staticData)
     {
-        AblStackHeap->free(staticData);
+        AblMemory.Free(staticData);
         staticData = nullptr;
     }
 }

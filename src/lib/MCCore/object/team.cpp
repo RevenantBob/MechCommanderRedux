@@ -4,7 +4,6 @@
 #include "engine/bitflag.h"
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
-#include "lib/heap.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/cmponent.h"
@@ -93,19 +92,13 @@ namespace
         }
 
         tracker->owner = nullptr;
-        systemHeap->free(tracker);
+        delete tracker;
     }
 
     /// <summary>A new tracker for component <paramref name="masterId"/> of <paramref name="owner"/>.</summary>
     _SystemTracker* NewTracker(GameObject* owner, int32_t masterId, float effect)
     {
-        auto* tracker = static_cast<_SystemTracker*>(systemHeap->malloc(sizeof(_SystemTracker)));
-
-        if (tracker == nullptr)
-        {
-            Fatal(0, " Cannot allocate SystemTracker ");
-        }
-
+        auto* tracker = new _SystemTracker{};
         tracker->owner = owner;
         tracker->masterId = masterId;
         tracker->prev = nullptr;
@@ -127,7 +120,7 @@ namespace
         do
         {
             _SystemTracker* next = tracker->next;
-            systemHeap->free(tracker);
+            delete tracker;
             tracker = next;
         } while (tracker != nullptr);
 
@@ -161,8 +154,7 @@ auto Team::init(int32_t newId, int32_t newMaxSensors) -> int32_t
     id = newId;
     maxSensors = newMaxSensors;
     // Port fix: sized by the port's pointer (4 bytes each in the original).
-    sensors =
-        static_cast<SensorSystem**>(systemHeap->malloc(static_cast<uint32_t>(newMaxSensors * sizeof(SensorSystem*))));
+    sensors = std::make_unique<SensorSystem*[]>(static_cast<size_t>(newMaxSensors));
     return 0;
 }
 
@@ -188,20 +180,11 @@ auto Team::buildRoster(Scenario* scenario) -> void
     rosterSize = count;
     sensorsPerUpdate = count < 3 ? count : 3;
 
-    if (roster != nullptr)
-    {
-        systemHeap->free(roster);
-        roster = nullptr;
-    }
+    roster.reset();
 
     if (count != 0)
     {
-        roster = static_cast<int32_t*>(systemHeap->malloc(static_cast<uint32_t>(count * sizeof(int32_t))));
-
-        if (roster == nullptr)
-        {
-            Fatal(0, " No Memory for Team Roster ");
-        }
+        roster = std::make_unique<int32_t[]>(count);
     }
 
     int32_t next = 0;
@@ -464,7 +447,7 @@ auto Team::addLOSContact(_PotentialContact* contact) -> void
 
 auto Team::removeLOSContact(int32_t index) -> void
 {
-    _PotentialContact* pool = potentialContactManager->contacts;
+    _PotentialContact* pool = potentialContactManager->contacts.get();
     pool[losContacts[index]].teamSlot[id] = -1;
     numLOSContacts--;
 
@@ -499,7 +482,7 @@ auto Team::addSensorContact(_PotentialContact* contact) -> void
 
 auto Team::removeSensorContact(int32_t index) -> void
 {
-    _PotentialContact* pool = potentialContactManager->contacts;
+    _PotentialContact* pool = potentialContactManager->contacts.get();
     pool[sensorContacts[index]].teamSlot[id] = -1;
     numSensorContacts--;
 
@@ -812,20 +795,10 @@ auto Team::statusCount(int32_t* counts) -> void
 
 auto Team::destroy() -> void
 {
-    if (sensors != nullptr)
-    {
-        systemHeap->free(sensors);
-        sensors = nullptr;
-    }
-
+    sensors.reset();
     FreeTrackers(ecmList);
     FreeTrackers(jammerList);
-
-    if (roster != nullptr)
-    {
-        systemHeap->free(roster);
-        roster = nullptr;
-    }
+    roster.reset();
 }
 
 auto Team::lineOfSight(vector_3d position) -> int

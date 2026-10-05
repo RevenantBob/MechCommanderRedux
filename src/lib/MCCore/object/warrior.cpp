@@ -12,7 +12,6 @@
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "main/main.h"
@@ -91,16 +90,12 @@ namespace
                objectClass == MOVER;
     }
 
-    /// <summary>A copy of <paramref name="text"/> in systemHeap, as the original's inline strlen/malloc/strcpy.</summary>
+    /// <summary>A new[] copy of <paramref name="text"/>, as the original's inline strlen/malloc/strcpy.</summary>
     char* CopyString(const char* text)
     {
-        char* copy = static_cast<char*>(systemHeap->malloc(static_cast<uint32_t>(std::strlen(text) + 1)));
-
-        if (copy != nullptr)
-        {
-            std::strcpy(copy, text);
-        }
-
+        const size_t size = std::strlen(text) + 1;
+        auto* copy = new char[size];
+        std::memcpy(copy, text, size);
         return copy;
     }
 
@@ -212,16 +207,6 @@ namespace
 
 //---------------------------------------------------------------------------
 // MechWarrior
-
-auto MechWarrior::operator new(size_t size) noexcept -> void*
-{
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto MechWarrior::operator delete(void* ptr) -> void
-{
-    systemHeap->free(ptr);
-}
 
 auto MechWarrior::lobotomy() -> void
 {
@@ -427,8 +412,7 @@ auto MechWarrior::init(FitIniFile* warriorFile) -> int32_t
     }
     else
     {
-        picture = static_cast<char*>(systemHeap->malloc(0xb));
-        std::strcpy(picture, "pilotx.gif");
+        picture = CopyString("pilotx.gif");
     }
 
     result = warriorFile->readIdString("Callsign", audioName, 0x1ff);
@@ -784,23 +768,12 @@ auto MechWarrior::radioMessage(int32_t messageId, int propogateIfMultiplayer) ->
 
 auto MechWarrior::destroy() -> void
 {
-    if (name != nullptr)
-    {
-        systemHeap->free(name);
-        name = nullptr;
-    }
-
-    if (picture != nullptr)
-    {
-        systemHeap->free(picture);
-        picture = nullptr;
-    }
-
-    if (callsign != nullptr)
-    {
-        systemHeap->free(callsign);
-        callsign = nullptr;
-    }
+    delete[] name;
+    name = nullptr;
+    delete[] picture;
+    picture = nullptr;
+    delete[] callsign;
+    callsign = nullptr;
 
     if (brain != nullptr)
     {
@@ -832,11 +805,11 @@ auto MechWarrior::destroy() -> void
         sortList = nullptr;
     }
 
-    systemHeap->free(brainStr);
+    delete[] brainStr;
     brainStr = nullptr;
-    systemHeap->free(audioStr);
+    delete[] audioStr;
     audioStr = nullptr;
-    systemHeap->free(videoStr);
+    delete[] videoStr;
     videoStr = nullptr;
 }
 
@@ -5107,27 +5080,14 @@ auto MechWarriorManager::destroy() -> void
         }
     }
 
-    systemHeap->free(warriors);
-    warriors = nullptr;
+    warriors.reset();
     numWarriors = 0;
 }
 
 auto MechWarriorManager::init(int32_t newNumWarriors) -> void
 {
-    warriors = static_cast<MechWarrior**>(
-        systemHeap->malloc(static_cast<uint32_t>(newNumWarriors * static_cast<int32_t>(sizeof(MechWarrior*)))));
-
-    if (warriors == nullptr)
-    {
-        Fatal(0, " No RAM for MechWarrior Manager ");
-    }
-
+    warriors = std::make_unique<MechWarrior*[]>(static_cast<size_t>(newNumWarriors));
     numWarriors = newNumWarriors;
-
-    for (int32_t i = 0; i < newNumWarriors; i++)
-    {
-        warriors[i] = nullptr;
-    }
 }
 
 auto MechWarriorManager::set(int32_t index, MechWarrior* warrior) -> void

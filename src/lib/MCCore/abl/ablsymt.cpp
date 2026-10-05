@@ -3,11 +3,10 @@
 #include "abl/ablerr.h"
 #include "abl/ablscan.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 
 SymTableNodePtr SymTableDisplay[MAX_NESTING_LEVEL];
 int32_t level;
-UserHeap* AblSymTableHeap;
+MCBlockStore AblMemory;
 TypePtr IntegerTypePtr;
 TypePtr CharTypePtr;
 TypePtr RealTypePtr;
@@ -21,9 +20,9 @@ namespace
     /// <summary>A standard routine: its ABL name, key and whether it is a tactical order.</summary>
     struct StandardRoutine
     {
-        const char* name;
-        RoutineKey key;
-        int isOrder;
+        const char* name = nullptr;
+        RoutineKey key{};
+        int isOrder = 0;
     };
 
     /// <summary>The standard routines in initSymTable's order.</summary>
@@ -286,15 +285,8 @@ auto searchAndEnterThisTable(SymTableNodePtr& idPtr, SymTableNodePtr root) -> vo
 
 auto createType() -> TypePtr
 {
-    auto* type = static_cast<TypePtr>(AblSymTableHeap->malloc(sizeof(_Type)));
-
-    if (type == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblStackHeap->malloc newType ");
-    }
-
     // The original set only numInstances, form, size and typeIdPtr; the port clears the whole record.
-    memset(type, 0, sizeof(_Type));
+    TypePtr type = AblMemory.Make<_Type>();
     type->numInstances = 1;
     type->form = FRM_NONE;
     type->size = 0;
@@ -316,7 +308,7 @@ auto clearType(TypePtr& type) -> void
 {
     if (type != nullptr && --type->numInstances == 0)
     {
-        AblSymTableHeap->free(type);
+        AblMemory.Free(type);
         type = nullptr;
     }
 }
@@ -443,24 +435,10 @@ auto searchSymTableDisplay(char* name) -> SymTableNodePtr
 
 auto enterSymTable(char* name, SymTableNodePtr* ptrToNodePtr) -> SymTableNodePtr
 {
-    auto* newNode = static_cast<SymTableNodePtr>(AblSymTableHeap->malloc(sizeof(_SymTableNode)));
-
-    if (newNode == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblSymTableHeap->malloc symbol ");
-    }
-
     // The original cleared the links, info, defn.key, the first two words of defn.info, typePtr and labelIndex,
     // leaving the rest as the heap had it; the port clears the whole node.
-    memset(newNode, 0, sizeof(_SymTableNode));
-    newNode->name = static_cast<char*>(AblSymTableHeap->malloc(static_cast<uint32_t>(strlen(name) + 1)));
-
-    if (newNode->name == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblSymTableHeap->malloc symbol name ");
-    }
-
-    strcpy(newNode->name, name);
+    SymTableNodePtr newNode = AblMemory.Make<_SymTableNode>();
+    newNode->name = AblMemory.CopyString(name);
     newNode->level = level;
 
     SymTableNodePtr parent = nullptr;
@@ -584,25 +562,10 @@ auto initSymTable() -> void
     SymTableNodePtr falseIdPtr = enterSymTable(const_cast<char*>("false"), &SymTableDisplay[level]);
     SymTableNodePtr trueIdPtr = enterSymTable(const_cast<char*>("true"), &SymTableDisplay[level]);
 
-    if ((IntegerTypePtr = createType()) == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblSymTableHeap->malloc Integer Type ");
-    }
-
-    if ((CharTypePtr = createType()) == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblSymTableHeap->malloc Char Type ");
-    }
-
-    if ((RealTypePtr = createType()) == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblSymTableHeap->malloc Real Type ");
-    }
-
-    if ((BooleanTypePtr = createType()) == nullptr)
-    {
-        Fatal(0, " ABL: Unable to AblSymTableHeap->malloc Boolean Type ");
-    }
+    IntegerTypePtr = createType();
+    CharTypePtr = createType();
+    RealTypePtr = createType();
+    BooleanTypePtr = createType();
 
     integerIdPtr->defn.key = DFN_TYPE;
     integerIdPtr->typePtr = IntegerTypePtr;

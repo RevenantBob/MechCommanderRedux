@@ -2,7 +2,6 @@
 #include "object/collsn.h"
 #include "ai/move.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -14,7 +13,6 @@
 
 // The original compares sums of squares on the x87 stack at extended precision; the port does those in double.
 
-UserHeap* CollisionSystem::collisionHeap = nullptr;
 uint32_t CollisionSystem::xGridSize = 0;
 uint32_t CollisionSystem::yGridSize = 0;
 uint32_t CollisionSystem::gridRadius = 0;
@@ -27,12 +25,6 @@ GlobalCollisionAlert* globalCollisionAlert = nullptr;
 
 namespace
 {
-    /// <summary>Whether a heap is up (the collision system's allocations test it first).</summary>
-    bool HeapReady(const UserHeap* heap)
-    {
-        return heap != nullptr && heap->heapSize != 0;
-    }
-
     /// <summary>Takes <paramref name="object"/> off whichever object list holds it.</summary>
     void RemoveFromObjectList(GameObject* object)
     {
@@ -54,22 +46,14 @@ auto GlobalCollisionAlert::init(uint32_t maxCollisionAlerts) -> int32_t
 {
     maxAlerts = maxCollisionAlerts;
     // Port fix: sized by the port's struct (0x10 bytes in the original).
-    collisionAlerts = static_cast<CollisionAlertRecord*>(
-        systemHeap->malloc(static_cast<uint32_t>(maxCollisionAlerts * sizeof(CollisionAlertRecord))));
-
-    if (collisionAlerts == nullptr)
-    {
-        return static_cast<int32_t>(0xccef000a);
-    }
-
+    collisionAlerts = std::make_unique<CollisionAlertRecord[]>(maxCollisionAlerts);
     purgeRecords();
     return 0;
 }
 
 auto GlobalCollisionAlert::destroy() -> void
 {
-    systemHeap->free(collisionAlerts);
-    collisionAlerts = nullptr;
+    collisionAlerts.reset();
     nextRecord = 0;
     maxAlerts = 0;
 }
@@ -134,24 +118,6 @@ auto GlobalCollisionAlert::purgeRecords() -> void
 // CollisionGrid
 //---------------------------------------------------------------------------
 
-auto CollisionGrid::operator new(size_t size) noexcept -> void*
-{
-    if (!HeapReady(CollisionSystem::collisionHeap))
-    {
-        return nullptr;
-    }
-
-    return CollisionSystem::collisionHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto CollisionGrid::operator delete(void* ptr) -> void
-{
-    if (HeapReady(CollisionSystem::collisionHeap))
-    {
-        CollisionSystem::collisionHeap->free(ptr);
-    }
-}
-
 auto CollisionGrid::init(vector_3d& newOrigin) -> int32_t
 {
     if (gridIsGo == 0)
@@ -165,25 +131,8 @@ auto CollisionGrid::init(vector_3d& newOrigin) -> int32_t
         gridSize = xGridWidth * yGridWidth * static_cast<uint32_t>(sizeof(CollisionGridNode*));
         nodeTableSize = maxObjects * static_cast<uint32_t>(sizeof(CollisionGridNode));
 
-        if (HeapReady(CollisionSystem::collisionHeap))
-        {
-            grid = static_cast<CollisionGridNode**>(CollisionSystem::collisionHeap->malloc(gridSize));
-        }
-
-        if (grid == nullptr)
-        {
-            return static_cast<int32_t>(0xccf00000);
-        }
-
-        if (HeapReady(CollisionSystem::collisionHeap))
-        {
-            nodes = static_cast<CollisionGridNode*>(CollisionSystem::collisionHeap->malloc(nodeTableSize));
-        }
-
-        if (nodes == nullptr)
-        {
-            return static_cast<int32_t>(0xccf00001);
-        }
+        grid = std::make_unique<CollisionGridNode*[]>(gridSize / sizeof(CollisionGridNode*));
+        nodes = std::make_unique<CollisionGridNode[]>(maxObjects);
 
         gridIsGo = 1;
         gridXOffset = static_cast<float>(((xGridWidth + 1) * gridRadius) >> 1);
@@ -192,8 +141,8 @@ auto CollisionGrid::init(vector_3d& newOrigin) -> int32_t
         gridYCheck = static_cast<float>(gridRadius * yGridWidth);
     }
 
-    std::memset(grid, 0, gridSize);
-    std::memset(nodes, 0, nodeTableSize);
+    std::memset(grid.get(), 0, gridSize);
+    std::memset(nodes.get(), 0, nodeTableSize);
     nextAvailableNode = 0;
     giantObjects = nullptr;
     gridOrigin = newOrigin;
@@ -207,13 +156,8 @@ auto CollisionGrid::destroy() -> void
         return;
     }
 
-    if (HeapReady(CollisionSystem::collisionHeap))
-    {
-        CollisionSystem::collisionHeap->free(nodes);
-        nodes = nullptr;
-        CollisionSystem::collisionHeap->free(grid);
-        grid = nullptr;
-    }
+    nodes.reset();
+    grid.reset();
 
     yGridWidth = 0;
     xGridWidth = 0;
@@ -410,24 +354,6 @@ auto CollisionGrid::checkGrid(GameObject* object, CollisionGridNode* area) -> vo
 // CollisionSystem
 //---------------------------------------------------------------------------
 
-auto CollisionSystem::operator new(size_t size) noexcept -> void*
-{
-    if (!HeapReady(systemHeap))
-    {
-        return nullptr;
-    }
-
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto CollisionSystem::operator delete(void* ptr) -> void
-{
-    if (HeapReady(systemHeap))
-    {
-        systemHeap->free(ptr);
-    }
-}
-
 auto CollisionSystem::init(FitIniFile* scenarioFile) -> int32_t
 {
     int32_t result = scenarioFile->seekBlock("CollisionSystem");
@@ -493,31 +419,10 @@ auto CollisionSystem::init(FitIniFile* scenarioFile) -> int32_t
         return result;
     }
 
-    heapSize = 0xffff;
-
-    collisionHeap = new UserHeap;
-
-    if (collisionHeap == nullptr)
-    {
-        return static_cast<int32_t>(0xccef0006);
-    }
-
-    if ((result = collisionHeap->init(heapSize, nullptr)) != 0)
-    {
-        return result;
-    }
-
-    // Port fix: sized by the port's struct (0x10 bytes in the original).
-    const uint32_t listSize = maxCollisions * static_cast<uint32_t>(sizeof(CollisionRecord));
-    collisionList = static_cast<CollisionRecord*>(collisionHeap->malloc(listSize));
-
-    if (collisionList == nullptr)
-    {
-        return static_cast<int32_t>(0xccef0007);
-    }
-
+    // Read, then ignored: the collision heap is gone.
+    static_cast<void>(heapSize);
+    collisionList = std::make_unique<CollisionRecord[]>(maxCollisions);
     unknown08 = 0;
-    std::memset(collisionList, 0, listSize);
 
     collisionGrid = new CollisionGrid;
 
@@ -544,7 +449,7 @@ auto CollisionSystem::checkObjects() -> void
     unknown10 = 0;
     firstPending = nullptr;
     numCollisions = 0;
-    std::memset(collisionList, 0, maxCollisions * sizeof(CollisionRecord));
+    std::memset(collisionList.get(), 0, maxCollisions * sizeof(CollisionRecord));
 
     // The first three object lists go into the grid.
     int32_t listCounts[3] = {};
@@ -955,12 +860,7 @@ auto CollisionSystem::destroy() -> void
 
     collisionGrid = nullptr;
 
-    if (collisionHeap != nullptr)
-    {
-        delete collisionHeap;
-    }
-
-    collisionHeap = nullptr;
+    collisionList.reset();
 
     if (globalCollisionAlert != nullptr)
     {

@@ -47,45 +47,45 @@ public:
     int handleDestruction(GameObject* collidee, GameObject* collider) override;
 
     /// <summary>Damage that destroys the turret (FIT "DmgLevel").</summary>
-    uint32_t dmgLevel; // +0x30
+    uint32_t dmgLevel = 0; // +0x30
     /// <summary>Damage level while closed (FIT "DmgLevelClosed"; defaults to dmgLevel).</summary>
-    uint32_t dmgLevelClosed; // +0x34
+    uint32_t dmgLevelClosed = 0; // +0x34
     /// <summary>Object type made when the turret is destroyed, e.g. a fire (FIT "BlownEffectId"; -1 = none).</summary>
-    uint32_t blownEffectId; // +0x38
+    uint32_t blownEffectId = 0; // +0x38
     /// <summary>FIT "NormalEffectId" (-1 = none).</summary>
-    uint32_t normalEffectId; // +0x3c
+    uint32_t normalEffectId = 0; // +0x3c
     /// <summary>FIT "DamageEffectId" (-1 = none).</summary>
-    uint32_t damageEffectId; // +0x40
+    uint32_t damageEffectId = 0; // +0x40
     /// <summary>FIT "Tonnage" (default 20).</summary>
-    float tonnage; // +0x44
+    float tonnage = 0; // +0x44
     /// <summary>FIT "BasePixelOffsetX".</summary>
-    int32_t basePixelOffsetX; // +0x48
+    int32_t basePixelOffsetX = 0; // +0x48
     /// <summary>FIT "BasePixelOffsetY".</summary>
-    int32_t basePixelOffsetY; // +0x4c
+    int32_t basePixelOffsetY = 0; // +0x4c
     /// <summary>FIT "ExplosionDamage".</summary>
-    float explosionDamage; // +0x50
+    float explosionDamage = 0; // +0x50
     /// <summary>FIT "ExplosionRadius".</summary>
-    float explosionRadius; // +0x54
+    float explosionRadius = 0; // +0x54
     /// <summary>FIT "LittleExtent" (default 20).</summary>
-    float littleExtent; // +0x58
+    float littleExtent = 0; // +0x58
     /// <summary>FIT "AttackRadius"; when nonzero it becomes the type's extent radius.</summary>
-    float attackRadius; // +0x5c
+    float attackRadius = 0; // +0x5c
     /// <summary>Degrees per second the turret turns (FIT "MaxTurretYawRate").</summary>
-    float maxTurretYawRate; // +0x60
+    float maxTurretYawRate = 0; // +0x60
     /// <summary>The weapon's master component id (FIT "WeaponType").</summary>
-    int32_t weaponType; // +0x64
+    int32_t weaponType = 0; // +0x64
     /// <summary>Added to the attack chance (FIT "PilotSkill").</summary>
-    int32_t pilotSkill; // +0x68
+    int32_t pilotSkill = 0; // +0x68
     /// <summary>String resource id of the turret's name (FIT "BuildingName", default 0xa4).</summary>
-    int32_t buildingName; // +0x6c
+    int32_t buildingName = 0; // +0x6c
     /// <summary>FIT "FireOffsetX".</summary>
-    int32_t fireOffsetX; // +0x70
+    int32_t fireOffsetX = 0; // +0x70
     /// <summary>FIT "FireOffsetY".</summary>
-    int32_t fireOffsetY; // +0x74
+    int32_t fireOffsetY = 0; // +0x74
     /// <summary>FIT "CenterOffsetX".</summary>
-    int32_t centerOffsetX; // +0x78
+    int32_t centerOffsetX = 0; // +0x78
     /// <summary>FIT "CenterOffsetY".</summary>
-    int32_t centerOffsetY; // +0x7c
+    int32_t centerOffsetY = 0; // +0x7c
 };
 
 /// <summary>
@@ -228,87 +228,87 @@ public:
     int enemyRevealed();
 
     /// <summary>Set until the first update places the turret on the terrain.</summary>
-    int32_t justCreated; // +0x84
+    int32_t justCreated = 0; // +0x84
     /// <summary>A GVAppearance (fixed turret) or PUAppearance (pop-up turret).</summary>
-    Appearance* appearance; // +0x88
+    Appearance* appearance = nullptr; // +0x88
     /// <summary>Offset of the turret within its tile (from setTerrainPosition), turned into the world position.</summary>
-    int32_t tileOffsetX; // +0x8c
-    int32_t tileOffsetY; // +0x90
+    int32_t tileOffsetX = 0; // +0x8c
+    int32_t tileOffsetY = 0; // +0x90
     /// <summary>The terrain vertex the turret stands on, within its block.</summary>
-    int32_t vertexNumber; // +0x94
+    int32_t vertexNumber = 0; // +0x94
     /// <summary>The terrain block the turret stands on.</summary>
-    int32_t blockNumber; // +0x98
+    int32_t blockNumber = 0; // +0x98
     /// <summary>Set to 0 by the constructor; not used in turret.cpp.</summary>
-    int32_t unknown9C; // +0x9c
+    int32_t unknown9C = 0; // +0x9c
     /// <summary>Set to 500000 by the constructor; not used in turret.cpp.</summary>
-    int32_t unknownA0; // +0xa0
+    int32_t unknownA0 = 0; // +0xa0
     /// <summary>Never referenced in turret.cpp.</summary>
-    int32_t unknownA4[4]; // +0xa4
+    int32_t unknownA4[4]{}; // +0xa4
     /// <summary>The map tile column of the turret's vertex (vertices and tiles share a grid).</summary>
-    int32_t tileCol; // +0xb4
+    int32_t tileCol = 0; // +0xb4
     /// <summary>The map tile row of the turret's vertex.</summary>
-    int32_t tileRow; // +0xb8
+    int32_t tileRow = 0; // +0xb8
     /// <summary>World x of the tile.</summary>
-    float tilePositionX; // +0xbc
+    float tilePositionX = 0; // +0xbc
     /// <summary>World y of the tile.</summary>
-    float tilePositionY; // +0xc0
+    float tilePositionY = 0; // +0xc0
     /// <summary>The tile's elevation in metres (from the scenario map).</summary>
-    float tileElevation; // +0xc4
+    float tileElevation = 0; // +0xc4
     /// <summary>Set once the turret has been set on fire.</summary>
-    int32_t onFire; // +0xc8
+    int32_t onFire = 0; // +0xc8
     /// <summary>The fire burning on the turret (its owner points back at the turret).</summary>
-    Fire* fireObject; // +0xcc
+    Fire* fireObject = nullptr; // +0xcc
     /// <summary>Set to 0 by the constructor; not used in turret.cpp.</summary>
-    int32_t unknownD0; // +0xd0
+    int32_t unknownD0 = 0; // +0xd0
     /// <summary>Set when the turret is destroyed: it no longer acts.</summary>
-    int32_t destroyed; // +0xd4
+    int32_t destroyed = 0; // +0xd4
     /// <summary>The turret's yaw in degrees, turned toward the target at the type's yaw rate.</summary>
-    float turretRotation; // +0xd8
+    float turretRotation = 0; // +0xd8
     /// <summary>Cleared by init; not otherwise used in turret.cpp.</summary>
-    int32_t unknownDC; // +0xdc
+    int32_t unknownDC = 0; // +0xdc
     /// <summary>The result of getAwake, taken every update.</summary>
-    int32_t awake; // +0xe0
+    int32_t awake = 0; // +0xe0
     /// <summary>Set when the turret is open (a pop-up turret has finished rising; always for a fixed one).</summary>
-    int32_t weaponDeployed; // +0xe4
+    int32_t weaponDeployed = 0; // +0xe4
     /// <summary>1 for a fixed (GV appearance) turret, 0 for a pop-up (PU appearance) one.</summary>
-    int32_t fixedTurret; // +0xe8
+    int32_t fixedTurret = 0; // +0xe8
     /// <summary>Set to 1 by init; not otherwise used in turret.cpp.</summary>
-    int32_t unknownEC; // +0xec
+    int32_t unknownEC = 0; // +0xec
     /// <summary>
     /// Must be nonzero for the weapon to be ready. Original behaviour (OB-014): nothing in MCX.EXE writes it, so the
     /// original read whatever the object heap held; the port's constructor sets it (see there).
     /// </summary>
-    int32_t weaponEnabled; // +0xf0
-    /// <summary>The turret's name, loaded from the type's string resource (heap copy).</summary>
-    char* name; // +0xf4
+    int32_t weaponEnabled = 0; // +0xf0
+    /// <summary>The turret's name, loaded from the type's string resource .</summary>
+    std::string name; // +0xf4
     /// <summary>Set once a player-side turret has revealed the map around it (visibility flag 1).</summary>
-    int32_t markedSeenInnerSphere; // +0xf8
+    int32_t markedSeenInnerSphere = 0; // +0xf8
     /// <summary>Set once a clan-side turret has revealed the map around it (visibility flag 2).</summary>
-    int32_t markedSeenClan; // +0xfc
+    int32_t markedSeenClan = 0; // +0xfc
     /// <summary>Set to 0 by the constructor; not used in turret.cpp.</summary>
-    int32_t unknown100; // +0x100
+    int32_t unknown100 = 0; // +0x100
     /// <summary>The object the turret is shooting at.</summary>
-    GameObject* target; // +0x104
+    GameObject* target = nullptr; // +0x104
     /// <summary>The scenario time the weapon is recycled at.</summary>
-    float readyTime; // +0x108
+    float readyTime = 0; // +0x108
     /// <summary>Counts down by the frame length while the destroyed turret's smoke plays; the smoke goes at its end.</summary>
-    float smokeTime; // +0x10c
+    float smokeTime = 0; // +0x10c
     /// <summary>The scenario time of the last shot.</summary>
-    float lastFireTime; // +0x110
+    float lastFireTime = 0; // +0x110
     /// <summary>Smoke rising from the destroyed turret.</summary>
-    Smoke* smoke; // +0x114
+    Smoke* smoke = nullptr; // +0x114
     /// <summary>
     /// Cleared by init; when set, TurretType::handleCollision takes targets of any other alignment (not only those two
     /// or more apart).
     /// </summary>
-    int32_t unknown118; // +0x118
+    int32_t unknown118 = 0; // +0x118
     /// <summary>The turret's index in the multiplayer turret roster, or -1.</summary>
-    int32_t netRosterIndex; // +0x11c
+    int32_t netRosterIndex = 0; // +0x11c
     /// <summary>How many chunks each weapon fire chunk list holds.</summary>
-    int32_t numWeaponFireChunks[NUM_CHUNK_LISTS]; // +0x120
+    int32_t numWeaponFireChunks[NUM_CHUNK_LISTS]{}; // +0x120
     /// <summary>
     /// The packed weapon fire chunks. The original's add functions check a list against 0x80 (Mover's limit), not
     /// the 8 entries here; the port checks against 8.
     /// </summary>
-    uint32_t weaponFireChunks[NUM_CHUNK_LISTS][MAX_WEAPONFIRE_CHUNKS]; // +0x128
+    uint32_t weaponFireChunks[NUM_CHUNK_LISTS][MAX_WEAPONFIRE_CHUNKS]{}; // +0x128
 };

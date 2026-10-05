@@ -28,22 +28,22 @@ inline constexpr int32_t MAXLEN_DEBUGGER_MESSAGE = 512;
 /// <remarks>0x14 bytes in the original.</remarks>
 struct _Watch
 {
-    SymTableNodePtr idPtr; // +0x0
+    SymTableNodePtr idPtr = nullptr; // +0x0
     /// <summary>Report stores to it.</summary>
-    int32_t store; // +0x4
+    int32_t store = 0; // +0x4
     /// <summary>Break into the debugger on a store.</summary>
-    int32_t breakOnStore; // +0x8
+    int32_t breakOnStore = 0; // +0x8
     /// <summary>Report fetches of it.</summary>
-    int32_t fetch; // +0xc
+    int32_t fetch = 0; // +0xc
     /// <summary>Break into the debugger on a fetch.</summary>
-    int32_t breakOnFetch; // +0x10
+    int32_t breakOnFetch = 0; // +0x10
 };
 
 typedef _Watch Watch;
 typedef _Watch* WatchPtr;
 
 /// <summary>A module's watches.</summary>
-/// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0xc bytes, allocated from AblStackHeap.</remarks>
+/// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0xc bytes.</remarks>
 class WatchManager
 {
 public:
@@ -52,11 +52,6 @@ public:
         maxWatches = 0;
         watches = nullptr;
     }
-
-    /// <remarks>MCX.EXE @ 0x0061f430</remarks>
-    static void* operator new(size_t mySize) noexcept;
-    /// <remarks>MCX.EXE @ 0x0061f450</remarks>
-    static void operator delete(void* us);
 
     /// <summary>Allocates room for <paramref name="max"/> watches.</summary>
     /// <returns>0, or -1 if out of memory.</returns>
@@ -103,15 +98,15 @@ public:
     /// <remarks>MCX.EXE @ 0x0061f790</remarks>
     void print();
 
-    int32_t maxWatches;     // +0x0
-    int32_t numWatches = 0; // +0x4
-    WatchPtr watches;       // +0x8
+    int32_t maxWatches = 0;     // +0x0
+    int32_t numWatches = 0;     // +0x4
+    WatchPtr watches = nullptr; // +0x8
 };
 
 typedef WatchManager* WatchManagerPtr;
 
 /// <summary>A module's break points: source line numbers, kept sorted.</summary>
-/// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0xc bytes, allocated from AblStackHeap.</remarks>
+/// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0xc bytes.</remarks>
 class BreakPointManager
 {
 public:
@@ -121,11 +116,6 @@ public:
         numBreakPoints = 0;
         breakPoints = nullptr;
     }
-
-    /// <remarks>MCX.EXE @ 0x0061f7a0</remarks>
-    static void* operator new(size_t mySize) noexcept;
-    /// <remarks>MCX.EXE @ 0x0061f7c0</remarks>
-    static void operator delete(void* us);
 
     /// <summary>Allocates room for <paramref name="max"/> break points.</summary>
     /// <returns>0, or -1 if out of memory.</returns>
@@ -157,9 +147,9 @@ public:
     /// <remarks>MCX.EXE @ 0x0061f960 (unnamed in the symbols; called where the watch list is printed)</remarks>
     void print();
 
-    int32_t maxBreakPoints; // +0x0
-    int32_t numBreakPoints; // +0x4
-    int32_t* breakPoints;   // +0x8
+    int32_t maxBreakPoints = 0;     // +0x0
+    int32_t numBreakPoints = 0;     // +0x4
+    int32_t* breakPoints = nullptr; // +0x8
 };
 
 typedef BreakPointManager* BreakPointManagerPtr;
@@ -168,7 +158,7 @@ typedef BreakPointManager* BreakPointManagerPtr;
 /// The ABL debugger: traces execution of the current module, reports watched variables and breaks into debugMode,
 /// which runs the game's message loop until a command resumes.
 /// </summary>
-/// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0x30 bytes, allocated from AblStackHeap (ABLi_init).</remarks>
+/// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0x30 bytes.</remarks>
 class Debugger
 {
 public:
@@ -189,11 +179,6 @@ public:
         traceExit = 0;
         printCallback = nullptr;
     }
-
-    /// <remarks>MCX.EXE @ 0x0061f970</remarks>
-    static void* operator new(size_t mySize) noexcept;
-    /// <remarks>MCX.EXE @ 0x0061f990</remarks>
-    static void operator delete(void* us);
 
     /// <summary>Sets the output routine and the module to debug.</summary>
     /// <returns>0.</returns>
@@ -298,21 +283,21 @@ public:
     void debugMode();
 
     /// <summary>The module being executed.</summary>
-    ABLModule* module;                      // +0x0
-    WatchManagerPtr watchManager;           // +0x4
-    BreakPointManagerPtr breakPointManager; // +0x8
+    ABLModule* module = nullptr;                      // +0x0
+    WatchManagerPtr watchManager = nullptr;           // +0x4
+    BreakPointManagerPtr breakPointManager = nullptr; // +0x8
     /// <summary>The module the debugger's commands apply to.</summary>
-    ABLModule* debugModule; // +0xc
+    ABLModule* debugModule = nullptr; // +0xc
     /// <summary>Never set in MCX.EXE.</summary>
-    int32_t enabled; // +0x10
+    int32_t enabled = 0; // +0x10
     /// <summary>Nonzero while debugMode waits for a command.</summary>
-    int32_t debugCommand;           // +0x14
-    int32_t halt;                   // +0x18
-    int32_t trace;                  // +0x1c
-    int32_t step;                   // +0x20
-    int32_t traceEntry;             // +0x24
-    int32_t traceExit;              // +0x28
-    void (*printCallback)(char* s); // +0x2c
+    int32_t debugCommand = 0;                 // +0x14
+    int32_t halt = 0;                         // +0x18
+    int32_t trace = 0;                        // +0x1c
+    int32_t step = 0;                         // +0x20
+    int32_t traceEntry = 0;                   // +0x24
+    int32_t traceExit = 0;                    // +0x28
+    void (*printCallback)(char* s) = nullptr; // +0x2c
 
     /// <summary>The line being built for print.</summary>
     static char message[MAXLEN_DEBUGGER_MESSAGE];
@@ -355,8 +340,8 @@ public:
     virtual void print(char* s);
 
     /// <summary>Columns and lines of 10-pixel cells.</summary>
-    int32_t numColumns; // +0x4ac
-    int32_t numLines;   // +0x4b0
+    int32_t numColumns = 0; // +0x4ac
+    int32_t numLines = 0;   // +0x4b0
 };
 
 /// <summary>The ABL debugger window: the output pane over a one-line command box.</summary>

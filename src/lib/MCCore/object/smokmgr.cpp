@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "object/smokmgr.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "object/object.h"
 #include "object/objtype.h"
@@ -35,37 +34,6 @@ auto SmokeManager::init(FitIniFile* scenarioFile) -> int32_t
         return result;
     }
 
-    sphereHeap = new UserHeap;
-
-    if (sphereHeap == nullptr)
-    {
-        return static_cast<int32_t>(0xdcdc0017);
-    }
-
-    if ((result = sphereHeap->init(static_cast<uint32_t>(totalSmokeSpheres * 0x40 + totalSmokeShapeSize))) != 0)
-    {
-        return result;
-    }
-
-    sphereHeap->unknown2C = 0;
-
-    const int32_t numTypes = numSmokeTypes;
-    const int32_t perType = maxSmokesPerType;
-    smokeHeap = new UserHeap;
-
-    if (smokeHeap == nullptr)
-    {
-        return static_cast<int32_t>(0xdcdc0017);
-    }
-
-    if ((result = smokeHeap->init(static_cast<uint32_t>(numTypes * 0x24 + 0x50 + (numTypes + 1) * perType * 0xbc))) !=
-        0)
-    {
-        return result;
-    }
-
-    smokeHeap->unknown2C = 0;
-
     // Preload the smoke types the game makes on its own.
     objectTypeManager->load(0xb, 1);
     objectTypeManager->load(0x1c2, 1);
@@ -80,10 +48,7 @@ auto SmokeManager::init(FitIniFile* scenarioFile) -> int32_t
 
 auto SmokeManager::destroy() -> void
 {
-    delete smokeHeap;
-    smokeHeap = nullptr;
-    delete sphereHeap;
-    sphereHeap = nullptr;
+    sphereBlocks.Clear();
 }
 
 auto SmokeManager::getSpheres(int32_t& numSpheres) -> SmokeSphere*
@@ -94,8 +59,7 @@ auto SmokeManager::getSpheres(int32_t& numSpheres) -> SmokeSphere*
     if (wanted < available)
     {
         // Port fix: the original allocates wanted * 0x38; SmokeSphere holds a pointer and is 0x40 on x64.
-        auto* spheres =
-            static_cast<SmokeSphere*>(sphereHeap->malloc(static_cast<uint32_t>(wanted * sizeof(SmokeSphere))));
+        auto* spheres = sphereBlocks.AllocateArray<SmokeSphere>(static_cast<size_t>(wanted));
         numFreeSpheres = available - wanted;
         return spheres;
     }
@@ -112,5 +76,5 @@ auto SmokeManager::freeSpheres(SmokeSphere* spheres, int32_t numSpheres) -> void
     }
 
     numFreeSpheres += numSpheres;
-    sphereHeap->free(spheres);
+    sphereBlocks.Free(spheres);
 }
