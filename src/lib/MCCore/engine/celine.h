@@ -14,7 +14,7 @@ public:
     /// <paramref name="endColor"/> -1 makes a single-colour line (the only kind <see cref="draw"/> draws).
     /// </summary>
     /// <remarks>
-    /// MCX.EXE @ 0x006b1a60 (FUN_006b1a60: the symbol is missing; the signature follows its callers).
+    /// MCX.EXE @ 0x006b1a60 (the symbol is missing; the signature follows its callers).
     /// </remarks>
     LineElement(vector_2d& start, vector_2d& end, int32_t color, uint8_t* fadeTable, int32_t _depth, int32_t endColor);
 

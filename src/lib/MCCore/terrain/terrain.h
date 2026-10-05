@@ -239,14 +239,10 @@ public:
     int32_t numWindows = 0; // +0x18
     /// <summary>TerrainHeapSize from the .fit file, then the size actually reserved.</summary>
     uint32_t terrainHeapSize = 0; // +0x1c
-    /// <summary>Cleared by init; not otherwise used.</summary>
-    int32_t unknown20 = 0; // +0x20
     /// <summary>sin of the isometric view angle (30 degrees).</summary>
     float projectionSin = 0.0f; // +0x24
     /// <summary>cos of the isometric view angle.</summary>
     float projectionCos = 0.0f; // +0x28
-    /// <summary>Cleared by init(char*); not otherwise used.</summary>
-    int32_t unknown2C = 0; // +0x2c
 
     /// <summary>The block cache.</summary>
     static MapBlockManager* mapBlockManager;
@@ -292,7 +288,7 @@ public:
     static _pane* terrainPane;
     /// <summary>The terrain's name (the .fit file's base name).</summary>
     static char* terrainName;
-    /// <summary>Screen x of every map vertex (by blockOffsets[block] + vertex), 0x11111111 when unknown.</summary>
+    /// <summary>Screen x of every map vertex (by blockOffsets[block] + vertex), 0x11111111 until it is projected.</summary>
     static std::vector<int32_t> screenPosX;
     /// <summary>Screen y of every map vertex.</summary>
     static std::vector<int32_t> screenPosY;
@@ -362,11 +358,11 @@ extern int32_t moverBlockList[MAX_BLOCK_LIST];
 extern uint32_t blockMemSize;
 extern int projectAll;
 
-/// <summary>The object blocks of the map (DAT_00809ee4; the original's name wasn't kept).</summary>
+/// <summary>The object blocks of the map (the binary kept no name for it).</summary>
 extern ObjectBlockManager* objBlockManager;
-/// <summary>The terrain tile cache (DAT_00809ee8; the original's name wasn't kept).</summary>
+/// <summary>The terrain tile cache (the binary kept no name for it).</summary>
 extern TerrainTiles* terrainTiles;
-/// <summary>verticesBlockSide^2 (DAT_00809f1c; the original's name wasn't kept).</summary>
+/// <summary>verticesBlockSide^2 (the binary kept no name for it).</summary>
 extern int32_t verticesPerBlock;
-/// <summary>Meters along the map's side (DAT_00809f40; the original's name wasn't kept).</summary>
+/// <summary>Meters along the map's side (the binary kept no name for it).</summary>
 extern float worldUnitsMapSide;

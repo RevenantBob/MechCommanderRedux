@@ -182,7 +182,7 @@ auto Jet::update() -> int32_t
     position = mech->getJumpPosition(jetNumber);
 
     // Coming down: the jets cut out and the smoke stops.
-    if (static_cast<MechActor*>(mech->appearance)->unknown120 != 0 && position.z < lastAltitude)
+    if (static_cast<MechActor*>(mech->appearance)->airborne != 0 && position.z < lastAltitude)
     {
         landing = 1;
     }

@@ -70,8 +70,6 @@ public:
     uint8_t fontHeight; // +0x0c
     /// <summary>The scale applied when <see cref="scaled"/> (2.0 after init).</summary>
     float scale; // +0x10
-    /// <summary>Cleared by init; never read in MCX.EXE.</summary>
-    int32_t unknown14; // +0x14
     /// <summary>Nonzero to scale sizes by <see cref="scale"/> (rounded down); 1 after init.</summary>
     int32_t scaled; // +0x18
     /// <summary>The font file.</summary>

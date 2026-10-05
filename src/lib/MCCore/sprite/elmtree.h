@@ -43,7 +43,7 @@ public:
     void destroy() override;
 
     /// <summary>Forgets <paramref name="shape"/> in the list and in every user.</summary>
-    /// <remarks>MCX.EXE @ 0x0063ac80 (FUN_0063ac80: the vtable's removeShape slot, no symbol); slot 3</remarks>
+    /// <remarks>MCX.EXE @ 0x0063ac80 (the vtable's removeShape slot, no symbol); slot 3</remarks>
     void removeShape(Shape* shape) override;
 
     /// <summary>Nothing (elementals load their shapes as they're drawn).</summary>

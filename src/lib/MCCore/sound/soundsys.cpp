@@ -352,26 +352,16 @@ void SoundSystem::init()
     sounds.clear();
     soundDataFile = nullptr;
     cdDevice = 0;
-    streamUnknown208[0] = 0;
     gos_SetChannelProperties(MUSIC_CHANNEL_A, CHANNEL_VOLUME | CHANNEL_PANNING);
-    streamUnknown208[1] = 0;
     gos_SetChannelProperties(MUSIC_CHANNEL_B, CHANNEL_VOLUME | CHANNEL_PANNING);
     streamPlaying[0] = 0;
     streamPlaying[1] = 0;
-    unknown218[0] = 0;
-    unknown218[1] = 0;
     streamFile[0] = nullptr;
     streamFile[1] = nullptr;
     digitalMusicIds.clear();
     digitalMusicLoopFlags.clear();
     numDMS = 0;
     digitalStreamBufferSize = 0;
-
-    for (int32_t& entry : unknown238)
-    {
-        entry = 0;
-    }
-
     streamBitDepth = 8;
     streamChannels = 2;
     streamSampleRate = 22050;
@@ -560,12 +550,6 @@ int32_t SoundSystem::init(char* soundFileName)
     streamPlaying[0] = 0;
     streamFile[1] = nullptr;
     streamFile[0] = nullptr;
-
-    for (int32_t& entry : unknown238)
-    {
-        entry = 0;
-    }
-
     setMusicState(this, -1);
     soundOn = 1;
     return 0;
@@ -765,7 +749,6 @@ void SoundSystem::purgeSoundSystem()
         gos_StopChannel(MUSIC_CHANNEL_A);
         gos_DestroySoundResource(resource);
         channelResource[MUSIC_CHANNEL_A] = nullptr;
-        streamUnknown208[0] = 0;
         streamPlaying[0] = 0;
         streamFade[0] = 0.0f;
         closeFile(streamFile[0]);
@@ -777,7 +760,6 @@ void SoundSystem::purgeSoundSystem()
         gos_StopChannel(MUSIC_CHANNEL_B);
         gos_DestroySoundResource(resource);
         channelResource[MUSIC_CHANNEL_B] = nullptr;
-        streamUnknown208[1] = 0;
         streamPlaying[1] = 0;
         streamFade[1] = 0.0f;
         closeFile(streamFile[1]);

@@ -272,14 +272,6 @@ int32_t Radio::loadMessageInfo()
         info.pilotIdentifiesSelf = field == nullptr ? 0 : (*field == 'y');
         field = std::strtok(nullptr, ",");
         info.msgId = field == nullptr ? 0 : std::atoi(field);
-        field = std::strtok(nullptr, ",");
-
-        if (field != nullptr)
-        {
-            field = std::strtok(nullptr, ",");
-        }
-
-        info.unknown18 = field == nullptr ? 0 : (*field == 'x');
     }
 
     infoFile->close();

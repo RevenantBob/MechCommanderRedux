@@ -7,13 +7,11 @@ int32_t ElementPool::elementCount = 0;
 Element::Element(int32_t _depth)
 {
     depth = static_cast<float>(_depth);
-    unknown08 = 1;
 }
 
 Element::Element(float _depth)
 {
     const int16_t whole = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(_depth))));
-    unknown08 = 1;
     depth = static_cast<float>(static_cast<int32_t>(whole));
 }
 

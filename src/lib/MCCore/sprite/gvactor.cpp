@@ -303,7 +303,6 @@ auto GVAppearanceType::destroy() -> void
 
 auto GVAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
 {
-    unknown04 = 0x70000000;
     visible = 0;
     owner = obj;
     appearType = static_cast<GVAppearanceType*>(tree);
@@ -319,13 +318,11 @@ auto GVAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
     {
         currentShape[i] = nullptr;
         currentFrame[i] = -1;
-        unknown4C[i] = 0;
     }
 
     visible = 0;
     shapeMinY = -25.0f;
     shapeMinX = -25.0f;
-    unknown64 = 0;
     currentTime = 0.0f;
     lastFrame = 0;
     currentState = GV_ACTOR_STATE_NORMAL;
@@ -746,7 +743,6 @@ auto GVAppearance::drawBars() -> void
     PolyElementData data;
     data.numVertices = 0;
     data.textureMapOff = 0;
-    data.unknown98 = 0;
     data.texture = nullptr;
     data.textureWidth = 0;
     data.textureHeight = 0;

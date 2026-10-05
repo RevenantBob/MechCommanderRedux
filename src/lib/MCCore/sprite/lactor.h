@@ -90,16 +90,12 @@ public:
     Shape* currentShape = nullptr; // +0x3c
     /// <summary>The frame drawn (-1: not started).</summary>
     int32_t currentFrame = -1; // +0x40
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown44 = 0; // +0x44
     /// <summary>The gesture's frame rate (15 after init).</summary>
     float frameRate = 15.0f; // +0x48
     /// <summary>Seconds into the gesture.</summary>
     float currentTime = 0.0f; // +0x4c
     /// <summary>Frames played so far.</summary>
     int32_t lastFrame = 0; // +0x50
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown54 = 0; // +0x54
     /// <summary>The gesture playing.</summary>
     int32_t currentGesture = 0; // +0x58
     /// <summary>The gesture to change to.</summary>
@@ -108,20 +104,12 @@ public:
     int32_t oldGesture = 0; // +0x60
     /// <summary>The velocity (the gesture's, or the jump's).</summary>
     float velocity = 0.0f; // +0x64
-    int32_t unknown68 = 0; // +0x68 (never accessed)
     /// <summary>The animation speed factor (1 after init).</summary>
     float velocityPercentage = 1.0f; // +0x6c
     /// <summary>Nonzero while jumping.</summary>
     int32_t jumping = 0; // +0x70
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown74[4] = {}; // +0x74
     /// <summary>Nonzero once <see cref="setJumpParameters"/> has set a jump up.</summary>
     int32_t jumpSetup = 0; // +0x84
-    int32_t unknown88 = 0; // +0x88 (never accessed)
-    /// <summary>1 after init; when 0 the jump gesture doesn't advance.</summary>
-    int32_t unknown8C = 1; // +0x8c
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown90[4] = {}; // +0x90
     /// <summary>Nonzero while a gesture goal is pending.</summary>
     int32_t goalPending = 0; // +0xa0
     /// <summary>The fade table (haze table index) to draw through, -1 for none.</summary>

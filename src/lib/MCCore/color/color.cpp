@@ -647,10 +647,8 @@ int32_t Palette::loadPaletteInfo(FitIniFile& paletteFile)
     }
 
     const int32_t fullHaze = Shl(1, hazeShift);
-    unknown74 = 0;
     maxHazePercent = fullHaze;
     hazeRound = fullHaze >> 1;
-    unknown78 = numBitmapHazeLevels;
     hazePaletteOffset = numBitmapHazeLevels << 8;
     numDepthHazeEntries = Shl(1, numDepthHazeEntriesShift);
     maxAltitude = Shl(numDepthAtHazeLevelTables, altitudeShift);

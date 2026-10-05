@@ -1199,9 +1199,6 @@ auto TacticalMap::setRevealedBitmap(char* fileName) -> void
 
 auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
 {
-    unknown544 = -1;
-    unknown540 = -1;
-    unknown548 = -1;
     zoom = 1;
     infoObject = nullptr;
     zoomOffset = 0;
@@ -1209,8 +1206,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     freePartShapes();
     tacMapCenter = vector_3d(0.0f, 0.0f, 0.0f);
     mapVertexSide = Terrain::verticesBlockSide * Terrain::blocksMapSide;
-    unknown554 = 0;
-    unknown550 = 0;
 
     // The map picture.
     mapPort = new aPort;
@@ -1372,7 +1367,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
         artilleryButtons[i] = button;
         button->commandId = spec.commandId;
         loadHelpText(button->helpText, spec.helpId);
-        button->unknown4FD = 0;
         addChild(button);
     }
 
@@ -1514,7 +1508,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
             loadHelpText(button->helpText, 0x8a + static_cast<uint32_t>(i));
         }
 
-        button->unknown50D = 0;
         paletteFrame->addChild(button);
         buttonX += 1 + button->width();
 
@@ -1544,8 +1537,6 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     numSalvage = 0;
     scrollX = 0;
     scrollY = 0;
-    unknown528 = 0;
-    unknown52C = 0;
     SetDisplayType(TACMAP_MAP);
 
     // The map area, as rectangles and as a pane on the MFD's window.
@@ -1554,18 +1545,18 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     mapPane.x0 = 6;
     mapRect[1] = 0x22;
     mapPane.y0 = 0x22;
-    zoomRect[0] = 0x70;
+    zoomInRect[0] = 0x70;
     mapRect[2] = 0x87;
     mapPane.x1 = 0x87;
-    zoomRect[1] = 0xb2;
+    zoomInRect[1] = 0xb2;
     mapRect[3] = 0xa3;
     mapPane.y1 = 0xa3;
-    zoomRect[2] = 0x89;
-    zoomRect[3] = 199;
-    unknown4BC[0] = 0x70;
-    unknown4BC[1] = 199;
-    unknown4BC[2] = 0xb2;
-    unknown4BC[3] = 0xdb;
+    zoomInRect[2] = 0x89;
+    zoomInRect[3] = 199;
+    zoomOutRect[0] = 0x70;
+    zoomOutRect[1] = 199;
+    zoomOutRect[2] = 0xb2;
+    zoomOutRect[3] = 0xdb;
 
     for (aPort*& port : infoPorts)
     {
@@ -2000,13 +1991,13 @@ auto TacticalMap::handleEvent(aEvent* event) -> void
     // The zoom buttons' areas take the event whole.
     if (displayType == TACMAP_MAP)
     {
-        if (PtInRect(reinterpret_cast<const RECT*>(zoomRect), local) != 0)
+        if (PtInRect(reinterpret_cast<const RECT*>(zoomInRect), local) != 0)
         {
             scrollButtons[4]->handleEvent(event);
             return;
         }
 
-        if (displayType == TACMAP_MAP && PtInRect(reinterpret_cast<const RECT*>(unknown4BC), local) != 0)
+        if (displayType == TACMAP_MAP && PtInRect(reinterpret_cast<const RECT*>(zoomOutRect), local) != 0)
         {
             scrollButtons[5]->handleEvent(event);
             return;
@@ -3796,7 +3787,7 @@ auto TacticalMap::drawPilot(MechWarrior* pilot) -> void
 
     // The callsign and the rank.
     whiteFont->writeString(port()->frame(), 10, 0x23, reinterpret_cast<uint8_t*>(pilot->callsign), -1);
-    char rank[256] = {}; // Port fix: an unknown rank printed the uninitialised buffer.
+    char rank[256] = {}; // Port fix: a rank above 3 printed the uninitialised buffer.
     if (pilot->rank <= 3)
     {
         cLoadString(thisInstance, 0x86 + pilot->rank, rank, 0xfe);

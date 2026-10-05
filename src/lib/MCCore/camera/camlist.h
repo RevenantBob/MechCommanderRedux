@@ -6,8 +6,8 @@
 class aObject;
 
 /// <summary>Where the camera files are ("data\cameras\").</summary>
-/// <remarks>One of the 80-byte path globals at 0x007942ec.. (objectPath, missionPath, cameraPath, ...), whose owner
-/// file is unknown; the port defines it in camlist.cpp.</remarks>
+/// <remarks>One of the 80-byte path globals at 0x007942ec.. (objectPath, missionPath, cameraPath, ...), for which the
+/// binary kept no owner file; the port defines it in camlist.cpp.</remarks>
 extern char cameraPath[80];
 
 /// <summary>A camera's link in the <see cref="CameraList"/>.</summary>

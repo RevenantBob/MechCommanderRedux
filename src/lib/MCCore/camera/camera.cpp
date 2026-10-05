@@ -49,10 +49,9 @@ uint8_t* askedShape = nullptr;
 
 namespace
 {
-    /// <summary>Set while a view window's status bar is on screen (DAT_007f0938).</summary>
+    /// <summary>Set while a view window's status bar is on screen.</summary>
     int32_t statusBarDrawn = 0;
-    /// <summary>The corners of the status bar last drawn (DAT_007f090c, DAT_007f0910, DAT_007f0508, DAT_007f0504).
-    /// </summary>
+    /// <summary>The corners of the status bar last drawn.</summary>
     int32_t lastBarX0 = 0;
     int32_t lastBarY0 = 0;
     int32_t lastBarX1 = 0;
@@ -1318,16 +1317,12 @@ auto Camera::init() -> void
     active = 0;
     ready = 0;
     cameraClass = NO_CAMERA;
-    unknown54 = 0;
     hazeLevel = 4;
     hazeInc = -2;
     window = nullptr;
     cameraScale = 100;
     targetObject = nullptr;
     defaultTarget = nullptr;
-    unknown84.z = 0.0f;
-    unknown84.y = 0.0f;
-    unknown84.x = 0.0f;
     targetChanged = 1;
     distanceFactor = 25.0f;
     terrainWindow = nullptr;

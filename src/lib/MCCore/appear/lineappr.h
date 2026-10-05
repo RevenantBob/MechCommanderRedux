@@ -61,7 +61,7 @@ public:
 /// <summary>An appearance drawn as a line between two world points (in its state's colours).</summary>
 /// <remarks>
 /// Original source: <c>appear\lineappr.cpp</c>, 0x68 bytes. MCX.EXE has no vtable for it (nothing creates one), so
-/// the order of its own virtuals is unknown.
+/// the binary fixes no order for its own virtuals.
 /// </remarks>
 class LineAppearance : public Appearance
 {

@@ -49,7 +49,6 @@ public:
     int32_t action = 0; // +0x4d8
     /// <summary>Help text shown in the status line.</summary>
     char helpText[0x31] = {}; // +0x4dc
-    uint8_t unknown50D = 0;   // +0x50d (cleared by TacticalMap::init)
 };
 
 /// <summary>
@@ -85,7 +84,6 @@ public:
     int32_t commandId = 0; // +0x4c8
     /// <summary>Help text shown in the status line.</summary>
     char helpText[0x31] = {}; // +0x4cc
-    uint8_t unknown4FD = 0;   // +0x4fd (cleared by TacticalMap::init)
     /// <summary>Nonzero while armed by <see cref="TacticalMap::activateArtillery"/> (a hotkey) rather than a click.</summary>
     int32_t keyArmed = 0; // +0x500
     /// <summary>Nonzero while armed (waiting for the target click).</summary>
@@ -348,10 +346,10 @@ protected:
     void drawWeapons();
 
 public:
-    /// <summary>The zoom buttons' area.</summary>
-    int32_t zoomRect[4] = {}; // +0x4ac
-    /// <summary>Checked by handleEvent; set only by init.</summary>
-    int32_t unknown4BC[4] = {}; // +0x4bc
+    /// <summary>The zoom-in button's click area (left, top, right, bottom), which takes the event whole.</summary>
+    int32_t zoomInRect[4] = {}; // +0x4ac
+    /// <summary>The zoom-out button's click area (left, top, right, bottom), which takes the event whole.</summary>
+    int32_t zoomOutRect[4] = {}; // +0x4bc
     /// <summary>The map area (6, 0x22, 0x87, 0xa3).</summary>
     int32_t mapRect[4] = {}; // +0x4cc
     /// <summary>The page's click areas, placed by SetDisplayType.</summary>
@@ -363,25 +361,15 @@ public:
     /// <summary>The map's diagonal in meters.</summary>
     float mapDiagonal = 0.0f; // +0x514
     /// <summary>Zoom factor: 1, 2, 4 or 8.</summary>
-    int32_t zoom = 0;       // +0x518
-    int32_t unknown51C = 0; // +0x51c
+    int32_t zoom = 0; // +0x518
     /// <summary>The map's scroll position.</summary>
-    int32_t scrollX = 0;    // +0x520
-    int32_t scrollY = 0;    // +0x524
-    int32_t unknown528 = 0; // +0x528
-    int32_t unknown52C = 0; // +0x52c
+    int32_t scrollX = 0; // +0x520
+    int32_t scrollY = 0; // +0x524
     /// <summary>Accumulated by the zoom buttons (half the map side over the zoom).</summary>
     int32_t zoomOffset = 0; // +0x530
     /// <summary>The map picture's size (from its TGA).</summary>
-    int32_t mapWidth = 0;    // +0x534
-    int32_t mapHeight = 0;   // +0x538
-    int32_t unknown53C = 0;  // +0x53c
-    int32_t unknown540 = -1; // +0x540
-    int32_t unknown544 = -1; // +0x544
-    int32_t unknown548 = -1; // +0x548
-    int32_t unknown54C = 0;  // +0x54c
-    int32_t unknown550 = 0;  // +0x550
-    int32_t unknown554 = 0;  // +0x554
+    int32_t mapWidth = 0;  // +0x534
+    int32_t mapHeight = 0; // +0x538
     /// <summary>Nonzero to draw sensor/range circles around the units.</summary>
     int32_t showRanges = -1; // +0x558
     /// <summary>The map picture (<c>&lt;terrainName&gt;.tga</c>).</summary>
@@ -446,7 +434,6 @@ public:
     int32_t chatPending = 0; // +0x7c0
     /// <summary>The current page.</summary>
     TacmapDisplayTypes displayType = TACMAP_MAP; // +0x7c4
-    int32_t unknown7C8 = 0;                      // +0x7c8
     /// <summary>The part diagram shapes of the info page.</summary>
     std::unique_ptr<uint8_t[]> partShapes; // +0x7cc
     /// <summary>The part diagram's colour of each armor location (GetColors).</summary>
@@ -477,7 +464,6 @@ public:
     int32_t objectivesRevealed = 0; // +0x810
     /// <summary>Colour remap for the map picture (0xff = unchanged; entries 0xe6 and 0xe8 map to 0x13).</summary>
     uint8_t colorRemap[256] = {}; // +0x814
-    int32_t unknown914 = 0;       // +0x914
 
     /// <summary>
     /// Port: the info page's data view backgrounds (mfddwn01.tga home armor, mfddwn02.tga payload, mfddwn03.tga

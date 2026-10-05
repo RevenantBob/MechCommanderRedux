@@ -20,10 +20,17 @@ struct PrecompVertex
 {
     /// <summary>Elevation level: the height is <c>elevation * Terrain::metersPerElevLevel</c>.</summary>
     uint8_t elevation; // +0x00
-    /// <summary>Cleared by generateRandomBlock; not read by the terrain code.</summary>
-    uint8_t unknown01; // +0x01
-    /// <summary>Not read by the terrain code.</summary>
-    int16_t unknown02; // +0x02
+    /// <summary>
+    /// The map editor's group of the vertex's terrain tile: in the retail maps it follows <see cref="textureData"/>
+    /// almost one to one (0 for tiles 0-36, 1 for 79-194, 42 for 3204-3207...). The game never reads it;
+    /// generateRandomBlock writes 0.
+    /// </summary>
+    uint8_t tileGroup; // +0x01 // Fixed layout: .elv vertex
+    /// <summary>
+    /// What the map editor's memory held there: 0, 0x0101 or fragments of text ("xt", "ck") in the retail maps.
+    /// Never read or written by the game.
+    /// </summary>
+    int16_t editorLeftover; // +0x02 // Fixed layout: .elv vertex
     /// <summary>Terrain tile index into <c>TerrainTiles</c> (negative: none).</summary>
     int16_t textureData; // +0x04
     /// <summary>Overlay tile index (roads, craters... drawn over the terrain tile; negative: none).</summary>
@@ -61,7 +68,6 @@ public:
     uint8_t redraw; // +0x15
     /// <summary>Nonzero when the vertex lies near the pane edge the view is scrolling towards.</summary>
     uint8_t edgeRedraw; // +0x16
-    uint8_t unknown17;  // +0x17 (padding)
 };
 
 /// <summary>
@@ -101,7 +107,6 @@ public:
     TerrainTile* tile; // +0x10
     /// <summary>The overlay tile drawn last frame.</summary>
     TerrainTile* overlayTile; // +0x14
-    uint8_t unknown18[3];     // +0x18 (not accessed by name in MCX.EXE)
     /// <summary>How many of the four corners were visible last frame (a change forces a redraw).</summary>
     uint8_t lastVisibleCount; // +0x1b
 };
@@ -223,7 +228,6 @@ public:
 class VertexManager
 {
 public:
-    int32_t unknown1C = 0; // +0x1c (cleared by the constructor and Terrain::destroy only)
     /// <summary>The grids' storage (zeroed, never constructed: buildWindow fills it).</summary>
     std::vector<uint8_t> storage;
     /// <summary>Per window: its vertex grid in <see cref="storage"/>.</summary>
@@ -237,7 +241,6 @@ public:
 class TerrainTileManager
 {
 public:
-    int32_t unknown1C = 0; // +0x1c (cleared by the constructor and Terrain::destroy only)
     /// <summary>The lists' storage (zeroed, never constructed: buildWindow fills it).</summary>
     std::vector<uint8_t> storage;
     /// <summary>Per window: its block list in <see cref="storage"/>.</summary>

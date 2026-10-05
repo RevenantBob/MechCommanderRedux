@@ -274,7 +274,7 @@ auto MechActor::setGestureGoal(int32_t goal) -> int32_t
         }
     }
 
-    unknownD8 = 0;
+    transitionStep = 0;
 
     // Faithful: a leftover test of the transition table index that can't fail.
     if ((goal + state * 9) * 10 == -1)
@@ -289,7 +289,6 @@ auto MechActor::setGestureGoal(int32_t goal) -> int32_t
 
 auto MechActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
 {
-    unknown04 = 0x70000000;
     visible = 0;
     owner = obj;
     mechTree = static_cast<SpriteTree*>(tree);
@@ -299,12 +298,11 @@ auto MechActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
         tree->addUsers(this);
     }
 
-    unknown12C = 0;
-    unknown130 = 0;
-    unknown134 = 0;
+    rightArmGone = 0;
+    leftArmGone = 0;
     gestureSet = 0;
     fadeTableIndex = -1;
-    unknown18C = 0;
+    wrecked = 0;
 
     // The shadow shapes are loaded once, for every mech.
     if (shadowShapes.empty())
@@ -359,52 +357,41 @@ auto MechActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
     {
         partShape[i] = nullptr;
         currentFrame[i] = -1;
-        unknown64[i] = 0;
         currentTime[i] = 0.0f;
         lastFrame[i] = 0;
         frameRate[i] = 15.0f;
-        unknownB4[i] = 0;
         partOrder[i] = 0;
     }
 
     visible = 0;
     shapeMinY = -25.0f;
     shapeMinX = -25.0f;
-    unknownE0 = 0.0f;
-    unknownC8 = 0;
+    jumpVelocity = 0.0f;
     goalPending = 0;
     currentGesture = 0;
     gestureGoal = -1;
     currentStateGesture = 0;
     inTransition = 0;
-    unknown13C = 0;
-    unknownDC = -1;
-    unknown140 = 0;
-    unknown15C = 3.0f;
-    unknown160 = 0;
-    unknown164 = 0;
-    unknown168 = 0;
-    unknown150 = 0;
-    unknown14C = 0;
-    unknown154 = -1;
-    unknownE8 = nullptr;
-    unknown1A8 = 0;
+    gestureDone = 0;
+    nextGesture = -1;
+    playBackwards = 0;
+    lyingStill = 0;
+    fallTurnPending = 0;
+    standTurnPending = 0;
+    frameHeights = nullptr;
     inJump = 0;
     jumpSetup = 0;
     jumpGoal.z = 0.0f;
     jumpGoal.y = 0.0f;
     jumpGoal.x = 0.0f;
     jumpParameter = 0.0f;
-    unknown114 = 1;
     jumpSpeed = 0.0f;
-    unknown11C = 0;
-    unknown120 = 0;
-    unknown174 = 0;
-    unknown178 = 0;
+    airborne = 0;
+    bodyTurnLocked = 0;
+    upperBodyLocked = 0;
     shapeMaxY = 25.0f;
     shapeMaxX = 25.0f;
     inView = 0;
-    unknown194 = 0;
     stopCountdown = 0.0f;
     inCombatMode = 0;
     combatModeRaising = 0;
@@ -513,7 +500,7 @@ auto MechActor::getVelocityMagnitude() -> float
 
     if (gesture == GESTURE_JUMP || gesture == 12 || gesture == 13)
     {
-        return unknownE0;
+        return jumpVelocity;
     }
 
     const int32_t numGestures = mechTree->treeInfo->numGestures;
@@ -547,7 +534,6 @@ auto MechActor::setMovePath(MovePath* path) -> int32_t
     if (path == nullptr)
     {
         stopCountdown = 0.0f;
-        unknown194 = 0;
         return 0;
     }
 
@@ -568,7 +554,7 @@ auto MechActor::forceStop() -> void
 
 auto MechActor::checkStop() -> int
 {
-    if (unknown1A8 == 0 && stopCountdown == 0.0 && currentGesture > 2 && currentGesture < 12 && gestureGoal < 7)
+    if (stopCountdown == 0.0 && currentGesture > 2 && currentGesture < 12 && gestureGoal < 7)
     {
         return 1;
     }
@@ -692,7 +678,7 @@ auto calcRotation(float rotation, int32_t numRotations) -> int32_t
 
 auto MechActor::renderJump() -> void
 {
-    if (unknownE8 == nullptr)
+    if (frameHeights == nullptr)
     {
         return;
     }
@@ -707,20 +693,18 @@ auto MechActor::renderJump() -> void
     }
 
     const int32_t frameNum = currentFrame[MECH_PART_LEGS];
-    const float height = unknownE8[frameNum] * 30.0f;
+    const float height = frameHeights[frameNum] * 30.0f;
 
-    if (unknown124 <= frameNum)
+    if (liftOffFrame <= frameNum)
     {
-        unknownE0 = jumpSpeed;
-        unknownE4 = unknown11C;
-        unknown120 = 1;
+        jumpVelocity = jumpSpeed;
+        airborne = 1;
     }
 
-    if (unknown128 <= frameNum && unknown120 != 0)
+    if (touchDownFrame <= frameNum && airborne != 0)
     {
-        unknownE0 = 0.0f;
-        unknownE4 = 0;
-        unknown120 = 0;
+        jumpVelocity = 0.0f;
+        airborne = 0;
     }
 
     // Project the mech raised along its up axis by the jump height.
@@ -781,7 +765,7 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
     // A mirrored gesture facing left draws each arm from the other arm's sprites.
     const bool swapArms = armSymmetrical && wrapRotation(rotation3) < 0.0;
 
-    if (unknown12C != 0)
+    if (rightArmGone != 0)
     {
         partShape[MECH_PART_RIGHT_ARM] = nullptr;
     }
@@ -792,7 +776,7 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
                                  frameRate[MECH_PART_RIGHT_ARM], visible, largeSprites);
     }
 
-    if (unknown130 != 0)
+    if (leftArmGone != 0)
     {
         partShape[MECH_PART_LEFT_ARM] = nullptr;
     }
@@ -813,7 +797,7 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
                                  frameRate[MECH_PART_LEFT_ARM], visible, largeSprites);
     }
 
-    if (unknown18C != 0)
+    if (wrecked != 0)
     {
         partShape[MECH_PART_TORSO] = nullptr;
     }
@@ -857,9 +841,9 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
         // alternates; an unmirrored one keeps in step with it.
         const int32_t gesture = currentGesture;
         const bool combatAnim = inCombatMode != 0 || combatModeRaising != 0 || combatModeLowering != 0;
-        unknownC4 = (gesture == 4 || gesture == 7 || gesture == 9 || gesture == 11) ? 1 : 0;
+        strideGesture = (gesture == 4 || gesture == 7 || gesture == 9 || gesture == 11) ? 1 : 0;
 
-        if (unknownC4 != 0 && reverse[part] != 0)
+        if (strideGesture != 0 && reverse[part] != 0)
         {
             const GestureData& data = mechTree->gestures[gesture];
             int32_t reference = -1;
@@ -881,7 +865,7 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
                 const int32_t frame = currentFrame[part];
                 const uint32_t numFrames = data.numFrames;
 
-                if (unknown140 == 0)
+                if (playBackwards == 0)
                 {
                     const uint32_t shifted = (numFrames >> 1) + static_cast<uint32_t>(frame);
                     currentFrame[part] = static_cast<int32_t>(shifted);
@@ -908,9 +892,10 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
             }
         }
 
-        unknownC4 = (currentGesture == 4 || currentGesture == 7 || currentGesture == 9 || currentGesture == 11) ? 1 : 0;
+        strideGesture =
+            (currentGesture == 4 || currentGesture == 7 || currentGesture == 9 || currentGesture == 11) ? 1 : 0;
 
-        if (unknownC4 != 0 && reverse[part] == 0)
+        if (strideGesture != 0 && reverse[part] == 0)
         {
             const GestureData& data = mechTree->gestures[currentGesture];
             int32_t reference = 0;
@@ -946,13 +931,13 @@ auto MechActor::render(int32_t depthFixup) -> int32_t
         {
             strcpy(element->name, "mactor");
 
-            if (unknown38 == nullptr)
+            if (ownerMech == nullptr)
             {
                 strcpy(element->name2, "unknown");
             }
             else
             {
-                snprintf(element->name2, sizeof(element->name2), "%i", unknown38->getObjectType()->objTypeNum);
+                snprintf(element->name2, sizeof(element->name2), "%i", ownerMech->getObjectType()->objTypeNum);
             }
         }
 
@@ -1030,7 +1015,7 @@ auto MechActor::update() -> int32_t
         if (static_cast<uint8_t>(mech->status) != 4)
         {
             gestureGoal = -1;
-            unknownDC = -1;
+            nextGesture = -1;
             inTransition = 0;
 
             if (mech->isDisabled() == 0)
@@ -1043,51 +1028,51 @@ auto MechActor::update() -> int32_t
     // Start the transition to the goal: the table lists the gestures from the state to it.
     int32_t goal = gestureGoal;
 
-    if (goal != -1 && inTransition == 0 && unknownDC == -1)
+    if (goal != -1 && inTransition == 0 && nextGesture == -1)
     {
         inTransition = 1;
-        unknownD8 = 0;
+        transitionStep = 0;
         const int32_t index = (goal + currentStateGesture * 9) * TRANSITION_ROW;
-        unknownDC = transitionArray[index];
+        nextGesture = transitionArray[index];
 
         if (tree->transitionArray != nullptr)
         {
-            unknownDC = tree->transitionArray[index];
+            nextGesture = tree->transitionArray[index];
         }
 
-        if (unknownDC == -1)
+        if (nextGesture == -1)
         {
             gestureGoal = -1;
             inTransition = 0;
         }
 
         goal = gestureGoal;
-        unknown13C = 0;
+        gestureDone = 0;
 
         if (goal > 6)
         {
-            unknown13C = 1;
+            gestureDone = 1;
         }
     }
 
-    if (inTransition != 0 && unknown13C != 0)
+    if (inTransition != 0 && gestureDone != 0)
     {
         // The last gesture played out: on to the next one.
         const int32_t prevGesture = currentGesture;
-        currentGesture = unknownDC;
-        unknownD8++;
-        const int32_t index = unknownD8 + (goal + currentStateGesture * 9) * TRANSITION_ROW;
-        unknownDC = transitionArray[index];
+        currentGesture = nextGesture;
+        transitionStep++;
+        const int32_t index = transitionStep + (goal + currentStateGesture * 9) * TRANSITION_ROW;
+        nextGesture = transitionArray[index];
 
         if (tree->transitionArray != nullptr)
         {
-            unknownDC = tree->transitionArray[index];
+            nextGesture = tree->transitionArray[index];
         }
 
         int32_t startFrame = 0;
         bool checkReverse = true;
 
-        if (unknownDC == -1)
+        if (nextGesture == -1)
         {
             // Arrived.
             currentStateGesture = goal;
@@ -1117,7 +1102,7 @@ auto MechActor::update() -> int32_t
                 }
             }
 
-            if (unknownDC == -1)
+            if (nextGesture == -1)
             {
                 // A gesture with a negative frame rate plays backwards.
                 checkReverse = false;
@@ -1125,12 +1110,12 @@ auto MechActor::update() -> int32_t
                 if (tree->gestures[currentGesture].frameRate < 0.0)
                 {
                     startFrame = static_cast<int32_t>(tree->gestures[currentGesture].numFrames) - 1;
-                    unknown140 = 1;
+                    playBackwards = 1;
                 }
                 else
                 {
                     startFrame = 0;
-                    unknown140 = 0;
+                    playBackwards = 0;
                 }
             }
         }
@@ -1140,26 +1125,26 @@ auto MechActor::update() -> int32_t
             // The gesture plays backwards when the next one is its reverse result.
             const GestureData& data = tree->gestures[currentGesture];
 
-            if (static_cast<uint32_t>(data.reverseResult) == static_cast<uint32_t>(unknownDC))
+            if (static_cast<uint32_t>(data.reverseResult) == static_cast<uint32_t>(nextGesture))
             {
                 startFrame = static_cast<int32_t>(data.numFrames) - 1;
-                unknown140 = 1;
+                playBackwards = 1;
             }
             else
             {
                 startFrame = 0;
-                unknown140 = 0;
+                playBackwards = 0;
             }
         }
 
-        unknownC4 = 0;
-        unknownE8 = nullptr;
+        strideGesture = 0;
+        frameHeights = nullptr;
         uint32_t gesture = static_cast<uint32_t>(currentGesture);
 
-        if (unknown18C != 0 && gesture != 0x17 && gesture != 0x18)
+        if (wrecked != 0 && gesture != 0x17 && gesture != 0x18)
         {
             inTransition = 0;
-            unknown13C = 0;
+            gestureDone = 0;
             gestureGoal = -1;
             currentGesture = static_cast<int32_t>((gesture & 1) + 0x17);
         }
@@ -1170,7 +1155,7 @@ auto MechActor::update() -> int32_t
         {
             if (frame != 0xffffffff)
             {
-                unknown16C = 1;
+                fallStartPending = 1;
                 fallStartFrame = static_cast<int32_t>(frame);
             }
         };
@@ -1189,22 +1174,22 @@ auto MechActor::update() -> int32_t
             case 1:
             case 2:
             {
-                unknown174 = 0;
-                unknown178 = 0;
+                bodyTurnLocked = 0;
+                upperBodyLocked = 0;
 
-                if (unknown168 != 0)
+                if (standTurnPending != 0)
                 {
                     turnAround(mech);
-                    unknown168 = 0;
+                    standTurnPending = 0;
                     clearRotations(mech);
                 }
                 break;
             }
             case 4:
             {
-                unknownC4 = 1;
-                unknown174 = 0;
-                unknown178 = 0;
+                strideGesture = 1;
+                bodyTurnLocked = 0;
+                upperBodyLocked = 0;
 
                 if (prevGesture == 3 && info.s_w_to_walk_frame != 0xffffffff)
                 {
@@ -1214,9 +1199,9 @@ auto MechActor::update() -> int32_t
             }
             case 7:
             {
-                unknownC4 = 1;
-                unknown174 = 0;
-                unknown178 = 0;
+                strideGesture = 1;
+                bodyTurnLocked = 0;
+                upperBodyLocked = 0;
 
                 if (info.specialDuaneFlag != 0 && prevGesture == 6)
                 {
@@ -1226,8 +1211,8 @@ auto MechActor::update() -> int32_t
             }
             case 9:
             {
-                unknown174 = 0;
-                unknown178 = 0;
+                bodyTurnLocked = 0;
+                upperBodyLocked = 0;
 
                 if (info.walk_to_w_s_frame != 0xffffffff)
                 {
@@ -1237,9 +1222,9 @@ auto MechActor::update() -> int32_t
             }
             case 11:
             {
-                unknownC4 = 0;
-                unknown174 = 0;
-                unknown178 = 0;
+                strideGesture = 0;
+                bodyTurnLocked = 0;
+                upperBodyLocked = 0;
                 break;
             }
             case 12:
@@ -1247,27 +1232,27 @@ auto MechActor::update() -> int32_t
             case 23:
             case 24:
             {
-                unknown174 = 1;
-                unknown178 = 1;
+                bodyTurnLocked = 1;
+                upperBodyLocked = 1;
                 clearCombat();
                 break;
             }
             case 14:
             case 15:
             {
-                if (unknown16C != 0)
+                if (fallStartPending != 0)
                 {
                     startFrame = fallStartFrame;
                 }
 
                 if (info.reallyStupidJamieReverseFlag != 0)
                 {
-                    unknown164 = 1;
+                    fallTurnPending = 1;
                 }
 
-                unknown16C = 0;
-                unknown174 = 1;
-                unknown178 = 1;
+                fallStartPending = 0;
+                bodyTurnLocked = 1;
+                upperBodyLocked = 1;
                 clearRotations(mech);
                 clearCombat();
                 break;
@@ -1279,12 +1264,12 @@ auto MechActor::update() -> int32_t
 
                 if (info.reallyStupidJamieReverseFlag != 0)
                 {
-                    unknown168 = 1;
+                    standTurnPending = 1;
                 }
 
                 clearRotations(mech);
-                unknown174 = 1;
-                unknown178 = 1;
+                bodyTurnLocked = 1;
+                upperBodyLocked = 1;
                 clearCombat();
                 break;
             }
@@ -1295,12 +1280,12 @@ auto MechActor::update() -> int32_t
 
                 if (info.reallyStupidJamieReverseFlag != 0)
                 {
-                    unknown164 = 1;
+                    fallTurnPending = 1;
                 }
 
                 clearRotations(mech);
-                unknown174 = 1;
-                unknown178 = 1;
+                bodyTurnLocked = 1;
+                upperBodyLocked = 1;
                 clearCombat();
                 break;
             }
@@ -1314,31 +1299,30 @@ auto MechActor::update() -> int32_t
                     mech->getPilot()->curTacOrder.stage = 2;
                 }
 
-                // Head for the goal: the distance, and the direction in unknown100.
+                // Head for the goal: the distance, and the direction in jumpDirection.
                 const vector_3d position = mech->getPosition();
-                unknown100.x = jumpGoal.x - position.x;
-                unknown100.y = jumpGoal.y - position.y;
-                unknown100.z = jumpGoal.z - position.z;
-                const double length = std::sqrt((static_cast<double>(unknown100.x) * unknown100.x +
-                                                 static_cast<double>(unknown100.y) * unknown100.y) +
-                                                static_cast<double>(unknown100.z) * unknown100.z);
-                unknown110 = static_cast<float>(length);
+                jumpDirection.x = jumpGoal.x - position.x;
+                jumpDirection.y = jumpGoal.y - position.y;
+                jumpDirection.z = jumpGoal.z - position.z;
+                const double length = std::sqrt((static_cast<double>(jumpDirection.x) * jumpDirection.x +
+                                                 static_cast<double>(jumpDirection.y) * jumpDirection.y) +
+                                                static_cast<double>(jumpDirection.z) * jumpDirection.z);
+                const float pathLength = static_cast<float>(length);
 
                 if (length < 0.0 || length > 0.0)
                 {
-                    unknown100.x = static_cast<float>(unknown100.x / length);
-                    unknown100.y = static_cast<float>(unknown100.y / length);
-                    unknown100.z = static_cast<float>(unknown100.z / length);
+                    jumpDirection.x = static_cast<float>(jumpDirection.x / length);
+                    jumpDirection.y = static_cast<float>(jumpDirection.y / length);
+                    jumpDirection.z = static_cast<float>(jumpDirection.z / length);
                 }
 
-                const float distance = static_cast<float>(unknown110 * 0.3 + unknown110);
-                unknown110 = distance;
+                const float distance = static_cast<float>(pathLength * 0.3 + pathLength);
 
                 // Find the frames in the air: from the bottom of the crouch to the top of the climb.
                 float* heights = gestureHeights(mech, GESTURE_JUMP);
-                unknownE8 = heights;
-                unknown124 = 0;
-                unknown128 = 0;
+                frameHeights = heights;
+                liftOffFrame = 0;
+                touchDownFrame = 0;
                 const GestureData& jump = tree->gestures[GESTURE_JUMP];
                 bool descended = false;
                 bool climbing = false;
@@ -1356,46 +1340,43 @@ auto MechActor::update() -> int32_t
                     if (change >= 0.0 && !climbing && descended)
                     {
                         climbing = true;
-                        unknown124 = i;
+                        liftOffFrame = i;
                     }
 
                     if (change < 0.0 && climbing)
                     {
-                        unknown128 = i;
+                        touchDownFrame = i;
                         break;
                     }
                 }
 
-                const int32_t airFrames = (unknown128 - unknown124) + 5;
-                unknown11C = 0;
-                unknownE4 = 0;
-                unknown114 = 1;
+                const int32_t airFrames = (touchDownFrame - liftOffFrame) + 5;
                 const double speed =
                     (distance / (static_cast<double>(airFrames) / jump.frameRate)) * metersPerWorldUnit;
                 jumpSpeed = static_cast<float>(speed);
                 jumpParameter = static_cast<float>(distance / speed);
                 mech->createJumpFX();
-                unknown174 = 0;
-                unknown178 = 0;
+                bodyTurnLocked = 0;
+                upperBodyLocked = 0;
                 break;
             }
 
             case GESTURE_FALL:
             {
-                unknown164 = 1;
-                unknownE8 = gestureHeights(mech, GESTURE_FALL);
-                unknown174 = 1;
-                unknown178 = 1;
+                fallTurnPending = 1;
+                frameHeights = gestureHeights(mech, GESTURE_FALL);
+                bodyTurnLocked = 1;
+                upperBodyLocked = 1;
 
                 if (info.OtherJamieReverseFlag != 0 || info.reallyStupidJamieReverseFlag != 0)
                 {
-                    unknown164 = 0;
+                    fallTurnPending = 0;
                 }
 
-                if (unknown164 != 0 && info.stupidJamieReverseFlag != 0)
+                if (fallTurnPending != 0 && info.stupidJamieReverseFlag != 0)
                 {
                     turnAround(mech);
-                    unknown164 = 0;
+                    fallTurnPending = 0;
                     clearRotations(mech);
                 }
 
@@ -1405,20 +1386,20 @@ auto MechActor::update() -> int32_t
 
             case 22:
             {
-                if (unknown164 != 0 && info.stupidJamieReverseFlag == 0)
+                if (fallTurnPending != 0 && info.stupidJamieReverseFlag == 0)
                 {
                     turnAround(mech);
-                    unknown164 = 0;
+                    fallTurnPending = 0;
                     clearRotations(mech);
                 }
 
-                unknown174 = 1;
-                unknown178 = 1;
+                bodyTurnLocked = 1;
+                upperBodyLocked = 1;
                 clearCombat();
 
                 if (tree->specialInfo->reallyStupidJamieReverseFlag != 0)
                 {
-                    unknown168 = 1;
+                    standTurnPending = 1;
                 }
                 break;
             }
@@ -1428,15 +1409,15 @@ auto MechActor::update() -> int32_t
             case 8:
             case 10:
             {
-                unknown174 = 0;
-                unknown178 = 0;
+                bodyTurnLocked = 0;
+                upperBodyLocked = 0;
                 break;
             }
             default:
                 break;
         }
 
-        unknown13C = 0;
+        gestureDone = 0;
 
         for (int32_t i = 0; i < NUM_MECH_PARTS; i++)
         {
@@ -1475,13 +1456,13 @@ auto MechActor::update() -> int32_t
     tree->setGesture(upperGesture, MECH_PART_TORSO, facing + torso, facing, reverse[MECH_PART_TORSO],
                      frameRate[MECH_PART_TORSO]);
 
-    if (unknown130 == 0)
+    if (leftArmGone == 0)
     {
         tree->setGesture(upperGesture, 3, rotation3, facing, reverse[MECH_PART_LEFT_ARM],
                          frameRate[MECH_PART_LEFT_ARM]);
     }
 
-    if (unknown12C == 0)
+    if (rightArmGone == 0)
     {
         tree->setGesture(upperGesture, 2, rotation2, facing, reverse[MECH_PART_RIGHT_ARM],
                          frameRate[MECH_PART_RIGHT_ARM]);
@@ -1491,22 +1472,20 @@ auto MechActor::update() -> int32_t
 
     if (gesture == GESTURE_JUMP)
     {
-        if (unknown124 <= currentFrame[MECH_PART_LEGS])
+        if (liftOffFrame <= currentFrame[MECH_PART_LEGS])
         {
-            unknownE0 = jumpSpeed;
-            unknownE4 = unknown11C;
-            unknown120 = 1;
+            jumpVelocity = jumpSpeed;
+            airborne = 1;
         }
 
-        if (unknown128 <= currentFrame[MECH_PART_LEGS] && unknown120 != 0)
+        if (touchDownFrame <= currentFrame[MECH_PART_LEGS] && airborne != 0)
         {
-            unknownE0 = 0.0f;
-            unknownE4 = 0;
-            unknown120 = 0;
+            jumpVelocity = 0.0f;
+            airborne = 0;
         }
     }
 
-    unknown160 = 0;
+    lyingStill = 0;
 
     if (currentFrame[MECH_PART_LEGS] == -1)
     {
@@ -1529,7 +1508,7 @@ auto MechActor::update() -> int32_t
             currentFrame[i] = last;
         }
 
-        unknown160 = 1;
+        lyingStill = 1;
     }
     else
     {
@@ -1611,31 +1590,31 @@ auto MechActor::update() -> int32_t
                 }
             }
 
-            if (step == 0 || (currentGesture == GESTURE_JUMP && unknown114 == 0))
+            if (step == 0)
             {
                 continue;
             }
 
-            const int32_t delta = unknown140 != 0 ? -step : step;
+            const int32_t delta = playBackwards != 0 ? -step : step;
             currentFrame[part] += delta;
             const uint32_t numFrames = tree->gestures[currentGesture].numFrames;
 
             if (static_cast<int32_t>(numFrames) <= currentFrame[part])
             {
-                if (inTransition == 0 && unknown14C == 0 && unknown150 == 0)
+                if (inTransition == 0)
                 {
                     // Loop.
                     currentFrame[part] = static_cast<int32_t>(static_cast<uint32_t>(currentFrame[part]) % numFrames);
 
                     if (currentGesture == GESTURE_JUMP)
                     {
-                        unknown13C = 0;
+                        gestureDone = 0;
                     }
                 }
                 else
                 {
                     // Played out: the transition goes on.
-                    unknown13C = 1;
+                    gestureDone = 1;
                     currentFrame[part] = static_cast<int32_t>(numFrames) - 1;
 
                     if (currentGesture == GESTURE_JUMP)
@@ -1659,19 +1638,19 @@ auto MechActor::update() -> int32_t
                 const MechSpecialInfo& info = *tree->specialInfo;
                 const int32_t frame = currentFrame[part];
 
-                if (currentGesture == 4 && unknownDC == 6)
+                if (currentGesture == 4 && nextGesture == 6)
                 {
-                    unknown13C = static_cast<int32_t>(info.walk_to_w_r_frame) <= frame ? 1 : 0;
+                    gestureDone = static_cast<int32_t>(info.walk_to_w_r_frame) <= frame ? 1 : 0;
                 }
 
-                if (currentGesture == 4 && unknownDC == 5 && info.walk_to_w_s_frame != 0xffffffff)
+                if (currentGesture == 4 && nextGesture == 5 && info.walk_to_w_s_frame != 0xffffffff)
                 {
-                    unknown13C = static_cast<int32_t>(info.walk_to_w_s_frame) <= frame ? 1 : 0;
+                    gestureDone = static_cast<int32_t>(info.walk_to_w_s_frame) <= frame ? 1 : 0;
                 }
 
-                if (unknownDC == 8 && currentGesture == 7)
+                if (nextGesture == 8 && currentGesture == 7)
                 {
-                    unknown13C = static_cast<int32_t>(info.run_to_r_w_frame) <= frame ? 1 : 0;
+                    gestureDone = static_cast<int32_t>(info.run_to_r_w_frame) <= frame ? 1 : 0;
                 }
             }
 
@@ -1687,7 +1666,7 @@ auto MechActor::update() -> int32_t
                 }
                 else
                 {
-                    unknown13C = 1;
+                    gestureDone = 1;
                     currentFrame[part] = 0;
                 }
             }
@@ -1787,7 +1766,6 @@ auto MechActor::drawBars() -> void
     PolyElementData data;
     data.numVertices = 0;
     data.textureMapOff = 0;
-    data.unknown98 = 0;
     data.texture = nullptr;
     data.textureWidth = 0;
     data.textureHeight = 0;

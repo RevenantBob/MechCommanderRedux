@@ -332,7 +332,6 @@ auto Terrain::init() -> void
     windows = nullptr;
     numWindows = 0;
     objectClass = static_cast<ObjectClass>(1);
-    unknown20 = 0;
 }
 
 auto Terrain::init(char* fileName) -> int32_t
@@ -600,7 +599,6 @@ auto Terrain::init(char* fileName) -> int32_t
     const float sinAngle = static_cast<float>(std::sin(VIEW_ANGLE));
     prevPosition.y = 0.0f;
     prevPosition.x = 0.0f;
-    unknown2C = 0;
     const float cosAngle = static_cast<float>(std::cos(VIEW_ANGLE));
     projectionSin = sinAngle;
     projectionCos = cosAngle;
@@ -649,7 +647,6 @@ auto Terrain::destroy() -> void
     if (vertexManager != nullptr)
     {
         vertexManager->storage = {};
-        vertexManager->unknown1C = 0;
         vertexManager->vertexLists = {};
         delete vertexManager;
     }
@@ -659,7 +656,6 @@ auto Terrain::destroy() -> void
     if (terrainTileManager != nullptr)
     {
         terrainTileManager->storage = {};
-        terrainTileManager->unknown1C = 0;
         terrainTileManager->blockLists = {};
         delete terrainTileManager;
     }

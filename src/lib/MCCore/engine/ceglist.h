@@ -26,10 +26,6 @@ public:
 
     /// <summary>The number of elements in the group.</summary>
     int32_t numElements = 0; // +0x00
-    int32_t unknown04 = 0;   // +0x04 (never accessed)
-    int32_t unknown08 = 0;   // +0x08 (never accessed)
-    int32_t unknown0C = 0;   // +0x0c (never accessed)
-    int32_t unknown10 = 0;   // +0x10 (never accessed)
     /// <summary>The smallest element depth.</summary>
     float minDepth = 0.0f; // +0x14
     /// <summary>The largest element depth.</summary>

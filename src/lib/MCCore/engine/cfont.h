@@ -23,7 +23,5 @@ public:
     /// <summary>Where the string goes.</summary>
     vector_2d position; // +0x10
     /// <summary>The string (not copied: it must live until the frame is drawn).</summary>
-    char* text;        // +0x18
-    int32_t unknown1C; // +0x1c (never accessed)
-    int32_t unknown20; // +0x20 (never accessed)
+    char* text; // +0x18
 };

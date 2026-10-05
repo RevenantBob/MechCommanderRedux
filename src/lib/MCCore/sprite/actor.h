@@ -160,10 +160,6 @@ public:
     Shape* currentShape = nullptr; // +0x3c
     /// <summary>The frame drawn (-1: not started).</summary>
     int32_t currentFrame = -1; // +0x40
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown44 = 0; // +0x44
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown48 = 0; // +0x48
     /// <summary>Seconds into the current state.</summary>
     float currentTime = 0.0f; // +0x4c
     /// <summary>Frames advanced by the last update.</summary>

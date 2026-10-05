@@ -10,7 +10,8 @@ struct SpriteGestureHeader
     int16_t gestureNum; // +0x00
     /// <summary>The number of frames (must equal the shape table's count).</summary>
     uint16_t numFrames; // +0x02
-    uint16_t unknown04; // +0x04 (never read)
+    /// <summary>Zero in every retail gesture packet; never read.</summary>
+    uint16_t padding; // +0x04 // Fixed layout: sprite gesture packet
 };
 #pragma pack(pop)
 static_assert(sizeof(SpriteGestureHeader) == 6);

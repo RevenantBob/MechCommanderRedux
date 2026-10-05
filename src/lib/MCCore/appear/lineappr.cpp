@@ -135,7 +135,6 @@ auto LineAppearanceType::destroy() -> void
 auto LineAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
 {
     owner = obj;
-    unknown04 = 0x70000000;
     visible = 0;
     appearType = static_cast<LineAppearanceType*>(tree);
     currentState = LINE_STATE_0;

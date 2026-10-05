@@ -271,7 +271,6 @@ auto PUAppearanceType::destroy() -> void
 
 auto PUAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
 {
-    unknown04 = 0x70000000;
     visible = 0;
     owner = obj;
     appearType = static_cast<PUAppearanceType*>(tree);
@@ -284,9 +283,7 @@ auto PUAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
     currentShape = nullptr;
     shapeMinY = -25.0f;
     shapeMinX = -25.0f;
-    unknown44 = 0;
     visible = 0;
-    unknown48 = 0;
     currentTime = 0.0f;
     lastFrame = 0;
     currentState = PU_ACTOR_STATE_CLOSED;
@@ -714,7 +711,6 @@ auto PUAppearance::drawBars() -> void
     PolyElementData data;
     data.numVertices = 0;
     data.textureMapOff = 0;
-    data.unknown98 = 0;
     data.texture = nullptr;
     data.textureWidth = 0;
     data.textureHeight = 0;

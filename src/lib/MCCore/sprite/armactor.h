@@ -107,12 +107,8 @@ public:
     Shape* currentShape = nullptr; // +0x40
     /// <summary>The frame drawn (-1: not started).</summary>
     int32_t currentFrame = -1; // +0x44
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown48 = 0; // +0x48
     /// <summary>Nonzero when the shape is drawn mirrored.</summary>
     int reverse = 0; // +0x4c
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown50 = 0; // +0x50
     /// <summary>Seconds into the animation.</summary>
     float currentTime = 0.0f; // +0x54
     /// <summary>The state's frame rate.</summary>

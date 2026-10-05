@@ -12,8 +12,8 @@ class GameObject;
 /// camera and <see cref="render"/>, which adds draw elements to the global <c>ElementList</c>.
 /// </summary>
 /// <remarks>
-/// Original source: <c>appear\appear.h</c> (inline virtuals) and <c>appear\appear.cpp</c>, 0x38 bytes. The constructor was inlined at every <c>new</c> site: it sets
-/// <see cref="unknown04"/> to 0x70000000 and clears the rest.
+/// Original source: <c>appear\appear.h</c> (inline virtuals) and <c>appear\appear.cpp</c>, 0x38 bytes. The constructor was inlined at every <c>new</c> site: it clears
+/// the fields (it also set a never-read field at +0x04 to 0x70000000).
 /// </remarks>
 class Appearance
 {
@@ -28,7 +28,6 @@ public:
     /// <remarks>MCX.EXE @ 0x00651220; slot 0</remarks>
     virtual int32_t init(AppearanceType* tree = nullptr, GameObject* obj = nullptr)
     {
-        unknown04 = 0x70000000;
         owner = obj;
         visible = 0;
         return 0;
@@ -102,10 +101,6 @@ public:
     /// <remarks>MCX.EXE @ 0x006abd10</remarks>
     void drawSelectBrackets(uint8_t color);
 
-    /// <summary>
-    /// Set to 0x70000000 by the constructor and <see cref="init"/>; never read in MCX.EXE.
-    /// </summary>
-    int32_t unknown04 = 0x70000000; // +0x04
     /// <summary>Nonzero when the object is to be drawn this frame (set by the object's update).</summary>
     int32_t visible = 0; // +0x08
     /// <summary>Set by <c>recalcBounds</c> once the current shape's bounds are known.</summary>

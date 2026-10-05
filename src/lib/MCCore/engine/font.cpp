@@ -21,7 +21,6 @@ auto Font::init(char* fontName) -> int32_t
     curX = 0;
     color = 0xf;
     scale = 2.0f;
-    unknown14 = 0;
     scaled = 1;
     fontData.reset();
 

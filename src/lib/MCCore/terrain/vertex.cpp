@@ -794,7 +794,7 @@ auto MapBlockManager::generateRandomBlock(PrecompVertex* block) -> void
     for (int32_t i = 0; i < count; i++)
     {
         block[i].elevation = static_cast<uint8_t>(GameMap->baseElevation);
-        block[i].unknown01 = 0;
+        block[i].tileGroup = 0;
         block[i].textureData = 0x29;
         block[i].overlayData = 0x29;
     }

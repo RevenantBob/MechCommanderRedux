@@ -15,7 +15,6 @@ struct PolyElementData
     {
         numVertices = 0;
         textureMapOff = 0;
-        unknown98 = 0;
         statusBar = 0;
         texture = nullptr;
         textureWidth = 0;
@@ -33,8 +32,6 @@ struct PolyElementData
     SCRNVERTEX vertices[6]; // +0x04
     /// <summary>When nonzero a textured polygon isn't drawn.</summary>
     int32_t textureMapOff; // +0x94
-    /// <summary>Cleared by <see cref="init"/>; never read in MCX.EXE.</summary>
-    int32_t unknown98; // +0x98
     /// <summary>When set (with a fade table) a textured polygon is drawn translated instead.</summary>
     int32_t translate; // +0x9c
     /// <summary>When set the element draws a status bar from vertex 0 to vertex 1 instead.</summary>

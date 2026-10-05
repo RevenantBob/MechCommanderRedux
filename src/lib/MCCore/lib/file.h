@@ -246,8 +246,6 @@ protected:
     uint32_t length = 0; // +0x18
     /// <summary>The read/write position.</summary>
     uint32_t logicalPosition = 0; // +0x1c
-    /// <summary>Unused in MCX.EXE (always 0).</summary>
-    int32_t unknown20 = 0; // +0x20
     /// <summary>The open child files (slots, null when free).</summary>
     File** childList = nullptr; // +0x24
     /// <summary>Number of children open.</summary>

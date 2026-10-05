@@ -136,8 +136,6 @@ public:
     Shape* currentShape[2] = {}; // +0x3c
     /// <summary>The body's and the turret's frames (-1: not started).</summary>
     int32_t currentFrame[2] = {-1, -1}; // +0x44
-    /// <summary>Cleared by init per part; never otherwise used.</summary>
-    int32_t unknown4C[2] = {}; // +0x4c
     /// <summary>
     /// The parts render draws, in order: set to {0, 1} there and walked as its loop index (a local array the
     /// compiler kept in the object).
@@ -147,8 +145,6 @@ public:
     int32_t numParts = 0; // +0x5c
     /// <summary>The type's turret offset.</summary>
     float turretOffset = 0.0f; // +0x60
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown64 = 0; // +0x64
     /// <summary>Seconds into the animation.</summary>
     float currentTime = 0.0f; // +0x68
     /// <summary>The frame rate (15 after init).</summary>

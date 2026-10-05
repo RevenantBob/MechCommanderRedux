@@ -233,8 +233,6 @@ protected:
     void removeQueuedMessage(int32_t index);
 
 public:
-    /// <summary>Not accessed.</summary>
-    int32_t unknown00[4] = {}; // +0x00
     /// <summary>Set once init(fileName) has run; cleared by destroy.</summary>
     int32_t soundOn = 0; // +0x10
     /// <summary>"sampleRate" (22050).</summary>
@@ -267,12 +265,8 @@ public:
     PacketFile* bettyDataFile = nullptr; // +0x200
     /// <summary>The CD audio device (MCI).</summary>
     uint32_t cdDevice = 0; // +0x204
-    /// <summary>Per music stream; cleared when the stream is purged.</summary>
-    int32_t streamUnknown208[2] = {}; // +0x208
     /// <summary>Set while each music stream plays.</summary>
     int32_t streamPlaying[2] = {}; // +0x210
-    /// <summary>Zeroed by init; not otherwise accessed.</summary>
-    int32_t unknown218[2] = {}; // +0x218
     /// <summary>Each music stream's file.</summary>
     File* streamFile[2] = {}; // +0x220
     /// <summary>"DMS%d": each music's file name.</summary>
@@ -283,8 +277,6 @@ public:
     int32_t numDMS = 0; // +0x230
     /// <summary>"DigitalStreamBufferSize".</summary>
     uint32_t digitalStreamBufferSize = 0; // +0x234
-    /// <summary>Zeroed by init; not otherwise accessed.</summary>
-    int32_t unknown238[4] = {}; // +0x238
     /// <summary>"StreamBitDepth" (8).</summary>
     uint32_t streamBitDepth = 8; // +0x248
     /// <summary>"StreamChannels" (2).</summary>

@@ -9,7 +9,6 @@ struct SpriteTreeInfo
 {
     /// <summary>FIT "NumGestures".</summary>
     uint8_t numGestures; // +0x00
-    uint8_t unknown01;   // +0x01 (never read)
     /// <summary>FIT "NumParts": legs, torso, arms.</summary>
     uint8_t numParts; // +0x02
 };

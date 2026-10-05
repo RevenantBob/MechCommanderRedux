@@ -615,7 +615,6 @@ auto MiscTerrainObject::drawBars(vector_2d screenPos) -> void
     ElementList->openGroup(-50000, 1);
     data.numVertices = 0;
     data.textureMapOff = 0;
-    data.unknown98 = 0;
     data.texture = nullptr;
     data.textureWidth = 0;
     data.textureHeight = 0;

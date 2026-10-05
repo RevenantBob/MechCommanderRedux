@@ -128,8 +128,6 @@ public:
     uint32_t fileSize = 0; // +0x10
     /// <summary>The data chunk's size.</summary>
     uint32_t waveSize = 0; // +0x14
-    /// <summary>Not accessed.</summary>
-    int32_t unknown18 = 0; // +0x18
     /// <summary>The flags given at creation; not read.</summary>
     uint32_t flags = 0; // +0x1c
     /// <summary>The format: in the image, or (a stream) a malloc'd copy.</summary>
@@ -140,10 +138,6 @@ public:
     int32_t dataStart = 0; // +0x28
     /// <summary>A stream's length in ms.</summary>
     uint32_t durationMs = 0; // +0x2c
-    /// <summary>Zeroed by the constructor; not read.</summary>
-    int32_t unknown30 = 0; // +0x30
-    /// <summary>Zeroed by the constructor; not read.</summary>
-    int32_t unknown34 = 0; // +0x34
     /// <summary>A stream's data size, rounded down to whole sample frames.</summary>
     uint32_t dataSize = 0; // +0x38
     /// <summary>Zeroed by the constructor and Rewind; not read.</summary>

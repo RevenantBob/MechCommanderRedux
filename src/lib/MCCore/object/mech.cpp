@@ -1292,7 +1292,7 @@ auto BattleMech::init(ObjectType* objType) -> int32_t
         return -0x5ffff;
     }
 
-    actor->unknown38 = this;
+    actor->ownerMech = this;
 
     if ((apprType->appearanceNum & 0xff000000) != 0x1000000)
     {
@@ -2319,7 +2319,7 @@ auto BattleMech::updateJump() -> int
         pilotingCheck(1, 0.0f);
     }
 
-    if (actor->unknown120 == 0)
+    if (actor->airborne == 0)
     {
         if (MPlayer == nullptr || MPlayer->isServer != 0)
         {
@@ -3542,10 +3542,10 @@ auto BattleMech::getJumpPosition(int32_t jet) -> vector_3d
     snappedFacing(facing, s, c);
     vector_3d base = position;
 
-    if (actor->unknownE8 != nullptr)
+    if (actor->frameHeights != nullptr)
     {
         // Lifted along the mech's up axis by the jump's height this frame.
-        const float height = actor->unknownE8[frameNumber] * 30.0f;
+        const float height = actor->frameHeights[frameNumber] * 30.0f;
         base.x = frame.k.x * height + base.x;
         base.y = base.y + frame.k.y * height;
         base.z = base.z + height * frame.k.z;
@@ -4183,7 +4183,7 @@ auto BattleMech::update() -> int32_t
         }
 
         // Once the death animation is done, it blows up and leaves a crater.
-        if (unknown8EC != 0 || (unknown8EC = actor->unknown160) != 0)
+        if (unknown8EC != 0 || (unknown8EC = actor->lyingStill) != 0)
         {
             unknown794 -= frameLength;
 
@@ -4197,7 +4197,7 @@ auto BattleMech::update() -> int32_t
 
             if (unknown794 < 0.0 && unknown8F0 == 0)
             {
-                actor->unknown18C = 1;
+                actor->wrecked = 1;
                 craterManager->addCrater(6, position, 0);
                 theInterface->RemoveMech(partId);
                 unknown8F0 = 1;
@@ -4277,14 +4277,14 @@ auto BattleMech::update() -> int32_t
             // Jumping: the actor's jump velocity.
             float jumpSpeed = 0.0f;
 
-            if (actor->unknown120 != 0)
+            if (actor->airborne != 0)
             {
                 jumpSpeed = actor->getVelocityMagnitude();
             }
 
-            velocity.x = jumpSpeed * actor->unknown100.x;
-            velocity.y = jumpSpeed * actor->unknown100.y;
-            velocity.z = jumpSpeed * actor->unknown100.z;
+            velocity.x = jumpSpeed * actor->jumpDirection.x;
+            velocity.y = jumpSpeed * actor->jumpDirection.y;
+            velocity.z = jumpSpeed * actor->jumpDirection.z;
         }
         else
         {
@@ -4372,7 +4372,7 @@ auto BattleMech::update() -> int32_t
                 throwArm(this, mechType->rightArmDebrisId, 0.0f);
             }
 
-            actor->unknown12C = 1;
+            actor->rightArmGone = 1;
         }
 
         if (controlData->unknown14 != 0)
@@ -4386,7 +4386,7 @@ auto BattleMech::update() -> int32_t
                 throwArm(this, mechType->leftArmDebrisId, -180.0f);
             }
 
-            actor->unknown130 = 1;
+            actor->leftArmGone = 1;
         }
 
         const int visibleNow = onScreen();

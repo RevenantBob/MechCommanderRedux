@@ -20,8 +20,6 @@ struct _srdata
     /// <summary>The primary buffer, set to 22050 Hz 16-bit stereo and kept playing. The port's mixer needs none.
     /// </summary>
     std::shared_ptr<MCSoundBuffer> primaryBuffer; // +0x88
-    /// <summary>Not accessed.</summary>
-    int32_t unknown8C = 0; // +0x8c
 };
 
 /// <summary>The sound renderer.</summary>

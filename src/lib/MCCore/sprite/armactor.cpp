@@ -229,7 +229,6 @@ auto ArmAppearanceType::destroy() -> void
 
 auto ArmAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
 {
-    unknown04 = 0x70000000;
     visible = 0;
     owner = obj;
     appearType = static_cast<ArmAppearanceType*>(tree);
@@ -242,11 +241,9 @@ auto ArmAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
     currentShape = nullptr;
     currentFrame = -1;
     fadeTableIndex = -1;
-    unknown48 = 0;
     shapeMinY = -15.0f;
     shapeMinX = -15.0f;
     visible = 0;
-    unknown50 = 0;
     currentTime = 0.0f;
     lastFrame = 0;
     reverse = 0;

@@ -29,7 +29,7 @@ public:
 
     /// <summary>Closes the sprite PAKs and frees every block still allocated.</summary>
     /// <remarks>
-    /// MCX.EXE @ 0x00643190 (FUN_00643190, called from Scenario's teardown; no symbol, the name is the port's).
+    /// MCX.EXE @ 0x00643190 (called from Scenario's teardown; no symbol, the name is the port's).
     /// </remarks>
     void destroy();
 
@@ -87,7 +87,7 @@ public:
     int32_t getShapeSize(uint32_t appearanceNum, uint32_t packetNum);
 
     /// <summary>The number of packets in appearance <paramref name="appearanceNum"/>'s PAK (opening it).</summary>
-    /// <remarks>MCX.EXE @ 0x00643f80 (FUN_00643f80: no symbol; the name is the port's).</remarks>
+    /// <remarks>MCX.EXE @ 0x00643f80 (no symbol; the name is the port's).</remarks>
     int32_t getNumShapes(uint32_t appearanceNum);
 
     /// <summary>

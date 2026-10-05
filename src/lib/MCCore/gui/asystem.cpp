@@ -3557,7 +3557,6 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
     lineFont->curX = 0;
     lineFont->color = 0xf;
     lineFont->scale = 2.0f;
-    lineFont->unknown14 = 0;
     lineFont->scaled = -1;
     lineFont->fontData.reset();
 

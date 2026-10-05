@@ -27,8 +27,6 @@ public:
 
     /// <summary>The sort key: elements draw from low to high.</summary>
     float depth; // +0x04
-    /// <summary>Set to 1 by the constructors; never read in MCX.EXE.</summary>
-    int32_t unknown08; // +0x08
 };
 
 /// <summary>The elements of the frame, made by <see cref="Make"/> and all freed by <see cref="reset"/>.</summary>

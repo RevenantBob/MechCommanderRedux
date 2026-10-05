@@ -53,7 +53,6 @@ auto BitFlag::resetAll(uint32_t value) -> void
 auto BitFlag::destroy() -> void
 {
     flagData = {};
-    unknown04 = 0;
     columns = 0;
     rows = 0;
     maskValue = 0;

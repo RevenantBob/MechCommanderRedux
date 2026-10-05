@@ -110,14 +110,14 @@ auto MechDynamics::update() -> int32_t
     float leftArmTurn = static_cast<float>(static_cast<double>(controlData->leftArmRotate) * CONTROL_STEP *
                                            dynType->maxLeftArmYawRate * frameLength);
 
-    int32_t jumping = 0;
-    int32_t locked = 0;
+    int32_t bodyLocked = 0;
+    int32_t upperLocked = 0;
     auto* actor = static_cast<MechActor*>(mech->getAppearance());
 
     if (actor != nullptr)
     {
-        jumping = actor->unknown174;
-        locked = actor->unknown178;
+        bodyLocked = actor->bodyTurnLocked;
+        upperLocked = actor->upperBodyLocked;
         const int32_t gestureGoal = controlData->gestureGoal;
 
         if (gestureGoal != -1)
@@ -127,7 +127,7 @@ auto MechDynamics::update() -> int32_t
     }
 
     // The torso turns up to its limit either way.
-    if (torsoTurn != 0.0f && locked == 0)
+    if (torsoTurn != 0.0f && upperLocked == 0)
     {
         const float limit = static_cast<float>(dynType->maxTorsoYaw);
         const float negLimit = static_cast<float>(-dynType->maxTorsoYaw);
@@ -160,7 +160,7 @@ auto MechDynamics::update() -> int32_t
     }
 
     // The arms stop dead at their limits.
-    if (rightArmTurn != 0.0f && locked == 0)
+    if (rightArmTurn != 0.0f && upperLocked == 0)
     {
         const float limit = static_cast<float>(dynType->maxArmYaw);
         const float negLimit = static_cast<float>(-dynType->maxArmYaw);
@@ -193,7 +193,7 @@ auto MechDynamics::update() -> int32_t
         mech->rightArmRotation = static_cast<float>(current + rightArmTurn);
     }
 
-    if (leftArmTurn != 0.0f && locked == 0)
+    if (leftArmTurn != 0.0f && upperLocked == 0)
     {
         const float negLimit = static_cast<float>(-dynType->maxArmYaw);
         const float limit = static_cast<float>(dynType->maxArmYaw);
@@ -227,7 +227,7 @@ auto MechDynamics::update() -> int32_t
     }
 
     // The body turns about its up axis (the sine is stored as a float, the cosine isn't).
-    if (jumping == 0)
+    if (bodyLocked == 0)
     {
         const frame_of_ref frame = mech->getFrame();
         const double angle = static_cast<double>(bodyTurn) * DEGREES_TO_RADIANS;

@@ -26,7 +26,7 @@ public:
 
     /// <summary>Sets <paramref name="length"/> flags of row <paramref name="r"/> from column <paramref name="c"/>.</summary>
     /// <remarks>
-    /// MCX.EXE @ 0x00644490 (FUN_00644490: no symbol; named after <see cref="ByteFlag::setGroup"/>, its twin).
+    /// MCX.EXE @ 0x00644490 (no symbol; named after <see cref="ByteFlag::setGroup"/>, its twin).
     /// </remarks>
     void setGroup(uint32_t r, uint32_t c, uint32_t length);
 
@@ -36,8 +36,6 @@ public:
 
     /// <summary>The bits (one byte more than <see cref="totalRAM"/>).</summary>
     std::vector<uint8_t> flagData; // +0x00
-    /// <summary>Cleared by destroy; never otherwise used.</summary>
-    uint8_t unknown04; // +0x04
     /// <summary>The number of rows.</summary>
     uint32_t rows; // +0x08
     /// <summary>The number of columns.</summary>

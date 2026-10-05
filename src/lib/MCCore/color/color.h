@@ -267,7 +267,7 @@ protected:
     /// Reads "NumColorRanges" and each "Range%d" block into <see cref="colorRanges"/>.
     /// </summary>
     /// <remarks>
-    /// MCX.EXE @ 0x006b2ee0 (FUN_006b2ee0: a thiscall of Palette without a symbol; the name is the port's).
+    /// MCX.EXE @ 0x006b2ee0 (a Palette method without a symbol; the name is the port's).
     /// </remarks>
     int32_t loadColorRanges(FitIniFile& paletteFile);
 
@@ -343,10 +343,6 @@ public:
     char allFadeTableFile[8] = {}; // +0x68
     /// <summary>The loaded <c>.pal</c> image.</summary>
     std::unique_ptr<uint8_t[]> originalPalette; // +0x70
-    /// <summary>Set to 0 by loadPaletteInfo; never read in MCX.EXE.</summary>
-    int32_t unknown74 = 0; // +0x74
-    /// <summary>Set to <see cref="numBitmapHazeLevels"/> by loadPaletteInfo; never read in MCX.EXE.</summary>
-    int32_t unknown78 = 0; // +0x78
     /// <summary>FIT "NumBitmapHazeLevels": fade tables per haze set.</summary>
     int32_t numBitmapHazeLevels = 0; // +0x7c
     /// <summary>FIT "NumColorRanges".</summary>

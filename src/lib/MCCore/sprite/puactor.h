@@ -66,7 +66,7 @@ public:
     /// The shape of part <paramref name="part"/> in <paramref name="state"/> facing <paramref name="rotation"/>
     /// degrees (the zoomed-out one when scaled); <paramref name="frameRate"/> gets the state's frame rate.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006408b0 (FUN_006408b0: no symbol; named after the other types' getShape).</remarks>
+    /// <remarks>MCX.EXE @ 0x006408b0 (no symbol; named after the other types' getShape).</remarks>
     Shape* getShape(PUActorState state, int32_t rotation, int32_t part, float& frameRate);
 
     /// <summary>The 6 states.</summary>
@@ -105,14 +105,14 @@ public:
     AppearanceType* getAppearanceType() override { return appearType; }
 
     /// <summary>Draws the turret's damage bar.</summary>
-    /// <remarks>MCX.EXE @ 0x00641320 (FUN_00641320, the vtable's drawBars slot); slot 6</remarks>
+    /// <remarks>MCX.EXE @ 0x00641320 (the vtable's drawBars slot); slot 6</remarks>
     void drawBars() override;
 
     /// <remarks>MCX.EXE @ 0x00640ac0; slot 7</remarks>
     int recalcBounds(Camera* cam) override;
 
     /// <summary>Switches to <paramref name="state"/> when the type has it.</summary>
-    /// <remarks>MCX.EXE @ 0x006671e0 (FUN_006671e0, puactor.h: the vtable's slot after getAppearanceClass); slot 13</remarks>
+    /// <remarks>MCX.EXE @ 0x006671e0 (puactor.h: the vtable's slot after getAppearanceClass); slot 13</remarks>
     virtual void setTypeId(PUActorState state)
     {
         if (stateExists(state))
@@ -142,10 +142,6 @@ public:
     Shape* currentShape = nullptr; // +0x3c
     /// <summary>The frame drawn (-1: not started).</summary>
     int32_t currentFrame = -1; // +0x40
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown44 = 0; // +0x44
-    /// <summary>Cleared by init; never otherwise used.</summary>
-    int32_t unknown48 = 0; // +0x48
     /// <summary>Seconds into the animation.</summary>
     float currentTime = 0.0f; // +0x4c
     /// <summary>The frame rate (15 after init).</summary>

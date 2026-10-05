@@ -76,12 +76,7 @@ struct RadioMessageInfo
     int32_t msgId; // +0x10
     /// <summary>"pilot id?" ('y'): the pilot may say who he is first (packet 9 or 10).</summary>
     int32_t pilotIdentifiesSelf; // +0x14
-    /// <summary>Set when the column after "map to" starts with 'x'. radio.csv has no such column, so it is 0.
-    /// </summary>
-    int32_t unknown18; // +0x18
 };
-
-static_assert(sizeof(RadioMessageInfo) == 0x1c);
 
 /// <summary>A radio message on its way to the speakers: its sound fragments, noise and video.</summary>
 /// <remarks>Original source: <c>sound\radio.cpp</c>, <c>sound\soundsys.cpp</c>; 0xac bytes, from the radio heap in
@@ -153,7 +148,7 @@ public:
     static int32_t messageInfoLoaded;
     /// <summary>How many radios are in the list.</summary>
     static int32_t currentRadio;
-    /// <summary>Set once the first radio has cleared the list (DAT_007e3fb0; the name is the port's).</summary>
+    /// <summary>Set once the first radio has cleared the list (the name is the port's).</summary>
     static int32_t radioListInitialized;
 
     /// <summary>The pilot's sound packets.</summary>

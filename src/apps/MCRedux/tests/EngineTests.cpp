@@ -43,7 +43,6 @@ TEST_CASE("elements: the pool makes zeroed elements and frees them all on reset"
         REQUIRE(element != nullptr);
         MCTest::Scope scope(std::format("element {}", i));
         CHECK_EQ(element->Untouched, 0);
-        CHECK_EQ(element->unknown08, 1);
     }
 
     CHECK_EQ(ElementPool::elementCount, 5000);

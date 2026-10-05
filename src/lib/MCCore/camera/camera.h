@@ -27,7 +27,6 @@ enum CameraClass : int32_t
 /// A camera's settings as the scenario hands them to <see cref="Camera::init(CamData*, int)"/>. The field names are
 /// the port's; the FIT keys of <see cref="Camera::init(FitIniFile*, int, int32_t)"/> they stand for are given.
 /// </summary>
-#pragma pack(push, 1)
 struct CamData
 {
     /// <summary>"PixelScalar".</summary>
@@ -44,16 +43,12 @@ struct CamData
     uint32_t windowLeft; // +0x14
     /// <summary>"WindowTop".</summary>
     uint32_t windowTop; // +0x18
-    /// <summary>Not read by Camera::init.</summary>
-    int32_t unknown1C; // +0x1c
     /// <summary>"BackgroundColor".</summary>
     uint8_t backgroundColor; // +0x20
-    uint8_t pad21[3];        // +0x21
     /// <summary>"HazeLevel".</summary>
     int32_t hazeLevel; // +0x24
     /// <summary>"Ready".</summary>
-    uint8_t ready;    // +0x28
-    uint8_t pad29[3]; // +0x29
+    uint8_t ready; // +0x28
     /// <summary>"PositionX", "PositionY", "PositionZ".</summary>
     float position[3]; // +0x2c
     /// <summary>"partNumber" of the target.</summary>
@@ -61,8 +56,6 @@ struct CamData
     /// <summary>"ObjectClassId" of the target.</summary>
     int32_t objectClassId; // +0x3c
 };
-#pragma pack(pop)
-static_assert(sizeof(CamData) == 0x40);
 
 /// <summary>The camera the scene is being rendered through (CameraList::renderView sets it per camera).</summary>
 extern Camera* eye;
@@ -78,7 +71,7 @@ extern int32_t drawCameraCircle;
 /// <summary>The pause shape (cleared by CameraList::destroy).</summary>
 extern uint8_t* pauseShape;
 /// <summary>The "asked" shape, drawn while the game waits on a question (cleared by CameraList::destroy).</summary>
-/// <remarks>DAT_007f0934; the name is the port's.</remarks>
+/// <remarks>The name is the port's (the binary kept no symbol for it).</remarks>
 extern uint8_t* askedShape;
 /// <summary>The current zoom's scale factor.</summary>
 extern float currentScaleFactor;
@@ -88,8 +81,8 @@ extern int32_t lastZoom;
 extern CameraList* cameraList;
 /// <summary>The pane everything is drawn into: the rendering camera's window (Camera::render), else the screen.
 /// </summary>
-/// <remarks>Its owner file is unknown (it sits in the bss after the camera and colour globals); the port defines it
-/// in camera.cpp.</remarks>
+/// <remarks>The binary kept no owner file for it (it sits in the bss after the camera and colour globals); the port
+/// defines it in camera.cpp.</remarks>
 extern _pane* globalPane;
 /// <summary>The window of <see cref="globalPane"/>.</summary>
 extern _window* globalWindow;
@@ -347,7 +340,7 @@ public:
     /// <remarks>MCX.EXE @ 0x006b0840 (inline in <c>camera\camera.h</c>)</remarks>
     virtual void init();
     /// <summary>Moves the camera after its target (swoop, scroll or jump), then projects the terrain.</summary>
-    /// <returns>0, or -1 for an unknown camera class.</returns>
+    /// <returns>0, or -1 for a camera class it doesn't handle.</returns>
     /// <remarks>MCX.EXE @ 0x006aeb80</remarks>
     virtual int32_t update();
     /// <remarks>MCX.EXE @ 0x006af420</remarks>
@@ -425,8 +418,6 @@ public:
     int32_t hazeLevel = 4; // +0x4c
     /// <summary>"HazeInc" (-2 by init).</summary>
     int32_t hazeInc = -2; // +0x50
-    /// <summary>Zeroed by init.</summary>
-    int32_t unknown54 = 0; // +0x54
     /// <summary>"MainWindow": the view is a pane of <see cref="mainHolder"/> rather than its own window.</summary>
     int32_t mainWindow = 0; // +0x58
     /// <summary>The object followed.</summary>
@@ -437,12 +428,8 @@ public:
     int32_t objectClassId = 0; // +0x64
     /// <summary>The target to fall back on when changeTarget is given none.</summary>
     BaseObject* defaultTarget = nullptr; // +0x68
-    /// <summary>Not accessed through Camera.</summary>
-    int32_t unknown6C[3] = {}; // +0x6c
     /// <summary>The target's facing when last followed.</summary>
     vector_3d lastTargetFacing; // +0x78
-    /// <summary>Zeroed by init; never read.</summary>
-    vector_3d unknown84; // +0x84
     /// <summary>Where a scroll toward the target started.</summary>
     vector_3d scrollStart; // +0x90
     /// <summary>Set once the scroll has jumped the rest of the way.</summary>

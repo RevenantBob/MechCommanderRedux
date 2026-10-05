@@ -59,7 +59,7 @@ public:
     AppearanceType* getAppearanceType() override { return mechTree; }
 
     /// <summary>Draws the mech's damage bars.</summary>
-    /// <remarks>MCX.EXE @ 0x006400c0 (FUN_006400c0, the vtable's drawBars slot); slot 6</remarks>
+    /// <remarks>MCX.EXE @ 0x006400c0 (the vtable's drawBars slot); slot 6</remarks>
     void drawBars() override;
 
     /// <remarks>MCX.EXE @ 0x0063d820; slot 7</remarks>
@@ -141,8 +141,8 @@ public:
     /// <summary>The number of shadow shapes.</summary>
     static int32_t numShadows;
 
-    /// <summary>The owning mech (BattleMech::init); read by render.</summary>
-    GameObject* unknown38 = nullptr; // +0x38
+    /// <summary>The mech drawn (set by BattleMech::init); render names its elements after its type.</summary>
+    GameObject* ownerMech = nullptr; // +0x38
     /// <summary>The tree.</summary>
     SpriteTree* mechTree = nullptr; // +0x3c
     /// <summary>Each part's shape.</summary>
@@ -151,8 +151,6 @@ public:
     int32_t currentFrame[NUM_MECH_PARTS] = {-1, -1, -1, -1}; // +0x50
     /// <summary>The order the parts are drawn in (update sets it: legs, then the arm nearer the back first).</summary>
     uint8_t partOrder[NUM_MECH_PARTS] = {}; // +0x60
-    /// <summary>Cleared per part by init; read by update.</summary>
-    int32_t unknown64[NUM_MECH_PARTS] = {}; // +0x64
     /// <summary>Each part's frame rate (15 after init).</summary>
     float frameRate[NUM_MECH_PARTS] = {15.0f, 15.0f, 15.0f, 15.0f}; // +0x74
     /// <summary>Each part's time into its gesture.</summary>
@@ -161,97 +159,104 @@ public:
     int32_t lastFrame[NUM_MECH_PARTS] = {}; // +0x94
     /// <summary>Each part's mirroring (set by the tree's getGesture/setGesture); read by BattleMech::update.</summary>
     int32_t reverse[NUM_MECH_PARTS] = {ACTOR_UNSET, ACTOR_UNSET, ACTOR_UNSET, ACTOR_UNSET}; // +0xa4
-    int32_t unknownB4[4] = {};                                                              // +0xb4 (not seen accessed)
-    /// <summary>Used by render and update.</summary>
-    int32_t unknownC4 = ACTOR_UNSET; // +0xc4
-    /// <summary>Cleared by init.</summary>
-    int32_t unknownC8 = 0; // +0xc8
+    /// <summary>
+    /// Nonzero while the gesture is a walk or run cycle (4, 7, 9 or 11), whose mirrored parts render keeps half a
+    /// cycle off the part they follow.
+    /// </summary>
+    int32_t strideGesture = ACTOR_UNSET; // +0xc4
     /// <summary>The gesture playing.</summary>
     int32_t currentGesture = 0; // +0xcc
     /// <summary>The gesture to move to (-1: none).</summary>
     int32_t gestureGoal = -1; // +0xd0
     /// <summary>The playing gesture's equivalent (<see cref="equivalentGestureArray"/>), used by the transitions.</summary>
     int32_t currentStateGesture = 0; // +0xd4
-    /// <summary>Cleared by setGestureGoal; used by update.</summary>
-    int32_t unknownD8 = ACTOR_UNSET; // +0xd8
-    /// <summary>-1 after init; used by update.</summary>
-    int32_t unknownDC = -1; // +0xdc
-    /// <summary>Used by update, renderJump and getVelocityMagnitude.</summary>
-    float unknownE0 = 0.0f; // +0xe0
-    /// <summary>Used by update and renderJump.</summary>
-    int32_t unknownE4 = ACTOR_UNSET; // +0xe4
-    /// <summary>Used by update and renderJump.</summary>
-    float* unknownE8 = nullptr; // +0xe8
+    /// <summary>The transition's step: the column of the transition table row that gave the playing gesture.</summary>
+    int32_t transitionStep = ACTOR_UNSET; // +0xd8
+    /// <summary>The transition's next gesture (-1: the playing one is its last, or no transition).</summary>
+    int32_t nextGesture = -1; // +0xdc
+    /// <summary>
+    /// The speed getVelocityMagnitude gives for the jump and gestures 12 and 13: <see cref="jumpSpeed"/> while
+    /// airborne, else 0.
+    /// </summary>
+    float jumpVelocity = 0.0f; // +0xe0
+    /// <summary>The jump's or fall's height per frame of the legs (gestureHeights), or null.</summary>
+    float* frameHeights = nullptr; // +0xe8
     /// <summary>Nonzero while jumping (read by BattleMech::setControlSettings).</summary>
     int32_t inJump = 0; // +0xec
     /// <summary>Set to 4 by setJumpParameters.</summary>
     float jumpParameter = 0.0f; // +0xf0
     /// <summary>Where the jump lands.</summary>
     vector_3d jumpGoal; // +0xf4
-    /// <summary>Used by update and BattleMech::update (a position or velocity during a jump).</summary>
-    vector_3d unknown100{ACTOR_UNSET_F, ACTOR_UNSET_F, ACTOR_UNSET_F}; // +0x100
+    /// <summary>The unit vector from where the jump started towards <see cref="jumpGoal"/>.</summary>
+    vector_3d jumpDirection{ACTOR_UNSET_F, ACTOR_UNSET_F, ACTOR_UNSET_F}; // +0x100
     /// <summary>Nonzero once <see cref="setJumpParameters"/> has set a jump up.</summary>
     int32_t jumpSetup = 0; // +0x10c
-    /// <summary>Used by update.</summary>
-    float unknown110 = ACTOR_UNSET_F; // +0x110
-    /// <summary>1 after init.</summary>
-    int32_t unknown114 = 1; // +0x114
-    /// <summary>The jump's ground speed (set when the jump gesture starts; unknownE0 takes it once airborne).</summary>
-    float jumpSpeed = 0.0f;           // +0x118
-    int32_t unknown11C = 0;           // +0x11c
-    int32_t unknown120 = 0;           // +0x120
-    int32_t unknown124 = ACTOR_UNSET; // +0x124
-    int32_t unknown128 = ACTOR_UNSET; // +0x128
-    int32_t unknown12C = 0;           // +0x12c
-    int32_t unknown130 = 0;           // +0x130
-    int32_t unknown134 = 0;           // +0x134
+    /// <summary>The jump's ground speed (set when the jump gesture starts; jumpVelocity takes it once airborne).</summary>
+    float jumpSpeed = 0.0f; // +0x118
+    /// <summary>Nonzero from <see cref="liftOffFrame"/> to <see cref="touchDownFrame"/> of the jump.</summary>
+    int32_t airborne = 0; // +0x120
+    /// <summary>The jump's first climbing frame after the crouch.</summary>
+    int32_t liftOffFrame = ACTOR_UNSET; // +0x124
+    /// <summary>The jump's first frame going down again after the climb.</summary>
+    int32_t touchDownFrame = ACTOR_UNSET; // +0x128
+    /// <summary>Set when the right arm is blown off: it is no longer drawn or animated.</summary>
+    int32_t rightArmGone = 0; // +0x12c
+    /// <summary>Set when the left arm is blown off: it is no longer drawn or animated.</summary>
+    int32_t leftArmGone = 0; // +0x130
     /// <summary>Nonzero while a transition plays (setGestureGoal fails).</summary>
     int32_t inTransition = 0; // +0x138
-    int32_t unknown13C = 0;   // +0x13c
-    int32_t unknown140 = 0;   // +0x140
+    /// <summary>
+    /// Set when the playing gesture has played out (or reached the special frame its transition leaves at): the next
+    /// update moves on to <see cref="nextGesture"/>.
+    /// </summary>
+    int32_t gestureDone = 0; // +0x13c
+    /// <summary>Nonzero while the gesture plays from its last frame to its first.</summary>
+    int32_t playBackwards = 0; // +0x140
     /// <summary>Set by <see cref="setGesture"/> until the next update.</summary>
     int32_t gestureSet = 0; // +0x144
     /// <summary>Nonzero while a gesture goal is pending.</summary>
     int32_t goalPending = 0; // +0x148
-    int32_t unknown14C = 0;  // +0x14c
-    int32_t unknown150 = 0;  // +0x150
-    /// <summary>-1 after init.</summary>
-    int32_t unknown154 = -1; // +0x154
     /// <summary>
     /// The paint scheme: which fade table render draws the 'Mech through (-1 = none). Set from the part's or the
     /// pilot's <c>PaintScheme</c> by <c>Scenario::createPartObject</c>.
     /// </summary>
     int32_t fadeTableIndex = -1; // +0x158
-    /// <summary>3.0 after init.</summary>
-    float unknown15C = 3.0f;          // +0x15c
-    int32_t unknown160 = 0;           // +0x160
-    int32_t unknown164 = 0;           // +0x164
-    int32_t unknown168 = 0;           // +0x168
-    int32_t unknown16C = ACTOR_UNSET; // +0x16c
-    /// <summary>The frame the next fall-down gesture starts at (valid while unknown16C is set).</summary>
+    /// <summary>Set while the mech lies on the ground holding the last frame of gesture 0x17 or 0x18.</summary>
+    int32_t lyingStill = 0; // +0x160
+    /// <summary>
+    /// The fall (or a fall-down gesture of a mech with a reverse flag) still has to turn the mech round: done by the
+    /// fall gesture or gesture 22, depending on <c>stupidJamieReverseFlag</c>.
+    /// </summary>
+    int32_t fallTurnPending = 0; // +0x164
+    /// <summary>The mech has to turn round when it next reaches a standing gesture (0 to 2).</summary>
+    int32_t standTurnPending = 0; // +0x168
+    /// <summary>Set when a gesture leads into a fall-down one that starts at <see cref="fallStartFrame"/>.</summary>
+    int32_t fallStartPending = ACTOR_UNSET; // +0x16c
+    /// <summary>The frame the next fall-down gesture starts at (valid while fallStartPending is set).</summary>
     int32_t fallStartFrame = ACTOR_UNSET; // +0x170
-    int32_t unknown174 = 0;               // +0x174
-    int32_t unknown178 = 0;               // +0x178
+    /// <summary>Set by the falling and getting-up gestures: the body can't turn (MechDynamics).</summary>
+    int32_t bodyTurnLocked = 0; // +0x174
+    /// <summary>Set with <see cref="bodyTurnLocked"/>: the torso and arms can't turn either.</summary>
+    int32_t upperBodyLocked = 0; // +0x178
     /// <summary>The shape's top-left offset from its hotspot (-25 before a shape).</summary>
     float shapeMinX = -25.0f; // +0x17c
     float shapeMinY = -25.0f; // +0x180
     /// <summary>The shape's size (25 before a shape).</summary>
     float shapeMaxX = 25.0f; // +0x184
     float shapeMaxY = 25.0f; // +0x188
-    /// <summary>Read by BattleMech::update.</summary>
-    int32_t unknown18C = 0; // +0x18c
+    /// <summary>
+    /// Set by BattleMech::update when the dead mech blows up: the torso is no longer drawn and the mech stays in a
+    /// lying gesture (0x17 or 0x18).
+    /// </summary>
+    int32_t wrecked = 0; // +0x18c
     /// <summary>The stop countdown (5 when a path has steps left; 0 stops).</summary>
     float stopCountdown = 0.0f; // +0x190
-    /// <summary>Cleared by init and by setMovePath(null).</summary>
-    int32_t unknown194 = 0; // +0x194
     /// <summary>Nonzero when the arms are in the gun pose.</summary>
     int32_t inCombatMode = 0; // +0x198
     /// <summary>The combat pose's transition flags (setCombatMode, update).</summary>
     int32_t combatModeRaising = 0;           // +0x19c
     int32_t combatModeLowering = 0;          // +0x1a0
     int32_t combatModeChanged = ACTOR_UNSET; // +0x1a4
-    /// <summary>When nonzero the mech can't stop (checkStop).</summary>
-    int32_t unknown1A8 = 0; // +0x1a8
 };
 
 /// <summary>The rotation index of <paramref name="rotation"/> degrees among <paramref name="numRotations"/> facings.</summary>
@@ -263,7 +268,7 @@ int32_t calcRotation(float rotation, int32_t numRotations);
 void DrawBox(float left, float top, float right, float bottom);
 
 /// <summary>Frees the mech shadow shapes.</summary>
-/// <remarks>MCX.EXE @ 0x0063fef0 (FUN_0063fef0, called from Scenario's teardown; no symbol, the name is the port's).</remarks>
+/// <remarks>MCX.EXE @ 0x0063fef0 (called from Scenario's teardown; no symbol, the name is the port's).</remarks>
 void destroyMechShadows();
 
 /// <summary>Per hit location, the hot spot table index.</summary>

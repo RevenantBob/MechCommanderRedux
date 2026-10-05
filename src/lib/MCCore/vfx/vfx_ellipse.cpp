@@ -8,8 +8,9 @@
 namespace
 {
     /// <summary>
-    /// AG_ellipse_draw and AG_ellipse_fill: the centre is relative to the pane's origin; draws the ellipse, outlined (FUN_006b6768, 0x006b683a: four points per step) or filled
-    /// (FUN_006b6b5a, 0x006b6c07: two spans per step).
+    /// AG_ellipse_draw and AG_ellipse_fill: the centre is relative to the pane's origin; draws the ellipse, outlined (the plotters at
+    /// 0x006b6768 and 0x006b683a: four points per step) or filled (the span fillers at 0x006b6b5a and 0x006b6c07: two
+    /// spans per step).
     /// </summary>
     void DrawEllipse(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color, bool fill)
     {

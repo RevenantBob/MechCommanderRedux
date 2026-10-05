@@ -101,7 +101,6 @@ auto ElementalActor::setGestureGoal(int32_t goal) -> int32_t
 
 auto ElementalActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
 {
-    unknown04 = 0x70000000;
     visible = 0;
     owner = obj;
     appearType = static_cast<ElementalTree*>(tree);
@@ -114,31 +113,20 @@ auto ElementalActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
     visible = 0;
     fadeTableIndex = -1;
     currentFrame = -1;
-    unknown90[3] = 0;
     shapeMinY = -15.0f;
     shapeMinX = -15.0f;
     currentShape = nullptr;
-    unknown44 = 0;
     currentTime = 0.0f;
     lastFrame = 0;
     velocity = 0.0f;
-    unknown54 = 0;
     goalPending = 0;
     currentGesture = 0;
     oldGesture = 0;
     jumping = 0;
     jumpSetup = 0;
-    unknown74[3] = 0;
-    unknown74[2] = 0;
-    unknown74[1] = 0;
-    unknown74[0] = 0;
-    unknown90[0] = 0;
-    unknown90[1] = 0;
-    unknown90[2] = 0;
     inView = 0;
     frameRate = 15.0f;
     velocityPercentage = 1.0f;
-    unknown8C = 1;
     shapeMaxY = 30.0f;
     shapeMaxX = 30.0f;
     return 0;
@@ -372,10 +360,10 @@ auto ElementalActor::update() -> int32_t
         const int32_t played = lastFrame;
         lastFrame = wholeFrames;
         const int32_t advanced = wholeFrames - played;
-        // The jump gesture only animates while unknown8C is set.
+        // The original also let a flag (always 1) stop the jump gesture from animating.
         const int32_t current = currentGesture;
 
-        if (advanced != 0 && (current != GESTURE_JUMP || unknown8C != 0))
+        if (advanced != 0)
         {
             const uint32_t frame = static_cast<uint32_t>(currentFrame + advanced);
             currentFrame = static_cast<int32_t>(frame);

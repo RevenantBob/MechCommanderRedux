@@ -532,13 +532,13 @@ int32_t fastShapeDraw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t ho
 /// <see cref="AlphaTable"/>. A zero radius draws the line from (xc - width, yc - height) to (xc + width, yc + height).
 /// </summary>
 /// <remarks>
-/// MCX.EXE @ 0x006b6580 (plotters FUN_006b6768 and 0x006b683a). Unlike VFX, the centre is offset by the pane's
+/// MCX.EXE @ 0x006b6580 (plotters at 0x006b6768 and 0x006b683a). Unlike VFX, the centre is offset by the pane's
 /// origin clipped to the window.
 /// </remarks>
 void AG_ellipse_draw(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color);
 
 /// <summary>The game's filled ellipse, as <see cref="AG_ellipse_draw"/> with horizontal spans.</summary>
-/// <remarks>MCX.EXE @ 0x006b6970 (span fillers FUN_006b6b5a and 0x006b6c07).</remarks>
+/// <remarks>MCX.EXE @ 0x006b6970 (span fillers at 0x006b6b5a and 0x006b6c07).</remarks>
 void AG_ellipse_fill(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color);
 
 // ---------------------------------------------------------------------------------------------------------------
