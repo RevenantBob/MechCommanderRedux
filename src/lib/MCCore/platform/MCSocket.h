@@ -84,3 +84,56 @@ namespace MCSocket
     /// <summary>Closes <paramref name="socket"/> (nothing for <see cref="InvalidHandle"/>).</summary>
     void Close(Handle socket);
 }
+
+/// <summary>
+/// The network, as the port service MCDirectPlay talks through: the <c>MCSocket</c> calls (which forward to the
+/// current context's transport), each meaning what that function's summary says.
+/// </summary>
+class MCNetTransport
+{
+public:
+    virtual ~MCNetTransport() = default;
+
+    /// <summary>See <see cref="MCSocket::Startup"/>.</summary>
+    virtual bool Startup() = 0;
+    /// <summary>See <see cref="MCSocket::Resolve"/>.</summary>
+    virtual std::optional<uint32_t> Resolve(std::string_view host) = 0;
+    /// <summary>See <see cref="MCSocket::ListenTcp"/>.</summary>
+    virtual MCSocket::Handle ListenTcp(uint16_t port) = 0;
+    /// <summary>See <see cref="MCSocket::AcceptTcp"/>.</summary>
+    virtual MCSocket::Handle AcceptTcp(MCSocket::Handle listener, MCSocket::Address* from) = 0;
+    /// <summary>See <see cref="MCSocket::ConnectTcp"/>.</summary>
+    virtual MCSocket::Handle ConnectTcp(const MCSocket::Address& to, int timeoutMs) = 0;
+    /// <summary>See <see cref="MCSocket::Send"/>.</summary>
+    virtual int Send(MCSocket::Handle socket, const void* data, size_t size) = 0;
+    /// <summary>See <see cref="MCSocket::Receive"/>.</summary>
+    virtual int Receive(MCSocket::Handle socket, void* data, size_t size) = 0;
+    /// <summary>See <see cref="MCSocket::OpenUdp"/>.</summary>
+    virtual MCSocket::Handle OpenUdp(uint16_t port) = 0;
+    /// <summary>See <see cref="MCSocket::SendTo"/>.</summary>
+    virtual bool SendTo(MCSocket::Handle socket, const MCSocket::Address& to, const void* data, size_t size) = 0;
+    /// <summary>See <see cref="MCSocket::ReceiveFrom"/>.</summary>
+    virtual int ReceiveFrom(MCSocket::Handle socket, void* data, size_t size, MCSocket::Address* from) = 0;
+    /// <summary>See <see cref="MCSocket::LocalPort"/>.</summary>
+    virtual uint16_t LocalPort(MCSocket::Handle socket) = 0;
+    /// <summary>See <see cref="MCSocket::Close"/>.</summary>
+    virtual void Close(MCSocket::Handle socket) = 0;
+};
+
+/// <summary>The operating system's sockets (Winsock on Windows, BSD sockets elsewhere).</summary>
+class MCSocketTransport final : public MCNetTransport
+{
+public:
+    bool Startup() override;
+    std::optional<uint32_t> Resolve(std::string_view host) override;
+    MCSocket::Handle ListenTcp(uint16_t port) override;
+    MCSocket::Handle AcceptTcp(MCSocket::Handle listener, MCSocket::Address* from) override;
+    MCSocket::Handle ConnectTcp(const MCSocket::Address& to, int timeoutMs) override;
+    int Send(MCSocket::Handle socket, const void* data, size_t size) override;
+    int Receive(MCSocket::Handle socket, void* data, size_t size) override;
+    MCSocket::Handle OpenUdp(uint16_t port) override;
+    bool SendTo(MCSocket::Handle socket, const MCSocket::Address& to, const void* data, size_t size) override;
+    int ReceiveFrom(MCSocket::Handle socket, void* data, size_t size, MCSocket::Address* from) override;
+    uint16_t LocalPort(MCSocket::Handle socket) override;
+    void Close(MCSocket::Handle socket) override;
+};

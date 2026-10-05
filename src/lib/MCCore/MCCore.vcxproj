@@ -141,6 +141,7 @@
     <ClCompile Include="main\honorb.cpp" />
     <ClCompile Include="main\logistics.cpp" />
     <ClCompile Include="main\main.cpp" />
+    <ClCompile Include="main\MCGameContext.cpp" />
     <ClCompile Include="main\rmain.cpp" />
     <ClCompile Include="MCPort.cpp" />
     <ClCompile Include="mission\mission.cpp" />
@@ -196,6 +197,7 @@
     <ClCompile Include="object\tree.cpp" />
     <ClCompile Include="object\turret.cpp" />
     <ClCompile Include="object\warrior.cpp" />
+    <ClCompile Include="platform\MCAllocator.cpp" />
     <ClCompile Include="platform\MCAudio.cpp" />
     <ClCompile Include="platform\MCCursor.cpp" />
     <ClCompile Include="platform\MCDirectPlay.cpp" />
@@ -207,6 +209,7 @@
     <ClCompile Include="platform\MCRegistry.cpp" />
     <ClCompile Include="platform\MCRenderer.cpp" />
     <ClCompile Include="platform\MCSdlPresenter.cpp" />
+    <ClCompile Include="platform\MCServices.cpp" />
     <ClCompile Include="platform\MCSmacker.cpp" />
     <ClCompile Include="platform\MCSocket.cpp">
       <!-- The socket wrapper includes the system socket headers (winsock2.h drags in windows.h), which must not meet
@@ -357,6 +360,7 @@
     <ClInclude Include="main\honorb.h" />
     <ClInclude Include="main\logistics.h" />
     <ClInclude Include="main\main.h" />
+    <ClInclude Include="main\MCGameContext.h" />
     <ClInclude Include="main\rmain.h" />
     <ClInclude Include="MCCore.h" />
     <ClInclude Include="MCPort.h" />
@@ -413,6 +417,7 @@
     <ClInclude Include="object\tree.h" />
     <ClInclude Include="object\turret.h" />
     <ClInclude Include="object\warrior.h" />
+    <ClInclude Include="platform\MCAllocator.h" />
     <ClInclude Include="platform\MCAudio.h" />
     <ClInclude Include="platform\MCCursor.h" />
     <ClInclude Include="platform\MCDirectPlay.h" />
@@ -424,6 +429,7 @@
     <ClInclude Include="platform\MCRegistry.h" />
     <ClInclude Include="platform\MCRenderer.h" />
     <ClInclude Include="platform\MCSdlPresenter.h" />
+    <ClInclude Include="platform\MCServices.h" />
     <ClInclude Include="platform\MCSmacker.h" />
     <ClInclude Include="platform\MCSocket.h" />
     <ClInclude Include="platform\MCSoftwareRenderer.h" />
@@ -505,6 +511,15 @@
       <Message>Compiling HLSL vertex shader %(Filename).vshader</Message>
       <BuildInParallel>true</BuildInParallel>
     </CustomBuild>
+  </ItemGroup>
+  <!-- mimalloc (src\lib\mimalloc-3.3.1): static.c compiles the whole allocator in one unit. It lives outside MCCore,
+       so it has its own ItemGroup, which sync_projects.py leaves alone. platform\MCAllocator.cpp wires it in. -->
+  <ItemGroup>
+    <ClCompile Include="$(MCLibDir)mimalloc-3.3.1\src\static.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <!-- As mimalloc's own Visual Studio project does: in C, MSVC's atomics shim warns (C4047, C4024). -->
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

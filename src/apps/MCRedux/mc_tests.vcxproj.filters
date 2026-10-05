@@ -4,14 +4,44 @@
     <Filter Include="tests">
       <UniqueIdentifier>{941e4064-a7ed-55bd-827f-2fe9663a2a97}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\fakes">
+      <UniqueIdentifier>{b8d10c10-6877-5cb7-a0fe-d3f1eaa572db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\fixtures">
+      <UniqueIdentifier>{b36fc39a-3bf2-577a-bdd9-5294152214d8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="tests\AllocatorTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\CursorTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\DirectPlayTests.cpp">
       <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCLoopbackTransport.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCManualClock.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCMemoryFileSource.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCNullAudioDevice.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fakes\MCScriptedRandom.cpp">
+      <Filter>tests\fakes</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fixtures\MCRetailData.cpp">
+      <Filter>tests\fixtures</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\fixtures\MCTinyMap.cpp">
+      <Filter>tests\fixtures</Filter>
     </ClCompile>
     <ClCompile Include="tests\FrameHashTests.cpp">
       <Filter>tests</Filter>
@@ -58,6 +88,9 @@
     <ClCompile Include="tests\ScreenInput.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\ServicesTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\SessionScreenTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -94,6 +127,30 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="tests\fakes\MCLoopbackTransport.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fakes\MCManualClock.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fakes\MCMemoryFileSource.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fakes\MCNullAudioDevice.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fakes\MCScriptedRandom.h">
+      <Filter>tests\fakes</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fixtures\MCRetailData.h">
+      <Filter>tests\fixtures</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fixtures\MCTinyMap.h">
+      <Filter>tests\fixtures</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\MCMock.h">
+      <Filter>tests</Filter>
+    </ClInclude>
     <ClInclude Include="tests\MCTest.h">
       <Filter>tests</Filter>
     </ClInclude>

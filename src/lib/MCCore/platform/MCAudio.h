@@ -1,6 +1,7 @@
 #pragma once
 
 struct MCAudioCore;
+class MCAudioDevice;
 
 /// <summary>The PCM format of a sound buffer or stream, as a WAVEFORMATEX with wFormatTag 1 (PCM) describes it.</summary>
 struct MCSoundFormat
@@ -278,6 +279,13 @@ public:
 
     /// <summary>Stops the device's output without stopping the buffers' clocks (the app lost focus, say).</summary>
     void PauseDevice(bool paused);
+
+    /// <summary>
+    /// Tells <paramref name="listener"/> (the <see cref="MCAudioDevice"/> that opened this mixer) of every buffer's
+    /// <see cref="MCSoundBuffer::Play"/> and <see cref="MCSoundBuffer::Stop"/> from now on; null tells nobody. It must
+    /// outlive the mixer's buffers or be cleared first.
+    /// </summary>
+    void SetListener(MCAudioDevice* listener);
 
     /// <summary>
     /// Mixes <paramref name="frames"/> stereo frames into <paramref name="out"/> (2 x frames floats, overwritten) and

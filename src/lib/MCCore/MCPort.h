@@ -43,31 +43,14 @@ namespace MCPort
     /// </summary>
     void StrCopy(char* destination, size_t size, const char* source);
 
-    /// <summary>Milliseconds since the port started, as the original's <c>timeGetTime</c> / <c>GetTickCount</c>.</summary>
+    /// <summary>
+    /// Milliseconds since the port started, as the original's <c>timeGetTime</c> / <c>GetTickCount</c>. This and the
+    /// other clocks below read the current context's <c>MCClock</c> (main/MCGameContext.h).
+    /// </summary>
     uint32_t Milliseconds();
 
     /// <summary>The running process's ID (no two running processes share one).</summary>
     uint32_t ProcessId();
-
-    /// <summary>
-    /// Port-only (tests): from now on <see cref="Milliseconds"/> and <see cref="PerformanceCounter"/> read a clock
-    /// that only <see cref="AdvanceManualClock"/> moves, so a run doesn't depend on how fast the machine is, and
-    /// <see cref="GetSystemTime"/> and <see cref="GetLocalTime"/> read 2000-01-01 12:00:00 plus that clock.
-    /// </summary>
-    void UseManualClock();
-
-    /// <summary>Port-only (tests): moves the manual clock on by <paramref name="nanoseconds"/>.</summary>
-    void AdvanceManualClock(uint64_t nanoseconds);
-
-    /// <summary>
-    /// Port-only (tests): from now on each present after the first since the manual clock last advanced moves it on
-    /// by a 60 Hz refresh, as waiting for the display would. Loops that draw frames until some time has passed (the
-    /// logistics screen wipes) then end after the frames they would take on a real display.
-    /// </summary>
-    void AdvanceManualClockOnPresent();
-
-    /// <summary>Port-only: called by the display on every present (see <see cref="AdvanceManualClockOnPresent"/>).</summary>
-    void ManualClockPresented();
 
     /// <summary>
     /// The machine's physical memory in bytes, as <c>GlobalMemoryStatus</c>'s <c>dwTotalPhys</c> (clamped to what a
@@ -116,15 +99,15 @@ namespace MCPort
     bool GetUserName(char* buffer, uint32_t* size);
 
     /// <summary>
-    /// The original's <c>rand</c> (MSVC's CRT, the same on every platform): the next value of the thread's linear
-    /// congruential generator, in [0, 0x7fff].
+    /// The original's <c>rand</c>: the next value of the current context's <c>MCRandom</c> (the CRT's generator,
+    /// <c>MCCrtRandom</c>, in the game), in [0, 0x7fff].
     /// </summary>
     int32_t Rand();
 
-    /// <summary>The original's <c>srand</c>: restarts the thread's generator at <paramref name="seed"/>.</summary>
+    /// <summary>The original's <c>srand</c>: restarts the context's generator at <paramref name="seed"/>.</summary>
     void SeedRand(uint32_t seed);
 
-    /// <summary>Port-only (tests): the thread's generator state, which decides every later <see cref="Rand"/>.</summary>
+    /// <summary>Port-only (tests): the context's generator state, which decides every later <see cref="Rand"/>.</summary>
     uint32_t RandState();
 }
 

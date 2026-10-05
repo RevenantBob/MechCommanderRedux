@@ -3,6 +3,7 @@
 #include "gameos/soundchannel.h"
 #include "gameos/soundresource.h"
 #include "lib/aerror.h"
+#include "main/MCGameContext.h"
 #include "platform/MCAudio.h"
 
 _srdata g_SRData;
@@ -11,10 +12,9 @@ int32_t globalSoundUninstalled = 0;
 void SoundRendererInstall(int numChannels)
 {
     g_SRData = _srdata{};
-    auto device = MCAudio::Open();
     // Port fix: without a playback device the game runs silent instead of stopping ("DirectSound was unable to
-    // initialize").
-    g_SRData.directSound = device ? std::move(*device) : MCAudio::CreateSilent();
+    // initialize"); see MCSdlAudioDevice.
+    g_SRData.directSound = MCGameContext::Current().Audio().OpenMixer();
     // The primary buffer (22050 Hz 16-bit stereo, played looping to keep the device's format) has no counterpart:
     // the port's mixer sets its own output format.
     g_SRData.numChannels = numChannels;

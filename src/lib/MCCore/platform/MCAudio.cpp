@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCAudio.h"
+#include "platform/MCServices.h"
 
 /// <summary>
 /// What the mixer and every buffer share: the lock, the registered buffers and streams, and the master volume. It
@@ -12,6 +13,8 @@ struct MCAudioCore
     std::vector<MCAudioStream*> Streams;
     float Master = 1.0f;
     std::vector<float> Block;
+    /// <summary>Told of every buffer's play and stop (the device that opened the mixer), or null.</summary>
+    std::atomic<MCAudioDevice*> Listener = nullptr;
 
     /// <summary>Adds one buffer's contribution to <paramref name="out"/>. Called with the lock held.</summary>
     void MixBuffer(MCSoundBuffer& buffer, float* out, int frames);
@@ -297,15 +300,29 @@ void MCSoundBuffer::Write(uint32_t offset, std::span<const uint8_t> data)
 
 void MCSoundBuffer::Play(bool looping)
 {
-    std::lock_guard lock(_Core->Lock);
-    _Playing = !_Data.empty();
-    _Looping = looping;
+    {
+        std::lock_guard lock(_Core->Lock);
+        _Playing = !_Data.empty();
+        _Looping = looping;
+    }
+
+    if (MCAudioDevice* listener = _Core->Listener.load(); listener != nullptr)
+    {
+        listener->BufferPlayed(*this, looping);
+    }
 }
 
 void MCSoundBuffer::Stop()
 {
-    std::lock_guard lock(_Core->Lock);
-    _Playing = false;
+    {
+        std::lock_guard lock(_Core->Lock);
+        _Playing = false;
+    }
+
+    if (MCAudioDevice* listener = _Core->Listener.load(); listener != nullptr)
+    {
+        listener->BufferStopped(*this);
+    }
 }
 
 uint32_t MCSoundBuffer::GetStatus() const
@@ -475,6 +492,20 @@ MCAudio::~MCAudio()
 std::unique_ptr<MCAudio> MCAudio::CreateSilent()
 {
     return std::unique_ptr<MCAudio>(new MCAudio());
+}
+
+void MCAudio::SetListener(MCAudioDevice* listener)
+{
+    _Core->Listener = listener;
+}
+
+std::unique_ptr<MCAudio> MCSdlAudioDevice::OpenMixer()
+{
+    // Without a playback device the game runs silent instead of stopping ("DirectSound was unable to initialize").
+    auto device = MCAudio::Open();
+    std::unique_ptr<MCAudio> mixer = device ? std::move(*device) : MCAudio::CreateSilent();
+    mixer->SetListener(this);
+    return mixer;
 }
 
 std::expected<std::unique_ptr<MCAudio>, std::string> MCAudio::Open()

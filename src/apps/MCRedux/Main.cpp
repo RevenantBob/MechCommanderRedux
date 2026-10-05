@@ -8,6 +8,7 @@
 #include "abl/ablscan.h"
 #include "abl/ablxstmt.h"
 #include "main/rmain.h"
+#include "platform/MCAllocator.h"
 #include "platform/MCFileSystem.h"
 
 namespace
@@ -185,6 +186,13 @@ namespace
 int main(int argc, char** argv)
 {
     MCConsole::AttachParent();
+
+    if (const auto allocator = MCInitializeAllocator(); !allocator)
+    {
+        Report(allocator.error(), true);
+        return 1;
+    }
+
     MCCrashTrace::Install();
     MCCrashTrace::SetReporter(ReportAblState);
     auto options = ParseArguments(argc, argv);

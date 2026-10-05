@@ -71,6 +71,17 @@ int32_t File::open(const char* fName, FileMode _mode, int32_t numChild)
 
         if (handle == nullptr)
         {
+            // Port: a file the context's source holds in memory (a test's) reads as a FastFile entry does.
+            if (const auto image = MCFileSystem::FindImage(fileName); image.has_value())
+            {
+                inRAM = 1;
+                length = static_cast<uint32_t>(image->size());
+                fileImage = new uint8_t[std::max<uint32_t>(length, 1)];
+                std::ranges::copy(*image, fileImage);
+                logicalPosition = 0;
+                return NO_ERR;
+            }
+
             fastFile = FastFileFind(fileName);
 
             if (fastFile == nullptr)

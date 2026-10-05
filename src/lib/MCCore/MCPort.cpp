@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "MCPort.h"
+#include "main/MCGameContext.h"
 
 #ifdef _WIN32
 #include <process.h>
@@ -113,84 +114,19 @@ namespace MCPort
         destination[length] = 0;
     }
 
-    namespace
-    {
-        /// <summary>Set by <see cref="UseManualClock"/>: the clocks read <see cref="ManualClockNs"/>.</summary>
-        std::atomic<bool> ManualClock = false;
-        /// <summary>The manual clock, in nanoseconds.</summary>
-        std::atomic<uint64_t> ManualClockNs = 0;
-        /// <summary>The thread that called <see cref="UseManualClock"/> (the game's).</summary>
-        std::thread::id ManualClockThread;
-        /// <summary>The game thread's reads since the clock last advanced.</summary>
-        uint32_t ManualClockReads = 0;
-        /// <summary>Set by <see cref="AdvanceManualClockOnPresent"/>.</summary>
-        bool ManualClockOnPresent = false;
-        /// <summary>The presents since the clock last advanced.</summary>
-        uint32_t ManualClockPresents = 0;
-
-        /// <summary>
-        /// The manual clock, read. Reads don't move it, so it is the same however often the game looks; but a busy
-        /// wait (the palette fade, the 50 ms waits) would never end, so past 100,000 reads on the game's thread
-        /// without an advance, each read moves it on a microsecond.
-        /// </summary>
-        uint64_t ReadManualClock()
-        {
-            if (std::this_thread::get_id() == ManualClockThread && ++ManualClockReads > 100000)
-            {
-                return ManualClockNs += 1000;
-            }
-
-            return ManualClockNs.load();
-        }
-    }
-
-    namespace
-    {
-        /// <summary>The generator state; per thread and starting at 1, as the CRT's.</summary>
-        thread_local uint32_t RandSeed = 1;
-    }
-
     int32_t Rand()
     {
-        RandSeed = RandSeed * 214013u + 2531011u;
-        return static_cast<int32_t>((RandSeed >> 16) & 0x7fff);
+        return MCGameContext::Current().Random().Next();
     }
 
     void SeedRand(uint32_t seed)
     {
-        RandSeed = seed;
+        MCGameContext::Current().Random().Seed(seed);
     }
 
     uint32_t RandState()
     {
-        return RandSeed;
-    }
-
-    void UseManualClock()
-    {
-        ManualClockThread = std::this_thread::get_id();
-        ManualClock = true;
-    }
-
-    void AdvanceManualClock(uint64_t nanoseconds)
-    {
-        ManualClockNs += nanoseconds;
-        ManualClockReads = 0;
-        ManualClockPresents = 0;
-    }
-
-    void AdvanceManualClockOnPresent()
-    {
-        ManualClockOnPresent = true;
-    }
-
-    void ManualClockPresented()
-    {
-        if (ManualClock && ManualClockOnPresent && std::this_thread::get_id() == ManualClockThread &&
-            ++ManualClockPresents > 1)
-        {
-            ManualClockNs += 1000000000 / 60;
-        }
+        return MCGameContext::Current().Random().State();
     }
 
     uint32_t ProcessId()
@@ -204,12 +140,7 @@ namespace MCPort
 
     uint32_t Milliseconds()
     {
-        if (ManualClock)
-        {
-            return static_cast<uint32_t>(ReadManualClock() / 1000000);
-        }
-
-        return static_cast<uint32_t>(SDL_GetTicks());
+        return MCGameContext::Current().Clock().Milliseconds();
     }
 
     uint32_t TotalPhysicalMemory()
@@ -220,22 +151,12 @@ namespace MCPort
 
     int64_t PerformanceCounter()
     {
-        if (ManualClock)
-        {
-            return static_cast<int64_t>(ReadManualClock());
-        }
-
-        return static_cast<int64_t>(SDL_GetPerformanceCounter());
+        return MCGameContext::Current().Clock().PerformanceCounter();
     }
 
     int64_t PerformanceFrequency()
     {
-        if (ManualClock)
-        {
-            return 1000000000;
-        }
-
-        return static_cast<int64_t>(SDL_GetPerformanceFrequency());
+        return MCGameContext::Current().Clock().PerformanceFrequency();
     }
 
     namespace
@@ -246,35 +167,9 @@ namespace MCPort
         constexpr uint64_t TicksPerDay = 864000000000ull;
     }
 
-    namespace
-    {
-        /// <summary>
-        /// Under the manual clock, the date and time it stands for (as FILETIME ticks): 2000-01-01 12:00:00 plus the
-        /// clock, in UTC and local time alike, so a run doesn't depend on when it runs.
-        /// </summary>
-        uint64_t ManualFileTime()
-        {
-            using namespace std::chrono;
-            constexpr sys_days Start = year{2000} / January / 1;
-            const auto startDays = static_cast<uint64_t>(Start.time_since_epoch().count() + FileTimeEpochDays);
-            return startDays * TicksPerDay + 12 * 36000000000ull + ManualClockNs.load() / 100;
-        }
-    }
-
     void GetSystemTime(_SYSTEMTIME& time)
     {
-        using namespace std::chrono;
-
-        if (ManualClock)
-        {
-            FileTimeToSystemTime(ManualFileTime(), time);
-            return;
-        }
-
-        const auto sinceUnix =
-            duration_cast<duration<int64_t, std::ratio<1, 10000000>>>(system_clock::now().time_since_epoch());
-        FileTimeToSystemTime(
-            static_cast<uint64_t>(sinceUnix.count() + FileTimeEpochDays * static_cast<int64_t>(TicksPerDay)), time);
+        FileTimeToSystemTime(MCGameContext::Current().Clock().UtcFileTime(), time);
     }
 
     uint64_t SystemTimeToFileTime(const _SYSTEMTIME& time)
@@ -306,18 +201,7 @@ namespace MCPort
 
     void GetLocalTime(_SYSTEMTIME& time)
     {
-        using namespace std::chrono;
-
-        if (ManualClock)
-        {
-            FileTimeToSystemTime(ManualFileTime(), time);
-            return;
-        }
-
-        const auto local = current_zone()->to_local(system_clock::now());
-        const auto sinceUnix = duration_cast<duration<int64_t, std::ratio<1, 10000000>>>(local.time_since_epoch());
-        FileTimeToSystemTime(
-            static_cast<uint64_t>(sinceUnix.count() + FileTimeEpochDays * static_cast<int64_t>(TicksPerDay)), time);
+        FileTimeToSystemTime(MCGameContext::Current().Clock().LocalFileTime(), time);
     }
 
     char* StrTime(char* buffer)

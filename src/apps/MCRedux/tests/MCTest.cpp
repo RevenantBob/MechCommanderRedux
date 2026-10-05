@@ -5,7 +5,11 @@
 #include <chrono>
 #include <cstdlib>
 #include <exception>
+#include <expected>
 #include <iostream>
+#include <string>
+
+#include "platform/MCAllocator.h"
 
 namespace
 {
@@ -146,6 +150,12 @@ namespace
 /// </summary>
 int main(int argc, char** argv)
 {
+    if (const auto allocator = MCInitializeAllocator(); !allocator)
+    {
+        std::cerr << allocator.error() << "\n";
+        return 1;
+    }
+
     std::vector<std::string> filters;
     bool list = false;
     const char* only = nullptr;

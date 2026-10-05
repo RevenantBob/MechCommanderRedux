@@ -57,8 +57,16 @@
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="tests\AllocatorTests.cpp" />
     <ClCompile Include="tests\CursorTests.cpp" />
     <ClCompile Include="tests\DirectPlayTests.cpp" />
+    <ClCompile Include="tests\fakes\MCLoopbackTransport.cpp" />
+    <ClCompile Include="tests\fakes\MCManualClock.cpp" />
+    <ClCompile Include="tests\fakes\MCMemoryFileSource.cpp" />
+    <ClCompile Include="tests\fakes\MCNullAudioDevice.cpp" />
+    <ClCompile Include="tests\fakes\MCScriptedRandom.cpp" />
+    <ClCompile Include="tests\fixtures\MCRetailData.cpp" />
+    <ClCompile Include="tests\fixtures\MCTinyMap.cpp" />
     <ClCompile Include="tests\FrameHashTests.cpp" />
     <ClCompile Include="tests\GpuDrawingTests.cpp" />
     <ClCompile Include="tests\GroundVehicleTests.cpp" />
@@ -76,6 +84,7 @@
     <ClCompile Include="tests\PortTests.cpp" />
     <ClCompile Include="tests\PresenterTests.cpp" />
     <ClCompile Include="tests\ScreenInput.cpp" />
+    <ClCompile Include="tests\ServicesTests.cpp" />
     <ClCompile Include="tests\SessionScreenTests.cpp" />
     <ClCompile Include="tests\SmackerTests.cpp" />
     <ClCompile Include="tests\StateHashTests.cpp" />
@@ -88,6 +97,14 @@
     <ClCompile Include="tests\VideoWindowTests.cpp" />
     <ClCompile Include="tests\ZoomTests.cpp" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="tests\fakes\MCLoopbackTransport.h" />
+    <ClInclude Include="tests\fakes\MCManualClock.h" />
+    <ClInclude Include="tests\fakes\MCMemoryFileSource.h" />
+    <ClInclude Include="tests\fakes\MCNullAudioDevice.h" />
+    <ClInclude Include="tests\fakes\MCScriptedRandom.h" />
+    <ClInclude Include="tests\fixtures\MCRetailData.h" />
+    <ClInclude Include="tests\fixtures\MCTinyMap.h" />
+    <ClInclude Include="tests\MCMock.h" />
     <ClInclude Include="tests\MCTest.h" />
     <ClInclude Include="tests\ScreenInput.h" />
     <ClInclude Include="tests\TestGame.h" />

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCDisplay.h"
+#include "main/MCGameContext.h"
 #include "platform/MCRenderer.h"
 #include "platform/MCSdlPresenter.h"
 #include "platform/MCVulkanPresenter.h"
@@ -453,7 +454,7 @@ MCFrame MCDisplay::BuildFrame(bool allColors)
 
 std::expected<void, std::string> MCDisplay::Present()
 {
-    MCPort::ManualClockPresented();
+    MCGameContext::Current().Clock().Presented();
 
     if (OnPresent)
     {

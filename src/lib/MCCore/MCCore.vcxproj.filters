@@ -360,6 +360,9 @@
     <ClCompile Include="main\main.cpp">
       <Filter>main</Filter>
     </ClCompile>
+    <ClCompile Include="main\MCGameContext.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
     <ClCompile Include="main\rmain.cpp">
       <Filter>main</Filter>
     </ClCompile>
@@ -523,6 +526,9 @@
     <ClCompile Include="object\warrior.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="platform\MCAllocator.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
     <ClCompile Include="platform\MCAudio.cpp">
       <Filter>platform</Filter>
     </ClCompile>
@@ -554,6 +560,9 @@
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCSdlPresenter.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\MCServices.cpp">
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCSmacker.cpp">
@@ -988,6 +997,9 @@
     <ClInclude Include="main\main.h">
       <Filter>main</Filter>
     </ClInclude>
+    <ClInclude Include="main\MCGameContext.h">
+      <Filter>main</Filter>
+    </ClInclude>
     <ClInclude Include="main\rmain.h">
       <Filter>main</Filter>
     </ClInclude>
@@ -1152,6 +1164,9 @@
     <ClInclude Include="object\warrior.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCAllocator.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCAudio.h">
       <Filter>platform</Filter>
     </ClInclude>
@@ -1183,6 +1198,9 @@
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCSdlPresenter.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\MCServices.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCSmacker.h">

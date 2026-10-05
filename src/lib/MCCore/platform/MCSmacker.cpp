@@ -1237,7 +1237,7 @@ namespace
 {
     /// <summary>
     /// The movie clock, in microseconds: the game's performance counter, so that movies follow the tests' manual clock
-    /// (MCPort::UseManualClock) as the game does.
+    /// (MCManualClock) as the game does.
     /// </summary>
     uint64_t NowMicroseconds()
     {

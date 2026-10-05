@@ -2,6 +2,7 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
+#include "fakes/MCManualClock.h"
 #include "camera/camera.h"
 #include "gui/asystem.h"
 #include "gui/updisp.h"
@@ -11,6 +12,7 @@
 #include "logistics/logmain.h"
 #include "main/honorb.h"
 #include "main/logistics.h"
+#include "main/MCGameContext.h"
 #include "main/main.h"
 #include "mission/mission.h"
 #include "mission/scenario.h"
@@ -226,6 +228,12 @@ namespace MCTestGame
         /// <summary>What the process booted: 0 nothing yet, -1 logistics, else a mission segment.</summary>
         int32_t booted = 0;
 
+        /// <summary>The boot's clock (in the context current at the boot), once booted.</summary>
+        MCManualClock* clock = nullptr;
+
+        /// <summary>Set by StartLogistics: the boot's clock moves on with the presents.</summary>
+        bool clockFollowsPresents = false;
+
         /// <summary>RealWinMain up to aSystem::run, with <paramref name="commandLine"/>, in a hidden window.</summary>
         bool Boot(std::string commandLine);
     }
@@ -279,7 +287,7 @@ namespace MCTestGame
 
         booted = -1;
         // The screen wipes draw frames until a quarter of a second has passed.
-        MCPort::AdvanceManualClockOnPresent();
+        clockFollowsPresents = true;
 
         if (!Boot(""))
         {
@@ -328,7 +336,13 @@ namespace MCTestGame
             // Deterministic runs: game time only moves with RunFrame, and the dice start the same way (RealWinMain seeds
             // them from the time of day). --seed <n> picks other dice. With the default, mission 1's Uller has its
             // pilot knocked out (4 wounds) in the fight the mission tests stage.
-            MCPort::UseManualClock();
+            clock = &MCGameContext::Current().SetClock(std::make_unique<MCManualClock>());
+
+            if (clockFollowsPresents)
+            {
+                clock->AdvanceOnPresent();
+            }
+
             const char* seed = MCTest::Option("seed");
             MCPort::SeedRand(seed != nullptr ? static_cast<uint32_t>(std::strtoul(seed, nullptr, 10)) : 10u);
             // The world view shows 480 lines (one world pixel per screen pixel in the 640x480 window) at any zoom
@@ -360,7 +374,7 @@ namespace MCTestGame
 
     void RunFrame(float seconds)
     {
-        MCPort::AdvanceManualClock(static_cast<uint64_t>(static_cast<double>(seconds) * 1e9));
+        clock->Advance(static_cast<uint64_t>(static_cast<double>(seconds) * 1e9));
         frameLength = seconds;
         frameRate = 1.0f / seconds;
         MCInput::PumpMessages();

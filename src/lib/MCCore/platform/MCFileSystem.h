@@ -9,9 +9,15 @@
 /// The install is never written to. When a user folder is set (<see cref="SetUserRoot"/>), it overlays the install:
 /// a relative path is looked up there first, and everything the game creates, renames or deletes happens there
 /// (saves, PREFS.CFG, the temp FITs). Without one (the tests), both roots are the install.
+///
+/// Every function forwards to the current context's <see cref="MCFileSource"/> (platform/MCServices.h): the disk
+/// (<see cref="MCDiskFileSource"/>) in the game, maybe files in memory in a test.
 /// </summary>
 namespace MCFileSystem
 {
+    /// <summary>Case-insensitive DOS wildcard match (<c>*</c> and <c>?</c>) of a whole name.</summary>
+    bool WildcardMatch(const char* pattern, const char* name);
+
     /// <summary>Sets the folder of the retail install (the one holding MCX.EXE's data: ART.FST, DATA\, ...).</summary>
     void SetGameRoot(const std::filesystem::path& root);
 
@@ -52,6 +58,12 @@ namespace MCFileSystem
     /// <c>_findfirst</c>/<c>_findnext</c> list them: names only, user folder and install merged.
     /// </summary>
     std::vector<std::string> FindFiles(std::string_view gamePattern);
+
+    /// <summary>
+    /// The contents of <paramref name="gamePath"/> when the file source holds it in memory (a test's
+    /// <c>MCMemoryFileSource</c>); the disk holds none.
+    /// </summary>
+    std::optional<std::span<const uint8_t>> FindImage(std::string_view gamePath);
 
     /// <summary>Whether <paramref name="gamePath"/> names an existing loose file (not one inside a FastFile).</summary>
     bool Exists(std::string_view gamePath);

@@ -1,0 +1,463 @@
+#include "stdafx.h"
+#include "MCMock.h"
+#include "MCTest.h"
+#include "TestGame.h"
+#include "fakes/MCLoopbackTransport.h"
+#include "fakes/MCManualClock.h"
+#include "fakes/MCMemoryFileSource.h"
+#include "fakes/MCNullAudioDevice.h"
+#include "fakes/MCScriptedRandom.h"
+#include "fixtures/MCRetailData.h"
+#include "fixtures/MCTinyMap.h"
+#include "gameos/soundchannel.h"
+#include "gameos/soundrenderer.h"
+#include "gameos/soundresource.h"
+#include "lib/cvmath.h"
+#include "lib/file.h"
+#include "lib/heap.h"
+#include "lib/inifile.h"
+#include "main/MCGameContext.h"
+#include "platform/MCFileSystem.h"
+
+// The port services (platform/MCServices.h), the context that hands them out (main/MCGameContext.h), and the fakes,
+// mock helper and fixtures the tests build on.
+
+namespace
+{
+    void EnsureSystemHeap()
+    {
+        if (systemHeap == nullptr)
+        {
+            systemHeap = new UserHeap;
+            systemHeap->init(16383999, "SystemHeap");
+        }
+    }
+
+    /// <summary>A RIFF WAVE file: 22050 Hz, mono, 16-bit, <paramref name="samples"/> samples of silence.</summary>
+    std::vector<uint8_t> SilentWave(uint32_t samples)
+    {
+        std::vector<uint8_t> wave;
+        const auto put32 = [&](uint32_t value)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                wave.push_back(static_cast<uint8_t>(value >> (i * 8)));
+            }
+        };
+
+        const auto put16 = [&](uint16_t value)
+        {
+            wave.push_back(static_cast<uint8_t>(value));
+            wave.push_back(static_cast<uint8_t>(value >> 8));
+        };
+
+        const auto putTag = [&](const char* tag) { wave.insert(wave.end(), tag, tag + 4); };
+        const uint32_t dataBytes = samples * 2;
+        putTag("RIFF");
+        put32(36 + dataBytes);
+        putTag("WAVE");
+        putTag("fmt ");
+        put32(16);
+        put16(1);
+        put16(1);
+        put32(22050);
+        put32(22050 * 2);
+        put16(2);
+        put16(16);
+        putTag("data");
+        put32(dataBytes);
+        wave.resize(wave.size() + dataBytes, 0);
+        return wave;
+    }
+}
+
+/// <summary>A test context's services replace the current ones, the rest come from below, and the scope restores.</summary>
+TEST_CASE("services: a test context scope installs its services and restores the previous ones")
+{
+    MCGameContext& outer = MCGameContext::Current();
+    MCRandom& outerRandom = outer.Random();
+    MCClock& outerClock = outer.Clock();
+
+    {
+        MCTestContextScope scope;
+        CHECK(&MCGameContext::Current() == &scope.Context());
+        // Nothing given: everything comes from the context below.
+        CHECK(&MCGameContext::Current().Random() == &outerRandom);
+        MCScriptedRandom& random = scope.Context().SetRandom(std::make_unique<MCScriptedRandom>());
+        CHECK(&MCGameContext::Current().Random() == &random);
+        CHECK(&MCGameContext::Current().Clock() == &outerClock);
+
+        {
+            MCTestContextScope inner;
+            CHECK(&MCGameContext::Current().Random() == &random);
+        }
+
+        CHECK(&MCGameContext::Current() == &scope.Context());
+    }
+
+    CHECK(&MCGameContext::Current() == &outer);
+    CHECK(&MCGameContext::Current().Random() == &outerRandom);
+}
+
+/// <summary>The real dice are MSVC's <c>rand</c>: from seed 1, its well-known first values.</summary>
+TEST_CASE("services: the real dice give the CRT's rand sequence")
+{
+    MCCrtRandom random;
+    const uint32_t saved = random.State();
+    random.Seed(1);
+    CHECK_EQ(random.Next(), 41);
+    CHECK_EQ(random.Next(), 18467);
+    CHECK_EQ(random.Next(), 6334);
+    CHECK_EQ(random.Next(), 26500);
+    CHECK_EQ(random.Next(), 19169);
+    random.Seed(saved);
+
+    // A seeded scripted random runs the same sequence once its queue is empty.
+    MCScriptedRandom scripted(1);
+    scripted.Returns({7});
+    CHECK_EQ(scripted.Next(), 7);
+    CHECK_EQ(scripted.Next(), 41);
+    CHECK_EQ(scripted.Next(), 18467);
+    CHECK_EQ(scripted.Remaining(), static_cast<size_t>(0));
+}
+
+/// <summary>
+/// RollDice(p) succeeds when the d100 roll, rand scaled to 0..99, is below p; RandomNumber(n) scales rand to 0..n-1.
+/// The game rolls through MCPort::Rand, so the dice a test installs decide the outcome.
+/// </summary>
+TEST_CASE("services: RollDice and RandomNumber roll the installed dice")
+{
+    MCTestContextScope scope;
+    MCScriptedRandom& dice = scope.Context().SetRandom(std::make_unique<MCScriptedRandom>());
+    // rand 0 is a roll of 0; 0x7fff a roll of 99; 16383 a roll of 49; 16384 a roll of 50.
+    dice.Returns({0, 0x7fff, 16383, 16384, 0x7fff, 0});
+    CHECK_EQ(RollDice(50), 1);
+    CHECK_EQ(RollDice(50), 0);
+    CHECK_EQ(RollDice(50), 1);
+    CHECK_EQ(RollDice(50), 0);
+    CHECK_EQ(RandomNumber(6), 5);
+    CHECK_EQ(RandomNumber(6), 0);
+    CHECK_EQ(dice.Remaining(), static_cast<size_t>(0));
+    CHECK_EQ(dice.Taken(), 6);
+    // The game seeds the dice with srand.
+    MCPort::SeedRand(1234);
+    REQUIRE_EQ(dice.Seeds().size(), static_cast<size_t>(1));
+    CHECK_EQ(dice.Seeds()[0], 1234u);
+}
+
+/// <summary>The manual clock stands still until advanced, and its date is 2000-01-01 12:00:00 plus the clock.</summary>
+TEST_CASE("services: the manual clock moves only when the test moves it")
+{
+    MCTestContextScope scope;
+    MCManualClock& clock = scope.Context().SetClock(std::make_unique<MCManualClock>());
+    CHECK_EQ(MCPort::Milliseconds(), 0u);
+    clock.Advance(1500000000);
+    CHECK_EQ(MCPort::Milliseconds(), 1500u);
+    CHECK_EQ(MCPort::PerformanceFrequency(), 1000000000);
+    CHECK_EQ(MCPort::PerformanceCounter(), 1500000000);
+
+    _SYSTEMTIME time{};
+    MCPort::GetLocalTime(time);
+    CHECK_EQ(time.wYear, 2000);
+    CHECK_EQ(time.wMonth, 1);
+    CHECK_EQ(time.wDay, 1);
+    CHECK_EQ(time.wHour, 12);
+    CHECK_EQ(time.wSecond, 1);
+    CHECK_EQ(time.wMilliseconds, 500);
+
+    // A present moves it only once AdvanceOnPresent is set, and the first present after an advance not at all.
+    clock.Presented();
+    clock.Presented();
+    CHECK_EQ(clock.Nanoseconds(), 1500000000ull);
+    clock.AdvanceOnPresent();
+    clock.Presented();
+    clock.Presented();
+    CHECK_EQ(clock.Nanoseconds(), 1500000000ull + 1000000000ull / 60);
+}
+
+/// <summary>The memory source finds files as the game spells them, with user files over the install's.</summary>
+TEST_CASE("services: the memory file source looks files up as the game spells them")
+{
+    MCTestContextScope scope;
+    MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
+    files.AddFile("data\\missions\\Mis0101.fit", "install");
+    files.AddFile("data/missions/other.fit", "other");
+    files.AddFile("data\\art\\pic.tga", "art");
+    files.AddUserFile("DATA\\MISSIONS\\MIS0101.FIT", std::vector<uint8_t>{'u', 's', 'e', 'r'});
+
+    CHECK(MCFileSystem::Exists(".\\DATA\\missions\\mis0101.FIT"));
+    CHECK(!MCFileSystem::Exists("data\\missions\\missing.fit"));
+
+    const auto image = MCFileSystem::FindImage("data\\missions\\mis0101.fit");
+    REQUIRE(image.has_value());
+    CHECK_EQ(std::string(image->begin(), image->end()), std::string("user"));
+
+    // As on disk, the listing is merged without regard to case, user files first (so with the user's spelling).
+    std::vector<std::string> found = MCFileSystem::FindFiles("data\\missions\\*.fit");
+    std::ranges::sort(found);
+    REQUIRE_EQ(found.size(), static_cast<size_t>(2));
+    CHECK_EQ(found[0], std::string("MIS0101.FIT"));
+    CHECK_EQ(found[1], std::string("other.fit"));
+
+    // The user file goes; the install's shows again. The install's can't be removed.
+    CHECK(MCFileSystem::RemoveFile("data\\missions\\mis0101.fit"));
+    const auto installed = MCFileSystem::FindImage("data\\missions\\mis0101.fit");
+    REQUIRE(installed.has_value());
+    CHECK_EQ(std::string(installed->begin(), installed->end()), std::string("install"));
+    CHECK(!MCFileSystem::RemoveFile("data\\missions\\mis0101.fit"));
+}
+
+/// <summary>A FIT file the game opens by name reads from memory: blocks, numbers and strings.</summary>
+TEST_CASE("services: a FitIniFile reads from an in-memory file")
+{
+    EnsureSystemHeap();
+    MCTestContextScope scope;
+    MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
+    files.AddFile("data\\objects\\test.fit", "FITini \r\n"
+                                             "\r\n[Mech]\r\n"
+                                             "l Tonnage=35\r\n"
+                                             "f Speed=64.5\r\n"
+                                             "st Name=\"Uller\"\r\n"
+                                             "\r\n[Pilot]\r\n"
+                                             "l Gunnery=4\r\n"
+                                             "FITend \r\n");
+
+    FitIniFile fit;
+    REQUIRE_EQ(fit.open("DATA\\OBJECTS\\TEST.FIT"), 0);
+    CHECK_EQ(fit.getNumBlocks(), 2);
+    REQUIRE_EQ(fit.seekBlock("Mech"), 0);
+    int32_t tonnage = 0;
+    CHECK_EQ(fit.readIdLong("Tonnage", tonnage), 0);
+    CHECK_EQ(tonnage, 35);
+    float speed = 0.0f;
+    CHECK_EQ(fit.readIdFloat("Speed", speed), 0);
+    CHECK_EQ(speed, 64.5f);
+    char name[32] = {};
+    CHECK_EQ(fit.readIdString("Name", name, sizeof(name)), 0);
+    CHECK_EQ(std::string(name), std::string("Uller"));
+    REQUIRE_EQ(fit.seekBlock("Pilot"), 0);
+    int32_t gunnery = 0;
+    CHECK_EQ(fit.readIdLong("Gunnery", gunnery), 0);
+    CHECK_EQ(gunnery, 4);
+    fit.close();
+
+    // A file the source doesn't have isn't found (and nothing on disk or in the FastFiles stands in).
+    File missing;
+    CHECK(missing.open("data\\objects\\nothere.fit") != NO_ERR);
+}
+
+/// <summary>What the game writes lands in the source's scratch folder and reads back from there.</summary>
+TEST_CASE("services: files the game writes through a memory source read back")
+{
+    MCTestContextScope scope;
+    MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
+    {
+        File out;
+        REQUIRE_EQ(out.create("savegame\\test.sav"), NO_ERR);
+        const uint8_t bytes[] = {1, 2, 3, 4};
+        out.write(bytes, 4);
+        out.close();
+    }
+
+    CHECK(MCFileSystem::Exists("SAVEGAME\\TEST.SAV"));
+    CHECK(std::filesystem::exists(files.ScratchFolder() / "SAVEGAME" / "TEST.SAV"));
+    File in;
+    REQUIRE_EQ(in.open("savegame\\test.sav"), NO_ERR);
+    CHECK_EQ(in.fileSize(), 4u);
+    uint8_t back[4] = {};
+    in.read(back, 4);
+    CHECK_EQ(back[3], 4);
+}
+
+/// <summary>
+/// The sound renderer opens its mixer through the context's audio device, so a channel's play and stop reach a
+/// recording device: a channel set to loop plays its buffer looping, and a stop stops it.
+/// </summary>
+TEST_CASE("services: a sound channel's play and stop reach the null audio device")
+{
+    MCTestContextScope scope;
+    MCNullAudioDevice& device = scope.Context().SetAudio(std::make_unique<MCNullAudioDevice>());
+    globalSoundUninstalled = 0;
+    SoundRendererInstall(2);
+    CHECK_CALLED(device.Opened, 1);
+
+    const std::vector<uint8_t> wave = SilentWave(441);
+    auto* resource = new SoundResource(reinterpret_cast<const char*>(wave.data()), SOUND_RESOURCE_MEMORY, 0);
+    gos_SetChannelLooping(1, true);
+    gos_PlayChannel(1, resource);
+    CHECK_CALLED(device.Played, 1);
+    CHECK(std::get<1>(device.Played.Last()) == true);
+    CHECK_CALLED(device.Stopped, 0);
+    gos_StopChannel(1);
+    CHECK_CALLED(device.Stopped, 1);
+    CHECK(std::get<0>(device.Stopped.Last()) == std::get<0>(device.Played.Last()));
+
+    // The renderer frees the resources and the mixer.
+    SoundRendererUninstall();
+    globalSoundUninstalled = 0;
+}
+
+/// <summary>The loopback network carries TCP streams and UDP datagrams between its own sockets.</summary>
+TEST_CASE("services: the loopback transport connects, streams, broadcasts and closes")
+{
+    MCTestContextScope scope;
+    MCLoopbackTransport& net = scope.Context().SetNet(std::make_unique<MCLoopbackTransport>());
+    CHECK(MCSocket::Startup());
+    CHECK(MCSocket::Resolve("localhost") == std::optional<uint32_t>(MCSocket::LoopbackIp));
+    CHECK(MCSocket::Resolve("10.0.0.7") == std::optional<uint32_t>(0x0a000007u));
+    CHECK(!MCSocket::Resolve("no.such.host").has_value());
+
+    // Nobody listens yet.
+    CHECK_EQ(MCSocket::ConnectTcp({MCSocket::LoopbackIp, 28800}, 100), MCSocket::InvalidHandle);
+    const MCSocket::Handle listener = MCSocket::ListenTcp(28800);
+    REQUIRE(listener != MCSocket::InvalidHandle);
+    CHECK_EQ(MCSocket::ListenTcp(28800), MCSocket::InvalidHandle);
+    const MCSocket::Handle client = MCSocket::ConnectTcp({MCSocket::LoopbackIp, 28800}, 100);
+    REQUIRE(client != MCSocket::InvalidHandle);
+    MCSocket::Address from;
+    const MCSocket::Handle server = MCSocket::AcceptTcp(listener, &from);
+    REQUIRE(server != MCSocket::InvalidHandle);
+    CHECK_EQ(from.Port, MCSocket::LocalPort(client));
+    CHECK_EQ(MCSocket::AcceptTcp(listener, nullptr), MCSocket::InvalidHandle);
+
+    char buffer[16] = {};
+    CHECK_EQ(MCSocket::Receive(server, buffer, sizeof(buffer)), 0);
+    CHECK_EQ(MCSocket::Send(client, "hello", 5), 5);
+    CHECK_EQ(MCSocket::Receive(server, buffer, 3), 3);
+    CHECK_EQ(std::string(buffer, 3), std::string("hel"));
+    CHECK_EQ(MCSocket::Receive(server, buffer, sizeof(buffer)), 2);
+    CHECK_EQ(std::string(buffer, 2), std::string("lo"));
+
+    // A closed end: the other reads the end of the stream, and sends fail.
+    MCSocket::Close(client);
+    CHECK_EQ(MCSocket::Receive(server, buffer, sizeof(buffer)), -1);
+    CHECK_EQ(MCSocket::Send(server, "x", 1), -1);
+    MCSocket::Close(server);
+    MCSocket::Close(listener);
+
+    // A broadcast reaches every UDP socket on the port, with the sender's port.
+    const MCSocket::Handle a = MCSocket::OpenUdp(28801);
+    const MCSocket::Handle b = MCSocket::OpenUdp(0);
+    REQUIRE(a != MCSocket::InvalidHandle);
+    REQUIRE(b != MCSocket::InvalidHandle);
+    CHECK(MCSocket::SendTo(b, {MCSocket::BroadcastIp, 28801}, "ping", 4));
+    CHECK_EQ(MCSocket::ReceiveFrom(a, buffer, sizeof(buffer), &from), 4);
+    CHECK_EQ(std::string(buffer, 4), std::string("ping"));
+    CHECK_EQ(from.Port, MCSocket::LocalPort(b));
+    CHECK_EQ(MCSocket::ReceiveFrom(a, buffer, sizeof(buffer), &from), 0);
+    CHECK_EQ(MCSocket::ReceiveFrom(b, buffer, sizeof(buffer), &from), 0);
+    MCSocket::Close(a);
+    MCSocket::Close(b);
+    CHECK_EQ(net.OpenSockets(), static_cast<size_t>(0));
+}
+
+/// <summary>The mock helper records calls and arguments and hands out queued results.</summary>
+TEST_CASE("services: MCMock records calls and returns queued results")
+{
+    MCMock::Calls<int, std::string> sent;
+    CHECK_CALLED(sent, 0);
+    sent(7, "hello");
+    sent(8, "bye");
+    CHECK_CALLED(sent, 2);
+    CHECK_CALLED_WITH(sent, 7, "hello");
+    CHECK(!sent.CalledWith(7, "bye"));
+    CHECK_EQ(std::get<0>(sent.At(1)), 8);
+    CHECK_EQ(std::get<1>(sent.Last()), std::string("bye"));
+    sent.Clear();
+    CHECK_CALLED(sent, 0);
+
+    MCMock::Returning<bool, int> ready;
+    ready.Returns(true, false);
+    CHECK(ready(1));
+    CHECK(!ready(2));
+    // Past the queue: the default.
+    CHECK(!ready(3));
+    CHECK_CALLED(ready, 3);
+    CHECK_CALLED_WITH(ready, 2);
+    CHECK_EQ(ready.Pending(), static_cast<size_t>(0));
+}
+
+/// <summary>
+/// The tiny map is all passable, a blocked cell isn't, and the map's own world-to-cell conversion puts each cell
+/// centre in its cell.
+/// </summary>
+TEST_CASE("services: the tiny map is flat and passable with the cells it blocks")
+{
+    ScenarioMap* const before = GameMap;
+    {
+        MCTinyMap map(8);
+        CHECK_EQ(GameMap->width, 8);
+        CHECK_EQ(GameMap->height, 8);
+        CHECK(map.Passable(0, 0));
+        CHECK(map.Passable(23, 23));
+        CHECK(!map.Passable(24, 0));
+        map.Block(4, 5);
+        CHECK(!map.Passable(4, 5));
+        CHECK(map.Passable(4, 4));
+        CHECK(map.Passable(5, 5));
+
+        for (const auto [row, col] : {std::pair{0, 0}, std::pair{4, 5}, std::pair{23, 23}, std::pair{11, 2}})
+        {
+            MCTest::Scope where(std::format("cell {},{}", row, col));
+            int32_t tileR = 0;
+            int32_t tileC = 0;
+            int32_t cellR = 0;
+            int32_t cellC = 0;
+            GameMap->worldToMapPos(map.CellCentre(row, col), tileR, tileC, cellR, cellC);
+            CHECK_EQ(tileR * MAPCELL_DIM + cellR, row);
+            CHECK_EQ(tileC * MAPCELL_DIM + cellC, col);
+        }
+    }
+
+    CHECK(GameMap == before);
+}
+
+/// <summary>The retail fixture reads files the game reads (here from the FastFiles) into memory.</summary>
+TEST_CASE("game: the retail data fixture loads FIT files into a memory source")
+{
+    EnsureSystemHeap();
+    std::unique_ptr<MCMemoryFileSource> data = MCRetailData::Load({"data\\missions\\gamesys.fit"});
+
+    if (data == nullptr)
+    {
+        return;
+    }
+
+    CHECK_EQ(data->Count(), static_cast<size_t>(1));
+    MCTestContextScope scope;
+    scope.Context().SetFiles(std::move(data));
+    FitIniFile fit;
+    REQUIRE_EQ(fit.open("data\\missions\\gamesys.fit"), 0);
+    CHECK_EQ(fit.seekBlock("Pathfinding"), 0);
+    int32_t range = 0;
+    CHECK_EQ(fit.readIdLong("SimplePathTileRange", range), 0);
+    CHECK(range > 0);
+}
+
+/// <summary>
+/// Mission 1 booted inside a test's context, with seeded scripted dice in place of the real ones, plays out exactly as
+/// the recorded run (StateHashTests): the services a test installs are the ones the game uses, and the fakes behave
+/// as the real ones.
+/// </summary>
+TEST_CASE_ISOLATED("game: mission 1 inside a test context matches the recorded run")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    MCTestContextScope scope;
+    MCScriptedRandom& dice = scope.Context().SetRandom(std::make_unique<MCScriptedRandom>(1u));
+    REQUIRE(MCTestGame::StartMission(1));
+    uint32_t frames = 0x811c9dc5;
+
+    for (int32_t frame = 0; frame < 600; frame++)
+    {
+        MCTestGame::RunFrame(1.0f / 15.0f);
+        frames = (frames ^ MCTestGame::StateHash()) * 0x01000193;
+    }
+
+    std::cout << std::format("  mission 1 in a test context: state 0x{:08x}, {} rolls\n", frames, dice.Taken());
+    CHECK(dice.Taken() > 0);
+    CHECK_EQ(frames, 0x9ff2e0b4u);
+}
