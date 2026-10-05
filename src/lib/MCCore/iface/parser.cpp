@@ -17,8 +17,8 @@ namespace
     /// <summary>A mover and its distance to the goal, as SortMoverList sorts them.</summary>
     struct MoverDistance
     {
-        Mover* mover;   // +0x0
-        float distance; // +0x4
+        Mover* mover = nullptr; // +0x0
+        float distance = 0;     // +0x4
     };
 
     /// <summary>Most jump goals SendTacOrder can hold (its stack array).</summary>
@@ -295,8 +295,7 @@ auto CompareDistance(const void* a, const void* b) -> int
 
 auto SortMoverList(int32_t numMovers, Mover** movers, vector_3d goal) -> void
 {
-    auto* distances = static_cast<MoverDistance*>(operator new(numMovers * sizeof(MoverDistance)));
-    Assert(distances != nullptr, 0, " Parser.SendTacOrder: NULL distanceList ", nullptr);
+    std::vector<MoverDistance> distances(static_cast<size_t>(numMovers));
 
     for (int32_t i = 0; i < numMovers; i++)
     {
@@ -318,7 +317,7 @@ auto SortMoverList(int32_t numMovers, Mover** movers, vector_3d goal) -> void
             std::sqrt(static_cast<double>(dx) * dx + static_cast<double>(dz) * dz + static_cast<double>(dy) * dy));
     }
 
-    qsort(distances, numMovers, sizeof(MoverDistance), CompareDistance);
+    qsort(distances.data(), numMovers, sizeof(MoverDistance), CompareDistance);
 
     for (int32_t i = 0; i < numMovers; i++)
     {
@@ -327,8 +326,6 @@ auto SortMoverList(int32_t numMovers, Mover** movers, vector_3d goal) -> void
             distances[i].mover->selectionIndex = i;
         }
     }
-
-    operator delete(distances);
 }
 
 auto Parser::SendTacOrder(TacticalOrder order, int sortMovers) -> int

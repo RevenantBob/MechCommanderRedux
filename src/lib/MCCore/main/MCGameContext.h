@@ -112,6 +112,6 @@ public:
     MCGameContext& Context() { return _Context; }
 
 private:
-    MCGameContext* _Previous;
+    MCGameContext* _Previous = nullptr;
     MCGameContext _Context;
 };

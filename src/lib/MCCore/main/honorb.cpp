@@ -114,8 +114,14 @@ namespace
     [[noreturn]] void closingMessage()
     {
         MCInput::ShowCursor(true);
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "MechCommander Closing",
-                                 "MechCommander Expansion or Editor already running.", nullptr);
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "MechCommander Expansion or Editor already running.");
+
+        if (!MCNoMessageBoxes)
+        {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "MechCommander Closing",
+                                     "MechCommander Expansion or Editor already running.", nullptr);
+        }
+
         killTheGame();
     }
 }
@@ -132,18 +138,8 @@ void systemInit()
         closingMessage();
     }
 
-    //---------------------------------------------------------------------------------------------------------------
-    // Heaps.
-    int32_t result = systemFile->seekBlock("systemHeap");
-
-    if (result != 0)
-    {
-        Fatal(result, "Could not find systemHeap.  Using Defaults.");
-    }
-
-    readULong(systemFile, "systemHeapSize", systemHeapSize, "Could not find systemHeapSize.  Using Default.");
-    readULong(systemFile, "guiHeapSize", guiHeapSize, "Could not find guiHeapSize.  Using Default.");
-    readULong(systemFile, "logisticsHeapSize", LogisticsHeapSize, "Could not find logisticsHeapSize.  Using Default.");
+    // The "systemHeap" block (systemHeapSize, guiHeapSize, logisticsHeapSize) sized the original's heaps; the port has
+    // none and doesn't read it.
 
     // Empty blocks switch sound and music on.
     useSound = systemFile->seekBlock("UseSound") == 0 ? 1 : 0;
@@ -196,7 +192,7 @@ void systemInit()
 
     //---------------------------------------------------------------------------------------------------------------
     // Paths.
-    result = systemFile->seekBlock("systemPaths");
+    int32_t result = systemFile->seekBlock("systemPaths");
 
     if (result != 0)
     {
@@ -698,7 +694,7 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
                     if (SessionManager::GetGlobalPointer(nullptr) == nullptr)
                     {
                         char message[] = "Created SessionManager.";
-                        InitLinkUpHeap();
+                        InitLinkUpBlocks();
                         new SessionManager(MultiPlayerAppGUID);
                         ABLi_getDebugger()->print(message);
                         input->setText(nullptr);

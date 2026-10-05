@@ -6,7 +6,6 @@
 #include "gui/aport.h"
 #include "iface/iface.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "linkup/dpmessage.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
@@ -371,14 +370,7 @@ auto aScrollTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t 
     scrollTab->setPaintRoutine(PaintScrollTab);
     scrollTab->setDepth(1);
 
-    textBuffer = static_cast<char*>(guiHeap->malloc(TextBufferSize + 1));
-
-    if (textBuffer == nullptr)
-    {
-        Fatal(0, "Not enough memory for text.");
-    }
-
-    std::memset(textBuffer, 0, TextBufferSize);
+    textBuffer = std::make_unique<char[]>(TextBufferSize + 1);
     numLines = 0;
     textLength = 0;
     firstPixel = 0;
@@ -403,12 +395,7 @@ auto aScrollTextObject::destroy() -> void
 {
     releaseChild(scrollTab);
 
-    if (textBuffer != nullptr)
-    {
-        guiHeap->free(textBuffer);
-        textBuffer = nullptr;
-    }
-
+    textBuffer.reset();
     aObject::destroy();
 }
 
@@ -416,7 +403,7 @@ auto aScrollTextObject::destroy() -> void
 auto aScrollTextObject::draw() -> void
 {
     int32_t lineY = 2;
-    char* line = textBuffer;
+    char* line = textBuffer.get();
     const int32_t lineHeight = fonts[0][fontIndex]->height() + 2;
     VFX_pane_wipe(port()->frame(), 0x10);
 
@@ -567,7 +554,7 @@ auto aScrollTextObject::ResetPortSize() -> void
 auto aScrollTextObject::Print(char* line, uint8_t color) -> void
 {
     const int32_t used = textLength;
-    char* buffer = textBuffer;
+    char* buffer = textBuffer.get();
     const int32_t fontHeight = fonts[0][fontIndex]->height();
 
     if (TextBufferSize - used <= 2)
@@ -677,7 +664,7 @@ auto aScrollTextObject::Clear() -> void
     firstPixel = 0;
     textLength = 0;
     numLines = 0;
-    std::memset(textBuffer, 0, TextBufferSize);
+    std::memset(textBuffer.get(), 0, TextBufferSize);
 
     for (int32_t& start : sectionStarts)
     {

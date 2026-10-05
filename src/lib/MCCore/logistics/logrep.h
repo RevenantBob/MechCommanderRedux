@@ -85,6 +85,6 @@ extern int32_t resourceDisplayState;
 
 /// <summary>
 /// Port: the resource figure the screens show (<see cref="resourceDisplayState"/>: the resource points, or the
-/// logistics heap's total or largest free block), into <paramref name="text"/>; empty for another state.
+/// logistics heap's total or largest free block, gone with the heap), into <paramref name="text"/>; empty for another state.
 /// </summary>
 void ResourceFigureText(char* text, size_t size);

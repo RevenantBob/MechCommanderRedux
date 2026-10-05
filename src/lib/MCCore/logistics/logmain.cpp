@@ -5,7 +5,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/linkedlist.hpp"
@@ -180,11 +179,11 @@ namespace
         }
     }
 
-    /// <summary>A copy of <paramref name="text"/> on the logistics heap.</summary>
+    /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
     char* heapCopy(const char* text)
     {
         auto* copy =
-            static_cast<char*>(globalLogPtr->logisticsHeap->malloc(static_cast<uint32_t>(std::strlen(text) + 1)));
+            static_cast<char*>(globalLogPtr->logisticsBlocks->Allocate(static_cast<uint32_t>(std::strlen(text) + 1)));
         std::strcpy(copy, text);
         return copy;
     }
@@ -503,7 +502,7 @@ namespace
             FillBox(0, 0, 0, bottom, 0x13);
             FillBox(right, 0, right, bottom, 0x13);
             // (The font's glyphs start a column in, so the text is written a pixel left of the art's.)
-            VFX_string_draw(lport()->frame(), 32, 9, whiteFont->fontData, title, lComboBox::LabelColors());
+            VFX_string_draw(lport()->frame(), 32, 9, whiteFont->fontData.get(), title, lComboBox::LabelColors());
         }
 
         bool DrawsLive() override { return true; }
@@ -884,7 +883,7 @@ void SaveGame()
             typed = EmptyFile;
         }
 
-        globalLogPtr->logisticsHeap->free(pane->fileNames[selected]);
+        globalLogPtr->logisticsBlocks->Free(pane->fileNames[selected]);
         pane->fileNames[selected] = heapCopy(typed);
     }
 
@@ -911,7 +910,7 @@ void SaveGame()
 
             if (fileExists(candidatePath) == 0)
             {
-                globalLogPtr->logisticsHeap->free(*slot);
+                globalLogPtr->logisticsBlocks->Free(*slot);
                 *slot = heapCopy(candidate);
                 break;
             }

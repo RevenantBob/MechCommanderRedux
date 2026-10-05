@@ -58,7 +58,7 @@ public:
     int AddBytes(void* data, int size);
 
     /// <summary>
-    /// Builds the message announcing the transfer (from linkUpHeap; the caller frees it) and returns its size in
+    /// Builds the message announcing the transfer (a linkUpBlocks block; the caller frees it) and returns its size in
     /// <paramref name="size"/>.
     /// </summary>
     /// <remarks>MCX.EXE @ 0x0074caf0</remarks>
@@ -68,21 +68,21 @@ public:
     /// <remarks>MCX.EXE @ 0x0074cbf0</remarks>
     static void ClearList(FLinkedList<FileTransferInfo>& list);
 
-    /// <summary>600 bytes from linkUpHeap; allocated and freed but never used.</summary>
-    uint8_t* buffer; // +0x4
+    /// <summary>600 bytes (a linkUpBlocks block); allocated and freed but never used.</summary>
+    uint8_t* buffer = nullptr; // +0x4
     /// <summary>The message carrying the file's pieces (a 0x200-byte FIDPMessage to toID).</summary>
-    FIDPMessage* message; // +0x8
+    FIDPMessage* message = nullptr; // +0x8
     /// <summary>The transfer's id (0-255), sent in every piece.</summary>
-    int32_t fileID; // +0xc
+    int32_t fileID = 0; // +0xc
     /// <summary>The open file.</summary>
-    std::FILE* file; // +0x10
-    /// <summary>The file's name (from linkUpHeap).</summary>
-    char* fileName; // +0x14
-    /// <summary>The directory, ending in '\' (from linkUpHeap; "\" when none was given).</summary>
-    char* directory;   // +0x18
-    uint32_t fileSize; // +0x1c
+    std::FILE* file = nullptr; // +0x10
+    /// <summary>The file's name (a linkUpBlocks block).</summary>
+    char* fileName = nullptr; // +0x14
+    /// <summary>The directory, ending in '\' (a linkUpBlocks block; "\" when none was given).</summary>
+    char* directory = nullptr; // +0x18
+    uint32_t fileSize = 0;     // +0x1c
     /// <summary>Not touched by the original's linkup code.</summary>
-    int32_t unknown20; // +0x20
+    int32_t unknown20 = 0; // +0x20
     /// <summary>Called when the transfer completes (SessionManager::BroadcastFile's callback).</summary>
-    void (*callback)(char* fileName, void* data); // +0x24
+    void (*callback)(char* fileName, void* data) = nullptr; // +0x24
 };

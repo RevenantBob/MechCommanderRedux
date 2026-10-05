@@ -5,7 +5,6 @@
 #include "gui/aport.h"
 #include "gui/ascroll.h"
 #include "gui/atextbox.h"
-#include "lib/heap.h"
 #include "vfx/vfxfuncs.h"
 
 namespace
@@ -51,14 +50,7 @@ auto aListBox::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, c
         resize(width, (itemHeight - lines.rem) + height);
     }
 
-    itemStrings = static_cast<char*>(guiHeap->malloc(MaxItems * ItemLength));
-
-    if (itemStrings == nullptr)
-    {
-        return -0x4522ffff;
-    }
-
-    std::memset(itemStrings, 0, MaxItems * ItemLength);
+    itemStrings = std::make_unique<char[]>(MaxItems * ItemLength);
     setBackColor(0);
     return 0;
 }
@@ -66,11 +58,7 @@ auto aListBox::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, c
 /// <remarks>MCX.EXE @ 0x0060b410</remarks>
 auto aListBox::destroy() -> void
 {
-    if (itemStrings != nullptr)
-    {
-        guiHeap->free(itemStrings);
-        itemStrings = nullptr;
-    }
+    itemStrings.reset();
 
     if (scrollBar != nullptr)
     {
@@ -352,7 +340,7 @@ auto aListBox::handleEvent(aEvent* event) -> void
 /// <remarks>MCX.EXE @ 0x0060ba10</remarks>
 auto aListBox::draw() -> void
 {
-    char* strings = itemStrings;
+    char* strings = itemStrings.get();
     VFX_pane_wipe(displayPort->frame(), backgroundColor);
     aObject::draw();
     VFX_line_draw(displayPort->frame(), 0, 0, width() - 1, 0, LD_DRAW, 0xf);
@@ -406,7 +394,7 @@ auto aListBox::AddItem(char* text) -> int32_t
         return -0x1111ffff;
     }
 
-    storeItemString(itemStrings + index * ItemLength, text);
+    storeItemString(itemStrings.get() + index * ItemLength, text);
     numItems = index + 1;
 
     if (scrollBarActive == 0)
@@ -438,7 +426,7 @@ auto aListBox::ChangeItemString(int16_t item, char* text) -> int32_t
         return -0x1111fffd;
     }
 
-    storeItemString(itemStrings + item * ItemLength, text);
+    storeItemString(itemStrings.get() + item * ItemLength, text);
     return 0;
 }
 
@@ -497,7 +485,7 @@ auto aListBox::GetItemString(int16_t item) -> char*
         return nullptr;
     }
 
-    return itemStrings + item * ItemLength;
+    return itemStrings.get() + item * ItemLength;
 }
 
 /// <remarks>MCX.EXE @ 0x0060beb0</remarks>

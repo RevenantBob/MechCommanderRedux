@@ -158,7 +158,7 @@ public:
     /// <remarks>MCX.EXE @ 0x0070c390</remarks>
     void handleEvent(aEvent* event) override;
 
-    /// <summary>Copies <paramref name="name"/> (to the logistics heap) and redraws.</summary>
+    /// <summary>Copies <paramref name="name"/> (to a logistics block) and redraws.</summary>
     /// <remarks>MCX.EXE @ 0x0070c4f0</remarks>
     void setPlayerName(char* name);
 
@@ -174,7 +174,7 @@ public:
     /// it (<c>SessionScreen::loadMission</c>, <c>fileReport</c>).
     /// </summary>
     int8_t fileStatus = -1; // +0x4bc
-    /// <summary>The player's name (logistics heap).</summary>
+    /// <summary>The player's name (a logistics block).</summary>
     char* playerName = nullptr; // +0x4c0
     aFont* font = nullptr;      // +0x4c4
     /// <summary>The player's network id; 0xffffffff = none.</summary>
@@ -353,11 +353,11 @@ public:
     int32_t team1RP = 0; // +0x540
     /// <summary>Team 2's resource points last sent.</summary>
     int32_t team2RP = 0; // +0x544
-    /// <summary>The loaded mission's name (logistics heap).</summary>
+    /// <summary>The loaded mission's name (a logistics block).</summary>
     char* missionName = nullptr; // +0x548
-    /// <summary>The loaded mission's file (logistics heap); null = none.</summary>
+    /// <summary>The loaded mission's file (a logistics block); null = none.</summary>
     char* missionFile = nullptr; // +0x54c
-    /// <summary>The loaded mission's map name (logistics heap).</summary>
+    /// <summary>The loaded mission's map name (a logistics block).</summary>
     char* mapName = nullptr; // +0x550
 
     /// <summary>

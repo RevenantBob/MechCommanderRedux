@@ -4,7 +4,6 @@
 #include "gui/scrlpane.h"
 #include "lib/aerror.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/invblock.h"
 #include "logistics/logbri.h"
@@ -65,12 +64,12 @@ namespace
 
     void* logAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsHeap->malloc(size);
+        return globalLogPtr->logisticsBlocks->Allocate(size);
     }
 
     void logFree(void* block)
     {
-        globalLogPtr->logisticsHeap->free(block);
+        globalLogPtr->logisticsBlocks->Free(block);
     }
 
     void playSample(uint32_t sampleId)
@@ -78,7 +77,7 @@ namespace
         soundSystem->playDigitalSample(sampleId, 1, nullptr, 0, 0);
     }
 
-    /// <summary>A copy of <paramref name="text"/> on the logistics heap.</summary>
+    /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
     char* heapString(const char* text)
     {
         size_t length = std::strlen(text) + 1;
@@ -252,7 +251,7 @@ namespace
 
     /// <summary>
     /// Reads description <paramref name="descIndex"/> of the object description file: "%fc4" (a colour code) and
-    /// the text, on the logistics heap. Null when the file has no such block.
+    /// the text, a logistics block. Null when the file has no such block.
     /// </summary>
     char* loadDescriptionText(int32_t descIndex)
     {
@@ -476,7 +475,7 @@ namespace
         VFX_pane_wipe(box.frame(), color);
     }
 
-    /// <summary>A text field set from a string table entry, on the logistics heap.</summary>
+    /// <summary>A text field set from a string table entry, a logistics block.</summary>
     /// <remarks>Port fix: the previous text is freed (the rows' drawBackground made a new one on every draw).</remarks>
     void setHeapText(char*& field, const char* text)
     {

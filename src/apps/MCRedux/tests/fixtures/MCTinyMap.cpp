@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "MCTinyMap.h"
-#include "lib/heap.h"
 #include "terrain/terrain.h"
 
 namespace
@@ -30,12 +29,6 @@ MCTinyMap::MCTinyMap(int32_t tiles)
     , _PreviousMetersBlockSide(Terrain::metersBlockSide)
     , _PreviousMetersPerVertexDivMapCell(Terrain::metersPerVertexDivMAPCELL_DIM)
 {
-    if (systemHeap == nullptr)
-    {
-        systemHeap = new UserHeap;
-        systemHeap->init(16383999, "SystemHeap");
-    }
-
     // As a terrain FIT's [TerrainData] sets it: one block of tiles x tiles vertices.
     Terrain::verticesBlockSide = tiles;
     Terrain::blocksMapSide = 1;

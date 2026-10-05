@@ -4,6 +4,7 @@
 
 char McMsg1[1024] = {};
 int inDirectDrawOnFatal = 0;
+bool MCNoMessageBoxes = false;
 char MissionAppName[256] = {};
 
 void Fatal(int32_t errCode, const char* errMessage, const char* errMessage2)
@@ -35,7 +36,12 @@ void Fatal(int32_t errCode, const char* errMessage, const char* errMessage2)
     }
 
     SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "%s", report.c_str());
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "MechCommander", report.c_str(), nullptr);
+
+    if (!MCNoMessageBoxes)
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "MechCommander", report.c_str(), nullptr);
+    }
+
     std::exit(1);
 }
 

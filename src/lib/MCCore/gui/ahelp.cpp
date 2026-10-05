@@ -4,7 +4,6 @@
 #include "camera/camera.h"
 #include "engine/font.h"
 #include "gui/aport.h"
-#include "lib/heap.h"
 #include "main/main.h"
 #include "object/bridge.h"
 #include "platform/MCFrameLog.h"
@@ -27,7 +26,7 @@ auto aFloatHelp::tossBitmaps() -> void
     if (port()->frame()->window->buffer != nullptr)
     {
         MCRenderer::DestroyTexture(port()->frame()->window);
-        guiHeap->free(port()->frame()->window->buffer);
+        aPort::freePixels(port()->frame()->window->buffer);
         port()->frame()->window->buffer = nullptr;
     }
 }

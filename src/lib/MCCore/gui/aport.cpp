@@ -3,11 +3,11 @@
 #include "gui/asystem.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/packet.h"
 #include "logistics/logbri.h"
 #include "ai/move.h"
 #include "vfx/vfxfuncs.h"
+#include "platform/MCBlockStore.h"
 
 namespace
 {
@@ -42,17 +42,11 @@ namespace
                 freePixels(window->buffer);
             }
 
-            guiHeap->free(window);
+            delete window;
         }
 
-        window = static_cast<_window*>(guiHeap->malloc(sizeof(_window)));
+        window = new _window{};
         port->portWindow = window;
-
-        if (window == nullptr)
-        {
-            return 3;
-        }
-
         window->View = nullptr;
         window->Texture = nullptr;
         window->x_max = width - 1;
@@ -74,19 +68,9 @@ namespace
             window->buffer = nullptr;
         }
 
-        if (port->portPane != nullptr)
-        {
-            guiHeap->free(port->portPane);
-        }
-
-        _pane* pane = static_cast<_pane*>(guiHeap->malloc(sizeof(_pane)));
+        delete port->portPane;
+        _pane* pane = new _pane{};
         port->portPane = pane;
-
-        if (pane == nullptr)
-        {
-            return 3;
-        }
-
         pane->x0 = 0;
         pane->y0 = 0;
         setExtent(window, pane, width, height);
@@ -137,25 +121,29 @@ namespace
                 freePixels(port->portWindow->buffer);
             }
 
-            guiHeap->free(port->portWindow);
+            delete port->portWindow;
             port->portWindow = nullptr;
         }
 
-        if (port->portPane != nullptr)
-        {
-            guiHeap->free(port->portPane);
-            port->portPane = nullptr;
-        }
+        delete port->portPane;
+        port->portPane = nullptr;
     }
+
+    /// <summary>
+    /// The bitmaps of the ports (the GUI heap's in the original). A port's bitmap isn't always its own (the screen
+    /// port's is the screen, the fog port's the fog flags), and freeing one that isn't from here is ignored, as the
+    /// heap did.
+    /// </summary>
+    MCBlockStore pixelBlocks;
 
     void* guiAlloc(uint32_t size)
     {
-        return guiHeap->malloc(size);
+        return pixelBlocks.Allocate(size);
     }
 
     void guiFree(void* block)
     {
-        guiHeap->free(block);
+        pixelBlocks.Free(block);
     }
 
     void* crtAlloc(uint32_t size)
@@ -170,16 +158,6 @@ namespace
 }
 
 // aPort
-
-auto aPort::operator new(size_t size) noexcept -> void*
-{
-    return guiHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto aPort::operator delete(void* ptr) -> void
-{
-    guiHeap->free(ptr);
-}
 
 aPort::aPort()
 {
@@ -222,34 +200,20 @@ auto aPort::init(int32_t artPacket) -> int32_t
         Fatal(-2, "Bad child file in art.pak");
     }
 
-    auto* gif = static_cast<uint8_t*>(guiHeap->malloc(size));
-
-    if (gif == nullptr)
-    {
-        Fatal(3, "Not enough memory to read art file");
-    }
-
-    file.read(gif, static_cast<int32_t>(size));
+    std::vector<uint8_t> gif(size);
+    file.read(gif.data(), static_cast<int32_t>(size));
     file.close();
 
-    const uint32_t resolution = static_cast<uint32_t>(VFX_GIF_resolution(gif));
-    void* decodeBuffer = std::malloc(0x502e);
-
-    if (decodeBuffer == nullptr)
-    {
-        Fatal(3, "Not enough memory to decode gif file");
-    }
-
+    const uint32_t resolution = static_cast<uint32_t>(VFX_GIF_resolution(gif.data()));
+    std::vector<uint8_t> decodeBuffer(0x502e);
     const int32_t result = init(static_cast<int32_t>(resolution >> 16), static_cast<int32_t>(resolution & 0xffff));
 
     if (result != 0)
     {
-        return result; // The original leaks both buffers here too.
+        return result;
     }
 
-    VFX_GIF_draw(portPane, gif, decodeBuffer);
-    guiHeap->free(gif);
-    std::free(decodeBuffer);
+    VFX_GIF_draw(portPane, gif.data(), decodeBuffer.data());
     return 0;
 }
 
@@ -356,14 +320,8 @@ auto aPort::initView(int32_t width, int32_t height) -> int32_t
     }
 
     destroyPort(this, guiFree);
-    auto* window = static_cast<_window*>(guiHeap->malloc(sizeof(_window)));
-    auto* pane = static_cast<_pane*>(guiHeap->malloc(sizeof(_pane)));
-
-    if (window == nullptr || pane == nullptr)
-    {
-        return 3;
-    }
-
+    auto* window = new _window{};
+    auto* pane = new _pane{};
     portWindow = window;
     portPane = pane;
     window->buffer = nullptr;

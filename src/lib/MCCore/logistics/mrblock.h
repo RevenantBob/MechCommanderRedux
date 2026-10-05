@@ -213,7 +213,7 @@ public:
     ScrollPane* inventoryPane = nullptr; // +0x4c4
     /// <summary>A copy of LogMech +0x1c (also the inventory row of <c>MechInventoryBlock</c>).</summary>
     int32_t listPosition = 0; // +0x4c8
-    /// <summary>Inventory indices of the short-range weapons (range &lt; the first threshold), on the logistics heap.</summary>
+    /// <summary>Inventory indices of the short-range weapons (range &lt; the first threshold), a logistics block.</summary>
     int32_t* shortRangeWeapons = nullptr;  // +0x4cc
     int32_t numShortRangeWeapons = 0;      // +0x4d0
     int32_t* mediumRangeWeapons = nullptr; // +0x4d4

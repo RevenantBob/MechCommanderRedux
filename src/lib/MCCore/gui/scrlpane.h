@@ -17,12 +17,6 @@ public:
     /// <remarks>MCX.EXE @ 0x006da980 (vector deleting destructor)</remarks>
     ~ScrollPane() override;
 
-    /// <summary>Allocates from the logistics heap.</summary>
-    /// <remarks>MCX.EXE @ 0x00727580</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x007275a0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Clears the fields (the constructor's work; the logistics classes call it before the other inits).</summary>
     /// <remarks>MCX.EXE @ 0x007275c0</remarks>
     void init();
@@ -121,7 +115,7 @@ public:
     int32_t sliderPos = 0; // +0x4c0
     /// <summary>The largest <see cref="sliderPos"/>.</summary>
     int32_t sliderMax = 0; // +0x4c4
-    /// <summary>The slider's picture (13 x <see cref="sliderHeight"/>), from the logistics heap.</summary>
+    /// <summary>The slider's picture (13 x <see cref="sliderHeight"/>), a logistics block.</summary>
     uint8_t* sliderImage = nullptr; // +0x4c8
     uint32_t sliderImageSize = 0;   // +0x4cc
     int32_t unknown4D0[5] = {};     // +0x4d0

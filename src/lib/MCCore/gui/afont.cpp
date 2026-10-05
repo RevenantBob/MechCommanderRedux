@@ -3,7 +3,6 @@
 #include "gui/asystem.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "logistics/logmain.h"
 #include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
@@ -14,6 +13,7 @@ aFont::aFont()
 
 aFont::~aFont()
 {
+    destroy();
     MCRenderer::UnregisterData(colorTable, sizeof(colorTable));
 }
 
@@ -44,16 +44,10 @@ auto aFont::init(char* fileName) -> int32_t
         return -2;
     }
 
-    fontData = static_cast<uint8_t*>(guiHeap->malloc(size));
-
-    if (fontData == nullptr)
-    {
-        return 3;
-    }
-
-    file.read(fontData, static_cast<int32_t>(size));
+    fontData = std::make_unique<uint8_t[]>(size);
+    file.read(fontData.get(), static_cast<int32_t>(size));
     file.close();
-    MCRenderer::RegisterData(fontData, size, MCDataKind::Shapes);
+    MCRenderer::RegisterData(fontData.get(), size, MCDataKind::Shapes);
 
     for (int32_t i = 0; i < 0x100; i++)
     {
@@ -68,8 +62,8 @@ auto aFont::destroy() -> void
 {
     if (fontData != nullptr)
     {
-        guiHeap->free(fontData);
-        fontData = nullptr;
+        MCRenderer::UnregisterData(fontData.get());
+        fontData.reset();
     }
 }
 
@@ -86,7 +80,7 @@ auto aFont::height() -> int32_t
         return 0;
     }
 
-    return VFX_font_height(fontData);
+    return VFX_font_height(fontData.get());
 }
 
 auto aFont::width(uint8_t* text) -> int32_t
@@ -101,7 +95,7 @@ auto aFont::width(uint8_t* text) -> int32_t
 
     for (int32_t i = 0; i < length; i++)
     {
-        total += VFX_character_width(fontData, text[i]);
+        total += VFX_character_width(fontData.get(), text[i]);
     }
 
     return total;
@@ -119,7 +113,7 @@ auto aFont::width(uint8_t c) -> int32_t
         return 0;
     }
 
-    return VFX_character_width(fontData, c);
+    return VFX_character_width(fontData.get(), c);
 }
 
 auto aFont::writeChar(_pane* pane, int32_t xPos, int32_t yPos, char c) -> int32_t
@@ -131,7 +125,7 @@ auto aFont::writeChar(_pane* pane, int32_t xPos, int32_t yPos, char c) -> int32_
 
     if (c != 0)
     {
-        VFX_character_draw(pane, xPos, yPos, fontData, static_cast<uint8_t>(c), colorTable);
+        VFX_character_draw(pane, xPos, yPos, fontData.get(), static_cast<uint8_t>(c), colorTable);
     }
 
     return 0;
@@ -169,7 +163,7 @@ auto aFont::writeString(_pane* pane, int32_t xPos, int32_t yPos, uint8_t* text, 
         }
     }
 
-    VFX_string_draw(pane, xPos, yPos, fontData, reinterpret_cast<char*>(text), colorTable);
+    VFX_string_draw(pane, xPos, yPos, fontData.get(), reinterpret_cast<char*>(text), colorTable);
 
     if (maxWidth != -1)
     {
@@ -197,7 +191,7 @@ auto aFont::writeStringToNewline(_pane* pane, int32_t xPos, int32_t yPos, uint8_
                 *newline = 0;
             }
 
-            VFX_string_draw(pane, xPos, yPos, fontData, reinterpret_cast<char*>(text), colorTable);
+            VFX_string_draw(pane, xPos, yPos, fontData.get(), reinterpret_cast<char*>(text), colorTable);
 
             if (newline != nullptr)
             {

@@ -2,17 +2,6 @@
 #include "linkup/dpmessage.h"
 #include "linkup/sessionmanager.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
-
-void* FIDPMessage::operator new(size_t size) noexcept
-{
-    return linkUpHeap->malloc(static_cast<uint32_t>(size));
-}
-
-void FIDPMessage::operator delete(void* ptr)
-{
-    linkUpHeap->free(ptr);
-}
 
 FIDPMessage::FIDPMessage(uint32_t toID, uint32_t bufferSize)
 {
@@ -22,7 +11,7 @@ FIDPMessage::FIDPMessage(uint32_t toID, uint32_t bufferSize)
     sendTime = 0;
     timesSent = 0;
     Clear();
-    messageBuffer = static_cast<uint8_t*>(linkUpHeap->malloc(bufferSize));
+    messageBuffer = static_cast<uint8_t*>(linkUpBlocks->Allocate(bufferSize));
     Assert(messageBuffer != nullptr, 0, "Message buffer is null: malloc failed");
     this->bufferSize = bufferSize;
     this->toID = toID;
@@ -33,7 +22,7 @@ FIDPMessage::~FIDPMessage()
 {
     if (messageBuffer != nullptr)
     {
-        linkUpHeap->free(messageBuffer);
+        linkUpBlocks->Free(messageBuffer);
     }
 }
 

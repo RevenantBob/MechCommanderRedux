@@ -103,7 +103,7 @@ public:
     int32_t diagramY = 0; // +0x50c
     /// <summary>The "destroyed" image, copied over the diagram once the mover is dead.</summary>
     aPort* deadImage = nullptr; // +0x510
-    /// <summary>The damage shapes (one per body part), loaded from <c>artPath</c> on the GUI heap.</summary>
+    /// <summary>The damage shapes (one per body part), loaded from <c>artPath</c> (new[]'d, registered with the renderers).</summary>
     void* damageShapes = nullptr; // +0x514
 };
 
@@ -392,12 +392,6 @@ public:
 
     /// <remarks>MCX.EXE @ 0x006cb820</remarks>
     InterfaceObject();
-
-    /// <summary>Allocates from the GUI heap.</summary>
-    /// <remarks>MCX.EXE @ 0x006cb8e0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006cb900</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>
     /// Makes the mech bar and the twelve floating tags, reads <c>iface.fit</c> (drag distance, scroll speeds,

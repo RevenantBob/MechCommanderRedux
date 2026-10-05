@@ -27,7 +27,7 @@ public:
         }
     }
 
-    uint8_t sendCount[6]; // +0x0
+    uint8_t sendCount[6]{}; // +0x0
 };
 
 static_assert(sizeof(MessageTagger) == 6);
@@ -53,7 +53,7 @@ inline constexpr uint16_t FIMSG_GUARANTEED = 0x1000;
 class FIMessageHeader
 {
 public:
-    uint16_t header; // +0x0
+    uint16_t header = 0; // +0x0
 };
 
 static_assert(sizeof(FIMessageHeader) == 2);
@@ -63,7 +63,7 @@ static_assert(sizeof(FIMessageHeader) == 2);
 class FIGuaranteedMessageHeader : public FIMessageHeader
 {
 public:
-    MessageTagger tagger; // +0x2
+    MessageTagger tagger{}; // +0x2
 };
 
 static_assert(sizeof(FIGuaranteedMessageHeader) == 8);
@@ -77,7 +77,7 @@ class FISystemInfoMessage : public FIGuaranteedMessageHeader
 {
 public:
     /// <summary>GlobalMemoryStatus's dwTotalPhys.</summary>
-    uint32_t totalPhysicalMemory; // +0x8
+    uint32_t totalPhysicalMemory = 0; // +0x8
 };
 
 static_assert(sizeof(FISystemInfoMessage) == 0xc);
@@ -92,11 +92,11 @@ static_assert(sizeof(FISystemInfoMessage) == 0xc);
 class FIBeginFileTransferMessage : public FIMessageHeader
 {
 public:
-    uint32_t fileSize; // +0x2
+    uint32_t fileSize = 0; // +0x2
     /// <summary>The transfer's id (SessionManager's next file id, 0-255).</summary>
-    uint8_t fileID; // +0x6
+    uint8_t fileID = 0; // +0x6
     /// <summary>"name\directory", zero-terminated; the message runs on past this declaration.</summary>
-    char fileName[1]; // +0x7
+    char fileName[1]{}; // +0x7
 };
 
 static_assert(sizeof(FIBeginFileTransferMessage) == 8);
@@ -111,8 +111,8 @@ static_assert(sizeof(FIBeginFileTransferMessage) == 8);
 /// </remarks>
 struct FIFileDataMessage : public FIGuaranteedMessageHeader
 {
-    uint8_t fileID;    // +0x8
-    uint8_t data[100]; // +0x9
+    uint8_t fileID = 0;  // +0x8
+    uint8_t data[100]{}; // +0x9
 };
 
 static_assert(sizeof(FIFileDataMessage) == 0x6d);

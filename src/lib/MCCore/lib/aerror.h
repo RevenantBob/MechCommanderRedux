@@ -18,6 +18,12 @@
 /// <summary>The last fatal message, with context, as the crash reporter showed it.</summary>
 extern char McMsg1[1024];
 
+/// <summary>
+/// Port-only: when set (by mc_tests), <see cref="Fatal"/> and <c>AssertTest</c> only log, with no message box to
+/// block an unattended run.
+/// </summary>
+extern bool MCNoMessageBoxes;
+
 /// <summary>Set while the display is in exclusive (DirectDraw) mode, when the original changed how it reported.</summary>
 extern int inDirectDrawOnFatal;
 

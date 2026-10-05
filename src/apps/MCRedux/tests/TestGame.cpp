@@ -7,7 +7,6 @@
 #include "gui/asystem.h"
 #include "gui/updisp.h"
 #include "lib/fastfile.h"
-#include "lib/heap.h"
 #include "logistics/loggen.h"
 #include "logistics/logmain.h"
 #include "main/honorb.h"
@@ -348,9 +347,8 @@ namespace MCTestGame
             // The world view shows 480 lines (one world pixel per screen pixel in the 640x480 window) at any zoom
             // request, so what is on screen, and so updated, is the same every run.
             MCFixedZoomHeight = 480.0f;
-            globalHeapList = new HeapList();
             std::strcpy(paletteName, "palette.gif");
-            application = ::new aSystem;
+            application = new aSystem;
 
             if (application->start(nullptr, nullptr, commandLine.data(), 1, 640, 480) != 0)
             {

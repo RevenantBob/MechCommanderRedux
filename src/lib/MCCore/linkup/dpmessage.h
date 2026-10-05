@@ -10,21 +10,15 @@ class MCDirectPlay;
 /// queues; guaranteed messages sit in the receiver's FIDPPlayer verify list until acknowledged.
 /// </summary>
 /// <remarks>
-/// Original source: <c>linkup\dpmessage.cpp</c>, 0x28 bytes, allocated from linkUpHeap. The buffer
+/// Original source: <c>linkup\dpmessage.cpp</c>, 0x28 bytes. The buffer
 /// (<see cref="messageBuffer"/>) starts with an <c>FIMessageHeader</c>.
 /// </remarks>
 class FIDPMessage
 {
 public:
-    /// <summary>Allocates from linkUpHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x0074a4b0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x0074a4d0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// A message addressed to <paramref name="toID"/> with a buffer of <paramref name="bufferSize"/> bytes (from
-    /// linkUpHeap).
+    /// linkUpBlocks).
     /// </summary>
     /// <remarks>MCX.EXE @ 0x0074a4f0</remarks>
     FIDPMessage(uint32_t toID, uint32_t bufferSize);
@@ -53,24 +47,24 @@ public:
     int32_t ReceiveMessage(MCDirectPlay* directPlay);
 
     /// <summary>Bytes of the buffer in use.</summary>
-    uint32_t messageSize; // +0x4
+    uint32_t messageSize = 0; // +0x4
     /// <summary>The receiver's DPID (0 = everyone, else a player or group).</summary>
-    uint32_t toID; // +0x8
+    uint32_t toID = 0; // +0x8
     /// <summary>The sender's DPID.</summary>
-    uint32_t fromID; // +0xc
+    uint32_t fromID = 0; // +0xc
     /// <summary>Low 32 bits of the performance counter when the message was (last) sent.</summary>
-    uint32_t sendTime; // +0x10
+    uint32_t sendTime = 0; // +0x10
     /// <summary>The buffer's capacity.</summary>
-    uint32_t bufferSize; // +0x14
-    /// <summary>The message bytes (from linkUpHeap).</summary>
-    uint8_t* messageBuffer; // +0x18
+    uint32_t bufferSize = 0; // +0x14
+    /// <summary>The message bytes (a linkUpBlocks block).</summary>
+    uint8_t* messageBuffer = nullptr; // +0x18
     /// <summary>The <see cref="sendTime"/> of the first send (kept across resends).</summary>
-    uint32_t firstSendTime; // +0x1c
+    uint32_t firstSendTime = 0; // +0x1c
     /// <summary>Nonzero once the message was resent (latency is only measured on messages sent once).</summary>
-    int32_t wasResent; // +0x20
+    int32_t wasResent = 0; // +0x20
     /// <summary>
     /// How many times the message was sent: 1 when it enters the verify list, +1 per resend. A resend waits
     /// the player's resendDelay times this.
     /// </summary>
-    int32_t timesSent; // +0x24
+    int32_t timesSent = 0; // +0x24
 };

@@ -22,8 +22,8 @@ public:
     FIDPMsgLink(const FIDPMsgLink&) = delete;
     FIDPMsgLink& operator=(const FIDPMsgLink&) = delete;
 
-    FIDPMsgLink* next;    // +0x4
-    FIDPMessage* message; // +0x8
+    FIDPMsgLink* next = nullptr;    // +0x4
+    FIDPMessage* message = nullptr; // +0x8
 };
 
 /// <summary>
@@ -59,7 +59,7 @@ public:
     /// <remarks>MCX.EXE @ 0x0074cf00</remarks>
     int Size();
 
-    FIDPMsgLink* tail; // +0x0
-    int32_t count;     // +0x4
-    FIDPMsgLink* head; // +0x8
+    FIDPMsgLink* tail = nullptr; // +0x0
+    int32_t count = 0;           // +0x4
+    FIDPMsgLink* head = nullptr; // +0x8
 };

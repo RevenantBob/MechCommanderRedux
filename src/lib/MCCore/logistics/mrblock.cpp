@@ -4,7 +4,6 @@
 #include "gui/scrlpane.h"
 #include "gui/updisp.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "logistics/invblock.h"
 #include "logistics/logbri.h"
 #include "logistics/logdlg.h"
@@ -76,12 +75,12 @@ namespace
 
     void* logAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsHeap->malloc(size);
+        return globalLogPtr->logisticsBlocks->Allocate(size);
     }
 
     void logFree(void* block)
     {
-        globalLogPtr->logisticsHeap->free(block);
+        globalLogPtr->logisticsBlocks->Free(block);
     }
 
     void playSample(uint32_t sampleId)
@@ -580,8 +579,8 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
             // The ticker explains what the cursor is over.
             static constexpr struct
             {
-                RECT area;
-                uint32_t stringId;
+                RECT area{};
+                uint32_t stringId = 0;
             } HelpAreas[] = {
                 {{0x72, 5, 0x7a, 0x6a}, 0x37},   {{0x88, 2, 0xd2, 5}, 0x38},      {{0xea, 3, 299, 0x12}, 0x39},
                 {{0xea, 0x17, 299, 0x26}, 0x3a}, {{0xea, 0x37, 299, 0x3f}, 0x3b}, {{0xea, 0x4c, 299, 0x54}, 0x3c},

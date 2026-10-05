@@ -21,7 +21,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "lib/pqueue.h"
@@ -855,9 +854,9 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     for (int32_t i = 0; i < 6; i++)
     {
         sensorShapeFile.seekPacket(i);
-        sensorContactShapes[i] =
-            static_cast<uint8_t*>(systemHeap->malloc(static_cast<uint32_t>(sensorShapeFile.getPacketSize())));
-        Assert(sensorContactShapes[i] != nullptr, static_cast<uint32_t>(result), " no RAM for Large Sensor Shape ");
+        // An empty packet still fails, as it did when systemHeap's malloc(0) returned null.
+        Assert(sensorShapeFile.getPacketSize() > 0, static_cast<uint32_t>(result), " no RAM for Large Sensor Shape ");
+        sensorContactShapes[i] = new uint8_t[static_cast<size_t>(sensorShapeFile.getPacketSize())]{};
         sensorShapeFile.readPacket(i, sensorContactShapes[i]);
         MCRenderer::RegisterData(sensorContactShapes[i], static_cast<size_t>(sensorShapeFile.getPacketSize()),
                                  MCDataKind::Shapes);
@@ -1174,13 +1173,7 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
     if (numWarriors != 0)
     {
-        warriors = static_cast<MechWarrior**>(systemHeap->malloc((numWarriors + 1) * sizeof(MechWarrior*)));
-        Assert(warriors != nullptr, 0, " no RAM for Warriors ");
-
-        for (uint32_t i = 0; i < numWarriors + 1; i++)
-        {
-            warriors[i] = nullptr;
-        }
+        warriors = std::make_unique<MechWarrior*[]>(numWarriors + 1);
 
         for (uint32_t i = 1; i < numWarriors + 1; i++)
         {
@@ -1280,9 +1273,7 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
     if (numParts != 0)
     {
-        parts = static_cast<Part*>(systemHeap->malloc((numParts + 1) * sizeof(Part)));
-        Assert(parts != nullptr, 0, " no RAM for Parts ");
-        std::memset(parts, 0, (numParts + 1) * sizeof(Part));
+        parts = std::make_unique<Part[]>(numParts + 1);
 
         for (int32_t i = 1; i < static_cast<int32_t>(numParts) + 1; i++)
         {
@@ -1570,9 +1561,7 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
     if (numObjectives != 0)
     {
-        objectives = static_cast<ScenarioObjective*>(systemHeap->malloc(MAX_OBJECTIVES * sizeof(ScenarioObjective)));
-        Assert(objectives != nullptr, 0, " no RAM for Objectives ");
-        std::memset(objectives, 0, MAX_OBJECTIVES * sizeof(ScenarioObjective));
+        objectives = std::make_unique<ScenarioObjective[]>(MAX_OBJECTIVES);
 
         for (int32_t i = 0; i < static_cast<int32_t>(numObjectives); i++)
         {
@@ -1963,11 +1952,9 @@ auto Scenario::destroy() -> void
     tempBuffer.fill(0);
 
     Assert(parts != nullptr, 0, " parts already NULL ");
-    systemHeap->free(parts);
-    parts = nullptr;
+    parts.reset();
     Assert(objectives != nullptr, 0, " parts already NULL ");
-    systemHeap->free(objectives);
-    objectives = nullptr;
+    objectives.reset();
 
     for (int32_t i = 0; i < NumCommanders; i++)
     {
@@ -1994,7 +1981,8 @@ auto Scenario::destroy() -> void
     {
         if (sensorContactShapes[i] != nullptr)
         {
-            systemHeap->free(sensorContactShapes[i]);
+            MCRenderer::UnregisterData(sensorContactShapes[i]);
+            delete[] sensorContactShapes[i];
             sensorContactShapes[i] = nullptr;
         }
     }
@@ -2122,8 +2110,7 @@ auto Scenario::destroyWarriors() -> void
         }
     }
 
-    systemHeap->free(warriors);
-    warriors = nullptr;
+    warriors.reset();
     numWarriors = 0;
 }
 

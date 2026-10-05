@@ -83,12 +83,6 @@ enum WorldStateChunkType
 class WorldStateChunk
 {
 public:
-    /// <summary>Allocates from systemHeap (or malloc before it exists).</summary>
-    /// <remarks>MCX.EXE @ 0x00601280</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006012c0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// A mine at map cell (<paramref name="tileRow"/>, <paramref name="tileCol"/>) of team
     /// <paramref name="teamId"/> (0-2; 1 is the Clan layout): <paramref name="mineState"/> 0-3, where 3 (exploded)
@@ -132,20 +126,20 @@ public:
     int equalTo(WorldStateChunk* chunk);
 
     /// <summary>The <see cref="WorldStateChunkType"/>.</summary>
-    int8_t type;     // +0x0
-    int16_t tileRow; // +0x1
-    int16_t tileCol; // +0x3
+    int8_t type = 0;     // +0x0
+    int16_t tileRow = 0; // +0x1
+    int16_t tileCol = 0; // +0x3
     /// <summary>Terrain fire: the object's part id (0x1000 + blockNum * 0xc80 + vertexNum * 8 + item).</summary>
-    int32_t objectWID; // +0x5
-    int32_t blockNum;  // +0x9
-    int32_t vertexNum; // +0xd
-    int8_t item;       // +0x11
+    int32_t objectWID = 0; // +0x5
+    int32_t blockNum = 0;  // +0x9
+    int32_t vertexNum = 0; // +0xd
+    int8_t item = 0;       // +0x11
     /// <summary>The first value (see the type).</summary>
-    int32_t param1; // +0x12
+    int32_t param1 = 0; // +0x12
     /// <summary>The second value (see the type).</summary>
-    int32_t param2; // +0x16
+    int32_t param2 = 0; // +0x16
     /// <summary>The packed word sent over the network.</summary>
-    uint32_t data; // +0x1a
+    uint32_t data = 0; // +0x1a
 };
 
 static_assert(sizeof(WorldStateChunk) == 0x1e);
@@ -201,8 +195,8 @@ enum MultiPlayerMessageType
 struct MPChatMessage : public FIGuaranteedMessageHeader
 {
     /// <summary>1 when sent to everyone (receiver 0).</summary>
-    uint8_t toAll; // +0x8
-    char text[1];  // +0x9
+    uint8_t toAll = 0; // +0x8
+    char text[1]{};    // +0x9
 };
 
 static_assert(sizeof(MPChatMessage) == 10);
@@ -210,8 +204,8 @@ static_assert(sizeof(MPChatMessage) == 10);
 /// <summary>Player check-in and ready-for-battle (guaranteed): the sender's check-in id and home team.</summary>
 struct MPPlayerCheckInMessage : public FIGuaranteedMessageHeader
 {
-    int8_t checkInId; // +0x8
-    int8_t homeTeam;  // +0x9
+    int8_t checkInId = 0; // +0x8
+    int8_t homeTeam = 0;  // +0x9
 };
 
 static_assert(sizeof(MPPlayerCheckInMessage) == 10);
@@ -219,9 +213,9 @@ static_assert(sizeof(MPPlayerCheckInMessage) == 10);
 /// <summary>Player setup (guaranteed): the server's group ids.</summary>
 struct MPPlayerSetupMessage : public FIGuaranteedMessageHeader
 {
-    uint32_t allPlayerGroupID;   // +0x8
-    uint32_t clanGroupID;        // +0xc
-    uint32_t innerSphereGroupID; // +0x10
+    uint32_t allPlayerGroupID = 0;   // +0x8
+    uint32_t clanGroupID = 0;        // +0xc
+    uint32_t innerSphereGroupID = 0; // +0x10
 };
 
 static_assert(sizeof(MPPlayerSetupMessage) == 0x14);
@@ -229,7 +223,7 @@ static_assert(sizeof(MPPlayerSetupMessage) == 0x14);
 /// <summary>Check-in receipt (guaranteed, to the server): the check-in id; also end scenario: the result.</summary>
 struct MPLongMessage : public FIGuaranteedMessageHeader
 {
-    int32_t value; // +0x8
+    int32_t value = 0; // +0x8
 };
 
 static_assert(sizeof(MPLongMessage) == 0xc);
@@ -237,14 +231,14 @@ static_assert(sizeof(MPLongMessage) == 0xc);
 /// <summary>Player order (guaranteed, to the server): a tactical order packed into two words.</summary>
 struct MPPlayerOrderMessage : public FIGuaranteedMessageHeader
 {
-    int8_t checkInId; // +0x8
+    int8_t checkInId = 0; // +0x8
     /// <summary>Bit 0: queued; bit 5: the order came from a group; bits 1-4: 1 &lt;&lt; (group id + 1) per group.</summary>
-    uint8_t flags; // +0x9
+    uint8_t flags = 0; // +0x9
     /// <summary>Two words of the order for move/attack orders (order +0x24, +0x28).</summary>
-    uint32_t orderParam1; // +0xa
-    uint32_t orderParam2; // +0xe
+    uint32_t orderParam1 = 0; // +0xa
+    uint32_t orderParam2 = 0; // +0xe
     /// <summary>TacticalOrder::pack's two words (order +0x130, +0x134).</summary>
-    uint32_t packedOrder[2]; // +0x12
+    uint32_t packedOrder[2]{}; // +0x12
 };
 
 static_assert(sizeof(MPPlayerOrderMessage) == 0x1a);
@@ -252,10 +246,10 @@ static_assert(sizeof(MPPlayerOrderMessage) == 0x1a);
 /// <summary>Player mover group (guaranteed): which movers form a group and its point man.</summary>
 struct MPPlayerMoverGroupMessage : public FIGuaranteedMessageHeader
 {
-    int8_t checkInId; // +0x8
-    int8_t groupId;   // +0x9
+    int8_t checkInId = 0; // +0x8
+    int8_t groupId = 0;   // +0x9
     /// <summary>(1 &lt;&lt; local index per mover) &lt;&lt; 4 | the point man's local index.</summary>
-    uint16_t members; // +0xa
+    uint16_t members = 0; // +0xa
 };
 
 static_assert(sizeof(MPPlayerMoverGroupMessage) == 0xc);
@@ -263,9 +257,9 @@ static_assert(sizeof(MPPlayerMoverGroupMessage) == 0xc);
 /// <summary>Player artillery (guaranteed): the target's x and y and the packed ArtilleryChunk.</summary>
 struct MPPlayerArtilleryMessage : public FIGuaranteedMessageHeader
 {
-    float targetX;          // +0x8
-    float targetY;          // +0xc
-    uint32_t artilleryData; // +0x10
+    float targetX = 0;          // +0x8
+    float targetY = 0;          // +0xc
+    uint32_t artilleryData = 0; // +0x10
 };
 
 static_assert(sizeof(MPPlayerArtilleryMessage) == 0x14);
@@ -276,9 +270,9 @@ static_assert(sizeof(MPPlayerArtilleryMessage) == 0x14);
 /// </summary>
 struct MPStartScenarioMessage : public FIGuaranteedMessageHeader
 {
-    int32_t playerValues[6]; // +0x8
-    uint8_t moverFlags[24];  // +0x20
-    char missionName[1];     // +0x38
+    int32_t playerValues[6]{}; // +0x8
+    uint8_t moverFlags[24]{};  // +0x20
+    char missionName[1]{};     // +0x38
 };
 
 static_assert(sizeof(MPStartScenarioMessage) == 0x39);
@@ -289,8 +283,8 @@ static_assert(sizeof(MPStartScenarioMessage) == 0x39);
 /// </summary>
 struct MPFileNameMessage : public FIGuaranteedMessageHeader
 {
-    int32_t unused;   // +0x8
-    char fileName[1]; // +0xc
+    int32_t unused = 0; // +0x8
+    char fileName[1]{}; // +0xc
 };
 
 static_assert(sizeof(MPFileNameMessage) == 0xd);
@@ -298,9 +292,9 @@ static_assert(sizeof(MPFileNameMessage) == 0xd);
 /// <summary>Join team (guaranteed, from the host): the player, the team (0 = none) and the slot on it.</summary>
 struct MPJoinTeamMessage : public FIGuaranteedMessageHeader
 {
-    uint32_t playerID; // +0x8
-    int8_t team;       // +0xc
-    int8_t slot;       // +0xd
+    uint32_t playerID = 0; // +0x8
+    int8_t team = 0;       // +0xc
+    int8_t slot = 0;       // +0xd
 };
 
 static_assert(sizeof(MPJoinTeamMessage) == 0xe);
@@ -311,8 +305,8 @@ static_assert(sizeof(MPJoinTeamMessage) == 0xe);
 /// </summary>
 struct MPTwoLongMessage : public FIGuaranteedMessageHeader
 {
-    int32_t value1; // +0x8
-    int32_t value2; // +0xc
+    int32_t value1 = 0; // +0x8
+    int32_t value2 = 0; // +0xc
 };
 
 static_assert(sizeof(MPTwoLongMessage) == 0x10);
@@ -323,8 +317,8 @@ static_assert(sizeof(MPTwoLongMessage) == 0x10);
 /// <remarks>8 bytes; the name is the port's.</remarks>
 struct MPPlayerTeam
 {
-    uint32_t playerID; // +0x0
-    int32_t team;      // +0x4
+    uint32_t playerID = 0; // +0x0
+    int32_t team = 0;      // +0x4
 };
 
 /// <summary>
@@ -332,19 +326,13 @@ struct MPPlayerTeam
 /// outgoing chunks and the update timers.
 /// </summary>
 /// <remarks>
-/// Original source: <c>network\multplyr.cpp</c>, 0x2458 bytes, allocated from systemHeap. Its vtable holds only
+/// Original source: <c>network\multplyr.cpp</c>, 0x2458 bytes. Its vtable holds only
 /// <see cref="init(FitIniFile*)"/>; the destructor is not virtual (the scalar deleting destructor at 0x0075f2e0 is
 /// the inline one).
 /// </remarks>
 class MultiPlayer
 {
 public:
-    /// <summary>Allocates from systemHeap (or malloc before it exists).</summary>
-    /// <remarks>MCX.EXE @ 0x00604e40</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00604e80</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>Inline in the original: calls <see cref="init()"/>.</summary>
     MultiPlayer() { init(); }
 
@@ -594,89 +582,89 @@ public:
     /// <remarks>MCX.EXE @ 0x006091c0</remarks>
     void initStartupParameters();
 
-    /// <summary>Deletes the SessionManager, the linkup heap and the message buffer.</summary>
+    /// <summary>Deletes the SessionManager, the linkup blocks and the message buffer.</summary>
     /// <remarks>MCX.EXE @ 0x00609400</remarks>
     void destroy();
 
-    SessionManager* sessionManager; // +0x4
-    /// <summary>Where messages are built (0x1400 bytes from systemHeap).</summary>
-    uint8_t* msgBuffer;          // +0x8
-    uint32_t allPlayerGroupID;   // +0xc
-    uint32_t innerSphereGroupID; // +0x10
-    uint32_t clanGroupID;        // +0x14
+    SessionManager* sessionManager = nullptr; // +0x4
+    /// <summary>Where messages are built (0x1400 bytes).</summary>
+    uint8_t* msgBuffer = nullptr;    // +0x8
+    uint32_t allPlayerGroupID = 0;   // +0xc
+    uint32_t innerSphereGroupID = 0; // +0x10
+    uint32_t clanGroupID = 0;        // +0x14
     /// <summary>The group of this machine's team (one of the two above).</summary>
-    uint32_t homeTeamGroupID;  // +0x18
-    uint32_t enemyTeamGroupID; // +0x1c
+    uint32_t homeTeamGroupID = 0;  // +0x18
+    uint32_t enemyTeamGroupID = 0; // +0x1c
     /// <summary>The server's DPID.</summary>
-    uint32_t serverID; // +0x20
+    uint32_t serverID = 0; // +0x20
     /// <summary>The host's DPID (sendToHost; the server takes over when the host leaves).</summary>
-    uint32_t hostID;        // +0x24
-    int32_t numLocalMovers; // +0x28
-    int32_t numMovers;      // +0x2c
-    int32_t numTurrets;     // +0x30
+    uint32_t hostID = 0;        // +0x24
+    int32_t numLocalMovers = 0; // +0x28
+    int32_t numMovers = 0;      // +0x2c
+    int32_t numTurrets = 0;     // +0x30
     /// <summary>The movers this machine controls.</summary>
-    Mover* localMovers[12]; // +0x34
+    Mover* localMovers[12]{}; // +0x34
     /// <summary>Every synchronised mover, by roster index.</summary>
-    Mover* moverRoster[24]; // +0x64
+    Mover* moverRoster[24]{}; // +0x64
     /// <summary>Per player number: its movers.</summary>
-    Mover* playerMoverRoster[6][12]; // +0xc4
+    Mover* playerMoverRoster[6][12]{}; // +0xc4
     /// <summary>Every synchronised turret, by roster index.</summary>
-    Turret* turretRoster[64]; // +0x1e4
+    Turret* turretRoster[64]{}; // +0x1e4
     /// <summary>
     /// Set around a send to have this machine also handle the message itself (the host's own chat, setup, start
     /// planning, ...).
     /// </summary>
-    int32_t handleOwnMessages; // +0x2e4
+    int32_t handleOwnMessages = 0; // +0x2e4
     /// <summary>Nonzero when this machine is the server.</summary>
-    int32_t isServer; // +0x2e8
+    int32_t isServer = 0; // +0x2e8
     /// <summary>Nonzero when this machine hosted the session.</summary>
-    int32_t isHost; // +0x2ec
+    int32_t isHost = 0; // +0x2ec
     /// <summary>Set when the host left and the server took over.</summary>
-    int32_t hostLeft; // +0x2f0
+    int32_t hostLeft = 0; // +0x2f0
     /// <summary>This machine's check-in id (player slot; -1 until known, 0 on a scripted server).</summary>
-    int32_t checkInId; // +0x2f4
+    int32_t checkInId = 0; // +0x2f4
     /// <summary>This machine's team (-1 until chosen).</summary>
-    int32_t homeTeam;     // +0x2f8
-    char sessionName[80]; // +0x2fc
-    char playerName[80];  // +0x34c
+    int32_t homeTeam = 0;   // +0x2f8
+    char sessionName[80]{}; // +0x2fc
+    char playerName[80]{};  // +0x34c
     /// <summary>Per player number: checked in (the DPID on a scripted server).</summary>
-    int32_t playerCheckedIn[6]; // +0x39c
+    int32_t playerCheckedIn[6]{}; // +0x39c
     /// <summary>Per player number: set by message 45 (SessionScreen::someoneCheckedIn); role not pinned down.</summary>
-    int32_t playerSessionCheckIn[6]; // +0x3b4
+    int32_t playerSessionCheckIn[6]{}; // +0x3b4
     /// <summary>Set by the start-planning message: the players are in logistics.</summary>
-    int32_t inLogistics; // +0x3cc
+    int32_t inLogistics = 0; // +0x3cc
     /// <summary>Nonzero while a mission runs (updateClients only sends then).</summary>
-    int32_t inMission; // +0x3d0
+    int32_t inMission = 0; // +0x3d0
     /// <summary>The scenario result the end-scenario message carried.</summary>
-    int32_t scenarioResult; // +0x3d4
+    int32_t scenarioResult = 0; // +0x3d4
     /// <summary>Each player's DPID and team.</summary>
-    MPPlayerTeam playerTeams[6]; // +0x3d8
+    MPPlayerTeam playerTeams[6]{}; // +0x3d8
     /// <summary>The chat handler (handleAppChat; Logistics installs its own).</summary>
-    void (*chatCallback)(FIDPMessage* msg, void* data); // +0x408
-    int32_t unknown40C;                                 // +0x40c
-    int32_t unknown410;                                 // +0x410
+    void (*chatCallback)(FIDPMessage* msg, void* data) = nullptr; // +0x408
+    int32_t unknown40C = 0;                                       // +0x40c
+    int32_t unknown410 = 0;                                       // +0x410
     /// <summary>scenarioTime of the next mover update.</summary>
-    float nextMoverUpdateTime; // +0x414
+    float nextMoverUpdateTime = 0; // +0x414
     /// <summary>Seconds between mover updates.</summary>
-    float moverUpdateFrequency; // +0x418
+    float moverUpdateFrequency = 0; // +0x418
     /// <summary>The number of the next mover update (receivers drop older ones).</summary>
-    uint16_t moverUpdateSequence; // +0x41c
-    float nextTurretUpdateTime;   // +0x420
-    float turretUpdateFrequency;  // +0x424
+    uint16_t moverUpdateSequence = 0; // +0x41c
+    float nextTurretUpdateTime = 0;   // +0x420
+    float turretUpdateFrequency = 0;  // +0x424
     /// <summary>The number of the next turret update (receivers drop older ones).</summary>
-    uint16_t turretUpdateSequence; // +0x428
+    uint16_t turretUpdateSequence = 0; // +0x428
     /// <summary>Cleared with the timers; not otherwise used by multplyr.cpp.</summary>
-    int32_t unknown42C;              // +0x42c
-    float nextWorldStateUpdateTime;  // +0x430
-    float worldStateUpdateFrequency; // +0x434
-    int32_t numWeaponHitChunks;      // +0x438
+    int32_t unknown42C = 0;              // +0x42c
+    float nextWorldStateUpdateTime = 0;  // +0x430
+    float worldStateUpdateFrequency = 0; // +0x434
+    int32_t numWeaponHitChunks = 0;      // +0x438
     /// <summary>Queued packed weapon-hit chunks.</summary>
-    uint32_t weaponHitChunks[1024]; // +0x43c
-    int32_t numWorldStateChunks;    // +0x143c
+    uint32_t weaponHitChunks[1024]{}; // +0x43c
+    int32_t numWorldStateChunks = 0;  // +0x143c
     /// <summary>Queued packed world-state chunks.</summary>
-    uint32_t worldStateChunks[1024]; // +0x1440
+    uint32_t worldStateChunks[1024]{}; // +0x1440
     /// <summary>The object's last 0x18 bytes; not touched by multplyr.cpp.</summary>
-    int32_t unknown2440[6]; // +0x2440
+    int32_t unknown2440[6]{}; // +0x2440
 };
 
 /// <summary>Shows the "connecting" dialog of the logistics screen.</summary>

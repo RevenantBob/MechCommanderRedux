@@ -244,9 +244,9 @@ public:
     /// <summary>The cached vehicle picture (0x1c x 0x1e).</summary>
     lPort* picturePort = nullptr;  // +0x4c4
     LogVehicle* vehicle = nullptr; // +0x4c8
-    /// <summary>Weight class (string table 0x4f..0x52 by tonnage), on the logistics heap.</summary>
+    /// <summary>Weight class (string table 0x4f..0x52 by tonnage), a logistics block.</summary>
     char* weightClassText = nullptr; // +0x4cc
-    /// <summary>Armor rating (string table 0x4f/0x51/0x64..0x66 by armor tonnage), on the logistics heap.</summary>
+    /// <summary>Armor rating (string table 0x4f/0x51/0x64..0x66 by armor tonnage), a logistics block.</summary>
     char* armorText = nullptr; // +0x4d0
 };
 

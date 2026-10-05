@@ -12,7 +12,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
@@ -71,26 +70,24 @@ char moviePath[80] = "data\\movies\\";
 
 namespace
 {
-    /// <summary>The mission heap could not be allocated (the port's name; MCX.EXE returns the bare value).</summary>
-    constexpr int32_t NO_RAM_FOR_MISSION_HEAP = static_cast<int32_t>(0xFACC0002);
-    /// <summary>A movie or scenario name list could not be allocated from the mission heap (the port's name).</summary>
+    /// <summary>
+    /// An empty movie or scenario name list (the port's name): the mission heap's <c>malloc(0)</c> returned null.
+    /// </summary>
     constexpr int32_t NO_RAM_FOR_MISSION_LISTS = static_cast<int32_t>(0xFACC0003);
 
     /// <summary>
-    /// Reads the names <c>&lt;idFormat&gt;0</c>.. <c>&lt;idFormat&gt;(count-1)</c> of the current block into a list
-    /// allocated from <paramref name="heap"/> (the binary repeats this loop for the movies and scenarios of each init).
+    /// Reads the names <c>&lt;idFormat&gt;0</c>.. <c>&lt;idFormat&gt;(count-1)</c> of the current block into
+    /// <paramref name="names"/> (the binary repeats this loop for the movies and scenarios of each init).
     /// </summary>
-    /// <returns>0, a FIT read error, or NO_RAM_FOR_MISSION_LISTS.</returns>
-    int32_t readNameList(FitIniFile* file, UserHeap* heap, const char* idFormat, uint32_t count, char**& names)
+    /// <returns>0, a FIT read error, or NO_RAM_FOR_MISSION_LISTS for a count of 0.</returns>
+    int32_t readNameList(FitIniFile* file, const char* idFormat, uint32_t count, std::vector<std::string>& names)
     {
-        names = static_cast<char**>(heap->malloc(count * static_cast<uint32_t>(sizeof(char*))));
+        names.assign(count, std::string());
 
-        if (names == nullptr)
+        if (count == 0)
         {
             return NO_RAM_FOR_MISSION_LISTS;
         }
-
-        std::memset(names, 0, count * sizeof(char*));
 
         for (int32_t i = 0; i < static_cast<int32_t>(count); i++)
         {
@@ -104,9 +101,7 @@ namespace
                 return result;
             }
 
-            const size_t length = std::strlen(name) + 1;
-            names[i] = static_cast<char*>(heap->malloc(static_cast<uint32_t>(length)));
-            std::memcpy(names[i], name, length);
+            names[i] = name;
         }
 
         return 0;
@@ -229,34 +224,6 @@ auto Mission::init(char* missionName) -> int32_t
             return result;
         }
 
-        result = missionFile->seekBlock("HeapInfo");
-
-        if (result != 0)
-        {
-            return result;
-        }
-
-        result = missionFile->readIdULong("HeapSize", heapSize);
-
-        if (result != 0)
-        {
-            return result;
-        }
-
-        missionHeap = new UserHeap;
-
-        if (missionHeap == nullptr)
-        {
-            return NO_RAM_FOR_MISSION_HEAP;
-        }
-
-        result = missionHeap->init(heapSize, nullptr);
-
-        if (result != 0)
-        {
-            return result;
-        }
-
         result = missionFile->seekBlock("Movies");
 
         if (result != 0)
@@ -271,7 +238,7 @@ auto Mission::init(char* missionName) -> int32_t
             return result;
         }
 
-        result = readNameList(missionFile, missionHeap, "Movie%d", numMovies, movies);
+        result = readNameList(missionFile, "Movie%d", numMovies, movies);
 
         if (result != 0)
         {
@@ -297,7 +264,7 @@ auto Mission::init(char* missionName) -> int32_t
             return result;
         }
 
-        result = readNameList(missionFile, missionHeap, "Scenario%d", numScenarios, scenarios);
+        result = readNameList(missionFile, "Scenario%d", numScenarios, scenarios);
 
         if (result != 0)
         {
@@ -384,34 +351,6 @@ auto Mission::init(char* missionName) -> int32_t
         return result;
     }
 
-    result = missionFile->seekBlock("HeapInfo");
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    result = missionFile->readIdULong("HeapSize", heapSize);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    missionHeap = new UserHeap;
-
-    if (missionHeap == nullptr)
-    {
-        return NO_RAM_FOR_MISSION_HEAP;
-    }
-
-    result = missionHeap->init(heapSize, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
     result = missionFile->seekBlock("Movies");
 
     if (result != 0)
@@ -438,11 +377,11 @@ auto Mission::init(char* missionName) -> int32_t
 
     if (numMovies == 0)
     {
-        movies = nullptr;
+        movies.clear();
     }
     else
     {
-        result = readNameList(missionFile, missionHeap, "Movie%d", numMovies, movies);
+        result = readNameList(missionFile, "Movie%d", numMovies, movies);
 
         if (result != 0)
         {
@@ -476,7 +415,7 @@ auto Mission::init(char* missionName) -> int32_t
         return result;
     }
 
-    result = readNameList(missionFile, missionHeap, "Scenario%d", numScenarios, scenarios);
+    result = readNameList(missionFile, "Scenario%d", numScenarios, scenarios);
 
     if (result != 0)
     {
@@ -570,36 +509,6 @@ auto Mission::initAgain(char* missionName) -> int32_t
         return result;
     }
 
-    result = file->seekBlock("HeapInfo");
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    result = file->readIdULong("HeapSize", heapSize);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    // The old heap is deleted without UserHeap::destroy (as Mission::destroy does first).
-    delete missionHeap;
-    missionHeap = new UserHeap;
-
-    if (missionHeap == nullptr)
-    {
-        return NO_RAM_FOR_MISSION_HEAP;
-    }
-
-    result = missionHeap->init(heapSize, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
     result = file->seekBlock("Movies");
 
     if (result != 0)
@@ -616,11 +525,11 @@ auto Mission::initAgain(char* missionName) -> int32_t
 
     if (numMovies == 0)
     {
-        movies = nullptr;
+        movies.clear();
     }
     else
     {
-        result = readNameList(file, missionHeap, "Movie%d", numMovies, movies);
+        result = readNameList(file, "Movie%d", numMovies, movies);
 
         if (result != 0)
         {
@@ -654,7 +563,7 @@ auto Mission::initAgain(char* missionName) -> int32_t
         return result;
     }
 
-    result = readNameList(file, missionHeap, "Scenario%d", numScenarios, scenarios);
+    result = readNameList(file, "Scenario%d", numScenarios, scenarios);
 
     if (result != 0)
     {
@@ -719,7 +628,6 @@ auto Mission::init() -> int32_t
 {
     missionState = 0;
     resultsScreen = nullptr;
-    missionHeap = nullptr;
     unknown04 = nullptr;
     missionFile = nullptr;
     logistics = nullptr;
@@ -736,12 +644,8 @@ auto Mission::init() -> int32_t
 
 auto Mission::destroy() -> void
 {
-    if (missionHeap != nullptr)
-    {
-        missionHeap->destroy();
-        delete missionHeap;
-        missionHeap = nullptr;
-    }
+    movies.clear();
+    scenarios.clear();
 
     if (missionFile != nullptr)
     {
@@ -949,7 +853,7 @@ auto Mission::run() -> int32_t
                 }
 
                 FullPathFileName movieName;
-                movieName.init(CDmoviePath, movies[movie], ".smk");
+                movieName.init(CDmoviePath, movies[movie].c_str(), ".smk");
                 // MCX.EXE: when movie 1 (the opening) isn't installed, it scans drives C: to Z: for a CD-ROM holding
                 // \data\movies\opening.smk. The port reads movies from the install only.
                 application->startSmackerMovie(movieName, 0xfe000, nullptr, 1);
@@ -981,7 +885,7 @@ auto Mission::run() -> int32_t
                     soundSystem->stopDigitalMusic();
                 }
 
-                char* scenarioName = (MPlayer == nullptr || globalLogPtr == nullptr) ? scenarios[currentScenario]
+                char* scenarioName = (MPlayer == nullptr || globalLogPtr == nullptr) ? scenarios[currentScenario].data()
                                                                                      : globalLogPtr->mpMissionName;
                 StartScenario(scenarioName);
                 application->showCursor(1);
@@ -1070,17 +974,16 @@ auto Mission::run() -> int32_t
                     GeneralMsg(message);
                 }
 
-                auto* picture = static_cast<uint8_t*>(guiHeap->malloc(size));
-
-                if (picture == nullptr)
+                if (size == 0)
                 {
                     return 0;
                 }
 
-                pictureFile.read(picture, static_cast<int32_t>(size));
+                std::vector<uint8_t> picture(size);
+                pictureFile.read(picture.data(), static_cast<int32_t>(size));
                 pictureFile.close();
                 // The TGA's colour map starts at +0x12, as 256 BGR triples of 8-bit components.
-                auto* palette = static_cast<uint8_t*>(guiHeap->malloc(0x300));
+                std::array<uint8_t, 0x300> palette = {};
 
                 for (int32_t i = 0; i < 0x100; i++)
                 {
@@ -1089,7 +992,6 @@ auto Mission::run() -> int32_t
                     palette[i * 3 + 2] = picture[0x12 + i * 3 + 0] >> 2;
                 }
 
-                guiHeap->free(picture);
                 application->showCursor(0);
                 featureScreen = new aObject;
                 featureScreen->init(0, 0, 640, 480, nullptr);
@@ -1099,8 +1001,7 @@ auto Mission::run() -> int32_t
                 picturePort->copyTo(featureScreen->port()->frame(), 0, 0, 0);
                 screenWindow->addChild(featureScreen);
                 featureScreen->ShowGUIWindow(1);
-                application->activatePalette(palette, 0, 0x100);
-                guiHeap->free(palette);
+                application->activatePalette(palette.data(), 0, 0x100);
             }
 
             if (featureScreenDone != 0)
@@ -1775,8 +1676,7 @@ auto MissionResultsScreen::init() -> int32_t
 auto MissionResultsScreen::destroy() -> void
 {
     EventsToMissionResultsScreen = 0;
-    ::operator delete(pilotResults);
-    pilotResults = nullptr;
+    pilotResults.reset();
     deletePort(successPort);
     deletePort(failurePort);
     deletePort(moveOnPort);
@@ -2684,9 +2584,7 @@ auto MissionResultsScreen::activate() -> int32_t
             }
         }
 
-        const size_t resultsSize = static_cast<size_t>(numPilotResults) * sizeof(MissionPilotResult);
-        pilotResults = static_cast<MissionPilotResult*>(::operator new(resultsSize));
-        std::memset(pilotResults, 0, resultsSize);
+        pilotResults = std::make_unique<MissionPilotResult[]>(static_cast<size_t>(numPilotResults));
 
         // Fill the lines and apply the skill-ups.
         int32_t filled = 0;
@@ -2779,7 +2677,7 @@ auto MissionResultsScreen::activate() -> int32_t
         }
 
         numPilotResults = filled;
-        std::qsort(pilotResults, static_cast<size_t>(numPilotResults), sizeof(MissionPilotResult), ComparePilots);
+        std::qsort(pilotResults.get(), static_cast<size_t>(numPilotResults), sizeof(MissionPilotResult), ComparePilots);
         pilotIcons.assign(static_cast<size_t>(numPilotResults), nullptr);
         shownResourcePoints = -1;
 
@@ -2838,9 +2736,7 @@ auto MissionResultsScreen::activate() -> int32_t
             }
         }
 
-        const size_t resultsSize = static_cast<size_t>(numPilotResults) * sizeof(MissionPilotResult);
-        pilotResults = static_cast<MissionPilotResult*>(::operator new(resultsSize));
-        std::memset(pilotResults, 0, resultsSize);
+        pilotResults = std::make_unique<MissionPilotResult[]>(static_cast<size_t>(numPilotResults));
 
         int32_t filled = 0;
 
@@ -2925,7 +2821,7 @@ auto MissionResultsScreen::activate() -> int32_t
 
         std::qsort(scores, 6, sizeof(MissionCommanderScore), CompareCommanders);
         Assert(numPilotResults == filled, static_cast<uint32_t>(numPilotResults), " warriorcount != warriorcount2! ");
-        std::qsort(pilotResults, static_cast<size_t>(numPilotResults), sizeof(MissionPilotResult), ComparePilots);
+        std::qsort(pilotResults.get(), static_cast<size_t>(numPilotResults), sizeof(MissionPilotResult), ComparePilots);
 
         // (The original drew the summary, the home side's pilots and the objectives into the window's picture here;
         // draw shows them each frame from what is kept below.)

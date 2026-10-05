@@ -23,8 +23,6 @@ class Camera;
 class FIDPMessage;
 class Font;
 class PacketFile;
-class UserHeap;
-class HeapList;
 
 /// <summary>The side an <see cref="aObject"/> slides out to when it hides (<see cref="aObject::HideMe"/>).</summary>
 /// <remarks>The original's enumerator names were lost; the values are the original's (stored as a byte at +0x64).</remarks>
@@ -113,11 +111,6 @@ public:
     /// <remarks>MCX.EXE @ 0x006157e0</remarks>
     virtual ~aCallback();
 
-    /// <remarks>MCX.EXE @ 0x00615770</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006157a0</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// Runs the callback: calls <see cref="exec"/>, then posts <see cref="message"/> to <see cref="object"/> when
     /// both are set.
@@ -167,12 +160,6 @@ public:
     virtual ~aObject(); // slot 0
     aObject(const aObject&) = delete;
     aObject& operator=(const aObject&) = delete;
-
-    /// <summary>Allocates from <c>guiHeap</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0060e4e0</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x0060e500</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>
     /// Places the object at (<paramref name="xPos"/>, <paramref name="yPos"/>) with the given size, makes its port
@@ -699,18 +686,18 @@ public:
 struct aTimer
 {
     /// <summary>The interval in milliseconds.</summary>
-    uint32_t interval; // +0x00
+    uint32_t interval = 0; // +0x00
     /// <summary>When it last fired (ms, or scenario ms for a scenario-time timer).</summary>
-    uint32_t lastTime; // +0x04
-    aObject* target;   // +0x08
+    uint32_t lastTime = 0;     // +0x04
+    aObject* target = nullptr; // +0x08
     /// <summary>The id passed back in the timer event's <c>data</c>.</summary>
-    int16_t id; // +0x0c
+    int16_t id = 0; // +0x0c
     /// <summary>The event type to send instead of a timer event (then the timer fires once), or 0.</summary>
-    int32_t eventType; // +0x10
+    int32_t eventType = 0; // +0x10
     /// <summary>The <c>data</c> of that event.</summary>
-    int32_t eventData; // +0x14
+    int32_t eventData = 0; // +0x14
     /// <summary>Nonzero to count in scenario time instead of real time.</summary>
-    int32_t useScenarioTime; // +0x18
+    int32_t useScenarioTime = 0; // +0x18
 };
 
 /// <summary>The GUI timers (at most 99), run by a system callback while any exist.</summary>
@@ -726,11 +713,6 @@ public:
     /// <summary>Frees the timers.</summary>
     /// <remarks>MCX.EXE @ 0x00615b10</remarks>
     ~aTimerManager();
-
-    /// <remarks>MCX.EXE @ 0x00615b40</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00615b60</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>Makes the callback that runs the timers (<c>TimerCallback</c>).</summary>
     /// <remarks>MCX.EXE @ 0x00615b80</remarks>
@@ -768,8 +750,8 @@ public:
     /// <summary>A queued removal: object and id, object and -1 (all its timers), or null and an index.</summary>
     struct TimerToWhack
     {
-        aObject* target; // +0x00
-        int32_t id;      // +0x04
+        aObject* target = nullptr; // +0x00
+        int32_t id = 0;            // +0x04
     };
 
     int32_t numTimers = 0;        // +0x00
@@ -825,7 +807,7 @@ public:
     void setScrollRect();
 
     /// <summary>
-    /// Starts the game: the window, the heaps, the fonts, the palette, the display, the screen window, the timers,
+    /// Starts the game: the window, the fonts, the palette, the display, the screen window, the timers,
     /// the interface and the mouse thread.
     /// </summary>
     /// <param name="instance">The HINSTANCE in the original; unused by the port.</param>
@@ -1078,8 +1060,6 @@ extern aSystem* application;
 extern aObject* screenWindow;
 /// <summary>The port of the whole screen.</summary>
 extern aPort* screenPort;
-/// <summary>The GUI heap every aObject, aPort and aCallback comes from.</summary>
-extern UserHeap* guiHeap;
 /// <summary>The art packet file (art\art.pak) <c>aPort::init(long)</c> reads from.</summary>
 extern PacketFile* artFile;
 extern char* startupPakFile;
@@ -1154,8 +1134,6 @@ extern int gShowFpsPreference;
 /// <c>-novsync</c>).</summary>
 extern int gVSync;
 extern int applicationActive;
-extern uint32_t systemHeapSize;
-extern uint32_t guiHeapSize;
 extern uint32_t stackSize;
 extern uint32_t topOfStack;
 /// <summary>The gamma translation table (initialised data in MCX.EXE @ 0x00789f8c).</summary>

@@ -4,7 +4,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "linkup/dpplayer.h"
@@ -56,11 +55,11 @@ namespace
         return -1;
     }
 
-    /// <summary>A copy of <paramref name="text"/> on the logistics heap.</summary>
+    /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
     char* heapCopy(const char* text)
     {
         size_t size = std::strlen(text) + 1;
-        auto* copy = static_cast<char*>(globalLogPtr->logisticsHeap->malloc(static_cast<uint32_t>(size)));
+        auto* copy = static_cast<char*>(globalLogPtr->logisticsBlocks->Allocate(static_cast<uint32_t>(size)));
         std::memcpy(copy, text, size);
         return copy;
     }
@@ -72,14 +71,14 @@ namespace
     void sendFileName(uint16_t type, const char* fileName)
     {
         size_t length = std::strlen(fileName) + 1;
-        auto* message =
-            static_cast<MPFileNameMessage*>(globalLogPtr->logisticsHeap->malloc(static_cast<uint32_t>(length + 0xc)));
+        auto* message = static_cast<MPFileNameMessage*>(
+            globalLogPtr->logisticsBlocks->Allocate(static_cast<uint32_t>(length + 0xc)));
         message->tagger.Clear();
         message->header = type;
         std::memcpy(message->fileName, fileName, length);
         MPlayer->sessionManager->SendMessageToGroup(0, message,
                                                     static_cast<uint32_t>(std::strlen(message->fileName) + 1 + 0xc));
-        globalLogPtr->logisticsHeap->free(message);
+        globalLogPtr->logisticsBlocks->Free(message);
     }
 
     /// <summary>Sends a two-long guaranteed message to every player.</summary>
@@ -524,7 +523,7 @@ auto PlayerNameObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t h
 {
     if (playerName != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(playerName);
+        globalLogPtr->logisticsBlocks->Free(playerName);
         playerName = nullptr;
     }
 
@@ -538,7 +537,7 @@ auto PlayerNameObject::destroy() -> void
 {
     if (playerName != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(playerName);
+        globalLogPtr->logisticsBlocks->Free(playerName);
         playerName = nullptr;
     }
 
@@ -626,11 +625,11 @@ auto PlayerNameObject::setPlayerName(char* name) -> void
 {
     if (playerName != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(playerName);
+        globalLogPtr->logisticsBlocks->Free(playerName);
     }
 
     size_t size = std::strlen(name) + 1;
-    playerName = static_cast<char*>(globalLogPtr->logisticsHeap->malloc(static_cast<uint32_t>(size)));
+    playerName = static_cast<char*>(globalLogPtr->logisticsBlocks->Allocate(static_cast<uint32_t>(size)));
 
     if (playerName != nullptr)
     {
@@ -668,7 +667,7 @@ void MPLoadWorkedCallback(int32_t)
     const char* fileName = globalLogPtr->sessionScreen->missionFile;
     size_t length = std::strlen(fileName) + 1;
     auto* message =
-        static_cast<MPFileNameMessage*>(globalLogPtr->logisticsHeap->malloc(static_cast<uint32_t>(length + 0xc)));
+        static_cast<MPFileNameMessage*>(globalLogPtr->logisticsBlocks->Allocate(static_cast<uint32_t>(length + 0xc)));
     MCSplashScreen* loadScreen = globalLogPtr->loadScreen;
     loadScreen->cancelButton->callback()->setExec(Cancel);
     loadScreen->loadSaveButton->callback()->setExec(LoadGame);
@@ -682,7 +681,7 @@ void MPLoadWorkedCallback(int32_t)
     std::memcpy(message->fileName, fileName, length);
     MPlayer->sessionManager->SendMessageToGroup(0, message,
                                                 static_cast<uint32_t>(std::strlen(message->fileName) + 1 + 0xc));
-    globalLogPtr->logisticsHeap->free(message);
+    globalLogPtr->logisticsBlocks->Free(message);
 }
 
 void LoadMissionCallback()
@@ -1075,13 +1074,13 @@ auto SessionScreen::destroy() -> void
     // Original behaviour: the mission name isn't freed here (the logistics heap goes with the logistics object).
     if (missionFile != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(missionFile);
+        globalLogPtr->logisticsBlocks->Free(missionFile);
         missionFile = nullptr;
     }
 
     if (mapName != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(mapName);
+        globalLogPtr->logisticsBlocks->Free(mapName);
         mapName = nullptr;
     }
 
@@ -1639,7 +1638,7 @@ auto SessionScreen::setMissionName(char* name) -> void
 {
     if (missionName != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(missionName);
+        globalLogPtr->logisticsBlocks->Free(missionName);
         missionName = nullptr;
     }
 
@@ -1653,7 +1652,7 @@ auto SessionScreen::setMapName(char* name) -> void
 {
     if (mapName != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(mapName);
+        globalLogPtr->logisticsBlocks->Free(mapName);
         mapName = nullptr;
     }
 
@@ -1920,7 +1919,7 @@ auto SessionScreen::loadMission(char* fileName) -> void
                 // Ask everyone whether they have the file, and wait for the answers.
                 if (missionFile != nullptr)
                 {
-                    globalLogPtr->logisticsHeap->free(missionFile);
+                    globalLogPtr->logisticsBlocks->Free(missionFile);
                 }
 
                 missionFile = heapCopy(path);
@@ -1985,7 +1984,7 @@ auto SessionScreen::cancelMission() -> void
 
     if (missionFile != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(missionFile);
+        globalLogPtr->logisticsBlocks->Free(missionFile);
     }
 
     missionFile = nullptr;

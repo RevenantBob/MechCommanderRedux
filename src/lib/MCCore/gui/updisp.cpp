@@ -11,7 +11,6 @@
 #include "gui/mchwcursor.h"
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
-#include "lib/heap.h"
 #include "logistics/logmain.h"
 #include "mission/mission.h"
 #include "platform/MCAudio.h"
@@ -491,7 +490,7 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
 
         globalFirst = 0;
         globalEntries = 0;
-        guiHeap->free(paletteRgb);
+        delete[] paletteRgb;
         paletteRgb = nullptr;
     }
 

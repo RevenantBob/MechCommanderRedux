@@ -29,8 +29,8 @@ public:
     FLink(const FLink&) = delete;
     FLink& operator=(const FLink&) = delete;
 
-    FLink<T>* next; // +0x4
-    T* data;        // +0x8
+    FLink<T>* next = nullptr; // +0x4
+    T* data = nullptr;        // +0x8
 };
 
 /// <summary>
@@ -172,11 +172,11 @@ public:
     }
 
     /// <summary>The last link (appends go after it).</summary>
-    FLink<T>* tail; // +0x0
+    FLink<T>* tail = nullptr; // +0x0
     /// <summary>The cursor of <see cref="Head"/> / <see cref="ReadAndNext"/>.</summary>
-    FLink<T>* current; // +0x4
-    int32_t count;     // +0x8
-    FLink<T>* head;    // +0xc
+    FLink<T>* current = nullptr; // +0x4
+    int32_t count = 0;           // +0x8
+    FLink<T>* head = nullptr;    // +0xc
 };
 
 /// <summary>
@@ -192,6 +192,6 @@ public:
     /// <summary>An iterator at the head of <paramref name="aList"/>.</summary>
     explicit FLinkedListIterator(FLinkedList<T>* aList) : list(aList), current(aList->head) {}
 
-    FLinkedList<T>* list; // +0x0
-    FLink<T>* current;    // +0x4
+    FLinkedList<T>* list = nullptr; // +0x0
+    FLink<T>* current = nullptr;    // +0x4
 };

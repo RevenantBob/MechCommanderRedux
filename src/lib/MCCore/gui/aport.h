@@ -21,12 +21,6 @@ public:
     aPort(const aPort&) = delete;
     aPort& operator=(const aPort&) = delete;
 
-    /// <summary>Allocates from <c>guiHeap</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0060c400</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x0060c420</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// Makes a <paramref name="width"/> x <paramref name="height"/> bitmap and its pane (no bitmap for the screen
     /// port). Nothing happens when the size is unchanged.
@@ -122,7 +116,7 @@ public:
     std::function<void(aPort* port)> DrawContent;
 };
 
-/// <summary>A port whose pixels come from the C heap instead of the GUI heap (large scrolling text).</summary>
+/// <summary>A port whose pixels come from <c>malloc</c> instead of the GUI's block store (large scrolling text).</summary>
 /// <remarks>Original source: <c>gui\aport.cpp</c>, 0x14 bytes (no fields of its own). Vtable 0x0077b300.</remarks>
 class aScrollPort : public aPort
 {

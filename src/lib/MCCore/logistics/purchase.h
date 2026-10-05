@@ -68,7 +68,7 @@ public:
     int32_t chassisBR = 0; // +0x138
     /// <summary>The components the mech carries.</summary>
     InventoryList* inventory = nullptr; // +0x13c
-    /// <summary>The description text, on the logistics heap.</summary>
+    /// <summary>The description text, a logistics block.</summary>
     char* description = nullptr; // +0x140
     int32_t descIndex = -1;      // +0x144
 };
@@ -208,7 +208,7 @@ public:
     void loadDescription(int32_t descIndex);
 
     char fileName[12] = {}; // +0x0
-    /// <summary>The display name (string table entry <c>descIndex + 700</c>), on the logistics heap.</summary>
+    /// <summary>The display name (string table entry <c>descIndex + 700</c>), a logistics block.</summary>
     char* name = nullptr;    // +0xc
     float curTonnage = 0.0f; // +0x10
     int32_t nameIndex = 0;   // +0x14
@@ -346,7 +346,7 @@ public:
     lPort* picturePort = nullptr; // +0x4cc
     /// <summary>The small body diagram (0x1e x 0x1e), built on first draw.</summary>
     lPort* diagramPort = nullptr; // +0x4d0
-    /// <summary>Weight class by current tonnage, on the logistics heap.</summary>
+    /// <summary>Weight class by current tonnage, a logistics block.</summary>
     char* weightClassText = nullptr; // +0x4d4
     /// <summary>Armor rating by armor tonnage.</summary>
     char* armorText = nullptr; // +0x4d8

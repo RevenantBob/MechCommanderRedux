@@ -6,10 +6,9 @@
 #include "linkup/filetransferinfo.h"
 #include "linkup/session.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "platform/MCSocket.h"
 
-UserHeap* linkUpHeap = nullptr;
+std::unique_ptr<MCBlockStore> linkUpBlocks;
 _GUID thisAppGUID{};
 uint32_t TicksPerMS = 0;
 uint32_t StartTime = 0;
@@ -48,9 +47,9 @@ namespace
     struct FIPlayerNumbersMessage : FIGuaranteedMessageHeader
     {
         /// <summary>The DPID of player number n (0 = no such player).</summary>
-        uint32_t playerIDs[6]; // +0x8
+        uint32_t playerIDs[6]{}; // +0x8
         /// <summary>The sending server's own number.</summary>
-        uint8_t serverNumber; // +0x20
+        uint8_t serverNumber = 0; // +0x20
     };
 
     static_assert(sizeof(FIPlayerNumbersMessage) == 0x21);
@@ -59,15 +58,15 @@ namespace
     /// <remarks>Sent as 0x24 bytes (six members) from a 300-byte buffer. The names are the port's.</remarks>
     struct FIPlayersInGroupMessage : FIGuaranteedMessageHeader
     {
-        uint32_t groupID;       // +0x8
-        uint32_t playerIDs[72]; // +0xc
+        uint32_t groupID = 0;     // +0x8
+        uint32_t playerIDs[72]{}; // +0xc
     };
 
     /// <summary>Message types 6 (new server), 9 (player removed) and 12 (latency): the header and one 32-bit value.</summary>
     /// <remarks>0xc bytes. The names are the port's.</remarks>
     struct FIValueMessage : FIGuaranteedMessageHeader
     {
-        uint32_t value; // +0x8
+        uint32_t value = 0; // +0x8
     };
 
     static_assert(sizeof(FIValueMessage) == 0xc);
@@ -79,8 +78,8 @@ namespace
     /// <remarks>9 + count bytes, built in a 256-byte buffer. The names are the port's.</remarks>
     struct FIPingMessage : FIGuaranteedMessageHeader
     {
-        uint8_t count;            // +0x8
-        uint8_t playerNumbers[6]; // +0x9
+        uint8_t count = 0;          // +0x8
+        uint8_t playerNumbers[6]{}; // +0x9
     };
 
     /// <summary>
@@ -90,8 +89,8 @@ namespace
     /// <remarks>3 + count * 6 bytes, built in a 0x2400-byte buffer per player number. The names are the port's.</remarks>
     struct FIVerifyMessage : FIMessageHeader
     {
-        uint8_t count;         // +0x2
-        uint8_t entries[1][6]; // +0x3
+        uint8_t count = 0;       // +0x2
+        uint8_t entries[1][6]{}; // +0x3
     };
 
 #pragma pack(pop)
@@ -177,24 +176,20 @@ void ReEnableCallerID()
     DisabledCallerID = 0;
 }
 
-void InitLinkUpHeap()
+void InitLinkUpBlocks()
 {
-    if (linkUpHeap == nullptr)
+    if (linkUpBlocks == nullptr)
     {
-        linkUpHeap = new UserHeap();
-        Assert(linkUpHeap != nullptr, 0, "No memory for linkup heap");
-        const int32_t result = linkUpHeap->init(1900000, "LinkUP");
-        linkUpHeap->unknown2C = 1;
-        Assert(result == 0, 0, "Could not initialize linkup heap");
+        linkUpBlocks = std::make_unique<MCBlockStore>();
     }
 }
 
-void DestroyLinkUpHeap()
+void DestroyLinkUpBlocks()
 {
-    if (linkUpHeap != nullptr)
+    if (linkUpBlocks != nullptr)
     {
-        delete linkUpHeap;
-        linkUpHeap = nullptr;
+        linkUpBlocks->Clear();
+        linkUpBlocks.reset();
     }
 }
 
@@ -330,7 +325,7 @@ void FIDPNetworkProtocol::destroy()
 {
     if (connectionBuffer != nullptr)
     {
-        linkUpHeap->free(connectionBuffer);
+        linkUpBlocks->Free(connectionBuffer);
         // Port fix: cleared, so the destructor after ClearList's destroy() doesn't free it twice.
         connectionBuffer = nullptr;
     }
@@ -340,10 +335,10 @@ int FIDPNetworkProtocol::SetConnectionBuffer(void* connection, int size)
 {
     if (connectionBuffer != nullptr)
     {
-        linkUpHeap->free(connectionBuffer);
+        linkUpBlocks->Free(connectionBuffer);
     }
 
-    connectionBuffer = linkUpHeap->malloc(size);
+    connectionBuffer = linkUpBlocks->Allocate(size);
 
     if (connectionBuffer == nullptr)
     {
@@ -397,16 +392,6 @@ void FIDPNetworkProtocol::ClearList(FLinkedList<FIDPNetworkProtocol>& list)
 
 // ---- SessionManager: lifetime ------------------------------------------------------------------------------------
 
-void* SessionManager::operator new(size_t size) noexcept
-{
-    return linkUpHeap->malloc(static_cast<uint32_t>(size));
-}
-
-void SessionManager::operator delete(void* ptr)
-{
-    linkUpHeap->free(ptr);
-}
-
 SessionManager::SessionManager(_GUID appGUID)
 {
     Assert(instanceExists == 0, 0, nullptr);
@@ -435,7 +420,7 @@ SessionManager::SessionManager(_GUID appGUID)
     hasPlayerNumber = 0;
     nextFileID = 0;
 
-    FIValueMessage* newServer = static_cast<FIValueMessage*>(::operator new(sizeof(FIValueMessage)));
+    auto* newServer = new FIValueMessage{};
     newServer->header = 0;
     newServer->header |= FIMSG_GUARANTEED;
     newServer->tagger.Clear();
@@ -458,7 +443,7 @@ SessionManager::SessionManager(_GUID appGUID)
     fileReceivedCallback = nullptr;
     fileReceivedCallbackData = nullptr;
     playerIterator = new FLinkedListIterator<FIDPPlayer>(&players);
-    verifyMessageMemory = static_cast<uint8_t*>(linkUpHeap->malloc(0xd800));
+    verifyMessageMemory = static_cast<uint8_t*>(linkUpBlocks->Allocate(0xd800));
 
     for (int i = 0; i < 6; i++)
     {
@@ -535,7 +520,7 @@ void SessionManager::destroy()
     globalPointerHolder = nullptr;
     instanceExists = 0;
     DestroyDirectPlayInterface();
-    ::operator delete(serverMessage);
+    delete static_cast<FIValueMessage*>(serverMessage);
     serverMessage = nullptr;
     delete playerIterator;
     playerIterator = nullptr;
@@ -1066,13 +1051,13 @@ int SessionManager::RemovePlayerFromGame(FIDPPlayer* player)
         return -1;
     }
 
-    FIValueMessage* msg = static_cast<FIValueMessage*>(linkUpHeap->malloc(sizeof(FIValueMessage)));
+    FIValueMessage* msg = static_cast<FIValueMessage*>(linkUpBlocks->Allocate(sizeof(FIValueMessage)));
     msg->tagger.Clear();
     SetHeader(msg, FIMSG_GUARANTEED, 9);
     msg->value = player->id;
     SendMessageToPlayerGuaranteed(player->id, msg, sizeof(FIValueMessage), 1);
     player->hasPlayerNumber = 0;
-    linkUpHeap->free(msg);
+    linkUpBlocks->Free(msg);
     removingPlayer = 0;
     return 0;
 }
@@ -1286,7 +1271,7 @@ int32_t SessionManager::InitializeConnection(DPCOMPOUNDADDRESSELEMENT* elements,
         ReportError(result);
     }
 
-    void* address = linkUpHeap->malloc(size);
+    void* address = linkUpBlocks->Allocate(size);
     result = MCDirectPlay::CreateCompoundAddress(elements, numElements, address, &size);
 
     if (result == DP_OK)
@@ -1296,7 +1281,7 @@ int32_t SessionManager::InitializeConnection(DPCOMPOUNDADDRESSELEMENT* elements,
 
     if (address != nullptr)
     {
-        linkUpHeap->free(address);
+        linkUpBlocks->Free(address);
     }
 
     return static_cast<int32_t>(result);
@@ -2090,7 +2075,7 @@ int32_t SessionManager::SendPing()
 
 void SessionManager::SendPlayersInGroupMessages(uint32_t groupID)
 {
-    FIPlayersInGroupMessage* msg = static_cast<FIPlayersInGroupMessage*>(linkUpHeap->malloc(300));
+    FIPlayersInGroupMessage* msg = static_cast<FIPlayersInGroupMessage*>(linkUpBlocks->Allocate(300));
     groups.current = groups.head;
 
     for (int i = 0; i < groups.count; i++)
@@ -2116,7 +2101,7 @@ void SessionManager::SendPlayersInGroupMessages(uint32_t groupID)
         }
     }
 
-    linkUpHeap->free(msg);
+    linkUpBlocks->Free(msg);
 }
 
 void SessionManager::SendPreIDGuaranteedMessages()
@@ -2466,7 +2451,7 @@ int SessionManager::BroadcastFile(char* fileName, char* directory, void (*callba
     int size;
     FIBeginFileTransferMessage* begin = transfer->CreateBeginTransferMessage(size);
     BroadcastMessage(begin, static_cast<uint32_t>(size));
-    linkUpHeap->free(begin);
+    linkUpBlocks->Free(begin);
     return nextFileID - 1;
 }
 
@@ -2635,8 +2620,8 @@ void SessionManager::AddPlayerOrGroup(uint32_t playerType, uint32_t id, uint32_t
     }
 
     // The server tells the new player (or, in a lobby game, everyone) who has which number.
-    FIPlayerNumbersMessage* numbers =
-        static_cast<FIPlayerNumbersMessage*>(::operator new(sizeof(FIPlayerNumbersMessage)));
+    FIPlayerNumbersMessage numbersMessage = {};
+    FIPlayerNumbersMessage* numbers = &numbersMessage;
     numbers->header = 0;
     numbers->header |= FIMSG_GUARANTEED;
     numbers->tagger.Clear();
@@ -2674,7 +2659,6 @@ void SessionManager::AddPlayerOrGroup(uint32_t playerType, uint32_t id, uint32_t
     }
 
     SendPlayersInGroupMessages(player->id);
-    ::operator delete(numbers);
 }
 
 FIDPPlayer* SessionManager::GetPlayerNumber(int32_t playerNumber)

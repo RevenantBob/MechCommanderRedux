@@ -15,7 +15,6 @@
 #include "lib/cident.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
@@ -86,9 +85,9 @@ namespace
     /// <summary>A default key binding: the slot in <c>keys</c>, the scan code and the modifiers it needs.</summary>
     struct DefaultKey
     {
-        int32_t slot;
-        uint32_t code;
-        uint32_t modifiers;
+        int32_t slot = 0;
+        uint32_t code = 0;
+        uint32_t modifiers = 0;
     };
 
     /// <summary>
@@ -223,8 +222,8 @@ namespace
     /// <summary>A mech bar button's place in <see cref="aMechBar::PlaceButtons"/>'s sort (8 bytes).</summary>
     struct ButtonSortEntry
     {
-        int16_t index;
-        int32_t key;
+        int16_t index = 0;
+        int32_t key = 0;
     };
 
     /// <summary>The sort's comparison: by key, ascending.</summary>
@@ -273,6 +272,17 @@ namespace
         box.x1 = right;
         box.y1 = bottom;
         VFX_pane_wipe(&box, color);
+    }
+
+    /// <summary>Unregisters and frees a mech icon's damage shapes.</summary>
+    void freeDamageShapes(void*& shapes)
+    {
+        if (shapes != nullptr)
+        {
+            MCRenderer::UnregisterData(shapes);
+            delete[] static_cast<uint8_t*>(shapes);
+            shapes = nullptr;
+        }
     }
 } // namespace
 
@@ -329,8 +339,7 @@ auto aMechIcon::destroy() -> void
         deadImage = nullptr;
     }
 
-    guiHeap->free(damageShapes);
-    damageShapes = nullptr;
+    freeDamageShapes(damageShapes);
     aObject::destroy();
 }
 
@@ -943,20 +952,16 @@ auto FriendlyMechIcon::SetID(int32_t newPartId) -> void
         Fatal(0, "Unable to open damage display shape file");
     }
 
-    if (damageShapes != nullptr)
-    {
-        guiHeap->free(damageShapes);
-        damageShapes = nullptr;
-    }
+    freeDamageShapes(damageShapes);
 
-    damageShapes = guiHeap->malloc(shapeFile.getLength());
-
-    if (damageShapes == nullptr)
+    // An empty file still fails, as it did when the GUI heap's malloc(0) returned null.
+    if (shapeFile.getLength() == 0)
     {
         shapeFile.close();
         Fatal(0, "Not enough memory for damage display shape file");
     }
 
+    damageShapes = new uint8_t[shapeFile.getLength()]{};
     shapeFile.read(static_cast<uint8_t*>(damageShapes), static_cast<int32_t>(shapeFile.getLength()));
     MCRenderer::RegisterData(damageShapes, shapeFile.getLength(), MCDataKind::Shapes);
     shapeFile.close();
@@ -1020,7 +1025,7 @@ auto aMechBar::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, c
     aObject::init(xPos, yPos, width, height, bitmapName);
     // The bar draws on its parent: no bitmap of its own.
     MCRenderer::DestroyTexture(port()->bitmap());
-    guiHeap->free(port()->bitmap()->buffer);
+    aPort::freePixels(port()->bitmap()->buffer);
     port()->bitmap()->buffer = nullptr;
     ShowGUIWindow(0);
     dancing = 0;
@@ -1755,16 +1760,6 @@ InterfaceObject::InterfaceObject()
     dragDistance = 10;
     scrollSpeed = 4;
     scrollStart = 500;
-}
-
-auto InterfaceObject::operator new(size_t size) noexcept -> void*
-{
-    return guiHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto InterfaceObject::operator delete(void* ptr) -> void
-{
-    guiHeap->free(ptr);
 }
 
 auto InterfaceObject::init() -> int32_t
@@ -3950,8 +3945,8 @@ auto InterfaceObject::EndScenario() -> void
 
     if (commandParser != nullptr)
     {
-        // The original frees it with the global operator delete (no destructor).
-        ::operator delete(commandParser);
+        // The original freed it without its destructor, which does nothing.
+        delete commandParser;
         commandParser = nullptr;
     }
 
@@ -5498,8 +5493,8 @@ namespace
     /// <remarks>MCX.EXE @ 0x0079622c, 7 entries of 3 longs.</remarks>
     struct StrikeTypeEntry
     {
-        int32_t objectType;
-        int32_t strikeType[2];
+        int32_t objectType = 0;
+        int32_t strikeType[2]{};
     };
 
     constexpr StrikeTypeEntry StrikeTypes[7] = {

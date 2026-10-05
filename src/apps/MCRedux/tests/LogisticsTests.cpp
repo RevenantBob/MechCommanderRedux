@@ -2,7 +2,6 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
@@ -14,7 +13,7 @@ namespace
 {
     /// <summary>
     /// What the logistics lists need to read the retail profiles: the FastFiles, the master component list, the
-    /// profile path and a <c>globalLogPtr</c> with its heap (no screens, so the lists are read without widgets).
+    /// profile path and a <c>globalLogPtr</c> with its block store (no screens, so the lists are read without widgets).
     /// </summary>
     class LogisticsFixture
     {
@@ -22,12 +21,6 @@ namespace
         LogisticsFixture()
         {
             MCTestGame::OpenFastFiles();
-
-            if (systemHeap == nullptr)
-            {
-                systemHeap = new UserHeap;
-                systemHeap->init(16383999, "SystemHeap");
-            }
 
             if (MasterComponentList == nullptr)
             {
@@ -37,9 +30,8 @@ namespace
             }
 
             MCPort::StrCopy(profilePath, 80, "data\\missions\\profiles\\");
-            _Heap.init(0x400000, "LogisticsTest");
             _Logistics = std::make_unique<Logistics>();
-            _Logistics->logisticsHeap = &_Heap;
+            _Logistics->logisticsBlocks = std::make_unique<MCBlockStore>();
             _Saved = globalLogPtr;
             globalLogPtr = _Logistics.get();
         }
@@ -47,7 +39,6 @@ namespace
         ~LogisticsFixture() { globalLogPtr = _Saved; }
 
     private:
-        UserHeap _Heap;
         std::unique_ptr<Logistics> _Logistics;
         Logistics* _Saved = nullptr;
     };

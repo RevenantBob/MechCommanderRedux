@@ -6,6 +6,7 @@
 
 #include "linkup/linkedlist.h"
 #include "logistics/lport.h"
+#include "platform/MCBlockStore.h"
 
 class aEvent;
 class aObject;
@@ -35,7 +36,7 @@ class RepairScreen;
 class ReusableDialog;
 class SessionScreen;
 class Ticker;
-class UserHeap;
+
 class VehicleInventoryBlock;
 class VehicleRepairBlock;
 class LogWarrior;
@@ -48,23 +49,23 @@ class LogWarrior;
 struct _LogInventoryStat
 {
     /// <summary>A number unique within the inventory (<see cref="InventoryList::nextStatID"/>).</summary>
-    uint8_t statID; // +0x0
+    uint8_t statID = 0; // +0x0
     /// <summary>Its damage (<see cref="InventoryList::hitItem"/>).</summary>
-    uint8_t hits; // +0x1
+    uint8_t hits = 0; // +0x1
     /// <summary>Set from <see cref="InventoryList::createStat"/>'s third argument; meaning unknown.</summary>
-    int32_t unknown04;    // +0x4
-    uint8_t unknown08[4]; // +0x8
+    int32_t unknown04 = 0;  // +0x4
+    uint8_t unknown08[4]{}; // +0x8
     /// <summary>Nonzero when the weapon faces forward (the mech file's FacesForward).</summary>
-    uint8_t facing; // +0xc
+    uint8_t facing = 0; // +0xc
     /// <summary>Set from <see cref="InventoryList::createStat"/>'s fifth argument; meaning unknown.</summary>
-    int16_t unknown0E; // +0xe
+    int16_t unknown0E = 0; // +0xe
     /// <summary>The amount (ammunition count, or 1).</summary>
-    int16_t amount; // +0x10
+    int16_t amount = 0; // +0x10
     /// <summary>The body location it is mounted in (0xff = none; <see cref="InventoryList::setStatLoc"/>).</summary>
-    uint8_t location; // +0x12
+    uint8_t location = 0; // +0x12
     /// <summary>The item number in the mech/vehicle file; the list is sorted by it.</summary>
-    int32_t itemNum;         // +0x14
-    _LogInventoryStat* next; // +0x18
+    int32_t itemNum = 0;               // +0x14
+    _LogInventoryStat* next = nullptr; // +0x18
 };
 
 /// <summary>
@@ -75,23 +76,23 @@ struct _LogInventoryStat
 struct _LogInventoryItem
 {
     /// <summary>The index into <c>MasterComponentList</c>.</summary>
-    uint8_t masterID; // +0x0
+    uint8_t masterID = 0; // +0x0
     /// <summary>A copy of the master component's first field (+0x0).</summary>
-    int32_t masterValue; // +0x4
+    int32_t masterValue = 0; // +0x4
     /// <summary>The component's place in the logistics sort order (<see cref="Logistics::componentSort"/>).</summary>
-    int32_t sortOrder; // +0x8
+    int32_t sortOrder = 0; // +0x8
     /// <summary>The master component's name (28 characters and a terminator).</summary>
-    char name[29]; // +0xc
+    char name[29]{}; // +0xc
     /// <summary>How many copies there are.</summary>
-    int32_t count; // +0x2c
+    int32_t count = 0; // +0x2c
     /// <summary>The index of the component in <see cref="Logistics::rangeSortList"/>.</summary>
-    int32_t rangeIndex; // +0x30
+    int32_t rangeIndex = 0; // +0x30
     /// <summary>The description text (loaded on demand by <see cref="InventoryList::loadDescription"/>).</summary>
-    char* description;                  // +0x34
-    _LogInventoryStat* stats;           // +0x38
-    CompPurchaseBlock* purchaseBlock;   // +0x3c
-    CompInventoryBlock* inventoryBlock; // +0x40
-    _LogInventoryItem* next;            // +0x44
+    char* description = nullptr;                  // +0x34
+    _LogInventoryStat* stats = nullptr;           // +0x38
+    CompPurchaseBlock* purchaseBlock = nullptr;   // +0x3c
+    CompInventoryBlock* inventoryBlock = nullptr; // +0x40
+    _LogInventoryItem* next = nullptr;            // +0x44
 };
 
 /// <summary>A list of components, sorted by master id, each with its copies.</summary>
@@ -101,11 +102,6 @@ class InventoryList
 public:
     /// <remarks>MCX.EXE @ 0x006e7980</remarks>
     InventoryList();
-
-    /// <remarks>MCX.EXE @ 0x006e7c00</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006e7c20</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>Loads the description of item <paramref name="index"/> (or <paramref name="item"/>) from the object description file.</summary>
     /// <remarks>MCX.EXE @ 0x006e7990</remarks>
@@ -200,10 +196,10 @@ public:
     /// <remarks>MCX.EXE @ 0x006e8a70</remarks>
     int32_t* sortName();
 
-    _LogInventoryItem* items; // +0x0
-    int32_t numItems;         // +0x4
+    _LogInventoryItem* items = nullptr; // +0x0
+    int32_t numItems = 0;               // +0x4
     /// <summary>The stat id the next copy gets.</summary>
-    uint8_t nextStatID; // +0x8
+    uint8_t nextStatID = 0; // +0x8
 };
 
 /// <summary>
@@ -219,72 +215,72 @@ class LogPart
 {
 public:
     /// <summary>1 for a <see cref="LogMech"/>, 2 for a <see cref="LogVehicle"/>.</summary>
-    int32_t partType; // +0x0
+    int32_t partType = 0; // +0x0
     /// <summary>The name of the profile last written for the part ("tpak<i>n</i>", by the starting fit and save writers).</summary>
-    char profileName[12]; // +0x4
+    char profileName[12]{}; // +0x4
     /// <summary>The weight class name (string table, from the tonnage).</summary>
-    char* weightClassName; // +0x10
+    char* weightClassName = nullptr; // +0x10
     /// <summary>The chassis class name (string table, from the chassis tonnage).</summary>
-    char* chassisClassName; // +0x14
+    char* chassisClassName = nullptr; // +0x14
     /// <summary>
     /// The display name: string <c>DescIndex</c> + 300 (mechs) or + 700 (vehicles) of the string table. The original
     /// calls it the file name (it is saved as a profile's MechType).
     /// </summary>
-    char* fileName; // +0x18
+    char* fileName = nullptr; // +0x18
     /// <summary>The string table index of the name.</summary>
-    int32_t nameIndex; // +0x1c
+    int32_t nameIndex = 0; // +0x1c
     /// <summary>The size of the saved record with its strings and inventory.</summary>
-    uint32_t binarySize; // +0x20
-    float curTonnage;    // +0x24
+    uint32_t binarySize = 0; // +0x20
+    float curTonnage = 0;    // +0x24
     /// <summary>The icon file name.</summary>
-    char* iconName; // +0x28
-    char status;    // +0x2c
+    char* iconName = nullptr; // +0x28
+    char status = 0;          // +0x2c
     /// <summary>The packet of the chassis in the object packet file.</summary>
-    uint32_t chassis; // +0x30
+    uint32_t chassis = 0; // +0x30
     /// <summary>The current value in resource points (a mech's; vehicles keep theirs at +0xb8).</summary>
-    int32_t resourcePoints; // +0x34
+    int32_t resourcePoints = 0; // +0x34
     /// <summary>The value of the bare chassis.</summary>
-    int32_t baseResourcePoints; // +0x38
+    int32_t baseResourcePoints = 0; // +0x38
     /// <summary>Not accessed in logistics.cpp.</summary>
-    int32_t unknown3C; // +0x3c
+    int32_t unknown3C = 0; // +0x3c
     /// <summary>The description's index in the object description file (-1 = none).</summary>
-    int32_t descIndex; // +0x40
-    char* description; // +0x44
+    int32_t descIndex = 0;       // +0x40
+    char* description = nullptr; // +0x44
     /// <summary>The engine's tonnage.</summary>
-    float engineTonnage; // +0x48
+    float engineTonnage = 0; // +0x48
     /// <summary>The engine rating.</summary>
-    uint32_t engineRating; // +0x4c
+    uint32_t engineRating = 0; // +0x4c
     /// <summary>The armor type (a profile's Armor Type).</summary>
-    uint8_t armorType; // +0x50
+    uint8_t armorType = 0; // +0x50
     /// <summary>The armor's tonnage (a profile's Armor Tonnage).</summary>
-    float armorTonnage;    // +0x54
-    uint8_t numOther;      // +0x58
-    uint8_t numWeapons;    // +0x59
-    uint8_t numAmmo;       // +0x5a
-    uint8_t unknown5B[13]; // +0x5b
+    float armorTonnage = 0;  // +0x54
+    uint8_t numOther = 0;    // +0x58
+    uint8_t numWeapons = 0;  // +0x59
+    uint8_t numAmmo = 0;     // +0x5a
+    uint8_t unknown5B[13]{}; // +0x5b
     /// <summary>Cleared when the part is loaded.</summary>
-    uint8_t unknown68;    // +0x68
-    uint8_t unknown69[3]; // +0x69
+    uint8_t unknown68 = 0;  // +0x68
+    uint8_t unknown69[3]{}; // +0x69
     /// <summary>The battle rating (<see cref="LogMech::calcBR"/>).</summary>
-    int32_t battleRating; // +0x6c
-    int32_t unknown70;    // +0x70
+    int32_t battleRating = 0; // +0x6c
+    int32_t unknown70 = 0;    // +0x70
     /// <summary>Nonzero when assigned to the force.</summary>
-    int32_t assigned; // +0x74
-    int32_t deployed; // +0x78
+    int32_t assigned = 0; // +0x74
+    int32_t deployed = 0; // +0x78
     /// <summary>Nonzero when the mission requires this part.</summary>
-    int32_t required; // +0x7c
+    int32_t required = 0; // +0x7c
     /// <summary>Nonzero until the part is really the player's (salvage not yet taken).</summary>
-    int32_t notMineYet; // +0x80
+    int32_t notMineYet = 0; // +0x80
     /// <summary>1 for the local player's parts, 0 for ones received over the network.</summary>
-    int32_t localPart; // +0x84
+    int32_t localPart = 0; // +0x84
     /// <summary>The commander (player) id of a multiplayer part.</summary>
-    int32_t commanderID;      // +0x88
-    InventoryList* inventory; // +0x8c
-    BriefingBox* briefingBox; // +0x90
+    int32_t commanderID = 0;            // +0x88
+    InventoryList* inventory = nullptr; // +0x8c
+    BriefingBox* briefingBox = nullptr; // +0x90
     /// <summary>The multiplayer drop slot's lance.</summary>
-    uint32_t dropLance; // +0x94
+    uint32_t dropLance = 0; // +0x94
     /// <summary>The multiplayer drop slot within its lance.</summary>
-    uint32_t dropSlot; // +0x98
+    uint32_t dropSlot = 0; // +0x98
 };
 
 /// <summary>A mech in logistics: armor, internals, the critical-slot layout, its pilot and its screen widgets.</summary>
@@ -295,8 +291,8 @@ public:
     /// <summary>Armor points of a body location: the maximum and the current.</summary>
     struct ArmorPoints
     {
-        uint8_t maxArmor;
-        uint8_t curArmor;
+        uint8_t maxArmor = 0;
+        uint8_t curArmor = 0;
     };
 
     /// <summary>
@@ -305,9 +301,9 @@ public:
     /// </summary>
     struct ItemSlot
     {
-        uint8_t row;
-        uint8_t column;
-        uint8_t masterID;
+        uint8_t row = 0;
+        uint8_t column = 0;
+        uint8_t masterID = 0;
     };
 
     /// <summary>The pilot modifier: the pilot's rank against the mech's weight class.</summary>
@@ -350,48 +346,48 @@ public:
     float calcStatus();
 
     /// <summary>A second string table name (from the description index).</summary>
-    char* extraName1; // +0x9c
+    char* extraName1 = nullptr; // +0x9c
     /// <summary>A third string table name.</summary>
-    char* extraName2; // +0xa0
+    char* extraName2 = nullptr; // +0xa0
     /// <summary>The name from the mech file.</summary>
-    char* mechName; // +0xa4
+    char* mechName = nullptr; // +0xa4
     /// <summary>The tonnage used by the chassis, engine and components.</summary>
-    float usedTonnage; // +0xa8
+    float usedTonnage = 0; // +0xa8
     /// <summary>The tonnage left for components.</summary>
-    float freeTonnage; // +0xac
+    float freeTonnage = 0; // +0xac
     /// <summary>The tonnage of the weapons and ammunition.</summary>
-    float weaponTonnage; // +0xb0
+    float weaponTonnage = 0; // +0xb0
     /// <summary>The pilot's index in the warrior list (-1 = none).</summary>
-    int32_t pilotIndex; // +0xb4
-    int32_t unknownB8;  // +0xb8
+    int32_t pilotIndex = 0; // +0xb4
+    int32_t unknownB8 = 0;  // +0xb8
     /// <summary>The name variant (0..2; picks the sort key and the multiplayer variant).</summary>
-    int32_t nameVariant; // +0xbc
-    int32_t sellValue;   // +0xc0
+    int32_t nameVariant = 0; // +0xbc
+    int32_t sellValue = 0;   // +0xc0
     /// <summary>The key the mech list is sorted by (<c>mechSort[nameIndex] * 3 + variant</c>).</summary>
-    int32_t sortKey;     // +0xc4
-    uint8_t maxRunSpeed; // +0xc8
+    int32_t sortKey = 0;     // +0xc4
+    uint8_t maxRunSpeed = 0; // +0xc8
     /// <summary>Head, center/left/right torso, left/right arm, left/right leg, rear center/left/right torso.</summary>
-    ArmorPoints armor[11]; // +0xc9
-    uint8_t unknownDF;     // +0xdf
+    ArmorPoints armor[11]{}; // +0xc9
+    uint8_t unknownDF = 0;   // +0xdf
     /// <summary>Nonzero where a location has CASE.</summary>
-    int32_t hasCASE[8]; // +0xe0
+    int32_t hasCASE[8]{}; // +0xe0
     /// <summary>Internal structure of the eight locations: the chassis maximum and the current.</summary>
-    ArmorPoints internals[8]; // +0x100
+    ArmorPoints internals[8]{}; // +0x100
     /// <summary>The critical slot grid of the eight locations (0xff = empty).</summary>
-    ItemSlot itemSlots[8][12]; // +0x110
+    ItemSlot itemSlots[8][12]{}; // +0x110
     /// <summary>The hot spot of each location on the damage diagram.</summary>
-    uint8_t hotSpotNumber[8]; // +0x230
+    uint8_t hotSpotNumber[8]{}; // +0x230
     /// <summary>The chassis battle rating.</summary>
-    int32_t chassisBR;     // +0x238
-    int32_t pilotModifier; // +0x23c
+    int32_t chassisBR = 0;     // +0x238
+    int32_t pilotModifier = 0; // +0x23c
     /// <summary>The condition from <see cref="calcStatus"/>.</summary>
-    float statusValue;                  // +0x240
-    MechRepairBlock* repairBlock;       // +0x244
-    MechInventoryBlock* inventoryBlock; // +0x248
-    MechBriefBlock* briefBlock;         // +0x24c
+    float statusValue = 0;                        // +0x240
+    MechRepairBlock* repairBlock = nullptr;       // +0x244
+    MechInventoryBlock* inventoryBlock = nullptr; // +0x248
+    MechBriefBlock* briefBlock = nullptr;         // +0x24c
     /// <summary>The pilot of a multiplayer mech received over the network.</summary>
-    LogWarrior* networkPilot; // +0x250
-    LogMech* next;            // +0x254
+    LogWarrior* networkPilot = nullptr; // +0x250
+    LogMech* next = nullptr;            // +0x254
 };
 
 /// <summary>A vehicle in logistics.</summary>
@@ -408,21 +404,21 @@ public:
     void loadDescription(int32_t descIndex);
 
     /// <summary>The crew (the vehicle file's Crew).</summary>
-    char crew[9];         // +0x9c
-    uint8_t maxMoveSpeed; // +0xa5
+    char crew[9]{};           // +0x9c
+    uint8_t maxMoveSpeed = 0; // +0xa5
     /// <summary>The current internal structure of the five locations.</summary>
-    uint8_t curInternalStructure[5]; // +0xa6
-    uint8_t maxArmorPoints[5];       // +0xab
-    uint8_t curArmorPoints[5];       // +0xb0
-    uint8_t unknownB5[3];            // +0xb5
+    uint8_t curInternalStructure[5]{}; // +0xa6
+    uint8_t maxArmorPoints[5]{};       // +0xab
+    uint8_t curArmorPoints[5]{};       // +0xb0
+    uint8_t unknownB5[3]{};            // +0xb5
     /// <summary>The current value.</summary>
-    int32_t vehicleResourcePoints; // +0xb8
+    int32_t vehicleResourcePoints = 0; // +0xb8
     /// <summary>The value of the bare vehicle.</summary>
-    int32_t baseVehicleResourcePoints;     // +0xbc
-    VehicleRepairBlock* repairBlock;       // +0xc0
-    VehicleInventoryBlock* inventoryBlock; // +0xc4
-    MechBriefBlock* briefBlock;            // +0xc8
-    LogVehicle* next;                      // +0xcc
+    int32_t baseVehicleResourcePoints = 0;           // +0xbc
+    VehicleRepairBlock* repairBlock = nullptr;       // +0xc0
+    VehicleInventoryBlock* inventoryBlock = nullptr; // +0xc4
+    MechBriefBlock* briefBlock = nullptr;            // +0xc8
+    LogVehicle* next = nullptr;                      // +0xcc
 };
 
 /// <summary>A MechWarrior in logistics: names, portrait, skills, wounds and status.</summary>
@@ -442,59 +438,59 @@ public:
     void loadDescription(int32_t descIndex);
 
     /// <summary>The profile file's base name.</summary>
-    char fileName[12]; // +0x0
-    LogWarrior* next;  // +0xc
+    char fileName[12]{};        // +0x0
+    LogWarrior* next = nullptr; // +0xc
     /// <summary>The size of the saved record with its strings.</summary>
-    uint32_t binarySize; // +0x10
-    char* name;          // +0x14
+    uint32_t binarySize = 0; // +0x10
+    char* name = nullptr;    // +0x14
     /// <summary>A unique id (<see cref="Logistics::nextWarriorID"/>).</summary>
-    int32_t id;       // +0x18
-    char* callsign;   // +0x1c
-    char* picture;    // +0x20
-    char* pilotVideo; // +0x24
-    char* pilotAudio; // +0x28
+    int32_t id = 0;             // +0x18
+    char* callsign = nullptr;   // +0x1c
+    char* picture = nullptr;    // +0x20
+    char* pilotVideo = nullptr; // +0x24
+    char* pilotAudio = nullptr; // +0x28
     /// <summary>The ABL brain file.</summary>
-    char* brain;         // +0x2c
-    int32_t paintScheme; // +0x30
+    char* brain = nullptr;   // +0x2c
+    int32_t paintScheme = 0; // +0x30
     /// <summary>0 green .. 3 elite.</summary>
-    int32_t rank;      // +0x34
-    int32_t nameIndex; // +0x38
-    int32_t descIndex; // +0x3c
-    char* description; // +0x40
-    int32_t unknown44; // +0x44
+    int32_t rank = 0;            // +0x34
+    int32_t nameIndex = 0;       // +0x38
+    int32_t descIndex = 0;       // +0x3c
+    char* description = nullptr; // +0x40
+    int32_t unknown44 = 0;       // +0x44
     /// <summary>Professionalism, decorum, aggressiveness, courage.</summary>
-    char personality[4]; // +0x48
+    char personality[4]{}; // +0x48
     /// <summary>Piloting, jumping, sensors, gunnery.</summary>
-    char skills[4];         // +0x4c
-    char originalSkills[4]; // +0x50
-    char startingSkills[4]; // +0x54
+    char skills[4]{};         // +0x4c
+    char originalSkills[4]{}; // +0x50
+    char startingSkills[4]{}; // +0x54
     /// <summary>Skill points earned towards the next level of each skill.</summary>
-    float skillPoints[4]; // +0x58
-    char mechClass;       // +0x68
-    char mechType;        // +0x69
-    char weaponClass;     // +0x6a
-    char weaponTypes[2];  // +0x6b
-    uint8_t unknown6D[3]; // +0x6d
-    float wounds;         // +0x70
+    float skillPoints[4]{}; // +0x58
+    char mechClass = 0;     // +0x68
+    char mechType = 0;      // +0x69
+    char weaponClass = 0;   // +0x6a
+    char weaponTypes[2]{};  // +0x6b
+    uint8_t unknown6D[3]{}; // +0x6d
+    float wounds = 0;       // +0x70
     /// <summary>6 minus the wounds (0 = dead).</summary>
-    float health; // +0x74
+    float health = 0; // +0x74
     /// <summary>4 = killed.</summary>
-    int32_t warriorStatus; // +0x78
-    int32_t unknown7C;     // +0x7c
+    int32_t warriorStatus = 0; // +0x78
+    int32_t unknown7C = 0;     // +0x7c
     /// <summary>The lance of the drop slot the pilot's mech is in (-1 = none).</summary>
-    int32_t dropLance; // +0x80
+    int32_t dropLance = 0; // +0x80
     /// <summary>The slot in <see cref="dropLance"/> (-1 = none).</summary>
-    int32_t dropSlot;  // +0x84
-    uint8_t unknown88; // +0x88
-    int32_t assigned;  // +0x8c
+    int32_t dropSlot = 0;  // +0x84
+    uint8_t unknown88 = 0; // +0x88
+    int32_t assigned = 0;  // +0x8c
     /// <summary>Set while the pilot's mech is in a drop slot.</summary>
-    int32_t deployed;   // +0x90
-    int32_t sold;       // +0x94
-    int32_t notMineYet; // +0x98
-    int32_t ejected;    // +0x9c
+    int32_t deployed = 0;   // +0x90
+    int32_t sold = 0;       // +0x94
+    int32_t notMineYet = 0; // +0x98
+    int32_t ejected = 0;    // +0x9c
     /// <summary>Not accessed in logistics.cpp.</summary>
-    uint8_t unknownA0[0x88];             // +0xa0
-    PilotInventoryBlock* inventoryBlock; // +0x128
+    uint8_t unknownA0[0x88]{};                     // +0xa0
+    PilotInventoryBlock* inventoryBlock = nullptr; // +0x128
 };
 
 /// <summary>A linked list of mechs, sorted by <see cref="LogMech::sortKey"/> or by tonnage.</summary>
@@ -504,11 +500,6 @@ class LogMechList
 public:
     /// <remarks>MCX.EXE @ 0x006eae30</remarks>
     LogMechList();
-
-    /// <remarks>MCX.EXE @ 0x006eae40</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006eae60</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>Removes every mech.</summary>
     /// <remarks>MCX.EXE @ 0x006eae80</remarks>
@@ -583,10 +574,10 @@ public:
     /// <remarks>MCX.EXE @ 0x006edac0</remarks>
     int32_t saveMechBinary(char* fileName, int32_t index);
 
-    LogMech* mechs;   // +0x0
-    int32_t numMechs; // +0x4
+    LogMech* mechs = nullptr; // +0x0
+    int32_t numMechs = 0;     // +0x4
     /// <summary>The multiplayer player whose mechs these are (set by <see cref="Logistics::initializeMultiplayer"/>).</summary>
-    uint32_t playerID; // +0x8
+    uint32_t playerID = 0; // +0x8
 };
 
 /// <summary>A linked list of vehicles.</summary>
@@ -596,11 +587,6 @@ class LogVehicleList
 public:
     /// <remarks>MCX.EXE @ 0x006fb520</remarks>
     LogVehicleList();
-
-    /// <remarks>MCX.EXE @ 0x006fb530</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006fb550</remarks>
-    static void operator delete(void* ptr);
 
     /// <remarks>MCX.EXE @ 0x006fb570</remarks>
     void destroy();
@@ -649,10 +635,10 @@ public:
     /// <remarks>MCX.EXE @ 0x006fc6a0</remarks>
     int32_t saveVehicleBinary(char* fileName, int32_t index);
 
-    LogVehicle* vehicles; // +0x0
-    int32_t numVehicles;  // +0x4
+    LogVehicle* vehicles = nullptr; // +0x0
+    int32_t numVehicles = 0;        // +0x4
     /// <summary>The multiplayer player whose vehicles these are (set by <see cref="Logistics::initializeMultiplayer"/>).</summary>
-    uint32_t playerID; // +0x8
+    uint32_t playerID = 0; // +0x8
 };
 
 /// <summary>A linked list of MechWarriors.</summary>
@@ -746,8 +732,8 @@ public:
     /// <remarks>MCX.EXE @ 0x006eac90</remarks>
     void reorder();
 
-    LogWarrior* warriors; // +0x0
-    int32_t numWarriors;  // +0x4
+    LogWarrior* warriors = nullptr; // +0x0
+    int32_t numWarriors = 0;        // +0x4
 };
 
 /// <summary>A multiplayer drop slot: its lance and position, and the mech or vehicle placed there.</summary>
@@ -755,14 +741,9 @@ public:
 class DropSlot
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006ffa10</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006ffa30</remarks>
-    static void operator delete(void* ptr);
-
-    int32_t lance; // +0x0
-    int32_t slot;  // +0x4
-    LogPart* part; // +0x8
+    int32_t lance = 0;       // +0x0
+    int32_t slot = 0;        // +0x4
+    LogPart* part = nullptr; // +0x8
 };
 
 /// <summary>The row of lights on the multiplayer screens, one per player, showing whether each is ready.</summary>
@@ -833,7 +814,7 @@ public:
 };
 
 /// <summary>
-/// The logistics layer: owns the logistics heap, every screen (main menu, multiplayer, load/save, preferences,
+/// The logistics layer: owns the logistics blocks, every screen (main menu, multiplayer, load/save, preferences,
 /// briefing, purchase, repair, session), the player's force and inventory, the art they share, and runs campaign
 /// loading/saving and the multiplayer force exchange. One instance, <c>globalLogPtr</c>.
 /// </summary>
@@ -850,7 +831,7 @@ public:
     void drawVehicleBodyLoc(LogVehicle* vehicle, int32_t location, lPort* port, int32_t xPos, int32_t yPos);
 
     /// <summary>
-    /// Makes the logistics heap, the lists, every screen and dialog, loads the shared art, shapes and sort tables,
+    /// Makes the logistics block store, the lists, every screen and dialog, loads the shared art, shapes and sort tables,
     /// and shows the main screen.
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006edcc0</remarks>
@@ -1071,78 +1052,81 @@ protected:
 
 public:
     /// <summary>The name ticker on the main screen.</summary>
-    Ticker* ticker; // +0x0
+    Ticker* ticker = nullptr; // +0x0
     /// <summary>The multiplayer ready lights.</summary>
-    MPPlayerLights* playerLights; // +0x4
+    MPPlayerLights* playerLights = nullptr; // +0x4
     /// <summary>Cleared by <see cref="init"/>.</summary>
-    int32_t unknown08; // +0x8
+    int32_t unknown08 = 0; // +0x8
     /// <summary>The current mission's number in the campaign (-1 = none).</summary>
-    int32_t currentMission; // +0xc
+    int32_t currentMission = 0; // +0xc
     /// <summary>The campaign's purchase file (the save's "purchaseFile"; written to starting fits as PurchaseFile).</summary>
-    char purchaseFile[0x80];  // +0x10
-    uint8_t unknown90[0x12c]; // +0x90
+    char purchaseFile[0x80]{};  // +0x10
+    uint8_t unknown90[0x12c]{}; // +0x90
     /// <summary>Every pilot the player has.</summary>
-    LogWarriorList* warriorList; // +0x1bc
+    LogWarriorList* warriorList = nullptr; // +0x1bc
     /// <summary>The pilots assigned to mechs.</summary>
-    LogWarriorList* assignedWarriorList; // +0x1c0
+    LogWarriorList* assignedWarriorList = nullptr; // +0x1c0
     /// <summary>Every mech the player has.</summary>
-    LogMechList* mechList; // +0x1c4
+    LogMechList* mechList = nullptr; // +0x1c4
     /// <summary>Every vehicle the player has.</summary>
-    LogVehicleList* vehicleList; // +0x1c8
+    LogVehicleList* vehicleList = nullptr; // +0x1c8
     /// <summary>The mechs in the force (repair and briefing screens).</summary>
-    LogMechList* forceMechList; // +0x1cc
+    LogMechList* forceMechList = nullptr; // +0x1cc
     /// <summary>The vehicles in the force.</summary>
-    LogVehicleList* forceVehicleList; // +0x1d0
+    LogVehicleList* forceVehicleList = nullptr; // +0x1d0
     /// <summary>The other multiplayer players' mechs, per team side and player (<see cref="FindMPMechList"/>).</summary>
-    LogMechList* mpMechLists[2][3]; // +0x1d4
+    LogMechList* mpMechLists[2][3]{}; // +0x1d4
     /// <summary>The other multiplayer players' vehicles.</summary>
-    LogVehicleList* mpVehicleLists[2][3]; // +0x1ec
+    LogVehicleList* mpVehicleLists[2][3]{}; // +0x1ec
     /// <summary>The pilots of mechs received over the network.</summary>
-    LogWarriorList* mpWarriorList;  // +0x204
-    PurMechList* purMechList;       // +0x208
-    PurVehicleList* purVehicleList; // +0x20c
-    PurPilotList* purPilotList;     // +0x210
+    LogWarriorList* mpWarriorList = nullptr;  // +0x204
+    PurMechList* purMechList = nullptr;       // +0x208
+    PurVehicleList* purVehicleList = nullptr; // +0x20c
+    PurPilotList* purPilotList = nullptr;     // +0x210
     /// <summary>The player's spare components.</summary>
-    InventoryList* componentInventory; // +0x214
+    InventoryList* componentInventory = nullptr; // +0x214
     /// <summary>The components for sale.</summary>
-    InventoryList* purchaseComponents; // +0x218
+    InventoryList* purchaseComponents = nullptr; // +0x218
     /// <summary>The number of entries in <see cref="rangeSortList"/>.</summary>
-    int32_t numRangeSorted; // +0x21c
+    int32_t numRangeSorted = 0; // +0x21c
     /// <summary>Component master ids in range order (<c>logart\comp.rsp</c>).</summary>
-    uint32_t* rangeSortList; // +0x220
+    uint32_t* rangeSortList = nullptr; // +0x220
     /// <summary>Which screen or sub-screen logistics is on (1 main, 2.. the others, as the callbacks set it).</summary>
-    int32_t logisticsState; // +0x224
+    int32_t logisticsState = 0; // +0x224
     /// <summary>
     /// The <see cref="logisticsState"/> before the main menu opened over it: the menu's return and a finished save
     /// go back to the purchase (2) or repair (4) screen, else the briefing.
     /// </summary>
-    int32_t previousState; // +0x228
+    int32_t previousState = 0; // +0x228
     /// <summary>Passed to a CRT call in <c>logistics.cpp</c> by address; not otherwise known.</summary>
     /// <summary>The clock text ("HH:MM:SS", from the CRT's <c>_strtime</c>), written by <c>RepairScreen::display</c>.</summary>
-    char timeString[0xc]; // +0x22c
+    char timeString[0xc]{}; // +0x22c
     /// <summary>Cleared by <see cref="init"/>.</summary>
-    int32_t unknown238; // +0x238
-    /// <summary>The logistics heap every logistics object allocates from.</summary>
-    UserHeap* logisticsHeap; // +0x23c
+    int32_t unknown238 = 0; // +0x238
+    /// <summary>
+    /// The blocks of logistics data (strings, tables, shapes, port bitmaps) that have no single owner yet (the
+    /// logistics heap's in the original); made by <see cref="init"/> and cleared by <see cref="destroy"/>.
+    /// </summary>
+    std::unique_ptr<MCBlockStore> logisticsBlocks; // +0x23c
     /// <summary>
     /// Which of the 12 drop slots (three lances of four) may be filled: the local player's in multiplayer; in single
     /// player the briefing screen shows the lances whose slots are set.
     /// </summary>
-    int32_t localDropSlot[12]; // +0x240
+    int32_t localDropSlot[12]{}; // +0x240
     /// <summary>A world position (x, y) per drop zone: three for side 0, then three for side 1 (MultiPlayer homeTeam 1).</summary>
     struct DropZonePosition
     {
-        float x;
-        float y;
-    } dropZonePositions[6]; // +0x270
+        float x = 0;
+        float y = 0;
+    } dropZonePositions[6]{}; // +0x270
     /// <summary>The drop zone: per lance and slot, the index of the mech or vehicle placed there (-1 = none).</summary>
     struct DeploySlot
     {
         /// <summary>The mech's index in the force mech list, or -1.</summary>
-        int32_t unit;
+        int32_t unit = 0;
         /// <summary>The vehicle's index in the force vehicle list, or -1 (only read when <see cref="unit"/> is -1).</summary>
-        int32_t vehicle;
-    } deploySlots[3][4]; // +0x2a0
+        int32_t vehicle = 0;
+    } deploySlots[3][4]{}; // +0x2a0
     /// <summary>
     /// Per drop zone and slot, the unit's place relative to the zone (the mission's <c>OffsetX</c>, <c>OffsetY</c>
     /// and <c>Rotation</c>, read by <see cref="getCurrentMission"/>): the six zones of <see cref="dropZonePositions"/>.
@@ -1150,123 +1134,123 @@ public:
     /// </summary>
     struct DeploySlotInfo
     {
-        float offsetX;
-        float offsetY;
-        float rotation;
-    } deploySlotInfo[6][4]; // +0x300
+        float offsetX = 0;
+        float offsetY = 0;
+        float rotation = 0;
+    } deploySlotInfo[6][4]{}; // +0x300
     /// <summary>The drop slots every force is placed in (multiplayer).</summary>
-    DropSlot* dropSlots[3][4]; // +0x420
+    DropSlot* dropSlots[3][4]{}; // +0x420
     /// <summary>The drop slots of the players not on the local player's team (multiplayer).</summary>
-    DropSlot* opponentDropSlots[3][4]; // +0x450
+    DropSlot* opponentDropSlots[3][4]{}; // +0x450
     /// <summary>The current mission's name (freed by <see cref="destroy"/>).</summary>
-    char* missionFileName;   // +0x480
-    uint8_t unknown484[0xc]; // +0x484
+    char* missionFileName = nullptr; // +0x480
+    uint8_t unknown484[0xc]{};       // +0x484
     /// <summary>The inventory tab shown: 0 mechs, 1 pilots, 2 components, 3 vehicles.</summary>
-    int32_t currentInvTab; // +0x490
+    int32_t currentInvTab = 0; // +0x490
     /// <summary>The cost of an armor point (the purchase file's PurchaseCosts).</summary>
-    int32_t armorCost; // +0x494
+    int32_t armorCost = 0; // +0x494
     /// <summary>The cost of an internal structure point.</summary>
-    int32_t internalCost; // +0x498
+    int32_t internalCost = 0; // +0x498
     /// <summary>The cost of engine work.</summary>
-    int32_t engineCost; // +0x49c
+    int32_t engineCost = 0; // +0x49c
     /// <summary>The cost of a green, regular, veteran and elite pilot.</summary>
-    int32_t pilotCosts[4]; // +0x4a0
+    int32_t pilotCosts[4]{}; // +0x4a0
     /// <summary>The price factor of clan technology.</summary>
-    float clanCostFactor; // +0x4b0
+    float clanCostFactor = 0; // +0x4b0
     /// <summary>The screen being shown.</summary>
-    lObject* currentScreen;       // +0x4b4
-    SessionScreen* sessionScreen; // +0x4b8
-    MCSplashScreen* serialScreen; // +0x4bc
+    lObject* currentScreen = nullptr;       // +0x4b4
+    SessionScreen* sessionScreen = nullptr; // +0x4b8
+    MCSplashScreen* serialScreen = nullptr; // +0x4bc
     /// <summary>The multiplayer connection screen (the one after the protocol choice).</summary>
-    MCSplashScreen* connectScreen;     // +0x4c0
-    MCSplashScreen* modemScreen;       // +0x4c4
-    MCSplashScreen* lanScreen;         // +0x4c8
-    MCSplashScreen* mainScreen;        // +0x4cc
-    MCSplashScreen* multiplayerScreen; // +0x4d0
-    MCSplashScreen* loadScreen;        // +0x4d4
-    MCSplashScreen* saveScreen;        // +0x4d8
-    MCSplashScreen* prefScreen;        // +0x4dc
-    BriefingScreen* briefingScreen;    // +0x4e0
-    PurchaseScreen* purchaseScreen;    // +0x4e4
-    RepairScreen* repairScreen;        // +0x4e8
+    MCSplashScreen* connectScreen = nullptr;     // +0x4c0
+    MCSplashScreen* modemScreen = nullptr;       // +0x4c4
+    MCSplashScreen* lanScreen = nullptr;         // +0x4c8
+    MCSplashScreen* mainScreen = nullptr;        // +0x4cc
+    MCSplashScreen* multiplayerScreen = nullptr; // +0x4d0
+    MCSplashScreen* loadScreen = nullptr;        // +0x4d4
+    MCSplashScreen* saveScreen = nullptr;        // +0x4d8
+    MCSplashScreen* prefScreen = nullptr;        // +0x4dc
+    BriefingScreen* briefingScreen = nullptr;    // +0x4e0
+    PurchaseScreen* purchaseScreen = nullptr;    // +0x4e4
+    RepairScreen* repairScreen = nullptr;        // +0x4e8
     /// <summary>The preferences as they were when the preferences screen opened (restored by CancelPrefs).</summary>
-    int32_t savedPrefs0;  // +0x4ec
-    int32_t savedPrefs1;  // +0x4f0
-    int32_t savedPrefs2;  // +0x4f4
-    uint32_t savedPrefs3; // +0x4f8
-    uint32_t savedPrefs4; // +0x4fc
-    uint32_t savedPrefs5; // +0x500
-    int32_t savedPrefs6;  // +0x504
+    int32_t savedPrefs0 = 0;  // +0x4ec
+    int32_t savedPrefs1 = 0;  // +0x4f0
+    int32_t savedPrefs2 = 0;  // +0x4f4
+    uint32_t savedPrefs3 = 0; // +0x4f8
+    uint32_t savedPrefs4 = 0; // +0x4fc
+    uint32_t savedPrefs5 = 0; // +0x500
+    int32_t savedPrefs6 = 0;  // +0x504
     /// <summary>
     /// The current mission's operation number (the campaign's Operation; picks the briefing's operation picture),
     /// 0 when it has none.
     /// </summary>
-    int32_t operation;         // +0x508
-    LogChatWindow* chatWindow; // +0x50c
+    int32_t operation = 0;               // +0x508
+    LogChatWindow* chatWindow = nullptr; // +0x50c
     /// <summary>The mech repair screen shapes (<c>mechrep##.shp</c>).</summary>
-    void* mechRepShapes[24]; // +0x510
+    void* mechRepShapes[24]{}; // +0x510
     /// <summary>The vehicle repair screen shapes (<c>vr1_##.shp</c>).</summary>
-    void* vehicleRepShapes[35]; // +0x570
+    void* vehicleRepShapes[35]{}; // +0x570
     /// <summary>The mech icon shapes (<c>mi##.shp</c>).</summary>
-    void* mechIconShapes[24]; // +0x5fc
+    void* mechIconShapes[24]{}; // +0x5fc
     /// <summary>The vehicle icon shapes (<c>vi1_##.shp</c>).</summary>
-    void* vehicleIconShapes[35]; // +0x65c
+    void* vehicleIconShapes[35]{}; // +0x65c
     /// <summary>Color remap tables for drawing shapes (<c>VFX_shape_lookaside</c>).</summary>
-    uint8_t shapeLookaside[10][256]; // +0x6e8
+    uint8_t shapeLookaside[10][256]{}; // +0x6e8
     /// <summary>The repair screen's mech picture background (<c>lsrupm00.tga</c>).</summary>
-    lPort* repairBackPort; // +0x10e8
+    lPort* repairBackPort = nullptr; // +0x10e8
     /// <summary>The inventory block background (<c>invblock.tga</c>).</summary>
-    lPort* invBlockPort; // +0x10ec
+    lPort* invBlockPort = nullptr; // +0x10ec
     /// <summary>
     /// The inventory pane's contents per tab (mechs, pilots, components, vehicles), made by the
     /// <c>LogInvScreen::create*InvBlock</c> functions.
     /// </summary>
-    lPort* invTabPorts[4]; // +0x10f0
+    lPort* invTabPorts[4]{}; // +0x10f0
     /// <summary>The box behind the resource figure at the top right (<c>RepairScreen::display</c>).</summary>
-    lPort* resourceBackPort; // +0x1100
+    lPort* resourceBackPort = nullptr; // +0x1100
     /// <summary>The box behind the clock at the top right (<c>RepairScreen::display</c>).</summary>
-    lPort* clockBackPort; // +0x1104
+    lPort* clockBackPort = nullptr; // +0x1104
     /// <summary>The repair screen pieces (<c>lsrupm01..07.tga</c>).</summary>
-    lPort* repairPorts[6]; // +0x1108
+    lPort* repairPorts[6]{}; // +0x1108
     /// <summary>The purchase screen pieces (<c>lspcb05..09.tga</c>).</summary>
-    lPort* purchasePorts[4]; // +0x1120
+    lPort* purchasePorts[4]{}; // +0x1120
     /// <summary>The two full-screen work ports (0x1ab x 0x1ce) the screens draw into.</summary>
-    lPort* workPort1; // +0x1130
-    lPort* workPort0; // +0x1134
+    lPort* workPort1 = nullptr; // +0x1130
+    lPort* workPort0 = nullptr; // +0x1134
     /// <summary>The screen switch buttons' pictures: button 0, exit, buttons 1..3; normal, highlighted, gray.</summary>
-    lPort* screenButtonPorts[5][3]; // +0x1138
+    lPort* screenButtonPorts[5][3]{}; // +0x1138
     /// <summary>The inventory tab icons: mechs, pilots, components, vehicles (<c>lscii?.tga</c>).</summary>
-    lPort* inventoryIconPorts[4]; // +0x1174
+    lPort* inventoryIconPorts[4]{}; // +0x1174
     /// <summary>Not accessed in logistics.cpp (0x300 bytes: probably a palette).</summary>
-    uint8_t unknown1184[0x300]; // +0x1184
+    uint8_t unknown1184[0x300]{}; // +0x1184
     /// <summary>
     /// The chat text colour of each player number (1, 3, 4, 2, 6, 5), used as <c>%fc</c> codes by
     /// <c>LogChatWindow::processChatString</c>.
     /// </summary>
-    int32_t playerColors[6]; // +0x1484
+    int32_t playerColors[6]{}; // +0x1484
     /// <summary>Each component's place in the logistics sort order (<c>objsort.rsp</c>).</summary>
-    int32_t componentSort[256]; // +0x149c
+    int32_t componentSort[256]{}; // +0x149c
     /// <summary>The icon following the mouse while an inventory row is dragged (made and freed by the rows' <c>handleEvent</c>).</summary>
-    DragIcon* dragIcon; // +0x189c
+    DragIcon* dragIcon = nullptr; // +0x189c
     /// <summary>The id the next <see cref="LogWarrior"/> gets.</summary>
-    int32_t nextWarriorID;       // +0x18a0
-    PurchaseDlg* purchaseDialog; // +0x18a4
+    int32_t nextWarriorID = 0;             // +0x18a0
+    PurchaseDlg* purchaseDialog = nullptr; // +0x18a4
     /// <summary>The one-button (or yes/no) message dialog.</summary>
-    ReusableDialog* messageDialog; // +0x18a8
+    ReusableDialog* messageDialog = nullptr; // +0x18a8
     /// <summary>The yes/no dialog.</summary>
-    ReusableDialog* questionDialog; // +0x18ac
-    RefitDialog* refitDialog;       // +0x18b0
-    /// <summary>The campaign's CampaignBriefing Filename (0x29 bytes, logistics heap; freed by <see cref="destroy"/>).</summary>
-    char* campaignBriefingName; // +0x18b4
+    ReusableDialog* questionDialog = nullptr; // +0x18ac
+    RefitDialog* refitDialog = nullptr;       // +0x18b0
+    /// <summary>The campaign's CampaignBriefing Filename (0x29 bytes, a logistics block; freed by <see cref="destroy"/>).</summary>
+    char* campaignBriefingName = nullptr; // +0x18b4
     /// <summary>
-    /// The mission's OperationCinema: the briefing movie played in <c>data\movies\</c> (0x29 bytes, logistics heap;
+    /// The mission's OperationCinema: the briefing movie played in <c>data\movies\</c> (0x29 bytes, a logistics block;
     /// null when the mission has none).
     /// </summary>
-    char* operationCinema; // +0x18b8
+    char* operationCinema = nullptr; // +0x18b8
     /// <summary>Set when the mission file has a HammerDown1 block: the drop tonnage limit is not enforced.</summary>
-    int32_t hammerDown; // +0x18bc
+    int32_t hammerDown = 0; // +0x18bc
     /// <summary>The mission's AutoPlay: the briefing screen starts the operation movie when first shown.</summary>
-    int32_t autoPlayMovie; // +0x18c0
+    int32_t autoPlayMovie = 0; // +0x18c0
     /// <summary>The mechs allowed in multiplayer (<c>netmechs.rsp</c>).</summary>
     FLinkedList<char> netMechNames; // +0x18c4
     /// <summary>The pilots allowed in multiplayer (<c>netwars.rsp</c>).</summary>
@@ -1274,15 +1258,15 @@ public:
     /// <summary>The vehicles allowed in multiplayer (<c>netvhcls.rsp</c>).</summary>
     FLinkedList<char> netVehicleNames; // +0x18e4
     /// <summary>Nonzero once <see cref="initializeMultiplayer"/> ran.</summary>
-    int32_t multiplayerInitialized; // +0x18f4
+    int32_t multiplayerInitialized = 0; // +0x18f4
     /// <summary>The buffer outgoing force messages are built in.</summary>
-    FIMessageHeader* messageBuffer; // +0x18f8
+    FIMessageHeader* messageBuffer = nullptr; // +0x18f8
     /// <summary>The default multiplayer planning time in seconds (240).</summary>
-    uint32_t defaultPlanningTime; // +0x18fc
+    uint32_t defaultPlanningTime = 0; // +0x18fc
     /// <summary>The multiplayer planning time: a save's PlanningTime, else <see cref="defaultPlanningTime"/>.</summary>
-    uint32_t planningTime; // +0x1900
+    uint32_t planningTime = 0; // +0x1900
     /// <summary>The multiplayer mission name (0x80 bytes).</summary>
-    char* mpMissionName; // +0x1904
+    char* mpMissionName = nullptr; // +0x1904
 };
 
 /// <summary>The logistics screens' default button callback (does nothing).</summary>
@@ -1327,8 +1311,6 @@ extern float SkillWeightings[4];
 extern float WarriorRankScale[4];
 /// <summary>Each mech name index's place in the mech sort order.</summary>
 extern int32_t mechSort[];
-/// <summary>The logistics heap size (from the system config).</summary>
-extern uint32_t LogisticsHeapSize;
 /// <summary>The object packet file under <c>objectPath</c> the chassis profiles are read from ("object2.pak").</summary>
 extern char objectPakName[20];
 extern char missionName[];

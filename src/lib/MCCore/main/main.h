@@ -58,10 +58,10 @@ public:
     FixedLengthString& operator<<(int value);
 
     /// <summary>The buffer's size in bytes.</summary>
-    int32_t maxLength; // +0x0
+    int32_t maxLength = 0; // +0x0
     /// <summary>The text's length.</summary>
-    int32_t length; // +0x4
-    char* text;     // +0x8
+    int32_t length = 0;   // +0x4
+    char* text = nullptr; // +0x8
 };
 
 /// <summary>The day names ("Sunday" ...) the report prints dates with, by SYSTEMTIME::wDayOfWeek.</summary>

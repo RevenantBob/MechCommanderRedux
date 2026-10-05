@@ -14,7 +14,6 @@
 #include "gameos/soundresource.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "main/MCGameContext.h"
 #include "platform/MCFileSystem.h"
@@ -24,15 +23,6 @@
 
 namespace
 {
-    void EnsureSystemHeap()
-    {
-        if (systemHeap == nullptr)
-        {
-            systemHeap = new UserHeap;
-            systemHeap->init(16383999, "SystemHeap");
-        }
-    }
-
     /// <summary>A RIFF WAVE file: 22050 Hz, mono, 16-bit, <paramref name="samples"/> samples of silence.</summary>
     std::vector<uint8_t> SilentWave(uint32_t samples)
     {
@@ -210,7 +200,6 @@ TEST_CASE("services: the memory file source looks files up as the game spells th
 /// <summary>A FIT file the game opens by name reads from memory: blocks, numbers and strings.</summary>
 TEST_CASE("services: a FitIniFile reads from an in-memory file")
 {
-    EnsureSystemHeap();
     MCTestContextScope scope;
     MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
     files.AddFile("data\\objects\\test.fit", "FITini \r\n"
@@ -415,7 +404,6 @@ TEST_CASE("services: the tiny map is flat and passable with the cells it blocks"
 /// <summary>The retail fixture reads files the game reads (here from the FastFiles) into memory.</summary>
 TEST_CASE("game: the retail data fixture loads FIT files into a memory source")
 {
-    EnsureSystemHeap();
     std::unique_ptr<MCMemoryFileSource> data = MCRetailData::Load({"data\\missions\\gamesys.fit"});
 
     if (data == nullptr)

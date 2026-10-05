@@ -56,8 +56,8 @@ public:
     /// <remarks>MCX.EXE @ 0x0060ad20</remarks>
     int32_t charactersToWidth(uint8_t* text, int32_t maxWidth, int wordWrap);
 
-    /// <summary>The font file's contents (owned, GUI heap).</summary>
-    uint8_t* fontData = nullptr; // +0x00
+    /// <summary>The font file's contents (registered with the renderers while loaded).</summary>
+    std::unique_ptr<uint8_t[]> fontData; // +0x00
     /// <summary>The colour translation the characters are drawn through.</summary>
     uint8_t colorTable[256] = {}; // +0x04
 };

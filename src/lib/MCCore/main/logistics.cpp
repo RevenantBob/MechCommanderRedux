@@ -9,7 +9,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "lib/routines.h"
@@ -46,7 +45,6 @@
 
 /// <summary>Each mech name index's place in the logistics mech order (0x007977a4).</summary>
 int32_t mechSort[24] = {23, 19, 13, 10, 0, 3, 2, 6, 9, 8, 15, 14, 18, 20, 4, 16, 1, 12, 5, 11, 21, 7, 17, 22};
-uint32_t LogisticsHeapSize = 0xffffff;
 char objectPakName[20] = "object2.pak";
 std::type_identity_t<char[256]> holdString{};
 int LogCheatActive[7] = {};
@@ -59,15 +57,15 @@ namespace
 {
     void* logAlloc(size_t size)
     {
-        return globalLogPtr->logisticsHeap->malloc(static_cast<uint32_t>(size));
+        return globalLogPtr->logisticsBlocks->Allocate(static_cast<uint32_t>(size));
     }
 
     void logFree(void* block)
     {
-        globalLogPtr->logisticsHeap->free(block);
+        globalLogPtr->logisticsBlocks->Free(block);
     }
 
-    /// <summary>A copy of <paramref name="text"/> on the logistics heap.</summary>
+    /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
     char* logStrDup(const char* text)
     {
         const size_t size = std::strlen(text) + 1;
@@ -82,7 +80,7 @@ namespace
     }
 
     /// <summary>
-    /// A LogMech, LogVehicle or LogWarrior record on the logistics heap. Port fix: zeroed (the original's heap block
+    /// A LogMech, LogVehicle or LogWarrior record in a logistics block. Port fix: zeroed (the original's heap block
     /// held whatever was there before; the readers set what they use, but a few fields, such as a vehicle's
     /// <c>binarySize</c> or a mech's last critical slots, were left as found).
     /// </summary>
@@ -98,7 +96,7 @@ namespace
         return static_cast<T*>(block);
     }
 
-    /// <summary>String <paramref name="id"/> of the string table, copied onto the logistics heap.</summary>
+    /// <summary>String <paramref name="id"/> of the string table, copied into a logistics block.</summary>
     char* loadLogString(uint32_t id)
     {
         char text[256];
@@ -122,7 +120,7 @@ namespace
 
     /// <summary>
     /// Reads <c>Desc&lt;descIndex&gt;</c>'s DescString from the object description file, as "%fc4" (the colour code)
-    /// and the text, on the logistics heap; null when the file has no such block.
+    /// and the text, in logistics blocks; null when the file has no such block.
     /// </summary>
     char* readDescription(int32_t descIndex)
     {
@@ -194,7 +192,7 @@ namespace
         }
 
     private:
-        uint8_t* _data;
+        uint8_t* _data = nullptr;
     };
 
     /// <summary>Reads fields from a record image.</summary>
@@ -208,7 +206,7 @@ namespace
         template <class T> void pointer(size_t, T*& value) { value = nullptr; }
 
     private:
-        const uint8_t* _data;
+        const uint8_t* _data = nullptr;
     };
 
     constexpr size_t WarriorImageSize = 300;
@@ -373,7 +371,7 @@ namespace
     }
 
     /// <summary>
-    /// Reads a saved record's string (up to its terminator, at most 256 bytes) onto the logistics heap. Port fix: the
+    /// Reads a saved record's string (up to its terminator, at most 256 bytes) into a logistics block. Port fix: the
     /// original allocated the length without the terminator and copied the terminator past the block, and a string
     /// of 256 or more characters ran on past its buffer.
     /// </summary>
@@ -468,16 +466,6 @@ InventoryList::InventoryList()
     items = nullptr;
     numItems = 0;
     nextStatID = 0;
-}
-
-auto InventoryList::operator new(size_t size) noexcept -> void*
-{
-    return logAlloc(size);
-}
-
-auto InventoryList::operator delete(void* ptr) -> void
-{
-    logFree(ptr);
 }
 
 auto InventoryList::loadDescription(int32_t index, _LogInventoryItem* item) -> void
@@ -2398,16 +2386,6 @@ LogMechList::LogMechList()
     numMechs = 0;
 }
 
-auto LogMechList::operator new(size_t size) noexcept -> void*
-{
-    return logAlloc(size);
-}
-
-auto LogMechList::operator delete(void* ptr) -> void
-{
-    logFree(ptr);
-}
-
 auto LogMechList::destroy() -> void
 {
     while (numMechs != 0)
@@ -3381,16 +3359,6 @@ LogVehicleList::LogVehicleList()
     numVehicles = 0;
 }
 
-auto LogVehicleList::operator new(size_t size) noexcept -> void*
-{
-    return logAlloc(size);
-}
-
-auto LogVehicleList::operator delete(void* ptr) -> void
-{
-    logFree(ptr);
-}
-
 auto LogVehicleList::destroy() -> void
 {
     while (numVehicles != 0)
@@ -3937,16 +3905,6 @@ auto LogVehicleList::saveVehicleBinary(char* fileName, int32_t index) -> int32_t
 //---------------------------------------------------------------------------
 // DropSlot
 
-auto DropSlot::operator new(size_t size) noexcept -> void*
-{
-    return logAlloc(size);
-}
-
-auto DropSlot::operator delete(void* ptr) -> void
-{
-    logFree(ptr);
-}
-
 //---------------------------------------------------------------------------
 // Free functions
 
@@ -4204,7 +4162,7 @@ namespace
     }
 
     /// <summary>
-    /// Loads the whole of shape file <paramref name="fileName"/> onto the logistics heap (the repair and icon shapes).
+    /// Loads the whole of shape file <paramref name="fileName"/> into a logistics block (the repair and icon shapes).
     /// </summary>
     void* readShapeFile(File& file, const char* sizeError)
     {
@@ -4266,7 +4224,7 @@ namespace
         }
     }
 
-    /// <summary>Reads a <c>net*.rsp</c> list (one name per line, each on the logistics heap) from <c>profilePath</c>.</summary>
+    /// <summary>Reads a <c>net*.rsp</c> list (one name per line, each a logistics block) from <c>profilePath</c>.</summary>
     void readNameList(File& file, const char* name, const char* missingError, FLinkedList<char>& list)
     {
         FullPathFileName fileName;
@@ -4331,10 +4289,7 @@ auto Logistics::init() -> void
 
     std::strcpy(WindowTitle, logisticsTitle);
 
-    logisticsHeap = new UserHeap;
-    const int32_t heapResult = logisticsHeap->init(LogisticsHeapSize, "logistics");
-    Assert(heapResult == 0, 0, " Could not allocate logistics heap ");
-    logisticsHeap->unknown2C = 1;
+    logisticsBlocks = std::make_unique<MCBlockStore>();
     unknown238 = 0;
     logisticsState = 0;
     unknown08 = 0;
@@ -4702,8 +4657,8 @@ auto Logistics::init() -> void
     // Ten remap tables: each maps every colour to 0xff (transparent) except one, which it recolours.
     static constexpr struct
     {
-        uint8_t from;
-        uint8_t to;
+        uint8_t from = 0;
+        uint8_t to = 0;
     } lookasideColors[10] = {{0xe8, 0xe8}, {0xe8, 0xf2}, {0xe8, 0xeb}, {0xe8, 0xef}, {0xe8, 0x13},
                              {0xe6, 0xe6}, {0xe6, 0xf1}, {0xe6, 0xf4}, {0xe6, 0xed}, {0xe6, 0x13}};
 
@@ -5199,8 +5154,8 @@ auto Logistics::destroy() -> void
     deleteScreen(saveScreen);
     application->setCurrentObject(nullptr);
     ClearLogArt();
-    delete logisticsHeap;
-    logisticsHeap = nullptr;
+    logisticsBlocks->Clear();
+    logisticsBlocks.reset();
 
     if (EmptyFile != nullptr)
     {
@@ -5377,11 +5332,11 @@ namespace
     /// <summary>The counts read from a purchase file's Header block.</summary>
     struct PurchaseHeader
     {
-        int32_t numMechs;
-        int32_t numVehicles;
-        int32_t numComponents;
-        int32_t numWarriors;
-        int32_t numGifts;
+        int32_t numMechs = 0;
+        int32_t numVehicles = 0;
+        int32_t numComponents = 0;
+        int32_t numWarriors = 0;
+        int32_t numGifts = 0;
     };
 
     /// <summary>Reads the Header block of an open purchase file.</summary>
@@ -6976,8 +6931,8 @@ auto Logistics::loadCampaign(char* campaignFile, char* saveFile, int newCampaign
     else
     {
         // Coming back from a mission: apply its results (the "<mission>.pkk" save the mission wrote).
-        const char* resultName = currentMission - 1 == -1 ? mission->scenarios[mission->currentScenario]
-                                                          : mission->scenarios[currentMission - 1];
+        const char* resultName = currentMission - 1 == -1 ? mission->scenarios[mission->currentScenario].data()
+                                                          : mission->scenarios[currentMission - 1].data();
         FullPathFileName resultPath;
         resultPath.init(savePath, resultName, ".pkk");
         PacketFile resultFile;
@@ -7939,9 +7894,9 @@ auto Logistics::prepareScenario(char* scenarioName, char* startFile) -> int32_t
     check(result == 0, "Could not read Num Parts ");
     struct PartPlace
     {
-        float x;
-        float y;
-        float rotation;
+        float x = 0;
+        float y = 0;
+        float rotation = 0;
     };
 
     int32_t ravenParts[5] = {-1, 0, 0, 0, 0};
@@ -8870,7 +8825,7 @@ auto Logistics::getCurrentMission() -> void
     // Port: the original allocated the FitIniFile and leaked it when the mission file would not open.
     FitIniFile file;
     FullPathFileName path;
-    char* fileName = MPlayer == nullptr ? mission->scenarios[mission->currentScenario] : mpMissionName;
+    char* fileName = MPlayer == nullptr ? mission->scenarios[mission->currentScenario].data() : mpMissionName;
     path.init(missionPath, fileName, ".fit");
 
     if (file.open(path) != 0)
@@ -9239,16 +9194,16 @@ namespace
         /// Bit 0 a mech (else a vehicle), bit 1 the Clan side, bits 2-3 the mech's name variant, bits 4-5 the lance,
         /// bits 6-7 the slot.
         /// </summary>
-        uint8_t flags; // +0x8
+        uint8_t flags = 0; // +0x8
         /// <summary>The part's name index (the variant is added from the flags for mechs).</summary>
-        uint8_t nameIndex; // +0x9
+        uint8_t nameIndex = 0; // +0x9
         /// <summary>The pilot's name index (0xff for a vehicle).</summary>
-        uint8_t pilotNameIndex; // +0xa
+        uint8_t pilotNameIndex = 0; // +0xa
         /// <summary>Always 0xff.</summary>
-        uint8_t unknown0B; // +0xb
-        uint8_t numItems;  // +0xc
+        uint8_t unknown0B = 0; // +0xb
+        uint8_t numItems = 0;  // +0xc
         /// <summary>Per component copy, its master id as a 16-bit value (low byte first).</summary>
-        uint8_t items[1]; // +0xd
+        uint8_t items[1]{}; // +0xd
     };
 
     static_assert(sizeof(DeployForceMessage) == 0xe);
@@ -9256,8 +9211,8 @@ namespace
     /// <summary>A "remove force" message (MPMSG_REMOVE_FORCE): a drop slot emptied. 10 bytes; the name is the port's.</summary>
     struct RemoveForceMessage : public FIGuaranteedMessageHeader
     {
-        uint8_t slot;  // +0x8
-        uint8_t lance; // +0x9
+        uint8_t slot = 0;  // +0x8
+        uint8_t lance = 0; // +0x9
     };
 
     static_assert(sizeof(RemoveForceMessage) == 10);
@@ -10159,18 +10114,9 @@ auto Logistics::processCheatCode(int16_t key) -> void
             missionWarpNumber = -1;
             break;
         case 6:
-        {
-            // COCKADOODLEDOO: the logistics heap's free memory in the window title.
-            char text[256];
-            std::snprintf(text, sizeof(text), "FreeMemory: %d", static_cast<int>(logisticsHeap->totalCoreLeft()));
-
-            // Port: SetWindowTextA -> the SDL window's title.
-            if (MCDisplay* display = MCInput::Display())
-            {
-                display->SetTitle(text);
-            }
+            // COCKADOODLEDOO: put the logistics heap's free memory in the window title. The heap is gone, so the
+            // code does nothing.
             break;
-        }
 
         case 7:
         {

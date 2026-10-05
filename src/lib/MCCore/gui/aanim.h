@@ -61,8 +61,8 @@ public:
 
     int32_t curFrame = 0;  // +0x00
     int32_t numFrames = 0; // +0x04
-    /// <summary>The shape file's contents (owned, GUI heap).</summary>
-    uint8_t* shapes = nullptr; // +0x08
+    /// <summary>The shape file's contents (registered with the renderers while loaded).</summary>
+    std::unique_ptr<uint8_t[]> shapes; // +0x08
     /// <summary>Frames per second.</summary>
     float rate = 15.0f;      // +0x0c
     int32_t shapeWidth = 0;  // +0x10

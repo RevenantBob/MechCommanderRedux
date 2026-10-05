@@ -125,8 +125,8 @@ public:
     uint8_t sectionColors[4] = {}; // +0x4b0
     /// <summary>The first line of each section (-1 by init and Clear).</summary>
     int32_t sectionStarts[4] = {}; // +0x4b4
-    /// <summary>The text: lines of (colour byte, text, newline) (0x1001 bytes, GUI heap).</summary>
-    char* textBuffer = nullptr; // +0x4c4
+    /// <summary>The text: lines of (colour byte, text, newline) (0x1001 bytes).</summary>
+    std::unique_ptr<char[]> textBuffer; // +0x4c4
     /// <summary>The scroll thumb.</summary>
     aObject* scrollTab = nullptr; // +0x4c8
     int16_t numLines = 0;         // +0x4cc

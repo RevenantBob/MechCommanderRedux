@@ -7,7 +7,6 @@
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/packet.h"
 #include "logistics/logmain.h"
 #include "network/multplyr.h"
@@ -785,12 +784,7 @@ auto aMenu::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char
     }
 
     font = whiteFont;
-    itemText = static_cast<char*>(guiHeap->malloc(1000));
-
-    if (itemText == nullptr)
-    {
-        return static_cast<int32_t>(0xbadd0001);
-    }
+    itemText = std::make_unique<char[]>(1000);
 
     for (int32_t i = 0; i < MaxMenuItems; i++)
     {
@@ -799,7 +793,6 @@ auto aMenu::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char
         itemLetters[i] = 0;
     }
 
-    std::memset(itemText, 0, 1000);
     setBackColor(0);
     moveTo(xPos, yPos, 0);
     itemHeight = font->height() + 8;
@@ -810,11 +803,7 @@ auto aMenu::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char
 
 auto aMenu::destroy() -> void
 {
-    if (itemText != nullptr)
-    {
-        guiHeap->free(itemText);
-        itemText = nullptr;
-    }
+    itemText.reset();
 
     for (int16_t i = 0; i < numItems; i++)
     {
@@ -865,7 +854,7 @@ auto aMenu::draw() -> void
 {
     const int32_t halfItem = itemHeight / 2;
     int32_t itemY = 0;
-    char* text = itemText;
+    char* text = itemText.get();
     VFX_pane_wipe(displayPort->frame(), backgroundColor);
     aObject::draw();
 
@@ -919,7 +908,7 @@ auto aMenu::draw() -> void
 
 auto aMenu::ResizeMenu() -> void
 {
-    uint8_t* text = reinterpret_cast<uint8_t*>(itemText);
+    uint8_t* text = reinterpret_cast<uint8_t*>(itemText.get());
     const int32_t menuHeight = (font->height() + 8) * numItems;
     int32_t menuWidth = 0;
 
@@ -970,7 +959,7 @@ auto aMenu::AddItem(char* text) -> int32_t
         text[MenuItemLength - 1] = 0;
     }
 
-    std::strcpy(itemText + numItems * MenuItemLength, text);
+    std::strcpy(itemText.get() + numItems * MenuItemLength, text);
     numItems++;
     ResizeMenu();
     return numItems - 1;
@@ -980,7 +969,7 @@ auto aMenu::RemoveItem(char* text) -> int
 {
     int16_t i = 0;
 
-    while (i < numItems && MCPort::StrICmp(itemText + i * MenuItemLength, text) != 0)
+    while (i < numItems && MCPort::StrICmp(itemText.get() + i * MenuItemLength, text) != 0)
     {
         i++;
     }
@@ -1012,7 +1001,7 @@ auto aMenu::RemoveItem(int16_t index) -> int
     itemCallbacks[i] = nullptr;
     itemData[i] = 0;
     // The letters are not shifted with the items.
-    char* slot = itemText + index * MenuItemLength;
+    char* slot = itemText.get() + index * MenuItemLength;
     std::memmove(slot, slot + MenuItemLength,
                  static_cast<size_t>(static_cast<int16_t>((0x18 - index) * MenuItemLength)));
     numItems--;
@@ -1029,7 +1018,7 @@ auto aMenu::AddSeparator() -> int32_t
         return static_cast<int32_t>(0xeeee0001);
     }
 
-    std::strcpy(itemText + index * MenuItemLength, MenuSeparator);
+    std::strcpy(itemText.get() + index * MenuItemLength, MenuSeparator);
     numItems = index + 1;
     return index + 1;
 }
@@ -1062,7 +1051,7 @@ auto aMenu::ChangeItemString(int16_t index, char* text) -> int32_t
         text[MenuItemLength - 1] = 0;
     }
 
-    std::strcpy(itemText + index * MenuItemLength, text);
+    std::strcpy(itemText.get() + index * MenuItemLength, text);
     ResizeMenu();
     return 0;
 }
@@ -1402,22 +1391,9 @@ auto aSmackerWindow::startSmackerMovie(SmackTag* newMovie, int fullScreenPlay) -
     movie = newMovie;
     movieOver = 0;
     // (The original returned here for a full-screen movie: it had no pane.)
-    moviePane = static_cast<_pane*>(guiHeap->malloc(sizeof(_pane)));
-
-    if (moviePane == nullptr)
-    {
-        return static_cast<int32_t>(0xd4d40000);
-    }
-
-    *moviePane = *frame();
-    _window* movieWindow = static_cast<_window*>(guiHeap->malloc(sizeof(_window)));
+    moviePane = new _pane{*frame()};
+    _window* movieWindow = new _window{};
     moviePane->window = movieWindow;
-
-    if (movieWindow == nullptr)
-    {
-        return static_cast<int32_t>(0xd4d40000);
-    }
-
     movieWindow->View = nullptr;
     movieWindow->Texture = nullptr;
 
@@ -1429,14 +1405,7 @@ auto aSmackerWindow::startSmackerMovie(SmackTag* newMovie, int fullScreenPlay) -
 
     movieWindow->x_max = moviePane->x1;
     movieWindow->y_max = moviePane->y1;
-    movieWindow->buffer = static_cast<uint8_t*>(
-        guiHeap->malloc(static_cast<uint32_t>((movieWindow->y_max + 1) * (movieWindow->x_max + 1))));
-
-    if (movieWindow->buffer == nullptr)
-    {
-        return static_cast<int32_t>(0xd4d40000);
-    }
-
+    movieWindow->buffer = new uint8_t[static_cast<size_t>((movieWindow->y_max + 1) * (movieWindow->x_max + 1))]{};
     MCRenderer::CreateTexture(movieWindow, MCTextureUse::Stream);
 
     if (fullScreen == 0)
@@ -1455,11 +1424,11 @@ auto aSmackerWindow::destroy() -> void
     if (moviePane != nullptr && moviePane->window != nullptr)
     {
         MCRenderer::DestroyTexture(moviePane->window);
-        guiHeap->free(moviePane->window->buffer);
-        guiHeap->free(moviePane->window);
+        delete[] moviePane->window->buffer;
+        delete moviePane->window;
     }
 
-    guiHeap->free(moviePane);
+    delete moviePane;
     moviePane = nullptr;
     aObject::destroy();
     screenWindow->removeChild(this);

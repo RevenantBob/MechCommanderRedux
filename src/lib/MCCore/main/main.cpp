@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "main/main.h"
 #include "main/honorb.h"
+#include "lib/aerror.h"
 #include "platform/MCStringTable.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
@@ -50,6 +51,13 @@ int AssertTest(int errorCode, char* text)
 
     const char* message = text != nullptr ? text : "";
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "AssertTest %02X: %s", static_cast<uint32_t>(errorCode), message);
+
+    // An unattended run (mc_tests) can't answer the box: the error fails the run.
+    if (MCNoMessageBoxes)
+    {
+        std::exit(1);
+    }
+
     const SDL_MessageBoxButtonData buttons[] = {
         {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Continue"},
         {0, 1, "Debug"},

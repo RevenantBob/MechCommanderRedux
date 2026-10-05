@@ -32,43 +32,43 @@ struct _SymTableNode;
 struct Part
 {
     /// <summary>The object created for the part (null until created, and after it is destroyed).</summary>
-    BaseObject* object; // +0x0
+    BaseObject* object = nullptr; // +0x0
     /// <summary><c>ObjectNumber</c>: the object type.</summary>
-    uint32_t objNumber; // +0x4
+    uint32_t objNumber = 0; // +0x4
     /// <summary><c>PaintScheme</c>, -1 when missing.</summary>
-    int32_t paintScheme; // +0x8
+    int32_t paintScheme = 0; // +0x8
     /// <summary><c>Active</c>.</summary>
-    int32_t active; // +0xc
+    int32_t active = 0; // +0xc
     /// <summary><c>Exists</c>.</summary>
-    int32_t exists; // +0x10
+    int32_t exists = 0; // +0x10
     /// <summary>Set when the part's object was destroyed (<c>Scenario::destroyPartObject</c>).</summary>
-    int32_t destroyed; // +0x14
+    int32_t destroyed = 0; // +0x14
     /// <summary><c>PositionX</c>, <c>PositionY</c>, <c>PositionZ</c>.</summary>
-    float position[3]; // +0x18
+    float position[3]{}; // +0x18
     /// <summary><c>Velocity</c>.</summary>
-    float velocity; // +0x24
+    float velocity = 0; // +0x24
     /// <summary><c>Rotation</c>.</summary>
-    float rotation; // +0x28
+    float rotation = 0; // +0x28
     /// <summary><c>Gesture</c>.</summary>
-    uint32_t gestureId; // +0x2c
+    uint32_t gestureId = 0; // +0x2c
     /// <summary>1 for team 0 or 2, -1 for team 1 (derived from <see cref="teamId"/>).</summary>
-    int8_t alignment; // +0x30
+    int8_t alignment = 0; // +0x30
     /// <summary><c>TeamId</c>: 0, 1 or 2.</summary>
-    int8_t teamId; // +0x31
+    int8_t teamId = 0; // +0x31
     /// <summary><c>CommanderId</c> (read as a char, or failing that a long).</summary>
-    int32_t commanderId; // +0x34
+    int32_t commanderId = 0; // +0x34
     /// <summary><c>MyIcon</c>.</summary>
-    char myIcon; // +0x38
+    char myIcon = 0; // +0x38
     /// <summary><c>ControlType</c>.</summary>
-    uint32_t controlType; // +0x3c
+    uint32_t controlType = 0; // +0x3c
     /// <summary><c>ControlDataType</c>.</summary>
-    uint32_t controlDataType; // +0x40
+    uint32_t controlDataType = 0; // +0x40
     /// <summary><c>ObjectProfile</c> (8 characters).</summary>
-    char profileName[9]; // +0x44
+    char profileName[9]{}; // +0x44
     /// <summary><c>Pilot</c>: the warrior's index in <c>Scenario::warriors</c>.</summary>
-    uint32_t pilot; // +0x50
+    uint32_t pilot = 0; // +0x50
     /// <summary><c>Captureable</c>.</summary>
-    int32_t captureable; // +0x54
+    int32_t captureable = 0; // +0x54
 };
 
 /// <summary>A scenario objective (<c>Objective%d</c> in the scenario FIT); <c>Scenario::objectives</c> has 9.</summary>
@@ -79,28 +79,28 @@ struct Part
 struct ScenarioObjective
 {
     /// <summary><c>Name</c>: the text shown on the results screen.</summary>
-    char name[80]; // +0x0
+    char name[80]{}; // +0x0
     /// <summary><c>Type</c>: 0 primary, 1 secondary, 3 the tonnage bonus added by <c>setupBonus</c>.</summary>
-    uint32_t type; // +0x50
+    uint32_t type = 0; // +0x50
     /// <summary><c>TimeLeft</c> in seconds; above 0 starts the objective's timer at the scenario's start.</summary>
-    float timeLeft; // +0x54
+    float timeLeft = 0; // +0x54
     /// <summary><c>Status</c>: 0 pending, 1 succeeded, 2 failed.</summary>
-    uint32_t status; // +0x58
+    uint32_t status = 0; // +0x58
     /// <summary>Where the objective is (-99, -99, -99 until the script sets it).</summary>
-    float position[3]; // +0x5c
+    float position[3]{}; // +0x5c
     /// <summary><c>Points</c>: resource points earned when it succeeds.</summary>
-    int32_t points; // +0x68
+    int32_t points = 0; // +0x68
     /// <summary><c>Radius</c>.</summary>
-    float radius; // +0x6c
+    float radius = 0; // +0x6c
 };
 
 /// <summary>An area <c>Scenario::objectInArea</c> tests against (0x10 bytes; the name is the port's).</summary>
 struct ScenarioArea
 {
     /// <summary>Circle: centre x, y, z. Rectangle: left, top, then the third value (see <see cref="areaType"/>).</summary>
-    float coords[3]; // +0x0
+    float coords[3]{}; // +0x0
     /// <summary>0 = circle, 1 = rectangle.</summary>
-    uint8_t areaType; // +0xc
+    uint8_t areaType = 0; // +0xc
 };
 
 /// <summary>A part created by an ABL script (<c>createdPartRoster</c>), and whether its object was created yet.</summary>
@@ -108,9 +108,9 @@ struct ScenarioArea
 struct CreatedPartRoster
 {
     /// <summary>The part's id (compared with the object's part id, BaseObject +0xc).</summary>
-    int32_t partId; // +0x0
+    int32_t partId = 0; // +0x0
     /// <summary>Set by <c>Scenario::createScenarioObject</c> once the object is created.</summary>
-    int32_t created; // +0x4
+    int32_t created = 0; // +0x4
 };
 
 /// <summary>The current battle: its settings, warriors, parts, objectives and ABL brain.</summary>
@@ -269,13 +269,13 @@ public:
     /// <summary><c>NumWarriors</c>.</summary>
     uint32_t numWarriors = 0; // +0x214
     /// <summary>The warriors, 1-based (<see cref="numWarriors"/> + 1 entries).</summary>
-    MechWarrior** warriors = nullptr; // +0x218
+    std::unique_ptr<MechWarrior*[]> warriors; // +0x218
     /// <summary><c>CaptureChance</c> (0-4; 2 when missing or out of range).</summary>
     uint8_t captureChance = 2; // +0x21c
     /// <summary><c>NumParts</c>.</summary>
     uint32_t numParts = 0; // +0x220
     /// <summary>The parts, 1-based (<see cref="numParts"/> + 1 entries).</summary>
-    Part* parts = nullptr; // +0x224
+    std::unique_ptr<Part[]> parts; // +0x224
     /// <summary>Zeroed by the constructor; never accessed otherwise.</summary>
     int32_t unknown228 = 0; // +0x228
     /// <summary>Zeroed by the constructor; never accessed otherwise.</summary>
@@ -293,7 +293,7 @@ public:
     /// <summary><c>Duration</c> from the game system block.</summary>
     uint32_t duration = 0; // +0x244
     /// <summary>The objectives: always 9 entries when there are any.</summary>
-    ScenarioObjective* objectives = nullptr; // +0x248
+    std::unique_ptr<ScenarioObjective[]> objectives; // +0x248
     /// <summary><c>NumLargeStrikes</c> for the home commander.</summary>
     int32_t numLargeStrikes = 0; // +0x24c
     /// <summary><c>NumSmallStrikes</c>.</summary>

@@ -4,7 +4,6 @@
 #include "linkup/ficommonnetwork.h"
 #include "linkup/sessionmanager.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "platform/MCFileSystem.h"
 
 char HomeDirectory[512];
@@ -13,18 +12,18 @@ FileTransferInfo::FileTransferInfo(uint32_t fromID, uint32_t toID, char* fileNam
                                    TransferType type)
 {
     const size_t nameLength = std::strlen(fileName);
-    this->fileName = static_cast<char*>(linkUpHeap->malloc(static_cast<uint32_t>(nameLength + 1)));
+    this->fileName = static_cast<char*>(linkUpBlocks->Allocate(static_cast<uint32_t>(nameLength + 1)));
     std::strcpy(this->fileName, fileName);
 
     if (directory == nullptr)
     {
-        this->directory = static_cast<char*>(linkUpHeap->malloc(2));
+        this->directory = static_cast<char*>(linkUpBlocks->Allocate(2));
         std::strcpy(this->directory, "\\");
     }
     else
     {
         const size_t directoryLength = std::strlen(directory);
-        this->directory = static_cast<char*>(linkUpHeap->malloc(static_cast<uint32_t>(directoryLength + 2)));
+        this->directory = static_cast<char*>(linkUpBlocks->Allocate(static_cast<uint32_t>(directoryLength + 2)));
         std::strcpy(this->directory, directory);
 
         // Port fix: the original read the byte before an empty directory.
@@ -56,12 +55,12 @@ FileTransferInfo::FileTransferInfo(uint32_t fromID, uint32_t toID, char* fileNam
     message = new FIDPMessage(fromID, 0x200);
     message->toID = toID;
     callback = nullptr;
-    buffer = static_cast<uint8_t*>(linkUpHeap->malloc(600));
+    buffer = static_cast<uint8_t*>(linkUpBlocks->Allocate(600));
 }
 
 FileTransferInfo::~FileTransferInfo()
 {
-    linkUpHeap->free(buffer);
+    linkUpBlocks->Free(buffer);
 
     if (message != nullptr)
     {
@@ -74,8 +73,8 @@ FileTransferInfo::~FileTransferInfo()
         std::fclose(file);
     }
 
-    linkUpHeap->free(directory);
-    linkUpHeap->free(fileName);
+    linkUpBlocks->Free(directory);
+    linkUpBlocks->Free(fileName);
 }
 
 int FileTransferInfo::PrepareNextMessage()
@@ -108,7 +107,7 @@ int FileTransferInfo::AddBytes(void* data, int size)
 FIBeginFileTransferMessage* FileTransferInfo::CreateBeginTransferMessage(int& size)
 {
     const uint32_t messageSize = static_cast<uint32_t>(std::strlen(fileName) + 0xb + std::strlen(directory));
-    FIBeginFileTransferMessage* begin = static_cast<FIBeginFileTransferMessage*>(linkUpHeap->malloc(messageSize));
+    FIBeginFileTransferMessage* begin = static_cast<FIBeginFileTransferMessage*>(linkUpBlocks->Allocate(messageSize));
     begin->header = 0;
     begin->header = static_cast<uint16_t>((begin->header & ~FIMSG_TYPE_MASK) | 7);
     begin->fileSize = 0;

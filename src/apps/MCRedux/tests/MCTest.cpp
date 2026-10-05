@@ -9,6 +9,7 @@
 #include <iostream>
 #include <string>
 
+#include "lib/aerror.h"
 #include "platform/MCAllocator.h"
 
 namespace
@@ -156,6 +157,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // A fatal error fails the test process; a message box would wait for someone to click it.
+    MCNoMessageBoxes = true;
     std::vector<std::string> filters;
     bool list = false;
     const char* only = nullptr;

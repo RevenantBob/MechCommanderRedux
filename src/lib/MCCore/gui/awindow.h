@@ -161,7 +161,7 @@ public:
     /// <summary>Also sets <see cref="shown"/> when showing.</summary>
     /// <remarks>MCX.EXE @ 0x00619ff0 (gui\awindow.h)</remarks>
     void ShowGUIWindow(int show) override;
-    /// <summary>Allocates the item text (1000 bytes from the GUI heap) and clears the items.</summary>
+    /// <summary>Allocates the item text (1000 bytes) and clears the items.</summary>
     /// <returns>0, or 0xbadd0001 when out of memory.</returns>
     /// <remarks>MCX.EXE @ 0x0061a040</remarks>
     int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
@@ -215,9 +215,9 @@ public:
     int32_t numItems = 0;     // +0x4b0
     /// <summary>The highlighted item, or -1.</summary>
     int32_t selectedItem = -1; // +0x4b4
-    /// <summary>The item text: 25 strings of 40 characters, from the GUI heap.</summary>
-    char* itemText = nullptr;  // +0x4b8
-    char itemLetters[25] = {}; // +0x4bc
+    /// <summary>The item text: 25 strings of 40 characters.</summary>
+    std::unique_ptr<char[]> itemText; // +0x4b8
+    char itemLetters[25] = {};        // +0x4bc
     /// <summary>Nonzero once any item has a letter (it widens the menu).</summary>
     int32_t hasLetters = 0;    // +0x4d8
     int32_t itemData[25] = {}; // +0x4dc
@@ -365,7 +365,7 @@ public:
     /// <summary>Set until the first frame: the display clears the pane (or the screen) before decoding it.</summary>
     int32_t firstFrame = 1; // +0x4b0
     /// <summary>
-    /// The pane the movie decodes into, from the GUI heap: at the window's screen position in a buffer reaching from
+    /// The pane the movie decodes into: at the window's screen position in a buffer reaching from
     /// the screen's corner to the window's. (The original had one for windowed play only.)
     /// </summary>
     _pane* moviePane = nullptr; // +0x4b4

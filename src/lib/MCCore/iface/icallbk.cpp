@@ -249,8 +249,7 @@ auto mechIconHandleEvent(aObject* icon, aEvent* event) -> void
                 theInterface->SelectMech(mover->partId);
             }
 
-            auto** movers =
-                static_cast<GameObject**>(operator new(theInterface->numSelectedMechs * sizeof(GameObject*)));
+            std::vector<GameObject*> movers(static_cast<size_t>(theInterface->numSelectedMechs));
             // Port fix: the original leaves the point index unset when no selected button holds this mover.
             int32_t pointIndex = 0;
 
@@ -277,8 +276,7 @@ auto mechIconHandleEvent(aObject* icon, aEvent* event) -> void
                 }
             }
 
-            theInterface->setUnit(groupId, theInterface->numSelectedMechs, movers, pointIndex);
-            operator delete(movers);
+            theInterface->setUnit(groupId, theInterface->numSelectedMechs, movers.data(), pointIndex);
             theInterface->mechBar->PlaceButtons(-1);
 
             theInterface->currentCommand = 0;

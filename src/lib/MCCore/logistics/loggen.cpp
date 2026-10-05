@@ -6,7 +6,6 @@
 #include "lib/aerror.h"
 #include "lib/cident.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "linkup/linkedlist.hpp"
@@ -42,12 +41,12 @@ namespace
 
     void* logAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsHeap->malloc(size);
+        return globalLogPtr->logisticsBlocks->Allocate(size);
     }
 
     void logFree(void* block)
     {
-        globalLogPtr->logisticsHeap->free(block);
+        globalLogPtr->logisticsBlocks->Free(block);
     }
 
     /// <summary>Frees a logistics port (destroy, then delete) and clears the pointer.</summary>
@@ -293,16 +292,6 @@ namespace
 }
 
 // lCallback
-
-auto lCallback::operator new(size_t size) noexcept -> void*
-{
-    return logAlloc(static_cast<uint32_t>(size));
-}
-
-auto lCallback::operator delete(void* ptr) -> void
-{
-    logFree(ptr);
-}
 
 // lButton
 
@@ -3080,7 +3069,7 @@ auto lComboBox::LabelColors() -> uint8_t*
 
 auto lComboBox::WriteLabel(int32_t xPos, int32_t yPos, const std::string& text) -> void
 {
-    VFX_string_draw(ownPort->frame(), xPos, yPos, whiteFont->fontData, text.c_str(), LabelColors());
+    VFX_string_draw(ownPort->frame(), xPos, yPos, whiteFont->fontData.get(), text.c_str(), LabelColors());
 }
 
 auto lComboBox::draw() -> void

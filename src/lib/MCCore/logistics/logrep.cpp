@@ -3,7 +3,6 @@
 #include "gui/afont.h"
 #include "gui/scrlpane.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "logistics/logpur.h"
@@ -553,12 +552,8 @@ auto ResourceFigureText(char* text, size_t size) -> void
         case 0:
             std::snprintf(text, size, "%d", ResourcePoints);
             break;
-        case 1:
-            std::snprintf(text, size, "%d", globalLogPtr->logisticsHeap->totalCoreLeft());
-            break;
-        case 2:
-            std::snprintf(text, size, "%d", globalLogPtr->logisticsHeap->coreLeft());
-            break;
+        // States 1 and 2 showed the logistics heap's free memory and largest free block; the heap is gone, so they
+        // show nothing.
         default:
             break;
     }

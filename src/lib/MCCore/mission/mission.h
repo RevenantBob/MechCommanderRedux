@@ -11,7 +11,6 @@ class aPort;
 class aButton;
 class aScrollTextObject;
 class FitIniFile;
-class UserHeap;
 class Logistics;
 class MechWarrior;
 class Scenario;
@@ -94,18 +93,14 @@ public:
     uint32_t numMovies = 0; // +0x10
     /// <summary>Index into <see cref="movies"/> of the movie to play next (<c>SmackerMovieId</c>); -1 = none.</summary>
     int32_t currentMovie = 0; // +0x14
-    /// <summary>The Smacker movie names (<c>Movie%d</c>), allocated from <see cref="missionHeap"/>.</summary>
-    char** movies = nullptr; // +0x18
+    /// <summary>The Smacker movie names (<c>Movie%d</c>).</summary>
+    std::vector<std::string> movies; // +0x18
     /// <summary>Number of entries in <see cref="scenarios"/> (<c>NumScenarios</c>).</summary>
     uint32_t numScenarios = 0; // +0x1c
     /// <summary>Index into <see cref="scenarios"/> of the current scenario (<c>ScenarioId</c>); -1 = none.</summary>
     int32_t currentScenario = 0; // +0x20
-    /// <summary>The scenario names (<c>Scenario%d</c>), allocated from <see cref="missionHeap"/>.</summary>
-    char** scenarios = nullptr; // +0x24
-    /// <summary>Size of <see cref="missionHeap"/> (<c>HeapSize</c>; bookkeeping only in the port).</summary>
-    uint32_t heapSize = 0; // +0x28
-    /// <summary>The heap the movie and scenario name lists live in.</summary>
-    UserHeap* missionHeap = nullptr; // +0x2c
+    /// <summary>The scenario names (<c>Scenario%d</c>).</summary>
+    std::vector<std::string> scenarios; // +0x24
     /// <summary>The open mission FIT.</summary>
     FitIniFile* missionFile = nullptr; // +0x30
     /// <summary>Copy of <see cref="waitTime"/> made at scenario start and end.</summary>
@@ -170,25 +165,25 @@ public:
 struct MissionPilotResult
 {
     /// <summary>The pilot.</summary>
-    MechWarrior* warrior; // +0x0
+    MechWarrior* warrior = nullptr; // +0x0
     /// <summary>The pilot's four skills at the end of the scenario (truncated), before any skill-ups are applied.</summary>
-    int32_t skills[4]; // +0x4
+    int32_t skills[4]{}; // +0x4
     /// <summary>The pilot's rank before this scenario (multiplayer: the pilot's kills).</summary>
-    int32_t oldRank; // +0x14
+    int32_t oldRank = 0; // +0x14
     /// <summary>
     /// Sort key: (3 - rank) * 10000 plus, for each of the first three letters of the callsign, (letter * 10) XOR
     /// (2, 1, 0) (OB-058).
     /// </summary>
-    int32_t sortKey; // +0x18
+    int32_t sortKey = 0; // +0x18
 };
 
 /// <summary>A commander's kill total on the multiplayer results screen (8 bytes; the name is the port's).</summary>
 struct MissionCommanderScore
 {
     /// <summary>The commander (the session's player number).</summary>
-    int32_t commanderId; // +0x0
+    int32_t commanderId = 0; // +0x0
     /// <summary>The kills of the commander's pilots; -1 when the commander has no pilots.</summary>
-    int32_t score; // +0x4
+    int32_t score = 0; // +0x4
 };
 
 /// <summary>
@@ -296,11 +291,11 @@ protected:
     void DrawMPSummary();
 
     /// <summary>Which part of the screen is being drawn (see the class remarks).</summary>
-    int32_t drawState; // +0x4ac
+    int32_t drawState = 0; // +0x4ac
     /// <summary>The item within the current part (objective, statistic, pilot).</summary>
-    int32_t drawIndex; // +0x4b0
+    int32_t drawIndex = 0; // +0x4b0
     /// <summary>The y of the next line drawn in the objectives list.</summary>
-    int32_t drawY; // +0x4b4
+    int32_t drawY = 0; // +0x4b4
     /// <summary>The debriefing text box (the tactical map's text object, borrowed while the screen is up).</summary>
     aScrollTextObject* textObject = nullptr; // +0x4b8
     /// <summary>The "objective succeeded" mark (<c>guimr08.tga</c>).</summary>
@@ -317,37 +312,37 @@ protected:
     /// <summary>Multiplayer only: the button switching the pilot list's page (an aButton subclass, 0x4d8 bytes).</summary>
     aButton* pilotSwitchButton = nullptr; // +0x4cc
     /// <summary>The pilot lines (allocated in <see cref="activate"/>, <see cref="numPilotResults"/> of them).</summary>
-    MissionPilotResult* pilotResults = nullptr; // +0x4d0
-    int32_t numPilotResults;                    // +0x4d4
+    std::unique_ptr<MissionPilotResult[]> pilotResults; // +0x4d0
+    int32_t numPilotResults = 0;                        // +0x4d4
     /// <summary>
     /// Statistic: enemy units destroyed or disabled (single player: the clan list, marines left out; multiplayer:
     /// the disabled units of the other teams' pilots).
     /// </summary>
-    int32_t enemyMechsHit; // +0x4d8
+    int32_t enemyMechsHit = 0; // +0x4d8
     /// <summary>Statistic: of those, the BattleMechs.</summary>
-    int32_t enemyMechsDestroyed; // +0x4dc
+    int32_t enemyMechsDestroyed = 0; // +0x4dc
     /// <summary>Statistic: enemy pilots killed (warrior status 4).</summary>
-    int32_t enemyPilotsKilled; // +0x4e0
+    int32_t enemyPilotsKilled = 0; // +0x4e0
     /// <summary>Statistic: player units destroyed or disabled.</summary>
-    int32_t playerMechsHit; // +0x4e4
+    int32_t playerMechsHit = 0; // +0x4e4
     /// <summary>Statistic: of those, the BattleMechs (single player: only ones with a network player id).</summary>
-    int32_t playerMechsDestroyed; // +0x4e8
+    int32_t playerMechsDestroyed = 0; // +0x4e8
     /// <summary>Resource points earned from the objectives that succeeded.</summary>
-    int32_t resourcePointsEarned; // +0x4ec
+    int32_t resourcePointsEarned = 0; // +0x4ec
     /// <summary>The scroll-up button's hot spot, in window coordinates.</summary>
-    tagRECT scrollUpRect; // +0x4f0
+    tagRECT scrollUpRect{}; // +0x4f0
     /// <summary>The scroll-down button's hot spot.</summary>
-    tagRECT scrollDownRect; // +0x500
+    tagRECT scrollDownRect{}; // +0x500
     /// <summary>The scroll bar's hot spot (a click there scrolls to the clicked line).</summary>
-    tagRECT scrollBarRect; // +0x510
+    tagRECT scrollBarRect{}; // +0x510
     /// <summary>The scroll-up button's pressed image (shown while held).</summary>
     aObject* scrollUpButton = nullptr; // +0x520
     /// <summary>The scroll-down button's pressed image.</summary>
     aObject* scrollDownButton = nullptr; // +0x524
     /// <summary>Never accessed in MCX.EXE.</summary>
-    uint8_t unknown528[0x24]; // +0x528
+    uint8_t unknown528[0x24]{}; // +0x528
     /// <summary><c>MouseTicks</c> at which the next drawing step is due; 0 when drawing is finished.</summary>
-    uint32_t nextDrawTime; // +0x54c
+    uint32_t nextDrawTime = 0; // +0x54c
     /// <summary>Set once the secondary objectives' header is drawn.</summary>
     int32_t objectivesHeaderDrawn = 0; // +0x550
     /// <summary>Set by Escape: the remaining steps are drawn at once, without sounds.</summary>

@@ -4,8 +4,8 @@
 #include "gui/asystem.h"
 
 /// <summary>
-/// A logistics-screen drawing port: an <see cref="aPort"/> whose pane and bitmap live on the logistics heap
-/// (<c>Logistics::logisticsHeap</c>) instead of the GUI heap.
+/// A logistics-screen drawing port: an <see cref="aPort"/> whose pane and bitmap are logistics blocks
+/// (<c>Logistics::logisticsBlocks</c>) instead of the GUI's.
 /// </summary>
 /// <remarks>
 /// Original source: <c>logistics\lport.cpp</c>, 0x14 bytes (no fields of its own). The destructor was inline and
@@ -16,12 +16,6 @@ class lPort : public aPort
 public:
     lPort() = default;
     ~lPort() { destroy(); }
-
-    /// <summary>Allocates from the logistics heap.</summary>
-    /// <remarks>MCX.EXE @ 0x00710570</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00710590</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>
     /// Makes a <paramref name="width"/> x <paramref name="height"/> port; allocates the bitmap unless
@@ -44,7 +38,7 @@ public:
     /// <remarks>MCX.EXE @ 0x00710910</remarks>
     void destroy() override;
 
-    /// <summary>Port: <see cref="aPort::initView"/> on the logistics heap.</summary>
+    /// <summary>Port: <see cref="aPort::initView"/> in a logistics block.</summary>
     int32_t initView(int32_t width, int32_t height) override;
 };
 
@@ -75,7 +69,7 @@ lPort* logArt(const char* fileName);
 /// <summary>Port: <see cref="logArt"/> of a name made by <c>snprintf</c> from <paramref name="format"/>.</summary>
 lPort* logArtf(const char* format, ...);
 
-/// <summary>Port: frees the art <see cref="logArt"/> loaded (before the logistics heap goes).</summary>
+/// <summary>Port: frees the art <see cref="logArt"/> loaded (before the logistics blocks go).</summary>
 void ClearLogArt();
 
 /// <summary>
@@ -108,12 +102,6 @@ public:
     /// </summary>
     /// <remarks>MCX.EXE @ 0x006d43d0 (vector deleting destructor)</remarks>
     ~lObject() override;
-
-    /// <summary>Allocates from the logistics heap.</summary>
-    /// <remarks>MCX.EXE @ 0x00710d40</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x00710d60</remarks>
-    static void operator delete(void* ptr);
 
     /// <summary>
     /// Places the object at (<paramref name="xPos"/>, <paramref name="yPos"/>) with the given size. With no

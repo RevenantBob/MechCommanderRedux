@@ -9,15 +9,11 @@ class FitIniFile;
 class FIDPSession;
 class FileScrollPane;
 
-/// <summary>A button's callback on the logistics screens: an <see cref="aCallback"/> on the logistics heap.</summary>
+/// <summary>A button's callback on the logistics screens: an <see cref="aCallback"/> in a logistics block.</summary>
 /// <remarks>Original source: <c>logistics\loggen.cpp</c>, 0x10 bytes (no fields of its own).</remarks>
 class lCallback : public aCallback
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006e4b30</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x006e4b50</remarks>
-    static void operator delete(void* ptr);
 };
 
 /// <summary>

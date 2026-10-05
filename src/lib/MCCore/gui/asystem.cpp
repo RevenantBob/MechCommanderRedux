@@ -18,7 +18,6 @@
 #include "lib/cvmath.h"
 #include "lib/ffile.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/packet.h"
 #include "linkup/dpmessage.h"
@@ -39,6 +38,7 @@
 #include "terrain/terrmap.h"
 #include "vfx/vfxfuncs.h"
 #include "platform/MCCursor.h"
+#include "platform/MCBlockStore.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCFrameLog.h"
@@ -102,8 +102,6 @@ int gShowFps = 0;
 int gShowFpsPreference = 0;
 int gVSync = 1;
 int applicationActive = -1;
-uint32_t systemHeapSize = 0x100000;
-uint32_t guiHeapSize = 0x100000;
 uint32_t stackSize = 0x100000;
 uint32_t topOfStack = 0;
 uint8_t GammaColorTranslation[256] = {
@@ -257,6 +255,15 @@ namespace
         window = nullptr;
     }
 
+    /// <summary>
+    /// The table <c>cursorShapes</c> points at: one slot per cursor shape id. 128 slots are kept, since the cursor
+    /// ids the game sets are indexes into it.
+    /// </summary>
+    std::array<uint8_t*, 128> cursorShapeTable = {};
+
+    /// <summary>Owns the cursor shapes (registered with the renderers) until <see cref="aSystem::stop"/>.</summary>
+    MCBlockStore cursorShapeBlocks;
+
     /// <summary>Frees a font loaded by <see cref="aSystem::start"/>.</summary>
     void deleteFont(aFont*& font)
     {
@@ -312,8 +319,8 @@ namespace
     struct TestMessage
     {
         FIGuaranteedMessageHeader header; // +0x00
-        uint32_t frame;                   // +0x08
-        uint32_t index;                   // +0x0c
+        uint32_t frame = 0;               // +0x08
+        uint32_t index = 0;               // +0x0c
     };
 #pragma pack(pop)
     static_assert(sizeof(TestMessage) == 0x10);
@@ -536,16 +543,6 @@ aObject::aObject()
 aObject::~aObject()
 {
     destroy();
-}
-
-auto aObject::operator new(size_t size) noexcept -> void*
-{
-    return guiHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto aObject::operator delete(void* ptr) -> void
-{
-    guiHeap->free(ptr);
 }
 
 auto aObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
@@ -1364,7 +1361,7 @@ auto aObject::DrawInFramePass(aPort* port, int32_t scrollY, bool wipe, bool disp
     aObject* const outerDrawing = drawingLive;
     drawingLive = this;
 
-    // A picture that was never painted held zeros (the port's heap clears new blocks), and an opaque object copied
+    // A picture that was never painted held zeros (a port's bitmap starts zeroed), and an opaque object copied
     // them to the screen; a transparent one let what was under it show.
     if (transparent == 0 && wipe)
     {
@@ -1811,26 +1808,21 @@ auto aObject::HideMe(int hide) -> void
 auto createDIBSection(int32_t width, int32_t height, void** bitmapInfo, void** bitmap, uint8_t** bits) -> int32_t
 {
     // Port: no GDI. The original filled a BITMAPINFO (0x428 bytes from the GUI heap, colour table = palette indexes)
-    // and made an 8-bit top-down DIB section; the port gives a heap buffer as the section and its bits. Uncalled in
-    // MCX.EXE.
+    // and made an 8-bit top-down DIB section; the port gives a zeroed buffer (the caller deletes[] it) as the section
+    // and its bits. Uncalled in MCX.EXE.
     if (*bitmapInfo == nullptr)
     {
-        *bitmapInfo = guiHeap->malloc(0x428);
+        *bitmapInfo = new uint8_t[0x428]{};
     }
 
-    if (*bitmapInfo == nullptr)
-    {
-        return 3;
-    }
-
-    *bits = static_cast<uint8_t*>(guiHeap->malloc(static_cast<uint32_t>(width * height)));
+    *bits = new uint8_t[static_cast<size_t>(width * height)]{};
     *bitmap = *bits;
     return *bitmap != nullptr ? 0 : 2;
 }
 
 auto CreatePaletteFromGIF(char* fileName) -> void*
 {
-    // Port: no GDI palettes. The "palette" returned is 256 VFX_RGB from the GUI heap, 8 bits per channel as the
+    // Port: no GDI palettes. The "palette" returned is 256 VFX_RGB (the caller deletes[] them), 8 bits per channel as the
     // original's PALETTEENTRY values. Uncalled in MCX.EXE.
     char path[128];
     char message[256];
@@ -1852,19 +1844,11 @@ auto CreatePaletteFromGIF(char* fileName) -> void*
         GeneralMsg(message);
     }
 
-    uint8_t* gif = static_cast<uint8_t*>(guiHeap->malloc(size));
-
-    if (gif == nullptr)
-    {
-        std::snprintf(message, sizeof(message), "Error allocating memory for '%s'", path);
-        GeneralMsg(message);
-    }
-
-    gifFile.read(gif, static_cast<int32_t>(size));
+    std::vector<uint8_t> gif(size);
+    gifFile.read(gif.data(), static_cast<int32_t>(size));
     gifFile.close();
     VFX_RGB colors[256];
-    VFX_GIF_palette(gif, colors);
-    guiHeap->free(gif);
+    VFX_GIF_palette(gif.data(), colors);
     return CreatePaletteFromRAM(colors);
 }
 
@@ -1873,7 +1857,7 @@ auto CreatePaletteFromRAM(void* colors) -> void*
     // Port: see CreatePaletteFromGIF. The colours are 6-bit, shifted up.
     VFX_RGB source[256];
     std::memcpy(source, colors, sizeof(source));
-    VFX_RGB* palette = static_cast<VFX_RGB*>(guiHeap->malloc(sizeof(VFX_RGB) * 256));
+    auto* palette = new VFX_RGB[256]{};
 
     for (int i = 0; i < 256; i++)
     {
@@ -1888,7 +1872,7 @@ auto CreatePaletteFromRAM(void* colors) -> void*
 auto CreateSmackPaletteFromRAM(void* colors) -> void*
 {
     // Port: see CreatePaletteFromGIF. Smacker's colours are already 8-bit.
-    VFX_RGB* palette = static_cast<VFX_RGB*>(guiHeap->malloc(sizeof(VFX_RGB) * 256));
+    auto* palette = new VFX_RGB[256];
     std::memcpy(palette, colors, sizeof(VFX_RGB) * 256);
     return palette;
 }
@@ -2266,7 +2250,6 @@ auto RealWinMain(void* instance, void* prevInstance, char* commandLine, int show
     }
 
     thisInstance = instance;
-    globalHeapList = new (std::nothrow) HeapList();
     std::strcpy(savePath, "c:\\Program Files\\Honor Bound\\");
     std::strcpy(directXPath, "\\honorb\\directx\\");
     std::strcpy(terrainPath, "data\\terrain\\");
@@ -2278,20 +2261,11 @@ auto RealWinMain(void* instance, void* prevInstance, char* commandLine, int show
     std::strcpy(interfacePath, "data\\iface\\");
     std::strcpy(paletteName, "palette.gif");
 
-    // The application comes from the global heap (the GUI heap doesn't exist yet).
-    aSystem* newApplication = ::new (std::nothrow) aSystem;
-
-    if (newApplication == nullptr)
-    {
-        application = nullptr;
-        GeneralMsg("Initialization Failure!");
-    }
-
     oldMouseY = -1;
     oldMouseX = -1;
     rightMouseButtonDown = 0;
     leftMouseButtonDown = 0;
-    application = newApplication;
+    application = new aSystem;
 
     if (application->start(instance, nullptr, commandLine, showCommand, 640, 480) != 0)
     {
@@ -2300,15 +2274,7 @@ auto RealWinMain(void* instance, void* prevInstance, char* commandLine, int show
 
     application->run();
     application->stop();
-
-    if (globalHeapList != nullptr)
-    {
-        *globalHeapList = HeapList();
-        delete globalHeapList;
-    }
-
-    application->~aSystem();
-    ::operator delete(application);
+    delete application;
     return 0;
 }
 
@@ -3441,18 +3407,17 @@ auto GetPaletteFromArt(char* fileName) -> VFX_RGB*
         GeneralMsg(message);
     }
 
-    uint8_t* tga = static_cast<uint8_t*>(systemHeap->malloc(size));
-
-    if (tga == nullptr)
+    if (size == 0)
     {
         return nullptr;
     }
 
-    artFileHandle.read(tga, static_cast<int32_t>(size));
+    std::vector<uint8_t> tga(size);
+    artFileHandle.read(tga.data(), static_cast<int32_t>(size));
     artFileHandle.close();
-    VFX_RGB* palette = static_cast<VFX_RGB*>(systemHeap->malloc(sizeof(VFX_RGB) * 256));
-    tgaColorMapToPalette(tga, palette);
-    systemHeap->free(tga);
+    // The caller deletes[] the palette.
+    auto* palette = new VFX_RGB[256]{};
+    tgaColorMapToPalette(tga.data(), palette);
     return palette;
 }
 
@@ -3521,24 +3486,6 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
         callback = nullptr;
     }
 
-    systemHeap = new (std::nothrow) UserHeap;
-    int32_t result = systemHeap->init(systemHeapSize, "SystemHeap");
-
-    if (result != 0)
-    {
-        GeneralMsg("Unable to initialize system heap");
-    }
-
-    systemHeap->unknown2C = -1;
-    guiHeap = new (std::nothrow) UserHeap;
-    result = guiHeap->init(guiHeapSize, "GuiHeap");
-
-    if (result != 0)
-    {
-        GeneralMsg("Unable to initialize GUI heap");
-    }
-
-    guiHeap->unknown2C = -1;
     ParseCommandLine(commandLine);
 
     // Port: the window is the display's, made by startupDirectDraw below; the original made it here (a popup in
@@ -3656,13 +3603,9 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
     windowHandle = gameDisplay.get();
     ghWindow = windowHandle;
 
-    cursorShapes = static_cast<uint8_t**>(systemHeap->malloc(sizeof(uint8_t*) * 128));
-
-    for (int i = 0; i < 128; i++)
-    {
-        cursorShapes[i] = nullptr;
-    }
-
+    cursorShapeBlocks.Clear();
+    cursorShapeTable.fill(nullptr);
+    cursorShapes = cursorShapeTable.data();
     FullPathFileName cursorFileName;
     cursorFileName.init(spritePath, "cursors", ".pak");
     PacketFile* cursorFile = new PacketFile;
@@ -3689,8 +3632,9 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
     {
         cursorFile->seekPacket(i);
         const auto size = static_cast<uint32_t>(cursorFile->getPacketSize());
-        cursorShapes[i] = static_cast<uint8_t*>(systemHeap->malloc(size));
+        cursorShapes[i] = static_cast<uint8_t*>(cursorShapeBlocks.Allocate(size));
 
+        // An empty packet still fails, as it did when systemHeap's malloc(0) returned null.
         if (cursorShapes[i] == nullptr)
         {
             Fatal(-1, " no RAM for cursors ");
@@ -3799,9 +3743,9 @@ auto aSystem::stop() -> void
 
     if (theInterface != nullptr)
     {
-        // Destroyed and freed without its destructor, as the original.
+        // The original freed it without its destructor (the aObject teardown: its port and timers).
         theInterface->destroy();
-        guiHeap->free(theInterface);
+        delete theInterface;
         theInterface = nullptr;
     }
 
@@ -3840,15 +3784,10 @@ auto aSystem::stop() -> void
         gamePalette = nullptr;
     }
 
-    // Port: the GDI palette and back bitmap (thePalette, backbm) never exist.
+    // Port: the GDI palette, back bitmap and its BITMAPINFO (thePalette, backbm, backpbmi) never exist.
     thePalette = nullptr;
     backbm = nullptr;
-
-    if (backpbmi != nullptr)
-    {
-        guiHeap->free(backpbmi);
-        backpbmi = nullptr;
-    }
+    backpbmi = nullptr;
 
     if (artFile != nullptr)
     {
@@ -3906,25 +3845,15 @@ auto aSystem::stop() -> void
 
     if (timerManager != nullptr)
     {
-        // Destroyed and freed without its destructor, as the original.
+        // The destructor has no timers left to free after destroy.
         timerManager->destroy();
-        guiHeap->free(timerManager);
+        delete timerManager;
         timerManager = nullptr;
     }
 
-    if (guiHeap != nullptr)
-    {
-        guiHeap->destroy();
-        delete guiHeap;
-        guiHeap = nullptr;
-    }
-
-    if (systemHeap != nullptr)
-    {
-        systemHeap->destroy();
-        delete systemHeap;
-        systemHeap = nullptr;
-    }
+    // The cursor shapes went with systemHeap in the original.
+    cursorShapes = nullptr;
+    cursorShapeBlocks.Clear();
 
     if (LZPacketBuffer != nullptr)
     {
@@ -4442,7 +4371,7 @@ auto aSystem::activatePalette(uint8_t* colors, int first, int count) -> void
     // From entry 0 the palette is only remembered.
     if (paletteRgb == nullptr)
     {
-        paletteRgb = static_cast<VFX_RGB*>(guiHeap->malloc(0x300));
+        paletteRgb = new VFX_RGB[256]{};
     }
 
     globalEntries = count;
@@ -4476,21 +4405,18 @@ auto aSystem::activatePaletteFromTGA(char* fileName) -> void
         GeneralMsg(message);
     }
 
-    uint8_t* tga = static_cast<uint8_t*>(guiHeap->malloc(size));
-
-    if (tga == nullptr)
+    if (size == 0)
     {
         return;
     }
 
-    tgaFile.read(tga, static_cast<int32_t>(size));
+    std::vector<uint8_t> tga(size);
+    tgaFile.read(tga.data(), static_cast<int32_t>(size));
     tgaFile.close();
-    VFX_RGB* palette = static_cast<VFX_RGB*>(guiHeap->malloc(sizeof(VFX_RGB) * 256));
-    tgaColorMapToPalette(tga, palette);
-    guiHeap->free(tga);
-    activatePalette(reinterpret_cast<uint8_t*>(palette), 0, 0x100);
-    InitAlphaLookup(palette);
-    guiHeap->free(palette);
+    std::array<VFX_RGB, 256> palette = {};
+    tgaColorMapToPalette(tga.data(), palette.data());
+    activatePalette(reinterpret_cast<uint8_t*>(palette.data()), 0, 0x100);
+    InitAlphaLookup(palette.data());
 }
 
 auto aSystem::activatePaletteFromGIF(char* fileName) -> void
@@ -4509,13 +4435,11 @@ auto aSystem::activatePaletteFromGIF(char* fileName) -> void
     gifFile.open(path, READ, 50);
     const uint32_t size = gifFile.fileSize();
     Assert(size != 0, 0, "Error reading from palette gif");
-    uint8_t* gif = static_cast<uint8_t*>(guiHeap->malloc(size));
-    Assert(gif != nullptr, 0, "Error allocating memory for palette .gif");
-    gifFile.read(gif, static_cast<int32_t>(size));
+    std::vector<uint8_t> gif(size);
+    gifFile.read(gif.data(), static_cast<int32_t>(size));
     gifFile.close();
     VFX_RGB colors[256];
-    VFX_GIF_palette(gif, colors);
-    guiHeap->free(gif);
+    VFX_GIF_palette(gif.data(), colors);
 }
 
 auto aSystem::activateSmackerPalette(uint8_t* colors) -> void
@@ -4625,16 +4549,6 @@ auto aSystem::showCursor(int show) -> void
 }
 
 // aCallback.
-
-auto aCallback::operator new(size_t size) noexcept -> void*
-{
-    return guiHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto aCallback::operator delete(void* ptr) -> void
-{
-    guiHeap->free(ptr);
-}
 
 aCallback::aCallback()
 {
@@ -4825,18 +4739,8 @@ aTimerManager::~aTimerManager()
 {
     for (int16_t i = 0; i < numTimers; i++)
     {
-        guiHeap->free(timers[i]);
+        delete timers[i];
     }
-}
-
-auto aTimerManager::operator new(size_t size) noexcept -> void*
-{
-    return guiHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto aTimerManager::operator delete(void* ptr) -> void
-{
-    guiHeap->free(ptr);
 }
 
 auto aTimerManager::Init() -> int32_t
@@ -4856,7 +4760,7 @@ auto aTimerManager::destroy() -> void
 {
     while (numTimers > 0)
     {
-        guiHeap->free(timers[numTimers - 1]);
+        delete timers[numTimers - 1];
         timers[numTimers - 1] = nullptr;
         numTimers--;
     }
@@ -4901,13 +4805,8 @@ auto aTimerManager::AddTimer(aObject* target, int16_t id, uint32_t interval, int
         return -1;
     }
 
-    timers[index] = static_cast<aTimer*>(guiHeap->malloc(sizeof(aTimer)));
+    timers[index] = new aTimer{};
     aTimer* timer = timers[numTimers];
-
-    if (timer == nullptr)
-    {
-        return -1;
-    }
 
     if (index == 0)
     {
@@ -4956,7 +4855,7 @@ auto aTimerManager::RemoveTimers(aObject* target) -> void
             continue;
         }
 
-        guiHeap->free(timer);
+        delete timer;
         numTimers--;
 
         for (int32_t j = i; j < numTimers; j++)
@@ -4997,7 +4896,7 @@ auto aTimerManager::RemoveTimer(aObject* target, int16_t id) -> void
         return;
     }
 
-    guiHeap->free(timers[index]);
+    delete timers[index];
     numTimers = count - 1;
 
     for (; index < numTimers; index++)
@@ -5028,7 +4927,7 @@ auto aTimerManager::RemoveTimer(int32_t index) -> void
         return;
     }
 
-    guiHeap->free(timers[index]);
+    delete timers[index];
     numTimers--;
 
     for (; index < numTimers; index++)

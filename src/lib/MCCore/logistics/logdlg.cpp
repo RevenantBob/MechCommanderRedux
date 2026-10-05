@@ -3,7 +3,6 @@
 #include "gui/afont.h"
 #include "gui/updisp.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "logistics/purchase.h"
@@ -19,12 +18,12 @@ namespace
 
     void* logAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsHeap->malloc(size);
+        return globalLogPtr->logisticsBlocks->Allocate(size);
     }
 
     void logFree(void* block)
     {
-        globalLogPtr->logisticsHeap->free(block);
+        globalLogPtr->logisticsBlocks->Free(block);
     }
 
     void freePort(lPort*& port)
@@ -146,9 +145,9 @@ auto LogDialogBox::drawPressed() -> void
     // Each part's pressed art and where it goes.
     struct PressedArt
     {
-        const char* name;
-        int32_t x;
-        int32_t y;
+        const char* name = nullptr;
+        int32_t x = 0;
+        int32_t y = 0;
     };
 
     static constexpr PressedArt arts[] = {{"lspcb03.tga", 0x3f, 0x82},

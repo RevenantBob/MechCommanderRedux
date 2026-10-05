@@ -60,9 +60,9 @@ public:
     static void ClearList(FLinkedList<FIDPSession>& list);
 
     /// <summary>The DirectPlay description (DPSESSIONDESC2, 0x50 bytes in the original).</summary>
-    DPSESSIONDESC2 sessionDesc; // +0x4
+    DPSESSIONDESC2 sessionDesc{}; // +0x4
     /// <summary>The session's name; sessionDesc.lpszSessionNameA points here.</summary>
-    char name[64]; // +0x54
+    char name[64]{}; // +0x54
     /// <summary>The password; sessionDesc.lpszPasswordA points here.</summary>
-    char password[64]; // +0x94
+    char password[64]{}; // +0x94
 };

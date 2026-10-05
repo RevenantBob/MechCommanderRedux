@@ -2,7 +2,6 @@
 #include "gui/scrlpane.h"
 #include "gui/afont.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
@@ -53,16 +52,6 @@ namespace
 ScrollPane::~ScrollPane()
 {
     destroy();
-}
-
-auto ScrollPane::operator new(size_t size) noexcept -> void*
-{
-    return globalLogPtr->logisticsHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto ScrollPane::operator delete(void* ptr) -> void
-{
-    globalLogPtr->logisticsHeap->free(ptr);
 }
 
 auto ScrollPane::init() -> void
@@ -142,11 +131,11 @@ auto ScrollPane::init(int32_t width, int32_t height, int32_t xPos, int32_t yPos,
 
     if (trackImage != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(trackImage);
+        globalLogPtr->logisticsBlocks->Free(trackImage);
     }
 
     uint32_t trackSize = static_cast<uint32_t>(height * SliderWidth);
-    trackImage = static_cast<uint8_t*>(globalLogPtr->logisticsHeap->malloc(trackSize));
+    trackImage = static_cast<uint8_t*>(globalLogPtr->logisticsBlocks->Allocate(trackSize));
 
     // The track tile repeats down the column, below the first row.
     art->init(fileName);
@@ -191,7 +180,7 @@ auto ScrollPane::destroy() -> void
 
     if (trackImage != nullptr)
     {
-        globalLogPtr->logisticsHeap->free(trackImage);
+        globalLogPtr->logisticsBlocks->Free(trackImage);
         trackImage = nullptr;
     }
 
@@ -212,7 +201,7 @@ auto ScrollPane::destroy() -> void
     if (sliderImage != nullptr)
     {
         MCRenderer::DestroyTexture(sliderTexture);
-        globalLogPtr->logisticsHeap->free(sliderImage);
+        globalLogPtr->logisticsBlocks->Free(sliderImage);
         sliderImage = nullptr;
     }
 
@@ -435,7 +424,7 @@ auto ScrollPane::setUpSlider() -> void
     if (sliderImage != nullptr)
     {
         MCRenderer::DestroyTexture(sliderTexture);
-        globalLogPtr->logisticsHeap->free(sliderImage);
+        globalLogPtr->logisticsBlocks->Free(sliderImage);
     }
 
     // The slider's share of the track (the column less its two 16-pixel arrows) is the pane's share of the content.
@@ -450,7 +439,7 @@ auto ScrollPane::setUpSlider() -> void
 
     uint32_t size = static_cast<uint32_t>(sliderHeight * SliderWidth);
     sliderImageSize = size;
-    uint8_t* image = static_cast<uint8_t*>(globalLogPtr->logisticsHeap->malloc(size));
+    uint8_t* image = static_cast<uint8_t*>(globalLogPtr->logisticsBlocks->Allocate(size));
     sliderImage = image;
 
     // Every row: dark edges, a light left bevel, a mid fill and a shadowed right bevel.

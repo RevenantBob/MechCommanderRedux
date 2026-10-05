@@ -3,17 +3,6 @@
 #include "linkup/dpmessage.h"
 #include "linkup/sessionmanager.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
-
-void* FIDPPlayer::operator new(size_t size) noexcept
-{
-    return linkUpHeap->malloc(static_cast<uint32_t>(size));
-}
-
-void FIDPPlayer::operator delete(void* ptr)
-{
-    linkUpHeap->free(ptr);
-}
 
 FIDPPlayer::FIDPPlayer()
 {
@@ -116,7 +105,7 @@ FIDPPlayer::~FIDPPlayer()
     for (int i = 0; i < numGroups; i++)
     {
         uint32_t* groupID = groups.ReadAndNext();
-        linkUpHeap->free(groupID);
+        linkUpBlocks->Free(groupID);
     }
 
     while (groups.head != nullptr)
@@ -307,7 +296,7 @@ FIDPMessage* FIDPPlayer::NextMessageToProcess()
 
 void FIDPPlayer::JoinGroup(uint32_t groupID)
 {
-    uint32_t* id = static_cast<uint32_t*>(linkUpHeap->malloc(sizeof(uint32_t)));
+    uint32_t* id = static_cast<uint32_t*>(linkUpBlocks->Allocate(sizeof(uint32_t)));
     *id = groupID;
     groups.Add(id);
 }
@@ -331,7 +320,7 @@ void FIDPPlayer::LeaveGroup(uint32_t groupID)
     }
 
     groups.Del(found);
-    linkUpHeap->free(found);
+    linkUpBlocks->Free(found);
 }
 
 void FIDPPlayer::ClearList(FLinkedList<FIDPPlayer>& list)

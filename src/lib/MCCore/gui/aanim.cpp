@@ -3,7 +3,6 @@
 #include "gui/asystem.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "logistics/logbri.h"
 #include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
@@ -28,6 +27,16 @@ namespace
         animation.shapeHeight = 0;
         animation.rate = 15.0f;
     }
+
+    /// <summary>Unregisters and frees the shape table.</summary>
+    void freeShapes(aAnimation& animation)
+    {
+        if (animation.shapes != nullptr)
+        {
+            MCRenderer::UnregisterData(animation.shapes.get());
+            animation.shapes.reset();
+        }
+    }
 }
 
 aAnimation::aAnimation()
@@ -37,18 +46,13 @@ aAnimation::aAnimation()
 aAnimation::~aAnimation()
 {
     reset(*this);
-    shapes = nullptr;
+    freeShapes(*this);
 }
 
 auto aAnimation::init(char* fileName) -> int32_t
 {
     reset(*this);
-
-    if (shapes != nullptr)
-    {
-        guiHeap->free(shapes);
-        shapes = nullptr;
-    }
+    freeShapes(*this);
 
     if (fileName != nullptr)
     {
@@ -61,27 +65,17 @@ auto aAnimation::init(char* fileName) -> int32_t
 auto aAnimation::destroy() -> void
 {
     reset(*this);
-
-    if (shapes != nullptr)
-    {
-        guiHeap->free(shapes);
-        shapes = nullptr;
-    }
+    freeShapes(*this);
 }
 
 auto aAnimation::shapeTable() -> void*
 {
-    return shapes;
+    return shapes.get();
 }
 
 auto aAnimation::loadShape(char* fileName) -> int32_t
 {
-    if (shapes != nullptr)
-    {
-        guiHeap->free(shapes);
-        shapes = nullptr;
-    }
-
+    freeShapes(*this);
     File file;
     char path[128];
     std::snprintf(path, sizeof(path), "%s%s", artPath, fileName);
@@ -102,22 +96,16 @@ auto aAnimation::loadShape(char* fileName) -> int32_t
         return -2;
     }
 
-    shapes = static_cast<uint8_t*>(guiHeap->malloc(size));
-
-    if (shapes == nullptr)
-    {
-        return 3;
-    }
-
-    file.read(shapes, static_cast<int32_t>(size));
+    shapes = std::make_unique<uint8_t[]>(size);
+    file.read(shapes.get(), static_cast<int32_t>(size));
     file.close();
-    MCRenderer::RegisterData(shapes, size, MCDataKind::Shapes);
-    numFrames = VFX_shape_count(shapes);
+    MCRenderer::RegisterData(shapes.get(), size, MCDataKind::Shapes);
+    numFrames = VFX_shape_count(shapes.get());
     curFrame = 0;
 
     if (numFrames != 0)
     {
-        const int32_t bounds = VFX_shape_bounds(shapes, 0);
+        const int32_t bounds = VFX_shape_bounds(shapes.get(), 0);
         shapeWidth = bounds >> 16;
         shapeHeight = bounds & 0xffff;
     }
@@ -133,12 +121,12 @@ auto aAnimation::width() -> int32_t
 
 auto aAnimation::drawFrame(int32_t frame, _pane* pane, int32_t xPos, int32_t yPos) -> void
 {
-    AG_shape_draw(pane, shapes, frame, xPos, yPos);
+    AG_shape_draw(pane, shapes.get(), frame, xPos, yPos);
 }
 
 auto aAnimation::draw(_pane* pane, int32_t xPos, int32_t yPos) -> void
 {
-    AG_shape_draw(pane, shapes, curFrame, xPos, yPos);
+    AG_shape_draw(pane, shapes.get(), curFrame, xPos, yPos);
     thisTime = clockTicks();
 
     if (1.0f / rate < static_cast<float>(thisTime - lastTime) * 0.001f)

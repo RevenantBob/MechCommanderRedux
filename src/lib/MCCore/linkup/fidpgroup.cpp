@@ -2,17 +2,6 @@
 #include "linkup/fidpgroup.h"
 #include "linkup/sessionmanager.h"
 #include "lib/aerror.h"
-#include "lib/heap.h"
-
-void* FIDPGroup::operator new(size_t size) noexcept
-{
-    return linkUpHeap->malloc(static_cast<uint32_t>(size));
-}
-
-void FIDPGroup::operator delete(void* ptr)
-{
-    linkUpHeap->free(ptr);
-}
 
 FIDPGroup::FIDPGroup()
 {
@@ -59,7 +48,7 @@ FIDPGroup::~FIDPGroup()
 
     for (int i = 0; i < numPlayers; i++)
     {
-        linkUpHeap->free(players.ReadAndNext());
+        linkUpBlocks->Free(players.ReadAndNext());
     }
 
     while (players.head != nullptr)
@@ -90,7 +79,7 @@ int FIDPGroup::RemovePlayer(uint32_t& playerID)
     }
 
     players.Del(found);
-    linkUpHeap->free(found);
+    linkUpBlocks->Free(found);
     return 1;
 }
 
@@ -106,7 +95,7 @@ int FIDPGroup::AddPlayer(uint32_t& playerID)
         }
     }
 
-    uint32_t* member = static_cast<uint32_t*>(linkUpHeap->malloc(sizeof(uint32_t)));
+    uint32_t* member = static_cast<uint32_t*>(linkUpBlocks->Allocate(sizeof(uint32_t)));
     *member = playerID;
     players.Add(member);
     return 1;
@@ -116,10 +105,10 @@ void FIDPGroup::SetGroupData(void* data, uint32_t size)
 {
     if (groupData != nullptr)
     {
-        linkUpHeap->free(groupData);
+        linkUpBlocks->Free(groupData);
     }
 
-    groupData = linkUpHeap->malloc(size);
+    groupData = linkUpBlocks->Allocate(size);
     std::memcpy(groupData, data, size);
     groupDataSize = size;
 }

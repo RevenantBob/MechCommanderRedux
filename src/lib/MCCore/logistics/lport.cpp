@@ -3,7 +3,6 @@
 #include "gui/aanim.h"
 #include "lib/aerror.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
@@ -12,16 +11,16 @@
 
 namespace
 {
-    /// <summary>Allocates from the logistics heap.</summary>
+    /// <summary>Allocates in a logistics block.</summary>
     void* logAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsHeap->malloc(size);
+        return globalLogPtr->logisticsBlocks->Allocate(size);
     }
 
-    /// <summary>Frees to the logistics heap.</summary>
+    /// <summary>Frees a logistics block.</summary>
     void logFree(void* block)
     {
-        globalLogPtr->logisticsHeap->free(block);
+        globalLogPtr->logisticsBlocks->Free(block);
     }
 
     /// <summary>The art <see cref="logArt"/> loaded, by file name (null for a file that couldn't be read).</summary>
@@ -70,16 +69,6 @@ auto ClearLogArt() -> void
 }
 
 // lPort
-
-auto lPort::operator new(size_t size) noexcept -> void*
-{
-    return logAlloc(static_cast<uint32_t>(size));
-}
-
-auto lPort::operator delete(void* ptr) -> void
-{
-    logFree(ptr);
-}
 
 auto lPort::init(int32_t width, int32_t height, int allocBitmap) -> int32_t
 {
@@ -293,16 +282,6 @@ lObject::~lObject()
     lObject::destroy();
 }
 
-auto lObject::operator new(size_t size) noexcept -> void*
-{
-    return logAlloc(static_cast<uint32_t>(size));
-}
-
-auto lObject::operator delete(void* ptr) -> void
-{
-    logFree(ptr);
-}
-
 auto lObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name, lPort* port) -> int32_t
 {
     (void)name;
@@ -351,7 +330,7 @@ auto lObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, ch
 
     if (framePane != nullptr)
     {
-        // Port fix: the original freed it with the CRT's delete although it came from the logistics heap.
+        // Port fix: the original freed it with the CRT's delete although it came in a logistics block.
         logFree(framePane);
         framePane = nullptr;
     }

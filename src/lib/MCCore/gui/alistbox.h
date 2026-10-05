@@ -51,10 +51,10 @@ public:
     int32_t highlightedItem = -1; // +0x4b4
     /// <summary>The first line shown (the scroll position).</summary>
     int32_t topItem = 0; // +0x4b8
-    /// <summary>The strings: 100 slots of 40 characters (GUI heap).</summary>
-    char* itemStrings = nullptr;     // +0x4bc
-    aFont* itemFont = nullptr;       // +0x4c0
-    aScrollBar* scrollBar = nullptr; // +0x4c4
+    /// <summary>The strings: 100 slots of 40 characters.</summary>
+    std::unique_ptr<char[]> itemStrings; // +0x4bc
+    aFont* itemFont = nullptr;           // +0x4c0
+    aScrollBar* scrollBar = nullptr;     // +0x4c4
     /// <summary>The font's height + 8.</summary>
     int32_t itemHeight = 0; // +0x4c8
     /// <summary>Nonzero once <see cref="ActivateScrollbar"/> added the scroll bar.</summary>

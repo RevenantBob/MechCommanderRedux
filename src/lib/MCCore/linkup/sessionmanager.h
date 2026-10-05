@@ -13,16 +13,18 @@
 
 #include "linkup/ficommonnetwork.h"
 #include "linkup/linkedlist.h"
+#include "platform/MCBlockStore.h"
 
 class FIDPGroup;
 class FIDPMessage;
 class FIDPPlayer;
 class FIDPSession;
 class FileTransferInfo;
-class UserHeap;
-
-/// <summary>The heap every linkup object is allocated from (1,900,000 bytes, "LinkUP").</summary>
-extern UserHeap* linkUpHeap;
+/// <summary>
+/// The linkup blocks that have no single owner yet: message buffers, player and group ids, file names (the linkup
+/// heap's in the original, 1,900,000 bytes). Freeing a block that isn't one is ignored, as the heap did.
+/// </summary>
+extern std::unique_ptr<MCBlockStore> linkUpBlocks;
 /// <summary>The game's DirectPlay application id, set by the SessionManager constructor.</summary>
 extern _GUID thisAppGUID;
 /// <summary>Performance-counter ticks per millisecond.</summary>
@@ -86,7 +88,7 @@ public:
     /// <remarks>MCX.EXE @ 0x0074d9e0</remarks>
     void destroy();
 
-    /// <summary>Keeps a copy of <paramref name="size"/> bytes of DirectPlay connection data (from linkUpHeap).</summary>
+    /// <summary>Keeps a copy of <paramref name="size"/> bytes of DirectPlay connection data (a linkUpBlocks block).</summary>
     /// <returns>0, or -1 when out of memory.</returns>
     /// <remarks>MCX.EXE @ 0x0074da10</remarks>
     int SetConnectionBuffer(void* connection, int size);
@@ -111,31 +113,25 @@ public:
     /// <remarks>MCX.EXE @ 0x0074db20</remarks>
     static void ClearList(FLinkedList<FIDPNetworkProtocol>& list);
 
-    char shortName[64]; // +0x4
-    char longName[256]; // +0x44
-    /// <summary>DirectPlay's connection data (from linkUpHeap).</summary>
-    void* connectionBuffer; // +0x144
+    char shortName[64]{}; // +0x4
+    char longName[256]{}; // +0x44
+    /// <summary>DirectPlay's connection data (a linkUpBlocks block).</summary>
+    void* connectionBuffer = nullptr; // +0x144
     /// <summary>The <see cref="FIDPProtocolType"/>, -1 when unknown.</summary>
-    int32_t protocolType; // +0x148
+    int32_t protocolType = 0; // +0x148
 };
 
 /// <summary>
 /// The game's DirectPlay session: there is one at a time, found through <see cref="GetGlobalPointer"/>.
 /// </summary>
 /// <remarks>
-/// Original source: <c>linkup\sessionmanager.cpp</c>, 0xba0 bytes, allocated from linkUpHeap. The file-static
+/// Original source: <c>linkup\sessionmanager.cpp</c>, 0xba0 bytes. The file-static
 /// DAT_0080a680 (an instance exists), DAT_0080a684 (the instance) and DAT_0080a688 (who holds the global pointer)
 /// back <see cref="GetGlobalPointer"/>.
 /// </remarks>
 class SessionManager
 {
 public:
-    /// <summary>Allocates from linkUpHeap.</summary>
-    /// <remarks>MCX.EXE @ 0x0074dd70</remarks>
-    static void* operator new(size_t size) noexcept;
-    /// <remarks>MCX.EXE @ 0x0074dd90</remarks>
-    static void operator delete(void* ptr);
-
     /// <summary>
     /// Makes the session manager for application <paramref name="appGUID"/>: creates the DirectPlay object and
     /// enumerates the connections, allocates the message queues and per-player verify buffers, and registers
@@ -600,20 +596,20 @@ public:
     /// <summary>The groups of the current session.</summary>
     FLinkedList<FIDPGroup> groups; // +0x34
     /// <summary>Free message buffers (guarded by AddingMessageList).</summary>
-    FIDPMsgList* emptyMessages; // +0x44
+    FIDPMsgList* emptyMessages = nullptr; // +0x44
     /// <summary>DirectPlay system messages waiting for the game thread.</summary>
-    FIDPMsgList* systemMessages; // +0x48
+    FIDPMsgList* systemMessages = nullptr; // +0x48
     /// <summary>Application messages waiting for the game thread.</summary>
-    FIDPMsgList* applicationMessages; // +0x4c
+    FIDPMsgList* applicationMessages = nullptr; // +0x4c
     /// <summary>
     /// Guaranteed messages received before this machine had a player number (it can't read their send counts yet);
     /// handled once the server's player numbers arrive.
     /// </summary>
-    FIDPMsgList* preIDReceivedMessages; // +0x50
+    FIDPMsgList* preIDReceivedMessages = nullptr; // +0x50
     /// <summary>Group messages sent before this machine had a player number.</summary>
-    FIDPMsgList* preIDGroupMessages; // +0x54
+    FIDPMsgList* preIDGroupMessages = nullptr; // +0x54
     /// <summary>Server messages sent before this machine had a player number.</summary>
-    FIDPMsgList* preIDServerMessages; // +0x58
+    FIDPMsgList* preIDServerMessages = nullptr; // +0x58
     /// <summary>Files being sent.</summary>
     FLinkedList<FileTransferInfo> outgoingFiles; // +0x5c
     /// <summary>Files being received.</summary>
@@ -621,94 +617,94 @@ public:
     /// <summary>Players that joined before this machine had a player number (numbered later).</summary>
     FLinkedList<FIDPPlayer> pendingPlayers; // +0x7c
     /// <summary>A second cursor over <see cref="players"/> (8 bytes, allocated with the global new).</summary>
-    FLinkedListIterator<FIDPPlayer>* playerIterator; // +0x8c
+    FLinkedListIterator<FIDPPlayer>* playerIterator = nullptr; // +0x8c
     /// <summary>
     /// Ids GetPlayer refuses (-1 = unused): players deleted from the session. DeletePlayerOrGroup overwrites the used
     /// slots; the exact bookkeeping is not pinned down.
     /// </summary>
-    uint32_t deletedPlayerIDs[6]; // +0x90
+    uint32_t deletedPlayerIDs[6]{}; // +0x90
     /// <summary>
     /// The "new server" message (type 6, 0xc bytes: the guaranteed header and the server's DPID at +0x8), kept
     /// ready to announce this machine as the server.
     /// </summary>
-    FIGuaranteedMessageHeader* serverMessage; // +0xa8
+    FIGuaranteedMessageHeader* serverMessage = nullptr; // +0xa8
     /// <summary>The session hosted or joined, or null.</summary>
-    FIDPSession* currentSession; // +0xac
+    FIDPSession* currentSession = nullptr; // +0xac
     /// <summary>The <see cref="FIDPProtocolType"/> of the current connection, -1 for none.</summary>
-    int32_t currentConnection; // +0xb0
+    int32_t currentConnection = 0; // +0xb0
     /// <summary>Signalled by DirectPlay when a message arrives for this machine's player (a HANDLE).</summary>
-    void* playerEvent; // +0xb4
+    void* playerEvent = nullptr; // +0xb4
     /// <summary>Signalled to stop the receive thread (a HANDLE).</summary>
-    void* killReceiveEvent; // +0xb8
+    void* killReceiveEvent = nullptr; // +0xb8
     /// <summary>The receive thread (a HANDLE).</summary>
-    void* receiveThread; // +0xbc
+    void* receiveThread = nullptr; // +0xbc
     /// <summary>This machine's player's DPID (0 when none).</summary>
-    uint32_t myPlayerID; // +0xc0
+    uint32_t myPlayerID = 0; // +0xc0
     /// <summary>The server's DPID.</summary>
-    uint32_t serverID; // +0xc4
+    uint32_t serverID = 0; // +0xc4
     /// <summary>This machine's player.</summary>
-    FIDPPlayer* myPlayer; // +0xc8
+    FIDPPlayer* myPlayer = nullptr; // +0xc8
     /// <summary>Only cleared by the constructor.</summary>
-    int32_t unknownCC; // +0xcc
+    int32_t unknownCC = 0; // +0xcc
     /// <summary>Nonzero once <see cref="isModemAvailable"/> checked.</summary>
-    int32_t modemChecked;   // +0xd0
-    int32_t modemAvailable; // +0xd4
+    int32_t modemChecked = 0;   // +0xd0
+    int32_t modemAvailable = 0; // +0xd4
     /// <summary>Nonzero once <see cref="isIPXAvailable"/> checked.</summary>
-    int32_t ipxChecked;   // +0xd8
-    int32_t ipxAvailable; // +0xdc
+    int32_t ipxChecked = 0;   // +0xd8
+    int32_t ipxAvailable = 0; // +0xdc
     /// <summary>Nonzero once <see cref="isTCPAvailable"/> checked.</summary>
-    int32_t tcpChecked;   // +0xe0
-    int32_t tcpAvailable; // +0xe4
+    int32_t tcpChecked = 0;   // +0xe0
+    int32_t tcpAvailable = 0; // +0xe4
     /// <summary>Set when every latency report is in (<see cref="ReadyToChooseServer"/>).</summary>
-    int32_t readyToChooseServer; // +0xe8
+    int32_t readyToChooseServer = 0; // +0xe8
     /// <summary>The autodial setting DisableDialupNetworking saved (0 = nothing to restore).</summary>
-    uint32_t dialupState; // +0xec
-    int32_t unknownF0;    // +0xf0
-    int32_t unknownF4;    // +0xf4
+    uint32_t dialupState = 0; // +0xec
+    int32_t unknownF0 = 0;    // +0xf0
+    int32_t unknownF4 = 0;    // +0xf4
     /// <summary>Guards the player list and the outgoing queues (a CRITICAL_SECTION, 0x18 bytes, in the original).</summary>
     std::recursive_mutex criticalSection; // +0xf8
     /// <summary>The game's handler of application messages (MultiPlayerApplicationCallback).</summary>
-    void (*applicationCallback)(FIDPMessage* msg, void* data); // +0x110
-    void* applicationCallbackData;                             // +0x114
+    void (*applicationCallback)(FIDPMessage* msg, void* data) = nullptr; // +0x110
+    void* applicationCallbackData = nullptr;                             // +0x114
     /// <summary>The game's handler of system messages (player created/destroyed, added to group, session lost).</summary>
-    void (*systemCallback)(FIDPMessage* msg, void* data); // +0x118
-    void* systemCallbackData;                             // +0x11c
+    void (*systemCallback)(FIDPMessage* msg, void* data) = nullptr; // +0x118
+    void* systemCallbackData = nullptr;                             // +0x11c
     /// <summary>Only cleared by the constructor: presumably the file-sent callback, which MultiPlayer never sets.</summary>
-    void (*fileSentCallback)(char* fileName, void* data); // +0x120
-    void* fileSentCallbackData;                           // +0x124
+    void (*fileSentCallback)(char* fileName, void* data) = nullptr; // +0x120
+    void* fileSentCallbackData = nullptr;                           // +0x124
     /// <summary>Called when a received file is complete (MultiPlayerFileReceivedCallback).</summary>
-    void (*fileReceivedCallback)(char* fileName, void* data); // +0x128
-    void* fileReceivedCallbackData;                           // +0x12c
+    void (*fileReceivedCallback)(char* fileName, void* data) = nullptr; // +0x128
+    void* fileReceivedCallbackData = nullptr;                           // +0x12c
     /// <summary>Nonzero when this machine is the server (host).</summary>
-    int32_t isHost; // +0x130
+    int32_t isHost = 0; // +0x130
     /// <summary>Set once the session is locked (the game started).</summary>
-    int32_t gameStarted; // +0x134
+    int32_t gameStarted = 0; // +0x134
     /// <summary>Nonzero once this machine's player has a player number (set at once on the host).</summary>
-    int32_t hasPlayerNumber; // +0x138
+    int32_t hasPlayerNumber = 0; // +0x138
     /// <summary>The DirectPlay object (IDirectPlay3A* in the original; the port's stand-in).</summary>
-    MCDirectPlay* directPlay; // +0x13c
+    MCDirectPlay* directPlay = nullptr; // +0x13c
     /// <summary>The <see cref="FIDPProtocolType"/> flags of the connections found.</summary>
-    uint32_t availableProtocols; // +0x140
+    uint32_t availableProtocols = 0; // +0x140
     /// <summary>The modems found (each up to 63 characters used).</summary>
-    char modemNames[10][256]; // +0x144
+    char modemNames[10][256]{}; // +0x144
     /// <summary>The id of the next file transfer (0-255).</summary>
-    int32_t nextFileID; // +0xb44
-    /// <summary>One 0xd800-byte block (from linkUpHeap) cut into <see cref="verifyMessages"/>.</summary>
-    uint8_t* verifyMessageMemory; // +0xb48
+    int32_t nextFileID = 0; // +0xb44
+    /// <summary>One 0xd800-byte linkUpBlocks block cut into <see cref="verifyMessages"/>.</summary>
+    uint8_t* verifyMessageMemory = nullptr; // +0xb48
     /// <summary>
     /// Per player number: the verify message being built (0x2400 bytes: the header word, a count byte, then 6 bytes
     /// per verified message; sent as count * 6 + 3 bytes).
     /// </summary>
-    uint8_t* verifyMessages[6]; // +0xb4c
-    int32_t unknownB64[6];      // +0xb64
+    uint8_t* verifyMessages[6]{}; // +0xb4c
+    int32_t unknownB64[6]{};      // +0xb64
     /// <summary>Player numbers 0-5 sorted by latency (TallyLatencies; reset to 0-5 by LeaveSession).</summary>
-    int32_t playersByLatency[6]; // +0xb7c
+    int32_t playersByLatency[6]{}; // +0xb7c
     /// <summary>Performance-counter time of the next ping.</summary>
-    uint32_t nextPingTime; // +0xb94
+    uint32_t nextPingTime = 0; // +0xb94
     /// <summary>Milliseconds between pings (2000).</summary>
-    uint32_t pingInterval; // +0xb98
+    uint32_t pingInterval = 0; // +0xb98
     /// <summary>The number of <see cref="modemNames"/>.</summary>
-    int32_t numModems; // +0xb9c
+    int32_t numModems = 0; // +0xb9c
 };
 
 /// <summary>Empties <paramref name="list"/> (its links; the messages are not deleted).</summary>
@@ -731,13 +727,13 @@ void DisableCallerID();
 /// <remarks>MCX.EXE @ 0x0074d6d0</remarks>
 void ReEnableCallerID();
 
-/// <summary>Creates <see cref="linkUpHeap"/> if it doesn't exist.</summary>
-/// <remarks>MCX.EXE @ 0x0074d810</remarks>
-void InitLinkUpHeap();
+/// <summary>Creates <see cref="linkUpBlocks"/> if it doesn't exist.</summary>
+/// <remarks>MCX.EXE @ 0x0074d810 (InitLinkUpHeap)</remarks>
+void InitLinkUpBlocks();
 
-/// <summary>Destroys <see cref="linkUpHeap"/>.</summary>
-/// <remarks>MCX.EXE @ 0x0074d8c0</remarks>
-void DestroyLinkUpHeap();
+/// <summary>Frees every block of <see cref="linkUpBlocks"/> and the store.</summary>
+/// <remarks>MCX.EXE @ 0x0074d8c0 (DestroyLinkUpHeap)</remarks>
+void DestroyLinkUpBlocks();
 
 /// <summary>DirectPlay EnumPlayers callback: forwards to SessionManager::NewPlayerEnumeration.</summary>
 /// <remarks>MCX.EXE @ 0x0074dd00 (__stdcall)</remarks>

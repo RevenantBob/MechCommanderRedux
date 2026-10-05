@@ -252,7 +252,7 @@ public:
     int32_t twoButton = 0; // +0x4bc
     /// <summary>How many middle frame pieces the text needs.</summary>
     int32_t numMiddlePieces = 0; // +0x4c0
-    /// <summary>The text (on the logistics heap).</summary>
+    /// <summary>The text (a logistics block).</summary>
     char* text = nullptr; // +0x4c4
     /// <summary>Called by <see cref="deactivate"/> with the result.</summary>
     void (*callback)(int32_t) = nullptr; // +0x4c8

@@ -107,7 +107,6 @@
     <ClCompile Include="lib\ffile.cpp" />
     <ClCompile Include="lib\file.cpp" />
     <ClCompile Include="lib\hbtime.cpp" />
-    <ClCompile Include="lib\heap.cpp" />
     <ClCompile Include="lib\inifile.cpp" />
     <ClCompile Include="lib\llist.cpp" />
     <ClCompile Include="lib\lzcomp.cpp" />
@@ -324,7 +323,6 @@
     <ClInclude Include="lib\ffile.h" />
     <ClInclude Include="lib\file.h" />
     <ClInclude Include="lib\hbtime.h" />
-    <ClInclude Include="lib\heap.h" />
     <ClInclude Include="lib\inifile.h" />
     <ClInclude Include="lib\llist.h" />
     <ClInclude Include="lib\lzcomp.h" />

@@ -3,7 +3,6 @@
 #include "gui/afont.h"
 #include "gui/mchwcursor.h"
 #include "gui/scrlpane.h"
-#include "lib/heap.h"
 #include "logistics/logbri.h"
 #include "logistics/logdlg.h"
 #include "logistics/loggen.h"
@@ -63,12 +62,12 @@ namespace
 
     void* logAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsHeap->malloc(size);
+        return globalLogPtr->logisticsBlocks->Allocate(size);
     }
 
     void logFree(void* block)
     {
-        globalLogPtr->logisticsHeap->free(block);
+        globalLogPtr->logisticsBlocks->Free(block);
     }
 
     void freePort(lPort*& port)
@@ -86,7 +85,7 @@ namespace
         soundSystem->playDigitalSample(sampleId, 1, nullptr, 0, 0);
     }
 
-    /// <summary>A copy of <paramref name="text"/> on the logistics heap.</summary>
+    /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
     char* heapString(const char* text)
     {
         size_t length = std::strlen(text) + 1;

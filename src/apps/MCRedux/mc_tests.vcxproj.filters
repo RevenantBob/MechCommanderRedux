@@ -61,6 +61,9 @@
     <ClCompile Include="tests\GroundVehicleTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\GuiTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\IniFileTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -68,6 +71,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\LibTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\LinkupTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\LogisticsTests.cpp">

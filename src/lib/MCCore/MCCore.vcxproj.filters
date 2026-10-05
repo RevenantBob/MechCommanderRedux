@@ -258,9 +258,6 @@
     <ClCompile Include="lib\hbtime.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\heap.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
     <ClCompile Include="lib\inifile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
@@ -887,9 +884,6 @@
       <Filter>lib</Filter>
     </ClInclude>
     <ClInclude Include="lib\hbtime.h">
-      <Filter>lib</Filter>
-    </ClInclude>
-    <ClInclude Include="lib\heap.h">
       <Filter>lib</Filter>
     </ClInclude>
     <ClInclude Include="lib\inifile.h">

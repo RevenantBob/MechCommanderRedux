@@ -6,7 +6,6 @@
 #include "lib/fastfile.h"
 #include "lib/ffile.h"
 #include "lib/hbtime.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "lib/llist.h"
 #include "lib/pqueue.h"
@@ -14,18 +13,6 @@
 
 namespace
 {
-    /// <summary>Makes systemHeap exist, as the game does at startup (SYSTEM.CFG's size).</summary>
-    void EnsureSystemHeap()
-    {
-        if (systemHeap != nullptr)
-        {
-            return;
-        }
-
-        systemHeap = new UserHeap;
-        systemHeap->init(16383999, "SystemHeap");
-    }
-
     /// <summary>A scratch path outside the game install.</summary>
     std::string ScratchPath(const char* name)
     {
@@ -42,64 +29,8 @@ namespace
     };
 }
 
-TEST_CASE("heap: a UserHeap hands out memory and keeps its bookkeeping")
-{
-    UserHeap heap;
-    REQUIRE_EQ(heap.init(65536, "Test"), 0);
-    CHECK_EQ(heap.heapSize, 65536u);
-    CHECK_EQ(heap.heapType(), USER_HEAP);
-    const uint32_t emptyLeft = heap.totalCoreLeft();
-    CHECK_EQ(emptyLeft, 65536u - 16 - 8);
-    CHECK_EQ(heap.coreLeft(), emptyLeft);
-
-    CHECK(heap.malloc(0) == nullptr);
-    CHECK(heap.calloc(100) == nullptr);
-
-    void* a = heap.malloc(100);
-    REQUIRE(a != nullptr);
-    std::memset(a, 0x5a, 100);
-    CHECK_EQ(heap.totalCoreLeft(), emptyLeft - 108);
-    void* b = heap.malloc(1);
-    CHECK_EQ(heap.totalCoreLeft(), emptyLeft - 108 - 16);
-    CHECK(heap.owns(a));
-
-    int outside = 0;
-    CHECK_EQ(heap.free(&outside), 0);
-    CHECK_EQ(heap.free(a), 108);
-    CHECK_EQ(heap.free(b), 16);
-    CHECK_EQ(heap.totalCoreLeft(), emptyLeft);
-    CHECK_EQ(heap.getLastError(), 0);
-
-    heap.destroy();
-    CHECK_EQ(heap.heapSize, 0u);
-}
-
-TEST_CASE("heap: a HeapManager block is zeroed and committed in pages")
-{
-    HeapManager block;
-    CHECK(block.getHeapPtr() == nullptr);
-    REQUIRE_EQ(block.createHeap(10000), 0);
-    CHECK(block.getHeapPtr() == nullptr);
-    REQUIRE_EQ(block.commitHeap(0), 0);
-    CHECK_EQ(block.tSize(), 12288u);
-    uint8_t* memory = block.getHeapPtr();
-    REQUIRE(memory != nullptr);
-    CHECK_EQ(memory[0], 0);
-    CHECK_EQ(memory[9999], 0);
-    // Original behaviour: the page rounding commits past the size, so "all committed" is only seen for page-multiple
-    // sizes; a second commit of an odd size goes on committing.
-    CHECK_EQ(block.commitHeap(20000), COMMIT_TOO_LARGE);
-
-    HeapList list;
-    list.addHeap(&block);
-    CHECK(list.heapRecords[0] == &block);
-    list.removeHeap(&block);
-    CHECK(list.heapRecords[0] == nullptr);
-}
-
 TEST_CASE("pqueue: items come out smallest key first")
 {
-    EnsureSystemHeap();
     PriorityQueue queue;
     REQUIRE_EQ(queue.init(16, -1000000), 0);
     const int32_t keys[] = {50, 10, 70, 30, 20, 60, 40};
@@ -247,7 +178,6 @@ TEST_CASE("cident: ids and full paths")
     FullPathFileName path;
     path.init("data\\missions\\", "mcx0101", ".fit");
     CHECK(std::strcmp(path, "data\\missions\\mcx0101.fit") == 0);
-    EnsureSystemHeap();
     path.init("data\\", "x", nullptr);
     CHECK(std::strcmp(path, "data\\x") == 0);
 
@@ -262,7 +192,6 @@ TEST_CASE("cident: ids and full paths")
 
 TEST_CASE("inifile: a written FIT file reads back")
 {
-    EnsureSystemHeap();
     const std::string path = ScratchPath("mc_inifile_test.fit");
     {
         FitIniFile out;
@@ -374,7 +303,6 @@ TEST_CASE("inifile: a written FIT file reads back")
 
 TEST_CASE("inifile: hex values and malformed files")
 {
-    EnsureSystemHeap();
     const std::string path = ScratchPath("mc_inifile_hex.fit");
     {
         std::ofstream out(path, std::ios::binary);
@@ -418,8 +346,6 @@ TEST_CASE("game: SYSTEM.CFG and PREFS.CFG read as the game reads them")
     {
         return;
     }
-
-    EnsureSystemHeap();
 
     OpenFit system("system.cfg");
     REQUIRE_EQ(system.Result, 0);
@@ -476,7 +402,6 @@ TEST_CASE("game: FIT files from the FastFiles read")
     }
 
     MCTestGame::OpenFastFiles();
-    EnsureSystemHeap();
 
     {
         OpenFit mission("data\\missions\\MCX0101.FIT");
@@ -591,7 +516,6 @@ TEST_CASE("game: every FIT file in the FastFiles opens and every block seeks")
     }
 
     MCTestGame::OpenFastFiles();
-    EnsureSystemHeap();
 
     int opened = 0;
     int blocks = 0;

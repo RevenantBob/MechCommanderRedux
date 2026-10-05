@@ -10,7 +10,6 @@
 #include "lib/aerror.h"
 #include "lib/cvmath.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "linkup/dpmessage.h"
 #include "linkup/dpplayer.h"
@@ -77,28 +76,6 @@ namespace
     bool InMultiplayerMission()
     {
         return scenario != nullptr && EventsToMissionResultsScreen == 0 && MPlayer->numPlayers() > 1;
-    }
-}
-
-auto WorldStateChunk::operator new(size_t size) noexcept -> void*
-{
-    if (systemHeap == nullptr)
-    {
-        return std::malloc(size);
-    }
-
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto WorldStateChunk::operator delete(void* ptr) -> void
-{
-    if (systemHeap == nullptr)
-    {
-        std::free(ptr);
-    }
-    else
-    {
-        systemHeap->free(ptr);
     }
 }
 
@@ -316,28 +293,6 @@ auto WorldStateChunk::equalTo(WorldStateChunk* chunk) -> int
            item == chunk->item && param1 == chunk->param1 && param2 == chunk->param2;
 }
 
-auto MultiPlayer::operator new(size_t size) noexcept -> void*
-{
-    if (systemHeap == nullptr)
-    {
-        return std::malloc(size);
-    }
-
-    return systemHeap->malloc(static_cast<uint32_t>(size));
-}
-
-auto MultiPlayer::operator delete(void* ptr) -> void
-{
-    if (systemHeap == nullptr)
-    {
-        std::free(ptr);
-    }
-    else
-    {
-        systemHeap->free(ptr);
-    }
-}
-
 auto MultiPlayer::init() -> void
 {
     if (globalLogPtr != nullptr)
@@ -359,7 +314,7 @@ auto MultiPlayer::init(int32_t heapSize, int32_t maxMessageSize, int32_t maxMess
 
     if (sessionManager == nullptr)
     {
-        InitLinkUpHeap();
+        InitLinkUpBlocks();
         sessionManager = new SessionManager(MultiPlayerAppGUID);
         Assert(sessionManager != nullptr, 0, "Error creating sessionManager");
     }
@@ -376,11 +331,10 @@ auto MultiPlayer::init(int32_t heapSize, int32_t maxMessageSize, int32_t maxMess
 
     if (msgBuffer != nullptr)
     {
-        systemHeap->free(msgBuffer);
+        delete[] msgBuffer;
     }
 
-    msgBuffer = static_cast<uint8_t*>(systemHeap->malloc(0x1400));
-    Assert(msgBuffer != nullptr, 0, " MultiPlayer: no RAM for msgBuffer ");
+    msgBuffer = new uint8_t[0x1400]{};
     return 0;
 }
 
@@ -2044,11 +1998,11 @@ auto MultiPlayer::destroy() -> void
         sessionManager = nullptr;
     }
 
-    DestroyLinkUpHeap();
+    DestroyLinkUpBlocks();
 
     if (msgBuffer != nullptr)
     {
-        systemHeap->free(msgBuffer);
+        delete[] msgBuffer;
         msgBuffer = nullptr;
     }
 }

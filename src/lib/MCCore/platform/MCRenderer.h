@@ -569,8 +569,8 @@ public:
 
     /// <summary>
     /// Registers [begin, begin + size) as holding <paramref name="kind"/> data (where its owner loads it). A block it
-    /// overlaps is taken to be gone (the memory was reused). A <c>UserHeap</c> block, once freed, is unregistered by
-    /// the heap; other memory must be unregistered by its owner before it goes.
+    /// overlaps is taken to be gone (the memory was reused). An <c>MCBlockStore</c> block, once freed, is unregistered
+    /// by the store; other memory must be unregistered by its owner before it goes.
     /// </summary>
     static void RegisterData(const void* begin, size_t size, MCDataKind kind);
 

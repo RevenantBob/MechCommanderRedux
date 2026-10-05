@@ -3,7 +3,6 @@
 #include "TestGame.h"
 #include "ai/move.h"
 #include "lib/file.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "main/main.h"
 #include "object/gameobj.h"
@@ -98,12 +97,6 @@ namespace
 
         std::string Load()
         {
-            if (systemHeap == nullptr)
-            {
-                systemHeap = new UserHeap;
-                systemHeap->init(16383999, "SystemHeap");
-            }
-
             MCTestGame::OpenFastFiles();
 
             // data\terrain\m0101.fit [TerrainData].

@@ -6,7 +6,6 @@
 #include "gui/updisp.h"
 #include "lib/aerror.h"
 #include "lib/cident.h"
-#include "lib/heap.h"
 #include "lib/inifile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
@@ -989,7 +988,7 @@ auto BriefingScreen::handleEvent(aEvent* event) -> void
                 if (units < 0x33)
                 {
                     soundSystem->playDigitalSample(0x3a, 1, nullptr, 0, 0);
-                    mission->StartScenario(mission->scenarios[mission->currentScenario]);
+                    mission->StartScenario(mission->scenarios[mission->currentScenario].data());
                     return;
                 }
 
