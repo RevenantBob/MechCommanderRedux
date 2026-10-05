@@ -380,7 +380,7 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
 
                 for (int32_t i = 0; i < application->width() >> 1; i++)
                 {
-                    int32_t noise = std::rand();
+                    int32_t noise = MCPort::Rand();
                     pixel[0] = static_cast<uint8_t>(noise & 0x1f);
                     pixel[1] = static_cast<uint8_t>((noise >> 5) & 0x1f);
                     pixel += 2;

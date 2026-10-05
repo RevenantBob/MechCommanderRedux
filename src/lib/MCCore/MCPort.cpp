@@ -144,6 +144,28 @@ namespace MCPort
         }
     }
 
+    namespace
+    {
+        /// <summary>The generator state; per thread and starting at 1, as the CRT's.</summary>
+        thread_local uint32_t RandSeed = 1;
+    }
+
+    int32_t Rand()
+    {
+        RandSeed = RandSeed * 214013u + 2531011u;
+        return static_cast<int32_t>((RandSeed >> 16) & 0x7fff);
+    }
+
+    void SeedRand(uint32_t seed)
+    {
+        RandSeed = seed;
+    }
+
+    uint32_t RandState()
+    {
+        return RandSeed;
+    }
+
     void UseManualClock()
     {
         ManualClockThread = std::this_thread::get_id();

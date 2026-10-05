@@ -78,6 +78,7 @@
     <ClCompile Include="tests\ScreenInput.cpp" />
     <ClCompile Include="tests\SessionScreenTests.cpp" />
     <ClCompile Include="tests\SmackerTests.cpp" />
+    <ClCompile Include="tests\StateHashTests.cpp" />
     <ClCompile Include="tests\TerrainGridTests.cpp" />
     <ClCompile Include="tests\TestGame.cpp" />
     <ClCompile Include="tests\VfxFontImageTests.cpp" />

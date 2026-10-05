@@ -64,6 +64,9 @@
     <ClCompile Include="tests\SmackerTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\StateHashTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\TerrainGridTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

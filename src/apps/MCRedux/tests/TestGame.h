@@ -35,4 +35,26 @@ namespace MCTestGame
     /// lasting <paramref name="seconds"/> instead of the measured time.
     /// </summary>
     void RunFrame(float seconds);
+
+    /// <summary>
+    /// Called on every present after the boot (from MCDisplay::OnPresent, which the boot takes over). A test that
+    /// folds the presents into a hash sets it, and clears it at the end.
+    /// </summary>
+    /// <remarks>
+    /// Every present is also written to <c>--present-log &lt;file&gt;</c> (appended: a <c>== &lt;test&gt;</c> line, then
+    /// <c>&lt;index&gt; 0x&lt;screen hash&gt;</c> per present), and <c>--present-shot &lt;n&gt;,&lt;n&gt;...</c> saves those
+    /// presents into the <c>--shots</c> folder. tools/ci/baseline.py compares two builds' logs.
+    /// </remarks>
+    extern std::function<void()> OnPresent;
+
+    /// <summary>
+    /// FNV-1a of the game's state: the turn, the scenario clock, the dice's state, every mover (position, frame,
+    /// status, internal structure and armor per location) and its pilot (status, current order), and the objectives'
+    /// statuses. Floats are hashed by their bits.
+    /// </summary>
+    /// <remarks>
+    /// While a scenario is up, each <see cref="RunFrame"/> writes it to <c>--state-log &lt;file&gt;</c> (appended: a
+    /// <c>== &lt;test&gt;</c> line, then <c>&lt;frame&gt; 0x&lt;hash&gt;</c> per frame).
+    /// </remarks>
+    uint32_t StateHash();
 }

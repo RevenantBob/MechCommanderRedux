@@ -34,7 +34,7 @@ TEST_CASE_ISOLATED("game: the tactical map's video window matches the pre-render
 
     uint32_t presents = 0x811c9dc5;
     REQUIRE(MCInput::Display() != nullptr);
-    MCInput::Display()->OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
+    MCTestGame::OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
 
     const auto settle = [](const char* name)
     {
@@ -53,6 +53,6 @@ TEST_CASE_ISOLATED("game: the tactical map's video window matches the pre-render
     CHECK_EQ(settle("speaking"), 0x566829a5u);
     map->videoWindow->SetStar(nullptr);
     CHECK_EQ(settle("done"), 0xd9566f22u);
-    MCInput::Display()->OnPresent = nullptr;
+    MCTestGame::OnPresent = nullptr;
     CHECK_EQ(presents, 0x861a964eu);
 }

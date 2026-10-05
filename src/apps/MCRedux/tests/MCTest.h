@@ -52,6 +52,9 @@ namespace MCTest
     /// </summary>
     const char* Option(std::string_view name);
 
+    /// <summary>The name of the test running in this process, or an empty string between tests.</summary>
+    const char* CurrentTestName();
+
     /// <summary>Adds a test to <see cref="Registry"/> from a static initialiser; <c>TEST_CASE</c> declares one.</summary>
     struct Registrar
     {

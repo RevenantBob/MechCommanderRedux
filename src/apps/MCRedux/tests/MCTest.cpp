@@ -12,6 +12,7 @@ namespace
     struct RunState
     {
         std::vector<std::string> Scopes;
+        const char* Current = "";
         size_t Passes = 0;
         size_t Failures = 0;
     };
@@ -103,6 +104,11 @@ const char* MCTest::Option(std::string_view name)
     }
 
     return nullptr;
+}
+
+const char* MCTest::CurrentTestName()
+{
+    return State().Current;
 }
 
 namespace
@@ -208,6 +214,7 @@ int main(int argc, char** argv)
         std::cout << "[ RUN  ] " << test->Name << std::endl;
         const size_t failuresBefore = state.Failures;
         const auto start = std::chrono::steady_clock::now();
+        state.Current = test->Name;
 
         try
         {
@@ -226,6 +233,7 @@ int main(int argc, char** argv)
         }
 
         state.Scopes.clear();
+        state.Current = "";
         const auto ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
         const bool passed = state.Failures == failuresBefore;

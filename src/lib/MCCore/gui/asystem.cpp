@@ -2258,7 +2258,7 @@ auto RealWinMain(void* instance, void* prevInstance, char* commandLine, int show
 {
     // Port: the original noted the stack top (topOfStack) and warned when the page file was under 48,000,000
     // bytes (GlobalMemoryStatus, string 0x355); neither applies to the port.
-    std::srand(static_cast<uint32_t>(std::time(nullptr)));
+    MCPort::SeedRand(static_cast<uint32_t>(std::time(nullptr)));
 
     if (prevInstance != nullptr)
     {

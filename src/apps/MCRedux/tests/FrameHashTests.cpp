@@ -487,37 +487,10 @@ namespace
             return hash;
         };
 
-        // Every frame presented is folded into one more hash, including those the screen wipes draw inside their own loop.
-        // --present-log <file> lists each present's hash (to find the first that differs between two builds), and
-        // --present-shot <n>,<n>... saves those presents into the --shots folder.
+        // Every frame presented is folded into one more hash, including those the screen wipes draw inside their own loop
+        // (--present-log lists them; see MCTestGame::OnPresent).
         uint32_t presents = 0x811c9dc5;
-        REQUIRE(MCInput::Display() != nullptr);
-        const char* logPath = MCTest::Option("present-log");
-        std::unique_ptr<FILE, decltype(&std::fclose)> presentLog(
-            logPath != nullptr ? std::fopen(logPath, "w") : nullptr, &std::fclose);
-        const char* shotList = MCTest::Option("present-shot");
-        const std::string shotsWanted = shotList != nullptr ? std::format(",{},", shotList) : std::string();
-        int32_t presentIndex = 0;
-        MCInput::Display()->OnPresent = [&]
-        {
-            const uint32_t hash = ScreenHash();
-            presents = (presents ^ hash) * 0x01000193;
-
-            if (presentLog)
-            {
-                std::fprintf(presentLog.get(), "%d 0x%08x\n", presentIndex, hash);
-            }
-
-            const char* shots = MCTest::Option("shots");
-
-            if (shots != nullptr && shotsWanted.contains(std::format(",{},", presentIndex)))
-            {
-                (void)MCInput::Display()->SaveScreenshot(std::filesystem::path(shots) /
-                                                         std::format("present{}.bmp", presentIndex));
-            }
-
-            presentIndex++;
-        };
+        MCTestGame::OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
 
         struct Step
         {
@@ -688,7 +661,7 @@ namespace
             index++;
         }
 
-        MCInput::Display()->OnPresent = nullptr;
+        MCTestGame::OnPresent = nullptr;
         SaveShot("logistics every frame", frames);
         CHECK_EQ(frames, gpu ? 0x5cdc376eu : 0x19ceb4beu);
         CHECK_EQ(presents, gpu ? 0x14d82a5du : 0x90a481cau);

@@ -1650,7 +1650,7 @@ auto aStartupWindow::doStatic() -> void
         {
             for (int32_t column = 0; column < width(); column++)
             {
-                AG_pixel_write(StaticPane(), column, row, static_cast<uint32_t>(std::rand()) & 0x1f);
+                AG_pixel_write(StaticPane(), column, row, static_cast<uint32_t>(MCPort::Rand()) & 0x1f);
             }
         }
     }

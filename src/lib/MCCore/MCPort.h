@@ -114,6 +114,18 @@ namespace MCPort
     /// </summary>
     /// <returns>Whether the name was known and fitted.</returns>
     bool GetUserName(char* buffer, uint32_t* size);
+
+    /// <summary>
+    /// The original's <c>rand</c> (MSVC's CRT, the same on every platform): the next value of the thread's linear
+    /// congruential generator, in [0, 0x7fff].
+    /// </summary>
+    int32_t Rand();
+
+    /// <summary>The original's <c>srand</c>: restarts the thread's generator at <paramref name="seed"/>.</summary>
+    void SeedRand(uint32_t seed);
+
+    /// <summary>Port-only (tests): the thread's generator state, which decides every later <see cref="Rand"/>.</summary>
+    uint32_t RandState();
 }
 
 /// <summary>StrCopy into a char array, with the size taken from the array.</summary>

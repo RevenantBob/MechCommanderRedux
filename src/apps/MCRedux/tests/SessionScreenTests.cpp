@@ -226,7 +226,7 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
 
     // Every frame presented from here on is folded into one more hash.
     uint32_t presents = 0x811c9dc5;
-    MCInput::Display()->OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
+    MCTestGame::OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
 
     struct Step
     {
@@ -267,7 +267,7 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
         index++;
     }
 
-    MCInput::Display()->OnPresent = nullptr;
+    MCTestGame::OnPresent = nullptr;
     // 0xa176a052 before the OB-129 fix (the first step's frames), 0x87982e74 before the control audit (2026-10-04: the
     // steps are unchanged; between them presses end at the release, and the ready lights' backing and the clock show
     // at once).

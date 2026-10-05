@@ -20,12 +20,12 @@ namespace
 
 int32_t RandomNumber(int32_t range)
 {
-    return ScaleRand(std::rand(), range);
+    return ScaleRand(MCPort::Rand(), range);
 }
 
 int RollDice(int32_t percent)
 {
-    return ScaleRand(std::rand(), 100) < percent ? 1 : 0;
+    return ScaleRand(MCPort::Rand(), 100) < percent ? 1 : 0;
 }
 
 int32_t SignedRandomNumber(int32_t range)
