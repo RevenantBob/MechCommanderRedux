@@ -99,7 +99,10 @@ namespace
             }
             else
             {
-                tree->shapeList[listStart + packet] = manager->getMechShapeData(fileNumber, packet, part, 1, tree, 0);
+                // The large (90-pixel) art, which MechActor::render asks for: cameraScale is pinned to 100. The
+                // original loaded the small art here (it started zoomed out), and the cached shape then stood in for
+                // the large one, so a preloaded gesture drew at half size.
+                tree->shapeList[listStart + packet] = manager->getMechShapeData(fileNumber, packet, part, 1, tree, 1);
             }
         }
     }
