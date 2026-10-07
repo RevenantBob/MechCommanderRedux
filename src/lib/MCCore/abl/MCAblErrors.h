@@ -1,6 +1,6 @@
 #pragma once
 
-// ABL errors: compile-time syntax errors (MCAblCompiler) and execution-time runtime errors (RuntimeError). Both end
+// ABL errors: compile-time syntax errors (MCAblCompiler) and execution-time runtime errors (MCAblRuntime::RuntimeError). Both end
 // the game in MCX.EXE: they build a message and call Fatal.
 
 /// <summary>
@@ -121,9 +121,3 @@ struct MCAblCompileError
     /// <summary>The original's report: <c>SYNTAX ERROR file [line n] - (type n) message</c>, with a line break.</summary>
     std::string Message() const;
 };
-
-/// <summary>
-/// Reports an execution error: through the debugger (and its break mode) when there is one, then fatally with the
-/// module, file and line.
-/// </summary>
-[[noreturn]] void RuntimeError(MCAblRuntimeError error);

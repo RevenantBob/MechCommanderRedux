@@ -2,11 +2,7 @@
 #include "MCConsole.h"
 #include "MCCrashTrace.h"
 #include "MCVersion.h"
-#include "abl/ablenv.h"
-#include "abl/ablexec.h"
-#include "abl/ablrtn.h"
-#include "abl/MCAblScanner.h"
-#include "abl/ablxstmt.h"
+#include "abl/MCAblRuntime.h"
 #include "main/rmain.h"
 #include "platform/MCAllocator.h"
 #include "platform/MCFileSystem.h"
@@ -153,32 +149,31 @@ namespace
     /// <summary>Crash reporter: where the ABL interpreter was (module, routine, source line, code pointer).</summary>
     void ReportAblState()
     {
-        std::fprintf(stderr, "ABL: module %s (handle %d)\n",
-                     CurModule != nullptr ? CurModule->GetName().c_str() : "(none)", CurModuleHandle);
+        const MCAblRuntime* abl = AblRuntime();
 
-        if (CurRoutineIdPtr != nullptr)
+        if (abl == nullptr)
         {
-            const char* segment = CurRoutineIdPtr->Defn.Info.Routine.CodeSegment;
-            std::fprintf(stderr, "ABL: routine %s, code segment %p, codeSegmentPtr %p (+%lld), statement start +%lld\n",
-                         CurRoutineIdPtr->Name.c_str(), static_cast<const void*>(segment),
-                         static_cast<const void*>(CodeSegmentPtr), static_cast<long long>(CodeSegmentPtr - segment),
-                         static_cast<long long>(StatementStartPtr - segment));
+            std::fprintf(stderr, "ABL: not running\n");
+            return;
         }
 
-        const char* sourceFile = "?";
+        const MCAblModule* module = abl->CurrentModule();
+        std::fprintf(stderr, "ABL: module %s (handle %d)\n", module != nullptr ? module->Name().c_str() : "(none)",
+                     abl->CurrentModuleHandle());
 
-        if (CurModule != nullptr && CurModuleHandle >= 0 && ModuleRegistry != nullptr)
+        if (const MCAblSymbol* routine = abl->CurrentRoutine())
         {
-            const MCModuleEntry& entry = ModuleRegistry[CurModuleHandle];
-
-            if (entry.SourceFiles != nullptr && ExecFileNumber >= 0 && ExecFileNumber < entry.NumSourceFiles)
-            {
-                sourceFile = entry.SourceFiles[ExecFileNumber];
-            }
+            const char* segment = routine->Defn.Info.Routine.CodeSegment;
+            std::fprintf(stderr, "ABL: routine %s, code segment %p, code pointer %p (+%lld), statement start +%lld\n",
+                         routine->Name.c_str(), static_cast<const void*>(segment),
+                         static_cast<const void*>(abl->CodePosition()),
+                         static_cast<long long>(abl->CodePosition() - segment),
+                         static_cast<long long>(abl->StatementStart() - segment));
         }
 
-        std::fprintf(stderr, "ABL: line %d of %s, statement %d, call depth %d\n", ExecLineNumber, sourceFile,
-                     ExecStatementCount, CallStackLevel);
+        std::fprintf(stderr, "ABL: line %d of %s, statement %d, call depth %d\n", abl->LineNumber(),
+                     module != nullptr ? std::string(abl->FileName()).c_str() : "?", abl->StatementCount(),
+                     abl->CallDepth());
     }
 }
 

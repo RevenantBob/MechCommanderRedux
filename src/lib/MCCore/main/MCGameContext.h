@@ -2,6 +2,7 @@
 
 #include "platform/MCServices.h"
 
+class MCAblRuntime;
 class MCAblSymbolTable;
 class MCAppearanceTypeList;
 class MCCameraList;
@@ -79,6 +80,9 @@ public:
     /// <summary>ABL's symbols and types (null outside AblInit .. AblClose).</summary>
     MCAblSymbolTable* AblSymbols() const;
 
+    /// <summary>ABL's runtime: its modules, stack and interpreter (null outside AblInit .. AblClose).</summary>
+    MCAblRuntime* AblRuntime() const;
+
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
     template <std::derived_from<MCClock> T> T& SetClock(std::unique_ptr<T> clock)
@@ -145,6 +149,9 @@ public:
     /// <returns>The symbol table this context had.</returns>
     std::unique_ptr<MCAblSymbolTable> SetAblSymbols(std::unique_ptr<MCAblSymbolTable> symbols);
 
+    /// <summary>Installs ABL's runtime (AblInit); returns the one it replaces.</summary>
+    std::unique_ptr<MCAblRuntime> SetAblRuntime(std::unique_ptr<MCAblRuntime> runtime);
+
 private:
     friend class MCTestContextScope;
 
@@ -175,6 +182,8 @@ private:
     std::unique_ptr<MCTerrain> _Terrain;
     std::unique_ptr<MCCameraList> _CameraList;
     std::unique_ptr<MCAblSymbolTable> _AblSymbols;
+    /// <summary>Declared after the symbols: it goes first (its modules' watches point into the symbols).</summary>
+    std::unique_ptr<MCAblRuntime> _AblRuntime;
 };
 
 /// <summary>

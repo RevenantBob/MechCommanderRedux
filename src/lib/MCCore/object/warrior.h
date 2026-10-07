@@ -1,5 +1,7 @@
 #pragma once
 
+#include "abl/MCAblModule.h"
+
 #include "ai/move.h"
 #include "ai/tacordr.h"
 #include "gui/awindow.h"
@@ -7,7 +9,6 @@
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
 
-class MCAblModule;
 class MCFile;
 class MCFitIniFile;
 class MCGameObject;
@@ -533,7 +534,7 @@ public:
     /// <summary>The brain's memory cells (loadBrainParameters).</summary>
     MCMemoryCell Memory[NUM_MEMORY_CELLS] = {};
     /// <summary>The ABL brain.</summary>
-    MCAblModule* Brain = nullptr;
+    std::unique_ptr<MCAblModule> Brain;
     /// <summary>The brain's alarm handlers (<see cref="PilotAlarmFunctionName"/>).</summary>
     MCAblSymbol* BrainAlarmCallback[NUM_PILOT_ALARMS] = {};
     /// <summary>Next brain run (staggered by warrior count, then every BrainUpdateFrequency).</summary>

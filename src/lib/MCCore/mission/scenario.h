@@ -1,5 +1,7 @@
 #pragma once
 
+#include "abl/MCAblModule.h"
+
 #include "color/MCPalette.h"
 
 // The scenario: one battle (mission\scenario.cpp). Scenario::init reads the scenario FIT and starts every game system
@@ -9,8 +11,6 @@
 class MCGuiObject;
 class MCFitIniFile;
 class MCPalette;
-class MCAblModule;
-struct MCAblParam;
 class MCMechWarrior;
 class MCBaseObject;
 class MCGameObject;
@@ -196,8 +196,8 @@ public:
     void SetupBonus();
 
     /// <summary>
-    /// Runs the brain's <c>handlemessage</c> function with a multiplayer message (<c>CurMultiplayCode</c>,
-    /// <c>CurMultiplayParam</c>).
+    /// Runs the brain's <c>handlemessage</c> function with a multiplayer message (the runtime's
+    /// <c>MissionMessageCode</c> and <c>MissionMessageParam</c>).
     /// </summary>
     void HandleMultiplayMessage(int32_t code, int32_t param);
 
@@ -229,9 +229,9 @@ public:
     /// <summary>The script's module handle from <c>ABLi_preProcess</c>; -1 before.</summary>
     int32_t ScenarioScriptHandle = -1;
     /// <summary>The scenario's ABL brain.</summary>
-    MCAblModule* ScenarioBrain = nullptr;
+    std::unique_ptr<MCAblModule> ScenarioBrain;
     /// <summary>The parameters passed to the brain each frame.</summary>
-    MCAblParam* ScenarioBrainParams = nullptr;
+    MCAblParam ScenarioBrainParams{};
     /// <summary>The brain's <c>handlemessage</c> function, if it has one.</summary>
     MCAblSymbol* ScenarioBrainHandleMessage = nullptr;
     /// <summary><c>PaletteSystem</c>: the palette file.</summary>
@@ -336,13 +336,6 @@ extern int CollisionSwitch;
 extern int32_t TonnageDivisor;
 /// <summary>Resource points per bonus unit (200).</summary>
 extern int32_t ResourcesPerTonDivided;
-extern uint32_t AblSymbolTableHeapSize;
-extern uint32_t AblStackHeapSize;
-extern uint32_t AblCodeHeapSize;
-extern uint32_t AblRunTimeStackSize;
-extern uint32_t AblMaxCodeBlockSize;
-extern uint32_t AblMaxRegisteredModules;
-extern uint32_t AblMaxStaticVariables;
 extern MCCollisionSystem* CollisionSystem;
 /// <summary>Every mover by part id (0xe00 entries).</summary>
 extern MCBaseObject* MoverRoster[0xe00];

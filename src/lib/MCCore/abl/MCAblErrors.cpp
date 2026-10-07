@@ -1,9 +1,5 @@
 #include "stdafx.h"
 #include "abl/MCAblErrors.h"
-#include "abl/abldbug.h"
-#include "abl/ablenv.h"
-#include "abl/ablexec.h"
-#include "lib/MCFatal.h"
 
 namespace
 {
@@ -106,28 +102,4 @@ auto MCAblCompileError::Message() const -> std::string
 {
     return std::format("SYNTAX ERROR {} [line {}] - (type {}) {}\n", FileName, LineNumber, static_cast<int32_t>(Code),
                        MCAblSyntaxErrorText(Code));
-}
-
-auto RuntimeError(MCAblRuntimeError error) -> void
-{
-    const auto code = static_cast<int32_t>(error);
-
-    if (Debugger != nullptr)
-    {
-        std::string message = std::format("RUNTIME ERROR:  [{}] {}", code, MCAblRuntimeErrorText(error));
-        Debugger->Print(message.data());
-        message = std::format("MODULE {}", CurModule->Name);
-        Debugger->Print(message.data());
-        // Port fix: the original's "unavailable" form passed no argument for its %s.
-        message = ExecFileNumber < 0 ? std::string("FILE : unavailable")
-                                     : std::format("FILE {}", CurModule->GetSourceFile(ExecFileNumber));
-        Debugger->Print(message.data());
-        message = std::format("LINE {}", ExecLineNumber);
-        Debugger->Print(message.data());
-        Debugger->DebugMode();
-    }
-
-    const char* fileName = ExecFileNumber < 0 ? "unavailable" : CurModule->GetSourceFile(ExecFileNumber);
-    Fatal(-8, std::format("ABL RUNTIME ERROR {} [line {}] - (type {}) {}\n", fileName, ExecLineNumber, code,
-                          MCAblRuntimeErrorText(error)));
 }

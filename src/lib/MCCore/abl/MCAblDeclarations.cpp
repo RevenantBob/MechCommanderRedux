@@ -1,8 +1,7 @@
 #include "stdafx.h"
 #include "abl/MCAblCompiler.h"
 #include "abl/MCAblTokenLists.h"
-#include "abl/ablenv.h"
-#include "abl/ablexec.h"
+#include "abl/MCAblRuntime.h"
 #include "lib/MCFatal.h"
 
 // The declarations: const, type and var blocks (with static and eternal variables), and the types they build
@@ -451,22 +450,8 @@ auto MCAblCompiler::VarDeclarations(MCAblSymbol* routine) -> void
                 }
                 case MCAblStorage::Eternal:
                 {
-                    data.Offset = EternalOffset;
-                    MCStackItem& slot = Stack[EternalOffset];
-                    slot = MCStackItem{};
-
-                    if (type->Form == MCAblTypeForm::Array)
-                    {
-                        slot.Address = static_cast<MCAddress>(AblMemory.Allocate(static_cast<size_t>(size)));
-
-                        // An empty array got no block from the heap, which was fatal.
-                        if (slot.Address == nullptr)
-                        {
-                            Fatal(0, " ABL: Unable to AblStackHeap->malloc eternal array ");
-                        }
-                    }
-
-                    EternalOffset++;
+                    // An item at the bottom of the runtime stack (an array's item points to its block).
+                    data.Offset = AblRuntime()->DeclareEternal(type);
                     break;
                 }
             }

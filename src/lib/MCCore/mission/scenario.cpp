@@ -2,9 +2,7 @@
 #include "mission/scenario.h"
 #include "platform/MCInput.h"
 #include "platform/MCDisplay.h"
-#include "abl/ablenv.h"
-#include "abl/ablrtn.h"
-#include "abl/ablxstd.h"
+#include "abl/MCAblRuntime.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
 #include "appear/MCAppearanceType.h"
@@ -71,13 +69,6 @@ float PartCreateTime = -1.0f;
 int CollisionSwitch = 1;
 int32_t TonnageDivisor = 5;
 int32_t ResourcesPerTonDivided = 200;
-uint32_t AblSymbolTableHeapSize = 102400;
-uint32_t AblStackHeapSize = 40960;
-uint32_t AblCodeHeapSize = 102400;
-uint32_t AblRunTimeStackSize = 20480;
-uint32_t AblMaxCodeBlockSize = 10240;
-uint32_t AblMaxRegisteredModules = 200;
-uint32_t AblMaxStaticVariables = 100;
 MCCollisionSystem* CollisionSystem = nullptr;
 MCBaseObject* MoverRoster[0xe00] = {};
 int32_t MineLayThrottle = 0;
@@ -424,8 +415,9 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     ConnectShape = LoadShapeFile("connect", ConnectShape, 0);
     WaypointMarkers = LoadShapeFile("waypoints", WaypointMarkers, 1);
 
-    AblInit(AblSymbolTableHeapSize, AblStackHeapSize, AblCodeHeapSize, AblRunTimeStackSize, AblMaxCodeBlockSize,
-            AblMaxRegisteredModules, AblMaxStaticVariables, AblDebuggerPrintCallback, 0, 0, 0);
+    // The original passed SYSTEM.CFG's ABL heap, stack, code block, module and static sizes (all gone) and ran
+    // without debug info, debugger or profile log.
+    AblInit({.DebuggerPrint = AblDebuggerPrintCallback});
     Turn = 0;
 
     // The objects placed now but brought into play later by the script.
@@ -1096,20 +1088,11 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     scriptFileName = GamePath(MissionPath, ScenarioScript, ".abl");
     ScenarioScriptHandle = AblPreProcess(scriptFileName);
     Assert(-1 < ScenarioScriptHandle, static_cast<uint32_t>(ScenarioScriptHandle), " Bad Scenario Script ");
-    ScenarioBrain = new MCAblModule;
-
-    if (ScenarioBrain == nullptr)
-    {
-        return static_cast<int32_t>(0xfaaf000b);
-    }
-
-    const int32_t brainResult = ScenarioBrain->Init(ScenarioScriptHandle);
-    Assert(brainResult == 0, static_cast<uint32_t>(result), " Error Starting Scenario Brain ");
-    ScenarioBrain->SetName(const_cast<char*>("Scenario"));
-    ScenarioBrain->Step = 1;
-    ScenarioBrainParams = new MCAblParam;
-    Assert(ScenarioBrainParams != nullptr, 0, " No RAM for Scenario Brain Parameters ");
-    ScenarioBrainHandleMessage = ScenarioBrain->FindFunction(const_cast<char*>("handlemessage"), 1);
+    ScenarioBrain = std::make_unique<MCAblModule>(ScenarioScriptHandle);
+    ScenarioBrain->SetName("Scenario");
+    ScenarioBrain->Step = true;
+    ScenarioBrainParams = MCAblParam{};
+    ScenarioBrainHandleMessage = ScenarioBrain->FindFunction("handlemessage", true);
 
     //---------------------------------------------------------------------------------------------------------------
     // The warriors.
@@ -1778,16 +1761,17 @@ auto MCScenario::Run() -> int32_t
 
     if (MPlayer == nullptr)
     {
-        ScenarioBrain->Execute(ScenarioBrainParams);
-        ScenarioResult = static_cast<uint32_t>(ScenarioBrain->ReturnVal);
+        ScenarioBrain->Execute(std::span(&ScenarioBrainParams, 1));
+        ScenarioResult = static_cast<uint32_t>(ScenarioBrain->ReturnValue());
     }
     else
     {
-        CurMultiplayCode = 0;
-        CurMultiplayParam = 0;
-        ScenarioBrain->Execute(ScenarioBrainParams);
-        CurMultiplayCode = 0;
-        CurMultiplayParam = 0;
+        MCAblRuntime& abl = *AblRuntime();
+        abl.MissionMessageCode = 0;
+        abl.MissionMessageParam = 0;
+        ScenarioBrain->Execute(std::span(&ScenarioBrainParams, 1));
+        abl.MissionMessageCode = 0;
+        abl.MissionMessageParam = 0;
 
         if (MPlayer->IsServer == 0)
         {
@@ -1795,7 +1779,7 @@ auto MCScenario::Run() -> int32_t
         }
         else
         {
-            ScenarioResult = static_cast<uint32_t>(ScenarioBrain->ReturnVal);
+            ScenarioResult = static_cast<uint32_t>(ScenarioBrain->ReturnValue());
 
             if (ScenarioResult != 0)
             {
@@ -1949,10 +1933,6 @@ auto MCScenario::Destroy() -> void
     MCGameContext::Current().SetCameraList(nullptr);
     Eye = nullptr;
 
-    Assert(ScenarioBrainParams != nullptr, 0, " scenarioParams already NULL ");
-    delete ScenarioBrainParams;
-    ScenarioBrainParams = nullptr;
-
     if (OldPalette != nullptr)
     {
         MCGameContext::Current().SetPalette(std::move(OldPalette));
@@ -1997,12 +1977,7 @@ auto MCScenario::Destroy() -> void
 
     DestroyWarriors();
 
-    if (ScenarioBrain != nullptr)
-    {
-        ScenarioBrain->Destroy();
-        delete ScenarioBrain;
-        ScenarioBrain = nullptr;
-    }
+    ScenarioBrain.reset();
 
     if (OpenList != nullptr)
     {
@@ -2505,11 +2480,12 @@ auto MCScenario::HandleMultiplayMessage(int32_t code, int32_t param) -> void
         return;
     }
 
-    CurMultiplayCode = code;
-    CurMultiplayParam = param;
-    ScenarioBrain->Execute(nullptr, ScenarioBrainHandleMessage, nullptr);
-    CurMultiplayCode = 0;
-    CurMultiplayParam = 0;
+    MCAblRuntime& abl = *AblRuntime();
+    abl.MissionMessageCode = code;
+    abl.MissionMessageParam = param;
+    ScenarioBrain->Execute({}, ScenarioBrainHandleMessage);
+    abl.MissionMessageCode = 0;
+    abl.MissionMessageParam = 0;
 }
 
 auto MCScenario::CheckAnyoneInCombat() -> void

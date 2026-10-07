@@ -346,8 +346,8 @@ public:
     /// <summary>Sets the radius of the object's explosion.</summary>
     virtual void SetExplRad(float newRadius) {}
     virtual float GetExplDmg() { return 0.0f; }
-    /// <summary>Sets the salvage the object leaves.</summary>
-    virtual void SetSalvage(MCSalvageItem* newSalvage) {}
+    /// <summary>Adds <paramref name="numItems"/> of item <paramref name="itemId"/> to the salvage the object leaves.</summary>
+    virtual void AddSalvage(uint8_t itemId, uint8_t numItems) {}
     virtual MCSalvageItem* GetSalvage() { return nullptr; }
     /// <summary>The turn the object was last on screen.</summary>
     virtual int32_t GetWindowsVisible() { return 0; }
@@ -497,7 +497,7 @@ public:
     void SetExplDmg(float newDamage) override { ExplDamage = newDamage; }
     void SetExplRad(float newRadius) override { ExplRadius = newRadius; }
     float GetExplDmg() override { return ExplDamage; }
-    void SetSalvage(MCSalvageItem* newSalvage) override { Salvage = newSalvage; }
+    void AddSalvage(uint8_t itemId, uint8_t numItems) override;
     MCSalvageItem* GetSalvage() override { return Salvage; }
     int32_t GetWindowsVisible() override { return WindowsVisible; }
     int32_t GetCurCV() override { return CurCV; }

@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "object/warrior.h"
-#include "abl/abldbug.h"
-#include "abl/ablenv.h"
-#include "abl/ablxstd.h"
+#include "abl/MCAblDebugger.h"
+#include "abl/MCScrollingTextWindow.h"
+#include "abl/MCAblRuntime.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
 #include "gui/afont.h"
@@ -212,13 +212,7 @@ namespace
 
 auto MCMechWarrior::Lobotomy() -> void
 {
-    if (Brain != nullptr)
-    {
-        Brain->Destroy();
-        delete Brain;
-    }
-
-    Brain = nullptr;
+    Brain.reset();
 
     for (int32_t i = 0; i < NUM_PILOT_ALARMS; i++)
     {
@@ -768,12 +762,7 @@ auto MCMechWarrior::Destroy() -> void
     delete[] Callsign;
     Callsign = nullptr;
 
-    if (Brain != nullptr)
-    {
-        Brain->Destroy();
-        delete Brain;
-        Brain = nullptr;
-    }
+    Brain.reset();
 
     for (int32_t i = 0; i < 2; i++)
     {
@@ -1219,9 +1208,7 @@ auto MCMechWarrior::SetBrain(int32_t brainHandle) -> int32_t
 {
     if (Brain != nullptr)
     {
-        Brain->Destroy();
-        delete Brain;
-        Brain = nullptr;
+        Brain.reset();
 
         for (int32_t i = 0; i < NUM_PILOT_ALARMS; i++)
         {
@@ -1234,22 +1221,12 @@ auto MCMechWarrior::SetBrain(int32_t brainHandle) -> int32_t
         return 0;
     }
 
-    MCAblModule* newBrain = new MCAblModule;
-    Brain = newBrain;
-    const int32_t result = newBrain->Init(brainHandle);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    char brainName[500];
-    std::snprintf(brainName, sizeof(brainName), "Pilot %s", Name);
-    newBrain->SetName(brainName);
+    Brain = std::make_unique<MCAblModule>(brainHandle);
+    Brain->SetName(std::format("Pilot {}", Name != nullptr ? Name : "(null)"));
 
     for (int32_t i = 0; i < NUM_PILOT_ALARMS; i++)
     {
-        BrainAlarmCallback[i] = Brain->FindFunction(const_cast<char*>(PilotAlarmFunctionName[i]), 1);
+        BrainAlarmCallback[i] = Brain->FindFunction(PilotAlarmFunctionName[i], true);
     }
 
     return 0;
@@ -1262,21 +1239,9 @@ auto MCMechWarrior::RunBrain() -> int32_t
         return 0;
     }
 
-    IsUnitOrder = 0;
-    CurGroup = GetGroup();
-    CurObject = Vehicle;
-    MCAblModule* module = Brain;
-    CurObjectClass = CurObject->ObjectClass;
-    CurContact = nullptr;
-    CurWarrior = this;
-    module->Execute(nullptr);
-    IsUnitOrder = 0;
-    CurGroup = nullptr;
-    CurObject = nullptr;
-    CurObjectClass = 0;
-    CurWarrior = nullptr;
-    CurContact = nullptr;
-    return module->ReturnVal;
+    MCAblBrainScope brain(GetGroup(), Vehicle, Vehicle->ObjectClass, this);
+    Brain->Execute();
+    return Brain->ReturnValue();
 }
 
 auto MCMechWarrior::GetVehicleStatus() -> int32_t
@@ -3417,20 +3382,9 @@ auto MCMechWarrior::HandleAlarm(int32_t alarmCode, uint32_t triggerId) -> int32_
 
     if ((MPlayer == nullptr || MPlayer->IsServer != 0) && BrainAlarmCallback[alarmCode] != nullptr)
     {
-        IsUnitOrder = 0;
-        CurGroup = GetGroup();
-        CurObject = Vehicle;
-        CurObjectClass = CurObject->ObjectClass;
-        CurContact = nullptr;
-        CurAlarm = alarmCode;
-        CurWarrior = this;
-        Brain->Execute(nullptr, BrainAlarmCallback[alarmCode], nullptr);
-        IsUnitOrder = 0;
-        CurGroup = nullptr;
-        CurObject = nullptr;
-        CurObjectClass = 0;
-        CurWarrior = nullptr;
-        CurContact = nullptr;
+        MCAblBrainScope brain(GetGroup(), Vehicle, Vehicle->ObjectClass, this);
+        AblRuntime()->Brain.Alarm = alarmCode;
+        Brain->Execute({}, BrainAlarmCallback[alarmCode]);
     }
 
     return 0;
@@ -3455,14 +3409,11 @@ auto MCMechWarrior::ClearAlarm(int32_t alarmCode) -> void
 
 auto MCMechWarrior::CheckAlarms() -> int32_t
 {
+    std::optional<MCAblBrainScope> brain;
+
     if (Brain != nullptr)
     {
-        IsUnitOrder = 0;
-        CurGroup = GetGroup();
-        CurObject = Vehicle;
-        CurObjectClass = CurObject->ObjectClass;
-        CurContact = nullptr;
-        CurWarrior = this;
+        brain.emplace(GetGroup(), Vehicle, Vehicle->ObjectClass, this);
     }
 
     for (int32_t alarmCode = 0; alarmCode < NUM_PILOT_ALARMS; alarmCode++)
@@ -3529,21 +3480,11 @@ auto MCMechWarrior::CheckAlarms() -> int32_t
         if ((MPlayer == nullptr || MPlayer->IsServer != 0) && Brain != nullptr &&
             BrainAlarmCallback[alarmCode] != nullptr)
         {
-            CurAlarm = alarmCode;
-            Brain->Execute(nullptr, BrainAlarmCallback[alarmCode], nullptr);
+            AblRuntime()->Brain.Alarm = alarmCode;
+            Brain->Execute({}, BrainAlarmCallback[alarmCode]);
         }
 
         Alarm[alarmCode].NumTriggers = 0;
-    }
-
-    if (Brain != nullptr)
-    {
-        IsUnitOrder = 0;
-        CurGroup = nullptr;
-        CurObject = nullptr;
-        CurObjectClass = 0;
-        CurWarrior = nullptr;
-        CurContact = nullptr;
     }
 
     return 0;
@@ -3765,13 +3706,13 @@ auto MCMechWarrior::GetDebugFlag(uint32_t flag) -> int
 
 auto MCMechWarrior::DebugPrint(char* s, int debugMode) -> void
 {
-    if (Debugger != nullptr)
+    if (MCAblDebugger* debugger = AblGetDebugger())
     {
-        Debugger->Print(s);
+        debugger->Print(s);
 
         if (debugMode != 0)
         {
-            Debugger->DebugMode();
+            debugger->DebugMode();
         }
     }
 }
@@ -5021,7 +4962,8 @@ auto MCMechWarrior::LoadBrainParameters(MCFitIniFile* brainFile, int32_t warrior
                     return result;
                 }
 
-                Brain->SetStaticIntegerArray(varName, numValues, integerValues);
+                Brain->SetStaticIntegerArray(varName,
+                                             std::span<const int32_t>(integerValues, static_cast<size_t>(numValues)));
                 break;
             }
 
@@ -5042,7 +4984,7 @@ auto MCMechWarrior::LoadBrainParameters(MCFitIniFile* brainFile, int32_t warrior
                     return result;
                 }
 
-                Brain->SetStaticRealArray(varName, numValues, realValues);
+                Brain->SetStaticRealArray(varName, std::span<const float>(realValues, static_cast<size_t>(numValues)));
                 break;
             }
 

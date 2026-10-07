@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "main/MCGameContext.h"
 #include "appear/MCAppearanceTypeList.h"
+#include "abl/MCAblRuntime.h"
 #include "abl/MCAblSymbolTable.h"
 #include "camera/MCCameraList.h"
 #include "color/MCPalette.h"
@@ -154,6 +155,16 @@ MCAblSymbolTable* MCGameContext::AblSymbols() const
 std::unique_ptr<MCAblSymbolTable> MCGameContext::SetAblSymbols(std::unique_ptr<MCAblSymbolTable> symbols)
 {
     return std::exchange(_AblSymbols, std::move(symbols));
+}
+
+MCAblRuntime* MCGameContext::AblRuntime() const
+{
+    return FindSystem(_AblRuntime, _Parent, &MCGameContext::AblRuntime);
+}
+
+std::unique_ptr<MCAblRuntime> MCGameContext::SetAblRuntime(std::unique_ptr<MCAblRuntime> runtime)
+{
+    return std::exchange(_AblRuntime, std::move(runtime));
 }
 
 std::unique_ptr<MCTerrain> MCGameContext::SetTerrain(std::unique_ptr<MCTerrain> terrain)

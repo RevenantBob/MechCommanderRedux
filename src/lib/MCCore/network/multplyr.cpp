@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "network/multplyr.h"
-#include "abl/abldbug.h"
-#include "abl/ablxstd.h"
+#include "abl/MCAblDebugger.h"
+#include "abl/MCAblRoutines.h"
+#include "abl/MCAblRuntime.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
 #include "gui/asystem.h"
@@ -1605,7 +1606,11 @@ auto MCMultiPlayer::SendWorldStateUpdate(uint32_t toID) -> int32_t
         WorldStateChunkTally[i] = 0;
     }
 
-    NumMissionScriptMessages = 0;
+    if (MCAblRuntime* abl = AblRuntime())
+    {
+        abl->MissionScriptMessages.clear();
+    }
+
     return 0;
 }
 

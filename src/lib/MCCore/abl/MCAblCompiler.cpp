@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "abl/MCAblCompiler.h"
 #include "abl/MCAblTokenLists.h"
-#include "abl/ablstd.h"
+#include "abl/MCAblCallCompiler.h"
 #include "lib/MCFatal.h"
 
 auto MCAblCompiler::Compile(std::string_view fileName, const MCAblCompileOptions& options)
@@ -65,7 +65,7 @@ auto MCAblCompiler::CompileModule() -> MCAblCompiledModule
                         _Library != nullptr ? MCAblSyntaxError::MissingEndLibrary : MCAblSyntaxError::MissingEndModule);
     _BlockFlag = false;
     module->Defn.Info.Routine.LocalSymTable = ExitScope();
-    module->Defn.Info.Routine.CodeSegment = _Code.CreateSegment();
+    module->Defn.Info.Routine.CodeSegment = _Symbols.AddCodeSegment(_Code.TakeCode());
     IfTokenGetElseError(MCAblToken::Period, MCAblSyntaxError::MissingPeriod);
 
     // Anything after the closing period: the original reported "value out of range".
@@ -370,7 +370,7 @@ auto MCAblCompiler::Routine() -> void
         CompileStatements(MCAblToken::EndFunction);
         IfTokenGetElseError(MCAblToken::EndFunction, MCAblSyntaxError::MissingEndFunction);
         _BlockFlag = false;
-        info.CodeSegment = _Code.CreateSegment();
+        info.CodeSegment = _Symbols.AddCodeSegment(_Code.TakeCode());
     }
 
     info.LocalSymTable = ExitScope();
@@ -548,7 +548,7 @@ auto MCAblCompiler::RoutineCall(MCAblSymbol* routine) -> MCAblType*
 
     if (key != MCAblRoutineKey::Declared && key != MCAblRoutineKey::Forward)
     {
-        resultType = StandardRoutineCall(*this, routine);
+        resultType = CompileStandardRoutineCall(*this, routine->Defn.Info.Routine.Key);
     }
     else
     {

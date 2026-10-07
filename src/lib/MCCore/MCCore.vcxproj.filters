@@ -66,28 +66,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="abl\abldbug.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablenv.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablexec.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablrtn.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablstd.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablxexpr.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablxstd.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablxstmt.cpp">
+    <ClCompile Include="abl\MCAblCallCompiler.cpp">
       <Filter>abl</Filter>
     </ClCompile>
     <ClCompile Include="abl\MCAblCodeWriter.cpp">
@@ -96,13 +75,46 @@
     <ClCompile Include="abl\MCAblCompiler.cpp">
       <Filter>abl</Filter>
     </ClCompile>
+    <ClCompile Include="abl\MCAblDebugger.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblDebuggerWindow.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
     <ClCompile Include="abl\MCAblDeclarations.cpp">
       <Filter>abl</Filter>
     </ClCompile>
     <ClCompile Include="abl\MCAblErrors.cpp">
       <Filter>abl</Filter>
     </ClCompile>
+    <ClCompile Include="abl\MCAblExecExpressions.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblExecStatements.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
     <ClCompile Include="abl\MCAblExpressions.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblMissionRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblModule.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblObjectActionRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblObjectRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblOrderRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblRuntime.cpp">
       <Filter>abl</Filter>
     </ClCompile>
     <ClCompile Include="abl\MCAblScanner.cpp">
@@ -111,11 +123,17 @@
     <ClCompile Include="abl\MCAblStatements.cpp">
       <Filter>abl</Filter>
     </ClCompile>
+    <ClCompile Include="abl\MCAblStdRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
     <ClCompile Include="abl\MCAblSymbolTable.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="ai\genordr.cpp">
-      <Filter>ai</Filter>
+    <ClCompile Include="abl\MCAblUnitRoutines.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCScrollingTextWindow.cpp">
+      <Filter>abl</Filter>
     </ClCompile>
     <ClCompile Include="ai\move.cpp">
       <Filter>ai</Filter>
@@ -742,28 +760,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="abl\abldbug.h">
+    <ClInclude Include="abl\MCAblCallCompiler.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablenv.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablexec.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablrtn.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablstd.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablxexpr.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablxstd.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablxstmt.h">
+    <ClInclude Include="abl\MCAblCode.h">
       <Filter>abl</Filter>
     </ClInclude>
     <ClInclude Include="abl\MCAblCodeWriter.h">
@@ -772,7 +772,25 @@
     <ClInclude Include="abl\MCAblCompiler.h">
       <Filter>abl</Filter>
     </ClInclude>
+    <ClInclude Include="abl\MCAblDebugger.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblDebuggerWindow.h">
+      <Filter>abl</Filter>
+    </ClInclude>
     <ClInclude Include="abl\MCAblErrors.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblModule.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblRoutineList.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblRoutines.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblRuntime.h">
       <Filter>abl</Filter>
     </ClInclude>
     <ClInclude Include="abl\MCAblScanner.h">
@@ -790,8 +808,8 @@
     <ClInclude Include="abl\MCAblTokenLists.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="ai\genordr.h">
-      <Filter>ai</Filter>
+    <ClInclude Include="abl\MCScrollingTextWindow.h">
+      <Filter>abl</Filter>
     </ClInclude>
     <ClInclude Include="ai\move.h">
       <Filter>ai</Filter>

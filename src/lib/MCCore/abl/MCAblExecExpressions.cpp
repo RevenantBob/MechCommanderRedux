@@ -1,62 +1,38 @@
 #include "stdafx.h"
-#include "abl/ablxexpr.h"
-#include "abl/abldbug.h"
-#include "abl/ablenv.h"
-#include "abl/MCAblErrors.h"
-#include "abl/ablexec.h"
-#include "abl/ablrtn.h"
-#include "abl/ablxstmt.h"
+#include "abl/MCAblDebugger.h"
+#include "abl/MCAblRuntime.h"
+#include "abl/MCAblSymbolTable.h"
 
-namespace
+// Evaluating crunched expressions onto the runtime stack (see MCAblCode.h for the stack and code layout).
+
+auto MCAblRuntime::PromoteOperands(MCAblType* operand1TypePtr, MCAblType* operand2TypePtr) -> void
 {
-    /// <summary>Converts the integer in <paramref name="item"/> to a real in place.</summary>
-    void PromoteToReal(MCStackItem& item)
+    if (operand1TypePtr == IntegerTypePtr)
     {
-        item.Real = static_cast<float>(item.Integer);
+        _Tos[-1].Real = static_cast<float>(_Tos[-1].Integer);
     }
 
-    /// <summary>
-    /// Brings both operands of an arithmetic operator to reals: the integer one(s) of the given base types are
-    /// converted in place.
-    /// </summary>
-    void PromoteOperands(MCAblType* operand1TypePtr, MCAblType* operand2TypePtr)
+    if (operand2TypePtr == IntegerTypePtr)
     {
-        if (operand1TypePtr == IntegerTypePtr)
-        {
-            PromoteToReal(Tos[-1]);
-        }
-
-        if (operand2TypePtr == IntegerTypePtr)
-        {
-            PromoteToReal(Tos[0]);
-        }
+        _Tos[0].Real = static_cast<float>(_Tos[0].Integer);
     }
 }
 
-auto ExecField() -> MCAblType*
-{
-    GetCodeToken();
-    MCAblSymbol* fieldIdPtr = GetCodeSymTableNodePtr();
-    Tos->Address += fieldIdPtr->Defn.Info.Data.Offset;
-    GetCodeToken();
-    return fieldIdPtr->TypePtr;
-}
-
-auto ExecSubscripts(MCAblType* typePtr) -> MCAblType*
+auto MCAblRuntime::ExecSubscripts(MCAblType* typePtr) -> MCAblType*
 {
     // Only called at a '['; otherwise the original steps into the element type without consuming anything.
-    if (CodeToken != MCAblToken::LBracket)
+    if (_Token != MCAblToken::LBracket)
     {
         return typePtr->Array.ElementTypePtr;
     }
 
-    while (CodeToken == MCAblToken::LBracket)
+    while (_Token == MCAblToken::LBracket)
     {
         do
         {
             GetCodeToken();
             ExecExpression();
-            int32_t subscriptValue = Tos->Integer;
+            const int32_t subscriptValue = _Tos->Integer;
             Pop();
 
             if (subscriptValue < 0 || subscriptValue >= typePtr->Array.ElementCount)
@@ -65,8 +41,8 @@ auto ExecSubscripts(MCAblType* typePtr) -> MCAblType*
             }
 
             typePtr = typePtr->Array.ElementTypePtr;
-            Tos->Address += typePtr->Size * subscriptValue;
-        } while (CodeToken == MCAblToken::Comma);
+            _Tos->Address += typePtr->Size * subscriptValue;
+        } while (_Token == MCAblToken::Comma);
 
         GetCodeToken();
     }
@@ -74,7 +50,7 @@ auto ExecSubscripts(MCAblType* typePtr) -> MCAblType*
     return typePtr;
 }
 
-auto ExecConstant(MCAblSymbol* idPtr) -> MCAblType*
+auto MCAblRuntime::ExecConstant(MCAblSymbol* idPtr) -> MCAblType*
 {
     MCAblType* typePtr = idPtr->TypePtr;
 
@@ -95,31 +71,31 @@ auto ExecConstant(MCAblSymbol* idPtr) -> MCAblType*
         PushAddress(idPtr->Defn.Info.Constant.Value.StringPtr);
     }
 
-    if (Debugger != nullptr)
+    if (_Debugger)
     {
-        Debugger->TraceDataFetch(idPtr, typePtr, Tos);
+        _Debugger->TraceDataFetch(idPtr, typePtr, _Tos);
     }
 
     GetCodeToken();
     return typePtr;
 }
 
-auto ExecVariable(MCAblSymbol* idPtr, MCAblUse use) -> MCAblType*
+auto MCAblRuntime::ExecVariable(MCAblSymbol* idPtr, MCAblUse use) -> MCAblType*
 {
     MCAblType* typePtr = idPtr->TypePtr;
-    MCStackItemPtr dataPtr;
+    MCAblStackItem* dataPtr = nullptr;
 
     switch (idPtr->Defn.Info.Data.VarType)
     {
         case MCAblStorage::Normal:
         {
             // Follow the static links out to the frame of the scope that declared it.
-            MCStackItemPtr framePtr = StackFrameBasePtr;
+            MCAblStackItem* framePtr = _Frame;
 
-            for (int32_t delta = Level - idPtr->Level; delta > 0; delta--)
+            for (int32_t delta = _Level - idPtr->Level; delta > 0; delta--)
             {
-                framePtr = reinterpret_cast<MCStackItemPtr>(
-                    reinterpret_cast<MCStackFrameHeaderPtr>(framePtr)->StaticLink.Address);
+                framePtr = reinterpret_cast<MCAblStackItem*>(
+                    reinterpret_cast<MCAblStackFrameHeader*>(framePtr)->StaticLink.Address);
             }
 
             dataPtr = framePtr + idPtr->Defn.Info.Data.Offset;
@@ -130,93 +106,85 @@ auto ExecVariable(MCAblSymbol* idPtr, MCAblUse use) -> MCAblType*
         {
             // A static of a library lives in that library's static data.
             MCAblModule* library = idPtr->Library;
+            MCAblStackItem* staticData = _StaticData;
 
-            if (library != nullptr && library != CurModule)
+            if (library != nullptr && library != _Module)
             {
-                StaticDataPtr = library->StaticData;
+                staticData = library->_StaticData.data();
             }
 
-            dataPtr = StaticDataPtr + idPtr->Defn.Info.Data.Offset;
-
-            if (library != nullptr && library != CurModule)
-            {
-                StaticDataPtr = CurModule->StaticData;
-            }
+            dataPtr = staticData + idPtr->Defn.Info.Data.Offset;
             break;
         }
 
         case MCAblStorage::Eternal:
-            dataPtr = Stack + idPtr->Defn.Info.Data.Offset;
+        {
+            dataPtr = _Stack.data() + idPtr->Defn.Info.Data.Offset;
             break;
-        default:
-            // Never happens: the original falls back to the symbol node itself.
-            dataPtr = reinterpret_cast<MCStackItemPtr>(idPtr);
-            break;
+        }
     }
 
     // A reference parameter's slot holds the variable's address; an array's slot holds its memory.
     if (idPtr->Defn.Key == MCAblSymbolKind::RefParam || typePtr->Form == MCAblTypeForm::Array)
     {
-        dataPtr = reinterpret_cast<MCStackItemPtr>(dataPtr->Address);
+        dataPtr = reinterpret_cast<MCAblStackItem*>(dataPtr->Address);
     }
 
     PushAddress(reinterpret_cast<MCAddress>(dataPtr));
-
     GetCodeToken();
 
-    while (CodeToken == MCAblToken::LBracket)
+    while (_Token == MCAblToken::LBracket)
     {
         typePtr = ExecSubscripts(typePtr);
     }
 
-    MCAblType* baseTypePtr = typePtr;
-    MCStackItemPtr valuePtr = Tos;
+    MCAblStackItem* valuePtr = _Tos;
 
-    if (use != MCAblUse::Target && use != MCAblUse::RefParam && typePtr->Form != MCAblTypeForm::Array)
+    if (use == MCAblUse::Expression && typePtr->Form != MCAblTypeForm::Array)
     {
-        // Replace the address with the value. Port fix: the slot is cleared first. The original overwrote only the
-        // value's bytes (one for a char), leaving the rest of the address in the slot.
-        MCAddress address = Tos->Address;
-        Tos->Address = nullptr;
+        // Replace the address with the value. The slot is cleared first: the original overwrote only the value's
+        // bytes (one for a char), leaving the rest of the address in the slot.
+        const MCAddress address = _Tos->Address;
+        _Tos->Address = nullptr;
 
-        if (baseTypePtr == CharTypePtr)
+        if (typePtr == CharTypePtr)
         {
-            Tos->Byte = *reinterpret_cast<uint8_t*>(address);
+            _Tos->Byte = *reinterpret_cast<uint8_t*>(address);
         }
         else
         {
-            Tos->Integer = *reinterpret_cast<int32_t*>(address);
+            _Tos->Integer = *reinterpret_cast<int32_t*>(address);
         }
     }
 
-    if (Debugger != nullptr && use != MCAblUse::Target && use != MCAblUse::RefParam)
+    if (_Debugger && use == MCAblUse::Expression)
     {
         if (typePtr->Form == MCAblTypeForm::Array)
         {
-            Debugger->TraceDataFetch(idPtr, typePtr, reinterpret_cast<MCStackItemPtr>(valuePtr->Address));
+            _Debugger->TraceDataFetch(idPtr, typePtr, reinterpret_cast<MCAblStackItem*>(valuePtr->Address));
         }
         else
         {
-            Debugger->TraceDataFetch(idPtr, typePtr, valuePtr);
+            _Debugger->TraceDataFetch(idPtr, typePtr, valuePtr);
         }
     }
 
     return typePtr;
 }
 
-auto ExecFactor() -> MCAblType*
+auto MCAblRuntime::ExecFactor() -> MCAblType*
 {
-    switch (CodeToken)
+    switch (_Token)
     {
         case MCAblToken::Identifier:
         {
-            MCAblSymbol* idPtr = GetCodeSymTableNodePtr();
+            MCAblSymbol* idPtr = GetCodeSymbol();
 
             if (idPtr->Defn.Key == MCAblSymbolKind::Function)
             {
-                MCAblSymbol* thisRoutineIdPtr = CurRoutineIdPtr;
+                MCAblSymbol* thisRoutineIdPtr = _Routine;
                 MCAblType* resultTypePtr = ExecRoutineCall(idPtr);
-                CurRoutineIdPtr = thisRoutineIdPtr;
+                _Routine = thisRoutineIdPtr;
                 return resultTypePtr;
             }
 
@@ -230,8 +198,8 @@ auto ExecFactor() -> MCAblType*
 
         case MCAblToken::Number:
         {
-            MCAblSymbol* numberPtr = GetCodeSymTableNodePtr();
-            MCAblType* resultTypePtr;
+            MCAblSymbol* numberPtr = GetCodeSymbol();
+            MCAblType* resultTypePtr = nullptr;
 
             if (numberPtr->TypePtr == IntegerTypePtr)
             {
@@ -251,8 +219,8 @@ auto ExecFactor() -> MCAblType*
         case MCAblToken::String:
         {
             // Literals are named by their text: one character is a char, anything longer a string.
-            MCAblSymbol* literalIdPtr = GetCodeSymTableNodePtr();
-            MCAblType* resultTypePtr;
+            MCAblSymbol* literalIdPtr = GetCodeSymbol();
+            MCAblType* resultTypePtr = nullptr;
 
             if (literalIdPtr->Name.size() > 1)
             {
@@ -281,29 +249,32 @@ auto ExecFactor() -> MCAblType*
         {
             GetCodeToken();
             MCAblType* resultTypePtr = ExecFactor();
-            Tos->Integer = 1 - Tos->Integer;
+            _Tos->Integer = 1 - _Tos->Integer;
             return resultTypePtr;
         }
 
         default:
+        {
             // Never happens (the compiler only crunches the tokens above); the original returns whatever ECX held.
             return nullptr;
+        }
     }
 }
 
-auto ExecTerm() -> MCAblType*
+auto MCAblRuntime::ExecTerm() -> MCAblType*
 {
     MCAblType* resultTypePtr = ExecFactor();
 
-    while (CodeToken == MCAblToken::Star || CodeToken == MCAblToken::Slash || CodeToken == MCAblToken::Div ||
-           CodeToken == MCAblToken::Mod || CodeToken == MCAblToken::And)
+    while (_Token == MCAblToken::Star || _Token == MCAblToken::Slash || _Token == MCAblToken::Div ||
+           _Token == MCAblToken::Mod || _Token == MCAblToken::And)
     {
-        MCAblToken op = CodeToken;
+        const MCAblToken op = _Token;
         MCAblType* operand1TypePtr = resultTypePtr;
         GetCodeToken();
         MCAblType* operand2TypePtr = ExecFactor();
-        MCStackItemPtr operand2Ptr = Tos;
-        MCStackItemPtr operand1Ptr = Tos - 1;
+        MCAblStackItem* operand2Ptr = _Tos;
+        MCAblStackItem* operand1Ptr = _Tos - 1;
+        const bool integers = operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr;
 
         switch (op)
         {
@@ -313,9 +284,10 @@ auto ExecTerm() -> MCAblType*
                 resultTypePtr = BooleanTypePtr;
                 break;
             }
+
             case MCAblToken::Star:
             {
-                if (operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr)
+                if (integers)
                 {
                     operand1Ptr->Integer = operand2Ptr->Integer * operand1Ptr->Integer;
                     resultTypePtr = IntegerTypePtr;
@@ -328,20 +300,13 @@ auto ExecTerm() -> MCAblType*
                 }
                 break;
             }
+
             case MCAblToken::Slash:
             {
                 // '/' on two integers divides as integers. Division by zero gives 0 (no runtime error).
-                if (operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr)
+                if (integers)
                 {
-                    if (operand2Ptr->Integer == 0)
-                    {
-                        operand1Ptr->Integer = 0;
-                    }
-                    else
-                    {
-                        operand1Ptr->Integer = operand1Ptr->Integer / operand2Ptr->Integer;
-                    }
-
+                    operand1Ptr->Integer = operand2Ptr->Integer == 0 ? 0 : operand1Ptr->Integer / operand2Ptr->Integer;
                     resultTypePtr = IntegerTypePtr;
                 }
                 else
@@ -361,6 +326,7 @@ auto ExecTerm() -> MCAblType*
                 }
                 break;
             }
+
             case MCAblToken::Div:
             case MCAblToken::Mod:
             {
@@ -380,9 +346,12 @@ auto ExecTerm() -> MCAblType*
                 resultTypePtr = IntegerTypePtr;
                 break;
             }
+
             default:
+            {
                 resultTypePtr = operand1TypePtr;
                 break;
+            }
         }
 
         Pop();
@@ -391,13 +360,13 @@ auto ExecTerm() -> MCAblType*
     return resultTypePtr;
 }
 
-auto ExecSimpleExpression() -> MCAblType*
+auto MCAblRuntime::ExecSimpleExpression() -> MCAblType*
 {
     MCAblToken unaryOp = MCAblToken::Plus;
 
-    if (CodeToken == MCAblToken::Plus || CodeToken == MCAblToken::Minus)
+    if (_Token == MCAblToken::Plus || _Token == MCAblToken::Minus)
     {
-        unaryOp = CodeToken;
+        unaryOp = _Token;
         GetCodeToken();
     }
 
@@ -407,22 +376,22 @@ auto ExecSimpleExpression() -> MCAblType*
     {
         if (resultTypePtr == IntegerTypePtr)
         {
-            Tos->Integer = -Tos->Integer;
+            _Tos->Integer = -_Tos->Integer;
         }
         else
         {
-            Tos->Real = -Tos->Real;
+            _Tos->Real = -_Tos->Real;
         }
     }
 
-    while (CodeToken == MCAblToken::Plus || CodeToken == MCAblToken::Minus || CodeToken == MCAblToken::Or)
+    while (_Token == MCAblToken::Plus || _Token == MCAblToken::Minus || _Token == MCAblToken::Or)
     {
-        MCAblToken op = CodeToken;
+        const MCAblToken op = _Token;
         MCAblType* operand1TypePtr = resultTypePtr;
         GetCodeToken();
         MCAblType* operand2TypePtr = ExecTerm();
-        MCStackItemPtr operand2Ptr = Tos;
-        MCStackItemPtr operand1Ptr = Tos - 1;
+        MCAblStackItem* operand2Ptr = _Tos;
+        MCAblStackItem* operand1Ptr = _Tos - 1;
 
         if (op == MCAblToken::Or)
         {
@@ -464,10 +433,49 @@ auto ExecSimpleExpression() -> MCAblType*
     return resultTypePtr;
 }
 
-auto ExecExpression() -> MCAblType*
+namespace
+{
+    /// <summary>Applies relational operator <paramref name="op"/> to two ordered values.</summary>
+    template <typename T> auto Compare(MCAblToken op, T value1, T value2) -> bool
+    {
+        switch (op)
+        {
+            case MCAblToken::Less:
+                return value1 < value2;
+            case MCAblToken::Greater:
+                return value1 > value2;
+            case MCAblToken::EqualEqual:
+                return value1 == value2;
+            case MCAblToken::LessEqual:
+                return value1 <= value2;
+            case MCAblToken::GreaterEqual:
+                return value1 >= value2;
+            case MCAblToken::NotEqual:
+                return value1 != value2;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Applies relational operator <paramref name="op"/> to two reals as the original's x87 code did: an unordered
+    /// pair (a NaN) is less, less-or-equal and equal, and not greater, greater-or-equal or unequal.
+    /// </summary>
+    auto CompareReals(MCAblToken op, float value1, float value2) -> bool
+    {
+        if (std::isnan(value1) || std::isnan(value2))
+        {
+            return op == MCAblToken::Less || op == MCAblToken::EqualEqual || op == MCAblToken::LessEqual;
+        }
+
+        return Compare(op, value1, value2);
+    }
+}
+
+auto MCAblRuntime::ExecExpression() -> MCAblType*
 {
     MCAblType* resultTypePtr = ExecSimpleExpression();
-    MCAblToken op = CodeToken;
+    const MCAblToken op = _Token;
 
     if (op != MCAblToken::EqualEqual && op != MCAblToken::Less && op != MCAblToken::Greater &&
         op != MCAblToken::NotEqual && op != MCAblToken::LessEqual && op != MCAblToken::GreaterEqual)
@@ -478,8 +486,8 @@ auto ExecExpression() -> MCAblType*
     MCAblType* operand1TypePtr = resultTypePtr;
     GetCodeToken();
     MCAblType* operand2TypePtr = ExecSimpleExpression();
-    MCStackItemPtr operand2Ptr = Tos;
-    MCStackItemPtr operand1Ptr = Tos - 1;
+    MCAblStackItem* operand2Ptr = _Tos;
+    MCAblStackItem* operand1Ptr = _Tos - 1;
 
     // Anything unhandled (mismatched operand types, which the compiler rejects) reads an uninitialised local in the
     // original; the port gives false.
@@ -488,61 +496,11 @@ auto ExecExpression() -> MCAblType*
     if ((operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr) ||
         operand1TypePtr->Form == MCAblTypeForm::Enum)
     {
-        int32_t value1 = operand1Ptr->Integer;
-        int32_t value2 = operand2Ptr->Integer;
-
-        switch (op)
-        {
-            case MCAblToken::Less:
-                result = value1 < value2;
-                break;
-            case MCAblToken::Greater:
-                result = value1 > value2;
-                break;
-            case MCAblToken::EqualEqual:
-                result = value1 == value2;
-                break;
-            case MCAblToken::LessEqual:
-                result = value1 <= value2;
-                break;
-            case MCAblToken::GreaterEqual:
-                result = value1 >= value2;
-                break;
-            case MCAblToken::NotEqual:
-                result = value1 != value2;
-                break;
-            default:
-                break;
-        }
+        result = Compare(op, operand1Ptr->Integer, operand2Ptr->Integer);
     }
     else if (operand1TypePtr == CharTypePtr)
     {
-        uint8_t value1 = operand1Ptr->Byte;
-        uint8_t value2 = operand2Ptr->Byte;
-
-        switch (op)
-        {
-            case MCAblToken::Less:
-                result = value1 < value2;
-                break;
-            case MCAblToken::Greater:
-                result = value1 > value2;
-                break;
-            case MCAblToken::EqualEqual:
-                result = value1 == value2;
-                break;
-            case MCAblToken::LessEqual:
-                result = value1 <= value2;
-                break;
-            case MCAblToken::GreaterEqual:
-                result = value1 >= value2;
-                break;
-            case MCAblToken::NotEqual:
-                result = value1 != value2;
-                break;
-            default:
-                break;
-        }
+        result = Compare(op, operand1Ptr->Byte, operand2Ptr->Byte);
     }
     else if (operand1TypePtr->Form == MCAblTypeForm::Array && operand1TypePtr->Array.ElementTypePtr == CharTypePtr)
     {
@@ -552,33 +510,7 @@ auto ExecExpression() -> MCAblType*
     else if (operand1TypePtr == RealTypePtr || operand2TypePtr == RealTypePtr)
     {
         PromoteOperands(operand1TypePtr, operand2TypePtr);
-        float value1 = operand1Ptr->Real;
-        float value2 = operand2Ptr->Real;
-        const bool unordered = value1 != value1 || value2 != value2;
-
-        switch (op)
-        {
-            case MCAblToken::Less:
-                result = unordered || value1 < value2;
-                break;
-            case MCAblToken::Greater:
-                result = !unordered && value1 > value2;
-                break;
-            case MCAblToken::EqualEqual:
-                result = unordered || value1 == value2;
-                break;
-            case MCAblToken::LessEqual:
-                result = unordered || value1 <= value2;
-                break;
-            case MCAblToken::GreaterEqual:
-                result = !unordered && value1 >= value2;
-                break;
-            case MCAblToken::NotEqual:
-                result = !unordered && value1 != value2;
-                break;
-            default:
-                break;
-        }
+        result = CompareReals(op, operand1Ptr->Real, operand2Ptr->Real);
     }
 
     operand1Ptr->Integer = result ? 1 : 0;

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "abl/MCAblSymbolTable.h"
+#include "abl/MCAblToken.h"
 #include "main/MCGameContext.h"
 
 MCAblType* IntegerTypePtr = nullptr;
@@ -303,6 +304,14 @@ auto MCAblSymbolTable::MakeStringType(int32_t length) -> MCAblType*
 auto AblSymbols() -> MCAblSymbolTable*
 {
     return MCGameContext::Current().AblSymbols();
+}
+
+auto MCAblSymbolTable::AddCodeSegment(const std::vector<char>& code) -> MCAddress
+{
+    auto segment = std::make_unique<char[]>(code.size() + 1);
+    std::ranges::copy(code, segment.get());
+    segment[code.size()] = static_cast<char>(MCAblToken::None);
+    return _CodeSegments.emplace_back(std::move(segment)).get();
 }
 
 auto SearchSymTable(std::string_view name, MCAblSymbol* root) -> MCAblSymbol*

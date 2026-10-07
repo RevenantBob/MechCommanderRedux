@@ -5,9 +5,10 @@
 #include "gui/updisp.h"
 #include "main/main.h"
 #include "network/multplyr.h"
-#include "abl/abldbug.h"
-#include "abl/ablenv.h"
-#include "abl/ablrtn.h"
+#include "abl/MCAblDebugger.h"
+#include "abl/MCAblDebuggerWindow.h"
+#include "abl/MCAblRuntime.h"
+#include "abl/MCScrollingTextWindow.h"
 #include "camera/MCCamera.h"
 #include "camera/MCCameraList.h"
 #include "color/MCPalette.h"
@@ -44,7 +45,7 @@ uint32_t AblDebuggerY = 400;
 uint32_t AblDebuggerWidth = 260;
 uint32_t AblDebuggerHeight = 125;
 int32_t DisplayMode = 0;
-MCDebuggerWindow* AblDebuggerWindow = nullptr;
+MCAblDebuggerWindow* AblDebuggerWindow = nullptr;
 MCGuiCallback* ColorCallback = nullptr;
 int DebugGameSystem = 0;
 int GNoSound = 0;
@@ -192,18 +193,21 @@ void SystemInit()
         Fatal(0, " Unable to find ABL settings. ");
     }
 
-    ReadULong(systemFile, "SymbolTableHeapSize", AblSymbolTableHeapSize, "Could not find ABL SymbolTableHeapSize. ");
-    ReadULong(systemFile, "StackHeapSize", AblStackHeapSize, "Could not find ABL StackHeapSize. ");
-    ReadULong(systemFile, "CodeHeapSize", AblCodeHeapSize, "Could not find ABL CodeHeapSize. ");
-    ReadULong(systemFile, "RunTimeStackSize", AblRunTimeStackSize, "Could not find ABL RunTimeStackSize. ");
-    ReadULong(systemFile, "MaxCodeBlockSize", AblMaxCodeBlockSize, "Could not find ABL MaxCodeBlockSize. ");
-    ReadULong(systemFile, "MaxRegisteredModules", AblMaxRegisteredModules, "Could not find ABL MaxRegisteredModules. ");
-    ReadULong(systemFile, "MaxStaticVariables", AblMaxStaticVariables, "Could not find ABL MaxStaticVariables. ");
+    // ABL's heap, stack, code block, module and static variable sizes and its debugger limits are gone (the port's
+    // ABL grows); the keys are still read, so a SYSTEM.CFG without them still fails as before.
+    uint32_t ignoredSize = 0;
+    int32_t ignoredLimit = 0;
+    ReadULong(systemFile, "SymbolTableHeapSize", ignoredSize, "Could not find ABL SymbolTableHeapSize. ");
+    ReadULong(systemFile, "StackHeapSize", ignoredSize, "Could not find ABL StackHeapSize. ");
+    ReadULong(systemFile, "CodeHeapSize", ignoredSize, "Could not find ABL CodeHeapSize. ");
+    ReadULong(systemFile, "RunTimeStackSize", ignoredSize, "Could not find ABL RunTimeStackSize. ");
+    ReadULong(systemFile, "MaxCodeBlockSize", ignoredSize, "Could not find ABL MaxCodeBlockSize. ");
+    ReadULong(systemFile, "MaxRegisteredModules", ignoredSize, "Could not find ABL MaxRegisteredModules. ");
+    ReadULong(systemFile, "MaxStaticVariables", ignoredSize, "Could not find ABL MaxStaticVariables. ");
     ReadULong(systemFile, "IncludeDebugInfo", AblIncludeDebugInfo, "Could not find ABL IncludeDebugInfo. ");
     ReadULong(systemFile, "DebuggerEnabled", AblDebuggerEnabled, "Could not find ABL DebuggerEnabled. ");
-    ReadLong(systemFile, "MaxWatchesPerModule", MaxWatchesPerModule, "Could not find ABL MaxWatchesPerModule. ");
-    ReadLong(systemFile, "MaxBreakPointsPerModule", MaxBreakPointsPerModule,
-             "Could not find ABL MaxBreakPointsPerModule. ");
+    ReadLong(systemFile, "MaxWatchesPerModule", ignoredLimit, "Could not find ABL MaxWatchesPerModule. ");
+    ReadLong(systemFile, "MaxBreakPointsPerModule", ignoredLimit, "Could not find ABL MaxBreakPointsPerModule. ");
 
     //---------------------------------------------------------------------------------------------------------------
     // Paths.
@@ -431,7 +435,7 @@ void SystemInit()
     CheckForCDInDrive(1, false);
 }
 
-void AblDebuggerPrintCallback(char* s)
+void AblDebuggerPrintCallback(std::string_view s)
 {
 }
 
@@ -441,9 +445,9 @@ namespace
     int32_t AblDebuggerFirstEvent = 1;
 
     /// <summary>The warrior whose index is the debugger module's id (how the "f" and "po" commands pick one).</summary>
-    MCMechWarrior* DebugModuleWarrior(MCDebugger* debugger)
+    MCMechWarrior* DebugModuleWarrior(MCAblDebugger* debugger)
     {
-        uint32_t index = static_cast<uint32_t>(debugger->DebugModule->Id);
+        uint32_t index = static_cast<uint32_t>(debugger->DebugModule()->Id());
 
         if ((static_cast<int32_t>(index) < 1) || (Scenario->NumWarriors < index))
         {
@@ -463,7 +467,7 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
     if (AblDebuggerFirstEvent != 0)
     {
-        AblGetDebugger()->ProcessCommand(0, nullptr, 0, Scenario->ScenarioBrain);
+        AblGetDebugger()->ProcessCommand(MCAblDebugCommand::SelectModule, {}, 0, Scenario->ScenarioBrain.get());
         AblDebuggerFirstEvent = 0;
     }
 
@@ -485,14 +489,14 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
         {
             if (text[1] == '\0')
             {
-                AblGetDebugger()->ProcessCommand(9, nullptr, 0, nullptr);
+                AblGetDebugger()->ProcessCommand(MCAblDebugCommand::Help, {}, 0, nullptr);
                 input->SetText(nullptr);
                 return;
             }
 
             if (text[1] == '?')
             {
-                AblGetDebugger()->ProcessCommand(10, nullptr, 0, nullptr);
+                AblGetDebugger()->ProcessCommand(MCAblDebugCommand::ModuleInfo, {}, 0, nullptr);
                 input->SetText(nullptr);
                 return;
             }
@@ -505,14 +509,14 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
             // "b+ n" / "b- n": add or remove a break point at line n.
             if (text[1] == '+')
             {
-                AblGetDebugger()->ProcessCommand(3, nullptr, std::atoi(text + 3), nullptr);
+                AblGetDebugger()->ProcessCommand(MCAblDebugCommand::AddBreakPoint, {}, std::atoi(text + 3), nullptr);
                 input->SetText(nullptr);
                 return;
             }
 
             if (text[1] == '-')
             {
-                AblGetDebugger()->ProcessCommand(4, nullptr, std::atoi(text + 3), nullptr);
+                AblGetDebugger()->ProcessCommand(MCAblDebugCommand::RemoveBreakPoint, {}, std::atoi(text + 3), nullptr);
                 input->SetText(nullptr);
                 return;
             }
@@ -522,7 +526,7 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
         case 'c':
         {
-            AblGetDebugger()->ProcessCommand(8, nullptr, 0, nullptr);
+            AblGetDebugger()->ProcessCommand(MCAblDebugCommand::Resume, {}, 0, nullptr);
             input->SetText(nullptr);
             return;
         }
@@ -550,10 +554,10 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
             if (text[1] != '\0')
             {
-                module = AblGetModule(std::atoi(text + 2));
+                module = AblRuntime()->InstanceAt(std::atoi(text + 2));
             }
 
-            AblGetDebugger()->ProcessCommand(0, nullptr, 0, module);
+            AblGetDebugger()->ProcessCommand(MCAblDebugCommand::SelectModule, {}, 0, module);
             input->SetText(nullptr);
             return;
         }
@@ -738,7 +742,7 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
             // "po": the warrior's orders; "p expr": print a value.
             if (text[1] != 'o')
             {
-                AblGetDebugger()->ProcessCommand(7, text + 2, 0, nullptr);
+                AblGetDebugger()->ProcessCommand(MCAblDebugCommand::PrintValue, text + 2, 0, nullptr);
                 input->SetText(nullptr);
                 return;
             }
@@ -760,14 +764,14 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
             // "s+" / "s-": step on or off.
             if (text[1] == '+')
             {
-                AblGetDebugger()->ProcessCommand(2, nullptr, 1, nullptr);
+                AblGetDebugger()->ProcessCommand(MCAblDebugCommand::Step, {}, 1, nullptr);
                 input->SetText(nullptr);
                 return;
             }
 
             if (text[1] == '-')
             {
-                AblGetDebugger()->ProcessCommand(2, nullptr, 0, nullptr);
+                AblGetDebugger()->ProcessCommand(MCAblDebugCommand::Step, {}, 0, nullptr);
                 input->SetText(nullptr);
                 return;
             }
@@ -791,7 +795,7 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
                 break;
             }
 
-            AblGetDebugger()->ProcessCommand(1, nullptr, numParam, nullptr);
+            AblGetDebugger()->ProcessCommand(MCAblDebugCommand::Trace, {}, numParam, nullptr);
             input->SetText(nullptr);
             return;
         }
@@ -900,7 +904,9 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
                 }
             }
 
-            AblGetDebugger()->ProcessCommand(commandId, strParam, numParam, nullptr);
+            AblGetDebugger()->ProcessCommand(static_cast<MCAblDebugCommand>(commandId),
+                                             strParam != nullptr ? std::string_view(strParam) : std::string_view{},
+                                             numParam, nullptr);
             input->SetText(nullptr);
             return;
         }
@@ -973,12 +979,12 @@ int32_t UserInit()
             ifaceFile.Close();
         }
 
-        AblDebuggerWindow = new MCDebuggerWindow;
+        AblDebuggerWindow = new MCAblDebuggerWindow;
         AblDebuggerWindow->Init(static_cast<int32_t>(AblDebuggerX), static_cast<int32_t>(AblDebuggerY),
                                 static_cast<int32_t>(AblDebuggerWidth), static_cast<int32_t>(AblDebuggerHeight),
                                 const_cast<char*>("ABL Developer Studio (tm)"));
         ScreenWindow->AddChild(AblDebuggerWindow);
-        AblDebuggerIn->SetEventRoutine(AblDebuggerEventRoutine);
+        AblDebuggerWindow->Input()->SetEventRoutine(AblDebuggerEventRoutine);
     }
 
     if (SoundSystem == nullptr)

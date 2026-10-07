@@ -2,36 +2,29 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "abl/MCAblCompiler.h"
-#include "abl/ablenv.h"
-#include "abl/ablexec.h"
-#include "abl/ablrtn.h"
+#include "abl/MCAblRuntime.h"
 #include "fakes/MCMemoryFileSource.h"
 #include "lib/MCFastFile.h"
 #include "lib/MCFastFileSet.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGameContext.h"
 
-// ABL: its memory (what AblInit, compiling and running a module take, and that AblClose gives back), the scanner and
-// the compiler. Expected values come from the language as the retail scripts use it and from the original's error
+// ABL: what AblInit makes and AblClose takes down, the scanner and the compiler. Expected values come from the language as the retail scripts use it and from the original's error
 // table (MCAblSyntaxError).
 
 namespace
 {
-    /// <summary>Starts ABL as the scenario does, with the sizes SYSTEM.CFG gives (the heap sizes are ignored).</summary>
-    void StartAbl(uint32_t maxModules = 32)
+    /// <summary>Starts ABL as the scenario does.</summary>
+    void StartAbl()
     {
-        AblInit(0x40000, 0x40000, 0x40000, 0x2000, 0x10000, maxModules, 256, nullptr, 0, 0, 0);
+        AblInit();
     }
 
     /// <summary>ABL started on its own in-memory files, closed at the end of the test.</summary>
     class MCAblScope
     {
     public:
-        explicit MCAblScope(uint32_t maxModules = 32)
-            : _Files(_Scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>()))
-        {
-            StartAbl(maxModules);
-        }
+        MCAblScope() : _Files(_Scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>())) { StartAbl(); }
 
         ~MCAblScope() { AblClose(); }
 
@@ -60,12 +53,9 @@ namespace
             Add("data\\missions\\run.abl", text);
             const int32_t handle = AblPreProcess("data\\missions\\run.abl");
             REQUIRE(handle >= 0);
-            MCAblModule module;
-            REQUIRE_EQ(module.Init(handle), 0);
-            module.Execute(nullptr);
-            const int32_t result = module.ReturnVal;
-            module.Destroy();
-            return result;
+            MCAblModule module(handle);
+            module.Execute();
+            return module.ReturnValue();
         }
 
     private:
@@ -137,62 +127,61 @@ namespace
     }
 }
 
-TEST_CASE("abl: ABLi_close frees everything ABLi_init and a compile made")
+TEST_CASE("abl: AblClose takes down the runtime and the symbol table AblInit made")
 {
     MCTestContextScope scope;
-    AblMemory.Clear();
     StartAbl();
-    // The stack and the registries; the symbol table holds the standard routines' symbols and types.
-    CHECK(AblMemory.Count() > 0);
+    REQUIRE(AblRuntime() != nullptr);
+    CHECK(AblEnabled());
     REQUIRE(AblSymbols() != nullptr);
+    // The symbol table holds the standard routines' symbols and types.
     CHECK(AblSymbols()->SymbolCount() > 190);
     CHECK(IntegerTypePtr != nullptr);
     CHECK_EQ(IntegerTypePtr->Size, 4);
+    CHECK_EQ(AblRuntime()->ModuleCount(), 0);
+    CHECK(AblRuntime()->Debugger() == nullptr);
 
     AblClose();
-    CHECK_EQ(AblMemory.Count(), 0u);
+    CHECK(AblRuntime() == nullptr);
     CHECK(AblSymbols() == nullptr);
     CHECK(IntegerTypePtr == nullptr);
-    CHECK_EQ(AblEnabled(), 0);
+    CHECK(!AblEnabled());
 }
 
-TEST_CASE("abl: a module compiled and run from memory gives its blocks back")
+TEST_CASE("abl: a module compiled and run from memory keeps its statics and gives its arrays back")
 {
     MCTestContextScope scope;
     MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
     files.AddFile("data\\missions\\memtest.abl", SumModule);
 
-    AblMemory.Clear();
     StartAbl();
-    const size_t afterInit = AblMemory.Count();
     const size_t symbolsAfterInit = AblSymbols()->SymbolCount();
     const int32_t handle = AblPreProcess("data\\missions\\memtest.abl");
     REQUIRE(handle >= 0);
-    // The module's code segment and registry entry; its symbols are the symbol table's.
-    CHECK(AblMemory.Count() > afterInit);
+    // The module's symbols and its code segment are the symbol table's.
     CHECK(AblSymbols()->SymbolCount() > symbolsAfterInit);
+    CHECK_EQ(AblSymbols()->CodeSegmentCount(), 1u);
+    CHECK_EQ(AblRuntime()->Module(handle).StaticSizes, (std::vector<int32_t>{0, 16}));
 
     // Compiling the same file again (in any case) gives the module already registered.
     CHECK_EQ(AblPreProcess("DATA\\Missions\\MemTest.abl"), handle);
+    CHECK_EQ(AblRuntime()->ModuleCount(), 1);
 
-    auto module = std::make_unique<MCAblModule>();
-    REQUIRE_EQ(module->Init(handle), 0);
-    const size_t withInstance = AblMemory.Count();
-    module->Execute(nullptr);
-    CHECK_EQ(module->ReturnVal, 10);
+    {
+        MCAblModule module(handle);
+        CHECK_EQ(AblRuntime()->Instances().size(), 1u);
+        module.Execute();
+        CHECK_EQ(module.ReturnValue(), 10);
 
-    // A second run starts from the statics the first left: the same sum.
-    module->Execute(nullptr);
-    CHECK_EQ(module->ReturnVal, 10);
-    CHECK_EQ(AblMemory.Count(), withInstance);
+        // A second run starts from the statics the first left: the same sum.
+        module.Execute();
+        CHECK_EQ(module.ReturnValue(), 10);
+        CHECK_EQ(AblRuntime()->ArrayBlockCount(), 0u);
+    }
 
-    // The instance frees its static data; the static array's own block stays until ABLi_close, as in the original.
-    module->Destroy();
-    module.reset();
-    CHECK(AblMemory.Count() < withInstance);
-
+    // The instance unregisters itself.
+    CHECK(AblRuntime()->Instances().empty());
     AblClose();
-    CHECK_EQ(AblMemory.Count(), 0u);
 }
 
 TEST_CASE("abl scanner: words, numbers, strings and operators")
@@ -394,7 +383,7 @@ TEST_CASE("abl compiler: scopes nest and libraries are found by name or library.
     REQUIRE(compiled.has_value());
     REQUIRE_EQ(compiled->LibrariesUsed.size(), 1u);
     CHECK(compiled->LibrariesUsed[0] != nullptr);
-    CHECK_EQ(compiled->LibrariesUsed[0]->GetName(), std::string("data\\missions\\lib.abx"));
+    CHECK_EQ(compiled->LibrariesUsed[0]->Name(), std::string("data\\missions\\lib.abx"));
 
     // The module is a global symbol; its own tree holds x and inner, inner's tree its own x.
     MCAblSymbol* module = compiled->Module;

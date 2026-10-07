@@ -13,7 +13,7 @@ inline constexpr MCAblCodeMark NoCodeMark = -1;
 
 /// <summary>
 /// Writes a routine's crunched code (the original's code buffer and crunch* functions; the stream's layout is in
-/// ablexec.h). The compiler writes one routine at a time and makes it a segment with <see cref="CreateSegment"/>.
+/// MCAblCode.h). The compiler writes one routine at a time and hands it over with <see cref="TakeCode"/>.
 /// </summary>
 /// <remarks>
 /// The buffer grows: the original's fixed buffer (the scenario's AblMaxCodeBlockSize) and its CODE_SEGMENT_OVERFLOW
@@ -22,7 +22,7 @@ inline constexpr MCAblCodeMark NoCodeMark = -1;
 class MCAblCodeWriter
 {
 public:
-    /// <param name="debugInfo">Whether statement markers carry the file and line (IncludeDebugInfo).</param>
+    /// <param name="debugInfo">Whether statement markers carry the file and line (MCAblOptions::DebugInfo).</param>
     explicit MCAblCodeWriter(bool debugInfo);
 
     /// <summary>
@@ -66,9 +66,9 @@ public:
     /// <summary>The end of the code written so far (a branch target).</summary>
     MCAblCodeMark Position() const { return static_cast<MCAblCodeMark>(_Code.size()); }
 
-    /// <summary>Copies the code to a new segment and empties the buffer for the next routine.</summary>
-    /// <returns>The segment: the code and one more byte, a TKN_NONE (OB-108).</returns>
-    MCAddress CreateSegment();
+    /// <summary>Hands over the routine's code and empties the buffer for the next routine.</summary>
+    /// <returns>The code (MCAblSymbolTable::AddCodeSegment keeps it).</returns>
+    std::vector<char> TakeCode();
 
 private:
     /// <summary>Appends the bytes of <paramref name="value"/>.</summary>

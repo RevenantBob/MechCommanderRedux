@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/mech.h"
 #include "main/fixes.h"
-#include "abl/abldbug.h"
+#include "abl/MCScrollingTextWindow.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
 #include "appear/MCAppearanceType.h"

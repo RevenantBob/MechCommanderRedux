@@ -57,6 +57,7 @@
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="tests\AblRuntimeTests.cpp" />
     <ClCompile Include="tests\AblTests.cpp" />
     <ClCompile Include="tests\AllocatorTests.cpp" />
     <ClCompile Include="tests\BlockStoreTests.cpp" />

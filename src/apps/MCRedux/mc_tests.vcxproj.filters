@@ -13,6 +13,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="tests\AblRuntimeTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\AblTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

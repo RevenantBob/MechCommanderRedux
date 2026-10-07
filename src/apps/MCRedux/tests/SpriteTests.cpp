@@ -67,8 +67,14 @@ namespace
     }
 
     /// <summary>A PAK of <paramref name="packets"/>, as the bytes of its file.</summary>
+    /// <remarks>
+    /// The file is written in a scratch folder of its own: callers build PAKs before their test's file source is
+    /// installed (as constructor arguments), and the real one would write into the game's folder.
+    /// </remarks>
     std::vector<uint8_t> Pak(const std::vector<std::vector<uint8_t>>& packets)
     {
+        MCTestContextScope scope;
+        scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
         static int32_t made = 0;
         const std::string name = std::format("spritetest{}.pak", made++);
         WritePak(name, packets);

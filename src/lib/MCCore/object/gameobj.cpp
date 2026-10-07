@@ -1383,6 +1383,28 @@ auto MCBigGameObject::Init() -> void
     NumAttackers = 0;
 }
 
+auto MCBigGameObject::AddSalvage(uint8_t itemId, uint8_t numItems) -> void
+{
+    auto* item = new MCSalvageItem;
+    item->ItemId = itemId;
+    item->NumItems = numItems;
+
+    if (Salvage == nullptr)
+    {
+        Salvage = item;
+        return;
+    }
+
+    MCSalvageItem* last = Salvage;
+
+    while (last->Next != nullptr)
+    {
+        last = last->Next;
+    }
+
+    last->Next = item;
+}
+
 auto MCBigGameObject::Destroy() -> void
 {
     while (Salvage != nullptr)

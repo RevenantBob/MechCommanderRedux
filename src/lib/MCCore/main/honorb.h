@@ -6,7 +6,7 @@
 class MCGuiCallback;
 class MCGuiEvent;
 class MCGuiObject;
-class MCDebuggerWindow;
+class MCAblDebuggerWindow;
 
 /// <summary>The campaign control FIT userInit starts ("campaign", in the mission path).</summary>
 extern char CampaignFile[20];
@@ -22,7 +22,7 @@ extern uint32_t AblDebuggerHeight;
 /// <summary>The display mode chosen from the prefs' "Resolution".</summary>
 extern int32_t DisplayMode;
 /// <summary>The ABL debugger's window, when the debugger is enabled.</summary>
-extern MCDebuggerWindow* AblDebuggerWindow;
+extern MCAblDebuggerWindow* AblDebuggerWindow;
 /// <summary>The palette cycling callback.</summary>
 extern MCGuiCallback* ColorCallback;
 /// <summary>Debug switch for the game system.</summary>
@@ -52,7 +52,7 @@ bool CheckForCDInDrive(int32_t checkDisk, bool retry);
 /// </summary>
 void SystemInit();
 /// <summary>The ABL debugger's print callback: writes <paramref name="s"/> to its output window.</summary>
-void AblDebuggerPrintCallback(char* s);
+void AblDebuggerPrintCallback(std::string_view s);
 /// <summary>The ABL debugger window's event routine: runs the typed commands (the ABL debugger's, and test
 /// commands that host or join a multiplayer session).</summary>
 void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event);

@@ -32,6 +32,17 @@ public:
     /// <summary>A char-array type for a string of <paramref name="length"/> characters.</summary>
     MCAblType* MakeStringType(int32_t length);
 
+    /// <summary>
+    /// Keeps a routine's crunched code as a segment until AblClose. Port fix (OB-108): one more byte, a None token,
+    /// follows the code: the interpreter's semicolon loop reads the token after a routine's final ";", one byte past
+    /// its code; the original's heap always had a byte there, an exact-size block can end on a page boundary.
+    /// </summary>
+    /// <returns>The segment.</returns>
+    MCAddress AddCodeSegment(const std::vector<char>& code);
+
+    /// <summary>How many code segments the table keeps.</summary>
+    size_t CodeSegmentCount() const { return _CodeSegments.size(); }
+
     /// <summary>How many symbols the table owns.</summary>
     size_t SymbolCount() const { return _Symbols.size(); }
 
@@ -43,6 +54,8 @@ private:
     std::deque<MCAblSymbol> _Symbols;
     /// <summary>Every type made.</summary>
     std::deque<MCAblType> _Types;
+    /// <summary>The routines' code segments.</summary>
+    std::vector<std::unique_ptr<char[]>> _CodeSegments;
     MCAblSymbol* _GlobalScope = nullptr;
 };
 
