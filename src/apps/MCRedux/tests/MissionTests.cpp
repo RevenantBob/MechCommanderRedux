@@ -3,7 +3,7 @@
 #include "TestGame.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "object/mech.h"
@@ -15,7 +15,7 @@
 #include "sprite/MCSpriteManager.h"
 #include "sprite/MCSpriteTree.h"
 #include "sprite/MCShape.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfxClip.h"
 
 namespace

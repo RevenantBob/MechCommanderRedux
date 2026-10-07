@@ -3,7 +3,7 @@
 #include "ai/move.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
@@ -23,8 +23,8 @@
 #include "object/objevnt.h"
 #include "object/team.h"
 #include "sprite/MCVfxAppearance.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 namespace
 {
@@ -298,7 +298,7 @@ auto MCTerrainObject::Update() -> int32_t
     const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
     const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
     Position.X = vertexX + blockX;
-    const float elevation = Land->GetTerrainElevation(Position);
+    const float elevation = Terrain()->GetTerrainElevation(Position);
     Position.X =
         static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
     Position.Y = Position.Y - alongAxis;
@@ -383,7 +383,7 @@ auto MCTerrainObject::Render() -> void
     // reads each corner's seen bit and drops it.)
     const auto row = static_cast<uint32_t>(CellRow);
     const auto col = static_cast<uint32_t>(CellColumn);
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     int32_t numVisible = 0;
 
     if (visibleBits->GetFlag(row, col) != 0)

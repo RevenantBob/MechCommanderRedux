@@ -2,7 +2,7 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "appear/MCAppearance.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "object/mover.h"
 
 /// <summary>

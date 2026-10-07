@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/smoke.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "gui/asystem.h"
@@ -15,7 +15,7 @@
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "object/object.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
@@ -317,7 +317,7 @@ auto MCSmoke::IsVisible(int32_t sphereIndex) -> int
         return 0;
     }
 
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {
@@ -328,10 +328,10 @@ auto MCSmoke::IsVisible(int32_t sphereIndex) -> int
     MCVector2D screen100;
     MCVector2D screen50;
 
-    if (Land != nullptr)
+    if (Terrain() != nullptr)
     {
         MCVector3D spherePos = sphere.Position;
-        Land->ProjectTerrain(spherePos, screen100, screen50);
+        Terrain()->ProjectTerrain(spherePos, screen100, screen50);
     }
 
     float screenY;
@@ -435,7 +435,7 @@ auto MCSmoke::Update() -> int32_t
 
         if (sphere.OnGround == 0 && smokeType->HasRotation == 0)
         {
-            const float elevation = Land->GetTerrainElevation(sphere.Position);
+            const float elevation = Terrain()->GetTerrainElevation(sphere.Position);
 
             if (sphere.Position.Z < elevation)
             {

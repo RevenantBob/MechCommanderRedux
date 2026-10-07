@@ -30,7 +30,7 @@
 #include "object/tbldng.h"
 #include "object/team.h"
 #include "sound/radio.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 
 // The pilot data (MCX.EXE 0x007931d4..0x00793310), in the original's order.
@@ -1474,7 +1474,7 @@ auto MCMechWarrior::SetMoveGoal(uint32_t type, MCVector3D* location, MCGameObjec
     {
         if (static_cast<double>(location->Z) < -10.0)
         {
-            location->Z = Land->GetTerrainElevation(*location);
+            location->Z = Terrain()->GetTerrainElevation(*location);
         }
 
         MoveOrders.GoalLocation = *location;
@@ -1486,7 +1486,7 @@ auto MCMechWarrior::SetMoveGoal(uint32_t type, MCVector3D* location, MCGameObjec
     {
         if (static_cast<double>(location->Z) < -10.0)
         {
-            location->Z = Land->GetTerrainElevation(*location);
+            location->Z = Terrain()->GetTerrainElevation(*location);
         }
 
         MoveOrders.GoalLocation = *location;

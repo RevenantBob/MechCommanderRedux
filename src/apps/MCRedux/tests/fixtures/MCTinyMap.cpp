@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "MCTinyMap.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 namespace
 {

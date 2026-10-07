@@ -8,8 +8,8 @@
 #include "abl/abldbug.h"
 #include "abl/ablenv.h"
 #include "abl/ablrtn.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "color/MCPalette.h"
 #include "color/MCWaterCycle.h"
 #include "gui/aport.h"
@@ -33,7 +33,7 @@
 #include "platform/MCPresenter.h"
 #include "sound/soundsys.h"
 #include "sprite/MCSpriteManager.h"
-#include "terrain/terrtxm.h"
+#include "terrain/MCTerrainTiles.h"
 
 char CampaignFile[20] = "campaign";
 char MissionName[80] = "MechCmdr1.fit";

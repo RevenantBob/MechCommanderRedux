@@ -19,7 +19,7 @@
 #include "object/terrobj.h"
 #include "object/turret.h"
 #include "sprite/MCVfxAppearance.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 namespace
 {

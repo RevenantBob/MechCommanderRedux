@@ -3,7 +3,7 @@
 #include "ScreenInput.h"
 #include "TestGame.h"
 #include "fakes/MCManualClock.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "gui/asystem.h"
 #include "gui/updisp.h"
 #include "lib/MCFastFileSet.h"

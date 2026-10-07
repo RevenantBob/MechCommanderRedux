@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "engine/MCVfxElement.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "engine/MCScaleDraw.h"
 #include "vfx/MCVfxFunctions.h"
 

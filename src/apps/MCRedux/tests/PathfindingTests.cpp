@@ -8,7 +8,7 @@
 #include "object/gameobj.h"
 #include "object/object.h"
 #include "object/objque.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include <random>
 
 /// <summary>

@@ -2,8 +2,8 @@
 #include "object/explode.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "gui/asystem.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFrameOfRef.h"
@@ -21,7 +21,7 @@
 #include "object/turret.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 namespace
 {
@@ -292,7 +292,7 @@ auto MCExplosion::SetExtentRadius(float newRadius) -> void
 
 auto MCExplosion::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {
@@ -302,9 +302,9 @@ auto MCExplosion::OnScreen() -> int
     MCVector2D screen100;
     MCVector2D screen50;
 
-    if (Land != nullptr)
+    if (Terrain() != nullptr)
     {
-        Land->ProjectTerrain(Position, screen100, screen50);
+        Terrain()->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;

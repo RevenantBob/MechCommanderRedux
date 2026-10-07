@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "gui/awindow.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "engine/MCFont.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
@@ -15,7 +15,7 @@
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
@@ -289,7 +289,7 @@ auto HandleSwoopyButtonEvent(MCGuiObject* object, MCGuiEvent* event) -> void
 
         if (window != nullptr && window->GetCamera() != nullptr)
         {
-            window->GetCamera()->Swoopy ^= 1;
+            window->GetCamera()->Swoopy = !window->GetCamera()->Swoopy;
             Application->Release();
             object->Draw();
         }
@@ -2204,9 +2204,9 @@ auto MCGuiEmptyTitleWindow::HandleEvent(MCGuiEvent* event) -> void
 
             if (camera != nullptr)
             {
-                if (GamePaused == 0 && GameAsked == 0 && camera->Window != nullptr)
+                if (GamePaused == 0 && GameAsked == 0 && camera->View() != nullptr)
                 {
-                    camera->Window->ToggleZoom();
+                    camera->View()->ToggleZoom();
                 }
 
                 camera->ForceUpdate = 1;

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/bridge.h"
 #include "ai/move.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
@@ -22,9 +22,9 @@
 #include "object/objevnt.h"
 #include "object/team.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
-#include "terrain/terrtxm.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
+#include "terrain/MCTerrainTiles.h"
 #include "platform/MCRenderer.h"
 
 namespace
@@ -242,7 +242,7 @@ auto MCMiscTerrainObjectType::Init(MCFile* objFile, uint32_t fileSize) -> int32_
         return result;
     }
 
-    if (TerrainTiles->CustomTileSet == 1)
+    if (Terrain()->Tiles->CustomTileSet())
     {
         std::strcat(edgesName, "x");
     }
@@ -353,7 +353,7 @@ auto MCMiscTerrainObject::Update() -> int32_t
     const auto alongAxis =
         static_cast<float>(std::sin(axisAngle) * std::sqrt(offsetDistance) / std::sin(SIXTY_DEGREES));
     Position.X = vertexX + blockX;
-    const float elevation = Land->GetTerrainElevation(Position);
+    const float elevation = Terrain()->GetTerrainElevation(Position);
     Position.X = static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis +
                                     std::cos(axisAngle) * std::sqrt(offsetDistance) + Position.X);
     Position.Y = Position.Y - alongAxis;
@@ -478,7 +478,7 @@ auto MCMiscTerrainObject::Render() -> void
     }
 
     // A forest draws the edge shape that matches its overlay tile, hazed by how many corners the home team sees.
-    const int32_t overlayTile = Land->GetOverlayTile(BlockNumber, VertexNumber);
+    const int32_t overlayTile = Terrain()->GetOverlayTile(BlockNumber, VertexNumber);
     int32_t edge;
 
     if (overlayTile < 0xd0e)
@@ -504,7 +504,7 @@ auto MCMiscTerrainObject::Render() -> void
                                            VertexNumber / MCTerrain::VerticesBlockSide);
     const auto col = static_cast<uint32_t>((BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
                                            VertexNumber % MCTerrain::VerticesBlockSide);
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     int32_t numVisible = 0;
 
     if (visibleBits->GetFlag(row, col) != 0)
@@ -554,7 +554,7 @@ auto MCMiscTerrainObject::Render() -> void
         frame++;
         depthOffset = 0x1d;
 
-        if (TerrainTiles->CustomTileSet == 0)
+        if (!Terrain()->Tiles->CustomTileSet())
         {
             screenPos.X = screenPos.X + 79.0f;
             screenPos.Y = screenPos.Y + 29.0f;
@@ -655,7 +655,7 @@ auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
                 return;
             }
 
-            Land->SetOverlayTile(BlockNumber, VertexNumber, 0xf);
+            Terrain()->SetOverlayTile(BlockNumber, VertexNumber, 0xf);
             MCTerrain::ForceRedraw = 1;
             OverlayDestroyed = 1;
             Destroyed = 1;
@@ -703,8 +703,8 @@ auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
                 return;
             }
 
-            const int32_t overlayTile = Land->GetOverlayTile(BlockNumber, VertexNumber);
-            Land->SetOverlayTile(BlockNumber, VertexNumber, overlayTile < 0xd0a || 0xd0d < overlayTile ? 8 : 4);
+            const int32_t overlayTile = Terrain()->GetOverlayTile(BlockNumber, VertexNumber);
+            Terrain()->SetOverlayTile(BlockNumber, VertexNumber, overlayTile < 0xd0a || 0xd0d < overlayTile ? 8 : 4);
             MCTerrain::ForceRedraw = 1;
             OverlayDestroyed = 1;
             Destroyed = 1;
@@ -727,8 +727,8 @@ auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
                 return;
             }
 
-            Land->GetOverlayTile(BlockNumber, VertexNumber);
-            Land->SetOverlayTile(BlockNumber, VertexNumber, 0x13);
+            Terrain()->GetOverlayTile(BlockNumber, VertexNumber);
+            Terrain()->SetOverlayTile(BlockNumber, VertexNumber, 0x13);
             MCTerrain::ForceRedraw = 1;
             OverlayDestroyed = 1;
             Destroyed = 1;
@@ -906,7 +906,7 @@ auto MCMiscTerrainObject::IsRevealed() -> int
                                            VertexNumber % MCTerrain::VerticesBlockSide);
     const auto row = static_cast<uint32_t>((BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
                                            VertexNumber / MCTerrain::VerticesBlockSide);
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
 
     if (visibleBits->GetFlag(row, col) != 0)
     {

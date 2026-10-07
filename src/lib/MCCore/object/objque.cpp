@@ -3,7 +3,7 @@
 #include "appear/MCAppearance.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "gui/asystem.h"
 #include "main/main.h"
 #include "object/bldng.h"
@@ -15,7 +15,7 @@
 #include "object/objtype.h"
 #include "object/team.h"
 #include "sprite/MCSpriteManager.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 int32_t MCObjectQueue::ObjectsInList = 0;
 int UpdateObjects = 1;
@@ -274,7 +274,7 @@ auto MCObjectQueueNode::FindObjectFromEvent(MCObjectEvent* event, int skipDisabl
                 vertex = VerticesPerBlock - 1;
             }
 
-            const int32_t screenX = MCTerrain::ScreenPosX[MCTerrain::BlockOffsets[block] + vertex];
+            const int32_t screenX = Terrain()->ScreenPosX[Terrain()->BlockOffsets[block] + vertex];
 
             if (screenX == 0x11111111)
             {
@@ -287,7 +287,7 @@ auto MCObjectQueueNode::FindObjectFromEvent(MCObjectEvent* event, int skipDisabl
             const float halfSize = misc->TerrainObjectKind == 5 ? 50.0f : 30.0f;
             const float centerX = static_cast<float>(screenX);
             const float centerY =
-                scale * 70.0f + static_cast<float>(MCTerrain::ScreenPosY[MCTerrain::BlockOffsets[block] + vertex]);
+                scale * 70.0f + static_cast<float>(Terrain()->ScreenPosY[Terrain()->BlockOffsets[block] + vertex]);
 
             if (centerX - scale * halfSize <= mouseX && mouseX <= scale * halfSize + centerX &&
                 centerY - scale * halfSize <= mouseY && mouseY <= scale * halfSize + centerY)
@@ -731,18 +731,5 @@ auto MCObjectQueue::Traverse(MCBaseObject*& current) -> MCBaseObject*
 
 auto BlockInList(int32_t blockNumber) -> int
 {
-    for (int32_t i = 0; i < MAX_BLOCK_LIST; i++)
-    {
-        if (UsedBlockList[i] == blockNumber)
-        {
-            return 1;
-        }
-
-        if (UsedBlockList[i] == -1)
-        {
-            break;
-        }
-    }
-
-    return 0;
+    return Terrain()->BlockUsed(blockNumber) ? 1 : 0;
 }

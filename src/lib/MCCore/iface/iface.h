@@ -548,8 +548,6 @@ extern int32_t Sx;
 extern int32_t Sy;
 /// <summary>The slopes that split the cursor directions (<see cref="MCInterfaceObject::SetCursorOffset"/>), 8 floats.</summary>
 extern float SlopeTest[];
-/// <summary>The tactical screen's main window.</summary>
-extern MCMainWindow* MainHolder;
 /// <summary>The current phase (0-2) of the mech bar's dance.</summary>
 extern uint8_t DanceStep;
 /// <summary>Frames since the dance started.</summary>

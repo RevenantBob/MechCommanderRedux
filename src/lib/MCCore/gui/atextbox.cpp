@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "gui/atextbox.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "gui/abutton.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
@@ -12,8 +12,8 @@
 #include "mission/mission.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfx.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -883,9 +883,9 @@ auto MCGuiTransparentTextObject::SetText(char* newText) -> void
 
 auto ScenarioChatCallback(MCFidpMessage* message, void*) -> void
 {
-    if (MCTerrain::TerrainTacticalMap != nullptr)
+    if (TacticalMap() != nullptr)
     {
-        MCTerrain::TerrainTacticalMap->HandleChatMessage(message->FromID, message->MessageBuffer);
+        TacticalMap()->HandleChatMessage(message->FromID, message->MessageBuffer);
     }
 }
 

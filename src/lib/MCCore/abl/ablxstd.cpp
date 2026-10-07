@@ -45,8 +45,8 @@
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
 #include "sprite/MCVfxBuildingAppearance.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 // Every exec routine reads its call the way the compiler wrote it: the routine's token, then "(", each argument
 // expression evaluated onto the stack (by-reference arguments as the variable's address), a separator token
@@ -321,9 +321,9 @@ auto ExecStdPrint(MCSymTableNodePtr routineIdPtr) -> void
         return;
     }
 
-    if (MCTerrain::TerrainTacticalMap && MCTerrain::TerrainTacticalMap->ChatWindow)
+    if (TacticalMap() && TacticalMap()->ChatWindow)
     {
-        MCTerrain::TerrainTacticalMap->ChatWindow->ProcessChatString(0, text, -1);
+        TacticalMap()->ChatWindow->ProcessChatString(0, text, -1);
     }
 
     GetCodeToken();
@@ -3426,15 +3426,15 @@ auto ExecHbSetSalvageStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     {
         MCGameObject* object = FindObject(partId);
 
-        if (object && MCTerrain::TerrainTacticalMap && (IsMover(object) || object->IsBuilding()))
+        if (object && TacticalMap() && (IsMover(object) || object->IsBuilding()))
         {
             if (status == 1)
             {
-                result = MCTerrain::TerrainTacticalMap->AddSalvage(object);
+                result = TacticalMap()->AddSalvage(object);
             }
             else
             {
-                result = MCTerrain::TerrainTacticalMap->RemoveSalvage(object, 1);
+                result = TacticalMap()->RemoveSalvage(object, 1);
             }
         }
     }
@@ -3518,7 +3518,7 @@ auto ExecHbSetRevealed(MCSymTableNodePtr routineIdPtr) -> void
     lookVector.X = 0.0f;
     lookVector.Y = 0.0f;
     lookVector.Z = 0.0f;
-    Land->MarkRadiusSeen(looker, lookVector, 360.0f, radius, static_cast<uint8_t>(teamId));
+    Terrain()->MarkRadiusSeen(looker, lookVector, 360.0f, radius, static_cast<uint8_t>(teamId));
 
     if (teamId == 1)
     {
@@ -3836,7 +3836,7 @@ namespace
 
         if (!target)
         {
-            position.Z = Land->GetTerrainElevation(position);
+            position.Z = Terrain()->GetTerrainElevation(position);
             TheInterface->CallStrike(strikeType, &position, nullptr, 0, forClansOnPoint, delay);
         }
         else

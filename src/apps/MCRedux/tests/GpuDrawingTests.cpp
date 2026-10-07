@@ -3,7 +3,7 @@
 #include "ScreenInput.h"
 #include "TestGame.h"
 #include "ai/tacordr.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
 #include "gui/awindow.h"
@@ -17,7 +17,7 @@
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "platform/MCVulkanRenderer.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCAgShape.h"
 #include "vfx/MCVfxFunctions.h"
 

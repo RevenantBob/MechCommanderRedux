@@ -23,8 +23,8 @@
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCMechActor.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 namespace
 {
@@ -515,7 +515,7 @@ auto MCTacticalOrder::Unpack() -> int32_t
         {
             MapCellToWorldPos(static_cast<int32_t>(cellRow), static_cast<int32_t>(targetBits & 0x3ff),
                               AttackParams.TargetPoint);
-            AttackParams.TargetPoint.Z = Land->GetTerrainElevation(AttackParams.TargetPoint);
+            AttackParams.TargetPoint.Z = Terrain()->GetTerrainElevation(AttackParams.TargetPoint);
             break;
         }
         default:
@@ -1329,7 +1329,7 @@ auto MCTacticalOrder::Status(MCMechWarrior* pilot) -> int32_t
 
                     if (prize->GetSalvage() != nullptr)
                     {
-                        MCTerrain::TerrainTacticalMap->AddSalvage(prize);
+                        TacticalMap()->AddSalvage(prize);
                     }
 
                     done = 1;
@@ -1346,7 +1346,7 @@ auto MCTacticalOrder::Status(MCMechWarrior* pilot) -> int32_t
 
                     if (prize->GetSalvage() != nullptr)
                     {
-                        MCTerrain::TerrainTacticalMap->AddSalvage(prize);
+                        TacticalMap()->AddSalvage(prize);
                     }
 
                     if (prize->IsPrison() != 0 && vehicle->ObjectClass == GROUNDVEHICLE)

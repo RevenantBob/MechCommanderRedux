@@ -2,8 +2,8 @@
 #include "object/jet.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
@@ -16,7 +16,7 @@
 #include "sound/soundsys.h"
 #include "sprite/MCArmAppearance.h"
 #include "sprite/MCMechActor.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 namespace
 {
@@ -114,7 +114,7 @@ auto MCJet::Init() -> void
 
 auto MCJet::IsVisible() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {
@@ -124,9 +124,9 @@ auto MCJet::IsVisible() -> int
     MCVector2D screen100;
     MCVector2D screen50;
 
-    if (Land != nullptr)
+    if (Terrain() != nullptr)
     {
-        Land->ProjectTerrain(Position, screen100, screen50);
+        Terrain()->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;
@@ -235,7 +235,7 @@ auto MCJet::Update() -> int32_t
     if (GroundObject != nullptr)
     {
         MCVector3D groundPos = Position;
-        groundPos.Z = Land->GetTerrainElevation(Position);
+        groundPos.Z = Terrain()->GetTerrainElevation(Position);
         GroundObject->SetPosition(groundPos);
         GroundObject->Update();
     }

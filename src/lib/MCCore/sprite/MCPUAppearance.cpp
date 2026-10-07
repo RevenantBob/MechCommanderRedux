@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "sprite/MCPUAppearance.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCPolygonElement.h"
@@ -13,7 +13,7 @@
 #include "object/turret.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace

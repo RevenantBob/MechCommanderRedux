@@ -3,8 +3,8 @@
 #include "ai/move.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "engine/MCFontElement.h"
@@ -35,8 +35,8 @@
 #include "sound/soundsys.h"
 #include "sprite/MCGVAppearance.h"
 #include "sprite/MCSpriteManager.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -180,9 +180,9 @@ namespace
         MCVector2D screen100;
         MCVector2D screen50;
 
-        if (Land != nullptr)
+        if (Terrain() != nullptr)
         {
-            Land->ProjectTerrain(object->Position, screen100, screen50);
+            Terrain()->ProjectTerrain(object->Position, screen100, screen50);
         }
 
         float screenY;
@@ -292,7 +292,7 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, MCVector3D location,
 
     if (CommanderTable[commanderId] == HomeCommander)
     {
-        for (MCArtilleryButton* button : TheInterface->TacticalMap->ArtilleryButtons)
+        for (const MCGuiOwned<MCArtilleryButton>& button : TheInterface->TacticalMap->ArtilleryButtons)
         {
             button->Draw();
         }
@@ -1016,7 +1016,7 @@ auto MCArtillery::HandleStaticCollision() -> void
 
 auto MCArtillery::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {
@@ -1358,7 +1358,7 @@ auto MCCameraDrone::Update() -> int32_t
     GameObjectMap->UpdateObject(this, 0);
     const uint8_t seenBy = Alignment == 1 ? 1 : 2;
     MCFrameOfRef lookFrame = GetFrame();
-    Land->MarkRadiusSeen(Position, lookFrame.J, 360.0f, Scenario->MaxVisualRange * 0.5f, seenBy);
+    Terrain()->MarkRadiusSeen(Position, lookFrame.J, 360.0f, Scenario->MaxVisualRange * 0.5f, seenBy);
 
     // Within a tile of the target: on to the next one.
     if (std::abs(TargetTileCol - tileC) > 1)
@@ -1412,7 +1412,7 @@ auto MCCameraDrone::HandleEvent(MCObjectEvent* event) -> int32_t
 
 auto MCCameraDrone::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sprite/MCSpriteMath.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "object/gameobj.h"
 #include "vfx/MCVfxFunctions.h"
 

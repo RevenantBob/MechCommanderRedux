@@ -1,11 +1,13 @@
 #include "stdafx.h"
 #include "main/MCGameContext.h"
 #include "appear/MCAppearanceTypeList.h"
+#include "camera/MCCameraList.h"
 #include "color/MCPalette.h"
 #include "engine/MCCraterManager.h"
 #include "engine/MCElementBuffer.h"
 #include "lib/MCFastFileSet.h"
 #include "sprite/MCSpriteManager.h"
+#include "terrain/MCTerrain.h"
 
 namespace
 {
@@ -131,6 +133,26 @@ MCSpriteManager* MCGameContext::SpriteManager() const
 MCAppearanceTypeList* MCGameContext::AppearanceTypeList() const
 {
     return FindSystem(_AppearanceTypeList, _Parent, &MCGameContext::AppearanceTypeList);
+}
+
+MCTerrain* MCGameContext::Terrain() const
+{
+    return FindSystem(_Terrain, _Parent, &MCGameContext::Terrain);
+}
+
+MCCameraList* MCGameContext::CameraList() const
+{
+    return FindSystem(_CameraList, _Parent, &MCGameContext::CameraList);
+}
+
+std::unique_ptr<MCTerrain> MCGameContext::SetTerrain(std::unique_ptr<MCTerrain> terrain)
+{
+    return std::exchange(_Terrain, std::move(terrain));
+}
+
+std::unique_ptr<MCCameraList> MCGameContext::SetCameraList(std::unique_ptr<MCCameraList> cameraList)
+{
+    return std::exchange(_CameraList, std::move(cameraList));
 }
 
 std::unique_ptr<MCSpriteManager> MCGameContext::SetSpriteManager(std::unique_ptr<MCSpriteManager> spriteManager)

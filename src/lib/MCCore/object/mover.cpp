@@ -27,8 +27,8 @@
 #include "object/team.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 float DelayedOrderTime = 1.0f;
 int32_t StatusChunkUnpackErr = 0;
@@ -2479,13 +2479,13 @@ namespace
 auto MCMover::IsRevealed() -> int
 {
     // The home side's visibility bits (the names are the original's, swapped).
-    MCByteFlag* bits = HomeTeam->Alignment != -1 ? MCTerrain::TerrainVisibleBits : MCTerrain::ClanVisibleBits;
+    MCByteFlag* bits = Terrain()->HomeVisibleBits();
     return TileVisible(bits, ObjPosition);
 }
 
 auto MCMover::EnemyRevealed() -> int
 {
-    MCByteFlag* bits = HomeTeam->Alignment != -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* bits = HomeTeam->Alignment != -1 ? Terrain()->ClanVisibleBits.get() : Terrain()->ISVisibleBits.get();
     return TileVisible(bits, ObjPosition);
 }
 
@@ -3073,7 +3073,7 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
 
     newGoal.X = static_cast<float>((static_cast<double>(goalCol) + 0.5) * MetersPerCell - halfMapSide);
     newGoal.Y = static_cast<float>(halfMapSide - (static_cast<double>(goalRow) + 0.5) * MetersPerCell);
-    newGoal.Z = Land->GetTerrainElevation(newGoal);
+    newGoal.Z = Terrain()->GetTerrainElevation(newGoal);
     CalcOffsetMoveGoal(Position, newGoal, newGoal);
     return 0;
 }
@@ -4522,7 +4522,7 @@ auto MCMover::Disable(uint32_t cause) -> void
                 }
                 else
                 {
-                    MCTerrain::TerrainTacticalMap->AddSalvage(this);
+                    TacticalMap()->AddSalvage(this);
                 }
             }
             else if (CantBlowSalvage == 0 && SalvageRoll == 0)
@@ -4533,7 +4533,7 @@ auto MCMover::Disable(uint32_t cause) -> void
                 }
 
                 Status = 2;
-                MCTerrain::TerrainTacticalMap->RemoveSalvage(this, 1);
+                TacticalMap()->RemoveSalvage(this, 1);
             }
         }
 

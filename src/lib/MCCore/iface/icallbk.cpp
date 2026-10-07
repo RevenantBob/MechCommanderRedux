@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "iface/icallbk.h"
 #include "ai/tacordr.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
+#include "camera/MCMainWindow.h"
 #include "gui/ahelp.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
@@ -17,8 +18,8 @@
 #include "object/warrior.h"
 #include "platform/MCFrameLog.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -31,9 +32,9 @@ namespace
         // (slot 0x20) with the mover pointer.
         MCCamera* camera = nullptr;
 
-        if (MainHolder->GetActivePane() != nullptr)
+        if (MainHolder()->GetActivePane() != nullptr)
         {
-            camera = MainHolder->GetActivePane()->GetCamera();
+            camera = MainHolder()->GetActivePane()->GetCamera();
         }
 
         if (camera == nullptr)
@@ -155,7 +156,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
 
                 if (TheInterface->AnySelected(0) == 0)
                 {
-                    MCTerrain::TerrainTacticalMap->SetID(mechIcon->PartId);
+                    TacticalMap()->SetID(mechIcon->PartId);
                 }
 
                 iconPartId = mechIcon->PartId;
@@ -292,9 +293,9 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
 
         case 0x33:
         {
-            MCTerrain::TerrainTacticalMap->HideMe(0);
-            MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
-            MCTerrain::TerrainTacticalMap->SetID(mechIcon->PartId);
+            TacticalMap()->HideMe(0);
+            TacticalMap()->SetDisplayType(MCTacmapPage::Info);
+            TacticalMap()->SetID(mechIcon->PartId);
             TheInterface->UpdateInterface();
             order.Destroy();
             return;

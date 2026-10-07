@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sound/soundsys.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "gameos/soundchannel.h"
 #include "gameos/soundrenderer.h"
 #include "gameos/soundresource.h"
@@ -22,8 +22,8 @@
 #include "platform/MCAudio.h"
 #include "platform/MCSmacker.h"
 #include "sound/radio.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 int32_t UseSound = 1;
 int32_t UseMusic = 1;
@@ -978,9 +978,9 @@ void MCSoundSystem::Update()
         {
             CurrentFragment = 0;
             MoveFromQueueToPlaying();
-            MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
+            MCTacticalMap* tacMap = TacticalMap();
 
-            if (tacMap != nullptr && tacMap->IsHidden() == 0 && tacMap->DisplayType == 0 &&
+            if (tacMap != nullptr && tacMap->IsHidden() == 0 && tacMap->DisplayType == MCTacmapPage::Map &&
                 CurrentMessage->MovieWindow != nullptr)
             {
                 tacMap->VideoWindow->SetStar(CurrentMessage->Pilot);
@@ -1011,8 +1011,8 @@ void MCSoundSystem::Update()
             MCGuiSmackerWindow* window = CurrentMessage->MovieWindow;
             MCSmackTag* movie = CurrentMessage->Movie;
 
-            if (window != nullptr && movie != nullptr && tacMap->IsHidden() == 0 && tacMap->DisplayType == 0 &&
-                window->StartSmackerMovie(movie, 0) == 0)
+            if (window != nullptr && movie != nullptr && tacMap->IsHidden() == 0 &&
+                tacMap->DisplayType == MCTacmapPage::Map && window->StartSmackerMovie(movie, 0) == 0)
             {
                 window->SetDepth(0x5a);
                 ScreenWindow->AddChild(window);
@@ -1682,9 +1682,9 @@ void MCSoundSystem::RemoveCurrentMessage()
             MCGuiSmackerWindow* window = message->MovieWindow;
             window->EndSmackerMovie();
 
-            if (MCTerrain::TerrainTacticalMap != nullptr)
+            if (TacticalMap() != nullptr)
             {
-                MCTerrain::TerrainTacticalMap->VideoWindow->SetStar(nullptr);
+                TacticalMap()->VideoWindow->SetStar(nullptr);
             }
 
             delete window;

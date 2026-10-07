@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/laser.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCPolygonElement.h"
 #include "engine/MCCraterManager.h"
@@ -17,7 +17,7 @@
 #include "object/object.h"
 #include "object/objque.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfx.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -584,12 +584,12 @@ auto MCLaser::Render() -> void
     MCVector2D end100;
     MCVector2D end50;
 
-    if (Land != nullptr)
+    if (Terrain() != nullptr)
     {
         MCVector3D startPos = start;
         MCVector3D endPos = end;
-        Land->ProjectTerrain(startPos, start100, start50);
-        Land->ProjectTerrain(endPos, end100, end50);
+        Terrain()->ProjectTerrain(startPos, start100, start50);
+        Terrain()->ProjectTerrain(endPos, end100, end50);
     }
 
     float startX;

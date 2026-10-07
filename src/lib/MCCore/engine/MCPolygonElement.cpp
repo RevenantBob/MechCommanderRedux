@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "engine/MCPolygonElement.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "vfx/MCVfxFunctions.h"
 
 MCPolygonElement::MCPolygonElement(const MCPolyElementData& data, int32_t depth) : MCElement(depth), Data(data)

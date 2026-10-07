@@ -16,8 +16,8 @@
 #include "object/warrior.h"
 #include "platform/MCSmacker.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 MCRadioMessageInfo MessageInfo[NUM_RADIO_MESSAGES];
 MCRadio* MCRadio::RadioList[MAX_RADIOS] = {};
@@ -40,6 +40,18 @@ namespace
             delete window;
         }
     }
+}
+
+void MCRadioData::CloseMovie()
+{
+    if (MovieWindow == nullptr)
+    {
+        return;
+    }
+
+    CloseMovieWindow(MovieWindow);
+    MovieWindow = nullptr;
+    Movie = nullptr;
 }
 
 int32_t MCRadio::Init(char* fileName, uint32_t heapSize, char* movieName)
@@ -163,10 +175,10 @@ int32_t MCRadio::PlayMessage(MCRadioMessageType msgType)
     message->Pilot = Owner;
 
     // The pilot's video, when the tactical map shows its video window.
-    MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
+    MCTacticalMap* tacMap = TacticalMap();
 
     if (info.MovieCode != 'x' && !MovieName.empty() && Owner->Vehicle->ObjectClass == BATTLEMECH &&
-        tacMap->IsShowing() != 0 && tacMap->IsHidden() == 0 && tacMap->DisplayType == 0 &&
+        tacMap->IsShowing() != 0 && tacMap->IsHidden() == 0 && tacMap->DisplayType == MCTacmapPage::Map &&
         tacMap->VideoWindow != nullptr)
     {
         char videoName[80];

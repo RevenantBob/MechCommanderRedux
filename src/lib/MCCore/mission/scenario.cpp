@@ -9,8 +9,8 @@
 #include "ai/tacordr.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "color/MCPalette.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
@@ -56,8 +56,8 @@
 #include "sprite/MCElementalActor.h"
 #include "sprite/MCMechActor.h"
 #include "sprite/MCSpriteManager.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
@@ -124,6 +124,20 @@ namespace
     void RequireOk(int32_t result, const char* message)
     {
         Assert(result == 0, static_cast<uint32_t>(result), message);
+    }
+
+    /// <summary>
+    /// Installs a terrain in the game context and loads <paramref name="fileName"/> into it (what it builds reaches for
+    /// it there); a failure is Fatal.
+    /// </summary>
+    void LoadTerrain(std::string_view fileName)
+    {
+        MCGameContext::Current().SetTerrain(std::make_unique<MCTerrain>());
+
+        if (std::expected<void, std::string> loaded = Terrain()->Load(fileName); !loaded)
+        {
+            Fatal(0, std::format(" could not start Terrain System: {} ", loaded.error()));
+        }
     }
 
     /// <summary>Turns a frame about its k axis (MC2's inline frame_of_ref::rotate_about_k).</summary>
@@ -329,7 +343,7 @@ auto MCScenario::Render(MCGuiObject* window) -> int32_t
 {
     if (1 < Turn)
     {
-        CameraList->RenderView(window);
+        CameraList()->RenderView(window);
     }
 
     return 0;
@@ -851,10 +865,13 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     RequireOk(result, " could not Find CameraHeapSize in CameraSystem Block ");
     result = ScenarioFile->ReadIdString("CameraFileName", CameraFileName, 79);
     RequireOk(result, " could not Find CameraFileName in CameraSystem Block ");
-    CameraList = new MCCameraList;
-    Assert(CameraList != nullptr, static_cast<uint32_t>(result), " no RAM for CameraList ");
-    result = CameraList->Init(CameraFileName);
-    RequireOk(result, " could start CameraSystem ");
+    MCGameContext::Current().SetCameraList(std::make_unique<MCCameraList>());
+
+    if (std::expected<void, std::string> cameras = CameraList()->Load(CameraFileName); !cameras)
+    {
+        Fatal(0, std::format(" could start CameraSystem: {} ", cameras.error()));
+    }
+
     UpdateDisplay(0, 1, 30, 1, 20);
 
     result = ScenarioFile->SeekBlock("ObjectSystem");
@@ -966,16 +983,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         RequireOk(result, " could not find TerrainSystem block ");
         result = ScenarioFile->ReadIdString("TerrainFileName", TerrainFileName, 79);
         RequireOk(result, " could not find TerrainFileName in TerrainSystem block ");
-        Land = new MCTerrain;
-
-        if (Land != nullptr)
-        {
-            Land->MCTerrain::Init();
-        }
-
-        Assert(Land != nullptr, static_cast<uint32_t>(result), " no RAM for Terrain ");
-        result = Land->Init(TerrainFileName);
-        RequireOk(result, " could not start Terrain System ");
+        LoadTerrain(TerrainFileName);
         UpdateDisplay(0, 1, 30, 1, 50);
 
         GameMap = new MCScenarioMap;
@@ -1019,22 +1027,13 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         GlobalMoveMap->Init(globalMapFile);
         delete globalMapFile;
         UpdateDisplay(0, 1, 30, 1, 65);
-        Land->UpdateAllObjects();
+        Terrain()->UpdateAllObjects();
         UpdateDisplay(0, 1, 30, 1, 70);
     }
     else
     {
-        Land = new MCTerrain;
-
-        if (Land != nullptr)
-        {
-            Land->MCTerrain::Init();
-        }
-
-        Assert(Land != nullptr, static_cast<uint32_t>(result), " no RAM for Terrain ");
         MCStrCopy(TerrainFileName, std::filesystem::path(terrainName).stem().string().c_str());
-        result = Land->Init(TerrainFileName);
-        RequireOk(result, " could not start Terrain System ");
+        LoadTerrain(TerrainFileName);
     }
 
     char tacMapGifName[80];
@@ -1042,7 +1041,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     if (result == 0)
     {
-        MCTerrain::TerrainTacticalMap->SetRevealedBitmap(tacMapGifName);
+        TacticalMap()->SetRevealedBitmap(tacMapGifName);
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -1679,7 +1678,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     delete gameSystemFile;
     UpdateDisplay(0, 1, 30, 1, 100);
 
-    Eye = CameraList->ActivateAllReady();
+    Eye = CameraList()->ActivateAllReady();
 
     if (MPlayer != nullptr)
     {
@@ -1748,13 +1747,13 @@ auto MCScenario::Run() -> int32_t
 
     if (GamePaused != 0)
     {
-        CameraList->Update();
+        CameraList()->Update();
         return static_cast<int32_t>(ScenarioResult);
     }
 
     Update();
-    CameraList->Update();
-    Land->Update();
+    CameraList()->Update();
+    Terrain()->Update();
     PathManager->Update();
 
     if (TrainManager != nullptr)
@@ -1848,9 +1847,10 @@ auto MCScenario::Destroy() -> void
     MCGameContext::Current().SetElementList(nullptr);
     MCGameContext::Current().SetCraterManager(nullptr);
 
-    Assert(Land != nullptr, 0, " land already NULL ");
-    delete Land;
-    Land = nullptr;
+    Assert(Terrain() != nullptr, 0, " land already NULL ");
+    // The terrain stays the context's while it is taken down: the objects it frees still reach for it.
+    Terrain()->Unload();
+    MCGameContext::Current().SetTerrain(nullptr);
 
     Assert(ScenarioObjectList != nullptr, 0, " scenarioObjectList already NULL ");
 
@@ -1951,9 +1951,8 @@ auto MCScenario::Destroy() -> void
     MCGameContext::Current().SetAppearanceTypeList(nullptr);
     Assert(SpriteManager() != nullptr, 0, " spriteManager already NULL ");
     MCGameContext::Current().SetSpriteManager(nullptr);
-    Assert(CameraList != nullptr, 0, " cameraList already NULL ");
-    delete CameraList;
-    CameraList = nullptr;
+    Assert(CameraList() != nullptr, 0, " cameraList already NULL ");
+    MCGameContext::Current().SetCameraList(nullptr);
     Eye = nullptr;
 
     Assert(ScenarioBrainParams != nullptr, 0, " scenarioParams already NULL ");

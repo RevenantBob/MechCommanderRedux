@@ -18,8 +18,8 @@
 #include "object/team.h"
 #include "object/warrior.h"
 #include "platform/MCFileSystem.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 char* ComponentComment[NUM_FIT_COMPONENTS] = {
     const_cast<char*>("// Medium Pulse Laser (IS) "),
@@ -514,7 +514,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
                ReturnsFromMission(object->ObjectClass, mech->GetAlignment(), mech->NetPlayerId, mech->NotMineYet);
     };
 
-    MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
+    MCTacticalMap* tacMap = TacticalMap();
     uint32_t numMechs = 0;
 
     for (MCBaseObject* object = InnerSphereMechList->Head; object != nullptr; object = object->Next)
@@ -525,7 +525,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
         }
     }
 
-    for (int32_t i = 0; i < tacMap->NumSalvage; i++)
+    for (size_t i = 0; i < tacMap->Salvage.size(); i++)
     {
         if (tacMap->Salvage[i] != nullptr && tacMap->Salvage[i]->ObjectClass == BATTLEMECH)
         {
@@ -558,7 +558,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
         ++packet;
     }
 
-    for (int32_t i = 0; i < tacMap->NumSalvage; i++)
+    for (size_t i = 0; i < tacMap->Salvage.size(); i++)
     {
         MCGameObject* salvage = tacMap->Salvage[i];
 
@@ -591,7 +591,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
                     {
                         int32_t count = 0;
 
-                        for (int32_t i = 0; i < tacMap->NumSalvage; i++)
+                        for (size_t i = 0; i < tacMap->Salvage.size(); i++)
                         {
                             MCGameObject* salvage = tacMap->Salvage[i];
 

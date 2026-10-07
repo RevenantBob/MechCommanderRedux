@@ -2,8 +2,8 @@
 #include "object/bullet.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "engine/MCCraterManager.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -20,8 +20,8 @@
 #include "object/smoke.h"
 #include "sound/soundsys.h"
 #include "sprite/MCArmAppearance.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 namespace
 {
@@ -37,9 +37,9 @@ namespace
         MCVector2D screen100;
         MCVector2D screen50;
 
-        if (Land != nullptr)
+        if (Terrain() != nullptr)
         {
-            Land->ProjectTerrain(object->Position, screen100, screen50);
+            Terrain()->ProjectTerrain(object->Position, screen100, screen50);
         }
 
         float screenY;
@@ -184,7 +184,7 @@ auto MCBullet::Init() -> void
 
 auto MCBullet::IsVisible() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {

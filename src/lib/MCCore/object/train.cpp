@@ -3,8 +3,8 @@
 #include "ai/move.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCEllipseElement.h"
@@ -29,8 +29,8 @@
 #include "object/team.h"
 #include "sound/soundsys.h"
 #include "sprite/MCGVAppearance.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -874,7 +874,7 @@ auto MCTrainCar::SetPartId(int32_t trainNumber, int32_t carNumber) -> void
 
 auto MCTrainCar::IsRevealed() -> int
 {
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
     GetBlockAndVertexNumber(blockNumber, vertexNumber);
@@ -903,7 +903,7 @@ auto MCTrainCar::IsRevealed() -> int
 
 auto MCTrainCar::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (OnMap == 0 || camera == nullptr || camera->Active == 0)
     {
@@ -913,9 +913,9 @@ auto MCTrainCar::OnScreen() -> int
     MCVector2D screen100;
     MCVector2D screen50;
 
-    if (Land != nullptr)
+    if (Terrain() != nullptr)
     {
-        Land->ProjectTerrain(Position, screen100, screen50);
+        Terrain()->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "gui/ahelp.h"
 #include "appear/MCAppearance.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "engine/MCFont.h"
 #include "gui/aport.h"
 #include "main/main.h"

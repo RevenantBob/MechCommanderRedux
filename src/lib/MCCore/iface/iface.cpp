@@ -3,7 +3,8 @@
 #include "ai/move.h"
 #include "ai/tacordr.h"
 #include "appear/MCAppearance.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
+#include "camera/MCMainWindow.h"
 #include "color/MCPalette.h"
 #include "gui/afont.h"
 #include "gui/ahelp.h"
@@ -48,8 +49,8 @@
 #include "platform/MCInput.h"
 #include "platform/MCRenderer.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfx.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -1121,7 +1122,7 @@ auto MCMechBar::HandleEvent(MCGuiEvent* event) -> void
         MoveTo(1, Application->Height() - Height() - 1, 0);
     }
 
-    event->Target = MainHolder->GetActivePane();
+    event->Target = MainHolder()->GetActivePane();
     TheInterface->HandleEvent(event);
 }
 
@@ -2073,7 +2074,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 }
             }
 
-            MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
+            MCTacticalMap* tacMap = ::TacticalMap();
 
             if (key == Keys[65])
             {
@@ -2093,10 +2094,10 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             }
             else if (key == Keys[69] || key == Keys[70] || key == Keys[71] || key == Keys[72])
             {
-                if (MCTerrain::TerrainTacticalMap != nullptr)
+                if (::TacticalMap() != nullptr)
                 {
-                    MCTerrain::TerrainTacticalMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MAP);
+                    ::TacticalMap()->HideMe(0);
+                    ::TacticalMap()->SetDisplayType(MCTacmapPage::Map);
                     TacScrollDirection = key == Keys[69] ? 0 : key == Keys[70] ? 4 : key == Keys[71] ? 6 : 2;
                 }
             }
@@ -2106,20 +2107,20 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             }
             else if (key == Keys[57] || key == Keys[59])
             {
-                if (MCTerrain::TerrainTacticalMap != nullptr)
+                if (::TacticalMap() != nullptr)
                 {
-                    MCTerrain::TerrainTacticalMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MAP);
-                    APostMessage(MCTerrain::TerrainTacticalMap, 0x1a);
+                    ::TacticalMap()->HideMe(0);
+                    ::TacticalMap()->SetDisplayType(MCTacmapPage::Map);
+                    APostMessage(::TacticalMap(), 0x1a);
                 }
             }
             else if (key == Keys[58] || key == Keys[60])
             {
-                if (MCTerrain::TerrainTacticalMap != nullptr)
+                if (::TacticalMap() != nullptr)
                 {
-                    MCTerrain::TerrainTacticalMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MAP);
-                    APostMessage(MCTerrain::TerrainTacticalMap, 0x1b);
+                    ::TacticalMap()->HideMe(0);
+                    ::TacticalMap()->SetDisplayType(MCTacmapPage::Map);
+                    APostMessage(::TacticalMap(), 0x1b);
                 }
             }
             else if (key == Keys[61])
@@ -2129,7 +2130,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 if (tacMap != nullptr)
                 {
                     tacMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MAP);
+                    ::TacticalMap()->SetDisplayType(MCTacmapPage::Map);
                 }
             }
             else if (key == Keys[62])
@@ -2139,7 +2140,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 if (tacMap != nullptr)
                 {
                     tacMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(static_cast<MCTacmapDisplayTypes>(3));
+                    ::TacticalMap()->SetDisplayType(static_cast<MCTacmapPage>(3));
                 }
             }
             else if (MPlayer != nullptr && key == Keys[76])
@@ -2150,12 +2151,12 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 if (tacMap != nullptr && Scenario != nullptr && EventsToMissionResultsScreen == 0 && GameAsked == 0)
                 {
                     tacMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(static_cast<MCTacmapDisplayTypes>(3));
-                    MCGuiObject* chatInput = MCTerrain::TerrainTacticalMap->ChatWindow->ChatInput;
+                    ::TacticalMap()->SetDisplayType(static_cast<MCTacmapPage>(3));
+                    MCGuiObject* chatInput = ::TacticalMap()->ChatWindow->ChatInput;
 
                     if (Application->TextObject() != chatInput)
                     {
-                        Application->SetText(MCTerrain::TerrainTacticalMap->ChatWindow->ChatInput);
+                        Application->SetText(::TacticalMap()->ChatWindow->ChatInput);
                         FirstReturn = 1;
                     }
                 }
@@ -2167,7 +2168,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 if (tacMap != nullptr)
                 {
                     tacMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MISSION);
+                    ::TacticalMap()->SetDisplayType(MCTacmapPage::Mission);
                 }
             }
             else if (key == Keys[63])
@@ -2177,7 +2178,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 if (tacMap != nullptr)
                 {
                     tacMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
+                    ::TacticalMap()->SetDisplayType(MCTacmapPage::Info);
                 }
             }
             else if (key == Keys[53] || key == Keys[55])
@@ -2401,12 +2402,12 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 CurrentCommand = 0x4a;
                 CommandOneShot = 0;
             }
-            else if (MCTerrain::TerrainTacticalMap != nullptr &&
+            else if (::TacticalMap() != nullptr &&
                      (key == Keys[46] || key == Keys[47] || key == Keys[49] || key == Keys[48]))
             {
                 // Arm an artillery strike.
                 const int32_t button = key == Keys[46] ? 0 : key == Keys[47] ? 1 : key == Keys[49] ? 2 : 3;
-                MCTerrain::TerrainTacticalMap->ActivateArtillery(button, 1);
+                ::TacticalMap()->ActivateArtillery(button, 1);
             }
             else if (BunnyStrikesOn != 0 && key == Keys[50])
             {
@@ -2498,7 +2499,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             }
         }
 
-        if (event->Target == nullptr || event->Target->Parent != MainHolder)
+        if (event->Target == nullptr || event->Target->Parent != MainHolder())
         {
             if (CurrentCommand != 0x29 && CurrentCommand != 0x2a && CurrentCommand != 0x2b && CurrentCommand != 0x2c)
             {
@@ -2514,31 +2515,31 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 ScrollWait = 0;
             }
 
-            if (MCTerrain::TerrainTacticalMap != nullptr)
+            if (::TacticalMap() != nullptr)
             {
                 if (static_cast<int16_t>(key) == static_cast<int16_t>(Keys[52]) && TacMapShown != 0)
                 {
-                    MCTerrain::TerrainTacticalMap->HideMe(MCTerrain::TerrainTacticalMap->IsHidden() == 0);
+                    ::TacticalMap()->HideMe(::TacticalMap()->IsHidden() == 0);
                 }
 
-                if (MCTerrain::TerrainTacticalMap != nullptr && key == Keys[46])
+                if (::TacticalMap() != nullptr && key == Keys[46])
                 {
-                    MCTerrain::TerrainTacticalMap->ActivateArtillery(0, 0);
+                    ::TacticalMap()->ActivateArtillery(0, 0);
                 }
 
-                if (MCTerrain::TerrainTacticalMap != nullptr && key == Keys[47])
+                if (::TacticalMap() != nullptr && key == Keys[47])
                 {
-                    MCTerrain::TerrainTacticalMap->ActivateArtillery(1, 0);
+                    ::TacticalMap()->ActivateArtillery(1, 0);
                 }
 
-                if (MCTerrain::TerrainTacticalMap != nullptr && key == Keys[49])
+                if (::TacticalMap() != nullptr && key == Keys[49])
                 {
-                    MCTerrain::TerrainTacticalMap->ActivateArtillery(2, 0);
+                    ::TacticalMap()->ActivateArtillery(2, 0);
                 }
 
-                if (MCTerrain::TerrainTacticalMap != nullptr && key == Keys[48])
+                if (::TacticalMap() != nullptr && key == Keys[48])
                 {
-                    MCTerrain::TerrainTacticalMap->ActivateArtillery(3, 0);
+                    ::TacticalMap()->ActivateArtillery(3, 0);
                 }
             }
 
@@ -2653,7 +2654,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
         case 1:
         {
             // Left button down on the map: remember where, or give the forced order.
-            if (event->Target != MainHolder->GetActivePane())
+            if (event->Target != MainHolder()->GetActivePane())
             {
                 order.Destroy();
                 return;
@@ -2731,9 +2732,9 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             target = event->Target;
             MouseDown = 0;
 
-            if (target != MainHolder->GetActivePane())
+            if (target != MainHolder()->GetActivePane())
             {
-                MainHolder->SetActivePane(target);
+                MainHolder()->SetActivePane(target);
                 UpdateMouseState(event);
                 order.Destroy();
                 return;
@@ -2771,7 +2772,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     POINT point;
                     point.x = static_cast<int32_t>(screenPos.X);
                     point.y = static_cast<int32_t>(screenPos.Y);
-                    const float* box = dragWindow->SelectionBox;
+                    const float* box = dragWindow->SelectionBox.data();
                     RECT rect;
                     rect.left = static_cast<int32_t>(box[2] <= box[0] ? box[2] : box[0]);
                     rect.right = static_cast<int32_t>(box[2] < box[0] ? box[0] : box[2]);
@@ -2820,7 +2821,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 HomeCommander->SetNumLargeStrikes(HomeCommander->NumLargeStrikes + 1);
                 CallArtillery(HomeCommander->Id, 1, strikePos, 3, 0);
 
-                for (MCArtilleryButton* button : TacticalMap->ArtilleryButtons)
+                for (const MCGuiOwned<MCArtilleryButton>& button : TacticalMap->ArtilleryButtons)
                 {
                     button->Draw();
                 }
@@ -2853,7 +2854,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
         case 7:
         {
             // Mouse move: track what is under the mouse, and drag out a selection box.
-            if (event->Target == MainHolder->GetActivePane())
+            if (event->Target == MainHolder()->GetActivePane())
             {
                 if (MouseDown == 0)
                 {
@@ -3019,9 +3020,9 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
     auto showInfo = [&]()
     {
-        MCTerrain::TerrainTacticalMap->HideMe(0);
-        MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
-        MCTerrain::TerrainTacticalMap->SetID(clickedPartId);
+        ::TacticalMap()->HideMe(0);
+        ::TacticalMap()->SetDisplayType(MCTacmapPage::Info);
+        ::TacticalMap()->SetID(clickedPartId);
         finish();
     };
 
@@ -3051,7 +3052,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             enemy->SetSelected(1);
         }
 
-        MCTerrain::TerrainTacticalMap->SetID(enemy->PartId);
+        ::TacticalMap()->SetID(enemy->PartId);
     };
 
     switch (MouseObjectType)
@@ -3241,7 +3242,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
                 if (AnySelected(0) == 0)
                 {
-                    MCTerrain::TerrainTacticalMap->SetID(clickedPartId);
+                    ::TacticalMap()->SetID(clickedPartId);
                 }
 
                 SelectMech(clickedPartId);
@@ -3286,8 +3287,8 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
                 if (mode == 0x33)
                 {
-                    MCTerrain::TerrainTacticalMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
+                    ::TacticalMap()->HideMe(0);
+                    ::TacticalMap()->SetDisplayType(MCTacmapPage::Info);
                 }
 
                 if (mode == 0x4a && camera != nullptr)
@@ -3492,8 +3493,8 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             {
                 if (command == 0x33)
                 {
-                    MCTerrain::TerrainTacticalMap->HideMe(0);
-                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
+                    ::TacticalMap()->HideMe(0);
+                    ::TacticalMap()->SetDisplayType(MCTacmapPage::Info);
                 }
                 else if (command == 0x4a)
                 {
@@ -3501,7 +3502,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     return;
                 }
 
-                MCTerrain::TerrainTacticalMap->SetID(clicked->PartId);
+                ::TacticalMap()->SetID(clicked->PartId);
                 finish();
                 return;
             }
@@ -3851,12 +3852,12 @@ auto MCInterfaceObject::ZoomIn(float factor, bool sound) -> void
 {
     // Port: the view shows fewer lines of the world (the original switched the camera to scale 100); the tactical
     // map's zoom button follows.
-    if (Eye == nullptr || Eye->Window == nullptr || GamePaused != 0 || GameAsked != 0)
+    if (Eye == nullptr || Eye->View() == nullptr || GamePaused != 0 || GameAsked != 0)
     {
         return;
     }
 
-    if (Eye->Window->ZoomBy(1.0f / factor))
+    if (Eye->View()->ZoomBy(1.0f / factor))
     {
         if (sound)
         {
@@ -3872,12 +3873,12 @@ auto MCInterfaceObject::ZoomOut(float factor, bool sound) -> void
 {
     // Port: the view shows more lines of the world (the original switched the camera to scale 1); the tactical map's
     // zoom button follows.
-    if (Eye == nullptr || Eye->Window == nullptr || GamePaused != 0 || GameAsked != 0)
+    if (Eye == nullptr || Eye->View() == nullptr || GamePaused != 0 || GameAsked != 0)
     {
         return;
     }
 
-    if (Eye->Window->ZoomBy(factor))
+    if (Eye->View()->ZoomBy(factor))
     {
         if (sound)
         {
@@ -3905,9 +3906,9 @@ auto MCInterfaceObject::StartScenario() -> int32_t
     CommandOneShot = 0;
     UpdateInterface();
 
-    if (MainHolder != nullptr)
+    if (MainHolder() != nullptr)
     {
-        MainHolder->ShowGuiWindow(1);
+        MainHolder()->ShowGuiWindow(1);
     }
 
     if (ScrollCallback == nullptr)
@@ -3919,12 +3920,12 @@ auto MCInterfaceObject::StartScenario() -> int32_t
 
     SalvageIcon = nullptr;
     SelectedEnemy = nullptr;
-    MCTerrain::TerrainTacticalMap->SetDepth(0x50);
+    ::TacticalMap()->SetDepth(0x50);
     MCMechBar* bar = MechBar;
 
     if (bar->GetButton(0) != nullptr)
     {
-        MCTerrain::TerrainTacticalMap->SetID(bar->GetButton(0)->PartId);
+        ::TacticalMap()->SetID(bar->GetButton(0)->PartId);
     }
 
     bar->ShowGuiWindow(1);
@@ -3970,9 +3971,9 @@ auto MCInterfaceObject::EndScenario() -> void
         SalvageIcon = nullptr;
     }
 
-    if (MainHolder != nullptr)
+    if (MainHolder() != nullptr)
     {
-        MainHolder->ShowGuiWindow(0);
+        MainHolder()->ShowGuiWindow(0);
     }
 
     Application->RemoveCallback(ScrollCallback);
@@ -4481,7 +4482,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
 
         if (cursorEvent.Target == MechBar)
         {
-            cursorEvent.Target = MainHolder->GetActivePane();
+            cursorEvent.Target = MainHolder()->GetActivePane();
         }
 
         if (cursorEvent.Target == nullptr)
@@ -4934,7 +4935,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
         HighlightedObject = nullptr;
     }
 
-    MCTerrain::TerrainTacticalMap->UpdateOrderPalette();
+    ::TacticalMap()->UpdateOrderPalette();
 
     if (window->GetCamera() == nullptr && window->ObjectType != 8)
     {
@@ -5807,7 +5808,7 @@ auto MCInterfaceObject::SetPoint(int32_t partId, int isPoint) -> void
 
 auto MCInterfaceObject::SetCursorOffset(MCVector2D screenPos) -> void
 {
-    if (MCTerrain::TerrainTacticalMap != nullptr && MCTerrain::TerrainTacticalMap->MouseInside != 0)
+    if (::TacticalMap() != nullptr && ::TacticalMap()->MouseInside != 0)
     {
         CursorOffset = 6;
     }

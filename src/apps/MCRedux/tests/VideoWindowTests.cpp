@@ -6,8 +6,8 @@
 #include "object/warrior.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 using namespace MCScreenInput;
 
@@ -24,7 +24,7 @@ TEST_CASE_ISOLATED("game: the tactical map's video window matches the pre-render
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    MCTacticalMap* map = MCTerrain::TerrainTacticalMap;
+    MCTacticalMap* map = TacticalMap();
     REQUIRE(map != nullptr);
     REQUIRE(map->VideoWindow != nullptr);
     MCMover* mover = GetMoverFromPartId(0x200);

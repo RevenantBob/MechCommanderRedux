@@ -2,7 +2,7 @@
 #include "object/bldng.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
@@ -30,8 +30,8 @@
 #include "sound/soundsys.h"
 #include "sprite/MCVfxBuildingAppearance.h"
 #include "sprite/MCElementalActor.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 
 int32_t DefaultPilotId = 0x28d;
@@ -439,7 +439,7 @@ auto MCBuilding::Update() -> int32_t
     const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
     const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
     Position.X = vertexX + blockX;
-    const float elevation = Land->GetTerrainElevation(Position);
+    const float elevation = Terrain()->GetTerrainElevation(Position);
     Position.X =
         static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
     Position.Y = Position.Y - alongAxis;
@@ -569,7 +569,7 @@ auto MCBuilding::SetCommanderId(int32_t id) -> void
 
 auto MCBuilding::IsRevealed() -> int
 {
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     const auto col = static_cast<uint32_t>((BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
                                            VertexNumber % MCTerrain::VerticesBlockSide);
     const auto row = static_cast<uint32_t>((BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
@@ -699,7 +699,7 @@ auto MCBuilding::Render() -> void
 
     // Hazed by how many corners of its vertex square the home team sees; drawn when any is. (The original also reads
     // each corner's seen bit and drops it.)
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     const auto col = static_cast<uint32_t>(CellColumn);
     const auto row = static_cast<uint32_t>(CellRow);
     int32_t numVisible = 0;
@@ -1120,7 +1120,7 @@ auto MCBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChu
 
         if (IsCaptured() != 0)
         {
-            MCTerrain::TerrainTacticalMap->RemoveSalvage(this, 1);
+            TacticalMap()->RemoveSalvage(this, 1);
         }
 
         newDamage = destroyLevel;

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "appear/MCAppearance.h"
 #include "appear/MCAppearanceType.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCLineElement.h"
 #include "lib/MCFrameOfRef.h"

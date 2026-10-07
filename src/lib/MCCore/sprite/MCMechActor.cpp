@@ -3,7 +3,7 @@
 #include "ai/move.h"
 #include "ai/tacordr.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCEllipseElement.h"
@@ -20,7 +20,7 @@
 #include "sound/soundsys.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 
 int SingleStepMode = 1;

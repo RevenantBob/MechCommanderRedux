@@ -2,7 +2,7 @@
 #include "object/tbldng.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
@@ -31,8 +31,8 @@
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
 #include "sprite/MCElementalActor.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
@@ -462,7 +462,7 @@ auto MCTreeBuilding::Update() -> int32_t
     const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
     const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
     Position.X = vertexX + blockX;
-    const float elevation = Land->GetTerrainElevation(Position);
+    const float elevation = Terrain()->GetTerrainElevation(Position);
     Position.X =
         static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
     Position.Y = Position.Y - alongAxis;
@@ -592,7 +592,7 @@ auto MCTreeBuilding::LightOnFire(float timeToBurn) -> void
 
 auto MCTreeBuilding::IsRevealed() -> int
 {
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     uint32_t row;
     uint32_t col;
     VertexRowCol(this, row, col);
@@ -736,7 +736,7 @@ auto MCTreeBuilding::Render() -> void
     uint32_t row;
     uint32_t col;
     VertexRowCol(this, row, col);
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     int32_t numVisible = 0;
 
     if (visibleBits->GetFlag(row, col) != 0)
@@ -1145,7 +1145,7 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
 
     if (IsCaptured() != 0)
     {
-        MCTerrain::TerrainTacticalMap->RemoveSalvage(this, 1);
+        TacticalMap()->RemoveSalvage(this, 1);
     }
 
     MCGameObject* attacker = shotInfo->Attacker;

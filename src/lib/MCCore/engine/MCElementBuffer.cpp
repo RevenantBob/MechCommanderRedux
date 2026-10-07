@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "engine/MCElementBuffer.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 
 MCElementBuffer::MCElementBuffer()
 {

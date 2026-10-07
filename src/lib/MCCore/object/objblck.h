@@ -10,7 +10,7 @@ struct MCObjectQueueNode;
 /// </summary>
 /// <remarks>
 /// Original source: <c>object\objblck.cpp</c>; 0x18 bytes, allocated by Terrain::init (the inline constructor zeroes
-/// every field). The global is <c>objBlockManager</c> (terrain\terrain.h).
+/// every field). The terrain owns it (<see cref="MCTerrain::ObjectBlocks"/>).
 /// </remarks>
 class MCObjectBlockManager
 {

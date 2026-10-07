@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "gui/asystem.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
+#include "camera/MCMainWindow.h"
 #include "color/MCPalette.h"
 #include "engine/MCFont.h"
 #include "gameos/soundrenderer.h"
@@ -36,8 +37,8 @@
 #include "network/multplyr.h"
 #include "object/team.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCCursor.h"
 #include "platform/MCBlockStore.h"
@@ -464,7 +465,7 @@ auto MCFollowWindowSize() -> bool
     {
         ScreenWindow->Resize(width, height);
 
-        if (MainHolder != nullptr)
+        if (MainHolder() != nullptr)
         {
             // The original's resolution-change broadcast (nothing in MCX.EXE sends it): the main window takes the
             // screen's size and re-tiles its panes, the mech bar goes back to the bottom.
@@ -2774,7 +2775,7 @@ auto TranslateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
             }
 
             if (grabbed == nullptr && TheInterface != nullptr && Scenario != nullptr && Turn > 0 &&
-                EventsToMissionResultsScreen == 0 && MainHolder != nullptr && target == MainHolder->GetActivePane())
+                EventsToMissionResultsScreen == 0 && MainHolder() != nullptr && target == MainHolder()->GetActivePane())
             {
                 // A step per notch (finer wheels zoom finer); not while paused or asked.
                 const float step = std::pow(MCInterfaceObject::ZoomWheelStep, std::fabs(delta / 120.0f));
@@ -2880,9 +2881,9 @@ auto ScrollScreen() -> void
 
     int16_t speed = TheInterface->ScrollSpeed;
 
-    if (MainHolder != nullptr && MainHolder->GetActivePane() != nullptr)
+    if (MainHolder() != nullptr && MainHolder()->GetActivePane() != nullptr)
     {
-        camera = MainHolder->GetActivePane()->GetCamera();
+        camera = MainHolder()->GetActivePane()->GetCamera();
     }
 
     int32_t dx = 0;
@@ -2899,9 +2900,9 @@ auto ScrollScreen() -> void
         float step = FrameLength * 0x1.dffffep+3f * static_cast<float>(speed);
 
         // Port: the same speed on the screen at any zoom (the world surface's pixels per screen pixel).
-        if (camera->Window != nullptr && camera->Window->WorldScaleY() > 0.0f)
+        if (camera->View() != nullptr && camera->View()->WorldScaleY() > 0.0f)
         {
-            step /= camera->Window->WorldScaleY();
+            step /= camera->View()->WorldScaleY();
         }
 
         bool scroll = true;
@@ -3004,7 +3005,7 @@ auto ScrollScreen() -> void
         {
             // Keep the window's anchor point (selectionBox's first corner) on the same spot of the world.
             // Port: the box is in the view's own coordinates, the projection on its world surface (through the zoom).
-            MCViewWindow* window = camera->Window;
+            MCViewWindow* window = camera->View();
             MCVector2D anchor(window->SelectionBox[0] / window->WorldScaleX(),
                               window->SelectionBox[1] / window->WorldScaleY());
             MCVector3D point;
@@ -3028,7 +3029,7 @@ auto ScrollScreen() -> void
     int32_t mapDx = 0;
     int32_t mapDy = 0;
 
-    if (MCTerrain::TerrainTacticalMap == nullptr)
+    if (TacticalMap() == nullptr)
     {
         return;
     }
@@ -3080,7 +3081,7 @@ auto ScrollScreen() -> void
         return;
     }
 
-    MCTerrain::TerrainTacticalMap->ScrollMap(mapDx, mapDy);
+    TacticalMap()->ScrollMap(mapDx, mapDy);
 }
 
 auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
@@ -3729,13 +3730,6 @@ auto MCGuiSystem::Stop() -> void
         TheInterface = nullptr;
     }
 
-    if (MainHolder != nullptr)
-    {
-        MainHolder->Destroy();
-        delete MainHolder;
-        MainHolder = nullptr;
-    }
-
     if (StopWindow1 != nullptr)
     {
         StopWindow1->Destroy();
@@ -4086,9 +4080,8 @@ auto MCGuiSystem::ClearModal() -> void
 
 auto MCGuiSystem::Grab(MCGuiObject* obj) -> void
 {
-    Assert(RecordClicks == 0 || MCTerrain::TerrainTacticalMap == nullptr ||
-               obj != MCTerrain::TerrainTacticalMap->ScrollButtons[5],
-           0, " Get Jon! Or save this for him! ");
+    Assert(RecordClicks == 0 || TacticalMap() == nullptr || obj != TacticalMap()->ScrollButtons[5].get(), 0,
+           " Get Jon! Or save this for him! ");
     Grabbed = obj;
     MCInput::SetCapture();
 }

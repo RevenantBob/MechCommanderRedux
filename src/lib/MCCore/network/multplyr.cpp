@@ -43,7 +43,7 @@
 #include "object/turret.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 MCMultiPlayer* MPlayer = nullptr;
 int IsMPlayerGame = 0;
@@ -2329,7 +2329,7 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
     MCVector3D wayPoint;
     wayPoint.X = std::bit_cast<float>(message->OrderParam1);
     wayPoint.Y = std::bit_cast<float>(message->OrderParam2);
-    wayPoint.Z = Land->GetTerrainElevation(wayPoint);
+    wayPoint.Z = Terrain()->GetTerrainElevation(wayPoint);
     order.SetWayPoint(0, wayPoint);
 
     // A jump-attack (method 1) becomes a jump to the target's position, as Parser::SendTacOrder does locally.
@@ -2491,7 +2491,7 @@ auto HandleAppPlayerArtillery(uint32_t fromID, const void* msg) -> void
     MCVector3D location;
     location.X = message->TargetX;
     location.Y = message->TargetY;
-    location.Z = Land->GetTerrainElevation(location);
+    location.Z = Terrain()->GetTerrainElevation(location);
     CallArtillery(chunk.CommanderId, chunk.StrikeType, location, chunk.Seconds, 0);
 }
 
@@ -2776,7 +2776,7 @@ auto HandleAppWorldStateUpdate(uint32_t fromID, const void* msg) -> void
                 {
                     MCVector3D position;
                     MapCellToWorldPos(chunk.TileRow, chunk.TileCol, position);
-                    position.Z = Land->GetTerrainElevation(position);
+                    position.Z = Terrain()->GetTerrainElevation(position);
 
                     if (chunk.Param2 == 4)
                     {
@@ -2843,7 +2843,7 @@ auto HandleAppWorldStateUpdate(uint32_t fromID, const void* msg) -> void
             {
                 MCVector3D location;
                 MapCellToWorldPos(chunk.TileRow, chunk.TileCol, location);
-                location.Z = Land->GetTerrainElevation(location);
+                location.Z = Terrain()->GetTerrainElevation(location);
                 CallArtillery(chunk.Type - WSCHUNK_ARTILLERY, chunk.Param1, location, chunk.Param2, 0);
                 break;
             }

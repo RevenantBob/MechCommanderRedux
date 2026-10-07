@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "sprite/MCElementalActor.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
@@ -10,7 +10,7 @@
 #include "object/team.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 namespace
 {

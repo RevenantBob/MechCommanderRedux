@@ -105,6 +105,9 @@ struct MCRadioData
     uint8_t Priority = 0;
     /// <summary>Scenario time after which it isn't worth playing.</summary>
     float ExpirationDate = 0.0f;
+
+    /// <summary>Ends and deletes the pilot's video window, if there is one, and forgets its video.</summary>
+    void CloseMovie();
     /// <summary>Who speaks.</summary>
     MCMechWarrior* Pilot = nullptr;
 };

@@ -52,6 +52,9 @@
     <ClCompile Include="tests\fixtures\MCRetailData.cpp">
       <Filter>tests\fixtures</Filter>
     </ClCompile>
+    <ClCompile Include="tests\fixtures\MCTerrainGeometryScope.cpp">
+      <Filter>tests\fixtures</Filter>
+    </ClCompile>
     <ClCompile Include="tests\fixtures\MCTinyMap.cpp">
       <Filter>tests\fixtures</Filter>
     </ClCompile>
@@ -118,6 +121,9 @@
     <ClCompile Include="tests\SmackerTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\SortTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\SpriteTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -125,6 +131,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\TerrainGridTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\TerrainTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\TestGame.cpp">
@@ -167,6 +176,9 @@
       <Filter>tests\fakes</Filter>
     </ClInclude>
     <ClInclude Include="tests\fixtures\MCRetailData.h">
+      <Filter>tests\fixtures</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\fixtures\MCTerrainGeometryScope.h">
       <Filter>tests\fixtures</Filter>
     </ClInclude>
     <ClInclude Include="tests\fixtures\MCTinyMap.h">

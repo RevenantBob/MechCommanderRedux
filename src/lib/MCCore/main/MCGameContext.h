@@ -3,11 +3,13 @@
 #include "platform/MCServices.h"
 
 class MCAppearanceTypeList;
+class MCCameraList;
 class MCCraterManager;
 class MCElementBuffer;
 class MCFastFileSet;
 class MCPalette;
 class MCSpriteManager;
+class MCTerrain;
 
 /// <summary>
 /// Everything the game reaches for that a test may want to replace: the port services (clock, dice, files, sound
@@ -67,6 +69,12 @@ public:
     /// <summary>The mission's appearance types (null outside a mission).</summary>
     MCAppearanceTypeList* AppearanceTypeList() const;
 
+    /// <summary>The mission's terrain (null outside a mission).</summary>
+    MCTerrain* Terrain() const;
+
+    /// <summary>The mission's cameras (null outside a mission).</summary>
+    MCCameraList* CameraList() const;
+
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
     template <std::derived_from<MCClock> T> T& SetClock(std::unique_ptr<T> clock)
@@ -121,6 +129,14 @@ public:
     /// <returns>The appearance types this context had.</returns>
     std::unique_ptr<MCAppearanceTypeList> SetAppearanceTypeList(std::unique_ptr<MCAppearanceTypeList> typeList);
 
+    /// <summary>Gives this context its own terrain (null: the one it was installed over, if any).</summary>
+    /// <returns>The terrain this context had.</returns>
+    std::unique_ptr<MCTerrain> SetTerrain(std::unique_ptr<MCTerrain> terrain);
+
+    /// <summary>Gives this context its own cameras (null: the ones it was installed over, if any).</summary>
+    /// <returns>The cameras this context had.</returns>
+    std::unique_ptr<MCCameraList> SetCameraList(std::unique_ptr<MCCameraList> cameraList);
+
 private:
     friend class MCTestContextScope;
 
@@ -148,6 +164,8 @@ private:
     std::unique_ptr<MCCraterManager> _CraterManager;
     std::unique_ptr<MCSpriteManager> _SpriteManager;
     std::unique_ptr<MCAppearanceTypeList> _AppearanceTypeList;
+    std::unique_ptr<MCTerrain> _Terrain;
+    std::unique_ptr<MCCameraList> _CameraList;
 };
 
 /// <summary>

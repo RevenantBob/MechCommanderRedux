@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "object/gameobj.h"
 #include "ai/move.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "main/main.h"
@@ -16,7 +16,7 @@
 #include "object/objtype.h"
 #include "object/team.h"
 #include "object/turret.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 int32_t ObjCellArray[9] = {};
 char ChunkDebugMsg[0x1400] = {}; // 0x1408 bytes lie before the next global.
@@ -1450,7 +1450,7 @@ auto MCBigGameObject::Kill() -> int32_t
 
 auto MCBigGameObject::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {

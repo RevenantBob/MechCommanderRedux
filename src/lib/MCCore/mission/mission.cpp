@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "mission/mission.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
+#include "camera/MCMainWindow.h"
 #include "color/MCPalette.h"
 #include "gui/abutton.h"
 #include "gui/afont.h"
@@ -36,8 +37,8 @@
 #include "object/team.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
@@ -1290,9 +1291,9 @@ auto MCMission::SaveWindowStatus() -> void
 
     windowFile.WriteBlock("Info");
 
-    if (MainHolder->GetPane(0) != nullptr && MainHolder->GetPane(0)->GetCamera() != nullptr)
+    if (MainHolder()->GetPane(0) != nullptr && MainHolder()->GetPane(0)->GetCamera() != nullptr)
     {
-        windowFile.WriteIdBoolean("MainZoomed", MainHolder->GetPane(0)->GetCamera()->CameraScale != 100);
+        windowFile.WriteIdBoolean("MainZoomed", MainHolder()->GetPane(0)->GetCamera()->CameraScale != 100);
     }
 
     windowFile.WriteIdBoolean("TacHidden", TheInterface->TacticalMap->IsHidden());
@@ -1305,9 +1306,9 @@ auto MCMission::SaveWindowStatus() -> void
 auto MCMission::LoadWindowStatus() -> void
 {
     MCFitIniFile windowFile;
-    MainHolder->SetTiled(0);
+    MainHolder()->SetTiled(0);
     TheInterface->TacticalMap->ShowGuiWindow(1);
-    MainHolder->ZoomActivePane();
+    MainHolder()->ZoomActivePane();
     TheInterface->TacticalMap->HideMe(0);
 
     if (windowFile.Open("windows.fit") != 0)
@@ -2689,10 +2690,10 @@ auto MCMissionResultsScreen::Activate() -> int32_t
         }
 
         // Borrow the tactical map's text box for the debriefing.
-        MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
+        MCTacticalMap* tacMap = TacticalMap();
         _TextObject = nullptr;
-        tacMap->RemoveChild(tacMap->SalvageText);
-        _TextObject = tacMap->SalvageText;
+        tacMap->RemoveChild(tacMap->SalvageText.get());
+        _TextObject = tacMap->SalvageText.get();
         AddChild(_TextObject);
         _TextObject->MoveTo(10, 0x15b, 0);
         _TextObject->Resize(0xc4, 0x59);

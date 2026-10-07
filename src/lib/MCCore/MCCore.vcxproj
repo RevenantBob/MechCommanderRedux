@@ -63,8 +63,10 @@
     <ClCompile Include="appear\MCAppearance.cpp" />
     <ClCompile Include="appear\MCAppearanceType.cpp" />
     <ClCompile Include="appear\MCAppearanceTypeList.cpp" />
-    <ClCompile Include="camera\camera.cpp" />
-    <ClCompile Include="camera\camlist.cpp" />
+    <ClCompile Include="camera\MCCamera.cpp" />
+    <ClCompile Include="camera\MCCameraList.cpp" />
+    <ClCompile Include="camera\MCMainWindow.cpp" />
+    <ClCompile Include="camera\MCViewWindow.cpp" />
     <ClCompile Include="color\MCPalette.cpp" />
     <ClCompile Include="color\MCWaterCycle.cpp" />
     <ClCompile Include="engine\MCBitFlag.cpp" />
@@ -245,10 +247,17 @@
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="terrain\terrain.cpp" />
-    <ClCompile Include="terrain\terrmap.cpp" />
-    <ClCompile Include="terrain\terrtxm.cpp" />
-    <ClCompile Include="terrain\vertex.cpp" />
+    <ClCompile Include="terrain\MCArtilleryButton.cpp" />
+    <ClCompile Include="terrain\MCGroundMesh.cpp" />
+    <ClCompile Include="terrain\MCMapBlockManager.cpp" />
+    <ClCompile Include="terrain\MCTacticalMap.cpp" />
+    <ClCompile Include="terrain\MCTacticalMapPages.cpp" />
+    <ClCompile Include="terrain\MCTerrain.cpp" />
+    <ClCompile Include="terrain\MCTerrainBlock.cpp" />
+    <ClCompile Include="terrain\MCTerrainTiles.cpp" />
+    <ClCompile Include="terrain\MCTerrainWindow.cpp" />
+    <ClCompile Include="terrain\MCToolPalButton.cpp" />
+    <ClCompile Include="terrain\MCVideoWindow.cpp" />
     <ClCompile Include="vfx\MCAgEllipse.cpp" />
     <ClCompile Include="vfx\MCAgShapeDraw.cpp" />
     <ClCompile Include="vfx\MCAgShapeTransform.cpp" />
@@ -284,8 +293,10 @@
     <ClInclude Include="appear\MCAppearance.h" />
     <ClInclude Include="appear\MCAppearanceType.h" />
     <ClInclude Include="appear\MCAppearanceTypeList.h" />
-    <ClInclude Include="camera\camera.h" />
-    <ClInclude Include="camera\camlist.h" />
+    <ClInclude Include="camera\MCCamera.h" />
+    <ClInclude Include="camera\MCCameraList.h" />
+    <ClInclude Include="camera\MCMainWindow.h" />
+    <ClInclude Include="camera\MCViewWindow.h" />
     <ClInclude Include="color\MCPalette.h" />
     <ClInclude Include="color\MCWaterCycle.h" />
     <ClInclude Include="engine\MCBitFlag.h" />
@@ -316,6 +327,7 @@
     <ClInclude Include="gui\asystem.h" />
     <ClInclude Include="gui\atextbox.h" />
     <ClInclude Include="gui\awindow.h" />
+    <ClInclude Include="gui\MCGuiOwned.h" />
     <ClInclude Include="gui\mchwcursor.h" />
     <ClInclude Include="gui\scrlpane.h" />
     <ClInclude Include="gui\updisp.h" />
@@ -333,6 +345,7 @@
     <ClInclude Include="lib\MCIDString.h" />
     <ClInclude Include="lib\MCLinkedList.h" />
     <ClInclude Include="lib\MCLz.h" />
+    <ClInclude Include="lib\MCMsvcSort.h" />
     <ClInclude Include="lib\MCPacketFile.h" />
     <ClInclude Include="lib\MCPriorityQueue.h" />
     <ClInclude Include="lib\MCVector2D.h" />
@@ -467,10 +480,17 @@
     <ClInclude Include="sprite\MCVfxBuildingAppearanceType.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="terrain\terrain.h" />
-    <ClInclude Include="terrain\terrmap.h" />
-    <ClInclude Include="terrain\terrtxm.h" />
-    <ClInclude Include="terrain\vertex.h" />
+    <ClInclude Include="terrain\MCArtilleryButton.h" />
+    <ClInclude Include="terrain\MCGroundMesh.h" />
+    <ClInclude Include="terrain\MCMapBlockManager.h" />
+    <ClInclude Include="terrain\MCTacticalMap.h" />
+    <ClInclude Include="terrain\MCTacticalMapLayout.h" />
+    <ClInclude Include="terrain\MCTerrain.h" />
+    <ClInclude Include="terrain\MCTerrainTiles.h" />
+    <ClInclude Include="terrain\MCTerrainWindow.h" />
+    <ClInclude Include="terrain\MCToolPalButton.h" />
+    <ClInclude Include="terrain\MCVertex.h" />
+    <ClInclude Include="terrain\MCVideoWindow.h" />
     <ClInclude Include="vfx\MCAgShape.h" />
     <ClInclude Include="vfx\MCVfx.h" />
     <ClInclude Include="vfx\MCVfxClip.h" />

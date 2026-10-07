@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "engine/MCDeltaElement.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "vfx/MCVfxFunctions.h"
 
 MCDeltaElement::MCDeltaElement(uint8_t* shape, int32_t x, int32_t y, int32_t frame, uint8_t* fadeTable)

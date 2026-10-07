@@ -4,8 +4,8 @@
 #include "ai/tacordr.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCLineElement.h"
 #include "engine/MCVfxElement.h"
@@ -39,7 +39,7 @@
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCElementalActor.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 float ElmDamageOnImpact = 0.0f;
 float ElementalTargetNoJumpDistance = 75.0f;
@@ -1650,7 +1650,7 @@ auto MCElemental::GetPositionFromHS(uint32_t hotSpot) -> MCVector3D
 
 auto MCElemental::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
     ScreenPos.Y = 0.0f;
     ScreenPos.X = 0.0f;
 
@@ -1666,9 +1666,9 @@ auto MCElemental::OnScreen() -> int
         MCVector2D screen100;
         MCVector2D screen50;
 
-        if (Land != nullptr)
+        if (Terrain() != nullptr)
         {
-            Land->ProjectTerrain(Position, screen100, screen50);
+            Terrain()->ProjectTerrain(Position, screen100, screen50);
         }
 
         if (camera->CameraScale == 1)
@@ -1712,8 +1712,6 @@ auto MCElemental::Update() -> int32_t
         return 1;
     }
 
-    const float blockSize = static_cast<float>(MCTerrain::VerticesBlockSide) * MCTerrain::MetersPerVertex;
-
     if (IsDestroyed() != 0)
     {
         if (Removed != 0)
@@ -1750,11 +1748,11 @@ auto MCElemental::Update() -> int32_t
             // Every vertex travelled, the elemental marks what it sees.
             if (Alignment == 1)
             {
-                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
             }
             else if (Alignment == -1)
             {
-                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
             }
 
             DistanceSinceMarkSeen = 0.0f;
@@ -1815,7 +1813,7 @@ auto MCElemental::Update() -> int32_t
             static_cast<float>(std::sqrt(static_cast<double>(move.X) * move.X + static_cast<double>(move.Y) * move.Y +
                                          static_cast<double>(move.Z) * move.Z) +
                                DistanceSinceMarkSeen);
-        Position.Z = Land->GetTerrainElevation(Position);
+        Position.Z = Terrain()->GetTerrainElevation(Position);
 
         const int visibleNow = OnScreen();
         const int offScreen = visibleNow == 0 ? 1 : 0;
@@ -1843,12 +1841,6 @@ auto MCElemental::Update() -> int32_t
         }
     }
 
-    // Original behaviour (OB-005): adds the map's top edge to y here rather than subtracting.
-    const float blockColumn = (Position.X - MCTerrain::MapTopLeft3d100.X) / blockSize;
-    const auto blockRow =
-        static_cast<int32_t>(std::floor(static_cast<double>((MCTerrain::MapTopLeft3d100.Y + Position.Y) / blockSize)));
-    const auto column = static_cast<int32_t>(std::floor(static_cast<double>(blockColumn)));
-    AddMoverToList(column + blockRow * MCTerrain::BlocksMapSide);
     return 1;
 }
 
@@ -1952,8 +1944,8 @@ auto MCElemental::Render() -> void
 
             MCVector3D from = path->StepList[i].Destination;
             MCVector3D to = path->StepList[i + 1].Destination;
-            from.Z = Land->GetTerrainElevation(from);
-            to.Z = Land->GetTerrainElevation(to);
+            from.Z = Terrain()->GetTerrainElevation(from);
+            to.Z = Terrain()->GetTerrainElevation(to);
             const auto project = [](const MCVector3D& point)
             {
                 const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
@@ -2376,7 +2368,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
 
             if (DistanceFrom(enemyPosition) < Scenario->MaxVisualRange)
             {
-                Land->MarkRadiusSeen(Position, Frame.J, 360.0f, Scenario->FireVisualRange, seenBy);
+                Terrain()->MarkRadiusSeen(Position, Frame.J, 360.0f, Scenario->FireVisualRange, seenBy);
                 break;
             }
         }

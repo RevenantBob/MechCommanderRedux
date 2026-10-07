@@ -19,7 +19,7 @@
 #include "object/objque.h"
 #include "object/objtype.h"
 #include "object/warrior.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 int32_t MCGlobalMap::MinTileR = 0;
 int32_t MCGlobalMap::MaxTileR = 0;

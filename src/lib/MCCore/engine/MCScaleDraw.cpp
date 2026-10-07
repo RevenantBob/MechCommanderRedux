@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "engine/MCScaleDraw.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "vfx/MCVfxFunctions.h"
 
 auto ScaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int32_t reverse, uint8_t* fadeTable) -> int32_t

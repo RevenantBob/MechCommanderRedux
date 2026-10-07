@@ -2,7 +2,7 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "color/MCWaterCycle.h"
 #include "gui/aport.h"
@@ -17,8 +17,8 @@
 #include "gui/updisp.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 using namespace MCScreenInput;
 
@@ -283,7 +283,7 @@ TEST_CASE_ISOLATED("game: the tactical map draws every page")
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    MCTacticalMap* map = MCTerrain::TerrainTacticalMap;
+    MCTacticalMap* map = TacticalMap();
     REQUIRE(map != nullptr);
     MCFriendlyMechIcon* icon = TheInterface->MechBar->GetButton(0);
     REQUIRE(icon != nullptr);
@@ -308,13 +308,13 @@ TEST_CASE_ISOLATED("game: the tactical map draws every page")
                                     [map]
                                     {
                                         map->InfoObject = nullptr;
-                                        map->SetDisplayType(TACMAP_INFO);
+                                        map->SetDisplayType(MCTacmapPage::Info);
                                     });
     const uint32_t infoMech = show("info mech", [map, icon] { map->SetID(icon->PartId); });
     const uint32_t infoPayload = show("info payload", [map] { map->SetDataDisplayMode(2, -1); });
-    const uint32_t missionPage = show("mission", [map] { map->SetDisplayType(TACMAP_MISSION); });
-    const uint32_t salvagePage = show("salvage", [map] { map->SetDisplayType(TACMAP_SALVAGE); });
-    const uint32_t mapAgain = show("map again", [map] { map->SetDisplayType(TACMAP_MAP); });
+    const uint32_t missionPage = show("mission", [map] { map->SetDisplayType(MCTacmapPage::Mission); });
+    const uint32_t salvagePage = show("salvage", [map] { map->SetDisplayType(MCTacmapPage::Salvage); });
+    const uint32_t mapAgain = show("map again", [map] { map->SetDisplayType(MCTacmapPage::Map); });
 
     const uint32_t pages[] = {mapPage, infoEmpty, infoMech, infoPayload, missionPage, salvagePage};
 

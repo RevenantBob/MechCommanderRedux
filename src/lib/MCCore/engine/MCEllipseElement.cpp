@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "engine/MCEllipseElement.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "vfx/MCVfxFunctions.h"
 
 MCEllipseElement::MCEllipseElement(const MCVector2D& center, const MCVector2D& size, int32_t color, int32_t depth)

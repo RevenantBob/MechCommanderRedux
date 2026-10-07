@@ -4,8 +4,8 @@
 #include "ai/tacordr.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCLineElement.h"
 #include "engine/MCEllipseElement.h"
@@ -49,7 +49,7 @@
 #include "sprite/MCGVAppearance.h"
 #include "sprite/MCElementalActor.h"
 #include "sprite/MCPUAppearance.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 int32_t GroundVehicleAttackerMoveModifier[4] = {};
 int32_t GroundVehicleCriticalHitTable[11] = {};
@@ -2459,7 +2459,7 @@ auto MCGroundVehicle::GetPositionFromHS(uint32_t hotSpot) -> MCVector3D
 
 auto MCGroundVehicle::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
     ScreenPos.Y = 0.0f;
     ScreenPos.X = 0.0f;
 
@@ -2475,9 +2475,9 @@ auto MCGroundVehicle::OnScreen() -> int
         MCVector2D screen100;
         MCVector2D screen50;
 
-        if (Land != nullptr)
+        if (Terrain() != nullptr)
         {
-            Land->ProjectTerrain(Position, screen100, screen50);
+            Terrain()->ProjectTerrain(Position, screen100, screen50);
         }
 
         if (camera->CameraScale == 1)
@@ -2717,7 +2717,7 @@ auto MCGroundVehicle::Update() -> int32_t
         return 1;
     }
 
-    TerrainNormal = Land->GetTerrainNormal(Position);
+    TerrainNormal = Terrain()->GetTerrainNormal(Position);
     UpdatePathLock(0);
 
     if (PotentialContact != nullptr)
@@ -2777,11 +2777,11 @@ auto MCGroundVehicle::Update() -> int32_t
             // Every vertex travelled, the vehicle marks what it sees.
             if (Alignment == 1)
             {
-                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
             }
             else if (Alignment == -1)
             {
-                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
             }
 
             DistanceSinceMarkSeen = 0.0f;
@@ -2902,7 +2902,7 @@ auto MCGroundVehicle::Update() -> int32_t
     // terrain's normal.
     MCFrameOfRef turned = Frame;
     speed = -speed;
-    MCVector3D normal = Land->GetTerrainNormal(Position);
+    MCVector3D normal = Terrain()->GetTerrainNormal(Position);
     MCVector3D heading = Frame.J;
     const double headingLength =
         std::sqrt(static_cast<double>(heading.X) * heading.X + static_cast<double>(heading.Y) * heading.Y +
@@ -3024,14 +3024,7 @@ auto MCGroundVehicle::Update() -> int32_t
         }
     }
 
-    Position.Z = Land->GetTerrainElevation(Position);
-    // Original behaviour (OB-005): adds the map's top edge to y here rather than subtracting.
-    const float blockSize = static_cast<float>(MCTerrain::VerticesBlockSide) * MCTerrain::MetersPerVertex;
-    const float blockColumn = (Position.X - MCTerrain::MapTopLeft3d100.X) / blockSize;
-    const auto blockRow =
-        static_cast<int32_t>(std::floor(static_cast<double>((MCTerrain::MapTopLeft3d100.Y + Position.Y) / blockSize)));
-    const auto column = static_cast<int32_t>(std::floor(static_cast<double>(blockColumn)));
-    AddMoverToList(column + blockRow * MCTerrain::BlocksMapSide);
+    Position.Z = Terrain()->GetTerrainElevation(Position);
     return 1;
 }
 
@@ -3192,8 +3185,8 @@ auto MCGroundVehicle::Render() -> void
 
             MCVector3D from = path->StepList[i].Destination;
             MCVector3D to = path->StepList[i + 1].Destination;
-            from.Z = Land->GetTerrainElevation(from);
-            to.Z = Land->GetTerrainElevation(to);
+            from.Z = Terrain()->GetTerrainElevation(from);
+            to.Z = Terrain()->GetTerrainElevation(to);
             MCVector2D fromScreen = EyeProject(from);
             MCVector2D toScreen = EyeProject(to);
             ElementList()->OpenGroup(-100000, 1);
@@ -3998,7 +3991,8 @@ namespace
 
             if (vehicle->DistanceFrom(enemyPosition) < Scenario->MaxVisualRange)
             {
-                Land->MarkRadiusSeen(vehicle->Position, vehicle->Frame.J, 360.0f, Scenario->FireVisualRange, seenBy);
+                Terrain()->MarkRadiusSeen(vehicle->Position, vehicle->Frame.J, 360.0f, Scenario->FireVisualRange,
+                                          seenBy);
                 return;
             }
         }

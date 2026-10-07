@@ -3,7 +3,7 @@
 #include "ai/move.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
@@ -36,7 +36,7 @@
 #include "sound/soundsys.h"
 #include "sprite/MCGVAppearance.h"
 #include "sprite/MCPUAppearance.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -270,11 +270,11 @@ namespace
 
                 if (radius != 0)
                 {
-                    Land->MarkRadiusSeen(turret->Position, lookVector, 360.0f, Scenario->FireVisualRange, seenBy);
+                    Terrain()->MarkRadiusSeen(turret->Position, lookVector, 360.0f, Scenario->FireVisualRange, seenBy);
                 }
                 else
                 {
-                    Land->MarkSeen(turret->Position, lookVector, 360.0f, Scenario->FireVisualRange, seenBy);
+                    Terrain()->MarkSeen(turret->Position, lookVector, 360.0f, Scenario->FireVisualRange, seenBy);
                 }
 
                 return;
@@ -662,7 +662,7 @@ auto MCTurret::Update() -> int32_t
         const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
         const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
         Position.X = vertexX + blockX;
-        const float elevation = Land->GetTerrainElevation(Position);
+        const float elevation = Terrain()->GetTerrainElevation(Position);
         Position.X =
             static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
         Position.Y = Position.Y - alongAxis;
@@ -725,12 +725,12 @@ auto MCTurret::Update() -> int32_t
 
         if (Alignment == 1)
         {
-            Land->MarkSeen(Position, lookVector, 360.0f, Scenario->MaxVisualRange, 1);
+            Terrain()->MarkSeen(Position, lookVector, 360.0f, Scenario->MaxVisualRange, 1);
             MarkedSeenInnerSphere = 1;
         }
         else if (Alignment == -1)
         {
-            Land->MarkSeen(Position, lookVector, 360.0f, Scenario->MaxVisualRange, 2);
+            Terrain()->MarkSeen(Position, lookVector, 360.0f, Scenario->MaxVisualRange, 2);
             MarkedSeenClan = 1;
         }
     }
@@ -906,11 +906,11 @@ auto MCTurret::LineOfFire(MCGameObject* target) -> int
 
     if (Alignment == 1)
     {
-        visibleBits = MCTerrain::TerrainVisibleBits;
+        visibleBits = Terrain()->ISVisibleBits.get();
     }
     else if (Alignment == -1)
     {
-        visibleBits = MCTerrain::ClanVisibleBits;
+        visibleBits = Terrain()->ClanVisibleBits.get();
     }
     else
     {
@@ -1423,7 +1423,7 @@ auto MCTurret::LightOnFire(float timeToBurn) -> void
 
 auto MCTurret::IsRevealed() -> int
 {
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     uint32_t row;
     uint32_t col;
     VertexRowCol(this, row, col);
@@ -1432,7 +1432,8 @@ auto MCTurret::IsRevealed() -> int
 
 auto MCTurret::EnemyRevealed() -> int
 {
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::TerrainVisibleBits : MCTerrain::ClanVisibleBits;
+    MCByteFlag* visibleBits =
+        HomeTeam->Alignment == -1 ? Terrain()->ISVisibleBits.get() : Terrain()->ClanVisibleBits.get();
     uint32_t row;
     uint32_t col;
     VertexRowCol(this, row, col);
@@ -1504,7 +1505,7 @@ auto MCTurret::Render() -> void
     uint32_t row;
     uint32_t col;
     VertexRowCol(this, row, col);
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     const int32_t numVisible = CountVisibleCorners(visibleBits, row, col, 0);
     uint8_t* hazePalette = nullptr;
     const int32_t hazeLevel = Eye->HazeLevel;

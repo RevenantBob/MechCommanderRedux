@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "engine/MCCraterManager.h"
 #include "ai/move.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
@@ -9,7 +9,7 @@
 #include "logistics/logmain.h"
 #include "object/team.h"
 #include "platform/MCRenderer.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 namespace
 {
@@ -106,8 +106,7 @@ auto MCCraterManager::AddCrater(int32_t craterType, const MCVector3D& position, 
     const uint32_t terrainType = tile.Cells & 0x7f;
     const uint32_t overlayType = tile.Overlay & 0x7f;
     // Seen by the player's side when any corner of the tile is.
-    const MCByteFlag* visibleBits =
-        HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    const MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     const auto row = static_cast<uint32_t>(tileR);
     const auto col = static_cast<uint32_t>(tileC);
     const bool visible = visibleBits->GetFlag(row, col) || visibleBits->GetFlag(row + 1, col) ||
@@ -119,8 +118,8 @@ auto MCCraterManager::AddCrater(int32_t craterType, const MCVector3D& position, 
     }
 
     const int32_t side = MCTerrain::VerticesBlockSide;
-    const int32_t tileId =
-        Land->GetTile((tileR / side) * MCTerrain::BlocksMapSide + tileC / side, (tileR % side) * side + tileC % side);
+    const int32_t tileId = Terrain()->GetTile((tileR / side) * MCTerrain::BlocksMapSide + tileC / side,
+                                              (tileR % side) * side + tileC % side);
 
     if (std::ranges::find(BridgeTiles, tileId) == std::end(BridgeTiles))
     {
@@ -159,9 +158,9 @@ auto MCCraterManager::Render() -> void
         MCVector2D screen100;
         MCVector2D screen50;
 
-        if (Land != nullptr)
+        if (Terrain() != nullptr)
         {
-            Land->ProjectTerrain(crater.Position, screen100, screen50);
+            Terrain()->ProjectTerrain(crater.Position, screen100, screen50);
         }
 
         int32_t shapeId = crater.CraterShapeId;

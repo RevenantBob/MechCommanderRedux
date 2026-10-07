@@ -3,8 +3,8 @@
 #include "ai/move.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
@@ -28,8 +28,8 @@
 #include "object/tree.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -411,20 +411,20 @@ auto MCFire::HandleStaticCollision() -> void
 auto MCFire::IsVisible(int32_t shapeIndex) -> int
 {
     int onScreenNow = 0;
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera != nullptr && camera->Active != 0)
     {
         MCVector2D screen100;
         MCVector2D screen50;
 
-        if (Land != nullptr)
+        if (Terrain() != nullptr)
         {
             MCVector3D shapePos;
             shapePos.X = Position.X + ShapeOffsets[shapeIndex].X;
             shapePos.Y = Position.Y + ShapeOffsets[shapeIndex].Y;
             shapePos.Z = Position.Z + ShapeOffsets[shapeIndex].Z;
-            Land->ProjectTerrain(shapePos, screen100, screen50);
+            Terrain()->ProjectTerrain(shapePos, screen100, screen50);
         }
 
         float screenY;
@@ -506,7 +506,7 @@ auto MCFire::IsRevealed() -> int
     int32_t cellR = 0;
     int32_t cellC = 0;
     GameMap->WorldToMapPos(Position, tileR, tileC, cellR, cellC);
-    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     // Faithful: tile coordinates are looked up in the vertex-resolution visibility bits.
     const auto row = static_cast<uint32_t>(tileR);
     const auto col = static_cast<uint32_t>(tileC);

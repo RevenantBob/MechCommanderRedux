@@ -2,8 +2,8 @@
 #include "object/debris.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "gui/asystem.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -12,7 +12,7 @@
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "sprite/MCArmAppearance.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 //---------------------------------------------------------------------------
 // DebrisType
@@ -128,7 +128,7 @@ auto MCDebris::Init() -> void
 
 auto MCDebris::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {
@@ -138,9 +138,9 @@ auto MCDebris::OnScreen() -> int
     MCVector2D screen100;
     MCVector2D screen50;
 
-    if (Land != nullptr)
+    if (Terrain() != nullptr)
     {
-        Land->ProjectTerrain(Position, screen100, screen50);
+        Terrain()->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;

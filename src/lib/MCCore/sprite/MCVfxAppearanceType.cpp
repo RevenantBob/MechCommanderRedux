@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sprite/MCVfxAppearanceType.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "main/main.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteManager.h"

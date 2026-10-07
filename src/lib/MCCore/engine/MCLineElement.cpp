@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "engine/MCLineElement.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "vfx/MCVfxFunctions.h"
 
 MCLineElement::MCLineElement(const MCVector2D& start, const MCVector2D& end, int32_t color, const uint8_t* fadeTable,

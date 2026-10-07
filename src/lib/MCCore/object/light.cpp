@@ -2,14 +2,14 @@
 #include "object/light.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
-#include "camera/camera.h"
-#include "camera/camlist.h"
+#include "camera/MCCamera.h"
+#include "camera/MCCameraList.h"
 #include "gui/asystem.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "sprite/MCVfxAppearance.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 //---------------------------------------------------------------------------
 // LightType
@@ -87,7 +87,7 @@ auto MCLight::Init() -> void
 
 auto MCLight::OnScreen() -> int
 {
-    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    MCCamera* camera = CameraList()->FindCameraFromIDNumber(1);
 
     if (camera == nullptr || camera->Active == 0)
     {
@@ -97,9 +97,9 @@ auto MCLight::OnScreen() -> int
     MCVector2D screen100;
     MCVector2D screen50;
 
-    if (Land != nullptr)
+    if (Terrain() != nullptr)
     {
-        Land->ProjectTerrain(Position, screen100, screen50);
+        Terrain()->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;

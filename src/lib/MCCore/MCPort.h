@@ -124,6 +124,24 @@ constexpr bool MCIStartsWith(std::string_view text, std::string_view prefix)
     return text.size() >= prefix.size() && MCIEquals(text.substr(0, prefix.size()), prefix);
 }
 
+/// <summary>
+/// Formats <paramref name="args"/> with a printf format the game loads at run time (its string table's), which
+/// <c>std::format</c> can't take. Strings go in as <c>const char*</c>.
+/// </summary>
+template <typename... Args> std::string MCFormatPrintf(const char* format, Args... args)
+{
+    const int size = std::snprintf(nullptr, 0, format, args...);
+
+    if (size <= 0)
+    {
+        return {};
+    }
+
+    std::string text(static_cast<size_t>(size), '\0');
+    std::snprintf(text.data(), text.size() + 1, format, args...);
+    return text;
+}
+
 /// <summary>StrCopy into a char array, with the size taken from the array.</summary>
 template <size_t N> inline void MCStrCopy(char (&destination)[N], const char* source)
 {

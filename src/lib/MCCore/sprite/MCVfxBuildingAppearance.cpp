@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sprite/MCVfxBuildingAppearance.h"
-#include "camera/camera.h"
+#include "camera/MCCamera.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "main/main.h"
@@ -8,7 +8,7 @@
 #include "object/team.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace

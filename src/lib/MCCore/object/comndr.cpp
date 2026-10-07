@@ -3,8 +3,8 @@
 #include "lib/MCFatal.h"
 #include "object/group.h"
 #include "object/mover.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 int32_t NumCommanders = 0;
 MCCommander* CommanderTable[MAX_COMMANDERS] = {};
@@ -15,9 +15,9 @@ namespace
     /// <summary>The home commander's support changed: redraw the tactical map.</summary>
     void RedrawTacticalMap(const MCCommander* commander)
     {
-        if (MCTerrain::TerrainTacticalMap != nullptr && commander == HomeCommander)
+        if (TacticalMap() != nullptr && commander == HomeCommander)
         {
-            MCTerrain::TerrainTacticalMap->RefreshPage();
+            TacticalMap()->RefreshPage();
         }
     }
 }

@@ -13,7 +13,7 @@
 #include "object/mover.h"
 #include "object/sortlist.h"
 #include "object/warrior.h"
-#include "terrain/terrain.h"
+#include "terrain/MCTerrain.h"
 
 MCTeam* ClanTeam = nullptr;
 MCTeam* AlliedTeam = nullptr;
@@ -815,11 +815,11 @@ auto MCTeam::LineOfSight(MCVector3D position) -> int
 
     if (Alignment == 1)
     {
-        visibleBits = MCTerrain::TerrainVisibleBits;
+        visibleBits = Terrain()->ISVisibleBits.get();
     }
     else if (Alignment == -1)
     {
-        visibleBits = MCTerrain::ClanVisibleBits;
+        visibleBits = Terrain()->ClanVisibleBits.get();
     }
     else
     {
