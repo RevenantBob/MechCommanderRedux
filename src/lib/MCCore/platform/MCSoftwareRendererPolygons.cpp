@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCSoftwareRenderer.h"
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 // The software renderer's polygons (vfx3d.asm) and VFX_shape_transform's mapped quadrilateral (vfxa.asm).
 //
@@ -929,8 +929,8 @@ void MCSoftwareRenderer::Polygon(MCWindow* target, const MCPolygonCommand& comma
             NoteCpuRead(texture, "Polygon (map)");
             const uint8_t* texels = texture->Buffer;
             const int64_t texSize = static_cast<int64_t>(texture->XMax + 1) * (texture->YMax + 1);
-            const bool xlat = (command.MapFlags & MP_XLAT) != 0;
-            const bool transparent = (command.MapFlags & MP_XP) != 0;
+            const bool xlat = (command.MapFlags & VfxMapXlat) != 0;
+            const bool transparent = (command.MapFlags & VfxMapTransparent) != 0;
             const uint8_t* lookaside = command.Table;
             MCPolygonSpans(command, _Spans,
                            [&](const MCSpan& span)

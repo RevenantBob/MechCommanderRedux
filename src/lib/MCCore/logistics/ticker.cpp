@@ -3,7 +3,7 @@
 #include "gui/afont.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {

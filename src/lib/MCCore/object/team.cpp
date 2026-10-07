@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/team.h"
 #include "ai/move.h"
-#include "engine/bitflag.h"
+#include "engine/MCByteFlag.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"

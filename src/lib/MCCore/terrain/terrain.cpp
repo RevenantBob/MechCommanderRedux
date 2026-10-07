@@ -2,9 +2,10 @@
 #include "terrain/terrain.h"
 #include "ai/move.h"
 #include "camera/camera.h"
-#include "engine/bitflag.h"
-#include "engine/ceglist.h"
-#include "engine/celine.h"
+#include "engine/MCBitFlag.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCLineElement.h"
 #include "gui/asystem.h"
 #include "iface/iface.h"
 #include "lib/MCFatal.h"
@@ -22,8 +23,8 @@
 #include "terrain/terrmap.h"
 #include "terrain/terrtxm.h"
 #include "terrain/vertex.h"
-#include "vfx/vfx.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfx.h"
+#include "vfx/MCVfxFunctions.h"
 
 MCMapBlockManager* MCTerrain::MapBlockManager = nullptr;
 MCVertexManager* MCTerrain::VertexManager = nullptr;
@@ -111,10 +112,10 @@ namespace
     /// </summary>
     void AddGridQuad(MCVector2D& p0, MCVector2D& p1, MCVector2D& p2, MCVector2D& p3, int32_t color)
     {
-        ElementList->Add(MCElementPool::Make<MCLineElement>(p1, p2, color, nullptr, GRID_LINE_DEPTH, -1));
-        ElementList->Add(MCElementPool::Make<MCLineElement>(p2, p3, color, nullptr, GRID_LINE_DEPTH, -1));
-        ElementList->Add(MCElementPool::Make<MCLineElement>(p3, p0, color, nullptr, GRID_LINE_DEPTH, -1));
-        ElementList->Add(MCElementPool::Make<MCLineElement>(p1, p0, color, nullptr, GRID_LINE_DEPTH, -1));
+        ElementList()->Add(ElementList()->Make<MCLineElement>(p1, p2, color, nullptr, GRID_LINE_DEPTH, -1));
+        ElementList()->Add(ElementList()->Make<MCLineElement>(p2, p3, color, nullptr, GRID_LINE_DEPTH, -1));
+        ElementList()->Add(ElementList()->Make<MCLineElement>(p3, p0, color, nullptr, GRID_LINE_DEPTH, -1));
+        ElementList()->Add(ElementList()->Make<MCLineElement>(p1, p0, color, nullptr, GRID_LINE_DEPTH, -1));
     }
 
     /// <summary>
@@ -498,42 +499,10 @@ auto MCTerrain::Init(char* fileName) -> int32_t
     MapTopLeft3d100.X = WorldUnitsMapSide * -0.5f;
     MapTopLeft3d100.Y = WorldUnitsMapSide * 0.5f;
 
-    TerrainVisibleBits = new MCByteFlag();
-
-    if (TerrainVisibleBits == nullptr)
-    {
-        return TERRAIN_INIT_FAILED;
-    }
-
-    ISSeenBits = new MCBitFlag();
-
-    if (ISSeenBits == nullptr)
-    {
-        return TERRAIN_INIT_FAILED;
-    }
-
-    ISSeenBits->DivValue = 1;
-    ISSeenBits->ColWidth = 1;
-    ClanVisibleBits = new MCByteFlag();
-
-    if (ClanVisibleBits == nullptr)
-    {
-        return TERRAIN_INIT_FAILED;
-    }
-
-    ClanSeenBits = new MCBitFlag();
-
-    if (ClanSeenBits == nullptr)
-    {
-        return TERRAIN_INIT_FAILED;
-    }
-
-    ClanSeenBits->DivValue = 1;
-    ClanSeenBits->ColWidth = 1;
-    TerrainVisibleBits->Init(flagSide, flagSide, 0);
-    ISSeenBits->Init(flagSide, flagSide, 0);
-    ClanVisibleBits->Init(flagSide, flagSide, 0);
-    ClanSeenBits->Init(flagSide, flagSide, 0);
+    TerrainVisibleBits = new MCByteFlag(flagSide, flagSide, false);
+    ISSeenBits = new MCBitFlag(flagSide, flagSide, false);
+    ClanVisibleBits = new MCByteFlag(flagSide, flagSide, false);
+    ClanSeenBits = new MCBitFlag(flagSide, flagSide, false);
 
     Windows = new MCTerrainWindow[NumWindows];
 
@@ -665,35 +634,19 @@ auto MCTerrain::Destroy() -> void
 
     TerrainTileManager = nullptr;
 
-    if (TerrainVisibleBits != nullptr)
-    {
-        TerrainVisibleBits->Destroy();
-        delete TerrainVisibleBits;
-    }
+    delete TerrainVisibleBits;
 
     TerrainVisibleBits = nullptr;
 
-    if (ISSeenBits != nullptr)
-    {
-        ISSeenBits->Destroy();
-        delete ISSeenBits;
-    }
+    delete ISSeenBits;
 
     ISSeenBits = nullptr;
 
-    if (ClanVisibleBits != nullptr)
-    {
-        ClanVisibleBits->Destroy();
-        delete ClanVisibleBits;
-    }
+    delete ClanVisibleBits;
 
     ClanVisibleBits = nullptr;
 
-    if (ClanSeenBits != nullptr)
-    {
-        ClanSeenBits->Destroy();
-        delete ClanSeenBits;
-    }
+    delete ClanSeenBits;
 
     ClanSeenBits = nullptr;
 
@@ -1288,7 +1241,7 @@ auto MCTerrainWindow::Render(int32_t hazeFactor, uint8_t flags) -> void
 
     if (DrawTerrainTiles != 0)
     {
-        ElementList->OpenGroup(50000000, 0);
+        ElementList()->OpenGroup(50000000, 0);
         NumTerrainFaces = 0;
 
         // Port: the GPU draws the pass from the map's ground mesh in one draw; the tiles below then only reach the
@@ -1328,7 +1281,7 @@ auto MCTerrainWindow::Render(int32_t hazeFactor, uint8_t flags) -> void
 
     if (DrawTerrainOverlays != 0)
     {
-        ElementList->OpenGroup(10000000, 0);
+        ElementList()->OpenGroup(10000000, 0);
         NumTerrainFaces = 0;
 
         for (int16_t i = 0; i < NumBlocks; i++)
@@ -1350,7 +1303,7 @@ auto MCTerrainWindow::RenderHaze(int32_t hazeFactor, uint8_t flags) -> void
 
 auto MCTerrainWindow::DrawLines() -> void
 {
-    ElementList->OpenGroup(49990000, 0);
+    ElementList()->OpenGroup(49990000, 0);
 
     for (int32_t i = 0; i < NumBlocks; i++)
     {

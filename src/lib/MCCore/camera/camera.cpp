@@ -1,11 +1,10 @@
 #include "stdafx.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "color/color.h"
-#include "engine/celement.h"
-#include "engine/ceglist.h"
-#include "engine/crater.h"
-#include "engine/font.h"
+#include "color/MCPalette.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCCraterManager.h"
+#include "engine/MCFont.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
 #include "gui/awindow.h"
@@ -30,7 +29,7 @@
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "terrain/vertex.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 MCOverlayTarget MCOverlay;
 float MCFixedZoomHeight = 0.0f;
@@ -134,13 +133,13 @@ namespace
     /// <summary>Darkens the whole screen for the pause and asked overlays.</summary>
     auto DarkenScreen() -> void
     {
-        uint8_t* hazePalette = GamePalette->GetHazePalette(-7);
+        uint8_t* hazePalette = GamePalette()->GetHazePalette(-7);
         MCScreenVertex vertices[4] = {};
         vertices[1].X = Application->Width() - 1;
         vertices[2].X = Application->Width() - 1;
         vertices[2].Y = Application->Height() - 1;
         vertices[3].Y = Application->Height() - 1;
-        VfxTranslatePolygon(ScreenPort->Frame(), 4, vertices, hazePalette);
+        VfxTranslatePolygon(ScreenPort->Frame(), std::span(vertices, 4), hazePalette);
     }
 }
 
@@ -428,10 +427,10 @@ auto MCViewWindow::DrawBox(uint8_t color, int32_t left, int32_t top, int32_t rig
         bottom = Height() - 1;
     }
 
-    VfxLineDraw(Frame(), left, top, right, top, LD_DRAW, color);
-    VfxLineDraw(Frame(), left, top, left, bottom, LD_DRAW, color);
-    VfxLineDraw(Frame(), left, bottom, right, bottom, LD_DRAW, color);
-    VfxLineDraw(Frame(), right, top, right, bottom, LD_DRAW, color);
+    VfxLineDraw(Frame(), left, top, right, top, color);
+    VfxLineDraw(Frame(), left, top, left, bottom, color);
+    VfxLineDraw(Frame(), left, bottom, right, bottom, color);
+    VfxLineDraw(Frame(), right, top, right, bottom, color);
 }
 
 auto MCViewWindow::SetWindowCamera(MCCamera* newCamera) -> void
@@ -753,7 +752,7 @@ auto MCMainWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t heigh
     }
     else
     {
-        clockHeight = LineHeight(LineFont) + 4;
+        clockHeight = LineHeight(LineFont.get()) + 4;
     }
 
     ClockPane->Init(0, 0, 40, clockHeight, nullptr);
@@ -812,7 +811,7 @@ auto MCMainWindow::Display() -> void
     pane->DrawBox(0x1f, -1, -1, -1, -1);
     LineFont->Scaled = 1;
     LineFont->Scale = 1.5f;
-    const uint8_t fontHeight = LineHeight(LineFont);
+    const uint8_t fontHeight = LineHeight(LineFont.get());
     const int32_t paneHeight = pane->Height();
 
     char clock[12];
@@ -1726,7 +1725,6 @@ finish:
 
 auto MCCamera::Render() -> void
 {
-    MaxObjectsDrawn = 0;
     MCPane* savedPane = GlobalPane;
     MCWindow* savedWindow = GlobalWindow;
 
@@ -1762,8 +1760,7 @@ auto MCCamera::Render() -> void
 
     LastZoom = zoomedIn;
 
-    MCElementPool::Reset();
-    ElementList->Reset();
+    ElementList()->Reset();
     TerrainWindow->Render(HazeLevel, 1);
 
     if (DrawTerrainGrid != 0)
@@ -1771,20 +1768,19 @@ auto MCCamera::Render() -> void
         Land->DrawLines();
     }
 
-    CraterManager->Render();
+    CraterManager()->Render();
     ObjectList->Render();
 
     if (GRestartRender != 0)
     {
         GRestartRender = 0;
-        MCElementPool::Reset();
-        ElementList->Reset();
-        CraterManager->Render();
+        ElementList()->Reset();
+        CraterManager()->Render();
         ObjectList->Render();
     }
 
-    ElementList->Sort();
-    ElementList->Draw();
+    ElementList()->Sort();
+    ElementList()->Draw();
 
     if (DrawCameraCircle != 0)
     {

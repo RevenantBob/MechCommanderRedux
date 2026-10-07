@@ -18,7 +18,7 @@
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -375,7 +375,7 @@ auto MCLogChatInput::Draw() -> void
     // The caret, which the original's display drew into the picture each frame: a vertical line a text line high.
     const int32_t bottom = Font->Height() + 3 + CursorY;
     const int32_t color = CursorOn != 0 ? 0x10 : 0x1f;
-    VfxLineDraw(_OwnPort->Frame(), CursorX, CursorY, CursorX, bottom, LD_DRAW, color);
+    VfxLineDraw(_OwnPort->Frame(), CursorX, CursorY, CursorX, bottom, color);
     MCLogObject::Draw();
 }
 
@@ -1621,7 +1621,7 @@ auto MCSessionScreen::DrawMap(MCPane* target) -> void
         {0xf4, 0xb6, 0, 0, maxV << 16, 0},
     };
 
-    VfxMapPolygon(target, 4, corners, MapPicture->Frame()->Window, MP_XP);
+    VfxMapPolygon(target, std::span(corners, 4), MapPicture->Frame()->Window, VfxMapTransparent);
 }
 
 auto MCSessionScreen::ClearMap() -> void

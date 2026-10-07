@@ -2,7 +2,7 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "lib/MCFile.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -298,7 +298,7 @@ TEST_CASE("vfx gif: plain and interlaced pictures decode to their pixels")
 
     std::vector<uint8_t> gif = MakeGif(width, height, pixels, false);
     CHECK_EQ(VfxGifResolution(gif.data()), (width << 16) | height);
-    std::vector<uint8_t> work(VFX_GIF_BUFFER_SIZE);
+    std::vector<uint8_t> work(VfxGifBufferSize);
     TestSurface surface(5, 10, 0xee);
     CHECK_EQ(VfxGifDraw(&surface.Pane, gif.data(), work.data()), 3);
 
@@ -437,7 +437,7 @@ TEST_CASE("game: palettex.gif decodes to the reference pixels")
     CHECK_EQ(VfxGifResolution(gif.data()), (640 << 16) | 400);
 
     TestSurface surface(640, 400, 0);
-    std::vector<uint8_t> work(VFX_GIF_BUFFER_SIZE);
+    std::vector<uint8_t> work(VfxGifBufferSize);
     CHECK_EQ(VfxGifDraw(&surface.Pane, gif.data(), work.data()), 16);
     // FNV-1a of the pixels as an independent decoder (PIL) gives them.
     uint32_t hash = 0x811c9dc5;

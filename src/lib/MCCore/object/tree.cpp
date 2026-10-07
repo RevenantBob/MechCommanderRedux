@@ -3,11 +3,11 @@
 #include "ai/move.h"
 #include "appear/apprtype.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/bitflag.h"
-#include "engine/ceglist.h"
-#include "engine/cellip.h"
-#include "engine/cevfx.h"
+#include "color/MCPalette.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCEllipseElement.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFrameOfRef.h"
@@ -28,7 +28,7 @@
 #include "sprite/actor.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
 namespace
@@ -526,7 +526,7 @@ auto MCTree::Render() -> void
             level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = GamePalette->GetHazePalette(level);
+        hazePalette = GamePalette()->GetHazePalette(level);
     }
 
     treeAppearance->FadeTable = hazePalette;
@@ -542,16 +542,16 @@ auto MCTree::Render() -> void
         {
             if (type->DestroyedShadow != nullptr)
             {
-                ElementList->OpenGroup(static_cast<int32_t>(ScreenPos.Y), 1);
-                ElementList->Add(MCElementPool::Make<MCVfxElement>(type->DestroyedShadow, ScreenPos.X, ScreenPos.Y, 0,
-                                                                   0, hazePalette, 0, 0));
+                ElementList()->OpenGroup(static_cast<int32_t>(ScreenPos.Y), 1);
+                ElementList()->Add(ElementList()->Make<MCVfxElement>(type->DestroyedShadow, ScreenPos.X, ScreenPos.Y, 0,
+                                                                     0, hazePalette, 0));
             }
         }
         else if (type->NormalShadow != nullptr)
         {
-            ElementList->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
-            ElementList->Add(MCElementPool::Make<MCVfxElement>(type->NormalShadow, ScreenPos.X, ScreenPos.Y, 0, 0,
-                                                               hazePalette, 0, 0));
+            ElementList()->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
+            ElementList()->Add(
+                ElementList()->Make<MCVfxElement>(type->NormalShadow, ScreenPos.X, ScreenPos.Y, 0, 0, hazePalette, 0));
         }
     }
 
@@ -573,12 +573,12 @@ auto MCTree::Render() -> void
         center.Y =
             ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
         MCVector2D size(radius, radius);
-        ElementList->OpenGroup(-50000, 1);
+        ElementList()->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
         size.X *= MCOverlay.ScaleX;
         size.Y *= MCOverlay.ScaleY;
-        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
+        ElementList()->Add(ElementList()->Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 

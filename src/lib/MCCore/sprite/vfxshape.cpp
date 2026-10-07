@@ -2,7 +2,7 @@
 #include "sprite/vfxshape.h"
 #include "appear/apprtype.h"
 #include "sprite/sprtmgr.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 auto MCShape::Destroy() -> void
 {

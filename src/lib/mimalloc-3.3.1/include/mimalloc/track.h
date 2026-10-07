@@ -47,18 +47,20 @@ defined, undefined, or not accessible at all:
 // valgrind tool
 
 #define MI_TRACK_ENABLED      1
-#define MI_TRACK_HEAP_DESTROY 1           // track free of individual blocks on theap_destroy
+#define MI_TRACK_HEAP_DESTROY 1 // track free of individual blocks on theap_destroy
 #define MI_TRACK_TOOL         "valgrind"
 
 #include <valgrind/valgrind.h>
 #include <valgrind/memcheck.h>
 
-#define mi_track_malloc_size(p,reqsize,size,zero) VALGRIND_MALLOCLIKE_BLOCK(p,size,MI_PADDING_SIZE /*red zone*/,zero)
-#define mi_track_free_size(p,_size)               VALGRIND_FREELIKE_BLOCK(p,MI_PADDING_SIZE /*red zone*/)
-#define mi_track_resize(p,oldsize,newsize)        VALGRIND_RESIZEINPLACE_BLOCK(p,oldsize,newsize,MI_PADDING_SIZE /*red zone*/)
-#define mi_track_mem_defined(p,size)              VALGRIND_MAKE_MEM_DEFINED(p,size)
-#define mi_track_mem_undefined(p,size)            VALGRIND_MAKE_MEM_UNDEFINED(p,size)
-#define mi_track_mem_noaccess(p,size)             VALGRIND_MAKE_MEM_NOACCESS(p,size)
+#define mi_track_malloc_size(p, reqsize, size, zero) \
+    VALGRIND_MALLOCLIKE_BLOCK(p, size, MI_PADDING_SIZE /*red zone*/, zero)
+#define mi_track_free_size(p, _size) VALGRIND_FREELIKE_BLOCK(p, MI_PADDING_SIZE /*red zone*/)
+#define mi_track_resize(p, oldsize, newsize) \
+    VALGRIND_RESIZEINPLACE_BLOCK(p, oldsize, newsize, MI_PADDING_SIZE /*red zone*/)
+#define mi_track_mem_defined(p, size)   VALGRIND_MAKE_MEM_DEFINED(p, size)
+#define mi_track_mem_undefined(p, size) VALGRIND_MAKE_MEM_UNDEFINED(p, size)
+#define mi_track_mem_noaccess(p, size)  VALGRIND_MAKE_MEM_NOACCESS(p, size)
 
 #elif MI_TRACK_ASAN
 // address sanitizer
@@ -69,11 +71,11 @@ defined, undefined, or not accessible at all:
 
 #include <sanitizer/asan_interface.h>
 
-#define mi_track_malloc_size(p,reqsize,size,zero) ASAN_UNPOISON_MEMORY_REGION(p,size)
-#define mi_track_free_size(p,size)                ASAN_POISON_MEMORY_REGION(p,size)
-#define mi_track_mem_defined(p,size)              ASAN_UNPOISON_MEMORY_REGION(p,size)
-#define mi_track_mem_undefined(p,size)            ASAN_UNPOISON_MEMORY_REGION(p,size)
-#define mi_track_mem_noaccess(p,size)             ASAN_POISON_MEMORY_REGION(p,size)
+#define mi_track_malloc_size(p, reqsize, size, zero) ASAN_UNPOISON_MEMORY_REGION(p, size)
+#define mi_track_free_size(p, size)                  ASAN_POISON_MEMORY_REGION(p, size)
+#define mi_track_mem_defined(p, size)                ASAN_UNPOISON_MEMORY_REGION(p, size)
+#define mi_track_mem_undefined(p, size)              ASAN_UNPOISON_MEMORY_REGION(p, size)
+#define mi_track_mem_noaccess(p, size)               ASAN_POISON_MEMORY_REGION(p, size)
 
 #elif MI_TRACK_ETW
 // windows event tracing
@@ -84,10 +86,10 @@ defined, undefined, or not accessible at all:
 
 #include "../src/prim/windows/etw.h"
 
-#define mi_track_init()                           EventRegistermicrosoft_windows_mimalloc()
-#define mi_track_done()                           EventUnregistermicrosoft_windows_mimalloc()
-#define mi_track_malloc_size(p,reqsize,size,zero) EventWriteETW_MI_ALLOC((UINT64)(p), size)
-#define mi_track_free_size(p,size)                EventWriteETW_MI_FREE((UINT64)(p), size)
+#define mi_track_init()                              EventRegistermicrosoft_windows_mimalloc()
+#define mi_track_done()                              EventUnregistermicrosoft_windows_mimalloc()
+#define mi_track_malloc_size(p, reqsize, size, zero) EventWriteETW_MI_ALLOC((UINT64)(p), size)
+#define mi_track_free_size(p, size)                  EventWriteETW_MI_FREE((UINT64)(p), size)
 
 #else
 // no tracking
@@ -96,8 +98,8 @@ defined, undefined, or not accessible at all:
 #define MI_TRACK_HEAP_DESTROY 0
 #define MI_TRACK_TOOL         "none"
 
-#define mi_track_malloc_size(p,reqsize,size,zero)
-#define mi_track_free_size(p,_size)
+#define mi_track_malloc_size(p, reqsize, size, zero)
+#define mi_track_free_size(p, _size)
 
 #endif
 
@@ -105,11 +107,16 @@ defined, undefined, or not accessible at all:
 // Utility definitions
 
 #ifndef mi_track_resize
-#define mi_track_resize(p,oldsize,newsize)      do{ mi_track_free_size(p,oldsize); mi_track_malloc(p,newsize,false); } while(0)
+#define mi_track_resize(p, oldsize, newsize) \
+    do                                       \
+    {                                        \
+        mi_track_free_size(p, oldsize);      \
+        mi_track_malloc(p, newsize, false);  \
+    } while (0)
 #endif
 
 #ifndef mi_track_align
-#define mi_track_align(p,alignedp,offset,size)  mi_track_mem_noaccess(p,offset)
+#define mi_track_align(p, alignedp, offset, size) mi_track_mem_noaccess(p, offset)
 #endif
 
 #ifndef mi_track_init
@@ -121,30 +128,31 @@ defined, undefined, or not accessible at all:
 #endif
 
 #ifndef mi_track_mem_defined
-#define mi_track_mem_defined(p,size)
+#define mi_track_mem_defined(p, size)
 #endif
 
 #ifndef mi_track_mem_undefined
-#define mi_track_mem_undefined(p,size)
+#define mi_track_mem_undefined(p, size)
 #endif
 
 #ifndef mi_track_mem_noaccess
-#define mi_track_mem_noaccess(p,size)
+#define mi_track_mem_noaccess(p, size)
 #endif
 
-
 #if MI_PADDING
-#define mi_track_malloc(p,reqsize,zero) \
-  if ((p)!=NULL) { \
-    mi_assert_internal(mi_usable_size(p)==(reqsize)); \
-    mi_track_malloc_size(p,reqsize,reqsize,zero); \
-  }
+#define mi_track_malloc(p, reqsize, zero)                   \
+    if ((p) != NULL)                                        \
+    {                                                       \
+        mi_assert_internal(mi_usable_size(p) == (reqsize)); \
+        mi_track_malloc_size(p, reqsize, reqsize, zero);    \
+    }
 #else
-#define mi_track_malloc(p,reqsize,zero) \
-  if ((p)!=NULL) { \
-    mi_assert_internal(mi_usable_size(p)>=(reqsize)); \
-    mi_track_malloc_size(p,reqsize,mi_usable_size(p),zero); \
-  }
+#define mi_track_malloc(p, reqsize, zero)                          \
+    if ((p) != NULL)                                               \
+    {                                                              \
+        mi_assert_internal(mi_usable_size(p) >= (reqsize));        \
+        mi_track_malloc_size(p, reqsize, mi_usable_size(p), zero); \
+    }
 #endif
 
 #endif // MI_TRACK_H

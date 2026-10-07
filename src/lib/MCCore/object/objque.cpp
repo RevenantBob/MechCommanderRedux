@@ -21,7 +21,6 @@ int UpdateObjects = 1;
 int UpdateTerrainObjects = 0;
 int RenderObjects = 1;
 int RenderTerrainObjects = 1;
-int MaxObjectsDrawn = 0;
 
 namespace
 {
@@ -178,7 +177,7 @@ auto MCObjectQueueNode::Render() -> void
     {
         object->Render();
 
-        if (GRestartRender != 0 || MaxObjectsDrawn != 0)
+        if (GRestartRender != 0)
         {
             return;
         }
@@ -480,7 +479,7 @@ auto MCObjectQueue::Render() -> void
             node->Render();
         }
 
-        if (GRestartRender != 0 || MaxObjectsDrawn != 0)
+        if (GRestartRender != 0)
         {
             return;
         }

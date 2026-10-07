@@ -10,7 +10,8 @@
 #include "abl/ablrtn.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "color/color.h"
+#include "color/MCPalette.h"
+#include "color/MCWaterCycle.h"
 #include "gui/aport.h"
 #include "gui/atextbox.h"
 #include "lib/MCFatal.h"
@@ -88,6 +89,19 @@ namespace
         {
             Fatal(result, errMessage);
         }
+    }
+
+    /// <summary>Reads a SYSTEM.CFG path; a missing one is fatal.</summary>
+    void ReadPath(MCFitIniFile* file, const char* varName, std::string& path, const char* errMessage)
+    {
+        MCFitResult<std::string> value = file->Read<std::string>(varName);
+
+        if (!value)
+        {
+            Fatal(std::to_underlying(value.error()), errMessage);
+        }
+
+        path = std::move(*value);
     }
 
     /// <summary>Reads a SYSTEM.CFG number; a missing one is fatal.</summary>

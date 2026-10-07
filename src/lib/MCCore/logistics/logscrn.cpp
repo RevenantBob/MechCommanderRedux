@@ -15,7 +15,7 @@
 #include "logistics/purchase.h"
 #include "main/logistics.h"
 #include "network/multplyr.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {

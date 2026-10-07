@@ -15,7 +15,7 @@
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 int32_t ResourceDisplayState = 0;
 

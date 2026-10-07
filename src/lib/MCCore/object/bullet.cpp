@@ -3,7 +3,7 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "engine/crater.h"
+#include "engine/MCCraterManager.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
@@ -400,7 +400,7 @@ auto MCBullet::Update() -> int32_t
     // A miss leaves a crater and sets off a live mine where it lands.
     if (Target == nullptr && TargetPosition != nullptr)
     {
-        CraterManager->AddCrater(6, *TargetPosition, 1);
+        CraterManager()->AddCrater(6, *TargetPosition, 1);
 
         int32_t tileR = 0;
         int32_t tileC = 0;

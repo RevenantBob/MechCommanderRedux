@@ -2,11 +2,11 @@
 #include "object/bldng.h"
 #include "appear/apprtype.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/bitflag.h"
-#include "engine/ceglist.h"
-#include "engine/cellip.h"
-#include "engine/cevfx.h"
+#include "color/MCPalette.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCEllipseElement.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFrameOfRef.h"
@@ -31,7 +31,7 @@
 #include "sprite/lactor.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 int32_t DefaultPilotId = 0x28d;
 char MarineProfileName[80] = "PEM00001";
@@ -671,11 +671,10 @@ auto MCBuilding::Render() -> void
                 BlipFrame = 0;
             }
 
-            ElementList->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, 1);
             auto* element =
-                MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 0);
-            std::strcpy(element->Name, shapeName);
-            ElementList->Add(element);
+                ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0);
+            ElementList()->Add(element);
             BlipTime = FrameLength + BlipTime;
 
             if (0.067 < BlipTime)
@@ -740,7 +739,7 @@ auto MCBuilding::Render() -> void
             level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = GamePalette->GetHazePalette(level);
+        hazePalette = GamePalette()->GetHazePalette(level);
     }
 
     buildingAppearance->FadeTable = hazePalette;
@@ -785,12 +784,12 @@ auto MCBuilding::Render() -> void
         center.X = sy * Eye->CosAngle + sx * Eye->CosAngle + Eye->HalfWidth;
         center.Y =
             ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
-        ElementList->OpenGroup(-50000, 1);
+        ElementList()->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
         size.X *= MCOverlay.ScaleX;
         size.Y *= MCOverlay.ScaleY;
-        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
+        ElementList()->Add(ElementList()->Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 

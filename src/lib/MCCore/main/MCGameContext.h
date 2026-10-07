@@ -2,7 +2,10 @@
 
 #include "platform/MCServices.h"
 
+class MCCraterManager;
+class MCElementBuffer;
 class MCFastFileSet;
+class MCPalette;
 
 /// <summary>
 /// Everything the game reaches for that a test may want to replace: the port services (clock, dice, files, sound
@@ -47,6 +50,15 @@ public:
     /// <summary>The FastFiles the game has open.</summary>
     MCFastFileSet& FastFiles() const;
 
+    /// <summary>The palette the game shows (null before the interface starts).</summary>
+    MCPalette* Palette() const;
+
+    /// <summary>The frame's draw list (null outside a mission).</summary>
+    MCElementBuffer* ElementList() const;
+
+    /// <summary>The mission's craters (null outside a mission).</summary>
+    MCCraterManager* CraterManager() const;
+
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
     template <std::derived_from<MCClock> T> T& SetClock(std::unique_ptr<T> clock)
@@ -81,6 +93,18 @@ public:
     /// <summary>Gives this context its own set of FastFiles.</summary>
     MCFastFileSet& SetFastFiles(std::unique_ptr<MCFastFileSet> fastFiles);
 
+    /// <summary>Gives this context its own palette (null: the one it was installed over, if any).</summary>
+    /// <returns>The palette this context had.</returns>
+    std::unique_ptr<MCPalette> SetPalette(std::unique_ptr<MCPalette> palette);
+
+    /// <summary>Gives this context its own draw list (null: the one it was installed over, if any).</summary>
+    /// <returns>The draw list this context had.</returns>
+    std::unique_ptr<MCElementBuffer> SetElementList(std::unique_ptr<MCElementBuffer> elementList);
+
+    /// <summary>Gives this context its own craters (null: the ones it was installed over, if any).</summary>
+    /// <returns>The craters this context had.</returns>
+    std::unique_ptr<MCCraterManager> SetCraterManager(std::unique_ptr<MCCraterManager> craterManager);
+
 private:
     friend class MCTestContextScope;
 
@@ -103,6 +127,9 @@ private:
     std::unique_ptr<MCAudioDevice> _Audio;
     std::unique_ptr<MCNetTransport> _Net;
     std::unique_ptr<MCFastFileSet> _FastFiles;
+    std::unique_ptr<MCPalette> _Palette;
+    std::unique_ptr<MCElementBuffer> _ElementList;
+    std::unique_ptr<MCCraterManager> _CraterManager;
 };
 
 /// <summary>

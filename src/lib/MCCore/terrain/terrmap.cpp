@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "terrain/terrmap.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/bitflag.h"
-#include "engine/font.h"
+#include "color/MCPalette.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCFont.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "gui/atextbox.h"
@@ -39,8 +39,8 @@
 #include "sound/radio.h"
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
-#include "vfx/vfx.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfx.h"
+#include "vfx/MCVfxFunctions.h"
 
 int32_t ButtonActions[8] = {15, 14, 13, 12, 19, 17, 3, 53};
 int16_t RangeColorArray[4] = {0x0e, 0xe5, 0xee, 0x14};
@@ -221,8 +221,8 @@ namespace
     /// </summary>
     uint8_t* PartColorTable(MCTacticalMap* map, uint8_t color)
     {
-        const int32_t row = GamePalette->NumBitmapHazeLevels;
-        uint8_t* fades = GamePalette->FadePalettes.get();
+        const int32_t row = GamePalette()->NumBitmapHazeLevels;
+        uint8_t* fades = GamePalette()->FadePalettes.data();
 
         switch (color)
         {
@@ -1116,7 +1116,7 @@ auto MCVideoWindow::Display() -> void
         float mapY = 0.0f;
         TrackStar(mapX, mapY);
         VfxLineDraw(TacMap()->Frame(), Width() / 2 + GlobalX(), GlobalY(), static_cast<int32_t>(mapX),
-                    static_cast<int32_t>(mapY), 0, 0x1f);
+                    static_cast<int32_t>(mapY), 0x1f);
     }
 
     MCGuiObject::Display();
@@ -1193,7 +1193,7 @@ auto MCTacticalMap::SetRevealedBitmap(char* fileName) -> void
     gifFile.Read(gif, size);
     gifFile.Close();
     VfxGifResolution(gif);
-    void* work = std::malloc(VFX_GIF_BUFFER_SIZE);
+    void* work = std::malloc(VfxGifBufferSize);
     VfxGifDraw(VisibilityPort->Frame(), gif, work);
     std::free(gif);
     std::free(work);
@@ -1242,7 +1242,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
     MCRenderer::DestroyTexture(VisibilityPort->Frame()->Window);
     MCGuiPort::FreePixels(VisibilityPort->Frame()->Window->Buffer);
     MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
-    VisibilityPort->Frame()->Window->Buffer = visibleBits->FlagData.data();
+    VisibilityPort->Frame()->Window->Buffer = visibleBits->Data();
     // Port: the fog of war is a kept frame surface: the reveals draw it on the GPU as well as in the flags the game
     // reads, and the map page samples the GPU's copy instead of uploading the flags whenever they change.
     MCRenderer::AddFrameSurface(VisibilityPort->Frame()->Window, true);
@@ -2406,7 +2406,8 @@ namespace
         vertices[1] = {0x88, 0x22, 0, right, top, 0};
         vertices[2] = {0x88, 0xa4, 0, right, bottom, 0};
         vertices[3] = {6, 0xa4, 0, left, bottom, 0};
-        VfxMapPolygon(map->DisplayPort->Frame(), 4, vertices, map->MapPort->Frame()->Window, MP_XP);
+        VfxMapPolygon(map->DisplayPort->Frame(), std::span(vertices, 4), map->MapPort->Frame()->Window,
+                      VfxMapTransparent);
 
         if (DrawRevealedTacMap == 0)
         {
@@ -2437,7 +2438,8 @@ namespace
 
             if (DrawRevealedTacMap == 0)
             {
-                VfxMapPolygon(map->DisplayPort->Frame(), 4, vertices, map->VisibilityPort->Frame()->Window, MP_XP);
+                VfxMapPolygon(map->DisplayPort->Frame(), std::span(vertices, 4), map->VisibilityPort->Frame()->Window,
+                              VfxMapTransparent);
             }
         }
 
@@ -2488,10 +2490,10 @@ namespace
             const auto y0 = static_cast<int32_t>(topLeft.Y - paneTop);
             const auto x1 = static_cast<int32_t>(bottomRight.X - paneLeft);
             const auto y1 = static_cast<int32_t>(bottomRight.Y - paneTop);
-            VfxLineDraw(pane, x0, y1, x1, y1, LD_DRAW, color);
-            VfxLineDraw(pane, x1, y0, x1, y1, LD_DRAW, color);
-            VfxLineDraw(pane, x1, y0, x0, y0, LD_DRAW, color);
-            VfxLineDraw(pane, x0, y0, x0, y1, LD_DRAW, color);
+            VfxLineDraw(pane, x0, y1, x1, y1, color);
+            VfxLineDraw(pane, x1, y0, x1, y1, color);
+            VfxLineDraw(pane, x1, y0, x0, y0, color);
+            VfxLineDraw(pane, x0, y0, x0, y1, color);
         }
 
         map->DrawObjects();
@@ -3762,15 +3764,15 @@ auto MCTacticalMap::DrawPilot(MCMechWarrior* pilot) -> void
         const auto value = static_cast<float>(pilot->Skills[skill]);
         const auto length = static_cast<int32_t>(((value - MinPilotSkill) * 55.0f) / (MaxPilotSkill - MinPilotSkill));
         const int32_t barEnd = length + 0x4c;
-        VfxLineDraw(Port()->Frame(), 0x4e, yPos, 0x4e, yPos + 1, LD_DRAW, 0xe3);
-        VfxLineDraw(Port()->Frame(), 0x4f, yPos - 1, barEnd, yPos - 1, LD_DRAW, 0xe3);
+        VfxLineDraw(Port()->Frame(), 0x4e, yPos, 0x4e, yPos + 1, 0xe3);
+        VfxLineDraw(Port()->Frame(), 0x4f, yPos - 1, barEnd, yPos - 1, 0xe3);
         AGPixelWrite(Port()->Frame(), length + 0x4d, yPos - 1, 0x10);
-        VfxLineDraw(Port()->Frame(), length + 0x4e, yPos - 1, length + 0x4e, yPos + 2, LD_DRAW, 0x10);
+        VfxLineDraw(Port()->Frame(), length + 0x4e, yPos - 1, length + 0x4e, yPos + 2, 0x10);
         AGPixelWrite(Port()->Frame(), length + 0x4d, yPos + 2, 0x10);
-        VfxLineDraw(Port()->Frame(), length + 0x4d, yPos, length + 0x4d, yPos + 1, LD_DRAW, 0xe3);
-        VfxLineDraw(Port()->Frame(), 0x4f, yPos + 2, barEnd, yPos + 2, LD_DRAW, 0xe5);
-        VfxLineDraw(Port()->Frame(), 0x4f, yPos, barEnd, yPos, LD_DRAW, 0xe4);
-        VfxLineDraw(Port()->Frame(), 0x4f, yPos + 1, barEnd, yPos + 1, LD_DRAW, 0xe4);
+        VfxLineDraw(Port()->Frame(), length + 0x4d, yPos, length + 0x4d, yPos + 1, 0xe3);
+        VfxLineDraw(Port()->Frame(), 0x4f, yPos + 2, barEnd, yPos + 2, 0xe5);
+        VfxLineDraw(Port()->Frame(), 0x4f, yPos, barEnd, yPos, 0xe4);
+        VfxLineDraw(Port()->Frame(), 0x4f, yPos + 1, barEnd, yPos + 1, 0xe4);
         yPos += 8;
     }
 

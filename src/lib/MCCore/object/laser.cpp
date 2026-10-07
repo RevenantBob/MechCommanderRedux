@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "object/laser.h"
 #include "camera/camera.h"
-#include "engine/ceglist.h"
-#include "engine/cepoly.h"
-#include "engine/crater.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCPolygonElement.h"
+#include "engine/MCCraterManager.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -18,8 +18,8 @@
 #include "object/objque.h"
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
-#include "vfx/vfx.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfx.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -106,7 +106,7 @@ namespace
 
         if (victim == nullptr && laser->TargetPosition != nullptr)
         {
-            CraterManager->AddCrater(7, *laser->TargetPosition, 1);
+            CraterManager()->AddCrater(7, *laser->TargetPosition, 1);
         }
     }
 
@@ -623,7 +623,7 @@ auto MCLaser::Render() -> void
         // Original behaviour (OB-018): the facing is in degrees, and gets multiplied by 57.3 again before cos/sin.
         float crossX = static_cast<float>(std::cos(shooter->RelViewFacingTo(end) * RADIANS_TO_DEGREES) * width);
         float crossY = static_cast<float>(std::sin(shooter->RelViewFacingTo(end) * RADIANS_TO_DEGREES) * width);
-        ElementList->OpenGroup(static_cast<int32_t>(startY), 1);
+        ElementList()->OpenGroup(static_cast<int32_t>(startY), 1);
         const auto depth = static_cast<int32_t>((endY + startY) * 0.5f);
         const MCFixed16 color = static_cast<MCFixed16>(CoolColor << 16);
         data.NumVertices = 4;
@@ -635,7 +635,7 @@ auto MCLaser::Render() -> void
             ScreenVertex(static_cast<int32_t>(endX - crossX), static_cast<int32_t>(endY - crossY), color, 0, 0);
         data.Vertices[1] =
             ScreenVertex(static_cast<int32_t>(crossX + endX), static_cast<int32_t>(endY + crossY), color, 0, 0);
-        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, depth));
+        ElementList()->Add(ElementList()->Make<MCPolygonElement>(data, depth));
 
         if (HotColor == CoolColor)
         {
@@ -654,7 +654,7 @@ auto MCLaser::Render() -> void
             ScreenVertex(static_cast<int32_t>(endX - crossX), static_cast<int32_t>(endY - crossY), color, 0, 0);
         data.Vertices[1] =
             ScreenVertex(static_cast<int32_t>(crossX + endX), static_cast<int32_t>(endY + crossY), color, 0, 0);
-        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, depth));
+        ElementList()->Add(ElementList()->Make<MCPolygonElement>(data, depth));
         return;
     }
 
@@ -682,7 +682,7 @@ auto MCLaser::Render() -> void
     MCRenderer::UnlockTexture(LaserTexture);
     const float width = static_cast<float>(type->PixelWidth);
     const auto top = static_cast<int32_t>(startY);
-    ElementList->OpenGroup(top, 1);
+    ElementList()->OpenGroup(top, 1);
     const auto left = static_cast<int32_t>(startX);
     const auto right = static_cast<int32_t>(endX);
     data.NumVertices = 4;
@@ -697,7 +697,7 @@ auto MCLaser::Render() -> void
     data.TextureHeight = LaserWindow->YMax;
     data.TextureHandle = LaserTexture;
     data.FadeTable = nullptr;
-    ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, static_cast<int32_t>((endY + startY) * 0.5f)));
+    ElementList()->Add(ElementList()->Make<MCPolygonElement>(data, static_cast<int32_t>((endY + startY) * 0.5f)));
 }
 
 auto MCLaser::SetTargetPosition(MCVector3D position) -> void

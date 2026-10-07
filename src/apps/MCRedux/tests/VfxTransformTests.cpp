@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "MCTest.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -179,11 +179,11 @@ TEST_CASE("vfx: VFX_shape_transform rotates a quarter turn")
 
     CHECK_EQ(touched, 6);
 
-    // Transparent (skipped) pixels of the shape leave the target alone; ST_REUSE keeps the buffer's contents.
+    // Transparent (skipped) pixels of the shape leave the target alone; VfxShapeTransformReuse keeps the buffer's contents.
     std::fill(work.begin(), work.end(), uint8_t{0xff});
     work[0] = 42;
     TestSurface reuse(16, 12, 9);
-    VfxShapeTransform(&reuse.Pane, table.data(), 0, 5, 5, work.data(), 900, 0x10000, 0x10000, ST_REUSE);
+    VfxShapeTransform(&reuse.Pane, table.data(), 0, 5, 5, work.data(), 900, 0x10000, 0x10000, VfxShapeTransformReuse);
     CHECK_EQ(reuse.At(5, 5), 42);
     touched = 0;
 

@@ -1,10 +1,10 @@
 #include "stdafx.h"
 #include "sprite/puactor.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/ceglist.h"
-#include "engine/cepoly.h"
-#include "engine/cevfx.h"
+#include "color/MCPalette.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCPolygonElement.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/gate.h"
@@ -15,7 +15,7 @@
 #include "sprite/sprtmgr.h"
 #include "sprite/vfxshape.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -442,7 +442,7 @@ auto MCPUAppearance::Render(int32_t depthFixup) -> int32_t
     Rotation = static_cast<float>(360.0 / numRotations) * static_cast<float>(rotationIndex);
     CurrentShape = AppearType->GetShape(state, static_cast<int32_t>(Rotation), 0, FrameRate);
 
-    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 0);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 0);
 
     if (DrawTerrainGrid != 0)
     {
@@ -455,12 +455,11 @@ auto MCPUAppearance::Render(int32_t depthFixup) -> int32_t
 
         if (FadeTableIndex != -1 && FadeTableIndex >= 0)
         {
-            fadeTable =
-                GamePalette->FadePalettes.get() + (FadeTableIndex + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
+            fadeTable = GamePalette()->GetFadeTable(FadeTableIndex);
         }
 
-        ElementList->Add(MCElementPool::Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y,
-                                                           CurrentFrame, 0, fadeTable, 1, 0));
+        ElementList()->Add(ElementList()->Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y,
+                                                             CurrentFrame, 0, fadeTable, 1));
     }
 
     const int32_t selected = Owner->Selected;
@@ -708,7 +707,7 @@ auto MCPUAppearance::DrawBars() -> void
         barLength = 1.0f;
     }
 
-    ElementList->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, 1);
     MCPolyElementData data;
     data.NumVertices = 0;
     data.TextureMapOff = 0;
@@ -727,6 +726,6 @@ auto MCPUAppearance::DrawBars() -> void
 
     if (data.BarPercent > 0)
     {
-        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, -50000));
+        ElementList()->Add(ElementList()->Make<MCPolygonElement>(data, -50000));
     }
 }

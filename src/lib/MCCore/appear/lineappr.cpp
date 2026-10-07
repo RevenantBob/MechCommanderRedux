@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "appear/lineappr.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/ceglist.h"
-#include "engine/celine.h"
+#include "color/MCPalette.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCLineElement.h"
 #include "lib/MCFitIniFile.h"
 #include "object/gameobj.h"
 
@@ -201,17 +201,17 @@ auto MCLineAppearance::Render() -> int32_t
     }
 
     const auto depth = static_cast<int32_t>(ScreenStart.Y);
-    ElementList->OpenGroup(depth, 1);
+    ElementList()->OpenGroup(depth, 1);
     MCLineStateData& state = AppearType->States[CurrentState];
     uint8_t* fadeTable = nullptr;
 
     if (state.FadeTable != -1 && state.FadeTable > -1)
     {
-        fadeTable = GamePalette->FadePalettes.get() + (state.FadeTable + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
+        fadeTable = GamePalette()->GetFadeTable(state.FadeTable);
     }
 
-    ElementList->Add(
-        MCElementPool::Make<MCLineElement>(ScreenStart, ScreenEnd, state.StartColor, fadeTable, depth, state.EndColor));
+    ElementList()->Add(
+        ElementList()->Make<MCLineElement>(ScreenStart, ScreenEnd, state.StartColor, fadeTable, depth, state.EndColor));
 
     if (Owner != nullptr && Owner->Selected != 0)
     {

@@ -5,7 +5,7 @@
 #include "lib/MCFile.h"
 #include "logistics/logbri.h"
 #include "platform/MCRenderer.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {

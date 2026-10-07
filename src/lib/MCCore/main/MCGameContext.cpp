@@ -1,5 +1,8 @@
 #include "stdafx.h"
 #include "main/MCGameContext.h"
+#include "color/MCPalette.h"
+#include "engine/MCCraterManager.h"
+#include "engine/MCElementBuffer.h"
 #include "lib/MCFastFileSet.h"
 
 namespace
@@ -36,6 +39,18 @@ namespace
 
         SDL_assert(parent != nullptr);
         return (parent->*get)();
+    }
+
+    /// <summary>The system in <paramref name="slot"/>, else the one <paramref name="parent"/> has (null when none).</summary>
+    template <typename T>
+    T* FindSystem(const std::unique_ptr<T>& slot, MCGameContext* parent, T* (MCGameContext::*get)() const)
+    {
+        if (slot != nullptr)
+        {
+            return slot.get();
+        }
+
+        return parent != nullptr ? (parent->*get)() : nullptr;
     }
 }
 
@@ -89,6 +104,36 @@ MCFastFileSet& MCGameContext::FastFiles() const
 MCFastFileSet& MCGameContext::SetFastFiles(std::unique_ptr<MCFastFileSet> fastFiles)
 {
     return Install(_FastFiles, std::move(fastFiles));
+}
+
+MCPalette* MCGameContext::Palette() const
+{
+    return FindSystem(_Palette, _Parent, &MCGameContext::Palette);
+}
+
+MCElementBuffer* MCGameContext::ElementList() const
+{
+    return FindSystem(_ElementList, _Parent, &MCGameContext::ElementList);
+}
+
+MCCraterManager* MCGameContext::CraterManager() const
+{
+    return FindSystem(_CraterManager, _Parent, &MCGameContext::CraterManager);
+}
+
+std::unique_ptr<MCPalette> MCGameContext::SetPalette(std::unique_ptr<MCPalette> palette)
+{
+    return std::exchange(_Palette, std::move(palette));
+}
+
+std::unique_ptr<MCElementBuffer> MCGameContext::SetElementList(std::unique_ptr<MCElementBuffer> elementList)
+{
+    return std::exchange(_ElementList, std::move(elementList));
+}
+
+std::unique_ptr<MCCraterManager> MCGameContext::SetCraterManager(std::unique_ptr<MCCraterManager> craterManager)
+{
+    return std::exchange(_CraterManager, std::move(craterManager));
 }
 
 MCTestContextScope::MCTestContextScope() : _Previous(&MCGameContext::Current()), _Context(_Previous)

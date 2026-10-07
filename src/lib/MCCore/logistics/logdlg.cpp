@@ -9,7 +9,7 @@
 #include "main/logistics.h"
 #include "main/main.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -51,7 +51,7 @@ namespace
 }
 
 // 0x008015d0 is AlphaTable row 0x10c (AlphaTable is at 0x007f09d0): the alpha colour the dialogs fade through.
-char* LogisticDlgfade = AlphaTable + 0x10c * 256;
+char* LogisticDlgfade = reinterpret_cast<char*>(AlphaTable.data()) + 0x10c * 256;
 
 // lDialogButton
 

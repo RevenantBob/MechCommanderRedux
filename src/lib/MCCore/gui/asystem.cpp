@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "gui/asystem.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/font.h"
+#include "color/MCPalette.h"
+#include "engine/MCFont.h"
 #include "gameos/soundrenderer.h"
 #include "gui/aanim.h"
 #include "gui/abutton.h"
@@ -38,7 +38,7 @@
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "platform/MCCursor.h"
 #include "platform/MCBlockStore.h"
 #include "platform/MCDisplay.h"
@@ -90,7 +90,7 @@ MCGuiFont* LgYellowFont = nullptr;
 MCGuiFont* Fonts[10][3] = {};
 int GamePaused = 0;
 int GameAsked = 0;
-MCFont* LineFont = nullptr;
+std::unique_ptr<MCFont> LineFont;
 int GWidth = 640;
 int GHeight = 480;
 int GBitDepth = 8;
@@ -871,10 +871,10 @@ auto MCGuiObject::DrawBox(uint8_t color, int32_t left, int32_t top, int32_t righ
     }
 
     MCGuiPort* port = DisplayPort;
-    VfxLineDraw(port->Frame(), left, top, right, top, LD_DRAW, color);
-    VfxLineDraw(port->Frame(), left, top, left, bottom, LD_DRAW, color);
-    VfxLineDraw(port->Frame(), left, bottom, right, bottom, LD_DRAW, color);
-    VfxLineDraw(port->Frame(), right, top, right, bottom, LD_DRAW, color);
+    VfxLineDraw(port->Frame(), left, top, right, top, color);
+    VfxLineDraw(port->Frame(), left, top, left, bottom, color);
+    VfxLineDraw(port->Frame(), left, bottom, right, bottom, color);
+    VfxLineDraw(port->Frame(), right, top, right, bottom, color);
 }
 
 auto MCGuiObject::DrawFramed(int pushed, int fill) -> void
@@ -897,18 +897,18 @@ auto MCGuiObject::DrawFramed(int pushed, int fill) -> void
         VfxPaneWipe(DisplayPort->Frame(), BackColor());
     }
 
-    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width(), Height() - 1, LD_DRAW, 0x10);
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width(), 0, LD_DRAW, 0x10);
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, LD_DRAW, 0x10);
-    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, LD_DRAW, 0x10);
-    VfxLineDraw(DisplayPort->Frame(), 1, 1, Width() - 2, 1, LD_DRAW, innerTopLeft);
-    VfxLineDraw(DisplayPort->Frame(), 2, 2, Width() - 3, 2, LD_DRAW, outerTopLeft);
-    VfxLineDraw(DisplayPort->Frame(), 1, 1, 1, Height() - 2, LD_DRAW, innerTopLeft);
-    VfxLineDraw(DisplayPort->Frame(), 2, 2, 2, Height() - 3, LD_DRAW, outerTopLeft);
-    VfxLineDraw(DisplayPort->Frame(), Width() - 2, 1, Width() - 2, Height() - 2, LD_DRAW, innerBottomRight);
-    VfxLineDraw(DisplayPort->Frame(), Width() - 3, 2, Width() - 3, Height() - 3, LD_DRAW, outerBottomRight);
-    VfxLineDraw(DisplayPort->Frame(), 1, Height() - 2, Width() - 2, Height() - 2, LD_DRAW, innerBottomRight);
-    VfxLineDraw(DisplayPort->Frame(), 2, Height() - 3, Width() - 3, Height() - 3, LD_DRAW, outerBottomRight);
+    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width(), Height() - 1, 0x10);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width(), 0, 0x10);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, 0x10);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, 0x10);
+    VfxLineDraw(DisplayPort->Frame(), 1, 1, Width() - 2, 1, innerTopLeft);
+    VfxLineDraw(DisplayPort->Frame(), 2, 2, Width() - 3, 2, outerTopLeft);
+    VfxLineDraw(DisplayPort->Frame(), 1, 1, 1, Height() - 2, innerTopLeft);
+    VfxLineDraw(DisplayPort->Frame(), 2, 2, 2, Height() - 3, outerTopLeft);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 2, 1, Width() - 2, Height() - 2, innerBottomRight);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 3, 2, Width() - 3, Height() - 3, outerBottomRight);
+    VfxLineDraw(DisplayPort->Frame(), 1, Height() - 2, Width() - 2, Height() - 2, innerBottomRight);
+    VfxLineDraw(DisplayPort->Frame(), 2, Height() - 3, Width() - 3, Height() - 3, outerBottomRight);
 }
 
 auto MCGuiObject::FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color) -> void
@@ -1829,7 +1829,7 @@ auto CreatePaletteFromGif(char* fileName) -> void*
     char path[128];
     char message[256];
     MCFile gifFile;
-    std::snprintf(path, sizeof(path), "%s%s", PalettePath, fileName);
+    std::snprintf(path, sizeof(path), "%s%s", PalettePath.c_str(), fileName);
 
     if (!FileExists(path))
     {
@@ -2255,7 +2255,7 @@ auto RealWinMain(void* instance, void* prevInstance, char* commandLine, int show
     std::strcpy(SavePath, "c:\\Program Files\\Honor Bound\\");
     std::strcpy(DirectXPath, "\\honorb\\directx\\");
     std::strcpy(TerrainPath, "data\\terrain\\");
-    std::strcpy(PalettePath, "data\\palette\\");
+    PalettePath = "data\\palette\\";
     std::strcpy(ArtPath, "data\\art\\");
     std::strcpy(FontPath, "data\\fonts\\");
     std::strcpy(SoundPath, "data\\sound\\");
@@ -3554,40 +3554,19 @@ auto MCGuiSystem::Start(void* instance, void* prevInstance, char* commandLine, i
     Fonts[7][2] = LgDimFont;
     SystemFont = GreyFont;
 
-    // The engine's line font (Font's constructor, inlined).
-    LineFont = new (std::nothrow) MCFont;
-    LineFont->CurY = 0;
-    LineFont->CurX = 0;
-    LineFont->Color = 0xf;
-    LineFont->Scale = 2.0f;
-    LineFont->Scaled = -1;
-    LineFont->FontData.reset();
+    // The engine's line font; without its file it has no letters (the original ignored the failure too).
+    std::expected<std::unique_ptr<MCFont>, std::string> lineFont = MCFont::Create("font");
+    LineFont = lineFont ? std::move(*lineFont) : std::make_unique<MCFont>();
 
-    for (uint8_t*& letter : LineFont->LetterCache)
+    std::expected<std::unique_ptr<MCPalette>, std::string> palette = MCPalette::Create("palette");
+
+    if (!palette)
     {
-        letter = reinterpret_cast<uint8_t*>(intptr_t{-1});
+        Fatal(0, std::format(" Unable to initialize game palette: {} ", palette.error()));
     }
 
-    LineFont->Init(const_cast<char*>("font"));
-
-    MCPalette* palette = new MCPalette();
-
-    if (palette == nullptr)
-    {
-        GamePalette = nullptr;
-        Fatal(-1, " No RAM for Game palette ");
-    }
-
-    palette->Init();
-    GamePalette = palette;
-    const int32_t paletteResult = GamePalette->Init(const_cast<char*>("palette"));
-
-    if (paletteResult != 0)
-    {
-        Fatal(paletteResult, " Unable to initialize game palette ");
-    }
-
-    InitAlphaLookup(reinterpret_cast<MCVfxRgb*>(GamePalette->RgbData.get()));
+    MCGameContext::Current().SetPalette(std::move(*palette));
+    InitAlphaLookup(GamePalette()->Colors());
 
     ArtFile = new MCPacketFile;
     Assert(ArtFile != nullptr, 0, "Not enough RAM for artFile (Something's way wrong...)");
@@ -3668,7 +3647,7 @@ auto MCGuiSystem::Start(void* instance, void* prevInstance, char* commandLine, i
     ScreenWindow->Init(0, 0, this->ScreenWidth, this->ScreenHeight, nullptr);
     ScreenWindow->SetDepth(-100);
     ScreenWindow->ObjectType = 1;
-    GamePalette->Activate(0, 0);
+    GamePalette()->Activate();
     CountsPerSecond = MCPort::PerformanceFrequency();
     UpdateDisplay(0, 0, 0, 0, 0);
     AUnlockScreen();
@@ -3778,12 +3757,7 @@ auto MCGuiSystem::Stop() -> void
         ScreenWindow = nullptr;
     }
 
-    if (GamePalette != nullptr)
-    {
-        GamePalette->Destroy();
-        delete GamePalette;
-        GamePalette = nullptr;
-    }
+    MCGameContext::Current().SetPalette(nullptr);
 
     // Port: the GDI palette, back bitmap and its BITMAPINFO (thePalette, backbm, backpbmi) never exist.
     ThePalette = nullptr;
@@ -3830,19 +3804,7 @@ auto MCGuiSystem::Stop() -> void
     DeleteFont(LgYellowFont);
     DeleteFont(LgDimFont);
 
-    if (LineFont != nullptr)
-    {
-        // Font's destroy and destructor, inlined: frees the font data and forgets the cached letters.
-        LineFont->FontData.reset();
-
-        for (uint8_t*& letter : LineFont->LetterCache)
-        {
-            letter = reinterpret_cast<uint8_t*>(intptr_t{-1});
-        }
-
-        delete LineFont;
-        LineFont = nullptr;
-    }
+    LineFont.reset();
 
     if (TimerManager != nullptr)
     {
@@ -4411,7 +4373,7 @@ auto MCGuiSystem::ActivatePaletteFromTga(char* fileName) -> void
     std::array<MCVfxRgb, 256> palette = {};
     TgaColorMapToPalette(tga.data(), palette.data());
     ActivatePalette(reinterpret_cast<uint8_t*>(palette.data()), 0, 0x100);
-    InitAlphaLookup(palette.data());
+    InitAlphaLookup(palette);
 }
 
 auto MCGuiSystem::ActivatePaletteFromGif(char* fileName) -> void
@@ -4419,7 +4381,7 @@ auto MCGuiSystem::ActivatePaletteFromGif(char* fileName) -> void
     // Reads the GIF's palette and does nothing with it.
     char path[128];
     MCFile gifFile;
-    std::snprintf(path, sizeof(path), "%s%s", PalettePath, fileName);
+    std::snprintf(path, sizeof(path), "%s%s", PalettePath.c_str(), fileName);
 
     if (!FileExists(path))
     {

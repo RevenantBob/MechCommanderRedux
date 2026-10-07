@@ -3,9 +3,9 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "engine/ceglist.h"
-#include "engine/cepoly.h"
-#include "engine/crater.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCPolygonElement.h"
+#include "engine/MCCraterManager.h"
 #include "gui/asystem.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -24,7 +24,7 @@
 #include "sprite/armactor.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfx.h"
+#include "vfx/MCVfx.h"
 
 namespace
 {
@@ -577,7 +577,7 @@ auto MCProjectileLaser::Update() -> int32_t
     // A miss leaves a crater and sets off a live mine where it lands.
     if (Target == nullptr && TargetPosition != nullptr)
     {
-        CraterManager->AddCrater(7, *TargetPosition, 1);
+        CraterManager()->AddCrater(7, *TargetPosition, 1);
 
         int32_t tileR = 0;
         int32_t tileC = 0;
@@ -643,9 +643,9 @@ auto MCProjectileLaser::Render() -> void
     side2.Vertices[3] = side1.Vertices[3];
 
     const int32_t depth = -side1.Vertices[0].Y;
-    ElementList->OpenGroup(depth, 1);
-    ElementList->Add(MCElementPool::Make<MCPolygonElement>(&side1, depth));
-    ElementList->Add(MCElementPool::Make<MCPolygonElement>(&side2, depth));
+    ElementList()->OpenGroup(depth, 1);
+    ElementList()->Add(ElementList()->Make<MCPolygonElement>(side1, depth));
+    ElementList()->Add(ElementList()->Make<MCPolygonElement>(side2, depth));
 
     if (Smoke != nullptr)
     {

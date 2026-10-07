@@ -3,12 +3,12 @@
 #include "ai/move.h"
 #include "ai/tacordr.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/ceglist.h"
-#include "engine/celine.h"
-#include "engine/cellip.h"
-#include "engine/cepoly.h"
-#include "engine/cevfx.h"
+#include "color/MCPalette.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCLineElement.h"
+#include "engine/MCEllipseElement.h"
+#include "engine/MCPolygonElement.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCPacketFile.h"
@@ -24,7 +24,7 @@
 #include "sprite/sprtmgr.h"
 #include "sprite/vfxshape.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
 MCPacketFile* MCMechActor::Shadows = nullptr;
@@ -178,7 +178,7 @@ namespace
     /// <summary>Adds the line from <paramref name="start"/> to <paramref name="end"/> in <paramref name="color"/>.</summary>
     auto AddLine(MCVector2D start, MCVector2D end, int32_t color) -> void
     {
-        ElementList->Add(MCElementPool::Make<MCLineElement>(start, end, color, nullptr, -50000, -1));
+        ElementList()->Add(ElementList()->Make<MCLineElement>(start, end, color, nullptr, -50000, -1));
     }
 }
 
@@ -803,22 +803,16 @@ auto MCMechActor::Render(int32_t depthFixup) -> int32_t
     }
 
     // The shadow, one of 32 facings.
-    ElementList->OpenGroup(static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(-y)))), 1);
-    auto* shadow = MCElementPool::Make<MCVfxElement>(ShadowShapes[0].get(), x, y, CalcRotation(facing, 0x20), 0,
-                                                     nullptr, 0, Use90PixelSprite != 0 ? 1 : 0);
+    ElementList()->OpenGroup(static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(-y)))), 1);
+    auto* shadow =
+        ElementList()->Make<MCVfxElement>(ShadowShapes[0].get(), x, y, CalcRotation(facing, 0x20), 0, nullptr, 0);
 
-    // Port fix: the original copies the debug name through a null element too.
-    if (shadow != nullptr)
-    {
-        strcpy(shadow->Name, Use90PixelSprite != 0 ? "mshad2" : "mshad1");
-    }
-
-    ElementList->Add(shadow);
+    ElementList()->Add(shadow);
     MechElements++;
 
-    ElementList->OpenGroup(static_cast<int16_t>(static_cast<int32_t>(
-                               std::floor(static_cast<double>(static_cast<float>(depthFixup) - ScreenPos.Y)))),
-                           1);
+    ElementList()->OpenGroup(static_cast<int16_t>(static_cast<int32_t>(
+                                 std::floor(static_cast<double>(static_cast<float>(depthFixup) - ScreenPos.Y)))),
+                             1);
 
     for (int32_t i = 0; i < NUM_MECH_PARTS; i++)
     {
@@ -833,8 +827,7 @@ auto MCMechActor::Render(int32_t depthFixup) -> int32_t
 
         if (FadeTableIndex != -1 && FadeTableIndex >= 0)
         {
-            fadeTable =
-                GamePalette->FadePalettes.get() + (FadeTableIndex + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
+            fadeTable = GamePalette()->GetFadeTable(FadeTableIndex);
         }
 
         // Walking and running: a mirrored part runs half a cycle off the part it follows, so the stride
@@ -923,25 +916,10 @@ auto MCMechActor::Render(int32_t depthFixup) -> int32_t
             CurrentFrame[part] = 0;
         }
 
-        auto* element = MCElementPool::Make<MCVfxElement>(PartShape[part]->FrameList, ScreenPos.X, ScreenPos.Y,
-                                                          CurrentFrame[part], Reverse[part], fadeTable, 1, 0);
+        auto* element = ElementList()->Make<MCVfxElement>(PartShape[part]->FrameList, ScreenPos.X, ScreenPos.Y,
+                                                          CurrentFrame[part], Reverse[part], fadeTable, 1);
 
-        // Port fix: the original writes the debug names through a null element too, and "%i" can overrun name2.
-        if (element != nullptr)
-        {
-            strcpy(element->Name, "mactor");
-
-            if (OwnerMech == nullptr)
-            {
-                strcpy(element->Name2, "unknown");
-            }
-            else
-            {
-                snprintf(element->Name2, sizeof(element->Name2), "%i", OwnerMech->GetObjectType()->ObjTypeNum);
-            }
-        }
-
-        ElementList->Add(element);
+        ElementList()->Add(element);
         MechElements++;
     }
 
@@ -1762,7 +1740,7 @@ auto MCMechActor::DrawBars() -> void
         barColor = 0x101;
     }
 
-    ElementList->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, 1);
     MCPolyElementData data;
     data.NumVertices = 0;
     data.TextureMapOff = 0;
@@ -1793,7 +1771,7 @@ auto MCMechActor::DrawBars() -> void
 
     if (mech->IsDisabled() == 0 && mech->IsDestroyed() == 0)
     {
-        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, -50000));
+        ElementList()->Add(ElementList()->Make<MCPolygonElement>(data, -50000));
     }
 }
 
@@ -1842,8 +1820,8 @@ auto MCMechActor::DrawTargetDamage() -> void
             continue;
         }
 
-        ElementList->OpenGroup(-50000, 1);
-        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xb, -50000));
+        ElementList()->OpenGroup(-50000, 1);
+        ElementList()->Add(ElementList()->Make<MCEllipseElement>(center, size, 0xb, -50000));
 
         const MCVector2D targetPos = MCOverlayPoint(target->GetScreenPos(0));
         const double dx = static_cast<double>(targetPos.X) - ownPos.X;
@@ -1856,6 +1834,6 @@ auto MCMechActor::DrawTargetDamage() -> void
         MCVector2D start(signX * c * radius + center.X, signY * s * radius + center.Y);
         const float length = (damage / mech->MaxTargetDamage) * 60.0f;
         MCVector2D end(signX * length * c + start.X, signY * length * s + start.Y);
-        ElementList->Add(MCElementPool::Make<MCLineElement>(start, end, 0xef, nullptr, -50000, -1));
+        ElementList()->Add(ElementList()->Make<MCLineElement>(start, end, 0xef, nullptr, -50000, -1));
     }
 }

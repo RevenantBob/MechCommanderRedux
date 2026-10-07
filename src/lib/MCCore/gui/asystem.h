@@ -902,7 +902,7 @@ extern MCGuiFont* Fonts[10][3];
 extern int GamePaused;
 extern int GameAsked;
 /// <summary>The engine font used for lines of text drawn in the world.</summary>
-extern MCFont* LineFont;
+extern std::unique_ptr<MCFont> LineFont;
 extern int GWidth;
 extern int GHeight;
 extern int GBitDepth;

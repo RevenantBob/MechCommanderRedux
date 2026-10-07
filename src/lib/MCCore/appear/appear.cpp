@@ -2,8 +2,8 @@
 #include "appear/appear.h"
 #include "appear/apprtype.h"
 #include "camera/camera.h"
-#include "engine/ceglist.h"
-#include "engine/celine.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCLineElement.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
@@ -23,7 +23,7 @@ namespace
         MCVector2D end;
         end.X = x1;
         end.Y = y1;
-        ElementList->Add(MCElementPool::Make<MCLineElement>(start, end, color, nullptr, SELECT_DEPTH, -1));
+        ElementList()->Add(ElementList()->Make<MCLineElement>(start, end, color, nullptr, SELECT_DEPTH, -1));
     }
 
     /// <summary>
@@ -110,7 +110,7 @@ auto MCAppearance::DrawSelectBox(uint8_t color) -> void
     float right;
     float bottom;
     SelectBounds(this, left, top, right, bottom);
-    ElementList->OpenGroup(SELECT_DEPTH, 1);
+    ElementList()->OpenGroup(SELECT_DEPTH, 1);
     const float margin = SelectMargin();
     const float outLeft = left - margin;
     const float outTop = top - margin;
@@ -135,7 +135,7 @@ auto MCAppearance::DrawSelectBrackets(uint8_t color) -> void
     float right;
     float bottom;
     SelectBounds(this, left, top, right, bottom);
-    ElementList->OpenGroup(SELECT_DEPTH, 1);
+    ElementList()->OpenGroup(SELECT_DEPTH, 1);
     const float outLeft = left - margin;
     const float outTop = top - margin;
     const float outRight = right + margin;

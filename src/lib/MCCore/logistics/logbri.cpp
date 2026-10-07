@@ -25,7 +25,7 @@
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 char ArtPath[80] = {}; // 80 bytes (0x007ab080..0x007ab0d0); gui\asystem.cpp's RealWinMain sets it.
 int32_t CurDeployTonnage = 0;
@@ -98,14 +98,14 @@ namespace
         const auto screenY = static_cast<float>(141.0 - down + 31.0);
 
         const auto bend = static_cast<int32_t>((screenX - 351.0f) * 0.5f + 351.0f);
-        VfxLineDraw(pane, 0x157, lineY, bend, lineY, LD_DRAW, DropZoneColor);
+        VfxLineDraw(pane, 0x157, lineY, bend, lineY, DropZoneColor);
         const auto pointX = static_cast<int32_t>(screenX);
         const auto pointY = static_cast<int32_t>(screenY);
-        VfxLineDraw(pane, bend, lineY, pointX, pointY, LD_DRAW, DropZoneColor);
+        VfxLineDraw(pane, bend, lineY, pointX, pointY, DropZoneColor);
         VfxLineDraw(pane, static_cast<int32_t>(screenX - 2.0f), pointY, static_cast<int32_t>(screenX + 2.0f), pointY,
-                    LD_DRAW, DropZoneColor);
+                    DropZoneColor);
         VfxLineDraw(pane, pointX, static_cast<int32_t>(screenY - 2.0f), pointX, static_cast<int32_t>(screenY + 2.0f),
-                    LD_DRAW, DropZoneColor);
+                    DropZoneColor);
         const auto top = static_cast<int32_t>(screenY - 1.0f);
         const auto left = static_cast<int32_t>(screenX - 1.0f);
         AGPixelWrite(pane, left, top, DropZoneColor);
@@ -437,7 +437,7 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
         vertices[1] = {0x273, 0x1a, 0, map->XMax << 16, 0, 0};
         vertices[2] = {0x273, 0x134, 0, map->XMax << 16, map->YMax << 16, 0};
         vertices[3] = {0x159, 0x134, 0, 0, map->YMax << 16, 0};
-        VfxMapPolygon(target, 4, vertices, map, MP_XP);
+        VfxMapPolygon(target, std::span(vertices, 4), map, VfxMapTransparent);
     }
 
     // The lance labels, with their tonnage: the first lance's always, the others in multiplayer or when the mission
@@ -1970,8 +1970,8 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
         }
 
         // The mech's status bar (green, yellow, red) and the pilot's health bar.
-        VfxLineDraw(port.Frame(), 3, 0xb, 0x19, 0xb, LD_DRAW, 0x12);
-        VfxLineDraw(port.Frame(), 3, 0xc, 0x19, 0xc, LD_DRAW, 0x12);
+        VfxLineDraw(port.Frame(), 3, 0xb, 0x19, 0xb, 0x12);
+        VfxLineDraw(port.Frame(), 3, 0xc, 0x19, 0xc, 0x12);
         const float status = Mech->StatusValue;
 
         if (status != 0.0f)
@@ -1992,16 +1992,15 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
             }
 
             const int32_t barEnd = static_cast<int32_t>(status * 23.0f) + 3;
-            VfxLineDraw(port.Frame(), 3, 0xb, barEnd, 0xb, LD_DRAW, color);
-            VfxLineDraw(port.Frame(), 3, 0xc, barEnd, 0xc, LD_DRAW, color);
+            VfxLineDraw(port.Frame(), 3, 0xb, barEnd, 0xb, color);
+            VfxLineDraw(port.Frame(), 3, 0xc, barEnd, 0xc, color);
         }
 
         if (warrior != nullptr && warrior->Health < 6.0f)
         {
             const auto healthEnd = static_cast<int32_t>(warrior->Health * 3.0f + 31.0f);
-            VfxLineDraw(port.Frame(), healthEnd, 0xb, 0x2f, 0xb, LD_DRAW, 0x10);
-            VfxLineDraw(port.Frame(), static_cast<int32_t>(warrior->Health * 3.0f + 31.0f), 0xc, 0x2f, 0xc, LD_DRAW,
-                        0x10);
+            VfxLineDraw(port.Frame(), healthEnd, 0xb, 0x2f, 0xb, 0x10);
+            VfxLineDraw(port.Frame(), static_cast<int32_t>(warrior->Health * 3.0f + 31.0f), 0xc, 0x2f, 0xc, 0x10);
         }
     }
 
@@ -2020,9 +2019,9 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
     if (framed)
     {
         // In a slot: a bevelled frame.
-        VfxLineDraw(port.Frame(), 0, 0, Width() - 1, 0, LD_DRAW, 0x32);
-        VfxLineDraw(port.Frame(), 0, 1, 0, Height() - 2, LD_DRAW, 0x32);
-        VfxLineDraw(port.Frame(), 0, Height() - 1, Width() - 1, Height() - 1, LD_DRAW, 0x15);
-        VfxLineDraw(port.Frame(), Width() - 1, 0, Width() - 1, Height() - 2, LD_DRAW, 0x15);
+        VfxLineDraw(port.Frame(), 0, 0, Width() - 1, 0, 0x32);
+        VfxLineDraw(port.Frame(), 0, 1, 0, Height() - 2, 0x32);
+        VfxLineDraw(port.Frame(), 0, Height() - 1, Width() - 1, Height() - 1, 0x15);
+        VfxLineDraw(port.Frame(), Width() - 1, 0, Width() - 1, Height() - 2, 0x15);
     }
 }

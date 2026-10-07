@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCSoftwareRenderer.h"
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 // The software renderer's run-length shapes (the row loops of vfxa.asm's shape routines and the game's
 // vfx_translatedraw.cpp), fast shapes (fastshp.cpp) and terrain tiles (vfxtile.cpp).
@@ -10,7 +10,7 @@ namespace
     /// <summary>A blend through the game's alpha table: <paramref name="color"/> over <paramref name="screen"/>.</summary>
     uint8_t Blend(uint8_t color, uint8_t screen)
     {
-        return static_cast<uint8_t>(AlphaTable[(static_cast<uint32_t>(color) << 8) | screen]);
+        return AlphaTable[(static_cast<uint32_t>(color) << 8) | screen];
     }
 
     /// <summary>
@@ -446,7 +446,7 @@ namespace
     /// <summary>Writes <paramref name="count"/> pixels of a tile span: copied, translated, or the fill colour.</summary>
     void WriteSpan(uint8_t* destination, const uint8_t* source, int32_t count, const uint8_t* xlat)
     {
-        if (xlat == VFX_TILE_FILL)
+        if (xlat == VfxTileFill)
         {
             std::memset(destination, 0x10, static_cast<size_t>(count));
         }

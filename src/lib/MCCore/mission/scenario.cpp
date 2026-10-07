@@ -10,11 +10,10 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "color/color.h"
-#include "engine/ceglist.h"
-#include "engine/celement.h"
-#include "engine/cevfx.h"
-#include "engine/crater.h"
+#include "color/MCPalette.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCVfxElement.h"
+#include "engine/MCCraterManager.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
 #include "gui/updisp.h"
@@ -58,7 +57,7 @@
 #include "sprite/sprtmgr.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
 MCScenario* Scenario = nullptr;
@@ -627,22 +626,20 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     RequireOk(result, " could not find PaletteSystem Block ");
     result = ScenarioFile->ReadIdString("PaletteSystem", PaletteSystem, 79);
     RequireOk(result, " could not find PaletteSystem in PaletteSystem Block ");
-    OldPalette = GamePalette;
-    auto* palette = new MCPalette;
-
-    if (palette != nullptr)
     {
-        palette->NumColors = 0;
-        palette->RgbData.reset();
-        palette->Init();
+        // The mission's palette is shown until the scenario goes; the interface's comes back then.
+        std::expected<std::unique_ptr<MCPalette>, std::string> palette = MCPalette::Create(PaletteSystem);
+
+        if (!palette)
+        {
+            Fatal(0, std::format(" could not start gamePalette: {} ", palette.error()));
+        }
+
+        OldPalette = MCGameContext::Current().SetPalette(std::move(*palette));
     }
 
-    GamePalette = palette;
-    Assert(palette != nullptr, static_cast<uint32_t>(result), " no RAM for gamePalette ");
-    result = GamePalette->Init(PaletteSystem);
-    RequireOk(result, " could not start gamePalette ");
-    InitAlphaLookup(reinterpret_cast<MCVfxRgb*>(GamePalette->RgbData.get()));
-    Application->ActivatePalette(GamePalette->RgbData.get(), 10, 0xf6);
+    InitAlphaLookup(GamePalette()->Colors());
+    Application->ActivatePalette(GamePalette()->RgbData.data(), 10, 0xf6);
     UpdateDisplay(0, 1, 20, 1, 7);
 
     //---------------------------------------------------------------------------------------------------------------
@@ -790,44 +787,9 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         std::memcpy(VisualRangeTable, scenarioVisualRanges, sizeof(VisualRangeTable));
     }
 
-    result = ScenarioFile->SeekBlock("ElementSystem");
-    RequireOk(result, " could not find ElementSystem block in Scenario File ");
-    uint32_t elementHeapSize = 0;
-    result = ScenarioFile->ReadIdULong("ElementHeapSize", elementHeapSize);
-    RequireOk(result, " could not find ElementHeapSize in ElementSystem block in Scenario File ");
-    uint32_t maxElements = 0;
-    result = ScenarioFile->ReadIdULong("MaxElements", maxElements);
-    RequireOk(result, " could not find MaxElements in ElementSystem block in Scenario File ");
-    uint32_t maxGroups = 0;
-    result = ScenarioFile->ReadIdULong("MaxGroups", maxGroups);
-    RequireOk(result, " could not find MaxGroups in ElementSystem block in Scenario File ");
-
-    if (MPlayer != nullptr)
-    {
-        elementHeapSize <<= 1;
-    }
-
-    // Port fix: ElementHeapSize was tuned for 32-bit elements; the x64 ones (vtable and pointer fields) are up to
-    // twice the size, and running the pool dry is Fatal(0xeeeb0003).
-    elementHeapSize <<= 1;
-    result = MCElementPool::Init(static_cast<int32_t>(elementHeapSize));
-    RequireOk(result, " could not Start ElementSystem ");
-    ElementList = new MCElementBuffer;
-    Assert(ElementList != nullptr, static_cast<uint32_t>(result), " no RAM for ElementList ");
-
-    if (MPlayer == nullptr)
-    {
-        maxGroups <<= 1;
-        maxElements <<= 1;
-    }
-    else
-    {
-        maxGroups <<= 2;
-        maxElements <<= 2;
-    }
-
-    result = ElementList->Init(static_cast<int32_t>(maxElements), 0, static_cast<int32_t>(maxGroups));
-    RequireOk(result, " could not start ElementList ");
+    // The frame's draw list. The ElementSystem block's ElementHeapSize, MaxElements and MaxGroups sized the original's;
+    // the port's grows.
+    MCGameContext::Current().SetElementList(std::make_unique<MCElementBuffer>());
     UpdateDisplay(0, 1, 30, 1, 15);
 
     //---------------------------------------------------------------------------------------------------------------
@@ -865,22 +827,27 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     //---------------------------------------------------------------------------------------------------------------
     // Craters, cameras, objects, sprites, appearances, sensors and contacts.
+    // (The block's CraterShapeSize sized the original's shape heap.)
     int32_t numCraters = 0;
-    uint32_t craterShapeSize = 0;
     result = ScenarioFile->SeekBlock("CraterSystem");
     RequireOk(result, " could not find CraterSystem Block in Scenario File ");
     result = ScenarioFile->ReadIdLong("NumCraters", numCraters);
     RequireOk(result, " could not find NumCraters in CraterSystem Block in Scenario File ");
-    result = ScenarioFile->ReadIdULong("CraterShapeSize", craterShapeSize);
-    RequireOk(result, " could not find CraterShapeSize in CraterSystem Block in Scenario File ");
     char craterFileName[16];
     result = ScenarioFile->ReadIdString("CraterFile", craterFileName, 15);
     RequireOk(result, " could not find CraterFile in CraterSystem Block in Scenario File ");
 
-    CraterManager = new MCCraterManager;
-    Assert(CraterManager != nullptr, static_cast<uint32_t>(result), " no RAM for Crater Manager ");
-    result = CraterManager->Init(numCraters, craterShapeSize, craterFileName);
-    RequireOk(result, " could not Start CraterManager ");
+    {
+        std::expected<std::unique_ptr<MCCraterManager>, std::string> craters =
+            MCCraterManager::Create(numCraters, craterFileName);
+
+        if (!craters)
+        {
+            Fatal(0, std::format(" could not Start CraterManager: {} ", craters.error()));
+        }
+
+        MCGameContext::Current().SetCraterManager(std::move(*craters));
+    }
 
     result = ScenarioFile->SeekBlock("CameraSystem");
     RequireOk(result, " could not Find CameraSystem Block ");
@@ -1782,7 +1749,6 @@ auto MCScenario::Run() -> int32_t
     Update();
     CameraList->Update();
     Land->Update();
-    CraterManager->Update();
     PathManager->Update();
 
     if (TrainManager != nullptr)
@@ -1872,23 +1838,9 @@ auto MCScenario::Destroy() -> void
 
     CollisionSystem = nullptr;
 
-    Assert(ElementList != nullptr, 0, " ElementList already NULL ");
-
-    if (ElementList != nullptr)
-    {
-        ElementList->Free();
-        delete ElementList;
-    }
-
-    ElementList = nullptr;
-    MCElementPool::Free();
-
-    if (CraterManager != nullptr)
-    {
-        CraterManager->Destroy();
-        delete CraterManager;
-        CraterManager = nullptr;
-    }
+    Assert(ElementList() != nullptr, 0, " ElementList already NULL ");
+    MCGameContext::Current().SetElementList(nullptr);
+    MCGameContext::Current().SetCraterManager(nullptr);
 
     Assert(Land != nullptr, 0, " land already NULL ");
     delete Land;
@@ -1947,8 +1899,6 @@ auto MCScenario::Destroy() -> void
     }
 
     DestroyMechShadows();
-    // The original freed the scratch buffer; the next mission's came back zeroed.
-    TempBuffer.fill(0);
 
     Assert(Parts != nullptr, 0, " parts already NULL ");
     Parts.reset();
@@ -2022,14 +1972,7 @@ auto MCScenario::Destroy() -> void
 
     if (OldPalette != nullptr)
     {
-        if (GamePalette != nullptr)
-        {
-            GamePalette->Destroy();
-            delete GamePalette;
-        }
-
-        GamePalette = OldPalette;
-        OldPalette = nullptr;
+        MCGameContext::Current().SetPalette(std::move(OldPalette));
     }
 
     if (GameMap != nullptr)

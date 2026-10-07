@@ -2,7 +2,7 @@
 #include "object/mover.h"
 #include "ai/move.h"
 #include "appear/appear.h"
-#include "engine/bitflag.h"
+#include "engine/MCByteFlag.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"

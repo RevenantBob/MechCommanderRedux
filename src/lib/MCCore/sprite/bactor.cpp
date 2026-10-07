@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "sprite/bactor.h"
 #include "camera/camera.h"
-#include "engine/ceglist.h"
-#include "engine/cevfx.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/bldng.h"
@@ -10,7 +10,7 @@
 #include "sprite/sprtmgr.h"
 #include "sprite/vfxshape.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 int DynamicFrameTiming = 1;
 
@@ -22,17 +22,11 @@ namespace
     constexpr uint32_t NUM_TILE_SHAPES = 10;
 
     /// <summary>Adds a VFX element of frame <paramref name="frame"/> of <paramref name="shapeTable"/>.</summary>
-    auto AddShape(uint8_t* shapeTable, float x, float y, int32_t frame, uint8_t* fadeTable, const char* name) -> void
+    auto AddShape(uint8_t* shapeTable, float x, float y, int32_t frame, uint8_t* fadeTable) -> void
     {
-        auto* element = MCElementPool::Make<MCVfxElement>(shapeTable, x, y, frame, 0, fadeTable, 1, 0);
+        auto* element = ElementList()->Make<MCVfxElement>(shapeTable, x, y, frame, 0, fadeTable, 1);
 
-        // Port fix: the original copies the debug name through a null element too.
-        if (element != nullptr)
-        {
-            strcpy(element->Name, name);
-        }
-
-        ElementList->Add(element);
+        ElementList()->Add(element);
     }
 }
 
@@ -403,12 +397,11 @@ auto MCVfxBuildingAppearance::Render(int32_t) -> int32_t
     const bool fullSize = scale == 1.0;
 
     // The tile goes under everything; zoomed out uses the table's second (small) frame.
-    ElementList->OpenGroup(20000000, 1);
+    ElementList()->OpenGroup(20000000, 1);
 
     if (tile != nullptr && tile->FrameList != nullptr)
     {
-        AddShape(tile->FrameList, ScreenPos.X, ScreenPos.Y, fullSize ? 0 : 1, FadeTable,
-                 fullSize ? "bactor1" : "bactor2");
+        AddShape(tile->FrameList, ScreenPos.X, ScreenPos.Y, fullSize ? 0 : 1, FadeTable);
     }
 
     if (building != nullptr)
@@ -421,9 +414,8 @@ auto MCVfxBuildingAppearance::Render(int32_t) -> int32_t
     {
         if (AnimState == -1)
         {
-            ElementList->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
-            AddShape(shape->FrameList, ScreenPos.X, ScreenPos.Y, fullSize ? 0 : 1, FadeTable,
-                     fullSize ? "bactor4" : "bactor5");
+            ElementList()->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
+            AddShape(shape->FrameList, ScreenPos.X, ScreenPos.Y, fullSize ? 0 : 1, FadeTable);
         }
         else
         {
@@ -434,8 +426,8 @@ auto MCVfxBuildingAppearance::Render(int32_t) -> int32_t
                 CurrentFrame = numShapeFrames - 1;
             }
 
-            ElementList->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
-            AddShape(shape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame, FadeTable, "bactor3");
+            ElementList()->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
+            AddShape(shape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame, FadeTable);
         }
     }
 

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "gui/awindow.h"
 #include "camera/camera.h"
-#include "engine/font.h"
+#include "engine/MCFont.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "lib/MCFatal.h"
@@ -16,7 +16,7 @@
 #include "platform/MCSmacker.h"
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
 int32_t StartupRects[24] = {};
@@ -189,21 +189,21 @@ namespace
 auto TitleBarPaint(MCGuiObject* object) -> void
 {
     VfxPaneWipe(object->Port()->Frame(), 0x1b);
-    VfxLineDraw(object->Port()->Frame(), 0, 6, object->Width() - 1, 6, LD_DRAW, 0x10);
-    VfxLineDraw(object->Port()->Frame(), 0, 7, object->Width() - 1, 7, LD_DRAW, 0x10);
+    VfxLineDraw(object->Port()->Frame(), 0, 6, object->Width() - 1, 6, 0x10);
+    VfxLineDraw(object->Port()->Frame(), 0, 7, object->Width() - 1, 7, 0x10);
 }
 
 auto CameraBottomBarPaint(MCGuiObject* object) -> void
 {
     VfxPaneWipe(object->Port()->Frame(), 0x10);
-    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, 1, LD_DRAW, 0x15);
-    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, 1, LD_DRAW, 0x10);
+    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, 1, 0x15);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, 1, 0x10);
 }
 
 auto CameraLeftBarPaint(MCGuiObject* object) -> void
 {
-    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height(), LD_DRAW, 0x15);
-    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height(), LD_DRAW, 0x10);
+    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height(), 0x15);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height(), 0x10);
 }
 
 auto CameraRightBarPaint(MCGuiObject* object) -> void
@@ -215,23 +215,23 @@ auto BottomBarPaint(MCGuiObject* object) -> void
 {
     object->SetBit(0, 0, 0xe);
     object->SetBit(object->Width(), 0, 0xe);
-    VfxLineDraw(object->Port()->Frame(), 1, 0, object->Width(), 0, LD_DRAW, 3);
-    VfxLineDraw(object->Port()->Frame(), 0, 1, object->Width(), 1, LD_DRAW, 0xe);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, object->Width(), 0, 3);
+    VfxLineDraw(object->Port()->Frame(), 0, 1, object->Width(), 1, 0xe);
 }
 
 auto LeftBarPaint(MCGuiObject* object) -> void
 {
     object->SetBit(object->Width(), object->Height(), 0xe);
-    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height(), LD_DRAW, 0xe);
-    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height() - 1, LD_DRAW, 3);
+    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height(), 0xe);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height() - 1, 3);
 }
 
 auto RightBarPaint(MCGuiObject* object) -> void
 {
     object->SetBit(0, object->Height(), 0xe);
     VfxPaneWipe(object->Port()->Frame(), 8);
-    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height() - 2, LD_DRAW, 3);
-    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height() - 1, LD_DRAW, 0xe);
+    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height() - 2, 3);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height() - 1, 0xe);
 }
 
 auto HandleResizeButtonEvent(MCGuiObject* object, MCGuiEvent* event) -> void
@@ -652,13 +652,13 @@ auto MCGuiTitleBar::Draw() -> void
 {
     VfxPaneWipe(DisplayPort->Frame(), BackColor());
     MCGuiPort* barPort = DisplayPort;
-    VfxLineDraw(barPort->Frame(), 0, 0, Width(), 0, LD_DRAW, 0xe);
-    VfxLineDraw(barPort->Frame(), 0, 0, 0, 0xd, LD_DRAW, 0xe);
+    VfxLineDraw(barPort->Frame(), 0, 0, Width(), 0, 0xe);
+    VfxLineDraw(barPort->Frame(), 0, 0, 0, 0xd, 0xe);
 
     if (Parent != nullptr)
     {
         barPort = DisplayPort;
-        VfxLineDraw(barPort->Frame(), 1, Height() - 1, Parent->Width() + 2, Height() - 1, LD_DRAW, 3);
+        VfxLineDraw(barPort->Frame(), 1, Height() - 1, Parent->Width() + 2, Height() - 1, 3);
     }
 
     int32_t textX = 3;
@@ -865,17 +865,17 @@ auto MCGuiMenu::Draw() -> void
         return;
     }
 
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, 0xf);
 
     for (int16_t i = 0; i < NumItems; i++)
     {
         if (std::strcmp(text, MenuSeparator) == 0)
         {
             const int32_t lineY = halfItem + itemY;
-            VfxLineDraw(DisplayPort->Frame(), 4, lineY, Width() - 8, lineY, LD_DRAW, 9);
+            VfxLineDraw(DisplayPort->Frame(), 4, lineY, Width() - 8, lineY, 9);
         }
         else
         {
@@ -902,7 +902,7 @@ auto MCGuiMenu::Draw() -> void
             }
         }
 
-        VfxLineDraw(DisplayPort->Frame(), 1, itemY, Width() - 2, itemY, LD_DRAW, 0xf);
+        VfxLineDraw(DisplayPort->Frame(), 1, itemY, Width() - 2, itemY, 0xf);
         text += MenuItemLength;
         itemY += ItemHeight;
     }
@@ -1657,7 +1657,7 @@ auto MCGuiStartupWindow::Step() -> void
     MCSoundSystem* sounds = SoundSystem;
     const int32_t step = StartupState;
     StartupState = step + 1;
-    MCFont* font = LineFont;
+    MCFont* font = LineFont.get();
 
     if (sounds == nullptr)
     {
@@ -1721,13 +1721,13 @@ auto MCGuiStartupWindow::Step() -> void
     {
         AGShapeDraw(StaticPane(), StaticImages[0], 0, 0x140, 0xf0);
         AGEllipseFill(StaticPane(), 0x10a, 0xe5, 3, 3, 0xfd);
-        VfxLineDraw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
+        VfxLineDraw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, 0xfd);
         setLarge(0);
         font->Print(0x1c2, 0x18b, const_cast<char*>("Forward Command Bunker"), 0xfd, StaticPane());
         setLarge(1);
         font->Print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, StaticPane());
-        VfxLineDraw(StaticPane(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
-        VfxLineDraw(StaticPane(), pointX, pointY, 10, pointY, LD_DRAW, 0xfd);
+        VfxLineDraw(StaticPane(), 0x10a, 0xe5, pointX, pointY, 0xfe);
+        VfxLineDraw(StaticPane(), pointX, pointY, 10, pointY, 0xfd);
     };
 
     uint32_t sample = 0x10;
@@ -1747,7 +1747,7 @@ auto MCGuiStartupWindow::Step() -> void
             break;
         }
         case 0x13:
-            VfxLineDraw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
+            VfxLineDraw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, 0xfd);
             break;
         // "Forward Command Bunker"
         case 0x1d:
@@ -1788,7 +1788,7 @@ auto MCGuiStartupWindow::Step() -> void
             break;
         }
         case 0x31:
-            VfxLineDraw(StaticPane(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
+            VfxLineDraw(StaticPane(), 0x10a, 0xe5, pointX, pointY, 0xfe);
             break;
         case 0x3b:
         {
@@ -1918,7 +1918,7 @@ auto MCGuiStartupWindow::Step() -> void
             break;
         // The field site
         case 0x77:
-            VfxLineDraw(StaticPane(), pointX, pointY, 0xf3, 0x101, LD_DRAW, 0xfd);
+            VfxLineDraw(StaticPane(), pointX, pointY, 0xf3, 0x101, 0xfd);
             break;
         case 0x81:
         {
@@ -1927,7 +1927,7 @@ auto MCGuiStartupWindow::Step() -> void
             break;
         }
         case 0x8b:
-            VfxLineDraw(StaticPane(), 0xf3, 0x101, 0x1b, 0x101, LD_DRAW, 0xfd);
+            VfxLineDraw(StaticPane(), 0xf3, 0x101, 0x1b, 0x101, 0xfd);
             break;
         // "Field Site Linking..."
         case 0x95:

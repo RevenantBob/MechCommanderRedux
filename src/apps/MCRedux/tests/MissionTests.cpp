@@ -16,7 +16,7 @@
 #include "sprite/spritree.h"
 #include "sprite/vfxshape.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 namespace
 {

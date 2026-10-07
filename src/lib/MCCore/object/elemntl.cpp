@@ -5,11 +5,11 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "engine/ceglist.h"
-#include "engine/celine.h"
-#include "engine/cevfx.h"
-#include "engine/crater.h"
-#include "vfx/vfxfuncs.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCLineElement.h"
+#include "engine/MCVfxElement.h"
+#include "engine/MCCraterManager.h"
+#include "vfx/MCVfxFunctions.h"
 #include "iface/iface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
@@ -1726,7 +1726,7 @@ auto MCElemental::Update() -> int32_t
         if (DeathTimer < 0.4 && DeathExplosionDone == 0 && Withdrawing == 0)
         {
             ObjType->CreateExplosion(Position, 0.0f, 0.0f);
-            CraterManager->AddCrater(7, Position, 0);
+            CraterManager()->AddCrater(7, Position, 0);
             DeathExplosionDone = 1;
             return 1;
         }
@@ -1905,9 +1905,9 @@ auto MCElemental::Render() -> void
                         BlipFrame = 0;
                     }
 
-                    ElementList->OpenGroup(-100000, 1);
-                    ElementList->Add(MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0,
-                                                                       nullptr, 0, 0));
+                    ElementList()->OpenGroup(-100000, 1);
+                    ElementList()->Add(
+                        ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0));
                     BlipFrame++;
                 }
             }
@@ -1967,8 +1967,8 @@ auto MCElemental::Render() -> void
 
             MCVector2D fromScreen = project(from);
             MCVector2D toScreen = project(to);
-            ElementList->OpenGroup(-100000, 1);
-            ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xfe, nullptr, -100000, -1));
+            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->Add(ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xfe, nullptr, -100000, -1));
         }
     }
 }

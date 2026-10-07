@@ -2,12 +2,12 @@
 #include "gui/ahelp.h"
 #include "appear/appear.h"
 #include "camera/camera.h"
-#include "engine/font.h"
+#include "engine/MCFont.h"
 #include "gui/aport.h"
 #include "main/main.h"
 #include "object/bridge.h"
 #include "platform/MCFrameLog.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 auto MCFloatHelp::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
@@ -156,7 +156,7 @@ auto MCFloatHelp::SetHelpText(char* text) -> void
         LineFont->Scale = 1.0f;
         LineFont->Scaled = 0;
 
-        int32_t textWidth = LineFont->PrintWidth(HelpText, -1) + 4;
+        int32_t textWidth = LineFont->PrintWidth(HelpText, true) + 4;
 
         if (Width() == textWidth)
         {
@@ -181,6 +181,6 @@ auto MCFloatHelp::SetHelpText(char* text) -> void
         }
 
         fontHeight &= 0xff;
-        Resize(LineFont->PrintWidth(HelpText, -1) + 4, (fontHeight + 2) * numLines);
+        Resize(LineFont->PrintWidth(HelpText, true) + 4, (fontHeight + 2) * numLines);
     }
 }

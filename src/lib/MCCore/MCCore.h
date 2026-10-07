@@ -55,4 +55,4 @@
 
 #include "MCPort.h"
 #include "platform/MCWin32Defs.h"
-#include "vfx/vfx.h"
+#include "vfx/MCVfx.h"

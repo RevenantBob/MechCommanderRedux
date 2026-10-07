@@ -14,8 +14,8 @@
 #include "network/multplyr.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfx.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfx.h"
+#include "vfx/MCVfxFunctions.h"
 
 /// <summary>The gap aScrollTextObject's section highlight leaves at the right (3).</summary>
 int16_t ROffset = 3;
@@ -203,10 +203,10 @@ auto PaintScrollTab(MCGuiObject* obj) -> void
     const int32_t height = obj->Height();
     MCPane* pane = obj->Port()->Frame();
     VfxPaneWipe(pane, 0x1a);
-    VfxLineDraw(pane, 0, 0, width - 2, 0, LD_DRAW, 0x1f);
-    VfxLineDraw(pane, 0, 0, 0, height - 2, LD_DRAW, 0x1f);
-    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0x16);
-    VfxLineDraw(pane, 0, height - 1, width - 1, height - 1, LD_DRAW, 0x16);
+    VfxLineDraw(pane, 0, 0, width - 2, 0, 0x1f);
+    VfxLineDraw(pane, 0, 0, 0, height - 2, 0x1f);
+    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, 0x16);
+    VfxLineDraw(pane, 0, height - 1, width - 1, height - 1, 0x16);
 }
 
 auto ScrollTabEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
@@ -937,7 +937,7 @@ auto MCGuiChatInput::Draw() -> void
     // the background colour while cursorVisible, so it blinks).
     const int32_t bottom = InputFont->Height() + 3 + CursorY;
     const int32_t color = CursorVisible != 0 ? 0x10 : 0x1f;
-    VfxLineDraw(DisplayPort->Frame(), CursorX, CursorY, CursorX, bottom, LD_DRAW, color);
+    VfxLineDraw(DisplayPort->Frame(), CursorX, CursorY, CursorX, bottom, color);
     MCGuiObject::Draw();
 }
 

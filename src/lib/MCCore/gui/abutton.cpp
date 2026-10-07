@@ -2,7 +2,7 @@
 #include "gui/abutton.h"
 #include "gui/aport.h"
 #include "lib/MCFatal.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {

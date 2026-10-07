@@ -18,8 +18,8 @@
 #include "platform/MCSmacker.h"
 #include "platform/MCVulkanRenderer.h"
 #include "terrain/terrain.h"
-#include "vfx/mcagshape.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCAgShape.h"
+#include "vfx/MCVfxFunctions.h"
 
 using namespace MCScreenInput;
 
@@ -200,7 +200,6 @@ TEST_CASE_ISOLATED("game: the GPU draws the shape transforms as the software ren
         return;
     }
 
-    std::vector<uint8_t> buffer(0x1fa40);
     std::array<uint8_t, 256> table{};
 
     for (size_t i = 0; i < table.size(); ++i)
@@ -232,12 +231,11 @@ TEST_CASE_ISOLATED("game: the GPU draws the shape transforms as the software ren
                 if ((variant & 4) != 0)
                 {
                     AGShapeLookaside(table.data());
-                    AGShapeTranslateTransform(pane, CursorShapes[shape], 0, place[0], place[1], buffer.data(), mirror,
-                                              fullSize);
+                    AGShapeTranslateTransform(pane, CursorShapes[shape], 0, place[0], place[1], mirror, fullSize);
                 }
                 else
                 {
-                    AGShapeTransform(pane, CursorShapes[shape], 0, place[0], place[1], buffer.data(), mirror, fullSize);
+                    AGShapeTransform(pane, CursorShapes[shape], 0, place[0], place[1], mirror, fullSize);
                 }
 
                 ++draws;

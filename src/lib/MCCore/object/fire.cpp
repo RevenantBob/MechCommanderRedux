@@ -4,9 +4,9 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "engine/bitflag.h"
-#include "engine/ceglist.h"
-#include "engine/cevfx.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -29,7 +29,7 @@
 #include "sprite/actor.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -761,8 +761,8 @@ auto MCFire::Render() -> void
         BlipFrame = 0;
     }
 
-    ElementList->OpenGroup(-100000, 1);
-    ElementList->Add(MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 0));
+    ElementList()->OpenGroup(-100000, 1);
+    ElementList()->Add(ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0));
     BlipTime = FrameLength + BlipTime;
 
     if (0.067 < BlipTime)

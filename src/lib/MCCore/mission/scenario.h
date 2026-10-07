@@ -1,5 +1,7 @@
 #pragma once
 
+#include "color/MCPalette.h"
+
 // The scenario: one battle (mission\scenario.cpp). Scenario::init reads the scenario FIT and starts every game system
 // (palette, cameras, objects, sprites, terrain, ABL, teams, warriors, parts, objectives); Scenario::run is the
 // per-frame update; Scenario::destroy shuts it all down again.
@@ -17,7 +19,6 @@ class MCTeam;
 class MCCollisionSystem;
 class MCTrainManager;
 class MCAppearanceTypeList;
-class MCCraterManager;
 class MCObjectMap;
 struct MCSymTableNode;
 
@@ -236,8 +237,8 @@ public:
     MCSymTableNode* ScenarioBrainHandleMessage = nullptr;
     /// <summary><c>PaletteSystem</c>: the palette file.</summary>
     char PaletteSystem[80] = {};
-    /// <summary>The palette before the scenario's (<c>gamePalette</c>), restored by <see cref="Destroy"/>.</summary>
-    MCPalette* OldPalette = nullptr;
+    /// <summary>The palette before the scenario's (the interface's), shown again by <see cref="Destroy"/>.</summary>
+    std::unique_ptr<MCPalette> OldPalette;
     /// <summary><c>NumWarriors</c>.</summary>
     uint32_t NumWarriors = 0;
     /// <summary>The warriors, 1-based (<see cref="NumWarriors"/> + 1 entries).</summary>
@@ -356,7 +357,6 @@ extern float MineWaitTime;
 extern MCTeam* TeamTable[3];
 extern MCTrainManager* TrainManager;
 extern MCAppearanceTypeList* AppearanceTypeList;
-extern MCCraterManager* CraterManager;
 /// <summary>The scenario's frame (turn) counter.</summary>
 extern int32_t Turn;
 extern MCObjectMap* GameObjectMap;

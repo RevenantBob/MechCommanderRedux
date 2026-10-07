@@ -5,7 +5,7 @@
 #include "lib/MCFile.h"
 #include "logistics/logmain.h"
 #include "platform/MCRenderer.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 MCGuiFont::MCGuiFont()
 {

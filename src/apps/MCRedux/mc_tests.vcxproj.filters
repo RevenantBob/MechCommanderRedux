@@ -22,6 +22,9 @@
     <ClCompile Include="tests\BlockStoreTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\ColorTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\CursorTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

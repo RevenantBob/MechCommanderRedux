@@ -2,11 +2,11 @@
 #include "object/bridge.h"
 #include "ai/move.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/bitflag.h"
-#include "engine/ceglist.h"
-#include "engine/cepoly.h"
-#include "engine/cevfx.h"
+#include "color/MCPalette.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCPolygonElement.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFrameOfRef.h"
@@ -543,7 +543,7 @@ auto MCMiscTerrainObject::Render() -> void
             level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = GamePalette->GetHazePalette(level);
+        hazePalette = GamePalette()->GetHazePalette(level);
     }
 
     int32_t frame = edge * 2;
@@ -561,11 +561,10 @@ auto MCMiscTerrainObject::Render() -> void
         }
     }
 
-    ElementList->OpenGroup(static_cast<int32_t>(-screenPos.Y - static_cast<float>(depthOffset)), 1);
-    auto* element = MCElementPool::Make<MCVfxElement>(static_cast<MCMiscTerrainObjectType*>(ObjType)->ForestEdgeShapes,
-                                                      screenPos.X, screenPos.Y, frame, 0, hazePalette, 1, 0);
-    std::strcpy(element->Name, "terobj");
-    ElementList->Add(element);
+    ElementList()->OpenGroup(static_cast<int32_t>(-screenPos.Y - static_cast<float>(depthOffset)), 1);
+    auto* element = ElementList()->Make<MCVfxElement>(static_cast<MCMiscTerrainObjectType*>(ObjType)->ForestEdgeShapes,
+                                                      screenPos.X, screenPos.Y, frame, 0, hazePalette, 1);
+    ElementList()->Add(element);
 }
 
 auto MCMiscTerrainObject::DrawBars(MCVector2D screenPos) -> void
@@ -574,7 +573,6 @@ auto MCMiscTerrainObject::DrawBars(MCVector2D screenPos) -> void
     // Port: an overlay, on the screen over the view: it follows the object through the zoom, its size doesn't change.
     screenPos = MCOverlayPoint(screenPos);
     MCPolyElementData data;
-    data.Init();
     const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
     const float barWidth = (Eye->CameraScale != 1 ? 1.0f : 0.5f) * 38.0f;
     const float barHeight = (Eye->CameraScale != 1 ? 1.0f : 0.5f) * 4.0f;
@@ -608,7 +606,7 @@ auto MCMiscTerrainObject::DrawBars(MCVector2D screenPos) -> void
         barLength = 1.0f;
     }
 
-    ElementList->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, 1);
     data.NumVertices = 0;
     data.TextureMapOff = 0;
     data.Texture = nullptr;
@@ -628,7 +626,7 @@ auto MCMiscTerrainObject::DrawBars(MCVector2D screenPos) -> void
 
     if (0 < data.BarPercent)
     {
-        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, -50000));
+        ElementList()->Add(ElementList()->Make<MCPolygonElement>(data, -50000));
     }
 }
 

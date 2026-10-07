@@ -151,5 +151,3 @@ extern int UpdateTerrainObjects;
 extern int RenderObjects;
 /// <summary>Whether ObjectQueueNode::render renders the TBlk/RBlk lists (1 by default).</summary>
 extern int RenderTerrainObjects;
-/// <summary>Set when the drawn-object limit is reached: rendering stops.</summary>
-extern int MaxObjectsDrawn;

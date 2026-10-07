@@ -2,7 +2,7 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "lib/MCFile.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 // Tests of the game's own VFX helpers: alphapalette.cpp, encode_vfx.cpp, fastshp.cpp, vfx_ellipse.cpp and
 // vfx_map_polygon.cpp.
@@ -40,12 +40,12 @@ namespace
     /// <summary>Saves and restores the alpha tables, so tests that fill them don't leak into others.</summary>
     struct AlphaGuard
     {
-        std::vector<char> Table{AlphaTable, AlphaTable + sizeof(AlphaTable)};
-        std::vector<char> Special{SpecialColor, SpecialColor + sizeof(SpecialColor)};
+        decltype(AlphaTable) Table = AlphaTable;
+        decltype(SpecialColor) Special = SpecialColor;
         ~AlphaGuard()
         {
-            std::memcpy(AlphaTable, Table.data(), Table.size());
-            std::memcpy(SpecialColor, Special.data(), Special.size());
+            AlphaTable = Table;
+            SpecialColor = Special;
         }
     };
 }
@@ -205,7 +205,7 @@ TEST_CASE("vfx: AG_ellipse_draw blends a special colour through AlphaTable")
 
     for (int b = 0; b < 256; ++b)
     {
-        AlphaTable[0x40 * 256 + b] = static_cast<char>(b + 1);
+        AlphaTable[0x40 * 256 + b] = static_cast<uint8_t>(b + 1);
     }
 
     TestWindow w(41, 31, 50);
@@ -224,8 +224,8 @@ TEST_CASE("vfx: AG_StatusBar darkens the frame and blends the bar")
 
     for (int b = 0; b < 256; ++b)
     {
-        AlphaTable[0x108 * 256 + b] = static_cast<char>(b + 1);
-        AlphaTable[0x110 * 256 + b] = static_cast<char>(b + 100);
+        AlphaTable[0x108 * 256 + b] = static_cast<uint8_t>(b + 1);
+        AlphaTable[0x110 * 256 + b] = static_cast<uint8_t>(b + 100);
     }
 
     TestWindow w(30, 12, 10);
@@ -348,7 +348,7 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
                                       {0x86, 7, 8, 9, 10, 11, 12},
                                   });
     TestWindow w(12, 8, 0x55);
-    CHECK_EQ(FastShapeDraw(&w.Pane, table.data(), 0, 3, 2, nullptr, 0), 0);
+    CHECK_EQ(FastShapeDraw(&w.Pane, table.data(), 0, 3, 2, nullptr), 0);
     // Each row from its own offset (MCX.EXE drew the first row's data twice and dropped the last row, OB-117).
     const uint8_t row0[] = {1, 2, 0x55, 0x55, 3, 3};
     const uint8_t row1[] = {4, 5, 0x55, 0x55, 6, 6};
@@ -375,7 +375,7 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
 
     xlat[2] = 0xff;
     TestWindow t(12, 8, 0x55);
-    FastShapeDraw(&t.Pane, table.data(), 0, 3, 2, xlat, 0);
+    FastShapeDraw(&t.Pane, table.data(), 0, 3, 2, xlat);
     CHECK_EQ(t.At(3, 2), 101);
     CHECK_EQ(t.At(4, 2), 0x55);
     CHECK_EQ(t.At(7, 2), 103);
@@ -383,7 +383,7 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
     // Clipped on the right: the rows stop at the pane's edge.
     TestWindow c(12, 8, 0x55);
     c.Pane.X1 = 5;
-    FastShapeDraw(&c.Pane, table.data(), 0, 3, 2, nullptr, 0);
+    FastShapeDraw(&c.Pane, table.data(), 0, 3, 2, nullptr);
     CHECK_EQ(c.At(3, 2), 1);
     CHECK_EQ(c.At(4, 2), 2);
     CHECK_EQ(c.At(6, 2), 0x55);
@@ -392,7 +392,7 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
     // Clipped on the left: the packet crossing the edge starts at the pane's left.
     TestWindow l(12, 8, 0x55);
     l.Pane.X0 = 2;
-    FastShapeDraw(&l.Pane, table.data(), 0, -1, 0, nullptr, 0);
+    FastShapeDraw(&l.Pane, table.data(), 0, -1, 0, nullptr);
     // sx = 2 + -1 = 1: pixels 1..6; 1 is clipped. Rows land at y = 0..2.
     const uint8_t clipped0[] = {0x55, 2, 0x55, 0x55, 3, 3, 0x55};
     const uint8_t clipped1[] = {0x55, 5, 0x55, 0x55, 6, 6, 0x55};
@@ -412,7 +412,7 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
     // colour 255 translates to 99, so it is drawn.
     TestWindow lx(12, 8, 0x55);
     lx.Pane.X0 = 2;
-    FastShapeDraw(&lx.Pane, table.data(), 0, -1, 0, xlat, 0);
+    FastShapeDraw(&lx.Pane, table.data(), 0, -1, 0, xlat);
     const uint8_t clippedX[] = {0x55, 0x55, 99, 99, 103, 103, 0x55};
     const uint8_t clippedX2[] = {0x55, 108, 109, 110, 111, 112, 0x55};
 
@@ -424,7 +424,7 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
 
     // A shape starting on the pane's last column or row still shows that column or row.
     TestWindow e(12, 8, 0x55);
-    FastShapeDraw(&e.Pane, table.data(), 0, 11, 7, nullptr, 0);
+    FastShapeDraw(&e.Pane, table.data(), 0, 11, 7, nullptr);
     CHECK_EQ(e.At(11, 7), 1);
 }
 
@@ -449,13 +449,13 @@ TEST_CASE("game: InitAlphaLookup builds the tables from AlphaPal.ini")
     InitAlphaLookup(palette);
     int special = 0;
 
-    for (int c = 0; c < ALPHA_COLORS; ++c)
+    for (int c = 0; c < AlphaColorCount; ++c)
     {
         special += SpecialColor[c] == 1;
     }
 
     CHECK(special > 0);
-    const uint8_t* table = reinterpret_cast<const uint8_t*>(AlphaTable);
+    const uint8_t* table = AlphaTable.data();
 
     for (int b = 0; b < 256; ++b)
     {
@@ -463,7 +463,7 @@ TEST_CASE("game: InitAlphaLookup builds the tables from AlphaPal.ini")
         CHECK_EQ(table[0xff * 256 + b], static_cast<uint8_t>(b));
     }
 
-    for (int c = 1; c < ALPHA_COLORS; ++c)
+    for (int c = 1; c < AlphaColorCount; ++c)
     {
         if (c == 0xff)
         {

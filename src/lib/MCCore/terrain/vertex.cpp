@@ -2,10 +2,10 @@
 #include "terrain/vertex.h"
 #include "ai/move.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/bitflag.h"
-#include "engine/ceglist.h"
-#include "engine/celine.h"
+#include "color/MCPalette.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCLineElement.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFrameOfRef.h"
@@ -20,8 +20,8 @@
 #include "platform/MCRenderer.h"
 #include "terrain/terrain.h"
 #include "terrain/terrtxm.h"
-#include "vfx/vfx.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfx.h"
+#include "vfx/MCVfxFunctions.h"
 
 int32_t TileCacheReqs = 0;
 int32_t TileCacheHits = 0;
@@ -127,7 +127,7 @@ namespace
     {
         const int32_t hazed = Eye->HazeInc * static_cast<int32_t>(visibleCount) + hazeFactor;
         const int32_t hazeLevel = (hazeFactor < 0 && hazed > 0) ? 0 : hazed;
-        return GamePalette->GetHazePalette(hazeLevel);
+        return GamePalette()->GetHazePalette(hazeLevel);
     }
 
     /// <summary>
@@ -149,7 +149,7 @@ namespace
             return false;
         }
 
-        FastShapeDraw(GlobalPane, tile->TileData, 0, topLeft->Px, topLeft->Py, hazePalette, 0);
+        FastShapeDraw(GlobalPane, tile->TileData, 0, topLeft->Px, topLeft->Py, hazePalette);
         return true;
     }
 
@@ -854,7 +854,7 @@ auto MCTerrainBlock::Draw(int32_t hazeFactor, uint8_t /*flags*/) -> void
     // Unseen blocks (and the 0x7fff "all black" factor) are filled black.
     if (hazeFactor == 0x7fff || visibleCount == 0)
     {
-        hazePalette = VFX_TILE_FILL;
+        hazePalette = VfxTileFill;
     }
 
     const int32_t textureData = topLeft->PVertex->TextureData;
@@ -1006,7 +1006,7 @@ auto MCTerrainBlock::DrawLine(int32_t color, int /*onlyTop*/) -> void
         MCVertex* to = Vertices[(edge + 1) & 3];
         MCVector2D start(static_cast<float>(from->Px), static_cast<float>(from->Py));
         MCVector2D end(static_cast<float>(to->Px), static_cast<float>(to->Py));
-        ElementList->Add(MCElementPool::Make<MCLineElement>(start, end, color, nullptr, depth, -1));
+        ElementList()->Add(ElementList()->Make<MCLineElement>(start, end, color, nullptr, depth, -1));
     }
 }
 
@@ -1169,7 +1169,7 @@ std::expected<void, std::string> MCTerrainGroundFrame(const MCVertex* vertexList
 
     MCByteFlag* fog = HomeTeam != nullptr ? HomeVisibleBits() : nullptr;
 
-    if (fog == nullptr || fog->FlagWindow == nullptr)
+    if (fog == nullptr || fog->Window() == nullptr)
     {
         return std::unexpected("the ground mesh has no fog of war flags to read");
     }
@@ -1288,7 +1288,7 @@ std::expected<void, std::string> MCTerrainGroundFrame(const MCVertex* vertexList
     frame.PaneX = GlobalPane->X0;
     frame.PaneY = GlobalPane->Y0;
     frame.Clip = MCRect{x0, y0, x1, y1};
-    frame.Fog = fog->FlagWindow;
+    frame.Fog = fog->Window();
     frame.AllFilled = hazeFactor == 0x7fff;
 
     if (!frame.AllFilled)

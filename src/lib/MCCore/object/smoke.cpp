@@ -2,8 +2,8 @@
 #include "object/smoke.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "engine/ceglist.h"
-#include "engine/cevfx.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCVfxElement.h"
 #include "gui/asystem.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
@@ -16,7 +16,7 @@
 #include "main/main.h"
 #include "object/object.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
 
 namespace
@@ -482,7 +482,7 @@ auto MCSmoke::Render() -> void
         return;
     }
 
-    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(DepthBias) - ScreenPos.Y), 1);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(DepthBias) - ScreenPos.Y), 1);
     const auto* smokeType = static_cast<MCSmokeType*>(ObjType);
 
     for (int32_t i = 0; i < NumSpheres; i++)
@@ -533,21 +533,19 @@ auto MCSmoke::Render() -> void
 
         if (smokeType->HasRotation == 0)
         {
-            element = MCElementPool::Make<MCVfxElement>(sphere.Shape, ScreenPos.X, ScreenPos.Y, sphere.Frame, 0,
-                                                        nullptr, 0, 0);
-            std::strcpy(element->Name, "smoke2");
+            element =
+                ElementList()->Make<MCVfxElement>(sphere.Shape, ScreenPos.X, ScreenPos.Y, sphere.Frame, 0, nullptr, 0);
         }
         else
         {
             // Rotated smoke picks its facing's set of frames.
             const int32_t rotation = RotationIndex(sphere.Velocity);
             const int32_t framesPerRotation = VfxShapeCount(sphere.Shape) / smokeType->NumRotations;
-            element = MCElementPool::Make<MCVfxElement>(sphere.Shape, ScreenPos.X, ScreenPos.Y,
-                                                        framesPerRotation * rotation + sphere.Frame, 0, nullptr, 0, 0);
-            std::strcpy(element->Name, "smoke1");
+            element = ElementList()->Make<MCVfxElement>(sphere.Shape, ScreenPos.X, ScreenPos.Y,
+                                                        framesPerRotation * rotation + sphere.Frame, 0, nullptr, 0);
         }
 
-        ElementList->Add(element);
+        ElementList()->Add(element);
     }
 }
 

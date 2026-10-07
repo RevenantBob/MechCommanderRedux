@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "sprite/armactor.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/ceglist.h"
-#include "engine/cevfx.h"
+#include "color/MCPalette.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/gameobj.h"
@@ -12,7 +12,7 @@
 #include "sprite/sprtmgr.h"
 #include "sprite/vfxshape.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 //---------------------------------------------------------------------------
 // ArmAppearanceType
@@ -373,36 +373,20 @@ auto MCArmAppearance::Render(int32_t depthFixup) -> int32_t
 
     if (FadeTableIndex != -1 && FadeTableIndex >= 0)
     {
-        fadeTable = GamePalette->FadePalettes.get() + (FadeTableIndex + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
+        fadeTable = GamePalette()->GetFadeTable(FadeTableIndex);
     }
 
-    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 1);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 1);
 
     if (CurrentShape == nullptr || CurrentShape->FrameList == nullptr)
     {
         return 0;
     }
 
-    auto* element = MCElementPool::Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame,
-                                                      Reverse, fadeTable, 0, 0);
+    auto* element = ElementList()->Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame,
+                                                      Reverse, fadeTable, 0);
 
-    // Port fix: the original writes the debug names through a null element too, and "%i" of a type number
-    // can overrun name2.
-    if (element != nullptr)
-    {
-        strcpy(element->Name, "armweap");
-
-        if (OwnerObject == nullptr)
-        {
-            strcpy(element->Name2, "unknown");
-        }
-        else
-        {
-            snprintf(element->Name2, sizeof(element->Name2), "%i", OwnerObject->GetObjectType()->ObjTypeNum);
-        }
-    }
-
-    ElementList->Add(element);
+    ElementList()->Add(element);
     return 0;
 }
 

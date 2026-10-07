@@ -13,7 +13,7 @@
 // data blocks (MCDataKind::Tables): a renderer keeps what it took from a table by its address until the block's owner
 // says the bytes changed.
 
-#include "vfx/vfx.h"
+#include "vfx/MCVfx.h"
 
 /// <summary>How a texture's pixels change (<see cref="MCRenderer::CreateTexture"/>).</summary>
 enum class MCTextureUse : uint8_t
@@ -226,7 +226,7 @@ struct MCTileCommand
     int32_t Hi;
     /// <summary>Whether the tile lies wholly inside horizontally (its spans are written without clipping).</summary>
     bool Unclipped;
-    /// <summary>Null: copied; VFX_TILE_FILL: colour 0x10; else a 256-byte table.</summary>
+    /// <summary>Null: copied; VfxTileFill: colour 0x10; else a 256-byte table.</summary>
     const uint8_t* Table;
 };
 
@@ -242,7 +242,7 @@ enum class MCPolygonKind
 };
 
 /// <summary>
-/// A convex polygon (vfx3d.cpp). Its vertices are relative to the clipped pane's corner (<c>OriginX</c>,
+/// A convex polygon (vfx/MCVfxPolygon.cpp). Its vertices are relative to the clipped pane's corner (<c>OriginX</c>,
 /// <c>OriginY</c>), and it is clipped to 0..<c>XMax</c>, 0..<c>YMax</c> from there.
 /// </summary>
 struct MCPolygonCommand
@@ -256,7 +256,7 @@ struct MCPolygonCommand
     const MCScreenVertex* Vertices;
     /// <summary>The dithered kinds' amount (16.16).</summary>
     int32_t DitherAmount;
-    /// <summary>Translate: the destination table. Map: the lookaside table MP_XLAT maps texels through.</summary>
+    /// <summary>Translate: the destination table. Map: the lookaside table VfxMapXlat maps texels through.</summary>
     const uint8_t* Table;
     /// <summary>Map: the texture and the MP_* flags.</summary>
     const MCWindow* Texture;
@@ -299,7 +299,7 @@ struct MCLineCommand
     int32_t MinorY;
     uint32_t Slope;
     uint32_t Fraction;
-    /// <summary>Null: every pixel becomes <c>Color</c>; else each is mapped through the table (LD_TRANSLATE).</summary>
+    /// <summary>Null: every pixel becomes <c>Color</c>; else each is mapped through the table (VfxLineTranslate).</summary>
     const uint8_t* Table;
     uint8_t Color;
 };
@@ -456,10 +456,10 @@ struct MCAlphaBlitCommand
 };
 
 /// <summary>
-/// A shape transform (AG_shape_transform, AG_shape_translate_transform): shape <c>ShapeNum</c> filled into
-/// <c>Buffer</c>, a picture of its bounds (<c>Width</c> x <c>Height</c>: skipped pixels and the rest colour 0, drawn
-/// pixels mapped through <c>Table</c> when there is one), then blended onto the target as <c>Blit</c> says
-/// (<c>Blit.Sprite</c> is <c>Buffer</c>). A renderer that keeps the shape's picture itself may leave the buffer alone.
+/// A shape transform (AG_shape_transform, AG_shape_translate_transform): shape <c>ShapeNum</c> filled into a
+/// picture of its bounds (<c>Width</c> x <c>Height</c>: skipped pixels and the rest colour 0, drawn pixels mapped
+/// through <c>Table</c> when there is one), then blended onto the target as <c>Blit</c> says (its <c>Sprite</c> is
+/// that picture, which the renderer makes).
 /// </summary>
 struct MCShapeBlitCommand
 {
@@ -467,7 +467,6 @@ struct MCShapeBlitCommand
     int32_t ShapeNum;
     /// <summary>The lookaside table of the translating transform, else null.</summary>
     const uint8_t* Table;
-    uint8_t* Buffer;
     int32_t Width;
     int32_t Height;
     MCAlphaBlitCommand Blit;

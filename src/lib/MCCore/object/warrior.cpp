@@ -31,7 +31,7 @@
 #include "object/team.h"
 #include "sound/radio.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 // The pilot data (MCX.EXE 0x007931d4..0x00793310), in the original's order.
 float FireOddsTable[5] = {20.0f, 35.0f, 50.0f, 65.0f, 80.0f};

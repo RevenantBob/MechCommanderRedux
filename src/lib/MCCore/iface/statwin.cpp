@@ -6,7 +6,7 @@
 #include "object/mover.h"
 #include "object/object.h"
 #include "object/objque.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 auto MCInfoWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t objectPartId) -> int32_t
 {

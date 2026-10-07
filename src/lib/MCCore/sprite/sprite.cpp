@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sprite/sprite.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 auto MCSpriteGesture::Destroy() -> void
 {

@@ -1,15 +1,15 @@
 #include "stdafx.h"
 #include "sprite/lactor.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/ceglist.h"
-#include "engine/cevfx.h"
+#include "color/MCPalette.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCVfxElement.h"
 #include "main/main.h"
 #include "object/gameobj.h"
 #include "object/team.h"
 #include "sprite/vfxshape.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -249,7 +249,7 @@ auto MCElementalActor::Render(int32_t depthFixup) -> int32_t
     const float facing = ObjectFacing(obj);
     CurrentShape = AppearType->GetGesture(CurrentGesture, facing, FrameRate, Visible);
     RecalcBounds(Eye);
-    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 1);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 1);
 
     if (DrawTerrainGrid != 0)
     {
@@ -265,7 +265,7 @@ auto MCElementalActor::Render(int32_t depthFixup) -> int32_t
 
     if (FadeTableIndex != -1 && FadeTableIndex >= 0)
     {
-        fadeTable = GamePalette->FadePalettes.get() + (FadeTableIndex + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
+        fadeTable = GamePalette()->GetFadeTable(FadeTableIndex);
     }
 
     if (CurrentFrame < 0)
@@ -273,8 +273,8 @@ auto MCElementalActor::Render(int32_t depthFixup) -> int32_t
         CurrentFrame = 0;
     }
 
-    ElementList->Add(MCElementPool::Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame,
-                                                       0, fadeTable, 1, 0));
+    ElementList()->Add(ElementList()->Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y,
+                                                         CurrentFrame, 0, fadeTable, 1));
 
     // Selection: -1 and 1 draw the bars, 2 the brackets in the owner's alignment colour.
     const int32_t selected = Owner->Selected;

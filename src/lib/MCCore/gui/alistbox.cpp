@@ -5,7 +5,7 @@
 #include "gui/aport.h"
 #include "gui/ascroll.h"
 #include "gui/atextbox.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -338,10 +338,10 @@ auto MCGuiListBox::Draw() -> void
     char* strings = ItemStrings.get();
     VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
     MCGuiObject::Draw();
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, 0xf);
 
     int16_t item = static_cast<int16_t>(TopItem);
     char* itemText = strings + TopItem * ItemLength;
@@ -372,7 +372,7 @@ auto MCGuiListBox::Draw() -> void
         }
 
         ItemFont->WriteString(DisplayPort->Frame(), 2, lineY + 4, reinterpret_cast<uint8_t*>(itemText), -1);
-        VfxLineDraw(DisplayPort->Frame(), 1, lineY, Width() - 2, lineY, LD_DRAW, 0xf);
+        VfxLineDraw(DisplayPort->Frame(), 1, lineY, Width() - 2, lineY, 0xf);
         itemText += ItemLength;
         lineY += ItemHeight;
         item++;

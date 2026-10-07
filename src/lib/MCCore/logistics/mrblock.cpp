@@ -20,10 +20,10 @@
 #include "network/multplyr.h"
 #include "object/cmponent.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 // 0x008009d0 is AlphaTable row 0x100 (AlphaTable is at 0x007f09d0): the alpha colour greyed-out rows darken through.
-char* LogisticFadetable = AlphaTable + 0x100 * 256;
+char* LogisticFadetable = reinterpret_cast<char*>(AlphaTable.data()) + 0x100 * 256;
 
 namespace
 {
@@ -95,7 +95,7 @@ namespace
 
     void DrawLine(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color)
     {
-        VfxLineDraw(pane, x0, y0, x1, y1, LD_DRAW, color);
+        VfxLineDraw(pane, x0, y0, x1, y1, color);
     }
 
     MCRepairScreen* RepairScreen()

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "gui/updisp.h"
-#include "engine/writegif.h"
+#include "engine/MCWriteTga.h"
 #include "gameos/soundchannel.h"
 #include "gameos/soundrenderer.h"
 #include "gameos/soundresource.h"
@@ -20,7 +20,7 @@
 #include "platform/MCFrameLog.h"
 #include "platform/MCInput.h"
 #include "platform/MCRenderer.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 int AGOldMouseX = -1;
 int AGOldMouseY = -1;
@@ -362,7 +362,7 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
         if (display != nullptr)
         {
             std::vector<uint8_t> shown = display->ComposeScreen();
-            WriteTga8Bit(GifName, shown.data(), static_cast<uint32_t>(display->Width()),
+            WriteTga8Bit(GifName, shown, static_cast<uint32_t>(display->Width()),
                          static_cast<uint32_t>(display->Height()));
         }
     }
@@ -414,7 +414,7 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
             vertex.C = 0xe40000;
         }
 
-        VfxFlatPolygon(ScreenPort->Frame(), 4, bar);
+        VfxFlatPolygon(ScreenPort->Frame(), std::span(bar, 4));
     }
 
     FrameRateArray[FrPointer] = FrameRate > 60.0f ? 60.0f : FrameRate;

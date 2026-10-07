@@ -3,11 +3,11 @@
 #include "ai/move.h"
 #include "appear/apprtype.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/bitflag.h"
-#include "engine/ceglist.h"
-#include "engine/cellip.h"
-#include "engine/cevfx.h"
+#include "color/MCPalette.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCEllipseElement.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -36,7 +36,7 @@
 #include "sprite/gvactor.h"
 #include "sprite/puactor.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -1485,11 +1485,10 @@ auto MCTurret::Render() -> void
                 BlipFrame = 0;
             }
 
-            ElementList->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, 1);
             auto* element =
-                MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 0);
-            std::strcpy(element->Name, shapeName);
-            ElementList->Add(element);
+                ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0);
+            ElementList()->Add(element);
             BlipFrame++;
         }
     }
@@ -1522,7 +1521,7 @@ auto MCTurret::Render() -> void
             level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = GamePalette->GetHazePalette(level);
+        hazePalette = GamePalette()->GetHazePalette(level);
     }
 
     if (FixedTurret == 0)
@@ -1564,12 +1563,12 @@ auto MCTurret::Render() -> void
         center.Y =
             ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
         MCVector2D size(radius, radius);
-        ElementList->OpenGroup(-50000, 1);
+        ElementList()->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
         size.X *= MCOverlay.ScaleX;
         size.Y *= MCOverlay.ScaleY;
-        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
+        ElementList()->Add(ElementList()->Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 

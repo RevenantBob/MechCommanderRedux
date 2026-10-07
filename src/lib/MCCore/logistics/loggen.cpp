@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/loggen.h"
-#include "color/color.h"
+#include "color/MCPalette.h"
 #include "gui/afont.h"
 #include "gui/updisp.h"
 #include "lib/MCFatal.h"
@@ -22,7 +22,7 @@
 #include "platform/MCFileSystem.h"
 #include "platform/MCRenderer.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 std::type_identity_t<char[256]> MCSplashScreen::_GenericPortFileName{};
 std::type_identity_t<MCLogPort*> MCSplashScreen::_GenericPort{};
@@ -493,7 +493,7 @@ auto MCLogTextObject::Draw() -> void
     if (CursorPos > -1 && CursorPos < BufferSize)
     {
         const uint32_t color = CursorOn == 0 ? 0x1f : 0x10;
-        VfxLineDraw(_OwnPort->Frame(), CursorPixel, 0, CursorPixel, Height(), LD_DRAW, color);
+        VfxLineDraw(_OwnPort->Frame(), CursorPixel, 0, CursorPixel, Height(), color);
     }
 }
 
@@ -1649,7 +1649,7 @@ auto MCGenericScreen::ShowGuiWindow(int show) -> void
             return;
         }
 
-        GamePalette->Activate(0, 0);
+        GamePalette()->Activate();
     }
 
     ShowWindow = show;
@@ -2127,10 +2127,10 @@ auto LogPaintScrollTab(MCGuiObject* tab) -> void
     const int32_t height = tab->Height();
     MCPane* pane = static_cast<MCLogObject*>(tab)->Lport()->Frame();
     VfxPaneWipe(pane, 0x1a);
-    VfxLineDraw(pane, 0, 0, width - 2, 0, LD_DRAW, 0x1f);
-    VfxLineDraw(pane, 0, 0, 0, height - 2, LD_DRAW, 0x1f);
-    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0x16);
-    VfxLineDraw(pane, 0, height - 1, width - 1, height - 1, LD_DRAW, 0x16);
+    VfxLineDraw(pane, 0, 0, width - 2, 0, 0x1f);
+    VfxLineDraw(pane, 0, 0, 0, height - 2, 0x1f);
+    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, 0x16);
+    VfxLineDraw(pane, 0, height - 1, width - 1, height - 1, 0x16);
 }
 
 auto LogScrollTabHandleEvent(MCGuiObject* tab, MCGuiEvent* event) -> void

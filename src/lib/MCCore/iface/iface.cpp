@@ -4,7 +4,7 @@
 #include "ai/tacordr.h"
 #include "appear/appear.h"
 #include "camera/camera.h"
-#include "color/color.h"
+#include "color/MCPalette.h"
 #include "gui/afont.h"
 #include "gui/ahelp.h"
 #include "gui/aport.h"
@@ -50,8 +50,8 @@
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfx.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfx.h"
+#include "vfx/MCVfxFunctions.h"
 
 uint8_t LanceColorArray[8] = {0xee, 0xe5, 0x0e, 0xb5, 0x12, 0x00, 0x00, 0x00};
 int32_t Sx = 20;
@@ -193,8 +193,8 @@ namespace
     /// </summary>
     uint8_t* MechIconPartTable(uint8_t color)
     {
-        const int32_t row = GamePalette->NumBitmapHazeLevels;
-        uint8_t* fades = GamePalette->FadePalettes.get();
+        const int32_t row = GamePalette()->NumBitmapHazeLevels;
+        uint8_t* fades = GamePalette()->FadePalettes.data();
 
         switch (color)
         {
@@ -812,10 +812,10 @@ auto MCFriendlyMechIcon::DrawBox(uint8_t color, int32_t left, int32_t top, int32
         bottom = Height() - 1;
     }
 
-    VfxLineDraw(Frame(), left, top, right, top, LD_DRAW, color);
-    VfxLineDraw(Frame(), left, top, left, bottom, LD_DRAW, color);
-    VfxLineDraw(Frame(), left, bottom, right, bottom, LD_DRAW, color);
-    VfxLineDraw(Frame(), right, top, right, bottom, LD_DRAW, color);
+    VfxLineDraw(Frame(), left, top, right, top, color);
+    VfxLineDraw(Frame(), left, top, left, bottom, color);
+    VfxLineDraw(Frame(), left, bottom, right, bottom, color);
+    VfxLineDraw(Frame(), right, top, right, bottom, color);
 }
 
 auto MCFriendlyMechIcon::DrawPilot(MCGuiPort* target) -> void
@@ -898,10 +898,10 @@ auto MCFriendlyMechIcon::DrawWeapon(MCGuiPort* target) -> void
 
     // A two-pixel bar, lit on its top and left, shaded (colour - 1) on its bottom and right.
     const int32_t end = length + start;
-    VfxLineDraw(target->Frame(), start, 0xb, start, 0xc, LD_DRAW, color);
-    VfxLineDraw(target->Frame(), start, 0xb, end, 0xb, LD_DRAW, color);
-    VfxLineDraw(target->Frame(), start + 1, 0xc, end, 0xc, LD_DRAW, color - 1);
-    VfxLineDraw(target->Frame(), end, 0xb, end, 0xc, LD_DRAW, color - 1);
+    VfxLineDraw(target->Frame(), start, 0xb, start, 0xc, color);
+    VfxLineDraw(target->Frame(), start, 0xb, end, 0xb, color);
+    VfxLineDraw(target->Frame(), start + 1, 0xc, end, 0xc, color - 1);
+    VfxLineDraw(target->Frame(), end, 0xb, end, 0xc, color - 1);
 }
 
 auto MCFriendlyMechIcon::SetID(int32_t newPartId) -> void
@@ -1061,7 +1061,7 @@ auto MCMechBar::Display() -> void
             if (lanceIcon != nullptr && lanceIcon->IsShowing() != 0)
             {
                 const int32_t lanceRight = lanceIcon->Right();
-                VfxLineDraw(Frame(), lanceRight - 1, 0xf, lanceRight - 1, Height() - 1, LD_DRAW, 0x10);
+                VfxLineDraw(Frame(), lanceRight - 1, 0xf, lanceRight - 1, Height() - 1, 0x10);
             }
         }
 
@@ -1079,8 +1079,8 @@ auto MCMechBar::Display() -> void
             if (button->IsShowing() != 0 && button->Lance == 5)
             {
                 const int32_t buttonRight = button->Right();
-                VfxLineDraw(Frame(), buttonRight, 0xf, buttonRight, Height() - 1, LD_DRAW, 0x10);
-                VfxLineDraw(Frame(), 0, 0xf, buttonRight, 0xf, LD_DRAW, 0x10);
+                VfxLineDraw(Frame(), buttonRight, 0xf, buttonRight, Height() - 1, 0x10);
+                VfxLineDraw(Frame(), 0, 0xf, buttonRight, 0xf, 0x10);
             }
         }
     }

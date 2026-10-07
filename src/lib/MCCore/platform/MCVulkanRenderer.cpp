@@ -4,7 +4,7 @@
 #include "platform/MCSoftwareRenderer.h"
 #include "platform/MCVulkanShaders.h"
 #include "lib/MCFatal.h"
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 namespace
 {
@@ -482,7 +482,7 @@ std::expected<std::unique_ptr<MCVulkanRenderer>, std::string> MCVulkanRenderer::
     for (auto made : {renderer->EnsureTexture(renderer->_Blank, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
                                               SDL_GPU_TEXTUREUSAGE_SAMPLER, 1, 1),
                       renderer->EnsureTexture(renderer->_AlphaTexture, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT,
-                                              SDL_GPU_TEXTUREUSAGE_SAMPLER, ALPHA_COLORS, 2),
+                                              SDL_GPU_TEXTUREUSAGE_SAMPLER, AlphaColorCount, 2),
                       renderer->EnsureTexture(renderer->_PaletteTexture, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
                                               SDL_GPU_TEXTUREUSAGE_SAMPLER, 256, 1)})
     {
@@ -942,13 +942,13 @@ void MCVulkanRenderer::SetColors(const SDL_Color* palette, const MCColorCycle& c
 void MCVulkanRenderer::UploadAlphaColors()
 {
     // Per colour: the kind (row 0), and the premultiplied colour and coverage drawn over the pixel (row 1).
-    auto* out = reinterpret_cast<float*>(QueueUpload(_AlphaTexture.Handle, 0, 0, ALPHA_COLORS, 2, 16));
-    std::fill(out, out + ALPHA_COLORS * 2 * 4, 0.0f);
+    auto* out = reinterpret_cast<float*>(QueueUpload(_AlphaTexture.Handle, 0, 0, AlphaColorCount, 2, 16));
+    std::fill(out, out + AlphaColorCount * 2 * 4, 0.0f);
 
-    for (int32_t color = 0; color < ALPHA_COLORS; ++color)
+    for (int32_t color = 0; color < AlphaColorCount; ++color)
     {
         float* kind = out + color * 4;
-        float* blend = out + (ALPHA_COLORS + color) * 4;
+        float* blend = out + (AlphaColorCount + color) * 4;
         const MCAlphaColor& entry = MCAlphaColors[color];
 
         if (color == 0 || color == 0xff)
@@ -1950,7 +1950,7 @@ void MCVulkanRenderer::Tile(MCWindow* target, const MCTileCommand& command)
     uint32_t color = 0;
     uint32_t before = 0;
 
-    if (command.Table == VFX_TILE_FILL)
+    if (command.Table == VfxTileFill)
     {
         op |= UseColor;
         color = 0x10;
@@ -2018,13 +2018,13 @@ void MCVulkanRenderer::Polygon(MCWindow* target, const MCPolygonCommand& command
             textureSize[1] = command.Texture->YMax + 1;
             op = KindTexelWalk;
 
-            if ((command.MapFlags & MP_XLAT) != 0)
+            if ((command.MapFlags & VfxMapXlat) != 0)
             {
                 op |= TableBefore;
                 before = TableRow(command.Table);
             }
 
-            if ((command.MapFlags & MP_XP) != 0)
+            if ((command.MapFlags & VfxMapTransparent) != 0)
             {
                 op |= SkipKeyAfterTable;
             }

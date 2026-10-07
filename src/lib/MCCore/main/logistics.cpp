@@ -35,7 +35,7 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "object/cmponent.h"
 #include "object/mech.h"
 #include "object/objtype.h"
@@ -9027,7 +9027,7 @@ void MCLogistics::DarkenRect(MCLogPort* port, int32_t xPos, int32_t yPos, int32_
     corners[2].Y = yPos + height - 1;
     corners[3].X = xPos;
     corners[3].Y = yPos + height - 1;
-    VfxTranslatePolygon(port->Frame(), 4, corners, fadeTable);
+    VfxTranslatePolygon(port->Frame(), std::span(corners, 4), reinterpret_cast<const uint8_t*>(fadeTable));
 }
 
 auto MCLogistics::ReIndexInventory() -> int32_t

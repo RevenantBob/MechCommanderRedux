@@ -2,7 +2,7 @@
 #include "gui/ascroll.h"
 #include "gui/aport.h"
 #include "platform/MCInput.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 // Event types the bar's children post to it (the arrow's or area's id) and the thumb sends it directly.
 namespace
@@ -108,18 +108,18 @@ auto ScrollTabPaint(MCGuiObject* obj) -> void
     VfxPaneWipe(pane, 0x39);
 
     // A black outline, a light bevel top and left, a dark one bottom and right.
-    VfxLineDraw(pane, 0, height - 1, width, height - 1, LD_DRAW, 0);
-    VfxLineDraw(pane, 0, 0, width, 0, LD_DRAW, 0);
-    VfxLineDraw(pane, 0, 0, 0, height - 1, LD_DRAW, 0);
-    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0);
-    VfxLineDraw(pane, 1, 1, width - 2, 1, LD_DRAW, 0x3d);
-    VfxLineDraw(pane, 2, 2, width - 3, 2, LD_DRAW, 0x3b);
-    VfxLineDraw(pane, 1, 1, 1, height - 2, LD_DRAW, 0x3d);
-    VfxLineDraw(pane, 2, 2, 2, height - 3, LD_DRAW, 0x3b);
-    VfxLineDraw(pane, width - 2, 1, width - 2, height - 2, LD_DRAW, 0x35);
-    VfxLineDraw(pane, width - 3, 2, width - 3, height - 3, LD_DRAW, 0x37);
-    VfxLineDraw(pane, 1, height - 2, width - 2, height - 2, LD_DRAW, 0x35);
-    VfxLineDraw(pane, 2, height - 3, width - 3, height - 3, LD_DRAW, 0x37);
+    VfxLineDraw(pane, 0, height - 1, width, height - 1, 0);
+    VfxLineDraw(pane, 0, 0, width, 0, 0);
+    VfxLineDraw(pane, 0, 0, 0, height - 1, 0);
+    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, 0);
+    VfxLineDraw(pane, 1, 1, width - 2, 1, 0x3d);
+    VfxLineDraw(pane, 2, 2, width - 3, 2, 0x3b);
+    VfxLineDraw(pane, 1, 1, 1, height - 2, 0x3d);
+    VfxLineDraw(pane, 2, 2, 2, height - 3, 0x3b);
+    VfxLineDraw(pane, width - 2, 1, width - 2, height - 2, 0x35);
+    VfxLineDraw(pane, width - 3, 2, width - 3, height - 3, 0x37);
+    VfxLineDraw(pane, 1, height - 2, width - 2, height - 2, 0x35);
+    VfxLineDraw(pane, 2, height - 3, width - 3, height - 3, 0x37);
 }
 
 MCGuiScrollBar::MCGuiScrollBar() = default;
@@ -320,10 +320,10 @@ auto MCGuiScrollBar::HandleEvent(MCGuiEvent* event) -> void
 auto MCGuiScrollBar::Draw() -> void
 {
     VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, LD_DRAW, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, 0xf);
     MCGuiObject::Draw();
 }
 

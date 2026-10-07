@@ -14,7 +14,7 @@
 #include "main/logistics.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCPresenter.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {

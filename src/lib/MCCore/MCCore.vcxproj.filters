@@ -132,46 +132,52 @@
     <ClCompile Include="camera\camlist.cpp">
       <Filter>camera</Filter>
     </ClCompile>
-    <ClCompile Include="color\color.cpp">
+    <ClCompile Include="color\MCPalette.cpp">
       <Filter>color</Filter>
     </ClCompile>
-    <ClCompile Include="engine\bitflag.cpp">
+    <ClCompile Include="color\MCWaterCycle.cpp">
+      <Filter>color</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\MCBitFlag.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\ceglist.cpp">
+    <ClCompile Include="engine\MCByteFlag.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\celement.cpp">
+    <ClCompile Include="engine\MCCraterManager.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\celine.cpp">
+    <ClCompile Include="engine\MCDeltaElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cellip.cpp">
+    <ClCompile Include="engine\MCElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cepane.cpp">
+    <ClCompile Include="engine\MCElementBuffer.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cepoly.cpp">
+    <ClCompile Include="engine\MCEllipseElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cevfx.cpp">
+    <ClCompile Include="engine\MCFont.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\cfont.cpp">
+    <ClCompile Include="engine\MCFontElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\crater.cpp">
+    <ClCompile Include="engine\MCLineElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\font.cpp">
+    <ClCompile Include="engine\MCPolygonElement.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\scale.cpp">
+    <ClCompile Include="engine\MCScaleDraw.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\writegif.cpp">
+    <ClCompile Include="engine\MCVfxElement.cpp">
+      <Filter>engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\MCWriteTga.cpp">
       <Filter>engine</Filter>
     </ClCompile>
     <ClCompile Include="gameos\soundchannel.cpp">
@@ -638,49 +644,49 @@
     <ClCompile Include="terrain\vertex.cpp">
       <Filter>terrain</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\alphapalette.cpp">
+    <ClCompile Include="vfx\MCAgEllipse.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\encode_vfx.cpp">
+    <ClCompile Include="vfx\MCAgShapeDraw.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\fastshp.cpp">
+    <ClCompile Include="vfx\MCAgShapeTransform.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx3d.cpp">
+    <ClCompile Include="vfx\MCAgStatusBar.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx_ellipse.cpp">
+    <ClCompile Include="vfx\MCAlphaPalette.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx_map_polygon.cpp">
+    <ClCompile Include="vfx\MCFastShape.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx_transform.cpp">
+    <ClCompile Include="vfx\MCVfxFont.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfx_translatedraw.cpp">
+    <ClCompile Include="vfx\MCVfxImage.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa.cpp">
+    <ClCompile Include="vfx\MCVfxMath.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_font.cpp">
+    <ClCompile Include="vfx\MCVfxPolygon.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_image.cpp">
+    <ClCompile Include="vfx\MCVfxPrimitives.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_math.cpp">
+    <ClCompile Include="vfx\MCVfxShape.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_shape.cpp">
+    <ClCompile Include="vfx\MCVfxShapeScan.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxa_transform.cpp">
+    <ClCompile Include="vfx\MCVfxShapeTransform.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
-    <ClCompile Include="vfx\vfxtile.cpp">
+    <ClCompile Include="vfx\MCVfxTile.cpp">
       <Filter>vfx</Filter>
     </ClCompile>
   </ItemGroup>
@@ -751,46 +757,52 @@
     <ClInclude Include="camera\camlist.h">
       <Filter>camera</Filter>
     </ClInclude>
-    <ClInclude Include="color\color.h">
+    <ClInclude Include="color\MCPalette.h">
       <Filter>color</Filter>
     </ClInclude>
-    <ClInclude Include="engine\bitflag.h">
+    <ClInclude Include="color\MCWaterCycle.h">
+      <Filter>color</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\MCBitFlag.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\ceglist.h">
+    <ClInclude Include="engine\MCByteFlag.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\celement.h">
+    <ClInclude Include="engine\MCCraterManager.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\celine.h">
+    <ClInclude Include="engine\MCDeltaElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cellip.h">
+    <ClInclude Include="engine\MCElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cepane.h">
+    <ClInclude Include="engine\MCElementBuffer.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cepoly.h">
+    <ClInclude Include="engine\MCEllipseElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cevfx.h">
+    <ClInclude Include="engine\MCFont.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\cfont.h">
+    <ClInclude Include="engine\MCFontElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\crater.h">
+    <ClInclude Include="engine\MCLineElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\font.h">
+    <ClInclude Include="engine\MCPolygonElement.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\scale.h">
+    <ClInclude Include="engine\MCScaleDraw.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\writegif.h">
+    <ClInclude Include="engine\MCVfxElement.h">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\MCWriteTga.h">
       <Filter>engine</Filter>
     </ClInclude>
     <ClInclude Include="gameos\soundchannel.h">
@@ -1274,16 +1286,16 @@
     <ClInclude Include="terrain\vertex.h">
       <Filter>terrain</Filter>
     </ClInclude>
-    <ClInclude Include="vfx\mcagshape.h">
+    <ClInclude Include="vfx\MCAgShape.h">
       <Filter>vfx</Filter>
     </ClInclude>
-    <ClInclude Include="vfx\vfx.h">
+    <ClInclude Include="vfx\MCVfx.h">
       <Filter>vfx</Filter>
     </ClInclude>
-    <ClInclude Include="vfx\vfxfuncs.h">
+    <ClInclude Include="vfx\MCVfxClip.h">
       <Filter>vfx</Filter>
     </ClInclude>
-    <ClInclude Include="vfx\vfxint.h">
+    <ClInclude Include="vfx\MCVfxFunctions.h">
       <Filter>vfx</Filter>
     </ClInclude>
   </ItemGroup>

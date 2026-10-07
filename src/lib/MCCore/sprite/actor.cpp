@@ -1,10 +1,10 @@
 #include "stdafx.h"
 #include "sprite/actor.h"
 #include "camera/camera.h"
-#include "engine/ceglist.h"
-#include "engine/cepane.h"
-#include "engine/cepoly.h"
-#include "engine/cevfx.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCDeltaElement.h"
+#include "engine/MCPolygonElement.h"
+#include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
@@ -17,7 +17,7 @@
 #include "sprite/sprtmgr.h"
 #include "sprite/vfxshape.h"
 #include "terrain/terrain.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -542,28 +542,22 @@ auto MCVfxAppearance::Render(int32_t depthFixup) -> int32_t
         // Delta-compressed animations draw unscaled (only when the type is scaled).
         if (shape != nullptr && shape->FrameList != nullptr && type->Scaled != 0)
         {
-            ElementList->OpenGroup(depth, 1);
-            auto* element = MCElementPool::Make<MCDeltaElement>(shape->FrameList, static_cast<int32_t>(ScreenPos.X),
-                                                                static_cast<int32_t>(ScreenPos.Y), CurrentFrame, 0,
-                                                                FadeTable, 1, 0);
-            ElementList->Add(element);
+            ElementList()->OpenGroup(depth, 1);
+            auto* element =
+                ElementList()->Make<MCDeltaElement>(shape->FrameList, static_cast<int32_t>(ScreenPos.X),
+                                                    static_cast<int32_t>(ScreenPos.Y), CurrentFrame, FadeTable);
+            ElementList()->Add(element);
         }
     }
     else if (shape != nullptr && shape->FrameList != nullptr)
     {
-        ElementList->OpenGroup(depth, 1);
+        ElementList()->OpenGroup(depth, 1);
         // Scaled types have their own zoomed out shapes, so they draw unscaled.
         const int noScaleDraw = type->Scaled != 0 ? 1 : 0;
-        auto* element = MCElementPool::Make<MCVfxElement>(shape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame, 0,
-                                                          FadeTable, noScaleDraw, 0);
+        auto* element = ElementList()->Make<MCVfxElement>(shape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame, 0,
+                                                          FadeTable, noScaleDraw);
 
-        // Port fix: the original copies the debug name through a null element too.
-        if (element != nullptr)
-        {
-            strcpy(element->Name, noScaleDraw != 0 ? "actor1" : "actor2");
-        }
-
-        ElementList->Add(element);
+        ElementList()->Add(element);
     }
 
     if (Owner->Selected == 1 || Owner->GetNumAttackers() > 0)
@@ -794,7 +788,7 @@ auto MCDrawDamageBar(MCAppearance* appearance, MCAppearanceType* type, MCGameObj
         return;
     }
 
-    ElementList->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, 1);
     MCPolyElementData data;
     data.NumVertices = 0;
     data.TextureMapOff = 0;
@@ -837,7 +831,7 @@ auto MCDrawDamageBar(MCAppearance* appearance, MCAppearanceType* type, MCGameObj
 
     if (data.BarPercent > 0)
     {
-        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, -50000));
+        ElementList()->Add(ElementList()->Make<MCPolygonElement>(data, -50000));
     }
 }
 

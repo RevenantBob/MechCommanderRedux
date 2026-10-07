@@ -3,10 +3,10 @@
 #include "ai/move.h"
 #include "appear/apprtype.h"
 #include "camera/camera.h"
-#include "color/color.h"
-#include "engine/bitflag.h"
-#include "engine/ceglist.h"
-#include "engine/cellip.h"
+#include "color/MCPalette.h"
+#include "engine/MCByteFlag.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCEllipseElement.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -421,7 +421,7 @@ auto MCTerrainObject::Render() -> void
             level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = GamePalette->GetHazePalette(level);
+        hazePalette = GamePalette()->GetHazePalette(level);
     }
 
     static_cast<MCVfxAppearance*>(Appearance)->FadeTable = hazePalette;
@@ -456,12 +456,12 @@ auto MCTerrainObject::Render() -> void
         center.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
         center.Y =
             ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
-        ElementList->OpenGroup(-50000, 1);
+        ElementList()->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
         size.X *= MCOverlay.ScaleX;
         size.Y *= MCOverlay.ScaleY;
-        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
+        ElementList()->Add(ElementList()->Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 

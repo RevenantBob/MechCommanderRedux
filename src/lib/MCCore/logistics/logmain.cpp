@@ -27,7 +27,7 @@
 #include "platform/MCRenderer.h"
 #include "sound/soundsys.h"
 #include "sprite/sprtmgr.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 int32_t GameDifficulty = 1;
 // The data paths are 80 bytes, as the game's other paths (gui\asystem.cpp's RealWinMain fills several of them).

@@ -7,11 +7,11 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "engine/celine.h"
-#include "engine/cevfx.h"
-#include "engine/ceglist.h"
-#include "engine/crater.h"
-#include "vfx/vfxfuncs.h"
+#include "engine/MCLineElement.h"
+#include "engine/MCVfxElement.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCCraterManager.h"
+#include "vfx/MCVfxFunctions.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
@@ -3499,7 +3499,7 @@ auto MCBattleMech::CreateJumpFX() -> void
     static_cast<MCJet*>(JumpFX[0])->SetOwner(this);
     JumpFX[1] = CreateObject(0x1c6);
     static_cast<MCJet*>(JumpFX[1])->SetOwner(this);
-    CraterManager->AddCrater(7, Position, 0);
+    CraterManager()->AddCrater(7, Position, 0);
 }
 
 auto MCBattleMech::EndJumpFX() -> void
@@ -4098,7 +4098,7 @@ namespace
         printPos.Z = mech->Position.Z;
         printPos.X = offsetX * 20.0f + mech->Position.X;
         printPos.Y = offsetY * 20.0f + mech->Position.Y;
-        CraterManager->AddCrater(static_cast<MCBattleMechType*>(mech->ObjType)->FootprintType, printPos, direction);
+        CraterManager()->AddCrater(static_cast<MCBattleMechType*>(mech->ObjType)->FootprintType, printPos, direction);
         SoundSystem->PlayDigitalSample(0xd, 1, mech, 0, 0);
     }
 
@@ -4192,7 +4192,7 @@ auto MCBattleMech::Update() -> int32_t
             if (DeathTimer < 0.0 && WreckDone == 0)
             {
                 actor->Wrecked = 1;
-                CraterManager->AddCrater(6, Position, 0);
+                CraterManager()->AddCrater(6, Position, 0);
                 TheInterface->RemoveMech(PartId);
                 WreckDone = 1;
                 return 1;
@@ -4620,11 +4620,10 @@ auto MCBattleMech::Render() -> void
                     BlipFrame = 0;
                 }
 
-                ElementList->OpenGroup(-100000, 1);
+                ElementList()->OpenGroup(-100000, 1);
                 auto* element =
-                    MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 1);
-                std::strcpy(element->Name, shapeName);
-                ElementList->Add(element);
+                    ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0);
+                ElementList()->Add(element);
                 BlipTime = FrameLength + BlipTime;
 
                 if (0.067 < BlipTime)
@@ -4677,8 +4676,8 @@ auto MCBattleMech::Render() -> void
             to.Z = Land->GetTerrainElevation(to);
             MCVector2D fromScreen = EyeProject(from);
             MCVector2D toScreen = EyeProject(to);
-            ElementList->OpenGroup(-100000, 1);
-            ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xfc, nullptr, -100000, -1));
+            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->Add(ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xfc, nullptr, -100000, -1));
         }
     }
 
@@ -4712,19 +4711,19 @@ auto MCBattleMech::Render() -> void
 
             if (drawLines != 0)
             {
-                ElementList->OpenGroup(-99999, 1);
-                ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
+                ElementList()->OpenGroup(-99999, 1);
+                ElementList()->Add(
+                    ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
                 fromScreen = toScreen;
                 marker++;
             }
 
             const int32_t bounds = VfxShapeBounds(WaypointMarkers, marker);
-            ElementList->OpenGroup(-100000, 1);
-            auto* element = MCElementPool::Make<MCVfxElement>(
+            ElementList()->OpenGroup(-100000, 1);
+            auto* element = ElementList()->Make<MCVfxElement>(
                 WaypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.X,
-                toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1, 0);
-            std::strcpy(element->Name, "mwp");
-            ElementList->Add(element);
+                toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1);
+            ElementList()->Add(element);
         }
 
         tacOrder.Destroy();

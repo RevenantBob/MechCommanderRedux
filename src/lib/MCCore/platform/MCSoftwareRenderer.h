@@ -166,4 +166,6 @@ protected:
 private:
     /// <summary>The asm's globals the polygon and quadrilateral walks keep between calls.</summary>
     MCSpanState _Spans;
+    /// <summary>The picture a shape transform renders its shape into before blending it.</summary>
+    std::vector<uint8_t> _ShapeScratch;
 };

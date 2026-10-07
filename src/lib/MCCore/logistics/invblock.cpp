@@ -17,8 +17,8 @@
 #include "network/multplyr.h"
 #include "object/cmponent.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
-#include "vfx/mcagshape.h"
+#include "vfx/MCVfxFunctions.h"
+#include "vfx/MCAgShape.h"
 
 int32_t NumRestrictedComponents = 5;
 int32_t RestrictedComps[5] = {15, 37, 38, 42, 43};
@@ -615,10 +615,10 @@ auto MCDragIcon::Begin(int32_t xPos, int32_t yPos, int32_t width, int32_t height
     render(Lport());
     const int32_t right = width - 1;
     const int32_t bottom = height - 1;
-    VfxLineDraw(surface, 0, 0, right, 0, LD_DRAW, 0xea);
-    VfxLineDraw(surface, 0, 1, 0, bottom - 1, LD_DRAW, 0xea);
-    VfxLineDraw(surface, right, 1, right, bottom - 1, LD_DRAW, 0xea);
-    VfxLineDraw(surface, 0, bottom, right, bottom, LD_DRAW, 0xea);
+    VfxLineDraw(surface, 0, 0, right, 0, 0xea);
+    VfxLineDraw(surface, 0, 1, 0, bottom - 1, 0xea);
+    VfxLineDraw(surface, right, 1, right, bottom - 1, 0xea);
+    VfxLineDraw(surface, 0, bottom, right, bottom, 0xea);
 }
 
 auto MCDragIcon::DrawFrom(MCLogPort* surface, int32_t xPos, int32_t yPos,
@@ -753,8 +753,8 @@ auto MCMechInventoryBlock::DrawBackground() -> void
 
         // The battle rating bar along the left edge: 26 pixels at 18010.
         int32_t bar = static_cast<int32_t>(static_cast<double>(logMech->BattleRating) * 0x1.d1c6674f499a1p-15 * 26.0);
-        VfxLineDraw(port->Frame(), 0, 0x1b, 0, 0x1b - bar, LD_DRAW, 0xe4);
-        VfxLineDraw(port->Frame(), 1, 0x1b, 1, 0x1b - bar, LD_DRAW, 0xe4);
+        VfxLineDraw(port->Frame(), 0, 0x1b, 0, 0x1b - bar, 0xe4);
+        VfxLineDraw(port->Frame(), 1, 0x1b, 1, 0x1b - bar, 0xe4);
     }
 }
 
@@ -1846,11 +1846,11 @@ auto MCCompInventoryBlock::Init(MCLogInventoryItem* newItem) -> void
     {
         // Clan technology: a small mark in the range colour.
         int32_t color = again.WeaponRange[3] < 76.0f ? 0xe : again.WeaponRange[3] < 151.0f ? 0xe5 : 0xee;
-        VfxLineDraw(icon->Frame(), 5, 7, 5, 8, LD_DRAW, color);
-        VfxLineDraw(icon->Frame(), 6, 5, 6, 8, LD_DRAW, color);
-        VfxLineDraw(icon->Frame(), 7, 4, 7, 8, LD_DRAW, color);
-        VfxLineDraw(icon->Frame(), 8, 5, 8, 8, LD_DRAW, color);
-        VfxLineDraw(icon->Frame(), 9, 7, 9, 8, LD_DRAW, color);
+        VfxLineDraw(icon->Frame(), 5, 7, 5, 8, color);
+        VfxLineDraw(icon->Frame(), 6, 5, 6, 8, color);
+        VfxLineDraw(icon->Frame(), 7, 4, 7, 8, color);
+        VfxLineDraw(icon->Frame(), 8, 5, 8, 8, color);
+        VfxLineDraw(icon->Frame(), 9, 7, 9, 8, color);
     }
 }
 

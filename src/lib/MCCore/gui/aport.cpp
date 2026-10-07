@@ -6,7 +6,7 @@
 #include "lib/MCPacketFile.h"
 #include "logistics/logbri.h"
 #include "ai/move.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "platform/MCBlockStore.h"
 
 namespace

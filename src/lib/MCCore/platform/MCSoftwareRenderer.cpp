@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCSoftwareRenderer.h"
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 // The software renderer's fills, copies, pixels, lines, ellipses, status bars, glyphs and sprites: the pixel loops of
 // vfxa.asm, vfx_transform.cpp, vfx_ellipse.cpp, vfx_map_polygon.cpp and the font and image routines.
@@ -16,7 +16,7 @@ namespace
     /// <summary>A blend through the game's alpha table: <paramref name="color"/> over <paramref name="screen"/>.</summary>
     uint8_t Blend(uint8_t color, uint8_t screen)
     {
-        return static_cast<uint8_t>(AlphaTable[(static_cast<uint32_t>(color) << 8) | screen]);
+        return AlphaTable[(static_cast<uint32_t>(color) << 8) | screen];
     }
 
     /// <summary>
@@ -106,7 +106,7 @@ void MCSeeThrough::Map(uint8_t* p, const uint8_t* table)
 
 void MCSeeThrough::Blend(uint8_t* p, uint8_t color)
 {
-    Map(p, reinterpret_cast<const uint8_t*>(AlphaTable) + static_cast<intptr_t>(color) * 256);
+    Map(p, AlphaTable.data() + static_cast<intptr_t>(color) * 256);
 }
 
 MCSoftwareRenderer& MCSoftwareRenderer::Instance()
@@ -292,8 +292,8 @@ void MCSoftwareRenderer::ShapeBlit(MCWindow* target, const MCShapeBlitCommand& c
 {
     // The shape filled into the buffer (as AG_shape_fill draws it at its bounds' corner into a pane of the bounds),
     // then blended.
-    std::memset(command.Buffer, 0, static_cast<size_t>(command.Width) * command.Height);
-    MCWindow scratch{command.Buffer, command.Width - 1, command.Height - 1};
+    _ShapeScratch.assign(static_cast<size_t>(command.Width) * command.Height, 0);
+    MCWindow scratch{_ShapeScratch.data(), command.Width - 1, command.Height - 1};
     MCShapeCommand fill;
     fill.ShapeTable = command.ShapeTable;
     fill.ShapeNum = command.ShapeNum;
@@ -306,7 +306,9 @@ void MCSoftwareRenderer::ShapeBlit(MCWindow* target, const MCShapeBlitCommand& c
     fill.Op = command.Table != nullptr ? MCShapeOp::XlatFill : MCShapeOp::Fill;
     fill.Table = command.Table;
     Shape(&scratch, fill);
-    AlphaBlit(target, command.Blit);
+    MCAlphaBlitCommand blit = command.Blit;
+    blit.Sprite = _ShapeScratch.data();
+    AlphaBlit(target, blit);
 }
 
 void MCSoftwareRenderer::Write(MCWindow* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count)
@@ -460,9 +462,8 @@ void MCSoftwareRenderer::StatusBar(MCWindow* target, const MCStatusBarCommand& c
 {
     // The AlphaTable row status-bar frames are darkened through (0x008011d0 in MCX.EXE).
     constexpr int32_t StatusFrameAlpha = 0x108;
-    const uint8_t* frame = reinterpret_cast<const uint8_t*>(AlphaTable) + StatusFrameAlpha * 256;
-    const uint8_t* fill =
-        reinterpret_cast<const uint8_t*>(AlphaTable) + static_cast<intptr_t>(command.AlphaColor) * 256;
+    const uint8_t* frame = AlphaTable.data() + StatusFrameAlpha * 256;
+    const uint8_t* fill = AlphaTable.data() + static_cast<intptr_t>(command.AlphaColor) * 256;
     const MCRect& box = command.Box;
     const int32_t width = box.X1 - box.X0;
     const int32_t stride = target->XMax + 1;
@@ -508,7 +509,7 @@ void MCSoftwareRenderer::StatusBar(MCWindow* target, const MCStatusBarCommand& c
 
 void MCSoftwareRenderer::Glyph(MCWindow* target, const MCGlyphCommand& command)
 {
-    // The glyph: its width dword, then its rows (layout in vfx/vfxfuncs.h).
+    // The glyph: its width dword, then its rows (layout in vfx/MCVfxFunctions.h).
     const uint8_t* font = static_cast<const uint8_t*>(command.Font);
     const uint8_t* glyph = font + MCVfxRead32(font + 0x10 + static_cast<intptr_t>(command.Character) * 4);
     const int32_t width = MCVfxRead32(glyph);

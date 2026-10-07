@@ -6,7 +6,7 @@
 // AG_shape_translate_draw Xlat, or XlatAlpha for a marked shape; AG_shape_fill Fill; AG_shape_translate_fill XlatFill.
 // The translating ops map through <c>lookaside</c>.
 
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 /// <summary>
 /// Draws shape <paramref name="shapeNum"/> of <paramref name="shapeTable"/> with its hot spot at window coordinates

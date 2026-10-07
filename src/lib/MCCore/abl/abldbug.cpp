@@ -14,7 +14,7 @@
 #include "lib/MCFatal.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 char MCDebugger::Message[MAXLEN_DEBUGGER_MESSAGE];
 MCDebugger* Debugger = nullptr;

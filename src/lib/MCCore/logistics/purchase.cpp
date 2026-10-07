@@ -20,7 +20,7 @@
 #include "object/mech.h"
 #include "object/objtype.h"
 #include "sound/soundsys.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 int32_t ResourcePoints = 0;
 MCMechPurchaseBlock* GlobalMechPurchaseBlock = nullptr;
@@ -1324,17 +1324,17 @@ auto MCMechPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
     int32_t bar = static_cast<int32_t>(static_cast<double>(data->BattleRating) * 0x1.d1c6674f499a1p-15 * 80.0);
     int32_t barTop = 0x58 - bar;
     int32_t topLine = 0x57 - bar;
-    VfxLineDraw(frame, 0xdb, 0x58, 0xdf, 0x58, LD_DRAW, 0xe5);
-    VfxLineDraw(frame, 0xda, topLine, 0xe0, topLine, LD_DRAW, 0xe3);
-    VfxLineDraw(frame, 0xda, 0x57, 0xda, barTop, LD_DRAW, 0xe3);
-    VfxLineDraw(frame, 0xe0, 0x57, 0xe0, barTop, LD_DRAW, 0xe5);
+    VfxLineDraw(frame, 0xdb, 0x58, 0xdf, 0x58, 0xe5);
+    VfxLineDraw(frame, 0xda, topLine, 0xe0, topLine, 0xe3);
+    VfxLineDraw(frame, 0xda, 0x57, 0xda, barTop, 0xe3);
+    VfxLineDraw(frame, 0xe0, 0x57, 0xe0, barTop, 0xe5);
 
     for (int32_t x = 0xdb; x <= 0xdf; ++x)
     {
-        VfxLineDraw(frame, x, 0x57, x, barTop, LD_DRAW, 0xe4);
+        VfxLineDraw(frame, x, 0x57, x, barTop, 0xe4);
     }
 
-    VfxLineDraw(frame, 0xdb, 0x56 - bar, 0xdf, 0x56 - bar, LD_DRAW, 0x10);
+    VfxLineDraw(frame, 0xdb, 0x56 - bar, 0xdf, 0x56 - bar, 0x10);
     VfxPixelWrite(frame, 0xdf, 0x57, 0xe5);
     VfxPixelWrite(frame, 0xdb, barTop, 0xe3);
     VfxPixelWrite(frame, 0xda, topLine, 0x10);

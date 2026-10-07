@@ -5,11 +5,11 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "engine/ceglist.h"
-#include "engine/celine.h"
-#include "engine/cellip.h"
-#include "engine/cevfx.h"
-#include "vfx/vfxfuncs.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCLineElement.h"
+#include "engine/MCEllipseElement.h"
+#include "engine/MCVfxElement.h"
+#include "vfx/MCVfxFunctions.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
@@ -3141,11 +3141,10 @@ auto MCGroundVehicle::Render() -> void
                     BlipFrame = 0;
                 }
 
-                ElementList->OpenGroup(-100000, 1);
+                ElementList()->OpenGroup(-100000, 1);
                 auto* element =
-                    MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 1);
-                std::strcpy(element->Name, shapeName);
-                ElementList->Add(element);
+                    ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0);
+                ElementList()->Add(element);
                 BlipTime = FrameLength + BlipTime;
 
                 if (0.067 < BlipTime)
@@ -3169,12 +3168,12 @@ auto MCGroundVehicle::Render() -> void
 
         MCVector2D center = EyeProject(Position);
         MCVector2D size(radius, radius);
-        ElementList->OpenGroup(-50000, 1);
+        ElementList()->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
         size.X *= MCOverlay.ScaleX;
         size.Y *= MCOverlay.ScaleY;
-        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
+        ElementList()->Add(ElementList()->Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 
     if (DrawTerrainGrid != 0)
@@ -3196,8 +3195,8 @@ auto MCGroundVehicle::Render() -> void
             to.Z = Land->GetTerrainElevation(to);
             MCVector2D fromScreen = EyeProject(from);
             MCVector2D toScreen = EyeProject(to);
-            ElementList->OpenGroup(-100000, 1);
-            ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xfd, nullptr, -100000, -1));
+            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->Add(ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xfd, nullptr, -100000, -1));
         }
     }
 
@@ -3230,19 +3229,19 @@ auto MCGroundVehicle::Render() -> void
 
             if (drawLines != 0)
             {
-                ElementList->OpenGroup(-99999, 1);
-                ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
+                ElementList()->OpenGroup(-99999, 1);
+                ElementList()->Add(
+                    ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
                 fromScreen = toScreen;
                 marker++;
             }
 
             const int32_t bounds = VfxShapeBounds(WaypointMarkers, marker);
-            ElementList->OpenGroup(-100000, 1);
-            auto* element = MCElementPool::Make<MCVfxElement>(
+            ElementList()->OpenGroup(-100000, 1);
+            auto* element = ElementList()->Make<MCVfxElement>(
                 WaypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.X,
-                toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1, 0);
-            std::strcpy(element->Name, "gwp");
-            ElementList->Add(element);
+                toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1);
+            ElementList()->Add(element);
         }
 
         tacOrder.Destroy();

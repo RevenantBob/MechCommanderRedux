@@ -4,8 +4,8 @@
 #include "gui/mchwcursor.h"
 #include "gui/updisp.h"
 #include "lib/MCPacketFile.h"
-#include "vfx/mcagshape.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCAgShape.h"
+#include "vfx/MCVfxFunctions.h"
 
 // The system (hardware) cursor: cursor pictures, their colours and scaling, and the game's cursor shapes as pictures.
 

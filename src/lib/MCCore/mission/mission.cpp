@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "mission/mission.h"
 #include "camera/camera.h"
-#include "color/color.h"
+#include "color/MCPalette.h"
 #include "gui/abutton.h"
 #include "gui/afont.h"
 #include "gui/atextbox.h"
@@ -38,7 +38,7 @@
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
@@ -723,7 +723,7 @@ auto MCMission::Run() -> int32_t
             {
                 Application->ResetDirectDraw(Application->Width(), Application->Height(), 8);
                 Application->PaletteCycle = 1;
-                Application->ActivatePalette(GamePalette->RgbData.get(), 0, 0x100);
+                Application->ActivatePalette(GamePalette()->RgbData.data(), 0, 0x100);
             }
 
             toLogistics = true;
@@ -1066,8 +1066,8 @@ auto MCMission::StartScenario(char* scenarioName) -> void
     TotalLogisticsTime = static_cast<float>(elapsed.wMinute) * 60.0f + static_cast<float>(elapsed.wHour) * 3600.0f +
                          static_cast<float>(elapsed.wSecond) + static_cast<float>(elapsed.wMilliseconds / 1000);
 
-    GamePalette->Activate(0, 0);
-    InitAlphaLookup(reinterpret_cast<MCVfxRgb*>(GamePalette->RgbData.get()));
+    GamePalette()->Activate();
+    InitAlphaLookup(GamePalette()->Colors());
     Application->PaletteCycle = 1;
     Application->SetCursorVisible(0);
 
@@ -1856,13 +1856,13 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
 
 auto MCMissionResultsScreen::Display() -> void
 {
-    uint8_t* hazePalette = GamePalette->GetHazePalette(-7);
+    uint8_t* hazePalette = GamePalette()->GetHazePalette(-7);
     MCScreenVertex vertices[4] = {};
     vertices[1].X = Application->Width() - 1;
     vertices[2].X = Application->Width() - 1;
     vertices[2].Y = Application->Height() - 1;
     vertices[3].Y = Application->Height() - 1;
-    VfxTranslatePolygon(ScreenPort->Frame(), 4, vertices, hazePalette);
+    VfxTranslatePolygon(ScreenPort->Frame(), std::span(vertices, 4), hazePalette);
 
     if (MPlayer == nullptr)
     {
@@ -2227,7 +2227,7 @@ auto MCMissionResultsScreen::DrawPilot(int32_t index) -> void
     }
 
     const auto line = [this](int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t color)
-    { VfxLineDraw(Port()->Frame(), x0, y0, x1, y1, LD_DRAW, color); };
+    { VfxLineDraw(Port()->Frame(), x0, y0, x1, y1, color); };
     const auto pixel = [this](int32_t x, int32_t y) { AGPixelWrite(Port()->Frame(), x, y, 0x10); };
 
     int32_t left;
@@ -2323,7 +2323,7 @@ auto MCMissionResultsScreen::DrawMPPilots(int showHomeSide) -> void
 auto MCMissionResultsScreen::DrawMPPilotList() -> void
 {
     const auto line = [this](int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t color)
-    { VfxLineDraw(Port()->Frame(), x0, y0, x1, y1, LD_DRAW, color); };
+    { VfxLineDraw(Port()->Frame(), x0, y0, x1, y1, color); };
     const auto pixel = [this](int32_t x, int32_t y) { AGPixelWrite(Port()->Frame(), x, y, 0x10); };
 
     // Clear the twelve pilot boxes (six per column) and their empty skill bars.

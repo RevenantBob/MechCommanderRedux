@@ -19,7 +19,7 @@
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -316,10 +316,10 @@ auto PaintSelBox(MCGuiObject* box) -> void
     VfxPaneWipe(pane, 0xff);
     int32_t bottom = height - 1;
     int32_t right = width - 1;
-    VfxLineDraw(pane, 0, bottom, right, bottom, LD_DRAW, 0);
-    VfxLineDraw(pane, 0, 0, right, 0, LD_DRAW, 0);
-    VfxLineDraw(pane, 0, 0, 0, bottom, LD_DRAW, 0);
-    VfxLineDraw(pane, right, 0, right, bottom, LD_DRAW, 0);
+    VfxLineDraw(pane, 0, bottom, right, bottom, 0);
+    VfxLineDraw(pane, 0, 0, right, 0, 0);
+    VfxLineDraw(pane, 0, 0, 0, bottom, 0);
+    VfxLineDraw(pane, right, 0, right, bottom, 0);
 }
 
 auto InterfaceHandleEvent(MCGuiObject*, MCGuiEvent* event) -> void

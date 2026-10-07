@@ -3,7 +3,7 @@
 #include "gui/asystem.h"
 #include "gui/updisp.h"
 #include "platform/MCInput.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {

@@ -4,9 +4,9 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "engine/ceglist.h"
-#include "engine/cevfx.h"
-#include "engine/cfont.h"
+#include "engine/MCElementBuffer.h"
+#include "engine/MCVfxElement.h"
+#include "engine/MCFontElement.h"
 #include "gui/asystem.h"
 #include "iface/iface.h"
 #include "lib/MCFatal.h"
@@ -36,7 +36,7 @@
 #include "sprite/sprtmgr.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -906,8 +906,8 @@ auto MCArtillery::Render() -> void
         frame += static_cast<int32_t>(static_cast<MCArtilleryType*>(ObjType)->FrameCount);
     }
 
-    ElementList->OpenGroup(-40000, 1);
-    ElementList->Add(MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, frame, 0, nullptr, 1, 0));
+    ElementList()->OpenGroup(-40000, 1);
+    ElementList()->Add(ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, frame, 0, nullptr, 1));
 
     const int32_t seconds = std::abs(static_cast<int32_t>(std::floor(static_cast<double>(TimeToImpact))));
     std::sprintf(TimeString, "%01d:%02d", seconds / 60, seconds % 60);
@@ -918,7 +918,7 @@ auto MCArtillery::Render() -> void
     ScreenPos.Y = type->FontYOffset + textPos.Y;
     // Blue after impact, yellow before (the original has the same code for both camera scales).
     MCGuiFont* font = TimeToImpact <= 0.0f ? BlueDropFont : YellowDropFont;
-    ElementList->Add(MCElementPool::Make<MCFontElement>(font, ScreenPos, TimeString, -40000));
+    ElementList()->Add(ElementList()->Make<MCFontElement>(font, ScreenPos, TimeString, -40000));
 }
 
 auto MCArtillery::HandleEvent(MCObjectEvent* event) -> int32_t
