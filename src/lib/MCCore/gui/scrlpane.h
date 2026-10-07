@@ -118,11 +118,8 @@ public:
     /// <summary>The slider's picture (13 x <see cref="sliderHeight"/>), a logistics block.</summary>
     uint8_t* sliderImage = nullptr; // +0x4c8
     uint32_t sliderImageSize = 0;   // +0x4cc
-    int32_t unknown4D0[5] = {};     // +0x4d0
     /// <summary>The scroll offset the children were last placed for.</summary>
     int32_t lastScrollOffset = 0; // +0x4e4
-    /// <summary>Set to -1 by <see cref="init"/> and <see cref="setChildren"/>; never read in MCX.EXE.</summary>
-    int32_t unknown4E8 = -1; // +0x4e8
     /// <summary>The empty slider column (13 x height), restored under the slider as it moves.</summary>
     uint8_t* trackImage = nullptr; // +0x4ec
     /// <summary>A copy of the background passed to <see cref="init"/>, drawn under the content.</summary>

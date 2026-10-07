@@ -8,7 +8,7 @@
 
 namespace
 {
-    /// <summary>The session manager the dialog works on (DAT_0080a410).</summary>
+    /// <summary>The session manager the dialog works on (0x0080a410).</summary>
     SessionManager* dialogSessionManager = nullptr;
 }
 

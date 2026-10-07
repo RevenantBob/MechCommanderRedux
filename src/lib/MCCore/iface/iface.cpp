@@ -74,7 +74,7 @@ namespace
     /// The building, turret, gate or terrain object the mouse last highlighted (<c>setSelected(1)</c>) in
     /// <see cref="InterfaceObject::UpdateMouseState"/>; unhighlighted when the mouse leaves it.
     /// </summary>
-    /// <remarks>DAT_00808048; its name was lost.</remarks>
+    /// <remarks>0x00808048; its name was lost.</remarks>
     GameObject* highlightedObject = nullptr;
 
     /// <summary>The modifier bits of a key binding (see <see cref="InterfaceObject"/>'s remarks).</summary>
@@ -1744,18 +1744,14 @@ InterfaceObject::InterfaceObject()
     mouseObjectType = -1;
     mechBar = nullptr;
     commandParser = nullptr;
-    unknown98 = 0;
     tacticalMap = nullptr;
     commandOneShot = 0;
-    unknownA4 = 0;
     mouseObject = nullptr;
     std::fill(std::begin(selectedMechs), std::end(selectedMechs), 0);
     std::fill(std::begin(selectedLances), std::end(selectedLances), nullptr);
     numSelectedLances = 0;
-    unknown108 = 1;
     numSelectedMechs = 0;
     mouseDown = 0;
-    unknownB0 = 0;
     tacScrollSpeed = 1;
     dragDistance = 10;
     scrollSpeed = 4;
@@ -3900,7 +3896,6 @@ auto InterfaceObject::StartScenario() -> int32_t
     }
 
     commandParser->init();
-    unknownA4 = 0;
     mouseObjectType = -1;
     mouseObject = nullptr;
     currentCommand = 0;
@@ -4084,7 +4079,7 @@ auto InterfaceObject::RemoveMech(int32_t partId) -> void
                 // The lance's point died: once no member is left standing, the lance goes from the selection.
                 LanceIcon* lanceIcon = bar != nullptr ? bar->GetLanceIconFromID(icon->lance) : nullptr;
                 Assert(lanceIcon != nullptr, partId, " InterfaceObject.RemoveMech: NULL lanceIcon ");
-                lanceIcon->unknown4CC = 0;
+                lanceIcon->linked = 0;
                 MoverGroup* group = lanceIcon->group;
 
                 for (int16_t i = 0; i < group->numMovers; i++)
@@ -4301,7 +4296,7 @@ auto InterfaceObject::SelectLance(MoverGroup* group) -> void
 {
     LanceIcon* lanceIcon = mechBar->GetLanceIconFromID(group->getId());
 
-    if (lanceIcon->unknown4CC == 0)
+    if (lanceIcon->linked == 0)
     {
         // Not a linked lance: select its movers one by one.
         for (int32_t i = 0; i < group->numMovers; i++)
@@ -4462,7 +4457,7 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
     ObjectEvent objectEvent;
     aEvent cursorEvent;
     char text[256];
-    // Port fix: cleared. For a terrain object of an unknown kind the original formats the tag from this buffer
+    // Port fix: cleared. For a misc terrain object whose kind has no tag string (not 5-9) the original formats the tag from this buffer
     // without loading anything into it.
     char format[256] = {};
     cursorOffset = 0;
@@ -5794,7 +5789,7 @@ auto InterfaceObject::setUnit(int32_t groupId, int32_t numMovers, GameObject** m
         }
 
         // Original behaviour: marks the lance icon of groupId each time, not that of the lance just relinked.
-        mechBar->GetLanceIconFromID(groupId)->unknown4CC = 1;
+        mechBar->GetLanceIconFromID(groupId)->linked = 1;
     }
 }
 

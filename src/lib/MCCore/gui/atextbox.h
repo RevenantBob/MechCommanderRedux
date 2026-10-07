@@ -132,9 +132,6 @@ public:
     int16_t numLines = 0;         // +0x4cc
     /// <summary>The bytes used in <see cref="textBuffer"/>.</summary>
     int32_t textLength = 0; // +0x4d0
-    /// <summary>Not accessed in MCX.EXE's aScrollTextObject code.</summary>
-    int32_t unknown4D4 = 0; // +0x4d4
-    int32_t unknown4D8 = 0; // +0x4d8
     /// <summary>Set to 1 when init or a port resize failed.</summary>
     int32_t initFailed = 0; // +0x4dc
     /// <summary>

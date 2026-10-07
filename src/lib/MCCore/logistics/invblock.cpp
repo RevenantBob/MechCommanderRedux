@@ -42,22 +42,22 @@ namespace
         int32_t y = 0;
     };
 
-    /// <summary>The mech rows' drag (DAT_00808060 dragging, 64/68 x/y, 6c carrying).</summary>
+    /// <summary>The mech rows' drag (0x00808060 dragging, 64/68 x/y, 6c carrying).</summary>
     DragState mechDrag;
-    /// <summary>The pilot rows' drag (DAT_00808074 dragging, 78/7c x/y, 80 carrying).</summary>
+    /// <summary>The pilot rows' drag (0x00808074 dragging, 78/7c x/y, 80 carrying).</summary>
     DragState pilotDrag;
-    /// <summary>The vehicle rows' drag (DAT_00808084 dragging, 88/8c x/y, 90 carrying).</summary>
+    /// <summary>The vehicle rows' drag (0x00808084 dragging, 88/8c x/y, 90 carrying).</summary>
     DragState vehicleDrag;
-    /// <summary>The component rows' drag (DAT_00808094 dragging, 98 carrying, 9c/a0 x/y).</summary>
+    /// <summary>The component rows' drag (0x00808094 dragging, 98 carrying, 9c/a0 x/y).</summary>
     DragState compDrag;
 
     /// <summary>
-    /// The row the next <see cref="PilotInventoryBlock::init"/> takes (DAT_00808070). Never reset: the inventory
+    /// The row the next <see cref="PilotInventoryBlock::init"/> takes (0x00808070). Never reset: the inventory
     /// screen renumbers the rows itself.
     /// </summary>
     int32_t nextPilotRow = 0;
 
-    /// <summary>The pilot a sell dialog is open for (DAT_00808054; <see cref="PilotSellCallback"/>).</summary>
+    /// <summary>The pilot a sell dialog is open for (0x00808054; <see cref="PilotSellCallback"/>).</summary>
     LogWarrior* pilotToSell = nullptr;
 
     void* logAlloc(uint32_t size)
@@ -435,13 +435,13 @@ namespace
         if (tons <= static_cast<double>(mech->curTonnage) - mech->usedTonnage)
         {
             playSample(0x34);
-            _LogInventoryStat* stat = mech->inventory->createStat(masterID, 0, 0, 1, 0, 1, 0xff);
+            _LogInventoryStat* stat = mech->inventory->createStat(masterID, 0, 1, 1, 0xff);
             mech->inventory->addItem(masterID, stat, -1);
 
             if (withAmmo)
             {
                 uint8_t ammoID = component.ammoMasterId;
-                stat = mech->inventory->createStat(masterID, 0, 0, 0, -1, -1, 0xff);
+                stat = mech->inventory->createStat(masterID, 0, 0, -1, 0xff);
                 mech->inventory->addItem(ammoID, stat, -1);
             }
 
@@ -489,20 +489,20 @@ auto MechSellCallback(int confirmed, int32_t) -> void
                     continue;
                 }
 
-                _LogInventoryItem* spare = spares->getItemInfo(spares->getIndexFromMasterID(masterID));
+                _LogInventoryItem* stockItem = spares->getItemInfo(spares->getIndexFromMasterID(masterID));
 
-                if (spare == nullptr)
+                if (stockItem == nullptr)
                 {
-                    _LogInventoryStat* newStat = spares->createStat(masterID, 0, 0, 1, 0, 0, 0xff);
+                    _LogInventoryStat* newStat = spares->createStat(masterID, 0, 1, 0, 0xff);
                     spares->addItem(masterID, newStat, -1);
-                    spare = spares->getItemInfo(spares->getIndexFromMasterID(masterID));
+                    stockItem = spares->getItemInfo(spares->getIndexFromMasterID(masterID));
                     auto* block = new CompInventoryBlock;
-                    spare->inventoryBlock = block;
-                    block->init(spare);
-                    spare->inventoryBlock->inventoryIndex = spares->numItems - 1;
+                    stockItem->inventoryBlock = block;
+                    block->init(stockItem);
+                    stockItem->inventoryBlock->inventoryIndex = spares->numItems - 1;
                 }
 
-                ++spare->count;
+                ++stockItem->count;
             }
         }
 

@@ -116,8 +116,6 @@ public:
     int32_t twoButton = 0; // +0x4bc
     /// <summary>Nonzero when the quantity spinner is shown.</summary>
     int32_t spinner = 0; // +0x4c0
-    /// <summary>Not seen used.</summary>
-    int32_t unknown4C4 = 0; // +0x4c4
     /// <summary>Called by <see cref="deactivate"/> with the result.</summary>
     void (*callback)(int) = nullptr; // +0x4c8
     /// <summary>The picture shown in the box (a copy of the port given to <c>PurchaseDlg::init</c>).</summary>

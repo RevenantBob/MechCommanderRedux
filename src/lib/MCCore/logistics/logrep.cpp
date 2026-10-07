@@ -24,10 +24,10 @@ namespace
     /// <summary>The height of a unit block in the unit pane.</summary>
     constexpr int32_t UnitBlockHeight = 0x70;
 
-    /// <summary>Set while the left button is down on the screen (DAT_0080867c); only written.</summary>
+    /// <summary>Set while the left button is down on the screen (0x0080867c); only written.</summary>
     int32_t mouseDown = 0;
 
-    /// <summary>The blink phase of the briefing button's highlight, flipped by each timer event (DAT_00808678).</summary>
+    /// <summary>The blink phase of the briefing button's highlight, flipped by each timer event (0x00808678).</summary>
     int32_t briefingBlink = 0;
 
     /// <summary>
@@ -116,7 +116,6 @@ namespace
 
 auto RepairScreen::init() -> void
 {
-    unknown4BC = -1;
     chatBlinking = 0;
     selectedMech = nullptr;
     selectedVehicle = nullptr;
@@ -544,7 +543,7 @@ auto RepairScreen::display() -> void
 
 auto ResourceFigureText(char* text, size_t size) -> void
 {
-    // The original left the text uninitialised for an unknown resourceDisplayState.
+    // The original left the text uninitialised for a resourceDisplayState the switch doesn't list.
     text[0] = '\0';
 
     switch (resourceDisplayState)

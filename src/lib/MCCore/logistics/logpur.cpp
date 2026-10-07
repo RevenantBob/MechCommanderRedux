@@ -15,10 +15,10 @@
 
 namespace
 {
-    /// <summary>Set while the left button is down on the screen (DAT_0080866c); only written.</summary>
+    /// <summary>Set while the left button is down on the screen (0x0080866c); only written.</summary>
     int32_t mouseDown = 0;
 
-    /// <summary>The blink phase of the briefing button's highlight, flipped by each timer event (DAT_00808670).</summary>
+    /// <summary>The blink phase of the briefing button's highlight, flipped by each timer event (0x00808670).</summary>
     int32_t briefingBlink = 0;
 
     void freePort(lPort*& port)
@@ -42,7 +42,6 @@ namespace
 
 auto PurchaseScreen::init() -> void
 {
-    unknown4BC = 0;
     chatBlinking = 0;
     purMechPort = nullptr;
     purPilotPort = nullptr;

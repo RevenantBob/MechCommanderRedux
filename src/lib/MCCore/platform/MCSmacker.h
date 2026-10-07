@@ -221,7 +221,7 @@ private:
 /// <remarks>
 /// <para>The game's loop was: <c>SmackDoFrame</c> (decode the current frame into the buffer and queue its sound),
 /// then <c>SmackNextFrame</c> (advance), and <c>SmackWait</c> each tick to know whether the next frame is due
-/// (see <c>aSmackerWindow::display</c> @ 0x0061b690 and <c>FUN_0061b8d0</c>). The fields the game read from the
+/// (see <c>aSmackerWindow::display</c> @ 0x0061b690 and <c>0x0061b8d0</c>). The fields the game read from the
 /// <c>SmackTag</c> are methods here: <c>+0x4 Width</c>, <c>+0x8 Height</c> (shown height), <c>+0xc Frames</c>,
 /// <c>+0x68 NewPalette</c>, <c>+0x6c Palette</c>, <c>+0x374 FrameNum</c>.</para>
 /// <para>Sound: with an <see cref="MCAudio"/>, the first present track (RAD played track 0) is queued on an

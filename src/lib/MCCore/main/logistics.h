@@ -52,13 +52,8 @@ struct _LogInventoryStat
     uint8_t statID = 0; // +0x0
     /// <summary>Its damage (<see cref="InventoryList::hitItem"/>).</summary>
     uint8_t hits = 0; // +0x1
-    /// <summary>Set from <see cref="InventoryList::createStat"/>'s third argument; meaning unknown.</summary>
-    int32_t unknown04 = 0;  // +0x4
-    uint8_t unknown08[4]{}; // +0x8
     /// <summary>Nonzero when the weapon faces forward (the mech file's FacesForward).</summary>
     uint8_t facing = 0; // +0xc
-    /// <summary>Set from <see cref="InventoryList::createStat"/>'s fifth argument; meaning unknown.</summary>
-    int16_t unknown0E = 0; // +0xe
     /// <summary>The amount (ammunition count, or 1).</summary>
     int16_t amount = 0; // +0x10
     /// <summary>The body location it is mounted in (0xff = none; <see cref="InventoryList::setStatLoc"/>).</summary>
@@ -109,8 +104,7 @@ public:
 
     /// <summary>Makes a copy record numbered with the next <see cref="nextStatID"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006e7af0</remarks>
-    _LogInventoryStat* createStat(uint8_t itemNum, uint8_t hits, int unknown, uint8_t facing, int16_t unknown2,
-                                  int16_t amount, uint8_t location);
+    _LogInventoryStat* createStat(uint8_t itemNum, uint8_t hits, uint8_t facing, int16_t amount, uint8_t location);
 
     /// <summary>The item at list position <paramref name="index"/>.</summary>
     /// <remarks>MCX.EXE @ 0x006e7b80</remarks>
@@ -241,8 +235,8 @@ public:
     int32_t resourcePoints = 0; // +0x34
     /// <summary>The value of the bare chassis.</summary>
     int32_t baseResourcePoints = 0; // +0x38
-    /// <summary>Not accessed in logistics.cpp.</summary>
-    int32_t unknown3C = 0; // +0x3c
+    /// <summary>The part's number in the scenario file the force is written to (its Mates entry).</summary>
+    int32_t partNumber = 0; // +0x3c
     /// <summary>The description's index in the object description file (-1 = none).</summary>
     int32_t descIndex = 0;       // +0x40
     char* description = nullptr; // +0x44
@@ -253,17 +247,12 @@ public:
     /// <summary>The armor type (a profile's Armor Type).</summary>
     uint8_t armorType = 0; // +0x50
     /// <summary>The armor's tonnage (a profile's Armor Tonnage).</summary>
-    float armorTonnage = 0;  // +0x54
-    uint8_t numOther = 0;    // +0x58
-    uint8_t numWeapons = 0;  // +0x59
-    uint8_t numAmmo = 0;     // +0x5a
-    uint8_t unknown5B[13]{}; // +0x5b
-    /// <summary>Cleared when the part is loaded.</summary>
-    uint8_t unknown68 = 0;  // +0x68
-    uint8_t unknown69[3]{}; // +0x69
+    float armorTonnage = 0; // +0x54
+    uint8_t numOther = 0;   // +0x58
+    uint8_t numWeapons = 0; // +0x59
+    uint8_t numAmmo = 0;    // +0x5a
     /// <summary>The battle rating (<see cref="LogMech::calcBR"/>).</summary>
     int32_t battleRating = 0; // +0x6c
-    int32_t unknown70 = 0;    // +0x70
     /// <summary>Nonzero when assigned to the force.</summary>
     int32_t assigned = 0; // +0x74
     int32_t deployed = 0; // +0x78
@@ -359,7 +348,6 @@ public:
     float weaponTonnage = 0; // +0xb0
     /// <summary>The pilot's index in the warrior list (-1 = none).</summary>
     int32_t pilotIndex = 0; // +0xb4
-    int32_t unknownB8 = 0;  // +0xb8
     /// <summary>The name variant (0..2; picks the sort key and the multiplayer variant).</summary>
     int32_t nameVariant = 0; // +0xbc
     int32_t sellValue = 0;   // +0xc0
@@ -368,7 +356,6 @@ public:
     uint8_t maxRunSpeed = 0; // +0xc8
     /// <summary>Head, center/left/right torso, left/right arm, left/right leg, rear center/left/right torso.</summary>
     ArmorPoints armor[11]{}; // +0xc9
-    uint8_t unknownDF = 0;   // +0xdf
     /// <summary>Nonzero where a location has CASE.</summary>
     int32_t hasCASE[8]{}; // +0xe0
     /// <summary>Internal structure of the eight locations: the chassis maximum and the current.</summary>
@@ -410,7 +397,6 @@ public:
     uint8_t curInternalStructure[5]{}; // +0xa6
     uint8_t maxArmorPoints[5]{};       // +0xab
     uint8_t curArmorPoints[5]{};       // +0xb0
-    uint8_t unknownB5[3]{};            // +0xb5
     /// <summary>The current value.</summary>
     int32_t vehicleResourcePoints = 0; // +0xb8
     /// <summary>The value of the bare vehicle.</summary>
@@ -457,7 +443,6 @@ public:
     int32_t nameIndex = 0;       // +0x38
     int32_t descIndex = 0;       // +0x3c
     char* description = nullptr; // +0x40
-    int32_t unknown44 = 0;       // +0x44
     /// <summary>Professionalism, decorum, aggressiveness, courage.</summary>
     char personality[4]{}; // +0x48
     /// <summary>Piloting, jumping, sensors, gunnery.</summary>
@@ -470,26 +455,21 @@ public:
     char mechType = 0;      // +0x69
     char weaponClass = 0;   // +0x6a
     char weaponTypes[2]{};  // +0x6b
-    uint8_t unknown6D[3]{}; // +0x6d
     float wounds = 0;       // +0x70
     /// <summary>6 minus the wounds (0 = dead).</summary>
     float health = 0; // +0x74
     /// <summary>4 = killed.</summary>
     int32_t warriorStatus = 0; // +0x78
-    int32_t unknown7C = 0;     // +0x7c
     /// <summary>The lance of the drop slot the pilot's mech is in (-1 = none).</summary>
     int32_t dropLance = 0; // +0x80
     /// <summary>The slot in <see cref="dropLance"/> (-1 = none).</summary>
-    int32_t dropSlot = 0;  // +0x84
-    uint8_t unknown88 = 0; // +0x88
-    int32_t assigned = 0;  // +0x8c
+    int32_t dropSlot = 0; // +0x84
+    int32_t assigned = 0; // +0x8c
     /// <summary>Set while the pilot's mech is in a drop slot.</summary>
-    int32_t deployed = 0;   // +0x90
-    int32_t sold = 0;       // +0x94
-    int32_t notMineYet = 0; // +0x98
-    int32_t ejected = 0;    // +0x9c
-    /// <summary>Not accessed in logistics.cpp.</summary>
-    uint8_t unknownA0[0x88]{};                     // +0xa0
+    int32_t deployed = 0;                          // +0x90
+    int32_t sold = 0;                              // +0x94
+    int32_t notMineYet = 0;                        // +0x98
+    int32_t ejected = 0;                           // +0x9c
     PilotInventoryBlock* inventoryBlock = nullptr; // +0x128
 };
 
@@ -1055,13 +1035,10 @@ public:
     Ticker* ticker = nullptr; // +0x0
     /// <summary>The multiplayer ready lights.</summary>
     MPPlayerLights* playerLights = nullptr; // +0x4
-    /// <summary>Cleared by <see cref="init"/>.</summary>
-    int32_t unknown08 = 0; // +0x8
     /// <summary>The current mission's number in the campaign (-1 = none).</summary>
     int32_t currentMission = 0; // +0xc
     /// <summary>The campaign's purchase file (the save's "purchaseFile"; written to starting fits as PurchaseFile).</summary>
-    char purchaseFile[0x80]{};  // +0x10
-    uint8_t unknown90[0x12c]{}; // +0x90
+    char purchaseFile[0x80]{}; // +0x10
     /// <summary>Every pilot the player has.</summary>
     LogWarriorList* warriorList = nullptr; // +0x1bc
     /// <summary>The pilots assigned to mechs.</summary>
@@ -1098,11 +1075,8 @@ public:
     /// go back to the purchase (2) or repair (4) screen, else the briefing.
     /// </summary>
     int32_t previousState = 0; // +0x228
-    /// <summary>Passed to a CRT call in <c>logistics.cpp</c> by address; not otherwise known.</summary>
     /// <summary>The clock text ("HH:MM:SS", from the CRT's <c>_strtime</c>), written by <c>RepairScreen::display</c>.</summary>
     char timeString[0xc]{}; // +0x22c
-    /// <summary>Cleared by <see cref="init"/>.</summary>
-    int32_t unknown238 = 0; // +0x238
     /// <summary>
     /// The blocks of logistics data (strings, tables, shapes, port bitmaps) that have no single owner yet (the
     /// logistics heap's in the original); made by <see cref="init"/> and cleared by <see cref="destroy"/>.
@@ -1144,7 +1118,6 @@ public:
     DropSlot* opponentDropSlots[3][4]{}; // +0x450
     /// <summary>The current mission's name (freed by <see cref="destroy"/>).</summary>
     char* missionFileName = nullptr; // +0x480
-    uint8_t unknown484[0xc]{};       // +0x484
     /// <summary>The inventory tab shown: 0 mechs, 1 pilots, 2 components, 3 vehicles.</summary>
     int32_t currentInvTab = 0; // +0x490
     /// <summary>The cost of an armor point (the purchase file's PurchaseCosts).</summary>
@@ -1221,8 +1194,6 @@ public:
     lPort* screenButtonPorts[5][3]{}; // +0x1138
     /// <summary>The inventory tab icons: mechs, pilots, components, vehicles (<c>lscii?.tga</c>).</summary>
     lPort* inventoryIconPorts[4]{}; // +0x1174
-    /// <summary>Not accessed in logistics.cpp (0x300 bytes: probably a palette).</summary>
-    uint8_t unknown1184[0x300]{}; // +0x1184
     /// <summary>
     /// The chat text colour of each player number (1, 3, 4, 2, 6, 5), used as <c>%fc</c> codes by
     /// <c>LogChatWindow::processChatString</c>.

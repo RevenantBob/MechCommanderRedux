@@ -196,22 +196,22 @@ namespace
 {
     /// <summary>
     /// Set once the display is up (DirectDraw or the DIB section in the original): palette changes and repaints wait
-    /// for it (DAT_007ab108).
+    /// for it (0x007ab108).
     /// </summary>
     int displayReady = 0;
 
     /// <summary>
     /// A byte the window procedure tests before selecting the GDI palette on repaint and activation; nothing in
-    /// MCX.EXE sets it (DAT_007aa994).
+    /// MCX.EXE sets it (0x007aa994).
     /// </summary>
     uint8_t keepDesktopPalette = 0;
 
-    /// <summary>Two windows <see cref="aSystem::stop"/> destroys; nothing in MCX.EXE sets them (DAT_007ab134/138).</summary>
+    /// <summary>Two windows <see cref="aSystem::stop"/> destroys; nothing in MCX.EXE sets them (0x007ab134/138).</summary>
     aObject* stopWindow1 = nullptr;
     aObject* stopWindow2 = nullptr;
 
     /// <summary>
-    /// The palette as shown: the GDI LOGPALETTE's entries (DAT_007aa3c4) and the DIB colour table's (DAT_007a9fb8)
+    /// The palette as shown: the GDI LOGPALETTE's entries (0x007aa3c4) and the DIB colour table's (0x007a9fb8)
     /// in the original, the colours handed to the display in the port. <see cref="aSystem::currentPalette"/> through
     /// the gamma table.
     /// </summary>
@@ -1589,7 +1589,7 @@ auto aObject::state() -> int32_t
 auto aObject::setState(int32_t newState) -> void
 {
     // Saves the placement of the state left, then takes the new state's. From the iconized state the new state is
-    // stored first, so an unknown state sticks (with the icon's placement).
+    // stored first, so a state the switch doesn't list sticks (with the icon's placement).
     switch (winState)
     {
         case aSTATE_NORMAL:
@@ -2389,7 +2389,7 @@ auto handleEvent(aEvent* event) -> void
                 case VK_ESCAPE:
                 {
                     if (scenario != nullptr && EventsToMissionResultsScreen == 0 && scenario->startingUp == 0 &&
-                        scenario->startUpTurns + scenario->unknown2A4 < turn)
+                        scenario->startUpTurns < turn)
                     {
                         if (MPlayer == nullptr)
                         {
@@ -3691,7 +3691,6 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
     cursorHidden = 0;
     SetCurrentCursor(static_cast<CursorType>(0));
     showCursor(0);
-    unknownAE8 = 0xddac0000;
     mouseTrackerCallback = new aCallback;
     mouseTrackerCallback->setExec(CheckMouse);
     application->addCallback(mouseTrackerCallback);
@@ -4630,7 +4629,6 @@ auto aEvent::clear() -> void
     scanCode = 0;
     x = 0;
     y = 0;
-    unknown24 = 0;
 }
 
 auto TimerCallback() -> void

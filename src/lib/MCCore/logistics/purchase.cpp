@@ -44,13 +44,13 @@ namespace
         int32_t y = 0;
     };
 
-    /// <summary>The mech rows' drag (DAT_008086f0 dragging, f4/f8 x/y, fc carrying).</summary>
+    /// <summary>The mech rows' drag (0x008086f0 dragging, f4/f8 x/y, fc carrying).</summary>
     DragState mechDrag;
-    /// <summary>The vehicle rows' drag (DAT_00808704 dragging, 708/70c x/y, 710 carrying).</summary>
+    /// <summary>The vehicle rows' drag (0x00808704 dragging, 708/70c x/y, 710 carrying).</summary>
     DragState vehicleDrag;
-    /// <summary>The component rows' drag (DAT_00808718 dragging, 71c/720 x/y, 728 carrying).</summary>
+    /// <summary>The component rows' drag (0x00808718 dragging, 71c/720 x/y, 728 carrying).</summary>
     DragState compDrag;
-    /// <summary>The pilot rows' drag (DAT_0080872c dragging, 730/734 x/y, 738 carrying).</summary>
+    /// <summary>The pilot rows' drag (0x0080872c dragging, 730/734 x/y, 738 carrying).</summary>
     DragState pilotDrag;
 
     /// <summary>The body location blocks of a mech profile, in location order.</summary>
@@ -333,7 +333,7 @@ namespace
             uint8_t masterID = 0;
             result = file->readIdUChar("MasterID", masterID);
             Assert(result == 0, result, "Could not read 'other' item's MasterID in mech file", nullptr);
-            _LogInventoryStat* stat = inventory->createStat(static_cast<uint8_t>(item), 0, 0, 0, 0, 1, 0xff);
+            _LogInventoryStat* stat = inventory->createStat(static_cast<uint8_t>(item), 0, 0, 1, 0xff);
             inventory->addItem(masterID, stat, -1);
             cost += MasterComponentList[masterID].resourcePoints;
         }
@@ -349,7 +349,7 @@ namespace
             uint8_t facesForward = 0;
             result = file->readIdUChar("FacesForward", facesForward);
             Assert(result == 0, result, "Could not read 'weapon' item's FacesForward in mech file", nullptr);
-            _LogInventoryStat* stat = inventory->createStat(static_cast<uint8_t>(item), 0, 0, facesForward, 0, 1, 0xff);
+            _LogInventoryStat* stat = inventory->createStat(static_cast<uint8_t>(item), 0, facesForward, 1, 0xff);
             inventory->addItem(masterID, stat, -1);
             cost += MasterComponentList[masterID].resourcePoints;
         }
@@ -373,7 +373,7 @@ namespace
             }
 
             _LogInventoryStat* stat =
-                inventory->createStat(static_cast<uint8_t>(item), 0, 0, 0, 0, static_cast<int16_t>(amount), 0xff);
+                inventory->createStat(static_cast<uint8_t>(item), 0, 0, static_cast<int16_t>(amount), 0xff);
             inventory->addItem(masterID, stat, -1);
             cost += MasterComponentList[masterID].resourcePoints;
         }
@@ -597,39 +597,39 @@ auto CompPurchaseCallback(int confirmed, int32_t quantity) -> void
     bought->count -= quantity;
     bought->purchaseBlock->drawBackground(bought->purchaseBlock->row, bought->masterID);
     InventoryList* spares = globalLogPtr->componentInventory;
-    _LogInventoryItem* spare = spares->items;
+    _LogInventoryItem* stockItem = spares->items;
 
-    while (spare != nullptr && spare->masterID != globalItemPtr->masterID)
+    while (stockItem != nullptr && stockItem->masterID != globalItemPtr->masterID)
     {
-        spare = spare->next;
+        stockItem = stockItem->next;
     }
 
-    if (spare != nullptr)
+    if (stockItem != nullptr)
     {
-        if (spare->count == 0)
+        if (stockItem->count == 0)
         {
-            spare->count = quantity;
+            stockItem->count = quantity;
             globalLogPtr->purchaseScreen->createCompInvBlock();
             globalLogPtr->purchaseScreen->setUpCompInv(0, 1);
         }
         else
         {
-            spare->count += quantity;
-            spare->inventoryBlock->drawBackground();
+            stockItem->count += quantity;
+            stockItem->inventoryBlock->drawBackground();
         }
     }
     else
     {
         // A new spare component: its first copy and its inventory row.
-        _LogInventoryStat* stat = spares->createStat(spares->nextStatID, 0, 0, 0, 0, 1, 0xff);
+        _LogInventoryStat* stat = spares->createStat(spares->nextStatID, 0, 0, 1, 0xff);
         globalLogPtr->componentInventory->addItem(globalItemPtr->masterID, stat, -1);
         InventoryList* list = globalLogPtr->componentInventory;
-        spare = list->getItemInfo(list->getIndexFromMasterID(globalItemPtr->masterID));
-        spare->count = quantity;
+        stockItem = list->getItemInfo(list->getIndexFromMasterID(globalItemPtr->masterID));
+        stockItem->count = quantity;
         auto* block = new CompInventoryBlock;
-        spare->inventoryBlock = block;
-        block->init(spare);
-        spare->inventoryBlock->inventoryIndex = globalLogPtr->componentInventory->numItems - 1;
+        stockItem->inventoryBlock = block;
+        block->init(stockItem);
+        stockItem->inventoryBlock->inventoryIndex = globalLogPtr->componentInventory->numItems - 1;
         globalLogPtr->purchaseScreen->createCompInvBlock();
         globalLogPtr->purchaseScreen->setUpCompInv(0, 1);
     }

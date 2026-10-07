@@ -83,9 +83,6 @@ extern char* ErrorTitle;
 /// <remarks>MCX.EXE @ 0x0080bb04. Defined in main.cpp by the port; globals_by_file.md places it in
 /// object\gameobj.cpp.</remarks>
 extern char* ExceptionGameMsg;
-/// <summary>The files attached to the report mail (MAPI MapiFileDesc entries in the original).</summary>
-/// <remarks>An array of unknown length; the port only declares it.</remarks>
-extern uint8_t Attachment[];
 /// <summary>Set once the report was saved or mailed (the dialog stops asking).</summary>
 extern bool SavedOrSent;
 /// <summary>The text of the exception or assertion being reported.</summary>

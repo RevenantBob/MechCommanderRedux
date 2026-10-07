@@ -83,8 +83,6 @@ public:
 
     /// <summary>The state machine's current state (see the class remarks).</summary>
     int32_t missionState = 0; // +0x0
-    /// <summary>Deleted through its virtual destructor in <see cref="destroy"/>, but never set in MCX.EXE.</summary>
-    aObject* unknown04 = nullptr; // +0x4
     /// <summary>The results screen shown after a scenario (created in <see cref="StartScenario"/>).</summary>
     class MissionResultsScreen* resultsScreen = nullptr; // +0x8
     /// <summary>The callback that runs <c>RunMission</c> every frame.</summary>
@@ -107,8 +105,6 @@ public:
     float waitTimer = 0.0f; // +0x34
     /// <summary><c>WaitTime</c> from the FIT (120 when missing).</summary>
     float waitTime = 0.0f; // +0x38
-    /// <summary>Set to 1 by the inlined constructor; never read in MCX.EXE.</summary>
-    int32_t unknown3C = 1; // +0x3c
     /// <summary>The logistics phase (also <c>globalLogPtr</c>), while it exists.</summary>
     Logistics* logistics = nullptr; // +0x40
     /// <summary>
@@ -339,8 +335,6 @@ protected:
     aObject* scrollUpButton = nullptr; // +0x520
     /// <summary>The scroll-down button's pressed image.</summary>
     aObject* scrollDownButton = nullptr; // +0x524
-    /// <summary>Never accessed in MCX.EXE.</summary>
-    uint8_t unknown528[0x24]{}; // +0x528
     /// <summary><c>MouseTicks</c> at which the next drawing step is due; 0 when drawing is finished.</summary>
     uint32_t nextDrawTime = 0; // +0x54c
     /// <summary>Set once the secondary objectives' header is drawn.</summary>
@@ -463,13 +457,13 @@ extern uint32_t scenarioResult;
 /// <remarks>MCX.EXE @ 0x00809470</remarks>
 extern int somethingOnFire;
 /// <summary>The mission, scenario and ABL script files (<c>"data\missions\"</c>).</summary>
-/// <remarks>MCX.EXE @ 0x0079433c (one of the 80-byte path globals; the owner is unknown).</remarks>
+/// <remarks>MCX.EXE @ 0x0079433c (one of the 80-byte path globals).</remarks>
 extern char missionPath[80];
 /// <summary>The Smacker movies (<c>"data\movies\"</c>).</summary>
 /// <remarks>MCX.EXE @ 0x007946ac (one of the 80-byte path globals).</remarks>
 extern char CDmoviePath[80];
 /// <summary>The pilots' radio videos (<c>"data\movies\"</c>).</summary>
-/// <remarks>MCX.EXE @ 0x0079447c. Its owner is unknown; it is defined beside <see cref="CDmoviePath"/>.</remarks>
+/// <remarks>MCX.EXE @ 0x0079447c. It is defined beside <see cref="CDmoviePath"/>.</remarks>
 extern char moviePath[80];
 // The next five sit among mission.cpp's globals in the image (0x0080878c-0x008087b8), though globals_by_file.md
 // assigns them to heavier users (gui\asystem.cpp, logistics.cpp, logistics\misslog.cpp, network\multplyr.cpp).

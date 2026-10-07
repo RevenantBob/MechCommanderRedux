@@ -33,44 +33,44 @@ namespace
     /// </summary>
     MechRepairBlock* refitBlock = nullptr;
 
-    /// <summary>The dragged item copy's <c>itemNum</c> (DAT_0080868c).</summary>
+    /// <summary>The dragged item copy's <c>itemNum</c> (0x0080868c).</summary>
     uint8_t dragItemNum = 0;
-    /// <summary>The dragged item's component (DAT_0080868d).</summary>
+    /// <summary>The dragged item's component (0x0080868d).</summary>
     uint8_t dragMasterID = 0;
-    /// <summary>-1 while something is dragged with the left button held (DAT_00808698).</summary>
+    /// <summary>-1 while something is dragged with the left button held (0x00808698).</summary>
     int32_t leftDrag = 0;
-    /// <summary>The mech block's drag icon position (DAT_0080869c / DAT_008086a0).</summary>
+    /// <summary>The mech block's drag icon position (0x0080869c / 0x008086a0).</summary>
     int32_t dragX = 0;
     int32_t dragY = 0;
-    /// <summary>Set by a right-button press, cleared by the release (DAT_008086a8).</summary>
+    /// <summary>Set by a right-button press, cleared by the release (0x008086a8).</summary>
     int32_t rightHeld = 0;
-    /// <summary>-1 while the whole mech is dragged (DAT_008086ac).</summary>
+    /// <summary>-1 while the whole mech is dragged (0x008086ac).</summary>
     int32_t draggingMech = 0;
-    /// <summary>-1 while an item is dragged out of the weapon list (DAT_008086b0).</summary>
+    /// <summary>-1 while an item is dragged out of the weapon list (0x008086b0).</summary>
     int32_t draggingItem = 0;
-    /// <summary>-1 while a repair slider is dragged; <c>lastY</c> is the slider, <c>lastX</c> its position (DAT_008086b4).</summary>
+    /// <summary>-1 while a repair slider is dragged; <c>lastY</c> is the slider, <c>lastX</c> its position (0x008086b4).</summary>
     int32_t draggingSlider = 0;
-    /// <summary>Set to -1 when a click selects another mech; never read (DAT_008086b8).</summary>
+    /// <summary>Set to -1 when a click selects another mech; never read (0x008086b8).</summary>
     int32_t mechSelected = 0;
-    /// <summary>-1 while a repair button is held (the buttons are redrawn on release; DAT_008086bc).</summary>
+    /// <summary>-1 while a repair button is held (the buttons are redrawn on release; 0x008086bc).</summary>
     int32_t repairButtonDown = 0;
-    /// <summary>The dragged item copy's damage (DAT_008086c0).</summary>
+    /// <summary>The dragged item copy's damage (0x008086c0).</summary>
     int32_t dragItemHits = 0;
-    /// <summary>The dragged item's inventory index (DAT_0079fff8, -1 when none).</summary>
+    /// <summary>The dragged item's inventory index (0x0079fff8, -1 when none).</summary>
     int32_t dragItemIndex = -1;
 
-    /// <summary>-1 while the vehicle is dragged with the left button held (DAT_008086c4).</summary>
+    /// <summary>-1 while the vehicle is dragged with the left button held (0x008086c4).</summary>
     int32_t vehicleLeftDrag = 0;
-    /// <summary>The vehicle block's drag icon position (DAT_008086c8 / DAT_008086cc).</summary>
+    /// <summary>The vehicle block's drag icon position (0x008086c8 / 0x008086cc).</summary>
     int32_t vehicleDragX = 0;
     int32_t vehicleDragY = 0;
-    /// <summary>Set by a right-button press on a vehicle, cleared by the release (DAT_008086d0).</summary>
+    /// <summary>Set by a right-button press on a vehicle, cleared by the release (0x008086d0).</summary>
     int32_t vehicleRightHeld = 0;
-    /// <summary>-1 while the vehicle is dragged (DAT_008086d4).</summary>
+    /// <summary>-1 while the vehicle is dragged (0x008086d4).</summary>
     int32_t draggingVehicle = 0;
-    /// <summary>A pilot dropped on a vehicle (DAT_008086d8). Nothing sets it: vehicles take no pilots.</summary>
+    /// <summary>A pilot dropped on a vehicle (0x008086d8). Nothing sets it: vehicles take no pilots.</summary>
     LogWarrior* vehiclePilot = nullptr;
-    /// <summary>The pilot index the vehicle release shifts the pilots from (DAT_007a0000, always -1).</summary>
+    /// <summary>The pilot index the vehicle release shifts the pilots from (0x007a0000, always -1).</summary>
     int32_t vehiclePilotShift = -1;
 
     void* logAlloc(uint32_t size)
@@ -420,7 +420,6 @@ auto MechRepairBlock::init(LogMech* logMech) -> void
     inventoryPane = pane;
     pane->init(0x62, 0x58, 0x135, 0x11, static_cast<char*>(nullptr));
     addChild(pane);
-    unknown4F8 = -1;
 
     char fileName[256];
     std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrupm05.tga", artPath);
@@ -845,7 +844,7 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
 
                     if (item == nullptr)
                     {
-                        _LogInventoryStat* stat = components->createStat(dragMasterID, 0, 0, 1, 0, 0, 0xff);
+                        _LogInventoryStat* stat = components->createStat(dragMasterID, 0, 1, 0, 0xff);
                         components->addItem(dragMasterID, stat, -1);
                         item = components->getItemInfo(components->getIndexFromMasterID(dragMasterID));
                         auto* block = new CompInventoryBlock;
@@ -875,14 +874,14 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
                 playSample(0x34);
                 InventoryList* inventory = target->inventory;
                 _LogInventoryStat* stat =
-                    inventory->createStat(dragItemNum, static_cast<uint8_t>(dragItemHits), 0, 0, 0, 1, 0xff);
+                    inventory->createStat(dragItemNum, static_cast<uint8_t>(dragItemHits), 0, 1, 0xff);
                 inventory->addItem(dragMasterID, stat, -1);
                 float tonnage = MasterComponentList[dragMasterID].tonnage;
 
                 if (withAmmo)
                 {
                     uint8_t ammo = MasterComponentList[dragMasterID].ammoMasterId;
-                    stat = inventory->createStat(inventory->nextStatID, 0, 0, 0, -1, -1, 0xff);
+                    stat = inventory->createStat(inventory->nextStatID, 0, 0, -1, 0xff);
                     inventory->addItem(ammo, stat, -1);
                     tonnage = MasterComponentList[ammo].tonnage + tonnage;
                 }
@@ -1388,14 +1387,14 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
                             }
 
                             InventoryList* components = globalLogPtr->componentInventory;
-                            _LogInventoryItem* spare =
+                            _LogInventoryItem* stockItem =
                                 components->getItemInfo(components->getIndexFromMasterID(item->masterID));
 
-                            if (spare == nullptr || spare->count == 0)
+                            if (stockItem == nullptr || stockItem->count == 0)
                             {
                                 // Port fix: the name comes from the mech's own item when the inventory has none (the
                                 // original read the name through the null item), and the list is bounded.
-                                const char* name = spare != nullptr ? spare->name : item->name;
+                                const char* name = stockItem != nullptr ? stockItem->name : item->name;
                                 char entry[64];
                                 std::snprintf(entry, sizeof(entry), anyMissing ? ",%s" : "%s", name);
                                 std::strncat(missing, entry, sizeof(missing) - std::strlen(missing) - 1);
@@ -1403,10 +1402,9 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
                             }
                             else
                             {
-                                --spare->count;
-                                spare->inventoryBlock->drawBackground();
+                                --stockItem->count;
+                                stockItem->inventoryBlock->drawBackground();
                                 stat->hits = 0;
-                                stat->unknown04 = -1;
                             }
                             break;
                         }
@@ -1416,7 +1414,6 @@ auto MechRepairBlock::handleEvent(aEvent* event) -> void
                             if (form != 4 && stat->hits != 0)
                             {
                                 stat->hits = 0;
-                                stat->unknown04 = 0;
                             }
                             break;
                         }

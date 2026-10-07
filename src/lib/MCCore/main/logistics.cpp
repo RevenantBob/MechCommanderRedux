@@ -177,11 +177,14 @@ namespace
     // images with pointers in them; the port writes the same images field by field, pointers as 0, and reads them
     // back with the pointers null. Nothing in MCX.EXE reaches these paths (see OB-089).
 
-    /// <summary>Writes fields into a record image.</summary>
+    /// <summary>
+    /// Writes fields into a record image of <c>size</c> bytes. The bytes no field covers are zero (the original's
+    /// records had fields there that nothing read).
+    /// </summary>
     class ImageWriter
     {
     public:
-        explicit ImageWriter(uint8_t* data) : _data(data) {}
+        ImageWriter(uint8_t* data, size_t size) : _data(data) { std::memset(data, 0, size); }
 
         template <class T> void field(size_t offset, T& value) { std::memcpy(_data + offset, &value, sizeof(T)); }
 
@@ -229,7 +232,7 @@ namespace
         io.field(0x30, part.chassis);
         io.field(0x34, part.resourcePoints);
         io.field(0x38, part.baseResourcePoints);
-        io.field(0x3c, part.unknown3C);
+        io.field(0x3c, part.partNumber);
         io.field(0x40, part.descIndex);
         io.pointer(0x44, part.description);
         io.field(0x48, part.engineTonnage);
@@ -239,11 +242,7 @@ namespace
         io.field(0x58, part.numOther);
         io.field(0x59, part.numWeapons);
         io.field(0x5a, part.numAmmo);
-        io.field(0x5b, part.unknown5B);
-        io.field(0x68, part.unknown68);
-        io.field(0x69, part.unknown69);
         io.field(0x6c, part.battleRating);
-        io.field(0x70, part.unknown70);
         io.field(0x74, part.assigned);
         io.field(0x78, part.deployed);
         io.field(0x7c, part.required);
@@ -266,13 +265,11 @@ namespace
         io.field(0xac, mech.freeTonnage);
         io.field(0xb0, mech.weaponTonnage);
         io.field(0xb4, mech.pilotIndex);
-        io.field(0xb8, mech.unknownB8);
         io.field(0xbc, mech.nameVariant);
         io.field(0xc0, mech.sellValue);
         io.field(0xc4, mech.sortKey);
         io.field(0xc8, mech.maxRunSpeed);
         io.field(0xc9, mech.armor);
-        io.field(0xdf, mech.unknownDF);
         io.field(0xe0, mech.hasCASE);
         io.field(0x100, mech.internals);
         io.field(0x110, mech.itemSlots);
@@ -295,7 +292,6 @@ namespace
         io.field(0xa6, vehicle.curInternalStructure);
         io.field(0xab, vehicle.maxArmorPoints);
         io.field(0xb0, vehicle.curArmorPoints);
-        io.field(0xb5, vehicle.unknownB5);
         io.field(0xb8, vehicle.vehicleResourcePoints);
         io.field(0xbc, vehicle.baseVehicleResourcePoints);
         io.pointer(0xc0, vehicle.repairBlock);
@@ -321,7 +317,6 @@ namespace
         io.field(0x38, warrior.nameIndex);
         io.field(0x3c, warrior.descIndex);
         io.pointer(0x40, warrior.description);
-        io.field(0x44, warrior.unknown44);
         io.field(0x48, warrior.personality);
         io.field(0x4c, warrior.skills);
         io.field(0x50, warrior.originalSkills);
@@ -331,20 +326,16 @@ namespace
         io.field(0x69, warrior.mechType);
         io.field(0x6a, warrior.weaponClass);
         io.field(0x6b, warrior.weaponTypes);
-        io.field(0x6d, warrior.unknown6D);
         io.field(0x70, warrior.wounds);
         io.field(0x74, warrior.health);
         io.field(0x78, warrior.warriorStatus);
-        io.field(0x7c, warrior.unknown7C);
         io.field(0x80, warrior.dropLance);
         io.field(0x84, warrior.dropSlot);
-        io.field(0x88, warrior.unknown88);
         io.field(0x8c, warrior.assigned);
         io.field(0x90, warrior.deployed);
         io.field(0x94, warrior.sold);
         io.field(0x98, warrior.notMineYet);
         io.field(0x9c, warrior.ejected);
-        io.field(0xa0, warrior.unknownA0);
         io.pointer(0x128, warrior.inventoryBlock);
     }
 
@@ -352,10 +343,7 @@ namespace
     {
         io.field(0x0, stat.statID);
         io.field(0x1, stat.hits);
-        io.field(0x4, stat.unknown04);
-        io.field(0x8, stat.unknown08);
         io.field(0xc, stat.facing);
-        io.field(0xe, stat.unknown0E);
         io.field(0x10, stat.amount);
         io.field(0x12, stat.location);
         io.field(0x14, stat.itemNum);
@@ -489,8 +477,8 @@ auto InventoryList::loadDescription(int32_t index, _LogInventoryItem* item) -> v
     }
 }
 
-auto InventoryList::createStat(uint8_t itemNum, uint8_t hits, int unknown, uint8_t facing, int16_t unknown2,
-                               int16_t amount, uint8_t location) -> _LogInventoryStat*
+auto InventoryList::createStat(uint8_t itemNum, uint8_t hits, uint8_t facing, int16_t amount, uint8_t location)
+    -> _LogInventoryStat*
 {
     auto* stat = static_cast<_LogInventoryStat*>(logAlloc(sizeof(_LogInventoryStat)));
     Assert(stat != nullptr, 0, " no RAM for Invntory stat ");
@@ -498,8 +486,6 @@ auto InventoryList::createStat(uint8_t itemNum, uint8_t hits, int unknown, uint8
     stat->statID = nextStatID;
     stat->hits = hits;
     ++nextStatID;
-    stat->unknown0E = unknown2;
-    stat->unknown04 = unknown;
     stat->facing = facing;
     stat->amount = amount;
     stat->location = location;
@@ -980,7 +966,7 @@ auto InventoryList::getBinaryData(void* data) -> int32_t
 
             for (int32_t copy = item->count; copy != 0 && stat != nullptr; --copy)
             {
-                ImageWriter writer(out);
+                ImageWriter writer(out, StatImageSize);
                 visitStat(writer, *stat);
                 out += StatImageSize;
                 stat = stat->next;
@@ -1349,7 +1335,6 @@ auto LogWarriorList::addWarrior(FitIniFile* file, int sorted) -> int32_t
 {
     auto* warrior = allocRecord<LogWarrior>();
     Assert(warrior != nullptr, 0, "Not enough memory for LogWarrior");
-    warrior->unknown44 = 0;
     warrior->id = globalLogPtr->nextWarriorID++;
     warrior->nameIndex = 0;
 
@@ -1451,10 +1436,8 @@ auto LogWarriorList::addWarrior(FitIniFile* file, int sorted) -> int32_t
     Assert(result == 0, static_cast<uint32_t>(result), " Could not find Wounds in Skills Block ");
     warrior->warriorStatus = 0;
     setWounds(warrior, wounds);
-    warrior->unknown7C = 0;
     warrior->dropLance = -1;
     warrior->dropSlot = -1;
-    warrior->unknown88 = 0;
 
     // A profile read from its own file is known by the file's base name (one read from a packet keeps none).
     if (file->getParent() == nullptr)
@@ -1717,7 +1700,7 @@ auto LogWarriorList::getBinaryData(uint32_t index, void* data) -> int32_t
     // Port fix (OB-089): the original copied binarySize bytes from the record (reading on past it) and put the
     // strings after them; the port writes the record's image and then the strings.
     auto* out = static_cast<uint8_t*>(data);
-    ImageWriter writer(out);
+    ImageWriter writer(out, WarriorImageSize);
     visitWarrior(writer, *warrior);
     out += WarriorImageSize;
     out = putString(out, warrior->name);
@@ -2620,7 +2603,6 @@ auto LogMechList::addMech(FitIniFile* file, int required, int sorted, int widget
     // Original behaviour: the check is on the mech, not on the list just made.
     Assert(mech != nullptr, 0, "Not enough memory for InventoryList");
     mech->pilotIndex = -1;
-    mech->unknownB8 = 0;
 
     int32_t result = file->seekBlock("Header");
     Assert(result == 0, 0, "(AddMech) could not find Header in profile. 0");
@@ -2766,7 +2748,7 @@ auto LogMechList::addMech(FitIniFile* file, int required, int sorted, int widget
         checkKey(file->seekBlock(block), 49);
         uint8_t masterID = 0;
         checkKey(file->readIdUChar("MasterID", masterID), 50);
-        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, 0, 0, 1, 0xff), -1);
+        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, 1, 0xff), -1);
         const MasterComponent& master = component(masterID);
         mech->usedTonnage += master.tonnage;
 
@@ -2788,8 +2770,7 @@ auto LogMechList::addMech(FitIniFile* file, int required, int sorted, int widget
         checkKey(file->readIdUChar("MasterID", masterID), 52);
         uint8_t facesForward = 0;
         checkKey(file->readIdUChar("FacesForward", facesForward), 53);
-        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, facesForward, 0, 1, 0xff),
-                           -1);
+        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, facesForward, 1, 0xff), -1);
         const MasterComponent& master = component(masterID);
         mech->usedTonnage += master.tonnage;
         mech->weaponTonnage += master.tonnage;
@@ -2813,7 +2794,7 @@ auto LogMechList::addMech(FitIniFile* file, int required, int sorted, int widget
             checkKey(file->readIdUChar("Amount", smallAmount), 56);
         }
 
-        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, 0, 0, -1, 0xff), -1);
+        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, -1, 0xff), -1);
         const MasterComponent& master = component(masterID);
         mech->usedTonnage += master.tonnage;
         mech->weaponTonnage += master.tonnage;
@@ -2859,7 +2840,6 @@ auto LogMechList::addMech(FitIniFile* file, int required, int sorted, int widget
         }
     }
 
-    mech->unknown68 = 0;
     mech->deployed = 0;
 
     if (mech->required == 0)
@@ -3285,7 +3265,7 @@ auto LogMechList::getBinaryData(uint32_t index, void* data) -> int32_t
     // Port fix (OB-089): the original copied binarySize bytes from the record (reading on past it) and put the
     // strings after them; the port writes the record's image, then the name, the icon and the inventory.
     auto* out = static_cast<uint8_t*>(data);
-    ImageWriter writer(out);
+    ImageWriter writer(out, MechImageSize);
     visitMech(writer, *mech);
     out += MechImageSize;
     out = putString(out, mech->fileName);
@@ -3547,7 +3527,7 @@ auto LogVehicleList::addVehicle(FitIniFile* file, int required, int sorted, int 
         uint8_t masterID = 0;
         result = file->readIdUChar("MasterID", masterID);
         Assert(result == 0, static_cast<uint32_t>(result), "Failed addVehicle - 19b");
-        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, 0, 0, 1, 0xff), -1);
+        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, 1, 0xff), -1);
     }
 
     const int32_t weaponEnd = numOther + vehicle->numWeapons;
@@ -3563,8 +3543,7 @@ auto LogVehicleList::addVehicle(FitIniFile* file, int required, int sorted, int 
         uint8_t facesForward = 0;
         result = file->readIdUChar("FacesForward", facesForward);
         Assert(result == 0, static_cast<uint32_t>(result), "Failed addVehicle - 22");
-        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, facesForward, 0, 1, 0xff),
-                           -1);
+        inventory->addItem(masterID, inventory->createStat(static_cast<uint8_t>(item), 0, facesForward, 1, 0xff), -1);
     }
 
     const int32_t ammoEnd = numOther + vehicle->numAmmo + vehicle->numWeapons;
@@ -3588,8 +3567,7 @@ auto LogVehicleList::addVehicle(FitIniFile* file, int required, int sorted, int 
         }
 
         inventory->addItem(
-            masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, 0, 0, static_cast<int16_t>(amount), 0xff),
-            -1);
+            masterID, inventory->createStat(static_cast<uint8_t>(item), 0, 0, static_cast<int16_t>(amount), 0xff), -1);
     }
 
     for (int32_t location = 0; location < 5; ++location)
@@ -3604,7 +3582,6 @@ auto LogVehicleList::addVehicle(FitIniFile* file, int required, int sorted, int 
         Assert(result == 0, static_cast<uint32_t>(result), "Failed addVehicle - 29");
     }
 
-    vehicle->unknown68 = 0;
     vehicle->notMineYet = 0;
 
     if (vehicle->required == 0)
@@ -3837,7 +3814,7 @@ auto LogVehicleList::getBinaryData(uint32_t index, void* data) -> int32_t
 
     // Port fix (OB-089): as LogMechList::getBinaryData.
     auto* out = static_cast<uint8_t*>(data);
-    ImageWriter writer(out);
+    ImageWriter writer(out, VehicleImageSize);
     visitVehicle(writer, *vehicle);
     out += VehicleImageSize;
     out = putString(out, vehicle->fileName);
@@ -4056,7 +4033,7 @@ auto MPPlayerLights::setPlayerStatus(uint32_t playerID, int32_t status) -> void
         }
     }
 
-    // Original behaviour (OB-099): an unknown player sets the status of the light after the last one. Port fix:
+    // Original behaviour (OB-099): a player not in the session sets the status of the light after the last one. Port fix:
     // with six lights that index is past playerStatus (the original overwrote lightWidth), so it is skipped.
     if (status >= 0 && status < 3 && light < MAX_PLAYERS)
     {
@@ -4269,7 +4246,6 @@ auto Logistics::init() -> void
     missionFileName = nullptr;
     currentInvTab = 0;
     currentMission = -1;
-    unknown08 = 1;
     nextWarriorID = 1;
     ResourcePoints = -9999;
     campaignBriefingName = nullptr;
@@ -4290,9 +4266,7 @@ auto Logistics::init() -> void
     std::strcpy(WindowTitle, logisticsTitle);
 
     logisticsBlocks = std::make_unique<MCBlockStore>();
-    unknown238 = 0;
     logisticsState = 0;
-    unknown08 = 0;
 
     workPort0 = newPort(0x1ab, 0x1ce);
     workPort1 = newPort(0x1ab, 0x1ce);
@@ -5506,8 +5480,7 @@ namespace
             result = file.readIdLong("NumAvailable", numAvailable);
             Assert(result == 0, static_cast<uint32_t>(result), " Could not find Purchasing Component Num Available");
             _LogInventoryStat* stat =
-                components->createStat(static_cast<uint8_t>(component), 0, 0, 0, static_cast<int16_t>(numAvailable),
-                                       static_cast<int16_t>(numAvailable), 0xff);
+                components->createStat(static_cast<uint8_t>(component), 0, 0, static_cast<int16_t>(numAvailable), 0xff);
             // The widgets argument is the block number (a register the compiler left on the stack); it is never -1,
             // so every new item gets its widgets.
             components->addItem(masterID, stat, component);
@@ -6858,7 +6831,7 @@ auto Logistics::loadCampaign(char* campaignFile, char* saveFile, int newCampaign
             uint8_t masterID = 0;
             result = allComponents.readIdUChar("ComponantID", masterID);
             Assert(result == 0, 0, " could not read component entry in allcomp ", nullptr);
-            _LogInventoryStat* stat = componentInventory->createStat(static_cast<uint8_t>(index), 0, 0, 0, 0, 0, 0xff);
+            _LogInventoryStat* stat = componentInventory->createStat(static_cast<uint8_t>(index), 0, 0, 0, 0xff);
             componentInventory->addItem(masterID, stat, index);
             componentInventory->loadDescription(componentInventory->getIndexFromMasterID(masterID), nullptr);
         }
@@ -6903,8 +6876,7 @@ auto Logistics::loadCampaign(char* campaignFile, char* saveFile, int newCampaign
             if (inventory->getIndexFromMasterID(masterID) == -1)
             {
                 _LogInventoryStat* stat =
-                    inventory->createStat(static_cast<uint8_t>(index), 0, 0, 0, static_cast<int16_t>(available),
-                                          static_cast<int16_t>(available), 0xff);
+                    inventory->createStat(static_cast<uint8_t>(index), 0, 0, static_cast<int16_t>(available), 0xff);
                 inventory->addItem(masterID, stat, index);
                 inventory->loadDescription(inventory->getIndexFromMasterID(masterID), nullptr);
             }
@@ -8147,14 +8119,14 @@ auto Logistics::prepareScenario(char* scenarioName, char* startFile) -> int32_t
             }
 
             // The part remembers its number (for the team's Mates below).
-            part->unknown3C = partNumber++;
+            part->partNumber = partNumber++;
             result = out.writeIdULong("ObjectNumber", part->chassis);
             check(result > 0, " Could not write ObjectNumber in PartNumber Block ");
             result = out.writeIdString("ObjectProfile", part->profileName);
             check(result > 0, " Could not write ObjectProfile in PartNumber Block ");
-            result = out.writeIdChar("TeamId", static_cast<char>(part->unknown68));
+            result = out.writeIdChar("TeamId", 0);
             check(result > 0, " Could not write TeamId in PartNumber Block ");
-            result = out.writeIdChar("CommanderId", static_cast<char>(part->unknown68));
+            result = out.writeIdChar("CommanderId", 0);
             check(result > 0, " Could not write CommanderId in PartNumber Block ");
             result = out.writeIdULong("Pilot", static_cast<uint32_t>(pilotNumber + firstForceWarrior));
             check(result > 0, " Could not write Pilot in PartNumber Block ");
@@ -8297,7 +8269,7 @@ auto Logistics::prepareScenario(char* scenarioName, char* startFile) -> int32_t
 
             if (part != nullptr)
             {
-                mates[numMates++] = part->unknown3C;
+                mates[numMates++] = part->partNumber;
             }
         }
 
@@ -9199,9 +9171,8 @@ namespace
         uint8_t nameIndex = 0; // +0x9
         /// <summary>The pilot's name index (0xff for a vehicle).</summary>
         uint8_t pilotNameIndex = 0; // +0xa
-        /// <summary>Always 0xff.</summary>
-        uint8_t unknown0B = 0; // +0xb
-        uint8_t numItems = 0;  // +0xc
+        uint8_t padding = 0;        // +0xb // Fixed layout: deploy force message (never read; MCX.EXE sent 0xff)
+        uint8_t numItems = 0;       // +0xc
         /// <summary>Per component copy, its master id as a 16-bit value (low byte first).</summary>
         uint8_t items[1]{}; // +0xd
     };
@@ -9284,7 +9255,7 @@ namespace
 
         for (uint32_t index = 0; index < numItems; index++)
         {
-            _LogInventoryStat* stat = inventory->createStat(static_cast<uint8_t>(index), 0, 0, 0, 0, 1, 0xff);
+            _LogInventoryStat* stat = inventory->createStat(static_cast<uint8_t>(index), 0, 0, 1, 0xff);
             inventory->addItem(message->items[index * 2], stat, -1);
         }
     }
@@ -9442,7 +9413,7 @@ auto Logistics::SendAddMechMessage(LogMech* mech, int lance, int slot) -> void
     message->header = FIMSG_GUARANTEED | MPMSG_DEPLOY_FORCE;
     message->nameIndex = 0;
     message->pilotNameIndex = 0xff;
-    message->unknown0B = 0xff;
+    message->padding = 0; // Fixed layout: deploy force message
     message->numItems = 0;
     message->flags = 1;
     const uint32_t homeGroup = MPlayer->homeTeamGroupID;
@@ -9491,7 +9462,7 @@ auto Logistics::SendAddVehicleMessage(LogVehicle* vehicle, int lance, int slot) 
     message->header = FIMSG_GUARANTEED | MPMSG_DEPLOY_FORCE;
     const uint8_t side = MPlayer->homeTeamGroupID != MPlayer->innerSphereGroupID ? 2 : 0;
     message->pilotNameIndex = 0xff;
-    message->unknown0B = 0xff;
+    message->padding = 0; // Fixed layout: deploy force message
     message->flags = side;
 
     if (lance < 4)

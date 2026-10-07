@@ -25,7 +25,7 @@ int32_t cLoadString(void* instance, uint32_t id, char* buffer, int bufferSize)
 
 namespace
 {
-    /// <summary>Set on entry to AssertTest: a second error while reporting one can only quit (DAT_0080bb1a).</summary>
+    /// <summary>Set on entry to AssertTest: a second error while reporting one can only quit (0x0080bb1a).</summary>
     bool inAssertTest = false;
 }
 

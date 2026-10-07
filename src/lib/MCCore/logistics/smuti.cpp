@@ -302,7 +302,7 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
 
                 default:
                 {
-                    // An unknown code is text: the '%' and the character both go into the line.
+                    // Any other code is text: the '%' and the character both go into the line.
                     checkWrap('%');
                     lineBuffer[lineLength++] = '%';
                     curX += font->width('%');

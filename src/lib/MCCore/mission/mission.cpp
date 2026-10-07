@@ -628,7 +628,6 @@ auto Mission::init() -> int32_t
 {
     missionState = 0;
     resultsScreen = nullptr;
-    unknown04 = nullptr;
     missionFile = nullptr;
     logistics = nullptr;
 
@@ -652,12 +651,6 @@ auto Mission::destroy() -> void
         missionFile->close();
         delete missionFile;
         missionFile = nullptr;
-    }
-
-    if (unknown04 != nullptr)
-    {
-        delete unknown04;
-        unknown04 = nullptr;
     }
 
     if (scenarioCallback != nullptr)

@@ -300,10 +300,10 @@ auto Scenario::update() -> int32_t
     nextStep = 0;
     prevStep = 0;
 
-    if (turn < unknown2A4 + startUpTurns)
+    if (turn < startUpTurns)
     {
         startingUp = 1;
-        startUpCountdown = (unknown2A4 + startUpTurns - turn) * 10;
+        startUpCountdown = (startUpTurns - turn) * 10;
         return 0;
     }
 
@@ -418,7 +418,6 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     ABLi_init(AblSymbolTableHeapSize, AblStackHeapSize, AblCodeHeapSize, AblRunTimeStackSize, AblMaxCodeBlockSize,
               AblMaxRegisteredModules, AblMaxStaticVariables, ABLDebuggerPrintCallback, 0, 0, 0);
     turn = 0;
-    unknown238 = 0;
 
     // The objects placed now but brought into play later by the script.
     auto* objectQueue = new ObjectQueue;

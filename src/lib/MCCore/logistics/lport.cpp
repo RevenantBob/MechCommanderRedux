@@ -311,7 +311,6 @@ auto lObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, ch
     dragOn = 0;
     transparent = 0;
     backgroundColor = 0xff;
-    unknown4B8 = 0;
 
     if (port == nullptr)
     {

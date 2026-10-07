@@ -25,13 +25,13 @@ namespace
 {
     using namespace MCDirectPlayGuids;
 
-    /// <summary>Whether a SessionManager exists (DAT_0080a680).</summary>
+    /// <summary>Whether a SessionManager exists (0x0080a680).</summary>
     int instanceExists = 0;
-    /// <summary>The SessionManager (DAT_0080a684).</summary>
+    /// <summary>The SessionManager (0x0080a684).</summary>
     SessionManager* instance = nullptr;
-    /// <summary>Who last took the global pointer (DAT_0080a688).</summary>
+    /// <summary>Who last took the global pointer (0x0080a688).</summary>
     void* globalPointerHolder = nullptr;
-    /// <summary>RemovePlayerFromGame's re-entry guard (DAT_0080a69c).</summary>
+    /// <summary>RemovePlayerFromGame's re-entry guard (0x0080a69c).</summary>
     int removingPlayer = 0;
 
     /// <summary>
@@ -415,7 +415,6 @@ SessionManager::SessionManager(_GUID appGUID)
     receiveThread = nullptr;
     currentSession = nullptr;
     currentConnection = -1;
-    unknownCC = 0;
     isHost = 0;
     hasPlayerNumber = 0;
     nextFileID = 0;
@@ -2861,7 +2860,7 @@ void SessionManager::HandlePostSystemMessage(FIDPMessage* msg)
         DPMSG_ADDPLAYERTOGROUP* removed = reinterpret_cast<DPMSG_ADDPLAYERTOGROUP*>(msg->messageBuffer);
         FIDPGroup* group = GetGroup(removed->dpIdGroup);
 
-        // Port fix: an unknown group is skipped (the original called through a null group).
+        // Port fix: a group that no longer exists is skipped (the original called through a null group).
         if (group != nullptr && group->RemovePlayer(removed->dpIdPlayer) != 0)
         {
             FIDPPlayer* player = GetPlayer(removed->dpIdPlayer);

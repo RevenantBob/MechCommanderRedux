@@ -81,8 +81,6 @@ public:
     /// <summary>The directory, ending in '\' (a linkUpBlocks block; "\" when none was given).</summary>
     char* directory = nullptr; // +0x18
     uint32_t fileSize = 0;     // +0x1c
-    /// <summary>Not touched by the original's linkup code.</summary>
-    int32_t unknown20 = 0; // +0x20
     /// <summary>Called when the transfer completes (SessionManager::BroadcastFile's callback).</summary>
     void (*callback)(char* fileName, void* data) = nullptr; // +0x24
 };

@@ -13,7 +13,7 @@
 
 namespace
 {
-    /// <summary>Which way a held purchase spinner arrow counts (1 up, 0 down; DAT_008080cc).</summary>
+    /// <summary>Which way a held purchase spinner arrow counts (1 up, 0 down; 0x008080cc).</summary>
     int32_t spinUp = 0;
 
     void* logAlloc(uint32_t size)

@@ -43,8 +43,6 @@ public:
     int32_t group = 0; // +0x4e8
     /// <summary>The value this button stands for (1 Inner Sphere, -1 Clan for the tech base buttons).</summary>
     int32_t value = 0; // +0x4ec
-    /// <summary>Not seen used.</summary>
-    int32_t unknown4F0 = 0; // +0x4f0
 };
 
 /// <summary>An auto-repeating button: runs its callback on the click, then every 100 ms after half a second held.</summary>

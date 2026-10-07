@@ -117,7 +117,7 @@ public:
     /// <remarks>MCX.EXE @ 0x00601760</remarks>
     void pack();
 
-    /// <summary>Unpacks <see cref="data"/> into the fields (fatal on an unknown type).</summary>
+    /// <summary>Unpacks <see cref="data"/> into the fields (fatal on a type it doesn't list).</summary>
     /// <remarks>MCX.EXE @ 0x00601a10</remarks>
     void unpack();
 
@@ -641,8 +641,6 @@ public:
     MPPlayerTeam playerTeams[6]{}; // +0x3d8
     /// <summary>The chat handler (handleAppChat; Logistics installs its own).</summary>
     void (*chatCallback)(FIDPMessage* msg, void* data) = nullptr; // +0x408
-    int32_t unknown40C = 0;                                       // +0x40c
-    int32_t unknown410 = 0;                                       // +0x410
     /// <summary>scenarioTime of the next mover update.</summary>
     float nextMoverUpdateTime = 0; // +0x414
     /// <summary>Seconds between mover updates.</summary>
@@ -652,9 +650,7 @@ public:
     float nextTurretUpdateTime = 0;   // +0x420
     float turretUpdateFrequency = 0;  // +0x424
     /// <summary>The number of the next turret update (receivers drop older ones).</summary>
-    uint16_t turretUpdateSequence = 0; // +0x428
-    /// <summary>Cleared with the timers; not otherwise used by multplyr.cpp.</summary>
-    int32_t unknown42C = 0;              // +0x42c
+    uint16_t turretUpdateSequence = 0;   // +0x428
     float nextWorldStateUpdateTime = 0;  // +0x430
     float worldStateUpdateFrequency = 0; // +0x434
     int32_t numWeaponHitChunks = 0;      // +0x438
@@ -663,8 +659,6 @@ public:
     int32_t numWorldStateChunks = 0;  // +0x143c
     /// <summary>Queued packed world-state chunks.</summary>
     uint32_t worldStateChunks[1024]{}; // +0x1440
-    /// <summary>The object's last 0x18 bytes; not touched by multplyr.cpp.</summary>
-    int32_t unknown2440[6]{}; // +0x2440
 };
 
 /// <summary>Shows the "connecting" dialog of the logistics screen.</summary>

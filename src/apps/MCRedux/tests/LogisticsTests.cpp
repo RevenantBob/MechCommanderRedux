@@ -185,9 +185,9 @@ TEST_CASE("game: logistics inventory lists add, count, remove and measure copies
     LogisticsFixture fixture;
 
     InventoryList list;
-    list.addItem(4, list.createStat(0, 0, 0, 0, 0, 1, 0xff), -1);
-    list.addItem(1, list.createStat(1, 0, 0, 0, 0, 1, 0xff), -1);
-    list.addItem(4, list.createStat(2, 3, 0, 0, 0, 1, 0xff), -1);
+    list.addItem(4, list.createStat(0, 0, 0, 1, 0xff), -1);
+    list.addItem(1, list.createStat(1, 0, 0, 1, 0xff), -1);
+    list.addItem(4, list.createStat(2, 3, 0, 1, 0xff), -1);
     CHECK_EQ(list.numItems, 2);
     CHECK_EQ(list.getMasterIDFromIndex(0), 4);
     CHECK_EQ(list.getMasterIDFromIndex(1), 1);
@@ -202,6 +202,25 @@ TEST_CASE("game: logistics inventory lists add, count, remove and measure copies
     CHECK_EQ(list.getMasterID(2), 4);
     CHECK_EQ(list.hitItem(9, 1), -1);
     CHECK_EQ(list.getBinaryData(nullptr), 4 + (5 + 2 * 0x1c) + (5 + 0x1c));
+
+    // The saved image: the item count, then per item its master id, its copy count and each copy's 0x1c-byte record.
+    // The bytes no field covers are zero whatever the buffer held.
+    std::vector<uint8_t> image(static_cast<size_t>(list.getBinaryData(nullptr)), 0xaa);
+    list.getBinaryData(image.data());
+    CHECK_EQ(image[0], 2);
+    CHECK_EQ(image[4], 4);
+    CHECK_EQ(image[5], 2);
+    const uint8_t* copy = image.data() + 9;
+    CHECK_EQ(copy[0x0], 2);  // statID
+    CHECK_EQ(copy[0x10], 1); // amount
+    CHECK_EQ(copy[0x12], 3); // location
+    CHECK_EQ(copy[0x14], 2); // itemNum
+
+    for (const size_t gap : {0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xd, 0xe, 0xf, 0x13, 0x18})
+    {
+        MCTest::Scope scope("stat image byte " + std::to_string(gap));
+        CHECK_EQ(copy[gap], 0);
+    }
 
     // A copy goes (reported as -1); the last copy takes the item with it (0).
     CHECK_EQ(list.removeItem(4, -1), -1);

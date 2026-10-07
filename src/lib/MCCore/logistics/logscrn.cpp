@@ -951,7 +951,6 @@ auto LogChatWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heig
     lObject::init(xPos, yPos, width, height, nullptr, nullptr);
     SetTransparent(-1);
     this->historySize = historySize;
-    unknown4C8 = 0;
 
     char fileName[256];
     framePort = new lPort;
@@ -1024,7 +1023,7 @@ auto LogChatWindow::processChatString(uint32_t fromPlayerId, char* string, int32
     }
 
     FIDPPlayer* player = MPlayer->sessionManager->GetPlayer(fromPlayerId);
-    // Port fix: an unknown sender (the original read its player number through null) takes player 0's colour.
+    // Port fix: a sender no longer in the session (the original read its player number through null) takes player 0's colour.
     int32_t playerNumber = player != nullptr ? player->playerNumber : 0;
     char line[2048];
     std::snprintf(line, sizeof(line), "%%fc%d%s: %%fc%d%s", globalLogPtr->playerColors[playerNumber], name, textColor,

@@ -1526,7 +1526,6 @@ auto GenericScreen::destroy() -> void
     logFree(palette);
     palette = nullptr;
     numElements = 0;
-    unknown4C4 = -1;
     numChildren = 0;
     freePort(artPort);
     lObject::destroy();

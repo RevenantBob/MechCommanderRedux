@@ -19,7 +19,7 @@ struct MCClipRect
 };
 
 /// <summary>
-/// The game's window procedure as the platform calls it: the original's WndProc (<c>FUN_00612080</c>, which hands
+/// The game's window procedure as the platform calls it: the original's WndProc (<c>0x00612080</c>, which hands
 /// input to <c>translateMessage</c> @ 0x00611860) without the HWND.
 /// </summary>
 /// <returns>The LRESULT. For WM_CLOSE, non-zero cancels the close (see <see cref="MCInput::PumpMessages"/>).</returns>

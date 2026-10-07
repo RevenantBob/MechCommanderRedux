@@ -49,8 +49,6 @@ public:
 
     /// <summary>The group's DPID.</summary>
     uint32_t id = 0; // +0x4
-    /// <summary>Never written by the original (the constructor drops its parent-id argument).</summary>
-    uint32_t unknown8 = 0; // +0x8
     /// <summary>The short name (strncpy of 64 characters: not always terminated, as in the original).</summary>
     char name[64]{}; // +0xc
     /// <summary>The long name.</summary>

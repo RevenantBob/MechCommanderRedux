@@ -227,10 +227,6 @@ public:
     int32_t cursorPos = -1; // +0x4cc
     /// <summary>The cursor, in pixels from the left.</summary>
     int32_t cursorPixel = 0; // +0x4d0
-    /// <summary>Set to -1 by the constructor; not read in loggen.cpp.</summary>
-    int32_t unknown4D4 = -1; // +0x4d4
-    /// <summary>Cleared by the constructor; not read in loggen.cpp.</summary>
-    int32_t unknown4D8 = 0; // +0x4d8
     /// <summary>The <see cref="InputType"/>.</summary>
     int32_t inputType = INPUT_NONE; // +0x4dc
     /// <summary>The cursor blink phase (toggled by the blink timer).</summary>
@@ -328,10 +324,6 @@ public:
     int16_t numLines = 0;         // +0x4dc
     /// <summary>The bytes used in <see cref="text"/>.</summary>
     int32_t textLength = 0; // +0x4e0
-    /// <summary>Not accessed in loggen.cpp.</summary>
-    int32_t unknown4E4 = 0; // +0x4e4
-    /// <summary>Not accessed in loggen.cpp.</summary>
-    int32_t unknown4E8 = 0; // +0x4e8
     /// <summary>Nonzero when the list scrolls (the port grows to fit the lines).</summary>
     int32_t scrolling = -1; // +0x4ec
     /// <summary>The x of the second column (text after a tab); negative = tabs print as spaces.</summary>
@@ -658,10 +650,6 @@ public:
     /// <summary>Each file's resource points.</summary>
     uint32_t* fileResourcePoints = nullptr; // +0x534
     int32_t numFiles = 0;                   // +0x538
-    /// <summary>Not accessed in loggen.cpp.</summary>
-    int32_t unknown53C = 0; // +0x53c
-    /// <summary>Not accessed in loggen.cpp.</summary>
-    int32_t unknown540 = 0; // +0x540
     /// <summary>Nonzero on the save screen (the ini's SavePane): has the name entry field.</summary>
     int32_t savePane = 0; // +0x544
     /// <summary>The save name entry field.</summary>
@@ -715,8 +703,6 @@ public:
     /// <summary>The elements; element 0 is the screen itself.</summary>
     aObject** elements = nullptr; // +0x4bc
     int32_t numElements = 0;      // +0x4c0
-    /// <summary>Set to -1 by <see cref="destroy"/>; not read in loggen.cpp.</summary>
-    int32_t unknown4C4 = 0; // +0x4c4
     /// <summary>The background art's palette (0x300 bytes), when an element has UseBackPalette.</summary>
     uint8_t* palette = nullptr; // +0x4c8
     /// <summary>The file pane element, if any.</summary>

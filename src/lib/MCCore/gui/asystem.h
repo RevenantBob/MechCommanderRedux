@@ -94,8 +94,6 @@ public:
     int32_t data = 0; // +0x1c
     /// <summary>The message's lParam.</summary>
     int32_t lParam = 0; // +0x20
-    /// <summary>Cleared with the rest; the logistics blocks store a float here.</summary>
-    int32_t unknown24 = 0; // +0x24
 };
 
 /// <summary>
@@ -925,12 +923,8 @@ public:
     void* ddPrimarySurface = nullptr; // +0x4b4
     /// <summary>The back DirectDraw surface in the original; opaque.</summary>
     void* ddBackSurface = nullptr; // +0x4b8
-    /// <summary>Used by startupDirectDraw/resetDirectDraw only (a DirectDraw object); opaque.</summary>
-    void* unknown4BC = nullptr; // +0x4bc
     /// <summary>The DirectDraw palette in the original (tweakDDPalette's SetEntries); opaque.</summary>
     void* ddPalette = nullptr; // +0x4c0
-    /// <summary>Used by startupDirectDraw/resetDirectDraw only; opaque.</summary>
-    void* unknown4C4 = nullptr; // +0x4c4
     /// <summary>
     /// PREFS.CFG "PaletteCycle": cycleColors animates the palette when nonzero (-1 until the prefs are read; the
     /// mission sets 1 after a movie).
@@ -958,16 +952,12 @@ public:
     /// <summary>The object holding the keyboard.</summary>
     aObject* textFocus = nullptr; // +0xaa4
     /// <summary>The object under the cursor.</summary>
-    aObject* current = nullptr; // +0xaa8
-    aObject* modal = nullptr;   // +0xaac
-    /// <summary>Not accessed in MCX.EXE.</summary>
-    uint8_t unknownAB0[0x2c] = {};                         // +0xab0
+    aObject* current = nullptr;                            // +0xaa8
+    aObject* modal = nullptr;                              // +0xaac
     CursorType currentCursor = static_cast<CursorType>(0); // +0xadc
     /// <summary>Nonzero while the cursor is hidden (<see cref="showCursor"/>).</summary>
     int32_t cursorHidden = 0;              // +0xae0
     aTimerManager* timerManager = nullptr; // +0xae4
-    /// <summary>Set to 0xddac0000 by start; never read.</summary>
-    uint32_t unknownAE8 = 0; // +0xae8
     /// <summary>The exclusive movie window while one plays.</summary>
     aObject* smackerWindow = nullptr; // +0xaec
     /// <summary>A second movie window, destroyed by run when its movie is over.</summary>
@@ -1208,7 +1198,7 @@ extern uint32_t uMessage;
 /// The pixels the screen port shows: the DIB section's bits in the original, the display's buffer
 /// (<c>MCDisplay::Pixels</c>) in the port. <see cref="aLockScreen"/> points the screen port at it.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x007ab104 (DAT_007ab104; the name is the port's)</remarks>
+/// <remarks>MCX.EXE @ 0x007ab104 (the name is the port's)</remarks>
 extern uint8_t* screenBits;
 /// <summary>
 /// The processor found by <see cref="aSystem::start"/>: 0 none (the game refuses to run), 1 Pentium, 2 Pentium

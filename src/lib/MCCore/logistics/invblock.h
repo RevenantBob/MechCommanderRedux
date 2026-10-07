@@ -70,7 +70,7 @@ public:
 
     /// <summary>Sets <see cref="enabled"/> and redraws.</summary>
     /// <remarks>
-    /// MCX.EXE @ 0x006d4700 (FUN_006d4700: unnamed in the binary; the name is the port's). Probably an inline
+    /// MCX.EXE @ 0x006d4700 (unnamed in the binary; the name is the port's). Probably an inline
     /// setter from invblock.h.
     /// </remarks>
     void setEnabled(int32_t enable);

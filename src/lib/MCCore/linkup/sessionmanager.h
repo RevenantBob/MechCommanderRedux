@@ -105,7 +105,7 @@ public:
     /// <remarks>MCX.EXE @ 0x0074a3a0</remarks>
     char* GetShortName() { return shortName; }
 
-    /// <summary>The <see cref="FIDPProtocolType"/>, -1 when unknown.</summary>
+    /// <summary>The <see cref="FIDPProtocolType"/>, -1 when not set.</summary>
     /// <remarks>MCX.EXE @ 0x0074a3c0</remarks>
     int GetProtocolType() { return protocolType; }
 
@@ -117,7 +117,7 @@ public:
     char longName[256]{}; // +0x44
     /// <summary>DirectPlay's connection data (a linkUpBlocks block).</summary>
     void* connectionBuffer = nullptr; // +0x144
-    /// <summary>The <see cref="FIDPProtocolType"/>, -1 when unknown.</summary>
+    /// <summary>The <see cref="FIDPProtocolType"/>, -1 when not set.</summary>
     int32_t protocolType = 0; // +0x148
 };
 
@@ -126,7 +126,7 @@ public:
 /// </summary>
 /// <remarks>
 /// Original source: <c>linkup\sessionmanager.cpp</c>, 0xba0 bytes. The file-static
-/// DAT_0080a680 (an instance exists), DAT_0080a684 (the instance) and DAT_0080a688 (who holds the global pointer)
+/// 0x0080a680 (an instance exists), 0x0080a684 (the instance) and 0x0080a688 (who holds the global pointer)
 /// back <see cref="GetGlobalPointer"/>.
 /// </remarks>
 class SessionManager
@@ -644,8 +644,6 @@ public:
     uint32_t serverID = 0; // +0xc4
     /// <summary>This machine's player.</summary>
     FIDPPlayer* myPlayer = nullptr; // +0xc8
-    /// <summary>Only cleared by the constructor.</summary>
-    int32_t unknownCC = 0; // +0xcc
     /// <summary>Nonzero once <see cref="isModemAvailable"/> checked.</summary>
     int32_t modemChecked = 0;   // +0xd0
     int32_t modemAvailable = 0; // +0xd4
@@ -659,8 +657,6 @@ public:
     int32_t readyToChooseServer = 0; // +0xe8
     /// <summary>The autodial setting DisableDialupNetworking saved (0 = nothing to restore).</summary>
     uint32_t dialupState = 0; // +0xec
-    int32_t unknownF0 = 0;    // +0xf0
-    int32_t unknownF4 = 0;    // +0xf4
     /// <summary>Guards the player list and the outgoing queues (a CRITICAL_SECTION, 0x18 bytes, in the original).</summary>
     std::recursive_mutex criticalSection; // +0xf8
     /// <summary>The game's handler of application messages (MultiPlayerApplicationCallback).</summary>
@@ -696,7 +692,6 @@ public:
     /// per verified message; sent as count * 6 + 3 bytes).
     /// </summary>
     uint8_t* verifyMessages[6]{}; // +0xb4c
-    int32_t unknownB64[6]{};      // +0xb64
     /// <summary>Player numbers 0-5 sorted by latency (TallyLatencies; reset to 0-5 by LeaveSession).</summary>
     int32_t playersByLatency[6]{}; // +0xb7c
     /// <summary>Performance-counter time of the next ping.</summary>

@@ -123,7 +123,7 @@ public:
     /// repair scroll pane at <see cref="slotIndex"/> when it is null.
     /// </summary>
     /// <remarks>
-    /// MCX.EXE @ 0x0071ad30 (FUN_0071ad30: unnamed in the binary; the name is the port's, after
+    /// MCX.EXE @ 0x0071ad30 (unnamed in the binary; the name is the port's, after
     /// VehicleRepairBlock::setBar).
     /// </remarks>
     void drawStatusBar(lPort* port = nullptr);
@@ -228,8 +228,6 @@ public:
     int32_t numItems = 0;        // +0x4f0
     /// <summary>The picture of an item being dragged (0x1c x 0x1e).</summary>
     lPort* dragPort = nullptr; // +0x4f4
-    /// <summary>Set to -1 by <see cref="init"/>, otherwise unused.</summary>
-    int32_t unknown4F8 = -1; // +0x4f8
     /// <summary>The slider art (<c>logart\lsrupm05.tga</c>).</summary>
     lPort* sliderArtPort = nullptr; // +0x4fc
     /// <summary>Nonzero when armor, internal structure or the engine is damaged (repair button enabled).</summary>
@@ -339,8 +337,6 @@ public:
 
     int32_t slotIndex = 0;         // +0x4bc
     LogVehicle* vehicle = nullptr; // +0x4c0
-    /// <summary>Never touched by the code: the class is 0x4e0 bytes but ends its known fields at 0x4c4.</summary>
-    int32_t unknown4C4[7] = {}; // +0x4c4
 
 private:
     /// <summary>Port: the panel into <paramref name="port"/> with its top at <paramref name="top"/>.</summary>

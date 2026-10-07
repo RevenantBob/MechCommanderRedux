@@ -14,13 +14,13 @@ extern _pane tempPANE;
 /// <summary>Counts the mouse timer's ticks (20 a second).</summary>
 /// <remarks>MCX.EXE @ 0x007bbbac</remarks>
 extern uint32_t MouseTicks;
-/// <summary>The cursor on the screen, updated by UpdateDisplay and the mouse timer (DAT_0078aaf0/4; the names are
+/// <summary>The cursor on the screen, updated by UpdateDisplay and the mouse timer (0x0078aaf0/4; the names are
 /// the port's).</summary>
 extern int mouseScreenX;
 extern int mouseScreenY;
-/// <summary>Set when the display flips pages (DAT_007ab0d4; the name is the port's). The port never does.</summary>
+/// <summary>Set when the display flips pages (0x007ab0d4; the name is the port's). The port never does.</summary>
 extern int pageFlipping;
-/// <summary>Set to skip <see cref="UpdateDisplay"/> altogether (DAT_007bbb60, a byte; the name is the port's).</summary>
+/// <summary>Set to skip <see cref="UpdateDisplay"/> altogether (0x007bbb60, a byte; the name is the port's).</summary>
 extern uint8_t displayFrozen;
 
 /// <summary>The cursor's hot spot position when the back buffer under it was saved.</summary>

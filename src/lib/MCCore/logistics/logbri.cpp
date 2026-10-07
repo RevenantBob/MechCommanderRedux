@@ -36,17 +36,17 @@ namespace
     /// <summary>The colour of the drop zone markers and their leader lines on the briefing map.</summary>
     constexpr uint32_t DropZoneColor = 0x1f;
 
-    /// <summary>Set while the left button is down on the briefing screen (DAT_008080b0); only written.</summary>
+    /// <summary>Set while the left button is down on the briefing screen (0x008080b0); only written.</summary>
     int32_t mouseDown = 0;
 
-    /// <summary>Set while a unit block is dragged with the left button (DAT_008080b4).</summary>
+    /// <summary>Set while a unit block is dragged with the left button (0x008080b4).</summary>
     int32_t leftDragging = 0;
-    /// <summary>Set while a unit block is dragged with the right button (DAT_008080b8).</summary>
+    /// <summary>Set while a unit block is dragged with the right button (0x008080b8).</summary>
     int32_t rightDragging = 0;
-    /// <summary>The drag icon's position (DAT_008080bc / DAT_008080c0).</summary>
+    /// <summary>The drag icon's position (0x008080bc / 0x008080c0).</summary>
     int32_t dragX = 0;
     int32_t dragY = 0;
-    /// <summary>Set when the dragged block was picked up from a drop slot, not the deploy pane (DAT_008080c4).</summary>
+    /// <summary>Set when the dragged block was picked up from a drop slot, not the deploy pane (0x008080c4).</summary>
     int32_t draggedFromSlot = 0;
 
     /// <summary>Puts string <paramref name="id"/> on the ticker.</summary>

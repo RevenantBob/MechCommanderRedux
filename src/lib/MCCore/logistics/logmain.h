@@ -323,7 +323,7 @@ void CheckExit();
 void SaveUserName(char* name);
 
 /// <summary>
-/// The ready room's player list refreshes (DAT_00808644): counted up by its timer, cleared when a session is joined
+/// The ready room's player list refreshes (0x00808644): counted up by its timer, cleared when a session is joined
 /// or created; <c>logistics.cpp</c> reads it too.
 /// </summary>
 extern int32_t readyRoomTicks;

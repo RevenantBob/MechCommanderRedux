@@ -4,7 +4,7 @@
 // session, a developer path the shipped game doesn't reach. Window handles are opaque pointers in the port
 // (HINSTANCE / HWND in the original); the port has no Win32 dialogs, so these report "not connected".
 //
-// Its two file-static globals (DAT_0080a410: the SessionManager the dialog works on; DAT_0080a414: whether a join
+// Its two file-static globals (0x0080a410: the SessionManager the dialog works on; 0x0080a414: whether a join
 // should be offered again) stay in the .cpp.
 
 /// <summary>Runs the connection dialog.</summary>

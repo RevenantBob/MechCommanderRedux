@@ -149,6 +149,4 @@ protected:
     lPort* sharedPort = nullptr; // +0x4b0
     /// <summary>The still background image (<see cref="setBackground"/>).</summary>
     lPort* backgroundPort = nullptr; // +0x4b4
-    /// <summary>Only ever cleared by <see cref="init"/>.</summary>
-    int32_t unknown4B8 = 0; // +0x4b8
 };

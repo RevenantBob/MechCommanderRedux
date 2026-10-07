@@ -102,10 +102,6 @@ public:
     void handleEvent(aEvent* event) override;
 
     int32_t pushed = 0; // +0x4c8
-    /// <summary>Never accessed in MCX.EXE (the allocations are 0x4d8 bytes).</summary>
-    int32_t unknown4CC = 0; // +0x4cc
-    int32_t unknown4D0 = 0; // +0x4d0
-    int32_t unknown4D4 = 0; // +0x4d4
 };
 
 /// <summary>One arrow of an <see cref="aSpinner"/>: auto-repeats (after 1 s, then every 250 ms) while held.</summary>

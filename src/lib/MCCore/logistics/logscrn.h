@@ -192,8 +192,6 @@ public:
     /// <summary>Port: see <see cref="InvInfoBox"/>.</summary>
     InvInfoBox info;
 
-    /// <summary>Set by the screens' <c>init</c> (0 on the purchase screen, -1 on the repair screen); use not seen.</summary>
-    int32_t unknown4BC = 0; // +0x4bc
     /// <summary>
     /// Set while the screen's chat button blinks (multiplayer; timer 7 on the purchase screen, 8 on the repair
     /// screen); <c>BriefingScreen::setUpOperation</c> stops it.
@@ -293,8 +291,6 @@ public:
     lPort* framePort = nullptr; // +0x4c0
     /// <summary>The input line.</summary>
     lChatInput* chatInput = nullptr; // +0x4c4
-    /// <summary>Only cleared by <see cref="init"/>.</summary>
-    int32_t unknown4C8 = 0; // +0x4c8
     /// <summary>The history size given to <see cref="init"/>.</summary>
     int32_t historySize = 0; // +0x4cc
 

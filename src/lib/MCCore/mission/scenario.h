@@ -230,10 +230,6 @@ public:
 
     /// <summary>The open scenario FIT while <see cref="init"/> runs.</summary>
     FitIniFile* scenarioFile = nullptr; // +0x0
-    /// <summary>Never accessed in MCX.EXE.</summary>
-    int32_t unknown04 = 0; // +0x4
-    /// <summary>Never accessed in MCX.EXE.</summary>
-    int32_t unknown08 = 0; // +0x8
     /// <summary><c>CameraHeapSize</c>.</summary>
     uint32_t cameraHeapSize = 0; // +0xc
     /// <summary><c>CameraFileName</c>.</summary>
@@ -276,16 +272,10 @@ public:
     uint32_t numParts = 0; // +0x220
     /// <summary>The parts, 1-based (<see cref="numParts"/> + 1 entries).</summary>
     std::unique_ptr<Part[]> parts; // +0x224
-    /// <summary>Zeroed by the constructor; never accessed otherwise.</summary>
-    int32_t unknown228 = 0; // +0x228
-    /// <summary>Zeroed by the constructor; never accessed otherwise.</summary>
-    int32_t unknown22C = 0; // +0x22c
     /// <summary>Number of <see cref="areas"/>.</summary>
     int32_t numAreas = 0; // +0x230
     /// <summary>The areas for <see cref="objectInArea"/> (never filled in MCX.EXE: numAreas stays 0).</summary>
     ScenarioArea* areas = nullptr; // +0x234
-    /// <summary>Zeroed by <see cref="init"/>; never read.</summary>
-    int32_t unknown238 = 0; // +0x238
     /// <summary>The objects made at the start but not yet in play (created later by the script).</summary>
     ObjectQueue* scenarioObjectList = nullptr; // +0x23c
     /// <summary><c>NumObjectives</c> (at most 9).</summary>
@@ -335,8 +325,6 @@ public:
     int32_t startingUp = 0; // +0x29c
     /// <summary>Start-up turns left, times 10 (100 at the start).</summary>
     int32_t startUpCountdown = 0; // +0x2a0
-    /// <summary>Added to <see cref="startUpTurns"/> in <see cref="update"/>; only ever 0 in MCX.EXE.</summary>
-    int32_t unknown2A4 = 0; // +0x2a4
     /// <summary>The turns the scenario runs before the player gets control (10).</summary>
     int32_t startUpTurns = 0; // +0x2a8
 };
@@ -476,5 +464,5 @@ extern uint8_t forceAlways;
 /// Where a saved game's copies of the scenario, warrior and object profile FITs are unpacked
 /// (<c>"data\save\temp\"</c>); the scenario falls back on it when a file isn't in its usual folder.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x0079451c (one of the 80-byte path globals; the owner is unknown).</remarks>
+/// <remarks>MCX.EXE @ 0x0079451c (one of the 80-byte path globals).</remarks>
 extern char saveTempPath[80];

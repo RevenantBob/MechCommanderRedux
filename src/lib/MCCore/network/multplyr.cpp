@@ -1925,7 +1925,6 @@ auto MultiPlayer::resetForNewGame() -> void
     nextTurretUpdateTime = 0.0f;
     turretUpdateSequence = 0;
     nextWorldStateUpdateTime = 0.0f;
-    unknown42C = 0;
     numWeaponHitChunks = 0;
     numWorldStateChunks = 0;
 }
@@ -1983,7 +1982,6 @@ auto MultiPlayer::initStartupParameters() -> void
     nextTurretUpdateTime = 0.0f;
     turretUpdateSequence = 0;
     nextWorldStateUpdateTime = 0.0f;
-    unknown42C = 0;
     numWeaponHitChunks = 0;
     numWorldStateChunks = 0;
 }
@@ -2104,7 +2102,7 @@ auto handleAppChat(FIDPMessage* msg, void* data) -> void
     auto* chat = reinterpret_cast<MPChatMessage*>(msg->messageBuffer);
     FIDPPlayer* player = MPlayer->sessionManager->GetPlayer(msg->fromID);
     char line[256];
-    // Port fix: an unknown sender (already gone) has no name; the original read through the null player.
+    // Port fix: a sender already gone from the session has no name; the original read through the null player.
     std::snprintf(line, sizeof(line), "%s: %s", player != nullptr ? player->name : "", chat->text);
 
     if (ABLi_getDebugger() != nullptr)

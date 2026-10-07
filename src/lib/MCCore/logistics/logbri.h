@@ -138,8 +138,6 @@ public:
     lPort* missionPort = nullptr; // +0x4dc
     /// <summary>The operation picture (shown when the movie is over).</summary>
     lPort* operationPicture = nullptr; // +0x4e0
-    /// <summary>Not seen used.</summary>
-    int32_t unknown4E4 = 0; // +0x4e4
     /// <summary>A copy of an empty drop slot, to erase slots with.</summary>
     lPort* emptySlot = nullptr; // +0x4e8
     /// <summary>The chat button's lit picture (<c>lsbdw08</c>).</summary>

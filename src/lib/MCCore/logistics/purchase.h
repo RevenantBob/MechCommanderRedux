@@ -259,7 +259,7 @@ public:
 
     /// <summary>Adds <paramref name="delta"/> to the stock of vehicle <paramref name="fileName"/> (never below 0).</summary>
     /// <returns>0, or -1 when there is none.</returns>
-    /// <remarks>MCX.EXE @ 0x00722e60 (FUN_00722e60: unnamed in the binary; named after PurMechList::modMech)</remarks>
+    /// <remarks>MCX.EXE @ 0x00722e60 (unnamed in the binary; named after PurMechList::modMech)</remarks>
     int32_t modVehicle(char* fileName, int32_t delta);
 
     /// <summary>
@@ -267,7 +267,7 @@ public:
     /// and inserts it in tonnage order.
     /// </summary>
     /// <remarks>
-    /// MCX.EXE @ 0x00722f00 (FUN_00722f00: unnamed in the binary; named after PurMechList::addMech). When the file
+    /// MCX.EXE @ 0x00722f00 (unnamed in the binary; named after PurMechList::addMech). When the file
     /// has no General block the original falls back to reading raw 0xd0-byte records into the 0xc-byte
     /// <see cref="PurVehicle"/>, which overruns it.
     /// </remarks>

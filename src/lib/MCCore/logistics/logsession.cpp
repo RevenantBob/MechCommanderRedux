@@ -22,10 +22,10 @@
 
 namespace
 {
-    /// <summary>Until when (<c>timeGetTime</c>) the session screen keeps pinging after it opens (DAT_00808684).</summary>
+    /// <summary>Until when (<c>timeGetTime</c>) the session screen keeps pinging after it opens (0x00808684).</summary>
     uint32_t pingUntil = 0;
 
-    /// <summary>Set while the session screen still pings (DAT_00808688).</summary>
+    /// <summary>Set while the session screen still pings (0x00808688).</summary>
     int32_t pinging = 0;
 
     /// <summary>The number of team slots.</summary>

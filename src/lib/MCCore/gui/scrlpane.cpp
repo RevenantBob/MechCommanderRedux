@@ -13,13 +13,13 @@ namespace
     constexpr int32_t SliderWidth = 13;
 
     /// <summary>The mouse y the slider drag last moved to; -1 when not dragging.</summary>
-    /// <remarks>MCX.EXE @ 0x007a1560 (DAT_007a1560)</remarks>
+    /// <remarks>MCX.EXE @ 0x007a1560</remarks>
     int32_t dragY = -1;
     /// <summary>Nonzero while the slider is being dragged.</summary>
-    /// <remarks>MCX.EXE @ 0x00808744 (DAT_00808744)</remarks>
+    /// <remarks>MCX.EXE @ 0x00808744</remarks>
     int32_t draggingSlider = 0;
     /// <summary>The arrow held down: 0 none, 1 up, 2 down.</summary>
-    /// <remarks>MCX.EXE @ 0x00808748 (DAT_00808748)</remarks>
+    /// <remarks>MCX.EXE @ 0x00808748</remarks>
     int32_t arrowPressed = 0;
 
     /// <summary>
@@ -69,7 +69,6 @@ auto ScrollPane::init() -> void
     scrollPos = 0.0f;
     maxScroll = 0.0f;
     sliderMax = 0;
-    unknown4E8 = -1;
 }
 
 auto ScrollPane::init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, char* name) -> int32_t
@@ -274,8 +273,6 @@ auto ScrollPane::setSliderPos(int32_t position) -> void
 
 auto ScrollPane::setChildren() -> void
 {
-    unknown4E8 = -1;
-
     for (int32_t i = 0; i < numberOfChildren(); i++)
     {
         aObject* child = this->child(i);

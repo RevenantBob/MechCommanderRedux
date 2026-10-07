@@ -97,11 +97,8 @@ public:
     int32_t subjects[12] = {}; // +0x0
     /// <summary>The lances ordered.</summary>
     MoverGroup* groupSubjects[4] = {}; // +0x30
-    /// <summary>Never referenced.</summary>
-    int32_t unknown40 = 0;         // +0x40
-    int32_t unknown44 = 0;         // +0x44
-    uint16_t numSubjects = 0;      // +0x48
-    uint16_t numGroupSubjects = 0; // +0x4a
+    uint16_t numSubjects = 0;          // +0x48
+    uint16_t numGroupSubjects = 0;     // +0x4a
     /// <summary>The way path being laid.</summary>
     LocationNode* movePath = nullptr; // +0x4c
 };

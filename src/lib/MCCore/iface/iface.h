@@ -256,8 +256,12 @@ public:
     aPort* longLinkImage = nullptr; // +0x4c4
     /// <summary>The end link (<c>guiub04.tga</c>).</summary>
     aPort* lastLinkImage = nullptr; // +0x4c8
-    /// <summary>Cleared by InterfaceObject::RemoveMech, set by SelectLance and setUnit; meaning unconfirmed.</summary>
-    int32_t unknown4CC = 0; // +0x4cc
+    /// <summary>
+    /// Set when <see cref="InterfaceObject::setUnit"/> linked the lance, cleared when its point died
+    /// (<see cref="InterfaceObject::RemoveMech"/>). <see cref="InterfaceObject::SelectLance"/> selects a linked
+    /// lance as a whole and an unlinked one mover by mover.
+    /// </summary>
+    int32_t linked = 0; // +0x4cc
 };
 
 /// <summary>
@@ -274,13 +278,9 @@ struct aMechBarLayout
     int32_t highlightId = -1; // +0x8 (aMechBar +0x4fc)
     /// <summary>The part id of the mover whose pilot is on the video window (-1 = none).</summary>
     int32_t videoId = -1; // +0xc (aMechBar +0x500)
-    /// <summary>Set to -1 by the constructor; no other use found.</summary>
-    int32_t unknown10 = -1; // +0x10 (aMechBar +0x504)
     /// <summary>The gap between buttons.</summary>
     int32_t spacingX = 0; // +0x14 (aMechBar +0x508)
     int32_t spacingY = 0; // +0x18 (aMechBar +0x50c)
-    /// <summary>Set to 1 by the constructor; no other use found.</summary>
-    int32_t unknown1C = 1; // +0x1c (aMechBar +0x510)
 
     /// <summary>Sets the gap between buttons.</summary>
     /// <remarks>MCX.EXE @ 0x006c9e90 (an inline whose name was lost)</remarks>
@@ -580,13 +580,9 @@ public:
     /// <summary>Icons of movers not on the mech bar (<see cref="AddMech"/> with onBar 0).</summary>
     FriendlyMechIcon* reserveIcons[24] = {}; // +0x34
     int32_t numReserveIcons = 0;             // +0x94
-    /// <summary>Set to 0 by the constructor; no other use found.</summary>
-    int32_t unknown98 = 0;              // +0x98
-    TacticalMap* tacticalMap = nullptr; // +0x9c
+    TacticalMap* tacticalMap = nullptr;      // +0x9c
     /// <summary>The current command mode (0 none, 1 move, 2 attack, 3 ..., 0x15 jump, 0x16 ..., 0x33 ...).</summary>
     int32_t currentCommand = -1; // +0xa0
-    /// <summary>Cleared by the constructor and StartScenario; no other use found.</summary>
-    int32_t unknownA4 = 0; // +0xa4
     /// <summary>How far the mouse must move with a button down to start a drag (<c>Drag Distance</c>).</summary>
     int16_t dragDistance = 10; // +0xa8
     /// <summary><c>Scroll Speed</c>.</summary>
@@ -595,9 +591,6 @@ public:
     int16_t tacScrollSpeed = 1; // +0xac
     /// <summary><c>Scroll Start</c>: the delay before edge scrolling starts.</summary>
     int16_t scrollStart = 500; // +0xae
-    /// <summary>Set to 0 by the constructor; no other use found.</summary>
-    int32_t unknownB0 = 0; // +0xb0
-    int32_t unknownB4 = 0; // +0xb4
     /// <summary>Part ids of the selected movers.</summary>
     int32_t selectedMechs[12] = {}; // +0xb8
     /// <summary>The selected lances.</summary>
@@ -608,8 +601,6 @@ public:
     float mouseDownY = 0.0f; // +0x100
     /// <summary>Nonzero while the left button is down on the map.</summary>
     int32_t mouseDown = 0; // +0x104
-    /// <summary>Set to 1 by the constructor; no other use found.</summary>
-    int32_t unknown108 = 1; // +0x108
     /// <summary>What the mouse is over: 0 an icon, 1 an enemy, ..., 7 nothing (-1 before the first update).</summary>
     int32_t mouseObjectType = -1; // +0x10c
     /// <summary>The object (or icon's mover) under the mouse.</summary>
