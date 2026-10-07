@@ -28,7 +28,7 @@ namespace
     /// <summary>The width of an inventory port.</summary>
     constexpr int32_t InvPortWidth = 0xab;
 
-    void freePort(lPort*& port)
+    void FreePort(MCLogPort*& port)
     {
         if (port != nullptr)
         {
@@ -39,24 +39,24 @@ namespace
     }
 
     /// <summary>Hides and removes every child of <paramref name="pane"/> (the blocks shown in it).</summary>
-    void clearPane(ScrollPane* pane)
+    void ClearPane(MCScrollPane* pane)
     {
-        for (int32_t count = pane->numberOfChildren(); count > 0; --count)
+        for (int32_t count = pane->NumberOfChildren(); count > 0; --count)
         {
-            pane->child(0)->ShowGUIWindow(0);
-            pane->removeChild(pane->child(0));
+            pane->Child(0)->ShowGuiWindow(0);
+            pane->RemoveChild(pane->Child(0));
         }
     }
 
     /// <summary>Whether a row from <paramref name="top"/> of <paramref name="height"/> lines meets the open view's scissor.</summary>
-    bool rowShown(const MCView& place, int32_t top, int32_t height)
+    bool RowShown(const MCView& place, int32_t top, int32_t height)
     {
         const int32_t screenTop = place.OriginY + top;
         return screenTop <= place.Scissor.Y1 && place.Scissor.Y0 < screenTop + height;
     }
 
-    /// <summary>The store's tabs, as <see cref="drawStore"/> draws them.</summary>
-    enum class StoreTab
+    /// <summary>The store's tabs, as <see cref="DrawStore"/> draws them.</summary>
+    enum class MCStoreTab
     {
         Mechs,
         Vehicles,
@@ -68,16 +68,16 @@ namespace
     /// Draws a store tab into its view <paramref name="port"/>: its rows, each at its list row, over
     /// <paramref name="color"/> (what the rows' <c>drawBackground</c> painted into the tab's picture).
     /// </summary>
-    void drawStore(StoreTab tab, int32_t color, aPort* port)
+    void DrawStore(MCStoreTab tab, int32_t color, MCGuiPort* port)
     {
-        auto* view = static_cast<lPort*>(port);
-        VFX_pane_wipe(view->frame(), color);
+        auto* view = static_cast<MCLogPort*>(port);
+        VfxPaneWipe(view->Frame(), color);
 
         auto drawRow = [&](auto* block)
         {
-            const int32_t top = block->row * UnitBlockHeight;
+            const int32_t top = block->Row * UnitBlockHeight;
 
-            if (rowShown(view->view, top, UnitBlockHeight))
+            if (RowShown(view->View, top, UnitBlockHeight))
             {
                 block->DrawRow(view, top);
             }
@@ -85,42 +85,42 @@ namespace
 
         switch (tab)
         {
-            case StoreTab::Mechs:
+            case MCStoreTab::Mechs:
             {
-                for (PurMech* purMech = globalLogPtr->purMechList->first; purMech != nullptr; purMech = purMech->next)
+                for (MCPurMech* purMech = GlobalLogPtr->PurMechList->First; purMech != nullptr; purMech = purMech->Next)
                 {
-                    drawRow(purMech->block);
+                    drawRow(purMech->Block);
                 }
                 break;
             }
 
-            case StoreTab::Vehicles:
+            case MCStoreTab::Vehicles:
             {
-                for (PurVehicle* purVehicle = globalLogPtr->purVehicleList->first; purVehicle != nullptr;
-                     purVehicle = purVehicle->next)
+                for (MCPurVehicle* purVehicle = GlobalLogPtr->PurVehicleList->First; purVehicle != nullptr;
+                     purVehicle = purVehicle->Next)
                 {
-                    drawRow(purVehicle->block);
+                    drawRow(purVehicle->Block);
                 }
                 break;
             }
 
-            case StoreTab::Components:
+            case MCStoreTab::Components:
             {
-                for (_LogInventoryItem* item = globalLogPtr->purchaseComponents->items; item != nullptr;
-                     item = item->next)
+                for (MCLogInventoryItem* item = GlobalLogPtr->PurchaseComponents->Items; item != nullptr;
+                     item = item->Next)
                 {
-                    drawRow(item->purchaseBlock);
+                    drawRow(item->PurchaseBlock);
                 }
                 break;
             }
 
-            case StoreTab::Pilots:
+            case MCStoreTab::Pilots:
             {
-                for (PurPilotData* pilot = globalLogPtr->purPilotList->first; pilot != nullptr; pilot = pilot->next)
+                for (MCPurPilotData* pilot = GlobalLogPtr->PurPilotList->First; pilot != nullptr; pilot = pilot->Next)
                 {
-                    if (pilot->status == 0)
+                    if (pilot->Status == 0)
                     {
-                        drawRow(pilot->block);
+                        drawRow(pilot->Block);
                     }
                 }
                 break;
@@ -133,44 +133,45 @@ namespace
     /// <paramref name="height"/> rows (at least the pane's) over <paramref name="color"/>. The original freed the
     /// tab's picture and made a new one; the view is kept and resized, as a pane may still show it.
     /// </summary>
-    lPort* storeView(lPort*& port, StoreTab tab, ScrollPane* pane, int32_t width, int32_t height, int32_t color)
+    MCLogPort* StoreView(MCLogPort*& port, MCStoreTab tab, MCScrollPane* pane, int32_t width, int32_t height,
+                         int32_t color)
     {
-        if (height < pane->height())
+        if (height < pane->Height())
         {
-            height = pane->height();
+            height = pane->Height();
         }
 
         if (port == nullptr)
         {
-            port = new lPort;
-            port->DrawContent = [tab, color](aPort* view) { drawStore(tab, color, view); };
+            port = new MCLogPort;
+            port->DrawContent = [tab, color](MCGuiPort* view) { DrawStore(tab, color, view); };
         }
 
-        port->initView(width, height);
+        port->InitView(width, height);
         return port;
     }
 
     /// <summary>The column headers of the inventory tabs, drawn at (0xc4, 0x65).</summary>
     constexpr const char* InvHeaderArt[4] = {"lscdwm.tga", "lscdwp.tga", "lscdwc.tga", "lscdwv.tga"};
 
-    /// <summary>The inventory screens (the purchase and repair screens), for <see cref="LogInvScreen::Of"/>.</summary>
-    std::vector<LogInvScreen*> invScreens;
+    /// <summary>The inventory screens (the purchase and repair screens), for <see cref="MCLogInvScreen::Of"/>.</summary>
+    std::vector<MCLogInvScreen*> InvScreens;
 
     /// <summary>
     /// Draws inventory tab <paramref name="tab"/> into its view <paramref name="port"/>: the rows its blocks drew into
     /// the tab's picture, each at its list row, over colour 0x10.
     /// </summary>
-    void drawInvTab(int32_t tab, aPort* port)
+    void DrawInvTab(int32_t tab, MCGuiPort* port)
     {
-        auto* view = static_cast<lPort*>(port);
-        VFX_pane_wipe(view->frame(), 0x10);
-        const MCView& place = view->view;
+        auto* view = static_cast<MCLogPort*>(port);
+        VfxPaneWipe(view->Frame(), 0x10);
+        const MCView& place = view->View;
 
-        auto drawRow = [&](InventoryBlock* block)
+        auto drawRow = [&](MCInventoryBlock* block)
         {
-            const int32_t top = block->listIndex * block->winHeight;
+            const int32_t top = block->ListIndex * block->WinHeight;
 
-            if (rowShown(place, top, block->winHeight))
+            if (RowShown(place, top, block->WinHeight))
             {
                 block->DrawRow(view, top);
             }
@@ -180,31 +181,31 @@ namespace
         {
             case 0:
             {
-                for (LogMech* mech = globalLogPtr->mechList->mechs; mech != nullptr; mech = mech->next)
+                for (MCLogMech* mech = GlobalLogPtr->MechList->Mechs; mech != nullptr; mech = mech->Next)
                 {
-                    drawRow(mech->inventoryBlock);
+                    drawRow(mech->InventoryBlock);
                 }
                 break;
             }
 
             case 1:
             {
-                for (LogWarrior* warrior = globalLogPtr->warriorList->warriors; warrior != nullptr;
-                     warrior = warrior->next)
+                for (MCLogWarrior* warrior = GlobalLogPtr->WarriorList->Warriors; warrior != nullptr;
+                     warrior = warrior->Next)
                 {
-                    drawRow(warrior->inventoryBlock);
+                    drawRow(warrior->InventoryBlock);
                 }
                 break;
             }
 
             case 2:
             {
-                for (_LogInventoryItem* item = globalLogPtr->componentInventory->items; item != nullptr;
-                     item = item->next)
+                for (MCLogInventoryItem* item = GlobalLogPtr->ComponentInventory->Items; item != nullptr;
+                     item = item->Next)
                 {
-                    if (item->inventoryBlock->listIndex >= 0)
+                    if (item->InventoryBlock->ListIndex >= 0)
                     {
-                        drawRow(item->inventoryBlock);
+                        drawRow(item->InventoryBlock);
                     }
                 }
                 break;
@@ -212,41 +213,41 @@ namespace
 
             default:
             {
-                for (LogVehicle* vehicle = globalLogPtr->vehicleList->vehicles; vehicle != nullptr;
-                     vehicle = vehicle->next)
+                for (MCLogVehicle* vehicle = GlobalLogPtr->VehicleList->Vehicles; vehicle != nullptr;
+                     vehicle = vehicle->Next)
                 {
-                    drawRow(vehicle->inventoryBlock);
+                    drawRow(vehicle->InventoryBlock);
                 }
                 break;
             }
         }
     }
 
-    /// <summary>A component's details in the info box (<see cref="InvInfoBox"/>).</summary>
-    void drawComponentInfo(InvInfoBox& info, lPort* port)
+    /// <summary>A component's details in the info box (<see cref="MCInvInfoBox"/>).</summary>
+    void DrawComponentInfo(MCInvInfoBox& info, MCLogPort* port)
     {
-        if (lPort* picture = logArtf("%slogart\\lscicc%02d.tga", artPath, info.componentPicture))
+        if (MCLogPort* picture = LogArtf("%slogart\\lscicc%02d.tga", ArtPath, info.ComponentPicture))
         {
             // The repair screen's weapon list copied the picture opaque, the component tab keyed.
-            if (info.kind == InvInfoBox::Kind::RepairItem)
+            if (info.InfoKind == MCInvInfoBox::Kind::RepairItem)
             {
-                VFX_pane_copy(picture->frame(), 0, 0, port->frame(), 9, 0x191, -1);
+                VfxPaneCopy(picture->Frame(), 0, 0, port->Frame(), 9, 0x191, -1);
             }
             else
             {
-                picture->copyTo(port->frame(), 9, 0x191, 1);
+                picture->CopyTo(port->Frame(), 9, 0x191, 1);
             }
         }
 
         auto write = [&](int32_t y, char* text)
-        { yellowDropFont->writeString(port->frame(), 0x53, y, reinterpret_cast<uint8_t*>(text), -1); };
-        write(0x1a5, info.rangeText);
-        write(0x19c, info.damageText);
-        write(0x193, info.recycleText);
+        { YellowDropFont->WriteString(port->Frame(), 0x53, y, reinterpret_cast<uint8_t*>(text), -1); };
+        write(0x1a5, info.RangeText);
+        write(0x19c, info.DamageText);
+        write(0x193, info.RecycleText);
 
-        if (!info.description.empty())
+        if (!info.Description.empty())
         {
-            DrawInfoDescription(port, 0xc5, 0x26, info.description.data(), 8, 0x1b3);
+            DrawInfoDescription(port, 0xc5, 0x26, info.Description.data(), 8, 0x1b3);
         }
     }
 
@@ -254,24 +255,24 @@ namespace
     /// The port of inventory tab <paramref name="tab"/>, <paramref name="width"/> x <paramref name="height"/>: a view
     /// the tab is drawn into each frame (the original painted each block's row into a new picture).
     /// </summary>
-    lPort* newTabView(int32_t tab, int32_t width, int32_t height)
+    MCLogPort* NewTabView(int32_t tab, int32_t width, int32_t height)
     {
         // The same view is kept and resized: the original freed the old picture, but a pane could still show it
         // until the tab was set up again.
-        lPort* port = globalLogPtr->invTabPorts[tab];
+        MCLogPort* port = GlobalLogPtr->InvTabPorts[tab];
 
         if (port == nullptr)
         {
-            port = new lPort;
-            port->DrawContent = [tab](aPort* view) { drawInvTab(tab, view); };
+            port = new MCLogPort;
+            port->DrawContent = [tab](MCGuiPort* view) { DrawInvTab(tab, view); };
         }
 
-        port->initView(width, height);
+        port->InitView(width, height);
         return port;
     }
 
     /// <summary>The port of inventory tab <paramref name="tab"/> for <paramref name="count"/> blocks (at least the pane's height).</summary>
-    lPort* newInvPort(int32_t tab, int32_t count)
+    MCLogPort* NewInvPort(int32_t tab, int32_t count)
     {
         int32_t height = count * InvBlockHeight;
 
@@ -280,7 +281,7 @@ namespace
             height = MinInvPortHeight;
         }
 
-        return newTabView(tab, InvPortWidth, height);
+        return NewTabView(tab, InvPortWidth, height);
     }
 
     /// <summary>
@@ -288,34 +289,34 @@ namespace
     /// <paramref name="tab"/>) at (2, 0x18a) when <paramref name="redrawTabs"/>, then the tab's column header at
     /// (0xc4, 0x65).
     /// </summary>
-    void drawInvTabArt(LogInvScreen* screen, int32_t tab, int redrawTabs)
+    void DrawInvTabArt(MCLogInvScreen* screen, int32_t tab, int redrawTabs)
     {
         if (redrawTabs != 0)
         {
-            screen->info.Blank(tab);
+            screen->Info.Blank(tab);
         }
 
-        screen->info.header = tab;
+        screen->Info.Header = tab;
     }
 
     /// <summary>Numbers the store's component blocks: row n goes to the item whose block has sort order n.</summary>
-    void reIndexPass()
+    void ReIndexPass()
     {
-        _LogInventoryItem* first = globalLogPtr->purchaseComponents->items;
+        MCLogInventoryItem* first = GlobalLogPtr->PurchaseComponents->Items;
         int32_t row = 0;
 
         for (int32_t order = 0; order < 50; ++order)
         {
-            _LogInventoryItem* item = first;
+            MCLogInventoryItem* item = first;
 
-            while (item != nullptr && item->purchaseBlock->sortOrder != order)
+            while (item != nullptr && item->PurchaseBlock->SortOrder != order)
             {
-                item = item->next;
+                item = item->Next;
             }
 
             if (item != nullptr)
             {
-                item->purchaseBlock->row = row++;
+                item->PurchaseBlock->Row = row++;
             }
         }
     }
@@ -323,109 +324,109 @@ namespace
 
 // LogInvScreen
 
-auto LogInvScreen::createVehiclePane() -> void
+auto MCLogInvScreen::CreateVehiclePane() -> void
 {
     int32_t row = 0;
-    ScrollPane* pane = globalLogPtr->repairScreen->unitPane;
-    int32_t count = globalLogPtr->forceVehicleList->getVehicleCount() + globalLogPtr->forceMechList->getMechCount();
-    pane->setDisplayPort(RepairScreen::NewUnitRowsView(pane), -1, -1);
+    MCScrollPane* pane = GlobalLogPtr->RepairScreen->UnitPane;
+    int32_t count = GlobalLogPtr->ForceVehicleList->GetVehicleCount() + GlobalLogPtr->ForceMechList->GetMechCount();
+    pane->SetDisplayPort(MCRepairScreen::NewUnitRowsView(pane), -1, -1);
 
     int32_t yPos = 0;
 
-    for (LogMech* mech = globalLogPtr->forceMechList->mechs; mech != nullptr; mech = mech->next)
+    for (MCLogMech* mech = GlobalLogPtr->ForceMechList->Mechs; mech != nullptr; mech = mech->Next)
     {
-        MechRepairBlock* block = mech->repairBlock;
-        unitPane->addChild(block);
-        block->slotIndex = row;
-        block->moveTo(0, yPos, 0);
-        block->ShowGUIWindow(-1);
-        block->setDepth(100);
-        block->drawBackground(row, nullptr);
+        MCMechRepairBlock* block = mech->RepairBlock;
+        UnitPane->AddChild(block);
+        block->SlotIndex = row;
+        block->MoveTo(0, yPos, 0);
+        block->ShowGuiWindow(-1);
+        block->SetDepth(100);
+        block->DrawBackground(row, nullptr);
         ++row;
         yPos += UnitBlockHeight;
     }
 
     yPos = row * UnitBlockHeight;
 
-    for (LogVehicle* vehicle = globalLogPtr->forceVehicleList->vehicles; vehicle != nullptr; vehicle = vehicle->next)
+    for (MCLogVehicle* vehicle = GlobalLogPtr->ForceVehicleList->Vehicles; vehicle != nullptr; vehicle = vehicle->Next)
     {
-        VehicleRepairBlock* block = vehicle->repairBlock;
-        unitPane->addChild(block);
-        block->slotIndex = row;
-        block->moveTo(0, yPos, 0);
-        block->ShowGUIWindow(-1);
-        block->setDepth(100);
-        block->drawBackground(row, nullptr);
+        MCVehicleRepairBlock* block = vehicle->RepairBlock;
+        UnitPane->AddChild(block);
+        block->SlotIndex = row;
+        block->MoveTo(0, yPos, 0);
+        block->ShowGuiWindow(-1);
+        block->SetDepth(100);
+        block->DrawBackground(row, nullptr);
         ++row;
         yPos += UnitBlockHeight;
     }
 }
 
-auto LogInvScreen::createPurVehiclePane(int redraw) -> void
+auto MCLogInvScreen::CreatePurVehiclePane(int redraw) -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    ScrollPane* pane = screen->unitPane;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCScrollPane* pane = screen->UnitPane;
     int32_t row = 0;
 
-    const int32_t width = pane->width() - 0xd;
+    const int32_t width = pane->Width() - 0xd;
 
     if (redraw == 0)
     {
         // The store's mechs.
-        lPort* port = storeView(screen->purMechPort, StoreTab::Mechs, pane, width,
-                                globalLogPtr->purMechList->getMechCount() * UnitBlockHeight, 0x10);
-        pane->setDisplayPort(port, 0, -1);
-        PurMech* purMech = globalLogPtr->purMechList->first;
+        MCLogPort* port = StoreView(screen->PurMechPort, MCStoreTab::Mechs, pane, width,
+                                    GlobalLogPtr->PurMechList->GetMechCount() * UnitBlockHeight, 0x10);
+        pane->SetDisplayPort(port, 0, -1);
+        MCPurMech* purMech = GlobalLogPtr->PurMechList->First;
 
-        if (globalLogPtr->purMechList->getMechCount() > 0)
+        if (GlobalLogPtr->PurMechList->GetMechCount() > 0)
         {
             int32_t yPos = 0;
 
             do
             {
-                MechPurchaseBlock* block = purMech->block;
-                block->row = row;
-                block->moveTo(0, yPos, 0);
-                block->ShowGUIWindow(-1);
-                block->setDepth(100);
-                block->drawBackground(row);
-                purMech = purMech->next;
+                MCMechPurchaseBlock* block = purMech->Block;
+                block->Row = row;
+                block->MoveTo(0, yPos, 0);
+                block->ShowGuiWindow(-1);
+                block->SetDepth(100);
+                block->DrawBackground(row);
+                purMech = purMech->Next;
                 yPos += UnitBlockHeight;
                 ++row;
-            } while (row < globalLogPtr->purMechList->getMechCount());
+            } while (row < GlobalLogPtr->PurMechList->GetMechCount());
         }
 
         // The store's vehicles.
-        storeView(screen->purVehiclePort, StoreTab::Vehicles, pane, width,
-                  globalLogPtr->purVehicleList->getVehicleCount() * UnitBlockHeight, 0x10);
+        StoreView(screen->PurVehiclePort, MCStoreTab::Vehicles, pane, width,
+                  GlobalLogPtr->PurVehicleList->GetVehicleCount() * UnitBlockHeight, 0x10);
         row = 0;
         int32_t yPos = 0;
 
-        for (PurVehicle* purVehicle = globalLogPtr->purVehicleList->first; purVehicle != nullptr;
-             purVehicle = purVehicle->next)
+        for (MCPurVehicle* purVehicle = GlobalLogPtr->PurVehicleList->First; purVehicle != nullptr;
+             purVehicle = purVehicle->Next)
         {
-            VehiclePurchaseBlock* block = purVehicle->block;
-            block->row = row;
-            block->moveTo(0, yPos, 0);
-            block->ShowGUIWindow(-1);
-            block->setDepth(100);
-            block->drawBackground(row);
+            MCVehiclePurchaseBlock* block = purVehicle->Block;
+            block->Row = row;
+            block->MoveTo(0, yPos, 0);
+            block->ShowGuiWindow(-1);
+            block->SetDepth(100);
+            block->DrawBackground(row);
             ++row;
             yPos += UnitBlockHeight;
         }
 
         // The store's components, ordered by reIndexComponents.
-        storeView(screen->purCompPort, StoreTab::Components, pane, width,
-                  globalLogPtr->purchaseComponents->numItems * UnitBlockHeight, 0x10);
-        reIndexComponents();
+        StoreView(screen->PurCompPort, MCStoreTab::Components, pane, width,
+                  GlobalLogPtr->PurchaseComponents->NumItems * UnitBlockHeight, 0x10);
+        ReIndexComponents();
 
-        for (_LogInventoryItem* item = globalLogPtr->purchaseComponents->items; item != nullptr; item = item->next)
+        for (MCLogInventoryItem* item = GlobalLogPtr->PurchaseComponents->Items; item != nullptr; item = item->Next)
         {
-            CompPurchaseBlock* block = item->purchaseBlock;
-            block->moveTo(0, block->row * UnitBlockHeight, 0);
-            block->ShowGUIWindow(-1);
-            block->setDepth(100);
-            block->drawBackground(block->row, item->purchaseBlock->item->masterID);
+            MCCompPurchaseBlock* block = item->PurchaseBlock;
+            block->MoveTo(0, block->Row * UnitBlockHeight, 0);
+            block->ShowGuiWindow(-1);
+            block->SetDepth(100);
+            block->DrawBackground(block->Row, item->PurchaseBlock->Item->MasterID);
         }
     }
 
@@ -434,385 +435,385 @@ auto LogInvScreen::createPurVehiclePane(int redraw) -> void
     // kept and resized).
     int32_t visible = 0;
 
-    for (PurPilotData* pilot = globalLogPtr->purPilotList->first; pilot != nullptr; pilot = pilot->next)
+    for (MCPurPilotData* pilot = GlobalLogPtr->PurPilotList->First; pilot != nullptr; pilot = pilot->Next)
     {
-        if (pilot->status == 0)
+        if (pilot->Status == 0)
         {
             ++visible;
         }
     }
 
-    storeView(screen->purPilotPort, StoreTab::Pilots, pane, width, visible * UnitBlockHeight, 0xff);
+    StoreView(screen->PurPilotPort, MCStoreTab::Pilots, pane, width, visible * UnitBlockHeight, 0xff);
     row = 0;
     int32_t yPos = 0;
 
-    for (PurPilotData* pilot = globalLogPtr->purPilotList->first; pilot != nullptr; pilot = pilot->next)
+    for (MCPurPilotData* pilot = GlobalLogPtr->PurPilotList->First; pilot != nullptr; pilot = pilot->Next)
     {
-        if (pilot->status != 0)
+        if (pilot->Status != 0)
         {
             continue;
         }
 
-        PilotPurchaseBlock* block = pilot->block;
-        block->row = row;
-        block->moveTo(0, yPos, 0);
-        block->ShowGUIWindow(-1);
-        block->setDepth(100);
-        block->drawBackground(row);
+        MCPilotPurchaseBlock* block = pilot->Block;
+        block->Row = row;
+        block->MoveTo(0, yPos, 0);
+        block->ShowGuiWindow(-1);
+        block->SetDepth(100);
+        block->DrawBackground(row);
         ++row;
         yPos += UnitBlockHeight;
     }
 }
 
-auto LogInvScreen::createMechInvBlock() -> void
+auto MCLogInvScreen::CreateMechInvBlock() -> void
 {
-    globalLogPtr->invTabPorts[0] = newInvPort(0, globalLogPtr->mechList->getMechCount());
+    GlobalLogPtr->InvTabPorts[0] = NewInvPort(0, GlobalLogPtr->MechList->GetMechCount());
     int32_t index = 0;
 
-    for (LogMech* mech = globalLogPtr->mechList->mechs; mech != nullptr; mech = mech->next)
+    for (MCLogMech* mech = GlobalLogPtr->MechList->Mechs; mech != nullptr; mech = mech->Next)
     {
-        MechInventoryBlock* block = mech->inventoryBlock;
-        block->listIndex = index;
-        block->drawBackground();
+        MCMechInventoryBlock* block = mech->InventoryBlock;
+        block->ListIndex = index;
+        block->DrawBackground();
         ++index;
     }
 }
 
-auto LogInvScreen::createVhclInvBlock() -> void
+auto MCLogInvScreen::CreateVhclInvBlock() -> void
 {
-    lPort* port = newInvPort(3, globalLogPtr->vehicleList->getVehicleCount());
-    globalLogPtr->invTabPorts[3] = port;
+    MCLogPort* port = NewInvPort(3, GlobalLogPtr->VehicleList->GetVehicleCount());
+    GlobalLogPtr->InvTabPorts[3] = port;
     int32_t index = 0;
 
-    for (LogVehicle* vehicle = globalLogPtr->vehicleList->vehicles; vehicle != nullptr; vehicle = vehicle->next)
+    for (MCLogVehicle* vehicle = GlobalLogPtr->VehicleList->Vehicles; vehicle != nullptr; vehicle = vehicle->Next)
     {
-        VehicleInventoryBlock* block = vehicle->inventoryBlock;
-        block->listIndex = index;
-        block->drawBackground();
+        MCVehicleInventoryBlock* block = vehicle->InventoryBlock;
+        block->ListIndex = index;
+        block->DrawBackground();
         ++index;
     }
 }
 
-auto LogInvScreen::createPilotInvBlock() -> void
+auto MCLogInvScreen::CreatePilotInvBlock() -> void
 {
     int32_t height = 0;
-    LogWarrior* first = globalLogPtr->warriorList->warriors;
+    MCLogWarrior* first = GlobalLogPtr->WarriorList->Warriors;
 
     if (first != nullptr)
     {
-        height = first->inventoryBlock->height() * globalLogPtr->warriorList->numWarriors;
+        height = first->InventoryBlock->Height() * GlobalLogPtr->WarriorList->NumWarriors;
     }
 
-    if (height < inventoryPane->height())
+    if (height < InventoryPane->Height())
     {
-        height = inventoryPane->height();
+        height = InventoryPane->Height();
     }
 
-    lPort* port = newTabView(1, inventoryPane->width() - 0xd, height);
-    globalLogPtr->invTabPorts[1] = port;
+    MCLogPort* port = NewTabView(1, InventoryPane->Width() - 0xd, height);
+    GlobalLogPtr->InvTabPorts[1] = port;
     int32_t index = 0;
 
-    for (LogWarrior* warrior = first; warrior != nullptr; warrior = warrior->next)
+    for (MCLogWarrior* warrior = first; warrior != nullptr; warrior = warrior->Next)
     {
-        PilotInventoryBlock* block = warrior->inventoryBlock;
-        block->listIndex = index;
+        MCPilotInventoryBlock* block = warrior->InventoryBlock;
+        block->ListIndex = index;
         ++index;
-        block->drawBackground();
+        block->DrawBackground();
     }
 }
 
-auto LogInvScreen::drawBlankInvInfoBlock(int32_t tab) -> void
+auto MCLogInvScreen::DrawBlankInvInfoBlock(int32_t tab) -> void
 {
     if (tab < 0)
     {
-        tab = globalLogPtr->currentInvTab;
+        tab = GlobalLogPtr->CurrentInvTab;
     }
 
     if (tab >= 0 && tab <= 3)
     {
-        if (LogInvScreen* screen = Of(globalLogPtr->currentScreen))
+        if (MCLogInvScreen* screen = Of(GlobalLogPtr->CurrentScreen))
         {
-            screen->info.Blank(tab);
+            screen->Info.Blank(tab);
         }
         else
         {
-            globalLogPtr->inventoryIconPorts[tab]->copyTo(globalLogPtr->currentScreen->lport()->frame(), 2, 0x18a, 0);
+            GlobalLogPtr->InventoryIconPorts[tab]->CopyTo(GlobalLogPtr->CurrentScreen->Lport()->Frame(), 2, 0x18a, 0);
         }
     }
 }
 
-auto LogInvScreen::createCompInvBlock() -> void
+auto MCLogInvScreen::CreateCompInvBlock() -> void
 {
-    lPort* port = newInvPort(2, globalLogPtr->reIndexInventory());
-    globalLogPtr->invTabPorts[2] = port;
+    MCLogPort* port = NewInvPort(2, GlobalLogPtr->ReIndexInventory());
+    GlobalLogPtr->InvTabPorts[2] = port;
 
-    for (_LogInventoryItem* item = globalLogPtr->componentInventory->items; item != nullptr; item = item->next)
+    for (MCLogInventoryItem* item = GlobalLogPtr->ComponentInventory->Items; item != nullptr; item = item->Next)
     {
-        item->inventoryBlock->drawBackground();
+        item->InventoryBlock->DrawBackground();
     }
 }
 
-auto LogInvScreen::setUpMechInv(int scrollPos, int redrawTabs) -> void
+auto MCLogInvScreen::SetUpMechInv(int scrollPos, int redrawTabs) -> void
 {
-    globalLogPtr->currentInvTab = 0;
-    drawInvTabArt(this, 0, redrawTabs);
-    clearPane(globalLogPtr->repairScreen->inventoryPane);
-    clearPane(globalLogPtr->purchaseScreen->inventoryPane);
+    GlobalLogPtr->CurrentInvTab = 0;
+    DrawInvTabArt(this, 0, redrawTabs);
+    ClearPane(GlobalLogPtr->RepairScreen->InventoryPane);
+    ClearPane(GlobalLogPtr->PurchaseScreen->InventoryPane);
 
-    for (LogMech* mech = globalLogPtr->mechList->mechs; mech != nullptr; mech = mech->next)
+    for (MCLogMech* mech = GlobalLogPtr->MechList->Mechs; mech != nullptr; mech = mech->Next)
     {
-        MechInventoryBlock* block = mech->inventoryBlock;
-        inventoryPane->addChild(block);
-        block->ShowGUIWindow(-1);
-        block->bringToFront(0);
-        block->moveTo(0, block->listIndex * InvBlockHeight, 0);
+        MCMechInventoryBlock* block = mech->InventoryBlock;
+        InventoryPane->AddChild(block);
+        block->ShowGuiWindow(-1);
+        block->BringToFront(0);
+        block->MoveTo(0, block->ListIndex * InvBlockHeight, 0);
     }
 
-    globalLogPtr->purchaseScreen->inventoryPane->setDisplayPort(globalLogPtr->invTabPorts[0], 0, scrollPos);
-    globalLogPtr->repairScreen->inventoryPane->setDisplayPort(globalLogPtr->invTabPorts[0], 0, scrollPos);
+    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[0], 0, scrollPos);
+    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[0], 0, scrollPos);
 }
 
-auto LogInvScreen::setUpMechPurchase() -> void
+auto MCLogInvScreen::SetUpMechPurchase() -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
 
-    if (globalLogPtr->currentScreen != screen)
+    if (GlobalLogPtr->CurrentScreen != screen)
     {
         return;
     }
 
-    clearPane(screen->unitPane);
-    screen->unitPane->setDisplayPort(screen->purMechPort, 0, -1);
+    ClearPane(screen->UnitPane);
+    screen->UnitPane->SetDisplayPort(screen->PurMechPort, 0, -1);
     int32_t row = 0;
 
-    for (PurMech* purMech = globalLogPtr->purMechList->first; purMech != nullptr; purMech = purMech->next)
+    for (MCPurMech* purMech = GlobalLogPtr->PurMechList->First; purMech != nullptr; purMech = purMech->Next)
     {
-        MechPurchaseBlock* block = purMech->block;
-        unitPane->addChild(block);
-        block->ShowGUIWindow(-1);
-        block->moveTo(0, block->height() * row, 0);
-        block->bringToFront(0);
+        MCMechPurchaseBlock* block = purMech->Block;
+        UnitPane->AddChild(block);
+        block->ShowGuiWindow(-1);
+        block->MoveTo(0, block->Height() * row, 0);
+        block->BringToFront(0);
         // Show the first variant still on sale.
         int32_t variant;
 
-        if (purMech->variants[0]->numAvailable != 0)
+        if (purMech->Variants[0]->NumAvailable != 0)
         {
             variant = 0;
         }
-        else if (purMech->variants[1]->numAvailable != 0)
+        else if (purMech->Variants[1]->NumAvailable != 0)
         {
             variant = 1;
         }
         else
         {
-            variant = purMech->variants[2]->numAvailable != 0 ? 2 : 0;
+            variant = purMech->Variants[2]->NumAvailable != 0 ? 2 : 0;
         }
 
-        if (variant != block->curVariant)
+        if (variant != block->CurVariant)
         {
-            block->curVariant = variant;
-            block->drawBackground(row);
+            block->CurVariant = variant;
+            block->DrawBackground(row);
         }
 
         ++row;
     }
 }
 
-auto LogInvScreen::setUpPilotInv(int scrollPos, int redrawTabs) -> void
+auto MCLogInvScreen::SetUpPilotInv(int scrollPos, int redrawTabs) -> void
 {
-    globalLogPtr->currentInvTab = 1;
-    drawInvTabArt(this, 1, redrawTabs);
-    clearPane(globalLogPtr->repairScreen->inventoryPane);
-    clearPane(globalLogPtr->purchaseScreen->inventoryPane);
+    GlobalLogPtr->CurrentInvTab = 1;
+    DrawInvTabArt(this, 1, redrawTabs);
+    ClearPane(GlobalLogPtr->RepairScreen->InventoryPane);
+    ClearPane(GlobalLogPtr->PurchaseScreen->InventoryPane);
     int32_t yPos = 0;
 
-    for (LogWarrior* warrior = globalLogPtr->warriorList->warriors; warrior != nullptr; warrior = warrior->next)
+    for (MCLogWarrior* warrior = GlobalLogPtr->WarriorList->Warriors; warrior != nullptr; warrior = warrior->Next)
     {
         // The assigned pilots come last and aren't shown.
-        if (warrior->assigned != 0)
+        if (warrior->Assigned != 0)
         {
             break;
         }
 
-        PilotInventoryBlock* block = warrior->inventoryBlock;
-        inventoryPane->addChild(block);
-        block->ShowGUIWindow(-1);
-        block->bringToFront(0);
-        block->drawBackground();
+        MCPilotInventoryBlock* block = warrior->InventoryBlock;
+        InventoryPane->AddChild(block);
+        block->ShowGuiWindow(-1);
+        block->BringToFront(0);
+        block->DrawBackground();
 
         if (scrollPos != 0)
         {
-            block->moveTo(0, yPos, 0);
+            block->MoveTo(0, yPos, 0);
         }
 
         yPos += InvBlockHeight;
     }
 
-    globalLogPtr->purchaseScreen->inventoryPane->setDisplayPort(globalLogPtr->invTabPorts[1], 0, scrollPos);
-    globalLogPtr->repairScreen->inventoryPane->setDisplayPort(globalLogPtr->invTabPorts[1], 0, scrollPos);
+    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[1], 0, scrollPos);
+    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[1], 0, scrollPos);
 }
 
-auto LogInvScreen::setUpCompInv(int scrollPos, int redrawTabs) -> void
+auto MCLogInvScreen::SetUpCompInv(int scrollPos, int redrawTabs) -> void
 {
-    globalLogPtr->currentInvTab = 2;
-    drawInvTabArt(this, 2, redrawTabs);
-    clearPane(globalLogPtr->repairScreen->inventoryPane);
-    clearPane(globalLogPtr->purchaseScreen->inventoryPane);
+    GlobalLogPtr->CurrentInvTab = 2;
+    DrawInvTabArt(this, 2, redrawTabs);
+    ClearPane(GlobalLogPtr->RepairScreen->InventoryPane);
+    ClearPane(GlobalLogPtr->PurchaseScreen->InventoryPane);
 
-    for (_LogInventoryItem* item = globalLogPtr->componentInventory->items; item != nullptr; item = item->next)
+    for (MCLogInventoryItem* item = GlobalLogPtr->ComponentInventory->Items; item != nullptr; item = item->Next)
     {
-        CompInventoryBlock* block = item->inventoryBlock;
+        MCCompInventoryBlock* block = item->InventoryBlock;
 
-        if (block->listIndex < 0)
+        if (block->ListIndex < 0)
         {
             continue;
         }
 
-        inventoryPane->addChild(block);
-        block->ShowGUIWindow(-1);
-        block->bringToFront(0);
-        block->moveTo(0, block->listIndex * InvBlockHeight, 0);
-        block->drawBackground();
+        InventoryPane->AddChild(block);
+        block->ShowGuiWindow(-1);
+        block->BringToFront(0);
+        block->MoveTo(0, block->ListIndex * InvBlockHeight, 0);
+        block->DrawBackground();
     }
 
-    globalLogPtr->purchaseScreen->inventoryPane->setDisplayPort(globalLogPtr->invTabPorts[2], 0, scrollPos);
-    globalLogPtr->repairScreen->inventoryPane->setDisplayPort(globalLogPtr->invTabPorts[2], 0, scrollPos);
+    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[2], 0, scrollPos);
+    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[2], 0, scrollPos);
 }
 
-auto LogInvScreen::setUpVhclInv(int scrollPos, int redrawTabs) -> void
+auto MCLogInvScreen::SetUpVhclInv(int scrollPos, int redrawTabs) -> void
 {
-    globalLogPtr->currentInvTab = 3;
-    drawInvTabArt(this, 3, redrawTabs);
-    clearPane(globalLogPtr->repairScreen->inventoryPane);
-    clearPane(globalLogPtr->purchaseScreen->inventoryPane);
+    GlobalLogPtr->CurrentInvTab = 3;
+    DrawInvTabArt(this, 3, redrawTabs);
+    ClearPane(GlobalLogPtr->RepairScreen->InventoryPane);
+    ClearPane(GlobalLogPtr->PurchaseScreen->InventoryPane);
     int32_t yPos = 0;
 
-    for (LogVehicle* vehicle = globalLogPtr->vehicleList->vehicles; vehicle != nullptr; vehicle = vehicle->next)
+    for (MCLogVehicle* vehicle = GlobalLogPtr->VehicleList->Vehicles; vehicle != nullptr; vehicle = vehicle->Next)
     {
-        VehicleInventoryBlock* block = vehicle->inventoryBlock;
-        inventoryPane->addChild(block);
-        block->ShowGUIWindow(-1);
-        block->bringToFront(0);
-        block->moveTo(0, yPos, 0);
+        MCVehicleInventoryBlock* block = vehicle->InventoryBlock;
+        InventoryPane->AddChild(block);
+        block->ShowGuiWindow(-1);
+        block->BringToFront(0);
+        block->MoveTo(0, yPos, 0);
         yPos += InvBlockHeight;
     }
 
-    globalLogPtr->purchaseScreen->inventoryPane->setDisplayPort(globalLogPtr->invTabPorts[3], 0, scrollPos);
-    globalLogPtr->repairScreen->inventoryPane->setDisplayPort(globalLogPtr->invTabPorts[3], 0, scrollPos);
+    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[3], 0, scrollPos);
+    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[3], 0, scrollPos);
 }
 
-auto LogInvScreen::setUpVehiclePurchase() -> void
+auto MCLogInvScreen::SetUpVehiclePurchase() -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
 
-    if (globalLogPtr->currentScreen != screen)
+    if (GlobalLogPtr->CurrentScreen != screen)
     {
         return;
     }
 
-    clearPane(screen->unitPane);
+    ClearPane(screen->UnitPane);
     int32_t row = 0;
 
-    for (PurVehicle* purVehicle = globalLogPtr->purVehicleList->first; purVehicle != nullptr;
-         purVehicle = purVehicle->next)
+    for (MCPurVehicle* purVehicle = GlobalLogPtr->PurVehicleList->First; purVehicle != nullptr;
+         purVehicle = purVehicle->Next)
     {
-        VehiclePurchaseBlock* block = purVehicle->block;
-        unitPane->addChild(block);
-        block->ShowGUIWindow(-1);
-        block->moveTo(0, block->height() * row, 0);
-        block->bringToFront(0);
+        MCVehiclePurchaseBlock* block = purVehicle->Block;
+        UnitPane->AddChild(block);
+        block->ShowGuiWindow(-1);
+        block->MoveTo(0, block->Height() * row, 0);
+        block->BringToFront(0);
         ++row;
     }
 
-    screen->unitPane->setDisplayPort(screen->purVehiclePort, 0, -1);
+    screen->UnitPane->SetDisplayPort(screen->PurVehiclePort, 0, -1);
 }
 
-auto LogInvScreen::setUpPilotPurchase() -> void
+auto MCLogInvScreen::SetUpPilotPurchase() -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
 
-    if (globalLogPtr->currentScreen != screen)
+    if (GlobalLogPtr->CurrentScreen != screen)
     {
         return;
     }
 
-    clearPane(screen->unitPane);
+    ClearPane(screen->UnitPane);
     int32_t row = 0;
 
-    for (PurPilotData* pilot = globalLogPtr->purPilotList->first; pilot != nullptr; pilot = pilot->next)
+    for (MCPurPilotData* pilot = GlobalLogPtr->PurPilotList->First; pilot != nullptr; pilot = pilot->Next)
     {
-        if (pilot->status != 0)
+        if (pilot->Status != 0)
         {
             continue;
         }
 
-        PilotPurchaseBlock* block = pilot->block;
-        unitPane->addChild(block);
-        block->ShowGUIWindow(-1);
-        block->moveTo(0, block->height() * row, 0);
-        block->bringToFront(0);
+        MCPilotPurchaseBlock* block = pilot->Block;
+        UnitPane->AddChild(block);
+        block->ShowGuiWindow(-1);
+        block->MoveTo(0, block->Height() * row, 0);
+        block->BringToFront(0);
         ++row;
     }
 
-    screen->unitPane->setDisplayPort(screen->purPilotPort, 0, -1);
+    screen->UnitPane->SetDisplayPort(screen->PurPilotPort, 0, -1);
 }
 
-auto LogInvScreen::reIndexComponents() -> void
+auto MCLogInvScreen::ReIndexComponents() -> void
 {
     // The original runs the same pass twice.
-    reIndexPass();
-    reIndexPass();
+    ReIndexPass();
+    ReIndexPass();
 }
 
-auto LogInvScreen::setUpCompPurchase() -> void
+auto MCLogInvScreen::SetUpCompPurchase() -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
 
-    if (globalLogPtr->currentScreen != screen)
+    if (GlobalLogPtr->CurrentScreen != screen)
     {
         return;
     }
 
-    clearPane(screen->unitPane);
-    reIndexComponents();
+    ClearPane(screen->UnitPane);
+    ReIndexComponents();
 
-    for (_LogInventoryItem* item = globalLogPtr->purchaseComponents->items; item != nullptr; item = item->next)
+    for (MCLogInventoryItem* item = GlobalLogPtr->PurchaseComponents->Items; item != nullptr; item = item->Next)
     {
-        CompPurchaseBlock* block = item->purchaseBlock;
-        unitPane->addChild(block);
-        block->ShowGUIWindow(-1);
-        block->moveTo(0, block->height() * block->row, 0);
-        block->bringToFront(0);
+        MCCompPurchaseBlock* block = item->PurchaseBlock;
+        UnitPane->AddChild(block);
+        block->ShowGuiWindow(-1);
+        block->MoveTo(0, block->Height() * block->Row, 0);
+        block->BringToFront(0);
     }
 
-    screen->unitPane->setDisplayPort(screen->purCompPort, 0, -1);
+    screen->UnitPane->SetDisplayPort(screen->PurCompPort, 0, -1);
 }
 
-auto LogInvScreen::removePilot(int32_t pilotIndex) -> void
+auto MCLogInvScreen::RemovePilot(int32_t pilotIndex) -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    ScrollPane* pane = screen->unitPane;
-    int32_t count = globalLogPtr->purPilotList->getVisiblePilotCount();
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCScrollPane* pane = screen->UnitPane;
+    int32_t count = GlobalLogPtr->PurPilotList->GetVisiblePilotCount();
     // The original copied the old rows into a new picture, closing the gap: the rows below the removed one moved up
     // a block, and the rest was wiped. The view draws the remaining pilots at their new rows.
-    lPort* port =
-        storeView(screen->purPilotPort, StoreTab::Pilots, pane, pane->width() - 0x10, count * UnitBlockHeight, 0xff);
-    screen->unitPane->setDisplayPort(port, -1, -1);
+    MCLogPort* port =
+        StoreView(screen->PurPilotPort, MCStoreTab::Pilots, pane, pane->Width() - 0x10, count * UnitBlockHeight, 0xff);
+    screen->UnitPane->SetDisplayPort(port, -1, -1);
 
     // Move the blocks from the removed one on up a row.
-    for (PurPilotData* pilot = globalLogPtr->purPilotList->first; pilot != nullptr; pilot = pilot->next)
+    for (MCPurPilotData* pilot = GlobalLogPtr->PurPilotList->First; pilot != nullptr; pilot = pilot->Next)
     {
-        if (pilotIndex <= pilot->block->row)
+        if (pilotIndex <= pilot->Block->Row)
         {
             int32_t yPos = pilotIndex * UnitBlockHeight;
 
-            for (; pilot != nullptr; pilot = pilot->next)
+            for (; pilot != nullptr; pilot = pilot->Next)
             {
-                PilotPurchaseBlock* block = pilot->block;
+                MCPilotPurchaseBlock* block = pilot->Block;
                 yPos += UnitBlockHeight;
-                block->row = pilotIndex;
+                block->Row = pilotIndex;
                 ++pilotIndex;
-                block->moveTo(0, yPos, 0);
+                block->MoveTo(0, yPos, 0);
             }
             break;
         }
@@ -820,107 +821,107 @@ auto LogInvScreen::removePilot(int32_t pilotIndex) -> void
 
     int32_t row = 0;
 
-    for (PurPilotData* pilot = globalLogPtr->purPilotList->first; pilot != nullptr; pilot = pilot->next)
+    for (MCPurPilotData* pilot = GlobalLogPtr->PurPilotList->First; pilot != nullptr; pilot = pilot->Next)
     {
-        if (pilot->status == 0)
+        if (pilot->Status == 0)
         {
-            pilot->block->row = row++;
+            pilot->Block->Row = row++;
         }
     }
 }
 
-auto LogInvScreen::draw() -> void
+auto MCLogInvScreen::Draw() -> void
 {
-    if (lport()->viewOpen())
+    if (Lport()->ViewOpen())
     {
-        if (lPort* art = logArtf("%slogart\\%s", artPath, backgroundArt))
+        if (MCLogPort* art = LogArtf("%slogart\\%s", ArtPath, BackgroundArt))
         {
-            VFX_pane_copy(art->frame(), 0, 0, lport()->frame(), 0, 0, -1);
+            VfxPaneCopy(art->Frame(), 0, 0, Lport()->Frame(), 0, 0, -1);
         }
 
-        DrawInfo(lport());
-        globalLogPtr->drawScreenChrome(this, lport()->frame());
+        DrawInfo(Lport());
+        GlobalLogPtr->DrawScreenChrome(this, Lport()->Frame());
     }
 
-    lObject::draw();
+    MCLogObject::Draw();
 }
 
-auto LogInvScreen::initLive(const char* artName) -> void
+auto MCLogInvScreen::InitLive(const char* artName) -> void
 {
-    backgroundArt = artName;
-    invScreens.push_back(this);
+    BackgroundArt = artName;
+    InvScreens.push_back(this);
 }
 
-LogInvScreen::~LogInvScreen()
+MCLogInvScreen::~MCLogInvScreen()
 {
-    std::erase(invScreens, this);
+    std::erase(InvScreens, this);
 }
 
-auto LogInvScreen::ShowInfo(InvInfoBox::Kind kind, lObject* source) -> void
+auto MCLogInvScreen::ShowInfo(MCInvInfoBox::Kind kind, MCLogObject* source) -> void
 {
-    info.kind = kind;
-    info.source = source;
+    Info.InfoKind = kind;
+    Info.Source = source;
 }
 
-auto LogInvScreen::ShowComponentInfo(CompInventoryBlock* block, bool repairItem) -> void
+auto MCLogInvScreen::ShowComponentInfo(MCCompInventoryBlock* block, bool repairItem) -> void
 {
-    info.kind = repairItem ? InvInfoBox::Kind::RepairItem : InvInfoBox::Kind::Component;
-    info.source = nullptr;
-    info.componentPicture = block->item->rangeIndex;
-    std::memcpy(info.rangeText, block->rangeText, sizeof(info.rangeText));
-    std::memcpy(info.damageText, block->damageText, sizeof(info.damageText));
-    std::memcpy(info.recycleText, block->recycleText, sizeof(info.recycleText));
-    info.description = block->item->description != nullptr ? block->item->description : "";
+    Info.InfoKind = repairItem ? MCInvInfoBox::Kind::RepairItem : MCInvInfoBox::Kind::Component;
+    Info.Source = nullptr;
+    Info.ComponentPicture = block->Item->RangeIndex;
+    std::memcpy(Info.RangeText, block->RangeText, sizeof(Info.RangeText));
+    std::memcpy(Info.DamageText, block->DamageText, sizeof(Info.DamageText));
+    std::memcpy(Info.RecycleText, block->RecycleText, sizeof(Info.RecycleText));
+    Info.Description = block->Item->Description != nullptr ? block->Item->Description : "";
 }
 
-auto LogInvScreen::DrawInfo(lPort* port) -> void
+auto MCLogInvScreen::DrawInfo(MCLogPort* port) -> void
 {
-    if (info.header >= 0)
+    if (Info.Header >= 0)
     {
-        if (lPort* header = logArtf("%slogart\\%s", artPath, InvHeaderArt[info.header]))
+        if (MCLogPort* header = LogArtf("%slogart\\%s", ArtPath, InvHeaderArt[Info.Header]))
         {
-            VFX_pane_copy(header->frame(), 0, 0, port->frame(), 0xc4, 0x65, -1);
+            VfxPaneCopy(header->Frame(), 0, 0, port->Frame(), 0xc4, 0x65, -1);
         }
     }
 
-    if (info.art < 0)
+    if (Info.Art < 0)
     {
         return;
     }
 
-    globalLogPtr->inventoryIconPorts[info.art]->copyTo(port->frame(), 2, 0x18a, 0);
+    GlobalLogPtr->InventoryIconPorts[Info.Art]->CopyTo(port->Frame(), 2, 0x18a, 0);
 
-    switch (info.kind)
+    switch (Info.InfoKind)
     {
-        case InvInfoBox::Kind::None:
+        case MCInvInfoBox::Kind::None:
         {
             break;
         }
 
-        case InvInfoBox::Kind::Component:
-        case InvInfoBox::Kind::RepairItem:
+        case MCInvInfoBox::Kind::Component:
+        case MCInvInfoBox::Kind::RepairItem:
         {
-            drawComponentInfo(info, port);
+            DrawComponentInfo(Info, port);
             break;
         }
 
-        case InvInfoBox::Kind::RepairMech:
+        case MCInvInfoBox::Kind::RepairMech:
         {
-            static_cast<MechRepairBlock*>(info.source)->DrawInfo(port);
+            static_cast<MCMechRepairBlock*>(Info.Source)->DrawInfo(port);
             break;
         }
 
         default:
         {
-            static_cast<InventoryBlock*>(info.source)->DrawInfo(port);
+            static_cast<MCInventoryBlock*>(Info.Source)->DrawInfo(port);
             break;
         }
     }
 }
 
-auto LogInvScreen::Of(aObject* screen) -> LogInvScreen*
+auto MCLogInvScreen::Of(MCGuiObject* screen) -> MCLogInvScreen*
 {
-    for (LogInvScreen* invScreen : invScreens)
+    for (MCLogInvScreen* invScreen : InvScreens)
     {
         if (invScreen == screen)
         {
@@ -931,90 +932,90 @@ auto LogInvScreen::Of(aObject* screen) -> LogInvScreen*
     return nullptr;
 }
 
-auto LogInvScreen::ForgetInfoSource(lObject* source) -> void
+auto MCLogInvScreen::ForgetInfoSource(MCLogObject* source) -> void
 {
-    for (LogInvScreen* screen : invScreens)
+    for (MCLogInvScreen* screen : InvScreens)
     {
-        if (screen->info.source == source)
+        if (screen->Info.Source == source)
         {
-            screen->info.kind = InvInfoBox::Kind::None;
-            screen->info.source = nullptr;
+            screen->Info.InfoKind = MCInvInfoBox::Kind::None;
+            screen->Info.Source = nullptr;
         }
     }
 }
 
 // LogChatWindow
 
-auto LogChatWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t historySize) -> void
+auto MCLogChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t historySize) -> void
 {
     // The original wiped its picture to the key and pasted the frame (lsbdw04) along the bottom; draw shows the frame.
-    lObject::init(xPos, yPos, width, height, nullptr, nullptr);
+    MCLogObject::Init(xPos, yPos, width, height, nullptr, nullptr);
     SetTransparent(-1);
-    this->historySize = historySize;
+    this->HistorySize = historySize;
 
     char fileName[256];
-    framePort = new lPort;
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsbdw04.tga", artPath);
-    framePort->init(fileName);
+    FramePort = new MCLogPort;
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsbdw04.tga", ArtPath);
+    FramePort->Init(fileName);
 
-    auto* pane = new ScrollPane;
+    auto* pane = new MCScrollPane;
 
     if (pane != nullptr)
     {
-        pane->init();
+        pane->Init();
     }
 
-    historyPane = pane;
+    HistoryPane = pane;
     Assert(pane != nullptr, 0, "Not enough memory for chat scroll", nullptr);
-    pane->init(0xb8, height - framePort->height() - 7, 6, 6, static_cast<char*>(nullptr));
-    addChild(pane);
-    pane->ShowGUIWindow(-1);
+    pane->Init(0xb8, height - FramePort->Height() - 7, 6, 6, static_cast<char*>(nullptr));
+    AddChild(pane);
+    pane->ShowGuiWindow(-1);
 
     // The history (wiped to 0x10, then written along the bottom as lines come) is drawn from lines.
-    lines.clear();
-    pane->setDisplayPort(NewHistoryView(pane->lport()->width(), historySize / pane->lport()->width()), -1, -1);
-    pane->setScrollPos(100.0f);
+    Lines.clear();
+    pane->SetDisplayPort(NewHistoryView(pane->Lport()->Width(), historySize / pane->Lport()->Width()), -1, -1);
+    pane->SetScrollPos(100.0f);
 
-    chatInput = new lChatInput;
-    chatInput->init(6, height - 0x21, 0xb8, 0x1a, nullptr);
-    addChild(chatInput);
-    chatInput->ShowGUIWindow(-1);
+    ChatInput = new MCLogChatInput;
+    ChatInput->Init(6, height - 0x21, 0xb8, 0x1a, nullptr);
+    AddChild(ChatInput);
+    ChatInput->ShowGuiWindow(-1);
 }
 
-LogChatWindow::~LogChatWindow()
+MCLogChatWindow::~MCLogChatWindow()
 {
-    destroy();
+    Destroy();
 }
 
-auto LogChatWindow::ShowGUIWindow(int show) -> void
+auto MCLogChatWindow::ShowGuiWindow(int show) -> void
 {
-    showWindow = show;
+    ShowWindow = show;
 }
 
-auto LogChatWindow::destroy() -> void
+auto MCLogChatWindow::Destroy() -> void
 {
-    delete historyPane;
-    historyPane = nullptr;
-    delete chatInput;
-    chatInput = nullptr;
-    freePort(framePort);
-    lObject::destroy();
+    delete HistoryPane;
+    HistoryPane = nullptr;
+    delete ChatInput;
+    ChatInput = nullptr;
+    FreePort(FramePort);
+    MCLogObject::Destroy();
 }
 
-auto LogChatWindow::handleNetworkMessage(uint32_t fromPlayerId, void* message) -> void
+auto MCLogChatWindow::HandleNetworkMessage(uint32_t fromPlayerId, void* message) -> void
 {
     auto* bytes = static_cast<char*>(message);
     // Team messages are in colour 6, messages to all in 4.
-    processChatString(fromPlayerId, bytes + 9, bytes[8] != 0 ? 6 : 4);
+    ProcessChatString(fromPlayerId, bytes + 9, bytes[8] != 0 ? 6 : 4);
 }
 
-auto LogChatWindow::processChatString(uint32_t fromPlayerId, char* string, int32_t textColor) -> void
+auto MCLogChatWindow::ProcessChatString(uint32_t fromPlayerId, char* string, int32_t textColor) -> void
 {
     const char* name = "?";
 
     if (fromPlayerId != 0)
     {
-        name = MPlayer->sessionManager->GetPlayer(fromPlayerId)->name;
+        name = MPlayer->SessionManager->GetPlayer(fromPlayerId)->Name;
     }
 
     if (textColor == -1)
@@ -1022,44 +1023,44 @@ auto LogChatWindow::processChatString(uint32_t fromPlayerId, char* string, int32
         textColor = 6;
     }
 
-    FIDPPlayer* player = MPlayer->sessionManager->GetPlayer(fromPlayerId);
+    MCFidpPlayer* player = MPlayer->SessionManager->GetPlayer(fromPlayerId);
     // Port fix: a sender no longer in the session (the original read its player number through null) takes player 0's colour.
-    int32_t playerNumber = player != nullptr ? player->playerNumber : 0;
+    int32_t playerNumber = player != nullptr ? player->PlayerNumber : 0;
     char line[2048];
-    std::snprintf(line, sizeof(line), "%%fc%d%s: %%fc%d%s", globalLogPtr->playerColors[playerNumber], name, textColor,
+    std::snprintf(line, sizeof(line), "%%fc%d%s: %%fc%d%s", GlobalLogPtr->PlayerColors[playerNumber], name, textColor,
                   string);
     AddLine(line);
 }
 
-auto LogChatWindow::AddLine(const char* line) -> void
+auto MCLogChatWindow::AddLine(const char* line) -> void
 {
     // The original moved the history picture up by the text's height, wiped the strip along the bottom and wrote the
     // text there; the history keeps the line and draws it so each frame.
-    ScrollPane* pane = historyPane;
+    MCScrollPane* pane = HistoryPane;
     std::string text = line;
     const int32_t used =
-        application->textFormatter.process(reinterpret_cast<uint8_t*>(text.data()), nullptr, pane->lport()->width(), 0);
-    lines.push_back(HistoryLine{std::move(text), used});
+        Application->TextFormatter.Process(reinterpret_cast<uint8_t*>(text.data()), nullptr, pane->Lport()->Width(), 0);
+    Lines.push_back(HistoryLine{std::move(text), used});
 
     // A line whose strip moved off the top shows nothing any more.
     int32_t above = 0;
-    size_t first = lines.size();
+    size_t first = Lines.size();
 
-    while (first > 0 && above < pane->lport()->height())
+    while (first > 0 && above < pane->Lport()->Height())
     {
         first--;
-        above += lines[first].Used;
+        above += Lines[first].Used;
     }
 
-    lines.erase(lines.begin(), lines.begin() + static_cast<std::ptrdiff_t>(first));
+    Lines.erase(Lines.begin(), Lines.begin() + static_cast<std::ptrdiff_t>(first));
 }
 
-auto LogChatWindow::DrawHistory(aPort* port, const std::vector<HistoryLine>& lines) -> void
+auto MCLogChatWindow::DrawHistory(MCGuiPort* port, const std::vector<HistoryLine>& lines) -> void
 {
-    _pane* frame = port->frame();
-    const int32_t portWidth = port->width();
-    const int32_t portHeight = port->height();
-    VFX_pane_wipe(frame, 0x10);
+    MCPane* frame = port->Frame();
+    const int32_t portWidth = port->Width();
+    const int32_t portHeight = port->Height();
+    VfxPaneWipe(frame, 0x10);
 
     // How far each line moved up: the heights of the lines after it.
     int32_t moved = 0;
@@ -1069,7 +1070,7 @@ auto LogChatWindow::DrawHistory(aPort* port, const std::vector<HistoryLine>& lin
         moved += line.Used;
     }
 
-    const MCRect scissor = port->view.Scissor;
+    const MCRect scissor = port->View.Scissor;
 
     for (const HistoryLine& line : lines)
     {
@@ -1078,86 +1079,86 @@ auto LogChatWindow::DrawHistory(aPort* port, const std::vector<HistoryLine>& lin
         const int32_t top = bottom - line.Used;
 
         // The picture ended at its last row when the line was written: nothing of it lies below that.
-        port->view.Scissor.Y1 = std::min(scissor.Y1, port->view.OriginY + bottom);
+        port->View.Scissor.Y1 = std::min(scissor.Y1, port->View.OriginY + bottom);
 
-        if (port->view.Open())
+        if (port->View.Open())
         {
-            _pane strip = *frame;
-            strip.x0 = 0;
-            strip.y0 = top;
-            strip.x1 = portWidth - 1;
-            strip.y1 = bottom;
-            VFX_pane_wipe(&strip, 0x10);
+            MCPane strip = *frame;
+            strip.X0 = 0;
+            strip.Y0 = top;
+            strip.X1 = portWidth - 1;
+            strip.Y1 = bottom;
+            VfxPaneWipe(&strip, 0x10);
             std::string text = line.Text;
-            application->textFormatter.process(reinterpret_cast<uint8_t*>(text.data()), port, 0, top);
+            Application->TextFormatter.Process(reinterpret_cast<uint8_t*>(text.data()), port, 0, top);
         }
 
-        port->view.Scissor = scissor;
+        port->View.Scissor = scissor;
     }
 }
 
-auto LogChatWindow::NewHistoryView(int32_t width, int32_t height) -> lPort*
+auto MCLogChatWindow::NewHistoryView(int32_t width, int32_t height) -> MCLogPort*
 {
-    auto* view = new lPort;
-    view->initView(width, height);
-    view->DrawContent = [this](aPort* port) { DrawHistory(port, lines); };
+    auto* view = new MCLogPort;
+    view->InitView(width, height);
+    view->DrawContent = [this](MCGuiPort* port) { DrawHistory(port, Lines); };
     return view;
 }
 
-auto LogChatWindow::draw() -> void
+auto MCLogChatWindow::Draw() -> void
 {
-    if (lport()->viewOpen())
+    if (Lport()->ViewOpen())
     {
-        framePort->copyTo(lport()->frame(), 0, height() - framePort->height(), -1);
+        FramePort->CopyTo(Lport()->Frame(), 0, Height() - FramePort->Height(), -1);
     }
 
-    lObject::draw();
+    MCLogObject::Draw();
 }
 
-auto LogChatWindow::handleEvent(aEvent* event) -> void
+auto MCLogChatWindow::HandleEvent(MCGuiEvent* event) -> void
 {
     // The original fetches x() and y() here and drops them.
-    x();
-    y();
+    X();
+    Y();
 
-    if (event->type == 9 && parent != nullptr)
+    if (event->Type == 9 && Parent != nullptr)
     {
-        parent->handleEvent(event);
+        Parent->HandleEvent(event);
     }
 }
 
-auto LogChatWindow::resize(int32_t height) -> void
+auto MCLogChatWindow::Resize(int32_t height) -> void
 {
     // The original wiped its picture and pasted the frame at the new bottom (draw shows it there).
-    lObject::resize(width(), height);
-    chatInput->moveTo(6, height - 0x21, 0);
+    MCLogObject::Resize(Width(), height);
+    ChatInput->MoveTo(6, height - 0x21, 0);
 
     // Keep the history across the new pane (the original copied its picture into a new one).
-    lPort* oldHistory = historyPane->contentPort;
-    lPort* history = NewHistoryView(oldHistory->width(), oldHistory->height());
-    delete historyPane;
+    MCLogPort* oldHistory = HistoryPane->ContentPort;
+    MCLogPort* history = NewHistoryView(oldHistory->Width(), oldHistory->Height());
+    delete HistoryPane;
 
-    auto* pane = new ScrollPane;
+    auto* pane = new MCScrollPane;
 
     if (pane != nullptr)
     {
-        pane->init();
+        pane->Init();
     }
 
-    historyPane = pane;
+    HistoryPane = pane;
     Assert(pane != nullptr, 0, "Not enough memory for chat scroll", nullptr);
-    pane->init(0xb8, height - framePort->height() - 7, 6, 6, static_cast<char*>(nullptr));
-    pane->setDisplayPort(history, -1, -1);
-    addChild(pane);
-    historyPane->setScrollPos(100.0f);
-    historyPane->ShowGUIWindow(-1);
+    pane->Init(0xb8, height - FramePort->Height() - 7, 6, 6, static_cast<char*>(nullptr));
+    pane->SetDisplayPort(history, -1, -1);
+    AddChild(pane);
+    HistoryPane->SetScrollPos(100.0f);
+    HistoryPane->ShowGuiWindow(-1);
 }
 
-auto LogChatWindow::reset() -> void
+auto MCLogChatWindow::Reset() -> void
 {
-    ScrollPane* pane = historyPane;
-    lPort* oldHistory = pane->contentPort;
-    lines.clear();
-    pane->setDisplayPort(NewHistoryView(oldHistory->width(), oldHistory->height()), -1, -1);
-    chatInput->text[0] = 0;
+    MCScrollPane* pane = HistoryPane;
+    MCLogPort* oldHistory = pane->ContentPort;
+    Lines.clear();
+    pane->SetDisplayPort(NewHistoryView(oldHistory->Width(), oldHistory->Height()), -1, -1);
+    ChatInput->Text[0] = 0;
 }

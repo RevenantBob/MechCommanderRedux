@@ -7,7 +7,7 @@ const char* ComponentFormString[21] = {
     "Simple",       "Cockpit",         "Sensors",       "Actuator", "Engine",  "HeatSink", "Weapon",
     "EnergyWeapon", "BallisticWeapon", "MissileWeapon", "Ammo",     "JumpJet", "Case",     "LifeSupport",
     "Gyroscope",    "PowerAmplifier",  "ECM",           "Probe",    "Jammer",  "Bulk",     nullptr};
-std::unique_ptr<MasterComponent[]> MasterComponentList;
+std::unique_ptr<MCMasterComponent[]> MasterComponentList;
 int32_t NumMasterComponents = 0;
 int32_t MasterArmActuatorID = -1;
 int32_t MasterLegActuatorID = -1;
@@ -50,25 +50,25 @@ namespace
     }
 }
 
-auto MasterComponent::destroy() -> void
+auto MCMasterComponent::Destroy() -> void
 {
 }
 
-auto MasterComponent::initEXCEL(char* dataLine, uint8_t, float weaponRangeFactor, float sensorRangeFactor) -> int32_t
+auto MCMasterComponent::InitExcel(char* dataLine, uint8_t, float weaponRangeFactor, float sensorRangeFactor) -> int32_t
 {
-    masterID = std::atoi(std::strtok(dataLine, ","));
+    MasterID = std::atoi(std::strtok(dataLine, ","));
     char* field = NextField();
 
     if (std::strcmp(field, "undefined") == 0)
     {
-        masterID = -1;
+        MasterID = -1;
         return 0;
     }
 
-    std::strncpy(name, field, 0x1e);
-    abbreviation[0] = 0; // the original terminates the name by clearing the byte after it (+0x2a)
-    std::strncpy(abbreviation, NextField(), 0xf);
-    abbreviation[0xf] = 0;
+    std::strncpy(Name, field, 0x1e);
+    Abbreviation[0] = 0; // the original terminates the name by clearing the byte after it (+0x2a)
+    std::strncpy(Abbreviation, NextField(), 0xf);
+    Abbreviation[0xf] = 0;
 
     field = NextField();
     int32_t formIndex = 0;
@@ -83,12 +83,12 @@ auto MasterComponent::initEXCEL(char* dataLine, uint8_t, float weaponRangeFactor
         return -1;
     }
 
-    form = formIndex;
+    Form = formIndex;
 
-    criticalSpacesReq = static_cast<uint8_t>(std::atoi(NextField()));
-    health = static_cast<uint8_t>(std::atoi(NextField()));
-    tonnage = static_cast<float>(std::atof(NextField()));
-    resourcePoints = std::atoi(NextField());
+    CriticalSpacesReq = static_cast<uint8_t>(std::atoi(NextField()));
+    Health = static_cast<uint8_t>(std::atoi(NextField()));
+    Tonnage = static_cast<float>(std::atof(NextField()));
+    ResourcePoints = std::atoi(NextField());
 
     field = NextField();
 
@@ -96,67 +96,67 @@ auto MasterComponent::initEXCEL(char* dataLine, uint8_t, float weaponRangeFactor
     {
         if (std::strcmp(field, "No") == 0)
         {
-            criticalSpacesLocation[location] = -1;
+            CriticalSpacesLocation[location] = -1;
         }
         else if (std::strcmp(field, "Yes") == 0)
         {
-            criticalSpacesLocation[location] = 0;
+            CriticalSpacesLocation[location] = 0;
         }
         else
         {
-            criticalSpacesLocation[location] = static_cast<int8_t>(std::atoi(field));
+            CriticalSpacesLocation[location] = static_cast<int8_t>(std::atoi(field));
         }
 
         field = NextField();
     }
 
-    flags = 0;
+    Flags = 0;
 
     if (std::strcmp(field, "Yes") == 0)
     {
-        flags = 2;
+        Flags = 2;
     }
 
     if (std::strcmp(NextField(), "Yes") == 0)
     {
-        flags |= 1;
+        Flags |= 1;
     }
 
     field = NextField();
 
     if (std::strcmp(field, "Both") == 0)
     {
-        techBase = 3;
+        TechBase = 3;
     }
     else if (std::strcmp(field, "Clan") == 0)
     {
-        techBase = 1;
+        TechBase = 1;
     }
     else if (std::strcmp(field, "IS") == 0)
     {
-        techBase = 2;
+        TechBase = 2;
     }
 
     if (std::strcmp(NextField(), "Yes") == 0)
     {
-        flags |= 0x30;
+        Flags |= 0x30;
     }
-    else if ((techBase & 1) == 0)
+    else if ((TechBase & 1) == 0)
     {
-        flags |= 0x20;
+        Flags |= 0x20;
     }
     else
     {
-        flags |= 0x10;
+        Flags |= 0x10;
     }
 
-    art = std::atoi(NextField());
-    disableLevel = static_cast<uint8_t>(std::atoi(NextField()));
-    battleRating = static_cast<float>(std::atof(NextField()));
+    Art = std::atoi(NextField());
+    DisableLevel = static_cast<uint8_t>(std::atoi(NextField()));
+    BattleRating = static_cast<float>(std::atof(NextField()));
 
     field = NextField();
 
-    switch (form)
+    switch (Form)
     {
         case COMPONENT_FORM_SIMPLE:
         case COMPONENT_FORM_COCKPIT:
@@ -169,106 +169,106 @@ auto MasterComponent::initEXCEL(char* dataLine, uint8_t, float weaponRangeFactor
             return 0;
         case COMPONENT_FORM_SENSOR:
         {
-            rangeOrHeat = static_cast<float>(std::atof(field) * sensorRangeFactor);
+            RangeOrHeat = static_cast<float>(std::atof(field) * sensorRangeFactor);
             return 0;
         }
         case COMPONENT_FORM_ENGINE:
         case COMPONENT_FORM_HEATSINK:
         {
-            shortValue = static_cast<int16_t>(std::atoi(field));
+            ShortValue = static_cast<int16_t>(std::atoi(field));
             return 0;
         }
         case COMPONENT_FORM_WEAPON_ENERGY:
         case COMPONENT_FORM_WEAPON_BALLISTIC:
         case COMPONENT_FORM_WEAPON_MISSILE:
         {
-            damage = static_cast<float>(std::atof(field));
-            recycleTime = static_cast<float>(std::atof(NextField()));
-            rangeOrHeat = TruncatedHeat(NextField());
-            numMissiles = std::atoi(NextField());
+            Damage = static_cast<float>(std::atof(field));
+            RecycleTime = static_cast<float>(std::atof(NextField()));
+            RangeOrHeat = TruncatedHeat(NextField());
+            NumMissiles = std::atoi(NextField());
             field = NextField();
-            missileType = 0;
+            MissileType = 0;
 
-            if (form == COMPONENT_FORM_WEAPON_BALLISTIC && std::strcmp(field, "1") == 0)
+            if (Form == COMPONENT_FORM_WEAPON_BALLISTIC && std::strcmp(field, "1") == 0)
             {
-                missileType = 4;
+                MissileType = 4;
             }
             else
             {
-                missileType = MissileTypeOf(field);
+                MissileType = MissileTypeOf(field);
             }
             break;
         }
         case COMPONENT_FORM_AMMO:
         {
-            longValue = std::atoi(field);
-            damage = static_cast<float>(std::atof(NextField()));
+            LongValue = std::atoi(field);
+            Damage = static_cast<float>(std::atof(NextField()));
             return 0;
         }
         case COMPONENT_FORM_JUMPJET:
         {
-            longValue = std::atoi(field);
+            LongValue = std::atoi(field);
             return 0;
         }
         case COMPONENT_FORM_ECM:
         {
-            damage = static_cast<float>(std::atof(field));
-            rangeOrHeat = static_cast<float>(std::atof(NextField()));
+            Damage = static_cast<float>(std::atof(field));
+            RangeOrHeat = static_cast<float>(std::atof(NextField()));
             return 0;
         }
         case COMPONENT_FORM_PROBE:
         case COMPONENT_FORM_JAMMER:
         {
-            rangeOrHeat = static_cast<float>(std::atof(field));
+            RangeOrHeat = static_cast<float>(std::atof(field));
             return 0;
         }
         default:
             return -2;
     }
 
-    for (float& range : weaponRange)
+    for (float& range : WeaponRange)
     {
         range = static_cast<float>(std::atof(NextField()) * weaponRangeFactor);
     }
 
-    weaponType = static_cast<int16_t>(std::atoi(NextField()));
-    weaponEffect = static_cast<uint8_t>(std::atoi(NextField()));
-    ammoMasterId = static_cast<uint8_t>(std::atoi(NextField()));
-    weaponFlags = static_cast<uint8_t>(std::atoi(NextField()));
+    WeaponType = static_cast<int16_t>(std::atoi(NextField()));
+    WeaponEffect = static_cast<uint8_t>(std::atoi(NextField()));
+    AmmoMasterId = static_cast<uint8_t>(std::atoi(NextField()));
+    WeaponFlags = static_cast<uint8_t>(std::atoi(NextField()));
     return 0;
 }
 
-auto MasterComponent::isOffensiveWeapon() -> int
+auto MCMasterComponent::IsOffensiveWeapon() -> int
 {
-    return masterID != MasterClanAntiMissileSystemID && masterID != MasterInnerSphereAntiMissileSystemID ? 1 : 0;
+    return MasterID != MasterClanAntiMissileSystemID && MasterID != MasterInnerSphereAntiMissileSystemID ? 1 : 0;
 }
 
-auto MasterComponent::isDefensiveWeapon() -> int
+auto MCMasterComponent::IsDefensiveWeapon() -> int
 {
-    return masterID != MasterClanAntiMissileSystemID && masterID != MasterInnerSphereAntiMissileSystemID ? 0 : 1;
+    return MasterID != MasterClanAntiMissileSystemID && MasterID != MasterInnerSphereAntiMissileSystemID ? 0 : 1;
 }
 
-auto MasterComponent::multiplyWeaponRanges(float factor) -> void
+auto MCMasterComponent::MultiplyWeaponRanges(float factor) -> void
 {
     // x87: the product at double precision, truncated to a 32-bit int, of which only the low 16 bits are kept.
-    for (float& range : weaponRange)
+    for (float& range : WeaponRange)
     {
         range = static_cast<float>(static_cast<int16_t>(static_cast<int32_t>(static_cast<double>(factor) * range)));
     }
 }
 
-auto initMasterComponentListEXCEL(char* fileName, int32_t numComponents, float weaponRangeFactor,
+auto InitMasterComponentListExcel(char* fileName, int32_t numComponents, float weaponRangeFactor,
                                   float sensorRangeFactor) -> int32_t
 {
-    MasterComponentList = std::make_unique<MasterComponent[]>(static_cast<size_t>(numComponents));
+    MasterComponentList = std::make_unique<MCMasterComponent[]>(static_cast<size_t>(numComponents));
     NumMasterComponents = numComponents;
 
     for (int32_t i = 0; i < numComponents; i++)
     {
-        MasterComponent* component = &MasterComponentList[i];
-        component->masterID = -1;
-        component->name[0] = 0;
-        component->abbreviation[0] = 0;
+        MCMasterComponent* component = &MasterComponentList[i];
+        component->MasterID = -1;
+        component->Name[0] = 0;
+        component->Abbreviation[0] = 0;
     }
 
     MasterArmActuatorID = -1;
@@ -276,8 +276,8 @@ auto initMasterComponentListEXCEL(char* fileName, int32_t numComponents, float w
     MasterClanAntiMissileSystemID = -1;
     MasterInnerSphereAntiMissileSystemID = -1;
 
-    File componentFile;
-    int32_t result = componentFile.open(fileName, READ, 0x32);
+    MCFile componentFile;
+    int32_t result = componentFile.Open(fileName, READ, 0x32);
 
     if (result != 0)
     {
@@ -286,26 +286,26 @@ auto initMasterComponentListEXCEL(char* fileName, int32_t numComponents, float w
 
     uint8_t dataLine[512];
 
-    if (componentFile.readLine(dataLine, 0x1ff) == 0)
+    if (componentFile.ReadLine(dataLine, 0x1ff) == 0)
     {
         Fatal(0, "Bad MasterComponent File");
     }
 
-    if (componentFile.readLine(dataLine, 0x1ff) == 0)
+    if (componentFile.ReadLine(dataLine, 0x1ff) == 0)
     {
         Fatal(0, "Bad MasterComponent File");
     }
 
     std::sscanf(reinterpret_cast<char*>(dataLine), "MasterArmActuatorID = %d", &MasterArmActuatorID);
 
-    if (componentFile.readLine(dataLine, 0x1ff) == 0)
+    if (componentFile.ReadLine(dataLine, 0x1ff) == 0)
     {
         Fatal(0, "Bad MasterComponent File");
     }
 
     std::sscanf(reinterpret_cast<char*>(dataLine), "MasterLegActuatorID = %d", &MasterLegActuatorID);
 
-    if (componentFile.readLine(dataLine, 0x1ff) == 0)
+    if (componentFile.ReadLine(dataLine, 0x1ff) == 0)
     {
         Fatal(0, "Bad MasterComponent File");
     }
@@ -313,42 +313,42 @@ auto initMasterComponentListEXCEL(char* fileName, int32_t numComponents, float w
     std::sscanf(reinterpret_cast<char*>(dataLine), "MasterClanAntiMissileSystemID = %d",
                 &MasterClanAntiMissileSystemID);
 
-    if (componentFile.readLine(dataLine, 0x1ff) == 0)
+    if (componentFile.ReadLine(dataLine, 0x1ff) == 0)
     {
         Fatal(0, "Bad MasterComponent File");
     }
 
     std::sscanf(reinterpret_cast<char*>(dataLine), "MasterInnerSphereAntiMissileSystemID = %d",
                 &MasterInnerSphereAntiMissileSystemID);
-    componentFile.readLine(dataLine, 0x1ff);
+    componentFile.ReadLine(dataLine, 0x1ff);
 
-    if (componentFile.readLine(dataLine, 0x1ff) == 0)
+    if (componentFile.ReadLine(dataLine, 0x1ff) == 0)
     {
         Fatal(0, "Bad MasterComponent File");
     }
 
     for (int32_t i = 0; i < numComponents; i++)
     {
-        if (componentFile.readLine(dataLine, 0x1ff) == 0)
+        if (componentFile.ReadLine(dataLine, 0x1ff) == 0)
         {
             return -1;
         }
 
-        MasterComponentList[i].initEXCEL(reinterpret_cast<char*>(dataLine), static_cast<uint8_t>(i), weaponRangeFactor,
+        MasterComponentList[i].InitExcel(reinterpret_cast<char*>(dataLine), static_cast<uint8_t>(i), weaponRangeFactor,
                                          sensorRangeFactor);
     }
 
-    componentFile.close();
+    componentFile.Close();
     return 0;
 }
 
-auto multiplyMasterWeaponRanges(float factor) -> void
+auto MultiplyMasterWeaponRanges(float factor) -> void
 {
     for (int32_t i = 0; i < NumMasterComponents; i++)
     {
-        if (MasterComponentList[i].form > COMPONENT_FORM_WEAPON && MasterComponentList[i].form < COMPONENT_FORM_AMMO)
+        if (MasterComponentList[i].Form > COMPONENT_FORM_WEAPON && MasterComponentList[i].Form < COMPONENT_FORM_AMMO)
         {
-            MasterComponentList[i].multiplyWeaponRanges(factor);
+            MasterComponentList[i].MultiplyWeaponRanges(factor);
         }
     }
 }

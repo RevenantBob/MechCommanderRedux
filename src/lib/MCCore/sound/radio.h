@@ -1,14 +1,14 @@
 #pragma once
 
-class aSmackerWindow;
-class MechWarrior;
-class PacketFile;
-struct SmackTag;
+class MCGuiSmackerWindow;
+class MCMechWarrior;
+class MCPacketFile;
+struct MCSmackTag;
 
 /// <summary>
 /// The pilots' radio messages, in the order of <c>data\sound\radio.csv</c> (whose first column gives the names).
 /// </summary>
-enum RadioMessageType : int32_t
+enum MCRadioMessageType : int32_t
 {
     RADIO_MOVETO = 0,
     RADIO_RUNTO = 1,
@@ -60,64 +60,64 @@ constexpr int32_t MAX_RADIOS = 256;
 
 /// <summary>A row of <c>radio.csv</c>: how a message type is played.</summary>
 /// <remarks>Original source: <c>sound\radio.cpp</c>; 0x1c bytes.</remarks>
-struct RadioMessageInfo
+struct MCRadioMessageInfo
 {
     /// <summary>"priority" (4 when blank): lower plays first.</summary>
-    uint8_t priority; // +0x00
+    uint8_t Priority;
     /// <summary>"shelflife": seconds the queued message stays worth playing.</summary>
-    float shelfLife; // +0x04
+    float ShelfLife;
     /// <summary>"movie": the video letter after the pilot's movie name; 'x' for none.</summary>
-    char movieCode; // +0x08
+    char MovieCode;
     /// <summary>"styles" (1 when blank): how many variations the message has.</summary>
-    uint8_t styles; // +0x09
+    uint8_t Styles;
     /// <summary>"style1%".."style3%": the odds of each variation.</summary>
-    uint8_t styleChance[3]; // +0x0a
+    uint8_t StyleChance[3];
     /// <summary>"map to": the first variation's packet in the pilot's sound file.</summary>
-    int32_t msgId; // +0x10
+    int32_t MsgId;
     /// <summary>"pilot id?" ('y'): the pilot may say who he is first (packet 9 or 10).</summary>
-    int32_t pilotIdentifiesSelf; // +0x14
+    int32_t PilotIdentifiesSelf;
 };
 
 /// <summary>A radio message on its way to the speakers: its sound fragments, noise and video.</summary>
 /// <remarks>Original source: <c>sound\radio.cpp</c>, <c>sound\soundsys.cpp</c>; 0xac bytes, from the radio heap in
 /// the original. Field names follow MechCommander 2's RadioData.</remarks>
-struct RadioData
+struct MCRadioData
 {
     /// <summary>The packet played (msgId plus the variation).</summary>
-    uint32_t msgId = 0; // +0x00
+    uint32_t MsgId = 0;
     /// <summary>The message type.</summary>
-    RadioMessageType msgType{}; // +0x04
+    MCRadioMessageType MsgType{};
     /// <summary>The noise file packet played under it.</summary>
-    uint32_t noiseId = 0; // +0x08
+    uint32_t NoiseId = 0;
     /// <summary>How many fragments there are.</summary>
-    int32_t numSegments = 0; // +0x0c
+    int32_t NumSegments = 0;
     /// <summary>The fragments' wave data.</summary>
-    std::unique_ptr<uint8_t[]> data[MAX_RADIO_FRAGMENTS]; // +0x10
+    std::unique_ptr<uint8_t[]> Data[MAX_RADIO_FRAGMENTS];
     /// <summary>The noise under each fragment.</summary>
-    std::unique_ptr<uint8_t[]> noise[MAX_RADIO_FRAGMENTS]; // +0x50
+    std::unique_ptr<uint8_t[]> Noise[MAX_RADIO_FRAGMENTS];
     /// <summary>The turn it was queued.</summary>
-    int32_t turnQueued = 0; // +0x94
+    int32_t TurnQueued = 0;
     /// <summary>The pilot's video window, if the message has a movie.</summary>
-    aSmackerWindow* movieWindow = nullptr; // +0x98
+    MCGuiSmackerWindow* MovieWindow = nullptr;
     /// <summary>The open Smacker video.</summary>
-    SmackTag* movie = nullptr; // +0x9c
+    MCSmackTag* Movie = nullptr;
     /// <summary>The message type's priority.</summary>
-    uint8_t priority = 0; // +0xa0
+    uint8_t Priority = 0;
     /// <summary>Scenario time after which it isn't worth playing.</summary>
-    float expirationDate = 0.0f; // +0xa4
+    float ExpirationDate = 0.0f;
     /// <summary>Who speaks.</summary>
-    MechWarrior* pilot = nullptr; // +0xa8
+    MCMechWarrior* Pilot = nullptr;
 };
 
 /// <summary>The message types' rows of radio.csv.</summary>
-extern RadioMessageInfo messageInfo[NUM_RADIO_MESSAGES];
+extern MCRadioMessageInfo MessageInfo[NUM_RADIO_MESSAGES];
 
 /// <summary>
 /// A pilot's radio: his sound packet file and video name, and the message info every radio shares. Plays a message
-/// by queueing its sound (and video) with the <see cref="SoundSystem"/>.
+/// by queueing its sound (and video) with the <see cref="MCSoundSystem"/>.
 /// </summary>
 /// <remarks>Original source: <c>sound\radio.cpp</c>; 0x10 bytes (MechWarrior allocates it).</remarks>
-class Radio
+class MCRadio
 {
 public:
     /// <summary>
@@ -126,37 +126,34 @@ public:
     /// and joins the list.
     /// </summary>
     /// <returns>0, or the file error.</returns>
-    /// <remarks>MCX.EXE @ 0x00692cc0</remarks>
-    int32_t init(char* fileName, uint32_t heapSize, char* movieName);
+    int32_t Init(char* fileName, uint32_t heapSize, char* movieName);
     /// <summary>
     /// Builds and queues a message: picks a variation by its odds (not the one just played), loads its fragments
     /// (and the pilot's id first, sometimes) and noise, opens the pilot's video when the tactical map shows one.
     /// </summary>
     /// <returns>The packet queued, or -0x152fffd when it isn't played.</returns>
-    /// <remarks>MCX.EXE @ 0x00692ee0</remarks>
-    int32_t playMessage(RadioMessageType msgType);
-    /// <summary>Reads <c>radio.csv</c> into <see cref="messageInfo"/>. Fatal on a short file.</summary>
+    int32_t PlayMessage(MCRadioMessageType msgType);
+    /// <summary>Reads <c>radio.csv</c> into <see cref="MessageInfo"/>. Fatal on a short file.</summary>
     /// <returns>0, or -1 when it can't be opened.</returns>
-    /// <remarks>MCX.EXE @ 0x006933a0</remarks>
-    int32_t loadMessageInfo();
+    int32_t LoadMessageInfo();
 
     /// <summary>Every radio.</summary>
-    static Radio* radioList[MAX_RADIOS];
+    static MCRadio* RadioList[MAX_RADIOS];
     /// <summary>The shared noise file (noise.pak).</summary>
-    static PacketFile* noiseFile;
+    static MCPacketFile* NoiseFile;
     /// <summary>Set once radio.csv is loaded.</summary>
-    static int32_t messageInfoLoaded;
+    static int32_t MessageInfoLoaded;
     /// <summary>How many radios are in the list.</summary>
-    static int32_t currentRadio;
+    static int32_t CurrentRadio;
     /// <summary>Set once the first radio has cleared the list (the name is the port's).</summary>
-    static int32_t radioListInitialized;
+    static int32_t RadioListInitialized;
 
     /// <summary>The pilot's sound packets.</summary>
-    PacketFile* radioFile = nullptr; // +0x00
+    MCPacketFile* RadioFile = nullptr;
     /// <summary>The pilot.</summary>
-    MechWarrior* owner = nullptr; // +0x04
+    MCMechWarrior* Owner = nullptr;
     /// <summary>The pilot's movie name; empty for none.</summary>
-    std::string movieName; // +0x08
+    std::string MovieName;
     /// <summary>Whether the radio plays.</summary>
-    int32_t enabled = 0; // +0x0c
+    int32_t Enabled = 0;
 };

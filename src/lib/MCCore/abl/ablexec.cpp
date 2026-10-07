@@ -9,121 +9,121 @@
 
 int IncludeDebugInfo = 1;
 int Crunch = 1;
-char* codeBuffer = nullptr;
-char* codeBufferPtr = nullptr;
+char* CodeBuffer = nullptr;
+char* CodeBufferPtr = nullptr;
 int32_t MaxCodeBufferSize = 0;
-char* codeSegmentPtr = nullptr;
-char* codeSegmentLimit = nullptr;
-char* statementStartPtr = nullptr;
-TokenCodeType codeToken{};
-StackItemPtr stack = nullptr;
-StackItemPtr tos = nullptr;
-StackItemPtr stackFrameBasePtr = nullptr;
-StackItemPtr StaticDataPtr = nullptr;
-StackItem returnValue{};
-int32_t execStatementCount = 0;
-int32_t execLineNumber = 0;
+char* CodeSegmentPtr = nullptr;
+char* CodeSegmentLimit = nullptr;
+char* StatementStartPtr = nullptr;
+MCTokenCodeType CodeToken{};
+MCStackItemPtr Stack = nullptr;
+MCStackItemPtr Tos = nullptr;
+MCStackItemPtr StackFrameBasePtr = nullptr;
+MCStackItemPtr StaticDataPtr = nullptr;
+MCStackItem ReturnValue{};
+int32_t ExecStatementCount = 0;
+int32_t ExecLineNumber = 0;
 int ExitFromTacOrder = 0;
 
 namespace
 {
     /// <summary>Reports a code buffer overflow (fatal) when fewer than 100 bytes are left.</summary>
-    void checkCodeBufferSpace()
+    void CheckCodeBufferSpace()
     {
-        if (codeBufferPtr >= codeBuffer + MaxCodeBufferSize - 100)
+        if (CodeBufferPtr >= CodeBuffer + MaxCodeBufferSize - 100)
         {
-            syntaxError(ABL_ERR_SYNTAX_CODE_SEGMENT_OVERFLOW);
+            SyntaxError(ABL_ERR_SYNTAX_CODE_SEGMENT_OVERFLOW);
         }
     }
 
     /// <summary>Advances tos to a new item, cleared (stack overflow is a runtime error).</summary>
-    StackItemPtr pushItem()
+    MCStackItemPtr PushItem()
     {
-        StackItemPtr item = ++tos;
+        MCStackItemPtr item = ++Tos;
 
-        if (item >= stack + MAXSIZE_STACK)
+        if (item >= Stack + MAXSIZE_STACK)
         {
-            runtimeError(ABL_ERR_RUNTIME_STACK_OVERFLOW);
+            RuntimeError(ABL_ERR_RUNTIME_STACK_OVERFLOW);
         }
 
         // Port fix: the original stored only the value's own bytes; the whole 8-byte slot is cleared first.
-        *item = StackItem{};
+        *item = MCStackItem{};
         return item;
     }
 }
 
-auto crunchToken() -> void
+auto CrunchToken() -> void
 {
     if (Crunch)
     {
-        checkCodeBufferSpace();
-        *codeBufferPtr++ = static_cast<char>(curToken);
+        CheckCodeBufferSpace();
+        *CodeBufferPtr++ = static_cast<char>(CurToken);
     }
 }
 
-auto crunchSymTableNodePtr(SymTableNodePtr nodePtr) -> void
+auto CrunchSymTableNodePtr(MCSymTableNodePtr nodePtr) -> void
 {
     if (Crunch)
     {
-        checkCodeBufferSpace();
-        std::memcpy(codeBufferPtr, &nodePtr, CODE_SYMBOL_PTR_SIZE);
-        codeBufferPtr += CODE_SYMBOL_PTR_SIZE;
+        CheckCodeBufferSpace();
+        std::memcpy(CodeBufferPtr, &nodePtr, CODE_SYMBOL_PTR_SIZE);
+        CodeBufferPtr += CODE_SYMBOL_PTR_SIZE;
     }
 }
 
-auto crunchStatementMarker() -> void
+auto CrunchStatementMarker() -> void
 {
     if (Crunch)
     {
-        checkCodeBufferSpace();
-        char saveCode = codeBufferPtr[-1];
-        codeBufferPtr[-1] = static_cast<char>(TKN_STATEMENT_MARKER);
+        CheckCodeBufferSpace();
+        char saveCode = CodeBufferPtr[-1];
+        CodeBufferPtr[-1] = static_cast<char>(TKN_STATEMENT_MARKER);
 
         if (IncludeDebugInfo)
         {
-            *codeBufferPtr = static_cast<char>(FileNumber);
-            int32_t line = lineNumber;
-            std::memcpy(codeBufferPtr + 1, &line, sizeof(line));
-            codeBufferPtr += CODE_STATEMENT_MARKER_SIZE;
+            *CodeBufferPtr = static_cast<char>(FileNumber);
+            int32_t line = LineNumber;
+            std::memcpy(CodeBufferPtr + 1, &line, sizeof(line));
+            CodeBufferPtr += CODE_STATEMENT_MARKER_SIZE;
         }
 
-        *codeBufferPtr++ = saveCode;
+        *CodeBufferPtr++ = saveCode;
     }
 }
 
-auto uncrunchStatementMarker() -> void
+auto UncrunchStatementMarker() -> void
 {
     // The marker, its debug info and the displaced token.
     if (IncludeDebugInfo)
     {
-        codeBufferPtr -= CODE_STATEMENT_MARKER_SIZE + 2;
+        CodeBufferPtr -= CODE_STATEMENT_MARKER_SIZE + 2;
     }
     else
     {
-        codeBufferPtr -= 2;
+        CodeBufferPtr -= 2;
     }
 }
 
-auto crunchAddressMarker(Address address) -> char*
+auto CrunchAddressMarker(MCAddress address) -> char*
 {
     if (!Crunch)
     {
         return nullptr;
     }
 
-    checkCodeBufferSpace();
-    char saveCode = codeBufferPtr[-1];
-    codeBufferPtr[-1] = static_cast<char>(TKN_ADDRESS_MARKER);
-    char* slot = codeBufferPtr;
+    CheckCodeBufferSpace();
+    char saveCode = CodeBufferPtr[-1];
+    CodeBufferPtr[-1] = static_cast<char>(TKN_ADDRESS_MARKER);
+    char* slot = CodeBufferPtr;
     // Port: the chain is an offset from codeBuffer (the original stored the 4-byte pointer).
-    int32_t chain = address ? static_cast<int32_t>(address - codeBuffer) : CODE_ADDRESS_CHAIN_NULL;
+    int32_t chain = address ? static_cast<int32_t>(address - CodeBuffer) : CODE_ADDRESS_CHAIN_NULL;
     std::memcpy(slot, &chain, CODE_ADDRESS_SIZE);
     slot[CODE_ADDRESS_SIZE] = saveCode;
-    codeBufferPtr += CODE_ADDRESS_SIZE + 1;
+    CodeBufferPtr += CODE_ADDRESS_SIZE + 1;
     return slot;
 }
 
-auto fixupAddressMarker(Address address) -> char*
+auto FixupAddressMarker(MCAddress address) -> char*
 {
     if (!Crunch)
     {
@@ -132,140 +132,140 @@ auto fixupAddressMarker(Address address) -> char*
 
     int32_t chain;
     std::memcpy(&chain, address, CODE_ADDRESS_SIZE);
-    char* oldAddress = chain == CODE_ADDRESS_CHAIN_NULL ? nullptr : codeBuffer + chain;
-    int32_t offset = static_cast<int32_t>(codeBufferPtr - address);
+    char* oldAddress = chain == CODE_ADDRESS_CHAIN_NULL ? nullptr : CodeBuffer + chain;
+    int32_t offset = static_cast<int32_t>(CodeBufferPtr - address);
     std::memcpy(address, &offset, CODE_ADDRESS_SIZE);
     return oldAddress;
 }
 
-auto crunchInteger(int32_t value) -> void
+auto CrunchInteger(int32_t value) -> void
 {
     if (Crunch)
     {
-        checkCodeBufferSpace();
-        std::memcpy(codeBufferPtr, &value, CODE_INTEGER_SIZE);
-        codeBufferPtr += CODE_INTEGER_SIZE;
+        CheckCodeBufferSpace();
+        std::memcpy(CodeBufferPtr, &value, CODE_INTEGER_SIZE);
+        CodeBufferPtr += CODE_INTEGER_SIZE;
     }
 }
 
-auto crunchOffset(Address address) -> void
+auto CrunchOffset(MCAddress address) -> void
 {
     if (Crunch)
     {
-        checkCodeBufferSpace();
-        int32_t offset = static_cast<int32_t>(address - codeBufferPtr);
-        std::memcpy(codeBufferPtr, &offset, CODE_INTEGER_SIZE);
-        codeBufferPtr += CODE_INTEGER_SIZE;
+        CheckCodeBufferSpace();
+        int32_t offset = static_cast<int32_t>(address - CodeBufferPtr);
+        std::memcpy(CodeBufferPtr, &offset, CODE_INTEGER_SIZE);
+        CodeBufferPtr += CODE_INTEGER_SIZE;
     }
 }
 
-auto createCodeSegment() -> char*
+auto CreateCodeSegment() -> char*
 {
-    uint32_t codeSize = static_cast<uint32_t>(codeBufferPtr - codeBuffer);
+    uint32_t codeSize = static_cast<uint32_t>(CodeBufferPtr - CodeBuffer);
     // Port fix: one more byte, a TKN_NONE after the code. execStatement's semicolon loop reads the token after a
     // routine's final ";", one byte past its segment (OB-108). The original's heap always had bytes there; an
     // exact-size block can end on a page boundary, and the read faults.
     char* codeSegment = AblMemory.AllocateArray<char>(codeSize + 1);
-    codeSegmentLimit = codeSegment + codeSize;
-    std::memcpy(codeSegment, codeBuffer, codeSize);
+    CodeSegmentLimit = codeSegment + codeSize;
+    std::memcpy(codeSegment, CodeBuffer, codeSize);
     codeSegment[codeSize] = TKN_NONE;
-    codeSegmentPtr = codeSegmentLimit;
-    codeBufferPtr = codeBuffer;
+    CodeSegmentPtr = CodeSegmentLimit;
+    CodeBufferPtr = CodeBuffer;
     return codeSegment;
 }
 
-auto getCodeSymTableNodePtr() -> SymTableNodePtr
+auto GetCodeSymTableNodePtr() -> MCSymTableNodePtr
 {
-    SymTableNodePtr nodePtr;
-    std::memcpy(&nodePtr, codeSegmentPtr, CODE_SYMBOL_PTR_SIZE);
-    codeSegmentPtr += CODE_SYMBOL_PTR_SIZE;
+    MCSymTableNodePtr nodePtr;
+    std::memcpy(&nodePtr, CodeSegmentPtr, CODE_SYMBOL_PTR_SIZE);
+    CodeSegmentPtr += CODE_SYMBOL_PTR_SIZE;
     return nodePtr;
 }
 
-auto getCodeStatementMarker() -> int32_t
+auto GetCodeStatementMarker() -> int32_t
 {
     int32_t line = -1;
 
-    if (codeToken == TKN_STATEMENT_MARKER && IncludeDebugInfo)
+    if (CodeToken == TKN_STATEMENT_MARKER && IncludeDebugInfo)
     {
-        FileNumber = static_cast<uint8_t>(*codeSegmentPtr);
-        std::memcpy(&line, codeSegmentPtr + 1, sizeof(line));
-        codeSegmentPtr += CODE_STATEMENT_MARKER_SIZE;
+        FileNumber = static_cast<uint8_t>(*CodeSegmentPtr);
+        std::memcpy(&line, CodeSegmentPtr + 1, sizeof(line));
+        CodeSegmentPtr += CODE_STATEMENT_MARKER_SIZE;
     }
 
     return line;
 }
 
-auto getCodeAddressMarker() -> char*
+auto GetCodeAddressMarker() -> char*
 {
     char* address = nullptr;
 
-    if (codeToken == TKN_ADDRESS_MARKER)
+    if (CodeToken == TKN_ADDRESS_MARKER)
     {
         int32_t offset;
-        std::memcpy(&offset, codeSegmentPtr, CODE_ADDRESS_SIZE);
-        address = codeSegmentPtr + offset - 1;
-        codeSegmentPtr += CODE_ADDRESS_SIZE;
+        std::memcpy(&offset, CodeSegmentPtr, CODE_ADDRESS_SIZE);
+        address = CodeSegmentPtr + offset - 1;
+        CodeSegmentPtr += CODE_ADDRESS_SIZE;
     }
 
     return address;
 }
 
-auto getCodeInteger() -> int32_t
+auto GetCodeInteger() -> int32_t
 {
     int32_t value;
-    std::memcpy(&value, codeSegmentPtr, CODE_INTEGER_SIZE);
-    codeSegmentPtr += CODE_INTEGER_SIZE;
+    std::memcpy(&value, CodeSegmentPtr, CODE_INTEGER_SIZE);
+    CodeSegmentPtr += CODE_INTEGER_SIZE;
     return value;
 }
 
-auto getCodeAddress() -> char*
+auto GetCodeAddress() -> char*
 {
     int32_t offset;
-    std::memcpy(&offset, codeSegmentPtr, CODE_INTEGER_SIZE);
-    char* address = codeSegmentPtr + offset - 1;
-    codeSegmentPtr += CODE_INTEGER_SIZE;
+    std::memcpy(&offset, CodeSegmentPtr, CODE_INTEGER_SIZE);
+    char* address = CodeSegmentPtr + offset - 1;
+    CodeSegmentPtr += CODE_INTEGER_SIZE;
     return address;
 }
 
-auto pop() -> void
+auto Pop() -> void
 {
-    --tos;
+    --Tos;
 }
 
-auto getCodeToken() -> void
+auto GetCodeToken() -> void
 {
-    codeToken = static_cast<TokenCodeType>(*codeSegmentPtr++);
+    CodeToken = static_cast<MCTokenCodeType>(*CodeSegmentPtr++);
 }
 
-auto pushInteger(int32_t value) -> void
+auto PushInteger(int32_t value) -> void
 {
-    pushItem()->integer = value;
+    PushItem()->Integer = value;
 }
 
-auto pushReal(float value) -> void
+auto PushReal(float value) -> void
 {
-    pushItem()->real = value;
+    PushItem()->Real = value;
 }
 
-auto pushByte(char value) -> void
+auto PushByte(char value) -> void
 {
-    pushItem()->byte = static_cast<uint8_t>(value);
+    PushItem()->Byte = static_cast<uint8_t>(value);
 }
 
-auto pushAddress(Address address) -> void
+auto PushAddress(MCAddress address) -> void
 {
-    pushItem()->address = address;
+    PushItem()->Address = address;
 }
 
-auto pushStackFrameHeader(int32_t oldLevel, int32_t newLevel) -> void
+auto PushStackFrameHeader(int32_t oldLevel, int32_t newLevel) -> void
 {
-    StackFrameHeaderPtr headerPtr = reinterpret_cast<StackFrameHeaderPtr>(stackFrameBasePtr);
+    MCStackFrameHeaderPtr headerPtr = reinterpret_cast<MCStackFrameHeaderPtr>(StackFrameBasePtr);
     // Function value.
-    pushInteger(0);
+    PushInteger(0);
     // Static link: none for a routine of another module; the caller's frame for a routine nested in it; the
     // caller's own static link for a routine at the caller's level.
-    StackItemPtr staticLink;
+    MCStackItemPtr staticLink;
 
     if (newLevel == -1)
     {
@@ -273,60 +273,60 @@ auto pushStackFrameHeader(int32_t oldLevel, int32_t newLevel) -> void
     }
     else if (newLevel == oldLevel + 1)
     {
-        staticLink = stackFrameBasePtr;
+        staticLink = StackFrameBasePtr;
     }
     else if (newLevel == oldLevel)
     {
-        staticLink = reinterpret_cast<StackItemPtr>(headerPtr->staticLink.address);
+        staticLink = reinterpret_cast<MCStackItemPtr>(headerPtr->StaticLink.Address);
     }
     else
     {
-        runtimeError(ABL_ERR_RUNTIME_NESTED_FUNCTION_CALL);
+        RuntimeError(ABL_ERR_RUNTIME_NESTED_FUNCTION_CALL);
         return;
     }
 
-    pushAddress(reinterpret_cast<Address>(staticLink));
+    PushAddress(reinterpret_cast<MCAddress>(staticLink));
     // Dynamic link.
-    pushAddress(reinterpret_cast<Address>(stackFrameBasePtr));
+    PushAddress(reinterpret_cast<MCAddress>(StackFrameBasePtr));
     // Return address (set by the caller).
-    pushAddress(nullptr);
+    PushAddress(nullptr);
 }
 
-auto allocLocal(TypePtr typePtr) -> void
+auto AllocLocal(MCTypePtr typePtr) -> void
 {
     if (typePtr == IntegerTypePtr)
     {
-        pushInteger(0);
+        PushInteger(0);
     }
     else if (typePtr == RealTypePtr)
     {
-        pushReal(0.0f);
+        PushReal(0.0f);
     }
     else if (typePtr == BooleanTypePtr)
     {
-        pushByte(0);
+        PushByte(0);
     }
     else if (typePtr == CharTypePtr)
     {
-        pushByte(0);
+        PushByte(0);
     }
     else
     {
-        switch (typePtr->form)
+        switch (typePtr->Form)
         {
             case FRM_ENUM:
-                pushInteger(0);
+                PushInteger(0);
                 break;
             case FRM_ARRAY:
             {
-                char* localArray = AblMemory.AllocateArray<char>(static_cast<size_t>(typePtr->size));
+                char* localArray = AblMemory.AllocateArray<char>(static_cast<size_t>(typePtr->Size));
 
                 if (!localArray)
                 {
                     Fatal(0, " ABL: Unable to AblStackHeap->malloc local array ");
                 }
 
-                pushAddress(localArray);
+                PushAddress(localArray);
                 break;
             }
 
@@ -336,137 +336,137 @@ auto allocLocal(TypePtr typePtr) -> void
     }
 }
 
-auto freeLocal(SymTableNodePtr idPtr) -> void
+auto FreeLocal(MCSymTableNodePtr idPtr) -> void
 {
     // Only local arrays own memory; a reference parameter's array belongs to the caller.
-    if (idPtr->typePtr->form == FRM_ARRAY && idPtr->defn.key != DFN_REFPARAM)
+    if (idPtr->TypePtr->Form == FRM_ARRAY && idPtr->Defn.Key != DFN_REFPARAM)
     {
-        StackItemPtr dataPtr = stackFrameBasePtr + idPtr->defn.info.data.offset;
+        MCStackItemPtr dataPtr = StackFrameBasePtr + idPtr->Defn.Info.Data.Offset;
 
-        if (idPtr->defn.info.data.varType != VAR_TYPE_NORMAL || !dataPtr)
+        if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_NORMAL || !dataPtr)
         {
-            runtimeError(ABL_ERR_RUNTIME_STACK_OVERFLOW);
+            RuntimeError(ABL_ERR_RUNTIME_STACK_OVERFLOW);
             return;
         }
 
-        AblMemory.Free(dataPtr->address);
+        AblMemory.Free(dataPtr->Address);
     }
 }
 
-auto routineEntry(SymTableNodePtr routineIdPtr) -> void
+auto RoutineEntry(MCSymTableNodePtr routineIdPtr) -> void
 {
-    if (debugger)
+    if (Debugger)
     {
-        debugger->traceRoutineEntry(routineIdPtr);
+        Debugger->TraceRoutineEntry(routineIdPtr);
     }
 
-    codeSegmentPtr = routineIdPtr->defn.info.routine.codeSegment;
-    returnValue = StackItem{};
+    CodeSegmentPtr = routineIdPtr->Defn.Info.Routine.CodeSegment;
+    ReturnValue = MCStackItem{};
 
     // Static and eternal locals live elsewhere.
-    for (SymTableNodePtr varIdPtr = routineIdPtr->defn.info.routine.locals; varIdPtr; varIdPtr = varIdPtr->next)
+    for (MCSymTableNodePtr varIdPtr = routineIdPtr->Defn.Info.Routine.Locals; varIdPtr; varIdPtr = varIdPtr->Next)
     {
-        if (varIdPtr->defn.info.data.varType == VAR_TYPE_NORMAL)
+        if (varIdPtr->Defn.Info.Data.VarType == VAR_TYPE_NORMAL)
         {
-            allocLocal(varIdPtr->typePtr);
+            AllocLocal(varIdPtr->TypePtr);
         }
     }
 }
 
-auto routineExit(SymTableNodePtr routineIdPtr) -> void
+auto RoutineExit(MCSymTableNodePtr routineIdPtr) -> void
 {
-    if (debugger)
+    if (Debugger)
     {
-        debugger->traceRoutineExit(routineIdPtr);
+        Debugger->TraceRoutineExit(routineIdPtr);
     }
 
-    for (SymTableNodePtr idPtr = routineIdPtr->defn.info.routine.params; idPtr; idPtr = idPtr->next)
+    for (MCSymTableNodePtr idPtr = routineIdPtr->Defn.Info.Routine.Params; idPtr; idPtr = idPtr->Next)
     {
-        freeLocal(idPtr);
+        FreeLocal(idPtr);
     }
 
-    for (SymTableNodePtr idPtr = routineIdPtr->defn.info.routine.locals; idPtr; idPtr = idPtr->next)
+    for (MCSymTableNodePtr idPtr = routineIdPtr->Defn.Info.Routine.Locals; idPtr; idPtr = idPtr->Next)
     {
-        if (idPtr->defn.info.data.varType == VAR_TYPE_NORMAL)
+        if (idPtr->Defn.Info.Data.VarType == VAR_TYPE_NORMAL)
         {
-            freeLocal(idPtr);
+            FreeLocal(idPtr);
         }
     }
 
-    StackFrameHeaderPtr headerPtr = reinterpret_cast<StackFrameHeaderPtr>(stackFrameBasePtr);
-    codeSegmentPtr = headerPtr->returnAddress.address;
+    MCStackFrameHeaderPtr headerPtr = reinterpret_cast<MCStackFrameHeaderPtr>(StackFrameBasePtr);
+    CodeSegmentPtr = headerPtr->ReturnAddress.Address;
 
     // A function leaves its value (the frame's first item) on the stack.
-    if (routineIdPtr->typePtr)
+    if (routineIdPtr->TypePtr)
     {
-        tos = stackFrameBasePtr;
+        Tos = StackFrameBasePtr;
     }
     else
     {
-        tos = stackFrameBasePtr - 1;
+        Tos = StackFrameBasePtr - 1;
     }
 
-    stackFrameBasePtr = reinterpret_cast<StackItemPtr>(headerPtr->dynamicLink.address);
+    StackFrameBasePtr = reinterpret_cast<MCStackItemPtr>(headerPtr->DynamicLink.Address);
 }
 
-auto execute(SymTableNodePtr routineIdPtr) -> void
+auto Execute(MCSymTableNodePtr routineIdPtr) -> void
 {
-    SymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
+    MCSymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
     CurRoutineIdPtr = routineIdPtr;
-    routineEntry(routineIdPtr);
+    RoutineEntry(routineIdPtr);
 
     if (CallModuleInit)
     {
         CallModuleInit = 0;
-        SymTableNodePtr moduleIdPtr = ModuleRegistry[CurModule->handle].moduleIdPtr;
-        SymTableNodePtr initIdPtr =
-            searchSymTable(const_cast<char*>("init"), moduleIdPtr->defn.info.routine.localSymTable);
+        MCSymTableNodePtr moduleIdPtr = ModuleRegistry[CurModule->Handle].ModuleIdPtr;
+        MCSymTableNodePtr initIdPtr =
+            SearchSymTable(const_cast<char*>("init"), moduleIdPtr->Defn.Info.Routine.LocalSymTable);
 
         if (initIdPtr)
         {
-            execRoutineCall(initIdPtr);
+            ExecRoutineCall(initIdPtr);
             // execRoutineCall reads the token after the call; back up to it.
-            codeSegmentPtr--;
+            CodeSegmentPtr--;
         }
     }
 
-    getCodeToken();
-    execStatement();
+    GetCodeToken();
+    ExecStatement();
     ExitWithReturn = 0;
     ExitFromTacOrder = 0;
-    routineExit(routineIdPtr);
+    RoutineExit(routineIdPtr);
     CurRoutineIdPtr = thisRoutineIdPtr;
 }
 
-auto executeChild(SymTableNodePtr moduleIdPtr, SymTableNodePtr childRoutineIdPtr, ABLParam* /*paramList*/) -> void
+auto ExecuteChild(MCSymTableNodePtr moduleIdPtr, MCSymTableNodePtr childRoutineIdPtr, MCAblParam* /*paramList*/) -> void
 {
     // paramList is unused in MCX.EXE.
-    SymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
+    MCSymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
     CurRoutineIdPtr = moduleIdPtr;
-    routineEntry(moduleIdPtr);
-    SymTableNodePtr initIdPtr = nullptr;
+    RoutineEntry(moduleIdPtr);
+    MCSymTableNodePtr initIdPtr = nullptr;
 
     if (CallModuleInit)
     {
         CallModuleInit = 0;
-        initIdPtr = searchSymTable(const_cast<char*>("init"), moduleIdPtr->defn.info.routine.localSymTable);
+        initIdPtr = SearchSymTable(const_cast<char*>("init"), moduleIdPtr->Defn.Info.Routine.LocalSymTable);
 
         if (initIdPtr)
         {
-            execRoutineCall(initIdPtr);
-            codeSegmentPtr--;
+            ExecRoutineCall(initIdPtr);
+            CodeSegmentPtr--;
         }
     }
 
     // When the child is init itself, it has just run.
     if (initIdPtr != childRoutineIdPtr)
     {
-        execRoutineCall(childRoutineIdPtr);
-        codeSegmentPtr--;
+        ExecRoutineCall(childRoutineIdPtr);
+        CodeSegmentPtr--;
     }
 
     ExitWithReturn = 0;
     ExitFromTacOrder = 0;
-    routineExit(moduleIdPtr);
+    RoutineExit(moduleIdPtr);
     CurRoutineIdPtr = thisRoutineIdPtr;
 }

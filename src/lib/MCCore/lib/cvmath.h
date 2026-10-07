@@ -5,7 +5,7 @@
 
 #include <cmath>
 
-inline double acosMatherr(double cosine)
+inline double AcosMatherr(double cosine)
 {
     if (cosine >= -1.0 && cosine <= 1.0)
     {
@@ -16,187 +16,175 @@ inline double acosMatherr(double cosine)
 }
 
 /// <summary>A 2D vector (screen or map coordinates).</summary>
-class vector_2d
+class MCVector2D
 {
 public:
-    vector_2d() = default;
-    vector_2d(float newX, float newY) : x(newX), y(newY) {}
+    MCVector2D() = default;
+    MCVector2D(float newX, float newY) : X(newX), Y(newY) {}
 
     /// <summary>Sets both components to 0.</summary>
-    void zero()
+    void Zero()
     {
-        x = 0.0f;
-        y = 0.0f;
+        X = 0.0f;
+        Y = 0.0f;
     }
 
     /// <summary>The length.</summary>
-    float magnitude() const { return std::sqrt(y * y + x * x); }
+    float Magnitude() const { return std::sqrt(Y * Y + X * X); }
 
-    vector_2d& operator+=(const vector_2d& v)
+    MCVector2D& operator+=(const MCVector2D& v)
     {
-        x += v.x;
-        y += v.y;
+        X += v.X;
+        Y += v.Y;
         return *this;
     }
 
-    vector_2d& operator-=(const vector_2d& v)
+    MCVector2D& operator-=(const MCVector2D& v)
     {
-        x -= v.x;
-        y -= v.y;
+        X -= v.X;
+        Y -= v.Y;
         return *this;
     }
 
-    vector_2d& operator*=(float scale)
+    MCVector2D& operator*=(float scale)
     {
-        x *= scale;
-        y *= scale;
+        X *= scale;
+        Y *= scale;
         return *this;
     }
 
-    float x = 0.0f; // +0x00
-    float y = 0.0f; // +0x04
+    float X = 0.0f;
+    float Y = 0.0f;
 };
 
 /// <summary>The difference of two 2D vectors.</summary>
-/// <remarks>MCX.EXE @ 0x00664e40</remarks>
-inline vector_2d operator-(const vector_2d& a, const vector_2d& b)
+inline MCVector2D operator-(const MCVector2D& a, const MCVector2D& b)
 {
-    return vector_2d(a.x - b.x, a.y - b.y);
+    return MCVector2D(a.X - b.X, a.Y - b.Y);
 }
 
 /// <summary>The sum of two 2D vectors.</summary>
-inline vector_2d operator+(const vector_2d& a, const vector_2d& b)
+inline MCVector2D operator+(const MCVector2D& a, const MCVector2D& b)
 {
-    return vector_2d(a.x + b.x, a.y + b.y);
+    return MCVector2D(a.X + b.X, a.Y + b.Y);
 }
 
 /// <summary>A 3D vector (world positions, velocities, directions).</summary>
-class vector_3d
+class MCVector3D
 {
 public:
-    vector_3d() = default;
-    vector_3d(float newX, float newY, float newZ) : x(newX), y(newY), z(newZ) {}
+    MCVector3D() = default;
+    MCVector3D(float newX, float newY, float newZ) : X(newX), Y(newY), Z(newZ) {}
 
     /// <summary>Sets every component to 0.</summary>
-    void zero()
+    void Zero()
     {
-        x = 0.0f;
-        y = 0.0f;
-        z = 0.0f;
+        X = 0.0f;
+        Y = 0.0f;
+        Z = 0.0f;
     }
 
     /// <summary>The length.</summary>
-    /// <remarks>MCX.EXE @ 0x00664a30</remarks>
-    double magnitude() const
+    double Magnitude() const
     {
-        return std::sqrt((static_cast<double>(x) * x + static_cast<double>(y) * y) + static_cast<double>(z) * z);
+        return std::sqrt((static_cast<double>(X) * X + static_cast<double>(Y) * Y) + static_cast<double>(Z) * Z);
     }
 
     /// <summary>Scales to length 1 (a zero vector stays zero).</summary>
-    /// <remarks>MCX.EXE @ 0x0066ea20</remarks>
-    void normalize()
+    void Normalize()
     {
         const double length =
-            std::sqrt((static_cast<double>(x) * x + static_cast<double>(y) * y) + static_cast<double>(z) * z);
+            std::sqrt((static_cast<double>(X) * X + static_cast<double>(Y) * Y) + static_cast<double>(Z) * Z);
 
         if (length > 0.0)
         {
-            x = static_cast<float>(x / length);
-            y = static_cast<float>(y / length);
-            z = static_cast<float>(z / length);
+            X = static_cast<float>(X / length);
+            Y = static_cast<float>(Y / length);
+            Z = static_cast<float>(Z / length);
         }
     }
 
-    /// <remarks>MCX.EXE @ 0x006af3f0</remarks>
-    vector_3d& operator+=(const vector_3d& v)
+    MCVector3D& operator+=(const MCVector3D& v)
     {
-        x = v.x + x;
-        y = v.y + y;
-        z = v.z + z;
+        X = v.X + X;
+        Y = v.Y + Y;
+        Z = v.Z + Z;
         return *this;
     }
 
-    vector_3d& operator-=(const vector_3d& v)
+    MCVector3D& operator-=(const MCVector3D& v)
     {
-        x = x - v.x;
-        y = y - v.y;
-        z = z - v.z;
+        X = X - v.X;
+        Y = Y - v.Y;
+        Z = Z - v.Z;
         return *this;
     }
 
-    /// <remarks>MCX.EXE @ 0x0063dee0</remarks>
-    vector_3d& operator*=(const float& scale)
+    MCVector3D& operator*=(const float& scale)
     {
-        x = scale * x;
-        y = y * scale;
-        z = z * scale;
+        X = scale * X;
+        Y = Y * scale;
+        Z = Z * scale;
         return *this;
     }
 
-    vector_3d& operator/=(const float& scale)
+    MCVector3D& operator/=(const float& scale)
     {
-        x = x / scale;
-        y = y / scale;
-        z = z / scale;
+        X = X / scale;
+        Y = Y / scale;
+        Z = Z / scale;
         return *this;
     }
 
-    float x = 0.0f; // +0x00
-    float y = 0.0f; // +0x04
-    float z = 0.0f; // +0x08
+    float X = 0.0f;
+    float Y = 0.0f;
+    float Z = 0.0f;
 };
 
 /// <summary>The sum of two vectors.</summary>
-/// <remarks>MCX.EXE @ 0x0063de20</remarks>
-inline vector_3d operator+(const vector_3d& a, const vector_3d& b)
+inline MCVector3D operator+(const MCVector3D& a, const MCVector3D& b)
 {
-    return vector_3d(a.x + b.x, a.y + b.y, a.z + b.z);
+    return MCVector3D(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
 }
 
 /// <summary>The difference of two vectors.</summary>
-/// <remarks>MCX.EXE @ 0x0063de60</remarks>
-inline vector_3d operator-(const vector_3d& a, const vector_3d& b)
+inline MCVector3D operator-(const MCVector3D& a, const MCVector3D& b)
 {
-    return vector_3d(a.x - b.x, a.y - b.y, a.z - b.z);
+    return MCVector3D(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
 }
 
 /// <summary>A vector scaled.</summary>
-/// <remarks>MCX.EXE @ 0x0063dea0</remarks>
-inline vector_3d operator*(const vector_3d& v, const float& scale)
+inline MCVector3D operator*(const MCVector3D& v, const float& scale)
 {
-    return vector_3d(v.x * scale, v.y * scale, v.z * scale);
+    return MCVector3D(v.X * scale, v.Y * scale, v.Z * scale);
 }
 
 /// <summary>The dot product.</summary>
-/// <remarks>MCX.EXE @ 0x00658270</remarks>
-inline double operator|(const vector_3d& a, const vector_3d& b)
+inline double operator|(const MCVector3D& a, const MCVector3D& b)
 {
-    return (static_cast<double>(a.z) * b.z + static_cast<double>(a.y) * b.y) + static_cast<double>(a.x) * b.x;
+    return (static_cast<double>(a.Z) * b.Z + static_cast<double>(a.Y) * b.Y) + static_cast<double>(a.X) * b.X;
 }
 
 /// <summary>The cross product a x b.</summary>
-/// <remarks>MCX.EXE @ 0x006649e0</remarks>
-inline vector_3d operator&(const vector_3d& a, const vector_3d& b)
+inline MCVector3D operator&(const MCVector3D& a, const MCVector3D& b)
 {
-    return vector_3d(static_cast<float>(static_cast<double>(b.z) * a.y - static_cast<double>(b.y) * a.z),
-                     static_cast<float>(static_cast<double>(b.x) * a.z - static_cast<double>(b.z) * a.x),
-                     static_cast<float>(static_cast<double>(b.y) * a.x - static_cast<double>(b.x) * a.y));
+    return MCVector3D(static_cast<float>(static_cast<double>(b.Z) * a.Y - static_cast<double>(b.Y) * a.Z),
+                      static_cast<float>(static_cast<double>(b.X) * a.Z - static_cast<double>(b.Z) * a.X),
+                      static_cast<float>(static_cast<double>(b.Y) * a.X - static_cast<double>(b.X) * a.Y));
 }
 
 /// <summary>An orientation: three orthonormal axes.</summary>
-class frame_of_ref
+class MCFrameOfRef
 {
 public:
-    frame_of_ref() = default;
-    frame_of_ref(const vector_3d& newI, const vector_3d& newJ, const vector_3d& newK) : i(newI), j(newJ), k(newK) {}
+    MCFrameOfRef() = default;
+    MCFrameOfRef(const MCVector3D& newI, const MCVector3D& newJ, const MCVector3D& newK) : I(newI), J(newJ), K(newK) {}
 
     /// <summary>Makes the axes the world's (UnitX, UnitY, UnitZ).</summary>
-    /// <remarks>MCX.EXE @ 0x0065b550</remarks>
-    frame_of_ref& reset_to_world_frame();
+    MCFrameOfRef& ResetToWorldFrame();
 
     /// <summary>acos of <paramref name="cosine"/> clamped to [-1, 1].</summary>
-    /// <remarks>MCX.EXE @ 0x0067af50</remarks>
-    double my_acos(float cosine) const
+    double MyAcos(float cosine) const
     {
         if (cosine < -1.0)
         {
@@ -208,45 +196,41 @@ public:
             cosine = 1.0f;
         }
 
-        return acosMatherr(static_cast<double>(cosine));
+        return AcosMatherr(static_cast<double>(cosine));
     }
 
-    /// <remarks>MCX.EXE @ 0x0067d670</remarks>
-    frame_of_ref& operator=(const frame_of_ref&) = default;
-    frame_of_ref(const frame_of_ref&) = default;
+    MCFrameOfRef& operator=(const MCFrameOfRef&) = default;
+    MCFrameOfRef(const MCFrameOfRef&) = default;
 
-    vector_3d i; // +0x00
-    vector_3d j; // +0x0c
-    vector_3d k; // +0x18
+    MCVector3D I;
+    MCVector3D J;
+    MCVector3D K;
 };
 
 /// <summary>(1, 0, 0).</summary>
-extern vector_3d UnitX;
+extern MCVector3D UnitX;
 /// <summary>(0, 1, 0).</summary>
-extern vector_3d UnitY;
+extern MCVector3D UnitY;
 /// <summary>(0, 0, 1).</summary>
-extern vector_3d UnitZ;
+extern MCVector3D UnitZ;
 /// <summary>(0, 0, 0).</summary>
-extern vector_3d NULL_vector_3d;
+extern MCVector3D NullVector3d;
 /// <summary>The world frame (UnitX, UnitY, UnitZ).</summary>
-extern frame_of_ref NULL_frame_of_ref;
+extern MCFrameOfRef NullFrameOfRef;
 
-inline frame_of_ref& frame_of_ref::reset_to_world_frame()
+inline MCFrameOfRef& MCFrameOfRef::ResetToWorldFrame()
 {
-    i = UnitX;
-    j = UnitY;
-    k = UnitZ;
+    I = UnitX;
+    J = UnitY;
+    K = UnitZ;
     return *this;
 }
 
 /// <summary>A random number in [0, <paramref name="range"/>) from rand()'s 15 bits.</summary>
-/// <remarks>MCX.EXE @ 0x00644b60</remarks>
 int32_t RandomNumber(int32_t range);
 
 /// <summary>Whether a d100 roll comes under <paramref name="percent"/>.</summary>
-/// <remarks>MCX.EXE @ 0x00644b80</remarks>
 int RollDice(int32_t percent);
 
 /// <summary>A random number in [-<paramref name="range"/>, <paramref name="range"/>).</summary>
-/// <remarks>MCX.EXE @ 0x00644bb0</remarks>
 int32_t SignedRandomNumber(int32_t range);

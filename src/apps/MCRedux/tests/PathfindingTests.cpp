@@ -59,30 +59,30 @@ namespace
 
         uint32_t Passable(int32_t row, int32_t col) const
         {
-            if (row < 0 || col < 0 || row >= GameMap->height * MAPCELL_DIM || col >= GameMap->width * MAPCELL_DIM)
+            if (row < 0 || col < 0 || row >= GameMap->Height * MAPCELL_DIM || col >= GameMap->Width * MAPCELL_DIM)
             {
                 return 0;
             }
 
-            return GameMap->map[(row / MAPCELL_DIM) * GameMap->width + col / MAPCELL_DIM].getCellPassable(
+            return GameMap->Map[(row / MAPCELL_DIM) * GameMap->Width + col / MAPCELL_DIM].GetCellPassable(
                 row % MAPCELL_DIM, col % MAPCELL_DIM);
         }
 
         /// <summary>The world position of a cell's centre.</summary>
-        static vector_3d CellCentre(int32_t row, int32_t col)
+        static MCVector3D CellCentre(int32_t row, int32_t col)
         {
-            const float x = (static_cast<float>(col) + 0.5f) * MetersPerCell - worldUnitsMapSide * 0.5f;
-            const float y = (worldUnitsMapSide * 0.5f - static_cast<float>(row) * MetersPerCell) - MetersPerCell * 0.5f;
-            return vector_3d(x, y, 0.0f);
+            const float x = (static_cast<float>(col) + 0.5f) * MetersPerCell - WorldUnitsMapSide * 0.5f;
+            const float y = (WorldUnitsMapSide * 0.5f - static_cast<float>(row) * MetersPerCell) - MetersPerCell * 0.5f;
+            return MCVector3D(x, y, 0.0f);
         }
 
-        static Cell CellOf(vector_3d position)
+        static Cell CellOf(MCVector3D position)
         {
             int32_t tileR = 0;
             int32_t tileC = 0;
             int32_t cellR = 0;
             int32_t cellC = 0;
-            GameMap->worldToMapPos(position, tileR, tileC, cellR, cellC);
+            GameMap->WorldToMapPos(position, tileR, tileC, cellR, cellC);
             return Cell{tileR * MAPCELL_DIM + cellR, tileC * MAPCELL_DIM + cellC};
         }
 
@@ -100,31 +100,31 @@ namespace
             MCTestGame::OpenFastFiles();
 
             // data\terrain\m0101.fit [TerrainData].
-            Terrain::verticesBlockSide = 20;
-            Terrain::blocksMapSide = 6;
-            Terrain::metersPerVertex = 128.0f;
-            Terrain::OneOvermetersPerVertex = 1.0f / Terrain::metersPerVertex;
-            Terrain::metersBlockSide = static_cast<float>(Terrain::verticesBlockSide) * Terrain::metersPerVertex;
-            Terrain::metersPerVertexDivMAPCELL_DIM = Terrain::metersPerVertex * (1.0f / 3.0f);
-            worldUnitsMapSide = static_cast<float>(Terrain::blocksMapSide) * Terrain::metersBlockSide;
+            MCTerrain::VerticesBlockSide = 20;
+            MCTerrain::BlocksMapSide = 6;
+            MCTerrain::MetersPerVertex = 128.0f;
+            MCTerrain::OneOvermetersPerVertex = 1.0f / MCTerrain::MetersPerVertex;
+            MCTerrain::MetersBlockSide = static_cast<float>(MCTerrain::VerticesBlockSide) * MCTerrain::MetersPerVertex;
+            MCTerrain::MetersPerVertexDivMapcellDim = MCTerrain::MetersPerVertex * (1.0f / 3.0f);
+            WorldUnitsMapSide = static_cast<float>(MCTerrain::BlocksMapSide) * MCTerrain::MetersBlockSide;
 
             // data\missions\gamesys.fit [Pathfinding] (loadMoverGameSystem). MIS0101 has no [Planet] block, so the
             // overlay costs stay as read.
-            FitIniFile gameSystem;
+            MCFitIniFile gameSystem;
 
-            if (gameSystem.open("data\\missions\\gamesys.fit") != 0 || gameSystem.seekBlock("Pathfinding") != 0)
+            if (gameSystem.Open("data\\missions\\gamesys.fit") != 0 || gameSystem.SeekBlock("Pathfinding") != 0)
             {
                 return "gamesys.fit [Pathfinding] not found";
             }
 
-            if (gameSystem.readIdLong("SimplePathTileRange", SimpleMovePathRange) != 0 ||
-                gameSystem.readIdLongArray("OverlayCellCosts", OverlayWeightTable,
+            if (gameSystem.ReadIdLong("SimplePathTileRange", SimpleMovePathRange) != 0 ||
+                gameSystem.ReadIdLongArray("OverlayCellCosts", OverlayWeightTable,
                                            NUM_MOVE_LEVELS * OVERLAY_WEIGHT_LEVEL_SIZE) != 0)
             {
                 return "gamesys.fit path finding values missing";
             }
 
-            gameSystem.close();
+            gameSystem.Close();
 
             for (int32_t i = 0; i < NUM_OVERLAY_TYPES; i++)
             {
@@ -133,47 +133,47 @@ namespace
 
             OverlayWeights = &OverlayWeightTable[1 * OVERLAY_WEIGHT_LEVEL_SIZE];
 
-            GameMap = new ScenarioMap;
-            File mapFile;
+            GameMap = new MCScenarioMap;
+            MCFile mapFile;
 
-            if (mapFile.open("data\\terrain\\m0101.dat") != 0)
+            if (mapFile.Open("data\\terrain\\m0101.dat") != 0)
             {
                 return "m0101.dat not found";
             }
 
-            GameMap->init(&mapFile);
-            mapFile.close();
+            GameMap->Init(&mapFile);
+            mapFile.Close();
 
-            PathFindMap = new MoveMap;
-            PathFindMap->init(SimpleMovePathRange * 2 + 1, SimpleMovePathRange * 2 + 1);
+            PathFindMap = new MCMoveMap;
+            PathFindMap->Init(SimpleMovePathRange * 2 + 1, SimpleMovePathRange * 2 + 1);
 
-            GlobalMoveMap = new GlobalMap;
-            File globalFile;
+            GlobalMoveMap = new MCGlobalMap;
+            MCFile globalFile;
 
-            if (globalFile.open("data\\terrain\\m0101.gmm") != 0)
+            if (globalFile.Open("data\\terrain\\m0101.gmm") != 0)
             {
                 return "m0101.gmm not found";
             }
 
-            GlobalMoveMap->init(&globalFile);
-            globalFile.close();
+            GlobalMoveMap->Init(&globalFile);
+            globalFile.Close();
 
             // The mover the path finders ask about (class, alignment): a Clan mech. Never destroyed (its destructor
             // releases an object type through the object type manager, which the tests don't have).
-            alignas(GameObject) static unsigned char moverStorage[sizeof(GameObject)];
-            auto* mover = ::new (static_cast<void*>(moverStorage)) GameObject;
-            mover->objectClass = BATTLEMECH;
-            mover->alignment = -1;
+            alignas(MCGameObject) static unsigned char moverStorage[sizeof(MCGameObject)];
+            auto* mover = ::new (static_cast<void*>(moverStorage)) MCGameObject;
+            mover->ObjectClass = BATTLEMECH;
+            mover->Alignment = -1;
             MovingObject = mover;
 
             // No mechs stand on the map (MoveMap::markGoalCells and placeMovers walk these lists).
-            static ObjectQueueNode innerSphereMechs("innerSphereMechs");
-            static ObjectQueueNode clanMechs("clanMechs");
-            innerSphereMechList = &innerSphereMechs;
-            clanMechList = &clanMechs;
+            static MCObjectQueueNode innerSphereMechs("innerSphereMechs");
+            static MCObjectQueueNode clanMechs("clanMechs");
+            InnerSphereMechList = &innerSphereMechs;
+            ClanMechList = &clanMechs;
 
-            MoveLevel = static_cast<int32_t>(static_cast<double>(metersPerWorldUnit) *
-                                             Terrain::metersPerVertexDivMAPCELL_DIM / RunSpeed * 50.0);
+            MoveLevel = static_cast<int32_t>(static_cast<double>(MetersPerWorldUnit) *
+                                             MCTerrain::MetersPerVertexDivMapcellDim / RunSpeed * 50.0);
             return {};
         }
     };
@@ -182,15 +182,15 @@ namespace
     /// Checks one leg: every step passable, each one cell from the one before (no jumps), the first one cell from
     /// <paramref name="start"/>.
     /// </summary>
-    std::string CheckLeg(const MissionMap& map, const MovePath& path, int32_t numSteps, Cell start)
+    std::string CheckLeg(const MissionMap& map, const MCMovePath& path, int32_t numSteps, Cell start)
     {
         Cell previous = start;
 
         for (int32_t i = 0; i < numSteps; i++)
         {
-            const PathStep& step = path.stepList[i];
-            const Cell cell{step.tileR * MAPCELL_DIM + step.cellR, step.tileC * MAPCELL_DIM + step.cellC};
-            const int32_t direction = static_cast<int8_t>(step.direction);
+            const MCPathStep& step = path.StepList[i];
+            const Cell cell{step.TileR * MAPCELL_DIM + step.CellR, step.TileC * MAPCELL_DIM + step.CellC};
+            const int32_t direction = static_cast<int8_t>(step.Direction);
             char text[200];
 
             if (map.Passable(cell.Row, cell.Col) == 0)
@@ -214,7 +214,7 @@ namespace
             }
 
             // The step's destination is its own cell's centre.
-            const Cell destination = MissionMap::CellOf(step.destination);
+            const Cell destination = MissionMap::CellOf(step.Destination);
 
             if (destination.Row != cell.Row || destination.Col != cell.Col)
             {
@@ -230,28 +230,28 @@ namespace
     }
 
     /// <summary>A local path within the SimplePathTileRange window (Mover::calcMovePath, path type 1).</summary>
-    int32_t PlanLocal(const MissionMap& map, MovePath& path, vector_3d start, vector_3d goal)
+    int32_t PlanLocal(const MissionMap& map, MCMovePath& path, MCVector3D start, MCVector3D goal)
     {
         int32_t startTileR = 0;
         int32_t startTileC = 0;
         int32_t startCellR = 0;
         int32_t startCellC = 0;
-        GameMap->worldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+        GameMap->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
         int32_t goalTileR = 0;
         int32_t goalTileC = 0;
         int32_t goalCellR = 0;
         int32_t goalCellC = 0;
-        GameMap->worldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
-        path.clear();
+        GameMap->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+        path.Clear();
         const int32_t ULr = std::max(startTileR - SimpleMovePathRange, 0);
         const int32_t ULc = std::max(startTileC - SimpleMovePathRange, 0);
         const int32_t dim = SimpleMovePathRange * 2 + 1;
-        PathFindMap->setUp(GameMap, ULr, ULc, dim, dim, &start, (startTileR - ULr) * MAPCELL_DIM + startCellR,
+        PathFindMap->SetUp(GameMap, ULr, ULc, dim, dim, &start, (startTileR - ULr) * MAPCELL_DIM + startCellR,
                            (startTileC - ULc) * MAPCELL_DIM + startCellC, goal,
                            (goalTileR - ULr) * MAPCELL_DIM + goalCellR, (goalTileC - ULc) * MAPCELL_DIM + goalCellC,
                            map.OverlayWeights, map.MoveLevel, 0, 8, 0x80);
         int32_t goalCell[2] = {};
-        return PathFindMap->calcPath(&path, nullptr, goalCell);
+        return PathFindMap->CalcPath(&path, nullptr, goalCell);
     }
 
     /// <summary>
@@ -259,10 +259,10 @@ namespace
     /// SimplePathTileRange tiles, else the global door path and one leg per area, each leg starting where the last
     /// one ended.
     /// </summary>
-    RouteCheck PlanRoute(const MissionMap& map, vector_3d start, vector_3d goal)
+    RouteCheck PlanRoute(const MissionMap& map, MCVector3D start, MCVector3D goal)
     {
         RouteCheck check;
-        static MovePath path{};
+        static MCMovePath path{};
         const Cell startCell = MissionMap::CellOf(start);
         const Cell goalCell = MissionMap::CellOf(goal);
         const bool simple = std::abs(goalCell.Row / MAPCELL_DIM - startCell.Row / MAPCELL_DIM) <= SimpleMovePathRange &&
@@ -277,55 +277,55 @@ namespace
             return check;
         }
 
-        const int32_t startArea = GlobalMoveMap->calcArea(startCell.Row / MAPCELL_DIM, startCell.Col / MAPCELL_DIM);
-        const int32_t goalArea = GlobalMoveMap->calcArea(goalCell.Row / MAPCELL_DIM, goalCell.Col / MAPCELL_DIM);
+        const int32_t startArea = GlobalMoveMap->CalcArea(startCell.Row / MAPCELL_DIM, startCell.Col / MAPCELL_DIM);
+        const int32_t goalArea = GlobalMoveMap->CalcArea(goalCell.Row / MAPCELL_DIM, goalCell.Col / MAPCELL_DIM);
 
         if (startArea < 0 || goalArea < 0)
         {
             return check;
         }
 
-        static GlobalPathStep globalPath[MAX_GLOBAL_PATH];
-        const int32_t numGlobalSteps = GlobalMoveMap->calcPath(startArea, goalArea, globalPath);
+        static MCGlobalPathStep globalPath[MAX_GLOBAL_PATH];
+        const int32_t numGlobalSteps = GlobalMoveMap->CalcPath(startArea, goalArea, globalPath);
 
         if (numGlobalSteps <= 0)
         {
             return check;
         }
 
-        vector_3d legStart = start;
+        MCVector3D legStart = start;
         Cell legStartCell = startCell;
 
         for (int32_t step = 0; step < numGlobalSteps; step++)
         {
-            GlobalPathStep& globalStep = globalPath[step];
+            MCGlobalPathStep& globalStep = globalPath[step];
             int32_t numSteps = 0;
-            path.clear();
+            path.Clear();
             int32_t tileR = 0;
             int32_t tileC = 0;
             int32_t cellR = 0;
             int32_t cellC = 0;
-            GameMap->worldToMapPos(legStart, tileR, tileC, cellR, cellC);
-            const int32_t sectorDim = GlobalMoveMap->sectorDim;
+            GameMap->WorldToMapPos(legStart, tileR, tileC, cellR, cellC);
+            const int32_t sectorDim = GlobalMoveMap->SectorDim;
 
             if (step < numGlobalSteps - 1)
             {
                 // Mover::calcMovePath (door leg): the sector of the area crossed.
-                const GlobalMapArea& area = GlobalMoveMap->areas[globalStep.thruArea];
-                const int32_t ULr = area.sectorR * sectorDim;
-                const int32_t ULc = area.sectorC * sectorDim;
+                const MCGlobalMapArea& area = GlobalMoveMap->Areas[globalStep.ThruArea];
+                const int32_t ULr = area.SectorR * sectorDim;
+                const int32_t ULc = area.SectorC * sectorDim;
 
-                if (PathFindMap->setUp(GameMap, ULr, ULc, sectorDim, sectorDim, &legStart,
+                if (PathFindMap->SetUp(GameMap, ULr, ULc, sectorDim, sectorDim, &legStart,
                                        (tileR - ULr) * MAPCELL_DIM + cellR, (tileC - ULc) * MAPCELL_DIM + cellC,
-                                       globalStep.thruArea, globalStep.goalDoor, goal, map.OverlayWeights,
+                                       globalStep.ThruArea, globalStep.GoalDoor, goal, map.OverlayWeights,
                                        map.MoveLevel, 0, 8, 0x80) == -1)
                 {
                     check.Problem = "leg " + std::to_string(step) + ": door setUp failed";
                     return check;
                 }
 
-                vector_3d legGoal;
-                numSteps = PathFindMap->calcPath(&path, &legGoal, globalStep.goalCell);
+                MCVector3D legGoal;
+                numSteps = PathFindMap->CalcPath(&path, &legGoal, globalStep.GoalCell);
             }
             else
             {
@@ -336,12 +336,12 @@ namespace
                 int32_t goalTileC = 0;
                 int32_t goalCellR = 0;
                 int32_t goalCellC = 0;
-                GameMap->worldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
-                PathFindMap->setUp(
+                GameMap->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+                PathFindMap->SetUp(
                     GameMap, ULr, ULc, sectorDim, sectorDim, &legStart, (tileR - ULr) * MAPCELL_DIM + cellR,
                     (tileC - ULc) * MAPCELL_DIM + cellC, goal, (goalTileR - ULr) * MAPCELL_DIM + goalCellR,
                     (goalTileC - ULc) * MAPCELL_DIM + goalCellC, map.OverlayWeights, map.MoveLevel, 0, 8, 0x80);
-                numSteps = PathFindMap->calcPath(&path, nullptr, globalStep.goalCell);
+                numSteps = PathFindMap->CalcPath(&path, nullptr, globalStep.GoalCell);
             }
 
             if (numSteps < 1)
@@ -362,10 +362,10 @@ namespace
             }
 
             // The next leg starts at the cell this one ended in (GlobalMap::getDoorWorldPos).
-            legStart = GlobalMoveMap->getDoorWorldPos(-1, -1, globalStep.goalCell);
-            legStartCell = Cell{globalStep.goalCell[0], globalStep.goalCell[1]};
-            const PathStep& last = path.stepList[numSteps - 1];
-            const Cell lastCell{last.tileR * MAPCELL_DIM + last.cellR, last.tileC * MAPCELL_DIM + last.cellC};
+            legStart = GlobalMoveMap->GetDoorWorldPos(-1, -1, globalStep.GoalCell);
+            legStartCell = Cell{globalStep.GoalCell[0], globalStep.GoalCell[1]};
+            const MCPathStep& last = path.StepList[numSteps - 1];
+            const Cell lastCell{last.TileR * MAPCELL_DIM + last.CellR, last.TileC * MAPCELL_DIM + last.CellC};
 
             if (step < numGlobalSteps - 1 && (lastCell.Row != legStartCell.Row || lastCell.Col != legStartCell.Col))
             {
@@ -406,19 +406,19 @@ TEST_CASE("game: pathfinding mission 1's forest and water are blocked cells")
     }
 
     const MissionMap& map = MissionMap::Get();
-    REQUIRE_EQ(GameMap->width, 120);
-    REQUIRE_EQ(GlobalMoveMap->sectorDim, 10);
+    REQUIRE_EQ(GameMap->Width, 120);
+    REQUIRE_EQ(GlobalMoveMap->SectorDim, 10);
 
     // The Uller's start (MIS0101 Part1) is open ground.
-    const Cell uller = MissionMap::CellOf(vector_3d(2834.0f, 2790.0f, 0.0f));
+    const Cell uller = MissionMap::CellOf(MCVector3D(2834.0f, 2790.0f, 0.0f));
     CHECK_EQ(map.Passable(uller.Row, uller.Col), 1u);
 
     // Every global map door is a run of passable cells (a door the leg paths aim at).
-    for (int32_t door = 0; door < GlobalMoveMap->numDoors; door++)
+    for (int32_t door = 0; door < GlobalMoveMap->NumDoors; door++)
     {
-        const GlobalMapDoor& d = GlobalMoveMap->doors[door];
-        const int32_t row = d.row * MAPCELL_DIM + d.cellR;
-        const int32_t col = d.col * MAPCELL_DIM + d.cellC;
+        const MCGlobalMapDoor& d = GlobalMoveMap->Doors[door];
+        const int32_t row = d.Row * MAPCELL_DIM + d.CellR;
+        const int32_t col = d.Col * MAPCELL_DIM + d.CellC;
         MCTest::Scope scope("door " + std::to_string(door) + " at (" + std::to_string(row) + "," + std::to_string(col) +
                             ")");
         CHECK_EQ(map.Passable(row, col), 1u);
@@ -433,7 +433,7 @@ TEST_CASE("game: pathfinding the Uller's withdraw routes stay on passable cells"
     }
 
     const MissionMap& map = MissionMap::Get();
-    const vector_3d start(2834.0f, 2790.0f, 0.0f);
+    const MCVector3D start(2834.0f, 2790.0f, 0.0f);
     int32_t planned = 0;
 
     // Goals in every direction and at every range, on open cells (calcMoveGoal moves a goal off a blocked cell).
@@ -442,8 +442,8 @@ TEST_CASE("game: pathfinding the Uller's withdraw routes stay on passable cells"
         for (float range = 500.0f; range <= 9000.0f; range += 500.0f)
         {
             const double radians = angle * 3.14159265358979 / 180.0;
-            const vector_3d goal(start.x + static_cast<float>(std::cos(radians) * range),
-                                 start.y + static_cast<float>(std::sin(radians) * range), 0.0f);
+            const MCVector3D goal(start.X + static_cast<float>(std::cos(radians) * range),
+                                  start.Y + static_cast<float>(std::sin(radians) * range), 0.0f);
             const Cell goalCell = MissionMap::CellOf(goal);
 
             if (map.Passable(goalCell.Row, goalCell.Col) == 0)
@@ -478,9 +478,9 @@ TEST_CASE("game: pathfinding random long routes across mission 1 stay on passabl
     const MissionMap& map = MissionMap::Get();
     std::vector<Cell> open;
 
-    for (int32_t row = 0; row < GameMap->height * MAPCELL_DIM; row++)
+    for (int32_t row = 0; row < GameMap->Height * MAPCELL_DIM; row++)
     {
-        for (int32_t col = 0; col < GameMap->width * MAPCELL_DIM; col++)
+        for (int32_t col = 0; col < GameMap->Width * MAPCELL_DIM; col++)
         {
             if (map.Passable(row, col) != 0)
             {
@@ -526,25 +526,25 @@ TEST_CASE("game: pathfinding a global map written back matches the editor's file
     }
 
     // The retail file, as MCEditor wrote it.
-    File original;
-    REQUIRE_EQ(original.open("data\\terrain\\m0101.gmm"), 0);
-    std::vector<uint8_t> expected(original.getLength());
-    original.read(expected.data(), static_cast<int32_t>(expected.size()));
-    original.close();
+    MCFile original;
+    REQUIRE_EQ(original.Open("data\\terrain\\m0101.gmm"), 0);
+    std::vector<uint8_t> expected(original.GetLength());
+    original.Read(expected.data(), static_cast<int32_t>(expected.size()));
+    original.Close();
 
     // A map of its own: write recomputes the path cost table, which runs the door search.
-    GlobalMap map;
-    File in;
-    REQUIRE_EQ(in.open("data\\terrain\\m0101.gmm"), 0);
-    REQUIRE_EQ(map.init(&in), 0);
-    in.close();
+    MCGlobalMap map;
+    MCFile in;
+    REQUIRE_EQ(in.Open("data\\terrain\\m0101.gmm"), 0);
+    REQUIRE_EQ(map.Init(&in), 0);
+    in.Close();
 
     const std::string path = (std::filesystem::temp_directory_path() / "mc_pathfinding_m0101.gmm").string();
     {
-        File out;
-        REQUIRE_EQ(out.create(path.c_str()), 0);
-        REQUIRE_EQ(map.write(&out), 0);
-        out.close();
+        MCFile out;
+        REQUIRE_EQ(out.Create(path.c_str()), 0);
+        REQUIRE_EQ(map.Write(&out), 0);
+        out.Close();
     }
 
     std::ifstream written(path, std::ios::binary);
@@ -557,11 +557,11 @@ TEST_CASE("game: pathfinding a global map written back matches the editor's file
     // and uninitialised word at +0x15, and each door record's two link pointers (+0x17), which write gives as 0.
     // Header words 1 and 2 (0) and the area words at +0x11 (-1), +0x1d .. +0x25 (0) are the editor's values, which
     // nothing reads.
-    const size_t areaMapSize = static_cast<size_t>(map.width) * map.height * (map.numAreas < 256 ? 1 : 2);
-    const size_t areasStart = 48 + areaMapSize + static_cast<size_t>(map.numDoorInfos) * 3;
-    const size_t areasEnd = areasStart + static_cast<size_t>(map.numAreas) * GLOBALMAP_AREA_RECORD_SIZE;
-    const size_t doorsStart = areasEnd + static_cast<size_t>(map.numDoorLinks) * 7;
-    const size_t doorsEnd = doorsStart + static_cast<size_t>(map.numDoors + 2) * GLOBALMAP_DOOR_RECORD_SIZE;
+    const size_t areaMapSize = static_cast<size_t>(map.Width) * map.Height * (map.NumAreas < 256 ? 1 : 2);
+    const size_t areasStart = 48 + areaMapSize + static_cast<size_t>(map.NumDoorInfos) * 3;
+    const size_t areasEnd = areasStart + static_cast<size_t>(map.NumAreas) * GLOBALMAP_AREA_RECORD_SIZE;
+    const size_t doorsStart = areasEnd + static_cast<size_t>(map.NumDoorLinks) * 7;
+    const size_t doorsEnd = doorsStart + static_cast<size_t>(map.NumDoors + 2) * GLOBALMAP_DOOR_RECORD_SIZE;
     int32_t differences = 0;
 
     for (size_t i = 0; i < expected.size(); i++)
@@ -594,5 +594,5 @@ TEST_CASE("game: pathfinding a global map written back matches the editor's file
     }
 
     CHECK_EQ(differences, 0);
-    map.destroy();
+    map.Destroy();
 }

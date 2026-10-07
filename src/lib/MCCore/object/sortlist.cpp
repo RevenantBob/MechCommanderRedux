@@ -12,32 +12,32 @@ namespace
     }
 }
 
-auto SortList::init(int32_t numItems) -> int32_t
+auto MCSortList::Init(int32_t numItems) -> int32_t
 {
-    this->numItems = numItems;
-    list = std::make_unique<SortListNode[]>(static_cast<size_t>(numItems));
+    this->NumItems = numItems;
+    List = std::make_unique<MCSortListNode[]>(static_cast<size_t>(numItems));
     return 0;
 }
 
-auto SortList::clear(int setToMin) -> void
+auto MCSortList::Clear(int setToMin) -> void
 {
-    for (int32_t i = 0; i < numItems; i++)
+    for (int32_t i = 0; i < NumItems; i++)
     {
-        list[i].id = i;
+        List[i].Id = i;
     }
 
     const float value = ClearValue(setToMin != 0);
 
-    for (int32_t i = 0; i < numItems; i++)
+    for (int32_t i = 0; i < NumItems; i++)
     {
-        list[i].value = value;
+        List[i].Value = value;
     }
 }
 
-auto descendingCompare(const void* elem1, const void* elem2) -> int
+auto DescendingCompare(const void* elem1, const void* elem2) -> int
 {
-    const float value1 = static_cast<const SortListNode*>(elem1)->value;
-    const float value2 = static_cast<const SortListNode*>(elem2)->value;
+    const float value1 = static_cast<const MCSortListNode*>(elem1)->Value;
+    const float value2 = static_cast<const MCSortListNode*>(elem2)->Value;
 
     if (value2 < value1)
     {
@@ -52,10 +52,10 @@ auto descendingCompare(const void* elem1, const void* elem2) -> int
     return 0;
 }
 
-auto ascendingCompare(const void* elem1, const void* elem2) -> int
+auto AscendingCompare(const void* elem1, const void* elem2) -> int
 {
-    const float value1 = static_cast<const SortListNode*>(elem1)->value;
-    const float value2 = static_cast<const SortListNode*>(elem2)->value;
+    const float value1 = static_cast<const MCSortListNode*>(elem1)->Value;
+    const float value2 = static_cast<const MCSortListNode*>(elem2)->Value;
 
     if (value2 < value1)
     {
@@ -70,20 +70,20 @@ auto ascendingCompare(const void* elem1, const void* elem2) -> int
     return 0;
 }
 
-auto SortList::sort(int descending) -> void
+auto MCSortList::Sort(int descending) -> void
 {
     if (descending != 0)
     {
-        std::qsort(list.get(), numItems, sizeof(SortListNode), descendingCompare);
+        std::qsort(List.get(), NumItems, sizeof(MCSortListNode), DescendingCompare);
         return;
     }
 
-    std::qsort(list.get(), numItems, sizeof(SortListNode), ascendingCompare);
+    std::qsort(List.get(), NumItems, sizeof(MCSortListNode), AscendingCompare);
 }
 
-auto SortList::destroy() -> void
+auto MCSortList::Destroy() -> void
 {
     // The original freed into systemHeap although init allocated from objectCache, so the block stayed allocated
     // until objectCache went; nothing reads it after destroy.
-    list.reset();
+    List.reset();
 }

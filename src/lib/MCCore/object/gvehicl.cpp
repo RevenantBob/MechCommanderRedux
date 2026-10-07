@@ -59,7 +59,7 @@ namespace
 {
     /// <summary>Fills the throttle tables with MCX.EXE's initial data: every entry is 1.0 (no tile or overlay
     /// slows a vehicle).</summary>
-    const bool throttleTablesFilled = []
+    const bool ThrottleTablesFilled = []
     {
         std::fill_n(&TileThrottleMultiplier[0][0], 3 * NUM_THROTTLE_TILE_TYPES, 1.0f);
         std::fill_n(&OverlayThrottleMultiplier[0][0], 3 * NUM_THROTTLE_OVERLAY_TYPES, 1.0f);
@@ -72,196 +72,196 @@ int32_t DefaultGroundVehicleCrashAvoidPath = 1;
 int32_t DefaultGroundVehicleCrashBlockSelf = 1;
 int32_t DefaultGroundVehicleCrashBlockPath = 1;
 float DefaultGroundVehicleCrashYieldTime = 2.0f;
-uint32_t weaponFXTable[32] = {455, 461, 462, 188, 467, 468, 0xffffffff, 458, 14,  190, 191, 192, 456, 463, 464, 457,
+uint32_t WeaponFXTable[32] = {455, 461, 462, 188, 467, 468, 0xffffffff, 458, 14,  190, 191, 192, 456, 463, 464, 457,
                               465, 466, 459, 460, 879, 880, 881,        882, 883, 884, 885, 886, 887, 888, 889, 890};
-float gvCollisionThreshold = 0.0f;
-float gvObjectCollisionThreshold = 0.0f;
-float gvTonnageCollisionThreshold = 0.0f;
-float gvTreeDeflection = 0.0f;
-float gvSweepTime = 0.0f;
-float gvHillSpeedFactor = 0.0f;
+float GvCollisionThreshold = 0.0f;
+float GvObjectCollisionThreshold = 0.0f;
+float GvTonnageCollisionThreshold = 0.0f;
+float GvTreeDeflection = 0.0f;
+float GvSweepTime = 0.0f;
+float GvHillSpeedFactor = 0.0f;
 float MaxVelocityMag = 0.0f;
 
 namespace
 {
-    /// <summary>Half pi, as MCX.EXE stores it (MCX.EXE @ 0x0077cb50).</summary>
+    /// <summary>Half pi, as MCX.EXE stores it.</summary>
     constexpr double HALF_PI = 0x1.921fb5443e88cp+0;
-    /// <summary>Degrees to radians, as MCX.EXE stores it (MCX.EXE @ 0x0077c2a0; a hair under pi / 180).</summary>
+    /// <summary>Degrees to radians, as MCX.EXE stores it (a hair under pi / 180).</summary>
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
 
     /// <summary>Turns a frame about its k axis (MC2's inline frame_of_ref::rotate_about_k).</summary>
-    void rotateAboutK(frame_of_ref& frame, float s, float c)
+    void RotateAboutK(MCFrameOfRef& frame, float s, float c)
     {
-        const vector_3d oldI = frame.i;
-        frame.i = frame.i * c + frame.j * s;
-        frame.j = frame.j * c - oldI * s;
+        const MCVector3D oldI = frame.I;
+        frame.I = frame.I * c + frame.J * s;
+        frame.J = frame.J * c - oldI * s;
     }
 
     /// <summary>
     /// Hits <paramref name="victim"/> from <paramref name="shooter"/>'s side for <paramref name="damage"/> (attack
     /// source 1).
     /// </summary>
-    void collisionHit(GameObject* victim, GameObject* shooter, float damage)
+    void CollisionHit(MCGameObject* victim, MCGameObject* shooter, float damage)
     {
-        const int32_t hitLocation = victim->calcHitLocation(shooter, -1, 1, 0);
-        const float entryAngle = victim->relFacingTo(shooter->getPosition(), -1);
-        _WeaponShotInfo shotInfo;
-        shotInfo.init(shooter, -1, damage, hitLocation, entryAngle);
-        victim->handleWeaponHit(&shotInfo, MPlayer != nullptr);
+        const int32_t hitLocation = victim->CalcHitLocation(shooter, -1, 1, 0);
+        const float entryAngle = victim->RelFacingTo(shooter->GetPosition(), -1);
+        MCWeaponShotInfo shotInfo;
+        shotInfo.Init(shooter, -1, damage, hitLocation, entryAngle);
+        victim->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
     }
 }
 
-auto loadGroundVehicleGameSystem(FitIniFile* sysFile) -> int32_t
+auto LoadGroundVehicleGameSystem(MCFitIniFile* sysFile) -> int32_t
 {
-    int32_t result = sysFile->seekBlock("GroundVehicle:FireWeapon");
+    int32_t result = sysFile->SeekBlock("GroundVehicle:FireWeapon");
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdLongArray("AttackerMoveModifier", GroundVehicleAttackerMoveModifier, 4)) != 0)
+    if ((result = sysFile->ReadIdLongArray("AttackerMoveModifier", GroundVehicleAttackerMoveModifier, 4)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->seekBlock("GroundVehicle:Damage")) != 0)
+    if ((result = sysFile->SeekBlock("GroundVehicle:Damage")) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdLongArray("CriticalHitTable", GroundVehicleCriticalHitTable, 11)) != 0)
+    if ((result = sysFile->ReadIdLongArray("CriticalHitTable", GroundVehicleCriticalHitTable, 11)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->seekBlock("GroundVehicle:Collision")) != 0)
+    if ((result = sysFile->SeekBlock("GroundVehicle:Collision")) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("collisionThreshold", gvCollisionThreshold)) != 0)
+    if ((result = sysFile->ReadIdFloat("collisionThreshold", GvCollisionThreshold)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("objectThreshold", gvObjectCollisionThreshold)) != 0)
+    if ((result = sysFile->ReadIdFloat("objectThreshold", GvObjectCollisionThreshold)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("tonnageThreshold", gvTonnageCollisionThreshold)) != 0)
+    if ((result = sysFile->ReadIdFloat("tonnageThreshold", GvTonnageCollisionThreshold)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("treeDeflection", gvTreeDeflection)) != 0)
+    if ((result = sysFile->ReadIdFloat("treeDeflection", GvTreeDeflection)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->seekBlock("GroundVehicle:Movement")) != 0)
+    if ((result = sysFile->SeekBlock("GroundVehicle:Movement")) != 0)
     {
         return result;
     }
 
     int32_t value = 0;
 
-    if (sysFile->readIdLong("CrashAvoidSelf", value) == 0)
+    if (sysFile->ReadIdLong("CrashAvoidSelf", value) == 0)
     {
         DefaultGroundVehicleCrashAvoidSelf = value;
     }
 
-    if (sysFile->readIdLong("CrashAvoidPath", value) == 0)
+    if (sysFile->ReadIdLong("CrashAvoidPath", value) == 0)
     {
         DefaultGroundVehicleCrashAvoidPath = value;
     }
 
-    if (sysFile->readIdLong("CrashBlockSelf", value) == 0)
+    if (sysFile->ReadIdLong("CrashBlockSelf", value) == 0)
     {
         DefaultGroundVehicleCrashBlockSelf = value;
     }
 
-    if (sysFile->readIdLong("CrashBlockPath", value) == 0)
+    if (sysFile->ReadIdLong("CrashBlockPath", value) == 0)
     {
         DefaultGroundVehicleCrashBlockPath = value;
     }
 
     float yieldTime = 0.0f;
 
-    if (sysFile->readIdFloat("CrashYieldTime", yieldTime) == 0)
+    if (sysFile->ReadIdFloat("CrashYieldTime", yieldTime) == 0)
     {
         DefaultGroundVehicleCrashYieldTime = yieldTime;
     }
 
-    if ((result = sysFile->readIdFloat("SweeperSlowTime", gvSweepTime)) != 0)
+    if ((result = sysFile->ReadIdFloat("SweeperSlowTime", GvSweepTime)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("WalkSpeed", gvWalkSpeed)) != 0)
+    if ((result = sysFile->ReadIdFloat("WalkSpeed", GvWalkSpeed)) != 0)
     {
         return result;
     }
 
-    return sysFile->readIdFloat("HillSpeedFactor", gvHillSpeedFactor);
+    return sysFile->ReadIdFloat("HillSpeedFactor", GvHillSpeedFactor);
 }
 
 //---------------------------------------------------------------------------
 // GroundVehicleType
 //---------------------------------------------------------------------------
 
-auto GroundVehicleType::init() -> void
+auto MCGroundVehicleType::Init() -> void
 {
-    crashAvoidSelf = DefaultGroundVehicleCrashAvoidSelf;
-    crashAvoidPath = DefaultGroundVehicleCrashAvoidPath;
-    crashBlockSelf = DefaultGroundVehicleCrashBlockSelf;
-    crashBlockPath = DefaultGroundVehicleCrashBlockPath;
-    vehicleId = 0;
-    name.clear();
-    alignment = 0;
-    chassis = 0;
-    tonnageClass = 0.0f;
-    internalStructureTonnage = 0.0f;
-    ammoTruck = 0;
-    mineSweeper = 0;
-    refitPoints = 0;
-    minesToLay = 0;
-    elementalCarrier = 0;
-    crashYieldTime = DefaultGroundVehicleCrashYieldTime;
-    seats = 0;
-    explDmg = 0.0f;
-    explRad = 0.0f;
+    CrashAvoidSelf = DefaultGroundVehicleCrashAvoidSelf;
+    CrashAvoidPath = DefaultGroundVehicleCrashAvoidPath;
+    CrashBlockSelf = DefaultGroundVehicleCrashBlockSelf;
+    CrashBlockPath = DefaultGroundVehicleCrashBlockPath;
+    VehicleId = 0;
+    Name.clear();
+    Alignment = 0;
+    Chassis = 0;
+    TonnageClass = 0.0f;
+    InternalStructureTonnage = 0.0f;
+    AmmoTruck = 0;
+    MineSweeper = 0;
+    RefitPoints = 0;
+    MinesToLay = 0;
+    ElementalCarrier = 0;
+    CrashYieldTime = DefaultGroundVehicleCrashYieldTime;
+    Seats = 0;
+    ExplDmg = 0.0f;
+    ExplRad = 0.0f;
 }
 
-auto GroundVehicleType::destroy() -> void
+auto MCGroundVehicleType::Destroy() -> void
 {
-    name.clear();
-    delete dynamicsType;
-    dynamicsType = nullptr;
-    ObjectType::destroy();
+    Name.clear();
+    delete DynamicsType;
+    DynamicsType = nullptr;
+    MCObjectType::Destroy();
 }
 
-auto GroundVehicleType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCGroundVehicleType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     static const char* const locationNames[NUM_GROUNDVEHICLE_LOCATIONS] = {"Front", "Left", "Right", "Rear", "Turret"};
 
-    FitIniFile vehicleFile;
-    int32_t result = vehicleFile.open(objFile, fileSize, 50);
+    MCFitIniFile vehicleFile;
+    int32_t result = vehicleFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile.seekBlock("Header")) != 0)
+    if ((result = vehicleFile.SeekBlock("Header")) != 0)
     {
         return result;
     }
 
     char fileType[128];
 
-    if ((result = vehicleFile.readIdString("FileType", fileType, 127)) != 0)
+    if ((result = vehicleFile.ReadIdString("FileType", fileType, 127)) != 0)
     {
         return result;
     }
@@ -271,12 +271,12 @@ auto GroundVehicleType::init(File* objFile, uint32_t fileSize) -> int32_t
         return -1;
     }
 
-    if ((result = vehicleFile.seekBlock("General")) != 0)
+    if ((result = vehicleFile.SeekBlock("General")) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile.readIdULong("ID", vehicleId)) != 0)
+    if ((result = vehicleFile.ReadIdULong("ID", VehicleId)) != 0)
     {
         return result;
     }
@@ -285,66 +285,66 @@ auto GroundVehicleType::init(File* objFile, uint32_t fileSize) -> int32_t
     static constexpr uint8_t alignmentMap[2] = {1, 0xff};
     uint8_t fileAlignment = 0;
 
-    if ((result = vehicleFile.readIdUChar("Alignment", fileAlignment)) != 0)
+    if ((result = vehicleFile.ReadIdUChar("Alignment", fileAlignment)) != 0)
     {
         return result;
     }
 
     // Port fix: the original reads other values from past its two-entry table on the stack.
-    alignment = fileAlignment < 2 ? alignmentMap[fileAlignment] : 0;
+    Alignment = fileAlignment < 2 ? alignmentMap[fileAlignment] : 0;
     char nameBuffer[128];
-    vehicleFile.readIdString("Name", nameBuffer, 127);
-    name = nameBuffer;
+    vehicleFile.ReadIdString("Name", nameBuffer, 127);
+    Name = nameBuffer;
 
-    if ((result = vehicleFile.readIdUChar("Chassis", chassis)) != 0)
+    if ((result = vehicleFile.ReadIdUChar("Chassis", Chassis)) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile.readIdFloat("TonnageClass", tonnageClass)) != 0)
+    if ((result = vehicleFile.ReadIdFloat("TonnageClass", TonnageClass)) != 0)
     {
         return result;
     }
 
-    vehicleFile.readIdBoolean("AmmoTruck", ammoTruck);
-    vehicleFile.readIdLong("RefitPoints", refitPoints);
-    vehicleFile.readIdBoolean("MineSweeper", mineSweeper);
-    vehicleFile.readIdLong("MinesToLay", minesToLay);
-    vehicleFile.readIdBoolean("ElementalCarrier", elementalCarrier);
-    vehicleFile.readIdUChar("Seats", seats);
-    Assert(seats <= MAX_GROUNDVEHICLE_SEATS ? 1 : 0, seats, "Too many seats");
+    vehicleFile.ReadIdBoolean("AmmoTruck", AmmoTruck);
+    vehicleFile.ReadIdLong("RefitPoints", RefitPoints);
+    vehicleFile.ReadIdBoolean("MineSweeper", MineSweeper);
+    vehicleFile.ReadIdLong("MinesToLay", MinesToLay);
+    vehicleFile.ReadIdBoolean("ElementalCarrier", ElementalCarrier);
+    vehicleFile.ReadIdUChar("Seats", Seats);
+    Assert(Seats <= MAX_GROUNDVEHICLE_SEATS ? 1 : 0, Seats, "Too many seats");
 
-    if (vehicleFile.readIdFloat("ExplosionRadius", explRad) != 0)
+    if (vehicleFile.ReadIdFloat("ExplosionRadius", ExplRad) != 0)
     {
-        explRad = 0.0f;
+        ExplRad = 0.0f;
     }
 
-    if (vehicleFile.readIdFloat("ExplosionDamage", explDmg) != 0)
+    if (vehicleFile.ReadIdFloat("ExplosionDamage", ExplDmg) != 0)
     {
-        explDmg = 0.0f;
+        ExplDmg = 0.0f;
     }
 
-    if ((result = vehicleFile.seekBlock("InternalStructure")) != 0)
+    if ((result = vehicleFile.SeekBlock("InternalStructure")) != 0)
     {
         return result;
     }
 
     for (int32_t location = 0; location < NUM_GROUNDVEHICLE_LOCATIONS; location++)
     {
-        if ((result = vehicleFile.readIdUChar(locationNames[location], internalStructure[location])) != 0)
+        if ((result = vehicleFile.ReadIdUChar(locationNames[location], InternalStructure[location])) != 0)
         {
             return result;
         }
     }
 
-    if ((result = vehicleFile.seekBlock("Dynamics")) != 0)
+    if ((result = vehicleFile.SeekBlock("Dynamics")) != 0)
     {
         return result;
     }
 
     uint32_t dynamicsTypeId = 0;
 
-    if ((result = vehicleFile.readIdULong("Type", dynamicsTypeId)) != 0)
+    if ((result = vehicleFile.ReadIdULong("Type", dynamicsTypeId)) != 0)
     {
         return result;
     }
@@ -354,69 +354,69 @@ auto GroundVehicleType::init(File* objFile, uint32_t fileSize) -> int32_t
         return -0x5fffd;
     }
 
-    dynamicsType = new GroundVehicleDynamicsType;
+    DynamicsType = new MCGroundVehicleDynamicsType;
 
-    if (dynamicsType == nullptr)
+    if (DynamicsType == nullptr)
     {
         return -0x5fffe;
     }
 
-    if ((result = dynamicsType->init(&vehicleFile)) != 0)
+    if ((result = DynamicsType->Init(&vehicleFile)) != 0)
     {
         return result;
     }
 
-    if (vehicleFile.seekBlock("MovementSystem") == 0)
+    if (vehicleFile.SeekBlock("MovementSystem") == 0)
     {
         int32_t value = 0;
 
-        if (vehicleFile.readIdLong("CrashAvoidSelf", value) == 0)
+        if (vehicleFile.ReadIdLong("CrashAvoidSelf", value) == 0)
         {
-            crashAvoidSelf = value;
+            CrashAvoidSelf = value;
         }
 
-        if (vehicleFile.readIdLong("CrashAvoidPath", value) == 0)
+        if (vehicleFile.ReadIdLong("CrashAvoidPath", value) == 0)
         {
-            crashAvoidPath = value;
+            CrashAvoidPath = value;
         }
 
-        if (vehicleFile.readIdLong("CrashBlockSelf", value) == 0)
+        if (vehicleFile.ReadIdLong("CrashBlockSelf", value) == 0)
         {
-            crashBlockSelf = value;
+            CrashBlockSelf = value;
         }
 
-        if (vehicleFile.readIdLong("CrashBlockPath", value) == 0)
+        if (vehicleFile.ReadIdLong("CrashBlockPath", value) == 0)
         {
-            crashBlockPath = value;
+            CrashBlockPath = value;
         }
 
         float yieldTime = 0.0f;
 
-        if (vehicleFile.readIdFloat("CrashYieldTime", yieldTime) == 0)
+        if (vehicleFile.ReadIdFloat("CrashYieldTime", yieldTime) == 0)
         {
-            crashYieldTime = yieldTime;
+            CrashYieldTime = yieldTime;
         }
     }
 
-    return ObjectType::init(&vehicleFile);
+    return MCObjectType::Init(&vehicleFile);
 }
 
-auto GroundVehicleType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCGroundVehicleType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 0;
     }
 
-    switch (collider->objectClass)
+    switch (collider->ObjectClass)
     {
         case BATTLEMECH:
         case GROUNDVEHICLE:
         case ELEMENTAL:
         {
-            const int friendly = collidee->getPilot()->alignment == collider->getPilot()->alignment ? 1 : 0;
+            const int friendly = collidee->GetPilot()->Alignment == collider->GetPilot()->Alignment ? 1 : 0;
 
-            if (collider->objectClass == ELEMENTAL && static_cast<Elemental*>(collider)->elementalCanJump == 0)
+            if (collider->ObjectClass == ELEMENTAL && static_cast<MCElemental*>(collider)->ElementalCanJump == 0)
             {
                 return 0;
             }
@@ -426,102 +426,102 @@ auto GroundVehicleType::handleCollision(GameObject* collidee, GameObject* collid
                 return 0;
             }
 
-            GameObject* collideeRamTarget = collidee->getPilot()->curTacOrder.getRamTarget();
-            GameObject* colliderRamTarget = collider->getPilot()->curTacOrder.getRamTarget();
+            MCGameObject* collideeRamTarget = collidee->GetPilot()->CurTacOrder.GetRamTarget();
+            MCGameObject* colliderRamTarget = collider->GetPilot()->CurTacOrder.GetRamTarget();
 
             if (collideeRamTarget != collider && colliderRamTarget != collidee)
             {
                 return 0;
             }
 
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
 
-            if (static_cast<GroundVehicleDynamicsType*>(dynamicsType)->maxVelocity != 0.0f)
+            if (static_cast<MCGroundVehicleDynamicsType*>(DynamicsType)->MaxVelocity != 0.0f)
             {
-                frame_of_ref frame = collidee->getFrame();
-                rotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
-                collidee->setFrame(frame);
-                collidee->getVelocity();
-                static_cast<Mover*>(collidee)->bounceToAdjCell();
+                MCFrameOfRef frame = collidee->GetFrame();
+                RotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
+                collidee->SetFrame(frame);
+                collidee->GetVelocity();
+                static_cast<MCMover*>(collidee)->BounceToAdjCell();
             }
 
-            collisionHit(collidee, collider, 1.0f);
+            CollisionHit(collidee, collider, 1.0f);
             break;
         }
 
         case BUILDING:
         case TREEBUILDING:
         {
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
-            frame_of_ref frame = collidee->getFrame();
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
+            MCFrameOfRef frame = collidee->GetFrame();
             // A big building turns the vehicle further.
-            const float angle = collider->getObjectType()->extentRadius > gvObjectCollisionThreshold ? 135.0f : 45.0f;
-            rotateAboutK(frame, static_cast<float>(std::sin(angle * DEGREES_TO_RADIANS)),
+            const float angle = collider->GetObjectType()->ExtentRadius > GvObjectCollisionThreshold ? 135.0f : 45.0f;
+            RotateAboutK(frame, static_cast<float>(std::sin(angle * DEGREES_TO_RADIANS)),
                          static_cast<float>(std::cos(angle * DEGREES_TO_RADIANS)));
-            collidee->setFrame(frame);
-            static_cast<Mover*>(collidee)->bounceToAdjCell();
-            collisionHit(collidee, collider, static_cast<float>(collider->getTonnage() * 0.01 + 0.5));
+            collidee->SetFrame(frame);
+            static_cast<MCMover*>(collidee)->BounceToAdjCell();
+            CollisionHit(collidee, collider, static_cast<float>(collider->GetTonnage() * 0.01 + 0.5));
             break;
         }
 
         case TREE:
         {
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
-            frame_of_ref frame = collidee->getFrame();
-            collider->getObjectType();
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
+            MCFrameOfRef frame = collidee->GetFrame();
+            collider->GetObjectType();
             double deflection = 0.0;
 
-            if (tonnageClass < gvTonnageCollisionThreshold)
+            if (TonnageClass < GvTonnageCollisionThreshold)
             {
-                deflection = static_cast<double>(gvTonnageCollisionThreshold) / tonnageClass * gvTreeDeflection;
+                deflection = static_cast<double>(GvTonnageCollisionThreshold) / TonnageClass * GvTreeDeflection;
             }
 
             if (deflection > 0.0)
             {
-                rotateAboutK(frame, static_cast<float>(std::sin(deflection * DEGREES_TO_RADIANS)),
+                RotateAboutK(frame, static_cast<float>(std::sin(deflection * DEGREES_TO_RADIANS)),
                              static_cast<float>(std::cos(deflection * DEGREES_TO_RADIANS)));
-                collidee->setFrame(frame);
+                collidee->SetFrame(frame);
             }
             break;
         }
 
         case TRAINCAR:
         {
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
 
-            if (static_cast<GroundVehicleDynamicsType*>(dynamicsType)->maxVelocity != 0.0f)
+            if (static_cast<MCGroundVehicleDynamicsType*>(DynamicsType)->MaxVelocity != 0.0f)
             {
-                frame_of_ref frame = collidee->getFrame();
-                rotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
-                collidee->setFrame(frame);
-                collidee->getVelocity();
+                MCFrameOfRef frame = collidee->GetFrame();
+                RotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
+                collidee->SetFrame(frame);
+                collidee->GetVelocity();
             }
 
-            static_cast<Mover*>(collidee)->bounceToAdjCell();
+            static_cast<MCMover*>(collidee)->BounceToAdjCell();
             break;
         }
 
@@ -529,75 +529,75 @@ auto GroundVehicleType::handleCollision(GameObject* collidee, GameObject* collid
             return 0;
     }
 
-    soundSystem->playDigitalSample(4, 1, collidee, 0, 0);
+    SoundSystem->PlayDigitalSample(4, 1, collidee, 0, 0);
     return 0;
 }
 
-auto GroundVehicleType::handleDestruction(GameObject* collidee, GameObject* collider) -> int
+auto MCGroundVehicleType::HandleDestruction(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    auto* vehicle = static_cast<GroundVehicle*>(collidee);
+    auto* vehicle = static_cast<MCGroundVehicle*>(collidee);
 
-    if (vehicle->getPilot() == nullptr)
+    if (vehicle->GetPilot() == nullptr)
     {
         Fatal(0, " No Pilot in this vehicle! ");
     }
 
-    if (vehicle->getPoint() == vehicle)
+    if (vehicle->GetPoint() == vehicle)
     {
-        vehicle->group->setPoint(nullptr);
+        vehicle->Group->SetPoint(nullptr);
     }
 
-    if (vehicle->sensorSystem != nullptr)
+    if (vehicle->SensorSystem != nullptr)
     {
-        vehicle->sensorSystem->disable();
+        vehicle->SensorSystem->Disable();
     }
 
-    vehicle->deathTimer = 0.0f;
+    vehicle->DeathTimer = 0.0f;
 
-    if (vehicle->withdrawing == 0)
+    if (vehicle->Withdrawing == 0)
     {
-        vehicle->getPilot()->triggerAlarm(7, collider == nullptr ? 0 : collider->idNumber);
-        vehicle->deathExplosionDone = 0;
-        vehicle->status = 2;
+        vehicle->GetPilot()->TriggerAlarm(7, collider == nullptr ? 0 : collider->IdNumber);
+        vehicle->DeathExplosionDone = 0;
+        vehicle->Status = 2;
 
-        if (vehicle->getAlignment() == homeTeam->alignment)
+        if (vehicle->GetAlignment() == HomeTeam->Alignment)
         {
-            friendlyDestroyed = 1;
+            FriendlyDestroyed = 1;
         }
         else
         {
-            enemyDestroyed = 1;
+            EnemyDestroyed = 1;
         }
     }
     else
     {
-        vehicle->getPilot()->triggerAlarm(8, 0);
+        vehicle->GetPilot()->TriggerAlarm(8, 0);
     }
 
-    theInterface->RemoveMech(vehicle->partId);
+    TheInterface->RemoveMech(vehicle->PartId);
     return 1;
 }
 
-auto GroundVehicleType::loadHotSpots(FitIniFile* vehicleFile) -> int32_t
+auto MCGroundVehicleType::LoadHotSpots(MCFitIniFile* vehicleFile) -> int32_t
 {
     return 0;
 }
 
-auto GroundVehicleType::createInstance() -> BaseObject*
+auto MCGroundVehicleType::CreateInstance() -> MCBaseObject*
 {
-    auto* newVehicle = new GroundVehicle;
+    auto* newVehicle = new MCGroundVehicle;
 
     if (newVehicle == nullptr)
     {
         return nullptr;
     }
 
-    if (newVehicle->init(this) != 0)
+    if (newVehicle->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newVehicle->idNumber = NextIdNumber++;
+    newVehicle->IdNumber = NextIdNumber++;
     return newVehicle;
 }
 
@@ -605,35 +605,35 @@ auto GroundVehicleType::createInstance() -> BaseObject*
 // GroundVehicle
 //---------------------------------------------------------------------------
 
-auto GroundVehicle::relViewFacingTo(vector_3d goal) -> float
+auto MCGroundVehicle::RelViewFacingTo(MCVector3D goal) -> float
 {
-    return relFacingTo(goal, GROUNDVEHICLE_LOCATION_TURRET);
+    return RelFacingTo(goal, GROUNDVEHICLE_LOCATION_TURRET);
 }
 
-auto GroundVehicle::getBodyState() -> int32_t
+auto MCGroundVehicle::GetBodyState() -> int32_t
 {
     // The original reads +0x74 of either appearance: a pop-up turret's gives the bits of its shapeMaxY.
-    if (gvAppearance == 0)
+    if (GvAppearance == 0)
     {
-        return std::bit_cast<int32_t>(static_cast<PUAppearance*>(appearance)->shapeMaxY);
+        return std::bit_cast<int32_t>(static_cast<MCPUAppearance*>(Appearance)->ShapeMaxY);
     }
 
-    return static_cast<GVAppearance*>(appearance)->currentState;
+    return static_cast<MCGVAppearance*>(Appearance)->CurrentState;
 }
 
-auto GroundVehicle::canMove() -> int
+auto MCGroundVehicle::CanMove() -> int
 {
-    return movementEnabled;
+    return MovementEnabled;
 }
 
-auto GroundVehicle::getThrottle() -> int32_t
+auto MCGroundVehicle::GetThrottle() -> int32_t
 {
-    return static_cast<GroundVehicleControlData*>(control->controlData)->throttle;
+    return static_cast<MCGroundVehicleControlData*>(Control->ControlData)->Throttle;
 }
 
-auto GroundVehicle::isCaptureable() -> int
+auto MCGroundVehicle::IsCaptureable() -> int
 {
-    if ((captureable != 0 || salvage != nullptr) && isCaptured() == 0 && isDestroyed() == 0)
+    if ((Captureable != 0 || Salvage != nullptr) && IsCaptured() == 0 && IsDestroyed() == 0)
     {
         return 1;
     }
@@ -641,44 +641,44 @@ auto GroundVehicle::isCaptureable() -> int
     return 0;
 }
 
-auto GroundVehicle::getRefitPoints() -> float
+auto MCGroundVehicle::GetRefitPoints() -> float
 {
-    if (refitter != 0)
+    if (Refitter != 0)
     {
-        return armor[GROUNDVEHICLE_LOCATION_TURRET].curArmor;
+        return Armor[GROUNDVEHICLE_LOCATION_TURRET].CurArmor;
     }
 
     return 0.0f;
 }
 
-auto GroundVehicle::burnRefitPoints(float pointsToBurn) -> int
+auto MCGroundVehicle::BurnRefitPoints(float pointsToBurn) -> int
 {
-    if (refitter != 0 && pointsToBurn <= armor[GROUNDVEHICLE_LOCATION_TURRET].curArmor)
+    if (Refitter != 0 && pointsToBurn <= Armor[GROUNDVEHICLE_LOCATION_TURRET].CurArmor)
     {
-        armor[GROUNDVEHICLE_LOCATION_TURRET].curArmor -= pointsToBurn;
+        Armor[GROUNDVEHICLE_LOCATION_TURRET].CurArmor -= pointsToBurn;
         return 1;
     }
 
     return 0;
 }
 
-auto GroundVehicle::handleStaticCollision() -> void
+auto MCGroundVehicle::HandleStaticCollision() -> void
 {
-    if (collisionsOn == 0 || dynamics->getVelocity() <= 0.0f)
+    if (CollisionsOn == 0 || Dynamics->GetVelocity() <= 0.0f)
     {
         return;
     }
 
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
-    getBlockAndVertexNumber(blockNumber, vertexNumber);
+    GetBlockAndVertexNumber(blockNumber, vertexNumber);
     char listName[12];
     std::sprintf(listName, "TBlk%d", blockNumber);
-    ObjectQueueNode* list = objectList->head;
+    MCObjectQueueNode* list = ObjectList->Head;
 
     while (list != nullptr && list->operator==(listName) == 0)
     {
-        list = list->next;
+        list = list->Next;
     }
 
     Assert(list != nullptr ? 1 : 0, blockNumber, "Could not find objlist for block");
@@ -689,11 +689,11 @@ auto GroundVehicle::handleStaticCollision() -> void
         return;
     }
 
-    for (BaseObject* object = list->head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = list->Head; object != nullptr; object = object->Next)
     {
-        auto* other = static_cast<GameObject*>(object);
+        auto* other = static_cast<MCGameObject*>(object);
 
-        if (other->getObjectType() == nullptr)
+        if (other->GetObjectType() == nullptr)
         {
             continue;
         }
@@ -702,22 +702,22 @@ auto GroundVehicle::handleStaticCollision() -> void
         int32_t otherBlock = -1;
         int32_t otherVertex = -1;
 
-        switch (other->objectClass)
+        switch (other->ObjectClass)
         {
             case BUILDING:
             case TREE:
             case TERRAINOBJECT:
             case TREEBUILDING:
             {
-                other->getBlockAndVertexNumber(otherBlock, otherVertex);
-                collides = other->collisionsOn;
+                other->GetBlockAndVertexNumber(otherBlock, otherVertex);
+                collides = other->CollisionsOn;
                 break;
             }
             case MISCTERRAINOBJECT:
             {
-                getBlockAndVertexNumber(otherBlock, otherVertex);
+                GetBlockAndVertexNumber(otherBlock, otherVertex);
 
-                if (static_cast<uint32_t>(static_cast<MiscTerrainObject*>(other)->terrainObjectKind) > 6)
+                if (static_cast<uint32_t>(static_cast<MCMiscTerrainObject*>(other)->TerrainObjectKind) > 6)
                 {
                     collides = 1;
                 }
@@ -729,113 +729,113 @@ auto GroundVehicle::handleStaticCollision() -> void
 
         if (vertexNumber == otherVertex && collides != 0)
         {
-            collisionSystem->detectStaticCollision(this, other);
+            CollisionSystem->DetectStaticCollision(this, other);
         }
     }
 }
 
-auto GroundVehicle::init() -> void
+auto MCGroundVehicle::Init() -> void
 {
-    objectClass = GROUNDVEHICLE;
-    body = std::make_unique<BodyLocation[]>(NUM_GROUNDVEHICLE_LOCATIONS);
-    numBodyLocations = NUM_GROUNDVEHICLE_LOCATIONS;
-    armor = std::make_unique<ArmorLocation[]>(NUM_GROUNDVEHICLE_LOCATIONS);
-    movementEnabled = 1;
-    turretEnabled = 1;
-    weaponsDeployed = 1;
-    numArmorLocations = NUM_GROUNDVEHICLE_LOCATIONS;
-    turretRotation = 0.0f;
-    smoke = nullptr;
-    statusWindow = nullptr;
-    captureable = 0;
-    ammoTruck = 0;
-    refitBuddy = nullptr;
-    refitter = 0;
-    refitting = 0;
-    sweepTime = -1.0f;
-    mineLayer = 0;
-    minesToLay = 0;
-    elementalCarrier = 0;
+    ObjectClass = GROUNDVEHICLE;
+    Body = std::make_unique<MCBodyLocation[]>(NUM_GROUNDVEHICLE_LOCATIONS);
+    NumBodyLocations = NUM_GROUNDVEHICLE_LOCATIONS;
+    Armor = std::make_unique<MCArmorLocation[]>(NUM_GROUNDVEHICLE_LOCATIONS);
+    MovementEnabled = 1;
+    TurretEnabled = 1;
+    WeaponsDeployed = 1;
+    NumArmorLocations = NUM_GROUNDVEHICLE_LOCATIONS;
+    TurretRotation = 0.0f;
+    Smoke = nullptr;
+    StatusWindow = nullptr;
+    Captureable = 0;
+    AmmoTruck = 0;
+    RefitBuddy = nullptr;
+    Refitter = 0;
+    Refitting = 0;
+    SweepTime = -1.0f;
+    MineLayer = 0;
+    MinesToLay = 0;
+    ElementalCarrier = 0;
 
     for (int32_t i = 0; i < 10; i++)
     {
-        elementals[i] = nullptr;
+        Elementals[i] = nullptr;
     }
 
     for (int32_t i = 0; i < 4; i++)
     {
-        passengers[i] = nullptr;
+        Passengers[i] = nullptr;
     }
 
-    seats = 0;
-    blipFrame = 0;
-    cellRowToMine = -1;
-    cellColToMine = -1;
-    mineCellHandled = 0;
-    mineLayTime = 0.0f;
+    Seats = 0;
+    BlipFrame = 0;
+    CellRowToMine = -1;
+    CellColToMine = -1;
+    MineCellHandled = 0;
+    MineLayTime = 0.0f;
 }
 
-auto GroundVehicle::init(ObjectType* objType) -> int32_t
+auto MCGroundVehicle::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    auto* vehicleType = static_cast<GroundVehicleType*>(objType);
-    collisionsOn = 1;
+    auto* vehicleType = static_cast<MCGroundVehicleType*>(objType);
+    CollisionsOn = 1;
 
     for (int32_t location = 0; location < NUM_GROUNDVEHICLE_LOCATIONS; location++)
     {
-        bodyAt(location).maxInternalStructure = vehicleType->internalStructure[location];
-        bodyAt(location).hasCASE = 0;
-        bodyAt(location).damageState = 0;
-        bodyAt(location).criticalSpaces = nullptr;
+        BodyAt(location).MaxInternalStructure = vehicleType->InternalStructure[location];
+        BodyAt(location).HasCase = 0;
+        BodyAt(location).DamageState = 0;
+        BodyAt(location).CriticalSpaces = nullptr;
     }
 
-    alignment = vehicleType->alignment;
-    internalStructureTonnage = vehicleType->internalStructureTonnage;
-    pathLockLevel = vehicleType->crashBlockSelf;
-    chassis = vehicleType->chassis;
-    tonnageClass = vehicleType->tonnageClass;
-    ammoTruck = vehicleType->ammoTruck;
-    crashAvoidSelf = vehicleType->crashAvoidSelf;
-    crashAvoidPath = vehicleType->crashAvoidPath;
-    pathLockRange = vehicleType->crashBlockPath;
-    crashYieldTime = vehicleType->crashYieldTime;
+    Alignment = vehicleType->Alignment;
+    InternalStructureTonnage = vehicleType->InternalStructureTonnage;
+    PathLockLevel = vehicleType->CrashBlockSelf;
+    Chassis = vehicleType->Chassis;
+    TonnageClass = vehicleType->TonnageClass;
+    AmmoTruck = vehicleType->AmmoTruck;
+    CrashAvoidSelf = vehicleType->CrashAvoidSelf;
+    CrashAvoidPath = vehicleType->CrashAvoidPath;
+    PathLockRange = vehicleType->CrashBlockPath;
+    CrashYieldTime = vehicleType->CrashYieldTime;
 
-    if (vehicleType->refitPoints != 0)
+    if (vehicleType->RefitPoints != 0)
     {
-        refitter = 1;
+        Refitter = 1;
     }
 
-    mineSweeper = vehicleType->mineSweeper;
-    minesToLay = vehicleType->minesToLay;
+    MineSweeper = vehicleType->MineSweeper;
+    MinesToLay = vehicleType->MinesToLay;
 
-    if (minesToLay > 0)
+    if (MinesToLay > 0)
     {
-        mineLayer = 1;
+        MineLayer = 1;
     }
 
-    elementalCarrier = vehicleType->elementalCarrier;
-    seats = vehicleType->seats;
-    control = nullptr;
-    dynamics = vehicleType->dynamicsType->createInstance();
+    ElementalCarrier = vehicleType->ElementalCarrier;
+    Seats = vehicleType->Seats;
+    Control = nullptr;
+    Dynamics = vehicleType->DynamicsType->CreateInstance();
 
-    if (dynamics == nullptr)
+    if (Dynamics == nullptr)
     {
         return -0x5fff8;
     }
 
-    if ((result = dynamics->init(vehicleType->dynamicsType, this)) != 0)
+    if ((result = Dynamics->Init(vehicleType->DynamicsType, this)) != 0)
     {
         return result;
     }
 
-    const uint32_t appearanceId = vehicleType->appearName;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(appearanceId, 0);
+    const uint32_t appearanceId = vehicleType->AppearName;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearanceId, 0);
 
     if (apprType == nullptr)
     {
@@ -846,55 +846,55 @@ auto GroundVehicle::init(ObjectType* objType) -> int32_t
     {
         case 0x5000000:
         {
-            auto* vehicleAppearance = new GVAppearance;
-            appearance = vehicleAppearance;
+            auto* vehicleAppearance = new MCGVAppearance;
+            Appearance = vehicleAppearance;
 
             if (vehicleAppearance == nullptr)
             {
                 return -0x2ffff;
             }
 
-            vehicleAppearance->init(nullptr, nullptr);
+            vehicleAppearance->Init(nullptr, nullptr);
 
-            if ((apprType->appearanceNum & 0xff000000) != 0x5000000)
+            if ((apprType->AppearanceNum & 0xff000000) != 0x5000000)
             {
                 return -0x2fff6;
             }
 
-            if ((result = vehicleAppearance->init(apprType, this)) != 0)
+            if ((result = vehicleAppearance->Init(apprType, this)) != 0)
             {
                 return result;
             }
 
-            gvAppearance = 1;
-            weaponsDeployed = 1;
+            GvAppearance = 1;
+            WeaponsDeployed = 1;
             break;
         }
 
         case 0x9000000:
         {
-            auto* turretAppearance = new PUAppearance;
-            appearance = turretAppearance;
+            auto* turretAppearance = new MCPUAppearance;
+            Appearance = turretAppearance;
 
             if (turretAppearance == nullptr)
             {
                 return -0x2ffff;
             }
 
-            turretAppearance->init(nullptr, nullptr);
+            turretAppearance->Init(nullptr, nullptr);
 
-            if ((apprType->appearanceNum & 0xff000000) != 0x9000000)
+            if ((apprType->AppearanceNum & 0xff000000) != 0x9000000)
             {
                 return -0x2fff6;
             }
 
-            if ((result = turretAppearance->init(apprType, this)) != 0)
+            if ((result = turretAppearance->Init(apprType, this)) != 0)
             {
                 return result;
             }
 
-            gvAppearance = 0;
-            weaponsDeployed = 0;
+            GvAppearance = 0;
+            WeaponsDeployed = 0;
             break;
         }
 
@@ -902,12 +902,12 @@ auto GroundVehicle::init(ObjectType* objType) -> int32_t
             break;
     }
 
-    objectClass = GROUNDVEHICLE;
-    distanceSinceMarkSeen = 1000.0f;
+    ObjectClass = GROUNDVEHICLE;
+    DistanceSinceMarkSeen = 1000.0f;
     return 0;
 }
 
-auto GroundVehicle::setControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) -> int32_t
+auto MCGroundVehicle::SetControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) -> int32_t
 {
     int32_t result = 0;
 
@@ -915,16 +915,16 @@ auto GroundVehicle::setControl(uint32_t controlType, uint32_t controlData, int32
     {
         case 1:
         {
-            delete control;
-            auto* playerControl = new PlayerControl;
-            control = playerControl;
+            delete Control;
+            auto* playerControl = new MCPlayerControl;
+            Control = playerControl;
 
             if (playerControl == nullptr)
             {
                 return -0x5fffc;
             }
 
-            if ((result = playerControl->init(this, 0)) != 0)
+            if ((result = playerControl->Init(this, 0)) != 0)
             {
                 return result;
             }
@@ -933,16 +933,16 @@ auto GroundVehicle::setControl(uint32_t controlType, uint32_t controlData, int32
 
         case 2:
         {
-            delete control;
-            auto* aiControl = new GroundVehicleAIControl;
-            control = aiControl;
+            delete Control;
+            auto* aiControl = new MCGroundVehicleAIControl;
+            Control = aiControl;
 
             if (aiControl == nullptr)
             {
                 return -0x5fffc;
             }
 
-            if ((result = aiControl->init(this)) != 0)
+            if ((result = aiControl->Init(this)) != 0)
             {
                 return result;
             }
@@ -951,16 +951,16 @@ auto GroundVehicle::setControl(uint32_t controlType, uint32_t controlData, int32
 
         case 3:
         {
-            delete control;
-            auto* netControl = new GroundVehicleNetControl;
-            control = netControl;
+            delete Control;
+            auto* netControl = new MCGroundVehicleNetControl;
+            Control = netControl;
 
             if (netControl == nullptr)
             {
                 return -0x5fffc;
             }
 
-            if ((result = netControl->init(this)) != 0)
+            if ((result = netControl->Init(this)) != 0)
             {
                 return result;
             }
@@ -976,22 +976,22 @@ auto GroundVehicle::setControl(uint32_t controlType, uint32_t controlData, int32
         return -0x5fff9;
     }
 
-    auto* vehicleControlData = new GroundVehicleControlData;
-    control->controlData = vehicleControlData;
+    auto* vehicleControlData = new MCGroundVehicleControlData;
+    Control->ControlData = vehicleControlData;
 
     if (vehicleControlData == nullptr)
     {
         return -0x5fffa;
     }
 
-    return vehicleControlData->init(0);
+    return vehicleControlData->Init(0);
 }
 
-auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
+auto MCGroundVehicle::Init(MCFitIniFile* vehicleFile) -> int32_t
 {
     static const char* const locationNames[NUM_GROUNDVEHICLE_LOCATIONS] = {"Front", "Left", "Right", "Rear", "Turret"};
 
-    int32_t result = vehicleFile->seekBlock("Header");
+    int32_t result = vehicleFile->SeekBlock("Header");
 
     if (result != 0)
     {
@@ -1000,7 +1000,7 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
 
     char fileType[128];
 
-    if ((result = vehicleFile->readIdString("FileType", fileType, 127)) != 0)
+    if ((result = vehicleFile->ReadIdString("FileType", fileType, 127)) != 0)
     {
         return result;
     }
@@ -1010,205 +1010,205 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
         return -1;
     }
 
-    if ((result = vehicleFile->seekBlock("General")) != 0)
+    if ((result = vehicleFile->SeekBlock("General")) != 0)
     {
         return result;
     }
 
     char crewBuffer[128];
-    vehicleFile->readIdString("Crew", crewBuffer, 127);
-    crewName = crewBuffer;
+    vehicleFile->ReadIdString("Crew", crewBuffer, 127);
+    CrewName = crewBuffer;
 
-    if (vehicleFile->readIdBoolean("NotMineYet", notMineYet) != 0)
+    if (vehicleFile->ReadIdBoolean("NotMineYet", NotMineYet) != 0)
     {
-        notMineYet = 1;
+        NotMineYet = 1;
     }
 
-    if (vehicleFile->readIdLong("DescIndex", descIndex) != 0)
+    if (vehicleFile->ReadIdLong("DescIndex", DescIndex) != 0)
     {
-        descIndex = -1;
+        DescIndex = -1;
     }
 
     char ifaceNameBuffer[256];
-    cLoadString(thisInstance, descIndex + 700, ifaceNameBuffer, 0xfe);
-    debugStatus = ifaceNameBuffer;
+    CLoadString(ThisInstance, DescIndex + 700, ifaceNameBuffer, 0xfe);
+    DebugStatus = ifaceNameBuffer;
 
-    if ((result = vehicleFile->readIdLong("NameIndex", nameIndex)) != 0)
+    if ((result = vehicleFile->ReadIdLong("NameIndex", NameIndex)) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile->readIdFloat("CurTonnage", tonnage)) != 0)
+    if ((result = vehicleFile->ReadIdFloat("CurTonnage", Tonnage)) != 0)
     {
         return result;
     }
 
     char fileStatus = 0;
 
-    if ((result = vehicleFile->readIdChar("Status", fileStatus)) != 0)
+    if ((result = vehicleFile->ReadIdChar("Status", fileStatus)) != 0)
     {
         return result;
     }
 
-    status = fileStatus;
+    Status = fileStatus;
 
-    if ((result = vehicleFile->readIdString("icon", iconName, 0x13)) != 0)
+    if ((result = vehicleFile->ReadIdString("icon", IconName, 0x13)) != 0)
     {
         return result;
     }
 
-    if (vehicleFile->readIdLong("BattleRating", battleRating) != 0)
+    if (vehicleFile->ReadIdLong("BattleRating", BattleRating) != 0)
     {
-        battleRating = -1;
+        BattleRating = -1;
     }
 
-    if ((result = vehicleFile->seekBlock("Engine")) != 0)
-    {
-        return result;
-    }
-
-    if ((result = vehicleFile->readIdFloat("Tonnage", engineTonnage)) != 0)
+    if ((result = vehicleFile->SeekBlock("Engine")) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile->readIdULong("Rating", engineRating)) != 0)
+    if ((result = vehicleFile->ReadIdFloat("Tonnage", EngineTonnage)) != 0)
+    {
+        return result;
+    }
+
+    if ((result = vehicleFile->ReadIdULong("Rating", EngineRating)) != 0)
     {
         return result;
     }
 
     uint8_t moveSpeed = 0;
 
-    if ((result = vehicleFile->readIdUChar("MaxMoveSpeed", moveSpeed)) != 0)
+    if ((result = vehicleFile->ReadIdUChar("MaxMoveSpeed", moveSpeed)) != 0)
     {
         return result;
     }
 
-    maxRunSpeed = static_cast<float>(moveSpeed);
+    MaxRunSpeed = static_cast<float>(moveSpeed);
 
-    if (vehicleFile->seekBlock("MovementSystem") == 0)
+    if (vehicleFile->SeekBlock("MovementSystem") == 0)
     {
         int32_t value = 0;
 
-        if (vehicleFile->readIdLong("CrashAvoidSelf", value) == 0)
+        if (vehicleFile->ReadIdLong("CrashAvoidSelf", value) == 0)
         {
-            crashAvoidSelf = value;
+            CrashAvoidSelf = value;
         }
 
-        if (vehicleFile->readIdLong("CrashAvoidPath", value) == 0)
+        if (vehicleFile->ReadIdLong("CrashAvoidPath", value) == 0)
         {
-            crashAvoidPath = value;
+            CrashAvoidPath = value;
         }
 
-        if (vehicleFile->readIdLong("CrashBlockSelf", value) == 0)
+        if (vehicleFile->ReadIdLong("CrashBlockSelf", value) == 0)
         {
-            pathLockLevel = value;
+            PathLockLevel = value;
         }
 
-        if (vehicleFile->readIdLong("CrashBlockPath", value) == 0)
+        if (vehicleFile->ReadIdLong("CrashBlockPath", value) == 0)
         {
-            pathLockRange = value;
+            PathLockRange = value;
         }
 
         float yieldTime = 0.0f;
 
-        if (vehicleFile->readIdFloat("CrashYieldTime", yieldTime) == 0)
+        if (vehicleFile->ReadIdFloat("CrashYieldTime", yieldTime) == 0)
         {
-            crashYieldTime = yieldTime;
+            CrashYieldTime = yieldTime;
         }
     }
 
-    if ((result = vehicleFile->seekBlock("Armor")) != 0)
+    if ((result = vehicleFile->SeekBlock("Armor")) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile->readIdUChar("Type", armorType)) != 0)
+    if ((result = vehicleFile->ReadIdUChar("Type", ArmorType)) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile->readIdFloat("Tonnage", armorTonnage)) != 0)
+    if ((result = vehicleFile->ReadIdFloat("Tonnage", ArmorTonnage)) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile->seekBlock("InventoryInfo")) != 0)
+    if ((result = vehicleFile->SeekBlock("InventoryInfo")) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile->readIdUChar("NumOther", numOther)) != 0)
+    if ((result = vehicleFile->ReadIdUChar("NumOther", NumOther)) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile->readIdUChar("NumWeapons", numWeapons)) != 0)
+    if ((result = vehicleFile->ReadIdUChar("NumWeapons", NumWeapons)) != 0)
     {
         return result;
     }
 
-    if ((result = vehicleFile->readIdUChar("NumAmmo", numAmmos)) != 0)
+    if ((result = vehicleFile->ReadIdUChar("NumAmmo", NumAmmos)) != 0)
     {
         return result;
     }
 
-    const int32_t firstWeapon = numOther;
-    const int32_t firstAmmo = numOther + numWeapons;
-    const int32_t numItems = numOther + numAmmos + numWeapons;
-    inventory = std::make_unique<InventoryItem[]>(static_cast<size_t>(numItems));
+    const int32_t firstWeapon = NumOther;
+    const int32_t firstAmmo = NumOther + NumWeapons;
+    const int32_t numItems = NumOther + NumAmmos + NumWeapons;
+    Inventory = std::make_unique<MCInventoryItem[]>(static_cast<size_t>(numItems));
 
-    numAntiMissileSystems = 0;
+    NumAntiMissileSystems = 0;
     char blockName[32];
 
     for (int32_t item = 0; item < firstWeapon; item++)
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = vehicleFile->seekBlock(blockName)) != 0)
+        if ((result = vehicleFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& other = inventory[item];
+        MCInventoryItem& other = Inventory[item];
 
-        if ((result = vehicleFile->readIdUChar("MasterID", other.masterID)) != 0)
+        if ((result = vehicleFile->ReadIdUChar("MasterID", other.MasterID)) != 0)
         {
             return result;
         }
 
-        other.health = MasterComponentList[other.masterID].health;
-        other.disabled = 0;
-        other.amount = 1;
-        other.ammoIndex = -1;
-        other.readyTime = 0.0f;
-        other.bodyLocation = 0xff;
-        other.rangeRatings = nullptr;
+        other.Health = MasterComponentList[other.MasterID].Health;
+        other.Disabled = 0;
+        other.Amount = 1;
+        other.AmmoIndex = -1;
+        other.ReadyTime = 0.0f;
+        other.BodyLocation = 0xff;
+        other.RangeRatings = nullptr;
 
-        switch (MasterComponentList[other.masterID].form)
+        switch (MasterComponentList[other.MasterID].Form)
         {
             case COMPONENT_FORM_COCKPIT:
-                cockpit = static_cast<uint8_t>(item);
+                Cockpit = static_cast<uint8_t>(item);
                 break;
             case COMPONENT_FORM_SENSOR:
             {
-                sensor = static_cast<uint8_t>(item);
-                sensorSystem = sensorSystemManager->newSensor();
-                sensorSystem->owner = this;
-                sensorSystem->setRange(MasterComponentList[inventory[item].masterID].rangeOrHeat);
+                Sensor = static_cast<uint8_t>(item);
+                SensorSystem = SensorSystemManager->NewSensor();
+                SensorSystem->Owner = this;
+                SensorSystem->SetRange(MasterComponentList[Inventory[item].MasterID].RangeOrHeat);
                 break;
             }
             case COMPONENT_FORM_ENGINE:
-                engine = static_cast<uint8_t>(item);
+                Engine = static_cast<uint8_t>(item);
                 break;
             case COMPONENT_FORM_LIFESUPPORT:
-                lifeSupport = static_cast<uint8_t>(item);
+                LifeSupport = static_cast<uint8_t>(item);
                 break;
             case COMPONENT_FORM_ECM:
-                ecm = static_cast<uint8_t>(item);
+                Ecm = static_cast<uint8_t>(item);
                 break;
             case COMPONENT_FORM_PROBE:
-                probe = static_cast<uint8_t>(item);
+                Probe = static_cast<uint8_t>(item);
                 break;
             default:
                 break;
@@ -1219,39 +1219,39 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = vehicleFile->seekBlock(blockName)) != 0)
+        if ((result = vehicleFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& weapon = inventory[item];
+        MCInventoryItem& weapon = Inventory[item];
 
-        if ((result = vehicleFile->readIdUChar("MasterID", weapon.masterID)) != 0)
+        if ((result = vehicleFile->ReadIdUChar("MasterID", weapon.MasterID)) != 0)
         {
             return result;
         }
 
-        if ((result = vehicleFile->readIdUChar("FacesForward", weapon.facesForward)) != 0)
+        if ((result = vehicleFile->ReadIdUChar("FacesForward", weapon.FacesForward)) != 0)
         {
             return result;
         }
 
-        const MasterComponent& component = MasterComponentList[weapon.masterID];
-        weapon.health = component.health;
-        weapon.disabled = 0;
-        weapon.amount = 1;
-        weapon.ammoIndex = -1;
-        weapon.readyTime = 0.0f;
-        weapon.bodyLocation = 0xff;
+        const MCMasterComponent& component = MasterComponentList[weapon.MasterID];
+        weapon.Health = component.Health;
+        weapon.Disabled = 0;
+        weapon.Amount = 1;
+        weapon.AmmoIndex = -1;
+        weapon.ReadyTime = 0.0f;
+        weapon.BodyLocation = 0xff;
         // As BattleMech::init: damage per ten seconds, then scaled by the long range over 24.
-        weapon.effectiveness =
-            static_cast<int16_t>(static_cast<int32_t>(component.damage * 10.0 / component.recycleTime));
-        weapon.effectiveness = static_cast<int16_t>(static_cast<int32_t>(
-            static_cast<double>(component.weaponRange[3]) * weapon.effectiveness * static_cast<double>(1.0f / 24.0f)));
-        weapon.rangeRatings = new float[NumRangeRatings * 2]();
-        objectTypeManager->load(
+        weapon.Effectiveness =
+            static_cast<int16_t>(static_cast<int32_t>(component.Damage * 10.0 / component.RecycleTime));
+        weapon.Effectiveness = static_cast<int16_t>(static_cast<int32_t>(
+            static_cast<double>(component.WeaponRange[3]) * weapon.Effectiveness * static_cast<double>(1.0f / 24.0f)));
+        weapon.RangeRatings = new float[NumRangeRatings * 2]();
+        ObjectTypeManager->Load(
             static_cast<int32_t>(
-                weaponFXTable[static_cast<int8_t>(MasterComponentList[inventory[item].masterID].weaponEffect)]),
+                WeaponFXTable[static_cast<int8_t>(MasterComponentList[Inventory[item].MasterID].WeaponEffect)]),
             1);
     }
 
@@ -1259,25 +1259,25 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = vehicleFile->seekBlock(blockName)) != 0)
+        if ((result = vehicleFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& ammo = inventory[item];
+        MCInventoryItem& ammo = Inventory[item];
 
-        if ((result = vehicleFile->readIdUChar("MasterID", ammo.masterID)) != 0)
+        if ((result = vehicleFile->ReadIdUChar("MasterID", ammo.MasterID)) != 0)
         {
             return result;
         }
 
         int32_t amount = 0;
 
-        if (vehicleFile->readIdLong("Amount", amount) != 0)
+        if (vehicleFile->ReadIdLong("Amount", amount) != 0)
         {
             uint8_t smallAmount = 0;
 
-            if ((result = vehicleFile->readIdUChar("Amount", smallAmount)) != 0)
+            if ((result = vehicleFile->ReadIdUChar("Amount", smallAmount)) != 0)
             {
                 return result;
             }
@@ -1287,78 +1287,78 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
 
         if (amount == -1)
         {
-            amount = MasterComponentList[ammo.masterID].longValue;
+            amount = MasterComponentList[ammo.MasterID].LongValue;
         }
 
-        ammo.amount = static_cast<int16_t>(amount);
-        ammo.startAmount = ammo.amount;
-        ammo.ammoIndex = -1;
-        ammo.health = MasterComponentList[ammo.masterID].health;
-        ammo.disabled = 0;
-        ammo.readyTime = 0.0f;
-        ammo.bodyLocation = 0xff;
-        ammo.rangeRatings = nullptr;
+        ammo.Amount = static_cast<int16_t>(amount);
+        ammo.StartAmount = ammo.Amount;
+        ammo.AmmoIndex = -1;
+        ammo.Health = MasterComponentList[ammo.MasterID].Health;
+        ammo.Disabled = 0;
+        ammo.ReadyTime = 0.0f;
+        ammo.BodyLocation = 0xff;
+        ammo.RangeRatings = nullptr;
     }
 
     for (int32_t location = 0; location < NUM_GROUNDVEHICLE_LOCATIONS; location++)
     {
-        if ((result = vehicleFile->seekBlock(locationNames[location])) != 0)
+        if ((result = vehicleFile->SeekBlock(locationNames[location])) != 0)
         {
             return result;
         }
 
-        BodyLocation& bodyLocation = bodyAt(location);
-        bodyLocation.hasCASE = 0;
+        MCBodyLocation& bodyLocation = BodyAt(location);
+        bodyLocation.HasCase = 0;
         uint8_t internalStructure = 0;
 
-        if ((result = vehicleFile->readIdUChar("CurInternalStructure", internalStructure)) != 0)
+        if ((result = vehicleFile->ReadIdUChar("CurInternalStructure", internalStructure)) != 0)
         {
             return result;
         }
 
-        bodyLocation.curInternalStructure = static_cast<float>(internalStructure);
+        bodyLocation.CurInternalStructure = static_cast<float>(internalStructure);
         const double structureLeft =
-            static_cast<double>(internalStructure) / static_cast<double>(bodyLocation.maxInternalStructure);
+            static_cast<double>(internalStructure) / static_cast<double>(bodyLocation.MaxInternalStructure);
 
         if (structureLeft == 0.0)
         {
-            bodyLocation.damageState = 2;
+            bodyLocation.DamageState = 2;
         }
         else if (structureLeft > 0.5)
         {
-            bodyLocation.damageState = 0;
+            bodyLocation.DamageState = 0;
         }
         else
         {
-            bodyLocation.damageState = 1;
+            bodyLocation.DamageState = 1;
         }
 
-        if ((result = vehicleFile->readIdUChar("MaxArmorPoints", armor[location].maxArmor)) != 0)
+        if ((result = vehicleFile->ReadIdUChar("MaxArmorPoints", Armor[location].MaxArmor)) != 0)
         {
             return result;
         }
 
         uint8_t points = 0;
 
-        if ((result = vehicleFile->readIdUChar("CurArmorPoints", points)) != 0)
+        if ((result = vehicleFile->ReadIdUChar("CurArmorPoints", points)) != 0)
         {
             return result;
         }
 
-        armor[location].curArmor = static_cast<float>(points);
-        bodyLocation.criticalSpaces = nullptr;
+        Armor[location].CurArmor = static_cast<float>(points);
+        bodyLocation.CriticalSpaces = nullptr;
     }
 
-    calcAmmoTotals();
+    CalcAmmoTotals();
 
     for (int32_t item = firstWeapon; item < firstAmmo; item++)
     {
-        for (int32_t ammoType = 0; ammoType < numAmmoTypes; ammoType++)
+        for (int32_t ammoType = 0; ammoType < NumAmmoTypes; ammoType++)
         {
-            if (static_cast<int32_t>(MasterComponentList[inventory[item].masterID].ammoMasterId) ==
-                ammoTypeTotal[ammoType].masterId)
+            if (static_cast<int32_t>(MasterComponentList[Inventory[item].MasterID].AmmoMasterId) ==
+                AmmoTypeTotal[ammoType].MasterId)
             {
-                inventory[item].ammoIndex = static_cast<int16_t>(ammoType);
+                Inventory[item].AmmoIndex = static_cast<int16_t>(ammoType);
                 break;
             }
         }
@@ -1366,79 +1366,79 @@ auto GroundVehicle::init(FitIniFile* vehicleFile) -> int32_t
 
     for (int32_t item = 0; item < firstWeapon; item++)
     {
-        const int32_t masterID = inventory[item].masterID;
+        const int32_t masterID = Inventory[item].MasterID;
 
         if (masterID != MasterClanAntiMissileSystemID && masterID != MasterInnerSphereAntiMissileSystemID)
         {
             continue;
         }
 
-        for (int32_t ammoType = 0; ammoType < numAmmoTypes; ammoType++)
+        for (int32_t ammoType = 0; ammoType < NumAmmoTypes; ammoType++)
         {
-            if (static_cast<int32_t>(MasterComponentList[masterID].ammoMasterId) == ammoTypeTotal[ammoType].masterId)
+            if (static_cast<int32_t>(MasterComponentList[masterID].AmmoMasterId) == AmmoTypeTotal[ammoType].MasterId)
             {
-                inventory[item].ammoIndex = static_cast<int16_t>(ammoType);
+                Inventory[item].AmmoIndex = static_cast<int16_t>(ammoType);
                 break;
             }
         }
     }
 
-    calcLongestRangeWeapon();
-    calcWeaponEffectiveness(1);
-    calcWeaponEffectiveness(0);
-    maxCV = calcCV(1);
-    curCV = calcCV(0);
+    CalcLongestRangeWeapon();
+    CalcWeaponEffectiveness(1);
+    CalcWeaponEffectiveness(0);
+    MaxCV = CalcCV(1);
+    CurCV = CalcCV(0);
 
-    if (refitter != 0)
+    if (Refitter != 0)
     {
         // The refit pool lives in the turret's armor slot.
-        const uint8_t refitPoints = static_cast<uint8_t>(static_cast<GroundVehicleType*>(objType)->refitPoints);
-        armor[GROUNDVEHICLE_LOCATION_TURRET].maxArmor = refitPoints;
-        armor[GROUNDVEHICLE_LOCATION_TURRET].curArmor = static_cast<float>(refitPoints);
+        const uint8_t refitPoints = static_cast<uint8_t>(static_cast<MCGroundVehicleType*>(ObjType)->RefitPoints);
+        Armor[GROUNDVEHICLE_LOCATION_TURRET].MaxArmor = refitPoints;
+        Armor[GROUNDVEHICLE_LOCATION_TURRET].CurArmor = static_cast<float>(refitPoints);
     }
 
     return 0;
 }
 
-auto GroundVehicle::calcCV(int calcMax) -> int32_t
+auto MCGroundVehicle::CalcCV(int calcMax) -> int32_t
 {
-    if (battleRating != -1)
+    if (BattleRating != -1)
     {
-        return battleRating;
+        return BattleRating;
     }
 
     // Offense: the weapons' ratings, scaled by the top speed.
     double offense = 0.0;
-    const int32_t firstWeapon = numOther;
+    const int32_t firstWeapon = NumOther;
 
-    for (int32_t item = firstWeapon; item < firstWeapon + numWeapons; item++)
+    for (int32_t item = firstWeapon; item < firstWeapon + NumWeapons; item++)
     {
-        if (calcMax != 0 || inventory[item].disabled == 0)
+        if (calcMax != 0 || Inventory[item].Disabled == 0)
         {
-            offense += MasterComponentList[inventory[item].masterID].battleRating;
+            offense += MasterComponentList[Inventory[item].MasterID].BattleRating;
         }
     }
 
-    offense *= (maxRunSpeed - 18.0) * 0.05555555555555555 + 1.0;
+    offense *= (MaxRunSpeed - 18.0) * 0.05555555555555555 + 1.0;
 
     // Defense: structure, armor, tonnage, the speed class and the other equipment.
     double defense = 0.0;
 
     for (int32_t location = 0; location < NUM_GROUNDVEHICLE_LOCATIONS; location++)
     {
-        defense += calcMax != 0 ? static_cast<double>(bodyAt(location).maxInternalStructure)
-                                : bodyAt(location).curInternalStructure;
+        defense += calcMax != 0 ? static_cast<double>(BodyAt(location).MaxInternalStructure)
+                                : BodyAt(location).CurInternalStructure;
     }
 
     for (int32_t location = 0; location < NUM_GROUNDVEHICLE_LOCATIONS; location++)
     {
-        defense += calcMax != 0 ? static_cast<double>(armor[location].maxArmor) : armor[location].curArmor;
+        defense += calcMax != 0 ? static_cast<double>(Armor[location].MaxArmor) : Armor[location].CurArmor;
     }
 
-    defense += tonnageClass;
+    defense += TonnageClass;
     int32_t speedClass = 0;
 
-    while (speedClass < 5 && static_cast<float>(TargetMoveModifierTable[speedClass][0]) < maxRunSpeed)
+    while (speedClass < 5 && static_cast<float>(TargetMoveModifierTable[speedClass][0]) < MaxRunSpeed)
     {
         speedClass++;
     }
@@ -1453,77 +1453,77 @@ auto GroundVehicle::calcCV(int calcMax) -> int32_t
 
     for (int32_t item = 0; item < firstWeapon; item++)
     {
-        if (calcMax != 0 || inventory[item].disabled == 0)
+        if (calcMax != 0 || Inventory[item].Disabled == 0)
         {
-            defense += MasterComponentList[inventory[item].masterID].battleRating;
+            defense += MasterComponentList[Inventory[item].MasterID].BattleRating;
         }
     }
 
     return static_cast<int32_t>(defense + offense);
 }
 
-auto GroundVehicle::destroy() -> void
+auto MCGroundVehicle::Destroy() -> void
 {
-    crewName.clear();
+    CrewName.clear();
 
-    if (statusWindow != nullptr)
+    if (StatusWindow != nullptr)
     {
-        closeStatusWindow();
-        statusWindow = nullptr;
+        CloseStatusWindow();
+        StatusWindow = nullptr;
     }
 }
 
-auto GroundVehicle::mineCheck() -> void
+auto MCGroundVehicle::MineCheck() -> void
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return;
     }
 
-    ScenarioMap* map = GameMap;
+    MCScenarioMap* map = GameMap;
 
     // The mine state bits of a tile's overlay: Inner Sphere 11..12, Clan 13..14; the spread counts 25..26, 27..28.
-    if (mineCellHandled != 0)
+    if (MineCellHandled != 0)
     {
-        const MapTile& tile = map->map[objPosition->tileR * map->width + objPosition->tileC];
-        const uint32_t state = alignment == -1 ? tile.overlay >> 11 : tile.overlay >> 13;
+        const MCMapTile& tile = map->Map[ObjPosition->TileR * map->Width + ObjPosition->TileC];
+        const uint32_t state = Alignment == -1 ? tile.Overlay >> 11 : tile.Overlay >> 13;
 
         if ((state & 3) == 0)
         {
-            mineCellHandled = 0;
-            const int32_t tileR = objPosition->tileR;
-            const int32_t tileC = objPosition->tileC;
-            MapTile& here = map->map[map->width * tileR + tileC];
+            MineCellHandled = 0;
+            const int32_t tileR = ObjPosition->TileR;
+            const int32_t tileC = ObjPosition->TileC;
+            MCMapTile& here = map->Map[map->Width * tileR + tileC];
 
-            if (getAlignment() == -1)
+            if (GetAlignment() == -1)
             {
-                here.overlay = (here.overlay & 0xffffefff) | 0x800;
+                here.Overlay = (here.Overlay & 0xffffefff) | 0x800;
             }
             else
             {
-                here.overlay = (here.overlay & 0xffffbfff) | 0x2000;
+                here.Overlay = (here.Overlay & 0xffffbfff) | 0x2000;
             }
 
             if (MPlayer != nullptr)
             {
-                MPlayer->addMineChunk(tileR * 3, tileC * 3, alignment != -1 ? 1 : 0, 1, 0);
+                MPlayer->AddMineChunk(tileR * 3, tileC * 3, Alignment != -1 ? 1 : 0, 1, 0);
                 map = GameMap;
             }
         }
     }
 
     const uint32_t mine =
-        alignment == -1
-            ? map->getInnerSphereMine(objPosition->tileR, objPosition->tileC, objPosition->cellR, objPosition->cellC)
-            : map->getClanMine(objPosition->tileR, objPosition->tileC, objPosition->cellR, objPosition->cellC);
+        Alignment == -1
+            ? map->GetInnerSphereMine(ObjPosition->TileR, ObjPosition->TileC, ObjPosition->CellR, ObjPosition->CellC)
+            : map->GetClanMine(ObjPosition->TileR, ObjPosition->TileC, ObjPosition->CellR, ObjPosition->CellC);
 
     if (mine == 0)
     {
         return;
     }
 
-    int32_t firstRow = objPosition->tileR - 1;
-    int32_t firstCol = objPosition->tileC - 1;
+    int32_t firstRow = ObjPosition->TileR - 1;
+    int32_t firstCol = ObjPosition->TileC - 1;
 
     if (firstRow < 0)
     {
@@ -1535,7 +1535,7 @@ auto GroundVehicle::mineCheck() -> void
         firstCol = 0;
     }
 
-    const int32_t mapSide = Terrain::verticesBlockSide * Terrain::blocksMapSide;
+    const int32_t mapSide = MCTerrain::VerticesBlockSide * MCTerrain::BlocksMapSide;
 
     if (mapSide <= firstCol + 3)
     {
@@ -1551,7 +1551,7 @@ auto GroundVehicle::mineCheck() -> void
     {
         for (int32_t col = firstCol; col < firstCol + 3; col++)
         {
-            const bool inMap = row >= 0 && row < GameMap->height && col >= 0 && col < GameMap->width;
+            const bool inMap = row >= 0 && row < GameMap->Height && col >= 0 && col < GameMap->Width;
             Assert(inMap ? 1 : 0, 0, " Map Tile out of bounds ");
 
             // Port fix: the original goes on to touch the tile past the map's edge.
@@ -1560,125 +1560,125 @@ auto GroundVehicle::mineCheck() -> void
                 continue;
             }
 
-            MapTile& tile = GameMap->map[GameMap->width * row + col];
-            const bool innerSphere = getAlignment() == -1;
-            uint32_t count = ((innerSphere ? tile.overlay >> 25 : tile.overlay >> 27) & 3) + 1;
+            MCMapTile& tile = GameMap->Map[GameMap->Width * row + col];
+            const bool innerSphere = GetAlignment() == -1;
+            uint32_t count = ((innerSphere ? tile.Overlay >> 25 : tile.Overlay >> 27) & 3) + 1;
 
             if (count > 3)
             {
                 count = 3;
             }
 
-            if (getAlignment() == -1)
+            if (GetAlignment() == -1)
             {
-                tile.overlay = (tile.overlay & 0xf9ffffff) | (count << 25);
+                tile.Overlay = (tile.Overlay & 0xf9ffffff) | (count << 25);
             }
             else
             {
-                tile.overlay = (tile.overlay & 0xe7ffffff) | (count << 27);
+                tile.Overlay = (tile.Overlay & 0xe7ffffff) | (count << 27);
             }
         }
     }
 
     int32_t chunkResult = 0;
 
-    if (mineSweeper != 0)
+    if (MineSweeper != 0)
     {
         // A sweeper sets the mine off harmlessly, at the cost of a point of front armor.
-        sweepTime = 0.0f;
-        vector_3d position = getPosition();
+        SweepTime = 0.0f;
+        MCVector3D position = GetPosition();
         CreateExplosion(MineExplosion, position, 0.0f, 0.0f);
-        armor[GROUNDVEHICLE_LOCATION_FRONT].curArmor -= 1.0f;
+        Armor[GROUNDVEHICLE_LOCATION_FRONT].CurArmor -= 1.0f;
 
         if (MPlayer != nullptr)
         {
-            _WeaponShotInfo shotInfo;
-            shotInfo.init(nullptr, -2, 1.0f, 0, 0.0f);
-            MPlayer->addWeaponHitChunk(this, &shotInfo, 0);
+            MCWeaponShotInfo shotInfo;
+            shotInfo.Init(nullptr, -2, 1.0f, 0, 0.0f);
+            MPlayer->AddWeaponHitChunk(this, &shotInfo, 0);
         }
 
-        if (armor[GROUNDVEHICLE_LOCATION_FRONT].curArmor == 0.0f)
+        if (Armor[GROUNDVEHICLE_LOCATION_FRONT].CurArmor == 0.0f)
         {
-            mineSweeper = 0;
-            sweepTime = -1.0f;
-            pilot->clearCurTacOrder(1, 0);
+            MineSweeper = 0;
+            SweepTime = -1.0f;
+            Pilot->ClearCurTacOrder(1, 0);
         }
 
         chunkResult = 1;
     }
     else
     {
-        if (mineLayer != 0)
+        if (MineLayer != 0)
         {
-            mineCellHandled = 1;
+            MineCellHandled = 1;
             return;
         }
 
-        vector_3d position = getPosition();
-        CreateExplosion(MineExplosion, position, MineSplashDamage, worldUnitsPerMeter * MineSplashRange);
-        const int32_t hitLocation = calcHitLocation(nullptr, -1, 3, 0);
-        _WeaponShotInfo shotInfo;
-        shotInfo.init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
-        handleWeaponHit(&shotInfo, MPlayer != nullptr);
+        MCVector3D position = GetPosition();
+        CreateExplosion(MineExplosion, position, MineSplashDamage, WorldUnitsPerMeter * MineSplashRange);
+        const int32_t hitLocation = CalcHitLocation(nullptr, -1, 3, 0);
+        MCWeaponShotInfo shotInfo;
+        shotInfo.Init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
+        HandleWeaponHit(&shotInfo, MPlayer != nullptr);
 
-        if (getPilot() != nullptr)
+        if (GetPilot() != nullptr)
         {
-            getPilot()->radioMessage(0x16, 1);
+            GetPilot()->RadioMessage(0x16, 1);
         }
 
-        pilot->pausePath();
+        Pilot->PausePath();
         chunkResult = 2;
     }
 
-    const int32_t tileR = objPosition->tileR;
-    const int32_t tileC = objPosition->tileC;
-    MapTile& here = GameMap->map[GameMap->width * tileR + tileC];
+    const int32_t tileR = ObjPosition->TileR;
+    const int32_t tileC = ObjPosition->TileC;
+    MCMapTile& here = GameMap->Map[GameMap->Width * tileR + tileC];
 
-    if (getAlignment() == -1)
+    if (GetAlignment() == -1)
     {
-        here.overlay |= 0x1800;
+        here.Overlay |= 0x1800;
     }
     else
     {
-        here.overlay |= 0x6000;
+        here.Overlay |= 0x6000;
     }
 
     if (MPlayer != nullptr)
     {
-        MPlayer->addMineChunk(tileR * 3 + objPosition->cellR, tileC * 3 + objPosition->cellC, alignment != -1 ? 1 : 0,
+        MPlayer->AddMineChunk(tileR * 3 + ObjPosition->CellR, tileC * 3 + ObjPosition->CellC, Alignment != -1 ? 1 : 0,
                               3, chunkResult);
     }
 
-    mineCellHandled = 1;
+    MineCellHandled = 1;
 }
 
-auto GroundVehicle::pivotTo() -> int
+auto MCGroundVehicle::PivotTo() -> int
 {
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
-    const int32_t moveStateGoal = warrior->moveOrders.moveStateGoal;
-    const int32_t moveState = warrior->moveOrders.moveState;
-    const int32_t run = MPlayer == nullptr || MPlayer->isServer != 0 ? warrior->moveOrders.run : moveChunk.run;
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
+    const int32_t moveStateGoal = warrior->MoveOrders.MoveStateGoal;
+    const int32_t moveState = warrior->MoveOrders.MoveState;
+    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
     int hasTarget = 0;
-    GameObject* target = warrior->getLastTarget();
+    MCGameObject* target = warrior->GetLastTarget();
     float targetFacing = 0.0f;
-    vector_3d targetPosition;
-    auto* dynType = static_cast<GroundVehicleDynamicsType*>(static_cast<GroundVehicleType*>(objType)->dynamicsType);
-    const float maxPivot = static_cast<float>(dynType->maxVehiclePivotRate) * frameLength;
+    MCVector3D targetPosition;
+    auto* dynType = static_cast<MCGroundVehicleDynamicsType*>(static_cast<MCGroundVehicleType*>(ObjType)->DynamicsType);
+    const float maxPivot = static_cast<float>(dynType->MaxVehiclePivotRate) * FrameLength;
 
     if (target == nullptr)
     {
-        if (warrior->curTacOrder.code == TACTICAL_ORDER_ATTACK_POINT)
+        if (warrior->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
         {
-            targetPosition = warrior->attackOrders.targetPoint;
-            targetFacing = relFacingTo(targetPosition, -1);
+            targetPosition = warrior->AttackOrders.TargetPoint;
+            targetFacing = RelFacingTo(targetPosition, -1);
             hasTarget = 1;
         }
     }
     else
     {
-        targetPosition = target->getPosition();
-        targetFacing = relFacingTo(targetPosition, -1);
+        targetPosition = target->GetPosition();
+        targetFacing = RelFacingTo(targetPosition, -1);
         hasTarget = 1;
     }
 
@@ -1690,23 +1690,23 @@ auto GroundVehicle::pivotTo() -> int
             turn = turn <= 0.0f ? -maxPivot : maxPivot;
         }
 
-        auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
-        controlData->rotate = static_cast<int8_t>(static_cast<int32_t>(turn / maxPivot * 64.0f));
-        controlData->pivot = 1;
-        updateTurret(turn);
+        auto* controlData = static_cast<MCGroundVehicleControlData*>(Control->ControlData);
+        controlData->Rotate = static_cast<int8_t>(static_cast<int32_t>(turn / maxPivot * 64.0f));
+        controlData->Pivot = 1;
+        UpdateTurret(turn);
         return 1;
     };
 
     const auto choosePivotDirection = [&]()
     {
-        if (pivotDirection == 0xff)
+        if (PivotDirection == 0xff)
         {
-            pivotDirection = targetFacing >= 0.0f ? 1 : 0;
+            PivotDirection = targetFacing >= 0.0f ? 1 : 0;
         }
     };
 
     const auto hasNextStep = [&]()
-    { return path->numStepsWhenNotPaused >= 1 && path->curStep < path->numStepsWhenNotPaused; };
+    { return path->NumStepsWhenNotPaused >= 1 && path->CurStep < path->NumStepsWhenNotPaused; };
 
     if (moveState == MOVESTATE_PIVOT_FORWARD)
     {
@@ -1714,13 +1714,13 @@ auto GroundVehicle::pivotTo() -> int
         {
             if (!hasNextStep())
             {
-                pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+                Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
             }
             else
             {
-                const vector_3d destination = path->stepList[path->curStep].destination;
-                static_cast<GroundVehicleControlData*>(control->controlData)->throttle = 0;
-                const float stepFacing = relFacingTo(destination, -1);
+                const MCVector3D destination = path->StepList[path->CurStep].Destination;
+                static_cast<MCGroundVehicleControlData*>(Control->ControlData)->Throttle = 0;
+                const float stepFacing = RelFacingTo(destination, -1);
 
                 if (stepFacing < -45.0f || stepFacing > 45.0f)
                 {
@@ -1730,7 +1730,7 @@ auto GroundVehicle::pivotTo() -> int
                     {
                         choosePivotDirection();
 
-                        if (pivotDirection == 0)
+                        if (PivotDirection == 0)
                         {
                             if (stepFacing >= 0.0f)
                             {
@@ -1746,17 +1746,17 @@ auto GroundVehicle::pivotTo() -> int
                     return pivot(turn);
                 }
 
-                pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+                Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
 
-                if (pilot->moveOrders.moveStateGoalChanged != 0)
+                if (Pilot->MoveOrders.MoveStateGoalChanged != 0)
                 {
-                    pilot->moveOrders.moveStateGoalChanged = 0;
+                    Pilot->MoveOrders.MoveStateGoalChanged = 0;
                 }
             }
         }
         else
         {
-            pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+            Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
         }
     }
     else if (moveState == MOVESTATE_PIVOT_REVERSE)
@@ -1765,13 +1765,13 @@ auto GroundVehicle::pivotTo() -> int
         {
             if (!hasNextStep())
             {
-                pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+                Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
             }
             else
             {
-                const vector_3d destination = path->stepList[path->curStep].destination;
-                static_cast<GroundVehicleControlData*>(control->controlData)->throttle = 0;
-                const float stepFacing = relFacingTo(destination, -1);
+                const MCVector3D destination = path->StepList[path->CurStep].Destination;
+                static_cast<MCGroundVehicleControlData*>(Control->ControlData)->Throttle = 0;
+                const float stepFacing = RelFacingTo(destination, -1);
 
                 if (stepFacing > -135.0f && stepFacing < 135.0f)
                 {
@@ -1784,32 +1784,32 @@ auto GroundVehicle::pivotTo() -> int
                     else
                     {
                         choosePivotDirection();
-                        turnLeft = pivotDirection != 0;
+                        turnLeft = PivotDirection != 0;
                     }
 
                     return pivot(turnLeft ? -180.0f - stepFacing : 180.0f - stepFacing);
                 }
 
-                MechWarrior* orders = pilot;
+                MCMechWarrior* orders = Pilot;
 
-                if (orders->moveOrders.moveStateGoalChanged != 0)
+                if (orders->MoveOrders.MoveStateGoalChanged != 0)
                 {
-                    orders->moveOrders.moveStateGoalChanged = 0;
+                    orders->MoveOrders.MoveStateGoalChanged = 0;
                 }
 
                 if (moveStateGoal == MOVESTATE_REVERSE)
                 {
-                    orders->moveOrders.moveState = MOVESTATE_REVERSE;
+                    orders->MoveOrders.MoveState = MOVESTATE_REVERSE;
                 }
                 else
                 {
-                    orders->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+                    orders->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
                 }
             }
         }
         else
         {
-            pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+            Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
         }
     }
     else if (moveState != MOVESTATE_PIVOT_TARGET)
@@ -1817,47 +1817,47 @@ auto GroundVehicle::pivotTo() -> int
         if (moveStateGoal == MOVESTATE_PIVOT_TARGET || moveStateGoal == MOVESTATE_PIVOT_FORWARD ||
             moveStateGoal == MOVESTATE_PIVOT_REVERSE)
         {
-            pilot->moveOrders.moveState = moveStateGoal;
+            Pilot->MoveOrders.MoveState = moveStateGoal;
         }
     }
     else if (moveStateGoal != MOVESTATE_PIVOT_TARGET)
     {
-        pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+        Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
     }
     else if (run == 0 && hasTarget != 0)
     {
-        static_cast<GroundVehicleControlData*>(control->controlData)->throttle = 0;
-        const float facing = relFacingTo(targetPosition, -1);
-        const float fireArc = getFireArc();
+        static_cast<MCGroundVehicleControlData*>(Control->ControlData)->Throttle = 0;
+        const float facing = RelFacingTo(targetPosition, -1);
+        const float fireArc = GetFireArc();
 
         if (facing < -fireArc || fireArc < facing)
         {
             return pivot(-facing);
         }
 
-        pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
     }
     else
     {
-        pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
     }
 
-    MechWarrior* orders = pilot;
+    MCMechWarrior* orders = Pilot;
 
-    if (!(orders->moveOrders.yieldTime > -1.0f || orders->moveOrders.waitForPointTime > -1.0f))
+    if (!(orders->MoveOrders.YieldTime > -1.0f || orders->MoveOrders.WaitForPointTime > -1.0f))
     {
-        orders->resumePath();
+        orders->ResumePath();
     }
 
-    pivotDirection = 0xff;
+    PivotDirection = 0xff;
     return 0;
 }
 
-auto GroundVehicle::calcThrottleLimits(int32_t& minThrottle, int32_t& maxThrottle) -> void
+auto MCGroundVehicle::CalcThrottleLimits(int32_t& minThrottle, int32_t& maxThrottle) -> void
 {
-    const MapTile& tile = GameMap->map[objPosition->tileR * GameMap->width + objPosition->tileC];
-    const float tileFactor = TileThrottleMultiplier[chassis][tile.cells & 0x7f];
-    const float overlayFactor = OverlayThrottleMultiplier[chassis][tile.overlay & 0x7f];
+    const MCMapTile& tile = GameMap->Map[ObjPosition->TileR * GameMap->Width + ObjPosition->TileC];
+    const float tileFactor = TileThrottleMultiplier[Chassis][tile.Cells & 0x7f];
+    const float overlayFactor = OverlayThrottleMultiplier[Chassis][tile.Overlay & 0x7f];
     // Each limit goes through a short, as in the original.
     maxThrottle = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<float>(maxThrottle) * tileFactor)));
     minThrottle = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<float>(minThrottle) * tileFactor)));
@@ -1867,77 +1867,78 @@ auto GroundVehicle::calcThrottleLimits(int32_t& minThrottle, int32_t& maxThrottl
         static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<float>(minThrottle) * overlayFactor)));
 }
 
-auto GroundVehicle::getSpeedState() -> int32_t
+auto MCGroundVehicle::GetSpeedState() -> int32_t
 {
-    return getBodyState() == 1 ? 2 : 0;
+    return GetBodyState() == 1 ? 2 : 0;
 }
 
-auto GroundVehicle::updateMoveStateGoal() -> void
+auto MCGroundVehicle::UpdateMoveStateGoal() -> void
 {
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
-    const int32_t moveStateGoal = warrior->moveOrders.moveStateGoal;
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
+    const int32_t moveStateGoal = warrior->MoveOrders.MoveStateGoal;
 
-    if (path->numSteps < 1)
+    if (path->NumSteps < 1)
     {
         if (moveStateGoal != MOVESTATE_PIVOT_TARGET && moveStateGoal != MOVESTATE_PIVOT_FORWARD &&
             moveStateGoal != MOVESTATE_PIVOT_REVERSE)
         {
-            warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
         }
 
         return;
     }
 
-    const int32_t run = MPlayer == nullptr || MPlayer->isServer != 0 ? warrior->moveOrders.run : moveChunk.run;
+    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
 
     if (run != 0)
     {
-        warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
         return;
     }
 
-    vector_3d targetPosition;
-    GameObject* target = warrior->getLastTarget();
+    MCVector3D targetPosition;
+    MCGameObject* target = warrior->GetLastTarget();
 
     if (target == nullptr)
     {
-        if (warrior->curTacOrder.code != TACTICAL_ORDER_ATTACK_POINT)
+        if (warrior->CurTacOrder.Code != TACTICAL_ORDER_ATTACK_POINT)
         {
-            warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
             return;
         }
 
-        targetPosition = warrior->attackOrders.targetPoint;
+        targetPosition = warrior->AttackOrders.TargetPoint;
     }
     else
     {
-        targetPosition = target->getPosition();
+        targetPosition = target->GetPosition();
     }
 
-    if (path->numStepsWhenNotPaused <= 0 || path->curStep >= path->numStepsWhenNotPaused)
+    if (path->NumStepsWhenNotPaused <= 0 || path->CurStep >= path->NumStepsWhenNotPaused)
     {
         return;
     }
 
-    const double delta = relFacingDelta(path->stepList[path->curStep].destination, targetPosition);
-    MechWarrior* orders = pilot;
+    const double delta = RelFacingDelta(path->StepList[path->CurStep].Destination, targetPosition);
+    MCMechWarrior* orders = Pilot;
     const double turretArc =
-        static_cast<GroundVehicleDynamicsType*>(static_cast<GroundVehicleType*>(objType)->dynamicsType)->maxTurretYaw;
+        static_cast<MCGroundVehicleDynamicsType*>(static_cast<MCGroundVehicleType*>(ObjType)->DynamicsType)
+            ->MaxTurretYaw;
 
-    if (orders->moveOrders.moveStateGoal == MOVESTATE_FORWARD)
+    if (orders->MoveOrders.MoveStateGoal == MOVESTATE_FORWARD)
     {
         // The target is behind: drive backward.
-        if (turretArc < delta && 180.0 - delta <= turretArc && orders->moveOrders.moveStateGoalChanged == 0)
+        if (turretArc < delta && 180.0 - delta <= turretArc && orders->MoveOrders.MoveStateGoalChanged == 0)
         {
-            orders->moveOrders.moveStateGoalChanged = 1;
-            orders->moveOrders.moveStateGoal = MOVESTATE_REVERSE;
+            orders->MoveOrders.MoveStateGoalChanged = 1;
+            orders->MoveOrders.MoveStateGoal = MOVESTATE_REVERSE;
         }
     }
-    else if (turretArc < 180.0 - delta && delta <= turretArc && orders->moveOrders.moveStateGoalChanged == 0)
+    else if (turretArc < 180.0 - delta && delta <= turretArc && orders->MoveOrders.MoveStateGoalChanged == 0)
     {
-        orders->moveOrders.moveStateGoalChanged = 1;
-        orders->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        orders->MoveOrders.MoveStateGoalChanged = 1;
+        orders->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
     }
 }
 
@@ -1950,57 +1951,57 @@ namespace
     /// layer laying mines.
     /// </summary>
     /// <returns>1 at the path's end, else 0.</returns>
-    int steerAlongPath(GroundVehicle* vehicle, MovePath* path, char& newRotate, char& newThrottleSetting,
+    int SteerAlongPath(MCGroundVehicle* vehicle, MCMovePath* path, char& newRotate, char& newThrottleSetting,
                        float& newRotatePerSec, int32_t& newMoveState, int32_t& maxThrottle)
     {
-        auto* dynType =
-            static_cast<GroundVehicleDynamicsType*>(static_cast<GroundVehicleType*>(vehicle->objType)->dynamicsType);
+        auto* dynType = static_cast<MCGroundVehicleDynamicsType*>(
+            static_cast<MCGroundVehicleType*>(vehicle->ObjType)->DynamicsType);
         int result = 0;
         const auto steer = [&]()
         {
-            if (path->numSteps < 1)
+            if (path->NumSteps < 1)
             {
                 newThrottleSetting = 0;
                 return;
             }
 
-            int32_t step = path->curStep;
+            int32_t step = path->CurStep;
 
-            if (step == path->numSteps)
+            if (step == path->NumSteps)
             {
                 result = 1;
                 return;
             }
 
-            vector_3d destination = path->stepList[step].destination;
-            vehicle->lastValidPosition = destination;
-            const auto distance = static_cast<float>(vehicle->distanceFrom(destination));
-            const int32_t numSteps = path->numSteps;
+            MCVector3D destination = path->StepList[step].Destination;
+            vehicle->LastValidPosition = destination;
+            const auto distance = static_cast<float>(vehicle->DistanceFrom(destination));
+            const int32_t numSteps = path->NumSteps;
             const float margin = step == numSteps - 1 ? MoveMarginOfError[1] : MoveMarginOfError[0];
-            MaxVelocityMag = worldUnitsPerMeter * 100.0f;
+            MaxVelocityMag = WorldUnitsPerMeter * 100.0f;
 
             if (distance < margin)
             {
                 // Reached the step: on to the next.
                 step++;
-                vehicle->pilot->moveOrders.timeOfLastStep = scenarioTime;
-                path->curStep = step;
+                vehicle->Pilot->MoveOrders.TimeOfLastStep = ScenarioTime;
+                path->CurStep = step;
 
                 if (numSteps <= step)
                 {
-                    MaxVelocityMag = worldUnitsPerMeter * distance;
+                    MaxVelocityMag = WorldUnitsPerMeter * distance;
                     result = 1;
                     return;
                 }
 
-                destination = path->stepList[step].destination;
+                destination = path->StepList[step].Destination;
             }
 
-            const float facing = vehicle->relFacingTo(destination, -1);
-            MechWarrior* orders = vehicle->pilot;
-            const int32_t moveState = orders->moveOrders.moveState;
-            const int32_t moveStateGoal = orders->moveOrders.moveStateGoal;
-            const float maxTurn = static_cast<float>(dynType->maxVehicleYawRate) * frameLength;
+            const float facing = vehicle->RelFacingTo(destination, -1);
+            MCMechWarrior* orders = vehicle->Pilot;
+            const int32_t moveState = orders->MoveOrders.MoveState;
+            const int32_t moveStateGoal = orders->MoveOrders.MoveStateGoal;
+            const float maxTurn = static_cast<float>(dynType->MaxVehicleYawRate) * FrameLength;
 
             if (moveState == MOVESTATE_FORWARD)
             {
@@ -2023,7 +2024,7 @@ namespace
                     return;
                 }
 
-                orders->pausePath();
+                orders->PausePath();
 
                 if (moveStateGoal == MOVESTATE_REVERSE || moveStateGoal == MOVESTATE_PIVOT_REVERSE)
                 {
@@ -2063,7 +2064,7 @@ namespace
                     return;
                 }
 
-                orders->pausePath();
+                orders->PausePath();
 
                 if (moveStateGoal == MOVESTATE_FORWARD || moveStateGoal == MOVESTATE_PIVOT_FORWARD)
                 {
@@ -2083,24 +2084,24 @@ namespace
 
             if (moveStateGoal == MOVESTATE_FORWARD || moveStateGoal == MOVESTATE_PIVOT_FORWARD)
             {
-                orders->pausePath();
+                orders->PausePath();
                 newMoveState = MOVESTATE_PIVOT_FORWARD;
             }
             else if (moveStateGoal == MOVESTATE_REVERSE || moveStateGoal == MOVESTATE_PIVOT_REVERSE)
             {
-                orders->pausePath();
+                orders->PausePath();
                 newMoveState = MOVESTATE_PIVOT_REVERSE;
             }
         };
 
         steer();
 
-        if (vehicle->mineSweeper != 0 && vehicle->sweepTime > 0.0f && vehicle->sweepTime < gvSweepTime)
+        if (vehicle->MineSweeper != 0 && vehicle->SweepTime > 0.0f && vehicle->SweepTime < GvSweepTime)
         {
             maxThrottle = MineSweepThrottle;
         }
 
-        if (vehicle->mineLayer != 0 && vehicle->pilot->curTacOrder.moveParams.mode == 1)
+        if (vehicle->MineLayer != 0 && vehicle->Pilot->CurTacOrder.MoveParams.Mode == 1)
         {
             maxThrottle = MineLayThrottle;
         }
@@ -2109,75 +2110,75 @@ namespace
     }
 }
 
-auto GroundVehicle::updateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                                   int32_t& newMoveState, int32_t& minThrottle, int32_t& maxThrottle) -> int
+auto MCGroundVehicle::UpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+                                     int32_t& newMoveState, int32_t& minThrottle, int32_t& maxThrottle) -> int
 {
-    MechWarrior* warrior = pilot;
-    auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
-    MovePath* path = warrior->getMovePath();
-    newThrottleSetting = static_cast<char>(controlData->throttle);
-    const int32_t running = warrior->moveOrders.run;
+    MCMechWarrior* warrior = Pilot;
+    auto* controlData = static_cast<MCGroundVehicleControlData*>(Control->ControlData);
+    MCMovePath* path = warrior->GetMovePath();
+    newThrottleSetting = static_cast<char>(controlData->Throttle);
+    const int32_t running = warrior->MoveOrders.Run;
     newRotatePerSec = 0.0f;
-    updateHustleTime();
-    const bool hustling = scenarioTime < lastHustleTime + 2.0f;
-    warrior = pilot;
-    Mover* point = warrior->getPoint();
-    const bool groupMove = warrior->curTacOrder.isGroupOrder() != 0 && warrior->curTacOrder.isMoveOrder() != 0;
+    UpdateHustleTime();
+    const bool hustling = ScenarioTime < LastHustleTime + 2.0f;
+    warrior = Pilot;
+    MCMover* point = warrior->GetPoint();
+    const bool groupMove = warrior->CurTacOrder.IsGroupOrder() != 0 && warrior->CurTacOrder.IsMoveOrder() != 0;
 
-    if (running == 0 && !hustling && point != nullptr && point->isDisabled() == 0 && point != this && groupMove)
+    if (running == 0 && !hustling && point != nullptr && point->IsDisabled() == 0 && point != this && groupMove)
     {
         // Keep pace with the group's point: wait (at most five seconds while moving) when ahead of it.
-        MechWarrior* pointPilot = point->getPilot();
-        pointPilot->getMovePath();
-        const float pointDistanceLeft = pointPilot->getMoveDistanceLeft();
+        MCMechWarrior* pointPilot = point->GetPilot();
+        pointPilot->GetMovePath();
+        const float pointDistanceLeft = pointPilot->GetMoveDistanceLeft();
 
-        if (pointDistanceLeft <= warrior->getMoveDistanceLeft())
+        if (pointDistanceLeft <= warrior->GetMoveDistanceLeft())
         {
-            warrior->moveOrders.waitForPointTime = -1.0f;
+            warrior->MoveOrders.WaitForPointTime = -1.0f;
 
-            if (warrior->moveOrders.yieldTime <= -1.0f)
+            if (warrior->MoveOrders.YieldTime <= -1.0f)
             {
-                warrior->resumePath();
+                warrior->ResumePath();
             }
         }
         else
         {
-            const int32_t speedState = getSpeedState();
-            warrior = pilot;
+            const int32_t speedState = GetSpeedState();
+            warrior = Pilot;
 
             if (speedState == 2)
             {
-                if (warrior->moveOrders.waitForPointTime <= -1.0f)
+                if (warrior->MoveOrders.WaitForPointTime <= -1.0f)
                 {
-                    warrior->moveOrders.waitForPointTime = scenarioTime + 5.0f;
+                    warrior->MoveOrders.WaitForPointTime = ScenarioTime + 5.0f;
                 }
             }
-            else if (warrior->moveOrders.waitForPointTime < scenarioTime)
+            else if (warrior->MoveOrders.WaitForPointTime < ScenarioTime)
             {
-                warrior->pausePath();
-                warrior->moveOrders.waitForPointTime = 999999.0f;
+                warrior->PausePath();
+                warrior->MoveOrders.WaitForPointTime = 999999.0f;
             }
         }
     }
     else
     {
-        warrior->moveOrders.waitForPointTime = -1.0f;
+        warrior->MoveOrders.WaitForPointTime = -1.0f;
     }
 
-    int result = steerAlongPath(this, path, newRotate, newThrottleSetting, newRotatePerSec, newMoveState, maxThrottle);
-    warrior = pilot;
+    int result = SteerAlongPath(this, path, newRotate, newThrottleSetting, newRotatePerSec, newMoveState, maxThrottle);
+    warrior = Pilot;
 
     if (result != 0)
     {
-        if (warrior->moveOrders.pathType == 2 &&
-            warrior->moveOrders.path[0]->globalStep < warrior->moveOrders.numGlobalSteps - 1)
+        if (warrior->MoveOrders.PathType == 2 &&
+            warrior->MoveOrders.Path[0]->GlobalStep < warrior->MoveOrders.NumGlobalSteps - 1)
         {
             result = 0;
         }
 
-        if (warrior->moveOrders.path[0] != nullptr)
+        if (warrior->MoveOrders.Path[0] != nullptr)
         {
-            warrior->moveOrders.path[0]->clear();
+            warrior->MoveOrders.Path[0]->Clear();
         }
 
         newThrottleSetting = 0;
@@ -2186,37 +2187,37 @@ auto GroundVehicle::updateMovePath(char& newRotate, char& newThrottleSetting, fl
     return result;
 }
 
-auto GroundVehicle::setNextMovePath(char& newThrottleSetting) -> void
+auto MCGroundVehicle::SetNextMovePath(char& newThrottleSetting) -> void
 {
-    MechWarrior* warrior = pilot;
+    MCMechWarrior* warrior = Pilot;
 
-    if (warrior->playerOrderFromQueue != 0 && warrior->curTacOrder.isMoveOrder() != 0)
+    if (warrior->PlayerOrderFromQueue != 0 && warrior->CurTacOrder.IsMoveOrder() != 0)
     {
-        if (warrior->moveOrders.path[0] != nullptr)
+        if (warrior->MoveOrders.Path[0] != nullptr)
         {
-            warrior->moveOrders.path[0]->clear();
+            warrior->MoveOrders.Path[0]->Clear();
         }
 
         return;
     }
 
-    warrior->clearMoveOrders();
+    warrior->ClearMoveOrders();
     newThrottleSetting = 0;
 }
 
-auto GroundVehicle::setControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                                       int32_t& minThrottle, int32_t& maxThrottle) -> void
+auto MCGroundVehicle::SetControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+                                         int32_t& minThrottle, int32_t& maxThrottle) -> void
 {
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
-    const int32_t run = MPlayer == nullptr || MPlayer->isServer != 0 ? warrior->moveOrders.run : moveChunk.run;
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
+    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
 
-    if (path->numSteps == 0)
+    if (path->NumSteps == 0)
     {
         newThrottleSetting = 0;
     }
 
-    auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
+    auto* controlData = static_cast<MCGroundVehicleControlData*>(Control->ControlData);
 
     if (newThrottleSetting != -1)
     {
@@ -2229,36 +2230,36 @@ auto GroundVehicle::setControlSettings(char& newRotate, char& newThrottleSetting
             newThrottleSetting = static_cast<char>(maxThrottle);
         }
 
-        controlData->throttle = newThrottleSetting;
+        controlData->Throttle = newThrottleSetting;
     }
 
     if (newRotate != 0)
     {
-        controlData->rotate = newRotate;
+        controlData->Rotate = newRotate;
     }
 
     // Anything but a run order moves at the walk speed.
-    controlData->walk = run == 0 ? 1 : 0;
+    controlData->Walk = run == 0 ? 1 : 0;
 }
 
-auto GroundVehicle::updateTurret(float newRotatePerSec) -> void
+auto MCGroundVehicle::UpdateTurret(float newRotatePerSec) -> void
 {
-    MechWarrior* warrior = pilot;
-    GameObject* target = warrior->getLastTarget();
+    MCMechWarrior* warrior = Pilot;
+    MCGameObject* target = warrior->GetLastTarget();
     double facing;
 
     if (target != nullptr)
     {
-        facing = static_cast<double>(relFacingTo(target->getPosition(), -1)) + turretRotation + newRotatePerSec;
+        facing = static_cast<double>(RelFacingTo(target->GetPosition(), -1)) + TurretRotation + newRotatePerSec;
     }
-    else if (warrior->curTacOrder.code == TACTICAL_ORDER_ATTACK_POINT)
+    else if (warrior->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
     {
         facing =
-            static_cast<double>(relFacingTo(warrior->getAttackTargetPoint(), -1)) + turretRotation + newRotatePerSec;
+            static_cast<double>(RelFacingTo(warrior->GetAttackTargetPoint(), -1)) + TurretRotation + newRotatePerSec;
     }
     else
     {
-        facing = turretRotation;
+        facing = TurretRotation;
     }
 
     if (facing < -180.0)
@@ -2276,61 +2277,61 @@ auto GroundVehicle::updateTurret(float newRotatePerSec) -> void
     }
 
     double turn = -facing;
-    auto* dynType = static_cast<GroundVehicleDynamicsType*>(static_cast<GroundVehicleType*>(objType)->dynamicsType);
-    const float maxTurn = static_cast<float>(dynType->maxTurretYawRate) * frameLength;
+    auto* dynType = static_cast<MCGroundVehicleDynamicsType*>(static_cast<MCGroundVehicleType*>(ObjType)->DynamicsType);
+    const float maxTurn = static_cast<float>(dynType->MaxTurretYawRate) * FrameLength;
 
     if (maxTurn < std::fabs(turn))
     {
         turn = turn < 0.0 ? -maxTurn : maxTurn;
     }
 
-    static_cast<GroundVehicleControlData*>(control->controlData)->turretRotate =
+    static_cast<MCGroundVehicleControlData*>(Control->ControlData)->TurretRotate =
         static_cast<int8_t>(static_cast<int32_t>(turn / maxTurn * 64.0f));
 }
 
-auto GroundVehicle::updateMovement() -> void
+auto MCGroundVehicle::UpdateMovement() -> void
 {
-    auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
+    auto* controlData = static_cast<MCGroundVehicleControlData*>(Control->ControlData);
 
-    if (disableThisFrame != 0)
+    if (DisableThisFrame != 0)
     {
-        disableThisFrame = 0;
-        shutDownThisFrame = 0;
-        startUpThisFrame = 0;
-        status = 1;
-        controlData->throttle = 0;
+        DisableThisFrame = 0;
+        ShutDownThisFrame = 0;
+        StartUpThisFrame = 0;
+        Status = 1;
+        controlData->Throttle = 0;
         return;
     }
 
-    if (shutDownThisFrame != 0)
+    if (ShutDownThisFrame != 0)
     {
-        controlData->throttle = 0;
-        shutDownThisFrame = 0;
-        startUpThisFrame = 0;
-        status = 5;
+        controlData->Throttle = 0;
+        ShutDownThisFrame = 0;
+        StartUpThisFrame = 0;
+        Status = 5;
         return;
     }
 
-    if (startUpThisFrame != 0)
+    if (StartUpThisFrame != 0)
     {
-        controlData->throttle = 100;
-        startUpThisFrame = 0;
-        status = 0;
+        controlData->Throttle = 100;
+        StartUpThisFrame = 0;
+        Status = 0;
         return;
     }
 
-    if (isCaptured() != 0 || isDisabled() != 0)
+    if (IsCaptured() != 0 || IsDisabled() != 0)
     {
-        controlData->throttle = 0;
+        controlData->Throttle = 0;
         return;
     }
 
-    if (engineBlowTime > -1.0f)
+    if (EngineBlowTime > -1.0f)
     {
         return;
     }
 
-    float newRotatePerSec = static_cast<float>(pivotTo());
+    float newRotatePerSec = static_cast<float>(PivotTo());
 
     if (newRotatePerSec != 0.0f)
     {
@@ -2342,90 +2343,90 @@ auto GroundVehicle::updateMovement() -> void
     char newRotate = 0;
     char newThrottleSetting = 0;
     int32_t newMoveState = -1;
-    calcThrottleLimits(minThrottle, maxThrottle);
-    updateMoveStateGoal();
+    CalcThrottleLimits(minThrottle, maxThrottle);
+    UpdateMoveStateGoal();
 
-    if (updateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newMoveState, minThrottle, maxThrottle) != 0)
+    if (UpdateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newMoveState, minThrottle, maxThrottle) != 0)
     {
-        setNextMovePath(newThrottleSetting);
+        SetNextMovePath(newThrottleSetting);
     }
 
     if (newMoveState != -1)
     {
-        pilot->moveOrders.moveState = newMoveState;
+        Pilot->MoveOrders.MoveState = newMoveState;
     }
 
-    setControlSettings(newRotate, newThrottleSetting, newRotatePerSec, minThrottle, maxThrottle);
-    updateTurret(newRotatePerSec);
+    SetControlSettings(newRotate, newThrottleSetting, newRotatePerSec, minThrottle, maxThrottle);
+    UpdateTurret(newRotatePerSec);
 }
 
-auto GroundVehicle::netUpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                                      int32_t& newMoveState, int32_t& minThrottle, int32_t& maxThrottle) -> int
+auto MCGroundVehicle::NetUpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+                                        int32_t& newMoveState, int32_t& minThrottle, int32_t& maxThrottle) -> int
 {
-    auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
-    MovePath* path = pilot->getMovePath();
+    auto* controlData = static_cast<MCGroundVehicleControlData*>(Control->ControlData);
+    MCMovePath* path = Pilot->GetMovePath();
     newRotatePerSec = 0.0f;
-    newThrottleSetting = static_cast<char>(controlData->throttle);
-    return steerAlongPath(this, path, newRotate, newThrottleSetting, newRotatePerSec, newMoveState, maxThrottle);
+    newThrottleSetting = static_cast<char>(controlData->Throttle);
+    return SteerAlongPath(this, path, newRotate, newThrottleSetting, newRotatePerSec, newMoveState, maxThrottle);
 }
 
-auto GroundVehicle::netUpdateMovement() -> void
+auto MCGroundVehicle::NetUpdateMovement() -> void
 {
-    auto* controlData = static_cast<GroundVehicleControlData*>(control->controlData);
-    MovePath* path = pilot->getMovePath();
-    const auto distance = static_cast<float>(distanceFrom(path->stepList[path->curStep].destination));
+    auto* controlData = static_cast<MCGroundVehicleControlData*>(Control->ControlData);
+    MCMovePath* path = Pilot->GetMovePath();
+    const auto distance = static_cast<float>(DistanceFrom(path->StepList[path->CurStep].Destination));
 
-    if (path->curStep == path->numSteps - 1 && distance < MoveMarginOfError[1])
+    if (path->CurStep == path->NumSteps - 1 && distance < MoveMarginOfError[1])
     {
         // At the end of the path: stop once the server says the vehicle has.
-        getBodyState();
+        GetBodyState();
 
-        if (statusChunk.bodyState == 0)
+        if (StatusChunk.BodyState == 0)
         {
-            pilot->clearMoveOrders();
-            controlData->throttle = 0;
+            Pilot->ClearMoveOrders();
+            controlData->Throttle = 0;
         }
     }
 
-    if (disableThisFrame != 0)
+    if (DisableThisFrame != 0)
     {
-        disableThisFrame = 0;
-        shutDownThisFrame = 0;
-        startUpThisFrame = 0;
-        status = 1;
-        controlData->throttle = 0;
+        DisableThisFrame = 0;
+        ShutDownThisFrame = 0;
+        StartUpThisFrame = 0;
+        Status = 1;
+        controlData->Throttle = 0;
         return;
     }
 
-    if (shutDownThisFrame != 0)
+    if (ShutDownThisFrame != 0)
     {
-        controlData->throttle = 0;
-        shutDownThisFrame = 0;
-        startUpThisFrame = 0;
-        status = 5;
+        controlData->Throttle = 0;
+        ShutDownThisFrame = 0;
+        StartUpThisFrame = 0;
+        Status = 5;
         return;
     }
 
-    if (startUpThisFrame != 0)
+    if (StartUpThisFrame != 0)
     {
-        controlData->throttle = 100;
-        startUpThisFrame = 0;
-        status = 0;
+        controlData->Throttle = 100;
+        StartUpThisFrame = 0;
+        Status = 0;
         return;
     }
 
-    if (isCaptured() != 0 || isDisabled() != 0)
+    if (IsCaptured() != 0 || IsDisabled() != 0)
     {
-        controlData->throttle = 0;
+        controlData->Throttle = 0;
         return;
     }
 
-    if (engineBlowTime > -1.0f)
+    if (EngineBlowTime > -1.0f)
     {
         return;
     }
 
-    float newRotatePerSec = static_cast<float>(pivotTo());
+    float newRotatePerSec = static_cast<float>(PivotTo());
 
     if (newRotatePerSec != 0.0f)
     {
@@ -2437,167 +2438,167 @@ auto GroundVehicle::netUpdateMovement() -> void
     char newRotate = 0;
     char newThrottleSetting = 0;
     int32_t newMoveState = -1;
-    calcThrottleLimits(minThrottle, maxThrottle);
-    updateMoveStateGoal();
-    netUpdateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newMoveState, minThrottle, maxThrottle);
+    CalcThrottleLimits(minThrottle, maxThrottle);
+    UpdateMoveStateGoal();
+    NetUpdateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newMoveState, minThrottle, maxThrottle);
 
     if (newMoveState != -1)
     {
-        pilot->moveOrders.moveState = newMoveState;
+        Pilot->MoveOrders.MoveState = newMoveState;
     }
 
-    setControlSettings(newRotate, newThrottleSetting, newRotatePerSec, minThrottle, maxThrottle);
-    updateTurret(newRotatePerSec);
+    SetControlSettings(newRotate, newThrottleSetting, newRotatePerSec, minThrottle, maxThrottle);
+    UpdateTurret(newRotatePerSec);
 }
 
-auto GroundVehicle::getPositionFromHS(uint32_t hotSpot) -> vector_3d
+auto MCGroundVehicle::GetPositionFromHS(uint32_t hotSpot) -> MCVector3D
 {
-    return position;
+    return Position;
 }
 
-auto GroundVehicle::onScreen() -> int
+auto MCGroundVehicle::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
-    screenPos.y = 0.0f;
-    screenPos.x = 0.0f;
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    ScreenPos.Y = 0.0f;
+    ScreenPos.X = 0.0f;
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
     float screenY;
 
-    if (useOldProject == 0)
+    if (UseOldProject == 0)
     {
-        vector_2d screen100;
-        vector_2d screen50;
+        MCVector2D screen100;
+        MCVector2D screen50;
 
-        if (land != nullptr)
+        if (Land != nullptr)
         {
-            land->projectTerrain(position, screen100, screen50);
+            Land->ProjectTerrain(Position, screen100, screen50);
         }
 
-        if (camera->cameraScale == 1)
+        if (camera->CameraScale == 1)
         {
-            screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-            screenY = screen50.y - camera->screenUL50.y;
+            ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+            screenY = screen50.Y - camera->ScreenUL50.Y;
         }
         else
         {
-            screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-            screenY = screen100.y - camera->screenUL.y;
+            ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+            screenY = screen100.Y - camera->ScreenUL.Y;
         }
 
-        screenPos.y = screenY + camera->halfHeight;
+        ScreenPos.Y = screenY + camera->HalfHeight;
     }
     else
     {
-        const float scale = camera->cameraScale != 1 ? 1.0f : 0.5f;
-        vector_3d relative(position.x - camera->position.x, position.y - camera->position.y,
-                           position.z - camera->position.z);
+        const float scale = camera->CameraScale != 1 ? 1.0f : 0.5f;
+        MCVector3D relative(Position.X - camera->Position.X, Position.Y - camera->Position.Y,
+                            Position.Z - camera->Position.Z);
         relative *= scale;
-        screenPos.x = relative.y * camera->cosAngle + relative.x * camera->cosAngle + camera->halfWidth;
-        screenY = ((relative.x * camera->sinAngle + camera->halfHeight) - relative.y * camera->sinAngle) - relative.z;
-        screenPos.y = screenY;
+        ScreenPos.X = relative.Y * camera->CosAngle + relative.X * camera->CosAngle + camera->HalfWidth;
+        screenY = ((relative.X * camera->SinAngle + camera->HalfHeight) - relative.Y * camera->SinAngle) - relative.Z;
+        ScreenPos.Y = screenY;
 
-        if (screenPos.x < 0.0f || screenY < 0.0f || camera->viewWidth < screenPos.x || camera->viewHeight < screenY)
+        if (ScreenPos.X < 0.0f || screenY < 0.0f || camera->ViewWidth < ScreenPos.X || camera->ViewHeight < screenY)
         {
-            windowsVisible = 0;
+            WindowsVisible = 0;
         }
         else
         {
-            windowsVisible = 1;
+            WindowsVisible = 1;
         }
     }
 
-    if (appearance != nullptr && appearance->recalcBounds(camera) != 0)
+    if (Appearance != nullptr && Appearance->RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto GroundVehicle::disable(uint32_t cause) -> void
+auto MCGroundVehicle::Disable(uint32_t cause) -> void
 {
-    Mover::disable(cause);
-    deathTimer = 0.0f;
-    smoke = static_cast<Smoke*>(createObject(0x1c2));
+    MCMover::Disable(cause);
+    DeathTimer = 0.0f;
+    Smoke = static_cast<MCSmoke*>(CreateObject(0x1c2));
 
-    if (smoke != nullptr)
+    if (Smoke != nullptr)
     {
-        smoke->setOwner(this);
-        smoke->setOwnerPosition(position);
+        Smoke->SetOwner(this);
+        Smoke->SetOwnerPosition(Position);
     }
 }
 
-auto GroundVehicle::crashAvoidanceSystem() -> int
+auto MCGroundVehicle::CrashAvoidanceSystem() -> int
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 0;
     }
 
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
 
-    if (path->numStepsWhenNotPaused == 0)
+    if (path->NumStepsWhenNotPaused == 0)
     {
         return 0;
     }
 
-    if (static_cast<double>(warrior->moveOrders.waitForPointTime) > 999990.0)
+    if (static_cast<double>(warrior->MoveOrders.WaitForPointTime) > 999990.0)
     {
         return 0;
     }
 
     // A look a frame ahead along the frame turned by a quarter pi (its result is unused).
-    const float speed = -dynamics->getVelocity();
-    frame_of_ref ahead = frame;
-    rotateAboutK(ahead, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
-    vector_3d lookAhead(ahead.j.x * speed * frameLength * worldUnitsPerMeter + position.x,
-                        ahead.j.y * speed * frameLength * worldUnitsPerMeter + position.y,
-                        ahead.j.z * speed * frameLength * worldUnitsPerMeter + position.z);
+    const float speed = -Dynamics->GetVelocity();
+    MCFrameOfRef ahead = Frame;
+    RotateAboutK(ahead, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
+    MCVector3D lookAhead(ahead.J.X * speed * FrameLength * WorldUnitsPerMeter + Position.X,
+                         ahead.J.Y * speed * FrameLength * WorldUnitsPerMeter + Position.Y,
+                         ahead.J.Z * speed * FrameLength * WorldUnitsPerMeter + Position.Z);
     int32_t tileR;
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->worldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
+    GameMap->WorldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
 
     int cornerBlocked = 0;
-    const int32_t direction = static_cast<int8_t>(path->stepList[path->curStep].direction);
+    const int32_t direction = static_cast<int8_t>(path->StepList[path->CurStep].Direction);
 
     if (direction == 1 || direction == 3 || direction == 5 || direction == 7)
     {
         // A diagonal step: blocked when both cells beside it are locked.
-        const int first = getAdjacentCellPathLocked(objPosition->tileR, objPosition->tileC, objPosition->cellR,
-                                                    objPosition->cellC, adjClippedCell[direction][0]);
-        const int second = getAdjacentCellPathLocked(objPosition->tileR, objPosition->tileC, objPosition->cellR,
-                                                     objPosition->cellC, adjClippedCell[direction][1]);
+        const int first = GetAdjacentCellPathLocked(ObjPosition->TileR, ObjPosition->TileC, ObjPosition->CellR,
+                                                    ObjPosition->CellC, AdjClippedCell[direction][0]);
+        const int second = GetAdjacentCellPathLocked(ObjPosition->TileR, ObjPosition->TileC, ObjPosition->CellR,
+                                                     ObjPosition->CellC, AdjClippedCell[direction][1]);
         cornerBlocked = first != 0 && second != 0 ? 1 : 0;
     }
 
     int lockReachedEnd = 0;
     int blockReachedEnd = 0;
-    const int locked = getPathRangeLock(crashAvoidPath, &lockReachedEnd);
-    const int blocked = getPathRangeBlocked(crashAvoidPath, &blockReachedEnd);
-    const int32_t closedGates = path->crossesClosedGate(-1, 2);
-    warrior = pilot;
+    const int locked = GetPathRangeLock(CrashAvoidPath, &lockReachedEnd);
+    const int blocked = GetPathRangeBlocked(CrashAvoidPath, &blockReachedEnd);
+    const int32_t closedGates = path->CrossesClosedGate(-1, 2);
+    warrior = Pilot;
     const bool clear = locked == 0 && blocked == 0 && cornerBlocked == 0 && closedGates < 2;
 
-    if (warrior->moveOrders.yieldTime > -1.0f)
+    if (warrior->MoveOrders.YieldTime > -1.0f)
     {
         // Yielding: go on once the way is clear.
         if (clear)
         {
-            warrior->resumePath();
-            warrior->moveOrders.yieldTime = -1.0f;
+            warrior->ResumePath();
+            warrior->MoveOrders.YieldTime = -1.0f;
             return 0;
         }
 
-        warrior->pausePath();
+        warrior->PausePath();
         return 1;
     }
 
@@ -2608,234 +2609,234 @@ auto GroundVehicle::crashAvoidanceSystem() -> int
 
     if (lockReachedEnd == 0 && blockReachedEnd == 0)
     {
-        warrior->pausePath();
-        warrior->moveOrders.yieldTime = scenarioTime + crashYieldTime;
-        control->controlData->brake();
+        warrior->PausePath();
+        warrior->MoveOrders.YieldTime = ScenarioTime + CrashYieldTime;
+        Control->ControlData->Brake();
         return 1;
     }
 
-    warrior->reachedPathEnd();
-    control->controlData->brake();
+    warrior->ReachedPathEnd();
+    Control->ControlData->Brake();
     return 1;
 }
 
-auto GroundVehicle::createVehiclePilot() -> void
+auto MCGroundVehicle::CreateVehiclePilot() -> void
 {
-    auto* marine = static_cast<Mover*>(createObject(DefaultPilotId));
-    vehiclePilot = marine;
+    auto* marine = static_cast<MCMover*>(CreateObject(DefaultPilotId));
+    VehiclePilot = marine;
 
     if (marine == nullptr)
     {
         Fatal(-1, " Couldnt create Marine for vehicle ");
     }
 
-    marine->setAwake(1);
-    FullPathFileName profileName;
-    profileName.init(profilePath, marineProfileName, ".fit");
-    FitIniFile profileFile;
-    const int32_t result = profileFile.open(profileName, READ, 50);
+    marine->SetAwake(1);
+    MCFullPathFileName profileName;
+    profileName.Init(ProfilePath, MarineProfileName, ".fit");
+    MCFitIniFile profileFile;
+    const int32_t result = profileFile.Open(profileName, READ, 50);
 
     if (result != 0)
     {
         Fatal(result, " Unable to open Vehicle Marine Profile ");
     }
 
-    if (marine->init(&profileFile) != 0)
+    if (marine->Init(&profileFile) != 0)
     {
         Fatal(-1, " Bad Vehicle Marine Profile File ");
     }
 
-    profileFile.close();
+    profileFile.Close();
 
     // The vehicle's pilot bails out as the marine.
-    MechWarrior* warrior = pilot;
-    marine->setPilot(warrior);
-    warrior->setVehicle(marine);
-    warrior->lobotomy();
-    marine->setControl(2, 3, -1);
-    marine->setTeam(getTeam());
-    vehiclePilot->setPosition(position);
-    vehiclePilot->setLastValidPosition(position);
-    vehiclePilot->setFrame(frame);
-    auto* marineAppearance = static_cast<ElementalActor*>(vehiclePilot->getAppearance());
+    MCMechWarrior* warrior = Pilot;
+    marine->SetPilot(warrior);
+    warrior->SetVehicle(marine);
+    warrior->Lobotomy();
+    marine->SetControl(2, 3, -1);
+    marine->SetTeam(GetTeam());
+    VehiclePilot->SetPosition(Position);
+    VehiclePilot->SetLastValidPosition(Position);
+    VehiclePilot->SetFrame(Frame);
+    auto* marineAppearance = static_cast<MCElementalActor*>(VehiclePilot->GetAppearance());
 
     if (marineAppearance != nullptr)
     {
-        marineAppearance->setGesture(0);
-        marineAppearance->fadeTableIndex = getAlignment() == -1 ? 0x1d : 0x20;
+        marineAppearance->SetGesture(0);
+        marineAppearance->FadeTableIndex = GetAlignment() == -1 ? 0x1d : 0x20;
     }
 
-    Mover* newMarine = vehiclePilot;
-    newMarine->idNumber = idNumber + 1000;
-    newMarine->setPartId(0xfff - NumMarines++);
-    newMarine->setAlignment(getAlignment());
-    ObjectQueueNode* list = getAlignment() == -1 ? clanMechList : innerSphereMechList;
+    MCMover* newMarine = VehiclePilot;
+    newMarine->IdNumber = IdNumber + 1000;
+    newMarine->SetPartId(0xfff - NumMarines++);
+    newMarine->SetAlignment(GetAlignment());
+    MCObjectQueueNode* list = GetAlignment() == -1 ? ClanMechList : InnerSphereMechList;
 
     if (list != nullptr)
     {
-        list->addNode(marine);
+        list->AddNode(marine);
     }
 
-    marine->setExists(1);
-    marine->setPotentialContact(0);
-    GameObjectMap->addObject(marine);
-    warrior = pilot;
-    warrior->clearAttackOrders();
-    warrior->clearMoveOrders();
-    warrior->orderMoveToPoint(0, 1, 0, vector_3d(0.0f, 0.0f, 0.0f), -1, 1);
+    marine->SetExists(1);
+    marine->SetPotentialContact(0);
+    GameObjectMap->AddObject(marine);
+    warrior = Pilot;
+    warrior->ClearAttackOrders();
+    warrior->ClearMoveOrders();
+    warrior->OrderMoveToPoint(0, 1, 0, MCVector3D(0.0f, 0.0f, 0.0f), -1, 1);
 }
 
 namespace
 {
     /// <summary>Moves the smoke along with the vehicle and runs it; frees it once the smoke time is 30 s past.</summary>
-    void updateSmoke(GroundVehicle* vehicle)
+    void UpdateSmoke(MCGroundVehicle* vehicle)
     {
-        Smoke* smoke = vehicle->smoke;
-        smoke->setOwner(vehicle);
-        smoke->setOwnerPosition(vehicle->position);
-        smoke->setOwnerVelocity(vehicle->velocity);
-        smoke->update();
-        vehicle->deathTimer -= frameLength;
+        MCSmoke* smoke = vehicle->Smoke;
+        smoke->SetOwner(vehicle);
+        smoke->SetOwnerPosition(vehicle->Position);
+        smoke->SetOwnerVelocity(vehicle->Velocity);
+        smoke->Update();
+        vehicle->DeathTimer -= FrameLength;
 
-        if (vehicle->deathTimer > -30.0)
+        if (vehicle->DeathTimer > -30.0)
         {
             return;
         }
 
         delete smoke;
-        vehicle->smoke = nullptr;
+        vehicle->Smoke = nullptr;
     }
 }
 
-auto GroundVehicle::update() -> int32_t
+auto MCGroundVehicle::Update() -> int32_t
 {
-    if (withdrawing != 0 && pilot->status == 2)
+    if (Withdrawing != 0 && Pilot->Status == 2)
     {
-        collisionsOn = 0;
+        CollisionsOn = 0;
         return 1;
     }
 
-    terrainNormal = land->getTerrainNormal(position);
-    updatePathLock(0);
+    TerrainNormal = Land->GetTerrainNormal(Position);
+    UpdatePathLock(0);
 
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        if (team->id == 1)
+        if (Team->Id == 1)
         {
-            potentialContact->updateStatus(innerSphereTeam);
-            potentialContact->updateStatus(alliedTeam);
+            PotentialContact->UpdateStatus(InnerSphereTeam);
+            PotentialContact->UpdateStatus(AlliedTeam);
         }
-        else if (team->id == 0)
+        else if (Team->Id == 0)
         {
-            potentialContact->updateStatus(clanTeam);
-            potentialContact->updateStatus(alliedTeam);
+            PotentialContact->UpdateStatus(ClanTeam);
+            PotentialContact->UpdateStatus(AlliedTeam);
         }
         else
         {
-            potentialContact->updateStatus(innerSphereTeam);
-            potentialContact->updateStatus(clanTeam);
+            PotentialContact->UpdateStatus(InnerSphereTeam);
+            PotentialContact->UpdateStatus(ClanTeam);
         }
     }
 
-    if (deselectTime != 0.0f && deselectTime < scenarioTime)
+    if (DeselectTime != 0.0f && DeselectTime < ScenarioTime)
     {
-        deselectTime = 0.0f;
-        selected = 0;
+        DeselectTime = 0.0f;
+        Selected = 0;
     }
 
-    if (isDestroyed() != 0 && deathTimer < 0.0)
+    if (IsDestroyed() != 0 && DeathTimer < 0.0)
     {
         // The wreck: only its appearance and smoke go on.
-        if (appearance != nullptr)
+        if (Appearance != nullptr)
         {
-            appearance->visible = onScreen();
-            appearance->update();
+            Appearance->Visible = OnScreen();
+            Appearance->Update();
         }
 
-        if (smoke == nullptr)
+        if (Smoke == nullptr)
         {
             return 1;
         }
 
-        updateSmoke(this);
+        UpdateSmoke(this);
         return 1;
     }
 
-    if (isDestroyed() == 0 || deathTimer < 0.0)
+    if (IsDestroyed() == 0 || DeathTimer < 0.0)
     {
-        if (getAwake() == 0 || isDisabled() != 0 || distanceSinceMarkSeen < Terrain::metersPerVertex)
+        if (GetAwake() == 0 || IsDisabled() != 0 || DistanceSinceMarkSeen < MCTerrain::MetersPerVertex)
         {
-            if (isDisabled() != 0 && deathTimer != 0.0f && smoke != nullptr)
+            if (IsDisabled() != 0 && DeathTimer != 0.0f && Smoke != nullptr)
             {
-                updateSmoke(this);
+                UpdateSmoke(this);
             }
         }
         else
         {
             // Every vertex travelled, the vehicle marks what it sees.
-            if (alignment == 1)
+            if (Alignment == 1)
             {
-                land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 1);
+                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
             }
-            else if (alignment == -1)
+            else if (Alignment == -1)
             {
-                land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 2);
+                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
             }
 
-            distanceSinceMarkSeen = 0.0f;
+            DistanceSinceMarkSeen = 0.0f;
         }
     }
     else
     {
         // Just destroyed: when the death timer runs out, it blows up and its crew bails out.
-        deathTimer -= frameLength;
+        DeathTimer -= FrameLength;
 
-        if (deathTimer < 0.0)
+        if (DeathTimer < 0.0)
         {
-            if (gvAppearance == 0)
+            if (GvAppearance == 0)
             {
-                static_cast<PUAppearance*>(appearance)->setDestroyed();
+                static_cast<MCPUAppearance*>(Appearance)->SetDestroyed();
             }
             else
             {
-                static_cast<GVAppearance*>(appearance)->setTypeId(GV_ACTOR_STATE_DESTROYED);
+                static_cast<MCGVAppearance*>(Appearance)->SetTypeId(GV_ACTOR_STATE_DESTROYED);
             }
 
-            if (appearance != nullptr)
+            if (Appearance != nullptr)
             {
-                appearance->visible = onScreen();
-                appearance->update();
+                Appearance->Visible = OnScreen();
+                Appearance->Update();
             }
 
-            auto* vehicleType = static_cast<GroundVehicleType*>(objType);
-            vehicleType->createExplosion(position, vehicleType->explDmg, vehicleType->explRad);
-            deathExplosionDone = 1;
-            smoke = static_cast<Smoke*>(createObject(0x1c2));
-            collisionsOn = 0;
+            auto* vehicleType = static_cast<MCGroundVehicleType*>(ObjType);
+            vehicleType->CreateExplosion(Position, vehicleType->ExplDmg, vehicleType->ExplRad);
+            DeathExplosionDone = 1;
+            Smoke = static_cast<MCSmoke*>(CreateObject(0x1c2));
+            CollisionsOn = 0;
 
             if (MPlayer != nullptr)
             {
                 return 1;
             }
 
-            if (getAwake() == 0)
+            if (GetAwake() == 0)
             {
                 return 1;
             }
 
-            createVehiclePilot();
+            CreateVehiclePilot();
             return 1;
         }
     }
 
-    int32_t result = control->update();
+    int32_t result = Control->Update();
 
     if (result != 1)
     {
         return result;
     }
 
-    result = dynamics->update();
+    result = Dynamics->Update();
 
     if (result != 1)
     {
@@ -2844,278 +2845,278 @@ auto GroundVehicle::update() -> int32_t
 
     int avoiding = 0;
 
-    if (isDisabled() == 0)
+    if (IsDisabled() == 0)
     {
-        avoiding = crashAvoidanceSystem();
+        avoiding = CrashAvoidanceSystem();
     }
 
     float speed = 0.0f;
 
     if (avoiding == 0)
     {
-        speed = dynamics->getVelocity();
+        speed = Dynamics->GetVelocity();
     }
 
-    if (gvAppearance != 0)
+    if (GvAppearance != 0)
     {
-        auto* vehicleAppearance = static_cast<GVAppearance*>(appearance);
+        auto* vehicleAppearance = static_cast<MCGVAppearance*>(Appearance);
 
         if (speed != 0.0)
         {
-            vehicleAppearance->setTypeId(GV_ACTOR_STATE_DAMAGED);
+            vehicleAppearance->SetTypeId(GV_ACTOR_STATE_DAMAGED);
         }
-        else if (refitting == 0)
+        else if (Refitting == 0)
         {
-            vehicleAppearance->setTypeId(GV_ACTOR_STATE_NORMAL);
+            vehicleAppearance->SetTypeId(GV_ACTOR_STATE_NORMAL);
         }
         else
         {
-            vehicleAppearance->setTypeId(GV_ACTOR_STATE_EXTRA);
+            vehicleAppearance->SetTypeId(GV_ACTOR_STATE_EXTRA);
         }
     }
 
     int visibleNow = 0;
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        appearance->update();
-        visibleNow = onScreen();
-        appearance->visible = visibleNow;
+        Appearance->Update();
+        visibleNow = OnScreen();
+        Appearance->Visible = visibleNow;
 
-        if (gvAppearance == 0)
+        if (GvAppearance == 0)
         {
             // A pop-up turret opens for a target; its weapons work once it is up.
             const int combat =
-                pilot->getLastTarget() != nullptr || pilot->curTacOrder.code == TACTICAL_ORDER_ATTACK_POINT ? 1 : 0;
-            weaponsDeployed = static_cast<PUAppearance*>(appearance)->setCombatMode(combat) == 2 ? 1 : 0;
+                Pilot->GetLastTarget() != nullptr || Pilot->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT ? 1 : 0;
+            WeaponsDeployed = static_cast<MCPUAppearance*>(Appearance)->SetCombatMode(combat) == 2 ? 1 : 0;
         }
     }
 
-    if (withdrawing != 0 && visibleNow == 0 && pilot->status != 2)
+    if (Withdrawing != 0 && visibleNow == 0 && Pilot->Status != 2)
     {
-        objType->handleDestruction(this, nullptr);
+        ObjType->HandleDestruction(this, nullptr);
     }
 
     // Slopes slow the vehicle: by the hill factor times the cosine of the angle between its heading and the
     // terrain's normal.
-    frame_of_ref turned = frame;
+    MCFrameOfRef turned = Frame;
     speed = -speed;
-    vector_3d normal = land->getTerrainNormal(position);
-    vector_3d heading = frame.j;
+    MCVector3D normal = Land->GetTerrainNormal(Position);
+    MCVector3D heading = Frame.J;
     const double headingLength =
-        std::sqrt(static_cast<double>(heading.x) * heading.x + static_cast<double>(heading.y) * heading.y +
-                  static_cast<double>(heading.z) * heading.z);
+        std::sqrt(static_cast<double>(heading.X) * heading.X + static_cast<double>(heading.Y) * heading.Y +
+                  static_cast<double>(heading.Z) * heading.Z);
 
     if (headingLength != 0.0)
     {
-        heading.x = static_cast<float>(heading.x / headingLength);
-        heading.y = static_cast<float>(heading.y / headingLength);
-        heading.z = static_cast<float>(heading.z / headingLength);
+        heading.X = static_cast<float>(heading.X / headingLength);
+        heading.Y = static_cast<float>(heading.Y / headingLength);
+        heading.Z = static_cast<float>(heading.Z / headingLength);
     }
 
     const double normalLength =
-        std::sqrt(static_cast<double>(normal.x) * normal.x + static_cast<double>(normal.y) * normal.y +
-                  static_cast<double>(normal.z) * normal.z);
+        std::sqrt(static_cast<double>(normal.X) * normal.X + static_cast<double>(normal.Y) * normal.Y +
+                  static_cast<double>(normal.Z) * normal.Z);
 
     if (normalLength != 0.0)
     {
-        normal.x = static_cast<float>(normal.x / normalLength);
-        normal.y = static_cast<float>(normal.y / normalLength);
-        normal.z = static_cast<float>(normal.z / normalLength);
+        normal.X = static_cast<float>(normal.X / normalLength);
+        normal.Y = static_cast<float>(normal.Y / normalLength);
+        normal.Z = static_cast<float>(normal.Z / normalLength);
     }
 
-    const double headingDotNormal = static_cast<double>(heading.z) * normal.z +
-                                    static_cast<double>(heading.y) * normal.y +
-                                    static_cast<double>(heading.x) * normal.x;
-    const double slope = acosMatherr(headingDotNormal) * 57.2957795132;
+    const double headingDotNormal = static_cast<double>(heading.Z) * normal.Z +
+                                    static_cast<double>(heading.Y) * normal.Y +
+                                    static_cast<double>(heading.X) * normal.X;
+    const double slope = AcosMatherr(headingDotNormal) * 57.2957795132;
 
     if (slope != 90.0)
     {
-        speed = static_cast<float>(speed - std::cos(slope * DEGREES_TO_RADIANS) * gvHillSpeedFactor * speed);
+        speed = static_cast<float>(speed - std::cos(slope * DEGREES_TO_RADIANS) * GvHillSpeedFactor * speed);
     }
 
-    rotateAboutK(turned, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
-    velocity.y = turned.j.y * speed;
-    velocity.x = turned.j.x * speed;
-    velocity.z = turned.j.z * speed;
-    vector_3d move;
-    move.x = static_cast<float>(static_cast<double>(velocity.x) * frameLength * worldUnitsPerMeter);
-    move.y = velocity.y * frameLength * worldUnitsPerMeter;
-    move.z = velocity.z * frameLength * worldUnitsPerMeter;
+    RotateAboutK(turned, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
+    Velocity.Y = turned.J.Y * speed;
+    Velocity.X = turned.J.X * speed;
+    Velocity.Z = turned.J.Z * speed;
+    MCVector3D move;
+    move.X = static_cast<float>(static_cast<double>(Velocity.X) * FrameLength * WorldUnitsPerMeter);
+    move.Y = Velocity.Y * FrameLength * WorldUnitsPerMeter;
+    move.Z = Velocity.Z * FrameLength * WorldUnitsPerMeter;
 
-    if (newMoveChunk != 0)
+    if (NewMoveChunk != 0)
     {
         // A new move chunk: warp to its first step when too far off.
-        if (statusChunk.jumpOrder == 0)
+        if (StatusChunk.JumpOrder == 0)
         {
-            const int32_t tileR = moveChunk.stepPos[0][0];
-            const int32_t tileC = moveChunk.stepPos[0][1];
-            vector_3d stepPos;
-            mapTileCellToWorldPos(tileR, tileC, moveChunk.stepPos[0][2], moveChunk.stepPos[0][3], stepPos);
+            const int32_t tileR = MoveChunk.StepPos[0][0];
+            const int32_t tileC = MoveChunk.StepPos[0][1];
+            MCVector3D stepPos;
+            MapTileCellToWorldPos(tileR, tileC, MoveChunk.StepPos[0][2], MoveChunk.StepPos[0][3], stepPos);
             // Original behaviour (OB-006): z is measured against 0, not the vehicle's elevation.
-            const float dx = position.x - stepPos.x;
-            const float dz = -stepPos.z;
-            const float dy = position.y - stepPos.y;
+            const float dx = Position.X - stepPos.X;
+            const float dz = -stepPos.Z;
+            const float dy = Position.Y - stepPos.Y;
 
             if (WarpFactor < std::sqrt(dz * dz + dy * dy + dx * dx))
             {
-                move.x = stepPos.x - position.x;
-                move.y = stepPos.y - position.y;
-                move.z = stepPos.z;
+                move.X = stepPos.X - Position.X;
+                move.Y = stepPos.Y - Position.Y;
+                move.Z = stepPos.Z;
             }
 
-            if (tileR < 0 || GameMap->height <= tileR || tileC < 0 || GameMap->width <= tileC)
+            if (tileR < 0 || GameMap->Height <= tileR || tileC < 0 || GameMap->Width <= tileC)
             {
                 Fatal(0, " gvehicl.update: newMoveChunk stepPos not on map! ", nullptr);
             }
         }
 
-        newMoveChunk = 0;
+        NewMoveChunk = 0;
     }
 
-    distanceSinceMarkSeen =
-        static_cast<float>(std::sqrt(static_cast<double>(move.x) * move.x + static_cast<double>(move.y) * move.y +
-                                     static_cast<double>(move.z) * move.z) +
-                           distanceSinceMarkSeen);
-    vector_3d newPosition;
-    newPosition.x = move.x + position.x;
-    newPosition.y = move.y + position.y;
-    newPosition.z = move.z + position.z;
-    setPosition(newPosition);
+    DistanceSinceMarkSeen =
+        static_cast<float>(std::sqrt(static_cast<double>(move.X) * move.X + static_cast<double>(move.Y) * move.Y +
+                                     static_cast<double>(move.Z) * move.Z) +
+                           DistanceSinceMarkSeen);
+    MCVector3D newPosition;
+    newPosition.X = move.X + Position.X;
+    newPosition.Y = move.Y + Position.Y;
+    newPosition.Z = move.Z + Position.Z;
+    SetPosition(newPosition);
 
-    if (isDisabled() == 0)
+    if (IsDisabled() == 0)
     {
-        updatePathLock(1);
+        UpdatePathLock(1);
     }
 
-    sweepTime = frameLength + sweepTime;
-    mineCheck();
+    SweepTime = FrameLength + SweepTime;
+    MineCheck();
 
     // A mine layer lays one per tile: at the cell in the middle, or once it has waited MineWaitTime.
-    if ((MPlayer == nullptr || MPlayer->isServer != 0) && mineLayer != 0 && pilot->curTacOrder.moveParams.mode == 1 &&
-        (getObjPosition()->tileC != cellColToMine || getObjPosition()->tileR != cellRowToMine))
+    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && MineLayer != 0 && Pilot->CurTacOrder.MoveParams.Mode == 1 &&
+        (GetObjPosition()->TileC != CellColToMine || GetObjPosition()->TileR != CellRowToMine))
     {
-        mineLayTime = frameLength + mineLayTime;
+        MineLayTime = FrameLength + MineLayTime;
 
-        if ((getObjPosition()->cellC == 1 && getObjPosition()->cellR == 1) || MineWaitTime < mineLayTime)
+        if ((GetObjPosition()->CellC == 1 && GetObjPosition()->CellR == 1) || MineWaitTime < MineLayTime)
         {
-            cellColToMine = getObjPosition()->tileC;
-            const int32_t tileR = getObjPosition()->tileR;
-            const int32_t tileC = cellColToMine;
-            cellRowToMine = tileR;
-            mineLayTime = 0.0f;
-            MapTile& tile = GameMap->map[GameMap->width * tileR + tileC];
+            CellColToMine = GetObjPosition()->TileC;
+            const int32_t tileR = GetObjPosition()->TileR;
+            const int32_t tileC = CellColToMine;
+            CellRowToMine = tileR;
+            MineLayTime = 0.0f;
+            MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
 
-            if (alignment == -1)
+            if (Alignment == -1)
             {
-                tile.overlay = (tile.overlay & 0xffffdfff) | 0x4000;
+                tile.Overlay = (tile.Overlay & 0xffffdfff) | 0x4000;
             }
             else
             {
-                tile.overlay = (tile.overlay & 0xfffff7ff) | 0x1000;
+                tile.Overlay = (tile.Overlay & 0xfffff7ff) | 0x1000;
             }
 
             if (MPlayer != nullptr)
             {
-                MPlayer->addMineChunk(tileR * 3, tileC * 3, alignment == -1 ? 1 : 0, 2, 0);
+                MPlayer->AddMineChunk(tileR * 3, tileC * 3, Alignment == -1 ? 1 : 0, 2, 0);
             }
         }
     }
 
-    position.z = land->getTerrainElevation(position);
+    Position.Z = Land->GetTerrainElevation(Position);
     // Original behaviour (OB-005): adds the map's top edge to y here rather than subtracting.
-    const float blockSize = static_cast<float>(Terrain::verticesBlockSide) * Terrain::metersPerVertex;
-    const float blockColumn = (position.x - Terrain::mapTopLeft3d100.x) / blockSize;
+    const float blockSize = static_cast<float>(MCTerrain::VerticesBlockSide) * MCTerrain::MetersPerVertex;
+    const float blockColumn = (Position.X - MCTerrain::MapTopLeft3d100.X) / blockSize;
     const auto blockRow =
-        static_cast<int32_t>(std::floor(static_cast<double>((Terrain::mapTopLeft3d100.y + position.y) / blockSize)));
+        static_cast<int32_t>(std::floor(static_cast<double>((MCTerrain::MapTopLeft3d100.Y + Position.Y) / blockSize)));
     const auto column = static_cast<int32_t>(std::floor(static_cast<double>(blockColumn)));
-    addMoverToList(column + blockRow * Terrain::blocksMapSide);
+    AddMoverToList(column + blockRow * MCTerrain::BlocksMapSide);
     return 1;
 }
 
 namespace
 {
-    /// <summary>A world point on <see cref="eye"/>'s screen (the camera's inline projection).</summary>
-    vector_2d eyeProject(const vector_3d& point)
+    /// <summary>A world point on <see cref="Eye"/>'s screen (the camera's inline projection).</summary>
+    MCVector2D EyeProject(const MCVector3D& point)
     {
-        const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-        const float dy = point.y - eye->position.y;
-        const float dz = point.z - eye->position.z;
-        const float sx = (point.x - eye->position.x) * scale;
+        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float dy = point.Y - Eye->Position.Y;
+        const float dz = point.Z - Eye->Position.Z;
+        const float sx = (point.X - Eye->Position.X) * scale;
         const float sy = dy * scale;
-        vector_2d screen;
-        screen.x = sx * eye->cosAngle + sy * eye->cosAngle + eye->halfWidth;
-        screen.y = ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * dz;
+        MCVector2D screen;
+        screen.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
+        screen.Y = ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * dz;
         return screen;
     }
 }
 
-auto GroundVehicle::render() -> void
+auto MCGroundVehicle::Render() -> void
 {
-    if (gamePaused != 0)
+    if (GamePaused != 0)
     {
-        onScreen();
+        OnScreen();
     }
 
-    if (withdrawing != 0 && pilot->status == 2)
+    if (Withdrawing != 0 && Pilot->Status == 2)
     {
         return;
     }
 
     int tagged = 0;
 
-    if (alignment == homeTeam->alignment)
+    if (Alignment == HomeTeam->Alignment)
     {
-        if (windowsVisible == turn)
+        if (WindowsVisible == Turn)
         {
-            if (getAwake() == 0)
+            if (GetAwake() == 0)
             {
-                if (isRevealed() != 0)
+                if (IsRevealed() != 0)
                 {
-                    appearance->render(0);
+                    Appearance->Render(0);
                 }
             }
             else
             {
-                appearance->render(0);
+                Appearance->Render(0);
             }
 
-            if (smoke != nullptr)
+            if (Smoke != nullptr)
             {
-                smoke->render();
+                Smoke->Render();
             }
         }
     }
     else
     {
-        const int32_t contactType = getContactType(homeTeam->id, tagged);
+        const int32_t contactType = GetContactType(HomeTeam->Id, tagged);
 
         if (contactType == 1)
         {
-            if (windowsVisible == turn)
+            if (WindowsVisible == Turn)
             {
                 // A wreck draws behind the living.
-                appearance->render(isDestroyed() == 0 && isDisabled() == 0 ? 0 : 150);
+                Appearance->Render(IsDestroyed() == 0 && IsDisabled() == 0 ? 0 : 150);
 
-                if (smoke != nullptr)
+                if (Smoke != nullptr)
                 {
-                    smoke->render();
+                    Smoke->Render();
                 }
             }
         }
         else if (contactType == 2)
         {
             // A sensor contact: a blip sized by tonnage, at the zoom's scale.
-            const int zoomedOut = eye->cameraScale == 1;
+            const int zoomedOut = Eye->CameraScale == 1;
             int32_t shapeIndex;
             const char* shapeName;
 
-            if (50.0f < getTonnage())
+            if (50.0f < GetTonnage())
             {
                 shapeIndex = zoomedOut ? 1 : 0;
                 shapeName = zoomedOut ? "vblip1" : "vblip2";
             }
-            else if (35.0f < getTonnage())
+            else if (35.0f < GetTonnage())
             {
                 shapeIndex = zoomedOut ? 3 : 2;
                 shapeName = zoomedOut ? "vblip3" : "vblip4";
@@ -3126,61 +3127,61 @@ auto GroundVehicle::render() -> void
                 shapeName = zoomedOut ? "vblip5" : "vblip6";
             }
 
-            uint8_t* shape = scenario->sensorContactShapes[shapeIndex];
+            uint8_t* shape = Scenario->SensorContactShapes[shapeIndex];
 
             if (shape != nullptr)
             {
-                if (VFX_shape_count(shape) <= blipFrame)
+                if (VfxShapeCount(shape) <= BlipFrame)
                 {
-                    if (soundSystem != nullptr && useSound != 0)
+                    if (SoundSystem != nullptr && UseSound != 0)
                     {
-                        soundSystem->playDigitalSample(0x14, 1, this, 0, 1);
+                        SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
                     }
 
-                    blipFrame = 0;
+                    BlipFrame = 0;
                 }
 
-                ElementList->openGroup(-100000, 1);
+                ElementList->OpenGroup(-100000, 1);
                 auto* element =
-                    ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 1);
-                std::strcpy(element->name, shapeName);
-                ElementList->add(element);
-                blipTime = frameLength + blipTime;
+                    MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 1);
+                std::strcpy(element->Name, shapeName);
+                ElementList->Add(element);
+                BlipTime = FrameLength + BlipTime;
 
-                if (0.067 < blipTime)
+                if (0.067 < BlipTime)
                 {
-                    blipFrame = static_cast<int32_t>(blipTime * (1.0 / 0.067) + blipFrame + 0.5);
-                    blipTime = 0.0f;
+                    BlipFrame = static_cast<int32_t>(BlipTime * (1.0 / 0.067) + BlipFrame + 0.5);
+                    BlipTime = 0.0f;
                 }
             }
         }
     }
 
-    if (drawExtents != 0)
+    if (DrawExtents != 0)
     {
         // Debug: the extent radius as an ellipse.
-        float radius = getExtentRadius();
+        float radius = GetExtentRadius();
 
-        if (eye->cameraScale == 1)
+        if (Eye->CameraScale == 1)
         {
             radius *= 0.5f;
         }
 
-        vector_2d center = eyeProject(position);
-        vector_2d size(radius, radius);
-        ElementList->openGroup(-50000, 1);
+        MCVector2D center = EyeProject(Position);
+        MCVector2D size(radius, radius);
+        ElementList->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
-        size.x *= MCOverlay.ScaleX;
-        size.y *= MCOverlay.ScaleY;
-        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
+        size.X *= MCOverlay.ScaleX;
+        size.Y *= MCOverlay.ScaleY;
+        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
         // Debug: the move path's steps as lines.
-        MovePath* path = pilot->getMovePath();
-        const int32_t numSteps = path->numSteps;
+        MCMovePath* path = Pilot->GetMovePath();
+        const int32_t numSteps = path->NumSteps;
 
         for (int32_t i = 0; i < numSteps; i++)
         {
@@ -3189,72 +3190,72 @@ auto GroundVehicle::render() -> void
                 continue;
             }
 
-            vector_3d from = path->stepList[i].destination;
-            vector_3d to = path->stepList[i + 1].destination;
-            from.z = land->getTerrainElevation(from);
-            to.z = land->getTerrainElevation(to);
-            vector_2d fromScreen = eyeProject(from);
-            vector_2d toScreen = eyeProject(to);
-            ElementList->openGroup(-100000, 1);
-            ElementList->add(ElementPool::Make<LineElement>(fromScreen, toScreen, 0xfd, nullptr, -100000, -1));
+            MCVector3D from = path->StepList[i].Destination;
+            MCVector3D to = path->StepList[i + 1].Destination;
+            from.Z = Land->GetTerrainElevation(from);
+            to.Z = Land->GetTerrainElevation(to);
+            MCVector2D fromScreen = EyeProject(from);
+            MCVector2D toScreen = EyeProject(to);
+            ElementList->OpenGroup(-100000, 1);
+            ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xfd, nullptr, -100000, -1));
         }
     }
 
     // The selected vehicle's queued orders: waypoint markers, joined by lines when the queue is drawn as a path.
-    if (waypointMarkers != nullptr && selected != 0 && pilot != nullptr && pilot->getTacOrderQueue(nullptr) > 0)
+    if (WaypointMarkers != nullptr && Selected != 0 && Pilot != nullptr && Pilot->GetTacOrderQueue(nullptr) > 0)
     {
-        TacticalOrder tacOrder;
-        tacOrder.init();
-        _QueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
-        const int32_t numOrders = pilot->getTacOrderQueue(queue);
-        vector_2d fromScreen = eyeProject(position);
-        const int32_t drawLines = drawOrderLines;
+        MCTacticalOrder tacOrder;
+        tacOrder.Init();
+        MCQueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
+        const int32_t numOrders = Pilot->GetTacOrderQueue(queue);
+        MCVector2D fromScreen = EyeProject(Position);
+        const int32_t drawLines = DrawOrderLines;
 
         for (int32_t i = 0; i < numOrders; i++)
         {
-            vector_2d toScreen = eyeProject(queue[i].point);
-            tacOrder.data[0] = queue[i].packedData[0];
-            tacOrder.data[1] = queue[i].packedData[1];
-            tacOrder.unpack();
+            MCVector2D toScreen = EyeProject(queue[i].Point);
+            tacOrder.Data[0] = queue[i].PackedData[0];
+            tacOrder.Data[1] = queue[i].PackedData[1];
+            tacOrder.Unpack();
             int32_t marker;
 
-            if (tacOrder.code == TACTICAL_ORDER_JUMPTO_POINT || tacOrder.code == TACTICAL_ORDER_JUMPTO_OBJECT)
+            if (tacOrder.Code == TACTICAL_ORDER_JUMPTO_POINT || tacOrder.Code == TACTICAL_ORDER_JUMPTO_OBJECT)
             {
                 marker = 4;
             }
             else
             {
-                marker = tacOrder.moveParams.wayPath.mode[0] << 1;
+                marker = tacOrder.MoveParams.WayPath.Mode[0] << 1;
             }
 
             if (drawLines != 0)
             {
-                ElementList->openGroup(-99999, 1);
-                ElementList->add(ElementPool::Make<LineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
+                ElementList->OpenGroup(-99999, 1);
+                ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
                 fromScreen = toScreen;
                 marker++;
             }
 
-            const int32_t bounds = VFX_shape_bounds(waypointMarkers, marker);
-            ElementList->openGroup(-100000, 1);
-            auto* element = ElementPool::Make<VFXElement>(
-                waypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.x,
-                toScreen.y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1, 0);
-            std::strcpy(element->name, "gwp");
-            ElementList->add(element);
+            const int32_t bounds = VfxShapeBounds(WaypointMarkers, marker);
+            ElementList->OpenGroup(-100000, 1);
+            auto* element = MCElementPool::Make<MCVfxElement>(
+                WaypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.X,
+                toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1, 0);
+            std::strcpy(element->Name, "gwp");
+            ElementList->Add(element);
         }
 
-        tacOrder.destroy();
+        tacOrder.Destroy();
     }
 }
 
-auto GroundVehicle::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
+auto MCGroundVehicle::RelFacingTo(MCVector3D goal, int32_t bodyPart) -> float
 {
-    double facing = Mover::relFacingTo(goal, -1);
+    double facing = MCMover::RelFacingTo(goal, -1);
 
     if (bodyPart == GROUNDVEHICLE_LOCATION_TURRET)
     {
-        facing += turretRotation;
+        facing += TurretRotation;
     }
 
     if (facing < -180.0)
@@ -3270,19 +3271,19 @@ auto GroundVehicle::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
     return static_cast<float>(facing);
 }
 
-auto GroundVehicle::calcAttackChance(GameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
-                                     float modifiers, int32_t* range, vector_3d* targetPoint) -> float
+auto MCGroundVehicle::CalcAttackChance(MCGameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
+                                       float modifiers, int32_t* range, MCVector3D* targetPoint) -> float
 {
-    if (weaponIndex < numOther || numOther + numWeapons <= weaponIndex)
+    if (weaponIndex < NumOther || NumOther + NumWeapons <= weaponIndex)
     {
         return -1000.0f;
     }
 
-    return Mover::calcAttackChance(target, aimLocation, targetTime, weaponIndex, modifiers, range, targetPoint);
+    return MCMover::CalcAttackChance(target, aimLocation, targetTime, weaponIndex, modifiers, range, targetPoint);
 }
 
-auto GroundVehicle::calcHitLocation(GameObject* attacker, int32_t weaponIndex, int32_t attackSource, int32_t attackType)
-    -> int32_t
+auto MCGroundVehicle::CalcHitLocation(MCGameObject* attacker, int32_t weaponIndex, int32_t attackSource,
+                                      int32_t attackType) -> int32_t
 {
     if (attackSource == 2)
     {
@@ -3301,7 +3302,7 @@ auto GroundVehicle::calcHitLocation(GameObject* attacker, int32_t weaponIndex, i
 
     if (attacker != nullptr)
     {
-        facing = relFacingTo(attacker->getPosition(), -1);
+        facing = RelFacingTo(attacker->GetPosition(), -1);
     }
 
     if (-45.0 <= facing && facing <= 45.0)
@@ -3322,19 +3323,19 @@ auto GroundVehicle::calcHitLocation(GameObject* attacker, int32_t weaponIndex, i
     return GROUNDVEHICLE_LOCATION_REAR;
 }
 
-auto GroundVehicle::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
+auto MCGroundVehicle::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
 {
     Fatal(0, " Vehicles should never suffer inventory item hit ");
     return 0;
 }
 
-auto GroundVehicle::destroyBodyLocation(int32_t location) -> void
+auto MCGroundVehicle::DestroyBodyLocation(int32_t location) -> void
 {
 }
 
-auto GroundVehicle::calcCriticalHitV(int32_t& hitLocation) -> int
+auto MCGroundVehicle::CalcCriticalHitV(int32_t& hitLocation) -> int
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 0;
     }
@@ -3355,7 +3356,7 @@ auto GroundVehicle::calcCriticalHitV(int32_t& hitLocation) -> int
 
     if (MPlayer != nullptr)
     {
-        addCriticalHitChunk(0, 0, hitLocation);
+        AddCriticalHitChunk(0, 0, hitLocation);
     }
 
     switch (hitLocation)
@@ -3366,37 +3367,37 @@ auto GroundVehicle::calcCriticalHitV(int32_t& hitLocation) -> int
         case 3:
         {
             // The crew is hurt.
-            pilot->injure(6.0f, 1);
+            Pilot->Injure(6.0f, 1);
             return 0;
         }
         case 4:
         {
             // The engine is knocked out.
-            inventory[engine].health = 0;
-            inventory[engine].disabled = 1;
-            movementEnabled = 0;
+            Inventory[Engine].Health = 0;
+            Inventory[Engine].Disabled = 1;
+            MovementEnabled = 0;
             return 0;
         }
         case 5:
         {
             // The first weapon jams for ten seconds.
-            if (inventory[numOther].readyTime < scenarioTime)
+            if (Inventory[NumOther].ReadyTime < ScenarioTime)
             {
-                startWeaponRecycle(numOther);
+                StartWeaponRecycle(NumOther);
             }
 
-            inventory[numOther].readyTime += 10.0f;
+            Inventory[NumOther].ReadyTime += 10.0f;
             return 0;
         }
         case 7:
         {
-            movementEnabled = 0;
+            MovementEnabled = 0;
             return 0;
         }
         case 9:
         {
             // Only chassis 2 takes this one; for the others it is no hit.
-            if (chassis != 2)
+            if (Chassis != 2)
             {
                 hitLocation = 0;
                 return 0;
@@ -3407,19 +3408,19 @@ auto GroundVehicle::calcCriticalHitV(int32_t& hitLocation) -> int
         case 8:
         {
             // Drive damage: 10 off the top speed, immobile at 0.
-            maxRunSpeed -= 10.0f;
+            MaxRunSpeed -= 10.0f;
 
-            if (maxRunSpeed <= 0.0f)
+            if (MaxRunSpeed <= 0.0f)
             {
-                maxRunSpeed = 0.0f;
-                movementEnabled = 0;
+                MaxRunSpeed = 0.0f;
+                MovementEnabled = 0;
             }
 
             return 0;
         }
         case 10:
         {
-            turretEnabled = 0;
+            TurretEnabled = 0;
             return 0;
         }
         default:
@@ -3427,59 +3428,59 @@ auto GroundVehicle::calcCriticalHitV(int32_t& hitLocation) -> int
     }
 }
 
-auto GroundVehicle::injureBodyLocation(int32_t bodyLocation, float damage) -> int
+auto MCGroundVehicle::InjureBodyLocation(int32_t bodyLocation, float damage) -> int
 {
-    BodyLocation& location = bodyAt(bodyLocation);
+    MCBodyLocation& location = BodyAt(bodyLocation);
 
-    if (location.curInternalStructure <= damage)
+    if (location.CurInternalStructure <= damage)
     {
-        location.curInternalStructure = 0.0f;
+        location.CurInternalStructure = 0.0f;
         return 1;
     }
 
-    location.curInternalStructure -= damage;
-    const float structureLeft = location.curInternalStructure / static_cast<float>(location.maxInternalStructure);
+    location.CurInternalStructure -= damage;
+    const float structureLeft = location.CurInternalStructure / static_cast<float>(location.MaxInternalStructure);
 
     if (structureLeft == 0.0)
     {
-        location.damageState = 2;
+        location.DamageState = 2;
     }
     else if (structureLeft <= 0.5)
     {
-        location.damageState = 1;
+        location.DamageState = 1;
     }
     else
     {
-        location.damageState = 0;
+        location.DamageState = 0;
     }
 
     return 0;
 }
 
-auto GroundVehicle::buildStatusChunk() -> int32_t
+auto MCGroundVehicle::BuildStatusChunk() -> int32_t
 {
-    statusChunk.targetCellRC[0] = -1;
-    statusChunk.targetCellRC[1] = -1;
-    statusChunk.bodyState = 0;
-    statusChunk.targetType = 0;
-    statusChunk.targetId = 0;
-    statusChunk.targetBlockOrTrainNumber = 0;
-    statusChunk.targetVertexOrCarNumber = 0;
-    statusChunk.targetItemNumber = 0;
-    statusChunk.ejectOrderGiven = 0;
-    statusChunk.jumpOrder = 0;
-    statusChunk.data = 0;
+    StatusChunk.TargetCellRC[0] = -1;
+    StatusChunk.TargetCellRC[1] = -1;
+    StatusChunk.BodyState = 0;
+    StatusChunk.TargetType = 0;
+    StatusChunk.TargetId = 0;
+    StatusChunk.TargetBlockOrTrainNumber = 0;
+    StatusChunk.TargetVertexOrCarNumber = 0;
+    StatusChunk.TargetItemNumber = 0;
+    StatusChunk.EjectOrderGiven = 0;
+    StatusChunk.JumpOrder = 0;
+    StatusChunk.Data = 0;
 
-    const int32_t bodyState = getBodyState();
-    statusChunk.bodyState = bodyState < 0 || bodyState > 3 ? 0 : static_cast<uint32_t>(bodyState);
+    const int32_t bodyState = GetBodyState();
+    StatusChunk.BodyState = bodyState < 0 || bodyState > 3 ? 0 : static_cast<uint32_t>(bodyState);
 
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        GameObject* target = pilot->getLastTarget();
+        MCGameObject* target = Pilot->GetLastTarget();
 
         if (target != nullptr)
         {
-            const int32_t targetClass = target->objectClass;
+            const int32_t targetClass = target->ObjectClass;
 
             switch (targetClass)
             {
@@ -3497,13 +3498,13 @@ auto GroundVehicle::buildStatusChunk() -> int32_t
                 case LIGHT:
                 {
                     // A terrain object: its block, vertex and item from the part id.
-                    statusChunk.targetType = 2;
-                    statusChunk.targetId = target->partId;
-                    const int32_t terrainPart = target->partId - 0x1000;
-                    statusChunk.targetBlockOrTrainNumber = terrainPart / 0xc80;
+                    StatusChunk.TargetType = 2;
+                    StatusChunk.TargetId = target->PartId;
+                    const int32_t terrainPart = target->PartId - 0x1000;
+                    StatusChunk.TargetBlockOrTrainNumber = terrainPart / 0xc80;
                     const int32_t inBlock = terrainPart % 0xc80;
-                    statusChunk.targetVertexOrCarNumber = inBlock / 8;
-                    statusChunk.targetItemNumber = static_cast<uint8_t>(inBlock % 8);
+                    StatusChunk.TargetVertexOrCarNumber = inBlock / 8;
+                    StatusChunk.TargetItemNumber = static_cast<uint8_t>(inBlock % 8);
                     break;
                 }
 
@@ -3511,25 +3512,25 @@ auto GroundVehicle::buildStatusChunk() -> int32_t
                 case GROUNDVEHICLE:
                 case ELEMENTAL:
                 {
-                    statusChunk.targetType = 1;
-                    statusChunk.targetId = static_cast<Mover*>(target)->netRosterIndex;
+                    StatusChunk.TargetType = 1;
+                    StatusChunk.TargetId = static_cast<MCMover*>(target)->NetRosterIndex;
                     break;
                 }
                 case CAMERADRONE:
                 {
-                    statusChunk.targetType = 3;
-                    statusChunk.targetId = target->partId;
-                    statusChunk.targetBlockOrTrainNumber = 0x80;
-                    statusChunk.targetVertexOrCarNumber = target->partId - 0x802c8;
+                    StatusChunk.TargetType = 3;
+                    StatusChunk.TargetId = target->PartId;
+                    StatusChunk.TargetBlockOrTrainNumber = 0x80;
+                    StatusChunk.TargetVertexOrCarNumber = target->PartId - 0x802c8;
                     break;
                 }
                 case TRAINCAR:
                 {
-                    statusChunk.targetType = 3;
-                    statusChunk.targetId = target->partId;
-                    const int32_t trainPart = target->partId - 0x7d000;
-                    statusChunk.targetBlockOrTrainNumber = trainPart / 100;
-                    statusChunk.targetVertexOrCarNumber = trainPart % 100;
+                    StatusChunk.TargetType = 3;
+                    StatusChunk.TargetId = target->PartId;
+                    const int32_t trainPart = target->PartId - 0x7d000;
+                    StatusChunk.TargetBlockOrTrainNumber = trainPart / 100;
+                    StatusChunk.TargetVertexOrCarNumber = trainPart % 100;
                     break;
                 }
 
@@ -3539,15 +3540,15 @@ auto GroundVehicle::buildStatusChunk() -> int32_t
         }
     }
 
-    statusChunk.ejectOrderGiven = ejectOrderGiven;
-    statusChunk.pack(this);
+    StatusChunk.EjectOrderGiven = EjectOrderGiven;
+    StatusChunk.Pack(this);
 
     // Checks the chunk unpacks to what was packed.
-    StatusChunk check;
-    check.data = statusChunk.data;
-    check.StatusChunk::unpack(this);
+    MCStatusChunk check;
+    check.Data = StatusChunk.Data;
+    check.MCStatusChunk::Unpack(this);
 
-    if (statusChunk.equalTo(&check) == 0)
+    if (StatusChunk.EqualTo(&check) == 0)
     {
         Fatal(0, " BAD Statuschunk: save stchunk.dbg file! ", nullptr);
     }
@@ -3555,21 +3556,21 @@ auto GroundVehicle::buildStatusChunk() -> int32_t
     return 0;
 }
 
-auto GroundVehicle::handleStatusChunk(int32_t updateAge, uint32_t chunk) -> int32_t
+auto MCGroundVehicle::HandleStatusChunk(int32_t updateAge, uint32_t chunk) -> int32_t
 {
-    statusChunk.targetCellRC[0] = -1;
-    statusChunk.targetCellRC[1] = -1;
-    statusChunk.data = 0;
-    statusChunk.bodyState = 0;
-    statusChunk.targetType = 0;
-    statusChunk.targetId = 0;
-    statusChunk.targetBlockOrTrainNumber = 0;
-    statusChunk.targetVertexOrCarNumber = 0;
-    statusChunk.targetItemNumber = 0;
-    statusChunk.ejectOrderGiven = 0;
-    statusChunk.jumpOrder = 0;
-    statusChunk.data = chunk;
-    statusChunk.unpack(this);
+    StatusChunk.TargetCellRC[0] = -1;
+    StatusChunk.TargetCellRC[1] = -1;
+    StatusChunk.Data = 0;
+    StatusChunk.BodyState = 0;
+    StatusChunk.TargetType = 0;
+    StatusChunk.TargetId = 0;
+    StatusChunk.TargetBlockOrTrainNumber = 0;
+    StatusChunk.TargetVertexOrCarNumber = 0;
+    StatusChunk.TargetItemNumber = 0;
+    StatusChunk.EjectOrderGiven = 0;
+    StatusChunk.JumpOrder = 0;
+    StatusChunk.Data = chunk;
+    StatusChunk.Unpack(this);
 
     if (StatusChunkUnpackErr != 0)
     {
@@ -3578,107 +3579,107 @@ auto GroundVehicle::handleStatusChunk(int32_t updateAge, uint32_t chunk) -> int3
 
     int32_t targetPartId = 0;
 
-    if (statusChunk.jumpOrder == 0 && static_cast<int8_t>(statusChunk.targetType) > 0)
+    if (StatusChunk.JumpOrder == 0 && static_cast<int8_t>(StatusChunk.TargetType) > 0)
     {
-        if (statusChunk.targetType == 1)
+        if (StatusChunk.TargetType == 1)
         {
-            targetPartId = MPlayer->moverRoster[statusChunk.targetId]->partId;
+            targetPartId = MPlayer->MoverRoster[StatusChunk.TargetId]->PartId;
         }
-        else if (statusChunk.targetType < 4)
+        else if (StatusChunk.TargetType < 4)
         {
-            targetPartId = statusChunk.targetId;
+            targetPartId = StatusChunk.TargetId;
         }
     }
 
-    if (pilot == nullptr)
+    if (Pilot == nullptr)
     {
         return 0;
     }
 
-    GameObject* target = nullptr;
+    MCGameObject* target = nullptr;
     int keepTarget = 0;
 
     if (targetPartId != 0)
     {
-        GameObject* lastTarget = pilot->getLastTarget();
+        MCGameObject* lastTarget = Pilot->GetLastTarget();
 
-        if (lastTarget != nullptr && lastTarget->partId == targetPartId)
+        if (lastTarget != nullptr && lastTarget->PartId == targetPartId)
         {
             keepTarget = 1;
         }
         else
         {
-            target = static_cast<GameObject*>(objectList->findObjectFromPart(targetPartId));
+            target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(targetPartId));
         }
     }
 
     if (keepTarget == 0)
     {
-        pilot->setLastTarget(target, 0, 0);
+        Pilot->SetLastTarget(target, 0, 0);
     }
 
-    if (ejectOrderGiven == 0 && statusChunk.ejectOrderGiven != 0)
+    if (EjectOrderGiven == 0 && StatusChunk.EjectOrderGiven != 0)
     {
-        ejectOrderGiven = 1;
-        handleEjection();
+        EjectOrderGiven = 1;
+        HandleEjection();
     }
 
     return 0;
 }
 
-auto GroundVehicle::buildMoveChunk() -> int32_t
+auto MCGroundVehicle::BuildMoveChunk() -> int32_t
 {
-    moveChunk.init();
+    MoveChunk.Init();
 
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        pilot->getMovePath();
-        moveChunk.build(this, pilot->moveOrders.path[0], pilot->moveOrders.path[1]);
+        Pilot->GetMovePath();
+        MoveChunk.Build(this, Pilot->MoveOrders.Path[0], Pilot->MoveOrders.Path[1]);
     }
 
-    moveChunk.pack(this);
+    MoveChunk.Pack(this);
 
     // Checks the chunk unpacks to what was packed; a chunk that can't is replaced by an empty one.
-    MoveChunk check;
-    check.stepPos[0][0] = -1;
-    check.stepPos[0][1] = -1;
-    check.run = 0;
-    check.numSteps = 0;
-    check.data = moveChunk.data;
-    check.unpack(this);
+    MCMoveChunk check;
+    check.StepPos[0][0] = -1;
+    check.StepPos[0][1] = -1;
+    check.Run = 0;
+    check.NumSteps = 0;
+    check.Data = MoveChunk.Data;
+    check.Unpack(this);
 
     if (MoveChunkUnpackErr == 0)
     {
-        if (moveChunk.equalTo(this, &check) == 0)
+        if (MoveChunk.EqualTo(this, &check) == 0)
         {
             Fatal(0, " Bad gvehicl movechunk: save mvchunk.dbg file! ", nullptr);
         }
     }
     else
     {
-        moveChunk.init();
-        moveChunk.build(this, nullptr, nullptr);
-        moveChunk.pack(this);
+        MoveChunk.Init();
+        MoveChunk.Build(this, nullptr, nullptr);
+        MoveChunk.Pack(this);
     }
 
     return 0;
 }
 
-auto GroundVehicle::handleMoveChunk(uint32_t chunk) -> int32_t
+auto MCGroundVehicle::HandleMoveChunk(uint32_t chunk) -> int32_t
 {
-    moveChunk.init();
-    moveChunk.data = chunk;
-    moveChunk.unpack(this);
+    MoveChunk.Init();
+    MoveChunk.Data = chunk;
+    MoveChunk.Unpack(this);
 
     if (MoveChunkUnpackErr == 0)
     {
-        MovePath* path = getPilot()->getMovePath();
-        path->setMoveChunk(&moveChunk);
+        MCMovePath* path = GetPilot()->GetMovePath();
+        path->SetMoveChunk(&MoveChunk);
 
         // Skip ahead to the step nearest the vehicle.
-        if (path->numStepsWhenNotPaused > 1)
+        if (path->NumStepsWhenNotPaused > 1)
         {
-            int32_t step = path->numStepsWhenNotPaused;
+            int32_t step = path->NumStepsWhenNotPaused;
 
             do
             {
@@ -3688,136 +3689,136 @@ auto GroundVehicle::handleMoveChunk(uint32_t chunk) -> int32_t
                 {
                     break;
                 }
-            } while (MapCellDiagonal < distanceFrom(path->stepList[step].destination));
+            } while (MapCellDiagonal < DistanceFrom(path->StepList[step].Destination));
 
-            path->curStep = step;
+            path->CurStep = step;
         }
 
-        newMoveChunk = 1;
+        NewMoveChunk = 1;
     }
 
     return 0;
 }
 
-auto GroundVehicle::weaponLocked(int32_t weaponIndex, vector_3d targetPosition) -> float
+auto MCGroundVehicle::WeaponLocked(int32_t weaponIndex, MCVector3D targetPosition) -> float
 {
-    return relFacingTo(targetPosition, GROUNDVEHICLE_LOCATION_TURRET);
+    return RelFacingTo(targetPosition, GROUNDVEHICLE_LOCATION_TURRET);
 }
 
 namespace
 {
     /// <summary>Whether <paramref name="object"/> is a mover (mech, vehicle, elemental or plain mover).</summary>
-    bool isMoverClass(const GameObject* object)
+    bool IsMoverClass(const MCGameObject* object)
     {
-        const int32_t objectClass = object->objectClass;
+        const int32_t objectClass = object->ObjectClass;
         return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                objectClass == MOVER;
     }
 }
 
-auto GroundVehicle::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCGroundVehicle::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
-    if ((MPlayer == nullptr && CantHitMe != 0 && pilot->onHomeTeam() != 0) || shotInfo == nullptr)
+    if ((MPlayer == nullptr && CantHitMe != 0 && Pilot->OnHomeTeam() != 0) || shotInfo == nullptr)
     {
         return 0;
     }
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    if (shotInfo->damage <= 0.0f)
+    if (shotInfo->Damage <= 0.0f)
     {
         return 0;
     }
 
-    if (isDestroyed() != 0)
+    if (IsDestroyed() != 0)
     {
         return 0;
     }
 
-    const int32_t hitLocation = shotInfo->hitLocation;
-    const _WeaponShotInfo originalShot = *shotInfo;
+    const int32_t hitLocation = shotInfo->HitLocation;
+    const MCWeaponShotInfo originalShot = *shotInfo;
 
     if (hitLocation < 0 || hitLocation > 4)
     {
         char attackerName[64];
-        GameObject* attacker = shotInfo->attacker;
+        MCGameObject* attacker = shotInfo->Attacker;
 
         if (attacker == nullptr)
         {
             std::strcpy(attackerName, "attacker?");
         }
-        else if (isMoverClass(attacker))
+        else if (IsMoverClass(attacker))
         {
-            std::strcpy(attackerName, static_cast<Mover*>(attacker)->debugStatus.c_str());
+            std::strcpy(attackerName, static_cast<MCMover*>(attacker)->DebugStatus.c_str());
         }
         else
         {
-            std::sprintf(attackerName, "ID:%d", attacker->partId);
+            std::sprintf(attackerName, "ID:%d", attacker->PartId);
         }
 
         char message[128];
-        std::sprintf(message, "GVehicle.handleWeaponHit: [%s]%d for %.2f at %d", attackerName, shotInfo->masterId,
-                     static_cast<double>(shotInfo->damage), hitLocation);
+        std::sprintf(message, "GVehicle.handleWeaponHit: [%s]%d for %.2f at %d", attackerName, shotInfo->MasterId,
+                     static_cast<double>(shotInfo->Damage), hitLocation);
         Fatal(0, message);
     }
 
-    ArmorLocation& hitArmor = armor[hitLocation];
+    MCArmorLocation& hitArmor = Armor[hitLocation];
 
-    if (hitArmor.curArmor > 0.0f)
+    if (hitArmor.CurArmor > 0.0f)
     {
-        if (shotInfo->damage <= hitArmor.curArmor)
+        if (shotInfo->Damage <= hitArmor.CurArmor)
         {
-            hitArmor.curArmor -= shotInfo->damage;
-            shotInfo->setDamage(0.0f);
+            hitArmor.CurArmor -= shotInfo->Damage;
+            shotInfo->SetDamage(0.0f);
         }
         else
         {
-            shotInfo->setDamage(shotInfo->damage - hitArmor.curArmor);
-            armor[shotInfo->hitLocation].curArmor = 0.0f;
+            shotInfo->SetDamage(shotInfo->Damage - hitArmor.CurArmor);
+            Armor[shotInfo->HitLocation].CurArmor = 0.0f;
         }
 
         // A sweeper sweeps with its front: a hit there ends that.
-        if (shotInfo->hitLocation == GROUNDVEHICLE_LOCATION_FRONT)
+        if (shotInfo->HitLocation == GROUNDVEHICLE_LOCATION_FRONT)
         {
-            mineSweeper = 0;
+            MineSweeper = 0;
         }
     }
 
-    const int wasDisabled = isDisabled();
+    const int wasDisabled = IsDisabled();
 
-    if (shotInfo->damage > 0.0f && injureBodyLocation(hitLocation, shotInfo->damage) != 0)
+    if (shotInfo->Damage > 0.0f && InjureBodyLocation(hitLocation, shotInfo->Damage) != 0)
     {
-        pilot->handleOwnVehicleIncapacitation(0);
-        objType->handleDestruction(this, nullptr);
+        Pilot->HandleOwnVehicleIncapacitation(0);
+        ObjType->HandleDestruction(this, nullptr);
     }
 
-    curCV = calcCV(0);
+    CurCV = CalcCV(0);
 
-    GameObject* attacker = shotInfo->attacker;
+    MCGameObject* attacker = shotInfo->Attacker;
 
-    if (wasDisabled == 0 && isDisabled() != 0)
+    if (wasDisabled == 0 && IsDisabled() != 0)
     {
         // The attacker's pilot hears of the kill.
-        if (attacker != nullptr && isMoverClass(attacker))
+        if (attacker != nullptr && IsMoverClass(attacker))
         {
-            attacker->getPilot()->triggerAlarm(12, partId);
+            attacker->GetPilot()->TriggerAlarm(12, PartId);
         }
     }
     else if (attacker != nullptr)
     {
-        pilot->triggerAlarm(shotInfo->masterId > -1 || shotInfo->masterId == -4 ? 1 : 10, attacker->partId);
+        Pilot->TriggerAlarm(shotInfo->MasterId > -1 || shotInfo->MasterId == -4 ? 1 : 10, attacker->PartId);
     }
     else
     {
-        pilot->triggerAlarm(
-            1, shotInfo->masterId == -4 || shotInfo->masterId >= 0 ? 0 : static_cast<uint32_t>(shotInfo->masterId));
+        Pilot->TriggerAlarm(
+            1, shotInfo->MasterId == -4 || shotInfo->MasterId >= 0 ? 0 : static_cast<uint32_t>(shotInfo->MasterId));
     }
 
-    shotInfo->init(originalShot.attacker, originalShot.masterId, originalShot.damage, originalShot.hitLocation,
-                   originalShot.entryAngle);
+    shotInfo->Init(originalShot.Attacker, originalShot.MasterId, originalShot.Damage, originalShot.HitLocation,
+                   originalShot.EntryAngle);
     return 0;
 }
 
@@ -3830,48 +3831,48 @@ namespace
     /// Builds, packs and checks the chunk for a shot at <paramref name="target"/> (a mover, train car, camera drone
     /// or terrain object) or, when it is null, at <paramref name="point"/>; then queues and logs it.
     /// </summary>
-    void sendTargetFireChunk(GroundVehicle* vehicle, GameObject* target, vector_3d* point, int32_t weapon, int hit,
+    void SendTargetFireChunk(MCGroundVehicle* vehicle, MCGameObject* target, MCVector3D* point, int32_t weapon, int hit,
                              float entryAngle, int32_t missiles, int32_t missilesPastAMS, int32_t antiMissileShots,
                              int32_t hitLocation, const char* badChunkMessage)
     {
-        WeaponFireChunk chunk;
-        chunk.init();
-        auto* bigTarget = static_cast<BigGameObject*>(target);
+        MCWeaponFireChunk chunk;
+        chunk.Init();
+        auto* bigTarget = static_cast<MCBigGameObject*>(target);
 
         if (target == nullptr)
         {
-            chunk.buildLocationTarget(*point, weapon, hit, missiles);
+            chunk.BuildLocationTarget(*point, weapon, hit, missiles);
         }
-        else if (isMoverClass(target))
+        else if (IsMoverClass(target))
         {
-            chunk.buildMoverTarget(bigTarget, weapon, hit, entryAngle, missiles, missilesPastAMS, antiMissileShots,
+            chunk.BuildMoverTarget(bigTarget, weapon, hit, entryAngle, missiles, missilesPastAMS, antiMissileShots,
                                    hitLocation);
         }
-        else if (target->objectClass == TRAINCAR)
+        else if (target->ObjectClass == TRAINCAR)
         {
-            chunk.buildTrainTarget(bigTarget, weapon, hit, entryAngle, missiles);
+            chunk.BuildTrainTarget(bigTarget, weapon, hit, entryAngle, missiles);
         }
-        else if (target->objectClass == CAMERADRONE)
+        else if (target->ObjectClass == CAMERADRONE)
         {
-            chunk.buildCameraDroneTarget(bigTarget, weapon, hit, entryAngle, missiles);
+            chunk.BuildCameraDroneTarget(bigTarget, weapon, hit, entryAngle, missiles);
         }
         else
         {
-            chunk.buildTerrainTarget(bigTarget, weapon, hit, missiles);
+            chunk.BuildTerrainTarget(bigTarget, weapon, hit, missiles);
         }
 
-        chunk.pack();
-        WeaponFireChunk check;
-        check.init();
-        check.data = chunk.data;
-        check.unpack(vehicle);
+        chunk.Pack();
+        MCWeaponFireChunk check;
+        check.Init();
+        check.Data = chunk.Data;
+        check.Unpack(vehicle);
 
-        if (chunk.equalTo(&check) == 0)
+        if (chunk.EqualTo(&check) == 0)
         {
             Fatal(0, badChunkMessage, nullptr);
         }
 
-        vehicle->addWeaponFireChunk(0, &chunk);
+        vehicle->AddWeaponFireChunk(0, &chunk);
         LogWeaponFireChunk(&chunk, vehicle, target);
     }
 
@@ -3880,73 +3881,73 @@ namespace
     /// <paramref name="point"/>, carrying <paramref name="shot"/>; then adds it to the weapon list. Vehicles fire from
     /// hot spot 0.
     /// </summary>
-    void launchWeaponFX(GroundVehicle* vehicle, GameObject* fx, GameObject* target, vector_3d* point,
-                        _WeaponShotInfo& shot, int32_t targetHotSpot)
+    void LaunchWeaponFX(MCGroundVehicle* vehicle, MCGameObject* fx, MCGameObject* target, MCVector3D* point,
+                        MCWeaponShotInfo& shot, int32_t targetHotSpot)
     {
-        if (fx->objectClass == BULLET)
+        if (fx->ObjectClass == BULLET)
         {
-            auto* bullet = static_cast<Bullet*>(fx);
+            auto* bullet = static_cast<MCBullet*>(fx);
 
-            if (bullet->numShots != 5)
+            if (bullet->NumShots != 5)
             {
-                bullet->shotInfo[bullet->numShots++].init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation,
-                                                          shot.entryAngle);
+                bullet->ShotInfo[bullet->NumShots++].Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation,
+                                                          shot.EntryAngle);
             }
 
             if (target == nullptr)
             {
-                bullet->connect(vehicle, *point, 0);
+                bullet->Connect(vehicle, *point, 0);
             }
             else
             {
-                bullet->owner = vehicle;
-                bullet->target = target;
-                bullet->ownerHotSpot = 0;
-                bullet->targetHotSpot = targetHotSpot;
+                bullet->Owner = vehicle;
+                bullet->Target = target;
+                bullet->OwnerHotSpot = 0;
+                bullet->TargetHotSpot = targetHotSpot;
             }
         }
-        else if (fx->objectClass == LASER)
+        else if (fx->ObjectClass == LASER)
         {
-            auto* laser = static_cast<Laser*>(fx);
+            auto* laser = static_cast<MCLaser*>(fx);
 
             if (target == nullptr)
             {
-                laser->connect(vehicle, *point, &shot, 0);
+                laser->Connect(vehicle, *point, &shot, 0);
             }
             else
             {
-                laser->source.setWatcher(vehicle);
-                laser->target.setWatcher(target);
-                laser->sourceHotSpot = 0;
-                laser->targetHotSpot = targetHotSpot;
-                laser->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
+                laser->Source.SetWatcher(vehicle);
+                laser->Target.SetWatcher(target);
+                laser->SourceHotSpot = 0;
+                laser->TargetHotSpot = targetHotSpot;
+                laser->ShotInfo.Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
             }
         }
         else
         {
-            auto* projectile = static_cast<ProjectileLaser*>(fx);
+            auto* projectile = static_cast<MCProjectileLaser*>(fx);
 
             if (target == nullptr)
             {
-                projectile->connect(vehicle, *point, &shot, 0);
+                projectile->Connect(vehicle, *point, &shot, 0);
             }
             else
             {
-                projectile->owner = vehicle;
-                projectile->target = target;
-                projectile->ownerHotSpot = 0;
-                projectile->targetHotSpot = targetHotSpot;
-                projectile->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
+                projectile->Owner = vehicle;
+                projectile->Target = target;
+                projectile->OwnerHotSpot = 0;
+                projectile->TargetHotSpot = targetHotSpot;
+                projectile->ShotInfo.Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
             }
         }
 
-        weaponList->addNode(fx);
+        WeaponList->AddNode(fx);
     }
 
     /// <summary>Makes a weapon's effect object (Fatal when it can't).</summary>
-    GameObject* createWeaponFX(const MasterComponent& weapon)
+    MCGameObject* CreateWeaponFX(const MCMasterComponent& weapon)
     {
-        GameObject* fx = createObject(static_cast<int32_t>(weaponFXTable[weapon.weaponEffect]));
+        MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[weapon.WeaponEffect]));
 
         if (fx == nullptr)
         {
@@ -3957,32 +3958,32 @@ namespace
     }
 
     /// <summary>The hot spot of the hit location, on a mech target; 0 otherwise.</summary>
-    int32_t targetHotSpotOf(GameObject* target, int32_t hitLocation)
+    int32_t TargetHotSpotOf(MCGameObject* target, int32_t hitLocation)
     {
-        if (target != nullptr && target->objectClass == BATTLEMECH)
+        if (target != nullptr && target->ObjectClass == BATTLEMECH)
         {
             // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
             // (8..10); the torso it maps to is read instead.
-            return static_cast<BattleMech*>(target)->bodyAt(MechArmorToBodyLocation[hitLocation]).hotSpotNumber;
+            return static_cast<MCBattleMech*>(target)->BodyAt(MechArmorToBodyLocation[hitLocation]).HotSpotNumber;
         }
 
         return 0;
     }
 
     /// <summary>Firing gives a vehicle away to the other side's mechs within visual range.</summary>
-    void revealFiring(GroundVehicle* vehicle)
+    void RevealFiring(MCGroundVehicle* vehicle)
     {
-        ObjectQueueNode* enemies = nullptr;
+        MCObjectQueueNode* enemies = nullptr;
         uint8_t seenBy = 0;
 
-        if (vehicle->alignment == 1)
+        if (vehicle->Alignment == 1)
         {
-            enemies = clanMechList;
+            enemies = ClanMechList;
             seenBy = 2;
         }
-        else if (vehicle->alignment == -1)
+        else if (vehicle->Alignment == -1)
         {
-            enemies = innerSphereMechList;
+            enemies = InnerSphereMechList;
             seenBy = 1;
         }
 
@@ -3991,13 +3992,13 @@ namespace
             return;
         }
 
-        for (BaseObject* enemy = enemies->head; enemy != nullptr; enemy = enemy->next)
+        for (MCBaseObject* enemy = enemies->Head; enemy != nullptr; enemy = enemy->Next)
         {
-            vector_3d enemyPosition = static_cast<GameObject*>(enemy)->getPosition();
+            MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 
-            if (vehicle->distanceFrom(enemyPosition) < scenario->maxVisualRange)
+            if (vehicle->DistanceFrom(enemyPosition) < Scenario->MaxVisualRange)
             {
-                land->markRadiusSeen(vehicle->position, vehicle->frame.j, 360.0f, scenario->fireVisualRange, seenBy);
+                Land->MarkRadiusSeen(vehicle->Position, vehicle->Frame.J, 360.0f, Scenario->FireVisualRange, seenBy);
                 return;
             }
         }
@@ -4005,50 +4006,50 @@ namespace
 
     /// <summary>Where a missed shot lands: scattered up to <paramref name="scatter"/> about the aim point.</summary>
     /// <param name="centred">Missiles scatter both ways; other shots (as the original computes them) only one.</param>
-    vector_3d missPoint(GameObject* target, vector_3d* targetPoint, float scatter, int centred)
+    MCVector3D MissPoint(MCGameObject* target, MCVector3D* targetPoint, float scatter, int centred)
     {
-        vector_3d miss;
-        miss.x = scatter;
-        miss.y = scatter;
-        miss.z = 0.0f;
-        const auto offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.x + miss.x)) - miss.x);
-        const auto offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.y + miss.y)) - miss.y);
-        const auto offsetZ = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.z + miss.z)) - miss.z);
+        MCVector3D miss;
+        miss.X = scatter;
+        miss.Y = scatter;
+        miss.Z = 0.0f;
+        const auto offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.X + miss.X)) - miss.X);
+        const auto offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.Y + miss.Y)) - miss.Y);
+        const auto offsetZ = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.Z + miss.Z)) - miss.Z);
 
         if (centred != 0)
         {
-            miss.x = offsetX;
-            miss.y = offsetY;
+            miss.X = offsetX;
+            miss.Y = offsetY;
         }
         else
         {
-            miss.x = miss.x + offsetX;
-            miss.y = miss.y + offsetY;
+            miss.X = miss.X + offsetX;
+            miss.Y = miss.Y + offsetY;
         }
 
-        miss.z = miss.z + offsetZ;
-        const vector_3d base = target != nullptr ? target->getPosition() : *targetPoint;
-        miss.x += base.x;
-        miss.y += base.y;
-        miss.z += base.z;
+        miss.Z = miss.Z + offsetZ;
+        const MCVector3D base = target != nullptr ? target->GetPosition() : *targetPoint;
+        miss.X += base.X;
+        miss.Y += base.Y;
+        miss.Z += base.Z;
         return miss;
     }
 }
 
-auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
-                               int32_t aimLocation, vector_3d* targetPoint) -> int32_t
+auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
+                                 int32_t aimLocation, MCVector3D* targetPoint) -> int32_t
 {
-    if (status != 0)
+    if (Status != 0)
     {
         return 1;
     }
 
-    if (isWeaponIndex(weaponIndex) == 0)
+    if (IsWeaponIndex(weaponIndex) == 0)
     {
         return 2;
     }
 
-    if (isWeaponReady(weaponIndex) == 0)
+    if (IsWeaponReady(weaponIndex) == 0)
     {
         return 3;
     }
@@ -4057,101 +4058,101 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
 
     if (target == nullptr)
     {
-        if (targetPoint == nullptr || lineOfSight(*targetPoint) == 0)
+        if (targetPoint == nullptr || LineOfSight(*targetPoint) == 0)
         {
             return 4;
         }
 
-        distance = static_cast<float>(distanceFrom(*targetPoint));
+        distance = static_cast<float>(DistanceFrom(*targetPoint));
     }
     else
     {
         // A camera drone can't be shot for two seconds after launch.
-        if (target->objectClass == CAMERADRONE && scenarioTime < static_cast<CameraDrone*>(target)->launchTime + 2.0)
+        if (target->ObjectClass == CAMERADRONE && ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
         {
             return 4;
         }
 
-        if (target->isDestroyed() != 0)
+        if (target->IsDestroyed() != 0)
         {
             return 4;
         }
 
-        if (lineOfSight(target) == 0)
+        if (LineOfSight(target) == 0)
         {
             return 4;
         }
 
-        vector_3d targetPosition = target->getPosition();
-        distance = static_cast<float>(distanceFrom(targetPosition));
+        MCVector3D targetPosition = target->GetPosition();
+        distance = static_cast<float>(DistanceFrom(targetPosition));
     }
 
-    const int32_t inRange = weaponInRange(weaponIndex, distance);
+    const int32_t inRange = WeaponInRange(weaponIndex, distance);
 
-    if ((MPlayer == nullptr || MPlayer->isServer != 0) && inRange == 0)
+    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && inRange == 0)
     {
         return 4;
     }
 
-    const MasterComponent& weapon = MasterComponentList[inventory[weaponIndex].masterID];
+    const MCMasterComponent& weapon = MasterComponentList[Inventory[weaponIndex].MasterID];
 
-    if (weapon.missileType != 2 && weapon.missileType != 1 && weapon.missileType != 3)
+    if (weapon.MissileType != 2 && weapon.MissileType != 1 && weapon.MissileType != 3)
     {
         // Direct fire needs a clear line.
         if (target == nullptr)
         {
-            if (targetPoint == nullptr || lineOfFire(*targetPoint) == 0)
+            if (targetPoint == nullptr || LineOfFire(*targetPoint) == 0)
             {
                 return 4;
             }
         }
-        else if (lineOfFire(target) == 0)
+        else if (LineOfFire(target) == 0)
         {
             return 4;
         }
     }
 
     // A pop-up turret fires only once it is up.
-    if (weaponsDeployed == 0)
+    if (WeaponsDeployed == 0)
     {
         return 5;
     }
 
-    const int32_t numShots = getWeaponShots(weaponIndex);
+    const int32_t numShots = GetWeaponShots(weaponIndex);
 
     if (numShots == 0)
     {
         return 4;
     }
 
-    MechWarrior* targetPilot = nullptr;
+    MCMechWarrior* targetPilot = nullptr;
 
-    if (target != nullptr && isMoverClass(target))
+    if (target != nullptr && IsMoverClass(target))
     {
-        targetPilot = target->getPilot();
-        targetPilot->updateAttackerStatus(static_cast<uint32_t>(partId), scenarioTime);
+        targetPilot = target->GetPilot();
+        targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
     }
 
     float entryAngle = 0.0f;
 
     if (target != nullptr)
     {
-        entryAngle = target->relFacingTo(position, -1);
+        entryAngle = target->RelFacingTo(Position, -1);
     }
 
-    const int isStreak = weapon.weaponFlags & 1;
+    const int isStreak = weapon.WeaponFlags & 1;
     int32_t range = 0;
     int32_t hitChance =
-        static_cast<int32_t>(calcAttackChance(target, aimLocation, targetTime, weaponIndex, 0.0f, &range, targetPoint));
+        static_cast<int32_t>(CalcAttackChance(target, aimLocation, targetTime, weaponIndex, 0.0f, &range, targetPoint));
     const int32_t hitRoll = RandomNumber(100);
 
-    if (target != nullptr && target->getAlignment() == -1)
+    if (target != nullptr && target->GetAlignment() == -1)
     {
-        pilot->numSkillUses[MWS_GUNNERY][1]++;
+        Pilot->NumSkillUses[MWS_GUNNERY][1]++;
     }
 
     // Aimed shots only from a standing vehicle.
-    if (aimLocation != -1 && 0.0 < getVelocity().magnitude())
+    if (aimLocation != -1 && 0.0 < GetVelocity().Magnitude())
     {
         hitChance = 0;
     }
@@ -4160,9 +4161,9 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
 
     if (target != nullptr && hitRoll < hitChance)
     {
-        if (target->getAlignment() == -1)
+        if (target->GetAlignment() == -1)
         {
-            pilot->numSkillSuccesses[MWS_GUNNERY][1]++;
+            Pilot->NumSkillSuccesses[MWS_GUNNERY][1]++;
         }
 
         if (aimLocation != -1)
@@ -4171,9 +4172,9 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
         }
     }
 
-    startWeaponRecycle(weaponIndex);
+    StartWeaponRecycle(weaponIndex);
 
-    const int32_t chunkWeapon = weaponIndex - numOther;
+    const int32_t chunkWeapon = weaponIndex - NumOther;
     const char* const badChunk = " GVehicle.fireWeapon: Bad WeaponFireChunk (save wfchunk.dbg file now) ";
     const char* const badMissChunk = " GVehicl.fireWeapon: Bad WeaponFireChunk (save wfchunk.dbg file now) ";
 
@@ -4181,16 +4182,16 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
     {
         if (numShots != UNLIMITED_SHOTS)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        InventoryItem& item = inventory[weaponIndex];
-        const MasterComponent& fired = MasterComponentList[item.masterID];
+        MCInventoryItem& item = Inventory[weaponIndex];
+        const MCMasterComponent& fired = MasterComponentList[item.MasterID];
 
-        if (fired.form == 9)
+        if (fired.Form == 9)
         {
             // Missiles: a streak fires them all, anything else about half; anti-missile systems take some out.
-            const int32_t rackSize = fired.numMissiles;
+            const int32_t rackSize = fired.NumMissiles;
             int32_t missiles = rackSize;
 
             if (isStreak == 0)
@@ -4213,17 +4214,17 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
 
             if (target != nullptr)
             {
-                missilesLeft = target->fireAntiMissileSystem(missiles, antiMissileShots);
+                missilesLeft = target->FireAntiMissileSystem(missiles, antiMissileShots);
 
                 if (antiMissileShots > 0)
                 {
-                    target->reduceAntiMissileAmmo(antiMissileShots);
+                    target->ReduceAntiMissileAmmo(antiMissileShots);
                 }
             }
 
             if (missilesLeft != 0)
             {
-                GameObject* fx = createWeaponFX(fired);
+                MCGameObject* fx = CreateWeaponFX(fired);
                 int32_t targetHotSpot = 0;
 
                 if (target == nullptr)
@@ -4234,28 +4235,28 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
                 {
                     if (aimLocation == -1)
                     {
-                        hitLocation = target->calcHitLocation(this, weaponIndex, 0, attackType);
+                        hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
                     }
 
-                    targetHotSpot = targetHotSpotOf(target, hitLocation);
+                    targetHotSpot = TargetHotSpotOf(target, hitLocation);
                 }
 
                 Assert(hitLocation != -2 ? 1 : 0, 0, " GroundVehicle.FireWeapon: Bad Hit Location ", nullptr);
-                _WeaponShotInfo shot;
-                shot.init(this, item.masterID, fired.damage * static_cast<float>(missilesLeft), hitLocation,
+                MCWeaponShotInfo shot;
+                shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
 
-                if (MPlayer != nullptr && MPlayer->isServer != 0)
+                if (MPlayer != nullptr && MPlayer->IsServer != 0)
                 {
-                    sendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, missiles, missilesLeft,
+                    SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, missiles, missilesLeft,
                                         antiMissileShots, hitLocation, badChunk);
                 }
 
-                launchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpot);
+                LaunchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpot);
 
                 if (target == nullptr)
                 {
-                    pilot->clearCurTacOrder(1, 0);
+                    Pilot->ClearCurTacOrder(1, 0);
                 }
             }
         }
@@ -4267,25 +4268,25 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
             }
             else if (aimLocation == -1)
             {
-                hitLocation = target->calcHitLocation(this, weaponIndex, 0, attackType);
+                hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
             }
 
             Assert(hitLocation != -2 ? 1 : 0, 0, " GroundVehicle.FireWeapon: Bad Hit Location ", nullptr);
-            _WeaponShotInfo shot;
-            shot.init(this, item.masterID, fired.damage, hitLocation, entryAngle);
+            MCWeaponShotInfo shot;
+            shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
 
-            if (MPlayer != nullptr && MPlayer->isServer != 0)
+            if (MPlayer != nullptr && MPlayer->IsServer != 0)
             {
-                sendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, 0, 0, 0, hitLocation,
+                SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, 0, 0, 0, hitLocation,
                                     badChunk);
             }
 
-            GameObject* fx = createWeaponFX(fired);
-            launchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpotOf(target, hitLocation));
+            MCGameObject* fx = CreateWeaponFX(fired);
+            LaunchWeaponFX(this, fx, target, targetPoint, shot, TargetHotSpotOf(target, hitLocation));
 
             if (target == nullptr)
             {
-                pilot->clearCurTacOrder(1, 0);
+                Pilot->ClearCurTacOrder(1, 0);
             }
         }
     }
@@ -4294,16 +4295,16 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
         // A miss (a streak doesn't fire without a lock): the shot lands somewhere near.
         if (numShots != UNLIMITED_SHOTS)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        InventoryItem& item = inventory[weaponIndex];
-        const MasterComponent& fired = MasterComponentList[item.masterID];
+        MCInventoryItem& item = Inventory[weaponIndex];
+        const MCMasterComponent& fired = MasterComponentList[item.MasterID];
         const float scatter = target != nullptr ? 25.0f : 5.0f;
 
-        if (fired.form == 9)
+        if (fired.Form == 9)
         {
-            const int32_t rackSize = fired.numMissiles;
+            const int32_t rackSize = fired.NumMissiles;
             int32_t missiles = static_cast<int32_t>(rackSize * 0.5 + 0.5);
 
             if (missiles < 1)
@@ -4318,60 +4319,60 @@ auto GroundVehicle::fireWeapon(GameObject* target, float targetTime, int32_t wea
 
             if (missiles != 0)
             {
-                GameObject* fx = createWeaponFX(fired);
-                _WeaponShotInfo shot;
-                shot.init(this, item.masterID, fired.damage * static_cast<float>(missiles), -1, entryAngle);
-                vector_3d landing = missPoint(target, targetPoint, scatter, 1);
+                MCGameObject* fx = CreateWeaponFX(fired);
+                MCWeaponShotInfo shot;
+                shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missiles), -1, entryAngle);
+                MCVector3D landing = MissPoint(target, targetPoint, scatter, 1);
 
-                if (MPlayer != nullptr && MPlayer->isServer != 0)
+                if (MPlayer != nullptr && MPlayer->IsServer != 0)
                 {
-                    sendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, missiles, 0, 0, 0, badMissChunk);
+                    SendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, missiles, 0, 0, 0, badMissChunk);
                 }
 
-                launchWeaponFX(this, fx, nullptr, &landing, shot, 0);
+                LaunchWeaponFX(this, fx, nullptr, &landing, shot, 0);
             }
         }
         else
         {
-            _WeaponShotInfo shot;
-            shot.init(this, item.masterID, fired.damage, -1, entryAngle);
-            GameObject* fx = createWeaponFX(fired);
-            vector_3d landing = missPoint(target, targetPoint, scatter, 0);
+            MCWeaponShotInfo shot;
+            shot.Init(this, item.MasterID, fired.Damage, -1, entryAngle);
+            MCGameObject* fx = CreateWeaponFX(fired);
+            MCVector3D landing = MissPoint(target, targetPoint, scatter, 0);
 
-            if (MPlayer != nullptr && MPlayer->isServer != 0)
+            if (MPlayer != nullptr && MPlayer->IsServer != 0)
             {
-                sendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, 0, 0, 0, 0, badMissChunk);
+                SendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, 0, 0, 0, 0, badMissChunk);
             }
 
-            launchWeaponFX(this, fx, nullptr, &landing, shot, 0);
+            LaunchWeaponFX(this, fx, nullptr, &landing, shot, 0);
         }
     }
 
     if (targetPilot != nullptr)
     {
-        targetPilot->triggerAlarm(0, static_cast<uint32_t>(partId));
+        targetPilot->TriggerAlarm(0, static_cast<uint32_t>(PartId));
     }
 
-    revealFiring(this);
+    RevealFiring(this);
 
-    if (group != nullptr)
+    if (Group != nullptr)
     {
-        group->handleMateFiredWeapon(static_cast<uint32_t>(partId));
+        Group->HandleMateFiredWeapon(static_cast<uint32_t>(PartId));
     }
 
     return 0;
 }
 
-auto GroundVehicle::handleWeaponFire(int32_t weaponIndex, GameObject* target, vector_3d* targetPoint, int hit,
-                                     float entryAngle, int32_t numMissiles, int32_t missilesPastAMS,
-                                     int32_t antiMissileShots, int32_t hitLocation) -> int32_t
+auto MCGroundVehicle::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, MCVector3D* targetPoint, int hit,
+                                       float entryAngle, int32_t numMissiles, int32_t missilesPastAMS,
+                                       int32_t antiMissileShots, int32_t hitLocation) -> int32_t
 {
-    const int32_t numShots = getWeaponShots(weaponIndex);
-    startWeaponRecycle(weaponIndex);
-    InventoryItem& item = inventory[weaponIndex];
-    const MasterComponent& fired = MasterComponentList[item.masterID];
-    const int isStreak = fired.weaponFlags & 1;
-    _WeaponShotInfo shot;
+    const int32_t numShots = GetWeaponShots(weaponIndex);
+    StartWeaponRecycle(weaponIndex);
+    MCInventoryItem& item = Inventory[weaponIndex];
+    const MCMasterComponent& fired = MasterComponentList[item.MasterID];
+    const int isStreak = fired.WeaponFlags & 1;
+    MCWeaponShotInfo shot;
 
     if (hit == 0)
     {
@@ -4382,196 +4383,196 @@ auto GroundVehicle::handleWeaponFire(int32_t weaponIndex, GameObject* target, ve
 
         if (isStreak != 0)
         {
-            CurMoverWeaponFireChunk.unpack(this);
+            CurMoverWeaponFireChunk.Unpack(this);
             DebugWeaponFireChunk(&CurMoverWeaponFireChunk, nullptr, this);
             Assert(0, 0, " GVehicl.handleWeaponFire: streaks shouldn't miss! ", nullptr);
         }
 
         if (numShots != UNLIMITED_SHOTS)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        if (fired.form == 9)
+        if (fired.Form == 9)
         {
             if (numMissiles > 0)
             {
-                GameObject* fx = createWeaponFX(fired);
-                shot.init(this, item.masterID, fired.damage * static_cast<float>(numMissiles), -1, entryAngle);
-                launchWeaponFX(this, fx, nullptr, targetPoint, shot, 0);
+                MCGameObject* fx = CreateWeaponFX(fired);
+                shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(numMissiles), -1, entryAngle);
+                LaunchWeaponFX(this, fx, nullptr, targetPoint, shot, 0);
             }
         }
         else
         {
-            shot.init(this, item.masterID, fired.damage, -1, entryAngle);
-            GameObject* fx = createWeaponFX(fired);
-            launchWeaponFX(this, fx, nullptr, targetPoint, shot, 0);
+            shot.Init(this, item.MasterID, fired.Damage, -1, entryAngle);
+            MCGameObject* fx = CreateWeaponFX(fired);
+            LaunchWeaponFX(this, fx, nullptr, targetPoint, shot, 0);
         }
     }
     else
     {
         if (numShots != UNLIMITED_SHOTS)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        if (fired.form == 9)
+        if (fired.Form == 9)
         {
             if (antiMissileShots > 0)
             {
-                target->reduceAntiMissileAmmo(antiMissileShots);
+                target->ReduceAntiMissileAmmo(antiMissileShots);
             }
 
             if (missilesPastAMS != 0)
             {
-                GameObject* fx = createWeaponFX(fired);
+                MCGameObject* fx = CreateWeaponFX(fired);
                 Assert(hitLocation != -2 ? 1 : 0, static_cast<uint32_t>(TargetRolo),
                        " GroundVehicle.handleWeaponFire: Bad Hit Location ", nullptr);
-                const int32_t targetHotSpot = targetHotSpotOf(target, hitLocation);
-                shot.init(this, item.masterID, fired.damage * static_cast<float>(missilesPastAMS), hitLocation,
+                const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
+                shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesPastAMS), hitLocation,
                           entryAngle);
-                launchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpot);
+                LaunchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpot);
 
                 if (target == nullptr)
                 {
-                    pilot->clearCurTacOrder(1, 0);
+                    Pilot->ClearCurTacOrder(1, 0);
                 }
             }
         }
         else
         {
-            shot.init(this, item.masterID, fired.damage, hitLocation, entryAngle);
-            GameObject* fx = createWeaponFX(fired);
-            launchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpotOf(target, hitLocation));
+            shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
+            MCGameObject* fx = CreateWeaponFX(fired);
+            LaunchWeaponFX(this, fx, target, targetPoint, shot, TargetHotSpotOf(target, hitLocation));
 
             if (target == nullptr)
             {
-                pilot->clearCurTacOrder(1, 0);
+                Pilot->ClearCurTacOrder(1, 0);
             }
         }
     }
 
-    if (target != nullptr && isMoverClass(target))
+    if (target != nullptr && IsMoverClass(target))
     {
-        MechWarrior* targetPilot = target->getPilot();
-        targetPilot->updateAttackerStatus(static_cast<uint32_t>(partId), scenarioTime);
-        targetPilot->triggerAlarm(0, static_cast<uint32_t>(partId));
+        MCMechWarrior* targetPilot = target->GetPilot();
+        targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
+        targetPilot->TriggerAlarm(0, static_cast<uint32_t>(PartId));
     }
 
-    revealFiring(this);
+    RevealFiring(this);
 
-    if (group != nullptr)
+    if (Group != nullptr)
     {
-        group->handleMateFiredWeapon(static_cast<uint32_t>(partId));
+        Group->HandleMateFiredWeapon(static_cast<uint32_t>(PartId));
     }
 
     return 0;
 }
 
-auto GroundVehicle::openStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) -> int32_t
+auto MCGroundVehicle::OpenStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) -> int32_t
 {
-    auto* window = new GroundVehicleStatusWindow;
-    statusWindow = window;
-    window->init(left, top, right, bottom, this);
-    statusWindow->setBackColor(0);
-    statusWindow->draw();
-    screenWindow->addChild(statusWindow);
+    auto* window = new MCGroundVehicleStatusWindow;
+    StatusWindow = window;
+    window->Init(left, top, right, bottom, this);
+    StatusWindow->SetBackColor(0);
+    StatusWindow->Draw();
+    ScreenWindow->AddChild(StatusWindow);
 
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        pilot->openStatusWindow(left + 30, top + 30, right, bottom);
+        Pilot->OpenStatusWindow(left + 30, top + 30, right, bottom);
     }
 
     return 0;
 }
 
-GroundVehicleStatusWindow::~GroundVehicleStatusWindow()
+MCGroundVehicleStatusWindow::~MCGroundVehicleStatusWindow()
 {
     // The inline ~aTitleWindow.
-    aTitleWindow::destroy();
+    MCGuiTitleWindow::Destroy();
 }
 
-auto GroundVehicle::closeStatusWindow() -> int32_t
+auto MCGroundVehicle::CloseStatusWindow() -> int32_t
 {
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        pilot->closeStatusWindow();
+        Pilot->CloseStatusWindow();
     }
 
     // The window is destroyed, not deleted.
-    statusWindow->destroy();
-    statusWindow = nullptr;
+    StatusWindow->Destroy();
+    StatusWindow = nullptr;
     return 0;
 }
 
-auto GroundVehicle::getVitalInfo(void* vitalInfo) -> int32_t
+auto MCGroundVehicle::GetVitalInfo(void* vitalInfo) -> int32_t
 {
-    const int32_t size = Mover::getVitalInfo(nullptr);
+    const int32_t size = MCMover::GetVitalInfo(nullptr);
 
     if (vitalInfo != nullptr)
     {
-        Mover::getVitalInfo(vitalInfo);
-        static_cast<uint8_t*>(vitalInfo)[size] = static_cast<uint8_t>(movementEnabled);
+        MCMover::GetVitalInfo(vitalInfo);
+        static_cast<uint8_t*>(vitalInfo)[size] = static_cast<uint8_t>(MovementEnabled);
     }
 
     return size + 1;
 }
 
-auto GroundVehicle::getTotalEffectiveness() -> float
+auto MCGroundVehicle::GetTotalEffectiveness() -> float
 {
-    if (isDestroyed() != 0 || isDisabled() != 0)
+    if (IsDestroyed() != 0 || IsDisabled() != 0)
     {
         return 0.0f;
     }
 
-    const float weaponRatio = maxWeaponEffectiveness == 0.0f ? 1.0f : weaponEffectiveness / maxWeaponEffectiveness;
+    const float weaponRatio = MaxWeaponEffectiveness == 0.0f ? 1.0f : WeaponEffectiveness / MaxWeaponEffectiveness;
     // Each location's armor share, scaled to 0.4..1; a turret without armor counts in full.
     const auto armorFactor = [&](int32_t location)
-    { return static_cast<float>(armor[location].curArmor / static_cast<float>(armor[location].maxArmor) * 0.6 + 0.4); };
+    { return static_cast<float>(Armor[location].CurArmor / static_cast<float>(Armor[location].MaxArmor) * 0.6 + 0.4); };
     const float front = armorFactor(GROUNDVEHICLE_LOCATION_FRONT);
     const float left = armorFactor(GROUNDVEHICLE_LOCATION_LEFT);
     const float right = armorFactor(GROUNDVEHICLE_LOCATION_RIGHT);
     const float rear = armorFactor(GROUNDVEHICLE_LOCATION_REAR);
     float turret = 1.0f;
 
-    if (static_cast<float>(armor[GROUNDVEHICLE_LOCATION_TURRET].maxArmor) != 0.0)
+    if (static_cast<float>(Armor[GROUNDVEHICLE_LOCATION_TURRET].MaxArmor) != 0.0)
     {
         turret = armorFactor(GROUNDVEHICLE_LOCATION_TURRET);
     }
 
     // Wounds wear the crew down.
     const float woundFactor[7] = {1.0f, 0.95f, 0.85f, 0.75f, 0.5f, 0.3f, 0.0f};
-    int32_t wounds = static_cast<int32_t>(getPilot()->wounds);
+    int32_t wounds = static_cast<int32_t>(GetPilot()->Wounds);
     // Port fix: the original indexes the table unchecked.
     wounds = std::clamp(wounds, 0, 6);
     return turret * rear * right * left * front * woundFactor[wounds] * weaponRatio;
 }
 
-auto GroundVehicleStatusWindow::init(int32_t x, int32_t y, int32_t w, int32_t h, GroundVehicle* newVehicle) -> void
+auto MCGroundVehicleStatusWindow::Init(int32_t x, int32_t y, int32_t w, int32_t h, MCGroundVehicle* newVehicle) -> void
 {
-    aTitleWindow::init(x, y, w, h, nullptr);
+    MCGuiTitleWindow::Init(x, y, w, h, nullptr);
 
-    if (titleBar != nullptr)
+    if (TitleBar != nullptr)
     {
-        titleBar->showCloseButton(1);
+        TitleBar->ShowCloseButton(1);
     }
 
-    vehicle = newVehicle;
+    Vehicle = newVehicle;
 }
 
-auto GroundVehicleStatusWindow::handleEvent(aEvent* event) -> void
+auto MCGroundVehicleStatusWindow::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 0xd)
+    if (event->Type == 0xd)
     {
-        vehicle->closeStatusWindow();
+        Vehicle->CloseStatusWindow();
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto GroundVehicleStatusWindow::resize(int32_t w, int32_t h) -> void
+auto MCGroundVehicleStatusWindow::Resize(int32_t w, int32_t h) -> void
 {
-    aTitleWindow::resize(w, h);
+    MCGuiTitleWindow::Resize(w, h);
 }
 
 namespace
@@ -4580,9 +4581,9 @@ namespace
     const char* const AlignmentNames[3] = {"Clan", "Neutral", "Inner Sphere"};
 
     /// <summary>The status window's title: alignment, vehicle name and crew callsign.</summary>
-    void setVehicleTitle(GroundVehicleStatusWindow* window)
+    void SetVehicleTitle(MCGroundVehicleStatusWindow* window)
     {
-        GroundVehicle* vehicle = window->vehicle;
+        MCGroundVehicle* vehicle = window->Vehicle;
 
         if (vehicle == nullptr)
         {
@@ -4590,21 +4591,21 @@ namespace
         }
 
         char title[256];
-        std::snprintf(title, sizeof(title), "%s %s (%s)", AlignmentNames[vehicle->getAlignment() + 1],
-                      vehicle->debugStatus.c_str(), vehicle->getPilot()->callsign);
-        window->setTitle(title);
+        std::snprintf(title, sizeof(title), "%s %s (%s)", AlignmentNames[vehicle->GetAlignment() + 1],
+                      vehicle->DebugStatus.c_str(), vehicle->GetPilot()->Callsign);
+        window->SetTitle(title);
     }
 }
 
-auto GroundVehicleStatusWindow::display() -> void
+auto MCGroundVehicleStatusWindow::Display() -> void
 {
-    VFX_pane_wipe(displayPort->frame(), backgroundColor);
-    setVehicleTitle(this);
-    aObject::display();
+    VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
+    SetVehicleTitle(this);
+    MCGuiObject::Display();
 }
 
-auto GroundVehicleStatusWindow::draw() -> void
+auto MCGroundVehicleStatusWindow::Draw() -> void
 {
-    setVehicleTitle(this);
-    aTitleWindow::draw();
+    SetVehicleTitle(this);
+    MCGuiTitleWindow::Draw();
 }

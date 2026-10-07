@@ -1,7 +1,7 @@
 #pragma once
 
 /// <summary>A component's kind: the "type" column of compbas.csv, an index into <see cref="ComponentFormString"/>.</summary>
-enum ComponentForm : int32_t
+enum MCComponentForm : int32_t
 {
     COMPONENT_FORM_SIMPLE = 0,
     COMPONENT_FORM_COCKPIT = 1,
@@ -27,112 +27,105 @@ enum ComponentForm : int32_t
 
 /// <summary>
 /// One row of the master component table (data\objects\compbas.csv): a mech or vehicle part, weapon or ammo, its
-/// weight, critical spaces and, by <see cref="form"/>, its stats. <see cref="MasterComponentList"/> holds them by
+/// weight, critical spaces and, by <see cref="Form"/>, its stats. <see cref="MasterComponentList"/> holds them by
 /// id.
 /// </summary>
 /// <remarks>Original source: <c>object\cmponent.cpp</c>; 0x84 bytes.</remarks>
-class MasterComponent
+class MCMasterComponent
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00655dc0</remarks>
-    void destroy();
+    void Destroy();
     /// <summary>
     /// Reads one CSV row (tokenized in place with strtok). An "undefined" row leaves the id -1. Weapon ranges are
     /// scaled by <paramref name="weaponRangeFactor"/>, a sensor's range by <paramref name="sensorRangeFactor"/>.
     /// Returns 0, -1 for a form name not in ComponentFormString, -2 for a form with no stats (plain "Weapon").
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00655dd0</remarks>
-    int32_t initEXCEL(char* dataLine, uint8_t index, float weaponRangeFactor, float sensorRangeFactor);
+    int32_t InitExcel(char* dataLine, uint8_t index, float weaponRangeFactor, float sensorRangeFactor);
     /// <summary>Whether this is anything but an anti-missile system.</summary>
-    /// <remarks>MCX.EXE @ 0x00656760</remarks>
-    int isOffensiveWeapon();
+    int IsOffensiveWeapon();
     /// <summary>Whether this is an anti-missile system.</summary>
-    /// <remarks>MCX.EXE @ 0x00656780</remarks>
-    int isDefensiveWeapon();
+    int IsDefensiveWeapon();
     /// <summary>Scales the four weapon ranges by <paramref name="factor"/>, truncating each to a short.</summary>
-    /// <remarks>MCX.EXE @ 0x006567a0</remarks>
-    void multiplyWeaponRanges(float factor);
+    void MultiplyWeaponRanges(float factor);
 
     /// <summary>Master id; -1 for an unused ("undefined") row.</summary>
-    int32_t masterID = -1; // +0x00
+    int32_t MasterID = -1;
     /// <summary>"RP": resource points.</summary>
-    int32_t resourcePoints = 0; // +0x04
-    /// <summary>"type": the <see cref="ComponentForm"/>.</summary>
-    int32_t form = 0; // +0x08
+    int32_t ResourcePoints = 0;
+    /// <summary>"type": the <see cref="MCComponentForm"/>.</summary>
+    int32_t Form = 0;
     /// <summary>Full name (29 characters).</summary>
-    char name[30] = {}; // +0x0c
+    char Name[30] = {};
     /// <summary>"abbr" (15 characters).</summary>
-    char abbreviation[16] = {}; // +0x2a
+    char Abbreviation[16] = {};
     /// <summary>"tons".</summary>
-    float tonnage = 0.0f; // +0x3c
+    float Tonnage = 0.0f;
     /// <summary>"crits": critical spaces it takes.</summary>
-    uint8_t criticalSpacesReq = 0; // +0x40
+    uint8_t CriticalSpacesReq = 0;
     /// <summary>The column after crits ("?").</summary>
-    uint8_t health = 0; // +0x41
+    uint8_t Health = 0;
     /// <summary>
     /// Per location (head, CT, LT, RT, LA, RA, LL, RL): "No" -1 (can't go there), "Yes" 0, else the critical spaces
     /// it must take there.
     /// </summary>
-    int8_t criticalSpacesLocation[8] = {}; // +0x42
+    int8_t CriticalSpacesLocation[8] = {};
     /// <summary>"disable".</summary>
-    uint8_t disableLevel = 0; // +0x4a
+    uint8_t DisableLevel = 0;
     /// <summary>
     /// Bits: 2 fits vehicles ("Vehicle?"), 1 fits both ("Fit both?"), 0x30 "Fit IS?" yes, else 0x10 (clan tech) or
     /// 0x20.
     /// </summary>
-    uint8_t flags = 0; // +0x4b
+    uint8_t Flags = 0;
     /// <summary>"Side": 1 clan, 2 Inner Sphere, 3 both.</summary>
-    uint8_t techBase = 0; // +0x4c
+    uint8_t TechBase = 0;
     /// <summary>"BR": battle rating.</summary>
-    float battleRating = 0.0f; // +0x50
+    float BattleRating = 0.0f;
     /// <summary>
     /// By form: a sensor's, probe's, jammer's or ECM's range (float); an energy/ballistic/missile weapon's heat
     /// (float); an engine's or heat sink's value (short); ammo per ton or jump jet value (int).
     /// </summary>
     union
     {
-        float rangeOrHeat;
-        int16_t shortValue;
-        int32_t longValue = 0;
-    }; // +0x54
+        float RangeOrHeat;
+        int16_t ShortValue;
+        int32_t LongValue = 0;
+    };
 
     /// <summary>A weapon's damage; an ECM's effect; ammo's second value.</summary>
-    float damage = 0.0f; // +0x58
+    float Damage = 0.0f;
     /// <summary>A weapon's recycle time.</summary>
-    float recycleTime = 0.0f; // +0x5c
+    float RecycleTime = 0.0f;
     /// <summary>"#miss": missiles per salvo.</summary>
-    int32_t numMissiles = 0; // +0x60
+    int32_t NumMissiles = 0;
     /// <summary>"miss type": 1 SRM, 2 LRM, 3 ST, 4 ballistic "1".</summary>
-    uint8_t missileType = 0; // +0x64
+    uint8_t MissileType = 0;
     /// <summary>"Ammo": the master id of the weapon's ammo.</summary>
-    uint8_t ammoMasterId = 0; // +0x65
+    uint8_t AmmoMasterId = 0;
     /// <summary>"min", "short", "med", "long" ranges (scaled).</summary>
-    float weaponRange[4] = {}; // +0x68
+    float WeaponRange[4] = {};
     /// <summary>"Flag": 1 streak, 2 inferno, 4 LBX, 8 artillery.</summary>
-    uint8_t weaponFlags = 0; // +0x78
+    uint8_t WeaponFlags = 0;
     /// <summary>"Weapon": the weapon's graphic type.</summary>
-    int16_t weaponType = 0; // +0x7a
+    int16_t WeaponType = 0;
     /// <summary>"Effect".</summary>
-    uint8_t weaponEffect = 0; // +0x7c
+    uint8_t WeaponEffect = 0;
     /// <summary>"art".</summary>
-    int32_t art = 0; // +0x80
+    int32_t Art = 0;
 };
 
 /// <summary>
 /// Reads the master component table from <paramref name="fileName"/> (the four special ids, then
 /// <paramref name="numComponents"/> rows); 0, the File error, or -1 when the file is short.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00656810</remarks>
-int32_t initMasterComponentListEXCEL(char* fileName, int32_t numComponents, float weaponRangeFactor,
+int32_t InitMasterComponentListExcel(char* fileName, int32_t numComponents, float weaponRangeFactor,
                                      float sensorRangeFactor);
 /// <summary>Scales every energy, ballistic and missile weapon's ranges.</summary>
-/// <remarks>MCX.EXE @ 0x00656a80</remarks>
-void multiplyMasterWeaponRanges(float factor);
+void MultiplyMasterWeaponRanges(float factor);
 
-/// <summary>The form names, by <see cref="ComponentForm"/>, null-terminated.</summary>
+/// <summary>The form names, by <see cref="MCComponentForm"/>, null-terminated.</summary>
 extern const char* ComponentFormString[21];
 /// <summary>The master component table.</summary>
-extern std::unique_ptr<MasterComponent[]> MasterComponentList;
+extern std::unique_ptr<MCMasterComponent[]> MasterComponentList;
 /// <summary>Rows in <see cref="MasterComponentList"/>.</summary>
 extern int32_t NumMasterComponents;
 /// <summary>The arm actuator's master id (from the file's header).</summary>

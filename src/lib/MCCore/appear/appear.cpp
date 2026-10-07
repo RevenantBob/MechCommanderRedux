@@ -13,15 +13,15 @@ namespace
     constexpr int32_t SELECT_DEPTH = -50000;
 
     /// <summary>Adds a one-colour line from (x0, y0) to (x1, y1) at <see cref="SELECT_DEPTH"/>.</summary>
-    void addSelectLine(float x0, float y0, float x1, float y1, uint8_t color)
+    void AddSelectLine(float x0, float y0, float x1, float y1, uint8_t color)
     {
-        vector_2d start;
-        start.x = x0;
-        start.y = y0;
-        vector_2d end;
-        end.x = x1;
-        end.y = y1;
-        ElementList->add(ElementPool::Make<LineElement>(start, end, color, nullptr, SELECT_DEPTH, -1));
+        MCVector2D start;
+        start.X = x0;
+        start.Y = y0;
+        MCVector2D end;
+        end.X = x1;
+        end.Y = y1;
+        ElementList->Add(MCElementPool::Make<MCLineElement>(start, end, color, nullptr, SELECT_DEPTH, -1));
     }
 
     /// <summary>
@@ -30,25 +30,25 @@ namespace
     /// </summary>
     /// <remarks>Port: on the screen over the view (the marks are overlays), so the box follows the sprite through the
     /// zoom and the marks keep their size.</remarks>
-    void selectBounds(Appearance* appearance, float& left, float& top, float& right, float& bottom)
+    void SelectBounds(MCAppearance* appearance, float& left, float& top, float& right, float& bottom)
     {
-        AppearanceType* type = appearance->getAppearanceType();
+        MCAppearanceType* type = appearance->GetAppearanceType();
 
-        if (type == nullptr || (type->boundsUpperLeftX == 0 && type->boundsUpperLeftY == 0 &&
-                                type->boundsLowerRightX == 0 && type->boundsLowerRightY == 0))
+        if (type == nullptr || (type->BoundsUpperLeftX == 0 && type->BoundsUpperLeftY == 0 &&
+                                type->BoundsLowerRightX == 0 && type->BoundsLowerRightY == 0))
         {
-            left = appearance->upperLeft.x;
-            top = appearance->upperLeft.y;
-            right = appearance->lowerRight.x;
-            bottom = appearance->lowerRight.y;
+            left = appearance->UpperLeft.X;
+            top = appearance->UpperLeft.Y;
+            right = appearance->LowerRight.X;
+            bottom = appearance->LowerRight.Y;
         }
         else
         {
-            const int32_t shift = eye->cameraScale == 1 ? 1 : 0;
-            left = static_cast<float>(type->boundsUpperLeftX >> shift) + appearance->screenPos.x;
-            top = static_cast<float>(type->boundsUpperLeftY >> shift) + appearance->screenPos.y;
-            right = static_cast<float>(type->boundsLowerRightX >> shift) + appearance->screenPos.x;
-            bottom = static_cast<float>(type->boundsLowerRightY >> shift) + appearance->screenPos.y;
+            const int32_t shift = Eye->CameraScale == 1 ? 1 : 0;
+            left = static_cast<float>(type->BoundsUpperLeftX >> shift) + appearance->ScreenPos.X;
+            top = static_cast<float>(type->BoundsUpperLeftY >> shift) + appearance->ScreenPos.Y;
+            right = static_cast<float>(type->BoundsLowerRightX >> shift) + appearance->ScreenPos.X;
+            bottom = static_cast<float>(type->BoundsLowerRightY >> shift) + appearance->ScreenPos.Y;
         }
 
         left = MCOverlayX(left);
@@ -58,11 +58,11 @@ namespace
     }
 
     /// <summary>The marks' distance from the box: 5 pixels at full size, 2.5 zoomed out.</summary>
-    float selectMargin()
+    float SelectMargin()
     {
         float scale = 0.5f;
 
-        if (eye->cameraScale != 1)
+        if (Eye->CameraScale != 1)
         {
             scale = 1.0f;
         }
@@ -71,79 +71,79 @@ namespace
     }
 }
 
-auto Appearance::drawBars() -> void
+auto MCAppearance::DrawBars() -> void
 {
 }
 
-auto Appearance::getScreenPos(Camera* cam) -> vector_2d
+auto MCAppearance::GetScreenPos(MCCamera* cam) -> MCVector2D
 {
-    vector_2d result;
+    MCVector2D result;
 
     if (cam == nullptr)
     {
-        result.x = screenPos.x;
-        result.y = screenPos.y;
+        result.X = ScreenPos.X;
+        result.Y = ScreenPos.Y;
         return result;
     }
 
-    const vector_3d position = owner->getPosition();
+    const MCVector3D position = Owner->GetPosition();
     float scale = 0.5f;
 
-    if (cam->cameraScale != 1)
+    if (cam->CameraScale != 1)
     {
         scale = 1.0f;
     }
 
-    const float sx = (position.x - cam->position.x) * scale;
-    const float sy = (position.y - cam->position.y) * scale;
-    result.x = sx * cam->cosAngle + sy * cam->cosAngle + cam->halfWidth;
-    result.y = ((sx * cam->sinAngle + cam->halfHeight) - sy * cam->sinAngle) - scale * (position.z - cam->position.z);
+    const float sx = (position.X - cam->Position.X) * scale;
+    const float sy = (position.Y - cam->Position.Y) * scale;
+    result.X = sx * cam->CosAngle + sy * cam->CosAngle + cam->HalfWidth;
+    result.Y = ((sx * cam->SinAngle + cam->HalfHeight) - sy * cam->SinAngle) - scale * (position.Z - cam->Position.Z);
     return result;
 }
 
-auto Appearance::drawSelectBox(uint8_t color) -> void
+auto MCAppearance::DrawSelectBox(uint8_t color) -> void
 {
     float left;
     float top;
     float right;
     float bottom;
-    selectBounds(this, left, top, right, bottom);
-    ElementList->openGroup(SELECT_DEPTH, 1);
-    const float margin = selectMargin();
+    SelectBounds(this, left, top, right, bottom);
+    ElementList->OpenGroup(SELECT_DEPTH, 1);
+    const float margin = SelectMargin();
     const float outLeft = left - margin;
     const float outTop = top - margin;
     const float outRight = margin + right;
     const float outBottom = margin + bottom;
     // A corner mark at each corner of the box grown by the margin.
-    addSelectLine(outLeft, outTop, outLeft, top, color);
-    addSelectLine(outLeft, outTop, left, outTop, color);
-    addSelectLine(outRight, outTop, outRight, top, color);
-    addSelectLine(outRight, outTop, right, outTop, color);
-    addSelectLine(outRight, outBottom, outRight, bottom, color);
-    addSelectLine(outRight, outBottom, right, outBottom, color);
-    addSelectLine(outLeft, outBottom, outLeft, bottom, color);
-    addSelectLine(outLeft, outBottom, left, outBottom, color);
+    AddSelectLine(outLeft, outTop, outLeft, top, color);
+    AddSelectLine(outLeft, outTop, left, outTop, color);
+    AddSelectLine(outRight, outTop, outRight, top, color);
+    AddSelectLine(outRight, outTop, right, outTop, color);
+    AddSelectLine(outRight, outBottom, outRight, bottom, color);
+    AddSelectLine(outRight, outBottom, right, outBottom, color);
+    AddSelectLine(outLeft, outBottom, outLeft, bottom, color);
+    AddSelectLine(outLeft, outBottom, left, outBottom, color);
 }
 
-auto Appearance::drawSelectBrackets(uint8_t color) -> void
+auto MCAppearance::DrawSelectBrackets(uint8_t color) -> void
 {
-    const float margin = selectMargin();
+    const float margin = SelectMargin();
     float left;
     float top;
     float right;
     float bottom;
-    selectBounds(this, left, top, right, bottom);
-    ElementList->openGroup(SELECT_DEPTH, 1);
+    SelectBounds(this, left, top, right, bottom);
+    ElementList->OpenGroup(SELECT_DEPTH, 1);
     const float outLeft = left - margin;
     const float outTop = top - margin;
     const float outRight = right + margin;
     const float outBottom = bottom + margin;
     // A bar over and under the box, each with short ends turned toward it. (The second line lies on the third.)
-    addSelectLine(outLeft, top, outLeft, outTop, color);
-    addSelectLine(outLeft, outTop, left, outTop, color);
-    addSelectLine(outLeft, outTop, outRight, outTop, color);
-    addSelectLine(outRight, top, outRight, outTop, color);
-    addSelectLine(outLeft, bottom, outLeft, outBottom, color);
-    addSelectLine(outLeft, outBottom, outRight, outBottom, color);
-    addSelectLine(outRight, outBottom, outRight, bottom, color);
+    AddSelectLine(outLeft, top, outLeft, outTop, color);
+    AddSelectLine(outLeft, outTop, left, outTop, color);
+    AddSelectLine(outLeft, outTop, outRight, outTop, color);
+    AddSelectLine(outRight, top, outRight, outTop, color);
+    AddSelectLine(outLeft, bottom, outLeft, outBottom, color);
+    AddSelectLine(outLeft, outBottom, outRight, outBottom, color);
+    AddSelectLine(outRight, outBottom, outRight, bottom, color);
 }

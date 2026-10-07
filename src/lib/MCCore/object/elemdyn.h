@@ -4,44 +4,36 @@
 
 /// <summary>An elemental type's turn rate and speed limits (the FIT's "ElementalDynamics" block).</summary>
 /// <remarks>Original source: <c>object\elemdyn.cpp</c>; 0x10 bytes.</remarks>
-class ElementalDynamicsType : public DynamicsType
+class MCElementalDynamicsType : public MCDynamicsType
 {
 public:
     /// <summary>Reads the "ElementalDynamics" block.</summary>
-    /// <remarks>MCX.EXE @ 0x0065a520</remarks>
-    int32_t init(FitIniFile* objFile) override;
-    /// <remarks>MCX.EXE @ 0x0065a510</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x0065a580</remarks>
-    Dynamics* createInstance() override;
+    int32_t Init(MCFitIniFile* objFile) override;
+    void Destroy() override;
+    MCDynamics* CreateInstance() override;
 
     /// <summary>FIT "maxElementalYawRate".</summary>
-    int32_t maxElementalYawRate = 0; // +0x04
+    int32_t MaxElementalYawRate = 0;
     /// <summary>FIT "maxAccel".</summary>
-    float maxAccel = 0.0f; // +0x08
+    float MaxAccel = 0.0f;
     /// <summary>FIT "maxVelocity".</summary>
-    float maxVelocity = 0.0f; // +0x0c
+    float MaxVelocity = 0.0f;
 };
 
 /// <summary>Turns an elemental and accelerates it toward its throttle's speed each frame.</summary>
 /// <remarks>Original source: <c>object\elemdyn.cpp</c>, <c>object\elemdyn.h</c>; 0x18 bytes.</remarks>
-class ElementalDynamics : public Dynamics
+class MCElementalDynamics : public MCDynamics
 {
 public:
     /// <summary>Takes the acceleration from the type.</summary>
-    /// <remarks>MCX.EXE @ 0x0065a5e0</remarks>
-    int32_t init(DynamicsType* dynType, GameObject* object) override;
-    /// <remarks>MCX.EXE @ 0x0065a5d0</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x0065a610</remarks>
-    int32_t update() override;
-    /// <remarks>MCX.EXE @ 0x0065a5c0 (inline in <c>object\elemdyn.h</c>)</remarks>
-    uint32_t getDynamicsClass() override { return 3; }
-    /// <remarks>MCX.EXE @ 0x0065a5b0 (inline in <c>object\elemdyn.h</c>)</remarks>
-    float getVelocity() override { return velocity; }
+    int32_t Init(MCDynamicsType* dynType, MCGameObject* object) override;
+    void Destroy() override;
+    int32_t Update() override;
+    uint32_t GetDynamicsClass() override { return 3; }
+    float GetVelocity() override { return Velocity; }
 
     /// <summary>Acceleration (the type's maxAccel); its sign flips toward the target speed.</summary>
-    float accel = 0.0f; // +0x10
+    float Accel = 0.0f;
     /// <summary>Current speed.</summary>
-    float velocity = 0.0f; // +0x14
+    float Velocity = 0.0f;
 };

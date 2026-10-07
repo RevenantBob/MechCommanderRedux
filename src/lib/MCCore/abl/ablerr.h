@@ -7,7 +7,7 @@
 /// ABL compile errors. The values index syntaxErrorMessages; the names are the port's (the MechCommander 2 source
 /// used this style), the messages the original's. Values 62 .. 69 duplicate the runtime errors' messages.
 /// </summary>
-enum SyntaxErrorType
+enum MCSyntaxErrorType
 {
     ABL_NO_ERROR = 0,
     ABL_ERR_SYNTAX_GENERIC = 1,
@@ -84,7 +84,7 @@ enum SyntaxErrorType
 };
 
 /// <summary>ABL execution errors; the values index runtimeErrorMessages.</summary>
-enum RuntimeErrorType
+enum MCRuntimeErrorType
 {
     ABL_ERR_RUNTIME_STACK_OVERFLOW = 0,
     ABL_ERR_RUNTIME_INFINITE_LOOP = 1,
@@ -99,19 +99,17 @@ enum RuntimeErrorType
 };
 
 /// <summary>Message of each SyntaxErrorType.</summary>
-extern const char* syntaxErrorMessages[NUM_ABL_SYNTAX_ERRORS];
+extern const char* SyntaxErrorMessages[NUM_ABL_SYNTAX_ERRORS];
 /// <summary>Message of each RuntimeErrorType.</summary>
-extern const char* runtimeErrorMessages[NUM_ABL_RUNTIME_ERRORS];
+extern const char* RuntimeErrorMessages[NUM_ABL_RUNTIME_ERRORS];
 /// <summary>Syntax errors of the current compile (runtime errors reset it too).</summary>
-extern int32_t errorCount;
+extern int32_t ErrorCount;
 
 /// <summary>Reports a compile error with the file and line (fatal), and kills the current token.</summary>
-/// <remarks>MCX.EXE @ 0x00622d50</remarks>
-void syntaxError(int32_t errCode);
+void SyntaxError(int32_t errCode);
 
 /// <summary>
 /// Reports an execution error: through the debugger (and its break mode) when there is one, then fatally with the
 /// module, file and line.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00622de0 (filed under ablerr.cpp by address; the line tables don't name it)</remarks>
-void runtimeError(int32_t errCode);
+void RuntimeError(int32_t errCode);

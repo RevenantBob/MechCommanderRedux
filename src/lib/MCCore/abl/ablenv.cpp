@@ -13,23 +13,23 @@
 
 int32_t MaxWatchesPerModule = 20;
 int32_t MaxBreakPointsPerModule = 20;
-ModuleEntry* ModuleRegistry = nullptr;
+MCModuleEntry* ModuleRegistry = nullptr;
 int32_t MaxModules = 0;
 int32_t NumModulesRegistered = 0;
 int32_t NumModules = 0;
-ABLModule** ModuleInstanceRegistry = nullptr;
+MCAblModule** ModuleInstanceRegistry = nullptr;
 int32_t NumModuleInstances = 0;
-ABLModule** LibraryInstanceRegistry = nullptr;
+MCAblModule** LibraryInstanceRegistry = nullptr;
 int32_t MaxLibraries = 0;
-int32_t numLibrariesLoaded = 0;
-ABLModule* CurModule = nullptr;
+int32_t NumLibrariesLoaded = 0;
+MCAblModule* CurModule = nullptr;
 int32_t CurModuleHandle = 0;
-ABLModule* CurLibrary = nullptr;
+MCAblModule* CurLibrary = nullptr;
 int32_t CallStackLevel = 0;
 int CallModuleInit = 0;
-int32_t eternalOffset = 0;
+int32_t EternalOffset = 0;
 int32_t NumExecutions = 0;
-File* ProfileLog = nullptr;
+MCFile* ProfileLog = nullptr;
 char ProfileLogBuffer[MAX_PROFILE_LOG_LINES][MAX_PROFILE_LOG_LINE_LENGTH];
 int32_t NumProfileLogLines = 0;
 int32_t TotalProfileLogLines = 0;
@@ -42,71 +42,71 @@ namespace
     /// </summary>
     /// <returns>The module symbol, or null when a parameter doesn't match its type (the execution is abandoned).</returns>
     /// <remarks>Both ABLModule::execute overloads start with this (inline in the original).</remarks>
-    auto beginModuleExecution(ABLModule* module, ABLParam* paramList) -> SymTableNodePtr
+    auto BeginModuleExecution(MCAblModule* module, MCAblParam* paramList) -> MCSymTableNodePtr
     {
         CurModule = module;
 
-        if (debugger)
+        if (Debugger)
         {
-            debugger->setModule(module);
+            Debugger->SetModule(module);
         }
 
-        StaticDataPtr = module->staticData;
+        StaticDataPtr = module->StaticData;
         CurModuleIdPtr = nullptr;
         CurRoutineIdPtr = nullptr;
-        SymTableNodePtr moduleIdPtr = ModuleRegistry[module->handle].moduleIdPtr;
+        MCSymTableNodePtr moduleIdPtr = ModuleRegistry[module->Handle].ModuleIdPtr;
         NumExecutions++;
         FileNumber = -1;
-        tos = stack + eternalOffset;
-        errorCount = 0;
-        stackFrameBasePtr = tos + 1;
-        execStatementCount = 0;
-        level = 1;
+        Tos = Stack + EternalOffset;
+        ErrorCount = 0;
+        StackFrameBasePtr = Tos + 1;
+        ExecStatementCount = 0;
+        Level = 1;
         CallStackLevel = 0;
 
-        pushInteger(0);
-        pushAddress(nullptr);
-        pushAddress(nullptr);
-        pushAddress(nullptr);
+        PushInteger(0);
+        PushAddress(nullptr);
+        PushAddress(nullptr);
+        PushAddress(nullptr);
 
         if (paramList)
         {
-            ABLParam* param = paramList;
+            MCAblParam* param = paramList;
 
-            for (SymTableNodePtr formalIdPtr = moduleIdPtr->defn.info.routine.params; formalIdPtr;
-                 formalIdPtr = formalIdPtr->next, param++)
+            for (MCSymTableNodePtr formalIdPtr = moduleIdPtr->Defn.Info.Routine.Params; formalIdPtr;
+                 formalIdPtr = formalIdPtr->Next, param++)
             {
-                TypePtr formalTypePtr = formalIdPtr->typePtr;
+                MCTypePtr formalTypePtr = formalIdPtr->TypePtr;
 
-                if (formalIdPtr->defn.key == DFN_VALPARAM)
+                if (formalIdPtr->Defn.Key == DFN_VALPARAM)
                 {
                     if (formalTypePtr == RealTypePtr)
                     {
-                        if (param->type == ABL_PARAM_INTEGER)
+                        if (param->Type == ABL_PARAM_INTEGER)
                         {
-                            pushReal(static_cast<float>(param->integer));
+                            PushReal(static_cast<float>(param->Integer));
                         }
-                        else if (param->type == ABL_PARAM_REAL)
+                        else if (param->Type == ABL_PARAM_REAL)
                         {
-                            pushReal(param->real);
+                            PushReal(param->Real);
                         }
                     }
                     else if (formalTypePtr == IntegerTypePtr)
                     {
-                        if (param->type != ABL_PARAM_INTEGER)
+                        if (param->Type != ABL_PARAM_INTEGER)
                         {
                             return nullptr;
                         }
 
-                        pushInteger(param->integer);
+                        PushInteger(param->Integer);
                     }
 
                     // Faithful: nothing was pushed for an array parameter, so this copies the block the top item
                     // points to.
-                    if (formalTypePtr->form == FRM_ARRAY)
+                    if (formalTypePtr->Form == FRM_ARRAY)
                     {
-                        int32_t size = formalTypePtr->size;
-                        Address copy = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
+                        int32_t size = formalTypePtr->Size;
+                        MCAddress copy = static_cast<MCAddress>(AblMemory.Allocate(static_cast<size_t>(size)));
 
                         // An empty array got no block from the heap, which was fatal.
                         if (!copy)
@@ -114,33 +114,33 @@ namespace
                             char err[256];
                             std::snprintf(err, sizeof(err),
                                           "ABL: Unable to AblStackHeap->malloc array parameter [Module %d]",
-                                          module->id);
+                                          module->Id);
                             Fatal(0, err);
                         }
 
-                        Address source = tos->address;
-                        tos->address = copy;
+                        MCAddress source = Tos->Address;
+                        Tos->Address = copy;
                         std::memcpy(copy, source, static_cast<size_t>(size));
                     }
                 }
                 else
                 {
-                    Address paramAddress;
+                    MCAddress paramAddress;
 
                     if (formalTypePtr == RealTypePtr)
                     {
-                        paramAddress = reinterpret_cast<Address>(&param->real);
+                        paramAddress = reinterpret_cast<MCAddress>(&param->Real);
                     }
                     else if (formalTypePtr == IntegerTypePtr)
                     {
-                        paramAddress = reinterpret_cast<Address>(&param->integer);
+                        paramAddress = reinterpret_cast<MCAddress>(&param->Integer);
                     }
                     else
                     {
                         return nullptr;
                     }
 
-                    pushAddress(paramAddress);
+                    PushAddress(paramAddress);
                 }
             }
         }
@@ -153,7 +153,7 @@ namespace
     /// caller's string in place, which the callers' literals ("handlemessage", the pilot alarm names) allowed only
     /// because MSVC 5 kept literals in writable data; the port lower-cases a copy.
     /// </summary>
-    auto lowerCaseName(const char* name) -> std::string
+    auto LowerCaseName(const char* name) -> std::string
     {
         std::string lower(name);
         MCPort::StrLwr(lower.data());
@@ -161,14 +161,14 @@ namespace
     }
 
     /// <summary>Finds <paramref name="name"/> (lower-cased) among the globals of the libraries <paramref name="entry"/> uses.</summary>
-    auto searchLibrariesUsed(const ModuleEntry& entry, char* name) -> SymTableNodePtr
+    auto SearchLibrariesUsed(const MCModuleEntry& entry, char* name) -> MCSymTableNodePtr
     {
-        std::string lower = lowerCaseName(name);
+        std::string lower = LowerCaseName(name);
 
-        for (int32_t i = 0; i < entry.numLibrariesUsed; i++)
+        for (int32_t i = 0; i < entry.NumLibrariesUsed; i++)
         {
-            SymTableNodePtr libraryIdPtr = ModuleRegistry[entry.librariesUsed[i]->handle].moduleIdPtr;
-            SymTableNodePtr symbol = searchSymTable(lower.data(), libraryIdPtr->defn.info.routine.localSymTable);
+            MCSymTableNodePtr libraryIdPtr = ModuleRegistry[entry.LibrariesUsed[i]->Handle].ModuleIdPtr;
+            MCSymTableNodePtr symbol = SearchSymTable(lower.data(), libraryIdPtr->Defn.Info.Routine.LocalSymTable);
 
             if (symbol)
             {
@@ -184,21 +184,21 @@ auto DumpProfileLog() -> void
 {
     for (int32_t i = 0; i < NumProfileLogLines; i++)
     {
-        ProfileLog->writeString(ProfileLogBuffer[i]);
+        ProfileLog->WriteString(ProfileLogBuffer[i]);
     }
 
     NumProfileLogLines = 0;
 }
 
-auto ABL_CloseProfileLog() -> void
+auto AblCloseProfileLog() -> void
 {
     if (ProfileLog)
     {
         DumpProfileLog();
         char line[512];
         std::snprintf(line, sizeof(line), "\nNum Total Lines = %d\n", TotalProfileLogLines);
-        ProfileLog->writeString(line);
-        ProfileLog->close();
+        ProfileLog->WriteString(line);
+        ProfileLog->Close();
         delete ProfileLog;
         ProfileLog = nullptr;
         NumProfileLogLines = 0;
@@ -206,28 +206,28 @@ auto ABL_CloseProfileLog() -> void
     }
 }
 
-auto ABL_OpenProfileLog() -> void
+auto AblOpenProfileLog() -> void
 {
     if (ProfileLog)
     {
-        ABL_CloseProfileLog();
+        AblCloseProfileLog();
     }
 
     NumProfileLogLines = 0;
-    ProfileLog = new File;
+    ProfileLog = new MCFile;
 
     if (!ProfileLog)
     {
         Fatal(0, " unable to malloc ABL ProfileLog ");
     }
 
-    if (ProfileLog->create("abl.log") != 0)
+    if (ProfileLog->Create("abl.log") != 0)
     {
         Fatal(0, " unable to create ABL ProfileLog ");
     }
 }
 
-auto ABL_AddToProfileLog(char* profileEntry) -> void
+auto AblAddToProfileLog(char* profileEntry) -> void
 {
     if (NumProfileLogLines == MAX_PROFILE_LOG_LINES)
     {
@@ -240,14 +240,14 @@ auto ABL_AddToProfileLog(char* profileEntry) -> void
     TotalProfileLogLines++;
 }
 
-auto initModuleRegistry(int32_t maxModules) -> void
+auto InitModuleRegistry(int32_t maxModules) -> void
 {
     MaxModules = maxModules;
-    ModuleRegistry = AblMemory.AllocateArray<ModuleEntry>(static_cast<size_t>(maxModules));
-    ModuleInstanceRegistry = AblMemory.AllocateArray<ABLModule*>(static_cast<size_t>(MaxModules));
+    ModuleRegistry = AblMemory.AllocateArray<MCModuleEntry>(static_cast<size_t>(maxModules));
+    ModuleInstanceRegistry = AblMemory.AllocateArray<MCAblModule*>(static_cast<size_t>(MaxModules));
 }
 
-auto destroyModuleRegistry() -> void
+auto DestroyModuleRegistry() -> void
 {
     if (!ModuleRegistry)
     {
@@ -256,18 +256,18 @@ auto destroyModuleRegistry() -> void
 
     for (int32_t i = 0; i < NumModulesRegistered; i++)
     {
-        ModuleEntry& entry = ModuleRegistry[i];
-        AblMemory.Free(entry.fileName);
-        entry.fileName = nullptr;
-        entry.moduleIdPtr = nullptr;
+        MCModuleEntry& entry = ModuleRegistry[i];
+        AblMemory.Free(entry.FileName);
+        entry.FileName = nullptr;
+        entry.ModuleIdPtr = nullptr;
 
         // Port fix: frees module i's source file names. The original indexed the registry with the file counter
         // (ModuleRegistry[j].sourceFiles[j], while j < ModuleRegistry[j].numSourceFiles), freeing the wrong names
         // and reading past the used entries. Only frees memory: ABLi_close clears the rest right after.
-        for (int32_t j = 0; j < entry.numSourceFiles; j++)
+        for (int32_t j = 0; j < entry.NumSourceFiles; j++)
         {
-            AblMemory.Free(entry.sourceFiles[j]);
-            entry.sourceFiles[j] = nullptr;
+            AblMemory.Free(entry.SourceFiles[j]);
+            entry.SourceFiles[j] = nullptr;
         }
     }
 
@@ -277,26 +277,26 @@ auto destroyModuleRegistry() -> void
     ModuleInstanceRegistry = nullptr;
 }
 
-auto initLibraryRegistry(int32_t maxLibraries) -> void
+auto InitLibraryRegistry(int32_t maxLibraries) -> void
 {
     MaxLibraries = maxLibraries;
-    LibraryInstanceRegistry = AblMemory.AllocateArray<ABLModule*>(static_cast<size_t>(maxLibraries));
+    LibraryInstanceRegistry = AblMemory.AllocateArray<MCAblModule*>(static_cast<size_t>(maxLibraries));
 }
 
-auto destroyLibraryRegistry() -> void
+auto DestroyLibraryRegistry() -> void
 {
     if (!LibraryInstanceRegistry)
     {
         return;
     }
 
-    for (int32_t i = 0; i < numLibrariesLoaded; i++)
+    for (int32_t i = 0; i < NumLibrariesLoaded; i++)
     {
-        ABLModule* library = LibraryInstanceRegistry[i];
+        MCAblModule* library = LibraryInstanceRegistry[i];
 
         if (library)
         {
-            library->destroy();
+            library->Destroy();
             delete library;
         }
 
@@ -307,52 +307,52 @@ auto destroyLibraryRegistry() -> void
     LibraryInstanceRegistry = nullptr;
 }
 
-auto ABLModule::init(int32_t moduleHandle) -> int32_t
+auto MCAblModule::Init(int32_t moduleHandle) -> int32_t
 {
-    handle = moduleHandle;
-    id = NumModules++;
-    staticData = nullptr;
+    Handle = moduleHandle;
+    Id = NumModules++;
+    StaticData = nullptr;
 
     // One item per static; a static array's item points to its own block.
-    const ModuleEntry& entry = ModuleRegistry[moduleHandle];
-    int32_t numStatics = entry.numStaticVars;
+    const MCModuleEntry& entry = ModuleRegistry[moduleHandle];
+    int32_t numStatics = entry.NumStaticVars;
 
     if (numStatics != 0)
     {
-        staticData = AblMemory.AllocateArray<StackItem>(static_cast<size_t>(numStatics));
+        StaticData = AblMemory.AllocateArray<MCStackItem>(static_cast<size_t>(numStatics));
 
         for (int32_t i = 0; i < numStatics; i++)
         {
-            int32_t size = entry.sizeStaticVars[i];
-            staticData[i] = StackItem{};
+            int32_t size = entry.SizeStaticVars[i];
+            StaticData[i] = MCStackItem{};
 
             if (size > 0)
             {
-                staticData[i].address = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
+                StaticData[i].Address = static_cast<MCAddress>(AblMemory.Allocate(static_cast<size_t>(size)));
 
 #if !MCREDUX_FIX_ABL_UNINITIALIZED_STATICS
-                std::memset(staticData[i].address, 0xff, static_cast<size_t>(size));
+                std::memset(StaticData[i].Address, 0xff, static_cast<size_t>(size));
 #endif
             }
         }
     }
 
     ModuleInstanceRegistry[NumModuleInstances++] = this;
-    ModuleRegistry[moduleHandle].numInstances++;
-    initCalled = 0;
+    ModuleRegistry[moduleHandle].NumInstances++;
+    InitCalled = 0;
 
-    if (debugger)
+    if (Debugger)
     {
-        watchManager = new WatchManager;
+        WatchManager = new MCWatchManager;
 
-        if (watchManager->init(MaxWatchesPerModule) != 0)
+        if (WatchManager->Init(MaxWatchesPerModule) != 0)
         {
             Fatal(0, " Unable to AblStackHeap->malloc WatchManager ");
         }
 
-        breakPointManager = new BreakPointManager;
+        BreakPointManager = new MCBreakPointManager;
 
-        if (breakPointManager->init(MaxBreakPointsPerModule) != 0)
+        if (BreakPointManager->Init(MaxBreakPointsPerModule) != 0)
         {
             Fatal(0, " Unable to AblStackHeap->malloc BreakPointManager ");
         }
@@ -361,54 +361,55 @@ auto ABLModule::init(int32_t moduleHandle) -> int32_t
     return 0;
 }
 
-auto ABLModule::setName(char* _name) -> void
+auto MCAblModule::SetName(char* name) -> void
 {
-    std::strncpy(name, _name, MAX_ABLMODULE_NAME - 1);
-    name[MAX_ABLMODULE_NAME - 1] = '\0';
+    std::strncpy(Name, name, MAX_ABLMODULE_NAME - 1);
+    Name[MAX_ABLMODULE_NAME - 1] = '\0';
 }
 
-auto ABLModule::execute(ABLParam* paramList) -> int32_t
+auto MCAblModule::Execute(MCAblParam* paramList) -> int32_t
 {
-    SymTableNodePtr moduleIdPtr = beginModuleExecution(this, paramList);
+    MCSymTableNodePtr moduleIdPtr = BeginModuleExecution(this, paramList);
 
     if (!moduleIdPtr)
     {
         return 0;
     }
 
-    CurModuleHandle = handle;
-    CallModuleInit = initCalled == 0;
-    initCalled = 1;
-    ::execute(moduleIdPtr);
-    returnVal = returnValue.integer;
-    return execStatementCount;
+    CurModuleHandle = Handle;
+    CallModuleInit = InitCalled == 0;
+    InitCalled = 1;
+    ::Execute(moduleIdPtr);
+    ReturnVal = ReturnValue.Integer;
+    return ExecStatementCount;
 }
 
-auto ABLModule::execute(ABLParam* moduleParamList, SymTableNodePtr function, ABLParam* functionParamList) -> int32_t
+auto MCAblModule::Execute(MCAblParam* moduleParamList, MCSymTableNodePtr function, MCAblParam* functionParamList)
+    -> int32_t
 {
-    SymTableNodePtr moduleIdPtr = beginModuleExecution(this, moduleParamList);
+    MCSymTableNodePtr moduleIdPtr = BeginModuleExecution(this, moduleParamList);
 
     if (!moduleIdPtr)
     {
         return 0;
     }
 
-    CurModuleHandle = handle;
-    int32_t wasInitCalled = initCalled;
-    initCalled = 1;
+    CurModuleHandle = Handle;
+    int32_t wasInitCalled = InitCalled;
+    InitCalled = 1;
     CallModuleInit = wasInitCalled == 0;
-    executeChild(moduleIdPtr, function, functionParamList);
-    returnVal = returnValue.integer;
-    return execStatementCount;
+    ExecuteChild(moduleIdPtr, function, functionParamList);
+    ReturnVal = ReturnValue.Integer;
+    return ExecStatementCount;
 }
 
-auto ABLModule::findSymbol(char* symbolName, SymTableNodePtr function, int searchLibraries) -> SymTableNodePtr
+auto MCAblModule::FindSymbol(char* symbolName, MCSymTableNodePtr function, int searchLibraries) -> MCSymTableNodePtr
 {
-    std::string lower = lowerCaseName(symbolName);
+    std::string lower = LowerCaseName(symbolName);
 
     if (function)
     {
-        SymTableNodePtr symbol = searchSymTable(lower.data(), function->defn.info.routine.localSymTable);
+        MCSymTableNodePtr symbol = SearchSymTable(lower.data(), function->Defn.Info.Routine.LocalSymTable);
 
         if (symbol)
         {
@@ -416,121 +417,121 @@ auto ABLModule::findSymbol(char* symbolName, SymTableNodePtr function, int searc
         }
     }
 
-    const ModuleEntry& entry = ModuleRegistry[handle];
-    SymTableNodePtr symbol = searchSymTable(lower.data(), entry.moduleIdPtr->defn.info.routine.localSymTable);
+    const MCModuleEntry& entry = ModuleRegistry[Handle];
+    MCSymTableNodePtr symbol = SearchSymTable(lower.data(), entry.ModuleIdPtr->Defn.Info.Routine.LocalSymTable);
 
     if (!symbol && searchLibraries)
     {
-        symbol = searchLibrariesUsed(entry, symbolName);
+        symbol = SearchLibrariesUsed(entry, symbolName);
     }
 
     return symbol;
 }
 
-auto ABLModule::findFunction(char* functionName, int searchLibraries) -> SymTableNodePtr
+auto MCAblModule::FindFunction(char* functionName, int searchLibraries) -> MCSymTableNodePtr
 {
     // The module's own table is searched with the name as given (not lower-cased).
-    const ModuleEntry& entry = ModuleRegistry[handle];
-    SymTableNodePtr symbol = searchSymTable(functionName, entry.moduleIdPtr->defn.info.routine.localSymTable);
+    const MCModuleEntry& entry = ModuleRegistry[Handle];
+    MCSymTableNodePtr symbol = SearchSymTable(functionName, entry.ModuleIdPtr->Defn.Info.Routine.LocalSymTable);
 
     if (!symbol && searchLibraries)
     {
-        symbol = searchLibrariesUsed(entry, functionName);
+        symbol = SearchLibrariesUsed(entry, functionName);
     }
 
     return symbol;
 }
 
-auto ABLModule::setStaticInteger(char* staticName, int32_t value) -> int32_t
+auto MCAblModule::SetStaticInteger(char* staticName, int32_t value) -> int32_t
 {
-    SymTableNodePtr idPtr = findSymbol(staticName);
+    MCSymTableNodePtr idPtr = FindSymbol(staticName);
 
     if (!idPtr)
     {
         return 1;
     }
 
-    if (baseType(idPtr->typePtr) != IntegerTypePtr)
+    if (BaseType(idPtr->TypePtr) != IntegerTypePtr)
     {
         return 2;
     }
 
-    if (idPtr->defn.info.data.varType != VAR_TYPE_STATIC)
+    if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_STATIC)
     {
         return 3;
     }
 
-    staticData[idPtr->defn.info.data.offset].integer = value;
+    StaticData[idPtr->Defn.Info.Data.Offset].Integer = value;
     return 0;
 }
 
-auto ABLModule::setStaticReal(char* staticName, float value) -> int32_t
+auto MCAblModule::SetStaticReal(char* staticName, float value) -> int32_t
 {
-    SymTableNodePtr idPtr = findSymbol(staticName);
+    MCSymTableNodePtr idPtr = FindSymbol(staticName);
 
     if (!idPtr)
     {
         return 1;
     }
 
-    if (baseType(idPtr->typePtr) != RealTypePtr)
+    if (BaseType(idPtr->TypePtr) != RealTypePtr)
     {
         return 2;
     }
 
-    if (idPtr->defn.info.data.varType != VAR_TYPE_STATIC)
+    if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_STATIC)
     {
         return 3;
     }
 
-    staticData[idPtr->defn.info.data.offset].real = value;
+    StaticData[idPtr->Defn.Info.Data.Offset].Real = value;
     return 0;
 }
 
-auto ABLModule::setStaticIntegerArray(char* staticName, int32_t size, int32_t* values) -> int32_t
+auto MCAblModule::SetStaticIntegerArray(char* staticName, int32_t size, int32_t* values) -> int32_t
 {
-    SymTableNodePtr idPtr = findSymbol(staticName);
+    MCSymTableNodePtr idPtr = FindSymbol(staticName);
 
     if (!idPtr)
     {
         return 1;
     }
 
-    if (idPtr->defn.info.data.varType != VAR_TYPE_STATIC)
+    if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_STATIC)
     {
         return 3;
     }
 
-    std::memcpy(staticData[idPtr->defn.info.data.offset].address, values, static_cast<size_t>(size) * sizeof(int32_t));
+    std::memcpy(StaticData[idPtr->Defn.Info.Data.Offset].Address, values, static_cast<size_t>(size) * sizeof(int32_t));
     return 0;
 }
 
-auto ABLModule::setStaticRealArray(char* staticName, int32_t size, float* values) -> int32_t
+auto MCAblModule::SetStaticRealArray(char* staticName, int32_t size, float* values) -> int32_t
 {
-    SymTableNodePtr idPtr = findSymbol(staticName);
+    MCSymTableNodePtr idPtr = FindSymbol(staticName);
 
     if (!idPtr)
     {
         return 1;
     }
 
-    if (idPtr->defn.info.data.varType != VAR_TYPE_STATIC)
+    if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_STATIC)
     {
         return 3;
     }
 
-    std::memcpy(staticData[idPtr->defn.info.data.offset].address, values, static_cast<size_t>(size) * sizeof(float));
+    std::memcpy(StaticData[idPtr->Defn.Info.Data.Offset].Address, values, static_cast<size_t>(size) * sizeof(float));
     return 0;
 }
 
-auto ABLModule::getSourceFile(int32_t fileNumber) -> char*
+auto MCAblModule::GetSourceFile(int32_t fileNumber) -> char*
 {
-    return ModuleRegistry[handle].sourceFiles[fileNumber];
+    return ModuleRegistry[Handle].SourceFiles[fileNumber];
 }
 
-auto ABLModule::getSourceDirectory(int32_t fileNumber, char* directory) -> char*
+auto MCAblModule::GetSourceDirectory(int32_t fileNumber, char* directory) -> char*
 {
-    char* fileName = ModuleRegistry[handle].sourceFiles[fileNumber];
+    char* fileName = ModuleRegistry[Handle].SourceFiles[fileNumber];
     int32_t curChar = static_cast<int32_t>(std::strlen(fileName)) - 1;
 
     while (curChar > -1 && fileName[curChar] != '\\')
@@ -548,24 +549,24 @@ auto ABLModule::getSourceDirectory(int32_t fileNumber, char* directory) -> char*
     return directory;
 }
 
-auto ABLModule::getInfo(int32_t& numStatics, int32_t& staticsSize, int32_t* sizeList) -> void
+auto MCAblModule::GetInfo(int32_t& numStatics, int32_t& staticsSize, int32_t* sizeList) -> void
 {
-    const ModuleEntry& entry = ModuleRegistry[handle];
-    numStatics = entry.numStaticVars;
-    staticsSize = entry.totalSizeStaticVars;
+    const MCModuleEntry& entry = ModuleRegistry[Handle];
+    numStatics = entry.NumStaticVars;
+    staticsSize = entry.TotalSizeStaticVars;
 
     if (sizeList)
     {
         for (int32_t i = 0; i < numStatics; i++)
         {
-            sizeList[i] = entry.sizeStaticVars[i];
+            sizeList[i] = entry.SizeStaticVars[i];
         }
     }
 }
 
-auto ABLModule::destroy() -> void
+auto MCAblModule::Destroy() -> void
 {
-    if (id > -1 && ModuleInstanceRegistry)
+    if (Id > -1 && ModuleInstanceRegistry)
     {
         for (int32_t i = 0; i < NumModuleInstances; i++)
         {
@@ -579,24 +580,24 @@ auto ABLModule::destroy() -> void
         }
     }
 
-    if (watchManager)
+    if (WatchManager)
     {
-        watchManager->destroy();
-        delete watchManager;
-        watchManager = nullptr;
+        WatchManager->Destroy();
+        delete WatchManager;
+        WatchManager = nullptr;
     }
 
-    if (breakPointManager)
+    if (BreakPointManager)
     {
-        breakPointManager->destroy();
-        delete breakPointManager;
-        breakPointManager = nullptr;
+        BreakPointManager->Destroy();
+        delete BreakPointManager;
+        BreakPointManager = nullptr;
     }
 
     // Faithful: the static arrays' own blocks are not freed.
-    if (staticData)
+    if (StaticData)
     {
-        AblMemory.Free(staticData);
-        staticData = nullptr;
+        AblMemory.Free(StaticData);
+        StaticData = nullptr;
     }
 }

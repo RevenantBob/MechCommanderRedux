@@ -322,14 +322,14 @@ private:
 /// The original's Smacker handle (<c>Smack*</c>, which the game's headers name <c>SmackTag</c>). The port's is a box
 /// around the player; the game only passes it around and closes it.
 /// </summary>
-struct SmackTag
+struct MCSmackTag
 {
     /// <summary>The open movie.</summary>
     std::unique_ptr<MCSmackerPlayer> Player;
 };
 
 /// <summary>Closes a movie opened for the game and frees its handle (<c>SmackClose</c>). Null is ignored.</summary>
-void SmackClose(SmackTag* movie);
+void SmackClose(MCSmackTag* movie);
 
 /// <summary>Opens a movie of the game's data (<c>SmackOpen</c>); its sound goes where
 /// <see cref="SmackSoundUseDirectSound"/> said.</summary>
@@ -337,7 +337,7 @@ void SmackClose(SmackTag* movie);
 /// <param name="flags">SMACK* flags; the port's player needs none.</param>
 /// <param name="extraBuffers">Not used.</param>
 /// <returns>The movie, or null when it can't be opened.</returns>
-SmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers);
+MCSmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers);
 
 /// <summary>Sends movie sound to <paramref name="audio"/> (<c>SmackSoundUseDirectSound</c>); null plays movies silent.
 /// </summary>

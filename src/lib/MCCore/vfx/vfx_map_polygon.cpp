@@ -4,13 +4,13 @@
 // mcx\vfx\vfx_map_polygon.cpp: despite the name, the game's status bars, its pixel write and a transparent window
 // blit. (Inline assembly in the original.)
 
-void AG_StatusBar(PANE* pane, int x0, int y0, int x1, int y1, int alphaColor, int barLength)
+void AGStatusBar(MCPane* pane, int x0, int y0, int x1, int y1, int alphaColor, int barLength)
 {
-    const WINDOW* window = pane->window;
-    int32_t clipX0 = std::max(pane->x0, 0);
-    int32_t clipY0 = std::max(pane->y0, 0);
-    int32_t clipX1 = pane->x1 < window->x_max + 1 ? pane->x1 : window->x_max;
-    int32_t clipY1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    const MCWindow* window = pane->Window;
+    int32_t clipX0 = std::max(pane->X0, 0);
+    int32_t clipY0 = std::max(pane->Y0, 0);
+    int32_t clipX1 = pane->X1 < window->XMax + 1 ? pane->X1 : window->XMax;
+    int32_t clipY1 = pane->Y1 < window->YMax + 1 ? pane->Y1 : window->YMax;
     MCClipToView(window, clipX0, clipY0, clipX1, clipY1);
 
     if (x0 > x1)
@@ -79,10 +79,10 @@ void AG_StatusBar(PANE* pane, int x0, int y0, int x1, int y1, int alphaColor, in
     command.FrameBottom = bottomRow;
     command.BarLength = barLength;
     command.AlphaColor = alphaColor;
-    MCRenderer::For(pane->window).StatusBar(pane->window, command);
+    MCRenderer::For(pane->Window).StatusBar(pane->Window, command);
 }
 
-void AG_pixel_write(PANE* pane, int32_t x, int32_t y, uint32_t color)
+void AGPixelWrite(MCPane* pane, int32_t x, int32_t y, uint32_t color)
 {
     MCVfxClip clip;
 
@@ -91,8 +91,8 @@ void AG_pixel_write(PANE* pane, int32_t x, int32_t y, uint32_t color)
         return;
     }
 
-    x += pane->x0;
-    y += pane->y0;
+    x += pane->X0;
+    y += pane->Y0;
 
     // OB-120: the asm wrote only strictly inside the pane's rectangle, and didn't check the window's size.
     if (x < clip.X0 || x > clip.X1 || y < clip.Y0 || y > clip.Y1)
@@ -100,23 +100,23 @@ void AG_pixel_write(PANE* pane, int32_t x, int32_t y, uint32_t color)
         return;
     }
 
-    MCRenderer::For(pane->window).Pixel(pane->window, x, y, static_cast<uint8_t>(color));
+    MCRenderer::For(pane->Window).Pixel(pane->Window, x, y, static_cast<uint8_t>(color));
 }
 
-int32_t DrawTransparent(PANE* pane, WINDOW* texture, int x, int y, int width, int height)
+int32_t DrawTransparent(MCPane* pane, MCWindow* texture, int x, int y, int width, int height)
 {
-    const WINDOW* window = pane->window;
-    const int32_t stride = window->x_max + 1; // 0x00802408
-    int32_t clipX0 = std::max(pane->x0, 0);
-    int32_t clipY0 = std::max(pane->y0, 0);
-    int32_t clipX1 = stride <= pane->x1 ? window->x_max : pane->x1;
-    int32_t clipY1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    const MCWindow* window = pane->Window;
+    const int32_t stride = window->XMax + 1; // 0x00802408
+    int32_t clipX0 = std::max(pane->X0, 0);
+    int32_t clipY0 = std::max(pane->Y0, 0);
+    int32_t clipX1 = stride <= pane->X1 ? window->XMax : pane->X1;
+    int32_t clipY1 = pane->Y1 < window->YMax + 1 ? pane->Y1 : window->YMax;
     MCClipToView(window, clipX0, clipY0, clipX1, clipY1);
 
     // OB-115: the asm offset by the pane's origin clipped to the window. OB-116: and counted a picture starting on
     // the last column or row as outside.
-    int32_t dx = x + pane->x0;
-    int32_t dy = y + pane->y0;
+    int32_t dx = x + pane->X0;
+    int32_t dy = y + pane->Y0;
 
     if (clipX1 < clipX0 || clipY1 < clipY0 || dx > clipX1 || dy > clipY1 || clipX0 - width >= dx ||
         clipY0 - height >= dy)
@@ -163,6 +163,6 @@ int32_t DrawTransparent(PANE* pane, WINDOW* texture, int x, int y, int width, in
     command.Key = 0xff;
     command.Downwards = true;
     command.Rightwards = true;
-    MCRenderer::For(pane->window).Copy(pane->window, command);
+    MCRenderer::For(pane->Window).Copy(pane->Window, command);
     return 0;
 }

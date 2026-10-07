@@ -10,54 +10,47 @@
 /// id, names, the data attached to it and the ids of its players.
 /// </summary>
 /// <remarks>Original source: <c>linkup\fidpgroup.cpp</c>, 0x168 bytes.</remarks>
-class FIDPGroup
+class MCFidpGroup
 {
 public:
     /// <summary>An empty group.</summary>
-    /// <remarks>MCX.EXE @ 0x0074bd50</remarks>
-    FIDPGroup();
+    MCFidpGroup();
     /// <summary>
     /// The group <paramref name="id"/> named by <paramref name="name"/> (the short name up to 64 characters, the long
     /// one up to 255), with DirectPlay's group <paramref name="flags"/>. <paramref name="parentID"/> is not kept.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0074bdd0</remarks>
-    FIDPGroup(uint32_t id, uint32_t parentID, const DPNAME* name, uint32_t flags);
+    MCFidpGroup(uint32_t id, uint32_t parentID, const DPNAME* name, uint32_t flags);
     /// <summary>Frees the player ids and empties the list.</summary>
-    /// <remarks>MCX.EXE @ 0x0074bea0 (deleting destructor 0x0074bda0)</remarks>
-    virtual ~FIDPGroup();
+    virtual ~MCFidpGroup();
 
-    FIDPGroup(const FIDPGroup&) = delete;
-    FIDPGroup& operator=(const FIDPGroup&) = delete;
+    MCFidpGroup(const MCFidpGroup&) = delete;
+    MCFidpGroup& operator=(const MCFidpGroup&) = delete;
 
     /// <summary>Removes <paramref name="playerID"/> from the group.</summary>
     /// <returns>1 if it was a member, else 0.</returns>
-    /// <remarks>MCX.EXE @ 0x0074c0c0</remarks>
     int RemovePlayer(uint32_t& playerID);
 
     /// <summary>Adds <paramref name="playerID"/> to the group.</summary>
     /// <returns>1 if added, 0 if it was already a member.</returns>
-    /// <remarks>MCX.EXE @ 0x0074c2e0</remarks>
     int AddPlayer(uint32_t& playerID);
 
     /// <summary>Replaces the group's data with a copy of <paramref name="size"/> bytes (a linkUpBlocks block).</summary>
-    /// <remarks>MCX.EXE @ 0x0074c440</remarks>
     void SetGroupData(void* data, uint32_t size);
 
     /// <summary>Deletes every group of <paramref name="list"/> and empties it.</summary>
-    /// <remarks>MCX.EXE @ 0x0074c4b0</remarks>
-    static void ClearList(FLinkedList<FIDPGroup>& list);
+    static void ClearList(MCFLinkedList<MCFidpGroup>& list);
 
     /// <summary>The group's DPID.</summary>
-    uint32_t id = 0; // +0x4
+    uint32_t Id = 0;
     /// <summary>The short name (strncpy of 64 characters: not always terminated, as in the original).</summary>
-    char name[64]{}; // +0xc
+    char Name[64]{};
     /// <summary>The long name.</summary>
-    char longName[256]{}; // +0x4c
+    char LongName[256]{};
     /// <summary>DirectPlay's group flags.</summary>
-    uint32_t flags = 0; // +0x14c
+    uint32_t Flags = 0;
     /// <summary>The data attached with <see cref="SetGroupData"/> (a linkUpBlocks block).</summary>
-    void* groupData = nullptr;  // +0x150
-    uint32_t groupDataSize = 0; // +0x154
+    void* GroupData = nullptr;
+    uint32_t GroupDataSize = 0;
     /// <summary>The ids of the group's players (each a linkUpBlocks block).</summary>
-    FLinkedList<uint32_t> players; // +0x158
+    MCFLinkedList<uint32_t> Players;
 };

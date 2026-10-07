@@ -1,40 +1,40 @@
 #include "stdafx.h"
 #include "engine/celement.h"
 
-std::vector<std::unique_ptr<Element, ElementPool::Deleter>> ElementPool::elements;
-int32_t ElementPool::elementCount = 0;
+std::vector<std::unique_ptr<MCElement, MCElementPool::Deleter>> MCElementPool::Elements;
+int32_t MCElementPool::ElementCount = 0;
 
-Element::Element(int32_t _depth)
+MCElement::MCElement(int32_t depth)
 {
-    depth = static_cast<float>(_depth);
+    Depth = static_cast<float>(depth);
 }
 
-Element::Element(float _depth)
+MCElement::MCElement(float depth)
 {
-    const int16_t whole = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(_depth))));
-    depth = static_cast<float>(static_cast<int32_t>(whole));
+    const int16_t whole = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(depth))));
+    Depth = static_cast<float>(static_cast<int32_t>(whole));
 }
 
-auto ElementPool::Deleter::operator()(Element* element) const -> void
+auto MCElementPool::Deleter::operator()(MCElement* element) const -> void
 {
-    element->~Element();
+    element->~MCElement();
     delete[] reinterpret_cast<std::byte*>(element);
 }
 
-auto ElementPool::reset() -> void
+auto MCElementPool::Reset() -> void
 {
-    elementCount = 0;
-    elements.clear();
+    ElementCount = 0;
+    Elements.clear();
 }
 
-auto ElementPool::init(int32_t) -> int32_t
+auto MCElementPool::Init(int32_t) -> int32_t
 {
-    reset();
+    Reset();
     return 0;
 }
 
-auto ElementPool::free() -> void
+auto MCElementPool::Free() -> void
 {
-    reset();
-    elements.shrink_to_fit();
+    Reset();
+    Elements.shrink_to_fit();
 }

@@ -7,9 +7,9 @@
 // The asm shared a few static scratch buffers between these routines (a 3328-byte line buffer at 0x007a8645, a
 // 768-byte buffer at 0x007a9345, ...); the port gives each routine its own, sized to the data.
 
-VFX_RGB VFXDacPalette[256];
-void (*VFXDacWriteHook)(int32_t index, const VFX_RGB* rgb) = nullptr;
-void (*VFXWaitRetraceHook)() = nullptr;
+MCVfxRgb VfxDacPalette[256];
+void (*VfxDacWriteHook)(int32_t index, const MCVfxRgb* rgb) = nullptr;
+void (*VfxWaitRetraceHook)() = nullptr;
 
 namespace
 {
@@ -29,8 +29,7 @@ namespace
     /// </summary>
     /// <returns>The chunk's data (past its tag and length).</returns>
     /// <remarks>
-    /// MCX.EXE @ 0x00771794 (unnamed). Original behaviour: there is no end check, so a missing chunk runs past the
-    /// file.
+    /// Original behaviour: there is no end check, so a missing chunk runs past the file.
     /// </remarks>
     uint8_t* FindIffChunk(const char* tag, uint8_t* iff)
     {
@@ -53,7 +52,7 @@ namespace
     }
 }
 
-void VFX_line_to_pane(PANE* pane, int32_t y, uint8_t* line, int32_t width)
+void VfxLineToPane(MCPane* pane, int32_t y, uint8_t* line, int32_t width)
 {
     MCVfxClip clip;
 
@@ -97,13 +96,13 @@ void VFX_line_to_pane(PANE* pane, int32_t y, uint8_t* line, int32_t width)
         return;
     }
 
-    MCRenderer::For(pane->window).Write(pane->window, x, y, line, count);
+    MCRenderer::For(pane->Window).Write(pane->Window, x, y, line, count);
 }
 
-int32_t VFX_ILBM_draw(PANE* pane, uint8_t* ilbm)
+int32_t VfxIlbmDraw(MCPane* pane, uint8_t* ilbm)
 {
-    const int32_t paneWidth = pane->x1 - pane->x0 + 1;
-    const int32_t paneHeight = pane->y1 - pane->y0 + 1;
+    const int32_t paneWidth = pane->X1 - pane->X0 + 1;
+    const int32_t paneHeight = pane->Y1 - pane->Y0 + 1;
     // Anything but FORM ILBM is taken for a chunky PBM.
     const bool planar = std::memcmp(ilbm + 8, "ILBM", 4) == 0;
 
@@ -196,21 +195,21 @@ int32_t VFX_ILBM_draw(PANE* pane, uint8_t* ilbm)
                 }
             }
 
-            VFX_line_to_pane(pane, y, line.data(), width);
+            VfxLineToPane(pane, y, line.data(), width);
         }
         else
         {
-            VFX_line_to_pane(pane, y, row, width);
+            VfxLineToPane(pane, y, row, width);
         }
     }
 
     return transparent;
 }
 
-void VFX_ILBM_palette(uint8_t* ilbm, VFX_RGB* palette)
+void VfxIlbmPalette(uint8_t* ilbm, MCVfxRgb* palette)
 {
     const uint8_t* colors = FindIffChunk("CMAP", ilbm);
-    uint8_t* out = &palette[0].r;
+    uint8_t* out = &palette[0].R;
 
     for (int32_t i = 0; i < 0x300; ++i)
     {
@@ -218,13 +217,13 @@ void VFX_ILBM_palette(uint8_t* ilbm, VFX_RGB* palette)
     }
 }
 
-int32_t VFX_ILBM_resolution(uint8_t* ilbm)
+int32_t VfxIlbmResolution(uint8_t* ilbm)
 {
     const uint8_t* header = FindIffChunk("BMHD", ilbm);
     return static_cast<int32_t>((static_cast<uint32_t>(ReadBE16(header)) << 16) | ReadBE16(header + 2));
 }
 
-int32_t VFX_PCX_draw(PANE* pane, uint8_t* pcx)
+int32_t VfxPcxDraw(MCPane* pane, uint8_t* pcx)
 {
     // Rows 0..(yMax - yMin), each bytesPerLine bytes of RLE: a byte with its top two bits set repeats the next byte
     // (its low six bits) times. Original behaviour: a run may spill past the row's end into the line buffer's slack
@@ -255,16 +254,16 @@ int32_t VFX_PCX_draw(PANE* pane, uint8_t* pcx)
             }
         } while (out < end);
 
-        VFX_line_to_pane(pane, y, line.data(), bytesPerLine);
+        VfxLineToPane(pane, y, line.data(), bytesPerLine);
     }
 
     return 0;
 }
 
-void VFX_PCX_palette(uint8_t* pcx, int32_t fileSize, VFX_RGB* palette)
+void VfxPcxPalette(uint8_t* pcx, int32_t fileSize, MCVfxRgb* palette)
 {
     const uint8_t* colors = pcx + fileSize - 0x300;
-    uint8_t* out = &palette[0].r;
+    uint8_t* out = &palette[0].R;
 
     for (int32_t i = 0; i < 0x300; ++i)
     {
@@ -272,7 +271,7 @@ void VFX_PCX_palette(uint8_t* pcx, int32_t fileSize, VFX_RGB* palette)
     }
 }
 
-int32_t VFX_PCX_resolution(uint8_t* pcx)
+int32_t VfxPcxResolution(uint8_t* pcx)
 {
     const uint16_t width = static_cast<uint16_t>(ReadLE16(pcx + 8) - ReadLE16(pcx + 4) + 1);
     const uint16_t height = static_cast<uint16_t>(ReadLE16(pcx + 0xa) - ReadLE16(pcx + 6) + 1);
@@ -283,28 +282,28 @@ namespace
 {
 #pragma pack(push, 1)
     /// <summary>The caller's GIF work buffer, laid out as the asm used it.</summary>
-    struct GifState
+    struct MCGifState
     {
-        int32_t nextCode;        // +0x00
-        int32_t codeLimit;       // +0x04 the next code that widens the code size
-        int32_t linePos;         // +0x08
-        int32_t row;             // +0x0c
-        int32_t blockLeft;       // +0x10 bytes left in the current data sub-block
-        uint32_t bitBuffer;      // +0x14
-        int32_t bitCount;        // +0x18
-        int32_t codeSize;        // +0x1c
-        int32_t pixelsLeft;      // +0x20 pixels left in the current row
-        int32_t width;           // +0x24
-        int32_t height;          // +0x28
-        uint8_t interlaced;      // +0x2c
-        uint8_t pass;            // +0x2d
-        uint8_t stack[0x1000];   // +0x2e the string being output, last pixel first
-        uint8_t first[0x1000];   // +0x102e each code's first pixel
-        uint8_t suffix[0x1000];  // +0x202e each code's last pixel
-        uint16_t prefix[0x1000]; // +0x302e each code's prefix code (0xffff roots, 0xfffe unused)
+        int32_t NextCode;
+        int32_t CodeLimit; // the next code that widens the code size
+        int32_t LinePos;
+        int32_t Row;
+        int32_t BlockLeft; // bytes left in the current data sub-block
+        uint32_t BitBuffer;
+        int32_t BitCount;
+        int32_t CodeSize;
+        int32_t PixelsLeft; // pixels left in the current row
+        int32_t Width;
+        int32_t Height;
+        uint8_t Interlaced;
+        uint8_t Pass;
+        uint8_t Stack[0x1000];   // the string being output, last pixel first
+        uint8_t First[0x1000];   // each code's first pixel
+        uint8_t Suffix[0x1000];  // each code's last pixel
+        uint16_t Prefix[0x1000]; // each code's prefix code (0xffff roots, 0xfffe unused)
     };
 #pragma pack(pop)
-    static_assert(sizeof(GifState) == VFX_GIF_BUFFER_SIZE);
+    static_assert(sizeof(MCGifState) == VFX_GIF_BUFFER_SIZE);
 
     /// <summary>Bit masks for 0..8 bits (0x007a9945).</summary>
     constexpr uint8_t GifMasks[9] = {0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff};
@@ -313,119 +312,118 @@ namespace
     /// <summary>The first row of each interlace pass (0x007a9953).</summary>
     constexpr uint8_t GifPassStart[5] = {0, 4, 2, 1, 0};
 
-    struct GifDecoder
+    struct MCGifDecoder
     {
-        GifState* State;
+        MCGifState* State;
         const uint8_t* In;
-        PANE* Pane;
+        MCPane* Pane;
         std::vector<uint8_t> Line;
 
-        /// <summary>GIF_init_codetable (MCX.EXE @ 0x00771acf).</summary>
+        /// <summary>GIF_init_codetable.</summary>
         void InitCodeTable(int32_t clearCode)
         {
-            State->nextCode = clearCode + 2;
-            State->codeLimit = clearCode * 2;
+            State->NextCode = clearCode + 2;
+            State->CodeLimit = clearCode * 2;
             int32_t i = 0;
 
             for (; i < clearCode; ++i)
             {
-                State->first[i] = static_cast<uint8_t>(i);
-                State->suffix[i] = static_cast<uint8_t>(i);
-                State->prefix[i] = 0xffff;
+                State->First[i] = static_cast<uint8_t>(i);
+                State->Suffix[i] = static_cast<uint8_t>(i);
+                State->Prefix[i] = 0xffff;
             }
 
             for (; i < 0x1000; ++i)
             {
-                State->prefix[i] = 0xfffe;
+                State->Prefix[i] = 0xfffe;
             }
         }
 
-        /// <summary>GIF_getb (MCX.EXE @ 0x00771b17): the next data byte, stepping over sub-block lengths.</summary>
+        /// <summary>GIF_getb: the next data byte, stepping over sub-block lengths.</summary>
         uint32_t GetByte()
         {
-            if (State->blockLeft == 0)
+            if (State->BlockLeft == 0)
             {
-                State->blockLeft = *In++;
+                State->BlockLeft = *In++;
             }
 
             const uint32_t value = *In++;
-            --State->blockLeft;
+            --State->BlockLeft;
             return value;
         }
 
-        /// <summary>GIF_getbcode (MCX.EXE @ 0x00771b30): the next <paramref name="bits"/> (at most 8) bits, LSB first.</summary>
+        /// <summary>GIF_getbcode: the next <paramref name="bits"/> (at most 8) bits, LSB first.</summary>
         uint32_t GetBits(int32_t bits)
         {
-            if (State->bitCount == 0)
+            if (State->BitCount == 0)
             {
-                State->bitBuffer = GetByte();
-                State->bitCount = 8;
+                State->BitBuffer = GetByte();
+                State->BitCount = 8;
             }
 
-            if (State->bitCount < bits)
+            if (State->BitCount < bits)
             {
-                State->bitBuffer |= GetByte() << State->bitCount;
-                State->bitCount += 8;
+                State->BitBuffer |= GetByte() << State->BitCount;
+                State->BitCount += 8;
             }
 
-            const uint32_t value = State->bitBuffer & GifMasks[bits];
-            State->bitCount -= bits;
-            State->bitBuffer >>= bits;
+            const uint32_t value = State->BitBuffer & GifMasks[bits];
+            State->BitCount -= bits;
+            State->BitBuffer >>= bits;
             return value;
         }
 
-        /// <summary>GIF_insertcode (MCX.EXE @ 0x00771b76): adds prefix + first pixel of <paramref name="code"/>.</summary>
+        /// <summary>GIF_insertcode: adds prefix + first pixel of <paramref name="code"/>.</summary>
         void InsertCode(int32_t code, int32_t prefix)
         {
-            const int32_t next = State->nextCode;
+            const int32_t next = State->NextCode;
 
             // Port fix: a full table (a GIF that doesn't clear at 4096 codes) is left alone; the asm wrote past it.
             if (next < 0x1000)
             {
-                State->prefix[next] = static_cast<uint16_t>(prefix);
-                State->suffix[next] = State->first[code];
-                State->first[next] = State->first[prefix];
+                State->Prefix[next] = static_cast<uint16_t>(prefix);
+                State->Suffix[next] = State->First[code];
+                State->First[next] = State->First[prefix];
             }
 
-            ++State->nextCode;
+            ++State->NextCode;
 
-            if (State->nextCode == State->codeLimit && State->codeSize < 12)
+            if (State->NextCode == State->CodeLimit && State->CodeSize < 12)
             {
-                ++State->codeSize;
-                State->codeLimit <<= 1;
+                ++State->CodeSize;
+                State->CodeLimit <<= 1;
             }
         }
 
         /// <summary>
-        /// Puts one pixel in the line; a full line goes to the pane and the row advances (MCX.EXE @ 0x00771bbc,
-        /// unnamed).
+        /// Puts one pixel in the line; a full line goes to the pane and the row advances.
         /// </summary>
         void PutPixel(uint8_t pixel)
         {
-            Line[static_cast<size_t>(State->linePos++)] = pixel;
+            Line[static_cast<size_t>(State->LinePos++)] = pixel;
 
-            if (--State->pixelsLeft != 0)
+            if (--State->PixelsLeft != 0)
             {
                 return;
             }
 
-            VFX_line_to_pane(Pane, State->row, Line.data(), State->width);
-            State->linePos = 0;
-            State->pixelsLeft = State->width;
+            VfxLineToPane(Pane, State->Row, Line.data(), State->Width);
+            State->LinePos = 0;
+            State->PixelsLeft = State->Width;
 
-            if (State->interlaced != 0)
+            if (State->Interlaced != 0)
             {
-                State->row += GifPassStep[std::min<int32_t>(State->pass, 4)];
+                State->Row += GifPassStep[std::min<int32_t>(State->Pass, 4)];
 
-                if (State->row >= State->height)
+                if (State->Row >= State->Height)
                 {
-                    ++State->pass;
-                    State->row = GifPassStart[std::min<int32_t>(State->pass, 4)];
+                    ++State->Pass;
+                    State->Row = GifPassStart[std::min<int32_t>(State->Pass, 4)];
                 }
             }
-            else if (++State->row >= State->height)
+            else if (++State->Row >= State->Height)
             {
-                State->row = 0;
+                State->Row = 0;
             }
         }
     };
@@ -445,21 +443,21 @@ namespace
     }
 }
 
-int32_t VFX_GIF_draw(PANE* pane, uint8_t* gif, void* buffer)
+int32_t VfxGifDraw(MCPane* pane, uint8_t* gif, void* buffer)
 {
-    GifState* state = static_cast<GifState*>(buffer);
+    MCGifState* state = static_cast<MCGifState*>(buffer);
     std::memset(state, 0, 0x2e);
 
-    GifDecoder decoder;
+    MCGifDecoder decoder;
     decoder.State = state;
     decoder.Pane = pane;
     const int32_t background = gif[0xb];
 
     const uint8_t* descriptor = GifImageDescriptor(gif);
-    state->width = ReadLE16(descriptor + 5);
-    state->height = ReadLE16(descriptor + 7);
+    state->Width = ReadLE16(descriptor + 5);
+    state->Height = ReadLE16(descriptor + 7);
     const uint8_t imageFlags = descriptor[9];
-    state->interlaced = imageFlags & 0x40;
+    state->Interlaced = imageFlags & 0x40;
     const uint8_t* in = descriptor + 0xa;
 
     if (imageFlags & 0x80)
@@ -467,40 +465,40 @@ int32_t VFX_GIF_draw(PANE* pane, uint8_t* gif, void* buffer)
         in += 3 * (1 << ((imageFlags & 7) + 1));
     }
 
-    decoder.Line.assign(static_cast<size_t>(std::max(state->width, 1)), 0);
+    decoder.Line.assign(static_cast<size_t>(std::max(state->Width, 1)), 0);
 
-    state->blockLeft = 0;
+    state->BlockLeft = 0;
     const int32_t minCodeSize = *in++;
     decoder.In = in;
     const int32_t clearCode = 1 << minCodeSize;
     const int32_t endCode = clearCode + 1;
-    state->codeSize = minCodeSize + 1;
+    state->CodeSize = minCodeSize + 1;
     decoder.InitCodeTable(clearCode);
     int32_t previous = 0xffff;
     bool done = false;
-    state->pass = 0;
-    state->pixelsLeft = state->width;
-    state->linePos = 0;
-    state->row = 0;
+    state->Pass = 0;
+    state->PixelsLeft = state->Width;
+    state->LinePos = 0;
+    state->Row = 0;
 
     while (!done)
     {
         int32_t code;
 
-        if (state->codeSize <= 8)
+        if (state->CodeSize <= 8)
         {
-            code = static_cast<int32_t>(decoder.GetBits(state->codeSize));
+            code = static_cast<int32_t>(decoder.GetBits(state->CodeSize));
         }
         else
         {
             const uint32_t low = decoder.GetBits(8);
-            code = static_cast<int32_t>((decoder.GetBits(state->codeSize - 8) << 8) | low);
+            code = static_cast<int32_t>((decoder.GetBits(state->CodeSize - 8) << 8) | low);
         }
 
         if (code == clearCode)
         {
             decoder.InitCodeTable(clearCode);
-            state->codeSize = minCodeSize + 1;
+            state->CodeSize = minCodeSize + 1;
             previous = 0xffff;
             continue;
         }
@@ -510,15 +508,15 @@ int32_t VFX_GIF_draw(PANE* pane, uint8_t* gif, void* buffer)
             // Step over the rest of the image data, up to its terminating empty sub-block.
             do
             {
-                decoder.In += state->blockLeft;
-                state->blockLeft = *decoder.In++;
-            } while (state->blockLeft != 0);
+                decoder.In += state->BlockLeft;
+                state->BlockLeft = *decoder.In++;
+            } while (state->BlockLeft != 0);
 
             done = true;
             continue;
         }
 
-        if (state->prefix[code] != 0xfffe)
+        if (state->Prefix[code] != 0xfffe)
         {
             if (previous != 0xffff)
             {
@@ -544,12 +542,12 @@ int32_t VFX_GIF_draw(PANE* pane, uint8_t* gif, void* buffer)
 
         while (c < 0x1000 && length < 0x1000) // Port fix: bounds for corrupt data; valid chains end at 0xffff.
         {
-            state->stack[length++] = state->suffix[c];
-            c = state->prefix[c];
+            state->Stack[length++] = state->Suffix[c];
+            c = state->Prefix[c];
         }
         while (length > 0)
         {
-            decoder.PutPixel(state->stack[--length]);
+            decoder.PutPixel(state->Stack[--length]);
         }
 
         previous = code;
@@ -558,10 +556,10 @@ int32_t VFX_GIF_draw(PANE* pane, uint8_t* gif, void* buffer)
     return background;
 }
 
-void VFX_GIF_palette(uint8_t* gif, VFX_RGB* palette)
+void VfxGifPalette(uint8_t* gif, MCVfxRgb* palette)
 {
     const uint8_t* p = gif + 0xd;
-    uint8_t* out = &palette[0].r;
+    uint8_t* out = &palette[0].R;
     const uint8_t flags = gif[0xa];
 
     if (flags & 0x80)
@@ -588,13 +586,13 @@ void VFX_GIF_palette(uint8_t* gif, VFX_RGB* palette)
     }
 }
 
-int32_t VFX_GIF_resolution(uint8_t* gif)
+int32_t VfxGifResolution(uint8_t* gif)
 {
     const uint8_t* descriptor = GifImageDescriptor(gif);
     return static_cast<int32_t>((static_cast<uint32_t>(ReadLE16(descriptor + 5)) << 16) | ReadLE16(descriptor + 7));
 }
 
-void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
+void VfxWindowFade(MCWindow* window, MCVfxRgb* palette, int32_t intervals)
 {
     // The asm's scratch tables: current values (0x007a8645), steps left per channel (0x007a8a45), step directions
     // (0x007a9345, which doubles as the seen-colour flags) and error accumulators (0x007a9645, which persist between
@@ -607,12 +605,12 @@ void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
     uint8_t used[0x100];
 
     // The colours the window uses, in the order met, with their current DAC values.
-    const uint32_t pixels = static_cast<uint32_t>(window->x_max + 1) * static_cast<uint32_t>(window->y_max + 1);
+    const uint32_t pixels = static_cast<uint32_t>(window->XMax + 1) * static_cast<uint32_t>(window->YMax + 1);
     int32_t count = 0;
 
     for (uint32_t i = 0; i < pixels; ++i)
     {
-        const uint8_t color = window->buffer[i];
+        const uint8_t color = window->Buffer[i];
 
         if (seen[color] != 0)
         {
@@ -621,7 +619,7 @@ void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
 
         seen[color] = 1;
         used[count++] = color;
-        std::memcpy(current + color * 3, &VFXDacPalette[color], 3);
+        std::memcpy(current + color * 3, &VfxDacPalette[color], 3);
     }
 
     if (count == 0)
@@ -638,7 +636,7 @@ void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
         for (int32_t channel = 0; channel < 3; ++channel)
         {
             const uint8_t from = current[base + channel];
-            const uint8_t to = (&palette[0].r)[base + channel];
+            const uint8_t to = (&palette[0].R)[base + channel];
             uint8_t difference = static_cast<uint8_t>(from - to);
             uint8_t direction = 0xff;
 
@@ -696,11 +694,11 @@ void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
                 accumulators[base + channel] = sum;
             }
 
-            std::memcpy(&VFXDacPalette[color], current + base, 3);
+            std::memcpy(&VfxDacPalette[color], current + base, 3);
 
-            if (VFXDacWriteHook != nullptr)
+            if (VfxDacWriteHook != nullptr)
             {
-                VFXDacWriteHook(color, &VFXDacPalette[color]);
+                VfxDacWriteHook(color, &VfxDacPalette[color]);
             }
         }
 
@@ -711,9 +709,9 @@ void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
         {
             for (; wholeRetraces != 0; --wholeRetraces)
             {
-                if (VFXWaitRetraceHook != nullptr)
+                if (VfxWaitRetraceHook != nullptr)
                 {
-                    VFXWaitRetraceHook();
+                    VfxWaitRetraceHook();
                 }
             }
 
@@ -722,7 +720,7 @@ void VFX_window_fade(WINDOW* window, VFX_RGB* palette, int32_t intervals)
     }
 }
 
-int32_t VFX_color_scan(PANE* pane, uint32_t* colors)
+int32_t VfxColorScan(MCPane* pane, uint32_t* colors)
 {
     uint8_t seen[0x100] = {};
     MCVfxClip clip;

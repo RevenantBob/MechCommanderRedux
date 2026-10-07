@@ -3,7 +3,7 @@
 #include "main/main.h"
 
 char McMsg1[1024] = {};
-int inDirectDrawOnFatal = 0;
+int InDirectDrawOnFatal = 0;
 bool MCNoMessageBoxes = false;
 char MissionAppName[256] = {};
 
@@ -50,8 +50,8 @@ void FatalMsg(const char* message)
     char header[200];
     char clock[200];
     std::snprintf(header, sizeof(header), "Fatal Error (ID: %s)", message);
-    std::snprintf(clock, sizeof(clock), "ScenarioTime: %06.2f   ScenarioTurn: %d", static_cast<double>(scenarioTime),
-                  turn);
+    std::snprintf(clock, sizeof(clock), "ScenarioTime: %06.2f   ScenarioTurn: %d", static_cast<double>(ScenarioTime),
+                  Turn);
     std::snprintf(McMsg1, sizeof(McMsg1), "%s\n%s\n%s", header, MissionAppName, clock);
     Fatal(-1, message);
 }

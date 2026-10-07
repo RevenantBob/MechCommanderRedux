@@ -9,12 +9,12 @@
 namespace
 {
     /// <summary>The session manager the dialog works on (0x0080a410).</summary>
-    SessionManager* dialogSessionManager = nullptr;
+    MCSessionManager* DialogSessionManager = nullptr;
 }
 
 int32_t ConnectUsingDialog(void*)
 {
-    dialogSessionManager = SessionManager::GetGlobalPointer(nullptr);
+    DialogSessionManager = MCSessionManager::GetGlobalPointer(nullptr);
     // Port: no dialog to show; DialogBoxParam returning 0 meant the dialog was cancelled.
     return static_cast<int32_t>(DPERR_USERCANCEL);
 }
@@ -29,7 +29,7 @@ int ConnectWndProc(void*, uint32_t, uint32_t, int32_t)
 
 int32_t ConnectToSelectedService(void*)
 {
-    dialogSessionManager->SetCurrentConnection(PROTOCOL_IPX);
+    DialogSessionManager->SetCurrentConnection(PROTOCOL_IPX);
     return 0;
 }
 

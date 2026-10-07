@@ -37,7 +37,7 @@ namespace
     constexpr double SIXTY_DEGREES = 0x1.0c152382d45b2p+0;
 
     /// <summary>The two shapes of gate: their object type ids pick which overlay types they set on the map.</summary>
-    enum class GateKind
+    enum class MCGateKind
     {
         None,
         /// <summary>Types 0x284, 0x287, 0x2b2, 0x2b3, 0x403, 0x405.</summary>
@@ -46,7 +46,7 @@ namespace
         KindB
     };
 
-    GateKind gateKind(int32_t objTypeNum)
+    MCGateKind GateKind(int32_t objTypeNum)
     {
         switch (objTypeNum)
         {
@@ -56,42 +56,42 @@ namespace
             case 0x2b3:
             case 0x403:
             case 0x405:
-                return GateKind::KindA;
+                return MCGateKind::KindA;
             case 0x285:
             case 0x286:
             case 0x2b4:
             case 0x2b5:
             case 0x404:
             case 0x406:
-                return GateKind::KindB;
+                return MCGateKind::KindB;
             default:
-                return GateKind::None;
+                return MCGateKind::None;
         }
     }
 
     /// <summary>The map row and column of a gate's terrain vertex (used as its tile).</summary>
-    void vertexRowCol(const Gate* gate, int32_t& row, int32_t& col)
+    void VertexRowCol(const MCGate* gate, int32_t& row, int32_t& col)
     {
-        col = (gate->blockNumber % Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-              gate->vertexNumber % Terrain::verticesBlockSide;
-        row = (gate->blockNumber / Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-              gate->vertexNumber / Terrain::verticesBlockSide;
+        col = (gate->BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+              gate->VertexNumber % MCTerrain::VerticesBlockSide;
+        row = (gate->BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+              gate->VertexNumber / MCTerrain::VerticesBlockSide;
     }
 
     /// <summary>
     /// Sets the gate tile's overlay type (the masked form MCX.EXE writes) and each of its nine cells' passable and
     /// line-of-sight bits.
     /// </summary>
-    void setGateTile(int32_t row, int32_t col, uint32_t keepMask, uint32_t overlayBits, uint32_t lineOfSight,
+    void SetGateTile(int32_t row, int32_t col, uint32_t keepMask, uint32_t overlayBits, uint32_t lineOfSight,
                      uint32_t passable)
     {
-        MapTile& tile = GameMap->map[GameMap->width * row + col];
-        tile.overlay = (tile.overlay & keepMask) | overlayBits;
+        MCMapTile& tile = GameMap->Map[GameMap->Width * row + col];
+        tile.Overlay = (tile.Overlay & keepMask) | overlayBits;
 
         for (uint32_t shift = 0; shift < 0x12; shift += 2)
         {
-            tile.cells = (lineOfSight << (shift + 0xf)) | (~(0x8000u << shift) & tile.cells);
-            tile.cells = (~(0x4000u << shift) & tile.cells) | (passable << (shift + 0xe));
+            tile.Cells = (lineOfSight << (shift + 0xf)) | (~(0x8000u << shift) & tile.Cells);
+            tile.Cells = (~(0x4000u << shift) & tile.Cells) | (passable << (shift + 0xe));
         }
     }
 
@@ -100,50 +100,50 @@ namespace
     /// when it was closed), closing (3, with the closing sound when it was open) or closed (0).
     /// </summary>
     /// <returns>True when the gate is now closed.</returns>
-    bool takeGateState(Gate* gate, int32_t state)
+    bool TakeGateState(MCGate* gate, int32_t state)
     {
         switch (state)
         {
             case 2:
             {
-                gate->isOpen = 1;
-                gate->isOpening = 0;
-                gate->isClosing = 0;
-                gate->isClosed = 0;
+                gate->IsOpen = 1;
+                gate->IsOpening = 0;
+                gate->IsClosing = 0;
+                gate->IsClosed = 0;
                 return false;
             }
             case 1:
             {
-                if (gate->isClosed != 0)
+                if (gate->IsClosed != 0)
                 {
-                    soundSystem->playDigitalSample(0x2a, 1, gate, 0, 0);
+                    SoundSystem->PlayDigitalSample(0x2a, 1, gate, 0, 0);
                 }
 
-                gate->isOpening = 1;
-                gate->isOpen = 0;
-                gate->isClosing = 0;
-                gate->isClosed = 0;
+                gate->IsOpening = 1;
+                gate->IsOpen = 0;
+                gate->IsClosing = 0;
+                gate->IsClosed = 0;
                 return false;
             }
             case 3:
             {
-                if (gate->isOpen != 0)
+                if (gate->IsOpen != 0)
                 {
-                    soundSystem->playDigitalSample(0x2d, 1, gate, 0, 0);
+                    SoundSystem->PlayDigitalSample(0x2d, 1, gate, 0, 0);
                 }
 
-                gate->isClosing = 1;
-                gate->isOpen = 0;
-                gate->isOpening = 0;
-                gate->isClosed = 0;
+                gate->IsClosing = 1;
+                gate->IsOpen = 0;
+                gate->IsOpening = 0;
+                gate->IsClosed = 0;
                 return false;
             }
             case 0:
             {
-                gate->isClosed = 1;
-                gate->isOpen = 0;
-                gate->isOpening = 0;
-                gate->isClosing = 0;
+                gate->IsClosed = 1;
+                gate->IsOpen = 0;
+                gate->IsOpening = 0;
+                gate->IsClosing = 0;
                 return true;
             }
             default:
@@ -152,40 +152,41 @@ namespace
     }
 
     /// <summary>Makes the gate's fire (the type's blown effect); anything that isn't a fire goes in the object list.</summary>
-    void startFire(Gate* gate, bool listNonFire)
+    void StartFire(MCGate* gate, bool listNonFire)
     {
-        GameObject* effect = createObject(static_cast<int32_t>(static_cast<GateType*>(gate->objType)->blownEffectId));
+        MCGameObject* effect =
+            CreateObject(static_cast<int32_t>(static_cast<MCGateType*>(gate->ObjType)->BlownEffectId));
 
         if (effect == nullptr)
         {
             return;
         }
 
-        effect->setPosition(gate->position);
+        effect->SetPosition(gate->Position);
 
-        if (effect->objectClass == FIRE)
+        if (effect->ObjectClass == FIRE)
         {
-            gate->fireObject = static_cast<Fire*>(effect);
-            effect->setPotentialContact(3);
-            gate->fireObject->burningObject = gate;
-            gate->fireObject->setTonnage(40.0f);
+            gate->FireObject = static_cast<MCFire*>(effect);
+            effect->SetPotentialContact(3);
+            gate->FireObject->BurningObject = gate;
+            gate->FireObject->SetTonnage(40.0f);
 
             if (listNonFire)
             {
-                gate->fireObject->update();
-                gate->fireStarted = 1;
+                gate->FireObject->Update();
+                gate->FireStarted = 1;
             }
         }
         else if (listNonFire)
         {
-            if (objectList->head != nullptr)
+            if (ObjectList->Head != nullptr)
             {
-                objectList->head->addNode(effect);
+                ObjectList->Head->AddNode(effect);
             }
         }
         else
         {
-            destroyObject(effect);
+            DestroyObject(effect);
         }
     }
 } // namespace
@@ -194,139 +195,139 @@ namespace
 // GateType
 //---------------------------------------------------------------------------
 
-auto GateType::init() -> void
+auto MCGateType::Init() -> void
 {
-    ObjectType::init();
-    dmgLevel = 0;
-    blownEffectId = 0xffffffff;
-    normalEffectId = 0xffffffff;
-    damageEffectId = 0xffffffff;
-    explosionRadius = 0.0f;
-    explosionDamage = 0.0f;
-    buildingName = 0;
+    MCObjectType::Init();
+    DmgLevel = 0;
+    BlownEffectId = 0xffffffff;
+    NormalEffectId = 0xffffffff;
+    DamageEffectId = 0xffffffff;
+    ExplosionRadius = 0.0f;
+    ExplosionDamage = 0.0f;
+    BuildingName = 0;
 }
 
-auto GateType::createInstance() -> BaseObject*
+auto MCGateType::CreateInstance() -> MCBaseObject*
 {
-    auto* newGate = new Gate;
+    auto* newGate = new MCGate;
 
     if (newGate == nullptr)
     {
         return nullptr;
     }
 
-    if (newGate->init(this) != 0)
+    if (newGate->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newGate->idNumber = NextIdNumber++;
+    newGate->IdNumber = NextIdNumber++;
     return newGate;
 }
 
-auto GateType::destroy() -> void
+auto MCGateType::Destroy() -> void
 {
 }
 
-auto GateType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCGateType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile gateFile;
-    int32_t result = gateFile.open(objFile, fileSize, 50);
+    MCFitIniFile gateFile;
+    int32_t result = gateFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = gateFile.seekBlock("GateData")) != 0)
+    if ((result = gateFile.SeekBlock("GateData")) != 0)
     {
         return result;
     }
 
-    if ((result = gateFile.readIdULong("DmgLevel", dmgLevel)) != 0)
+    if ((result = gateFile.ReadIdULong("DmgLevel", DmgLevel)) != 0)
     {
         return result;
     }
 
-    gateFile.readIdULong("BlownEffectId", blownEffectId);
-    gateFile.readIdULong("NormalEffectId", normalEffectId);
-    gateFile.readIdULong("DamageEffectId", damageEffectId);
+    gateFile.ReadIdULong("BlownEffectId", BlownEffectId);
+    gateFile.ReadIdULong("NormalEffectId", NormalEffectId);
+    gateFile.ReadIdULong("DamageEffectId", DamageEffectId);
 
-    if (gateFile.readIdLong("BasePixelOffsetX", basePixelOffsetX) != 0)
+    if (gateFile.ReadIdLong("BasePixelOffsetX", BasePixelOffsetX) != 0)
     {
-        basePixelOffsetX = 0;
+        BasePixelOffsetX = 0;
     }
 
-    if (gateFile.readIdLong("BasePixelOffsetY", basePixelOffsetY) != 0)
+    if (gateFile.ReadIdLong("BasePixelOffsetY", BasePixelOffsetY) != 0)
     {
-        basePixelOffsetY = 0;
+        BasePixelOffsetY = 0;
     }
 
-    if (gateFile.readIdFloat("ExplosionRadius", explosionRadius) != 0)
+    if (gateFile.ReadIdFloat("ExplosionRadius", ExplosionRadius) != 0)
     {
-        explosionRadius = 0.0f;
+        ExplosionRadius = 0.0f;
     }
 
-    if (gateFile.readIdFloat("ExplosionDamage", explosionDamage) != 0)
+    if (gateFile.ReadIdFloat("ExplosionDamage", ExplosionDamage) != 0)
     {
-        explosionDamage = 0.0f;
+        ExplosionDamage = 0.0f;
     }
 
-    if ((result = gateFile.readIdFloat("OpenRadius", openRadius)) != 0)
+    if ((result = gateFile.ReadIdFloat("OpenRadius", OpenRadius)) != 0)
     {
         return result;
     }
 
-    if (gateFile.readIdFloat("LittleExtent", littleExtent) != 0)
+    if (gateFile.ReadIdFloat("LittleExtent", LittleExtent) != 0)
     {
-        littleExtent = 20.0f;
+        LittleExtent = 20.0f;
     }
 
-    if (gateFile.readIdLong("BuildingName", buildingName) != 0)
+    if (gateFile.ReadIdLong("BuildingName", BuildingName) != 0)
     {
-        buildingName = 0xa5;
+        BuildingName = 0xa5;
     }
 
-    if (gateFile.readIdBoolean("BlocksLineOfFire", blocksLineOfFire) != 0)
+    if (gateFile.ReadIdBoolean("BlocksLineOfFire", BlocksLineOfFire) != 0)
     {
-        blocksLineOfFire = 0;
+        BlocksLineOfFire = 0;
     }
 
-    return ObjectType::init(&gateFile);
+    return MCObjectType::Init(&gateFile);
 }
 
-auto GateType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCGateType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // Only mechs, vehicles and elementals open gates or get caught in them.
-    if (collider->objectClass < BATTLEMECH || EXPLOSION <= collider->objectClass)
+    if (collider->ObjectClass < BATTLEMECH || EXPLOSION <= collider->ObjectClass)
     {
         return 1;
     }
 
-    auto* gate = static_cast<Gate*>(collidee);
-    const vector_3d colliderPos = collider->getPosition();
-    const vector_3d gatePos = gate->getPosition();
-    const float distanceSq = (gatePos.x - colliderPos.x) * (gatePos.x - colliderPos.x) +
-                             (gatePos.y - colliderPos.y) * (gatePos.y - colliderPos.y);
+    auto* gate = static_cast<MCGate*>(collidee);
+    const MCVector3D colliderPos = collider->GetPosition();
+    const MCVector3D gatePos = gate->GetPosition();
+    const float distanceSq = (gatePos.X - colliderPos.X) * (gatePos.X - colliderPos.X) +
+                             (gatePos.Y - colliderPos.Y) * (gatePos.Y - colliderPos.Y);
 
     // A friendly (or, for a neutral gate, any) live unit within openRadius asks it to open.
-    if ((collider->getAlignment() == gate->getAlignment() || gate->getAlignment() == 0) &&
-        collider->isDisabled() == 0 && collider->isDestroyed() == 0 && distanceSq < openRadius * openRadius)
+    if ((collider->GetAlignment() == gate->GetAlignment() || gate->GetAlignment() == 0) &&
+        collider->IsDisabled() == 0 && collider->IsDestroyed() == 0 && distanceSq < OpenRadius * OpenRadius)
     {
-        gate->openRequested = 1;
+        gate->OpenRequested = 1;
     }
 
     // A live unit standing in it (not jumping) is what a closing gate crushes.
-    if (distanceSq < 1.2e8f && collider->isDisabled() == 0 && collider->isDestroyed() == 0 &&
-        static_cast<Mover*>(collider)->isJumping(nullptr) == 0)
+    if (distanceSq < 1.2e8f && collider->IsDisabled() == 0 && collider->IsDestroyed() == 0 &&
+        static_cast<MCMover*>(collider)->IsJumping(nullptr) == 0)
     {
-        gate->offendingObject = collider;
+        gate->OffendingObject = collider;
     }
 
     return 1;
 }
 
-auto GateType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCGateType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -335,70 +336,70 @@ auto GateType::handleDestruction(GameObject*, GameObject*) -> int
 // Gate
 //---------------------------------------------------------------------------
 
-Gate::Gate()
+MCGate::MCGate()
 {
-    justCreated = 1;
-    openRequested = 1;
-    isClosed = 1;
-    appearance = nullptr;
-    vertexNumber = 0;
-    blockNumber = 0;
-    fireStarted = 0;
-    destroyed = 0;
-    fireObject = nullptr;
-    name.clear();
-    lockedClosed = 0;
-    blownOpen = 0;
-    isOpen = 0;
-    isOpening = 0;
-    isClosing = 0;
-    destroying = 0;
-    offendingObject = nullptr;
+    JustCreated = 1;
+    OpenRequested = 1;
+    IsClosed = 1;
+    Appearance = nullptr;
+    VertexNumber = 0;
+    BlockNumber = 0;
+    FireStarted = 0;
+    Destroyed = 0;
+    FireObject = nullptr;
+    Name.clear();
+    LockedClosed = 0;
+    BlownOpen = 0;
+    IsOpen = 0;
+    IsOpening = 0;
+    IsClosing = 0;
+    Destroying = 0;
+    OffendingObject = nullptr;
 }
 
-auto Gate::init() -> void
+auto MCGate::Init() -> void
 {
 }
 
-auto Gate::killFireObject() -> void
+auto MCGate::KillFireObject() -> void
 {
-    fireObject = nullptr;
+    FireObject = nullptr;
 }
 
-auto Gate::setTerrainPosition(vector_2d& pixelOffset, vector_2d& blockVertex) -> void
+auto MCGate::SetTerrainPosition(MCVector2D& pixelOffset, MCVector2D& blockVertex) -> void
 {
-    pixelOffsetX = static_cast<int32_t>(pixelOffset.x);
-    pixelOffsetY = static_cast<int32_t>(pixelOffset.y);
-    const auto* gateType = static_cast<GateType*>(objType);
+    PixelOffsetX = static_cast<int32_t>(pixelOffset.X);
+    PixelOffsetY = static_cast<int32_t>(pixelOffset.Y);
+    const auto* gateType = static_cast<MCGateType*>(ObjType);
 
-    if (gateType->basePixelOffsetX != 0 || gateType->basePixelOffsetY != 0)
+    if (gateType->BasePixelOffsetX != 0 || gateType->BasePixelOffsetY != 0)
     {
-        pixelOffsetX = gateType->basePixelOffsetX;
-        pixelOffsetY = gateType->basePixelOffsetY;
+        PixelOffsetX = gateType->BasePixelOffsetX;
+        PixelOffsetY = gateType->BasePixelOffsetY;
     }
 
-    vertexNumber = static_cast<int32_t>(blockVertex.x);
-    blockNumber = static_cast<int32_t>(blockVertex.y);
+    VertexNumber = static_cast<int32_t>(blockVertex.X);
+    BlockNumber = static_cast<int32_t>(blockVertex.Y);
 }
 
-auto Gate::getBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
+auto MCGate::GetBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
 {
-    blockNum = blockNumber;
-    vertexNum = vertexNumber;
+    blockNum = BlockNumber;
+    vertexNum = VertexNumber;
 }
 
-auto Gate::isVisible(Camera* cam) -> int
+auto MCGate::IsVisible(MCCamera* cam) -> int
 {
-    if (cam == nullptr || cam->active == 0)
+    if (cam == nullptr || cam->Active == 0)
     {
         return 0;
     }
 
-    int visible = cam->vertexProject(blockNumber, vertexNumber, screenPos);
+    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        visible = appearance->recalcBounds(cam);
+        visible = Appearance->RecalcBounds(cam);
     }
 
     if (visible == 0)
@@ -406,31 +407,31 @@ auto Gate::isVisible(Camera* cam) -> int
         return 0;
     }
 
-    windowsVisible = turn;
+    WindowsVisible = Turn;
     return 1;
 }
 
-auto Gate::update() -> int32_t
+auto MCGate::Update() -> int32_t
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         // Set the gate on its vertex: the block's corner, the vertex within it, then the pixel offset within the
         // tile (turned into the isometric grid's 60-degree axes).
-        const int32_t blocksMapSide = Terrain::blocksMapSide;
-        const int32_t verticesBlockSide = Terrain::verticesBlockSide;
-        justCreated = 0;
-        float blockX = static_cast<float>(blockNumber % blocksMapSide - blocksMapSide / 2) * Terrain::metersBlockSide;
-        float blockY = static_cast<float>(blocksMapSide / 2 - blockNumber / blocksMapSide) * Terrain::metersBlockSide;
+        const int32_t blocksMapSide = MCTerrain::BlocksMapSide;
+        const int32_t verticesBlockSide = MCTerrain::VerticesBlockSide;
+        JustCreated = 0;
+        float blockX = static_cast<float>(BlockNumber % blocksMapSide - blocksMapSide / 2) * MCTerrain::MetersBlockSide;
+        float blockY = static_cast<float>(blocksMapSide / 2 - BlockNumber / blocksMapSide) * MCTerrain::MetersBlockSide;
 
         if ((blocksMapSide & 1) != 0)
         {
-            blockX = blockX - Terrain::metersBlockSide * 0.5f;
-            blockY = Terrain::metersBlockSide * 0.5f + blockY;
+            blockX = blockX - MCTerrain::MetersBlockSide * 0.5f;
+            blockY = MCTerrain::MetersBlockSide * 0.5f + blockY;
         }
 
-        const float vertexX = static_cast<float>(vertexNumber % verticesBlockSide) * Terrain::metersPerVertex;
-        const double offsetY = static_cast<double>(pixelOffsetY);
-        const double offsetX = static_cast<double>(pixelOffsetX);
+        const float vertexX = static_cast<float>(VertexNumber % verticesBlockSide) * MCTerrain::MetersPerVertex;
+        const double offsetY = static_cast<double>(PixelOffsetY);
+        const double offsetX = static_cast<double>(PixelOffsetX);
         double offsetAngle;
 
         if (offsetY == 0.0)
@@ -442,64 +443,64 @@ auto Gate::update() -> int32_t
             offsetAngle = std::atan(offsetX / offsetY) * RADIANS_TO_DEGREES;
         }
 
-        position.y = blockY - static_cast<float>(vertexNumber / verticesBlockSide) * Terrain::metersPerVertex;
+        Position.Y = blockY - static_cast<float>(VertexNumber / verticesBlockSide) * MCTerrain::MetersPerVertex;
         const auto offsetDistance = static_cast<float>(std::sqrt(offsetY * offsetY + offsetX * offsetX));
         const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
         const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
-        position.x = vertexX + blockX;
-        const float elevation = land->getTerrainElevation(position);
-        position.x =
-            static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + position.x);
-        position.y = position.y - alongAxis;
-        position.z = elevation;
+        Position.X = vertexX + blockX;
+        const float elevation = Land->GetTerrainElevation(Position);
+        Position.X =
+            static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
+        Position.Y = Position.Y - alongAxis;
+        Position.Z = elevation;
 
-        tileCol = (blockNumber % Terrain::blocksMapSide) * verticesBlockSide + vertexNumber % verticesBlockSide;
-        const int32_t halfMap = (verticesBlockSide * Terrain::blocksMapSide) >> 1;
-        tileWorldX = static_cast<float>(tileCol - halfMap) * Terrain::metersPerVertex;
-        tileRow = vertexNumber / verticesBlockSide + (blockNumber / Terrain::blocksMapSide) * verticesBlockSide;
-        tileWorldY = static_cast<float>(halfMap - tileRow) * Terrain::metersPerVertex;
+        TileCol = (BlockNumber % MCTerrain::BlocksMapSide) * verticesBlockSide + VertexNumber % verticesBlockSide;
+        const int32_t halfMap = (verticesBlockSide * MCTerrain::BlocksMapSide) >> 1;
+        TileWorldX = static_cast<float>(TileCol - halfMap) * MCTerrain::MetersPerVertex;
+        TileRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
+        TileWorldY = static_cast<float>(halfMap - TileRow) * MCTerrain::MetersPerVertex;
         const auto inBounds = [&]
-        { return tileRow < 0 || GameMap->height <= tileRow || tileCol < 0 || GameMap->width <= tileCol ? 0u : 1u; };
+        { return TileRow < 0 || GameMap->Height <= TileRow || TileCol < 0 || GameMap->Width <= TileCol ? 0u : 1u; };
         Assert(inBounds(), 0, " tbldg MapTile Out of Bounds ");
         Assert(inBounds(), 0, " Map Tile out of bounds ");
-        const MapTile& tile = GameMap->map[GameMap->width * tileRow + tileCol];
-        const int32_t elevationLevel = static_cast<int32_t>((tile.cells >> 7) & 0x3f) + GameMap->baseElevation;
-        appearance->visible = 1;
-        tileElevation = static_cast<float>(elevationLevel) * Terrain::metersPerElevLevel;
-        appearance->update();
-        appearance->recalcBounds(eye);
+        const MCMapTile& tile = GameMap->Map[GameMap->Width * TileRow + TileCol];
+        const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+        Appearance->Visible = 1;
+        TileElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
+        Appearance->Update();
+        Appearance->RecalcBounds(Eye);
     }
 
-    if (destroyed == 0)
+    if (Destroyed == 0)
     {
-        openGate();
-        offendingObject = nullptr;
+        OpenGate();
+        OffendingObject = nullptr;
     }
 
     return 1;
 }
 
-auto Gate::blowAnyOffendingObject() -> void
+auto MCGate::BlowAnyOffendingObject() -> void
 {
     // Whatever is caught in a gate as it shuts takes 10 hits of 250, and the gate is destroyed.
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return;
     }
 
-    GameObject* offender = offendingObject;
+    MCGameObject* offender = OffendingObject;
 
     if (offender == nullptr)
     {
         return;
     }
 
-    const vector_3d offenderPos = offender->getPosition();
-    const vector_3d gatePos = getPosition();
-    const float dx = gatePos.x - offenderPos.x;
-    const float dy = gatePos.y - offenderPos.y;
+    const MCVector3D offenderPos = offender->GetPosition();
+    const MCVector3D gatePos = GetPosition();
+    const float dx = gatePos.X - offenderPos.X;
+    const float dy = gatePos.Y - offenderPos.Y;
     const double reach =
-        static_cast<double>(static_cast<GateType*>(objType)->littleExtent) + offender->getObjectType()->extentRadius;
+        static_cast<double>(static_cast<MCGateType*>(ObjType)->LittleExtent) + offender->GetObjectType()->ExtentRadius;
 
     if (reach * reach <= static_cast<double>(dy) * dy + static_cast<double>(dx) * dx)
     {
@@ -507,132 +508,132 @@ auto Gate::blowAnyOffendingObject() -> void
     }
 
     const int multiplayer = MPlayer != nullptr ? 1 : 0;
-    _WeaponShotInfo shot;
-    shot.init(nullptr, -3, 250.0f, 0, 0.0f);
+    MCWeaponShotInfo shot;
+    shot.Init(nullptr, -3, 250.0f, 0, 0.0f);
 
     for (int32_t i = 0; i < 10; i++)
     {
-        shot.hitLocation = offender->calcHitLocation(nullptr, -1, 4, 0);
-        offender->handleWeaponHit(&shot, multiplayer);
+        shot.HitLocation = offender->CalcHitLocation(nullptr, -1, 4, 0);
+        offender->HandleWeaponHit(&shot, multiplayer);
     }
 
-    const auto gateDamage = static_cast<float>(static_cast<int32_t>(static_cast<GateType*>(objType)->dmgLevel + 5));
-    shot.init(nullptr, -3, gateDamage, 0, 0.0f);
-    handleWeaponHit(&shot, multiplayer);
+    const auto gateDamage = static_cast<float>(static_cast<int32_t>(static_cast<MCGateType*>(ObjType)->DmgLevel + 5));
+    shot.Init(nullptr, -3, gateDamage, 0, 0.0f);
+    HandleWeaponHit(&shot, multiplayer);
 }
 
-auto Gate::openGate() -> void
+auto MCGate::OpenGate() -> void
 {
-    if (destroyed != 0)
+    if (Destroyed != 0)
     {
         return;
     }
 
     int32_t row;
     int32_t col;
-    vertexRowCol(this, row, col);
+    VertexRowCol(this, row, col);
 
     // Ask the pop-up appearance to open or shut: locked (or forced) gates shut; blown open or neutral gates open;
     // others follow openRequested. A gate that has just shut crushes whatever is in it (unless blown or neutral).
-    if (lockedClosed == 0 && forceGatesClosed == 0)
+    if (LockedClosed == 0 && ForceGatesClosed == 0)
     {
-        if (blownOpen == 0 && alignment != 0)
+        if (BlownOpen == 0 && Alignment != 0)
         {
-            if (takeGateState(this, static_cast<PUAppearance*>(appearance)->setCombatMode(openRequested)))
+            if (TakeGateState(this, static_cast<MCPUAppearance*>(Appearance)->SetCombatMode(OpenRequested)))
             {
-                blowAnyOffendingObject();
+                BlowAnyOffendingObject();
             }
         }
         else
         {
-            takeGateState(this, static_cast<PUAppearance*>(appearance)->setCombatMode(1));
+            TakeGateState(this, static_cast<MCPUAppearance*>(Appearance)->SetCombatMode(1));
         }
     }
-    else if (takeGateState(this, static_cast<PUAppearance*>(appearance)->setCombatMode(0)))
+    else if (TakeGateState(this, static_cast<MCPUAppearance*>(Appearance)->SetCombatMode(0)))
     {
-        blowAnyOffendingObject();
+        BlowAnyOffendingObject();
     }
 
     // Open: the tile is passable and see-through. Shut: blocked (unless locked open) and see-through only when the
     // type doesn't block line of fire. The overlay type depends on the gate's shape and whose it is.
-    const GateKind kind = gateKind(getObjectType()->objTypeNum);
+    const MCGateKind kind = GateKind(GetObjectType()->ObjTypeNum);
 
-    if (isOpen != 0)
+    if (IsOpen != 0)
     {
-        const bool clan = alignment != 1 && alignment != 0;
+        const bool clan = Alignment != 1 && Alignment != 0;
 
-        if (kind == GateKind::KindA)
+        if (kind == MCGateKind::KindA)
         {
             if (clan)
             {
-                setGateTile(row, col, 0xffffffc5, 0x45, 1, 1);
+                SetGateTile(row, col, 0xffffffc5, 0x45, 1, 1);
             }
             else
             {
-                setGateTile(row, col, 0xffffffc9, 0x49, 1, 1);
+                SetGateTile(row, col, 0xffffffc9, 0x49, 1, 1);
             }
         }
-        else if (kind == GateKind::KindB)
+        else if (kind == MCGateKind::KindB)
         {
             if (clan)
             {
-                setGateTile(row, col, 0xffffffc3, 0x43, 1, 1);
+                SetGateTile(row, col, 0xffffffc3, 0x43, 1, 1);
             }
             else
             {
-                setGateTile(row, col, 0xffffffc7, 0x47, 1, 1);
+                SetGateTile(row, col, 0xffffffc7, 0x47, 1, 1);
             }
         }
 
-        openRequested = 0;
+        OpenRequested = 0;
         return;
     }
 
-    const uint32_t lineOfSight = static_cast<GateType*>(objType)->blocksLineOfFire == 0 ? 1 : 0;
-    const uint32_t passable = lockedClosed == 0 ? 1 : 0;
+    const uint32_t lineOfSight = static_cast<MCGateType*>(ObjType)->BlocksLineOfFire == 0 ? 1 : 0;
+    const uint32_t passable = LockedClosed == 0 ? 1 : 0;
 
-    if (kind == GateKind::KindA)
+    if (kind == MCGateKind::KindA)
     {
-        if (alignment == 1)
+        if (Alignment == 1)
         {
-            setGateTile(row, col, 0xffffffca, 0x4a, lineOfSight, passable);
+            SetGateTile(row, col, 0xffffffca, 0x4a, lineOfSight, passable);
         }
         else
         {
-            setGateTile(row, col, 0xffffffc6, 0x46, lineOfSight, passable);
+            SetGateTile(row, col, 0xffffffc6, 0x46, lineOfSight, passable);
         }
     }
-    else if (kind == GateKind::KindB)
+    else if (kind == MCGateKind::KindB)
     {
-        if (alignment == 1)
+        if (Alignment == 1)
         {
-            setGateTile(row, col, 0xffffffc8, 0x48, lineOfSight, passable);
+            SetGateTile(row, col, 0xffffffc8, 0x48, lineOfSight, passable);
         }
         else
         {
-            setGateTile(row, col, 0xffffffc4, 0x44, lineOfSight, passable);
+            SetGateTile(row, col, 0xffffffc4, 0x44, lineOfSight, passable);
         }
     }
 
-    openRequested = 0;
+    OpenRequested = 0;
 }
 
-auto Gate::setAlignment(int32_t newAlignment) -> void
+auto MCGate::SetAlignment(int32_t newAlignment) -> void
 {
-    BigGameObject::setAlignment(newAlignment);
+    MCBigGameObject::SetAlignment(newAlignment);
 }
 
-auto Gate::handleEvent(ObjectEvent* event) -> int32_t
+auto MCGate::HandleEvent(MCObjectEvent* event) -> int32_t
 {
-    if (event->type == 0)
+    if (event->Type == 0)
     {
-        switch (event->id)
+        switch (event->Id)
         {
             case 0x1c:
-                selected = 1;
+                Selected = 1;
                 break;
             case 0x1d:
-                selected = 0;
+                Selected = 0;
                 break;
             default:
                 break;
@@ -642,79 +643,79 @@ auto Gate::handleEvent(ObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto Gate::lightOnFire(float timeToBurn) -> void
+auto MCGate::LightOnFire(float timeToBurn) -> void
 {
     // A gate with no blown effect just takes a point of damage (the server's job in multiplayer).
-    if (static_cast<int32_t>(static_cast<GateType*>(objType)->blownEffectId) == -1)
+    if (static_cast<int32_t>(static_cast<MCGateType*>(ObjType)->BlownEffectId) == -1)
     {
-        _WeaponShotInfo shot;
-        shot.init(nullptr, -1, 1.0f, 0, 0.0f);
+        MCWeaponShotInfo shot;
+        shot.Init(nullptr, -1, 1.0f, 0, 0.0f);
 
         if (MPlayer == nullptr)
         {
-            handleWeaponHit(&shot, 0);
+            HandleWeaponHit(&shot, 0);
         }
-        else if (MPlayer->isServer != 0)
+        else if (MPlayer->IsServer != 0)
         {
-            handleWeaponHit(&shot, 1);
+            HandleWeaponHit(&shot, 1);
         }
 
         return;
     }
 
-    if (fireObject == nullptr)
+    if (FireObject == nullptr)
     {
-        startFire(this, false);
+        StartFire(this, false);
     }
 
-    if (fireObject != nullptr)
+    if (FireObject != nullptr)
     {
-        fireObject->addTimeLeftToBurn(timeToBurn);
-        fireStarted = 1;
+        FireObject->AddTimeLeftToBurn(timeToBurn);
+        FireStarted = 1;
     }
 }
 
-auto Gate::isRevealed() -> int
+auto MCGate::IsRevealed() -> int
 {
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     int32_t row;
     int32_t col;
-    vertexRowCol(this, row, col);
+    VertexRowCol(this, row, col);
     const auto r = static_cast<uint32_t>(row);
     const auto c = static_cast<uint32_t>(col);
 
-    if (visibleBits->getFlag(r, c) != 0)
+    if (visibleBits->GetFlag(r, c) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(r + 1, c) != 0)
+    if (visibleBits->GetFlag(r + 1, c) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(r + 1, c + 1) != 0)
+    if (visibleBits->GetFlag(r + 1, c + 1) != 0)
     {
         return 1;
     }
 
-    return visibleBits->getFlag(r, c + 1) != 0 ? 1 : 0;
+    return visibleBits->GetFlag(r, c + 1) != 0 ? 1 : 0;
 }
 
-auto Gate::render() -> void
+auto MCGate::Render() -> void
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         return;
     }
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        appearance->visible = isVisible(eye);
-        appearance->update();
+        Appearance->Visible = IsVisible(Eye);
+        Appearance->Update();
     }
 
-    if (windowsVisible != turn)
+    if (WindowsVisible != Turn)
     {
         return;
     }
@@ -723,154 +724,154 @@ auto Gate::render() -> void
     // reads each corner's seen bit and drops it.)
     int32_t row;
     int32_t col;
-    vertexRowCol(this, row, col);
+    VertexRowCol(this, row, col);
     const auto r = static_cast<uint32_t>(row);
     const auto c = static_cast<uint32_t>(col);
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     int32_t numVisible = 0;
 
-    if (visibleBits->getFlag(r, c) != 0)
+    if (visibleBits->GetFlag(r, c) != 0)
     {
         numVisible = 1;
     }
 
-    if (visibleBits->getFlag(r + 1, c) != 0)
+    if (visibleBits->GetFlag(r + 1, c) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(r + 1, c + 1) != 0)
+    if (visibleBits->GetFlag(r + 1, c + 1) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(r, c + 1) != 0)
+    if (visibleBits->GetFlag(r, c + 1) != 0)
     {
         numVisible++;
     }
 
     uint8_t* hazePalette = nullptr;
-    const int32_t hazeLevel = eye->hazeLevel;
+    const int32_t hazeLevel = Eye->HazeLevel;
 
     if (numVisible != 0 && numVisible != 4 && hazeLevel != 0x7fff)
     {
         int32_t level;
 
-        if (hazeLevel < 0 && 0 < eye->hazeInc * numVisible + hazeLevel)
+        if (hazeLevel < 0 && 0 < Eye->HazeInc * numVisible + hazeLevel)
         {
             level = 0;
         }
         else
         {
-            level = hazeLevel + eye->hazeInc * numVisible;
+            level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = gamePalette->getHazePalette(level);
+        hazePalette = GamePalette->GetHazePalette(level);
     }
 
-    static_cast<PUAppearance*>(appearance)->hazePalette = hazePalette;
+    static_cast<MCPUAppearance*>(Appearance)->HazePalette = hazePalette;
 
     if (numVisible != 0)
     {
-        appearance->render(0);
+        Appearance->Render(0);
     }
 
-    if (drawExtents != 0)
+    if (DrawExtents != 0)
     {
         // Debug: the extent radius as an ellipse.
-        float radius = objType->extentRadius;
+        float radius = ObjType->ExtentRadius;
 
-        if (eye->cameraScale == 1)
+        if (Eye->CameraScale == 1)
         {
             radius *= 0.5f;
         }
 
-        const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-        const float sx = (position.x - eye->position.x) * scale;
-        const float sy = (position.y - eye->position.y) * scale;
-        vector_2d center;
-        center.x = sx * eye->cosAngle + sy * eye->cosAngle + eye->halfWidth;
-        center.y =
-            ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (position.z - eye->position.z);
-        vector_2d size(radius, radius);
-        ElementList->openGroup(-50000, 1);
+        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float sx = (Position.X - Eye->Position.X) * scale;
+        const float sy = (Position.Y - Eye->Position.Y) * scale;
+        MCVector2D center;
+        center.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
+        center.Y =
+            ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
+        MCVector2D size(radius, radius);
+        ElementList->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
-        size.x *= MCOverlay.ScaleX;
-        size.y *= MCOverlay.ScaleY;
-        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
+        size.X *= MCOverlay.ScaleX;
+        size.Y *= MCOverlay.ScaleY;
+        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 
-auto Gate::destroy() -> void
+auto MCGate::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
-    name.clear();
+    delete Appearance;
+    Appearance = nullptr;
+    Name.clear();
 }
 
-auto Gate::init(ObjectType* objType) -> int32_t
+auto MCGate::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justCreated = 1;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    JustCreated = 1;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0007);
     }
 
-    auto* popUpAppearance = new PUAppearance;
-    appearance = popUpAppearance;
+    auto* popUpAppearance = new MCPUAppearance;
+    Appearance = popUpAppearance;
 
     if (popUpAppearance == nullptr)
     {
         return -0x2ffff;
     }
 
-    popUpAppearance->init(nullptr, nullptr);
+    popUpAppearance->Init(nullptr, nullptr);
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x9000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x9000000)
     {
         return -0x2fff6;
     }
 
-    if ((result = popUpAppearance->init(apprType, this)) != 0)
+    if ((result = popUpAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    auto* gateType = static_cast<GateType*>(this->objType);
-    objectClass = GATE;
-    destroyed = 0;
-    alignment = -1;
+    auto* gateType = static_cast<MCGateType*>(this->ObjType);
+    ObjectClass = GATE;
+    Destroyed = 0;
+    Alignment = -1;
 
     // The open radius doubles as the extent the collision system checks.
-    if (gateType->openRadius != 0.0f)
+    if (gateType->OpenRadius != 0.0f)
     {
-        gateType->extentRadius = gateType->openRadius;
+        gateType->ExtentRadius = gateType->OpenRadius;
     }
 
-    if (0.0f < gateType->extentRadius)
+    if (0.0f < gateType->ExtentRadius)
     {
-        collisionsOn = 1;
+        CollisionsOn = 1;
     }
 
-    explDamage = gateType->explosionDamage;
-    explRadius = gateType->explosionRadius;
+    ExplDamage = gateType->ExplosionDamage;
+    ExplRadius = gateType->ExplosionRadius;
     char nameBuffer[256];
-    cLoadString(thisInstance, static_cast<uint32_t>(gateType->buildingName), nameBuffer, 0xfe);
-    name = nameBuffer;
+    CLoadString(ThisInstance, static_cast<uint32_t>(gateType->BuildingName), nameBuffer, 0xfe);
+    Name = nameBuffer;
     return 0;
 }
 
-auto Gate::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCGate::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
@@ -879,95 +880,95 @@ auto Gate::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> 
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    const float newDamage = getDamage() + shotInfo->damage;
-    setDamage(newDamage);
+    const float newDamage = GetDamage() + shotInfo->Damage;
+    SetDamage(newDamage);
 
-    if (static_cast<float>(static_cast<int32_t>(static_cast<GateType*>(objType)->dmgLevel)) <= newDamage)
+    if (static_cast<float>(static_cast<int32_t>(static_cast<MCGateType*>(ObjType)->DmgLevel)) <= newDamage)
     {
-        destroyGate(0);
+        DestroyGate(0);
     }
 
     return 0;
 }
 
-auto Gate::destroyGate(int fromNetwork) -> void
+auto MCGate::DestroyGate(int fromNetwork) -> void
 {
-    destroyed = 1;
-    destroying = 1;
-    auto* popUpAppearance = static_cast<PUAppearance*>(appearance);
+    Destroyed = 1;
+    Destroying = 1;
+    auto* popUpAppearance = static_cast<MCPUAppearance*>(Appearance);
 
     if (popUpAppearance != nullptr)
     {
-        popUpAppearance->visible = onScreen();
-        popUpAppearance->update();
+        popUpAppearance->Visible = OnScreen();
+        popUpAppearance->Update();
     }
 
     // Port fix: the original calls setDestroyed on a null appearance.
     if (popUpAppearance != nullptr)
     {
-        popUpAppearance->setDestroyed();
+        popUpAppearance->SetDestroyed();
     }
 
     // Blown open: the tile is passable and see-through for good (the network copy already got the map change).
     int32_t row;
     int32_t col;
-    vertexRowCol(this, row, col);
+    VertexRowCol(this, row, col);
 
     if (fromNetwork == 0)
     {
-        const GateKind kind = gateKind(getObjectType()->objTypeNum);
+        const MCGateKind kind = GateKind(GetObjectType()->ObjTypeNum);
 
-        if (kind == GateKind::KindA)
+        if (kind == MCGateKind::KindA)
         {
-            if (alignment == 1)
+            if (Alignment == 1)
             {
-                setGateTile(row, col, 0xffffffc9, 0x49, 1, 1);
+                SetGateTile(row, col, 0xffffffc9, 0x49, 1, 1);
             }
             else
             {
-                setGateTile(row, col, 0xffffffc5, 0x45, 1, 1);
+                SetGateTile(row, col, 0xffffffc5, 0x45, 1, 1);
             }
         }
-        else if (kind == GateKind::KindB)
+        else if (kind == MCGateKind::KindB)
         {
-            if (alignment == 1)
+            if (Alignment == 1)
             {
-                setGateTile(row, col, 0xffffffc7, 0x47, 1, 1);
+                SetGateTile(row, col, 0xffffffc7, 0x47, 1, 1);
             }
             else
             {
-                setGateTile(row, col, 0xffffffc3, 0x43, 1, 1);
+                SetGateTile(row, col, 0xffffffc3, 0x43, 1, 1);
             }
         }
     }
 
-    isOpen = 1;
-    isOpening = 0;
-    isClosing = 0;
-    isClosed = 0;
-    blownOpen = 1;
-    destroying = 0;
-    collisionsOn = 0;
-    status = 2;
+    IsOpen = 1;
+    IsOpening = 0;
+    IsClosing = 0;
+    IsClosed = 0;
+    BlownOpen = 1;
+    Destroying = 0;
+    CollisionsOn = 0;
+    Status = 2;
 
     // Set it burning (or keep a fire going) and blow it up.
-    if (fireStarted == 0 && fromNetwork == 0)
+    if (FireStarted == 0 && fromNetwork == 0)
     {
-        if (static_cast<int32_t>(static_cast<GateType*>(objType)->blownEffectId) == -1)
+        if (static_cast<int32_t>(static_cast<MCGateType*>(ObjType)->BlownEffectId) == -1)
         {
-            if (fireObject != nullptr)
+            if (FireObject != nullptr)
             {
-                fireObject->addTimeLeftToBurn(2.0f);
+                FireObject->AddTimeLeftToBurn(2.0f);
             }
         }
         else
         {
-            startFire(this, true);
+            StartFire(this, true);
         }
 
-        objType->createExplosion(position, explDamage, explRadius);
+        ObjType->CreateExplosion(Position, ExplDamage, ExplRadius);
     }
 }

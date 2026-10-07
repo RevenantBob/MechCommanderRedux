@@ -118,29 +118,29 @@ namespace MCTestGame
         }
 
         /// <summary>Folds a vector's three floats into <paramref name="hash"/>.</summary>
-        void FoldVector(uint32_t& hash, const vector_3d& vector)
+        void FoldVector(uint32_t& hash, const MCVector3D& vector)
         {
-            Fold(hash, vector.x);
-            Fold(hash, vector.y);
-            Fold(hash, vector.z);
+            Fold(hash, vector.X);
+            Fold(hash, vector.Y);
+            Fold(hash, vector.Z);
         }
     }
 
     uint32_t StateHash()
     {
         uint32_t hash = 0x811c9dc5;
-        Fold(hash, turn);
-        Fold(hash, scenarioTime);
+        Fold(hash, Turn);
+        Fold(hash, ScenarioTime);
         Fold(hash, MCPort::RandState());
 
-        if (scenario == nullptr)
+        if (Scenario == nullptr)
         {
             return hash;
         }
 
         for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
         {
-            Mover* mover = getMoverFromPartId(partId);
+            MCMover* mover = GetMoverFromPartId(partId);
 
             if (mover == nullptr)
             {
@@ -148,35 +148,35 @@ namespace MCTestGame
             }
 
             Fold(hash, partId);
-            FoldVector(hash, mover->position);
-            FoldVector(hash, mover->frame.i);
-            FoldVector(hash, mover->frame.j);
-            FoldVector(hash, mover->frame.k);
-            Fold(hash, mover->status);
+            FoldVector(hash, mover->Position);
+            FoldVector(hash, mover->Frame.I);
+            FoldVector(hash, mover->Frame.J);
+            FoldVector(hash, mover->Frame.K);
+            Fold(hash, mover->Status);
 
-            for (int32_t i = 0; mover->body != nullptr && i < mover->numBodyLocations; i++)
+            for (int32_t i = 0; mover->Body != nullptr && i < mover->NumBodyLocations; i++)
             {
-                Fold(hash, mover->body[i].curInternalStructure);
-                Fold(hash, mover->body[i].damageState);
+                Fold(hash, mover->Body[i].CurInternalStructure);
+                Fold(hash, mover->Body[i].DamageState);
             }
 
-            for (int32_t i = 0; mover->armor != nullptr && i < mover->numArmorLocations; i++)
+            for (int32_t i = 0; mover->Armor != nullptr && i < mover->NumArmorLocations; i++)
             {
-                Fold(hash, mover->armor[i].curArmor);
+                Fold(hash, mover->Armor[i].CurArmor);
             }
 
-            if (MechWarrior* pilot = mover->getPilot(); pilot != nullptr)
+            if (MCMechWarrior* pilot = mover->GetPilot(); pilot != nullptr)
             {
-                Fold(hash, pilot->status);
-                Fold(hash, pilot->orderState);
-                Fold(hash, pilot->curTacOrder.id);
-                Fold(hash, pilot->curTacOrder.code);
+                Fold(hash, pilot->Status);
+                Fold(hash, pilot->OrderState);
+                Fold(hash, pilot->CurTacOrder.Id);
+                Fold(hash, pilot->CurTacOrder.Code);
             }
         }
 
-        for (uint32_t i = 0; scenario->objectives != nullptr && i < scenario->numObjectives; i++)
+        for (uint32_t i = 0; Scenario->Objectives != nullptr && i < Scenario->NumObjectives; i++)
         {
-            Fold(hash, scenario->objectives[i].status);
+            Fold(hash, Scenario->Objectives[i].Status);
         }
 
         return hash;
@@ -213,8 +213,8 @@ namespace MCTestGame
         }
 
         opened = true;
-        maxFastFiles = 5;
-        fastFiles = static_cast<FastFile**>(std::calloc(static_cast<size_t>(maxFastFiles), sizeof(FastFile*)));
+        MaxFastFiles = 5;
+        FastFiles = static_cast<MCFastFile**>(std::calloc(static_cast<size_t>(MaxFastFiles), sizeof(MCFastFile*)));
 
         for (const char* name : {"art.fst", "mission.fst", "misc.fst", "terrain.fst", "shapes.fst"})
         {
@@ -241,7 +241,7 @@ namespace MCTestGame
     {
         if (booted != 0)
         {
-            return booted == segment && scenario != nullptr;
+            return booted == segment && Scenario != nullptr;
         }
 
         booted = segment;
@@ -267,13 +267,13 @@ namespace MCTestGame
         {
             RunFrame(1.0f / 15.0f);
 
-            if (scenario != nullptr && mission->missionState == 7 && turn > 30)
+            if (Scenario != nullptr && Mission->MissionState == 7 && Turn > 30)
             {
                 return true;
             }
         }
 
-        std::cout << "  the scenario never started (mission state " << mission->missionState << ")\n";
+        std::cout << "  the scenario never started (mission state " << Mission->MissionState << ")\n";
         return false;
     }
 
@@ -281,7 +281,7 @@ namespace MCTestGame
     {
         if (booted != 0)
         {
-            return booted == -1 && globalLogPtr != nullptr;
+            return booted == -1 && GlobalLogPtr != nullptr;
         }
 
         booted = -1;
@@ -298,15 +298,15 @@ namespace MCTestGame
         {
             RunFrame(1.0f / 15.0f);
 
-            if (mission->missionState == 3 && globalLogPtr != nullptr &&
-                globalLogPtr->currentScreen == globalLogPtr->mainScreen && application->smackerWindow == nullptr &&
-                application->smackerWindow2 == nullptr)
+            if (Mission->MissionState == 3 && GlobalLogPtr != nullptr &&
+                GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen && Application->SmackerWindow == nullptr &&
+                Application->SmackerWindow2 == nullptr)
             {
                 return true;
             }
         }
 
-        std::cout << "  logistics never came up (mission state " << mission->missionState << ")\n";
+        std::cout << "  logistics never came up (mission state " << Mission->MissionState << ")\n";
         return false;
     }
 
@@ -330,8 +330,8 @@ namespace MCTestGame
 
             // RealWinMain, up to aSystem::run. systemInit reads the paths from SYSTEM.CFG; the FastFiles it opens are
             // every *.fst, so none may be open yet.
-            gHiddenWindow = 1;
-            gNoSound = 1;
+            GHiddenWindow = 1;
+            GNoSound = 1;
             // Deterministic runs: game time only moves with RunFrame, and the dice start the same way (RealWinMain seeds
             // them from the time of day). --seed <n> picks other dice. With the default, mission 1's Uller has its
             // pilot knocked out (4 wounds) in the fight the mission tests stage.
@@ -347,10 +347,10 @@ namespace MCTestGame
             // The world view shows 480 lines (one world pixel per screen pixel in the 640x480 window) at any zoom
             // request, so what is on screen, and so updated, is the same every run.
             MCFixedZoomHeight = 480.0f;
-            std::strcpy(paletteName, "palette.gif");
-            application = new aSystem;
+            std::strcpy(PaletteName, "palette.gif");
+            Application = new MCGuiSystem;
 
-            if (application->start(nullptr, nullptr, commandLine.data(), 1, 640, 480) != 0)
+            if (Application->Start(nullptr, nullptr, commandLine.data(), 1, 640, 480) != 0)
             {
                 std::cout << "  aSystem::start failed\n";
                 return false;
@@ -361,9 +361,9 @@ namespace MCTestGame
                 display->OnPresent = Presented;
             }
 
-            for (int32_t i = 0; i < screenWindow->numberOfChildren(); i++)
+            for (int32_t i = 0; i < ScreenWindow->NumberOfChildren(); i++)
             {
-                screenWindow->child(i)->draw();
+                ScreenWindow->Child(i)->Draw();
             }
 
             return true;
@@ -373,17 +373,17 @@ namespace MCTestGame
     void RunFrame(float seconds)
     {
         clock->Advance(static_cast<uint64_t>(static_cast<double>(seconds) * 1e9));
-        frameLength = seconds;
-        frameRate = 1.0f / seconds;
+        FrameLength = seconds;
+        FrameRate = 1.0f / seconds;
         MCInput::PumpMessages();
 
-        if (application->smackerWindow2 == nullptr && application->smackerWindow == nullptr)
+        if (Application->SmackerWindow2 == nullptr && Application->SmackerWindow == nullptr)
         {
-            for (int32_t i = 0; i < application->numCallbacks; i++)
+            for (int32_t i = 0; i < Application->NumCallbacks; i++)
             {
-                if (application->callbacks[i] != nullptr)
+                if (Application->Callbacks[i] != nullptr)
                 {
-                    application->callbacks[i]->execute();
+                    Application->Callbacks[i]->Execute();
                 }
             }
         }
@@ -391,10 +391,10 @@ namespace MCTestGame
         int32_t staticNoise = 0;
         int32_t noiseChance = 0;
 
-        if (scenario != nullptr)
+        if (Scenario != nullptr)
         {
-            staticNoise = scenario->startingUp;
-            noiseChance = scenario->startUpCountdown;
+            staticNoise = Scenario->StartingUp;
+            noiseChance = Scenario->StartUpCountdown;
         }
 
         UpdateDisplay(0, staticNoise, noiseChance, 0, 0);
@@ -409,16 +409,16 @@ namespace MCTestGame
         if (frameLog != nullptr)
         {
             static int32_t frame = 0;
-            std::fprintf(frameLog, "frame %d turn %d time %.3f clock %u", frame++, turn,
-                         static_cast<double>(scenarioTime), MCPort::Milliseconds());
+            std::fprintf(frameLog, "frame %d turn %d time %.3f clock %u", frame++, Turn,
+                         static_cast<double>(ScenarioTime), MCPort::Milliseconds());
 
-            for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID && scenario != nullptr; partId++)
+            for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID && Scenario != nullptr; partId++)
             {
-                if (Mover* mover = getMoverFromPartId(partId); mover != nullptr)
+                if (MCMover* mover = GetMoverFromPartId(partId); mover != nullptr)
                 {
-                    const vector_3d position = mover->getPosition();
-                    std::fprintf(frameLog, " %d:%.2f,%.2f", partId, static_cast<double>(position.x),
-                                 static_cast<double>(position.y));
+                    const MCVector3D position = mover->GetPosition();
+                    std::fprintf(frameLog, " %d:%.2f,%.2f", partId, static_cast<double>(position.X),
+                                 static_cast<double>(position.Y));
                 }
             }
 
@@ -429,7 +429,7 @@ namespace MCTestGame
         // --state-log <file>: each frame's state hash, to find where two builds part (tools/ci/baseline.py).
         static FILE* stateLog = OpenLog("state-log");
 
-        if (stateLog != nullptr && scenario != nullptr)
+        if (stateLog != nullptr && Scenario != nullptr)
         {
             static int32_t stateFrame = 0;
             std::fprintf(stateLog, "%d 0x%08x\n", stateFrame++, StateHash());

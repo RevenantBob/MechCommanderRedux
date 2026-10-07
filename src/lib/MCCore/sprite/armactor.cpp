@@ -18,130 +18,130 @@
 // ArmAppearanceType
 //---------------------------------------------------------------------------
 
-auto ArmAppearanceType::init(File* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
+auto MCArmAppearanceType::Init(MCFile* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
 {
-    const int32_t result = loadIniFile(apprFile, fileSize);
+    const int32_t result = LoadIniFile(apprFile, fileSize);
 
     if (result != 0)
     {
         return result;
     }
 
-    numPackets = spriteManager->getNumShapes(appearanceNum & 0xffffff);
+    NumPackets = SpriteManager->GetNumShapes(AppearanceNum & 0xffffff);
     // Port fix: sized by the port's pointer size (the original: count * 4).
-    shapeList = static_cast<Shape**>(
-        spriteManager->mallocDataRAM(static_cast<uint32_t>(numPackets) * static_cast<uint32_t>(sizeof(Shape*))));
+    ShapeList = static_cast<MCShape**>(
+        SpriteManager->MallocDataRam(static_cast<uint32_t>(NumPackets) * static_cast<uint32_t>(sizeof(MCShape*))));
 
-    if (shapeList == nullptr)
+    if (ShapeList == nullptr)
     {
         return static_cast<int32_t>(0xeada0016);
     }
 
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        shapeList[i] = nullptr;
+        ShapeList[i] = nullptr;
     }
 
-    keepLoaded = static_cast<int32_t>(loadFlags);
+    KeepLoaded = static_cast<int32_t>(loadFlags);
 
     if (loadFlags != 0)
     {
-        preloadGestures();
+        PreloadGestures();
     }
 
     return 0;
 }
 
-auto ArmAppearanceType::removeShape(Shape* shape) -> void
+auto MCArmAppearanceType::RemoveShape(MCShape* shape) -> void
 {
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        if (shapeList[i] == shape)
+        if (ShapeList[i] == shape)
         {
-            shapeList[i] = nullptr;
+            ShapeList[i] = nullptr;
         }
     }
 
-    for (AppearanceUser* user = userList; user != nullptr; user = user->next)
+    for (MCAppearanceUser* user = UserList; user != nullptr; user = user->Next)
     {
-        auto* appearance = static_cast<ArmAppearance*>(user->user);
+        auto* appearance = static_cast<MCArmAppearance*>(user->User);
 
-        if (appearance->currentShape == shape)
+        if (appearance->CurrentShape == shape)
         {
-            appearance->currentShape = nullptr;
+            appearance->CurrentShape = nullptr;
         }
     }
 }
 
-auto ArmAppearanceType::preloadGestures() -> void
+auto MCArmAppearanceType::PreloadGestures() -> void
 {
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        shapeList[i] = spriteManager->getShapeData(appearanceNum & 0xffffff, static_cast<uint32_t>(i), 0, this, 0);
+        ShapeList[i] = SpriteManager->GetShapeData(AppearanceNum & 0xffffff, static_cast<uint32_t>(i), 0, this, 0);
     }
 }
 
-auto ArmAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCArmAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 50);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    actorData = static_cast<ArmActorData*>(spriteManager->mallocDataRAM(sizeof(ArmActorData)));
+    ActorData = static_cast<MCArmActorData*>(SpriteManager->MallocDataRam(sizeof(MCArmActorData)));
 
-    if (actorData == nullptr)
+    if (ActorData == nullptr)
     {
         return static_cast<int32_t>(0xeada0016);
     }
 
-    if ((result = iniFile.seekBlock("State")) != 0)
+    if ((result = iniFile.SeekBlock("State")) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("NumFrames", actorData->numFrames)) != 0)
+    if ((result = iniFile.ReadIdULong("NumFrames", ActorData->NumFrames)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdFloat("FrameRate", actorData->frameRate)) != 0)
+    if ((result = iniFile.ReadIdFloat("FrameRate", ActorData->FrameRate)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("BasePacketNumber", actorData->basePacketNumber)) != 0)
+    if ((result = iniFile.ReadIdULong("BasePacketNumber", ActorData->BasePacketNumber)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdUChar("NumRotations", actorData->numRotations)) != 0)
+    if ((result = iniFile.ReadIdUChar("NumRotations", ActorData->NumRotations)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("Symmetrical", actorData->symmetrical)) != 0)
+    if ((result = iniFile.ReadIdULong("Symmetrical", ActorData->Symmetrical)) != 0)
     {
         return result;
     }
 
-    if (iniFile.readIdUChar("CheckForHeader", checkForHeader) != 0)
+    if (iniFile.ReadIdUChar("CheckForHeader", CheckForHeader) != 0)
     {
-        checkForHeader = 1;
+        CheckForHeader = 1;
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto ArmAppearanceType::getShape(int32_t rotation, int32_t, float& frameRate, int& reverse) -> Shape*
+auto MCArmAppearanceType::GetShape(int32_t rotation, int32_t, float& frameRate, int& reverse) -> MCShape*
 {
-    const ArmActorData& data = *actorData;
+    const MCArmActorData& data = *ActorData;
 
-    if (data.numFrames == 0)
+    if (data.NumFrames == 0)
     {
         return nullptr;
     }
@@ -155,7 +155,7 @@ auto ArmAppearanceType::getShape(int32_t rotation, int32_t, float& frameRate, in
         rotation += 360;
     }
 
-    const bool symmetrical = data.symmetrical != 0;
+    const bool symmetrical = data.Symmetrical != 0;
 
     if (rotation < 0 && symmetrical)
     {
@@ -168,10 +168,10 @@ auto ArmAppearanceType::getShape(int32_t rotation, int32_t, float& frameRate, in
         rotation += 360;
     }
 
-    frameRate = data.frameRate;
+    frameRate = data.FrameRate;
 
     int32_t rotationIndex = static_cast<int16_t>(
-        static_cast<int32_t>(std::floor(static_cast<double>((data.numRotations + 1) * rotation) * (1.0 / 360.0))));
+        static_cast<int32_t>(std::floor(static_cast<double>((data.NumRotations + 1) * rotation) * (1.0 / 360.0))));
 
     if (rotationIndex > 0x1f && rotation > 180 && !symmetrical)
     {
@@ -180,148 +180,148 @@ auto ArmAppearanceType::getShape(int32_t rotation, int32_t, float& frameRate, in
 
     float zoom = 1.0f;
 
-    if (eye != nullptr && eye->cameraScale == 1)
+    if (Eye != nullptr && Eye->CameraScale == 1)
     {
         zoom = 0.5f;
     }
 
-    const uint32_t packet = data.basePacketNumber + static_cast<uint32_t>(rotationIndex);
+    const uint32_t packet = data.BasePacketNumber + static_cast<uint32_t>(rotationIndex);
 
-    if (numPackets <= static_cast<int32_t>(packet))
+    if (NumPackets <= static_cast<int32_t>(packet))
     {
         return nullptr;
     }
 
-    Shape* shape = shapeList[packet];
+    MCShape* shape = ShapeList[packet];
 
     if (shape != nullptr)
     {
-        shape->lastTurnUsed = turn;
+        shape->LastTurnUsed = Turn;
         return shape;
     }
 
-    dynamicFrameTiming = 0;
-    shape = spriteManager->getShapeData(appearanceNum & 0xffffff, packet, turn, this, zoom != 1.0f ? 1 : 0);
-    shapeList[packet] = shape;
+    DynamicFrameTiming = 0;
+    shape = SpriteManager->GetShapeData(AppearanceNum & 0xffffff, packet, Turn, this, zoom != 1.0f ? 1 : 0);
+    ShapeList[packet] = shape;
     return shape;
 }
 
-auto ArmAppearanceType::destroy() -> void
+auto MCArmAppearanceType::Destroy() -> void
 {
     // The shapes stay in the sprite manager's cache, ownerless.
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        if (shapeList[i] != nullptr)
+        if (ShapeList[i] != nullptr)
         {
-            shapeList[i]->owner = nullptr;
+            ShapeList[i]->Owner = nullptr;
         }
     }
 
-    spriteManager->freeDataRAM(shapeList);
-    shapeList = nullptr;
-    spriteManager->freeDataRAM(actorData);
-    actorData = nullptr;
+    SpriteManager->FreeDataRam(ShapeList);
+    ShapeList = nullptr;
+    SpriteManager->FreeDataRam(ActorData);
+    ActorData = nullptr;
 }
 
 //---------------------------------------------------------------------------
 // ArmAppearance
 //---------------------------------------------------------------------------
 
-auto ArmAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
+auto MCArmAppearance::Init(MCAppearanceType* tree, MCGameObject* obj) -> int32_t
 {
-    visible = 0;
-    owner = obj;
-    appearType = static_cast<ArmAppearanceType*>(tree);
+    Visible = 0;
+    Owner = obj;
+    AppearType = static_cast<MCArmAppearanceType*>(tree);
 
     if (tree != nullptr)
     {
-        tree->addUsers(this);
+        tree->AddUsers(this);
     }
 
-    currentShape = nullptr;
-    currentFrame = -1;
-    fadeTableIndex = -1;
-    shapeMinY = -15.0f;
-    shapeMinX = -15.0f;
-    visible = 0;
-    currentTime = 0.0f;
-    lastFrame = 0;
-    reverse = 0;
-    inView = 0;
-    rotation = 0.0f;
-    shapeMaxY = 15.0f;
-    shapeMaxX = 15.0f;
+    CurrentShape = nullptr;
+    CurrentFrame = -1;
+    FadeTableIndex = -1;
+    ShapeMinY = -15.0f;
+    ShapeMinX = -15.0f;
+    Visible = 0;
+    CurrentTime = 0.0f;
+    LastFrame = 0;
+    Reverse = 0;
+    InView = 0;
+    Rotation = 0.0f;
+    ShapeMaxY = 15.0f;
+    ShapeMaxX = 15.0f;
     return 0;
 }
 
-auto ArmAppearance::recalcBounds(Camera* cam) -> int
+auto MCArmAppearance::RecalcBounds(MCCamera* cam) -> int
 {
     if (cam == nullptr)
     {
         return 0;
     }
 
-    const vector_2d pos = owner->getScreenPos(cam->cameraId - 1);
-    upperLeft.x = pos.x;
-    upperLeft.y = pos.y;
-    lowerRight.y = pos.y;
-    lowerRight.x = pos.x;
+    const MCVector2D pos = Owner->GetScreenPos(cam->CameraId - 1);
+    UpperLeft.X = pos.X;
+    UpperLeft.Y = pos.Y;
+    LowerRight.Y = pos.Y;
+    LowerRight.X = pos.X;
 
-    if (currentShape != nullptr && currentShape->frameList != nullptr)
+    if (CurrentShape != nullptr && CurrentShape->FrameList != nullptr)
     {
         // The bounds only ever grow: they cover every frame drawn so far.
-        uint8_t* shapeTable = currentShape->frameList;
-        int32_t frame = currentFrame;
+        uint8_t* shapeTable = CurrentShape->FrameList;
+        int32_t frame = CurrentFrame;
 
         if (frame < 0)
         {
             frame = 0;
         }
 
-        const int32_t numShapeFrames = VFX_shape_count(shapeTable);
+        const int32_t numShapeFrames = VfxShapeCount(shapeTable);
 
         if (numShapeFrames <= frame)
         {
             frame = numShapeFrames - 1;
         }
 
-        const int32_t minXY = VFX_shape_minxy(shapeTable, frame);
+        const int32_t minXY = VfxShapeMinxy(shapeTable, frame);
 
-        if (static_cast<float>(minXY >> 16) < shapeMinX)
+        if (static_cast<float>(minXY >> 16) < ShapeMinX)
         {
-            shapeMinX = static_cast<float>(minXY >> 16);
+            ShapeMinX = static_cast<float>(minXY >> 16);
         }
 
-        if (static_cast<float>(static_cast<int16_t>(minXY)) < shapeMinY)
+        if (static_cast<float>(static_cast<int16_t>(minXY)) < ShapeMinY)
         {
-            shapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
+            ShapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
         }
 
-        const int32_t size = VFX_shape_resolution(shapeTable, frame);
+        const int32_t size = VfxShapeResolution(shapeTable, frame);
 
-        if (shapeMaxX < static_cast<float>(size >> 16))
+        if (ShapeMaxX < static_cast<float>(size >> 16))
         {
-            shapeMaxX = static_cast<float>(size >> 16);
+            ShapeMaxX = static_cast<float>(size >> 16);
         }
 
-        if (shapeMaxY < static_cast<float>(static_cast<int16_t>(size)))
+        if (ShapeMaxY < static_cast<float>(static_cast<int16_t>(size)))
         {
-            shapeMaxY = static_cast<float>(static_cast<int16_t>(size));
+            ShapeMaxY = static_cast<float>(static_cast<int16_t>(size));
         }
 
-        inView = 1;
+        InView = 1;
     }
 
     // Faithful: the zoom is the eye's, the screen limits the camera's.
-    const float scale = eye->cameraScale == 1 ? 0.5f : 1.0f;
-    upperLeft.x = scale * shapeMinX + pos.x;
-    upperLeft.y = scale * shapeMinY + pos.y;
-    lowerRight.x = scale * shapeMaxX + upperLeft.x;
-    lowerRight.y = scale * shapeMaxY + upperLeft.y;
+    const float scale = Eye->CameraScale == 1 ? 0.5f : 1.0f;
+    UpperLeft.X = scale * ShapeMinX + pos.X;
+    UpperLeft.Y = scale * ShapeMinY + pos.Y;
+    LowerRight.X = scale * ShapeMaxX + UpperLeft.X;
+    LowerRight.Y = scale * ShapeMaxY + UpperLeft.Y;
 
-    if (0.0f <= lowerRight.x && 0.0f <= lowerRight.y &&
-        upperLeft.x <= static_cast<float>(static_cast<int32_t>(std::floor(cam->viewWidth))) &&
-        upperLeft.y <= static_cast<float>(static_cast<int32_t>(std::floor(cam->viewHeight))))
+    if (0.0f <= LowerRight.X && 0.0f <= LowerRight.Y &&
+        UpperLeft.X <= static_cast<float>(static_cast<int32_t>(std::floor(cam->ViewWidth))) &&
+        UpperLeft.Y <= static_cast<float>(static_cast<int32_t>(std::floor(cam->ViewHeight))))
     {
         return 1;
     }
@@ -329,20 +329,20 @@ auto ArmAppearance::recalcBounds(Camera* cam) -> int
     return 0;
 }
 
-auto ArmAppearance::render(int32_t depthFixup) -> int32_t
+auto MCArmAppearance::Render(int32_t depthFixup) -> int32_t
 {
-    if (owner->selected != 0)
+    if (Owner->Selected != 0)
     {
-        recalcBounds(eye);
-        drawSelectBox(0xfd);
+        RecalcBounds(Eye);
+        DrawSelectBox(0xfd);
     }
 
-    GameObject* obj = owner;
-    screenPos = obj->getScreenPos(eye->cameraId - 1);
+    MCGameObject* obj = Owner;
+    ScreenPos = obj->GetScreenPos(Eye->CameraId - 1);
 
     // The facing in degrees, negative to the right.
-    const frame_of_ref frame = obj->getFrame();
-    float cosFacing = UnitX.y * frame.i.y + UnitX.x * frame.i.x + UnitX.z * frame.i.z;
+    const MCFrameOfRef frame = obj->GetFrame();
+    float cosFacing = UnitX.Y * frame.I.Y + UnitX.X * frame.I.X + UnitX.Z * frame.I.Z;
 
     if (cosFacing < -1.0)
     {
@@ -354,83 +354,83 @@ auto ArmAppearance::render(int32_t depthFixup) -> int32_t
         cosFacing = 1.0f;
     }
 
-    double facing = acosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
+    double facing = AcosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
 
-    if (frame.i.y < 0.0)
+    if (frame.I.Y < 0.0)
     {
         facing = -facing;
     }
 
-    rotation = static_cast<float>(facing);
-    currentShape = appearType->getShape(static_cast<int32_t>(rotation), 0, frameRate, reverse);
+    Rotation = static_cast<float>(facing);
+    CurrentShape = AppearType->GetShape(static_cast<int32_t>(Rotation), 0, FrameRate, Reverse);
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
-        drawSelectBox(0xfd);
+        DrawSelectBox(0xfd);
     }
 
     uint8_t* fadeTable = nullptr;
 
-    if (fadeTableIndex != -1 && fadeTableIndex >= 0)
+    if (FadeTableIndex != -1 && FadeTableIndex >= 0)
     {
-        fadeTable = gamePalette->fadePalettes.get() + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+        fadeTable = GamePalette->FadePalettes.get() + (FadeTableIndex + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
     }
 
-    ElementList->openGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - screenPos.y), 1);
+    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 1);
 
-    if (currentShape == nullptr || currentShape->frameList == nullptr)
+    if (CurrentShape == nullptr || CurrentShape->FrameList == nullptr)
     {
         return 0;
     }
 
-    auto* element = ElementPool::Make<VFXElement>(currentShape->frameList, screenPos.x, screenPos.y, currentFrame,
-                                                  reverse, fadeTable, 0, 0);
+    auto* element = MCElementPool::Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame,
+                                                      Reverse, fadeTable, 0, 0);
 
     // Port fix: the original writes the debug names through a null element too, and "%i" of a type number
     // can overrun name2.
     if (element != nullptr)
     {
-        strcpy(element->name, "armweap");
+        strcpy(element->Name, "armweap");
 
-        if (ownerObject == nullptr)
+        if (OwnerObject == nullptr)
         {
-            strcpy(element->name2, "unknown");
+            strcpy(element->Name2, "unknown");
         }
         else
         {
-            snprintf(element->name2, sizeof(element->name2), "%i", ownerObject->getObjectType()->objTypeNum);
+            snprintf(element->Name2, sizeof(element->Name2), "%i", OwnerObject->GetObjectType()->ObjTypeNum);
         }
     }
 
-    ElementList->add(element);
+    ElementList->Add(element);
     return 0;
 }
 
-auto ArmAppearance::update() -> int32_t
+auto MCArmAppearance::Update() -> int32_t
 {
-    if (currentFrame == -1)
+    if (CurrentFrame == -1)
     {
-        currentFrame = 0;
+        CurrentFrame = 0;
     }
 
-    const int32_t played = lastFrame;
-    const ArmActorData& data = *appearType->actorData;
-    frameRate = data.frameRate;
-    currentTime = frameLength + currentTime;
-    const int32_t wholeFrames = static_cast<int32_t>(std::floor(static_cast<double>(currentTime * frameRate)));
+    const int32_t played = LastFrame;
+    const MCArmActorData& data = *AppearType->ActorData;
+    FrameRate = data.FrameRate;
+    CurrentTime = FrameLength + CurrentTime;
+    const int32_t wholeFrames = static_cast<int32_t>(std::floor(static_cast<double>(CurrentTime * FrameRate)));
 
     if (played < wholeFrames)
     {
-        lastFrame = wholeFrames;
+        LastFrame = wholeFrames;
         const int32_t advanced = wholeFrames - played;
 
         if (advanced != 0)
         {
-            currentFrame += advanced;
+            CurrentFrame += advanced;
 
-            if (data.numFrames <= static_cast<uint32_t>(currentFrame))
+            if (data.NumFrames <= static_cast<uint32_t>(CurrentFrame))
             {
-                currentFrame = static_cast<int32_t>(data.numFrames - 1);
+                CurrentFrame = static_cast<int32_t>(data.NumFrames - 1);
                 return 0;
             }
         }
@@ -439,8 +439,8 @@ auto ArmAppearance::update() -> int32_t
     return 1;
 }
 
-auto ArmAppearance::destroy() -> void
+auto MCArmAppearance::Destroy() -> void
 {
-    appearType->removeUsers(this);
-    appearanceTypeList->removeAppearance(appearType);
+    AppearType->RemoveUsers(this);
+    AppearanceTypeList->RemoveAppearance(AppearType);
 }

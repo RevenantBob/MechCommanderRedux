@@ -14,7 +14,7 @@
 namespace
 {
     /// <summary>The type an argument expression must have.</summary>
-    enum ArgumentKind
+    enum MCArgumentKind
     {
         /// <summary>integer.</summary>
         ARG_INTEGER,
@@ -35,15 +35,15 @@ namespace
     };
 
     /// <summary>Whether <paramref name="typePtr"/> is an array of <paramref name="elementTypePtr"/>.</summary>
-    auto isArrayOf(TypePtr typePtr, TypePtr elementTypePtr) -> bool
+    auto IsArrayOf(MCTypePtr typePtr, MCTypePtr elementTypePtr) -> bool
     {
-        return typePtr->form == FRM_ARRAY && typePtr->info.array.elementTypePtr == elementTypePtr;
+        return typePtr->Form == FRM_ARRAY && typePtr->Info.Array.ElementTypePtr == elementTypePtr;
     }
 
     /// <summary>Compiles one argument expression and checks its base type against <paramref name="kind"/>.</summary>
-    auto argument(ArgumentKind kind) -> void
+    auto Argument(MCArgumentKind kind) -> void
     {
-        TypePtr argType = baseType(expression());
+        MCTypePtr argType = BaseType(Expression());
         bool ok = false;
 
         switch (kind)
@@ -61,1720 +61,1720 @@ namespace
                 ok = argType == IntegerTypePtr || argType == RealTypePtr;
                 break;
             case ARG_STRING:
-                ok = isArrayOf(argType, CharTypePtr);
+                ok = IsArrayOf(argType, CharTypePtr);
                 break;
             case ARG_INTEGER_ARRAY:
-                ok = isArrayOf(argType, IntegerTypePtr);
+                ok = IsArrayOf(argType, IntegerTypePtr);
                 break;
             case ARG_REAL_ARRAY:
-                ok = isArrayOf(argType, RealTypePtr);
+                ok = IsArrayOf(argType, RealTypePtr);
                 break;
             case ARG_PRINTABLE:
                 ok = argType == IntegerTypePtr || argType == RealTypePtr || argType == CharTypePtr ||
-                     isArrayOf(argType, CharTypePtr);
+                     IsArrayOf(argType, CharTypePtr);
                 break;
         }
 
         if (!ok)
         {
-            syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+            SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
         }
     }
 
     /// <summary>Compiles "(" arguments ")", each checked against its kind, separated by commas.</summary>
-    auto arguments(std::initializer_list<ArgumentKind> kinds) -> void
+    auto Arguments(std::initializer_list<MCArgumentKind> kinds) -> void
     {
-        if (curToken != TKN_LPAREN)
+        if (CurToken != TKN_LPAREN)
         {
-            syntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+            SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
             return;
         }
 
-        getToken();
+        GetToken();
         bool first = true;
 
-        for (ArgumentKind kind : kinds)
+        for (MCArgumentKind kind : kinds)
         {
             if (!first)
             {
-                ifTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
+                IfTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
             }
 
             first = false;
-            argument(kind);
+            Argument(kind);
         }
 
-        ifTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
     }
 
     /// <summary>A routine without arguments: "(" is an error.</summary>
-    auto noArguments() -> void
+    auto NoArguments() -> void
     {
-        if (curToken == TKN_LPAREN)
+        if (CurToken == TKN_LPAREN)
         {
-            syntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+            SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
         }
     }
 
     /// <summary>A routine called as a bare statement: anything but ";" after its name is an error.</summary>
-    auto statementOnly() -> void
+    auto StatementOnly() -> void
     {
-        if (curToken != TKN_SEMICOLON)
+        if (CurToken != TKN_SEMICOLON)
         {
-            syntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+            SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
         }
     }
 }
 
-auto stdReturn() -> void
+auto StdReturn() -> void
 {
-    if (curToken == TKN_LPAREN)
+    if (CurToken == TKN_LPAREN)
     {
-        getToken();
-        TypePtr returnType = baseType(expression());
+        GetToken();
+        MCTypePtr returnType = BaseType(Expression());
 
-        if (returnType != baseType(CurRoutineIdPtr->typePtr))
+        if (returnType != BaseType(CurRoutineIdPtr->TypePtr))
         {
-            syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+            SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
         }
 
-        ifTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
         return;
     }
 
-    if (CurRoutineIdPtr->typePtr != nullptr)
+    if (CurRoutineIdPtr->TypePtr != nullptr)
     {
-        syntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
     }
 }
 
-auto stdPrint() -> void
+auto StdPrint() -> void
 {
-    arguments({ARG_PRINTABLE});
+    Arguments({ARG_PRINTABLE});
 }
 
-auto stdConcat() -> TypePtr
+auto StdConcat() -> MCTypePtr
 {
-    arguments({ARG_STRING, ARG_PRINTABLE});
+    Arguments({ARG_STRING, ARG_PRINTABLE});
     return IntegerTypePtr;
 }
 
-auto stdAbs() -> TypePtr
+auto StdAbs() -> MCTypePtr
 {
-    arguments({ARG_REAL});
+    Arguments({ARG_REAL});
     return RealTypePtr;
 }
 
-auto stdRound() -> TypePtr
+auto StdRound() -> MCTypePtr
 {
-    arguments({ARG_REAL});
+    Arguments({ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto stdTrunc() -> TypePtr
+auto StdTrunc() -> MCTypePtr
 {
-    arguments({ARG_NUMBER});
+    Arguments({ARG_NUMBER});
     return IntegerTypePtr;
 }
 
-auto stdSqrt() -> TypePtr
+auto StdSqrt() -> MCTypePtr
 {
-    arguments({ARG_NUMBER});
+    Arguments({ARG_NUMBER});
     return RealTypePtr;
 }
 
-auto stdRandom() -> TypePtr
+auto StdRandom() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto stdGetModHandle() -> TypePtr
+auto StdGetModHandle() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return IntegerTypePtr;
 }
 
-auto stdGetModName() -> TypePtr
+auto StdGetModName() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return nullptr;
 }
 
-auto stdSetModName() -> void
+auto StdSetModName() -> void
 {
-    arguments({ARG_STRING});
+    Arguments({ARG_STRING});
 }
 
-auto stdSetMaxLoops() -> TypePtr
+auto StdSetMaxLoops() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return nullptr;
 }
 
-auto stdFatal() -> TypePtr
+auto StdFatal() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_STRING});
+    Arguments({ARG_INTEGER, ARG_STRING});
     return nullptr;
 }
 
-auto stdAssert() -> TypePtr
+auto StdAssert() -> MCTypePtr
 {
-    arguments({ARG_BOOLEAN, ARG_INTEGER, ARG_STRING});
+    Arguments({ARG_BOOLEAN, ARG_INTEGER, ARG_STRING});
     return nullptr;
 }
 
-auto stdHandle() -> TypePtr
+auto StdHandle() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return IntegerTypePtr;
 }
 
-auto hbSetMode() -> void
+auto HbSetMode() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbSetUpdateTime() -> void
+auto HbSetUpdateTime() -> void
 {
-    arguments({ARG_REAL});
+    Arguments({ARG_REAL});
 }
 
-auto hbGetId() -> TypePtr
+auto HbGetId() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return IntegerTypePtr;
 }
 
-auto hbGetTime() -> TypePtr
+auto HbGetTime() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return RealTypePtr;
 }
 
-auto hbGetTimeLeft() -> TypePtr
+auto HbGetTimeLeft() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return RealTypePtr;
 }
 
-auto hbGetTarget() -> TypePtr
+auto HbGetTarget() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetTarget() -> void
+auto HbSetTarget() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbGetContacts() -> TypePtr
+auto HbGetContacts() -> MCTypePtr
 {
-    arguments({ARG_INTEGER_ARRAY, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER_ARRAY, ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetEnemyCount() -> TypePtr
+auto HbGetEnemyCount() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetWeapons() -> TypePtr
+auto HbGetWeapons() -> MCTypePtr
 {
-    arguments({ARG_INTEGER_ARRAY, ARG_INTEGER});
+    Arguments({ARG_INTEGER_ARRAY, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetWeaponShots() -> TypePtr
+auto HbGetWeaponShots() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetWeaponRanges() -> TypePtr
+auto HbGetWeaponRanges() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments({ARG_INTEGER, ARG_REAL_ARRAY});
     return nullptr;
 }
 
-auto hbGetMemoryInteger() -> TypePtr
+auto HbGetMemoryInteger() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetMemoryReal() -> TypePtr
+auto HbGetMemoryReal() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbGetAlarmTriggers() -> TypePtr
+auto HbGetAlarmTriggers() -> MCTypePtr
 {
-    arguments({ARG_INTEGER_ARRAY});
+    Arguments({ARG_INTEGER_ARRAY});
     return IntegerTypePtr;
 }
 
-auto hbStartFieldScan() -> TypePtr
+auto HbStartFieldScan() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbStartVehicleScan() -> TypePtr
+auto HbStartVehicleScan() -> MCTypePtr
 {
-    statementOnly();
+    StatementOnly();
     return IntegerTypePtr;
 }
 
-auto hbStartContactScan() -> TypePtr
+auto HbStartContactScan() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbStartMovePath() -> TypePtr
+auto HbStartMovePath() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetMoveGoal() -> void
+auto HbSetMoveGoal() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments({ARG_INTEGER, ARG_REAL_ARRAY});
 }
 
-auto hbSetMemoryInteger() -> void
+auto HbSetMemoryInteger() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbSetMemoryReal() -> void
+auto HbSetMemoryReal() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_REAL});
 }
 
-auto hbGetChallenger() -> TypePtr
+auto HbGetChallenger() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetFireRanges() -> void
+auto HbGetFireRanges() -> void
 {
-    arguments({ARG_REAL_ARRAY});
+    Arguments({ARG_REAL_ARRAY});
 }
 
-auto hbGetAttackers() -> TypePtr
+auto HbGetAttackers() -> MCTypePtr
 {
-    arguments({ARG_INTEGER_ARRAY, ARG_REAL});
+    Arguments({ARG_INTEGER_ARRAY, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto hbGetAttackerInfo() -> TypePtr
+auto HbGetAttackerInfo() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbGetTimeWithoutOrders() -> TypePtr
+auto HbGetTimeWithoutOrders() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return RealTypePtr;
 }
 
-auto hbSetChallenger() -> TypePtr
+auto HbSetChallenger() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSelectUnit() -> TypePtr
+auto HbSelectUnit() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSelectObject() -> TypePtr
+auto HbSelectObject() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSelectWarrior() -> TypePtr
+auto HbSelectWarrior() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetWarriorStatus() -> TypePtr
+auto HbGetWarriorStatus() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSelectContact() -> TypePtr
+auto HbSelectContact() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbIsContact() -> TypePtr
+auto HbIsContact() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto hbGetContactStatus() -> TypePtr
+auto HbGetContactStatus() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetContactId() -> TypePtr
+auto HbGetContactId() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return IntegerTypePtr;
 }
 
-auto hbGetContactRelativePosition() -> TypePtr
+auto HbGetContactRelativePosition() -> MCTypePtr
 {
-    arguments({ARG_REAL, ARG_REAL});
+    Arguments({ARG_REAL, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto hbSetPotentialContact() -> TypePtr
+auto HbSetPotentialContact() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetGuardObjective() -> TypePtr
+auto HbSetGuardObjective() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetGuardPoint() -> TypePtr
+auto HbSetGuardPoint() -> MCTypePtr
 {
-    arguments({ARG_REAL_ARRAY});
+    Arguments({ARG_REAL_ARRAY});
     return IntegerTypePtr;
 }
 
-auto hbSetGuardRadii() -> TypePtr
+auto HbSetGuardRadii() -> MCTypePtr
 {
     // Original behaviour: the second argument is preceded by getToken(), not a comma check, so any token separates
     // the two radii.
-    if (curToken == TKN_LPAREN)
+    if (CurToken == TKN_LPAREN)
     {
-        getToken();
-        argument(ARG_REAL);
-        getToken();
-        argument(ARG_REAL);
-        ifTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        GetToken();
+        Argument(ARG_REAL);
+        GetToken();
+        Argument(ARG_REAL);
+        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
     }
     else
     {
-        syntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
     }
 
     return IntegerTypePtr;
 }
 
-auto hbGetGuardObjective() -> TypePtr
+auto HbGetGuardObjective() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return IntegerTypePtr;
 }
 
-auto hbGetGuardPoint() -> TypePtr
+auto HbGetGuardPoint() -> MCTypePtr
 {
-    arguments({ARG_REAL_ARRAY});
+    Arguments({ARG_REAL_ARRAY});
     return IntegerTypePtr;
 }
 
-auto hbGetGuardRadii() -> TypePtr
+auto HbGetGuardRadii() -> MCTypePtr
 {
-    arguments({ARG_REAL, ARG_REAL});
+    Arguments({ARG_REAL, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto hbGetGuardDistanceTo() -> TypePtr
+auto HbGetGuardDistanceTo() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbHasMoveGoal() -> TypePtr
+auto HbHasMoveGoal() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return BooleanTypePtr;
 }
 
-auto hbHasMovePath() -> TypePtr
+auto HbHasMovePath() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return BooleanTypePtr;
 }
 
-auto hbSortWeapons() -> void
+auto HbSortWeapons() -> void
 {
-    arguments({ARG_INTEGER_ARRAY, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER_ARRAY, ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbTimeToImpact() -> TypePtr
+auto HbTimeToImpact() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbFireWeapon() -> TypePtr
+auto HbFireWeapon() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetObjectPosition() -> TypePtr
+auto HbGetObjectPosition() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments({ARG_INTEGER, ARG_REAL_ARRAY});
     return IntegerTypePtr;
 }
 
-auto hbGetMoveOrder() -> TypePtr
+auto HbGetMoveOrder() -> MCTypePtr
 {
-    statementOnly();
+    StatementOnly();
     return IntegerTypePtr;
 }
 
-auto hbGetAttackOrder() -> TypePtr
+auto HbGetAttackOrder() -> MCTypePtr
 {
-    statementOnly();
+    StatementOnly();
     return IntegerTypePtr;
 }
 
-auto hbGetVisualRange() -> TypePtr
+auto HbGetVisualRange() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbGetTacOrder() -> TypePtr
+auto HbGetTacOrder() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_REAL, ARG_INTEGER_ARRAY});
+    Arguments({ARG_INTEGER, ARG_REAL, ARG_INTEGER_ARRAY});
     return IntegerTypePtr;
 }
 
-auto hbGetLastTacOrder() -> TypePtr
+auto HbGetLastTacOrder() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_REAL, ARG_INTEGER_ARRAY});
+    Arguments({ARG_INTEGER, ARG_REAL, ARG_INTEGER_ARRAY});
     return IntegerTypePtr;
 }
 
-auto hbGetUnitMates() -> TypePtr
+auto HbGetUnitMates() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER_ARRAY});
+    Arguments({ARG_INTEGER, ARG_INTEGER_ARRAY});
     return IntegerTypePtr;
 }
 
-auto hbSetOrderMode() -> TypePtr
+auto HbSetOrderMode() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbWait() -> TypePtr
+auto HbWait() -> MCTypePtr
 {
-    arguments({ARG_REAL, ARG_BOOLEAN});
+    Arguments({ARG_REAL, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto hbMoveToPoint() -> TypePtr
+auto HbMoveToPoint() -> MCTypePtr
 {
-    arguments({ARG_REAL_ARRAY, ARG_BOOLEAN});
+    Arguments({ARG_REAL_ARRAY, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto hbMoveToObject() -> TypePtr
+auto HbMoveToObject() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto hbMoveToContact() -> TypePtr
+auto HbMoveToContact() -> MCTypePtr
 {
-    if (curToken == TKN_LPAREN)
+    if (CurToken == TKN_LPAREN)
     {
-        getToken();
-        argument(ARG_BOOLEAN);
+        GetToken();
+        Argument(ARG_BOOLEAN);
         // Original behaviour: a missing ")" reports a missing comma.
-        ifTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_COMMA);
+        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_COMMA);
     }
     else
     {
-        syntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
     }
 
     return IntegerTypePtr;
 }
 
-auto hbOrderPowerUp() -> TypePtr
+auto HbOrderPowerUp() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return IntegerTypePtr;
 }
 
-auto hbOrderPowerDown() -> TypePtr
+auto HbOrderPowerDown() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return IntegerTypePtr;
 }
 
-auto hbOrderFormation() -> TypePtr
+auto HbOrderFormation() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetFormation() -> TypePtr
+auto HbGetFormation() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbUseSpeed() -> TypePtr
+auto HbUseSpeed() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbOrderAttackObject() -> TypePtr
+auto HbOrderAttackObject() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto hbOrderAttackContact() -> TypePtr
+auto HbOrderAttackContact() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto hbAttackThreat() -> TypePtr
+auto HbAttackThreat() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN, ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbOpenFire() -> TypePtr
+auto HbOpenFire() -> MCTypePtr
 {
-    statementOnly();
+    StatementOnly();
     return IntegerTypePtr;
 }
 
-auto hbUseFireRange() -> TypePtr
+auto HbUseFireRange() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbUseFireOdds() -> TypePtr
+auto HbUseFireOdds() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbDamageObject() -> TypePtr
+auto HbDamageObject() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_INTEGER, ARG_REAL, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_INTEGER, ARG_REAL, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto hbSetAttackRadius() -> TypePtr
+auto HbSetAttackRadius() -> MCTypePtr
 {
-    arguments({ARG_REAL});
+    Arguments({ARG_REAL});
     return RealTypePtr;
 }
 
-auto hbOrderTest() -> TypePtr
+auto HbOrderTest() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbPlaySmacker() -> TypePtr
+auto HbPlaySmacker() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbObjectChangeSides() -> void
+auto HbObjectChangeSides() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbDistanceToObject() -> TypePtr
+auto HbDistanceToObject() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbDistanceToPosition() -> TypePtr
+auto HbDistanceToPosition() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments({ARG_INTEGER, ARG_REAL_ARRAY});
     return RealTypePtr;
 }
 
-auto hbObjectSuicide() -> void
+auto HbObjectSuicide() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbObjectCreate() -> TypePtr
+auto HbObjectCreate() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbObjectExists() -> TypePtr
+auto HbObjectExists() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbObjectStatus() -> TypePtr
+auto HbObjectStatus() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbObjectStatusCount() -> TypePtr
+auto HbObjectStatusCount() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER_ARRAY});
+    Arguments({ARG_INTEGER, ARG_INTEGER_ARRAY});
     return nullptr;
 }
 
-auto hbObjectVisible() -> TypePtr
+auto HbObjectVisible() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbObjectSide() -> TypePtr
+auto HbObjectSide() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbObjectCommander() -> TypePtr
+auto HbObjectCommander() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbObjectClass() -> TypePtr
+auto HbObjectClass() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbInArea() -> TypePtr
+auto HbInArea() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_REAL_ARRAY, ARG_REAL, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_REAL_ARRAY, ARG_REAL, ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto hbSetTimer() -> TypePtr
+auto HbSetTimer() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_NUMBER});
+    Arguments({ARG_INTEGER, ARG_NUMBER});
     return IntegerTypePtr;
 }
 
-auto hbChkTimer() -> TypePtr
+auto HbChkTimer() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbEndTimer() -> void
+auto HbEndTimer() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbSetObjectiveTimer() -> TypePtr
+auto HbSetObjectiveTimer() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_NUMBER});
+    Arguments({ARG_INTEGER, ARG_NUMBER});
     return IntegerTypePtr;
 }
 
-auto hbCheckObjectiveTimer() -> TypePtr
+auto HbCheckObjectiveTimer() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbSetObjectiveStatus() -> TypePtr
+auto HbSetObjectiveStatus() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbCheckObjectiveStatus() -> TypePtr
+auto HbCheckObjectiveStatus() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetObjectiveType() -> TypePtr
+auto HbSetObjectiveType() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbCheckObjectiveType() -> TypePtr
+auto HbCheckObjectiveType() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbPlayDigitalMusic() -> TypePtr
+auto HbPlayDigitalMusic() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbStopMusic() -> TypePtr
+auto HbStopMusic() -> MCTypePtr
 {
     // Original behaviour (OB-049): no getToken() after "(", so "stopmusic()" fails on the "(" as a missing ")".
-    if (curToken == TKN_LPAREN)
+    if (CurToken == TKN_LPAREN)
     {
-        ifTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
     }
     else
     {
-        syntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
     }
 
     return IntegerTypePtr;
 }
 
-auto hbPlaySoundEffect() -> TypePtr
+auto HbPlaySoundEffect() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbPlayVideo() -> TypePtr
+auto HbPlayVideo() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbFileExists() -> TypePtr
+auto HbFileExists() -> MCTypePtr
 {
-    arguments({ARG_STRING});
+    Arguments({ARG_STRING});
     return BooleanTypePtr;
 }
 
-auto hbPlaySpeech() -> TypePtr
+auto HbPlaySpeech() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbPlayBetty() -> TypePtr
+auto HbPlayBetty() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetRadio() -> TypePtr
+auto HbSetRadio() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto hbSetObjActive() -> TypePtr
+auto HbSetObjActive() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto hbObjWithdraw() -> TypePtr
+auto HbObjWithdraw() -> MCTypePtr
 {
-    statementOnly();
+    StatementOnly();
     return IntegerTypePtr;
 }
 
-auto hbObjInWithdraw() -> TypePtr
+auto HbObjInWithdraw() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbObjTypeId() -> TypePtr
+auto HbObjTypeId() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbTerrainObjectId() -> TypePtr
+auto HbTerrainObjectId() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbVehicleId() -> TypePtr
+auto HbVehicleId() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetWeaponAmmo() -> TypePtr
+auto HbGetWeaponAmmo() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetSensors() -> TypePtr
+auto HbGetSensors() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetBRValue() -> TypePtr
+auto HbGetBRValue() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetBRValue() -> void
+auto HbSetBRValue() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbGetArmor() -> TypePtr
+auto HbGetArmor() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetMaxArmor() -> TypePtr
+auto HbGetMaxArmor() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetPilotId() -> TypePtr
+auto HbGetPilotId() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetPilotWounds() -> TypePtr
+auto HbGetPilotWounds() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbSetPilotWounds() -> void
+auto HbSetPilotWounds() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbGetObjActive() -> TypePtr
+auto HbGetObjActive() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetObjDamage() -> TypePtr
+auto HbGetObjDamage() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetObjDmgPts() -> TypePtr
+auto HbGetObjDmgPts() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetObjMaxDmg() -> TypePtr
+auto HbGetObjMaxDmg() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetObjDamage() -> void
+auto HbSetObjDamage() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbSetObjectivePos() -> void
+auto HbSetObjectivePos() -> void
 {
-    arguments({ARG_INTEGER, ARG_NUMBER, ARG_NUMBER, ARG_NUMBER});
+    Arguments({ARG_INTEGER, ARG_NUMBER, ARG_NUMBER, ARG_NUMBER});
 }
 
-auto hbGetGlobalValue() -> TypePtr
+auto HbGetGlobalValue() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbSetGlobalValue() -> void
+auto HbSetGlobalValue() -> void
 {
-    arguments({ARG_INTEGER, ARG_NUMBER});
+    Arguments({ARG_INTEGER, ARG_NUMBER});
 }
 
-auto hbSetSensorRange() -> TypePtr
+auto HbSetSensorRange() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto hbSetTonnage() -> void
+auto HbSetTonnage() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_REAL});
 }
 
-auto hbSetExplDmg() -> void
+auto HbSetExplDmg() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_REAL});
 }
 
-auto hbSetExplRad() -> void
+auto HbSetExplRad() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_REAL});
 }
 
-auto hbSetSalvage() -> TypePtr
+auto HbSetSalvage() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto hbSetSalvageStatus() -> TypePtr
+auto HbSetSalvageStatus() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_BOOLEAN});
     return BooleanTypePtr;
 }
 
-auto hbSetAnimation() -> void
+auto HbSetAnimation() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbPlayWave() -> void
+auto HbPlayWave() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_REAL});
 }
 
-auto hbSetRevealed() -> void
+auto HbSetRevealed() -> void
 {
-    arguments({ARG_INTEGER, ARG_NUMBER, ARG_REAL_ARRAY});
+    Arguments({ARG_INTEGER, ARG_NUMBER, ARG_REAL_ARRAY});
 }
 
-auto hbGetSalvage() -> void
+auto HbGetSalvage() -> void
 {
     // Original behaviour: the third argument is preceded by getToken(), not a comma check.
-    if (curToken == TKN_LPAREN)
+    if (CurToken == TKN_LPAREN)
     {
-        getToken();
-        argument(ARG_INTEGER);
-        ifTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
-        argument(ARG_INTEGER);
-        ifTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
-        getToken();
-        argument(ARG_INTEGER_ARRAY);
-        ifTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
-        argument(ARG_INTEGER_ARRAY);
-        ifTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        GetToken();
+        Argument(ARG_INTEGER);
+        IfTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
+        Argument(ARG_INTEGER);
+        IfTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
+        GetToken();
+        Argument(ARG_INTEGER_ARRAY);
+        IfTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
+        Argument(ARG_INTEGER_ARRAY);
+        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
     }
     else
     {
-        syntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
     }
 }
 
-auto hbRefit() -> void
+auto HbRefit() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbCaptureObject() -> void
+auto HbCaptureObject() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbSetCaptured() -> void
+auto HbSetCaptured() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbSetCaptureable() -> void
+auto HbSetCaptureable() -> void
 {
-    arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_BOOLEAN});
 }
 
-auto hbIsCaptured() -> TypePtr
+auto HbIsCaptured() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbIsCapturable() -> TypePtr
+auto HbIsCapturable() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto hbWasEverCapturable() -> TypePtr
+auto HbWasEverCapturable() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto hbSetBuildingName() -> void
+auto HbSetBuildingName() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbCallStrike() -> void
+auto HbCallStrike() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_REAL, ARG_BOOLEAN});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_REAL, ARG_BOOLEAN});
 }
 
-auto hbCallStrikeEx() -> void
+auto HbCallStrikeEx() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_REAL, ARG_BOOLEAN, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_REAL, ARG_BOOLEAN, ARG_REAL});
 }
 
-auto hbLoadElementals() -> void
+auto HbLoadElementals() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbDeployElementals() -> void
+auto HbDeployElementals() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbAddPrisoner() -> TypePtr
+auto HbAddPrisoner() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetTrainSpeed() -> void
+auto HbSetTrainSpeed() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_REAL});
 }
 
-auto hbLockGateOpen() -> void
+auto HbLockGateOpen() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbLockGateClosed() -> void
+auto HbLockGateClosed() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbReleaseGateLock() -> void
+auto HbReleaseGateLock() -> void
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
 }
 
-auto hbIsGateOpen() -> TypePtr
+auto HbIsGateOpen() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto hbGetRelPosPoint() -> void
+auto HbGetRelPosPoint() -> void
 {
-    arguments({ARG_REAL_ARRAY, ARG_REAL, ARG_REAL, ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments({ARG_REAL_ARRAY, ARG_REAL, ARG_REAL, ARG_INTEGER, ARG_REAL_ARRAY});
 }
 
-auto hbGetUnitStatus() -> TypePtr
+auto HbGetUnitStatus() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto hbGetRelPosObject() -> void
+auto HbGetRelPosObject() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments({ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_INTEGER, ARG_REAL_ARRAY});
 }
 
-auto hbRepair() -> void
+auto HbRepair() -> void
 {
-    arguments({ARG_INTEGER, ARG_REAL});
+    Arguments({ARG_INTEGER, ARG_REAL});
 }
 
-auto hbGetFixed() -> TypePtr
+auto HbGetFixed() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetRepairState() -> TypePtr
+auto HbGetRepairState() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbIsTeamTargeting() -> TypePtr
+auto HbIsTeamTargeting() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto hbSendMessage() -> TypePtr
+auto HbSendMessage() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return nullptr;
 }
 
-auto hbGetMessage() -> TypePtr
+auto HbGetMessage() -> MCTypePtr
 {
-    arguments({ARG_INTEGER});
+    Arguments({ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbGetHomeTeam() -> TypePtr
+auto HbGetHomeTeam() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return IntegerTypePtr;
 }
 
-auto hbGetStrikes() -> TypePtr
+auto HbGetStrikes() -> MCTypePtr
 {
-    arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto hbSetStrikes() -> void
+auto HbSetStrikes() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbAddStrikes() -> void
+auto HbAddStrikes() -> void
 {
-    arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
 }
 
-auto hbIsServer() -> TypePtr
+auto HbIsServer() -> MCTypePtr
 {
-    noArguments();
+    NoArguments();
     return BooleanTypePtr;
 }
 
-auto standardRoutineCall(SymTableNodePtr routineIdPtr) -> TypePtr
+auto StandardRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    switch (routineIdPtr->defn.info.routine.key)
+    switch (routineIdPtr->Defn.Info.Routine.Key)
     {
         case RTN_RETURN:
         {
-            stdReturn();
+            StdReturn();
             return nullptr;
         }
         case RTN_PRINT:
         {
-            stdPrint();
+            StdPrint();
             return nullptr;
         }
         case RTN_CONCAT:
-            return stdConcat();
+            return StdConcat();
         case RTN_ABS:
-            return stdAbs();
+            return StdAbs();
         case RTN_ROUND:
-            return stdRound();
+            return StdRound();
         case RTN_SQRT:
-            return stdSqrt();
+            return StdSqrt();
         case RTN_TRUNC:
-            return stdTrunc();
+            return StdTrunc();
         case RTN_RANDOM:
-            return stdRandom();
+            return StdRandom();
         case RTN_SET_MAX_LOOPS:
-            return stdSetMaxLoops();
+            return StdSetMaxLoops();
         case RTN_FATAL:
-            return stdFatal();
+            return StdFatal();
         case RTN_ASSERT:
-            return stdAssert();
+            return StdAssert();
         case RTN_GET_MODULE_HANDLE:
         case RTN_GET_MODE:
         case RTN_GET_ACTION:
         case RTN_GET_PHASE:
-            return stdGetModHandle();
+            return StdGetModHandle();
         case RTN_GET_MODULE_NAME:
-            return stdGetModName();
+            return StdGetModName();
         case RTN_SET_MODULE_NAME:
         {
-            stdSetModName();
+            StdSetModName();
             return nullptr;
         }
         case RTN_GET_ID:
-            return hbGetId();
+            return HbGetId();
         case RTN_GET_TIME:
-            return hbGetTime();
+            return HbGetTime();
         case RTN_GET_TIME_LEFT:
-            return hbGetTimeLeft();
+            return HbGetTimeLeft();
         case RTN_GET_WARRIOR_STATUS:
-            return hbGetWarriorStatus();
+            return HbGetWarriorStatus();
         case RTN_SELECT_WARRIOR:
-            return hbSelectWarrior();
+            return HbSelectWarrior();
         case RTN_SELECT_OBJECT:
-            return hbSelectObject();
+            return HbSelectObject();
         case RTN_GET_CONTACTS:
-            return hbGetContacts();
+            return HbGetContacts();
         case RTN_GET_ENEMY_COUNT:
-            return hbGetEnemyCount();
+            return HbGetEnemyCount();
         case RTN_SELECT_CONTACT:
-            return hbSelectContact();
+            return HbSelectContact();
         case RTN_GET_CONTACT_ID:
-            return hbGetContactId();
+            return HbGetContactId();
         case RTN_IS_CONTACT:
-            return hbIsContact();
+            return HbIsContact();
         case RTN_GET_CONTACT_STATUS:
-            return hbGetContactStatus();
+            return HbGetContactStatus();
         case RTN_GET_CONTACT_RELATIVE_POSITION:
-            return hbGetContactRelativePosition();
+            return HbGetContactRelativePosition();
         case RTN_SET_GUARD_OBJECTIVE:
-            return hbSetGuardObjective();
+            return HbSetGuardObjective();
         case RTN_SET_GUARD_POINT:
-            return hbSetGuardPoint();
+            return HbSetGuardPoint();
         case RTN_SET_GUARD_RADII:
-            return hbSetGuardRadii();
+            return HbSetGuardRadii();
         case RTN_GET_GUARD_OBJECTIVE:
-            return hbGetGuardObjective();
+            return HbGetGuardObjective();
         case RTN_GET_GUARD_POINT:
-            return hbGetGuardPoint();
+            return HbGetGuardPoint();
         case RTN_GET_GUARD_RADII:
-            return hbGetGuardRadii();
+            return HbGetGuardRadii();
         case RTN_GET_GUARD_DISTANCE_TO:
-            return hbGetGuardDistanceTo();
+            return HbGetGuardDistanceTo();
         case RTN_GET_TARGET:
-            return hbGetTarget();
+            return HbGetTarget();
         case RTN_SET_TARGET:
         {
-            hbSetTarget();
+            HbSetTarget();
             return nullptr;
         }
         case RTN_GET_WEAPONS_READY:
         case RTN_GET_WEAPONS_LOCKED:
         case RTN_GET_WEAPONS_IN_RANGE:
-            return hbGetWeapons();
+            return HbGetWeapons();
         case RTN_GET_WEAPON_SHOTS:
-            return hbGetWeaponShots();
+            return HbGetWeaponShots();
         case RTN_GET_WEAPON_RANGES:
-            return hbGetWeaponRanges();
+            return HbGetWeaponRanges();
         case RTN_GET_OBJECT_POSITION:
-            return hbGetObjectPosition();
+            return HbGetObjectPosition();
         case RTN_GET_INTEGER_MEMORY:
-            return hbGetMemoryInteger();
+            return HbGetMemoryInteger();
         case RTN_GET_REAL_MEMORY:
-            return hbGetMemoryReal();
+            return HbGetMemoryReal();
         case RTN_GET_ALARM_TRIGGERS:
-            return hbGetAlarmTriggers();
+            return HbGetAlarmTriggers();
         case RTN_GET_CHALLENGER:
-            return hbGetChallenger();
+            return HbGetChallenger();
         case RTN_GET_FIRE_RANGES:
         {
-            hbGetFireRanges();
+            HbGetFireRanges();
             return nullptr;
         }
         case RTN_GET_ATTACKERS:
-            return hbGetAttackers();
+            return HbGetAttackers();
         case RTN_GET_ATTACKER_INFO:
-            return hbGetAttackerInfo();
+            return HbGetAttackerInfo();
         case RTN_SET_CHALLENGER:
-            return hbSetChallenger();
+            return HbSetChallenger();
         case RTN_GET_TIME_WITHOUT_ORDERS:
-            return hbGetTimeWithoutOrders();
+            return HbGetTimeWithoutOrders();
         case RTN_SET_RADIO:
-            return hbSetRadio();
+            return HbSetRadio();
         case RTN_SET_MODE:
         case RTN_SET_ACTION:
         case RTN_SET_PHASE:
         {
-            hbSetMode();
+            HbSetMode();
             return nullptr;
         }
         case RTN_SET_UPDATE_TIME:
         {
-            hbSetUpdateTime();
+            HbSetUpdateTime();
             return nullptr;
         }
         case RTN_SET_MOVE_GOAL:
         {
-            hbSetMoveGoal();
+            HbSetMoveGoal();
             return nullptr;
         }
         case RTN_SET_INTEGER_MEMORY:
         {
-            hbSetMemoryInteger();
+            HbSetMemoryInteger();
             return nullptr;
         }
         case RTN_SET_REAL_MEMORY:
         {
-            hbSetMemoryReal();
+            HbSetMemoryReal();
             return nullptr;
         }
         case RTN_START_FIELD_SCAN:
-            return hbStartFieldScan();
+            return HbStartFieldScan();
         case RTN_START_ENEMY_SCAN:
         case RTN_START_FRIENDLY_SCAN:
-            return hbStartContactScan();
+            return HbStartContactScan();
         case RTN_START_MOVE_PATH:
-            return hbStartMovePath();
+            return HbStartMovePath();
         case RTN_START_VEHICLE_SCAN:
-            return hbStartVehicleScan();
+            return HbStartVehicleScan();
         case RTN_HAS_MOVE_GOAL:
-            return hbHasMoveGoal();
+            return HbHasMoveGoal();
         case RTN_HAS_MOVE_PATH:
-            return hbHasMovePath();
+            return HbHasMovePath();
         case RTN_SORT_WEAPONS:
         {
-            hbSortWeapons();
+            HbSortWeapons();
             return nullptr;
         }
         case RTN_TIME_TO_IMPACT:
-            return hbTimeToImpact();
+            return HbTimeToImpact();
         case RTN_FIRE_WEAPON:
-            return hbFireWeapon();
+            return HbFireWeapon();
         case RTN_GET_VISUAL_RANGE:
-            return hbGetVisualRange();
+            return HbGetVisualRange();
         case RTN_GET_UNIT_MATES:
-            return hbGetUnitMates();
+            return HbGetUnitMates();
         case RTN_GET_TAC_ORDER:
-            return hbGetTacOrder();
+            return HbGetTacOrder();
         case RTN_GET_LAST_TAC_ORDER:
-            return hbGetLastTacOrder();
+            return HbGetLastTacOrder();
         case RTN_SET_ORDER_MODE:
-            return hbSetOrderMode();
+            return HbSetOrderMode();
         case RTN_ORDER_WAIT:
-            return hbWait();
+            return HbWait();
         case RTN_ORDER_MOVE_TO:
-            return hbMoveToPoint();
+            return HbMoveToPoint();
         case RTN_ORDER_MOVE_TO_OBJECT:
-            return hbMoveToObject();
+            return HbMoveToObject();
         case RTN_ORDER_MOVE_TO_CONTACT:
-            return hbMoveToContact();
+            return HbMoveToContact();
         case RTN_ORDER_POWER_UP:
-            return hbOrderPowerUp();
+            return HbOrderPowerUp();
         case RTN_ORDER_POWER_DOWN:
-            return hbOrderPowerDown();
+            return HbOrderPowerDown();
         case RTN_ORDER_ATTACK_OBJECT:
-            return hbOrderAttackObject();
+            return HbOrderAttackObject();
         case RTN_ORDER_ATTACK_CONTACT:
-            return hbOrderAttackContact();
+            return HbOrderAttackContact();
         case RTN_ATTACK_THREAT:
-            return hbAttackThreat();
+            return HbAttackThreat();
         case RTN_ORDER_WITHDRAW:
-            return hbObjWithdraw();
+            return HbObjWithdraw();
         case RTN_OPEN_FIRE:
-            return hbOpenFire();
+            return HbOpenFire();
         case RTN_DAMAGE_OBJECT:
-            return hbDamageObject();
+            return HbDamageObject();
         case RTN_SET_ATTACK_RADIUS:
-            return hbSetAttackRadius();
+            return HbSetAttackRadius();
         case RTN_ORDER_TEST:
-            return hbOrderTest();
+            return HbOrderTest();
         case RTN_PLAY_SMACKER:
-            return hbPlaySmacker();
+            return HbPlaySmacker();
         case RTN_FILE_EXISTS:
-            return hbFileExists();
+            return HbFileExists();
         case RTN_OBJECT_CHANGE_SIDES:
         {
-            hbObjectChangeSides();
+            HbObjectChangeSides();
             return nullptr;
         }
         case RTN_DISTANCE_TO_OBJECT:
-            return hbDistanceToObject();
+            return HbDistanceToObject();
         case RTN_DISTANCE_TO_POSITION:
-            return hbDistanceToPosition();
+            return HbDistanceToPosition();
         case RTN_OBJECT_SUICIDE:
         {
-            hbObjectSuicide();
+            HbObjectSuicide();
             return nullptr;
         }
         case RTN_OBJECT_CREATE:
-            return hbObjectCreate();
+            return HbObjectCreate();
         case RTN_OBJECT_EXISTS:
-            return hbObjectExists();
+            return HbObjectExists();
         case RTN_OBJECT_STATUS:
-            return hbObjectStatus();
+            return HbObjectStatus();
         case RTN_OBJECT_VISIBLE:
-            return hbObjectVisible();
+            return HbObjectVisible();
         case RTN_OBJECT_CLASS:
-            return hbObjectClass();
+            return HbObjectClass();
         case RTN_OBJECT_SIDE:
-            return hbObjectSide();
+            return HbObjectSide();
         case RTN_OBJECT_COMMANDER:
-            return hbObjectCommander();
+            return HbObjectCommander();
         case RTN_SET_TIMER:
-            return hbSetTimer();
+            return HbSetTimer();
         case RTN_CHECK_TIMER:
-            return hbChkTimer();
+            return HbChkTimer();
         case RTN_END_TIMER:
         {
-            hbEndTimer();
+            HbEndTimer();
             return nullptr;
         }
         case RTN_SET_OBJECTIVE_TIMER:
-            return hbSetObjectiveTimer();
+            return HbSetObjectiveTimer();
         case RTN_CHECK_OBJECTIVE_TIMER:
-            return hbCheckObjectiveTimer();
+            return HbCheckObjectiveTimer();
         case RTN_SET_OBJECTIVE_STATUS:
-            return hbSetObjectiveStatus();
+            return HbSetObjectiveStatus();
         case RTN_CHECK_OBJECTIVE_STATUS:
-            return hbCheckObjectiveStatus();
+            return HbCheckObjectiveStatus();
         case RTN_SET_OBJECTIVE_TYPE:
-            return hbSetObjectiveType();
+            return HbSetObjectiveType();
         case RTN_CHECK_OBJECTIVE_TYPE:
-            return hbCheckObjectiveType();
+            return HbCheckObjectiveType();
         case RTN_PLAY_DIGITAL_MUSIC:
-            return hbPlayDigitalMusic();
+            return HbPlayDigitalMusic();
         case RTN_STOP_MUSIC:
-            return hbStopMusic();
+            return HbStopMusic();
         case RTN_PLAY_SOUND_EFFECT:
-            return hbPlaySoundEffect();
+            return HbPlaySoundEffect();
         case RTN_PLAY_VIDEO:
-            return hbPlayVideo();
+            return HbPlayVideo();
         case RTN_PLAY_SPEECH:
-            return hbPlaySpeech();
+            return HbPlaySpeech();
         case RTN_PLAY_BETTY:
-            return hbPlayBetty();
+            return HbPlayBetty();
         case RTN_SET_OBJECT_ACTIVE:
-            return hbSetObjActive();
+            return HbSetObjActive();
         case RTN_OBJECT_IN_WITHDRAWAL:
-            return hbObjInWithdraw();
+            return HbObjInWithdraw();
         case RTN_OBJECT_TYPE_ID:
-            return hbObjTypeId();
+            return HbObjTypeId();
         case RTN_GET_TERRAIN_OBJECT_PART_ID:
-            return hbTerrainObjectId();
+            return HbTerrainObjectId();
         case RTN_GET_VEHICLE_PART_ID:
-            return hbVehicleId();
+            return HbVehicleId();
         case RTN_GET_WEAPON_AMMO:
-            return hbGetWeaponAmmo();
+            return HbGetWeaponAmmo();
         case RTN_OBJECT_STATUS_COUNT:
-            return hbObjectStatusCount();
+            return HbObjectStatusCount();
         case RTN_IN_AREA:
-            return hbInArea();
+            return HbInArea();
         case RTN_GET_RELATIVE_POSITION_TO_POINT:
         {
-            hbGetRelPosPoint();
+            HbGetRelPosPoint();
             return nullptr;
         }
         case RTN_GET_RELATIVE_POSITION_TO_OBJECT:
         {
-            hbGetRelPosObject();
+            HbGetRelPosObject();
             return nullptr;
         }
         case RTN_GET_SENSORS_WORKING:
-            return hbGetSensors();
+            return HbGetSensors();
         case RTN_GET_CURRENT_BR_VALUE:
-            return hbGetBRValue();
+            return HbGetBRValue();
         case RTN_SET_CURRENT_BR_VALUE:
         {
             // Original behaviour: compiled by the getter (one argument), not hbSetBRValue.
-            hbGetBRValue();
+            HbGetBRValue();
             return nullptr;
         }
         case RTN_GET_ARMOR_PTS:
-            return hbGetArmor();
+            return HbGetArmor();
         case RTN_GET_MAX_ARMOR:
-            return hbGetMaxArmor();
+            return HbGetMaxArmor();
         case RTN_GET_PILOT_ID:
-            return hbGetPilotId();
+            return HbGetPilotId();
         case RTN_GET_PILOT_WOUNDS:
-            return hbGetPilotWounds();
+            return HbGetPilotWounds();
         case RTN_SET_PILOT_WOUNDS:
         {
-            hbSetPilotWounds();
+            HbSetPilotWounds();
             return nullptr;
         }
         case RTN_GET_OBJECT_ACTIVE:
-            return hbGetObjActive();
+            return HbGetObjActive();
         case RTN_GET_OBJECT_DMG_PTS:
-            return hbGetObjDmgPts();
+            return HbGetObjDmgPts();
         case RTN_GET_OBJECT_MAX_DMG:
-            return hbGetObjMaxDmg();
+            return HbGetObjMaxDmg();
         case RTN_GET_OBJECT_DAMAGE:
-            return hbGetObjDamage();
+            return HbGetObjDamage();
         case RTN_SET_OBJECT_DAMAGE:
         {
-            hbSetObjDamage();
+            HbSetObjDamage();
             return nullptr;
         }
         case RTN_GET_GLOBAL_VALUE:
-            return hbGetGlobalValue();
+            return HbGetGlobalValue();
         case RTN_SET_GLOBAL_VALUE:
         {
-            hbSetGlobalValue();
+            HbSetGlobalValue();
             return nullptr;
         }
         case RTN_SET_OBJECTIVE_POS:
         {
-            hbSetObjectivePos();
+            HbSetObjectivePos();
             return nullptr;
         }
         case RTN_SET_POTENTIAL_CONTACT:
-            return hbSetPotentialContact();
+            return HbSetPotentialContact();
         case RTN_SET_SENSOR_RANGE:
-            return hbSetSensorRange();
+            return HbSetSensorRange();
         case RTN_SET_TONNAGE:
         {
-            hbSetTonnage();
+            HbSetTonnage();
             return nullptr;
         }
         case RTN_PLAY_WAVE_FILE:
         {
-            hbPlayWave();
+            HbPlayWave();
             return nullptr;
         }
         case RTN_SET_EXPLOSION_DAMAGE:
         {
-            hbSetExplDmg();
+            HbSetExplDmg();
             return nullptr;
         }
         case RTN_SET_EXPLOSION_RADIUS:
         {
-            hbSetExplRad();
+            HbSetExplRad();
             return nullptr;
         }
         case RTN_GET_SALVAGE:
         {
-            hbGetSalvage();
+            HbGetSalvage();
             return nullptr;
         }
         case RTN_SET_SALVAGE:
-            return hbSetSalvage();
+            return HbSetSalvage();
         case RTN_SET_SALVAGE_STATUS:
-            return hbSetSalvageStatus();
+            return HbSetSalvageStatus();
         case RTN_SET_ANIMATION:
         {
-            hbSetAnimation();
+            HbSetAnimation();
             return nullptr;
         }
         case RTN_SET_REVEALED:
         {
-            hbSetRevealed();
+            HbSetRevealed();
             return nullptr;
         }
         case RTN_ORDER_REFIT:
         {
-            hbRefit();
+            HbRefit();
             return nullptr;
         }
         case RTN_ORDER_CAPTURE:
         {
-            hbCaptureObject();
+            HbCaptureObject();
             return nullptr;
         }
         case RTN_SET_CAPTURED:
         {
-            hbSetCaptured();
+            HbSetCaptured();
             return nullptr;
         }
         case RTN_SET_CAPTUREABLE:
         {
-            hbSetCaptureable();
+            HbSetCaptureable();
             return nullptr;
         }
         case RTN_IS_CAPTURED:
-            return hbIsCaptured();
+            return HbIsCaptured();
         case RTN_IS_CAPTURABLE:
-            return hbIsCapturable();
+            return HbIsCapturable();
         case RTN_WAS_EVER_CAPTURABLE:
-            return hbWasEverCapturable();
+            return HbWasEverCapturable();
         case RTN_SET_BUILDING_NAME:
         {
-            hbSetBuildingName();
+            HbSetBuildingName();
             return nullptr;
         }
         case RTN_CALL_STRIKE:
         {
-            hbCallStrike();
+            HbCallStrike();
             return nullptr;
         }
         case RTN_ORDER_LOAD_ELEMENTALS:
         {
-            hbLoadElementals();
+            HbLoadElementals();
             return nullptr;
         }
         case RTN_ORDER_DEPLOY_ELEMENTALS:
         {
-            hbDeployElementals();
+            HbDeployElementals();
             return nullptr;
         }
         case RTN_ADD_PRISONER:
         {
             // Original behaviour: the integer result type is dropped, so the call compiles as a statement.
-            hbAddPrisoner();
+            HbAddPrisoner();
             return nullptr;
         }
         case RTN_SET_TRAIN_SPEED:
         {
-            hbSetTrainSpeed();
+            HbSetTrainSpeed();
             return nullptr;
         }
         case RTN_LOCK_GATE_OPEN:
         {
-            hbLockGateOpen();
+            HbLockGateOpen();
             return nullptr;
         }
         case RTN_LOCK_GATE_CLOSED:
         {
-            hbLockGateClosed();
+            HbLockGateClosed();
             return nullptr;
         }
         case RTN_RELEASE_GATE_LOCK:
         {
-            hbReleaseGateLock();
+            HbReleaseGateLock();
             return nullptr;
         }
         case RTN_IS_GATE_OPEN:
-            return hbIsGateOpen();
+            return HbIsGateOpen();
         case RTN_CALL_STRIKE_EX:
         {
-            hbCallStrikeEx();
+            HbCallStrikeEx();
             return nullptr;
         }
         case RTN_GET_UNIT_STATUS:
-            return hbGetUnitStatus();
+            return HbGetUnitStatus();
         case RTN_REPAIR:
         {
-            hbRepair();
+            HbRepair();
             return nullptr;
         }
         case RTN_GET_FIXED:
-            return hbGetFixed();
+            return HbGetFixed();
         case RTN_GET_REPAIR_STATE:
-            return hbGetRepairState();
+            return HbGetRepairState();
         case RTN_IS_TEAM_TARGETING:
-            return hbIsTeamTargeting();
+            return HbIsTeamTargeting();
         case RTN_SEND_MESSAGE:
-            return hbSendMessage();
+            return HbSendMessage();
         case RTN_GET_MESSAGE:
-            return hbGetMessage();
+            return HbGetMessage();
         case RTN_GET_HOME_TEAM:
-            return hbGetHomeTeam();
+            return HbGetHomeTeam();
         case RTN_SET_STRIKES:
         {
-            hbSetStrikes();
+            HbSetStrikes();
             return nullptr;
         }
         case RTN_GET_STRIKES:
-            return hbGetStrikes();
+            return HbGetStrikes();
         case RTN_IS_SERVER:
-            return hbIsServer();
+            return HbIsServer();
         case RTN_ADD_STRIKES:
         {
-            hbAddStrikes();
+            HbAddStrikes();
             return nullptr;
         }
         default:

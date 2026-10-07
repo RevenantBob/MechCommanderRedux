@@ -32,62 +32,62 @@ namespace
     /// Objects placed on each map vertex so far (up to 7), for their part ids; made by init and freed once the
     /// .bdg file is read (a global at 0x007e3708 in the original, with no symbol).
     /// </summary>
-    std::vector<uint8_t> vertexObjectCount;
+    std::vector<uint8_t> VertexObjectCount;
 
     /// <summary>
     /// The next part id for an object on (<paramref name="blockNumber"/>, <paramref name="vertexNumber"/>): the
     /// vertex's base id plus how many are already on it, which is then counted (up to 7).
     /// </summary>
-    int32_t nextPartId(int32_t blockNumber, int32_t vertexNumber)
+    int32_t NextPartId(int32_t blockNumber, int32_t vertexNumber)
     {
-        const int32_t blocksMapSide = Terrain::blocksMapSide;
-        const int32_t verticesBlockSide = Terrain::verticesBlockSide;
+        const int32_t blocksMapSide = MCTerrain::BlocksMapSide;
+        const int32_t verticesBlockSide = MCTerrain::VerticesBlockSide;
         const int32_t index =
             (((blockNumber % blocksMapSide) * verticesBlockSide + vertexNumber % verticesBlockSide) * blocksMapSide +
              blockNumber / blocksMapSide) *
                 verticesBlockSide +
             vertexNumber / verticesBlockSide;
         const int32_t partId =
-            static_cast<int8_t>(vertexObjectCount[index]) + 0x1000 + (blockNumber * 400 + vertexNumber) * 8;
-        const auto count = static_cast<int8_t>(vertexObjectCount[index] + 1);
-        vertexObjectCount[index] = static_cast<uint8_t>(count);
+            static_cast<int8_t>(VertexObjectCount[index]) + 0x1000 + (blockNumber * 400 + vertexNumber) * 8;
+        const auto count = static_cast<int8_t>(VertexObjectCount[index] + 1);
+        VertexObjectCount[index] = static_cast<uint8_t>(count);
 
         if (7 < count)
         {
-            vertexObjectCount[index] = 7;
+            VertexObjectCount[index] = 7;
         }
 
         return partId;
     }
 
     /// <summary>A placed-destroyed object's damage: its type's DmgLevel (every such type keeps it at +0x30).</summary>
-    template <typename T> float destroyedDamage(GameObject* object)
+    template <typename T> float DestroyedDamage(MCGameObject* object)
     {
-        return static_cast<float>(static_cast<int32_t>(static_cast<T*>(object->getObjectType())->dmgLevel));
+        return static_cast<float>(static_cast<int32_t>(static_cast<T*>(object->GetObjectType())->DmgLevel));
     }
 
     /// <summary>Unlinks <paramref name="node"/> from objectList and destroys it.</summary>
-    void removeList(ObjectQueueNode* node)
+    void RemoveList(MCObjectQueueNode* node)
     {
-        ObjectQueueNode* previous = nullptr;
+        MCObjectQueueNode* previous = nullptr;
 
-        for (ObjectQueueNode* list = objectList->head; list != nullptr; list = list->next)
+        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
         {
             if (list == node)
             {
-                if (list == objectList->head)
+                if (list == ObjectList->Head)
                 {
-                    objectList->head = list->next;
+                    ObjectList->Head = list->Next;
                 }
 
-                if (list == objectList->tail)
+                if (list == ObjectList->Tail)
                 {
-                    objectList->tail = previous;
+                    ObjectList->Tail = previous;
                 }
 
                 if (previous != nullptr)
                 {
-                    previous->next = list->next;
+                    previous->Next = list->Next;
                 }
                 break;
             }
@@ -95,97 +95,97 @@ namespace
             previous = list;
         }
 
-        node->destroy();
+        node->Destroy();
         delete node;
     }
 
     /// <summary>Updates every object of the list, finding each by its index from the head.</summary>
-    void updateListObjects(ObjectQueueNode* list)
+    void UpdateListObjects(MCObjectQueueNode* list)
     {
         int32_t count = 0;
 
-        for (BaseObject* object = list->head; object != nullptr; object = object->next)
+        for (MCBaseObject* object = list->Head; object != nullptr; object = object->Next)
         {
             count++;
         }
 
         for (int32_t i = 0; i < count; i++)
         {
-            BaseObject* object = nullptr;
+            MCBaseObject* object = nullptr;
             int32_t skip = i;
 
             do
             {
-                object = object == nullptr ? list->head : object->next;
+                object = object == nullptr ? list->Head : object->Next;
             } while (object != nullptr && 0 < skip--);
 
-            object->update();
+            object->Update();
         }
     }
 } // namespace
 
-auto ObjectBlockManager::destroy() -> void
+auto MCObjectBlockManager::Destroy() -> void
 {
-    destroyAllObjects();
-    objectLists.reset();
-    objectData.reset();
+    DestroyAllObjects();
+    ObjectLists.reset();
+    ObjectData.reset();
 
-    if (objectFile != nullptr)
+    if (ObjectFile != nullptr)
     {
-        objectFile->close();
-        delete objectFile;
-        objectFile = nullptr;
+        ObjectFile->Close();
+        delete ObjectFile;
+        ObjectFile = nullptr;
     }
 }
 
-auto ObjectBlockManager::init(const char* fileName) -> int32_t
+auto MCObjectBlockManager::Init(const char* fileName) -> int32_t
 {
-    objectFile = new PacketFile;
+    ObjectFile = new MCPacketFile;
 
-    if (objectFile == nullptr)
+    if (ObjectFile == nullptr)
     {
         return static_cast<int32_t>(0xbaaa0014);
     }
 
-    FullPathFileName objPath;
-    objPath.init(terrainPath, fileName, ".obj");
-    int32_t result = objectFile->open(objPath, READ, 50);
+    MCFullPathFileName objPath;
+    objPath.Init(TerrainPath, fileName, ".obj");
+    int32_t result = ObjectFile->Open(objPath, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    objectFile->seekPacket(0);
+    ObjectFile->SeekPacket(0);
 
-    if (objectFile->getPacketSize() == 0x898)
+    if (ObjectFile->GetPacketSize() == 0x898)
     {
         Fatal(-1, " Tried to use old Style Object Data ");
     }
 
     // The lists table and the block packet buffer (heapSize is the original's heap size, kept for reference).
-    const int32_t numPackets = objectFile->getNumPackets();
-    heapSize = numPackets * 0x18 + 0x5600;
-    objectLists = std::make_unique<ObjectQueueNode*[]>(static_cast<size_t>(numPackets) * 2);
-    objectData = std::make_unique<uint8_t[]>(OBJECT_DATA_SIZE);
-    *reinterpret_cast<int32_t*>(objectData.get()) = -1;
-    const int32_t mapSide = Terrain::blocksMapSide * Terrain::verticesBlockSide;
+    const int32_t numPackets = ObjectFile->GetNumPackets();
+    HeapSize = numPackets * 0x18 + 0x5600;
+    ObjectLists = std::make_unique<MCObjectQueueNode*[]>(static_cast<size_t>(numPackets) * 2);
+    ObjectData = std::make_unique<uint8_t[]>(OBJECT_DATA_SIZE);
+    *reinterpret_cast<int32_t*>(ObjectData.get()) = -1;
+    const int32_t mapSide = MCTerrain::BlocksMapSide * MCTerrain::VerticesBlockSide;
     const auto countSize = static_cast<size_t>(mapSide) * static_cast<size_t>(mapSide);
-    vertexObjectCount.assign(countSize, 0);
+    VertexObjectCount.assign(countSize, 0);
 
-    if ((result = update(1)) != 0)
+    if ((result = Update(1)) != 0)
     {
         return result;
     }
 
     // The misc terrain objects: 16-byte records of block, vertex, kind and whether it starts destroyed.
-    FullPathFileName bdgPath;
-    bdgPath.init(terrainPath, fileName, ".bdg");
-    File bdgFile;
+    MCFullPathFileName bdgPath;
+    bdgPath.Init(TerrainPath, fileName, ".bdg");
+    MCFile bdgFile;
 
-    if (bdgFile.open(bdgPath, READ, 50) == 0)
+    if (bdgFile.Open(bdgPath, READ, 50) == 0)
     {
-        const int32_t numRecords = bdgFile.readLong();
+        const int32_t numRecords = bdgFile.ReadLong();
 
         if (numRecords != 0)
         {
@@ -196,7 +196,7 @@ auto ObjectBlockManager::init(const char* fileName) -> int32_t
                 return static_cast<int32_t>(0xbaaa0018);
             }
 
-            bdgFile.read(records, numRecords << 4);
+            bdgFile.Read(records, numRecords << 4);
             const auto* record = reinterpret_cast<const int32_t*>(records);
 
             for (int32_t i = 0; i < numRecords; i++, record += 4)
@@ -204,35 +204,35 @@ auto ObjectBlockManager::init(const char* fileName) -> int32_t
                 const int32_t blockNumber = record[0];
                 const int32_t vertexNumber = record[1];
                 const int32_t kind = record[2];
-                auto* object = static_cast<MiscTerrainObject*>(createObject(MISC_TERRAIN_OBJECT_TYPE));
-                object->vertexNumber = vertexNumber;
-                object->blockNumber = blockNumber;
-                object->terrainObjectKind = kind;
-                object->setPartId(nextPartId(blockNumber, vertexNumber));
+                auto* object = static_cast<MCMiscTerrainObject*>(CreateObject(MISC_TERRAIN_OBJECT_TYPE));
+                object->VertexNumber = vertexNumber;
+                object->BlockNumber = blockNumber;
+                object->TerrainObjectKind = kind;
+                object->SetPartId(NextPartId(blockNumber, vertexNumber));
 
                 if (record[3] != 0)
                 {
                     // Placed already destroyed: damaged one point past its kind's level.
-                    const auto* type = static_cast<MiscTerrainObjectType*>(object->objType);
+                    const auto* type = static_cast<MCMiscTerrainObjectType*>(object->ObjType);
                     uint32_t level = 0;
                     bool known = true;
 
                     switch (kind)
                     {
                         case 5:
-                            level = type->bridgeDmgLevel;
+                            level = type->BridgeDmgLevel;
                             break;
                         case 6:
-                            level = type->forestDmgLevel;
+                            level = type->ForestDmgLevel;
                             break;
                         case 7:
-                            level = type->wallDmgLevel;
+                            level = type->WallDmgLevel;
                             break;
                         case 8:
-                            level = type->mediumWallDmgLevel;
+                            level = type->MediumWallDmgLevel;
                             break;
                         case 9:
-                            level = type->lightWallDmgLevel;
+                            level = type->LightWallDmgLevel;
                             break;
                         default:
                             known = false;
@@ -241,20 +241,20 @@ auto ObjectBlockManager::init(const char* fileName) -> int32_t
 
                     if (known)
                     {
-                        object->destroyed = 1;
-                        object->damage = static_cast<float>(static_cast<int32_t>(level + 1));
-                        object->overlayDestroyed = 1;
+                        object->Destroyed = 1;
+                        object->Damage = static_cast<float>(static_cast<int32_t>(level + 1));
+                        object->OverlayDestroyed = 1;
                     }
                 }
 
                 // Light walls go in the block's TBlk list, the rest in its RBlk list.
                 char listName[12];
                 std::sprintf(listName, kind == 9 ? "TBlk%d" : "RBlk%d", blockNumber);
-                ObjectQueueNode* list = objectList->head;
+                MCObjectQueueNode* list = ObjectList->Head;
 
                 while (list != nullptr && list->operator==(listName) == 0)
                 {
-                    list = list->next;
+                    list = list->Next;
                 }
 
                 if (list == nullptr)
@@ -262,42 +262,42 @@ auto ObjectBlockManager::init(const char* fileName) -> int32_t
                     Fatal(-1, "objectLists are SNAFU");
                 }
 
-                list->addNode(object);
+                list->AddNode(object);
             }
 
             delete[] records;
         }
 
-        bdgFile.close();
-        vertexObjectCount = {};
+        bdgFile.Close();
+        VertexObjectCount = {};
     }
 
     return 0;
 }
 
-auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSize) -> int32_t
+auto MCObjectBlockManager::SetupObjectQueue(uint32_t listIndex, uint32_t packetSize) -> int32_t
 {
-    if (objectLists[listIndex] != nullptr || objectLists[listIndex + 1] != nullptr)
+    if (ObjectLists[listIndex] != nullptr || ObjectLists[listIndex + 1] != nullptr)
     {
         return static_cast<int32_t>(0xbaaa001d);
     }
 
     // The block's two lists.
-    auto* treeList = new ObjectQueueNode;
-    objectLists[listIndex] = treeList;
-    auto* restList = new ObjectQueueNode;
-    objectLists[listIndex + 1] = restList;
+    auto* treeList = new MCObjectQueueNode;
+    ObjectLists[listIndex] = treeList;
+    auto* restList = new MCObjectQueueNode;
+    ObjectLists[listIndex + 1] = restList;
     const uint32_t blockNumber = listIndex >> 1;
     char listName[20];
     std::sprintf(listName, "TBlk%d", blockNumber);
-    treeList->init(listName, static_cast<int32_t>(blockNumber));
-    objectList->addList(treeList);
+    treeList->Init(listName, static_cast<int32_t>(blockNumber));
+    ObjectList->AddList(treeList);
     std::sprintf(listName, "RBlk%d", blockNumber);
-    restList->init(listName, static_cast<int32_t>(blockNumber));
-    objectList->addList(restList);
+    restList->Init(listName, static_cast<int32_t>(blockNumber));
+    ObjectList->AddList(restList);
 
     // Each record: type, pixel offset, vertex, block, then damage (low nibble) and commander (high nibble).
-    const uint8_t* record = objectData.get();
+    const uint8_t* record = ObjectData.get();
 
     for (uint32_t n = packetSize / OBJECT_RECORD_SIZE; n != 0; n--, record += OBJECT_RECORD_SIZE)
     {
@@ -320,20 +320,20 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
             continue;
         }
 
-        GameObject* object = createObject(typeId);
+        MCGameObject* object = CreateObject(typeId);
 
         if (object == nullptr)
         {
             Fatal(typeId, " This object number is BAD ");
         }
 
-        vector_2d offset(static_cast<float>(offsetX), static_cast<float>(offsetY));
-        vector_2d numbers(static_cast<float>(vertexNumber), static_cast<float>(recordBlock));
-        object->setPartId(nextPartId(recordBlock, vertexNumber));
-        object->setTerrainPosition(offset, numbers);
+        MCVector2D offset(static_cast<float>(offsetX), static_cast<float>(offsetY));
+        MCVector2D numbers(static_cast<float>(vertexNumber), static_cast<float>(recordBlock));
+        object->SetPartId(NextPartId(recordBlock, vertexNumber));
+        object->SetTerrainPosition(offset, numbers);
 
         // Placed already destroyed: damaged to its type's level.
-        const int32_t objectClass = object->objectClass;
+        const int32_t objectClass = object->ObjectClass;
         const bool destroyed = (flags & 0xf) != 0;
         bool isTree = false;
 
@@ -343,11 +343,11 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
             {
                 if (destroyed)
                 {
-                    object->setDamage(destroyedDamage<BuildingType>(object));
+                    object->SetDamage(DestroyedDamage<MCBuildingType>(object));
                 }
 
-                static_cast<Building*>(object)->tileNum = static_cast<uint8_t>(flags >> 4);
-                object->setTerrainPosition(offset, numbers);
+                static_cast<MCBuilding*>(object)->TileNum = static_cast<uint8_t>(flags >> 4);
+                object->SetTerrainPosition(offset, numbers);
                 break;
             }
             case TREE:
@@ -357,7 +357,7 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
             {
                 if (destroyed)
                 {
-                    object->setDamage(destroyedDamage<TerrainObjectType>(object));
+                    object->SetDamage(DestroyedDamage<MCTerrainObjectType>(object));
                 }
                 break;
             }
@@ -365,7 +365,7 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
             {
                 if (destroyed)
                 {
-                    object->setDamage(destroyedDamage<TurretType>(object));
+                    object->SetDamage(DestroyedDamage<MCTurretType>(object));
                 }
                 break;
             }
@@ -373,19 +373,19 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
             {
                 if (destroyed)
                 {
-                    auto* building = static_cast<TreeBuilding*>(object);
-                    object->setDamage(destroyedDamage<TreeBuildingType>(object));
-                    building->hitOnce = 1;
-                    building->collapsed = 1;
-                    building->collisionsOn = 0;
-                    building->status = 2;
+                    auto* building = static_cast<MCTreeBuilding*>(object);
+                    object->SetDamage(DestroyedDamage<MCTreeBuildingType>(object));
+                    building->HitOnce = 1;
+                    building->Collapsed = 1;
+                    building->CollisionsOn = 0;
+                    building->Status = 2;
 
-                    if (building->sensorSystem != nullptr)
+                    if (building->SensorSystem != nullptr)
                     {
-                        building->sensorSystem->disable();
+                        building->SensorSystem->Disable();
                     }
 
-                    static_cast<VFXAppearance*>(building->appearance)->setTypeId(static_cast<ActorState>(5), 0xff);
+                    static_cast<MCVfxAppearance*>(building->Appearance)->SetTypeId(static_cast<MCActorState>(5), 0xff);
                 }
                 break;
             }
@@ -393,8 +393,8 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
             {
                 if (destroyed)
                 {
-                    object->setDamage(destroyedDamage<GateType>(object));
-                    static_cast<Gate*>(object)->destroyGate(1);
+                    object->SetDamage(DestroyedDamage<MCGateType>(object));
+                    static_cast<MCGate*>(object)->DestroyGate(1);
                 }
                 break;
             }
@@ -406,23 +406,23 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
         // everything else in RBlk.
         if (objectClass == TURRET || objectClass == GATE)
         {
-            if (objectList->head != nullptr)
+            if (ObjectList->Head != nullptr)
             {
-                objectList->head->addNode(object);
+                ObjectList->Head->AddNode(object);
             }
 
             if (MPlayer != nullptr && objectClass == TURRET)
             {
-                MPlayer->addToTurretRoster(static_cast<Turret*>(object));
+                MPlayer->AddToTurretRoster(static_cast<MCTurret*>(object));
             }
         }
         else
         {
-            ObjectQueueNode* list = isTree ? objectLists[listIndex] : objectLists[listIndex + 1];
+            MCObjectQueueNode* list = isTree ? ObjectLists[listIndex] : ObjectLists[listIndex + 1];
 
             if (list != nullptr)
             {
-                list->addNode(object);
+                list->AddNode(object);
             }
         }
     }
@@ -430,37 +430,37 @@ auto ObjectBlockManager::setupObjectQueue(uint32_t listIndex, uint32_t packetSiz
     return 0;
 }
 
-auto ObjectBlockManager::update(int reload) -> int32_t
+auto MCObjectBlockManager::Update(int reload) -> int32_t
 {
     if (reload == 0)
     {
         return 0;
     }
 
-    if (objectData == nullptr)
+    if (ObjectData == nullptr)
     {
-        objectData = std::make_unique<uint8_t[]>(OBJECT_DATA_SIZE);
+        ObjectData = std::make_unique<uint8_t[]>(OBJECT_DATA_SIZE);
     }
 
-    std::memset(objectData.get(), 0xff, OBJECT_DATA_SIZE);
+    std::memset(ObjectData.get(), 0xff, OBJECT_DATA_SIZE);
 
-    if (objectFile == nullptr || objectFile->isOpen() == 0)
+    if (ObjectFile == nullptr || ObjectFile->IsOpen() == 0)
     {
         return 0;
     }
 
-    const int32_t numPackets = objectFile->getNumPackets();
+    const int32_t numPackets = ObjectFile->GetNumPackets();
 
     for (int32_t listIndex = 0; listIndex < numPackets * 2; listIndex += 2)
     {
-        if (objectFile->seekPacket(listIndex / 2) != 0)
+        if (ObjectFile->SeekPacket(listIndex / 2) != 0)
         {
             continue;
         }
 
-        objectFile->readPacket(listIndex / 2, objectData.get());
+        ObjectFile->ReadPacket(listIndex / 2, ObjectData.get());
         const int32_t result =
-            setupObjectQueue(static_cast<uint32_t>(listIndex), static_cast<uint32_t>(objectFile->getPacketSize()));
+            SetupObjectQueue(static_cast<uint32_t>(listIndex), static_cast<uint32_t>(ObjectFile->GetPacketSize()));
 
         if (result != 0)
         {
@@ -471,36 +471,36 @@ auto ObjectBlockManager::update(int reload) -> int32_t
     return 0;
 }
 
-auto ObjectBlockManager::updateAllObjects() -> void
+auto MCObjectBlockManager::UpdateAllObjects() -> void
 {
-    for (int32_t listIndex = 0; listIndex < objectFile->getNumPackets() * 2; listIndex += 2)
+    for (int32_t listIndex = 0; listIndex < ObjectFile->GetNumPackets() * 2; listIndex += 2)
     {
-        if (objectLists[listIndex] != nullptr)
+        if (ObjectLists[listIndex] != nullptr)
         {
-            updateListObjects(objectLists[listIndex]);
+            UpdateListObjects(ObjectLists[listIndex]);
         }
 
-        if (objectLists[listIndex + 1] != nullptr)
+        if (ObjectLists[listIndex + 1] != nullptr)
         {
-            updateListObjects(objectLists[listIndex + 1]);
+            UpdateListObjects(ObjectLists[listIndex + 1]);
         }
     }
 }
 
-auto ObjectBlockManager::destroyAllObjects() -> void
+auto MCObjectBlockManager::DestroyAllObjects() -> void
 {
-    for (int32_t listIndex = 0; listIndex < objectFile->getNumPackets() * 2; listIndex += 2)
+    for (int32_t listIndex = 0; listIndex < ObjectFile->GetNumPackets() * 2; listIndex += 2)
     {
-        if (objectLists[listIndex] != nullptr)
+        if (ObjectLists[listIndex] != nullptr)
         {
-            removeList(objectLists[listIndex]);
-            objectLists[listIndex] = nullptr;
+            RemoveList(ObjectLists[listIndex]);
+            ObjectLists[listIndex] = nullptr;
         }
 
-        if (objectLists[listIndex + 1] != nullptr)
+        if (ObjectLists[listIndex + 1] != nullptr)
         {
-            removeList(objectLists[listIndex + 1]);
-            objectLists[listIndex + 1] = nullptr;
+            RemoveList(ObjectLists[listIndex + 1]);
+            ObjectLists[listIndex + 1] = nullptr;
         }
     }
 }

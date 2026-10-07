@@ -9,7 +9,7 @@
 class MCSeeThrough
 {
 public:
-    explicit MCSeeThrough(const _window* target) : _Ops(MCRenderer::OpPlane(target)), _Base(target->buffer) {}
+    explicit MCSeeThrough(const MCWindow* target) : _Ops(MCRenderer::OpPlane(target)), _Base(target->Buffer) {}
 
     /// <summary>Whether the target has see-through pixels at all.</summary>
     explicit operator bool() const { return _Ops != nullptr; }
@@ -140,22 +140,22 @@ public:
     /// <summary>The one software renderer.</summary>
     static MCSoftwareRenderer& Instance();
 
-    void Clear(_window* target, const MCRect& rect, uint8_t color) override;
-    void Hash(_window* target, const MCRect& rect, uint8_t color) override;
-    void Copy(_window* target, const MCCopyCommand& command) override;
-    void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) override;
-    void ShapeBlit(_window* target, const MCShapeBlitCommand& command) override;
-    void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override;
-    void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) override;
-    void Shape(_window* target, const MCShapeCommand& command) override;
-    void FastShape(_window* target, const MCFastShapeCommand& command) override;
-    void Tile(_window* target, const MCTileCommand& command) override;
-    void Polygon(_window* target, const MCPolygonCommand& command) override;
-    void MapQuad(_window* target, const MCMapQuadCommand& command) override;
-    void Line(_window* target, const MCLineCommand& command) override;
-    void Ellipse(_window* target, const MCEllipseCommand& command) override;
-    void StatusBar(_window* target, const MCStatusBarCommand& command) override;
-    void Glyph(_window* target, const MCGlyphCommand& command) override;
+    void Clear(MCWindow* target, const MCRect& rect, uint8_t color) override;
+    void Hash(MCWindow* target, const MCRect& rect, uint8_t color) override;
+    void Copy(MCWindow* target, const MCCopyCommand& command) override;
+    void AlphaBlit(MCWindow* target, const MCAlphaBlitCommand& command) override;
+    void ShapeBlit(MCWindow* target, const MCShapeBlitCommand& command) override;
+    void Write(MCWindow* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override;
+    void Pixel(MCWindow* target, int32_t x, int32_t y, uint8_t color) override;
+    void Shape(MCWindow* target, const MCShapeCommand& command) override;
+    void FastShape(MCWindow* target, const MCFastShapeCommand& command) override;
+    void Tile(MCWindow* target, const MCTileCommand& command) override;
+    void Polygon(MCWindow* target, const MCPolygonCommand& command) override;
+    void MapQuad(MCWindow* target, const MCMapQuadCommand& command) override;
+    void Line(MCWindow* target, const MCLineCommand& command) override;
+    void Ellipse(MCWindow* target, const MCEllipseCommand& command) override;
+    void StatusBar(MCWindow* target, const MCStatusBarCommand& command) override;
+    void Glyph(MCWindow* target, const MCGlyphCommand& command) override;
 
 protected:
     /// <summary>Nothing to do: every draw reads AlphaTable as it goes.</summary>

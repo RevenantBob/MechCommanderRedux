@@ -8,89 +8,89 @@
 #include "object/objque.h"
 #include "vfx/vfxfuncs.h"
 
-auto InfoWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t objectPartId) -> int32_t
+auto MCInfoWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t objectPartId) -> int32_t
 {
-    int32_t result = aTitleWindow::init(xPos, yPos, width, height, nullptr);
+    int32_t result = MCGuiTitleWindow::Init(xPos, yPos, width, height, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    aTitleBar* bar = titleBar;
+    MCGuiTitleBar* bar = TitleBar;
 
     if (bar != nullptr)
     {
-        bar->showCloseButton(-1);
+        bar->ShowCloseButton(-1);
     }
 
-    if (resizeButton != nullptr)
+    if (ResizeButton != nullptr)
     {
-        resizeButton->ShowGUIWindow(-1);
+        ResizeButton->ShowGuiWindow(-1);
     }
 
     // The original calls this even when there is no title bar.
-    bar->showZoomButtons(0);
-    setBackColor(2);
-    partId = objectPartId;
-    lastUpdateTime = MCPort::Milliseconds();
+    bar->ShowZoomButtons(0);
+    SetBackColor(2);
+    PartId = objectPartId;
+    LastUpdateTime = MCPort::Milliseconds();
     return 0;
 }
 
-auto InfoWindow::display() -> void
+auto MCInfoWindow::Display() -> void
 {
     if (IsShowing() == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
 
     // Port: the original redrew its picture every 500 ms here; the window draws itself each frame.
-    aObject::display();
+    MCGuiObject::Display();
 }
 
-auto DrawMechInfo(aObject* window) -> void
+auto DrawMechInfo(MCGuiObject* window) -> void
 {
-    _pane* pane = window->port()->frame();
+    MCPane* pane = window->Port()->Frame();
     const char* locationNames[9] = {"Head",      "Center Torso", "Left Torso", "Right Torso", "Left Arm",
                                     "Right Arm", "Left Leg",     "Right Leg",  nullptr};
     char text[256];
 
-    VFX_pane_wipe(pane, window->backColor());
+    VfxPaneWipe(pane, window->BackColor());
 
-    if (objectList == nullptr)
+    if (ObjectList == nullptr)
     {
         return;
     }
 
-    int32_t partId = static_cast<InfoWindow*>(window)->partId;
-    auto* mover = static_cast<Mover*>(objectList->findObjectFromPart(partId));
+    int32_t partId = static_cast<MCInfoWindow*>(window)->PartId;
+    auto* mover = static_cast<MCMover*>(ObjectList->FindObjectFromPart(partId));
 
     if (mover == nullptr)
     {
         return;
     }
 
-    sprintf(text, "Damaged bits of %s", mover->debugStatus.c_str());
-    whiteFont->writeString(pane, 2, 10, reinterpret_cast<uint8_t*>(text), -1);
+    sprintf(text, "Damaged bits of %s", mover->DebugStatus.c_str());
+    WhiteFont->WriteString(pane, 2, 10, reinterpret_cast<uint8_t*>(text), -1);
 
     int32_t yPos = 0x1e;
-    int32_t numItems = mover->numOther + mover->numAmmos + mover->numWeapons;
-    InventoryItem* item = mover->inventory.get();
+    int32_t numItems = mover->NumOther + mover->NumAmmos + mover->NumWeapons;
+    MCInventoryItem* item = mover->Inventory.get();
 
     for (; numItems != 0; numItems--, item++)
     {
-        if (item->disabled == 0)
+        if (item->Disabled == 0)
         {
             continue;
         }
 
-        sprintf(text, "%s %s", locationNames[item->bodyLocation], MasterComponentList[item->masterID].abbreviation);
-        whiteFont->writeString(pane, 10, yPos, reinterpret_cast<uint8_t*>(text), -1);
+        sprintf(text, "%s %s", locationNames[item->BodyLocation], MasterComponentList[item->MasterID].Abbreviation);
+        WhiteFont->WriteString(pane, 10, yPos, reinterpret_cast<uint8_t*>(text), -1);
         yPos += 10;
     }
 }

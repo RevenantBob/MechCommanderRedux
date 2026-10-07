@@ -8,15 +8,14 @@
 // (HINSTANCE in the original). Autorun, imagehlp and the exception handler are gone.
 
 /// <summary>The NoDriveTypeAutoRun value WinMain writes while the game runs (autorun off for every drive type).</summary>
-extern uint32_t ulDisableAutoRun;
+extern uint32_t UlDisableAutoRun;
 
 /// <summary>The size of the NoDriveTypeAutoRun value read from the registry (4).</summary>
-extern uint32_t ulDataSize;
+extern uint32_t UlDataSize;
 
 /// <summary>
 /// The entry point: saves and disables CD autorun, initializes imagehlp, runs RealWinMain and shuts down with
 /// FatalShutDown.
 /// </summary>
 /// <returns>RealWinMain's exit code.</returns>
-/// <remarks>MCX.EXE @ 0x0075f760 (_WinMain@16)</remarks>
 int WinMain(void* instance, void* prevInstance, char* commandLine, int showCommand);

@@ -2,37 +2,37 @@
 #include "object/objwtch.h"
 #include "lib/aerror.h"
 
-ObjectWatcherList* objectWatchers = nullptr;
+MCObjectWatcherList* ObjectWatchers = nullptr;
 
 //---------------------------------------------------------------------------
 // ObjectWatcherList
 //---------------------------------------------------------------------------
 
-auto ObjectWatcherList::init(int32_t) -> void
+auto MCObjectWatcherList::Init(int32_t) -> void
 {
     // Faithful: the size asked for is ignored; the list always holds 200.
-    maxWatchers = 200;
-    watchers = std::make_unique<BaseObject**[]>(200);
+    MaxWatchers = 200;
+    Watchers = std::make_unique<MCBaseObject**[]>(200);
 }
 
-auto ObjectWatcherList::free() -> void
+auto MCObjectWatcherList::Free() -> void
 {
-    watchers.reset();
+    Watchers.reset();
 }
 
-auto ObjectWatcherList::watch(BaseObject** watcher) -> void
+auto MCObjectWatcherList::Watch(MCBaseObject** watcher) -> void
 {
-    if (numWatchers < maxWatchers)
+    if (NumWatchers < MaxWatchers)
     {
-        watchers[numWatchers] = watcher;
-        numWatchers++;
+        Watchers[NumWatchers] = watcher;
+        NumWatchers++;
         return;
     }
 
     Fatal(static_cast<int32_t>(0xfeef0002), " Out of Object Watchers ", nullptr);
 }
 
-auto ObjectWatcherList::removeObject(BaseObject* obj) -> int32_t
+auto MCObjectWatcherList::RemoveObject(MCBaseObject* obj) -> int32_t
 {
     if (obj == nullptr)
     {
@@ -42,14 +42,14 @@ auto ObjectWatcherList::removeObject(BaseObject* obj) -> int32_t
     int32_t numRemoved = 0;
     int32_t i = 0;
 
-    while (i < numWatchers)
+    while (i < NumWatchers)
     {
-        if (*watchers[i] == obj)
+        if (*Watchers[i] == obj)
         {
             // Clear the watcher and move the last one into its slot, which is then checked again.
-            *watchers[i] = nullptr;
-            numWatchers--;
-            watchers[i] = watchers[numWatchers];
+            *Watchers[i] = nullptr;
+            NumWatchers--;
+            Watchers[i] = Watchers[NumWatchers];
             numRemoved++;
         }
         else
@@ -61,15 +61,15 @@ auto ObjectWatcherList::removeObject(BaseObject* obj) -> int32_t
     return numRemoved;
 }
 
-auto ObjectWatcherList::removeWatch(BaseObject** watcher) -> int32_t
+auto MCObjectWatcherList::RemoveWatch(MCBaseObject** watcher) -> int32_t
 {
-    for (int32_t i = 0; i < numWatchers; i++)
+    for (int32_t i = 0; i < NumWatchers; i++)
     {
-        if (watchers[i] == watcher)
+        if (Watchers[i] == watcher)
         {
-            numWatchers--;
-            *watchers[i] = nullptr;
-            watchers[i] = watchers[numWatchers];
+            NumWatchers--;
+            *Watchers[i] = nullptr;
+            Watchers[i] = Watchers[NumWatchers];
             return 1;
         }
     }
@@ -77,44 +77,44 @@ auto ObjectWatcherList::removeWatch(BaseObject** watcher) -> int32_t
     return 0;
 }
 
-auto ObjectWatcherList::restart() -> void
+auto MCObjectWatcherList::Restart() -> void
 {
-    for (int32_t i = 0; i < numWatchers; i++)
+    for (int32_t i = 0; i < NumWatchers; i++)
     {
-        if (watchers[i] != nullptr)
+        if (Watchers[i] != nullptr)
         {
-            *watchers[i] = nullptr;
+            *Watchers[i] = nullptr;
         }
     }
 
-    numWatchers = 0;
+    NumWatchers = 0;
 }
 
 //---------------------------------------------------------------------------
 // BaseObjectWatcher
 //---------------------------------------------------------------------------
 
-auto BaseObjectWatcher::free() -> void
+auto MCBaseObjectWatcher::Free() -> void
 {
-    if (object != nullptr)
+    if (Object != nullptr)
     {
         // Port fix: watchers can be freed at shutdown after objectWatchers is gone.
-        if (objectWatchers != nullptr)
+        if (ObjectWatchers != nullptr)
         {
-            objectWatchers->removeWatch(&object);
+            ObjectWatchers->RemoveWatch(&Object);
         }
 
-        object = nullptr;
+        Object = nullptr;
     }
 }
 
-auto BaseObjectWatcher::setWatcher(BaseObject* obj) -> void
+auto MCBaseObjectWatcher::SetWatcher(MCBaseObject* obj) -> void
 {
-    free();
-    object = obj;
+    Free();
+    Object = obj;
 
     if (obj != nullptr)
     {
-        objectWatchers->watch(&object);
+        ObjectWatchers->Watch(&Object);
     }
 }

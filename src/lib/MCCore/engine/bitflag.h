@@ -2,54 +2,47 @@
 
 /// <summary>A grid of 1-bit flags (rows x columns), in its own buffer.</summary>
 /// <remarks>Original source: <c>engine\bitflag.cpp</c>, 0x24 bytes.</remarks>
-class BitFlag
+class MCBitFlag
 {
 public:
     /// <summary>
     /// Creates a <paramref name="numRows"/> x <paramref name="numColumns"/> grid, every flag set when
     /// <paramref name="initialValue"/> is nonzero.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00644310</remarks>
-    int32_t init(uint32_t numRows, uint32_t numColumns, uint32_t initialValue);
+    int32_t Init(uint32_t numRows, uint32_t numColumns, uint32_t initialValue);
 
     /// <summary>Sets every flag (<paramref name="value"/> nonzero) or clears them.</summary>
-    /// <remarks>MCX.EXE @ 0x006443a0</remarks>
-    void resetAll(uint32_t value);
+    void ResetAll(uint32_t value);
 
     /// <summary>Frees the grid.</summary>
-    /// <remarks>MCX.EXE @ 0x00644400</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>Sets the flag at (<paramref name="r"/>, <paramref name="c"/>).</summary>
-    /// <remarks>MCX.EXE @ 0x00644440</remarks>
-    void setFlag(uint32_t r, uint32_t c);
+    void SetFlag(uint32_t r, uint32_t c);
 
     /// <summary>Sets <paramref name="length"/> flags of row <paramref name="r"/> from column <paramref name="c"/>.</summary>
-    /// <remarks>
-    /// MCX.EXE @ 0x00644490 (no symbol; named after <see cref="ByteFlag::setGroup"/>, its twin).
-    /// </remarks>
-    void setGroup(uint32_t r, uint32_t c, uint32_t length);
+    /// <remarks>The twin of <see cref="MCByteFlag::SetGroup"/>.</remarks>
+    void SetGroup(uint32_t r, uint32_t c, uint32_t length);
 
     /// <summary>The flag at (<paramref name="r"/>, <paramref name="c"/>) (0 outside the grid).</summary>
-    /// <remarks>MCX.EXE @ 0x00644580</remarks>
-    uint8_t getFlag(uint32_t r, uint32_t c);
+    uint8_t GetFlag(uint32_t r, uint32_t c);
 
-    /// <summary>The bits (one byte more than <see cref="totalRAM"/>).</summary>
-    std::vector<uint8_t> flagData; // +0x00
+    /// <summary>The bits (one byte more than <see cref="TotalRam"/>).</summary>
+    std::vector<uint8_t> FlagData;
     /// <summary>The number of rows.</summary>
-    uint32_t rows; // +0x08
+    uint32_t Rows;
     /// <summary>The number of columns.</summary>
-    uint32_t columns; // +0x0c
+    uint32_t Columns;
     /// <summary>The mask of one flag (1).</summary>
-    uint8_t maskValue; // +0x10
+    uint8_t MaskValue;
     /// <summary>Flags per byte (8).</summary>
-    uint32_t divValue; // +0x14
+    uint32_t DivValue;
     /// <summary>Bytes per row.</summary>
-    uint32_t colWidth; // +0x18
+    uint32_t ColWidth;
     /// <summary>The number of flags.</summary>
-    uint32_t totalFlags; // +0x1c
+    uint32_t TotalFlags;
     /// <summary>The grid's size in bytes.</summary>
-    uint32_t totalRAM; // +0x20
+    uint32_t TotalRam;
 };
 
 /// <summary>
@@ -57,58 +50,51 @@ public:
 /// drawn into it. The terrain keeps its visibility this way.
 /// </summary>
 /// <remarks>Original source: <c>engine\bitflag.cpp</c>, 0x1c bytes.</remarks>
-class ByteFlag
+class MCByteFlag
 {
 public:
     /// <summary>
     /// Creates a <paramref name="numRows"/> x <paramref name="numColumns"/> grid (all 0xFF when
     /// <paramref name="initialValue"/> is nonzero) and its window and pane.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006445e0</remarks>
-    int32_t init(uint32_t numRows, uint32_t numColumns, uint32_t initialValue);
+    int32_t Init(uint32_t numRows, uint32_t numColumns, uint32_t initialValue);
 
     /// <summary>Sets the flags in a filled circle of <paramref name="radius"/> at (<paramref name="x"/>, <paramref name="y"/>).</summary>
-    /// <remarks>MCX.EXE @ 0x006446b0</remarks>
-    void setCircle(uint32_t x, uint32_t y, uint32_t radius);
+    void SetCircle(uint32_t x, uint32_t y, uint32_t radius);
 
     /// <summary>Sets every flag (<paramref name="value"/> nonzero) or clears them.</summary>
-    /// <remarks>MCX.EXE @ 0x006446e0</remarks>
-    void resetAll(uint32_t value);
+    void ResetAll(uint32_t value);
 
     /// <summary>Frees the grid, its window and pane.</summary>
-    /// <remarks>MCX.EXE @ 0x00644730</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>Sets the flag at (<paramref name="r"/>, <paramref name="c"/>).</summary>
-    /// <remarks>MCX.EXE @ 0x00644780</remarks>
-    void setFlag(uint32_t r, uint32_t c);
+    void SetFlag(uint32_t r, uint32_t c);
 
     /// <summary>Sets <paramref name="length"/> flags from (<paramref name="r"/>, <paramref name="c"/>).</summary>
-    /// <remarks>MCX.EXE @ 0x006447c0</remarks>
-    void setGroup(uint32_t r, uint32_t c, uint32_t length);
+    void SetGroup(uint32_t r, uint32_t c, uint32_t length);
 
     /// <summary>Whether the flag at (<paramref name="r"/>, <paramref name="c"/>) is set (0 outside the grid).</summary>
-    /// <remarks>MCX.EXE @ 0x00644830</remarks>
-    uint8_t getFlag(uint32_t r, uint32_t c);
+    uint8_t GetFlag(uint32_t r, uint32_t c);
 
     /// <summary>
     /// Port-only: sets <paramref name="count"/> bytes of the grid from byte <paramref name="first"/> (rows run on into
     /// the next) to 0xFF, through the renderer.
     /// </summary>
-    void setBytes(uint32_t first, uint32_t count);
+    void SetBytes(uint32_t first, uint32_t count);
 
-    /// <summary>The bytes (one more than <see cref="totalRAM"/>).</summary>
-    std::vector<uint8_t> flagData; // +0x00
+    /// <summary>The bytes (one more than <see cref="TotalRam"/>).</summary>
+    std::vector<uint8_t> FlagData;
     /// <summary>The number of rows.</summary>
-    uint32_t rows; // +0x04
+    uint32_t Rows;
     /// <summary>The number of columns.</summary>
-    uint32_t columns; // +0x08
+    uint32_t Columns;
     /// <summary>The number of flags.</summary>
-    uint32_t totalFlags; // +0x0c
+    uint32_t TotalFlags;
     /// <summary>The grid's size in bytes.</summary>
-    uint32_t totalRAM; // +0x10
+    uint32_t TotalRam;
     /// <summary>A pane over the whole grid (0x14 bytes in the original).</summary>
-    _pane* flagPane; // +0x14
+    MCPane* FlagPane;
     /// <summary>The window over the grid's bytes (0x14 bytes allocated in the original).</summary>
-    _window* flagWindow; // +0x18
+    MCWindow* FlagWindow;
 };

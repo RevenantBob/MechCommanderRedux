@@ -7,6 +7,6 @@
 /// <paramref name="fadeTable"/> when set. <paramref name="scaleUp"/> is recomputed from the camera.
 /// </summary>
 /// <returns>The frame's bounds (width &lt;&lt; 16 | height), or -1 when the shape isn't drawable (too big, empty).</returns>
-/// <remarks>MCX.EXE @ 0x006b4bc0 (<c>engine\scale.cpp</c>). Fatal "Sprite too damned big" past 0x1fa40 pixels.</remarks>
-int32_t scaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int reverse, uint8_t* fadeTable,
+/// <remarks>Fatal "Sprite too damned big" past 0x1fa40 pixels.</remarks>
+int32_t ScaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int reverse, uint8_t* fadeTable,
                   int scaleUp);

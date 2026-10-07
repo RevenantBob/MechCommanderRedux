@@ -23,113 +23,113 @@
 #include "vfx/vfxfuncs.h"
 
 int32_t ResourcePoints = 0;
-MechPurchaseBlock* globalMechPurchaseBlock = nullptr;
-PilotPurchaseBlock* globalPilotPurchaseBlock = nullptr;
-_LogInventoryItem* globalItemPtr = nullptr;
-VehiclePurchaseBlock* globalVehicleBlockPtr = nullptr;
-int32_t bodyTrans[8] = {7, 6, 4, 5, 0, 1, 2, 3};
-char objectDesc[] = "desc.fit";
+MCMechPurchaseBlock* GlobalMechPurchaseBlock = nullptr;
+MCPilotPurchaseBlock* GlobalPilotPurchaseBlock = nullptr;
+MCLogInventoryItem* GlobalItemPtr = nullptr;
+MCVehiclePurchaseBlock* GlobalVehicleBlockPtr = nullptr;
+int32_t BodyTrans[8] = {7, 6, 4, 5, 0, 1, 2, 3};
+char ObjectDesc[] = "desc.fit";
 
 namespace
 {
     /// <summary>The drag state of one kind of shop row.</summary>
-    struct DragState
+    struct MCDragState
     {
         /// <summary>Nonzero while the row is dragged with the left button held (picked up by event 1).</summary>
-        int32_t dragging = 0;
+        int32_t Dragging = 0;
         /// <summary>Nonzero while the row is carried after a right-button pick-up (event 3).</summary>
-        int32_t carrying = 0;
+        int32_t Carrying = 0;
         /// <summary>Where the drag icon is (window coordinates).</summary>
-        int32_t x = 0;
-        int32_t y = 0;
+        int32_t X = 0;
+        int32_t Y = 0;
     };
 
     /// <summary>The mech rows' drag (0x008086f0 dragging, f4/f8 x/y, fc carrying).</summary>
-    DragState mechDrag;
+    MCDragState MechDrag;
     /// <summary>The vehicle rows' drag (0x00808704 dragging, 708/70c x/y, 710 carrying).</summary>
-    DragState vehicleDrag;
+    MCDragState VehicleDrag;
     /// <summary>The component rows' drag (0x00808718 dragging, 71c/720 x/y, 728 carrying).</summary>
-    DragState compDrag;
+    MCDragState CompDrag;
     /// <summary>The pilot rows' drag (0x0080872c dragging, 730/734 x/y, 738 carrying).</summary>
-    DragState pilotDrag;
+    MCDragState PilotDrag;
 
     /// <summary>The body location blocks of a mech profile, in location order.</summary>
-    const char* const bodyLocationNames[8] = {"Head",    "CenterTorso", "LeftTorso", "RightTorso",
+    const char* const BodyLocationNames[8] = {"Head",    "CenterTorso", "LeftTorso", "RightTorso",
                                               "LeftArm", "RightArm",    "LeftLeg",   "RightLeg"};
 
     /// <summary>The armor locations of a mech profile's MaxArmorPoints and CurArmorPoints blocks.</summary>
-    const char* const armorLocationNames[11] = {
+    const char* const ArmorLocationNames[11] = {
         "Head",    "CenterTorso", "LeftTorso",       "RightTorso",    "LeftArm",       "RightArm",
         "LeftLeg", "RightLeg",    "RearCenterTorso", "RearLeftTorso", "RearRightTorso"};
 
-    void* logAlloc(uint32_t size)
+    void* LogAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsBlocks->Allocate(size);
+        return GlobalLogPtr->LogisticsBlocks->Allocate(size);
     }
 
-    void logFree(void* block)
+    void LogFree(void* block)
     {
-        globalLogPtr->logisticsBlocks->Free(block);
+        GlobalLogPtr->LogisticsBlocks->Free(block);
     }
 
-    void playSample(uint32_t sampleId)
+    void PlaySample(uint32_t sampleId)
     {
-        soundSystem->playDigitalSample(sampleId, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(sampleId, 1, nullptr, 0, 0);
     }
 
     /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
-    char* heapString(const char* text)
+    char* HeapString(const char* text)
     {
         size_t length = std::strlen(text) + 1;
-        auto* copy = static_cast<char*>(logAlloc(static_cast<uint32_t>(length)));
+        auto* copy = static_cast<char*>(LogAlloc(static_cast<uint32_t>(length)));
         std::memcpy(copy, text, length);
         return copy;
     }
 
-    void writeText(aFont* font, lPort* port, int32_t x, int32_t y, const char* text)
+    void WriteText(MCGuiFont* font, MCLogPort* port, int32_t x, int32_t y, const char* text)
     {
-        font->writeString(port->frame(), x, y, reinterpret_cast<uint8_t*>(const_cast<char*>(text)), -1);
+        font->WriteString(port->Frame(), x, y, reinterpret_cast<uint8_t*>(const_cast<char*>(text)), -1);
     }
 
     /// <summary>Loads "<c>artPath</c>logart\..." (<paramref name="format"/> with the art path and a number) into <paramref name="port"/>.</summary>
-    void loadArt(lPort* port, const char* format, int32_t number)
+    void LoadArt(MCLogPort* port, const char* format, int32_t number)
     {
         char fileName[256];
-        std::snprintf(fileName, sizeof(fileName), format, artPath, number);
-        port->init(fileName);
+        std::snprintf(fileName, sizeof(fileName), format, ArtPath, number);
+        port->Init(fileName);
     }
 
     /// <summary>Shows the one-button message dialog with string <paramref name="id"/> and the "okay" button art.</summary>
-    void showMessage(uint32_t id)
+    void ShowMessage(uint32_t id)
     {
         char text[256];
-        cLoadString(thisInstance, id, text, 0xfe);
-        ReusableDialog* dialog = globalLogPtr->messageDialog;
-        dialog->setText(text);
-        globalLogPtr->messageDialog->setTwoButton(0);
-        dialog = globalLogPtr->messageDialog;
-        dialog->callback = nullptr;
+        CLoadString(ThisInstance, id, text, 0xfe);
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        dialog->SetText(text);
+        GlobalLogPtr->MessageDialog->SetTwoButton(0);
+        dialog = GlobalLogPtr->MessageDialog;
+        dialog->Callback = nullptr;
         char upArt[] = "bh_okay.tga";
         char downArt[] = "bg_okay.tga";
-        dialog->okButton->setUpPicture(upArt);
-        globalLogPtr->messageDialog->okButton->setDownPicture(downArt);
-        lDialogButton* button = globalLogPtr->messageDialog->okButton;
-        button->disabled = 0;
-        globalLogPtr->messageDialog->activate();
+        dialog->OkButton->SetUpPicture(upArt);
+        GlobalLogPtr->MessageDialog->OkButton->SetDownPicture(downArt);
+        MCLogDialogButton* button = GlobalLogPtr->MessageDialog->OkButton;
+        button->Disabled = 0;
+        GlobalLogPtr->MessageDialog->Activate();
     }
 
     /// <summary>How many mechs and vehicles the player owns (inventory and force).</summary>
-    int32_t numUnits()
+    int32_t NumUnits()
     {
-        return globalLogPtr->forceVehicleList->numVehicles + globalLogPtr->forceMechList->numMechs +
-               globalLogPtr->vehicleList->numVehicles + globalLogPtr->mechList->numMechs;
+        return GlobalLogPtr->ForceVehicleList->NumVehicles + GlobalLogPtr->ForceMechList->NumMechs +
+               GlobalLogPtr->VehicleList->NumVehicles + GlobalLogPtr->MechList->NumMechs;
     }
 
     /// <summary>How many units a purchase may buy: the room left under 50 units, or the stock when that is less.</summary>
-    int32_t maxPurchase(int32_t available)
+    int32_t MaxPurchase(int32_t available)
     {
-        int32_t room = 0x32 - globalLogPtr->forceVehicleList->numVehicles - globalLogPtr->forceMechList->numMechs -
-                       globalLogPtr->vehicleList->numVehicles - globalLogPtr->mechList->numMechs;
+        int32_t room = 0x32 - GlobalLogPtr->ForceVehicleList->NumVehicles - GlobalLogPtr->ForceMechList->NumMechs -
+                       GlobalLogPtr->VehicleList->NumVehicles - GlobalLogPtr->MechList->NumMechs;
 
         if (available < room && available > -1)
         {
@@ -140,17 +140,17 @@ namespace
     }
 
     /// <summary>Opens the purchase dialog on the current screen.</summary>
-    void openPurchaseDialog(int32_t purchaseType, int32_t cost, int32_t maxQuantity, char* title, char* subtitle,
-                            lPort* picture, void (*callback)(int, int32_t))
+    void OpenPurchaseDialog(int32_t purchaseType, int32_t cost, int32_t maxQuantity, char* title, char* subtitle,
+                            MCLogPort* picture, void (*callback)(int, int32_t))
     {
-        globalLogPtr->purchaseDialog->init(purchaseType, cost, maxQuantity, title, subtitle, picture);
-        globalLogPtr->purchaseDialog->setPort(globalLogPtr->currentScreen->lport());
-        globalLogPtr->purchaseDialog->setCallback(callback);
-        globalLogPtr->purchaseDialog->activate();
+        GlobalLogPtr->PurchaseDialog->Init(purchaseType, cost, maxQuantity, title, subtitle, picture);
+        GlobalLogPtr->PurchaseDialog->SetPort(GlobalLogPtr->CurrentScreen->Lport());
+        GlobalLogPtr->PurchaseDialog->SetCallback(callback);
+        GlobalLogPtr->PurchaseDialog->Activate();
     }
 
     /// <summary>The string table index of the weight class of <paramref name="tonnage"/> (light .. assault).</summary>
-    uint32_t weightClassString(float tonnage)
+    uint32_t WeightClassString(float tonnage)
     {
         if (tonnage < 40.0f)
         {
@@ -171,7 +171,7 @@ namespace
     }
 
     /// <summary>The string table index of the armor rating of <paramref name="armorTonnage"/>.</summary>
-    uint32_t armorClassString(float armorTonnage)
+    uint32_t ArmorClassString(float armorTonnage)
     {
         if (armorTonnage <= 2.0f)
         {
@@ -200,76 +200,76 @@ namespace
     /// Whether the event is over a pane's inside (0xd pixels short of its right edge). The shop rows take the
     /// position from the purchase screen's pane and the size from the repair screen's.
     /// </summary>
-    bool overPane(aObject* posPane, aObject* sizePane, aEvent* event)
+    bool OverPane(MCGuiObject* posPane, MCGuiObject* sizePane, MCGuiEvent* event)
     {
-        return posPane->globalX() < event->x && event->x < posPane->globalX() + sizePane->width() - 0xd &&
-               posPane->globalY() < event->y && event->y < posPane->globalY() + sizePane->height();
+        return posPane->GlobalX() < event->X && event->X < posPane->GlobalX() + sizePane->Width() - 0xd &&
+               posPane->GlobalY() < event->Y && event->Y < posPane->GlobalY() + sizePane->Height();
     }
 
-    bool overInventory(aEvent* event)
+    bool OverInventory(MCGuiEvent* event)
     {
-        return overPane(globalLogPtr->purchaseScreen->inventoryPane, globalLogPtr->repairScreen->inventoryPane, event);
+        return OverPane(GlobalLogPtr->PurchaseScreen->InventoryPane, GlobalLogPtr->RepairScreen->InventoryPane, event);
     }
 
-    bool overStore(aEvent* event)
+    bool OverStore(MCGuiEvent* event)
     {
-        return overPane(globalLogPtr->purchaseScreen->unitPane, globalLogPtr->repairScreen->unitPane, event);
+        return OverPane(GlobalLogPtr->PurchaseScreen->UnitPane, GlobalLogPtr->RepairScreen->UnitPane, event);
     }
 
     /// <summary>Whether the event is on <paramref name="row"/> (edges included).</summary>
-    bool onRow(aObject* row, aEvent* event)
+    bool OnRow(MCGuiObject* row, MCGuiEvent* event)
     {
-        return row->globalX() <= event->x && event->x <= row->globalX() + row->width() && row->globalY() <= event->y &&
-               event->y <= row->globalY() + row->height();
+        return row->GlobalX() <= event->X && event->X <= row->GlobalX() + row->Width() && row->GlobalY() <= event->Y &&
+               event->Y <= row->GlobalY() + row->Height();
     }
 
     /// <summary>
     /// Makes the drag icon: a 0x20 square of the row (<paramref name="render"/>, the row's <c>OnBeginDrag</c>), framed
     /// in colour 0xea, added to the purchase screen at (<paramref name="drag"/>.x, .y).
     /// </summary>
-    void makeDragIcon(const DragState& drag, const std::function<void(lPort* surface)>& render)
+    void MakeDragIcon(const MCDragState& drag, const std::function<void(MCLogPort* surface)>& render)
     {
-        auto* icon = new DragIcon;
-        globalLogPtr->dragIcon = icon;
-        icon->Begin(drag.x, drag.y, 0x20, 0x20, render);
-        globalLogPtr->purchaseScreen->addChild(globalLogPtr->dragIcon);
-        globalLogPtr->dragIcon->ShowGUIWindow(1);
-        globalLogPtr->dragIcon->setDepth(100);
-        globalLogPtr->dragIcon->moveTo(drag.x, drag.y, 0);
+        auto* icon = new MCDragIcon;
+        GlobalLogPtr->DragIcon = icon;
+        icon->Begin(drag.X, drag.Y, 0x20, 0x20, render);
+        GlobalLogPtr->PurchaseScreen->AddChild(GlobalLogPtr->DragIcon);
+        GlobalLogPtr->DragIcon->ShowGuiWindow(1);
+        GlobalLogPtr->DragIcon->SetDepth(100);
+        GlobalLogPtr->DragIcon->MoveTo(drag.X, drag.Y, 0);
     }
 
     /// <summary>Frees the drag icon.</summary>
-    void deleteDragIcon()
+    void DeleteDragIcon()
     {
-        if (globalLogPtr->dragIcon != nullptr)
+        if (GlobalLogPtr->DragIcon != nullptr)
         {
-            delete globalLogPtr->dragIcon;
+            delete GlobalLogPtr->DragIcon;
         }
 
-        globalLogPtr->dragIcon = nullptr;
+        GlobalLogPtr->DragIcon = nullptr;
     }
 
     /// <summary>
     /// Reads description <paramref name="descIndex"/> of the object description file: "%fc4" (a colour code) and
     /// the text, a logistics block. Null when the file has no such block.
     /// </summary>
-    char* loadDescriptionText(int32_t descIndex)
+    char* LoadDescriptionText(int32_t descIndex)
     {
-        auto* file = new FitIniFile;
+        auto* file = new MCFitIniFile;
         char text[1024];
-        std::snprintf(text, sizeof(text), "%s%s", objectPath, objectDesc);
-        int32_t result = file->open(text, READ, 0x32);
+        std::snprintf(text, sizeof(text), "%s%s", ObjectPath, ObjectDesc);
+        int32_t result = file->Open(text, READ, 0x32);
         Assert(result == 0, result, "Could not open description file", nullptr);
         std::snprintf(text, sizeof(text), "Desc%d", descIndex);
         char* description = nullptr;
 
-        if (file->seekBlock(text) == 0)
+        if (file->SeekBlock(text) == 0)
         {
-            result = file->readIdString("DescString", text, 0x3ff);
+            result = file->ReadIdString("DescString", text, 0x3ff);
             Assert(result == 0 || static_cast<uint32_t>(result) == 0xfada0003, result,
                    "Could not read description string", nullptr);
             size_t length = std::strlen(text) + 1;
-            description = static_cast<char*>(logAlloc(static_cast<uint32_t>(length + 4)));
+            description = static_cast<char*>(LogAlloc(static_cast<uint32_t>(length + 4)));
             std::snprintf(description, length + 4, "%%fc4%s", text);
             description[length + 3] = '\0';
         }
@@ -282,25 +282,25 @@ namespace
     /// Opens a profile: <paramref name="dir"/> name.fit (tried twice), then the save-temp folder's name.fit, and for
     /// a mech or pilot the save-temp folder's bare name.
     /// </summary>
-    void openProfile(FitIniFile* file, FullPathFileName& path, const char* dir, const char* name, bool bareName,
+    void OpenProfile(MCFitIniFile* file, MCFullPathFileName& path, const char* dir, const char* name, bool bareName,
                      const char* error)
     {
-        path.init(dir, name, ".fit");
+        path.Init(dir, name, ".fit");
 
-        if (file->open(static_cast<char*>(path), READ, 0x32) == 0)
+        if (file->Open(static_cast<char*>(path), READ, 0x32) == 0)
         {
             return;
         }
 
-        path.init(profilePath, name, ".fit");
+        path.Init(ProfilePath, name, ".fit");
 
-        if (file->open(static_cast<char*>(path), READ, 0x32) == 0)
+        if (file->Open(static_cast<char*>(path), READ, 0x32) == 0)
         {
             return;
         }
 
-        path.init(saveTempPath, name, ".fit");
-        int32_t result = file->open(static_cast<char*>(path), READ, 0x32);
+        path.Init(SaveTempPath, name, ".fit");
+        int32_t result = file->Open(static_cast<char*>(path), READ, 0x32);
 
         if (result == 0 || !bareName)
         {
@@ -308,8 +308,8 @@ namespace
             return;
         }
 
-        path.init(saveTempPath, name, nullptr);
-        result = file->open(static_cast<char*>(path), READ, 0x32);
+        path.Init(SaveTempPath, name, nullptr);
+        result = file->Open(static_cast<char*>(path), READ, 0x32);
         Assert(result == 0, result, error, nullptr);
     }
 
@@ -318,7 +318,7 @@ namespace
     /// <paramref name="inventory"/>.
     /// </summary>
     /// <returns>The sum of the items' resource points.</returns>
-    int32_t readInventory(FitIniFile* file, InventoryList* inventory, uint8_t numOther, uint8_t numWeapons,
+    int32_t ReadInventory(MCFitIniFile* file, MCInventoryList* inventory, uint8_t numOther, uint8_t numWeapons,
                           uint8_t numAmmo)
     {
         int32_t cost = 0;
@@ -328,54 +328,54 @@ namespace
         for (; item < numOther; ++item)
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            int32_t result = file->seekBlock(block);
+            int32_t result = file->SeekBlock(block);
             Assert(result == 0, result, "Could not read 'other' item in mech file", nullptr);
             uint8_t masterID = 0;
-            result = file->readIdUChar("MasterID", masterID);
+            result = file->ReadIdUChar("MasterID", masterID);
             Assert(result == 0, result, "Could not read 'other' item's MasterID in mech file", nullptr);
-            _LogInventoryStat* stat = inventory->createStat(static_cast<uint8_t>(item), 0, 0, 1, 0xff);
-            inventory->addItem(masterID, stat, -1);
-            cost += MasterComponentList[masterID].resourcePoints;
+            MCLogInventoryStat* stat = inventory->CreateStat(static_cast<uint8_t>(item), 0, 0, 1, 0xff);
+            inventory->AddItem(masterID, stat, -1);
+            cost += MasterComponentList[masterID].ResourcePoints;
         }
 
         for (; item < numOther + numWeapons; ++item)
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            int32_t result = file->seekBlock(block);
+            int32_t result = file->SeekBlock(block);
             Assert(result == 0, result, "Could not read 'weapon' item in mech file", nullptr);
             uint8_t masterID = 0;
-            result = file->readIdUChar("MasterID", masterID);
+            result = file->ReadIdUChar("MasterID", masterID);
             Assert(result == 0, result, "Could not read 'weapon' item's MasterID in mech file", nullptr);
             uint8_t facesForward = 0;
-            result = file->readIdUChar("FacesForward", facesForward);
+            result = file->ReadIdUChar("FacesForward", facesForward);
             Assert(result == 0, result, "Could not read 'weapon' item's FacesForward in mech file", nullptr);
-            _LogInventoryStat* stat = inventory->createStat(static_cast<uint8_t>(item), 0, facesForward, 1, 0xff);
-            inventory->addItem(masterID, stat, -1);
-            cost += MasterComponentList[masterID].resourcePoints;
+            MCLogInventoryStat* stat = inventory->CreateStat(static_cast<uint8_t>(item), 0, facesForward, 1, 0xff);
+            inventory->AddItem(masterID, stat, -1);
+            cost += MasterComponentList[masterID].ResourcePoints;
         }
 
         for (; item < numOther + numWeapons + numAmmo; ++item)
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            int32_t result = file->seekBlock(block);
+            int32_t result = file->SeekBlock(block);
             Assert(result == 0, result, "Could not read 'ammo' item in mech file", nullptr);
             uint8_t masterID = 0;
-            result = file->readIdUChar("MasterID", masterID);
+            result = file->ReadIdUChar("MasterID", masterID);
             Assert(result == 0, result, "Could not read 'ammo' item's MasterID in mech file", nullptr);
             int32_t amount = 0;
 
-            if (file->readIdLong("Amount", amount) != 0)
+            if (file->ReadIdLong("Amount", amount) != 0)
             {
                 uint8_t smallAmount = 0;
-                result = file->readIdUChar("Amount", smallAmount);
+                result = file->ReadIdUChar("Amount", smallAmount);
                 Assert(result == 0, result, "Could not read 'ammo' item's Amount in mech file", nullptr);
                 amount = smallAmount;
             }
 
-            _LogInventoryStat* stat =
-                inventory->createStat(static_cast<uint8_t>(item), 0, 0, static_cast<int16_t>(amount), 0xff);
-            inventory->addItem(masterID, stat, -1);
-            cost += MasterComponentList[masterID].resourcePoints;
+            MCLogInventoryStat* stat =
+                inventory->CreateStat(static_cast<uint8_t>(item), 0, 0, static_cast<int16_t>(amount), 0xff);
+            inventory->AddItem(masterID, stat, -1);
+            cost += MasterComponentList[masterID].ResourcePoints;
         }
 
         return cost;
@@ -386,17 +386,17 @@ namespace
     /// down the right of the row in the green font.
     /// </summary>
     /// <param name="text">The row's text buffer (the caller may show what is left in it).</param>
-    void drawInventoryList(InventoryList* inventory, lPort* port, char* text, size_t textSize)
+    void DrawInventoryList(MCInventoryList* inventory, MCLogPort* port, char* text, size_t textSize)
     {
         std::vector<int32_t> shortRange;
         std::vector<int32_t> mediumRange;
         std::vector<int32_t> longRange;
         int32_t index = 0;
 
-        for (_LogInventoryItem* item = inventory->items; item != nullptr; item = item->next, ++index)
+        for (MCLogInventoryItem* item = inventory->Items; item != nullptr; item = item->Next, ++index)
         {
-            const MasterComponent& component = MasterComponentList[item->masterID];
-            int32_t form = component.form;
+            const MCMasterComponent& component = MasterComponentList[item->MasterID];
+            int32_t form = component.Form;
 
             if (form != COMPONENT_FORM_WEAPON_ENERGY && form != COMPONENT_FORM_WEAPON_BALLISTIC &&
                 form != COMPONENT_FORM_WEAPON_MISSILE && form != COMPONENT_FORM_WEAPON)
@@ -404,11 +404,11 @@ namespace
                 continue;
             }
 
-            if (component.weaponRange[3] < 76.0f)
+            if (component.WeaponRange[3] < 76.0f)
             {
                 shortRange.push_back(index);
             }
-            else if (component.weaponRange[3] < 151.0f)
+            else if (component.WeaponRange[3] < 151.0f)
             {
                 mediumRange.push_back(index);
             }
@@ -424,21 +424,21 @@ namespace
         {
             for (int32_t position : *group)
             {
-                _LogInventoryItem* item = inventory->getItemInfo(position);
-                std::snprintf(text, textSize, "%d %s", item->count, item->name);
-                writeText(greenFont, port, 0x14a, (greenFont->height() + 1) * line + 4, text);
+                MCLogInventoryItem* item = inventory->GetItemInfo(position);
+                std::snprintf(text, textSize, "%d %s", item->Count, item->Name);
+                WriteText(GreenFont, port, 0x14a, (GreenFont->Height() + 1) * line + 4, text);
                 ++line;
             }
         }
 
-        for (_LogInventoryItem* item = inventory->items; item != nullptr; item = item->next)
+        for (MCLogInventoryItem* item = inventory->Items; item != nullptr; item = item->Next)
         {
-            int32_t form = MasterComponentList[item->masterID].form;
+            int32_t form = MasterComponentList[item->MasterID].Form;
 
             if (form == COMPONENT_FORM_SENSOR || form == COMPONENT_FORM_ECM || form == COMPONENT_FORM_PROBE)
             {
-                std::snprintf(text, textSize, "%d %s", item->count, item->name);
-                writeText(greenFont, port, 0x14a, (greenFont->height() + 1) * line + 4, text);
+                std::snprintf(text, textSize, "%d %s", item->Count, item->Name);
+                WriteText(GreenFont, port, 0x14a, (GreenFont->Height() + 1) * line + 4, text);
                 ++line;
             }
         }
@@ -449,10 +449,10 @@ namespace
     /// <paramref name="art"/>, with the art copied in. The original put the row together in a picture and copied it
     /// there (keyed on 0xff when <paramref name="keyed"/>); it is drawn in place.
     /// </summary>
-    lPort* newRowPicture(lPort* art, lPort* port, int32_t top, bool keyed)
+    MCLogPort* NewRowPicture(MCLogPort* art, MCLogPort* port, int32_t top, bool keyed)
     {
-        auto* row = new lBlockPort(port->frame(), 0, top, art->width(), art->height(), keyed);
-        art->copyTo(row->frame(), 0, 0, 0);
+        auto* row = new MCLogBlockPort(port->Frame(), 0, top, art->Width(), art->Height(), keyed);
+        art->CopyTo(row->Frame(), 0, 0, 0);
         return row;
     }
 
@@ -460,51 +460,51 @@ namespace
     /// Copies the art "<c>artPath</c>logart\..." (<paramref name="format"/> with the art path and a number) keyed into
     /// <paramref name="port"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>).
     /// </summary>
-    void copyArt(lPort* port, int32_t xPos, int32_t yPos, const char* format, int32_t number = 0)
+    void CopyArt(MCLogPort* port, int32_t xPos, int32_t yPos, const char* format, int32_t number = 0)
     {
-        if (lPort* art = logArtf(format, artPath, number))
+        if (MCLogPort* art = LogArtf(format, ArtPath, number))
         {
-            art->copyTo(port->frame(), xPos, yPos, 1);
+            art->CopyTo(port->Frame(), xPos, yPos, 1);
         }
     }
 
     /// <summary>Fills a <paramref name="width"/> x <paramref name="height"/> box of <paramref name="port"/> with <paramref name="color"/>.</summary>
-    void fillBox(lPort* port, int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t color)
+    void FillBox(MCLogPort* port, int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t color)
     {
-        lBlockPort box(port->frame(), xPos, yPos, width, height, false);
-        VFX_pane_wipe(box.frame(), color);
+        MCLogBlockPort box(port->Frame(), xPos, yPos, width, height, false);
+        VfxPaneWipe(box.Frame(), color);
     }
 
     /// <summary>A text field set from a string table entry, a logistics block.</summary>
     /// <remarks>Port fix: the previous text is freed (the rows' drawBackground made a new one on every draw).</remarks>
-    void setHeapText(char*& field, const char* text)
+    void SetHeapText(char*& field, const char* text)
     {
         if (field != nullptr)
         {
-            logFree(field);
+            LogFree(field);
         }
 
-        field = heapString(text);
+        field = HeapString(text);
     }
 }
 
 // Unit limits and purchase callbacks
 
-auto checkMaxUnits() -> int
+auto CheckMaxUnits() -> int
 {
-    if (numUnits() > 0x31)
+    if (NumUnits() > 0x31)
     {
-        playSample(0x33);
-        showMessage(0x374);
+        PlaySample(0x33);
+        ShowMessage(0x374);
         return 1;
     }
 
     return 0;
 }
 
-auto checkNumUnits() -> void
+auto CheckNumUnits() -> void
 {
-    int32_t units = numUnits();
+    int32_t units = NumUnits();
 
     if (units <= 0x27)
     {
@@ -515,52 +515,52 @@ auto checkNumUnits() -> void
 
     if (units == 0x32)
     {
-        cLoadString(thisInstance, 0x374, text, 0xfe);
+        CLoadString(ThisInstance, 0x374, text, 0xfe);
     }
     else
     {
         char format[256];
-        cLoadString(thisInstance, 0x372, format, 0xfe);
+        CLoadString(ThisInstance, 0x372, format, 0xfe);
         std::snprintf(text, sizeof(text), format, units, 0x32);
     }
 
-    playSample(0x33);
-    ReusableDialog* dialog = globalLogPtr->messageDialog;
-    dialog->setText(text);
-    globalLogPtr->messageDialog->setTwoButton(0);
-    dialog = globalLogPtr->messageDialog;
-    dialog->callback = nullptr;
+    PlaySample(0x33);
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    dialog->SetText(text);
+    GlobalLogPtr->MessageDialog->SetTwoButton(0);
+    dialog = GlobalLogPtr->MessageDialog;
+    dialog->Callback = nullptr;
     char upArt[] = "bh_okay.tga";
     char downArt[] = "bg_okay.tga";
-    dialog->okButton->setUpPicture(upArt);
-    globalLogPtr->messageDialog->okButton->setDownPicture(downArt);
-    lDialogButton* button = globalLogPtr->messageDialog->okButton;
-    button->disabled = 0;
-    globalLogPtr->messageDialog->activate();
+    dialog->OkButton->SetUpPicture(upArt);
+    GlobalLogPtr->MessageDialog->OkButton->SetDownPicture(downArt);
+    MCLogDialogButton* button = GlobalLogPtr->MessageDialog->OkButton;
+    button->Disabled = 0;
+    GlobalLogPtr->MessageDialog->Activate();
 }
 
 auto MechPurchaseCallback(int confirmed, int32_t quantity) -> void
 {
-    if (confirmed == 0 || globalMechPurchaseBlock == nullptr || quantity == 0)
+    if (confirmed == 0 || GlobalMechPurchaseBlock == nullptr || quantity == 0)
     {
         return;
     }
 
-    MechPurchaseBlock* block = globalMechPurchaseBlock;
+    MCMechPurchaseBlock* block = GlobalMechPurchaseBlock;
 
     for (int32_t count = quantity; count > 0; --count)
     {
-        PurMechData* data = block->purMech->variants[block->curVariant];
-        globalLogPtr->mechList->addMech(data->fileName, 0, 1, 1);
+        MCPurMechData* data = block->PurMech->Variants[block->CurVariant];
+        GlobalLogPtr->MechList->AddMech(data->FileName, 0, 1, 1);
     }
 
-    globalLogPtr->reorderMechs();
-    globalLogPtr->purchaseScreen->createMechInvBlock();
-    globalLogPtr->purchaseScreen->setUpMechInv(1, 1);
-    globalMechPurchaseBlock->purMech->variants[globalMechPurchaseBlock->curVariant]->numAvailable -= quantity;
-    globalMechPurchaseBlock->drawBackground(globalMechPurchaseBlock->row);
-    ResourcePoints -= globalLogPtr->purchaseDialog->unitCost * quantity;
-    checkNumUnits();
+    GlobalLogPtr->ReorderMechs();
+    GlobalLogPtr->PurchaseScreen->CreateMechInvBlock();
+    GlobalLogPtr->PurchaseScreen->SetUpMechInv(1, 1);
+    GlobalMechPurchaseBlock->PurMech->Variants[GlobalMechPurchaseBlock->CurVariant]->NumAvailable -= quantity;
+    GlobalMechPurchaseBlock->DrawBackground(GlobalMechPurchaseBlock->Row);
+    ResourcePoints -= GlobalLogPtr->PurchaseDialog->UnitCost * quantity;
+    CheckNumUnits();
 }
 
 auto PilotPurchaseCallback(int confirmed, int32_t) -> void
@@ -570,71 +570,71 @@ auto PilotPurchaseCallback(int confirmed, int32_t) -> void
         return;
     }
 
-    float scrollPos = globalLogPtr->purchaseScreen->unitPane->scrollPos;
-    globalLogPtr->warriorList->addWarrior(globalPilotPurchaseBlock->pilot->fileName, 1);
-    globalLogPtr->reorderWarriors();
-    globalLogPtr->purchaseScreen->createPilotInvBlock();
-    globalLogPtr->purchaseScreen->setUpPilotInv(1, 1);
-    PurPilotData* pilot = globalPilotPurchaseBlock->pilot;
-    pilot->health = 0;
-    globalLogPtr->purPilotList->setPilotStatus(pilot->descIndex, 1);
-    globalLogPtr->purchaseScreen->removePilot(globalPilotPurchaseBlock->pilot->block->row);
-    globalLogPtr->purchaseScreen->setUpPilotPurchase();
-    ResourcePoints -= globalLogPtr->purchaseDialog->unitCost;
-    soundSystem->playPilotSpeech(globalPilotPurchaseBlock->pilot->pilotAudio, 2);
-    globalLogPtr->purchaseScreen->unitPane->setScrollPos(scrollPos);
+    float scrollPos = GlobalLogPtr->PurchaseScreen->UnitPane->ScrollPos;
+    GlobalLogPtr->WarriorList->AddWarrior(GlobalPilotPurchaseBlock->Pilot->FileName, 1);
+    GlobalLogPtr->ReorderWarriors();
+    GlobalLogPtr->PurchaseScreen->CreatePilotInvBlock();
+    GlobalLogPtr->PurchaseScreen->SetUpPilotInv(1, 1);
+    MCPurPilotData* pilot = GlobalPilotPurchaseBlock->Pilot;
+    pilot->Health = 0;
+    GlobalLogPtr->PurPilotList->SetPilotStatus(pilot->DescIndex, 1);
+    GlobalLogPtr->PurchaseScreen->RemovePilot(GlobalPilotPurchaseBlock->Pilot->Block->Row);
+    GlobalLogPtr->PurchaseScreen->SetUpPilotPurchase();
+    ResourcePoints -= GlobalLogPtr->PurchaseDialog->UnitCost;
+    SoundSystem->PlayPilotSpeech(GlobalPilotPurchaseBlock->Pilot->PilotAudio, 2);
+    GlobalLogPtr->PurchaseScreen->UnitPane->SetScrollPos(scrollPos);
 }
 
 auto CompPurchaseCallback(int confirmed, int32_t quantity) -> void
 {
-    _LogInventoryItem* bought = globalItemPtr;
+    MCLogInventoryItem* bought = GlobalItemPtr;
 
     if (confirmed == 0)
     {
         return;
     }
 
-    bought->count -= quantity;
-    bought->purchaseBlock->drawBackground(bought->purchaseBlock->row, bought->masterID);
-    InventoryList* spares = globalLogPtr->componentInventory;
-    _LogInventoryItem* stockItem = spares->items;
+    bought->Count -= quantity;
+    bought->PurchaseBlock->DrawBackground(bought->PurchaseBlock->Row, bought->MasterID);
+    MCInventoryList* spares = GlobalLogPtr->ComponentInventory;
+    MCLogInventoryItem* stockItem = spares->Items;
 
-    while (stockItem != nullptr && stockItem->masterID != globalItemPtr->masterID)
+    while (stockItem != nullptr && stockItem->MasterID != GlobalItemPtr->MasterID)
     {
-        stockItem = stockItem->next;
+        stockItem = stockItem->Next;
     }
 
     if (stockItem != nullptr)
     {
-        if (stockItem->count == 0)
+        if (stockItem->Count == 0)
         {
-            stockItem->count = quantity;
-            globalLogPtr->purchaseScreen->createCompInvBlock();
-            globalLogPtr->purchaseScreen->setUpCompInv(0, 1);
+            stockItem->Count = quantity;
+            GlobalLogPtr->PurchaseScreen->CreateCompInvBlock();
+            GlobalLogPtr->PurchaseScreen->SetUpCompInv(0, 1);
         }
         else
         {
-            stockItem->count += quantity;
-            stockItem->inventoryBlock->drawBackground();
+            stockItem->Count += quantity;
+            stockItem->InventoryBlock->DrawBackground();
         }
     }
     else
     {
         // A new spare component: its first copy and its inventory row.
-        _LogInventoryStat* stat = spares->createStat(spares->nextStatID, 0, 0, 1, 0xff);
-        globalLogPtr->componentInventory->addItem(globalItemPtr->masterID, stat, -1);
-        InventoryList* list = globalLogPtr->componentInventory;
-        stockItem = list->getItemInfo(list->getIndexFromMasterID(globalItemPtr->masterID));
-        stockItem->count = quantity;
-        auto* block = new CompInventoryBlock;
-        stockItem->inventoryBlock = block;
-        block->init(stockItem);
-        stockItem->inventoryBlock->inventoryIndex = globalLogPtr->componentInventory->numItems - 1;
-        globalLogPtr->purchaseScreen->createCompInvBlock();
-        globalLogPtr->purchaseScreen->setUpCompInv(0, 1);
+        MCLogInventoryStat* stat = spares->CreateStat(spares->NextStatID, 0, 0, 1, 0xff);
+        GlobalLogPtr->ComponentInventory->AddItem(GlobalItemPtr->MasterID, stat, -1);
+        MCInventoryList* list = GlobalLogPtr->ComponentInventory;
+        stockItem = list->GetItemInfo(list->GetIndexFromMasterID(GlobalItemPtr->MasterID));
+        stockItem->Count = quantity;
+        auto* block = new MCCompInventoryBlock;
+        stockItem->InventoryBlock = block;
+        block->Init(stockItem);
+        stockItem->InventoryBlock->InventoryIndex = GlobalLogPtr->ComponentInventory->NumItems - 1;
+        GlobalLogPtr->PurchaseScreen->CreateCompInvBlock();
+        GlobalLogPtr->PurchaseScreen->SetUpCompInv(0, 1);
     }
 
-    ResourcePoints -= globalLogPtr->purchaseDialog->unitCost * quantity;
+    ResourcePoints -= GlobalLogPtr->PurchaseDialog->UnitCost * quantity;
 }
 
 auto VehiclePurchaseCallback(int confirmed, int32_t quantity) -> void
@@ -646,258 +646,258 @@ auto VehiclePurchaseCallback(int confirmed, int32_t quantity) -> void
 
     for (int32_t count = quantity; count > 0; --count)
     {
-        globalLogPtr->vehicleList->addVehicle(globalVehicleBlockPtr->purVehicle->data->fileName, 0, 1, 1);
+        GlobalLogPtr->VehicleList->AddVehicle(GlobalVehicleBlockPtr->PurVehicle->Data->FileName, 0, 1, 1);
     }
 
-    globalLogPtr->reorderVehicles();
-    globalLogPtr->purchaseScreen->createVhclInvBlock();
-    globalLogPtr->purchaseScreen->setUpVhclInv(1, 1);
-    VehiclePurchaseBlock* block = globalVehicleBlockPtr;
-    block->purVehicle->data->numAvailable -= quantity;
-    block->drawBackground(block->row);
-    ResourcePoints -= globalLogPtr->purchaseDialog->unitCost * quantity;
-    checkNumUnits();
+    GlobalLogPtr->ReorderVehicles();
+    GlobalLogPtr->PurchaseScreen->CreateVhclInvBlock();
+    GlobalLogPtr->PurchaseScreen->SetUpVhclInv(1, 1);
+    MCVehiclePurchaseBlock* block = GlobalVehicleBlockPtr;
+    block->PurVehicle->Data->NumAvailable -= quantity;
+    block->DrawBackground(block->Row);
+    ResourcePoints -= GlobalLogPtr->PurchaseDialog->UnitCost * quantity;
+    CheckNumUnits();
 }
 
 // PurMechList
 
-PurMechList::PurMechList()
+MCPurMechList::MCPurMechList()
 {
-    init();
+    Init();
 }
 
-auto PurMechList::init() -> void
+auto MCPurMechList::Init() -> void
 {
-    first = nullptr;
-    count = 0;
+    First = nullptr;
+    Count = 0;
 }
 
-auto PurMechList::destroy() -> void
+auto MCPurMechList::Destroy() -> void
 {
-    for (PurMech* purMech = first; purMech != nullptr; purMech = first)
+    for (MCPurMech* purMech = First; purMech != nullptr; purMech = First)
     {
-        first = purMech->next;
+        First = purMech->Next;
 
-        for (PurMechData*& data : purMech->variants)
+        for (MCPurMechData*& data : purMech->Variants)
         {
             if (data == nullptr)
             {
                 continue;
             }
 
-            if (data->inventory != nullptr)
+            if (data->Inventory != nullptr)
             {
-                data->inventory->destroy();
-                delete data->inventory;
-                data->inventory = nullptr;
+                data->Inventory->Destroy();
+                delete data->Inventory;
+                data->Inventory = nullptr;
             }
 
-            if (data->description != nullptr)
+            if (data->Description != nullptr)
             {
-                logFree(data->description);
-                data->description = nullptr;
+                LogFree(data->Description);
+                data->Description = nullptr;
             }
 
-            logFree(data);
+            LogFree(data);
             data = nullptr;
         }
 
-        if (purMech->block != nullptr)
+        if (purMech->Block != nullptr)
         {
-            delete purMech->block;
-            purMech->block = nullptr;
+            delete purMech->Block;
+            purMech->Block = nullptr;
         }
 
         delete purMech;
     }
 
-    first = nullptr;
-    count = 0;
+    First = nullptr;
+    Count = 0;
 }
 
-auto PurMechList::addMech(PurMech* purMech, char* fileName, int32_t variant) -> int32_t
+auto MCPurMechList::AddMech(MCPurMech* purMech, char* fileName, int32_t variant) -> int32_t
 {
-    FullPathFileName path;
-    auto* file = new FitIniFile;
+    MCFullPathFileName path;
+    auto* file = new MCFitIniFile;
     Assert(file != nullptr, 0, " no RAM for mech file ", nullptr);
-    openProfile(file, path, profilePath, fileName, true, " could not open mech file ");
+    OpenProfile(file, path, ProfilePath, fileName, true, " could not open mech file ");
 
-    void* memory = logAlloc(sizeof(PurMechData));
+    void* memory = LogAlloc(sizeof(MCPurMechData));
     Assert(memory != nullptr, 0, "Not enough memory for LogMech", nullptr);
-    auto* data = new (memory) PurMechData;
-    std::strncpy(data->fileName, fileName, 0xb);
-    data->inventory = new InventoryList;
+    auto* data = new (memory) MCPurMechData;
+    std::strncpy(data->FileName, fileName, 0xb);
+    data->Inventory = new MCInventoryList;
     Assert(data != nullptr, 0, "Not enough memory for InventoryList", nullptr);
 
-    int32_t result = file->seekBlock("Header");
+    int32_t result = file->SeekBlock("Header");
     Assert(result == 0, result, "Could not find header in mech file", nullptr);
     char fileType[20];
-    result = file->readIdString("FileType", fileType, 0x14);
+    result = file->ReadIdString("FileType", fileType, 0x14);
     Assert(result == 0, result, "Could not find filetype string in mech file", nullptr);
     Assert(std::strcmp(fileType, "MechProfile") == 0, 0, "File is not a mech file", nullptr);
-    result = file->seekBlock("General");
+    result = file->SeekBlock("General");
     Assert(result == 0, result, "Could not find general block in mech file", nullptr);
-    result = file->readIdFloat("CurTonnage", data->curTonnage);
+    result = file->ReadIdFloat("CurTonnage", data->CurTonnage);
     Assert(result == 0, result, "Could not find curTonnage in mech file", nullptr);
     char text[256];
-    result = file->readIdString("MechType", text, 0x28);
+    result = file->ReadIdString("MechType", text, 0x28);
     Assert(result == 0, result, "Could not read MechType in mech file", nullptr);
-    result = file->readIdLong("NameIndex", data->nameIndex);
+    result = file->ReadIdLong("NameIndex", data->NameIndex);
     Assert(result == 0, result, " AddPurMech: could not find NameIndex ", nullptr);
-    std::strcpy(data->name, text);
+    std::strcpy(data->Name, text);
 
-    if (file->readIdLong("ResourcePoints", data->cost) != 0)
+    if (file->ReadIdLong("ResourcePoints", data->Cost) != 0)
     {
-        data->cost = 100;
+        data->Cost = 100;
     }
 
-    if (file->readIdLong("ChassisBR", data->chassisBR) != 0)
+    if (file->ReadIdLong("ChassisBR", data->ChassisBR) != 0)
     {
-        data->chassisBR = 100;
+        data->ChassisBR = 100;
     }
 
-    data->description = nullptr;
-    data->descIndex = -1;
-    file->readIdLong("DescIndex", data->descIndex);
-    data->loadDescription(data->descIndex);
-    cLoadString(thisInstance, static_cast<uint32_t>(data->descIndex + 300), text, 0x28);
-    std::strncpy(data->name, text, 0x28);
-    data->name[0x28] = '\0';
+    data->Description = nullptr;
+    data->DescIndex = -1;
+    file->ReadIdLong("DescIndex", data->DescIndex);
+    data->LoadDescription(data->DescIndex);
+    CLoadString(ThisInstance, static_cast<uint32_t>(data->DescIndex + 300), text, 0x28);
+    std::strncpy(data->Name, text, 0x28);
+    data->Name[0x28] = '\0';
 
-    result = file->seekBlock("Engine");
+    result = file->SeekBlock("Engine");
     Assert(result == 0, result, "Could not find Engine block in mech file", nullptr);
-    result = file->readIdUChar("MaxRunSpeed", data->maxRunSpeed);
+    result = file->ReadIdUChar("MaxRunSpeed", data->MaxRunSpeed);
     Assert(result == 0, result, "Could not read MaxRunSpeed in mech file", nullptr);
-    result = file->seekBlock("Armor");
+    result = file->SeekBlock("Armor");
     Assert(result == 0, result, "Could not find Armor block in mech file", nullptr);
-    result = file->readIdFloat("Tonnage", data->armorTonnage);
+    result = file->ReadIdFloat("Tonnage", data->ArmorTonnage);
     Assert(result == 0, result, "Could not read Tonnage in mech file", nullptr);
-    result = file->seekBlock("MaxArmorPoints");
+    result = file->SeekBlock("MaxArmorPoints");
     Assert(result == 0, result, "Could not find MaxArmorPoints block in mech file", nullptr);
 
     for (int32_t location = 0; location < 11; ++location)
     {
-        result = file->readIdUChar(armorLocationNames[location], data->armor[location].maxArmor);
+        result = file->ReadIdUChar(ArmorLocationNames[location], data->Armor[location].MaxArmor);
         Assert(result == 0, result, "Could not read armor in maxArmor block in mech file", nullptr);
     }
 
-    result = file->seekBlock("CurArmorPoints");
+    result = file->SeekBlock("CurArmorPoints");
     Assert(result == 0, result, "Could not find CurArmorPoints block in mech file", nullptr);
     int32_t armorPoints = 0;
 
     for (int32_t location = 0; location < 11; ++location)
     {
-        result = file->readIdUChar(armorLocationNames[location], data->armor[location].curArmor);
+        result = file->ReadIdUChar(ArmorLocationNames[location], data->Armor[location].CurArmor);
         Assert(result == 0, result, "Could not read armor in curArmorPoins block in mech file", nullptr);
-        armorPoints += data->armor[location].curArmor;
+        armorPoints += data->Armor[location].CurArmor;
     }
 
     // Each armor point adds 40 resource points.
-    data->cost += armorPoints * 0x28;
+    data->Cost += armorPoints * 0x28;
 
-    result = file->seekBlock("InventoryInfo");
+    result = file->SeekBlock("InventoryInfo");
     Assert(result == 0, result, "Could not find InventoryInfo block in vehicle file", nullptr);
-    result = file->readIdUChar("NumOther", data->numOther);
+    result = file->ReadIdUChar("NumOther", data->NumOther);
     Assert(result == 0, result, "Could not read NumOther in mech file", nullptr);
-    result = file->readIdUChar("NumWeapons", data->numWeapons);
+    result = file->ReadIdUChar("NumWeapons", data->NumWeapons);
     Assert(result == 0, result, "Could not read NumWeapons in mech file", nullptr);
-    result = file->readIdUChar("NumAmmo", data->numAmmo);
+    result = file->ReadIdUChar("NumAmmo", data->NumAmmo);
     Assert(result == 0, result, "Could not read NumAmmo in mech file", nullptr);
-    std::memset(data->criticalSlots, 0xff, sizeof(data->criticalSlots));
-    data->cost += readInventory(file, data->inventory, data->numOther, data->numWeapons, data->numAmmo);
+    std::memset(data->CriticalSlots, 0xff, sizeof(data->CriticalSlots));
+    data->Cost += ReadInventory(file, data->Inventory, data->NumOther, data->NumWeapons, data->NumAmmo);
 
     // The body locations: internal structure and the critical slots (component copy, damage).
     float internalPoints = 0.0f;
 
     for (int32_t location = 0; location < 8; ++location)
     {
-        result = file->seekBlock(bodyLocationNames[location]);
+        result = file->SeekBlock(BodyLocationNames[location]);
         Assert(result == 0, result, "Could not find BodyLocation block in mech file", nullptr);
-        result = file->readIdUChar("CurInternalStructure", data->curInternalStructure[location]);
+        result = file->ReadIdUChar("CurInternalStructure", data->CurInternalStructure[location]);
         Assert(result == 0, result, "Could not read CurInternalStructure in mech file", nullptr);
-        internalPoints = static_cast<float>(data->curInternalStructure[location]) + internalPoints;
+        internalPoints = static_cast<float>(data->CurInternalStructure[location]) + internalPoints;
 
         for (int32_t slot = 0; slot < NumLocationCriticalSpaces[location]; ++slot)
         {
             std::snprintf(text, sizeof(text), "Component:%d", slot);
             uint8_t component[2] = {};
-            result = file->readIdUCharArray(text, component, 2);
+            result = file->ReadIdUCharArray(text, component, 2);
             Assert(result == 0, result, "Could not read component in mech file", nullptr);
-            data->criticalSlots[location][slot].masterId = component[0];
-            data->criticalSlots[location][slot].damage = component[1];
+            data->CriticalSlots[location][slot].MasterId = component[0];
+            data->CriticalSlots[location][slot].Damage = component[1];
 
             if (component[0] != 0xff)
             {
                 if (component[1] != 0)
                 {
-                    data->inventory->hitItem(component[0], component[1]);
+                    data->Inventory->HitItem(component[0], component[1]);
                 }
 
                 // The slot index is passed as the location (faithful).
-                data->inventory->setStatLoc(component[0], slot);
+                data->Inventory->SetStatLoc(component[0], slot);
             }
         }
     }
 
     // Each internal structure point adds 50 resource points.
-    data->cost = static_cast<int32_t>(static_cast<double>(internalPoints) * 50.0f + data->cost);
-    data->calcBR();
-    purMech->variants[variant] = data;
-    file->close();
+    data->Cost = static_cast<int32_t>(static_cast<double>(internalPoints) * 50.0f + data->Cost);
+    data->CalcBR();
+    purMech->Variants[variant] = data;
+    file->Close();
     delete file;
     return 0;
 }
 
-auto PurMechList::addMech(char* fileName0, int32_t count0, char* fileName2, int32_t count2, char* fileName1,
-                          int32_t count1) -> int32_t
+auto MCPurMechList::AddMech(char* fileName0, int32_t count0, char* fileName2, int32_t count2, char* fileName1,
+                            int32_t count1) -> int32_t
 {
-    auto* purMech = new PurMech;
+    auto* purMech = new MCPurMech;
     Assert(purMech != nullptr, 0, " Not enough memory to allocate PurMech", nullptr);
-    auto* block = new MechPurchaseBlock;
-    purMech->block = block;
+    auto* block = new MCMechPurchaseBlock;
+    purMech->Block = block;
     Assert(block != nullptr, 0, " Not enough memory for repair block ", nullptr);
-    block->curVariant = -1;
-    addMech(purMech, fileName0, 0);
-    purMech->variants[0]->numAvailable = count0;
-    addMech(purMech, fileName1, 1);
-    purMech->variants[1]->numAvailable = count1;
-    addMech(purMech, fileName2, 2);
-    purMech->variants[2]->numAvailable = count2;
+    block->CurVariant = -1;
+    AddMech(purMech, fileName0, 0);
+    purMech->Variants[0]->NumAvailable = count0;
+    AddMech(purMech, fileName1, 1);
+    purMech->Variants[1]->NumAvailable = count1;
+    AddMech(purMech, fileName2, 2);
+    purMech->Variants[2]->NumAvailable = count2;
 
     // Show the first variant in stock.
     if (count0 == 0 && count1 != 0)
     {
-        purMech->block->curVariant = 1;
+        purMech->Block->CurVariant = 1;
     }
     else if (count0 == 0 && count2 != 0)
     {
-        purMech->block->curVariant = 2;
+        purMech->Block->CurVariant = 2;
     }
     else
     {
-        purMech->block->curVariant = 0;
+        purMech->Block->CurVariant = 0;
     }
 
-    purMech->block->init(purMech);
-    purMech->next = first;
-    first = purMech;
-    ++count;
+    purMech->Block->Init(purMech);
+    purMech->Next = First;
+    First = purMech;
+    ++Count;
     return 0;
 }
 
-auto PurMechList::modMech(char* fileName, int32_t delta0, int32_t delta2, int32_t delta1) -> int32_t
+auto MCPurMechList::ModMech(char* fileName, int32_t delta0, int32_t delta2, int32_t delta1) -> int32_t
 {
-    for (int32_t index = 0; index < count; ++index)
+    for (int32_t index = 0; index < Count; ++index)
     {
-        PurMech* purMech = nullptr;
-        getMechInfo(index, purMech);
+        MCPurMech* purMech = nullptr;
+        GetMechInfo(index, purMech);
 
-        if (std::strcmp(purMech->variants[0]->fileName, fileName) != 0)
+        if (std::strcmp(purMech->Variants[0]->FileName, fileName) != 0)
         {
             continue;
         }
 
-        int32_t& stock0 = purMech->variants[0]->numAvailable;
+        int32_t& stock0 = purMech->Variants[0]->NumAvailable;
         stock0 += delta0;
 
         if (stock0 < 0)
@@ -905,7 +905,7 @@ auto PurMechList::modMech(char* fileName, int32_t delta0, int32_t delta2, int32_
             stock0 = 0;
         }
 
-        int32_t& stock1 = purMech->variants[1]->numAvailable;
+        int32_t& stock1 = purMech->Variants[1]->NumAvailable;
         stock1 += delta1;
 
         if (stock1 < 0)
@@ -913,7 +913,7 @@ auto PurMechList::modMech(char* fileName, int32_t delta0, int32_t delta2, int32_
             stock1 = 0;
         }
 
-        int32_t& stock2 = purMech->variants[2]->numAvailable;
+        int32_t& stock2 = purMech->Variants[2]->NumAvailable;
         stock2 += delta2;
 
         if (stock2 < 0)
@@ -927,82 +927,82 @@ auto PurMechList::modMech(char* fileName, int32_t delta0, int32_t delta2, int32_
     return -1;
 }
 
-auto PurMechList::removeMech(uint8_t) -> int32_t
+auto MCPurMechList::RemoveMech(uint8_t) -> int32_t
 {
     return 0;
 }
 
-auto PurMechList::getMechInfo(int32_t index, PurMech*& purMech) -> int32_t
+auto MCPurMechList::GetMechInfo(int32_t index, MCPurMech*& purMech) -> int32_t
 {
-    if (count <= index)
+    if (Count <= index)
     {
         return -1;
     }
 
-    PurMech* node = first;
+    MCPurMech* node = First;
 
     for (; index > 0; --index)
     {
-        node = node->next;
+        node = node->Next;
     }
 
     purMech = node;
     return 0;
 }
 
-auto PurMechList::getMechCount() -> int32_t
+auto MCPurMechList::GetMechCount() -> int32_t
 {
-    return count;
+    return Count;
 }
 
 // MechPurchaseBlock
 
-MechPurchaseBlock::~MechPurchaseBlock()
+MCMechPurchaseBlock::~MCMechPurchaseBlock()
 {
-    MechPurchaseBlock::destroy();
+    MCMechPurchaseBlock::Destroy();
 }
 
-auto MechPurchaseBlock::init(PurMech* newPurMech) -> void
+auto MCMechPurchaseBlock::Init(MCPurMech* newPurMech) -> void
 {
-    picturePort = nullptr;
-    diagramPort = nullptr;
-    purMech = newPurMech;
-    lObject::init(0, 0, 0x19a, 0x70, nullptr, globalLogPtr->purchaseScreen->lport());
-    nameIndex = purMech->variants[curVariant]->nameIndex;
+    PicturePort = nullptr;
+    DiagramPort = nullptr;
+    PurMech = newPurMech;
+    MCLogObject::Init(0, 0, 0x19a, 0x70, nullptr, GlobalLogPtr->PurchaseScreen->Lport());
+    NameIndex = PurMech->Variants[CurVariant]->NameIndex;
 }
 
-auto MechPurchaseBlock::destroy() -> void
+auto MCMechPurchaseBlock::Destroy() -> void
 {
-    purMech = nullptr;
+    PurMech = nullptr;
 
-    if (picturePort != nullptr)
+    if (PicturePort != nullptr)
     {
-        delete picturePort;
-        picturePort = nullptr;
+        delete PicturePort;
+        PicturePort = nullptr;
     }
 
-    if (diagramPort != nullptr)
+    if (DiagramPort != nullptr)
     {
-        delete diagramPort;
-        diagramPort = nullptr;
+        delete DiagramPort;
+        DiagramPort = nullptr;
     }
 
-    logFree(weightClassText);
-    weightClassText = nullptr;
-    logFree(armorText);
-    armorText = nullptr;
-    logFree(internalText);
-    internalText = nullptr;
-    lObject::destroy();
+    LogFree(WeightClassText);
+    WeightClassText = nullptr;
+    LogFree(ArmorText);
+    ArmorText = nullptr;
+    LogFree(InternalText);
+    InternalText = nullptr;
+    MCLogObject::Destroy();
 }
 
-auto MechPurchaseBlock::handleEvent(aEvent* event) -> void
+auto MCMechPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
 {
     // The position within the row.
-    int32_t localX = event->x - globalX();
-    int32_t localY = event->y - globalY();
+    int32_t localX = event->X - GlobalX();
+    int32_t localY = event->Y - GlobalY();
 
-    if (globalLogPtr->currentScreen == globalLogPtr->repairScreen)
+    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen)
     {
         return;
     }
@@ -1010,22 +1010,22 @@ auto MechPurchaseBlock::handleEvent(aEvent* event) -> void
     char text[256];
     bool showHelp = false;
 
-    if (parent == nullptr)
+    if (Parent == nullptr)
     {
-        showHelp = mechDrag.dragging == 0;
+        showHelp = MechDrag.Dragging == 0;
     }
-    else if (mechDrag.dragging == 0)
+    else if (MechDrag.Dragging == 0)
     {
-        if (mechDrag.carrying == 0 && (event->type == 8 || event->type == 9))
+        if (MechDrag.Carrying == 0 && (event->Type == 8 || event->Type == 9))
         {
-            parent->handleEvent(event);
+            Parent->HandleEvent(event);
             return;
         }
 
         showHelp = true;
     }
 
-    if (showHelp && event->key == 0)
+    if (showHelp && event->Key == 0)
     {
         // The ticker explains the variant buttons, the stock bar or the row.
         POINT point = {localX, localY};
@@ -1052,17 +1052,17 @@ auto MechPurchaseBlock::handleEvent(aEvent* event) -> void
             id = 0x37;
         }
 
-        cLoadString(thisInstance, id, text, 0xfe);
-        globalLogPtr->ticker->setString(text);
+        CLoadString(ThisInstance, id, text, 0xfe);
+        GlobalLogPtr->Ticker->SetString(text);
     }
 
-    int32_t type = event->type;
+    int32_t type = event->Type;
 
     switch (type)
     {
         case 1:
         {
-            if (mechDrag.carrying != 0)
+            if (MechDrag.Carrying != 0)
             {
                 return;
             }
@@ -1071,7 +1071,7 @@ auto MechPurchaseBlock::handleEvent(aEvent* event) -> void
         }
         case 3:
         {
-            if (mechDrag.dragging != 0 || checkMaxUnits() != 0)
+            if (MechDrag.Dragging != 0 || CheckMaxUnits() != 0)
             {
                 break;
             }
@@ -1079,40 +1079,40 @@ auto MechPurchaseBlock::handleEvent(aEvent* event) -> void
             if (localX > 0x9a && localX < 0xd0 && localY > 5 && localY < 0x16)
             {
                 // A variant button.
-                curVariant = localX < 0xac ? 0 : localX < 0xbe ? 1 : 2;
-                drawBackground(row);
-                playSample(0xf);
+                CurVariant = localX < 0xac ? 0 : localX < 0xbe ? 1 : 2;
+                DrawBackground(Row);
+                PlaySample(0xf);
                 return;
             }
 
-            if (onRow(this, event) && purMech->variants[curVariant]->numAvailable != 0)
+            if (OnRow(this, event) && PurMech->Variants[CurVariant]->NumAvailable != 0)
             {
                 // Pick the mech up (left button drags, right button carries).
                 if (type == 1)
                 {
-                    mechDrag.dragging = 1;
+                    MechDrag.Dragging = 1;
                 }
                 else
                 {
-                    mechDrag.carrying = 1;
+                    MechDrag.Carrying = 1;
                 }
 
-                playSample(0x35);
-                application->showCursor(0);
-                application->grab(this);
-                mechDrag.x = event->x - 0x10;
-                mechDrag.y = event->y - 0x10;
-                makeDragIcon(mechDrag, [this](lPort* surface) { OnBeginDrag(surface); });
+                PlaySample(0x35);
+                Application->SetCursorVisible(0);
+                Application->Grab(this);
+                MechDrag.X = event->X - 0x10;
+                MechDrag.Y = event->Y - 0x10;
+                MakeDragIcon(MechDrag, [this](MCLogPort* surface) { OnBeginDrag(surface); });
                 return;
             }
 
-            playSample(0x33);
+            PlaySample(0x33);
             return;
         }
 
         case 4:
         {
-            if (mechDrag.carrying != 0)
+            if (MechDrag.Carrying != 0)
             {
                 return;
             }
@@ -1121,115 +1121,115 @@ auto MechPurchaseBlock::handleEvent(aEvent* event) -> void
         }
         case 6:
         {
-            if (mechDrag.dragging != 0 && type == 6)
+            if (MechDrag.Dragging != 0 && type == 6)
             {
                 return;
             }
 
-            if (application->grabbedObject() == nullptr)
+            if (Application->GrabbedObject() == nullptr)
             {
                 return;
             }
 
-            application->showCursor(1);
-            application->release();
-            mechDrag.carrying = 0;
-            mechDrag.dragging = 0;
-            deleteDragIcon();
+            Application->SetCursorVisible(1);
+            Application->Release();
+            MechDrag.Carrying = 0;
+            MechDrag.Dragging = 0;
+            DeleteDragIcon();
 
-            if (type != 6 && !overInventory(event))
+            if (type != 6 && !OverInventory(event))
             {
                 // Dropped back on the store: nothing happens.
-                playSample(overStore(event) ? 0x34 : 0x33);
+                PlaySample(OverStore(event) ? 0x34 : 0x33);
                 return;
             }
 
             // Buy it.
-            PurMechData* data = purMech->variants[curVariant];
+            MCPurMechData* data = PurMech->Variants[CurVariant];
 
-            if (ResourcePoints < data->cost)
+            if (ResourcePoints < data->Cost)
             {
-                playSample(0x33);
-                showMessage(0x4d);
+                PlaySample(0x33);
+                ShowMessage(0x4d);
                 return;
             }
 
-            playSample(0x34);
-            globalMechPurchaseBlock = this;
-            cLoadString(thisInstance, weightClassString(data->curTonnage), text, 0xfe);
+            PlaySample(0x34);
+            GlobalMechPurchaseBlock = this;
+            CLoadString(ThisInstance, WeightClassString(data->CurTonnage), text, 0xfe);
             char title[512];
-            std::snprintf(title, sizeof(title), "%.0f Ton %s 'Mech", static_cast<double>(data->curTonnage), text);
-            openPurchaseDialog(0, data->cost, maxPurchase(data->numAvailable), data->name, title, diagramPort,
+            std::snprintf(title, sizeof(title), "%.0f Ton %s 'Mech", static_cast<double>(data->CurTonnage), text);
+            OpenPurchaseDialog(0, data->Cost, MaxPurchase(data->NumAvailable), data->Name, title, DiagramPort,
                                MechPurchaseCallback);
             break;
         }
 
         case 7:
         {
-            if (mechDrag.dragging != 0)
+            if (MechDrag.Dragging != 0)
             {
-                mechDrag.x = event->x - 0xf;
-                mechDrag.y = event->y - 0xf;
-                globalLogPtr->dragIcon->moveTo(mechDrag.x, mechDrag.y, 0);
+                MechDrag.X = event->X - 0xf;
+                MechDrag.Y = event->Y - 0xf;
+                GlobalLogPtr->DragIcon->MoveTo(MechDrag.X, MechDrag.Y, 0);
             }
             break;
         }
     }
 }
 
-auto MechPurchaseBlock::draw() -> void
+auto MCMechPurchaseBlock::Draw() -> void
 {
 }
 
-auto MechPurchaseBlock::drawBackground(int32_t) -> void
+auto MCMechPurchaseBlock::DrawBackground(int32_t) -> void
 {
-    PurMechData* data = purMech->variants[curVariant];
+    MCPurMechData* data = PurMech->Variants[CurVariant];
 
-    if (picturePort == nullptr)
+    if (PicturePort == nullptr)
     {
         // The mech's picture: its shadow (shapes 0xb..0x12 through the shadow table), then the mech (0..7).
-        auto* picture = new lPort;
-        picturePort = picture;
-        picture->init(0x4b, 100, 1);
-        VFX_pane_wipe(picture->frame(), 0x10);
-        VFX_shape_lookaside(globalLogPtr->shapeLookaside[5]);
+        auto* picture = new MCLogPort;
+        PicturePort = picture;
+        picture->Init(0x4b, 100, 1);
+        VfxPaneWipe(picture->Frame(), 0x10);
+        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[5]);
 
         for (int32_t shape = 0; shape < 8; ++shape)
         {
-            VFX_shape_translate_draw(picture->frame(), globalLogPtr->mechRepShapes[data->nameIndex], shape + 0xb, 0, 0);
+            VfxShapeTranslateDraw(picture->Frame(), GlobalLogPtr->MechRepShapes[data->NameIndex], shape + 0xb, 0, 0);
         }
 
-        VFX_shape_lookaside(globalLogPtr->shapeLookaside[0]);
+        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[0]);
 
         for (int32_t shape = 0; shape < 8; ++shape)
         {
-            VFX_shape_translate_draw(picture->frame(), globalLogPtr->mechRepShapes[data->nameIndex], shape, 0, 0);
+            VfxShapeTranslateDraw(picture->Frame(), GlobalLogPtr->MechRepShapes[data->NameIndex], shape, 0, 0);
         }
     }
 
-    if (diagramPort == nullptr)
+    if (DiagramPort == nullptr)
     {
-        auto* diagram = new lPort;
-        diagramPort = diagram;
-        diagram->init(0x1e, 0x1e, 1);
-        VFX_pane_wipe(diagram->frame(), 0x10);
+        auto* diagram = new MCLogPort;
+        DiagramPort = diagram;
+        diagram->Init(0x1e, 0x1e, 1);
+        VfxPaneWipe(diagram->Frame(), 0x10);
 
-        for (int32_t location : bodyTrans)
+        for (int32_t location : BodyTrans)
         {
-            AG_shape_draw(diagram->frame(), globalLogPtr->mechIconShapes[data->nameIndex], location, 3, 0);
+            AGShapeDraw(diagram->Frame(), GlobalLogPtr->MechIconShapes[data->NameIndex], location, 3, 0);
         }
     }
 
     // The class texts.
     char text[256];
-    cLoadString(thisInstance, weightClassString(data->curTonnage), text, 0xfe);
-    setHeapText(weightClassText, text);
-    data = purMech->variants[curVariant];
-    cLoadString(thisInstance, armorClassString(data->armorTonnage), text, 0xfe);
-    setHeapText(armorText, text);
+    CLoadString(ThisInstance, WeightClassString(data->CurTonnage), text, 0xfe);
+    SetHeapText(WeightClassText, text);
+    data = PurMech->Variants[CurVariant];
+    CLoadString(ThisInstance, ArmorClassString(data->ArmorTonnage), text, 0xfe);
+    SetHeapText(ArmorText, text);
     int32_t internals = 0;
 
-    for (uint8_t points : purMech->variants[curVariant]->curInternalStructure)
+    for (uint8_t points : PurMech->Variants[CurVariant]->CurInternalStructure)
     {
         internals += points;
     }
@@ -1239,60 +1239,60 @@ auto MechPurchaseBlock::drawBackground(int32_t) -> void
                           : internals < 0x51 ? 0x65u
                           : internals < 0x79 ? 0x51u
                                              : 0x66u;
-    cLoadString(thisInstance, internalId, text, 0xfe);
-    setHeapText(internalText, text);
-    setBar();
-    PurMechData* current = purMech->variants[curVariant];
+    CLoadString(ThisInstance, internalId, text, 0xfe);
+    SetHeapText(InternalText, text);
+    SetBar();
+    MCPurMechData* current = PurMech->Variants[CurVariant];
 
-    if (current->description == nullptr && current->descIndex > -1)
+    if (current->Description == nullptr && current->DescIndex > -1)
     {
-        current->loadDescription(current->descIndex);
+        current->LoadDescription(current->DescIndex);
     }
 
-    PrepareInfoDescription(current->description);
+    PrepareInfoDescription(current->Description);
 }
 
-auto MechPurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
+auto MCMechPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    lPort* row0 = newRowPicture(screen->mechTabPort, port, top, false);
-    PurMechData* data = purMech->variants[curVariant];
-    copyArt(row0, 5, 4, "%slogart\\lspflma%02d.tga", data->nameIndex);
-    copyArt(row0, 0x13a, 6, "%slogart\\lscdsm%02d.tga", data->nameIndex);
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCLogPort* row0 = NewRowPicture(screen->MechTabPort, port, top, false);
+    MCPurMechData* data = PurMech->Variants[CurVariant];
+    CopyArt(row0, 5, 4, "%slogart\\lspflma%02d.tga", data->NameIndex);
+    CopyArt(row0, 0x13a, 6, "%slogart\\lscdsm%02d.tga", data->NameIndex);
 
-    if (picturePort != nullptr)
+    if (PicturePort != nullptr)
     {
-        picturePort->copyTo(row0->frame(), 0xed, 6, 1);
+        PicturePort->CopyTo(row0->Frame(), 0xed, 6, 1);
     }
 
     char text[256];
     char tons[32];
-    cLoadString(thisInstance, 0x6e, tons, 0x1e);
-    std::snprintf(text, sizeof(text), "%.0f %s", static_cast<double>(data->curTonnage), tons);
-    writeText(yellowDropFont, row0, 0x51, 0x23, text);
-    writeText(yellowDropFont, row0, 0x51, 0x2c, weightClassText);
-    writeText(yellowDropFont, row0, 0xa7, 0x23, armorText);
-    writeText(yellowDropFont, row0, 0xa7, 0x2c, internalText);
-    std::snprintf(text, sizeof(text), "%d m/s", data->maxRunSpeed);
-    writeText(yellowDropFont, row0, 0x51, 0x35, text);
+    CLoadString(ThisInstance, 0x6e, tons, 0x1e);
+    std::snprintf(text, sizeof(text), "%.0f %s", static_cast<double>(data->CurTonnage), tons);
+    WriteText(YellowDropFont, row0, 0x51, 0x23, text);
+    WriteText(YellowDropFont, row0, 0x51, 0x2c, WeightClassText);
+    WriteText(YellowDropFont, row0, 0xa7, 0x23, ArmorText);
+    WriteText(YellowDropFont, row0, 0xa7, 0x2c, InternalText);
+    std::snprintf(text, sizeof(text), "%d m/s", data->MaxRunSpeed);
+    WriteText(YellowDropFont, row0, 0x51, 0x35, text);
 
     // The weapons and equipment, and the jump jets' rating.
     int32_t jumpJets = 0;
 
-    for (_LogInventoryItem* item = data->inventory->items; item != nullptr; item = item->next)
+    for (MCLogInventoryItem* item = data->Inventory->Items; item != nullptr; item = item->Next)
     {
-        if (MasterComponentList[item->masterID].form == COMPONENT_FORM_JUMPJET)
+        if (MasterComponentList[item->MasterID].Form == COMPONENT_FORM_JUMPJET)
         {
-            jumpJets = item->count;
+            jumpJets = item->Count;
         }
     }
 
-    drawInventoryList(data->inventory, row0, text, sizeof(text));
+    DrawInventoryList(data->Inventory, row0, text, sizeof(text));
 
     // An unlisted rating (jump jets beyond 8) shows whatever the text buffer last held.
     if (jumpJets == 0)
     {
-        cLoadString(thisInstance, 0x6c, text, 0xfe);
+        CLoadString(ThisInstance, 0x6c, text, 0xfe);
     }
     else
     {
@@ -1300,92 +1300,92 @@ auto MechPurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
         {
             case 0:
             case 1:
-                cLoadString(thisInstance, 0x56, text, 0xfe);
+                CLoadString(ThisInstance, 0x56, text, 0xfe);
                 break;
             case 2:
             case 3:
-                cLoadString(thisInstance, 0x55, text, 0xfe);
+                CLoadString(ThisInstance, 0x55, text, 0xfe);
                 break;
             case 4:
-                cLoadString(thisInstance, 0x50, text, 0xfe);
+                CLoadString(ThisInstance, 0x50, text, 0xfe);
                 break;
             case 5:
-                cLoadString(thisInstance, 0x6d, text, 0xfe);
+                CLoadString(ThisInstance, 0x6d, text, 0xfe);
                 break;
             default:
                 break;
         }
     }
 
-    writeText(yellowDropFont, row0, 0xa7, 0x35, text);
+    WriteText(YellowDropFont, row0, 0xa7, 0x35, text);
 
     // The battle rating bar: 80 pixels at 18010, bottom at y 0x58.
-    PANE* frame = row0->frame();
-    int32_t bar = static_cast<int32_t>(static_cast<double>(data->battleRating) * 0x1.d1c6674f499a1p-15 * 80.0);
+    MCPane* frame = row0->Frame();
+    int32_t bar = static_cast<int32_t>(static_cast<double>(data->BattleRating) * 0x1.d1c6674f499a1p-15 * 80.0);
     int32_t barTop = 0x58 - bar;
     int32_t topLine = 0x57 - bar;
-    VFX_line_draw(frame, 0xdb, 0x58, 0xdf, 0x58, LD_DRAW, 0xe5);
-    VFX_line_draw(frame, 0xda, topLine, 0xe0, topLine, LD_DRAW, 0xe3);
-    VFX_line_draw(frame, 0xda, 0x57, 0xda, barTop, LD_DRAW, 0xe3);
-    VFX_line_draw(frame, 0xe0, 0x57, 0xe0, barTop, LD_DRAW, 0xe5);
+    VfxLineDraw(frame, 0xdb, 0x58, 0xdf, 0x58, LD_DRAW, 0xe5);
+    VfxLineDraw(frame, 0xda, topLine, 0xe0, topLine, LD_DRAW, 0xe3);
+    VfxLineDraw(frame, 0xda, 0x57, 0xda, barTop, LD_DRAW, 0xe3);
+    VfxLineDraw(frame, 0xe0, 0x57, 0xe0, barTop, LD_DRAW, 0xe5);
 
     for (int32_t x = 0xdb; x <= 0xdf; ++x)
     {
-        VFX_line_draw(frame, x, 0x57, x, barTop, LD_DRAW, 0xe4);
+        VfxLineDraw(frame, x, 0x57, x, barTop, LD_DRAW, 0xe4);
     }
 
-    VFX_line_draw(frame, 0xdb, 0x56 - bar, 0xdf, 0x56 - bar, LD_DRAW, 0x10);
-    VFX_pixel_write(frame, 0xdf, 0x57, 0xe5);
-    VFX_pixel_write(frame, 0xdb, barTop, 0xe3);
-    VFX_pixel_write(frame, 0xda, topLine, 0x10);
-    VFX_pixel_write(frame, 0xe0, topLine, 0x10);
+    VfxLineDraw(frame, 0xdb, 0x56 - bar, 0xdf, 0x56 - bar, LD_DRAW, 0x10);
+    VfxPixelWrite(frame, 0xdf, 0x57, 0xe5);
+    VfxPixelWrite(frame, 0xdb, barTop, 0xe3);
+    VfxPixelWrite(frame, 0xda, topLine, 0x10);
+    VfxPixelWrite(frame, 0xe0, topLine, 0x10);
     delete row0;
 
     // The variant buttons (A, W, J), and the variant's name art over the row.
-    int32_t variant = curVariant;
-    PurMech* mech = purMech;
+    int32_t variant = CurVariant;
+    MCPurMech* mech = PurMech;
     int32_t y = top;
 
     if (variant == 0)
     {
-        copyArt(port, 5, y + 4, "%slogart\\lspflma%02d.tga", mech->variants[0]->nameIndex);
-        copyArt(port, 0x9a, y + 5, "%slogart\\lspbim04.tga");
+        CopyArt(port, 5, y + 4, "%slogart\\lspflma%02d.tga", mech->Variants[0]->NameIndex);
+        CopyArt(port, 0x9a, y + 5, "%slogart\\lspbim04.tga");
     }
     else
     {
-        copyArt(port, 0x9a, y + 5,
-                mech->variants[0]->numAvailable == 0 ? "%slogart\\lspbim07.tga" : "%slogart\\lspbim01.tga");
+        CopyArt(port, 0x9a, y + 5,
+                mech->Variants[0]->NumAvailable == 0 ? "%slogart\\lspbim07.tga" : "%slogart\\lspbim01.tga");
     }
 
     if (variant == 2)
     {
-        copyArt(port, 5, y + 4, "%slogart\\lspflmj%02d.tga", mech->variants[2]->nameIndex);
-        copyArt(port, 0xbe, y + 5, "%slogart\\lspbim06.tga");
+        CopyArt(port, 5, y + 4, "%slogart\\lspflmj%02d.tga", mech->Variants[2]->NameIndex);
+        CopyArt(port, 0xbe, y + 5, "%slogart\\lspbim06.tga");
     }
     else
     {
-        copyArt(port, 0xbe, y + 5,
-                mech->variants[2]->numAvailable == 0 ? "%slogart\\lspbim09.tga" : "%slogart\\lspbim03.tga");
+        CopyArt(port, 0xbe, y + 5,
+                mech->Variants[2]->NumAvailable == 0 ? "%slogart\\lspbim09.tga" : "%slogart\\lspbim03.tga");
     }
 
     if (variant == 1)
     {
-        copyArt(port, 5, y + 4, "%slogart\\lspflmw%02d.tga", mech->variants[1]->nameIndex);
-        copyArt(port, 0xac, y + 5, "%slogart\\lspbim05.tga");
+        CopyArt(port, 5, y + 4, "%slogart\\lspflmw%02d.tga", mech->Variants[1]->NameIndex);
+        CopyArt(port, 0xac, y + 5, "%slogart\\lspbim05.tga");
     }
     else
     {
-        copyArt(port, 0xac, y + 5,
-                mech->variants[1]->numAvailable == 0 ? "%slogart\\lspbim08.tga" : "%slogart\\lspbim02.tga");
+        CopyArt(port, 0xac, y + 5,
+                mech->Variants[1]->NumAvailable == 0 ? "%slogart\\lspbim08.tga" : "%slogart\\lspbim02.tga");
     }
 
-    PurMechData* shown = mech->variants[variant];
+    MCPurMechData* shown = mech->Variants[variant];
 
-    if (shown->numAvailable != 0)
+    if (shown->NumAvailable != 0)
     {
-        if (diagramPort != nullptr)
+        if (DiagramPort != nullptr)
         {
-            VFX_pane_copy(diagramPort->frame(), 0, 0, port->frame(), 7, y + 0x22, -1);
+            VfxPaneCopy(DiagramPort->Frame(), 0, 0, port->Frame(), 7, y + 0x22, -1);
         }
     }
     else
@@ -1393,110 +1393,110 @@ auto MechPurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
         // Sold out: the "sold out" name art, a blank diagram and picture, and the sold-out mark.
         static const char* const soldOut[3] = {"%slogart\\lspfdma%02d.tga", "%slogart\\lspfdmw%02d.tga",
                                                "%slogart\\lspfdmj%02d.tga"};
-        copyArt(port, 5, y + 4, soldOut[variant], shown->nameIndex);
-        fillBox(port, 7, y + 0x22, 0x1e, 0x1e, 0x10);
-        fillBox(port, 0xed, y + 5, 0x4b, 100, 0x10);
-        AG_shape_draw(port->frame(), globalLogPtr->mechRepShapes[shown->nameIndex], 0x13, 0xed, y + 6);
+        CopyArt(port, 5, y + 4, soldOut[variant], shown->NameIndex);
+        ::FillBox(port, 7, y + 0x22, 0x1e, 0x1e, 0x10);
+        ::FillBox(port, 0xed, y + 5, 0x4b, 100, 0x10);
+        AGShapeDraw(port->Frame(), GlobalLogPtr->MechRepShapes[shown->NameIndex], 0x13, 0xed, y + 6);
     }
 
     // Stock and price.
-    if (shown->numAvailable < 0)
+    if (shown->NumAvailable < 0)
     {
         char format[256];
-        cLoadString(thisInstance, 0x385, format, 0xfe);
-        std::snprintf(text, sizeof(text), format, shown->numAvailable);
+        CLoadString(ThisInstance, 0x385, format, 0xfe);
+        std::snprintf(text, sizeof(text), format, shown->NumAvailable);
     }
     else
     {
-        std::snprintf(text, sizeof(text), "%d", shown->numAvailable);
+        std::snprintf(text, sizeof(text), "%d", shown->NumAvailable);
     }
 
-    writeText(yellowDropFont, port, 0x29, y + 0x12, text);
-    std::snprintf(text, sizeof(text), "%d", shown->cost);
-    writeText(yellowDropFont, port, 0x52, y + 0x12, text);
-    DrawInfoDescription(port, 0xc6, 0x25, shown->description, 6, y + 0x44);
+    WriteText(YellowDropFont, port, 0x29, y + 0x12, text);
+    std::snprintf(text, sizeof(text), "%d", shown->Cost);
+    WriteText(YellowDropFont, port, 0x52, y + 0x12, text);
+    DrawInfoDescription(port, 0xc6, 0x25, shown->Description, 6, y + 0x44);
 }
 
-auto MechPurchaseBlock::OnBeginDrag(lPort* surface) -> void
+auto MCMechPurchaseBlock::OnBeginDrag(MCLogPort* surface) -> void
 {
     // The square at (6, 0x21) of the row, over the store's colour 0x10.
-    VFX_pane_wipe(surface->frame(), 0x10);
-    DragIcon::DrawFrom(surface, 6, 0x21, [this](lPort* port) { DrawRow(port, 0); });
+    VfxPaneWipe(surface->Frame(), 0x10);
+    MCDragIcon::DrawFrom(surface, 6, 0x21, [this](MCLogPort* port) { DrawRow(port, 0); });
 }
 
-auto MechPurchaseBlock::setBar() -> void
+auto MCMechPurchaseBlock::SetBar() -> void
 {
 }
 
 // PurVehicleList
 
-PurVehicleList::PurVehicleList()
+MCPurVehicleList::MCPurVehicleList()
 {
-    init();
+    Init();
 }
 
-auto PurVehicleList::init() -> void
+auto MCPurVehicleList::Init() -> void
 {
-    first = nullptr;
-    count = 0;
+    First = nullptr;
+    Count = 0;
 }
 
-auto PurVehicleList::destroy() -> void
+auto MCPurVehicleList::Destroy() -> void
 {
-    for (PurVehicle* vehicle = first; vehicle != nullptr; vehicle = first)
+    for (MCPurVehicle* vehicle = First; vehicle != nullptr; vehicle = First)
     {
-        PurVehicleData* data = vehicle->data;
-        first = vehicle->next;
+        MCPurVehicleData* data = vehicle->Data;
+        First = vehicle->Next;
 
         if (data != nullptr)
         {
-            if (data->name != nullptr)
+            if (data->Name != nullptr)
             {
-                logFree(data->name);
-                data->name = nullptr;
+                LogFree(data->Name);
+                data->Name = nullptr;
             }
 
-            if (data->inventory != nullptr)
+            if (data->Inventory != nullptr)
             {
-                data->inventory->destroy();
-                delete data->inventory;
-                data->inventory = nullptr;
+                data->Inventory->Destroy();
+                delete data->Inventory;
+                data->Inventory = nullptr;
             }
 
-            if (data->description != nullptr)
+            if (data->Description != nullptr)
             {
-                logFree(data->description);
-                data->description = nullptr;
+                LogFree(data->Description);
+                data->Description = nullptr;
             }
         }
 
-        if (vehicle->block != nullptr)
+        if (vehicle->Block != nullptr)
         {
-            delete vehicle->block;
-            vehicle->block = nullptr;
+            delete vehicle->Block;
+            vehicle->Block = nullptr;
         }
 
-        delete vehicle->data;
-        logFree(vehicle);
+        delete vehicle->Data;
+        LogFree(vehicle);
     }
 
-    first = nullptr;
-    count = 0;
+    First = nullptr;
+    Count = 0;
 }
 
-auto PurVehicleList::modVehicle(char* fileName, int32_t delta) -> int32_t
+auto MCPurVehicleList::ModVehicle(char* fileName, int32_t delta) -> int32_t
 {
-    for (int32_t index = 0; index < count; ++index)
+    for (int32_t index = 0; index < Count; ++index)
     {
-        PurVehicle* vehicle = nullptr;
-        getVehicleInfo(index, vehicle);
+        MCPurVehicle* vehicle = nullptr;
+        GetVehicleInfo(index, vehicle);
 
-        if (std::strcmp(vehicle->data->fileName, fileName) != 0)
+        if (std::strcmp(vehicle->Data->FileName, fileName) != 0)
         {
             continue;
         }
 
-        int32_t& stock = vehicle->data->numAvailable;
+        int32_t& stock = vehicle->Data->NumAvailable;
         stock += delta;
 
         if (stock < 0)
@@ -1510,30 +1510,30 @@ auto PurVehicleList::modVehicle(char* fileName, int32_t delta) -> int32_t
     return -1;
 }
 
-auto PurVehicleList::addVehicle(char* fileName, int32_t numAvailable) -> int32_t
+auto MCPurVehicleList::AddVehicle(char* fileName, int32_t numAvailable) -> int32_t
 {
-    FullPathFileName path;
-    auto* file = new FitIniFile;
+    MCFullPathFileName path;
+    auto* file = new MCFitIniFile;
     Assert(file != nullptr, 0, " no RAM for scenario file ", nullptr);
-    openProfile(file, path, profilePath, fileName, false, " could not open vehicle file in scenario ");
+    OpenProfile(file, path, ProfilePath, fileName, false, " could not open vehicle file in scenario ");
 
-    void* memory = logAlloc(sizeof(PurVehicle));
+    void* memory = LogAlloc(sizeof(MCPurVehicle));
     Assert(memory != nullptr, 0, "Not enough memory for LogVehicle", nullptr);
-    auto* vehicle = new (memory) PurVehicle;
-    auto* data = new PurVehicleData;
-    vehicle->data = data;
+    auto* vehicle = new (memory) MCPurVehicle;
+    auto* data = new MCPurVehicleData;
+    vehicle->Data = data;
 
-    if (file->seekBlock("General") != 0)
+    if (file->SeekBlock("General") != 0)
     {
         // Port fix: a file without a General block is a raw record the original read over the 0xc-byte
         // PurVehicle (0xd0 bytes per record) and then never added; the port just drops it.
         delete data;
-        logFree(vehicle);
+        LogFree(vehicle);
         delete file;
         return 0;
     }
 
-    int32_t result = file->seekBlock("Header");
+    int32_t result = file->SeekBlock("Header");
 
     if (result != 0)
     {
@@ -1541,174 +1541,174 @@ auto PurVehicleList::addVehicle(char* fileName, int32_t numAvailable) -> int32_t
     }
 
     char text[256];
-    result = file->readIdString("FileType", text, 0x7f);
+    result = file->ReadIdString("FileType", text, 0x7f);
     Assert(result == 0, result, "Could not read FileType in vehicle file", nullptr);
     Assert(std::strcmp(text, "GroundVehicleProfile") == 0, 0, "File is not a vehicle file", nullptr);
-    result = file->seekBlock("General");
+    result = file->SeekBlock("General");
     Assert(result == 0, result, "Could not find General block in vehicle file", nullptr);
-    result = file->readIdLong("NameIndex", data->nameIndex);
+    result = file->ReadIdLong("NameIndex", data->NameIndex);
     Assert(result == 0, result, "Could not read NameIndex in vehicle file", nullptr);
-    result = file->readIdFloat("CurTonnage", data->curTonnage);
+    result = file->ReadIdFloat("CurTonnage", data->CurTonnage);
     Assert(result == 0, result, "Could not read CurTonnage in vehicle file", nullptr);
 
-    if (file->readIdLong("ResourcePoints", data->baseCost) != 0)
+    if (file->ReadIdLong("ResourcePoints", data->BaseCost) != 0)
     {
-        data->baseCost = 100;
+        data->BaseCost = 100;
     }
 
-    data->descIndex = -1;
-    data->description = nullptr;
-    file->readIdLong("DescIndex", data->descIndex);
-    data->loadDescription(data->descIndex);
-    cLoadString(thisInstance, static_cast<uint32_t>(data->descIndex + 700), text, 0x7f);
-    data->name = heapString(text);
+    data->DescIndex = -1;
+    data->Description = nullptr;
+    file->ReadIdLong("DescIndex", data->DescIndex);
+    data->LoadDescription(data->DescIndex);
+    CLoadString(ThisInstance, static_cast<uint32_t>(data->DescIndex + 700), text, 0x7f);
+    data->Name = HeapString(text);
 
-    result = file->seekBlock("Engine");
+    result = file->SeekBlock("Engine");
     Assert(result == 0, result, "Could not find engine block in vehicle file", nullptr);
-    result = file->readIdUChar("MaxMoveSpeed", data->maxMoveSpeed);
+    result = file->ReadIdUChar("MaxMoveSpeed", data->MaxMoveSpeed);
     Assert(result == 0, result, "Could not read MaxMoveSpeed in vehicle file", nullptr);
-    result = file->seekBlock("Armor");
+    result = file->SeekBlock("Armor");
     Assert(result == 0, result, "Could not find armor block in vehicle file", nullptr);
-    result = file->readIdFloat("Tonnage", data->armorTonnage);
+    result = file->ReadIdFloat("Tonnage", data->ArmorTonnage);
     Assert(result == 0, result, "Could not read Tonnage in vehicle file", nullptr);
-    result = file->seekBlock("InventoryInfo");
+    result = file->SeekBlock("InventoryInfo");
     Assert(result == 0, result, "Could not find InventoryInfo block in vehicle file", nullptr);
-    result = file->readIdUChar("NumOther", data->numOther);
+    result = file->ReadIdUChar("NumOther", data->NumOther);
     Assert(result == 0, result, "Could not read NumOther in vehicle file", nullptr);
-    result = file->readIdUChar("NumWeapons", data->numWeapons);
+    result = file->ReadIdUChar("NumWeapons", data->NumWeapons);
     Assert(result == 0, result, "Could not read NumWeapons in vehicle file", nullptr);
-    result = file->readIdUChar("NumAmmo", data->numAmmo);
+    result = file->ReadIdUChar("NumAmmo", data->NumAmmo);
     Assert(result == 0, result, "Could not read NumAmmo in vehicle file", nullptr);
-    data->inventory = new InventoryList;
-    Assert(data->inventory != nullptr, result, " invalid vehicle file: no inventory ", nullptr);
-    readInventory(file, data->inventory, data->numOther, data->numWeapons, data->numAmmo);
-    data->numAvailable = numAvailable;
-    std::strncpy(data->fileName, fileName, 9);
+    data->Inventory = new MCInventoryList;
+    Assert(data->Inventory != nullptr, result, " invalid vehicle file: no inventory ", nullptr);
+    ReadInventory(file, data->Inventory, data->NumOther, data->NumWeapons, data->NumAmmo);
+    data->NumAvailable = numAvailable;
+    std::strncpy(data->FileName, fileName, 9);
 
-    auto* block = new VehiclePurchaseBlock;
-    vehicle->block = block;
-    block->init(vehicle);
-    vehicle->calcVehicleCost();
+    auto* block = new MCVehiclePurchaseBlock;
+    vehicle->Block = block;
+    block->Init(vehicle);
+    vehicle->CalcVehicleCost();
 
     // Insert in tonnage order (before the first that is as heavy or heavier).
-    PurVehicle* previous = nullptr;
-    PurVehicle* node = first;
+    MCPurVehicle* previous = nullptr;
+    MCPurVehicle* node = First;
 
-    while (node != nullptr && node->data->curTonnage < vehicle->data->curTonnage)
+    while (node != nullptr && node->Data->CurTonnage < vehicle->Data->CurTonnage)
     {
         previous = node;
-        node = node->next;
+        node = node->Next;
     }
 
     if (previous == nullptr)
     {
-        first = vehicle;
+        First = vehicle;
     }
     else
     {
-        previous->next = vehicle;
+        previous->Next = vehicle;
     }
 
-    vehicle->next = node;
-    ++count;
-    file->close();
+    vehicle->Next = node;
+    ++Count;
+    file->Close();
     delete file;
     return 0;
 }
 
-auto PurVehicleList::removeVehicle(uint8_t) -> int32_t
+auto MCPurVehicleList::RemoveVehicle(uint8_t) -> int32_t
 {
     return 0;
 }
 
-auto PurVehicleList::getVehicleInfo(int32_t index, PurVehicle*& vehicle) -> int32_t
+auto MCPurVehicleList::GetVehicleInfo(int32_t index, MCPurVehicle*& vehicle) -> int32_t
 {
-    if (count <= index)
+    if (Count <= index)
     {
         return -1;
     }
 
-    PurVehicle* node = first;
+    MCPurVehicle* node = First;
 
     for (; index > 0; --index)
     {
-        node = node->next;
+        node = node->Next;
     }
 
     vehicle = node;
     return 0;
 }
 
-auto PurVehicleList::getVehicleCount() -> int32_t
+auto MCPurVehicleList::GetVehicleCount() -> int32_t
 {
-    return count;
+    return Count;
 }
 
 // VehiclePurchaseBlock
 
-VehiclePurchaseBlock::~VehiclePurchaseBlock()
+MCVehiclePurchaseBlock::~MCVehiclePurchaseBlock()
 {
-    VehiclePurchaseBlock::destroy();
+    MCVehiclePurchaseBlock::Destroy();
 }
 
-auto VehiclePurchaseBlock::init(PurVehicle* newPurVehicle) -> void
+auto MCVehiclePurchaseBlock::Init(MCPurVehicle* newPurVehicle) -> void
 {
-    picturePort = nullptr;
-    purVehicle = newPurVehicle;
-    lObject::init(0, 0, 0x19a, 0x70, nullptr, globalLogPtr->purchaseScreen->lport());
-    PurVehicleData* data = purVehicle->data;
-    nameIndex = data->nameIndex;
+    PicturePort = nullptr;
+    PurVehicle = newPurVehicle;
+    MCLogObject::Init(0, 0, 0x19a, 0x70, nullptr, GlobalLogPtr->PurchaseScreen->Lport());
+    MCPurVehicleData* data = PurVehicle->Data;
+    NameIndex = data->NameIndex;
     char text[256];
-    cLoadString(thisInstance, weightClassString(data->curTonnage), text, 0xf);
-    weightClassText = heapString(text);
-    cLoadString(thisInstance, armorClassString(purVehicle->data->armorTonnage), text, 0xf);
-    armorText = heapString(text);
+    CLoadString(ThisInstance, WeightClassString(data->CurTonnage), text, 0xf);
+    WeightClassText = HeapString(text);
+    CLoadString(ThisInstance, ArmorClassString(PurVehicle->Data->ArmorTonnage), text, 0xf);
+    ArmorText = HeapString(text);
 }
 
-auto VehiclePurchaseBlock::destroy() -> void
+auto MCVehiclePurchaseBlock::Destroy() -> void
 {
     // The work port is only ever alive inside drawBackground.
-    ownPort = nullptr;
-    purVehicle = nullptr;
-    logFree(weightClassText);
-    weightClassText = nullptr;
-    logFree(armorText);
-    armorText = nullptr;
+    _OwnPort = nullptr;
+    PurVehicle = nullptr;
+    LogFree(WeightClassText);
+    WeightClassText = nullptr;
+    LogFree(ArmorText);
+    ArmorText = nullptr;
 
-    if (picturePort != nullptr)
+    if (PicturePort != nullptr)
     {
-        delete picturePort;
-        picturePort = nullptr;
+        delete PicturePort;
+        PicturePort = nullptr;
     }
 
-    lObject::destroy();
+    MCLogObject::Destroy();
 }
 
-auto VehiclePurchaseBlock::handleEvent(aEvent* event) -> void
+auto MCVehiclePurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
 {
-    int32_t localX = event->x - globalX();
-    int32_t localY = event->y - globalY();
+    int32_t localX = event->X - GlobalX();
+    int32_t localY = event->Y - GlobalY();
 
-    if (globalLogPtr->currentScreen == globalLogPtr->repairScreen)
+    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen)
     {
         return;
     }
 
-    if (parent != nullptr && vehicleDrag.dragging == 0 && vehicleDrag.carrying == 0 &&
-        (event->type == 8 || event->type == 9))
+    if (Parent != nullptr && VehicleDrag.Dragging == 0 && VehicleDrag.Carrying == 0 &&
+        (event->Type == 8 || event->Type == 9))
     {
-        parent->handleEvent(event);
+        Parent->HandleEvent(event);
         return;
     }
 
-    int32_t type = event->type;
+    int32_t type = event->Type;
     char text[256];
 
     switch (type)
     {
         case 1:
         {
-            if (vehicleDrag.carrying != 0)
+            if (VehicleDrag.Carrying != 0)
             {
                 return;
             }
@@ -1717,30 +1717,30 @@ auto VehiclePurchaseBlock::handleEvent(aEvent* event) -> void
         }
         case 3:
         {
-            if ((vehicleDrag.dragging != 0 && type == 3) || checkMaxUnits() != 0)
+            if ((VehicleDrag.Dragging != 0 && type == 3) || CheckMaxUnits() != 0)
             {
                 return;
             }
 
-            if ((localX < 0x94 || localX > 0xc9 || localY < 5 || localY > 0x15) && onRow(this, event) &&
-                purVehicle->data->numAvailable != 0)
+            if ((localX < 0x94 || localX > 0xc9 || localY < 5 || localY > 0x15) && OnRow(this, event) &&
+                PurVehicle->Data->NumAvailable != 0)
             {
                 // Pick the vehicle up (left button drags, right button carries).
                 if (type == 1)
                 {
-                    vehicleDrag.dragging = 1;
+                    VehicleDrag.Dragging = 1;
                 }
                 else
                 {
-                    vehicleDrag.carrying = 1;
+                    VehicleDrag.Carrying = 1;
                 }
 
-                playSample(0x35);
-                application->showCursor(0);
-                application->grab(this);
-                vehicleDrag.x = event->x - 0x10;
-                vehicleDrag.y = event->y - 0x10;
-                makeDragIcon(vehicleDrag, [this](lPort* surface) { OnBeginDrag(surface); });
+                PlaySample(0x35);
+                Application->SetCursorVisible(0);
+                Application->Grab(this);
+                VehicleDrag.X = event->X - 0x10;
+                VehicleDrag.Y = event->Y - 0x10;
+                MakeDragIcon(VehicleDrag, [this](MCLogPort* surface) { OnBeginDrag(surface); });
                 return;
             }
             break;
@@ -1748,7 +1748,7 @@ auto VehiclePurchaseBlock::handleEvent(aEvent* event) -> void
 
         case 4:
         {
-            if (vehicleDrag.carrying != 0)
+            if (VehicleDrag.Carrying != 0)
             {
                 return;
             }
@@ -1757,65 +1757,65 @@ auto VehiclePurchaseBlock::handleEvent(aEvent* event) -> void
         }
         case 6:
         {
-            if (vehicleDrag.dragging != 0 && type == 6)
+            if (VehicleDrag.Dragging != 0 && type == 6)
             {
                 return;
             }
 
-            vehicleDrag.carrying = 0;
+            VehicleDrag.Carrying = 0;
 
-            if (application->grabbedObject() == nullptr)
+            if (Application->GrabbedObject() == nullptr)
             {
                 return;
             }
 
-            application->release();
-            application->showCursor(1);
-            vehicleDrag.dragging = 0;
-            deleteDragIcon();
+            Application->Release();
+            Application->SetCursorVisible(1);
+            VehicleDrag.Dragging = 0;
+            DeleteDragIcon();
 
-            if (type != 6 && !overInventory(event))
+            if (type != 6 && !OverInventory(event))
             {
-                if (overStore(event))
+                if (OverStore(event))
                 {
-                    playSample(0x34);
+                    PlaySample(0x34);
                     return;
                 }
                 break;
             }
 
             // Buy it.
-            PurVehicleData* data = purVehicle->data;
-            int32_t cost = data->cost;
+            MCPurVehicleData* data = PurVehicle->Data;
+            int32_t cost = data->Cost;
 
             if (cost > ResourcePoints)
             {
-                playSample(0x33);
-                showMessage(0x4d);
+                PlaySample(0x33);
+                ShowMessage(0x4d);
                 return;
             }
 
-            playSample(0x34);
-            int32_t maxQuantity = maxPurchase(data->numAvailable);
-            globalVehicleBlockPtr = this;
-            openPurchaseDialog(6, cost, maxQuantity, data->name, nullptr, picturePort, VehiclePurchaseCallback);
+            PlaySample(0x34);
+            int32_t maxQuantity = MaxPurchase(data->NumAvailable);
+            GlobalVehicleBlockPtr = this;
+            OpenPurchaseDialog(6, cost, maxQuantity, data->Name, nullptr, PicturePort, VehiclePurchaseCallback);
             return;
         }
 
         case 7:
         {
-            if (vehicleDrag.dragging != 0)
+            if (VehicleDrag.Dragging != 0)
             {
-                vehicleDrag.y = event->y - 0xf;
-                vehicleDrag.x = event->x - 0xf;
-                globalLogPtr->dragIcon->moveTo(vehicleDrag.x, vehicleDrag.y, 0);
+                VehicleDrag.Y = event->Y - 0xf;
+                VehicleDrag.X = event->X - 0xf;
+                GlobalLogPtr->DragIcon->MoveTo(VehicleDrag.X, VehicleDrag.Y, 0);
                 return;
             }
 
-            if (event->key == 0)
+            if (event->Key == 0)
             {
-                cLoadString(thisInstance, 0x30, text, 0xfe);
-                globalLogPtr->ticker->setString(text);
+                CLoadString(ThisInstance, 0x30, text, 0xfe);
+                GlobalLogPtr->Ticker->SetString(text);
             }
 
             return;
@@ -1825,139 +1825,139 @@ auto VehiclePurchaseBlock::handleEvent(aEvent* event) -> void
             return;
     }
 
-    playSample(0x33);
+    PlaySample(0x33);
 }
 
-auto VehiclePurchaseBlock::drawBackground(int32_t) -> void
+auto MCVehiclePurchaseBlock::DrawBackground(int32_t) -> void
 {
-    PurVehicleData* data = purVehicle->data;
+    MCPurVehicleData* data = PurVehicle->Data;
 
-    if (data->numAvailable == 0)
+    if (data->NumAvailable == 0)
     {
-        PrepareInfoDescription(data->description);
+        PrepareInfoDescription(data->Description);
         return;
     }
 
     // The diagram, kept for the purchase dialog (the original parked the row's picture in picturePort first).
-    if (picturePort != nullptr)
+    if (PicturePort != nullptr)
     {
-        delete picturePort;
+        delete PicturePort;
     }
 
-    auto* diagram = new lPort;
-    picturePort = diagram;
-    diagram->init(0x1e, 0x1e, 1);
-    VFX_pane_wipe(diagram->frame(), 0x10);
+    auto* diagram = new MCLogPort;
+    PicturePort = diagram;
+    diagram->Init(0x1e, 0x1e, 1);
+    VfxPaneWipe(diagram->Frame(), 0x10);
 
     for (int32_t location = 0; location < 5; ++location)
     {
-        AG_shape_draw(diagram->frame(), globalLogPtr->vehicleIconShapes[data->nameIndex], location, 4, 0);
+        AGShapeDraw(diagram->Frame(), GlobalLogPtr->VehicleIconShapes[data->NameIndex], location, 4, 0);
     }
 
-    PrepareInfoDescription(data->description);
+    PrepareInfoDescription(data->Description);
 }
 
-auto VehiclePurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
+auto MCVehiclePurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    lPort* work = newRowPicture(screen->vehicleTabPort, port, top, false);
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCLogPort* work = NewRowPicture(screen->VehicleTabPort, port, top, false);
     char tons[256];
-    cLoadString(thisInstance, 0x6e, tons, 0xfe);
-    PurVehicleData* data = purVehicle->data;
+    CLoadString(ThisInstance, 0x6e, tons, 0xfe);
+    MCPurVehicleData* data = PurVehicle->Data;
     char text[256];
-    std::snprintf(text, sizeof(text), "%.0f %s", static_cast<double>(data->curTonnage), tons);
-    writeText(yellowDropFont, work, 0x52, 0x24, text);
-    writeText(yellowDropFont, work, 0x52, 0x2d, weightClassText);
-    writeText(yellowDropFont, work, 0xa7, 0x24, armorText);
-    std::snprintf(text, sizeof(text), "%d m/s", data->maxMoveSpeed);
-    writeText(yellowDropFont, work, 0x52, 0x36, text);
-    drawInventoryList(data->inventory, work, text, sizeof(text));
+    std::snprintf(text, sizeof(text), "%.0f %s", static_cast<double>(data->CurTonnage), tons);
+    WriteText(YellowDropFont, work, 0x52, 0x24, text);
+    WriteText(YellowDropFont, work, 0x52, 0x2d, WeightClassText);
+    WriteText(YellowDropFont, work, 0xa7, 0x24, ArmorText);
+    std::snprintf(text, sizeof(text), "%d m/s", data->MaxMoveSpeed);
+    WriteText(YellowDropFont, work, 0x52, 0x36, text);
+    DrawInventoryList(data->Inventory, work, text, sizeof(text));
 
     const char* stock = text;
     char soldOutText[256];
 
-    if (data->numAvailable == 0)
+    if (data->NumAvailable == 0)
     {
         // Sold out: the "sold out" name art, a blank picture and the sold-out mark.
-        copyArt(work, 5, 4, "%slogart\\lspfdv%02d.tga", data->nameIndex);
-        fillBox(work, 0xed, 6, 0x4b, 100, 0x10);
-        AG_shape_draw(work->frame(), globalLogPtr->vehicleRepShapes[data->nameIndex], 6, 0xed, 6);
+        CopyArt(work, 5, 4, "%slogart\\lspfdv%02d.tga", data->NameIndex);
+        ::FillBox(work, 0xed, 6, 0x4b, 100, 0x10);
+        AGShapeDraw(work->Frame(), GlobalLogPtr->VehicleRepShapes[data->NameIndex], 6, 0xed, 6);
         stock = "0";
     }
     else
     {
-        int32_t index = data->nameIndex;
-        copyArt(work, 5, 4, "%slogart\\lspflv%02d.tga", index);
+        int32_t index = data->NameIndex;
+        CopyArt(work, 5, 4, "%slogart\\lspflv%02d.tga", index);
         // The picture.
-        lBlockPort picture(work->frame(), 0xed, 6, 0x4b, 100, true);
-        VFX_pane_wipe(picture.frame(), 0x10);
-        VFX_shape_lookaside(globalLogPtr->shapeLookaside[0]);
+        MCLogBlockPort picture(work->Frame(), 0xed, 6, 0x4b, 100, true);
+        VfxPaneWipe(picture.Frame(), 0x10);
+        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[0]);
 
         for (int32_t shape = 0; shape < 5; ++shape)
         {
-            VFX_shape_translate_draw(picture.frame(), globalLogPtr->vehicleRepShapes[index], shape, 0, 0);
+            VfxShapeTranslateDraw(picture.Frame(), GlobalLogPtr->VehicleRepShapes[index], shape, 0, 0);
         }
 
         for (int32_t location = 0; location < 5; ++location)
         {
-            AG_shape_draw(work->frame(), globalLogPtr->vehicleIconShapes[index], location, 9, 0x22);
+            AGShapeDraw(work->Frame(), GlobalLogPtr->VehicleIconShapes[index], location, 9, 0x22);
         }
 
-        if (data->numAvailable < 1)
+        if (data->NumAvailable < 1)
         {
-            cLoadString(thisInstance, 0x385, soldOutText, 0xfe);
+            CLoadString(ThisInstance, 0x385, soldOutText, 0xfe);
             stock = soldOutText;
         }
         else
         {
-            std::snprintf(text, sizeof(text), "%d", data->numAvailable);
+            std::snprintf(text, sizeof(text), "%d", data->NumAvailable);
         }
     }
 
-    writeText(yellowDropFont, work, 0x25, 0x12, stock);
-    std::snprintf(text, sizeof(text), "%d", data->cost);
-    writeText(yellowDropFont, work, 0x52, 0x12, text);
-    DrawInfoDescription(work, 0xc6, 0x26, data->description, 6, 0x43);
+    WriteText(YellowDropFont, work, 0x25, 0x12, stock);
+    std::snprintf(text, sizeof(text), "%d", data->Cost);
+    WriteText(YellowDropFont, work, 0x52, 0x12, text);
+    DrawInfoDescription(work, 0xc6, 0x26, data->Description, 6, 0x43);
     delete work;
 }
 
-auto VehiclePurchaseBlock::OnBeginDrag(lPort* surface) -> void
+auto MCVehiclePurchaseBlock::OnBeginDrag(MCLogPort* surface) -> void
 {
     // The square at (6, 0x21) of the row, over the store's colour 0x10.
-    VFX_pane_wipe(surface->frame(), 0x10);
-    DragIcon::DrawFrom(surface, 6, 0x21, [this](lPort* port) { DrawRow(port, 0); });
+    VfxPaneWipe(surface->Frame(), 0x10);
+    MCDragIcon::DrawFrom(surface, 6, 0x21, [this](MCLogPort* port) { DrawRow(port, 0); });
 }
 
-auto VehiclePurchaseBlock::setBar() -> void
+auto MCVehiclePurchaseBlock::SetBar() -> void
 {
 }
 
 // CompPurchaseBlock
 
-CompPurchaseBlock::~CompPurchaseBlock()
+MCCompPurchaseBlock::~MCCompPurchaseBlock()
 {
-    CompPurchaseBlock::destroy();
+    MCCompPurchaseBlock::Destroy();
 }
 
-auto CompPurchaseBlock::init(_LogInventoryItem* newItem) -> void
+auto MCCompPurchaseBlock::Init(MCLogInventoryItem* newItem) -> void
 {
-    item = newItem;
-    lObject::init(0, 0, 0x19a, 0x70, nullptr, globalLogPtr->purchaseScreen->lport());
-    const MasterComponent& component = MasterComponentList[item->masterID];
-    int32_t form = component.form;
+    Item = newItem;
+    MCLogObject::Init(0, 0, 0x19a, 0x70, nullptr, GlobalLogPtr->PurchaseScreen->Lport());
+    const MCMasterComponent& component = MasterComponentList[Item->MasterID];
+    int32_t form = component.Form;
     char format[256];
-    cLoadString(thisInstance, 0x27f, format, 0xfe);
-    std::snprintf(weightText, sizeof(weightText), format, static_cast<double>(component.tonnage));
+    CLoadString(ThisInstance, 0x27f, format, 0xfe);
+    std::snprintf(WeightText, sizeof(WeightText), format, static_cast<double>(component.Tonnage));
     char text[256];
 
     if (form != COMPONENT_FORM_WEAPON_ENERGY && form != COMPONENT_FORM_WEAPON_BALLISTIC &&
         form != COMPONENT_FORM_WEAPON_MISSILE)
     {
-        cLoadString(thisInstance, 0x6c, text, 0xfe);
+        CLoadString(ThisInstance, 0x6c, text, 0xfe);
 
         if (form == COMPONENT_FORM_PROBE)
         {
-            std::snprintf(rangeText, sizeof(rangeText), "%s", text);
+            std::snprintf(RangeText, sizeof(RangeText), "%s", text);
         }
         else
         {
@@ -1967,24 +1967,24 @@ auto CompPurchaseBlock::init(_LogInventoryItem* newItem) -> void
 
             if (form == COMPONENT_FORM_ECM || form == COMPONENT_FORM_SENSOR)
             {
-                range = MasterComponentList[item->masterID].rangeOrHeat;
+                range = MasterComponentList[Item->MasterID].RangeOrHeat;
             }
 
-            std::snprintf(rangeText, sizeof(rangeText), "%.1f m", static_cast<double>(range));
+            std::snprintf(RangeText, sizeof(RangeText), "%.1f m", static_cast<double>(range));
         }
 
-        std::snprintf(damageText, sizeof(damageText), "%s", text);
-        std::snprintf(recycleText, sizeof(recycleText), "%s", text);
+        std::snprintf(DamageText, sizeof(DamageText), "%s", text);
+        std::snprintf(RecycleText, sizeof(RecycleText), "%s", text);
         return;
     }
 
     // Weapons: range, damage and recycle time with their rating words.
-    float range = component.weaponRange[3];
-    cLoadString(thisInstance, range < 76.0f ? 0x55 : range < 151.0f ? 0x50 : 0x6d, text, 0xfe);
-    std::snprintf(rangeText, sizeof(rangeText), "%s", text);
-    float damage = component.damage;
+    float range = component.WeaponRange[3];
+    CLoadString(ThisInstance, range < 76.0f ? 0x55 : range < 151.0f ? 0x50 : 0x6d, text, 0xfe);
+    std::snprintf(RangeText, sizeof(RangeText), "%s", text);
+    float damage = component.Damage;
 
-    if (component.weaponFlags == 4)
+    if (component.WeaponFlags == 4)
     {
         damage = static_cast<float>(damage * 3.0);
     }
@@ -1995,37 +1995,37 @@ auto CompPurchaseBlock::init(_LogInventoryItem* newItem) -> void
                         : damage < 7.0f ? 0x51u
                         : damage < 9.0f ? 0x66u
                                         : 0x67u;
-    cLoadString(thisInstance, damageId, text, 0xfe);
-    std::snprintf(damageText, sizeof(damageText), "%.2f (%s)", static_cast<double>(damage), text);
-    float recycle = component.recycleTime;
+    CLoadString(ThisInstance, damageId, text, 0xfe);
+    std::snprintf(DamageText, sizeof(DamageText), "%.2f (%s)", static_cast<double>(damage), text);
+    float recycle = component.RecycleTime;
     uint32_t recycleId = recycle < 2.0f   ? 0x68u
                          : recycle < 3.0f ? 0x69u
                          : recycle < 5.0f ? 0x65u
                          : recycle < 8.0f ? 0x6au
                                           : 0x6bu;
-    cLoadString(thisInstance, recycleId, text, 0xfe);
-    std::snprintf(recycleText, sizeof(recycleText), "%.2f s (%s)", static_cast<double>(recycle), text);
+    CLoadString(ThisInstance, recycleId, text, 0xfe);
+    std::snprintf(RecycleText, sizeof(RecycleText), "%.2f s (%s)", static_cast<double>(recycle), text);
 }
 
-auto CompPurchaseBlock::destroy() -> void
+auto MCCompPurchaseBlock::Destroy() -> void
 {
-    lObject::destroy();
+    MCLogObject::Destroy();
 }
 
-auto CompPurchaseBlock::handleEvent(aEvent* event) -> void
+auto MCCompPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (globalLogPtr->currentScreen == globalLogPtr->repairScreen)
+    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen)
     {
         return;
     }
 
-    if (parent != nullptr && compDrag.dragging == 0 && compDrag.carrying == 0 && (event->type == 8 || event->type == 9))
+    if (Parent != nullptr && CompDrag.Dragging == 0 && CompDrag.Carrying == 0 && (event->Type == 8 || event->Type == 9))
     {
-        parent->handleEvent(event);
+        Parent->HandleEvent(event);
         return;
     }
 
-    int32_t type = event->type;
+    int32_t type = event->Type;
     char text[256];
 
     switch (type)
@@ -2033,29 +2033,29 @@ auto CompPurchaseBlock::handleEvent(aEvent* event) -> void
         case 1:
         case 3:
         {
-            if (compDrag.dragging != 0 || compDrag.carrying != 0)
+            if (CompDrag.Dragging != 0 || CompDrag.Carrying != 0)
             {
                 return;
             }
 
-            if (onRow(this, event) && item->count != 0)
+            if (OnRow(this, event) && Item->Count != 0)
             {
                 // Pick the component up (left button drags, right button carries). The cursor stays shown.
                 if (type == 1)
                 {
-                    compDrag.dragging = 1;
+                    CompDrag.Dragging = 1;
                 }
                 else
                 {
-                    compDrag.carrying = 1;
+                    CompDrag.Carrying = 1;
                 }
 
-                playSample(0x35);
-                application->showCursor(1);
-                application->grab(this);
-                compDrag.y = event->y - 0x10;
-                compDrag.x = event->x - 0x10;
-                makeDragIcon(compDrag, [this](lPort* surface) { OnBeginDrag(surface); });
+                PlaySample(0x35);
+                Application->SetCursorVisible(1);
+                Application->Grab(this);
+                CompDrag.Y = event->Y - 0x10;
+                CompDrag.X = event->X - 0x10;
+                MakeDragIcon(CompDrag, [this](MCLogPort* surface) { OnBeginDrag(surface); });
                 return;
             }
             break;
@@ -2063,7 +2063,7 @@ auto CompPurchaseBlock::handleEvent(aEvent* event) -> void
 
         case 4:
         {
-            if (compDrag.carrying != 0)
+            if (CompDrag.Carrying != 0)
             {
                 return;
             }
@@ -2072,69 +2072,69 @@ auto CompPurchaseBlock::handleEvent(aEvent* event) -> void
         }
         case 6:
         {
-            if (compDrag.dragging != 0 && type == 6)
+            if (CompDrag.Dragging != 0 && type == 6)
             {
                 return;
             }
 
-            if (application->grabbedObject() == nullptr)
+            if (Application->GrabbedObject() == nullptr)
             {
                 return;
             }
 
-            application->showCursor(1);
-            application->release();
-            compDrag.dragging = 0;
-            compDrag.carrying = 0;
-            deleteDragIcon();
+            Application->SetCursorVisible(1);
+            Application->Release();
+            CompDrag.Dragging = 0;
+            CompDrag.Carrying = 0;
+            DeleteDragIcon();
 
-            if (type != 6 && !overInventory(event))
+            if (type != 6 && !OverInventory(event))
             {
-                if (overStore(event))
+                if (OverStore(event))
                 {
-                    playSample(0x34);
+                    PlaySample(0x34);
                     return;
                 }
                 break;
             }
 
             // Buy some.
-            _LogInventoryItem* bought = item;
-            MasterComponent& component = MasterComponentList[bought->masterID];
+            MCLogInventoryItem* bought = Item;
+            MCMasterComponent& component = MasterComponentList[bought->MasterID];
 
-            if (component.resourcePoints <= ResourcePoints)
+            if (component.ResourcePoints <= ResourcePoints)
             {
-                playSample(0x34);
-                globalItemPtr = bought;
-                auto* picture = new lPort;
-                loadArt(picture, "%slogart\\lscicc%02d.tga", bought->rangeIndex);
-                globalLogPtr->purchaseDialog->init(4, component.resourcePoints, bought->count, component.name, nullptr,
+                PlaySample(0x34);
+                GlobalItemPtr = bought;
+                auto* picture = new MCLogPort;
+                LoadArt(picture, "%slogart\\lscicc%02d.tga", bought->RangeIndex);
+                GlobalLogPtr->PurchaseDialog->Init(4, component.ResourcePoints, bought->Count, component.Name, nullptr,
                                                    picture);
                 delete picture;
-                globalLogPtr->purchaseDialog->setPort(globalLogPtr->currentScreen->lport());
-                globalLogPtr->purchaseDialog->setCallback(CompPurchaseCallback);
-                globalLogPtr->purchaseDialog->activate();
+                GlobalLogPtr->PurchaseDialog->SetPort(GlobalLogPtr->CurrentScreen->Lport());
+                GlobalLogPtr->PurchaseDialog->SetCallback(CompPurchaseCallback);
+                GlobalLogPtr->PurchaseDialog->Activate();
                 return;
             }
 
-            showMessage(0x4d);
+            ShowMessage(0x4d);
             break;
         }
 
         case 7:
         {
-            if (compDrag.dragging != 0)
+            if (CompDrag.Dragging != 0)
             {
-                compDrag.y = event->y - 0xf;
-                compDrag.x = event->x - 0xf;
-                globalLogPtr->dragIcon->moveTo(compDrag.x, compDrag.y, 0);
+                CompDrag.Y = event->Y - 0xf;
+                CompDrag.X = event->X - 0xf;
+                GlobalLogPtr->DragIcon->MoveTo(CompDrag.X, CompDrag.Y, 0);
                 return;
             }
 
-            if (event->key == 0)
+            if (event->Key == 0)
             {
-                cLoadString(thisInstance, 0x30, text, 0xfe);
-                globalLogPtr->ticker->setString(text);
+                CLoadString(ThisInstance, 0x30, text, 0xfe);
+                GlobalLogPtr->Ticker->SetString(text);
             }
 
             return;
@@ -2144,106 +2144,106 @@ auto CompPurchaseBlock::handleEvent(aEvent* event) -> void
             return;
     }
 
-    playSample(0x33);
+    PlaySample(0x33);
 }
 
-auto CompPurchaseBlock::drawBackground(int32_t, int32_t) -> void
+auto MCCompPurchaseBlock::DrawBackground(int32_t, int32_t) -> void
 {
-    PrepareInfoDescription(item->description);
+    PrepareInfoDescription(Item->Description);
 }
 
-auto CompPurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
+auto MCCompPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 {
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    lPort* work = newRowPicture(screen->compTabPort, port, top, true);
-    _LogInventoryItem* shown = item;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCLogPort* work = NewRowPicture(screen->CompTabPort, port, top, true);
+    MCLogInventoryItem* shown = Item;
     char text[1024];
 
-    if (shown->count < 0)
+    if (shown->Count < 0)
     {
         char format[256];
-        cLoadString(thisInstance, 0x385, format, 0xfe);
-        std::snprintf(text, sizeof(text), format, shown->count);
+        CLoadString(ThisInstance, 0x385, format, 0xfe);
+        std::snprintf(text, sizeof(text), format, shown->Count);
     }
     else
     {
-        std::snprintf(text, sizeof(text), "%d", shown->count);
+        std::snprintf(text, sizeof(text), "%d", shown->Count);
     }
 
-    writeText(yellowDropFont, work, 0x26, 0x12, text);
-    std::snprintf(text, sizeof(text), "%d", MasterComponentList[shown->masterID].resourcePoints);
-    writeText(yellowDropFont, work, 0x52, 0x12, text);
-    int32_t picture = item->rangeIndex;
+    WriteText(YellowDropFont, work, 0x26, 0x12, text);
+    std::snprintf(text, sizeof(text), "%d", MasterComponentList[shown->MasterID].ResourcePoints);
+    WriteText(YellowDropFont, work, 0x52, 0x12, text);
+    int32_t picture = Item->RangeIndex;
 
-    if (item->count == 0)
+    if (Item->Count == 0)
     {
         // Sold out: a blank icon, the "sold out" picture and name art.
-        fillBox(work, 7, 0x22, 0x1e, 0x1e, 0x10);
-        copyArt(work, 0xed, 6, "%slogart\\lspidc%02d.tga", picture);
-        copyArt(work, 5, 4, "%slogart\\lspfdc%02d.tga", picture);
+        ::FillBox(work, 7, 0x22, 0x1e, 0x1e, 0x10);
+        CopyArt(work, 0xed, 6, "%slogart\\lspidc%02d.tga", picture);
+        CopyArt(work, 5, 4, "%slogart\\lspfdc%02d.tga", picture);
     }
     else
     {
-        copyArt(work, 7, 0x22, "%slogart\\lscicc%02d.tga", picture);
-        copyArt(work, 0xed, 6, "%slogart\\lspilc%02d.tga", picture);
-        copyArt(work, 5, 4, "%slogart\\lspflc%02d.tga", picture);
+        CopyArt(work, 7, 0x22, "%slogart\\lscicc%02d.tga", picture);
+        CopyArt(work, 0xed, 6, "%slogart\\lspilc%02d.tga", picture);
+        CopyArt(work, 5, 4, "%slogart\\lspflc%02d.tga", picture);
     }
 
-    writeText(yellowDropFont, work, 0x52, 0x35, rangeText);
-    writeText(yellowDropFont, work, 0x52, 0x2c, damageText);
-    writeText(yellowDropFont, work, 0x52, 0x23, recycleText);
-    DrawInfoDescription(work, 0xc6, 0x25, item->description, 6, 0x44);
+    WriteText(YellowDropFont, work, 0x52, 0x35, RangeText);
+    WriteText(YellowDropFont, work, 0x52, 0x2c, DamageText);
+    WriteText(YellowDropFont, work, 0x52, 0x23, RecycleText);
+    DrawInfoDescription(work, 0xc6, 0x25, Item->Description, 6, 0x44);
     delete work;
 }
 
-auto CompPurchaseBlock::OnBeginDrag(lPort* surface) -> void
+auto MCCompPurchaseBlock::OnBeginDrag(MCLogPort* surface) -> void
 {
     // The square at (6, 0x21) of the row, over the store's colour 0x10.
-    VFX_pane_wipe(surface->frame(), 0x10);
-    DragIcon::DrawFrom(surface, 6, 0x21, [this](lPort* port) { DrawRow(port, 0); });
+    VfxPaneWipe(surface->Frame(), 0x10);
+    MCDragIcon::DrawFrom(surface, 6, 0x21, [this](MCLogPort* port) { DrawRow(port, 0); });
 }
 
 // PilotPurchaseBlock
 
-PilotPurchaseBlock::~PilotPurchaseBlock()
+MCPilotPurchaseBlock::~MCPilotPurchaseBlock()
 {
-    PilotPurchaseBlock::destroy();
+    MCPilotPurchaseBlock::Destroy();
 }
 
-auto PilotPurchaseBlock::init(PurPilotData* newPilot) -> void
+auto MCPilotPurchaseBlock::Init(MCPurPilotData* newPilot) -> void
 {
-    pilot = newPilot;
-    lObject::init(0, 0, 0x19a, 0x70, nullptr, globalLogPtr->purchaseScreen->lport());
+    Pilot = newPilot;
+    MCLogObject::Init(0, 0, 0x19a, 0x70, nullptr, GlobalLogPtr->PurchaseScreen->Lport());
 }
 
-auto PilotPurchaseBlock::destroy() -> void
+auto MCPilotPurchaseBlock::Destroy() -> void
 {
-    pilot = nullptr;
-    lObject::destroy();
+    Pilot = nullptr;
+    MCLogObject::Destroy();
 }
 
-auto PilotPurchaseBlock::handleEvent(aEvent* event) -> void
+auto MCPilotPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (globalLogPtr->currentScreen == globalLogPtr->repairScreen)
+    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen)
     {
         return;
     }
 
-    if (parent != nullptr && pilotDrag.dragging == 0 && pilotDrag.carrying == 0 &&
-        (event->type == 8 || event->type == 9))
+    if (Parent != nullptr && PilotDrag.Dragging == 0 && PilotDrag.Carrying == 0 &&
+        (event->Type == 8 || event->Type == 9))
     {
-        parent->handleEvent(event);
+        Parent->HandleEvent(event);
         return;
     }
 
-    int32_t type = event->type;
+    int32_t type = event->Type;
     char text[256];
 
     switch (type)
     {
         case 1:
         {
-            if (pilotDrag.carrying != 0)
+            if (PilotDrag.Carrying != 0)
             {
                 return;
             }
@@ -2252,23 +2252,23 @@ auto PilotPurchaseBlock::handleEvent(aEvent* event) -> void
         }
         case 3:
         {
-            if (pilotDrag.dragging == 0 && onRow(this, event))
+            if (PilotDrag.Dragging == 0 && OnRow(this, event))
             {
                 // Pick the pilot up (left button drags, right button carries). The cursor stays shown.
                 if (type == 1)
                 {
-                    pilotDrag.dragging = 1;
+                    PilotDrag.Dragging = 1;
                 }
                 else
                 {
-                    pilotDrag.carrying = 1;
+                    PilotDrag.Carrying = 1;
                 }
 
-                soundSystem->playPilotSpeech(pilot->pilotAudio, 10);
-                application->grab(this);
-                pilotDrag.y = event->y - 0x10;
-                pilotDrag.x = event->x - 0x10;
-                makeDragIcon(pilotDrag, [this](lPort* surface) { OnBeginDrag(surface); });
+                SoundSystem->PlayPilotSpeech(Pilot->PilotAudio, 10);
+                Application->Grab(this);
+                PilotDrag.Y = event->Y - 0x10;
+                PilotDrag.X = event->X - 0x10;
+                MakeDragIcon(PilotDrag, [this](MCLogPort* surface) { OnBeginDrag(surface); });
                 return;
             }
             break;
@@ -2276,7 +2276,7 @@ auto PilotPurchaseBlock::handleEvent(aEvent* event) -> void
 
         case 4:
         {
-            if (pilotDrag.carrying != 0)
+            if (PilotDrag.Carrying != 0)
             {
                 return;
             }
@@ -2285,63 +2285,63 @@ auto PilotPurchaseBlock::handleEvent(aEvent* event) -> void
         }
         case 6:
         {
-            if (pilotDrag.dragging != 0 && type == 6)
+            if (PilotDrag.Dragging != 0 && type == 6)
             {
                 break;
             }
 
-            pilotDrag.carrying = 0;
+            PilotDrag.Carrying = 0;
 
-            if (application->grabbedObject() == nullptr)
+            if (Application->GrabbedObject() == nullptr)
             {
                 break;
             }
 
-            application->release();
-            pilotDrag.dragging = 0;
-            deleteDragIcon();
+            Application->Release();
+            PilotDrag.Dragging = 0;
+            DeleteDragIcon();
 
-            if (type != 6 && !overInventory(event))
+            if (type != 6 && !OverInventory(event))
             {
-                playSample(overStore(event) ? 0x34 : 0x33);
+                PlaySample(OverStore(event) ? 0x34 : 0x33);
                 return;
             }
 
             // Hire the pilot.
-            PurPilotData* hired = pilot;
+            MCPurPilotData* hired = Pilot;
 
-            if (ResourcePoints < hired->cost)
+            if (ResourcePoints < hired->Cost)
             {
-                playSample(0x33);
-                showMessage(0x4d);
+                PlaySample(0x33);
+                ShowMessage(0x4d);
                 return;
             }
 
-            globalPilotPurchaseBlock = this;
-            auto* picture = new lPort;
-            loadArt(picture, "%slogart\\pilot%02d.tga", hired->nameIndex);
-            globalLogPtr->purchaseDialog->init(2, hired->cost, 1, hired->callsign, nullptr, picture);
+            GlobalPilotPurchaseBlock = this;
+            auto* picture = new MCLogPort;
+            LoadArt(picture, "%slogart\\pilot%02d.tga", hired->NameIndex);
+            GlobalLogPtr->PurchaseDialog->Init(2, hired->Cost, 1, hired->Callsign, nullptr, picture);
             delete picture;
-            globalLogPtr->purchaseDialog->setPort(globalLogPtr->currentScreen->lport());
-            globalLogPtr->purchaseDialog->setCallback(PilotPurchaseCallback);
-            globalLogPtr->purchaseDialog->activate();
+            GlobalLogPtr->PurchaseDialog->SetPort(GlobalLogPtr->CurrentScreen->Lport());
+            GlobalLogPtr->PurchaseDialog->SetCallback(PilotPurchaseCallback);
+            GlobalLogPtr->PurchaseDialog->Activate();
             break;
         }
 
         case 7:
         {
-            if (pilotDrag.dragging != 0)
+            if (PilotDrag.Dragging != 0)
             {
-                pilotDrag.y = event->y - 0xf;
-                pilotDrag.x = event->x - 0xf;
-                globalLogPtr->dragIcon->moveTo(pilotDrag.x, pilotDrag.y, 0);
+                PilotDrag.Y = event->Y - 0xf;
+                PilotDrag.X = event->X - 0xf;
+                GlobalLogPtr->DragIcon->MoveTo(PilotDrag.X, PilotDrag.Y, 0);
                 return;
             }
 
-            if (event->key == 0)
+            if (event->Key == 0)
             {
-                cLoadString(thisInstance, 0x30, text, 0xfe);
-                globalLogPtr->ticker->setString(text);
+                CLoadString(ThisInstance, 0x30, text, 0xfe);
+                GlobalLogPtr->Ticker->SetString(text);
             }
 
             return;
@@ -2349,237 +2349,237 @@ auto PilotPurchaseBlock::handleEvent(aEvent* event) -> void
     }
 }
 
-auto PilotPurchaseBlock::drawBackground(int32_t) -> void
+auto MCPilotPurchaseBlock::DrawBackground(int32_t) -> void
 {
-    PrepareInfoDescription(pilot->description);
+    PrepareInfoDescription(Pilot->Description);
 }
 
-auto PilotPurchaseBlock::DrawRow(lPort* port, int32_t top) -> void
+auto MCPilotPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 {
-    PurPilotData* shown = pilot;
+    MCPurPilotData* shown = Pilot;
 
     // A hired pilot (health cleared by PilotPurchaseCallback) is not drawn.
-    if (shown->health == 0)
+    if (shown->Health == 0)
     {
         return;
     }
 
-    PurchaseScreen* screen = globalLogPtr->purchaseScreen;
-    lPort* work = newRowPicture(screen->pilotTabPort, port, top, true);
-    copyArt(work, 5, 4, "%slogart\\lspflp%02d.tga", shown->nameIndex);
-    copyArt(work, 7, 0x26, "%slogart\\pilot%02d.tga", shown->nameIndex);
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCLogPort* work = NewRowPicture(screen->PilotTabPort, port, top, true);
+    CopyArt(work, 5, 4, "%slogart\\lspflp%02d.tga", shown->NameIndex);
+    CopyArt(work, 7, 0x26, "%slogart\\pilot%02d.tga", shown->NameIndex);
     char text[256];
-    std::snprintf(text, sizeof(text), "%d", shown->cost);
-    writeText(yellowDropFont, work, 0x1f, 0x12, text);
+    std::snprintf(text, sizeof(text), "%d", shown->Cost);
+    WriteText(YellowDropFont, work, 0x1f, 0x12, text);
 
     // An out-of-range rank shows the text buffer's last contents (the price).
-    if (shown->rank >= 0 && shown->rank <= 3)
+    if (shown->Rank >= 0 && shown->Rank <= 3)
     {
-        cLoadString(thisInstance, 0x70 + static_cast<uint32_t>(shown->rank), text, 0xfe);
+        CLoadString(ThisInstance, 0x70 + static_cast<uint32_t>(shown->Rank), text, 0xfe);
     }
 
-    writeText(yellowDropFont, work, 0x9a, 0x2a, text);
-    globalLogPtr->drawPilotSkillBar(shown->gunnery, 0x54, 0x22, 0, 0x36, 4, work);
-    globalLogPtr->drawPilotSkillBar(shown->piloting, 0x54, 0x2b, 0, 0x36, 4, work);
-    globalLogPtr->drawPilotSkillBar(shown->jumping, 0x54, 0x34, 0, 0x36, 4, work);
-    globalLogPtr->drawPilotSkillBar(shown->sensors, 0x54, 0x3d, 0, 0x36, 4, work);
+    WriteText(YellowDropFont, work, 0x9a, 0x2a, text);
+    GlobalLogPtr->DrawPilotSkillBar(shown->Gunnery, 0x54, 0x22, 0, 0x36, 4, work);
+    GlobalLogPtr->DrawPilotSkillBar(shown->Piloting, 0x54, 0x2b, 0, 0x36, 4, work);
+    GlobalLogPtr->DrawPilotSkillBar(shown->Jumping, 0x54, 0x34, 0, 0x36, 4, work);
+    GlobalLogPtr->DrawPilotSkillBar(shown->Sensors, 0x54, 0x3d, 0, 0x36, 4, work);
     // One pip per point of health.
     int32_t x = 0xe;
 
-    for (int32_t pip = pilot->health; pip > 0; --pip, x += 3)
+    for (int32_t pip = Pilot->Health; pip > 0; --pip, x += 3)
     {
-        VFX_pixel_write(work->frame(), x, 0x22, 0xcf);
-        VFX_pixel_write(work->frame(), x + 1, 0x22, 0xcf);
-        VFX_pixel_write(work->frame(), x + 1, 0x23, 0xee);
-        VFX_pixel_write(work->frame(), x, 0x23, 0xcf);
+        VfxPixelWrite(work->Frame(), x, 0x22, 0xcf);
+        VfxPixelWrite(work->Frame(), x + 1, 0x22, 0xcf);
+        VfxPixelWrite(work->Frame(), x + 1, 0x23, 0xee);
+        VfxPixelWrite(work->Frame(), x, 0x23, 0xcf);
     }
 
-    DrawInfoDescription(work, 0xc6, 0x25, pilot->description, 8, 0x48);
+    DrawInfoDescription(work, 0xc6, 0x25, Pilot->Description, 8, 0x48);
     delete work;
 }
 
-auto PilotPurchaseBlock::OnBeginDrag(lPort* surface) -> void
+auto MCPilotPurchaseBlock::OnBeginDrag(MCLogPort* surface) -> void
 {
     // The square at (6, 0x25) of the row, over the pilot list's colour 0xff.
-    VFX_pane_wipe(surface->frame(), 0xff);
-    DragIcon::DrawFrom(surface, 6, 0x25, [this](lPort* port) { DrawRow(port, 0); });
+    VfxPaneWipe(surface->Frame(), 0xff);
+    MCDragIcon::DrawFrom(surface, 6, 0x25, [this](MCLogPort* port) { DrawRow(port, 0); });
 }
 
 // PurPilotList
 
-auto PurPilotList::destroy() -> void
+auto MCPurPilotList::Destroy() -> void
 {
-    for (PurPilotData* node = first; node != nullptr; node = first)
+    for (MCPurPilotData* node = First; node != nullptr; node = First)
     {
-        PilotPurchaseBlock* block = node->block;
-        first = node->next;
+        MCPilotPurchaseBlock* block = node->Block;
+        First = node->Next;
 
         if (block != nullptr)
         {
             delete block;
-            node->block = nullptr;
+            node->Block = nullptr;
         }
 
-        if (node->description != nullptr)
+        if (node->Description != nullptr)
         {
-            logFree(node->description);
-            node->description = nullptr;
+            LogFree(node->Description);
+            node->Description = nullptr;
         }
 
         delete node;
     }
 
-    first = nullptr;
-    count = 0;
+    First = nullptr;
+    Count = 0;
 }
 
-auto PurPilotList::addPilot(char* fileName, int32_t status) -> int32_t
+auto MCPurPilotList::AddPilot(char* fileName, int32_t status) -> int32_t
 {
-    FullPathFileName path;
-    auto* file = new FitIniFile;
+    MCFullPathFileName path;
+    auto* file = new MCFitIniFile;
     Assert(file != nullptr, 0, " no RAM for pilot file ", nullptr);
-    openProfile(file, path, warriorPath, fileName, true, " could not open scenario file ");
+    OpenProfile(file, path, WarriorPath, fileName, true, " could not open scenario file ");
 
-    auto* data = new PurPilotData;
-    auto* block = new PilotPurchaseBlock;
-    data->block = block;
-    block->init(data);
-    std::strncpy(data->fileName, fileName, sizeof(data->fileName));
-    int32_t result = file->seekBlock("General");
+    auto* data = new MCPurPilotData;
+    auto* block = new MCPilotPurchaseBlock;
+    data->Block = block;
+    block->Init(data);
+    std::strncpy(data->FileName, fileName, sizeof(data->FileName));
+    int32_t result = file->SeekBlock("General");
     Assert(result == 0, result, " could not find general block in pilot file ", nullptr);
-    result = file->readIdLong("NameIndex", data->nameIndex);
+    result = file->ReadIdLong("NameIndex", data->NameIndex);
     Assert(result == 0, result, "could not read NameIndex in pilot profile", nullptr);
     char callsign[0x80];
-    result = file->readIdString("Callsign", callsign, 0x14);
+    result = file->ReadIdString("Callsign", callsign, 0x14);
     Assert(result == 0, result, " could not read callsign in pilot file ", nullptr);
-    std::strcpy(data->callsign, callsign);
-    result = file->readIdString("pilotAudio", data->pilotAudio, 0xff);
+    std::strcpy(data->Callsign, callsign);
+    result = file->ReadIdString("pilotAudio", data->PilotAudio, 0xff);
     Assert(result == 0, result, " Could not find pilotAudio in General Block ", nullptr);
-    data->descIndex = -1;
-    data->description = nullptr;
-    file->readIdLong("DescIndex", data->descIndex);
-    data->loadDescription(data->descIndex);
-    result = file->seekBlock("Skills");
+    data->DescIndex = -1;
+    data->Description = nullptr;
+    file->ReadIdLong("DescIndex", data->DescIndex);
+    data->LoadDescription(data->DescIndex);
+    result = file->SeekBlock("Skills");
     Assert(result == 0, result, " could not find skills block in pilot file ", nullptr);
-    result = file->readIdChar("Piloting", data->piloting);
+    result = file->ReadIdChar("Piloting", data->Piloting);
     Assert(result == 0, result, " could not read Piloting in pilot file ", nullptr);
-    result = file->readIdChar("Gunnery", data->gunnery);
+    result = file->ReadIdChar("Gunnery", data->Gunnery);
     Assert(result == 0, result, " could not read Gunnery in pilot file ", nullptr);
-    result = file->readIdChar("Jumping", data->jumping);
+    result = file->ReadIdChar("Jumping", data->Jumping);
     Assert(result == 0, result, " could not read Jumping in pilot file ", nullptr);
-    result = file->readIdChar("Sensors", data->sensors);
+    result = file->ReadIdChar("Sensors", data->Sensors);
     Assert(result == 0, result, " could not read Sensors in pilot file ", nullptr);
-    result = file->seekBlock("Status");
+    result = file->SeekBlock("Status");
     Assert(result == 0, result, " could not find status block in pilot file ", nullptr);
-    result = file->readIdChar("Wounds", data->health);
+    result = file->ReadIdChar("Wounds", data->Health);
     Assert(result == 0, result, " could not read Wounds in pilot file ", nullptr);
-    data->health = static_cast<char>(6 - data->health);
-    data->rank = 0;
-    data->calcRank();
-    data->cost = globalLogPtr->pilotCosts[data->rank];
-    data->status = status;
+    data->Health = static_cast<char>(6 - data->Health);
+    data->Rank = 0;
+    data->CalcRank();
+    data->Cost = GlobalLogPtr->PilotCosts[data->Rank];
+    data->Status = status;
 
     // Insert by rank, then (among the pilots from there on) by callsign.
-    PurPilotData* previous = nullptr;
-    PurPilotData* node = first;
+    MCPurPilotData* previous = nullptr;
+    MCPurPilotData* node = First;
 
-    while (node != nullptr && node->rank < data->rank)
+    while (node != nullptr && node->Rank < data->Rank)
     {
         previous = node;
-        node = node->next;
+        node = node->Next;
     }
-    while (node != nullptr && std::strcmp(node->callsign, data->callsign) < 0)
+    while (node != nullptr && std::strcmp(node->Callsign, data->Callsign) < 0)
     {
         previous = node;
-        node = node->next;
+        node = node->Next;
     }
 
-    data->next = node;
+    data->Next = node;
 
     if (previous != nullptr)
     {
-        previous->next = data;
+        previous->Next = data;
     }
     else
     {
-        first = data;
+        First = data;
     }
 
-    ++count;
-    file->close();
+    ++Count;
+    file->Close();
     delete file;
     return 0;
 }
 
-auto PurPilotList::removePilot(int32_t index) -> int32_t
+auto MCPurPilotList::RemovePilot(int32_t index) -> int32_t
 {
-    if (count <= index)
+    if (Count <= index)
     {
         return -1;
     }
 
-    PurPilotData* previous = nullptr;
-    PurPilotData* node = first;
+    MCPurPilotData* previous = nullptr;
+    MCPurPilotData* node = First;
 
     for (; index > 0; --index)
     {
         previous = node;
-        node = node->next;
+        node = node->Next;
     }
 
     if (previous != nullptr)
     {
-        previous->next = node->next;
+        previous->Next = node->Next;
     }
     else
     {
-        first = node->next;
+        First = node->Next;
     }
 
     delete node;
-    --count;
+    --Count;
     return 0;
 }
 
-auto PurPilotList::setPilotStatus(int32_t pilotId, int32_t status) -> void
+auto MCPurPilotList::SetPilotStatus(int32_t pilotId, int32_t status) -> void
 {
-    PurPilotData* node = first;
+    MCPurPilotData* node = First;
 
-    for (int32_t index = 0; index < count; ++index, node = node->next)
+    for (int32_t index = 0; index < Count; ++index, node = node->Next)
     {
-        if (node->descIndex == pilotId)
+        if (node->DescIndex == pilotId)
         {
-            node->status = status;
+            node->Status = status;
             return;
         }
     }
 }
 
-auto PurPilotList::getPilotInfo(int32_t index, PurPilotData*& pilot) -> int32_t
+auto MCPurPilotList::GetPilotInfo(int32_t index, MCPurPilotData*& pilot) -> int32_t
 {
-    if (count <= index)
+    if (Count <= index)
     {
         return -1;
     }
 
-    PurPilotData* node = first;
+    MCPurPilotData* node = First;
 
     for (; index > 0; --index)
     {
-        node = node->next;
+        node = node->Next;
     }
 
     pilot = node;
     return 0;
 }
 
-auto PurPilotList::getVisiblePilotCount() -> int32_t
+auto MCPurPilotList::GetVisiblePilotCount() -> int32_t
 {
     int32_t visible = 0;
 
-    for (PurPilotData* node = first; node != nullptr; node = node->next)
+    for (MCPurPilotData* node = First; node != nullptr; node = node->Next)
     {
-        if (node->status == 0)
+        if (node->Status == 0)
         {
             ++visible;
         }
@@ -2590,7 +2590,7 @@ auto PurPilotList::getVisiblePilotCount() -> int32_t
 
 // Data records
 
-auto PurMechData::loadDescription(int32_t index) -> void
+auto MCPurMechData::LoadDescription(int32_t index) -> void
 {
     // The original loops three times over this same record; only the first pass can load.
     if (index < 0)
@@ -2598,66 +2598,66 @@ auto PurMechData::loadDescription(int32_t index) -> void
         return;
     }
 
-    if (description == nullptr)
+    if (Description == nullptr)
     {
-        description = loadDescriptionText(descIndex);
+        Description = LoadDescriptionText(DescIndex);
     }
 }
 
-auto PurMechData::calcBR() -> int32_t
+auto MCPurMechData::CalcBR() -> int32_t
 {
-    battleRating = chassisBR;
+    BattleRating = ChassisBR;
 
-    for (_LogInventoryItem* item = inventory->items; item != nullptr; item = item->next)
+    for (MCLogInventoryItem* item = Inventory->Items; item != nullptr; item = item->Next)
     {
-        battleRating = static_cast<int32_t>(
-            static_cast<double>(MasterComponentList[item->masterID].battleRating) * item->count + battleRating);
+        BattleRating = static_cast<int32_t>(
+            static_cast<double>(MasterComponentList[item->MasterID].BattleRating) * item->Count + BattleRating);
     }
 
-    return battleRating;
+    return BattleRating;
 }
 
-auto PurPilotData::calcRank() -> void
+auto MCPurPilotData::CalcRank() -> void
 {
     // The skills weighted (piloting, jumping, sensors, gunnery); the rank is the first scale entry above it.
     double weighted =
-        (static_cast<double>(gunnery) * SkillWeightings[3] + static_cast<double>(sensors) * SkillWeightings[2] +
-         static_cast<double>(jumping) * SkillWeightings[1] + static_cast<double>(piloting) * SkillWeightings[0]) /
+        (static_cast<double>(Gunnery) * SkillWeightings[3] + static_cast<double>(Sensors) * SkillWeightings[2] +
+         static_cast<double>(Jumping) * SkillWeightings[1] + static_cast<double>(Piloting) * SkillWeightings[0]) /
         (static_cast<double>(SkillWeightings[3]) + SkillWeightings[2] + SkillWeightings[1] + SkillWeightings[0]);
 
     for (int32_t level = 0; level < 4; ++level)
     {
         if (weighted < WarriorRankScale[level])
         {
-            rank = level;
+            Rank = level;
             return;
         }
     }
 }
 
-auto PurPilotData::loadDescription(int32_t index) -> void
+auto MCPurPilotData::LoadDescription(int32_t index) -> void
 {
-    if (index > -1 && description == nullptr)
+    if (index > -1 && Description == nullptr)
     {
-        description = loadDescriptionText(descIndex);
+        Description = LoadDescriptionText(DescIndex);
     }
 }
 
-auto PurVehicleData::loadDescription(int32_t index) -> void
+auto MCPurVehicleData::LoadDescription(int32_t index) -> void
 {
-    if (index > -1 && description == nullptr)
+    if (index > -1 && Description == nullptr)
     {
-        description = loadDescriptionText(descIndex);
+        Description = LoadDescriptionText(DescIndex);
     }
 }
 
-auto PurVehicle::calcVehicleCost() -> void
+auto MCPurVehicle::CalcVehicleCost() -> void
 {
-    PurVehicleData* vehicle = data;
-    vehicle->cost = vehicle->baseCost;
+    MCPurVehicleData* vehicle = Data;
+    vehicle->Cost = vehicle->BaseCost;
 
-    for (_LogInventoryItem* item = vehicle->inventory->items; item != nullptr; item = item->next)
+    for (MCLogInventoryItem* item = vehicle->Inventory->Items; item != nullptr; item = item->Next)
     {
-        vehicle->cost += MasterComponentList[item->masterID].resourcePoints * item->count;
+        vehicle->Cost += MasterComponentList[item->MasterID].ResourcePoints * item->Count;
     }
 }

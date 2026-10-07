@@ -3,68 +3,68 @@
 #include "linkup/sessionmanager.h"
 #include "lib/aerror.h"
 
-FIDPGroup::FIDPGroup()
+MCFidpGroup::MCFidpGroup()
 {
-    groupData = nullptr;
+    GroupData = nullptr;
 }
 
-FIDPGroup::FIDPGroup(uint32_t id, uint32_t, const DPNAME* name, uint32_t flags)
+MCFidpGroup::MCFidpGroup(uint32_t id, uint32_t, const DPNAME* name, uint32_t flags)
 {
-    this->id = id;
+    this->Id = id;
 
     // Port fix: the buffers start cleared, so a name strncpy cuts short is still terminated.
-    std::memset(this->name, 0, sizeof(this->name));
-    std::memset(longName, 0, sizeof(longName));
+    std::memset(this->Name, 0, sizeof(this->Name));
+    std::memset(LongName, 0, sizeof(LongName));
 
     if (name->lpszShortNameA == nullptr)
     {
-        this->name[0] = '\0';
+        this->Name[0] = '\0';
     }
     else
     {
         // Original behaviour: 64 characters into a 64-byte buffer (not terminated when the name is that long).
-        std::strncpy(this->name, name->lpszShortNameA, 0x40);
+        std::strncpy(this->Name, name->lpszShortNameA, 0x40);
     }
 
     if (name->lpszLongNameA == nullptr)
     {
-        longName[0] = '\0';
+        LongName[0] = '\0';
     }
     else
     {
-        std::strncpy(longName, name->lpszLongNameA, 0xff);
+        std::strncpy(LongName, name->lpszLongNameA, 0xff);
     }
 
-    this->flags = flags;
+    this->Flags = flags;
     // Port fix: the original left the data pointer unset here; SetGroupData frees whatever it holds.
-    groupData = nullptr;
-    groupDataSize = 0;
+    GroupData = nullptr;
+    GroupDataSize = 0;
 }
 
-FIDPGroup::~FIDPGroup()
+MCFidpGroup::~MCFidpGroup()
 {
-    const int numPlayers = players.count;
-    players.current = players.head;
+    const int numPlayers = Players.Count;
+    Players.Current = Players.HeadLink;
 
     for (int i = 0; i < numPlayers; i++)
     {
-        linkUpBlocks->Free(players.ReadAndNext());
+        LinkUpBlocks->Free(Players.ReadAndNext());
     }
 
-    while (players.head != nullptr)
+    while (Players.HeadLink != nullptr)
     {
-        players.Del(players.head->data);
+        Players.Del(Players.HeadLink->Data);
     }
 }
 
-int FIDPGroup::RemovePlayer(uint32_t& playerID)
+int MCFidpGroup::RemovePlayer(uint32_t& playerID)
 {
-    players.current = players.head;
+    Players.Current = Players.HeadLink;
     uint32_t* found = nullptr;
 
-    for (int i = 0; i < players.count; i++)
+    for (int i = 0; i < Players.Count; i++)
     {
-        uint32_t* member = players.ReadAndNext();
+        uint32_t* member = Players.ReadAndNext();
 
         if (*member == playerID)
         {
@@ -78,52 +78,52 @@ int FIDPGroup::RemovePlayer(uint32_t& playerID)
         return 0;
     }
 
-    players.Del(found);
-    linkUpBlocks->Free(found);
+    Players.Del(found);
+    LinkUpBlocks->Free(found);
     return 1;
 }
 
-int FIDPGroup::AddPlayer(uint32_t& playerID)
+int MCFidpGroup::AddPlayer(uint32_t& playerID)
 {
-    players.current = players.head;
+    Players.Current = Players.HeadLink;
 
-    for (int i = 0; i < players.count; i++)
+    for (int i = 0; i < Players.Count; i++)
     {
-        if (playerID == *players.ReadAndNext())
+        if (playerID == *Players.ReadAndNext())
         {
             return 0;
         }
     }
 
-    uint32_t* member = static_cast<uint32_t*>(linkUpBlocks->Allocate(sizeof(uint32_t)));
+    uint32_t* member = static_cast<uint32_t*>(LinkUpBlocks->Allocate(sizeof(uint32_t)));
     *member = playerID;
-    players.Add(member);
+    Players.Add(member);
     return 1;
 }
 
-void FIDPGroup::SetGroupData(void* data, uint32_t size)
+void MCFidpGroup::SetGroupData(void* data, uint32_t size)
 {
-    if (groupData != nullptr)
+    if (GroupData != nullptr)
     {
-        linkUpBlocks->Free(groupData);
+        LinkUpBlocks->Free(GroupData);
     }
 
-    groupData = linkUpBlocks->Allocate(size);
-    std::memcpy(groupData, data, size);
-    groupDataSize = size;
+    GroupData = LinkUpBlocks->Allocate(size);
+    std::memcpy(GroupData, data, size);
+    GroupDataSize = size;
 }
 
-void FIDPGroup::ClearList(FLinkedList<FIDPGroup>& list)
+void MCFidpGroup::ClearList(MCFLinkedList<MCFidpGroup>& list)
 {
-    const int numGroups = list.count;
-    list.current = list.head;
+    const int numGroups = list.Count;
+    list.Current = list.HeadLink;
 
     for (int i = 0; i < numGroups; i++)
     {
-        FIDPGroup* group = list.current->data;
+        MCFidpGroup* group = list.Current->Data;
         list.Del(group);
         delete group;
     }
 
-    Assert(list.count == 0, 0, nullptr);
+    Assert(list.Count == 0, 0, nullptr);
 }

@@ -9,7 +9,7 @@
 /// <param name="srcLen">How many.</param>
 /// <returns>The packed length in bytes.</returns>
 /// <remarks>
-/// MCX.EXE @ 0x0064c920 (assembly in the original). The port's encoder follows the same scheme; its output needn't
+/// Assembly in the original. The port's encoder follows the same scheme; its output needn't
 /// match the original's byte for byte, only unpack to the same data (the game only packs its own save data).
 /// </remarks>
 int32_t LZCompress(uint8_t* dest, const uint8_t* src, uint32_t srcLen);

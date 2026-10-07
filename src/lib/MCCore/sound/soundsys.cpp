@@ -23,25 +23,25 @@
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 
-int32_t useSound = 1;
-int32_t useMusic = 1;
+int32_t UseSound = 1;
+int32_t UseMusic = 1;
 int32_t MusicVolume = 64;
 int32_t RadioVolume = 64;
-int32_t SFXVolume = 64;
-SoundSystem* soundSystem = nullptr;
-uint32_t soundHeapSize = 0;
-int32_t inCombat = 0;
-int32_t justInCombat = 0;
-int32_t currentPilotSpeech = 0;
-int32_t lastBettyId = 0;
-std::unique_ptr<uint8_t[]> pilotLogisticsSpeechPtr;
-std::unique_ptr<uint8_t[]> noiseData;
+int32_t SfxVolume = 64;
+MCSoundSystem* SoundSystem = nullptr;
+uint32_t SoundHeapSize = 0;
+int32_t InCombat = 0;
+int32_t JustInCombat = 0;
+int32_t CurrentPilotSpeech = 0;
+int32_t LastBettyId = 0;
+std::unique_ptr<uint8_t[]> PilotLogisticsSpeechPtr;
+std::unique_ptr<uint8_t[]> NoiseData;
 
 namespace
 {
-    /// <summary>What <see cref="SoundSystem::musicState"/> records about the music playing. The names are the
+    /// <summary>What <see cref="MCSoundSystem::MusicState"/> records about the music playing. The names are the
     /// port's.</summary>
-    enum MusicStateIndex : int32_t
+    enum MCMusicStateIndex : int32_t
     {
         /// <summary>A contact cue (DMS 5..7).</summary>
         MUSIC_CONTACT = 0,
@@ -62,41 +62,41 @@ namespace
     };
 
     /// <summary>A byte volume (0..127) as a channel volume.</summary>
-    float channelVolume(uint32_t volume)
+    float ChannelVolume(uint32_t volume)
     {
         return static_cast<float>(volume) * (1.0f / 128.0f);
     }
 
     /// <summary>Clears the music state and, unless <paramref name="state"/> is -1, sets that entry.</summary>
-    void setMusicState(SoundSystem* sound, int32_t state)
+    void SetMusicState(MCSoundSystem* sound, int32_t state)
     {
-        for (int32_t& entry : sound->musicState)
+        for (int32_t& entry : sound->MusicState)
         {
             entry = 0;
         }
 
         if (state >= 0)
         {
-            sound->musicState[state] = 1;
+            sound->MusicState[state] = 1;
         }
     }
 
     /// <summary>Frees a radio message's fragments and noise.</summary>
-    void freeRadioData(RadioData* message)
+    void FreeRadioData(MCRadioData* message)
     {
         for (int32_t i = 0; i < MAX_RADIO_FRAGMENTS; i++)
         {
-            message->data[i].reset();
-            message->noise[i].reset();
+            message->Data[i].reset();
+            message->Noise[i].reset();
         }
     }
 
     /// <summary>Closes and deletes a file (the inlined close + delete).</summary>
-    template <typename T> void closeFile(T*& file)
+    template <typename T> void CloseFile(T*& file)
     {
         if (file != nullptr)
         {
-            file->close();
+            file->Close();
             delete file;
             file = nullptr;
         }
@@ -104,10 +104,10 @@ namespace
 
     /// <summary>Steps one music stream's cross-fade: a negative fade counts up to 0 and stops the stream, a positive
     /// one counts down to 0 at full volume.</summary>
-    void updateStreamFade(SoundSystem* sound, int32_t stream)
+    void UpdateStreamFade(MCSoundSystem* sound, int32_t stream)
     {
         int32_t channel = MUSIC_CHANNEL_A + stream;
-        float& fade = sound->streamFade[stream];
+        float& fade = sound->StreamFade[stream];
 
         if (fade == 0.0f)
         {
@@ -118,38 +118,38 @@ namespace
 
         if (fade < 0.0f)
         {
-            fade = frameLength + fade;
+            fade = FrameLength + fade;
 
             if (fade >= 0.0f)
             {
                 fade = 0.0f;
-                gos_StopChannel(channel);
+                GosStopChannel(channel);
 
-                if (sound->channelResource[channel] != nullptr)
+                if (sound->ChannelResource[channel] != nullptr)
                 {
-                    gos_DestroySoundResource(sound->channelResource[channel]);
+                    GosDestroySoundResource(sound->ChannelResource[channel]);
                 }
 
-                sound->channelResource[channel] = nullptr;
-                sound->streamPlaying[stream] = 0;
+                sound->ChannelResource[channel] = nullptr;
+                sound->StreamPlaying[stream] = 0;
                 return;
             }
 
-            volume = std::fabs(fade) / sound->streamFadeDownTime * static_cast<float>(sound->musicVolume);
+            volume = std::fabs(fade) / sound->StreamFadeDownTime * static_cast<float>(sound->MusicLevel);
         }
         else
         {
-            fade = fade - frameLength;
+            fade = fade - FrameLength;
 
             if (fade <= 0.0f)
             {
                 fade = 0.0f;
-                gos_SetChannelVolume(channel, channelVolume(sound->musicVolume));
+                GosSetChannelVolume(channel, ChannelVolume(sound->MusicLevel));
                 return;
             }
 
-            volume = (sound->streamFadeDownTime - std::fabs(fade)) / sound->streamFadeDownTime *
-                     static_cast<float>(sound->musicVolume);
+            volume = (sound->StreamFadeDownTime - std::fabs(fade)) / sound->StreamFadeDownTime *
+                     static_cast<float>(sound->MusicLevel);
         }
 
         if (volume < 0.0f)
@@ -162,55 +162,55 @@ namespace
             volume = 128.0f;
         }
 
-        gos_SetChannelVolume(channel, channelVolume(static_cast<uint32_t>(static_cast<int32_t>(volume)) & 0xff));
+        GosSetChannelVolume(channel, ChannelVolume(static_cast<uint32_t>(static_cast<int32_t>(volume)) & 0xff));
     }
 
     /// <summary>Drops a music stream that has stopped by itself, and forgets the music.</summary>
-    void dropEndedStream(SoundSystem* sound, int32_t stream)
+    void DropEndedStream(MCSoundSystem* sound, int32_t stream)
     {
         int32_t channel = MUSIC_CHANNEL_A + stream;
-        void* resource = sound->channelResource[channel];
+        void* resource = sound->ChannelResource[channel];
 
-        if (sound->streamPlaying[stream] == 0 || resource == nullptr || gos_GetChannelStatus(channel) != 2)
+        if (sound->StreamPlaying[stream] == 0 || resource == nullptr || GosGetChannelStatus(channel) != 2)
         {
             return;
         }
 
-        gos_DestroySoundResource(resource);
-        sound->channelResource[channel] = nullptr;
-        sound->streamFade[stream] = 0.0f;
-        sound->streamPlaying[stream] = 0;
-        setMusicState(sound, -1);
-        sound->currentMusicId = -1;
+        GosDestroySoundResource(resource);
+        sound->ChannelResource[channel] = nullptr;
+        sound->StreamFade[stream] = 0.0f;
+        sound->StreamPlaying[stream] = 0;
+        SetMusicState(sound, -1);
+        sound->CurrentMusicId = -1;
     }
 
     /// <summary>
     /// The pan position (0..128, 64 centre) of a sound <paramref name="dx"/>, <paramref name="dy"/> from the listener:
     /// the angle from the screen's up direction (the world axes turned by 45 degrees), folded to the front.
     /// </summary>
-    int32_t panPosition(float dx, float dy)
+    int32_t PanPosition(float dx, float dy)
     {
-        vector_3d axisX = UnitX;
-        vector_3d axisY = UnitY;
+        MCVector3D axisX = UnitX;
+        MCVector3D axisY = UnitY;
         float s = static_cast<float>(std::sin(0.7853981633974483));
         float c = static_cast<float>(std::cos(0.7853981633974483));
-        vector_3d originalX = axisX;
-        vector_3d rotated = axisY * s;
+        MCVector3D originalX = axisX;
+        MCVector3D rotated = axisY * s;
         axisX = axisX * c + rotated;
         axisY = axisY * c - originalX * s;
-        vector_3d up;
-        up.x = -axisY.x;
-        up.y = -axisY.y;
-        up.z = -axisY.z;
-        float upX = up.x;
-        float upY = up.y;
-        vector_3d toSound;
-        toSound.x = dx;
-        toSound.y = dy;
-        toSound.z = 0.0f;
-        up.normalize();
-        toSound.normalize();
-        double angle = acosMatherr(static_cast<double>(up | toSound)) * 0x1.ca5dc1a6402aap+5;
+        MCVector3D up;
+        up.X = -axisY.X;
+        up.Y = -axisY.Y;
+        up.Z = -axisY.Z;
+        float upX = up.X;
+        float upY = up.Y;
+        MCVector3D toSound;
+        toSound.X = dx;
+        toSound.Y = dy;
+        toSound.Z = 0.0f;
+        up.Normalize();
+        toSound.Normalize();
+        double angle = AcosMatherr(static_cast<double>(up | toSound)) * 0x1.ca5dc1a6402aap+5;
 
         if (upX * dy - upY * dx <= 0.0f)
         {
@@ -257,32 +257,32 @@ int WaveDataOK(uint8_t* data)
     return 0;
 }
 
-int32_t openWaveFile(File* waveFile, uint32_t& dataSize, uint32_t& sampleRate, uint32_t& bitDepth, uint32_t& channels)
+int32_t OpenWaveFile(MCFile* waveFile, uint32_t& dataSize, uint32_t& sampleRate, uint32_t& bitDepth, uint32_t& channels)
 {
-    if (waveFile->readLong() != 0x46464952)
+    if (waveFile->ReadLong() != 0x46464952)
     {
         return 0;
     }
 
-    waveFile->readLong();
+    waveFile->ReadLong();
 
-    if (waveFile->readLong() != 0x45564157)
+    if (waveFile->ReadLong() != 0x45564157)
     {
         return 0;
     }
 
-    int32_t chunkId = waveFile->readLong();
+    int32_t chunkId = waveFile->ReadLong();
 
     while (chunkId != 0x20746d66)
     {
-        int32_t chunkSize = waveFile->readLong();
-        waveFile->seek((chunkSize + 1) & ~1, SEEK_CUR);
-        chunkId = waveFile->readLong();
+        int32_t chunkSize = waveFile->ReadLong();
+        waveFile->Seek((chunkSize + 1) & ~1, SEEK_CUR);
+        chunkId = waveFile->ReadLong();
     }
 
-    int32_t formatSize = waveFile->readLong();
-    int32_t formatStart = static_cast<int32_t>(waveFile->getLogicalPosition());
-    uint32_t value = static_cast<uint32_t>(waveFile->readLong());
+    int32_t formatSize = waveFile->ReadLong();
+    int32_t formatStart = static_cast<int32_t>(waveFile->GetLogicalPosition());
+    uint32_t value = static_cast<uint32_t>(waveFile->ReadLong());
 
     if (static_cast<int16_t>(value) != 1)
     {
@@ -290,235 +290,235 @@ int32_t openWaveFile(File* waveFile, uint32_t& dataSize, uint32_t& sampleRate, u
     }
 
     channels = value >> 16;
-    sampleRate = static_cast<uint32_t>(waveFile->readLong());
-    waveFile->readLong();
-    value = static_cast<uint32_t>(waveFile->readLong());
+    sampleRate = static_cast<uint32_t>(waveFile->ReadLong());
+    waveFile->ReadLong();
+    value = static_cast<uint32_t>(waveFile->ReadLong());
     bitDepth = value >> 16;
-    waveFile->seek(formatStart + formatSize, SEEK_SET);
-    chunkId = waveFile->readLong();
+    waveFile->Seek(formatStart + formatSize, SEEK_SET);
+    chunkId = waveFile->ReadLong();
 
     while (chunkId != 0x61746164)
     {
-        int32_t chunkSize = waveFile->readLong();
-        waveFile->seek((chunkSize + 1) & ~1, SEEK_CUR);
-        chunkId = waveFile->readLong();
+        int32_t chunkSize = waveFile->ReadLong();
+        waveFile->Seek((chunkSize + 1) & ~1, SEEK_CUR);
+        chunkId = waveFile->ReadLong();
     }
 
-    uint32_t size = static_cast<uint32_t>(waveFile->readLong());
+    uint32_t size = static_cast<uint32_t>(waveFile->ReadLong());
     dataSize = size & ~((channels * bitDepth >> 3) - 1);
     return 1;
 }
 
-SoundSystem::SoundSystem()
+MCSoundSystem::MCSoundSystem()
 {
 }
 
-SoundSystem::~SoundSystem()
+MCSoundSystem::~MCSoundSystem()
 {
-    destroy();
+    Destroy();
 }
 
-void SoundSystem::init()
+void MCSoundSystem::Init()
 {
-    sounds.clear();
-    soundOn = 0;
+    Sounds.clear();
+    SoundOn = 0;
     SoundRendererInstall(NUM_SOUND_CHANNELS);
-    SmackSoundUseDirectSound(g_SRData.directSound.get());
-    soundDataFile = nullptr;
+    SmackSoundUseDirectSound(SRData.DirectSound.get());
+    SoundDataFile = nullptr;
 
-    for (int32_t& entry : musicState)
+    for (int32_t& entry : MusicState)
     {
         entry = 0;
     }
 
-    soundOn = 0;
-    sampleRate = 22050;
-    bitDepth = 8;
-    channels = 2;
-    currentMusicId = -1;
+    SoundOn = 0;
+    SampleRate = 22050;
+    BitDepth = 8;
+    Channels = 2;
+    CurrentMusicId = -1;
 
     for (int32_t i = 0; i < NUM_SAMPLE_CHANNELS; i++)
     {
-        channelResource[i] = nullptr;
-        gos_SetChannelProperties(i, CHANNEL_VOLUME | CHANNEL_PANNING);
-        channelSampleId[i] = -1;
-        channelInUse[i] = 0;
-        fadeDown[i] = 0;
+        ChannelResource[i] = nullptr;
+        GosSetChannelProperties(i, CHANNEL_VOLUME | CHANNEL_PANNING);
+        ChannelSampleId[i] = -1;
+        ChannelInUse[i] = 0;
+        FadeDown[i] = 0;
     }
 
-    channelResource[MUSIC_CHANNEL_A] = nullptr;
-    channelResource[MUSIC_CHANNEL_B] = nullptr;
-    numSoundBites = 0;
-    sounds.clear();
-    soundDataFile = nullptr;
-    cdDevice = 0;
-    gos_SetChannelProperties(MUSIC_CHANNEL_A, CHANNEL_VOLUME | CHANNEL_PANNING);
-    gos_SetChannelProperties(MUSIC_CHANNEL_B, CHANNEL_VOLUME | CHANNEL_PANNING);
-    streamPlaying[0] = 0;
-    streamPlaying[1] = 0;
-    streamFile[0] = nullptr;
-    streamFile[1] = nullptr;
-    digitalMusicIds.clear();
-    digitalMusicLoopFlags.clear();
-    numDMS = 0;
-    digitalStreamBufferSize = 0;
-    streamBitDepth = 8;
-    streamChannels = 2;
-    streamSampleRate = 22050;
-    streamFadeDownTime = 0.0f;
-    streamFade[0] = 0.0f;
-    streamFade[1] = 0.0f;
+    ChannelResource[MUSIC_CHANNEL_A] = nullptr;
+    ChannelResource[MUSIC_CHANNEL_B] = nullptr;
+    NumSoundBites = 0;
+    Sounds.clear();
+    SoundDataFile = nullptr;
+    CdDevice = 0;
+    GosSetChannelProperties(MUSIC_CHANNEL_A, CHANNEL_VOLUME | CHANNEL_PANNING);
+    GosSetChannelProperties(MUSIC_CHANNEL_B, CHANNEL_VOLUME | CHANNEL_PANNING);
+    StreamPlaying[0] = 0;
+    StreamPlaying[1] = 0;
+    StreamFile[0] = nullptr;
+    StreamFile[1] = nullptr;
+    DigitalMusicIds.clear();
+    DigitalMusicLoopFlags.clear();
+    NumDms = 0;
+    DigitalStreamBufferSize = 0;
+    StreamBitDepth = 8;
+    StreamChannels = 2;
+    StreamSampleRate = 22050;
+    StreamFadeDownTime = 0.0f;
+    StreamFade[0] = 0.0f;
+    StreamFade[1] = 0.0f;
 
-    for (RadioData*& entry : queue)
+    for (MCRadioData*& entry : Queue)
     {
         entry = nullptr;
     }
 
-    messagesInQueue = 0;
-    currentMessage = nullptr;
-    currentFragment = 0;
-    playingNoise = 0;
-    wholeMsgDone = 0;
-    digitalMasterVolume = 127;
-    radioVolume = 127;
-    musicVolume = 127;
-    bettySoundBite.reset();
-    bettyDataFile = nullptr;
+    MessagesInQueue = 0;
+    CurrentMessage = nullptr;
+    CurrentFragment = 0;
+    PlayingNoise = 0;
+    WholeMsgDone = 0;
+    DigitalMasterVolume = 127;
+    RadioLevel = 127;
+    MusicLevel = 127;
+    BettySoundBite.reset();
+    BettyDataFile = nullptr;
 }
 
-void SoundSystem::destroy()
+void MCSoundSystem::Destroy()
 {
-    if (useSound == 0)
+    if (UseSound == 0)
     {
         return;
     }
 
-    purgeSoundSystem();
-    soundOn = 0;
-    closeFile(streamFile[0]);
-    closeFile(streamFile[1]);
-    closeFile(soundDataFile);
-    closeFile(bettyDataFile);
+    PurgeSoundSystem();
+    SoundOn = 0;
+    CloseFile(StreamFile[0]);
+    CloseFile(StreamFile[1]);
+    CloseFile(SoundDataFile);
+    CloseFile(BettyDataFile);
     // The original deleted its sound heap here, and everything in it.
-    sounds.clear();
-    bettySoundBite.reset();
-    digitalMusicIds.clear();
-    digitalMusicLoopFlags.clear();
-    noiseData.reset();
+    Sounds.clear();
+    BettySoundBite.reset();
+    DigitalMusicIds.clear();
+    DigitalMusicLoopFlags.clear();
+    NoiseData.reset();
 }
 
-void SoundSystem::startSmackerSound()
+void MCSoundSystem::StartSmackerSound()
 {
 }
 
-int32_t SoundSystem::init(char* soundFileName)
+int32_t MCSoundSystem::Init(char* soundFileName)
 {
-    init();
+    Init();
 
-    if (useSound != 0)
+    if (UseSound != 0)
     {
-        FullPathFileName soundName;
-        soundName.init(soundPath, soundFileName, ".snd");
-        FitIniFile soundFile;
-        int32_t result = soundFile.open(soundName);
+        MCFullPathFileName soundName;
+        soundName.Init(SoundPath, soundFileName, ".snd");
+        MCFitIniFile soundFile;
+        int32_t result = soundFile.Open(soundName);
         Assert(result == 0, result, " Error opening .SND file ");
-        result = soundFile.seekBlock("SoundSetup");
+        result = soundFile.SeekBlock("SoundSetup");
         Assert(result == 0, result, " Error seeking block in .SND file ");
-        result = soundFile.readIdULong("sampleRate", sampleRate);
+        result = soundFile.ReadIdULong("sampleRate", SampleRate);
         Assert(result == 0, result, " Couldn't find sampleRate in .SND file ");
-        result = soundFile.readIdULong("bitDepth", bitDepth);
+        result = soundFile.ReadIdULong("bitDepth", BitDepth);
         Assert(result == 0, result, " Couldn't find bitDepth in .SND file ");
-        result = soundFile.readIdULong("channels", channels);
+        result = soundFile.ReadIdULong("channels", Channels);
         Assert(result == 0, result, " Couldn't find channels in .SND file ");
         uint32_t directSound = 0;
-        result = soundFile.readIdULong("DirectSound", directSound);
+        result = soundFile.ReadIdULong("DirectSound", directSound);
         Assert(result == 0, result, " Couldn't find DirectSound in .SND file ");
         // The sound heap's size is still read (and required), then ignored.
-        result = soundFile.readIdULong("soundHeapSize", soundHeapSize);
+        result = soundFile.ReadIdULong("soundHeapSize", SoundHeapSize);
         Assert(result == 0, result, " Couldn't find soundHeapSize in .SND file ");
-        musicVolume = static_cast<uint8_t>(MusicVolume);
-        radioVolume = static_cast<uint8_t>(RadioVolume);
-        digitalMasterVolume = static_cast<uint8_t>(SFXVolume);
-        result = soundFile.readIdFloat("MaxSoundDistance", maxSoundDistance);
+        MusicLevel = static_cast<uint8_t>(MusicVolume);
+        RadioLevel = static_cast<uint8_t>(RadioVolume);
+        DigitalMasterVolume = static_cast<uint8_t>(SfxVolume);
+        result = soundFile.ReadIdFloat("MaxSoundDistance", MaxSoundDistance);
         Assert(result == 0, result, " Couldn't find maxSoundDistance in .SND file ");
         uint32_t wcSampleRate = 11025;
         uint32_t wcBitDepth = 8;
         uint32_t wcChannels = 1;
-        result = soundFile.readIdULong("wcSampleRate", wcSampleRate);
+        result = soundFile.ReadIdULong("wcSampleRate", wcSampleRate);
         Assert(result == 0, result, " Couldn't find a variable in .SND file ");
-        result = soundFile.readIdULong("wcBitDepth", wcBitDepth);
+        result = soundFile.ReadIdULong("wcBitDepth", wcBitDepth);
         Assert(result == 0, result, " Couldn't find a variable in .SND file ");
-        result = soundFile.readIdULong("wcChannels", wcChannels);
+        result = soundFile.ReadIdULong("wcChannels", wcChannels);
         Assert(result == 0, result, " Couldn't find a variable in .SND file ");
 
         // The original turned sound off here when waveOutGetNumDevs found no device ("No Digital Sound Hardware
         // Installed"). The port's renderer plays silent without one.
         for (int32_t i = 0; i < NUM_SAMPLE_CHANNELS; i++)
         {
-            channelSampleId[i] = -1;
-            channelPosition[i].y = 0.0f;
-            channelPosition[i].x = 0.0f;
-            channelPosition[i].unused = 0;
+            ChannelSampleId[i] = -1;
+            ChannelPosition[i].Y = 0.0f;
+            ChannelPosition[i].X = 0.0f;
+            ChannelPosition[i].Unused = 0;
         }
 
-        soundDataFile = new PacketFile();
-        Assert(soundDataFile != nullptr, 0xabba000c, " Couldn't allocate soundDataFile ");
-        FullPathFileName dataName;
-        dataName.init(soundPath, soundFileName, ".pak");
-        result = soundDataFile->open(dataName);
+        SoundDataFile = new MCPacketFile();
+        Assert(SoundDataFile != nullptr, 0xabba000c, " Couldn't allocate soundDataFile ");
+        MCFullPathFileName dataName;
+        dataName.Init(SoundPath, soundFileName, ".pak");
+        result = SoundDataFile->Open(dataName);
         Assert(result == 0, result, " Sound file initialization failed ");
-        bettyDataFile = new PacketFile();
-        Assert(bettyDataFile != nullptr, 0xabba000c, " Couldn't allocate bettyDataFile ");
-        FullPathFileName bettyName;
-        bettyName.init(soundPath, "Betty", ".pak");
-        result = bettyDataFile->open(bettyName);
+        BettyDataFile = new MCPacketFile();
+        Assert(BettyDataFile != nullptr, 0xabba000c, " Couldn't allocate bettyDataFile ");
+        MCFullPathFileName bettyName;
+        bettyName.Init(SoundPath, "Betty", ".pak");
+        result = BettyDataFile->Open(bettyName);
         Assert(result == 0, result, " Couldn't open bettyDataFile ");
-        result = soundFile.seekBlock("SoundBites");
+        result = soundFile.SeekBlock("SoundBites");
         Assert(result == 0, result, " Couldn't find a variable in betty file ");
-        result = soundFile.readIdULong("numBites", numSoundBites);
+        result = soundFile.ReadIdULong("numBites", NumSoundBites);
         Assert(result == 0, result, " Couldn't find a variable in betty file ");
-        sounds.clear();
-        sounds.resize(numSoundBites);
+        Sounds.clear();
+        Sounds.resize(NumSoundBites);
         char blockName[16];
 
-        for (int32_t i = 0; i < static_cast<int32_t>(numSoundBites); i++)
+        for (int32_t i = 0; i < static_cast<int32_t>(NumSoundBites); i++)
         {
             std::snprintf(blockName, sizeof(blockName), "SoundBite%d", i);
-            result = soundFile.seekBlock(blockName);
+            result = soundFile.SeekBlock(blockName);
             Assert(result == 0, result, " Couldn't find a variable in betty file ");
-            SoundBite* bite = &sounds[i];
-            result = soundFile.readIdULong("priority", bite->priority);
+            MCSoundBite* bite = &Sounds[i];
+            result = soundFile.ReadIdULong("priority", bite->Priority);
             Assert(result == 0, result, " Couldn't find a variable in betty file ");
-            result = soundFile.readIdULong("cache", bite->cache);
+            result = soundFile.ReadIdULong("cache", bite->Cache);
             Assert(result == 0, result, " Couldn't find a variable in betty file ");
-            result = soundFile.readIdULong("soundId", bite->soundId);
+            result = soundFile.ReadIdULong("soundId", bite->SoundId);
             Assert(result == 0, result, " Couldn't find a variable in betty file ");
             uint32_t preload = 0;
 
-            if (soundFile.readIdULong("preload", preload) == 0 && preload != 0)
+            if (soundFile.ReadIdULong("preload", preload) == 0 && preload != 0)
             {
-                preloadSoundBite(i);
+                PreloadSoundBite(i);
             }
 
-            result = soundFile.readIdFloat("volume", sounds[i].volume);
+            result = soundFile.ReadIdFloat("volume", Sounds[i].Volume);
             Assert(result == 0, result, " Couldn't find a variable in betty file ");
         }
 
-        result = soundFile.seekBlock("DigitalMusic");
+        result = soundFile.SeekBlock("DigitalMusic");
         Assert(result == 0, result, " Couldn't find a music block in sound file ");
-        result = soundFile.readIdLong("NumDMS", numDMS);
+        result = soundFile.ReadIdLong("NumDMS", NumDms);
         Assert(result == 0, result, " Couldn't find a variable in sound file ");
-        result = soundFile.readIdFloat("StreamFadeDownTime", streamFadeDownTime);
+        result = soundFile.ReadIdFloat("StreamFadeDownTime", StreamFadeDownTime);
         Assert(result == 0, result, " Couldn't find a variable in sound file ");
-        result = soundFile.readIdULong("StreamBitDepth", streamBitDepth);
+        result = soundFile.ReadIdULong("StreamBitDepth", StreamBitDepth);
         Assert(result == 0, result, " Couldn't find a variable in sound file ");
-        result = soundFile.readIdULong("StreamChannels", streamChannels);
+        result = soundFile.ReadIdULong("StreamChannels", StreamChannels);
         Assert(result == 0, result, " Couldn't find a variable in sound file ");
-        result = soundFile.readIdULong("DigitalStreamBufferSize", digitalStreamBufferSize);
+        result = soundFile.ReadIdULong("DigitalStreamBufferSize", DigitalStreamBufferSize);
         Assert(result == 0, result, " Couldn't find a variable in sound file ");
-        int32_t musicCount = numDMS;
-        digitalMusicIds.assign(static_cast<size_t>(std::max(musicCount, 0)), std::string());
-        digitalMusicLoopFlags.assign(static_cast<size_t>(std::max(musicCount, 0)), 0);
+        int32_t musicCount = NumDms;
+        DigitalMusicIds.assign(static_cast<size_t>(std::max(musicCount, 0)), std::string());
+        DigitalMusicLoopFlags.assign(static_cast<size_t>(std::max(musicCount, 0)), 0);
         char musicName[16];
         char loopName[16];
 
@@ -527,146 +527,146 @@ int32_t SoundSystem::init(char* soundFileName)
             std::snprintf(musicName, sizeof(musicName), "DMS%d", i);
             std::snprintf(loopName, sizeof(loopName), "DMSLoop%d", i);
             char musicId[30] = {};
-            result = soundFile.readIdString(musicName, musicId, 29);
+            result = soundFile.ReadIdString(musicName, musicId, 29);
             Assert(result == 0, result, " Couldn't find a variable in sound file ");
-            digitalMusicIds[i] = musicId;
-            result = soundFile.readIdBoolean(loopName, digitalMusicLoopFlags[i]);
+            DigitalMusicIds[i] = musicId;
+            result = soundFile.ReadIdBoolean(loopName, DigitalMusicLoopFlags[i]);
             Assert(result == 0, result, " Couldn't find a variable in sound file ");
         }
 
-        soundFile.close();
-        messagesInQueue = 0;
-        wholeMsgDone = 1;
+        soundFile.Close();
+        MessagesInQueue = 0;
+        WholeMsgDone = 1;
 
-        for (RadioData*& entry : queue)
+        for (MCRadioData*& entry : Queue)
         {
             entry = nullptr;
         }
     }
 
-    streamFade[1] = 0.0f;
-    streamFade[0] = 0.0f;
-    streamPlaying[1] = 0;
-    streamPlaying[0] = 0;
-    streamFile[1] = nullptr;
-    streamFile[0] = nullptr;
-    setMusicState(this, -1);
-    soundOn = 1;
+    StreamFade[1] = 0.0f;
+    StreamFade[0] = 0.0f;
+    StreamPlaying[1] = 0;
+    StreamPlaying[0] = 0;
+    StreamFile[1] = nullptr;
+    StreamFile[0] = nullptr;
+    SetMusicState(this, -1);
+    SoundOn = 1;
     return 0;
 }
 
-int32_t SoundSystem::dumpCachedSamples(uint32_t bytesNeeded, int32_t priority)
+int32_t MCSoundSystem::DumpCachedSamples(uint32_t bytesNeeded, int32_t priority)
 {
     return -0x5445fff8;
 }
 
-SoundBite* SoundSystem::preloadSoundBite(int32_t biteId)
+MCSoundBite* MCSoundSystem::PreloadSoundBite(int32_t biteId)
 {
-    PacketFile* file = soundDataFile;
+    MCPacketFile* file = SoundDataFile;
 
-    if (file->seekPacket(biteId) != 0)
+    if (file->SeekPacket(biteId) != 0)
     {
         return nullptr;
     }
 
-    uint32_t size = static_cast<uint32_t>(file->getPacketSize());
+    uint32_t size = static_cast<uint32_t>(file->GetPacketSize());
 
     if (size == 0)
     {
         return nullptr;
     }
 
-    SoundBite* bite = &sounds[biteId];
+    MCSoundBite* bite = &Sounds[biteId];
 
-    if (sounds[biteId].biteSize == 0 || bite->biteData == nullptr)
+    if (Sounds[biteId].BiteSize == 0 || bite->BiteData == nullptr)
     {
-        bite->biteSize = size;
-        bite->biteData = std::make_unique<uint8_t[]>(size);
+        bite->BiteSize = size;
+        bite->BiteData = std::make_unique<uint8_t[]>(size);
     }
 
-    file->readPacket(biteId, bite->biteData.get());
+    file->ReadPacket(biteId, bite->BiteData.get());
     return bite;
 }
 
-uint8_t* SoundSystem::loadBettySample(int32_t bettyId)
+uint8_t* MCSoundSystem::LoadBettySample(int32_t bettyId)
 {
-    PacketFile* file = bettyDataFile;
+    MCPacketFile* file = BettyDataFile;
 
-    if (file->seekPacket(bettyId) != 0)
+    if (file->SeekPacket(bettyId) != 0)
     {
         return nullptr;
     }
 
-    uint32_t size = static_cast<uint32_t>(file->getPacketSize());
+    uint32_t size = static_cast<uint32_t>(file->GetPacketSize());
 
     if (size != 0)
     {
-        bettySoundBite = std::make_unique<uint8_t[]>(size);
+        BettySoundBite = std::make_unique<uint8_t[]>(size);
     }
 
-    uint8_t* sample = bettySoundBite.get();
-    lastBettyId = bettyId;
-    file->readPacket(bettyId, sample);
+    uint8_t* sample = BettySoundBite.get();
+    LastBettyId = bettyId;
+    file->ReadPacket(bettyId, sample);
     return sample;
 }
 
-void SoundSystem::removeQueuedMessage(int32_t index)
+void MCSoundSystem::RemoveQueuedMessage(int32_t index)
 {
     if (index < 0 || index >= MAX_QUEUED_MESSAGES)
     {
         return;
     }
 
-    RadioData* message = queue[index];
+    MCRadioData* message = Queue[index];
 
     if (message == nullptr)
     {
         return;
     }
 
-    freeRadioData(message);
+    FreeRadioData(message);
 
-    if (message->movieWindow != nullptr)
+    if (message->MovieWindow != nullptr)
     {
-        aSmackerWindow* window = message->movieWindow;
-        window->endSmackerMovie();
+        MCGuiSmackerWindow* window = message->MovieWindow;
+        window->EndSmackerMovie();
         delete window;
-        message->movieWindow = nullptr;
-        message->movie = nullptr;
+        message->MovieWindow = nullptr;
+        message->Movie = nullptr;
     }
 
     delete message;
 
-    if (messagesInQueue != 0)
+    if (MessagesInQueue != 0)
     {
-        messagesInQueue--;
+        MessagesInQueue--;
     }
 
     for (int32_t i = index; i < MAX_QUEUED_MESSAGES - 1; i++)
     {
-        queue[i] = queue[i + 1];
+        Queue[i] = Queue[i + 1];
     }
 
-    queue[MAX_QUEUED_MESSAGES - 1] = nullptr;
+    Queue[MAX_QUEUED_MESSAGES - 1] = nullptr;
 }
 
-int SoundSystem::checkMessage(MechWarrior* pilot, uint8_t priority, uint32_t messageType)
+int MCSoundSystem::CheckMessage(MCMechWarrior* pilot, uint8_t priority, uint32_t messageType)
 {
     for (int32_t i = 0; i < MAX_QUEUED_MESSAGES; i++)
     {
-        RadioData* message = queue[i];
+        MCRadioData* message = Queue[i];
 
         if (message == nullptr)
         {
             continue;
         }
 
-        if (message->pilot == pilot && priority > message->priority)
+        if (message->Pilot == pilot && priority > message->Priority)
         {
             return 0;
         }
 
-        if (message->priority >= 2 && static_cast<uint32_t>(message->msgType) == messageType)
+        if (message->Priority >= 2 && static_cast<uint32_t>(message->MsgType) == messageType)
         {
             return 0;
         }
@@ -675,27 +675,27 @@ int SoundSystem::checkMessage(MechWarrior* pilot, uint8_t priority, uint32_t mes
     return 1;
 }
 
-int32_t SoundSystem::queueRadioMessage(RadioData* msgData)
+int32_t MCSoundSystem::QueueRadioMessage(MCRadioData* msgData)
 {
     for (int32_t i = MAX_QUEUED_MESSAGES - 1; i >= 0; i--)
     {
-        RadioData* message = queue[i];
+        MCRadioData* message = Queue[i];
 
-        if (message != nullptr && msgData->turnQueued == message->turnQueued && msgData->msgId == message->msgId)
+        if (message != nullptr && msgData->TurnQueued == message->TurnQueued && msgData->MsgId == message->MsgId)
         {
-            removeQueuedMessage(i);
+            RemoveQueuedMessage(i);
         }
     }
 
-    if (msgData->priority == 1)
+    if (msgData->Priority == 1)
     {
-        removeCurrentMessage();
+        RemoveCurrentMessage();
 
         for (int32_t i = MAX_QUEUED_MESSAGES - 1; i >= 0; i--)
         {
-            if (queue[i] != nullptr && queue[i]->pilot == msgData->pilot)
+            if (Queue[i] != nullptr && Queue[i]->Pilot == msgData->Pilot)
             {
-                removeQueuedMessage(i);
+                RemoveQueuedMessage(i);
             }
         }
     }
@@ -704,16 +704,16 @@ int32_t SoundSystem::queueRadioMessage(RadioData* msgData)
 
     for (; slot < MAX_QUEUED_MESSAGES; slot++)
     {
-        if (queue[slot] == nullptr)
+        if (Queue[slot] == nullptr)
         {
             break;
         }
 
-        if (msgData->priority < queue[slot]->priority)
+        if (msgData->Priority < Queue[slot]->Priority)
         {
             for (int32_t i = MAX_QUEUED_MESSAGES - 1; i > slot; i--)
             {
-                queue[i] = queue[i - 1];
+                Queue[i] = Queue[i - 1];
             }
             break;
         }
@@ -726,366 +726,366 @@ int32_t SoundSystem::queueRadioMessage(RadioData* msgData)
 
     // OB-061: tested after the shift, so a message moved into the last slot is dropped although the queue had room,
     // and a message the shift pushed out of a full queue is never freed.
-    if (queue[MAX_QUEUED_MESSAGES - 1] != nullptr)
+    if (Queue[MAX_QUEUED_MESSAGES - 1] != nullptr)
     {
-        removeQueuedMessage(MAX_QUEUED_MESSAGES - 1);
+        RemoveQueuedMessage(MAX_QUEUED_MESSAGES - 1);
     }
 
-    queue[slot] = msgData;
-    messagesInQueue++;
+    Queue[slot] = msgData;
+    MessagesInQueue++;
     return 0;
 }
 
-void SoundSystem::purgeSoundSystem()
+void MCSoundSystem::PurgeSoundSystem()
 {
-    if (soundOn == 0)
+    if (SoundOn == 0)
     {
         return;
     }
 
-    if (streamPlaying[0] != 0 && channelResource[MUSIC_CHANNEL_A] != nullptr)
+    if (StreamPlaying[0] != 0 && ChannelResource[MUSIC_CHANNEL_A] != nullptr)
     {
-        void* resource = channelResource[MUSIC_CHANNEL_A];
-        gos_StopChannel(MUSIC_CHANNEL_A);
-        gos_DestroySoundResource(resource);
-        channelResource[MUSIC_CHANNEL_A] = nullptr;
-        streamPlaying[0] = 0;
-        streamFade[0] = 0.0f;
-        closeFile(streamFile[0]);
+        void* resource = ChannelResource[MUSIC_CHANNEL_A];
+        GosStopChannel(MUSIC_CHANNEL_A);
+        GosDestroySoundResource(resource);
+        ChannelResource[MUSIC_CHANNEL_A] = nullptr;
+        StreamPlaying[0] = 0;
+        StreamFade[0] = 0.0f;
+        CloseFile(StreamFile[0]);
     }
 
-    if (streamPlaying[1] != 0 && channelResource[MUSIC_CHANNEL_B] != nullptr)
+    if (StreamPlaying[1] != 0 && ChannelResource[MUSIC_CHANNEL_B] != nullptr)
     {
-        void* resource = channelResource[MUSIC_CHANNEL_B];
-        gos_StopChannel(MUSIC_CHANNEL_B);
-        gos_DestroySoundResource(resource);
-        channelResource[MUSIC_CHANNEL_B] = nullptr;
-        streamPlaying[1] = 0;
-        streamFade[1] = 0.0f;
-        closeFile(streamFile[1]);
+        void* resource = ChannelResource[MUSIC_CHANNEL_B];
+        GosStopChannel(MUSIC_CHANNEL_B);
+        GosDestroySoundResource(resource);
+        ChannelResource[MUSIC_CHANNEL_B] = nullptr;
+        StreamPlaying[1] = 0;
+        StreamFade[1] = 0.0f;
+        CloseFile(StreamFile[1]);
     }
 
-    messagesInQueue = 0;
-    wholeMsgDone = 1;
+    MessagesInQueue = 0;
+    WholeMsgDone = 1;
 
     for (int32_t i = MAX_QUEUED_MESSAGES - 1; i >= 0; i--)
     {
-        removeQueuedMessage(i);
+        RemoveQueuedMessage(i);
     }
 
-    if (currentMessage != nullptr)
+    if (CurrentMessage != nullptr)
     {
-        removeCurrentMessage();
+        RemoveCurrentMessage();
     }
 
     for (int32_t i = 0; i < NUM_SAMPLE_CHANNELS; i++)
     {
-        gos_StopChannel(i);
+        GosStopChannel(i);
 
-        if (channelResource[i] != nullptr)
+        if (ChannelResource[i] != nullptr)
         {
-            gos_DestroySoundResource(channelResource[i]);
+            GosDestroySoundResource(ChannelResource[i]);
         }
 
-        channelResource[i] = nullptr;
+        ChannelResource[i] = nullptr;
     }
 
-    inCombat = 0;
-    inContact = 0;
-    friendlyDestroyed = 0;
-    enemyDestroyed = 0;
-    justInCombat = 0;
-    currentMusicId = -1;
+    InCombat = 0;
+    InContact = 0;
+    FriendlyDestroyed = 0;
+    EnemyDestroyed = 0;
+    JustInCombat = 0;
+    CurrentMusicId = -1;
 
-    for (Radio*& radio : Radio::radioList)
+    for (MCRadio*& radio : MCRadio::RadioList)
     {
         if (radio != nullptr)
         {
             // The radio's file is deleted without being closed first.
-            if (radio->radioFile != nullptr)
+            if (radio->RadioFile != nullptr)
             {
-                delete radio->radioFile;
+                delete radio->RadioFile;
             }
 
-            radio->radioFile = nullptr;
+            radio->RadioFile = nullptr;
             delete radio;
         }
 
         radio = nullptr;
     }
 
-    for (uint32_t i = 0; i < numSoundBites; i++)
+    for (uint32_t i = 0; i < NumSoundBites; i++)
     {
-        sounds[i].biteData.reset();
-        sounds[i].biteSize = 0;
+        Sounds[i].BiteData.reset();
+        Sounds[i].BiteSize = 0;
     }
 
-    if (Radio::noiseFile != nullptr)
+    if (MCRadio::NoiseFile != nullptr)
     {
-        delete Radio::noiseFile;
+        delete MCRadio::NoiseFile;
     }
 
-    Radio::noiseFile = nullptr;
-    Radio::currentRadio = 0;
-    Radio::radioListInitialized = 0;
-    Radio::messageInfoLoaded = 0;
-    bettySoundBite.reset();
+    MCRadio::NoiseFile = nullptr;
+    MCRadio::CurrentRadio = 0;
+    MCRadio::RadioListInitialized = 0;
+    MCRadio::MessageInfoLoaded = 0;
+    BettySoundBite.reset();
 }
 
-void SoundSystem::playStaticNoise()
+void MCSoundSystem::PlayStaticNoise()
 {
-    if (useSound == 0)
+    if (UseSound == 0)
     {
         return;
     }
 
-    if (Radio::noiseFile == nullptr)
+    if (MCRadio::NoiseFile == nullptr)
     {
-        FullPathFileName noiseName;
-        noiseName.init(CDsoundPath, "noise", ".pak");
-        Radio::noiseFile = new PacketFile();
+        MCFullPathFileName noiseName;
+        noiseName.Init(CDsoundPath, "noise", ".pak");
+        MCRadio::NoiseFile = new MCPacketFile();
 
-        if (Radio::noiseFile->open(noiseName) != 0)
+        if (MCRadio::NoiseFile->Open(noiseName) != 0)
         {
             return;
         }
     }
 
-    Radio::noiseFile->seekPacket(2);
+    MCRadio::NoiseFile->SeekPacket(2);
 
-    if (noiseData == nullptr)
+    if (NoiseData == nullptr)
     {
-        noiseData = std::make_unique<uint8_t[]>(Radio::noiseFile->getPacketSize());
+        NoiseData = std::make_unique<uint8_t[]>(MCRadio::NoiseFile->GetPacketSize());
     }
 
-    Radio::noiseFile->readPacket(2, noiseData.get());
+    MCRadio::NoiseFile->ReadPacket(2, NoiseData.get());
 
-    if (useSound == 0)
+    if (UseSound == 0)
     {
         return;
     }
 
-    if (channelResource[NOISE_CHANNEL] != nullptr)
+    if (ChannelResource[NOISE_CHANNEL] != nullptr)
     {
-        gos_DestroySoundResource(channelResource[NOISE_CHANNEL]);
+        GosDestroySoundResource(ChannelResource[NOISE_CHANNEL]);
     }
 
-    gos_CreateSoundResource(&channelResource[NOISE_CHANNEL], reinterpret_cast<char*>(noiseData.get()),
-                            SOUND_RESOURCE_MEMORY, 0);
-    uint32_t volume = radioVolume;
+    GosCreateSoundResource(&ChannelResource[NOISE_CHANNEL], reinterpret_cast<char*>(NoiseData.get()),
+                           SOUND_RESOURCE_MEMORY, 0);
+    uint32_t volume = RadioLevel;
     // Marked to fade out at once: update lowers the static until it stops.
-    fadeDown[NOISE_CHANNEL] = 1;
-    gos_SetChannelPanning(NOISE_CHANNEL, 0.0f);
-    gos_SetChannelVolume(NOISE_CHANNEL, channelVolume(volume));
-    gos_SetChannelLooping(NOISE_CHANNEL, true);
-    gos_PlayChannel(NOISE_CHANNEL, channelResource[NOISE_CHANNEL]);
+    FadeDown[NOISE_CHANNEL] = 1;
+    GosSetChannelPanning(NOISE_CHANNEL, 0.0f);
+    GosSetChannelVolume(NOISE_CHANNEL, ChannelVolume(volume));
+    GosSetChannelLooping(NOISE_CHANNEL, true);
+    GosPlayChannel(NOISE_CHANNEL, ChannelResource[NOISE_CHANNEL]);
 }
 
-void SoundSystem::stopStaticNoise()
+void MCSoundSystem::StopStaticNoise()
 {
-    stopDigitalSample(NOISE_CHANNEL);
-    noiseData.reset();
+    StopDigitalSample(NOISE_CHANNEL);
+    NoiseData.reset();
 }
 
-void SoundSystem::update()
+void MCSoundSystem::Update()
 {
-    if (useSound == 0 || useMusic == 0)
+    if (UseSound == 0 || UseMusic == 0)
     {
         return;
     }
 
-    for (int32_t& entry : channelInUse)
+    for (int32_t& entry : ChannelInUse)
     {
         entry = 0;
     }
 
-    if (globalLogPtr != nullptr)
+    if (GlobalLogPtr != nullptr)
     {
-        int status = gos_GetChannelStatus(PILOT_SPEECH_CHANNEL);
+        int status = GosGetChannelStatus(PILOT_SPEECH_CHANNEL);
 
-        if (pilotLogisticsSpeechPtr != nullptr && status != 0)
+        if (PilotLogisticsSpeechPtr != nullptr && status != 0)
         {
-            if (channelResource[PILOT_SPEECH_CHANNEL] != nullptr)
+            if (ChannelResource[PILOT_SPEECH_CHANNEL] != nullptr)
             {
-                gos_DestroySoundResource(channelResource[PILOT_SPEECH_CHANNEL]);
+                GosDestroySoundResource(ChannelResource[PILOT_SPEECH_CHANNEL]);
             }
 
-            channelResource[PILOT_SPEECH_CHANNEL] = nullptr;
-            pilotLogisticsSpeechPtr.reset();
+            ChannelResource[PILOT_SPEECH_CHANNEL] = nullptr;
+            PilotLogisticsSpeechPtr.reset();
         }
     }
 
-    if (useSound != 0)
+    if (UseSound != 0)
     {
         // The current message: its fragments play one after another, each after its noise.
-        RadioData* message = currentMessage;
+        MCRadioData* message = CurrentMessage;
 
-        if (message != nullptr && gos_GetChannelStatus(PILOT_SPEECH_CHANNEL) != 0)
+        if (message != nullptr && GosGetChannelStatus(PILOT_SPEECH_CHANNEL) != 0)
         {
-            if (wholeMsgDone != 0)
+            if (WholeMsgDone != 0)
             {
-                removeCurrentMessage();
+                RemoveCurrentMessage();
             }
             else
             {
-                bool playNoise = playingNoise == 0 && message->noise[currentFragment] != nullptr;
+                bool playNoise = PlayingNoise == 0 && message->Noise[CurrentFragment] != nullptr;
 
                 if (playNoise)
                 {
-                    if (channelResource[PILOT_SPEECH_CHANNEL] != nullptr)
+                    if (ChannelResource[PILOT_SPEECH_CHANNEL] != nullptr)
                     {
-                        gos_DestroySoundResource(channelResource[PILOT_SPEECH_CHANNEL]);
+                        GosDestroySoundResource(ChannelResource[PILOT_SPEECH_CHANNEL]);
                     }
 
-                    gos_CreateSoundResource(&channelResource[PILOT_SPEECH_CHANNEL],
-                                            reinterpret_cast<char*>(message->noise[currentFragment].get()),
-                                            SOUND_RESOURCE_MEMORY, 0);
-                    gos_SetChannelVolume(PILOT_SPEECH_CHANNEL, channelVolume(radioVolume));
-                    gos_PlayChannel(PILOT_SPEECH_CHANNEL, channelResource[PILOT_SPEECH_CHANNEL]);
-                    playingNoise = 1;
+                    GosCreateSoundResource(&ChannelResource[PILOT_SPEECH_CHANNEL],
+                                           reinterpret_cast<char*>(message->Noise[CurrentFragment].get()),
+                                           SOUND_RESOURCE_MEMORY, 0);
+                    GosSetChannelVolume(PILOT_SPEECH_CHANNEL, ChannelVolume(RadioLevel));
+                    GosPlayChannel(PILOT_SPEECH_CHANNEL, ChannelResource[PILOT_SPEECH_CHANNEL]);
+                    PlayingNoise = 1;
                 }
                 else
                 {
-                    playingNoise = 0;
+                    PlayingNoise = 0;
 
-                    if (message->data[currentFragment] == nullptr)
+                    if (message->Data[CurrentFragment] == nullptr)
                     {
-                        wholeMsgDone = 1;
-                        currentFragment++;
+                        WholeMsgDone = 1;
+                        CurrentFragment++;
                     }
                     else
                     {
-                        if (channelResource[PILOT_SPEECH_CHANNEL] != nullptr)
+                        if (ChannelResource[PILOT_SPEECH_CHANNEL] != nullptr)
                         {
-                            gos_DestroySoundResource(channelResource[PILOT_SPEECH_CHANNEL]);
+                            GosDestroySoundResource(ChannelResource[PILOT_SPEECH_CHANNEL]);
                         }
 
-                        gos_CreateSoundResource(&channelResource[PILOT_SPEECH_CHANNEL],
-                                                reinterpret_cast<char*>(message->data[currentFragment].get()),
-                                                SOUND_RESOURCE_MEMORY, 0);
-                        gos_SetChannelVolume(PILOT_SPEECH_CHANNEL, channelVolume(radioVolume));
-                        gos_PlayChannel(PILOT_SPEECH_CHANNEL, channelResource[PILOT_SPEECH_CHANNEL]);
-                        currentFragment++;
+                        GosCreateSoundResource(&ChannelResource[PILOT_SPEECH_CHANNEL],
+                                               reinterpret_cast<char*>(message->Data[CurrentFragment].get()),
+                                               SOUND_RESOURCE_MEMORY, 0);
+                        GosSetChannelVolume(PILOT_SPEECH_CHANNEL, ChannelVolume(RadioLevel));
+                        GosPlayChannel(PILOT_SPEECH_CHANNEL, ChannelResource[PILOT_SPEECH_CHANNEL]);
+                        CurrentFragment++;
                     }
                 }
             }
         }
 
         // The next queued message starts with its first fragment's noise.
-        if (useSound != 0 && messagesInQueue != 0 && wholeMsgDone != 0)
+        if (UseSound != 0 && MessagesInQueue != 0 && WholeMsgDone != 0)
         {
-            currentFragment = 0;
-            moveFromQueueToPlaying();
-            TacticalMap* tacMap = Terrain::terrainTacticalMap;
+            CurrentFragment = 0;
+            MoveFromQueueToPlaying();
+            MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
 
-            if (tacMap != nullptr && tacMap->IsHidden() == 0 && tacMap->displayType == 0 &&
-                currentMessage->movieWindow != nullptr)
+            if (tacMap != nullptr && tacMap->IsHidden() == 0 && tacMap->DisplayType == 0 &&
+                CurrentMessage->MovieWindow != nullptr)
             {
-                tacMap->videoWindow->SetStar(currentMessage->pilot);
+                tacMap->VideoWindow->SetStar(CurrentMessage->Pilot);
             }
 
-            if (channelResource[PILOT_SPEECH_CHANNEL] != nullptr)
+            if (ChannelResource[PILOT_SPEECH_CHANNEL] != nullptr)
             {
-                gos_DestroySoundResource(channelResource[PILOT_SPEECH_CHANNEL]);
+                GosDestroySoundResource(ChannelResource[PILOT_SPEECH_CHANNEL]);
             }
 
-            channelResource[PILOT_SPEECH_CHANNEL] = nullptr;
-            uint8_t* noise = currentMessage->noise[currentFragment].get();
+            ChannelResource[PILOT_SPEECH_CHANNEL] = nullptr;
+            uint8_t* noise = CurrentMessage->Noise[CurrentFragment].get();
 
             if (noise == nullptr)
             {
                 // Port fix: the original made a memory resource of a null image here (a crash in GetWaveInfo).
-                playingNoise = 0;
+                PlayingNoise = 0;
             }
             else
             {
-                gos_CreateSoundResource(&channelResource[PILOT_SPEECH_CHANNEL], reinterpret_cast<char*>(noise),
-                                        SOUND_RESOURCE_MEMORY, 0);
-                playingNoise = 1;
+                GosCreateSoundResource(&ChannelResource[PILOT_SPEECH_CHANNEL], reinterpret_cast<char*>(noise),
+                                       SOUND_RESOURCE_MEMORY, 0);
+                PlayingNoise = 1;
             }
 
-            gos_PlayChannel(PILOT_SPEECH_CHANNEL, channelResource[PILOT_SPEECH_CHANNEL]);
-            wholeMsgDone = 0;
-            aSmackerWindow* window = currentMessage->movieWindow;
-            SmackTag* movie = currentMessage->movie;
+            GosPlayChannel(PILOT_SPEECH_CHANNEL, ChannelResource[PILOT_SPEECH_CHANNEL]);
+            WholeMsgDone = 0;
+            MCGuiSmackerWindow* window = CurrentMessage->MovieWindow;
+            MCSmackTag* movie = CurrentMessage->Movie;
 
-            if (window != nullptr && movie != nullptr && tacMap->IsHidden() == 0 && tacMap->displayType == 0 &&
-                window->startSmackerMovie(movie, 0) == 0)
+            if (window != nullptr && movie != nullptr && tacMap->IsHidden() == 0 && tacMap->DisplayType == 0 &&
+                window->StartSmackerMovie(movie, 0) == 0)
             {
-                window->setDepth(0x5a);
-                screenWindow->addChild(window);
-                window->draw();
+                window->SetDepth(0x5a);
+                ScreenWindow->AddChild(window);
+                window->Draw();
             }
         }
     }
 
-    if (useMusic != 0 && (streamPlaying[0] != 0 || streamPlaying[1] != 0))
+    if (UseMusic != 0 && (StreamPlaying[0] != 0 || StreamPlaying[1] != 0))
     {
-        if (streamPlaying[0] != 0)
+        if (StreamPlaying[0] != 0)
         {
-            updateStreamFade(this, 0);
+            UpdateStreamFade(this, 0);
         }
 
-        if (streamPlaying[1] != 0)
+        if (StreamPlaying[1] != 0)
         {
-            updateStreamFade(this, 1);
+            UpdateStreamFade(this, 1);
         }
 
-        dropEndedStream(this, 0);
-        dropEndedStream(this, 1);
+        DropEndedStream(this, 0);
+        DropEndedStream(this, 1);
     }
 
-    if (scenario != nullptr)
+    if (Scenario != nullptr)
     {
-        if (startMusic == 0)
+        if (StartMusic == 0)
         {
-            scenario->checkAnyoneInCombat();
-            int32_t enemyCue = musicState[MUSIC_ENEMY_DESTROYED];
+            Scenario->CheckAnyoneInCombat();
+            int32_t enemyCue = MusicState[MUSIC_ENEMY_DESTROYED];
 
-            if (enemyCue != 0 && enemyDestroyed != 0)
+            if (enemyCue != 0 && EnemyDestroyed != 0)
             {
-                enemyDestroyed = 0;
+                EnemyDestroyed = 0;
             }
 
-            int32_t friendlyCue = musicState[MUSIC_FRIENDLY_DESTROYED];
+            int32_t friendlyCue = MusicState[MUSIC_FRIENDLY_DESTROYED];
 
-            if (friendlyCue != 0 && friendlyDestroyed != 0)
+            if (friendlyCue != 0 && FriendlyDestroyed != 0)
             {
-                friendlyDestroyed = 0;
+                FriendlyDestroyed = 0;
             }
 
             auto playCombat = [this]()
             {
-                if (playDigitalMusic(static_cast<uint8_t>(RandomNumber(6) + 14), true) == 0)
+                if (PlayDigitalMusic(static_cast<uint8_t>(RandomNumber(6) + 14), true) == 0)
                 {
-                    setMusicState(this, MUSIC_COMBAT);
+                    SetMusicState(this, MUSIC_COMBAT);
                 }
             };
 
             auto playContact = [this]()
             {
-                if (playDigitalMusic(static_cast<uint8_t>(RandomNumber(3) + 5), false) == 0)
+                if (PlayDigitalMusic(static_cast<uint8_t>(RandomNumber(3) + 5), false) == 0)
                 {
-                    setMusicState(this, MUSIC_CONTACT);
-                    inContact = 0;
+                    SetMusicState(this, MUSIC_CONTACT);
+                    InContact = 0;
                 }
             };
 
             auto playAmbient = [this]()
             {
-                if (playDigitalMusic(0x15, true) == 0)
+                if (PlayDigitalMusic(0x15, true) == 0)
                 {
-                    setMusicState(this, MUSIC_AMBIENT);
+                    SetMusicState(this, MUSIC_AMBIENT);
                 }
             };
 
-            if (currentMusicId == -1)
+            if (CurrentMusicId == -1)
             {
-                if (inCombat != 0)
+                if (InCombat != 0)
                 {
                     playCombat();
                 }
-                else if (inContact != 0)
+                else if (InContact != 0)
                 {
                     playContact();
                 }
@@ -1094,32 +1094,32 @@ void SoundSystem::update()
                     playAmbient();
                 }
             }
-            else if (musicState[MUSIC_ABL] == 0)
+            else if (MusicState[MUSIC_ABL] == 0)
             {
-                if (enemyDestroyed != 0 && enemyCue == 0 && friendlyCue == 0)
+                if (EnemyDestroyed != 0 && enemyCue == 0 && friendlyCue == 0)
                 {
-                    if (playDigitalMusic(12, false) == 0)
+                    if (PlayDigitalMusic(12, false) == 0)
                     {
-                        setMusicState(this, MUSIC_ENEMY_DESTROYED);
-                        enemyDestroyed = 0;
+                        SetMusicState(this, MUSIC_ENEMY_DESTROYED);
+                        EnemyDestroyed = 0;
                     }
                 }
-                else if (friendlyDestroyed != 0 && friendlyCue == 0 && enemyCue == 0)
+                else if (FriendlyDestroyed != 0 && friendlyCue == 0 && enemyCue == 0)
                 {
-                    if (playDigitalMusic(13, false) == 0)
+                    if (PlayDigitalMusic(13, false) == 0)
                     {
-                        setMusicState(this, MUSIC_FRIENDLY_DESTROYED);
-                        friendlyDestroyed = 0;
+                        SetMusicState(this, MUSIC_FRIENDLY_DESTROYED);
+                        FriendlyDestroyed = 0;
                     }
                 }
-                else if (inCombat != 0)
+                else if (InCombat != 0)
                 {
-                    if (musicState[MUSIC_COMBAT] == 0 && enemyCue == 0 && friendlyCue == 0)
+                    if (MusicState[MUSIC_COMBAT] == 0 && enemyCue == 0 && friendlyCue == 0)
                     {
                         playCombat();
                     }
                 }
-                else if (musicState[MUSIC_COMBAT] != 0)
+                else if (MusicState[MUSIC_COMBAT] != 0)
                 {
                     if (InDemo == 0)
                     {
@@ -1133,17 +1133,17 @@ void SoundSystem::update()
             }
         }
 
-        if (scenario != nullptr && somethingOnFire != 0)
+        if (Scenario != nullptr && SomethingOnFire != 0)
         {
-            somethingOnFire = 0;
+            SomethingOnFire = 0;
 
-            if (gos_GetChannelStatus(NOISE_CHANNEL) != 0)
+            if (GosGetChannelStatus(NOISE_CHANNEL) != 0)
             {
-                SoundBite* fire = &sounds[0x16];
+                MCSoundBite* fire = &Sounds[0x16];
 
-                if (fire->biteData == nullptr)
+                if (fire->BiteData == nullptr)
                 {
-                    fire = preloadSoundBite(0x16);
+                    fire = PreloadSoundBite(0x16);
 
                     if (fire == nullptr)
                     {
@@ -1151,112 +1151,112 @@ void SoundSystem::update()
                     }
                 }
 
-                uint32_t volume = digitalMasterVolume;
+                uint32_t volume = DigitalMasterVolume;
 
-                if (channelResource[NOISE_CHANNEL] != nullptr)
+                if (ChannelResource[NOISE_CHANNEL] != nullptr)
                 {
-                    gos_DestroySoundResource(channelResource[NOISE_CHANNEL]);
+                    GosDestroySoundResource(ChannelResource[NOISE_CHANNEL]);
                 }
 
-                gos_CreateSoundResource(&channelResource[NOISE_CHANNEL], reinterpret_cast<char*>(fire->biteData.get()),
-                                        SOUND_RESOURCE_MEMORY, 0);
-                gos_SetChannelLooping(NOISE_CHANNEL, true);
-                gos_SetChannelPanning(NOISE_CHANNEL, 0.0f);
-                gos_SetChannelVolume(NOISE_CHANNEL, channelVolume(volume));
-                channelSampleId[NOISE_CHANNEL] = 0x16;
-                gos_PlayChannel(NOISE_CHANNEL, channelResource[NOISE_CHANNEL]);
+                GosCreateSoundResource(&ChannelResource[NOISE_CHANNEL], reinterpret_cast<char*>(fire->BiteData.get()),
+                                       SOUND_RESOURCE_MEMORY, 0);
+                GosSetChannelLooping(NOISE_CHANNEL, true);
+                GosSetChannelPanning(NOISE_CHANNEL, 0.0f);
+                GosSetChannelVolume(NOISE_CHANNEL, ChannelVolume(volume));
+                ChannelSampleId[NOISE_CHANNEL] = 0x16;
+                GosPlayChannel(NOISE_CHANNEL, ChannelResource[NOISE_CHANNEL]);
             }
         }
-        else if (gos_GetChannelStatus(NOISE_CHANNEL) == 0)
+        else if (GosGetChannelStatus(NOISE_CHANNEL) == 0)
         {
-            stopDigitalSample(NOISE_CHANNEL);
+            StopDigitalSample(NOISE_CHANNEL);
         }
     }
-    else if (gos_GetChannelStatus(NOISE_CHANNEL) == 0)
+    else if (GosGetChannelStatus(NOISE_CHANNEL) == 0)
     {
-        stopDigitalSample(NOISE_CHANNEL);
+        StopDigitalSample(NOISE_CHANNEL);
     }
 
     // The camera-placed effects stop once the camera is out of range.
-    if (scenario != nullptr)
+    if (Scenario != nullptr)
     {
         for (int32_t channel = 11; channel < 14; channel++)
         {
-            float dx = channelPosition[channel].x - eye->position.x;
-            float dy = channelPosition[channel].y - eye->position.y;
+            float dx = ChannelPosition[channel].X - Eye->Position.X;
+            float dy = ChannelPosition[channel].Y - Eye->Position.Y;
 
-            if (gos_GetChannelStatus(channel) == 0 && maxSoundDistance * maxSoundDistance <= dx * dx + dy * dy)
+            if (GosGetChannelStatus(channel) == 0 && MaxSoundDistance * MaxSoundDistance <= dx * dx + dy * dy)
             {
-                stopDigitalSample(channel);
+                StopDigitalSample(channel);
             }
         }
     }
 
     for (int32_t channel = 0; channel < NUM_SAMPLE_CHANNELS; channel++)
     {
-        if (gos_GetChannelStatus(channel) == 0)
+        if (GosGetChannelStatus(channel) == 0)
         {
-            if (fadeDown[channel] != 0)
+            if (FadeDown[channel] != 0)
             {
-                float volume = gos_GetChannelVolume(channel);
+                float volume = GosGetChannelVolume(channel);
 
                 if (volume <= 0.015625f)
                 {
                     volume = 0.015625f;
                 }
 
-                gos_SetChannelVolume(channel, volume - 0.015625f);
+                GosSetChannelVolume(channel, volume - 0.015625f);
 
-                if (gos_GetChannelVolume(channel) == 0.0f)
+                if (GosGetChannelVolume(channel) == 0.0f)
                 {
-                    fadeDown[channel] = 0;
-                    gos_StopChannel(channel);
+                    FadeDown[channel] = 0;
+                    GosStopChannel(channel);
 
-                    if (channelResource[channel] != nullptr)
+                    if (ChannelResource[channel] != nullptr)
                     {
-                        gos_DestroySoundResource(channelResource[channel]);
+                        GosDestroySoundResource(ChannelResource[channel]);
                     }
 
-                    channelResource[channel] = nullptr;
+                    ChannelResource[channel] = nullptr;
                 }
             }
         }
         else
         {
-            fadeDown[channel] = 0;
-            channelSampleId[channel] = -1;
+            FadeDown[channel] = 0;
+            ChannelSampleId[channel] = -1;
         }
     }
 }
 
-int32_t SoundSystem::playDigitalMusic(int32_t musicId, bool loop)
+int32_t MCSoundSystem::PlayDigitalMusic(int32_t musicId, bool loop)
 {
-    if (useMusic == 0 || musicId < 0 || musicId >= numDMS)
+    if (UseMusic == 0 || musicId < 0 || musicId >= NumDms)
     {
         return 0;
     }
 
-    if (digitalMusicIds[musicId].starts_with("NONE"))
+    if (DigitalMusicIds[musicId].starts_with("NONE"))
     {
         return 0;
     }
 
     if (musicId < 5)
     {
-        musicState[MUSIC_LOW] = 1;
+        MusicState[MUSIC_LOW] = 1;
     }
 
-    if (musicId == currentMusicId)
+    if (musicId == CurrentMusicId)
     {
         return -0x5445fff2;
     }
 
-    if (streamFade[0] != 0.0f && streamFade[1] != 0.0f)
+    if (StreamFade[0] != 0.0f && StreamFade[1] != 0.0f)
     {
         return -0x5445fff2;
     }
 
-    if (useSound == 0)
+    if (UseSound == 0)
     {
         return 0;
     }
@@ -1269,13 +1269,13 @@ int32_t SoundSystem::playDigitalMusic(int32_t musicId, bool loop)
     // Which stream takes the new music; the other one fades out.
     int32_t stream;
 
-    if (streamPlaying[0] == 0)
+    if (StreamPlaying[0] == 0)
     {
         stream = 0;
     }
     else
     {
-        if (streamPlaying[1] != 0)
+        if (StreamPlaying[1] != 0)
         {
             return -0x5445fff2;
         }
@@ -1283,81 +1283,81 @@ int32_t SoundSystem::playDigitalMusic(int32_t musicId, bool loop)
         stream = 1;
     }
 
-    FullPathFileName musicName;
-    musicName.init(soundPath, digitalMusicIds[musicId].c_str(), ".wav");
+    MCFullPathFileName musicName;
+    musicName.Init(SoundPath, DigitalMusicIds[musicId].c_str(), ".wav");
 
-    if (fileExists(musicName) != 0)
+    if (FileExists(musicName) != 0)
     {
         int32_t channel = MUSIC_CHANNEL_A + stream;
 
-        if (channelResource[channel] != nullptr)
+        if (ChannelResource[channel] != nullptr)
         {
-            gos_DestroySoundResource(channelResource[channel]);
+            GosDestroySoundResource(ChannelResource[channel]);
         }
 
-        gos_CreateSoundResource(&channelResource[channel], musicName, SOUND_RESOURCE_STREAM, 0);
+        GosCreateSoundResource(&ChannelResource[channel], musicName, SOUND_RESOURCE_STREAM, 0);
 
         if (stream == 0)
         {
-            if (streamPlaying[1] != 0)
+            if (StreamPlaying[1] != 0)
             {
-                streamFade[1] = -streamFadeDownTime;
+                StreamFade[1] = -StreamFadeDownTime;
             }
 
-            streamFade[0] = streamFadeDownTime;
-            streamPlaying[0] = 1;
+            StreamFade[0] = StreamFadeDownTime;
+            StreamPlaying[0] = 1;
         }
         else
         {
-            streamFade[0] = -streamFadeDownTime;
-            streamFade[1] = streamFadeDownTime;
-            streamPlaying[1] = 1;
+            StreamFade[0] = -StreamFadeDownTime;
+            StreamFade[1] = StreamFadeDownTime;
+            StreamPlaying[1] = 1;
         }
 
-        gos_SetChannelVolume(channel, 0.0f);
-        gos_SetChannelPanning(channel, 0.0f);
-        gos_SetChannelLooping(channel, loop);
-        gos_PlayChannel(channel, channelResource[channel]);
-        currentMusicId = musicId;
+        GosSetChannelVolume(channel, 0.0f);
+        GosSetChannelPanning(channel, 0.0f);
+        GosSetChannelLooping(channel, loop);
+        GosPlayChannel(channel, ChannelResource[channel]);
+        CurrentMusicId = musicId;
     }
 
     return 0;
 }
 
-int32_t SoundSystem::playBettySample(uint32_t bettyId)
+int32_t MCSoundSystem::PlayBettySample(uint32_t bettyId)
 {
-    if (useSound == 0 || bettyId >= 0x26)
+    if (UseSound == 0 || bettyId >= 0x26)
     {
         return -1;
     }
 
-    uint8_t* sample = loadBettySample(static_cast<int32_t>(bettyId));
+    uint8_t* sample = LoadBettySample(static_cast<int32_t>(bettyId));
 
     if (sample == nullptr || WaveDataOK(sample) == 0)
     {
         return -1;
     }
 
-    if (channelResource[BETTY_CHANNEL] != nullptr)
+    if (ChannelResource[BETTY_CHANNEL] != nullptr)
     {
-        gos_DestroySoundResource(channelResource[BETTY_CHANNEL]);
+        GosDestroySoundResource(ChannelResource[BETTY_CHANNEL]);
     }
 
-    gos_CreateSoundResource(&channelResource[BETTY_CHANNEL], reinterpret_cast<char*>(sample), SOUND_RESOURCE_MEMORY, 0);
-    uint32_t volume = radioVolume;
-    fadeDown[BETTY_CHANNEL] = 0;
-    gos_SetChannelPanning(BETTY_CHANNEL, 0.0f);
-    gos_SetChannelVolume(BETTY_CHANNEL, channelVolume(volume));
-    channelSampleId[BETTY_CHANNEL] = static_cast<int32_t>(bettyId);
-    gos_PlayChannel(BETTY_CHANNEL, channelResource[BETTY_CHANNEL]);
+    GosCreateSoundResource(&ChannelResource[BETTY_CHANNEL], reinterpret_cast<char*>(sample), SOUND_RESOURCE_MEMORY, 0);
+    uint32_t volume = RadioLevel;
+    FadeDown[BETTY_CHANNEL] = 0;
+    GosSetChannelPanning(BETTY_CHANNEL, 0.0f);
+    GosSetChannelVolume(BETTY_CHANNEL, ChannelVolume(volume));
+    ChannelSampleId[BETTY_CHANNEL] = static_cast<int32_t>(bettyId);
+    GosPlayChannel(BETTY_CHANNEL, ChannelResource[BETTY_CHANNEL]);
     return BETTY_CHANNEL;
 }
 
-int SoundSystem::isSamplePlaying(int32_t sampleId)
+int MCSoundSystem::IsSamplePlaying(int32_t sampleId)
 {
     for (int32_t i = 0; i < NUM_SAMPLE_CHANNELS; i++)
     {
-        if (sampleId == channelSampleId[i])
+        if (sampleId == ChannelSampleId[i])
         {
             return 1;
         }
@@ -1366,20 +1366,20 @@ int SoundSystem::isSamplePlaying(int32_t sampleId)
     return 0;
 }
 
-int SoundSystem::isChannelPlaying(int32_t channel)
+int MCSoundSystem::IsChannelPlaying(int32_t channel)
 {
     if (channel < 0 || channel > 16)
     {
         return 0;
     }
 
-    return gos_GetChannelStatus(channel) == 0;
+    return GosGetChannelStatus(channel) == 0;
 }
 
-int32_t SoundSystem::playDigitalSample(uint32_t sampleId, uint32_t channelType, GameObject* source, int atCamera,
-                                       int farRange)
+int32_t MCSoundSystem::PlayDigitalSample(uint32_t sampleId, uint32_t channelType, MCGameObject* source, int atCamera,
+                                         int farRange)
 {
-    if (useSound == 0 || isSamplePlaying(static_cast<int32_t>(sampleId)) != 0 || sampleId >= numSoundBites)
+    if (UseSound == 0 || IsSamplePlaying(static_cast<int32_t>(sampleId)) != 0 || sampleId >= NumSoundBites)
     {
         return -1;
     }
@@ -1387,10 +1387,10 @@ int32_t SoundSystem::playDigitalSample(uint32_t sampleId, uint32_t channelType, 
     float listenerX = 0.0f;
     float listenerY = 0.0f;
 
-    if (scenario != nullptr && eye != nullptr)
+    if (Scenario != nullptr && Eye != nullptr)
     {
-        listenerX = eye->position.x;
-        listenerY = eye->position.y;
+        listenerX = Eye->Position.X;
+        listenerY = Eye->Position.Y;
     }
 
     float soundX;
@@ -1403,9 +1403,9 @@ int32_t SoundSystem::playDigitalSample(uint32_t sampleId, uint32_t channelType, 
     }
     else
     {
-        vector_3d position = source->getPosition();
-        soundX = position.x;
-        soundY = position.y;
+        MCVector3D position = source->GetPosition();
+        soundX = position.X;
+        soundY = position.Y;
     }
 
     float dx = soundX - listenerX;
@@ -1413,18 +1413,18 @@ int32_t SoundSystem::playDigitalSample(uint32_t sampleId, uint32_t channelType, 
     int32_t rangeScale = farRange != 0 ? 15 : 1;
 
     if (dx * dx + dy * dy >
-        static_cast<float>(rangeScale) * maxSoundDistance * static_cast<float>(rangeScale) * maxSoundDistance)
+        static_cast<float>(rangeScale) * MaxSoundDistance * static_cast<float>(rangeScale) * MaxSoundDistance)
     {
         return -1;
     }
 
-    SoundBite* bite = &sounds[sampleId];
+    MCSoundBite* bite = &Sounds[sampleId];
 
-    if (bite->biteData == nullptr)
+    if (bite->BiteData == nullptr)
     {
-        bite = preloadSoundBite(static_cast<int32_t>(sampleId));
+        bite = PreloadSoundBite(static_cast<int32_t>(sampleId));
 
-        if (bite == nullptr || bite->biteData == nullptr)
+        if (bite == nullptr || bite->BiteData == nullptr)
         {
             return -1;
         }
@@ -1442,7 +1442,7 @@ int32_t SoundSystem::playDigitalSample(uint32_t sampleId, uint32_t channelType, 
                 return -1;
             }
 
-            if (gos_GetChannelStatus(channel) != 0 && channelInUse[channel] == 0)
+            if (GosGetChannelStatus(channel) != 0 && ChannelInUse[channel] == 0)
             {
                 break;
             }
@@ -1457,249 +1457,249 @@ int32_t SoundSystem::playDigitalSample(uint32_t sampleId, uint32_t channelType, 
                 return -1;
             }
 
-            if (gos_GetChannelStatus(channel) != 0 && channelInUse[channel] == 0)
+            if (GosGetChannelStatus(channel) != 0 && ChannelInUse[channel] == 0)
             {
                 break;
             }
 
-            if (static_cast<uint32_t>(channelSampleId[channel]) == sampleId)
+            if (static_cast<uint32_t>(ChannelSampleId[channel]) == sampleId)
             {
                 return -1;
             }
         }
     }
 
-    channelInUse[channel] = 1;
+    ChannelInUse[channel] = 1;
     int32_t pan = 0x40;
-    channelPosition[channel].x = soundX;
-    channelPosition[channel].y = soundY;
-    channelPosition[channel].unused = 0;
-    fadeDown[channel] = 0;
+    ChannelPosition[channel].X = soundX;
+    ChannelPosition[channel].Y = soundY;
+    ChannelPosition[channel].Unused = 0;
+    FadeDown[channel] = 0;
 
     if (listenerX != soundX || listenerY != soundY)
     {
-        pan = panPosition(dx, dy);
+        pan = PanPosition(dx, dy);
     }
 
-    gos_SetChannelPanning(channel, (static_cast<float>(pan) - 64.0f) * (1.0f / 128.0f));
-    gos_SetChannelVolume(channel, static_cast<float>(digitalMasterVolume) * (1.0f / 128.0f) * bite->volume);
-    channelSampleId[channel] = static_cast<int32_t>(sampleId);
+    GosSetChannelPanning(channel, (static_cast<float>(pan) - 64.0f) * (1.0f / 128.0f));
+    GosSetChannelVolume(channel, static_cast<float>(DigitalMasterVolume) * (1.0f / 128.0f) * bite->Volume);
+    ChannelSampleId[channel] = static_cast<int32_t>(sampleId);
 
-    if (channelResource[channel] != nullptr)
+    if (ChannelResource[channel] != nullptr)
     {
-        gos_DestroySoundResource(channelResource[channel]);
+        GosDestroySoundResource(ChannelResource[channel]);
     }
 
-    uint8_t* wave = sounds[sampleId].biteData.get();
+    uint8_t* wave = Sounds[sampleId].BiteData.get();
 
     if (wave != nullptr && WaveDataOK(wave) != 0)
     {
-        gos_CreateSoundResource(&channelResource[channel], reinterpret_cast<char*>(wave), SOUND_RESOURCE_MEMORY, 0);
-        gos_PlayChannel(channel, channelResource[channel]);
+        GosCreateSoundResource(&ChannelResource[channel], reinterpret_cast<char*>(wave), SOUND_RESOURCE_MEMORY, 0);
+        GosPlayChannel(channel, ChannelResource[channel]);
     }
 
     return channel;
 }
 
-int32_t SoundSystem::playMidiMusic(uint32_t musicId, uint32_t volume, uint32_t loop)
+int32_t MCSoundSystem::PlayMidiMusic(uint32_t musicId, uint32_t volume, uint32_t loop)
 {
     return 0;
 }
 
-void SoundSystem::stopDigitalSample(uint32_t channel)
+void MCSoundSystem::StopDigitalSample(uint32_t channel)
 {
-    if (useSound == 0)
+    if (UseSound == 0)
     {
         return;
     }
 
-    if (gos_GetChannelStatus(static_cast<int>(channel)) == 0)
+    if (GosGetChannelStatus(static_cast<int>(channel)) == 0)
     {
-        fadeDown[channel] = 1;
-        channelSampleId[channel] = -1;
+        FadeDown[channel] = 1;
+        ChannelSampleId[channel] = -1;
     }
 }
 
-void SoundSystem::stopDigitalMusic()
+void MCSoundSystem::StopDigitalMusic()
 {
-    if (useSound == 0)
+    if (UseSound == 0)
     {
         return;
     }
 
-    gos_StopChannel(MUSIC_CHANNEL_A);
+    GosStopChannel(MUSIC_CHANNEL_A);
 
-    if (channelResource[MUSIC_CHANNEL_A] != nullptr)
+    if (ChannelResource[MUSIC_CHANNEL_A] != nullptr)
     {
-        gos_DestroySoundResource(channelResource[MUSIC_CHANNEL_A]);
+        GosDestroySoundResource(ChannelResource[MUSIC_CHANNEL_A]);
     }
 
-    channelResource[MUSIC_CHANNEL_A] = nullptr;
-    streamPlaying[0] = 0;
-    streamFade[0] = 0.0f;
-    gos_StopChannel(MUSIC_CHANNEL_B);
+    ChannelResource[MUSIC_CHANNEL_A] = nullptr;
+    StreamPlaying[0] = 0;
+    StreamFade[0] = 0.0f;
+    GosStopChannel(MUSIC_CHANNEL_B);
 
-    if (channelResource[MUSIC_CHANNEL_B] != nullptr)
+    if (ChannelResource[MUSIC_CHANNEL_B] != nullptr)
     {
-        gos_DestroySoundResource(channelResource[MUSIC_CHANNEL_B]);
+        GosDestroySoundResource(ChannelResource[MUSIC_CHANNEL_B]);
     }
 
-    channelResource[MUSIC_CHANNEL_B] = nullptr;
-    streamPlaying[1] = 0;
-    streamFade[1] = 0.0f;
-    currentMusicId = -1;
+    ChannelResource[MUSIC_CHANNEL_B] = nullptr;
+    StreamPlaying[1] = 0;
+    StreamFade[1] = 0.0f;
+    CurrentMusicId = -1;
 }
 
-void SoundSystem::setDigitalMasterVolume(uint8_t volume)
+void MCSoundSystem::SetDigitalMasterVolume(uint8_t volume)
 {
 }
 
-void SoundSystem::setMidiMasterVolume(uint8_t volume)
+void MCSoundSystem::SetMidiMasterVolume(uint8_t volume)
 {
 }
 
-int32_t SoundSystem::getDigitalMasterVolume()
+int32_t MCSoundSystem::GetDigitalMasterVolume()
 {
     return 0;
 }
 
-int32_t SoundSystem::playCDMusic(uint32_t track)
+int32_t MCSoundSystem::PlayCDMusic(uint32_t track)
 {
     // The original played CD audio tracks through MCI ("cdaudio"); the port has no CD audio.
     return 0;
 }
 
-int32_t SoundSystem::playPilotSpeech(char* fileName, int32_t speechId)
+int32_t MCSoundSystem::PlayPilotSpeech(char* fileName, int32_t speechId)
 {
-    if (globalLogPtr == nullptr || pilotLogisticsSpeechPtr != nullptr)
+    if (GlobalLogPtr == nullptr || PilotLogisticsSpeechPtr != nullptr)
     {
         return 0;
     }
 
-    FullPathFileName speechName;
-    speechName.init(CDsoundPath, fileName, ".pak");
-    PacketFile speechFile;
-    int32_t result = speechFile.open(speechName);
+    MCFullPathFileName speechName;
+    speechName.Init(CDsoundPath, fileName, ".pak");
+    MCPacketFile speechFile;
+    int32_t result = speechFile.Open(speechName);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = speechFile.seekPacket(speechId);
+    result = speechFile.SeekPacket(speechId);
 
     if (result != 0)
     {
         return result;
     }
 
-    pilotLogisticsSpeechPtr = std::make_unique<uint8_t[]>(static_cast<size_t>(speechFile.getPacketSize()));
+    PilotLogisticsSpeechPtr = std::make_unique<uint8_t[]>(static_cast<size_t>(speechFile.GetPacketSize()));
 
-    if (channelResource[PILOT_SPEECH_CHANNEL] != nullptr)
+    if (ChannelResource[PILOT_SPEECH_CHANNEL] != nullptr)
     {
-        gos_DestroySoundResource(channelResource[PILOT_SPEECH_CHANNEL]);
+        GosDestroySoundResource(ChannelResource[PILOT_SPEECH_CHANNEL]);
     }
 
-    channelResource[PILOT_SPEECH_CHANNEL] = nullptr;
-    speechFile.readPacket(speechId, pilotLogisticsSpeechPtr.get());
-    gos_CreateSoundResource(&channelResource[PILOT_SPEECH_CHANNEL],
-                            reinterpret_cast<char*>(pilotLogisticsSpeechPtr.get()), SOUND_RESOURCE_MEMORY, 0);
-    fadeDown[PILOT_SPEECH_CHANNEL] = 0;
-    gos_SetChannelPanning(PILOT_SPEECH_CHANNEL, 0.0f);
-    gos_SetChannelVolume(PILOT_SPEECH_CHANNEL, channelVolume(radioVolume));
-    gos_PlayChannel(PILOT_SPEECH_CHANNEL, channelResource[PILOT_SPEECH_CHANNEL]);
-    currentPilotSpeech = speechId;
-    speechFile.close();
+    ChannelResource[PILOT_SPEECH_CHANNEL] = nullptr;
+    speechFile.ReadPacket(speechId, PilotLogisticsSpeechPtr.get());
+    GosCreateSoundResource(&ChannelResource[PILOT_SPEECH_CHANNEL],
+                           reinterpret_cast<char*>(PilotLogisticsSpeechPtr.get()), SOUND_RESOURCE_MEMORY, 0);
+    FadeDown[PILOT_SPEECH_CHANNEL] = 0;
+    GosSetChannelPanning(PILOT_SPEECH_CHANNEL, 0.0f);
+    GosSetChannelVolume(PILOT_SPEECH_CHANNEL, ChannelVolume(RadioLevel));
+    GosPlayChannel(PILOT_SPEECH_CHANNEL, ChannelResource[PILOT_SPEECH_CHANNEL]);
+    CurrentPilotSpeech = speechId;
+    speechFile.Close();
     return 0;
 }
 
-void SoundSystem::stopCDMusic()
+void MCSoundSystem::StopCDMusic()
 {
 }
 
-void SoundSystem::playABLDigitalMusic(int32_t musicId)
+void MCSoundSystem::PlayAblDigitalMusic(int32_t musicId)
 {
-    if (musicState[MUSIC_ABL] != 0 || musicId < 0 || musicId >= numDMS)
+    if (MusicState[MUSIC_ABL] != 0 || musicId < 0 || musicId >= NumDms)
     {
         return;
     }
 
-    if (playDigitalMusic(musicId, false) == 0)
+    if (PlayDigitalMusic(musicId, false) == 0)
     {
-        setMusicState(this, MUSIC_ABL);
+        SetMusicState(this, MUSIC_ABL);
     }
 }
 
-void SoundSystem::stopABLMusic()
+void MCSoundSystem::StopAblMusic()
 {
-    if (useSound == 0)
+    if (UseSound == 0)
     {
         return;
     }
 
-    stopDigitalMusic();
+    StopDigitalMusic();
 }
 
-void SoundSystem::playABLSFX(int32_t sfxId)
+void MCSoundSystem::PlayAblsfx(int32_t sfxId)
 {
-    playDigitalSample(static_cast<uint32_t>(sfxId), 1, nullptr, 0, 0);
+    PlayDigitalSample(static_cast<uint32_t>(sfxId), 1, nullptr, 0, 0);
 }
 
-void SoundSystem::playABLVideo(int32_t videoId)
+void MCSoundSystem::PlayAblVideo(int32_t videoId)
 {
 }
 
-void SoundSystem::moveFromQueueToPlaying()
+void MCSoundSystem::MoveFromQueueToPlaying()
 {
-    removeCurrentMessage();
-    currentMessage = queue[0];
+    RemoveCurrentMessage();
+    CurrentMessage = Queue[0];
 
     for (int32_t i = 0; i < MAX_QUEUED_MESSAGES - 1; i++)
     {
-        queue[i] = queue[i + 1];
+        Queue[i] = Queue[i + 1];
     }
 
-    queue[MAX_QUEUED_MESSAGES - 1] = nullptr;
+    Queue[MAX_QUEUED_MESSAGES - 1] = nullptr;
 
-    if (messagesInQueue != 0)
+    if (MessagesInQueue != 0)
     {
-        messagesInQueue--;
+        MessagesInQueue--;
     }
 }
 
-void SoundSystem::removeCurrentMessage()
+void MCSoundSystem::RemoveCurrentMessage()
 {
-    RadioData* message = currentMessage;
+    MCRadioData* message = CurrentMessage;
 
     if (message != nullptr)
     {
-        freeRadioData(message);
+        FreeRadioData(message);
 
-        if (message->movieWindow != nullptr)
+        if (message->MovieWindow != nullptr)
         {
-            aSmackerWindow* window = message->movieWindow;
-            window->endSmackerMovie();
+            MCGuiSmackerWindow* window = message->MovieWindow;
+            window->EndSmackerMovie();
 
-            if (Terrain::terrainTacticalMap != nullptr)
+            if (MCTerrain::TerrainTacticalMap != nullptr)
             {
-                Terrain::terrainTacticalMap->videoWindow->SetStar(nullptr);
+                MCTerrain::TerrainTacticalMap->VideoWindow->SetStar(nullptr);
             }
 
             delete window;
-            message->movieWindow = nullptr;
-            message->movie = nullptr;
+            message->MovieWindow = nullptr;
+            message->Movie = nullptr;
         }
 
         delete message;
-        currentMessage = nullptr;
+        CurrentMessage = nullptr;
     }
 
-    if (channelResource[PILOT_SPEECH_CHANNEL] != nullptr)
+    if (ChannelResource[PILOT_SPEECH_CHANNEL] != nullptr)
     {
-        gos_DestroySoundResource(channelResource[PILOT_SPEECH_CHANNEL]);
+        GosDestroySoundResource(ChannelResource[PILOT_SPEECH_CHANNEL]);
     }
 
-    channelResource[PILOT_SPEECH_CHANNEL] = nullptr;
-    gos_StopChannel(PILOT_SPEECH_CHANNEL);
-    wholeMsgDone = 1;
+    ChannelResource[PILOT_SPEECH_CHANNEL] = nullptr;
+    GosStopChannel(PILOT_SPEECH_CHANNEL);
+    WholeMsgDone = 1;
 }

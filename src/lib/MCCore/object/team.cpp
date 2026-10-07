@@ -13,19 +13,19 @@
 #include "object/warrior.h"
 #include "terrain/terrain.h"
 
-Team* clanTeam = nullptr;
-Team* alliedTeam = nullptr;
-Team* innerSphereTeam = nullptr;
-Team* homeTeam = nullptr;
-SortList* ContactSortList = nullptr;
-int inContact = 0;
+MCTeam* ClanTeam = nullptr;
+MCTeam* AlliedTeam = nullptr;
+MCTeam* InnerSphereTeam = nullptr;
+MCTeam* HomeTeam = nullptr;
+MCSortList* ContactSortList = nullptr;
+int InContact = 0;
 
 namespace
 {
     /// <summary>Whether <paramref name="object"/> is a mover (mech, vehicle, elemental or plain mover).</summary>
-    bool IsMover(const BaseObject* object)
+    bool IsMover(const MCBaseObject* object)
     {
-        const ObjectClass objectClass = object->objectClass;
+        const MCObjectClass objectClass = object->ObjectClass;
         return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                objectClass == MOVER;
     }
@@ -33,13 +33,13 @@ namespace
     /// <summary>
     /// Inserts <paramref name="tracker"/> into <paramref name="list"/> before the first entry no stronger than it.
     /// </summary>
-    void InsertTracker(_SystemTracker*& list, _SystemTracker* tracker)
+    void InsertTracker(MCSystemTracker*& list, MCSystemTracker* tracker)
     {
-        _SystemTracker* previous = nullptr;
+        MCSystemTracker* previous = nullptr;
 
-        for (_SystemTracker* current = list; current != nullptr; current = current->next)
+        for (MCSystemTracker* current = list; current != nullptr; current = current->Next)
         {
-            if (current->effect <= tracker->effect)
+            if (current->Effect <= tracker->Effect)
             {
                 if (previous == nullptr)
                 {
@@ -47,12 +47,12 @@ namespace
                 }
                 else
                 {
-                    previous->next = tracker;
+                    previous->Next = tracker;
                 }
 
-                tracker->prev = current->prev;
-                tracker->next = current;
-                current->prev = tracker;
+                tracker->Prev = current->Prev;
+                tracker->Next = current;
+                current->Prev = tracker;
                 return;
             }
 
@@ -61,8 +61,8 @@ namespace
 
         if (previous != nullptr)
         {
-            previous->next = tracker;
-            tracker->prev = previous;
+            previous->Next = tracker;
+            tracker->Prev = previous;
             return;
         }
 
@@ -70,56 +70,56 @@ namespace
     }
 
     /// <summary>Unlinks <paramref name="tracker"/> from <paramref name="list"/> and frees it.</summary>
-    void RemoveTracker(_SystemTracker*& list, _SystemTracker* tracker)
+    void RemoveTracker(MCSystemTracker*& list, MCSystemTracker* tracker)
     {
         if (tracker == nullptr)
         {
             return;
         }
 
-        if (tracker->next != nullptr)
+        if (tracker->Next != nullptr)
         {
-            tracker->next->prev = tracker->prev;
+            tracker->Next->Prev = tracker->Prev;
         }
 
-        if (tracker->prev == nullptr)
+        if (tracker->Prev == nullptr)
         {
-            list = tracker->next;
+            list = tracker->Next;
         }
         else
         {
-            tracker->prev->next = tracker->next;
+            tracker->Prev->Next = tracker->Next;
         }
 
-        tracker->owner = nullptr;
+        tracker->Owner = nullptr;
         delete tracker;
     }
 
     /// <summary>A new tracker for component <paramref name="masterId"/> of <paramref name="owner"/>.</summary>
-    _SystemTracker* NewTracker(GameObject* owner, int32_t masterId, float effect)
+    MCSystemTracker* NewTracker(MCGameObject* owner, int32_t masterId, float effect)
     {
-        auto* tracker = new _SystemTracker{};
-        tracker->owner = owner;
-        tracker->masterId = masterId;
-        tracker->prev = nullptr;
-        tracker->next = nullptr;
-        tracker->effect = effect;
+        auto* tracker = new MCSystemTracker{};
+        tracker->Owner = owner;
+        tracker->MasterId = masterId;
+        tracker->Prev = nullptr;
+        tracker->Next = nullptr;
+        tracker->Effect = effect;
         return tracker;
     }
 
     /// <summary>Frees every tracker of <paramref name="list"/>.</summary>
-    void FreeTrackers(_SystemTracker*& list)
+    void FreeTrackers(MCSystemTracker*& list)
     {
         if (list == nullptr)
         {
             return;
         }
 
-        _SystemTracker* tracker = list;
+        MCSystemTracker* tracker = list;
 
         do
         {
-            _SystemTracker* next = tracker->next;
+            MCSystemTracker* next = tracker->Next;
             delete tracker;
             tracker = next;
         } while (tracker != nullptr);
@@ -128,42 +128,42 @@ namespace
     }
 }
 
-auto Team::init() -> void
+auto MCTeam::Init() -> void
 {
-    id = 0;
-    alignment = 0;
-    rosterSize = 0;
-    roster = nullptr;
-    sensorsPerUpdate = 3;
-    nextSensorUpdate = 0;
-    numEnemyContacts = 0;
-    numLOSContacts = 0;
-    numSensorContacts = 0;
-    firstObjective = 0;
-    numObjectives = 0;
-    sensors = nullptr;
-    maxSensors = 0;
-    numSensors = 0;
-    jammerList = nullptr;
-    ecmList = nullptr;
+    Id = 0;
+    Alignment = 0;
+    RosterSize = 0;
+    Roster = nullptr;
+    SensorsPerUpdate = 3;
+    NextSensorUpdate = 0;
+    NumEnemyContacts = 0;
+    NumLosContacts = 0;
+    NumSensorContacts = 0;
+    FirstObjective = 0;
+    NumObjectives = 0;
+    Sensors = nullptr;
+    MaxSensors = 0;
+    NumSensors = 0;
+    JammerList = nullptr;
+    EcmList = nullptr;
 }
 
-auto Team::init(int32_t newId, int32_t newMaxSensors) -> int32_t
+auto MCTeam::Init(int32_t newId, int32_t newMaxSensors) -> int32_t
 {
-    id = newId;
-    maxSensors = newMaxSensors;
+    Id = newId;
+    MaxSensors = newMaxSensors;
     // Port fix: sized by the port's pointer (4 bytes each in the original).
-    sensors = std::make_unique<SensorSystem*[]>(static_cast<size_t>(newMaxSensors));
+    Sensors = std::make_unique<MCSensorSystem*[]>(static_cast<size_t>(newMaxSensors));
     return 0;
 }
 
-auto Team::buildRoster(Scenario* scenario) -> void
+auto MCTeam::BuildRoster(MCScenario* scenario) -> void
 {
-    const uint32_t numParts = scenario->numParts;
+    const uint32_t numParts = scenario->NumParts;
     auto isTeamMover = [&](uint32_t i)
     {
-        const Part& part = scenario->parts[i];
-        return IsMover(part.object) && part.teamId == id;
+        const MCPart& part = scenario->Parts[i];
+        return IsMover(part.Object) && part.TeamId == Id;
     };
 
     int32_t count = 0;
@@ -176,14 +176,14 @@ auto Team::buildRoster(Scenario* scenario) -> void
         }
     }
 
-    rosterSize = count;
-    sensorsPerUpdate = count < 3 ? count : 3;
+    RosterSize = count;
+    SensorsPerUpdate = count < 3 ? count : 3;
 
-    roster.reset();
+    Roster.reset();
 
     if (count != 0)
     {
-        roster = std::make_unique<int32_t[]>(count);
+        Roster = std::make_unique<int32_t[]>(count);
     }
 
     int32_t next = 0;
@@ -192,118 +192,118 @@ auto Team::buildRoster(Scenario* scenario) -> void
     {
         if (isTeamMover(i))
         {
-            roster[next++] = scenario->parts[i].object->partId;
+            Roster[next++] = scenario->Parts[i].Object->PartId;
         }
     }
 }
 
-auto Team::addSensor(SensorSystem* sensor) -> void
+auto MCTeam::AddSensor(MCSensorSystem* sensor) -> void
 {
-    if (numSensors == maxSensors)
+    if (NumSensors == MaxSensors)
     {
         Fatal(0, " Too Many Sensors, sir! ");
     }
 
-    sensor->teamSensorSlot = numSensors;
-    sensors[numSensors] = sensor;
-    numSensors++;
+    sensor->TeamSensorSlot = NumSensors;
+    Sensors[NumSensors] = sensor;
+    NumSensors++;
 }
 
-auto Team::removeSensor(SensorSystem* sensor) -> void
+auto MCTeam::RemoveSensor(MCSensorSystem* sensor) -> void
 {
-    const int32_t slot = sensor->teamSensorSlot;
-    sensor->teamSensorSlot = -1;
-    sensors[slot] = nullptr;
+    const int32_t slot = sensor->TeamSensorSlot;
+    sensor->TeamSensorSlot = -1;
+    Sensors[slot] = nullptr;
 
-    if (slot < numSensors - 1)
+    if (slot < NumSensors - 1)
     {
         // The last sensor fills the gap.
-        SensorSystem* last = sensors[numSensors - 1];
-        sensors[slot] = last;
-        last->teamSensorSlot = slot;
-        sensors[numSensors - 1] = nullptr;
+        MCSensorSystem* last = Sensors[NumSensors - 1];
+        Sensors[slot] = last;
+        last->TeamSensorSlot = slot;
+        Sensors[NumSensors - 1] = nullptr;
     }
 
-    numSensors--;
+    NumSensors--;
 }
 
-auto Team::updateSensors() -> void
+auto MCTeam::UpdateSensors() -> void
 {
-    if (numSensors <= 0)
+    if (NumSensors <= 0)
     {
         return;
     }
 
-    for (int32_t i = 0; i < numSensors; i++)
+    for (int32_t i = 0; i < NumSensors; i++)
     {
-        sensors[i]->updateScan(0);
+        Sensors[i]->UpdateScan(0);
     }
 
     // A few sensors a frame re-check the contacts they hold, in turn.
-    for (int32_t i = 0; i < sensorsPerUpdate; i++)
+    for (int32_t i = 0; i < SensorsPerUpdate; i++)
     {
-        if (nextSensorUpdate >= numSensors)
+        if (NextSensorUpdate >= NumSensors)
         {
-            nextSensorUpdate = 0;
+            NextSensorUpdate = 0;
         }
 
-        sensors[nextSensorUpdate]->updateContacts();
-        nextSensorUpdate++;
+        Sensors[NextSensorUpdate]->UpdateContacts();
+        NextSensorUpdate++;
     }
 }
 
-auto Team::getLOSContacts(GameObject** objects) -> int32_t
+auto MCTeam::GetLosContacts(MCGameObject** objects) -> int32_t
 {
-    for (int32_t i = 0; i < numLOSContacts; i++)
+    for (int32_t i = 0; i < NumLosContacts; i++)
     {
-        objects[i] = potentialContactManager->contacts[losContacts[i]].object;
+        objects[i] = PotentialContactManager->Contacts[LosContacts[i]].Object;
     }
 
-    return numLOSContacts;
+    return NumLosContacts;
 }
 
-auto Team::getSensorContacts(GameObject** objects) -> int32_t
+auto MCTeam::GetSensorContacts(MCGameObject** objects) -> int32_t
 {
-    for (int32_t i = 0; i < numSensorContacts; i++)
+    for (int32_t i = 0; i < NumSensorContacts; i++)
     {
-        objects[i] = potentialContactManager->contacts[sensorContacts[i]].object;
+        objects[i] = PotentialContactManager->Contacts[SensorContacts[i]].Object;
     }
 
-    return numSensorContacts;
+    return NumSensorContacts;
 }
 
-auto Team::getContacts(GameObject* looker, int32_t* contacts, int32_t contactCriteria, int32_t sortType) -> int32_t
+auto MCTeam::GetContacts(MCGameObject* looker, int32_t* contacts, int32_t contactCriteria, int32_t sortType) -> int32_t
 {
-    // Port fix: the original's table held 200 values (MCX.EXE @ 0x007e4614), fewer than a list's 500 contacts.
+    // Port fix: the original's table held 200 values, fewer than a list's 500 contacts.
     static float sortValues[MAX_TEAM_CONTACTS];
 
-    const int32_t enemyAlignment = alignment == -1 ? 1 : -1;
-    int32_t count = numLOSContacts;
-    const int16_t* list = losContacts;
+    const int32_t enemyAlignment = Alignment == -1 ? 1 : -1;
+    int32_t count = NumLosContacts;
+    const int16_t* list = LosContacts;
 
     if ((contactCriteria & 0x10) != 0)
     {
-        count = numSensorContacts;
-        list = sensorContacts;
+        count = NumSensorContacts;
+        list = SensorContacts;
     }
 
     int32_t numFound = 0;
 
     for (int32_t i = 0; i < count; i++)
     {
-        BigGameObject* object = potentialContactManager->contacts[list[i]].object;
+        MCBigGameObject* object = PotentialContactManager->Contacts[list[i]].Object;
 
-        if ((contactCriteria & 8) != 0 && IsMover(object) && static_cast<Mover*>(object)->getChallenger() != nullptr)
+        if ((contactCriteria & 8) != 0 && IsMover(object) && static_cast<MCMover*>(object)->GetChallenger() != nullptr)
         {
             continue;
         }
 
-        if ((contactCriteria & 1) != 0 && object->getAlignment() != enemyAlignment)
+        if ((contactCriteria & 1) != 0 && object->GetAlignment() != enemyAlignment)
         {
             continue;
         }
 
-        contacts[numFound] = object->partId;
+        contacts[numFound] = object->PartId;
 
         if (sortType == 0)
         {
@@ -311,12 +311,12 @@ auto Team::getContacts(GameObject* looker, int32_t* contacts, int32_t contactCri
         }
         else if (sortType == 1)
         {
-            sortValues[numFound] = IsMover(object) ? static_cast<float>(object->getCurCV()) : 0.0f;
+            sortValues[numFound] = IsMover(object) ? static_cast<float>(object->GetCurCV()) : 0.0f;
         }
         else if (sortType == 2)
         {
-            vector_3d position = object->getPosition();
-            sortValues[numFound] = static_cast<float>(looker->distanceFrom(position));
+            MCVector3D position = object->GetPosition();
+            sortValues[numFound] = static_cast<float>(looker->DistanceFrom(position));
         }
 
         numFound++;
@@ -329,56 +329,56 @@ auto Team::getContacts(GameObject* looker, int32_t* contacts, int32_t contactCri
 
     if (ContactSortList == nullptr)
     {
-        ContactSortList = new SortList;
+        ContactSortList = new MCSortList;
 
         if (ContactSortList == nullptr)
         {
             Fatal(0, " Unable to create Team Contact sortList ");
         }
 
-        ContactSortList->init(200);
+        ContactSortList->Init(200);
     }
 
     // By value, highest first; by distance, nearest first.
-    SortList* sortList = ContactSortList;
-    sortList->clear(sortType != 2);
+    MCSortList* sortList = ContactSortList;
+    sortList->Clear(sortType != 2);
 
     for (int32_t i = 0; i < numFound; i++)
     {
-        if (i < sortList->numItems)
+        if (i < sortList->NumItems)
         {
-            sortList->list[i].id = contacts[i];
-            sortList->list[i].value = sortValues[i];
+            sortList->List[i].Id = contacts[i];
+            sortList->List[i].Value = sortValues[i];
         }
     }
 
-    sortList->sort(sortType != 2);
+    sortList->Sort(sortType != 2);
     // Port fix: the original copied numFound entries back even past the sort list's 200.
-    const int32_t numSorted = numFound < sortList->numItems ? numFound : sortList->numItems;
+    const int32_t numSorted = numFound < sortList->NumItems ? numFound : sortList->NumItems;
 
     for (int32_t i = 0; i < numSorted; i++)
     {
-        contacts[i] = sortList->list[i].id;
+        contacts[i] = sortList->List[i].Id;
     }
 
     return numFound;
 }
 
-auto Team::getContactType(GameObject* object) -> int32_t
+auto MCTeam::GetContactType(MCGameObject* object) -> int32_t
 {
-    return object->getContactType(id);
+    return object->GetContactType(Id);
 }
 
-auto Team::isContact(GameObject* object, int32_t contactCriteria) -> int
+auto MCTeam::IsContact(MCGameObject* object, int32_t contactCriteria) -> int
 {
-    const int32_t contactType = object->getContactType(id);
+    const int32_t contactType = object->GetContactType(Id);
 
     if (contactType == CONTACT_NONE)
     {
         return 0;
     }
 
-    if ((contactCriteria & 1) != 0 && object->getAlignment() == alignment)
+    if ((contactCriteria & 1) != 0 && object->GetAlignment() == Alignment)
     {
         return 0;
     }
@@ -388,7 +388,7 @@ auto Team::isContact(GameObject* object, int32_t contactCriteria) -> int
         return 0;
     }
 
-    if ((contactCriteria & 8) != 0 && IsMover(object) && static_cast<Mover*>(object)->getChallenger() != nullptr)
+    if ((contactCriteria & 8) != 0 && IsMover(object) && static_cast<MCMover*>(object)->GetChallenger() != nullptr)
     {
         return 0;
     }
@@ -396,119 +396,119 @@ auto Team::isContact(GameObject* object, int32_t contactCriteria) -> int
     return 1;
 }
 
-auto Team::scanBattlefield() -> void
+auto MCTeam::ScanBattlefield() -> void
 {
-    for (int32_t i = 0; i < numSensors; i++)
+    for (int32_t i = 0; i < NumSensors; i++)
     {
-        sensors[i]->updateScan(1);
+        Sensors[i]->UpdateScan(1);
     }
 }
 
-auto Team::incNumEnemyContacts() -> void
+auto MCTeam::IncNumEnemyContacts() -> void
 {
-    numEnemyContacts++;
+    NumEnemyContacts++;
 
-    if (this == homeTeam && numEnemyContacts != 0)
+    if (this == HomeTeam && NumEnemyContacts != 0)
     {
-        inContact = 1;
+        InContact = 1;
     }
 }
 
-auto Team::decNumEnemyContacts() -> void
+auto MCTeam::DecNumEnemyContacts() -> void
 {
-    numEnemyContacts--;
+    NumEnemyContacts--;
 
-    if (numEnemyContacts == 0)
+    if (NumEnemyContacts == 0)
     {
-        if (this == homeTeam)
+        if (this == HomeTeam)
         {
-            inContact = 0;
+            InContact = 0;
         }
     }
-    else if (numEnemyContacts < 0)
+    else if (NumEnemyContacts < 0)
     {
         Fatal(0, " Negative Team Contact Count ");
     }
 }
 
-auto Team::addLOSContact(_PotentialContact* contact) -> void
+auto MCTeam::AddLosContact(MCPotentialContact* contact) -> void
 {
     // The original tests the sensor list's count, not the LOS list's.
-    if (numSensorContacts >= MAX_TEAM_CONTACTS)
+    if (NumSensorContacts >= MAX_TEAM_CONTACTS)
     {
         return;
     }
 
-    losContacts[numLOSContacts] = static_cast<int16_t>(contact->id);
-    contact->teamSlot[id] = static_cast<int16_t>(numLOSContacts);
-    numLOSContacts++;
+    LosContacts[NumLosContacts] = static_cast<int16_t>(contact->Id);
+    contact->TeamSlot[Id] = static_cast<int16_t>(NumLosContacts);
+    NumLosContacts++;
 }
 
-auto Team::removeLOSContact(int32_t index) -> void
+auto MCTeam::RemoveLosContact(int32_t index) -> void
 {
-    _PotentialContact* pool = potentialContactManager->contacts.get();
-    pool[losContacts[index]].teamSlot[id] = -1;
-    numLOSContacts--;
+    MCPotentialContact* pool = PotentialContactManager->Contacts.get();
+    pool[LosContacts[index]].TeamSlot[Id] = -1;
+    NumLosContacts--;
 
-    if (numLOSContacts > 0 && index != numLOSContacts)
+    if (NumLosContacts > 0 && index != NumLosContacts)
     {
-        losContacts[index] = losContacts[numLOSContacts];
-        pool[losContacts[numLOSContacts]].teamSlot[id] = static_cast<int16_t>(index);
+        LosContacts[index] = LosContacts[NumLosContacts];
+        pool[LosContacts[NumLosContacts]].TeamSlot[Id] = static_cast<int16_t>(index);
     }
 }
 
-auto Team::removeLOSContact(_PotentialContact* contact) -> void
+auto MCTeam::RemoveLosContact(MCPotentialContact* contact) -> void
 {
-    const uint16_t slot = static_cast<uint16_t>(contact->teamSlot[id]);
+    const uint16_t slot = static_cast<uint16_t>(contact->TeamSlot[Id]);
 
     if (slot < 0xffff)
     {
-        removeLOSContact(static_cast<int32_t>(slot));
+        RemoveLosContact(static_cast<int32_t>(slot));
     }
 }
 
-auto Team::addSensorContact(_PotentialContact* contact) -> void
+auto MCTeam::AddSensorContact(MCPotentialContact* contact) -> void
 {
-    if (numSensorContacts >= MAX_TEAM_CONTACTS)
+    if (NumSensorContacts >= MAX_TEAM_CONTACTS)
     {
         return;
     }
 
-    sensorContacts[numSensorContacts] = static_cast<int16_t>(contact->id);
-    contact->teamSlot[id] = static_cast<int16_t>(numSensorContacts);
-    numSensorContacts++;
+    SensorContacts[NumSensorContacts] = static_cast<int16_t>(contact->Id);
+    contact->TeamSlot[Id] = static_cast<int16_t>(NumSensorContacts);
+    NumSensorContacts++;
 }
 
-auto Team::removeSensorContact(int32_t index) -> void
+auto MCTeam::RemoveSensorContact(int32_t index) -> void
 {
-    _PotentialContact* pool = potentialContactManager->contacts.get();
-    pool[sensorContacts[index]].teamSlot[id] = -1;
-    numSensorContacts--;
+    MCPotentialContact* pool = PotentialContactManager->Contacts.get();
+    pool[SensorContacts[index]].TeamSlot[Id] = -1;
+    NumSensorContacts--;
 
-    if (numSensorContacts > 0 && index != numSensorContacts)
+    if (NumSensorContacts > 0 && index != NumSensorContacts)
     {
-        sensorContacts[index] = sensorContacts[numSensorContacts];
-        pool[sensorContacts[numSensorContacts]].teamSlot[id] = static_cast<int16_t>(index);
+        SensorContacts[index] = SensorContacts[NumSensorContacts];
+        pool[SensorContacts[NumSensorContacts]].TeamSlot[Id] = static_cast<int16_t>(index);
     }
 }
 
-auto Team::removeSensorContact(_PotentialContact* contact) -> void
+auto MCTeam::RemoveSensorContact(MCPotentialContact* contact) -> void
 {
-    const uint16_t slot = static_cast<uint16_t>(contact->teamSlot[id]);
+    const uint16_t slot = static_cast<uint16_t>(contact->TeamSlot[Id]);
 
     if (slot < 0xffff)
     {
-        removeSensorContact(static_cast<int32_t>(slot));
+        RemoveSensorContact(static_cast<int32_t>(slot));
     }
 }
 
-auto Team::getRoster(GameObject** objects) -> int32_t
+auto MCTeam::GetRoster(MCGameObject** objects) -> int32_t
 {
     int32_t count = 0;
 
-    for (int32_t i = 0; i < rosterSize; i++)
+    for (int32_t i = 0; i < RosterSize; i++)
     {
-        Mover* mover = getMoverFromPartId(roster[i]);
+        MCMover* mover = GetMoverFromPartId(Roster[i]);
 
         if (mover != nullptr)
         {
@@ -519,89 +519,89 @@ auto Team::getRoster(GameObject** objects) -> int32_t
     return count;
 }
 
-auto Team::disableTargets() -> void
+auto MCTeam::DisableTargets() -> void
 {
-    for (int32_t i = 0; i < rosterSize; i++)
+    for (int32_t i = 0; i < RosterSize; i++)
     {
-        Mover* mover = getMoverFromPartId(roster[i]);
+        MCMover* mover = GetMoverFromPartId(Roster[i]);
 
         if (mover == nullptr || !IsMover(mover))
         {
             continue;
         }
 
-        GameObject* target = mover->getPilot()->getLastTarget();
+        MCGameObject* target = mover->GetPilot()->GetLastTarget();
 
         if (target != nullptr && IsMover(target))
         {
-            static_cast<Mover*>(target)->disable(0x42);
+            static_cast<MCMover*>(target)->Disable(0x42);
         }
     }
 }
 
-auto Team::destroyTargets() -> void
+auto MCTeam::DestroyTargets() -> void
 {
-    for (int32_t i = 0; i < rosterSize; i++)
+    for (int32_t i = 0; i < RosterSize; i++)
     {
-        Mover* mover = getMoverFromPartId(roster[i]);
+        MCMover* mover = GetMoverFromPartId(Roster[i]);
 
         if (mover == nullptr || !IsMover(mover))
         {
             continue;
         }
 
-        GameObject* target = mover->getPilot()->getLastTarget();
+        MCGameObject* target = mover->GetPilot()->GetLastTarget();
 
         if (target == nullptr || !IsMover(target))
         {
             continue;
         }
 
-        _WeaponShotInfo shotInfo;
-        shotInfo.init(nullptr, -3, 5.0f, 0, 0.0f);
+        MCWeaponShotInfo shotInfo;
+        shotInfo.Init(nullptr, -3, 5.0f, 0, 0.0f);
 
         for (int32_t shot = 0; shot < 100; shot++)
         {
             if (RollDice(30) == 0)
             {
-                shotInfo.hitLocation = target->calcHitLocation(nullptr, -1, 4, 0);
+                shotInfo.HitLocation = target->CalcHitLocation(nullptr, -1, 4, 0);
             }
             else
             {
-                shotInfo.hitLocation = target->calcHitLocation(nullptr, -1, 2, 0);
+                shotInfo.HitLocation = target->CalcHitLocation(nullptr, -1, 2, 0);
             }
 
-            target->handleWeaponHit(&shotInfo, MPlayer != nullptr ? 1 : 0);
+            target->HandleWeaponHit(&shotInfo, MPlayer != nullptr ? 1 : 0);
         }
     }
 }
 
-auto Team::isTargeting(uint32_t targetPartId, uint32_t exceptPartId) -> int
+auto MCTeam::IsTargeting(uint32_t targetPartId, uint32_t exceptPartId) -> int
 {
-    for (int32_t i = 0; i < rosterSize; i++)
+    for (int32_t i = 0; i < RosterSize; i++)
     {
-        if (exceptPartId != 0 && static_cast<uint32_t>(roster[i]) == exceptPartId)
+        if (exceptPartId != 0 && static_cast<uint32_t>(Roster[i]) == exceptPartId)
         {
             continue;
         }
 
-        Mover* mover = getMoverFromPartId(roster[i]);
+        MCMover* mover = GetMoverFromPartId(Roster[i]);
 
         if (mover == nullptr)
         {
             continue;
         }
 
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot == nullptr)
         {
             continue;
         }
 
-        GameObject* target = pilot->getLastTarget();
+        MCGameObject* target = pilot->GetLastTarget();
 
-        if (target != nullptr && static_cast<uint32_t>(target->partId) == targetPartId)
+        if (target != nullptr && static_cast<uint32_t>(target->PartId) == targetPartId)
         {
             return 1;
         }
@@ -610,76 +610,76 @@ auto Team::isTargeting(uint32_t targetPartId, uint32_t exceptPartId) -> int
     return 0;
 }
 
-auto Team::addJammer(GameObject* owner, int32_t masterId) -> _SystemTracker*
+auto MCTeam::AddJammer(MCGameObject* owner, int32_t masterId) -> MCSystemTracker*
 {
-    _SystemTracker* tracker = NewTracker(owner, masterId, MasterComponentList[masterId].rangeOrHeat);
-    InsertTracker(jammerList, tracker);
+    MCSystemTracker* tracker = NewTracker(owner, masterId, MasterComponentList[masterId].RangeOrHeat);
+    InsertTracker(JammerList, tracker);
     return tracker;
 }
 
-auto Team::removeJammer(_SystemTracker* tracker) -> void
+auto MCTeam::RemoveJammer(MCSystemTracker* tracker) -> void
 {
-    RemoveTracker(jammerList, tracker);
+    RemoveTracker(JammerList, tracker);
 }
 
-auto Team::getJammerEffect() -> float
+auto MCTeam::GetJammerEffect() -> float
 {
-    for (const _SystemTracker* tracker = jammerList; tracker != nullptr; tracker = tracker->next)
+    for (const MCSystemTracker* tracker = JammerList; tracker != nullptr; tracker = tracker->Next)
     {
-        if (tracker->owner != nullptr)
+        if (tracker->Owner != nullptr)
         {
-            return tracker->effect;
+            return tracker->Effect;
         }
     }
 
     return 1.0f;
 }
 
-auto Team::addECM(GameObject* owner, int32_t masterId) -> _SystemTracker*
+auto MCTeam::AddEcm(MCGameObject* owner, int32_t masterId) -> MCSystemTracker*
 {
-    _SystemTracker* tracker = NewTracker(owner, masterId, MasterComponentList[masterId].damage);
-    InsertTracker(ecmList, tracker);
+    MCSystemTracker* tracker = NewTracker(owner, masterId, MasterComponentList[masterId].Damage);
+    InsertTracker(EcmList, tracker);
     return tracker;
 }
 
-auto Team::removeECM(_SystemTracker* tracker) -> void
+auto MCTeam::RemoveEcm(MCSystemTracker* tracker) -> void
 {
-    RemoveTracker(ecmList, tracker);
+    RemoveTracker(EcmList, tracker);
 }
 
-auto Team::getECMEffect(vector_3d position) -> float
+auto MCTeam::GetEcmEffect(MCVector3D position) -> float
 {
-    for (const _SystemTracker* tracker = ecmList; tracker != nullptr; tracker = tracker->next)
+    for (const MCSystemTracker* tracker = EcmList; tracker != nullptr; tracker = tracker->Next)
     {
-        const int32_t masterId = tracker->masterId;
+        const int32_t masterId = tracker->MasterId;
 
         if (masterId != 0x26 && masterId != 0x2a)
         {
             continue;
         }
 
-        GameObject* owner = tracker->owner;
+        MCGameObject* owner = tracker->Owner;
 
         if (owner == nullptr)
         {
             continue;
         }
 
-        const float ecmRange = MasterComponentList[masterId].rangeOrHeat;
+        const float ecmRange = MasterComponentList[masterId].RangeOrHeat;
 
-        if (owner->distanceFrom(position) <= ecmRange && owner->getExistsAndAwake() != 0 && owner->status == 0)
+        if (owner->DistanceFrom(position) <= ecmRange && owner->GetExistsAndAwake() != 0 && owner->Status == 0)
         {
-            return MasterComponentList[tracker->masterId].damage;
+            return MasterComponentList[tracker->MasterId].Damage;
         }
     }
 
     return 1.0f;
 }
 
-auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
+auto MCTeam::CalcEscapeVector(MCMover* mover, float range) -> MCVector3D
 {
-    // Function statics in the original (MCX.EXE @ 0x007e3fd0 and 0x007e4480): 100 entries, the roster's limit.
-    static vector_3d awayVectors[100];
+    // Function statics in the original: 100 entries, the roster's limit.
+    static MCVector3D awayVectors[100];
     static float distances[100];
 
     double sumX = 0.0;
@@ -688,9 +688,9 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
     int32_t nearest = 0;
     int32_t farthest = 0;
 
-    for (int32_t i = 0; i < rosterSize; i++)
+    for (int32_t i = 0; i < RosterSize; i++)
     {
-        Mover* other = getMoverFromPartId(roster[i]);
+        MCMover* other = GetMoverFromPartId(Roster[i]);
 
         if (other == nullptr)
         {
@@ -698,8 +698,8 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
             continue;
         }
 
-        vector_3d otherPosition = other->getPosition();
-        const double unroundedDistance = mover->distanceFrom(otherPosition);
+        MCVector3D otherPosition = other->GetPosition();
+        const double unroundedDistance = mover->DistanceFrom(otherPosition);
         const float distance = static_cast<float>(unroundedDistance);
 
         if (range < unroundedDistance)
@@ -708,12 +708,12 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
             continue;
         }
 
-        const vector_3d from = other->getPosition();
-        const vector_3d to = mover->getPosition();
+        const MCVector3D from = other->GetPosition();
+        const MCVector3D to = mover->GetPosition();
         distances[i] = distance;
-        awayVectors[i].x = to.x - from.x;
-        awayVectors[i].y = to.y - from.y;
-        awayVectors[i].z = to.z - from.z;
+        awayVectors[i].X = to.X - from.X;
+        awayVectors[i].Y = to.Y - from.Y;
+        awayVectors[i].Z = to.Z - from.Z;
 
         // The original compares the distance with the index itself, not the distance at that index.
         if (static_cast<float>(farthest) < distance)
@@ -728,17 +728,17 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
     }
 
     // Each vector is scaled up by how much nearer than the farthest its mover is.
-    for (int32_t i = 0; i < rosterSize; i++)
+    for (int32_t i = 0; i < RosterSize; i++)
     {
         if (0.0f <= distances[i])
         {
             const double scale = static_cast<double>(distances[farthest]) / distances[i];
-            awayVectors[i].x = static_cast<float>(scale * awayVectors[i].x);
-            awayVectors[i].y = static_cast<float>(scale * awayVectors[i].y);
-            awayVectors[i].z = static_cast<float>(scale * awayVectors[i].z);
-            sumX = sumX + awayVectors[i].x;
-            sumY = sumY + awayVectors[i].y;
-            sumZ = sumZ + awayVectors[i].z;
+            awayVectors[i].X = static_cast<float>(scale * awayVectors[i].X);
+            awayVectors[i].Y = static_cast<float>(scale * awayVectors[i].Y);
+            awayVectors[i].Z = static_cast<float>(scale * awayVectors[i].Z);
+            sumX = sumX + awayVectors[i].X;
+            sumY = sumY + awayVectors[i].Y;
+            sumZ = sumZ + awayVectors[i].Z;
         }
     }
 
@@ -751,32 +751,32 @@ auto Team::calcEscapeVector(Mover* mover, float range) -> vector_3d
         sumZ = sumZ / length;
     }
 
-    vector_3d result;
-    result.x = static_cast<float>(sumX);
-    result.z = static_cast<float>(sumZ);
-    result.y = static_cast<float>(sumY);
+    MCVector3D result;
+    result.X = static_cast<float>(sumX);
+    result.Z = static_cast<float>(sumZ);
+    result.Y = static_cast<float>(sumY);
     return result;
 }
 
-auto Team::statusCount(int32_t* counts) -> void
+auto MCTeam::StatusCount(int32_t* counts) -> void
 {
-    for (int32_t i = 0; i < rosterSize; i++)
+    for (int32_t i = 0; i < RosterSize; i++)
     {
-        Mover* mover = getMoverFromPartId(roster[i]);
+        MCMover* mover = GetMoverFromPartId(Roster[i]);
         Assert(mover != nullptr, static_cast<uint32_t>(i), " Team.statusCount: NULL roster object ");
-        const MechWarrior* pilot = mover->getPilot();
+        const MCMechWarrior* pilot = mover->GetPilot();
 
-        if (mover->getExists() == 0)
+        if (mover->GetExists() == 0)
         {
             counts[8]++;
         }
-        else if (mover->getAwake() == 0)
+        else if (mover->GetAwake() == 0)
         {
             counts[7]++;
         }
-        else if (pilot == nullptr || pilot->status != 2)
+        else if (pilot == nullptr || pilot->Status != 2)
         {
-            const uint8_t status = static_cast<uint8_t>(mover->status);
+            const uint8_t status = static_cast<uint8_t>(mover->Status);
 
             if (status > 5)
             {
@@ -792,32 +792,32 @@ auto Team::statusCount(int32_t* counts) -> void
     }
 }
 
-auto Team::destroy() -> void
+auto MCTeam::Destroy() -> void
 {
-    sensors.reset();
-    FreeTrackers(ecmList);
-    FreeTrackers(jammerList);
-    roster.reset();
+    Sensors.reset();
+    FreeTrackers(EcmList);
+    FreeTrackers(JammerList);
+    Roster.reset();
 }
 
-auto Team::lineOfSight(vector_3d position) -> int
+auto MCTeam::LineOfSight(MCVector3D position) -> int
 {
     int32_t tileR;
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->worldToMapPos(position, tileR, tileC, cellR, cellC);
+    GameMap->WorldToMapPos(position, tileR, tileC, cellR, cellC);
 
     // The clan side sees by terrainVisibleBits, the Inner Sphere by ClanVisibleBits (the names are the original's).
-    ByteFlag* visibleBits;
+    MCByteFlag* visibleBits;
 
-    if (alignment == 1)
+    if (Alignment == 1)
     {
-        visibleBits = Terrain::terrainVisibleBits;
+        visibleBits = MCTerrain::TerrainVisibleBits;
     }
-    else if (alignment == -1)
+    else if (Alignment == -1)
     {
-        visibleBits = Terrain::ClanVisibleBits;
+        visibleBits = MCTerrain::ClanVisibleBits;
     }
     else
     {
@@ -832,22 +832,22 @@ auto Team::lineOfSight(vector_3d position) -> int
     const uint32_t row = static_cast<uint32_t>(tileR);
     const uint32_t col = static_cast<uint32_t>(tileC);
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row, col + 1) != 0)
+    if (visibleBits->GetFlag(row, col + 1) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         return 1;
     }
@@ -855,12 +855,12 @@ auto Team::lineOfSight(vector_3d position) -> int
     return 0;
 }
 
-auto disableHomeTeamTargets() -> void
+auto DisableHomeTeamTargets() -> void
 {
-    homeTeam->disableTargets();
+    HomeTeam->DisableTargets();
 }
 
-auto killHomeTeamTargets() -> void
+auto KillHomeTeamTargets() -> void
 {
-    homeTeam->destroyTargets();
+    HomeTeam->DestroyTargets();
 }

@@ -2,66 +2,66 @@
 #include "lib/fastfile.h"
 #include "lib/ffile.h"
 
-FastFile** fastFiles = nullptr;
-int32_t numFastFiles = 0;
-int32_t maxFastFiles = 0;
-int32_t ffLastError = 0;
+MCFastFile** FastFiles = nullptr;
+int32_t NumFastFiles = 0;
+int32_t MaxFastFiles = 0;
+int32_t FfLastError = 0;
 
 int FastFileInit(const char* fname)
 {
-    if (numFastFiles == maxFastFiles)
+    if (NumFastFiles == MaxFastFiles)
     {
-        ffLastError = -1;
+        FfLastError = -1;
         return 0;
     }
 
-    FastFile* fastFile = new FastFile;
-    fastFiles[numFastFiles] = fastFile;
-    const int32_t result = fastFile->open(fname);
+    MCFastFile* fastFile = new MCFastFile;
+    FastFiles[NumFastFiles] = fastFile;
+    const int32_t result = fastFile->Open(fname);
 
     if (result != 0)
     {
-        ffLastError = result;
+        FfLastError = result;
         return 0;
     }
 
-    ++numFastFiles;
+    ++NumFastFiles;
     return 1;
 }
 
 void FastFileFini()
 {
-    if (fastFiles != nullptr)
+    if (FastFiles != nullptr)
     {
-        for (int32_t i = 0; i < maxFastFiles; ++i)
+        for (int32_t i = 0; i < MaxFastFiles; ++i)
         {
-            if (fastFiles[i] != nullptr)
+            if (FastFiles[i] != nullptr)
             {
-                fastFiles[i]->close();
+                FastFiles[i]->Close();
             }
 
-            delete fastFiles[i];
-            fastFiles[i] = nullptr;
+            delete FastFiles[i];
+            FastFiles[i] = nullptr;
         }
     }
 
-    std::free(fastFiles);
-    fastFiles = nullptr;
-    numFastFiles = 0;
+    std::free(FastFiles);
+    FastFiles = nullptr;
+    NumFastFiles = 0;
 }
 
-FastFile* FastFileFind(const char* fname)
+MCFastFile* FastFileFind(const char* fname)
 {
-    if (fastFiles == nullptr)
+    if (FastFiles == nullptr)
     {
         return nullptr;
     }
 
-    for (int32_t i = 0; i < numFastFiles; ++i)
+    for (int32_t i = 0; i < NumFastFiles; ++i)
     {
-        if (fastFiles[i]->openFast(fname) != -1)
+        if (FastFiles[i]->OpenFast(fname) != -1)
         {
-            return fastFiles[i];
+            return FastFiles[i];
         }
     }
 

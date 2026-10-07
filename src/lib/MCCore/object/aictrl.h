@@ -2,11 +2,11 @@
 
 #include "object/control.h"
 
-class MechWarrior;
+class MCMechWarrior;
 
 /// <summary>A mech driven by its pilot's AI: each update runs the pilot's brain and moves the mech.</summary>
 /// <remarks>Original source: <c>object\aictrl.cpp</c>, <c>object\aictrl.h</c>; 0x14 bytes.</remarks>
-class MechAIControl : public Control
+class MCMechAIControl : public MCControl
 {
 public:
     /// <summary>
@@ -16,61 +16,52 @@ public:
     /// while Mover +0x17c or +0x184 is set.
     /// </summary>
     /// <returns>1.</returns>
-    /// <remarks>MCX.EXE @ 0x0064db20</remarks>
-    int32_t update() override;
-    /// <remarks>MCX.EXE @ 0x006770a0 (inline in <c>object\aictrl.h</c>)</remarks>
-    uint32_t getControlClass() override { return 2; }
+    int32_t Update() override;
+    uint32_t GetControlClass() override { return 2; }
     /// <summary>Control::init, then remembers the mech's pilot and its type's dynamics type.</summary>
-    /// <remarks>MCX.EXE @ 0x0064dae0</remarks>
-    virtual int32_t init(GameObject* object);
-    using Control::init;
+    virtual int32_t Init(MCGameObject* object);
+    using MCControl::Init;
 
     /// <summary>The mech's pilot.</summary>
-    MechWarrior* pilot = nullptr; // +0x0c
+    MCMechWarrior* Pilot = nullptr;
     /// <summary>The mech type's dynamics type.</summary>
-    DynamicsType* dynamicsType = nullptr; // +0x10
+    MCDynamicsType* DynamicsType = nullptr;
 };
 
 /// <summary>A ground vehicle driven by its pilot's AI.</summary>
 /// <remarks>Original source: <c>object\aictrl.cpp</c>, <c>object\aictrl.h</c>; 0x14 bytes.</remarks>
-class GroundVehicleAIControl : public Control
+class MCGroundVehicleAIControl : public MCControl
 {
 public:
     /// <summary>As MechAIControl::update, without the pilot state check; clears the vehicle's +0x8b0.</summary>
     /// <returns>1.</returns>
-    /// <remarks>MCX.EXE @ 0x0064dc30</remarks>
-    int32_t update() override;
-    /// <remarks>MCX.EXE @ 0x0066ab60 (inline in <c>object\aictrl.h</c>)</remarks>
-    uint32_t getControlClass() override { return 2; }
+    int32_t Update() override;
+    uint32_t GetControlClass() override { return 2; }
     /// <summary>Control::init, then remembers the vehicle's pilot and its type's dynamics type.</summary>
-    /// <remarks>MCX.EXE @ 0x0064dbf0</remarks>
-    virtual int32_t init(GameObject* object);
-    using Control::init;
+    virtual int32_t Init(MCGameObject* object);
+    using MCControl::Init;
 
     /// <summary>The vehicle's pilot.</summary>
-    MechWarrior* pilot = nullptr; // +0x0c
+    MCMechWarrior* Pilot = nullptr;
     /// <summary>The vehicle type's dynamics type.</summary>
-    DynamicsType* dynamicsType = nullptr; // +0x10
+    MCDynamicsType* DynamicsType = nullptr;
 };
 
 /// <summary>An elemental driven by its pilot's AI.</summary>
 /// <remarks>Original source: <c>object\aictrl.cpp</c>, <c>object\aictrl.h</c>; 0x14 bytes.</remarks>
-class ElementalAIControl : public Control
+class MCElementalAIControl : public MCControl
 {
 public:
     /// <summary>As GroundVehicleAIControl::update, with no pending requests to pass on.</summary>
     /// <returns>1.</returns>
-    /// <remarks>MCX.EXE @ 0x0064dd10</remarks>
-    int32_t update() override;
-    /// <remarks>MCX.EXE @ 0x0065c0a0 (inline in <c>object\aictrl.h</c>)</remarks>
-    uint32_t getControlClass() override { return 2; }
+    int32_t Update() override;
+    uint32_t GetControlClass() override { return 2; }
     /// <summary>Control::init, then remembers the elemental's pilot and its type's dynamics type.</summary>
-    /// <remarks>MCX.EXE @ 0x0064dcd0 (unnamed in Ghidra)</remarks>
-    virtual int32_t init(GameObject* object);
-    using Control::init;
+    virtual int32_t Init(MCGameObject* object);
+    using MCControl::Init;
 
     /// <summary>The elemental's pilot.</summary>
-    MechWarrior* pilot = nullptr; // +0x0c
+    MCMechWarrior* Pilot = nullptr;
     /// <summary>The elemental type's dynamics type.</summary>
-    DynamicsType* dynamicsType = nullptr; // +0x10
+    MCDynamicsType* DynamicsType = nullptr;
 };

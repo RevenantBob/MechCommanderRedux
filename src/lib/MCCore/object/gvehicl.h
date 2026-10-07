@@ -4,13 +4,13 @@
 #include "object/mover.h"
 #include "object/objtype.h"
 
-class DynamicsType;
-class File;
-class FitIniFile;
-class Smoke;
+class MCDynamicsType;
+class MCFile;
+class MCFitIniFile;
+class MCSmoke;
 
 /// <summary>A ground vehicle's armor locations, in the profile's order.</summary>
-enum GroundVehicleLocation : int32_t
+enum MCGroundVehicleLocation : int32_t
 {
     GROUNDVEHICLE_LOCATION_FRONT = 0,
     GROUNDVEHICLE_LOCATION_LEFT = 1,
@@ -28,8 +28,7 @@ constexpr int32_t NUM_THROTTLE_TILE_TYPES = 59;
 constexpr int32_t NUM_THROTTLE_OVERLAY_TYPES = 75;
 
 /// <summary>The effect object type of each weapon effect (MasterComponent::weaponEffect).</summary>
-/// <remarks>MCX.EXE @ 0x00793dd0</remarks>
-extern uint32_t weaponFXTable[32];
+extern uint32_t WeaponFXTable[32];
 /// <summary>"GroundVehicle.FireWeapon" "AttackerMoveModifier".</summary>
 extern int32_t GroundVehicleAttackerMoveModifier[4];
 /// <summary>"GroundVehicle.Damage" "CriticalHitTable".</summary>
@@ -49,21 +48,20 @@ extern int32_t DefaultGroundVehicleCrashBlockPath;
 /// <summary>"GroundVehicle.Movement" "CrashYieldTime".</summary>
 extern float DefaultGroundVehicleCrashYieldTime;
 /// <summary>"GroundVehicle.Collision" "collisionThreshold".</summary>
-extern float gvCollisionThreshold;
+extern float GvCollisionThreshold;
 /// <summary>"GroundVehicle.Collision" "objectThreshold".</summary>
-extern float gvObjectCollisionThreshold;
+extern float GvObjectCollisionThreshold;
 /// <summary>"GroundVehicle.Collision" "tonnageThreshold".</summary>
-extern float gvTonnageCollisionThreshold;
+extern float GvTonnageCollisionThreshold;
 /// <summary>"GroundVehicle.Collision" "treeDeflection". At 0x007de514 (file-static, no symbol; the name is the
 /// port's).</summary>
-extern float gvTreeDeflection;
+extern float GvTreeDeflection;
 /// <summary>"GroundVehicle.Movement" "SweeperSlowTime": how long a mine sweeper crawls after clearing a mine.</summary>
-extern float gvSweepTime;
+extern float GvSweepTime;
 /// <summary>"GroundVehicle.Movement" "HillSpeedFactor".</summary>
-extern float gvHillSpeedFactor;
+extern float GvHillSpeedFactor;
 /// <summary>Set by updateMovePath: 100 m in world units, or the distance left on reaching the path's end.
 /// Nothing reads it.</summary>
-/// <remarks>MCX.EXE @ 0x007de664</remarks>
 extern float MaxVelocityMag;
 
 /// <summary>
@@ -71,20 +69,17 @@ extern float MaxVelocityMag;
 /// collision thresholds and the movement defaults (crash avoidance, sweeper time, walk speed, hill factor).
 /// </summary>
 /// <returns>0, or the first FitIniFile error.</returns>
-/// <remarks>MCX.EXE @ 0x00669110</remarks>
-int32_t loadGroundVehicleGameSystem(FitIniFile* sysFile);
+int32_t LoadGroundVehicleGameSystem(MCFitIniFile* sysFile);
 
 /// <summary>A ground vehicle type: the vehicle file's general data, internal structure, dynamics and movement.</summary>
 /// <remarks>Original source: <c>object\gvehicl.cpp</c>; 0x98 bytes.</remarks>
-class GroundVehicleType : public ObjectType
+class MCGroundVehicleType : public MCObjectType
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00690700 (vector deleting destructor)</remarks>
-    ~GroundVehicleType() override { destroy(); }
+    ~MCGroundVehicleType() override { Destroy(); }
 
     /// <summary>Clears the fields; crash avoidance from the DefaultGroundVehicle values.</summary>
-    /// <remarks>MCX.EXE @ 0x006692e0</remarks>
-    void init();
+    void Init();
     /// <summary>
     /// Reads the vehicle file ("GroundVehicleType"): "General" (id, alignment, name, chassis, tonnage, ammo truck,
     /// refit points, mine sweeper/layer, elemental carrier, seats, explosion), "InternalStructure" per location,
@@ -92,67 +87,61 @@ public:
     /// </summary>
     /// <returns>0, -1 for the wrong file type, -0x5fffd for the wrong dynamics type, -0x5fffe out of memory, or the
     /// FitIniFile error.</returns>
-    /// <remarks>MCX.EXE @ 0x006693b0</remarks>
-    int32_t init(File* objFile, uint32_t fileSize) override;
+    int32_t Init(MCFile* objFile, uint32_t fileSize) override;
     /// <summary>Frees the name and the dynamics type.</summary>
-    /// <remarks>MCX.EXE @ 0x00669360</remarks>
-    void destroy() override;
-    /// <summary>Makes a <see cref="GroundVehicle"/> of this type and gives it the next object id.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a220</remarks>
-    BaseObject* createInstance() override;
+    void Destroy() override;
+    /// <summary>Makes a <see cref="MCGroundVehicle"/> of this type and gives it the next object id.</summary>
+    MCBaseObject* CreateInstance() override;
     /// <summary>Ramming, trees, buildings, mines and weapons against a vehicle of this type.</summary>
-    /// <remarks>MCX.EXE @ 0x00669860</remarks>
-    int handleCollision(GameObject* collidee, GameObject* collider) override;
+    int HandleCollision(MCGameObject* collidee, MCGameObject* collider) override;
     /// <summary>Kills the vehicle: disables its sensor, alarms its pilot, sets the destroyed flags and takes it off
     /// the interface.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a120</remarks>
-    int handleDestruction(GameObject* collidee, GameObject* collider) override;
+    int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
     /// <summary>Does nothing (returns 0).</summary>
-    /// <remarks>MCX.EXE @ 0x0066a210</remarks>
-    int32_t loadHotSpots(FitIniFile* vehicleFile);
+    int32_t LoadHotSpots(MCFitIniFile* vehicleFile);
 
     /// <summary>"ID".</summary>
-    uint32_t vehicleId = 0; // +0x30
+    uint32_t VehicleId = 0;
     /// <summary>"Name".</summary>
-    std::string name; // +0x34
+    std::string Name;
     /// <summary>"Alignment", mapped 0 -> 1, 1 -> 0xff; copied to GameObject::alignment.</summary>
-    uint8_t alignment = 0; // +0x38
+    uint8_t Alignment = 0;
     /// <summary>"Chassis".</summary>
-    uint8_t chassis = 0; // +0x39
+    uint8_t Chassis = 0;
     /// <summary>"TonnageClass".</summary>
-    float tonnageClass = 0.0f; // +0x3c
+    float TonnageClass = 0.0f;
     /// <summary>Zeroed by init, never read from the file; copied to Mover::internalStructureTonnage.</summary>
-    float internalStructureTonnage = 0.0f; // +0x48
+    float InternalStructureTonnage = 0.0f;
     /// <summary>"InternalStructure": "Front", "Left", "Right", "Rear", "Turret".</summary>
-    uint8_t internalStructure[NUM_GROUNDVEHICLE_LOCATIONS] = {}; // +0x4c
+    uint8_t InternalStructure[NUM_GROUNDVEHICLE_LOCATIONS] = {};
     /// <summary>The dynamics type (a GroundVehicleDynamicsType).</summary>
-    DynamicsType* dynamicsType = nullptr; // +0x5c
+    MCDynamicsType* DynamicsType = nullptr;
     /// <summary>"CrashAvoidSelf".</summary>
-    int32_t crashAvoidSelf = 0; // +0x64
+    int32_t CrashAvoidSelf = 0;
     /// <summary>"CrashAvoidPath".</summary>
-    int32_t crashAvoidPath = 0; // +0x68
+    int32_t CrashAvoidPath = 0;
     /// <summary>"CrashBlockSelf".</summary>
-    int32_t crashBlockSelf = 0; // +0x6c
+    int32_t CrashBlockSelf = 0;
     /// <summary>"CrashBlockPath".</summary>
-    int32_t crashBlockPath = 0; // +0x70
+    int32_t CrashBlockPath = 0;
     /// <summary>"CrashYieldTime".</summary>
-    float crashYieldTime = 0.0f; // +0x74
+    float CrashYieldTime = 0.0f;
     /// <summary>"ExplosionDamage" (0 when missing).</summary>
-    float explDmg = 0.0f; // +0x78
+    float ExplDmg = 0.0f;
     /// <summary>"ExplosionRadius" (0 when missing).</summary>
-    float explRad = 0.0f; // +0x7c
+    float ExplRad = 0.0f;
     /// <summary>"RefitPoints"; nonzero makes the vehicle a refitter.</summary>
-    int32_t refitPoints = 0; // +0x80
+    int32_t RefitPoints = 0;
     /// <summary>"AmmoTruck".</summary>
-    int32_t ammoTruck = 0; // +0x84
+    int32_t AmmoTruck = 0;
     /// <summary>"MineSweeper".</summary>
-    int32_t mineSweeper = 0; // +0x88
+    int32_t MineSweeper = 0;
     /// <summary>"MinesToLay"; above 0 makes the vehicle a mine layer.</summary>
-    int32_t minesToLay = 0; // +0x8c
+    int32_t MinesToLay = 0;
     /// <summary>"ElementalCarrier".</summary>
-    int32_t elementalCarrier = 0; // +0x90
+    int32_t ElementalCarrier = 0;
     /// <summary>"Seats", at most <see cref="MAX_GROUNDVEHICLE_SEATS"/>.</summary>
-    uint8_t seats = 0; // +0x94
+    uint8_t Seats = 0;
 };
 
 /// <summary>
@@ -160,260 +149,198 @@ public:
 /// turret, mine sweeping and laying, refitting, and a marine who bails out when it dies.
 /// </summary>
 /// <remarks>Original source: <c>object\gvehicl.cpp</c>, <c>object\gvehicl.h</c>; 0x948 bytes.</remarks>
-class GroundVehicle : public Mover
+class MCGroundVehicle : public MCMover
 {
 public:
     /// <summary>Runs <see cref="init()"/> after the bases' (inlined into <c>GroundVehicleType::createInstance</c>).</summary>
-    GroundVehicle() { init(); }
-    /// <remarks>MCX.EXE @ 0x0066a3f0 (vector deleting destructor)</remarks>
-    ~GroundVehicle() override { destroy(); }
+    MCGroundVehicle() { Init(); }
+    ~MCGroundVehicle() override { Destroy(); }
 
     /// <summary>
     /// Class GROUND_VEHICLE; five armor locations; movement and turret working; no status window, smoke, pilot;
     /// the mine cell -1.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0066a5b0</remarks>
-    void init() override;
+    void Init() override;
     /// <summary>
     /// Copies the type's data (internal structure, chassis, crash avoidance, refit/sweeper/layer/carrier flags,
     /// seats), makes the dynamics, and the appearance: a GVAppearance (turret) or a PUAppearance (pop-up turret).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0066a6b0</remarks>
-    int32_t init(ObjectType* objType) override;
+    int32_t Init(MCObjectType* objType) override;
     /// <summary>Frees the crew name; closes the status window.</summary>
-    /// <remarks>MCX.EXE @ 0x0066b8b0</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x0066df10</remarks>
-    int32_t update() override;
-    /// <remarks>MCX.EXE @ 0x0066ea70</remarks>
-    void render() override;
+    void Destroy() override;
+    int32_t Update() override;
+    void Render() override;
     /// <summary>The vehicle's position.</summary>
-    /// <remarks>MCX.EXE @ 0x0066d650</remarks>
-    vector_3d getPositionFromHS(uint32_t hotSpot) override;
+    MCVector3D GetPositionFromHS(uint32_t hotSpot) override;
     /// <summary>Collides with the gates, buildings and walls of its tile block while moving.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a460</remarks>
-    void handleStaticCollision() override;
+    void HandleStaticCollision() override;
     /// <summary>
     /// Reads the vehicle profile ("GroundVehicleProfile"): crew, description, name, tonnage, status, icon, battle
     /// rating, engine, movement system, armor, inventory (other, weapons, ammo) and the armor per location.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0066ab80</remarks>
-    int32_t init(FitIniFile* vehicleFile) override;
-    /// <remarks>MCX.EXE @ 0x0066d670</remarks>
-    int onScreen() override;
-    /// <remarks>MCX.EXE @ 0x0066f7e0</remarks>
-    int32_t calcHitLocation(GameObject* attacker, int32_t weaponIndex, int32_t attackSource,
+    int32_t Init(MCFitIniFile* vehicleFile) override;
+    int OnScreen() override;
+    int32_t CalcHitLocation(MCGameObject* attacker, int32_t weaponIndex, int32_t attackSource,
                             int32_t attackType) override;
-    /// <remarks>MCX.EXE @ 0x006700d0</remarks>
-    int32_t handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) override;
+    int32_t HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) override;
     /// <summary>Replaces the control (1 player, 2 AI, 3 network) and gives it GroundVehicleControlData.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a970</remarks>
-    int32_t setControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) override;
-    /// <remarks>MCX.EXE @ 0x0066f730</remarks>
-    float relFacingTo(vector_3d goal, int32_t bodyPart) override;
+    int32_t SetControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) override;
+    float RelFacingTo(MCVector3D goal, int32_t bodyPart) override;
     /// <summary>relFacingTo the goal, from the turret.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a2e0 (inline in <c>object\gvehicl.h</c>)</remarks>
-    float relViewFacingTo(vector_3d goal) override;
-    /// <remarks>MCX.EXE @ 0x006723d0</remarks>
-    int32_t openStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) override;
-    /// <remarks>MCX.EXE @ 0x006724b0</remarks>
-    int32_t closeStatusWindow() override;
+    float RelViewFacingTo(MCVector3D goal) override;
+    int32_t OpenStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) override;
+    int32_t CloseStatusWindow() override;
     /// <summary>Flagged captureable (or unknown6C set), and neither disabled nor destroyed.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a340 (inline in <c>object\gvehicl.h</c>)</remarks>
-    int isCaptureable() override;
+    int IsCaptureable() override;
     /// <summary>The refit points left, for a refitter; 0 otherwise.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a390 (inline in <c>object\gvehicl.h</c>)</remarks>
-    float getRefitPoints() override;
+    float GetRefitPoints() override;
     /// <summary>Takes the points from a refitter that has enough.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a3b0 (inline in <c>object\gvehicl.h</c>)</remarks>
-    int burnRefitPoints(float pointsToBurn) override;
-    /// <remarks>MCX.EXE @ 0x006724e0</remarks>
-    int32_t getVitalInfo(void* vitalInfo) override;
+    int BurnRefitPoints(float pointsToBurn) override;
+    int32_t GetVitalInfo(void* vitalInfo) override;
     /// <summary>From the dynamics.</summary>
-    /// <remarks>MCX.EXE @ 0x0066c4e0</remarks>
-    int32_t getSpeedState() override;
-    /// <remarks>MCX.EXE @ 0x0066d890</remarks>
-    int crashAvoidanceSystem() override;
+    int32_t GetSpeedState() override;
+    int CrashAvoidanceSystem() override;
     /// <summary>Sets off (or, for a sweeper, clears) the mines of the vehicle's cell.</summary>
-    /// <remarks>MCX.EXE @ 0x0066b8f0</remarks>
-    void mineCheck() override;
-    /// <remarks>MCX.EXE @ 0x0066cf10</remarks>
-    void updateMovement() override;
-    /// <remarks>MCX.EXE @ 0x0066fb60</remarks>
-    int32_t buildStatusChunk() override;
-    /// <remarks>MCX.EXE @ 0x0066fd90</remarks>
-    int32_t handleStatusChunk(int32_t updateAge, uint32_t chunk) override;
-    /// <remarks>MCX.EXE @ 0x0066fea0</remarks>
-    int32_t buildMoveChunk() override;
-    /// <remarks>MCX.EXE @ 0x0066ff80</remarks>
-    int32_t handleMoveChunk(uint32_t chunk) override;
+    void MineCheck() override;
+    void UpdateMovement() override;
+    int32_t BuildStatusChunk() override;
+    int32_t HandleStatusChunk(int32_t updateAge, uint32_t chunk) override;
+    int32_t BuildMoveChunk() override;
+    int32_t HandleMoveChunk(uint32_t chunk) override;
     /// <summary>The profile's battle rating, or one computed from the loadout: the weapons' ratings scaled by top
     /// speed, plus structure, armor, tonnage class, the speed class and the other equipment.</summary>
-    /// <remarks>MCX.EXE @ 0x0066b710</remarks>
-    int32_t calcCV(int calcMax) override;
+    int32_t CalcCV(int calcMax) override;
     /// <summary>The appearance's gesture (+0x74).</summary>
-    /// <remarks>MCX.EXE @ 0x0066a310 (inline in <c>object\gvehicl.h</c>)</remarks>
-    int32_t getBodyState() override;
+    int32_t GetBodyState() override;
     /// <summary>Product of the armor left per location (scaled 0.4..1.0), the pilot's wound factor and the weapon
     /// effectiveness ratio; 0 when disabled or destroyed.</summary>
-    /// <remarks>MCX.EXE @ 0x00672520 (unnamed in Ghidra)</remarks>
-    float getTotalEffectiveness() override;
+    float GetTotalEffectiveness() override;
     /// <summary>relFacingTo the target position, from the turret.</summary>
-    /// <remarks>MCX.EXE @ 0x006700a0</remarks>
-    float weaponLocked(int32_t weaponIndex, vector_3d targetPosition) override;
-    /// <remarks>MCX.EXE @ 0x0066f790</remarks>
-    float calcAttackChance(GameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
-                           float modifiers, int32_t* range, vector_3d* targetPoint) override;
+    float WeaponLocked(int32_t weaponIndex, MCVector3D targetPosition) override;
+    float CalcAttackChance(MCGameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
+                           float modifiers, int32_t* range, MCVector3D* targetPoint) override;
     /// <summary>Fatal: vehicles have no inventory hits.</summary>
-    /// <remarks>MCX.EXE @ 0x0066f8e0</remarks>
-    int hitInventoryItem(int32_t itemIndex, int setupOnly) override;
+    int HitInventoryItem(int32_t itemIndex, int setupOnly) override;
     /// <summary>Disables the vehicle and starts its smoke.</summary>
-    /// <remarks>MCX.EXE @ 0x0066d830</remarks>
-    void disable(uint32_t cause) override;
+    void Disable(uint32_t cause) override;
     /// <summary>Does nothing.</summary>
-    /// <remarks>MCX.EXE @ 0x0066f900</remarks>
-    void destroyBodyLocation(int32_t location) override;
-    /// <remarks>MCX.EXE @ 0x0066fad0</remarks>
-    int injureBodyLocation(int32_t bodyLocation, float damage) override;
-    /// <remarks>MCX.EXE @ 0x006703a0</remarks>
-    int32_t fireWeapon(GameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
-                       int32_t aimLocation, vector_3d* targetPoint) override;
-    /// <remarks>MCX.EXE @ 0x006719a0</remarks>
-    int32_t handleWeaponFire(int32_t weaponIndex, GameObject* target, vector_3d* targetPoint, int hit, float entryAngle,
-                             int32_t numMissiles, int32_t missilesPastAMS, int32_t antiMissileShots,
+    void DestroyBodyLocation(int32_t location) override;
+    int InjureBodyLocation(int32_t bodyLocation, float damage) override;
+    int32_t FireWeapon(MCGameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
+                       int32_t aimLocation, MCVector3D* targetPoint) override;
+    int32_t HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, MCVector3D* targetPoint, int hit,
+                             float entryAngle, int32_t numMissiles, int32_t missilesPastAMS, int32_t antiMissileShots,
                              int32_t hitLocation) override;
     /// <summary>Whether the vehicle can move (movementEnabled).</summary>
-    /// <remarks>MCX.EXE @ 0x0066a320 (inline in <c>object\gvehicl.h</c>)</remarks>
-    int canMove() override;
+    int CanMove() override;
     /// <summary>The long name (Mover::debugStatus).</summary>
-    /// <remarks>MCX.EXE @ 0x0066a380 (inline in <c>object\gvehicl.h</c>)</remarks>
-    const char* getIfaceName() override { return debugStatus.c_str(); }
+    const char* GetIfaceName() override { return DebugStatus.c_str(); }
     // Slots 219.. are GroundVehicle's own.
     /// <summary>Does nothing: vehicles make no piloting checks.</summary>
-    /// <remarks>MCX.EXE @ 0x0066b8a0</remarks>
-    virtual void pilotingCheck() {}
-    /// <remarks>MCX.EXE @ 0x0066d470</remarks>
-    virtual void netUpdateMovement();
+    virtual void PilotingCheck() {}
+    virtual void NetUpdateMovement();
     /// <summary>Rolls a critical hit on the vehicle table; may disable movement or the turret.</summary>
-    /// <remarks>MCX.EXE @ 0x0066f910</remarks>
-    virtual int calcCriticalHitV(int32_t& hitLocation);
+    virtual int CalcCriticalHitV(int32_t& hitLocation);
     /// <summary>The control data's throttle.</summary>
-    /// <remarks>MCX.EXE @ 0x0066a330 (inline in <c>object\gvehicl.h</c>)</remarks>
-    virtual int32_t getThrottle();
-    using Mover::init;
-    using Mover::pilotingCheck;
+    virtual int32_t GetThrottle();
+    using MCMover::Init;
+    using MCMover::PilotingCheck;
 
-    /// <remarks>MCX.EXE @ 0x0066bd90</remarks>
-    int pivotTo();
+    int PivotTo();
     /// <summary>Scales the throttle limits by the chassis' factors for the cell's terrain and overlay.</summary>
-    /// <remarks>MCX.EXE @ 0x0066c3f0</remarks>
-    void calcThrottleLimits(int32_t& minThrottle, int32_t& maxThrottle);
-    /// <remarks>MCX.EXE @ 0x0066c500</remarks>
-    void updateMoveStateGoal();
-    /// <remarks>MCX.EXE @ 0x0066c6f0</remarks>
-    int updateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec, int32_t& newMoveState,
+    void CalcThrottleLimits(int32_t& minThrottle, int32_t& maxThrottle);
+    void UpdateMoveStateGoal();
+    int UpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec, int32_t& newMoveState,
                        int32_t& minThrottle, int32_t& maxThrottle);
-    /// <remarks>MCX.EXE @ 0x0066cca0</remarks>
-    void setNextMovePath(char& newThrottleSetting);
-    /// <remarks>MCX.EXE @ 0x0066ccf0</remarks>
-    void setControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec, int32_t& minThrottle,
+    void SetNextMovePath(char& newThrottleSetting);
+    void SetControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec, int32_t& minThrottle,
                             int32_t& maxThrottle);
-    /// <remarks>MCX.EXE @ 0x0066cdb0</remarks>
-    void updateTurret(float newRotatePerSec);
-    /// <remarks>MCX.EXE @ 0x0066d080</remarks>
-    int netUpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec, int32_t& newMoveState,
+    void UpdateTurret(float newRotatePerSec);
+    int NetUpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec, int32_t& newMoveState,
                           int32_t& minThrottle, int32_t& maxThrottle);
     /// <summary>
     /// Makes the marine who bails out of the dead vehicle (DefaultPilotId, the marine profile), hands him the
     /// vehicle's warrior and sends him off.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0066dc40</remarks>
-    void createVehiclePilot();
+    void CreateVehiclePilot();
 
     /// <summary>1 by init; a critical hit clears it. canMove returns it.</summary>
-    int32_t movementEnabled = 1; // +0x8a4
+    int32_t MovementEnabled = 1;
     /// <summary>1 by init; a critical hit clears it.</summary>
-    int32_t turretEnabled = 1; // +0x8a8
+    int32_t TurretEnabled = 1;
     /// <summary>The turret's yaw relative to the body (updateTurret; relFacingTo adds it).</summary>
-    float turretRotation = 0.0f; // +0x8ac
+    float TurretRotation = 0.0f;
     /// <summary>Whether the weapons can fire: always for a turret vehicle; a pop-up turret once it is up.</summary>
-    int32_t weaponsDeployed = 1; // +0x8b4
+    int32_t WeaponsDeployed = 1;
     /// <summary>1 with a GVAppearance (a vehicle), 0 with a PUAppearance (a pop-up turret).</summary>
-    int32_t gvAppearance = 0; // +0x8b8
+    int32_t GvAppearance = 0;
     /// <summary>The status window.</summary>
-    aTitleWindow* statusWindow = nullptr; // +0x8bc
+    MCGuiTitleWindow* StatusWindow = nullptr;
     /// <summary>The smoke of a disabled or destroyed vehicle.</summary>
-    Smoke* smoke = nullptr; // +0x8c0
+    MCSmoke* Smoke = nullptr;
     /// <summary>Whether the vehicle can be captured.</summary>
-    int32_t captureable = 0; // +0x8c4
+    int32_t Captureable = 0;
     /// <summary>Set when the type has refit points (the armor slot's refit pool at +0x20 of the armor block).</summary>
-    int32_t refitter = 0; // +0x8c8
+    int32_t Refitter = 0;
     /// <summary>Set while a refit truck is refitting (TacticalOrder's refit, stage 3 until done); a stopped vehicle then
     /// shows its extra (refit) state instead of the normal one.</summary>
-    int32_t refitting = 0; // +0x8cc
+    int32_t Refitting = 0;
     /// <summary>The type's "MineSweeper".</summary>
-    int32_t mineSweeper = 0; // +0x8d0
+    int32_t MineSweeper = 0;
     /// <summary>Seconds since the sweeper last cleared a mine; -1 when it hasn't.</summary>
-    float sweepTime = -1.0f; // +0x8d4
+    float SweepTime = -1.0f;
     /// <summary>Set when the type lays mines.</summary>
-    int32_t mineLayer = 0; // +0x8d8
+    int32_t MineLayer = 0;
     /// <summary>The type's "MinesToLay".</summary>
-    int32_t minesToLay = 0; // +0x8dc
+    int32_t MinesToLay = 0;
     /// <summary>The tile column the layer last mined; -1 for none.</summary>
-    int32_t cellColToMine = -1; // +0x8e0
+    int32_t CellColToMine = -1;
     /// <summary>The tile row the layer last mined; -1 for none.</summary>
-    int32_t cellRowToMine = -1; // +0x8e4
+    int32_t CellRowToMine = -1;
     /// <summary>The type's "ElementalCarrier".</summary>
-    int32_t elementalCarrier = 0; // +0x8e8
+    int32_t ElementalCarrier = 0;
     /// <summary>The elementals an elemental carrier holds (TacticalOrder LOAD_INTO_CARRIER fills it, DEPLOY_ELEMENTALS
     /// empties it).</summary>
-    Mover* elementals[10] = {}; // +0x8ec
-    /// <summary>The pilots riding in the seats (<see cref="seats"/>): taken from captured prisons, and put into
+    MCMover* Elementals[10] = {};
+    /// <summary>The pilots riding in the seats (<see cref="Seats"/>): taken from captured prisons, and put into
     /// captured mechs (TacticalOrder::status, CAPTURE).</summary>
-    MechWarrior* passengers[4] = {}; // +0x914
+    MCMechWarrior* Passengers[4] = {};
     /// <summary>The type's "Seats".</summary>
-    uint8_t seats = 0; // +0x924
+    uint8_t Seats = 0;
     /// <summary>Profile "Crew".</summary>
-    std::string crewName; // +0x928
+    std::string CrewName;
     /// <summary>Profile "NotMineYet" (1 when missing).</summary>
-    int32_t notMineYet = 0; // +0x92c
+    int32_t NotMineYet = 0;
     /// <summary>The marine who bailed out (createVehiclePilot).</summary>
-    Mover* vehiclePilot = nullptr; // +0x930
+    MCMover* VehiclePilot = nullptr;
     /// <summary>Set once mineCheck has handled the current cell's mine; cleared when the vehicle is on a cell
     /// without one.</summary>
-    int32_t mineCellHandled = 0; // +0x934
+    int32_t MineCellHandled = 0;
     /// <summary>Profile "BattleRating"; -1 when missing (calcCV computes one).</summary>
-    int32_t battleRating = -1; // +0x938
+    int32_t BattleRating = -1;
     /// <summary>Profile "DescIndex" (-1 when missing): the long name is string 700 + this.</summary>
-    int32_t descIndex = -1; // +0x93c
+    int32_t DescIndex = -1;
     /// <summary>Profile "NameIndex".</summary>
-    int32_t nameIndex = 0; // +0x940
+    int32_t NameIndex = 0;
     /// <summary>Seconds the mine layer has spent on the current cell (lays when over MineWaitTime).</summary>
-    float mineLayTime = 0.0f; // +0x944
+    float MineLayTime = 0.0f;
 };
 
 /// <summary>A ground vehicle's status window.</summary>
 /// <remarks>Original source: <c>object\gvehicl.cpp</c>, <c>object\gvehicl.h</c>; 0x4c4 bytes.</remarks>
-class GroundVehicleStatusWindow : public aTitleWindow
+class MCGroundVehicleStatusWindow : public MCGuiTitleWindow
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00672480 (vector deleting destructor)</remarks>
-    ~GroundVehicleStatusWindow() override;
-    /// <remarks>MCX.EXE @ 0x006726a0</remarks>
-    void init(int32_t x, int32_t y, int32_t w, int32_t h, GroundVehicle* newVehicle);
-    /// <remarks>MCX.EXE @ 0x006726f0</remarks>
-    void handleEvent(aEvent* event) override;
-    /// <remarks>MCX.EXE @ 0x00672720</remarks>
-    void resize(int32_t w, int32_t h) override;
-    /// <remarks>MCX.EXE @ 0x00672740</remarks>
-    void display() override;
-    /// <remarks>MCX.EXE @ 0x006727e0</remarks>
-    void draw() override;
+    ~MCGroundVehicleStatusWindow() override;
+    void Init(int32_t x, int32_t y, int32_t w, int32_t h, MCGroundVehicle* newVehicle);
+    void HandleEvent(MCGuiEvent* event) override;
+    void Resize(int32_t w, int32_t h) override;
+    void Display() override;
+    void Draw() override;
     /// <summary>Port: still paints a picture (in display), so it keeps one.</summary>
     bool DrawsLive() override { return false; }
-    /// <remarks>MCX.EXE @ 0x00672470 (inline in <c>object\gvehicl.h</c>)</remarks>
-    virtual GroundVehicle* getVehicle() { return vehicle; }
+    virtual MCGroundVehicle* GetVehicle() { return Vehicle; }
 
     /// <summary>The vehicle shown.</summary>
-    GroundVehicle* vehicle = nullptr; // +0x4c0
+    MCGroundVehicle* Vehicle = nullptr;
 };

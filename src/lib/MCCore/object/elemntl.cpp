@@ -38,15 +38,15 @@
 #include "sprite/lactor.h"
 #include "terrain/terrain.h"
 
-float elmDamageOnImpact = 0.0f;
+float ElmDamageOnImpact = 0.0f;
 float ElementalTargetNoJumpDistance = 75.0f;
-int useOldProject = 0;
+int UseOldProject = 0;
 
 namespace
 {
-    /// <summary>Half pi, as MCX.EXE stores it (MCX.EXE @ 0x0077cb50).</summary>
+    /// <summary>Half pi, as MCX.EXE stores it.</summary>
     constexpr double HALF_PI = 0x1.921fb5443e88cp+0;
-    /// <summary>Degrees to radians, as MCX.EXE stores it (MCX.EXE @ 0x0077c2a0; a hair under pi / 180).</summary>
+    /// <summary>Degrees to radians, as MCX.EXE stores it (a hair under pi / 180).</summary>
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
     /// <summary>getWeaponShots' answer for a weapon that needs no ammo.</summary>
     constexpr int32_t UNLIMITED_SHOTS = 9999;
@@ -54,54 +54,54 @@ namespace
     constexpr float MISS_SCATTER = 25.0f;
 
     /// <summary>Turns a frame about its k axis (MC2's inline frame_of_ref::rotate_about_k).</summary>
-    void rotateAboutK(frame_of_ref& frame, float s, float c)
+    void RotateAboutK(MCFrameOfRef& frame, float s, float c)
     {
-        const vector_3d oldI = frame.i;
-        frame.i = frame.i * c + frame.j * s;
-        frame.j = frame.j * c - oldI * s;
+        const MCVector3D oldI = frame.I;
+        frame.I = frame.I * c + frame.J * s;
+        frame.J = frame.J * c - oldI * s;
     }
 
     /// <summary>Starts a collision's grace period: no more from <paramref name="collider"/> for two seconds.
     /// </summary>
     /// <returns>0 while the last one from <paramref name="collider"/> is still in its grace period.</returns>
-    int startCollision(GameObject* collidee, GameObject* collider)
+    int StartCollision(MCGameObject* collidee, MCGameObject* collider)
     {
-        if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+        if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
         {
             return 0;
         }
 
-        collidee->setCollisionFreeFrom(collider);
-        collidee->setCollisionFreeTime(scenarioTime + 2.0f);
+        collidee->SetCollisionFreeFrom(collider);
+        collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
         return 1;
     }
 
     /// <summary>Turns <paramref name="collidee"/> by <paramref name="radians"/>.</summary>
-    void turnAway(GameObject* collidee, double radians)
+    void TurnAway(MCGameObject* collidee, double radians)
     {
-        frame_of_ref frame = collidee->getFrame();
-        rotateAboutK(frame, static_cast<float>(std::sin(radians)), static_cast<float>(std::cos(radians)));
-        collidee->setFrame(frame);
+        MCFrameOfRef frame = collidee->GetFrame();
+        RotateAboutK(frame, static_cast<float>(std::sin(radians)), static_cast<float>(std::cos(radians)));
+        collidee->SetFrame(frame);
     }
 
     /// <summary>A marine's death: it is taken off the interface at once, leaving no wreck.</summary>
     /// <param name="deathTime">The death timer to set (0.8 when it goes quietly, 0 when shot).</param>
-    void removeMarine(Elemental* marine, float deathTime)
+    void RemoveMarine(MCElemental* marine, float deathTime)
     {
-        marine->deathTimer = deathTime;
-        marine->getPilot()->triggerAlarm(7, 0);
-        marine->status = 2;
-        marine->deathExplosionDone = 0;
-        theInterface->RemoveMech(marine->partId);
+        marine->DeathTimer = deathTime;
+        marine->GetPilot()->TriggerAlarm(7, 0);
+        marine->Status = 2;
+        marine->DeathExplosionDone = 0;
+        TheInterface->RemoveMech(marine->PartId);
     }
 
     /// <summary>Adds a shot to a bullet, when it has room (5 at most).</summary>
-    void addBulletShot(Bullet* bullet, _WeaponShotInfo& shot)
+    void AddBulletShot(MCBullet* bullet, MCWeaponShotInfo& shot)
     {
-        if (bullet->numShots != 5)
+        if (bullet->NumShots != 5)
         {
-            bullet->shotInfo[bullet->numShots++].init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation,
-                                                      shot.entryAngle);
+            bullet->ShotInfo[bullet->NumShots++].Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation,
+                                                      shot.EntryAngle);
         }
     }
 
@@ -109,97 +109,97 @@ namespace
     /// Points a weapon effect from the elemental at <paramref name="target"/>; lasers and projectiles also carry
     /// <paramref name="shot"/> (a bullet's shots are added as it is loaded). Elementals fire from hot spot 0.
     /// </summary>
-    void aimWeaponFX(Elemental* elemental, GameObject* fx, GameObject* target, _WeaponShotInfo& shot,
+    void AimWeaponFX(MCElemental* elemental, MCGameObject* fx, MCGameObject* target, MCWeaponShotInfo& shot,
                      int32_t targetHotSpot)
     {
-        if (fx->objectClass == BULLET)
+        if (fx->ObjectClass == BULLET)
         {
-            auto* bullet = static_cast<Bullet*>(fx);
-            bullet->owner = elemental;
-            bullet->target = target;
-            bullet->ownerHotSpot = 0;
-            bullet->targetHotSpot = targetHotSpot;
+            auto* bullet = static_cast<MCBullet*>(fx);
+            bullet->Owner = elemental;
+            bullet->Target = target;
+            bullet->OwnerHotSpot = 0;
+            bullet->TargetHotSpot = targetHotSpot;
         }
-        else if (fx->objectClass == LASER)
+        else if (fx->ObjectClass == LASER)
         {
-            auto* laser = static_cast<Laser*>(fx);
-            laser->source.setWatcher(elemental);
-            laser->target.setWatcher(target);
-            laser->sourceHotSpot = 0;
-            laser->targetHotSpot = targetHotSpot;
-            laser->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
+            auto* laser = static_cast<MCLaser*>(fx);
+            laser->Source.SetWatcher(elemental);
+            laser->Target.SetWatcher(target);
+            laser->SourceHotSpot = 0;
+            laser->TargetHotSpot = targetHotSpot;
+            laser->ShotInfo.Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
         }
         else
         {
-            auto* projectile = static_cast<ProjectileLaser*>(fx);
-            projectile->owner = elemental;
-            projectile->target = target;
-            projectile->ownerHotSpot = 0;
-            projectile->targetHotSpot = targetHotSpot;
-            projectile->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
+            auto* projectile = static_cast<MCProjectileLaser*>(fx);
+            projectile->Owner = elemental;
+            projectile->Target = target;
+            projectile->OwnerHotSpot = 0;
+            projectile->TargetHotSpot = targetHotSpot;
+            projectile->ShotInfo.Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
         }
     }
 
     /// <summary>Sends a missed weapon effect from the elemental to <paramref name="landing"/>.</summary>
-    void connectMissFX(Elemental* elemental, GameObject* fx, vector_3d& landing, _WeaponShotInfo& shot)
+    void ConnectMissFX(MCElemental* elemental, MCGameObject* fx, MCVector3D& landing, MCWeaponShotInfo& shot)
     {
-        if (fx->objectClass == BULLET)
+        if (fx->ObjectClass == BULLET)
         {
-            static_cast<Bullet*>(fx)->connect(elemental, landing, 0);
+            static_cast<MCBullet*>(fx)->Connect(elemental, landing, 0);
         }
-        else if (fx->objectClass == LASER)
+        else if (fx->ObjectClass == LASER)
         {
-            static_cast<Laser*>(fx)->connect(elemental, landing, &shot, 0);
+            static_cast<MCLaser*>(fx)->Connect(elemental, landing, &shot, 0);
         }
         else
         {
-            static_cast<ProjectileLaser*>(fx)->connect(elemental, landing, &shot, 0);
+            static_cast<MCProjectileLaser*>(fx)->Connect(elemental, landing, &shot, 0);
         }
     }
 
     /// <summary>Where a missed shot lands: up to <see cref="MISS_SCATTER"/> about the target.</summary>
     /// <param name="centred">Missiles scatter both ways; other shots (as the original computes them) only one.</param>
-    vector_3d missPoint(GameObject* target, int centred)
+    MCVector3D MissPoint(MCGameObject* target, int centred)
     {
-        vector_3d miss;
-        miss.x = MISS_SCATTER;
-        miss.y = MISS_SCATTER;
-        miss.z = 0.0f;
-        const auto offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.x + miss.x)) - miss.x);
-        const auto offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.y + miss.y)) - miss.y);
-        const auto offsetZ = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.z + miss.z)) - miss.z);
+        MCVector3D miss;
+        miss.X = MISS_SCATTER;
+        miss.Y = MISS_SCATTER;
+        miss.Z = 0.0f;
+        const auto offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.X + miss.X)) - miss.X);
+        const auto offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.Y + miss.Y)) - miss.Y);
+        const auto offsetZ = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.Z + miss.Z)) - miss.Z);
 
         if (centred != 0)
         {
-            miss.x = offsetX;
-            miss.y = offsetY;
+            miss.X = offsetX;
+            miss.Y = offsetY;
         }
         else
         {
-            miss.x = miss.x + offsetX;
-            miss.y = miss.y + offsetY;
+            miss.X = miss.X + offsetX;
+            miss.Y = miss.Y + offsetY;
         }
 
-        miss.z = miss.z + offsetZ;
-        const vector_3d base = target->getPosition();
-        miss.x += base.x;
-        miss.y += base.y;
-        miss.z += base.z;
+        miss.Z = miss.Z + offsetZ;
+        const MCVector3D base = target->GetPosition();
+        miss.X += base.X;
+        miss.Y += base.Y;
+        miss.Z += base.Z;
         return miss;
     }
 
     /// <summary>
-    /// Splits a missile flight into volleys: SRMs and LRMs fly in clusters (<see cref="ClusterSizeSRM"/>,
-    /// <see cref="ClusterSizeLRM"/>), anything else in one.
+    /// Splits a missile flight into volleys: SRMs and LRMs fly in clusters (<see cref="ClusterSizeSrm"/>,
+    /// <see cref="ClusterSizeLrm"/>), anything else in one.
     /// </summary>
     /// <returns>The number of volleys.</returns>
-    int32_t missileVolleys(const MasterComponent& weapon, int32_t missiles, int32_t& volleySize)
+    int32_t MissileVolleys(const MCMasterComponent& weapon, int32_t missiles, int32_t& volleySize)
     {
         volleySize = 1;
 
-        if (weapon.missileType == 1 || weapon.missileType == 2)
+        if (weapon.MissileType == 1 || weapon.MissileType == 2)
         {
-            volleySize = weapon.missileType == 1 ? ClusterSizeSRM : ClusterSizeLRM;
+            volleySize = weapon.MissileType == 1 ? ClusterSizeSrm : ClusterSizeLrm;
             int32_t numVolleys = missiles / volleySize;
 
             if (missiles % volleySize != 0)
@@ -215,32 +215,32 @@ namespace
 
     /// <summary>A turn of <paramref name="turn"/> degrees as a rotate request, no faster than
     /// <paramref name="maxTurn"/>.</summary>
-    int8_t rotateRequest(float turn, float maxTurn)
+    int8_t RotateRequest(float turn, float maxTurn)
     {
         return static_cast<int8_t>(static_cast<int32_t>(turn / maxTurn * 64.0f));
     }
 }
 
-auto loadElementalGameSystem(FitIniFile* sysFile) -> int32_t
+auto LoadElementalGameSystem(MCFitIniFile* sysFile) -> int32_t
 {
-    int32_t result = sysFile->seekBlock("Elemental:Collision");
+    int32_t result = sysFile->SeekBlock("Elemental:Collision");
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("DamageOnImpact", elmDamageOnImpact)) != 0)
+    if ((result = sysFile->ReadIdFloat("DamageOnImpact", ElmDamageOnImpact)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->seekBlock("Elemental:Combat")) != 0)
+    if ((result = sysFile->SeekBlock("Elemental:Combat")) != 0)
     {
         return result;
     }
 
-    result = sysFile->readIdFloat("NoJumpRange", ElementalTargetNoJumpDistance);
+    result = sysFile->ReadIdFloat("NoJumpRange", ElementalTargetNoJumpDistance);
     Assert(result == 0 ? 1 : 0, 0, " Unable to find Elemental NoJumpRange in gamesys.fit ");
     return 0;
 }
@@ -249,41 +249,41 @@ auto loadElementalGameSystem(FitIniFile* sysFile) -> int32_t
 // ElementalType
 //---------------------------------------------------------------------------
 
-auto ElementalType::init() -> void
+auto MCElementalType::Init() -> void
 {
-    canJump = 1;
-    elementalId = 0;
-    name.clear();
-    alignment = 0;
-    maxHealth = 0;
+    CanJump = 1;
+    ElementalId = 0;
+    Name.clear();
+    Alignment = 0;
+    MaxHealth = 0;
 }
 
-auto ElementalType::destroy() -> void
+auto MCElementalType::Destroy() -> void
 {
-    name.clear();
-    delete dynamicsType;
-    dynamicsType = nullptr;
-    ObjectType::destroy();
+    Name.clear();
+    delete DynamicsType;
+    DynamicsType = nullptr;
+    MCObjectType::Destroy();
 }
 
-auto ElementalType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCElementalType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile elementalFile;
-    int32_t result = elementalFile.open(objFile, fileSize, 50);
+    MCFitIniFile elementalFile;
+    int32_t result = elementalFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile.seekBlock("Header")) != 0)
+    if ((result = elementalFile.SeekBlock("Header")) != 0)
     {
         return result;
     }
 
     char fileType[128];
 
-    if ((result = elementalFile.readIdString("FileType", fileType, 127)) != 0)
+    if ((result = elementalFile.ReadIdString("FileType", fileType, 127)) != 0)
     {
         return result;
     }
@@ -293,49 +293,49 @@ auto ElementalType::init(File* objFile, uint32_t fileSize) -> int32_t
         return -1;
     }
 
-    if ((result = elementalFile.seekBlock("General")) != 0)
+    if ((result = elementalFile.SeekBlock("General")) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile.readIdULong("ID", elementalId)) != 0)
+    if ((result = elementalFile.ReadIdULong("ID", ElementalId)) != 0)
     {
         return result;
     }
 
-    if (elementalFile.readIdBoolean("CanJump", canJump) != 0)
+    if (elementalFile.ReadIdBoolean("CanJump", CanJump) != 0)
     {
-        canJump = 1;
+        CanJump = 1;
     }
 
     // "Type" 0 is 1, 1 is -1.
     static constexpr uint8_t alignmentMap[2] = {1, 0xff};
     uint8_t fileAlignment = 0;
 
-    if ((result = elementalFile.readIdUChar("Type", fileAlignment)) != 0)
+    if ((result = elementalFile.ReadIdUChar("Type", fileAlignment)) != 0)
     {
         return result;
     }
 
     // Port fix: the original reads other values from past its two-entry table on the stack.
-    alignment = fileAlignment < 2 ? alignmentMap[fileAlignment] : 0;
+    Alignment = fileAlignment < 2 ? alignmentMap[fileAlignment] : 0;
     char nameBuffer[128];
-    elementalFile.readIdString("Name", nameBuffer, 127);
-    name = nameBuffer;
+    elementalFile.ReadIdString("Name", nameBuffer, 127);
+    Name = nameBuffer;
 
-    if ((result = elementalFile.readIdUChar("MaxHealth", maxHealth)) != 0)
+    if ((result = elementalFile.ReadIdUChar("MaxHealth", MaxHealth)) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile.seekBlock("Dynamics")) != 0)
+    if ((result = elementalFile.SeekBlock("Dynamics")) != 0)
     {
         return result;
     }
 
     uint32_t dynamicsTypeId = 0;
 
-    if ((result = elementalFile.readIdULong("Type", dynamicsTypeId)) != 0)
+    if ((result = elementalFile.ReadIdULong("Type", dynamicsTypeId)) != 0)
     {
         return result;
     }
@@ -345,26 +345,26 @@ auto ElementalType::init(File* objFile, uint32_t fileSize) -> int32_t
         return -0x5fffd;
     }
 
-    dynamicsType = new ElementalDynamicsType;
+    DynamicsType = new MCElementalDynamicsType;
 
-    if (dynamicsType == nullptr)
+    if (DynamicsType == nullptr)
     {
         return -0x5fffe;
     }
 
-    if ((result = dynamicsType->init(&elementalFile)) != 0)
+    if ((result = DynamicsType->Init(&elementalFile)) != 0)
     {
         return result;
     }
 
-    return ObjectType::init(&elementalFile);
+    return MCObjectType::Init(&elementalFile);
 }
 
-auto ElementalType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCElementalType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    auto* elemental = static_cast<Elemental*>(collidee);
+    auto* elemental = static_cast<MCElemental*>(collidee);
 
-    switch (collider->objectClass)
+    switch (collider->ObjectClass)
     {
         case BATTLEMECH:
         case GROUNDVEHICLE:
@@ -372,89 +372,89 @@ auto ElementalType::handleCollision(GameObject* collidee, GameObject* collider) 
             // An enemy ramming it knocks an elemental aside; a marine is knocked aside by anything, every time.
             int knockedAside = 0;
 
-            if (collidee->getPilot()->alignment != collider->getPilot()->alignment)
+            if (collidee->GetPilot()->Alignment != collider->GetPilot()->Alignment)
             {
-                GameObject* collideeRamTarget = collidee->getPilot()->curTacOrder.getRamTarget();
-                GameObject* colliderRamTarget = collider->getPilot()->curTacOrder.getRamTarget();
+                MCGameObject* collideeRamTarget = collidee->GetPilot()->CurTacOrder.GetRamTarget();
+                MCGameObject* colliderRamTarget = collider->GetPilot()->CurTacOrder.GetRamTarget();
 
                 if ((collideeRamTarget == collider || colliderRamTarget == collidee) &&
-                    (collidee->getCollisionFreeFrom() != collider || collidee->getCollisionFreeTime() < scenarioTime))
+                    (collidee->GetCollisionFreeFrom() != collider || collidee->GetCollisionFreeTime() < ScenarioTime))
                 {
                     knockedAside = 1;
                 }
             }
 
-            if (knockedAside == 0 && elemental->elementalCanJump != 0)
+            if (knockedAside == 0 && elemental->ElementalCanJump != 0)
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
-            turnAway(collidee, HALF_PI);
-            collidee->getVelocity();
-            const float entryAngle = collidee->relFacingTo(collider->getPosition(), -1);
-            _WeaponShotInfo shotInfo;
-            shotInfo.init(collider, -1, 5.0f, 0, entryAngle);
-            collidee->handleWeaponHit(&shotInfo, 0);
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
+            TurnAway(collidee, HALF_PI);
+            collidee->GetVelocity();
+            const float entryAngle = collidee->RelFacingTo(collider->GetPosition(), -1);
+            MCWeaponShotInfo shotInfo;
+            shotInfo.Init(collider, -1, 5.0f, 0, entryAngle);
+            collidee->HandleWeaponHit(&shotInfo, 0);
             return 0;
         }
 
         case BUILDING:
         case TREEBUILDING:
         {
-            if (startCollision(collidee, collider) == 0)
+            if (StartCollision(collidee, collider) == 0)
             {
                 return 0;
             }
 
             // A big building turns the elemental further.
-            const float angle = objectCollisionThreshold < collider->getObjectType()->extentRadius ? 135.0f : 45.0f;
-            turnAway(collidee, angle * DEGREES_TO_RADIANS);
-            collidee->getVelocity();
-            const int32_t hitLocation = collidee->calcHitLocation(collider, -1, 1, 0);
-            const float entryAngle = collidee->relFacingTo(collider->getPosition(), -1);
-            const auto damage = static_cast<int32_t>(collider->getTonnage() * 0.1 + 0.5);
-            _WeaponShotInfo shotInfo;
-            shotInfo.init(collider, -1, static_cast<float>(damage), hitLocation, entryAngle);
-            collidee->handleWeaponHit(&shotInfo, 0);
+            const float angle = ObjectCollisionThreshold < collider->GetObjectType()->ExtentRadius ? 135.0f : 45.0f;
+            TurnAway(collidee, angle * DEGREES_TO_RADIANS);
+            collidee->GetVelocity();
+            const int32_t hitLocation = collidee->CalcHitLocation(collider, -1, 1, 0);
+            const float entryAngle = collidee->RelFacingTo(collider->GetPosition(), -1);
+            const auto damage = static_cast<int32_t>(collider->GetTonnage() * 0.1 + 0.5);
+            MCWeaponShotInfo shotInfo;
+            shotInfo.Init(collider, -1, static_cast<float>(damage), hitLocation, entryAngle);
+            collidee->HandleWeaponHit(&shotInfo, 0);
             break;
         }
 
         case TREE:
         {
-            if (startCollision(collidee, collider) == 0)
+            if (StartCollision(collidee, collider) == 0)
             {
                 return 0;
             }
 
-            frame_of_ref frame = collidee->getFrame();
-            collider->getObjectType();
+            MCFrameOfRef frame = collidee->GetFrame();
+            collider->GetObjectType();
             float deflection = 0.0f;
 
-            if (collidee->getTonnage() < tonnageCollisionThreshold)
+            if (collidee->GetTonnage() < TonnageCollisionThreshold)
             {
-                deflection = static_cast<float>(static_cast<double>(tonnageCollisionThreshold) /
-                                                collidee->getTonnage() * treeDeflection);
+                deflection = static_cast<float>(static_cast<double>(TonnageCollisionThreshold) /
+                                                collidee->GetTonnage() * TreeDeflection);
             }
 
             if (deflection > 0.0)
             {
-                rotateAboutK(frame, static_cast<float>(std::sin(deflection * DEGREES_TO_RADIANS)),
+                RotateAboutK(frame, static_cast<float>(std::sin(deflection * DEGREES_TO_RADIANS)),
                              static_cast<float>(std::cos(deflection * DEGREES_TO_RADIANS)));
-                collidee->setFrame(frame);
+                collidee->SetFrame(frame);
             }
             break;
         }
 
         case TRAINCAR:
         {
-            if (collidee->getCollisionFreeFrom() != collider || collidee->getCollisionFreeTime() < scenarioTime)
+            if (collidee->GetCollisionFreeFrom() != collider || collidee->GetCollisionFreeTime() < ScenarioTime)
             {
-                collidee->setCollisionFreeFrom(collider);
-                collidee->setCollisionFreeTime(scenarioTime + 2.0f);
-                turnAway(collidee, HALF_PI);
-                collidee->getVelocity();
+                collidee->SetCollisionFreeFrom(collider);
+                collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
+                TurnAway(collidee, HALF_PI);
+                collidee->GetVelocity();
             }
 
             return 0;
@@ -463,73 +463,73 @@ auto ElementalType::handleCollision(GameObject* collidee, GameObject* collider) 
             return 0;
     }
 
-    soundSystem->playDigitalSample(4, 1, collidee, 0, 0);
+    SoundSystem->PlayDigitalSample(4, 1, collidee, 0, 0);
     return 0;
 }
 
-auto ElementalType::handleDestruction(GameObject* collidee, GameObject* collider) -> int
+auto MCElementalType::HandleDestruction(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    auto* elemental = static_cast<Elemental*>(collidee);
+    auto* elemental = static_cast<MCElemental*>(collidee);
 
-    if (elemental->getPilot() == nullptr)
+    if (elemental->GetPilot() == nullptr)
     {
         Fatal(0, " No Pilot in this elemental! ");
     }
 
-    if (elemental->getPoint() == elemental)
+    if (elemental->GetPoint() == elemental)
     {
-        elemental->group->setPoint(nullptr);
+        elemental->Group->SetPoint(nullptr);
     }
 
-    if (elemental->sensorSystem != nullptr)
+    if (elemental->SensorSystem != nullptr)
     {
-        elemental->sensorSystem->disable();
+        elemental->SensorSystem->Disable();
     }
 
-    if (elemental->withdrawing == 0)
+    if (elemental->Withdrawing == 0)
     {
-        elemental->deathTimer = 0.8f;
-        elemental->getPilot()->triggerAlarm(7, collider == nullptr ? 0 : collider->idNumber);
+        elemental->DeathTimer = 0.8f;
+        elemental->GetPilot()->TriggerAlarm(7, collider == nullptr ? 0 : collider->IdNumber);
     }
     else
     {
-        elemental->deathTimer = 0.0f;
-        elemental->getPilot()->triggerAlarm(8, 0);
+        elemental->DeathTimer = 0.0f;
+        elemental->GetPilot()->TriggerAlarm(8, 0);
     }
 
-    elemental->status = 2;
-    elemental->deathExplosionDone = 0;
-    theInterface->RemoveMech(elemental->partId);
+    elemental->Status = 2;
+    elemental->DeathExplosionDone = 0;
+    TheInterface->RemoveMech(elemental->PartId);
 
     // Original behaviour (OB-003): the type's alignment (1 or 0xff) against the home team's (1 or -1), so a clan
     // home team never counts its own.
-    if (static_cast<uint32_t>(alignment) == static_cast<uint32_t>(homeTeam->alignment))
+    if (static_cast<uint32_t>(Alignment) == static_cast<uint32_t>(HomeTeam->Alignment))
     {
-        friendlyDestroyed = 1;
+        FriendlyDestroyed = 1;
     }
     else
     {
-        enemyDestroyed = 1;
+        EnemyDestroyed = 1;
     }
 
     return 1;
 }
 
-auto ElementalType::createInstance() -> BaseObject*
+auto MCElementalType::CreateInstance() -> MCBaseObject*
 {
-    auto* newElemental = new Elemental;
+    auto* newElemental = new MCElemental;
 
     if (newElemental == nullptr)
     {
         return nullptr;
     }
 
-    if (newElemental->init(this) != 0)
+    if (newElemental->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newElemental->idNumber = NextIdNumber++;
+    newElemental->IdNumber = NextIdNumber++;
     return newElemental;
 }
 
@@ -537,87 +537,87 @@ auto ElementalType::createInstance() -> BaseObject*
 // Elemental
 //---------------------------------------------------------------------------
 
-auto Elemental::getThrottle() -> int32_t
+auto MCElemental::GetThrottle() -> int32_t
 {
-    return static_cast<ElementalControlData*>(control->controlData)->throttle;
+    return static_cast<MCElementalControlData*>(Control->ControlData)->Throttle;
 }
 
-auto Elemental::init() -> void
+auto MCElemental::Init() -> void
 {
-    objectClass = ELEMENTAL;
-    jumpRange = 0.0f;
-    jumpTime = -100.0f;
-    inJump = 0;
-    jumpGoal.z = 0.0f;
-    jumpGoal.y = 0.0f;
-    jumpGoal.x = 0.0f;
-    maxHealth = 11;
-    curHealth = 11;
-    elementalCanJump = 1;
-    transport = nullptr;
+    ObjectClass = ELEMENTAL;
+    JumpRange = 0.0f;
+    JumpTime = -100.0f;
+    InJump = 0;
+    JumpGoal.Z = 0.0f;
+    JumpGoal.Y = 0.0f;
+    JumpGoal.X = 0.0f;
+    MaxHealth = 11;
+    CurHealth = 11;
+    ElementalCanJump = 1;
+    Transport = nullptr;
 }
 
-auto Elemental::init(ObjectType* objType) -> int32_t
+auto MCElemental::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    auto* elementalType = static_cast<ElementalType*>(objType);
-    alignment = elementalType->alignment;
-    collisionsOn = 1;
-    maxHealth = elementalType->maxHealth;
-    control = nullptr;
-    dynamics = elementalType->dynamicsType->createInstance();
+    auto* elementalType = static_cast<MCElementalType*>(objType);
+    Alignment = elementalType->Alignment;
+    CollisionsOn = 1;
+    MaxHealth = elementalType->MaxHealth;
+    Control = nullptr;
+    Dynamics = elementalType->DynamicsType->CreateInstance();
 
-    if (dynamics == nullptr)
+    if (Dynamics == nullptr)
     {
         return -0x5fff8;
     }
 
-    if ((result = dynamics->init(elementalType->dynamicsType, this)) != 0)
+    if ((result = Dynamics->Init(elementalType->DynamicsType, this)) != 0)
     {
         return result;
     }
 
-    AppearanceType* apprType = appearanceTypeList->getAppearance(elementalType->appearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(elementalType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return -0x2fff7;
     }
 
-    auto* actor = new ElementalActor;
-    appearance = actor;
+    auto* actor = new MCElementalActor;
+    Appearance = actor;
 
     if (actor == nullptr)
     {
         return -0x2ffff;
     }
 
-    actor->init(nullptr, nullptr);
+    actor->Init(nullptr, nullptr);
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x8000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x8000000)
     {
         return -0x5fff6;
     }
 
-    if ((result = actor->init(apprType, this)) != 0)
+    if ((result = actor->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    objectClass = ELEMENTAL;
-    distanceSinceMarkSeen = 1000.0f;
-    removed = 0;
-    elementalCanJump = elementalType->canJump;
+    ObjectClass = ELEMENTAL;
+    DistanceSinceMarkSeen = 1000.0f;
+    Removed = 0;
+    ElementalCanJump = elementalType->CanJump;
     return 0;
 }
 
-auto Elemental::setControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) -> int32_t
+auto MCElemental::SetControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) -> int32_t
 {
     int32_t result = 0;
 
@@ -625,16 +625,16 @@ auto Elemental::setControl(uint32_t controlType, uint32_t controlData, int32_t c
     {
         case 1:
         {
-            delete control;
-            auto* playerControl = new PlayerControl;
-            control = playerControl;
+            delete Control;
+            auto* playerControl = new MCPlayerControl;
+            Control = playerControl;
 
             if (playerControl == nullptr)
             {
                 return -0x5fffc;
             }
 
-            if ((result = playerControl->init(this, 0)) != 0)
+            if ((result = playerControl->Init(this, 0)) != 0)
             {
                 return result;
             }
@@ -643,16 +643,16 @@ auto Elemental::setControl(uint32_t controlType, uint32_t controlData, int32_t c
 
         case 2:
         {
-            delete control;
-            auto* aiControl = new ElementalAIControl;
-            control = aiControl;
+            delete Control;
+            auto* aiControl = new MCElementalAIControl;
+            Control = aiControl;
 
             if (aiControl == nullptr)
             {
                 return -0x5fffc;
             }
 
-            if ((result = aiControl->init(this)) != 0)
+            if ((result = aiControl->Init(this)) != 0)
             {
                 return result;
             }
@@ -671,20 +671,20 @@ auto Elemental::setControl(uint32_t controlType, uint32_t controlData, int32_t c
         return -0x5fff9;
     }
 
-    auto* elementalControlData = new ElementalControlData;
-    control->controlData = elementalControlData;
+    auto* elementalControlData = new MCElementalControlData;
+    Control->ControlData = elementalControlData;
 
     if (elementalControlData == nullptr)
     {
         return -0x5fffa;
     }
 
-    return elementalControlData->init(0);
+    return elementalControlData->Init(0);
 }
 
-auto Elemental::init(FitIniFile* elementalFile) -> int32_t
+auto MCElemental::Init(MCFitIniFile* elementalFile) -> int32_t
 {
-    int32_t result = elementalFile->seekBlock("Header");
+    int32_t result = elementalFile->SeekBlock("Header");
 
     if (result != 0)
     {
@@ -693,7 +693,7 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
 
     char fileType[128];
 
-    if ((result = elementalFile->readIdString("FileType", fileType, 127)) != 0)
+    if ((result = elementalFile->ReadIdString("FileType", fileType, 127)) != 0)
     {
         return result;
     }
@@ -703,92 +703,92 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
         return -1;
     }
 
-    if ((result = elementalFile->seekBlock("General")) != 0)
+    if ((result = elementalFile->SeekBlock("General")) != 0)
     {
         return result;
     }
 
     char nameBuffer[128];
-    elementalFile->readIdString("Name", nameBuffer, 127);
-    debugStatus = nameBuffer;
+    elementalFile->ReadIdString("Name", nameBuffer, 127);
+    DebugStatus = nameBuffer;
 
-    if ((result = elementalFile->readIdFloat("CurTonnage", tonnage)) != 0)
+    if ((result = elementalFile->ReadIdFloat("CurTonnage", Tonnage)) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile->readIdLong("CurHealth", curHealth)) != 0)
+    if ((result = elementalFile->ReadIdLong("CurHealth", CurHealth)) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile->readIdString("icon", iconName, 0x13)) != 0)
+    if ((result = elementalFile->ReadIdString("icon", IconName, 0x13)) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile->seekBlock("Engine")) != 0)
+    if ((result = elementalFile->SeekBlock("Engine")) != 0)
     {
         return result;
     }
 
     uint8_t moveSpeed = 0;
 
-    if ((result = elementalFile->readIdUChar("MaxMoveSpeed", moveSpeed)) != 0)
+    if ((result = elementalFile->ReadIdUChar("MaxMoveSpeed", moveSpeed)) != 0)
     {
         return result;
     }
 
-    maxRunSpeed = static_cast<float>(moveSpeed);
+    MaxRunSpeed = static_cast<float>(moveSpeed);
 
-    if ((result = elementalFile->readIdFloat("JumpRange", jumpRange)) != 0)
+    if ((result = elementalFile->ReadIdFloat("JumpRange", JumpRange)) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile->seekBlock("InventoryInfo")) != 0)
+    if ((result = elementalFile->SeekBlock("InventoryInfo")) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile->readIdUChar("NumOther", numOther)) != 0)
+    if ((result = elementalFile->ReadIdUChar("NumOther", NumOther)) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile->readIdUChar("NumWeapons", numWeapons)) != 0)
+    if ((result = elementalFile->ReadIdUChar("NumWeapons", NumWeapons)) != 0)
     {
         return result;
     }
 
-    if ((result = elementalFile->readIdUChar("NumAmmo", numAmmos)) != 0)
+    if ((result = elementalFile->ReadIdUChar("NumAmmo", NumAmmos)) != 0)
     {
         return result;
     }
 
-    const int32_t firstWeapon = numOther;
-    const int32_t firstAmmo = numOther + numWeapons;
-    const int32_t numItems = numOther + numAmmos + numWeapons;
-    inventory = std::make_unique<InventoryItem[]>(static_cast<size_t>(numItems));
+    const int32_t firstWeapon = NumOther;
+    const int32_t firstAmmo = NumOther + NumWeapons;
+    const int32_t numItems = NumOther + NumAmmos + NumWeapons;
+    Inventory = std::make_unique<MCInventoryItem[]>(static_cast<size_t>(numItems));
 
-    numAntiMissileSystems = 0;
+    NumAntiMissileSystems = 0;
     // An anti-missile system joins the list, whether it is listed with the other equipment or the weapons.
     const auto addAntiMissileSystem = [&](int32_t item)
     {
-        const int32_t masterID = inventory[item].masterID;
+        const int32_t masterID = Inventory[item].MasterID;
 
         if (masterID != MasterClanAntiMissileSystemID && masterID != MasterInnerSphereAntiMissileSystemID)
         {
             return;
         }
 
-        if (numAntiMissileSystems == 16)
+        if (NumAntiMissileSystems == 16)
         {
             Fatal(0, "Too many Anti-Missile Systems");
         }
 
-        antiMissileSystem[numAntiMissileSystems] = static_cast<uint8_t>(item);
-        numAntiMissileSystems++;
+        AntiMissileSystem[NumAntiMissileSystems] = static_cast<uint8_t>(item);
+        NumAntiMissileSystems++;
     };
 
     char blockName[128];
@@ -797,53 +797,53 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = elementalFile->seekBlock(blockName)) != 0)
+        if ((result = elementalFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& other = inventory[item];
+        MCInventoryItem& other = Inventory[item];
 
-        if ((result = elementalFile->readIdUChar("MasterID", other.masterID)) != 0)
+        if ((result = elementalFile->ReadIdUChar("MasterID", other.MasterID)) != 0)
         {
             return result;
         }
 
-        other.health = MasterComponentList[other.masterID].health;
-        other.disabled = 0;
-        other.amount = 1;
-        other.ammoIndex = -1;
-        other.readyTime = 0.0f;
-        other.bodyLocation = 0xff;
-        other.rangeRatings = nullptr;
+        other.Health = MasterComponentList[other.MasterID].Health;
+        other.Disabled = 0;
+        other.Amount = 1;
+        other.AmmoIndex = -1;
+        other.ReadyTime = 0.0f;
+        other.BodyLocation = 0xff;
+        other.RangeRatings = nullptr;
 
-        switch (MasterComponentList[other.masterID].form)
+        switch (MasterComponentList[other.MasterID].Form)
         {
             case COMPONENT_FORM_COCKPIT:
-                cockpit = static_cast<uint8_t>(item);
+                Cockpit = static_cast<uint8_t>(item);
                 break;
             case COMPONENT_FORM_SENSOR:
             {
-                sensor = static_cast<uint8_t>(item);
-                sensorSystem = sensorSystemManager->newSensor();
-                sensorSystem->owner = this;
-                sensorSystem->setRange(MasterComponentList[inventory[item].masterID].rangeOrHeat);
+                Sensor = static_cast<uint8_t>(item);
+                SensorSystem = SensorSystemManager->NewSensor();
+                SensorSystem->Owner = this;
+                SensorSystem->SetRange(MasterComponentList[Inventory[item].MasterID].RangeOrHeat);
                 break;
             }
             case COMPONENT_FORM_ENGINE:
-                engine = static_cast<uint8_t>(item);
+                Engine = static_cast<uint8_t>(item);
                 break;
             case COMPONENT_FORM_WEAPON_BALLISTIC:
                 addAntiMissileSystem(item);
                 break;
             case COMPONENT_FORM_LIFESUPPORT:
-                lifeSupport = static_cast<uint8_t>(item);
+                LifeSupport = static_cast<uint8_t>(item);
                 break;
             case COMPONENT_FORM_ECM:
-                ecm = static_cast<uint8_t>(item);
+                Ecm = static_cast<uint8_t>(item);
                 break;
             case COMPONENT_FORM_PROBE:
-                probe = static_cast<uint8_t>(item);
+                Probe = static_cast<uint8_t>(item);
                 break;
             default:
                 break;
@@ -854,45 +854,45 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = elementalFile->seekBlock(blockName)) != 0)
+        if ((result = elementalFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& weapon = inventory[item];
+        MCInventoryItem& weapon = Inventory[item];
 
-        if ((result = elementalFile->readIdUChar("MasterID", weapon.masterID)) != 0)
+        if ((result = elementalFile->ReadIdUChar("MasterID", weapon.MasterID)) != 0)
         {
             return result;
         }
 
-        if ((result = elementalFile->readIdUChar("FacesForward", weapon.facesForward)) != 0)
+        if ((result = elementalFile->ReadIdUChar("FacesForward", weapon.FacesForward)) != 0)
         {
             return result;
         }
 
-        const MasterComponent& component = MasterComponentList[weapon.masterID];
-        weapon.health = component.health;
-        weapon.disabled = 0;
-        weapon.amount = 1;
-        weapon.ammoIndex = -1;
-        weapon.readyTime = 0.0f;
-        weapon.bodyLocation = 0xff;
+        const MCMasterComponent& component = MasterComponentList[weapon.MasterID];
+        weapon.Health = component.Health;
+        weapon.Disabled = 0;
+        weapon.Amount = 1;
+        weapon.AmmoIndex = -1;
+        weapon.ReadyTime = 0.0f;
+        weapon.BodyLocation = 0xff;
         // As BattleMech::init: damage per ten seconds, then scaled by the long range over 24.
-        weapon.effectiveness =
-            static_cast<int16_t>(static_cast<int32_t>(component.damage * 10.0 / component.recycleTime));
-        weapon.effectiveness = static_cast<int16_t>(static_cast<int32_t>(
-            static_cast<double>(component.weaponRange[3]) * weapon.effectiveness * static_cast<double>(1.0f / 24.0f)));
-        weapon.rangeRatings = new float[NumRangeRatings * 2]();
+        weapon.Effectiveness =
+            static_cast<int16_t>(static_cast<int32_t>(component.Damage * 10.0 / component.RecycleTime));
+        weapon.Effectiveness = static_cast<int16_t>(static_cast<int32_t>(
+            static_cast<double>(component.WeaponRange[3]) * weapon.Effectiveness * static_cast<double>(1.0f / 24.0f)));
+        weapon.RangeRatings = new float[NumRangeRatings * 2]();
 
-        if (MasterComponentList[inventory[item].masterID].form == COMPONENT_FORM_WEAPON_BALLISTIC)
+        if (MasterComponentList[Inventory[item].MasterID].Form == COMPONENT_FORM_WEAPON_BALLISTIC)
         {
             addAntiMissileSystem(item);
         }
 
-        objectTypeManager->load(
+        ObjectTypeManager->Load(
             static_cast<int32_t>(
-                weaponFXTable[static_cast<int8_t>(MasterComponentList[inventory[item].masterID].weaponEffect)]),
+                WeaponFXTable[static_cast<int8_t>(MasterComponentList[Inventory[item].MasterID].WeaponEffect)]),
             1);
     }
 
@@ -900,25 +900,25 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = elementalFile->seekBlock(blockName)) != 0)
+        if ((result = elementalFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& ammo = inventory[item];
+        MCInventoryItem& ammo = Inventory[item];
 
-        if ((result = elementalFile->readIdUChar("MasterID", ammo.masterID)) != 0)
+        if ((result = elementalFile->ReadIdUChar("MasterID", ammo.MasterID)) != 0)
         {
             return result;
         }
 
         int32_t amount = 0;
 
-        if (elementalFile->readIdLong("Amount", amount) != 0)
+        if (elementalFile->ReadIdLong("Amount", amount) != 0)
         {
             uint8_t smallAmount = 0;
 
-            if ((result = elementalFile->readIdUChar("Amount", smallAmount)) != 0)
+            if ((result = elementalFile->ReadIdUChar("Amount", smallAmount)) != 0)
             {
                 return result;
             }
@@ -928,29 +928,29 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
 
         if (amount == -1)
         {
-            amount = MasterComponentList[ammo.masterID].longValue;
+            amount = MasterComponentList[ammo.MasterID].LongValue;
         }
 
-        ammo.amount = static_cast<int16_t>(amount);
-        ammo.startAmount = ammo.amount;
-        ammo.ammoIndex = -1;
-        ammo.health = MasterComponentList[ammo.masterID].health;
-        ammo.disabled = 0;
-        ammo.readyTime = 0.0f;
-        ammo.bodyLocation = 0xff;
-        ammo.rangeRatings = nullptr;
+        ammo.Amount = static_cast<int16_t>(amount);
+        ammo.StartAmount = ammo.Amount;
+        ammo.AmmoIndex = -1;
+        ammo.Health = MasterComponentList[ammo.MasterID].Health;
+        ammo.Disabled = 0;
+        ammo.ReadyTime = 0.0f;
+        ammo.BodyLocation = 0xff;
+        ammo.RangeRatings = nullptr;
     }
 
-    calcAmmoTotals();
+    CalcAmmoTotals();
 
     for (int32_t item = firstWeapon; item < firstAmmo; item++)
     {
-        for (int32_t ammoType = 0; ammoType < numAmmoTypes; ammoType++)
+        for (int32_t ammoType = 0; ammoType < NumAmmoTypes; ammoType++)
         {
-            if (static_cast<int32_t>(MasterComponentList[inventory[item].masterID].ammoMasterId) ==
-                ammoTypeTotal[ammoType].masterId)
+            if (static_cast<int32_t>(MasterComponentList[Inventory[item].MasterID].AmmoMasterId) ==
+                AmmoTypeTotal[ammoType].MasterId)
             {
-                inventory[item].ammoIndex = static_cast<int16_t>(ammoType);
+                Inventory[item].AmmoIndex = static_cast<int16_t>(ammoType);
                 break;
             }
         }
@@ -958,65 +958,65 @@ auto Elemental::init(FitIniFile* elementalFile) -> int32_t
 
     for (int32_t item = 0; item < firstWeapon; item++)
     {
-        const int32_t masterID = inventory[item].masterID;
+        const int32_t masterID = Inventory[item].MasterID;
 
         if (masterID != MasterClanAntiMissileSystemID && masterID != MasterInnerSphereAntiMissileSystemID)
         {
             continue;
         }
 
-        for (int32_t ammoType = 0; ammoType < numAmmoTypes; ammoType++)
+        for (int32_t ammoType = 0; ammoType < NumAmmoTypes; ammoType++)
         {
-            if (static_cast<int32_t>(MasterComponentList[masterID].ammoMasterId) == ammoTypeTotal[ammoType].masterId)
+            if (static_cast<int32_t>(MasterComponentList[masterID].AmmoMasterId) == AmmoTypeTotal[ammoType].MasterId)
             {
-                inventory[item].ammoIndex = static_cast<int16_t>(ammoType);
+                Inventory[item].AmmoIndex = static_cast<int16_t>(ammoType);
                 break;
             }
         }
     }
 
-    calcLongestRangeWeapon();
-    calcWeaponEffectiveness(1);
-    calcWeaponEffectiveness(0);
-    maxCV = calcCV(1);
-    curCV = calcCV(0);
+    CalcLongestRangeWeapon();
+    CalcWeaponEffectiveness(1);
+    CalcWeaponEffectiveness(0);
+    MaxCV = CalcCV(1);
+    CurCV = CalcCV(0);
 
-    if (elementalCanJump == 0)
+    if (ElementalCanJump == 0)
     {
         // Marines are worth a fixed amount.
-        curCV = 50000;
-        maxCV = 50000;
+        CurCV = 50000;
+        MaxCV = 50000;
     }
 
     return 0;
 }
 
-auto Elemental::destroy() -> void
+auto MCElemental::Destroy() -> void
 {
 }
 
-auto Elemental::calcCV(int calcMax) -> int32_t
+auto MCElemental::CalcCV(int calcMax) -> int32_t
 {
     // Offense: the weapons' ratings, scaled by the top speed.
     double offense = 0.0;
-    const int32_t firstWeapon = numOther;
+    const int32_t firstWeapon = NumOther;
 
-    for (int32_t item = firstWeapon; item < firstWeapon + numWeapons; item++)
+    for (int32_t item = firstWeapon; item < firstWeapon + NumWeapons; item++)
     {
-        if (calcMax != 0 || inventory[item].disabled == 0)
+        if (calcMax != 0 || Inventory[item].Disabled == 0)
         {
-            offense += MasterComponentList[inventory[item].masterID].battleRating;
+            offense += MasterComponentList[Inventory[item].MasterID].BattleRating;
         }
     }
 
-    offense *= (maxRunSpeed - 18.0) * 0.05555555555555555 + 1.0;
+    offense *= (MaxRunSpeed - 18.0) * 0.05555555555555555 + 1.0;
 
     // Defense: health, tonnage, the speed class and the other equipment.
-    double defense = static_cast<double>(calcMax != 0 ? maxHealth : curHealth);
-    defense += tonnageClass;
+    double defense = static_cast<double>(calcMax != 0 ? MaxHealth : CurHealth);
+    defense += TonnageClass;
     int32_t speedClass = 0;
 
-    while (speedClass < 5 && static_cast<float>(TargetMoveModifierTable[speedClass][0]) < maxRunSpeed)
+    while (speedClass < 5 && static_cast<float>(TargetMoveModifierTable[speedClass][0]) < MaxRunSpeed)
     {
         speedClass++;
     }
@@ -1031,28 +1031,28 @@ auto Elemental::calcCV(int calcMax) -> int32_t
 
     for (int32_t item = 0; item < firstWeapon; item++)
     {
-        if (calcMax != 0 || inventory[item].disabled == 0)
+        if (calcMax != 0 || Inventory[item].Disabled == 0)
         {
-            defense += MasterComponentList[inventory[item].masterID].battleRating;
+            defense += MasterComponentList[Inventory[item].MasterID].BattleRating;
         }
     }
 
     return static_cast<int32_t>(defense + offense);
 }
 
-auto Elemental::isJumping(vector_3d* jumpGoalOut) -> int
+auto MCElemental::IsJumping(MCVector3D* jumpGoalOut) -> int
 {
     if (jumpGoalOut != nullptr)
     {
-        *jumpGoalOut = jumpGoal;
+        *jumpGoalOut = JumpGoal;
     }
 
-    return inJump;
+    return InJump;
 }
 
-auto Elemental::getJumpRange(int32_t* numOffsets, int32_t* jumpCost) -> float
+auto MCElemental::GetJumpRange(int32_t* numOffsets, int32_t* jumpCost) -> float
 {
-    if (elementalCanJump == 0)
+    if (ElementalCanJump == 0)
     {
         return 0.0f;
     }
@@ -1067,42 +1067,42 @@ auto Elemental::getJumpRange(int32_t* numOffsets, int32_t* jumpCost) -> float
         *jumpCost = 20;
     }
 
-    return metersPerWorldUnit * Terrain::metersPerVertex;
+    return MetersPerWorldUnit * MCTerrain::MetersPerVertex;
 }
 
-auto Elemental::updateJump() -> int
+auto MCElemental::UpdateJump() -> int
 {
-    if (isJumping(nullptr) == 0)
+    if (IsJumping(nullptr) == 0)
     {
         return 0;
     }
 
-    auto* controlData = static_cast<ElementalControlData*>(control->controlData);
-    auto* actor = static_cast<ElementalActor*>(appearance);
+    auto* controlData = static_cast<MCElementalControlData*>(Control->ControlData);
+    auto* actor = static_cast<MCElementalActor*>(Appearance);
 
-    if (actor->jumping == 0)
+    if (actor->Jumping == 0)
     {
-        if (actor->jumpSetup == 0)
+        if (actor->JumpSetup == 0)
         {
             // Landed: on to the step after the jump.
-            inJump = 0;
-            MovePath* path = pilot->getMovePath();
-            path->numSteps = path->numStepsWhenNotPaused;
-            path->curStep++;
-            lastValidPosition = position;
+            InJump = 0;
+            MCMovePath* path = Pilot->GetMovePath();
+            path->NumSteps = path->NumStepsWhenNotPaused;
+            path->CurStep++;
+            LastValidPosition = Position;
             return 1;
         }
 
-        controlData->jump = 1;
-        controlData->jumpDistance = static_cast<float>(distanceFrom(jumpGoal));
-        controlData->throttle = 0;
+        controlData->Jump = 1;
+        controlData->JumpDistance = static_cast<float>(DistanceFrom(JumpGoal));
+        controlData->Throttle = 0;
         return 1;
     }
 
     // In the air: turns toward the landing point.
-    auto* dynType = static_cast<ElementalDynamicsType*>(static_cast<ElementalType*>(objType)->dynamicsType);
-    const float facing = relFacingTo(jumpGoal, -1);
-    double maxTurn = static_cast<double>(dynType->maxElementalYawRate);
+    auto* dynType = static_cast<MCElementalDynamicsType*>(static_cast<MCElementalType*>(ObjType)->DynamicsType);
+    const float facing = RelFacingTo(JumpGoal, -1);
+    double maxTurn = static_cast<double>(dynType->MaxElementalYawRate);
 
     if (maxTurn > 180.0)
     {
@@ -1114,7 +1114,7 @@ auto Elemental::updateJump() -> int
         return 1;
     }
 
-    double turn = -(static_cast<double>(facing) / frameLength);
+    double turn = -(static_cast<double>(facing) / FrameLength);
 
     if (turn > maxTurn)
     {
@@ -1130,23 +1130,23 @@ auto Elemental::updateJump() -> int
         }
     }
 
-    controlData->rotate = static_cast<int8_t>(static_cast<int32_t>(turn / maxTurn * 64.0f));
+    controlData->Rotate = static_cast<int8_t>(static_cast<int32_t>(turn / maxTurn * 64.0f));
     return 1;
 }
 
-auto Elemental::pivotTo() -> int
+auto MCElemental::PivotTo() -> int
 {
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
-    const int32_t moveState = warrior->moveOrders.moveState;
-    const int32_t moveStateGoal = warrior->moveOrders.moveStateGoal;
-    auto* controlData = static_cast<ElementalControlData*>(control->controlData);
-    auto* dynType = static_cast<ElementalDynamicsType*>(static_cast<ElementalType*>(objType)->dynamicsType);
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
+    const int32_t moveState = warrior->MoveOrders.MoveState;
+    const int32_t moveStateGoal = warrior->MoveOrders.MoveStateGoal;
+    auto* controlData = static_cast<MCElementalControlData*>(Control->ControlData);
+    auto* dynType = static_cast<MCElementalDynamicsType*>(static_cast<MCElementalType*>(ObjType)->DynamicsType);
 
     // Starts a turn of <turn> degrees, no faster than the yaw rate allows this frame.
     const auto pivot = [&](float turn) -> int
     {
-        float maxTurn = static_cast<float>(dynType->maxElementalYawRate) * frameLength;
+        float maxTurn = static_cast<float>(dynType->MaxElementalYawRate) * FrameLength;
 
         if (maxTurn > 180.0)
         {
@@ -1158,55 +1158,55 @@ auto Elemental::pivotTo() -> int
             turn = turn > 0.0f ? maxTurn : -maxTurn;
         }
 
-        controlData->rotate = rotateRequest(turn, maxTurn);
+        controlData->Rotate = RotateRequest(turn, maxTurn);
         return 1;
     };
 
     const auto hasNextStep = [&]()
-    { return path->numStepsWhenNotPaused > 0 && path->curStep < path->numStepsWhenNotPaused; };
+    { return path->NumStepsWhenNotPaused > 0 && path->CurStep < path->NumStepsWhenNotPaused; };
 
     if (moveState == MOVESTATE_PIVOT_FORWARD)
     {
         if (moveStateGoal != MOVESTATE_PIVOT_FORWARD && moveStateGoal != MOVESTATE_FORWARD)
         {
-            warrior->moveOrders.moveState = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveState = MOVESTATE_FORWARD;
         }
         else if (!hasNextStep())
         {
-            warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
         }
         else
         {
-            const vector_3d destination = path->stepList[path->curStep].destination;
-            appearance->setGestureGoal(0);
-            controlData->throttle = 0;
-            const float facing = relFacingTo(destination, -1);
+            const MCVector3D destination = path->StepList[path->CurStep].Destination;
+            Appearance->SetGestureGoal(0);
+            controlData->Throttle = 0;
+            const float facing = RelFacingTo(destination, -1);
 
             if (facing < -15.0 || facing > 15.0)
             {
                 return pivot(-facing);
             }
 
-            pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+            Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
         }
     }
     else if (moveState == MOVESTATE_PIVOT_REVERSE)
     {
         if (moveStateGoal != MOVESTATE_PIVOT_REVERSE && moveStateGoal != MOVESTATE_REVERSE)
         {
-            warrior->moveOrders.moveState = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveState = MOVESTATE_FORWARD;
         }
         else if (!hasNextStep())
         {
-            warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
         }
         else
         {
-            const vector_3d destination = path->stepList[path->curStep].destination;
-            appearance->setGestureGoal(0);
+            const MCVector3D destination = path->StepList[path->CurStep].Destination;
+            Appearance->SetGestureGoal(0);
             // Original behaviour (OB-004): it clears the second byte of the jump request, not the throttle.
-            controlData->jump &= ~0xff00;
-            const float facing = relFacingTo(destination, -1);
+            controlData->Jump &= ~0xff00;
+            const float facing = RelFacingTo(destination, -1);
 
             if (facing > -165.0 && facing < 165.0)
             {
@@ -1215,11 +1215,11 @@ auto Elemental::pivotTo() -> int
 
             if (moveStateGoal == MOVESTATE_REVERSE)
             {
-                pilot->moveOrders.moveState = MOVESTATE_REVERSE;
+                Pilot->MoveOrders.MoveState = MOVESTATE_REVERSE;
             }
             else
             {
-                pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+                Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
             }
         }
     }
@@ -1227,81 +1227,81 @@ auto Elemental::pivotTo() -> int
     {
         if (moveStateGoal != MOVESTATE_PIVOT_TARGET)
         {
-            warrior->moveOrders.moveState = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveState = MOVESTATE_FORWARD;
         }
         else
         {
-            vector_3d targetPosition;
-            GameObject* target = warrior->getLastTarget();
+            MCVector3D targetPosition;
+            MCGameObject* target = warrior->GetLastTarget();
 
             if (target != nullptr)
             {
-                targetPosition = target->getPosition();
+                targetPosition = target->GetPosition();
             }
-            else if (warrior->curTacOrder.code == TACTICAL_ORDER_ATTACK_POINT)
+            else if (warrior->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
             {
-                targetPosition = warrior->attackOrders.targetPoint;
+                targetPosition = warrior->AttackOrders.TargetPoint;
             }
             else
             {
-                warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
-                warrior->getMovePath()->numSteps = warrior->getMovePath()->numStepsWhenNotPaused;
+                warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
+                warrior->GetMovePath()->NumSteps = warrior->GetMovePath()->NumStepsWhenNotPaused;
                 return 0;
             }
 
-            appearance->setGestureGoal(0);
-            controlData->throttle = 0;
-            const float facing = relFacingTo(targetPosition, -1);
-            const float fireArc = getFireArc();
+            Appearance->SetGestureGoal(0);
+            controlData->Throttle = 0;
+            const float facing = RelFacingTo(targetPosition, -1);
+            const float fireArc = GetFireArc();
 
             if (facing < -fireArc || fireArc < facing)
             {
                 return pivot(-facing);
             }
 
-            pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+            Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
         }
     }
     else if (moveStateGoal == MOVESTATE_PIVOT_TARGET || moveStateGoal == MOVESTATE_PIVOT_FORWARD ||
              moveStateGoal == MOVESTATE_PIVOT_REVERSE)
     {
-        warrior->moveOrders.moveState = moveStateGoal;
+        warrior->MoveOrders.MoveState = moveStateGoal;
     }
 
-    warrior = pilot;
+    warrior = Pilot;
 
-    if (warrior->moveOrders.yieldTime <= -1.0)
+    if (warrior->MoveOrders.YieldTime <= -1.0)
     {
-        warrior->getMovePath()->numSteps = warrior->getMovePath()->numStepsWhenNotPaused;
+        warrior->GetMovePath()->NumSteps = warrior->GetMovePath()->NumStepsWhenNotPaused;
     }
 
     return 0;
 }
 
-auto Elemental::updateMoveStateGoal() -> void
+auto MCElemental::UpdateMoveStateGoal() -> void
 {
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
 
-    if (path->numSteps > 0 || (warrior->moveOrders.moveStateGoal != MOVESTATE_PIVOT_TARGET &&
-                               warrior->moveOrders.moveStateGoal != MOVESTATE_PIVOT_FORWARD))
+    if (path->NumSteps > 0 || (warrior->MoveOrders.MoveStateGoal != MOVESTATE_PIVOT_TARGET &&
+                               warrior->MoveOrders.MoveStateGoal != MOVESTATE_PIVOT_FORWARD))
     {
-        warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
     }
 }
 
-auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                               int32_t& newGestureStateGoal, int32_t& newMoveState, int32_t& minThrottle,
-                               int32_t& maxThrottle) -> int
+auto MCElemental::UpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+                                 int32_t& newGestureStateGoal, int32_t& newMoveState, int32_t& minThrottle,
+                                 int32_t& maxThrottle) -> int
 {
-    MechWarrior* warrior = pilot;
-    auto* controlData = static_cast<ElementalControlData*>(control->controlData);
-    auto* dynType = static_cast<ElementalDynamicsType*>(static_cast<ElementalType*>(objType)->dynamicsType);
-    MovePath* path = warrior->getMovePath();
-    newThrottleSetting = controlData->throttle;
+    MCMechWarrior* warrior = Pilot;
+    auto* controlData = static_cast<MCElementalControlData*>(Control->ControlData);
+    auto* dynType = static_cast<MCElementalDynamicsType*>(static_cast<MCElementalType*>(ObjType)->DynamicsType);
+    MCMovePath* path = warrior->GetMovePath();
+    newThrottleSetting = controlData->Throttle;
     newRotatePerSec = 0.0f;
 
-    if (path->numSteps < 1)
+    if (path->NumSteps < 1)
     {
         newGestureStateGoal = 0;
         return 0;
@@ -1312,45 +1312,45 @@ auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float&
     {
         int finished = 1;
 
-        if (warrior->moveOrders.pathType == 2 &&
-            warrior->moveOrders.path[0]->globalStep < warrior->moveOrders.numGlobalSteps - 1)
+        if (warrior->MoveOrders.PathType == 2 &&
+            warrior->MoveOrders.Path[0]->GlobalStep < warrior->MoveOrders.NumGlobalSteps - 1)
         {
             finished = 0;
         }
 
-        if (warrior->moveOrders.path[0] != nullptr)
+        if (warrior->MoveOrders.Path[0] != nullptr)
         {
-            warrior->moveOrders.path[0]->clear();
+            warrior->MoveOrders.Path[0]->Clear();
         }
 
         return finished;
     };
 
     // A step whose direction is past 7 is a jump.
-    const auto isJumpStep = [&](int32_t step) { return static_cast<int8_t>(path->stepList[step].direction) > 7; };
+    const auto isJumpStep = [&](int32_t step) { return static_cast<int8_t>(path->StepList[step].Direction) > 7; };
 
-    int32_t step = path->curStep;
+    int32_t step = path->CurStep;
 
-    if (step == path->numSteps)
+    if (step == path->NumSteps)
     {
         return reachedEnd();
     }
 
     newGestureStateGoal = 1;
-    vector_3d destination = path->stepList[step].destination;
-    lastValidPosition = destination;
-    const auto distance = static_cast<float>(distanceFrom(destination));
+    MCVector3D destination = path->StepList[step].Destination;
+    LastValidPosition = destination;
+    const auto distance = static_cast<float>(DistanceFrom(destination));
     // (The original also measures the distance to the path object itself, and drops it.)
-    const float margin = step == path->numSteps - 1 ? MoveMarginOfError[1] : MoveMarginOfError[0];
+    const float margin = step == path->NumSteps - 1 ? MoveMarginOfError[1] : MoveMarginOfError[0];
 
     if (distance < margin)
     {
         // Reached the step: on to the next.
         step++;
-        pilot->moveOrders.timeOfLastStep = scenarioTime;
-        path->curStep = step;
+        Pilot->MoveOrders.TimeOfLastStep = ScenarioTime;
+        path->CurStep = step;
 
-        if (path->numSteps <= step)
+        if (path->NumSteps <= step)
         {
             return reachedEnd();
         }
@@ -1361,7 +1361,7 @@ auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float&
             return 0;
         }
 
-        destination = path->stepList[step].destination;
+        destination = path->StepList[step].Destination;
     }
     else if (isJumpStep(step))
     {
@@ -1369,14 +1369,14 @@ auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float&
         return 0;
     }
 
-    const float facing = relFacingTo(destination, -1);
-    warrior = pilot;
-    const int32_t moveState = warrior->moveOrders.moveState;
-    const int32_t moveStateGoal = warrior->moveOrders.moveStateGoal;
+    const float facing = RelFacingTo(destination, -1);
+    warrior = Pilot;
+    const int32_t moveState = warrior->MoveOrders.MoveState;
+    const int32_t moveStateGoal = warrior->MoveOrders.MoveStateGoal;
     // Stops on the path to change the move state.
     const auto changeState = [&](int32_t state)
     {
-        warrior->getMovePath()->numSteps = 0;
+        warrior->GetMovePath()->NumSteps = 0;
         newMoveState = state;
         return 0;
     };
@@ -1384,7 +1384,7 @@ auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float&
     // Turns toward the step, no faster than the yaw rate allows this frame.
     const auto steer = [&]()
     {
-        double maxTurn = static_cast<double>(dynType->maxElementalYawRate) * frameLength;
+        double maxTurn = static_cast<double>(dynType->MaxElementalYawRate) * FrameLength;
 
         if (maxTurn > 180.0)
         {
@@ -1461,58 +1461,58 @@ auto Elemental::updateMovePath(char& newRotate, char& newThrottleSetting, float&
     }
 }
 
-auto Elemental::setNextMovePath(char& newThrottleSetting, int32_t& newGestureStateGoal) -> void
+auto MCElemental::SetNextMovePath(char& newThrottleSetting, int32_t& newGestureStateGoal) -> void
 {
-    MechWarrior* warrior = pilot;
-    vector_3d nextWayPoint;
+    MCMechWarrior* warrior = Pilot;
+    MCVector3D nextWayPoint;
 
-    if (warrior->getNextWayPoint(nextWayPoint, 1) != 0)
+    if (warrior->GetNextWayPoint(nextWayPoint, 1) != 0)
     {
-        warrior->setMoveGoal(0, &nextWayPoint, nullptr);
-        warrior->requestMovePath(warrior->curTacOrder.selectionIndex, 1, 0);
+        warrior->SetMoveGoal(0, &nextWayPoint, nullptr);
+        warrior->RequestMovePath(warrior->CurTacOrder.SelectionIndex, 1, 0);
         return;
     }
 
-    warrior->clearMoveOrders();
+    warrior->ClearMoveOrders();
     newGestureStateGoal = 0;
 }
 
-auto Elemental::setControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                                   int32_t& newGestureStateGoal, int32_t& minThrottle, int32_t& maxThrottle) -> void
+auto MCElemental::SetControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+                                     int32_t& newGestureStateGoal, int32_t& minThrottle, int32_t& maxThrottle) -> void
 {
-    auto* actor = static_cast<ElementalActor*>(appearance);
+    auto* actor = static_cast<MCElementalActor*>(Appearance);
 
-    if (inJump != 0 && actor->jumping == 0)
+    if (InJump != 0 && actor->Jumping == 0)
     {
         // The jump is over: back on the path.
-        inJump = 0;
-        MovePath* path = pilot->getMovePath();
-        path->numSteps = path->numStepsWhenNotPaused;
+        InJump = 0;
+        MCMovePath* path = Pilot->GetMovePath();
+        path->NumSteps = path->NumStepsWhenNotPaused;
     }
 
     if (newGestureStateGoal == 2)
     {
         // A jump step: jump to it.
-        MovePath* path = pilot->getMovePath();
-        path->numSteps = 0;
-        jumpGoal = path->stepList[path->curStep].destination;
-        actor->setJumpParameters(static_cast<float>(distanceFrom(jumpGoal)));
+        MCMovePath* path = Pilot->GetMovePath();
+        path->NumSteps = 0;
+        JumpGoal = path->StepList[path->CurStep].Destination;
+        actor->SetJumpParameters(static_cast<float>(DistanceFrom(JumpGoal)));
     }
 
-    MechWarrior* warrior = pilot;
+    MCMechWarrior* warrior = Pilot;
 
-    if (warrior->curTacOrder.isJumpOrder() != 0 && inJump == 0)
+    if (warrior->CurTacOrder.IsJumpOrder() != 0 && InJump == 0)
     {
         // A jump order: to its first way point.
         newGestureStateGoal = 2;
-        const float* point = warrior->curTacOrder.moveParams.wayPath.points;
-        jumpGoal.x = point[0];
-        jumpGoal.y = point[1];
-        jumpGoal.z = point[2];
-        actor->setJumpParameters(static_cast<float>(distanceFrom(jumpGoal)));
+        const float* point = warrior->CurTacOrder.MoveParams.WayPath.Points;
+        JumpGoal.X = point[0];
+        JumpGoal.Y = point[1];
+        JumpGoal.Z = point[2];
+        actor->SetJumpParameters(static_cast<float>(DistanceFrom(JumpGoal)));
     }
 
-    auto* controlData = static_cast<ElementalControlData*>(control->controlData);
+    auto* controlData = static_cast<MCElementalControlData*>(Control->ControlData);
 
     if (newGestureStateGoal != -1)
     {
@@ -1526,7 +1526,7 @@ auto Elemental::setControlSettings(char& newRotate, char& newThrottleSetting, fl
                 break;
             case 2:
             {
-                inJump = 1;
+                InJump = 1;
                 newThrottleSetting = 0;
                 break;
             }
@@ -1543,44 +1543,44 @@ auto Elemental::setControlSettings(char& newRotate, char& newThrottleSetting, fl
             newThrottleSetting = static_cast<char>(maxThrottle);
         }
 
-        controlData->throttle = newThrottleSetting;
+        controlData->Throttle = newThrottleSetting;
     }
 
     if (newRotate != 0)
     {
-        controlData->rotate = newRotate;
+        controlData->Rotate = newRotate;
     }
 }
 
-auto Elemental::updateMovement() -> void
+auto MCElemental::UpdateMovement() -> void
 {
-    auto* controlData = static_cast<ElementalControlData*>(control->controlData);
+    auto* controlData = static_cast<MCElementalControlData*>(Control->ControlData);
 
-    if (disableThisFrame != 0 || shutDownThisFrame != 0 || startUpThisFrame != 0)
+    if (DisableThisFrame != 0 || ShutDownThisFrame != 0 || StartUpThisFrame != 0)
     {
         // Elementals just stand still for these; the requests clear once the actor stops.
-        if (appearance->setGestureGoal(0) == 0)
+        if (Appearance->SetGestureGoal(0) == 0)
         {
-            disableThisFrame = 0;
-            shutDownThisFrame = 0;
-            startUpThisFrame = 0;
+            DisableThisFrame = 0;
+            ShutDownThisFrame = 0;
+            StartUpThisFrame = 0;
         }
 
-        controlData->throttle = 0;
+        controlData->Throttle = 0;
         return;
     }
 
-    if (isCaptured() != 0 || status == 4 || status == 5 || status == 1)
+    if (IsCaptured() != 0 || Status == 4 || Status == 5 || Status == 1)
     {
         return;
     }
 
-    if (updateJump() != 0)
+    if (UpdateJump() != 0)
     {
         return;
     }
 
-    if (pivotTo() != 0)
+    if (PivotTo() != 0)
     {
         return;
     }
@@ -1591,286 +1591,286 @@ auto Elemental::updateMovement() -> void
     char newRotate = 0;
     int32_t newMoveState = -1;
     int32_t newGestureStateGoal = -1;
-    char newThrottleSetting = controlData->throttle;
+    char newThrottleSetting = controlData->Throttle;
 
-    if (elementalCanJump == 0)
+    if (ElementalCanJump == 0)
     {
-        MechWarrior* warrior = pilot;
+        MCMechWarrior* warrior = Pilot;
 
-        if (warrior->getMovePath()->numSteps == 0)
+        if (warrior->GetMovePath()->NumSteps == 0)
         {
             // An idle marine wanders. Original behaviour (OB-001): RollDice(100) is always 1, so always toward -x, -y.
-            vector_3d wanderPoint = position;
+            MCVector3D wanderPoint = Position;
 
             if (RollDice(100) < 51)
             {
-                wanderPoint.x = wanderPoint.x - static_cast<float>(RandomNumber(200));
+                wanderPoint.X = wanderPoint.X - static_cast<float>(RandomNumber(200));
             }
             else
             {
-                wanderPoint.x = static_cast<float>(RandomNumber(200)) + wanderPoint.x;
+                wanderPoint.X = static_cast<float>(RandomNumber(200)) + wanderPoint.X;
             }
 
             if (RollDice(100) < 51)
             {
-                wanderPoint.y = wanderPoint.y - static_cast<float>(RandomNumber(200));
+                wanderPoint.Y = wanderPoint.Y - static_cast<float>(RandomNumber(200));
             }
             else
             {
-                wanderPoint.y = static_cast<float>(RandomNumber(200)) + wanderPoint.y;
+                wanderPoint.Y = static_cast<float>(RandomNumber(200)) + wanderPoint.Y;
             }
 
-            warrior->orderMoveToPoint(0, 1, 0, wanderPoint, -1, 1);
+            warrior->OrderMoveToPoint(0, 1, 0, wanderPoint, -1, 1);
         }
     }
 
-    updateMoveStateGoal();
+    UpdateMoveStateGoal();
 
-    if (updateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, newMoveState, minThrottle,
+    if (UpdateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, newMoveState, minThrottle,
                        maxThrottle) != 0)
     {
-        setNextMovePath(newThrottleSetting, newGestureStateGoal);
+        SetNextMovePath(newThrottleSetting, newGestureStateGoal);
     }
 
     if (newMoveState != -1)
     {
-        pilot->moveOrders.moveState = newMoveState;
+        Pilot->MoveOrders.MoveState = newMoveState;
     }
 
-    setControlSettings(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, minThrottle, maxThrottle);
+    SetControlSettings(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, minThrottle, maxThrottle);
 }
 
-auto Elemental::getPositionFromHS(uint32_t hotSpot) -> vector_3d
+auto MCElemental::GetPositionFromHS(uint32_t hotSpot) -> MCVector3D
 {
-    return position;
+    return Position;
 }
 
-auto Elemental::onScreen() -> int
+auto MCElemental::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
-    screenPos.y = 0.0f;
-    screenPos.x = 0.0f;
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    ScreenPos.Y = 0.0f;
+    ScreenPos.X = 0.0f;
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
     float screenY;
 
-    if (useOldProject == 0)
+    if (UseOldProject == 0)
     {
-        vector_2d screen100;
-        vector_2d screen50;
+        MCVector2D screen100;
+        MCVector2D screen50;
 
-        if (land != nullptr)
+        if (Land != nullptr)
         {
-            land->projectTerrain(position, screen100, screen50);
+            Land->ProjectTerrain(Position, screen100, screen50);
         }
 
-        if (camera->cameraScale == 1)
+        if (camera->CameraScale == 1)
         {
-            screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-            screenY = screen50.y - camera->screenUL50.y;
+            ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+            screenY = screen50.Y - camera->ScreenUL50.Y;
         }
         else
         {
-            screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-            screenY = screen100.y - camera->screenUL.y;
+            ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+            screenY = screen100.Y - camera->ScreenUL.Y;
         }
 
-        screenY = screenY + camera->halfHeight;
+        screenY = screenY + camera->HalfHeight;
     }
     else
     {
-        const float scale = camera->cameraScale != 1 ? 1.0f : 0.5f;
-        vector_3d relative(position.x - camera->position.x, position.y - camera->position.y,
-                           position.z - camera->position.z);
+        const float scale = camera->CameraScale != 1 ? 1.0f : 0.5f;
+        MCVector3D relative(Position.X - camera->Position.X, Position.Y - camera->Position.Y,
+                            Position.Z - camera->Position.Z);
         relative *= scale;
-        screenPos.x = relative.y * camera->cosAngle + relative.x * camera->cosAngle + camera->halfWidth;
-        screenY = ((relative.x * camera->sinAngle + camera->halfHeight) - relative.y * camera->sinAngle) - relative.z;
+        ScreenPos.X = relative.Y * camera->CosAngle + relative.X * camera->CosAngle + camera->HalfWidth;
+        screenY = ((relative.X * camera->SinAngle + camera->HalfHeight) - relative.Y * camera->SinAngle) - relative.Z;
     }
 
-    screenPos.y = screenY;
+    ScreenPos.Y = screenY;
 
-    if (appearance != nullptr && appearance->recalcBounds(camera) != 0)
+    if (Appearance != nullptr && Appearance->RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto Elemental::update() -> int32_t
+auto MCElemental::Update() -> int32_t
 {
-    if (inTransport() != 0)
+    if (InTransport() != 0)
     {
         return 1;
     }
 
-    const float blockSize = static_cast<float>(Terrain::verticesBlockSide) * Terrain::metersPerVertex;
+    const float blockSize = static_cast<float>(MCTerrain::VerticesBlockSide) * MCTerrain::MetersPerVertex;
 
-    if (isDestroyed() != 0)
+    if (IsDestroyed() != 0)
     {
-        if (removed != 0)
+        if (Removed != 0)
         {
             return 1;
         }
 
         // The body: when the death timer runs low it blows up and leaves a crater.
-        deathTimer -= frameLength;
+        DeathTimer -= FrameLength;
 
-        if (deathTimer < 0.4 && deathExplosionDone == 0 && withdrawing == 0)
+        if (DeathTimer < 0.4 && DeathExplosionDone == 0 && Withdrawing == 0)
         {
-            objType->createExplosion(position, 0.0f, 0.0f);
-            craterManager->addCrater(7, position, 0);
-            deathExplosionDone = 1;
+            ObjType->CreateExplosion(Position, 0.0f, 0.0f);
+            CraterManager->AddCrater(7, Position, 0);
+            DeathExplosionDone = 1;
             return 1;
         }
 
-        if (deathTimer < 0.0)
+        if (DeathTimer < 0.0)
         {
             return 1;
         }
     }
     else
     {
-        if (deselectTime != 0.0f && deselectTime < scenarioTime)
+        if (DeselectTime != 0.0f && DeselectTime < ScenarioTime)
         {
-            deselectTime = 0.0f;
-            selected = 0;
+            DeselectTime = 0.0f;
+            Selected = 0;
         }
 
-        if (getAwake() != 0 && isDisabled() == 0 && Terrain::metersPerVertex <= distanceSinceMarkSeen)
+        if (GetAwake() != 0 && IsDisabled() == 0 && MCTerrain::MetersPerVertex <= DistanceSinceMarkSeen)
         {
             // Every vertex travelled, the elemental marks what it sees.
-            if (alignment == 1)
+            if (Alignment == 1)
             {
-                land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 1);
+                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
             }
-            else if (alignment == -1)
+            else if (Alignment == -1)
             {
-                land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 2);
+                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
             }
 
-            distanceSinceMarkSeen = 0.0f;
+            DistanceSinceMarkSeen = 0.0f;
         }
 
-        int32_t result = control->update();
+        int32_t result = Control->Update();
 
         if (result != 1)
         {
             return result;
         }
 
-        result = dynamics->update();
+        result = Dynamics->Update();
 
         if (result != 1)
         {
             return result;
         }
 
-        auto* controlData = static_cast<ElementalControlData*>(control->controlData);
-        auto* actor = static_cast<ElementalActor*>(appearance);
+        auto* controlData = static_cast<MCElementalControlData*>(Control->ControlData);
+        auto* actor = static_cast<MCElementalActor*>(Appearance);
 
-        if (controlData->jump != 0)
+        if (controlData->Jump != 0)
         {
-            actor->setJumpParameters(controlData->jumpDistance);
-            controlData->throttle = 0;
+            actor->SetJumpParameters(controlData->JumpDistance);
+            controlData->Throttle = 0;
         }
 
         // In the air the actor moves it (and nothing collides with it); on the ground the dynamics do.
-        float speed = actor->getVelocityMagnitude();
+        float speed = actor->GetVelocityMagnitude();
 
-        if (actor->currentGesture == 2)
+        if (actor->CurrentGesture == 2)
         {
-            collisionsOn = 0;
+            CollisionsOn = 0;
         }
         else
         {
-            speed = dynamics->getVelocity();
-            collisionsOn = 1;
+            speed = Dynamics->GetVelocity();
+            CollisionsOn = 1;
         }
 
-        frame_of_ref turned = frame;
+        MCFrameOfRef turned = Frame;
         speed = -speed;
-        rotateAboutK(turned, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
-        velocity.y = turned.j.y * speed;
-        velocity.x = turned.j.x * speed;
-        velocity.z = turned.j.z * speed;
-        vector_3d move;
-        move.x = static_cast<float>(static_cast<double>(velocity.x) * frameLength * worldUnitsPerMeter);
-        move.y = velocity.y * frameLength * worldUnitsPerMeter;
-        move.z = velocity.z * frameLength * worldUnitsPerMeter;
-        vector_3d newPosition;
-        newPosition.x = move.x + position.x;
-        newPosition.y = move.y + position.y;
-        newPosition.z = move.z + position.z;
-        setPosition(newPosition);
-        distanceSinceMarkSeen =
-            static_cast<float>(std::sqrt(static_cast<double>(move.x) * move.x + static_cast<double>(move.y) * move.y +
-                                         static_cast<double>(move.z) * move.z) +
-                               distanceSinceMarkSeen);
-        position.z = land->getTerrainElevation(position);
+        RotateAboutK(turned, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
+        Velocity.Y = turned.J.Y * speed;
+        Velocity.X = turned.J.X * speed;
+        Velocity.Z = turned.J.Z * speed;
+        MCVector3D move;
+        move.X = static_cast<float>(static_cast<double>(Velocity.X) * FrameLength * WorldUnitsPerMeter);
+        move.Y = Velocity.Y * FrameLength * WorldUnitsPerMeter;
+        move.Z = Velocity.Z * FrameLength * WorldUnitsPerMeter;
+        MCVector3D newPosition;
+        newPosition.X = move.X + Position.X;
+        newPosition.Y = move.Y + Position.Y;
+        newPosition.Z = move.Z + Position.Z;
+        SetPosition(newPosition);
+        DistanceSinceMarkSeen =
+            static_cast<float>(std::sqrt(static_cast<double>(move.X) * move.X + static_cast<double>(move.Y) * move.Y +
+                                         static_cast<double>(move.Z) * move.Z) +
+                               DistanceSinceMarkSeen);
+        Position.Z = Land->GetTerrainElevation(Position);
 
-        const int visibleNow = onScreen();
+        const int visibleNow = OnScreen();
         const int offScreen = visibleNow == 0 ? 1 : 0;
 
-        if (withdrawing != 0)
+        if (Withdrawing != 0)
         {
             if (visibleNow == 0)
             {
-                objType->handleDestruction(this, nullptr);
-                removed = 1;
+                ObjType->HandleDestruction(this, nullptr);
+                Removed = 1;
             }
         }
 
         // Original behaviour (OB-002): a marine off the screen is removed.
-        if (offScreen && elementalCanJump == 0)
+        if (offScreen && ElementalCanJump == 0)
         {
-            removeMarine(this, 0.8f);
-            removed = 1;
+            RemoveMarine(this, 0.8f);
+            Removed = 1;
         }
 
-        if (appearance != nullptr)
+        if (Appearance != nullptr)
         {
-            appearance->visible = visibleNow;
-            appearance->update();
+            Appearance->Visible = visibleNow;
+            Appearance->Update();
         }
     }
 
     // Original behaviour (OB-005): adds the map's top edge to y here rather than subtracting.
-    const float blockColumn = (position.x - Terrain::mapTopLeft3d100.x) / blockSize;
+    const float blockColumn = (Position.X - MCTerrain::MapTopLeft3d100.X) / blockSize;
     const auto blockRow =
-        static_cast<int32_t>(std::floor(static_cast<double>((Terrain::mapTopLeft3d100.y + position.y) / blockSize)));
+        static_cast<int32_t>(std::floor(static_cast<double>((MCTerrain::MapTopLeft3d100.Y + Position.Y) / blockSize)));
     const auto column = static_cast<int32_t>(std::floor(static_cast<double>(blockColumn)));
-    addMoverToList(column + blockRow * Terrain::blocksMapSide);
+    AddMoverToList(column + blockRow * MCTerrain::BlocksMapSide);
     return 1;
 }
 
-auto Elemental::render() -> void
+auto MCElemental::Render() -> void
 {
     int tagged = 0;
 
-    if (isDestroyed() == 0)
+    if (IsDestroyed() == 0)
     {
-        if (alignment == homeTeam->alignment)
+        if (Alignment == HomeTeam->Alignment)
         {
-            if (windowsVisible == turn)
+            if (WindowsVisible == Turn)
             {
-                appearance->render(0);
+                Appearance->Render(0);
             }
         }
         else
         {
-            const int32_t contactType = getContactType(homeTeam->id, tagged);
+            const int32_t contactType = GetContactType(HomeTeam->Id, tagged);
 
             if (contactType == 1)
             {
-                if (windowsVisible == turn)
+                if (WindowsVisible == Turn)
                 {
-                    appearance->render(0);
+                    Appearance->Render(0);
                 }
             }
             else if (contactType == 2)
@@ -1878,67 +1878,67 @@ auto Elemental::render() -> void
                 // A sensor contact: a blip sized by tonnage.
                 uint8_t* shape;
 
-                if (50.0f < getTonnage())
+                if (50.0f < GetTonnage())
                 {
-                    shape = scenario->sensorContactShapes[0];
+                    shape = Scenario->SensorContactShapes[0];
                 }
-                else if (35.0f < getTonnage())
+                else if (35.0f < GetTonnage())
                 {
-                    shape = scenario->sensorContactShapes[2];
+                    shape = Scenario->SensorContactShapes[2];
                 }
                 else
                 {
-                    shape = scenario->sensorContactShapes[4];
+                    shape = Scenario->SensorContactShapes[4];
                 }
 
                 if (shape != nullptr)
                 {
-                    if (VFX_shape_count(shape) <= blipFrame)
+                    if (VfxShapeCount(shape) <= BlipFrame)
                     {
-                        if (soundSystem != nullptr && useSound != 0)
+                        if (SoundSystem != nullptr && UseSound != 0)
                         {
-                            soundSystem->playDigitalSample(0x14, 1, this, 0, 1);
+                            SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
                         }
 
-                        blipFrame = 0;
+                        BlipFrame = 0;
                     }
 
-                    ElementList->openGroup(-100000, 1);
-                    ElementList->add(
-                        ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
-                    blipFrame++;
+                    ElementList->OpenGroup(-100000, 1);
+                    ElementList->Add(MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0,
+                                                                       nullptr, 0, 0));
+                    BlipFrame++;
                 }
             }
-            else if (elementalCanJump == 0)
+            else if (ElementalCanJump == 0)
             {
                 // An unseen marine: drawn once revealed. Original behaviour (OB-002): removed when it isn't on the
                 // screen.
-                if (windowsVisible == 0)
+                if (WindowsVisible == 0)
                 {
-                    onScreen();
+                    OnScreen();
                 }
 
-                if (windowsVisible == turn)
+                if (WindowsVisible == Turn)
                 {
-                    if (isRevealed() != 0)
+                    if (IsRevealed() != 0)
                     {
-                        appearance->render(0);
+                        Appearance->Render(0);
                     }
                 }
                 else
                 {
-                    removeMarine(this, 0.8f);
-                    removed = 1;
+                    RemoveMarine(this, 0.8f);
+                    Removed = 1;
                 }
             }
         }
     }
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
         // Debug: the move path's steps as lines.
-        MovePath* path = pilot->getMovePath();
-        const int32_t numSteps = path->numSteps;
+        MCMovePath* path = Pilot->GetMovePath();
+        const int32_t numSteps = path->NumSteps;
 
         for (int32_t i = 0; i < numSteps; i++)
         {
@@ -1947,122 +1947,122 @@ auto Elemental::render() -> void
                 continue;
             }
 
-            vector_3d from = path->stepList[i].destination;
-            vector_3d to = path->stepList[i + 1].destination;
-            from.z = land->getTerrainElevation(from);
-            to.z = land->getTerrainElevation(to);
-            const auto project = [](const vector_3d& point)
+            MCVector3D from = path->StepList[i].Destination;
+            MCVector3D to = path->StepList[i + 1].Destination;
+            from.Z = Land->GetTerrainElevation(from);
+            to.Z = Land->GetTerrainElevation(to);
+            const auto project = [](const MCVector3D& point)
             {
-                const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-                const float sx = (point.x - eye->position.x) * scale;
-                const float sy = (point.y - eye->position.y) * scale;
-                vector_2d screen;
-                screen.x = sx * eye->cosAngle + sy * eye->cosAngle + eye->halfWidth;
-                screen.y =
-                    ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (point.z - eye->position.z);
+                const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+                const float sx = (point.X - Eye->Position.X) * scale;
+                const float sy = (point.Y - Eye->Position.Y) * scale;
+                MCVector2D screen;
+                screen.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
+                screen.Y =
+                    ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (point.Z - Eye->Position.Z);
                 return screen;
             };
 
-            vector_2d fromScreen = project(from);
-            vector_2d toScreen = project(to);
-            ElementList->openGroup(-100000, 1);
-            ElementList->add(ElementPool::Make<LineElement>(fromScreen, toScreen, 0xfe, nullptr, -100000, -1));
+            MCVector2D fromScreen = project(from);
+            MCVector2D toScreen = project(to);
+            ElementList->OpenGroup(-100000, 1);
+            ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xfe, nullptr, -100000, -1));
         }
     }
 }
 
-auto Elemental::getBodyState() -> int32_t
+auto MCElemental::GetBodyState() -> int32_t
 {
     return 0;
 }
 
-auto Elemental::calcAttackChance(GameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
-                                 float modifiers, int32_t* range, vector_3d* targetPoint) -> float
+auto MCElemental::CalcAttackChance(MCGameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
+                                   float modifiers, int32_t* range, MCVector3D* targetPoint) -> float
 {
-    if (numOther <= weaponIndex && weaponIndex < numOther + numWeapons)
+    if (NumOther <= weaponIndex && weaponIndex < NumOther + NumWeapons)
     {
-        return Mover::calcAttackChance(target, aimLocation, targetTime, weaponIndex, modifiers, range, targetPoint);
+        return MCMover::CalcAttackChance(target, aimLocation, targetTime, weaponIndex, modifiers, range, targetPoint);
     }
 
     return -1000.0f;
 }
 
-auto Elemental::calcHitLocation(GameObject* attacker, int32_t weaponIndex, int32_t attackSource, int32_t attackType)
+auto MCElemental::CalcHitLocation(MCGameObject* attacker, int32_t weaponIndex, int32_t attackSource, int32_t attackType)
     -> int32_t
 {
     return 0;
 }
 
-auto Elemental::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
+auto MCElemental::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
 {
     return 0;
 }
 
-auto Elemental::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCElemental::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
         return 0;
     }
 
-    GameObject* attacker = shotInfo->attacker;
+    MCGameObject* attacker = shotInfo->Attacker;
     BadGuy = attacker;
 
-    if (shotInfo->damage <= 0.0f || shotInfo->hitLocation == -1)
+    if (shotInfo->Damage <= 0.0f || shotInfo->HitLocation == -1)
     {
         return 0;
     }
 
-    if (isDestroyed() != 0)
+    if (IsDestroyed() != 0)
     {
         return 0;
     }
 
-    curHealth = static_cast<int32_t>(static_cast<double>(curHealth) - shotInfo->damage);
+    CurHealth = static_cast<int32_t>(static_cast<double>(CurHealth) - shotInfo->Damage);
 
-    if (curHealth < 1)
+    if (CurHealth < 1)
     {
-        pilot->handleOwnVehicleIncapacitation(0);
+        Pilot->HandleOwnVehicleIncapacitation(0);
 
-        if (elementalCanJump == 0)
+        if (ElementalCanJump == 0)
         {
-            removeMarine(this, 0.0f);
+            RemoveMarine(this, 0.0f);
         }
         else
         {
-            objType->handleDestruction(this, nullptr);
+            ObjType->HandleDestruction(this, nullptr);
         }
     }
 
-    damageRateTally = shotInfo->damage + damageRateTally;
-    totalDamageTaken = shotInfo->damage + totalDamageTaken;
+    DamageRateTally = shotInfo->Damage + DamageRateTally;
+    TotalDamageTaken = shotInfo->Damage + TotalDamageTaken;
 
     if (attacker == nullptr)
     {
-        pilot->triggerAlarm(1, 0);
+        Pilot->TriggerAlarm(1, 0);
     }
-    else if (shotInfo->masterId < 0)
+    else if (shotInfo->MasterId < 0)
     {
-        pilot->triggerAlarm(10, static_cast<uint32_t>(attacker->partId));
+        Pilot->TriggerAlarm(10, static_cast<uint32_t>(attacker->PartId));
     }
     else
     {
-        pilot->triggerAlarm(1, static_cast<uint32_t>(attacker->partId));
+        Pilot->TriggerAlarm(1, static_cast<uint32_t>(attacker->PartId));
     }
 
-    curCV = calcCV(0);
+    CurCV = CalcCV(0);
     return 0;
 }
 
-auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
-                           int32_t aimLocation, vector_3d* targetPoint) -> int32_t
+auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
+                             int32_t aimLocation, MCVector3D* targetPoint) -> int32_t
 {
-    if (status == 5 || status == 4 || status == 1 || status == 2)
+    if (Status == 5 || Status == 4 || Status == 1 || Status == 2)
     {
         return 1;
     }
 
-    if (isWeaponReady(weaponIndex) == 0)
+    if (IsWeaponReady(weaponIndex) == 0)
     {
         return 3;
     }
@@ -2071,61 +2071,61 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
 
     if (target == nullptr)
     {
-        if (targetPoint == nullptr || lineOfSight(*targetPoint) == 0)
+        if (targetPoint == nullptr || LineOfSight(*targetPoint) == 0)
         {
             return 4;
         }
 
-        distance = static_cast<float>(distanceFrom(*targetPoint));
+        distance = static_cast<float>(DistanceFrom(*targetPoint));
     }
     else
     {
         // A camera drone can't be shot for two seconds after launch.
-        if (target->objectClass == CAMERADRONE && scenarioTime < static_cast<CameraDrone*>(target)->launchTime + 2.0)
+        if (target->ObjectClass == CAMERADRONE && ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
         {
             return 4;
         }
 
-        if (target->isDestroyed() != 0)
+        if (target->IsDestroyed() != 0)
         {
             return 4;
         }
 
-        if (lineOfSight(target) == 0)
+        if (LineOfSight(target) == 0)
         {
             return 4;
         }
 
-        vector_3d targetPosition = target->getPosition();
-        distance = static_cast<float>(distanceFrom(targetPosition));
+        MCVector3D targetPosition = target->GetPosition();
+        distance = static_cast<float>(DistanceFrom(targetPosition));
     }
 
-    const int32_t inRange = weaponInRange(weaponIndex, distance);
+    const int32_t inRange = WeaponInRange(weaponIndex, distance);
 
-    if ((MPlayer == nullptr || MPlayer->isServer != 0) && inRange == 0)
+    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && inRange == 0)
     {
         return 4;
     }
 
-    const MasterComponent& weapon = MasterComponentList[inventory[weaponIndex].masterID];
+    const MCMasterComponent& weapon = MasterComponentList[Inventory[weaponIndex].MasterID];
 
-    if (weapon.missileType != 2 && weapon.missileType != 1 && weapon.missileType != 3)
+    if (weapon.MissileType != 2 && weapon.MissileType != 1 && weapon.MissileType != 3)
     {
         // Direct fire needs a clear line.
         if (target == nullptr)
         {
-            if (targetPoint == nullptr || lineOfFire(*targetPoint) == 0)
+            if (targetPoint == nullptr || LineOfFire(*targetPoint) == 0)
             {
                 return 4;
             }
         }
-        else if (lineOfFire(target) == 0)
+        else if (LineOfFire(target) == 0)
         {
             return 4;
         }
     }
 
-    const int32_t numShots = getWeaponShots(weaponIndex);
+    const int32_t numShots = GetWeaponShots(weaponIndex);
 
     if (numShots == 0)
     {
@@ -2133,7 +2133,7 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
     }
 
     // No aimed missiles.
-    if (aimLocation != -1 && weapon.form == COMPONENT_FORM_WEAPON_MISSILE)
+    if (aimLocation != -1 && weapon.Form == COMPONENT_FORM_WEAPON_MISSILE)
     {
         return 4;
     }
@@ -2144,18 +2144,18 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
         return 4;
     }
 
-    const float entryAngle = target->relFacingTo(position, -1);
-    const int isStreak = weapon.weaponFlags & 1;
+    const float entryAngle = target->RelFacingTo(Position, -1);
+    const int isStreak = weapon.WeaponFlags & 1;
     int32_t range = 0;
     int32_t hitChance =
-        static_cast<int32_t>(calcAttackChance(target, aimLocation, targetTime, weaponIndex, 0.0f, &range, nullptr));
+        static_cast<int32_t>(CalcAttackChance(target, aimLocation, targetTime, weaponIndex, 0.0f, &range, nullptr));
     const int32_t hitRoll = RandomNumber(100);
-    pilot->numSkillUses[MWS_GUNNERY][1]++;
+    Pilot->NumSkillUses[MWS_GUNNERY][1]++;
     int32_t hitLocation = -1;
 
     if (hitRoll < hitChance)
     {
-        pilot->numSkillSuccesses[MWS_GUNNERY][1]++;
+        Pilot->NumSkillSuccesses[MWS_GUNNERY][1]++;
 
         if (aimLocation != -1)
         {
@@ -2163,52 +2163,52 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
         }
     }
 
-    MechWarrior* targetPilot = nullptr;
-    const int32_t targetClass = target->objectClass;
+    MCMechWarrior* targetPilot = nullptr;
+    const int32_t targetClass = target->ObjectClass;
 
     if (targetClass == BATTLEMECH || targetClass == GROUNDVEHICLE || targetClass == ELEMENTAL || targetClass == MOVER)
     {
-        targetPilot = target->getPilot();
-        targetPilot->updateAttackerStatus(static_cast<uint32_t>(partId), scenarioTime);
+        targetPilot = target->GetPilot();
+        targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
     }
 
     // Aimed shots only from a standing elemental.
-    if (aimLocation != -1 && 0.0 < getVelocity().magnitude())
+    if (aimLocation != -1 && 0.0 < GetVelocity().Magnitude())
     {
         hitChance = 0;
     }
 
-    startWeaponRecycle(weaponIndex);
+    StartWeaponRecycle(weaponIndex);
 
-    InventoryItem& item = inventory[weaponIndex];
-    const auto fired = [&]() -> const MasterComponent& { return MasterComponentList[item.masterID]; };
+    MCInventoryItem& item = Inventory[weaponIndex];
+    const auto fired = [&]() -> const MCMasterComponent& { return MasterComponentList[item.MasterID]; };
     const auto hotSpotOf = [&](int32_t location)
     {
-        if (target->objectClass == BATTLEMECH)
+        if (target->ObjectClass == BATTLEMECH)
         {
             // Port fix: the original reads body[location], past the eight body locations for a rear torso hit
             // (8..10); the torso it maps to is read instead.
-            const BodyLocation& body = static_cast<BattleMech*>(target)->bodyAt(MechArmorToBodyLocation[location]);
-            return static_cast<int32_t>(body.hotSpotNumber);
+            const MCBodyLocation& body = static_cast<MCBattleMech*>(target)->BodyAt(MechArmorToBodyLocation[location]);
+            return static_cast<int32_t>(body.HotSpotNumber);
         }
 
         return 0;
     };
 
-    GameObject* fx = nullptr;
+    MCGameObject* fx = nullptr;
 
     if (hitRoll < hitChance)
     {
         if (numShots != UNLIMITED_SHOTS)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        if (fired().form == COMPONENT_FORM_WEAPON_MISSILE)
+        if (fired().Form == COMPONENT_FORM_WEAPON_MISSILE)
         {
             // Missiles: a streak fires them all, anything else about half; anti-missile systems take some out.
             // The rest fly in volleys, each with its own hit location.
-            int32_t missiles = fired().numMissiles;
+            int32_t missiles = fired().NumMissiles;
 
             if (isStreak == 0)
             {
@@ -2216,21 +2216,21 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
             }
 
             int32_t antiMissileShots = 0;
-            missiles = target->fireAntiMissileSystem(missiles, antiMissileShots);
+            missiles = target->FireAntiMissileSystem(missiles, antiMissileShots);
 
             if (antiMissileShots > 0)
             {
-                target->reduceAntiMissileAmmo(antiMissileShots);
+                target->ReduceAntiMissileAmmo(antiMissileShots);
             }
 
             int32_t volleySize = 1;
-            const int32_t numVolleys = missileVolleys(fired(), missiles, volleySize);
+            const int32_t numVolleys = MissileVolleys(fired(), missiles, volleySize);
 
             if (numVolleys != 0)
             {
-                fx = createObject(static_cast<int32_t>(weaponFXTable[fired().weaponEffect]));
+                fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired().WeaponEffect]));
                 int32_t targetHotSpot = 0;
-                _WeaponShotInfo shot;
+                MCWeaponShotInfo shot;
 
                 for (int32_t volley = 0; volley < numVolleys; volley++)
                 {
@@ -2243,7 +2243,7 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
 
                     if (aimLocation == -1)
                     {
-                        hitLocation = target->calcHitLocation(this, weaponIndex, 0, attackType);
+                        hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
                     }
 
                     Assert(hitLocation != -1 ? 1 : 0, 0, " Elemental.FireWeapon: Bad Hit Location ");
@@ -2253,36 +2253,36 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
                         targetHotSpot = hotSpotOf(hitLocation);
                     }
 
-                    shot.init(this, item.masterID, fired().damage * static_cast<float>(volleySize), hitLocation,
+                    shot.Init(this, item.MasterID, fired().Damage * static_cast<float>(volleySize), hitLocation,
                               entryAngle);
 
-                    if (fx->objectClass == BULLET)
+                    if (fx->ObjectClass == BULLET)
                     {
-                        addBulletShot(static_cast<Bullet*>(fx), shot);
+                        AddBulletShot(static_cast<MCBullet*>(fx), shot);
                     }
                 }
 
-                aimWeaponFX(this, fx, target, shot, targetHotSpot);
+                AimWeaponFX(this, fx, target, shot, targetHotSpot);
             }
         }
         else
         {
             if (aimLocation == -1)
             {
-                hitLocation = target->calcHitLocation(this, weaponIndex, 0, attackType);
+                hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
             }
 
             Assert(hitLocation != -1 ? 1 : 0, 0, " Elemental.FireWeapon: Bad Hit Location ");
-            _WeaponShotInfo shot;
-            shot.init(this, item.masterID, fired().damage, hitLocation, entryAngle);
-            fx = createObject(static_cast<int32_t>(weaponFXTable[fired().weaponEffect]));
+            MCWeaponShotInfo shot;
+            shot.Init(this, item.MasterID, fired().Damage, hitLocation, entryAngle);
+            fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired().WeaponEffect]));
 
-            if (fx->objectClass == BULLET)
+            if (fx->ObjectClass == BULLET)
             {
-                addBulletShot(static_cast<Bullet*>(fx), shot);
+                AddBulletShot(static_cast<MCBullet*>(fx), shot);
             }
 
-            aimWeaponFX(this, fx, target, shot, hotSpotOf(hitLocation));
+            AimWeaponFX(this, fx, target, shot, hotSpotOf(hitLocation));
         }
     }
     else if (isStreak == 0)
@@ -2290,20 +2290,20 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
         // A miss (a streak doesn't fire without a lock): the shot lands somewhere near.
         if (numShots != UNLIMITED_SHOTS)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        _WeaponShotInfo shot;
+        MCWeaponShotInfo shot;
 
-        if (fired().form == COMPONENT_FORM_WEAPON_MISSILE)
+        if (fired().Form == COMPONENT_FORM_WEAPON_MISSILE)
         {
-            int32_t missiles = static_cast<int32_t>(fired().numMissiles * 0.5 + 0.5);
+            int32_t missiles = static_cast<int32_t>(fired().NumMissiles * 0.5 + 0.5);
             int32_t volleySize = 1;
-            const int32_t numVolleys = missileVolleys(fired(), missiles, volleySize);
+            const int32_t numVolleys = MissileVolleys(fired(), missiles, volleySize);
 
             if (numVolleys != 0)
             {
-                fx = createObject(static_cast<int32_t>(weaponFXTable[fired().weaponEffect]));
+                fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired().WeaponEffect]));
 
                 for (int32_t volley = 0; volley < numVolleys; volley++)
                 {
@@ -2313,93 +2313,93 @@ auto Elemental::fireWeapon(GameObject* target, float targetTime, int32_t weaponI
                     }
 
                     missiles -= volleySize;
-                    shot.init(this, item.masterID, fired().damage * static_cast<float>(volleySize), -1, entryAngle);
+                    shot.Init(this, item.MasterID, fired().Damage * static_cast<float>(volleySize), -1, entryAngle);
 
-                    if (fx->objectClass == BULLET)
+                    if (fx->ObjectClass == BULLET)
                     {
-                        addBulletShot(static_cast<Bullet*>(fx), shot);
+                        AddBulletShot(static_cast<MCBullet*>(fx), shot);
                     }
                 }
 
-                vector_3d landing = missPoint(target, 1);
-                connectMissFX(this, fx, landing, shot);
+                MCVector3D landing = MissPoint(target, 1);
+                ConnectMissFX(this, fx, landing, shot);
             }
         }
         else
         {
-            shot.init(this, item.masterID, fired().damage, -1, entryAngle);
-            fx = createObject(static_cast<int32_t>(weaponFXTable[fired().weaponEffect]));
-            vector_3d landing = missPoint(target, 0);
+            shot.Init(this, item.MasterID, fired().Damage, -1, entryAngle);
+            fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired().WeaponEffect]));
+            MCVector3D landing = MissPoint(target, 0);
 
-            if (fx->objectClass == BULLET)
+            if (fx->ObjectClass == BULLET)
             {
-                addBulletShot(static_cast<Bullet*>(fx), shot);
+                AddBulletShot(static_cast<MCBullet*>(fx), shot);
             }
 
-            connectMissFX(this, fx, landing, shot);
+            ConnectMissFX(this, fx, landing, shot);
         }
     }
 
     if (fx != nullptr)
     {
-        weaponList->addNode(fx);
+        WeaponList->AddNode(fx);
     }
 
     if (targetPilot != nullptr)
     {
-        targetPilot->triggerAlarm(0, static_cast<uint32_t>(partId));
+        targetPilot->TriggerAlarm(0, static_cast<uint32_t>(PartId));
     }
 
     // Firing gives an unrevealed elemental away to the other side's mechs within visual range.
-    ObjectQueueNode* enemies = nullptr;
+    MCObjectQueueNode* enemies = nullptr;
     uint8_t seenBy = 0;
 
-    if (alignment == 1 && isRevealed() == 0)
+    if (Alignment == 1 && IsRevealed() == 0)
     {
-        enemies = clanMechList;
+        enemies = ClanMechList;
         seenBy = 2;
     }
-    else if (alignment == -1 && isRevealed() == 0)
+    else if (Alignment == -1 && IsRevealed() == 0)
     {
-        enemies = innerSphereMechList;
+        enemies = InnerSphereMechList;
         seenBy = 1;
     }
 
     if (enemies != nullptr)
     {
-        for (BaseObject* enemy = enemies->head; enemy != nullptr; enemy = enemy->next)
+        for (MCBaseObject* enemy = enemies->Head; enemy != nullptr; enemy = enemy->Next)
         {
-            vector_3d enemyPosition = static_cast<GameObject*>(enemy)->getPosition();
+            MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 
-            if (distanceFrom(enemyPosition) < scenario->maxVisualRange)
+            if (DistanceFrom(enemyPosition) < Scenario->MaxVisualRange)
             {
-                land->markRadiusSeen(position, frame.j, 360.0f, scenario->fireVisualRange, seenBy);
+                Land->MarkRadiusSeen(Position, Frame.J, 360.0f, Scenario->FireVisualRange, seenBy);
                 break;
             }
         }
     }
 
-    if (group != nullptr)
+    if (Group != nullptr)
     {
-        group->handleMateFiredWeapon(static_cast<uint32_t>(partId));
+        Group->HandleMateFiredWeapon(static_cast<uint32_t>(PartId));
     }
 
     return 0;
 }
 
-auto Elemental::getVitalInfo(void* vitalInfo) -> int32_t
+auto MCElemental::GetVitalInfo(void* vitalInfo) -> int32_t
 {
-    const int32_t size = Mover::getVitalInfo(nullptr);
+    const int32_t size = MCMover::GetVitalInfo(nullptr);
 
     if (vitalInfo != nullptr)
     {
-        Mover::getVitalInfo(vitalInfo);
+        MCMover::GetVitalInfo(vitalInfo);
         auto* info = reinterpret_cast<uint8_t*>(vitalInfo) + size;
-        std::memcpy(info, &jumpRange, 4);
+        std::memcpy(info, &JumpRange, 4);
         const int32_t zero = 0; // the original copied a field nothing ever set
         std::memcpy(info + 4, &zero, 4);
-        std::memcpy(info + 8, &maxHealth, 4);
-        std::memcpy(info + 12, &curHealth, 4);
+        std::memcpy(info + 8, &MaxHealth, 4);
+        std::memcpy(info + 12, &CurHealth, 4);
     }
 
     return size + 0x10;

@@ -4,59 +4,59 @@
 #include "vfx/vfx.h"
 #include "vfx/vfxfuncs.h"
 
-_window textureWindow{};
+MCWindow TextureWindow{};
 
-PolygonElement::PolygonElement(PolyElementData* _data, int32_t _depth) : Element(_depth)
+MCPolygonElement::MCPolygonElement(MCPolyElementData* data, int32_t depth) : MCElement(depth)
 {
-    data = *_data;
+    Data = *data;
 }
 
-auto PolygonElement::draw() -> void
+auto MCPolygonElement::Draw() -> void
 {
-    if (data.statusBar != 0)
+    if (Data.StatusBar != 0)
     {
-        AG_StatusBar(globalPane, data.vertices[0].x, data.vertices[0].y, data.vertices[1].x, data.vertices[1].y,
-                     data.barColor, data.barPercent);
+        AGStatusBar(GlobalPane, Data.Vertices[0].X, Data.Vertices[0].Y, Data.Vertices[1].X, Data.Vertices[1].Y,
+                    Data.BarColor, Data.BarPercent);
         return;
     }
 
-    if (data.numVertices == 0)
+    if (Data.NumVertices == 0)
     {
         return;
     }
 
-    if (data.texture == nullptr)
+    if (Data.Texture == nullptr)
     {
-        if (data.fadeTable != nullptr)
+        if (Data.FadeTable != nullptr)
         {
-            VFX_translate_polygon(globalPane, data.numVertices, data.vertices, data.fadeTable);
+            VfxTranslatePolygon(GlobalPane, Data.NumVertices, Data.Vertices, Data.FadeTable);
             return;
         }
 
-        VFX_Gouraud_polygon(globalPane, data.numVertices, data.vertices);
+        VfxGouraudPolygon(GlobalPane, Data.NumVertices, Data.Vertices);
         return;
     }
 
-    if (data.translate != 0 && data.fadeTable != nullptr)
+    if (Data.Translate != 0 && Data.FadeTable != nullptr)
     {
-        VFX_translate_polygon(globalPane, data.numVertices, data.vertices, data.fadeTable);
+        VfxTranslatePolygon(GlobalPane, Data.NumVertices, Data.Vertices, Data.FadeTable);
         return;
     }
 
-    if (data.textureMapOff == 0)
+    if (Data.TextureMapOff == 0)
     {
-        textureWindow.x_max = data.textureWidth - 1;
-        textureWindow.y_max = data.textureHeight - 1;
-        textureWindow.buffer = data.texture;
-        textureWindow.Texture = data.textureHandle;
+        TextureWindow.XMax = Data.TextureWidth - 1;
+        TextureWindow.YMax = Data.TextureHeight - 1;
+        TextureWindow.Buffer = Data.Texture;
+        TextureWindow.Texture = Data.TextureHandle;
 
-        if (data.fadeTable != nullptr)
+        if (Data.FadeTable != nullptr)
         {
-            VFX_map_lookaside(data.fadeTable);
-            VFX_map_polygon(globalPane, data.numVertices, data.vertices, &textureWindow, 3);
+            VfxMapLookaside(Data.FadeTable);
+            VfxMapPolygon(GlobalPane, Data.NumVertices, Data.Vertices, &TextureWindow, 3);
             return;
         }
 
-        VFX_map_polygon(globalPane, data.numVertices, data.vertices, &textureWindow, 2);
+        VfxMapPolygon(GlobalPane, Data.NumVertices, Data.Vertices, &TextureWindow, 2);
     }
 }

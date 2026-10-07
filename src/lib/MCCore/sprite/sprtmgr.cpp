@@ -10,10 +10,10 @@
 #include "platform/MCRenderer.h"
 #include "sprite/vfxshape.h"
 
-SpriteManager* spriteManager = nullptr;
-int use90PixelSprite = 0;
-int gRestartRender = 0;
-int dumpedRecent = 0;
+MCSpriteManager* SpriteManager = nullptr;
+int Use90PixelSprite = 0;
+int GRestartRender = 0;
+int DumpedRecent = 0;
 
 namespace
 {
@@ -21,27 +21,27 @@ namespace
     constexpr int32_t NUM_MECH_PART_FILES = 24;
 
     /// <summary>Opens the PAK <paramref name="name"/><paramref name="ext"/> from the sprite path, then the CD's.</summary>
-    auto openSpriteFile(PacketFile* file, const char* name, const char* ext) -> int32_t
+    auto OpenSpriteFile(MCPacketFile* file, const char* name, const char* ext) -> int32_t
     {
-        FullPathFileName fileName;
-        fileName.init(spritePath, name, ext);
-        int32_t result = file->open(fileName, READ, 50);
+        MCFullPathFileName fileName;
+        fileName.Init(SpritePath, name, ext);
+        int32_t result = file->Open(fileName, READ, 50);
 
         if (result != 0)
         {
-            FullPathFileName cdName;
-            cdName.init(CDspritePath, name, ext);
-            result = file->open(cdName, READ, 50);
+            MCFullPathFileName cdName;
+            cdName.Init(CDspritePath, name, ext);
+            result = file->Open(cdName, READ, 50);
         }
 
         return result;
     }
 
     /// <summary>Makes a part table (25 null entries) and opens its part PAK into entry 0.</summary>
-    auto openPartFile(std::vector<PacketFile*>& table, const char* name) -> int32_t
+    auto OpenPartFile(std::vector<MCPacketFile*>& table, const char* name) -> int32_t
     {
         table.assign(NUM_MECH_PART_FILES + 1, nullptr);
-        auto* file = new PacketFile;
+        auto* file = new MCPacketFile;
         table[0] = file;
 
         if (file == nullptr)
@@ -49,7 +49,7 @@ namespace
             return static_cast<int32_t>(0xface0004);
         }
 
-        return openSpriteFile(file, name, ".pak");
+        return OpenSpriteFile(file, name, ".pak");
     }
 
     /// <summary>
@@ -57,35 +57,35 @@ namespace
     /// sprite PAK that has a nonempty packet for it (the preferred PAK, then the other). Null when neither does or
     /// the open fails.
     /// </summary>
-    auto appearanceFile(SpriteManager* manager, uint32_t appearanceNum) -> PacketFile*
+    auto AppearanceFile(MCSpriteManager* manager, uint32_t appearanceNum) -> MCPacketFile*
     {
-        PacketFile** files = manager->spriteFiles.data();
+        MCPacketFile** files = manager->SpriteFiles.data();
 
         if (files[appearanceNum] != nullptr)
         {
             return files[appearanceNum];
         }
 
-        PacketFile** files90 = manager->spriteFiles90.data();
+        MCPacketFile** files90 = manager->SpriteFiles90.data();
 
         if (files90[appearanceNum] != nullptr)
         {
             return files90[appearanceNum];
         }
 
-        PacketFile* parent = files[0];
-        PacketFile* parent90 = files90[0];
-        const int32_t seekResult = parent->seekPacket(static_cast<int32_t>(appearanceNum));
-        const int32_t seekResult90 = parent90->seekPacket(static_cast<int32_t>(appearanceNum));
+        MCPacketFile* parent = files[0];
+        MCPacketFile* parent90 = files90[0];
+        const int32_t seekResult = parent->SeekPacket(static_cast<int32_t>(appearanceNum));
+        const int32_t seekResult90 = parent90->SeekPacket(static_cast<int32_t>(appearanceNum));
 
         if (seekResult != 0 || seekResult90 != 0)
         {
             return nullptr;
         }
 
-        const int32_t size = parent->getPacketSize();
-        const int32_t size90 = parent90->getPacketSize();
-        PacketFile** table = files;
+        const int32_t size = parent->GetPacketSize();
+        const int32_t size90 = parent90->GetPacketSize();
+        MCPacketFile** table = files;
         int32_t childSize = size;
 
         if (size == 0)
@@ -99,7 +99,7 @@ namespace
             childSize = size90;
         }
 
-        auto* file = new PacketFile;
+        auto* file = new MCPacketFile;
         table[appearanceNum] = file;
 
         if (file == nullptr)
@@ -107,7 +107,7 @@ namespace
             return nullptr;
         }
 
-        if (file->open(table[0], static_cast<uint32_t>(childSize), 50) != 0)
+        if (file->Open(table[0], static_cast<uint32_t>(childSize), 50) != 0)
         {
             return nullptr;
         }
@@ -119,11 +119,11 @@ namespace
     /// The PAK of mech <paramref name="mechNum"/> in part <paramref name="table"/>, opened as a child of the part PAK
     /// when first asked for. Null when the open fails (the new file stays in the table, as in the original).
     /// </summary>
-    auto mechPartFile(PacketFile** table, uint32_t mechNum) -> PacketFile*
+    auto MechPartFile(MCPacketFile** table, uint32_t mechNum) -> MCPacketFile*
     {
         if (table[mechNum + 1] == nullptr)
         {
-            auto* file = new PacketFile;
+            auto* file = new MCPacketFile;
             table[mechNum + 1] = file;
 
             if (file == nullptr)
@@ -131,14 +131,14 @@ namespace
                 return nullptr;
             }
 
-            if (table[0]->seekPacket(static_cast<int32_t>(mechNum)) != 0)
+            if (table[0]->SeekPacket(static_cast<int32_t>(mechNum)) != 0)
             {
                 return nullptr;
             }
 
-            const int32_t size = table[0]->getPacketSize();
+            const int32_t size = table[0]->GetPacketSize();
 
-            if (file->open(table[0], static_cast<uint32_t>(size), 50) != 0)
+            if (file->Open(table[0], static_cast<uint32_t>(size), 50) != 0)
             {
                 return nullptr;
             }
@@ -152,33 +152,33 @@ namespace
     /// <paramref name="file"/> into a new shape owned by <paramref name="owner"/> and appends it to the LRU list.
     /// Null (after emptying the cache and asking for the frame again) when it doesn't fit.
     /// </summary>
-    auto loadShape(SpriteManager* manager, PacketFile* file, uint32_t packetNum, uint32_t size, int32_t turnUsed,
-                   AppearanceType* owner, bool checkSize) -> Shape*
+    auto LoadShape(MCSpriteManager* manager, MCPacketFile* file, uint32_t packetNum, uint32_t size, int32_t turnUsed,
+                   MCAppearanceType* owner, bool checkSize) -> MCShape*
     {
-        auto* shape = static_cast<Shape*>(manager->mallocDataRAM(sizeof(Shape)));
+        auto* shape = static_cast<MCShape*>(manager->MallocDataRam(sizeof(MCShape)));
 
         if (shape == nullptr)
         {
             Fatal(-1, " No More Data Shape RAM ", nullptr);
         }
 
-        auto* data = static_cast<uint8_t*>(manager->mallocShapeRAM(size));
+        auto* data = static_cast<uint8_t*>(manager->MallocShapeRam(size));
 
         if (data == nullptr)
         {
-            manager->dumpLRU(static_cast<int32_t>(size));
-            data = static_cast<uint8_t*>(manager->mallocShapeRAM(size));
+            manager->DumpLru(static_cast<int32_t>(size));
+            data = static_cast<uint8_t*>(manager->MallocShapeRam(size));
 
             if (data == nullptr)
             {
-                manager->freeDataRAM(shape);
-                manager->dumpALL();
-                gRestartRender = 1;
+                manager->FreeDataRam(shape);
+                manager->DumpAll();
+                GRestartRender = 1;
                 return nullptr;
             }
         }
 
-        const int32_t sizeRead = file->readPacket(static_cast<int32_t>(packetNum), data);
+        const int32_t sizeRead = file->ReadPacket(static_cast<int32_t>(packetNum), data);
 
         if (checkSize)
         {
@@ -186,26 +186,26 @@ namespace
                    " Bad Packet in Shape file ");
         }
 
-        shape->init(data, owner, static_cast<int32_t>(size));
+        shape->Init(data, owner, static_cast<int32_t>(size));
 
-        if (manager->firstShape == nullptr)
+        if (manager->FirstShape == nullptr)
         {
-            manager->lastShape = shape;
-            manager->firstShape = shape;
+            manager->LastShape = shape;
+            manager->FirstShape = shape;
         }
         else
         {
-            manager->lastShape->next = shape;
-            manager->lastShape = shape;
+            manager->LastShape->Next = shape;
+            manager->LastShape = shape;
         }
 
-        shape->next = nullptr;
-        shape->lastTurnUsed = turnUsed;
+        shape->Next = nullptr;
+        shape->LastTurnUsed = turnUsed;
         return shape;
     }
 
     /// <summary>Closes entry 0 of a part table, deletes every entry and frees the table.</summary>
-    auto destroyPartTable(std::vector<PacketFile*>& table, bool checkParent) -> void
+    auto DestroyPartTable(std::vector<MCPacketFile*>& table, bool checkParent) -> void
     {
         if (table.empty())
         {
@@ -214,7 +214,7 @@ namespace
 
         if (!checkParent || table[0] != nullptr)
         {
-            table[0]->close();
+            table[0]->Close();
         }
 
         for (int32_t i = 1; i <= NUM_MECH_PART_FILES; i++)
@@ -231,14 +231,14 @@ namespace
     }
 
     /// <summary>Closes entry 0 of an appearance table, deletes every entry and frees the table.</summary>
-    auto destroyAppearanceTable(std::vector<PacketFile*>& table, int32_t numAppearances) -> void
+    auto DestroyAppearanceTable(std::vector<MCPacketFile*>& table, int32_t numAppearances) -> void
     {
         if (table.empty())
         {
             return;
         }
 
-        table[0]->close();
+        table[0]->Close();
 
         for (int32_t i = 1; i <= numAppearances; i++)
         {
@@ -254,29 +254,29 @@ namespace
     }
 }
 
-auto SpriteManager::init(char* spriteFileName) -> int32_t
+auto MCSpriteManager::Init(char* spriteFileName) -> int32_t
 {
-    constexpr int32_t NO_RAM = static_cast<int32_t>(0xccdd0001);
+    constexpr int32_t noRam = static_cast<int32_t>(0xccdd0001);
 
     // Count the appearances in the preferred PAK ("<name>90.pak", or "<name>.pak" in the demo).
     const char* preferredExt = (InDemo == 0) ? "90.pak" : ".pak";
-    auto* probe = new PacketFile;
+    auto* probe = new MCPacketFile;
 
     if (probe == nullptr)
     {
-        return NO_RAM;
+        return noRam;
     }
 
-    FullPathFileName fileName;
-    fileName.init(spritePath, spriteFileName, preferredExt);
-    int32_t result = probe->open(fileName, READ, 50);
+    MCFullPathFileName fileName;
+    fileName.Init(SpritePath, spriteFileName, preferredExt);
+    int32_t result = probe->Open(fileName, READ, 50);
 
     if (result != 0)
     {
         // Faithful: the CD retry always adds "90.pak", even in the demo.
-        FullPathFileName cdName;
-        cdName.init(CDspritePath, spriteFileName, "90.pak");
-        result = probe->open(cdName, READ, 50);
+        MCFullPathFileName cdName;
+        cdName.Init(CDspritePath, spriteFileName, "90.pak");
+        result = probe->Open(cdName, READ, 50);
 
         if (result != 0)
         {
@@ -284,28 +284,28 @@ auto SpriteManager::init(char* spriteFileName) -> int32_t
         }
     }
 
-    const int32_t numFiles = probe->getNumPackets() + 1;
-    numAppearances = numFiles;
-    probe->close();
+    const int32_t numFiles = probe->GetNumPackets() + 1;
+    NumAppearances = numFiles;
+    probe->Close();
     delete probe;
 
-    spriteFiles.assign(static_cast<size_t>(numFiles + 1), nullptr);
-    spriteFiles90.assign(static_cast<size_t>(numFiles + 1), nullptr);
+    SpriteFiles.assign(static_cast<size_t>(numFiles + 1), nullptr);
+    SpriteFiles90.assign(static_cast<size_t>(numFiles + 1), nullptr);
 
-    spriteFiles[0] = new PacketFile;
+    SpriteFiles[0] = new MCPacketFile;
 
-    if (spriteFiles[0] == nullptr)
+    if (SpriteFiles[0] == nullptr)
     {
-        return NO_RAM;
+        return noRam;
     }
 
-    result = spriteFiles[0]->open(fileName, READ, numFiles);
+    result = SpriteFiles[0]->Open(fileName, READ, numFiles);
 
     if (result != 0)
     {
-        FullPathFileName cdName;
-        cdName.init(CDspritePath, spriteFileName, "90.pak");
-        result = spriteFiles[0]->open(cdName, READ, numFiles);
+        MCFullPathFileName cdName;
+        cdName.Init(CDspritePath, spriteFileName, "90.pak");
+        result = SpriteFiles[0]->Open(cdName, READ, numFiles);
 
         if (result != 0)
         {
@@ -313,22 +313,22 @@ auto SpriteManager::init(char* spriteFileName) -> int32_t
         }
     }
 
-    FullPathFileName fileName2;
-    fileName2.init(spritePath, spriteFileName, ".pak");
-    spriteFiles90[0] = new PacketFile;
+    MCFullPathFileName fileName2;
+    fileName2.Init(SpritePath, spriteFileName, ".pak");
+    SpriteFiles90[0] = new MCPacketFile;
 
-    if (spriteFiles90[0] == nullptr)
+    if (SpriteFiles90[0] == nullptr)
     {
-        return NO_RAM;
+        return noRam;
     }
 
-    result = spriteFiles90[0]->open(fileName2, READ, numFiles);
+    result = SpriteFiles90[0]->Open(fileName2, READ, numFiles);
 
     if (result != 0)
     {
-        FullPathFileName cdName;
-        cdName.init(CDspritePath, spriteFileName, ".pak");
-        result = spriteFiles90[0]->open(cdName, READ, numFiles);
+        MCFullPathFileName cdName;
+        cdName.Init(CDspritePath, spriteFileName, ".pak");
+        result = SpriteFiles90[0]->Open(cdName, READ, numFiles);
 
         if (result != 0)
         {
@@ -336,26 +336,26 @@ auto SpriteManager::init(char* spriteFileName) -> int32_t
         }
     }
 
-    return initMechPacketFiles();
+    return InitMechPacketFiles();
 }
 
-auto SpriteManager::initMechPacketFiles() -> int32_t
+auto MCSpriteManager::InitMechPacketFiles() -> int32_t
 {
-    int32_t result = openPartFile(legFiles, "legs");
+    int32_t result = OpenPartFile(LegFiles, "legs");
 
     if (result == 0)
     {
-        result = openPartFile(torsoFiles, "torsos");
+        result = OpenPartFile(TorsoFiles, "torsos");
     }
 
     if (result == 0)
     {
-        result = openPartFile(rArmFiles, "rArms");
+        result = OpenPartFile(RArmFiles, "rArms");
     }
 
     if (result == 0)
     {
-        result = openPartFile(lArmFiles, "lArms");
+        result = OpenPartFile(LArmFiles, "lArms");
     }
 
     if (result != 0)
@@ -364,65 +364,65 @@ auto SpriteManager::initMechPacketFiles() -> int32_t
     }
 
     // The 90-pixel tables exist (empty) even when their PAKs aren't opened.
-    legFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
-    torsoFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
-    rArmFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
-    lArmFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
+    LegFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
+    TorsoFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
+    RArmFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
+    LArmFiles90.assign(NUM_MECH_PART_FILES + 1, nullptr);
 
-    if (use90PixelSprite == 0)
+    if (Use90PixelSprite == 0)
     {
         return 0;
     }
 
-    result = openPartFile(legFiles90, "legs90");
+    result = OpenPartFile(LegFiles90, "legs90");
 
     if (result == 0)
     {
-        result = openPartFile(torsoFiles90, "torsos90");
+        result = OpenPartFile(TorsoFiles90, "torsos90");
     }
 
     if (result == 0)
     {
-        result = openPartFile(rArmFiles90, "rArms90");
+        result = OpenPartFile(RArmFiles90, "rArms90");
     }
 
     if (result == 0)
     {
-        result = openPartFile(lArmFiles90, "lArms90");
+        result = OpenPartFile(LArmFiles90, "lArms90");
     }
 
     return result;
 }
 
-auto SpriteManager::destroy() -> void
+auto MCSpriteManager::Destroy() -> void
 {
-    destroyAppearanceTable(spriteFiles, numAppearances);
-    destroyAppearanceTable(spriteFiles90, numAppearances);
+    DestroyAppearanceTable(SpriteFiles, NumAppearances);
+    DestroyAppearanceTable(SpriteFiles90, NumAppearances);
 
-    destroyPartTable(torsoFiles, false);
-    destroyPartTable(legFiles, false);
-    destroyPartTable(lArmFiles, false);
-    destroyPartTable(rArmFiles, false);
+    DestroyPartTable(TorsoFiles, false);
+    DestroyPartTable(LegFiles, false);
+    DestroyPartTable(LArmFiles, false);
+    DestroyPartTable(RArmFiles, false);
     // The 90-pixel part PAKs are only open when use90PixelSprite was set.
-    destroyPartTable(torsoFiles90, true);
-    destroyPartTable(legFiles90, true);
-    destroyPartTable(lArmFiles90, true);
-    destroyPartTable(rArmFiles90, true);
+    DestroyPartTable(TorsoFiles90, true);
+    DestroyPartTable(LegFiles90, true);
+    DestroyPartTable(LArmFiles90, true);
+    DestroyPartTable(RArmFiles90, true);
 
     // What is still allocated (the shapes in the cache, the types' data) goes with the manager, as it went with the
     // original's heaps.
-    for (const auto& [block, data] : shapeBlocks)
+    for (const auto& [block, data] : ShapeBlocks)
     {
         MCRenderer::UnregisterData(block);
     }
 
-    shapeBlocks.clear();
-    dataBlocks.clear();
-    firstShape = nullptr;
-    lastShape = nullptr;
+    ShapeBlocks.clear();
+    DataBlocks.clear();
+    FirstShape = nullptr;
+    LastShape = nullptr;
 }
 
-auto SpriteManager::mallocShapeRAM(uint32_t size) -> void*
+auto MCSpriteManager::MallocShapeRam(uint32_t size) -> void*
 {
     if (size == 0)
     {
@@ -431,24 +431,24 @@ auto SpriteManager::mallocShapeRAM(uint32_t size) -> void*
 
     auto data = std::make_unique<uint8_t[]>(size);
     uint8_t* block = data.get();
-    shapeBlocks.emplace(block, std::move(data));
+    ShapeBlocks.emplace(block, std::move(data));
     // Port: the block holds shapes a renderer may keep (a GPU atlas); freeShapeRAM unregisters it.
     MCRenderer::RegisterData(block, size, MCDataKind::Shapes);
-    dumpedRecent = 0;
+    DumpedRecent = 0;
     return block;
 }
 
-auto SpriteManager::freeShapeRAM(void* block) -> void
+auto MCSpriteManager::FreeShapeRam(void* block) -> void
 {
     // As the original's heap: a block that isn't one of the manager's is ignored.
-    if (const auto found = shapeBlocks.find(block); found != shapeBlocks.end())
+    if (const auto found = ShapeBlocks.find(block); found != ShapeBlocks.end())
     {
         MCRenderer::UnregisterData(block);
-        shapeBlocks.erase(found);
+        ShapeBlocks.erase(found);
     }
 }
 
-auto SpriteManager::mallocDataRAM(uint32_t size) -> void*
+auto MCSpriteManager::MallocDataRam(uint32_t size) -> void*
 {
     if (size == 0)
     {
@@ -457,181 +457,181 @@ auto SpriteManager::mallocDataRAM(uint32_t size) -> void*
 
     auto data = std::make_unique<uint8_t[]>(size);
     void* block = data.get();
-    dataBlocks.emplace(block, std::move(data));
+    DataBlocks.emplace(block, std::move(data));
     return block;
 }
 
-auto SpriteManager::freeDataRAM(void* block) -> void
+auto MCSpriteManager::FreeDataRam(void* block) -> void
 {
-    dataBlocks.erase(block);
+    DataBlocks.erase(block);
 }
 
-auto SpriteManager::dumpLRU(int32_t) -> void
+auto MCSpriteManager::DumpLru(int32_t) -> void
 {
-    Shape* prev = nullptr;
-    Shape* shape = firstShape;
+    MCShape* prev = nullptr;
+    MCShape* shape = FirstShape;
 
     while (shape != nullptr)
     {
-        if (shape->owner != nullptr && turn <= shape->lastTurnUsed + 1)
+        if (shape->Owner != nullptr && Turn <= shape->LastTurnUsed + 1)
         {
             prev = shape;
-            shape = shape->next;
+            shape = shape->Next;
             continue;
         }
 
-        if (shape == firstShape)
+        if (shape == FirstShape)
         {
-            firstShape = shape->next;
-            shape->destroy();
-            freeDataRAM(shape);
-            shape = firstShape;
+            FirstShape = shape->Next;
+            shape->Destroy();
+            FreeDataRam(shape);
+            shape = FirstShape;
             prev = nullptr;
         }
-        else if (shape == lastShape)
+        else if (shape == LastShape)
         {
-            lastShape = prev;
-            prev->next = nullptr;
-            shape->destroy();
-            freeDataRAM(shape);
+            LastShape = prev;
+            prev->Next = nullptr;
+            shape->Destroy();
+            FreeDataRam(shape);
             break;
         }
         else
         {
-            prev->next = shape->next;
-            shape->destroy();
-            freeDataRAM(shape);
-            shape = prev->next;
+            prev->Next = shape->Next;
+            shape->Destroy();
+            FreeDataRam(shape);
+            shape = prev->Next;
         }
     }
 
-    dumpedRecent = 1;
+    DumpedRecent = 1;
 }
 
-auto SpriteManager::dumpALL() -> void
+auto MCSpriteManager::DumpAll() -> void
 {
-    Shape* shape = firstShape;
+    MCShape* shape = FirstShape;
 
     while (shape != nullptr)
     {
-        firstShape = shape->next;
-        shape->destroy();
-        freeDataRAM(shape);
-        shape = firstShape;
+        FirstShape = shape->Next;
+        shape->Destroy();
+        FreeDataRam(shape);
+        shape = FirstShape;
     }
 
-    dumpedRecent = 1;
+    DumpedRecent = 1;
 }
 
-auto SpriteManager::getShapeData(uint32_t appearanceNum, uint32_t packetNum, int32_t turnUsed, AppearanceType* owner,
-                                 int) -> Shape*
+auto MCSpriteManager::GetShapeData(uint32_t appearanceNum, uint32_t packetNum, int32_t turnUsed,
+                                   MCAppearanceType* owner, int) -> MCShape*
 {
     // Faithful: zoomedOut is ignored; the 90-pixel PAK is the preferred one and the other the fallback.
-    PacketFile* file = appearanceFile(this, appearanceNum);
+    MCPacketFile* file = AppearanceFile(this, appearanceNum);
 
     if (file == nullptr)
     {
         return nullptr;
     }
 
-    if (file->seekPacket(static_cast<int32_t>(packetNum)) != 0)
+    if (file->SeekPacket(static_cast<int32_t>(packetNum)) != 0)
     {
         return nullptr;
     }
 
-    const uint32_t size = static_cast<uint32_t>(file->getPacketSize());
+    const uint32_t size = static_cast<uint32_t>(file->GetPacketSize());
 
     if (size == 0)
     {
         return nullptr;
     }
 
-    return loadShape(this, file, packetNum, size, turnUsed, owner, true);
+    return LoadShape(this, file, packetNum, size, turnUsed, owner, true);
 }
 
-auto SpriteManager::getMechShapeData(uint32_t mechNum, uint32_t packetNum, int32_t part, int32_t turnUsed,
-                                     AppearanceType* owner, int zoomedOut) -> Shape*
+auto MCSpriteManager::GetMechShapeData(uint32_t mechNum, uint32_t packetNum, int32_t part, int32_t turnUsed,
+                                       MCAppearanceType* owner, int zoomedOut) -> MCShape*
 {
-    PacketFile** table = nullptr;
-    const bool use90 = use90PixelSprite != 0 && zoomedOut != 0;
+    MCPacketFile** table = nullptr;
+    const bool use90 = Use90PixelSprite != 0 && zoomedOut != 0;
 
     switch (part)
     {
         case 0:
-            table = use90 ? legFiles90.data() : legFiles.data();
+            table = use90 ? LegFiles90.data() : LegFiles.data();
             break;
         case 1:
-            table = use90 ? torsoFiles90.data() : torsoFiles.data();
+            table = use90 ? TorsoFiles90.data() : TorsoFiles.data();
             break;
         case 2:
-            table = use90 ? rArmFiles90.data() : rArmFiles.data();
+            table = use90 ? RArmFiles90.data() : RArmFiles.data();
             break;
         case 3:
-            table = use90 ? lArmFiles90.data() : lArmFiles.data();
+            table = use90 ? LArmFiles90.data() : LArmFiles.data();
             break;
         default:
             // Port fix: the original seeks a null file here.
             return nullptr;
     }
 
-    PacketFile* file = mechPartFile(table, mechNum);
+    MCPacketFile* file = MechPartFile(table, mechNum);
 
     if (file == nullptr)
     {
         return nullptr;
     }
 
-    if (file->seekPacket(static_cast<int32_t>(packetNum)) != 0)
+    if (file->SeekPacket(static_cast<int32_t>(packetNum)) != 0)
     {
         return nullptr;
     }
 
-    const uint32_t size = static_cast<uint32_t>(file->getPacketSize());
+    const uint32_t size = static_cast<uint32_t>(file->GetPacketSize());
 
     if (size == 0)
     {
         return nullptr;
     }
 
-    return loadShape(this, file, packetNum, size, turnUsed, owner, false);
+    return LoadShape(this, file, packetNum, size, turnUsed, owner, false);
 }
 
-auto SpriteManager::touchMechShapeData(uint32_t mechNum, uint32_t packetNum, int32_t part) -> void
+auto MCSpriteManager::TouchMechShapeData(uint32_t mechNum, uint32_t packetNum, int32_t part) -> void
 {
-    PacketFile** table = nullptr;
+    MCPacketFile** table = nullptr;
 
     switch (part)
     {
         case 0:
-            table = legFiles.data();
+            table = LegFiles.data();
             break;
         case 1:
-            table = torsoFiles.data();
+            table = TorsoFiles.data();
             break;
         case 2:
-            table = rArmFiles.data();
+            table = RArmFiles.data();
             break;
         case 3:
-            table = lArmFiles.data();
+            table = LArmFiles.data();
             break;
         default:
             // Port fix: the original seeks a null file here.
             return;
     }
 
-    PacketFile* file = mechPartFile(table, mechNum);
+    MCPacketFile* file = MechPartFile(table, mechNum);
 
     if (file == nullptr)
     {
         return;
     }
 
-    if (file->seekPacket(static_cast<int32_t>(packetNum)) != 0)
+    if (file->SeekPacket(static_cast<int32_t>(packetNum)) != 0)
     {
         return;
     }
 
-    const uint32_t size = static_cast<uint32_t>(file->getPacketSize());
+    const uint32_t size = static_cast<uint32_t>(file->GetPacketSize());
 
     if (size == 0)
     {
@@ -640,34 +640,34 @@ auto SpriteManager::touchMechShapeData(uint32_t mechNum, uint32_t packetNum, int
 
     // Read the packet once so the file cache holds it, then drop it.
     std::vector<uint8_t> data(size);
-    file->readPacket(static_cast<int32_t>(packetNum), data.data());
+    file->ReadPacket(static_cast<int32_t>(packetNum), data.data());
 }
 
-auto SpriteManager::getShapeSize(uint32_t appearanceNum, uint32_t packetNum) -> int32_t
+auto MCSpriteManager::GetShapeSize(uint32_t appearanceNum, uint32_t packetNum) -> int32_t
 {
-    PacketFile* file = appearanceFile(this, appearanceNum);
+    MCPacketFile* file = AppearanceFile(this, appearanceNum);
 
     if (file == nullptr)
     {
         return 0;
     }
 
-    if (file->seekPacket(static_cast<int32_t>(packetNum)) != 0)
+    if (file->SeekPacket(static_cast<int32_t>(packetNum)) != 0)
     {
         return 0;
     }
 
-    return file->getPacketSize();
+    return file->GetPacketSize();
 }
 
-auto SpriteManager::getNumShapes(uint32_t appearanceNum) -> int32_t
+auto MCSpriteManager::GetNumShapes(uint32_t appearanceNum) -> int32_t
 {
-    PacketFile* file = appearanceFile(this, appearanceNum);
+    MCPacketFile* file = AppearanceFile(this, appearanceNum);
 
     if (file == nullptr)
     {
         return 0;
     }
 
-    return file->getNumPackets();
+    return file->GetNumPackets();
 }

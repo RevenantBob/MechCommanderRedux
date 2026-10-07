@@ -23,9 +23,9 @@
 namespace
 {
     /// <summary>The object list named <paramref name="listName"/>, or null.</summary>
-    ObjectQueueNode* findObjectList(const char* listName)
+    MCObjectQueueNode* FindObjectList(const char* listName)
     {
-        for (ObjectQueueNode* list = objectList->head; list != nullptr; list = list->next)
+        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
         {
             if (list->operator==(listName) != 0)
             {
@@ -37,26 +37,26 @@ namespace
     }
 
     /// <summary>Runs a collision check between the explosion and every object of the list.</summary>
-    void collideWithList(Explosion* explosion, ObjectQueueNode* list)
+    void CollideWithList(MCExplosion* explosion, MCObjectQueueNode* list)
     {
         if (list == nullptr)
         {
             return;
         }
 
-        BaseObject* object = list->head;
+        MCBaseObject* object = list->Head;
 
         while (object != nullptr)
         {
-            auto* other = static_cast<GameObject*>(object);
+            auto* other = static_cast<MCGameObject*>(object);
 
-            if (other->getObjectType() != nullptr)
+            if (other->GetObjectType() != nullptr)
             {
                 // The block and vertex are fetched but never used.
                 int32_t otherBlock = -1;
                 int32_t otherVertex = -1;
 
-                switch (other->objectClass)
+                switch (other->ObjectClass)
                 {
                     case BUILDING:
                     case TREE:
@@ -64,18 +64,18 @@ namespace
                     case MISCTERRAINOBJECT:
                     case TREEBUILDING:
                     case CAMERADRONE:
-                        other->getBlockAndVertexNumber(otherBlock, otherVertex);
+                        other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                         break;
                     default:
                         break;
                 }
 
-                collisionSystem->detectStaticCollision(explosion, other);
+                CollisionSystem->DetectStaticCollision(explosion, other);
             }
 
             // Port fix (OB-015): the original only steps to the next object after one with a type, so an object
             // without one hangs the game here.
-            object = object->next;
+            object = object->Next;
         }
     }
 
@@ -83,16 +83,16 @@ namespace
     /// For turrets and gates: false when the explosion's radius doesn't reach the collider's extent (measured
     /// centre to centre).
     /// </summary>
-    bool reachesExtent(GameObject* explosion, GameObject* collider, float extent)
+    bool ReachesExtent(MCGameObject* explosion, MCGameObject* collider, float extent)
     {
-        const vector_3d colliderPos = collider->getPosition();
-        const vector_3d explosionPos = explosion->getPosition();
-        const double dx = static_cast<double>(colliderPos.x) - explosionPos.x;
-        const double dy = static_cast<double>(colliderPos.y) - explosionPos.y;
-        const float dz = colliderPos.z - explosionPos.z;
+        const MCVector3D colliderPos = collider->GetPosition();
+        const MCVector3D explosionPos = explosion->GetPosition();
+        const double dx = static_cast<double>(colliderPos.X) - explosionPos.X;
+        const double dy = static_cast<double>(colliderPos.Y) - explosionPos.Y;
+        const float dz = colliderPos.Z - explosionPos.Z;
         const auto distance = static_cast<float>(std::sqrt((dx * dx + dy * dy) + static_cast<double>(dz) * dz));
         return !(extent < distance &&
-                 static_cast<double>(explosion->getExtentRadius()) < static_cast<double>(distance) - extent);
+                 static_cast<double>(explosion->GetExtentRadius()) < static_cast<double>(distance) - extent);
     }
 } // namespace
 
@@ -100,99 +100,99 @@ namespace
 // ExplosionType
 //---------------------------------------------------------------------------
 
-ExplosionType::ExplosionType()
+MCExplosionType::MCExplosionType()
 {
-    dmgLevel = 0;
-    soundEffectId = 0xffffffff;
-    explosionRadius = 0;
-    damageChunkSize = 0.0f;
+    DmgLevel = 0;
+    SoundEffectId = 0xffffffff;
+    ExplosionRadius = 0;
+    DamageChunkSize = 0.0f;
 }
 
-auto ExplosionType::createInstance() -> BaseObject*
+auto MCExplosionType::CreateInstance() -> MCBaseObject*
 {
-    auto* newExplosion = new Explosion;
+    auto* newExplosion = new MCExplosion;
 
     if (newExplosion == nullptr)
     {
         return nullptr;
     }
 
-    if (newExplosion->init(this) != 0)
+    if (newExplosion->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newExplosion->idNumber = NextIdNumber++;
+    newExplosion->IdNumber = NextIdNumber++;
     return newExplosion;
 }
 
-auto ExplosionType::destroy() -> void
+auto MCExplosionType::Destroy() -> void
 {
 }
 
-auto ExplosionType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCExplosionType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile explFile;
-    int32_t result = explFile.open(objFile, fileSize, 50);
+    MCFitIniFile explFile;
+    int32_t result = explFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = explFile.seekBlock("ExplosionData")) != 0)
+    if ((result = explFile.SeekBlock("ExplosionData")) != 0)
     {
         return result;
     }
 
-    if ((result = explFile.readIdULong("DmgLevel", dmgLevel)) != 0)
+    if ((result = explFile.ReadIdULong("DmgLevel", DmgLevel)) != 0)
     {
         return result;
     }
 
-    if ((result = explFile.readIdULong("SoundEffectId", soundEffectId)) != 0)
+    if ((result = explFile.ReadIdULong("SoundEffectId", SoundEffectId)) != 0)
     {
         return result;
     }
 
-    if (explFile.readIdLong("ExplosionRadius", explosionRadius) != 0)
+    if (explFile.ReadIdLong("ExplosionRadius", ExplosionRadius) != 0)
     {
-        explosionRadius = 0;
+        ExplosionRadius = 0;
     }
 
-    if (explFile.readIdULong("LightObjectId", lightObjectId) != 0)
+    if (explFile.ReadIdULong("LightObjectId", LightObjectId) != 0)
     {
-        lightObjectId = 0xffffffff;
+        LightObjectId = 0xffffffff;
     }
 
-    if (explFile.readIdFloat("DamageChunkSize", damageChunkSize) != 0)
+    if (explFile.ReadIdFloat("DamageChunkSize", DamageChunkSize) != 0)
     {
-        damageChunkSize = 5.0f;
+        DamageChunkSize = 5.0f;
     }
 
-    return ObjectType::init(&explFile);
+    return MCObjectType::Init(&explFile);
 }
 
-auto ExplosionType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCExplosionType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // Only the server deals explosion damage in multiplayer.
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 0;
     }
 
-    const float damage = collidee->getExplDmg();
+    const float damage = collidee->GetExplDmg();
 
     if (damage == 0.0f)
     {
         return 0;
     }
 
-    const float chunk = damageChunkSize < damage ? damageChunkSize : damage;
+    const float chunk = DamageChunkSize < damage ? DamageChunkSize : damage;
     const int multiplayer = MPlayer != nullptr ? 1 : 0;
-    _WeaponShotInfo shot;
+    MCWeaponShotInfo shot;
 
-    switch (collider->objectClass)
+    switch (collider->ObjectClass)
     {
         case BATTLEMECH:
         case GROUNDVEHICLE:
@@ -200,12 +200,12 @@ auto ExplosionType::handleCollision(GameObject* collidee, GameObject* collider) 
         case MOVER:
         {
             // Movers take the damage in chunks, each on a location of its own.
-            shot.init(nullptr, -1, chunk, 0, 0.0f);
+            shot.Init(nullptr, -1, chunk, 0, 0.0f);
 
-            for (float remaining = damage; 0.0f < remaining; remaining -= damageChunkSize)
+            for (float remaining = damage; 0.0f < remaining; remaining -= DamageChunkSize)
             {
-                shot.hitLocation = collider->calcHitLocation(collidee, -1, 4, 0);
-                collider->handleWeaponHit(&shot, multiplayer);
+                shot.HitLocation = collider->CalcHitLocation(collidee, -1, 4, 0);
+                collider->HandleWeaponHit(&shot, multiplayer);
             }
 
             return 0;
@@ -213,18 +213,18 @@ auto ExplosionType::handleCollision(GameObject* collidee, GameObject* collider) 
 
         case TURRET:
         {
-            if (!reachesExtent(collidee, collider, static_cast<TurretType*>(collider->objType)->littleExtent))
+            if (!ReachesExtent(collidee, collider, static_cast<MCTurretType*>(collider->ObjType)->LittleExtent))
             {
                 return 0;
             }
 
-            float remaining = collidee->getExplDmg();
-            shot.init(nullptr, -1, chunk, 0, 0.0f);
+            float remaining = collidee->GetExplDmg();
+            shot.Init(nullptr, -1, chunk, 0, 0.0f);
 
-            for (; 0.0f < remaining; remaining -= damageChunkSize)
+            for (; 0.0f < remaining; remaining -= DamageChunkSize)
             {
-                shot.hitLocation = 0;
-                collider->handleWeaponHit(&shot, multiplayer);
+                shot.HitLocation = 0;
+                collider->HandleWeaponHit(&shot, multiplayer);
             }
 
             return 0;
@@ -232,17 +232,17 @@ auto ExplosionType::handleCollision(GameObject* collidee, GameObject* collider) 
 
         case GATE:
         {
-            if (!reachesExtent(collidee, collider, static_cast<GateType*>(collider->objType)->littleExtent))
+            if (!ReachesExtent(collidee, collider, static_cast<MCGateType*>(collider->ObjType)->LittleExtent))
             {
                 return 0;
             }
 
-            shot.init(nullptr, -1, chunk, 0, 0.0f);
+            shot.Init(nullptr, -1, chunk, 0, 0.0f);
 
-            for (float remaining = damage; 0.0f < remaining; remaining -= damageChunkSize)
+            for (float remaining = damage; 0.0f < remaining; remaining -= DamageChunkSize)
             {
-                shot.hitLocation = 0;
-                collider->handleWeaponHit(&shot, multiplayer);
+                shot.HitLocation = 0;
+                collider->HandleWeaponHit(&shot, multiplayer);
             }
 
             return 0;
@@ -251,14 +251,14 @@ auto ExplosionType::handleCollision(GameObject* collidee, GameObject* collider) 
         default:
         {
             // Anything else takes it all at once.
-            shot.init(nullptr, -1, collidee->getExplDmg(), 0, 0.0f);
-            collider->handleWeaponHit(&shot, multiplayer);
+            shot.Init(nullptr, -1, collidee->GetExplDmg(), 0, 0.0f);
+            collider->HandleWeaponHit(&shot, multiplayer);
             return 0;
         }
     }
 }
 
-auto ExplosionType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCExplosionType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -267,246 +267,246 @@ auto ExplosionType::handleDestruction(GameObject*, GameObject*) -> int
 // Explosion
 //---------------------------------------------------------------------------
 
-auto Explosion::init() -> void
+auto MCExplosion::Init() -> void
 {
-    justCreated = 1;
-    appearance = nullptr;
-    collisionChecked = 0;
-    timeAlive = 0.0f;
-    damageChunkSize = 0.0f;
-    light = nullptr;
+    JustCreated = 1;
+    Appearance = nullptr;
+    CollisionChecked = 0;
+    TimeAlive = 0.0f;
+    DamageChunkSize = 0.0f;
+    Light = nullptr;
 }
 
-auto Explosion::getExtentRadius() -> float
+auto MCExplosion::GetExtentRadius() -> float
 {
-    return explRadius;
+    return ExplRadius;
 }
 
-auto Explosion::setExtentRadius(float newRadius) -> void
+auto MCExplosion::SetExtentRadius(float newRadius) -> void
 {
-    explRadius = newRadius;
+    ExplRadius = newRadius;
 }
 
-auto Explosion::onScreen() -> int
+auto MCExplosion::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    vector_2d screen100;
-    vector_2d screen50;
+    MCVector2D screen100;
+    MCVector2D screen50;
 
-    if (land != nullptr)
+    if (Land != nullptr)
     {
-        land->projectTerrain(position, screen100, screen50);
+        Land->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;
 
-    if (camera->cameraScale == 1)
+    if (camera->CameraScale == 1)
     {
-        screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-        screenY = screen50.y - camera->screenUL50.y;
+        ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+        screenY = screen50.Y - camera->ScreenUL50.Y;
     }
     else
     {
-        screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-        screenY = screen100.y - camera->screenUL.y;
+        ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+        screenY = screen100.Y - camera->ScreenUL.Y;
     }
 
-    screenPos.y = screenY + camera->halfHeight;
+    ScreenPos.Y = screenY + camera->HalfHeight;
 
-    if (appearance != nullptr && appearance->recalcBounds(camera) != 0)
+    if (Appearance != nullptr && Appearance->RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto Explosion::handleStaticCollision() -> void
+auto MCExplosion::HandleStaticCollision() -> void
 {
-    if (collisionsOn == 0)
+    if (CollisionsOn == 0)
     {
         return;
     }
 
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
-    getBlockAndVertexNumber(blockNumber, vertexNumber);
+    GetBlockAndVertexNumber(blockNumber, vertexNumber);
 
     // The terrain objects of the 3x3 terrain blocks around it.
-    const int32_t firstBlock = blockNumber - Terrain::blocksMapSide - 1;
+    const int32_t firstBlock = blockNumber - MCTerrain::BlocksMapSide - 1;
 
     for (int32_t row = 0; row < 3; row++)
     {
-        int32_t block = row * Terrain::blocksMapSide + firstBlock;
+        int32_t block = row * MCTerrain::BlocksMapSide + firstBlock;
 
         for (int32_t col = 0; col < 3; col++, block++)
         {
             char listName[12];
             std::sprintf(listName, "TBlk%d", block);
-            collideWithList(this, findObjectList(listName));
+            CollideWithList(this, FindObjectList(listName));
             std::sprintf(listName, "RBlk%d", block);
-            collideWithList(this, findObjectList(listName));
+            CollideWithList(this, FindObjectList(listName));
         }
     }
 }
 
-auto Explosion::update() -> int32_t
+auto MCExplosion::Update() -> int32_t
 {
-    const int visibleNow = onScreen();
+    const int visibleNow = OnScreen();
 
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
-        justCreated = 0;
-        collisionsOn = 0;
-        const uint32_t soundId = static_cast<ExplosionType*>(objType)->soundEffectId;
+        JustCreated = 0;
+        CollisionsOn = 0;
+        const uint32_t soundId = static_cast<MCExplosionType*>(ObjType)->SoundEffectId;
 
         if (soundId != 0xffffffff)
         {
-            soundSystem->playDigitalSample(soundId, 1, this, 0, 0);
+            SoundSystem->PlayDigitalSample(soundId, 1, this, 0, 0);
         }
     }
 
     // Collisions are on for the one frame after the explosion is half a second old.
-    if (collisionChecked != 0)
+    if (CollisionChecked != 0)
     {
-        collisionsOn = 0;
+        CollisionsOn = 0;
     }
 
-    const double aliveSum = static_cast<double>(frameLength) + timeAlive;
-    timeAlive = static_cast<float>(aliveSum);
+    const double aliveSum = static_cast<double>(FrameLength) + TimeAlive;
+    TimeAlive = static_cast<float>(aliveSum);
 
-    if (0.5 < aliveSum && collisionChecked == 0)
+    if (0.5 < aliveSum && CollisionChecked == 0)
     {
-        collisionChecked = 1;
-        collisionsOn = 1;
+        CollisionChecked = 1;
+        CollisionsOn = 1;
     }
 
-    if (light != nullptr)
+    if (Light != nullptr)
     {
-        vector_3d lightPos = position;
-        light->setPosition(lightPos);
-        light->update();
+        MCVector3D lightPos = Position;
+        Light->SetPosition(lightPos);
+        Light->Update();
     }
 
-    appearance->visible = visibleNow;
-    return appearance->update();
+    Appearance->Visible = visibleNow;
+    return Appearance->Update();
 }
 
-auto Explosion::render() -> void
+auto MCExplosion::Render() -> void
 {
-    if (gamePaused != 0)
+    if (GamePaused != 0)
     {
-        onScreen();
+        OnScreen();
     }
 
-    if (justCreated == 0 && windowsVisible == turn)
+    if (JustCreated == 0 && WindowsVisible == Turn)
     {
-        appearance->render(-150);
+        Appearance->Render(-150);
     }
 
-    if (light != nullptr)
+    if (Light != nullptr)
     {
-        light->render();
+        Light->Render();
     }
 }
 
-auto Explosion::destroy() -> void
+auto MCExplosion::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
-    delete light;
-    light = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
+    delete Light;
+    Light = nullptr;
 }
 
-auto Explosion::init(ObjectType* objType) -> int32_t
+auto MCExplosion::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justCreated = 1;
-    collisionsOn = 0;
-    collisionChecked = 0;
-    timeAlive = 0.0f;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    JustCreated = 1;
+    CollisionsOn = 0;
+    CollisionChecked = 0;
+    TimeAlive = 0.0f;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0003);
     }
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x2000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x2000000)
     {
         return static_cast<int32_t>(0xdcdc0005);
     }
 
-    auto* vfxAppearance = new VFXAppearance;
-    appearance = vfxAppearance;
+    auto* vfxAppearance = new MCVfxAppearance;
+    Appearance = vfxAppearance;
 
     if (vfxAppearance == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0004);
     }
 
-    vfxAppearance->init(nullptr, nullptr);
+    vfxAppearance->Init(nullptr, nullptr);
 
-    if ((result = vfxAppearance->init(apprType, this)) != 0)
+    if ((result = vfxAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    objectClass = EXPLOSION;
-    const auto* explType = static_cast<ExplosionType*>(objType);
+    ObjectClass = EXPLOSION;
+    const auto* explType = static_cast<MCExplosionType*>(objType);
 
-    if (explType->explosionRadius != 0)
+    if (explType->ExplosionRadius != 0)
     {
-        setExtentRadius(static_cast<float>(explType->explosionRadius));
-        setExplDmg(static_cast<float>(explType->dmgLevel));
+        SetExtentRadius(static_cast<float>(explType->ExplosionRadius));
+        SetExplDmg(static_cast<float>(explType->DmgLevel));
     }
 
-    if (static_cast<int32_t>(explType->lightObjectId) != -1)
+    if (static_cast<int32_t>(explType->LightObjectId) != -1)
     {
-        light = createObject(static_cast<int32_t>(explType->lightObjectId));
+        Light = CreateObject(static_cast<int32_t>(explType->LightObjectId));
     }
 
-    damageChunkSize = explType->damageChunkSize;
+    DamageChunkSize = explType->DamageChunkSize;
     return 0;
 }
 
-void CreateExplosion(int32_t objectTypeId, vector_3d& position, float damage, float radius)
+void CreateExplosion(int32_t objectTypeId, MCVector3D& position, float damage, float radius)
 {
     if (objectTypeId == -1)
     {
         return;
     }
 
-    GameObject* explosion = createObject(objectTypeId);
+    MCGameObject* explosion = CreateObject(objectTypeId);
 
     if (explosion == nullptr)
     {
         return;
     }
 
-    explosion->setPosition(position);
+    explosion->SetPosition(position);
 
     if (radius != 0.0f)
     {
-        explosion->setExtentRadius(radius);
-        explosion->setExplDmg(damage);
+        explosion->SetExtentRadius(radius);
+        explosion->SetExplDmg(damage);
     }
 
-    if (objectList->head != nullptr)
+    if (ObjectList->Head != nullptr)
     {
-        objectList->head->addNode(explosion);
+        ObjectList->Head->AddNode(explosion);
     }
 }

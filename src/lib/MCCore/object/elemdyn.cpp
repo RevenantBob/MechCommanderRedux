@@ -9,110 +9,110 @@
 
 namespace
 {
-    /// <summary>Degrees to radians, as MCX.EXE stores it (MCX.EXE @ 0x0077c2a0; a hair under pi / 180).</summary>
+    /// <summary>Degrees to radians, as MCX.EXE stores it (a hair under pi / 180).</summary>
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
 
-    /// <summary>A control's signed 1/64 steps (MCX.EXE @ 0x0077d3f8).</summary>
+    /// <summary>A control's signed 1/64 steps.</summary>
     constexpr float CONTROL_STEP = 0.015625f;
 }
 
-auto ElementalDynamicsType::destroy() -> void
+auto MCElementalDynamicsType::Destroy() -> void
 {
 }
 
-auto ElementalDynamicsType::init(FitIniFile* objFile) -> int32_t
+auto MCElementalDynamicsType::Init(MCFitIniFile* objFile) -> int32_t
 {
-    int32_t result = objFile->seekBlock("ElementalDynamics");
+    int32_t result = objFile->SeekBlock("ElementalDynamics");
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = objFile->readIdLong("maxElementalYawRate", maxElementalYawRate)) != 0)
+    if ((result = objFile->ReadIdLong("maxElementalYawRate", MaxElementalYawRate)) != 0)
     {
         return result;
     }
 
-    if ((result = objFile->readIdFloat("maxAccel", maxAccel)) != 0)
+    if ((result = objFile->ReadIdFloat("maxAccel", MaxAccel)) != 0)
     {
         return result;
     }
 
-    return objFile->readIdFloat("maxVelocity", maxVelocity);
+    return objFile->ReadIdFloat("maxVelocity", MaxVelocity);
 }
 
-auto ElementalDynamicsType::createInstance() -> Dynamics*
+auto MCElementalDynamicsType::CreateInstance() -> MCDynamics*
 {
-    return new ElementalDynamics;
+    return new MCElementalDynamics;
 }
 
-auto ElementalDynamics::destroy() -> void
+auto MCElementalDynamics::Destroy() -> void
 {
 }
 
-auto ElementalDynamics::init(DynamicsType* dynType, GameObject* object) -> int32_t
+auto MCElementalDynamics::Init(MCDynamicsType* dynType, MCGameObject* object) -> int32_t
 {
-    const int32_t result = Dynamics::init(dynType, object);
-    accel = static_cast<ElementalDynamicsType*>(type)->maxAccel;
+    const int32_t result = MCDynamics::Init(dynType, object);
+    Accel = static_cast<MCElementalDynamicsType*>(Type)->MaxAccel;
     return result;
 }
 
-auto ElementalDynamics::update() -> int32_t
+auto MCElementalDynamics::Update() -> int32_t
 {
-    auto* elemental = static_cast<Elemental*>(me);
-    const auto* dynType = static_cast<ElementalDynamicsType*>(type);
-    auto* controlData = static_cast<ElementalControlData*>(elemental->control->controlData);
+    auto* elemental = static_cast<MCElemental*>(Me);
+    const auto* dynType = static_cast<MCElementalDynamicsType*>(Type);
+    auto* controlData = static_cast<MCElementalControlData*>(elemental->Control->ControlData);
 
     // Turn about the up axis (sine and cosine both stored as floats).
-    const float turn = static_cast<float>(static_cast<double>(controlData->rotate) * CONTROL_STEP *
-                                          dynType->maxElementalYawRate * frameLength);
-    const frame_of_ref frame = elemental->getFrame();
+    const float turn = static_cast<float>(static_cast<double>(controlData->Rotate) * CONTROL_STEP *
+                                          dynType->MaxElementalYawRate * FrameLength);
+    const MCFrameOfRef frame = elemental->GetFrame();
     const double angle = static_cast<double>(turn) * DEGREES_TO_RADIANS;
     const float s = static_cast<float>(std::sin(angle));
     const float c = static_cast<float>(std::cos(angle));
-    frame_of_ref turned = frame;
-    turned.i.x = frame.j.x * s + c * frame.i.x;
-    turned.i.y = frame.j.y * s + frame.i.y * c;
-    turned.i.z = frame.j.z * s + frame.i.z * c;
-    turned.j.x = frame.j.x * c - frame.i.x * s;
-    turned.j.y = frame.j.y * c - frame.i.y * s;
-    turned.j.z = frame.j.z * c - frame.i.z * s;
-    elemental->setFrame(turned);
+    MCFrameOfRef turned = frame;
+    turned.I.X = frame.J.X * s + c * frame.I.X;
+    turned.I.Y = frame.J.Y * s + frame.I.Y * c;
+    turned.I.Z = frame.J.Z * s + frame.I.Z * c;
+    turned.J.X = frame.J.X * c - frame.I.X * s;
+    turned.J.Y = frame.J.Y * c - frame.I.Y * s;
+    turned.J.Z = frame.J.Z * c - frame.I.Z * s;
+    elemental->SetFrame(turned);
 
     // The throttle is all or nothing.
-    auto* actor = static_cast<ElementalActor*>(elemental->getAppearance());
-    float throttle = static_cast<float>(controlData->throttle);
+    auto* actor = static_cast<MCElementalActor*>(elemental->GetAppearance());
+    float throttle = static_cast<float>(controlData->Throttle);
 
     if (throttle != 0.0f && throttle != 100.0f)
     {
-        controlData->throttle = 0;
+        controlData->Throttle = 0;
         throttle = 0.0f;
     }
 
     throttle = static_cast<float>(throttle * 0.01);
 
     // Port fix: the original read the gesture before testing the actor for null.
-    if (actor != nullptr && actor->currentGesture != 2)
+    if (actor != nullptr && actor->CurrentGesture != 2)
     {
-        actor->setGestureGoal(throttle == 0.0f ? 0 : 1);
+        actor->SetGestureGoal(throttle == 0.0f ? 0 : 1);
     }
 
     // Accelerate toward the throttle's share of the top speed.
-    const float speedChange = static_cast<float>(static_cast<double>(throttle) * dynType->maxVelocity - velocity);
+    const float speedChange = static_cast<float>(static_cast<double>(throttle) * dynType->MaxVelocity - Velocity);
 
-    if ((speedChange < 0.0f && 0.0f < accel) || (0.0f < speedChange && accel < 0.0f))
+    if ((speedChange < 0.0f && 0.0f < Accel) || (0.0f < speedChange && Accel < 0.0f))
     {
-        accel = -accel;
+        Accel = -Accel;
     }
 
-    double step = static_cast<double>(frameLength) * accel;
+    double step = static_cast<double>(FrameLength) * Accel;
 
     if (std::fabs(speedChange) < std::fabs(step))
     {
         step = speedChange;
     }
 
-    velocity = static_cast<float>(step + velocity);
+    Velocity = static_cast<float>(step + Velocity);
     return 1;
 }

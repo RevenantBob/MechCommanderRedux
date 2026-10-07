@@ -2,27 +2,27 @@
 #include "object/dyn.h"
 #include "object/objtype.h"
 
-auto DynamicsType::destroy() -> void
+auto MCDynamicsType::Destroy() -> void
 {
 }
 
-auto DynamicsType::createInstance() -> Dynamics*
+auto MCDynamicsType::CreateInstance() -> MCDynamics*
 {
-    return new Dynamics;
+    return new MCDynamics;
 }
 
-auto Dynamics::destroy() -> void
+auto MCDynamics::Destroy() -> void
 {
 }
 
-auto Dynamics::init(DynamicsType* dynType, GameObject* object) -> int32_t
+auto MCDynamics::Init(MCDynamicsType* dynType, MCGameObject* object) -> int32_t
 {
-    type = dynType;
-    me = object;
+    Type = dynType;
+    Me = object;
     return 0;
 }
 
-auto Dynamics::update() -> int32_t
+auto MCDynamics::Update() -> int32_t
 {
     return 0;
 }

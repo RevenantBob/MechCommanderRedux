@@ -46,34 +46,33 @@ namespace
     constexpr double SIXTY_DEGREES = 0x1.0c152382d45b2p+0;
 
     /// <summary>The entry angle of each packed chunk value (turret.cpp's own copy of the table).</summary>
-    /// <remarks>MCX.EXE @ 0x00792ec4</remarks>
     const float ChunkEntryAngles[4] = {0.0f, 180.0f, -90.0f, 90.0f};
 
     /// <summary>A mech, vehicle, elemental or plain mover: something with a pilot.</summary>
-    bool isMoverClass(const GameObject* object)
+    bool IsMoverClass(const MCGameObject* object)
     {
-        const int32_t objectClass = object->objectClass;
+        const int32_t objectClass = object->ObjectClass;
         return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                objectClass == MOVER;
     }
 
     /// <summary>The hot spot of the hit location, on a mech target; 0 otherwise.</summary>
-    int32_t targetHotSpotOf(GameObject* target, int32_t hitLocation)
+    int32_t TargetHotSpotOf(MCGameObject* target, int32_t hitLocation)
     {
-        if (target != nullptr && target->objectClass == BATTLEMECH)
+        if (target != nullptr && target->ObjectClass == BATTLEMECH)
         {
             // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
             // (8..10); the torso it maps to is read instead.
-            return static_cast<BattleMech*>(target)->bodyAt(MechArmorToBodyLocation[hitLocation]).hotSpotNumber;
+            return static_cast<MCBattleMech*>(target)->BodyAt(MechArmorToBodyLocation[hitLocation]).HotSpotNumber;
         }
 
         return 0;
     }
 
     /// <summary>Makes the weapon's effect object (Fatal when it can't).</summary>
-    GameObject* createWeaponFX(const MasterComponent& weapon)
+    MCGameObject* CreateWeaponFX(const MCMasterComponent& weapon)
     {
-        GameObject* fx = createObject(static_cast<int32_t>(weaponFXTable[weapon.weaponEffect]));
+        MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[weapon.WeaponEffect]));
 
         if (fx == nullptr)
         {
@@ -87,120 +86,120 @@ namespace
     /// Sends a weapon effect from the turret (hot spot 0) at <paramref name="target"/> or, when it is null, at
     /// <paramref name="point"/>, carrying <paramref name="shot"/>; then adds it to the weapon list.
     /// </summary>
-    void launchWeaponFX(Turret* turret, GameObject* fx, GameObject* target, vector_3d* point, _WeaponShotInfo& shot,
-                        int32_t targetHotSpot)
+    void LaunchWeaponFX(MCTurret* turret, MCGameObject* fx, MCGameObject* target, MCVector3D* point,
+                        MCWeaponShotInfo& shot, int32_t targetHotSpot)
     {
-        if (fx->objectClass == BULLET)
+        if (fx->ObjectClass == BULLET)
         {
-            auto* bullet = static_cast<Bullet*>(fx);
+            auto* bullet = static_cast<MCBullet*>(fx);
 
-            if (bullet->numShots != 5)
+            if (bullet->NumShots != 5)
             {
-                bullet->shotInfo[bullet->numShots++].init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation,
-                                                          shot.entryAngle);
+                bullet->ShotInfo[bullet->NumShots++].Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation,
+                                                          shot.EntryAngle);
             }
 
             if (target == nullptr)
             {
-                bullet->connect(turret, *point, 0);
+                bullet->Connect(turret, *point, 0);
             }
             else
             {
-                bullet->owner = turret;
-                bullet->target = target;
-                bullet->ownerHotSpot = 0;
-                bullet->targetHotSpot = targetHotSpot;
+                bullet->Owner = turret;
+                bullet->Target = target;
+                bullet->OwnerHotSpot = 0;
+                bullet->TargetHotSpot = targetHotSpot;
             }
         }
-        else if (fx->objectClass == LASER)
+        else if (fx->ObjectClass == LASER)
         {
-            auto* laser = static_cast<Laser*>(fx);
+            auto* laser = static_cast<MCLaser*>(fx);
 
             if (target == nullptr)
             {
-                laser->connect(turret, *point, &shot, 0);
+                laser->Connect(turret, *point, &shot, 0);
             }
             else
             {
-                laser->source.setWatcher(turret);
-                laser->target.setWatcher(target);
-                laser->sourceHotSpot = 0;
-                laser->targetHotSpot = targetHotSpot;
-                laser->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
+                laser->Source.SetWatcher(turret);
+                laser->Target.SetWatcher(target);
+                laser->SourceHotSpot = 0;
+                laser->TargetHotSpot = targetHotSpot;
+                laser->ShotInfo.Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
             }
         }
         else
         {
-            auto* projectile = static_cast<ProjectileLaser*>(fx);
+            auto* projectile = static_cast<MCProjectileLaser*>(fx);
 
             if (target == nullptr)
             {
-                projectile->connect(turret, *point, &shot, 0);
+                projectile->Connect(turret, *point, &shot, 0);
             }
             else
             {
-                projectile->owner = turret;
-                projectile->target = target;
-                projectile->ownerHotSpot = 0;
-                projectile->targetHotSpot = targetHotSpot;
-                projectile->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
+                projectile->Owner = turret;
+                projectile->Target = target;
+                projectile->OwnerHotSpot = 0;
+                projectile->TargetHotSpot = targetHotSpot;
+                projectile->ShotInfo.Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
             }
         }
 
-        weaponList->addNode(fx);
+        WeaponList->AddNode(fx);
     }
 
     /// <summary>
     /// Builds, packs and checks the chunk for a hit on <paramref name="target"/> (a mover, train car, camera drone or
     /// terrain object) or a shot at <paramref name="point"/> when it is null; then queues and logs it.
     /// </summary>
-    void sendFireChunk(Turret* turret, GameObject* target, GameObject* logTarget, vector_3d* point, int hit,
+    void SendFireChunk(MCTurret* turret, MCGameObject* target, MCGameObject* logTarget, MCVector3D* point, int hit,
                        float entryAngle, int32_t missiles, int32_t missilesPastAMS, int32_t antiMissileShots,
                        int32_t hitLocation)
     {
-        WeaponFireChunk chunk;
-        chunk.init();
-        auto* bigTarget = static_cast<BigGameObject*>(target);
+        MCWeaponFireChunk chunk;
+        chunk.Init();
+        auto* bigTarget = static_cast<MCBigGameObject*>(target);
 
         if (target == nullptr)
         {
-            chunk.buildLocationTarget(*point, 0, hit, missiles);
+            chunk.BuildLocationTarget(*point, 0, hit, missiles);
         }
-        else if (isMoverClass(target))
+        else if (IsMoverClass(target))
         {
-            chunk.buildMoverTarget(bigTarget, 0, hit, entryAngle, missiles, missilesPastAMS, antiMissileShots,
+            chunk.BuildMoverTarget(bigTarget, 0, hit, entryAngle, missiles, missilesPastAMS, antiMissileShots,
                                    hitLocation);
         }
-        else if (target->objectClass == TRAINCAR)
+        else if (target->ObjectClass == TRAINCAR)
         {
-            chunk.buildTrainTarget(bigTarget, 0, hit, entryAngle, missiles);
+            chunk.BuildTrainTarget(bigTarget, 0, hit, entryAngle, missiles);
         }
-        else if (target->objectClass == CAMERADRONE)
+        else if (target->ObjectClass == CAMERADRONE)
         {
-            chunk.buildCameraDroneTarget(bigTarget, 0, hit, entryAngle, missiles);
+            chunk.BuildCameraDroneTarget(bigTarget, 0, hit, entryAngle, missiles);
         }
         else
         {
-            chunk.buildTerrainTarget(bigTarget, 0, hit, missiles);
+            chunk.BuildTerrainTarget(bigTarget, 0, hit, missiles);
         }
 
         if (target != nullptr)
         {
-            objectList->findObjectFromPart(chunk.targetId);
+            ObjectList->FindObjectFromPart(chunk.TargetId);
         }
 
-        chunk.pack();
-        WeaponFireChunk check;
-        check.init();
-        check.data = chunk.data;
-        check.unpack(turret);
+        chunk.Pack();
+        MCWeaponFireChunk check;
+        check.Init();
+        check.Data = chunk.Data;
+        check.Unpack(turret);
 
-        if (chunk.equalTo(&check) == 0)
+        if (chunk.EqualTo(&check) == 0)
         {
             Fatal(0, " Turret.fireWeapon: Bad WeaponFireChunk (save wfchunk.dbg file now) ");
         }
 
-        turret->addWeaponFireChunk(0, &chunk);
+        turret->AddWeaponFireChunk(0, &chunk);
         LogWeaponFireChunk(&chunk, turret, logTarget);
     }
 
@@ -208,49 +207,49 @@ namespace
     /// A missed shot's offset from its aim point, up to <paramref name="scatter"/>. Centred scatter (missiles in
     /// fireWeapon) spreads both ways; otherwise, as the original computes it, only one way.
     /// </summary>
-    vector_3d scatterPoint(float scatter, int centred)
+    MCVector3D ScatterPoint(float scatter, int centred)
     {
-        vector_3d miss;
-        miss.x = scatter;
-        miss.y = scatter;
-        miss.z = 0.0f;
-        const auto offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.x + miss.x)) - miss.x);
-        const auto offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.y + miss.y)) - miss.y);
-        const auto offsetZ = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.z + miss.z)) - miss.z);
+        MCVector3D miss;
+        miss.X = scatter;
+        miss.Y = scatter;
+        miss.Z = 0.0f;
+        const auto offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.X + miss.X)) - miss.X);
+        const auto offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.Y + miss.Y)) - miss.Y);
+        const auto offsetZ = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.Z + miss.Z)) - miss.Z);
 
         if (centred != 0)
         {
-            miss.x = offsetX;
-            miss.y = offsetY;
+            miss.X = offsetX;
+            miss.Y = offsetY;
         }
         else
         {
-            miss.x = miss.x + offsetX;
-            miss.y = miss.y + offsetY;
+            miss.X = miss.X + offsetX;
+            miss.Y = miss.Y + offsetY;
         }
 
-        miss.z = miss.z + offsetZ;
+        miss.Z = miss.Z + offsetZ;
         return miss;
     }
 
     /// <summary>
     /// Firing gives a turret away: when one of the other side's mechs is within visual range, the ground around the
-    /// turret is seen by that side (with <see cref="Terrain::markRadiusSeen"/> from fireWeapon, markSeen from
+    /// turret is seen by that side (with <see cref="MCTerrain::MarkRadiusSeen"/> from fireWeapon, markSeen from
     /// handleWeaponFire).
     /// </summary>
-    void revealFiring(Turret* turret, int radius)
+    void RevealFiring(MCTurret* turret, int radius)
     {
-        ObjectQueueNode* enemies = nullptr;
+        MCObjectQueueNode* enemies = nullptr;
         uint8_t seenBy = 0;
 
-        if (turret->alignment == 1)
+        if (turret->Alignment == 1)
         {
-            enemies = clanMechList;
+            enemies = ClanMechList;
             seenBy = 2;
         }
-        else if (turret->alignment == -1)
+        else if (turret->Alignment == -1)
         {
-            enemies = innerSphereMechList;
+            enemies = InnerSphereMechList;
             seenBy = 1;
         }
         else
@@ -258,21 +257,21 @@ namespace
             return;
         }
 
-        for (BaseObject* enemy = enemies->head; enemy != nullptr; enemy = enemy->next)
+        for (MCBaseObject* enemy = enemies->Head; enemy != nullptr; enemy = enemy->Next)
         {
-            vector_3d enemyPosition = static_cast<GameObject*>(enemy)->getPosition();
+            MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 
-            if (turret->distanceFrom(enemyPosition) < scenario->maxVisualRange)
+            if (turret->DistanceFrom(enemyPosition) < Scenario->MaxVisualRange)
             {
-                vector_3d lookVector(0.0f, 1.0f, 0.0f);
+                MCVector3D lookVector(0.0f, 1.0f, 0.0f);
 
                 if (radius != 0)
                 {
-                    land->markRadiusSeen(turret->position, lookVector, 360.0f, scenario->fireVisualRange, seenBy);
+                    Land->MarkRadiusSeen(turret->Position, lookVector, 360.0f, Scenario->FireVisualRange, seenBy);
                 }
                 else
                 {
-                    land->markSeen(turret->position, lookVector, 360.0f, scenario->fireVisualRange, seenBy);
+                    Land->MarkSeen(turret->Position, lookVector, 360.0f, Scenario->FireVisualRange, seenBy);
                 }
 
                 return;
@@ -284,14 +283,14 @@ namespace
     /// How many of the four corners of the turret's vertex square <paramref name="bits"/> marks (the turret's
     /// (row, col), (row + 1, col), (row + 1, col + 1), (row, col + 1)).
     /// </summary>
-    int32_t countVisibleCorners(ByteFlag* bits, uint32_t row, uint32_t col, int stopAtFirst)
+    int32_t CountVisibleCorners(MCByteFlag* bits, uint32_t row, uint32_t col, int stopAtFirst)
     {
         int32_t count = 0;
         const uint32_t corners[4][2] = {{row, col}, {row + 1, col}, {row + 1, col + 1}, {row, col + 1}};
 
         for (const auto& corner : corners)
         {
-            if (bits->getFlag(corner[0], corner[1]) != 0)
+            if (bits->GetFlag(corner[0], corner[1]) != 0)
             {
                 count++;
 
@@ -306,12 +305,12 @@ namespace
     }
 
     /// <summary>The map row and column of a turret's terrain vertex.</summary>
-    void vertexRowCol(const Turret* turret, uint32_t& row, uint32_t& col)
+    void VertexRowCol(const MCTurret* turret, uint32_t& row, uint32_t& col)
     {
-        col = static_cast<uint32_t>((turret->blockNumber % Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                    turret->vertexNumber % Terrain::verticesBlockSide);
-        row = static_cast<uint32_t>((turret->blockNumber / Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                    turret->vertexNumber / Terrain::verticesBlockSide);
+        col = static_cast<uint32_t>((turret->BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                    turret->VertexNumber % MCTerrain::VerticesBlockSide);
+        row = static_cast<uint32_t>((turret->BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                    turret->VertexNumber / MCTerrain::VerticesBlockSide);
     }
 }
 
@@ -319,211 +318,211 @@ namespace
 // TurretType
 //---------------------------------------------------------------------------
 
-auto TurretType::init() -> void
+auto MCTurretType::Init() -> void
 {
-    typeClass = -1;
-    destroyedObject = -1;
-    explosionObject = -1;
-    appearName = 0;
-    extentRadius = 0.0f;
-    keepMe = 0;
-    iconNumber = -1;
-    dmgLevelClosed = 0;
-    dmgLevel = 0;
-    blownEffectId = 0xffffffff;
-    normalEffectId = 0xffffffff;
-    damageEffectId = 0xffffffff;
-    explosionRadius = 0.0f;
-    explosionDamage = 0.0f;
-    tonnage = 0.0f;
-    weaponType = -1;
-    pilotSkill = 0;
-    maxTurretYawRate = 0.0f;
-    buildingName = 0;
-    fireOffsetY = 0;
-    fireOffsetX = 0;
-    centerOffsetY = 0;
-    centerOffsetX = 0;
+    TypeClass = -1;
+    DestroyedObject = -1;
+    ExplosionObject = -1;
+    AppearName = 0;
+    ExtentRadius = 0.0f;
+    KeepMe = 0;
+    IconNumber = -1;
+    DmgLevelClosed = 0;
+    DmgLevel = 0;
+    BlownEffectId = 0xffffffff;
+    NormalEffectId = 0xffffffff;
+    DamageEffectId = 0xffffffff;
+    ExplosionRadius = 0.0f;
+    ExplosionDamage = 0.0f;
+    Tonnage = 0.0f;
+    WeaponType = -1;
+    PilotSkill = 0;
+    MaxTurretYawRate = 0.0f;
+    BuildingName = 0;
+    FireOffsetY = 0;
+    FireOffsetX = 0;
+    CenterOffsetY = 0;
+    CenterOffsetX = 0;
 }
 
-auto TurretType::createInstance() -> BaseObject*
+auto MCTurretType::CreateInstance() -> MCBaseObject*
 {
-    auto* newTurret = new Turret;
+    auto* newTurret = new MCTurret;
 
     if (newTurret == nullptr)
     {
         return nullptr;
     }
 
-    if (newTurret->init(this) != 0)
+    if (newTurret->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newTurret->idNumber = NextIdNumber++;
+    newTurret->IdNumber = NextIdNumber++;
     return newTurret;
 }
 
-auto TurretType::destroy() -> void
+auto MCTurretType::Destroy() -> void
 {
 }
 
-auto TurretType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCTurretType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile turretFile;
-    int32_t result = turretFile.open(objFile, fileSize, 50);
+    MCFitIniFile turretFile;
+    int32_t result = turretFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = turretFile.seekBlock("TurretData")) != 0)
+    if ((result = turretFile.SeekBlock("TurretData")) != 0)
     {
         return result;
     }
 
-    if ((result = turretFile.readIdULong("DmgLevel", dmgLevel)) != 0)
+    if ((result = turretFile.ReadIdULong("DmgLevel", DmgLevel)) != 0)
     {
         return result;
     }
 
-    result = turretFile.readIdULong("DmgLevelClosed", dmgLevelClosed);
+    result = turretFile.ReadIdULong("DmgLevelClosed", DmgLevelClosed);
 
     if (result != 0)
     {
-        dmgLevelClosed = dmgLevel;
+        DmgLevelClosed = DmgLevel;
     }
 
     // Original behaviour (OB-011): the three effect ids test DmgLevelClosed's result, not their own; a type without
     // DmgLevelClosed loses all three.
-    turretFile.readIdULong("BlownEffectId", blownEffectId);
+    turretFile.ReadIdULong("BlownEffectId", BlownEffectId);
 
     if (result != 0)
     {
-        blownEffectId = 0xffffffff;
+        BlownEffectId = 0xffffffff;
     }
 
-    turretFile.readIdULong("NormalEffectId", normalEffectId);
+    turretFile.ReadIdULong("NormalEffectId", NormalEffectId);
 
     if (result != 0)
     {
-        normalEffectId = 0xffffffff;
+        NormalEffectId = 0xffffffff;
     }
 
-    turretFile.readIdULong("DamageEffectId", damageEffectId);
+    turretFile.ReadIdULong("DamageEffectId", DamageEffectId);
 
     if (result != 0)
     {
-        damageEffectId = 0xffffffff;
+        DamageEffectId = 0xffffffff;
     }
 
-    if (turretFile.readIdLong("BasePixelOffsetX", basePixelOffsetX) != 0)
+    if (turretFile.ReadIdLong("BasePixelOffsetX", BasePixelOffsetX) != 0)
     {
-        basePixelOffsetX = 0;
+        BasePixelOffsetX = 0;
     }
 
-    if (turretFile.readIdLong("BasePixelOffsetY", basePixelOffsetY) != 0)
+    if (turretFile.ReadIdLong("BasePixelOffsetY", BasePixelOffsetY) != 0)
     {
-        basePixelOffsetY = 0;
+        BasePixelOffsetY = 0;
     }
 
-    if (turretFile.readIdFloat("ExplosionRadius", explosionRadius) != 0)
+    if (turretFile.ReadIdFloat("ExplosionRadius", ExplosionRadius) != 0)
     {
-        explosionRadius = 0.0f;
+        ExplosionRadius = 0.0f;
     }
 
-    if (turretFile.readIdFloat("ExplosionDamage", explosionDamage) != 0)
+    if (turretFile.ReadIdFloat("ExplosionDamage", ExplosionDamage) != 0)
     {
-        explosionDamage = 0.0f;
+        ExplosionDamage = 0.0f;
     }
 
-    if (turretFile.readIdFloat("Tonnage", tonnage) != 0)
+    if (turretFile.ReadIdFloat("Tonnage", Tonnage) != 0)
     {
-        tonnage = 20.0f;
+        Tonnage = 20.0f;
     }
 
-    if ((result = turretFile.readIdFloat("AttackRadius", attackRadius)) != 0)
-    {
-        return result;
-    }
-
-    if ((result = turretFile.readIdFloat("MaxTurretYawRate", maxTurretYawRate)) != 0)
+    if ((result = turretFile.ReadIdFloat("AttackRadius", AttackRadius)) != 0)
     {
         return result;
     }
 
-    if ((result = turretFile.readIdLong("WeaponType", weaponType)) != 0)
+    if ((result = turretFile.ReadIdFloat("MaxTurretYawRate", MaxTurretYawRate)) != 0)
     {
         return result;
     }
 
-    if ((result = turretFile.readIdLong("PilotSkill", pilotSkill)) != 0)
+    if ((result = turretFile.ReadIdLong("WeaponType", WeaponType)) != 0)
     {
         return result;
     }
 
-    if (turretFile.readIdFloat("LittleExtent", littleExtent) != 0)
+    if ((result = turretFile.ReadIdLong("PilotSkill", PilotSkill)) != 0)
     {
-        littleExtent = 20.0f;
+        return result;
     }
 
-    if (turretFile.readIdLong("BuildingName", buildingName) != 0)
+    if (turretFile.ReadIdFloat("LittleExtent", LittleExtent) != 0)
     {
-        buildingName = 0xa4;
+        LittleExtent = 20.0f;
     }
 
-    if (turretFile.readIdLong("FireOffsetX", fireOffsetX) != 0)
+    if (turretFile.ReadIdLong("BuildingName", BuildingName) != 0)
     {
-        fireOffsetX = 0;
+        BuildingName = 0xa4;
     }
 
-    if (turretFile.readIdLong("FireOffsetY", fireOffsetY) != 0)
+    if (turretFile.ReadIdLong("FireOffsetX", FireOffsetX) != 0)
     {
-        fireOffsetY = 0;
+        FireOffsetX = 0;
     }
 
-    if (turretFile.readIdLong("CenterOffsetX", centerOffsetX) != 0)
+    if (turretFile.ReadIdLong("FireOffsetY", FireOffsetY) != 0)
     {
-        centerOffsetX = 0;
+        FireOffsetY = 0;
     }
 
-    if (turretFile.readIdLong("CenterOffsetY", centerOffsetY) != 0)
+    if (turretFile.ReadIdLong("CenterOffsetX", CenterOffsetX) != 0)
     {
-        centerOffsetY = 0;
+        CenterOffsetX = 0;
     }
 
-    return ObjectType::init(&turretFile);
+    if (turretFile.ReadIdLong("CenterOffsetY", CenterOffsetY) != 0)
+    {
+        CenterOffsetY = 0;
+    }
+
+    return MCObjectType::Init(&turretFile);
 }
 
-auto TurretType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCTurretType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // Only the server picks targets.
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 1;
     }
 
-    auto* turret = static_cast<Turret*>(collidee);
+    auto* turret = static_cast<MCTurret*>(collidee);
     // The squared distance to the current target, or far.
     float targetDistance = 1e+07f;
 
-    if (turret->target != nullptr)
+    if (turret->Target != nullptr)
     {
-        const vector_3d targetPosition = turret->target->getPosition();
-        const vector_3d turretPosition = turret->getPosition();
-        targetDistance = (turretPosition.x - targetPosition.x) * (turretPosition.x - targetPosition.x) +
-                         (turretPosition.y - targetPosition.y) * (turretPosition.y - targetPosition.y);
+        const MCVector3D targetPosition = turret->Target->GetPosition();
+        const MCVector3D turretPosition = turret->GetPosition();
+        targetDistance = (turretPosition.X - targetPosition.X) * (turretPosition.X - targetPosition.X) +
+                         (turretPosition.Y - targetPosition.Y) * (turretPosition.Y - targetPosition.Y);
     }
 
-    const int32_t alignmentGap = std::abs(collider->getAlignment() - collidee->getAlignment());
+    const int32_t alignmentGap = std::abs(collider->GetAlignment() - collidee->GetAlignment());
 
     if (alignmentGap <= 1)
     {
         return 1;
     }
 
-    const int32_t colliderClass = collider->objectClass;
+    const int32_t colliderClass = collider->ObjectClass;
 
     if (colliderClass < 2)
     {
@@ -533,30 +532,30 @@ auto TurretType::handleCollision(GameObject* collidee, GameObject* collider) -> 
     if (colliderClass < 5)
     {
         // Mechs, vehicles and elementals: only whole ones.
-        if (collider->isDisabled() != 0 || collider->isDestroyed() != 0)
+        if (collider->IsDisabled() != 0 || collider->IsDestroyed() != 0)
         {
             return 1;
         }
     }
-    else if (colliderClass != CAMERADRONE || collider->isDestroyed() != 0)
+    else if (colliderClass != CAMERADRONE || collider->IsDestroyed() != 0)
     {
         return 1;
     }
 
-    const vector_3d colliderPosition = collider->getPosition();
-    const vector_3d turretPosition = collidee->getPosition();
+    const MCVector3D colliderPosition = collider->GetPosition();
+    const MCVector3D turretPosition = collidee->GetPosition();
 
-    if ((turretPosition.x - colliderPosition.x) * (turretPosition.x - colliderPosition.x) +
-            (turretPosition.y - colliderPosition.y) * (turretPosition.y - colliderPosition.y) <
+    if ((turretPosition.X - colliderPosition.X) * (turretPosition.X - colliderPosition.X) +
+            (turretPosition.Y - colliderPosition.Y) * (turretPosition.Y - colliderPosition.Y) <
         targetDistance)
     {
-        turret->target = collider;
+        turret->Target = collider;
     }
 
     return 1;
 }
 
-auto TurretType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCTurretType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -565,49 +564,49 @@ auto TurretType::handleDestruction(GameObject*, GameObject*) -> int
 // Turret
 //---------------------------------------------------------------------------
 
-Turret::Turret()
+MCTurret::MCTurret()
 {
-    justCreated = 1;
-    appearance = nullptr;
-    vertexNumber = 0;
-    blockNumber = 0;
-    onFire = 0;
-    fireObject = nullptr;
-    destroyed = 0;
-    name.clear();
-    markedSeenInnerSphere = 0;
-    markedSeenClan = 0;
-    turretRotation = 0.0f;
-    awake = 1;
-    weaponDeployed = 1;
-    smoke = nullptr;
-    smokeTime = 0.0f;
-    target = nullptr;
-    netRosterIndex = -1;
-    numWeaponFireChunks[0] = 0;
-    numWeaponFireChunks[1] = 0;
-    // Port fix: nothing in MCX.EXE sets this, so the original's turrets fired or not by what the object heap held at
-    // +0xf0 (OB-014). The port's turrets are armed.
-    weaponEnabled = 1;
-    init();
+    JustCreated = 1;
+    Appearance = nullptr;
+    VertexNumber = 0;
+    BlockNumber = 0;
+    OnFire = 0;
+    FireObject = nullptr;
+    Destroyed = 0;
+    Name.clear();
+    MarkedSeenInnerSphere = 0;
+    MarkedSeenClan = 0;
+    TurretRotation = 0.0f;
+    Awake = 1;
+    WeaponDeployed = 1;
+    Smoke = nullptr;
+    SmokeTime = 0.0f;
+    Target = nullptr;
+    NetRosterIndex = -1;
+    NumWeaponFireChunks[0] = 0;
+    NumWeaponFireChunks[1] = 0;
+    // Port fix: nothing in MCX.EXE sets this, so the original's turrets fired or not by what the object heap held
+    // there (OB-014). The port's turrets are armed.
+    WeaponEnabled = 1;
+    Init();
 }
 
-auto Turret::init() -> void
+auto MCTurret::Init() -> void
 {
 }
 
-auto Turret::isVisible(Camera* cam) -> int
+auto MCTurret::IsVisible(MCCamera* cam) -> int
 {
-    if (cam == nullptr || cam->active == 0)
+    if (cam == nullptr || cam->Active == 0)
     {
         return 0;
     }
 
-    int visible = cam->vertexProject(blockNumber, vertexNumber, screenPos);
+    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        visible = appearance->recalcBounds(cam);
+        visible = Appearance->RecalcBounds(cam);
     }
 
     if (visible == 0)
@@ -615,35 +614,35 @@ auto Turret::isVisible(Camera* cam) -> int
         return 0;
     }
 
-    windowsVisible = turn;
+    WindowsVisible = Turn;
     return 1;
 }
 
-auto Turret::update() -> int32_t
+auto MCTurret::Update() -> int32_t
 {
-    auto* type = static_cast<TurretType*>(objType);
+    auto* type = static_cast<MCTurretType*>(ObjType);
 
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         // Set the turret on its vertex: the block's corner, the vertex within it, then the offset within the tile
         // (turned into the isometric grid's 60-degree axes).
-        justCreated = 0;
-        const int32_t verticesBlockSide = Terrain::verticesBlockSide;
-        float blockX = static_cast<float>(blockNumber % Terrain::blocksMapSide - Terrain::blocksMapSide / 2) *
-                       Terrain::metersBlockSide;
-        float blockY = static_cast<float>(Terrain::blocksMapSide / 2 - blockNumber / Terrain::blocksMapSide) *
-                       Terrain::metersBlockSide;
+        JustCreated = 0;
+        const int32_t verticesBlockSide = MCTerrain::VerticesBlockSide;
+        float blockX = static_cast<float>(BlockNumber % MCTerrain::BlocksMapSide - MCTerrain::BlocksMapSide / 2) *
+                       MCTerrain::MetersBlockSide;
+        float blockY = static_cast<float>(MCTerrain::BlocksMapSide / 2 - BlockNumber / MCTerrain::BlocksMapSide) *
+                       MCTerrain::MetersBlockSide;
 
-        if ((Terrain::blocksMapSide & 1) != 0)
+        if ((MCTerrain::BlocksMapSide & 1) != 0)
         {
-            blockX = blockX - Terrain::metersBlockSide * 0.5f;
-            blockY = Terrain::metersBlockSide * 0.5f + blockY;
+            blockX = blockX - MCTerrain::MetersBlockSide * 0.5f;
+            blockY = MCTerrain::MetersBlockSide * 0.5f + blockY;
         }
 
-        const float vertexX = static_cast<float>(vertexNumber % verticesBlockSide) * Terrain::metersPerVertex;
-        blockY = blockY - static_cast<float>(vertexNumber / verticesBlockSide) * Terrain::metersPerVertex;
-        const double offsetY = static_cast<double>(tileOffsetY);
-        const double offsetX = static_cast<double>(tileOffsetX);
+        const float vertexX = static_cast<float>(VertexNumber % verticesBlockSide) * MCTerrain::MetersPerVertex;
+        blockY = blockY - static_cast<float>(VertexNumber / verticesBlockSide) * MCTerrain::MetersPerVertex;
+        const double offsetY = static_cast<double>(TileOffsetY);
+        const double offsetX = static_cast<double>(TileOffsetX);
         double offsetAngle;
 
         if (offsetY == 0.0)
@@ -655,93 +654,93 @@ auto Turret::update() -> int32_t
             offsetAngle = std::atan(offsetX / offsetY) * RADIANS_TO_DEGREES;
         }
 
-        position.y = blockY;
+        Position.Y = blockY;
         const auto offsetDistance = static_cast<float>(std::sqrt(offsetY * offsetY + offsetX * offsetX));
         const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
         const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
-        position.x = vertexX + blockX;
-        const float elevation = land->getTerrainElevation(position);
-        position.x =
-            static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + position.x);
-        position.y = position.y - alongAxis;
-        position.z = elevation;
+        Position.X = vertexX + blockX;
+        const float elevation = Land->GetTerrainElevation(Position);
+        Position.X =
+            static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
+        Position.Y = Position.Y - alongAxis;
+        Position.Z = elevation;
 
-        tileCol = (blockNumber % Terrain::blocksMapSide) * verticesBlockSide + vertexNumber % verticesBlockSide;
-        const int32_t halfMap = (verticesBlockSide * Terrain::blocksMapSide) >> 1;
-        tilePositionX = static_cast<float>(tileCol - halfMap) * Terrain::metersPerVertex;
-        tileRow = vertexNumber / verticesBlockSide + (blockNumber / Terrain::blocksMapSide) * verticesBlockSide;
-        tilePositionY = static_cast<float>(halfMap - tileRow) * Terrain::metersPerVertex;
+        TileCol = (BlockNumber % MCTerrain::BlocksMapSide) * verticesBlockSide + VertexNumber % verticesBlockSide;
+        const int32_t halfMap = (verticesBlockSide * MCTerrain::BlocksMapSide) >> 1;
+        TilePositionX = static_cast<float>(TileCol - halfMap) * MCTerrain::MetersPerVertex;
+        TileRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
+        TilePositionY = static_cast<float>(halfMap - TileRow) * MCTerrain::MetersPerVertex;
         const auto inBounds = [&]
-        { return tileRow < 0 || GameMap->height <= tileRow || tileCol < 0 || GameMap->width <= tileCol ? 0u : 1u; };
+        { return TileRow < 0 || GameMap->Height <= TileRow || TileCol < 0 || GameMap->Width <= TileCol ? 0u : 1u; };
         Assert(inBounds(), 0, " tbldg MapTile Out of Bounds ");
         Assert(inBounds(), 0, " Map Tile out of bounds ");
-        const MapTile& tile = GameMap->map[GameMap->width * tileRow + tileCol];
-        const int32_t elevationLevel = static_cast<int32_t>((tile.cells >> 7) & 0x3f) + GameMap->baseElevation;
-        appearance->visible = 1;
-        tileElevation = static_cast<float>(elevationLevel) * Terrain::metersPerElevLevel;
-        appearance->update();
-        appearance->recalcBounds(eye);
+        const MCMapTile& tile = GameMap->Map[GameMap->Width * TileRow + TileCol];
+        const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+        Appearance->Visible = 1;
+        TileElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
+        Appearance->Update();
+        Appearance->RecalcBounds(Eye);
     }
 
-    if (destroyed != 0)
+    if (Destroyed != 0)
     {
-        collisionsOn = 0;
+        CollisionsOn = 0;
         return 1;
     }
 
     // The server drops a target that's out of reach or out of the fight.
-    if ((MPlayer == nullptr || MPlayer->isServer != 0) && target != nullptr)
+    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && Target != nullptr)
     {
-        const vector_3d targetPosition = target->getPosition();
-        const float dx = targetPosition.x - position.x;
-        const float dy = targetPosition.y - position.y;
-        const float reach = getExtentRadius();
+        const MCVector3D targetPosition = Target->GetPosition();
+        const float dx = targetPosition.X - Position.X;
+        const float dy = targetPosition.Y - Position.Y;
+        const float reach = GetExtentRadius();
 
-        if (target->isDisabled() != 0 || target->isDestroyed() != 0 ||
+        if (Target->IsDisabled() != 0 || Target->IsDestroyed() != 0 ||
             static_cast<double>(reach) * reach < static_cast<double>(dy) * dy + static_cast<double>(dx) * dx)
         {
-            target = nullptr;
+            Target = nullptr;
         }
     }
 
     // An awake turret shows its side the ground around it, once.
-    awake = getAwake();
+    Awake = GetAwake();
     bool unmarked = false;
 
-    if (alignment == 1)
+    if (Alignment == 1)
     {
-        unmarked = markedSeenInnerSphere == 0;
+        unmarked = MarkedSeenInnerSphere == 0;
     }
-    else if (alignment == -1)
+    else if (Alignment == -1)
     {
-        unmarked = markedSeenClan == 0;
+        unmarked = MarkedSeenClan == 0;
     }
 
-    if (1 < turn && awake != 0 && unmarked)
+    if (1 < Turn && Awake != 0 && unmarked)
     {
-        vector_3d lookVector(0.0f, 0.0f, 0.0f);
+        MCVector3D lookVector(0.0f, 0.0f, 0.0f);
 
-        if (alignment == 1)
+        if (Alignment == 1)
         {
-            land->markSeen(position, lookVector, 360.0f, scenario->maxVisualRange, 1);
-            markedSeenInnerSphere = 1;
+            Land->MarkSeen(Position, lookVector, 360.0f, Scenario->MaxVisualRange, 1);
+            MarkedSeenInnerSphere = 1;
         }
-        else if (alignment == -1)
+        else if (Alignment == -1)
         {
-            land->markSeen(position, lookVector, 360.0f, scenario->maxVisualRange, 2);
-            markedSeenClan = 1;
+            Land->MarkSeen(Position, lookVector, 360.0f, Scenario->MaxVisualRange, 2);
+            MarkedSeenClan = 1;
         }
     }
 
-    if (awake != 0 && target != nullptr)
+    if (Awake != 0 && Target != nullptr)
     {
         // Turn toward the target and open up.
-        float relAngle = relFacingTo(target->getPosition(), -1) + turretRotation;
+        float relAngle = RelFacingTo(Target->GetPosition(), -1) + TurretRotation;
         float turnStep = 0.0f;
 
         if (relAngle < -2.0 || 2.0 < relAngle)
         {
-            turnStep = type->maxTurretYawRate * frameLength;
+            turnStep = type->MaxTurretYawRate * FrameLength;
 
             if (!(relAngle < 0.0))
             {
@@ -758,25 +757,25 @@ auto Turret::update() -> int32_t
             }
         }
 
-        turretRotation = turnStep + turretRotation;
+        TurretRotation = turnStep + TurretRotation;
         int32_t combatState = 0;
 
-        if (fixedTurret == 0)
+        if (FixedTurret == 0)
         {
-            combatState = static_cast<PUAppearance*>(appearance)->setCombatMode(1);
+            combatState = static_cast<MCPUAppearance*>(Appearance)->SetCombatMode(1);
         }
 
-        if (weaponDeployed == 0)
+        if (WeaponDeployed == 0)
         {
-            weaponDeployed = fixedTurret == 0 ? (combatState == 2 ? 1 : 0) : 1;
+            WeaponDeployed = FixedTurret == 0 ? (combatState == 2 ? 1 : 0) : 1;
         }
     }
-    else if (awake == 0)
+    else if (Awake == 0)
     {
         // Asleep: close up.
-        if (fixedTurret == 0)
+        if (FixedTurret == 0)
         {
-            weaponDeployed = static_cast<PUAppearance*>(appearance)->setCombatMode(0) == 2 ? 1 : 0;
+            WeaponDeployed = static_cast<MCPUAppearance*>(Appearance)->SetCombatMode(0) == 2 ? 1 : 0;
         }
     }
     else
@@ -784,59 +783,59 @@ auto Turret::update() -> int32_t
         // Nothing to shoot at: close up.
         int32_t combatState = 0;
 
-        if (fixedTurret == 0)
+        if (FixedTurret == 0)
         {
-            combatState = static_cast<PUAppearance*>(appearance)->setCombatMode(0);
+            combatState = static_cast<MCPUAppearance*>(Appearance)->SetCombatMode(0);
         }
 
-        if (weaponDeployed != 0)
+        if (WeaponDeployed != 0)
         {
-            weaponDeployed = fixedTurret == 0 ? (combatState == 2 ? 1 : 0) : 0;
+            WeaponDeployed = FixedTurret == 0 ? (combatState == 2 ? 1 : 0) : 0;
         }
     }
 
-    if (destroyed == 0 && target != nullptr && isWeaponReady() != 0 && awake != 0 &&
-        (MPlayer == nullptr || MPlayer->isServer != 0))
+    if (Destroyed == 0 && Target != nullptr && IsWeaponReady() != 0 && Awake != 0 &&
+        (MPlayer == nullptr || MPlayer->IsServer != 0))
     {
-        fireWeapon(target);
+        FireWeapon(Target);
     }
 
-    if (0 < numWeaponFireChunks[1])
+    if (0 < NumWeaponFireChunks[1])
     {
-        updateWeaponFireChunks(1);
+        UpdateWeaponFireChunks(1);
     }
 
     return 1;
 }
 
-auto Turret::isWeaponReady() -> int
+auto MCTurret::IsWeaponReady() -> int
 {
-    return readyTime <= scenarioTime && weaponDeployed != 0 && weaponEnabled != 0 ? 1 : 0;
+    return ReadyTime <= ScenarioTime && WeaponDeployed != 0 && WeaponEnabled != 0 ? 1 : 0;
 }
 
-auto Turret::isWeaponMissile() -> int
+auto MCTurret::IsWeaponMissile() -> int
 {
-    return MasterComponentList[static_cast<TurretType*>(objType)->weaponType].form == 9 ? 1 : 0;
+    return MasterComponentList[static_cast<MCTurretType*>(ObjType)->WeaponType].Form == 9 ? 1 : 0;
 }
 
-auto Turret::isWeaponStreak() -> int
+auto MCTurret::IsWeaponStreak() -> int
 {
-    return MasterComponentList[static_cast<TurretType*>(objType)->weaponType].weaponFlags & 1;
+    return MasterComponentList[static_cast<MCTurretType*>(ObjType)->WeaponType].WeaponFlags & 1;
 }
 
-auto Turret::calcAttackChance(GameObject* target, int32_t* range) -> float
+auto MCTurret::CalcAttackChance(MCGameObject* target, int32_t* range) -> float
 {
-    auto* type = static_cast<TurretType*>(objType);
+    auto* type = static_cast<MCTurretType*>(ObjType);
     // Port fix: the original measures to an uninitialised point when there's no target (no caller passes none).
-    vector_3d targetPosition(0.0f, 0.0f, 0.0f);
+    MCVector3D targetPosition(0.0f, 0.0f, 0.0f);
 
     if (target != nullptr)
     {
-        targetPosition = target->getPosition();
+        targetPosition = target->GetPosition();
     }
 
-    const int32_t pilotSkill = type->pilotSkill;
-    const auto distance = static_cast<float>(distanceFrom(targetPosition));
+    const int32_t pilotSkill = type->PilotSkill;
+    const auto distance = static_cast<float>(DistanceFrom(targetPosition));
 
     if (range != nullptr)
     {
@@ -851,22 +850,22 @@ auto Turret::calcAttackChance(GameObject* target, int32_t* range) -> float
     }
 
     // The weapon's own range bands; beyond the last it can't hit.
-    const MasterComponent& weapon = MasterComponentList[type->weaponType];
+    const MCMasterComponent& weapon = MasterComponentList[type->WeaponType];
     float modifier;
 
-    if (distance <= weapon.weaponRange[0])
+    if (distance <= weapon.WeaponRange[0])
     {
         modifier = WeaponFireModifiers[14];
     }
-    else if (distance <= weapon.weaponRange[1])
+    else if (distance <= weapon.WeaponRange[1])
     {
         modifier = WeaponFireModifiers[11];
     }
-    else if (distance <= weapon.weaponRange[2])
+    else if (distance <= weapon.WeaponRange[2])
     {
         modifier = WeaponFireModifiers[12];
     }
-    else if (distance <= weapon.weaponRange[3])
+    else if (distance <= weapon.WeaponRange[3])
     {
         modifier = WeaponFireModifiers[13];
     }
@@ -883,9 +882,9 @@ auto Turret::calcAttackChance(GameObject* target, int32_t* range) -> float
     }
 
     // A still target is easier.
-    const vector_3d velocity = target->getVelocity();
+    const MCVector3D velocity = target->GetVelocity();
 
-    if (velocity.x * velocity.x + velocity.y * velocity.y != 0.0)
+    if (velocity.X * velocity.X + velocity.Y * velocity.Y != 0.0)
     {
         return chance;
     }
@@ -893,22 +892,22 @@ auto Turret::calcAttackChance(GameObject* target, int32_t* range) -> float
     return static_cast<float>(chance + 50.0);
 }
 
-auto Turret::lineOfFire(GameObject* target) -> int
+auto MCTurret::LineOfFire(MCGameObject* target) -> int
 {
     int32_t tileR;
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->worldToMapPos(target->getPosition(), tileR, tileC, cellR, cellC);
-    ByteFlag* visibleBits;
+    GameMap->WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
+    MCByteFlag* visibleBits;
 
-    if (alignment == 1)
+    if (Alignment == 1)
     {
-        visibleBits = Terrain::terrainVisibleBits;
+        visibleBits = MCTerrain::TerrainVisibleBits;
     }
-    else if (alignment == -1)
+    else if (Alignment == -1)
     {
-        visibleBits = Terrain::ClanVisibleBits;
+        visibleBits = MCTerrain::ClanVisibleBits;
     }
     else
     {
@@ -918,111 +917,111 @@ auto Turret::lineOfFire(GameObject* target) -> int
     }
 
     const int32_t numVisible =
-        countVisibleCorners(visibleBits, static_cast<uint32_t>(tileR), static_cast<uint32_t>(tileC), 0);
-    const int lineClear = GameMap->lineOfFire(position, target->getPosition());
+        CountVisibleCorners(visibleBits, static_cast<uint32_t>(tileR), static_cast<uint32_t>(tileC), 0);
+    const int lineClear = GameMap->LineOfFire(Position, target->GetPosition());
 
     if (numVisible == 0)
     {
         return 0;
     }
 
-    vector_3d targetPosition = target->getPosition();
-    return distanceFrom(targetPosition) < MaxVisualRadius && lineClear != 0 ? 1 : 0;
+    MCVector3D targetPosition = target->GetPosition();
+    return DistanceFrom(targetPosition) < MaxVisualRadius && lineClear != 0 ? 1 : 0;
 }
 
-auto Turret::recordWeaponFireTime() -> void
+auto MCTurret::RecordWeaponFireTime() -> void
 {
-    lastFireTime = scenarioTime;
+    LastFireTime = ScenarioTime;
 }
 
-auto Turret::startWeaponRecycle() -> void
+auto MCTurret::StartWeaponRecycle() -> void
 {
-    readyTime = MasterComponentList[static_cast<TurretType*>(objType)->weaponType].recycleTime + scenarioTime;
+    ReadyTime = MasterComponentList[static_cast<MCTurretType*>(ObjType)->WeaponType].RecycleTime + ScenarioTime;
 }
 
-auto Turret::clearWeaponFireChunks(int32_t which) -> int32_t
+auto MCTurret::ClearWeaponFireChunks(int32_t which) -> int32_t
 {
-    const int32_t numChunks = numWeaponFireChunks[which];
-    numWeaponFireChunks[which] = 0;
+    const int32_t numChunks = NumWeaponFireChunks[which];
+    NumWeaponFireChunks[which] = 0;
     return numChunks;
 }
 
-auto Turret::addWeaponFireChunk(int32_t which, WeaponFireChunk* chunk) -> int32_t
+auto MCTurret::AddWeaponFireChunk(int32_t which, MCWeaponFireChunk* chunk) -> int32_t
 {
     // Port fix: the original checks against 0x80 (Mover's limit) and overruns the 8-entry list.
-    if (numWeaponFireChunks[which] == MAX_WEAPONFIRE_CHUNKS)
+    if (NumWeaponFireChunks[which] == MAX_WEAPONFIRE_CHUNKS)
     {
         Fatal(0, " Turret::addWeaponFireChunk--Too many weaponfire chunks ");
     }
 
-    chunk->pack();
-    weaponFireChunks[which][numWeaponFireChunks[which]] = chunk->data;
-    numWeaponFireChunks[which]++;
-    return numWeaponFireChunks[which];
+    chunk->Pack();
+    WeaponFireChunks[which][NumWeaponFireChunks[which]] = chunk->Data;
+    NumWeaponFireChunks[which]++;
+    return NumWeaponFireChunks[which];
 }
 
-auto Turret::addWeaponFireChunks(int32_t which, uint32_t* packedChunkBuffer, int32_t numChunks) -> int32_t
+auto MCTurret::AddWeaponFireChunks(int32_t which, uint32_t* packedChunkBuffer, int32_t numChunks) -> int32_t
 {
     // Port fix: the original checks against 0x80 (Mover's limit) and overruns the 8-entry list.
-    if (numWeaponFireChunks[which] + numChunks > MAX_WEAPONFIRE_CHUNKS)
+    if (NumWeaponFireChunks[which] + numChunks > MAX_WEAPONFIRE_CHUNKS)
     {
         Fatal(0, " Turret::addWeaponFireChunks--Too many weaponfire chunks ");
     }
 
     for (int32_t i = 0; i < numChunks; i++)
     {
-        weaponFireChunks[which][numWeaponFireChunks[which]] = packedChunkBuffer[i];
-        numWeaponFireChunks[which]++;
+        WeaponFireChunks[which][NumWeaponFireChunks[which]] = packedChunkBuffer[i];
+        NumWeaponFireChunks[which]++;
         // Unpacked into a scratch chunk (the result isn't kept).
-        WeaponFireChunk chunk;
-        chunk.init();
-        chunk.data = packedChunkBuffer[i];
-        chunk.unpack(this);
+        MCWeaponFireChunk chunk;
+        chunk.Init();
+        chunk.Data = packedChunkBuffer[i];
+        chunk.Unpack(this);
     }
 
-    return numWeaponFireChunks[which];
+    return NumWeaponFireChunks[which];
 }
 
-auto Turret::grabWeaponFireChunks(int32_t which, uint32_t* packedChunkBuffer) -> int32_t
+auto MCTurret::GrabWeaponFireChunks(int32_t which, uint32_t* packedChunkBuffer) -> int32_t
 {
-    const int32_t numChunks = numWeaponFireChunks[which];
+    const int32_t numChunks = NumWeaponFireChunks[which];
 
     for (int32_t i = 0; i < numChunks; i++)
     {
-        packedChunkBuffer[i] = weaponFireChunks[which][i];
+        packedChunkBuffer[i] = WeaponFireChunks[which][i];
     }
 
     return numChunks;
 }
 
-auto Turret::updateWeaponFireChunks(int32_t which) -> int32_t
+auto MCTurret::UpdateWeaponFireChunks(int32_t which) -> int32_t
 {
     // Replays the weapon fire the server sent.
-    for (int32_t i = 0; i < numWeaponFireChunks[which]; i++)
+    for (int32_t i = 0; i < NumWeaponFireChunks[which]; i++)
     {
-        WeaponFireChunk chunk;
-        chunk.init();
-        chunk.data = weaponFireChunks[which][i];
-        chunk.unpack(this);
+        MCWeaponFireChunk chunk;
+        chunk.Init();
+        chunk.Data = WeaponFireChunks[which][i];
+        chunk.Unpack(this);
 
-        switch (chunk.targetType)
+        switch (chunk.TargetType)
         {
             case 0:
             case 1:
             case 2:
             {
-                BaseObject* chunkTarget = nullptr;
+                MCBaseObject* chunkTarget = nullptr;
                 const char* missing = nullptr;
 
-                if (chunk.targetType == 0)
+                if (chunk.TargetType == 0)
                 {
-                    chunkTarget = MPlayer->moverRoster[chunk.targetId];
+                    chunkTarget = MPlayer->MoverRoster[chunk.TargetId];
                     missing = " Turret.updateWeaponFireChunks: NULL Mover Target (save wfchunk.dbg file) ";
                 }
                 else
                 {
-                    chunkTarget = objectList->findObjectFromPart(chunk.targetId);
-                    missing = chunk.targetType == 1
+                    chunkTarget = ObjectList->FindObjectFromPart(chunk.TargetId);
+                    missing = chunk.TargetType == 1
                                   ? " Turret.updateWeaponFireChunks: NULL Terrain Target (save wfchunk.dbg file) "
                                   : " Turret.updateWeaponFireChunks: NULL Special Target (save wfchunk.dbg file) ";
                 }
@@ -1033,21 +1032,21 @@ auto Turret::updateWeaponFireChunks(int32_t which) -> int32_t
                     Assert(0, 0, missing);
                 }
 
-                handleWeaponFire(0, static_cast<GameObject*>(chunkTarget), nullptr, chunk.hit,
-                                 ChunkEntryAngles[chunk.entryAngle], chunk.numMissiles, chunk.numMissilesPastAMS,
-                                 chunk.numAntiMissileShots, chunk.hitLocation);
+                HandleWeaponFire(0, static_cast<MCGameObject*>(chunkTarget), nullptr, chunk.Hit,
+                                 ChunkEntryAngles[chunk.EntryAngle], chunk.NumMissiles, chunk.NumMissilesPastAms,
+                                 chunk.NumAntiMissileShots, chunk.HitLocation);
                 break;
             }
 
             case 3:
             {
                 // A point on the ground: the middle of the target cell, at height 0.
-                const float halfSide = worldUnitsMapSide * 0.5f;
-                vector_3d point;
-                point.x = (static_cast<float>(chunk.targetCell[1]) + 0.5f) * MetersPerCell - halfSide;
-                point.y = (halfSide - static_cast<float>(chunk.targetCell[0]) * MetersPerCell) - MetersPerCell * 0.5f;
-                point.z = 0.0f;
-                handleWeaponFire(0, nullptr, &point, chunk.hit, 0.0f, 0, 0, 0, 0);
+                const float halfSide = WorldUnitsMapSide * 0.5f;
+                MCVector3D point;
+                point.X = (static_cast<float>(chunk.TargetCell[1]) + 0.5f) * MetersPerCell - halfSide;
+                point.Y = (halfSide - static_cast<float>(chunk.TargetCell[0]) * MetersPerCell) - MetersPerCell * 0.5f;
+                point.Z = 0.0f;
+                HandleWeaponFire(0, nullptr, &point, chunk.Hit, 0.0f, 0, 0, 0, 0);
                 break;
             }
 
@@ -1056,18 +1055,18 @@ auto Turret::updateWeaponFireChunks(int32_t which) -> int32_t
         }
     }
 
-    numWeaponFireChunks[which] = 0;
+    NumWeaponFireChunks[which] = 0;
     return 0;
 }
 
-auto Turret::getPositionFromHS(uint32_t nodeId) -> vector_3d
+auto MCTurret::GetPositionFromHS(uint32_t nodeId) -> MCVector3D
 {
-    auto* type = static_cast<TurretType*>(objType);
-    float x = position.x;
-    double y = position.y;
-    float z = position.z;
+    auto* type = static_cast<MCTurretType*>(ObjType);
+    float x = Position.X;
+    double y = Position.Y;
+    float z = Position.Z;
 
-    if (type->fireOffsetX != 0 || type->fireOffsetY != 0 || type->centerOffsetX != 0 || type->centerOffsetY != 0)
+    if (type->FireOffsetX != 0 || type->FireOffsetY != 0 || type->CenterOffsetX != 0 || type->CenterOffsetY != 0)
     {
         float muzzleX = 0.0f;
         double muzzleY = 0.0;
@@ -1075,21 +1074,21 @@ auto Turret::getPositionFromHS(uint32_t nodeId) -> vector_3d
 
         if (nodeId != 0xffffffff)
         {
-            const double angle = (static_cast<double>(turretRotation) + 45.0) * DEGREES_TO_RADIANS;
-            muzzleX = static_cast<float>(std::sin(angle) * type->fireOffsetX);
-            muzzleY = std::cos(angle) * type->fireOffsetX;
-            muzzleZ = static_cast<float>(type->fireOffsetY);
+            const double angle = (static_cast<double>(TurretRotation) + 45.0) * DEGREES_TO_RADIANS;
+            muzzleX = static_cast<float>(std::sin(angle) * type->FireOffsetX);
+            muzzleY = std::cos(angle) * type->FireOffsetX;
+            muzzleZ = static_cast<float>(type->FireOffsetY);
         }
 
-        x = static_cast<float>(type->centerOffsetX) + x + muzzleX;
-        y = y - (static_cast<double>(type->centerOffsetY) + muzzleY);
+        x = static_cast<float>(type->CenterOffsetX) + x + muzzleX;
+        y = y - (static_cast<double>(type->CenterOffsetY) + muzzleY);
         z = z + muzzleZ;
     }
 
-    return vector_3d(x, static_cast<float>(y), z);
+    return MCVector3D(x, static_cast<float>(y), z);
 }
 
-auto Turret::fireWeapon(GameObject* target) -> void
+auto MCTurret::FireWeapon(MCGameObject* target) -> void
 {
     if (target == nullptr)
     {
@@ -1097,25 +1096,25 @@ auto Turret::fireWeapon(GameObject* target) -> void
     }
 
     // A camera drone can't be shot for two seconds after launch.
-    if (target->objectClass == CAMERADRONE && scenarioTime < static_cast<CameraDrone*>(target)->launchTime + 2.0)
+    if (target->ObjectClass == CAMERADRONE && ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
     {
         return;
     }
 
-    auto* type = static_cast<TurretType*>(objType);
-    const MasterComponent& weapon = MasterComponentList[type->weaponType];
+    auto* type = static_cast<MCTurretType*>(ObjType);
+    const MCMasterComponent& weapon = MasterComponentList[type->WeaponType];
     // Indirect fire needs no clear line.
-    const bool indirect = weapon.missileType == 2 || weapon.missileType == 1 || weapon.missileType == 3;
+    const bool indirect = weapon.MissileType == 2 || weapon.MissileType == 1 || weapon.MissileType == 3;
 
-    if (!indirect && lineOfFire(target) == 0)
+    if (!indirect && LineOfFire(target) == 0)
     {
         return;
     }
 
-    const float entryAngle = target->relFacingTo(position, -1);
-    const int isStreak = weapon.weaponFlags & 1;
+    const float entryAngle = target->RelFacingTo(Position, -1);
+    const int isStreak = weapon.WeaponFlags & 1;
     int32_t range;
-    const auto hitChance = static_cast<int32_t>(calcAttackChance(target, &range));
+    const auto hitChance = static_cast<int32_t>(CalcAttackChance(target, &range));
 
     if (static_cast<double>(hitChance) == -1.0)
     {
@@ -1123,24 +1122,24 @@ auto Turret::fireWeapon(GameObject* target) -> void
     }
 
     const int32_t hitRoll = RandomNumber(100);
-    MechWarrior* targetPilot = nullptr;
+    MCMechWarrior* targetPilot = nullptr;
 
-    if (isMoverClass(target))
+    if (IsMoverClass(target))
     {
-        targetPilot = target->getPilot();
-        targetPilot->updateAttackerStatus(static_cast<uint32_t>(partId), scenarioTime);
+        targetPilot = target->GetPilot();
+        targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
     }
 
-    startWeaponRecycle();
+    StartWeaponRecycle();
 
     if (hitRoll < hitChance)
     {
-        recordWeaponFireTime();
+        RecordWeaponFireTime();
 
-        if (weapon.form == 9)
+        if (weapon.Form == 9)
         {
             // Missiles: a streak fires them all, anything else about half; anti-missile systems take some out.
-            const int32_t rackSize = weapon.numMissiles;
+            const int32_t rackSize = weapon.NumMissiles;
             int32_t missiles = rackSize;
 
             if (isStreak == 0)
@@ -1159,56 +1158,56 @@ auto Turret::fireWeapon(GameObject* target) -> void
             }
 
             int32_t antiMissileShots = 0;
-            const int32_t missilesLeft = target->fireAntiMissileSystem(missiles, antiMissileShots);
+            const int32_t missilesLeft = target->FireAntiMissileSystem(missiles, antiMissileShots);
 
             if (0 < antiMissileShots)
             {
-                target->reduceAntiMissileAmmo(antiMissileShots);
+                target->ReduceAntiMissileAmmo(antiMissileShots);
             }
 
             if (0 < missilesLeft)
             {
-                GameObject* fx = createWeaponFX(weapon);
-                const int32_t hitLocation = target->calcHitLocation(this, type->weaponType, 0, 1);
+                MCGameObject* fx = CreateWeaponFX(weapon);
+                const int32_t hitLocation = target->CalcHitLocation(this, type->WeaponType, 0, 1);
                 Assert(hitLocation != -2 ? 1 : 0, 0, " Turret.FireWeapon: Bad Hit Location ");
-                const int32_t targetHotSpot = targetHotSpotOf(target, hitLocation);
-                _WeaponShotInfo shot;
-                shot.init(this, type->weaponType, weapon.damage * static_cast<float>(missilesLeft), hitLocation,
+                const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
+                MCWeaponShotInfo shot;
+                shot.Init(this, type->WeaponType, weapon.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
 
-                if (MPlayer != nullptr && MPlayer->isServer != 0)
+                if (MPlayer != nullptr && MPlayer->IsServer != 0)
                 {
-                    sendFireChunk(this, target, target, nullptr, 1, entryAngle, missiles, missilesLeft,
+                    SendFireChunk(this, target, target, nullptr, 1, entryAngle, missiles, missilesLeft,
                                   antiMissileShots, hitLocation);
                 }
 
-                launchWeaponFX(this, fx, target, nullptr, shot, targetHotSpot);
+                LaunchWeaponFX(this, fx, target, nullptr, shot, targetHotSpot);
             }
         }
         else
         {
-            const int32_t hitLocation = target->calcHitLocation(this, type->weaponType, 0, 1);
+            const int32_t hitLocation = target->CalcHitLocation(this, type->WeaponType, 0, 1);
             Assert(hitLocation != -2 ? 1 : 0, 0, " Turret.FireWeapon: Bad Hit Location 2 ");
-            _WeaponShotInfo shot;
-            shot.init(this, type->weaponType, weapon.damage, hitLocation, entryAngle);
+            MCWeaponShotInfo shot;
+            shot.Init(this, type->WeaponType, weapon.Damage, hitLocation, entryAngle);
 
-            if (MPlayer != nullptr && MPlayer->isServer != 0)
+            if (MPlayer != nullptr && MPlayer->IsServer != 0)
             {
-                sendFireChunk(this, target, target, nullptr, 1, entryAngle, 0, 0, 0, hitLocation);
+                SendFireChunk(this, target, target, nullptr, 1, entryAngle, 0, 0, 0, hitLocation);
             }
 
-            GameObject* fx = createWeaponFX(weapon);
-            launchWeaponFX(this, fx, target, nullptr, shot, targetHotSpotOf(target, hitLocation));
+            MCGameObject* fx = CreateWeaponFX(weapon);
+            LaunchWeaponFX(this, fx, target, nullptr, shot, TargetHotSpotOf(target, hitLocation));
         }
     }
     else if (isStreak == 0)
     {
         // A miss (a streak doesn't fire without a lock): the shot lands up to 25 meters off.
-        recordWeaponFireTime();
+        RecordWeaponFireTime();
 
-        if (weapon.form == 9)
+        if (weapon.Form == 9)
         {
-            const int32_t rackSize = weapon.numMissiles;
+            const int32_t rackSize = weapon.NumMissiles;
             int32_t missiles = static_cast<int32_t>(rackSize * 0.5 + 0.5);
 
             if (missiles < 1)
@@ -1223,144 +1222,144 @@ auto Turret::fireWeapon(GameObject* target) -> void
 
             if (0 < missiles)
             {
-                GameObject* fx = createWeaponFX(weapon);
-                _WeaponShotInfo shot;
-                shot.init(this, type->weaponType, weapon.damage * static_cast<float>(missiles), -1, entryAngle);
-                vector_3d landing = scatterPoint(25.0f, 1);
-                const vector_3d targetPosition = target->getPosition();
-                landing.x += targetPosition.x;
-                landing.y += targetPosition.y;
-                landing.z += targetPosition.z;
+                MCGameObject* fx = CreateWeaponFX(weapon);
+                MCWeaponShotInfo shot;
+                shot.Init(this, type->WeaponType, weapon.Damage * static_cast<float>(missiles), -1, entryAngle);
+                MCVector3D landing = ScatterPoint(25.0f, 1);
+                const MCVector3D targetPosition = target->GetPosition();
+                landing.X += targetPosition.X;
+                landing.Y += targetPosition.Y;
+                landing.Z += targetPosition.Z;
 
-                if (MPlayer != nullptr && MPlayer->isServer != 0)
+                if (MPlayer != nullptr && MPlayer->IsServer != 0)
                 {
-                    sendFireChunk(this, nullptr, target, &landing, 0, 0.0f, missiles, 0, 0, 0);
+                    SendFireChunk(this, nullptr, target, &landing, 0, 0.0f, missiles, 0, 0, 0);
                 }
 
-                launchWeaponFX(this, fx, nullptr, &landing, shot, 0);
+                LaunchWeaponFX(this, fx, nullptr, &landing, shot, 0);
             }
         }
         else
         {
-            _WeaponShotInfo shot;
-            shot.init(this, type->weaponType, weapon.damage, -1, entryAngle);
-            GameObject* fx = createWeaponFX(weapon);
-            vector_3d landing(25.0f, 25.0f, 0.0f);
+            MCWeaponShotInfo shot;
+            shot.Init(this, type->WeaponType, weapon.Damage, -1, entryAngle);
+            MCGameObject* fx = CreateWeaponFX(weapon);
+            MCVector3D landing(25.0f, 25.0f, 0.0f);
 
             // Original behaviour (OB-012): the chunk goes out before the point is scattered and moved to the target,
             // so other players see the shot land at (25, 25, 0).
-            if (MPlayer != nullptr && MPlayer->isServer != 0)
+            if (MPlayer != nullptr && MPlayer->IsServer != 0)
             {
-                sendFireChunk(this, nullptr, target, &landing, 0, 0.0f, 0, 0, 0, 0);
+                SendFireChunk(this, nullptr, target, &landing, 0, 0.0f, 0, 0, 0, 0);
             }
 
-            landing = scatterPoint(25.0f, 0);
-            const vector_3d targetPosition = target->getPosition();
-            landing.x += targetPosition.x;
-            landing.y += targetPosition.y;
-            landing.z += targetPosition.z;
-            launchWeaponFX(this, fx, nullptr, &landing, shot, 0);
+            landing = ScatterPoint(25.0f, 0);
+            const MCVector3D targetPosition = target->GetPosition();
+            landing.X += targetPosition.X;
+            landing.Y += targetPosition.Y;
+            landing.Z += targetPosition.Z;
+            LaunchWeaponFX(this, fx, nullptr, &landing, shot, 0);
         }
     }
 
     if (targetPilot != nullptr)
     {
-        targetPilot->triggerAlarm(0, static_cast<uint32_t>(partId));
+        targetPilot->TriggerAlarm(0, static_cast<uint32_t>(PartId));
     }
 
-    revealFiring(this, 1);
+    RevealFiring(this, 1);
 }
 
-auto Turret::handleWeaponFire(int32_t, GameObject* target, vector_3d* targetPoint, int hit, float entryAngle,
-                              int32_t numMissiles, int32_t numHits, int32_t numAntiMissiles, int32_t hitLocation)
+auto MCTurret::HandleWeaponFire(int32_t, MCGameObject* target, MCVector3D* targetPoint, int hit, float entryAngle,
+                                int32_t numMissiles, int32_t numHits, int32_t numAntiMissiles, int32_t hitLocation)
     -> int32_t
 {
-    auto* type = static_cast<TurretType*>(objType);
-    const int32_t masterId = type->weaponType;
-    const MasterComponent& weapon = MasterComponentList[masterId];
-    const int isStreak = weapon.weaponFlags & 1;
-    startWeaponRecycle();
+    auto* type = static_cast<MCTurretType*>(ObjType);
+    const int32_t masterId = type->WeaponType;
+    const MCMasterComponent& weapon = MasterComponentList[masterId];
+    const int isStreak = weapon.WeaponFlags & 1;
+    StartWeaponRecycle();
 
     if (hit != 0)
     {
-        if (weapon.form == 9)
+        if (weapon.Form == 9)
         {
             if (0 < numAntiMissiles)
             {
-                target->reduceAntiMissileAmmo(numAntiMissiles);
+                target->ReduceAntiMissileAmmo(numAntiMissiles);
             }
 
             if (0 < numHits)
             {
-                GameObject* fx = createWeaponFX(weapon);
+                MCGameObject* fx = CreateWeaponFX(weapon);
                 Assert(hitLocation != -2 ? 1 : 0, 0, " Turret.handleWeaponFire: Bad Hit Location ");
-                const int32_t targetHotSpot = targetHotSpotOf(target, hitLocation);
-                _WeaponShotInfo shot;
-                shot.init(this, masterId, weapon.damage * static_cast<float>(numHits), hitLocation, entryAngle);
-                launchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpot);
+                const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
+                MCWeaponShotInfo shot;
+                shot.Init(this, masterId, weapon.Damage * static_cast<float>(numHits), hitLocation, entryAngle);
+                LaunchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpot);
             }
         }
         else
         {
-            _WeaponShotInfo shot;
-            shot.init(this, masterId, weapon.damage, hitLocation, entryAngle);
-            GameObject* fx = createWeaponFX(weapon);
-            launchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpotOf(target, hitLocation));
+            MCWeaponShotInfo shot;
+            shot.Init(this, masterId, weapon.Damage, hitLocation, entryAngle);
+            MCGameObject* fx = CreateWeaponFX(weapon);
+            LaunchWeaponFX(this, fx, target, targetPoint, shot, TargetHotSpotOf(target, hitLocation));
         }
     }
-    else if (isStreak == 0 && (weapon.form != 9 || 0 < numHits))
+    else if (isStreak == 0 && (weapon.Form != 9 || 0 < numHits))
     {
         // A miss lands up to 25 meters off a target, 5 off a point.
-        GameObject* fx = nullptr;
-        _WeaponShotInfo shot;
+        MCGameObject* fx = nullptr;
+        MCWeaponShotInfo shot;
 
-        if (weapon.form == 9)
+        if (weapon.Form == 9)
         {
-            fx = createWeaponFX(weapon);
-            shot.init(this, masterId, weapon.damage * static_cast<float>(numMissiles), -1, entryAngle);
+            fx = CreateWeaponFX(weapon);
+            shot.Init(this, masterId, weapon.Damage * static_cast<float>(numMissiles), -1, entryAngle);
         }
         else
         {
-            shot.init(this, masterId, weapon.damage, -1, entryAngle);
-            fx = createWeaponFX(weapon);
+            shot.Init(this, masterId, weapon.Damage, -1, entryAngle);
+            fx = CreateWeaponFX(weapon);
         }
 
-        vector_3d landing = scatterPoint(target != nullptr ? 25.0f : 5.0f, 0);
-        const vector_3d base = target != nullptr ? target->getPosition() : *targetPoint;
-        landing.x += base.x;
-        landing.y += base.y;
-        landing.z += base.z;
-        launchWeaponFX(this, fx, nullptr, &landing, shot, 0);
+        MCVector3D landing = ScatterPoint(target != nullptr ? 25.0f : 5.0f, 0);
+        const MCVector3D base = target != nullptr ? target->GetPosition() : *targetPoint;
+        landing.X += base.X;
+        landing.Y += base.Y;
+        landing.Z += base.Z;
+        LaunchWeaponFX(this, fx, nullptr, &landing, shot, 0);
     }
 
-    if (target != nullptr && isMoverClass(target))
+    if (target != nullptr && IsMoverClass(target))
     {
-        MechWarrior* targetPilot = target->getPilot();
-        targetPilot->updateAttackerStatus(static_cast<uint32_t>(partId), scenarioTime);
-        targetPilot->triggerAlarm(0, static_cast<uint32_t>(partId));
+        MCMechWarrior* targetPilot = target->GetPilot();
+        targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
+        targetPilot->TriggerAlarm(0, static_cast<uint32_t>(PartId));
     }
 
-    revealFiring(this, 0);
+    RevealFiring(this, 0);
     return 0;
 }
 
-auto Turret::setAlignment(int32_t align) -> void
+auto MCTurret::SetAlignment(int32_t align) -> void
 {
-    BigGameObject::setAlignment(align);
-    target = nullptr;
+    MCBigGameObject::SetAlignment(align);
+    Target = nullptr;
 }
 
-auto Turret::handleEvent(ObjectEvent* event) -> int32_t
+auto MCTurret::HandleEvent(MCObjectEvent* event) -> int32_t
 {
-    if (event->type == 0)
+    if (event->Type == 0)
     {
-        switch (event->id)
+        switch (event->Id)
         {
             case 0x1c:
-                selected = 1;
+                Selected = 1;
                 break;
             case 0x1d:
-                selected = 0;
+                Selected = 0;
                 break;
         }
     }
@@ -1368,131 +1367,132 @@ auto Turret::handleEvent(ObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto Turret::lightOnFire(float timeToBurn) -> void
+auto MCTurret::LightOnFire(float timeToBurn) -> void
 {
-    auto* type = static_cast<TurretType*>(objType);
+    auto* type = static_cast<MCTurretType*>(ObjType);
 
-    if (type->blownEffectId == 0xffffffff)
+    if (type->BlownEffectId == 0xffffffff)
     {
         // Nothing to burn: a point of damage instead.
-        _WeaponShotInfo shot;
-        shot.init(nullptr, -1, 1.0f, 0, 0.0f);
+        MCWeaponShotInfo shot;
+        shot.Init(nullptr, -1, 1.0f, 0, 0.0f);
 
         if (MPlayer == nullptr)
         {
-            handleWeaponHit(&shot, 0);
+            HandleWeaponHit(&shot, 0);
         }
-        else if (MPlayer->isServer != 0)
+        else if (MPlayer->IsServer != 0)
         {
-            handleWeaponHit(&shot, 1);
+            HandleWeaponHit(&shot, 1);
         }
 
         return;
     }
 
-    if (fireObject == nullptr)
+    if (FireObject == nullptr)
     {
-        GameObject* newFire = createObject(static_cast<int32_t>(type->blownEffectId));
+        MCGameObject* newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
 
         if (newFire != nullptr)
         {
-            newFire->setPosition(position);
+            newFire->SetPosition(Position);
 
-            if (newFire->objectClass == FIRE)
+            if (newFire->ObjectClass == FIRE)
             {
-                fireObject = static_cast<Fire*>(newFire);
-                fireObject->setPotentialContact(3);
-                fireObject->burningObject = this;
-                fireObject->setTonnage(40.0f);
+                FireObject = static_cast<MCFire*>(newFire);
+                FireObject->SetPotentialContact(3);
+                FireObject->BurningObject = this;
+                FireObject->SetTonnage(40.0f);
             }
             else
             {
-                destroyObject(newFire);
+                DestroyObject(newFire);
             }
         }
     }
 
-    if (fireObject != nullptr)
+    if (FireObject != nullptr)
     {
-        fireObject->addTimeLeftToBurn(timeToBurn);
-        onFire = 1;
+        FireObject->AddTimeLeftToBurn(timeToBurn);
+        OnFire = 1;
     }
 }
 
-auto Turret::isRevealed() -> int
+auto MCTurret::IsRevealed() -> int
 {
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     uint32_t row;
     uint32_t col;
-    vertexRowCol(this, row, col);
-    return countVisibleCorners(visibleBits, row, col, 1) != 0 ? 1 : 0;
+    VertexRowCol(this, row, col);
+    return CountVisibleCorners(visibleBits, row, col, 1) != 0 ? 1 : 0;
 }
 
-auto Turret::enemyRevealed() -> int
+auto MCTurret::EnemyRevealed() -> int
 {
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::terrainVisibleBits : Terrain::ClanVisibleBits;
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::TerrainVisibleBits : MCTerrain::ClanVisibleBits;
     uint32_t row;
     uint32_t col;
-    vertexRowCol(this, row, col);
-    return countVisibleCorners(visibleBits, row, col, 1) != 0 ? 1 : 0;
+    VertexRowCol(this, row, col);
+    return CountVisibleCorners(visibleBits, row, col, 1) != 0 ? 1 : 0;
 }
 
-auto Turret::render() -> void
+auto MCTurret::Render() -> void
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         return;
     }
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        appearance->visible = isVisible(eye);
-        appearance->update();
+        Appearance->Visible = IsVisible(Eye);
+        Appearance->Update();
     }
 
-    if (getContactType(homeTeam->id) == 2)
+    if (GetContactType(HomeTeam->Id) == 2)
     {
         // A sensor contact: a blip sized by tonnage.
         uint8_t* shape;
         const char* shapeName;
 
-        if (50.0f < getTonnage())
+        if (50.0f < GetTonnage())
         {
-            shape = scenario->sensorContactShapes[0];
+            shape = Scenario->SensorContactShapes[0];
             shapeName = "tblip1";
         }
-        else if (35.0f < getTonnage())
+        else if (35.0f < GetTonnage())
         {
-            shape = scenario->sensorContactShapes[2];
+            shape = Scenario->SensorContactShapes[2];
             shapeName = "tblip2";
         }
         else
         {
-            shape = scenario->sensorContactShapes[4];
+            shape = Scenario->SensorContactShapes[4];
             shapeName = "tblip3";
         }
 
         if (shape != nullptr)
         {
-            if (VFX_shape_count(shape) <= blipFrame)
+            if (VfxShapeCount(shape) <= BlipFrame)
             {
-                if (soundSystem != nullptr && useSound != 0)
+                if (SoundSystem != nullptr && UseSound != 0)
                 {
-                    soundSystem->playDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
                 }
 
-                blipFrame = 0;
+                BlipFrame = 0;
             }
 
-            ElementList->openGroup(-100000, 1);
-            auto* element = ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0);
-            std::strcpy(element->name, shapeName);
-            ElementList->add(element);
-            blipFrame++;
+            ElementList->OpenGroup(-100000, 1);
+            auto* element =
+                MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 0);
+            std::strcpy(element->Name, shapeName);
+            ElementList->Add(element);
+            BlipFrame++;
         }
     }
 
-    if (windowsVisible != turn)
+    if (WindowsVisible != Turn)
     {
         return;
     }
@@ -1501,104 +1501,104 @@ auto Turret::render() -> void
     // pop-up of object type 0x2f2, when any is).
     uint32_t row;
     uint32_t col;
-    vertexRowCol(this, row, col);
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
-    const int32_t numVisible = countVisibleCorners(visibleBits, row, col, 0);
+    VertexRowCol(this, row, col);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    const int32_t numVisible = CountVisibleCorners(visibleBits, row, col, 0);
     uint8_t* hazePalette = nullptr;
-    const int32_t hazeLevel = eye->hazeLevel;
+    const int32_t hazeLevel = Eye->HazeLevel;
 
     if (numVisible != 0 && numVisible != 4 && hazeLevel != 0x7fff)
     {
         int32_t level;
 
-        if (hazeLevel < 0 && 0 < eye->hazeInc * numVisible + hazeLevel)
+        if (hazeLevel < 0 && 0 < Eye->HazeInc * numVisible + hazeLevel)
         {
             level = 0;
         }
         else
         {
-            level = hazeLevel + eye->hazeInc * numVisible;
+            level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = gamePalette->getHazePalette(level);
+        hazePalette = GamePalette->GetHazePalette(level);
     }
 
-    if (fixedTurret == 0)
+    if (FixedTurret == 0)
     {
-        static_cast<PUAppearance*>(appearance)->hazePalette = hazePalette;
+        static_cast<MCPUAppearance*>(Appearance)->HazePalette = hazePalette;
     }
     else
     {
-        static_cast<GVAppearance*>(appearance)->hazePalette = hazePalette;
+        static_cast<MCGVAppearance*>(Appearance)->HazePalette = hazePalette;
     }
 
-    const bool anyCornerPopUp = numVisible != 0 && fixedTurret == 0 && objType->objTypeNum == 0x2f2;
+    const bool anyCornerPopUp = numVisible != 0 && FixedTurret == 0 && ObjType->ObjTypeNum == 0x2f2;
 
-    if ((numVisible != 0 && fixedTurret != 0) || (numVisible == 4 && fixedTurret == 0) || anyCornerPopUp)
+    if ((numVisible != 0 && FixedTurret != 0) || (numVisible == 4 && FixedTurret == 0) || anyCornerPopUp)
     {
-        appearance->render(0);
+        Appearance->Render(0);
 
-        if (fireObject != nullptr)
+        if (FireObject != nullptr)
         {
-            fireObject->render();
+            FireObject->Render();
         }
     }
 
-    if (drawExtents != 0)
+    if (DrawExtents != 0)
     {
         // Debug: the extent radius as an ellipse.
-        float radius = objType->extentRadius;
+        float radius = ObjType->ExtentRadius;
 
-        if (eye->cameraScale == 1)
+        if (Eye->CameraScale == 1)
         {
             radius *= 0.5f;
         }
 
-        const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-        const float sx = (position.x - eye->position.x) * scale;
-        const float sy = (position.y - eye->position.y) * scale;
-        vector_2d center;
-        center.x = sx * eye->cosAngle + sy * eye->cosAngle + eye->halfWidth;
-        center.y =
-            ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (position.z - eye->position.z);
-        vector_2d size(radius, radius);
-        ElementList->openGroup(-50000, 1);
+        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float sx = (Position.X - Eye->Position.X) * scale;
+        const float sy = (Position.Y - Eye->Position.Y) * scale;
+        MCVector2D center;
+        center.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
+        center.Y =
+            ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
+        MCVector2D size(radius, radius);
+        ElementList->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
-        size.x *= MCOverlay.ScaleX;
-        size.y *= MCOverlay.ScaleY;
-        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
+        size.X *= MCOverlay.ScaleX;
+        size.Y *= MCOverlay.ScaleY;
+        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 
-auto Turret::destroy() -> void
+auto MCTurret::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 
-    if (fireObject != nullptr)
+    if (FireObject != nullptr)
     {
-        fireObject->setPotentialContact(0);
-        fireObject->burningObject = nullptr;
-        delete fireObject;
-        fireObject = nullptr;
+        FireObject->SetPotentialContact(0);
+        FireObject->BurningObject = nullptr;
+        delete FireObject;
+        FireObject = nullptr;
     }
 
-    name.clear();
+    Name.clear();
 }
 
-auto Turret::init(ObjectType* objType) -> int32_t
+auto MCTurret::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    const uint32_t appearId = objType->appearName;
-    justCreated = 1;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(appearId, 0);
+    const uint32_t appearId = objType->AppearName;
+    JustCreated = 1;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
 
     if (apprType == nullptr)
     {
@@ -1609,55 +1609,55 @@ auto Turret::init(ObjectType* objType) -> int32_t
     {
         case 0x5000000:
         {
-            auto* fixedAppearance = new GVAppearance;
-            appearance = fixedAppearance;
+            auto* fixedAppearance = new MCGVAppearance;
+            Appearance = fixedAppearance;
 
             if (fixedAppearance == nullptr)
             {
                 return -0x2ffff;
             }
 
-            fixedAppearance->init(nullptr, nullptr);
+            fixedAppearance->Init(nullptr, nullptr);
 
-            if ((apprType->appearanceNum & 0xff000000) != 0x5000000)
+            if ((apprType->AppearanceNum & 0xff000000) != 0x5000000)
             {
                 return -0x2fff6;
             }
 
-            if ((result = fixedAppearance->init(apprType, this)) != 0)
+            if ((result = fixedAppearance->Init(apprType, this)) != 0)
             {
                 return result;
             }
 
-            weaponDeployed = 1;
-            fixedTurret = 1;
+            WeaponDeployed = 1;
+            FixedTurret = 1;
             break;
         }
 
         case 0x9000000:
         {
-            auto* popUpAppearance = new PUAppearance;
-            appearance = popUpAppearance;
+            auto* popUpAppearance = new MCPUAppearance;
+            Appearance = popUpAppearance;
 
             if (popUpAppearance == nullptr)
             {
                 return -0x2ffff;
             }
 
-            popUpAppearance->init(nullptr, nullptr);
+            popUpAppearance->Init(nullptr, nullptr);
 
-            if ((apprType->appearanceNum & 0xff000000) != 0x9000000)
+            if ((apprType->AppearanceNum & 0xff000000) != 0x9000000)
             {
                 return -0x2fff6;
             }
 
-            if ((result = popUpAppearance->init(apprType, this)) != 0)
+            if ((result = popUpAppearance->Init(apprType, this)) != 0)
             {
                 return result;
             }
 
-            weaponDeployed = 0;
-            fixedTurret = 0;
+            WeaponDeployed = 0;
+            FixedTurret = 0;
             break;
         }
 
@@ -1665,36 +1665,36 @@ auto Turret::init(ObjectType* objType) -> int32_t
             return -0x2fff6;
     }
 
-    auto* type = static_cast<TurretType*>(this->objType);
-    objectClass = TURRET;
-    destroyed = 0;
-    alignment = -1;
-    readyTime = 0.0f;
+    auto* type = static_cast<MCTurretType*>(this->ObjType);
+    ObjectClass = TURRET;
+    Destroyed = 0;
+    Alignment = -1;
+    ReadyTime = 0.0f;
 
     // The attack radius, when given, is the collision extent: whatever enters it is a candidate target.
-    if (type->attackRadius != 0.0)
+    if (type->AttackRadius != 0.0)
     {
-        type->extentRadius = type->attackRadius;
+        type->ExtentRadius = type->AttackRadius;
     }
 
-    if (0.0 < type->extentRadius)
+    if (0.0 < type->ExtentRadius)
     {
-        collisionsOn = 1;
+        CollisionsOn = 1;
     }
 
-    setPotentialContact(2);
-    tonnage = type->tonnage;
-    explDamage = type->explosionDamage;
-    explRadius = type->explosionRadius;
+    SetPotentialContact(2);
+    Tonnage = type->Tonnage;
+    ExplDamage = type->ExplosionDamage;
+    ExplRadius = type->ExplosionRadius;
     char nameBuffer[256];
-    cLoadString(thisInstance, static_cast<uint32_t>(type->buildingName), nameBuffer, 0xfe);
-    name = nameBuffer;
-    smoke = nullptr;
-    target = nullptr;
+    CLoadString(ThisInstance, static_cast<uint32_t>(type->BuildingName), nameBuffer, 0xfe);
+    Name = nameBuffer;
+    Smoke = nullptr;
+    Target = nullptr;
     return 0;
 }
 
-auto Turret::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCTurret::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
@@ -1703,86 +1703,86 @@ auto Turret::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    const float newDamage = getDamage() + shotInfo->damage;
-    setDamage(newDamage);
-    auto* type = static_cast<TurretType*>(objType);
+    const float newDamage = GetDamage() + shotInfo->Damage;
+    SetDamage(newDamage);
+    auto* type = static_cast<MCTurretType*>(ObjType);
 
-    if (newDamage < static_cast<float>(static_cast<int32_t>(type->dmgLevel)))
+    if (newDamage < static_cast<float>(static_cast<int32_t>(type->DmgLevel)))
     {
         return 0;
     }
 
     // Destroyed: the wreck, its smoke, fire and explosion.
-    destroyed = 1;
+    Destroyed = 1;
 
-    if (fixedTurret == 0)
+    if (FixedTurret == 0)
     {
-        static_cast<PUAppearance*>(appearance)->setDestroyed();
+        static_cast<MCPUAppearance*>(Appearance)->SetDestroyed();
     }
     else
     {
-        static_cast<GVAppearance*>(appearance)->setTypeId(GV_ACTOR_STATE_DESTROYED);
+        static_cast<MCGVAppearance*>(Appearance)->SetTypeId(GV_ACTOR_STATE_DESTROYED);
     }
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        appearance->visible = onScreen();
-        appearance->update();
+        Appearance->Visible = OnScreen();
+        Appearance->Update();
     }
 
-    if (smoke != nullptr)
+    if (Smoke != nullptr)
     {
-        smoke->setOwner(this);
-        smoke->setOwnerPosition(position);
-        smoke->update();
-        smokeTime = smokeTime - frameLength;
+        Smoke->SetOwner(this);
+        Smoke->SetOwnerPosition(Position);
+        Smoke->Update();
+        SmokeTime = SmokeTime - FrameLength;
 
-        if (smokeTime <= -30.0)
+        if (SmokeTime <= -30.0)
         {
-            delete smoke;
-            smoke = nullptr;
+            delete Smoke;
+            Smoke = nullptr;
         }
     }
 
-    collisionsOn = 0;
-    status = 2;
+    CollisionsOn = 0;
+    Status = 2;
 
-    if (onFire == 0)
+    if (OnFire == 0)
     {
-        if (type->blownEffectId == 0xffffffff)
+        if (type->BlownEffectId == 0xffffffff)
         {
-            if (fireObject != nullptr)
+            if (FireObject != nullptr)
             {
-                fireObject->addTimeLeftToBurn(2.0f);
+                FireObject->AddTimeLeftToBurn(2.0f);
             }
         }
         else
         {
-            GameObject* newFire = createObject(static_cast<int32_t>(type->blownEffectId));
+            MCGameObject* newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
 
             if (newFire != nullptr)
             {
-                newFire->setPosition(position);
+                newFire->SetPosition(Position);
 
-                if (newFire->objectClass == FIRE)
+                if (newFire->ObjectClass == FIRE)
                 {
-                    fireObject = static_cast<Fire*>(newFire);
-                    fireObject->setPotentialContact(3);
-                    fireObject->burningObject = this;
-                    fireObject->setTonnage(40.0f);
-                    onFire = 1;
+                    FireObject = static_cast<MCFire*>(newFire);
+                    FireObject->SetPotentialContact(3);
+                    FireObject->BurningObject = this;
+                    FireObject->SetTonnage(40.0f);
+                    OnFire = 1;
                 }
-                else if (objectList->head != nullptr)
+                else if (ObjectList->Head != nullptr)
                 {
-                    objectList->head->addNode(newFire);
+                    ObjectList->Head->AddNode(newFire);
                 }
             }
         }
 
-        type->createExplosion(position, explDamage, explRadius);
+        type->CreateExplosion(Position, ExplDamage, ExplRadius);
     }
 
     return 0;

@@ -14,7 +14,7 @@ namespace
     /// <summary>Starts ABL as the scenario does, with the sizes SYSTEM.CFG gives (the heap sizes are ignored).</summary>
     void StartAbl()
     {
-        ABLi_init(0x40000, 0x40000, 0x40000, 0x2000, 0x10000, 32, 256, nullptr, 0, 0, 0);
+        AblInit(0x40000, 0x40000, 0x40000, 0x2000, 0x10000, 32, 256, nullptr, 0, 0, 0);
     }
 
     /// <summary>A module that sums 1..4 through a static array and returns the sum.</summary>
@@ -44,11 +44,11 @@ TEST_CASE("abl: ABLi_close frees everything ABLi_init and a compile made")
     CHECK(afterInit > 0);
     CHECK(SymTableDisplay[0] != nullptr);
     CHECK(IntegerTypePtr != nullptr);
-    CHECK_EQ(IntegerTypePtr->size, 4);
+    CHECK_EQ(IntegerTypePtr->Size, 4);
 
-    ABLi_close();
+    AblClose();
     CHECK_EQ(AblMemory.Count(), 0u);
-    CHECK_EQ(ABLi_enabled(), 0);
+    CHECK_EQ(AblEnabled(), 0);
 }
 
 TEST_CASE("abl: a module compiled and run from memory gives its blocks back")
@@ -62,7 +62,7 @@ TEST_CASE("abl: a module compiled and run from memory gives its blocks back")
     const size_t afterInit = AblMemory.Count();
     char fileName[] = "data\\missions\\memtest.abl";
     int32_t numErrors = -1;
-    const int32_t handle = ABLi_preProcess(fileName, &numErrors);
+    const int32_t handle = AblPreProcess(fileName, &numErrors);
     REQUIRE(handle >= 0);
     CHECK_EQ(numErrors, 0);
     // The module's symbols, types, code segment and registry entry.
@@ -70,24 +70,24 @@ TEST_CASE("abl: a module compiled and run from memory gives its blocks back")
 
     // Compiling the same file again gives the module already registered.
     char again[] = "data\\missions\\memtest.abl";
-    CHECK_EQ(ABLi_preProcess(again), handle);
+    CHECK_EQ(AblPreProcess(again), handle);
 
-    auto* module = new ABLModule;
-    REQUIRE_EQ(module->init(handle), 0);
+    auto* module = new MCAblModule;
+    REQUIRE_EQ(module->Init(handle), 0);
     const size_t withInstance = AblMemory.Count();
-    module->execute(nullptr);
-    CHECK_EQ(module->returnVal, 10);
+    module->Execute(nullptr);
+    CHECK_EQ(module->ReturnVal, 10);
 
     // A second run starts from the statics the first left: the same sum.
-    module->execute(nullptr);
-    CHECK_EQ(module->returnVal, 10);
+    module->Execute(nullptr);
+    CHECK_EQ(module->ReturnVal, 10);
     CHECK_EQ(AblMemory.Count(), withInstance);
 
     // The instance frees its static data; the static array's own block stays until ABLi_close, as in the original.
-    module->destroy();
+    module->Destroy();
     delete module;
     CHECK(AblMemory.Count() < withInstance);
 
-    ABLi_close();
+    AblClose();
     CHECK_EQ(AblMemory.Count(), 0u);
 }

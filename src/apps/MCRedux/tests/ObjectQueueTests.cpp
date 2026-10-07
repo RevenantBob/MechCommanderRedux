@@ -13,27 +13,27 @@ TEST_CASE("objque: findObjectFromPart finds a building while a mover shares its 
     // Mission 1's Camp Alpha HQ: block 15, cell 183.
     const int32_t buildingPartId = (15 * 400 + 183) * 8 + 0x1000;
 
-    BaseObject mover;
-    mover.partId = 0x200;
-    BaseObject building;
-    building.partId = buildingPartId;
+    MCBaseObject mover;
+    mover.PartId = 0x200;
+    MCBaseObject building;
+    building.PartId = buildingPartId;
 
-    ObjectQueueNode moverList("TBlk15");
-    ObjectQueueNode buildingList("RBlk15");
-    moverList.addNode(&mover);
-    buildingList.addNode(&building);
+    MCObjectQueueNode moverList("TBlk15");
+    MCObjectQueueNode buildingList("RBlk15");
+    moverList.AddNode(&mover);
+    buildingList.AddNode(&building);
 
-    ObjectQueue queue;
-    queue.addList(&moverList);
-    queue.addList(&buildingList);
+    MCObjectQueue queue;
+    queue.AddList(&moverList);
+    queue.AddList(&buildingList);
 
-    CHECK(queue.findObjectFromPart(buildingPartId) == &building);
+    CHECK(queue.FindObjectFromPart(buildingPartId) == &building);
 
     // With the block's TBlk list empty, it is found the same way.
-    moverList.head = nullptr;
-    moverList.tail = nullptr;
-    CHECK(queue.findObjectFromPart(buildingPartId) == &building);
+    moverList.Head = nullptr;
+    moverList.Tail = nullptr;
+    CHECK(queue.FindObjectFromPart(buildingPartId) == &building);
 
     // A part id that is in neither list is not found.
-    CHECK(queue.findObjectFromPart(buildingPartId + 8) == nullptr);
+    CHECK(queue.FindObjectFromPart(buildingPartId + 8) == nullptr);
 }

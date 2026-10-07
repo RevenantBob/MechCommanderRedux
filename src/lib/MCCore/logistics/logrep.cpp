@@ -17,7 +17,7 @@
 #include "sound/soundsys.h"
 #include "vfx/vfxfuncs.h"
 
-int32_t resourceDisplayState = 0;
+int32_t ResourceDisplayState = 0;
 
 namespace
 {
@@ -25,24 +25,24 @@ namespace
     constexpr int32_t UnitBlockHeight = 0x70;
 
     /// <summary>Set while the left button is down on the screen (0x0080867c); only written.</summary>
-    int32_t mouseDown = 0;
+    int32_t MouseDown = 0;
 
     /// <summary>The blink phase of the briefing button's highlight, flipped by each timer event (0x00808678).</summary>
-    int32_t briefingBlink = 0;
+    int32_t BriefingBlink = 0;
 
     /// <summary>
     /// Draws the unit pane's rows into its view <paramref name="port"/>: every mech and vehicle of the force at its
     /// block's row, over colour 0xff (what the blocks painted into the rows' picture).
     /// </summary>
-    void drawUnitRows(aPort* port)
+    void DrawUnitRows(MCGuiPort* port)
     {
-        auto* view = static_cast<lPort*>(port);
-        VFX_pane_wipe(view->frame(), 0xff);
-        const MCView& place = view->view;
+        auto* view = static_cast<MCLogPort*>(port);
+        VfxPaneWipe(view->Frame(), 0xff);
+        const MCView& place = view->View;
 
         auto drawRow = [&](auto* block)
         {
-            const int32_t top = block->slotIndex * UnitBlockHeight;
+            const int32_t top = block->SlotIndex * UnitBlockHeight;
             const int32_t screenTop = place.OriginY + top;
 
             if (screenTop <= place.Scissor.Y1 && place.Scissor.Y0 < screenTop + UnitBlockHeight)
@@ -51,45 +51,45 @@ namespace
             }
         };
 
-        for (LogMech* mech = globalLogPtr->forceMechList->mechs; mech != nullptr; mech = mech->next)
+        for (MCLogMech* mech = GlobalLogPtr->ForceMechList->Mechs; mech != nullptr; mech = mech->Next)
         {
-            drawRow(mech->repairBlock);
+            drawRow(mech->RepairBlock);
         }
 
-        for (LogVehicle* vehicle = globalLogPtr->forceVehicleList->vehicles; vehicle != nullptr;
-             vehicle = vehicle->next)
+        for (MCLogVehicle* vehicle = GlobalLogPtr->ForceVehicleList->Vehicles; vehicle != nullptr;
+             vehicle = vehicle->Next)
         {
-            drawRow(vehicle->repairBlock);
+            drawRow(vehicle->RepairBlock);
         }
     }
 
     /// <summary>
     /// Puts the force's repair blocks in order down the unit pane (mechs, then vehicles), scrolled as the pane is.
     /// </summary>
-    void placeUnitBlocks(ScrollPane* pane)
+    void PlaceUnitBlocks(MCScrollPane* pane)
     {
         int32_t row = 0;
         int32_t yPos = 0;
 
-        for (LogMech* mech = globalLogPtr->forceMechList->mechs; mech != nullptr; mech = mech->next)
+        for (MCLogMech* mech = GlobalLogPtr->ForceMechList->Mechs; mech != nullptr; mech = mech->Next)
         {
-            MechRepairBlock* block = mech->repairBlock;
-            block->slotIndex = row;
-            block->moveTo(0, yPos - pane->getScrollOffset(), 0);
-            block->setDepth(100);
+            MCMechRepairBlock* block = mech->RepairBlock;
+            block->SlotIndex = row;
+            block->MoveTo(0, yPos - pane->GetScrollOffset(), 0);
+            block->SetDepth(100);
             ++row;
             yPos += UnitBlockHeight;
         }
 
         yPos = row * UnitBlockHeight;
 
-        for (LogVehicle* vehicle = globalLogPtr->forceVehicleList->vehicles; vehicle != nullptr;
-             vehicle = vehicle->next)
+        for (MCLogVehicle* vehicle = GlobalLogPtr->ForceVehicleList->Vehicles; vehicle != nullptr;
+             vehicle = vehicle->Next)
         {
-            VehicleRepairBlock* block = vehicle->repairBlock;
-            block->slotIndex = row;
-            block->moveTo(0, yPos - pane->getScrollOffset(), 0);
-            block->setDepth(100);
+            MCVehicleRepairBlock* block = vehicle->RepairBlock;
+            block->SlotIndex = row;
+            block->MoveTo(0, yPos - pane->GetScrollOffset(), 0);
+            block->SetDepth(100);
             ++row;
             yPos += UnitBlockHeight;
         }
@@ -99,221 +99,221 @@ namespace
     /// Rebuilds the unit pane's port without the block in a row: the rows below it move up one (the original
     /// copied them up in a new picture; the view draws each row where its block is).
     /// </summary>
-    void removeUnitRow(ScrollPane* pane)
+    void RemoveUnitRow(MCScrollPane* pane)
     {
-        pane->setDisplayPort(RepairScreen::NewUnitRowsView(pane), -1, 0);
-        placeUnitBlocks(pane);
+        pane->SetDisplayPort(MCRepairScreen::NewUnitRowsView(pane), -1, 0);
+        PlaceUnitBlocks(pane);
     }
 
     /// <summary>Puts string <paramref name="id"/> on the ticker.</summary>
-    void showHelp(uint32_t id)
+    void ShowHelp(uint32_t id)
     {
         char text[256];
-        cLoadString(thisInstance, id, text, 0xfe);
-        globalLogPtr->ticker->setString(text);
+        CLoadString(ThisInstance, id, text, 0xfe);
+        GlobalLogPtr->Ticker->SetString(text);
     }
 }
 
-auto RepairScreen::init() -> void
+auto MCRepairScreen::Init() -> void
 {
-    chatBlinking = 0;
-    selectedMech = nullptr;
-    selectedVehicle = nullptr;
-    int32_t result = lObject::init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
+    ChatBlinking = 0;
+    SelectedMech = nullptr;
+    SelectedVehicle = nullptr;
+    int32_t result = MCLogObject::Init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
     Assert(result == 0, result, "Unable to init repair screen", nullptr);
     // The original loaded the background (lsrbk00) as the screen's picture; the screen draws it each frame.
-    initLive("lsrbk00.tga");
+    InitLive("lsrbk00.tga");
     char fileName[256];
 
-    auto* pane = new ScrollPane;
+    auto* pane = new MCScrollPane;
 
     if (pane != nullptr)
     {
-        pane->init();
+        pane->Init();
     }
 
-    inventoryPane = pane;
+    InventoryPane = pane;
     Assert(pane != nullptr, 0, " Not enough memory for inventory", nullptr);
-    pane->init(0xb8, 0x10d, 8, 0x6b, static_cast<char*>(nullptr));
-    pane->setDisplayPort(nullptr, -1, -1);
+    pane->Init(0xb8, 0x10d, 8, 0x6b, static_cast<char*>(nullptr));
+    pane->SetDisplayPort(nullptr, -1, -1);
 
-    pane = new ScrollPane;
+    pane = new MCScrollPane;
 
     if (pane != nullptr)
     {
-        pane->init();
+        pane->Init();
     }
 
-    unitPane = pane;
+    UnitPane = pane;
     Assert(pane != nullptr, 0, "Not enough memory for vehicleScroll", nullptr);
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrbk01.tga", artPath);
-    pane->init(0x1aa, 0x1cc, 0xd3, 0x11, fileName);
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrbk01.tga", ArtPath);
+    pane->Init(0x1aa, 0x1cc, 0xd3, 0x11, fileName);
 
-    ShowGUIWindow(0);
-    addChild(inventoryPane);
-    addChild(unitPane);
-    screenWindow->addChild(this);
+    ShowGuiWindow(0);
+    AddChild(InventoryPane);
+    AddChild(UnitPane);
+    ScreenWindow->AddChild(this);
 }
 
-auto RepairScreen::destroy() -> void
+auto MCRepairScreen::Destroy() -> void
 {
-    if (inventoryPane != nullptr)
+    if (InventoryPane != nullptr)
     {
         // The inventory ports belong to the Logistics object.
-        inventoryPane->setDisplayPort(nullptr, 0, -1);
-        delete inventoryPane;
-        inventoryPane = nullptr;
+        InventoryPane->SetDisplayPort(nullptr, 0, -1);
+        delete InventoryPane;
+        InventoryPane = nullptr;
     }
 
-    if (unitPane != nullptr)
+    if (UnitPane != nullptr)
     {
-        unitPane->setDisplayPort(nullptr, -1, -1);
-        delete unitPane;
-        unitPane = nullptr;
+        UnitPane->SetDisplayPort(nullptr, -1, -1);
+        delete UnitPane;
+        UnitPane = nullptr;
     }
 
-    lObject::destroy();
+    MCLogObject::Destroy();
 }
 
-auto RepairScreen::selectMech(LogMech* mech) -> void
+auto MCRepairScreen::SelectMech(MCLogMech* mech) -> void
 {
-    LogMech* oldMech = globalLogPtr->repairScreen->selectedMech;
-    globalLogPtr->repairScreen->selectedMech = mech;
+    MCLogMech* oldMech = GlobalLogPtr->RepairScreen->SelectedMech;
+    GlobalLogPtr->RepairScreen->SelectedMech = mech;
 
-    if (selectedVehicle != nullptr)
+    if (SelectedVehicle != nullptr)
     {
-        VehicleRepairBlock* block = selectedVehicle->repairBlock;
-        selectedVehicle = nullptr;
-        block->drawBackground(block->slotIndex, nullptr);
+        MCVehicleRepairBlock* block = SelectedVehicle->RepairBlock;
+        SelectedVehicle = nullptr;
+        block->DrawBackground(block->SlotIndex, nullptr);
     }
 
     if (mech != nullptr)
     {
-        mech->repairBlock->drawBackground(mech->repairBlock->slotIndex, nullptr);
+        mech->RepairBlock->DrawBackground(mech->RepairBlock->SlotIndex, nullptr);
     }
 
     if (oldMech != nullptr)
     {
-        oldMech->repairBlock->drawBackground(oldMech->repairBlock->slotIndex, nullptr);
+        oldMech->RepairBlock->DrawBackground(oldMech->RepairBlock->SlotIndex, nullptr);
     }
 
-    if (globalLogPtr->currentInvTab == 1)
+    if (GlobalLogPtr->CurrentInvTab == 1)
     {
-        setUpPilotInv(0, -1);
+        SetUpPilotInv(0, -1);
         return;
     }
 
-    if (globalLogPtr->currentInvTab == 2)
+    if (GlobalLogPtr->CurrentInvTab == 2)
     {
-        setUpCompInv(0, -1);
+        SetUpCompInv(0, -1);
     }
 }
 
-auto RepairScreen::selectVehicle(LogVehicle* vehicle) -> void
+auto MCRepairScreen::SelectVehicle(MCLogVehicle* vehicle) -> void
 {
-    LogVehicle* oldVehicle = globalLogPtr->repairScreen->selectedVehicle;
-    globalLogPtr->repairScreen->selectedVehicle = vehicle;
+    MCLogVehicle* oldVehicle = GlobalLogPtr->RepairScreen->SelectedVehicle;
+    GlobalLogPtr->RepairScreen->SelectedVehicle = vehicle;
 
-    if (selectedMech != nullptr)
+    if (SelectedMech != nullptr)
     {
-        MechRepairBlock* block = selectedMech->repairBlock;
-        selectedMech = nullptr;
-        block->drawBackground(block->slotIndex, nullptr);
+        MCMechRepairBlock* block = SelectedMech->RepairBlock;
+        SelectedMech = nullptr;
+        block->DrawBackground(block->SlotIndex, nullptr);
     }
 
     if (vehicle != nullptr)
     {
-        vehicle->repairBlock->drawBackground(vehicle->repairBlock->slotIndex, nullptr);
+        vehicle->RepairBlock->DrawBackground(vehicle->RepairBlock->SlotIndex, nullptr);
     }
 
     if (oldVehicle != nullptr)
     {
-        oldVehicle->repairBlock->drawBackground(oldVehicle->repairBlock->slotIndex, nullptr);
+        oldVehicle->RepairBlock->DrawBackground(oldVehicle->RepairBlock->SlotIndex, nullptr);
     }
 
-    if (globalLogPtr->currentInvTab == 1)
+    if (GlobalLogPtr->CurrentInvTab == 1)
     {
-        setUpPilotInv(0, -1);
+        SetUpPilotInv(0, -1);
     }
 
-    if (globalLogPtr->currentInvTab == 2)
+    if (GlobalLogPtr->CurrentInvTab == 2)
     {
-        setUpCompInv(0, -1);
+        SetUpCompInv(0, -1);
     }
 }
 
-auto RepairScreen::addMechToList(LogMech*) -> void
+auto MCRepairScreen::AddMechToList(MCLogMech*) -> void
 {
     // The new mech is first in the force list: the old rows move down one block (the original copied them down in a
     // new picture; the view draws each row where its block is).
-    ScrollPane* pane = unitPane;
-    pane->setDisplayPort(NewUnitRowsView(pane), -1, 0);
-    placeUnitBlocks(pane);
+    MCScrollPane* pane = UnitPane;
+    pane->SetDisplayPort(NewUnitRowsView(pane), -1, 0);
+    PlaceUnitBlocks(pane);
 }
 
-auto RepairScreen::addVehicleToList(LogVehicle* vehicle) -> void
+auto MCRepairScreen::AddVehicleToList(MCLogVehicle* vehicle) -> void
 {
     // The new vehicle is first in the vehicle list, right after the mechs: the vehicle rows move down one block.
-    ScrollPane* pane = unitPane;
-    pane->setDisplayPort(NewUnitRowsView(pane), -1, 0);
-    vehicle->repairBlock->drawBackground(globalLogPtr->forceMechList->getMechCount(), nullptr);
-    placeUnitBlocks(pane);
+    MCScrollPane* pane = UnitPane;
+    pane->SetDisplayPort(NewUnitRowsView(pane), -1, 0);
+    vehicle->RepairBlock->DrawBackground(GlobalLogPtr->ForceMechList->GetMechCount(), nullptr);
+    PlaceUnitBlocks(pane);
 }
 
-auto RepairScreen::removeMechFromList(LogMech* mech) -> void
+auto MCRepairScreen::RemoveMechFromList(MCLogMech* mech) -> void
 {
-    removeUnitRow(unitPane);
+    RemoveUnitRow(UnitPane);
 }
 
-auto RepairScreen::removeVehicleFromList(LogVehicle* vehicle) -> void
+auto MCRepairScreen::RemoveVehicleFromList(MCLogVehicle* vehicle) -> void
 {
-    removeUnitRow(unitPane);
+    RemoveUnitRow(UnitPane);
 }
 
-auto RepairScreen::NewUnitRowsView(ScrollPane* pane) -> lPort*
+auto MCRepairScreen::NewUnitRowsView(MCScrollPane* pane) -> MCLogPort*
 {
-    auto* port = new lPort;
-    int32_t height = (globalLogPtr->forceVehicleList->getVehicleCount() + globalLogPtr->forceMechList->getMechCount()) *
+    auto* port = new MCLogPort;
+    int32_t height = (GlobalLogPtr->ForceVehicleList->GetVehicleCount() + GlobalLogPtr->ForceMechList->GetMechCount()) *
                      UnitBlockHeight;
 
-    if (height < pane->height())
+    if (height < pane->Height())
     {
-        height = pane->height();
+        height = pane->Height();
     }
 
-    port->initView(pane->width() - 0xd, height);
-    port->DrawContent = drawUnitRows;
+    port->InitView(pane->Width() - 0xd, height);
+    port->DrawContent = DrawUnitRows;
     return port;
 }
 
-auto RepairScreen::drawBackground() -> void
+auto MCRepairScreen::DrawBackground() -> void
 {
     // The background art was painted over everything the screen showed.
-    chrome.Clear();
-    info.Clear();
+    ScreenChrome.Clear();
+    Info.Clear();
 
-    if (selectedMech != nullptr && selectedMech->repairBlock != nullptr)
+    if (SelectedMech != nullptr && SelectedMech->RepairBlock != nullptr)
     {
-        selectedMech->repairBlock->drawButtons(nullptr);
+        SelectedMech->RepairBlock->DrawButtons(nullptr);
     }
 }
 
-auto RepairScreen::handleEvent(aEvent* event) -> void
+auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (globalLogPtr->currentScreen != this)
+    if (GlobalLogPtr->CurrentScreen != this)
     {
         return;
     }
 
-    int32_t xPos = event->x;
-    int32_t yPos = event->y;
-    uint8_t key = event->key;
+    int32_t xPos = event->X;
+    int32_t yPos = event->Y;
+    uint8_t key = event->Key;
 
-    if (key == 0 && event->type != 0x13)
+    if (key == 0 && event->Type != 0x13)
     {
         // The help line for whatever the mouse is over, and the highlighted screen button.
-        globalLogPtr->drawScreenButtons();
-        drawBlankInvInfoBlock(-1);
+        GlobalLogPtr->DrawScreenButtons();
+        DrawBlankInvInfoBlock(-1);
         POINT point{xPos, yPos};
         auto inside = [&point](int32_t left, int32_t top, int32_t right, int32_t bottom)
         {
@@ -323,99 +323,99 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
 
         if (inside(2, 2, 0xd1, 0xd))
         {
-            showHelp(0x1d);
+            ShowHelp(0x1d);
         }
         else if (inside(2, 0x10, 0xd1, 0x21))
         {
-            showHelp(0x286);
-            globalLogPtr->hoverScreenButton(this, 0);
+            ShowHelp(0x286);
+            GlobalLogPtr->HoverScreenButton(this, 0);
         }
         else if (inside(2, 0x22, 0xd1, 0x33))
         {
-            showHelp(0x1e);
-            globalLogPtr->hoverScreenButton(this, 1);
+            ShowHelp(0x1e);
+            GlobalLogPtr->HoverScreenButton(this, 1);
         }
         else if (inside(2, 0x34, 0xd1, 0x45))
         {
-            showHelp(0x41);
-            globalLogPtr->hoverScreenButton(this, 2);
+            ShowHelp(0x41);
+            GlobalLogPtr->HoverScreenButton(this, 2);
         }
         else if (inside(2, 0x46, 0xd1, 0x57))
         {
-            showHelp(0x42);
+            ShowHelp(0x42);
         }
         else if (inside(0x20c, 2, 0x24d, 0xd))
         {
-            showHelp(0x1f);
+            ShowHelp(0x1f);
         }
         else if (inside(0x19b, 4, 0x24a, 0xf))
         {
-            showHelp(0x1f);
+            ShowHelp(0x1f);
         }
         else if (inside(0xc6, 0x66, 0xd1, 0x95))
         {
-            showHelp(0x29);
+            ShowHelp(0x29);
         }
         else if (inside(0xc6, 0x97, 0xd1, 0xef))
         {
-            showHelp(0x2a);
+            ShowHelp(0x2a);
         }
         else if (inside(0xc6, 0xf1, 0xd1, 0x140))
         {
-            showHelp(0x2b);
+            ShowHelp(0x2b);
         }
         else if (inside(0xc6, 0x141, 0xcf, 0x17c))
         {
-            showHelp(0x2c);
+            ShowHelp(0x2c);
         }
         else if (inside(7, 0x6a, 0xb3, 0x178))
         {
-            switch (globalLogPtr->currentInvTab)
+            switch (GlobalLogPtr->CurrentInvTab)
             {
                 case 0:
-                    showHelp(0x31);
+                    ShowHelp(0x31);
                     break;
                 case 1:
-                    showHelp(0x33);
+                    ShowHelp(0x33);
                     break;
                 case 2:
-                    showHelp(0x32);
+                    ShowHelp(0x32);
                     break;
                 case 3:
-                    showHelp(0x47);
+                    ShowHelp(0x47);
                     break;
                 default:
                 {
                     // Port fix: the original put its uninitialised string buffer on the ticker.
                     char empty[1] = {};
-                    globalLogPtr->ticker->setString(empty);
+                    GlobalLogPtr->Ticker->SetString(empty);
                     break;
                 }
             }
         }
         else if (inside(0x270, 0x10, 0x27d, 0x1dd))
         {
-            showHelp(0x2f);
+            ShowHelp(0x2f);
         }
         else if (inside(0xd3, 0x10, 0x270, 0x1dd))
         {
-            showHelp(0x43);
+            ShowHelp(0x43);
         }
         else
         {
-            globalLogPtr->ticker->setString(nullptr);
+            GlobalLogPtr->Ticker->SetString(nullptr);
         }
     }
 
-    if (event->type == 1)
+    if (event->Type == 1)
     {
-        mouseDown = -1;
-        POINT point{xPos - globalX(), yPos - globalY()};
+        MouseDown = -1;
+        POINT point{xPos - GlobalX(), yPos - GlobalY()};
         RECT area{2, 0x34, 0xd1, 0x45};
 
         if (PtInRect(&area, point) != 0)
         {
-            globalLogPtr->setUpPurchaseScreen(-1);
+            GlobalLogPtr->SetUpPurchaseScreen(-1);
             return;
         }
 
@@ -424,7 +424,7 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            globalLogPtr->setUpBriefingScreen(-1);
+            GlobalLogPtr->SetUpBriefingScreen(-1);
             return;
         }
 
@@ -439,8 +439,8 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
                 return;
             }
 
-            soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
-            globalLogPtr->setUpMainScreen(0);
+            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            GlobalLogPtr->SetUpMainScreen(0);
             return;
         }
 
@@ -449,9 +449,9 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
-            setUpMechInv(-1, -1);
-            setUpMechPurchase();
+            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SetUpMechInv(-1, -1);
+            SetUpMechPurchase();
         }
 
         area.top = 0x96;
@@ -459,9 +459,9 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
-            setUpPilotInv(-1, -1);
-            setUpPilotPurchase();
+            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SetUpPilotInv(-1, -1);
+            SetUpPilotPurchase();
         }
 
         area.top = 0xf2;
@@ -469,9 +469,9 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
-            setUpCompInv(-1, -1);
-            setUpCompPurchase();
+            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SetUpCompInv(-1, -1);
+            SetUpCompPurchase();
         }
 
         area.top = 0x141;
@@ -479,21 +479,21 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
-            setUpVhclInv(-1, -1);
-            setUpVehiclePurchase();
+            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SetUpVhclInv(-1, -1);
+            SetUpVehiclePurchase();
         }
     }
 
-    if (event->type == 4)
+    if (event->Type == 4)
     {
-        mouseDown = 0;
+        MouseDown = 0;
         // The original fetches globalX() and globalY() here and drops them.
-        globalX();
-        globalY();
+        GlobalX();
+        GlobalY();
     }
 
-    if (event->type == 9)
+    if (event->Type == 9)
     {
         bool ctrlAlt = MCInput::GetAsyncKeyState(VK_CONTROL) != 0 && MCInput::GetAsyncKeyState(VK_MENU) != 0;
 
@@ -505,40 +505,40 @@ auto RepairScreen::handleEvent(aEvent* event) -> void
         }
     }
 
-    if (event->type == 8)
+    if (event->Type == 8)
     {
-        globalLogPtr->processCheatCode(event->scanCode);
+        GlobalLogPtr->ProcessCheatCode(event->ScanCode);
         return;
     }
 
-    if (event->type == 0x13)
+    if (event->Type == 0x13)
     {
         // Blink the briefing button.
-        chrome.blinkLit = briefingBlink != 0;
-        briefingBlink = briefingBlink == 0 ? 1 : 0;
+        ScreenChrome.BlinkLit = BriefingBlink != 0;
+        BriefingBlink = BriefingBlink == 0 ? 1 : 0;
     }
 }
 
-auto RepairScreen::ShowGUIWindow(int show) -> void
+auto MCRepairScreen::ShowGuiWindow(int show) -> void
 {
-    showWindow = show;
-    inventoryPane->ShowGUIWindow(show);
-    unitPane->ShowGUIWindow(show);
+    ShowWindow = show;
+    InventoryPane->ShowGuiWindow(show);
+    UnitPane->ShowGuiWindow(show);
 }
 
-auto RepairScreen::display() -> void
+auto MCRepairScreen::Display() -> void
 {
-    lObject::display();
-    lObject* screen = globalLogPtr->currentScreen;
+    MCLogObject::Display();
+    MCLogObject* screen = GlobalLogPtr->CurrentScreen;
 
-    if (screen != globalLogPtr->repairScreen && screen != globalLogPtr->purchaseScreen &&
-        screen != globalLogPtr->briefingScreen && screen != globalLogPtr->sessionScreen)
+    if (screen != GlobalLogPtr->RepairScreen && screen != GlobalLogPtr->PurchaseScreen &&
+        screen != GlobalLogPtr->BriefingScreen && screen != GlobalLogPtr->SessionScreen)
     {
         return;
     }
 
     // The figure and the clock are drawn by the screens each frame (Logistics::drawScreenChrome).
-    MCPort::StrTime(globalLogPtr->timeString);
+    MCPort::StrTime(GlobalLogPtr->TimeString);
 }
 
 auto ResourceFigureText(char* text, size_t size) -> void
@@ -546,7 +546,7 @@ auto ResourceFigureText(char* text, size_t size) -> void
     // The original left the text uninitialised for a resourceDisplayState the switch doesn't list.
     text[0] = '\0';
 
-    switch (resourceDisplayState)
+    switch (ResourceDisplayState)
     {
         case 0:
             std::snprintf(text, size, "%d", ResourcePoints);

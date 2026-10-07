@@ -3,76 +3,69 @@
 #include "object/gameobj.h"
 #include "object/objtype.h"
 
-class Appearance;
-class File;
-class GameObject;
+class MCAppearance;
+class MCFile;
+class MCGameObject;
 
 /// <summary>
-/// The type of a <see cref="Fire"/>: its damage, sound and light, how its animation loops, and the flame shapes that
+/// The type of a <see cref="MCFire"/>: its damage, sound and light, how its animation loops, and the flame shapes that
 /// make it up (each with its own offset and start delay, plus random spreads).
 /// </summary>
 /// <remarks>Original source: <c>object\fire.cpp</c>, <c>object\fire.h</c>; 0x6c bytes. Read from the "FireData" block.</remarks>
-class FireType : public ObjectType
+class MCFireType : public MCObjectType
 {
 public:
-    FireType() { init(); }
-    /// <remarks>MCX.EXE @ 0x006907d0 (vector deleting destructor)</remarks>
-    ~FireType() override { destroy(); }
+    MCFireType() { Init(); }
+    ~MCFireType() override { Destroy(); }
 
     /// <summary>Resets the common type data and this type's fields (one shape, no arrays).</summary>
-    /// <remarks>MCX.EXE @ 0x00690780 (inline in <c>object\fire.h</c>)</remarks>
-    void init();
-    /// <summary>Makes a <see cref="Fire"/> of this type and gives it the next object id.</summary>
-    /// <remarks>MCX.EXE @ 0x006604b0</remarks>
-    BaseObject* createInstance() override;
+    void Init();
+    /// <summary>Makes a <see cref="MCFire"/> of this type and gives it the next object id.</summary>
+    MCBaseObject* CreateInstance() override;
     /// <summary>Frees the six per-shape arrays.</summary>
-    /// <remarks>MCX.EXE @ 0x00660640</remarks>
-    void destroy() override;
+    void Destroy() override;
     /// <summary>
     /// Reads the "FireData" block, allocates the per-shape arrays and reads each shape's
     /// FireOffsetX/Y, FireDelay and their random spreads, then the common type data.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006606c0</remarks>
-    int32_t init(File* objFile, uint32_t fileSize) override;
+    int32_t Init(MCFile* objFile, uint32_t fileSize) override;
     /// <summary>
     /// A fire touching a building, tree, misc terrain object or tree building sets it alight one time in ten (host
     /// only in multiplayer, which then sends a light-on-fire chunk).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00660ad0</remarks>
-    int handleCollision(GameObject* collidee, GameObject* collider) override;
-    /// <remarks>MCX.EXE @ 0x00660c40</remarks>
-    int handleDestruction(GameObject* collidee, GameObject* collider) override;
+    int HandleCollision(MCGameObject* collidee, MCGameObject* collider) override;
+    int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
 
     /// <summary>Damage level (FIT "DmgLevel").</summary>
-    uint32_t dmgLevel = 0; // +0x30
+    uint32_t DmgLevel = 0;
     /// <summary>FIT "SoundEffectId"; 0xFFFFFFFF for none.</summary>
-    uint32_t soundEffectId = 0; // +0x34
+    uint32_t SoundEffectId = 0;
     /// <summary>Object type of the fire's light (FIT "LightObjectId"); -1 for none.</summary>
-    uint32_t lightObjectId = 0; // +0x38
+    uint32_t LightObjectId = 0;
     /// <summary>First frame of the looped part of the animation (FIT "startLoopFrame").</summary>
-    uint32_t startLoopFrame = 0; // +0x3c
+    uint32_t StartLoopFrame = 0;
     /// <summary>Last frame of the looped part (FIT "endLoopFrame").</summary>
-    uint32_t endLoopFrame = 0; // +0x40
+    uint32_t EndLoopFrame = 0;
     /// <summary>How many times each shape loops (FIT "numLoops"); the start of each shape's loop count.</summary>
-    uint32_t numLoops = 0; // +0x44
+    uint32_t NumLoops = 0;
     /// <summary>The fire's extent radius once it burns out and turns on collision (FIT "maxExtentRadius", default 0).</summary>
-    float maxExtentRadius = 0; // +0x48
+    float MaxExtentRadius = 0;
     /// <summary>FIT "TimeToMaxExtent" (default 0); not used by fire.cpp.</summary>
-    float timeToMaxExtent = 0; // +0x4c
+    float TimeToMaxExtent = 0;
     /// <summary>How many flame shapes make up the fire (FIT "TotalFireShapes", default 1): the arrays' length.</summary>
-    int32_t totalFireShapes = 0; // +0x50
+    int32_t TotalFireShapes = 0;
     /// <summary>Per shape: X offset from the fire's position (FIT "FireOffsetX%d").</summary>
-    std::unique_ptr<float[]> fireOffsetX; // +0x54
+    std::unique_ptr<float[]> FireOffsetX;
     /// <summary>Per shape: Y offset (FIT "FireOffsetY%d").</summary>
-    std::unique_ptr<float[]> fireOffsetY; // +0x58
+    std::unique_ptr<float[]> FireOffsetY;
     /// <summary>Per shape: seconds before it starts (FIT "FireDelay%d").</summary>
-    std::unique_ptr<float[]> fireDelay; // +0x5c
+    std::unique_ptr<float[]> FireDelay;
     /// <summary>Per shape: random spread of the X offset (FIT "FireRandomOffsetX%d").</summary>
-    std::unique_ptr<int32_t[]> fireRandomOffsetX; // +0x60
+    std::unique_ptr<int32_t[]> FireRandomOffsetX;
     /// <summary>Per shape: random spread of the Y offset (FIT "FireRandomOffsetY%d").</summary>
-    std::unique_ptr<int32_t[]> fireRandomOffsetY; // +0x64
+    std::unique_ptr<int32_t[]> FireRandomOffsetY;
     /// <summary>Per shape: random extra delay (FIT "FireRandomDelay%d").</summary>
-    std::unique_ptr<int32_t[]> fireRandomDelay; // +0x68
+    std::unique_ptr<int32_t[]> FireRandomDelay;
 };
 
 /// <summary>
@@ -81,106 +74,91 @@ public:
 /// that was burning. At most maxFiresBurning fires exist; starting another finishes the oldest.
 /// </summary>
 /// <remarks>Original source: <c>object\fire.cpp</c>, <c>object\fire.h</c>; 0xb4 bytes.</remarks>
-class Fire : public BigGameObject
+class MCFire : public MCBigGameObject
 {
 public:
-    Fire() { init(); }
-    /// <remarks>MCX.EXE @ 0x006605f0 (vector deleting destructor)</remarks>
-    ~Fire() override { destroy(); }
+    MCFire() { Init(); }
+    ~MCFire() override { Destroy(); }
 
     /// <summary>Zeroes every field.</summary>
-    /// <remarks>MCX.EXE @ 0x00660560 (inline in <c>object\fire.h</c>)</remarks>
-    void init() override;
+    void Init() override;
     /// <summary>
     /// Allocates the per-shape arrays, makes each shape's VFX appearance with its randomised offset, delay and burn
     /// time, takes a slot in maxFiresList (finishing the fire that had it) and creates the light.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00661880</remarks>
-    int32_t init(ObjectType* objType) override;
+    int32_t Init(MCObjectType* objType) override;
     /// <summary>Destroys the appearances and light and frees the per-shape arrays.</summary>
-    /// <remarks>MCX.EXE @ 0x006617a0</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x006605b0</remarks>
-    int32_t kill() override { return 0; }
+    void Destroy() override;
+    int32_t Kill() override { return 0; }
     /// <summary>
     /// On the first update moves the fire to the end of the object list; counts down the shapes' delays and burn
     /// times; once burnt out and every shape finished, damages or releases the burning object and leaves maxFiresList.
     /// </summary>
     /// <returns>1 while burning, 0 when the fire is done.</returns>
-    /// <remarks>MCX.EXE @ 0x00661120</remarks>
-    int32_t update() override;
+    int32_t Update() override;
     /// <summary>
     /// Draws the visible shapes, stepping their loops; a fire the player can't see but has a contact on is drawn as
     /// a sensor blip (sized by getTonnage) instead.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006613a0</remarks>
-    void render() override;
+    void Render() override;
     /// <summary>Checks the static objects of the 3x3 terrain blocks around the fire for collisions.</summary>
-    /// <remarks>MCX.EXE @ 0x00660c50</remarks>
-    void handleStaticCollision() override;
-    /// <remarks>MCX.EXE @ 0x006605d0</remarks>
-    float getExtentRadius() override { return extentRadius; }
-    /// <remarks>MCX.EXE @ 0x006605e0</remarks>
-    void setExtentRadius(float newRadius) override { extentRadius = newRadius; }
+    void HandleStaticCollision() override;
+    float GetExtentRadius() override { return ExtentRadius; }
+    void SetExtentRadius(float newRadius) override { ExtentRadius = newRadius; }
     /// <summary>Whether any of the four map cells at the fire is visible to the home team.</summary>
-    /// <remarks>MCX.EXE @ 0x00661050</remarks>
-    int isRevealed() override;
+    int IsRevealed() override;
 
     /// <summary>The first shape's appearance.</summary>
-    /// <remarks>MCX.EXE @ 0x006605c0</remarks>
-    virtual Appearance* getAppearancePtr() { return appearances[0]; }
+    virtual MCAppearance* GetAppearancePtr() { return Appearances[0]; }
 
     /// <summary>
     /// Projects shape <paramref name="shapeIndex"/> to the screen; true when it is visible to the main camera (always
     /// true in multiplayer).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00660e90</remarks>
-    int isVisible(int32_t shapeIndex);
+    int IsVisible(int32_t shapeIndex);
     /// <summary>Burns the fire out at once: every shape to its end state, no delays or burn time left.</summary>
-    /// <remarks>MCX.EXE @ 0x00660fb0</remarks>
-    void finishFireNow();
+    void FinishFireNow();
     /// <summary>Adds <paramref name="extraTime"/> to each shape's burn time, unless that would pass maxFireBurnTime.</summary>
-    /// <remarks>MCX.EXE @ 0x00661010</remarks>
-    void addTimeLeftToBurn(float extraTime);
+    void AddTimeLeftToBurn(float extraTime);
 
     /// <summary>Per shape: its VFX appearance (totalFireShapes entries).</summary>
-    std::unique_ptr<Appearance*[]> appearances; // +0x84
+    std::unique_ptr<MCAppearance*[]> Appearances;
     /// <summary>The appearance class (top byte of the appearance type's id); must be 2 (VFX).</summary>
-    uint32_t appearanceClass = 0; // +0x88
+    uint32_t AppearanceClass = 0;
     /// <summary>Set by init; the first update clears it and moves the fire to the end of the object list.</summary>
-    int32_t justCreated = 0; // +0x8c
+    int32_t JustCreated = 0;
     /// <summary>
     /// Per shape: loops left (from the type's numLoops); 999 while burn time remains, 2 for the end sequence, 0 once
     /// finished.
     /// </summary>
-    std::unique_ptr<int32_t[]> loopsLeft; // +0x90
+    std::unique_ptr<int32_t[]> LoopsLeft;
     /// <summary>Per shape: seconds of burning left (starts at maxFireBurnTime).</summary>
-    std::unique_ptr<float[]> timeLeftToBurn; // +0x94
+    std::unique_ptr<float[]> TimeLeftToBurn;
     /// <summary>The fire's extent radius (0 until it burns out, then the type's maxExtentRadius).</summary>
-    float extentRadius = 0; // +0x98
+    float ExtentRadius = 0;
     /// <summary>Set once the fire is burning out: collision is on and it ends when every shape is finished.</summary>
-    int32_t burningOut = 0; // +0x9c
+    int32_t BurningOut = 0;
     /// <summary>
     /// The object that is burning (set by the objects' lightOnFire, not in fire.cpp); when the fire ends it is
     /// damaged (a class 0x18 object in state 6) and released (its vtable slot 25, killFireObject).
     /// </summary>
-    GameObject* burningObject = nullptr; // +0xa0
+    MCGameObject* BurningObject = nullptr;
     /// <summary>Per shape: its offset from the fire's position.</summary>
-    std::unique_ptr<vector_3d[]> shapeOffsets; // +0xa4
+    std::unique_ptr<MCVector3D[]> ShapeOffsets;
     /// <summary>Per shape: seconds before it starts.</summary>
-    std::unique_ptr<float[]> startDelays; // +0xa8
+    std::unique_ptr<float[]> StartDelays;
     /// <summary>The fire's light, kept at its position.</summary>
-    GameObject* light = nullptr; // +0xac
+    MCGameObject* Light = nullptr;
     /// <summary>The turn a shape was last visible on screen; shapes are drawn only on that turn.</summary>
-    int32_t lastVisibleTurn = 0; // +0xb0
+    int32_t LastVisibleTurn = 0;
 
     /// <summary>The fires burning, maxFiresBurning entries (made by the first fire).</summary>
-    static std::unique_ptr<Fire*[]> maxFiresList;
+    static std::unique_ptr<MCFire*[]> MaxFiresList;
 };
 
 /// <summary>The longest a fire's shape can burn, in seconds.</summary>
-extern float maxFireBurnTime;
+extern float MaxFireBurnTime;
 /// <summary>The most fires that can burn at once: the length of Fire::maxFiresList.</summary>
-extern int32_t maxFiresBurning;
+extern int32_t MaxFiresBurning;
 /// <summary>The slot of Fire::maxFiresList the newest fire took.</summary>
-extern int32_t currentFireIndex;
+extern int32_t CurrentFireIndex;

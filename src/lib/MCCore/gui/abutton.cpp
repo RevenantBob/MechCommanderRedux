@@ -7,22 +7,22 @@
 namespace
 {
     /// <summary>Destroys and deletes a picture (destroy through the vtable first: aPort has no virtual destructor).</summary>
-    void freePicture(aPort*& picture)
+    void FreePicture(MCGuiPort*& picture)
     {
         if (picture != nullptr)
         {
-            picture->destroy();
+            picture->Destroy();
             delete picture;
             picture = nullptr;
         }
     }
 
     /// <summary>Destroys and deletes a callback.</summary>
-    void freeCallback(aCallback*& callback)
+    void FreeCallback(MCGuiCallback*& callback)
     {
         if (callback != nullptr)
         {
-            callback->destroy();
+            callback->Destroy();
             delete callback;
             callback = nullptr;
         }
@@ -33,18 +33,19 @@ namespace
     /// packet). With <paramref name="sizeButton"/> the button takes the picture's size and loses its back colour
     /// (0xff); a picture that fails to load is dropped.
     /// </summary>
-    template <typename Source> void loadPicture(aButton* button, aPort*& picture, Source source, bool sizeButton)
+    template <typename Source>
+    void LoadPicture(MCGuiButton* button, MCGuiPort*& picture, Source source, bool sizeButton)
     {
-        freePicture(picture);
-        aPort* port = new aPort;
+        FreePicture(picture);
+        MCGuiPort* port = new MCGuiPort;
         picture = port;
 
-        if (port->init(source) == 0)
+        if (port->Init(source) == 0)
         {
             if (sizeButton)
             {
-                button->backgroundColor = 0xff;
-                button->resize(port->width(), port->height());
+                button->BackgroundColor = 0xff;
+                button->Resize(port->Width(), port->Height());
             }
 
             return;
@@ -58,18 +59,18 @@ namespace
     /// Whether a mouse event lies on <paramref name="button"/> (its rectangle in its parent's coordinates). (The
     /// original also redrew the button for a left-button release; the button draws itself each frame.)
     /// </summary>
-    bool eventOnButton(aButton* button, aEvent* event)
+    bool EventOnButton(MCGuiButton* button, MCGuiEvent* event)
     {
         RECT rect;
-        rect.left = button->x();
-        rect.top = button->y();
-        rect.right = button->x() + button->width();
-        rect.bottom = button->y() + button->height();
-        aObject* parent = button->parent;
-        const int32_t parentX = parent->globalX();
-        const int32_t eventX = event->x;
-        const int32_t parentY = parent->globalY();
-        const int32_t eventY = event->y;
+        rect.left = button->X();
+        rect.top = button->Y();
+        rect.right = button->X() + button->Width();
+        rect.bottom = button->Y() + button->Height();
+        MCGuiObject* parent = button->Parent;
+        const int32_t parentX = parent->GlobalX();
+        const int32_t eventX = event->X;
+        const int32_t parentY = parent->GlobalY();
+        const int32_t eventY = event->Y;
         POINT point;
         point.x = eventX - parentX;
         point.y = eventY - parentY;
@@ -79,362 +80,362 @@ namespace
 
 // aButton
 
-auto aButton::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    int32_t result = aObject::init(xPos, yPos, width, height, name);
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    upPicture = nullptr;
-    downPicture = nullptr;
-    grayPicture = nullptr;
-    leftCallback = new aCallback;
-    rightButtonCallback = new aCallback;
-    disabled = 0;
-    framed = -1;
-    backgroundColor = 0;
-    VFX_pane_wipe(displayPort->frame(), 0);
+    UpPicture = nullptr;
+    DownPicture = nullptr;
+    GrayPicture = nullptr;
+    LeftCallback = new MCGuiCallback;
+    RightButtonCallback = new MCGuiCallback;
+    Disabled = 0;
+    Framed = -1;
+    BackgroundColor = 0;
+    VfxPaneWipe(DisplayPort->Frame(), 0);
     return 0;
 }
 
-auto aButton::destroy() -> void
+auto MCGuiButton::Destroy() -> void
 {
-    freePicture(upPicture);
-    freePicture(downPicture);
-    freePicture(grayPicture);
-    freeCallback(leftCallback);
-    freeCallback(rightButtonCallback);
-    aObject::destroy();
+    FreePicture(UpPicture);
+    FreePicture(DownPicture);
+    FreePicture(GrayPicture);
+    FreeCallback(LeftCallback);
+    FreeCallback(RightButtonCallback);
+    MCGuiObject::Destroy();
 }
 
-auto aButton::setUpPicture(char* fileName) -> void
+auto MCGuiButton::SetUpPicture(char* fileName) -> void
 {
-    loadPicture(this, upPicture, fileName, true);
+    LoadPicture(this, UpPicture, fileName, true);
 }
 
-auto aButton::setGrayPicture(char* fileName) -> void
+auto MCGuiButton::SetGrayPicture(char* fileName) -> void
 {
-    loadPicture(this, grayPicture, fileName, true);
+    LoadPicture(this, GrayPicture, fileName, true);
 }
 
-auto aButton::setDownPicture(char* fileName) -> void
+auto MCGuiButton::SetDownPicture(char* fileName) -> void
 {
-    loadPicture(this, downPicture, fileName, false);
+    LoadPicture(this, DownPicture, fileName, false);
 }
 
-auto aButton::setUpPicture(int32_t artPacket) -> void
+auto MCGuiButton::SetUpPicture(int32_t artPacket) -> void
 {
-    loadPicture(this, upPicture, artPacket, true);
+    LoadPicture(this, UpPicture, artPacket, true);
 }
 
-auto aButton::setGrayPicture(int32_t artPacket) -> void
+auto MCGuiButton::SetGrayPicture(int32_t artPacket) -> void
 {
-    loadPicture(this, grayPicture, artPacket, true);
+    LoadPicture(this, GrayPicture, artPacket, true);
 }
 
-auto aButton::setDownPicture(int32_t artPacket) -> void
+auto MCGuiButton::SetDownPicture(int32_t artPacket) -> void
 {
-    loadPicture(this, downPicture, artPacket, false);
+    LoadPicture(this, DownPicture, artPacket, false);
 }
 
-auto aButton::handleEvent(aEvent* event) -> void
+auto MCGuiButton::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (disabled != 0)
+    if (Disabled != 0)
     {
         return;
     }
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            application->grab(this);
+            Application->Grab(this);
             break;
         }
         case 3:
-            application->grab(this);
+            Application->Grab(this);
             break;
         case 4:
         {
-            if (application->grabbedObject() == this)
+            if (Application->GrabbedObject() == this)
             {
-                application->release();
+                Application->Release();
 
-                if (eventOnButton(this, event))
+                if (EventOnButton(this, event))
                 {
-                    leftCallback->execute();
+                    LeftCallback->Execute();
                 }
             }
             break;
         }
         case 6:
         {
-            if (application->grabbedObject() == this)
+            if (Application->GrabbedObject() == this)
             {
-                application->release();
+                Application->Release();
 
-                if (eventOnButton(this, event))
+                if (EventOnButton(this, event))
                 {
-                    rightButtonCallback->execute();
+                    RightButtonCallback->Execute();
                 }
             }
             break;
         }
     }
 
-    if (eventRoutine != nullptr)
+    if (EventRoutine != nullptr)
     {
-        eventRoutine(this, event);
+        EventRoutine(this, event);
     }
 }
 
-auto aButton::draw() -> void
+auto MCGuiButton::Draw() -> void
 {
-    aPort* picture;
+    MCGuiPort* picture;
 
-    if (disabled != 0)
+    if (Disabled != 0)
     {
-        if (framed != 0)
+        if (Framed != 0)
         {
-            drawFramed(0, -1);
+            DrawFramed(0, -1);
         }
 
-        picture = grayPicture;
+        picture = GrayPicture;
     }
-    else if (application->grabbedObject() == this)
+    else if (Application->GrabbedObject() == this)
     {
-        if (framed != 0)
+        if (Framed != 0)
         {
-            drawFramed(-1, -1);
+            DrawFramed(-1, -1);
         }
 
-        picture = downPicture;
+        picture = DownPicture;
     }
     else
     {
-        if (framed != 0)
+        if (Framed != 0)
         {
-            drawFramed(0, -1);
+            DrawFramed(0, -1);
         }
 
-        picture = upPicture;
+        picture = UpPicture;
     }
 
     // The frame is drawn first, so an opaque picture covers it.
     if (picture != nullptr)
     {
-        picture->copyTo(displayPort->frame(), 0, 0, 0);
-        aObject::draw();
+        picture->CopyTo(DisplayPort->Frame(), 0, 0, 0);
+        MCGuiObject::Draw();
         return;
     }
 
-    VFX_pane_wipe(displayPort->frame(), backgroundColor);
-    aObject::draw();
+    VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
+    MCGuiObject::Draw();
 }
 
 // aCloseButton
 
-auto aCloseButton::handleEvent(aEvent* event) -> void
+auto MCGuiCloseButton::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (disabled != 0)
+    if (Disabled != 0)
     {
         return;
     }
 
-    if (event->type == 4 && application->grabbedObject() == this)
+    if (event->Type == 4 && Application->GrabbedObject() == this)
     {
-        application->release();
+        Application->Release();
 
-        if (eventOnButton(this, event))
+        if (EventOnButton(this, event))
         {
             // The window is closing: the event routine isn't run.
-            leftCallback->execute();
+            LeftCallback->Execute();
             return;
         }
     }
 
-    const int32_t type = event->type;
+    const int32_t type = event->Type;
 
     if (type == 1)
     {
-        application->grab(this);
+        Application->Grab(this);
     }
     else if (type == 3)
     {
-        application->grab(this);
+        Application->Grab(this);
     }
-    else if (type == 6 && application->grabbedObject() == this)
+    else if (type == 6 && Application->GrabbedObject() == this)
     {
-        application->release();
+        Application->Release();
 
-        if (eventOnButton(this, event))
+        if (EventOnButton(this, event))
         {
-            rightButtonCallback->execute();
+            RightButtonCallback->Execute();
         }
     }
 
-    if (eventRoutine != nullptr)
+    if (EventRoutine != nullptr)
     {
-        eventRoutine(this, event);
+        EventRoutine(this, event);
     }
 }
 
 // aToolButton
 
-auto aToolButton::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiToolButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    pushed = 0;
-    return aButton::init(xPos, yPos, width, height, name);
+    Pushed = 0;
+    return MCGuiButton::Init(xPos, yPos, width, height, name);
 }
 
-auto aToolButton::handleEvent(aEvent* event) -> void
+auto MCGuiToolButton::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 1 && disabled == 0)
+    if (event->Type == 1 && Disabled == 0)
     {
-        pushed = pushed == 0 ? 1 : 0;
-        leftCallback->execute();
-        aObject::handleEvent(event);
+        Pushed = Pushed == 0 ? 1 : 0;
+        LeftCallback->Execute();
+        MCGuiObject::HandleEvent(event);
         return;
     }
 
-    aButton::handleEvent(event);
+    MCGuiButton::HandleEvent(event);
 }
 
-auto aToolButton::draw() -> void
+auto MCGuiToolButton::Draw() -> void
 {
-    if (disabled != 0)
+    if (Disabled != 0)
     {
-        if (framed != 0)
+        if (Framed != 0)
         {
-            drawFramed(0, -1);
+            DrawFramed(0, -1);
         }
 
-        if (grayPicture != nullptr)
+        if (GrayPicture != nullptr)
         {
-            grayPicture->copyTo(displayPort->frame(), 0, 0, -1);
-            aObject::draw();
+            GrayPicture->CopyTo(DisplayPort->Frame(), 0, 0, -1);
+            MCGuiObject::Draw();
             return;
         }
 
-        VFX_pane_wipe(displayPort->frame(), backgroundColor);
-        aObject::draw();
+        VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
+        MCGuiObject::Draw();
         return;
     }
 
     // Pictures are drawn transparently, then the frame over them (unfilled).
-    if (pushed != 0)
+    if (Pushed != 0)
     {
-        if (downPicture != nullptr)
+        if (DownPicture != nullptr)
         {
-            downPicture->copyTo(displayPort->frame(), 0, 0, -1);
+            DownPicture->CopyTo(DisplayPort->Frame(), 0, 0, -1);
 
-            if (framed != 0)
+            if (Framed != 0)
             {
-                drawFramed(-1, 0);
+                DrawFramed(-1, 0);
             }
         }
-        else if (framed != 0)
+        else if (Framed != 0)
         {
-            drawFramed(-1, -1);
+            DrawFramed(-1, -1);
         }
     }
     else
     {
-        if (upPicture != nullptr)
+        if (UpPicture != nullptr)
         {
-            upPicture->copyTo(displayPort->frame(), 0, 0, -1);
+            UpPicture->CopyTo(DisplayPort->Frame(), 0, 0, -1);
 
-            if (framed != 0)
+            if (Framed != 0)
             {
-                drawFramed(0, 0);
+                DrawFramed(0, 0);
             }
         }
-        else if (framed != 0)
+        else if (Framed != 0)
         {
-            drawFramed(0, -1);
+            DrawFramed(0, -1);
         }
     }
 
-    aObject::draw();
+    MCGuiObject::Draw();
 }
 
 // aSpinnerButton
 
-auto aSpinnerButton::handleEvent(aEvent* event) -> void
+auto MCGuiSpinnerButton::HandleEvent(MCGuiEvent* event) -> void
 {
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            pushed = -1;
-            application->grab(this);
-            application->AddTimer(this, 1, 1000, 0, 0, 0);
-            leftCallback->execute();
+            Pushed = -1;
+            Application->Grab(this);
+            Application->AddTimer(this, 1, 1000, 0, 0, 0);
+            LeftCallback->Execute();
             break;
         }
         case 4:
         {
-            pushed = 0;
-            application->release();
-            application->RemoveTimer(this, 1);
-            application->RemoveTimer(this, 2);
+            Pushed = 0;
+            Application->Release();
+            Application->RemoveTimer(this, 1);
+            Application->RemoveTimer(this, 2);
             break;
         }
         case 0x13:
         {
             // Timer 1 (the first second held) hands over to the repeating timer 2.
-            const int32_t timer = event->data;
+            const int32_t timer = event->Data;
 
             if (timer == 1)
             {
-                application->RemoveTimer(this, 1);
-                application->AddTimer(this, 2, 0xfa, 0, 0, 0);
+                Application->RemoveTimer(this, 1);
+                Application->AddTimer(this, 2, 0xfa, 0, 0, 0);
             }
 
             if (timer == 2)
             {
-                leftCallback->execute();
+                LeftCallback->Execute();
             }
             break;
         }
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto aSpinnerButton::draw() -> void
+auto MCGuiSpinnerButton::Draw() -> void
 {
-    if (pushed != 0)
+    if (Pushed != 0)
     {
-        if (downPicture != nullptr)
+        if (DownPicture != nullptr)
         {
-            downPicture->copyTo(displayPort->frame(), 0, 0, -1);
+            DownPicture->CopyTo(DisplayPort->Frame(), 0, 0, -1);
         }
     }
-    else if (upPicture != nullptr)
+    else if (UpPicture != nullptr)
     {
-        upPicture->copyTo(displayPort->frame(), 0, 0, -1);
+        UpPicture->CopyTo(DisplayPort->Frame(), 0, 0, -1);
     }
 
-    aObject::draw();
+    MCGuiObject::Draw();
 }
 
 // aSpinner
 
-auto aSpinner::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiSpinner::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
     (void)name;
-    aObject* owner = parent;
+    MCGuiObject* owner = Parent;
 
     if (owner == nullptr)
     {
         Fatal(0, "Hey Scott! You have to set the parent before the init! Remember?");
     }
 
-    int32_t result = aObject::init(xPos, yPos, width, height, nullptr);
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, nullptr);
 
     if (result != 0)
     {
@@ -442,68 +443,68 @@ auto aSpinner::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, c
     }
 
     // aObject::init clears the parent; put it back.
-    setParent(owner);
+    SetParent(owner);
 
-    auto* up = new aSpinnerButton;
-    upButton = up;
+    auto* up = new MCGuiSpinnerButton;
+    UpButton = up;
 
     if (up == nullptr)
     {
         return 3;
     }
 
-    result = up->init(1, 1, 10, 10, nullptr);
+    result = up->Init(1, 1, 10, 10, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    auto* down = new aSpinnerButton;
-    downButton = down;
+    auto* down = new MCGuiSpinnerButton;
+    DownButton = down;
 
     if (down == nullptr)
     {
         return 3;
     }
 
-    result = down->init(1, 1, 10, 10, nullptr);
+    result = down->Init(1, 1, 10, 10, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    up->setUpPicture(0xc);
-    up->setDownPicture(0xd);
-    down->setUpPicture(0x25);
-    down->setDownPicture(0x26);
-    const int32_t newWidth = down->width() < up->width() ? up->width() : down->width();
-    resize(newWidth, up->height() + down->height());
-    addChild(upButton);
-    addChild(downButton);
-    upButton->moveTo(0, 0, 0);
-    downButton->moveTo(0, upButton->height(), 0);
-    upButton->callback()->setMessage(parent, 0x15);
-    downButton->callback()->setMessage(parent, 0x16);
+    up->SetUpPicture(0xc);
+    up->SetDownPicture(0xd);
+    down->SetUpPicture(0x25);
+    down->SetDownPicture(0x26);
+    const int32_t newWidth = down->Width() < up->Width() ? up->Width() : down->Width();
+    Resize(newWidth, up->Height() + down->Height());
+    AddChild(UpButton);
+    AddChild(DownButton);
+    UpButton->MoveTo(0, 0, 0);
+    DownButton->MoveTo(0, UpButton->Height(), 0);
+    UpButton->Callback()->SetMessage(Parent, 0x15);
+    DownButton->Callback()->SetMessage(Parent, 0x16);
     return -1;
 }
 
-auto aSpinner::destroy() -> void
+auto MCGuiSpinner::Destroy() -> void
 {
-    if (upButton != nullptr)
+    if (UpButton != nullptr)
     {
-        upButton->destroy();
-        delete upButton;
-        upButton = nullptr;
+        UpButton->Destroy();
+        delete UpButton;
+        UpButton = nullptr;
     }
 
-    if (downButton != nullptr)
+    if (DownButton != nullptr)
     {
-        downButton->destroy();
-        delete downButton;
-        downButton = nullptr;
+        DownButton->Destroy();
+        delete DownButton;
+        DownButton = nullptr;
     }
 
-    aObject::destroy();
+    MCGuiObject::Destroy();
 }

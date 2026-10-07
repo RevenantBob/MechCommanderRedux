@@ -13,18 +13,18 @@ namespace
     struct TestWindow
     {
         std::vector<uint8_t> Pixels;
-        WINDOW Window{};
-        PANE Pane{};
+        MCWindow Window{};
+        MCPane Pane{};
 
         TestWindow(int32_t width, int32_t height, uint8_t fill = 0) : Pixels(static_cast<size_t>(width * height), fill)
         {
-            Window.buffer = Pixels.data();
-            Window.x_max = width - 1;
-            Window.y_max = height - 1;
-            Pane = PANE{&Window, 0, 0, width - 1, height - 1};
+            Window.Buffer = Pixels.data();
+            Window.XMax = width - 1;
+            Window.YMax = height - 1;
+            Pane = MCPane{&Window, 0, 0, width - 1, height - 1};
         }
 
-        uint8_t& At(int32_t x, int32_t y) { return Pixels[static_cast<size_t>(y * (Window.x_max + 1) + x)]; }
+        uint8_t& At(int32_t x, int32_t y) { return Pixels[static_cast<size_t>(y * (Window.XMax + 1) + x)]; }
     };
 
     void Put32(std::vector<uint8_t>& data, size_t at, int32_t value)
@@ -66,14 +66,14 @@ TEST_CASE("vfx: VFX_shape_scan encodes a pane that VFX_shape_draw reproduces")
         }
     }
 
-    const int32_t size = VFX_shape_scan(&source.Pane, 0, 4, 3, nullptr);
+    const int32_t size = VfxShapeScan(&source.Pane, 0, 4, 3, nullptr);
     REQUIRE(size > 0x18);
     std::vector<uint8_t> shape(static_cast<size_t>(size) + 16, 0xcc);
-    CHECK_EQ(VFX_shape_scan(&source.Pane, 0, 4, 3, shape.data()), size);
+    CHECK_EQ(VfxShapeScan(&source.Pane, 0, 4, 3, shape.data()), size);
 
     // The game's copy matches the asm encoder byte for byte.
     std::vector<uint8_t> shapeAsm(shape.size(), 0xcc);
-    CHECK_EQ(VFX_shape_scan_asm(&source.Pane, 0, 4, 3, shapeAsm.data()), size);
+    CHECK_EQ(VfxShapeScanAsm(&source.Pane, 0, 4, 3, shapeAsm.data()), size);
     CHECK(shape == shapeAsm);
 
     // Header: bounds, origin, and the box of the opaque pixels relative to the hot spot.
@@ -95,23 +95,23 @@ TEST_CASE("vfx: VFX_shape_scan encodes a pane that VFX_shape_draw reproduces")
     std::memcpy(table.data() + 16, shape.data(), static_cast<size_t>(size));
 
     TestWindow target(12, 7, 0);
-    CHECK_EQ(VFX_shape_draw(&target.Pane, table.data(), 0, 4, 3), 0);
+    CHECK_EQ(VfxShapeDraw(&target.Pane, table.data(), 0, 4, 3), 0);
     CHECK(target.Pixels == source.Pixels);
 }
 
 TEST_CASE("vfx: FindClosest searches only indices 10..245 and stops at an exact match")
 {
-    VFX_RGB palette[256] = {};
+    MCVfxRgb palette[256] = {};
 
     for (int i = 0; i < 256; ++i)
     {
-        palette[i] = VFX_RGB{63, 63, 63};
+        palette[i] = MCVfxRgb{63, 63, 63};
     }
 
-    palette[3] = VFX_RGB{10, 20, 30}; // a system colour: never chosen
-    palette[40] = VFX_RGB{10, 20, 30};
-    palette[41] = VFX_RGB{10, 20, 30}; // same colour later: the first wins
-    palette[100] = VFX_RGB{12, 20, 30};
+    palette[3] = MCVfxRgb{10, 20, 30}; // a system colour: never chosen
+    palette[40] = MCVfxRgb{10, 20, 30};
+    palette[41] = MCVfxRgb{10, 20, 30}; // same colour later: the first wins
+    palette[100] = MCVfxRgb{12, 20, 30};
     CHECK_EQ(FindClosest(palette, 10, 20, 30), static_cast<uint8_t>(40));
     CHECK_EQ(FindClosest(palette, 13, 20, 30), static_cast<uint8_t>(100));
     CHECK_EQ(FindClosest(palette, 63, 63, 63), static_cast<uint8_t>(10));
@@ -120,7 +120,7 @@ TEST_CASE("vfx: FindClosest searches only indices 10..245 and stops at an exact 
 TEST_CASE("vfx: AG_ellipse_draw is symmetric and touches its extremes")
 {
     TestWindow w(41, 31);
-    AG_ellipse_draw(&w.Pane, 20, 15, 12, 8, 7);
+    AGEllipseDraw(&w.Pane, 20, 15, 12, 8, 7);
     CHECK_EQ(w.At(32, 15), 7);
     CHECK_EQ(w.At(8, 15), 7);
     CHECK_EQ(w.At(20, 7), 7);
@@ -152,7 +152,7 @@ TEST_CASE("vfx: AG_ellipse_draw is symmetric and touches its extremes")
 TEST_CASE("vfx: AG_ellipse_fill fills rows symmetrically, clipped to the pane")
 {
     TestWindow w(41, 31);
-    AG_ellipse_fill(&w.Pane, 20, 15, 12, 8, 9);
+    AGEllipseFill(&w.Pane, 20, 15, 12, 8, 9);
 
     for (int32_t x = 8; x <= 32; ++x)
     {
@@ -172,8 +172,8 @@ TEST_CASE("vfx: AG_ellipse_fill fills rows symmetrically, clipped to the pane")
 
     // A pane on part of the window: nothing outside it (the centre is relative to its origin).
     TestWindow clipped(41, 31);
-    clipped.Pane = PANE{&clipped.Window, 5, 5, 20, 20};
-    AG_ellipse_fill(&clipped.Pane, 10, 10, 12, 8, 9);
+    clipped.Pane = MCPane{&clipped.Window, 5, 5, 20, 20};
+    AGEllipseFill(&clipped.Pane, 10, 10, 12, 8, 9);
 
     for (int32_t y = 0; y < 31; ++y)
     {
@@ -190,7 +190,7 @@ TEST_CASE("vfx: AG_ellipse_fill fills rows symmetrically, clipped to the pane")
 
     // A zero radius draws a line.
     TestWindow line(20, 20);
-    AG_ellipse_draw(&line.Pane, 10, 10, 0, 3, 5);
+    AGEllipseDraw(&line.Pane, 10, 10, 0, 3, 5);
 
     for (int32_t y = 7; y <= 13; ++y)
     {
@@ -209,7 +209,7 @@ TEST_CASE("vfx: AG_ellipse_draw blends a special colour through AlphaTable")
     }
 
     TestWindow w(41, 31, 50);
-    AG_ellipse_draw(&w.Pane, 20, 15, 12, 8, 0x40);
+    AGEllipseDraw(&w.Pane, 20, 15, 12, 8, 0x40);
     // Every point blends once, the ones on the axes too (MCX.EXE plotted those twice, OB-122).
     CHECK_EQ(w.At(32, 15), 51);
     CHECK_EQ(w.At(20, 23), 51);
@@ -229,7 +229,7 @@ TEST_CASE("vfx: AG_StatusBar darkens the frame and blends the bar")
     }
 
     TestWindow w(30, 12, 10);
-    AG_StatusBar(&w.Pane, 5, 2, 20, 8, 0x110, 6);
+    AGStatusBar(&w.Pane, 5, 2, 20, 8, 0x110, 6);
     // Top and bottom rows: between the corners only.
     CHECK_EQ(w.At(5, 2), 10);
 
@@ -260,13 +260,13 @@ TEST_CASE("vfx: AG_StatusBar darkens the frame and blends the bar")
 TEST_CASE("vfx: AG_pixel_write writes inside the pane, its edges included")
 {
     TestWindow w(10, 10);
-    w.Pane = PANE{&w.Window, 2, 2, 7, 7};
-    AG_pixel_write(&w.Pane, 0, 0, 5);
-    AG_pixel_write(&w.Pane, 1, 1, 6);
-    AG_pixel_write(&w.Pane, 5, 3, 0x107);
-    AG_pixel_write(&w.Pane, 4, 4, 8);
-    AG_pixel_write(&w.Pane, 6, 0, 9);
-    AG_pixel_write(&w.Pane, -1, 2, 4);
+    w.Pane = MCPane{&w.Window, 2, 2, 7, 7};
+    AGPixelWrite(&w.Pane, 0, 0, 5);
+    AGPixelWrite(&w.Pane, 1, 1, 6);
+    AGPixelWrite(&w.Pane, 5, 3, 0x107);
+    AGPixelWrite(&w.Pane, 4, 4, 8);
+    AGPixelWrite(&w.Pane, 6, 0, 9);
+    AGPixelWrite(&w.Pane, -1, 2, 4);
     CHECK_EQ(w.At(2, 2), 5);
     CHECK_EQ(w.At(3, 3), 6);
     CHECK_EQ(w.At(7, 5), 7);
@@ -276,9 +276,9 @@ TEST_CASE("vfx: AG_pixel_write writes inside the pane, its edges included")
 
     // A pane reaching past the window: clipped to it.
     TestWindow edge(10, 10);
-    edge.Pane = PANE{&edge.Window, 5, 5, 20, 20};
-    AG_pixel_write(&edge.Pane, 4, 4, 3);
-    AG_pixel_write(&edge.Pane, 5, 4, 3);
+    edge.Pane = MCPane{&edge.Window, 5, 5, 20, 20};
+    AGPixelWrite(&edge.Pane, 4, 4, 3);
+    AGPixelWrite(&edge.Pane, 5, 4, 3);
     CHECK_EQ(edge.At(9, 9), 3);
 
     for (int32_t x = 0; x < 10; ++x)
@@ -348,7 +348,7 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
                                       {0x86, 7, 8, 9, 10, 11, 12},
                                   });
     TestWindow w(12, 8, 0x55);
-    CHECK_EQ(fastShapeDraw(&w.Pane, table.data(), 0, 3, 2, nullptr, 0), 0);
+    CHECK_EQ(FastShapeDraw(&w.Pane, table.data(), 0, 3, 2, nullptr, 0), 0);
     // Each row from its own offset (MCX.EXE drew the first row's data twice and dropped the last row, OB-117).
     const uint8_t row0[] = {1, 2, 0x55, 0x55, 3, 3};
     const uint8_t row1[] = {4, 5, 0x55, 0x55, 6, 6};
@@ -375,15 +375,15 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
 
     xlat[2] = 0xff;
     TestWindow t(12, 8, 0x55);
-    fastShapeDraw(&t.Pane, table.data(), 0, 3, 2, xlat, 0);
+    FastShapeDraw(&t.Pane, table.data(), 0, 3, 2, xlat, 0);
     CHECK_EQ(t.At(3, 2), 101);
     CHECK_EQ(t.At(4, 2), 0x55);
     CHECK_EQ(t.At(7, 2), 103);
 
     // Clipped on the right: the rows stop at the pane's edge.
     TestWindow c(12, 8, 0x55);
-    c.Pane.x1 = 5;
-    fastShapeDraw(&c.Pane, table.data(), 0, 3, 2, nullptr, 0);
+    c.Pane.X1 = 5;
+    FastShapeDraw(&c.Pane, table.data(), 0, 3, 2, nullptr, 0);
     CHECK_EQ(c.At(3, 2), 1);
     CHECK_EQ(c.At(4, 2), 2);
     CHECK_EQ(c.At(6, 2), 0x55);
@@ -391,8 +391,8 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
 
     // Clipped on the left: the packet crossing the edge starts at the pane's left.
     TestWindow l(12, 8, 0x55);
-    l.Pane.x0 = 2;
-    fastShapeDraw(&l.Pane, table.data(), 0, -1, 0, nullptr, 0);
+    l.Pane.X0 = 2;
+    FastShapeDraw(&l.Pane, table.data(), 0, -1, 0, nullptr, 0);
     // sx = 2 + -1 = 1: pixels 1..6; 1 is clipped. Rows land at y = 0..2.
     const uint8_t clipped0[] = {0x55, 2, 0x55, 0x55, 3, 3, 0x55};
     const uint8_t clipped1[] = {0x55, 5, 0x55, 0x55, 6, 6, 0x55};
@@ -411,8 +411,8 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
     // 255 stays transparent (MCX.EXE drew that packet one pixel to the right, 255 included, OB-118). The run of
     // colour 255 translates to 99, so it is drawn.
     TestWindow lx(12, 8, 0x55);
-    lx.Pane.x0 = 2;
-    fastShapeDraw(&lx.Pane, table.data(), 0, -1, 0, xlat, 0);
+    lx.Pane.X0 = 2;
+    FastShapeDraw(&lx.Pane, table.data(), 0, -1, 0, xlat, 0);
     const uint8_t clippedX[] = {0x55, 0x55, 99, 99, 103, 103, 0x55};
     const uint8_t clippedX2[] = {0x55, 108, 109, 110, 111, 112, 0x55};
 
@@ -424,7 +424,7 @@ TEST_CASE("vfx: fastShapeDraw decodes runs, literals and transparency")
 
     // A shape starting on the pane's last column or row still shows that column or row.
     TestWindow e(12, 8, 0x55);
-    fastShapeDraw(&e.Pane, table.data(), 0, 11, 7, nullptr, 0);
+    FastShapeDraw(&e.Pane, table.data(), 0, 11, 7, nullptr, 0);
     CHECK_EQ(e.At(11, 7), 1);
 }
 
@@ -438,12 +438,12 @@ TEST_CASE("game: InitAlphaLookup builds the tables from AlphaPal.ini")
     MCTestGame::OpenFastFiles();
     AlphaGuard guard;
 
-    File paletteFile;
-    REQUIRE_EQ(paletteFile.open("data\\palette\\HB.PAL"), 0);
-    std::vector<uint8_t> pal(paletteFile.getLength());
-    paletteFile.read(pal.data(), static_cast<int32_t>(pal.size()));
+    MCFile paletteFile;
+    REQUIRE_EQ(paletteFile.Open("data\\palette\\HB.PAL"), 0);
+    std::vector<uint8_t> pal(paletteFile.GetLength());
+    paletteFile.Read(pal.data(), static_cast<int32_t>(pal.size()));
     REQUIRE(pal.size() >= 4 + 768);
-    VFX_RGB palette[256];
+    MCVfxRgb palette[256];
     std::memcpy(palette, pal.data() + 4, 768);
 
     InitAlphaLookup(palette);

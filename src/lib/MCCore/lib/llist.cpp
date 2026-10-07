@@ -1,151 +1,151 @@
 #include "stdafx.h"
 #include "lib/llist.h"
 
-void LinkedList::AddToHead(Link* link)
+void MCLinkedList::AddToHead(MCLink* link)
 {
     if (link == nullptr)
     {
         return;
     }
 
-    Link* oldHead = head;
-    head = link;
-    link->next = oldHead;
+    MCLink* oldHead = _Head;
+    _Head = link;
+    link->Next = oldHead;
 
-    if (tail == nullptr)
+    if (_Tail == nullptr)
     {
-        tail = link;
+        _Tail = link;
     }
 }
 
-void LinkedList::AddToTail(Link* link)
+void MCLinkedList::AddToTail(MCLink* link)
 {
     if (link == nullptr)
     {
         return;
     }
 
-    if (tail != nullptr)
+    if (_Tail != nullptr)
     {
-        tail->next = link;
-        tail = link;
+        _Tail->Next = link;
+        _Tail = link;
         return;
     }
 
-    head = link;
-    tail = link;
+    _Head = link;
+    _Tail = link;
 }
 
-void LinkedList::Destroy(Link* link, Link* previous)
+void MCLinkedList::Destroy(MCLink* link, MCLink* previous)
 {
     Remove(link, previous);
     delete link;
 }
 
-void LinkedList::InsertAfter(Link* after, Link* newLink)
+void MCLinkedList::InsertAfter(MCLink* after, MCLink* newLink)
 {
     if (after == nullptr || newLink == nullptr)
     {
         return;
     }
 
-    if (after != tail)
+    if (after != _Tail)
     {
-        newLink->next = after->next;
-        after->next = newLink;
+        newLink->Next = after->Next;
+        after->Next = newLink;
         return;
     }
 
-    tail = newLink;
-    newLink->next = nullptr;
-    after->next = newLink;
+    _Tail = newLink;
+    newLink->Next = nullptr;
+    after->Next = newLink;
 }
 
-void LinkedList::Remove(Link* link, Link* previous)
+void MCLinkedList::Remove(MCLink* link, MCLink* previous)
 {
     if (previous == nullptr)
     {
-        if (head == nullptr)
+        if (_Head == nullptr)
         {
             return;
         }
 
-        Link* current = head;
+        MCLink* current = _Head;
 
         while (current != link)
         {
             previous = current;
 
-            if (current->next == nullptr)
+            if (current->Next == nullptr)
             {
                 return;
             }
 
-            current = current->next;
+            current = current->Next;
         }
 
         if (previous == nullptr)
         {
             // Removing the head.
-            head = head->next;
+            _Head = _Head->Next;
 
-            if (head == nullptr)
+            if (_Head == nullptr)
             {
-                tail = nullptr;
+                _Tail = nullptr;
             }
 
             return;
         }
     }
 
-    if (tail == link)
+    if (_Tail == link)
     {
-        tail = previous;
-        previous->next = nullptr;
+        _Tail = previous;
+        previous->Next = nullptr;
     }
     else
     {
-        previous->next = link->next;
+        previous->Next = link->Next;
 
         // Original behaviour: head can only equal link here when a wrong previous was passed.
-        if (head == link)
+        if (_Head == link)
         {
-            head = link->next;
+            _Head = link->Next;
         }
     }
 }
 
-void LinkedList::Kill()
+void MCLinkedList::Kill()
 {
-    while (head != nullptr)
+    while (_Head != nullptr)
     {
-        Link* current = head;
-        Link* following = current->next;
+        MCLink* current = _Head;
+        MCLink* following = current->Next;
         delete current;
-        head = following;
+        _Head = following;
     }
 
-    tail = nullptr;
-    head = nullptr;
+    _Tail = nullptr;
+    _Head = nullptr;
 }
 
-int LinkedList::Traverse(Link*& link)
+int MCLinkedList::Traverse(MCLink*& link)
 {
     if (link == nullptr)
     {
-        link = head;
+        link = _Head;
         return link != nullptr;
     }
 
-    link = link->next;
+    link = link->Next;
     return link != nullptr;
 }
 
-uint32_t LinkedList::Count()
+uint32_t MCLinkedList::Count()
 {
     uint32_t count = 0;
 
-    for (Link* current = head; current != nullptr; current = current->next)
+    for (MCLink* current = _Head; current != nullptr; current = current->Next)
     {
         ++count;
     }

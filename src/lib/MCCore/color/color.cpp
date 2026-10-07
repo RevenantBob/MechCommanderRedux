@@ -10,14 +10,14 @@
 #include "platform/MCRenderer.h"
 #include "platform/MCInput.h"
 
-Palette* gamePalette = nullptr;
+MCPalette* GamePalette = nullptr;
 uint8_t WaterMagicColors[8] = {0x5a, 0x59, 0x5a, 0x5b, 0x5d, 0x5c, 0x5b, 0x59};
-uint8_t currentMagic = 0;
-char palettePath[80] = {};
+uint8_t CurrentMagic = 0;
+char PalettePath[80] = {};
 
-int32_t Palette::lastMinDepth = -1;
-int32_t Palette::lastMaxDepth = -1;
-int32_t Palette::lastHazePercent = 0;
+int32_t MCPalette::_LastMinDepth = -1;
+int32_t MCPalette::_LastMaxDepth = -1;
+int32_t MCPalette::_LastHazePercent = 0;
 
 namespace
 {
@@ -83,62 +83,62 @@ namespace
     }
 }
 
-void PaletteBlock::initRgbData(uint8_t* data)
+void MCPaletteBlock::InitRgbData(uint8_t* data)
 {
     const int16_t count = *reinterpret_cast<int16_t*>(data + 2);
-    firstColor = *reinterpret_cast<int16_t*>(data);
-    numColors = count;
+    FirstColor = *reinterpret_cast<int16_t*>(data);
+    NumColors = count;
     const uint32_t size = static_cast<uint32_t>(count * 3);
 
-    if (rgbData == nullptr)
+    if (RgbData == nullptr)
     {
-        rgbData = std::make_unique<uint8_t[]>(size);
+        RgbData = std::make_unique<uint8_t[]>(size);
     }
 
-    std::memcpy(rgbData.get(), data + 4, size);
+    std::memcpy(RgbData.get(), data + 4, size);
 }
 
-void PaletteBlock::destroy()
+void MCPaletteBlock::Destroy()
 {
-    rgbData.reset();
+    RgbData.reset();
 }
 
-ColorRange::ColorRange(ColorRangeData& data, Palette* _palette)
+MCColorRange::MCColorRange(MCColorRangeData& data, MCPalette* palette)
 {
-    baseColorIndex = data.baseColorIndex;
-    maxLitColor = data.maxLitColor;
-    maxHazedColor = data.maxHazedColor;
-    baseRed = data.baseRed;
-    baseGreen = data.baseGreen;
-    baseBlue = data.baseBlue;
-    lightSourceFlag = data.lightSourceFlag;
-    depthCueFlag = data.depthCueFlag;
-    calcLightSource = data.calcLightSource;
-    calcDepthCue = data.calcDepthCue;
-    palette = _palette;
+    BaseColorIndex = data.BaseColorIndex;
+    MaxLitColor = data.MaxLitColor;
+    MaxHazedColor = data.MaxHazedColor;
+    BaseRed = data.BaseRed;
+    BaseGreen = data.BaseGreen;
+    BaseBlue = data.BaseBlue;
+    LightSourceFlag = data.LightSourceFlag;
+    DepthCueFlag = data.DepthCueFlag;
+    CalcLightSource = data.CalcLightSource;
+    CalcDepthCue = data.CalcDepthCue;
+    Palette = palette;
 }
 
-ColorRange::ColorRange(int32_t _baseColorIndex, uint8_t _baseRed, uint8_t _baseGreen, uint8_t _baseBlue,
-                       int32_t _maxLitColor, int32_t _maxHazedColor, Palette* _palette, int _lightSourceFlag,
-                       int _depthCueFlag, int _calcLightSource, int _calcDepthCue)
+MCColorRange::MCColorRange(int32_t baseColorIndex, uint8_t baseRed, uint8_t baseGreen, uint8_t baseBlue,
+                           int32_t maxLitColor, int32_t maxHazedColor, MCPalette* palette, int lightSourceFlag,
+                           int depthCueFlag, int calcLightSource, int calcDepthCue)
 {
-    baseColorIndex = _baseColorIndex;
-    baseRed = _baseRed;
-    baseGreen = _baseGreen;
-    baseBlue = _baseBlue;
-    maxLitColor = _maxLitColor;
-    maxHazedColor = _maxHazedColor;
-    palette = _palette;
-    lightSourceFlag = _lightSourceFlag;
-    depthCueFlag = _depthCueFlag;
-    calcLightSource = _calcLightSource;
-    calcDepthCue = _calcDepthCue;
+    BaseColorIndex = baseColorIndex;
+    BaseRed = baseRed;
+    BaseGreen = baseGreen;
+    BaseBlue = baseBlue;
+    MaxLitColor = maxLitColor;
+    MaxHazedColor = maxHazedColor;
+    Palette = palette;
+    LightSourceFlag = lightSourceFlag;
+    DepthCueFlag = depthCueFlag;
+    CalcLightSource = calcLightSource;
+    CalcDepthCue = calcDepthCue;
 }
 
-uint8_t* Palette::depthHazedShadePalette(int32_t shade, float depth)
+uint8_t* MCPalette::DepthHazedShadePalette(int32_t shade, float depth)
 {
-    int32_t level = (((numBitmapHazeLevels + 1) * shade + 0x80) >> 8) - 1;
-    const int32_t hazePercent = hazePercentAtDepth(depth);
+    int32_t level = (((NumBitmapHazeLevels + 1) * shade + 0x80) >> 8) - 1;
+    const int32_t hazePercent = HazePercentAtDepth(depth);
 
     if (level < 0)
     {
@@ -147,40 +147,40 @@ uint8_t* Palette::depthHazedShadePalette(int32_t shade, float depth)
 
     if (hazePercent == 0)
     {
-        return getHazePalette(level - numBitmapHazeLevels);
+        return GetHazePalette(level - NumBitmapHazeLevels);
     }
 
-    return getHazePalette(
-        (Sar((numBitmapHazeLevels * 2 - level) * hazePercent + hazeRound, hazeShift) - numBitmapHazeLevels) + level);
+    return GetHazePalette(
+        (Sar((NumBitmapHazeLevels * 2 - level) * hazePercent + HazeRound, HazeShift) - NumBitmapHazeLevels) + level);
 }
 
-int32_t Palette::depthHazedShade(int32_t colorRange, int32_t shade, float depth, int32_t maxShade)
+int32_t MCPalette::DepthHazedShade(int32_t colorRange, int32_t shade, float depth, int32_t maxShade)
 {
-    if (colorRange < 0 || numColorRanges <= colorRange)
+    if (colorRange < 0 || NumColorRanges <= colorRange)
     {
         return 0;
     }
 
-    ColorRange& range = colorRanges[colorRange];
+    MCColorRange& range = ColorRanges[colorRange];
 
     if (maxShade == 0)
     {
-        maxShade = range.maxLitColor;
+        maxShade = range.MaxLitColor;
     }
 
-    const int32_t hazePercent = hazePercentAtDepth(depth);
+    const int32_t hazePercent = HazePercentAtDepth(depth);
     const int32_t litShade = (shade * maxShade + 0x80) >> 8;
 
     if (hazePercent == 0)
     {
-        return range.baseColorIndex + litShade;
+        return range.BaseColorIndex + litShade;
     }
 
-    return (range.baseColorIndex - Sar(hazePercent * litShade + range.palette->hazeRound, range.palette->hazeShift)) +
+    return (range.BaseColorIndex - Sar(hazePercent * litShade + range.Palette->HazeRound, range.Palette->HazeShift)) +
            litShade;
 }
 
-uint8_t* Palette::getHazePalette(int32_t hazeLevel)
+uint8_t* MCPalette::GetHazePalette(int32_t hazeLevel)
 {
     if (hazeLevel == 0)
     {
@@ -189,33 +189,33 @@ uint8_t* Palette::getHazePalette(int32_t hazeLevel)
 
     if (hazeLevel > 0)
     {
-        if (numBitmapHazeLevels < hazeLevel)
+        if (NumBitmapHazeLevels < hazeLevel)
         {
-            hazeLevel = numBitmapHazeLevels;
+            hazeLevel = NumBitmapHazeLevels;
         }
 
-        return fadePalettes.get() + (hazeLevel * 0x100 - 0x100);
+        return FadePalettes.get() + (hazeLevel * 0x100 - 0x100);
     }
 
     int32_t level = static_cast<int32_t>(0u - static_cast<uint32_t>(hazeLevel));
 
-    if (numBitmapHazeLevels < level)
+    if (NumBitmapHazeLevels < level)
     {
-        level = numBitmapHazeLevels;
+        level = NumBitmapHazeLevels;
     }
 
-    return fadePalettes.get() + (level * 0x100 - 0x100 + hazePaletteOffset);
+    return FadePalettes.get() + (level * 0x100 - 0x100 + HazePaletteOffset);
 }
 
-int32_t Palette::findColorRange(int32_t colorIndex)
+int32_t MCPalette::FindColorRange(int32_t colorIndex)
 {
     int32_t found = -1;
 
-    for (int32_t i = 0; i < numColorRanges; ++i)
+    for (int32_t i = 0; i < NumColorRanges; ++i)
     {
-        const ColorRange& range = colorRanges[i];
+        const MCColorRange& range = ColorRanges[i];
 
-        if (range.baseColorIndex <= colorIndex && colorIndex <= range.maxHazedColor + range.baseColorIndex)
+        if (range.BaseColorIndex <= colorIndex && colorIndex <= range.MaxHazedColor + range.BaseColorIndex)
         {
             found = i;
             break;
@@ -225,16 +225,16 @@ int32_t Palette::findColorRange(int32_t colorIndex)
     return found;
 }
 
-int32_t Palette::findLightToDarkColorRange(int32_t colorIndex)
+int32_t MCPalette::FindLightToDarkColorRange(int32_t colorIndex)
 {
     int32_t found = -1;
 
-    for (int32_t i = 0; i < numColorRanges; ++i)
+    for (int32_t i = 0; i < NumColorRanges; ++i)
     {
-        const ColorRange& range = colorRanges[i];
+        const MCColorRange& range = ColorRanges[i];
 
-        if (range.baseColorIndex <= colorIndex && colorIndex <= range.maxHazedColor + range.baseColorIndex &&
-            range.lightSourceFlag != 0 && range.depthCueFlag != 0)
+        if (range.BaseColorIndex <= colorIndex && colorIndex <= range.MaxHazedColor + range.BaseColorIndex &&
+            range.LightSourceFlag != 0 && range.DepthCueFlag != 0)
         {
             found = i;
             break;
@@ -244,57 +244,57 @@ int32_t Palette::findLightToDarkColorRange(int32_t colorIndex)
     return found;
 }
 
-int32_t Palette::hazePercentAtDepth(float depth)
+int32_t MCPalette::HazePercentAtDepth(float depth)
 {
     const int32_t iDepth = static_cast<int32_t>(std::floor(static_cast<double>(depth)));
 
-    if (lastMinDepth != -1 && lastMinDepth <= iDepth && (maxHazeDepth <= lastMinDepth || iDepth < lastMaxDepth))
+    if (_LastMinDepth != -1 && _LastMinDepth <= iDepth && (MaxHazeDepth <= _LastMinDepth || iDepth < _LastMaxDepth))
     {
-        return lastHazePercent;
+        return _LastHazePercent;
     }
 
-    if (iDepth < minHazeDepth)
+    if (iDepth < MinHazeDepth)
     {
-        lastMaxDepth = minHazeDepth;
-        lastMinDepth = 0;
-        lastHazePercent = 0;
+        _LastMaxDepth = MinHazeDepth;
+        _LastMinDepth = 0;
+        _LastHazePercent = 0;
         return 0;
     }
 
-    lastMinDepth = maxHazeDepth;
+    _LastMinDepth = MaxHazeDepth;
 
-    if (lastMinDepth <= iDepth)
+    if (_LastMinDepth <= iDepth)
     {
-        lastMaxDepth = lastMinDepth;
-        lastHazePercent = maxHazePercent;
-        return maxHazePercent;
+        _LastMaxDepth = _LastMinDepth;
+        _LastHazePercent = MaxHazePercent;
+        return MaxHazePercent;
     }
 
     // A binary search of the current table for the span holding the depth.
-    const int32_t* table = currentDepthTable;
-    int32_t index = (numDepthHazeEntries >> 1) - 1;
-    int32_t step = numDepthHazeEntriesShift - 1;
+    const int32_t* table = CurrentDepthTable;
+    int32_t index = (NumDepthHazeEntries >> 1) - 1;
+    int32_t step = NumDepthHazeEntriesShift - 1;
 
     while (true)
     {
-        lastMinDepth = table[index];
-        lastMaxDepth = table[index + 1];
+        _LastMinDepth = table[index];
+        _LastMaxDepth = table[index + 1];
         --step;
 
-        if (lastMinDepth <= iDepth && iDepth < lastMaxDepth)
+        if (_LastMinDepth <= iDepth && iDepth < _LastMaxDepth)
         {
             break;
         }
 
-        if (iDepth == lastMaxDepth)
+        if (iDepth == _LastMaxDepth)
         {
             ++index;
-            lastMinDepth = lastMaxDepth;
-            lastMaxDepth = table[index + 1];
+            _LastMinDepth = _LastMaxDepth;
+            _LastMaxDepth = table[index + 1];
             break;
         }
 
-        if (iDepth < lastMinDepth)
+        if (iDepth < _LastMinDepth)
         {
             index += Shl(-1, step);
         }
@@ -304,59 +304,59 @@ int32_t Palette::hazePercentAtDepth(float depth)
         }
     }
 
-    lastHazePercent = Shl(index + 1, hazeShift - numDepthHazeEntriesShift);
-    return lastHazePercent;
+    _LastHazePercent = Shl(index + 1, HazeShift - NumDepthHazeEntriesShift);
+    return _LastHazePercent;
 }
 
-void Palette::fullCycleOn()
+void MCPalette::FullCycleOn()
 {
 }
 
-void Palette::fullCycleOff()
+void MCPalette::FullCycleOff()
 {
-    initRgbData(originalPalette.get());
-    activate(0, 0);
+    InitRgbData(OriginalPalette.get());
+    Activate(0, 0);
 }
 
-void Palette::fadeToPalette(float& fadePercent, uint8_t* targetPalette)
+void MCPalette::FadeToPalette(float& fadePercent, uint8_t* targetPalette)
 {
     if (fadePercent > 1.0f)
     {
         fadePercent = 1.0f;
     }
 
-    uint8_t* shown = rgbData.get();
+    uint8_t* shown = RgbData.get();
     const uint8_t* target = targetPalette + 4;
 
-    if (fadeDeltasValid == 0)
+    if (FadeDeltasValid == 0)
     {
-        const uint8_t* original = originalPalette.get() + 4;
-        const int32_t count = static_cast<int32_t>(paletteSize) - 4;
-        maxFadeDelta = 0;
+        const uint8_t* original = OriginalPalette.get() + 4;
+        const int32_t count = static_cast<int32_t>(PaletteSize) - 4;
+        MaxFadeDelta = 0;
 
         for (int32_t i = 0; i < count; ++i)
         {
             const uint8_t delta = static_cast<uint8_t>(target[i] - original[i]);
-            fadeDeltas[i] = static_cast<int8_t>(delta);
+            FadeDeltas[i] = static_cast<int8_t>(delta);
 
-            if (maxFadeDelta < ByteAbs(delta))
+            if (MaxFadeDelta < ByteAbs(delta))
             {
-                maxFadeDelta = ByteAbs(delta);
+                MaxFadeDelta = ByteAbs(delta);
             }
         }
 
-        fadeDeltasValid = 1;
+        FadeDeltasValid = 1;
     }
 
     if (fadePercent > 0.0f)
     {
-        const int8_t step = FadeStep(maxFadeDelta, fadePercent);
+        const int8_t step = FadeStep(MaxFadeDelta, fadePercent);
 
         // Original behaviour: colour c takes fadeDeltas[c] (the delta of byte c, not of its own channels) for all
         // three channels, and colour 255 is never faded.
         for (int32_t color = 0; color < 0xff; ++color)
         {
-            const int8_t delta = fadeDeltas[color];
+            const int8_t delta = FadeDeltas[color];
             uint8_t* entry = shown;
 
             for (int32_t channel = 0; channel < 3; ++channel)
@@ -364,14 +364,14 @@ void Palette::fadeToPalette(float& fadePercent, uint8_t* targetPalette)
                 *shown++ = static_cast<uint8_t>(*target++ - FadeRemainder(delta, step));
             }
 
-            gamePalette->tweakPalette(color, 1, reinterpret_cast<VFX_RGB*>(entry));
+            GamePalette->TweakPalette(color, 1, reinterpret_cast<MCVfxRgb*>(entry));
         }
 
-        activate(0, 0);
+        Activate(0, 0);
     }
 }
 
-void Palette::fadeToColor(float& fadePercent, char red, char green, char blue)
+void MCPalette::FadeToColor(float& fadePercent, char red, char green, char blue)
 {
     if (fadePercent > 1.0f)
     {
@@ -379,157 +379,157 @@ void Palette::fadeToColor(float& fadePercent, char red, char green, char blue)
     }
 
     // Original behaviour: a new colour restarts the fade only when all three components differ.
-    if (fadeTarget != 2 || (red != static_cast<char>(fadeRed) && green != static_cast<char>(fadeGreen) &&
-                            blue != static_cast<char>(fadeBlue)))
+    if (FadeTarget != 2 || (red != static_cast<char>(FadeRed) && green != static_cast<char>(FadeGreen) &&
+                            blue != static_cast<char>(FadeBlue)))
     {
-        fadeRed = static_cast<uint8_t>(red);
-        fadeTarget = 2;
-        fadeDeltasValid = 0;
-        fadeGreen = static_cast<uint8_t>(green);
-        fadeBlue = static_cast<uint8_t>(blue);
+        FadeRed = static_cast<uint8_t>(red);
+        FadeTarget = 2;
+        FadeDeltasValid = 0;
+        FadeGreen = static_cast<uint8_t>(green);
+        FadeBlue = static_cast<uint8_t>(blue);
     }
 
-    const uint8_t fadeColor[3] = {fadeRed, fadeGreen, fadeBlue};
+    const uint8_t fadeColor[3] = {FadeRed, FadeGreen, FadeBlue};
 
-    if (fadeDeltasValid == 0)
+    if (FadeDeltasValid == 0)
     {
-        maxFadeDelta = 0;
+        MaxFadeDelta = 0;
 
         for (int32_t i = 0; i < 0x100 * 3; ++i)
         {
-            const uint8_t delta = static_cast<uint8_t>(fadeColor[i % 3] - rgbData[i]);
-            fadeDeltas[i] = static_cast<int8_t>(delta);
+            const uint8_t delta = static_cast<uint8_t>(fadeColor[i % 3] - RgbData[i]);
+            FadeDeltas[i] = static_cast<int8_t>(delta);
 
-            if (maxFadeDelta < ByteAbs(delta))
+            if (MaxFadeDelta < ByteAbs(delta))
             {
-                maxFadeDelta = ByteAbs(delta);
+                MaxFadeDelta = ByteAbs(delta);
             }
         }
 
-        fadeDeltasValid = 1;
+        FadeDeltasValid = 1;
     }
 
     if (fadePercent > 0.0f)
     {
-        const int8_t step = FadeStep(maxFadeDelta, fadePercent);
+        const int8_t step = FadeStep(MaxFadeDelta, fadePercent);
 
         for (int32_t i = 0; i < 0x100 * 3; ++i)
         {
-            rgbData[i] = static_cast<uint8_t>(fadeColor[i % 3] - FadeRemainder(fadeDeltas[i], step));
+            RgbData[i] = static_cast<uint8_t>(fadeColor[i % 3] - FadeRemainder(FadeDeltas[i], step));
         }
 
-        activate(0, 0);
+        Activate(0, 0);
     }
 }
 
-void Palette::fadeToOriginalPalette(float& fadePercent)
+void MCPalette::FadeToOriginalPalette(float& fadePercent)
 {
-    if (fadeTarget != 0)
+    if (FadeTarget != 0)
     {
-        fadeTarget = 0;
-        fadeDeltasValid = 0;
+        FadeTarget = 0;
+        FadeDeltasValid = 0;
     }
 
-    fadeToPalette(fadePercent, originalPalette.get());
+    FadeToPalette(fadePercent, OriginalPalette.get());
 }
 
-void Palette::fadeToBlackAndWhite(float& fadePercent)
+void MCPalette::FadeToBlackAndWhite(float& fadePercent)
 {
-    if (fadeTarget != 1)
+    if (FadeTarget != 1)
     {
-        fadeTarget = 1;
-        fadeDeltasValid = 0;
+        FadeTarget = 1;
+        FadeDeltasValid = 0;
     }
 
-    fadeToPalette(fadePercent, bwPalette.get());
+    FadeToPalette(fadePercent, BwPalette.get());
 }
 
-void Palette::recalculateDepthVsHazeInfo(int32_t altitude)
+void MCPalette::RecalculateDepthVsHazeInfo(int32_t altitude)
 {
     int32_t table;
 
-    if (altitude < maxAltitude)
+    if (altitude < MaxAltitude)
     {
-        table = Sar(altitude, altitudeShift);
+        table = Sar(altitude, AltitudeShift);
     }
     else
     {
-        table = numDepthAtHazeLevelTables - 1;
+        table = NumDepthAtHazeLevelTables - 1;
     }
 
-    currentDepthTable = depthHazeTables.get() + Shl(table, numDepthHazeEntriesShift);
-    minHazeDepth = currentDepthTable[0];
-    lastMinDepth = -1;
-    maxHazeDepth = currentDepthTable[numDepthHazeEntries - 1];
+    CurrentDepthTable = DepthHazeTables.get() + Shl(table, NumDepthHazeEntriesShift);
+    MinHazeDepth = CurrentDepthTable[0];
+    _LastMinDepth = -1;
+    MaxHazeDepth = CurrentDepthTable[NumDepthHazeEntries - 1];
 }
 
-void Palette::animate(int start, int count)
+void MCPalette::Animate(int start, int count)
 {
-    application->activatePalette(rgbData.get(), start, count);
+    Application->ActivatePalette(RgbData.get(), start, count);
 }
 
-void Palette::activate(int32_t which, int32_t extractIndex)
+void MCPalette::Activate(int32_t which, int32_t extractIndex)
 {
     if (which == 1)
     {
         uint8_t* colors = nullptr;
 
-        if (extractIndex < numExtractPalettes && extractIndex >= 0)
+        if (extractIndex < NumExtractPalettes && extractIndex >= 0)
         {
-            colors = extractPalettes.get() + 4 + extractIndex * PALETTE_FILE_SIZE;
+            colors = ExtractPalettes.get() + 4 + extractIndex * PALETTE_FILE_SIZE;
         }
 
-        application->activatePalette(colors, 0, 0x100);
+        Application->ActivatePalette(colors, 0, 0x100);
         return;
     }
 
     if (which != 2)
     {
-        application->activatePalette(rgbData.get(), 0, 0x100);
+        Application->ActivatePalette(RgbData.get(), 0, 0x100);
         return;
     }
 
     // Original behaviour: the black-and-white palette is handed over with its 4-byte .pal header.
-    application->activatePalette(bwPalette.get(), 0, 0x100);
+    Application->ActivatePalette(BwPalette.get(), 0, 0x100);
 }
 
-void Palette::tweakPalette(int start, int count, VFX_RGB* colors)
+void MCPalette::TweakPalette(int start, int count, MCVfxRgb* colors)
 {
     const uint8_t* source = reinterpret_cast<const uint8_t*>(colors);
 
     for (int index = start; index < start + count; ++index)
     {
-        std::memcpy(gamePalette->rgbData.get() + (index & 0xff) * 3, source, 3);
+        std::memcpy(GamePalette->RgbData.get() + (index & 0xff) * 3, source, 3);
         source += 3;
     }
 }
 
-void Palette::init()
+void MCPalette::Init()
 {
-    originalPalette.reset();
-    fadeDeltas.reset();
-    bwPalette.reset();
-    extractPalettes.reset();
-    fadePalettes.reset();
-    depthHazeTables.reset();
-    colorRanges.clear();
-    rgbData.reset();
+    OriginalPalette.reset();
+    FadeDeltas.reset();
+    BwPalette.reset();
+    ExtractPalettes.reset();
+    FadePalettes.reset();
+    DepthHazeTables.reset();
+    ColorRanges.clear();
+    RgbData.reset();
 }
 
-int32_t Palette::init(char* paletteFileName)
+int32_t MCPalette::Init(char* paletteFileName)
 {
-    FullPathFileName fileName;
-    fileName.init(palettePath, paletteFileName, ".fit");
-    FitIniFile paletteFile;
-    int32_t result = paletteFile.open(fileName, READ, 50);
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, paletteFileName, ".fit");
+    MCFitIniFile paletteFile;
+    int32_t result = paletteFile.Open(fileName, READ, 50);
 
-    if (result == 0 && (result = paletteFile.seekBlock("Palette")) == 0)
+    if (result == 0 && (result = paletteFile.SeekBlock("Palette")) == 0)
     {
-        result = init(paletteFile);
+        result = Init(paletteFile);
 
         if (result == 0)
         {
-            paletteFile.close();
+            paletteFile.Close();
             return 0;
         }
     }
@@ -537,639 +537,639 @@ int32_t Palette::init(char* paletteFileName)
     return result;
 }
 
-int32_t Palette::init(FitIniFile& paletteFile)
+int32_t MCPalette::Init(MCFitIniFile& paletteFile)
 {
-    int32_t result = loadPaletteInfo(paletteFile);
+    int32_t result = LoadPaletteInfo(paletteFile);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = paletteFile.seekBlock("Tables");
+    result = paletteFile.SeekBlock("Tables");
 
     if (result != 0)
     {
         return result;
     }
 
-    result = paletteFile.readIdString("FadeTableFile", fadeTableFile, 8);
+    result = paletteFile.ReadIdString("FadeTableFile", FadeTableFile, 8);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = paletteFile.readIdString("DepthTableFile", depthTableFile, 8);
+    result = paletteFile.ReadIdString("DepthTableFile", DepthTableFile, 8);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = paletteFile.readIdString("AllFadeTableFile", allFadeTableFile, 8);
+    result = paletteFile.ReadIdString("AllFadeTableFile", AllFadeTableFile, 8);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = loadTables();
+    result = LoadTables();
 
     if (result != 0)
     {
         return result;
     }
 
-    recalculateDepthVsHazeInfo(0);
+    RecalculateDepthVsHazeInfo(0);
     return 0;
 }
 
-void Palette::destroy()
+void MCPalette::Destroy()
 {
-    PaletteBlock::destroy();
-    originalPalette.reset();
-    fadeDeltas.reset();
-    bwPalette.reset();
+    MCPaletteBlock::Destroy();
+    OriginalPalette.reset();
+    FadeDeltas.reset();
+    BwPalette.reset();
 
-    if (fadePalettes != nullptr)
+    if (FadePalettes != nullptr)
     {
-        MCRenderer::UnregisterData(fadePalettes.get());
-        fadePalettes.reset();
+        MCRenderer::UnregisterData(FadePalettes.get());
+        FadePalettes.reset();
     }
 
-    if (allFadePalettes != nullptr)
+    if (AllFadePalettes != nullptr)
     {
-        MCRenderer::UnregisterData(allFadePalettes.get());
-        allFadePalettes.reset();
+        MCRenderer::UnregisterData(AllFadePalettes.get());
+        AllFadePalettes.reset();
     }
 
-    extractPalettes.reset();
-    depthHazeTables.reset();
-    colorRanges.clear();
+    ExtractPalettes.reset();
+    DepthHazeTables.reset();
+    ColorRanges.clear();
 }
 
-int32_t Palette::loadPaletteInfo(FitIniFile& paletteFile)
+int32_t MCPalette::LoadPaletteInfo(MCFitIniFile& paletteFile)
 {
-    int32_t result = paletteFile.readIdLong("HazeShift", hazeShift);
+    int32_t result = paletteFile.ReadIdLong("HazeShift", HazeShift);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = paletteFile.readIdLong("NumBitmapHazeLevels", numBitmapHazeLevels);
+    result = paletteFile.ReadIdLong("NumBitmapHazeLevels", NumBitmapHazeLevels);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = paletteFile.readIdLong("NumDepthHazeEntriesShift", numDepthHazeEntriesShift);
+    result = paletteFile.ReadIdLong("NumDepthHazeEntriesShift", NumDepthHazeEntriesShift);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = paletteFile.readIdLong("NumDepthAtHazeLevelTables", numDepthAtHazeLevelTables);
+    result = paletteFile.ReadIdLong("NumDepthAtHazeLevelTables", NumDepthAtHazeLevelTables);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = paletteFile.readIdLong("AltitudeShift", altitudeShift);
+    result = paletteFile.ReadIdLong("AltitudeShift", AltitudeShift);
 
     if (result != 0)
     {
         return result;
     }
 
-    const int32_t fullHaze = Shl(1, hazeShift);
-    maxHazePercent = fullHaze;
-    hazeRound = fullHaze >> 1;
-    hazePaletteOffset = numBitmapHazeLevels << 8;
-    numDepthHazeEntries = Shl(1, numDepthHazeEntriesShift);
-    maxAltitude = Shl(numDepthAtHazeLevelTables, altitudeShift);
+    const int32_t fullHaze = Shl(1, HazeShift);
+    MaxHazePercent = fullHaze;
+    HazeRound = fullHaze >> 1;
+    HazePaletteOffset = NumBitmapHazeLevels << 8;
+    NumDepthHazeEntries = Shl(1, NumDepthHazeEntriesShift);
+    MaxAltitude = Shl(NumDepthAtHazeLevelTables, AltitudeShift);
 
-    result = loadPalette(paletteFile);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    loadBWPalette(paletteFile);
-    loadExtractPalette(paletteFile);
-    result = paletteFile.seekBlock("Ranges");
+    result = LoadPalette(paletteFile);
 
     if (result != 0)
     {
         return result;
     }
 
-    return loadColorRanges(paletteFile);
+    LoadBWPalette(paletteFile);
+    LoadExtractPalette(paletteFile);
+    result = paletteFile.SeekBlock("Ranges");
+
+    if (result != 0)
+    {
+        return result;
+    }
+
+    return LoadColorRanges(paletteFile);
 }
 
-int32_t Palette::loadColorRanges(FitIniFile& paletteFile)
+int32_t MCPalette::LoadColorRanges(MCFitIniFile& paletteFile)
 {
-    int32_t result = paletteFile.readIdLong("NumColorRanges", numColorRanges);
+    int32_t result = paletteFile.ReadIdLong("NumColorRanges", NumColorRanges);
 
     if (result != 0)
     {
         return result;
     }
 
-    const int32_t count = numColorRanges;
-    colorRanges.assign(static_cast<size_t>(std::max(count, 0)), ColorRange{});
+    const int32_t count = NumColorRanges;
+    ColorRanges.assign(static_cast<size_t>(std::max(count, 0)), MCColorRange{});
 
     for (int32_t i = 0; i < count; ++i)
     {
         char blockId[12];
         std::snprintf(blockId, sizeof(blockId), "Range%d", i);
-        result = paletteFile.seekBlock(blockId);
+        result = paletteFile.SeekBlock(blockId);
 
         if (result != 0)
         {
             return result;
         }
 
-        ColorRangeData data{};
+        MCColorRangeData data{};
 
-        if ((result = paletteFile.readIdUChar("BaseColorIndex", data.baseColorIndex)) != 0)
+        if ((result = paletteFile.ReadIdUChar("BaseColorIndex", data.BaseColorIndex)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("MaxLitColor", data.maxLitColor)) != 0)
+        if ((result = paletteFile.ReadIdUChar("MaxLitColor", data.MaxLitColor)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("MaxHazedColor", data.maxHazedColor)) != 0)
+        if ((result = paletteFile.ReadIdUChar("MaxHazedColor", data.MaxHazedColor)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("BaseRed", data.baseRed)) != 0)
+        if ((result = paletteFile.ReadIdUChar("BaseRed", data.BaseRed)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("BaseGreen", data.baseGreen)) != 0)
+        if ((result = paletteFile.ReadIdUChar("BaseGreen", data.BaseGreen)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("BaseBlue", data.baseBlue)) != 0)
+        if ((result = paletteFile.ReadIdUChar("BaseBlue", data.BaseBlue)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("LightSourceFlag", data.lightSourceFlag)) != 0)
+        if ((result = paletteFile.ReadIdUChar("LightSourceFlag", data.LightSourceFlag)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("DepthCueFlag", data.depthCueFlag)) != 0)
+        if ((result = paletteFile.ReadIdUChar("DepthCueFlag", data.DepthCueFlag)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("CalcLightSource", data.calcLightSource)) != 0)
+        if ((result = paletteFile.ReadIdUChar("CalcLightSource", data.CalcLightSource)) != 0)
         {
             return result;
         }
 
-        if ((result = paletteFile.readIdUChar("CalcDepthCue", data.calcDepthCue)) != 0)
+        if ((result = paletteFile.ReadIdUChar("CalcDepthCue", data.CalcDepthCue)) != 0)
         {
             return result;
         }
 
-        colorRanges[i] = ColorRange(data, this);
+        ColorRanges[i] = MCColorRange(data, this);
     }
 
     return 0;
 }
 
-int32_t Palette::loadTables()
+int32_t MCPalette::LoadTables()
 {
-    FullPathFileName depthName;
-    depthName.init(palettePath, depthTableFile, ".tbl");
-    FullPathFileName fadeName;
-    fadeName.init(palettePath, fadeTableFile, ".tbl");
-    FullPathFileName allFadeName;
-    allFadeName.init(palettePath, allFadeTableFile, ".tbl");
+    MCFullPathFileName depthName;
+    depthName.Init(PalettePath, DepthTableFile, ".tbl");
+    MCFullPathFileName fadeName;
+    fadeName.Init(PalettePath, FadeTableFile, ".tbl");
+    MCFullPathFileName allFadeName;
+    allFadeName.Init(PalettePath, AllFadeTableFile, ".tbl");
 
-    File depthFile;
-    File fadeFile;
-    File allFadeFile;
-    int32_t result = depthFile.open(depthName, READ, 50);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    loadDepthHazeTables(depthFile);
-    depthFile.close();
-    result = fadeFile.open(fadeName, READ, 50);
+    MCFile depthFile;
+    MCFile fadeFile;
+    MCFile allFadeFile;
+    int32_t result = depthFile.Open(depthName, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    loadFadePalettes(fadeFile);
-    fadeFile.close();
-    result = allFadeFile.open(allFadeName, READ, 50);
+    LoadDepthHazeTables(depthFile);
+    depthFile.Close();
+    result = fadeFile.Open(fadeName, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    loadAllFadePalettes(allFadeFile);
-    allFadeFile.close();
+    LoadFadePalettes(fadeFile);
+    fadeFile.Close();
+    result = allFadeFile.Open(allFadeName, READ, 50);
+
+    if (result != 0)
+    {
+        return result;
+    }
+
+    LoadAllFadePalettes(allFadeFile);
+    allFadeFile.Close();
     return 0;
 }
 
-int32_t Palette::loadPalette(FitIniFile& paletteFile)
+int32_t MCPalette::LoadPalette(MCFitIniFile& paletteFile)
 {
-    int32_t result = paletteFile.readIdString("PaletteFileName", paletteFileName, 8);
+    int32_t result = paletteFile.ReadIdString("PaletteFileName", PaletteFileName, 8);
 
     if (result != 0)
     {
         return result;
     }
 
-    FullPathFileName fileName;
-    fileName.init(palettePath, paletteFileName, ".pal");
-    File file;
-    result = file.open(fileName, READ, 50);
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, PaletteFileName, ".pal");
+    MCFile file;
+    result = file.Open(fileName, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    const uint32_t size = file.fileSize();
-    originalPalette = std::make_unique<uint8_t[]>(size);
+    const uint32_t size = file.FileSize();
+    OriginalPalette = std::make_unique<uint8_t[]>(size);
 
-    file.read(originalPalette.get(), static_cast<int32_t>(size));
-    initRgbData(originalPalette.get());
-    fadeDeltasValid = 0;
-    fadeTarget = -1;
-    fadeBlue = 0;
-    fadeGreen = 0;
-    fadeRed = 0;
-    paletteSize = size;
-    fadeDeltas = std::make_unique<int8_t[]>(size);
+    file.Read(OriginalPalette.get(), static_cast<int32_t>(size));
+    InitRgbData(OriginalPalette.get());
+    FadeDeltasValid = 0;
+    FadeTarget = -1;
+    FadeBlue = 0;
+    FadeGreen = 0;
+    FadeRed = 0;
+    PaletteSize = size;
+    FadeDeltas = std::make_unique<int8_t[]>(size);
 
-    file.close();
+    file.Close();
     return 0;
 }
 
-int32_t Palette::loadPalette()
+int32_t MCPalette::LoadPalette()
 {
-    FullPathFileName fileName;
-    fileName.init(palettePath, paletteFileName, ".pal");
-    File file;
-    int32_t result = file.open(fileName, READ, 50);
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, PaletteFileName, ".pal");
+    MCFile file;
+    int32_t result = file.Open(fileName, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    const uint32_t size = file.fileSize();
+    const uint32_t size = file.FileSize();
 
-    if (originalPalette == nullptr)
+    if (OriginalPalette == nullptr)
     {
-        originalPalette = std::make_unique<uint8_t[]>(size);
+        OriginalPalette = std::make_unique<uint8_t[]>(size);
     }
 
-    file.read(originalPalette.get(), static_cast<int32_t>(size));
-    initRgbData(originalPalette.get());
-    fadeDeltasValid = 0;
-    fadeTarget = -1;
-    fadeBlue = 0;
-    fadeGreen = 0;
-    fadeRed = 0;
-    paletteSize = size;
+    file.Read(OriginalPalette.get(), static_cast<int32_t>(size));
+    InitRgbData(OriginalPalette.get());
+    FadeDeltasValid = 0;
+    FadeTarget = -1;
+    FadeBlue = 0;
+    FadeGreen = 0;
+    FadeRed = 0;
+    PaletteSize = size;
 
-    if (fadeDeltas == nullptr)
+    if (FadeDeltas == nullptr)
     {
-        fadeDeltas = std::make_unique<int8_t[]>(size);
+        FadeDeltas = std::make_unique<int8_t[]>(size);
     }
 
-    file.close();
+    file.Close();
     return 0;
 }
 
-int32_t Palette::savePalette()
+int32_t MCPalette::SavePalette()
 {
-    FullPathFileName backupName;
-    backupName.init(palettePath, paletteFileName, ".bak");
-    FullPathFileName fileName;
-    fileName.init(palettePath, paletteFileName, ".pal");
-    MCFileSystem::CopyFile(fileName.fullName, backupName.fullName);
+    MCFullPathFileName backupName;
+    backupName.Init(PalettePath, PaletteFileName, ".bak");
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, PaletteFileName, ".pal");
+    MCFileSystem::CopyFile(fileName.FullName, backupName.FullName);
 
-    File file;
-    const int32_t result = file.create(fileName);
+    MCFile file;
+    const int32_t result = file.Create(fileName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeShort(0);
-    file.writeShort(0x100);
-    file.write(rgbData.get(), 0x300);
-    file.close();
+    file.WriteShort(0);
+    file.WriteShort(0x100);
+    file.Write(RgbData.get(), 0x300);
+    file.Close();
     return 0;
 }
 
-int32_t Palette::loadBWPalette(FitIniFile& paletteFile)
+int32_t MCPalette::LoadBWPalette(MCFitIniFile& paletteFile)
 {
-    int32_t result = paletteFile.readIdString("BWPaletteFileName", bwPaletteFileName, 8);
+    int32_t result = paletteFile.ReadIdString("BWPaletteFileName", BwPaletteFileName, 8);
 
     if (result != 0)
     {
         return result;
     }
 
-    FullPathFileName fileName;
-    fileName.init(palettePath, bwPaletteFileName, ".pal");
-    File file;
-    result = file.open(fileName, READ, 50);
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, BwPaletteFileName, ".pal");
+    MCFile file;
+    result = file.Open(fileName, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    const uint32_t size = file.fileSize();
-    bwPalette = std::make_unique<uint8_t[]>(size);
+    const uint32_t size = file.FileSize();
+    BwPalette = std::make_unique<uint8_t[]>(size);
 
-    file.read(bwPalette.get(), static_cast<int32_t>(size));
-    file.close();
+    file.Read(BwPalette.get(), static_cast<int32_t>(size));
+    file.Close();
     return 0;
 }
 
-int32_t Palette::loadBWPalette()
+int32_t MCPalette::LoadBWPalette()
 {
-    FullPathFileName fileName;
-    fileName.init(palettePath, bwPaletteFileName, ".pal");
-    File file;
-    const int32_t result = file.open(fileName, READ, 50);
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, BwPaletteFileName, ".pal");
+    MCFile file;
+    const int32_t result = file.Open(fileName, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    const uint32_t size = file.fileSize();
+    const uint32_t size = file.FileSize();
 
-    if (bwPalette == nullptr)
+    if (BwPalette == nullptr)
     {
-        bwPalette = std::make_unique<uint8_t[]>(size);
+        BwPalette = std::make_unique<uint8_t[]>(size);
     }
 
-    file.read(bwPalette.get(), static_cast<int32_t>(size));
-    file.close();
+    file.Read(BwPalette.get(), static_cast<int32_t>(size));
+    file.Close();
     return 0;
 }
 
-int32_t Palette::saveBWPalette()
+int32_t MCPalette::SaveBWPalette()
 {
-    FullPathFileName backupName;
-    backupName.init(palettePath, bwPaletteFileName, ".bak");
-    FullPathFileName fileName;
-    fileName.init(palettePath, bwPaletteFileName, ".pal");
-    MCFileSystem::CopyFile(fileName.fullName, backupName.fullName);
+    MCFullPathFileName backupName;
+    backupName.Init(PalettePath, BwPaletteFileName, ".bak");
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, BwPaletteFileName, ".pal");
+    MCFileSystem::CopyFile(fileName.FullName, backupName.FullName);
 
-    File file;
-    const int32_t result = file.create(fileName);
+    MCFile file;
+    const int32_t result = file.Create(fileName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.write(bwPalette.get(), PALETTE_FILE_SIZE);
-    file.close();
+    file.Write(BwPalette.get(), PALETTE_FILE_SIZE);
+    file.Close();
     return 0;
 }
 
-int32_t Palette::loadExtractPalette(FitIniFile& paletteFile)
+int32_t MCPalette::LoadExtractPalette(MCFitIniFile& paletteFile)
 {
-    int32_t result = paletteFile.readIdString("ExPaletteFileName", exPaletteFileName, 8);
+    int32_t result = paletteFile.ReadIdString("ExPaletteFileName", ExPaletteFileName, 8);
 
     if (result != 0)
     {
         return result;
     }
 
-    FullPathFileName fileName;
-    fileName.init(palettePath, exPaletteFileName, ".pal");
-    File file;
-    result = file.open(fileName, READ, 50);
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, ExPaletteFileName, ".pal");
+    MCFile file;
+    result = file.Open(fileName, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    const uint32_t size = file.fileSize();
-    extractPalettes = std::make_unique<uint8_t[]>(size);
+    const uint32_t size = file.FileSize();
+    ExtractPalettes = std::make_unique<uint8_t[]>(size);
 
-    numExtractPalettes = static_cast<int32_t>(size / PALETTE_FILE_SIZE);
-    file.read(extractPalettes.get(), static_cast<int32_t>(size));
-    file.close();
+    NumExtractPalettes = static_cast<int32_t>(size / PALETTE_FILE_SIZE);
+    file.Read(ExtractPalettes.get(), static_cast<int32_t>(size));
+    file.Close();
     return 0;
 }
 
-int32_t Palette::loadExtractPalette()
+int32_t MCPalette::LoadExtractPalette()
 {
-    FullPathFileName fileName;
-    fileName.init(palettePath, exPaletteFileName, ".pal");
-    File file;
-    const int32_t result = file.open(fileName, READ, 50);
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, ExPaletteFileName, ".pal");
+    MCFile file;
+    const int32_t result = file.Open(fileName, READ, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    const uint32_t size = file.fileSize();
+    const uint32_t size = file.FileSize();
 
-    if (extractPalettes == nullptr)
+    if (ExtractPalettes == nullptr)
     {
-        extractPalettes = std::make_unique<uint8_t[]>(size);
+        ExtractPalettes = std::make_unique<uint8_t[]>(size);
     }
 
-    numExtractPalettes = static_cast<int32_t>(size / PALETTE_FILE_SIZE);
-    file.read(extractPalettes.get(), static_cast<int32_t>(size));
-    file.close();
+    NumExtractPalettes = static_cast<int32_t>(size / PALETTE_FILE_SIZE);
+    file.Read(ExtractPalettes.get(), static_cast<int32_t>(size));
+    file.Close();
     return 0;
 }
 
-int32_t Palette::saveExtractPalette()
+int32_t MCPalette::SaveExtractPalette()
 {
-    FullPathFileName backupName;
-    backupName.init(palettePath, exPaletteFileName, ".bak");
-    FullPathFileName fileName;
-    fileName.init(palettePath, exPaletteFileName, ".pal");
-    MCFileSystem::CopyFile(fileName.fullName, backupName.fullName);
+    MCFullPathFileName backupName;
+    backupName.Init(PalettePath, ExPaletteFileName, ".bak");
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, ExPaletteFileName, ".pal");
+    MCFileSystem::CopyFile(fileName.FullName, backupName.FullName);
 
-    File file;
-    const int32_t result = file.create(fileName);
+    MCFile file;
+    const int32_t result = file.Create(fileName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.write(extractPalettes.get(), numExtractPalettes * PALETTE_FILE_SIZE);
-    file.close();
+    file.Write(ExtractPalettes.get(), NumExtractPalettes * PALETTE_FILE_SIZE);
+    file.Close();
     return 0;
 }
 
-int32_t Palette::loadDepthHazeTables(File& tableFile)
+int32_t MCPalette::LoadDepthHazeTables(MCFile& tableFile)
 {
-    if (tableFile.fileSize() != static_cast<uint32_t>(Shl(numDepthAtHazeLevelTables, numDepthHazeEntriesShift) * 4))
+    if (tableFile.FileSize() != static_cast<uint32_t>(Shl(NumDepthAtHazeLevelTables, NumDepthHazeEntriesShift) * 4))
     {
         return static_cast<int32_t>(0xabda0004);
     }
 
-    const uint32_t size = tableFile.fileSize();
-    depthHazeTables = std::make_unique<int32_t[]>(size / sizeof(int32_t));
-    tableFile.read(reinterpret_cast<uint8_t*>(depthHazeTables.get()), static_cast<int32_t>(size));
+    const uint32_t size = tableFile.FileSize();
+    DepthHazeTables = std::make_unique<int32_t[]>(size / sizeof(int32_t));
+    tableFile.Read(reinterpret_cast<uint8_t*>(DepthHazeTables.get()), static_cast<int32_t>(size));
     return 0;
 }
 
-int32_t Palette::loadFadePalettes(File& tableFile)
+int32_t MCPalette::LoadFadePalettes(MCFile& tableFile)
 {
-    const uint32_t size = tableFile.fileSize();
-    numFadePalettes = size;
-    fadePalettes = std::make_unique<uint8_t[]>(size);
-    tableFile.read(fadePalettes.get(), static_cast<int32_t>(size));
-    MCRenderer::RegisterData(fadePalettes.get(), size, MCDataKind::Tables);
-    numFadePalettes = size >> 8;
+    const uint32_t size = tableFile.FileSize();
+    NumFadePalettes = size;
+    FadePalettes = std::make_unique<uint8_t[]>(size);
+    tableFile.Read(FadePalettes.get(), static_cast<int32_t>(size));
+    MCRenderer::RegisterData(FadePalettes.get(), size, MCDataKind::Tables);
+    NumFadePalettes = size >> 8;
     return 0;
 }
 
-int32_t Palette::loadAllFadePalettes(File& tableFile)
+int32_t MCPalette::LoadAllFadePalettes(MCFile& tableFile)
 {
-    const uint32_t size = tableFile.fileSize();
-    numAllFadePalettes = size;
-    allFadePalettes = std::make_unique<uint8_t[]>(size);
-    tableFile.read(allFadePalettes.get(), static_cast<int32_t>(size));
-    MCRenderer::RegisterData(allFadePalettes.get(), size, MCDataKind::Tables);
-    numAllFadePalettes = size >> 8;
+    const uint32_t size = tableFile.FileSize();
+    NumAllFadePalettes = size;
+    AllFadePalettes = std::make_unique<uint8_t[]>(size);
+    tableFile.Read(AllFadePalettes.get(), static_cast<int32_t>(size));
+    MCRenderer::RegisterData(AllFadePalettes.get(), size, MCDataKind::Tables);
+    NumAllFadePalettes = size >> 8;
     return 0;
 }
 
-void Palette::addFadePalette()
+void MCPalette::AddFadePalette()
 {
-    ++numFadePalettes;
-    const uint32_t size = numFadePalettes * 0x100;
+    ++NumFadePalettes;
+    const uint32_t size = NumFadePalettes * 0x100;
     auto tables = std::make_unique<uint8_t[]>(size);
     // Original behaviour: the old tables are copied and the new last one is left as the heap gave it (the
     // declaration's "a copy of the last one" was never done).
-    std::memcpy(tables.get(), fadePalettes.get(), size - 0x100);
-    MCRenderer::UnregisterData(fadePalettes.get());
-    fadePalettes = std::move(tables);
-    MCRenderer::RegisterData(fadePalettes.get(), size, MCDataKind::Tables);
+    std::memcpy(tables.get(), FadePalettes.get(), size - 0x100);
+    MCRenderer::UnregisterData(FadePalettes.get());
+    FadePalettes = std::move(tables);
+    MCRenderer::RegisterData(FadePalettes.get(), size, MCDataKind::Tables);
 }
 
-void Palette::removeFadePalette(int32_t index)
+void MCPalette::RemoveFadePalette(int32_t index)
 {
-    auto tables = std::make_unique<uint8_t[]>((numFadePalettes - 1) * 0x100);
-    const uint8_t* old = fadePalettes.get();
+    auto tables = std::make_unique<uint8_t[]>((NumFadePalettes - 1) * 0x100);
+    const uint8_t* old = FadePalettes.get();
     // Original behaviour: both copies start at the beginning of the old tables, so the tables before the removed one
     // are overwritten by the first ones again and the tables after it are lost (only the first count - 1 survive).
     std::memcpy(tables.get(), old, static_cast<size_t>(static_cast<uint32_t>(index) & 0xffffff) << 8);
     std::memcpy(tables.get(), old,
-                static_cast<size_t>((numFadePalettes - static_cast<uint32_t>(index) - 1) & 0xffffff) << 8);
-    --numFadePalettes;
+                static_cast<size_t>((NumFadePalettes - static_cast<uint32_t>(index) - 1) & 0xffffff) << 8);
+    --NumFadePalettes;
     MCRenderer::UnregisterData(old);
-    fadePalettes = std::move(tables);
-    MCRenderer::RegisterData(fadePalettes.get(), static_cast<size_t>(numFadePalettes) * 0x100, MCDataKind::Tables);
+    FadePalettes = std::move(tables);
+    MCRenderer::RegisterData(FadePalettes.get(), static_cast<size_t>(NumFadePalettes) * 0x100, MCDataKind::Tables);
 }
 
-int32_t Palette::saveFadePalettes()
+int32_t MCPalette::SaveFadePalettes()
 {
-    FullPathFileName fileName;
-    fileName.init(palettePath, fadeTableFile, ".tbl");
-    File file;
-    const int32_t result = file.create(fileName);
+    MCFullPathFileName fileName;
+    fileName.Init(PalettePath, FadeTableFile, ".tbl");
+    MCFile file;
+    const int32_t result = file.Create(fileName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.write(fadePalettes.get(), static_cast<int32_t>(numFadePalettes << 8));
-    file.close();
+    file.Write(FadePalettes.get(), static_cast<int32_t>(NumFadePalettes << 8));
+    file.Close();
     return 0;
 }
 
-void Palette::addExtractPalette()
+void MCPalette::AddExtractPalette()
 {
-    ++numExtractPalettes;
-    const uint32_t size = static_cast<uint32_t>(numExtractPalettes * PALETTE_FILE_SIZE);
+    ++NumExtractPalettes;
+    const uint32_t size = static_cast<uint32_t>(NumExtractPalettes * PALETTE_FILE_SIZE);
     auto palettes = std::make_unique<uint8_t[]>(size);
-    std::memcpy(palettes.get(), extractPalettes.get(), size - PALETTE_FILE_SIZE);
-    extractPalettes = std::move(palettes);
+    std::memcpy(palettes.get(), ExtractPalettes.get(), size - PALETTE_FILE_SIZE);
+    ExtractPalettes = std::move(palettes);
 }
 
-void Palette::removeExtractPalette(int32_t index)
+void MCPalette::RemoveExtractPalette(int32_t index)
 {
-    const int32_t count = numExtractPalettes;
+    const int32_t count = NumExtractPalettes;
     auto palettes = std::make_unique<uint8_t[]>(static_cast<size_t>(count * PALETTE_FILE_SIZE - PALETTE_FILE_SIZE));
-    const uint8_t* old = extractPalettes.get();
+    const uint8_t* old = ExtractPalettes.get();
     // Original behaviour: as removeFadePalette, both copies start at the beginning of the old palettes.
     std::memcpy(palettes.get(), old, static_cast<size_t>(static_cast<uint32_t>(index * 0xc1) & 0x3fffffff) * 4);
     std::memcpy(palettes.get(), old,
                 static_cast<size_t>(static_cast<uint32_t>((count - index - 1) * 0xc1) & 0x3fffffff) * 4);
-    numExtractPalettes = count - 1;
-    extractPalettes = std::move(palettes);
+    NumExtractPalettes = count - 1;
+    ExtractPalettes = std::move(palettes);
 }
 
-void Palette::copyNormalToExtractPalette(int32_t index)
+void MCPalette::CopyNormalToExtractPalette(int32_t index)
 {
-    if (index < numExtractPalettes && index > -1)
+    if (index < NumExtractPalettes && index > -1)
     {
-        std::memcpy(extractPalettes.get() + index * PALETTE_FILE_SIZE, originalPalette.get(), PALETTE_FILE_SIZE);
+        std::memcpy(ExtractPalettes.get() + index * PALETTE_FILE_SIZE, OriginalPalette.get(), PALETTE_FILE_SIZE);
     }
 }
 
-void cycleColors()
+void CycleColors()
 {
     // Set on the first call; the original kept a start time it never read.
     static uint32_t lastCycleTime = MCPort::Milliseconds();
 
-    if (scenario == nullptr)
+    if (Scenario == nullptr)
     {
         return;
     }
 
-    if (scenario->cycleLength * 1000.0f < static_cast<float>(MCPort::Milliseconds() - lastCycleTime))
+    if (Scenario->CycleLength * 1000.0f < static_cast<float>(MCPort::Milliseconds() - lastCycleTime))
     {
         lastCycleTime = MCPort::Milliseconds();
 
-        if (application->paletteCycle != 0)
+        if (Application->PaletteCycle != 0)
         {
-            uint32_t magic = currentMagic;
+            uint32_t magic = CurrentMagic;
 
             for (int32_t i = 0; i < 8; ++i)
             {
                 uint8_t color[3];
-                std::memcpy(color, gamePalette->rgbData.get() + WaterMagicColors[magic] * 3, 3);
-                gamePalette->tweakPalette(i + 0xd8, 1, reinterpret_cast<VFX_RGB*>(color));
+                std::memcpy(color, GamePalette->RgbData.get() + WaterMagicColors[magic] * 3, 3);
+                GamePalette->TweakPalette(i + 0xd8, 1, reinterpret_cast<MCVfxRgb*>(color));
                 ++magic;
 
                 if (static_cast<int32_t>(magic) > 7)
@@ -1186,15 +1186,15 @@ void cycleColors()
                 MCColorCycle cycle;
                 cycle.First = 0xd8;
                 std::copy_n(WaterMagicColors, 8, cycle.Sources.begin());
-                cycle.Step = currentMagic;
+                cycle.Step = CurrentMagic;
                 display->SetColorCycle(cycle);
             }
 
-            ++currentMagic;
+            ++CurrentMagic;
 
-            if (currentMagic > 7)
+            if (CurrentMagic > 7)
             {
-                currentMagic = 0;
+                CurrentMagic = 0;
             }
         }
     }

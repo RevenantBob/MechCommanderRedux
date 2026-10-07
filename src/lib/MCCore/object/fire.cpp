@@ -35,9 +35,9 @@ namespace
     constexpr int32_t FOREST_TERRAIN_OBJECT = 6;
 
     /// <summary>The object list named <paramref name="listName"/>, or null.</summary>
-    ObjectQueueNode* findObjectList(const char* listName)
+    MCObjectQueueNode* FindObjectList(const char* listName)
     {
-        for (ObjectQueueNode* list = objectList->head; list != nullptr; list = list->next)
+        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
         {
             if (list->operator==(listName) != 0)
             {
@@ -49,26 +49,26 @@ namespace
     }
 
     /// <summary>Runs a collision check between the fire and every object of the list.</summary>
-    void collideWithList(Fire* fire, ObjectQueueNode* list)
+    void CollideWithList(MCFire* fire, MCObjectQueueNode* list)
     {
         if (list == nullptr)
         {
             return;
         }
 
-        BaseObject* object = list->head;
+        MCBaseObject* object = list->Head;
 
         while (object != nullptr)
         {
-            auto* other = static_cast<GameObject*>(object);
+            auto* other = static_cast<MCGameObject*>(object);
 
-            if (other->getObjectType() != nullptr)
+            if (other->GetObjectType() != nullptr)
             {
                 // The block and vertex are fetched but never used.
                 int32_t otherBlock = -1;
                 int32_t otherVertex = -1;
 
-                switch (other->objectClass)
+                switch (other->ObjectClass)
                 {
                     case BUILDING:
                     case TREE:
@@ -76,23 +76,23 @@ namespace
                     case MISCTERRAINOBJECT:
                     case TREEBUILDING:
                     case CAMERADRONE:
-                        other->getBlockAndVertexNumber(otherBlock, otherVertex);
+                        other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                         break;
                     default:
                         break;
                 }
 
-                collisionSystem->detectStaticCollision(fire, other);
+                CollisionSystem->DetectStaticCollision(fire, other);
             }
 
             // Port fix (OB-015): the original only steps to the next object after one with a type, so an object
             // without one hangs the game here.
-            object = object->next;
+            object = object->Next;
         }
     }
 
     /// <summary>A random offset of up to <paramref name="range"/>, added or (on a coin flip) taken away.</summary>
-    float scatter(float base, int32_t range)
+    float Scatter(float base, int32_t range)
     {
         const auto offset = static_cast<float>(RandomNumber(range));
 
@@ -105,127 +105,127 @@ namespace
     }
 } // namespace
 
-std::unique_ptr<Fire*[]> Fire::maxFiresList;
-float maxFireBurnTime = 5.0f;
-int32_t maxFiresBurning = 0;
-int32_t currentFireIndex = 0;
+std::unique_ptr<MCFire*[]> MCFire::MaxFiresList;
+float MaxFireBurnTime = 5.0f;
+int32_t MaxFiresBurning = 0;
+int32_t CurrentFireIndex = 0;
 
 //---------------------------------------------------------------------------
 // FireType
 //---------------------------------------------------------------------------
 
-auto FireType::init() -> void
+auto MCFireType::Init() -> void
 {
-    ObjectType::init();
-    dmgLevel = 0;
-    soundEffectId = 0xffffffff;
-    timeToMaxExtent = 0.0f;
-    maxExtentRadius = 0.0f;
-    totalFireShapes = 1;
-    fireOffsetX = nullptr;
-    fireOffsetY = nullptr;
-    fireDelay = nullptr;
-    fireRandomOffsetX = nullptr;
-    fireRandomOffsetY = nullptr;
-    fireRandomDelay = nullptr;
+    MCObjectType::Init();
+    DmgLevel = 0;
+    SoundEffectId = 0xffffffff;
+    TimeToMaxExtent = 0.0f;
+    MaxExtentRadius = 0.0f;
+    TotalFireShapes = 1;
+    FireOffsetX = nullptr;
+    FireOffsetY = nullptr;
+    FireDelay = nullptr;
+    FireRandomOffsetX = nullptr;
+    FireRandomOffsetY = nullptr;
+    FireRandomDelay = nullptr;
 }
 
-auto FireType::createInstance() -> BaseObject*
+auto MCFireType::CreateInstance() -> MCBaseObject*
 {
-    auto* newFire = new Fire;
+    auto* newFire = new MCFire;
 
     if (newFire == nullptr)
     {
         return nullptr;
     }
 
-    if (newFire->init(this) != 0)
+    if (newFire->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newFire->idNumber = NextIdNumber++;
+    newFire->IdNumber = NextIdNumber++;
     return newFire;
 }
 
-auto FireType::destroy() -> void
+auto MCFireType::Destroy() -> void
 {
-    fireOffsetX.reset();
-    fireOffsetY.reset();
-    fireDelay.reset();
-    fireRandomOffsetX.reset();
-    fireRandomOffsetY.reset();
-    fireRandomDelay.reset();
+    FireOffsetX.reset();
+    FireOffsetY.reset();
+    FireDelay.reset();
+    FireRandomOffsetX.reset();
+    FireRandomOffsetY.reset();
+    FireRandomDelay.reset();
 }
 
-auto FireType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCFireType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile fireFile;
-    int32_t result = fireFile.open(objFile, fileSize, 50);
+    MCFitIniFile fireFile;
+    int32_t result = fireFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = fireFile.seekBlock("FireData")) != 0)
+    if ((result = fireFile.SeekBlock("FireData")) != 0)
     {
         return result;
     }
 
-    if ((result = fireFile.readIdULong("DmgLevel", dmgLevel)) != 0)
+    if ((result = fireFile.ReadIdULong("DmgLevel", DmgLevel)) != 0)
     {
         return result;
     }
 
-    if ((result = fireFile.readIdULong("SoundEffectId", soundEffectId)) != 0)
+    if ((result = fireFile.ReadIdULong("SoundEffectId", SoundEffectId)) != 0)
     {
         return result;
     }
 
-    if (fireFile.readIdULong("LightObjectId", lightObjectId) != 0)
+    if (fireFile.ReadIdULong("LightObjectId", LightObjectId) != 0)
     {
-        lightObjectId = 0xffffffff;
+        LightObjectId = 0xffffffff;
     }
 
-    if ((result = fireFile.readIdULong("startLoopFrame", startLoopFrame)) != 0)
-    {
-        return result;
-    }
-
-    if ((result = fireFile.readIdULong("numLoops", numLoops)) != 0)
+    if ((result = fireFile.ReadIdULong("startLoopFrame", StartLoopFrame)) != 0)
     {
         return result;
     }
 
-    if ((result = fireFile.readIdULong("endLoopFrame", endLoopFrame)) != 0)
+    if ((result = fireFile.ReadIdULong("numLoops", NumLoops)) != 0)
     {
         return result;
     }
 
-    if (fireFile.readIdFloat("maxExtentRadius", maxExtentRadius) != 0)
+    if ((result = fireFile.ReadIdULong("endLoopFrame", EndLoopFrame)) != 0)
     {
-        maxExtentRadius = 0.0f;
+        return result;
     }
 
-    if (fireFile.readIdFloat("TimeToMaxExtent", timeToMaxExtent) != 0)
+    if (fireFile.ReadIdFloat("maxExtentRadius", MaxExtentRadius) != 0)
     {
-        timeToMaxExtent = 0.0f;
+        MaxExtentRadius = 0.0f;
     }
 
-    if (fireFile.readIdLong("TotalFireShapes", totalFireShapes) != 0)
+    if (fireFile.ReadIdFloat("TimeToMaxExtent", TimeToMaxExtent) != 0)
     {
-        totalFireShapes = 1;
+        TimeToMaxExtent = 0.0f;
     }
 
-    const int32_t numShapes = totalFireShapes;
+    if (fireFile.ReadIdLong("TotalFireShapes", TotalFireShapes) != 0)
+    {
+        TotalFireShapes = 1;
+    }
+
+    const int32_t numShapes = TotalFireShapes;
     const auto count = static_cast<size_t>(numShapes);
-    fireOffsetX = std::make_unique<float[]>(count);
-    fireOffsetY = std::make_unique<float[]>(count);
-    fireDelay = std::make_unique<float[]>(count);
-    fireRandomOffsetX = std::make_unique<int32_t[]>(count);
-    fireRandomOffsetY = std::make_unique<int32_t[]>(count);
-    fireRandomDelay = std::make_unique<int32_t[]>(count);
+    FireOffsetX = std::make_unique<float[]>(count);
+    FireOffsetY = std::make_unique<float[]>(count);
+    FireDelay = std::make_unique<float[]>(count);
+    FireRandomOffsetX = std::make_unique<int32_t[]>(count);
+    FireRandomOffsetY = std::make_unique<int32_t[]>(count);
+    FireRandomDelay = std::make_unique<int32_t[]>(count);
 
     for (int32_t i = 0; i < numShapes; i++)
     {
@@ -242,66 +242,66 @@ auto FireType::init(File* objFile, uint32_t fileSize) -> int32_t
         std::sprintf(randomOffsetYName, "FireRandomOffsetY%d", i);
         std::sprintf(randomDelayName, "FireRandomDelay%d", i);
 
-        if (fireFile.readIdFloat(offsetXName, fireOffsetX[i]) != 0)
+        if (fireFile.ReadIdFloat(offsetXName, FireOffsetX[i]) != 0)
         {
-            fireOffsetX[i] = 0.0f;
+            FireOffsetX[i] = 0.0f;
         }
 
-        if (fireFile.readIdFloat(offsetYName, fireOffsetY[i]) != 0)
+        if (fireFile.ReadIdFloat(offsetYName, FireOffsetY[i]) != 0)
         {
-            fireOffsetY[i] = 0.0f;
+            FireOffsetY[i] = 0.0f;
         }
 
-        if (fireFile.readIdFloat(delayName, fireDelay[i]) != 0)
+        if (fireFile.ReadIdFloat(delayName, FireDelay[i]) != 0)
         {
-            fireDelay[i] = 0.0f;
+            FireDelay[i] = 0.0f;
         }
 
-        if (fireFile.readIdLong(randomOffsetXName, fireRandomOffsetX[i]) != 0)
+        if (fireFile.ReadIdLong(randomOffsetXName, FireRandomOffsetX[i]) != 0)
         {
-            fireRandomOffsetX[i] = 0;
+            FireRandomOffsetX[i] = 0;
         }
 
-        if (fireFile.readIdLong(randomOffsetYName, fireRandomOffsetY[i]) != 0)
+        if (fireFile.ReadIdLong(randomOffsetYName, FireRandomOffsetY[i]) != 0)
         {
-            fireRandomOffsetY[i] = 0;
+            FireRandomOffsetY[i] = 0;
         }
 
-        if (fireFile.readIdLong(randomDelayName, fireRandomDelay[i]) != 0)
+        if (fireFile.ReadIdLong(randomDelayName, FireRandomDelay[i]) != 0)
         {
-            fireRandomDelay[i] = 0;
+            FireRandomDelay[i] = 0;
         }
     }
 
-    return ObjectType::init(&fireFile);
+    return MCObjectType::Init(&fireFile);
 }
 
-auto FireType::handleCollision(GameObject*, GameObject* collider) -> int
+auto MCFireType::HandleCollision(MCGameObject*, MCGameObject* collider) -> int
 {
     // The fire spreads (one chance in ten per collision) to what it touches; the server's job in multiplayer.
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 0;
     }
 
-    if (collider->isDestroyed() != 0)
+    if (collider->IsDestroyed() != 0)
     {
         return 0;
     }
 
-    switch (collider->objectClass)
+    switch (collider->ObjectClass)
     {
         case BUILDING:
         {
             if (RollDice(10) != 0)
             {
                 const float timeToBurn =
-                    10.0f / static_cast<BuildingType*>(collider->getObjectType())->timeToBurnDamage;
-                static_cast<Building*>(collider)->lightOnFire(timeToBurn);
+                    10.0f / static_cast<MCBuildingType*>(collider->GetObjectType())->TimeToBurnDamage;
+                static_cast<MCBuilding*>(collider)->LightOnFire(timeToBurn);
 
                 if (MPlayer != nullptr)
                 {
-                    MPlayer->addLightOnFireChunk(collider, static_cast<int32_t>(timeToBurn));
+                    MPlayer->AddLightOnFireChunk(collider, static_cast<int32_t>(timeToBurn));
                 }
             }
             break;
@@ -310,11 +310,11 @@ auto FireType::handleCollision(GameObject*, GameObject* collider) -> int
         {
             if (RollDice(10) != 0)
             {
-                static_cast<Tree*>(collider)->lightOnFire(15.0f);
+                static_cast<MCTree*>(collider)->LightOnFire(15.0f);
 
                 if (MPlayer != nullptr)
                 {
-                    MPlayer->addLightOnFireChunk(collider, 15);
+                    MPlayer->AddLightOnFireChunk(collider, 15);
                 }
             }
             break;
@@ -323,11 +323,11 @@ auto FireType::handleCollision(GameObject*, GameObject* collider) -> int
         {
             if (RollDice(10) != 0)
             {
-                static_cast<MiscTerrainObject*>(collider)->lightOnFire(15.0f);
+                static_cast<MCMiscTerrainObject*>(collider)->LightOnFire(15.0f);
 
                 if (MPlayer != nullptr)
                 {
-                    MPlayer->addLightOnFireChunk(collider, 15);
+                    MPlayer->AddLightOnFireChunk(collider, 15);
                 }
             }
             break;
@@ -336,11 +336,11 @@ auto FireType::handleCollision(GameObject*, GameObject* collider) -> int
         {
             if (RollDice(10) != 0)
             {
-                static_cast<TreeBuilding*>(collider)->lightOnFire(15.0f);
+                static_cast<MCTreeBuilding*>(collider)->LightOnFire(15.0f);
 
                 if (MPlayer != nullptr)
                 {
-                    MPlayer->addLightOnFireChunk(collider, 15);
+                    MPlayer->AddLightOnFireChunk(collider, 15);
                 }
             }
             break;
@@ -352,7 +352,7 @@ auto FireType::handleCollision(GameObject*, GameObject* collider) -> int
     return 0;
 }
 
-auto FireType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCFireType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -361,92 +361,92 @@ auto FireType::handleDestruction(GameObject*, GameObject*) -> int
 // Fire
 //---------------------------------------------------------------------------
 
-auto Fire::init() -> void
+auto MCFire::Init() -> void
 {
-    justCreated = 0;
-    appearances = nullptr;
-    extentRadius = 0.0f;
-    burningOut = 0;
-    burningObject = nullptr;
-    shapeOffsets = nullptr;
-    startDelays = nullptr;
-    loopsLeft = nullptr;
-    timeLeftToBurn = nullptr;
-    light = nullptr;
-    lastVisibleTurn = 0;
+    JustCreated = 0;
+    Appearances = nullptr;
+    ExtentRadius = 0.0f;
+    BurningOut = 0;
+    BurningObject = nullptr;
+    ShapeOffsets = nullptr;
+    StartDelays = nullptr;
+    LoopsLeft = nullptr;
+    TimeLeftToBurn = nullptr;
+    Light = nullptr;
+    LastVisibleTurn = 0;
 }
 
-auto Fire::handleStaticCollision() -> void
+auto MCFire::HandleStaticCollision() -> void
 {
-    if (collisionsOn == 0)
+    if (CollisionsOn == 0)
     {
         return;
     }
 
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
-    getBlockAndVertexNumber(blockNumber, vertexNumber);
+    GetBlockAndVertexNumber(blockNumber, vertexNumber);
 
     // The terrain objects of the 3x3 terrain blocks around it.
-    const int32_t firstBlock = blockNumber - Terrain::blocksMapSide - 1;
+    const int32_t firstBlock = blockNumber - MCTerrain::BlocksMapSide - 1;
 
     for (int32_t row = 0; row < 3; row++)
     {
-        int32_t block = (row == 0) ? firstBlock : (row - 1) * Terrain::blocksMapSide + firstBlock;
+        int32_t block = (row == 0) ? firstBlock : (row - 1) * MCTerrain::BlocksMapSide + firstBlock;
 
         for (int32_t col = 0; col < 3; col++, block++)
         {
             char listName[12];
             std::sprintf(listName, "TBlk%d", block);
-            collideWithList(this, findObjectList(listName));
+            CollideWithList(this, FindObjectList(listName));
             std::sprintf(listName, "RBlk%d", block);
-            collideWithList(this, findObjectList(listName));
+            CollideWithList(this, FindObjectList(listName));
         }
     }
 }
 
-auto Fire::isVisible(int32_t shapeIndex) -> int
+auto MCFire::IsVisible(int32_t shapeIndex) -> int
 {
     int onScreenNow = 0;
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera != nullptr && camera->active != 0)
+    if (camera != nullptr && camera->Active != 0)
     {
-        vector_2d screen100;
-        vector_2d screen50;
+        MCVector2D screen100;
+        MCVector2D screen50;
 
-        if (land != nullptr)
+        if (Land != nullptr)
         {
-            vector_3d shapePos;
-            shapePos.x = position.x + shapeOffsets[shapeIndex].x;
-            shapePos.y = position.y + shapeOffsets[shapeIndex].y;
-            shapePos.z = position.z + shapeOffsets[shapeIndex].z;
-            land->projectTerrain(shapePos, screen100, screen50);
+            MCVector3D shapePos;
+            shapePos.X = Position.X + ShapeOffsets[shapeIndex].X;
+            shapePos.Y = Position.Y + ShapeOffsets[shapeIndex].Y;
+            shapePos.Z = Position.Z + ShapeOffsets[shapeIndex].Z;
+            Land->ProjectTerrain(shapePos, screen100, screen50);
         }
 
         float screenY;
 
-        if (camera->cameraScale == 1)
+        if (camera->CameraScale == 1)
         {
-            screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-            screenY = screen50.y - camera->screenUL50.y;
+            ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+            screenY = screen50.Y - camera->ScreenUL50.Y;
         }
         else
         {
-            screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-            screenY = screen100.y - camera->screenUL.y;
+            ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+            screenY = screen100.Y - camera->ScreenUL.Y;
         }
 
-        screenPos.y = screenY + camera->halfHeight;
-        Appearance* shapeAppearance = appearances[shapeIndex];
+        ScreenPos.Y = screenY + camera->HalfHeight;
+        MCAppearance* shapeAppearance = Appearances[shapeIndex];
 
         if (shapeAppearance != nullptr)
         {
-            onScreenNow = shapeAppearance->recalcBounds(camera);
+            onScreenNow = shapeAppearance->RecalcBounds(camera);
 
             if (onScreenNow != 0)
             {
-                lastVisibleTurn = turn;
+                LastVisibleTurn = Turn;
             }
         }
     }
@@ -457,69 +457,69 @@ auto Fire::isVisible(int32_t shapeIndex) -> int
         return 0;
     }
 
-    windowsVisible = turn;
+    WindowsVisible = Turn;
     return 1;
 }
 
-auto Fire::finishFireNow() -> void
+auto MCFire::FinishFireNow() -> void
 {
-    const int32_t numShapes = static_cast<FireType*>(objType)->totalFireShapes;
+    const int32_t numShapes = static_cast<MCFireType*>(ObjType)->TotalFireShapes;
 
     for (int32_t i = 0; i < numShapes; i++)
     {
-        loopsLeft[i] = 2;
+        LoopsLeft[i] = 2;
     }
 
-    burningOut = 1;
+    BurningOut = 1;
 
     for (int32_t i = 0; i < numShapes; i++)
     {
-        startDelays[i] = 0.0f;
+        StartDelays[i] = 0.0f;
     }
 
     for (int32_t i = 0; i < numShapes; i++)
     {
-        timeLeftToBurn[i] = 0.0f;
+        TimeLeftToBurn[i] = 0.0f;
     }
 }
 
-auto Fire::addTimeLeftToBurn(float extraTime) -> void
+auto MCFire::AddTimeLeftToBurn(float extraTime) -> void
 {
-    const int32_t numShapes = static_cast<FireType*>(objType)->totalFireShapes;
+    const int32_t numShapes = static_cast<MCFireType*>(ObjType)->TotalFireShapes;
 
     for (int32_t i = 0; i < numShapes; i++)
     {
-        if (extraTime + timeLeftToBurn[i] < maxFireBurnTime)
+        if (extraTime + TimeLeftToBurn[i] < MaxFireBurnTime)
         {
-            timeLeftToBurn[i] = extraTime + timeLeftToBurn[i];
+            TimeLeftToBurn[i] = extraTime + TimeLeftToBurn[i];
         }
     }
 }
 
-auto Fire::isRevealed() -> int
+auto MCFire::IsRevealed() -> int
 {
     int32_t tileR = 0;
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->worldToMapPos(position, tileR, tileC, cellR, cellC);
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    GameMap->WorldToMapPos(Position, tileR, tileC, cellR, cellC);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     // Faithful: tile coordinates are looked up in the vertex-resolution visibility bits.
     const auto row = static_cast<uint32_t>(tileR);
     const auto col = static_cast<uint32_t>(tileC);
-    int revealed = visibleBits->getFlag(row, col) != 0 ? 1 : 0;
+    int revealed = visibleBits->GetFlag(row, col) != 0 ? 1 : 0;
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         revealed = 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         revealed = 1;
     }
 
-    if (visibleBits->getFlag(row, col + 1) != 0)
+    if (visibleBits->GetFlag(row, col + 1) != 0)
     {
         revealed = 1;
     }
@@ -527,83 +527,83 @@ auto Fire::isRevealed() -> int
     return revealed;
 }
 
-auto Fire::update() -> int32_t
+auto MCFire::Update() -> int32_t
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         // Make sure the fire is in the object lists: if no list holds it, append it to the first.
-        justCreated = 0;
-        setPotentialContact(3);
-        BaseObject* current = nullptr;
+        JustCreated = 0;
+        SetPotentialContact(3);
+        MCBaseObject* current = nullptr;
 
         do
         {
-            objectList->traverse(current);
+            ObjectList->Traverse(current);
 
             if (current == nullptr)
             {
-                if (objectList->head != nullptr)
+                if (ObjectList->Head != nullptr)
                 {
-                    objectList->head->addNode(this);
+                    ObjectList->Head->AddNode(this);
                 }
                 break;
             }
         } while (current != this);
     }
 
-    if (burningOut != 0)
+    if (BurningOut != 0)
     {
-        collisionsOn = 0;
+        CollisionsOn = 0;
     }
 
     // Each shape waits out its start delay, then burns until its time runs out; a shape burnt out while still
     // looping sets the fire burning out, and collisions on for a frame at the full extent.
-    const auto* fireType = static_cast<FireType*>(objType);
+    const auto* fireType = static_cast<MCFireType*>(ObjType);
 
-    for (int32_t i = 0; i < fireType->totalFireShapes; i++)
+    for (int32_t i = 0; i < fireType->TotalFireShapes; i++)
     {
-        if (startDelays[i] <= 0.0f)
+        if (StartDelays[i] <= 0.0f)
         {
-            if (loopsLeft[i] != 0)
+            if (LoopsLeft[i] != 0)
             {
-                const float timeLeft = timeLeftToBurn[i] - frameLength;
-                timeLeftToBurn[i] = timeLeft;
+                const float timeLeft = TimeLeftToBurn[i] - FrameLength;
+                TimeLeftToBurn[i] = timeLeft;
 
-                if (0.0f < timeLeft || static_cast<uint32_t>(loopsLeft[i]) < 3 ||
-                    static_cast<VFXAppearance*>(appearances[i])->currentState == ACTOR_STATE_DAMAGED)
+                if (0.0f < timeLeft || static_cast<uint32_t>(LoopsLeft[i]) < 3 ||
+                    static_cast<MCVfxAppearance*>(Appearances[i])->CurrentState == ACTOR_STATE_DAMAGED)
                 {
                     if (0.0f < timeLeft)
                     {
-                        loopsLeft[i] = 999;
+                        LoopsLeft[i] = 999;
                     }
                 }
                 else
                 {
-                    collisionsOn = 1;
-                    extentRadius = fireType->maxExtentRadius;
-                    burningOut = 1;
-                    loopsLeft[i] = 2;
+                    CollisionsOn = 1;
+                    ExtentRadius = fireType->MaxExtentRadius;
+                    BurningOut = 1;
+                    LoopsLeft[i] = 2;
                 }
             }
         }
         else
         {
-            startDelays[i] -= frameLength;
+            StartDelays[i] -= FrameLength;
         }
     }
 
     // Done once burning out and (if anyone can see it) every shape has finished.
     bool done = false;
 
-    if (burningOut != 0)
+    if (BurningOut != 0)
     {
         done = true;
 
-        if (isRevealed() != 0 || MPlayer != nullptr)
+        if (IsRevealed() != 0 || MPlayer != nullptr)
         {
-            for (int32_t i = 0; i < fireType->totalFireShapes; i++)
+            for (int32_t i = 0; i < fireType->TotalFireShapes; i++)
             {
-                if (loopsLeft[i] != 0)
+                if (LoopsLeft[i] != 0)
                 {
                     done = false;
                 }
@@ -611,11 +611,11 @@ auto Fire::update() -> int32_t
         }
     }
 
-    if (light != nullptr)
+    if (Light != nullptr)
     {
-        vector_3d lightPos = position;
-        light->setPosition(lightPos);
-        light->update();
+        MCVector3D lightPos = Position;
+        Light->SetPosition(lightPos);
+        Light->Update();
     }
 
     if (!done)
@@ -624,95 +624,95 @@ auto Fire::update() -> int32_t
     }
 
     // Put the burning object out; a burnt forest takes its damage.
-    if (burningObject != nullptr)
+    if (BurningObject != nullptr)
     {
-        if (burningObject->objectClass == MISCTERRAINOBJECT &&
-            static_cast<MiscTerrainObject*>(burningObject)->terrainObjectKind == FOREST_TERRAIN_OBJECT)
+        if (BurningObject->ObjectClass == MISCTERRAINOBJECT &&
+            static_cast<MCMiscTerrainObject*>(BurningObject)->TerrainObjectKind == FOREST_TERRAIN_OBJECT)
         {
-            const auto* forestType = static_cast<MiscTerrainObjectType*>(burningObject->getObjectType());
-            _WeaponShotInfo shot;
-            shot.init(nullptr, -3, static_cast<float>(static_cast<int32_t>(forestType->forestDmgLevel)), 0, 0.0f);
-            burningObject->handleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+            const auto* forestType = static_cast<MCMiscTerrainObjectType*>(BurningObject->GetObjectType());
+            MCWeaponShotInfo shot;
+            shot.Init(nullptr, -3, static_cast<float>(static_cast<int32_t>(forestType->ForestDmgLevel)), 0, 0.0f);
+            BurningObject->HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
         }
 
-        burningObject->killFireObject();
+        BurningObject->KillFireObject();
     }
 
-    for (int32_t i = 0; i < maxFiresBurning; i++)
+    for (int32_t i = 0; i < MaxFiresBurning; i++)
     {
-        if (maxFiresList[i] == this)
+        if (MaxFiresList[i] == this)
         {
-            maxFiresList[i] = nullptr;
+            MaxFiresList[i] = nullptr;
         }
     }
 
     return 0;
 }
 
-auto Fire::render() -> void
+auto MCFire::Render() -> void
 {
     int tagged = 0;
-    const int32_t contactType = getContactType(homeTeam->id, tagged);
-    const int revealed = burningObject != nullptr ? burningObject->isRevealed() : isRevealed();
-    const auto* fireType = static_cast<FireType*>(objType);
+    const int32_t contactType = GetContactType(HomeTeam->Id, tagged);
+    const int revealed = BurningObject != nullptr ? BurningObject->IsRevealed() : IsRevealed();
+    const auto* fireType = static_cast<MCFireType*>(ObjType);
 
     if (revealed != 0 || MPlayer != nullptr)
     {
         // Each burning shape plays its start (0), loop (1) and end (2) animations in turn.
-        for (int32_t i = 0; i < fireType->totalFireShapes; i++)
+        for (int32_t i = 0; i < fireType->TotalFireShapes; i++)
         {
             int finished = 0;
 
-            if (loopsLeft[i] == 0)
+            if (LoopsLeft[i] == 0)
             {
                 continue;
             }
 
-            const int visibleNow = isVisible(i);
-            auto* shapeAppearance = static_cast<VFXAppearance*>(appearances[i]);
-            shapeAppearance->visible = visibleNow;
+            const int visibleNow = IsVisible(i);
+            auto* shapeAppearance = static_cast<MCVfxAppearance*>(Appearances[i]);
+            shapeAppearance->Visible = visibleNow;
 
-            if (0.0f < startDelays[i])
+            if (0.0f < StartDelays[i])
             {
                 continue;
             }
 
-            if (shapeAppearance->update() == 0)
+            if (shapeAppearance->Update() == 0)
             {
-                if (shapeAppearance->currentState == ACTOR_STATE_DAMAGED)
+                if (shapeAppearance->CurrentState == ACTOR_STATE_DAMAGED)
                 {
                     finished = 1;
-                    loopsLeft[i] = 0;
+                    LoopsLeft[i] = 0;
                 }
                 else
                 {
-                    if (shapeAppearance->currentState == ACTOR_STATE_NORMAL)
+                    if (shapeAppearance->CurrentState == ACTOR_STATE_NORMAL)
                     {
-                        shapeAppearance->setTypeId(ACTOR_STATE_BLOWING_UP1, 0xff);
-                        shapeAppearance->update();
+                        shapeAppearance->SetTypeId(ACTOR_STATE_BLOWING_UP1, 0xff);
+                        shapeAppearance->Update();
                     }
 
-                    loopsLeft[i]--;
+                    LoopsLeft[i]--;
 
-                    if (loopsLeft[i] == 1)
+                    if (LoopsLeft[i] == 1)
                     {
-                        auto* endAppearance = static_cast<VFXAppearance*>(appearances[i]);
-                        endAppearance->setTypeId(ACTOR_STATE_DAMAGED, 0xff);
-                        endAppearance->update();
+                        auto* endAppearance = static_cast<MCVfxAppearance*>(Appearances[i]);
+                        endAppearance->SetTypeId(ACTOR_STATE_DAMAGED, 0xff);
+                        endAppearance->Update();
                     }
                 }
             }
 
-            if (justCreated == 0 && finished == 0 && isRevealed() != 0 && lastVisibleTurn == turn)
+            if (JustCreated == 0 && finished == 0 && IsRevealed() != 0 && LastVisibleTurn == Turn)
             {
-                somethingOnFire = 1;
-                appearances[i]->render(-150);
+                SomethingOnFire = 1;
+                Appearances[i]->Render(-150);
             }
         }
 
-        if (light != nullptr)
+        if (Light != nullptr)
         {
-            light->render();
+            Light->Render();
         }
 
         return;
@@ -724,24 +724,24 @@ auto Fire::render() -> void
         return;
     }
 
-    if (isVisible(0) == 0)
+    if (IsVisible(0) == 0)
     {
         return;
     }
 
     uint8_t* shape;
 
-    if (50.0f < getTonnage())
+    if (50.0f < GetTonnage())
     {
-        shape = scenario->sensorContactShapes[0];
+        shape = Scenario->SensorContactShapes[0];
     }
-    else if (35.0f < getTonnage())
+    else if (35.0f < GetTonnage())
     {
-        shape = scenario->sensorContactShapes[2];
+        shape = Scenario->SensorContactShapes[2];
     }
     else
     {
-        shape = scenario->sensorContactShapes[4];
+        shape = Scenario->SensorContactShapes[4];
     }
 
     if (shape == nullptr)
@@ -749,146 +749,146 @@ auto Fire::render() -> void
         return;
     }
 
-    if (VFX_shape_count(shape) <= blipFrame)
+    if (VfxShapeCount(shape) <= BlipFrame)
     {
-        if (soundSystem != nullptr && useSound != 0)
+        if (SoundSystem != nullptr && UseSound != 0)
         {
-            soundSystem->playDigitalSample(0x14, 1, this, 0, 1);
+            SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
         }
 
-        blipFrame = 0;
+        BlipFrame = 0;
     }
 
-    ElementList->openGroup(-100000, 1);
-    ElementList->add(ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
-    blipTime = frameLength + blipTime;
+    ElementList->OpenGroup(-100000, 1);
+    ElementList->Add(MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 0));
+    BlipTime = FrameLength + BlipTime;
 
-    if (0.067 < blipTime)
+    if (0.067 < BlipTime)
     {
-        blipFrame = static_cast<int32_t>(blipTime * (1.0 / 0.067) + blipFrame + 0.5);
-        blipTime = 0.0f;
+        BlipFrame = static_cast<int32_t>(BlipTime * (1.0 / 0.067) + BlipFrame + 0.5);
+        BlipTime = 0.0f;
     }
 }
 
-auto Fire::destroy() -> void
+auto MCFire::Destroy() -> void
 {
-    setPotentialContact(0);
-    const int32_t numShapes = static_cast<FireType*>(objType)->totalFireShapes;
+    SetPotentialContact(0);
+    const int32_t numShapes = static_cast<MCFireType*>(ObjType)->TotalFireShapes;
 
     for (int32_t i = 0; i < numShapes; i++)
     {
-        delete appearances[i];
-        appearances[i] = nullptr;
+        delete Appearances[i];
+        Appearances[i] = nullptr;
     }
 
-    appearances.reset();
-    shapeOffsets.reset();
-    startDelays.reset();
-    loopsLeft.reset();
-    timeLeftToBurn.reset();
-    delete light;
-    light = nullptr;
+    Appearances.reset();
+    ShapeOffsets.reset();
+    StartDelays.reset();
+    LoopsLeft.reset();
+    TimeLeftToBurn.reset();
+    delete Light;
+    Light = nullptr;
 }
 
-auto Fire::init(ObjectType* objType) -> int32_t
+auto MCFire::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    const auto* fireType = static_cast<FireType*>(objType);
-    const int32_t numShapes = fireType->totalFireShapes;
-    justCreated = 1;
+    const auto* fireType = static_cast<MCFireType*>(objType);
+    const int32_t numShapes = fireType->TotalFireShapes;
+    JustCreated = 1;
     const auto count = static_cast<size_t>(numShapes);
-    appearances = std::make_unique<Appearance*[]>(count);
-    shapeOffsets = std::make_unique<vector_3d[]>(count);
-    startDelays = std::make_unique<float[]>(count);
-    loopsLeft = std::make_unique<int32_t[]>(count);
-    timeLeftToBurn = std::make_unique<float[]>(count);
-    const uint32_t appearId = objType->appearName;
+    Appearances = std::make_unique<MCAppearance*[]>(count);
+    ShapeOffsets = std::make_unique<MCVector3D[]>(count);
+    StartDelays = std::make_unique<float[]>(count);
+    LoopsLeft = std::make_unique<int32_t[]>(count);
+    TimeLeftToBurn = std::make_unique<float[]>(count);
+    const uint32_t appearId = objType->AppearName;
 
     for (int32_t i = 0; i < numShapes; i++)
     {
-        vector_3d& offset = shapeOffsets[i];
-        offset.z = 0.0f;
-        offset.y = 0.0f;
-        offset.x = 0.0f;
-        startDelays[i] = 0.0f;
-        loopsLeft[i] = static_cast<int32_t>(static_cast<FireType*>(this->objType)->numLoops);
-        timeLeftToBurn[i] = maxFireBurnTime;
-        AppearanceType* apprType = appearanceTypeList->getAppearance(appearId, 0);
+        MCVector3D& offset = ShapeOffsets[i];
+        offset.Z = 0.0f;
+        offset.Y = 0.0f;
+        offset.X = 0.0f;
+        StartDelays[i] = 0.0f;
+        LoopsLeft[i] = static_cast<int32_t>(static_cast<MCFireType*>(this->ObjType)->NumLoops);
+        TimeLeftToBurn[i] = MaxFireBurnTime;
+        MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
 
         if (apprType == nullptr)
         {
             return static_cast<int32_t>(0xdcdc0003);
         }
 
-        appearanceClass = apprType->appearanceNum >> 24;
+        AppearanceClass = apprType->AppearanceNum >> 24;
 
-        if (appearanceClass != 2)
+        if (AppearanceClass != 2)
         {
             return static_cast<int32_t>(0xdcdc0005);
         }
 
-        auto* vfxAppearance = new VFXAppearance;
-        appearances[i] = vfxAppearance;
+        auto* vfxAppearance = new MCVfxAppearance;
+        Appearances[i] = vfxAppearance;
 
         if (vfxAppearance == nullptr)
         {
             return static_cast<int32_t>(0xdcdc0004);
         }
 
-        vfxAppearance->init(nullptr, nullptr);
+        vfxAppearance->Init(nullptr, nullptr);
 
-        if ((result = vfxAppearance->init(apprType, this)) != 0)
+        if ((result = vfxAppearance->Init(apprType, this)) != 0)
         {
             return result;
         }
 
-        static_cast<VFXAppearance*>(appearances[i])->setTypeId(ACTOR_STATE_NORMAL, 0xff);
+        static_cast<MCVfxAppearance*>(Appearances[i])->SetTypeId(ACTOR_STATE_NORMAL, 0xff);
 
         // Place the shape at its offset, scattered, and delay its start (tenths of a second).
-        offset.x = fireType->fireOffsetX[i] + offset.x;
-        offset.y = fireType->fireOffsetY[i] + offset.y;
-        offset.x = scatter(offset.x, fireType->fireRandomOffsetX[i]);
-        offset.y = scatter(offset.y, fireType->fireRandomOffsetY[i]);
-        const float delay = fireType->fireDelay[i] + startDelays[i];
-        startDelays[i] = delay;
-        startDelays[i] =
-            static_cast<float>((static_cast<double>(RandomNumber(fireType->fireRandomDelay[i])) + delay) * 0.1);
+        offset.X = fireType->FireOffsetX[i] + offset.X;
+        offset.Y = fireType->FireOffsetY[i] + offset.Y;
+        offset.X = Scatter(offset.X, fireType->FireRandomOffsetX[i]);
+        offset.Y = Scatter(offset.Y, fireType->FireRandomOffsetY[i]);
+        const float delay = fireType->FireDelay[i] + StartDelays[i];
+        StartDelays[i] = delay;
+        StartDelays[i] =
+            static_cast<float>((static_cast<double>(RandomNumber(fireType->FireRandomDelay[i])) + delay) * 0.1);
     }
 
-    objectClass = FIRE;
-    collisionsOn = 0;
-    burningOut = 0;
-    blipFrame = 0;
+    ObjectClass = FIRE;
+    CollisionsOn = 0;
+    BurningOut = 0;
+    BlipFrame = 0;
 
     // Fires share a ring of maxFiresBurning slots; taking a slot finishes the fire that held it.
-    if (maxFiresList == nullptr)
+    if (MaxFiresList == nullptr)
     {
-        maxFiresList = std::make_unique<Fire*[]>(static_cast<size_t>(maxFiresBurning));
+        MaxFiresList = std::make_unique<MCFire*[]>(static_cast<size_t>(MaxFiresBurning));
     }
 
-    currentFireIndex++;
+    CurrentFireIndex++;
 
-    if (currentFireIndex == maxFiresBurning)
+    if (CurrentFireIndex == MaxFiresBurning)
     {
-        currentFireIndex = 0;
+        CurrentFireIndex = 0;
     }
 
-    if (maxFiresList[currentFireIndex] != nullptr)
+    if (MaxFiresList[CurrentFireIndex] != nullptr)
     {
-        maxFiresList[currentFireIndex]->finishFireNow();
+        MaxFiresList[CurrentFireIndex]->FinishFireNow();
     }
 
-    maxFiresList[currentFireIndex] = this;
+    MaxFiresList[CurrentFireIndex] = this;
 
-    if (static_cast<int32_t>(fireType->lightObjectId) != -1)
+    if (static_cast<int32_t>(fireType->LightObjectId) != -1)
     {
-        light = createObject(static_cast<int32_t>(fireType->lightObjectId));
+        Light = CreateObject(static_cast<int32_t>(fireType->LightObjectId));
     }
 
     return 0;

@@ -2,17 +2,17 @@
 
 #include "lib/cvmath.h"
 
-class GameObject;
-class Mover;
-class MoverGroup;
-class MechWarrior;
-struct LocationNode;
+class MCGameObject;
+class MCMover;
+class MCMoverGroup;
+class MCMechWarrior;
+struct MCLocationNode;
 
 /// <summary>Waypoints a tactical order's way path holds.</summary>
 inline constexpr int32_t MAX_WAYPTS = 15;
 
 /// <summary>Who gave a tactical order (packed in 2 bits).</summary>
-enum OrderOriginType
+enum MCOrderOriginType
 {
     ORDER_ORIGIN_PLAYER = 0,
     ORDER_ORIGIN_COMMANDER = 1,
@@ -27,7 +27,7 @@ enum OrderOriginType
 /// Values from TacticalOrder::execute / status / is*Order; names follow MechCommander 2's enum, whose values match
 /// every case MCX.EXE uses. HOLD_FIRE (0x12) executes MechWarrior::orderWait.
 /// </remarks>
-enum TacticalOrderCode
+enum MCTacticalOrderCode
 {
     TACTICAL_ORDER_NONE = 0,
     TACTICAL_ORDER_WAIT = 1,
@@ -60,48 +60,48 @@ enum TacticalOrderCode
 
 /// <summary>A list of waypoints.</summary>
 /// <remarks>Original: <c>struct _WayPath</c> (MechWarrior::setMoveWayPath). 0xcc bytes.</remarks>
-typedef struct _WayPath
+typedef struct MCWayPath
 {
-    int32_t numPoints = 0; // +0x0
-    int32_t curPoint = 0;  // +0x4
+    int32_t NumPoints = 0;
+    int32_t CurPoint = 0;
     /// <summary>x, y, z of each waypoint.</summary>
-    float points[MAX_WAYPTS * 3]{}; // +0x8
+    float Points[MAX_WAYPTS * 3]{};
     /// <summary>Per waypoint, 1 to run to it.</summary>
-    uint8_t mode[MAX_WAYPTS]{}; // +0xbc
-} WayPath;
+    uint8_t Mode[MAX_WAYPTS]{};
+} MCWayPath;
 
 /// <summary>The movement part of a tactical order.</summary>
 /// <remarks>0xdc bytes (copied as one block by TacticalOrder's copy). The original name isn't known
 /// (MC2: TacOrderMoveParams); the flag names are MC2's, their use in MCX noted.</remarks>
-typedef struct _TacOrderMoveParams
+typedef struct MCTacOrderMoveParams
 {
-    WayPath wayPath{}; // +0x0
+    MCWayPath WayPath{};
     /// <summary>MOVETO_OBJECT: passed as move flag 4 (default 1).</summary>
-    int32_t faceObject = 0; // +0xcc
+    int32_t FaceObject = 0;
     /// <summary>MOVETO_POINT: move flag 2.</summary>
-    int32_t wait = 0; // +0xd0
+    int32_t Wait = 0;
     /// <summary>1 adds move flag 8.</summary>
-    int32_t mode = 0; // +0xd4
+    int32_t Mode = 0;
     /// <summary>MOVETO_POINT: move flag 0x40.</summary>
-    int32_t escapeTile = 0; // +0xd8
-} TacOrderMoveParams;
+    int32_t EscapeTile = 0;
+} MCTacOrderMoveParams;
 
 /// <summary>The attack part of a tactical order.</summary>
 /// <remarks>Original: <c>struct _TacOrderAttackParams</c> (copy constructor at 0x006a8130). 0x24 bytes.</remarks>
-typedef struct _TacOrderAttackParams
+typedef struct MCTacOrderAttackParams
 {
     /// <summary>Attack type (default 1, packed in 2 bits).</summary>
-    int32_t type = 0; // +0x0
+    int32_t Type = 0;
     /// <summary>Attack method (2 = ramming, see TacticalOrder::getRamTarget).</summary>
-    int32_t method = 0; // +0x4
+    int32_t Method = 0;
     /// <summary>Fire range: a Mover::getFireRange selector, -4..2 (packed + 4 in 3 bits).</summary>
-    int32_t range = 0; // +0x8
+    int32_t Range = 0;
     /// <summary>Aimed location, -1 for none (packed + 2 in 4 bits; Mover::sortWeapons aims with it).</summary>
-    int32_t aimLocation = 0; // +0xc
-    int32_t pursue = 0;      // +0x10
-    int32_t obliterate = 0;  // +0x14
-    vector_3d targetPoint;   // +0x18
-} TacOrderAttackParams;
+    int32_t AimLocation = 0;
+    int32_t Pursue = 0;
+    int32_t Obliterate = 0;
+    MCVector3D TargetPoint;
+} MCTacOrderAttackParams;
 
 /// <summary>
 /// An order to one pilot or a group: its code, parameters, target and progress. Orders are queued on pilots and
@@ -110,96 +110,72 @@ typedef struct _TacOrderAttackParams
 /// <remarks>Original source: <c>ai\tacordr.cpp</c> (operator= inline in <c>ai\tacordr.h</c>). 0x138 bytes. No
 /// constructor: new orders are set up with <see cref="init()"/>. The compiler-generated copy constructor is emitted
 /// at 0x00602ea0 (network\multplyr.cpp).</remarks>
-class TacticalOrder
+class MCTacticalOrder
 {
 public:
     /// <summary>Copies an order and destroys the (by-value) source.</summary>
-    /// <remarks>MCX.EXE @ 0x006a6b50 (inline in the original's tacordr.h)</remarks>
-    void operator=(TacticalOrder copy);
+    void operator=(MCTacticalOrder copy);
 
-    /// <remarks>MCX.EXE @ 0x006c54e0</remarks>
-    void init();
-    /// <remarks>MCX.EXE @ 0x006c5510</remarks>
-    void init(OrderOriginType _origin, TacticalOrderCode _code, int _unitOrder = 0);
+    void Init();
+    void Init(MCOrderOriginType origin, MCTacticalOrderCode code, int unitOrder = 0);
     /// <summary>Copies a location list into the way path (at most MAX_WAYPTS).</summary>
-    /// <remarks>MCX.EXE @ 0x006c55e0</remarks>
-    void initWayPath(LocationNode* path);
-    /// <remarks>MCX.EXE @ 0x006c5650</remarks>
-    vector_3d getWayPoint(int32_t index);
-    /// <remarks>MCX.EXE @ 0x006c5690</remarks>
-    void setWayPoint(int32_t index, vector_3d wayPoint);
-    /// <remarks>MCX.EXE @ 0x006c56c0</remarks>
-    void addWayPoint(vector_3d wayPoint, int32_t run);
+    void InitWayPath(MCLocationNode* path);
+    MCVector3D GetWayPoint(int32_t index);
+    void SetWayPoint(int32_t index, MCVector3D wayPoint);
+    void AddWayPoint(MCVector3D wayPoint, int32_t run);
     /// <summary>The target of a ramming attack, else null.</summary>
-    /// <remarks>MCX.EXE @ 0x006c5720</remarks>
-    GameObject* getRamTarget();
+    MCGameObject* GetRamTarget();
     /// <summary>The target of a JUMPTO_POINT order, else null.</summary>
-    /// <remarks>MCX.EXE @ 0x006c5740</remarks>
-    GameObject* getJumpTarget();
-    /// <remarks>MCX.EXE @ 0x006c5750</remarks>
-    int isGroupOrder();
-    /// <remarks>MCX.EXE @ 0x006c5760</remarks>
-    int isCombatOrder();
-    /// <remarks>MCX.EXE @ 0x006c5780</remarks>
-    int isMoveOrder();
-    /// <remarks>MCX.EXE @ 0x006c57a0</remarks>
-    int isWayPathOrder();
-    /// <remarks>MCX.EXE @ 0x006c57c0</remarks>
-    int isJumpOrder();
+    MCGameObject* GetJumpTarget();
+    int IsGroupOrder();
+    int IsCombatOrder();
+    int IsMoveOrder();
+    int IsWayPathOrder();
+    int IsJumpOrder();
     /// <summary>Takes the pilot's next order id (1-255).</summary>
-    /// <remarks>MCX.EXE @ 0x006c57e0</remarks>
-    void setId(MechWarrior* pilot);
+    void SetId(MCMechWarrior* pilot);
     /// <summary>The order's parameters as ABL values: its time, and a list of longs by code.</summary>
     /// <returns>The order code.</returns>
-    /// <remarks>MCX.EXE @ 0x006c5830</remarks>
-    int32_t getParamData(float* timeStamp, int32_t* paramList);
-    /// <summary>Packs the order into <see cref="data"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x006c59a0</remarks>
-    int32_t pack(MoverGroup* group, Mover* point);
-    /// <summary>Rebuilds the order from <see cref="data"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x006c5c50</remarks>
-    int32_t unpack();
-    /// <remarks>MCX.EXE @ 0x006c5f60</remarks>
-    void setGroupFlag(int32_t localMoverId, int set);
-    /// <summary>The movers of a multiplayer commander flagged in <see cref="groupFlags"/>, and the point mover.</summary>
-    /// <remarks>MCX.EXE @ 0x006c5fa0</remarks>
-    int32_t getGroup(int32_t commanderId, Mover** moverList, Mover** point, int32_t sortType);
+    int32_t GetParamData(float* timeStamp, int32_t* paramList);
+    /// <summary>Packs the order into <see cref="Data"/>.</summary>
+    int32_t Pack(MCMoverGroup* group, MCMover* point);
+    /// <summary>Rebuilds the order from <see cref="Data"/>.</summary>
+    int32_t Unpack();
+    void SetGroupFlag(int32_t localMoverId, int set);
+    /// <summary>The movers of a multiplayer commander flagged in <see cref="GroupFlags"/>, and the point mover.</summary>
+    int32_t GetGroup(int32_t commanderId, MCMover** moverList, MCMover** point, int32_t sortType);
     /// <summary>Starts the order on <paramref name="pilot"/>; <paramref name="message"/> receives the radio message.</summary>
-    /// <remarks>MCX.EXE @ 0x006c6030</remarks>
-    int32_t execute(MechWarrior* pilot, int32_t& message);
+    int32_t Execute(MCMechWarrior* pilot, int32_t& message);
     /// <summary>Advances the order's stage; returns its status.</summary>
-    /// <remarks>MCX.EXE @ 0x006c6b80</remarks>
-    int32_t status(MechWarrior* pilot);
+    int32_t Status(MCMechWarrior* pilot);
     /// <summary>Does nothing.</summary>
-    /// <remarks>MCX.EXE @ 0x006c7a30</remarks>
-    void destroy();
+    void Destroy();
 
-    int32_t id = 0; // +0x0
+    int32_t Id = 0;
     /// <summary>Scenario time the order was given (and when it is next due).</summary>
-    float time = 0; // +0x4
+    float Time = 0;
     /// <summary>Scenario time to wait for before executing, -1 for none.</summary>
-    float delayedTime = 0; // +0x8
-    float lastTime = 0;    // +0xc
+    float DelayedTime = 0;
+    float LastTime = 0;
     /// <summary>Nonzero for an order given to a group.</summary>
-    int unitOrder = 0;                 // +0x10
-    OrderOriginType origin{};          // +0x14
-    TacticalOrderCode code{};          // +0x18
-    TacOrderMoveParams moveParams{};   // +0x1c
-    TacOrderAttackParams attackParams; // +0xf8
-    GameObject* target = nullptr;      // +0x11c
+    int UnitOrder = 0;
+    MCOrderOriginType Origin{};
+    MCTacticalOrderCode Code{};
+    MCTacOrderMoveParams MoveParams{};
+    MCTacOrderAttackParams AttackParams;
+    MCGameObject* Target = nullptr;
     /// <summary>The target's object class (copied from target + 4).</summary>
-    int32_t targetObjectClass = 0; // +0x120
-    int32_t selectionIndex = 0;    // +0x124
+    int32_t TargetObjectClass = 0;
+    int32_t SelectionIndex = 0;
     /// <summary>Progress of the order (1 at start, 0xff when done).</summary>
-    uint8_t stage = 0; // +0x128
+    uint8_t Stage = 0;
     /// <summary>Local id of the point mover in a group order, 0xf for none.</summary>
-    char pointLocalMoverId = 0; // +0x129
+    char PointLocalMoverId = 0;
     /// <summary>Bit per local mover id of the commander's movers in the order.</summary>
-    uint32_t groupFlags = 0; // +0x12c
-    /// <summary>The packed order (<see cref="pack"/>).</summary>
-    uint32_t data[2]{}; // +0x130
+    uint32_t GroupFlags = 0;
+    /// <summary>The packed order (<see cref="Pack"/>).</summary>
+    uint32_t Data[2]{};
 };
 
 /// <summary>Repairs and reloads a mover from a refit vehicle's points.</summary>
-/// <remarks>MCX.EXE @ 0x006c7a40</remarks>
-int32_t DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly);
+int32_t DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly);

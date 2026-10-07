@@ -4,22 +4,22 @@
 // (palette, cameras, objects, sprites, terrain, ABL, teams, warriors, parts, objectives); Scenario::run is the
 // per-frame update; Scenario::destroy shuts it all down again.
 
-class aObject;
-class FitIniFile;
-class Palette;
-class ABLModule;
-struct ABLParam;
-class MechWarrior;
-class BaseObject;
-class GameObject;
-class ObjectQueue;
-class Team;
-class CollisionSystem;
-class TrainManager;
-class AppearanceTypeList;
-class CraterManager;
-class ObjectMap;
-struct _SymTableNode;
+class MCGuiObject;
+class MCFitIniFile;
+class MCPalette;
+class MCAblModule;
+struct MCAblParam;
+class MCMechWarrior;
+class MCBaseObject;
+class MCGameObject;
+class MCObjectQueue;
+class MCTeam;
+class MCCollisionSystem;
+class MCTrainManager;
+class MCAppearanceTypeList;
+class MCCraterManager;
+class MCObjectMap;
+struct MCSymTableNode;
 
 /// <summary>
 /// One part of the scenario FIT (<c>Part%d</c>): an object placed at the scenario's start, with its team, pilot and
@@ -29,440 +29,368 @@ struct _SymTableNode;
 /// 0x58 bytes in the original (the object pointer is 8 bytes in the port). The struct name follows MechCommander 2's
 /// source, which kept this layout; the field names are the FIT keys.
 /// </remarks>
-struct Part
+struct MCPart
 {
     /// <summary>The object created for the part (null until created, and after it is destroyed).</summary>
-    BaseObject* object = nullptr; // +0x0
+    MCBaseObject* Object = nullptr;
     /// <summary><c>ObjectNumber</c>: the object type.</summary>
-    uint32_t objNumber = 0; // +0x4
+    uint32_t ObjNumber = 0;
     /// <summary><c>PaintScheme</c>, -1 when missing.</summary>
-    int32_t paintScheme = 0; // +0x8
+    int32_t PaintScheme = 0;
     /// <summary><c>Active</c>.</summary>
-    int32_t active = 0; // +0xc
+    int32_t Active = 0;
     /// <summary><c>Exists</c>.</summary>
-    int32_t exists = 0; // +0x10
+    int32_t Exists = 0;
     /// <summary>Set when the part's object was destroyed (<c>Scenario::destroyPartObject</c>).</summary>
-    int32_t destroyed = 0; // +0x14
+    int32_t Destroyed = 0;
     /// <summary><c>PositionX</c>, <c>PositionY</c>, <c>PositionZ</c>.</summary>
-    float position[3]{}; // +0x18
+    float Position[3]{};
     /// <summary><c>Velocity</c>.</summary>
-    float velocity = 0; // +0x24
+    float Velocity = 0;
     /// <summary><c>Rotation</c>.</summary>
-    float rotation = 0; // +0x28
+    float Rotation = 0;
     /// <summary><c>Gesture</c>.</summary>
-    uint32_t gestureId = 0; // +0x2c
-    /// <summary>1 for team 0 or 2, -1 for team 1 (derived from <see cref="teamId"/>).</summary>
-    int8_t alignment = 0; // +0x30
+    uint32_t GestureId = 0;
+    /// <summary>1 for team 0 or 2, -1 for team 1 (derived from <see cref="TeamId"/>).</summary>
+    int8_t Alignment = 0;
     /// <summary><c>TeamId</c>: 0, 1 or 2.</summary>
-    int8_t teamId = 0; // +0x31
+    int8_t TeamId = 0;
     /// <summary><c>CommanderId</c> (read as a char, or failing that a long).</summary>
-    int32_t commanderId = 0; // +0x34
+    int32_t CommanderId = 0;
     /// <summary><c>MyIcon</c>.</summary>
-    char myIcon = 0; // +0x38
+    char MyIcon = 0;
     /// <summary><c>ControlType</c>.</summary>
-    uint32_t controlType = 0; // +0x3c
+    uint32_t ControlType = 0;
     /// <summary><c>ControlDataType</c>.</summary>
-    uint32_t controlDataType = 0; // +0x40
+    uint32_t ControlDataType = 0;
     /// <summary><c>ObjectProfile</c> (8 characters).</summary>
-    char profileName[9]{}; // +0x44
+    char ProfileName[9]{};
     /// <summary><c>Pilot</c>: the warrior's index in <c>Scenario::warriors</c>.</summary>
-    uint32_t pilot = 0; // +0x50
+    uint32_t Pilot = 0;
     /// <summary><c>Captureable</c>.</summary>
-    int32_t captureable = 0; // +0x54
+    int32_t Captureable = 0;
 };
 
 /// <summary>A scenario objective (<c>Objective%d</c> in the scenario FIT); <c>Scenario::objectives</c> has 9.</summary>
 /// <remarks>
-/// 0x70 bytes. The name is the port's. Unused entries have <see cref="type"/> and <see cref="status"/> -9999; the
+/// 0x70 bytes. The name is the port's. Unused entries have <see cref="Type"/> and <see cref="Status"/> -9999; the
 /// check functions return 9999 for an index out of range.
 /// </remarks>
-struct ScenarioObjective
+struct MCScenarioObjective
 {
     /// <summary><c>Name</c>: the text shown on the results screen.</summary>
-    char name[80]{}; // +0x0
+    char Name[80]{};
     /// <summary><c>Type</c>: 0 primary, 1 secondary, 3 the tonnage bonus added by <c>setupBonus</c>.</summary>
-    uint32_t type = 0; // +0x50
+    uint32_t Type = 0;
     /// <summary><c>TimeLeft</c> in seconds; above 0 starts the objective's timer at the scenario's start.</summary>
-    float timeLeft = 0; // +0x54
+    float TimeLeft = 0;
     /// <summary><c>Status</c>: 0 pending, 1 succeeded, 2 failed.</summary>
-    uint32_t status = 0; // +0x58
+    uint32_t Status = 0;
     /// <summary>Where the objective is (-99, -99, -99 until the script sets it).</summary>
-    float position[3]{}; // +0x5c
+    float Position[3]{};
     /// <summary><c>Points</c>: resource points earned when it succeeds.</summary>
-    int32_t points = 0; // +0x68
+    int32_t Points = 0;
     /// <summary><c>Radius</c>.</summary>
-    float radius = 0; // +0x6c
+    float Radius = 0;
 };
 
 /// <summary>An area <c>Scenario::objectInArea</c> tests against (0x10 bytes; the name is the port's).</summary>
-struct ScenarioArea
+struct MCScenarioArea
 {
-    /// <summary>Circle: centre x, y, z. Rectangle: left, top, then the third value (see <see cref="areaType"/>).</summary>
-    float coords[3]{}; // +0x0
+    /// <summary>Circle: centre x, y, z. Rectangle: left, top, then the third value (see <see cref="AreaType"/>).</summary>
+    float Coords[3]{};
     /// <summary>0 = circle, 1 = rectangle.</summary>
-    uint8_t areaType = 0; // +0xc
+    uint8_t AreaType = 0;
 };
 
 /// <summary>A part created by an ABL script (<c>createdPartRoster</c>), and whether its object was created yet.</summary>
 /// <remarks>8 bytes.</remarks>
-struct CreatedPartRoster
+struct MCCreatedPartRoster
 {
     /// <summary>The part's id (compared with the object's part id, BaseObject +0xc).</summary>
-    int32_t partId = 0; // +0x0
+    int32_t PartId = 0;
     /// <summary>Set by <c>Scenario::createScenarioObject</c> once the object is created.</summary>
-    int32_t created = 0; // +0x4
+    int32_t Created = 0;
 };
 
 /// <summary>The current battle: its settings, warriors, parts, objectives and ABL brain.</summary>
 /// <remarks>
 /// Original source: <c>mission\scenario.cpp</c>, 0x2ac bytes, no vtable. The one instance is <c>scenario</c>, made in
 /// <c>Mission::StartScenario</c> (the constructor was inlined there; the member initializers below are its stores:
-/// everything 0 except <see cref="scenarioScriptHandle"/> and <see cref="timeLimit"/> -1 and
-/// <see cref="captureChance"/> 2).
+/// everything 0 except <see cref="ScenarioScriptHandle"/> and <see cref="TimeLimit"/> -1 and
+/// <see cref="CaptureChance"/> 2).
 /// </remarks>
-class Scenario
+class MCScenario
 {
 public:
     /// <summary>
     /// Advances the clocks (<c>scenarioTime</c>, <c>turn</c>), plays the time-limit warnings, counts the start-up turns
     /// down and starts the music when they are over.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0072fa10</remarks>
-    int32_t update();
+    int32_t Update();
 
     /// <summary>Draws the camera views into <paramref name="window"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0072fc30</remarks>
-    int32_t render(aObject* window);
+    int32_t Render(MCGuiObject* window);
 
     /// <summary>
     /// Loads scenario <paramref name="scenarioName"/> and starts every game system. <paramref name="terrainName"/>,
     /// when given, loads that terrain instead of the FIT's (the editor path).
     /// </summary>
     /// <returns>0, or an error code.</returns>
-    /// <remarks>MCX.EXE @ 0x0072ff50</remarks>
-    int32_t init(char* scenarioName, char* terrainName);
+    int32_t Init(char* scenarioName, char* terrainName);
 
     /// <summary>One frame: updates the world, runs the scenario's ABL brain and takes its result.</summary>
-    /// <remarks>MCX.EXE @ 0x007368b0</remarks>
-    int32_t run();
+    int32_t Run();
 
     /// <summary>Shuts every game system down and frees the scenario's data.</summary>
-    /// <remarks>MCX.EXE @ 0x00736a50</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>Frees the warriors.</summary>
-    /// <remarks>MCX.EXE @ 0x007370f0</remarks>
-    void destroyWarriors();
+    void DestroyWarriors();
 
     /// <summary>Creates the object of part <paramref name="partNumber"/> and gives it its pilot, team and commander.</summary>
-    /// <remarks>MCX.EXE @ 0x007371b0</remarks>
-    void createPartObject(int32_t partNumber);
+    void CreatePartObject(int32_t partNumber);
 
     /// <summary>
     /// Moves the not-yet-created scenario object with part id <paramref name="partId"/> from the scenario object list
     /// into play.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x007379d0</remarks>
-    void createScenarioObject(int32_t partId);
+    void CreateScenarioObject(int32_t partId);
 
     /// <summary>Takes part <paramref name="partNumber"/>'s object out of play and marks the part destroyed.</summary>
-    /// <remarks>MCX.EXE @ 0x00737bf0</remarks>
-    void destroyPartObject(int32_t partNumber);
+    void DestroyPartObject(int32_t partNumber);
 
     /// <summary>Whether <paramref name="object"/> is inside area <paramref name="areaNumber"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x00737c60</remarks>
-    int objectInArea(GameObject* object, int32_t areaNumber);
+    int ObjectInArea(MCGameObject* object, int32_t areaNumber);
 
     /// <summary>Starts the timers of the objectives that have a time limit.</summary>
-    /// <remarks>MCX.EXE @ 0x00737d60</remarks>
-    void startObjectiveTimers();
+    void StartObjectiveTimers();
 
     /// <summary>(Re)starts objective <paramref name="objectiveNumber"/>'s timer at <paramref name="time"/> milliseconds.</summary>
     /// <returns>0, or an error code for a bad index.</returns>
-    /// <remarks>MCX.EXE @ 0x00737dc0</remarks>
-    int32_t setObjectiveTimer(int32_t objectiveNumber, float time);
+    int32_t SetObjectiveTimer(int32_t objectiveNumber, float time);
 
     /// <summary>Seconds left on objective <paramref name="objectiveNumber"/>'s timer (0 when none).</summary>
-    /// <remarks>MCX.EXE @ 0x00737e20</remarks>
-    float checkObjectiveTimer(int32_t objectiveNumber);
+    float CheckObjectiveTimer(int32_t objectiveNumber);
 
-    /// <remarks>MCX.EXE @ 0x00737eb0</remarks>
-    int32_t setObjectiveStatus(int32_t objectiveNumber, uint32_t status);
+    int32_t SetObjectiveStatus(int32_t objectiveNumber, uint32_t status);
 
     /// <summary>Objective <paramref name="objectiveNumber"/>'s status; 9999 for a bad index.</summary>
-    /// <remarks>MCX.EXE @ 0x00737ef0</remarks>
-    uint32_t checkObjectiveStatus(int32_t objectiveNumber);
+    uint32_t CheckObjectiveStatus(int32_t objectiveNumber);
 
-    /// <remarks>MCX.EXE @ 0x00737f30</remarks>
-    int32_t setObjectiveType(int32_t objectiveNumber, uint32_t type);
+    int32_t SetObjectiveType(int32_t objectiveNumber, uint32_t type);
 
     /// <summary>Objective <paramref name="objectiveNumber"/>'s type; 9999 for a bad index.</summary>
-    /// <remarks>MCX.EXE @ 0x00737f70</remarks>
-    uint32_t checkObjectiveType(int32_t objectiveNumber);
+    uint32_t CheckObjectiveType(int32_t objectiveNumber);
 
-    /// <remarks>MCX.EXE @ 0x00737fb0</remarks>
-    void setObjectivePos(int32_t objectiveNumber, float x, float y, float z);
+    void SetObjectivePos(int32_t objectiveNumber, float x, float y, float z);
 
     /// <summary>
     /// The resource points the scenario earned: the points of the objectives that succeeded (all of them when the
     /// mission ended the scenario early), or 0 when the scenario was lost.
     /// </summary>
-    /// <remarks>
-    /// MCX.EXE @ 0x00737ff0. Unnamed in the binary (an inline member, called from <c>Mission::EndScenario</c>); the
-    /// name is the port's.
-    /// </remarks>
-    int32_t calcResourcePointsEarned();
+    /// <remarks>An inline member in the original, called from <c>MCMission::EndScenario</c>.</remarks>
+    int32_t CalcResourcePointsEarned();
 
     /// <summary>Adds the unused-tonnage bonus as an extra, succeeded objective.</summary>
-    /// <remarks>MCX.EXE @ 0x00738030</remarks>
-    void setupBonus();
+    void SetupBonus();
 
     /// <summary>
     /// Runs the brain's <c>handlemessage</c> function with a multiplayer message (<c>CurMultiplayCode</c>,
     /// <c>CurMultiplayParam</c>).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00738100</remarks>
-    void handleMultiplayMessage(int32_t code, int32_t param);
+    void HandleMultiplayMessage(int32_t code, int32_t param);
 
     /// <summary>Checks whether any of the player's 'Mechs is in combat (for the music).</summary>
-    /// <remarks>MCX.EXE @ 0x00738150</remarks>
-    void checkAnyoneInCombat();
+    void CheckAnyoneInCombat();
 
-    /// <summary>The open scenario FIT while <see cref="init"/> runs.</summary>
-    FitIniFile* scenarioFile = nullptr; // +0x0
+    /// <summary>The open scenario FIT while <see cref="Init"/> runs.</summary>
+    MCFitIniFile* ScenarioFile = nullptr;
     /// <summary><c>CameraHeapSize</c>.</summary>
-    uint32_t cameraHeapSize = 0; // +0xc
+    uint32_t CameraHeapSize = 0;
     /// <summary><c>CameraFileName</c>.</summary>
-    char cameraFileName[80] = {}; // +0x10
+    char CameraFileName[80] = {};
     /// <summary><c>ObjectHeapSize</c>.</summary>
-    uint32_t objectHeapSize = 0; // +0x60
+    uint32_t ObjectHeapSize = 0;
     /// <summary><c>ObjectTypeHeapSize</c>.</summary>
-    uint32_t objectTypeHeapSize = 0; // +0x64
+    uint32_t ObjectTypeHeapSize = 0;
     /// <summary><c>NumObjects</c>.</summary>
-    uint32_t numObjects = 0; // +0x68
+    uint32_t NumObjects = 0;
     /// <summary><c>ObjectFileName</c>.</summary>
-    char objectFileName[80] = {}; // +0x6c
+    char ObjectFileName[80] = {};
     /// <summary><c>SpriteHeapSize</c>.</summary>
-    uint32_t spriteHeapSize = 0; // +0xbc
+    uint32_t SpriteHeapSize = 0;
     /// <summary><c>SpriteFileName</c>.</summary>
-    char spriteFileName[80] = {}; // +0xc0
+    char SpriteFileName[80] = {};
     /// <summary><c>TerrainFileName</c>.</summary>
-    char terrainFileName[80] = {}; // +0x110
+    char TerrainFileName[80] = {};
     /// <summary><c>ScenarioScript</c>: the ABL script (and the scenario's name on the results).</summary>
-    char scenarioScript[80] = {}; // +0x160
+    char ScenarioScript[80] = {};
     /// <summary>The script's module handle from <c>ABLi_preProcess</c>; -1 before.</summary>
-    int32_t scenarioScriptHandle = -1; // +0x1b0
+    int32_t ScenarioScriptHandle = -1;
     /// <summary>The scenario's ABL brain.</summary>
-    ABLModule* scenarioBrain = nullptr; // +0x1b4
+    MCAblModule* ScenarioBrain = nullptr;
     /// <summary>The parameters passed to the brain each frame.</summary>
-    ABLParam* scenarioBrainParams = nullptr; // +0x1b8
+    MCAblParam* ScenarioBrainParams = nullptr;
     /// <summary>The brain's <c>handlemessage</c> function, if it has one.</summary>
-    _SymTableNode* scenarioBrainHandleMessage = nullptr; // +0x1bc
+    MCSymTableNode* ScenarioBrainHandleMessage = nullptr;
     /// <summary><c>PaletteSystem</c>: the palette file.</summary>
-    char paletteSystem[80] = {}; // +0x1c0
-    /// <summary>The palette before the scenario's (<c>gamePalette</c>), restored by <see cref="destroy"/>.</summary>
-    Palette* oldPalette = nullptr; // +0x210
+    char PaletteSystem[80] = {};
+    /// <summary>The palette before the scenario's (<c>gamePalette</c>), restored by <see cref="Destroy"/>.</summary>
+    MCPalette* OldPalette = nullptr;
     /// <summary><c>NumWarriors</c>.</summary>
-    uint32_t numWarriors = 0; // +0x214
-    /// <summary>The warriors, 1-based (<see cref="numWarriors"/> + 1 entries).</summary>
-    std::unique_ptr<MechWarrior*[]> warriors; // +0x218
+    uint32_t NumWarriors = 0;
+    /// <summary>The warriors, 1-based (<see cref="NumWarriors"/> + 1 entries).</summary>
+    std::unique_ptr<MCMechWarrior*[]> Warriors;
     /// <summary><c>CaptureChance</c> (0-4; 2 when missing or out of range).</summary>
-    uint8_t captureChance = 2; // +0x21c
+    uint8_t CaptureChance = 2;
     /// <summary><c>NumParts</c>.</summary>
-    uint32_t numParts = 0; // +0x220
-    /// <summary>The parts, 1-based (<see cref="numParts"/> + 1 entries).</summary>
-    std::unique_ptr<Part[]> parts; // +0x224
-    /// <summary>Number of <see cref="areas"/>.</summary>
-    int32_t numAreas = 0; // +0x230
-    /// <summary>The areas for <see cref="objectInArea"/> (never filled in MCX.EXE: numAreas stays 0).</summary>
-    ScenarioArea* areas = nullptr; // +0x234
+    uint32_t NumParts = 0;
+    /// <summary>The parts, 1-based (<see cref="NumParts"/> + 1 entries).</summary>
+    std::unique_ptr<MCPart[]> Parts;
+    /// <summary>Number of <see cref="Areas"/>.</summary>
+    int32_t NumAreas = 0;
+    /// <summary>The areas for <see cref="ObjectInArea"/> (never filled in MCX.EXE: numAreas stays 0).</summary>
+    MCScenarioArea* Areas = nullptr;
     /// <summary>The objects made at the start but not yet in play (created later by the script).</summary>
-    ObjectQueue* scenarioObjectList = nullptr; // +0x23c
+    MCObjectQueue* ScenarioObjectList = nullptr;
     /// <summary><c>NumObjectives</c> (at most 9).</summary>
-    uint32_t numObjectives = 0; // +0x240
+    uint32_t NumObjectives = 0;
     /// <summary><c>Duration</c> from the game system block.</summary>
-    uint32_t duration = 0; // +0x244
+    uint32_t Duration = 0;
     /// <summary>The objectives: always 9 entries when there are any.</summary>
-    std::unique_ptr<ScenarioObjective[]> objectives; // +0x248
+    std::unique_ptr<MCScenarioObjective[]> Objectives;
     /// <summary><c>NumLargeStrikes</c> for the home commander.</summary>
-    int32_t numLargeStrikes = 0; // +0x24c
+    int32_t NumLargeStrikes = 0;
     /// <summary><c>NumSmallStrikes</c>.</summary>
-    int32_t numSmallStrikes = 0; // +0x250
+    int32_t NumSmallStrikes = 0;
     /// <summary><c>NumSensorStrikes</c>.</summary>
-    int32_t numSensorStrikes = 0; // +0x254
+    int32_t NumSensorStrikes = 0;
     /// <summary><c>NumCameraStrikes</c> (camera drones).</summary>
-    int32_t numCameraStrikes = 0; // +0x258
+    int32_t NumCameraStrikes = 0;
     /// <summary><c>scenarioTuneNum</c>: the music track started after the start-up turns.</summary>
-    uint8_t scenarioTuneNum = 0; // +0x25c
+    uint8_t ScenarioTuneNum = 0;
     /// <summary>
     /// The six VFX shapes of the <c>SensorContactShape</c> packet file (packets 0-5): the sensor contact blips drawn
     /// for objects seen only on sensors.
     /// </summary>
-    uint8_t* sensorContactShapes[6] = {}; // +0x260
+    uint8_t* SensorContactShapes[6] = {};
     /// <summary><c>MaxVisualRange</c>.</summary>
-    float maxVisualRange = 0.0f; // +0x278
+    float MaxVisualRange = 0.0f;
     /// <summary><c>FireVisualRange</c>: how far a firing object is revealed.</summary>
-    float fireVisualRange = 0.0f; // +0x27c
+    float FireVisualRange = 0.0f;
     /// <summary><c>MaxWeaponRange</c>.</summary>
-    float maxWeaponRange = 0.0f; // +0x280
+    float MaxWeaponRange = 0.0f;
     /// <summary><c>BaseSensorRange</c>.</summary>
-    float baseSensorRange = 0.0f; // +0x284
+    float BaseSensorRange = 0.0f;
     /// <summary><c>AlwaysRevealed</c>: the whole map is revealed.</summary>
-    uint8_t alwaysRevealed = 0; // +0x288
+    uint8_t AlwaysRevealed = 0;
     /// <summary><c>GodMode</c>.</summary>
-    uint8_t godMode = 0; // +0x289
+    uint8_t GodMode = 0;
     /// <summary>Set when the scenario FIT has an <c>Output</c> block.</summary>
-    uint8_t hasOutputBlock = 0; // +0x28a
+    uint8_t HasOutputBlock = 0;
     /// <summary><c>CycleLength</c>.</summary>
-    float cycleLength = 0.0f; // +0x28c
+    float CycleLength = 0.0f;
     /// <summary><c>TimeLeft</c>: the time limit in seconds; -1 = none.</summary>
-    int32_t timeLimit = -1; // +0x290
+    int32_t TimeLimit = -1;
     /// <summary>Set once the two-minute warning played.</summary>
-    int32_t twoMinuteWarningPlayed = 0; // +0x294
+    int32_t TwoMinuteWarningPlayed = 0;
     /// <summary>Set once the thirty-second warning played.</summary>
-    int32_t thirtySecondWarningPlayed = 0; // +0x298
+    int32_t ThirtySecondWarningPlayed = 0;
     /// <summary>Set during the start-up turns (the "loading" countdown on the interface).</summary>
-    int32_t startingUp = 0; // +0x29c
+    int32_t StartingUp = 0;
     /// <summary>Start-up turns left, times 10 (100 at the start).</summary>
-    int32_t startUpCountdown = 0; // +0x2a0
+    int32_t StartUpCountdown = 0;
     /// <summary>The turns the scenario runs before the player gets control (10).</summary>
-    int32_t startUpTurns = 0; // +0x2a8
+    int32_t StartUpTurns = 0;
 };
 
 /// <summary>Scales <paramref name="skill"/> by the difficulty's skill percentage (for the player when <paramref name="player"/>).</summary>
-/// <remarks>MCX.EXE @ 0x0072fc60</remarks>
-float applyDifficultySkill(float skill, int player);
+float ApplyDifficultySkill(float skill, int player);
 
 /// <summary>
 /// Scales a weapon value by the difficulty's weapon percentage, rounds it to a quarter and clamps it to 0-255.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x0072fd00</remarks>
-float applyDifficultyWeapon(float value, int player);
+float ApplyDifficultyWeapon(float value, int player);
 
 /// <summary>Reads the <c>DifficultySettings</c> block of the game system file.</summary>
-/// <remarks>MCX.EXE @ 0x0072fe10</remarks>
-void InitDifficultySettings(FitIniFile* gameSystemFile);
+void InitDifficultySettings(MCFitIniFile* gameSystemFile);
 
 /// <summary>The current scenario (null outside one).</summary>
-/// <remarks>MCX.EXE @ 0x00809404 (globals_by_file.md assigns it to abl\ablxstd.cpp; its home is here).</remarks>
-extern Scenario* scenario;
+extern MCScenario* Scenario;
 /// <summary>The scenario clock used for timing: <c>scenarioTime</c>, or the real running time in multiplayer.</summary>
-/// <remarks>MCX.EXE @ 0x008093f8 (sits among scenario.cpp's globals).</remarks>
-extern float actualTime;
-/// <summary>Zeroed each turn by <see cref="Scenario::update"/>.</summary>
-/// <remarks>MCX.EXE @ 0x00809430 (sits among scenario.cpp's globals).</remarks>
-extern int nextStep;
-/// <summary>Zeroed each turn by <see cref="Scenario::update"/>.</summary>
-/// <remarks>MCX.EXE @ 0x00809434 (sits among scenario.cpp's globals).</remarks>
-extern int prevStep;
+extern float ActualTime;
+/// <summary>Zeroed each turn by <see cref="MCScenario::Update"/>.</summary>
+extern int NextStep;
+/// <summary>Zeroed each turn by <see cref="MCScenario::Update"/>.</summary>
+extern int PrevStep;
 /// <summary>The turn the scenario ends at; -1 = not ending.</summary>
-/// <remarks>MCX.EXE @ 0x007a1c2c (sits among scenario.cpp's globals).</remarks>
-extern int32_t scenarioEndTurn;
+extern int32_t ScenarioEndTurn;
 /// <summary>The longest frame the simulation takes (0.25 s).</summary>
-/// <remarks>MCX.EXE @ 0x007a1c28</remarks>
-extern float minFrameLength;
-/// <summary>Set to -1.0 before each part is created in <see cref="Scenario::init"/>; nothing reads it.</summary>
-/// <remarks>MCX.EXE @ 0x007a1c30 (unnamed in the binary; the name is the port's).</remarks>
-extern float partCreateTime;
+extern float MinFrameLength;
+/// <summary>Set to -1.0 before each part is created in <see cref="MCScenario::Init"/>; nothing reads it.</summary>
+extern float PartCreateTime;
 /// <summary>Whether object collisions are checked (1).</summary>
-/// <remarks>MCX.EXE @ 0x007a1c34</remarks>
-extern int collisionSwitch;
+extern int CollisionSwitch;
 /// <summary>Tons of unused drop weight per bonus unit (5).</summary>
-/// <remarks>MCX.EXE @ 0x007a1c48</remarks>
-extern int32_t tonnageDivisor;
+extern int32_t TonnageDivisor;
 /// <summary>Resource points per bonus unit (200).</summary>
-/// <remarks>MCX.EXE @ 0x007a1c4c</remarks>
-extern int32_t resourcesPerTonDivided;
-/// <remarks>MCX.EXE @ 0x007a5464 (102400; bookkeeping only in the port)</remarks>
+extern int32_t ResourcesPerTonDivided;
 extern uint32_t AblSymbolTableHeapSize;
-/// <remarks>MCX.EXE @ 0x007a5468 (40960)</remarks>
 extern uint32_t AblStackHeapSize;
-/// <remarks>MCX.EXE @ 0x007a546c (102400)</remarks>
 extern uint32_t AblCodeHeapSize;
-/// <remarks>MCX.EXE @ 0x007a5470 (20480)</remarks>
 extern uint32_t AblRunTimeStackSize;
-/// <remarks>MCX.EXE @ 0x007a5474 (10240)</remarks>
 extern uint32_t AblMaxCodeBlockSize;
-/// <remarks>MCX.EXE @ 0x007a5478 (200)</remarks>
 extern uint32_t AblMaxRegisteredModules;
-/// <remarks>MCX.EXE @ 0x007a547c (100)</remarks>
 extern uint32_t AblMaxStaticVariables;
-/// <remarks>MCX.EXE @ 0x007dd05c</remarks>
-extern CollisionSystem* collisionSystem;
+extern MCCollisionSystem* CollisionSystem;
 /// <summary>Every mover by part id (0xe00 entries).</summary>
-/// <remarks>MCX.EXE @ 0x007dfec0</remarks>
-extern BaseObject* MoverRoster[0xe00];
+extern MCBaseObject* MoverRoster[0xe00];
 /// <summary>Mission "MineLayThrottle" (50 when missing): a mine layer's top throttle while laying.</summary>
-/// <remarks>MCX.EXE @ 0x00808ca4</remarks>
 extern int32_t MineLayThrottle;
 /// <summary>Mission "MineSweepThrottle" (50 when missing): a sweeper's top throttle after clearing a mine.</summary>
-/// <remarks>MCX.EXE @ 0x00808fdc</remarks>
 extern int32_t MineSweepThrottle;
 /// <summary>Mission "MineWaitTime": the seconds a mine layer waits on a cell before laying.</summary>
-/// <remarks>MCX.EXE @ 0x008093e0</remarks>
 extern float MineWaitTime;
-/// <summary>The teams: [1] the clan team, [2] the allied team (set in <see cref="Scenario::init"/>).</summary>
-/// <remarks>MCX.EXE @ 0x007e4948</remarks>
-extern Team* TeamTable[3];
-/// <remarks>MCX.EXE @ 0x007e4958</remarks>
-extern TrainManager* trainManager;
-/// <remarks>MCX.EXE @ 0x007f0500</remarks>
-extern AppearanceTypeList* appearanceTypeList;
-/// <remarks>MCX.EXE @ 0x007f09b4</remarks>
-extern CraterManager* craterManager;
+/// <summary>The teams: [1] the clan team, [2] the allied team (set in <see cref="MCScenario::Init"/>).</summary>
+extern MCTeam* TeamTable[3];
+extern MCTrainManager* TrainManager;
+extern MCAppearanceTypeList* AppearanceTypeList;
+extern MCCraterManager* CraterManager;
 /// <summary>The scenario's frame (turn) counter.</summary>
-/// <remarks>MCX.EXE @ 0x007f09c0</remarks>
-extern int32_t turn;
-/// <remarks>MCX.EXE @ 0x00807fe0</remarks>
-extern ObjectMap* GameObjectMap;
+extern int32_t Turn;
+extern MCObjectMap* GameObjectMap;
 /// <summary>The <c>VisualRangeTable</c> of the game system file (256 entries).</summary>
-/// <remarks>MCX.EXE @ 0x008087c0</remarks>
-extern int32_t visualRangeTable[256];
+extern int32_t VisualRangeTable[256];
 /// <summary>Difficulty weapon percentages for the player (<c>PlayerWeapons</c>: easy, hard).</summary>
-/// <remarks>MCX.EXE @ 0x00808c90</remarks>
-extern int32_t globalPlayerWeapons[2];
+extern int32_t GlobalPlayerWeapons[2];
 /// <summary>Difficulty skill percentages for the enemy (<c>EnemySkills</c>).</summary>
-/// <remarks>MCX.EXE @ 0x00808c9c</remarks>
-extern int32_t globalEnemySkills[2];
+extern int32_t GlobalEnemySkills[2];
 /// <summary>The parts ABL scripts created (<c>currentCreatorPart</c> of them).</summary>
-/// <remarks>MCX.EXE @ 0x00808ca8 (100 entries: Scenario::init clears 800 bytes)</remarks>
-extern CreatedPartRoster createdPartRoster[100];
+extern MCCreatedPartRoster CreatedPartRoster[100];
 /// <summary>Difficulty weapon percentages for the enemy (<c>EnemyWeapons</c>).</summary>
-/// <remarks>MCX.EXE @ 0x00808fc8</remarks>
-extern int32_t globalEnemyWeapons[2];
+extern int32_t GlobalEnemyWeapons[2];
 /// <summary>Difficulty skill percentages for the player (<c>PlayerSkills</c>).</summary>
-/// <remarks>MCX.EXE @ 0x00808fd0</remarks>
-extern int32_t globalPlayerSkills[2];
+extern int32_t GlobalPlayerSkills[2];
 /// <summary>Difficulty salvage percentages (<c>SalvageChance</c>).</summary>
-/// <remarks>MCX.EXE @ 0x008093e4</remarks>
-extern int32_t globalSalvageModifier[2];
+extern int32_t GlobalSalvageModifier[2];
 /// <summary>The real time the scenario started (milliseconds; 0 until the start-up turns are over).</summary>
-/// <remarks>MCX.EXE @ 0x008093f0</remarks>
 extern uint32_t MissionStartTime;
 /// <summary>Seconds since <c>MissionStartTime</c>.</summary>
-/// <remarks>MCX.EXE @ 0x008093f4</remarks>
-extern float runningTime;
+extern float RunningTime;
 /// <summary>Set when the scenario music should start after the start-up turns.</summary>
-/// <remarks>MCX.EXE @ 0x00809410</remarks>
-extern int32_t startMusic;
-/// <remarks>MCX.EXE @ 0x00809414</remarks>
+extern int32_t StartMusic;
 extern float InfluenceTime;
-/// <remarks>MCX.EXE @ 0x00809424</remarks>
-extern int drawRevealedTacMap;
+extern int DrawRevealedTacMap;
 /// <summary>Number of entries used in <c>createdPartRoster</c>.</summary>
-/// <remarks>MCX.EXE @ 0x00809438</remarks>
-extern int32_t currentCreatorPart;
-/// <summary>The waypoint marker shapes (loaded from a file in <see cref="Scenario::init"/>).</summary>
-/// <remarks>MCX.EXE @ 0x00809440</remarks>
-extern uint8_t* waypointMarkers;
-/// <remarks>MCX.EXE @ 0x0080944c</remarks>
-extern int endingScenario;
+extern int32_t CurrentCreatorPart;
+/// <summary>The waypoint marker shapes (loaded from a file in <see cref="MCScenario::Init"/>).</summary>
+extern uint8_t* WaypointMarkers;
+extern int EndingScenario;
 /// <summary><c>AlwaysDraw</c> from the game system file.</summary>
-/// <remarks>MCX.EXE @ 0x00809f6c</remarks>
-extern uint8_t forceAlways;
+extern uint8_t ForceAlways;
 /// <summary>
 /// Where a saved game's copies of the scenario, warrior and object profile FITs are unpacked
 /// (<c>"data\save\temp\"</c>); the scenario falls back on it when a file isn't in its usual folder.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x0079451c (one of the 80-byte path globals).</remarks>
-extern char saveTempPath[80];
+extern char SaveTempPath[80];

@@ -1321,7 +1321,7 @@ bool MCSmackerPlayer::Wait()
     return ElapsedMicroseconds() < NextFrameTime();
 }
 
-void SmackClose(SmackTag* movie)
+void SmackClose(MCSmackTag* movie)
 {
     delete movie;
 }
@@ -1337,7 +1337,7 @@ void SmackSoundUseDirectSound(MCAudio* audio)
     smackerAudio = audio;
 }
 
-SmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers)
+MCSmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers)
 {
     auto player = MCSmackerPlayer::Open(MCFileSystem::Resolve(fileName), smackerAudio);
 
@@ -1346,7 +1346,7 @@ SmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers)
         return nullptr;
     }
 
-    SmackTag* movie = new SmackTag();
+    MCSmackTag* movie = new MCSmackTag();
     movie->Player = std::move(*player);
     return movie;
 }

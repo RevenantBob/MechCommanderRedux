@@ -3,9 +3,9 @@
 #include "ai/tacordr.h"
 #include "lib/cvmath.h"
 
-class GameObject;
-class MechWarrior;
-class Mover;
+class MCGameObject;
+class MCMechWarrior;
+class MCMover;
 
 /// <summary>Maximum movers in a group.</summary>
 constexpr int32_t MAX_MOVERGROUP_COUNT = 12;
@@ -15,117 +15,82 @@ constexpr int32_t MAX_MOVERGROUP_COUNT = 12;
 /// pilot.
 /// </summary>
 /// <remarks>Original source: <c>object\group.cpp</c>, <c>object\group.h</c>; 0x44 bytes.</remarks>
-class MoverGroup
+class MCMoverGroup
 {
 public:
     /// <summary>No id, no members, no point.</summary>
-    /// <remarks>MCX.EXE @ 0x006583c0 (inline in <c>object\group.h</c>)</remarks>
-    virtual void init();
-    /// <remarks>MCX.EXE @ 0x00667710</remarks>
-    virtual void destroy();
-    /// <remarks>MCX.EXE @ 0x006583e0 (inline in <c>object\group.h</c>)</remarks>
-    virtual int32_t getId() { return id; }
-    /// <remarks>MCX.EXE @ 0x006583f0 (inline in <c>object\group.h</c>)</remarks>
-    virtual void setId(int32_t newId) { id = newId; }
+    virtual void Init();
+    virtual void Destroy();
+    virtual int32_t GetId() { return Id; }
+    virtual void SetId(int32_t newId) { Id = newId; }
     /// <summary>Adds <paramref name="mover"/> and tells it its group; fatal when full.</summary>
-    /// <remarks>MCX.EXE @ 0x00667720</remarks>
-    virtual int add(Mover* mover);
+    virtual int Add(MCMover* mover);
     /// <summary>
     /// Removes <paramref name="mover"/> (the last member fills its slot). Removing the point disbands the group.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00667770</remarks>
-    virtual int remove(Mover* mover);
-    /// <remarks>MCX.EXE @ 0x006677f0</remarks>
-    virtual int isMember(Mover* mover);
+    virtual int Remove(MCMover* mover);
+    virtual int IsMember(MCMover* mover);
     /// <summary>Tells every member it has no group, clears the interface's point mark, and empties the group (the
     /// original's name is lost; MechCommander 2's is <c>disband</c>).</summary>
-    /// <remarks>MCX.EXE @ 0x00667820</remarks>
-    virtual void disband();
+    virtual void Disband();
     /// <summary>Makes member <paramref name="mover"/> the point (and the interface's point mark).</summary>
-    /// <remarks>MCX.EXE @ 0x00667870</remarks>
-    virtual int32_t setPoint(Mover* mover);
-    /// <remarks>MCX.EXE @ 0x00658400 (inline in <c>object\group.h</c>)</remarks>
-    virtual Mover* getPoint() { return point; }
-    /// <remarks>MCX.EXE @ 0x00658410 (inline in <c>object\group.h</c>)</remarks>
-    virtual void setDisbandOnNoPoint(int setting) { disbandOnNoPoint = setting; }
-    /// <remarks>MCX.EXE @ 0x00658420 (inline in <c>object\group.h</c>)</remarks>
-    virtual int getDisbandOnNoPoint() { return disbandOnNoPoint; }
+    virtual int32_t SetPoint(MCMover* mover);
+    virtual MCMover* GetPoint() { return Point; }
+    virtual void SetDisbandOnNoPoint(int setting) { DisbandOnNoPoint = setting; }
+    virtual int GetDisbandOnNoPoint() { return DisbandOnNoPoint; }
     /// <summary>Copies the members to <paramref name="moverList"/>; returns how many.</summary>
-    /// <remarks>MCX.EXE @ 0x00667940</remarks>
-    virtual int32_t getMovers(Mover** moverList);
+    virtual int32_t GetMovers(MCMover** moverList);
     /// <summary>Gives <paramref name="tacOrder"/> to every member (or, jumping, per-member goals).</summary>
-    /// <remarks>MCX.EXE @ 0x00667f40</remarks>
-    virtual int32_t handleTacticalOrder(TacticalOrder tacOrder, int32_t priority, vector_3d* destinations,
+    virtual int32_t HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, MCVector3D* destinations,
                                         int queueGroupOrder);
 
     /// <summary>
     /// Makes the first member (other than the point, when <paramref name="excludePoint"/>) whose pilot has fewer
     /// than 6 wounds the point; none when no member qualifies.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006678c0</remarks>
-    Mover* selectPoint(int excludePoint);
-    /// <remarks>MCX.EXE @ 0x00667960</remarks>
-    MechWarrior* getPointPilot();
+    MCMover* SelectPoint(int excludePoint);
+    MCMechWarrior* GetPointPilot();
     /// <summary>
     /// Adds the members to <paramref name="counts"/>: [status 0..5] by status, [6] pilot ejected, [7] asleep, [8]
     /// gone (as <c>Team::statusCount</c>, without its checks). The original's name is lost.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00667980</remarks>
-    void statusCount(int32_t* counts);
+    void StatusCount(int32_t* counts);
     /// <summary>Adds every member to the interface's mech list.</summary>
-    /// <remarks>MCX.EXE @ 0x00667a10</remarks>
-    void addToGUI(int visible);
+    void AddToGui(int visible);
     /// <summary>The members' jump goals around <paramref name="goal"/> (CalcJumpGoals).</summary>
-    /// <remarks>MCX.EXE @ 0x00667f10</remarks>
-    int32_t calcJumpGoals(vector_3d goal, vector_3d* goalList, GameObject* dfaTarget);
-    /// <remarks>MCX.EXE @ 0x006686f0</remarks>
-    int32_t orderMoveToPoint(int setTacOrder, int32_t origin, vector_3d location, uint32_t params);
-    /// <remarks>MCX.EXE @ 0x00668770</remarks>
-    int32_t orderMoveToObject(int setTacOrder, int32_t origin, GameObject* target, uint32_t params);
-    /// <remarks>MCX.EXE @ 0x006687f0</remarks>
-    int32_t orderTraversePath(int32_t origin, _WayPath* wayPath, uint32_t params);
+    int32_t CalcMemberJumpGoals(MCVector3D goal, MCVector3D* goalList, MCGameObject* dfaTarget);
+    int32_t OrderMoveToPoint(int setTacOrder, int32_t origin, MCVector3D location, uint32_t params);
+    int32_t OrderMoveToObject(int setTacOrder, int32_t origin, MCGameObject* target, uint32_t params);
+    int32_t OrderTraversePath(int32_t origin, MCWayPath* wayPath, uint32_t params);
     /// <summary>The original's name is lost (its assert says <c>orderPatrolPath</c>).</summary>
-    /// <remarks>MCX.EXE @ 0x00668870</remarks>
-    int32_t orderPatrolPath(int32_t origin, _WayPath* wayPath);
-    /// <remarks>MCX.EXE @ 0x006688f0</remarks>
-    int32_t orderPowerDown(int32_t origin);
-    /// <remarks>MCX.EXE @ 0x00668960</remarks>
-    int32_t orderPowerUp(int32_t origin);
-    /// <remarks>MCX.EXE @ 0x006689d0</remarks>
-    int32_t orderAttackObject(int32_t origin, GameObject* target, int32_t attackType, int32_t attackMethod,
+    int32_t OrderPatrolPath(int32_t origin, MCWayPath* wayPath);
+    int32_t OrderPowerDown(int32_t origin);
+    int32_t OrderPowerUp(int32_t origin);
+    int32_t OrderAttackObject(int32_t origin, MCGameObject* target, int32_t attackType, int32_t attackMethod,
                               int32_t attackRange, int32_t aimLocation, uint32_t params);
-    /// <remarks>MCX.EXE @ 0x00668a70</remarks>
-    int32_t orderWithdraw(int32_t origin, vector_3d location);
-    /// <remarks>MCX.EXE @ 0x00668af0</remarks>
-    int32_t orderEject(int32_t origin);
+    int32_t OrderWithdraw(int32_t origin, MCVector3D location);
+    int32_t OrderEject(int32_t origin);
     /// <summary>Triggers alarm <paramref name="alarmCode"/> in every member's pilot.</summary>
-    /// <remarks>MCX.EXE @ 0x00668b60</remarks>
-    void triggerAlarm(int32_t alarmCode, uint32_t triggerId);
+    void TriggerAlarm(int32_t alarmCode, uint32_t triggerId);
     /// <summary>Alarm 4 for every member.</summary>
-    /// <remarks>MCX.EXE @ 0x00668ba0</remarks>
-    int32_t handleMateCrippled(uint32_t mateId);
-    /// <remarks>MCX.EXE @ 0x00668bc0</remarks>
-    int32_t handleMateDisabled(uint32_t mateId);
-    /// <remarks>MCX.EXE @ 0x00668bd0</remarks>
-    int32_t handleMateDestroyed(uint32_t mateId);
-    /// <remarks>MCX.EXE @ 0x00668bf0</remarks>
-    int32_t handleMateEjected(uint32_t mateId);
-    /// <remarks>MCX.EXE @ 0x00668c00</remarks>
-    void handleMateFiredWeapon(uint32_t mateId);
+    int32_t HandleMateCrippled(uint32_t mateId);
+    int32_t HandleMateDisabled(uint32_t mateId);
+    int32_t HandleMateDestroyed(uint32_t mateId);
+    int32_t HandleMateEjected(uint32_t mateId);
+    void HandleMateFiredWeapon(uint32_t mateId);
     /// <summary>Member <paramref name="index"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x006d3ff0 (inline in <c>object\group.h</c>)</remarks>
-    Mover* getMover(int32_t index) { return movers[index]; }
+    MCMover* GetMover(int32_t index) { return Movers[index]; }
 
     /// <summary>The group's id; -1 for none.</summary>
-    int32_t id = -1; // +0x04
+    int32_t Id = -1;
     /// <summary>Members.</summary>
-    int32_t numMovers = 0; // +0x08
+    int32_t NumMovers = 0;
     /// <summary>The members.</summary>
-    Mover* movers[MAX_MOVERGROUP_COUNT] = {}; // +0x0c
+    MCMover* Movers[MAX_MOVERGROUP_COUNT] = {};
     /// <summary>The point.</summary>
-    Mover* point = nullptr; // +0x3c
+    MCMover* Point = nullptr;
     /// <summary>Whether losing the point disbands the group.</summary>
-    int disbandOnNoPoint = 0; // +0x40
+    int DisbandOnNoPoint = 0;
 };
 
 /// <summary>
@@ -134,8 +99,7 @@ public:
 /// spiralling out from the goal's cell. A goal with no cell gets -99999 in every coordinate. Returns how many were
 /// placed.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00667a60</remarks>
-int32_t CalcJumpGoals(vector_3d goal, int32_t numGoals, vector_3d* goalList, GameObject* dfaTarget);
+int32_t CalcJumpGoals(MCVector3D goal, int32_t numGoals, MCVector3D* goalList, MCGameObject* dfaTarget);
 
 /// <summary>The row and column steps (pairs) of the spiral CalcJumpGoals searches, 81 steps.</summary>
 extern char CellSpiralIncrement[162];

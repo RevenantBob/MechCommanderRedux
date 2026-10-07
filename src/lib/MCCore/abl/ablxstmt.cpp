@@ -13,41 +13,41 @@ int32_t MaxLoopIterations = 100001;
 int32_t ProfileLogFunctionTimeLimit = 5;
 int ExitWithReturn = 0;
 
-auto execStatement() -> void
+auto ExecStatement() -> void
 {
-    if (codeToken == TKN_STATEMENT_MARKER)
+    if (CodeToken == TKN_STATEMENT_MARKER)
     {
-        execLineNumber = getCodeStatementMarker();
-        execStatementCount++;
-        statementStartPtr = codeSegmentPtr;
+        ExecLineNumber = GetCodeStatementMarker();
+        ExecStatementCount++;
+        StatementStartPtr = CodeSegmentPtr;
 
-        if (debugger)
+        if (Debugger)
         {
-            debugger->traceStatementExecution();
+            Debugger->TraceStatementExecution();
         }
 
-        getCodeToken();
+        GetCodeToken();
     }
 
     int wasInOrdersBlock = InOrdersBlock;
 
-    switch (codeToken)
+    switch (CodeToken)
     {
         case TKN_IDENTIFIER:
         {
-            SymTableNodePtr idPtr = getCodeSymTableNodePtr();
+            MCSymTableNodePtr idPtr = GetCodeSymTableNodePtr();
 
-            if (idPtr->defn.key == DFN_FUNCTION)
+            if (idPtr->Defn.Key == DFN_FUNCTION)
             {
                 // A function called as a statement: drop its result.
-                if (execRoutineCall(idPtr))
+                if (ExecRoutineCall(idPtr))
                 {
-                    pop();
+                    Pop();
                 }
             }
             else
             {
-                execAssignmentStatement(idPtr);
+                ExecAssignmentStatement(idPtr);
             }
             break;
         }
@@ -55,159 +55,159 @@ auto execStatement() -> void
         case TKN_CODE:
         {
             InOrdersBlock = 0;
-            getCodeToken();
-            TokenCodeType endToken = CurLibrary ? TKN_END_LIBRARY : TKN_END_MODULE;
+            GetCodeToken();
+            MCTokenCodeType endToken = CurLibrary ? TKN_END_LIBRARY : TKN_END_MODULE;
 
-            while (codeToken != TKN_END_FUNCTION && codeToken != endToken)
+            while (CodeToken != TKN_END_FUNCTION && CodeToken != endToken)
             {
-                execStatement();
+                ExecStatement();
             }
 
-            getCodeToken();
+            GetCodeToken();
             InOrdersBlock = wasInOrdersBlock;
             break;
         }
 
         case TKN_SWITCH:
-            execSwitchStatement();
+            ExecSwitchStatement();
             break;
         case TKN_FOR:
-            execForStatement();
+            ExecForStatement();
             break;
         case TKN_IF:
-            execIfStatement();
+            ExecIfStatement();
             break;
         case TKN_REPEAT:
-            execRepeatStatement();
+            ExecRepeatStatement();
             break;
         case TKN_WHILE:
-            execWhileStatement();
+            ExecWhileStatement();
             break;
         case TKN_SEMICOLON:
         case TKN_ELSE:
         case TKN_UNTIL:
             break;
         default:
-            runtimeError(ABL_ERR_RUNTIME_UNIMPLEMENTED_FEATURE);
+            RuntimeError(ABL_ERR_RUNTIME_UNIMPLEMENTED_FEATURE);
             break;
     }
 
-    while (codeToken == TKN_SEMICOLON)
+    while (CodeToken == TKN_SEMICOLON)
     {
-        getCodeToken();
+        GetCodeToken();
     }
 }
 
-auto execAssignmentStatement(SymTableNodePtr idPtr) -> void
+auto ExecAssignmentStatement(MCSymTableNodePtr idPtr) -> void
 {
-    TypePtr targetTypePtr = execVariable(idPtr, USE_TARGET);
-    StackItemPtr targetPtr = reinterpret_cast<StackItemPtr>(tos->address);
-    pop();
-    TypePtr targetBaseTypePtr = baseType(targetTypePtr);
+    MCTypePtr targetTypePtr = ExecVariable(idPtr, USE_TARGET);
+    MCStackItemPtr targetPtr = reinterpret_cast<MCStackItemPtr>(Tos->Address);
+    Pop();
+    MCTypePtr targetBaseTypePtr = BaseType(targetTypePtr);
 
-    getCodeToken();
-    TypePtr expressionTypePtr = execExpression();
+    GetCodeToken();
+    MCTypePtr expressionTypePtr = ExecExpression();
 
     // The target is a stack slot or an element in array memory: stores go through 4-byte integers and reals (1
     // byte for a char), as in the original.
-    if (targetTypePtr == RealTypePtr && baseType(expressionTypePtr) == IntegerTypePtr)
+    if (targetTypePtr == RealTypePtr && BaseType(expressionTypePtr) == IntegerTypePtr)
     {
-        *reinterpret_cast<float*>(targetPtr) = static_cast<float>(tos->integer);
+        *reinterpret_cast<float*>(targetPtr) = static_cast<float>(Tos->Integer);
     }
-    else if (targetTypePtr->form == FRM_ARRAY)
+    else if (targetTypePtr->Form == FRM_ARRAY)
     {
-        std::memcpy(targetPtr, tos->address, static_cast<size_t>(targetTypePtr->size));
+        std::memcpy(targetPtr, Tos->Address, static_cast<size_t>(targetTypePtr->Size));
     }
-    else if (targetBaseTypePtr == IntegerTypePtr || targetTypePtr->form == FRM_ENUM)
+    else if (targetBaseTypePtr == IntegerTypePtr || targetTypePtr->Form == FRM_ENUM)
     {
-        *reinterpret_cast<int32_t*>(targetPtr) = tos->integer;
+        *reinterpret_cast<int32_t*>(targetPtr) = Tos->Integer;
     }
     else if (targetBaseTypePtr == CharTypePtr)
     {
-        *reinterpret_cast<uint8_t*>(targetPtr) = tos->byte;
+        *reinterpret_cast<uint8_t*>(targetPtr) = Tos->Byte;
     }
     else
     {
-        *reinterpret_cast<float*>(targetPtr) = tos->real;
+        *reinterpret_cast<float*>(targetPtr) = Tos->Real;
     }
 
-    pop();
+    Pop();
 
-    if (debugger)
+    if (Debugger)
     {
-        debugger->traceDataStore(idPtr, idPtr->typePtr, targetPtr, targetTypePtr);
+        Debugger->TraceDataStore(idPtr, idPtr->TypePtr, targetPtr, targetTypePtr);
     }
 }
 
-auto execRoutineCall(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    if (routineIdPtr->defn.info.routine.key == RTN_DECLARED)
+    if (routineIdPtr->Defn.Info.Routine.Key == RTN_DECLARED)
     {
-        return execDeclaredRoutineCall(routineIdPtr);
+        return ExecDeclaredRoutineCall(routineIdPtr);
     }
 
-    return execStandardRoutineCall(routineIdPtr);
+    return ExecStandardRoutineCall(routineIdPtr);
 }
 
-auto execDeclaredRoutineCall(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecDeclaredRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    int32_t oldLevel = level;
-    int32_t newLevel = routineIdPtr->level + 1;
+    int32_t oldLevel = Level;
+    int32_t newLevel = routineIdPtr->Level + 1;
     CallStackLevel++;
 
     // A function of another module (a library's) has no static link and runs in that module.
-    StackItemPtr newStackFrameBasePtr = tos + 1;
-    bool isLibraryCall = routineIdPtr->library && routineIdPtr->library != CurRoutineIdPtr->library;
+    MCStackItemPtr newStackFrameBasePtr = Tos + 1;
+    bool isLibraryCall = routineIdPtr->Library && routineIdPtr->Library != CurRoutineIdPtr->Library;
 
     if (isLibraryCall)
     {
-        pushStackFrameHeader(-1, -1);
+        PushStackFrameHeader(-1, -1);
     }
     else
     {
-        pushStackFrameHeader(level, newLevel);
+        PushStackFrameHeader(Level, newLevel);
     }
 
-    getCodeToken();
+    GetCodeToken();
 
-    if (codeToken == TKN_LPAREN)
+    if (CodeToken == TKN_LPAREN)
     {
-        execActualParams(routineIdPtr);
-        getCodeToken();
+        ExecActualParams(routineIdPtr);
+        GetCodeToken();
     }
 
-    stackFrameBasePtr = newStackFrameBasePtr;
-    level = newLevel;
-    reinterpret_cast<StackFrameHeaderPtr>(newStackFrameBasePtr)->returnAddress.address = codeSegmentPtr - 1;
+    StackFrameBasePtr = newStackFrameBasePtr;
+    Level = newLevel;
+    reinterpret_cast<MCStackFrameHeaderPtr>(newStackFrameBasePtr)->ReturnAddress.Address = CodeSegmentPtr - 1;
 
-    ABLModule* callerModule = nullptr;
+    MCAblModule* callerModule = nullptr;
 
     if (isLibraryCall)
     {
-        ABLModule* library = routineIdPtr->library;
+        MCAblModule* library = routineIdPtr->Library;
         callerModule = CurModule;
-        CurModuleHandle = library->handle;
+        CurModuleHandle = library->Handle;
         CurModule = library;
 
-        if (debugger)
+        if (Debugger)
         {
-            debugger->setModule(library);
+            Debugger->SetModule(library);
         }
 
-        StaticDataPtr = CurModule->staticData;
-        int32_t wasInitCalled = CurModule->initCalled;
-        CurModule->initCalled = 1;
+        StaticDataPtr = CurModule->StaticData;
+        int32_t wasInitCalled = CurModule->InitCalled;
+        CurModule->InitCalled = 1;
         CallModuleInit = wasInitCalled == 0;
     }
 
     if (!ProfileLog)
     {
-        execute(routineIdPtr);
+        Execute(routineIdPtr);
     }
     else
     {
         uint32_t startTime = MCPort::Milliseconds();
-        execute(routineIdPtr);
+        Execute(routineIdPtr);
         int32_t runTime = static_cast<int32_t>(MCPort::Milliseconds() - startTime);
 
         if (runTime > ProfileLogFunctionTimeLimit)
@@ -221,115 +221,115 @@ auto execDeclaredRoutineCall(SymTableNodePtr routineIdPtr) -> TypePtr
             }
 
             char routineEntry[512];
-            std::snprintf(routineEntry, sizeof(routineEntry), "%s (%d)\n", routineIdPtr->name, runTime);
+            std::snprintf(routineEntry, sizeof(routineEntry), "%s (%d)\n", routineIdPtr->Name, runTime);
             std::strcat(profileEntry, routineEntry);
-            ABL_AddToProfileLog(profileEntry);
+            AblAddToProfileLog(profileEntry);
         }
     }
 
     if (isLibraryCall)
     {
-        CurModuleHandle = callerModule->handle;
+        CurModuleHandle = callerModule->Handle;
         CurModule = callerModule;
 
-        if (debugger)
+        if (Debugger)
         {
-            debugger->setModule(callerModule);
+            Debugger->SetModule(callerModule);
         }
 
-        StaticDataPtr = CurModule->staticData;
+        StaticDataPtr = CurModule->StaticData;
     }
 
-    level = oldLevel;
-    getCodeToken();
+    Level = oldLevel;
+    GetCodeToken();
     CallStackLevel--;
-    return routineIdPtr->typePtr;
+    return routineIdPtr->TypePtr;
 }
 
-auto setOpenArray(TypePtr arrayTypePtr, int32_t size) -> void
+auto SetOpenArray(MCTypePtr arrayTypePtr, int32_t size) -> void
 {
     // Faithful: the element count is the new size over the OLD total size, not over the element size.
-    int32_t oldSize = arrayTypePtr->size;
-    arrayTypePtr->size = size;
-    TypePtr lastDimensionTypePtr = arrayTypePtr;
+    int32_t oldSize = arrayTypePtr->Size;
+    arrayTypePtr->Size = size;
+    MCTypePtr lastDimensionTypePtr = arrayTypePtr;
 
-    while (lastDimensionTypePtr->info.array.elementTypePtr->form == FRM_ARRAY)
+    while (lastDimensionTypePtr->Info.Array.ElementTypePtr->Form == FRM_ARRAY)
     {
-        lastDimensionTypePtr = lastDimensionTypePtr->info.array.elementTypePtr;
+        lastDimensionTypePtr = lastDimensionTypePtr->Info.Array.ElementTypePtr;
     }
 
-    lastDimensionTypePtr->info.array.elementCount = size / oldSize;
+    lastDimensionTypePtr->Info.Array.ElementCount = size / oldSize;
 }
 
-auto execActualParams(SymTableNodePtr routineIdPtr) -> void
+auto ExecActualParams(MCSymTableNodePtr routineIdPtr) -> void
 {
-    for (SymTableNodePtr formalIdPtr = routineIdPtr->defn.info.routine.params; formalIdPtr;
-         formalIdPtr = formalIdPtr->next)
+    for (MCSymTableNodePtr formalIdPtr = routineIdPtr->Defn.Info.Routine.Params; formalIdPtr;
+         formalIdPtr = formalIdPtr->Next)
     {
-        TypePtr formalTypePtr = formalIdPtr->typePtr;
-        getCodeToken();
+        MCTypePtr formalTypePtr = formalIdPtr->TypePtr;
+        GetCodeToken();
 
-        if (formalIdPtr->defn.key == DFN_VALPARAM)
+        if (formalIdPtr->Defn.Key == DFN_VALPARAM)
         {
-            TypePtr actualTypePtr = execExpression();
+            MCTypePtr actualTypePtr = ExecExpression();
 
-            if (formalTypePtr == RealTypePtr && baseType(actualTypePtr) == IntegerTypePtr)
+            if (formalTypePtr == RealTypePtr && BaseType(actualTypePtr) == IntegerTypePtr)
             {
-                tos->real = static_cast<float>(tos->integer);
+                Tos->Real = static_cast<float>(Tos->Integer);
             }
 
             // An array passed by value gets its own copy.
-            if (formalTypePtr->form == FRM_ARRAY)
+            if (formalTypePtr->Form == FRM_ARRAY)
             {
-                int32_t size = formalTypePtr->size;
-                Address source = tos->address;
-                Address copy = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
+                int32_t size = formalTypePtr->Size;
+                MCAddress source = Tos->Address;
+                MCAddress copy = static_cast<MCAddress>(AblMemory.Allocate(static_cast<size_t>(size)));
 
                 if (!copy)
                 {
                     char err[256];
                     std::snprintf(err, sizeof(err),
                                   " ABL: Unable to AblStackHeap->malloc actual array param in module %s)",
-                                  CurModule->name);
+                                  CurModule->Name);
                     Fatal(0, err);
                 }
 
                 std::memcpy(copy, source, static_cast<size_t>(size));
-                tos->address = copy;
+                Tos->Address = copy;
             }
         }
         else
         {
-            SymTableNodePtr actualIdPtr = getCodeSymTableNodePtr();
-            execVariable(actualIdPtr, USE_REFPARAM);
+            MCSymTableNodePtr actualIdPtr = GetCodeSymTableNodePtr();
+            ExecVariable(actualIdPtr, USE_REFPARAM);
         }
     }
 }
 
-auto execSwitchStatement() -> void
+auto ExecSwitchStatement() -> void
 {
-    getCodeToken();
-    char* branchTableLocation = getCodeAddressMarker();
+    GetCodeToken();
+    char* branchTableLocation = GetCodeAddressMarker();
 
-    getCodeToken();
-    TypePtr switchExpressionTypePtr = execExpression();
+    GetCodeToken();
+    MCTypePtr switchExpressionTypePtr = ExecExpression();
     int32_t switchExpressionValue;
 
-    if (switchExpressionTypePtr == IntegerTypePtr || switchExpressionTypePtr->form == FRM_ENUM)
+    if (switchExpressionTypePtr == IntegerTypePtr || switchExpressionTypePtr->Form == FRM_ENUM)
     {
-        switchExpressionValue = tos->integer;
+        switchExpressionValue = Tos->Integer;
     }
     else
     {
-        switchExpressionValue = tos->byte;
+        switchExpressionValue = Tos->Byte;
     }
 
-    pop();
+    Pop();
 
     // The branch table: a count, then (label value, case location) pairs.
-    codeSegmentPtr = branchTableLocation;
-    getCodeToken();
-    int32_t caseLabelCount = getCodeInteger();
+    CodeSegmentPtr = branchTableLocation;
+    GetCodeToken();
+    int32_t caseLabelCount = GetCodeInteger();
     int32_t remaining;
     char* caseLocation = nullptr;
 
@@ -342,8 +342,8 @@ auto execSwitchStatement() -> void
             break;
         }
 
-        int32_t labelValue = getCodeInteger();
-        caseLocation = getCodeAddress();
+        int32_t labelValue = GetCodeInteger();
+        caseLocation = GetCodeAddress();
         caseLabelCount = remaining;
 
         if (labelValue == switchExpressionValue)
@@ -355,17 +355,17 @@ auto execSwitchStatement() -> void
     // No matching case: skip past the table.
     if (remaining < 0)
     {
-        getCodeToken();
-        getCodeToken();
+        GetCodeToken();
+        GetCodeToken();
         return;
     }
 
-    codeSegmentPtr = caseLocation;
-    getCodeToken();
+    CodeSegmentPtr = caseLocation;
+    GetCodeToken();
 
-    while (codeToken != TKN_END_CASE)
+    while (CodeToken != TKN_END_CASE)
     {
-        execStatement();
+        ExecStatement();
 
         if (ExitWithReturn)
         {
@@ -373,42 +373,42 @@ auto execSwitchStatement() -> void
         }
     }
 
-    getCodeToken();
-    getCodeToken();
-    codeSegmentPtr = getCodeAddressMarker();
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    CodeSegmentPtr = GetCodeAddressMarker();
+    GetCodeToken();
 }
 
-auto execForStatement() -> void
+auto ExecForStatement() -> void
 {
-    getCodeToken();
-    char* loopEndLocation = getCodeAddressMarker();
+    GetCodeToken();
+    char* loopEndLocation = GetCodeAddressMarker();
 
-    getCodeToken();
-    SymTableNodePtr controlIdPtr = getCodeSymTableNodePtr();
-    TypePtr controlTypePtr = execVariable(controlIdPtr, USE_TARGET);
-    Address controlAddress = tos->address;
-    pop();
+    GetCodeToken();
+    MCSymTableNodePtr controlIdPtr = GetCodeSymTableNodePtr();
+    MCTypePtr controlTypePtr = ExecVariable(controlIdPtr, USE_TARGET);
+    MCAddress controlAddress = Tos->Address;
+    Pop();
 
-    getCodeToken();
-    execExpression();
-    uint32_t initialValue = controlTypePtr == IntegerTypePtr ? static_cast<uint32_t>(tos->integer) : tos->byte;
-    pop();
+    GetCodeToken();
+    ExecExpression();
+    uint32_t initialValue = controlTypePtr == IntegerTypePtr ? static_cast<uint32_t>(Tos->Integer) : Tos->Byte;
+    Pop();
 
-    bool countUp = codeToken == TKN_TO;
-    getCodeToken();
-    execExpression();
-    uint32_t finalValue = controlTypePtr == IntegerTypePtr ? static_cast<uint32_t>(tos->integer) : tos->byte;
-    pop();
+    bool countUp = CodeToken == TKN_TO;
+    GetCodeToken();
+    ExecExpression();
+    uint32_t finalValue = controlTypePtr == IntegerTypePtr ? static_cast<uint32_t>(Tos->Integer) : Tos->Byte;
+    Pop();
 
-    char* loopStartLocation = codeSegmentPtr;
+    char* loopStartLocation = CodeSegmentPtr;
     int32_t iterations = 0;
     uint32_t controlValue = initialValue;
 
     while (countUp ? static_cast<int32_t>(controlValue) <= static_cast<int32_t>(finalValue)
                    : static_cast<int32_t>(finalValue) <= static_cast<int32_t>(controlValue))
     {
-        codeSegmentPtr = loopStartLocation;
+        CodeSegmentPtr = loopStartLocation;
 
         if (controlTypePtr == IntegerTypePtr)
         {
@@ -419,11 +419,11 @@ auto execForStatement() -> void
             *reinterpret_cast<char*>(controlAddress) = static_cast<char>(controlValue);
         }
 
-        getCodeToken();
+        GetCodeToken();
 
-        while (codeToken != TKN_END_FOR)
+        while (CodeToken != TKN_END_FOR)
         {
-            execStatement();
+            ExecStatement();
 
             if (ExitWithReturn)
             {
@@ -435,42 +435,42 @@ auto execForStatement() -> void
 
         if (iterations == MaxLoopIterations)
         {
-            runtimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
+            RuntimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
         }
 
         controlValue += countUp ? 1 : static_cast<uint32_t>(-1);
     }
 
-    codeSegmentPtr = loopEndLocation;
-    getCodeToken();
+    CodeSegmentPtr = loopEndLocation;
+    GetCodeToken();
 }
 
-auto execIfStatement() -> void
+auto ExecIfStatement() -> void
 {
-    getCodeToken();
-    char* falseLocation = getCodeAddressMarker();
+    GetCodeToken();
+    char* falseLocation = GetCodeAddressMarker();
 
-    getCodeToken();
-    execExpression();
-    int32_t test = tos->integer;
-    pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t test = Tos->Integer;
+    Pop();
 
     if (test == 1)
     {
         // The THEN part, up to END_IF or ELSE (then jump past the ELSE part).
-        getCodeToken();
+        GetCodeToken();
 
-        while (codeToken != TKN_END_IF)
+        while (CodeToken != TKN_END_IF)
         {
-            if (codeToken == TKN_ELSE)
+            if (CodeToken == TKN_ELSE)
             {
-                getCodeToken();
-                codeSegmentPtr = getCodeAddressMarker();
-                getCodeToken();
+                GetCodeToken();
+                CodeSegmentPtr = GetCodeAddressMarker();
+                GetCodeToken();
                 break;
             }
 
-            execStatement();
+            ExecStatement();
 
             if (ExitWithReturn)
             {
@@ -480,18 +480,18 @@ auto execIfStatement() -> void
     }
     else
     {
-        codeSegmentPtr = falseLocation;
-        getCodeToken();
+        CodeSegmentPtr = falseLocation;
+        GetCodeToken();
 
-        if (codeToken == TKN_ELSE)
+        if (CodeToken == TKN_ELSE)
         {
-            getCodeToken();
-            getCodeAddressMarker();
-            getCodeToken();
+            GetCodeToken();
+            GetCodeAddressMarker();
+            GetCodeToken();
 
-            while (codeToken != TKN_END_IF)
+            while (CodeToken != TKN_END_IF)
             {
-                execStatement();
+                ExecStatement();
 
                 if (ExitWithReturn)
                 {
@@ -501,21 +501,21 @@ auto execIfStatement() -> void
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execRepeatStatement() -> void
+auto ExecRepeatStatement() -> void
 {
-    char* loopStartLocation = codeSegmentPtr;
+    char* loopStartLocation = CodeSegmentPtr;
     int32_t iterations = 0;
 
     do
     {
-        getCodeToken();
+        GetCodeToken();
 
-        while (codeToken != TKN_UNTIL)
+        while (CodeToken != TKN_UNTIL)
         {
-            execStatement();
+            ExecStatement();
 
             if (ExitWithReturn)
             {
@@ -527,51 +527,51 @@ auto execRepeatStatement() -> void
 
         if (iterations == MaxLoopIterations)
         {
-            runtimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
+            RuntimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
         }
 
-        getCodeToken();
-        execExpression();
+        GetCodeToken();
+        ExecExpression();
 
-        if (tos->integer == 0)
+        if (Tos->Integer == 0)
         {
-            codeSegmentPtr = loopStartLocation;
+            CodeSegmentPtr = loopStartLocation;
         }
 
-        pop();
-    } while (codeSegmentPtr == loopStartLocation);
+        Pop();
+    } while (CodeSegmentPtr == loopStartLocation);
 }
 
-auto execWhileStatement() -> void
+auto ExecWhileStatement() -> void
 {
-    getCodeToken();
-    char* loopEndLocation = getCodeAddressMarker();
-    char* loopStartLocation = codeSegmentPtr;
+    GetCodeToken();
+    char* loopEndLocation = GetCodeAddressMarker();
+    char* loopStartLocation = CodeSegmentPtr;
     int32_t iterations = 0;
 
     for (;;)
     {
-        getCodeToken();
-        execExpression();
-        bool loopDone = tos->integer == 0;
+        GetCodeToken();
+        ExecExpression();
+        bool loopDone = Tos->Integer == 0;
 
         if (loopDone)
         {
-            codeSegmentPtr = loopEndLocation;
+            CodeSegmentPtr = loopEndLocation;
         }
 
-        pop();
+        Pop();
 
         if (loopDone)
         {
             break;
         }
 
-        getCodeToken();
+        GetCodeToken();
 
-        while (codeToken != TKN_END_WHILE)
+        while (CodeToken != TKN_END_WHILE)
         {
-            execStatement();
+            ExecStatement();
 
             if (ExitWithReturn)
             {
@@ -580,13 +580,13 @@ auto execWhileStatement() -> void
         }
 
         iterations++;
-        codeSegmentPtr = loopStartLocation;
+        CodeSegmentPtr = loopStartLocation;
 
         if (iterations == MaxLoopIterations)
         {
-            runtimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
+            RuntimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }

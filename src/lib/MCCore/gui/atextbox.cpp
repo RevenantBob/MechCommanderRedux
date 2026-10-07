@@ -18,8 +18,8 @@
 #include "vfx/vfxfuncs.h"
 
 /// <summary>The gap aScrollTextObject's section highlight leaves at the right (3).</summary>
-int16_t rOffset = 3;
-int32_t playerColor[6] = {1, 3, 4, 2, 6, 5};
+int16_t ROffset = 3;
+int32_t PlayerColor[6] = {1, 3, 4, 2, 6, 5};
 /// <summary>Nonzero to swallow the next Enter in the chat line (set by the interface when Enter opens the chat).</summary>
 int FirstReturn = 0;
 
@@ -29,18 +29,18 @@ namespace
     constexpr int32_t TextBufferSize = 0x1000;
 
     /// <summary>Destroys and deletes a child made with <c>new</c>, and clears the pointer.</summary>
-    template <typename T> void releaseChild(T*& child)
+    template <typename T> void ReleaseChild(T*& child)
     {
         if (child != nullptr)
         {
-            child->destroy();
+            child->Destroy();
             delete child;
             child = nullptr;
         }
     }
 
     /// <summary>The font row (the <c>fonts</c> table's first index) aScrollTextObject draws colour <paramref name="color"/> in.</summary>
-    int32_t fontRowForColor(uint8_t color)
+    int32_t FontRowForColor(uint8_t color)
     {
         switch (color)
         {
@@ -64,196 +64,190 @@ namespace
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00616860</remarks>
-auto aTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCGuiTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
 {
-    const int32_t result = aObject::init(xPos, yPos, width, height, nullptr);
+    const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    readOnly = 0;
-    textFont = greyFont;
-    textTerminator = 0;
+    ReadOnly = 0;
+    TextFont = GreyFont;
+    TextTerminator = 0;
 
     if (newText == nullptr)
     {
-        text[0] = '\0';
-        textLength = 0;
+        Text[0] = '\0';
+        TextLength = 0;
     }
     else
     {
-        std::strncpy(text, newText, 0xfe);
-        textLength = static_cast<int16_t>(std::strlen(newText));
+        std::strncpy(Text, newText, 0xfe);
+        TextLength = static_cast<int16_t>(std::strlen(newText));
 
-        if (textLength > 0xfe)
+        if (TextLength > 0xfe)
         {
-            textLength = 0xfe;
+            TextLength = 0xfe;
         }
     }
 
-    backgroundColor = 0;
-    VFX_pane_wipe(displayPort->frame(), 0);
+    BackgroundColor = 0;
+    VfxPaneWipe(DisplayPort->Frame(), 0);
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x00616920</remarks>
-auto aTextObject::handleEvent(aEvent* event) -> void
+auto MCGuiTextObject::HandleEvent(MCGuiEvent* event) -> void
 {
     // The event routine gets a copy taken before any editing.
-    aEvent eventCopy = *event;
+    MCGuiEvent eventCopy = *event;
 
-    if (readOnly == 0)
+    if (ReadOnly == 0)
     {
-        if (event->type == 1)
+        if (event->Type == 1)
         {
-            application->setText(this);
+            Application->SetText(this);
 
-            if (parent != nullptr)
+            if (Parent != nullptr)
             {
-                bringToFront(0);
-                aRedrawScreen();
+                BringToFront(0);
+                ARedrawScreen();
             }
         }
-        else if (event->type == 10 && application->textObject() == this)
+        else if (event->Type == 10 && Application->TextObject() == this)
         {
-            const uint8_t key = event->key;
+            const uint8_t key = event->Key;
 
             if (key == 8)
             {
-                if (textLength > 0)
+                if (TextLength > 0)
                 {
                     // Original behaviour (OB-067): clears the terminator, not the last character, so the character
                     // stays on show until the next one typed replaces it.
-                    text[textLength] = '\0';
-                    textLength--;
+                    Text[TextLength] = '\0';
+                    TextLength--;
                 }
             }
             else
             {
-                if (key == 0xd && parent != nullptr)
+                if (key == 0xd && Parent != nullptr)
                 {
-                    aPostMessage(parent, 0x17);
+                    APostMessage(Parent, 0x17);
                 }
 
-                if (textLength < 0xfe && (std::isprint(key) != 0 || key == ' '))
+                if (TextLength < 0xfe && (std::isprint(key) != 0 || key == ' '))
                 {
-                    text[textLength] = static_cast<char>(key);
-                    textLength++;
-                    text[textLength] = '\0';
+                    Text[TextLength] = static_cast<char>(key);
+                    TextLength++;
+                    Text[TextLength] = '\0';
                 }
             }
         }
     }
 
-    if (eventRoutine != nullptr)
+    if (EventRoutine != nullptr)
     {
-        eventRoutine(this, &eventCopy);
+        EventRoutine(this, &eventCopy);
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00616a70</remarks>
-auto aTextObject::draw() -> void
+auto MCGuiTextObject::Draw() -> void
 {
     // textTerminator ends a full 254 characters.
     char shown[256];
-    const size_t length = strnlen(text, sizeof(text));
-    std::memcpy(shown, text, length);
+    const size_t length = strnlen(Text, sizeof(Text));
+    std::memcpy(shown, Text, length);
     shown[length] = '\0';
-    VFX_pane_wipe(displayPort->frame(), backgroundColor);
-    drawFramed(0, 0);
+    VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
+    DrawFramed(0, 0);
 
-    if (application->textObject() == this)
+    if (Application->TextObject() == this)
     {
         // The caret.
-        shown[textLength] = 0x7f;
-        shown[textLength + 1] = '\0';
+        shown[TextLength] = 0x7f;
+        shown[TextLength + 1] = '\0';
     }
 
     // Drop leading characters until the rest fits.
     uint8_t* start = reinterpret_cast<uint8_t*>(shown);
 
-    while (*start != 0 && textFont->width(start) > width() - 6)
+    while (*start != 0 && TextFont->Width(start) > Width() - 6)
     {
         start++;
     }
 
     if (*start != 0)
     {
-        textFont->writeString(displayPort->frame(), 3, 3, start, -1);
+        TextFont->WriteString(DisplayPort->Frame(), 3, 3, start, -1);
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00616b80</remarks>
-auto aTextObject::setText(char* newText) -> void
+auto MCGuiTextObject::SetText(char* newText) -> void
 {
     if (newText == nullptr)
     {
-        text[0] = '\0';
-        textLength = 0;
+        Text[0] = '\0';
+        TextLength = 0;
         return;
     }
 
-    std::strncpy(text, newText, 0xfe);
+    std::strncpy(Text, newText, 0xfe);
     // textTerminator ends a full 254 characters.
-    textLength = static_cast<int16_t>(strnlen(text, sizeof(text)));
+    TextLength = static_cast<int16_t>(strnlen(Text, sizeof(Text)));
 }
 
-/// <remarks>MCX.EXE @ 0x00616bd0</remarks>
-auto PaintScrollTab(aObject* obj) -> void
+auto PaintScrollTab(MCGuiObject* obj) -> void
 {
-    const int32_t width = obj->width();
-    const int32_t height = obj->height();
-    PANE* pane = obj->port()->frame();
-    VFX_pane_wipe(pane, 0x1a);
-    VFX_line_draw(pane, 0, 0, width - 2, 0, LD_DRAW, 0x1f);
-    VFX_line_draw(pane, 0, 0, 0, height - 2, LD_DRAW, 0x1f);
-    VFX_line_draw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0x16);
-    VFX_line_draw(pane, 0, height - 1, width - 1, height - 1, LD_DRAW, 0x16);
+    const int32_t width = obj->Width();
+    const int32_t height = obj->Height();
+    MCPane* pane = obj->Port()->Frame();
+    VfxPaneWipe(pane, 0x1a);
+    VfxLineDraw(pane, 0, 0, width - 2, 0, LD_DRAW, 0x1f);
+    VfxLineDraw(pane, 0, 0, 0, height - 2, LD_DRAW, 0x1f);
+    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0x16);
+    VfxLineDraw(pane, 0, height - 1, width - 1, height - 1, LD_DRAW, 0x16);
 }
 
-/// <remarks>MCX.EXE @ 0x00616c60</remarks>
-auto ScrollTabEventHandler(aObject* obj, aEvent* event) -> void
+auto ScrollTabEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            application->grab(obj);
-            obj->startDrag(0, event->y - obj->globalY());
+            Application->Grab(obj);
+            obj->StartDrag(0, event->Y - obj->GlobalY());
             break;
         }
         case 4:
         {
-            application->release();
-            obj->stopDrag();
+            Application->Release();
+            obj->StopDrag();
             break;
         }
         case 7:
         {
             // Any grab will do (the original doesn't check that it is this thumb).
-            if (application->grabbedObject() == nullptr)
+            if (Application->GrabbedObject() == nullptr)
             {
                 break;
             }
 
-            auto* textObject = static_cast<aScrollTextObject*>(obj->parent);
-            const int32_t newY = (event->y - obj->parent->y()) - obj->dragStartY();
-            obj->moveTo(obj->x(), newY, 0);
+            auto* textObject = static_cast<MCGuiScrollTextObject*>(obj->Parent);
+            const int32_t newY = (event->Y - obj->Parent->Y()) - obj->DragStartY();
+            obj->MoveTo(obj->X(), newY, 0);
 
-            if (obj->y() < 0x10)
+            if (obj->Y() < 0x10)
             {
-                obj->moveTo(obj->x(), 0x10, 0);
+                obj->MoveTo(obj->X(), 0x10, 0);
             }
 
-            if (obj->y() > (-0x10 - textObject->scrollTab->height()) + textObject->height())
+            if (obj->Y() > (-0x10 - textObject->ScrollTab->Height()) + textObject->Height())
             {
-                obj->moveTo(obj->x(), (-0x10 - textObject->scrollTab->height()) + textObject->height(), 0);
+                obj->MoveTo(obj->X(), (-0x10 - textObject->ScrollTab->Height()) + textObject->Height(), 0);
             }
 
-            textObject->CalcFirstPixel(obj->y() - 0x10);
+            textObject->CalcFirstPixel(obj->Y() - 0x10);
             break;
         }
 
@@ -262,124 +256,123 @@ auto ScrollTabEventHandler(aObject* obj, aEvent* event) -> void
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00616db0</remarks>
-auto aScrollTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) -> int32_t
+auto MCGuiScrollTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) -> int32_t
 {
     // aObject::init, inlined with an aScrollPort for the port.
-    winHeight = height;
-    maxHeight = height;
-    normalHeight = height;
-    iconHeight = height;
-    initFailed = 0;
-    winWidth = width;
-    winX = xPos;
-    winY = yPos;
-    maxWidth = width;
-    maxX = xPos;
-    maxY = yPos;
-    normalWidth = width;
-    normalX = xPos;
-    normalY = yPos;
-    iconWidth = width;
-    iconX = xPos;
-    iconY = yPos;
-    hideOffset = 0;
-    homeX = xPos;
-    homeY = yPos;
-    winState = 0;
-    showWindow = 1;
-    dragOn = 0;
-    transparent = 0;
-    backgroundColor = 0xff;
+    WinHeight = height;
+    MaxHeight = height;
+    NormalHeight = height;
+    IconHeight = height;
+    InitFailed = 0;
+    WinWidth = width;
+    WinX = xPos;
+    WinY = yPos;
+    MaxWidth = width;
+    MaxX = xPos;
+    MaxY = yPos;
+    NormalWidth = width;
+    NormalX = xPos;
+    NormalY = yPos;
+    IconWidth = width;
+    IconX = xPos;
+    IconY = yPos;
+    HideOffset = 0;
+    HomeX = xPos;
+    HomeY = yPos;
+    WinState = 0;
+    ShowWindow = 1;
+    DragOn = 0;
+    Transparent = 0;
+    BackgroundColor = 0xff;
 
-    if (displayPort != nullptr)
+    if (DisplayPort != nullptr)
     {
-        displayPort->destroy();
-        delete displayPort;
-        displayPort = nullptr;
+        DisplayPort->Destroy();
+        delete DisplayPort;
+        DisplayPort = nullptr;
     }
 
-    displayPort = new aScrollPort;
+    DisplayPort = new MCGuiScrollPort;
 
-    if (displayPort == nullptr)
+    if (DisplayPort == nullptr)
     {
-        initFailed = 1;
+        InitFailed = 1;
         return 3;
     }
 
-    int32_t result = DrawsLive() ? displayPort->initView(width, height) : displayPort->init(width, height);
+    int32_t result = DrawsLive() ? DisplayPort->InitView(width, height) : DisplayPort->Init(width, height);
 
     if (result != 0)
     {
-        initFailed = 1;
+        InitFailed = 1;
         return result;
     }
 
-    if (framePane != nullptr)
+    if (FramePane != nullptr)
     {
-        delete framePane;
-        framePane = nullptr;
+        delete FramePane;
+        FramePane = nullptr;
     }
 
-    framePane = new (std::nothrow) _pane;
+    FramePane = new (std::nothrow) MCPane;
 
-    if (framePane == nullptr)
+    if (FramePane == nullptr)
     {
-        initFailed = 1;
+        InitFailed = 1;
         return 3;
     }
 
-    framePane->window = screenPort->bitmap();
-    framePane->x0 = xPos;
-    framePane->y0 = yPos;
-    framePane->x1 = xPos + width;
-    framePane->y1 = yPos + height;
-    hidden = 0;
-    hideDirection = 3;
-    paintRoutine = nullptr;
-    eventRoutine = nullptr;
-    numChildren = 0;
-    parent = nullptr;
-    winDepth = 0;
-    windowAnimation = nullptr;
-    animating = 0;
-    iconAnimation = nullptr;
-    objectType = -1;
+    FramePane->Window = ScreenPort->Bitmap();
+    FramePane->X0 = xPos;
+    FramePane->Y0 = yPos;
+    FramePane->X1 = xPos + width;
+    FramePane->Y1 = yPos + height;
+    Hidden = 0;
+    HideDirection = 3;
+    PaintRoutine = nullptr;
+    EventRoutine = nullptr;
+    NumChildren = 0;
+    Parent = nullptr;
+    WinDepth = 0;
+    WindowAnimation = nullptr;
+    Animating = 0;
+    IconAnimation = nullptr;
+    ObjectType = -1;
 
-    scrollTab = new aObject;
+    ScrollTab = new MCGuiObject;
 
-    if (scrollTab == nullptr)
+    if (ScrollTab == nullptr)
     {
         Fatal(0, "Not enough memory for scrollbar tab.");
     }
 
-    scrollTab->SetDrawsLive();
-    result = scrollTab->init(0, 0, 9, height - 0x20, nullptr);
+    ScrollTab->SetDrawsLive();
+    result = ScrollTab->Init(0, 0, 9, height - 0x20, nullptr);
 
     if (result != 0)
     {
-        initFailed = 1;
+        InitFailed = 1;
         return result;
     }
 
-    scrollTab->moveTo(this->width() + 2, 0x10, 0);
-    scrollTab->setDepth(100);
-    addChild(scrollTab);
-    scrollTab->ShowGUIWindow(1);
-    scrollTab->setEventRoutine(ScrollTabEventHandler);
-    scrollTab->setPaintRoutine(PaintScrollTab);
-    scrollTab->setDepth(1);
+    ScrollTab->MoveTo(this->Width() + 2, 0x10, 0);
+    ScrollTab->SetDepth(100);
+    AddChild(ScrollTab);
+    ScrollTab->ShowGuiWindow(1);
+    ScrollTab->SetEventRoutine(ScrollTabEventHandler);
+    ScrollTab->SetPaintRoutine(PaintScrollTab);
+    ScrollTab->SetDepth(1);
 
-    textBuffer = std::make_unique<char[]>(TextBufferSize + 1);
-    numLines = 0;
-    textLength = 0;
-    firstPixel = 0;
-    fontIndex = 0;
+    TextBuffer = std::make_unique<char[]>(TextBufferSize + 1);
+    NumLines = 0;
+    TextLength = 0;
+    FirstPixel = 0;
+    FontIndex = 0;
 
     for (int32_t i = 0; i < 4; i++)
     {
-        sectionStarts[i] = -1;
-        sectionColors[i] = 0xff;
+        SectionStarts[i] = -1;
+        SectionColors[i] = 0xff;
     }
 
     if (text != nullptr)
@@ -390,32 +383,30 @@ auto aScrollTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t 
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x006170b0</remarks>
-auto aScrollTextObject::destroy() -> void
+auto MCGuiScrollTextObject::Destroy() -> void
 {
-    releaseChild(scrollTab);
+    ReleaseChild(ScrollTab);
 
-    textBuffer.reset();
-    aObject::destroy();
+    TextBuffer.reset();
+    MCGuiObject::Destroy();
 }
 
-/// <remarks>MCX.EXE @ 0x00617110</remarks>
-auto aScrollTextObject::draw() -> void
+auto MCGuiScrollTextObject::Draw() -> void
 {
     int32_t lineY = 2;
-    char* line = textBuffer.get();
-    const int32_t lineHeight = fonts[0][fontIndex]->height() + 2;
-    VFX_pane_wipe(port()->frame(), 0x10);
+    char* line = TextBuffer.get();
+    const int32_t lineHeight = Fonts[0][FontIndex]->Height() + 2;
+    VfxPaneWipe(Port()->Frame(), 0x10);
 
     // Each section highlights one line.
     for (int32_t i = 0; i < 4; i++)
     {
-        const int32_t start = sectionStarts[i];
+        const int32_t start = SectionStarts[i];
 
         if (start != -1 && start < start + 1)
         {
-            FillBox(1, static_cast<int16_t>(lineHeight * start + 1), static_cast<int16_t>(width() - rOffset),
-                    static_cast<int16_t>((start + 1) * lineHeight - 1), sectionColors[i]);
+            FillBox(1, static_cast<int16_t>(lineHeight * start + 1), static_cast<int16_t>(Width() - ROffset),
+                    static_cast<int16_t>((start + 1) * lineHeight - 1), SectionColors[i]);
         }
     }
 
@@ -429,7 +420,7 @@ auto aScrollTextObject::draw() -> void
 
         if (char* tab = std::strchr(line, '\t'); tab != nullptr)
         {
-            if (tabStop < 0)
+            if (TabStop < 0)
             {
                 *tab = ' ';
             }
@@ -440,11 +431,11 @@ auto aScrollTextObject::draw() -> void
             }
         }
 
-        const int32_t fontRow = fontRowForColor(color);
+        const int32_t fontRow = FontRowForColor(color);
 
         do
         {
-            fonts[fontRow][fontIndex]->writeStringToNewline(port()->frame(), lineX, lineY,
+            Fonts[fontRow][FontIndex]->WriteStringToNewline(Port()->Frame(), lineX, lineY,
                                                             reinterpret_cast<uint8_t*>(line));
             line = std::strchr(line, '\n');
 
@@ -456,7 +447,7 @@ auto aScrollTextObject::draw() -> void
                     *line = '\t';
                 }
 
-                lineX = tabStop;
+                lineX = TabStop;
             }
 
             pieces--;
@@ -470,24 +461,23 @@ auto aScrollTextObject::draw() -> void
         lineY += lineHeight;
     }
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        if (DrawsChild(childList[i]))
+        if (DrawsChild(ChildList[i]))
         {
-            childList[i]->draw();
+            ChildList[i]->Draw();
         }
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00617420</remarks>
-auto aScrollTextObject::display() -> void
+auto MCGuiScrollTextObject::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
@@ -495,67 +485,64 @@ auto aScrollTextObject::display() -> void
     // Port: the port is the whole text (taller than the object), drawn each frame scrolled by firstPixel.
     if (DrawsLive())
     {
-        DrawInFramePass(port(), firstPixel);
+        DrawInFramePass(Port(), FirstPixel);
         return;
     }
 
-    if (port() != nullptr)
+    if (Port() != nullptr)
     {
-        VFX_pane_copy(port()->frame(), 0, 0, framePane, 0, -firstPixel, -1);
+        VfxPaneCopy(Port()->Frame(), 0, 0, FramePane, 0, -FirstPixel, -1);
     }
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        childList[i]->display();
+        ChildList[i]->Display();
     }
 }
 
-/// <remarks>MCX.EXE @ 0x006174a0</remarks>
-auto aScrollTextObject::resize(int32_t newWidth, int32_t newHeight) -> void
+auto MCGuiScrollTextObject::Resize(int32_t newWidth, int32_t newHeight) -> void
 {
-    const int32_t fontHeight = fonts[0][fontIndex]->height();
+    const int32_t fontHeight = Fonts[0][FontIndex]->Height();
 
-    if (newWidth <= 0 || newHeight <= 0 || (newWidth == winWidth && newHeight == winHeight))
+    if (newWidth <= 0 || newHeight <= 0 || (newWidth == WinWidth && newHeight == WinHeight))
     {
         return;
     }
 
-    winWidth = newWidth;
-    winHeight = newHeight;
-    framePane->x1 = framePane->x0 - 1 + newWidth;
-    framePane->y1 = framePane->y0 - 1 + newHeight;
-    int32_t portHeight = numLines * (fontHeight + 2);
+    WinWidth = newWidth;
+    WinHeight = newHeight;
+    FramePane->X1 = FramePane->X0 - 1 + newWidth;
+    FramePane->Y1 = FramePane->Y0 - 1 + newHeight;
+    int32_t portHeight = NumLines * (fontHeight + 2);
 
     if (portHeight <= newHeight)
     {
         portHeight = newHeight;
     }
 
-    port()->resize(newWidth, portHeight);
-    scrollTab->moveTo(newWidth + 2, scrollTab->y(), 0);
+    Port()->Resize(newWidth, portHeight);
+    ScrollTab->MoveTo(newWidth + 2, ScrollTab->Y(), 0);
     PositionScrollTab();
 }
 
-/// <remarks>MCX.EXE @ 0x00617550</remarks>
-auto aScrollTextObject::ResetPortSize() -> void
+auto MCGuiScrollTextObject::ResetPortSize() -> void
 {
     // The port only grows.
-    int32_t portHeight = (fonts[0][fontIndex]->height() + 2) * numLines;
+    int32_t portHeight = (Fonts[0][FontIndex]->Height() + 2) * NumLines;
 
-    if (portHeight <= port()->height())
+    if (portHeight <= Port()->Height())
     {
-        portHeight = port()->height();
+        portHeight = Port()->Height();
     }
 
-    port()->resize(port()->width(), portHeight);
+    Port()->Resize(Port()->Width(), portHeight);
 }
 
-/// <remarks>MCX.EXE @ 0x006175e0</remarks>
-auto aScrollTextObject::Print(char* line, uint8_t color) -> void
+auto MCGuiScrollTextObject::Print(char* line, uint8_t color) -> void
 {
-    const int32_t used = textLength;
-    char* buffer = textBuffer.get();
-    const int32_t fontHeight = fonts[0][fontIndex]->height();
+    const int32_t used = TextLength;
+    char* buffer = TextBuffer.get();
+    const int32_t fontHeight = Fonts[0][FontIndex]->Height();
 
     if (TextBufferSize - used <= 2)
     {
@@ -565,16 +552,16 @@ auto aScrollTextObject::Print(char* line, uint8_t color) -> void
     buffer[used] = static_cast<char>(color);
     char* dest = buffer + used + 1;
     const int32_t textStart = used + 1;
-    textLength = textStart;
+    TextLength = textStart;
 
     if (line == nullptr)
     {
         if (TextBufferSize - textStart > 2)
         {
             // A blank line.
-            numLines++;
-            textLength = used + 2;
-            textBuffer[used + 1] = '\n';
+            NumLines++;
+            TextLength = used + 2;
+            TextBuffer[used + 1] = '\n';
             return;
         }
 
@@ -585,42 +572,41 @@ auto aScrollTextObject::Print(char* line, uint8_t color) -> void
     if (static_cast<int32_t>(std::strlen(line)) + textStart <= TextBufferSize)
     {
         std::sprintf(dest, "%s\n", line);
-        textLength = static_cast<int32_t>(std::strlen(line)) + 1 + textStart;
+        TextLength = static_cast<int32_t>(std::strlen(line)) + 1 + textStart;
     }
     else
     {
         // No room: the line is cut and the buffer is full (the length isn't advanced).
         std::strncpy(dest, line, static_cast<size_t>(TextBufferSize - textStart));
-        textBuffer[TextBufferSize] = '\0';
+        TextBuffer[TextBufferSize] = '\0';
     }
 
-    numLines++;
-    const int32_t needed = numLines * (fontHeight + 2);
+    NumLines++;
+    const int32_t needed = NumLines * (fontHeight + 2);
 
-    if (needed > port()->height())
+    if (needed > Port()->Height())
     {
-        if (port()->resize(port()->width(), needed) != 0)
+        if (Port()->Resize(Port()->Width(), needed) != 0)
         {
-            initFailed = 1;
+            InitFailed = 1;
         }
     }
 
     PositionScrollTab();
 }
 
-/// <remarks>MCX.EXE @ 0x00617740</remarks>
-auto aScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrapWidth) -> void
+auto MCGuiScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrapWidth) -> void
 {
     if (wrapWidth == -1)
     {
-        wrapWidth = width();
+        wrapWidth = Width();
     }
     while (line != nullptr)
     {
-        aFont* font = fonts[0][fontIndex];
+        MCGuiFont* font = Fonts[0][FontIndex];
         char* split = nullptr;
 
-        if (font->width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
+        if (font->Width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
         {
             split = std::strrchr(line, ' ');
 
@@ -630,7 +616,7 @@ auto aScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrapWidt
                 *split = '\0';
                 char* cut = split;
 
-                while (font->width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
+                while (font->Width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
                 {
                     split = std::strrchr(line, ' ');
 
@@ -658,121 +644,117 @@ auto aScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrapWidt
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00617810</remarks>
-auto aScrollTextObject::Clear() -> void
+auto MCGuiScrollTextObject::Clear() -> void
 {
-    firstPixel = 0;
-    textLength = 0;
-    numLines = 0;
-    std::memset(textBuffer.get(), 0, TextBufferSize);
+    FirstPixel = 0;
+    TextLength = 0;
+    NumLines = 0;
+    std::memset(TextBuffer.get(), 0, TextBufferSize);
 
-    for (int32_t& start : sectionStarts)
+    for (int32_t& start : SectionStarts)
     {
         start = -1;
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00617860</remarks>
-auto aScrollTextObject::CalcFirstPixel(int32_t thumbY) -> void
+auto MCGuiScrollTextObject::CalcFirstPixel(int32_t thumbY) -> void
 {
-    const int32_t track = (-0x20 - scrollTab->height()) + height();
-    const int32_t range = port()->height() - height();
+    const int32_t track = (-0x20 - ScrollTab->Height()) + Height();
+    const int32_t range = Port()->Height() - Height();
 
     if (track > 0 && range > 0)
     {
-        firstPixel = (range * thumbY) / track;
+        FirstPixel = (range * thumbY) / track;
         return;
     }
 
-    firstPixel = 0;
+    FirstPixel = 0;
 }
 
-/// <remarks>MCX.EXE @ 0x006178d0</remarks>
-auto aScrollTextObject::PositionScrollTab() -> void
+auto MCGuiScrollTextObject::PositionScrollTab() -> void
 {
-    if (application->grabbedObject() == scrollTab)
+    if (Application->GrabbedObject() == ScrollTab)
     {
         return;
     }
 
-    const int32_t track = height() - 0x20;
-    const int32_t range = port()->height() - height();
+    const int32_t track = Height() - 0x20;
+    const int32_t range = Port()->Height() - Height();
 
     if (range == 0)
     {
-        scrollTab->ShowGUIWindow(0);
+        ScrollTab->ShowGuiWindow(0);
         return;
     }
 
     // The thumb's length is the visible fraction of the track (x87: float quotient, then times the track).
-    const float shown = static_cast<float>(height());
-    int32_t tabLength = static_cast<int32_t>(static_cast<double>(shown) / port()->height() * track);
+    const float shown = static_cast<float>(Height());
+    int32_t tabLength = static_cast<int32_t>(static_cast<double>(shown) / Port()->Height() * track);
 
     if (tabLength < 3)
     {
         tabLength = 3;
     }
 
-    scrollTab->ShowGUIWindow(1);
-    scrollTab->resize(scrollTab->width(), tabLength);
-    scrollTab->moveTo(scrollTab->x(), ((track - tabLength) * firstPixel) / range + 0x10, 0);
+    ScrollTab->ShowGuiWindow(1);
+    ScrollTab->Resize(ScrollTab->Width(), tabLength);
+    ScrollTab->MoveTo(ScrollTab->X(), ((track - tabLength) * FirstPixel) / range + 0x10, 0);
 }
 
-/// <remarks>MCX.EXE @ 0x006179f0</remarks>
-auto aScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
+auto MCGuiScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
 {
-    if (height() == port()->height())
+    if (Height() == Port()->Height())
     {
         return;
     }
 
-    const int32_t lineHeight = fonts[0][fontIndex]->height() + 2;
+    const int32_t lineHeight = Fonts[0][FontIndex]->Height() + 2;
     auto clampToEnd = [this]()
     {
-        if (firstPixel > port()->height() - height())
+        if (FirstPixel > Port()->Height() - Height())
         {
-            firstPixel = port()->height() - height();
+            FirstPixel = Port()->Height() - Height();
         }
     };
 
     if (direction == -1)
     {
-        firstPixel -= lineHeight;
+        FirstPixel -= lineHeight;
 
-        if (firstPixel < 0)
+        if (FirstPixel < 0)
         {
-            firstPixel = 0;
+            FirstPixel = 0;
         }
     }
     else if (direction == 0)
     {
-        if (yPos < scrollTab->y())
+        if (yPos < ScrollTab->Y())
         {
-            firstPixel -= height();
+            FirstPixel -= Height();
 
-            if (firstPixel < 0)
+            if (FirstPixel < 0)
             {
-                firstPixel = 0;
+                FirstPixel = 0;
             }
         }
-        else if (yPos > scrollTab->bottom())
+        else if (yPos > ScrollTab->Bottom())
         {
-            firstPixel += height();
+            FirstPixel += Height();
             clampToEnd();
         }
     }
     else if (direction == 1)
     {
-        firstPixel += lineHeight;
+        FirstPixel += lineHeight;
         clampToEnd();
     }
 
     PositionScrollTab();
 }
 
-auto aScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
+auto MCGuiScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
-    if (height() == port()->height())
+    if (Height() == Port()->Height())
     {
         return false;
     }
@@ -785,34 +767,33 @@ auto aScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) ->
     return true;
 }
 
-/// <remarks>MCX.EXE @ 0x00617b20</remarks>
-auto aTransparentTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCGuiTransparentTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText)
+    -> int32_t
 {
-    const int32_t result = aObject::init(xPos, yPos, width, height, nullptr);
+    const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    VFX_pane_wipe(displayPort->frame(), 0xff);
-    std::memset(text, 0, 0xfe);
-    textColor = 0xfd;
-    setText(newText);
+    VfxPaneWipe(DisplayPort->Frame(), 0xff);
+    std::memset(Text, 0, 0xfe);
+    TextColor = 0xfd;
+    SetText(newText);
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x00617b90</remarks>
-auto aTransparentTextObject::draw() -> void
+auto MCGuiTransparentTextObject::Draw() -> void
 {
     int32_t lineY = 0;
-    char* line = text;
-    const int32_t lineHeight = lgGreyFont->height();
-    VFX_pane_wipe(displayPort->frame(), 0xff);
+    char* line = Text;
+    const int32_t lineHeight = LgGreyFont->Height();
+    VfxPaneWipe(DisplayPort->Frame(), 0xff);
 
     while (line != nullptr)
     {
-        lgGreyFont->writeStringToNewline(port()->frame(), 0, lineY, reinterpret_cast<uint8_t*>(line));
+        LgGreyFont->WriteStringToNewline(Port()->Frame(), 0, lineY, reinterpret_cast<uint8_t*>(line));
         line = std::strchr(line, '\n');
 
         if (line != nullptr)
@@ -824,51 +805,49 @@ auto aTransparentTextObject::draw() -> void
     }
 
     // Everything drawn (not the 0xff background) becomes the text colour.
-    uint8_t* pixel = port()->buffer();
+    uint8_t* pixel = Port()->Buffer();
 
-    for (int32_t count = winHeight * winWidth; count > 0; count--, pixel++)
+    for (int32_t count = WinHeight * WinWidth; count > 0; count--, pixel++)
     {
         if (*pixel != 0xff)
         {
-            *pixel = textColor;
+            *pixel = TextColor;
         }
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00617c40</remarks>
-auto aTransparentTextObject::display() -> void
+auto MCGuiTransparentTextObject::Display() -> void
 {
-    if (IsShowing() == 0 || globalPane == nullptr)
+    if (IsShowing() == 0 || GlobalPane == nullptr)
     {
         return;
     }
 
-    CopySprite(globalPane, displayPort->bitmap(), winX, winY, winWidth, winHeight, 0, 1);
+    CopySprite(GlobalPane, DisplayPort->Bitmap(), WinX, WinY, WinWidth, WinHeight, 0, 1);
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        childList[i]->display();
+        ChildList[i]->Display();
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00617cb0</remarks>
-auto aTransparentTextObject::setText(char* newText) -> void
+auto MCGuiTransparentTextObject::SetText(char* newText) -> void
 {
     int32_t textHeight = 0;
     int32_t textWidth = 0;
-    const int32_t lineHeight = lgGreyFont->height();
+    const int32_t lineHeight = LgGreyFont->Height();
 
     if (newText == nullptr)
     {
-        text[0] = '\0';
-        textLength = 0;
+        Text[0] = '\0';
+        TextLength = 0;
     }
     else
     {
-        std::strncpy(text, newText, 0xfe);
-        textLength = static_cast<int16_t>(std::strlen(text));
+        std::strncpy(Text, newText, 0xfe);
+        TextLength = static_cast<int16_t>(std::strlen(Text));
         // Measure the widest line.
-        char* line = text;
+        char* line = Text;
 
         while (line != nullptr)
         {
@@ -879,7 +858,7 @@ auto aTransparentTextObject::setText(char* newText) -> void
                 *newline = '\0';
             }
 
-            const int32_t lineWidth = lgGreyFont->width(reinterpret_cast<uint8_t*>(line));
+            const int32_t lineWidth = LgGreyFont->Width(reinterpret_cast<uint8_t*>(line));
 
             if (textWidth < lineWidth)
             {
@@ -898,93 +877,88 @@ auto aTransparentTextObject::setText(char* newText) -> void
         }
     }
 
-    resize(textWidth, textHeight);
-    draw();
+    Resize(textWidth, textHeight);
+    Draw();
 }
 
-/// <remarks>MCX.EXE @ 0x00617d80</remarks>
-auto ScenarioChatCallback(FIDPMessage* message, void*) -> void
+auto ScenarioChatCallback(MCFidpMessage* message, void*) -> void
 {
-    if (Terrain::terrainTacticalMap != nullptr)
+    if (MCTerrain::TerrainTacticalMap != nullptr)
     {
-        Terrain::terrainTacticalMap->handleChatMessage(message->fromID, message->messageBuffer);
+        MCTerrain::TerrainTacticalMap->HandleChatMessage(message->FromID, message->MessageBuffer);
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00617da0</remarks>
-auto aChatInput::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCGuiChatInput::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
 {
-    int32_t result = aObject::init(xPos, yPos, width, height, nullptr);
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, nullptr);
     Assert(result == 0, static_cast<uint32_t>(result), " Couldn't init chatsend window");
 
-    teamButton = new aToolButton;
-    result = teamButton->init(1, 1, 0xc, 0x1a, nullptr);
-    teamButton->framed = 0;
+    TeamButton = new MCGuiToolButton;
+    result = TeamButton->Init(1, 1, 0xc, 0x1a, nullptr);
+    TeamButton->Framed = 0;
     // The picture loads return nothing, so every check repeats the init's.
     const int initOk = result == 0;
     Assert(initOk, static_cast<uint32_t>(result), " Couldn't init team button for chatsend window");
-    teamButton->setDownPicture(const_cast<char*>("mfdsbg00.tga"));
+    TeamButton->SetDownPicture(const_cast<char*>("mfdsbg00.tga"));
     Assert(initOk, static_cast<uint32_t>(result), " Couldn't load downstate team button for chatsend window");
-    teamButton->setUpPicture(const_cast<char*>("mfdsbh00.tga"));
+    TeamButton->SetUpPicture(const_cast<char*>("mfdsbh00.tga"));
     Assert(initOk, static_cast<uint32_t>(result), " Couldn't load graystate team button for chatsend window");
-    teamButton->setGrayPicture(const_cast<char*>("mfdsbn00.tga"));
+    TeamButton->SetGrayPicture(const_cast<char*>("mfdsbn00.tga"));
     Assert(initOk, static_cast<uint32_t>(result), " Couldn't load graystate team button for chatsend window");
-    teamButton->pushed = 0;
-    addChild(teamButton);
+    TeamButton->Pushed = 0;
+    AddChild(TeamButton);
 
-    cursorX = 0x15;
+    CursorX = 0x15;
 
     if (newText != nullptr)
     {
-        std::strncpy(text, newText, 0xff);
+        std::strncpy(Text, newText, 0xff);
     }
 
-    inputFont = whiteFont;
-    backgroundColor = 0x10;
+    InputFont = WhiteFont;
+    BackgroundColor = 0x10;
     // Port: the original drew the line here, which also restarted the caret's blink (see draw).
-    cursorVisible = 1;
+    CursorVisible = 1;
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x00617f00</remarks>
-auto aChatInput::destroy() -> void
+auto MCGuiChatInput::Destroy() -> void
 {
-    releaseChild(teamButton);
-    aObject::destroy();
+    ReleaseChild(TeamButton);
+    MCGuiObject::Destroy();
 }
 
-/// <remarks>MCX.EXE @ 0x00617f40</remarks>
-auto aChatInput::draw() -> void
+auto MCGuiChatInput::Draw() -> void
 {
-    drawAndCheck(0);
+    DrawAndCheck(0);
 
     // Port: the caret, which the original drew into the picture in display (a vertical line a text line high; in
     // the background colour while cursorVisible, so it blinks).
-    const int32_t bottom = inputFont->height() + 3 + cursorY;
-    const int32_t color = cursorVisible != 0 ? 0x10 : 0x1f;
-    VFX_line_draw(displayPort->frame(), cursorX, cursorY, cursorX, bottom, LD_DRAW, color);
-    aObject::draw();
+    const int32_t bottom = InputFont->Height() + 3 + CursorY;
+    const int32_t color = CursorVisible != 0 ? 0x10 : 0x1f;
+    VfxLineDraw(DisplayPort->Frame(), CursorX, CursorY, CursorX, bottom, LD_DRAW, color);
+    MCGuiObject::Draw();
 }
 
-/// <remarks>MCX.EXE @ 0x00617f60</remarks>
-auto aChatInput::drawAndCheck(int32_t maxLines) -> int
+auto MCGuiChatInput::DrawAndCheck(int32_t maxLines) -> int
 {
     // Port: drawing the whole line (maxLines 0) also set cursorVisible, restarting the caret's blink. The line is
     // drawn every frame now, so the places that redrew it after an edit set it themselves.
     if (maxLines == 0)
     {
-        VFX_pane_wipe(displayPort->frame(), backgroundColor);
+        VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
     }
 
-    uint8_t* line = reinterpret_cast<uint8_t*>(text);
+    uint8_t* line = reinterpret_cast<uint8_t*>(Text);
     int32_t lineY = 1;
     int32_t extraLines = 0;
 
-    if (text[0] != '\0')
+    if (Text[0] != '\0')
     {
         // The first line leaves room for the team button.
         int32_t lineLength = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(line)));
-        int32_t fits = inputFont->charactersToWidth(line, width() - 0x18, 0);
+        int32_t fits = InputFont->CharactersToWidth(line, Width() - 0x18, 0);
 
         while (fits > 0 && fits < lineLength && (maxLines == 0 || extraLines < maxLines))
         {
@@ -994,43 +968,41 @@ auto aChatInput::drawAndCheck(int32_t maxLines) -> int
             {
                 const uint8_t saved = *next;
                 *next = 0;
-                inputFont->writeString(displayPort->frame(), 0x14, lineY, line, -1);
+                InputFont->WriteString(DisplayPort->Frame(), 0x14, lineY, line, -1);
                 *next = saved;
             }
 
             lineLength = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(next)));
-            fits = inputFont->charactersToWidth(next, width() - 0x14, 1);
-            lineY += 3 + inputFont->height();
+            fits = InputFont->CharactersToWidth(next, Width() - 0x14, 1);
+            lineY += 3 + InputFont->Height();
             line = next;
             extraLines++;
         }
 
         if (maxLines == 0)
         {
-            inputFont->writeString(displayPort->frame(), 0x14, lineY, line, -1);
+            InputFont->WriteString(DisplayPort->Frame(), 0x14, lineY, line, -1);
         }
     }
 
     return extraLines < maxLines;
 }
 
-/// <remarks>MCX.EXE @ 0x006180d0</remarks>
-auto aChatInput::display() -> void
+auto MCGuiChatInput::Display() -> void
 {
     // The caret is drawn by draw, each frame (the original drew it into the picture here).
-    aObject::display();
+    MCGuiObject::Display();
 }
 
-/// <remarks>MCX.EXE @ 0x00618130</remarks>
-auto aChatInput::handleEvent(aEvent* event) -> void
+auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
 {
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            if (scenario != nullptr && EventsToMissionResultsScreen == 0 && gameAsked == 0)
+            if (Scenario != nullptr && EventsToMissionResultsScreen == 0 && GameAsked == 0)
             {
-                application->setText(this);
+                Application->SetText(this);
             }
             break;
         }
@@ -1038,30 +1010,30 @@ auto aChatInput::handleEvent(aEvent* event) -> void
         case 9:
         {
             // Alt combinations go to the game interface.
-            if (event->altKey != 0 || event->scanCode == 0x38)
+            if (event->AltKey != 0 || event->ScanCode == 0x38)
             {
-                theInterface->handleEvent(event);
+                TheInterface->HandleEvent(event);
             }
             break;
         }
         case 10:
         {
-            if (application->textObject() != this || EventsToMissionResultsScreen != 0)
+            if (Application->TextObject() != this || EventsToMissionResultsScreen != 0)
             {
                 break;
             }
 
-            const uint8_t key = event->key;
+            const uint8_t key = event->Key;
 
             if (key == 8)
             {
-                if (cursorPos != 0)
+                if (CursorPos != 0)
                 {
-                    text[cursorPos - 1] = '\0';
-                    cursorPos--;
-                    setCursorPos(cursorPos);
+                    Text[CursorPos - 1] = '\0';
+                    CursorPos--;
+                    SetCursorPos(CursorPos);
                     // The original redrew the line here, which restarted the caret's blink.
-                    cursorVisible = 1;
+                    CursorVisible = 1;
                 }
             }
             else if (key == 0xd)
@@ -1072,48 +1044,48 @@ auto aChatInput::handleEvent(aEvent* event) -> void
                     break;
                 }
 
-                if (MPlayer != nullptr && cursorPos > 0)
+                if (MPlayer != nullptr && CursorPos > 0)
                 {
-                    auto* chatWindow = static_cast<aChatWindow*>(parent);
+                    auto* chatWindow = static_cast<MCGuiChatWindow*>(Parent);
                     int32_t color;
 
-                    if (teamButton->pushed == 0)
+                    if (TeamButton->Pushed == 0)
                     {
-                        MPlayer->sendChat(0, text);
+                        MPlayer->SendChat(0, Text);
                         color = 6;
                     }
                     else
                     {
-                        MPlayer->sendChat(MPlayer->homeTeamGroupID, text);
+                        MPlayer->SendChat(MPlayer->HomeTeamGroupID, Text);
                         color = 4;
                     }
 
-                    chatWindow->processChatString(MPlayer->sessionManager->myPlayer->id, text, color);
+                    chatWindow->ProcessChatString(MPlayer->SessionManager->MyPlayer->Id, Text, color);
                 }
 
-                std::memset(text, 0, 0xff);
-                cursorPos = 0;
-                setCursorPos(0);
-                application->releaseText();
-                cursorVisible = 1;
+                std::memset(Text, 0, 0xff);
+                CursorPos = 0;
+                SetCursorPos(0);
+                Application->ReleaseText();
+                CursorVisible = 1;
             }
-            else if (cursorPos < 0xff && ((key > 0x1f && key < 0x7f) || (key > 0xbe && key < 0xfe)) && key != '%')
+            else if (CursorPos < 0xff && ((key > 0x1f && key < 0x7f) || (key > 0xbe && key < 0xfe)) && key != '%')
             {
                 // '%' is the chat formatter's code character.
-                text[cursorPos] = static_cast<char>(key);
-                cursorPos++;
-                const int32_t newPos = cursorPos;
+                Text[CursorPos] = static_cast<char>(key);
+                CursorPos++;
+                const int32_t newPos = CursorPos;
 
-                if (drawAndCheck(2) != 0)
+                if (DrawAndCheck(2) != 0)
                 {
-                    setCursorPos(newPos);
-                    cursorVisible = 1;
+                    SetCursorPos(newPos);
+                    CursorVisible = 1;
                 }
                 else
                 {
                     // A third line: take it back.
-                    cursorPos = newPos - 1;
-                    text[newPos - 1] = '\0';
+                    CursorPos = newPos - 1;
+                    Text[newPos - 1] = '\0';
                 }
             }
             break;
@@ -1122,22 +1094,22 @@ auto aChatInput::handleEvent(aEvent* event) -> void
         case 0x13:
         {
             // The caret blink timer.
-            if (event->data == 0)
+            if (event->Data == 0)
             {
-                cursorVisible = cursorVisible == 0;
+                CursorVisible = CursorVisible == 0;
             }
             break;
         }
         case 0x1e:
         {
-            if (event->data == 7)
+            if (event->Data == 7)
             {
-                application->AddTimer(this, 0, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
+                Application->AddTimer(this, 0, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
             }
-            else if (event->data == 8)
+            else if (event->Data == 8)
             {
-                application->RemoveTimer(this, 0);
-                cursorVisible = 1;
+                Application->RemoveTimer(this, 0);
+                CursorVisible = 1;
             }
             break;
         }
@@ -1145,94 +1117,89 @@ auto aChatInput::handleEvent(aEvent* event) -> void
             break;
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-/// <remarks>MCX.EXE @ 0x00618480</remarks>
-auto aChatInput::setCursorPos(int32_t pos) -> void
+auto MCGuiChatInput::SetCursorPos(int32_t pos) -> void
 {
     // Measure the text up to pos.
     char saved = '\0';
 
-    if (pos < cursorPos)
+    if (pos < CursorPos)
     {
-        saved = text[pos];
-        text[pos] = '\0';
+        saved = Text[pos];
+        Text[pos] = '\0';
     }
 
-    uint8_t* line = reinterpret_cast<uint8_t*>(text);
-    cursorX = 0x14;
-    cursorY = 0;
+    uint8_t* line = reinterpret_cast<uint8_t*>(Text);
+    CursorX = 0x14;
+    CursorY = 0;
 
-    if (text[0] != '\0')
+    if (Text[0] != '\0')
     {
-        int32_t lineLength = static_cast<int32_t>(std::strlen(text));
-        int32_t fits = inputFont->charactersToWidth(line, width() - 0x18, 0);
+        int32_t lineLength = static_cast<int32_t>(std::strlen(Text));
+        int32_t fits = InputFont->CharactersToWidth(line, Width() - 0x18, 0);
 
         while (fits > 0 && fits < lineLength)
         {
             line += fits;
             lineLength = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(line)));
-            fits = inputFont->charactersToWidth(line, width() - 0x14, 0);
-            cursorY += inputFont->height() + 3;
+            fits = InputFont->CharactersToWidth(line, Width() - 0x14, 0);
+            CursorY += InputFont->Height() + 3;
         }
 
-        cursorX = inputFont->width(line) + 0x15;
+        CursorX = InputFont->Width(line) + 0x15;
     }
 
     if (saved != '\0')
     {
-        text[pos] = saved;
+        Text[pos] = saved;
     }
 }
 
-/// <remarks>MCX.EXE @ 0x00618590</remarks>
-auto aChatWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    int32_t result = aObject::init(xPos, yPos, width, height, name);
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    VFX_pane_wipe(port()->frame(), 0x10);
-    chatInput = new aChatInput;
-    result = chatInput->init(0, height + 4, this->width(), 0x1c, nullptr);
+    VfxPaneWipe(Port()->Frame(), 0x10);
+    ChatInput = new MCGuiChatInput;
+    result = ChatInput->Init(0, height + 4, this->Width(), 0x1c, nullptr);
 
     if (result == 0)
     {
-        addChild(chatInput);
-        chatInput->ShowGUIWindow(1);
+        AddChild(ChatInput);
+        ChatInput->ShowGuiWindow(1);
         // The original drew the input line here, restarting its caret's blink.
-        chatInput->cursorVisible = 1;
+        ChatInput->CursorVisible = 1;
     }
 
     return result;
 }
 
-/// <remarks>MCX.EXE @ 0x006186c0</remarks>
-auto aChatWindow::destroy() -> void
+auto MCGuiChatWindow::Destroy() -> void
 {
-    releaseChild(chatInput);
-    aObject::destroy();
+    ReleaseChild(ChatInput);
+    MCGuiObject::Destroy();
 }
 
-/// <remarks>MCX.EXE @ 0x00618700</remarks>
-auto aChatWindow::handleNetworkMessage(uint32_t fromID, void* data) -> void
+auto MCGuiChatWindow::HandleNetworkMessage(uint32_t fromID, void* data) -> void
 {
     auto* bytes = static_cast<char*>(data);
-    processChatString(fromID, bytes + 9, bytes[8] != '\0' ? 6 : 4);
+    ProcessChatString(fromID, bytes + 9, bytes[8] != '\0' ? 6 : 4);
 }
 
-/// <remarks>MCX.EXE @ 0x00618730</remarks>
-auto aChatWindow::processChatString(uint32_t playerId, char* text, int32_t color) -> void
+auto MCGuiChatWindow::ProcessChatString(uint32_t playerId, char* text, int32_t color) -> void
 {
     char* name = const_cast<char*>("?");
 
     if (playerId != 0)
     {
-        name = MPlayer->sessionManager->GetPlayer(playerId)->name;
+        name = MPlayer->SessionManager->GetPlayer(playerId)->Name;
     }
 
     if (color == -1)
@@ -1244,51 +1211,51 @@ auto aChatWindow::processChatString(uint32_t playerId, char* text, int32_t color
 
     if (playerId != 0)
     {
-        playerNumber = MPlayer->sessionManager->GetPlayer(playerId)->playerNumber;
+        playerNumber = MPlayer->SessionManager->GetPlayer(playerId)->PlayerNumber;
     }
 
     char line[0x800];
-    std::sprintf(line, "%%fc%d%s: %%fc%d%s", playerColor[playerNumber], name, color, text);
+    std::sprintf(line, "%%fc%d%s: %%fc%d%s", PlayerColor[playerNumber], name, color, text);
 
     // The original scrolled its picture up by the new text's height, wiped the bottom and wrote the text there; the
     // line is kept and draw shows the lines that way. Lines scrolled wholly off the top are dropped.
-    SMUTI& formatter = application->textFormatter;
-    const int32_t textHeight = formatter.process(reinterpret_cast<uint8_t*>(line), nullptr, port()->width(), 0);
-    chatLines.push_back(ChatLine{line, textHeight});
+    MCSmuti& formatter = Application->TextFormatter;
+    const int32_t textHeight = formatter.Process(reinterpret_cast<uint8_t*>(line), nullptr, Port()->Width(), 0);
+    ChatLines.push_back(ChatLine{line, textHeight});
     int32_t below = 0;
 
-    for (size_t i = chatLines.size(); i > 0; i--)
+    for (size_t i = ChatLines.size(); i > 0; i--)
     {
-        below += chatLines[i - 1].height;
+        below += ChatLines[i - 1].Height;
 
-        if (below > port()->height())
+        if (below > Port()->Height())
         {
-            chatLines.erase(chatLines.begin(), chatLines.begin() + static_cast<std::ptrdiff_t>(i - 1));
+            ChatLines.erase(ChatLines.begin(), ChatLines.begin() + static_cast<std::ptrdiff_t>(i - 1));
             break;
         }
     }
 }
 
-auto aChatWindow::draw() -> void
+auto MCGuiChatWindow::Draw() -> void
 {
     // The picture was wiped to 0x10 at init, and every scroll wiped the rows it uncovered.
-    VFX_pane_wipe(port()->frame(), 0x10);
-    SMUTI& formatter = application->textFormatter;
+    VfxPaneWipe(Port()->Frame(), 0x10);
+    MCSmuti& formatter = Application->TextFormatter;
     // Each line lies above the ones after it; the newest ends a row above the bottom.
-    int32_t lineY = port()->height() - 1;
+    int32_t lineY = Port()->Height() - 1;
 
-    for (const ChatLine& chatLine : chatLines)
+    for (const ChatLine& chatLine : ChatLines)
     {
-        lineY -= chatLine.height;
+        lineY -= chatLine.Height;
     }
 
-    for (const ChatLine& chatLine : chatLines)
+    for (const ChatLine& chatLine : ChatLines)
     {
         char line[0x800];
-        std::snprintf(line, sizeof(line), "%s", chatLine.text.c_str());
-        formatter.process(reinterpret_cast<uint8_t*>(line), port(), 0, lineY);
-        lineY += chatLine.height;
+        std::snprintf(line, sizeof(line), "%s", chatLine.Text.c_str());
+        formatter.Process(reinterpret_cast<uint8_t*>(line), Port(), 0, lineY);
+        lineY += chatLine.Height;
     }
 
-    aObject::draw();
+    MCGuiObject::Draw();
 }

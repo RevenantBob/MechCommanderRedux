@@ -16,7 +16,7 @@ namespace
     constexpr int32_t ToggleList = 0x15;
 
     /// <summary>Cuts <paramref name="text"/> to 39 characters in place and copies it into a string slot.</summary>
-    void storeItemString(char* slot, char* text)
+    void StoreItemString(char* slot, char* text)
     {
         if (std::strlen(text) > 0x27)
         {
@@ -27,166 +27,162 @@ namespace
     }
 }
 
-/// <remarks>MCX.EXE @ 0x0060b2b0</remarks>
-aListBox::aListBox() = default;
+MCGuiListBox::MCGuiListBox() = default;
 
-/// <remarks>MCX.EXE @ 0x0060b330</remarks>
-auto aListBox::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiListBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    int32_t result = aObject::init(xPos, yPos, width, height, name);
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    itemFont = greyFont;
-    scrollBar = new aScrollBar;
-    itemHeight = itemFont->height() + 8;
-    const std::div_t lines = std::div(height, itemHeight);
+    ItemFont = GreyFont;
+    ScrollBar = new MCGuiScrollBar;
+    ItemHeight = ItemFont->Height() + 8;
+    const std::div_t lines = std::div(height, ItemHeight);
 
     if (lines.rem != 0)
     {
-        resize(width, (itemHeight - lines.rem) + height);
+        Resize(width, (ItemHeight - lines.rem) + height);
     }
 
-    itemStrings = std::make_unique<char[]>(MaxItems * ItemLength);
-    setBackColor(0);
+    ItemStrings = std::make_unique<char[]>(MaxItems * ItemLength);
+    SetBackColor(0);
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060b410</remarks>
-auto aListBox::destroy() -> void
+auto MCGuiListBox::Destroy() -> void
 {
-    itemStrings.reset();
+    ItemStrings.reset();
 
-    if (scrollBar != nullptr)
+    if (ScrollBar != nullptr)
     {
         // Only an activated bar was initialised.
-        if (scrollBarActive != 0)
+        if (ScrollBarActive != 0)
         {
-            scrollBar->destroy();
+            ScrollBar->Destroy();
         }
 
-        delete scrollBar;
-        scrollBar = nullptr;
+        delete ScrollBar;
+        ScrollBar = nullptr;
     }
 
-    numItems = 0;
-    selectedItem = -1;
-    aObject::destroy();
+    NumItems = 0;
+    SelectedItem = -1;
+    MCGuiObject::Destroy();
 }
 
-/// <remarks>MCX.EXE @ 0x0060b490</remarks>
-auto aListBox::handleEvent(aEvent* event) -> void
+auto MCGuiListBox::HandleEvent(MCGuiEvent* event) -> void
 {
-    const int32_t visibleItems = height() / itemHeight;
+    const int32_t visibleItems = Height() / ItemHeight;
 
     // Tells an active scroll bar the new top line without it posting back.
     auto setBarPosition = [this](int32_t position)
     {
-        if (scrollBarActive != 0)
+        if (ScrollBarActive != 0)
         {
-            aEvent barEvent;
-            barEvent.clear();
-            barEvent.type = 0x6b;
-            barEvent.lParam = position;
-            scrollBar->handleEvent(&barEvent);
+            MCGuiEvent barEvent;
+            barEvent.Clear();
+            barEvent.Type = 0x6b;
+            barEvent.LParam = position;
+            ScrollBar->HandleEvent(&barEvent);
         }
     };
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            application->setText(this);
-            application->grab(this);
-            const int32_t item = (event->y - globalY()) / itemHeight + topItem;
-            selectedItem = item;
+            Application->SetText(this);
+            Application->Grab(this);
+            const int32_t item = (event->Y - GlobalY()) / ItemHeight + TopItem;
+            SelectedItem = item;
 
-            if (highlightedItem == item)
+            if (HighlightedItem == item)
             {
                 break;
             }
 
-            highlightedItem = item;
+            HighlightedItem = item;
             break;
         }
 
         case 4:
-            application->release();
+            Application->Release();
             break;
         case 7:
         {
-            if (application->grabbedObject() != this)
+            if (Application->GrabbedObject() != this)
             {
                 break;
             }
 
-            const int32_t mouseY = event->y;
+            const int32_t mouseY = event->Y;
 
-            if (mouseY < globalY())
+            if (mouseY < GlobalY())
             {
                 // Dragged above the box: scroll up a line.
-                if (topItem < 1)
+                if (TopItem < 1)
                 {
                     break;
                 }
 
-                const int32_t item = topItem - 1;
-                topItem = item;
+                const int32_t item = TopItem - 1;
+                TopItem = item;
 
-                if (scrollBarActive != 0)
+                if (ScrollBarActive != 0)
                 {
-                    aPostMessage(scrollBar, 0x65);
+                    APostMessage(ScrollBar, 0x65);
                 }
 
-                selectedItem = item;
+                SelectedItem = item;
 
-                if (highlightedItem != item)
+                if (HighlightedItem != item)
                 {
-                    highlightedItem = item;
+                    HighlightedItem = item;
                 }
 
                 break;
             }
 
-            if (mouseY > globalY() + height())
+            if (mouseY > GlobalY() + Height())
             {
                 // Dragged below the box: scroll down a line.
-                if (topItem + visibleItems >= numItems)
+                if (TopItem + visibleItems >= NumItems)
                 {
                     break;
                 }
 
-                const int32_t top = topItem + 1;
-                topItem = top;
+                const int32_t top = TopItem + 1;
+                TopItem = top;
 
-                if (scrollBarActive != 0)
+                if (ScrollBarActive != 0)
                 {
-                    aPostMessage(scrollBar, 0x66);
+                    APostMessage(ScrollBar, 0x66);
                 }
 
                 const int32_t item = top + visibleItems - 1;
-                selectedItem = item;
+                SelectedItem = item;
 
-                if (highlightedItem != item)
+                if (HighlightedItem != item)
                 {
-                    highlightedItem = item;
+                    HighlightedItem = item;
                 }
 
                 break;
             }
 
-            const int32_t item = (mouseY - globalY()) / itemHeight + topItem;
-            selectedItem = item;
+            const int32_t item = (mouseY - GlobalY()) / ItemHeight + TopItem;
+            SelectedItem = item;
 
-            if (highlightedItem == item)
+            if (HighlightedItem == item)
             {
                 break;
             }
 
-            highlightedItem = item;
+            HighlightedItem = item;
             break;
         }
 
@@ -194,55 +190,55 @@ auto aListBox::handleEvent(aEvent* event) -> void
         case 9:
         {
             // Types 5 and 9 share the key handling (the binary's jump table).
-            switch (event->key)
+            switch (event->Key)
             {
                 case 0x21: // Page Up
                 {
-                    topItem -= height() / itemHeight;
+                    TopItem -= Height() / ItemHeight;
 
-                    if (topItem < 0)
+                    if (TopItem < 0)
                     {
-                        topItem = 0;
+                        TopItem = 0;
                     }
 
-                    setBarPosition(topItem);
+                    setBarPosition(TopItem);
 
-                    if (selectedItem > 0)
+                    if (SelectedItem > 0)
                     {
-                        selectedItem -= height() / itemHeight;
+                        SelectedItem -= Height() / ItemHeight;
 
-                        if (selectedItem < 0)
+                        if (SelectedItem < 0)
                         {
-                            selectedItem = 0;
+                            SelectedItem = 0;
                         }
 
-                        highlightedItem = selectedItem;
+                        HighlightedItem = SelectedItem;
                     }
 
                     break;
                 }
                 case 0x22: // Page Down
                 {
-                    const int32_t count = numItems;
-                    topItem += visibleItems;
+                    const int32_t count = NumItems;
+                    TopItem += visibleItems;
 
-                    if (topItem + visibleItems > count)
+                    if (TopItem + visibleItems > count)
                     {
-                        topItem = count - visibleItems;
+                        TopItem = count - visibleItems;
                     }
 
-                    setBarPosition(topItem);
+                    setBarPosition(TopItem);
 
-                    if (selectedItem < count && selectedItem != -1)
+                    if (SelectedItem < count && SelectedItem != -1)
                     {
-                        selectedItem += visibleItems;
+                        SelectedItem += visibleItems;
 
-                        if (selectedItem >= count)
+                        if (SelectedItem >= count)
                         {
-                            selectedItem = count - 1;
+                            SelectedItem = count - 1;
                         }
 
-                        highlightedItem = selectedItem;
+                        HighlightedItem = SelectedItem;
                     }
 
                     break;
@@ -250,64 +246,64 @@ auto aListBox::handleEvent(aEvent* event) -> void
 
                 case 0x23: // End
                 {
-                    const int32_t top = numItems - visibleItems;
-                    topItem = top;
+                    const int32_t top = NumItems - visibleItems;
+                    TopItem = top;
                     setBarPosition(top);
-                    selectedItem = numItems - 1;
-                    highlightedItem = numItems - 1;
+                    SelectedItem = NumItems - 1;
+                    HighlightedItem = NumItems - 1;
                     break;
                 }
 
                 case 0x24: // Home
                 {
-                    topItem = 0;
+                    TopItem = 0;
                     setBarPosition(0);
-                    selectedItem = 0;
-                    highlightedItem = 0;
+                    SelectedItem = 0;
+                    HighlightedItem = 0;
                     break;
                 }
                 case 0x26: // Up
                 {
-                    if (highlightedItem < 1)
+                    if (HighlightedItem < 1)
                     {
                         break;
                     }
 
-                    selectedItem = selectedItem - 1;
+                    SelectedItem = SelectedItem - 1;
 
-                    if (selectedItem < topItem)
+                    if (SelectedItem < TopItem)
                     {
-                        topItem = selectedItem;
+                        TopItem = SelectedItem;
 
-                        if (scrollBarActive != 0)
+                        if (ScrollBarActive != 0)
                         {
-                            aPostMessage(scrollBar, 0x65);
+                            APostMessage(ScrollBar, 0x65);
                         }
                     }
 
-                    highlightedItem = selectedItem;
+                    HighlightedItem = SelectedItem;
                     break;
                 }
                 case 0x28: // Down
                 {
-                    if (highlightedItem >= numItems - 1 || highlightedItem == -1)
+                    if (HighlightedItem >= NumItems - 1 || HighlightedItem == -1)
                     {
                         break;
                     }
 
-                    selectedItem = selectedItem + 1;
+                    SelectedItem = SelectedItem + 1;
 
-                    if (selectedItem >= topItem + visibleItems)
+                    if (SelectedItem >= TopItem + visibleItems)
                     {
-                        topItem = topItem + 1;
+                        TopItem = TopItem + 1;
 
-                        if (scrollBarActive != 0)
+                        if (ScrollBarActive != 0)
                         {
-                            aPostMessage(scrollBar, 0x66);
+                            APostMessage(ScrollBar, 0x66);
                         }
                     }
 
-                    highlightedItem = selectedItem;
+                    HighlightedItem = SelectedItem;
                     break;
                 }
                 default:
@@ -319,14 +315,14 @@ auto aListBox::handleEvent(aEvent* event) -> void
         case 0x6c:
         {
             // The scroll bar moved (type 2 shares the case in the binary's jump table).
-            int16_t position = scrollBar->scrollPos;
+            int16_t position = ScrollBar->ScrollPos;
 
-            if (position > numItems - visibleItems)
+            if (position > NumItems - visibleItems)
             {
-                position = static_cast<int16_t>(static_cast<int16_t>(numItems) - static_cast<int16_t>(visibleItems));
+                position = static_cast<int16_t>(static_cast<int16_t>(NumItems) - static_cast<int16_t>(visibleItems));
             }
 
-            topItem = position;
+            TopItem = position;
             break;
         }
 
@@ -334,182 +330,172 @@ auto aListBox::handleEvent(aEvent* event) -> void
             break;
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-/// <remarks>MCX.EXE @ 0x0060ba10</remarks>
-auto aListBox::draw() -> void
+auto MCGuiListBox::Draw() -> void
 {
-    char* strings = itemStrings.get();
-    VFX_pane_wipe(displayPort->frame(), backgroundColor);
-    aObject::draw();
-    VFX_line_draw(displayPort->frame(), 0, 0, width() - 1, 0, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), width() - 1, 0, width() - 1, height() - 1, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), 0, height() - 1, width() - 1, height() - 1, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), 0, 0, 0, height() - 1, LD_DRAW, 0xf);
+    char* strings = ItemStrings.get();
+    VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
+    MCGuiObject::Draw();
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, LD_DRAW, 0xf);
 
-    int16_t item = static_cast<int16_t>(topItem);
-    char* itemText = strings + topItem * ItemLength;
+    int16_t item = static_cast<int16_t>(TopItem);
+    char* itemText = strings + TopItem * ItemLength;
     int32_t lineY = 0;
 
-    if (itemHeight > height())
+    if (ItemHeight > Height())
     {
         return;
     }
 
     do
     {
-        if (item >= numItems)
+        if (item >= NumItems)
         {
             return;
         }
 
-        if (selectedItem == item)
+        if (SelectedItem == item)
         {
             // The selected line's inside is filled with colour 0xb. (The original wrote the port's pixels directly;
             // the box draws itself now, so it wipes the same rectangle.)
-            _pane line = *displayPort->frame();
-            line.x0 = 1;
-            line.y0 = lineY + 1;
-            line.x1 = width() - 2;
-            line.y1 = lineY + itemHeight - 1;
-            VFX_pane_wipe(&line, 0xb);
+            MCPane line = *DisplayPort->Frame();
+            line.X0 = 1;
+            line.Y0 = lineY + 1;
+            line.X1 = Width() - 2;
+            line.Y1 = lineY + ItemHeight - 1;
+            VfxPaneWipe(&line, 0xb);
         }
 
-        itemFont->writeString(displayPort->frame(), 2, lineY + 4, reinterpret_cast<uint8_t*>(itemText), -1);
-        VFX_line_draw(displayPort->frame(), 1, lineY, width() - 2, lineY, LD_DRAW, 0xf);
+        ItemFont->WriteString(DisplayPort->Frame(), 2, lineY + 4, reinterpret_cast<uint8_t*>(itemText), -1);
+        VfxLineDraw(DisplayPort->Frame(), 1, lineY, Width() - 2, lineY, LD_DRAW, 0xf);
         itemText += ItemLength;
-        lineY += itemHeight;
+        lineY += ItemHeight;
         item++;
-    } while (lineY + itemHeight <= height());
+    } while (lineY + ItemHeight <= Height());
 }
 
-/// <remarks>MCX.EXE @ 0x0060bc40</remarks>
-auto aListBox::AddItem(char* text) -> int32_t
+auto MCGuiListBox::AddItem(char* text) -> int32_t
 {
-    const int32_t index = numItems;
+    const int32_t index = NumItems;
 
     if (index > MaxItems - 1)
     {
         return -0x1111ffff;
     }
 
-    storeItemString(itemStrings.get() + index * ItemLength, text);
-    numItems = index + 1;
+    StoreItemString(ItemStrings.get() + index * ItemLength, text);
+    NumItems = index + 1;
 
-    if (scrollBarActive == 0)
+    if (ScrollBarActive == 0)
     {
         // No scroll bar: the box grows to show every line.
-        const int32_t newHeight = (itemFont->height() + 8) * (index + 1);
-        resize(width(), newHeight);
+        const int32_t newHeight = (ItemFont->Height() + 8) * (index + 1);
+        Resize(Width(), newHeight);
     }
     else
     {
-        const int32_t visibleItems = height() / itemHeight;
+        const int32_t visibleItems = Height() / ItemHeight;
 
-        if (visibleItems < numItems)
+        if (visibleItems < NumItems)
         {
-            scrollBar->SetScrollMax(
-                static_cast<int16_t>(static_cast<int16_t>(numItems) - static_cast<int16_t>(visibleItems)));
-            scrollBar->SetScrollPos(static_cast<int16_t>(topItem));
+            ScrollBar->SetScrollMax(
+                static_cast<int16_t>(static_cast<int16_t>(NumItems) - static_cast<int16_t>(visibleItems)));
+            ScrollBar->SetScrollPos(static_cast<int16_t>(TopItem));
         }
     }
 
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060bd20</remarks>
-auto aListBox::ChangeItemString(int16_t item, char* text) -> int32_t
+auto MCGuiListBox::ChangeItemString(int16_t item, char* text) -> int32_t
 {
-    if (item >= numItems)
+    if (item >= NumItems)
     {
         return -0x1111fffd;
     }
 
-    storeItemString(itemStrings.get() + item * ItemLength, text);
+    StoreItemString(ItemStrings.get() + item * ItemLength, text);
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060bd90</remarks>
-auto aListBox::SelectItem(int16_t item) -> int32_t
+auto MCGuiListBox::SelectItem(int16_t item) -> int32_t
 {
-    if (item >= numItems)
+    if (item >= NumItems)
     {
         return -0x1111fffd;
     }
 
-    selectedItem = item;
+    SelectedItem = item;
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060bdc0</remarks>
-auto aListBox::ActivateScrollbar() -> int32_t
+auto MCGuiListBox::ActivateScrollbar() -> int32_t
 {
-    const int32_t boxHeight = height();
-    const int32_t lineHeight = itemHeight;
+    const int32_t boxHeight = Height();
+    const int32_t lineHeight = ItemHeight;
 
-    if (scrollBarActive != 0)
+    if (ScrollBarActive != 0)
     {
         return 0;
     }
 
-    const int32_t result = scrollBar->init(10, 10, 0, height(), nullptr);
+    const int32_t result = ScrollBar->Init(10, 10, 0, Height(), nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    addChild(scrollBar);
-    scrollBar->moveTo(width() + 1, 0, 0);
-    scrollBarActive = 1;
+    AddChild(ScrollBar);
+    ScrollBar->MoveTo(Width() + 1, 0, 0);
+    ScrollBarActive = 1;
     const int32_t visibleItems = boxHeight / lineHeight;
 
-    if (visibleItems < numItems)
+    if (visibleItems < NumItems)
     {
-        scrollBar->SetScrollMax(
-            static_cast<int16_t>(static_cast<int16_t>(numItems) - static_cast<int16_t>(visibleItems)));
-        scrollBar->SetScrollPos(static_cast<int16_t>(topItem));
+        ScrollBar->SetScrollMax(
+            static_cast<int16_t>(static_cast<int16_t>(NumItems) - static_cast<int16_t>(visibleItems)));
+        ScrollBar->SetScrollPos(static_cast<int16_t>(TopItem));
         return 0;
     }
 
-    scrollBar->ShowGUIWindow(0);
+    ScrollBar->ShowGuiWindow(0);
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060be80</remarks>
-auto aListBox::GetItemString(int16_t item) -> char*
+auto MCGuiListBox::GetItemString(int16_t item) -> char*
 {
-    if (item >= numItems)
+    if (item >= NumItems)
     {
         return nullptr;
     }
 
-    return itemStrings.get() + item * ItemLength;
+    return ItemStrings.get() + item * ItemLength;
 }
 
-/// <remarks>MCX.EXE @ 0x0060beb0</remarks>
-auto CloseListOnMousedown(aObject* obj, aEvent* event) -> void
+auto CloseListOnMousedown(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    if (event->type == 1)
+    if (event->Type == 1)
     {
-        aPostMessage(obj->parent, ToggleList);
+        APostMessage(obj->Parent, ToggleList);
     }
 }
 
-/// <remarks>MCX.EXE @ 0x0060bee0</remarks>
-aComboBox::aComboBox() = default;
+MCGuiComboBox::MCGuiComboBox() = default;
 
-/// <remarks>MCX.EXE @ 0x0060bf40</remarks>
-aComboBox::~aComboBox()
+MCGuiComboBox::~MCGuiComboBox()
 {
-    destroy();
+    Destroy();
 }
 
-/// <remarks>MCX.EXE @ 0x0060bf60</remarks>
-auto aComboBox::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiComboBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    const int32_t result = aObject::init(xPos, yPos, width, height, name);
+    const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
@@ -517,96 +503,91 @@ auto aComboBox::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, 
     }
 
     // The original uses each new object unchecked.
-    listBox = new aListBox;
-    listBox->init(10, 10, width, height, nullptr);
-    listBox->ShowGUIWindow(0);
-    addChild(listBox);
-    listBox->moveTo(2, height + 2, 0);
-    listBox->setEventRoutine(CloseListOnMousedown);
+    ListBox = new MCGuiListBox;
+    ListBox->Init(10, 10, width, height, nullptr);
+    ListBox->ShowGuiWindow(0);
+    AddChild(ListBox);
+    ListBox->MoveTo(2, height + 2, 0);
+    ListBox->SetEventRoutine(CloseListOnMousedown);
 
     // The drop button is sized (height, width): its art sets the real size.
-    dropButton = new aToolButton;
-    dropButton->init(10, 10, height, width, nullptr);
-    dropButton->setUpPicture(0xe);
-    dropButton->setDownPicture(0xf);
-    dropButton->callback()->setMessage(this, ToggleList);
-    addChild(dropButton);
-    const int32_t buttonWidth = dropButton->width();
-    dropButton->moveTo(this->width() - (buttonWidth + 2), 2, 0);
+    DropButton = new MCGuiToolButton;
+    DropButton->Init(10, 10, height, width, nullptr);
+    DropButton->SetUpPicture(0xe);
+    DropButton->SetDownPicture(0xf);
+    DropButton->Callback()->SetMessage(this, ToggleList);
+    AddChild(DropButton);
+    const int32_t buttonWidth = DropButton->Width();
+    DropButton->MoveTo(this->Width() - (buttonWidth + 2), 2, 0);
 
-    textField = new aTextObject;
-    textField->init(10, 10, (width - (buttonWidth + 2)) - 2, height - 4, nullptr);
-    addChild(textField);
-    textField->moveTo(2, 2, 0);
-    textField->readOnly = 1;
-    setBackColor(3);
+    TextField = new MCGuiTextObject;
+    TextField->Init(10, 10, (width - (buttonWidth + 2)) - 2, height - 4, nullptr);
+    AddChild(TextField);
+    TextField->MoveTo(2, 2, 0);
+    TextField->ReadOnly = 1;
+    SetBackColor(3);
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060c180</remarks>
-auto aComboBox::destroy() -> void
+auto MCGuiComboBox::Destroy() -> void
 {
     auto release = [](auto*& child)
     {
         if (child != nullptr)
         {
-            child->destroy();
+            child->Destroy();
             delete child;
             child = nullptr;
         }
     };
 
-    release(textField);
-    release(listBox);
-    release(dropButton);
-    aObject::destroy();
+    release(TextField);
+    release(ListBox);
+    release(DropButton);
+    MCGuiObject::Destroy();
 }
 
-/// <remarks>MCX.EXE @ 0x0060c210</remarks>
-auto aComboBox::handleEvent(aEvent* event) -> void
+auto MCGuiComboBox::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type != ToggleList)
+    if (event->Type != ToggleList)
     {
         return;
     }
 
-    aListBox* list = listBox;
+    MCGuiListBox* list = ListBox;
 
     if (list->IsShowing() != 0)
     {
         // Close the list and take its selection.
-        list->ShowGUIWindow(0);
-        textField->setText(list->GetItemString(static_cast<int16_t>(list->selectedItem)));
-        dropButton->pushed = 0;
+        list->ShowGuiWindow(0);
+        TextField->SetText(list->GetItemString(static_cast<int16_t>(list->SelectedItem)));
+        DropButton->Pushed = 0;
         return;
     }
 
-    list->ShowGUIWindow(1);
-    dropButton->pushed = 1;
+    list->ShowGuiWindow(1);
+    DropButton->Pushed = 1;
 }
 
-/// <remarks>MCX.EXE @ 0x0060c2b0</remarks>
-auto aComboBox::draw() -> void
+auto MCGuiComboBox::Draw() -> void
 {
-    drawFramed(0, 1);
-    aObject::draw();
+    DrawFramed(0, 1);
+    MCGuiObject::Draw();
 }
 
-/// <remarks>MCX.EXE @ 0x0060c2d0</remarks>
-auto aComboBox::resize(int32_t newWidth, int32_t newHeight) -> void
+auto MCGuiComboBox::Resize(int32_t newWidth, int32_t newHeight) -> void
 {
-    aObject::resize(newWidth, newHeight);
-    listBox->resize(newWidth, listBox->height());
-    listBox->moveTo(2, newHeight + 2, 0);
-    const int32_t buttonX = newWidth - (dropButton->width() + 2);
-    dropButton->moveTo(buttonX, 2, 0);
-    textField->resize(buttonX - 2, newHeight - 4);
+    MCGuiObject::Resize(newWidth, newHeight);
+    ListBox->Resize(newWidth, ListBox->Height());
+    ListBox->MoveTo(2, newHeight + 2, 0);
+    const int32_t buttonX = newWidth - (DropButton->Width() + 2);
+    DropButton->MoveTo(buttonX, 2, 0);
+    TextField->Resize(buttonX - 2, newHeight - 4);
 }
 
-/// <remarks>MCX.EXE @ 0x0060c360</remarks>
-auto aComboBox::ChangeItemString(int16_t item, char* text) -> int32_t
+auto MCGuiComboBox::ChangeItemString(int16_t item, char* text) -> int32_t
 {
-    aListBox* list = listBox;
+    MCGuiListBox* list = ListBox;
     const int32_t result = list->ChangeItemString(item, text);
 
     if (result != 0)
@@ -614,18 +595,17 @@ auto aComboBox::ChangeItemString(int16_t item, char* text) -> int32_t
         return result;
     }
 
-    if (item == list->selectedItem)
+    if (item == list->SelectedItem)
     {
-        textField->setText(text);
+        TextField->SetText(text);
     }
 
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060c3b0</remarks>
-auto aComboBox::SelectItem(int16_t item) -> int32_t
+auto MCGuiComboBox::SelectItem(int16_t item) -> int32_t
 {
-    aListBox* list = listBox;
+    MCGuiListBox* list = ListBox;
     const int32_t result = list->SelectItem(item);
 
     if (result != 0)
@@ -633,6 +613,6 @@ auto aComboBox::SelectItem(int16_t item) -> int32_t
         return result;
     }
 
-    textField->setText(list->GetItemString(item));
+    TextField->SetText(list->GetItemString(item));
     return 0;
 }

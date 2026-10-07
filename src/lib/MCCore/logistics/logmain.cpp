@@ -32,26 +32,26 @@
 int32_t GameDifficulty = 1;
 // The data paths are 80 bytes, as the game's other paths (gui\asystem.cpp's RealWinMain fills several of them).
 char CDsoundPath[80] = {};
-char interfacePath[80] = {};
-char savePath[80] = {};
+char InterfacePath[80] = {};
+char SavePath[80] = {};
 char CDspritePath[80] = {};
-char terrainPath[80] = {};
-char warriorPath[80] = {};
-char spritePath[80] = {};
-char profilePath[80] = {};
-char fontPath[80] = {};
-char directXPath[80] = {};
-char soundPath[80] = {};
-char shapesPath[80] = {};
-void* thisInstance = nullptr;
-int only45Pixel = 0;
-Logistics* globalLogPtr = nullptr;
+char TerrainPath[80] = {};
+char WarriorPath[80] = {};
+char SpritePath[80] = {};
+char ProfilePath[80] = {};
+char FontPath[80] = {};
+char DirectXPath[80] = {};
+char SoundPath[80] = {};
+char ShapesPath[80] = {};
+void* ThisInstance = nullptr;
+int Only45Pixel = 0;
+MCLogistics* GlobalLogPtr = nullptr;
 int32_t LastLogisticsMissionState = 0;
 int LoadingSolo = 0;
-int whackTimer = 0;
-int force32MB = 0;
-int force16MB = 0;
-int32_t readyRoomTicks = 0;
+int WhackTimer = 0;
+int Force32MB = 0;
+int Force16MB = 0;
+int32_t ReadyRoomTicks = 0;
 
 namespace
 {
@@ -59,49 +59,49 @@ namespace
     constexpr const char* VersionKey = "Software\\Fasa Interactive\\MechCommander Expansion";
 
     /// <summary>Screen element <paramref name="index"/> of <paramref name="screen"/> as a <typeparamref name="T"/>.</summary>
-    template <typename T> T* element(GenericScreen* screen, int32_t index)
+    template <typename T> T* Element(MCGenericScreen* screen, int32_t index)
     {
-        return static_cast<T*>(screen->elements[index]);
+        return static_cast<T*>(screen->Elements[index]);
     }
 
     /// <summary>The text typed in text element <paramref name="index"/> of <paramref name="screen"/>.</summary>
-    char* elementText(GenericScreen* screen, int32_t index)
+    char* ElementText(MCGenericScreen* screen, int32_t index)
     {
-        return element<lTextObject>(screen, index)->buffer;
+        return Element<MCLogTextObject>(screen, index)->Buffer;
     }
 
     /// <summary>Enables or disables <paramref name="button"/> (it shows the change on the next frame).</summary>
-    void setDisabled(lButton* button, int disabled)
+    void SetDisabled(MCLogButton* button, int disabled)
     {
-        button->disabled = disabled;
+        button->Disabled = disabled;
     }
 
     /// <summary>Hides the screen shown and shows <paramref name="screen"/> as logistics state <paramref name="state"/>.</summary>
-    void switchScreen(lObject* from, lObject* screen, int32_t state)
+    void SwitchScreen(MCLogObject* from, MCLogObject* screen, int32_t state)
     {
-        from->ShowGUIWindow(0);
-        screen->ShowGUIWindow(1);
-        globalLogPtr->currentScreen = screen;
-        globalLogPtr->logisticsState = state;
+        from->ShowGuiWindow(0);
+        screen->ShowGuiWindow(1);
+        GlobalLogPtr->CurrentScreen = screen;
+        GlobalLogPtr->LogisticsState = state;
     }
 
     /// <summary>
     /// The one-button message dialog with string <paramref name="id"/>: an OK button (<paramref name="upArt"/> /
     /// <paramref name="downArt"/>) and <paramref name="callback"/> for the answer.
     /// </summary>
-    void showMessage(uint32_t id, void (*callback)(int32_t), const char* upArt = "bh_okay.tga",
+    void ShowMessage(uint32_t id, void (*callback)(int32_t), const char* upArt = "bh_okay.tga",
                      const char* downArt = "bg_okay.tga")
     {
         char text[256];
-        cLoadString(thisInstance, id, text, 0xfe);
-        ReusableDialog* dialog = globalLogPtr->messageDialog;
-        dialog->setText(text);
-        dialog->setTwoButton(0);
-        dialog->callback = callback;
-        dialog->okButton->setUpPicture(const_cast<char*>(upArt));
-        dialog->okButton->setDownPicture(const_cast<char*>(downArt));
-        setDisabled(dialog->okButton, 0);
-        dialog->activate();
+        CLoadString(ThisInstance, id, text, 0xfe);
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        dialog->SetText(text);
+        dialog->SetTwoButton(0);
+        dialog->Callback = callback;
+        dialog->OkButton->SetUpPicture(const_cast<char*>(upArt));
+        dialog->OkButton->SetDownPicture(const_cast<char*>(downArt));
+        SetDisabled(dialog->OkButton, 0);
+        dialog->Activate();
     }
 
     /// <summary>
@@ -110,102 +110,102 @@ namespace
     /// <paramref name="cancelDownArt"/> when pressed. With <paramref name="enableButtons"/> both buttons are
     /// enabled and redrawn.
     /// </summary>
-    void askQuestion(ReusableDialog* dialog, uint32_t id, void (*okExec)(), void (*cancelExec)(),
+    void AskQuestion(MCReusableDialog* dialog, uint32_t id, void (*okExec)(), void (*cancelExec)(),
                      const char* cancelDownArt, bool enableButtons)
     {
         char text[256];
-        cLoadString(thisInstance, id, text, 0xfe);
-        dialog->setText(text);
-        dialog->setTwoButton(1);
-        dialog->callback = nullptr;
-        dialog->okButton->setUpPicture(const_cast<char*>("bh_okay.tga"));
-        dialog->okButton->setDownPicture(const_cast<char*>("bg_okay.tga"));
+        CLoadString(ThisInstance, id, text, 0xfe);
+        dialog->SetText(text);
+        dialog->SetTwoButton(1);
+        dialog->Callback = nullptr;
+        dialog->OkButton->SetUpPicture(const_cast<char*>("bh_okay.tga"));
+        dialog->OkButton->SetDownPicture(const_cast<char*>("bg_okay.tga"));
 
         if (enableButtons)
         {
-            setDisabled(dialog->okButton, 0);
+            SetDisabled(dialog->OkButton, 0);
         }
 
-        dialog->okButton->callback()->setExec(okExec);
-        dialog->cancelButton->setUpPicture(const_cast<char*>("bh_cancl.tga"));
-        dialog->cancelButton->setDownPicture(const_cast<char*>(cancelDownArt));
+        dialog->OkButton->Callback()->SetExec(okExec);
+        dialog->CancelButton->SetUpPicture(const_cast<char*>("bh_cancl.tga"));
+        dialog->CancelButton->SetDownPicture(const_cast<char*>(cancelDownArt));
 
         if (enableButtons)
         {
-            setDisabled(dialog->cancelButton, 0);
+            SetDisabled(dialog->CancelButton, 0);
         }
 
-        dialog->cancelButton->callback()->setExec(cancelExec);
-        dialog->activate();
+        dialog->CancelButton->Callback()->SetExec(cancelExec);
+        dialog->Activate();
     }
 
     /// <summary>The player's name for the multiplayer screens: the one remembered, else "Player".</summary>
-    bool userName(char* name, uint32_t size)
+    bool UserName(char* name, uint32_t size)
     {
         uint32_t length = size;
         return MyGetUserName(name, &length) != 0;
     }
 
     /// <summary>The file pane of the screen being shown (the load or save screen), or null.</summary>
-    FileScrollPane* shownFilePane()
+    MCFileScrollPane* ShownFilePane()
     {
-        FileScrollPane* pane = nullptr;
+        MCFileScrollPane* pane = nullptr;
 
-        if (globalLogPtr->currentScreen == globalLogPtr->loadScreen)
+        if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->LoadScreen)
         {
-            pane = globalLogPtr->loadScreen->filePane;
+            pane = GlobalLogPtr->LoadScreen->FilePane;
         }
 
-        if (globalLogPtr->currentScreen == globalLogPtr->saveScreen)
+        if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->SaveScreen)
         {
-            pane = globalLogPtr->saveScreen->filePane;
+            pane = GlobalLogPtr->SaveScreen->FilePane;
         }
 
         return pane;
     }
 
     /// <summary>Whether <paramref name="pane"/> has a file selected.</summary>
-    bool hasSelection(const FileScrollPane* pane)
+    bool HasSelection(const MCFileScrollPane* pane)
     {
-        return pane != nullptr && pane->selectedFile > -1 && pane->selectedFile < pane->numFiles;
+        return pane != nullptr && pane->SelectedFile > -1 && pane->SelectedFile < pane->NumFiles;
     }
 
     /// <summary>Takes down the file pane's name entry, if it has one (its <c>destroy</c>).</summary>
-    void destroyNameEntry(FileScrollPane* pane)
+    void DestroyNameEntry(MCFileScrollPane* pane)
     {
-        if (pane->nameEntry != nullptr)
+        if (pane->NameEntry != nullptr)
         {
-            pane->nameEntry->destroy();
+            pane->NameEntry->Destroy();
         }
     }
 
     /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
-    char* heapCopy(const char* text)
+    char* HeapCopy(const char* text)
     {
         auto* copy =
-            static_cast<char*>(globalLogPtr->logisticsBlocks->Allocate(static_cast<uint32_t>(std::strlen(text) + 1)));
+            static_cast<char*>(GlobalLogPtr->LogisticsBlocks->Allocate(static_cast<uint32_t>(std::strlen(text) + 1)));
         std::strcpy(copy, text);
         return copy;
     }
 
     /// <summary>Opens the ready room (session screen) after a session was joined or created.</summary>
-    void enterReadyRoom(lObject* from, int disableGo)
+    void EnterReadyRoom(MCLogObject* from, int disableGo)
     {
-        from->ShowGUIWindow(0);
-        globalLogPtr->connectScreen->ShowGUIWindow(1);
-        globalLogPtr->currentScreen = globalLogPtr->connectScreen;
-        globalLogPtr->logisticsState = 0xe;
+        from->ShowGuiWindow(0);
+        GlobalLogPtr->ConnectScreen->ShowGuiWindow(1);
+        GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen;
+        GlobalLogPtr->LogisticsState = 0xe;
 
         if (disableGo >= 0)
         {
-            setDisabled(element<lButton>(globalLogPtr->connectScreen, 2), disableGo);
+            SetDisabled(Element<MCLogButton>(GlobalLogPtr->ConnectScreen, 2), disableGo);
         }
     }
 
     /// <summary>After a session was joined: how many are in it.</summary>
-    void countLANPlayers()
+    void CountLanPlayers()
     {
-        NumLANPlayers = MPlayer->sessionManager->GetPlayers(nullptr)->count;
+        NumLanPlayers = MPlayer->SessionManager->GetPlayers(nullptr)->Count;
     }
 }
 
@@ -219,15 +219,15 @@ void NewCampaignCDTester(int32_t result)
     }
 }
 
-void MCXCampaignCDTester(int32_t result)
+void McxCampaignCDTester(int32_t result)
 {
     if (result == 1)
     {
-        NewMCXCampaign();
+        NewMcxCampaign();
     }
 }
 
-void MPXCampaignCDTester(int32_t result)
+void MpxCampaignCDTester(int32_t result)
 {
     if (result == 1)
     {
@@ -288,7 +288,7 @@ bool CheckRegistryVersionNumber()
     char version[100] = {};
     std::strncpy(version, stored->c_str(), sizeof(version) - 1);
     char expected[100];
-    cLoadString(thisInstance, 0x282, expected, 99);
+    CLoadString(ThisInstance, 0x282, expected, 99);
     return std::strncmp(version, expected, 0xd) == 0 && version[13] == '.';
 }
 
@@ -296,10 +296,10 @@ void WriteRegistryVersionNumber()
 {
     char text[100];
     char version[100];
-    cLoadString(thisInstance, 0x282, text, 99);
+    CLoadString(ThisInstance, 0x282, text, 99);
     std::snprintf(version, sizeof(version), "%s.", text);
     MCRegistry::Write(VersionKey, "Version", version);
-    cLoadString(thisInstance, 900, text, 99);
+    CLoadString(ThisInstance, 900, text, 99);
     MCRegistry::Write(VersionKey, "Language", text);
 }
 
@@ -314,36 +314,36 @@ void NewCampaign()
         WriteRegistryVersionNumber();
     }
 
-    soundSystem->stopDigitalMusic();
-    soundSystem->playBettySample(0x19);
-    std::strcpy(missionName, "mechcmdr1");
-    mission->initAgain(missionName);
+    SoundSystem->StopDigitalMusic();
+    SoundSystem->PlayBettySample(0x19);
+    std::strcpy(MissionName, "mechcmdr1");
+    Mission->InitAgain(MissionName);
     CurPlanet = 0;
     Solo = 0;
     LastLogisticsMissionState = 0;
-    globalLogPtr->loadCampaign(const_cast<char*>("start0"), const_cast<char*>(".pkk"), 0, 0);
-    globalLogPtr->briefingScreen->briefingBox = nullptr;
-    globalLogPtr->setUpBriefingScreen(0);
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
+    GlobalLogPtr->LoadCampaign(const_cast<char*>("start0"), const_cast<char*>(".pkk"), 0, 0);
+    GlobalLogPtr->BriefingScreen->BriefingBox = nullptr;
+    GlobalLogPtr->SetUpBriefingScreen(0);
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
 }
 
-void NewMCXCampaign()
+void NewMcxCampaign()
 {
     if (!CheckRegistryVersionNumber())
     {
         WriteRegistryVersionNumber();
     }
 
-    soundSystem->stopDigitalMusic();
-    soundSystem->playBettySample(0x19);
-    std::strcpy(missionName, "xmechcmdr1");
-    mission->initAgain(missionName);
+    SoundSystem->StopDigitalMusic();
+    SoundSystem->PlayBettySample(0x19);
+    std::strcpy(MissionName, "xmechcmdr1");
+    Mission->InitAgain(MissionName);
     Solo = 0;
     LastLogisticsMissionState = 0;
-    globalLogPtr->loadCampaign(const_cast<char*>("xstart0"), const_cast<char*>(".pkk"), 0, 0);
-    globalLogPtr->briefingScreen->briefingBox = nullptr;
-    globalLogPtr->setUpBriefingScreen(0);
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
+    GlobalLogPtr->LoadCampaign(const_cast<char*>("xstart0"), const_cast<char*>(".pkk"), 0, 0);
+    GlobalLogPtr->BriefingScreen->BriefingBox = nullptr;
+    GlobalLogPtr->SetUpBriefingScreen(0);
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
 }
 
 void SaveScreen()
@@ -353,16 +353,16 @@ void SaveScreen()
         WriteRegistryVersionNumber();
     }
 
-    if (globalLogPtr->currentMission == -1)
+    if (GlobalLogPtr->CurrentMission == -1)
     {
         return;
     }
 
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
-    globalLogPtr->currentScreen = globalLogPtr->saveScreen;
-    globalLogPtr->saveScreen->ShowGUIWindow(1);
-    globalLogPtr->logisticsState = 6;
-    globalLogPtr->saveScreen->filePane->setSelectedFile(-1);
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->SaveScreen;
+    GlobalLogPtr->SaveScreen->ShowGuiWindow(1);
+    GlobalLogPtr->LogisticsState = 6;
+    GlobalLogPtr->SaveScreen->FilePane->SetSelectedFile(-1);
 }
 
 void ConnectScreen()
@@ -372,60 +372,60 @@ void ConnectScreen()
         WriteRegistryVersionNumber();
     }
 
-    GenericScreen* screen = globalLogPtr->multiplayerScreen;
+    MCGenericScreen* screen = GlobalLogPtr->MultiplayerScreen;
 
     if (MPlayer == nullptr)
     {
-        auto* player = new MultiPlayer;
+        auto* player = new MCMultiPlayer;
         MPlayer = player;
         Assert(player != nullptr, 0, " Unable to create MultiPlayer object ", nullptr);
-        MPlayer->init(0x7d000, 0x100, 100);
+        MPlayer->Init(0x7d000, 0x100, 100);
     }
 
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(1);
-    globalLogPtr->currentScreen = globalLogPtr->multiplayerScreen;
-    globalLogPtr->logisticsState = 10;
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
+    GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(1);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen;
+    GlobalLogPtr->LogisticsState = 10;
 
     // The connection buttons: modem, serial, LAN, internet; each is enabled when the machine has it.
-    auto* modemButton = element<lButton>(screen, 2);
-    auto* serialButton = element<lButton>(screen, 3);
-    auto* lanButton = element<lButton>(screen, 4);
-    auto* internetButton = element<lButton>(screen, 5);
-    setDisabled(modemButton, 1);
-    setDisabled(serialButton, 1);
-    setDisabled(lanButton, 1);
-    setDisabled(internetButton, 1);
+    auto* modemButton = Element<MCLogButton>(screen, 2);
+    auto* serialButton = Element<MCLogButton>(screen, 3);
+    auto* lanButton = Element<MCLogButton>(screen, 4);
+    auto* internetButton = Element<MCLogButton>(screen, 5);
+    SetDisabled(modemButton, 1);
+    SetDisabled(serialButton, 1);
+    SetDisabled(lanButton, 1);
+    SetDisabled(internetButton, 1);
 
-    if (MPlayer != nullptr && MPlayer->sessionManager != nullptr)
+    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
     {
-        SessionManager* manager = MPlayer->sessionManager;
+        MCSessionManager* manager = MPlayer->SessionManager;
 
-        if (manager->isModemAvailable() != 0)
+        if (manager->IsModemAvailable() != 0)
         {
-            setDisabled(modemButton, 0);
+            SetDisabled(modemButton, 0);
         }
 
-        if ((manager->availableProtocols & 4) != 0)
+        if ((manager->AvailableProtocols & 4) != 0)
         {
-            setDisabled(serialButton, 0);
+            SetDisabled(serialButton, 0);
         }
 
-        if (manager->isIPXAvailable() != 0 || manager->isTCPAvailable() != 0)
+        if (manager->IsIpxAvailable() != 0 || manager->IsTcpAvailable() != 0)
         {
-            setDisabled(lanButton, 0);
+            SetDisabled(lanButton, 0);
         }
 
-        if ((manager->availableProtocols & 0x10) != 0)
+        if ((manager->AvailableProtocols & 0x10) != 0)
         {
-            setDisabled(internetButton, 0);
+            SetDisabled(internetButton, 0);
         }
     }
 
     // Less than 32 MB: multiplayer may not run well.
     if (MCPort::TotalPhysicalMemory() < 32000000)
     {
-        showMessage(0x371, nullptr);
+        ShowMessage(0x371, nullptr);
     }
 }
 
@@ -436,11 +436,11 @@ void LoadScreen()
         WriteRegistryVersionNumber();
     }
 
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
-    globalLogPtr->currentScreen = globalLogPtr->loadScreen;
-    globalLogPtr->loadScreen->ShowGUIWindow(1);
-    globalLogPtr->logisticsState = 5;
-    globalLogPtr->loadScreen->filePane->setSelectedFile(-1);
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->LoadScreen;
+    GlobalLogPtr->LoadScreen->ShowGuiWindow(1);
+    GlobalLogPtr->LogisticsState = 5;
+    GlobalLogPtr->LoadScreen->FilePane->SetSelectedFile(-1);
 }
 
 void SoloLoadScreen()
@@ -450,12 +450,12 @@ void SoloLoadScreen()
         WriteRegistryVersionNumber();
     }
 
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
     LoadingSolo = 1;
-    globalLogPtr->currentScreen = globalLogPtr->loadScreen;
-    globalLogPtr->loadScreen->ShowGUIWindow(1);
-    globalLogPtr->logisticsState = 5;
-    globalLogPtr->loadScreen->filePane->setSelectedFile(-1);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->LoadScreen;
+    GlobalLogPtr->LoadScreen->ShowGuiWindow(1);
+    GlobalLogPtr->LogisticsState = 5;
+    GlobalLogPtr->LoadScreen->FilePane->SetSelectedFile(-1);
 }
 
 namespace
@@ -466,7 +466,7 @@ namespace
     // (elements 8..10) are hidden.
 
     /// <summary>A box's place on the screen and its size.</summary>
-    struct PrefsBoxPlace
+    struct MCPrefsBoxPlace
     {
         /// <summary>The top left corner on the screen.</summary>
         int32_t Left = 0;
@@ -477,8 +477,8 @@ namespace
     };
 
     /// <summary>DIFFICULTY's box is the art's; RENDERER's is under it, over ACCEPT.</summary>
-    constexpr PrefsBoxPlace DifficultyBoxPlace{480, 155, 120, 63};
-    constexpr PrefsBoxPlace RendererBoxPlace{480, 222, 120, 50};
+    constexpr MCPrefsBoxPlace DifficultyBoxPlace{480, 155, 120, 63};
+    constexpr MCPrefsBoxPlace RendererBoxPlace{480, 222, 120, 50};
 
     /// <summary>Where a drop-down lies in its box (under the title, the art's checks' column and first row), and its width.</summary>
     constexpr int32_t DropDownLeft = 32;
@@ -486,23 +486,23 @@ namespace
     constexpr int32_t DropDownWidth = 76;
 
     /// <summary>A preferences box: its back, outline and title, drawn each frame.</summary>
-    class PrefsBox : public lObject
+    class MCPrefsBox : public MCLogObject
     {
     public:
         /// <summary>A box titled <paramref name="title"/>.</summary>
-        explicit PrefsBox(const char* title) : title(title) {}
+        explicit MCPrefsBox(const char* title) : _Title(title) {}
 
-        void draw() override
+        void Draw() override
         {
-            const auto right = static_cast<int16_t>(width() - 1);
-            const auto bottom = static_cast<int16_t>(height() - 1);
+            const auto right = static_cast<int16_t>(Width() - 1);
+            const auto bottom = static_cast<int16_t>(Height() - 1);
             FillBox(0, 0, right, bottom, 0x10);
             FillBox(0, 0, right, 0, 0x13);
             FillBox(0, bottom, right, bottom, 0x13);
             FillBox(0, 0, 0, bottom, 0x13);
             FillBox(right, 0, right, bottom, 0x13);
             // (The font's glyphs start a column in, so the text is written a pixel left of the art's.)
-            VFX_string_draw(lport()->frame(), 32, 9, whiteFont->fontData.get(), title, lComboBox::LabelColors());
+            VfxStringDraw(Lport()->Frame(), 32, 9, WhiteFont->FontData.get(), _Title, MCLogComboBox::LabelColors());
         }
 
         bool DrawsLive() override { return true; }
@@ -511,7 +511,7 @@ namespace
         /// The box is part of the panel, as the art's boxes are: the mouse goes through it. (As an object it took
         /// clicks, and a click brought it in front of the controls on it, which then took no more.)
         /// </summary>
-        aObject* findObject(int32_t xPos, int32_t yPos) override
+        MCGuiObject* FindObject(int32_t xPos, int32_t yPos) override
         {
             (void)xPos;
             (void)yPos;
@@ -520,73 +520,73 @@ namespace
 
     private:
         /// <summary>The title.</summary>
-        const char* title = nullptr;
+        const char* _Title = nullptr;
     };
 
     /// <summary>The choice when the screen opened (for CancelPrefs).</summary>
-    int32_t savedRendererPreference = 0;
+    int32_t SavedRendererPreference = 0;
 
     /// <summary>Says, in the message dialog, that the renderer chosen takes effect at the next start.</summary>
-    void showRestartNotice()
+    void ShowRestartNotice()
     {
         char text[] = "The new renderer takes effect when you restart MechCommander.";
-        ReusableDialog* dialog = globalLogPtr->messageDialog;
-        dialog->setText(text);
-        dialog->setTwoButton(0);
-        dialog->callback = nullptr;
-        dialog->okButton->setUpPicture(const_cast<char*>("bh_okay.tga"));
-        dialog->okButton->setDownPicture(const_cast<char*>("bg_okay.tga"));
-        dialog->okButton->disabled = 0;
-        dialog->activate();
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        dialog->SetText(text);
+        dialog->SetTwoButton(0);
+        dialog->Callback = nullptr;
+        dialog->OkButton->SetUpPicture(const_cast<char*>("bh_okay.tga"));
+        dialog->OkButton->SetDownPicture(const_cast<char*>("bg_okay.tga"));
+        dialog->OkButton->Disabled = 0;
+        dialog->Activate();
     }
 
     /// <summary>The RENDERER drop-down chose <paramref name="renderer"/>: another one than this run's needs a restart.</summary>
-    void rendererChanged(int32_t renderer)
+    void RendererChanged(int32_t renderer)
     {
-        if (renderer != gRenderer)
+        if (renderer != GRenderer)
         {
-            showRestartNotice();
+            ShowRestartNotice();
         }
     }
 
     /// <summary>Adds a box titled <paramref name="title"/> at <paramref name="place"/> to <paramref name="screen"/>.</summary>
-    void addPrefsBox(GenericScreen* screen, const PrefsBoxPlace& place, const char* title)
+    void AddPrefsBox(MCGenericScreen* screen, const MCPrefsBoxPlace& place, const char* title)
     {
-        auto* box = new PrefsBox(title);
-        box->init(place.Left, place.Top, place.Width, place.Height, nullptr, nullptr);
+        auto* box = new MCPrefsBox(title);
+        box->Init(place.Left, place.Top, place.Width, place.Height, nullptr, nullptr);
         box->SetTransparent(-1);
-        box->ShowGUIWindow(-1);
-        screen->addChild(box);
+        box->ShowGuiWindow(-1);
+        screen->AddChild(box);
     }
 
     /// <summary>Adds a drop-down editing <paramref name="setting"/> in the box at <paramref name="place"/>.</summary>
-    lComboBox* addDropDown(GenericScreen* screen, const PrefsBoxPlace& place, int32_t* setting,
-                           std::vector<lComboBox::Item> items, void (*changed)(int32_t value))
+    MCLogComboBox* AddDropDown(MCGenericScreen* screen, const MCPrefsBoxPlace& place, int32_t* setting,
+                               std::vector<MCLogComboBox::Item> items, void (*changed)(int32_t value))
     {
-        auto* dropDown = new lComboBox;
-        dropDown->init(place.Left + DropDownLeft, place.Top + DropDownTop, DropDownWidth, setting, std::move(items),
+        auto* dropDown = new MCLogComboBox;
+        dropDown->Init(place.Left + DropDownLeft, place.Top + DropDownTop, DropDownWidth, setting, std::move(items),
                        changed);
-        dropDown->ShowGUIWindow(-1);
-        screen->addChild(dropDown);
+        dropDown->ShowGuiWindow(-1);
+        screen->AddChild(dropDown);
         return dropDown;
     }
 }
 
-void AddPreferenceDropDowns(GenericScreen* screen)
+void AddPreferenceDropDowns(MCGenericScreen* screen)
 {
     // The original's DIFFICULTY checks (easy, regular, hard) give way to the drop-down.
     for (int32_t i = 0; i < 3; i++)
     {
-        element<lToolButton>(screen, 8 + i)->ShowGUIWindow(0);
+        Element<MCLogToolButton>(screen, 8 + i)->ShowGuiWindow(0);
     }
 
-    addPrefsBox(screen, DifficultyBoxPlace, "DIFFICULTY");
-    addPrefsBox(screen, RendererBoxPlace, "RENDERER");
-    addDropDown(screen, DifficultyBoxPlace, &GameDifficulty, {{"EASY", 0}, {"REGULAR", 1}, {"HARD", 2}}, nullptr);
-    addDropDown(screen, RendererBoxPlace, &gRendererPreference,
+    AddPrefsBox(screen, DifficultyBoxPlace, "DIFFICULTY");
+    AddPrefsBox(screen, RendererBoxPlace, "RENDERER");
+    AddDropDown(screen, DifficultyBoxPlace, &GameDifficulty, {{"EASY", 0}, {"REGULAR", 1}, {"HARD", 2}}, nullptr);
+    AddDropDown(screen, RendererBoxPlace, &GRendererPreference,
                 {{"VULKAN", static_cast<int32_t>(MCRendererKind::Vulkan)},
                  {"SOFTWARE", static_cast<int32_t>(MCRendererKind::Software)}},
-                rendererChanged);
+                RendererChanged);
 }
 
 void ShowPreferences()
@@ -597,89 +597,89 @@ void ShowPreferences()
     }
 
     // The settings as they are, for CancelPrefs.
-    Logistics* logistics = globalLogPtr;
-    const int32_t brightness = application->gammaLevel;
-    logistics->savedPrefs0 = application->paletteCycle;
-    logistics->savedPrefs1 = only45Pixel;
-    logistics->savedPrefs2 = brightness;
-    logistics->savedPrefs3 = soundSystem->musicVolume;
-    logistics->savedPrefs4 = soundSystem->radioVolume;
-    logistics->savedPrefs5 = soundSystem->digitalMasterVolume;
-    logistics->savedPrefs6 = GameDifficulty;
-    savedRendererPreference = gRendererPreference;
-    GenericScreen* screen = logistics->prefScreen;
-    element<lSlider>(screen, 3)->setCurrentValue(brightness);
-    element<lSlider>(screen, 4)->setCurrentValue(static_cast<int32_t>(globalLogPtr->savedPrefs3));
-    element<lSlider>(screen, 5)->setCurrentValue(static_cast<int32_t>(globalLogPtr->savedPrefs4));
-    element<lSlider>(screen, 6)->setCurrentValue(static_cast<int32_t>(globalLogPtr->savedPrefs5));
-    element<lToolButton>(screen, 8)->toggled = GameDifficulty == 0 ? 1 : 0;
-    element<lToolButton>(screen, 9)->toggled = GameDifficulty == 1 ? 1 : 0;
-    element<lToolButton>(screen, 10)->toggled = GameDifficulty != 0 && GameDifficulty != 1 ? 1 : 0;
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
-    globalLogPtr->currentScreen = globalLogPtr->prefScreen;
-    globalLogPtr->prefScreen->ShowGUIWindow(1);
-    globalLogPtr->logisticsState = 9;
+    MCLogistics* logistics = GlobalLogPtr;
+    const int32_t brightness = Application->GammaLevel;
+    logistics->SavedPrefs0 = Application->PaletteCycle;
+    logistics->SavedPrefs1 = Only45Pixel;
+    logistics->SavedPrefs2 = brightness;
+    logistics->SavedPrefs3 = SoundSystem->MusicLevel;
+    logistics->SavedPrefs4 = SoundSystem->RadioLevel;
+    logistics->SavedPrefs5 = SoundSystem->DigitalMasterVolume;
+    logistics->SavedPrefs6 = GameDifficulty;
+    SavedRendererPreference = GRendererPreference;
+    MCGenericScreen* screen = logistics->PrefScreen;
+    Element<MCLogSlider>(screen, 3)->SetCurrentValue(brightness);
+    Element<MCLogSlider>(screen, 4)->SetCurrentValue(static_cast<int32_t>(GlobalLogPtr->SavedPrefs3));
+    Element<MCLogSlider>(screen, 5)->SetCurrentValue(static_cast<int32_t>(GlobalLogPtr->SavedPrefs4));
+    Element<MCLogSlider>(screen, 6)->SetCurrentValue(static_cast<int32_t>(GlobalLogPtr->SavedPrefs5));
+    Element<MCLogToolButton>(screen, 8)->Toggled = GameDifficulty == 0 ? 1 : 0;
+    Element<MCLogToolButton>(screen, 9)->Toggled = GameDifficulty == 1 ? 1 : 0;
+    Element<MCLogToolButton>(screen, 10)->Toggled = GameDifficulty != 0 && GameDifficulty != 1 ? 1 : 0;
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->PrefScreen;
+    GlobalLogPtr->PrefScreen->ShowGuiWindow(1);
+    GlobalLogPtr->LogisticsState = 9;
 }
 
 void CancelPrefs()
 {
-    Logistics* logistics = globalLogPtr;
-    application->paletteCycle = logistics->savedPrefs0;
-    only45Pixel = logistics->savedPrefs1;
-    application->gammaCorrectCurrentPalette(logistics->savedPrefs2);
+    MCLogistics* logistics = GlobalLogPtr;
+    Application->PaletteCycle = logistics->SavedPrefs0;
+    Only45Pixel = logistics->SavedPrefs1;
+    Application->GammaCorrectCurrentPalette(logistics->SavedPrefs2);
 
     // Only the saved byte is compared (a volume is 0..127).
-    if (static_cast<uint8_t>(logistics->savedPrefs3) < 0x80)
+    if (static_cast<uint8_t>(logistics->SavedPrefs3) < 0x80)
     {
-        soundSystem->musicVolume = static_cast<uint8_t>(logistics->savedPrefs3);
+        SoundSystem->MusicLevel = static_cast<uint8_t>(logistics->SavedPrefs3);
     }
 
-    if (static_cast<uint8_t>(logistics->savedPrefs4) < 0x80)
+    if (static_cast<uint8_t>(logistics->SavedPrefs4) < 0x80)
     {
-        soundSystem->radioVolume = static_cast<uint8_t>(logistics->savedPrefs4);
+        SoundSystem->RadioLevel = static_cast<uint8_t>(logistics->SavedPrefs4);
     }
 
-    if (static_cast<uint8_t>(logistics->savedPrefs5) < 0x80)
+    if (static_cast<uint8_t>(logistics->SavedPrefs5) < 0x80)
     {
-        soundSystem->digitalMasterVolume = static_cast<uint8_t>(logistics->savedPrefs5);
+        SoundSystem->DigitalMasterVolume = static_cast<uint8_t>(logistics->SavedPrefs5);
     }
 
-    GameDifficulty = logistics->savedPrefs6;
-    gRendererPreference = savedRendererPreference;
+    GameDifficulty = logistics->SavedPrefs6;
+    GRendererPreference = SavedRendererPreference;
     Cancel();
 }
 
 void WritePrefs()
 {
-    FitIniFile prefs;
-    prefs.create("prefs.cfg");
-    prefs.writeBlock("MechCommander");
-    prefs.writeIdBoolean("PaletteCycle", application->paletteCycle);
-    prefs.writeIdBoolean("DirectDraw", gFullScreen != 0);
-    prefs.writeIdBoolean("Use90Pixel", use90PixelSprite);
-    prefs.writeIdBoolean("Force45Pixel", only45Pixel);
-    prefs.writeIdBoolean("Force16Mb", force16MB);
-    prefs.writeIdBoolean("Force32Mb", force32MB);
-    prefs.writeIdLong("Difficulty", GameDifficulty);
-    prefs.writeIdLong("Brightness", application->gammaLevel);
-    prefs.writeIdLong("MusicVolume", soundSystem->musicVolume);
-    prefs.writeIdLong("RadioVolume", soundSystem->radioVolume);
-    prefs.writeIdLong("SFXVolume", soundSystem->digitalMasterVolume);
+    MCFitIniFile prefs;
+    prefs.Create("prefs.cfg");
+    prefs.WriteBlock("MechCommander");
+    prefs.WriteIdBoolean("PaletteCycle", Application->PaletteCycle);
+    prefs.WriteIdBoolean("DirectDraw", GFullScreen != 0);
+    prefs.WriteIdBoolean("Use90Pixel", Use90PixelSprite);
+    prefs.WriteIdBoolean("Force45Pixel", Only45Pixel);
+    prefs.WriteIdBoolean("Force16Mb", Force16MB);
+    prefs.WriteIdBoolean("Force32Mb", Force32MB);
+    prefs.WriteIdLong("Difficulty", GameDifficulty);
+    prefs.WriteIdLong("Brightness", Application->GammaLevel);
+    prefs.WriteIdLong("MusicVolume", SoundSystem->MusicLevel);
+    prefs.WriteIdLong("RadioVolume", SoundSystem->RadioLevel);
+    prefs.WriteIdLong("SFXVolume", SoundSystem->DigitalMasterVolume);
     // Port: keep the port-only key. Original behaviour (OB-101): the hidden "Resolution" key is not written back.
-    prefs.writeIdBoolean("StretchToFit", gStretchToFit != 0);
-    prefs.writeIdBoolean("SoftwareCursor", gSoftwareCursor != 0);
-    prefs.writeIdString("Renderer", MCRendererKindName(static_cast<MCRendererKind>(gRendererPreference)));
-    prefs.writeIdBoolean("ShowFps", gShowFpsPreference != 0);
+    prefs.WriteIdBoolean("StretchToFit", GStretchToFit != 0);
+    prefs.WriteIdBoolean("SoftwareCursor", GSoftwareCursor != 0);
+    prefs.WriteIdString("Renderer", MCRendererKindName(static_cast<MCRendererKind>(GRendererPreference)));
+    prefs.WriteIdBoolean("ShowFps", GShowFpsPreference != 0);
     Cancel();
 }
 
 void ShowMultiPlayer()
 {
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(1);
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
+    GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(1);
     Solo = 0;
-    globalLogPtr->currentScreen = globalLogPtr->multiplayerScreen;
-    globalLogPtr->logisticsState = 10;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen;
+    GlobalLogPtr->LogisticsState = 10;
 }
 
 void ReplayCDTester(int32_t result)
@@ -697,54 +697,54 @@ void ReplayCinema()
         WriteRegistryVersionNumber();
     }
 
-    nextGameState = 10;
-    mission->missionState = 10;
-    mission->currentMovie = 0;
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
-    soundSystem->stopDigitalMusic();
+    NextGameState = 10;
+    Mission->MissionState = 10;
+    Mission->CurrentMovie = 0;
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
+    SoundSystem->StopDigitalMusic();
 }
 
 void ReturnToGame()
 {
-    if (globalLogPtr->currentMission == -1)
+    if (GlobalLogPtr->CurrentMission == -1)
     {
         return;
     }
 
-    if (globalLogPtr->previousState == 2)
+    if (GlobalLogPtr->PreviousState == 2)
     {
-        globalLogPtr->setUpPurchaseScreen(0);
+        GlobalLogPtr->SetUpPurchaseScreen(0);
     }
-    else if (globalLogPtr->previousState == 4)
+    else if (GlobalLogPtr->PreviousState == 4)
     {
-        globalLogPtr->setUpRepairScreen(0);
+        GlobalLogPtr->SetUpRepairScreen(0);
     }
     else
     {
-        globalLogPtr->setUpBriefingScreen(0);
+        GlobalLogPtr->SetUpBriefingScreen(0);
     }
 
-    globalLogPtr->mainScreen->ShowGUIWindow(0);
+    GlobalLogPtr->MainScreen->ShowGuiWindow(0);
 }
 
 void GameOverMan()
 {
     MCInput::PostMessage(WM_DESTROY, 0, 0);
-    soundSystem->stopDigitalMusic();
+    SoundSystem->StopDigitalMusic();
 }
 
 void LoadGame()
 {
-    FileScrollPane* pane = globalLogPtr->loadScreen->filePane;
+    MCFileScrollPane* pane = GlobalLogPtr->LoadScreen->FilePane;
 
-    if (!hasSelection(pane))
+    if (!HasSelection(pane))
     {
         return;
     }
 
-    char* fileName = pane->fileNames[pane->selectedFile];
-    soundSystem->stopDigitalMusic();
-    globalLogPtr->briefingScreen->briefingBox = nullptr;
+    char* fileName = pane->FileNames[pane->SelectedFile];
+    SoundSystem->StopDigitalMusic();
+    GlobalLogPtr->BriefingScreen->BriefingBox = nullptr;
     const bool campaign = LoadingSolo == 0;
     const char* extension = ".sav";
 
@@ -757,59 +757,59 @@ void LoadGame()
     Solo = campaign ? 0 : 1;
     LastLogisticsMissionState = 0;
 
-    if (globalLogPtr->loadCampaign(fileName, const_cast<char*>(extension), 0, 1) == 0)
+    if (GlobalLogPtr->LoadCampaign(fileName, const_cast<char*>(extension), 0, 1) == 0)
     {
         // Original behaviour: the save screen is the one hidden, not the load screen shown.
-        globalLogPtr->saveScreen->ShowGUIWindow(0);
-        globalLogPtr->setUpBriefingScreen(0);
-        soundSystem->playDigitalMusic(0x16, true);
+        GlobalLogPtr->SaveScreen->ShowGuiWindow(0);
+        GlobalLogPtr->SetUpBriefingScreen(0);
+        SoundSystem->PlayDigitalMusic(0x16, true);
     }
 }
 
 void LoadMPGame()
 {
-    FileScrollPane* pane = globalLogPtr->loadScreen->filePane;
+    MCFileScrollPane* pane = GlobalLogPtr->LoadScreen->FilePane;
 
-    if (hasSelection(pane))
+    if (HasSelection(pane))
     {
-        globalLogPtr->sessionScreen->loadMission(pane->fileNames[pane->selectedFile]);
+        GlobalLogPtr->SessionScreen->LoadMission(pane->FileNames[pane->SelectedFile]);
     }
 }
 
 void SaveWorkedCallback(int32_t)
 {
-    globalLogPtr->saveScreen->ShowGUIWindow(0);
+    GlobalLogPtr->SaveScreen->ShowGuiWindow(0);
 
-    if (globalLogPtr->previousState == 2)
+    if (GlobalLogPtr->PreviousState == 2)
     {
-        globalLogPtr->setUpPurchaseScreen(0);
+        GlobalLogPtr->SetUpPurchaseScreen(0);
     }
-    else if (globalLogPtr->previousState != 4)
+    else if (GlobalLogPtr->PreviousState != 4)
     {
-        globalLogPtr->setUpBriefingScreen(0);
+        GlobalLogPtr->SetUpBriefingScreen(0);
     }
     else
     {
-        globalLogPtr->setUpRepairScreen(0);
+        GlobalLogPtr->SetUpRepairScreen(0);
     }
 
-    soundSystem->playDigitalMusic(0x16, true);
+    SoundSystem->PlayDigitalMusic(0x16, true);
 }
 
 void SaveGameCallback()
 {
     int32_t result = -1;
-    FileScrollPane* pane = globalLogPtr->saveScreen->filePane;
+    MCFileScrollPane* pane = GlobalLogPtr->SaveScreen->FilePane;
     bool saved = false;
 
-    if (hasSelection(pane))
+    if (HasSelection(pane))
     {
-        char* fileName = pane->fileNames[pane->selectedFile];
+        char* fileName = pane->FileNames[pane->SelectedFile];
 
         if (fileName != nullptr)
         {
-            soundSystem->stopDigitalMusic();
-            result = globalLogPtr->saveCampaign(fileName);
+            SoundSystem->StopDigitalMusic();
+            result = GlobalLogPtr->SaveCampaign(fileName);
         }
 
         saved = result == 0;
@@ -817,36 +817,36 @@ void SaveGameCallback()
 
     if (!saved)
     {
-        pane->setSelectedFile(-1);
+        pane->SetSelectedFile(-1);
     }
 
-    pane->getAllFiles(const_cast<char*>(".sav"), true);
+    pane->GetAllFiles(const_cast<char*>(".sav"), true);
 
     if (result == 0)
     {
         // "Game saved", closing by itself after three seconds.
         char text[256];
-        cLoadString(thisInstance, 0x76, text, 0xfe);
-        ReusableDialog* dialog = globalLogPtr->messageDialog;
-        dialog->setText(text);
-        dialog->setTwoButton(0);
-        dialog->callback = SaveWorkedCallback;
-        dialog->okButton->setUpPicture(const_cast<char*>("bh_okay.tga"));
-        dialog->okButton->setDownPicture(const_cast<char*>("bg_okay.tga"));
-        setDisabled(dialog->okButton, 0);
-        dialog->timeout = 3000;
-        dialog->activate();
-        destroyNameEntry(pane);
+        CLoadString(ThisInstance, 0x76, text, 0xfe);
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        dialog->SetText(text);
+        dialog->SetTwoButton(0);
+        dialog->Callback = SaveWorkedCallback;
+        dialog->OkButton->SetUpPicture(const_cast<char*>("bh_okay.tga"));
+        dialog->OkButton->SetDownPicture(const_cast<char*>("bg_okay.tga"));
+        SetDisabled(dialog->OkButton, 0);
+        dialog->Timeout = 3000;
+        dialog->Activate();
+        DestroyNameEntry(pane);
     }
 
-    soundSystem->playDigitalMusic(0x16, true);
+    SoundSystem->PlayDigitalMusic(0x16, true);
 }
 
 void ClearForSaveGameCallback()
 {
-    FileScrollPane* pane = globalLogPtr->saveScreen->filePane;
-    FullPathFileName fileName;
-    fileName.init(pane->startDirectory, pane->fileNames[pane->selectedFile], ".sav");
+    MCFileScrollPane* pane = GlobalLogPtr->SaveScreen->FilePane;
+    MCFullPathFileName fileName;
+    fileName.Init(pane->StartDirectory, pane->FileNames[pane->SelectedFile], ".sav");
 
     // The original cleared the file's read-only attribute first.
     if (MCFileSystem::RemoveFile(static_cast<char*>(fileName)))
@@ -857,37 +857,37 @@ void ClearForSaveGameCallback()
 
 void SaveGame()
 {
-    FileScrollPane* pane = globalLogPtr->saveScreen->filePane;
+    MCFileScrollPane* pane = GlobalLogPtr->SaveScreen->FilePane;
 
     if (pane == nullptr)
     {
         return;
     }
 
-    const int32_t selected = pane->selectedFile;
+    const int32_t selected = pane->SelectedFile;
 
-    if (selected < 0 || selected >= pane->numFiles)
+    if (selected < 0 || selected >= pane->NumFiles)
     {
         return;
     }
 
     // The name typed replaces the selected entry's.
-    lTextObject* entry = pane->nameEntry;
+    MCLogTextObject* entry = pane->NameEntry;
 
-    if (entry != nullptr && entry->parent == pane)
+    if (entry != nullptr && entry->Parent == pane)
     {
-        const char* typed = entry->buffer;
+        const char* typed = entry->Buffer;
 
         if (typed[0] == '\0')
         {
             typed = EmptyFile;
         }
 
-        globalLogPtr->logisticsBlocks->Free(pane->fileNames[selected]);
-        pane->fileNames[selected] = heapCopy(typed);
+        GlobalLogPtr->LogisticsBlocks->Free(pane->FileNames[selected]);
+        pane->FileNames[selected] = HeapCopy(typed);
     }
 
-    char** slot = &pane->fileNames[pane->selectedFile];
+    char** slot = &pane->FileNames[pane->SelectedFile];
 
     if (*slot == nullptr)
     {
@@ -897,21 +897,21 @@ void SaveGame()
     // The empty entry gets the first free default name.
     if (std::strcmp(EmptyFile, *slot) == 0)
     {
-        const char* directory = pane->startDirectory;
+        const char* directory = pane->StartDirectory;
 
         for (int32_t i = 0; i < 1000; i++)
         {
             char format[0x95];
-            cLoadString(thisInstance, 0x37c, format, 0x95);
+            CLoadString(ThisInstance, 0x37c, format, 0x95);
             char candidate[0x68];
             std::snprintf(candidate, sizeof(candidate), format, i);
-            FullPathFileName candidatePath;
-            candidatePath.init(directory, candidate, ".sav");
+            MCFullPathFileName candidatePath;
+            candidatePath.Init(directory, candidate, ".sav");
 
-            if (fileExists(candidatePath) == 0)
+            if (FileExists(candidatePath) == 0)
             {
-                globalLogPtr->logisticsBlocks->Free(*slot);
-                *slot = heapCopy(candidate);
+                GlobalLogPtr->LogisticsBlocks->Free(*slot);
+                *slot = HeapCopy(candidate);
                 break;
             }
         }
@@ -919,10 +919,10 @@ void SaveGame()
 
     // Port fix (OB-084): the original tested the old, freed name here (the empty entry's text); the name now in
     // the slot is tested instead.
-    FullPathFileName savePathName;
-    savePathName.init(pane->startDirectory, *slot, ".sav");
+    MCFullPathFileName savePathName;
+    savePathName.Init(pane->StartDirectory, *slot, ".sav");
 
-    if (fileExists(savePathName) == 0)
+    if (FileExists(savePathName) == 0)
     {
         SaveGameCallback();
         return;
@@ -930,300 +930,301 @@ void SaveGame()
 
     // Overwrite?
     char text[256];
-    cLoadString(thisInstance, 0x75, text, 0xfe);
-    ReusableDialog* dialog = globalLogPtr->messageDialog;
-    dialog->setText(text);
-    dialog->setTwoButton(1);
-    dialog->callback = nullptr;
-    dialog->okButton->setUpPicture(const_cast<char*>("bh_okay.tga"));
-    dialog->okButton->setDownPicture(const_cast<char*>("bg_okay.tga"));
-    dialog->okButton->callback()->setExec(ClearForSaveGameCallback);
-    dialog->cancelButton->setUpPicture(const_cast<char*>("bh_cancl.tga"));
-    dialog->cancelButton->setDownPicture(const_cast<char*>("bg_cancl.tga"));
-    dialog->activate();
+    CLoadString(ThisInstance, 0x75, text, 0xfe);
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    dialog->SetText(text);
+    dialog->SetTwoButton(1);
+    dialog->Callback = nullptr;
+    dialog->OkButton->SetUpPicture(const_cast<char*>("bh_okay.tga"));
+    dialog->OkButton->SetDownPicture(const_cast<char*>("bg_okay.tga"));
+    dialog->OkButton->Callback()->SetExec(ClearForSaveGameCallback);
+    dialog->CancelButton->SetUpPicture(const_cast<char*>("bh_cancl.tga"));
+    dialog->CancelButton->SetDownPicture(const_cast<char*>("bg_cancl.tga"));
+    dialog->Activate();
 }
 
 void DeleteCallbackTrue()
 {
-    FileScrollPane* pane = shownFilePane();
+    MCFileScrollPane* pane = ShownFilePane();
 
-    if (!hasSelection(pane))
+    if (!HasSelection(pane))
     {
         return;
     }
 
-    FullPathFileName fileName;
-    fileName.init(pane->startDirectory, pane->fileNames[pane->selectedFile], LoadingSolo == 0 ? ".sav" : ".sol");
+    MCFullPathFileName fileName;
+    fileName.Init(pane->StartDirectory, pane->FileNames[pane->SelectedFile], LoadingSolo == 0 ? ".sav" : ".sol");
     // The original cleared the file's read-only attribute first.
     MCFileSystem::RemoveFile(static_cast<char*>(fileName));
-    pane->setSelectedFile(-1);
+    pane->SetSelectedFile(-1);
 
     if (LoadingSolo == 0)
     {
-        globalLogPtr->loadScreen->filePane->getAllFiles(const_cast<char*>(".sav"), true);
-        globalLogPtr->saveScreen->filePane->getAllFiles(const_cast<char*>(".sav"), true);
+        GlobalLogPtr->LoadScreen->FilePane->GetAllFiles(const_cast<char*>(".sav"), true);
+        GlobalLogPtr->SaveScreen->FilePane->GetAllFiles(const_cast<char*>(".sav"), true);
     }
     else
     {
-        globalLogPtr->loadScreen->filePane->getAllFiles(const_cast<char*>(".sol"), true);
+        GlobalLogPtr->LoadScreen->FilePane->GetAllFiles(const_cast<char*>(".sol"), true);
     }
 }
 
 void DeleteCallbackFalse()
 {
-    FileScrollPane* pane = shownFilePane();
+    MCFileScrollPane* pane = ShownFilePane();
 
-    if (pane != nullptr && pane->nameEntry != nullptr)
+    if (pane != nullptr && pane->NameEntry != nullptr)
     {
-        destroyNameEntry(pane);
+        DestroyNameEntry(pane);
     }
 }
 
 void DeleteGame()
 {
-    FileScrollPane* pane = shownFilePane();
+    MCFileScrollPane* pane = ShownFilePane();
 
-    if (!hasSelection(pane))
+    if (!HasSelection(pane))
     {
         return;
     }
 
-    askQuestion(globalLogPtr->messageDialog, 0x74, DeleteCallbackTrue, DeleteCallbackFalse, "bg_cancl.tga", false);
-    destroyNameEntry(pane);
+    AskQuestion(GlobalLogPtr->MessageDialog, 0x74, DeleteCallbackTrue, DeleteCallbackFalse, "bg_cancl.tga", false);
+    DestroyNameEntry(pane);
 }
 
 void Cancel()
 {
-    if (globalLogPtr->currentScreen == globalLogPtr->mainScreen)
+    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen)
     {
         return;
     }
 
-    whackTimer = 1;
-    globalLogPtr->setUpMainScreen(1);
+    WhackTimer = 1;
+    GlobalLogPtr->SetUpMainScreen(1);
     LoadingSolo = 0;
 }
 
 void CancelToConnect()
 {
-    whackTimer = 1;
-    globalLogPtr->currentScreen->ShowGUIWindow(0);
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(1);
-    globalLogPtr->currentScreen = globalLogPtr->multiplayerScreen;
-    globalLogPtr->logisticsState = 10;
-    globalLogPtr->lanScreen->showBlock(0);
-    globalLogPtr->modemScreen->showBlock(0);
-    auto* games = element<GameList>(globalLogPtr->lanScreen, 2);
+    WhackTimer = 1;
+    GlobalLogPtr->CurrentScreen->ShowGuiWindow(0);
+    GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(1);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen;
+    GlobalLogPtr->LogisticsState = 10;
+    GlobalLogPtr->LanScreen->ShowBlock(0);
+    GlobalLogPtr->ModemScreen->ShowBlock(0);
+    auto* games = Element<MCGameList>(GlobalLogPtr->LanScreen, 2);
 
-    if (games->numSessions > -1)
+    if (games->NumSessions > -1)
     {
-        games->selectedSession = -1;
+        games->SelectedSession = -1;
         // Port fix (OB-085): the original copied sessions[-1] (the four list fields before the table) as the
         // selected GUID; no session is selected, so it is cleared.
-        games->selectedGuid = {};
+        games->SelectedGuid = {};
     }
 
     games->Clear();
-    element<lScrollTextObject>(globalLogPtr->lanScreen, 3)->Clear();
-    setDisabled(element<lButton>(globalLogPtr->lanScreen, 6), 1);
-    application->RemoveTimer(globalLogPtr->sessionScreen->team1RPText, 0);
-    application->RemoveTimer(globalLogPtr->sessionScreen->team1RPText, 0);
-    MPlayer->leaveSession();
-    delete globalLogPtr->playerLights;
-    globalLogPtr->playerLights = nullptr;
+    Element<MCLogScrollTextObject>(GlobalLogPtr->LanScreen, 3)->Clear();
+    SetDisabled(Element<MCLogButton>(GlobalLogPtr->LanScreen, 6), 1);
+    Application->RemoveTimer(GlobalLogPtr->SessionScreen->Team1RPText, 0);
+    Application->RemoveTimer(GlobalLogPtr->SessionScreen->Team1RPText, 0);
+    MPlayer->LeaveSession();
+    delete GlobalLogPtr->PlayerLights;
+    GlobalLogPtr->PlayerLights = nullptr;
 }
 
 void CancelToMPlayer()
 {
-    killTheGame();
+    KillTheGame();
 }
 
-void CancelToLAN()
+void CancelToLan()
 {
-    globalLogPtr->currentScreen->ShowGUIWindow(0);
-    globalLogPtr->lanScreen->ShowGUIWindow(1);
-    globalLogPtr->currentScreen = globalLogPtr->lanScreen;
-    globalLogPtr->logisticsState = 0xb;
-    globalLogPtr->lanScreen->showBlock(0);
-    auto* games = element<GameList>(globalLogPtr->lanScreen, 2);
+    GlobalLogPtr->CurrentScreen->ShowGuiWindow(0);
+    GlobalLogPtr->LanScreen->ShowGuiWindow(1);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen;
+    GlobalLogPtr->LogisticsState = 0xb;
+    GlobalLogPtr->LanScreen->ShowBlock(0);
+    auto* games = Element<MCGameList>(GlobalLogPtr->LanScreen, 2);
 
-    if (games->numSessions > -1)
+    if (games->NumSessions > -1)
     {
-        games->selectedSession = -1;
+        games->SelectedSession = -1;
         // Port fix (OB-085): see CancelToConnect.
-        games->selectedGuid = {};
+        games->SelectedGuid = {};
     }
 }
 
 void CancelToSession()
 {
-    MCSplashScreen* loadScreen = globalLogPtr->loadScreen;
-    loadScreen->cancelButton->callback()->setExec(Cancel);
-    loadScreen->loadSaveButton->callback()->setExec(LoadGame);
-    loadScreen->filePane->setMultiplayer(0);
-    globalLogPtr->currentScreen->ShowGUIWindow(0);
-    globalLogPtr->currentScreen = globalLogPtr->sessionScreen;
-    globalLogPtr->logisticsState = 8;
-    globalLogPtr->showLogScreen(1, 1);
+    MCSplashScreen* loadScreen = GlobalLogPtr->LoadScreen;
+    loadScreen->CancelButton->Callback()->SetExec(Cancel);
+    loadScreen->LoadSaveButton->Callback()->SetExec(LoadGame);
+    loadScreen->FilePane->SetMultiplayer(0);
+    GlobalLogPtr->CurrentScreen->ShowGuiWindow(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->SessionScreen;
+    GlobalLogPtr->LogisticsState = 8;
+    GlobalLogPtr->ShowLogScreen(1, 1);
 }
 
 void ShowModemScreen()
 {
     if (MPlayer != nullptr)
     {
-        GenericScreen* screen = globalLogPtr->modemScreen;
-        auto* modems = element<lScrollTextObject>(screen, 10);
+        MCGenericScreen* screen = GlobalLogPtr->ModemScreen;
+        auto* modems = Element<MCLogScrollTextObject>(screen, 10);
         char name[0x40];
-        const bool known = userName(name, 0x3f);
-        element<lTextObject>(screen, 4)->setStringBuffer(known ? name : const_cast<char*>("Player"));
-        MPlayer->sessionManager->FindModems();
+        const bool known = UserName(name, 0x3f);
+        Element<MCLogTextObject>(screen, 4)->SetStringBuffer(known ? name : const_cast<char*>("Player"));
+        MPlayer->SessionManager->FindModems();
         // The list is refilled with the modems found, keeping its selection.
-        const int32_t selected = modems->highlightLine[0];
+        const int32_t selected = modems->HighlightLine[0];
         modems->Clear();
-        modems->highlightLine[0] = selected;
+        modems->HighlightLine[0] = selected;
 
         for (int32_t i = 0;; i++)
         {
-            char* modem = MPlayer->sessionManager->GetModemName(i);
+            char* modem = MPlayer->SessionManager->GetModemName(i);
 
             if (modem == nullptr)
             {
                 break;
             }
 
-            element<lScrollTextObject>(globalLogPtr->modemScreen, 10)->Print(modem, 0x1f);
+            Element<MCLogScrollTextObject>(GlobalLogPtr->ModemScreen, 10)->Print(modem, 0x1f);
         }
     }
 
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(0);
-    globalLogPtr->currentScreen = globalLogPtr->modemScreen;
-    globalLogPtr->modemScreen->ShowGUIWindow(1);
-    globalLogPtr->logisticsState = 0xc;
-    globalLogPtr->modemScreen->showBlock(0);
+    GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->ModemScreen;
+    GlobalLogPtr->ModemScreen->ShowGuiWindow(1);
+    GlobalLogPtr->LogisticsState = 0xc;
+    GlobalLogPtr->ModemScreen->ShowBlock(0);
 }
 
 void ShowSerialScreen()
 {
     char name[0x40];
-    const bool known = userName(name, 0x3f);
-    element<lTextObject>(globalLogPtr->serialScreen, 4)->setStringBuffer(known ? name : const_cast<char*>("Player"));
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(0);
-    globalLogPtr->currentScreen = globalLogPtr->serialScreen;
-    globalLogPtr->serialScreen->ShowGUIWindow(1);
-    globalLogPtr->logisticsState = 0xd;
-    application->setText(globalLogPtr->serialScreen->elements[4]);
+    const bool known = UserName(name, 0x3f);
+    Element<MCLogTextObject>(GlobalLogPtr->SerialScreen, 4)
+        ->SetStringBuffer(known ? name : const_cast<char*>("Player"));
+    GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->SerialScreen;
+    GlobalLogPtr->SerialScreen->ShowGuiWindow(1);
+    GlobalLogPtr->LogisticsState = 0xd;
+    Application->SetText(GlobalLogPtr->SerialScreen->Elements[4]);
 }
 
-void DoTheIPXThang()
+void DoTheIpxThang()
 {
-    if (MPlayer != nullptr && MPlayer->sessionManager != nullptr)
+    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
     {
-        MPlayer->sessionManager->ConnectIPX();
+        MPlayer->SessionManager->ConnectIpx();
     }
 
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(0);
-    globalLogPtr->lanScreen->ShowGUIWindow(1);
-    globalLogPtr->lanScreen->showBlock(0);
-    globalLogPtr->currentScreen = globalLogPtr->lanScreen;
-    globalLogPtr->logisticsState = 0xb;
-    application->setText(globalLogPtr->lanScreen->elements[4]);
+    GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(0);
+    GlobalLogPtr->LanScreen->ShowGuiWindow(1);
+    GlobalLogPtr->LanScreen->ShowBlock(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen;
+    GlobalLogPtr->LogisticsState = 0xb;
+    Application->SetText(GlobalLogPtr->LanScreen->Elements[4]);
 }
 
-void DoTheTCPThang()
+void DoTheTcpThang()
 {
-    if (MPlayer != nullptr && MPlayer->sessionManager != nullptr)
+    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
     {
-        MPlayer->sessionManager->ConnectTCP(const_cast<char*>(""));
+        MPlayer->SessionManager->ConnectTcp(const_cast<char*>(""));
     }
 
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(0);
-    globalLogPtr->lanScreen->ShowGUIWindow(1);
-    globalLogPtr->lanScreen->showBlock(0);
-    globalLogPtr->currentScreen = globalLogPtr->lanScreen;
-    globalLogPtr->logisticsState = 0xb;
-    application->setText(globalLogPtr->lanScreen->elements[4]);
+    GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(0);
+    GlobalLogPtr->LanScreen->ShowGuiWindow(1);
+    GlobalLogPtr->LanScreen->ShowBlock(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen;
+    GlobalLogPtr->LogisticsState = 0xb;
+    Application->SetText(GlobalLogPtr->LanScreen->Elements[4]);
 }
 
-void TCPIPXDialogCallback(int32_t result)
+void TcpipxDialogCallback(int32_t result)
 {
     if (result == 1)
     {
-        DoTheIPXThang();
+        DoTheIpxThang();
         return;
     }
 
     if (result == 2)
     {
-        DoTheTCPThang();
+        DoTheTcpThang();
     }
 }
 
-void CallDoTheIPXThang(int32_t)
+void CallDoTheIpxThang(int32_t)
 {
-    DoTheIPXThang();
+    DoTheIpxThang();
 }
 
-void CallDoTheTCPThang(int32_t)
+void CallDoTheTcpThang(int32_t)
 {
-    DoTheTCPThang();
+    DoTheTcpThang();
 }
 
-void ShowLANScreen()
+void ShowLanScreen()
 {
-    GenericScreen* screen = globalLogPtr->lanScreen;
+    MCGenericScreen* screen = GlobalLogPtr->LanScreen;
     char name[0x40];
     const char* gameName;
     char game[0x200];
 
-    if (!userName(name, 0x3f))
+    if (!UserName(name, 0x3f))
     {
-        element<lTextObject>(screen, 4)->setStringBuffer(const_cast<char*>("Player"));
+        Element<MCLogTextObject>(screen, 4)->SetStringBuffer(const_cast<char*>("Player"));
         gameName = "Game";
     }
     else
     {
-        element<lTextObject>(screen, 4)->setStringBuffer(name);
+        Element<MCLogTextObject>(screen, 4)->SetStringBuffer(name);
         char format[256];
-        cLoadString(thisInstance, 0x377, format, 0xfe);
+        CLoadString(ThisInstance, 0x377, format, 0xfe);
         std::snprintf(game, sizeof(game), format, name);
-        element<lTextObject>(globalLogPtr->lanScreen, 10)->initBuffer(0x18, 0);
+        Element<MCLogTextObject>(GlobalLogPtr->LanScreen, 10)->InitBuffer(0x18, 0);
         gameName = game;
     }
 
-    element<lTextObject>(globalLogPtr->lanScreen, 10)->setStringBuffer(const_cast<char*>(gameName));
+    Element<MCLogTextObject>(GlobalLogPtr->LanScreen, 10)->SetStringBuffer(const_cast<char*>(gameName));
 
     // Both protocols: ask which; else say which one is used.
-    SessionManager* manager = MPlayer->sessionManager;
+    MCSessionManager* manager = MPlayer->SessionManager;
 
-    if (manager->isIPXAvailable() != 0 && manager->isTCPAvailable() != 0)
+    if (manager->IsIpxAvailable() != 0 && manager->IsTcpAvailable() != 0)
     {
         char text[256];
-        cLoadString(thisInstance, 0xa6, text, 0xfe);
-        ReusableDialog* dialog = globalLogPtr->messageDialog;
-        dialog->setText(text);
-        dialog->setTwoButton(1);
-        dialog->callback = TCPIPXDialogCallback;
-        dialog->okButton->setUpPicture(const_cast<char*>("bh_ipx.tga"));
-        dialog->okButton->setDownPicture(const_cast<char*>("bg_ipx.tga"));
-        setDisabled(dialog->okButton, 0);
-        dialog->okButton->result = 1;
-        dialog->cancelButton->setUpPicture(const_cast<char*>("bh_tcp.tga"));
-        dialog->cancelButton->setDownPicture(const_cast<char*>("bg_tcp.tga"));
-        setDisabled(dialog->cancelButton, 0);
-        dialog->cancelButton->result = 2;
-        dialog->activate();
+        CLoadString(ThisInstance, 0xa6, text, 0xfe);
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        dialog->SetText(text);
+        dialog->SetTwoButton(1);
+        dialog->Callback = TcpipxDialogCallback;
+        dialog->OkButton->SetUpPicture(const_cast<char*>("bh_ipx.tga"));
+        dialog->OkButton->SetDownPicture(const_cast<char*>("bg_ipx.tga"));
+        SetDisabled(dialog->OkButton, 0);
+        dialog->OkButton->Result = 1;
+        dialog->CancelButton->SetUpPicture(const_cast<char*>("bh_tcp.tga"));
+        dialog->CancelButton->SetDownPicture(const_cast<char*>("bg_tcp.tga"));
+        SetDisabled(dialog->CancelButton, 0);
+        dialog->CancelButton->Result = 2;
+        dialog->Activate();
         return;
     }
 
-    if (manager->isIPXAvailable() != 0)
+    if (manager->IsIpxAvailable() != 0)
     {
-        showMessage(0x36f, CallDoTheIPXThang);
+        ShowMessage(0x36f, CallDoTheIpxThang);
         return;
     }
 
-    if (manager->isTCPAvailable() != 0)
+    if (manager->IsTcpAvailable() != 0)
     {
-        showMessage(0x36e, CallDoTheTCPThang);
+        ShowMessage(0x36e, CallDoTheTcpThang);
     }
 }
 
@@ -1231,81 +1232,81 @@ void DoExitToZone1()
 {
     // Port: the original started the Internet Gaming Zone's launcher (zonea502.exe, from the registry) or the web
     // browser on the Zone's MechCommander page; the Zone is gone, so nothing is started. It then quit, as here.
-    killTheGame();
+    KillTheGame();
 }
 
 void DoExitToZone()
 {
-    askQuestion(globalLogPtr->questionDialog, 0x4e9, DoExitToZone1, nullptr, "bh_cancl.tga", true);
+    AskQuestion(GlobalLogPtr->QuestionDialog, 0x4e9, DoExitToZone1, nullptr, "bh_cancl.tga", true);
 }
 
 void DoExitToMplayer()
 {
     // Port: the original started mplaynow.exe (the Mplayer.com lobby, long gone) and quit; the port takes the path
     // of a failed start: the error message.
-    showMessage(0x353, nullptr);
+    ShowMessage(0x353, nullptr);
 }
 
 void ShowInternet()
 {
-    askQuestion(globalLogPtr->messageDialog, 0x352, DoExitToMplayer, DoExitToZone, "bh_cancl.tga", true);
+    AskQuestion(GlobalLogPtr->MessageDialog, 0x352, DoExitToMplayer, DoExitToZone, "bh_cancl.tga", true);
 }
 
 void HostGame()
 {
-    GenericScreen* screen = globalLogPtr->lanScreen;
-    char* playerName = elementText(screen, 4);
+    MCGenericScreen* screen = GlobalLogPtr->LanScreen;
+    char* playerName = ElementText(screen, 4);
     SaveUserName(playerName);
-    globalLogPtr->lanScreen->showBlock(1);
-    application->setText(globalLogPtr->lanScreen->elements[11]);
+    GlobalLogPtr->LanScreen->ShowBlock(1);
+    Application->SetText(GlobalLogPtr->LanScreen->Elements[11]);
     char format[256];
-    cLoadString(thisInstance, 0x377, format, 0xfe);
+    CLoadString(ThisInstance, 0x377, format, 0xfe);
     char game[0x200];
     std::snprintf(game, sizeof(game), format, playerName);
-    element<lTextObject>(globalLogPtr->lanScreen, 10)->setStringBuffer(game);
+    Element<MCLogTextObject>(GlobalLogPtr->LanScreen, 10)->SetStringBuffer(game);
 }
 
 void ResetReadyRoom()
 {
-    aEvent event;
-    event.clear();
-    event.type = 0x13;
-    event.data = 0;
-    ReadyRoomPlayerListHandleEvent(globalLogPtr->connectScreen->elements[3], &event);
-    event.clear();
-    event.type = 0x1e;
-    event.data = 4;
-    PlayerListHandleEvent(globalLogPtr->lanScreen->elements[3], &event);
+    MCGuiEvent event;
+    event.Clear();
+    event.Type = 0x13;
+    event.Data = 0;
+    ReadyRoomPlayerListHandleEvent(GlobalLogPtr->ConnectScreen->Elements[3], &event);
+    event.Clear();
+    event.Type = 0x1e;
+    event.Data = 4;
+    PlayerListHandleEvent(GlobalLogPtr->LanScreen->Elements[3], &event);
 }
 
 void JoinGame()
 {
-    if (MPlayer == nullptr || MPlayer->sessionManager == nullptr)
+    if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)
     {
         return;
     }
 
-    SessionManager* manager = MPlayer->sessionManager;
-    _GUID* game = element<GameList>(globalLogPtr->lanScreen, 2)->getSelectedGame();
+    MCSessionManager* manager = MPlayer->SessionManager;
+    _GUID* game = Element<MCGameList>(GlobalLogPtr->LanScreen, 2)->GetSelectedGame();
 
     if (game != nullptr)
     {
-        FIDPSession* session = manager->FindMatchingSession(game);
+        MCFidpSession* session = manager->FindMatchingSession(game);
 
         if (session != nullptr)
         {
-            char* playerName = elementText(globalLogPtr->lanScreen, 4);
+            char* playerName = ElementText(GlobalLogPtr->LanScreen, 4);
             SaveUserName(playerName);
 
-            if (session->sessionDesc.dwCurrentPlayers < session->sessionDesc.dwMaxPlayers)
+            if (session->SessionDesc.dwCurrentPlayers < session->SessionDesc.dwMaxPlayers)
             {
-                const int32_t result = manager->JoinSession(&session->sessionDesc.guidInstance, playerName);
-                countLANPlayers();
+                const int32_t result = manager->JoinSession(&session->SessionDesc.guidInstance, playerName);
+                CountLanPlayers();
 
                 if (result == 0)
                 {
-                    enterReadyRoom(globalLogPtr->lanScreen, 1);
-                    readyRoomTicks = 0;
+                    EnterReadyRoom(GlobalLogPtr->LanScreen, 1);
+                    ReadyRoomTicks = 0;
                     ResetReadyRoom();
                     return;
                 }
@@ -1314,15 +1315,15 @@ void JoinGame()
     }
 
     // The game can't be joined.
-    showMessage(0xa7, nullptr);
+    ShowMessage(0xa7, nullptr);
 }
 
 void CreateSession()
 {
-    if (MPlayer != nullptr && MPlayer->sessionManager != nullptr)
+    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
     {
-        char* sessionName = elementText(globalLogPtr->lanScreen, 10);
-        int32_t maxPlayers = std::atoi(elementText(globalLogPtr->lanScreen, 11));
+        char* sessionName = ElementText(GlobalLogPtr->LanScreen, 10);
+        int32_t maxPlayers = std::atoi(ElementText(GlobalLogPtr->LanScreen, 11));
 
         if (maxPlayers < 2)
         {
@@ -1333,25 +1334,25 @@ void CreateSession()
             maxPlayers = 6;
         }
 
-        MPlayer->createSession(sessionName, elementText(globalLogPtr->lanScreen, 4), maxPlayers);
+        MPlayer->CreateSession(sessionName, ElementText(GlobalLogPtr->LanScreen, 4), maxPlayers);
     }
 
-    globalLogPtr->lanScreen->ShowGUIWindow(0);
-    globalLogPtr->connectScreen->ShowGUIWindow(1);
-    readyRoomTicks = 0;
-    globalLogPtr->currentScreen = globalLogPtr->connectScreen;
-    globalLogPtr->logisticsState = 0xe;
+    GlobalLogPtr->LanScreen->ShowGuiWindow(0);
+    GlobalLogPtr->ConnectScreen->ShowGuiWindow(1);
+    ReadyRoomTicks = 0;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen;
+    GlobalLogPtr->LogisticsState = 0xe;
     ResetReadyRoom();
 }
 
 void CreateSerialSession()
 {
-    if (MPlayer == nullptr || MPlayer->sessionManager == nullptr)
+    if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)
     {
         return;
     }
 
-    char* portText = elementText(globalLogPtr->serialScreen, 5);
+    char* portText = ElementText(GlobalLogPtr->SerialScreen, 5);
 
     if (portText == nullptr)
     {
@@ -1365,13 +1366,13 @@ void CreateSerialSession()
         return;
     }
 
-    MPlayer->sessionManager->ConnectComPort(port, 0xe100, 0, 0, 4);
-    char* playerName = elementText(globalLogPtr->serialScreen, 4);
+    MPlayer->SessionManager->ConnectComPort(port, 0xe100, 0, 0, 4);
+    char* playerName = ElementText(GlobalLogPtr->SerialScreen, 4);
     SaveUserName(playerName);
 
-    if (MPlayer->createSession(const_cast<char*>("SerialGame"), playerName, 2) == 0)
+    if (MPlayer->CreateSession(const_cast<char*>("SerialGame"), playerName, 2) == 0)
     {
-        enterReadyRoom(globalLogPtr->serialScreen, -1);
+        EnterReadyRoom(GlobalLogPtr->SerialScreen, -1);
     }
 }
 
@@ -1382,9 +1383,9 @@ void SerialJoinButtonPressed()
         return;
     }
 
-    SaveUserName(elementText(globalLogPtr->serialScreen, 4));
-    whackTimer = 1;
-    char* portText = elementText(globalLogPtr->serialScreen, 5);
+    SaveUserName(ElementText(GlobalLogPtr->SerialScreen, 4));
+    WhackTimer = 1;
+    char* portText = ElementText(GlobalLogPtr->SerialScreen, 5);
 
     if (portText == nullptr)
     {
@@ -1394,7 +1395,7 @@ void SerialJoinButtonPressed()
     const auto port = static_cast<uint32_t>(std::atoi(portText));
 
     if (static_cast<int32_t>(port) > 0 && static_cast<int32_t>(port) < 5 &&
-        MPlayer->sessionManager->ConnectComPort(port, 0xe100, 0, 0, 4) == 0)
+        MPlayer->SessionManager->ConnectComPort(port, 0xe100, 0, 0, 4) == 0)
     {
         JoinSerialSession();
     }
@@ -1407,42 +1408,42 @@ void JoinSerialSession()
         return;
     }
 
-    if (MPlayer->joinSession(const_cast<char*>("SerialGame"), elementText(globalLogPtr->serialScreen, 4)) != 0)
+    if (MPlayer->JoinSession(const_cast<char*>("SerialGame"), ElementText(GlobalLogPtr->SerialScreen, 4)) != 0)
     {
         // No game yet: try again in a second, with a way out.
-        application->AddTimer(globalLogPtr->serialScreen, 0, 1000, 0, 0, 0);
-        whackTimer = 0;
+        Application->AddTimer(GlobalLogPtr->SerialScreen, 0, 1000, 0, 0, 0);
+        WhackTimer = 0;
         char text[256];
-        cLoadString(thisInstance, 0xb1, text, 0xfe);
-        ReusableDialog* dialog = globalLogPtr->messageDialog;
-        dialog->setText(text);
-        dialog->setTwoButton(0);
-        dialog->callback = nullptr;
-        dialog->okButton->setUpPicture(const_cast<char*>("bh_cancl.tga"));
-        dialog->okButton->setDownPicture(const_cast<char*>("bg_cancl.tga"));
-        dialog->okButton->callback()->setExec(CancelToConnect);
-        dialog->activate();
+        CLoadString(ThisInstance, 0xb1, text, 0xfe);
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        dialog->SetText(text);
+        dialog->SetTwoButton(0);
+        dialog->Callback = nullptr;
+        dialog->OkButton->SetUpPicture(const_cast<char*>("bh_cancl.tga"));
+        dialog->OkButton->SetDownPicture(const_cast<char*>("bg_cancl.tga"));
+        dialog->OkButton->Callback()->SetExec(CancelToConnect);
+        dialog->Activate();
         return;
     }
 
-    countLANPlayers();
-    enterReadyRoom(globalLogPtr->serialScreen, 1);
-    globalLogPtr->messageDialog->deactivate(0);
+    CountLanPlayers();
+    EnterReadyRoom(GlobalLogPtr->SerialScreen, 1);
+    GlobalLogPtr->MessageDialog->Deactivate(0);
 }
 
 void JoinModemSession()
 {
-    if (MPlayer->joinSession(const_cast<char*>("MC Modem Game"), elementText(globalLogPtr->modemScreen, 4)) != 0)
+    if (MPlayer->JoinSession(const_cast<char*>("MC Modem Game"), ElementText(GlobalLogPtr->ModemScreen, 4)) != 0)
     {
-        application->AddTimer(globalLogPtr->modemScreen, 1, 1000, 0, 0, 0);
-        whackTimer = 0;
+        Application->AddTimer(GlobalLogPtr->ModemScreen, 1, 1000, 0, 0, 0);
+        WhackTimer = 0;
         return;
     }
 
-    countLANPlayers();
-    enterReadyRoom(globalLogPtr->modemScreen, 1);
-    globalLogPtr->messageDialog->deactivate(0);
-    whackTimer = 1;
+    CountLanPlayers();
+    EnterReadyRoom(GlobalLogPtr->ModemScreen, 1);
+    GlobalLogPtr->MessageDialog->Deactivate(0);
+    WhackTimer = 1;
 }
 
 int32_t DialModemSession()
@@ -1452,8 +1453,8 @@ int32_t DialModemSession()
         return -1;
     }
 
-    SaveUserName(elementText(globalLogPtr->modemScreen, 4));
-    const int32_t result = MPlayer->sessionManager->Dial();
+    SaveUserName(ElementText(GlobalLogPtr->ModemScreen, 4));
+    const int32_t result = MPlayer->SessionManager->Dial();
 
     if (result == 0)
     {
@@ -1461,8 +1462,8 @@ int32_t DialModemSession()
         return 0;
     }
 
-    application->AddTimer(globalLogPtr->modemScreen, 0, 1000, 0, 0, 0);
-    whackTimer = 0;
+    Application->AddTimer(GlobalLogPtr->ModemScreen, 0, 1000, 0, 0, 0);
+    WhackTimer = 0;
     // 2 while the line is still dialling (DirectPlay's DPERR_CONNECTING, 0x8877015e), else 1.
     return (result == static_cast<int32_t>(0x8877015e)) ? 2 : 1;
 }
@@ -1470,15 +1471,15 @@ int32_t DialModemSession()
 void AllGoneCallback(int32_t)
 {
     char text[256];
-    cLoadString(thisInstance, 0xbb, text, 0xfe);
-    ReusableDialog* dialog = globalLogPtr->messageDialog;
-    dialog->setText(text);
-    dialog->setTwoButton(0);
-    dialog->callback = nullptr;
-    dialog->okButton->setUpPicture(const_cast<char*>("bh_okay.tga"));
-    dialog->okButton->setDownPicture(const_cast<char*>("bg_okay.tga"));
-    dialog->okButton->callback()->setExec(nullptr);
-    dialog->activate();
+    CLoadString(ThisInstance, 0xbb, text, 0xfe);
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    dialog->SetText(text);
+    dialog->SetTwoButton(0);
+    dialog->Callback = nullptr;
+    dialog->OkButton->SetUpPicture(const_cast<char*>("bh_okay.tga"));
+    dialog->OkButton->SetDownPicture(const_cast<char*>("bg_okay.tga"));
+    dialog->OkButton->Callback()->SetExec(nullptr);
+    dialog->Activate();
 }
 
 void GOCallback()
@@ -1488,30 +1489,30 @@ void GOCallback()
         return;
     }
 
-    globalLogPtr->currentScreen->ShowGUIWindow(0);
-    globalLogPtr->currentScreen = globalLogPtr->sessionScreen;
-    globalLogPtr->showLogScreen(1, 1);
-    globalLogPtr->logisticsState = 8;
-    globalLogPtr->sessionScreen->activate(0);
+    GlobalLogPtr->CurrentScreen->ShowGuiWindow(0);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->SessionScreen;
+    GlobalLogPtr->ShowLogScreen(1, 1);
+    GlobalLogPtr->LogisticsState = 8;
+    GlobalLogPtr->SessionScreen->Activate(0);
 
     if (MPlayer != nullptr)
     {
-        MPlayer->sessionManager->LockSession();
+        MPlayer->SessionManager->LockSession();
         return;
     }
 
-    globalLogPtr->messageDialog->callback = AllGoneCallback;
+    GlobalLogPtr->MessageDialog->Callback = AllGoneCallback;
 }
 
-void GO()
+void Go()
 {
-    if (MPlayer == nullptr || MPlayer->sessionManager == nullptr)
+    if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)
     {
         return;
     }
 
-    SessionManager* manager = MPlayer->sessionManager;
-    FIDPSession* session = manager->currentSession;
+    MCSessionManager* manager = MPlayer->SessionManager;
+    MCFidpSession* session = manager->CurrentSession;
 
     if (session == nullptr)
     {
@@ -1519,11 +1520,11 @@ void GO()
     }
 
     int32_t maxPlayers;
-    const int32_t connection = manager->currentConnection;
+    const int32_t connection = manager->CurrentConnection;
 
     if (connection == 2 || connection == 1)
     {
-        maxPlayers = std::atoi(elementText(globalLogPtr->lanScreen, 11));
+        maxPlayers = std::atoi(ElementText(GlobalLogPtr->LanScreen, 11));
 
         if (maxPlayers < 2)
         {
@@ -1539,7 +1540,7 @@ void GO()
         maxPlayers = connection == 0x10 ? 6 : 2;
     }
 
-    const uint32_t players = session->sessionDesc.dwCurrentPlayers;
+    const uint32_t players = session->SessionDesc.dwCurrentPlayers;
     Assert(static_cast<int32_t>(players) <= maxPlayers, players, " How'd we get too many players? ", nullptr);
     GOCallback();
 }
@@ -1550,64 +1551,64 @@ void Leave()
 
 void WaitForCall()
 {
-    if (MPlayer != nullptr && MPlayer->sessionManager != nullptr)
+    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
     {
-        auto* modems = element<lScrollTextObject>(globalLogPtr->modemScreen, 10);
+        auto* modems = Element<MCLogScrollTextObject>(GlobalLogPtr->ModemScreen, 10);
         char modem[256];
 
-        if (modems->getTextLine(modems->highlightLine[0] + 1, modem, 0xff) != 0)
+        if (modems->GetTextLine(modems->HighlightLine[0] + 1, modem, 0xff) != 0)
         {
-            MPlayer->sessionManager->ConnectModem(const_cast<char*>(""), modem);
-            char* playerName = elementText(globalLogPtr->modemScreen, 4);
+            MPlayer->SessionManager->ConnectModem(const_cast<char*>(""), modem);
+            char* playerName = ElementText(GlobalLogPtr->ModemScreen, 4);
             SaveUserName(playerName);
-            MPlayer->createSession(const_cast<char*>("MC Modem Game"), playerName, 2);
+            MPlayer->CreateSession(const_cast<char*>("MC Modem Game"), playerName, 2);
         }
     }
 
-    element<lTextObject>(globalLogPtr->lanScreen, 11)->initBuffer(2, 1);
-    globalLogPtr->modemScreen->ShowGUIWindow(0);
-    setDisabled(element<lButton>(globalLogPtr->connectScreen, 2), 0);
-    globalLogPtr->connectScreen->ShowGUIWindow(1);
-    globalLogPtr->currentScreen = globalLogPtr->connectScreen;
-    globalLogPtr->logisticsState = 0xe;
-    application->setText(globalLogPtr->modemScreen->elements[4]);
-    application->AddTimer(globalLogPtr->modemScreen->elements[4], 0, MCPort::CaretBlinkTime(), 0, 0, 0);
+    Element<MCLogTextObject>(GlobalLogPtr->LanScreen, 11)->InitBuffer(2, 1);
+    GlobalLogPtr->ModemScreen->ShowGuiWindow(0);
+    SetDisabled(Element<MCLogButton>(GlobalLogPtr->ConnectScreen, 2), 0);
+    GlobalLogPtr->ConnectScreen->ShowGuiWindow(1);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen;
+    GlobalLogPtr->LogisticsState = 0xe;
+    Application->SetText(GlobalLogPtr->ModemScreen->Elements[4]);
+    Application->AddTimer(GlobalLogPtr->ModemScreen->Elements[4], 0, MCPort::CaretBlinkTime(), 0, 0, 0);
 }
 
 void GetNumber()
 {
-    application->setText(globalLogPtr->modemScreen->elements[5]);
-    globalLogPtr->modemScreen->showBlock(1);
+    Application->SetText(GlobalLogPtr->ModemScreen->Elements[5]);
+    GlobalLogPtr->ModemScreen->ShowBlock(1);
 }
 
 void CancelDial()
 {
-    whackTimer = 1;
+    WhackTimer = 1;
 
     if (MPlayer != nullptr)
     {
-        MPlayer->sessionManager->CancelDialing();
+        MPlayer->SessionManager->CancelDialing();
     }
 }
 
 void Dial()
 {
-    GenericScreen* screen = globalLogPtr->modemScreen;
-    auto* modems = element<lScrollTextObject>(screen, 10);
+    MCGenericScreen* screen = GlobalLogPtr->ModemScreen;
+    auto* modems = Element<MCLogScrollTextObject>(screen, 10);
 
-    if (MPlayer == nullptr || MPlayer->sessionManager == nullptr)
+    if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)
     {
         return;
     }
 
     char modem[512];
 
-    if (modems->getTextLine(modems->highlightLine[0] + 1, modem, 0xff) == 0)
+    if (modems->GetTextLine(modems->HighlightLine[0] + 1, modem, 0xff) == 0)
     {
         return;
     }
 
-    MPlayer->sessionManager->ConnectModem(elementText(screen, 5), modem);
+    MPlayer->SessionManager->ConnectModem(ElementText(screen, 5), modem);
     const int32_t result = DialModemSession();
     Assert(result != 1, 0, "Not currently connected to a modem", nullptr);
 
@@ -1615,31 +1616,31 @@ void Dial()
     {
         case 0:
         {
-            enterReadyRoom(globalLogPtr->modemScreen, 1);
+            EnterReadyRoom(GlobalLogPtr->ModemScreen, 1);
             return;
         }
         case 1:
         case 3:
         {
-            showMessage(0xb3, nullptr);
+            ShowMessage(0xb3, nullptr);
             return;
         }
         case 2:
         {
             // Still dialling: check again in a second; the button cancels.
-            application->AddTimer(globalLogPtr->modemScreen, 0, 1000, 0, 0, 0);
-            whackTimer = 0;
+            Application->AddTimer(GlobalLogPtr->ModemScreen, 0, 1000, 0, 0, 0);
+            WhackTimer = 0;
             char text[256];
-            cLoadString(thisInstance, 0xb2, text, 0xfe);
-            ReusableDialog* dialog = globalLogPtr->messageDialog;
-            dialog->setText(text);
-            dialog->setTwoButton(0);
-            dialog->callback = nullptr;
-            dialog->okButton->setUpPicture(const_cast<char*>("bh_cancl.tga"));
-            dialog->okButton->setDownPicture(const_cast<char*>("bg_cancl.tga"));
-            setDisabled(dialog->okButton, 0);
-            dialog->okButton->callback()->setExec(CancelDial);
-            dialog->activate();
+            CLoadString(ThisInstance, 0xb2, text, 0xfe);
+            MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+            dialog->SetText(text);
+            dialog->SetTwoButton(0);
+            dialog->Callback = nullptr;
+            dialog->OkButton->SetUpPicture(const_cast<char*>("bh_cancl.tga"));
+            dialog->OkButton->SetDownPicture(const_cast<char*>("bg_cancl.tga"));
+            SetDisabled(dialog->OkButton, 0);
+            dialog->OkButton->Callback()->SetExec(CancelDial);
+            dialog->Activate();
             return;
         }
 
@@ -1648,220 +1649,221 @@ void Dial()
     }
 }
 
-void ImageHandleEvent(aObject* object, aEvent* event)
+void ImageHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (object->parent != nullptr)
+    if (object->Parent != nullptr)
     {
-        object->parent->handleEvent(event);
+        object->Parent->HandleEvent(event);
     }
 }
 
-void ModemListHandleEvent(aObject* object, aEvent* event)
+void ModemListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 1)
+    if (event->Type != 1)
     {
         return;
     }
 
     // A click picks the modem on the line under the mouse.
-    auto* list = static_cast<lScrollTextObject*>(object);
-    const int32_t lineHeight = fonts[0][list->fontIndex]->height();
-    const int32_t line = (list->firstPixel + event->y - list->globalY()) / (lineHeight + 4);
+    auto* list = static_cast<MCLogScrollTextObject*>(object);
+    const int32_t lineHeight = Fonts[0][list->FontIndex]->Height();
+    const int32_t line = (list->FirstPixel + event->Y - list->GlobalY()) / (lineHeight + 4);
 
-    if (list->getTextLine(line + 1, nullptr, 0) != 0)
+    if (list->GetTextLine(line + 1, nullptr, 0) != 0)
     {
-        list->highlightLine[0] = line;
+        list->HighlightLine[0] = line;
     }
 }
 
-void PlayerListHandleEvent(aObject* object, aEvent* event)
+void PlayerListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 0x1e)
+    if (event->Type != 0x1e)
     {
         return;
     }
 
-    auto* list = static_cast<lScrollTextObject*>(object);
+    auto* list = static_cast<MCLogScrollTextObject*>(object);
 
-    if (event->data == 3)
+    if (event->Data == 3)
     {
         // A game was picked: list its players.
-        if (object->parent == nullptr || MPlayer == nullptr)
+        if (object->Parent == nullptr || MPlayer == nullptr)
         {
             return;
         }
 
-        if (MPlayer->sessionManager != nullptr)
+        if (MPlayer->SessionManager != nullptr)
         {
-            auto* games = element<GameList>(static_cast<GenericScreen*>(object->parent), 2);
+            auto* games = Element<MCGameList>(static_cast<MCGenericScreen*>(object->Parent), 2);
             list->Clear();
 
-            if (games != nullptr && games->selectedSession > -1)
+            if (games != nullptr && games->SelectedSession > -1)
             {
-                FIDPSession* session = MPlayer->sessionManager->FindMatchingSession(games->getSelectedGame());
-                FLinkedList<FIDPPlayer>* players =
-                    session != nullptr ? MPlayer->sessionManager->GetPlayers(session) : nullptr;
+                MCFidpSession* session = MPlayer->SessionManager->FindMatchingSession(games->GetSelectedGame());
+                MCFLinkedList<MCFidpPlayer>* players =
+                    session != nullptr ? MPlayer->SessionManager->GetPlayers(session) : nullptr;
 
                 if (players != nullptr)
                 {
-                    const int32_t count = players->count;
-                    players->current = players->head;
+                    const int32_t count = players->Count;
+                    players->Current = players->HeadLink;
 
                     for (int32_t i = count; i > 0; i--)
                     {
-                        FIDPPlayer* player = players->ReadAndNext();
-                        list->Print(player->name, 0x1f);
+                        MCFidpPlayer* player = players->ReadAndNext();
+                        list->Print(player->Name, 0x1f);
                     }
                 }
             }
         }
     }
-    else if (event->data == 4)
+    else if (event->Data == 4)
     {
         list->Clear();
     }
 }
 
-void ReadyRoomPlayerListHandleEvent(aObject* object, aEvent* event)
+void ReadyRoomPlayerListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 0x13 || MPlayer == nullptr)
+    if (event->Type != 0x13 || MPlayer == nullptr)
     {
         return;
     }
 
-    SessionManager* manager = MPlayer->sessionManager;
+    MCSessionManager* manager = MPlayer->SessionManager;
 
     if (manager == nullptr)
     {
         return;
     }
 
-    auto* list = static_cast<lScrollTextObject*>(object);
-    FIDPSession* session = manager->currentSession;
-    ++readyRoomTicks;
+    auto* list = static_cast<MCLogScrollTextObject*>(object);
+    MCFidpSession* session = manager->CurrentSession;
+    ++ReadyRoomTicks;
 
     if (session != nullptr)
     {
-        if (manager->isHost == 0 && launchedFromLobby == 0)
+        if (manager->IsHost == 0 && LaunchedFromLobby == 0)
         {
             manager->SendPing();
         }
 
         list->Clear();
-        FLinkedList<FIDPPlayer>* players = MPlayer->sessionManager->GetPlayers(session);
+        MCFLinkedList<MCFidpPlayer>* players = MPlayer->SessionManager->GetPlayers(session);
 
         if (players != nullptr)
         {
             // Each player, with the ping outside a lobby launch.
-            for (FLink<FIDPPlayer>* link = players->head; link != nullptr && link->data != nullptr; link = link->next)
+            for (MCFLink<MCFidpPlayer>* link = players->HeadLink; link != nullptr && link->Data != nullptr;
+                 link = link->Next)
             {
-                FIDPPlayer* player = link->data;
+                MCFidpPlayer* player = link->Data;
 
-                if (launchedFromLobby == 0)
+                if (LaunchedFromLobby == 0)
                 {
                     char line[256];
-                    std::snprintf(line, sizeof(line), "%s - %04d ms", player->name, player->lastLatency);
+                    std::snprintf(line, sizeof(line), "%s - %04d ms", player->Name, player->LastLatency);
                     list->Print(line, 0x1f);
                 }
                 else
                 {
-                    list->Print(player->name, 0x1f);
+                    list->Print(player->Name, 0x1f);
                 }
             }
 
             // The host can go once someone else is in.
-            if (MPlayer->sessionManager->isHost != 0)
+            if (MPlayer->SessionManager->IsHost != 0)
             {
-                setDisabled(element<lButton>(globalLogPtr->connectScreen, 2), players->count < 2 ? 1 : 0);
+                SetDisabled(Element<MCLogButton>(GlobalLogPtr->ConnectScreen, 2), players->Count < 2 ? 1 : 0);
             }
         }
     }
 }
 
-void LanScreenHandleEvent(aObject* object, aEvent* event)
+void LanScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    auto* screen = static_cast<GenericScreen*>(object);
+    auto* screen = static_cast<MCGenericScreen*>(object);
 
-    if (event->type == 0x13)
+    if (event->Type == 0x13)
     {
-        screen->elements[2]->handleEvent(event);
-        screen->elements[3]->handleEvent(event);
+        screen->Elements[2]->HandleEvent(event);
+        screen->Elements[3]->HandleEvent(event);
         return;
     }
 
-    if (event->type != 0x1e)
+    if (event->Type != 0x1e)
     {
         return;
     }
 
-    auto* joinButton = element<lButton>(screen, 6);
+    auto* joinButton = Element<MCLogButton>(screen, 6);
 
-    if (event->data == 3)
+    if (event->Data == 3)
     {
         // A game was picked: its players are listed, and it can be joined unless full.
-        FIDPSession* session =
-            MPlayer->sessionManager->FindMatchingSession(element<GameList>(screen, 2)->getSelectedGame());
-        screen->elements[3]->handleEvent(event);
-        setDisabled(joinButton, session->sessionDesc.dwMaxPlayers <= session->sessionDesc.dwCurrentPlayers ? 1 : 0);
+        MCFidpSession* session =
+            MPlayer->SessionManager->FindMatchingSession(Element<MCGameList>(screen, 2)->GetSelectedGame());
+        screen->Elements[3]->HandleEvent(event);
+        SetDisabled(joinButton, session->SessionDesc.dwMaxPlayers <= session->SessionDesc.dwCurrentPlayers ? 1 : 0);
         return;
     }
 
-    if (event->data == 4)
+    if (event->Data == 4)
     {
-        screen->elements[3]->handleEvent(event);
-        setDisabled(joinButton, 1);
+        screen->Elements[3]->HandleEvent(event);
+        SetDisabled(joinButton, 1);
     }
 }
 
-void LoadSaveScreenHandleEvent(aObject* object, aEvent* event)
+void LoadSaveScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 0x1e)
+    if (event->Type != 0x1e)
     {
         return;
     }
 
-    auto* screen = static_cast<GenericScreen*>(object);
-    const int32_t message = event->data;
+    auto* screen = static_cast<MCGenericScreen*>(object);
+    const int32_t message = event->Data;
 
     if (message == 1)
     {
         // A file was picked: it can be loaded (or saved over); deleted unless it is the empty entry.
-        setDisabled(screen->loadSaveButton, 0);
-        lButton* deleteButton = screen->deleteButton;
-        setDisabled(deleteButton, 1);
-        FileScrollPane* pane = screen->filePane;
+        SetDisabled(screen->LoadSaveButton, 0);
+        MCLogButton* deleteButton = screen->DeleteButton;
+        SetDisabled(deleteButton, 1);
+        MCFileScrollPane* pane = screen->FilePane;
 
-        if (hasSelection(pane) && std::strcmp(pane->fileNames[pane->selectedFile], EmptyFile) != 0)
+        if (HasSelection(pane) && std::strcmp(pane->FileNames[pane->SelectedFile], EmptyFile) != 0)
         {
-            setDisabled(deleteButton, 0);
+            SetDisabled(deleteButton, 0);
         }
     }
     else if (message == 2)
     {
-        setDisabled(screen->loadSaveButton, 1);
-        setDisabled(screen->deleteButton, 1);
+        SetDisabled(screen->LoadSaveButton, 1);
+        SetDisabled(screen->DeleteButton, 1);
     }
-    else if (message == 5 && object == globalLogPtr->saveScreen)
+    else if (message == 5 && object == GlobalLogPtr->SaveScreen)
     {
         // Enter in the name entry: save.
-        soundSystem->playDigitalSample(screen->loadSaveButton->pressSound, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(screen->LoadSaveButton->PressSound, 1, nullptr, 0, 0);
         SaveGame();
     }
 }
 
-void ComPortTextHandleEvent(aObject* object, aEvent* event)
+void ComPortTextHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 10)
+    if (event->Type != 10)
     {
         return;
     }
 
     // The port number typed is checked (1 to 4); a bad one is backspaced out. The screen hears whether it is good.
-    auto* entry = static_cast<lTextObject*>(object);
+    auto* entry = static_cast<MCLogTextObject*>(object);
     int32_t valid = 0;
-    char* text = entry->buffer;
+    char* text = entry->Buffer;
 
-    if (text != nullptr && text[0] != '\0' && event->lParam != 999)
+    if (text != nullptr && text[0] != '\0' && event->LParam != 999)
     {
         if (std::atoi(text) < 5 && std::atoi(text) != 0)
         {
@@ -1869,28 +1871,28 @@ void ComPortTextHandleEvent(aObject* object, aEvent* event)
         }
         else
         {
-            aEvent backspace;
-            backspace.type = 10;
-            backspace.key = 8;
-            backspace.lParam = 999;
-            object->handleEvent(&backspace);
+            MCGuiEvent backspace;
+            backspace.Type = 10;
+            backspace.Key = 8;
+            backspace.LParam = 999;
+            object->HandleEvent(&backspace);
         }
     }
 
-    aEvent notify;
-    notify.type = 0x1e;
-    notify.data = 6;
-    notify.lParam = valid;
-    object->parent->handleEvent(&notify);
+    MCGuiEvent notify;
+    notify.Type = 0x1e;
+    notify.Data = 6;
+    notify.LParam = valid;
+    object->Parent->HandleEvent(&notify);
 }
 
-void SerialScreenHandleEvent(aObject* object, aEvent* event)
+void SerialScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type == 0x13)
+    if (event->Type == 0x13)
     {
-        application->RemoveTimer(object, 0);
+        Application->RemoveTimer(object, 0);
 
-        if (whackTimer == 0)
+        if (WhackTimer == 0)
         {
             JoinSerialSession();
         }
@@ -1898,115 +1900,115 @@ void SerialScreenHandleEvent(aObject* object, aEvent* event)
         return;
     }
 
-    if (event->type == 0x1e && event->data == 6)
+    if (event->Type == 0x1e && event->Data == 6)
     {
         // The host and join buttons need a good port number.
-        const int disabled = event->lParam == 0 ? 1 : 0;
-        auto* screen = static_cast<GenericScreen*>(object);
-        setDisabled(element<lButton>(screen, 2), disabled);
-        setDisabled(element<lButton>(screen, 3), disabled);
+        const int disabled = event->LParam == 0 ? 1 : 0;
+        auto* screen = static_cast<MCGenericScreen*>(object);
+        SetDisabled(Element<MCLogButton>(screen, 2), disabled);
+        SetDisabled(Element<MCLogButton>(screen, 3), disabled);
     }
 }
 
-void ModemScreenHandleEvent(aObject* object, aEvent* event)
+void ModemScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 0x13)
+    if (event->Type != 0x13)
     {
         return;
     }
 
-    if (event->data == 0)
+    if (event->Data == 0)
     {
-        application->RemoveTimer(object, 0);
+        Application->RemoveTimer(object, 0);
 
-        if (whackTimer == 0)
+        if (WhackTimer == 0)
         {
             DialModemSession();
         }
     }
-    else if (event->data == 1)
+    else if (event->Data == 1)
     {
-        application->RemoveTimer(object, 1);
+        Application->RemoveTimer(object, 1);
 
-        if (whackTimer == 0)
+        if (WhackTimer == 0)
         {
             JoinModemSession();
         }
     }
 }
 
-void PrefScreenHandleEvent(aObject*, aEvent*)
+void PrefScreenHandleEvent(MCGuiObject*, MCGuiEvent*)
 {
 }
 
-void SlideScreenBrightness(aObject* object, aEvent*)
+void SlideScreenBrightness(MCGuiObject* object, MCGuiEvent*)
 {
-    application->gammaCorrectCurrentPalette(static_cast<lSlider*>(object)->currentValue);
+    Application->GammaCorrectCurrentPalette(static_cast<MCLogSlider*>(object)->CurrentValue);
 }
 
-void SlideMusicVolume(aObject* object, aEvent* event)
+void SlideMusicVolume(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 4)
+    if (event->Type != 4)
     {
         return;
     }
 
-    const auto volume = static_cast<uint8_t>(static_cast<lSlider*>(object)->currentValue);
+    const auto volume = static_cast<uint8_t>(static_cast<MCLogSlider*>(object)->CurrentValue);
 
     if (volume < 0x80)
     {
-        soundSystem->musicVolume = volume;
+        SoundSystem->MusicLevel = volume;
     }
 
-    soundSystem->stopDigitalMusic();
-    soundSystem->playDigitalMusic(0x16, true);
+    SoundSystem->StopDigitalMusic();
+    SoundSystem->PlayDigitalMusic(0x16, true);
 }
 
-void SlideRadioVolume(aObject* object, aEvent* event)
+void SlideRadioVolume(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 4)
+    if (event->Type != 4)
     {
         return;
     }
 
-    const auto volume = static_cast<uint8_t>(static_cast<lSlider*>(object)->currentValue);
+    const auto volume = static_cast<uint8_t>(static_cast<MCLogSlider*>(object)->CurrentValue);
 
     if (volume < 0x80)
     {
-        soundSystem->radioVolume = volume;
+        SoundSystem->RadioLevel = volume;
     }
 
-    soundSystem->playPilotSpeech(const_cast<char*>("pilotd"), 0x15);
+    SoundSystem->PlayPilotSpeech(const_cast<char*>("pilotd"), 0x15);
 }
 
-void SlideFXVolume(aObject* object, aEvent* event)
+void SlideFXVolume(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->type != 4)
+    if (event->Type != 4)
     {
         return;
     }
 
-    const auto volume = static_cast<uint8_t>(static_cast<lSlider*>(object)->currentValue);
+    const auto volume = static_cast<uint8_t>(static_cast<MCLogSlider*>(object)->CurrentValue);
 
     if (volume < 0x80)
     {
-        soundSystem->digitalMasterVolume = volume;
+        SoundSystem->DigitalMasterVolume = volume;
     }
 
-    soundSystem->playDigitalSample(0xf, 1, nullptr, 0, 0);
+    SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
 }
 
 namespace
 {
     /// <summary>Lights difficulty toggle <paramref name="difficulty"/> (easy, regular, hard) and sets the difficulty.</summary>
-    void setDifficulty(int32_t difficulty)
+    void SetDifficulty(int32_t difficulty)
     {
-        GenericScreen* screen = globalLogPtr->prefScreen;
+        MCGenericScreen* screen = GlobalLogPtr->PrefScreen;
 
         for (int32_t i = 0; i < 3; i++)
         {
-            auto* toggle = element<lToolButton>(screen, 8 + i);
-            toggle->toggled = i == difficulty ? 1 : 0;
+            auto* toggle = Element<MCLogToolButton>(screen, 8 + i);
+            toggle->Toggled = i == difficulty ? 1 : 0;
         }
 
         GameDifficulty = difficulty;
@@ -2015,52 +2017,52 @@ namespace
 
 void EasyToggle()
 {
-    setDifficulty(0);
+    SetDifficulty(0);
 }
 
 void RegularToggle()
 {
-    setDifficulty(1);
+    SetDifficulty(1);
 }
 
 void HardToggle()
 {
-    setDifficulty(2);
+    SetDifficulty(2);
 }
 
 void DoExit()
 {
     if (MPlayer != nullptr)
     {
-        if (launchedFromLobby != 0)
+        if (LaunchedFromLobby != 0)
         {
-            killTheGame();
+            KillTheGame();
             return;
         }
 
-        globalLogPtr->destroyMultiplayer();
-        MPlayer->leaveSession();
+        GlobalLogPtr->DestroyMultiplayer();
+        MPlayer->LeaveSession();
     }
 
-    globalLogPtr->setUpMainScreen(0);
+    GlobalLogPtr->SetUpMainScreen(0);
 }
 
 void CheckExit()
 {
     char text[256];
-    cLoadString(thisInstance, 0xaf, text, 0xfe);
-    ReusableDialog* dialog = globalLogPtr->messageDialog;
-    dialog->setText(text);
-    dialog->setTwoButton(1);
+    CLoadString(ThisInstance, 0xaf, text, 0xfe);
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    dialog->SetText(text);
+    dialog->SetTwoButton(1);
     // The dialog's callback and the cancel button's action are left as they were.
-    dialog->okButton->setUpPicture(const_cast<char*>("bh_okay.tga"));
-    dialog->okButton->setDownPicture(const_cast<char*>("bg_okay.tga"));
-    setDisabled(dialog->okButton, 0);
-    dialog->okButton->callback()->setExec(DoExit);
-    dialog->cancelButton->setUpPicture(const_cast<char*>("bh_cancl.tga"));
-    dialog->cancelButton->setDownPicture(const_cast<char*>("bh_cancl.tga"));
-    setDisabled(dialog->cancelButton, 0);
-    dialog->activate();
+    dialog->OkButton->SetUpPicture(const_cast<char*>("bh_okay.tga"));
+    dialog->OkButton->SetDownPicture(const_cast<char*>("bg_okay.tga"));
+    SetDisabled(dialog->OkButton, 0);
+    dialog->OkButton->Callback()->SetExec(DoExit);
+    dialog->CancelButton->SetUpPicture(const_cast<char*>("bh_cancl.tga"));
+    dialog->CancelButton->SetDownPicture(const_cast<char*>("bh_cancl.tga"));
+    SetDisabled(dialog->CancelButton, 0);
+    dialog->Activate();
 }
 
 void SaveUserName(char* name)

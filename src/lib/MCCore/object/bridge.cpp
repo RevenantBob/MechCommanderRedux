@@ -35,7 +35,7 @@ namespace
     constexpr double SIXTY_DEGREES = 0x1.0c152382d45b2p+0;
 
     /// <summary>What a misc terrain object is (terrainObjectKind, set by the placement code).</summary>
-    enum MiscTerrainKind : int32_t
+    enum MCMiscTerrainKind : int32_t
     {
         MISC_BRIDGE = 5,
         MISC_FOREST = 6,
@@ -45,189 +45,189 @@ namespace
     };
 
     /// <summary>The map tile under the object's position.</summary>
-    MapTile& tileAt(MiscTerrainObject* object, int32_t& tileR, int32_t& tileC)
+    MCMapTile& TileAt(MCMiscTerrainObject* object, int32_t& tileR, int32_t& tileC)
     {
         int32_t cellR = 0;
         int32_t cellC = 0;
         tileR = 0;
         tileC = 0;
-        GameMap->worldToMapPos(object->position, tileR, tileC, cellR, cellC);
-        return GameMap->map[GameMap->width * tileR + tileC];
+        GameMap->WorldToMapPos(object->Position, tileR, tileC, cellR, cellC);
+        return GameMap->Map[GameMap->Width * tileR + tileC];
     }
 
     /// <summary>How many of the tile's nine cells are passable.</summary>
-    int32_t countPassable(const MapTile& tile)
+    int32_t CountPassable(const MCMapTile& tile)
     {
         int32_t count = 0;
 
         for (uint32_t shift = 0; shift < 0x12; shift += 2)
         {
-            count += static_cast<int32_t>((tile.cells & (0x4000u << shift)) >> (shift + 0xe));
+            count += static_cast<int32_t>((tile.Cells & (0x4000u << shift)) >> (shift + 0xe));
         }
 
         return count;
     }
 
     /// <summary>Sets every cell of the tile: passable to <paramref name="passable"/>, see-through.</summary>
-    void setAllCells(MapTile& tile, uint32_t passable)
+    void SetAllCells(MCMapTile& tile, uint32_t passable)
     {
         for (uint32_t shift = 0; shift < 0x12; shift += 2)
         {
-            tile.cells = (passable << (shift + 0xe)) | (~(0x4000u << shift) & tile.cells);
-            tile.cells = (~(0x8000u << shift) & tile.cells) | (1u << (shift + 0xf));
+            tile.Cells = (passable << (shift + 0xe)) | (~(0x4000u << shift) & tile.Cells);
+            tile.Cells = (~(0x8000u << shift) & tile.Cells) | (1u << (shift + 0xf));
         }
     }
 
     /// <summary>
     /// Makes every cell of a burnt forest tile passable (unless its terrain is type 0x29 or 0x2a) and see-through.
     /// </summary>
-    void clearForestCells(MapTile& tile)
+    void ClearForestCells(MCMapTile& tile)
     {
         for (uint32_t shift = 0; shift < 0x12; shift += 2)
         {
-            if ((tile.cells & 0x7f) != 0x29 && (tile.cells & 0x7f) != 0x2a)
+            if ((tile.Cells & 0x7f) != 0x29 && (tile.Cells & 0x7f) != 0x2a)
             {
-                tile.cells = (1u << (shift + 0xe)) | (~(0x4000u << shift) & tile.cells);
+                tile.Cells = (1u << (shift + 0xe)) | (~(0x4000u << shift) & tile.Cells);
             }
 
-            tile.cells = (1u << (shift + 0xf)) | (~(0x8000u << shift) & tile.cells);
+            tile.Cells = (1u << (shift + 0xf)) | (~(0x8000u << shift) & tile.Cells);
         }
     }
 
     /// <summary>The damage level that destroys a misc terrain object of <paramref name="kind"/>, or 0.</summary>
-    int32_t dmgLevelFor(const MiscTerrainObjectType* type, int32_t kind)
+    int32_t DmgLevelFor(const MCMiscTerrainObjectType* type, int32_t kind)
     {
         switch (kind)
         {
             case MISC_BRIDGE:
-                return static_cast<int32_t>(type->bridgeDmgLevel);
+                return static_cast<int32_t>(type->BridgeDmgLevel);
             case MISC_FOREST:
-                return static_cast<int32_t>(type->forestDmgLevel);
+                return static_cast<int32_t>(type->ForestDmgLevel);
             case MISC_WALL:
-                return static_cast<int32_t>(type->wallDmgLevel);
+                return static_cast<int32_t>(type->WallDmgLevel);
             case MISC_MEDIUM_WALL:
-                return static_cast<int32_t>(type->mediumWallDmgLevel);
+                return static_cast<int32_t>(type->MediumWallDmgLevel);
             case MISC_LIGHT_WALL:
-                return static_cast<int32_t>(type->lightWallDmgLevel);
+                return static_cast<int32_t>(type->LightWallDmgLevel);
             default:
                 return 0;
         }
     }
 } // namespace
 
-int32_t MiscTerrainObject::cellArray[9] = {};
+int32_t MCMiscTerrainObject::CellArray[9] = {};
 
 //---------------------------------------------------------------------------
 // MiscTerrainObjectType
 //---------------------------------------------------------------------------
 
-auto MiscTerrainObjectType::init() -> void
+auto MCMiscTerrainObjectType::Init() -> void
 {
-    ObjectType::init();
-    forestDmgLevel = 0;
-    lightWallDmgLevel = 0;
-    mediumWallDmgLevel = 0;
-    wallDmgLevel = 0;
-    bridgeDmgLevel = 0;
-    wallFireFX = 0xffffffff;
-    bridgeFireFX = 0xffffffff;
-    forestFireFX = 0xffffffff;
-    blownEffectId = 0xffffffff;
-    normalEffectId = 0xffffffff;
-    damageEffectId = 0xffffffff;
-    forestEdgeShapes = nullptr;
+    MCObjectType::Init();
+    ForestDmgLevel = 0;
+    LightWallDmgLevel = 0;
+    MediumWallDmgLevel = 0;
+    WallDmgLevel = 0;
+    BridgeDmgLevel = 0;
+    WallFireFX = 0xffffffff;
+    BridgeFireFX = 0xffffffff;
+    ForestFireFX = 0xffffffff;
+    BlownEffectId = 0xffffffff;
+    NormalEffectId = 0xffffffff;
+    DamageEffectId = 0xffffffff;
+    ForestEdgeShapes = nullptr;
 }
 
-auto MiscTerrainObjectType::createInstance() -> BaseObject*
+auto MCMiscTerrainObjectType::CreateInstance() -> MCBaseObject*
 {
-    auto* newObject = new MiscTerrainObject;
+    auto* newObject = new MCMiscTerrainObject;
 
     if (newObject == nullptr)
     {
         return nullptr;
     }
 
-    if (newObject->init(this) != 0)
+    if (newObject->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newObject->idNumber = NextIdNumber++;
+    newObject->IdNumber = NextIdNumber++;
     return newObject;
 }
 
-auto MiscTerrainObjectType::destroy() -> void
+auto MCMiscTerrainObjectType::Destroy() -> void
 {
 }
 
-auto MiscTerrainObjectType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCMiscTerrainObjectType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile bridgeFile;
-    int32_t result = bridgeFile.open(objFile, fileSize, 50);
+    MCFitIniFile bridgeFile;
+    int32_t result = bridgeFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = bridgeFile.seekBlock("BridgeData")) != 0)
+    if ((result = bridgeFile.SeekBlock("BridgeData")) != 0)
     {
         return result;
     }
 
-    if ((result = bridgeFile.readIdULong("WallDmgLevel", wallDmgLevel)) != 0)
+    if ((result = bridgeFile.ReadIdULong("WallDmgLevel", WallDmgLevel)) != 0)
     {
         return result;
     }
 
-    if (bridgeFile.readIdULong("MediumWallDmgLevel", mediumWallDmgLevel) != 0)
+    if (bridgeFile.ReadIdULong("MediumWallDmgLevel", MediumWallDmgLevel) != 0)
     {
-        mediumWallDmgLevel = wallDmgLevel >> 1;
+        MediumWallDmgLevel = WallDmgLevel >> 1;
     }
 
     // Original behaviour (OB-021): the light wall default halves the light wall level itself (0 when unread),
     // not the wall's.
-    if (bridgeFile.readIdULong("LightWallDmgLevel", lightWallDmgLevel) != 0)
+    if (bridgeFile.ReadIdULong("LightWallDmgLevel", LightWallDmgLevel) != 0)
     {
-        lightWallDmgLevel = lightWallDmgLevel >> 1;
+        LightWallDmgLevel = LightWallDmgLevel >> 1;
     }
 
-    if ((result = bridgeFile.readIdULong("BridgeDmgLevel", bridgeDmgLevel)) != 0)
-    {
-        return result;
-    }
-
-    if ((result = bridgeFile.readIdULong("ForestDmgLevel", forestDmgLevel)) != 0)
+    if ((result = bridgeFile.ReadIdULong("BridgeDmgLevel", BridgeDmgLevel)) != 0)
     {
         return result;
     }
 
-    if ((result = bridgeFile.readIdULong("WallFireFX", wallFireFX)) != 0)
+    if ((result = bridgeFile.ReadIdULong("ForestDmgLevel", ForestDmgLevel)) != 0)
     {
         return result;
     }
 
-    if ((result = bridgeFile.readIdULong("BridgeFireFX", bridgeFireFX)) != 0)
+    if ((result = bridgeFile.ReadIdULong("WallFireFX", WallFireFX)) != 0)
     {
         return result;
     }
 
-    if ((result = bridgeFile.readIdULong("ForestFireFX", forestFireFX)) != 0)
+    if ((result = bridgeFile.ReadIdULong("BridgeFireFX", BridgeFireFX)) != 0)
     {
         return result;
     }
 
-    if ((result = bridgeFile.readIdULong("BlownEffectId", blownEffectId)) != 0)
+    if ((result = bridgeFile.ReadIdULong("ForestFireFX", ForestFireFX)) != 0)
     {
         return result;
     }
 
-    if ((result = bridgeFile.readIdULong("NormalEffectId", normalEffectId)) != 0)
+    if ((result = bridgeFile.ReadIdULong("BlownEffectId", BlownEffectId)) != 0)
     {
         return result;
     }
 
-    if ((result = bridgeFile.readIdULong("DamageEffectId", damageEffectId)) != 0)
+    if ((result = bridgeFile.ReadIdULong("NormalEffectId", NormalEffectId)) != 0)
+    {
+        return result;
+    }
+
+    if ((result = bridgeFile.ReadIdULong("DamageEffectId", DamageEffectId)) != 0)
     {
         return result;
     }
@@ -235,59 +235,59 @@ auto MiscTerrainObjectType::init(File* objFile, uint32_t fileSize) -> int32_t
     // The forest edge shapes (the "x" set for a custom tile set).
     char edgesName[250];
 
-    if ((result = bridgeFile.readIdString("ForestEdges", edgesName, 0xf9)) != 0)
+    if ((result = bridgeFile.ReadIdString("ForestEdges", edgesName, 0xf9)) != 0)
     {
         return result;
     }
 
-    if (terrainTiles->customTileSet == 1)
+    if (TerrainTiles->CustomTileSet == 1)
     {
         std::strcat(edgesName, "x");
     }
 
-    FullPathFileName edgesPath;
-    edgesPath.init(spritePath, edgesName, ".shp");
-    File edgesFile;
+    MCFullPathFileName edgesPath;
+    edgesPath.Init(SpritePath, edgesName, ".shp");
+    MCFile edgesFile;
 
-    if ((result = edgesFile.open(edgesPath, READ, 50)) != 0)
+    if ((result = edgesFile.Open(edgesPath, READ, 50)) != 0)
     {
         return result;
     }
 
-    uint32_t size = edgesFile.fileSize();
-    forestEdgeShapes = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(size));
-    size = edgesFile.fileSize();
-    edgesFile.read(forestEdgeShapes, static_cast<int32_t>(size));
-    MCRenderer::RegisterData(forestEdgeShapes, size, MCDataKind::Shapes);
-    edgesFile.close();
-    return ObjectType::init(&bridgeFile);
+    uint32_t size = edgesFile.FileSize();
+    ForestEdgeShapes = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(size));
+    size = edgesFile.FileSize();
+    edgesFile.Read(ForestEdgeShapes, static_cast<int32_t>(size));
+    MCRenderer::RegisterData(ForestEdgeShapes, size, MCDataKind::Shapes);
+    edgesFile.Close();
+    return MCObjectType::Init(&bridgeFile);
 }
 
-auto MiscTerrainObjectType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCMiscTerrainObjectType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // A mech or vehicle running into a light wall knocks it down (250 points, the server's job in multiplayer).
-    auto* object = static_cast<MiscTerrainObject*>(collidee);
+    auto* object = static_cast<MCMiscTerrainObject*>(collidee);
 
-    if (object->terrainObjectKind == MISC_LIGHT_WALL && BATTLEMECH <= collider->objectClass &&
-        collider->objectClass < ELEMENTAL)
+    if (object->TerrainObjectKind == MISC_LIGHT_WALL && BATTLEMECH <= collider->ObjectClass &&
+        collider->ObjectClass < ELEMENTAL)
     {
-        _WeaponShotInfo shot;
-        shot.init(collider, -1, 250.0f, 0, 0.0f);
+        MCWeaponShotInfo shot;
+        shot.Init(collider, -1, 250.0f, 0, 0.0f);
 
         if (MPlayer == nullptr)
         {
-            collidee->handleWeaponHit(&shot, 0);
+            collidee->HandleWeaponHit(&shot, 0);
         }
-        else if (MPlayer->isServer != 0)
+        else if (MPlayer->IsServer != 0)
         {
-            collidee->handleWeaponHit(&shot, 1);
+            collidee->HandleWeaponHit(&shot, 1);
         }
     }
 
     return 1;
 }
 
-auto MiscTerrainObjectType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCMiscTerrainObjectType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -296,93 +296,93 @@ auto MiscTerrainObjectType::handleDestruction(GameObject*, GameObject*) -> int
 // MiscTerrainObject
 //---------------------------------------------------------------------------
 
-MiscTerrainObject::MiscTerrainObject()
+MCMiscTerrainObject::MCMiscTerrainObject()
 {
-    vertexNumber = 0;
-    blockNumber = 0;
-    destroyed = 0;
-    fireObject = nullptr;
-    terrainObjectKind = -1;
-    justCreated = 1;
+    VertexNumber = 0;
+    BlockNumber = 0;
+    Destroyed = 0;
+    FireObject = nullptr;
+    TerrainObjectKind = -1;
+    JustCreated = 1;
 }
 
-auto MiscTerrainObject::init() -> void
+auto MCMiscTerrainObject::Init() -> void
 {
 }
 
-auto MiscTerrainObject::killFireObject() -> void
+auto MCMiscTerrainObject::KillFireObject() -> void
 {
-    fireObject = nullptr;
+    FireObject = nullptr;
 }
 
-auto MiscTerrainObject::getBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
+auto MCMiscTerrainObject::GetBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
 {
-    blockNum = blockNumber;
-    vertexNum = vertexNumber;
+    blockNum = BlockNumber;
+    vertexNum = VertexNumber;
 }
 
-auto MiscTerrainObject::update() -> int32_t
+auto MCMiscTerrainObject::Update() -> int32_t
 {
-    if (justCreated == 0)
+    if (JustCreated == 0)
     {
         return 1;
     }
 
     // Set the object on its vertex, 60 pixels down the tile (turned into the isometric grid's 60-degree axes).
-    const int32_t verticesBlockSide = Terrain::verticesBlockSide;
-    justCreated = 0;
-    overlayDestroyed = 0;
-    collisionsOn = 1;
-    const int32_t blocksMapSide = Terrain::blocksMapSide;
-    float blockX = static_cast<float>(blockNumber % blocksMapSide - blocksMapSide / 2) * Terrain::metersBlockSide;
-    float blockY = static_cast<float>(blocksMapSide / 2 - blockNumber / blocksMapSide) * Terrain::metersBlockSide;
+    const int32_t verticesBlockSide = MCTerrain::VerticesBlockSide;
+    JustCreated = 0;
+    OverlayDestroyed = 0;
+    CollisionsOn = 1;
+    const int32_t blocksMapSide = MCTerrain::BlocksMapSide;
+    float blockX = static_cast<float>(BlockNumber % blocksMapSide - blocksMapSide / 2) * MCTerrain::MetersBlockSide;
+    float blockY = static_cast<float>(blocksMapSide / 2 - BlockNumber / blocksMapSide) * MCTerrain::MetersBlockSide;
 
     if ((blocksMapSide & 1) != 0)
     {
-        blockX = blockX - Terrain::metersBlockSide * 0.5f;
-        blockY = Terrain::metersBlockSide * 0.5f + blockY;
+        blockX = blockX - MCTerrain::MetersBlockSide * 0.5f;
+        blockY = MCTerrain::MetersBlockSide * 0.5f + blockY;
     }
 
-    const float vertexX = static_cast<float>(vertexNumber % verticesBlockSide) * Terrain::metersPerVertex;
+    const float vertexX = static_cast<float>(VertexNumber % verticesBlockSide) * MCTerrain::MetersPerVertex;
     const double offsetAngle = std::atan(0.0 / 60.0) * RADIANS_TO_DEGREES;
-    position.y = blockY - static_cast<float>(vertexNumber / verticesBlockSide) * Terrain::metersPerVertex;
+    Position.Y = blockY - static_cast<float>(VertexNumber / verticesBlockSide) * MCTerrain::MetersPerVertex;
     const float offsetDistance = 3600.0f;
     const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
     const auto alongAxis =
         static_cast<float>(std::sin(axisAngle) * std::sqrt(offsetDistance) / std::sin(SIXTY_DEGREES));
-    position.x = vertexX + blockX;
-    const float elevation = land->getTerrainElevation(position);
-    position.x = static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis +
-                                    std::cos(axisAngle) * std::sqrt(offsetDistance) + position.x);
-    position.y = position.y - alongAxis;
-    position.z = elevation;
+    Position.X = vertexX + blockX;
+    const float elevation = Land->GetTerrainElevation(Position);
+    Position.X = static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis +
+                                    std::cos(axisAngle) * std::sqrt(offsetDistance) + Position.X);
+    Position.Y = Position.Y - alongAxis;
+    Position.Z = elevation;
 
     // An object whose tile already shows it broken (a blocked bridge; an open wall or forest) starts destroyed.
     int32_t tileR;
     int32_t tileC;
-    const MapTile& tile = tileAt(this, tileR, tileC);
-    const auto* type = static_cast<MiscTerrainObjectType*>(objType);
+    const MCMapTile& tile = TileAt(this, tileR, tileC);
+    const auto* type = static_cast<MCMiscTerrainObjectType*>(ObjType);
 
-    switch (terrainObjectKind)
+    switch (TerrainObjectKind)
     {
         case MISC_BRIDGE:
         {
             for (uint32_t shift = 0; shift < 0x12; shift += 2)
             {
-                if (((0x4000u << shift) & tile.cells) >> (shift + 0xe) == 0)
+                if (((0x4000u << shift) & tile.Cells) >> (shift + 0xe) == 0)
                 {
-                    status = 2;
-                    damage = static_cast<float>(static_cast<int32_t>(type->bridgeDmgLevel));
+                    Status = 2;
+                    Damage = static_cast<float>(static_cast<int32_t>(type->BridgeDmgLevel));
                 }
             }
             break;
         }
         case MISC_FOREST:
         {
-            if (countPassable(tile) == 9)
+            if (CountPassable(tile) == 9)
             {
-                damage = static_cast<float>(static_cast<int32_t>(type->forestDmgLevel));
-                status = 2;
+                Damage = static_cast<float>(static_cast<int32_t>(type->ForestDmgLevel));
+                Status = 2;
             }
             break;
         }
@@ -390,10 +390,10 @@ auto MiscTerrainObject::update() -> int32_t
         case MISC_MEDIUM_WALL:
         case MISC_LIGHT_WALL:
         {
-            if (countPassable(tile) == 9)
+            if (CountPassable(tile) == 9)
             {
-                damage = static_cast<float>(static_cast<int32_t>(type->wallDmgLevel));
-                status = 2;
+                Damage = static_cast<float>(static_cast<int32_t>(type->WallDmgLevel));
+                Status = 2;
             }
             break;
         }
@@ -404,17 +404,17 @@ auto MiscTerrainObject::update() -> int32_t
     return 1;
 }
 
-auto MiscTerrainObject::handleEvent(ObjectEvent* event) -> int32_t
+auto MCMiscTerrainObject::HandleEvent(MCObjectEvent* event) -> int32_t
 {
-    if (event->type == 0)
+    if (event->Type == 0)
     {
-        switch (event->id)
+        switch (event->Id)
         {
             case 0x1c:
-                selected = 1;
+                Selected = 1;
                 break;
             case 0x1d:
-                selected = 0;
+                Selected = 0;
                 break;
             default:
                 break;
@@ -424,59 +424,59 @@ auto MiscTerrainObject::handleEvent(ObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto MiscTerrainObject::getScreenPos() -> vector_2d
+auto MCMiscTerrainObject::GetScreenPos() -> MCVector2D
 {
-    vector_2d screenPos;
-    eye->vertexProject(blockNumber, vertexNumber, screenPos);
+    MCVector2D screenPos;
+    Eye->VertexProject(BlockNumber, VertexNumber, screenPos);
     return screenPos;
 }
 
-auto MiscTerrainObject::render() -> void
+auto MCMiscTerrainObject::Render() -> void
 {
     // Once the fire is out, a destroyed object's tile is opened up (a destroyed bridge stays impassable).
-    if (fireObject == nullptr && destroyed != 0)
+    if (FireObject == nullptr && Destroyed != 0)
     {
         int32_t tileR;
         int32_t tileC;
-        MapTile& tile = tileAt(this, tileR, tileC);
+        MCMapTile& tile = TileAt(this, tileR, tileC);
 
-        switch (terrainObjectKind)
+        switch (TerrainObjectKind)
         {
             case MISC_BRIDGE:
-                setAllCells(tile, 0);
+                SetAllCells(tile, 0);
                 break;
             case MISC_FOREST:
-                clearForestCells(tile);
+                ClearForestCells(tile);
                 break;
             case MISC_WALL:
             case MISC_MEDIUM_WALL:
             case MISC_LIGHT_WALL:
-                setAllCells(tile, 1);
+                SetAllCells(tile, 1);
                 break;
             default:
                 break;
         }
     }
 
-    vector_2d screenPos;
+    MCVector2D screenPos;
 
-    if (eye->vertexProject(blockNumber, vertexNumber, screenPos) == 0 || isRevealed() == 0)
+    if (Eye->VertexProject(BlockNumber, VertexNumber, screenPos) == 0 || IsRevealed() == 0)
     {
         return;
     }
 
-    if ((selected == -1 || selected == 1) && static_cast<uint8_t>(status) != 2)
+    if ((Selected == -1 || Selected == 1) && static_cast<uint8_t>(Status) != 2)
     {
-        drawBars(screenPos);
+        DrawBars(screenPos);
     }
 
-    if (terrainObjectKind != MISC_FOREST)
+    if (TerrainObjectKind != MISC_FOREST)
     {
         return;
     }
 
     // A forest draws the edge shape that matches its overlay tile, hazed by how many corners the home team sees.
-    const int32_t overlayTile = land->getOverlayTile(blockNumber, vertexNumber);
+    const int32_t overlayTile = Land->GetOverlayTile(BlockNumber, VertexNumber);
     int32_t edge;
 
     if (overlayTile < 0xd0e)
@@ -498,29 +498,29 @@ auto MiscTerrainObject::render() -> void
         return;
     }
 
-    const auto row = static_cast<uint32_t>((blockNumber / Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                           vertexNumber / Terrain::verticesBlockSide);
-    const auto col = static_cast<uint32_t>((blockNumber % Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                           vertexNumber % Terrain::verticesBlockSide);
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    const auto row = static_cast<uint32_t>((BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                           VertexNumber / MCTerrain::VerticesBlockSide);
+    const auto col = static_cast<uint32_t>((BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                           VertexNumber % MCTerrain::VerticesBlockSide);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     int32_t numVisible = 0;
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         numVisible = 1;
     }
 
-    if (visibleBits->getFlag(row, col + 1) != 0)
+    if (visibleBits->GetFlag(row, col + 1) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         numVisible++;
     }
@@ -529,57 +529,57 @@ auto MiscTerrainObject::render() -> void
 
     if (numVisible != 4)
     {
-        const int32_t hazeLevel = eye->hazeLevel;
+        const int32_t hazeLevel = Eye->HazeLevel;
         int32_t level;
 
-        if (hazeLevel < 0 && 0 < hazeLevel + eye->hazeInc * numVisible)
+        if (hazeLevel < 0 && 0 < hazeLevel + Eye->HazeInc * numVisible)
         {
             level = 0;
         }
         else
         {
-            level = hazeLevel + eye->hazeInc * numVisible;
+            level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = gamePalette->getHazePalette(level);
+        hazePalette = GamePalette->GetHazePalette(level);
     }
 
     int32_t frame = edge * 2;
     int32_t depthOffset = 0x3a;
 
-    if (eye->cameraScale == 1)
+    if (Eye->CameraScale == 1)
     {
         frame++;
         depthOffset = 0x1d;
 
-        if (terrainTiles->customTileSet == 0)
+        if (TerrainTiles->CustomTileSet == 0)
         {
-            screenPos.x = screenPos.x + 79.0f;
-            screenPos.y = screenPos.y + 29.0f;
+            screenPos.X = screenPos.X + 79.0f;
+            screenPos.Y = screenPos.Y + 29.0f;
         }
     }
 
-    ElementList->openGroup(static_cast<int32_t>(-screenPos.y - static_cast<float>(depthOffset)), 1);
-    auto* element = ElementPool::Make<VFXElement>(static_cast<MiscTerrainObjectType*>(objType)->forestEdgeShapes,
-                                                  screenPos.x, screenPos.y, frame, 0, hazePalette, 1, 0);
-    std::strcpy(element->name, "terobj");
-    ElementList->add(element);
+    ElementList->OpenGroup(static_cast<int32_t>(-screenPos.Y - static_cast<float>(depthOffset)), 1);
+    auto* element = MCElementPool::Make<MCVfxElement>(static_cast<MCMiscTerrainObjectType*>(ObjType)->ForestEdgeShapes,
+                                                      screenPos.X, screenPos.Y, frame, 0, hazePalette, 1, 0);
+    std::strcpy(element->Name, "terobj");
+    ElementList->Add(element);
 }
 
-auto MiscTerrainObject::drawBars(vector_2d screenPos) -> void
+auto MCMiscTerrainObject::DrawBars(MCVector2D screenPos) -> void
 {
     // The damage bar over a selected wall, bridge or forest: green, then yellow under half, red at a fifth.
     // Port: an overlay, on the screen over the view: it follows the object through the zoom, its size doesn't change.
     screenPos = MCOverlayPoint(screenPos);
-    PolyElementData data;
-    data.init();
-    const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-    const float barWidth = (eye->cameraScale != 1 ? 1.0f : 0.5f) * 38.0f;
-    const float barHeight = (eye->cameraScale != 1 ? 1.0f : 0.5f) * 4.0f;
-    const float top = (screenPos.y - scale * 6.0f) - barHeight;
-    const auto left = static_cast<float>(std::floor(static_cast<double>(screenPos.x - barWidth * 0.5f)));
-    int32_t damageTaken = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(getDamage()))));
-    const int32_t maxDamage = dmgLevelFor(static_cast<MiscTerrainObjectType*>(objType), terrainObjectKind);
+    MCPolyElementData data;
+    data.Init();
+    const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+    const float barWidth = (Eye->CameraScale != 1 ? 1.0f : 0.5f) * 38.0f;
+    const float barHeight = (Eye->CameraScale != 1 ? 1.0f : 0.5f) * 4.0f;
+    const float top = (screenPos.Y - scale * 6.0f) - barHeight;
+    const auto left = static_cast<float>(std::floor(static_cast<double>(screenPos.X - barWidth * 0.5f)));
+    int32_t damageTaken = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(GetDamage()))));
+    const int32_t maxDamage = DmgLevelFor(static_cast<MCMiscTerrainObjectType*>(ObjType), TerrainObjectKind);
 
     if (maxDamage < damageTaken)
     {
@@ -606,81 +606,81 @@ auto MiscTerrainObject::drawBars(vector_2d screenPos) -> void
         barLength = 1.0f;
     }
 
-    ElementList->openGroup(-50000, 1);
-    data.numVertices = 0;
-    data.textureMapOff = 0;
-    data.texture = nullptr;
-    data.textureWidth = 0;
-    data.textureHeight = 0;
-    data.fadeTable = nullptr;
-    data.translate = 0;
-    data.statusBar = 1;
-    data.barColor = barColor;
-    data.vertices[0].x = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(left - 1.0f))));
-    data.vertices[0].y = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(top - 1.0f))));
-    data.vertices[1].x =
+    ElementList->OpenGroup(-50000, 1);
+    data.NumVertices = 0;
+    data.TextureMapOff = 0;
+    data.Texture = nullptr;
+    data.TextureWidth = 0;
+    data.TextureHeight = 0;
+    data.FadeTable = nullptr;
+    data.Translate = 0;
+    data.StatusBar = 1;
+    data.BarColor = barColor;
+    data.Vertices[0].X = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(left - 1.0f))));
+    data.Vertices[0].Y = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(top - 1.0f))));
+    data.Vertices[1].X =
         static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(left + barWidth + 1.0f))));
-    data.vertices[1].y =
+    data.Vertices[1].Y =
         static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(top + barHeight + 1.0f))));
-    data.barPercent = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(barLength))));
+    data.BarPercent = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(barLength))));
 
-    if (0 < data.barPercent)
+    if (0 < data.BarPercent)
     {
-        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
+        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, -50000));
     }
 }
 
-auto MiscTerrainObject::destroy() -> void
+auto MCMiscTerrainObject::Destroy() -> void
 {
 }
 
-auto MiscTerrainObject::setDamage(float newDamage) -> void
+auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
 {
-    if (newDamage != damage)
+    if (newDamage != Damage)
     {
-        damage = newDamage;
+        Damage = newDamage;
     }
 
-    const auto* type = static_cast<MiscTerrainObjectType*>(objType);
+    const auto* type = static_cast<MCMiscTerrainObjectType*>(ObjType);
     int32_t tileR;
     int32_t tileC;
 
-    switch (terrainObjectKind)
+    switch (TerrainObjectKind)
     {
         case MISC_BRIDGE:
         {
             // A destroyed bridge: the broken overlay, its span closed to movement (and its global map area shut).
-            if (damage < static_cast<float>(static_cast<int32_t>(type->bridgeDmgLevel)) || overlayDestroyed != 0)
+            if (Damage < static_cast<float>(static_cast<int32_t>(type->BridgeDmgLevel)) || OverlayDestroyed != 0)
             {
                 return;
             }
 
-            land->setOverlayTile(blockNumber, vertexNumber, 0xf);
-            Terrain::forceRedraw = 1;
-            overlayDestroyed = 1;
-            destroyed = 1;
-            status = 2;
-            MapTile& tile = tileAt(this, tileR, tileC);
+            Land->SetOverlayTile(BlockNumber, VertexNumber, 0xf);
+            MCTerrain::ForceRedraw = 1;
+            OverlayDestroyed = 1;
+            Destroyed = 1;
+            Status = 2;
+            MCMapTile& tile = TileAt(this, tileR, tileC);
 
-            switch (tile.overlay & 0x7f)
+            switch (tile.Overlay & 0x7f)
             {
                 case 0x25:
-                    tile.overlay = (tile.overlay & 0xffffffa6) | 0x26;
+                    tile.Overlay = (tile.Overlay & 0xffffffa6) | 0x26;
                     break;
                 case 0x27:
-                    tile.overlay = (tile.overlay & 0xffffffa8) | 0x28;
+                    tile.Overlay = (tile.Overlay & 0xffffffa8) | 0x28;
                     break;
                 case 0x37:
-                    tile.overlay = (tile.overlay & 0xffffffb8) | 0x38;
+                    tile.Overlay = (tile.Overlay & 0xffffffb8) | 0x38;
                     break;
                 case 0x39:
-                    tile.overlay = (tile.overlay & 0xffffffba) | 0x3a;
+                    tile.Overlay = (tile.Overlay & 0xffffffba) | 0x3a;
                     break;
                 default:
                     break;
             }
 
-            const int32_t area = GlobalMoveMap->calcArea(tileR, tileC);
+            const int32_t area = GlobalMoveMap->CalcArea(tileR, tileC);
 
             if (area < 0)
             {
@@ -688,30 +688,30 @@ auto MiscTerrainObject::setDamage(float newDamage) -> void
             }
             else
             {
-                GlobalMoveMap->closeArea(area);
+                GlobalMoveMap->CloseArea(area);
             }
 
-            setAllCells(tile, 0);
+            SetAllCells(tile, 0);
             return;
         }
 
         case MISC_FOREST:
         {
             // A burnt forest: the cleared overlay, passable.
-            if (damage < static_cast<float>(static_cast<int32_t>(type->forestDmgLevel)) || overlayDestroyed != 0)
+            if (Damage < static_cast<float>(static_cast<int32_t>(type->ForestDmgLevel)) || OverlayDestroyed != 0)
             {
                 return;
             }
 
-            const int32_t overlayTile = land->getOverlayTile(blockNumber, vertexNumber);
-            land->setOverlayTile(blockNumber, vertexNumber, overlayTile < 0xd0a || 0xd0d < overlayTile ? 8 : 4);
-            Terrain::forceRedraw = 1;
-            overlayDestroyed = 1;
-            destroyed = 1;
-            status = 2;
-            MapTile& tile = tileAt(this, tileR, tileC);
-            tile.overlay = (tile.overlay & 0xffffffbf) | 0x3f;
-            clearForestCells(tile);
+            const int32_t overlayTile = Land->GetOverlayTile(BlockNumber, VertexNumber);
+            Land->SetOverlayTile(BlockNumber, VertexNumber, overlayTile < 0xd0a || 0xd0d < overlayTile ? 8 : 4);
+            MCTerrain::ForceRedraw = 1;
+            OverlayDestroyed = 1;
+            Destroyed = 1;
+            Status = 2;
+            MCMapTile& tile = TileAt(this, tileR, tileC);
+            tile.Overlay = (tile.Overlay & 0xffffffbf) | 0x3f;
+            ClearForestCells(tile);
             return;
         }
 
@@ -720,25 +720,25 @@ auto MiscTerrainObject::setDamage(float newDamage) -> void
         case MISC_LIGHT_WALL:
         {
             // A knocked-down wall: the rubble overlay, passable once any fire is out.
-            const int32_t level = dmgLevelFor(type, terrainObjectKind);
+            const int32_t level = DmgLevelFor(type, TerrainObjectKind);
 
-            if (damage < static_cast<float>(level) || overlayDestroyed != 0)
+            if (Damage < static_cast<float>(level) || OverlayDestroyed != 0)
             {
                 return;
             }
 
-            land->getOverlayTile(blockNumber, vertexNumber);
-            land->setOverlayTile(blockNumber, vertexNumber, 0x13);
-            Terrain::forceRedraw = 1;
-            overlayDestroyed = 1;
-            destroyed = 1;
-            status = 2;
-            MapTile& tile = tileAt(this, tileR, tileC);
-            tile.overlay = (tile.overlay & 0xffffffbd) | 0x3d;
+            Land->GetOverlayTile(BlockNumber, VertexNumber);
+            Land->SetOverlayTile(BlockNumber, VertexNumber, 0x13);
+            MCTerrain::ForceRedraw = 1;
+            OverlayDestroyed = 1;
+            Destroyed = 1;
+            Status = 2;
+            MCMapTile& tile = TileAt(this, tileR, tileC);
+            tile.Overlay = (tile.Overlay & 0xffffffbd) | 0x3d;
 
-            if (fireObject == nullptr)
+            if (FireObject == nullptr)
             {
-                setAllCells(tile, 1);
+                SetAllCells(tile, 1);
             }
 
             return;
@@ -749,73 +749,73 @@ auto MiscTerrainObject::setDamage(float newDamage) -> void
     }
 }
 
-auto MiscTerrainObject::init(ObjectType* objType) -> int32_t
+auto MCMiscTerrainObject::Init(MCObjectType* objType) -> int32_t
 {
-    const int32_t result = GameObject::init(objType);
+    const int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justCreated = 1;
-    collisionsOn = 0;
-    objectClass = MISCTERRAINOBJECT;
-    damage = 0.0f;
-    alignment = 0;
+    JustCreated = 1;
+    CollisionsOn = 0;
+    ObjectClass = MISCTERRAINOBJECT;
+    Damage = 0.0f;
+    Alignment = 0;
     return 0;
 }
 
-auto MiscTerrainObject::lightOnFire(float timeToBurn) -> void
+auto MCMiscTerrainObject::LightOnFire(float timeToBurn) -> void
 {
-    _WeaponShotInfo shot;
-    shot.init(nullptr, -1, 1.0f, 0, 0.0f);
+    MCWeaponShotInfo shot;
+    shot.Init(nullptr, -1, 1.0f, 0, 0.0f);
 
     if (MPlayer == nullptr)
     {
-        handleWeaponHit(&shot, 0);
+        HandleWeaponHit(&shot, 0);
     }
-    else if (MPlayer->isServer != 0)
+    else if (MPlayer->IsServer != 0)
     {
-        handleWeaponHit(&shot, 1);
+        HandleWeaponHit(&shot, 1);
     }
 
-    if (fireObject != nullptr)
+    if (FireObject != nullptr)
     {
-        fireObject->addTimeLeftToBurn(timeToBurn);
+        FireObject->AddTimeLeftToBurn(timeToBurn);
     }
 }
 
-auto MiscTerrainObject::clearLineOfFire() -> void
+auto MCMiscTerrainObject::ClearLineOfFire() -> void
 {
     // Save each cell's line-of-sight bit and make it see-through (so a shot can pass while it is checked).
     int32_t tileR;
     int32_t tileC;
-    MapTile& tile = tileAt(this, tileR, tileC);
+    MCMapTile& tile = TileAt(this, tileR, tileC);
     int32_t cell = 0;
 
     for (uint32_t shift = 0; shift < 0x12; shift += 2, cell++)
     {
         const uint32_t bit = 0x8000u << shift;
-        cellArray[cell] = static_cast<int32_t>((tile.cells & bit) >> (shift + 0xf));
-        tile.cells = (~bit & tile.cells) | (1u << (shift + 0xf));
+        CellArray[cell] = static_cast<int32_t>((tile.Cells & bit) >> (shift + 0xf));
+        tile.Cells = (~bit & tile.Cells) | (1u << (shift + 0xf));
     }
 }
 
-auto MiscTerrainObject::restoreLineOfFire() -> void
+auto MCMiscTerrainObject::RestoreLineOfFire() -> void
 {
     int32_t tileR;
     int32_t tileC;
-    MapTile& tile = tileAt(this, tileR, tileC);
+    MCMapTile& tile = TileAt(this, tileR, tileC);
     int32_t cell = 0;
 
     for (uint32_t shift = 0; shift < 0x12; shift += 2, cell++)
     {
-        tile.cells = (static_cast<uint32_t>(cellArray[cell]) << (shift + 0xf)) | (~(0x8000u << shift) & tile.cells);
+        tile.Cells = (static_cast<uint32_t>(CellArray[cell]) << (shift + 0xf)) | (~(0x8000u << shift) & tile.Cells);
     }
 }
 
-auto MiscTerrainObject::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCMiscTerrainObject::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
@@ -824,71 +824,71 @@ auto MiscTerrainObject::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultip
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    if (destroyed != 0)
+    if (Destroyed != 0)
     {
         return 0;
     }
 
-    const float newDamage = getDamage() + shotInfo->damage;
-    const auto* type = static_cast<MiscTerrainObjectType*>(objType);
+    const float newDamage = GetDamage() + shotInfo->Damage;
+    const auto* type = static_cast<MCMiscTerrainObjectType*>(ObjType);
 
-    switch (terrainObjectKind)
+    switch (TerrainObjectKind)
     {
         case MISC_BRIDGE:
         case MISC_WALL:
         case MISC_MEDIUM_WALL:
         {
-            if (static_cast<float>(dmgLevelFor(type, terrainObjectKind)) <= newDamage)
+            if (static_cast<float>(DmgLevelFor(type, TerrainObjectKind)) <= newDamage)
             {
-                objType->createExplosion(position, 0.0f, 0.0f);
-                status = 2;
+                ObjType->CreateExplosion(Position, 0.0f, 0.0f);
+                Status = 2;
             }
             break;
         }
         case MISC_FOREST:
         {
             // A forest catches fire on any hit (the test is always true) and burns a second longer per hit.
-            const auto threshold = static_cast<float>(static_cast<int32_t>(type->forestDmgLevel));
+            const auto threshold = static_cast<float>(static_cast<int32_t>(type->ForestDmgLevel));
 
             if (threshold <= newDamage)
             {
-                objType->createExplosion(position, 0.0f, 0.0f);
-                status = 2;
+                ObjType->CreateExplosion(Position, 0.0f, 0.0f);
+                Status = 2;
             }
 
-            if (fireObject == nullptr &&
-                (newDamage < static_cast<float>(static_cast<int32_t>(type->forestDmgLevel)) || threshold <= newDamage))
+            if (FireObject == nullptr &&
+                (newDamage < static_cast<float>(static_cast<int32_t>(type->ForestDmgLevel)) || threshold <= newDamage))
             {
-                GameObject* fire = createObject(static_cast<int32_t>(type->forestFireFX));
+                MCGameObject* fire = CreateObject(static_cast<int32_t>(type->ForestFireFX));
 
                 if (fire != nullptr)
                 {
-                    fire->setPosition(position);
-                    fireObject = static_cast<Fire*>(fire);
-                    fire->setPotentialContact(3);
-                    fireObject->burningObject = this;
-                    fireObject->setTonnage(40.0f);
-                    fireObject->update();
+                    fire->SetPosition(Position);
+                    FireObject = static_cast<MCFire*>(fire);
+                    fire->SetPotentialContact(3);
+                    FireObject->BurningObject = this;
+                    FireObject->SetTonnage(40.0f);
+                    FireObject->Update();
                 }
             }
 
-            if (fireObject != nullptr)
+            if (FireObject != nullptr)
             {
-                fireObject->addTimeLeftToBurn(1.0f);
+                FireObject->AddTimeLeftToBurn(1.0f);
             }
             break;
         }
 
         case MISC_LIGHT_WALL:
         {
-            if (static_cast<float>(static_cast<int32_t>(type->lightWallDmgLevel)) <= newDamage)
+            if (static_cast<float>(static_cast<int32_t>(type->LightWallDmgLevel)) <= newDamage)
             {
-                objType->createExplosion(position, 0.0f, 0.0f);
-                status = 2;
-                soundSystem->playDigitalSample(0x48, 1, this, 0, 0);
+                ObjType->CreateExplosion(Position, 0.0f, 0.0f);
+                Status = 2;
+                SoundSystem->PlayDigitalSample(0x48, 1, this, 0, 0);
             }
             break;
         }
@@ -896,32 +896,32 @@ auto MiscTerrainObject::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultip
             break;
     }
 
-    setDamage(newDamage);
+    SetDamage(newDamage);
     return 0;
 }
 
-auto MiscTerrainObject::isRevealed() -> int
+auto MCMiscTerrainObject::IsRevealed() -> int
 {
-    const auto col = static_cast<uint32_t>((blockNumber % Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                           vertexNumber % Terrain::verticesBlockSide);
-    const auto row = static_cast<uint32_t>((blockNumber / Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                           vertexNumber / Terrain::verticesBlockSide);
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    const auto col = static_cast<uint32_t>((BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                           VertexNumber % MCTerrain::VerticesBlockSide);
+    const auto row = static_cast<uint32_t>((BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                           VertexNumber / MCTerrain::VerticesBlockSide);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row, col + 1) != 0)
+    if (visibleBits->GetFlag(row, col + 1) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         return 1;
     }
 
-    return visibleBits->getFlag(row + 1, col) != 0 ? 1 : 0;
+    return visibleBits->GetFlag(row + 1, col) != 0 ? 1 : 0;
 }

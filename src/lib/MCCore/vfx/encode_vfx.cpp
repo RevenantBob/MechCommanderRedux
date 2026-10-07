@@ -7,7 +7,7 @@
 // _VFX_shape_scan, ScanLine and FlushPacket, and 0x006b5db8 is the shared exit (store the result, return it).
 // The port therefore runs the one encoder, in vfx/vfxa_shape.cpp.
 
-int VFX_shape_scan(PANE* pane, uint8_t transparentColor, int hotX, int hotY, void* buffer)
+int VfxShapeScan(MCPane* pane, uint8_t transparentColor, int hotX, int hotY, void* buffer)
 {
-    return VFX_shape_scan_asm(pane, transparentColor, hotX, hotY, buffer);
+    return VfxShapeScanAsm(pane, transparentColor, hotX, hotY, buffer);
 }

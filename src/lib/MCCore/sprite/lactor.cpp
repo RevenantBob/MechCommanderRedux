@@ -17,10 +17,10 @@ namespace
     constexpr int32_t GESTURE_JUMP = 2;
 
     /// <summary>The facing of <paramref name="obj"/> in degrees, negative to the right.</summary>
-    auto objectFacing(GameObject* obj) -> float
+    auto ObjectFacing(MCGameObject* obj) -> float
     {
-        const frame_of_ref frame = obj->getFrame();
-        float cosFacing = UnitX.x * frame.i.x + UnitX.y * frame.i.y + UnitX.z * frame.i.z;
+        const MCFrameOfRef frame = obj->GetFrame();
+        float cosFacing = UnitX.X * frame.I.X + UnitX.Y * frame.I.Y + UnitX.Z * frame.I.Z;
 
         if (cosFacing < -1.0)
         {
@@ -32,9 +32,9 @@ namespace
             cosFacing = 1.0f;
         }
 
-        double facing = acosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
+        double facing = AcosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
 
-        if (frame.i.y < 0.0)
+        if (frame.I.Y < 0.0)
         {
             facing = -facing;
         }
@@ -43,43 +43,43 @@ namespace
     }
 }
 
-auto ElementalActor::getNumFramesInGesture(uint32_t gesture) -> float
+auto MCElementalActor::GetNumFramesInGesture(uint32_t gesture) -> float
 {
     // Port fix: the original tests numGestures < gesture, so gesture == numGestures reads past the table.
-    if (appearType->numGestures <= gesture)
+    if (AppearType->NumGestures <= gesture)
     {
         return 0.0f;
     }
 
-    return static_cast<float>(appearType->gestures[gesture].numFrames);
+    return static_cast<float>(AppearType->Gestures[gesture].NumFrames);
 }
 
-auto ElementalActor::getVelocityOfGesture(uint32_t gesture) -> float
+auto MCElementalActor::GetVelocityOfGesture(uint32_t gesture) -> float
 {
     // Port fix: as in getNumFramesInGesture.
-    if (appearType->numGestures <= gesture)
+    if (AppearType->NumGestures <= gesture)
     {
         return 0.0f;
     }
 
-    return appearType->gestures[gesture].velocity;
+    return AppearType->Gestures[gesture].Velocity;
 }
 
-auto ElementalActor::preloadGestures(int32_t gesture, float preloadRotation) -> void
+auto MCElementalActor::PreloadGestures(int32_t gesture, float preloadRotation) -> void
 {
-    appearType->preloadGestures(gesture, preloadRotation);
+    AppearType->PreloadGestures(gesture, preloadRotation);
 }
 
-auto ElementalActor::setGestureGoal(int32_t goal) -> int32_t
+auto MCElementalActor::SetGestureGoal(int32_t goal) -> int32_t
 {
-    if (goalPending != 0)
+    if (GoalPending != 0)
     {
         return static_cast<int32_t>(0xeadd0005);
     }
 
     if (goal == GESTURE_JUMP)
     {
-        if (jumpSetup == 0)
+        if (JumpSetup == 0)
         {
             return static_cast<int32_t>(0xeadd0006);
         }
@@ -89,152 +89,152 @@ auto ElementalActor::setGestureGoal(int32_t goal) -> int32_t
         return static_cast<int32_t>(0xeadd0003);
     }
 
-    if (static_cast<int32_t>(appearType->numGestures) < goal)
+    if (static_cast<int32_t>(AppearType->NumGestures) < goal)
     {
         return static_cast<int32_t>(0xeadd0003);
     }
 
-    gestureGoal = goal;
-    goalPending = 1;
+    GestureGoal = goal;
+    GoalPending = 1;
     return 0;
 }
 
-auto ElementalActor::init(AppearanceType* tree, GameObject* obj) -> int32_t
+auto MCElementalActor::Init(MCAppearanceType* tree, MCGameObject* obj) -> int32_t
 {
-    visible = 0;
-    owner = obj;
-    appearType = static_cast<ElementalTree*>(tree);
+    Visible = 0;
+    Owner = obj;
+    AppearType = static_cast<MCElementalTree*>(tree);
 
     if (tree != nullptr)
     {
-        tree->addUsers(this);
+        tree->AddUsers(this);
     }
 
-    visible = 0;
-    fadeTableIndex = -1;
-    currentFrame = -1;
-    shapeMinY = -15.0f;
-    shapeMinX = -15.0f;
-    currentShape = nullptr;
-    currentTime = 0.0f;
-    lastFrame = 0;
-    velocity = 0.0f;
-    goalPending = 0;
-    currentGesture = 0;
-    oldGesture = 0;
-    jumping = 0;
-    jumpSetup = 0;
-    inView = 0;
-    frameRate = 15.0f;
-    velocityPercentage = 1.0f;
-    shapeMaxY = 30.0f;
-    shapeMaxX = 30.0f;
+    Visible = 0;
+    FadeTableIndex = -1;
+    CurrentFrame = -1;
+    ShapeMinY = -15.0f;
+    ShapeMinX = -15.0f;
+    CurrentShape = nullptr;
+    CurrentTime = 0.0f;
+    LastFrame = 0;
+    Velocity = 0.0f;
+    GoalPending = 0;
+    CurrentGesture = 0;
+    OldGesture = 0;
+    Jumping = 0;
+    JumpSetup = 0;
+    InView = 0;
+    FrameRate = 15.0f;
+    VelocityPercentage = 1.0f;
+    ShapeMaxY = 30.0f;
+    ShapeMaxX = 30.0f;
     return 0;
 }
 
-auto ElementalActor::setJumpParameters(float jumpDistance) -> int32_t
+auto MCElementalActor::SetJumpParameters(float jumpDistance) -> int32_t
 {
-    if (jumping != 0)
+    if (Jumping != 0)
     {
         return static_cast<int32_t>(0xeadd0007);
     }
 
-    gestureGoal = GESTURE_JUMP;
-    jumpSetup = 1;
+    GestureGoal = GESTURE_JUMP;
+    JumpSetup = 1;
     // Cover the distance in the jump gesture's time.
-    const ElementalGestureData& jump = appearType->gestures[GESTURE_JUMP];
-    velocity = jumpDistance / (static_cast<float>(jump.numFrames) / jump.frameRate);
+    const MCElementalGestureData& jump = AppearType->Gestures[GESTURE_JUMP];
+    Velocity = jumpDistance / (static_cast<float>(jump.NumFrames) / jump.FrameRate);
     return 0;
 }
 
-auto ElementalActor::getVelocityMagnitude() -> float
+auto MCElementalActor::GetVelocityMagnitude() -> float
 {
-    if (jumping == 0 && jumpSetup == 0)
+    if (Jumping == 0 && JumpSetup == 0)
     {
-        velocity = appearType->gestures[currentGesture].velocity;
+        Velocity = AppearType->Gestures[CurrentGesture].Velocity;
     }
 
-    return velocity;
+    return Velocity;
 }
 
-auto ElementalActor::setVelocityPercentage(float percent) -> void
+auto MCElementalActor::SetVelocityPercentage(float percent) -> void
 {
     // Keep the animation at the same frame when the speed changes.
-    if (percent != velocityPercentage)
+    if (percent != VelocityPercentage)
     {
-        currentTime = (velocityPercentage * currentTime * frameRate) / (percent * frameRate);
+        CurrentTime = (VelocityPercentage * CurrentTime * FrameRate) / (percent * FrameRate);
     }
 
-    velocityPercentage = percent;
+    VelocityPercentage = percent;
 }
 
-auto ElementalActor::recalcBounds(Camera* cam) -> int
+auto MCElementalActor::RecalcBounds(MCCamera* cam) -> int
 {
     if (cam == nullptr)
     {
         return 0;
     }
 
-    const vector_2d pos = owner->getScreenPos(cam->cameraId - 1);
-    upperLeft.x = pos.x;
-    upperLeft.y = pos.y;
-    lowerRight.y = pos.y;
-    lowerRight.x = pos.x;
+    const MCVector2D pos = Owner->GetScreenPos(cam->CameraId - 1);
+    UpperLeft.X = pos.X;
+    UpperLeft.Y = pos.Y;
+    LowerRight.Y = pos.Y;
+    LowerRight.X = pos.X;
 
     // The shape's bounds are taken once, from the first shape seen.
-    if (currentShape != nullptr && currentShape->frameList != nullptr && inView == 0)
+    if (CurrentShape != nullptr && CurrentShape->FrameList != nullptr && InView == 0)
     {
-        uint8_t* shapeTable = currentShape->frameList;
-        int32_t frame = currentFrame;
+        uint8_t* shapeTable = CurrentShape->FrameList;
+        int32_t frame = CurrentFrame;
 
         if (frame < 0)
         {
             frame = 0;
         }
 
-        const int32_t numShapeFrames = VFX_shape_count(shapeTable);
+        const int32_t numShapeFrames = VfxShapeCount(shapeTable);
 
         if (numShapeFrames <= frame)
         {
             frame = numShapeFrames - 1;
         }
 
-        const int32_t minXY = VFX_shape_minxy(shapeTable, frame);
+        const int32_t minXY = VfxShapeMinxy(shapeTable, frame);
 
-        if (static_cast<float>(minXY >> 16) < shapeMinX)
+        if (static_cast<float>(minXY >> 16) < ShapeMinX)
         {
-            shapeMinX = static_cast<float>(minXY >> 16);
+            ShapeMinX = static_cast<float>(minXY >> 16);
         }
 
-        if (static_cast<float>(static_cast<int16_t>(minXY)) < shapeMinY)
+        if (static_cast<float>(static_cast<int16_t>(minXY)) < ShapeMinY)
         {
-            shapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
+            ShapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
         }
 
-        const int32_t size = VFX_shape_resolution(shapeTable, frame);
+        const int32_t size = VfxShapeResolution(shapeTable, frame);
 
-        if (shapeMaxX < static_cast<float>(size >> 16))
+        if (ShapeMaxX < static_cast<float>(size >> 16))
         {
-            shapeMaxX = static_cast<float>(size >> 16);
+            ShapeMaxX = static_cast<float>(size >> 16);
         }
 
-        if (shapeMaxY < static_cast<float>(static_cast<int16_t>(size)))
+        if (ShapeMaxY < static_cast<float>(static_cast<int16_t>(size)))
         {
-            shapeMaxY = static_cast<float>(static_cast<int16_t>(size));
+            ShapeMaxY = static_cast<float>(static_cast<int16_t>(size));
         }
 
-        inView = 1;
+        InView = 1;
     }
 
-    const float scale = cam->cameraScale == 1 ? 0.5f : 1.0f;
-    upperLeft.x = scale * shapeMinX + pos.x;
-    upperLeft.y = scale * shapeMinY + pos.y;
-    lowerRight.x = scale * shapeMaxX + upperLeft.x;
-    lowerRight.y = scale * shapeMaxY + upperLeft.y;
+    const float scale = cam->CameraScale == 1 ? 0.5f : 1.0f;
+    UpperLeft.X = scale * ShapeMinX + pos.X;
+    UpperLeft.Y = scale * ShapeMinY + pos.Y;
+    LowerRight.X = scale * ShapeMaxX + UpperLeft.X;
+    LowerRight.Y = scale * ShapeMaxY + UpperLeft.Y;
 
-    if (0.0f <= lowerRight.x && 0.0f <= lowerRight.y &&
-        upperLeft.x <= static_cast<float>(static_cast<int32_t>(std::floor(cam->viewWidth))) &&
-        upperLeft.y <= static_cast<float>(static_cast<int32_t>(std::floor(cam->viewHeight))))
+    if (0.0f <= LowerRight.X && 0.0f <= LowerRight.Y &&
+        UpperLeft.X <= static_cast<float>(static_cast<int32_t>(std::floor(cam->ViewWidth))) &&
+        UpperLeft.Y <= static_cast<float>(static_cast<int32_t>(std::floor(cam->ViewHeight))))
     {
         return 1;
     }
@@ -242,153 +242,153 @@ auto ElementalActor::recalcBounds(Camera* cam) -> int
     return 0;
 }
 
-auto ElementalActor::render(int32_t depthFixup) -> int32_t
+auto MCElementalActor::Render(int32_t depthFixup) -> int32_t
 {
-    GameObject* obj = owner;
-    screenPos = obj->getScreenPos(eye->cameraId - 1);
-    const float facing = objectFacing(obj);
-    currentShape = appearType->getGesture(currentGesture, facing, frameRate, visible);
-    recalcBounds(eye);
-    ElementList->openGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - screenPos.y), 1);
+    MCGameObject* obj = Owner;
+    ScreenPos = obj->GetScreenPos(Eye->CameraId - 1);
+    const float facing = ObjectFacing(obj);
+    CurrentShape = AppearType->GetGesture(CurrentGesture, facing, FrameRate, Visible);
+    RecalcBounds(Eye);
+    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 1);
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
-        drawSelectBox(0xff);
+        DrawSelectBox(0xff);
     }
 
-    if (currentShape == nullptr || currentShape->frameList == nullptr)
+    if (CurrentShape == nullptr || CurrentShape->FrameList == nullptr)
     {
         return 0;
     }
 
     uint8_t* fadeTable = nullptr;
 
-    if (fadeTableIndex != -1 && fadeTableIndex >= 0)
+    if (FadeTableIndex != -1 && FadeTableIndex >= 0)
     {
-        fadeTable = gamePalette->fadePalettes.get() + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+        fadeTable = GamePalette->FadePalettes.get() + (FadeTableIndex + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
     }
 
-    if (currentFrame < 0)
+    if (CurrentFrame < 0)
     {
-        currentFrame = 0;
+        CurrentFrame = 0;
     }
 
-    ElementList->add(ElementPool::Make<VFXElement>(currentShape->frameList, screenPos.x, screenPos.y, currentFrame, 0,
-                                                   fadeTable, 1, 0));
+    ElementList->Add(MCElementPool::Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame,
+                                                       0, fadeTable, 1, 0));
 
     // Selection: -1 and 1 draw the bars, 2 the brackets in the owner's alignment colour.
-    const int32_t selected = owner->selected;
+    const int32_t selected = Owner->Selected;
 
     if (selected == -1 || selected == 1)
     {
-        recalcBounds(eye);
-        drawBars();
+        RecalcBounds(Eye);
+        DrawBars();
     }
     else if (selected == 2)
     {
-        recalcBounds(eye);
-        GameObject* selectedObj = owner;
-        const int32_t alignment = selectedObj->getAlignment();
+        RecalcBounds(Eye);
+        MCGameObject* selectedObj = Owner;
+        const int32_t alignment = selectedObj->GetAlignment();
 
         if (alignment == -1)
         {
-            drawSelectBrackets(0xfd);
+            DrawSelectBrackets(0xfd);
         }
         else if (alignment == 0)
         {
-            drawSelectBrackets(0xfe);
+            DrawSelectBrackets(0xfe);
         }
         else if (alignment == 1)
         {
-            drawSelectBrackets(selectedObj->getAlignment() == homeTeam->alignment ? 0xfc : 0xfb);
+            DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam->Alignment ? 0xfc : 0xfb);
         }
     }
 
     return 0;
 }
 
-auto ElementalActor::update() -> int32_t
+auto MCElementalActor::Update() -> int32_t
 {
-    int32_t gesture = currentGesture;
-    goalPending = 0;
+    int32_t gesture = CurrentGesture;
+    GoalPending = 0;
 
-    if (gestureGoal != gesture)
+    if (GestureGoal != gesture)
     {
-        gesture = gestureGoal;
-        currentGesture = gesture;
-        oldGesture = gesture;
-        jumpSetup = 0;
-        jumping = gesture == GESTURE_JUMP ? 1 : 0;
+        gesture = GestureGoal;
+        CurrentGesture = gesture;
+        OldGesture = gesture;
+        JumpSetup = 0;
+        Jumping = gesture == GESTURE_JUMP ? 1 : 0;
 
-        if (owner->isDisabled() == 0)
+        if (Owner->IsDisabled() == 0)
         {
-            owner->status = 0;
+            Owner->Status = 0;
         }
 
-        currentFrame = 0;
+        CurrentFrame = 0;
         // Keep the animation time consistent with the new gesture's rate.
-        const float newRate = std::fabs(appearType->gestures[gesture].frameRate);
+        const float newRate = std::fabs(AppearType->Gestures[gesture].FrameRate);
 
-        if (newRate != frameRate || velocityPercentage != 1.0)
+        if (newRate != FrameRate || VelocityPercentage != 1.0)
         {
-            currentTime = (frameRate * currentTime) / (velocityPercentage * newRate);
+            CurrentTime = (FrameRate * CurrentTime) / (VelocityPercentage * newRate);
         }
     }
 
-    frameRate = appearType->gestures[gesture].frameRate;
+    FrameRate = AppearType->Gestures[gesture].FrameRate;
 
-    if (frameRate < 0.0)
+    if (FrameRate < 0.0)
     {
-        frameRate = -frameRate;
+        FrameRate = -FrameRate;
     }
 
-    appearType->setGesture(gesture, objectFacing(owner), frameRate);
+    AppearType->SetGesture(gesture, ObjectFacing(Owner), FrameRate);
 
-    if (currentFrame == -1)
+    if (CurrentFrame == -1)
     {
-        currentFrame = 0;
+        CurrentFrame = 0;
         return 1;
     }
 
-    frameRate = velocityPercentage * frameRate;
-    currentTime = frameLength + currentTime;
-    const double frames = static_cast<double>(currentTime * frameRate);
+    FrameRate = VelocityPercentage * FrameRate;
+    CurrentTime = FrameLength + CurrentTime;
+    const double frames = static_cast<double>(CurrentTime * FrameRate);
     const int32_t wholeFrames = static_cast<int32_t>(std::floor(frames));
 
-    if (lastFrame < wholeFrames)
+    if (LastFrame < wholeFrames)
     {
-        const int32_t played = lastFrame;
-        lastFrame = wholeFrames;
+        const int32_t played = LastFrame;
+        LastFrame = wholeFrames;
         const int32_t advanced = wholeFrames - played;
         // The original also let a flag (always 1) stop the jump gesture from animating.
-        const int32_t current = currentGesture;
+        const int32_t current = CurrentGesture;
 
         if (advanced != 0)
         {
-            const uint32_t frame = static_cast<uint32_t>(currentFrame + advanced);
-            currentFrame = static_cast<int32_t>(frame);
-            const uint32_t numFrames = appearType->gestures[current].numFrames;
+            const uint32_t frame = static_cast<uint32_t>(CurrentFrame + advanced);
+            CurrentFrame = static_cast<int32_t>(frame);
+            const uint32_t numFrames = AppearType->Gestures[current].NumFrames;
 
             if (static_cast<int32_t>(numFrames) <= static_cast<int32_t>(frame))
             {
-                currentFrame = static_cast<int32_t>(frame % numFrames);
+                CurrentFrame = static_cast<int32_t>(frame % numFrames);
 
                 if (current == GESTURE_JUMP)
                 {
                     // The jump is over: back to gesture 0.
-                    setGestureGoal(0);
-                    const int32_t goal = gestureGoal;
-                    currentGesture = goal;
-                    oldGesture = goal;
-                    jumping = 0;
-                    const float newRate = std::fabs(appearType->gestures[goal].frameRate);
+                    SetGestureGoal(0);
+                    const int32_t goal = GestureGoal;
+                    CurrentGesture = goal;
+                    OldGesture = goal;
+                    Jumping = 0;
+                    const float newRate = std::fabs(AppearType->Gestures[goal].FrameRate);
 
-                    if (newRate != frameRate || velocityPercentage != 1.0)
+                    if (newRate != FrameRate || VelocityPercentage != 1.0)
                     {
-                        currentTime = (frameRate * currentTime) / (velocityPercentage * newRate);
+                        CurrentTime = (FrameRate * CurrentTime) / (VelocityPercentage * newRate);
                     }
 
-                    currentFrame = 0;
+                    CurrentFrame = 0;
                 }
             }
         }
@@ -397,12 +397,12 @@ auto ElementalActor::update() -> int32_t
     return 1;
 }
 
-auto ElementalActor::destroy() -> void
+auto MCElementalActor::Destroy() -> void
 {
-    appearType->removeUsers(this);
-    appearanceTypeList->removeAppearance(appearType);
+    AppearType->RemoveUsers(this);
+    AppearanceTypeList->RemoveAppearance(AppearType);
 }
 
-auto ElementalActor::drawBars() -> void
+auto MCElementalActor::DrawBars() -> void
 {
 }

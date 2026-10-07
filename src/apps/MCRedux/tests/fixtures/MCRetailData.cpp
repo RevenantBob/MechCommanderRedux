@@ -20,22 +20,22 @@ namespace MCRetailData
         for (const std::string_view gamePath : gamePaths)
         {
             const std::string name(gamePath);
-            File file;
+            MCFile file;
 
-            if (file.open(name.c_str()) != NO_ERR)
+            if (file.Open(name.c_str()) != NO_ERR)
             {
                 FAIL_CHECK(std::format("{} isn't in the install", name));
                 continue;
             }
 
-            std::vector<uint8_t> bytes(file.fileSize());
+            std::vector<uint8_t> bytes(file.FileSize());
 
             if (!bytes.empty())
             {
-                file.read(bytes.data(), static_cast<int32_t>(bytes.size()));
+                file.Read(bytes.data(), static_cast<int32_t>(bytes.size()));
             }
 
-            file.close();
+            file.Close();
             source->AddFile(gamePath, std::move(bytes));
         }
 

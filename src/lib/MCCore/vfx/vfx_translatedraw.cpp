@@ -12,7 +12,7 @@
 // Each routine repeated the same asm body with its own off-by-ones in the clipping (OB-112); the port clips every one
 // to the pane's rectangle within the window.
 
-void MCAgDrawShape(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, MCShapeOp op,
+void MCAgDrawShape(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, MCShapeOp op,
                    const uint8_t* xlat)
 {
     MCVfxClip clip;
@@ -52,10 +52,10 @@ void MCAgDrawShape(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX,
     command.Hi = clip.X1;
     command.Op = op;
     command.Table = xlat;
-    MCRenderer::For(pane->window).Shape(pane->window, command);
+    MCRenderer::For(pane->Window).Shape(pane->Window, command);
 }
 
-void AG_shape_draw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
+void AGShapeDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
 {
     if (MCAgShapeIsAlpha(shapeTable, shapeNum))
     {
@@ -67,22 +67,22 @@ void AG_shape_draw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX,
     }
 }
 
-void AG_shape_lookaside(uint8_t* table)
+void AGShapeLookaside(uint8_t* table)
 {
-    lookaside = table;
+    Lookaside = table;
 }
 
-void AG_shape_translate_draw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
+void AGShapeTranslateDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
 {
     // The clipped loop also checked, after every skip, that the destination pointer's top nibble was 8 (the Win9x
     // shared arena DirectDraw surfaces were mapped in) and gave up on the shape otherwise. The port always
     // continues, as on the video surfaces the check was written for.
     if (MCAgShapeIsAlpha(shapeTable, shapeNum))
     {
-        MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::XlatAlpha, lookaside);
+        MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::XlatAlpha, Lookaside);
     }
     else
     {
-        MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::Xlat, lookaside);
+        MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::Xlat, Lookaside);
     }
 }

@@ -4,67 +4,67 @@
 #include "lib/inifile.h"
 #include "terrain/terrain.h"
 
-char cameraPath[80] = "data\\cameras\\";
+char CameraPath[80] = "data\\cameras\\";
 
 namespace
 {
     /// <summary>The first 8 characters of <paramref name="name"/> equal the camera's name (strncmp's inline form).
     /// </summary>
-    auto nameMatches(const char* name, const Camera* camera) -> bool
+    auto NameMatches(const char* name, const MCCamera* camera) -> bool
     {
-        return strncmp(name, camera->name, 8) == 0;
+        return strncmp(name, camera->Name, 8) == 0;
     }
 }
 
-auto CameraList::destroy() -> void
+auto MCCameraList::Destroy() -> void
 {
-    destroying = 1;
-    removeAll();
-    currentClass = NO_CAMERA;
-    currentCamera = nullptr;
-    lastCamera = nullptr;
-    scaleTable = {};
-    pauseShape = nullptr;
-    askedShape = nullptr;
+    Destroying = 1;
+    RemoveAll();
+    CurrentClass = NO_CAMERA;
+    CurrentCamera = nullptr;
+    LastCamera = nullptr;
+    ScaleTable = {};
+    PauseShape = nullptr;
+    AskedShape = nullptr;
 
-    if (mainHolder != nullptr)
+    if (MainHolder != nullptr)
     {
-        mainHolder->destroy();
-        delete mainHolder;
-        mainHolder = nullptr;
+        MainHolder->Destroy();
+        delete MainHolder;
+        MainHolder = nullptr;
     }
 }
 
-auto CameraList::init(char* fileName) -> int32_t
+auto MCCameraList::Init(char* fileName) -> int32_t
 {
     int32_t result = 0;
-    FullPathFileName cameraName;
-    cameraName.init(cameraPath, fileName, ".fit");
-    FitIniFile cameraFile;
+    MCFullPathFileName cameraName;
+    cameraName.Init(CameraPath, fileName, ".fit");
+    MCFitIniFile cameraFile;
 
-    if ((result = cameraFile.open(cameraName, READ, 50)) != 0)
+    if ((result = cameraFile.Open(cameraName, READ, 50)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile.seekBlock("CameraInfo")) != 0)
+    if ((result = cameraFile.SeekBlock("CameraInfo")) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile.readIdULong("NumCameras", numCameras)) != 0)
+    if ((result = cameraFile.ReadIdULong("NumCameras", NumCameras)) != 0)
     {
         return result;
     }
 
-    if (numCameras > 4)
+    if (NumCameras > 4)
     {
         return -0x3544fffb;
     }
 
     int32_t i = 0;
 
-    if (static_cast<int32_t>(numCameras) <= 0)
+    if (static_cast<int32_t>(NumCameras) <= 0)
     {
         return 0;
     }
@@ -72,11 +72,11 @@ auto CameraList::init(char* fileName) -> int32_t
     do
     {
         char blockName[32];
-        Camera* camera;
+        MCCamera* camera;
         int objectCamera;
         sprintf(blockName, "Camera%d", i);
 
-        if (cameraFile.seekBlock(blockName) == 0 && (camera = new Camera) != nullptr)
+        if (cameraFile.SeekBlock(blockName) == 0 && (camera = new MCCamera) != nullptr)
         {
             objectCamera = 0;
         }
@@ -84,12 +84,12 @@ auto CameraList::init(char* fileName) -> int32_t
         {
             sprintf(blockName, "ObjectCamera%d", i);
 
-            if (cameraFile.seekBlock(blockName) != 0)
+            if (cameraFile.SeekBlock(blockName) != 0)
             {
                 return -0x3544fffd;
             }
 
-            camera = new Camera;
+            camera = new MCCamera;
             objectCamera = 1;
 
             if (camera == nullptr)
@@ -100,24 +100,24 @@ auto CameraList::init(char* fileName) -> int32_t
 
         i++;
 
-        if ((result = camera->init(&cameraFile, objectCamera, i)) != 0)
+        if ((result = camera->Init(&cameraFile, objectCamera, i)) != 0)
         {
             return result;
         }
 
-        add(camera);
-    } while (i < static_cast<int32_t>(numCameras));
+        Add(camera);
+    } while (i < static_cast<int32_t>(NumCameras));
 
     return 0;
 }
 
-auto CameraList::add(Camera* camera) -> int32_t
+auto MCCameraList::Add(MCCamera* camera) -> int32_t
 {
-    auto* node = new CameraNode;
+    auto* node = new MCCameraNode;
 
     if (node != nullptr)
     {
-        node->camera = camera;
+        node->Camera = camera;
     }
 
     // MCX.EXE adds the node even when it could not be allocated.
@@ -125,21 +125,21 @@ auto CameraList::add(Camera* camera) -> int32_t
     return 0;
 }
 
-auto CameraList::remove(Camera* camera) -> int32_t
+auto MCCameraList::Remove(MCCamera* camera) -> int32_t
 {
-    if (destroying != 0)
+    if (Destroying != 0)
     {
         return 0;
     }
 
-    Link* link = nullptr;
-    Link* previous = nullptr;
+    MCLink* link = nullptr;
+    MCLink* previous = nullptr;
 
     while (Traverse(link) != 0)
     {
-        if (static_cast<CameraNode*>(link)->camera == camera)
+        if (static_cast<MCCameraNode*>(link)->Camera == camera)
         {
-            Destroy(link, previous);
+            MCLinkedList::Destroy(link, previous);
             return 0;
         }
 
@@ -149,20 +149,20 @@ auto CameraList::remove(Camera* camera) -> int32_t
     return -0x3544ffff;
 }
 
-auto CameraList::find(char* name) -> Camera*
+auto MCCameraList::Find(char* name) -> MCCamera*
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
-        MCPort::StrUpr(camera->name);
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
+        MCPort::StrUpr(camera->Name);
         char wanted[8];
         strncpy(wanted, name, 7);
         wanted[7] = '\0';
         MCPort::StrUpr(wanted);
 
-        if (nameMatches(wanted, camera))
+        if (NameMatches(wanted, camera))
         {
             return camera;
         }
@@ -171,15 +171,15 @@ auto CameraList::find(char* name) -> Camera*
     return nullptr;
 }
 
-auto CameraList::find(CameraClass cameraClass, char* name) -> Camera*
+auto MCCameraList::Find(MCCameraClass cameraClass, char* name) -> MCCamera*
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (camera->cameraClass == cameraClass && (name == nullptr || nameMatches(name, camera)))
+        if (camera->CameraClass == cameraClass && (name == nullptr || NameMatches(name, camera)))
         {
             return camera;
         }
@@ -188,24 +188,24 @@ auto CameraList::find(CameraClass cameraClass, char* name) -> Camera*
     return nullptr;
 }
 
-auto CameraList::findNext(Camera* camera, CameraClass cameraClass) -> Camera*
+auto MCCameraList::FindNext(MCCamera* camera, MCCameraClass cameraClass) -> MCCamera*
 {
     // Find the camera, then look after it and wrap around to it.
-    Link* link = nullptr;
+    MCLink* link = nullptr;
     int more = Traverse(link);
 
-    while (more != 0 && static_cast<CameraNode*>(link)->camera != camera)
+    while (more != 0 && static_cast<MCCameraNode*>(link)->Camera != camera)
     {
         more = Traverse(link);
     }
 
-    Link* start = link;
+    MCLink* start = link;
 
     while (Traverse(link) != 0)
     {
-        if (static_cast<CameraNode*>(link)->camera->cameraClass == cameraClass)
+        if (static_cast<MCCameraNode*>(link)->Camera->CameraClass == cameraClass)
         {
-            return static_cast<CameraNode*>(link)->camera;
+            return static_cast<MCCameraNode*>(link)->Camera;
         }
     }
 
@@ -213,66 +213,66 @@ auto CameraList::findNext(Camera* camera, CameraClass cameraClass) -> Camera*
 
     while (Traverse(link) != 0 && link != start)
     {
-        if (static_cast<CameraNode*>(link)->camera->cameraClass == cameraClass)
+        if (static_cast<MCCameraNode*>(link)->Camera->CameraClass == cameraClass)
         {
-            return static_cast<CameraNode*>(link)->camera;
+            return static_cast<MCCameraNode*>(link)->Camera;
         }
     }
 
     return nullptr;
 }
 
-auto CameraList::removeAll() -> void
+auto MCCameraList::RemoveAll() -> void
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
         if (camera != nullptr)
         {
             delete camera;
         }
 
-        Destroy(link, nullptr);
+        MCLinkedList::Destroy(link, nullptr);
         link = nullptr;
     }
 
-    currentCamera = nullptr;
+    CurrentCamera = nullptr;
 }
 
-auto CameraList::activateAllReady() -> Camera*
+auto MCCameraList::ActivateAllReady() -> MCCamera*
 {
-    currentCamera = nullptr;
-    Link* link = nullptr;
+    CurrentCamera = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (camera->ready != 0 && camera->activate() == 0 && currentCamera == nullptr)
+        if (camera->Ready != 0 && camera->Activate() == 0 && CurrentCamera == nullptr)
         {
-            currentCamera = camera;
+            CurrentCamera = camera;
         }
     }
 
-    return currentCamera;
+    return CurrentCamera;
 }
 
-auto CameraList::activate(char* name) -> Camera*
+auto MCCameraList::Activate(char* name) -> MCCamera*
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (nameMatches(name, camera))
+        if (NameMatches(name, camera))
         {
-            if (camera->active == 0 && camera->activate() == 0 && currentCamera == nullptr)
+            if (camera->Active == 0 && camera->Activate() == 0 && CurrentCamera == nullptr)
             {
-                currentCamera = camera;
+                CurrentCamera = camera;
             }
 
             return camera;
@@ -282,29 +282,29 @@ auto CameraList::activate(char* name) -> Camera*
     return nullptr;
 }
 
-auto CameraList::activate(CameraClass cameraClass, char* name) -> Camera*
+auto MCCameraList::Activate(MCCameraClass cameraClass, char* name) -> MCCamera*
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (camera->cameraClass != cameraClass || (name != nullptr && !nameMatches(name, camera)))
+        if (camera->CameraClass != cameraClass || (name != nullptr && !NameMatches(name, camera)))
         {
             continue;
         }
 
-        if (camera->active == 0)
+        if (camera->Active == 0)
         {
-            if (camera->activate() != 0)
+            if (camera->Activate() != 0)
             {
                 return nullptr;
             }
 
-            if (currentCamera == nullptr)
+            if (CurrentCamera == nullptr)
             {
-                currentCamera = camera;
+                CurrentCamera = camera;
             }
         }
 
@@ -314,120 +314,120 @@ auto CameraList::activate(CameraClass cameraClass, char* name) -> Camera*
     return nullptr;
 }
 
-auto CameraList::deactivateAll() -> void
+auto MCCameraList::DeactivateAll() -> void
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (camera->active != 0)
+        if (camera->Active != 0)
         {
-            camera->deactivate();
+            camera->Deactivate();
         }
     }
 
-    currentCamera = nullptr;
+    CurrentCamera = nullptr;
 }
 
-auto CameraList::deactivate(char* name) -> void
+auto MCCameraList::Deactivate(char* name) -> void
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (nameMatches(name, camera) && camera->active != 0)
+        if (NameMatches(name, camera) && camera->Active != 0)
         {
-            camera->deactivate();
+            camera->Deactivate();
 
-            if (camera == currentCamera)
+            if (camera == CurrentCamera)
             {
-                currentCamera = nullptr;
+                CurrentCamera = nullptr;
             }
         }
     }
 }
 
-auto CameraList::changeCamera(CameraClass cameraClass, char* name) -> int32_t
+auto MCCameraList::ChangeCamera(MCCameraClass cameraClass, char* name) -> int32_t
 {
-    if (currentClass != cameraClass)
+    if (CurrentClass != cameraClass)
     {
-        Camera* camera = find(cameraClass, name);
+        MCCamera* camera = Find(cameraClass, name);
 
         if (camera != nullptr)
         {
-            return changeCamera(camera);
+            return ChangeCamera(camera);
         }
     }
 
     return 0;
 }
 
-auto CameraList::changeCamera(Camera* camera) -> int32_t
+auto MCCameraList::ChangeCamera(MCCamera* camera) -> int32_t
 {
     int32_t result = 0;
-    Camera* oldCamera = currentCamera;
+    MCCamera* oldCamera = CurrentCamera;
 
     if (oldCamera != camera && camera != nullptr)
     {
         if (oldCamera != nullptr)
         {
-            oldCamera->deactivate();
+            oldCamera->Deactivate();
         }
 
-        result = camera->activate();
+        result = camera->Activate();
 
         if (result == 0)
         {
-            lastCamera = oldCamera;
-            currentCamera = camera;
-            currentClass = camera->cameraClass;
+            LastCamera = oldCamera;
+            CurrentCamera = camera;
+            CurrentClass = camera->CameraClass;
         }
     }
 
     return result;
 }
 
-auto CameraList::renderView(aObject* window) -> void
+auto MCCameraList::RenderView(MCGuiObject* window) -> void
 {
-    Link* link = nullptr;
-    clearMoverList();
-    clearList();
-    Camera* savedEye = eye;
+    MCLink* link = nullptr;
+    ClearMoverList();
+    ClearBlockList();
+    MCCamera* savedEye = Eye;
 
     while (Traverse(link) != 0)
     {
-        eye = static_cast<CameraNode*>(link)->camera;
+        Eye = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (eye->active != 0 && eye->window == window)
+        if (Eye->Active != 0 && Eye->Window == window)
         {
-            eye->render();
+            Eye->Render();
         }
 
-        eye = savedEye;
+        Eye = savedEye;
     }
 
-    eye = savedEye;
+    Eye = savedEye;
 }
 
-auto CameraList::update() -> int32_t
+auto MCCameraList::Update() -> int32_t
 {
     int32_t result = 0;
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (camera->active == 0)
+        if (camera->Active == 0)
         {
             continue;
         }
 
-        result = camera->update();
+        result = camera->Update();
 
         if (result != -0x3544fffe)
         {
@@ -435,72 +435,72 @@ auto CameraList::update() -> int32_t
         }
 
         // The camera lost its target: back to the camera before it.
-        camera->deactivate();
+        camera->Deactivate();
 
-        if (camera == currentCamera && lastCamera != nullptr && (result = lastCamera->activate()) == 0)
+        if (camera == CurrentCamera && LastCamera != nullptr && (result = LastCamera->Activate()) == 0)
         {
-            currentCamera = lastCamera;
-            lastCamera = nullptr;
+            CurrentCamera = LastCamera;
+            LastCamera = nullptr;
         }
     }
 
     return result;
 }
 
-auto CameraList::findCameraFromIDNumber(int32_t cameraId) -> Camera*
+auto MCCameraList::FindCameraFromIDNumber(int32_t cameraId) -> MCCamera*
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        if (static_cast<CameraNode*>(link)->camera->cameraId == cameraId)
+        if (static_cast<MCCameraNode*>(link)->Camera->CameraId == cameraId)
         {
-            return static_cast<CameraNode*>(link)->camera;
+            return static_cast<MCCameraNode*>(link)->Camera;
         }
     }
 
     return nullptr;
 }
 
-auto CameraList::findCameraFromObject(BaseObject* object) -> Camera*
+auto MCCameraList::FindCameraFromObject(MCBaseObject* object) -> MCCamera*
 {
     if (object == nullptr)
     {
         return nullptr;
     }
 
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        if (object == static_cast<CameraNode*>(link)->camera->targetObject)
+        if (object == static_cast<MCCameraNode*>(link)->Camera->TargetObject)
         {
-            return static_cast<CameraNode*>(link)->camera;
+            return static_cast<MCCameraNode*>(link)->Camera;
         }
     }
 
     return nullptr;
 }
 
-auto CameraList::findNextAvailable() -> Camera*
+auto MCCameraList::FindNextAvailable() -> MCCamera*
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
-        if (static_cast<CameraNode*>(link)->camera->active == 0)
+        if (static_cast<MCCameraNode*>(link)->Camera->Active == 0)
         {
-            return static_cast<CameraNode*>(link)->camera;
+            return static_cast<MCCameraNode*>(link)->Camera;
         }
     }
 
     return nullptr;
 }
 
-auto CameraList::findTopCameraWindow() -> Camera*
+auto MCCameraList::FindTopCameraWindow() -> MCCamera*
 {
-    Camera* topCamera = nullptr;
-    Link* link = nullptr;
+    MCCamera* topCamera = nullptr;
+    MCLink* link = nullptr;
 
     while (Traverse(link) != 0)
     {
@@ -508,14 +508,14 @@ auto CameraList::findTopCameraWindow() -> Camera*
         // (a null pointer crash for any ready, active camera). Nothing calls this. Port fix: a null best takes the
         // camera, so it returns the last camera when that one is ready and active, else null.
         topCamera = nullptr;
-        Camera* camera = static_cast<CameraNode*>(link)->camera;
+        MCCamera* camera = static_cast<MCCameraNode*>(link)->Camera;
 
-        if (camera->ready == 0 || camera->active == 0)
+        if (camera->Ready == 0 || camera->Active == 0)
         {
             continue;
         }
 
-        if (topCamera == nullptr || topCamera->window->depth() < camera->window->depth())
+        if (topCamera == nullptr || topCamera->Window->Depth() < camera->Window->Depth())
         {
             topCamera = camera;
         }

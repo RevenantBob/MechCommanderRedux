@@ -46,40 +46,40 @@ namespace
     /// Loads the shadow shape named by FIT entry <paramref name="entry"/> (a .shp in spritePath) into the object type
     /// cache. No entry leaves <paramref name="shadow"/> alone and succeeds; a file that won't open returns its error.
     /// </summary>
-    int32_t loadShadow(FitIniFile& typeFile, const char* entry, uint8_t*& shadow)
+    int32_t LoadShadow(MCFitIniFile& typeFile, const char* entry, uint8_t*& shadow)
     {
         char shadowName[80];
 
-        if (typeFile.readIdString(entry, shadowName, 79) != 0)
+        if (typeFile.ReadIdString(entry, shadowName, 79) != 0)
         {
             return 0;
         }
 
-        FullPathFileName shadowPath;
-        shadowPath.init(spritePath, shadowName, ".shp");
-        File shadowFile;
-        const int32_t result = shadowFile.open(shadowPath, READ, 50);
+        MCFullPathFileName shadowPath;
+        shadowPath.Init(SpritePath, shadowName, ".shp");
+        MCFile shadowFile;
+        const int32_t result = shadowFile.Open(shadowPath, READ, 50);
 
         if (result != 0)
         {
             return result;
         }
 
-        const uint32_t size = shadowFile.fileSize();
-        shadow = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(size));
-        shadowFile.read(shadow, static_cast<int32_t>(size));
+        const uint32_t size = shadowFile.FileSize();
+        shadow = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(size));
+        shadowFile.Read(shadow, static_cast<int32_t>(size));
         MCRenderer::RegisterData(shadow, size, MCDataKind::Shapes);
-        shadowFile.close();
+        shadowFile.Close();
         return 0;
     }
 
     /// <summary>The map row and column of a tree building's terrain vertex.</summary>
-    void vertexRowCol(const TreeBuilding* building, uint32_t& row, uint32_t& col)
+    void VertexRowCol(const MCTreeBuilding* building, uint32_t& row, uint32_t& col)
     {
-        col = static_cast<uint32_t>((building->blockNumber % Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                    building->vertexNumber % Terrain::verticesBlockSide);
-        row = static_cast<uint32_t>((building->blockNumber / Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                    building->vertexNumber / Terrain::verticesBlockSide);
+        col = static_cast<uint32_t>((building->BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                    building->VertexNumber % MCTerrain::VerticesBlockSide);
+        row = static_cast<uint32_t>((building->BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                    building->VertexNumber / MCTerrain::VerticesBlockSide);
     }
 }
 
@@ -87,173 +87,173 @@ namespace
 // TreeBuildingType
 //---------------------------------------------------------------------------
 
-auto TreeBuildingType::init() -> void
+auto MCTreeBuildingType::Init() -> void
 {
-    typeClass = -1;
-    destroyedObject = -1;
-    explosionObject = -1;
-    appearName = 0;
-    extentRadius = 0.0f;
-    keepMe = 0;
-    iconNumber = -1;
-    dmgLevel = 0;
-    blownEffectId = 0xffffffff;
-    normalEffectId = 0xffffffff;
-    damageEffectId = 0xffffffff;
-    sensorRange = -1.0f;
-    teamId = -1;
-    explRad = 0.0f;
-    explDmg = 0.0f;
-    baseTonnage = 0.0f;
-    timeToBurnDamage = 0.0f;
-    burnDamagePerTime = 0.0f;
-    damageLvlForBurn = 0.0f;
-    buildingName = 0;
-    normalShadow = nullptr;
-    destroyedShadow = nullptr;
-    battleRating = 0;
-    numMarines = 0;
-    canRefit = 0;
-    mechBay = 0;
+    TypeClass = -1;
+    DestroyedObject = -1;
+    ExplosionObject = -1;
+    AppearName = 0;
+    ExtentRadius = 0.0f;
+    KeepMe = 0;
+    IconNumber = -1;
+    DmgLevel = 0;
+    BlownEffectId = 0xffffffff;
+    NormalEffectId = 0xffffffff;
+    DamageEffectId = 0xffffffff;
+    SensorRange = -1.0f;
+    TeamId = -1;
+    ExplRad = 0.0f;
+    ExplDmg = 0.0f;
+    BaseTonnage = 0.0f;
+    TimeToBurnDamage = 0.0f;
+    BurnDamagePerTime = 0.0f;
+    DamageLvlForBurn = 0.0f;
+    BuildingName = 0;
+    NormalShadow = nullptr;
+    DestroyedShadow = nullptr;
+    BattleRating = 0;
+    NumMarines = 0;
+    CanRefit = 0;
+    MechBay = 0;
 }
 
-auto TreeBuildingType::createInstance() -> BaseObject*
+auto MCTreeBuildingType::CreateInstance() -> MCBaseObject*
 {
-    auto* newBuilding = new TreeBuilding;
+    auto* newBuilding = new MCTreeBuilding;
 
     if (newBuilding == nullptr)
     {
         return nullptr;
     }
 
-    if (newBuilding->init(this) != 0)
+    if (newBuilding->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newBuilding->idNumber = NextIdNumber++;
+    newBuilding->IdNumber = NextIdNumber++;
     return newBuilding;
 }
 
-auto TreeBuildingType::destroy() -> void
+auto MCTreeBuildingType::Destroy() -> void
 {
-    ObjectTypeManager::objectTypeCache.Free(normalShadow);
-    normalShadow = nullptr;
-    ObjectTypeManager::objectTypeCache.Free(destroyedShadow);
-    destroyedShadow = nullptr;
+    MCObjectTypeManager::ObjectTypeCache.Free(NormalShadow);
+    NormalShadow = nullptr;
+    MCObjectTypeManager::ObjectTypeCache.Free(DestroyedShadow);
+    DestroyedShadow = nullptr;
 }
 
-auto TreeBuildingType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCTreeBuildingType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile treeFile;
-    int32_t result = treeFile.open(objFile, fileSize, 50);
+    MCFitIniFile treeFile;
+    int32_t result = treeFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = treeFile.seekBlock("TreeData")) != 0)
+    if ((result = treeFile.SeekBlock("TreeData")) != 0)
     {
         return result;
     }
 
-    if ((result = treeFile.readIdULong("DmgLevel", dmgLevel)) != 0)
+    if ((result = treeFile.ReadIdULong("DmgLevel", DmgLevel)) != 0)
     {
         return result;
     }
 
-    treeFile.readIdULong("NormalEffectId", normalEffectId);
-    treeFile.readIdULong("BlownEffectId", blownEffectId);
-    treeFile.readIdULong("DamageEffectId", damageEffectId);
+    treeFile.ReadIdULong("NormalEffectId", NormalEffectId);
+    treeFile.ReadIdULong("BlownEffectId", BlownEffectId);
+    treeFile.ReadIdULong("DamageEffectId", DamageEffectId);
 
-    if (treeFile.readIdBoolean("CanRefit", canRefit) != 0)
+    if (treeFile.ReadIdBoolean("CanRefit", CanRefit) != 0)
     {
-        canRefit = 0;
+        CanRefit = 0;
     }
 
-    if (canRefit != 0 && treeFile.readIdBoolean("MechBay", mechBay) != 0)
+    if (CanRefit != 0 && treeFile.ReadIdBoolean("MechBay", MechBay) != 0)
     {
-        mechBay = 0;
+        MechBay = 0;
     }
 
-    if ((result = loadShadow(treeFile, "NormalShadow", normalShadow)) != 0)
+    if ((result = LoadShadow(treeFile, "NormalShadow", NormalShadow)) != 0)
     {
         return result;
     }
 
-    if ((result = loadShadow(treeFile, "DestroyedShadow", destroyedShadow)) != 0)
+    if ((result = LoadShadow(treeFile, "DestroyedShadow", DestroyedShadow)) != 0)
     {
         return result;
     }
 
-    if (treeFile.readIdFloat("ExplosionRadius", explRad) != 0)
+    if (treeFile.ReadIdFloat("ExplosionRadius", ExplRad) != 0)
     {
-        explRad = 0.0f;
+        ExplRad = 0.0f;
     }
 
-    if (treeFile.readIdFloat("ExplosionDamage", explDmg) != 0)
+    if (treeFile.ReadIdFloat("ExplosionDamage", ExplDmg) != 0)
     {
-        explDmg = 0.0f;
+        ExplDmg = 0.0f;
     }
 
-    if (treeFile.readIdFloat("TimeToBurnDamage", timeToBurnDamage) != 0)
+    if (treeFile.ReadIdFloat("TimeToBurnDamage", TimeToBurnDamage) != 0)
     {
-        timeToBurnDamage = 5.0f;
+        TimeToBurnDamage = 5.0f;
     }
 
-    if (treeFile.readIdFloat("BurnDamagePerTime", burnDamagePerTime) != 0)
+    if (treeFile.ReadIdFloat("BurnDamagePerTime", BurnDamagePerTime) != 0)
     {
-        burnDamagePerTime = 1.0f;
+        BurnDamagePerTime = 1.0f;
     }
 
-    if (treeFile.readIdFloat("DamageLvlForBurn", damageLvlForBurn) != 0)
+    if (treeFile.ReadIdFloat("DamageLvlForBurn", DamageLvlForBurn) != 0)
     {
-        damageLvlForBurn = static_cast<float>(dmgLevel);
+        DamageLvlForBurn = static_cast<float>(DmgLevel);
     }
 
     // The team is only read for a building with a sensor.
-    if (treeFile.readIdFloat("SensorRange", sensorRange) == 0)
+    if (treeFile.ReadIdFloat("SensorRange", SensorRange) == 0)
     {
-        if (treeFile.readIdLong("TeamID", teamId) != 0)
+        if (treeFile.ReadIdLong("TeamID", TeamId) != 0)
         {
-            teamId = -1;
+            TeamId = -1;
         }
     }
     else
     {
-        sensorRange = -1.0f;
+        SensorRange = -1.0f;
     }
 
-    if (treeFile.readIdFloat("Tonnage", baseTonnage) != 0)
+    if (treeFile.ReadIdFloat("Tonnage", BaseTonnage) != 0)
     {
-        baseTonnage = 20.0f;
+        BaseTonnage = 20.0f;
     }
 
-    if (treeFile.readIdLong("BattleRating", battleRating) != 0)
+    if (treeFile.ReadIdLong("BattleRating", BattleRating) != 0)
     {
-        battleRating = 20;
+        BattleRating = 20;
     }
 
-    if (treeFile.readIdLong("NumMarines", numMarines) != 0)
+    if (treeFile.ReadIdLong("NumMarines", NumMarines) != 0)
     {
-        numMarines = 0;
+        NumMarines = 0;
     }
 
-    if (treeFile.readIdLong("BuildingName", buildingName) != 0)
+    if (treeFile.ReadIdLong("BuildingName", BuildingName) != 0)
     {
-        buildingName = 0xa3;
+        BuildingName = 0xa3;
     }
 
-    return ObjectType::init(&treeFile);
+    return MCObjectType::Init(&treeFile);
 }
 
-auto TreeBuildingType::handleCollision(GameObject*, GameObject*) -> int
+auto MCTreeBuildingType::HandleCollision(MCGameObject*, MCGameObject*) -> int
 {
     return 1;
 }
 
-auto TreeBuildingType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCTreeBuildingType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -262,57 +262,57 @@ auto TreeBuildingType::handleDestruction(GameObject*, GameObject*) -> int
 // TreeBuilding
 //---------------------------------------------------------------------------
 
-TreeBuilding::TreeBuilding()
+MCTreeBuilding::MCTreeBuilding()
 {
-    frame.reset_to_world_frame();
-    init();
-    justCreated = 1;
-    appearance = nullptr;
-    vertexNumber = 0;
-    blockNumber = 0;
-    burning = 0;
-    hitOnce = 0;
-    collapsed = 0;
-    collapsing = 0;
-    burnTime = 0.0f;
-    name.clear();
-    fireObject = nullptr;
-    sensorSystem = nullptr;
-    soundHandle = 0xffffffff;
-    commanderId = static_cast<char>(0xff);
-    canRefit = 0;
-    mechBay = 0;
+    Frame.ResetToWorldFrame();
+    Init();
+    JustCreated = 1;
+    Appearance = nullptr;
+    VertexNumber = 0;
+    BlockNumber = 0;
+    Burning = 0;
+    HitOnce = 0;
+    Collapsed = 0;
+    Collapsing = 0;
+    BurnTime = 0.0f;
+    Name.clear();
+    FireObject = nullptr;
+    SensorSystem = nullptr;
+    SoundHandle = 0xffffffff;
+    CommanderId = static_cast<char>(0xff);
+    CanRefit = 0;
+    MechBay = 0;
 }
 
-auto TreeBuilding::init() -> void
+auto MCTreeBuilding::Init() -> void
 {
-    for (MechWarrior*& slot : prisonSlots)
+    for (MCMechWarrior*& slot : PrisonSlots)
     {
         slot = nullptr;
     }
 }
 
-auto TreeBuilding::setTerrainPosition(vector_2d& offset, vector_2d& numbers) -> void
+auto MCTreeBuilding::SetTerrainPosition(MCVector2D& offset, MCVector2D& numbers) -> void
 {
-    pixelOffsetX = static_cast<int32_t>(offset.x);
-    pixelOffsetY = static_cast<int32_t>(offset.y);
-    vertexNumber = static_cast<int32_t>(numbers.x);
-    blockNumber = static_cast<int32_t>(numbers.y);
+    PixelOffsetX = static_cast<int32_t>(offset.X);
+    PixelOffsetY = static_cast<int32_t>(offset.Y);
+    VertexNumber = static_cast<int32_t>(numbers.X);
+    BlockNumber = static_cast<int32_t>(numbers.Y);
 }
 
-auto TreeBuilding::getFrame() -> frame_of_ref
+auto MCTreeBuilding::GetFrame() -> MCFrameOfRef
 {
-    return frame;
+    return Frame;
 }
 
-auto TreeBuilding::setFrame(frame_of_ref& newFrame) -> void
+auto MCTreeBuilding::SetFrame(MCFrameOfRef& newFrame) -> void
 {
-    frame = newFrame;
+    Frame = newFrame;
 }
 
-auto TreeBuilding::isPrison() -> int
+auto MCTreeBuilding::IsPrison() -> int
 {
-    for (const MechWarrior* slot : prisonSlots)
+    for (const MCMechWarrior* slot : PrisonSlots)
     {
         if (slot != nullptr)
         {
@@ -323,73 +323,73 @@ auto TreeBuilding::isPrison() -> int
     return 0;
 }
 
-auto TreeBuilding::getBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
+auto MCTreeBuilding::GetBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
 {
-    blockNum = blockNumber;
-    vertexNum = vertexNumber;
+    blockNum = BlockNumber;
+    vertexNum = VertexNumber;
 }
 
-auto TreeBuilding::getRefitPoints() -> float
+auto MCTreeBuilding::GetRefitPoints() -> float
 {
-    if (canRefit == 0)
+    if (CanRefit == 0)
     {
         return 0.0f;
     }
 
-    return static_cast<float>(static_cast<int32_t>(static_cast<TreeBuildingType*>(objType)->dmgLevel)) - damage;
+    return static_cast<float>(static_cast<int32_t>(static_cast<MCTreeBuildingType*>(ObjType)->DmgLevel)) - Damage;
 }
 
-auto TreeBuilding::burnRefitPoints(float points) -> int
+auto MCTreeBuilding::BurnRefitPoints(float points) -> int
 {
-    if (canRefit == 0)
+    if (CanRefit == 0)
     {
         return 0;
     }
 
     // Spent refit points count as damage; never more than are left.
-    if (points < getRefitPoints())
+    if (points < GetRefitPoints())
     {
-        damageObject(points);
+        DamageObject(points);
     }
     else
     {
-        damageObject(getRefitPoints());
+        DamageObject(GetRefitPoints());
     }
 
     return 1;
 }
 
-auto TreeBuilding::isVisible(Camera* cam) -> int
+auto MCTreeBuilding::IsVisible(MCCamera* cam) -> int
 {
-    if (cam == nullptr || cam->active == 0)
+    if (cam == nullptr || cam->Active == 0)
     {
         return 0;
     }
 
-    int visible = cam->vertexProject(blockNumber, vertexNumber, screenPos);
+    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        visible = appearance->recalcBounds(cam);
+        visible = Appearance->RecalcBounds(cam);
     }
 
     // The shadow can stick out past the building: on screen when any of its box is.
     bool shadowOnScreen = false;
-    uint8_t* shadow = static_cast<TreeBuildingType*>(objType)->normalShadow;
+    uint8_t* shadow = static_cast<MCTreeBuildingType*>(ObjType)->NormalShadow;
 
     if (shadow != nullptr)
     {
-        const float scale = cam->cameraScale != 1 ? 1.0f : 0.5f;
-        const int32_t minXY = VFX_shape_minxy(shadow, 0);
-        const float left = static_cast<float>(minXY >> 16) * scale + screenPos.x;
-        const float top = static_cast<float>(static_cast<int16_t>(minXY)) * scale + screenPos.y;
-        const int32_t resolution = VFX_shape_resolution(shadow, 0);
+        const float scale = cam->CameraScale != 1 ? 1.0f : 0.5f;
+        const int32_t minXY = VfxShapeMinxy(shadow, 0);
+        const float left = static_cast<float>(minXY >> 16) * scale + ScreenPos.X;
+        const float top = static_cast<float>(static_cast<int16_t>(minXY)) * scale + ScreenPos.Y;
+        const int32_t resolution = VfxShapeResolution(shadow, 0);
 
         if (0.0f <= static_cast<float>(resolution >> 16) * scale + left &&
             0.0f <= scale * static_cast<float>(static_cast<int16_t>(resolution)) + top)
         {
-            const auto viewRight = static_cast<int16_t>(std::floor(static_cast<double>(cam->viewWidth)));
-            const auto viewBottom = static_cast<int16_t>(std::floor(static_cast<double>(cam->viewHeight)));
+            const auto viewRight = static_cast<int16_t>(std::floor(static_cast<double>(cam->ViewWidth)));
+            const auto viewBottom = static_cast<int16_t>(std::floor(static_cast<double>(cam->ViewHeight)));
             shadowOnScreen = left <= static_cast<float>(viewRight) && top <= static_cast<float>(viewBottom);
         }
     }
@@ -400,49 +400,49 @@ auto TreeBuilding::isVisible(Camera* cam) -> int
     }
 
     // Back on screen after a gap: the looping sound is started afresh.
-    if (windowsVisible < turn - 2)
+    if (WindowsVisible < Turn - 2)
     {
-        soundHandle = 0xffffffff;
+        SoundHandle = 0xffffffff;
     }
 
-    windowsVisible = turn;
+    WindowsVisible = Turn;
     return 1;
 }
 
-auto TreeBuilding::isCaptureable() -> int
+auto MCTreeBuilding::IsCaptureable() -> int
 {
     if (MPlayer == nullptr)
     {
-        return captureable != 0 && isCaptured() == 0 && isDestroyed() == 0 ? 1 : 0;
+        return Captureable != 0 && IsCaptured() == 0 && IsDestroyed() == 0 ? 1 : 0;
     }
 
-    return captureable != 0 && isDestroyed() == 0 ? 1 : 0;
+    return Captureable != 0 && IsDestroyed() == 0 ? 1 : 0;
 }
 
-auto TreeBuilding::update() -> int32_t
+auto MCTreeBuilding::Update() -> int32_t
 {
-    if (justCreated == 0)
+    if (JustCreated == 0)
     {
         return 1;
     }
 
     // Set the building on its vertex: the block's corner, the vertex within it, then the pixel offset within the
     // tile (turned into the isometric grid's 60-degree axes).
-    const int32_t blocksMapSide = Terrain::blocksMapSide;
-    const int32_t verticesBlockSide = Terrain::verticesBlockSide;
-    justCreated = 0;
-    float blockX = static_cast<float>(blockNumber % blocksMapSide - blocksMapSide / 2) * Terrain::metersBlockSide;
-    float blockY = static_cast<float>(blocksMapSide / 2 - blockNumber / blocksMapSide) * Terrain::metersBlockSide;
+    const int32_t blocksMapSide = MCTerrain::BlocksMapSide;
+    const int32_t verticesBlockSide = MCTerrain::VerticesBlockSide;
+    JustCreated = 0;
+    float blockX = static_cast<float>(BlockNumber % blocksMapSide - blocksMapSide / 2) * MCTerrain::MetersBlockSide;
+    float blockY = static_cast<float>(blocksMapSide / 2 - BlockNumber / blocksMapSide) * MCTerrain::MetersBlockSide;
 
     if ((blocksMapSide & 1) != 0)
     {
-        blockX = blockX - Terrain::metersBlockSide * 0.5f;
-        blockY = Terrain::metersBlockSide * 0.5f + blockY;
+        blockX = blockX - MCTerrain::MetersBlockSide * 0.5f;
+        blockY = MCTerrain::MetersBlockSide * 0.5f + blockY;
     }
 
-    const float vertexX = static_cast<float>(vertexNumber % verticesBlockSide) * Terrain::metersPerVertex;
-    const double offsetY = static_cast<double>(pixelOffsetY);
-    const double offsetX = static_cast<double>(pixelOffsetX);
+    const float vertexX = static_cast<float>(VertexNumber % verticesBlockSide) * MCTerrain::MetersPerVertex;
+    const double offsetY = static_cast<double>(PixelOffsetY);
+    const double offsetX = static_cast<double>(PixelOffsetX);
     double offsetAngle;
 
     if (offsetY == 0.0)
@@ -454,81 +454,81 @@ auto TreeBuilding::update() -> int32_t
         offsetAngle = std::atan(offsetX / offsetY) * RADIANS_TO_DEGREES;
     }
 
-    position.y = blockY - static_cast<float>(vertexNumber / verticesBlockSide) * Terrain::metersPerVertex;
+    Position.Y = blockY - static_cast<float>(VertexNumber / verticesBlockSide) * MCTerrain::MetersPerVertex;
     const auto offsetDistance = static_cast<float>(std::sqrt(offsetY * offsetY + offsetX * offsetX));
     const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
     const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
-    position.x = vertexX + blockX;
-    const float elevation = land->getTerrainElevation(position);
-    position.x =
-        static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + position.x);
-    position.y = position.y - alongAxis;
-    position.z = elevation;
+    Position.X = vertexX + blockX;
+    const float elevation = Land->GetTerrainElevation(Position);
+    Position.X =
+        static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
+    Position.Y = Position.Y - alongAxis;
+    Position.Z = elevation;
 
-    cellColumn = (blockNumber % Terrain::blocksMapSide) * verticesBlockSide + vertexNumber % verticesBlockSide;
-    const int32_t halfMap = (verticesBlockSide * Terrain::blocksMapSide) >> 1;
-    vertexWorldX = static_cast<float>(cellColumn - halfMap) * Terrain::metersPerVertex;
-    cellRow = vertexNumber / verticesBlockSide + (blockNumber / Terrain::blocksMapSide) * verticesBlockSide;
-    vertexWorldY = static_cast<float>(halfMap - cellRow) * Terrain::metersPerVertex;
+    CellColumn = (BlockNumber % MCTerrain::BlocksMapSide) * verticesBlockSide + VertexNumber % verticesBlockSide;
+    const int32_t halfMap = (verticesBlockSide * MCTerrain::BlocksMapSide) >> 1;
+    VertexWorldX = static_cast<float>(CellColumn - halfMap) * MCTerrain::MetersPerVertex;
+    CellRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
+    VertexWorldY = static_cast<float>(halfMap - CellRow) * MCTerrain::MetersPerVertex;
     const auto inBounds = [&]
-    { return cellRow < 0 || GameMap->height <= cellRow || cellColumn < 0 || GameMap->width <= cellColumn ? 0u : 1u; };
+    { return CellRow < 0 || GameMap->Height <= CellRow || CellColumn < 0 || GameMap->Width <= CellColumn ? 0u : 1u; };
     Assert(inBounds(), 0, " tbldg MapTile Out of Bounds ");
     Assert(inBounds(), 0, " Map Tile out of bounds ");
-    const MapTile& tile = GameMap->map[GameMap->width * cellRow + cellColumn];
-    const int32_t elevationLevel = static_cast<int32_t>((tile.cells >> 7) & 0x3f) + GameMap->baseElevation;
-    auto* treeAppearance = static_cast<VFXAppearance*>(appearance);
-    treeAppearance->visible = 1;
-    cellElevation = static_cast<float>(elevationLevel) * Terrain::metersPerElevLevel;
-    treeAppearance->update();
-    treeAppearance->recalcBounds(eye);
+    const MCMapTile& tile = GameMap->Map[GameMap->Width * CellRow + CellColumn];
+    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+    auto* treeAppearance = static_cast<MCVfxAppearance*>(Appearance);
+    treeAppearance->Visible = 1;
+    CellElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
+    treeAppearance->Update();
+    treeAppearance->RecalcBounds(Eye);
 
-    if (canRefit != 0)
+    if (CanRefit != 0)
     {
-        treeAppearance->setTypeId(ACTOR_STATE_NORMAL, 0);
+        treeAppearance->SetTypeId(ACTOR_STATE_NORMAL, 0);
     }
 
     return 1;
 }
 
-auto TreeBuilding::setAlignment(int32_t align) -> void
+auto MCTreeBuilding::SetAlignment(int32_t align) -> void
 {
-    BigGameObject::setAlignment(align);
+    MCBigGameObject::SetAlignment(align);
 
-    if (isDestroyed() != 0 || sensorSystem == nullptr)
+    if (IsDestroyed() != 0 || SensorSystem == nullptr)
     {
         return;
     }
 
-    if (alignment == -1)
+    if (Alignment == -1)
     {
-        sensorSystem->setTeam(clanTeam);
+        SensorSystem->SetTeam(ClanTeam);
     }
-    else if (alignment == 1)
+    else if (Alignment == 1)
     {
-        sensorSystem->setTeam(innerSphereTeam);
+        SensorSystem->SetTeam(InnerSphereTeam);
     }
-    else if (alignment == 0)
+    else if (Alignment == 0)
     {
-        sensorSystem->setTeam(alliedTeam);
+        SensorSystem->SetTeam(AlliedTeam);
     }
 }
 
-auto TreeBuilding::setCommanderId(int32_t id) -> void
+auto MCTreeBuilding::SetCommanderId(int32_t id) -> void
 {
-    commanderId = static_cast<char>(id);
+    CommanderId = static_cast<char>(id);
 }
 
-auto TreeBuilding::handleEvent(ObjectEvent* event) -> int32_t
+auto MCTreeBuilding::HandleEvent(MCObjectEvent* event) -> int32_t
 {
-    if (event->type == 0)
+    if (event->Type == 0)
     {
-        switch (event->id)
+        switch (event->Id)
         {
             case 0x1c:
-                selected = 1;
+                Selected = 1;
                 break;
             case 0x1d:
-                selected = 0;
+                Selected = 0;
                 break;
         }
     }
@@ -536,193 +536,193 @@ auto TreeBuilding::handleEvent(ObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto TreeBuilding::lightOnFire(float timeToBurn) -> void
+auto MCTreeBuilding::LightOnFire(float timeToBurn) -> void
 {
-    auto* type = static_cast<TreeBuildingType*>(objType);
+    auto* type = static_cast<MCTreeBuildingType*>(ObjType);
 
-    if (type->blownEffectId == 0xffffffff)
+    if (type->BlownEffectId == 0xffffffff)
     {
         // Nothing to burn: a point of damage instead.
-        _WeaponShotInfo shot;
-        shot.init(nullptr, -1, 1.0f, 0, 0.0f);
+        MCWeaponShotInfo shot;
+        shot.Init(nullptr, -1, 1.0f, 0, 0.0f);
 
         if (MPlayer == nullptr)
         {
-            handleWeaponHit(&shot, 0);
+            HandleWeaponHit(&shot, 0);
         }
-        else if (MPlayer->isServer != 0)
+        else if (MPlayer->IsServer != 0)
         {
-            handleWeaponHit(&shot, 1);
+            HandleWeaponHit(&shot, 1);
         }
 
         return;
     }
 
-    if (fireObject == nullptr)
+    if (FireObject == nullptr)
     {
-        GameObject* newFire = createObject(static_cast<int32_t>(type->blownEffectId));
+        MCGameObject* newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
 
         if (newFire != nullptr)
         {
-            newFire->setPosition(position);
+            newFire->SetPosition(Position);
 
-            if (newFire->objectClass == FIRE)
+            if (newFire->ObjectClass == FIRE)
             {
-                fireObject = static_cast<Fire*>(newFire);
-                fireObject->setPotentialContact(3);
-                fireObject->burningObject = this;
-                fireObject->setTonnage(40.0f);
+                FireObject = static_cast<MCFire*>(newFire);
+                FireObject->SetPotentialContact(3);
+                FireObject->BurningObject = this;
+                FireObject->SetTonnage(40.0f);
             }
             else
             {
-                destroyObject(newFire);
+                DestroyObject(newFire);
             }
         }
     }
 
-    if (fireObject != nullptr)
+    if (FireObject != nullptr)
     {
-        fireObject->addTimeLeftToBurn(timeToBurn);
-        burning = 1;
+        FireObject->AddTimeLeftToBurn(timeToBurn);
+        Burning = 1;
     }
 }
 
-auto TreeBuilding::isRevealed() -> int
+auto MCTreeBuilding::IsRevealed() -> int
 {
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     uint32_t row;
     uint32_t col;
-    vertexRowCol(this, row, col);
+    VertexRowCol(this, row, col);
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         return 1;
     }
 
-    return visibleBits->getFlag(row, col + 1) != 0 ? 1 : 0;
+    return visibleBits->GetFlag(row, col + 1) != 0 ? 1 : 0;
 }
 
-auto TreeBuilding::render() -> void
+auto MCTreeBuilding::Render() -> void
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         return;
     }
 
-    auto* type = static_cast<TreeBuildingType*>(objType);
+    auto* type = static_cast<MCTreeBuildingType*>(ObjType);
 
     // Burning: the type's burn damage every TimeToBurnDamage seconds.
-    if (fireObject == nullptr)
+    if (FireObject == nullptr)
     {
-        burning = 0;
+        Burning = 0;
     }
     else
     {
-        const double burnSum = static_cast<double>(frameLength) + burnTime;
-        burnTime = static_cast<float>(burnSum);
+        const double burnSum = static_cast<double>(FrameLength) + BurnTime;
+        BurnTime = static_cast<float>(burnSum);
 
-        if (type->timeToBurnDamage < burnSum)
+        if (type->TimeToBurnDamage < burnSum)
         {
-            burnTime = 0.0f;
-            _WeaponShotInfo shot;
-            shot.init(nullptr, -1, type->burnDamagePerTime, 0, 0.0f);
+            BurnTime = 0.0f;
+            MCWeaponShotInfo shot;
+            shot.Init(nullptr, -1, type->BurnDamagePerTime, 0, 0.0f);
 
             if (MPlayer == nullptr)
             {
-                handleWeaponHit(&shot, 0);
+                HandleWeaponHit(&shot, 0);
             }
-            else if (MPlayer->isServer != 0)
+            else if (MPlayer->IsServer != 0)
             {
-                handleWeaponHit(&shot, 1);
+                HandleWeaponHit(&shot, 1);
             }
         }
     }
 
-    auto* treeAppearance = static_cast<VFXAppearance*>(appearance);
+    auto* treeAppearance = static_cast<MCVfxAppearance*>(Appearance);
 
     if (treeAppearance != nullptr)
     {
-        treeAppearance->visible = isVisible(eye);
+        treeAppearance->Visible = IsVisible(Eye);
 
         // When the collapse animation ends, settle on the matching rubble state.
-        if (treeAppearance->update() == 0 && collapsing != 0)
+        if (treeAppearance->Update() == 0 && Collapsing != 0)
         {
-            const ActorState state = treeAppearance->currentState;
-            collapsing = 0;
-            collapsed = 1;
+            const MCActorState state = treeAppearance->CurrentState;
+            Collapsing = 0;
+            Collapsed = 1;
 
             if (state == ACTOR_STATE_BLOWING_UP1)
             {
-                treeAppearance->setTypeId(ACTOR_STATE_DAMAGED, 0xff);
+                treeAppearance->SetTypeId(ACTOR_STATE_DAMAGED, 0xff);
             }
             else if (state == ACTOR_STATE_DESTROYED)
             {
-                treeAppearance->setTypeId(ACTOR_STATE_FALLEN_DMG, 0xff);
+                treeAppearance->SetTypeId(ACTOR_STATE_FALLEN_DMG, 0xff);
             }
 
-            treeAppearance->update();
+            treeAppearance->Update();
         }
     }
 
-    if (getContactType(homeTeam->id) == 2)
+    if (GetContactType(HomeTeam->Id) == 2)
     {
         // A sensor contact: a blip sized by tonnage.
         uint8_t* shape;
 
-        if (50.0f < getTonnage())
+        if (50.0f < GetTonnage())
         {
-            shape = scenario->sensorContactShapes[0];
+            shape = Scenario->SensorContactShapes[0];
         }
-        else if (35.0f < getTonnage())
+        else if (35.0f < GetTonnage())
         {
-            shape = scenario->sensorContactShapes[2];
+            shape = Scenario->SensorContactShapes[2];
         }
         else
         {
-            shape = scenario->sensorContactShapes[4];
+            shape = Scenario->SensorContactShapes[4];
         }
 
         if (shape != nullptr)
         {
-            if (VFX_shape_count(shape) < blipFrame)
+            if (VfxShapeCount(shape) < BlipFrame)
             {
-                if (soundSystem != nullptr && useSound != 0)
+                if (SoundSystem != nullptr && UseSound != 0)
                 {
-                    soundSystem->playDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
                 }
 
-                blipFrame = 0;
+                BlipFrame = 0;
             }
 
-            ElementList->openGroup(-100000, 1);
-            ElementList->add(
-                ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
-            blipTime = frameLength + blipTime;
+            ElementList->OpenGroup(-100000, 1);
+            ElementList->Add(
+                MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 0));
+            BlipTime = FrameLength + BlipTime;
 
-            if (0.067 < blipTime)
+            if (0.067 < BlipTime)
             {
-                blipFrame = static_cast<int32_t>(blipTime * (1.0 / 0.067) + blipFrame + 0.5);
-                blipTime = 0.0f;
+                BlipFrame = static_cast<int32_t>(BlipTime * (1.0 / 0.067) + BlipFrame + 0.5);
+                BlipTime = 0.0f;
             }
         }
     }
 
-    if (windowsVisible != turn)
+    if (WindowsVisible != Turn)
     {
-        if (soundHandle != 0xffffffff)
+        if (SoundHandle != 0xffffffff)
         {
-            soundSystem->stopDigitalSample(soundHandle);
-            soundHandle = 0xffffffff;
+            SoundSystem->StopDigitalSample(SoundHandle);
+            SoundHandle = 0xffffffff;
         }
 
         return;
@@ -732,234 +732,235 @@ auto TreeBuilding::render() -> void
     // original also reads each corner's seen bit and drops it.)
     uint32_t row;
     uint32_t col;
-    vertexRowCol(this, row, col);
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    VertexRowCol(this, row, col);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     int32_t numVisible = 0;
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row, col + 1) != 0)
+    if (visibleBits->GetFlag(row, col + 1) != 0)
     {
         numVisible++;
     }
 
     uint8_t* hazePalette = nullptr;
-    const int32_t hazeLevel = eye->hazeLevel;
+    const int32_t hazeLevel = Eye->HazeLevel;
 
     if (numVisible != 0 && numVisible != 4 && hazeLevel != 0x7fff)
     {
         int32_t level;
 
-        if (hazeLevel < 0 && 0 < eye->hazeInc * numVisible + hazeLevel)
+        if (hazeLevel < 0 && 0 < Eye->HazeInc * numVisible + hazeLevel)
         {
             level = 0;
         }
         else
         {
-            level = hazeLevel + eye->hazeInc * numVisible;
+            level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = gamePalette->getHazePalette(level);
+        hazePalette = GamePalette->GetHazePalette(level);
     }
 
-    treeAppearance->fadeTable = hazePalette;
+    treeAppearance->FadeTable = hazePalette;
 
     if (numVisible == 0)
     {
-        if (soundHandle != 0xffffffff)
+        if (SoundHandle != 0xffffffff)
         {
-            soundSystem->stopDigitalSample(soundHandle);
-            soundHandle = 0xffffffff;
+            SoundSystem->StopDigitalSample(SoundHandle);
+            SoundHandle = 0xffffffff;
         }
     }
     else
     {
         // Standing, it sorts with the terrain; fallen or burning down, by its screen row.
-        const bool standing = treeAppearance->currentState == ACTOR_STATE_NORMAL;
-        treeAppearance->render(standing ? 0 : static_cast<int32_t>(screenPos.y));
-        uint8_t* shadow = standing ? type->normalShadow : type->destroyedShadow;
+        const bool standing = treeAppearance->CurrentState == ACTOR_STATE_NORMAL;
+        treeAppearance->Render(standing ? 0 : static_cast<int32_t>(ScreenPos.Y));
+        uint8_t* shadow = standing ? type->NormalShadow : type->DestroyedShadow;
 
         if (shadow != nullptr)
         {
-            ElementList->openGroup(static_cast<int32_t>(screenPos.y), 1);
-            ElementList->add(ElementPool::Make<VFXElement>(shadow, screenPos.x, screenPos.y, 0, 0, hazePalette, 0, 0));
+            ElementList->OpenGroup(static_cast<int32_t>(ScreenPos.Y), 1);
+            ElementList->Add(
+                MCElementPool::Make<MCVfxElement>(shadow, ScreenPos.X, ScreenPos.Y, 0, 0, hazePalette, 0, 0));
         }
 
-        if (soundHandle == 0xffffffff && type->normalEffectId != 0xffffffff)
+        if (SoundHandle == 0xffffffff && type->NormalEffectId != 0xffffffff)
         {
-            soundHandle = static_cast<uint32_t>(soundSystem->playDigitalSample(type->normalEffectId, 0, this, 1, 0));
+            SoundHandle = static_cast<uint32_t>(SoundSystem->PlayDigitalSample(type->NormalEffectId, 0, this, 1, 0));
         }
     }
 
-    if (drawExtents != 0)
+    if (DrawExtents != 0)
     {
         // Debug: the extent radius as an ellipse.
-        float radius = objType->extentRadius;
+        float radius = ObjType->ExtentRadius;
 
-        if (eye->cameraScale == 1)
+        if (Eye->CameraScale == 1)
         {
             radius *= 0.5f;
         }
 
-        const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-        const float sx = (position.x - eye->position.x) * scale;
-        const float sy = (position.y - eye->position.y) * scale;
-        vector_2d center;
-        center.x = sx * eye->cosAngle + sy * eye->cosAngle + eye->halfWidth;
-        center.y =
-            ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (position.z - eye->position.z);
-        vector_2d size(radius, radius);
-        ElementList->openGroup(-50000, 1);
+        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float sx = (Position.X - Eye->Position.X) * scale;
+        const float sy = (Position.Y - Eye->Position.Y) * scale;
+        MCVector2D center;
+        center.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
+        center.Y =
+            ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
+        MCVector2D size(radius, radius);
+        ElementList->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
-        size.x *= MCOverlay.ScaleX;
-        size.y *= MCOverlay.ScaleY;
-        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
+        size.X *= MCOverlay.ScaleX;
+        size.Y *= MCOverlay.ScaleY;
+        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 
-auto TreeBuilding::destroy() -> void
+auto MCTreeBuilding::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 
-    if (sensorSystem != nullptr)
+    if (SensorSystem != nullptr)
     {
-        sensorSystemManager->freeSensor(sensorSystem);
-        sensorSystem = nullptr;
+        SensorSystemManager->FreeSensor(SensorSystem);
+        SensorSystem = nullptr;
     }
 
-    name.clear();
+    Name.clear();
 }
 
-auto TreeBuilding::setSensorData(Team* newTeam, float range, int setTeam) -> void
+auto MCTreeBuilding::SetSensorData(MCTeam* newTeam, float range, int setTeam) -> void
 {
     if (!(-1.0 < range))
     {
         return;
     }
 
-    if (sensorSystem == nullptr)
+    if (SensorSystem == nullptr)
     {
-        sensorSystem = sensorSystemManager->newSensor();
+        SensorSystem = SensorSystemManager->NewSensor();
 
-        if (sensorSystem == nullptr)
+        if (SensorSystem == nullptr)
         {
             Fatal(0, " No RAM for Sensor System ");
         }
     }
 
-    sensorSystem->owner = this;
+    SensorSystem->Owner = this;
 
     if (setTeam != 0)
     {
-        sensorSystem->setTeam(newTeam);
+        SensorSystem->SetTeam(newTeam);
     }
 
-    sensorSystem->setRange(range);
+    SensorSystem->SetRange(range);
 }
 
-auto TreeBuilding::init(ObjectType* objType) -> int32_t
+auto MCTreeBuilding::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    setExists(1);
-    const uint32_t appearId = objType->appearName;
-    justCreated = 1;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(appearId, 0);
+    SetExists(1);
+    const uint32_t appearId = objType->AppearName;
+    JustCreated = 1;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0007);
     }
 
-    auto* treeAppearance = new VFXAppearance;
+    auto* treeAppearance = new MCVfxAppearance;
 
     if (treeAppearance != nullptr)
     {
-        treeAppearance->init(nullptr, nullptr);
+        treeAppearance->Init(nullptr, nullptr);
     }
 
-    appearance = treeAppearance;
+    Appearance = treeAppearance;
 
     if (treeAppearance == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0008);
     }
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x2000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x2000000)
     {
         return static_cast<int32_t>(0xdcdc0009);
     }
 
-    if ((result = treeAppearance->init(apprType, this)) != 0)
+    if ((result = treeAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    auto* type = static_cast<TreeBuildingType*>(this->objType);
-    objectClass = TREEBUILDING;
-    hitOnce = 0;
-    soundHandle = 0xffffffff;
+    auto* type = static_cast<MCTreeBuildingType*>(this->ObjType);
+    ObjectClass = TREEBUILDING;
+    HitOnce = 0;
+    SoundHandle = 0xffffffff;
 
-    if (0.0 < type->extentRadius)
+    if (0.0 < type->ExtentRadius)
     {
-        collisionsOn = 1;
+        CollisionsOn = 1;
     }
 
-    tonnage = type->baseTonnage;
-    explRadius = type->explRad;
-    explDamage = type->explDmg;
-    maxCV = type->battleRating;
-    curCV = type->battleRating;
-    canRefit = type->canRefit;
-    mechBay = type->mechBay;
+    Tonnage = type->BaseTonnage;
+    ExplRadius = type->ExplRad;
+    ExplDamage = type->ExplDmg;
+    MaxCV = type->BattleRating;
+    CurCV = type->BattleRating;
+    CanRefit = type->CanRefit;
+    MechBay = type->MechBay;
     char nameBuffer[256];
-    cLoadString(thisInstance, static_cast<uint32_t>(type->buildingName), nameBuffer, 0xfe);
-    name = nameBuffer;
+    CLoadString(ThisInstance, static_cast<uint32_t>(type->BuildingName), nameBuffer, 0xfe);
+    Name = nameBuffer;
 
     // Original behaviour (OB-016): with no team (TeamID -1) this reads TeamTable[-1], which in MCX.EXE is homeTeam.
-    typeTeam = type->teamId == -1 ? homeTeam : TeamTable[type->teamId];
-    const float range = type->sensorRange;
+    TypeTeam = type->TeamId == -1 ? HomeTeam : TeamTable[type->TeamId];
+    const float range = type->SensorRange;
 
     if (-1.0 < range)
     {
-        switch (type->teamId)
+        switch (type->TeamId)
         {
             case 0:
             {
-                setSensorData(innerSphereTeam, range, 0);
-                setAlignment(1);
+                SetSensorData(InnerSphereTeam, range, 0);
+                SetAlignment(1);
                 break;
             }
             case 1:
             {
-                setSensorData(clanTeam, range, 0);
-                setAlignment(-1);
+                SetSensorData(ClanTeam, range, 0);
+                SetAlignment(-1);
                 break;
             }
             case 2:
             {
-                setSensorData(alliedTeam, range, 0);
-                setAlignment(0);
+                SetSensorData(AlliedTeam, range, 0);
+                SetAlignment(0);
                 break;
             }
             default:
@@ -967,24 +968,24 @@ auto TreeBuilding::init(ObjectType* objType) -> int32_t
         }
     }
 
-    captureable = 0;
-    refitBuddy = nullptr;
+    Captureable = 0;
+    RefitBuddy = nullptr;
 
     // Damage level 0: already rubble.
-    if (type->dmgLevel == 0)
+    if (type->DmgLevel == 0)
     {
-        collisionsOn = 0;
-        status = 2;
-        hitOnce = 1;
+        CollisionsOn = 0;
+        Status = 2;
+        HitOnce = 1;
     }
 
     return 0;
 }
 
-auto TreeBuilding::createBuildingMarines() -> void
+auto MCTreeBuilding::CreateBuildingMarines() -> void
 {
-    auto* type = static_cast<TreeBuildingType*>(objType);
-    const int32_t marinesWanted = type->numMarines;
+    auto* type = static_cast<MCTreeBuildingType*>(ObjType);
+    const int32_t marinesWanted = type->NumMarines;
 
     if (marinesWanted == 0)
     {
@@ -992,27 +993,27 @@ auto TreeBuilding::createBuildingMarines() -> void
     }
 
     int32_t marinesMade = 0;
-    const auto numWarriors = static_cast<int32_t>(scenario->numWarriors);
+    const auto numWarriors = static_cast<int32_t>(Scenario->NumWarriors);
 
     // Each marine is piloted by an enemy warrior with no working vehicle (none, disabled or destroyed); warrior 0 is
     // never used.
     for (int32_t i = 0; i < numWarriors; i++)
     {
-        if (i <= 0 || static_cast<uint32_t>(i) > scenario->numWarriors)
+        if (i <= 0 || static_cast<uint32_t>(i) > Scenario->NumWarriors)
         {
             continue;
         }
 
-        MechWarrior* warrior = scenario->warriors[i];
+        MCMechWarrior* warrior = Scenario->Warriors[i];
 
-        if (warrior == nullptr || warrior->alignment == homeTeam->alignment)
+        if (warrior == nullptr || warrior->Alignment == HomeTeam->Alignment)
         {
             continue;
         }
 
-        if (warrior->vehicle != nullptr)
+        if (warrior->Vehicle != nullptr)
         {
-            const auto vehicleStatus = static_cast<int8_t>(warrior->vehicle->status);
+            const auto vehicleStatus = static_cast<int8_t>(warrior->Vehicle->Status);
 
             if (vehicleStatus != 2 && vehicleStatus != 1)
             {
@@ -1020,85 +1021,85 @@ auto TreeBuilding::createBuildingMarines() -> void
             }
         }
 
-        auto* marine = static_cast<Mover*>(createObject(DefaultPilotId));
+        auto* marine = static_cast<MCMover*>(CreateObject(DefaultPilotId));
 
         if (marine == nullptr)
         {
             Fatal(-1, " Couldnt create Marine for Building ");
         }
 
-        marine->setAwake(1);
-        FullPathFileName profileName;
-        profileName.init(profilePath, marineProfileName, ".fit");
-        FitIniFile profileFile;
-        const int32_t result = profileFile.open(profileName, READ, 50);
+        marine->SetAwake(1);
+        MCFullPathFileName profileName;
+        profileName.Init(ProfilePath, MarineProfileName, ".fit");
+        MCFitIniFile profileFile;
+        const int32_t result = profileFile.Open(profileName, READ, 50);
 
         if (result != 0)
         {
             Fatal(result, " Unable to open Vehicle Marine Profile ");
         }
 
-        if (marine->init(&profileFile) != 0)
+        if (marine->Init(&profileFile) != 0)
         {
             Fatal(-1, " Bad Vehicle Marine Profile File ");
         }
 
-        profileFile.close();
+        profileFile.Close();
 
-        marine->setPilot(warrior);
-        warrior->setVehicle(marine);
-        warrior->lobotomy();
-        marine->setControl(2, 3, -1);
-        marine->setTeam(clanTeam);
+        marine->SetPilot(warrior);
+        warrior->SetVehicle(marine);
+        warrior->Lobotomy();
+        marine->SetControl(2, 3, -1);
+        marine->SetTeam(ClanTeam);
         // A random direction, set 1.5 extent radii out on the ground (z stays the unscaled unit component).
-        const float extent = objType->extentRadius;
-        vector_3d offset;
-        offset.x = static_cast<float>(RandomNumber(static_cast<int32_t>(extent + extent))) - extent;
-        offset.y = static_cast<float>(RandomNumber(static_cast<int32_t>(extent + extent))) - extent;
-        offset.z = static_cast<float>(RandomNumber(0)) - 0.0f;
+        const float extent = ObjType->ExtentRadius;
+        MCVector3D offset;
+        offset.X = static_cast<float>(RandomNumber(static_cast<int32_t>(extent + extent))) - extent;
+        offset.Y = static_cast<float>(RandomNumber(static_cast<int32_t>(extent + extent))) - extent;
+        offset.Z = static_cast<float>(RandomNumber(0)) - 0.0f;
         const double length =
-            std::sqrt(static_cast<double>(offset.z) * offset.z + static_cast<double>(offset.y) * offset.y +
-                      static_cast<double>(offset.x) * offset.x);
+            std::sqrt(static_cast<double>(offset.Z) * offset.Z + static_cast<double>(offset.Y) * offset.Y +
+                      static_cast<double>(offset.X) * offset.X);
 
         if (length != 0.0)
         {
-            offset.x = static_cast<float>(offset.x / length);
-            offset.y = static_cast<float>(offset.y / length);
-            offset.z = static_cast<float>(offset.z / length);
+            offset.X = static_cast<float>(offset.X / length);
+            offset.Y = static_cast<float>(offset.Y / length);
+            offset.Z = static_cast<float>(offset.Z / length);
         }
 
-        offset.x = static_cast<float>(static_cast<double>(extent) * offset.x * 1.5);
-        offset.y = static_cast<float>(static_cast<double>(extent) * offset.y * 1.5);
-        vector_3d marinePosition;
-        marinePosition.x = offset.x + position.x;
-        marinePosition.y = offset.y + position.y;
-        marinePosition.z = offset.z + position.z;
-        marine->setPosition(marinePosition);
-        marine->setLastValidPosition(position + offset);
-        GameObjectMap->addObject(marine);
-        auto* marineAppearance = static_cast<ElementalActor*>(marine->getAppearance());
+        offset.X = static_cast<float>(static_cast<double>(extent) * offset.X * 1.5);
+        offset.Y = static_cast<float>(static_cast<double>(extent) * offset.Y * 1.5);
+        MCVector3D marinePosition;
+        marinePosition.X = offset.X + Position.X;
+        marinePosition.Y = offset.Y + Position.Y;
+        marinePosition.Z = offset.Z + Position.Z;
+        marine->SetPosition(marinePosition);
+        marine->SetLastValidPosition(Position + offset);
+        GameObjectMap->AddObject(marine);
+        auto* marineAppearance = static_cast<MCElementalActor*>(marine->GetAppearance());
 
         if (marineAppearance != nullptr)
         {
-            marineAppearance->setGesture(0);
-            marineAppearance->fadeTableIndex = getAlignment() == -1 ? 0x1c : 0x12;
+            marineAppearance->SetGesture(0);
+            marineAppearance->FadeTableIndex = GetAlignment() == -1 ? 0x1c : 0x12;
         }
 
-        marine->idNumber = 2500000;
-        marine->setPartId(0xfff - NumMarines++);
-        marine->setAlignment(getAlignment());
-        ObjectQueueNode* list = getAlignment() == -1 ? clanMechList : innerSphereMechList;
+        marine->IdNumber = 2500000;
+        marine->SetPartId(0xfff - NumMarines++);
+        marine->SetAlignment(GetAlignment());
+        MCObjectQueueNode* list = GetAlignment() == -1 ? ClanMechList : InnerSphereMechList;
 
         if (list != nullptr)
         {
-            list->addNode(marine);
+            list->AddNode(marine);
         }
 
-        marine->setPotentialContact(0);
-        marine->setExists(1);
-        warrior->clearAttackOrders();
-        warrior->clearMoveOrders();
-        warrior->orderMoveToPoint(0, 1, 0, vector_3d(0.0f, 0.0f, 0.0f), -1, 1);
+        marine->SetPotentialContact(0);
+        marine->SetExists(1);
+        warrior->ClearAttackOrders();
+        warrior->ClearMoveOrders();
+        warrior->OrderMoveToPoint(0, 1, 0, MCVector3D(0.0f, 0.0f, 0.0f), -1, 1);
 
         if (++marinesMade == marinesWanted)
         {
@@ -1107,7 +1108,7 @@ auto TreeBuilding::createBuildingMarines() -> void
     }
 }
 
-auto TreeBuilding::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
@@ -1116,92 +1117,92 @@ auto TreeBuilding::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayCh
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    if (isDestroyed() != 0)
+    if (IsDestroyed() != 0)
     {
         return 0;
     }
 
-    const float newDamage = getDamage() + shotInfo->damage;
-    setDamage(newDamage);
-    hitOnce = 1;
-    auto* type = static_cast<TreeBuildingType*>(objType);
+    const float newDamage = GetDamage() + shotInfo->Damage;
+    SetDamage(newDamage);
+    HitOnce = 1;
+    auto* type = static_cast<MCTreeBuildingType*>(ObjType);
 
-    if (newDamage < static_cast<float>(static_cast<int32_t>(type->dmgLevel)) || collapsed != 0 || collapsing != 0)
+    if (newDamage < static_cast<float>(static_cast<int32_t>(type->DmgLevel)) || Collapsed != 0 || Collapsing != 0)
     {
         return 0;
     }
 
     // Collapses: the shooter's pilot is alarmed, the marines come out, and the sensor, fire and explosion follow.
-    collapsing = 1;
-    collisionsOn = 0;
-    status = 2;
+    Collapsing = 1;
+    CollisionsOn = 0;
+    Status = 2;
 
-    if (isCaptured() != 0)
+    if (IsCaptured() != 0)
     {
-        Terrain::terrainTacticalMap->RemoveSalvage(this, 1);
+        MCTerrain::TerrainTacticalMap->RemoveSalvage(this, 1);
     }
 
-    GameObject* attacker = shotInfo->attacker;
+    MCGameObject* attacker = shotInfo->Attacker;
 
-    if (attacker != nullptr && (attacker->objectClass == BATTLEMECH || attacker->objectClass == GROUNDVEHICLE ||
-                                attacker->objectClass == ELEMENTAL || attacker->objectClass == MOVER))
+    if (attacker != nullptr && (attacker->ObjectClass == BATTLEMECH || attacker->ObjectClass == GROUNDVEHICLE ||
+                                attacker->ObjectClass == ELEMENTAL || attacker->ObjectClass == MOVER))
     {
-        attacker->getPilot()->triggerAlarm(12, static_cast<uint32_t>(partId));
+        attacker->GetPilot()->TriggerAlarm(12, static_cast<uint32_t>(PartId));
     }
 
     if (MPlayer == nullptr)
     {
-        createBuildingMarines();
+        CreateBuildingMarines();
     }
 
-    if (type->damageEffectId != 0xffffffff && 5 < turn)
+    if (type->DamageEffectId != 0xffffffff && 5 < Turn)
     {
-        soundSystem->playDigitalSample(type->damageEffectId, 1, this, 1, 0);
+        SoundSystem->PlayDigitalSample(type->DamageEffectId, 1, this, 1, 0);
     }
 
-    if (sensorSystem != nullptr)
+    if (SensorSystem != nullptr)
     {
-        sensorSystem->disable();
+        SensorSystem->Disable();
     }
 
     // Original behaviour: hitOnce was set just above, so the collapse always plays the destroyed state (4), never 1.
-    auto* treeAppearance = static_cast<VFXAppearance*>(appearance);
-    treeAppearance->setTypeId(hitOnce == 0 ? ACTOR_STATE_BLOWING_UP1 : ACTOR_STATE_DESTROYED, 0xff);
+    auto* treeAppearance = static_cast<MCVfxAppearance*>(Appearance);
+    treeAppearance->SetTypeId(HitOnce == 0 ? ACTOR_STATE_BLOWING_UP1 : ACTOR_STATE_DESTROYED, 0xff);
 
-    if (burning == 0)
+    if (Burning == 0)
     {
-        if (type->blownEffectId != 0xffffffff)
+        if (type->BlownEffectId != 0xffffffff)
         {
-            GameObject* newFire = createObject(static_cast<int32_t>(type->blownEffectId));
+            MCGameObject* newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
 
             if (newFire != nullptr)
             {
-                newFire->setPosition(position);
+                newFire->SetPosition(Position);
 
-                if (newFire->objectClass == FIRE)
+                if (newFire->ObjectClass == FIRE)
                 {
-                    fireObject = static_cast<Fire*>(newFire);
-                    fireObject->setPotentialContact(3);
-                    fireObject->burningObject = this;
-                    fireObject->setTonnage(40.0f);
-                    fireObject->update();
-                    burning = 1;
+                    FireObject = static_cast<MCFire*>(newFire);
+                    FireObject->SetPotentialContact(3);
+                    FireObject->BurningObject = this;
+                    FireObject->SetTonnage(40.0f);
+                    FireObject->Update();
+                    Burning = 1;
                 }
-                else if (objectList->head != nullptr)
+                else if (ObjectList->Head != nullptr)
                 {
-                    objectList->head->addNode(newFire);
+                    ObjectList->Head->AddNode(newFire);
                 }
             }
         }
     }
-    else if (fireObject != nullptr)
+    else if (FireObject != nullptr)
     {
-        fireObject->addTimeLeftToBurn(2.0f);
+        FireObject->AddTimeLeftToBurn(2.0f);
     }
 
-    type->createExplosion(position, explDamage, explRadius);
+    type->CreateExplosion(Position, ExplDamage, ExplRadius);
     return 0;
 }

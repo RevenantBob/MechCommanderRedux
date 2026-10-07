@@ -154,32 +154,32 @@ namespace
     void ReportAblState()
     {
         std::fprintf(stderr, "ABL: module %s (handle %d), library %s\n",
-                     CurModule != nullptr ? CurModule->getName() : "(none)", CurModuleHandle,
-                     CurLibrary != nullptr ? CurLibrary->getName() : "(none)");
+                     CurModule != nullptr ? CurModule->GetName() : "(none)", CurModuleHandle,
+                     CurLibrary != nullptr ? CurLibrary->GetName() : "(none)");
 
         if (CurRoutineIdPtr != nullptr)
         {
-            const char* segment = CurRoutineIdPtr->defn.info.routine.codeSegment;
+            const char* segment = CurRoutineIdPtr->Defn.Info.Routine.CodeSegment;
             std::fprintf(stderr, "ABL: routine %s, code segment %p, codeSegmentPtr %p (+%lld), statement start +%lld\n",
-                         CurRoutineIdPtr->name, static_cast<const void*>(segment),
-                         static_cast<const void*>(codeSegmentPtr), static_cast<long long>(codeSegmentPtr - segment),
-                         static_cast<long long>(statementStartPtr - segment));
+                         CurRoutineIdPtr->Name, static_cast<const void*>(segment),
+                         static_cast<const void*>(CodeSegmentPtr), static_cast<long long>(CodeSegmentPtr - segment),
+                         static_cast<long long>(StatementStartPtr - segment));
         }
 
         const char* sourceFile = "?";
 
         if (CurModule != nullptr && CurModuleHandle >= 0 && ModuleRegistry != nullptr)
         {
-            const ModuleEntry& entry = ModuleRegistry[CurModuleHandle];
+            const MCModuleEntry& entry = ModuleRegistry[CurModuleHandle];
 
-            if (entry.sourceFiles != nullptr && FileNumber >= 0 && FileNumber < entry.numSourceFiles)
+            if (entry.SourceFiles != nullptr && FileNumber >= 0 && FileNumber < entry.NumSourceFiles)
             {
-                sourceFile = entry.sourceFiles[FileNumber];
+                sourceFile = entry.SourceFiles[FileNumber];
             }
         }
 
-        std::fprintf(stderr, "ABL: line %d of %s, statement %d, call depth %d\n", execLineNumber, sourceFile,
-                     execStatementCount, CallStackLevel);
+        std::fprintf(stderr, "ABL: line %d of %s, statement %d, call depth %d\n", ExecLineNumber, sourceFile,
+                     ExecStatementCount, CallStackLevel);
     }
 }
 

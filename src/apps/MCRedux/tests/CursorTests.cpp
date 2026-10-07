@@ -171,11 +171,11 @@ TEST_CASE("cursor: a pane becomes an opaque picture with the given hot spot")
         pixels[i] = static_cast<uint8_t>('a' + i);
     }
 
-    WINDOW window{};
-    window.buffer = pixels.data();
-    window.x_max = 4;
-    window.y_max = 3;
-    PANE pane{&window, 1, 1, 3, 2};
+    MCWindow window{};
+    window.Buffer = pixels.data();
+    window.XMax = 4;
+    window.YMax = 3;
+    MCPane pane{&window, 1, 1, 3, 2};
     const MCCursorImage image = MCCursorImageFromPane(&pane, 2, 0);
     CHECK_EQ(image.HotX, 2);
     CHECK_EQ(image.HotY, 0);
@@ -187,18 +187,18 @@ TEST_CASE("cursor: a shape becomes a picture that draws exactly as the game draw
 {
     // A hand-made shape: 3x3, origin at its centre, a plus sign of colour 7 with transparent corners.
     std::vector<uint8_t> source(9 * 9, 0xff);
-    WINDOW sourceWindow{};
-    sourceWindow.buffer = source.data();
-    sourceWindow.x_max = 8;
-    sourceWindow.y_max = 8;
-    PANE sourcePane{&sourceWindow, 0, 0, 2, 2};
+    MCWindow sourceWindow{};
+    sourceWindow.Buffer = source.data();
+    sourceWindow.XMax = 8;
+    sourceWindow.YMax = 8;
+    MCPane sourcePane{&sourceWindow, 0, 0, 2, 2};
     source[1] = 7;
     source[9 + 0] = 7;
     source[9 + 1] = 7;
     source[9 + 2] = 7;
     source[18 + 1] = 7;
     std::vector<uint8_t> shape(4096);
-    const int32_t size = VFX_shape_scan(&sourcePane, 0xff, 1, 1, shape.data());
+    const int32_t size = VfxShapeScan(&sourcePane, 0xff, 1, 1, shape.data());
     REQUIRE(size > 0x18);
     // A one-shape table around it: version, count, the shape's offset and its (absent) palette's.
     std::vector<uint8_t> table(16 + static_cast<size_t>(size));
@@ -221,17 +221,17 @@ TEST_CASE("game: every cursor shape becomes a picture that draws exactly as the 
     }
 
     MCTestGame::OpenFastFiles();
-    PacketFile pak;
-    REQUIRE_EQ(pak.open("data\\sprites\\cursors.pak"), 0);
-    REQUIRE(pak.getNumPackets() > 0);
+    MCPacketFile pak;
+    REQUIRE_EQ(pak.Open("data\\sprites\\cursors.pak"), 0);
+    REQUIRE(pak.GetNumPackets() > 0);
     int withTransparency = 0;
 
-    for (int32_t i = 0; i < pak.getNumPackets(); ++i)
+    for (int32_t i = 0; i < pak.GetNumPackets(); ++i)
     {
         MCTest::Scope scope(std::format("cursor {}", i));
-        REQUIRE_EQ(pak.seekPacket(i), 0);
-        std::vector<uint8_t> shape(static_cast<size_t>(pak.getPacketSize()) + 16);
-        pak.readPacket(i, shape.data());
+        REQUIRE_EQ(pak.SeekPacket(i), 0);
+        std::vector<uint8_t> shape(static_cast<size_t>(pak.GetPacketSize()) + 16);
+        pak.ReadPacket(i, shape.data());
         // The game's hardware cursor can't blend with the screen; no cursor asks it to.
         CHECK(!MCAgShapeIsAlpha(shape.data(), 0));
 
@@ -251,12 +251,12 @@ TEST_CASE("game: every cursor shape becomes a picture that draws exactly as the 
         constexpr int32_t mouseY = 30;
         constexpr uint8_t background = 0x37;
         std::vector<uint8_t> drawn(side * side, background);
-        WINDOW window{};
-        window.buffer = drawn.data();
-        window.x_max = side - 1;
-        window.y_max = side - 1;
-        PANE pane{&window, 0, 0, side - 1, side - 1};
-        AG_shape_draw(&pane, shape.data(), 0, mouseX, mouseY);
+        MCWindow window{};
+        window.Buffer = drawn.data();
+        window.XMax = side - 1;
+        window.YMax = side - 1;
+        MCPane pane{&window, 0, 0, side - 1, side - 1};
+        AGShapeDraw(&pane, shape.data(), 0, mouseX, mouseY);
         std::vector<uint8_t> laid(side * side, background);
 
         for (int y = 0; y < image.Height; ++y)
@@ -277,7 +277,7 @@ TEST_CASE("game: every cursor shape becomes a picture that draws exactly as the 
     }
 
     // Cursors are arrows and crosshairs, not rectangles.
-    CHECK_EQ(withTransparency, pak.getNumPackets());
+    CHECK_EQ(withTransparency, pak.GetNumPackets());
 }
 
 TEST_CASE_ISOLATED("game: every cursor shape is made before play and switching between them makes none")
@@ -291,7 +291,7 @@ TEST_CASE_ISOLATED("game: every cursor shape is made before play and switching b
 
     for (size_t shape = 0; shape < 128; ++shape)
     {
-        if (cursorShapes[shape] != nullptr)
+        if (CursorShapes[shape] != nullptr)
         {
             shapes.push_back(shape);
         }

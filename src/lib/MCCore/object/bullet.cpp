@@ -29,30 +29,30 @@ namespace
     /// Projects the object to the screen through the terrain (the 100% or 50% projection, by the camera's scale)
     /// into <c>screenPos</c>.
     /// </summary>
-    void projectToScreen(BigGameObject* object, Camera* camera)
+    void ProjectToScreen(MCBigGameObject* object, MCCamera* camera)
     {
-        vector_2d screen100;
-        vector_2d screen50;
+        MCVector2D screen100;
+        MCVector2D screen50;
 
-        if (land != nullptr)
+        if (Land != nullptr)
         {
-            land->projectTerrain(object->position, screen100, screen50);
+            Land->ProjectTerrain(object->Position, screen100, screen50);
         }
 
         float screenY;
 
-        if (camera->cameraScale == 1)
+        if (camera->CameraScale == 1)
         {
-            object->screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-            screenY = screen50.y - camera->screenUL50.y;
+            object->ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+            screenY = screen50.Y - camera->ScreenUL50.Y;
         }
         else
         {
-            object->screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-            screenY = screen100.y - camera->screenUL.y;
+            object->ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+            screenY = screen100.Y - camera->ScreenUL.Y;
         }
 
-        object->screenPos.y = screenY + camera->halfHeight;
+        object->ScreenPos.Y = screenY + camera->HalfHeight;
     }
 } // namespace
 
@@ -60,97 +60,97 @@ namespace
 // BulletType
 //---------------------------------------------------------------------------
 
-BulletType::BulletType()
+MCBulletType::MCBulletType()
 {
-    soundEffectId = 0xffffffff;
-    bulletHitEffect = 0xffffffff;
-    bulletMissEffect = 0xffffffff;
-    smokeObjectId = 0xffffffff;
+    SoundEffectId = 0xffffffff;
+    BulletHitEffect = 0xffffffff;
+    BulletMissEffect = 0xffffffff;
+    SmokeObjectId = 0xffffffff;
 }
 
-auto BulletType::createInstance() -> BaseObject*
+auto MCBulletType::CreateInstance() -> MCBaseObject*
 {
-    auto* newBullet = new Bullet;
+    auto* newBullet = new MCBullet;
 
     if (newBullet == nullptr)
     {
         return nullptr;
     }
 
-    if (newBullet->init(this) != 0)
+    if (newBullet->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newBullet->idNumber = NextIdNumber++;
+    newBullet->IdNumber = NextIdNumber++;
     return newBullet;
 }
 
-auto BulletType::destroy() -> void
+auto MCBulletType::Destroy() -> void
 {
 }
 
-auto BulletType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCBulletType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile bulletFile;
-    int32_t result = bulletFile.open(objFile, fileSize, 50);
+    MCFitIniFile bulletFile;
+    int32_t result = bulletFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if (bulletFile.seekBlock("BulletData") == 0)
+    if (bulletFile.SeekBlock("BulletData") == 0)
     {
-        if ((result = bulletFile.readIdULong("SoundEffectId", soundEffectId)) != 0)
+        if ((result = bulletFile.ReadIdULong("SoundEffectId", SoundEffectId)) != 0)
         {
             return result;
         }
 
-        if ((result = bulletFile.readIdULong("BulletHitEffect", bulletHitEffect)) != 0)
+        if ((result = bulletFile.ReadIdULong("BulletHitEffect", BulletHitEffect)) != 0)
         {
             return result;
         }
 
-        if ((result = bulletFile.readIdULong("BulletMissEffect", bulletMissEffect)) != 0)
+        if ((result = bulletFile.ReadIdULong("BulletMissEffect", BulletMissEffect)) != 0)
         {
             return result;
         }
 
-        if ((result = bulletFile.readIdFloat("Velocity", velocity)) != 0)
+        if ((result = bulletFile.ReadIdFloat("Velocity", Velocity)) != 0)
         {
             return result;
         }
 
-        if ((result = bulletFile.readIdFloat("CloseDistance", closeDistance)) != 0)
+        if ((result = bulletFile.ReadIdFloat("CloseDistance", CloseDistance)) != 0)
         {
             return result;
         }
 
-        if ((result = bulletFile.readIdULong("SmokeObjectId", smokeObjectId)) != 0)
+        if ((result = bulletFile.ReadIdULong("SmokeObjectId", SmokeObjectId)) != 0)
         {
             return result;
         }
 
-        if (bulletFile.readIdULong("LightObjectId", lightObjectId) != 0)
+        if (bulletFile.ReadIdULong("LightObjectId", LightObjectId) != 0)
         {
-            lightObjectId = 0xffffffff;
+            LightObjectId = 0xffffffff;
         }
     }
 
-    result = ObjectType::init(&bulletFile);
-    objectTypeManager->load(static_cast<int32_t>(bulletHitEffect), 1);
-    objectTypeManager->load(static_cast<int32_t>(bulletMissEffect), 1);
-    objectTypeManager->load(static_cast<int32_t>(smokeObjectId), 1);
+    result = MCObjectType::Init(&bulletFile);
+    ObjectTypeManager->Load(static_cast<int32_t>(BulletHitEffect), 1);
+    ObjectTypeManager->Load(static_cast<int32_t>(BulletMissEffect), 1);
+    ObjectTypeManager->Load(static_cast<int32_t>(SmokeObjectId), 1);
     return result;
 }
 
-auto BulletType::handleCollision(GameObject*, GameObject*) -> int
+auto MCBulletType::HandleCollision(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
 
-auto BulletType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCBulletType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -159,172 +159,172 @@ auto BulletType::handleDestruction(GameObject*, GameObject*) -> int
 // Bullet
 //---------------------------------------------------------------------------
 
-Bullet::Bullet()
+MCBullet::MCBullet()
 {
-    ownerHotSpot = 0;
-    targetHotSpot = 0;
-    targetPosition = nullptr;
-    justCreated = 1;
-    appearance = nullptr;
-    numShots = 0;
-    smoke = nullptr;
-    closestDistanceSq = 0.0f;
-    target = nullptr;
-    owner = nullptr;
-    light = nullptr;
-    drawRotation = 0;
+    OwnerHotSpot = 0;
+    TargetHotSpot = 0;
+    TargetPosition = nullptr;
+    JustCreated = 1;
+    Appearance = nullptr;
+    NumShots = 0;
+    Smoke = nullptr;
+    ClosestDistanceSq = 0.0f;
+    Target = nullptr;
+    Owner = nullptr;
+    Light = nullptr;
+    DrawRotation = 0;
 }
 
-auto Bullet::init() -> void
+auto MCBullet::Init() -> void
 {
 }
 
-auto Bullet::isVisible() -> int
+auto MCBullet::IsVisible() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    projectToScreen(this, camera);
+    ProjectToScreen(this, camera);
 
-    if (appearance != nullptr && appearance->recalcBounds(camera) == 0)
+    if (Appearance != nullptr && Appearance->RecalcBounds(camera) == 0)
     {
         return 0;
     }
 
-    windowsVisible = turn;
+    WindowsVisible = Turn;
     return 1;
 }
 
-auto Bullet::update() -> int32_t
+auto MCBullet::Update() -> int32_t
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
-        justCreated = 0;
-        collisionsOn = 0;
+        JustCreated = 0;
+        CollisionsOn = 0;
 
-        if (owner != nullptr)
+        if (Owner != nullptr)
         {
-            position = owner->getPositionFromHS(static_cast<uint32_t>(ownerHotSpot));
+            Position = Owner->GetPositionFromHS(static_cast<uint32_t>(OwnerHotSpot));
         }
 
-        const uint32_t soundId = static_cast<BulletType*>(objType)->soundEffectId;
+        const uint32_t soundId = static_cast<MCBulletType*>(ObjType)->SoundEffectId;
 
         if (soundId != 0xffffffff)
         {
-            soundSystem->playDigitalSample(soundId, 1, this, 0, 0);
+            SoundSystem->PlayDigitalSample(soundId, 1, this, 0, 0);
         }
 
-        bulletPosition = position;
-        closestDistanceSq = 1.0e8f;
+        BulletPosition = Position;
+        ClosestDistanceSq = 1.0e8f;
     }
 
-    GameObject* shooter = owner;
+    MCGameObject* shooter = Owner;
 
     if (shooter != nullptr)
     {
-        position = shooter->getPositionFromHS(static_cast<uint32_t>(ownerHotSpot));
+        Position = shooter->GetPositionFromHS(static_cast<uint32_t>(OwnerHotSpot));
     }
 
-    const int visibleNow = isVisible();
+    const int visibleNow = IsVisible();
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        appearance->visible = visibleNow;
-        appearance->update();
+        Appearance->Visible = visibleNow;
+        Appearance->Update();
     }
 
     // Fly toward the target (following it if it moves); once the ground distance stops shrinking, we're there.
-    vector_3d from = bulletPosition;
+    MCVector3D from = BulletPosition;
 
-    if (target != nullptr)
+    if (Target != nullptr)
     {
         // Port fix (OB-017): follow the hot spot the hit effect plays at (the original used ownerHotSpot).
-        const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(targetHotSpot);
-        setTargetPosition(target->getPositionFromHS(hotSpot));
+        const uint32_t hotSpot = Target->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+        SetTargetPosition(Target->GetPositionFromHS(hotSpot));
     }
 
     // Port fix: the original leaves the destination uninitialised when there is no target position.
-    vector_3d to;
-    to.x = 0.0f;
-    to.y = 0.0f;
-    to.z = 0.0f;
+    MCVector3D to;
+    to.X = 0.0f;
+    to.Y = 0.0f;
+    to.Z = 0.0f;
 
-    if (targetPosition != nullptr)
+    if (TargetPosition != nullptr)
     {
-        to = *targetPosition;
+        to = *TargetPosition;
     }
 
-    const double step = static_cast<double>(static_cast<BulletType*>(objType)->velocity) * frameLength;
-    const double dxWide = static_cast<double>(to.x) - from.x;
+    const double step = static_cast<double>(static_cast<MCBulletType*>(ObjType)->Velocity) * FrameLength;
+    const double dxWide = static_cast<double>(to.X) - from.X;
     const auto dx = static_cast<float>(dxWide);
-    const float dy = to.y - from.y;
-    const float dz = to.z - from.z;
+    const float dy = to.Y - from.Y;
+    const float dz = to.Z - from.Z;
     const double dxSq = static_cast<double>(dx) * dx;
     const double dySq = static_cast<double>(dy) * dy;
     const double groundDistanceSq = dxSq + dySq;
-    const bool arrived = closestDistanceSq <= groundDistanceSq;
+    const bool arrived = ClosestDistanceSq <= groundDistanceSq;
 
     if (!arrived)
     {
-        closestDistanceSq = static_cast<float>(groundDistanceSq);
+        ClosestDistanceSq = static_cast<float>(groundDistanceSq);
     }
 
     int32_t result = arrived ? 0 : 1;
 
-    vector_3d velocity;
+    MCVector3D velocity;
     double unitX = dxWide;
-    velocity.y = dy;
-    velocity.z = dz;
+    velocity.Y = dy;
+    velocity.Z = dz;
     const double length = std::sqrt(static_cast<double>(dz) * dz + dxSq + dySq);
     const auto lengthF = static_cast<float>(length);
 
     if (length != 0.0)
     {
         unitX = static_cast<double>(dx) / lengthF;
-        velocity.y = static_cast<float>(static_cast<double>(dy) / lengthF);
-        velocity.z = static_cast<float>(static_cast<double>(dz) / lengthF);
+        velocity.Y = static_cast<float>(static_cast<double>(dy) / lengthF);
+        velocity.Z = static_cast<float>(static_cast<double>(dz) / lengthF);
     }
 
-    velocity.x = static_cast<float>(unitX * step);
-    velocity.y = static_cast<float>(velocity.y * step);
-    velocity.z = static_cast<float>(velocity.z * step);
-    bulletPosition.x += velocity.x;
-    bulletPosition.y += velocity.y;
-    bulletPosition.z += velocity.z;
+    velocity.X = static_cast<float>(unitX * step);
+    velocity.Y = static_cast<float>(velocity.Y * step);
+    velocity.Z = static_cast<float>(velocity.Z * step);
+    BulletPosition.X += velocity.X;
+    BulletPosition.Y += velocity.Y;
+    BulletPosition.Z += velocity.Z;
 
-    if (smoke != nullptr)
+    if (Smoke != nullptr)
     {
         result = 1;
-        smoke->setOwnerPosition(bulletPosition);
-        smoke->setOwnerVelocity(velocity);
-        smoke->update();
+        Smoke->SetOwnerPosition(BulletPosition);
+        Smoke->SetOwnerVelocity(velocity);
+        Smoke->Update();
 
         if (arrived)
         {
-            smoke->stopSmoking();
+            Smoke->StopSmoking();
             result = 0;
         }
     }
 
-    if (light != nullptr)
+    if (Light != nullptr)
     {
-        vector_3d lightPos = bulletPosition;
-        light->setPosition(lightPos);
-        light->update();
+        MCVector3D lightPos = BulletPosition;
+        Light->SetPosition(lightPos);
+        Light->Update();
     }
 
     // A mech facing the other way draws the bullet mirrored.
-    drawRotation = -150;
+    DrawRotation = -150;
 
     // Port fix: the original reads the owner's class without checking it for null.
-    if (shooter != nullptr && shooter->objectClass == BATTLEMECH)
+    if (shooter != nullptr && shooter->ObjectClass == BATTLEMECH)
     {
-        const frame_of_ref frame = shooter->getFrame();
-        float cosFacing = UnitX.y * frame.i.y + UnitX.x * frame.i.x + UnitX.z * frame.i.z;
+        const MCFrameOfRef frame = shooter->GetFrame();
+        float cosFacing = UnitX.Y * frame.I.Y + UnitX.X * frame.I.X + UnitX.Z * frame.I.Z;
 
         if (cosFacing < -1.0f)
         {
@@ -336,14 +336,14 @@ auto Bullet::update() -> int32_t
             cosFacing = 1.0f;
         }
 
-        double facing = acosMatherr(static_cast<double>(cosFacing)) * RADIANS_TO_DEGREES;
+        double facing = AcosMatherr(static_cast<double>(cosFacing)) * RADIANS_TO_DEGREES;
 
-        if (frame.i.y < 0.0f)
+        if (frame.I.Y < 0.0f)
         {
             facing = -facing;
         }
 
-        drawRotation = std::abs(facing) <= 90.0 ? -150 : 150;
+        DrawRotation = std::abs(facing) <= 90.0 ? -150 : 150;
     }
 
     if (result != 0)
@@ -352,193 +352,193 @@ auto Bullet::update() -> int32_t
     }
 
     // Arrived: apply the shots (in multiplayer only the server does, and sends them on).
-    if (target != nullptr)
+    if (Target != nullptr)
     {
         if (MPlayer == nullptr)
         {
-            for (int32_t i = 0; i < numShots; i++)
+            for (int32_t i = 0; i < NumShots; i++)
             {
-                target->handleWeaponHit(&shotInfo[i], 0);
+                Target->HandleWeaponHit(&ShotInfo[i], 0);
             }
         }
-        else if (MPlayer->isServer != 0)
+        else if (MPlayer->IsServer != 0)
         {
-            for (int32_t i = 0; i < numShots; i++)
+            for (int32_t i = 0; i < NumShots; i++)
             {
-                target->handleWeaponHit(&shotInfo[i], 1);
+                Target->HandleWeaponHit(&ShotInfo[i], 1);
             }
         }
     }
 
-    const BulletType* bulletType = static_cast<BulletType*>(objType);
-    GameObject* effect = createObject(
-        static_cast<int32_t>(target == nullptr ? bulletType->bulletMissEffect : bulletType->bulletHitEffect));
+    const MCBulletType* bulletType = static_cast<MCBulletType*>(ObjType);
+    MCGameObject* effect = CreateObject(
+        static_cast<int32_t>(Target == nullptr ? bulletType->BulletMissEffect : bulletType->BulletHitEffect));
 
     if (effect == nullptr)
     {
         return result;
     }
 
-    if (target != nullptr)
+    if (Target != nullptr)
     {
-        const uint32_t hotSpot = target->objectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(targetHotSpot);
-        vector_3d hitPos = target->getPositionFromHS(hotSpot);
-        effect->setPosition(hitPos);
+        const uint32_t hotSpot = Target->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+        MCVector3D hitPos = Target->GetPositionFromHS(hotSpot);
+        effect->SetPosition(hitPos);
     }
-    else if (targetPosition != nullptr)
+    else if (TargetPosition != nullptr)
     {
-        effect->setPosition(*targetPosition);
+        effect->SetPosition(*TargetPosition);
     }
 
-    if (objectList->head != nullptr)
+    if (ObjectList->Head != nullptr)
     {
-        objectList->head->addNode(effect);
+        ObjectList->Head->AddNode(effect);
     }
 
     // A miss leaves a crater and sets off a live mine where it lands.
-    if (target == nullptr && targetPosition != nullptr)
+    if (Target == nullptr && TargetPosition != nullptr)
     {
-        craterManager->addCrater(6, *targetPosition, 1);
+        CraterManager->AddCrater(6, *TargetPosition, 1);
 
         int32_t tileR = 0;
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->worldToMapPos(*targetPosition, tileR, tileC, cellR, cellC);
+        GameMap->WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
 
         // Port fix: a miss can land off the map, where the original reads (and writes) outside it.
-        if (!GameMap->onMap(tileR, tileC))
+        if (!GameMap->OnMap(tileR, tileC))
         {
             return result;
         }
 
-        MapTile& tile = GameMap->map[GameMap->width * tileR + tileC];
+        MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
 
-        if ((tile.overlay & 0x1800) == 0x1000 || (tile.overlay & 0x6000) == 0x4000)
+        if ((tile.Overlay & 0x1800) == 0x1000 || (tile.Overlay & 0x6000) == 0x4000)
         {
-            CreateExplosion(MineExplosion, *targetPosition, MineSplashDamage, worldUnitsPerMeter * MineSplashRange);
-            tile.overlay |= 0x1800;
-            tile.overlay |= 0x6000;
+            CreateExplosion(MineExplosion, *TargetPosition, MineSplashDamage, WorldUnitsPerMeter * MineSplashRange);
+            tile.Overlay |= 0x1800;
+            tile.Overlay |= 0x6000;
         }
     }
 
     return result;
 }
 
-auto Bullet::render() -> void
+auto MCBullet::Render() -> void
 {
-    const int32_t firstFrame = justCreated;
+    const int32_t firstFrame = JustCreated;
 
-    if (firstFrame == 0 && appearance != nullptr)
+    if (firstFrame == 0 && Appearance != nullptr)
     {
-        appearance->render(drawRotation);
+        Appearance->Render(DrawRotation);
     }
 
-    if (smoke != nullptr && firstFrame == 0)
+    if (Smoke != nullptr && firstFrame == 0)
     {
-        smoke->render();
+        Smoke->Render();
     }
 
-    if (light != nullptr)
+    if (Light != nullptr)
     {
-        light->render();
+        Light->Render();
     }
 }
 
-auto Bullet::destroy() -> void
+auto MCBullet::Destroy() -> void
 {
-    delete targetPosition;
-    targetPosition = nullptr;
-    delete appearance;
-    appearance = nullptr;
+    delete TargetPosition;
+    TargetPosition = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 
-    if (smoke != nullptr)
+    if (Smoke != nullptr)
     {
-        delete smoke;
-        smoke = nullptr;
+        delete Smoke;
+        Smoke = nullptr;
     }
 
-    delete light;
-    light = nullptr;
+    delete Light;
+    Light = nullptr;
 }
 
-auto Bullet::init(ObjectType* objType) -> int32_t
+auto MCBullet::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justCreated = 1;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    JustCreated = 1;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType != nullptr)
     {
-        if ((apprType->appearanceNum & 0xff000000) != 0x6000000)
+        if ((apprType->AppearanceNum & 0xff000000) != 0x6000000)
         {
             return static_cast<int32_t>(0xdcdc0010);
         }
 
-        auto* armAppearance = new ArmAppearance;
-        appearance = armAppearance;
+        auto* armAppearance = new MCArmAppearance;
+        Appearance = armAppearance;
 
         if (armAppearance == nullptr)
         {
             return static_cast<int32_t>(0xdcdc000f);
         }
 
-        armAppearance->init(nullptr, nullptr);
-        armAppearance->ownerObject = nullptr;
+        armAppearance->Init(nullptr, nullptr);
+        armAppearance->OwnerObject = nullptr;
 
-        if ((result = armAppearance->init(apprType, this)) != 0)
+        if ((result = armAppearance->Init(apprType, this)) != 0)
         {
             return result;
         }
 
-        armAppearance->ownerObject = this;
+        armAppearance->OwnerObject = this;
     }
 
-    const auto* bulletType = static_cast<BulletType*>(objType);
+    const auto* bulletType = static_cast<MCBulletType*>(objType);
 
-    if (static_cast<int32_t>(bulletType->smokeObjectId) != -1)
+    if (static_cast<int32_t>(bulletType->SmokeObjectId) != -1)
     {
-        smoke = static_cast<Smoke*>(createObject(static_cast<int32_t>(bulletType->smokeObjectId)));
+        Smoke = static_cast<MCSmoke*>(CreateObject(static_cast<int32_t>(bulletType->SmokeObjectId)));
     }
 
-    if (static_cast<int32_t>(bulletType->lightObjectId) != -1)
+    if (static_cast<int32_t>(bulletType->LightObjectId) != -1)
     {
-        light = createObject(static_cast<int32_t>(bulletType->lightObjectId));
+        Light = CreateObject(static_cast<int32_t>(bulletType->LightObjectId));
     }
 
-    objectClass = BULLET;
+    ObjectClass = BULLET;
     return 0;
 }
 
-auto Bullet::setOwner(BaseObject* newOwner) -> void
+auto MCBullet::SetOwner(MCBaseObject* newOwner) -> void
 {
-    owner = static_cast<GameObject*>(newOwner);
+    Owner = static_cast<MCGameObject*>(newOwner);
 }
 
-auto Bullet::setTarget(BaseObject* newTarget) -> void
+auto MCBullet::SetTarget(MCBaseObject* newTarget) -> void
 {
-    target = static_cast<GameObject*>(newTarget);
+    Target = static_cast<MCGameObject*>(newTarget);
 }
 
-auto Bullet::setTargetPosition(vector_3d position) -> void
+auto MCBullet::SetTargetPosition(MCVector3D position) -> void
 {
-    if (targetPosition == nullptr)
+    if (TargetPosition == nullptr)
     {
-        targetPosition = new vector_3d;
+        TargetPosition = new MCVector3D;
     }
 
-    *targetPosition = position;
+    *TargetPosition = position;
 }
 
-auto Bullet::connect(GameObject* source, vector_3d targetPos, int32_t sourceHotSpot) -> void
+auto MCBullet::Connect(MCGameObject* source, MCVector3D targetPos, int32_t sourceHotSpot) -> void
 {
-    owner = source;
-    ownerHotSpot = sourceHotSpot;
-    setTargetPosition(targetPos);
+    Owner = source;
+    OwnerHotSpot = sourceHotSpot;
+    SetTargetPosition(targetPos);
 }

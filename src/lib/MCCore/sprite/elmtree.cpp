@@ -12,7 +12,7 @@ namespace
     /// <summary>
     /// Wraps <paramref name="rotation"/> into 0..360 and returns the gesture's frame rate, made positive.
     /// </summary>
-    auto wrapFacing(const ElementalGestureData& data, float& rotation) -> float
+    auto WrapFacing(const MCElementalGestureData& data, float& rotation) -> float
     {
         if (rotation > 180.0)
         {
@@ -28,7 +28,7 @@ namespace
             rotation = static_cast<float>(rotation + 360.0);
         }
 
-        float frameRate = data.frameRate;
+        float frameRate = data.FrameRate;
 
         if (frameRate < 0.0)
         {
@@ -39,49 +39,50 @@ namespace
     }
 }
 
-auto ElementalTree::init(File* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
+auto MCElementalTree::Init(MCFile* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
 {
-    const int32_t result = loadIniFile(apprFile, fileSize);
+    const int32_t result = LoadIniFile(apprFile, fileSize);
 
     if (result != 0)
     {
         return result;
     }
 
-    keepLoaded = static_cast<int32_t>(loadFlags);
-    numPackets = static_cast<uint32_t>(spriteManager->getNumShapes(appearanceNum & 0xffffff));
+    KeepLoaded = static_cast<int32_t>(loadFlags);
+    NumPackets = static_cast<uint32_t>(SpriteManager->GetNumShapes(AppearanceNum & 0xffffff));
     // Port fix: sized by the port's pointer size (the original: count * 4).
-    shapeList = static_cast<Shape**>(spriteManager->mallocDataRAM(numPackets * static_cast<uint32_t>(sizeof(Shape*))));
+    ShapeList =
+        static_cast<MCShape**>(SpriteManager->MallocDataRam(NumPackets * static_cast<uint32_t>(sizeof(MCShape*))));
 
-    if (shapeList == nullptr)
+    if (ShapeList == nullptr)
     {
         return static_cast<int32_t>(0xbeef000a);
     }
 
-    for (uint32_t i = 0; i < numPackets; i++)
+    for (uint32_t i = 0; i < NumPackets; i++)
     {
-        shapeList[i] = nullptr;
+        ShapeList[i] = nullptr;
     }
 
     return 0;
 }
 
-auto ElementalTree::removeShape(Shape* shape) -> void
+auto MCElementalTree::RemoveShape(MCShape* shape) -> void
 {
-    for (int32_t i = 0; i < static_cast<int32_t>(numPackets); i++)
+    for (int32_t i = 0; i < static_cast<int32_t>(NumPackets); i++)
     {
-        if (shapeList[i] == shape)
+        if (ShapeList[i] == shape)
         {
-            shapeList[i] = nullptr;
+            ShapeList[i] = nullptr;
             // Port fix: the original returns here, leaving the users holding the freed shape.
             break;
         }
     }
 
     // The users are elemental appearances, whose shape is at +0x3c.
-    for (AppearanceUser* user = userList; user != nullptr; user = user->next)
+    for (MCAppearanceUser* user = UserList; user != nullptr; user = user->Next)
     {
-        auto** userShape = reinterpret_cast<Shape**>(static_cast<uint8_t*>(user->user) + 0x3c);
+        auto** userShape = reinterpret_cast<MCShape**>(static_cast<uint8_t*>(user->User) + 0x3c);
 
         if (*userShape == shape)
         {
@@ -90,52 +91,52 @@ auto ElementalTree::removeShape(Shape* shape) -> void
     }
 }
 
-auto ElementalTree::preloadGestures(int32_t, float) -> void
+auto MCElementalTree::PreloadGestures(int32_t, float) -> void
 {
 }
 
-auto ElementalTree::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCElementalTree::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 50);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    jumpMaxDistance = static_cast<float*>(spriteManager->mallocDataRAM(sizeof(float)));
+    JumpMaxDistance = static_cast<float*>(SpriteManager->MallocDataRam(sizeof(float)));
 
-    if (jumpMaxDistance == nullptr)
+    if (JumpMaxDistance == nullptr)
     {
         return static_cast<int32_t>(0xeadd0009);
     }
 
-    if ((result = iniFile.seekBlock("SpecialInfo")) != 0)
+    if ((result = iniFile.SeekBlock("SpecialInfo")) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdFloat("jumpMaxDistance", *jumpMaxDistance)) != 0)
+    if ((result = iniFile.ReadIdFloat("jumpMaxDistance", *JumpMaxDistance)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.seekBlock("Gestures")) != 0)
+    if ((result = iniFile.SeekBlock("Gestures")) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("NumGestures", numGestures)) != 0)
+    if ((result = iniFile.ReadIdULong("NumGestures", NumGestures)) != 0)
     {
         return result;
     }
 
-    const int32_t count = static_cast<int32_t>(numGestures);
-    gestures =
-        static_cast<ElementalGestureData*>(spriteManager->mallocDataRAM(numGestures * sizeof(ElementalGestureData)));
+    const int32_t count = static_cast<int32_t>(NumGestures);
+    Gestures = static_cast<MCElementalGestureData*>(
+        SpriteManager->MallocDataRam(NumGestures * sizeof(MCElementalGestureData)));
 
-    if (gestures == nullptr)
+    if (Gestures == nullptr)
     {
         return static_cast<int32_t>(0xbeef000a);
     }
@@ -145,88 +146,88 @@ auto ElementalTree::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
         char blockName[20];
         sprintf(blockName, "Gestures%d", i);
 
-        if ((result = iniFile.seekBlock(blockName)) != 0)
+        if ((result = iniFile.SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        ElementalGestureData& data = gestures[i];
+        MCElementalGestureData& data = Gestures[i];
 
-        if ((result = iniFile.readIdUChar("State", data.state)) != 0)
+        if ((result = iniFile.ReadIdUChar("State", data.State)) != 0)
         {
             return result;
         }
 
         uint32_t numFrames = 0;
 
-        if ((result = iniFile.readIdULong("NumFrames", numFrames)) != 0)
+        if ((result = iniFile.ReadIdULong("NumFrames", numFrames)) != 0)
         {
             return result;
         }
 
-        data.numFrames = numFrames;
+        data.NumFrames = numFrames;
         float frameRate = 0.0f;
 
-        if ((result = iniFile.readIdFloat("FrameRate", frameRate)) != 0)
+        if ((result = iniFile.ReadIdFloat("FrameRate", frameRate)) != 0)
         {
             return result;
         }
 
-        data.frameRate = frameRate;
+        data.FrameRate = frameRate;
         uint32_t basePacketNumber = 0;
 
-        if ((result = iniFile.readIdULong("BasePacketNumber", basePacketNumber)) != 0)
+        if ((result = iniFile.ReadIdULong("BasePacketNumber", basePacketNumber)) != 0)
         {
             return result;
         }
 
-        data.basePacketNumber = basePacketNumber;
+        data.BasePacketNumber = basePacketNumber;
 
-        if ((result = iniFile.readIdUChar("NumRotations", data.numRotations)) != 0)
+        if ((result = iniFile.ReadIdUChar("NumRotations", data.NumRotations)) != 0)
         {
             return result;
         }
 
         float velocity = 0.0f;
 
-        if ((result = iniFile.readIdFloat("Velocity", velocity)) != 0)
+        if ((result = iniFile.ReadIdFloat("Velocity", velocity)) != 0)
         {
             return result;
         }
 
-        data.velocity = velocity;
+        data.Velocity = velocity;
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto ElementalTree::setGesture(int32_t gesture, float rotation, float& frameRate) -> void
+auto MCElementalTree::SetGesture(int32_t gesture, float rotation, float& frameRate) -> void
 {
     frameRate = 0.0f;
 
-    if (gesture < 0 || gesture >= static_cast<int32_t>(numGestures) || gestures[gesture].numFrames == 0)
+    if (gesture < 0 || gesture >= static_cast<int32_t>(NumGestures) || Gestures[gesture].NumFrames == 0)
     {
         return;
     }
 
     // The original also works out the rotation index here, then drops it.
-    frameRate = wrapFacing(gestures[gesture], rotation);
+    frameRate = WrapFacing(Gestures[gesture], rotation);
 }
 
-auto ElementalTree::getGesture(int32_t gesture, float rotation, float& frameRate, int) -> Shape*
+auto MCElementalTree::GetGesture(int32_t gesture, float rotation, float& frameRate, int) -> MCShape*
 {
     frameRate = 0.0f;
 
-    if (gesture < 0 || gesture >= static_cast<int32_t>(numGestures) || gestures[gesture].numFrames == 0)
+    if (gesture < 0 || gesture >= static_cast<int32_t>(NumGestures) || Gestures[gesture].NumFrames == 0)
     {
         return nullptr;
     }
 
-    const ElementalGestureData& data = gestures[gesture];
-    frameRate = wrapFacing(data, rotation);
+    const MCElementalGestureData& data = Gestures[gesture];
+    frameRate = WrapFacing(data, rotation);
 
-    const int32_t numRotations = data.numRotations;
+    const int32_t numRotations = data.NumRotations;
     int32_t rotationIndex = static_cast<int16_t>(static_cast<int32_t>(
         std::floor(static_cast<double>(rotation * static_cast<float>(numRotations + 1)) * (1.0 / 360.0))));
 
@@ -237,53 +238,53 @@ auto ElementalTree::getGesture(int32_t gesture, float rotation, float& frameRate
 
     float zoom = 1.0f;
 
-    if (eye != nullptr && eye->cameraScale == 1)
+    if (Eye != nullptr && Eye->CameraScale == 1)
     {
         zoom = 0.5f;
     }
 
     // Full size and zoomed out packets alternate.
-    uint32_t packet = data.basePacketNumber + static_cast<uint32_t>(rotationIndex * 2);
+    uint32_t packet = data.BasePacketNumber + static_cast<uint32_t>(rotationIndex * 2);
 
     if (zoom != 1.0f)
     {
         packet++;
     }
 
-    if (packet >= numPackets)
+    if (packet >= NumPackets)
     {
         return nullptr;
     }
 
-    Shape* shape = shapeList[packet];
+    MCShape* shape = ShapeList[packet];
 
     if (shape != nullptr)
     {
-        shape->lastTurnUsed = turn;
+        shape->LastTurnUsed = Turn;
         return shape;
     }
 
-    dynamicFrameTiming = 0;
-    shape = spriteManager->getShapeData(appearanceNum & 0xffffff, packet, turn, this, zoom != 1.0f ? 1 : 0);
-    shapeList[packet] = shape;
+    DynamicFrameTiming = 0;
+    shape = SpriteManager->GetShapeData(AppearanceNum & 0xffffff, packet, Turn, this, zoom != 1.0f ? 1 : 0);
+    ShapeList[packet] = shape;
     return shape;
 }
 
-auto ElementalTree::destroy() -> void
+auto MCElementalTree::Destroy() -> void
 {
     // The shapes stay in the sprite manager's cache, ownerless.
-    for (int32_t i = 0; i < static_cast<int32_t>(numPackets); i++)
+    for (int32_t i = 0; i < static_cast<int32_t>(NumPackets); i++)
     {
-        if (shapeList[i] != nullptr)
+        if (ShapeList[i] != nullptr)
         {
-            shapeList[i]->owner = nullptr;
+            ShapeList[i]->Owner = nullptr;
         }
     }
 
-    spriteManager->freeDataRAM(shapeList);
-    shapeList = nullptr;
-    spriteManager->freeDataRAM(jumpMaxDistance);
-    jumpMaxDistance = nullptr;
-    spriteManager->freeDataRAM(gestures);
-    gestures = nullptr;
+    SpriteManager->FreeDataRam(ShapeList);
+    ShapeList = nullptr;
+    SpriteManager->FreeDataRam(JumpMaxDistance);
+    JumpMaxDistance = nullptr;
+    SpriteManager->FreeDataRam(Gestures);
+    Gestures = nullptr;
 }

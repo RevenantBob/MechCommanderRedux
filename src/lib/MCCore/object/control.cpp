@@ -2,30 +2,30 @@
 #include "object/control.h"
 #include "object/objtype.h"
 
-auto ControlData::destroy() -> void
+auto MCControlData::Destroy() -> void
 {
 }
 
-auto ControlData::init(int32_t) -> int32_t
+auto MCControlData::Init(int32_t) -> int32_t
 {
     return 0;
 }
 
-auto ControlData::reset() -> void
+auto MCControlData::Reset() -> void
 {
 }
 
-auto Control::destroy() -> void
+auto MCControl::Destroy() -> void
 {
 }
 
-auto Control::init(GameObject* object, int32_t) -> int32_t
+auto MCControl::Init(MCGameObject* object, int32_t) -> int32_t
 {
-    me = object;
+    Me = object;
     return 0;
 }
 
-auto Control::update() -> int32_t
+auto MCControl::Update() -> int32_t
 {
     return 0;
 }

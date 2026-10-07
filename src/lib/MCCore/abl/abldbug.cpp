@@ -16,10 +16,10 @@
 #include "platform/MCInput.h"
 #include "vfx/vfxfuncs.h"
 
-char Debugger::message[MAXLEN_DEBUGGER_MESSAGE];
-Debugger* debugger = nullptr;
-ScrollingTextWindow* ABLDebuggerOut = nullptr;
-aTextObject* ABLDebuggerIn = nullptr;
+char MCDebugger::Message[MAXLEN_DEBUGGER_MESSAGE];
+MCDebugger* Debugger = nullptr;
+MCScrollingTextWindow* AblDebuggerOut = nullptr;
+MCGuiTextObject* AblDebuggerIn = nullptr;
 
 namespace
 {
@@ -29,145 +29,145 @@ namespace
     /// </summary>
     /// <returns>Its item, or <paramref name="fallback"/> for any other variable type (the original then read the
     /// caller's buffer).</returns>
-    auto variableItem(SymTableNodePtr idPtr, StackItemPtr fallback) -> StackItemPtr
+    auto VariableItem(MCSymTableNodePtr idPtr, MCStackItemPtr fallback) -> MCStackItemPtr
     {
-        switch (idPtr->defn.info.data.varType)
+        switch (idPtr->Defn.Info.Data.VarType)
         {
             case VAR_TYPE_NORMAL:
             {
-                StackItemPtr frame = stackFrameBasePtr;
+                MCStackItemPtr frame = StackFrameBasePtr;
 
-                for (int32_t delta = level - idPtr->level; delta > 0; delta--)
+                for (int32_t delta = Level - idPtr->Level; delta > 0; delta--)
                 {
-                    frame = reinterpret_cast<StackItemPtr>(
-                        reinterpret_cast<StackFrameHeaderPtr>(frame)->staticLink.address);
+                    frame = reinterpret_cast<MCStackItemPtr>(
+                        reinterpret_cast<MCStackFrameHeaderPtr>(frame)->StaticLink.Address);
                 }
 
-                return frame + idPtr->defn.info.data.offset;
+                return frame + idPtr->Defn.Info.Data.Offset;
             }
 
             case VAR_TYPE_STATIC:
-                return StaticDataPtr + idPtr->defn.info.data.offset;
+                return StaticDataPtr + idPtr->Defn.Info.Data.Offset;
             case VAR_TYPE_ETERNAL:
-                return stack + idPtr->defn.info.data.offset;
+                return Stack + idPtr->Defn.Info.Data.Offset;
             default:
                 return fallback;
         }
     }
 }
 
-auto WatchManager::init(int32_t max) -> int32_t
+auto MCWatchManager::Init(int32_t max) -> int32_t
 {
-    maxWatches = max;
-    numWatches = 0;
-    watches = AblMemory.AllocateArray<Watch>(static_cast<size_t>(max));
-    return watches ? 0 : -1;
+    MaxWatches = max;
+    NumWatches = 0;
+    Watches = AblMemory.AllocateArray<MCWatch>(static_cast<size_t>(max));
+    return Watches ? 0 : -1;
 }
 
-auto WatchManager::destroy() -> void
+auto MCWatchManager::Destroy() -> void
 {
-    if (watches)
+    if (Watches)
     {
-        AblMemory.Free(watches);
-        watches = nullptr;
+        AblMemory.Free(Watches);
+        Watches = nullptr;
     }
 
-    maxWatches = 0;
-    numWatches = 0;
+    MaxWatches = 0;
+    NumWatches = 0;
 }
 
-auto WatchManager::add(SymTableNodePtr idPtr) -> WatchPtr
+auto MCWatchManager::Add(MCSymTableNodePtr idPtr) -> MCWatchPtr
 {
-    DefinitionType idDefn = idPtr->defn.key;
+    MCDefinitionType idDefn = idPtr->Defn.Key;
 
     if (idDefn != DFN_CONST && idDefn != DFN_VAR && idDefn != DFN_VALPARAM && idDefn != DFN_REFPARAM)
     {
         return nullptr;
     }
 
-    if (idPtr->info)
+    if (idPtr->Info)
     {
-        return idPtr->info;
+        return idPtr->Info;
     }
 
-    if (numWatches >= maxWatches)
+    if (NumWatches >= MaxWatches)
     {
         return nullptr;
     }
 
-    WatchPtr watch = &watches[numWatches];
-    idPtr->info = watch;
-    watch->idPtr = idPtr;
-    watch->store = 0;
-    watch->breakOnStore = 0;
-    watch->fetch = 0;
-    watch->breakOnFetch = 0;
-    numWatches++;
+    MCWatchPtr watch = &Watches[NumWatches];
+    idPtr->Info = watch;
+    watch->IdPtr = idPtr;
+    watch->Store = 0;
+    watch->BreakOnStore = 0;
+    watch->Fetch = 0;
+    watch->BreakOnFetch = 0;
+    NumWatches++;
     return watch;
 }
 
-auto WatchManager::remove(SymTableNodePtr idPtr) -> int32_t
+auto MCWatchManager::Remove(MCSymTableNodePtr idPtr) -> int32_t
 {
     if (!idPtr)
     {
         return 1;
     }
 
-    if (!idPtr->info)
+    if (!idPtr->Info)
     {
         return 2;
     }
 
     int32_t removeIndex = 0;
 
-    while (removeIndex < numWatches && &watches[removeIndex] != idPtr->info)
+    while (removeIndex < NumWatches && &Watches[removeIndex] != idPtr->Info)
     {
         removeIndex++;
     }
 
-    numWatches--;
-    idPtr->info = nullptr;
+    NumWatches--;
+    idPtr->Info = nullptr;
 
     // Original behaviour (OB-040): the shift never advances, so only the next watch moves down (the original copied
     // it numWatches - removeIndex times); the ones after it stay put and the last one drops off the count.
-    if (removeIndex < numWatches)
+    if (removeIndex < NumWatches)
     {
-        watches[removeIndex] = watches[removeIndex + 1];
-        watches[removeIndex].idPtr->info = &watches[removeIndex];
+        Watches[removeIndex] = Watches[removeIndex + 1];
+        Watches[removeIndex].IdPtr->Info = &Watches[removeIndex];
     }
 
     return 0;
 }
 
-auto WatchManager::removeAll() -> int32_t
+auto MCWatchManager::RemoveAll() -> int32_t
 {
-    int32_t removed = numWatches;
+    int32_t removed = NumWatches;
 
-    for (int32_t i = 0; i < numWatches; i++)
+    for (int32_t i = 0; i < NumWatches; i++)
     {
-        SymTableNodePtr idPtr = watches[i].idPtr;
-        watches[i] = Watch{};
-        idPtr->info = nullptr;
+        MCSymTableNodePtr idPtr = Watches[i].IdPtr;
+        Watches[i] = MCWatch{};
+        idPtr->Info = nullptr;
     }
 
-    numWatches = 0;
+    NumWatches = 0;
     return removed;
 }
 
-auto WatchManager::setStore(SymTableNodePtr idPtr, int on, int breakOnStore) -> int32_t
+auto MCWatchManager::SetStore(MCSymTableNodePtr idPtr, int on, int breakOnStore) -> int32_t
 {
     if (!idPtr)
     {
         return 1;
     }
 
-    WatchPtr watch = idPtr->info;
+    MCWatchPtr watch = idPtr->Info;
 
     if (on)
     {
         if (!watch)
         {
-            watch = add(idPtr);
+            watch = Add(idPtr);
 
             if (!watch)
             {
@@ -175,41 +175,41 @@ auto WatchManager::setStore(SymTableNodePtr idPtr, int on, int breakOnStore) -> 
             }
         }
 
-        watch->store = 1;
-        watch->breakOnStore = breakOnStore;
+        watch->Store = 1;
+        watch->BreakOnStore = breakOnStore;
         return 0;
     }
 
     if (watch)
     {
         // Keep the watch while it still watches fetches.
-        if (watch->fetch)
+        if (watch->Fetch)
         {
-            watch->store = 0;
-            watch->breakOnStore = 0;
+            watch->Store = 0;
+            watch->BreakOnStore = 0;
             return 0;
         }
 
-        remove(idPtr);
+        Remove(idPtr);
     }
 
     return 0;
 }
 
-auto WatchManager::setFetch(SymTableNodePtr idPtr, int on, int breakOnFetch) -> int32_t
+auto MCWatchManager::SetFetch(MCSymTableNodePtr idPtr, int on, int breakOnFetch) -> int32_t
 {
     if (!idPtr)
     {
         return 1;
     }
 
-    WatchPtr watch = idPtr->info;
+    MCWatchPtr watch = idPtr->Info;
 
     if (on)
     {
         if (!watch)
         {
-            watch = add(idPtr);
+            watch = Add(idPtr);
 
             if (!watch)
             {
@@ -217,73 +217,73 @@ auto WatchManager::setFetch(SymTableNodePtr idPtr, int on, int breakOnFetch) -> 
             }
         }
 
-        watch->fetch = 1;
-        watch->breakOnFetch = breakOnFetch;
+        watch->Fetch = 1;
+        watch->BreakOnFetch = breakOnFetch;
         return 0;
     }
 
     if (watch)
     {
-        if (watch->store)
+        if (watch->Store)
         {
-            watch->fetch = 0;
-            watch->breakOnFetch = 0;
+            watch->Fetch = 0;
+            watch->BreakOnFetch = 0;
             return 0;
         }
 
-        remove(idPtr);
+        Remove(idPtr);
     }
 
     return 0;
 }
 
-auto WatchManager::getStore(SymTableNodePtr idPtr) -> int32_t
+auto MCWatchManager::GetStore(MCSymTableNodePtr idPtr) -> int32_t
 {
-    if (!idPtr->info)
+    if (!idPtr->Info)
     {
         return 0;
     }
 
-    return idPtr->info->store;
+    return idPtr->Info->Store;
 }
 
-auto WatchManager::getFetch(SymTableNodePtr idPtr) -> int32_t
+auto MCWatchManager::GetFetch(MCSymTableNodePtr idPtr) -> int32_t
 {
-    if (!idPtr->info)
+    if (!idPtr->Info)
     {
         return 0;
     }
 
-    return idPtr->info->fetch;
+    return idPtr->Info->Fetch;
 }
 
-auto WatchManager::print() -> void
+auto MCWatchManager::Print() -> void
 {
 }
 
-auto BreakPointManager::init(int32_t max) -> int32_t
+auto MCBreakPointManager::Init(int32_t max) -> int32_t
 {
-    maxBreakPoints = max;
-    numBreakPoints = 0;
-    breakPoints = AblMemory.AllocateArray<int32_t>(static_cast<size_t>(max));
-    return breakPoints ? 0 : -1;
+    MaxBreakPoints = max;
+    NumBreakPoints = 0;
+    BreakPoints = AblMemory.AllocateArray<int32_t>(static_cast<size_t>(max));
+    return BreakPoints ? 0 : -1;
 }
 
-auto BreakPointManager::destroy() -> void
+auto MCBreakPointManager::Destroy() -> void
 {
-    if (breakPoints)
+    if (BreakPoints)
     {
-        AblMemory.Free(breakPoints);
-        breakPoints = nullptr;
+        AblMemory.Free(BreakPoints);
+        BreakPoints = nullptr;
     }
 
-    maxBreakPoints = 0;
-    numBreakPoints = 0;
+    MaxBreakPoints = 0;
+    NumBreakPoints = 0;
 }
 
-auto BreakPointManager::add(int32_t lineNumber) -> int32_t
+auto MCBreakPointManager::Add(int32_t lineNumber) -> int32_t
 {
-    if (numBreakPoints == maxBreakPoints)
+    if (NumBreakPoints == MaxBreakPoints)
     {
         return 1;
     }
@@ -295,14 +295,14 @@ auto BreakPointManager::add(int32_t lineNumber) -> int32_t
 
     int32_t index = 0;
 
-    for (; index < numBreakPoints; index++)
+    for (; index < NumBreakPoints; index++)
     {
-        if (breakPoints[index] == lineNumber)
+        if (BreakPoints[index] == lineNumber)
         {
             return 0;
         }
 
-        if (lineNumber < breakPoints[index])
+        if (lineNumber < BreakPoints[index])
         {
             break;
         }
@@ -310,49 +310,49 @@ auto BreakPointManager::add(int32_t lineNumber) -> int32_t
 
     // Original behaviour (OB-041): the make-room shift copies forwards, so every break point after the insertion
     // point becomes a copy of the one that was there.
-    for (int32_t i = index; i < numBreakPoints; i++)
+    for (int32_t i = index; i < NumBreakPoints; i++)
     {
-        breakPoints[i + 1] = breakPoints[i];
+        BreakPoints[i + 1] = BreakPoints[i];
     }
 
-    numBreakPoints++;
-    breakPoints[index] = lineNumber;
+    NumBreakPoints++;
+    BreakPoints[index] = lineNumber;
     return 0;
 }
 
-auto BreakPointManager::remove(int32_t lineNumber) -> int32_t
+auto MCBreakPointManager::Remove(int32_t lineNumber) -> int32_t
 {
     int32_t index = 0;
 
-    while (index < numBreakPoints && breakPoints[index] != lineNumber)
+    while (index < NumBreakPoints && BreakPoints[index] != lineNumber)
     {
         index++;
     }
 
     // Original behaviour (OB-042): the count drops even when there is no break point on that line, which loses the
     // last one.
-    numBreakPoints--;
+    NumBreakPoints--;
 
-    for (int32_t i = index; i < numBreakPoints; i++)
+    for (int32_t i = index; i < NumBreakPoints; i++)
     {
-        breakPoints[i] = breakPoints[i + 1];
+        BreakPoints[i] = BreakPoints[i + 1];
     }
 
     return 0;
 }
 
-auto BreakPointManager::removeAll() -> int32_t
+auto MCBreakPointManager::RemoveAll() -> int32_t
 {
-    int32_t removed = numBreakPoints;
-    numBreakPoints = 0;
+    int32_t removed = NumBreakPoints;
+    NumBreakPoints = 0;
     return removed;
 }
 
-auto BreakPointManager::isBreakPoint(int32_t lineNumber) -> int
+auto MCBreakPointManager::IsBreakPoint(int32_t lineNumber) -> int
 {
-    for (int32_t i = 0; i < numBreakPoints; i++)
+    for (int32_t i = 0; i < NumBreakPoints; i++)
     {
-        if (breakPoints[i] == lineNumber)
+        if (BreakPoints[i] == lineNumber)
         {
             return 1;
         }
@@ -361,144 +361,144 @@ auto BreakPointManager::isBreakPoint(int32_t lineNumber) -> int
     return 0;
 }
 
-auto BreakPointManager::print() -> void
+auto MCBreakPointManager::Print() -> void
 {
 }
 
-auto Debugger::init(void (*callback)(char* s), ABLModule* _module) -> int32_t
+auto MCDebugger::Init(void (*callback)(char* s), MCAblModule* ablModule) -> int32_t
 {
-    printCallback = callback;
-    module = _module;
+    PrintCallback = callback;
+    Module = ablModule;
 
-    if (_module)
+    if (ablModule)
     {
-        watchManager = _module->watchManager;
-        breakPointManager = _module->breakPointManager;
+        WatchManager = ablModule->WatchManager;
+        BreakPointManager = ablModule->BreakPointManager;
     }
 
     return 0;
 }
 
-auto Debugger::destroy() -> void
+auto MCDebugger::Destroy() -> void
 {
 }
 
-auto Debugger::print(char* s) -> int32_t
+auto MCDebugger::Print(char* s) -> int32_t
 {
-    if (printCallback)
+    if (PrintCallback)
     {
-        printCallback(s);
+        PrintCallback(s);
     }
 
     return 0;
 }
 
-auto Debugger::setModule(ABLModule* _module) -> void
+auto MCDebugger::SetModule(MCAblModule* ablModule) -> void
 {
-    module = _module;
-    breakPointManager = _module->breakPointManager;
-    watchManager = _module->watchManager;
+    Module = ablModule;
+    BreakPointManager = ablModule->BreakPointManager;
+    WatchManager = ablModule->WatchManager;
     // Faithful: the module's trace flag sets all three trace modes (its traceEntry/traceExit are not read).
-    step = _module->step;
-    traceExit = _module->trace;
-    traceEntry = _module->trace;
-    trace = _module->trace;
+    Step = ablModule->Step;
+    TraceExit = ablModule->Trace;
+    TraceEntry = ablModule->Trace;
+    Trace = ablModule->Trace;
 }
 
-auto Debugger::setWatch(int32_t states) -> int32_t
+auto MCDebugger::SetWatch(int32_t states) -> int32_t
 {
-    getToken();
+    GetToken();
 
-    if (curToken != TKN_IDENTIFIER)
+    if (CurToken != TKN_IDENTIFIER)
     {
-        if (curToken == TKN_SEMICOLON)
+        if (CurToken == TKN_SEMICOLON)
         {
-            print(const_cast<char*>("Variables currently watched:\n"));
-            watchManager->print();
+            Print(const_cast<char*>("Variables currently watched:\n"));
+            WatchManager->Print();
         }
 
         return 0;
     }
 
-    SymTableNodePtr idPtr = nullptr;
-    searchAndFindAllSymTables(idPtr);
-    getToken();
+    MCSymTableNodePtr idPtr = nullptr;
+    SearchAndFindAllSymTables(idPtr);
+    GetToken();
     // Bits: 1 store off, 2 store on, 4 fetch off, 8 fetch on, 16 break.
     int breakFlag = (states >> 4) & 1;
 
     if (states & 1)
     {
-        watchManager->setStore(idPtr, 0, breakFlag);
+        WatchManager->SetStore(idPtr, 0, breakFlag);
     }
     else if (states & 2)
     {
-        watchManager->setStore(idPtr, 1, breakFlag);
+        WatchManager->SetStore(idPtr, 1, breakFlag);
     }
 
     if (states & 4)
     {
-        watchManager->setFetch(idPtr, 0, breakFlag);
+        WatchManager->SetFetch(idPtr, 0, breakFlag);
     }
     else if (states & 8)
     {
-        watchManager->setFetch(idPtr, 1, breakFlag);
+        WatchManager->SetFetch(idPtr, 1, breakFlag);
     }
 
     return 0;
 }
 
-auto Debugger::addBreakPoint() -> int32_t
+auto MCDebugger::AddBreakPoint() -> int32_t
 {
-    getToken();
+    GetToken();
 
-    if (curToken == TKN_NUMBER)
+    if (CurToken == TKN_NUMBER)
     {
-        if (curLiteral.type == LIT_INTEGER)
+        if (CurLiteral.Type == LIT_INTEGER)
         {
-            breakPointManager->add(curLiteral.value.integer);
+            BreakPointManager->Add(CurLiteral.Value.Integer);
         }
 
-        getToken();
+        GetToken();
     }
-    else if (curToken == TKN_SEMICOLON)
+    else if (CurToken == TKN_SEMICOLON)
     {
         // Faithful: the break point list is announced with the watch list's title.
-        print(const_cast<char*>("Variables currently watched:\n"));
-        breakPointManager->print();
+        Print(const_cast<char*>("Variables currently watched:\n"));
+        BreakPointManager->Print();
     }
 
     return 0;
 }
 
-auto Debugger::removeBreakPoint() -> int32_t
+auto MCDebugger::RemoveBreakPoint() -> int32_t
 {
-    getToken();
+    GetToken();
 
-    if (curToken == TKN_NUMBER)
+    if (CurToken == TKN_NUMBER)
     {
-        if (curLiteral.type == LIT_INTEGER)
+        if (CurLiteral.Type == LIT_INTEGER)
         {
-            breakPointManager->remove(curLiteral.value.integer);
+            BreakPointManager->Remove(CurLiteral.Value.Integer);
         }
 
-        getToken();
+        GetToken();
     }
-    else if (curToken == TKN_SEMICOLON)
+    else if (CurToken == TKN_SEMICOLON)
     {
-        breakPointManager->removeAll();
+        BreakPointManager->RemoveAll();
     }
 
     return 0;
 }
 
-auto Debugger::sprintStatement(char* dest) -> void
+auto MCDebugger::SprintStatement(char* dest) -> void
 {
     bool done = false;
-    const char* code = statementStartPtr;
+    const char* code = StatementStartPtr;
 
     do
     {
-        TokenCodeType token = static_cast<TokenCodeType>(*code);
+        MCTokenCodeType token = static_cast<MCTokenCodeType>(*code);
         const char* next = code + 1;
 
         switch (token)
@@ -528,10 +528,10 @@ auto Debugger::sprintStatement(char* dest) -> void
             case TKN_NUMBER:
             case TKN_STRING:
             {
-                SymTableNodePtr idPtr;
+                MCSymTableNodePtr idPtr;
                 std::memcpy(&idPtr, next, sizeof(idPtr));
                 std::strcat(dest, " ");
-                std::strcat(dest, idPtr->name);
+                std::strcat(dest, idPtr->Name);
                 next += CODE_SYMBOL_PTR_SIZE;
                 break;
             }
@@ -551,37 +551,37 @@ auto Debugger::sprintStatement(char* dest) -> void
     } while (!done);
 }
 
-auto Debugger::sprintLineNumber(char* dest) -> void
+auto MCDebugger::SprintLineNumber(char* dest) -> void
 {
     std::sprintf(dest, "LINE#");
 }
 
-auto Debugger::sprintDataValue(char* dest, StackItemPtr data, TypePtr dataType) -> void
+auto MCDebugger::SprintDataValue(char* dest, MCStackItemPtr data, MCTypePtr dataType) -> void
 {
-    if (dataType->form == FRM_ENUM && dataType != BooleanTypePtr)
+    if (dataType->Form == FRM_ENUM && dataType != BooleanTypePtr)
     {
         dataType = IntegerTypePtr;
     }
 
     if (dataType == IntegerTypePtr)
     {
-        std::sprintf(dest, "%d", data->integer);
+        std::sprintf(dest, "%d", data->Integer);
     }
     else if (dataType == RealTypePtr)
     {
-        std::sprintf(dest, "%0.6f", static_cast<double>(data->real));
+        std::sprintf(dest, "%0.6f", static_cast<double>(data->Real));
     }
     else if (dataType == BooleanTypePtr)
     {
-        std::sprintf(dest, "%s", data->integer == 1 ? "true" : "false");
+        std::sprintf(dest, "%s", data->Integer == 1 ? "true" : "false");
     }
     else if (dataType == CharTypePtr)
     {
-        std::sprintf(dest, "%c", data->byte);
+        std::sprintf(dest, "%c", data->Byte);
     }
-    else if (dataType->form == FRM_ARRAY)
+    else if (dataType->Form == FRM_ARRAY)
     {
-        if (dataType->info.array.elementTypePtr == CharTypePtr)
+        if (dataType->Info.Array.ElementTypePtr == CharTypePtr)
         {
             std::sprintf(dest, "CHAR ARRAY");
         }
@@ -592,68 +592,68 @@ auto Debugger::sprintDataValue(char* dest, StackItemPtr data, TypePtr dataType) 
     }
 }
 
-auto Debugger::sprintSimpleValue(char* dest, SymTableNodePtr symbol) -> int32_t
+auto MCDebugger::SprintSimpleValue(char* dest, MCSymTableNodePtr symbol) -> int32_t
 {
-    TypePtr typePtr = symbol->typePtr;
+    MCTypePtr typePtr = symbol->TypePtr;
 
-    if (symbol->defn.key == DFN_CONST)
+    if (symbol->Defn.Key == DFN_CONST)
     {
         if (typePtr == IntegerTypePtr)
         {
-            std::sprintf(dest, "%d", symbol->defn.info.constant.value.integer);
+            std::sprintf(dest, "%d", symbol->Defn.Info.Constant.Value.Integer);
         }
         else if (typePtr == CharTypePtr)
         {
-            std::sprintf(dest, "%c", symbol->defn.info.constant.value.character);
+            std::sprintf(dest, "%c", symbol->Defn.Info.Constant.Value.Character);
         }
         else
         {
-            std::sprintf(dest, "%.4f", static_cast<double>(symbol->defn.info.constant.value.real));
+            std::sprintf(dest, "%.4f", static_cast<double>(symbol->Defn.Info.Constant.Value.Real));
         }
 
         return 0;
     }
 
-    StackItemPtr valuePtr = variableItem(symbol, reinterpret_cast<StackItemPtr>(dest));
+    MCStackItemPtr valuePtr = VariableItem(symbol, reinterpret_cast<MCStackItemPtr>(dest));
 
-    if (symbol->defn.key == DFN_REFPARAM && typePtr->form != FRM_ARRAY)
+    if (symbol->Defn.Key == DFN_REFPARAM && typePtr->Form != FRM_ARRAY)
     {
-        valuePtr = reinterpret_cast<StackItemPtr>(valuePtr->address);
+        valuePtr = reinterpret_cast<MCStackItemPtr>(valuePtr->Address);
     }
 
-    TypePtr baseTypePtr = baseType(typePtr);
+    MCTypePtr baseTypePtr = BaseType(typePtr);
 
-    if (typePtr->form == FRM_ARRAY)
+    if (typePtr->Form == FRM_ARRAY)
     {
         std::sprintf(dest, "ARRAY");
     }
-    else if (baseTypePtr == IntegerTypePtr || typePtr->form == FRM_ENUM)
+    else if (baseTypePtr == IntegerTypePtr || typePtr->Form == FRM_ENUM)
     {
-        std::sprintf(dest, "%d", valuePtr->integer);
+        std::sprintf(dest, "%d", valuePtr->Integer);
     }
     else if (baseTypePtr == CharTypePtr)
     {
-        std::sprintf(dest, "\"%c\"", valuePtr->byte);
+        std::sprintf(dest, "\"%c\"", valuePtr->Byte);
     }
     else
     {
-        std::sprintf(dest, "%.4f", static_cast<double>(valuePtr->real));
+        std::sprintf(dest, "%.4f", static_cast<double>(valuePtr->Real));
     }
 
     return 0;
 }
 
-auto Debugger::sprintArrayValue(char* dest, SymTableNodePtr symbol, char* subscriptString) -> int32_t
+auto MCDebugger::SprintArrayValue(char* dest, MCSymTableNodePtr symbol, char* subscriptString) -> int32_t
 {
-    if (symbol->defn.key == DFN_CONST)
+    if (symbol->Defn.Key == DFN_CONST)
     {
-        std::sprintf(dest, "\"%s\"", symbol->defn.info.constant.value.stringPtr);
+        std::sprintf(dest, "\"%s\"", symbol->Defn.Info.Constant.Value.StringPtr);
         return 0;
     }
 
-    StackItemPtr arrayItem = variableItem(symbol, reinterpret_cast<StackItemPtr>(dest));
-    TypePtr typePtr = symbol->typePtr;
-    char* element = arrayItem->address;
+    MCStackItemPtr arrayItem = VariableItem(symbol, reinterpret_cast<MCStackItemPtr>(dest));
+    MCTypePtr typePtr = symbol->TypePtr;
+    char* element = arrayItem->Address;
 
     if (subscriptString)
     {
@@ -663,21 +663,21 @@ auto Debugger::sprintArrayValue(char* dest, SymTableNodePtr symbol, char* subscr
         {
             int32_t index = std::atoi(subscript);
 
-            if (index < 0 || index >= typePtr->info.array.elementCount)
+            if (index < 0 || index >= typePtr->Info.Array.ElementCount)
             {
                 return 1;
             }
 
-            typePtr = typePtr->info.array.elementTypePtr;
-            element += typePtr->size * index;
+            typePtr = typePtr->Info.Array.ElementTypePtr;
+            element += typePtr->Size * index;
         }
     }
 
-    TypePtr baseTypePtr = baseType(typePtr);
+    MCTypePtr baseTypePtr = BaseType(typePtr);
 
-    if (typePtr->form == FRM_ARRAY)
+    if (typePtr->Form == FRM_ARRAY)
     {
-        if (typePtr->info.array.elementTypePtr == CharTypePtr)
+        if (typePtr->Info.Array.ElementTypePtr == CharTypePtr)
         {
             std::sprintf(dest, "\"%s\"", element);
         }
@@ -686,7 +686,7 @@ auto Debugger::sprintArrayValue(char* dest, SymTableNodePtr symbol, char* subscr
             std::sprintf(dest, "Could you be more specific?");
         }
     }
-    else if (baseTypePtr == IntegerTypePtr || typePtr->form == FRM_ENUM)
+    else if (baseTypePtr == IntegerTypePtr || typePtr->Form == FRM_ENUM)
     {
         std::sprintf(dest, "%d", *reinterpret_cast<int32_t*>(element));
     }
@@ -702,201 +702,203 @@ auto Debugger::sprintArrayValue(char* dest, SymTableNodePtr symbol, char* subscr
     return 0;
 }
 
-auto Debugger::sprintValue(char* dest, char* exprString) -> int32_t
+auto MCDebugger::SprintValue(char* dest, char* exprString) -> int32_t
 {
     char* subscripts = std::strchr(exprString, '[');
 
     if (!subscripts)
     {
-        SymTableNodePtr symbol = debugModule->findSymbol(exprString, CurRoutineIdPtr);
+        MCSymTableNodePtr symbol = DebugModule->FindSymbol(exprString, CurRoutineIdPtr);
 
         if (!symbol)
         {
             return 1;
         }
 
-        if (symbol->typePtr->form != FRM_ARRAY)
+        if (symbol->TypePtr->Form != FRM_ARRAY)
         {
-            sprintSimpleValue(dest, symbol);
+            SprintSimpleValue(dest, symbol);
             return 0;
         }
 
-        symbol = debugModule->findSymbol(exprString, CurRoutineIdPtr);
+        symbol = DebugModule->FindSymbol(exprString, CurRoutineIdPtr);
 
         if (!symbol)
         {
             return 1;
         }
 
-        sprintArrayValue(dest, symbol, nullptr);
+        SprintArrayValue(dest, symbol, nullptr);
         return 0;
     }
 
     char subscriptString[256];
     std::strcpy(subscriptString, subscripts);
     *subscripts = '\0';
-    SymTableNodePtr symbol = debugModule->findSymbol(exprString, CurRoutineIdPtr);
+    MCSymTableNodePtr symbol = DebugModule->FindSymbol(exprString, CurRoutineIdPtr);
 
     if (!symbol)
     {
         return 1;
     }
 
-    sprintArrayValue(dest, symbol, subscriptString);
+    SprintArrayValue(dest, symbol, subscriptString);
     return 0;
 }
 
-auto Debugger::traceStatementExecution() -> int32_t
+auto MCDebugger::TraceStatementExecution() -> int32_t
 {
-    int32_t stepping = step;
+    int32_t stepping = Step;
 
-    if (breakPointManager && breakPointManager->isBreakPoint(execLineNumber))
+    if (BreakPointManager && BreakPointManager->IsBreakPoint(ExecLineNumber))
     {
-        std::sprintf(message, "HIT BP: (%d) %s [%d]", module->id, module->name, execLineNumber);
-        print(message);
-        debugMode();
+        std::sprintf(Message, "HIT BP: (%d) %s [%d]", Module->Id, Module->Name, ExecLineNumber);
+        Print(Message);
+        DebugMode();
         return 0;
     }
 
     if (stepping)
     {
-        debugMode();
+        DebugMode();
     }
 
     return 0;
 }
 
-auto Debugger::traceRoutineEntry(SymTableNodePtr idPtr) -> int32_t
+auto MCDebugger::TraceRoutineEntry(MCSymTableNodePtr idPtr) -> int32_t
 {
-    if (traceEntry)
+    if (TraceEntry)
     {
-        std::sprintf(message, "ENTER (%d) %s:%s", module->id, module->name, idPtr->name);
-        print(message);
+        std::sprintf(Message, "ENTER (%d) %s:%s", Module->Id, Module->Name, idPtr->Name);
+        Print(Message);
     }
 
     return 0;
 }
 
-auto Debugger::traceRoutineExit(SymTableNodePtr idPtr) -> int32_t
+auto MCDebugger::TraceRoutineExit(MCSymTableNodePtr idPtr) -> int32_t
 {
-    if (traceExit)
+    if (TraceExit)
     {
-        std::sprintf(message, "EXIT (%d) %s:%s", module->id, module->name, idPtr->name);
-        print(message);
+        std::sprintf(Message, "EXIT (%d) %s:%s", Module->Id, Module->Name, idPtr->Name);
+        Print(Message);
     }
 
     return 0;
 }
 
-auto Debugger::traceDataStore(SymTableNodePtr id, TypePtr idType, StackItemPtr target, TypePtr targetType) -> int32_t
+auto MCDebugger::TraceDataStore(MCSymTableNodePtr id, MCTypePtr idType, MCStackItemPtr target, MCTypePtr targetType)
+    -> int32_t
 {
-    WatchPtr watch = id->info;
+    MCWatchPtr watch = id->Info;
 
-    if (watch && watch->store)
+    if (watch && watch->Store)
     {
         char valueString[256];
-        sprintDataValue(valueString, target, targetType);
+        SprintDataValue(valueString, target, targetType);
         const char* format =
-            idType->form == FRM_ARRAY ? "STORE: (%d) %s [%d] -> %s[#] = %s\n" : "STORE: (%d) %s [%d] -> %s = %s\n";
-        std::sprintf(message, format, module->id, module->name, execLineNumber, id->name, valueString);
-        print(message);
+            idType->Form == FRM_ARRAY ? "STORE: (%d) %s [%d] -> %s[#] = %s\n" : "STORE: (%d) %s [%d] -> %s = %s\n";
+        std::sprintf(Message, format, Module->Id, Module->Name, ExecLineNumber, id->Name, valueString);
+        Print(Message);
 
-        if (watch->breakOnStore)
+        if (watch->BreakOnStore)
         {
-            debugMode();
+            DebugMode();
         }
     }
 
     return 0;
 }
 
-auto Debugger::traceDataFetch(SymTableNodePtr id, TypePtr idType, StackItemPtr data) -> int32_t
+auto MCDebugger::TraceDataFetch(MCSymTableNodePtr id, MCTypePtr idType, MCStackItemPtr data) -> int32_t
 {
-    WatchPtr watch = id->info;
+    MCWatchPtr watch = id->Info;
 
-    if (watch && watch->fetch)
+    if (watch && watch->Fetch)
     {
         char valueString[256];
-        sprintDataValue(valueString, data, idType);
+        SprintDataValue(valueString, data, idType);
         const char* format =
-            id->typePtr->form == FRM_ARRAY ? "FETCH: (%d) %s [%d] - %s[#] = %s\n" : "FETCH: (%d) %s [%d] - %s = %s\n";
-        std::sprintf(message, format, module->id, module->name, execLineNumber, id->name, valueString);
-        print(message);
+            id->TypePtr->Form == FRM_ARRAY ? "FETCH: (%d) %s [%d] - %s[#] = %s\n" : "FETCH: (%d) %s [%d] - %s = %s\n";
+        std::sprintf(Message, format, Module->Id, Module->Name, ExecLineNumber, id->Name, valueString);
+        Print(Message);
 
-        if (watch->breakOnFetch)
+        if (watch->BreakOnFetch)
         {
-            debugMode();
+            DebugMode();
         }
     }
 
     return 0;
 }
 
-auto Debugger::showValue() -> void
+auto MCDebugger::ShowValue() -> void
 {
-    getToken();
+    GetToken();
 
-    if (curToken == TKN_SEMICOLON)
+    if (CurToken == TKN_SEMICOLON)
     {
-        print(const_cast<char*>("Bad Expression.\n"));
+        Print(const_cast<char*>("Bad Expression.\n"));
         return;
     }
 
-    TypePtr expressionTypePtr = expression();
+    MCTypePtr expressionTypePtr = Expression();
 
-    if (errorCount > 0)
+    if (ErrorCount > 0)
     {
         return;
     }
 
-    char* savedCodeSegmentPtr = codeSegmentPtr;
-    TokenCodeType savedCodeToken = codeToken;
-    execExpression();
+    char* savedCodeSegmentPtr = CodeSegmentPtr;
+    MCTokenCodeType savedCodeToken = CodeToken;
+    ExecExpression();
 
-    if (expressionTypePtr->form == FRM_ARRAY)
+    if (expressionTypePtr->Form == FRM_ARRAY)
     {
-        print(const_cast<char*>("SHOW ARRAY\n"));
+        Print(const_cast<char*>("SHOW ARRAY\n"));
     }
     else
     {
         char valueString[256];
-        sprintDataValue(valueString, tos, expressionTypePtr);
+        SprintDataValue(valueString, Tos, expressionTypePtr);
         std::strcat(valueString, "\n");
-        print(valueString);
+        Print(valueString);
     }
 
-    pop();
-    codeSegmentPtr = savedCodeSegmentPtr;
-    codeToken = savedCodeToken;
+    Pop();
+    CodeSegmentPtr = savedCodeSegmentPtr;
+    CodeToken = savedCodeToken;
 }
 
-auto Debugger::assignVariable() -> void
+auto MCDebugger::AssignVariable() -> void
 {
-    getToken();
+    GetToken();
 }
 
-auto Debugger::displayModuleInstanceRegistry(int32_t) -> void
+auto MCDebugger::DisplayModuleInstanceRegistry(int32_t) -> void
 {
     // Two per line, whatever numCols says.
     for (int32_t row = 0; row < (NumModuleInstances + 1) / 2; row++)
     {
         char line[200];
-        ABLModule* left = ModuleInstanceRegistry[row * 2];
-        std::sprintf(line, "(%02d) %-20s ", left->id, left->name);
+        MCAblModule* left = ModuleInstanceRegistry[row * 2];
+        std::sprintf(line, "(%02d) %-20s ", left->Id, left->Name);
 
         if (row * 2 + 1 < NumModuleInstances)
         {
             char column[40];
-            ABLModule* right = ModuleInstanceRegistry[row * 2 + 1];
-            std::sprintf(column, "(%02d) %-20s ", right->id, right->name);
+            MCAblModule* right = ModuleInstanceRegistry[row * 2 + 1];
+            std::sprintf(column, "(%02d) %-20s ", right->Id, right->Name);
             std::strcat(line, column);
         }
 
-        print(line);
+        Print(line);
     }
 }
 
-auto Debugger::processCommand(int32_t commandId, char* strParam1, int32_t numParam1, ABLModule* moduleParam1) -> void
+auto MCDebugger::ProcessCommand(int32_t commandId, char* strParam1, int32_t numParam1, MCAblModule* moduleParam1)
+    -> void
 {
     static char blankLine[] = " ";
 
@@ -907,15 +909,15 @@ auto Debugger::processCommand(int32_t commandId, char* strParam1, int32_t numPar
             // Select the module (or list them).
             if (!moduleParam1)
             {
-                print(blankLine);
-                displayModuleInstanceRegistry(2);
-                std::sprintf(message, "CURRENT MODULE: %s", debugModule->name);
+                Print(blankLine);
+                DisplayModuleInstanceRegistry(2);
+                std::sprintf(Message, "CURRENT MODULE: %s", DebugModule->Name);
             }
             else
             {
-                debugModule = moduleParam1;
-                print(blankLine);
-                std::sprintf(message, "SET MODULE: %s", debugModule->name);
+                DebugModule = moduleParam1;
+                Print(blankLine);
+                std::sprintf(Message, "SET MODULE: %s", DebugModule->Name);
             }
             break;
         }
@@ -924,30 +926,30 @@ auto Debugger::processCommand(int32_t commandId, char* strParam1, int32_t numPar
             // Trace on or off (tracing turns stepping off).
             if (numParam1 == 0)
             {
-                debugModule->trace = 0;
-                debugModule->traceEntry = 0;
-                debugModule->traceExit = 0;
+                DebugModule->Trace = 0;
+                DebugModule->TraceEntry = 0;
+                DebugModule->TraceExit = 0;
 
-                if (module == debugModule)
+                if (Module == DebugModule)
                 {
-                    trace = 0;
-                    traceEntry = 0;
-                    traceExit = 0;
+                    Trace = 0;
+                    TraceEntry = 0;
+                    TraceExit = 0;
                 }
             }
             else
             {
-                debugModule->trace = 1;
-                debugModule->traceEntry = 1;
-                debugModule->traceExit = 1;
-                debugModule->step = 0;
+                DebugModule->Trace = 1;
+                DebugModule->TraceEntry = 1;
+                DebugModule->TraceExit = 1;
+                DebugModule->Step = 0;
 
-                if (module == debugModule)
+                if (Module == DebugModule)
                 {
-                    trace = 1;
-                    traceEntry = 1;
-                    traceExit = 1;
-                    step = 0;
+                    Trace = 1;
+                    TraceEntry = 1;
+                    TraceExit = 1;
+                    Step = 0;
                 }
             }
 
@@ -958,26 +960,26 @@ auto Debugger::processCommand(int32_t commandId, char* strParam1, int32_t numPar
             // Step on or off (stepping turns tracing off).
             if (numParam1 == 0)
             {
-                debugModule->step = 0;
+                DebugModule->Step = 0;
 
-                if (module == debugModule)
+                if (Module == DebugModule)
                 {
-                    step = 0;
+                    Step = 0;
                 }
             }
             else
             {
-                debugModule->step = 1;
-                debugModule->trace = 0;
-                debugModule->traceEntry = 0;
-                debugModule->traceExit = 0;
+                DebugModule->Step = 1;
+                DebugModule->Trace = 0;
+                DebugModule->TraceEntry = 0;
+                DebugModule->TraceExit = 0;
 
-                if (module == debugModule)
+                if (Module == DebugModule)
                 {
-                    step = 1;
-                    trace = 0;
-                    traceEntry = 0;
-                    traceExit = 0;
+                    Step = 1;
+                    Trace = 0;
+                    TraceEntry = 0;
+                    TraceExit = 0;
                 }
             }
 
@@ -985,97 +987,97 @@ auto Debugger::processCommand(int32_t commandId, char* strParam1, int32_t numPar
         }
         case 3:
         {
-            print(blankLine);
-            debugModule->breakPointManager->add(numParam1);
-            std::sprintf(message, "SET BP: %s (%d)", debugModule->name, numParam1);
+            Print(blankLine);
+            DebugModule->BreakPointManager->Add(numParam1);
+            std::sprintf(Message, "SET BP: %s (%d)", DebugModule->Name, numParam1);
             break;
         }
         case 4:
         {
-            print(blankLine);
-            debugModule->breakPointManager->remove(numParam1);
-            std::sprintf(message, "REMOVE BP: %s (%d)", debugModule->name, numParam1);
+            Print(blankLine);
+            DebugModule->BreakPointManager->Remove(numParam1);
+            std::sprintf(Message, "REMOVE BP: %s (%d)", DebugModule->Name, numParam1);
             break;
         }
         case 5:
         {
             // Watch: numParam1 holds the setWatch bits.
-            print(blankLine);
-            ABLModule* watchModule = debugModule;
-            SymTableNodePtr idPtr = watchModule->findSymbol(strParam1);
+            Print(blankLine);
+            MCAblModule* watchModule = DebugModule;
+            MCSymTableNodePtr idPtr = watchModule->FindSymbol(strParam1);
 
             if (!idPtr)
             {
-                print(const_cast<char*>("Unknown identifier in current scope.\n"));
+                Print(const_cast<char*>("Unknown identifier in current scope.\n"));
                 return;
             }
 
-            WatchManagerPtr moduleWatches = watchModule->watchManager;
+            MCWatchManagerPtr moduleWatches = watchModule->WatchManager;
             int breakFlag = (numParam1 >> 4) & 1;
 
-            if ((numParam1 & 2) && moduleWatches->setStore(idPtr, 1, breakFlag) == 2)
+            if ((numParam1 & 2) && moduleWatches->SetStore(idPtr, 1, breakFlag) == 2)
             {
-                print(const_cast<char*>("Reached max watch limit--unable to set watch.\n"));
+                Print(const_cast<char*>("Reached max watch limit--unable to set watch.\n"));
                 return;
             }
 
-            if ((numParam1 & 8) && moduleWatches->setFetch(idPtr, 1, breakFlag) == 2)
+            if ((numParam1 & 8) && moduleWatches->SetFetch(idPtr, 1, breakFlag) == 2)
             {
-                print(const_cast<char*>("Reached max watch limit--unable to set watch.\n"));
+                Print(const_cast<char*>("Reached max watch limit--unable to set watch.\n"));
                 return;
             }
 
             if (numParam1 & 1)
             {
-                moduleWatches->setStore(idPtr, 0, breakFlag);
+                moduleWatches->SetStore(idPtr, 0, breakFlag);
             }
 
             if (numParam1 & 4)
             {
-                moduleWatches->setFetch(idPtr, 0, breakFlag);
+                moduleWatches->SetFetch(idPtr, 0, breakFlag);
             }
 
-            int32_t watchesStores = moduleWatches->getStore(idPtr);
-            int32_t watchesFetches = moduleWatches->getFetch(idPtr);
+            int32_t watchesStores = moduleWatches->GetStore(idPtr);
+            int32_t watchesFetches = moduleWatches->GetFetch(idPtr);
 
             if (!watchesStores && !watchesFetches)
             {
-                std::sprintf(message, "REMOVE WATCH: %s.%s", watchModule->name, strParam1);
+                std::sprintf(Message, "REMOVE WATCH: %s.%s", watchModule->Name, strParam1);
             }
             else
             {
-                std::sprintf(message, "SET WATCH: %s.%s (", watchModule->name, strParam1);
+                std::sprintf(Message, "SET WATCH: %s.%s (", watchModule->Name, strParam1);
 
                 if (watchesStores)
                 {
-                    std::strcat(message, "s");
+                    std::strcat(Message, "s");
                 }
 
                 if (watchesFetches)
                 {
-                    std::strcat(message, "f");
+                    std::strcat(Message, "f");
                 }
 
-                std::strcat(message, ")");
+                std::strcat(Message, ")");
             }
             break;
         }
 
         case 6:
         {
-            debugModule->watchManager->removeAll();
+            DebugModule->WatchManager->RemoveAll();
             return;
         }
         case 7:
         {
-            print(blankLine);
-            int32_t err = sprintValue(message, strParam1);
+            Print(blankLine);
+            int32_t err = SprintValue(Message, strParam1);
 
             if (err != 0)
             {
                 if (err == 1)
                 {
-                    print(const_cast<char*>("Unknown identifier in current scope."));
+                    Print(const_cast<char*>("Unknown identifier in current scope."));
                 }
 
                 return;
@@ -1086,36 +1088,36 @@ auto Debugger::processCommand(int32_t commandId, char* strParam1, int32_t numPar
         case 8:
         {
             // Resume.
-            debugCommand = 0;
+            DebugCommand = 0;
             return;
         }
         case 9:
         {
-            print(blankLine);
-            print(const_cast<char*>("b{+|-} <line#>         set/remove breakpt"));
-            print(const_cast<char*>("m [0 thru warrior #]   set current module (or list them)"));
-            print(const_cast<char*>("w[f|s]{+|-}{.} <variable> set/remove variable watch (fetch & store)"));
-            print(const_cast<char*>("p <variable>           display current value of variable"));
-            print(const_cast<char*>("s{+|-}                 start/stop step mode"));
-            print(const_cast<char*>("t{+|-}                 start/stop trace mode"));
-            print(const_cast<char*>("??                     current module info"));
-            print(const_cast<char*>("?                      help"));
+            Print(blankLine);
+            Print(const_cast<char*>("b{+|-} <line#>         set/remove breakpt"));
+            Print(const_cast<char*>("m [0 thru warrior #]   set current module (or list them)"));
+            Print(const_cast<char*>("w[f|s]{+|-}{.} <variable> set/remove variable watch (fetch & store)"));
+            Print(const_cast<char*>("p <variable>           display current value of variable"));
+            Print(const_cast<char*>("s{+|-}                 start/stop step mode"));
+            Print(const_cast<char*>("t{+|-}                 start/stop trace mode"));
+            Print(const_cast<char*>("??                     current module info"));
+            Print(const_cast<char*>("?                      help"));
             return;
         }
         case 10:
         {
-            print(blankLine);
-            std::sprintf(message, "CURRENT MODULE: %s", debugModule->name);
-            print(message);
+            Print(blankLine);
+            std::sprintf(Message, "CURRENT MODULE: %s", DebugModule->Name);
+            Print(Message);
             int32_t numStatics;
             int32_t staticsSize;
             int32_t largestStatic = 0;
-            debugModule->getInfo(numStatics, staticsSize, nullptr);
+            DebugModule->GetInfo(numStatics, staticsSize, nullptr);
 
             if (numStatics <= 256)
             {
                 int32_t sizeList[256];
-                debugModule->getInfo(numStatics, staticsSize, sizeList);
+                DebugModule->GetInfo(numStatics, staticsSize, sizeList);
 
                 for (int32_t i = 0; i < numStatics; i++)
                 {
@@ -1123,7 +1125,7 @@ auto Debugger::processCommand(int32_t commandId, char* strParam1, int32_t numPar
                 }
             }
 
-            std::sprintf(message, "%d static vars, %d bytes, %d largest", numStatics, staticsSize, largestStatic);
+            std::sprintf(Message, "%d static vars, %d bytes, %d largest", numStatics, staticsSize, largestStatic);
             break;
         }
 
@@ -1131,188 +1133,188 @@ auto Debugger::processCommand(int32_t commandId, char* strParam1, int32_t numPar
             return;
     }
 
-    print(message);
+    Print(Message);
 }
 
-auto Debugger::debugMode() -> void
+auto MCDebugger::DebugMode() -> void
 {
-    message[0] = '\0';
-    debugModule = module;
-    sprintStatement(message);
-    print(message);
-    debugCommand = 1;
+    Message[0] = '\0';
+    DebugModule = Module;
+    SprintStatement(Message);
+    Print(Message);
+    DebugCommand = 1;
 
     do
     {
         // The game's own loop (aSystem::run) while the debugger window takes the commands.
-        startTime = MCPort::PerformanceCounter();
+        PerfStartTime = MCPort::PerformanceCounter();
 
         if (!MCInput::PumpMessages())
         {
-            debugCommand = 0;
-            halt = 0;
-            trace = 0;
-            step = 0;
-            traceEntry = 0;
-            traceExit = 0;
+            DebugCommand = 0;
+            Halt = 0;
+            Trace = 0;
+            Step = 0;
+            TraceEntry = 0;
+            TraceExit = 0;
         }
 
-        if (applicationActive)
+        if (ApplicationActive)
         {
-            UpdateDisplay(takeScreenShot, 0, 0, 0, 0);
-            takeScreenShot = 0;
-            stopTime = MCPort::PerformanceCounter();
+            UpdateDisplay(TakeScreenShot, 0, 0, 0, 0);
+            TakeScreenShot = 0;
+            PerfStopTime = MCPort::PerformanceCounter();
 
             if (MPlayer)
             {
-                MPlayer->processReceiveList();
+                MPlayer->ProcessReceiveList();
             }
 
             CheckMouse();
         }
 
-        prevStart = startTime;
-        frameRate = static_cast<float>(countsPerSecond) / static_cast<float>(stopTime - startTime);
-    } while (debugCommand);
+        PrevStart = PerfStartTime;
+        FrameRate = static_cast<float>(CountsPerSecond) / static_cast<float>(PerfStopTime - PerfStartTime);
+    } while (DebugCommand);
 }
 
-auto ABLi_getDebugger() -> Debugger*
+auto AblGetDebugger() -> MCDebugger*
 {
-    return debugger;
+    return Debugger;
 }
 
 #if ABL_DEBUGGER_WINDOWS
 
-ScrollingTextWindow::~ScrollingTextWindow()
+MCScrollingTextWindow::~MCScrollingTextWindow()
 {
-    aObject::destroy();
+    MCGuiObject::Destroy();
 }
 
-auto ScrollingTextWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCScrollingTextWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    int32_t err = aObject::init(xPos, yPos, width, height, name);
+    int32_t err = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (err != 0)
     {
         return err;
     }
 
-    numColumns = width / 10;
-    numLines = height / 10;
-    VFX_pane_wipe(port()->frame(), backColor());
+    NumColumns = width / 10;
+    NumLines = height / 10;
+    VfxPaneWipe(Port()->Frame(), BackColor());
     return 0;
 }
 
-auto ScrollingTextWindow::resize(int32_t width, int32_t height) -> void
+auto MCScrollingTextWindow::Resize(int32_t width, int32_t height) -> void
 {
-    numColumns = width / 10;
-    numLines = height / 10;
-    aObject::resize(width, height);
-    int32_t color = backColor();
-    VFX_pane_wipe(port()->frame(), color);
+    NumColumns = width / 10;
+    NumLines = height / 10;
+    MCGuiObject::Resize(width, height);
+    int32_t color = BackColor();
+    VfxPaneWipe(Port()->Frame(), color);
 }
 
-auto ScrollingTextWindow::draw() -> void
+auto MCScrollingTextWindow::Draw() -> void
 {
-    aObject::draw();
+    MCGuiObject::Draw();
 }
 
-auto ScrollingTextWindow::handleEvent(aEvent* event) -> void
+auto MCScrollingTextWindow::HandleEvent(MCGuiEvent* event) -> void
 {
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto ScrollingTextWindow::clear() -> void
+auto MCScrollingTextWindow::Clear() -> void
 {
-    numColumns = 0;
-    numLines = 0;
+    NumColumns = 0;
+    NumLines = 0;
 }
 
-auto ScrollingTextWindow::print(char* s) -> void
+auto MCScrollingTextWindow::Print(char* s) -> void
 {
-    _pane* pane = port()->frame();
-    VFX_pane_scroll(pane, 0, -10, 0, backColor());
-    systemFont->writeString(pane, 2, numLines * 10 - 10, reinterpret_cast<uint8_t*>(s), -1);
+    MCPane* pane = Port()->Frame();
+    VfxPaneScroll(pane, 0, -10, 0, BackColor());
+    SystemFont->WriteString(pane, 2, NumLines * 10 - 10, reinterpret_cast<uint8_t*>(s), -1);
 }
 
-DebuggerWindow::~DebuggerWindow()
+MCDebuggerWindow::~MCDebuggerWindow()
 {
-    aTitleWindow::destroy();
+    MCGuiTitleWindow::Destroy();
 }
 
-auto DebuggerWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCDebuggerWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    int32_t err = aTitleWindow::init(xPos, yPos, width, height, name);
+    int32_t err = MCGuiTitleWindow::Init(xPos, yPos, width, height, name);
 
     if (err != 0)
     {
         return err;
     }
 
-    setBackColor(10);
+    SetBackColor(10);
 
-    ABLDebuggerOut = new ScrollingTextWindow;
+    AblDebuggerOut = new MCScrollingTextWindow;
 
-    if (!ABLDebuggerOut)
+    if (!AblDebuggerOut)
     {
         Fatal(0, "Not enough memory to make debugger windows");
     }
 
-    err = ABLDebuggerOut->init(0, 0, width, height - 40, const_cast<char*>("ABL Out"));
+    err = AblDebuggerOut->Init(0, 0, width, height - 40, const_cast<char*>("ABL Out"));
 
     if (err != 0)
     {
         return err;
     }
 
-    addChild(ABLDebuggerOut);
+    AddChild(AblDebuggerOut);
 
-    ABLDebuggerIn = new aTextObject;
+    AblDebuggerIn = new MCGuiTextObject;
 
-    if (!ABLDebuggerIn)
+    if (!AblDebuggerIn)
     {
         Fatal(0, "Not enough memory to make debugger windows");
     }
 
-    err = ABLDebuggerIn->init(0, this->height() - 36, 260, 36, nullptr);
+    err = AblDebuggerIn->Init(0, this->Height() - 36, 260, 36, nullptr);
 
     if (err != 0)
     {
         return err;
     }
 
-    ABLDebuggerIn->setText(const_cast<char*>("\"?\" for help"));
-    addChild(ABLDebuggerIn);
-    draw();
+    AblDebuggerIn->SetText(const_cast<char*>("\"?\" for help"));
+    AddChild(AblDebuggerIn);
+    Draw();
     return 0;
 }
 
-auto DebuggerWindow::destroy() -> void
+auto MCDebuggerWindow::Destroy() -> void
 {
-    if (ABLDebuggerIn)
+    if (AblDebuggerIn)
     {
-        ABLDebuggerIn->destroy();
-        delete ABLDebuggerIn;
-        ABLDebuggerIn = nullptr;
+        AblDebuggerIn->Destroy();
+        delete AblDebuggerIn;
+        AblDebuggerIn = nullptr;
     }
 
-    if (ABLDebuggerOut)
+    if (AblDebuggerOut)
     {
-        ABLDebuggerOut->destroy();
-        delete ABLDebuggerOut;
-        ABLDebuggerOut = nullptr;
+        AblDebuggerOut->Destroy();
+        delete AblDebuggerOut;
+        AblDebuggerOut = nullptr;
     }
 
-    aTitleWindow::destroy();
+    MCGuiTitleWindow::Destroy();
 }
 
-auto DebuggerWindow::resize(int32_t width, int32_t height) -> void
+auto MCDebuggerWindow::Resize(int32_t width, int32_t height) -> void
 {
-    ABLDebuggerOut->resize(width, height - 40);
-    ABLDebuggerIn->resize(width, 36);
-    ABLDebuggerIn->moveTo(0, height - 36);
-    aTitleWindow::resize(width, height);
-    draw();
+    AblDebuggerOut->Resize(width, height - 40);
+    AblDebuggerIn->Resize(width, 36);
+    AblDebuggerIn->MoveTo(0, height - 36);
+    MCGuiTitleWindow::Resize(width, height);
+    Draw();
 }
 
 #endif

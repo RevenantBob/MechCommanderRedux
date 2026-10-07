@@ -10,10 +10,10 @@ namespace
     constexpr uint32_t MaxBits = 12;
 
     /// <summary>One dictionary entry: the code of the string's prefix and its last byte (the original's HashStruct).</summary>
-    struct HashStruct
+    struct MCHashStruct
     {
-        uint16_t chain;
-        uint8_t suffix;
+        uint16_t Chain;
+        uint8_t Suffix;
     };
 }
 
@@ -28,7 +28,7 @@ int32_t LZDecomp(uint8_t* dest, const uint8_t* src, uint32_t srcLen, uint32_t de
     const uint8_t* srcEnd = src + (srcLen - 3);
     const uint8_t* srcLimit = src + srcLen;
 
-    static HashStruct hashBuffer[1 << MaxBits];
+    static MCHashStruct hashBuffer[1 << MaxBits];
     std::array<uint8_t, 1 << MaxBits> stack;
 
     uint32_t codeMask = (1u << MinBits) - 1;
@@ -95,13 +95,13 @@ int32_t LZDecomp(uint8_t* dest, const uint8_t* src, uint32_t srcLen, uint32_t de
         if (code >= freeIndex)
         {
             // The code being defined right now (the KwKwK case): the previous string plus its own first byte.
-            hashBuffer[code].suffix = oldSuffix;
-            hashBuffer[code].chain = static_cast<uint16_t>(oldChain);
+            hashBuffer[code].Suffix = oldSuffix;
+            hashBuffer[code].Chain = static_cast<uint16_t>(oldChain);
         }
         while (walk > 0xff && depth < stack.size())
         {
-            stack[depth++] = hashBuffer[walk].suffix;
-            walk = hashBuffer[walk].chain;
+            stack[depth++] = hashBuffer[walk].Suffix;
+            walk = hashBuffer[walk].Chain;
         }
 
         oldSuffix = static_cast<uint8_t>(walk);
@@ -114,8 +114,8 @@ int32_t LZDecomp(uint8_t* dest, const uint8_t* src, uint32_t srcLen, uint32_t de
 
         if (freeIndex < (1u << MaxBits))
         {
-            hashBuffer[freeIndex].suffix = oldSuffix;
-            hashBuffer[freeIndex].chain = static_cast<uint16_t>(oldChain);
+            hashBuffer[freeIndex].Suffix = oldSuffix;
+            hashBuffer[freeIndex].Chain = static_cast<uint16_t>(oldChain);
             ++freeIndex;
         }
 

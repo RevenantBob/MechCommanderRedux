@@ -8,9 +8,9 @@
 namespace
 {
     /// <summary>The address of window pixel (x, y).</summary>
-    uint8_t* At(_window* window, int32_t x, int32_t y)
+    uint8_t* At(MCWindow* window, int32_t x, int32_t y)
     {
-        return window->buffer + static_cast<intptr_t>(y) * (window->x_max + 1) + x;
+        return window->Buffer + static_cast<intptr_t>(y) * (window->XMax + 1) + x;
     }
 
     /// <summary>A blend through the game's alpha table: <paramref name="color"/> over <paramref name="screen"/>.</summary>
@@ -115,7 +115,7 @@ MCSoftwareRenderer& MCSoftwareRenderer::Instance()
     return renderer;
 }
 
-void MCSoftwareRenderer::Clear(_window* target, const MCRect& rect, uint8_t color)
+void MCSoftwareRenderer::Clear(MCWindow* target, const MCRect& rect, uint8_t color)
 {
     const size_t width = static_cast<size_t>(rect.X1 + 1 - rect.X0);
     uint8_t* ops = OpPlane(target);
@@ -126,12 +126,12 @@ void MCSoftwareRenderer::Clear(_window* target, const MCRect& rect, uint8_t colo
 
         if (ops != nullptr)
         {
-            std::memset(ops + (At(target, rect.X0, y) - target->buffer), 0, width);
+            std::memset(ops + (At(target, rect.X0, y) - target->Buffer), 0, width);
         }
     }
 }
 
-void MCSoftwareRenderer::Hash(_window* target, const MCRect& rect, uint8_t color)
+void MCSoftwareRenderer::Hash(MCWindow* target, const MCRect& rect, uint8_t color)
 {
     const int32_t width = rect.X1 - rect.X0 + 1;
 
@@ -154,17 +154,17 @@ void MCSoftwareRenderer::Hash(_window* target, const MCRect& rect, uint8_t color
     }
 }
 
-void MCSoftwareRenderer::Copy(_window* target, const MCCopyCommand& command)
+void MCSoftwareRenderer::Copy(MCWindow* target, const MCCopyCommand& command)
 {
-    const _window* source = command.Source;
+    const MCWindow* source = command.Source;
     NoteCpuRead(source, "Copy");
     const MCRect& rect = command.SourceRect;
     const int32_t width = rect.X1 + 1 - rect.X0;
     const int32_t height = rect.Y1 + 1 - rect.Y0;
-    const int32_t sourceStride = source->x_max + 1;
-    const int32_t targetStride = target->x_max + 1;
-    const uint8_t* src = source->buffer;
-    uint8_t* dst = target->buffer;
+    const int32_t sourceStride = source->XMax + 1;
+    const int32_t targetStride = target->XMax + 1;
+    const uint8_t* src = source->Buffer;
+    uint8_t* dst = target->Buffer;
     intptr_t srcRowStep;
     intptr_t dstRowStep;
 
@@ -230,9 +230,9 @@ void MCSoftwareRenderer::Copy(_window* target, const MCCopyCommand& command)
     }
 }
 
-void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& command)
+void MCSoftwareRenderer::AlphaBlit(MCWindow* target, const MCAlphaBlitCommand& command)
 {
-    const int32_t stride = target->x_max + 1;
+    const int32_t stride = target->XMax + 1;
     const int32_t pitch = command.Pitch;
     const uint8_t* source = command.Sprite + command.Offset;
     uint8_t* destination = At(target, command.Left, command.Top);
@@ -288,12 +288,12 @@ void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& co
     }
 }
 
-void MCSoftwareRenderer::ShapeBlit(_window* target, const MCShapeBlitCommand& command)
+void MCSoftwareRenderer::ShapeBlit(MCWindow* target, const MCShapeBlitCommand& command)
 {
     // The shape filled into the buffer (as AG_shape_fill draws it at its bounds' corner into a pane of the bounds),
     // then blended.
     std::memset(command.Buffer, 0, static_cast<size_t>(command.Width) * command.Height);
-    _window scratch{command.Buffer, command.Width - 1, command.Height - 1};
+    MCWindow scratch{command.Buffer, command.Width - 1, command.Height - 1};
     MCShapeCommand fill;
     fill.ShapeTable = command.ShapeTable;
     fill.ShapeNum = command.ShapeNum;
@@ -309,17 +309,17 @@ void MCSoftwareRenderer::ShapeBlit(_window* target, const MCShapeBlitCommand& co
     AlphaBlit(target, command.Blit);
 }
 
-void MCSoftwareRenderer::Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count)
+void MCSoftwareRenderer::Write(MCWindow* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count)
 {
     std::memcpy(At(target, x, y), pixels, static_cast<size_t>(count));
 }
 
-void MCSoftwareRenderer::Pixel(_window* target, int32_t x, int32_t y, uint8_t color)
+void MCSoftwareRenderer::Pixel(MCWindow* target, int32_t x, int32_t y, uint8_t color)
 {
     *At(target, x, y) = color;
 }
 
-void MCSoftwareRenderer::Line(_window* target, const MCLineCommand& command)
+void MCSoftwareRenderer::Line(MCWindow* target, const MCLineCommand& command)
 {
     MCSeeThrough seeThrough(target);
     MCLinePixels(command,
@@ -430,7 +430,7 @@ void MCEllipseRuns(const MCEllipseCommand& command, const std::function<void(int
     }
 }
 
-void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& command)
+void MCSoftwareRenderer::Ellipse(MCWindow* target, const MCEllipseCommand& command)
 {
     MCSeeThrough seeThrough(target);
     MCEllipseRuns(command,
@@ -456,7 +456,7 @@ void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& comman
                   });
 }
 
-void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& command)
+void MCSoftwareRenderer::StatusBar(MCWindow* target, const MCStatusBarCommand& command)
 {
     // The AlphaTable row status-bar frames are darkened through (0x008011d0 in MCX.EXE).
     constexpr int32_t StatusFrameAlpha = 0x108;
@@ -465,7 +465,7 @@ void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& co
         reinterpret_cast<const uint8_t*>(AlphaTable) + static_cast<intptr_t>(command.AlphaColor) * 256;
     const MCRect& box = command.Box;
     const int32_t width = box.X1 - box.X0;
-    const int32_t stride = target->x_max + 1;
+    const int32_t stride = target->XMax + 1;
     uint8_t* p = At(target, box.X0, box.Y0);
     MCSeeThrough seeThrough(target);
     const auto map = [&](uint8_t* pixel, const uint8_t* table)
@@ -506,14 +506,14 @@ void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& co
     }
 }
 
-void MCSoftwareRenderer::Glyph(_window* target, const MCGlyphCommand& command)
+void MCSoftwareRenderer::Glyph(MCWindow* target, const MCGlyphCommand& command)
 {
     // The glyph: its width dword, then its rows (layout in vfx/vfxfuncs.h).
     const uint8_t* font = static_cast<const uint8_t*>(command.Font);
     const uint8_t* glyph = font + MCVfxRead32(font + 0x10 + static_cast<intptr_t>(command.Character) * 4);
     const int32_t width = MCVfxRead32(glyph);
     const uint8_t* source = glyph + 4 + static_cast<intptr_t>(command.SourceY) * width + command.SourceX;
-    const int32_t stride = target->x_max + 1;
+    const int32_t stride = target->XMax + 1;
     uint8_t* dest = At(target, command.X, command.Y);
 
     for (int32_t rows = command.Rows; rows > 0; --rows)

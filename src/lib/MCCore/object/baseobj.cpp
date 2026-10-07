@@ -5,20 +5,20 @@
 #include "object/objtype.h"
 #include "object/objwtch.h"
 
-auto BaseObject::destroy() -> void
+auto MCBaseObject::Destroy() -> void
 {
     // Port fix: the original calls through objectWatchers unchecked; objects can outlive it at shutdown.
-    if (objectWatchers != nullptr)
+    if (ObjectWatchers != nullptr)
     {
-        objectWatchers->removeObject(this);
+        ObjectWatchers->RemoveObject(this);
     }
 }
 
-auto BaseObject::getPositionFromHS(uint32_t) -> vector_3d
+auto MCBaseObject::GetPositionFromHS(uint32_t) -> MCVector3D
 {
-    vector_3d position;
-    position.x = 0.0f;
-    position.y = 0.0f;
-    position.z = 0.0f;
+    MCVector3D position;
+    position.X = 0.0f;
+    position.Y = 0.0f;
+    position.Z = 0.0f;
     return position;
 }

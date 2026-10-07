@@ -5,23 +5,21 @@
 
 /// <summary>An ellipse outline around a screen point (<c>AG_ellipse_draw</c>).</summary>
 /// <remarks>Original source: <c>engine\cellip.cpp</c>, 0x20 bytes.</remarks>
-class EllipseElement : public Element
+class MCEllipseElement : public MCElement
 {
 public:
     /// <summary>
-    /// The ellipse centred at <paramref name="_center"/> with radii <paramref name="_size"/> in
-    /// <paramref name="_color"/> at <paramref name="_depth"/>.
+    /// The ellipse centred at <paramref name="center"/> with radii <paramref name="size"/> in
+    /// <paramref name="color"/> at <paramref name="depth"/>.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006b1b40</remarks>
-    EllipseElement(vector_2d& _center, vector_2d& _size, int32_t _color, int32_t _depth);
+    MCEllipseElement(MCVector2D& center, MCVector2D& size, int32_t color, int32_t depth);
 
-    /// <remarks>MCX.EXE @ 0x006b1b80; slot 0</remarks>
-    void draw() override;
+    void Draw() override;
 
     /// <summary>The centre on screen.</summary>
-    vector_2d center; // +0x0c
+    MCVector2D Center;
     /// <summary>The horizontal and vertical radii.</summary>
-    vector_2d size; // +0x14
+    MCVector2D Size;
     /// <summary>The colour (palette index).</summary>
-    int32_t color; // +0x1c
+    int32_t Color;
 };

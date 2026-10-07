@@ -36,29 +36,29 @@ struct MCVfxClip
 /// last column/row.
 /// </summary>
 /// <returns>0, VFX_ERR_BAD_WINDOW when the window has no pixels, or VFX_ERR_EMPTY_PANE when the result is empty.</returns>
-inline int32_t MCVfxClipPane(const PANE* pane, MCVfxClip& clip)
+inline int32_t MCVfxClipPane(const MCPane* pane, MCVfxClip& clip)
 {
-    const WINDOW* window = pane->window;
-    clip.Stride = window->x_max + 1;
+    const MCWindow* window = pane->Window;
+    clip.Stride = window->XMax + 1;
 
     if (clip.Stride <= 0)
     {
         return VFX_ERR_BAD_WINDOW;
     }
 
-    clip.Height = window->y_max + 1;
+    clip.Height = window->YMax + 1;
 
     if (clip.Height <= 0)
     {
         return VFX_ERR_BAD_WINDOW;
     }
 
-    clip.PaneX = pane->x0;
-    clip.PaneY = pane->y0;
-    clip.X0 = pane->x0 > 0 ? pane->x0 : 0;
-    clip.Y0 = pane->y0 > 0 ? pane->y0 : 0;
-    clip.X1 = pane->x1 < clip.Stride - 1 ? pane->x1 : clip.Stride - 1;
-    clip.Y1 = pane->y1 < clip.Height - 1 ? pane->y1 : clip.Height - 1;
+    clip.PaneX = pane->X0;
+    clip.PaneY = pane->Y0;
+    clip.X0 = pane->X0 > 0 ? pane->X0 : 0;
+    clip.Y0 = pane->Y0 > 0 ? pane->Y0 : 0;
+    clip.X1 = pane->X1 < clip.Stride - 1 ? pane->X1 : clip.Stride - 1;
+    clip.Y1 = pane->Y1 < clip.Height - 1 ? pane->Y1 : clip.Height - 1;
     MCClipToView(window, clip.X0, clip.Y0, clip.X1, clip.Y1);
 
     if (clip.X1 < clip.X0 || clip.Y1 < clip.Y0)
@@ -66,7 +66,7 @@ inline int32_t MCVfxClipPane(const PANE* pane, MCVfxClip& clip)
         return VFX_ERR_EMPTY_PANE;
     }
 
-    clip.Buffer = window->buffer;
+    clip.Buffer = window->Buffer;
     return 0;
 }
 
@@ -74,17 +74,17 @@ inline int32_t MCVfxClipPane(const PANE* pane, MCVfxClip& clip)
 /// The table <c>VFX_shape_lookaside</c> fills and the translating shape draws map pixels through (VFX's own copy,
 /// at 0x007a995c in MCX.EXE). Defined in vfx/vfxa_shape.cpp.
 /// </summary>
-extern uint8_t VFXShapeLookaside[256];
+extern uint8_t VfxShapeLookasideTable[256];
 
 /// <summary>A shape's header in a VFX shape table.</summary>
 struct MCVfxShapeHeader
 {
-    int32_t Bounds; // +0x00
-    int32_t Origin; // +0x04
-    int32_t XMin;   // +0x08
-    int32_t YMin;   // +0x0c
-    int32_t XMax;   // +0x10
-    int32_t YMax;   // +0x14
+    int32_t Bounds;
+    int32_t Origin;
+    int32_t XMin;
+    int32_t YMin;
+    int32_t XMax;
+    int32_t YMax;
 };
 
 static_assert(sizeof(MCVfxShapeHeader) == 0x18);

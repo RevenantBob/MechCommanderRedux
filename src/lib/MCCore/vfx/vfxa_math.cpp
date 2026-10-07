@@ -10,7 +10,7 @@ namespace
     /// cos(a / 10 degrees) in 16.16 for a = 0..900 (a quarter wave in tenths of a degree): MCX.EXE's table at
     /// 0x007704cf, 901 dwords, equal to round(cos * 65536) throughout. The sine is read from the other end.
     /// </summary>
-    constexpr int32_t cosTable[901] = {
+    constexpr int32_t CosTable[901] = {
         65536, 65536, 65536, 65535, 65534, 65534, 65532, 65531, 65530, 65528, 65526, 65524, 65522, 65519, 65516, 65514,
         65510, 65507, 65504, 65500, 65496, 65492, 65488, 65483, 65479, 65474, 65469, 65463, 65458, 65452, 65446, 65440,
         65434, 65427, 65421, 65414, 65407, 65399, 65392, 65384, 65376, 65368, 65360, 65352, 65343, 65334, 65325, 65316,
@@ -81,7 +81,7 @@ namespace
     }
 }
 
-void VFX_Cos_Sin(int32_t angle, FIXED16* cosine, FIXED16* sine)
+void VfxCosSin(int32_t angle, MCFixed16* cosine, MCFixed16* sine)
 {
     // Bring the angle into 0..3600 (3600 itself is kept: it reads as 0 with a negated zero sine).
     while (angle < 0)
@@ -100,14 +100,14 @@ void VFX_Cos_Sin(int32_t angle, FIXED16* cosine, FIXED16* sine)
     {
         if (angle <= 900)
         {
-            c = cosTable[angle];
-            s = cosTable[900 - angle];
+            c = CosTable[angle];
+            s = CosTable[900 - angle];
         }
         else
         {
             const int32_t a = 1800 - angle;
-            c = -cosTable[a];
-            s = cosTable[900 - a];
+            c = -CosTable[a];
+            s = CosTable[900 - a];
         }
     }
     else
@@ -116,14 +116,14 @@ void VFX_Cos_Sin(int32_t angle, FIXED16* cosine, FIXED16* sine)
 
         if (a <= 900)
         {
-            c = cosTable[a];
-            s = -cosTable[900 - a];
+            c = CosTable[a];
+            s = -CosTable[900 - a];
         }
         else
         {
             const int32_t b = 1800 - a;
-            c = -cosTable[b];
-            s = -cosTable[900 - b];
+            c = -CosTable[b];
+            s = -CosTable[900 - b];
         }
     }
 
@@ -131,33 +131,32 @@ void VFX_Cos_Sin(int32_t angle, FIXED16* cosine, FIXED16* sine)
     *sine = s;
 }
 
-FIXED16 VFX_fixed_mul(FIXED16 m1, FIXED16 m2, FIXED16* result)
+MCFixed16 VfxFixedMul(MCFixed16 m1, MCFixed16 m2, MCFixed16* result)
 {
-    const FIXED16 value = FixedMul(m1, m2);
+    const MCFixed16 value = FixedMul(m1, m2);
     *result = value;
     return value;
 }
 
-void VFX_point_transform(VFX_POINT* in, VFX_POINT* out, VFX_POINT* origin, int32_t rot, int32_t x_scale,
-                         int32_t y_scale)
+void VfxPointTransform(MCVfxPoint* in, MCVfxPoint* out, MCVfxPoint* origin, int32_t rot, int32_t xScale, int32_t yScale)
 {
-    FIXED16 c;
-    FIXED16 s;
-    VFX_Cos_Sin(rot, &c, &s);
+    MCFixed16 c;
+    MCFixed16 s;
+    VfxCosSin(rot, &c, &s);
 
     // The offset from the origin as 16.16 (shifted in 32 bits) times the 16.16 scale gives 32.32; the asm keeps
     // the high dword after adding 0x8000 to the low one, i.e. the integer part (the rounding bit sits too low to
     // matter but is kept).
-    const int32_t dx = static_cast<int32_t>(static_cast<uint32_t>(in->x - origin->x) << 16);
-    const int32_t sx = static_cast<int32_t>((static_cast<int64_t>(dx) * x_scale + 0x8000) >> 32);
-    const int32_t dy = static_cast<int32_t>(static_cast<uint32_t>(in->y - origin->y) << 16);
-    const int32_t sy = static_cast<int32_t>((static_cast<int64_t>(dy) * y_scale + 0x8000) >> 32);
+    const int32_t dx = static_cast<int32_t>(static_cast<uint32_t>(in->X - origin->X) << 16);
+    const int32_t sx = static_cast<int32_t>((static_cast<int64_t>(dx) * xScale + 0x8000) >> 32);
+    const int32_t dy = static_cast<int32_t>(static_cast<uint32_t>(in->Y - origin->Y) << 16);
+    const int32_t sy = static_cast<int32_t>((static_cast<int64_t>(dy) * yScale + 0x8000) >> 32);
 
     const int32_t xCos = FixedMul(sx, c);
     const int32_t xSin = FixedMul(sx, s);
     const int32_t yCos = FixedMul(sy, c);
     const int32_t ySin = FixedMul(sy, s);
 
-    out->x = xCos - ySin + origin->x;
-    out->y = yCos + xSin + origin->y;
+    out->X = xCos - ySin + origin->X;
+    out->Y = yCos + xSin + origin->Y;
 }

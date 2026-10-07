@@ -4,146 +4,146 @@
 #include "linkup/sessionmanager.h"
 #include "lib/aerror.h"
 
-FIDPPlayer::FIDPPlayer()
+MCFidpPlayer::MCFidpPlayer()
 {
-    numIncomingMessages = 0;
-    lastLatency = 0;
-    averageLatency = 0;
-    reportedLatency = 0;
-    totalPhysicalMemory = 0;
-    latencyIndex = 0;
+    NumIncomingMessages = 0;
+    LastLatency = 0;
+    LastAverageLatency = 0;
+    ReportedLatency = 0;
+    TotalPhysicalMemory = 0;
+    LatencyIndex = 0;
 
     for (int i = 0; i < 5; i++)
     {
-        latencies[i] = 0;
+        Latencies[i] = 0;
     }
 
-    resendDelay = 1500;
-    outgoingSendCount = 0xff;
-    id = 0;
-    name[0] = '\0';
-    longName[0] = '\0';
-    flags = 0;
-    nextIncomingToProcess = 0;
-    nextIncomingSendCount = 0;
-    playerNumber = -1;
-    hasPlayerNumber = 1;
+    ResendDelay = 1500;
+    OutgoingSendCount = 0xff;
+    Id = 0;
+    Name[0] = '\0';
+    LongName[0] = '\0';
+    Flags = 0;
+    NextIncomingToProcess = 0;
+    NextIncomingSendCount = 0;
+    PlayerNumber = -1;
+    HasPlayerNumber = 1;
 
     for (int i = 0; i < 256; i++)
     {
-        incomingMessages[i] = nullptr;
+        IncomingMessages[i] = nullptr;
     }
 }
 
-FIDPPlayer::FIDPPlayer(uint32_t& id, const DPNAME* name, uint32_t flags)
+MCFidpPlayer::MCFidpPlayer(uint32_t& id, const DPNAME* name, uint32_t flags)
 {
-    numIncomingMessages = 0;
-    lastLatency = 0;
-    averageLatency = 0;
-    reportedLatency = 0;
-    totalPhysicalMemory = 0;
-    latencyIndex = 0;
+    NumIncomingMessages = 0;
+    LastLatency = 0;
+    LastAverageLatency = 0;
+    ReportedLatency = 0;
+    TotalPhysicalMemory = 0;
+    LatencyIndex = 0;
 
     for (int i = 0; i < 5; i++)
     {
-        latencies[i] = 0;
+        Latencies[i] = 0;
     }
 
-    resendDelay = 1500;
-    outgoingSendCount = 0xff;
-    this->id = id;
+    ResendDelay = 1500;
+    OutgoingSendCount = 0xff;
+    this->Id = id;
 
     // Port fix: the buffers start cleared, so a name strncpy cuts short is still terminated (the heap block the
     // original got was not cleared).
-    std::memset(this->name, 0, sizeof(this->name));
-    std::memset(longName, 0, sizeof(longName));
+    std::memset(this->Name, 0, sizeof(this->Name));
+    std::memset(LongName, 0, sizeof(LongName));
 
     if (name->lpszShortNameA == nullptr)
     {
-        this->name[0] = '\0';
+        this->Name[0] = '\0';
     }
     else
     {
-        std::strncpy(this->name, name->lpszShortNameA, 0x7f);
+        std::strncpy(this->Name, name->lpszShortNameA, 0x7f);
     }
 
     if (name->lpszLongNameA == nullptr)
     {
-        longName[0] = '\0';
+        LongName[0] = '\0';
     }
     else
     {
-        std::strncpy(longName, name->lpszLongNameA, 0xff);
+        std::strncpy(LongName, name->lpszLongNameA, 0xff);
     }
 
-    this->flags = flags;
-    playerNumber = -1;
-    hasPlayerNumber = 1;
+    this->Flags = flags;
+    PlayerNumber = -1;
+    HasPlayerNumber = 1;
 
     for (int i = 0; i < 256; i++)
     {
-        incomingMessages[i] = nullptr;
+        IncomingMessages[i] = nullptr;
     }
 
-    nextIncomingToProcess = 0;
-    nextIncomingSendCount = 0;
+    NextIncomingToProcess = 0;
+    NextIncomingSendCount = 0;
 }
 
-FIDPPlayer::~FIDPPlayer()
+MCFidpPlayer::~MCFidpPlayer()
 {
     for (int i = 0; i < 256; i++)
     {
-        if (incomingMessages[i] != nullptr)
+        if (IncomingMessages[i] != nullptr)
         {
-            delete incomingMessages[i];
+            delete IncomingMessages[i];
         }
     }
 
-    const int numGroups = groups.count;
-    groups.current = groups.head;
+    const int numGroups = Groups.Count;
+    Groups.Current = Groups.HeadLink;
 
     for (int i = 0; i < numGroups; i++)
     {
-        uint32_t* groupID = groups.ReadAndNext();
-        linkUpBlocks->Free(groupID);
+        uint32_t* groupID = Groups.ReadAndNext();
+        LinkUpBlocks->Free(groupID);
     }
 
-    while (groups.head != nullptr)
+    while (Groups.HeadLink != nullptr)
     {
-        groups.Del(groups.head->data);
+        Groups.Del(Groups.HeadLink->Data);
     }
 
-    while (verifyList.head != nullptr)
+    while (VerifyList.HeadLink != nullptr)
     {
-        verifyList.Del(verifyList.head->data);
+        VerifyList.Del(VerifyList.HeadLink->Data);
     }
 }
 
-void FIDPPlayer::AddToVerifyList(FIDPMessage* msg)
+void MCFidpPlayer::AddToVerifyList(MCFidpMessage* msg)
 {
-    std::lock_guard lock(criticalSection);
-    msg->sendTime = static_cast<uint32_t>(MCPort::PerformanceCounter());
+    std::lock_guard lock(CriticalSection);
+    msg->SendTime = static_cast<uint32_t>(MCPort::PerformanceCounter());
 
-    if (msg->wasResent == 0)
+    if (msg->WasResent == 0)
     {
-        msg->firstSendTime = msg->sendTime;
+        msg->FirstSendTime = msg->SendTime;
     }
 
-    verifyList.Add(msg);
-    msg->timesSent = 1;
+    VerifyList.Add(msg);
+    msg->TimesSent = 1;
 }
 
-int32_t FIDPPlayer::AverageLatency()
+int32_t MCFidpPlayer::AverageLatency()
 {
-    std::lock_guard lock(criticalSection);
+    std::lock_guard lock(CriticalSection);
     int32_t total = 0;
     int measured = 0;
 
     for (int i = 0; i < 5; i++)
     {
-        total += latencies[i];
+        total += Latencies[i];
 
-        if (latencies[i] > 0)
+        if (Latencies[i] > 0)
         {
             measured++;
         }
@@ -151,37 +151,37 @@ int32_t FIDPPlayer::AverageLatency()
 
     if (measured < 1)
     {
-        averageLatency = 500;
+        LastAverageLatency = 500;
     }
     else
     {
-        averageLatency = total / measured;
+        LastAverageLatency = total / measured;
     }
 
-    return averageLatency;
+    return LastAverageLatency;
 }
 
-FIDPMessage* FIDPPlayer::RemoveFromVerifyList(uint8_t sendCount)
+MCFidpMessage* MCFidpPlayer::RemoveFromVerifyList(uint8_t sendCount)
 {
-    std::lock_guard lock(criticalSection);
-    verifyList.current = verifyList.head;
-    const int numMessages = verifyList.count;
-    FIDPMessage* msg = nullptr;
+    std::lock_guard lock(CriticalSection);
+    VerifyList.Current = VerifyList.HeadLink;
+    const int numMessages = VerifyList.Count;
+    MCFidpMessage* msg = nullptr;
     int i = 0;
 
     for (; i < numMessages; i++)
     {
-        msg = verifyList.current->data;
+        msg = VerifyList.Current->Data;
 
-        if (msg->messageBuffer[2 + playerNumber] == sendCount)
+        if (msg->MessageBuffer[2 + PlayerNumber] == sendCount)
         {
             break;
         }
 
         // Original behaviour: the cursor stops on the last link instead of running off the list.
-        if (verifyList.current != nullptr && verifyList.current != verifyList.tail)
+        if (VerifyList.Current != nullptr && VerifyList.Current != VerifyList.Tail)
         {
-            verifyList.current = verifyList.current->next;
+            VerifyList.Current = VerifyList.Current->Next;
         }
     }
 
@@ -192,40 +192,40 @@ FIDPMessage* FIDPPlayer::RemoveFromVerifyList(uint8_t sendCount)
 
     const uint32_t now = static_cast<uint32_t>(MCPort::PerformanceCounter());
 
-    if (msg->wasResent == 0)
+    if (msg->WasResent == 0)
     {
-        lastLatency = (now - msg->sendTime) / TicksPerMS;
-        latencies[latencyIndex] = static_cast<int32_t>(lastLatency);
-        latencyIndex++;
+        LastLatency = (now - msg->SendTime) / TicksPerMS;
+        Latencies[LatencyIndex] = static_cast<int32_t>(LastLatency);
+        LatencyIndex++;
 
-        if (latencyIndex > 4)
+        if (LatencyIndex > 4)
         {
-            latencyIndex = 0;
+            LatencyIndex = 0;
         }
     }
 
-    verifyList.Del(verifyList.current->data);
+    VerifyList.Del(VerifyList.Current->Data);
     return msg;
 }
 
-int FIDPPlayer::IsVerifyListFull()
+int MCFidpPlayer::IsVerifyListFull()
 {
     return VerifyCountDifference() > 0x7f;
 }
 
-int FIDPPlayer::VerifyCountDifference()
+int MCFidpPlayer::VerifyCountDifference()
 {
-    std::lock_guard lock(criticalSection);
-    verifyList.current = verifyList.head;
-    FIDPMessage* oldest = verifyList.head != nullptr ? verifyList.head->data : nullptr;
+    std::lock_guard lock(CriticalSection);
+    VerifyList.Current = VerifyList.HeadLink;
+    MCFidpMessage* oldest = VerifyList.HeadLink != nullptr ? VerifyList.HeadLink->Data : nullptr;
 
     if (oldest == nullptr)
     {
         return 0;
     }
 
-    const uint8_t oldestCount = oldest->messageBuffer[2 + playerNumber];
-    const uint8_t nextCount = static_cast<uint8_t>(outgoingSendCount + 1);
+    const uint8_t oldestCount = oldest->MessageBuffer[2 + PlayerNumber];
+    const uint8_t nextCount = static_cast<uint8_t>(OutgoingSendCount + 1);
 
     if (nextCount < oldestCount)
     {
@@ -235,32 +235,32 @@ int FIDPPlayer::VerifyCountDifference()
     return nextCount - oldestCount;
 }
 
-int FIDPPlayer::HandleIncomingMessage(FIDPMessage* msg, int sendCount)
+int MCFidpPlayer::HandleIncomingMessage(MCFidpMessage* msg, int sendCount)
 {
-    Assert((*reinterpret_cast<uint16_t*>(msg->messageBuffer) & FIMSG_GUARANTEED) != 0, 0,
+    Assert((*reinterpret_cast<uint16_t*>(msg->MessageBuffer) & FIMSG_GUARANTEED) != 0, 0,
            "Should not call HandleIncomingMessage for non-guaranteed");
     int window;
 
-    if (sendCount < nextIncomingSendCount)
+    if (sendCount < NextIncomingSendCount)
     {
-        window = 0x100 - nextIncomingSendCount;
+        window = 0x100 - NextIncomingSendCount;
     }
     else
     {
-        window = -nextIncomingSendCount;
+        window = -NextIncomingSendCount;
     }
 
     window = sendCount + window;
 
-    if (window < 0 || window > 0x7f || incomingMessages[sendCount] != nullptr)
+    if (window < 0 || window > 0x7f || IncomingMessages[sendCount] != nullptr)
     {
         return 0;
     }
 
-    incomingMessages[sendCount] = msg;
-    numIncomingMessages++;
+    IncomingMessages[sendCount] = msg;
+    NumIncomingMessages++;
 
-    if (sendCount == nextIncomingSendCount)
+    if (sendCount == NextIncomingSendCount)
     {
         SetNextIncomingSendCount();
     }
@@ -268,48 +268,48 @@ int FIDPPlayer::HandleIncomingMessage(FIDPMessage* msg, int sendCount)
     return 1;
 }
 
-void FIDPPlayer::SetNextIncomingSendCount()
+void MCFidpPlayer::SetNextIncomingSendCount()
 {
-    nextIncomingSendCount++;
-    const uint8_t start = nextIncomingSendCount;
+    NextIncomingSendCount++;
+    const uint8_t start = NextIncomingSendCount;
 
-    while (incomingMessages[nextIncomingSendCount] != nullptr)
+    while (IncomingMessages[NextIncomingSendCount] != nullptr)
     {
-        nextIncomingSendCount++;
-        Assert(nextIncomingSendCount != start, 0, "Guaranteed message send_count problem2");
+        NextIncomingSendCount++;
+        Assert(NextIncomingSendCount != start, 0, "Guaranteed message send_count problem2");
     }
 }
 
-FIDPMessage* FIDPPlayer::NextMessageToProcess()
+MCFidpMessage* MCFidpPlayer::NextMessageToProcess()
 {
-    if (incomingMessages[nextIncomingToProcess] == nullptr)
+    if (IncomingMessages[NextIncomingToProcess] == nullptr)
     {
         return nullptr;
     }
 
-    FIDPMessage* msg = incomingMessages[nextIncomingToProcess];
-    incomingMessages[nextIncomingToProcess] = nullptr;
-    nextIncomingToProcess++;
-    numIncomingMessages--;
+    MCFidpMessage* msg = IncomingMessages[NextIncomingToProcess];
+    IncomingMessages[NextIncomingToProcess] = nullptr;
+    NextIncomingToProcess++;
+    NumIncomingMessages--;
     return msg;
 }
 
-void FIDPPlayer::JoinGroup(uint32_t groupID)
+void MCFidpPlayer::JoinGroup(uint32_t groupID)
 {
-    uint32_t* id = static_cast<uint32_t*>(linkUpBlocks->Allocate(sizeof(uint32_t)));
+    uint32_t* id = static_cast<uint32_t*>(LinkUpBlocks->Allocate(sizeof(uint32_t)));
     *id = groupID;
-    groups.Add(id);
+    Groups.Add(id);
 }
 
-void FIDPPlayer::LeaveGroup(uint32_t groupID)
+void MCFidpPlayer::LeaveGroup(uint32_t groupID)
 {
     uint32_t* found = nullptr;
 
-    for (FLink<uint32_t>* link = groups.head; link != nullptr; link = link->next)
+    for (MCFLink<uint32_t>* link = Groups.HeadLink; link != nullptr; link = link->Next)
     {
-        if (*link->data == groupID)
+        if (*link->Data == groupID)
         {
-            found = link->data;
+            found = link->Data;
             break;
         }
     }
@@ -319,30 +319,30 @@ void FIDPPlayer::LeaveGroup(uint32_t groupID)
         return;
     }
 
-    groups.Del(found);
-    linkUpBlocks->Free(found);
+    Groups.Del(found);
+    LinkUpBlocks->Free(found);
 }
 
-void FIDPPlayer::ClearList(FLinkedList<FIDPPlayer>& list)
+void MCFidpPlayer::ClearList(MCFLinkedList<MCFidpPlayer>& list)
 {
-    const int numPlayers = list.count;
-    list.current = list.head;
+    const int numPlayers = list.Count;
+    list.Current = list.HeadLink;
 
     for (int i = 0; i < numPlayers; i++)
     {
-        FIDPPlayer* player = list.current->data;
+        MCFidpPlayer* player = list.Current->Data;
         list.Del(player);
         delete player;
     }
 
-    Assert(list.count == 0, 0, nullptr);
+    Assert(list.Count == 0, 0, nullptr);
 }
 
-int FIDPPlayer::IsInGroup(uint32_t groupID)
+int MCFidpPlayer::IsInGroup(uint32_t groupID)
 {
-    for (FLink<uint32_t>* link = groups.head; link != nullptr; link = link->next)
+    for (MCFLink<uint32_t>* link = Groups.HeadLink; link != nullptr; link = link->Next)
     {
-        if (*link->data == groupID)
+        if (*link->Data == groupID)
         {
             return 1;
         }

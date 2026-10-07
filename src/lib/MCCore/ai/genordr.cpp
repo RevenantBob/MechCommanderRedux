@@ -6,36 +6,36 @@
 #include "object/gameobj.h"
 #include "object/warrior.h"
 
-ABLParam* GeneralOrder::orderParams = nullptr;
+MCAblParam* MCGeneralOrder::OrderParams = nullptr;
 
-auto GeneralOrder::init() -> void
+auto MCGeneralOrder::Init() -> void
 {
-    object = nullptr;
-    objectClass = 0;
-    warrior = nullptr;
-    brain = nullptr;
+    Object = nullptr;
+    ObjectClass = 0;
+    Warrior = nullptr;
+    Brain = nullptr;
 
-    if (orderParams == nullptr)
+    if (OrderParams == nullptr)
     {
-        orderParams = ABLi_createParamList(3);
+        OrderParams = AblCreateParamList(3);
     }
 }
 
-auto GeneralOrder::init(GameObject* obj, int32_t moduleHandle) -> int32_t
+auto MCGeneralOrder::Init(MCGameObject* obj, int32_t moduleHandle) -> int32_t
 {
-    object = obj;
-    warrior = nullptr;
-    objectClass = static_cast<int32_t>(obj->objectClass);
+    Object = obj;
+    Warrior = nullptr;
+    ObjectClass = static_cast<int32_t>(obj->ObjectClass);
 
-    if (objectClass == 2 || objectClass == 3 || objectClass == 4 || objectClass == 8)
+    if (ObjectClass == 2 || ObjectClass == 3 || ObjectClass == 4 || ObjectClass == 8)
     {
-        warrior = obj->getPilot();
+        Warrior = obj->GetPilot();
     }
 
     if (moduleHandle >= 0)
     {
-        brain = new ABLModule;
-        const int32_t result = brain->init(moduleHandle);
+        Brain = new MCAblModule;
+        const int32_t result = Brain->Init(moduleHandle);
 
         if (result != 0)
         {
@@ -46,19 +46,19 @@ auto GeneralOrder::init(GameObject* obj, int32_t moduleHandle) -> int32_t
     return 0;
 }
 
-auto GeneralOrder::execute() -> int32_t
+auto MCGeneralOrder::Execute() -> int32_t
 {
-    CurObjectClass = objectClass;
-    CurObject = object;
-    CurWarrior = warrior;
+    CurObjectClass = ObjectClass;
+    CurObject = Object;
+    CurWarrior = Warrior;
     // Original behaviour (OB-036): getGroup and execute are called through a null warrior (non-mover) or brain
     // (moduleHandle < 0). Nothing in MCX.EXE creates a GeneralOrder.
     // Port fix: skip both when null.
-    CurGroup = (CurWarrior != nullptr) ? CurWarrior->getGroup() : nullptr;
+    CurGroup = (CurWarrior != nullptr) ? CurWarrior->GetGroup() : nullptr;
 
-    if (brain != nullptr)
+    if (Brain != nullptr)
     {
-        brain->execute(orderParams);
+        Brain->Execute(OrderParams);
     }
 
     CurObject = nullptr;
@@ -68,12 +68,12 @@ auto GeneralOrder::execute() -> int32_t
     return 0;
 }
 
-auto GeneralOrder::destroy() -> void
+auto MCGeneralOrder::Destroy() -> void
 {
-    if (brain != nullptr)
+    if (Brain != nullptr)
     {
-        brain->destroy();
-        delete brain;
-        brain = nullptr;
+        Brain->Destroy();
+        delete Brain;
+        Brain = nullptr;
     }
 }

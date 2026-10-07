@@ -28,27 +28,27 @@ namespace
     /// The pixel offset of the terrain-placed classes (tree, terrain object, the unused class 0x17, tree building),
     /// all at +0x8c/+0x90. False for any other class.
     /// </summary>
-    auto pixelOffset(GameObject* obj, int32_t& offsetX, int32_t& offsetY) -> bool
+    auto PixelOffset(MCGameObject* obj, int32_t& offsetX, int32_t& offsetY) -> bool
     {
-        switch (static_cast<int32_t>(obj->objectClass))
+        switch (static_cast<int32_t>(obj->ObjectClass))
         {
             case TREE:
             {
-                offsetX = static_cast<Tree*>(obj)->pixelOffsetX;
-                offsetY = static_cast<Tree*>(obj)->pixelOffsetY;
+                offsetX = static_cast<MCTree*>(obj)->PixelOffsetX;
+                offsetY = static_cast<MCTree*>(obj)->PixelOffsetY;
                 return true;
             }
             case TERRAINOBJECT:
             case 0x17: // No class sets 0x17; the original reads the same offsets.
             {
-                offsetX = static_cast<TerrainObject*>(obj)->pixelOffsetX;
-                offsetY = static_cast<TerrainObject*>(obj)->pixelOffsetY;
+                offsetX = static_cast<MCTerrainObject*>(obj)->PixelOffsetX;
+                offsetY = static_cast<MCTerrainObject*>(obj)->PixelOffsetY;
                 return true;
             }
             case TREEBUILDING:
             {
-                offsetX = static_cast<TreeBuilding*>(obj)->pixelOffsetX;
-                offsetY = static_cast<TreeBuilding*>(obj)->pixelOffsetY;
+                offsetX = static_cast<MCTreeBuilding*>(obj)->PixelOffsetX;
+                offsetY = static_cast<MCTreeBuilding*>(obj)->PixelOffsetY;
                 return true;
             }
             default:
@@ -57,34 +57,34 @@ namespace
     }
 
     /// <summary>0.5 when <paramref name="cam"/> is zoomed out, else 1.</summary>
-    auto zoomScale(const Camera* cam) -> float
+    auto ZoomScale(const MCCamera* cam) -> float
     {
-        return cam->cameraScale == 1 ? 0.5f : 1.0f;
+        return cam->CameraScale == 1 ? 0.5f : 1.0f;
     }
 
     /// <summary>Reads the fields shared by states and sub-states.</summary>
-    auto readStateData(FitIniFile& iniFile, ActorData& data) -> int32_t
+    auto ReadStateData(MCFitIniFile& iniFile, MCActorData& data) -> int32_t
     {
-        int32_t result = iniFile.readIdULong("NumFrames", data.numFrames);
+        int32_t result = iniFile.ReadIdULong("NumFrames", data.NumFrames);
 
         if (result == 0)
         {
-            result = iniFile.readIdFloat("FrameRate", data.frameRate);
+            result = iniFile.ReadIdFloat("FrameRate", data.FrameRate);
         }
 
         if (result == 0)
         {
-            result = iniFile.readIdULong("BasePacketNumber", data.basePacketNumber);
+            result = iniFile.ReadIdULong("BasePacketNumber", data.BasePacketNumber);
         }
 
         if (result == 0)
         {
-            result = iniFile.readIdUChar("NumRotations", data.numRotations);
+            result = iniFile.ReadIdUChar("NumRotations", data.NumRotations);
         }
 
         if (result == 0)
         {
-            result = iniFile.readIdUChar("Symmetrical", data.symmetrical);
+            result = iniFile.ReadIdUChar("Symmetrical", data.Symmetrical);
         }
 
         return result;
@@ -95,70 +95,70 @@ namespace
 // VFXAppearanceType
 //---------------------------------------------------------------------------
 
-auto VFXAppearanceType::init(File* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
+auto MCVfxAppearanceType::Init(MCFile* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
 {
-    const int32_t result = loadIniFile(apprFile, fileSize);
+    const int32_t result = LoadIniFile(apprFile, fileSize);
 
     if (result != 0)
     {
         return result;
     }
 
-    const uint32_t packetFile = appearanceNum & 0xffffff;
-    numPackets = static_cast<int16_t>(spriteManager->getNumShapes(packetFile));
-    const uint32_t listSize = static_cast<uint32_t>(numPackets) * sizeof(Shape*);
-    shapeList = static_cast<Shape**>(spriteManager->mallocDataRAM(listSize));
+    const uint32_t packetFile = AppearanceNum & 0xffffff;
+    NumPackets = static_cast<int16_t>(SpriteManager->GetNumShapes(packetFile));
+    const uint32_t listSize = static_cast<uint32_t>(NumPackets) * sizeof(MCShape*);
+    ShapeList = static_cast<MCShape**>(SpriteManager->MallocDataRam(listSize));
 
-    if (shapeList == nullptr)
+    if (ShapeList == nullptr)
     {
         return NO_DATA_RAM;
     }
 
-    memclear(shapeList, static_cast<int>(listSize));
-    keepLoaded = static_cast<int32_t>(loadFlags);
+    Memclear(ShapeList, static_cast<int>(listSize));
+    KeepLoaded = static_cast<int32_t>(loadFlags);
 
     if (loadFlags != 0)
     {
         // Load the first (full size) shape now.
-        const uint32_t first = scaled != 0 ? 1 : 0;
-        shapeList[first] = spriteManager->getShapeData(packetFile, first, 1, this, 0);
+        const uint32_t first = Scaled != 0 ? 1 : 0;
+        ShapeList[first] = SpriteManager->GetShapeData(packetFile, first, 1, this, 0);
     }
 
     return 0;
 }
 
-auto VFXAppearanceType::removeShape(Shape* shape) -> void
+auto MCVfxAppearanceType::RemoveShape(MCShape* shape) -> void
 {
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        if (shapeList[i] == shape)
+        if (ShapeList[i] == shape)
         {
-            shapeList[i] = nullptr;
+            ShapeList[i] = nullptr;
         }
     }
 
-    for (AppearanceUser* user = userList; user != nullptr; user = user->next)
+    for (MCAppearanceUser* user = UserList; user != nullptr; user = user->Next)
     {
-        auto* appearance = static_cast<VFXAppearance*>(user->user);
+        auto* appearance = static_cast<MCVfxAppearance*>(user->User);
 
-        if (appearance->currentShape == shape)
+        if (appearance->CurrentShape == shape)
         {
-            appearance->currentShape = nullptr;
+            appearance->CurrentShape = nullptr;
         }
     }
 }
 
-auto VFXAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCVfxAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 50);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = iniFile.seekBlock("Main Info");
+    result = iniFile.SeekBlock("Main Info");
 
     if (result != 0)
     {
@@ -167,53 +167,53 @@ auto VFXAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_
 
     int32_t deltaValue = 0;
 
-    if (iniFile.readIdLong("delta", deltaValue) != 0)
+    if (iniFile.ReadIdLong("delta", deltaValue) != 0)
     {
         deltaValue = 0;
     }
 
-    delta = deltaValue;
+    Delta = deltaValue;
 
-    result = iniFile.seekBlock("States");
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    result = iniFile.readIdUChar("NumStates", numStates);
+    result = iniFile.SeekBlock("States");
 
     if (result != 0)
     {
         return result;
     }
 
-    if (iniFile.readIdUChar("Scaled", scaled) != 0)
+    result = iniFile.ReadIdUChar("NumStates", NumStates);
+
+    if (result != 0)
     {
-        scaled = 0;
+        return result;
     }
 
-    constexpr uint32_t STATE_TABLE_SIZE = MAX_ACTOR_STATES * sizeof(ActorData);
-    actorStateData = static_cast<ActorData*>(spriteManager->mallocDataRAM(STATE_TABLE_SIZE));
+    if (iniFile.ReadIdUChar("Scaled", Scaled) != 0)
+    {
+        Scaled = 0;
+    }
 
-    if (actorStateData == nullptr)
+    constexpr uint32_t stateTableSize = MAX_ACTOR_STATES * sizeof(MCActorData);
+    ActorStateData = static_cast<MCActorData*>(SpriteManager->MallocDataRam(stateTableSize));
+
+    if (ActorStateData == nullptr)
     {
         return NO_DATA_RAM;
     }
 
-    memclear(actorStateData, STATE_TABLE_SIZE);
+    Memclear(ActorStateData, stateTableSize);
 
-    for (int32_t i = 0; i < numStates; i++)
+    for (int32_t i = 0; i < NumStates; i++)
     {
-        ActorData& data = actorStateData[i];
+        MCActorData& data = ActorStateData[i];
         char blockName[20];
         sprintf(blockName, "State%d", i);
-        result = iniFile.seekBlock(blockName);
+        result = iniFile.SeekBlock(blockName);
         uint8_t stateValue = 0;
 
         if (result == 0)
         {
-            result = iniFile.readIdUChar("State", stateValue);
+            result = iniFile.ReadIdUChar("State", stateValue);
         }
 
         if (result != 0)
@@ -221,16 +221,16 @@ auto VFXAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_
             return result;
         }
 
-        data.state = static_cast<ActorState>(stateValue);
+        data.State = static_cast<MCActorState>(stateValue);
 
         uint8_t numSubStates = 0;
 
-        if (iniFile.readIdUChar("SubStates", numSubStates) != 0)
+        if (iniFile.ReadIdUChar("SubStates", numSubStates) != 0)
         {
             numSubStates = 0;
         }
 
-        result = readStateData(iniFile, data);
+        result = ReadStateData(iniFile, data);
 
         if (result != 0)
         {
@@ -238,32 +238,32 @@ auto VFXAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_
         }
 
         // Only the first state with sub-states gets them (in practice state 0).
-        if (numSubStates == 0 || actorSubStateData != nullptr)
+        if (numSubStates == 0 || ActorSubStateData != nullptr)
         {
             continue;
         }
 
-        const uint32_t subTableSize = numSubStates * sizeof(ActorData);
-        actorSubStateData = static_cast<ActorData*>(spriteManager->mallocDataRAM(subTableSize));
+        const uint32_t subTableSize = numSubStates * sizeof(MCActorData);
+        ActorSubStateData = static_cast<MCActorData*>(SpriteManager->MallocDataRam(subTableSize));
 
-        if (actorSubStateData == nullptr)
+        if (ActorSubStateData == nullptr)
         {
             return NO_DATA_RAM;
         }
 
-        memclear(actorSubStateData, static_cast<int>(subTableSize));
+        Memclear(ActorSubStateData, static_cast<int>(subTableSize));
 
         for (int32_t j = 0; j < numSubStates; j++)
         {
-            ActorData& subData = actorSubStateData[j];
+            MCActorData& subData = ActorSubStateData[j];
             char subBlockName[20];
             sprintf(subBlockName, "Sub%dState%d", j, i);
-            result = iniFile.seekBlock(subBlockName);
+            result = iniFile.SeekBlock(subBlockName);
             uint8_t subStateValue = 0;
 
             if (result == 0)
             {
-                result = iniFile.readIdUChar("State", subStateValue);
+                result = iniFile.ReadIdUChar("State", subStateValue);
             }
 
             if (result != 0)
@@ -271,17 +271,17 @@ auto VFXAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_
                 return result;
             }
 
-            subData.state = static_cast<ActorState>(subStateValue);
-            result = iniFile.readIdUChar("Sub", subData.subState);
+            subData.State = static_cast<MCActorState>(subStateValue);
+            result = iniFile.ReadIdUChar("Sub", subData.SubState);
 
             if (result == 0)
             {
-                result = readStateData(iniFile, subData);
+                result = ReadStateData(iniFile, subData);
             }
 
             if (result == 0)
             {
-                result = iniFile.readIdUChar("Loop", subData.loop);
+                result = iniFile.ReadIdUChar("Loop", subData.Loop);
             }
 
             if (result != 0)
@@ -291,17 +291,17 @@ auto VFXAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_
         }
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto VFXAppearanceType::getShape(ActorState state, uint8_t subState, int32_t rotation, int32_t, float& frameRate,
-                                 int& reverse) -> Shape*
+auto MCVfxAppearanceType::GetShape(MCActorState state, uint8_t subState, int32_t rotation, int32_t, float& frameRate,
+                                   int& reverse) -> MCShape*
 {
-    const ActorData& data = actorStateData[state];
+    const MCActorData& data = ActorStateData[state];
     reverse = 0;
 
-    if (data.numFrames == 0)
+    if (data.NumFrames == 0)
     {
         return nullptr;
     }
@@ -309,12 +309,12 @@ auto VFXAppearanceType::getShape(ActorState state, uint8_t subState, int32_t rot
     // Symmetrical states mirror the negative facings; the others wrap them.
     int isReversed = 0;
 
-    if (rotation < 0 && data.symmetrical != 0)
+    if (rotation < 0 && data.Symmetrical != 0)
     {
         isReversed = 1;
         rotation = -rotation;
     }
-    else if (rotation < 0 && data.symmetrical == 0)
+    else if (rotation < 0 && data.Symmetrical == 0)
     {
         rotation += 360;
     }
@@ -322,122 +322,122 @@ auto VFXAppearanceType::getShape(ActorState state, uint8_t subState, int32_t rot
     reverse = isReversed;
 
     int32_t rotationIndex = static_cast<int32_t>(
-        std::floor(static_cast<double>(static_cast<int32_t>(data.numRotations) * rotation) * (1.0 / 360.0)));
-    frameRate = data.frameRate;
-    uint32_t basePacket = data.basePacketNumber;
+        std::floor(static_cast<double>(static_cast<int32_t>(data.NumRotations) * rotation) * (1.0 / 360.0)));
+    frameRate = data.FrameRate;
+    uint32_t basePacket = data.BasePacketNumber;
 
-    if (subState != 0xff && actorSubStateData != nullptr)
+    if (subState != 0xff && ActorSubStateData != nullptr)
     {
-        basePacket = actorSubStateData[subState].basePacketNumber;
-        frameRate = actorSubStateData[subState].frameRate;
+        basePacket = ActorSubStateData[subState].BasePacketNumber;
+        frameRate = ActorSubStateData[subState].FrameRate;
     }
 
     float zoom = 1.0f;
 
-    if (eye != nullptr && eye->cameraScale == 1)
+    if (Eye != nullptr && Eye->CameraScale == 1)
     {
         zoom = 0.5f;
     }
 
     // Scaled types alternate full size and zoomed out packets.
-    if (scaled != 0)
+    if (Scaled != 0)
     {
         rotationIndex <<= 1;
     }
 
     uint32_t packet = basePacket + static_cast<uint32_t>(rotationIndex);
 
-    if (zoom != 1.0f && scaled != 0)
+    if (zoom != 1.0f && Scaled != 0)
     {
         packet++;
     }
 
-    if (numPackets <= static_cast<int32_t>(packet))
+    if (NumPackets <= static_cast<int32_t>(packet))
     {
         return nullptr;
     }
 
-    Shape* shape = shapeList[packet];
+    MCShape* shape = ShapeList[packet];
 
     if (shape != nullptr)
     {
-        shape->lastTurnUsed = turn;
+        shape->LastTurnUsed = Turn;
         return shape;
     }
 
-    dynamicFrameTiming = 0;
-    shape = spriteManager->getShapeData(appearanceNum & 0xffffff, packet, turn, this, zoom != 1.0f ? 1 : 0);
-    shapeList[packet] = shape;
+    DynamicFrameTiming = 0;
+    shape = SpriteManager->GetShapeData(AppearanceNum & 0xffffff, packet, Turn, this, zoom != 1.0f ? 1 : 0);
+    ShapeList[packet] = shape;
     return shape;
 }
 
-auto VFXAppearanceType::destroy() -> void
+auto MCVfxAppearanceType::Destroy() -> void
 {
     // The shapes stay in the sprite manager's cache, ownerless.
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        if (shapeList[i] != nullptr)
+        if (ShapeList[i] != nullptr)
         {
-            shapeList[i]->owner = nullptr;
+            ShapeList[i]->Owner = nullptr;
         }
     }
 
-    spriteManager->freeDataRAM(userList);
-    userList = nullptr;
-    spriteManager->freeDataRAM(shapeList);
-    shapeList = nullptr;
-    spriteManager->freeDataRAM(actorStateData);
-    actorStateData = nullptr;
+    SpriteManager->FreeDataRam(UserList);
+    UserList = nullptr;
+    SpriteManager->FreeDataRam(ShapeList);
+    ShapeList = nullptr;
+    SpriteManager->FreeDataRam(ActorStateData);
+    ActorStateData = nullptr;
 }
 
 //---------------------------------------------------------------------------
 // VFXAppearance
 //---------------------------------------------------------------------------
 
-auto VFXAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
+auto MCVfxAppearance::Init(MCAppearanceType* tree, MCGameObject* obj) -> int32_t
 {
-    visible = 0;
-    owner = obj;
-    appearType = static_cast<VFXAppearanceType*>(tree);
+    Visible = 0;
+    Owner = obj;
+    AppearType = static_cast<MCVfxAppearanceType*>(tree);
 
     if (tree != nullptr)
     {
-        tree->addUsers(this);
+        tree->AddUsers(this);
     }
 
-    currentShape = nullptr;
-    currentFrame = -1;
-    loopEnd = -1;
-    loopStart = -1;
-    shapeMinY = -15.0f;
-    shapeMinX = -15.0f;
-    visible = 0;
-    currentTime = 0.0f;
-    lastFrame = 0;
-    fadeTable = nullptr;
-    currentState = ACTOR_STATE_NORMAL;
-    inView = 0;
-    currentSubState = 0xff;
-    shapeMaxY = 15.0f;
-    shapeMaxX = 15.0f;
-    typeChanged = 1;
+    CurrentShape = nullptr;
+    CurrentFrame = -1;
+    LoopEnd = -1;
+    LoopStart = -1;
+    ShapeMinY = -15.0f;
+    ShapeMinX = -15.0f;
+    Visible = 0;
+    CurrentTime = 0.0f;
+    LastFrame = 0;
+    FadeTable = nullptr;
+    CurrentState = ACTOR_STATE_NORMAL;
+    InView = 0;
+    CurrentSubState = 0xff;
+    ShapeMaxY = 15.0f;
+    ShapeMaxX = 15.0f;
+    TypeChanged = 1;
     return 0;
 }
 
-auto VFXAppearance::recalcBounds(Camera* cam) -> int
+auto MCVfxAppearance::RecalcBounds(MCCamera* cam) -> int
 {
     int result = 0;
 
-    if (currentShape != nullptr && currentShape->frameList != nullptr)
+    if (CurrentShape != nullptr && CurrentShape->FrameList != nullptr)
     {
-        uint8_t* shapeTable = currentShape->frameList;
-        const int32_t minXY = VFX_shape_minxy(shapeTable, 0);
-        shapeMinX = static_cast<float>(minXY >> 16);
-        shapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
-        result = VFX_shape_resolution(shapeTable, 0);
-        shapeMaxX = static_cast<float>(result >> 16);
-        inView = 1;
-        shapeMaxY = static_cast<float>(static_cast<int16_t>(result));
+        uint8_t* shapeTable = CurrentShape->FrameList;
+        const int32_t minXY = VfxShapeMinxy(shapeTable, 0);
+        ShapeMinX = static_cast<float>(minXY >> 16);
+        ShapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
+        result = VfxShapeResolution(shapeTable, 0);
+        ShapeMaxX = static_cast<float>(result >> 16);
+        InView = 1;
+        ShapeMaxY = static_cast<float>(static_cast<int16_t>(result));
     }
 
     if (cam == nullptr)
@@ -445,33 +445,33 @@ auto VFXAppearance::recalcBounds(Camera* cam) -> int
         return result;
     }
 
-    const vector_2d pos = owner->getScreenPos(cam->cameraId - 1);
-    float x = pos.x;
-    float y = pos.y;
-    float scale = zoomScale(cam);
+    const MCVector2D pos = Owner->GetScreenPos(cam->CameraId - 1);
+    float x = pos.X;
+    float y = pos.Y;
+    float scale = ZoomScale(cam);
     int32_t offsetX = 0;
     int32_t offsetY = 0;
 
-    if (pixelOffset(owner, offsetX, offsetY))
+    if (PixelOffset(Owner, offsetX, offsetY))
     {
         x += static_cast<float>(offsetX) * scale;
         y += static_cast<float>(offsetY) * scale;
 
         // Faithful: trees and tree buildings then take their bounds at full size.
-        if (owner->objectClass == TREE || owner->objectClass == TREEBUILDING)
+        if (Owner->ObjectClass == TREE || Owner->ObjectClass == TREEBUILDING)
         {
             scale = 1.0f;
         }
     }
 
-    upperLeft.x = scale * shapeMinX + x;
-    upperLeft.y = scale * shapeMinY + y;
-    lowerRight.x = scale * shapeMaxX + upperLeft.x;
-    lowerRight.y = scale * shapeMaxY + upperLeft.y;
+    UpperLeft.X = scale * ShapeMinX + x;
+    UpperLeft.Y = scale * ShapeMinY + y;
+    LowerRight.X = scale * ShapeMaxX + UpperLeft.X;
+    LowerRight.Y = scale * ShapeMaxY + UpperLeft.Y;
 
-    if (0.0f <= lowerRight.x && 0.0f <= lowerRight.y &&
-        upperLeft.x <= static_cast<float>(static_cast<int32_t>(std::floor(cam->viewWidth))) &&
-        upperLeft.y <= static_cast<float>(static_cast<int32_t>(std::floor(cam->viewHeight))))
+    if (0.0f <= LowerRight.X && 0.0f <= LowerRight.Y &&
+        UpperLeft.X <= static_cast<float>(static_cast<int32_t>(std::floor(cam->ViewWidth))) &&
+        UpperLeft.Y <= static_cast<float>(static_cast<int32_t>(std::floor(cam->ViewHeight))))
     {
         return 1;
     }
@@ -479,14 +479,14 @@ auto VFXAppearance::recalcBounds(Camera* cam) -> int
     return result;
 }
 
-auto VFXAppearance::render(int32_t depthFixup) -> int32_t
+auto MCVfxAppearance::Render(int32_t depthFixup) -> int32_t
 {
-    GameObject* obj = owner;
-    screenPos = obj->getScreenPos(eye->cameraId - 1);
+    MCGameObject* obj = Owner;
+    ScreenPos = obj->GetScreenPos(Eye->CameraId - 1);
 
     // The facing in degrees, negative to the right.
-    const frame_of_ref frame = obj->getFrame();
-    float cosFacing = UnitX.x * frame.i.x + UnitX.y * frame.i.y + UnitX.z * frame.i.z;
+    const MCFrameOfRef frame = obj->GetFrame();
+    float cosFacing = UnitX.X * frame.I.X + UnitX.Y * frame.I.Y + UnitX.Z * frame.I.Z;
 
     if (cosFacing < -1.0)
     {
@@ -498,165 +498,165 @@ auto VFXAppearance::render(int32_t depthFixup) -> int32_t
         cosFacing = 1.0f;
     }
 
-    double facing = acosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
+    double facing = AcosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
 
-    if (frame.i.y < 0.0)
+    if (frame.I.Y < 0.0)
     {
         facing = -facing;
     }
 
-    const uint8_t subState = currentSubState;
+    const uint8_t subState = CurrentSubState;
     float frameRate = 0.0f;
     int reverse = 0;
-    Shape* shape =
-        appearType->getShape(currentState, subState, static_cast<int32_t>(facing), currentFrame, frameRate, reverse);
-    currentShape = shape;
+    MCShape* shape =
+        AppearType->GetShape(CurrentState, subState, static_cast<int32_t>(facing), CurrentFrame, frameRate, reverse);
+    CurrentShape = shape;
 
-    if (obj->isCaptured() != 0 && highlighted == 0 && highlighting == 0)
+    if (obj->IsCaptured() != 0 && Highlighted == 0 && Highlighting == 0)
     {
-        highlighting = 1;
-        highlightTime = 3.0f;
+        Highlighting = 1;
+        HighlightTime = 3.0f;
     }
 
-    const float scale = zoomScale(eye);
+    const float scale = ZoomScale(Eye);
     int32_t offsetX = 0;
     int32_t offsetY = 0;
 
-    if (pixelOffset(obj, offsetX, offsetY))
+    if (PixelOffset(obj, offsetX, offsetY))
     {
-        screenPos.x = static_cast<float>(offsetX) * scale + screenPos.x;
-        screenPos.y = static_cast<float>(offsetY) * scale + screenPos.y;
+        ScreenPos.X = static_cast<float>(offsetX) * scale + ScreenPos.X;
+        ScreenPos.Y = static_cast<float>(offsetY) * scale + ScreenPos.Y;
     }
 
-    VFXAppearanceType* type = appearType;
-    uint32_t numFrames = type->actorStateData[currentState].numFrames;
+    MCVfxAppearanceType* type = AppearType;
+    uint32_t numFrames = type->ActorStateData[CurrentState].NumFrames;
 
     if (subState != 0xff)
     {
-        numFrames = type->actorSubStateData[subState].numFrames;
+        numFrames = type->ActorSubStateData[subState].NumFrames;
     }
 
-    const int32_t depth = static_cast<int32_t>(static_cast<float>(depthFixup) - screenPos.y);
+    const int32_t depth = static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y);
 
-    if (type->delta != 0 && static_cast<int32_t>(numFrames) >= 2)
+    if (type->Delta != 0 && static_cast<int32_t>(numFrames) >= 2)
     {
         // Delta-compressed animations draw unscaled (only when the type is scaled).
-        if (shape != nullptr && shape->frameList != nullptr && type->scaled != 0)
+        if (shape != nullptr && shape->FrameList != nullptr && type->Scaled != 0)
         {
-            ElementList->openGroup(depth, 1);
-            auto* element =
-                ElementPool::Make<DeltaElement>(shape->frameList, static_cast<int32_t>(screenPos.x),
-                                                static_cast<int32_t>(screenPos.y), currentFrame, 0, fadeTable, 1, 0);
-            ElementList->add(element);
+            ElementList->OpenGroup(depth, 1);
+            auto* element = MCElementPool::Make<MCDeltaElement>(shape->FrameList, static_cast<int32_t>(ScreenPos.X),
+                                                                static_cast<int32_t>(ScreenPos.Y), CurrentFrame, 0,
+                                                                FadeTable, 1, 0);
+            ElementList->Add(element);
         }
     }
-    else if (shape != nullptr && shape->frameList != nullptr)
+    else if (shape != nullptr && shape->FrameList != nullptr)
     {
-        ElementList->openGroup(depth, 1);
+        ElementList->OpenGroup(depth, 1);
         // Scaled types have their own zoomed out shapes, so they draw unscaled.
-        const int noScaleDraw = type->scaled != 0 ? 1 : 0;
-        auto* element = ElementPool::Make<VFXElement>(shape->frameList, screenPos.x, screenPos.y, currentFrame, 0,
-                                                      fadeTable, noScaleDraw, 0);
+        const int noScaleDraw = type->Scaled != 0 ? 1 : 0;
+        auto* element = MCElementPool::Make<MCVfxElement>(shape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame, 0,
+                                                          FadeTable, noScaleDraw, 0);
 
         // Port fix: the original copies the debug name through a null element too.
         if (element != nullptr)
         {
-            strcpy(element->name, noScaleDraw != 0 ? "actor1" : "actor2");
+            strcpy(element->Name, noScaleDraw != 0 ? "actor1" : "actor2");
         }
 
-        ElementList->add(element);
+        ElementList->Add(element);
     }
 
-    if (owner->selected == 1 || owner->getNumAttackers() > 0)
+    if (Owner->Selected == 1 || Owner->GetNumAttackers() > 0)
     {
-        drawBars();
+        DrawBars();
     }
 
-    if (highlighting != 0)
+    if (Highlighting != 0)
     {
-        if (highlightTime <= 0.0f)
+        if (HighlightTime <= 0.0f)
         {
-            highlighted = 1;
+            Highlighted = 1;
         }
         else
         {
-            highlightTime -= frameLength;
-            drawSelectBox(0xfc);
+            HighlightTime -= FrameLength;
+            DrawSelectBox(0xfc);
         }
     }
 
-    obj = owner;
+    obj = Owner;
 
-    if (obj->selected != 0)
+    if (obj->Selected != 0)
     {
-        const int32_t homeAlignment = homeTeam->alignment;
+        const int32_t homeAlignment = HomeTeam->Alignment;
 
-        if (obj->getAlignment() == homeAlignment || obj->getAlignment() == 0 || static_cast<uint8_t>(obj->status) == 2)
+        if (obj->GetAlignment() == homeAlignment || obj->GetAlignment() == 0 || static_cast<uint8_t>(obj->Status) == 2)
         {
-            drawSelectBox(0xe1);
+            DrawSelectBox(0xe1);
         }
         else
         {
-            drawSelectBrackets(0xcf);
+            DrawSelectBrackets(0xcf);
         }
     }
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
-        recalcBounds(eye);
-        drawSelectBox(0xe1);
+        RecalcBounds(Eye);
+        DrawSelectBox(0xe1);
     }
 
     return 0;
 }
 
-auto VFXAppearance::setDamageLvl(uint32_t damageLevel) -> void
+auto MCVfxAppearance::SetDamageLvl(uint32_t damageLevel) -> void
 {
-    damageSet = 1;
+    DamageSet = 1;
 
     if (damageLevel == 0)
     {
-        setTypeId(ACTOR_STATE_NORMAL, 0xff);
+        SetTypeId(ACTOR_STATE_NORMAL, 0xff);
         return;
     }
 
-    const uint32_t blowUp1Frames = appearType->actorStateData[ACTOR_STATE_BLOWING_UP1].numFrames;
+    const uint32_t blowUp1Frames = AppearType->ActorStateData[ACTOR_STATE_BLOWING_UP1].NumFrames;
 
-    if (appearType->actorStateData[ACTOR_STATE_BLOWING_UP2].numFrames + blowUp1Frames <= damageLevel)
+    if (AppearType->ActorStateData[ACTOR_STATE_BLOWING_UP2].NumFrames + blowUp1Frames <= damageLevel)
     {
-        setTypeId(ACTOR_STATE_DESTROYED, 0xff);
+        SetTypeId(ACTOR_STATE_DESTROYED, 0xff);
         return;
     }
 
     if (blowUp1Frames <= damageLevel)
     {
-        setTypeId(ACTOR_STATE_BLOWING_UP2, 0xff);
-        currentFrame = static_cast<int32_t>(damageLevel - blowUp1Frames);
+        SetTypeId(ACTOR_STATE_BLOWING_UP2, 0xff);
+        CurrentFrame = static_cast<int32_t>(damageLevel - blowUp1Frames);
         return;
     }
 
-    setTypeId(ACTOR_STATE_BLOWING_UP1, 0xff);
-    currentFrame = static_cast<int32_t>(damageLevel);
+    SetTypeId(ACTOR_STATE_BLOWING_UP1, 0xff);
+    CurrentFrame = static_cast<int32_t>(damageLevel);
 }
 
-auto VFXAppearance::update() -> int32_t
+auto MCVfxAppearance::Update() -> int32_t
 {
-    const int32_t startFrame = currentFrame;
+    const int32_t startFrame = CurrentFrame;
 
     if (startFrame == -1)
     {
-        currentFrame = 0;
+        CurrentFrame = 0;
     }
 
-    VFXAppearanceType* type = appearType;
-    const uint8_t subState = currentSubState;
-    framesAdvanced = 0.0f;
-    const ActorData& data = type->actorStateData[currentState];
-    uint32_t numFrames = data.numFrames;
+    MCVfxAppearanceType* type = AppearType;
+    const uint8_t subState = CurrentSubState;
+    FramesAdvanced = 0.0f;
+    const MCActorData& data = type->ActorStateData[CurrentState];
+    uint32_t numFrames = data.NumFrames;
 
     if (subState != 0xff)
     {
-        numFrames = type->actorSubStateData[subState].numFrames;
+        numFrames = type->ActorSubStateData[subState].NumFrames;
     }
 
     if (numFrames <= 1)
@@ -665,9 +665,9 @@ auto VFXAppearance::update() -> int32_t
     }
 
     // Faithful: the state's frame rate, even in a sub-state.
-    currentTime = frameLength + currentTime;
-    const float frames = currentTime * data.frameRate;
-    const int32_t played = lastFrame;
+    CurrentTime = FrameLength + CurrentTime;
+    const float frames = CurrentTime * data.FrameRate;
+    const int32_t played = LastFrame;
 
     if (frames < static_cast<float>(played))
     {
@@ -678,104 +678,104 @@ auto VFXAppearance::update() -> int32_t
 
     if (played < wholeFrames)
     {
-        framesAdvanced = static_cast<float>(wholeFrames - played);
-        lastFrame = wholeFrames;
+        FramesAdvanced = static_cast<float>(wholeFrames - played);
+        LastFrame = wholeFrames;
     }
 
-    if (framesAdvanced == 0.0f)
+    if (FramesAdvanced == 0.0f)
     {
         return 1;
     }
 
-    currentFrame = static_cast<int32_t>(static_cast<double>(static_cast<uint32_t>(currentFrame)) + framesAdvanced);
+    CurrentFrame = static_cast<int32_t>(static_cast<double>(static_cast<uint32_t>(CurrentFrame)) + FramesAdvanced);
 
-    if (startFrame == -1 && type->delta != 0)
+    if (startFrame == -1 && type->Delta != 0)
     {
-        currentFrame = 0;
+        CurrentFrame = 0;
     }
 
-    uint32_t stateFrames = data.numFrames;
+    uint32_t stateFrames = data.NumFrames;
     uint8_t loop = 1;
 
     if (subState != 0xff)
     {
-        loop = type->actorSubStateData[subState].loop;
-        stateFrames = type->actorSubStateData[subState].numFrames;
+        loop = type->ActorSubStateData[subState].Loop;
+        stateFrames = type->ActorSubStateData[subState].NumFrames;
     }
 
-    const uint32_t frameNum = static_cast<uint32_t>(currentFrame);
+    const uint32_t frameNum = static_cast<uint32_t>(CurrentFrame);
 
     if (stateFrames <= frameNum)
     {
-        if (loop != 0 && loopEnd == -1)
+        if (loop != 0 && LoopEnd == -1)
         {
-            currentFrame = static_cast<int32_t>(frameNum % stateFrames);
+            CurrentFrame = static_cast<int32_t>(frameNum % stateFrames);
             return 0;
         }
 
         if (loop == 0)
         {
-            currentFrame = static_cast<int32_t>(stateFrames - 1);
+            CurrentFrame = static_cast<int32_t>(stateFrames - 1);
             return 1;
         }
     }
 
-    if (static_cast<uint32_t>(loopEnd) <= frameNum)
+    if (static_cast<uint32_t>(LoopEnd) <= frameNum)
     {
-        currentFrame = loopStart;
+        CurrentFrame = LoopStart;
         return 0;
     }
 
     return 1;
 }
 
-auto VFXAppearance::destroy() -> void
+auto MCVfxAppearance::Destroy() -> void
 {
-    appearType->removeUsers(this);
-    appearanceTypeList->removeAppearance(appearType);
+    AppearType->RemoveUsers(this);
+    AppearanceTypeList->RemoveAppearance(AppearType);
 }
 
-auto VFXAppearance::stateExists(ActorState state) -> int32_t
+auto MCVfxAppearance::StateExists(MCActorState state) -> int32_t
 {
-    if (static_cast<int32_t>(state) < static_cast<int32_t>(appearType->numStates) && state >= 0)
+    if (static_cast<int32_t>(state) < static_cast<int32_t>(AppearType->NumStates) && state >= 0)
     {
-        return static_cast<int32_t>(appearType->actorStateData[state].numFrames);
+        return static_cast<int32_t>(AppearType->ActorStateData[state].NumFrames);
     }
 
     return 0;
 }
 
-auto VFXAppearance::drawBars() -> void
+auto MCVfxAppearance::DrawBars() -> void
 {
     // Only tree buildings get a damage bar here.
-    GameObject* obj = owner;
-    const bool hasBar = obj->objectClass == TREEBUILDING && obj != nullptr;
-    MCDrawDamageBar(this, getAppearanceType(), hasBar ? obj : nullptr);
+    MCGameObject* obj = Owner;
+    const bool hasBar = obj->ObjectClass == TREEBUILDING && obj != nullptr;
+    MCDrawDamageBar(this, GetAppearanceType(), hasBar ? obj : nullptr);
 }
 
-auto MCDrawDamageBar(Appearance* appearance, AppearanceType* type, GameObject* obj) -> void
+auto MCDrawDamageBar(MCAppearance* appearance, MCAppearanceType* type, MCGameObject* obj) -> void
 {
     // The bar sits centred above the type's bounds (or the shape's, when the type has none).
-    const vector_2d& screenPos = appearance->screenPos;
-    const vector_2d& upperLeft = appearance->upperLeft;
-    const vector_2d& lowerRight = appearance->lowerRight;
+    const MCVector2D& screenPos = appearance->ScreenPos;
+    const MCVector2D& upperLeft = appearance->UpperLeft;
+    const MCVector2D& lowerRight = appearance->LowerRight;
     float left;
     float top;
     float right;
 
-    if (type == nullptr || (type->boundsUpperLeftX == 0 && type->boundsUpperLeftY == 0 &&
-                            type->boundsLowerRightX == 0 && type->boundsLowerRightY == 0))
+    if (type == nullptr || (type->BoundsUpperLeftX == 0 && type->BoundsUpperLeftY == 0 &&
+                            type->BoundsLowerRightX == 0 && type->BoundsLowerRightY == 0))
     {
-        left = upperLeft.x;
-        top = upperLeft.y;
-        right = lowerRight.x;
+        left = upperLeft.X;
+        top = upperLeft.Y;
+        right = lowerRight.X;
     }
     else
     {
-        const int shift = eye->cameraScale == 1 ? 1 : 0;
-        left = static_cast<float>(type->boundsUpperLeftX >> shift) + screenPos.x;
-        top = static_cast<float>(type->boundsUpperLeftY >> shift) + screenPos.y;
-        right = static_cast<float>(type->boundsLowerRightX >> shift) + screenPos.x;
+        const int shift = Eye->CameraScale == 1 ? 1 : 0;
+        left = static_cast<float>(type->BoundsUpperLeftX >> shift) + screenPos.X;
+        top = static_cast<float>(type->BoundsUpperLeftY >> shift) + screenPos.Y;
+        right = static_cast<float>(type->BoundsLowerRightX >> shift) + screenPos.X;
     }
 
     // Port: the bar is an overlay, on the screen over the view: it follows the sprite through the zoom, its size
@@ -783,7 +783,7 @@ auto MCDrawDamageBar(Appearance* appearance, AppearanceType* type, GameObject* o
     left = MCOverlayX(left);
     top = MCOverlayY(top);
     right = MCOverlayX(right);
-    const float scale = zoomScale(eye);
+    const float scale = ZoomScale(Eye);
     const float gap = scale * 5.0f;
     const float barWidth = scale * 38.0f;
     const float barHeight = scale * 4.0f;
@@ -795,29 +795,30 @@ auto MCDrawDamageBar(Appearance* appearance, AppearanceType* type, GameObject* o
         return;
     }
 
-    ElementList->openGroup(-50000, 1);
-    PolyElementData data;
-    data.numVertices = 0;
-    data.textureMapOff = 0;
-    data.texture = nullptr;
-    data.textureWidth = 0;
-    data.textureHeight = 0;
-    data.fadeTable = nullptr;
-    data.translate = 0;
-    data.statusBar = 1;
-    data.barColor = 0x101;
-    data.vertices[0].x = static_cast<int32_t>(barX - 1.0f);
-    data.vertices[0].y = static_cast<int32_t>(barY - 1.0f);
-    data.vertices[1].x = static_cast<int32_t>(barX + barWidth + 1.0f);
-    data.vertices[1].y = static_cast<int32_t>(barY + barHeight + 1.0f);
+    ElementList->OpenGroup(-50000, 1);
+    MCPolyElementData data;
+    data.NumVertices = 0;
+    data.TextureMapOff = 0;
+    data.Texture = nullptr;
+    data.TextureWidth = 0;
+    data.TextureHeight = 0;
+    data.FadeTable = nullptr;
+    data.Translate = 0;
+    data.StatusBar = 1;
+    data.BarColor = 0x101;
+    data.Vertices[0].X = static_cast<int32_t>(barX - 1.0f);
+    data.Vertices[0].Y = static_cast<int32_t>(barY - 1.0f);
+    data.Vertices[1].X = static_cast<int32_t>(barX + barWidth + 1.0f);
+    data.Vertices[1].Y = static_cast<int32_t>(barY + barHeight + 1.0f);
 
     // Tree building and building types both keep their damage level at +0x30.
     auto typeDmgLevel = [obj]() -> float
     {
-        return static_cast<float>(static_cast<int32_t>(static_cast<TreeBuildingType*>(obj->getObjectType())->dmgLevel));
+        return static_cast<float>(
+            static_cast<int32_t>(static_cast<MCTreeBuildingType*>(obj->GetObjectType())->DmgLevel));
     };
 
-    float remaining = typeDmgLevel() - obj->getDamage();
+    float remaining = typeDmgLevel() - obj->GetDamage();
 
     if (remaining < 0.0f)
     {
@@ -833,35 +834,35 @@ auto MCDrawDamageBar(Appearance* appearance, AppearanceType* type, GameObject* o
         barLength = 1.0f;
     }
 
-    data.barPercent = static_cast<int32_t>(barLength);
+    data.BarPercent = static_cast<int32_t>(barLength);
 
-    if (data.barPercent > 0)
+    if (data.BarPercent > 0)
     {
-        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
+        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, -50000));
     }
 }
 
-auto VFXAppearance::setTypeId(ActorState state, uint8_t subState) -> void
+auto MCVfxAppearance::SetTypeId(MCActorState state, uint8_t subState) -> void
 {
-    if (static_cast<int32_t>(state) < static_cast<int32_t>(appearType->numStates) && state >= 0)
+    if (static_cast<int32_t>(state) < static_cast<int32_t>(AppearType->NumStates) && state >= 0)
     {
-        currentState = state;
-        currentFrame = -1;
-        currentTime = 0.0f;
-        lastFrame = 0;
-        currentSubState = 0xff;
+        CurrentState = state;
+        CurrentFrame = -1;
+        CurrentTime = 0.0f;
+        LastFrame = 0;
+        CurrentSubState = 0xff;
 
         if (state != ACTOR_STATE_NORMAL)
         {
-            typeChanged = 1;
+            TypeChanged = 1;
             return;
         }
     }
 
-    if (subState != 0xff && state == ACTOR_STATE_NORMAL && appearType->actorSubStateData != nullptr)
+    if (subState != 0xff && state == ACTOR_STATE_NORMAL && AppearType->ActorSubStateData != nullptr)
     {
-        currentSubState = subState;
+        CurrentSubState = subState;
     }
 
-    typeChanged = 1;
+    TypeChanged = 1;
 }

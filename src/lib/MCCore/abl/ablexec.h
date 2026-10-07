@@ -55,41 +55,41 @@
 #include "abl/ablscan.h"
 #include "abl/ablsymt.h"
 
-struct ABLParam;
+struct MCAblParam;
 
 /// <summary>A slot of the ABL runtime stack (and of a module's static data). See the file comment.</summary>
 /// <remarks>4 bytes in the original; 8 in the port (the Address member).</remarks>
-union StackItem
+union MCStackItem
 {
-    int32_t integer;
-    float real;
-    uint8_t byte;
-    Address address;
+    int32_t Integer;
+    float Real;
+    uint8_t Byte;
+    MCAddress Address;
 };
 
-typedef StackItem* StackItemPtr;
+typedef MCStackItem* MCStackItemPtr;
 
-static_assert(sizeof(StackItem) == sizeof(void*), "StackItem is one pointer-sized slot");
+static_assert(sizeof(MCStackItem) == sizeof(void*), "StackItem is one pointer-sized slot");
 
 /// <summary>The first four items of every stack frame.</summary>
-struct StackFrameHeader
+struct MCStackFrameHeader
 {
     /// <summary>A function's result.</summary>
-    StackItem functionValue{}; // item 0
+    MCStackItem FunctionValue{}; // item 0
     /// <summary>The frame of the enclosing scope (for variables of outer levels).</summary>
-    StackItem staticLink{}; // item 1
+    MCStackItem StaticLink{}; // item 1
     /// <summary>The caller's frame.</summary>
-    StackItem dynamicLink{}; // item 2
+    MCStackItem DynamicLink{}; // item 2
     /// <summary>Where to continue in the caller's code.</summary>
-    StackItem returnAddress{}; // item 3
+    MCStackItem ReturnAddress{}; // item 3
 };
 
-typedef StackFrameHeader* StackFrameHeaderPtr;
+typedef MCStackFrameHeader* MCStackFrameHeaderPtr;
 
 /// <summary>Items in the ABL stack (the original's limit: 0xa000 bytes of 4-byte items).</summary>
 inline constexpr int32_t MAXSIZE_STACK = 0xa000 / 4;
 /// <summary>Bytes of a symbol operand in crunched code (4 in the original).</summary>
-inline constexpr int32_t CODE_SYMBOL_PTR_SIZE = static_cast<int32_t>(sizeof(SymTableNodePtr));
+inline constexpr int32_t CODE_SYMBOL_PTR_SIZE = static_cast<int32_t>(sizeof(MCSymTableNodePtr));
 /// <summary>Bytes of an address marker's operand in crunched code.</summary>
 inline constexpr int32_t CODE_ADDRESS_SIZE = 4;
 /// <summary>Bytes of an integer or offset operand in crunched code.</summary>
@@ -104,151 +104,124 @@ extern int IncludeDebugInfo;
 /// <summary>Nonzero while tokens are crunched (statement() turns it off for disabled print/assert/string calls).</summary>
 extern int Crunch;
 /// <summary>The compile buffer and the next free byte in it.</summary>
-extern char* codeBuffer;
-extern char* codeBufferPtr;
+extern char* CodeBuffer;
+extern char* CodeBufferPtr;
 extern int32_t MaxCodeBufferSize;
 /// <summary>The next code byte to execute, and the end of the segment last created.</summary>
-extern char* codeSegmentPtr;
-extern char* codeSegmentLimit;
+extern char* CodeSegmentPtr;
+extern char* CodeSegmentLimit;
 /// <summary>Where the statement being executed starts (for the debugger).</summary>
-extern char* statementStartPtr;
+extern char* StatementStartPtr;
 /// <summary>The code token being executed.</summary>
-extern TokenCodeType codeToken;
+extern MCTokenCodeType CodeToken;
 /// <summary>The ABL stack (an unnamed global of the original, @ 0x007c3e44).</summary>
-extern StackItemPtr stack;
+extern MCStackItemPtr Stack;
 /// <summary>Top of stack.</summary>
-extern StackItemPtr tos;
+extern MCStackItemPtr Tos;
 /// <summary>The current frame.</summary>
-extern StackItemPtr stackFrameBasePtr;
+extern MCStackItemPtr StackFrameBasePtr;
 /// <summary>The executing module's static data.</summary>
-extern StackItemPtr StaticDataPtr;
+extern MCStackItemPtr StaticDataPtr;
 /// <summary>The value the last module or function execution returned.</summary>
-extern StackItem returnValue;
+extern MCStackItem ReturnValue;
 /// <summary>Statements executed in the current execution (the ABLModule::execute result).</summary>
-extern int32_t execStatementCount;
+extern int32_t ExecStatementCount;
 /// <summary>Line of the statement being executed (from its marker).</summary>
-extern int32_t execLineNumber;
+extern int32_t ExecLineNumber;
 /// <summary>Set by a tactical-order routine to leave the running routine at once.</summary>
 extern int ExitFromTacOrder;
 
 /// <summary>Appends curToken to the code buffer.</summary>
-/// <remarks>MCX.EXE @ 0x00622f40</remarks>
-void crunchToken();
+void CrunchToken();
 
 /// <summary>Appends a symbol operand (CODE_SYMBOL_PTR_SIZE bytes).</summary>
-/// <remarks>MCX.EXE @ 0x00622f90</remarks>
-void crunchSymTableNodePtr(SymTableNodePtr nodePtr);
+void CrunchSymTableNodePtr(MCSymTableNodePtr nodePtr);
 
 /// <summary>Inserts a statement marker before the token just crunched.</summary>
-/// <remarks>MCX.EXE @ 0x00622fe0</remarks>
-void crunchStatementMarker();
+void CrunchStatementMarker();
 
 /// <summary>Removes the statement marker just inserted (with its token).</summary>
-/// <remarks>MCX.EXE @ 0x00623050</remarks>
-void uncrunchStatementMarker();
+void UncrunchStatementMarker();
 
 /// <summary>
 /// Inserts an address marker before the token just crunched; its slot keeps <paramref name="address"/> (a chain to
 /// another unfixed marker) until fixupAddressMarker.
 /// </summary>
 /// <returns>The marker's slot (to fix up later), or null when not crunching.</returns>
-/// <remarks>MCX.EXE @ 0x00623070</remarks>
-char* crunchAddressMarker(Address address);
+char* CrunchAddressMarker(MCAddress address);
 
 /// <summary>Points the marker at <paramref name="address"/> to the current code position.</summary>
 /// <returns>The marker it chained to.</returns>
-/// <remarks>MCX.EXE @ 0x006230d0</remarks>
-char* fixupAddressMarker(Address address);
+char* FixupAddressMarker(MCAddress address);
 
 /// <summary>Appends an int32 operand.</summary>
-/// <remarks>MCX.EXE @ 0x00623100</remarks>
-void crunchInteger(int32_t value);
+void CrunchInteger(int32_t value);
 
 /// <summary>Appends <paramref name="address"/> as an int32 offset from the operand's position.</summary>
-/// <remarks>MCX.EXE @ 0x00623150</remarks>
-void crunchOffset(Address address);
+void CrunchOffset(MCAddress address);
 
 /// <summary>Copies the compiled code to a new segment in AblMemory and empties the buffer.</summary>
 /// <returns>The segment.</returns>
-/// <remarks>MCX.EXE @ 0x006231a0</remarks>
-char* createCodeSegment();
+char* CreateCodeSegment();
 
 /// <summary>Reads a symbol operand.</summary>
-/// <remarks>MCX.EXE @ 0x00623230</remarks>
-SymTableNodePtr getCodeSymTableNodePtr();
+MCSymTableNodePtr GetCodeSymTableNodePtr();
 
 /// <summary>At a statement marker with debug info, reads its file (into FileNumber) and line.</summary>
 /// <returns>The line, or -1.</returns>
-/// <remarks>MCX.EXE @ 0x00623250</remarks>
-int32_t getCodeStatementMarker();
+int32_t GetCodeStatementMarker();
 
 /// <summary>At an address marker, reads its target.</summary>
 /// <returns>The target, or null when codeToken isn't an address marker.</returns>
-/// <remarks>MCX.EXE @ 0x00623290</remarks>
-char* getCodeAddressMarker();
+char* GetCodeAddressMarker();
 
 /// <summary>Reads an int32 operand.</summary>
-/// <remarks>MCX.EXE @ 0x006232c0</remarks>
-int32_t getCodeInteger();
+int32_t GetCodeInteger();
 
 /// <summary>Reads an offset operand as the address it points to.</summary>
-/// <remarks>MCX.EXE @ 0x006232e0</remarks>
-char* getCodeAddress();
+char* GetCodeAddress();
 
 /// <summary>Pops the top item.</summary>
-/// <remarks>MCX.EXE @ 0x00623300</remarks>
-void pop();
+void Pop();
 
 /// <summary>Reads the next code token into codeToken.</summary>
-/// <remarks>MCX.EXE @ 0x00623310</remarks>
-void getCodeToken();
+void GetCodeToken();
 
 /// <summary>Pushes an integer (stack overflow is a runtime error).</summary>
-/// <remarks>MCX.EXE @ 0x00623330</remarks>
-void pushInteger(int32_t value);
+void PushInteger(int32_t value);
 
 /// <summary>Pushes a real.</summary>
-/// <remarks>MCX.EXE @ 0x00623370</remarks>
-void pushReal(float value);
+void PushReal(float value);
 
 /// <summary>Pushes a char or boolean.</summary>
-/// <remarks>MCX.EXE @ 0x006233b0</remarks>
-void pushByte(char value);
+void PushByte(char value);
 
 /// <summary>Pushes an address.</summary>
-/// <remarks>MCX.EXE @ 0x006233f0</remarks>
-void pushAddress(Address address);
+void PushAddress(MCAddress address);
 
 /// <summary>
 /// Pushes a frame header for a call from level <paramref name="oldLevel"/> to a routine at
 /// <paramref name="newLevel"/> (-1 for a routine in another module: no static link).
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00623430 (unnamed in the symbols)</remarks>
-void pushStackFrameHeader(int32_t oldLevel, int32_t newLevel);
+void PushStackFrameHeader(int32_t oldLevel, int32_t newLevel);
 
 /// <summary>Pushes a local of <paramref name="typePtr"/>: zero, or a new, zeroed array block in AblMemory.</summary>
-/// <remarks>MCX.EXE @ 0x006234a0</remarks>
-void allocLocal(TypePtr typePtr);
+void AllocLocal(MCTypePtr typePtr);
 
 /// <summary>Frees a local array's block (reference parameters are left alone).</summary>
-/// <remarks>MCX.EXE @ 0x00623540</remarks>
-void freeLocal(SymTableNodePtr idPtr);
+void FreeLocal(MCSymTableNodePtr idPtr);
 
 /// <summary>Enters a routine: traces it, jumps to its code and allocates its locals.</summary>
-/// <remarks>MCX.EXE @ 0x00623590</remarks>
-void routineEntry(SymTableNodePtr routineIdPtr);
+void RoutineEntry(MCSymTableNodePtr routineIdPtr);
 
 /// <summary>Leaves a routine: frees its array parameters and locals, pops its frame and returns to the caller's code.</summary>
-/// <remarks>MCX.EXE @ 0x006235e0</remarks>
-void routineExit(SymTableNodePtr routineIdPtr);
+void RoutineExit(MCSymTableNodePtr routineIdPtr);
 
 /// <summary>Runs a routine (a module's main code): its <c>init</c> function first if the module wasn't initialised.</summary>
-/// <remarks>MCX.EXE @ 0x00623670 (unnamed in the symbols)</remarks>
-void execute(SymTableNodePtr routineIdPtr);
+void Execute(MCSymTableNodePtr routineIdPtr);
 
 /// <summary>
 /// Enters module <paramref name="moduleIdPtr"/>'s frame and runs only its function <paramref name="childRoutineIdPtr"/>
 /// (after <c>init</c> on the first execution).
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00623710</remarks>
-void executeChild(SymTableNodePtr moduleIdPtr, SymTableNodePtr childRoutineIdPtr, ABLParam* paramList);
+void ExecuteChild(MCSymTableNodePtr moduleIdPtr, MCSymTableNodePtr childRoutineIdPtr, MCAblParam* paramList);

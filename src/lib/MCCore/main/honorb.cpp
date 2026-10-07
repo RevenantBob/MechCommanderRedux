@@ -33,42 +33,42 @@
 #include "sprite/sprtmgr.h"
 #include "terrain/terrtxm.h"
 
-char campaignFile[20] = "campaign";
-char missionName[80] = "MechCmdr1.fit";
+char CampaignFile[20] = "campaign";
+char MissionName[80] = "MechCmdr1.fit";
 uint32_t AblIncludeDebugInfo = 0;
 uint32_t AblDebuggerEnabled = 0;
 uint32_t AblDebuggerX = 0;
 uint32_t AblDebuggerY = 400;
 uint32_t AblDebuggerWidth = 260;
 uint32_t AblDebuggerHeight = 125;
-int32_t displayMode = 0;
-DebuggerWindow* ABLDebuggerWindow = nullptr;
-aCallback* colorCallback = nullptr;
+int32_t DisplayMode = 0;
+MCDebuggerWindow* AblDebuggerWindow = nullptr;
+MCGuiCallback* ColorCallback = nullptr;
 int DebugGameSystem = 0;
-int gNoSound = 0;
+int GNoSound = 0;
 int ScreenSaverActive = 0;
 int LowPowerActive = 0;
 int PowerOffActive = 0;
-int32_t languageOffset = 0;
+int32_t LanguageOffset = 0;
 
-void killTheGame()
+void KillTheGame()
 {
     if (MPlayer != nullptr)
     {
-        MultiPlayer* player = MPlayer;
-        player->destroy();
+        MCMultiPlayer* player = MPlayer;
+        player->Destroy();
         delete player;
         MPlayer = nullptr;
     }
 
     MouseTimerKill();
     SoundRendererUninstall();
-    application->shutdownDirectDraw();
+    Application->ShutdownDirectDraw();
     FatalShutDown();
     std::exit(1);
 }
 
-bool checkForCDInDrive(int32_t checkDisk, bool retry)
+bool CheckForCDInDrive(int32_t checkDisk, bool retry)
 {
     // The original scanned drives C: to Z: for a CD holding hidden.txt (and data\tiles\gtiles90.pak when
     // checkDisk is 1), pointed every path that starts with a drive letter at it, and otherwise asked the player to
@@ -79,9 +79,9 @@ bool checkForCDInDrive(int32_t checkDisk, bool retry)
 namespace
 {
     /// <summary>Reads a SYSTEM.CFG path (79 characters at most); a missing one is fatal.</summary>
-    void readPath(FitIniFile* file, const char* varName, char* path, const char* errMessage)
+    void ReadPath(MCFitIniFile* file, const char* varName, char* path, const char* errMessage)
     {
-        const int32_t result = file->readIdString(varName, path, 0x4f);
+        const int32_t result = file->ReadIdString(varName, path, 0x4f);
 
         if (result != 0)
         {
@@ -90,9 +90,9 @@ namespace
     }
 
     /// <summary>Reads a SYSTEM.CFG number; a missing one is fatal.</summary>
-    void readULong(FitIniFile* file, const char* varName, uint32_t& value, const char* errMessage)
+    void ReadULong(MCFitIniFile* file, const char* varName, uint32_t& value, const char* errMessage)
     {
-        const int32_t result = file->readIdULong(varName, value);
+        const int32_t result = file->ReadIdULong(varName, value);
 
         if (result != 0)
         {
@@ -100,9 +100,9 @@ namespace
         }
     }
 
-    void readLong(FitIniFile* file, const char* varName, int32_t& value, const char* errMessage)
+    void ReadLong(MCFitIniFile* file, const char* varName, int32_t& value, const char* errMessage)
     {
-        const int32_t result = file->readIdLong(varName, value);
+        const int32_t result = file->ReadIdLong(varName, value);
 
         if (result != 0)
         {
@@ -111,7 +111,7 @@ namespace
     }
 
     /// <summary>The "can't read system.cfg" exit.</summary>
-    [[noreturn]] void closingMessage()
+    [[noreturn]] void ClosingMessage()
     {
         MCInput::ShowCursor(true);
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "MechCommander Expansion or Editor already running.");
@@ -122,121 +122,121 @@ namespace
                                      "MechCommander Expansion or Editor already running.", nullptr);
         }
 
-        killTheGame();
+        KillTheGame();
     }
 }
 
-void systemInit()
+void SystemInit()
 {
     // Port: the original registered the "QueryCancelAutoPlay" window message (uMessage) to keep the CD's autorun from
     // starting while the game ran, and refused to run when system.cfg could not be opened exclusively (another copy
     // of the game or the editor had it). The port has no autorun and reads the file shared.
-    auto* systemFile = new FitIniFile;
+    auto* systemFile = new MCFitIniFile;
 
-    if (systemFile->open("system.cfg") != 0)
+    if (systemFile->Open("system.cfg") != 0)
     {
-        closingMessage();
+        ClosingMessage();
     }
 
     // The "systemHeap" block (systemHeapSize, guiHeapSize, logisticsHeapSize) sized the original's heaps; the port has
     // none and doesn't read it.
 
     // Empty blocks switch sound and music on.
-    useSound = systemFile->seekBlock("UseSound") == 0 ? 1 : 0;
+    UseSound = systemFile->SeekBlock("UseSound") == 0 ? 1 : 0;
 
-    if (systemFile->seekBlock("UseMusic") == 0)
+    if (systemFile->SeekBlock("UseMusic") == 0)
     {
-        useMusic = 1;
+        UseMusic = 1;
 
-        if (useSound == 0)
+        if (UseSound == 0)
         {
-            useMusic = 0;
+            UseMusic = 0;
         }
     }
     else
     {
-        useSound = 0;
-        useMusic = 0;
+        UseSound = 0;
+        UseMusic = 0;
     }
 
-    if (gNoSound != 0)
+    if (GNoSound != 0)
     {
-        useSound = 0;
-        useMusic = 0;
+        UseSound = 0;
+        UseMusic = 0;
     }
 
-    if (systemFile->seekBlock("DebugGameSystem") == 0)
+    if (systemFile->SeekBlock("DebugGameSystem") == 0)
     {
         DebugGameSystem = 1;
     }
 
     //---------------------------------------------------------------------------------------------------------------
     // ABL.
-    if (systemFile->seekBlock("ABL") != 0)
+    if (systemFile->SeekBlock("ABL") != 0)
     {
         Fatal(0, " Unable to find ABL settings. ");
     }
 
-    readULong(systemFile, "SymbolTableHeapSize", AblSymbolTableHeapSize, "Could not find ABL SymbolTableHeapSize. ");
-    readULong(systemFile, "StackHeapSize", AblStackHeapSize, "Could not find ABL StackHeapSize. ");
-    readULong(systemFile, "CodeHeapSize", AblCodeHeapSize, "Could not find ABL CodeHeapSize. ");
-    readULong(systemFile, "RunTimeStackSize", AblRunTimeStackSize, "Could not find ABL RunTimeStackSize. ");
-    readULong(systemFile, "MaxCodeBlockSize", AblMaxCodeBlockSize, "Could not find ABL MaxCodeBlockSize. ");
-    readULong(systemFile, "MaxRegisteredModules", AblMaxRegisteredModules, "Could not find ABL MaxRegisteredModules. ");
-    readULong(systemFile, "MaxStaticVariables", AblMaxStaticVariables, "Could not find ABL MaxStaticVariables. ");
-    readULong(systemFile, "IncludeDebugInfo", AblIncludeDebugInfo, "Could not find ABL IncludeDebugInfo. ");
-    readULong(systemFile, "DebuggerEnabled", AblDebuggerEnabled, "Could not find ABL DebuggerEnabled. ");
-    readLong(systemFile, "MaxWatchesPerModule", MaxWatchesPerModule, "Could not find ABL MaxWatchesPerModule. ");
-    readLong(systemFile, "MaxBreakPointsPerModule", MaxBreakPointsPerModule,
+    ReadULong(systemFile, "SymbolTableHeapSize", AblSymbolTableHeapSize, "Could not find ABL SymbolTableHeapSize. ");
+    ReadULong(systemFile, "StackHeapSize", AblStackHeapSize, "Could not find ABL StackHeapSize. ");
+    ReadULong(systemFile, "CodeHeapSize", AblCodeHeapSize, "Could not find ABL CodeHeapSize. ");
+    ReadULong(systemFile, "RunTimeStackSize", AblRunTimeStackSize, "Could not find ABL RunTimeStackSize. ");
+    ReadULong(systemFile, "MaxCodeBlockSize", AblMaxCodeBlockSize, "Could not find ABL MaxCodeBlockSize. ");
+    ReadULong(systemFile, "MaxRegisteredModules", AblMaxRegisteredModules, "Could not find ABL MaxRegisteredModules. ");
+    ReadULong(systemFile, "MaxStaticVariables", AblMaxStaticVariables, "Could not find ABL MaxStaticVariables. ");
+    ReadULong(systemFile, "IncludeDebugInfo", AblIncludeDebugInfo, "Could not find ABL IncludeDebugInfo. ");
+    ReadULong(systemFile, "DebuggerEnabled", AblDebuggerEnabled, "Could not find ABL DebuggerEnabled. ");
+    ReadLong(systemFile, "MaxWatchesPerModule", MaxWatchesPerModule, "Could not find ABL MaxWatchesPerModule. ");
+    ReadLong(systemFile, "MaxBreakPointsPerModule", MaxBreakPointsPerModule,
              "Could not find ABL MaxBreakPointsPerModule. ");
 
     //---------------------------------------------------------------------------------------------------------------
     // Paths.
-    int32_t result = systemFile->seekBlock("systemPaths");
+    int32_t result = systemFile->SeekBlock("systemPaths");
 
     if (result != 0)
     {
         Fatal(result, "Could not find systemPaths.  Using Defaults.");
     }
 
-    readPath(systemFile, "savePath", savePath, " Could not find save path ");
+    ReadPath(systemFile, "savePath", SavePath, " Could not find save path ");
     // Copies of the game on one machine share the user folder: each keeps its temp FITs under its process ID, or a
     // multiplayer client loads the host's generated scenario (bridge.fit) or the reverse.
-    std::snprintf(saveTempPath, sizeof(saveTempPath), "%stemp\\%u\\", savePath, MCPort::ProcessId());
-    MCFileSystem::MakeDirectory(saveTempPath);
-    readPath(systemFile, "terrainPath", terrainPath, " Could not find terrain path ");
-    readPath(systemFile, "palettePath", palettePath, " Could not find palette path ");
-    readPath(systemFile, "artPath", artPath, " Could not find art path ");
-    readPath(systemFile, "fontPath", fontPath, " Could not find font path ");
-    readPath(systemFile, "soundPath", soundPath, " Could not find sound path ");
-    readPath(systemFile, "spritePath", spritePath, " Could not find sprite path ");
-    readPath(systemFile, "shapesPath", shapesPath, " Could not find shapes path ");
-    readPath(systemFile, "objectPath", objectPath, " Could not find object path ");
-    readPath(systemFile, "missionPath", missionPath, " Could not find mission path ");
-    readPath(systemFile, "warriorPath", warriorPath, " Could not find warrior path ");
-    readPath(systemFile, "profilePath", profilePath, " Could not find profile path ");
-    readPath(systemFile, "cameraPath", cameraPath, " Could not find camera path ");
-    readPath(systemFile, "tilePath", tilePath, " Could not find tile path ");
-    readPath(systemFile, "tile90Path", tile90Path, " Could not find tile90 path ");
-    readPath(systemFile, "interfacePath", interfacePath, " Could not find interface path ");
-    readPath(systemFile, "moviePath", moviePath, " Could not find movie path ");
-    readPath(systemFile, "missionName", missionName, " Could not find Mission File Name ");
-    readPath(systemFile, "CDsoundPath", CDsoundPath, " Could not find CD sound path ");
-    readPath(systemFile, "CDspritePath", CDspritePath, " Could not find CD sprite path ");
-    readPath(systemFile, "CDmoviePath", CDmoviePath, " Could not find CD movie path ");
+    std::snprintf(SaveTempPath, sizeof(SaveTempPath), "%stemp\\%u\\", SavePath, MCPort::ProcessId());
+    MCFileSystem::MakeDirectory(SaveTempPath);
+    ReadPath(systemFile, "terrainPath", TerrainPath, " Could not find terrain path ");
+    ReadPath(systemFile, "palettePath", PalettePath, " Could not find palette path ");
+    ReadPath(systemFile, "artPath", ArtPath, " Could not find art path ");
+    ReadPath(systemFile, "fontPath", FontPath, " Could not find font path ");
+    ReadPath(systemFile, "soundPath", SoundPath, " Could not find sound path ");
+    ReadPath(systemFile, "spritePath", SpritePath, " Could not find sprite path ");
+    ReadPath(systemFile, "shapesPath", ShapesPath, " Could not find shapes path ");
+    ReadPath(systemFile, "objectPath", ObjectPath, " Could not find object path ");
+    ReadPath(systemFile, "missionPath", MissionPath, " Could not find mission path ");
+    ReadPath(systemFile, "warriorPath", WarriorPath, " Could not find warrior path ");
+    ReadPath(systemFile, "profilePath", ProfilePath, " Could not find profile path ");
+    ReadPath(systemFile, "cameraPath", CameraPath, " Could not find camera path ");
+    ReadPath(systemFile, "tilePath", TilePath, " Could not find tile path ");
+    ReadPath(systemFile, "tile90Path", Tile90Path, " Could not find tile90 path ");
+    ReadPath(systemFile, "interfacePath", InterfacePath, " Could not find interface path ");
+    ReadPath(systemFile, "moviePath", MoviePath, " Could not find movie path ");
+    ReadPath(systemFile, "missionName", MissionName, " Could not find Mission File Name ");
+    ReadPath(systemFile, "CDsoundPath", CDsoundPath, " Could not find CD sound path ");
+    ReadPath(systemFile, "CDspritePath", CDspritePath, " Could not find CD sprite path ");
+    ReadPath(systemFile, "CDmoviePath", CDmoviePath, " Could not find CD movie path ");
 
     //---------------------------------------------------------------------------------------------------------------
     // Every *.fst in the game folder is a FastFile (SYSTEM.CFG's [FastFiles] list isn't read).
     const std::vector<std::string> fastFileNames = MCFileSystem::FindFiles("*.fst");
-    maxFastFiles += static_cast<int32_t>(fastFileNames.size());
+    MaxFastFiles += static_cast<int32_t>(fastFileNames.size());
 
-    if (maxFastFiles != 0)
+    if (MaxFastFiles != 0)
     {
-        fastFiles = static_cast<FastFile**>(std::malloc(sizeof(FastFile*) * static_cast<size_t>(maxFastFiles)));
+        FastFiles = static_cast<MCFastFile**>(std::malloc(sizeof(MCFastFile*) * static_cast<size_t>(MaxFastFiles)));
 
-        for (int32_t i = 0; i < maxFastFiles; i++)
+        for (int32_t i = 0; i < MaxFastFiles; i++)
         {
-            fastFiles[i] = nullptr;
+            FastFiles[i] = nullptr;
         }
 
         for (const std::string& name : fastFileNames)
@@ -245,232 +245,231 @@ void systemInit()
         }
     }
 
-    systemFile->close();
+    systemFile->Close();
     delete systemFile;
 
     //---------------------------------------------------------------------------------------------------------------
     // The prefs.
-    auto* prefsFile = new FitIniFile;
-    result = prefsFile->open("prefs.cfg");
+    auto* prefsFile = new MCFitIniFile;
+    result = prefsFile->Open("prefs.cfg");
 
     if (result != 0)
     {
         Fatal(result, "Could not open prefs.cfg.");
     }
 
-    result = prefsFile->seekBlock("MechCommander");
+    result = prefsFile->SeekBlock("MechCommander");
 
     if (result != 0)
     {
         Fatal(result, "Could not find MechCommander Prefs.");
     }
 
-    if (prefsFile->readIdBoolean("PaletteCycle", application->paletteCycle) != 0)
+    if (prefsFile->ReadIdBoolean("PaletteCycle", Application->PaletteCycle) != 0)
     {
-        application->paletteCycle = 0;
+        Application->PaletteCycle = 0;
     }
 
-    if (prefsFile->readIdLong("Gamma", application->gammaLevel) != 0)
+    if (prefsFile->ReadIdLong("Gamma", Application->GammaLevel) != 0)
     {
-        application->gammaLevel = 0;
+        Application->GammaLevel = 0;
     }
 
-    if (prefsFile->readIdBoolean("Use90Pixel", use90PixelSprite) != 0)
+    if (prefsFile->ReadIdBoolean("Use90Pixel", Use90PixelSprite) != 0)
     {
-        use90PixelSprite = 0;
+        Use90PixelSprite = 0;
     }
 
-    if (prefsFile->readIdBoolean("Force45Pixel", only45Pixel) != 0)
+    if (prefsFile->ReadIdBoolean("Force45Pixel", Only45Pixel) != 0)
     {
-        only45Pixel = 0;
+        Only45Pixel = 0;
     }
 
     // One sprite size wins: 90-pixel sprites unless 45 is forced; without 90, 45 only.
-    if (use90PixelSprite != 0 && only45Pixel != 0)
+    if (Use90PixelSprite != 0 && Only45Pixel != 0)
     {
-        use90PixelSprite = 0;
+        Use90PixelSprite = 0;
     }
 
-    if (use90PixelSprite == 0 && only45Pixel == 0)
+    if (Use90PixelSprite == 0 && Only45Pixel == 0)
     {
-        only45Pixel = 1;
+        Only45Pixel = 1;
     }
 
     // Port: the full-size (90-pixel) mech art is always loaded and used: the camera stays at scale 100 and the zoom
     // scales the world view instead (the prefs only mattered for machines short of memory).
-    use90PixelSprite = 1;
-    only45Pixel = 0;
+    Use90PixelSprite = 1;
+    Only45Pixel = 0;
 
-    if (prefsFile->readIdBoolean("Force32Mb", force32MB) != 0)
+    if (prefsFile->ReadIdBoolean("Force32Mb", Force32MB) != 0)
     {
-        force32MB = 0;
+        Force32MB = 0;
     }
 
-    if (prefsFile->readIdBoolean("Force16Mb", force16MB) != 0)
+    if (prefsFile->ReadIdBoolean("Force16Mb", Force16MB) != 0)
     {
-        force16MB = 0;
+        Force16MB = 0;
     }
-    else if (force16MB != 0 && force32MB != 0)
+    else if (Force16MB != 0 && Force32MB != 0)
     {
-        force32MB = 0;
+        Force32MB = 0;
     }
 
     int directDraw = 0;
 
-    if (prefsFile->readIdBoolean("DirectDraw", directDraw) != 0)
+    if (prefsFile->ReadIdBoolean("DirectDraw", directDraw) != 0)
     {
         directDraw = 0;
     }
 
-    gFullScreen = directDraw != 0 ? 1 : 0;
+    GFullScreen = directDraw != 0 ? 1 : 0;
     // Port: a port-only key; the picture keeps 4:3 with bars unless it is set.
     int stretchToFit = 0;
 
-    if (prefsFile->readIdBoolean("StretchToFit", stretchToFit) != 0)
+    if (prefsFile->ReadIdBoolean("StretchToFit", stretchToFit) != 0)
     {
         stretchToFit = 0;
     }
 
-    gStretchToFit = stretchToFit != 0 ? 1 : 0;
+    GStretchToFit = stretchToFit != 0 ? 1 : 0;
     // Port: a port-only key; the cursor is the system's unless it is set.
     int softwareCursor = 0;
 
-    if (prefsFile->readIdBoolean("SoftwareCursor", softwareCursor) != 0)
+    if (prefsFile->ReadIdBoolean("SoftwareCursor", softwareCursor) != 0)
     {
         softwareCursor = 0;
     }
 
-    gSoftwareCursor = softwareCursor != 0 ? 1 : 0;
+    GSoftwareCursor = softwareCursor != 0 ? 1 : 0;
     // Port: a port-only key; the frame counter in the top-right corner. The command line's -fps sets it too.
     int showFps = 0;
 
-    if (prefsFile->readIdBoolean("ShowFps", showFps) != 0)
+    if (prefsFile->ReadIdBoolean("ShowFps", showFps) != 0)
     {
         showFps = 0;
     }
 
-    gShowFpsPreference = showFps != 0 ? 1 : 0;
-    gShowFps = showFps != 0 ? 1 : gShowFps;
+    GShowFpsPreference = showFps != 0 ? 1 : 0;
+    GShowFps = showFps != 0 ? 1 : GShowFps;
     // Port: a port-only key; "vulkan" (the default) or "software". The command line's -renderer wins.
     char rendererName[32] = {};
 
-    if (prefsFile->readIdString("Renderer", rendererName, sizeof(rendererName) - 1) == 0)
+    if (prefsFile->ReadIdString("Renderer", rendererName, sizeof(rendererName) - 1) == 0)
     {
         if (const std::optional<MCRendererKind> kind = MCRendererKindFromName(rendererName))
         {
-            gRenderer = static_cast<int>(*kind);
+            GRenderer = static_cast<int>(*kind);
         }
     }
 
-    gRendererPreference = gRenderer;
+    GRendererPreference = GRenderer;
 
     int32_t resolution = 0;
 
     // Port: the mode is still read, but the screen is the window's size (aSystem::startupDirectDraw).
-    if (prefsFile->readIdLong("Resolution", resolution) == 0)
+    if (prefsFile->ReadIdLong("Resolution", resolution) == 0)
     {
         if (resolution == 1)
         {
-            displayMode = 1;
-            displayWidth = 800;
-            displayHeight = 600;
+            DisplayMode = 1;
+            DisplayWidth = 800;
+            DisplayHeight = 600;
         }
         else if (resolution == 2)
         {
-            displayMode = 2;
-            displayWidth = 1024;
-            displayHeight = 768;
+            DisplayMode = 2;
+            DisplayWidth = 1024;
+            DisplayHeight = 768;
         }
         else if (resolution == 3)
         {
-            displayMode = 3;
-            displayWidth = 1280;
-            displayHeight = 1024;
+            DisplayMode = 3;
+            DisplayWidth = 1280;
+            DisplayHeight = 1024;
         }
     }
 
-    if (prefsFile->readIdLong("Language", languageOffset) != 0)
+    if (prefsFile->ReadIdLong("Language", LanguageOffset) != 0)
     {
-        languageOffset = 0;
+        LanguageOffset = 0;
     }
 
-    if (prefsFile->readIdLong("Difficulty", GameDifficulty) != 0)
+    if (prefsFile->ReadIdLong("Difficulty", GameDifficulty) != 0)
     {
         GameDifficulty = 1;
     }
 
     // Faithful: Brightness goes to the same field as Gamma, so it wins.
-    if (prefsFile->readIdLong("Brightness", application->gammaLevel) != 0)
+    if (prefsFile->ReadIdLong("Brightness", Application->GammaLevel) != 0)
     {
-        application->gammaLevel = 0;
+        Application->GammaLevel = 0;
     }
 
-    if (prefsFile->readIdLong("MusicVolume", MusicVolume) != 0)
+    if (prefsFile->ReadIdLong("MusicVolume", MusicVolume) != 0)
     {
         MusicVolume = 0x40;
     }
 
-    if (prefsFile->readIdLong("RadioVolume", RadioVolume) != 0)
+    if (prefsFile->ReadIdLong("RadioVolume", RadioVolume) != 0)
     {
         RadioVolume = 0x40;
     }
 
-    if (prefsFile->readIdLong("SFXVolume", SFXVolume) != 0)
+    if (prefsFile->ReadIdLong("SFXVolume", SfxVolume) != 0)
     {
-        SFXVolume = 0x60;
+        SfxVolume = 0x60;
     }
 
-    prefsFile->close();
+    prefsFile->Close();
     delete prefsFile;
 
-    checkForCDInDrive(1, false);
+    CheckForCDInDrive(1, false);
 }
 
-void ABLDebuggerPrintCallback(char* s)
+void AblDebuggerPrintCallback(char* s)
 {
 }
 
 namespace
 {
     /// <summary>Set until the first event: that one points the debugger at the scenario brain.</summary>
-    /// <remarks>MCX.EXE @ 0x007a5514 (starts at 1)</remarks>
-    int32_t ablDebuggerFirstEvent = 1;
+    int32_t AblDebuggerFirstEvent = 1;
 
     /// <summary>The warrior whose index is the debugger module's id (how the "f" and "po" commands pick one).</summary>
-    MechWarrior* debugModuleWarrior(Debugger* debugger)
+    MCMechWarrior* DebugModuleWarrior(MCDebugger* debugger)
     {
-        uint32_t index = static_cast<uint32_t>(debugger->debugModule->id);
+        uint32_t index = static_cast<uint32_t>(debugger->DebugModule->Id);
 
-        if ((static_cast<int32_t>(index) < 1) || (scenario->numWarriors < index))
+        if ((static_cast<int32_t>(index) < 1) || (Scenario->NumWarriors < index))
         {
             return nullptr;
         }
 
-        return scenario->warriors[index];
+        return Scenario->Warriors[index];
     }
 } // namespace
 
-void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
+void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (ABLi_getDebugger() == nullptr)
+    if (AblGetDebugger() == nullptr)
     {
         return;
     }
 
-    if (ablDebuggerFirstEvent != 0)
+    if (AblDebuggerFirstEvent != 0)
     {
-        ABLi_getDebugger()->processCommand(0, nullptr, 0, scenario->scenarioBrain);
-        ablDebuggerFirstEvent = 0;
+        AblGetDebugger()->ProcessCommand(0, nullptr, 0, Scenario->ScenarioBrain);
+        AblDebuggerFirstEvent = 0;
     }
 
     // Only Enter (a key event, 10) runs the typed line.
-    if ((event->type != 10) || (event->key != '\r'))
+    if ((event->Type != 10) || (event->Key != '\r'))
     {
         return;
     }
 
-    aTextObject* input = static_cast<aTextObject*>(object);
-    char* text = input->text;
+    MCGuiTextObject* input = static_cast<MCGuiTextObject*>(object);
+    char* text = input->Text;
     int32_t commandId = 0;
     char* strParam = nullptr;
     int32_t numParam = 0;
@@ -481,15 +480,15 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
         {
             if (text[1] == '\0')
             {
-                ABLi_getDebugger()->processCommand(9, nullptr, 0, nullptr);
-                input->setText(nullptr);
+                AblGetDebugger()->ProcessCommand(9, nullptr, 0, nullptr);
+                input->SetText(nullptr);
                 return;
             }
 
             if (text[1] == '?')
             {
-                ABLi_getDebugger()->processCommand(10, nullptr, 0, nullptr);
-                input->setText(nullptr);
+                AblGetDebugger()->ProcessCommand(10, nullptr, 0, nullptr);
+                input->SetText(nullptr);
                 return;
             }
 
@@ -501,15 +500,15 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
             // "b+ n" / "b- n": add or remove a break point at line n.
             if (text[1] == '+')
             {
-                ABLi_getDebugger()->processCommand(3, nullptr, std::atoi(text + 3), nullptr);
-                input->setText(nullptr);
+                AblGetDebugger()->ProcessCommand(3, nullptr, std::atoi(text + 3), nullptr);
+                input->SetText(nullptr);
                 return;
             }
 
             if (text[1] == '-')
             {
-                ABLi_getDebugger()->processCommand(4, nullptr, std::atoi(text + 3), nullptr);
-                input->setText(nullptr);
+                AblGetDebugger()->ProcessCommand(4, nullptr, std::atoi(text + 3), nullptr);
+                input->SetText(nullptr);
                 return;
             }
 
@@ -518,39 +517,39 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
 
         case 'c':
         {
-            ABLi_getDebugger()->processCommand(8, nullptr, 0, nullptr);
-            input->setText(nullptr);
+            AblGetDebugger()->ProcessCommand(8, nullptr, 0, nullptr);
+            input->SetText(nullptr);
             return;
         }
 
         case 'f':
         {
             // "fn": the warrior's debug flags.
-            MechWarrior* warrior = debugModuleWarrior(ABLi_getDebugger());
+            MCMechWarrior* warrior = DebugModuleWarrior(AblGetDebugger());
 
             // Port fix: the original writes through a null warrior when the module's id isn't a warrior index
             // (OB-110).
             if (warrior != nullptr)
             {
-                warrior->debugFlags = static_cast<uint32_t>(std::atoi(text + 1));
+                warrior->DebugFlags = static_cast<uint32_t>(std::atoi(text + 1));
             }
 
-            input->setText(nullptr);
+            input->SetText(nullptr);
             return;
         }
 
         case 'm':
         {
             // "m n": debug module n; "m" alone: the module being executed.
-            ABLModule* module = nullptr;
+            MCAblModule* module = nullptr;
 
             if (text[1] != '\0')
             {
-                module = ABLi_getModule(std::atoi(text + 2));
+                module = AblGetModule(std::atoi(text + 2));
             }
 
-            ABLi_getDebugger()->processCommand(0, nullptr, 0, module);
-            input->setText(nullptr);
+            AblGetDebugger()->ProcessCommand(0, nullptr, 0, module);
+            input->SetText(nullptr);
             return;
         }
 
@@ -563,10 +562,10 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
                 {
                     if (MPlayer != nullptr)
                     {
-                        MultiPlayer* player = MPlayer;
+                        MCMultiPlayer* player = MPlayer;
                         delete player;
                         MPlayer = nullptr;
-                        input->setText(nullptr);
+                        input->SetText(nullptr);
                         return;
                     }
 
@@ -575,13 +574,13 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
 
                 case 'g':
                 {
-                    SessionManager* sessionManager = SessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
 
-                    if ((sessionManager != nullptr) && (sessionManager->currentConnection != 0) &&
-                        (sessionManager->isHost != 0))
+                    if ((sessionManager != nullptr) && (sessionManager->CurrentConnection != 0) &&
+                        (sessionManager->IsHost != 0))
                     {
                         sessionManager->StartGame();
-                        input->setText(nullptr);
+                        input->SetText(nullptr);
                         return;
                     }
 
@@ -590,19 +589,19 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
 
                 case 'h':
                 {
-                    SessionManager* sessionManager = SessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
 
-                    if ((sessionManager != nullptr) && (sessionManager->currentConnection != 0))
+                    if ((sessionManager != nullptr) && (sessionManager->CurrentConnection != 0))
                     {
-                        FIDPSession session;
+                        MCFidpSession session;
                         char sessionName[] = "Trooper";
                         char playerName[] = "Host";
                         char message[] = "Successfully hosted session.";
                         session.SetName(sessionName);
-                        session.sessionDesc.dwMaxPlayers = 6;
+                        session.SessionDesc.dwMaxPlayers = 6;
                         sessionManager->HostSession(session, playerName);
-                        ABLi_getDebugger()->print(message);
-                        input->setText(nullptr);
+                        AblGetDebugger()->Print(message);
+                        input->SetText(nullptr);
                         return;
                     }
 
@@ -616,33 +615,33 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
 
                     if (MPlayer == nullptr)
                     {
-                        MPlayer = new MultiPlayer;
-                        MPlayer->init(0x7d000, 0x100, 100);
+                        MPlayer = new MCMultiPlayer;
+                        MPlayer->Init(0x7d000, 0x100, 100);
                     }
 
-                    if (MPlayer->connectIPX() != 0)
+                    if (MPlayer->ConnectIpx() != 0)
                     {
-                        ABLi_getDebugger()->print(failed);
+                        AblGetDebugger()->Print(failed);
                     }
                     else
                     {
-                        ABLi_getDebugger()->print(established);
+                        AblGetDebugger()->Print(established);
                     }
 
-                    input->setText(nullptr);
+                    input->SetText(nullptr);
                     return;
                 }
 
                 case 'j':
                 {
-                    SessionManager* sessionManager = SessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
 
-                    if ((sessionManager == nullptr) || (sessionManager->currentConnection == 0))
+                    if ((sessionManager == nullptr) || (sessionManager->CurrentConnection == 0))
                     {
                         break;
                     }
 
-                    FLinkedList<FIDPSession>* sessions = sessionManager->GetSessions();
+                    MCFLinkedList<MCFidpSession>* sessions = sessionManager->GetSessions();
 
                     if (sessions->Size() == 0)
                     {
@@ -650,27 +649,27 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
                     }
 
                     // Joins the first session listed.
-                    sessions->current = sessions->head;
-                    FIDPSession* session = sessions->head != nullptr ? sessions->head->data : nullptr;
+                    sessions->Current = sessions->HeadLink;
+                    MCFidpSession* session = sessions->HeadLink != nullptr ? sessions->HeadLink->Data : nullptr;
                     char playerName[] = "Client";
                     char message[] = "Successfully joined.";
-                    sessionManager->JoinSession(&session->sessionDesc.guidInstance, playerName);
-                    ABLi_getDebugger()->print(message);
-                    input->setText(nullptr);
+                    sessionManager->JoinSession(&session->SessionDesc.guidInstance, playerName);
+                    AblGetDebugger()->Print(message);
+                    input->SetText(nullptr);
                     return;
                 }
 
                 case 'o':
                 {
-                    SessionManager* sessionManager = SessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
 
                     if (sessionManager != nullptr)
                     {
                         char address[] = "";
                         char message[] = "Successfully connected.";
-                        sessionManager->ConnectTCP(address);
-                        ABLi_getDebugger()->print(message);
-                        input->setText(nullptr);
+                        sessionManager->ConnectTcp(address);
+                        AblGetDebugger()->Print(message);
+                        input->SetText(nullptr);
                         return;
                     }
 
@@ -679,9 +678,9 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
 
                 case 'p':
                 {
-                    SessionManager* sessionManager = SessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
 
-                    if ((sessionManager != nullptr) && (sessionManager->currentConnection != 0))
+                    if ((sessionManager != nullptr) && (sessionManager->CurrentConnection != 0))
                     {
                         sessionManager->ProcessSystemMessages();
                     }
@@ -691,13 +690,13 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
 
                 case 's':
                 {
-                    if (SessionManager::GetGlobalPointer(nullptr) == nullptr)
+                    if (MCSessionManager::GetGlobalPointer(nullptr) == nullptr)
                     {
                         char message[] = "Created SessionManager.";
                         InitLinkUpBlocks();
-                        new SessionManager(MultiPlayerAppGUID);
-                        ABLi_getDebugger()->print(message);
-                        input->setText(nullptr);
+                        new MCSessionManager(MultiPlayerAppGuid);
+                        AblGetDebugger()->Print(message);
+                        input->SetText(nullptr);
                         return;
                     }
 
@@ -710,13 +709,13 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
                     if (MPlayer == nullptr)
                     {
                         char message[] = "Not Connected";
-                        ABLi_getDebugger()->print(message);
-                        input->setText(nullptr);
+                        AblGetDebugger()->Print(message);
+                        input->SetText(nullptr);
                         return;
                     }
 
-                    MPlayer->sendChat(0, text + 3);
-                    input->setText(nullptr);
+                    MPlayer->SendChat(0, text + 3);
+                    input->SetText(nullptr);
                     return;
                 }
 
@@ -734,17 +733,17 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
             // "po": the warrior's orders; "p expr": print a value.
             if (text[1] != 'o')
             {
-                ABLi_getDebugger()->processCommand(7, text + 2, 0, nullptr);
-                input->setText(nullptr);
+                AblGetDebugger()->ProcessCommand(7, text + 2, 0, nullptr);
+                input->SetText(nullptr);
                 return;
             }
 
-            MechWarrior* warrior = debugModuleWarrior(ABLi_getDebugger());
+            MCMechWarrior* warrior = DebugModuleWarrior(AblGetDebugger());
 
             if (warrior != nullptr)
             {
-                warrior->debugOrders();
-                input->setText(nullptr);
+                warrior->DebugOrders();
+                input->SetText(nullptr);
                 return;
             }
 
@@ -756,15 +755,15 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
             // "s+" / "s-": step on or off.
             if (text[1] == '+')
             {
-                ABLi_getDebugger()->processCommand(2, nullptr, 1, nullptr);
-                input->setText(nullptr);
+                AblGetDebugger()->ProcessCommand(2, nullptr, 1, nullptr);
+                input->SetText(nullptr);
                 return;
             }
 
             if (text[1] == '-')
             {
-                ABLi_getDebugger()->processCommand(2, nullptr, 0, nullptr);
-                input->setText(nullptr);
+                AblGetDebugger()->ProcessCommand(2, nullptr, 0, nullptr);
+                input->SetText(nullptr);
                 return;
             }
 
@@ -787,8 +786,8 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
                 break;
             }
 
-            ABLi_getDebugger()->processCommand(1, nullptr, numParam, nullptr);
-            input->setText(nullptr);
+            AblGetDebugger()->ProcessCommand(1, nullptr, numParam, nullptr);
+            input->SetText(nullptr);
             return;
         }
 
@@ -853,7 +852,7 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
                     }
                     else
                     {
-                        input->setText(nullptr);
+                        input->SetText(nullptr);
                         return;
                     }
 
@@ -882,7 +881,7 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
                     }
                     else
                     {
-                        input->setText(nullptr);
+                        input->SetText(nullptr);
                         return;
                     }
 
@@ -891,20 +890,20 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
 
                 default:
                 {
-                    input->setText(nullptr);
+                    input->SetText(nullptr);
                     return;
                 }
             }
 
-            ABLi_getDebugger()->processCommand(commandId, strParam, numParam, nullptr);
-            input->setText(nullptr);
+            AblGetDebugger()->ProcessCommand(commandId, strParam, numParam, nullptr);
+            input->SetText(nullptr);
             return;
         }
 
         case 'z':
         {
-            ABLi_getDebugger()->debugMode();
-            input->setText(nullptr);
+            AblGetDebugger()->DebugMode();
+            input->SetText(nullptr);
             return;
         }
 
@@ -914,101 +913,101 @@ void ABLDebuggerEventRoutine(aObject* object, aEvent* event)
         }
     }
 
-    input->setText(nullptr);
+    input->SetText(nullptr);
 }
 
-int32_t userInit()
+int32_t UserInit()
 {
     // Port: the original switched off the screen saver, low-power and power-off timeouts (SystemParametersInfo),
     // noting in ScreenSaverActive/LowPowerActive/PowerOffActive which were on so userDestroy could restore them. SDL
     // keeps the screen saver off while its window is up.
-    globalPane = screenPort->frame();
-    globalWindow = screenPort->frame()->window;
+    GlobalPane = ScreenPort->Frame();
+    GlobalWindow = ScreenPort->Frame()->Window;
 
     if (DebugGameSystem != 0)
     {
-        GameSystemWindow = new ScrollingTextWindow;
-        GameSystemWindow->init(10, 20, 250, 300, const_cast<char*>("Game System"));
-        screenWindow->addChild(GameSystemWindow);
+        GameSystemWindow = new MCScrollingTextWindow;
+        GameSystemWindow->Init(10, 20, 250, 300, const_cast<char*>("Game System"));
+        ScreenWindow->AddChild(GameSystemWindow);
     }
 
     if (AblDebuggerEnabled != 0)
     {
         // iface.fit's [ABL Window] places the debugger window.
-        FitIniFile ifaceFile;
-        FullPathFileName ifaceName;
-        ifaceName.init(interfacePath, "iface", ".fit");
+        MCFitIniFile ifaceFile;
+        MCFullPathFileName ifaceName;
+        ifaceName.Init(InterfacePath, "iface", ".fit");
 
-        if (ifaceFile.open(ifaceName) == 0)
+        if (ifaceFile.Open(ifaceName) == 0)
         {
-            if (ifaceFile.seekBlock("ABL Window") == 0)
+            if (ifaceFile.SeekBlock("ABL Window") == 0)
             {
                 uint32_t value = 0;
 
-                if (ifaceFile.readIdULong("X", value) == 0)
+                if (ifaceFile.ReadIdULong("X", value) == 0)
                 {
                     AblDebuggerX = value;
                 }
 
-                if (ifaceFile.readIdULong("Y", value) == 0)
+                if (ifaceFile.ReadIdULong("Y", value) == 0)
                 {
                     AblDebuggerY = value;
                 }
 
-                if (ifaceFile.readIdULong("Width", value) == 0)
+                if (ifaceFile.ReadIdULong("Width", value) == 0)
                 {
                     AblDebuggerWidth = value;
                 }
 
-                if (ifaceFile.readIdULong("Height", value) == 0)
+                if (ifaceFile.ReadIdULong("Height", value) == 0)
                 {
                     AblDebuggerHeight = value;
                 }
             }
 
-            ifaceFile.close();
+            ifaceFile.Close();
         }
 
-        ABLDebuggerWindow = new DebuggerWindow;
-        ABLDebuggerWindow->init(static_cast<int32_t>(AblDebuggerX), static_cast<int32_t>(AblDebuggerY),
+        AblDebuggerWindow = new MCDebuggerWindow;
+        AblDebuggerWindow->Init(static_cast<int32_t>(AblDebuggerX), static_cast<int32_t>(AblDebuggerY),
                                 static_cast<int32_t>(AblDebuggerWidth), static_cast<int32_t>(AblDebuggerHeight),
                                 const_cast<char*>("ABL Developer Studio (tm)"));
-        screenWindow->addChild(ABLDebuggerWindow);
-        ABLDebuggerIn->setEventRoutine(ABLDebuggerEventRoutine);
+        ScreenWindow->AddChild(AblDebuggerWindow);
+        AblDebuggerIn->SetEventRoutine(AblDebuggerEventRoutine);
     }
 
-    if (soundSystem == nullptr)
+    if (SoundSystem == nullptr)
     {
-        soundSystem = new (std::nothrow) SoundSystem;
+        SoundSystem = new (std::nothrow) MCSoundSystem;
 
-        if (soundSystem == nullptr)
+        if (SoundSystem == nullptr)
         {
             return -1;
         }
 
-        soundSystem->init(const_cast<char*>("sound"));
+        SoundSystem->Init(const_cast<char*>("sound"));
     }
 
-    colorCallback = new aCallback;
-    colorCallback->setExec(cycleColors);
-    application->addCallback(colorCallback);
+    ColorCallback = new MCGuiCallback;
+    ColorCallback->SetExec(CycleColors);
+    Application->AddCallback(ColorCallback);
 
     // Multiplayer is made to ask the session manager whether a lobby launched the game, and dropped when not. The
     // port has no lobby (MCDirectPlay), so it is always dropped here.
-    MPlayer = new MultiPlayer;
+    MPlayer = new MCMultiPlayer;
     Assert(MPlayer != nullptr, 0, " Unable to create MultiPlayer object ");
-    MPlayer->init(0x7d000, 0x100, 100);
-    launchedFromLobby = MPlayer->sessionManager->WasLaunchedFromLobby() != 0 ? 1 : 0;
+    MPlayer->Init(0x7d000, 0x100, 100);
+    LaunchedFromLobby = MPlayer->SessionManager->WasLaunchedFromLobby() != 0 ? 1 : 0;
 
-    if (launchedFromLobby == 0)
+    if (LaunchedFromLobby == 0)
     {
         delete MPlayer;
         MPlayer = nullptr;
     }
 
-    mission = new Mission;
+    Mission = new MCMission;
     // A game segment (-mission N on the command line) starts SYSTEM.CFG's missionName; otherwise the campaign.
-    const int32_t result = mission->init(globalGameSegment == 0 ? campaignFile : missionName);
+    const int32_t result = Mission->Init(GlobalGameSegment == 0 ? CampaignFile : MissionName);
 
     if (result != 0)
     {
@@ -1018,31 +1017,31 @@ int32_t userInit()
     return 0;
 }
 
-void userDestroy()
+void UserDestroy()
 {
-    if (ABLDebuggerWindow != nullptr)
+    if (AblDebuggerWindow != nullptr)
     {
-        ABLDebuggerWindow->destroy();
-        delete ABLDebuggerWindow;
-        ABLDebuggerWindow = nullptr;
+        AblDebuggerWindow->Destroy();
+        delete AblDebuggerWindow;
+        AblDebuggerWindow = nullptr;
     }
 
     // Port: the original put back the screen saver and power-down timeouts userInit had switched off.
-    if (mission != nullptr)
+    if (Mission != nullptr)
     {
         // Faithful: destroy runs twice (once more before the delete).
-        mission->destroy();
-        mission->destroy();
-        delete mission;
-        mission = nullptr;
+        Mission->Destroy();
+        Mission->Destroy();
+        delete Mission;
+        Mission = nullptr;
     }
 
-    if (colorCallback != nullptr)
+    if (ColorCallback != nullptr)
     {
-        application->removeCallback(colorCallback);
-        colorCallback->destroy();
-        delete colorCallback;
-        colorCallback = nullptr;
+        Application->RemoveCallback(ColorCallback);
+        ColorCallback->Destroy();
+        delete ColorCallback;
+        ColorCallback = nullptr;
     }
 
     if (MPlayer != nullptr)
@@ -1052,6 +1051,6 @@ void userDestroy()
     }
 
     FastFileFini();
-    delete soundSystem;
-    soundSystem = nullptr;
+    delete SoundSystem;
+    SoundSystem = nullptr;
 }

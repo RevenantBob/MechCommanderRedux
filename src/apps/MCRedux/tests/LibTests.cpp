@@ -63,20 +63,20 @@ TEST_CASE("game: every FastFile entry unpacks to its recorded size")
     for (const char* name : {"ART.FST", "MISSION.FST", "MISC.FST", "SHAPES.FST", "TERRAIN.FST"})
     {
         MCTest::Scope scope(name);
-        FastFile fst;
-        REQUIRE_EQ(fst.open(name), 0);
-        CHECK(fst.getNumFiles() > 0);
+        MCFastFile fst;
+        REQUIRE_EQ(fst.Open(name), 0);
+        CHECK(fst.GetNumFiles() > 0);
         std::vector<uint8_t> buffer;
 
-        for (int32_t i = 0; i < fst.getNumFiles(); ++i)
+        for (int32_t i = 0; i < fst.GetNumFiles(); ++i)
         {
-            const FILEENTRY* entry = fst.getEntry(i);
-            MCTest::Scope entryScope(entry->name);
-            const int32_t handle = fst.openFast(entry->name);
+            const MCFileEntry* entry = fst.GetEntry(i);
+            MCTest::Scope entryScope(entry->Name);
+            const int32_t handle = fst.OpenFast(entry->Name);
             REQUIRE(handle >= 0);
-            buffer.assign(static_cast<size_t>(entry->realSize) + 1, 0);
-            CHECK_EQ(fst.readFast(handle, buffer.data(), entry->realSize), entry->realSize);
-            fst.closeFast(handle);
+            buffer.assign(static_cast<size_t>(entry->RealSize) + 1, 0);
+            CHECK_EQ(fst.ReadFast(handle, buffer.data(), entry->RealSize), entry->RealSize);
+            fst.CloseFast(handle);
             ++checked;
         }
     }
@@ -92,18 +92,18 @@ TEST_CASE("game: File falls back to the FastFiles")
     }
 
     MCTestGame::OpenFastFiles();
-    File file;
-    REQUIRE_EQ(file.open("data\\art\\access00.tga"), 0);
-    CHECK(file.getLength() > 18);
+    MCFile file;
+    REQUIRE_EQ(file.Open("data\\art\\access00.tga"), 0);
+    CHECK(file.GetLength() > 18);
     // A TGA header: no image id, no colour map or a colour map, type 1/2/9/10.
-    const uint8_t idLength = file.readByte();
-    const uint8_t mapType = file.readByte();
-    const uint8_t imageType = file.readByte();
+    const uint8_t idLength = file.ReadByte();
+    const uint8_t mapType = file.ReadByte();
+    const uint8_t imageType = file.ReadByte();
     CHECK(mapType <= 1);
     CHECK(imageType == 1 || imageType == 2 || imageType == 9 || imageType == 10);
     (void)idLength;
-    file.close();
-    CHECK(!file.isOpen());
+    file.Close();
+    CHECK(!file.IsOpen());
 }
 
 TEST_CASE("game: packet files open and read")
@@ -114,21 +114,21 @@ TEST_CASE("game: packet files open and read")
     }
 
     MCTestGame::OpenFastFiles();
-    PacketFile pak;
-    REQUIRE_EQ(pak.open("data\\art\\art.pak"), 0);
-    CHECK(pak.getNumPackets() > 0);
+    MCPacketFile pak;
+    REQUIRE_EQ(pak.Open("data\\art\\art.pak"), 0);
+    CHECK(pak.GetNumPackets() > 0);
     std::vector<uint8_t> buffer;
 
-    for (int32_t i = 0; i < pak.getNumPackets(); ++i)
+    for (int32_t i = 0; i < pak.GetNumPackets(); ++i)
     {
         MCTest::Scope scope(std::format("packet {}", i));
 
-        if (pak.seekPacket(i) != 0)
+        if (pak.SeekPacket(i) != 0)
         {
             continue;
         }
 
-        buffer.assign(static_cast<size_t>(pak.getPacketSize()) + 1, 0);
-        CHECK_EQ(pak.readPacket(i, buffer.data()), pak.getPacketSize());
+        buffer.assign(static_cast<size_t>(pak.GetPacketSize()) + 1, 0);
+        CHECK_EQ(pak.ReadPacket(i, buffer.data()), pak.GetPacketSize());
     }
 }

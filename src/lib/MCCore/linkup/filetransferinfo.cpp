@@ -8,134 +8,135 @@
 
 char HomeDirectory[512];
 
-FileTransferInfo::FileTransferInfo(uint32_t fromID, uint32_t toID, char* fileName, char* directory, uint32_t fileSize,
-                                   TransferType type)
+MCFileTransferInfo::MCFileTransferInfo(uint32_t fromID, uint32_t toID, char* fileName, char* directory,
+                                       uint32_t fileSize, TransferType type)
 {
     const size_t nameLength = std::strlen(fileName);
-    this->fileName = static_cast<char*>(linkUpBlocks->Allocate(static_cast<uint32_t>(nameLength + 1)));
-    std::strcpy(this->fileName, fileName);
+    this->FileName = static_cast<char*>(LinkUpBlocks->Allocate(static_cast<uint32_t>(nameLength + 1)));
+    std::strcpy(this->FileName, fileName);
 
     if (directory == nullptr)
     {
-        this->directory = static_cast<char*>(linkUpBlocks->Allocate(2));
-        std::strcpy(this->directory, "\\");
+        this->Directory = static_cast<char*>(LinkUpBlocks->Allocate(2));
+        std::strcpy(this->Directory, "\\");
     }
     else
     {
         const size_t directoryLength = std::strlen(directory);
-        this->directory = static_cast<char*>(linkUpBlocks->Allocate(static_cast<uint32_t>(directoryLength + 2)));
-        std::strcpy(this->directory, directory);
+        this->Directory = static_cast<char*>(LinkUpBlocks->Allocate(static_cast<uint32_t>(directoryLength + 2)));
+        std::strcpy(this->Directory, directory);
 
         // Port fix: the original read the byte before an empty directory.
-        if (directoryLength == 0 || this->directory[directoryLength - 1] != '\\')
+        if (directoryLength == 0 || this->Directory[directoryLength - 1] != '\\')
         {
-            std::strcat(this->directory, "\\");
+            std::strcat(this->Directory, "\\");
         }
     }
 
     char path[512];
-    std::snprintf(path, sizeof(path), "%s\\%s%s", HomeDirectory, this->directory, fileName);
+    std::snprintf(path, sizeof(path), "%s\\%s%s", HomeDirectory, this->Directory, fileName);
 
     // Port: the path is a game path (HomeDirectory is "." in the port, see MultiPlayer::init): a received file goes
     // to the user folder, a sent one is read from wherever the game would read it.
     if (type == TRANSFER_RECEIVE)
     {
-        file = std::fopen(MCFileSystem::ResolveWrite(path).string().c_str(), "wb");
-        this->fileSize = fileSize;
+        File = std::fopen(MCFileSystem::ResolveWrite(path).string().c_str(), "wb");
+        this->FileSize = fileSize;
     }
     else
     {
         const std::filesystem::path resolved = MCFileSystem::Resolve(path);
         std::error_code error;
         const uintmax_t size = std::filesystem::file_size(resolved, error);
-        this->fileSize = error ? 0xffffffffu : static_cast<uint32_t>(size);
-        file = std::fopen(resolved.string().c_str(), "rb");
+        this->FileSize = error ? 0xffffffffu : static_cast<uint32_t>(size);
+        File = std::fopen(resolved.string().c_str(), "rb");
     }
 
-    message = new FIDPMessage(fromID, 0x200);
-    message->toID = toID;
-    callback = nullptr;
-    buffer = static_cast<uint8_t*>(linkUpBlocks->Allocate(600));
+    Message = new MCFidpMessage(fromID, 0x200);
+    Message->ToID = toID;
+    Callback = nullptr;
+    Buffer = static_cast<uint8_t*>(LinkUpBlocks->Allocate(600));
 }
 
-FileTransferInfo::~FileTransferInfo()
+MCFileTransferInfo::~MCFileTransferInfo()
 {
-    linkUpBlocks->Free(buffer);
+    LinkUpBlocks->Free(Buffer);
 
-    if (message != nullptr)
+    if (Message != nullptr)
     {
-        delete message;
+        delete Message;
     }
 
     // Port fix: the original closed the file even when it could not be opened.
-    if (file != nullptr)
+    if (File != nullptr)
     {
-        std::fclose(file);
+        std::fclose(File);
     }
 
-    linkUpBlocks->Free(directory);
-    linkUpBlocks->Free(fileName);
+    LinkUpBlocks->Free(Directory);
+    LinkUpBlocks->Free(FileName);
 }
 
-int FileTransferInfo::PrepareNextMessage()
+int MCFileTransferInfo::PrepareNextMessage()
 {
-    FIFileDataMessage* piece = reinterpret_cast<FIFileDataMessage*>(message->messageBuffer);
-    piece->tagger.Clear();
-    piece->header = 0;
-    piece->header |= FIMSG_GUARANTEED;
-    piece->header = static_cast<uint16_t>((piece->header & ~FIMSG_TYPE_MASK) | 8);
+    MCFIFileDataMessage* piece = reinterpret_cast<MCFIFileDataMessage*>(Message->MessageBuffer);
+    piece->Tagger.Clear();
+    piece->Header = 0;
+    piece->Header |= FIMSG_GUARANTEED;
+    piece->Header = static_cast<uint16_t>((piece->Header & ~FIMSG_TYPE_MASK) | 8);
     // Original behaviour: the piece's transfer id is always 0 (fileID is never copied in), so two transfers at once
     // would be mixed up by the receivers.
-    piece->fileID = 0;
+    piece->FileID = 0;
 
     // Port fix: an unopened file reads as empty (the original read through a null FILE).
-    const size_t bytesRead = file != nullptr ? std::fread(piece->data, 1, 100, file) : 0;
-    message->messageSize = static_cast<uint32_t>(bytesRead + 9);
-    return message->messageBuffer[bytesRead + 8] == 0;
+    const size_t bytesRead = File != nullptr ? std::fread(piece->Data, 1, 100, File) : 0;
+    Message->MessageSize = static_cast<uint32_t>(bytesRead + 9);
+    return Message->MessageBuffer[bytesRead + 8] == 0;
 }
 
-int FileTransferInfo::AddBytes(void* data, int size)
+int MCFileTransferInfo::AddBytes(void* data, int size)
 {
-    if (file != nullptr)
+    if (File != nullptr)
     {
-        std::fwrite(data, 1, size, file);
+        std::fwrite(data, 1, size, File);
     }
 
     return static_cast<const uint8_t*>(data)[size - 1] == 0;
 }
 
-FIBeginFileTransferMessage* FileTransferInfo::CreateBeginTransferMessage(int& size)
+MCFIBeginFileTransferMessage* MCFileTransferInfo::CreateBeginTransferMessage(int& size)
 {
-    const uint32_t messageSize = static_cast<uint32_t>(std::strlen(fileName) + 0xb + std::strlen(directory));
-    FIBeginFileTransferMessage* begin = static_cast<FIBeginFileTransferMessage*>(linkUpBlocks->Allocate(messageSize));
-    begin->header = 0;
-    begin->header = static_cast<uint16_t>((begin->header & ~FIMSG_TYPE_MASK) | 7);
-    begin->fileSize = 0;
-    begin->fileID = 0;
+    const uint32_t messageSize = static_cast<uint32_t>(std::strlen(FileName) + 0xb + std::strlen(Directory));
+    MCFIBeginFileTransferMessage* begin =
+        static_cast<MCFIBeginFileTransferMessage*>(LinkUpBlocks->Allocate(messageSize));
+    begin->Header = 0;
+    begin->Header = static_cast<uint16_t>((begin->Header & ~FIMSG_TYPE_MASK) | 7);
+    begin->FileSize = 0;
+    begin->FileID = 0;
 
-    if (directory[0] == '\\')
+    if (Directory[0] == '\\')
     {
-        std::sprintf(begin->fileName, "%s%s", fileName, directory);
+        std::sprintf(begin->FileName, "%s%s", FileName, Directory);
     }
     else
     {
-        std::sprintf(begin->fileName, "%s\\%s", fileName, directory);
+        std::sprintf(begin->FileName, "%s\\%s", FileName, Directory);
     }
 
-    begin->fileID = static_cast<uint8_t>(fileID);
-    begin->fileSize = fileSize;
+    begin->FileID = static_cast<uint8_t>(FileID);
+    begin->FileSize = FileSize;
     size = static_cast<int>(messageSize);
     return begin;
 }
 
-void FileTransferInfo::ClearList(FLinkedList<FileTransferInfo>& list)
+void MCFileTransferInfo::ClearList(MCFLinkedList<MCFileTransferInfo>& list)
 {
-    const int numTransfers = list.count;
-    list.current = list.head;
+    const int numTransfers = list.Count;
+    list.Current = list.HeadLink;
 
     for (int i = 0; i < numTransfers; i++)
     {
-        FileTransferInfo* transfer = list.current->data;
+        MCFileTransferInfo* transfer = list.Current->Data;
         list.Del(transfer);
         delete transfer;
     }

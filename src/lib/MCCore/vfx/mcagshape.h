@@ -13,7 +13,7 @@
 /// (hotX, hotY) (the AG routines don't offset by the pane's origin), clipped to the pane, applying
 /// <paramref name="op"/> to each pixel with the table <paramref name="xlat"/> where the op uses one.
 /// </summary>
-void MCAgDrawShape(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, MCShapeOp op,
+void MCAgDrawShape(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, MCShapeOp op,
                    const uint8_t* xlat);
 
 /// <summary>Whether the game's shape routines treat a shape as translucent: its data starts with the token pair 03 00.</summary>

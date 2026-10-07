@@ -7,57 +7,57 @@
 #include "logistics/loggen.h"
 #include "logistics/mrblock.h"
 
-auto SMUTI::init(char* fileName, aPort* port, int32_t width) -> int32_t
+auto MCSmuti::Init(char* fileName, MCGuiPort* port, int32_t width) -> int32_t
 {
-    auto* file = new File;
-    const int32_t result = file->open(fileName, READ, 0x32);
+    auto* file = new MCFile;
+    const int32_t result = file->Open(fileName, READ, 0x32);
     Assert(result == 0, result, "Could not open SMUTI file", nullptr);
-    auto* text = new uint8_t[file->getLength() + 1];
-    file->read(text, static_cast<int32_t>(file->getLength()));
+    auto* text = new uint8_t[file->GetLength() + 1];
+    file->Read(text, static_cast<int32_t>(file->GetLength()));
     // The last two bytes (the file's closing CR LF) are dropped.
-    text[file->getLength() - 2] = 0;
-    file->close();
+    text[file->GetLength() - 2] = 0;
+    file->Close();
     delete file;
-    const int32_t height = process(text, port, width, 0);
+    const int32_t height = Process(text, port, width, 0);
     delete[] text;
     return height;
 }
 
-auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -> int32_t
+auto MCSmuti::Process(uint8_t* text, MCGuiPort* port, int32_t width, int32_t startY) -> int32_t
 {
     if (port != nullptr)
     {
-        width = port->width();
+        width = port->Width();
     }
 
-    this->width = width;
-    this->port = port;
-    curX = 0;
-    curY = startY;
-    font = greenFont;
-    fontSize = 0;
-    fontColor = 3;
-    lineLength = 0;
-    lineStartX = 0;
+    this->Width = width;
+    this->Port = port;
+    CurX = 0;
+    CurY = startY;
+    Font = GreenFont;
+    FontSize = 0;
+    FontColor = 3;
+    LineLength = 0;
+    LineStartX = 0;
 
     // Writes the pending line buffer at its start.
     auto flushLine = [this]()
     {
-        if (this->port != nullptr && lineBuffer[0] != 0)
+        if (this->Port != nullptr && LineBuffer[0] != 0)
         {
-            font->writeString(this->port->frame(), lineStartX, curY, reinterpret_cast<uint8_t*>(lineBuffer), -1);
+            Font->WriteString(this->Port->Frame(), LineStartX, CurY, reinterpret_cast<uint8_t*>(LineBuffer), -1);
         }
     };
 
     // Writes a character straight into the port at curX and moves past it.
     auto drawChar = [this](uint8_t c)
     {
-        if (this->port != nullptr)
+        if (this->Port != nullptr)
         {
-            font->writeChar(this->port->frame(), curX, curY, static_cast<char>(c));
+            Font->WriteChar(this->Port->Frame(), CurX, CurY, static_cast<char>(c));
         }
 
-        curX += font->width(c);
+        CurX += Font->Width(c);
     };
 
     uint8_t* p = text - 1;
@@ -71,16 +71,16 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
             break;
         }
 
-        centered = 0;
+        Centered = 0;
 
         if (c != '%')
         {
             if (c > 0x1f)
             {
-                checkWrap(c);
-                lineBuffer[lineLength++] = static_cast<char>(c);
-                lineBuffer[lineLength] = 0;
-                curX += font->width(c);
+                CheckWrap(c);
+                LineBuffer[LineLength++] = static_cast<char>(c);
+                LineBuffer[LineLength] = 0;
+                CurX += Font->Width(c);
             }
 
             continue;
@@ -104,36 +104,36 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
             {
                 case '%':
                 {
-                    checkWrap(c);
-                    lineBuffer[lineLength++] = static_cast<char>(c);
+                    CheckWrap(c);
+                    LineBuffer[LineLength++] = static_cast<char>(c);
                     // Port fix: terminate the buffer (the original left stale text behind the '%').
-                    lineBuffer[lineLength] = 0;
-                    curX += font->width(c);
+                    LineBuffer[LineLength] = 0;
+                    CurX += Font->Width(c);
                     break;
                 }
 
                 case 'c':
                 {
                     // A centred line, measured and written straight into the port (at most 80 characters).
-                    centered = 1;
+                    Centered = 1;
                     char centerText[84];
                     int32_t count = 0;
                     int32_t lineWidth = 0;
 
-                    if (curX > 0)
+                    if (CurX > 0)
                     {
-                        curX = 0;
-                        curY += font->height();
+                        CurX = 0;
+                        CurY += Font->Height();
                     }
 
                     c = *++p;
 
                     while (c != '%' && c != 0 && count != 0x50)
                     {
-                        lineWidth += font->width(c);
+                        lineWidth += Font->Width(c);
                         centerText[count++] = static_cast<char>(c);
 
-                        if (this->width <= lineWidth)
+                        if (this->Width <= lineWidth)
                         {
                             break;
                         }
@@ -141,20 +141,20 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
                         c = *++p;
                     }
 
-                    if (this->width < lineWidth)
+                    if (this->Width < lineWidth)
                     {
                         // Too wide: write it from the left edge (including the character that overflowed) and carry that
                         // character onto the next line. The original also stores centerText[count - 1] back into *p,
                         // which is the character already there.
                         centerText[count] = 0;
 
-                        if (this->port != nullptr)
+                        if (this->Port != nullptr)
                         {
-                            font->writeString(this->port->frame(), 0, curY, reinterpret_cast<uint8_t*>(centerText), -1);
+                            Font->WriteString(this->Port->Frame(), 0, CurY, reinterpret_cast<uint8_t*>(centerText), -1);
                         }
 
-                        curX = 0;
-                        curY += font->height();
+                        CurX = 0;
+                        CurY += Font->Height();
                         c = *p;
 
                         if (c == '%')
@@ -165,25 +165,25 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
 
                         // Original behaviour (OB-070): the overflowing character is drawn at x 0 and then again after
                         // itself.
-                        if (this->port != nullptr)
+                        if (this->Port != nullptr)
                         {
-                            font->writeChar(this->port->frame(), 0, curY, static_cast<char>(c));
+                            Font->WriteChar(this->Port->Frame(), 0, CurY, static_cast<char>(c));
                         }
 
-                        curX = font->width(c);
+                        CurX = Font->Width(c);
                     }
                     else
                     {
                         centerText[count] = 0;
-                        const int32_t x = (this->width - lineWidth) / 2;
-                        curX = x;
+                        const int32_t x = (this->Width - lineWidth) / 2;
+                        CurX = x;
 
-                        if (this->port != nullptr)
+                        if (this->Port != nullptr)
                         {
-                            font->writeString(this->port->frame(), x, curY, reinterpret_cast<uint8_t*>(centerText), -1);
+                            Font->WriteString(this->Port->Frame(), x, CurY, reinterpret_cast<uint8_t*>(centerText), -1);
                         }
 
-                        curX = font->width(reinterpret_cast<uint8_t*>(centerText)) + x;
+                        CurX = Font->Width(reinterpret_cast<uint8_t*>(centerText)) + x;
                     }
 
                     if (*p == '%')
@@ -229,37 +229,37 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
                                 break;
                             }
 
-                            if (this->port != nullptr && lineBuffer[0] != 0)
+                            if (this->Port != nullptr && LineBuffer[0] != 0)
                             {
-                                lineBuffer[lineLength] = 0;
-                                font->writeString(this->port->frame(), lineStartX, curY,
-                                                  reinterpret_cast<uint8_t*>(lineBuffer), -1);
-                                lineStartX += curX;
-                                curX = 0;
-                                lineLength = 0;
+                                LineBuffer[LineLength] = 0;
+                                Font->WriteString(this->Port->Frame(), LineStartX, CurY,
+                                                  reinterpret_cast<uint8_t*>(LineBuffer), -1);
+                                LineStartX += CurX;
+                                CurX = 0;
+                                LineLength = 0;
                             }
 
-                            fontColor = color - '0';
-                            font = fonts[fontColor][fontSize];
+                            FontColor = color - '0';
+                            Font = Fonts[FontColor][FontSize];
                             break;
                         }
 
                         case 'l':
                         {
-                            fontSize = 2;
-                            font = fonts[fontColor][2];
+                            FontSize = 2;
+                            Font = Fonts[FontColor][2];
                             break;
                         }
                         case 'm':
                         {
-                            fontSize = 1;
-                            font = fonts[fontColor][1];
+                            FontSize = 1;
+                            Font = Fonts[FontColor][1];
                             break;
                         }
                         case 's':
                         {
-                            fontSize = 0;
-                            font = fonts[fontColor][0];
+                            FontSize = 0;
+                            Font = Fonts[FontColor][0];
                             break;
                         }
                         default:
@@ -270,12 +270,12 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
 
                 case 'n':
                 {
-                    lineBuffer[lineLength] = 0;
+                    LineBuffer[LineLength] = 0;
                     flushLine();
-                    lineStartX = 0;
-                    curX = 0;
-                    lineLength = 0;
-                    curY += font->height() + 1;
+                    LineStartX = 0;
+                    CurX = 0;
+                    LineLength = 0;
+                    CurY += Font->Height() + 1;
                     break;
                 }
 
@@ -289,13 +289,13 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
                         tab = tab * 10 + (*++p - '0');
                     }
 
-                    const int32_t oldX = curX;
-                    curX = oldX + tab;
-                    lineStartX += tab;
+                    const int32_t oldX = CurX;
+                    CurX = oldX + tab;
+                    LineStartX += tab;
 
-                    if (this->width <= oldX + tab)
+                    if (this->Width <= oldX + tab)
                     {
-                        checkWrap(*p);
+                        CheckWrap(*p);
                     }
                     break;
                 }
@@ -303,14 +303,14 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
                 default:
                 {
                     // Any other code is text: the '%' and the character both go into the line.
-                    checkWrap('%');
-                    lineBuffer[lineLength++] = '%';
-                    curX += font->width('%');
-                    checkWrap(c);
-                    lineBuffer[lineLength++] = static_cast<char>(c);
+                    CheckWrap('%');
+                    LineBuffer[LineLength++] = '%';
+                    CurX += Font->Width('%');
+                    CheckWrap(c);
+                    LineBuffer[LineLength++] = static_cast<char>(c);
                     // Port fix: terminate the buffer, as for "%%".
-                    lineBuffer[lineLength] = 0;
-                    curX += font->width(c);
+                    LineBuffer[LineLength] = 0;
+                    CurX += Font->Width(c);
                     break;
                 }
             }
@@ -322,31 +322,31 @@ auto SMUTI::process(uint8_t* text, aPort* port, int32_t width, int32_t startY) -
         }
     }
 
-    if (this->port != nullptr && lineBuffer[0] != 0 && centered != 1)
+    if (this->Port != nullptr && LineBuffer[0] != 0 && Centered != 1)
     {
-        font->writeString(this->port->frame(), lineStartX, curY, reinterpret_cast<uint8_t*>(lineBuffer), -1);
+        Font->WriteString(this->Port->Frame(), LineStartX, CurY, reinterpret_cast<uint8_t*>(LineBuffer), -1);
     }
 
-    this->port = nullptr;
-    return font->height() + curY;
+    this->Port = nullptr;
+    return Font->Height() + CurY;
 }
 
-auto SMUTI::checkWrap(uint8_t nextChar) -> void
+auto MCSmuti::CheckWrap(uint8_t nextChar) -> void
 {
-    if (width > font->width(nextChar) + lineStartX + curX)
+    if (Width > Font->Width(nextChar) + LineStartX + CurX)
     {
         return;
     }
 
     // Breaks at the last space (never at index 0); with none, the last character moves one right and the split
     // falls just before it.
-    int32_t split = lineLength;
+    int32_t split = LineLength;
 
     for (; split > 0; split--)
     {
-        if (lineBuffer[split] == ' ')
+        if (LineBuffer[split] == ' ')
         {
-            lineBuffer[split] = 0;
+            LineBuffer[split] = 0;
             break;
         }
     }
@@ -354,32 +354,32 @@ auto SMUTI::checkWrap(uint8_t nextChar) -> void
     if (split == 0)
     {
         // Port fix: an empty buffer read and cleared the byte before lineBuffer (fontColor's top byte, always 0).
-        lineBuffer[lineLength] = lineLength > 0 ? lineBuffer[lineLength - 1] : 0;
-        split = lineLength - 1;
+        LineBuffer[LineLength] = LineLength > 0 ? LineBuffer[LineLength - 1] : 0;
+        split = LineLength - 1;
 
-        if (lineLength > 0)
+        if (LineLength > 0)
         {
-            lineBuffer[lineLength - 1] = 0;
+            LineBuffer[LineLength - 1] = 0;
         }
 
-        lineLength++;
+        LineLength++;
     }
 
-    if (port != nullptr)
+    if (Port != nullptr)
     {
-        font->writeString(port->frame(), lineStartX, curY, reinterpret_cast<uint8_t*>(lineBuffer), -1);
+        Font->WriteString(Port->Frame(), LineStartX, CurY, reinterpret_cast<uint8_t*>(LineBuffer), -1);
     }
 
     int32_t count = 0;
 
-    for (int32_t i = split + 1; i < lineLength; i++)
+    for (int32_t i = split + 1; i < LineLength; i++)
     {
-        lineBuffer[count++] = lineBuffer[i];
+        LineBuffer[count++] = LineBuffer[i];
     }
 
-    lineBuffer[count] = 0;
-    lineStartX = 0;
-    curX = font->width(reinterpret_cast<uint8_t*>(lineBuffer));
-    lineLength = count;
-    curY += font->height() + 1;
+    LineBuffer[count] = 0;
+    LineStartX = 0;
+    CurX = Font->Width(reinterpret_cast<uint8_t*>(LineBuffer));
+    LineLength = count;
+    CurY += Font->Height() + 1;
 }

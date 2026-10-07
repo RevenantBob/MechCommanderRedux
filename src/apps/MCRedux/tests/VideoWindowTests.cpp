@@ -24,12 +24,12 @@ TEST_CASE_ISOLATED("game: the tactical map's video window matches the pre-render
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    TacticalMap* map = Terrain::terrainTacticalMap;
+    MCTacticalMap* map = MCTerrain::TerrainTacticalMap;
     REQUIRE(map != nullptr);
-    REQUIRE(map->videoWindow != nullptr);
-    Mover* mover = getMoverFromPartId(0x200);
+    REQUIRE(map->VideoWindow != nullptr);
+    MCMover* mover = GetMoverFromPartId(0x200);
     REQUIRE(mover != nullptr);
-    MechWarrior* pilot = mover->getPilot();
+    MCMechWarrior* pilot = mover->GetPilot();
     REQUIRE(pilot != nullptr);
 
     uint32_t presents = 0x811c9dc5;
@@ -49,9 +49,9 @@ TEST_CASE_ISOLATED("game: the tactical map's video window matches the pre-render
     };
 
     CHECK_EQ(settle("idle"), 0xe4b58559u);
-    map->videoWindow->SetStar(pilot);
+    map->VideoWindow->SetStar(pilot);
     CHECK_EQ(settle("speaking"), 0x566829a5u);
-    map->videoWindow->SetStar(nullptr);
+    map->VideoWindow->SetStar(nullptr);
     CHECK_EQ(settle("done"), 0xd9566f22u);
     MCTestGame::OnPresent = nullptr;
     CHECK_EQ(presents, 0x861a964eu);

@@ -42,40 +42,40 @@ namespace
     /// Loads the shadow shape named by FIT entry <paramref name="entry"/> (a .shp in spritePath) into the object type
     /// cache. No entry leaves <paramref name="shadow"/> alone and succeeds; a file that won't open returns its error.
     /// </summary>
-    int32_t loadShadow(FitIniFile& typeFile, const char* entry, uint8_t*& shadow)
+    int32_t LoadShadow(MCFitIniFile& typeFile, const char* entry, uint8_t*& shadow)
     {
         char shadowName[80];
 
-        if (typeFile.readIdString(entry, shadowName, 79) != 0)
+        if (typeFile.ReadIdString(entry, shadowName, 79) != 0)
         {
             return 0;
         }
 
-        FullPathFileName shadowPath;
-        shadowPath.init(spritePath, shadowName, ".shp");
-        File shadowFile;
-        const int32_t result = shadowFile.open(shadowPath, READ, 50);
+        MCFullPathFileName shadowPath;
+        shadowPath.Init(SpritePath, shadowName, ".shp");
+        MCFile shadowFile;
+        const int32_t result = shadowFile.Open(shadowPath, READ, 50);
 
         if (result != 0)
         {
             return result;
         }
 
-        const uint32_t size = shadowFile.fileSize();
-        shadow = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(size));
-        shadowFile.read(shadow, static_cast<int32_t>(size));
+        const uint32_t size = shadowFile.FileSize();
+        shadow = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(size));
+        shadowFile.Read(shadow, static_cast<int32_t>(size));
         MCRenderer::RegisterData(shadow, size, MCDataKind::Shapes);
-        shadowFile.close();
+        shadowFile.Close();
         return 0;
     }
 
     /// <summary>The map row and column of a tree's terrain vertex.</summary>
-    void vertexRowCol(const Tree* tree, uint32_t& row, uint32_t& col)
+    void VertexRowCol(const MCTree* tree, uint32_t& row, uint32_t& col)
     {
-        col = static_cast<uint32_t>((tree->blockNumber % Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                    tree->vertexNumber % Terrain::verticesBlockSide);
-        row = static_cast<uint32_t>((tree->blockNumber / Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                    tree->vertexNumber / Terrain::verticesBlockSide);
+        col = static_cast<uint32_t>((tree->BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                    tree->VertexNumber % MCTerrain::VerticesBlockSide);
+        row = static_cast<uint32_t>((tree->BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                    tree->VertexNumber / MCTerrain::VerticesBlockSide);
     }
 } // namespace
 
@@ -83,141 +83,141 @@ namespace
 // TreeType
 //---------------------------------------------------------------------------
 
-TreeType::TreeType()
+MCTreeType::MCTreeType()
 {
-    dmgLevel = 0;
-    normalShadow = nullptr;
-    destroyedShadow = nullptr;
+    DmgLevel = 0;
+    NormalShadow = nullptr;
+    DestroyedShadow = nullptr;
 }
 
-auto TreeType::createInstance() -> BaseObject*
+auto MCTreeType::CreateInstance() -> MCBaseObject*
 {
-    auto* newTree = new Tree;
+    auto* newTree = new MCTree;
 
     if (newTree == nullptr)
     {
         return nullptr;
     }
 
-    if (newTree->init(this) != 0)
+    if (newTree->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newTree->idNumber = NextIdNumber++;
+    newTree->IdNumber = NextIdNumber++;
     return newTree;
 }
 
-auto TreeType::destroy() -> void
+auto MCTreeType::Destroy() -> void
 {
-    ObjectTypeManager::objectTypeCache.Free(normalShadow);
-    normalShadow = nullptr;
-    ObjectTypeManager::objectTypeCache.Free(destroyedShadow);
-    destroyedShadow = nullptr;
+    MCObjectTypeManager::ObjectTypeCache.Free(NormalShadow);
+    NormalShadow = nullptr;
+    MCObjectTypeManager::ObjectTypeCache.Free(DestroyedShadow);
+    DestroyedShadow = nullptr;
 }
 
-auto TreeType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCTreeType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile treeFile;
-    int32_t result = treeFile.open(objFile, fileSize, 50);
+    MCFitIniFile treeFile;
+    int32_t result = treeFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = treeFile.seekBlock("TreeData")) != 0)
+    if ((result = treeFile.SeekBlock("TreeData")) != 0)
     {
         return result;
     }
 
-    if ((result = treeFile.readIdULong("DmgLevel", dmgLevel)) != 0)
+    if ((result = treeFile.ReadIdULong("DmgLevel", DmgLevel)) != 0)
     {
         return result;
     }
 
-    if (treeFile.readIdFloat("ExplosionRadius", explosionRadius) != 0)
+    if (treeFile.ReadIdFloat("ExplosionRadius", ExplosionRadius) != 0)
     {
-        explosionRadius = 0.0f;
+        ExplosionRadius = 0.0f;
     }
 
-    if (treeFile.readIdFloat("ExplosionDamage", explosionDamage) != 0)
+    if (treeFile.ReadIdFloat("ExplosionDamage", ExplosionDamage) != 0)
     {
-        explosionDamage = 0.0f;
+        ExplosionDamage = 0.0f;
     }
 
-    if ((result = loadShadow(treeFile, "NormalShadow", normalShadow)) != 0)
-    {
-        return result;
-    }
-
-    if ((result = loadShadow(treeFile, "DestroyedShadow", destroyedShadow)) != 0)
+    if ((result = LoadShadow(treeFile, "NormalShadow", NormalShadow)) != 0)
     {
         return result;
     }
 
-    return ObjectType::init(&treeFile);
+    if ((result = LoadShadow(treeFile, "DestroyedShadow", DestroyedShadow)) != 0)
+    {
+        return result;
+    }
+
+    return MCObjectType::Init(&treeFile);
 }
 
-auto TreeType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCTreeType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // A mover (not artillery or fire) knocks a standing tree over, away from itself.
-    if (MOVER <= collider->objectClass || collider->objectClass == ARTILLERY || collider->objectClass == FIRE)
+    if (MOVER <= collider->ObjectClass || collider->ObjectClass == ARTILLERY || collider->ObjectClass == FIRE)
     {
         return 1;
     }
 
-    auto* tree = static_cast<Tree*>(collidee);
+    auto* tree = static_cast<MCTree*>(collidee);
 
-    if (tree->fallen != 0 || tree->falling != 0)
+    if (tree->Fallen != 0 || tree->Falling != 0)
     {
         return 1;
     }
 
-    tree->falling = 1;
-    const vector_3d colliderPos = collider->getPosition();
-    const auto facing = static_cast<float>(tree->relFacingTo(colliderPos, -1));
-    frame_of_ref frame = tree->getFrame();
+    tree->Falling = 1;
+    const MCVector3D colliderPos = collider->GetPosition();
+    const auto facing = static_cast<float>(tree->RelFacingTo(colliderPos, -1));
+    MCFrameOfRef frame = tree->GetFrame();
     const auto s = static_cast<float>(std::sin(facing * DEGREES_TO_RADIANS));
     const auto c = static_cast<float>(std::cos(facing * DEGREES_TO_RADIANS));
-    const vector_3d oldI = frame.i;
-    frame.i = frame.i * c + frame.j * s;
-    frame.j = frame.j * c - oldI * s;
-    tree->setFrame(frame);
+    const MCVector3D oldI = frame.I;
+    frame.I = frame.I * c + frame.J * s;
+    frame.J = frame.J * c - oldI * s;
+    tree->SetFrame(frame);
 
     // Fall (state 1), or a burnt tree crumble (state 4); a fall with frames to show makes a sound.
-    auto* treeAppearance = static_cast<VFXAppearance*>(tree->appearance);
-    tree->collisionsOn = 0;
+    auto* treeAppearance = static_cast<MCVfxAppearance*>(tree->Appearance);
+    tree->CollisionsOn = 0;
     uint32_t numFrames = 0;
 
-    if (tree->burnt == 0)
+    if (tree->Burnt == 0)
     {
-        treeAppearance->setTypeId(ACTOR_STATE_BLOWING_UP1, 0xff);
+        treeAppearance->SetTypeId(ACTOR_STATE_BLOWING_UP1, 0xff);
 
-        if (1 < treeAppearance->appearType->numStates)
+        if (1 < treeAppearance->AppearType->NumStates)
         {
-            numFrames = treeAppearance->appearType->actorStateData[1].numFrames;
+            numFrames = treeAppearance->AppearType->ActorStateData[1].NumFrames;
         }
     }
     else
     {
-        treeAppearance->setTypeId(static_cast<ActorState>(4), 0xff);
+        treeAppearance->SetTypeId(static_cast<MCActorState>(4), 0xff);
 
-        if (4 < treeAppearance->appearType->numStates)
+        if (4 < treeAppearance->AppearType->NumStates)
         {
-            numFrames = treeAppearance->appearType->actorStateData[4].numFrames;
+            numFrames = treeAppearance->AppearType->ActorStateData[4].NumFrames;
         }
     }
 
-    if (useSound != 0 && soundSystem != nullptr && 1 < static_cast<int32_t>(numFrames))
+    if (UseSound != 0 && SoundSystem != nullptr && 1 < static_cast<int32_t>(numFrames))
     {
-        soundSystem->playDigitalSample(0xe, 1, tree, 0, 0);
+        SoundSystem->PlayDigitalSample(0xe, 1, tree, 0, 0);
     }
 
     return 1;
 }
 
-auto TreeType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCTreeType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -226,84 +226,84 @@ auto TreeType::handleDestruction(GameObject*, GameObject*) -> int
 // Tree
 //---------------------------------------------------------------------------
 
-Tree::Tree()
+MCTree::MCTree()
 {
-    treeFrame.i = UnitX;
-    treeFrame.j = UnitY;
-    treeFrame.k = UnitZ;
-    justCreated = 1;
-    appearance = nullptr;
-    vertexNumber = 0;
-    blockNumber = 0;
-    fireStarted = 0;
-    burnt = 0;
-    fallen = 0;
-    falling = 0;
-    fireObject = nullptr;
+    TreeFrame.I = UnitX;
+    TreeFrame.J = UnitY;
+    TreeFrame.K = UnitZ;
+    JustCreated = 1;
+    Appearance = nullptr;
+    VertexNumber = 0;
+    BlockNumber = 0;
+    FireStarted = 0;
+    Burnt = 0;
+    Fallen = 0;
+    Falling = 0;
+    FireObject = nullptr;
 }
 
-auto Tree::init() -> void
+auto MCTree::Init() -> void
 {
 }
 
-auto Tree::killFireObject() -> void
+auto MCTree::KillFireObject() -> void
 {
-    fireObject = nullptr;
+    FireObject = nullptr;
 }
 
-auto Tree::setTerrainPosition(vector_2d& pixelOffset, vector_2d& blockVertex) -> void
+auto MCTree::SetTerrainPosition(MCVector2D& pixelOffset, MCVector2D& blockVertex) -> void
 {
-    pixelOffsetX = static_cast<int32_t>(pixelOffset.x);
-    pixelOffsetY = static_cast<int32_t>(pixelOffset.y);
-    vertexNumber = static_cast<int32_t>(blockVertex.x);
-    blockNumber = static_cast<int32_t>(blockVertex.y);
+    PixelOffsetX = static_cast<int32_t>(pixelOffset.X);
+    PixelOffsetY = static_cast<int32_t>(pixelOffset.Y);
+    VertexNumber = static_cast<int32_t>(blockVertex.X);
+    BlockNumber = static_cast<int32_t>(blockVertex.Y);
 }
 
-auto Tree::setFrame(frame_of_ref& newFrame) -> void
+auto MCTree::SetFrame(MCFrameOfRef& newFrame) -> void
 {
-    treeFrame = newFrame;
+    TreeFrame = newFrame;
 }
 
-auto Tree::getBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
+auto MCTree::GetBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
 {
-    blockNum = blockNumber;
-    vertexNum = vertexNumber;
+    blockNum = BlockNumber;
+    vertexNum = VertexNumber;
 }
 
-auto Tree::isVisible(Camera* cam) -> int
+auto MCTree::IsVisible(MCCamera* cam) -> int
 {
-    if (cam == nullptr || cam->active == 0)
+    if (cam == nullptr || cam->Active == 0)
     {
         return 0;
     }
 
-    int visible = cam->vertexProject(blockNumber, vertexNumber, screenPos);
+    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        visible = appearance->recalcBounds(cam);
+        visible = Appearance->RecalcBounds(cam);
     }
 
     // The shadow can stick out past the tree: on screen when any of its box is.
-    uint8_t* shadow = static_cast<TreeType*>(objType)->normalShadow;
+    uint8_t* shadow = static_cast<MCTreeType*>(ObjType)->NormalShadow;
 
     if (shadow != nullptr)
     {
-        const float scale = cam->cameraScale != 1 ? 1.0f : 0.5f;
-        const int32_t minXY = VFX_shape_minxy(shadow, 0);
-        const float left = static_cast<float>(minXY >> 16) * scale + screenPos.x;
-        const float top = static_cast<float>(static_cast<int16_t>(minXY)) * scale + screenPos.y;
-        const int32_t resolution = VFX_shape_resolution(shadow, 0);
+        const float scale = cam->CameraScale != 1 ? 1.0f : 0.5f;
+        const int32_t minXY = VfxShapeMinxy(shadow, 0);
+        const float left = static_cast<float>(minXY >> 16) * scale + ScreenPos.X;
+        const float top = static_cast<float>(static_cast<int16_t>(minXY)) * scale + ScreenPos.Y;
+        const int32_t resolution = VfxShapeResolution(shadow, 0);
 
         if (0.0f <= static_cast<float>(resolution >> 16) * scale + left &&
             0.0f <= scale * static_cast<float>(static_cast<int16_t>(resolution)) + top)
         {
-            const auto viewRight = static_cast<int16_t>(std::floor(static_cast<double>(cam->viewWidth)));
-            const auto viewBottom = static_cast<int16_t>(std::floor(static_cast<double>(cam->viewHeight)));
+            const auto viewRight = static_cast<int16_t>(std::floor(static_cast<double>(cam->ViewWidth)));
+            const auto viewBottom = static_cast<int16_t>(std::floor(static_cast<double>(cam->ViewHeight)));
 
             if (left <= static_cast<float>(viewRight) && top <= static_cast<float>(viewBottom))
             {
-                windowsVisible = turn;
+                WindowsVisible = Turn;
                 return 1;
             }
         }
@@ -314,34 +314,34 @@ auto Tree::isVisible(Camera* cam) -> int
         return 0;
     }
 
-    windowsVisible = turn;
+    WindowsVisible = Turn;
     return 1;
 }
 
-auto Tree::update() -> int32_t
+auto MCTree::Update() -> int32_t
 {
-    if (justCreated == 0)
+    if (JustCreated == 0)
     {
         return 1;
     }
 
     // Set the tree on its vertex: the block's corner, the vertex within it, then the pixel offset within the tile
     // (turned into the isometric grid's 60-degree axes).
-    const int32_t blocksMapSide = Terrain::blocksMapSide;
-    const int32_t verticesBlockSide = Terrain::verticesBlockSide;
-    justCreated = 0;
-    float blockX = static_cast<float>(blockNumber % blocksMapSide - blocksMapSide / 2) * Terrain::metersBlockSide;
-    float blockY = static_cast<float>(blocksMapSide / 2 - blockNumber / blocksMapSide) * Terrain::metersBlockSide;
+    const int32_t blocksMapSide = MCTerrain::BlocksMapSide;
+    const int32_t verticesBlockSide = MCTerrain::VerticesBlockSide;
+    JustCreated = 0;
+    float blockX = static_cast<float>(BlockNumber % blocksMapSide - blocksMapSide / 2) * MCTerrain::MetersBlockSide;
+    float blockY = static_cast<float>(blocksMapSide / 2 - BlockNumber / blocksMapSide) * MCTerrain::MetersBlockSide;
 
     if ((blocksMapSide & 1) != 0)
     {
-        blockX = blockX - Terrain::metersBlockSide * 0.5f;
-        blockY = Terrain::metersBlockSide * 0.5f + blockY;
+        blockX = blockX - MCTerrain::MetersBlockSide * 0.5f;
+        blockY = MCTerrain::MetersBlockSide * 0.5f + blockY;
     }
 
-    const float vertexX = static_cast<float>(vertexNumber % verticesBlockSide) * Terrain::metersPerVertex;
-    const double offsetY = static_cast<double>(pixelOffsetY);
-    const double offsetX = static_cast<double>(pixelOffsetX);
+    const float vertexX = static_cast<float>(VertexNumber % verticesBlockSide) * MCTerrain::MetersPerVertex;
+    const double offsetY = static_cast<double>(PixelOffsetY);
+    const double offsetX = static_cast<double>(PixelOffsetX);
     double offsetAngle;
 
     if (offsetY == 0.0)
@@ -353,59 +353,59 @@ auto Tree::update() -> int32_t
         offsetAngle = std::atan(offsetX / offsetY) * RADIANS_TO_DEGREES;
     }
 
-    position.y = blockY - static_cast<float>(vertexNumber / verticesBlockSide) * Terrain::metersPerVertex;
+    Position.Y = blockY - static_cast<float>(VertexNumber / verticesBlockSide) * MCTerrain::MetersPerVertex;
     const auto offsetDistance = static_cast<float>(std::sqrt(offsetY * offsetY + offsetX * offsetX));
     const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
     const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
-    position.x = vertexX + blockX;
-    const float elevation = land->getTerrainElevation(position);
-    position.x =
-        static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + position.x);
-    position.y = position.y - alongAxis;
-    position.z = elevation;
+    Position.X = vertexX + blockX;
+    const float elevation = Land->GetTerrainElevation(Position);
+    Position.X =
+        static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
+    Position.Y = Position.Y - alongAxis;
+    Position.Z = elevation;
 
-    tileCol = (blockNumber % Terrain::blocksMapSide) * verticesBlockSide + vertexNumber % verticesBlockSide;
-    const int32_t halfMap = (verticesBlockSide * Terrain::blocksMapSide) >> 1;
-    tileWorldX = static_cast<float>(tileCol - halfMap) * Terrain::metersPerVertex;
-    tileRow = vertexNumber / verticesBlockSide + (blockNumber / Terrain::blocksMapSide) * verticesBlockSide;
-    tileWorldY = static_cast<float>(halfMap - tileRow) * Terrain::metersPerVertex;
+    TileCol = (BlockNumber % MCTerrain::BlocksMapSide) * verticesBlockSide + VertexNumber % verticesBlockSide;
+    const int32_t halfMap = (verticesBlockSide * MCTerrain::BlocksMapSide) >> 1;
+    TileWorldX = static_cast<float>(TileCol - halfMap) * MCTerrain::MetersPerVertex;
+    TileRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
+    TileWorldY = static_cast<float>(halfMap - TileRow) * MCTerrain::MetersPerVertex;
     const auto inBounds = [&]
-    { return tileRow < 0 || GameMap->height <= tileRow || tileCol < 0 || GameMap->width <= tileCol ? 0u : 1u; };
+    { return TileRow < 0 || GameMap->Height <= TileRow || TileCol < 0 || GameMap->Width <= TileCol ? 0u : 1u; };
     Assert(inBounds(), 0, " tree MapTile Out of Bounds ");
     Assert(inBounds(), 0, " Map Tile out of bounds ");
-    const MapTile& tile = GameMap->map[GameMap->width * tileRow + tileCol];
-    const int32_t elevationLevel = static_cast<int32_t>((tile.cells >> 7) & 0x3f) + GameMap->baseElevation;
-    appearance->visible = 1;
-    tileElevation = static_cast<float>(elevationLevel) * Terrain::metersPerElevLevel;
+    const MCMapTile& tile = GameMap->Map[GameMap->Width * TileRow + TileCol];
+    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+    Appearance->Visible = 1;
+    TileElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
 
     // Every tree measures the type's extent radius from its appearance's diagonal.
-    appearance->update();
-    appearance->recalcBounds(eye);
-    const double dx = static_cast<double>(appearance->upperLeft.x) - appearance->lowerRight.x;
-    const double dy = static_cast<double>(appearance->upperLeft.y) - appearance->lowerRight.y;
-    const auto radius = static_cast<float>(std::sqrt(dy * dy + dx * dx) / worldUnitsPerMeter);
+    Appearance->Update();
+    Appearance->RecalcBounds(Eye);
+    const double dx = static_cast<double>(Appearance->UpperLeft.X) - Appearance->LowerRight.X;
+    const double dy = static_cast<double>(Appearance->UpperLeft.Y) - Appearance->LowerRight.Y;
+    const auto radius = static_cast<float>(std::sqrt(dy * dy + dx * dx) / WorldUnitsPerMeter);
 
-    if (static_cast<float>(CollisionSystem::gridRadius) < radius)
+    if (static_cast<float>(MCCollisionSystem::GridRadius) < radius)
     {
         Fatal(static_cast<int32_t>(std::floor(static_cast<double>(radius))), " Object extent radius TOO large ");
     }
 
-    objType->extentRadius = radius;
-    collisionsOn = 1;
+    ObjType->ExtentRadius = radius;
+    CollisionsOn = 1;
     return 1;
 }
 
-auto Tree::handleEvent(ObjectEvent* event) -> int32_t
+auto MCTree::HandleEvent(MCObjectEvent* event) -> int32_t
 {
-    if (event->type == 0)
+    if (event->Type == 0)
     {
-        switch (event->id)
+        switch (event->Id)
         {
             case 0x1c:
-                selected = 1;
+                Selected = 1;
                 break;
             case 0x1d:
-                selected = 0;
+                Selected = 0;
                 break;
             default:
                 break;
@@ -415,67 +415,67 @@ auto Tree::handleEvent(ObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto Tree::lightOnFire(float timeToBurn) -> void
+auto MCTree::LightOnFire(float timeToBurn) -> void
 {
     // A fire does 25 points to the tree (the server's job in multiplayer), and burns on.
-    _WeaponShotInfo shot;
-    shot.init(nullptr, -1, 25.0f, 0, 0.0f);
+    MCWeaponShotInfo shot;
+    shot.Init(nullptr, -1, 25.0f, 0, 0.0f);
 
     if (MPlayer == nullptr)
     {
-        handleWeaponHit(&shot, 0);
+        HandleWeaponHit(&shot, 0);
     }
-    else if (MPlayer->isServer != 0)
+    else if (MPlayer->IsServer != 0)
     {
-        handleWeaponHit(&shot, 1);
+        HandleWeaponHit(&shot, 1);
     }
 
-    if (fireObject != nullptr)
+    if (FireObject != nullptr)
     {
-        fireObject->addTimeLeftToBurn(timeToBurn);
-        fireStarted = 1;
+        FireObject->AddTimeLeftToBurn(timeToBurn);
+        FireStarted = 1;
     }
 }
 
-auto Tree::render() -> void
+auto MCTree::Render() -> void
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         return;
     }
 
-    if (fireObject == nullptr)
+    if (FireObject == nullptr)
     {
-        fireStarted = 0;
+        FireStarted = 0;
     }
 
-    auto* treeAppearance = static_cast<VFXAppearance*>(appearance);
+    auto* treeAppearance = static_cast<MCVfxAppearance*>(Appearance);
 
     if (treeAppearance != nullptr)
     {
-        treeAppearance->visible = isVisible(eye);
+        treeAppearance->Visible = IsVisible(Eye);
 
         // A falling tree comes to rest: fallen (2), or fallen burnt (5).
-        if (treeAppearance->update() == 0 && falling != 0)
+        if (treeAppearance->Update() == 0 && Falling != 0)
         {
-            falling = 0;
-            collisionsOn = 0;
-            fallen = 1;
+            Falling = 0;
+            CollisionsOn = 0;
+            Fallen = 1;
 
-            if (treeAppearance->currentState == ACTOR_STATE_BLOWING_UP1)
+            if (treeAppearance->CurrentState == ACTOR_STATE_BLOWING_UP1)
             {
-                treeAppearance->setTypeId(ACTOR_STATE_DAMAGED, 0xff);
+                treeAppearance->SetTypeId(ACTOR_STATE_DAMAGED, 0xff);
             }
-            else if (treeAppearance->currentState == static_cast<ActorState>(4))
+            else if (treeAppearance->CurrentState == static_cast<MCActorState>(4))
             {
-                treeAppearance->setTypeId(static_cast<ActorState>(5), 0xff);
+                treeAppearance->SetTypeId(static_cast<MCActorState>(5), 0xff);
             }
 
-            treeAppearance->update();
+            treeAppearance->Update();
         }
     }
 
-    if (windowsVisible != turn)
+    if (WindowsVisible != Turn)
     {
         return;
     }
@@ -484,151 +484,151 @@ auto Tree::render() -> void
     // original also reads each corner's seen bit and drops it.)
     uint32_t row;
     uint32_t col;
-    vertexRowCol(this, row, col);
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    VertexRowCol(this, row, col);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     int32_t numVisible = 0;
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         numVisible = 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row, col + 1) != 0)
+    if (visibleBits->GetFlag(row, col + 1) != 0)
     {
         numVisible++;
     }
 
     uint8_t* hazePalette = nullptr;
-    const int32_t hazeLevel = eye->hazeLevel;
+    const int32_t hazeLevel = Eye->HazeLevel;
 
     if (numVisible != 0 && numVisible != 4 && hazeLevel != 0x7fff)
     {
         int32_t level;
 
-        if (hazeLevel < 0 && 0 < eye->hazeInc * numVisible + hazeLevel)
+        if (hazeLevel < 0 && 0 < Eye->HazeInc * numVisible + hazeLevel)
         {
             level = 0;
         }
         else
         {
-            level = hazeLevel + eye->hazeInc * numVisible;
+            level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = gamePalette->getHazePalette(level);
+        hazePalette = GamePalette->GetHazePalette(level);
     }
 
-    treeAppearance->fadeTable = hazePalette;
+    treeAppearance->FadeTable = hazePalette;
 
     if (numVisible != 0)
     {
         // Standing, it sorts with the terrain; fallen, by its screen row.
-        const auto* type = static_cast<TreeType*>(objType);
-        treeAppearance->render(treeAppearance->currentState != ACTOR_STATE_NORMAL ? static_cast<int32_t>(screenPos.y)
+        const auto* type = static_cast<MCTreeType*>(ObjType);
+        treeAppearance->Render(treeAppearance->CurrentState != ACTOR_STATE_NORMAL ? static_cast<int32_t>(ScreenPos.Y)
                                                                                   : 0);
 
-        if (treeAppearance->currentState != ACTOR_STATE_NORMAL)
+        if (treeAppearance->CurrentState != ACTOR_STATE_NORMAL)
         {
-            if (type->destroyedShadow != nullptr)
+            if (type->DestroyedShadow != nullptr)
             {
-                ElementList->openGroup(static_cast<int32_t>(screenPos.y), 1);
-                ElementList->add(ElementPool::Make<VFXElement>(type->destroyedShadow, screenPos.x, screenPos.y, 0, 0,
-                                                               hazePalette, 0, 0));
+                ElementList->OpenGroup(static_cast<int32_t>(ScreenPos.Y), 1);
+                ElementList->Add(MCElementPool::Make<MCVfxElement>(type->DestroyedShadow, ScreenPos.X, ScreenPos.Y, 0,
+                                                                   0, hazePalette, 0, 0));
             }
         }
-        else if (type->normalShadow != nullptr)
+        else if (type->NormalShadow != nullptr)
         {
-            ElementList->openGroup(static_cast<int32_t>(-screenPos.y), 1);
-            ElementList->add(
-                ElementPool::Make<VFXElement>(type->normalShadow, screenPos.x, screenPos.y, 0, 0, hazePalette, 0, 0));
+            ElementList->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
+            ElementList->Add(MCElementPool::Make<MCVfxElement>(type->NormalShadow, ScreenPos.X, ScreenPos.Y, 0, 0,
+                                                               hazePalette, 0, 0));
         }
     }
 
-    if (drawExtents != 0)
+    if (DrawExtents != 0)
     {
         // Debug: the extent radius as an ellipse.
-        float radius = objType->extentRadius;
+        float radius = ObjType->ExtentRadius;
 
-        if (eye->cameraScale == 1)
+        if (Eye->CameraScale == 1)
         {
             radius *= 0.5f;
         }
 
-        const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-        const float sx = (position.x - eye->position.x) * scale;
-        const float sy = (position.y - eye->position.y) * scale;
-        vector_2d center;
-        center.x = sx * eye->cosAngle + sy * eye->cosAngle + eye->halfWidth;
-        center.y =
-            ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (position.z - eye->position.z);
-        vector_2d size(radius, radius);
-        ElementList->openGroup(-50000, 1);
+        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float sx = (Position.X - Eye->Position.X) * scale;
+        const float sy = (Position.Y - Eye->Position.Y) * scale;
+        MCVector2D center;
+        center.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
+        center.Y =
+            ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
+        MCVector2D size(radius, radius);
+        ElementList->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
-        size.x *= MCOverlay.ScaleX;
-        size.y *= MCOverlay.ScaleY;
-        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
+        size.X *= MCOverlay.ScaleX;
+        size.Y *= MCOverlay.ScaleY;
+        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 
-auto Tree::destroy() -> void
+auto MCTree::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 }
 
-auto Tree::init(ObjectType* objType) -> int32_t
+auto MCTree::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justCreated = 1;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    JustCreated = 1;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0007);
     }
 
-    auto* vfxAppearance = new VFXAppearance;
-    appearance = vfxAppearance;
+    auto* vfxAppearance = new MCVfxAppearance;
+    Appearance = vfxAppearance;
 
     if (vfxAppearance == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0008);
     }
 
-    vfxAppearance->init(nullptr, nullptr);
+    vfxAppearance->Init(nullptr, nullptr);
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x2000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x2000000)
     {
         return static_cast<int32_t>(0xdcdc0009);
     }
 
-    if ((result = vfxAppearance->init(apprType, this)) != 0)
+    if ((result = vfxAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    objectClass = TREE;
-    burnt = 0;
+    ObjectClass = TREE;
+    Burnt = 0;
     return 0;
 }
 
-auto Tree::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCTree::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
@@ -637,79 +637,79 @@ auto Tree::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> 
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     // Any hit burns the tree: standing (0) to burnt (3), fallen (2) to fallen burnt (5).
-    setDamage(getDamage() + 1.0f);
-    burnt = 1;
+    SetDamage(GetDamage() + 1.0f);
+    Burnt = 1;
 
-    if (falling == 0)
+    if (Falling == 0)
     {
-        auto* treeAppearance = static_cast<VFXAppearance*>(appearance);
+        auto* treeAppearance = static_cast<MCVfxAppearance*>(Appearance);
 
-        if (treeAppearance->currentState == ACTOR_STATE_NORMAL)
+        if (treeAppearance->CurrentState == ACTOR_STATE_NORMAL)
         {
-            treeAppearance->setTypeId(ACTOR_STATE_BLOWING_UP2, 0xff);
+            treeAppearance->SetTypeId(ACTOR_STATE_BLOWING_UP2, 0xff);
         }
-        else if (treeAppearance->currentState == ACTOR_STATE_DAMAGED)
+        else if (treeAppearance->CurrentState == ACTOR_STATE_DAMAGED)
         {
-            treeAppearance->setTypeId(static_cast<ActorState>(5), 0xff);
+            treeAppearance->SetTypeId(static_cast<MCActorState>(5), 0xff);
         }
     }
 
-    status = 2;
+    Status = 2;
 
     // The first hit sets it alight; later ones keep the fire going 2 more seconds.
-    if (fireStarted == 0)
+    if (FireStarted == 0)
     {
-        if (objType->explosionObject != -1)
+        if (ObjType->ExplosionObject != -1)
         {
-            auto* fire = static_cast<Fire*>(createObject(objType->explosionObject));
+            auto* fire = static_cast<MCFire*>(CreateObject(ObjType->ExplosionObject));
 
             if (fire != nullptr)
             {
-                fire->burningObject = this;
-                fire->setTonnage(40.0f);
-                fire->setPosition(position);
-                fire->update();
-                fireObject = fire;
+                fire->BurningObject = this;
+                fire->SetTonnage(40.0f);
+                fire->SetPosition(Position);
+                fire->Update();
+                FireObject = fire;
             }
         }
 
-        fireStarted = 1;
+        FireStarted = 1;
         return 0;
     }
 
-    if (fireObject != nullptr)
+    if (FireObject != nullptr)
     {
-        fireObject->addTimeLeftToBurn(2.0f);
+        FireObject->AddTimeLeftToBurn(2.0f);
     }
 
     return 0;
 }
 
-auto Tree::isRevealed() -> int
+auto MCTree::IsRevealed() -> int
 {
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     uint32_t row;
     uint32_t col;
-    vertexRowCol(this, row, col);
+    VertexRowCol(this, row, col);
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         return 1;
     }
 
-    return visibleBits->getFlag(row, col + 1) != 0 ? 1 : 0;
+    return visibleBits->GetFlag(row, col + 1) != 0 ? 1 : 0;
 }

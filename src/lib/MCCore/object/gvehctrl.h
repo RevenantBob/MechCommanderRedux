@@ -4,33 +4,28 @@
 
 /// <summary>A ground vehicle's control requests for one frame: turret and turn rates, throttle, the button bits.</summary>
 /// <remarks>Original source: <c>object\gvehctrl.cpp</c>, <c>object\gvehctrl.h</c>; 0x18 bytes.</remarks>
-class GroundVehicleControlData : public ControlData
+class MCGroundVehicleControlData : public MCControlData
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00668c20</remarks>
-    int32_t init(int32_t unused) override;
-    /// <remarks>MCX.EXE @ 0x00668c30</remarks>
-    void destroy() override;
+    int32_t Init(int32_t unused) override;
+    void Destroy() override;
     /// <summary>Clears the rates, button bits 0-2 and the pivot flag; +0x0c back to -1.</summary>
-    /// <remarks>MCX.EXE @ 0x00668c40</remarks>
-    void reset() override;
+    void Reset() override;
     /// <summary>Zeroes the throttle.</summary>
-    /// <remarks>MCX.EXE @ 0x00668c60</remarks>
-    int32_t brake() override;
-    /// <remarks>MCX.EXE @ 0x0066ab50 (inline in <c>object\gvehctrl.h</c>)</remarks>
-    uint32_t getControlDataClass() override { return 2; }
+    int32_t Brake() override;
+    uint32_t GetControlDataClass() override { return 2; }
 
     /// <summary>Button bits; reset clears bits 0-2.</summary>
-    uint32_t buttonState = 0; // +0x04
+    uint32_t ButtonState = 0;
     /// <summary>Turret yaw rate request.</summary>
-    int8_t turretRotate = 0; // +0x08
+    int8_t TurretRotate = 0;
     /// <summary>Throttle; brake zeroes it (reset leaves it).</summary>
-    int8_t throttle = 0; // +0x09
+    int8_t Throttle = 0;
     /// <summary>Body yaw rate request.</summary>
-    int8_t rotate = 0; // +0x0a
+    int8_t Rotate = 0;
     /// <summary>Nonzero while pivoting in place: GroundVehicleDynamics turns at maxVehiclePivotRate instead.
     /// Cleared by reset.</summary>
-    int32_t pivot = 0; // +0x10
+    int32_t Pivot = 0;
     /// <summary>Nonzero to move at gvWalkSpeed instead of the type's top speed. Not touched by reset.</summary>
-    int32_t walk = 0; // +0x14
+    int32_t Walk = 0;
 };

@@ -6,7 +6,7 @@
 
 #include "abl/ablerr.h"
 
-class File;
+class MCFile;
 
 /// <summary>Longest source line the scanner reads (sourceBuffer).</summary>
 inline constexpr int32_t MAXLEN_SOURCELINE = 2048;
@@ -27,7 +27,7 @@ inline constexpr int32_t MAX_LINES_PER_PAGE = 50;
 /// The tokens of ABL. The values are the original's: they are stored as single bytes in crunched code (see
 /// ablexec.h) and index TokenStrings. Reserved words map to TKN_CODE .. TKN_STATIC through keywordTable.
 /// </summary>
-enum TokenCodeType
+enum MCTokenCodeType
 {
     TKN_NONE = 0,
     TKN_IDENTIFIER = 1,
@@ -107,7 +107,7 @@ enum TokenCodeType
 };
 
 /// <summary>What kind of character starts a token (charTable).</summary>
-enum CharCodeType
+enum MCCharCodeType
 {
     CHR_LETTER = 0,
     CHR_DIGIT = 1,
@@ -118,7 +118,7 @@ enum CharCodeType
 };
 
 /// <summary>What curLiteral holds.</summary>
-enum LiteralType
+enum MCLiteralType
 {
     LIT_INTEGER = 0,
     LIT_REAL = 1,
@@ -127,191 +127,169 @@ enum LiteralType
 
 /// <summary>The value of the number or string token just scanned.</summary>
 /// <remarks>0x808 bytes in the original (curLiteral @ 0x007c4528).</remarks>
-struct Literal
+struct MCLiteral
 {
-    LiteralType type{}; // +0x0
+    MCLiteralType Type{};
     struct
     {
-        int32_t integer = 0;               // +0x4
-        float real = 0;                    // +0x8
-        char string[MAXLEN_TOKENSTRING]{}; // +0xc
-    } value{};
+        int32_t Integer = 0;
+        float Real = 0;
+        char String[MAXLEN_TOKENSTRING]{};
+    } Value{};
 };
 
 /// <summary>An entry of a reserved-word table: the word and the token it scans as.</summary>
 /// <remarks>8 bytes in the original. The tables (keywords2 .. keywords11) are grouped by word length.</remarks>
-struct ReservedWord
+struct MCReservedWord
 {
-    const char* string = nullptr; // +0x0
-    TokenCodeType tokenCode{};    // +0x4
+    const char* String = nullptr;
+    MCTokenCodeType TokenCode{};
 };
 
 /// <summary>A source file open for scanning; openFiles stacks them for #include.</summary>
 /// <remarks>0x10c bytes in the original (openFiles @ 0x007c3ee0, an unnamed global).</remarks>
-struct SourceFile
+struct MCSourceFile
 {
-    char fileName[MAXLEN_FILENAME]{}; // +0x0
+    char FileName[MAXLEN_FILENAME]{};
     /// <summary>Its index in SourceFiles (FileNumber while it is scanned).</summary>
-    uint8_t fileNumber = 0;  // +0x100
-    File* filePtr = nullptr; // +0x104
+    uint8_t FileNumber = 0;
+    MCFile* FilePtr = nullptr;
     /// <summary>The line the including file had reached, restored when this one closes.</summary>
-    int32_t lineNumber = 0; // +0x108
+    int32_t LineNumber = 0;
 };
 
 /// <summary>The reserved words (keywords) of 2 .. 11 letters, each table ending with a null entry.</summary>
-extern ReservedWord keywords2[];
-extern ReservedWord keywords3[];
-extern ReservedWord keywords4[];
-extern ReservedWord keywords5[];
-extern ReservedWord keywords6[];
-extern ReservedWord keywords7[];
-extern ReservedWord keywords8[];
-extern ReservedWord keywords9[];
-extern ReservedWord keywords10[];
-extern ReservedWord keywords11[];
+extern MCReservedWord Keywords2[];
+extern MCReservedWord Keywords3[];
+extern MCReservedWord Keywords4[];
+extern MCReservedWord Keywords5[];
+extern MCReservedWord Keywords6[];
+extern MCReservedWord Keywords7[];
+extern MCReservedWord Keywords8[];
+extern MCReservedWord Keywords9[];
+extern MCReservedWord Keywords10[];
+extern MCReservedWord Keywords11[];
 /// <summary>The reserved-word tables by word length 0 .. 11 (entries 0 and 1 are null).</summary>
-extern ReservedWord* keywordTable[12];
+extern MCReservedWord* KeywordTable[12];
 
 /// <summary>Character class of every byte value.</summary>
-extern CharCodeType charTable[256];
+extern MCCharCodeType CharTable[256];
 /// <summary>The current source line.</summary>
-extern char sourceBuffer[MAXLEN_SOURCELINE];
+extern char SourceBuffer[MAXLEN_SOURCELINE];
 /// <summary>The next character to read in sourceBuffer.</summary>
-extern char* bufferp;
+extern char* Bufferp;
 /// <summary>Where the next character of the token goes in tokenString.</summary>
-extern char* tokenp;
+extern char* Tokenp;
 /// <summary>The current token as written.</summary>
-extern char tokenString[MAXLEN_TOKENSTRING];
+extern char TokenString[MAXLEN_TOKENSTRING];
 /// <summary>The current word token, lower-cased (identifiers are case-insensitive).</summary>
-extern char wordString[MAXLEN_TOKENSTRING];
+extern char WordString[MAXLEN_TOKENSTRING];
 /// <summary>The character being scanned.</summary>
-extern char curChar;
+extern char CurChar;
 /// <summary>The token just scanned.</summary>
-extern TokenCodeType curToken;
+extern MCTokenCodeType CurToken;
 /// <summary>The value of the number or string token just scanned.</summary>
-extern Literal curLiteral;
+extern MCLiteral CurLiteral;
 /// <summary>Names of every source file of the module being compiled; FileNumber indexes it.</summary>
 extern char SourceFiles[MAX_SOURCE_FILES][MAXLEN_FILENAME];
 extern int32_t NumSourceFiles;
 /// <summary>The #include stack (an unnamed global of the original, @ 0x007c3ee0).</summary>
-extern SourceFile openFiles[MAX_INCLUDE_DEPTH];
+extern MCSourceFile OpenFiles[MAX_INCLUDE_DEPTH];
 extern int32_t NumOpenFiles;
 /// <summary>The file being scanned.</summary>
-extern File* sourceFile;
+extern MCFile* SourceFile;
 /// <summary>Line number in the file being scanned.</summary>
-extern int32_t lineNumber;
+extern int32_t LineNumber;
 /// <summary>SourceFiles index of the file being scanned (or executed, from statement markers).</summary>
 extern int32_t FileNumber;
 /// <summary>Column of bufferp, with tabs expanded to 4.</summary>
-extern int32_t bufferOffset;
+extern int32_t BufferOffset;
 /// <summary>Nonzero while getChar must not interpret comments and directives (inside them).</summary>
 extern int DumbGetCharOn;
 /// <summary>Digits read by getNumber, and whether there were too many.</summary>
-extern int32_t digitCount;
-extern int countError;
+extern int32_t DigitCount;
+extern int CountError;
 /// <summary>Nonzero to print each source line as it is read (a compile listing).</summary>
-extern int printFlag;
+extern int PrintFlag;
 /// <summary>Listing state: lines on the page, page number, header text.</summary>
-extern int32_t lineCount;
-extern int32_t pageNumber;
-extern char sourceName[256];
-extern char date[26];
+extern int32_t LineCount;
+extern int32_t PageNumber;
+extern char SourceName[256];
+extern char Date[26];
 
 /// <summary>Looks wordString up in the reserved words; on a hit sets curToken.</summary>
-/// <remarks>MCX.EXE @ 0x006254e0</remarks>
-int isReservedWord();
+int IsReservedWord();
 
 /// <summary>Sets up charTable and, with a file name, opens it and reads its first character.</summary>
-/// <remarks>MCX.EXE @ 0x00625570</remarks>
-void initScanner(char* fileName);
+void InitScanner(char* fileName);
 
 /// <summary>Closes the source file.</summary>
-/// <remarks>MCX.EXE @ 0x00625630</remarks>
-void quitScanner();
+void QuitScanner();
 
 /// <summary>Skips a <c>/* ... */</c> comment.</summary>
-/// <remarks>MCX.EXE @ 0x00625680</remarks>
-void skipBlockComment();
+void SkipBlockComment();
 
 /// <summary>Skips spaces (getChar turns tabs and line ends into spaces).</summary>
-/// <remarks>MCX.EXE @ 0x006256f0</remarks>
-void skipBlanks();
+void SkipBlanks();
 
 /// <summary>
 /// Handles a <c>#</c> directive: <c>#include "file"</c> (the name as written), <c>#include_ "file"</c> (relative to
 /// the folder of the module's main file), <c>#assert_on</c>, <c>#assert_off</c>, <c>#print_on</c>, <c>#print_off</c>,
 /// <c>#stringfuncs_on</c>, <c>#stringfuncs_off</c>.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00625710</remarks>
-void languageDirective();
+void LanguageDirective();
 
 /// <summary>
 /// Reads the next character into curChar, reading the next line (or closing an include) at the end of the buffer.
 /// Turns tabs and line ends into spaces, and handles comments and directives.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00625b40</remarks>
-void getChar();
+void GetChar();
 
 /// <summary>Copies tokenString to wordString in lower case.</summary>
-/// <remarks>MCX.EXE @ 0x00625c50</remarks>
-void downShiftWord();
+void DownShiftWord();
 
 /// <summary>Scans the next token; inside a code block it is also crunched into the code buffer.</summary>
-/// <remarks>MCX.EXE @ 0x00625cc0</remarks>
-void getToken();
+void GetToken();
 
 /// <summary>Scans an identifier (possibly <c>library.name</c>) or reserved word.</summary>
-/// <remarks>MCX.EXE @ 0x00625d40</remarks>
-void getWord();
+void GetWord();
 
 /// <summary>Accumulates a run of digits into <paramref name="valuePtr"/>; <paramref name="errCode"/> if none.</summary>
-/// <remarks>MCX.EXE @ 0x00625e40</remarks>
-void accumulateValue(float* valuePtr, SyntaxErrorType errCode);
+void AccumulateValue(float* valuePtr, MCSyntaxErrorType errCode);
 
 /// <summary>Scans an integer or real number into curLiteral.</summary>
-/// <remarks>MCX.EXE @ 0x00625ee0</remarks>
-void getNumber();
+void ScanNumber();
 
 /// <summary>Scans a double-quoted string into curLiteral.</summary>
-/// <remarks>MCX.EXE @ 0x00626090</remarks>
-void getString();
+void GetString();
 
 /// <summary>Scans an operator or punctuation token.</summary>
-/// <remarks>MCX.EXE @ 0x00626100</remarks>
-void getSpecial();
+void GetSpecial();
 
 /// <summary>Whether curToken is in the zero-terminated <paramref name="tokenList"/>.</summary>
-/// <remarks>MCX.EXE @ 0x00626440</remarks>
-int tokenIn(TokenCodeType* tokenList);
+int TokenIn(MCTokenCodeType* tokenList);
 
 /// <summary>
 /// Error recovery: if curToken is in none of the lists, reports it and skips tokens until one is (or EOF).
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00626470</remarks>
-void synchronize(TokenCodeType* tokenList1, TokenCodeType* tokenList2, TokenCodeType* tokenList3);
+void Synchronize(MCTokenCodeType* tokenList1, MCTokenCodeType* tokenList2, MCTokenCodeType* tokenList3);
 
 /// <summary>Reads the next line of the source file into sourceBuffer.</summary>
 /// <returns>0 at the end of the file.</returns>
-/// <remarks>MCX.EXE @ 0x00626510</remarks>
-int getSourceLine();
+int GetSourceLine();
 
 /// <summary>Opens a source (or #include) file, pushes it on openFiles and adds it to SourceFiles.</summary>
 /// <returns>0, or -1 (no name), -2 (includes too deep), -3 (too many files, or it can't be opened).</returns>
-/// <remarks>MCX.EXE @ 0x00626590</remarks>
-int32_t openSourceFile(char* sourceFileName);
+int32_t OpenSourceFile(char* sourceFileName);
 
 /// <summary>Closes the current source file and returns to the one that included it.</summary>
-/// <remarks>MCX.EXE @ 0x006266f0</remarks>
-int32_t closeSourceFile();
+int32_t CloseSourceFile();
 
 /// <summary>Prints a listing line (truncated to 80 columns), with page headers.</summary>
-/// <remarks>MCX.EXE @ 0x00626790</remarks>
-void printLine(char* line);
+void PrintLine(char* line);
 
 /// <summary>Sets the listing's file name and date.</summary>
-/// <remarks>MCX.EXE @ 0x00626800</remarks>
-void initPageHeader(char* fileName);
+void InitPageHeader(char* fileName);
 
 /// <summary>Prints the listing's page header.</summary>
-/// <remarks>MCX.EXE @ 0x00626860</remarks>
-void printPageHeader();
+void PrintPageHeader();

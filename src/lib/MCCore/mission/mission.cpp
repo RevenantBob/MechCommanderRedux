@@ -44,29 +44,29 @@
 #include "platform/MCSmacker.h"
 #include "platform/MCWin32Defs.h"
 
-uint32_t resultsStepTicks = 20;
-int32_t StevesOrderLUT[4] = {MWS_GUNNERY, MWS_PILOTING, MWS_JUMPING, MWS_SENSORS};
-int32_t globalGameSegment = 0;
+uint32_t ResultsStepTicks = 20;
+int32_t StevesOrderLut[4] = {MWS_GUNNERY, MWS_PILOTING, MWS_JUMPING, MWS_SENSORS};
+int32_t GlobalGameSegment = 0;
 int32_t StartingResourcePoints = 0;
 float MinPilotSkill = 0.0f;
-SYSTEMTIME logisticsStart{};
-SYSTEMTIME logisticsEnd{};
+SYSTEMTIME LogisticsStart{};
+SYSTEMTIME LogisticsEnd{};
 float MaxPilotSkill = 0.0f;
-aCallback* scenarioCallback = nullptr;
-aCallback* interfaceUpdateCallback = nullptr;
-int32_t nextGameState = 0;
-int gameOver = 0;
-int featureMusicPlaying = 0;
-uint32_t lastScenario = 0;
-Mission* mission = nullptr;
-int32_t playingLogisticsMusic = 0;
-aCallback* setupCallback = nullptr;
-uint32_t scenarioResult = 0;
-int somethingOnFire = 0;
+MCGuiCallback* ScenarioCallback = nullptr;
+MCGuiCallback* InterfaceUpdateCallback = nullptr;
+int32_t NextGameState = 0;
+int GameOver = 0;
+int FeatureMusicPlaying = 0;
+uint32_t LastScenario = 0;
+MCMission* Mission = nullptr;
+int32_t PlayingLogisticsMusic = 0;
+MCGuiCallback* SetupCallback = nullptr;
+uint32_t ScenarioResult = 0;
+int SomethingOnFire = 0;
 int EventsToMissionResultsScreen = 0;
-char missionPath[80] = "data\\missions\\";
+char MissionPath[80] = "data\\missions\\";
 char CDmoviePath[80] = "data\\movies\\";
-char moviePath[80] = "data\\movies\\";
+char MoviePath[80] = "data\\movies\\";
 
 namespace
 {
@@ -80,7 +80,7 @@ namespace
     /// <paramref name="names"/> (the binary repeats this loop for the movies and scenarios of each init).
     /// </summary>
     /// <returns>0, a FIT read error, or NO_RAM_FOR_MISSION_LISTS for a count of 0.</returns>
-    int32_t readNameList(FitIniFile* file, const char* idFormat, uint32_t count, std::vector<std::string>& names)
+    int32_t ReadNameList(MCFitIniFile* file, const char* idFormat, uint32_t count, std::vector<std::string>& names)
     {
         names.assign(count, std::string());
 
@@ -94,7 +94,7 @@ namespace
             char id[50];
             char name[100];
             std::snprintf(id, sizeof(id), idFormat, i);
-            const int32_t result = file->readIdString(id, name, 99);
+            const int32_t result = file->ReadIdString(id, name, 99);
 
             if (result != 0)
             {
@@ -111,7 +111,7 @@ namespace
     /// The file name part of <paramref name="path"/> without folder or extension (the <c>fname</c> of
     /// <c>_splitpath</c>).
     /// </summary>
-    void splitFileName(const char* path, char* fileName, size_t size)
+    void SplitFileName(const char* path, char* fileName, size_t size)
     {
         const char* start = path;
 
@@ -134,11 +134,11 @@ namespace
     }
 
     /// <summary>Switches a full-screen display back to 8 bits after a movie (inlined in several states of run).</summary>
-    void resetFullScreenDisplay()
+    void ResetFullScreenDisplay()
     {
-        if (gFullScreen != 0)
+        if (GFullScreen != 0)
         {
-            application->resetDirectDraw(application->width(), application->height(), 8);
+            Application->ResetDirectDraw(Application->Width(), Application->Height(), 8);
         }
     }
 
@@ -146,155 +146,155 @@ namespace
     /// Starts a new logistics phase after a scenario: restarts the logistics clock and makes and inits
     /// <c>globalLogPtr</c> (EndScenario inlines this three times).
     /// </summary>
-    Logistics* startLogistics(Mission* owner)
+    MCLogistics* StartLogistics(MCMission* owner)
     {
-        MCPort::GetSystemTime(logisticsStart);
-        auto* logistics = new Logistics;
-        owner->logistics = logistics;
-        globalLogPtr = logistics;
+        MCPort::GetSystemTime(LogisticsStart);
+        auto* logistics = new MCLogistics;
+        owner->Logistics = logistics;
+        GlobalLogPtr = logistics;
         Assert(logistics != nullptr, 0, " Could not start logistics phase ");
-        logistics->init();
+        logistics->Init();
         return logistics;
     }
 
     /// <summary>Frees a logistics phase (<c>Logistics::destroy</c>, then the inlined destructor).</summary>
-    void deleteLogistics(Logistics* logistics)
+    void DeleteLogistics(MCLogistics* logistics)
     {
-        logistics->destroy();
+        logistics->Destroy();
         delete logistics;
     }
 }
 
-auto playScenario() -> void
+auto PlayScenario() -> void
 {
     // Port: a running scenario draws on the whole window, whatever its size now.
-    if (mission != nullptr && mission->missionState == 7)
+    if (Mission != nullptr && Mission->MissionState == 7)
     {
         MCFollowWindowSize();
     }
 
-    globalPane = screenPort->frame();
-    globalWindow = screenPort->frame()->window;
+    GlobalPane = ScreenPort->Frame();
+    GlobalWindow = ScreenPort->Frame()->Window;
 
-    if (scenario != nullptr && scenarioResult == 0)
+    if (Scenario != nullptr && ScenarioResult == 0)
     {
-        scenarioResult = static_cast<uint32_t>(scenario->run());
+        ScenarioResult = static_cast<uint32_t>(Scenario->Run());
     }
 
-    if (soundSystem != nullptr && useSound != 0)
+    if (SoundSystem != nullptr && UseSound != 0)
     {
-        soundSystem->update();
+        SoundSystem->Update();
     }
 }
 
 auto RunMission() -> void
 {
-    mission->run();
+    Mission->Run();
 
-    if (scenario == nullptr)
+    if (Scenario == nullptr)
     {
-        frameLength =
-            static_cast<float>(static_cast<uint32_t>(stopTime - prevStart)) / static_cast<float>(countsPerSecond);
+        FrameLength =
+            static_cast<float>(static_cast<uint32_t>(PerfStopTime - PrevStart)) / static_cast<float>(CountsPerSecond);
     }
 }
 
-auto Mission::init(char* missionName) -> int32_t
+auto MCMission::Init(char* missionName) -> int32_t
 {
     int32_t result = 0;
 
-    if (globalGameSegment != 0)
+    if (GlobalGameSegment != 0)
     {
         //-----------------------------------------------------------------------------------------------------------
         // A game segment build: the mission FIT is the segment file itself.
-        cheatsOn = 1;
-        init();
-        missionFile = new FitIniFile;
+        CheatsOn = 1;
+        Init();
+        MissionFile = new MCFitIniFile;
 
-        if (missionFile == nullptr)
+        if (MissionFile == nullptr)
         {
             return 3;
         }
 
-        FullPathFileName fileName;
-        fileName.init(missionPath, missionName, ".fit");
-        result = missionFile->open(fileName);
+        MCFullPathFileName fileName;
+        fileName.Init(MissionPath, missionName, ".fit");
+        result = MissionFile->Open(fileName);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = missionFile->seekBlock("Movies");
+        result = MissionFile->SeekBlock("Movies");
 
         if (result != 0)
         {
             return result;
         }
 
-        result = missionFile->readIdULong("NumMovies", numMovies);
+        result = MissionFile->ReadIdULong("NumMovies", NumMovies);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = readNameList(missionFile, "Movie%d", numMovies, movies);
+        result = ReadNameList(MissionFile, "Movie%d", NumMovies, Movies);
 
         if (result != 0)
         {
             return result;
         }
 
-        if (missionFile->readIdFloat("WaitTime", waitTime) != 0)
+        if (MissionFile->ReadIdFloat("WaitTime", WaitTime) != 0)
         {
-            waitTime = 120.0f;
+            WaitTime = 120.0f;
         }
 
-        result = missionFile->seekBlock("Scenarios");
+        result = MissionFile->SeekBlock("Scenarios");
 
         if (result != 0)
         {
             return result;
         }
 
-        result = missionFile->readIdULong("NumScenarios", numScenarios);
+        result = MissionFile->ReadIdULong("NumScenarios", NumScenarios);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = readNameList(missionFile, "Scenario%d", numScenarios, scenarios);
+        result = ReadNameList(MissionFile, "Scenario%d", NumScenarios, Scenarios);
 
         if (result != 0)
         {
             return result;
         }
 
-        return SetupNextSegment(globalGameSegment);
+        return SetupNextSegment(GlobalGameSegment);
     }
 
     //---------------------------------------------------------------------------------------------------------------
     // The campaign: the control file names the campaign file, whose FIT holds the movies and scenarios.
-    init();
-    MCPort::GetSystemTime(logisticsStart);
-    missionFile = new FitIniFile;
+    Init();
+    MCPort::GetSystemTime(LogisticsStart);
+    MissionFile = new MCFitIniFile;
 
-    if (missionFile == nullptr)
+    if (MissionFile == nullptr)
     {
         return 3;
     }
 
-    FullPathFileName controlName;
-    controlName.init(missionPath, missionName, ".fit");
-    result = missionFile->open(controlName);
+    MCFullPathFileName controlName;
+    controlName.Init(MissionPath, missionName, ".fit");
+    result = MissionFile->Open(controlName);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->seekBlock("Control");
+    result = MissionFile->SeekBlock("Control");
 
     if (result != 0)
     {
@@ -302,7 +302,7 @@ auto Mission::init(char* missionName) -> int32_t
     }
 
     uint32_t numCampaigns = 0;
-    result = missionFile->readIdULong("NumCampaigns", numCampaigns);
+    result = MissionFile->ReadIdULong("NumCampaigns", numCampaigns);
 
     if (result != 0)
     {
@@ -314,14 +314,14 @@ auto Mission::init(char* missionName) -> int32_t
 
     if (numCampaigns < 2)
     {
-        result = missionFile->seekBlock("Campaign0");
+        result = MissionFile->SeekBlock("Campaign0");
 
         if (result != 0)
         {
             return result;
         }
 
-        result = missionFile->readIdString("CampaignFile", campaignFile, 79);
+        result = MissionFile->ReadIdString("CampaignFile", campaignFile, 79);
 
         if (result != 0)
         {
@@ -329,59 +329,59 @@ auto Mission::init(char* missionName) -> int32_t
         }
     }
 
-    missionFile->close();
-    delete missionFile;
-    missionFile = nullptr;
+    MissionFile->Close();
+    delete MissionFile;
+    MissionFile = nullptr;
 
     char campaignName[256];
-    splitFileName(campaignFile, campaignName, sizeof(campaignName));
-    FullPathFileName campaignFileName;
-    campaignFileName.init(missionPath, campaignName, ".fit");
-    missionFile = new FitIniFile;
+    SplitFileName(campaignFile, campaignName, sizeof(campaignName));
+    MCFullPathFileName campaignFileName;
+    campaignFileName.Init(MissionPath, campaignName, ".fit");
+    MissionFile = new MCFitIniFile;
 
-    if (missionFile == nullptr)
+    if (MissionFile == nullptr)
     {
         return 3;
     }
 
-    result = missionFile->open(campaignFileName);
+    result = MissionFile->Open(campaignFileName);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->seekBlock("Movies");
+    result = MissionFile->SeekBlock("Movies");
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->readIdULong("NumMovies", numMovies);
+    result = MissionFile->ReadIdULong("NumMovies", NumMovies);
 
     if (result != 0)
     {
         return result;
     }
 
-    if (missionFile->readIdBoolean("InDemo", InDemo) != 0)
+    if (MissionFile->ReadIdBoolean("InDemo", InDemo) != 0)
     {
         InDemo = 0;
     }
 
-    if (fileExists("ixtlriimceourl"))
+    if (FileExists("ixtlriimceourl"))
     {
-        cheatsOn = 1;
+        CheatsOn = 1;
     }
 
-    if (numMovies == 0)
+    if (NumMovies == 0)
     {
-        movies.clear();
+        Movies.clear();
     }
     else
     {
-        result = readNameList(missionFile, "Movie%d", numMovies, movies);
+        result = ReadNameList(MissionFile, "Movie%d", NumMovies, Movies);
 
         if (result != 0)
         {
@@ -389,33 +389,33 @@ auto Mission::init(char* missionName) -> int32_t
         }
     }
 
-    if (missionFile->readIdFloat("WaitTime", waitTime) != 0)
+    if (MissionFile->ReadIdFloat("WaitTime", WaitTime) != 0)
     {
-        waitTime = 120.0f;
+        WaitTime = 120.0f;
     }
 
-    result = missionFile->seekBlock("Scenarios");
+    result = MissionFile->SeekBlock("Scenarios");
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->readIdULong("NumScenarios", numScenarios);
+    result = MissionFile->ReadIdULong("NumScenarios", NumScenarios);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->readIdULong("LastScenario", lastScenario);
+    result = MissionFile->ReadIdULong("LastScenario", LastScenario);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = readNameList(missionFile, "Scenario%d", numScenarios, scenarios);
+    result = ReadNameList(MissionFile, "Scenario%d", NumScenarios, Scenarios);
 
     if (result != 0)
     {
@@ -426,110 +426,110 @@ auto Mission::init(char* missionName) -> int32_t
     // The component list, which logistics needs before any scenario has loaded it.
     if (MasterComponentList == nullptr)
     {
-        FullPathFileName gameSystemName;
-        gameSystemName.init(missionPath, "gamesys", ".fit");
+        MCFullPathFileName gameSystemName;
+        gameSystemName.Init(MissionPath, "gamesys", ".fit");
         // MCX.EXE allocates this FIT (Fatal " Game System File " when out of memory) and never frees it.
-        FitIniFile gameSystemFile;
-        uint32_t readResult = static_cast<uint32_t>(gameSystemFile.open(gameSystemName));
+        MCFitIniFile gameSystemFile;
+        uint32_t readResult = static_cast<uint32_t>(gameSystemFile.Open(gameSystemName));
         Assert(readResult == 0, readResult, " Could not open GameSys.Fit file ");
-        readResult = static_cast<uint32_t>(gameSystemFile.seekBlock("General"));
+        readResult = static_cast<uint32_t>(gameSystemFile.SeekBlock("General"));
         Assert(readResult == 0, readResult, " Could not find General Block in GameSys ");
         float maxVisualRange = 0.0f;
         float maxWeaponRange = 0.0f;
         float baseSensorRange = 0.0f;
-        readResult = static_cast<uint32_t>(gameSystemFile.readIdFloat("MaxVisualRange", maxVisualRange));
+        readResult = static_cast<uint32_t>(gameSystemFile.ReadIdFloat("MaxVisualRange", maxVisualRange));
         Assert(readResult == 0, readResult, " Could not find MaxVisualRange in GameSys ");
-        readResult = static_cast<uint32_t>(gameSystemFile.readIdFloat("MaxWeaponRange", maxWeaponRange));
+        readResult = static_cast<uint32_t>(gameSystemFile.ReadIdFloat("MaxWeaponRange", maxWeaponRange));
         Assert(readResult == 0, readResult, " Could not find MaxWeaponRange in GameSys ");
-        readResult = static_cast<uint32_t>(gameSystemFile.readIdFloat("BaseSensorRange", baseSensorRange));
+        readResult = static_cast<uint32_t>(gameSystemFile.ReadIdFloat("BaseSensorRange", baseSensorRange));
         Assert(readResult == 0, readResult, " Could not find BaseSensorRange in GameSys ");
-        gameSystemFile.close();
+        gameSystemFile.Close();
 
-        FullPathFileName componentName;
-        componentName.init(objectPath, "compbas", ".csv");
+        MCFullPathFileName componentName;
+        componentName.Init(ObjectPath, "compbas", ".csv");
         const int32_t loadResult =
-            initMasterComponentListEXCEL(componentName, 0xff, maxVisualRange / maxWeaponRange, baseSensorRange);
+            InitMasterComponentListExcel(componentName, 0xff, maxVisualRange / maxWeaponRange, baseSensorRange);
         // Faithful: the assert reports the previous read's code.
         Assert(loadResult == 0, readResult, " Could not load compBas.csv ");
     }
 
     //---------------------------------------------------------------------------------------------------------------
     // Logistics.
-    globalLogPtr = new Logistics;
-    logistics = globalLogPtr;
-    globalLogPtr->init();
+    GlobalLogPtr = new MCLogistics;
+    Logistics = GlobalLogPtr;
+    GlobalLogPtr->Init();
 
-    if (launchedFromLobby == 0)
+    if (LaunchedFromLobby == 0)
     {
-        SetupNextSegment(globalGameSegment);
+        SetupNextSegment(GlobalGameSegment);
     }
     else
     {
-        missionState = 3;
+        MissionState = 3;
         Assert(MPlayer != nullptr, 0, nullptr);
 
-        if (MPlayer->setupLobbyGame() != 0)
+        if (MPlayer->SetupLobbyGame() != 0)
         {
             char text[256];
-            cLoadString(thisInstance, 0x370, text, 0xfe);
-            ReusableDialog* dialog = globalLogPtr->messageDialog;
-            dialog->setText(text);
-            dialog->setTwoButton(0);
-            dialog->okButton->callback()->setExec(CancelToMPlayer);
-            dialog->okButton->setUpPicture(const_cast<char*>("bh_okay.tga"));
-            dialog->okButton->setDownPicture(const_cast<char*>("bg_okay.tga"));
-            dialog->okButton->disabled = 0;
-            dialog->okButton->draw();
-            dialog->activate();
-            globalLogPtr->currentScreen = globalLogPtr->mainScreen;
-            globalLogPtr->logisticsState = 1;
-            globalLogPtr->showLogScreen(0, 0);
+            CLoadString(ThisInstance, 0x370, text, 0xfe);
+            MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+            dialog->SetText(text);
+            dialog->SetTwoButton(0);
+            dialog->OkButton->Callback()->SetExec(CancelToMPlayer);
+            dialog->OkButton->SetUpPicture(const_cast<char*>("bh_okay.tga"));
+            dialog->OkButton->SetDownPicture(const_cast<char*>("bg_okay.tga"));
+            dialog->OkButton->Disabled = 0;
+            dialog->OkButton->Draw();
+            dialog->Activate();
+            GlobalLogPtr->CurrentScreen = GlobalLogPtr->MainScreen;
+            GlobalLogPtr->LogisticsState = 1;
+            GlobalLogPtr->ShowLogScreen(0, 0);
         }
     }
 
     return 0;
 }
 
-auto Mission::initAgain(char* missionName) -> int32_t
+auto MCMission::InitAgain(char* missionName) -> int32_t
 {
-    FullPathFileName fileName;
-    fileName.init(missionPath, missionName, ".fit");
+    MCFullPathFileName fileName;
+    fileName.Init(MissionPath, missionName, ".fit");
     // MCX.EXE keeps this FIT in a local (missionFile still holds the old one) and leaks it on every error return.
-    auto* file = new FitIniFile;
+    auto* file = new MCFitIniFile;
 
     if (file == nullptr)
     {
         return 3;
     }
 
-    int32_t result = file->open(fileName);
+    int32_t result = file->Open(fileName);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = file->seekBlock("Movies");
+    result = file->SeekBlock("Movies");
 
     if (result != 0)
     {
         return result;
     }
 
-    result = file->readIdULong("NumMovies", numMovies);
+    result = file->ReadIdULong("NumMovies", NumMovies);
 
     if (result != 0)
     {
         return result;
     }
 
-    if (numMovies == 0)
+    if (NumMovies == 0)
     {
-        movies.clear();
+        Movies.clear();
     }
     else
     {
-        result = readNameList(file, "Movie%d", numMovies, movies);
+        result = ReadNameList(file, "Movie%d", NumMovies, Movies);
 
         if (result != 0)
         {
@@ -537,33 +537,33 @@ auto Mission::initAgain(char* missionName) -> int32_t
         }
     }
 
-    if (file->readIdFloat("WaitTime", waitTime) != 0)
+    if (file->ReadIdFloat("WaitTime", WaitTime) != 0)
     {
-        waitTime = 120.0f;
+        WaitTime = 120.0f;
     }
 
-    result = file->seekBlock("Scenarios");
+    result = file->SeekBlock("Scenarios");
 
     if (result != 0)
     {
         return result;
     }
 
-    result = file->readIdULong("NumScenarios", numScenarios);
+    result = file->ReadIdULong("NumScenarios", NumScenarios);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = file->readIdULong("LastScenario", lastScenario);
+    result = file->ReadIdULong("LastScenario", LastScenario);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = readNameList(file, "Scenario%d", numScenarios, scenarios);
+    result = ReadNameList(file, "Scenario%d", NumScenarios, Scenarios);
 
     if (result != 0)
     {
@@ -575,155 +575,155 @@ auto Mission::initAgain(char* missionName) -> int32_t
     return 0;
 }
 
-auto Mission::SetupNextSegment(int32_t segment) -> int32_t
+auto MCMission::SetupNextSegment(int32_t segment) -> int32_t
 {
     char blockName[50];
     std::snprintf(blockName, sizeof(blockName), "GameSegment%d", segment);
-    int32_t result = missionFile->seekBlock(blockName);
+    int32_t result = MissionFile->SeekBlock(blockName);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->readIdULong("GameState", reinterpret_cast<uint32_t&>(missionState));
+    result = MissionFile->ReadIdULong("GameState", reinterpret_cast<uint32_t&>(MissionState));
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->readIdULong("SmackerMovieId", reinterpret_cast<uint32_t&>(currentMovie));
+    result = MissionFile->ReadIdULong("SmackerMovieId", reinterpret_cast<uint32_t&>(CurrentMovie));
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->readIdULong("ScenarioId", reinterpret_cast<uint32_t&>(currentScenario));
+    result = MissionFile->ReadIdULong("ScenarioId", reinterpret_cast<uint32_t&>(CurrentScenario));
 
     if (result != 0)
     {
         return result;
     }
 
-    result = missionFile->readIdULong("NextGameState", reinterpret_cast<uint32_t&>(nextGameState));
+    result = MissionFile->ReadIdULong("NextGameState", reinterpret_cast<uint32_t&>(NextGameState));
 
     if (result != 0)
     {
         return result;
     }
 
-    if (globalGameSegment == 0)
+    if (GlobalGameSegment == 0)
     {
-        logistics->getCurrentMission();
+        Logistics->GetCurrentMission();
         return 0;
     }
 
-    missionState = 11;
+    MissionState = 11;
     return 0;
 }
 
-auto Mission::init() -> int32_t
+auto MCMission::Init() -> int32_t
 {
-    missionState = 0;
-    resultsScreen = nullptr;
-    missionFile = nullptr;
-    logistics = nullptr;
+    MissionState = 0;
+    ResultsScreen = nullptr;
+    MissionFile = nullptr;
+    Logistics = nullptr;
 
-    if (missionCallback == nullptr)
+    if (MissionCallback == nullptr)
     {
-        missionCallback = new aCallback;
-        missionCallback->setExec(RunMission);
-        application->addCallback(missionCallback);
+        MissionCallback = new MCGuiCallback;
+        MissionCallback->SetExec(RunMission);
+        Application->AddCallback(MissionCallback);
     }
 
     return 0;
 }
 
-auto Mission::destroy() -> void
+auto MCMission::Destroy() -> void
 {
-    movies.clear();
-    scenarios.clear();
+    Movies.clear();
+    Scenarios.clear();
 
-    if (missionFile != nullptr)
+    if (MissionFile != nullptr)
     {
-        missionFile->close();
-        delete missionFile;
-        missionFile = nullptr;
+        MissionFile->Close();
+        delete MissionFile;
+        MissionFile = nullptr;
     }
 
-    if (scenarioCallback != nullptr)
+    if (ScenarioCallback != nullptr)
     {
-        application->removeCallback(scenarioCallback);
-        delete scenarioCallback;
-        scenarioCallback = nullptr;
+        Application->RemoveCallback(ScenarioCallback);
+        delete ScenarioCallback;
+        ScenarioCallback = nullptr;
     }
 
-    if (interfaceUpdateCallback != nullptr)
+    if (InterfaceUpdateCallback != nullptr)
     {
-        application->removeCallback(interfaceUpdateCallback);
-        delete interfaceUpdateCallback;
-        interfaceUpdateCallback = nullptr;
+        Application->RemoveCallback(InterfaceUpdateCallback);
+        delete InterfaceUpdateCallback;
+        InterfaceUpdateCallback = nullptr;
     }
 
-    if (scenario != nullptr)
+    if (Scenario != nullptr)
     {
-        saveWindowStatus();
-        scenario->destroy();
-        delete scenario;
-        scenario = nullptr;
+        SaveWindowStatus();
+        Scenario->Destroy();
+        delete Scenario;
+        Scenario = nullptr;
     }
 
-    if (missionCallback != nullptr)
+    if (MissionCallback != nullptr)
     {
-        application->removeCallback(missionCallback);
-        delete missionCallback;
-        missionCallback = nullptr;
+        Application->RemoveCallback(MissionCallback);
+        delete MissionCallback;
+        MissionCallback = nullptr;
     }
 
-    if (globalLogPtr != nullptr)
+    if (GlobalLogPtr != nullptr)
     {
-        if (logistics != nullptr)
+        if (Logistics != nullptr)
         {
-            deleteLogistics(logistics);
+            DeleteLogistics(Logistics);
         }
 
-        logistics = nullptr;
-        globalLogPtr = nullptr;
+        Logistics = nullptr;
+        GlobalLogPtr = nullptr;
     }
 
-    missionState = 0;
+    MissionState = 0;
 }
 
-auto Mission::run() -> int32_t
+auto MCMission::Run() -> int32_t
 {
-    keepScreenBlack = 0;
+    KeepScreenBlack = 0;
     // The states that end up back in logistics share the tails of the binary's switch; these flags stand in for its
     // two jump targets (reset the display first, or not).
     bool resetDisplay = false;
     bool toLogistics = false;
 
-    switch (missionState)
+    switch (MissionState)
     {
         case 0:
         {
-            if (currentMovie == -1)
+            if (CurrentMovie == -1)
             {
                 break;
             }
 
-            if (nextGameState == 10)
+            if (NextGameState == 10)
             {
-                missionState = 10;
+                MissionState = 10;
                 break;
             }
 
-            if (gFullScreen != 0)
+            if (GFullScreen != 0)
             {
-                application->resetDirectDraw(application->width(), application->height(), 8);
-                application->paletteCycle = 1;
-                application->activatePalette(gamePalette->rgbData.get(), 0, 0x100);
+                Application->ResetDirectDraw(Application->Width(), Application->Height(), 8);
+                Application->PaletteCycle = 1;
+                Application->ActivatePalette(GamePalette->RgbData.get(), 0, 0x100);
             }
 
             toLogistics = true;
@@ -732,96 +732,96 @@ auto Mission::run() -> int32_t
 
         case 3:
         {
-            if (logistics != nullptr && logistics->currentScreen->IsShowing() == 0)
+            if (Logistics != nullptr && Logistics->CurrentScreen->IsShowing() == 0)
             {
-                logistics->showLogScreen(1, 0);
+                Logistics->ShowLogScreen(1, 0);
             }
 
-            escapedSmackerMovie = 0;
-            movieOver = 0;
-            application->showCursor(1);
+            EscapedSmackerMovie = 0;
+            MovieOver = 0;
+            Application->SetCursorVisible(1);
 
-            if (soundSystem != nullptr)
+            if (SoundSystem != nullptr)
             {
-                if (logistics == nullptr)
+                if (Logistics == nullptr)
                 {
                     break;
                 }
 
-                const bool onMainScreen = logistics->currentScreen == logistics->mainScreen;
+                const bool onMainScreen = Logistics->CurrentScreen == Logistics->MainScreen;
 
-                if (onMainScreen && playingLogisticsMusic != 1)
+                if (onMainScreen && PlayingLogisticsMusic != 1)
                 {
-                    soundSystem->playDigitalMusic(0x17, true);
-                    playingLogisticsMusic = 1;
+                    SoundSystem->PlayDigitalMusic(0x17, true);
+                    PlayingLogisticsMusic = 1;
                 }
 
-                if (!onMainScreen && playingLogisticsMusic != 2)
+                if (!onMainScreen && PlayingLogisticsMusic != 2)
                 {
-                    soundSystem->playDigitalMusic(0x16, true);
-                    playingLogisticsMusic = 2;
+                    SoundSystem->PlayDigitalMusic(0x16, true);
+                    PlayingLogisticsMusic = 2;
                 }
             }
 
-            if (logistics != nullptr && MPlayer != nullptr)
+            if (Logistics != nullptr && MPlayer != nullptr)
             {
-                MPlayer->processReceiveList();
+                MPlayer->ProcessReceiveList();
             }
             break;
         }
 
         case 6:
         {
-            if (MPlayer != nullptr && MPlayer->sessionManager != nullptr)
+            if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
             {
-                MPlayer->processReceiveList();
+                MPlayer->ProcessReceiveList();
             }
             break;
         }
 
         case 7:
         {
-            if ((scenarioResult != 0 || endScenarioRequested != 0) && scenario->startingUp == 0)
+            if ((ScenarioResult != 0 || EndScenarioRequested != 0) && Scenario->StartingUp == 0)
             {
-                scenario->setupBonus();
-                resultsScreen->activate();
-                missionState = 6;
-                playingLogisticsMusic = 0;
+                Scenario->SetupBonus();
+                ResultsScreen->Activate();
+                MissionState = 6;
+                PlayingLogisticsMusic = 0;
             }
             break;
         }
 
         case 8:
         {
-            if (application->smackerWindow != nullptr)
+            if (Application->SmackerWindow != nullptr)
             {
                 break;
             }
 
-            if (nextGameState == 10)
+            if (NextGameState == 10)
             {
-                missionState = 10;
-                currentMovie++;
+                MissionState = 10;
+                CurrentMovie++;
 
-                if (currentMovie == 2)
+                if (CurrentMovie == 2)
                 {
-                    nextGameState = 3;
+                    NextGameState = 3;
                 }
-                else if (currentMovie == 5)
+                else if (CurrentMovie == 5)
                 {
-                    nextGameState = 16;
-                    missionState = 16;
+                    NextGameState = 16;
+                    MissionState = 16;
                 }
                 else
                 {
-                    nextGameState = 10;
+                    NextGameState = 10;
                 }
                 break;
             }
 
-            if (gameOver != 0)
+            if (GameOver != 0)
             {
-                missionState = 16;
+                MissionState = 16;
                 break;
             }
 
@@ -831,92 +831,92 @@ auto Mission::run() -> int32_t
 
         case 10:
         {
-            const int32_t movie = currentMovie;
+            const int32_t movie = CurrentMovie;
 
             if (movie == -1)
             {
                 break;
             }
 
-            if (escapedSmackerMovie == 0)
+            if (EscapedSmackerMovie == 0)
             {
-                if (soundSystem != nullptr)
+                if (SoundSystem != nullptr)
                 {
-                    soundSystem->stopDigitalMusic();
+                    SoundSystem->StopDigitalMusic();
                 }
 
-                FullPathFileName movieName;
-                movieName.init(CDmoviePath, movies[movie].c_str(), ".smk");
+                MCFullPathFileName movieName;
+                movieName.Init(CDmoviePath, Movies[movie].c_str(), ".smk");
                 // MCX.EXE: when movie 1 (the opening) isn't installed, it scans drives C: to Z: for a CD-ROM holding
                 // \data\movies\opening.smk. The port reads movies from the install only.
-                application->startSmackerMovie(movieName, 0xfe000, nullptr, 1);
-                missionState = 8;
-                playingLogisticsMusic = 0;
+                Application->StartSmackerMovie(movieName, 0xfe000, nullptr, 1);
+                MissionState = 8;
+                PlayingLogisticsMusic = 0;
                 break;
             }
 
-            escapedSmackerMovie = 0;
+            EscapedSmackerMovie = 0;
 
-            if (gameOver != 0)
+            if (GameOver != 0)
             {
-                missionState = 16;
+                MissionState = 16;
                 break;
             }
 
-            resetFullScreenDisplay();
-            playingLogisticsMusic = 0;
+            ResetFullScreenDisplay();
+            PlayingLogisticsMusic = 0;
             toLogistics = true;
             break;
         }
 
         case 11:
         {
-            if (currentScenario != -1)
+            if (CurrentScenario != -1)
             {
-                if (soundSystem != nullptr)
+                if (SoundSystem != nullptr)
                 {
-                    soundSystem->stopDigitalMusic();
+                    SoundSystem->StopDigitalMusic();
                 }
 
-                char* scenarioName = (MPlayer == nullptr || globalLogPtr == nullptr) ? scenarios[currentScenario].data()
-                                                                                     : globalLogPtr->mpMissionName;
+                char* scenarioName = (MPlayer == nullptr || GlobalLogPtr == nullptr) ? Scenarios[CurrentScenario].data()
+                                                                                     : GlobalLogPtr->MpMissionName;
                 StartScenario(scenarioName);
-                application->showCursor(1);
+                Application->SetCursorVisible(1);
             }
             break;
         }
 
         case 13:
         {
-            if (application->smackerWindow2 != nullptr)
+            if (Application->SmackerWindow2 != nullptr)
             {
                 break;
             }
 
-            if (nextGameState == 10)
+            if (NextGameState == 10)
             {
-                if (currentMovie++ != 0)
+                if (CurrentMovie++ != 0)
                 {
-                    missionState = 10;
-                    nextGameState = 3;
+                    MissionState = 10;
+                    NextGameState = 3;
                     break;
                 }
 
-                missionState = 12;
-                nextGameState = 10;
+                MissionState = 12;
+                NextGameState = 10;
                 break;
             }
 
-            if (InDemo != 0 && currentMovie == 2)
+            if (InDemo != 0 && CurrentMovie == 2)
             {
-                resetFullScreenDisplay();
-                missionState = 20;
+                ResetFullScreenDisplay();
+                MissionState = 20;
                 break;
             }
 
-            if (gameOver != 0 && currentMovie == 3)
+            if (GameOver != 0 && CurrentMovie == 3)
             {
-                missionState = 16;
+                MissionState = 16;
                 break;
             }
 
@@ -930,36 +930,36 @@ auto Mission::run() -> int32_t
 
         case 20:
         {
-            if (featureScreen != nullptr)
+            if (FeatureScreen != nullptr)
             {
-                if (featureMusicPlaying == 0)
+                if (FeatureMusicPlaying == 0)
                 {
-                    soundSystem->playDigitalMusic(8, false);
-                    featureMusicPlaying = 1;
+                    SoundSystem->PlayDigitalMusic(8, false);
+                    FeatureMusicPlaying = 1;
                 }
             }
 
-            if (featureScreen == nullptr)
+            if (FeatureScreen == nullptr)
             {
                 //-------------------------------------------------------------------------------------------------------
                 // The demo's feature screen: features.tga with the palette from its own colour map.
-                File pictureFile;
+                MCFile pictureFile;
                 char fileName[256];
                 char message[256];
-                std::snprintf(fileName, sizeof(fileName), "%s%s", artPath, "features.tga");
+                std::snprintf(fileName, sizeof(fileName), "%s%s", ArtPath, "features.tga");
 
-                if (pictureFile.open(fileName) != 0)
+                if (pictureFile.Open(fileName) != 0)
                 {
                     MCStrCopy(fileName, "features.tga");
 
-                    if (pictureFile.open(fileName) != 0)
+                    if (pictureFile.Open(fileName) != 0)
                     {
                         std::snprintf(message, sizeof(message), "Error reading '%s'", fileName);
                         GeneralMsg(message);
                     }
                 }
 
-                const uint32_t size = pictureFile.fileSize();
+                const uint32_t size = pictureFile.FileSize();
 
                 if (size == 0)
                 {
@@ -973,8 +973,8 @@ auto Mission::run() -> int32_t
                 }
 
                 std::vector<uint8_t> picture(size);
-                pictureFile.read(picture.data(), static_cast<int32_t>(size));
-                pictureFile.close();
+                pictureFile.Read(picture.data(), static_cast<int32_t>(size));
+                pictureFile.Close();
                 // The TGA's colour map starts at +0x12, as 256 BGR triples of 8-bit components.
                 std::array<uint8_t, 0x300> palette = {};
 
@@ -985,24 +985,24 @@ auto Mission::run() -> int32_t
                     palette[i * 3 + 2] = picture[0x12 + i * 3 + 0] >> 2;
                 }
 
-                application->showCursor(0);
-                featureScreen = new aObject;
-                featureScreen->init(0, 0, 640, 480, nullptr);
+                Application->SetCursorVisible(0);
+                FeatureScreen = new MCGuiObject;
+                FeatureScreen->Init(0, 0, 640, 480, nullptr);
                 // The picture's port is never freed in MCX.EXE.
-                auto* picturePort = new aPort;
-                picturePort->init(const_cast<char*>("features.tga"));
-                picturePort->copyTo(featureScreen->port()->frame(), 0, 0, 0);
-                screenWindow->addChild(featureScreen);
-                featureScreen->ShowGUIWindow(1);
-                application->activatePalette(palette.data(), 0, 0x100);
+                auto* picturePort = new MCGuiPort;
+                picturePort->Init(const_cast<char*>("features.tga"));
+                picturePort->CopyTo(FeatureScreen->Port()->Frame(), 0, 0, 0);
+                ScreenWindow->AddChild(FeatureScreen);
+                FeatureScreen->ShowGuiWindow(1);
+                Application->ActivatePalette(palette.data(), 0, 0x100);
             }
 
-            if (featureScreenDone != 0)
+            if (FeatureScreenDone != 0)
             {
-                screenWindow->removeChild(featureScreen);
-                delete featureScreen;
-                featureScreen = nullptr;
-                missionState = 16;
+                ScreenWindow->RemoveChild(FeatureScreen);
+                delete FeatureScreen;
+                FeatureScreen = nullptr;
+                MissionState = 16;
             }
             break;
         }
@@ -1010,135 +1010,135 @@ auto Mission::run() -> int32_t
 
     if (resetDisplay)
     {
-        resetFullScreenDisplay();
+        ResetFullScreenDisplay();
         toLogistics = true;
     }
 
     if (toLogistics)
     {
-        missionState = 3;
+        MissionState = 3;
 
-        if (globalGameSegment == 0)
+        if (GlobalGameSegment == 0)
         {
-            logistics->getCurrentMission();
+            Logistics->GetCurrentMission();
         }
     }
 
-    if (soundSystem != nullptr && (scenario == nullptr || EventsToMissionResultsScreen != 0))
+    if (SoundSystem != nullptr && (Scenario == nullptr || EventsToMissionResultsScreen != 0))
     {
-        soundSystem->update();
+        SoundSystem->Update();
     }
 
     return 0;
 }
 
-auto Mission::StartScenario(char* scenarioName) -> void
+auto MCMission::StartScenario(char* scenarioName) -> void
 {
     if (Solo == 0 && MPlayer == nullptr)
     {
-        checkForCDInDrive(CurPlanet, false);
+        CheckForCDInDrive(CurPlanet, false);
     }
 
-    soundSystem->playBettySample(0x13);
-    endScenarioRequested = 0;
-    resultsScreen = new MissionResultsScreen;
-    resultsScreen->init();
+    SoundSystem->PlayBettySample(0x13);
+    EndScenarioRequested = 0;
+    ResultsScreen = new MCMissionResultsScreen;
+    ResultsScreen->Init();
 
-    if (globalGameSegment == 0)
+    if (GlobalGameSegment == 0)
     {
-        globalLogPtr->prepareScenario(scenarioName, const_cast<char*>("bridge"));
+        GlobalLogPtr->PrepareScenario(scenarioName, const_cast<char*>("bridge"));
     }
 
-    if (logistics != nullptr)
+    if (Logistics != nullptr)
     {
-        deleteLogistics(logistics);
-        globalLogPtr = nullptr;
-        logistics = nullptr;
+        DeleteLogistics(Logistics);
+        GlobalLogPtr = nullptr;
+        Logistics = nullptr;
     }
 
     //---------------------------------------------------------------------------------------------------------------
     // How long logistics took: the time of day of (end - start) as a FILETIME, so whole days are dropped.
-    MCPort::GetSystemTime(logisticsEnd);
-    const uint64_t startTicks = MCPort::SystemTimeToFileTime(logisticsStart);
-    const uint64_t endTicks = MCPort::SystemTimeToFileTime(logisticsEnd);
+    MCPort::GetSystemTime(LogisticsEnd);
+    const uint64_t startTicks = MCPort::SystemTimeToFileTime(LogisticsStart);
+    const uint64_t endTicks = MCPort::SystemTimeToFileTime(LogisticsEnd);
     SYSTEMTIME elapsed{};
     MCPort::FileTimeToSystemTime(endTicks - startTicks, elapsed);
-    totalLogisticsTime = static_cast<float>(elapsed.wMinute) * 60.0f + static_cast<float>(elapsed.wHour) * 3600.0f +
+    TotalLogisticsTime = static_cast<float>(elapsed.wMinute) * 60.0f + static_cast<float>(elapsed.wHour) * 3600.0f +
                          static_cast<float>(elapsed.wSecond) + static_cast<float>(elapsed.wMilliseconds / 1000);
 
-    gamePalette->activate(0, 0);
-    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData.get()));
-    application->paletteCycle = 1;
-    application->showCursor(0);
+    GamePalette->Activate(0, 0);
+    InitAlphaLookup(reinterpret_cast<MCVfxRgb*>(GamePalette->RgbData.get()));
+    Application->PaletteCycle = 1;
+    Application->SetCursorVisible(0);
 
-    scenarioCallback = new aCallback;
+    ScenarioCallback = new MCGuiCallback;
 
-    if (scenarioCallback == nullptr)
+    if (ScenarioCallback == nullptr)
     {
         Fatal(0, " No RAM for scenario Callback");
     }
 
-    scenario = new Scenario;
+    Scenario = new MCScenario;
 
-    if (scenario == nullptr)
+    if (Scenario == nullptr)
     {
         Fatal(0, " No RAM for scenario");
     }
 
-    if (globalGameSegment == 0)
+    if (GlobalGameSegment == 0)
     {
         scenarioName = const_cast<char*>("bridge");
     }
 
     // Port: the scenario's windows are made at the window's size.
     MCFollowWindowSize();
-    const int32_t result = scenario->init(scenarioName, nullptr);
+    const int32_t result = Scenario->Init(scenarioName, nullptr);
 
     if (result != 0)
     {
         Fatal(result, " Couldnt init scenario ");
     }
 
-    theInterface->StartScenario();
-    loadWindowStatus();
+    TheInterface->StartScenario();
+    LoadWindowStatus();
     StartingResourcePoints = ResourcePoints;
-    scenarioResult = 0;
-    missionState = 7;
-    waitTimer = waitTime;
-    aRedrawScreen();
-    scenarioCallback->setExec(playScenario);
-    application->addCallback(scenarioCallback);
+    ScenarioResult = 0;
+    MissionState = 7;
+    WaitTimer = WaitTime;
+    ARedrawScreen();
+    ScenarioCallback->SetExec(PlayScenario);
+    Application->AddCallback(ScenarioCallback);
 
-    if (interfaceUpdateCallback == nullptr)
+    if (InterfaceUpdateCallback == nullptr)
     {
-        interfaceUpdateCallback = new aCallback;
+        InterfaceUpdateCallback = new MCGuiCallback;
 
-        if (interfaceUpdateCallback == nullptr)
+        if (InterfaceUpdateCallback == nullptr)
         {
             Fatal(0, " No RAM for interface Callback");
         }
     }
 
-    interfaceUpdateCallback->setExec(UpdateMouseStateCallback);
-    application->addCallback(interfaceUpdateCallback);
+    InterfaceUpdateCallback->SetExec(UpdateMouseStateCallback);
+    Application->AddCallback(InterfaceUpdateCallback);
 }
 
-auto Mission::EndScenario() -> void
+auto MCMission::EndScenario() -> void
 {
-    totalScenarioTime = scenarioTime;
+    TotalScenarioTime = ScenarioTime;
 
     // MCX.EXE also copies the scenario's script name to an unused local when playing solo (after the CD check).
     if (Solo == 0 && MPlayer == nullptr)
     {
-        checkForCDInDrive(CurPlanet, false);
+        CheckForCDInDrive(CurPlanet, false);
     }
 
-    if (globalGameSegment == 0 && MPlayer == nullptr)
+    if (GlobalGameSegment == 0 && MPlayer == nullptr)
     {
         char bridgeName[256];
-        std::snprintf(bridgeName, sizeof(bridgeName), "%s", scenario->scenarioScript);
-        MissionLogisticsBridge bridge;
-        const int32_t result = bridge.missionResultsStartingFitWriter(bridgeName);
+        std::snprintf(bridgeName, sizeof(bridgeName), "%s", Scenario->ScenarioScript);
+        MCMissionLogisticsBridge bridge;
+        const int32_t result = bridge.MissionResultsStartingFitWriter(bridgeName);
 
         if (result != 0)
         {
@@ -1146,121 +1146,121 @@ auto Mission::EndScenario() -> void
         }
     }
 
-    endScenarioRequested = 0;
+    EndScenarioRequested = 0;
 
-    if (setupCallback != nullptr)
+    if (SetupCallback != nullptr)
     {
-        delete setupCallback;
-        setupCallback = nullptr;
+        delete SetupCallback;
+        SetupCallback = nullptr;
     }
 
-    application->removeCallback(scenarioCallback);
-    delete scenarioCallback;
-    scenarioCallback = nullptr;
-    theInterface->EndScenario();
-    somethingOnFire = 0;
+    Application->RemoveCallback(ScenarioCallback);
+    delete ScenarioCallback;
+    ScenarioCallback = nullptr;
+    TheInterface->EndScenario();
+    SomethingOnFire = 0;
 
-    if (soundSystem != nullptr)
+    if (SoundSystem != nullptr)
     {
-        soundSystem->purgeSoundSystem();
+        SoundSystem->PurgeSoundSystem();
     }
 
     // The result is thrown away (the results screen already counted the points).
-    scenario->calcResourcePointsEarned();
+    Scenario->CalcResourcePointsEarned();
 
-    if (scenario != nullptr)
+    if (Scenario != nullptr)
     {
-        scenario->destroy();
-        delete scenario;
-        scenario = nullptr;
+        Scenario->Destroy();
+        delete Scenario;
+        Scenario = nullptr;
     }
 
-    if (scenarioResult > 3)
+    if (ScenarioResult > 3)
     {
         if (Solo != 0)
         {
             // A won solo (quick-start) mission: back to the main screen.
-            Logistics* newLogistics = startLogistics(this);
+            MCLogistics* newLogistics = StartLogistics(this);
             LastLogisticsMissionState = 0;
-            missionState = 3;
-            newLogistics->currentScreen->ShowGUIWindow(0);
-            newLogistics->currentScreen = newLogistics->mainScreen;
-            newLogistics->logisticsState = 1;
-            newLogistics->showLogScreen(1, 1);
+            MissionState = 3;
+            newLogistics->CurrentScreen->ShowGuiWindow(0);
+            newLogistics->CurrentScreen = newLogistics->MainScreen;
+            newLogistics->LogisticsState = 1;
+            newLogistics->ShowLogScreen(1, 1);
             Solo = 0;
             return;
         }
 
-        if (static_cast<uint32_t>(currentScenario) == lastScenario)
+        if (static_cast<uint32_t>(CurrentScenario) == LastScenario)
         {
-            gameOver = 1;
+            GameOver = 1;
         }
     }
 
-    if (scenarioResult < 3 && Solo != 0)
+    if (ScenarioResult < 3 && Solo != 0)
     {
         // A lost solo mission: restart the campaign at its first briefing.
-        Logistics* newLogistics = startLogistics(this);
+        MCLogistics* newLogistics = StartLogistics(this);
         LastLogisticsMissionState = 0;
-        missionState = 3;
+        MissionState = 3;
         Solo = 1;
-        newLogistics->currentMission = 0;
-        currentScenario = 0;
-        currentMovie = 1;
+        newLogistics->CurrentMission = 0;
+        CurrentScenario = 0;
+        CurrentMovie = 1;
         char startName[] = "start1";
         char extension[] = ".pkk";
-        newLogistics->loadCampaign(startName, extension, 1, 0);
-        newLogistics->setUpBriefingScreen(0);
-        newLogistics->showLogScreen(1, 0);
+        newLogistics->LoadCampaign(startName, extension, 1, 0);
+        newLogistics->SetUpBriefingScreen(0);
+        newLogistics->ShowLogScreen(1, 0);
         return;
     }
 
-    if (globalGameSegment == 0 && gameOver == 0)
+    if (GlobalGameSegment == 0 && GameOver == 0)
     {
-        Logistics* newLogistics = startLogistics(this);
+        MCLogistics* newLogistics = StartLogistics(this);
 
         if (MPlayer == nullptr)
         {
             // The campaign: a win moves on to the next mission, anything else replays this one.
-            int32_t missionId = currentScenario;
+            int32_t missionId = CurrentScenario;
 
-            if (scenarioResult < 4)
+            if (ScenarioResult < 4)
             {
-                newLogistics->currentMission = missionId;
+                newLogistics->CurrentMission = missionId;
             }
             else
             {
                 missionId++;
-                newLogistics->currentMission = missionId;
-                currentScenario = missionId;
+                newLogistics->CurrentMission = missionId;
+                CurrentScenario = missionId;
             }
 
-            currentMovie = missionId + 1;
-            newLogistics->getCurrentMission();
-            const bool replay = scenarioResult < 4;
+            CurrentMovie = missionId + 1;
+            newLogistics->GetCurrentMission();
+            const bool replay = ScenarioResult < 4;
             char startName[32];
             std::snprintf(startName, sizeof(startName), "start%d",
-                          replay ? newLogistics->currentMission + 1 : newLogistics->currentMission);
+                          replay ? newLogistics->CurrentMission + 1 : newLogistics->CurrentMission);
             char extension[] = ".pkk";
-            newLogistics->loadCampaign(startName, extension, replay ? 1 : 0, 0);
-            newLogistics->setUpBriefingScreen(0);
-            newLogistics->showLogScreen(1, 0);
+            newLogistics->LoadCampaign(startName, extension, replay ? 1 : 0, 0);
+            newLogistics->SetUpBriefingScreen(0);
+            newLogistics->ShowLogScreen(1, 0);
             return;
         }
 
         LastLogisticsMissionState = 0;
-        MPlayer->chatCallback = LogisticsChatCallback;
-        missionState = 3;
-        newLogistics->currentScreen->ShowGUIWindow(0);
-        newLogistics->currentScreen = newLogistics->mainScreen;
-        newLogistics->logisticsState = 1;
-        newLogistics->showLogScreen(1, 1);
+        MPlayer->ChatCallback = LogisticsChatCallback;
+        MissionState = 3;
+        newLogistics->CurrentScreen->ShowGuiWindow(0);
+        newLogistics->CurrentScreen = newLogistics->MainScreen;
+        newLogistics->LogisticsState = 1;
+        newLogistics->ShowLogScreen(1, 1);
 
-        if (MPlayer->inMission != 0)
+        if (MPlayer->InMission != 0)
         {
-            if (isMPlayerGame != 0)
+            if (IsMPlayerGame != 0)
             {
-                killTheGame();
+                KillTheGame();
             }
 
             delete MPlayer;
@@ -1269,142 +1269,142 @@ auto Mission::EndScenario() -> void
     }
     else
     {
-        missionState = 16;
-        waitTimer = waitTime;
-        currentScenario = -1;
+        MissionState = 16;
+        WaitTimer = WaitTime;
+        CurrentScenario = -1;
     }
 }
 
-auto Mission::saveWindowStatus() -> void
+auto MCMission::SaveWindowStatus() -> void
 {
-    FitIniFile windowFile;
+    MCFitIniFile windowFile;
     // windows.tmp in the original: under the process ID, as copies of the game on one machine share the user folder
     // and leave a multiplayer mission together.
     char tempName[32];
     std::snprintf(tempName, sizeof(tempName), "windows.%u.tmp", MCPort::ProcessId());
 
-    if (windowFile.open(tempName, CREATE) != 0)
+    if (windowFile.Open(tempName, CREATE) != 0)
     {
         return;
     }
 
-    windowFile.writeBlock("Info");
+    windowFile.WriteBlock("Info");
 
-    if (mainHolder->GetPane(0) != nullptr && mainHolder->GetPane(0)->GetCamera() != nullptr)
+    if (MainHolder->GetPane(0) != nullptr && MainHolder->GetPane(0)->GetCamera() != nullptr)
     {
-        windowFile.writeIdBoolean("MainZoomed", mainHolder->GetPane(0)->GetCamera()->cameraScale != 100);
+        windowFile.WriteIdBoolean("MainZoomed", MainHolder->GetPane(0)->GetCamera()->CameraScale != 100);
     }
 
-    windowFile.writeIdBoolean("TacHidden", theInterface->tacticalMap->IsHidden());
-    windowFile.writeIdBoolean("ShowPalette", theInterface->tacticalMap->paletteFrame->IsShowing());
-    windowFile.close();
+    windowFile.WriteIdBoolean("TacHidden", TheInterface->TacticalMap->IsHidden());
+    windowFile.WriteIdBoolean("ShowPalette", TheInterface->TacticalMap->PaletteFrame->IsShowing());
+    windowFile.Close();
     MCFileSystem::RemoveFile("windows.fit");
     MCFileSystem::RenameFile(tempName, "windows.fit");
 }
 
-auto Mission::loadWindowStatus() -> void
+auto MCMission::LoadWindowStatus() -> void
 {
-    FitIniFile windowFile;
-    mainHolder->SetTiled(0);
-    theInterface->tacticalMap->ShowGUIWindow(1);
-    mainHolder->ZoomActivePane();
-    theInterface->tacticalMap->HideMe(0);
+    MCFitIniFile windowFile;
+    MainHolder->SetTiled(0);
+    TheInterface->TacticalMap->ShowGuiWindow(1);
+    MainHolder->ZoomActivePane();
+    TheInterface->TacticalMap->HideMe(0);
 
-    if (windowFile.open("windows.fit") != 0)
+    if (windowFile.Open("windows.fit") != 0)
     {
         return;
     }
 
-    if (windowFile.seekBlock("Info") == 0)
+    if (windowFile.SeekBlock("Info") == 0)
     {
         int showPalette = 0;
 
-        if (windowFile.readIdBoolean("ShowPalette", showPalette) != 0)
+        if (windowFile.ReadIdBoolean("ShowPalette", showPalette) != 0)
         {
             showPalette = 1;
         }
 
-        theInterface->tacticalMap->paletteFrame->ShowGUIWindow(showPalette);
+        TheInterface->TacticalMap->PaletteFrame->ShowGuiWindow(showPalette);
     }
 
-    windowFile.close();
+    windowFile.Close();
 }
 
-auto aOpeningSmackerWindow::init(tagRECT* frame, tagPOINT* position) -> int32_t
+auto MCGuiOpeningSmackerWindow::Init(tagRECT* frame, tagPOINT* position) -> int32_t
 {
-    wipeLine = 0;
-    application->openingSmackerWindow = this;
-    return aSmackerWindow::init(frame, position);
+    WipeLine = 0;
+    Application->OpeningSmackerWindow = this;
+    return MCGuiSmackerWindow::Init(frame, position);
 }
 
-auto aOpeningSmackerWindow::display() -> void
+auto MCGuiOpeningSmackerWindow::Display() -> void
 {
-    if (showWindow == 0 || (IsHidden() != 0 && hideOffset == 0))
+    if (ShowWindow == 0 || (IsHidden() != 0 && HideOffset == 0))
     {
         return;
     }
 
-    if (wipeLine < 1)
+    if (WipeLine < 1)
     {
-        aSmackerWindow::display();
+        MCGuiSmackerWindow::Display();
     }
     else
     {
         // (The original copied the frame onto the screen wipeLine lines down; draw does it.)
-        DrawInFramePass(displayPort);
-        wipeLine += 20;
+        DrawInFramePass(DisplayPort);
+        WipeLine += 20;
     }
 
-    if (height() + 20 <= wipeLine)
+    if (Height() + 20 <= WipeLine)
     {
-        destroy();
+        Destroy();
         delete this;
     }
 }
 
-auto aOpeningSmackerWindow::draw() -> void
+auto MCGuiOpeningSmackerWindow::Draw() -> void
 {
-    if (wipeLine < 1)
+    if (WipeLine < 1)
     {
-        aSmackerWindow::draw();
+        MCGuiSmackerWindow::Draw();
         return;
     }
 
-    if (moviePane != nullptr && moviePane->window != nullptr && moviePane->window->buffer != nullptr)
+    if (MoviePane != nullptr && MoviePane->Window != nullptr && MoviePane->Window->Buffer != nullptr)
     {
-        VFX_pane_copy(moviePane, 0, 0, port()->frame(), 0, wipeLine, -1);
+        VfxPaneCopy(MoviePane, 0, 0, Port()->Frame(), 0, WipeLine, -1);
     }
 }
 
-auto aOpeningSmackerWindow::endSmackerMovie() -> void
+auto MCGuiOpeningSmackerWindow::EndSmackerMovie() -> void
 {
-    SmackClose(movie);
-    movie = nullptr;
-    wipeLine++;
-    application->openingSmackerWindow = nullptr;
+    SmackClose(Movie);
+    Movie = nullptr;
+    WipeLine++;
+    Application->OpeningSmackerWindow = nullptr;
     // Port: the lines above the sliding frame show what is under the window (the original didn't touch them); movie
     // pixels of the key colour 0xff show through too.
-    transparent = 1;
+    Transparent = 1;
 }
 
-auto aOpeningSmackerWindow::escapeSmackerMovie() -> void
+auto MCGuiOpeningSmackerWindow::EscapeSmackerMovie() -> void
 {
-    wipeLine += height();
-    endSmackerMovie();
-    application->smackerWindow->destroy();
+    WipeLine += Height();
+    EndSmackerMovie();
+    Application->SmackerWindow->Destroy();
 
-    if (application->smackerWindow != nullptr)
+    if (Application->SmackerWindow != nullptr)
     {
-        delete application->smackerWindow;
+        delete Application->SmackerWindow;
     }
 
-    application->smackerWindow = nullptr;
+    Application->SmackerWindow = nullptr;
 }
 
 auto ComparePilots(const void* a, const void* b) -> int
 {
-    const int32_t keyA = static_cast<const MissionPilotResult*>(a)->sortKey;
-    const int32_t keyB = static_cast<const MissionPilotResult*>(b)->sortKey;
+    const int32_t keyA = static_cast<const MCMissionPilotResult*>(a)->SortKey;
+    const int32_t keyB = static_cast<const MCMissionPilotResult*>(b)->SortKey;
 
     if (keyA == keyB)
     {
@@ -1421,8 +1421,8 @@ auto ComparePilots(const void* a, const void* b) -> int
 
 auto CompareCommanders(const void* a, const void* b) -> int
 {
-    const int32_t valueA = static_cast<const MissionCommanderScore*>(a)->score;
-    const int32_t valueB = static_cast<const MissionCommanderScore*>(b)->score;
+    const int32_t valueA = static_cast<const MCMissionCommanderScore*>(a)->Score;
+    const int32_t valueB = static_cast<const MCMissionCommanderScore*>(b)->Score;
 
     if (valueA == valueB)
     {
@@ -1437,59 +1437,59 @@ auto CompareCommanders(const void* a, const void* b) -> int
     return -1;
 }
 
-auto moveOnButtonHandleEvent(aObject*, aEvent* event) -> void
+auto MoveOnButtonHandleEvent(MCGuiObject*, MCGuiEvent* event) -> void
 {
-    if (event->type == 4)
+    if (event->Type == 4)
     {
-        MissionResultsScreen* screen = mission->resultsScreen;
+        MCMissionResultsScreen* screen = Mission->ResultsScreen;
 
         if (screen != nullptr)
         {
-            screen->destroy();
+            screen->Destroy();
             delete screen;
-            mission->resultsScreen = nullptr;
+            Mission->ResultsScreen = nullptr;
         }
     }
 }
 
-auto PilotSwitchHandleEvent(aObject* object, aEvent* event) -> void
+auto PilotSwitchHandleEvent(MCGuiObject* object, MCGuiEvent* event) -> void
 {
-    if (event->type == 1)
+    if (event->Type == 1)
     {
-        mission->resultsScreen->drawMPPilots(static_cast<aToolButton*>(object)->pushed == 0);
+        Mission->ResultsScreen->DrawMPPilots(static_cast<MCGuiToolButton*>(object)->Pushed == 0);
     }
 }
 
-MissionResultsScreen::~MissionResultsScreen()
+MCMissionResultsScreen::~MCMissionResultsScreen()
 {
-    destroy();
+    Destroy();
 }
 
 namespace
 {
     /// <summary>Removes <paramref name="child"/> from <paramref name="parent"/>, then destroys and deletes it.</summary>
-    template <typename T> auto deleteChild(aObject* parent, T*& child) -> void
+    template <typename T> auto DeleteChild(MCGuiObject* parent, T*& child) -> void
     {
         if (child == nullptr)
         {
             return;
         }
 
-        parent->removeChild(child);
-        child->destroy();
+        parent->RemoveChild(child);
+        child->Destroy();
         delete child;
         child = nullptr;
     }
 
     /// <summary>Destroys and deletes <paramref name="port"/>.</summary>
-    auto deletePort(aPort*& port) -> void
+    auto DeletePort(MCGuiPort*& port) -> void
     {
         if (port == nullptr)
         {
             return;
         }
 
-        port->destroy();
+        port->Destroy();
         delete port;
         port = nullptr;
     }
@@ -1501,51 +1501,51 @@ namespace
     /// now, so it is drawn into a picture, which the screen copies each frame.)
     /// </summary>
     /// <returns>The picture, or null when the pilot's mover has no icon.</returns>
-    auto takeIconPicture(MechWarrior* warrior, int32_t partId) -> aPort*
+    auto TakeIconPicture(MCMechWarrior* warrior, int32_t partId) -> MCGuiPort*
     {
-        FriendlyMechIcon* icon = theInterface->GetMechIconFromID(partId);
+        MCFriendlyMechIcon* icon = TheInterface->GetMechIconFromID(partId);
 
         if (icon == nullptr)
         {
             return nullptr;
         }
 
-        const int32_t status = warrior->status;
+        const int32_t status = warrior->Status;
 
         if (status == 3)
         {
-            icon->pilotImage->init(warrior->picture);
+            icon->PilotImage->Init(warrior->Picture);
         }
 
-        auto* picture = new aPort;
-        picture->init(icon->port()->width(), icon->port()->height());
+        auto* picture = new MCGuiPort;
+        picture->Init(icon->Port()->Width(), icon->Port()->Height());
         icon->UpdateModel();
         icon->DrawIcon(picture);
-        _pane* pane = picture->frame();
-        pane->x0 += 2;
-        pane->y0 += 2;
-        pane->x1 -= 2;
-        pane->y1 -= 2;
+        MCPane* pane = picture->Frame();
+        pane->X0 += 2;
+        pane->Y0 += 2;
+        pane->X1 -= 2;
+        pane->Y1 -= 2;
 
         if (status == 3)
         {
-            icon->pilotImage->init(4);
+            icon->PilotImage->Init(4);
         }
 
         return picture;
     }
 
-    /// <summary>Copies an icon picture from <see cref="takeIconPicture"/> to (<paramref name="x"/>, <paramref name="y"/>) of <paramref name="target"/>.</summary>
-    auto drawIconPicture(aPort* picture, _pane* target, int32_t x, int32_t y) -> void
+    /// <summary>Copies an icon picture from <see cref="TakeIconPicture"/> to (<paramref name="x"/>, <paramref name="y"/>) of <paramref name="target"/>.</summary>
+    auto DrawIconPicture(MCGuiPort* picture, MCPane* target, int32_t x, int32_t y) -> void
     {
         if (picture != nullptr)
         {
-            picture->copyTo(target, x, y, 0);
+            picture->CopyTo(target, x, y, 0);
         }
     }
 
     /// <summary>The left and top of single-player pilot line <paramref name="index"/>'s box.</summary>
-    auto pilotBox(int32_t index, int32_t& left, int32_t& top) -> void
+    auto PilotBox(int32_t index, int32_t& left, int32_t& top) -> void
     {
         if (index < 6)
         {
@@ -1560,7 +1560,7 @@ namespace
     }
 
     /// <summary>The length in pixels of a skill bar for <paramref name="skill"/> (55 across the skill range).</summary>
-    auto skillBarLength(int32_t skill) -> int32_t
+    auto SkillBarLength(int32_t skill) -> int32_t
     {
         const int32_t aboveMinimum = static_cast<int32_t>(skill - static_cast<double>(MinPilotSkill));
         return static_cast<int32_t>(static_cast<double>(aboveMinimum * 55) /
@@ -1568,207 +1568,209 @@ namespace
     }
 
     /// <summary>Whether the home side lost a multiplayer game with result <paramref name="result"/>.</summary>
-    auto homeSideLost(uint32_t result) -> bool
+    auto HomeSideLost(uint32_t result) -> bool
     {
-        return result == 3 || (result == 1 && homeTeam->alignment == -1) || (result == 2 && homeTeam->alignment == 1);
+        return result == 3 || (result == 1 && HomeTeam->Alignment == -1) || (result == 2 && HomeTeam->Alignment == 1);
     }
 
     /// <summary>The kills of <paramref name="warrior"/>, all kinds together.</summary>
-    auto totalKills(const MechWarrior* warrior) -> int32_t
+    auto TotalKills(const MCMechWarrior* warrior) -> int32_t
     {
         int32_t kills = 0;
 
         for (int32_t kind = 0; kind < 7; kind++)
         {
-            kills += warrior->numKilled[kind][1];
+            kills += warrior->NumKilled[kind][1];
         }
 
         return kills;
     }
 }
 
-auto MissionResultsScreen::init() -> int32_t
+auto MCMissionResultsScreen::Init() -> int32_t
 {
-    int32_t result = aObject::init(0x28, 0xf, 0x230, 0x1bc, nullptr);
+    int32_t result = MCGuiObject::Init(0x28, 0xf, 0x230, 0x1bc, nullptr);
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
     char* backgroundName = MPlayer == nullptr ? const_cast<char*>("mr_bkgd.tga") : const_cast<char*>("mrm_bkgd.tga");
     // (The original loaded the art into the window's own picture.)
-    result = setBackground(backgroundName);
+    result = SetBackground(backgroundName);
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
 
-    moveOnPort = new aPort();
-    Assert(moveOnPort != nullptr, static_cast<uint32_t>(result), " not enough memory to init mission results screen ");
+    _MoveOnPort = new MCGuiPort();
+    Assert(_MoveOnPort != nullptr, static_cast<uint32_t>(result), " not enough memory to init mission results screen ");
     // The original drops this init's result and asserts the previous one again.
-    moveOnPort->init(const_cast<char*>("mr_ms00.tga"));
+    _MoveOnPort->Init(const_cast<char*>("mr_ms00.tga"));
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
 
-    moveOnButton = new aButton();
-    Assert(moveOnButton != nullptr, static_cast<uint32_t>(result),
+    _MoveOnButton = new MCGuiButton();
+    Assert(_MoveOnButton != nullptr, static_cast<uint32_t>(result),
            " not enough memory to init mission results screen ");
-    moveOnButton->init(0x1bc, 6, 0x6b, 0x12, nullptr);
-    moveOnButton->setUpPicture(const_cast<char*>("mr_ms01.tga"));
-    moveOnButton->setDownPicture(const_cast<char*>("mr_ms02.tga"));
-    addChild(moveOnButton);
-    moveOnButton->setEventRoutine(moveOnButtonHandleEvent);
-    moveOnButton->SetTransparent(1);
+    _MoveOnButton->Init(0x1bc, 6, 0x6b, 0x12, nullptr);
+    _MoveOnButton->SetUpPicture(const_cast<char*>("mr_ms01.tga"));
+    _MoveOnButton->SetDownPicture(const_cast<char*>("mr_ms02.tga"));
+    AddChild(_MoveOnButton);
+    _MoveOnButton->SetEventRoutine(MoveOnButtonHandleEvent);
+    _MoveOnButton->SetTransparent(1);
 
     if (MPlayer != nullptr)
     {
-        auto* switchButton = new aToolButton();
-        pilotSwitchButton = switchButton;
+        auto* switchButton = new MCGuiToolButton();
+        _PilotSwitchButton = switchButton;
         Assert(switchButton != nullptr, static_cast<uint32_t>(result),
                " not enough memory to init mission results screen ");
-        switchButton->init(0xe4, 0x1e, 0x148, 0xb, nullptr);
-        switchButton->setUpPicture(const_cast<char*>("mrm_bkgd00.tga"));
-        switchButton->setDownPicture(const_cast<char*>("mrm_bkgd01.tga"));
-        switchButton->framed = 0;
-        switchButton->draw();
-        switchButton->draw();
-        addChild(switchButton);
-        pilotSwitchButton->setEventRoutine(PilotSwitchHandleEvent);
+        switchButton->Init(0xe4, 0x1e, 0x148, 0xb, nullptr);
+        switchButton->SetUpPicture(const_cast<char*>("mrm_bkgd00.tga"));
+        switchButton->SetDownPicture(const_cast<char*>("mrm_bkgd01.tga"));
+        switchButton->Framed = 0;
+        switchButton->Draw();
+        switchButton->Draw();
+        AddChild(switchButton);
+        _PilotSwitchButton->SetEventRoutine(PilotSwitchHandleEvent);
     }
 
-    successPort = new aPort();
-    Assert(successPort != nullptr, static_cast<uint32_t>(result), " not enough memory to init mission results screen ");
-    failurePort = new aPort();
-    Assert(failurePort != nullptr, static_cast<uint32_t>(result), " not enough memory to init mission results screen ");
-    result = successPort->init(const_cast<char*>("guimr08.tga"));
+    _SuccessPort = new MCGuiPort();
+    Assert(_SuccessPort != nullptr, static_cast<uint32_t>(result),
+           " not enough memory to init mission results screen ");
+    _FailurePort = new MCGuiPort();
+    Assert(_FailurePort != nullptr, static_cast<uint32_t>(result),
+           " not enough memory to init mission results screen ");
+    result = _SuccessPort->Init(const_cast<char*>("guimr08.tga"));
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
-    result = failurePort->init(const_cast<char*>("guimr07.tga"));
+    result = _FailurePort->Init(const_cast<char*>("guimr07.tga"));
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
 
-    nextDrawTime = 0;
+    _NextDrawTime = 0;
 
     if (MPlayer == nullptr)
     {
         // (The original loaded the pictures into the objects' own ports.)
-        scrollUpButton = new aObject();
-        scrollUpButton->SetDrawsLive();
-        scrollUpButton->init(0, 0, 0xb, 0xb, nullptr);
-        scrollUpButton->setBackground(const_cast<char*>("mfddbg04.tga"));
-        scrollUpButton->ShowGUIWindow(0);
-        addChild(scrollUpButton);
+        _ScrollUpButton = new MCGuiObject();
+        _ScrollUpButton->SetDrawsLive();
+        _ScrollUpButton->Init(0, 0, 0xb, 0xb, nullptr);
+        _ScrollUpButton->SetBackground(const_cast<char*>("mfddbg04.tga"));
+        _ScrollUpButton->ShowGuiWindow(0);
+        AddChild(_ScrollUpButton);
 
-        scrollDownButton = new aObject();
-        scrollDownButton->SetDrawsLive();
-        scrollDownButton->init(0, 0, 0xb, 0xb, nullptr);
-        scrollDownButton->setBackground(const_cast<char*>("mfddbg05.tga"));
-        scrollDownButton->ShowGUIWindow(0);
-        addChild(scrollDownButton);
+        _ScrollDownButton = new MCGuiObject();
+        _ScrollDownButton->SetDrawsLive();
+        _ScrollDownButton->Init(0, 0, 0xb, 0xb, nullptr);
+        _ScrollDownButton->SetBackground(const_cast<char*>("mfddbg05.tga"));
+        _ScrollDownButton->ShowGuiWindow(0);
+        AddChild(_ScrollDownButton);
 
-        scrollUpRect = {0xcf, 0x15b, 0xda, 0x166};
-        scrollUpButton->moveTo(0xcf, 0x15b, 0);
-        scrollDownRect = {0xcf, 0x1a7, 0xda, 0x1b2};
-        scrollDownButton->moveTo(0xcf, 0x1a7, 0);
-        scrollBarRect = {0xcf, 0x169, 0xda, 0x1a4};
+        _ScrollUpRect = {0xcf, 0x15b, 0xda, 0x166};
+        _ScrollUpButton->MoveTo(0xcf, 0x15b, 0);
+        _ScrollDownRect = {0xcf, 0x1a7, 0xda, 0x1b2};
+        _ScrollDownButton->MoveTo(0xcf, 0x1a7, 0);
+        _ScrollBarRect = {0xcf, 0x169, 0xda, 0x1a4};
     }
 
     return result;
 }
 
-auto MissionResultsScreen::destroy() -> void
+auto MCMissionResultsScreen::Destroy() -> void
 {
     EventsToMissionResultsScreen = 0;
-    pilotResults.reset();
-    deletePort(successPort);
-    deletePort(failurePort);
-    deletePort(moveOnPort);
-    deletePort(bestPilotIcon);
+    _PilotResults.reset();
+    DeletePort(_SuccessPort);
+    DeletePort(_FailurePort);
+    DeletePort(_MoveOnPort);
+    DeletePort(_BestPilotIcon);
 
-    for (aPort*& picture : pilotIcons)
+    for (MCGuiPort*& picture : _PilotIcons)
     {
-        deletePort(picture);
+        DeletePort(picture);
     }
 
-    pilotIcons.clear();
-    commanderLines.clear();
-    deleteChild(this, moveOnButton);
-    deleteChild(this, scrollUpButton);
-    deleteChild(this, scrollDownButton);
-    deleteChild(this, pilotSwitchButton);
+    _PilotIcons.clear();
+    _CommanderLines.clear();
+    DeleteChild(this, _MoveOnButton);
+    DeleteChild(this, _ScrollUpButton);
+    DeleteChild(this, _ScrollDownButton);
+    DeleteChild(this, _PilotSwitchButton);
     // The debriefing text box belongs to the tactical map; it is only taken off the screen.
-    removeChild(textObject);
-    aObject::destroy();
+    RemoveChild(_TextObject);
+    MCGuiObject::Destroy();
 
-    application->cursorHidden = 0;
+    Application->CursorHidden = 0;
 
-    if (scenarioEnded == 0 && scenario != nullptr)
+    if (_ScenarioEnded == 0 && Scenario != nullptr)
     {
-        scenarioEnded = 1;
-        mission->EndScenario();
+        _ScenarioEnded = 1;
+        Mission->EndScenario();
 
-        if (globalGameSegment == 0)
+        if (GlobalGameSegment == 0)
         {
-            if (gameOver == 0)
+            if (GameOver == 0)
             {
-                gamePaused = 0;
-                mission->missionState = 3;
+                GamePaused = 0;
+                Mission->MissionState = 3;
                 return;
             }
 
             if (InDemo != 0)
             {
-                gamePaused = 0;
-                mission->currentMovie = 2;
-                mission->missionState = 0x14;
-                nextGameState = 0x14;
+                GamePaused = 0;
+                Mission->CurrentMovie = 2;
+                Mission->MissionState = 0x14;
+                NextGameState = 0x14;
                 return;
             }
 
-            mission->currentMovie = 3;
-            mission->missionState = 10;
-            nextGameState = 10;
+            Mission->CurrentMovie = 3;
+            Mission->MissionState = 10;
+            NextGameState = 10;
         }
 
-        gamePaused = 0;
+        GamePaused = 0;
     }
 }
 
-auto MissionResultsScreen::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
+auto MCMissionResultsScreen::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
-    if (MPlayer != nullptr || textObject == nullptr)
+    if (MPlayer != nullptr || _TextObject == nullptr)
     {
         return false;
     }
 
-    return textObject->MouseWheel(steps, xPos, yPos);
+    return _TextObject->MouseWheel(steps, xPos, yPos);
 }
 
-auto MissionResultsScreen::handleEvent(aEvent* event) -> void
+auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
 {
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
             if (MPlayer == nullptr)
             {
-                const POINT point{event->x - globalX(), event->y - globalY()};
+                const POINT point{event->X - GlobalX(), event->Y - GlobalY()};
 
-                if (PtInRect(&scrollUpRect, point))
+                if (PtInRect(&_ScrollUpRect, point))
                 {
-                    application->grab(this);
-                    scrollUpButton->ShowGUIWindow(1);
-                    application->AddTimer(this, 4, theInterface->scrollStart, 0, 0, 0);
-                    textObject->ReceiveClick(-1, 0);
+                    Application->Grab(this);
+                    _ScrollUpButton->ShowGuiWindow(1);
+                    Application->AddTimer(this, 4, TheInterface->ScrollStart, 0, 0, 0);
+                    _TextObject->ReceiveClick(-1, 0);
                     return;
                 }
 
-                if (PtInRect(&scrollDownRect, point))
+                if (PtInRect(&_ScrollDownRect, point))
                 {
-                    application->grab(this);
-                    scrollDownButton->ShowGUIWindow(1);
-                    application->AddTimer(this, 4, theInterface->scrollStart, 0, 0, 0);
-                    textObject->ReceiveClick(1, 0);
+                    Application->Grab(this);
+                    _ScrollDownButton->ShowGuiWindow(1);
+                    Application->AddTimer(this, 4, TheInterface->ScrollStart, 0, 0, 0);
+                    _TextObject->ReceiveClick(1, 0);
                     return;
                 }
 
-                if (PtInRect(&scrollBarRect, point))
+                if (PtInRect(&_ScrollBarRect, point))
                 {
                     // Original behaviour (OB-057): the line is picked from the cursor's screen y, not its window y, so
                     // the click lands 15 pixels (the window's y) further down the text.
-                    textObject->ReceiveClick(0, event->y - scrollBarRect.top);
+                    _TextObject->ReceiveClick(0, event->Y - _ScrollBarRect.top);
                     return;
                 }
             }
@@ -1776,39 +1778,39 @@ auto MissionResultsScreen::handleEvent(aEvent* event) -> void
         }
         case 4:
         {
-            application->RemoveTimer(this, 4);
-            application->RemoveTimer(this, 5);
-            application->release();
+            Application->RemoveTimer(this, 4);
+            Application->RemoveTimer(this, 5);
+            Application->Release();
 
-            if (scrollUpButton != nullptr)
+            if (_ScrollUpButton != nullptr)
             {
-                scrollUpButton->ShowGUIWindow(0);
+                _ScrollUpButton->ShowGuiWindow(0);
             }
 
-            if (scrollDownButton != nullptr)
+            if (_ScrollDownButton != nullptr)
             {
-                scrollDownButton->ShowGUIWindow(0);
+                _ScrollDownButton->ShowGuiWindow(0);
             }
             break;
         }
         case 10:
         {
-            if (event->key == 0x1b)
+            if (event->Key == 0x1b)
             {
-                skipAnimation = 1;
+                _SkipAnimation = 1;
                 return;
             }
             break;
         }
         case 0x13:
         {
-            const int32_t timerId = event->data;
+            const int32_t timerId = event->Data;
 
             if (timerId == 4)
             {
                 // The first repeat delay has passed: repeat five times as fast.
-                application->RemoveTimer(this, 4);
-                application->AddTimer(this, 5, theInterface->scrollStart / 5, 0, 0, 0);
+                Application->RemoveTimer(this, 4);
+                Application->AddTimer(this, 5, TheInterface->ScrollStart / 5, 0, 0, 0);
             }
             else if (timerId != 5)
             {
@@ -1818,30 +1820,30 @@ auto MissionResultsScreen::handleEvent(aEvent* event) -> void
                 }
 
                 // The multiplayer timeout: close the screen (this object is deleted here).
-                MissionResultsScreen* screen = mission->resultsScreen;
+                MCMissionResultsScreen* screen = Mission->ResultsScreen;
 
                 if (screen == nullptr)
                 {
                     return;
                 }
 
-                screen->destroy();
+                screen->Destroy();
                 delete screen;
-                mission->resultsScreen = nullptr;
+                Mission->ResultsScreen = nullptr;
                 return;
             }
 
-            const POINT point{event->x - globalX(), event->y - globalY()};
+            const POINT point{event->X - GlobalX(), event->Y - GlobalY()};
 
-            if (PtInRect(&scrollUpRect, point))
+            if (PtInRect(&_ScrollUpRect, point))
             {
-                textObject->ReceiveClick(-1, 0);
+                _TextObject->ReceiveClick(-1, 0);
                 return;
             }
 
-            if (PtInRect(&scrollDownRect, point))
+            if (PtInRect(&_ScrollDownRect, point))
             {
-                textObject->ReceiveClick(1, 0);
+                _TextObject->ReceiveClick(1, 0);
                 return;
             }
             break;
@@ -1852,64 +1854,64 @@ auto MissionResultsScreen::handleEvent(aEvent* event) -> void
     }
 }
 
-auto MissionResultsScreen::display() -> void
+auto MCMissionResultsScreen::Display() -> void
 {
-    uint8_t* hazePalette = gamePalette->getHazePalette(-7);
-    SCRNVERTEX vertices[4] = {};
-    vertices[1].x = application->width() - 1;
-    vertices[2].x = application->width() - 1;
-    vertices[2].y = application->height() - 1;
-    vertices[3].y = application->height() - 1;
-    VFX_translate_polygon(screenPort->frame(), 4, vertices, hazePalette);
+    uint8_t* hazePalette = GamePalette->GetHazePalette(-7);
+    MCScreenVertex vertices[4] = {};
+    vertices[1].X = Application->Width() - 1;
+    vertices[2].X = Application->Width() - 1;
+    vertices[2].Y = Application->Height() - 1;
+    vertices[3].Y = Application->Height() - 1;
+    VfxTranslatePolygon(ScreenPort->Frame(), 4, vertices, hazePalette);
 
     if (MPlayer == nullptr)
     {
-        while (nextDrawTime != 0 && (nextDrawTime <= MouseTicks || skipAnimation != 0))
+        while (_NextDrawTime != 0 && (_NextDrawTime <= MouseTicks || _SkipAnimation != 0))
         {
-            switch (drawState)
+            switch (_DrawState)
             {
                 case 0:
                 {
-                    if (scenarioResult < 4 || Solo != 0)
+                    if (ScenarioResult < 4 || Solo != 0)
                     {
-                        drawState = 1;
+                        _DrawState = 1;
                     }
                     else
                     {
-                        drawRPs();
+                        DrawRPs();
                     }
                     break;
                 }
                 case 1:
-                    drawStats();
+                    DrawStats();
                     break;
                 case 2:
                 case 3:
-                    drawObjectives();
+                    DrawObjectives();
                     break;
                 case 4:
-                    drawPilots();
+                    DrawPilots();
                     break;
                 case 5:
                 {
-                    aScrollTextObject* text = textObject;
-                    text->ShowGUIWindow(1);
+                    MCGuiScrollTextObject* text = _TextObject;
+                    text->ShowGuiWindow(1);
 
-                    if (text->textBuffer == nullptr || text->textBuffer[0] == '\0')
+                    if (text->TextBuffer == nullptr || text->TextBuffer[0] == '\0')
                     {
                         char line[256];
-                        cLoadString(thisInstance, 0x361, line, 0xfe);
-                        text->fontIndex = 1;
+                        CLoadString(ThisInstance, 0x361, line, 0xfe);
+                        text->FontIndex = 1;
                         text->Print(line, 0x1f);
                     }
 
-                    text->draw();
-                    nextDrawTime = 0;
-                    drawState = 6;
+                    text->Draw();
+                    _NextDrawTime = 0;
+                    _DrawState = 6;
 
-                    if (skipAnimation == 0)
+                    if (_SkipAnimation == 0)
                     {
-                        soundSystem->playDigitalSample(0x32, 1, nullptr, 0, 0);
+                        SoundSystem->PlayDigitalSample(0x32, 1, nullptr, 0, 0);
                     }
                     break;
                 }
@@ -1921,19 +1923,19 @@ auto MissionResultsScreen::display() -> void
     }
 
     // (The original copied the window's picture to the screen and displayed the children.)
-    if (displayPort != nullptr)
+    if (DisplayPort != nullptr)
     {
-        DrawInFramePass(displayPort);
+        DrawInFramePass(DisplayPort);
     }
 }
 
-auto MissionResultsScreen::draw() -> void
+auto MCMissionResultsScreen::Draw() -> void
 {
-    aObject::draw();
+    MCGuiObject::Draw();
 
-    if (moveOnPort != nullptr)
+    if (_MoveOnPort != nullptr)
     {
-        moveOnPort->copyTo(port()->frame(), 4, 4, 1);
+        _MoveOnPort->CopyTo(Port()->Frame(), 4, 4, 1);
     }
 
     if (MPlayer == nullptr)
@@ -1942,7 +1944,7 @@ auto MissionResultsScreen::draw() -> void
         DrawStatistics();
         DrawObjectiveList();
         // The pilots the steps have reached.
-        const int32_t pilots = drawState == 4 ? drawIndex : (drawState > 4 ? numPilotResults : 0);
+        const int32_t pilots = _DrawState == 4 ? _DrawIndex : (_DrawState > 4 ? _NumPilotResults : 0);
 
         for (int32_t i = 0; i < pilots; i++)
         {
@@ -1953,156 +1955,156 @@ auto MissionResultsScreen::draw() -> void
     {
         DrawMPSummary();
         DrawMPPilotList();
-        drawMPObjectives();
+        DrawMPObjectives();
     }
 }
 
-auto MissionResultsScreen::drawRPs() -> void
+auto MCMissionResultsScreen::DrawRPs() -> void
 {
-    const int32_t shown = drawIndex * 1000;
+    const int32_t shown = _DrawIndex * 1000;
 
-    if (resourcePointsEarned < shown)
+    if (_ResourcePointsEarned < shown)
     {
-        shownResourcePoints = resourcePointsEarned;
-        drawIndex = 0;
-        drawState++;
-        nextDrawTime = resultsStepTicks + MouseTicks;
+        _ShownResourcePoints = _ResourcePointsEarned;
+        _DrawIndex = 0;
+        _DrawState++;
+        _NextDrawTime = ResultsStepTicks + MouseTicks;
 
-        if (skipAnimation == 0)
+        if (_SkipAnimation == 0)
         {
-            soundSystem->playDigitalSample(0x43, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
         }
     }
     else
     {
-        shownResourcePoints = shown;
-        nextDrawTime = resultsStepTicks / 20 + MouseTicks;
+        _ShownResourcePoints = shown;
+        _NextDrawTime = ResultsStepTicks / 20 + MouseTicks;
 
-        if (skipAnimation == 0)
+        if (_SkipAnimation == 0)
         {
-            soundSystem->playDigitalSample(0x42, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
         }
 
-        drawIndex++;
+        _DrawIndex++;
     }
 }
 
-auto MissionResultsScreen::DrawResourcePoints() -> void
+auto MCMissionResultsScreen::DrawResourcePoints() -> void
 {
-    if (shownResourcePoints < 0)
+    if (_ShownResourcePoints < 0)
     {
         return;
     }
 
     char text[256];
     FillBox(0x149, 9, 0x185, 0x14, 0x10);
-    std::snprintf(text, sizeof(text), "%i", shownResourcePoints);
-    lgWhiteFont->writeString(port()->frame(), 0x14a, 10, reinterpret_cast<uint8_t*>(text), -1);
+    std::snprintf(text, sizeof(text), "%i", _ShownResourcePoints);
+    LgWhiteFont->WriteString(Port()->Frame(), 0x14a, 10, reinterpret_cast<uint8_t*>(text), -1);
 }
 
-auto MissionResultsScreen::drawStats() -> void
+auto MCMissionResultsScreen::DrawStats() -> void
 {
-    nextDrawTime = resultsStepTicks / 2 + MouseTicks;
+    _NextDrawTime = ResultsStepTicks / 2 + MouseTicks;
 
-    switch (drawIndex)
+    switch (_DrawIndex)
     {
         case 0:
         case 1:
         case 2:
         case 3:
-            drawIndex++;
+            _DrawIndex++;
             break;
         case 4:
         {
-            drawIndex = 0;
-            drawState++;
-            nextDrawTime = resultsStepTicks + MouseTicks;
+            _DrawIndex = 0;
+            _DrawState++;
+            _NextDrawTime = ResultsStepTicks + MouseTicks;
             break;
         }
         default:
             break;
     }
 
-    if (skipAnimation == 0)
+    if (_SkipAnimation == 0)
     {
-        soundSystem->playDigitalSample(0x47, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
     }
 }
 
-auto MissionResultsScreen::DrawStatistics() -> void
+auto MCMissionResultsScreen::DrawStatistics() -> void
 {
     static constexpr int32_t statY[5] = {0x33, 0x40, 0x4d, 0x5a, 0x67};
-    const int32_t values[5] = {enemyMechsHit, enemyMechsDestroyed, enemyPilotsKilled, playerMechsHit,
-                               playerMechsDestroyed};
+    const int32_t values[5] = {_EnemyMechsHit, _EnemyMechsDestroyed, _EnemyPilotsKilled, _PlayerMechsHit,
+                               _PlayerMechsDestroyed};
     // The statistics the steps have reached: each step shows one.
-    const int32_t shown = drawState == 1 ? drawIndex : (drawState > 1 ? 5 : 0);
+    const int32_t shown = _DrawState == 1 ? _DrawIndex : (_DrawState > 1 ? 5 : 0);
 
     for (int32_t i = 0; i < shown; i++)
     {
         char text[8];
         std::snprintf(text, sizeof(text), "%i", values[i]);
-        lgWhiteFont->writeString(port()->frame(), 0xcc, statY[i], reinterpret_cast<uint8_t*>(text), -1);
+        LgWhiteFont->WriteString(Port()->Frame(), 0xcc, statY[i], reinterpret_cast<uint8_t*>(text), -1);
     }
 }
 
-auto MissionResultsScreen::drawObjectives() -> void
+auto MCMissionResultsScreen::DrawObjectives() -> void
 {
     // drawState 2 lists the primary objectives (type 0), 3 the secondary ones (type 1).
-    const uint32_t wantedType = drawState != 2 ? 1 : 0;
+    const uint32_t wantedType = _DrawState != 2 ? 1 : 0;
     int drew = 0;
 
-    ScenarioObjective& objective = scenario->objectives[drawIndex];
+    MCScenarioObjective& objective = Scenario->Objectives[_DrawIndex];
 
-    if (objective.type == wantedType)
+    if (objective.Type == wantedType)
     {
         drew = 1;
 
         if (wantedType == 1)
         {
-            objectivesHeaderDrawn = 1;
+            _ObjectivesHeaderDrawn = 1;
         }
     }
 
-    if (drawIndex == static_cast<int32_t>(scenario->numObjectives))
+    if (_DrawIndex == static_cast<int32_t>(Scenario->NumObjectives))
     {
         // After the secondary objectives: the tonnage bonus, when it was earned.
-        ScenarioObjective& bonus = scenario->objectives[scenario->numObjectives];
+        MCScenarioObjective& bonus = Scenario->Objectives[Scenario->NumObjectives];
 
-        if (MPlayer == nullptr && drawState == 3 && bonus.type == 3 && bonus.points > 0 && scenarioResult > 3 &&
+        if (MPlayer == nullptr && _DrawState == 3 && bonus.Type == 3 && bonus.Points > 0 && ScenarioResult > 3 &&
             Solo == 0)
         {
-            soundSystem->playBettySample(10);
+            SoundSystem->PlayBettySample(10);
             drew = 1;
         }
 
-        drawIndex = 0;
-        drawState++;
+        _DrawIndex = 0;
+        _DrawState++;
     }
     else
     {
-        drawIndex++;
+        _DrawIndex++;
     }
 
     if (drew != 0 && MPlayer == nullptr)
     {
-        if (skipAnimation == 0)
+        if (_SkipAnimation == 0)
         {
-            soundSystem->playDigitalSample(0x47, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
         }
 
-        nextDrawTime = resultsStepTicks + MouseTicks;
+        _NextDrawTime = ResultsStepTicks + MouseTicks;
     }
 }
 
-auto MissionResultsScreen::DrawObjectiveList() -> void
+auto MCMissionResultsScreen::DrawObjectiveList() -> void
 {
     char text[256];
     char pointsName[256];
     char bonusHeader[256];
     char secondaryHeader[256];
-    cLoadString(thisInstance, 0x363, pointsName, 0xfe);
-    cLoadString(thisInstance, 0x360, bonusHeader, 0xfe);
-    cLoadString(thisInstance, 0x362, secondaryHeader, 0xfe);
+    CLoadString(ThisInstance, 0x363, pointsName, 0xfe);
+    CLoadString(ThisInstance, 0x360, bonusHeader, 0xfe);
+    CLoadString(ThisInstance, 0x362, secondaryHeader, 0xfe);
     int32_t y = 0x92;
     bool headerDrawn = false;
 
@@ -2111,52 +2113,52 @@ auto MissionResultsScreen::DrawObjectiveList() -> void
     {
         const uint32_t wantedType = state != 2 ? 1 : 0;
 
-        for (int32_t index = 0; index <= static_cast<int32_t>(scenario->numObjectives); index++)
+        for (int32_t index = 0; index <= static_cast<int32_t>(Scenario->NumObjectives); index++)
         {
-            if (state > drawState || (state == drawState && index >= drawIndex))
+            if (state > _DrawState || (state == _DrawState && index >= _DrawIndex))
             {
                 return;
             }
 
-            ScenarioObjective& objective = scenario->objectives[index];
+            MCScenarioObjective& objective = Scenario->Objectives[index];
 
-            if (objective.type == wantedType)
+            if (objective.Type == wantedType)
             {
                 if (wantedType == 1 && !headerDrawn)
                 {
-                    medBlueFont->writeString(port()->frame(), 0xf, y, reinterpret_cast<uint8_t*>(secondaryHeader), -1);
+                    MedBlueFont->WriteString(Port()->Frame(), 0xf, y, reinterpret_cast<uint8_t*>(secondaryHeader), -1);
                     headerDrawn = true;
                     y += 0xe;
                 }
 
-                aFont* font = greyFont;
+                MCGuiFont* font = GreyFont;
                 bool listed = true;
 
-                if (objective.status == 1)
+                if (objective.Status == 1)
                 {
-                    successPort->copyTo(port()->frame(), 0xb, y - 1, 0);
-                    font = greenFont;
+                    _SuccessPort->CopyTo(Port()->Frame(), 0xb, y - 1, 0);
+                    font = GreenFont;
                 }
-                else if (objective.status == 2)
+                else if (objective.Status == 2)
                 {
-                    failurePort->copyTo(port()->frame(), 0xb, y - 1, 0);
-                    font = redFont;
+                    _FailurePort->CopyTo(Port()->Frame(), 0xb, y - 1, 0);
+                    font = RedFont;
                 }
-                else if (objective.status != 0)
+                else if (objective.Status != 0)
                 {
                     listed = false;
                 }
 
                 if (listed && font != nullptr)
                 {
-                    font->writeString(port()->frame(), 0x17, y, reinterpret_cast<uint8_t*>(objective.name), -1);
+                    font->WriteString(Port()->Frame(), 0x17, y, reinterpret_cast<uint8_t*>(objective.Name), -1);
                     const int32_t nameY = y;
                     y = nameY + 10;
 
-                    if (MPlayer == nullptr && objective.points != 0)
+                    if (MPlayer == nullptr && objective.Points != 0)
                     {
-                        std::snprintf(text, sizeof(text), "%i %s", objective.points, pointsName);
-                        font->writeString(port()->frame(), 0x1d, nameY + 10, reinterpret_cast<uint8_t*>(text), -1);
+                        std::snprintf(text, sizeof(text), "%i %s", objective.Points, pointsName);
+                        font->WriteString(Port()->Frame(), 0x1d, nameY + 10, reinterpret_cast<uint8_t*>(text), -1);
                         y += 10;
                     }
                     else
@@ -2166,22 +2168,22 @@ auto MissionResultsScreen::DrawObjectiveList() -> void
                 }
             }
 
-            if (index == static_cast<int32_t>(scenario->numObjectives))
+            if (index == static_cast<int32_t>(Scenario->NumObjectives))
             {
-                ScenarioObjective& bonus = scenario->objectives[scenario->numObjectives];
+                MCScenarioObjective& bonus = Scenario->Objectives[Scenario->NumObjectives];
 
-                if (MPlayer == nullptr && state == 3 && bonus.type == 3 && bonus.points > 0 && scenarioResult > 3 &&
+                if (MPlayer == nullptr && state == 3 && bonus.Type == 3 && bonus.Points > 0 && ScenarioResult > 3 &&
                     Solo == 0)
                 {
-                    blueFont->writeString(port()->frame(), 0xf, y, reinterpret_cast<uint8_t*>(bonusHeader), -1);
+                    BlueFont->WriteString(Port()->Frame(), 0xf, y, reinterpret_cast<uint8_t*>(bonusHeader), -1);
                     const int32_t markY = y + 10;
                     y += 0xb;
-                    successPort->copyTo(port()->frame(), 0xb, markY, 0);
-                    greenFont->writeString(port()->frame(), 0x17, y, reinterpret_cast<uint8_t*>(bonus.name), -1);
+                    _SuccessPort->CopyTo(Port()->Frame(), 0xb, markY, 0);
+                    GreenFont->WriteString(Port()->Frame(), 0x17, y, reinterpret_cast<uint8_t*>(bonus.Name), -1);
                     const int32_t nameY = y;
                     y = nameY + 10;
-                    std::snprintf(text, sizeof(text), "%i %s", bonus.points, pointsName);
-                    greenFont->writeString(port()->frame(), 0x1d, nameY + 10, reinterpret_cast<uint8_t*>(text), -1);
+                    std::snprintf(text, sizeof(text), "%i %s", bonus.Points, pointsName);
+                    GreenFont->WriteString(Port()->Frame(), 0x1d, nameY + 10, reinterpret_cast<uint8_t*>(text), -1);
                     y += 0xb;
                 }
             }
@@ -2189,35 +2191,35 @@ auto MissionResultsScreen::DrawObjectiveList() -> void
     }
 }
 
-auto MissionResultsScreen::drawPilots() -> void
+auto MCMissionResultsScreen::DrawPilots() -> void
 {
-    const int32_t index = drawIndex;
-    nextDrawTime = resultsStepTicks + MouseTicks;
+    const int32_t index = _DrawIndex;
+    _NextDrawTime = ResultsStepTicks + MouseTicks;
 
-    if (index == numPilotResults)
+    if (index == _NumPilotResults)
     {
-        drawIndex = 0;
-        drawState++;
+        _DrawIndex = 0;
+        _DrawState++;
         return;
     }
 
-    MechWarrior* warrior = pilotResults[index].warrior;
+    MCMechWarrior* warrior = _PilotResults[index].Warrior;
 
     if (warrior != nullptr)
     {
-        pilotIcons[static_cast<size_t>(index)] = takeIconPicture(warrior, warrior->vehicle->partId);
-        drawIndex++;
+        _PilotIcons[static_cast<size_t>(index)] = TakeIconPicture(warrior, warrior->Vehicle->PartId);
+        _DrawIndex++;
     }
 
-    if (skipAnimation == 0)
+    if (_SkipAnimation == 0)
     {
-        soundSystem->playDigitalSample(0x10, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
     }
 }
 
-auto MissionResultsScreen::DrawPilot(int32_t index) -> void
+auto MCMissionResultsScreen::DrawPilot(int32_t index) -> void
 {
-    MechWarrior* warrior = pilotResults[index].warrior;
+    MCMechWarrior* warrior = _PilotResults[index].Warrior;
 
     if (warrior == nullptr)
     {
@@ -2225,20 +2227,20 @@ auto MissionResultsScreen::DrawPilot(int32_t index) -> void
     }
 
     const auto line = [this](int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t color)
-    { VFX_line_draw(port()->frame(), x0, y0, x1, y1, LD_DRAW, color); };
-    const auto pixel = [this](int32_t x, int32_t y) { AG_pixel_write(port()->frame(), x, y, 0x10); };
+    { VfxLineDraw(Port()->Frame(), x0, y0, x1, y1, LD_DRAW, color); };
+    const auto pixel = [this](int32_t x, int32_t y) { AGPixelWrite(Port()->Frame(), x, y, 0x10); };
 
     int32_t left;
     int32_t top;
-    pilotBox(index, left, top);
+    PilotBox(index, left, top);
     char text[256];
     uint32_t stringId;
 
-    if (warrior->status == 4)
+    if (warrior->Status == 4)
     {
         stringId = 0x356;
     }
-    else if (warrior->wounds <= 4.0f)
+    else if (warrior->Wounds <= 4.0f)
     {
         stringId = 0x358;
     }
@@ -2247,31 +2249,31 @@ auto MissionResultsScreen::DrawPilot(int32_t index) -> void
         stringId = 0x357;
     }
 
-    cLoadString(thisInstance, stringId, text, 0xfe);
+    CLoadString(ThisInstance, stringId, text, 0xfe);
     const int32_t textY = top + 3;
-    whiteFont->writeString(port()->frame(), left + 3, textY, reinterpret_cast<uint8_t*>(text), -1);
+    WhiteFont->WriteString(Port()->Frame(), left + 3, textY, reinterpret_cast<uint8_t*>(text), -1);
 
     // The rank; a rank outside 0..3 leaves the status text in the buffer.
-    const int32_t rank = static_cast<int8_t>(warrior->rank);
+    const int32_t rank = static_cast<int8_t>(warrior->Rank);
 
     if (rank >= 0 && rank <= 3)
     {
-        cLoadString(thisInstance, 0x70 + static_cast<uint32_t>(rank), text, 0xfe);
+        CLoadString(ThisInstance, 0x70 + static_cast<uint32_t>(rank), text, 0xfe);
     }
 
-    aFont* rankFont = pilotResults[index].oldRank < rank ? yellowFont : whiteFont;
-    rankFont->writeString(port()->frame(), left + 0x39, textY, reinterpret_cast<uint8_t*>(text), -1);
+    MCGuiFont* rankFont = _PilotResults[index].OldRank < rank ? YellowFont : WhiteFont;
+    rankFont->WriteString(Port()->Frame(), left + 0x39, textY, reinterpret_cast<uint8_t*>(text), -1);
 
-    std::snprintf(text, sizeof(text), "%i", totalKills(warrior));
-    whiteFont->writeString(port()->frame(), left + 0x8c, textY, reinterpret_cast<uint8_t*>(text), -1);
+    std::snprintf(text, sizeof(text), "%i", TotalKills(warrior));
+    WhiteFont->WriteString(Port()->Frame(), left + 0x8c, textY, reinterpret_cast<uint8_t*>(text), -1);
 
     // A bar per skill: the old value, and the gain in another colour.
     int32_t barY = top + 0x18;
 
-    for (const int32_t skill : StevesOrderLUT)
+    for (const int32_t skill : StevesOrderLut)
     {
-        const int32_t oldLength = skillBarLength(pilotResults[index].skills[skill]);
-        const int32_t newLength = skillBarLength(static_cast<int32_t>(warrior->skillRank[skill]));
+        const int32_t oldLength = SkillBarLength(_PilotResults[index].Skills[skill]);
+        const int32_t newLength = SkillBarLength(static_cast<int32_t>(warrior->SkillRank[skill]));
         const int32_t barLeft = left + 0x62;
         line(barLeft, barY - 1, barLeft, barY, 0xe3);
 
@@ -2310,19 +2312,19 @@ auto MissionResultsScreen::DrawPilot(int32_t index) -> void
         barY += 9;
     }
 
-    drawIconPicture(pilotIcons[static_cast<size_t>(index)], port()->frame(), left + 4, top + 0x10);
+    DrawIconPicture(_PilotIcons[static_cast<size_t>(index)], Port()->Frame(), left + 4, top + 0x10);
 }
 
-auto MissionResultsScreen::drawMPPilots(int showHomeSide) -> void
+auto MCMissionResultsScreen::DrawMPPilots(int showHomeSide) -> void
 {
-    mpShowHomeSide = showHomeSide;
+    _MpShowHomeSide = showHomeSide;
 }
 
-auto MissionResultsScreen::DrawMPPilotList() -> void
+auto MCMissionResultsScreen::DrawMPPilotList() -> void
 {
     const auto line = [this](int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t color)
-    { VFX_line_draw(port()->frame(), x0, y0, x1, y1, LD_DRAW, color); };
-    const auto pixel = [this](int32_t x, int32_t y) { AG_pixel_write(port()->frame(), x, y, 0x10); };
+    { VfxLineDraw(Port()->Frame(), x0, y0, x1, y1, LD_DRAW, color); };
+    const auto pixel = [this](int32_t x, int32_t y) { AGPixelWrite(Port()->Frame(), x, y, 0x10); };
 
     // Clear the twelve pilot boxes (six per column) and their empty skill bars.
     for (int32_t row = -0x160; row <= 0x1b7; row += 0x42)
@@ -2362,18 +2364,18 @@ auto MissionResultsScreen::DrawMPPilotList() -> void
 
     int32_t rowBase = -0x160;
 
-    for (int32_t i = 0; i < numPilotResults; i++)
+    for (int32_t i = 0; i < _NumPilotResults; i++)
     {
-        MechWarrior* warrior = pilotResults[i].warrior;
+        MCMechWarrior* warrior = _PilotResults[i].Warrior;
 
         if (warrior == nullptr)
         {
             continue;
         }
 
-        const bool homeSide = warrior->alignment == homeTeam->alignment;
+        const bool homeSide = warrior->Alignment == HomeTeam->Alignment;
 
-        if (homeSide != (mpShowHomeSide != 0))
+        if (homeSide != (_MpShowHomeSide != 0))
         {
             continue;
         }
@@ -2392,17 +2394,17 @@ auto MissionResultsScreen::DrawMPPilotList() -> void
         }
 
         char text[256];
-        auto* mover = static_cast<Mover*>(warrior->vehicle);
-        whiteFont->writeString(port()->frame(), left + 3, top + 2, reinterpret_cast<uint8_t*>(mover->netName.get()),
+        auto* mover = static_cast<MCMover*>(warrior->Vehicle);
+        WhiteFont->WriteString(Port()->Frame(), left + 3, top + 2, reinterpret_cast<uint8_t*>(mover->NetName.get()),
                                -1);
-        std::snprintf(text, sizeof(text), "%i", totalKills(warrior));
-        whiteFont->writeString(port()->frame(), left + 0x8c, top + 3, reinterpret_cast<uint8_t*>(text), -1);
+        std::snprintf(text, sizeof(text), "%i", TotalKills(warrior));
+        WhiteFont->WriteString(Port()->Frame(), left + 0x8c, top + 3, reinterpret_cast<uint8_t*>(text), -1);
 
         int32_t barY = top + 0x17;
 
-        for (const int32_t skill : StevesOrderLUT)
+        for (const int32_t skill : StevesOrderLut)
         {
-            const int32_t length = skillBarLength(static_cast<int32_t>(warrior->skillRank[skill]));
+            const int32_t length = SkillBarLength(static_cast<int32_t>(warrior->SkillRank[skill]));
             line(left + 0x62, barY, left + 0x62, barY + 1, 0xe3);
             const int32_t end = left + 0x62 + length;
             const int32_t fillEnd = end - 2;
@@ -2417,192 +2419,192 @@ auto MissionResultsScreen::DrawMPPilotList() -> void
             barY += 9;
         }
 
-        drawIconPicture(pilotIcons[static_cast<size_t>(i)], port()->frame(), left + 4, top + 0x10);
+        DrawIconPicture(_PilotIcons[static_cast<size_t>(i)], Port()->Frame(), left + 4, top + 0x10);
         rowBase += 0x42;
     }
 }
 
-auto MissionResultsScreen::DrawMPSummary() -> void
+auto MCMissionResultsScreen::DrawMPSummary() -> void
 {
     char text[256];
 
     // Port fix: MCX.EXE reads the best pilot without checking there is one.
-    if (numPilotResults > 0)
+    if (_NumPilotResults > 0)
     {
         // The best pilot.
-        MechWarrior* best = pilotResults[0].warrior;
-        auto* bestMover = static_cast<Mover*>(best->vehicle);
-        medWhiteFont->writeString(port()->frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->netName.get()),
+        MCMechWarrior* best = _PilotResults[0].Warrior;
+        auto* bestMover = static_cast<MCMover*>(best->Vehicle);
+        MedWhiteFont->WriteString(Port()->Frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->NetName.get()),
                                   0x68);
-        cLoadString(thisInstance, best->alignment == homeTeam->alignment ? 0xb6 : 0xb7, text, 0xfe);
-        medWhiteFont->writeString(port()->frame(), 0x70, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
-        std::snprintf(text, sizeof(text), "%i", pilotResults[0].oldRank);
-        medWhiteFont->writeString(port()->frame(), 0xca, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
-        drawIconPicture(bestPilotIcon, port()->frame(), 0xb, 0x2f);
+        CLoadString(ThisInstance, best->Alignment == HomeTeam->Alignment ? 0xb6 : 0xb7, text, 0xfe);
+        MedWhiteFont->WriteString(Port()->Frame(), 0x70, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
+        std::snprintf(text, sizeof(text), "%i", _PilotResults[0].OldRank);
+        MedWhiteFont->WriteString(Port()->Frame(), 0xca, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
+        DrawIconPicture(_BestPilotIcon, Port()->Frame(), 0xb, 0x2f);
     }
 
-    const int32_t statistics[5] = {enemyMechsHit, enemyMechsDestroyed, enemyPilotsKilled, playerMechsHit,
-                                   playerMechsDestroyed};
+    const int32_t statistics[5] = {_EnemyMechsHit, _EnemyMechsDestroyed, _EnemyPilotsKilled, _PlayerMechsHit,
+                                   _PlayerMechsDestroyed};
     static constexpr int32_t statisticY[5] = {100, 0x70, 0x7c, 0x88, 0x94};
 
     for (int32_t i = 0; i < 5; i++)
     {
         std::snprintf(text, sizeof(text), "%i", statistics[i]);
-        medWhiteFont->writeString(port()->frame(), 0xcc, statisticY[i], reinterpret_cast<uint8_t*>(text), -1);
+        MedWhiteFont->WriteString(Port()->Frame(), 0xcc, statisticY[i], reinterpret_cast<uint8_t*>(text), -1);
     }
 
-    medWhiteFont->writeString(port()->frame(), 0xb8, 0xa0, reinterpret_cast<uint8_t*>(timeText), -1);
+    MedWhiteFont->WriteString(Port()->Frame(), 0xb8, 0xa0, reinterpret_cast<uint8_t*>(_TimeText), -1);
 
     // The commanders by kills.
     int32_t row = 0;
 
-    for (const CommanderLine& commander : commanderLines)
+    for (const CommanderLine& commander : _CommanderLines)
     {
-        std::snprintf(text, sizeof(text), "%i.", commander.place);
+        std::snprintf(text, sizeof(text), "%i.", commander.Place);
         const int32_t rowY = static_cast<int16_t>(row) * 0xc + 0xbe;
-        medBlueFont->writeString(port()->frame(), 0x1a, rowY, reinterpret_cast<uint8_t*>(text), -1);
-        std::snprintf(text, sizeof(text), "%s", commander.name.c_str());
-        medWhiteFont->writeString(port()->frame(), 0x28, rowY, reinterpret_cast<uint8_t*>(text), 0x68);
-        std::snprintf(text, sizeof(text), "%i", commander.score);
-        medWhiteFont->writeString(port()->frame(), 0xcc, rowY, reinterpret_cast<uint8_t*>(text), -1);
+        MedBlueFont->WriteString(Port()->Frame(), 0x1a, rowY, reinterpret_cast<uint8_t*>(text), -1);
+        std::snprintf(text, sizeof(text), "%s", commander.Name.c_str());
+        MedWhiteFont->WriteString(Port()->Frame(), 0x28, rowY, reinterpret_cast<uint8_t*>(text), 0x68);
+        std::snprintf(text, sizeof(text), "%i", commander.Score);
+        MedWhiteFont->WriteString(Port()->Frame(), 0xcc, rowY, reinterpret_cast<uint8_t*>(text), -1);
         row++;
     }
 }
 
-auto MissionResultsScreen::activate() -> int32_t
+auto MCMissionResultsScreen::Activate() -> int32_t
 {
     EventsToMissionResultsScreen = 1;
-    skipAnimation = 0;
-    application->removeCallback(interfaceUpdateCallback);
-    delete interfaceUpdateCallback;
-    interfaceUpdateCallback = nullptr;
-    theInterface->HideTags();
-    application->removeCallback(scenarioCallback);
-    delete scenarioCallback;
-    scenarioCallback = nullptr;
-    application->cursorHidden = 0;
-    application->SetCurrentCursor(static_cast<CursorType>(0));
-    application->cursorHidden = 1;
-    application->release();
+    _SkipAnimation = 0;
+    Application->RemoveCallback(InterfaceUpdateCallback);
+    delete InterfaceUpdateCallback;
+    InterfaceUpdateCallback = nullptr;
+    TheInterface->HideTags();
+    Application->RemoveCallback(ScenarioCallback);
+    delete ScenarioCallback;
+    ScenarioCallback = nullptr;
+    Application->CursorHidden = 0;
+    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+    Application->CursorHidden = 1;
+    Application->Release();
 
-    drawY = 0x92;
-    drawIndex = 0;
-    drawState = 0;
-    nextDrawTime = MouseTicks;
-    screenWindow->addChild(this);
-    setDepth(0x5f);
+    _DrawY = 0x92;
+    _DrawIndex = 0;
+    _DrawState = 0;
+    _NextDrawTime = MouseTicks;
+    ScreenWindow->AddChild(this);
+    SetDepth(0x5f);
 
     // The move-on button's label: "mission failed" when the scenario (or the home side) lost.
     if (MPlayer == nullptr)
     {
-        if (scenarioResult < 3)
+        if (ScenarioResult < 3)
         {
-            moveOnPort->destroy();
-            moveOnPort->init(const_cast<char*>("mr_mf00.tga"));
-            moveOnButton->setUpPicture(const_cast<char*>("mr_mf01.tga"));
-            moveOnButton->setDownPicture(const_cast<char*>("mr_mf02.tga"));
+            _MoveOnPort->Destroy();
+            _MoveOnPort->Init(const_cast<char*>("mr_mf00.tga"));
+            _MoveOnButton->SetUpPicture(const_cast<char*>("mr_mf01.tga"));
+            _MoveOnButton->SetDownPicture(const_cast<char*>("mr_mf02.tga"));
         }
     }
     else
     {
-        moveOnPort->destroy();
-        moveOnPort->init(homeSideLost(scenarioResult) ? const_cast<char*>("mr_mf00.tga")
-                                                      : const_cast<char*>("mrm_ms00.tga"));
+        _MoveOnPort->Destroy();
+        _MoveOnPort->Init(HomeSideLost(ScenarioResult) ? const_cast<char*>("mr_mf00.tga")
+                                                       : const_cast<char*>("mrm_ms00.tga"));
     }
 
     // (The original copied the label onto the window here and freed it; draw shows it.)
-    moveOnButton->draw();
+    _MoveOnButton->Draw();
 
     if (MPlayer == nullptr)
     {
-        pilotResults = nullptr;
-        playerMechsDestroyed = 0;
-        playerMechsHit = 0;
-        enemyPilotsKilled = 0;
-        enemyMechsDestroyed = 0;
-        enemyMechsHit = 0;
+        _PilotResults = nullptr;
+        _PlayerMechsDestroyed = 0;
+        _PlayerMechsHit = 0;
+        _EnemyPilotsKilled = 0;
+        _EnemyMechsDestroyed = 0;
+        _EnemyMechsHit = 0;
 
-        BaseObject* current = nullptr;
+        MCBaseObject* current = nullptr;
 
-        while (clanMechList->Traverse(current) != nullptr)
+        while (ClanMechList->Traverse(current) != nullptr)
         {
-            auto* object = static_cast<GameObject*>(current);
+            auto* object = static_cast<MCGameObject*>(current);
 
-            if ((object->isDestroyed() || object->isDisabled()) && !object->isMarine())
+            if ((object->IsDestroyed() || object->IsDisabled()) && !object->IsMarine())
             {
-                enemyMechsHit++;
+                _EnemyMechsHit++;
 
-                if (object->objectClass == BATTLEMECH)
+                if (object->ObjectClass == BATTLEMECH)
                 {
-                    enemyMechsDestroyed++;
+                    _EnemyMechsDestroyed++;
                 }
             }
         }
 
         current = nullptr;
 
-        while (innerSphereMechList->Traverse(current) != nullptr)
+        while (InnerSphereMechList->Traverse(current) != nullptr)
         {
-            auto* object = static_cast<GameObject*>(current);
+            auto* object = static_cast<MCGameObject*>(current);
 
-            if ((object->isDestroyed() || object->isDisabled()) && !object->isMarine())
+            if ((object->IsDestroyed() || object->IsDisabled()) && !object->IsMarine())
             {
-                playerMechsHit++;
+                _PlayerMechsHit++;
 
-                if (object->objectClass == BATTLEMECH && static_cast<Mover*>(object)->netPlayerId != -1)
+                if (object->ObjectClass == BATTLEMECH && static_cast<MCMover*>(object)->NetPlayerId != -1)
                 {
-                    playerMechsDestroyed++;
+                    _PlayerMechsDestroyed++;
                 }
             }
         }
 
         // Count the home side's pilots.
-        numPilotResults = 0;
+        _NumPilotResults = 0;
 
-        for (uint32_t i = 1; i <= scenario->numWarriors; i++)
+        for (uint32_t i = 1; i <= Scenario->NumWarriors; i++)
         {
-            MechWarrior* warrior = scenario->warriors[i];
+            MCMechWarrior* warrior = Scenario->Warriors[i];
 
             if (warrior == nullptr)
             {
                 continue;
             }
 
-            auto* vehicle = static_cast<Mover*>(warrior->vehicle);
+            auto* vehicle = static_cast<MCMover*>(warrior->Vehicle);
 
-            if (vehicle != nullptr && vehicle->getAwake() && vehicle->objectClass == BATTLEMECH &&
-                warrior->alignment == homeTeam->alignment && vehicle->netPlayerId != -1)
+            if (vehicle != nullptr && vehicle->GetAwake() && vehicle->ObjectClass == BATTLEMECH &&
+                warrior->Alignment == HomeTeam->Alignment && vehicle->NetPlayerId != -1)
             {
-                numPilotResults++;
+                _NumPilotResults++;
             }
         }
 
-        pilotResults = std::make_unique<MissionPilotResult[]>(static_cast<size_t>(numPilotResults));
+        _PilotResults = std::make_unique<MCMissionPilotResult[]>(static_cast<size_t>(_NumPilotResults));
 
         // Fill the lines and apply the skill-ups.
         int32_t filled = 0;
 
-        for (uint32_t i = 1; i <= scenario->numWarriors; i++)
+        for (uint32_t i = 1; i <= Scenario->NumWarriors; i++)
         {
-            MechWarrior* warrior = scenario->warriors[i];
+            MCMechWarrior* warrior = Scenario->Warriors[i];
 
             if (warrior == nullptr)
             {
                 continue;
             }
 
-            auto* vehicle = static_cast<Mover*>(warrior->vehicle);
+            auto* vehicle = static_cast<MCMover*>(warrior->Vehicle);
 
-            if (vehicle == nullptr || vehicle->objectClass != BATTLEMECH || !vehicle->getAwake())
+            if (vehicle == nullptr || vehicle->ObjectClass != BATTLEMECH || !vehicle->GetAwake())
             {
                 continue;
             }
 
-            if (!warrior->onHomeTeam())
+            if (!warrior->OnHomeTeam())
             {
-                if (warrior->status == 4 && warrior->alignment != homeTeam->alignment)
+                if (warrior->Status == 4 && warrior->Alignment != HomeTeam->Alignment)
                 {
-                    enemyPilotsKilled++;
+                    _EnemyPilotsKilled++;
                 }
 
                 continue;
@@ -2610,31 +2612,31 @@ auto MissionResultsScreen::activate() -> int32_t
 
             // Port fix: the fill loop doesn't test the network player id or the alignment the count did, so it can
             // find more pilots than it allocated for; the extra ones are left off the screen.
-            if (filled >= numPilotResults)
+            if (filled >= _NumPilotResults)
             {
                 continue;
             }
 
-            MissionPilotResult& entry = pilotResults[filled];
-            entry.warrior = warrior;
+            MCMissionPilotResult& entry = _PilotResults[filled];
+            entry.Warrior = warrior;
 
-            if (vehicle->sensorSystem != nullptr)
+            if (vehicle->SensorSystem != nullptr)
             {
-                warrior->skillPoints[MWS_SENSORS] =
-                    static_cast<float>(vehicle->sensorSystem->totalContacts) * SensorSkill;
+                warrior->SkillPoints[MWS_SENSORS] =
+                    static_cast<float>(vehicle->SensorSystem->TotalContacts) * SensorSkill;
             }
 
-            warrior->skillPoints[MWS_PILOTING] += warrior->skillRank[MWS_PILOTING];
-            entry.oldRank = static_cast<int8_t>(warrior->rank);
+            warrior->SkillPoints[MWS_PILOTING] += warrior->SkillRank[MWS_PILOTING];
+            entry.OldRank = static_cast<int8_t>(warrior->Rank);
 
             for (int32_t skill = 0; skill < 4; skill++)
             {
-                float& skillRank = warrior->skillRank[skill];
-                float& skillPoints = warrior->skillPoints[skill];
+                float& skillRank = warrior->SkillRank[skill];
+                float& skillPoints = warrior->SkillPoints[skill];
                 int32_t gains = 0;
-                entry.skills[skill] = static_cast<int32_t>(skillRank);
+                entry.Skills[skill] = static_cast<int32_t>(skillRank);
 
-                if (scenarioResult > 3 && skillRank != 0.0f)
+                if (ScenarioResult > 3 && skillRank != 0.0f)
                 {
                     // Each rank's worth of points buys one rank, at most three per scenario.
                     do
@@ -2655,279 +2657,282 @@ auto MissionResultsScreen::activate() -> int32_t
                 }
             }
 
-            warrior->calcRank();
-            Assert(entry.oldRank <= static_cast<int8_t>(warrior->rank), 0, "Hey, how'd we drop in rank???");
-            entry.sortKey = (3 - static_cast<int8_t>(warrior->rank)) * 10000;
+            warrior->CalcRank();
+            Assert(entry.OldRank <= static_cast<int8_t>(warrior->Rank), 0, "Hey, how'd we drop in rank???");
+            entry.SortKey = (3 - static_cast<int8_t>(warrior->Rank)) * 10000;
             // Original behaviour (OB-058): meant as letter * 10^n, the callsign's letters are XORed with n.
-            const char* callsign = warrior->callsign;
+            const char* callsign = warrior->Callsign;
 
             for (int32_t letter = 0, power = 2; power >= 0; letter++, power--)
             {
-                entry.sortKey += (callsign[letter] * 10) ^ power;
+                entry.SortKey += (callsign[letter] * 10) ^ power;
             }
 
             filled++;
         }
 
-        numPilotResults = filled;
-        std::qsort(pilotResults.get(), static_cast<size_t>(numPilotResults), sizeof(MissionPilotResult), ComparePilots);
-        pilotIcons.assign(static_cast<size_t>(numPilotResults), nullptr);
-        shownResourcePoints = -1;
+        _NumPilotResults = filled;
+        std::qsort(_PilotResults.get(), static_cast<size_t>(_NumPilotResults), sizeof(MCMissionPilotResult),
+                   ComparePilots);
+        _PilotIcons.assign(static_cast<size_t>(_NumPilotResults), nullptr);
+        _ShownResourcePoints = -1;
 
         // Only the first nine objectives' points count.
-        resourcePointsEarned = 0;
+        _ResourcePointsEarned = 0;
 
         for (int32_t i = 0; i < 9; i++)
         {
-            if (scenario->objectives[i].status == 1)
+            if (Scenario->Objectives[i].Status == 1)
             {
-                resourcePointsEarned += scenario->objectives[i].points;
+                _ResourcePointsEarned += Scenario->Objectives[i].Points;
             }
         }
 
         // Borrow the tactical map's text box for the debriefing.
-        TacticalMap* tacMap = Terrain::terrainTacticalMap;
-        textObject = nullptr;
-        tacMap->removeChild(tacMap->salvageText);
-        textObject = tacMap->salvageText;
-        addChild(textObject);
-        textObject->moveTo(10, 0x15b, 0);
-        textObject->resize(0xc4, 0x59);
-        textObject->ShowGUIWindow(0);
+        MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
+        _TextObject = nullptr;
+        tacMap->RemoveChild(tacMap->SalvageText);
+        _TextObject = tacMap->SalvageText;
+        AddChild(_TextObject);
+        _TextObject->MoveTo(10, 0x15b, 0);
+        _TextObject->Resize(0xc4, 0x59);
+        _TextObject->ShowGuiWindow(0);
 
-        soundSystem->playBettySample(scenarioResult < 4 ? 0xb : 0x12);
+        SoundSystem->PlayBettySample(ScenarioResult < 4 ? 0xb : 0x12);
     }
     else
     {
-        if (isMPlayerGame != 0)
+        if (IsMPlayerGame != 0)
         {
-            application->AddTimer(this, 10, 90000, 0, 0, 0);
+            Application->AddTimer(this, 10, 90000, 0, 0, 0);
         }
 
-        MissionCommanderScore scores[6];
+        MCMissionCommanderScore scores[6];
 
         for (int32_t i = 0; i < 6; i++)
         {
             scores[i] = {i, -1};
         }
 
-        playerMechsDestroyed = 0;
-        playerMechsHit = 0;
-        enemyPilotsKilled = 0;
-        enemyMechsDestroyed = 0;
-        enemyMechsHit = 0;
+        _PlayerMechsDestroyed = 0;
+        _PlayerMechsHit = 0;
+        _EnemyPilotsKilled = 0;
+        _EnemyMechsDestroyed = 0;
+        _EnemyMechsHit = 0;
 
-        numPilotResults = 0;
+        _NumPilotResults = 0;
 
-        for (uint32_t i = 1; i <= scenario->numWarriors; i++)
+        for (uint32_t i = 1; i <= Scenario->NumWarriors; i++)
         {
-            MechWarrior* warrior = scenario->warriors[i];
+            MCMechWarrior* warrior = Scenario->Warriors[i];
 
-            if (warrior != nullptr && warrior->vehicle != nullptr && static_cast<Mover*>(warrior->vehicle)->getAwake())
+            if (warrior != nullptr && warrior->Vehicle != nullptr &&
+                static_cast<MCMover*>(warrior->Vehicle)->GetAwake())
             {
-                numPilotResults++;
+                _NumPilotResults++;
             }
         }
 
-        pilotResults = std::make_unique<MissionPilotResult[]>(static_cast<size_t>(numPilotResults));
+        _PilotResults = std::make_unique<MCMissionPilotResult[]>(static_cast<size_t>(_NumPilotResults));
 
         int32_t filled = 0;
 
-        for (uint32_t i = 1; i <= scenario->numWarriors; i++)
+        for (uint32_t i = 1; i <= Scenario->NumWarriors; i++)
         {
-            MechWarrior* warrior = scenario->warriors[i];
+            MCMechWarrior* warrior = Scenario->Warriors[i];
 
             if (warrior == nullptr)
             {
                 continue;
             }
 
-            auto* vehicle = static_cast<Mover*>(warrior->vehicle);
+            auto* vehicle = static_cast<MCMover*>(warrior->Vehicle);
 
-            if (vehicle == nullptr || !vehicle->getAwake())
+            if (vehicle == nullptr || !vehicle->GetAwake())
             {
                 continue;
             }
 
-            if (vehicle->isDisabled())
+            if (vehicle->IsDisabled())
             {
-                if (warrior->team == homeTeam)
+                if (warrior->Team == HomeTeam)
                 {
-                    playerMechsHit++;
+                    _PlayerMechsHit++;
 
-                    if (vehicle->objectClass == BATTLEMECH)
+                    if (vehicle->ObjectClass == BATTLEMECH)
                     {
-                        playerMechsDestroyed++;
+                        _PlayerMechsDestroyed++;
                     }
                 }
                 else
                 {
-                    enemyMechsHit++;
+                    _EnemyMechsHit++;
 
-                    if (vehicle->objectClass == BATTLEMECH)
+                    if (vehicle->ObjectClass == BATTLEMECH)
                     {
-                        enemyMechsDestroyed++;
+                        _EnemyMechsDestroyed++;
                     }
                 }
             }
 
-            MissionPilotResult& entry = pilotResults[filled];
-            entry.warrior = warrior;
+            MCMissionPilotResult& entry = _PilotResults[filled];
+            entry.Warrior = warrior;
 
-            if (warrior->status == 4 && warrior->team != homeTeam)
+            if (warrior->Status == 4 && warrior->Team != HomeTeam)
             {
-                enemyPilotsKilled++;
+                _EnemyPilotsKilled++;
             }
 
             for (int32_t kind = 0; kind < 7; kind++)
             {
-                MissionCommanderScore& score = scores[vehicle->getCommanderId()];
+                MCMissionCommanderScore& score = scores[vehicle->GetCommanderId()];
 
-                if (score.score == -1)
+                if (score.Score == -1)
                 {
-                    score.score = 0;
+                    score.Score = 0;
                 }
 
-                const int32_t kills = warrior->numKilled[kind][1];
-                score.score += kills;
-                entry.sortKey += kills * -10000;
-                entry.oldRank += kills;
+                const int32_t kills = warrior->NumKilled[kind][1];
+                score.Score += kills;
+                entry.SortKey += kills * -10000;
+                entry.OldRank += kills;
             }
 
             // Damage taken counts against the pilot: armor lost, and internal structure lost twice over.
-            for (int32_t j = 0; j < vehicle->numArmorLocations; j++)
+            for (int32_t j = 0; j < vehicle->NumArmorLocations; j++)
             {
-                const ArmorLocation& armor = vehicle->armor[j];
-                entry.sortKey =
-                    static_cast<int32_t>(static_cast<double>(armor.maxArmor) - armor.curArmor + entry.sortKey);
+                const MCArmorLocation& armor = vehicle->Armor[j];
+                entry.SortKey =
+                    static_cast<int32_t>(static_cast<double>(armor.MaxArmor) - armor.CurArmor + entry.SortKey);
             }
 
-            for (int32_t j = 0; j < vehicle->numBodyLocations; j++)
+            for (int32_t j = 0; j < vehicle->NumBodyLocations; j++)
             {
-                const BodyLocation& body = vehicle->bodyAt(j);
-                entry.sortKey = static_cast<int32_t>(
-                    (static_cast<double>(body.maxInternalStructure) - body.curInternalStructure) * 2 + entry.sortKey);
+                const MCBodyLocation& body = vehicle->BodyAt(j);
+                entry.SortKey = static_cast<int32_t>(
+                    (static_cast<double>(body.MaxInternalStructure) - body.CurInternalStructure) * 2 + entry.SortKey);
             }
 
             filled++;
         }
 
-        std::qsort(scores, 6, sizeof(MissionCommanderScore), CompareCommanders);
-        Assert(numPilotResults == filled, static_cast<uint32_t>(numPilotResults), " warriorcount != warriorcount2! ");
-        std::qsort(pilotResults.get(), static_cast<size_t>(numPilotResults), sizeof(MissionPilotResult), ComparePilots);
+        std::qsort(scores, 6, sizeof(MCMissionCommanderScore), CompareCommanders);
+        Assert(_NumPilotResults == filled, static_cast<uint32_t>(_NumPilotResults), " warriorcount != warriorcount2! ");
+        std::qsort(_PilotResults.get(), static_cast<size_t>(_NumPilotResults), sizeof(MCMissionPilotResult),
+                   ComparePilots);
 
         // (The original drew the summary, the home side's pilots and the objectives into the window's picture here;
         // draw shows them each frame from what is kept below.)
         // Port fix: MCX.EXE reads the best pilot without checking there is one.
-        if (numPilotResults > 0)
+        if (_NumPilotResults > 0)
         {
-            MechWarrior* best = pilotResults[0].warrior;
-            bestPilotIcon = takeIconPicture(best, static_cast<Mover*>(best->vehicle)->partId);
+            MCMechWarrior* best = _PilotResults[0].Warrior;
+            _BestPilotIcon = TakeIconPicture(best, static_cast<MCMover*>(best->Vehicle)->PartId);
         }
 
-        pilotIcons.assign(static_cast<size_t>(numPilotResults), nullptr);
+        _PilotIcons.assign(static_cast<size_t>(_NumPilotResults), nullptr);
 
-        for (int32_t i = 0; i < numPilotResults; i++)
+        for (int32_t i = 0; i < _NumPilotResults; i++)
         {
-            MechWarrior* warrior = pilotResults[i].warrior;
+            MCMechWarrior* warrior = _PilotResults[i].Warrior;
 
             if (warrior != nullptr)
             {
-                pilotIcons[static_cast<size_t>(i)] =
-                    takeIconPicture(warrior, static_cast<Mover*>(warrior->vehicle)->partId);
+                _PilotIcons[static_cast<size_t>(i)] =
+                    TakeIconPicture(warrior, static_cast<MCMover*>(warrior->Vehicle)->PartId);
             }
         }
 
-        const int32_t seconds = static_cast<int32_t>(std::fmod(static_cast<double>(actualTime), 60.0));
-        std::snprintf(timeText, sizeof(timeText), "%02i:%02i", static_cast<int32_t>(actualTime) / 60, seconds);
+        const int32_t seconds = static_cast<int32_t>(std::fmod(static_cast<double>(ActualTime), 60.0));
+        std::snprintf(_TimeText, sizeof(_TimeText), "%02i:%02i", static_cast<int32_t>(ActualTime) / 60, seconds);
 
         // The commanders by kills.
-        commanderLines.clear();
+        _CommanderLines.clear();
 
         for (int32_t i = 0; i < 6; i++)
         {
-            if (scores[i].score < 0 || MPlayer->sessionManager->GetPlayerNumber(scores[i].commanderId) == nullptr)
+            if (scores[i].Score < 0 || MPlayer->SessionManager->GetPlayerNumber(scores[i].CommanderId) == nullptr)
             {
                 continue;
             }
 
-            FIDPPlayer* player = MPlayer->sessionManager->GetPlayerNumber(scores[i].commanderId);
-            commanderLines.push_back({i + 1, player->name, scores[i].score});
+            MCFidpPlayer* player = MPlayer->SessionManager->GetPlayerNumber(scores[i].CommanderId);
+            _CommanderLines.push_back({i + 1, player->Name, scores[i].Score});
         }
 
-        drawMPPilots(1);
-        drawY = 0x11d;
-        soundSystem->playBettySample(homeSideLost(scenarioResult) ? 0xb : 0x12);
+        DrawMPPilots(1);
+        _DrawY = 0x11d;
+        SoundSystem->PlayBettySample(HomeSideLost(ScenarioResult) ? 0xb : 0x12);
     }
 
-    if (MPlayer != nullptr && MPlayer->sessionManager != nullptr && mission->endScenarioRequested != 0)
+    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr && Mission->EndScenarioRequested != 0)
     {
-        MPlayer->leaveSession();
-        MPlayer->inMission = 1;
+        MPlayer->LeaveSession();
+        MPlayer->InMission = 1;
     }
 
-    somethingOnFire = 0;
-    scenarioEnded = 0;
+    SomethingOnFire = 0;
+    _ScenarioEnded = 0;
     return 0;
 }
 
-auto MissionResultsScreen::drawMPObjectives() -> void
+auto MCMissionResultsScreen::DrawMPObjectives() -> void
 {
     char pointsName[256];
     char bonusHeader[256];
     char secondaryHeader[256];
-    cLoadString(thisInstance, 0x363, pointsName, 0xfe);
-    cLoadString(thisInstance, 0x360, bonusHeader, 0xfe);
-    cLoadString(thisInstance, 0x362, secondaryHeader, 0xfe);
+    CLoadString(ThisInstance, 0x363, pointsName, 0xfe);
+    CLoadString(ThisInstance, 0x360, bonusHeader, 0xfe);
+    CLoadString(ThisInstance, 0x362, secondaryHeader, 0xfe);
 
     // (The original drew once, stepping drawY and objectivesHeaderDrawn; draw calls this each frame, so it lays out
     // from locals.)
-    int32_t y = drawY;
-    int32_t headerDrawn = objectivesHeaderDrawn;
+    int32_t y = _DrawY;
+    int32_t headerDrawn = _ObjectivesHeaderDrawn;
 
     // Only the primary objectives (type 0) of the home team are listed; the loop over the types stops after the
     // first, so the secondary header below is never drawn.
     for (uint32_t type = 0; type < 1; type++)
     {
-        const int32_t first = homeTeam->firstObjective;
-        const int32_t end = first + static_cast<int32_t>(homeTeam->numObjectives);
+        const int32_t first = HomeTeam->FirstObjective;
+        const int32_t end = first + static_cast<int32_t>(HomeTeam->NumObjectives);
 
         for (int32_t i = first; i < end; i++)
         {
-            ScenarioObjective& objective = scenario->objectives[i];
+            MCScenarioObjective& objective = Scenario->Objectives[i];
 
-            if (objective.type != type)
+            if (objective.Type != type)
             {
                 continue;
             }
 
             if (type == 1 && headerDrawn == 0)
             {
-                medBlueFont->writeString(port()->frame(), 0xf, y, reinterpret_cast<uint8_t*>(secondaryHeader), -1);
+                MedBlueFont->WriteString(Port()->Frame(), 0xf, y, reinterpret_cast<uint8_t*>(secondaryHeader), -1);
                 headerDrawn = 1;
                 y += 0xe;
             }
 
-            aFont* font = greyFont;
+            MCGuiFont* font = GreyFont;
 
-            if (objective.status == 1)
+            if (objective.Status == 1)
             {
-                successPort->copyTo(port()->frame(), 0xb, y - 1, 0);
-                font = greenFont;
+                _SuccessPort->CopyTo(Port()->Frame(), 0xb, y - 1, 0);
+                font = GreenFont;
             }
-            else if (objective.status == 2)
+            else if (objective.Status == 2)
             {
-                failurePort->copyTo(port()->frame(), 0xb, y - 1, 0);
-                font = redFont;
+                _FailurePort->CopyTo(Port()->Frame(), 0xb, y - 1, 0);
+                font = RedFont;
             }
-            else if (objective.status != 0)
+            else if (objective.Status != 0)
             {
                 continue;
             }
 
             if (font != nullptr)
             {
-                font->writeString(port()->frame(), 0x17, y, reinterpret_cast<uint8_t*>(objective.name), -1);
+                font->WriteString(Port()->Frame(), 0x17, y, reinterpret_cast<uint8_t*>(objective.Name), -1);
                 y += 0xd;
             }
         }

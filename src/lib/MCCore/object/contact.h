@@ -3,14 +3,14 @@
 // Potential contacts and sensor systems (original source: object\contact.cpp): every object that can be seen is a
 // _PotentialContact on one of three lists; each team keeps which it sees by line of sight or by sensors.
 
-class BigGameObject;
-class FitIniFile;
-class GameObject;
-class SortList;
-class Team;
+class MCBigGameObject;
+class MCFitIniFile;
+class MCGameObject;
+class MCSortList;
+class MCTeam;
 
 /// <summary>Which of the potential contact manager's lists an object is on (by alignment).</summary>
-enum PotentialContactType : int32_t
+enum MCPotentialContactType : int32_t
 {
     /// <summary>Inner Sphere objects.</summary>
     POTENTIAL_CONTACT_INNER_SPHERE = 0,
@@ -20,8 +20,8 @@ enum PotentialContactType : int32_t
     POTENTIAL_CONTACT_ALLIED = 2,
 };
 
-/// <summary>How a team knows a contact (<see cref="_PotentialContact::contactStatus"/>).</summary>
-enum ContactStatus : uint8_t
+/// <summary>How a team knows a contact (<see cref="MCPotentialContact::ContactStatus"/>).</summary>
+enum MCContactStatus : uint8_t
 {
     CONTACT_NONE = 0,
     /// <summary>In the team's line of sight.</summary>
@@ -30,261 +30,230 @@ enum ContactStatus : uint8_t
     CONTACT_SENSOR = 2,
 };
 
-/// <summary>Maximum number of sensor systems (<see cref="SensorSystemManager"/>).</summary>
+/// <summary>Maximum number of sensor systems (<see cref="MCSensorSystemManager"/>).</summary>
 constexpr int32_t MAX_SENSORS = 0x41;
 /// <summary>Maximum number of contacts one sensor holds.</summary>
 constexpr int32_t MAX_SENSOR_CONTACTS = 200;
 
 /// <summary>
-/// An object that can be seen, and how each team sees it. Pooled by the <see cref="PotentialContactManager"/>.
+/// An object that can be seen, and how each team sees it. Pooled by the <see cref="MCPotentialContactManager"/>.
 /// </summary>
 /// <remarks>Original source: <c>object\contact.cpp</c>; 0x60 bytes, packed (the object pointer is at +0x02).</remarks>
-struct _PotentialContact
+struct MCPotentialContact
 {
     /// <summary>Clears the per-team state and sensor slots; list type 2, visibility 0.</summary>
-    /// <remarks>MCX.EXE @ 0x00658650</remarks>
-    void init();
+    void Init();
     /// <summary>
     /// Works out whether <paramref name="team"/> sees the object by line of sight, by sensors only, or not, and
     /// moves it between the team's LOS and sensor contact lists when that changes.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006586a0</remarks>
-    void updateStatus(Team* team);
+    void UpdateStatus(MCTeam* team);
 
     /// <summary>Index in the manager's pool (and in the sensors' contact lists).</summary>
-    uint16_t id = 0; // +0x00
+    uint16_t Id = 0;
     /// <summary>The object.</summary>
-    BigGameObject* object = nullptr; // +0x02
-    /// <summary>The manager list it is on (<see cref="PotentialContactType"/>).</summary>
-    int8_t contactType = 0; // +0x06
+    MCBigGameObject* Object = nullptr;
+    /// <summary>The manager list it is on (<see cref="MCPotentialContactType"/>).</summary>
+    int8_t ContactType = 0;
     /// <summary>How visible it is: 2 can't be sensed at all, 3 can't be seen by line of sight.</summary>
-    int8_t visibility = 0; // +0x07
-    /// <summary>Per team: <see cref="ContactStatus"/>.</summary>
-    uint8_t contactStatus[3]{}; // +0x08
+    int8_t Visibility = 0;
+    /// <summary>Per team: <see cref="MCContactStatus"/>.</summary>
+    uint8_t ContactStatus[3]{};
     /// <summary>Per team: how many of its sensors hold the contact.</summary>
-    int8_t numSensors[3]{}; // +0x0b
+    int8_t NumSensors[3]{};
     /// <summary>Per team: it went from visual to sensor contact (BigGameObject::getContactType's tagged).</summary>
-    uint8_t lostVisual[3]{}; // +0x0e
+    uint8_t LostVisual[3]{};
     /// <summary>Per sensor: the contact's slot in that sensor's list, 0xff for none.</summary>
-    uint8_t sensorSlot[MAX_SENSORS]{}; // +0x11
+    uint8_t SensorSlot[MAX_SENSORS]{};
     /// <summary>Per team: the contact's slot in that team's LOS or sensor list, -1 for none.</summary>
-    int16_t teamSlot[3]{}; // +0x52
+    int16_t TeamSlot[3]{};
     /// <summary>Previous on the manager list.</summary>
-    _PotentialContact* prev = nullptr; // +0x58
+    MCPotentialContact* Prev = nullptr;
     /// <summary>Next on the manager list (or the free list).</summary>
-    _PotentialContact* next = nullptr; // +0x5c
+    MCPotentialContact* Next = nullptr;
 };
 
 /// <summary>The pool of potential contacts and the three lists they are on.</summary>
 /// <remarks>Original source: <c>object\contact.cpp</c>; 0x1c bytes.</remarks>
-class PotentialContactManager
+class MCPotentialContactManager
 {
 public:
     /// <summary>
     /// Reads "MaxPotentialContacts" from the "PotentialContactManager" block (fatal below 2) and chains that many
     /// contacts into the free list.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006587c0</remarks>
-    int32_t init(FitIniFile* file);
+    int32_t Init(MCFitIniFile* file);
     /// <summary>Takes a free contact for <paramref name="object"/> onto list <paramref name="type"/>; fatal when
     /// none is left.</summary>
-    /// <remarks>MCX.EXE @ 0x00658900</remarks>
-    _PotentialContact* add(int32_t type, BigGameObject* object, char visibility);
+    MCPotentialContact* Add(int32_t type, MCBigGameObject* object, char visibility);
     /// <summary>
     /// Counts what team <paramref name="teamId"/> knows of the enemy list (and, unless
     /// <paramref name="enemiesOnly"/>, of every list): counts[0] tagged, [1] visual, [2] sensor contacts.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00658970</remarks>
-    int32_t getContactCounts(int32_t* counts, int32_t teamId, int enemiesOnly);
+    int32_t GetContactCounts(int32_t* counts, int32_t teamId, int enemiesOnly);
     /// <summary>Takes <paramref name="contact"/> off every sensor and team list and back to the free list.</summary>
-    /// <remarks>MCX.EXE @ 0x00658a80</remarks>
-    void remove(_PotentialContact* contact);
+    void Remove(MCPotentialContact* contact);
     /// <summary>Moves <paramref name="contact"/> to list <paramref name="type"/> with a new visibility.</summary>
-    /// <remarks>MCX.EXE @ 0x00658b50</remarks>
-    void move(_PotentialContact* contact, int32_t type, char visibility);
+    void Move(MCPotentialContact* contact, int32_t type, char visibility);
     /// <summary>Updates every contact's status for the two teams it isn't on.</summary>
-    /// <remarks>MCX.EXE @ 0x00658bb0</remarks>
-    void updateStatus();
+    void UpdateStatus();
     /// <summary>Frees the pool.</summary>
-    /// <remarks>MCX.EXE @ 0x00658c30</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>Pool size (FIT "MaxPotentialContacts").</summary>
-    int32_t maxContacts = 0; // +0x00
+    int32_t MaxContacts = 0;
     /// <summary>Contacts on the free list.</summary>
-    int32_t numFree = 0; // +0x04
-    /// <summary>The first contact of each <see cref="PotentialContactType"/> list.</summary>
-    _PotentialContact* contactList[3] = {}; // +0x08
+    int32_t NumFree = 0;
+    /// <summary>The first contact of each <see cref="MCPotentialContactType"/> list.</summary>
+    MCPotentialContact* ContactList[3] = {};
     /// <summary>The pool.</summary>
-    std::unique_ptr<_PotentialContact[]> contacts; // +0x14
+    std::unique_ptr<MCPotentialContact[]> Contacts;
     /// <summary>The first free contact.</summary>
-    _PotentialContact* freeList = nullptr; // +0x18
+    MCPotentialContact* FreeList = nullptr;
 };
 
 /// <summary>
 /// One object's sensors: a range (by the owner's speed and its pilot's sensor skill), scaled by the enemy's
-/// jammers and ECM, and the contacts it currently holds. Pooled by the <see cref="SensorSystemManager"/>.
+/// jammers and ECM, and the contacts it currently holds. Pooled by the <see cref="MCSensorSystemManager"/>.
 /// </summary>
 /// <remarks>Original source: <c>object\contact.cpp</c>; 0x1ec bytes.</remarks>
-class SensorSystem
+class MCSensorSystem
 {
 public:
     /// <summary>
     /// Takes the next sensor id, no owner, team or range; staggers the first scan by id (0.1 s each, from 0.25 s);
     /// scans every ContactUpdateFrequency seconds; makes the shared sort list with the first sensor.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00658ca0</remarks>
-    void init();
+    void Init();
     /// <summary>Drops the shared sort list with the last sensor.</summary>
-    /// <remarks>MCX.EXE @ 0x00658d60</remarks>
-    void destroy();
+    void Destroy();
     /// <summary>
     /// Sets the range; a mover's is split into three by speed state, reduced by its pilot's sensor skill
     /// (SensorSkillMoveRange / SensorSkillMoveFactor).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00658da0</remarks>
-    void setRange(float newRange);
+    void SetRange(float newRange);
     /// <summary>
     /// The range now: a mover's for its speed state, eased over six turns when that changes; times the team
     /// multiplier.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00658e70</remarks>
-    float getSkilledRange();
+    float GetSkilledRange();
     /// <summary>Leaves the old team's sensors and joins <paramref name="newTeam"/>'s (fatal for a team id with no team).</summary>
-    /// <remarks>MCX.EXE @ 0x00658f10</remarks>
-    void setTeam(Team* newTeam);
+    void SetTeam(MCTeam* newTeam);
     /// <summary>
     /// Whether the sensors work: on a team, the owner alive and awake, and (for a mover) its sensor component
     /// present and undamaged.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00658fa0</remarks>
-    int enabled();
+    int Enabled();
     /// <summary>Drops every contact and leaves the team.</summary>
-    /// <remarks>MCX.EXE @ 0x00659010</remarks>
-    void disable();
+    void Disable();
     /// <summary>The weaker of <paramref name="team"/>'s jamming and its ECM at the owner's position.</summary>
-    /// <remarks>MCX.EXE @ 0x00659030</remarks>
-    float calcTeamEffect(Team* team);
+    float CalcTeamEffect(MCTeam* team);
     /// <summary>Once per scenario time: each team's effect on these sensors, and the one that applies.</summary>
-    /// <remarks>MCX.EXE @ 0x00659090</remarks>
-    void calcTeamMultipliers();
+    void CalcTeamMultipliers();
     /// <summary>Adds <paramref name="contact"/> unless full or already held.</summary>
-    /// <remarks>MCX.EXE @ 0x006591b0</remarks>
-    void addSensorContact(_PotentialContact* contact);
+    void AddSensorContact(MCPotentialContact* contact);
     /// <summary>Drops the contact in slot <paramref name="index"/> (the last one fills the gap).</summary>
-    /// <remarks>MCX.EXE @ 0x00659200</remarks>
-    void removeSensorContact(int32_t index);
+    void RemoveSensorContact(int32_t index);
     /// <summary>Drops <paramref name="contact"/> if held.</summary>
-    /// <remarks>MCX.EXE @ 0x00659270</remarks>
-    void removeSensorContact(_PotentialContact* contact);
+    void RemoveSensorContact(MCPotentialContact* contact);
     /// <summary>Drops every contact.</summary>
-    /// <remarks>MCX.EXE @ 0x006592a0</remarks>
-    void clearSensorContacts();
+    void ClearSensorContacts();
     /// <summary>
     /// Re-checks the contacts held (once per scenario time): drops the disabled and those out of range. The
     /// original's name is lost.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006592d0</remarks>
-    void updateContacts();
+    void UpdateContacts();
     /// <summary>
     /// When due (every scanFrequency seconds) or <paramref name="forceScan"/>: scans the battlefield, and has the
     /// pilot report new contacts.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006593c0</remarks>
-    void updateScan(int forceScan);
+    void UpdateScan(int forceScan);
     /// <summary>Scans list <paramref name="type"/> for other teams' objects; returns the newly sensed ones.</summary>
-    /// <remarks>MCX.EXE @ 0x006594c0</remarks>
-    int32_t scanBattlefield(PotentialContactType type);
+    int32_t ScanBattlefield(MCPotentialContactType type);
     /// <summary>Scans the lists the owner's alignment can see; returns the newly sensed.</summary>
-    /// <remarks>MCX.EXE @ 0x00659590</remarks>
-    int32_t scanBattlefield();
+    int32_t ScanBattlefield();
     /// <summary>
     /// Whether <paramref name="target"/> is on these sensors: in range, sensable, and (for a mover) the sensor
     /// working; a probe extends the range for hidden (status 5) targets.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00659600</remarks>
-    int onSensors(GameObject* target);
+    int OnSensors(MCGameObject* target);
 
     /// <summary>Index in the manager's pool (and in _PotentialContact::sensorSlot).</summary>
-    int32_t id = 0; // +0x00
+    int32_t Id = 0;
     /// <summary>The object carrying the sensors.</summary>
-    GameObject* owner = nullptr; // +0x04
+    MCGameObject* Owner = nullptr;
     /// <summary>The owner's team.</summary>
-    Team* team = nullptr; // +0x08
+    MCTeam* Team = nullptr;
     /// <summary>0 Inner Sphere, 1 clan, 2 allied; -1 for none.</summary>
-    int32_t teamIndex = -1; // +0x0c
+    int32_t TeamIndex = -1;
     /// <summary>Slot in the team's sensor list (set by Team::addSensor); -1 when not on a team.</summary>
-    int32_t teamSensorSlot = -1; // +0x10
+    int32_t TeamSensorSlot = -1;
     /// <summary>The base range; -1 for no sensors.</summary>
-    float range = -1.0f; // +0x14
+    float Range = -1.0f;
     /// <summary>A mover's range by speed state (still, moving, running).</summary>
-    float speedRange[3] = {}; // +0x18
+    float SpeedRange[3] = {};
     /// <summary>The range last settled on (getSkilledRange eases toward the new one).</summary>
-    float currentRange = 0.0f; // +0x24
+    float CurrentRange = 0.0f;
     /// <summary>The turn the easing ends; -1 when settled.</summary>
-    int32_t rangeChangeTurn = -1; // +0x28
+    int32_t RangeChangeTurn = -1;
     /// <summary>Each team's jamming/ECM effect on these sensors (Inner Sphere, clan, allied).</summary>
-    float teamMultiplier[3] = {1.0f, 1.0f, 1.0f}; // +0x2c
+    float TeamMultiplier[3] = {1.0f, 1.0f, 1.0f};
     /// <summary>The effect that applies (the enemy's).</summary>
-    float multiplier = 1.0f; // +0x38
+    float Multiplier = 1.0f;
     /// <summary>Scenario time of the next scan.</summary>
-    float nextScanTime = 0.0f; // +0x3c
+    float NextScanTime = 0.0f;
     /// <summary>Scenario time of the last scan.</summary>
-    float lastScanTime = 0.0f; // +0x40
+    float LastScanTime = 0.0f;
     /// <summary>Scenario time calcTeamMultipliers last ran.</summary>
-    float lastMultiplierTime = 0.0f; // +0x44
+    float LastMultiplierTime = 0.0f;
     /// <summary>Seconds between scans (4).</summary>
-    float scanFrequency = 0.0f; // +0x48
+    float ScanFrequency = 0.0f;
     /// <summary>The contacts held, by _PotentialContact::id.</summary>
-    uint16_t contacts[MAX_SENSOR_CONTACTS] = {}; // +0x4c
+    uint16_t Contacts[MAX_SENSOR_CONTACTS] = {};
     /// <summary>How many.</summary>
-    int32_t numContacts = 0; // +0x1dc
+    int32_t NumContacts = 0;
     /// <summary>Contacts newly sensed, over the mission.</summary>
-    int32_t totalContacts = 0; // +0x1e0
+    int32_t TotalContacts = 0;
     /// <summary>Previous in the manager's free list.</summary>
-    SensorSystem* prev = nullptr; // +0x1e4
+    MCSensorSystem* Prev = nullptr;
     /// <summary>Next in the manager's free list.</summary>
-    SensorSystem* next = nullptr; // +0x1e8
+    MCSensorSystem* Next = nullptr;
 
     /// <summary>Sensors made (the next id).</summary>
-    static int32_t numSensors;
+    static int32_t NumSensors;
     /// <summary>Shared by every sensor: made by the first init, freed by the last destroy.</summary>
-    static SortList* sortList;
+    static MCSortList* SortList;
 };
 
 /// <summary>The pool of <see cref="MAX_SENSORS"/> sensor systems.</summary>
 /// <remarks>Original source: <c>object\contact.cpp</c>; 0xc bytes.</remarks>
-class SensorSystemManager
+class MCSensorSystemManager
 {
 public:
     /// <summary>Makes the sensors and chains them into the free list; fatal without memory.</summary>
-    /// <remarks>MCX.EXE @ 0x006597f0</remarks>
-    int32_t init(FitIniFile* file);
+    int32_t Init(MCFitIniFile* file);
     /// <summary>Takes a free sensor; fatal when none is left.</summary>
-    /// <remarks>MCX.EXE @ 0x006598e0</remarks>
-    SensorSystem* newSensor();
+    MCSensorSystem* NewSensor();
     /// <summary>Returns <paramref name="sensor"/> to the free list.</summary>
-    /// <remarks>MCX.EXE @ 0x00659930</remarks>
-    void freeSensor(SensorSystem* sensor);
+    void FreeSensor(MCSensorSystem* sensor);
     /// <summary>
     /// Meant to delete every sensor, but its duplicate check nulls each entry before testing it, so it only frees
     /// the table: the sensors stay in objectCache and SensorSystem::numSensors keeps counting.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00659960</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>Sensors on the free list.</summary>
-    int32_t numFree = 0; // +0x00
+    int32_t NumFree = 0;
     /// <summary>Every sensor, by id.</summary>
-    std::unique_ptr<SensorSystem*[]> sensors; // +0x04
+    std::unique_ptr<MCSensorSystem*[]> Sensors;
     /// <summary>The first free sensor.</summary>
-    SensorSystem* freeList = nullptr; // +0x08
+    MCSensorSystem* FreeList = nullptr;
 };
 
 /// <summary>The potential contacts.</summary>
-extern PotentialContactManager* potentialContactManager;
+extern MCPotentialContactManager* PotentialContactManager;
 /// <summary>The sensor systems.</summary>
-extern SensorSystemManager* sensorSystemManager;
+extern MCSensorSystemManager* SensorSystemManager;
 /// <summary>Debug: every target is on every sensor.</summary>
 extern int SensorAutomaticSuccess;
 /// <summary>Sensor skill thresholds (45, 59, 69, 80) for SensorSkillMoveFactor's rows.</summary>
@@ -292,5 +261,4 @@ extern char SensorSkillMoveRange[4];
 /// <summary>Per skill row: the moving and running range factors.</summary>
 extern float SensorSkillMoveFactor[4][2];
 /// <summary>Sensors "SensorModifiers" (loadMoverGameSystem).</summary>
-/// <remarks>MCX.EXE @ 0x0078eefc</remarks>
 extern float SensorModifier[8];

@@ -9,10 +9,10 @@ namespace
     constexpr uint32_t TableSize = 0x1000;
 
     /// <summary>Writes codes LSB-first, and tracks the code width the decoder will read each one at.</summary>
-    class CodeWriter
+    class MCCodeWriter
     {
     public:
-        explicit CodeWriter(uint8_t* out) : _Out(out) {}
+        explicit MCCodeWriter(uint8_t* out) : _Out(out) {}
 
         /// <summary>Emits a code at the decoder's current width, then advances the decoder's state.</summary>
         void Emit(uint32_t code)
@@ -92,7 +92,7 @@ int32_t LZCompress(uint8_t* dest, const uint8_t* src, uint32_t srcLen)
     dictionary.reserve(TableSize * 2);
     uint32_t freeCode = FirstFree;
 
-    CodeWriter writer(dest);
+    MCCodeWriter writer(dest);
     writer.Emit(ClearCode);
 
     if (srcLen == 0)

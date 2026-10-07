@@ -155,7 +155,7 @@ TEST_CASE_ISOLATED("game: the software renderer shows the CPU's composite")
         return;
     }
 
-    gRenderer = static_cast<int>(MCRendererKind::Software);
+    GRenderer = static_cast<int>(MCRendererKind::Software);
     REQUIRE(MCTestGame::StartMission(1));
     MCDisplay* display = MCInput::Display();
     REQUIRE(display != nullptr);

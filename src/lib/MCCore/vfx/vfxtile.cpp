@@ -12,22 +12,22 @@
 //
 // A row of length 0 is empty.
 
-int32_t VFX_nTile_draw(PANE* pane, uint8_t* tile, int32_t x, int32_t y, uint8_t* xlat)
+int32_t VfxNTileDraw(MCPane* pane, uint8_t* tile, int32_t x, int32_t y, uint8_t* xlat)
 {
-    const WINDOW* window = pane->window;
-    const int32_t stride = window->x_max + 1;
-    int32_t cx0 = pane->x0 < 0 ? 0 : pane->x0;
-    int32_t cy0 = pane->y0 < 0 ? 0 : pane->y0;
-    int32_t cx1 = pane->x1 < stride ? pane->x1 : window->x_max;
-    int32_t cy1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+    const MCWindow* window = pane->Window;
+    const int32_t stride = window->XMax + 1;
+    int32_t cx0 = pane->X0 < 0 ? 0 : pane->X0;
+    int32_t cy0 = pane->Y0 < 0 ? 0 : pane->Y0;
+    int32_t cx1 = pane->X1 < stride ? pane->X1 : window->XMax;
+    int32_t cy1 = pane->Y1 < window->YMax + 1 ? pane->Y1 : window->YMax;
     MCClipToView(window, cx0, cy0, cx1, cy1);
 
     const int32_t height = tile[2];
     const int32_t width = tile[3];
     // OB-115: (x, y) are relative to the pane's origin; the asm offset by its corner clipped to the window. OB-116:
     // and counted a tile starting on the last column or row as outside.
-    const int32_t left = pane->x0 - tile[0] + x;
-    const int32_t top = pane->y0 - tile[1] + y;
+    const int32_t left = pane->X0 - tile[0] + x;
+    const int32_t top = pane->Y0 - tile[1] + y;
 
     if (cx1 < cx0 || cy1 < cy0 || left > cx1 || top > cy1 || left <= cx0 - width || top <= cy0 - height)
     {
@@ -53,6 +53,6 @@ int32_t VFX_nTile_draw(PANE* pane, uint8_t* tile, int32_t x, int32_t y, uint8_t*
     // Wholly inside horizontally: spans are written without clipping.
     command.Unclipped = left > cx0 && left + width < cx1;
     command.Table = xlat;
-    MCRenderer::For(pane->window).Tile(pane->window, command);
+    MCRenderer::For(pane->Window).Tile(pane->Window, command);
     return 0;
 }

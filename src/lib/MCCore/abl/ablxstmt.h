@@ -13,44 +13,33 @@ extern int32_t ProfileLogFunctionTimeLimit;
 extern int ExitWithReturn;
 
 /// <summary>Executes one statement (after its statement marker: debugger tracing and the statement count).</summary>
-/// <remarks>MCX.EXE @ 0x006374c0</remarks>
-void execStatement();
+void ExecStatement();
 
 /// <summary>Executes <c>target = expression</c> (integers assigned to reals are converted; arrays are copied).</summary>
-/// <remarks>MCX.EXE @ 0x00637650</remarks>
-void execAssignmentStatement(SymTableNodePtr idPtr);
+void ExecAssignmentStatement(MCSymTableNodePtr idPtr);
 
 /// <summary>Executes a call of a declared or standard routine.</summary>
 /// <returns>Its result type (the result is on the stack), or null.</returns>
-/// <remarks>MCX.EXE @ 0x00637740</remarks>
-TypePtr execRoutineCall(SymTableNodePtr routineIdPtr);
+MCTypePtr ExecRoutineCall(MCSymTableNodePtr routineIdPtr);
 
 /// <summary>
 /// Calls a function written in ABL: pushes the frame and arguments and runs it, switching to its library's module
 /// (static data, debugger) for a library function, and logging slow calls when profiling.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00637770</remarks>
-TypePtr execDeclaredRoutineCall(SymTableNodePtr routineIdPtr);
+MCTypePtr ExecDeclaredRoutineCall(MCSymTableNodePtr routineIdPtr);
 
 /// <summary>Sizes an open array parameter's type to <paramref name="size"/> bytes (the last dimension adapts).</summary>
-/// <remarks>MCX.EXE @ 0x006379c0</remarks>
-void setOpenArray(TypePtr arrayTypePtr, int32_t size);
+void SetOpenArray(MCTypePtr arrayTypePtr, int32_t size);
 
 /// <summary>Evaluates the arguments of a declared routine call (copies of arrays passed by value).</summary>
-/// <remarks>MCX.EXE @ 0x00637a00</remarks>
-void execActualParams(SymTableNodePtr routineIdPtr);
+void ExecActualParams(MCSymTableNodePtr routineIdPtr);
 
-/// <remarks>MCX.EXE @ 0x00637af0</remarks>
-void execSwitchStatement();
+void ExecSwitchStatement();
 
-/// <remarks>MCX.EXE @ 0x00637bd0</remarks>
-void execForStatement();
+void ExecForStatement();
 
-/// <remarks>MCX.EXE @ 0x00637d90</remarks>
-void execIfStatement();
+void ExecIfStatement();
 
-/// <remarks>MCX.EXE @ 0x00637e80</remarks>
-void execRepeatStatement();
+void ExecRepeatStatement();
 
-/// <remarks>MCX.EXE @ 0x00637f00</remarks>
-void execWhileStatement();
+void ExecWhileStatement();

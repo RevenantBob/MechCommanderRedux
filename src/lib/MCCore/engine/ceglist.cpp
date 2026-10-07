@@ -4,54 +4,54 @@
 #include "engine/celement.h"
 #include "object/objque.h"
 
-ElementBuffer* ElementList = nullptr;
-int32_t numElements = 0;
+MCElementBuffer* ElementList = nullptr;
+int32_t NumElements = 0;
 
-auto ElementGroup::draw() -> void
+auto MCElementGroup::Draw() -> void
 {
-    Element** element = buffer->elements.data() + firstElement;
+    MCElement** element = Buffer->Elements.data() + FirstElement;
 
-    for (int32_t count = numElements; count > 0; count--)
+    for (int32_t count = NumElements; count > 0; count--)
     {
         // Port: a unit overlay (health bar, selection mark, strike timer) draws on the screen over the view, at the
         // screen's scale (its position was mapped there when it was made); the rest into the world surface.
-        if (MCOverlay.Pane != nullptr && MCIsOverlayDepth((*element)->depth))
+        if (MCOverlay.Pane != nullptr && MCIsOverlayDepth((*element)->Depth))
         {
-            _pane* worldPane = globalPane;
-            globalPane = MCOverlay.Pane;
-            (*element)->draw();
-            globalPane = worldPane;
+            MCPane* worldPane = GlobalPane;
+            GlobalPane = MCOverlay.Pane;
+            (*element)->Draw();
+            GlobalPane = worldPane;
         }
         else
         {
-            (*element)->draw();
+            (*element)->Draw();
         }
 
         element++;
-        ::numElements++;
+        ::NumElements++;
     }
 }
 
-auto ElementGroup::sort() -> void
+auto MCElementGroup::Sort() -> void
 {
-    if (numElements == 0 || sortElements == 0)
+    if (NumElements == 0 || SortElements == 0)
     {
         return;
     }
 
-    if (numElements > 1)
+    if (NumElements > 1)
     {
-        Element** first = buffer->elements.data() + firstElement;
-        Element** end = first + numElements;
+        MCElement** first = Buffer->Elements.data() + FirstElement;
+        MCElement** end = first + NumElements;
 
         // Deepest first: each slot takes the deepest of the elements from it on.
-        for (Element** slot = first; slot != end; slot++)
+        for (MCElement** slot = first; slot != end; slot++)
         {
-            for (Element** other = slot; other != end; other++)
+            for (MCElement** other = slot; other != end; other++)
             {
-                Element* element = *slot;
+                MCElement* element = *slot;
 
-                if (element->depth < (*other)->depth)
+                if (element->Depth < (*other)->Depth)
                 {
                     *slot = *other;
                     *other = element;
@@ -60,95 +60,95 @@ auto ElementGroup::sort() -> void
         }
     }
 
-    minDepth = buffer->elements[firstElement]->depth;
-    maxDepth = buffer->elements[firstElement + numElements - 1]->depth;
+    MinDepth = Buffer->Elements[FirstElement]->Depth;
+    MaxDepth = Buffer->Elements[FirstElement + NumElements - 1]->Depth;
 }
 
-auto ElementGroup::reset(ElementBuffer* _buffer) -> void
+auto MCElementGroup::Reset(MCElementBuffer* buffer) -> void
 {
-    numElements = 0;
-    buffer = _buffer;
-    depth = 0.0f;
-    sortElements = 1;
-    firstElement = _buffer->numElements;
+    NumElements = 0;
+    Buffer = buffer;
+    Depth = 0.0f;
+    SortElements = 1;
+    FirstElement = buffer->NumElements;
 }
 
-auto ElementBuffer::add(Element* element) -> void
+auto MCElementBuffer::Add(MCElement* element) -> void
 {
-    if (element != nullptr && numElements < maxElements)
+    if (element != nullptr && NumElements < MaxElements)
     {
-        elements[numElements] = element;
-        numElements++;
-        ElementGroup* group = currentGroup;
-        group->numElements++;
+        Elements[NumElements] = element;
+        NumElements++;
+        MCElementGroup* group = CurrentGroup;
+        group->NumElements++;
 
-        if (group->maxDepth < element->depth)
+        if (group->MaxDepth < element->Depth)
         {
-            group->maxDepth = element->depth;
+            group->MaxDepth = element->Depth;
             return;
         }
 
-        if (element->depth < group->minDepth)
+        if (element->Depth < group->MinDepth)
         {
-            group->minDepth = element->depth;
+            group->MinDepth = element->Depth;
         }
     }
 }
 
-auto ElementBuffer::draw() -> void
+auto MCElementBuffer::Draw() -> void
 {
-    ElementGroup** group = groupList.data();
+    MCElementGroup** group = GroupList.data();
 
-    for (int32_t count = numGroups; count > 0; count--)
+    for (int32_t count = NumGroups; count > 0; count--)
     {
-        (*group)->draw();
+        (*group)->Draw();
         group++;
     }
 }
 
-auto ElementBuffer::init(int32_t numElements, int32_t unused, int32_t numGroups) -> int32_t
+auto MCElementBuffer::Init(int32_t numElements, int32_t unused, int32_t numGroups) -> int32_t
 {
     (void)unused;
 
     if (numGroups == 0)
     {
-        maxGroups = 1;
+        MaxGroups = 1;
     }
 
-    maxGroups = numGroups;
-    maxElements = numElements;
+    MaxGroups = numGroups;
+    MaxElements = numElements;
     // The original laid the three lists out in one heap; reset uses the first group even when maxGroups is 0.
     const size_t groupCount = static_cast<size_t>(std::max(numGroups, 1));
-    elements.assign(static_cast<size_t>(std::max(numElements, 0)), nullptr);
-    groups.assign(groupCount, ElementGroup{});
-    groupList.assign(groupCount, nullptr);
-    reset();
+    Elements.assign(static_cast<size_t>(std::max(numElements, 0)), nullptr);
+    Groups.assign(groupCount, MCElementGroup{});
+    GroupList.assign(groupCount, nullptr);
+    Reset();
     return 0;
 }
 
-auto ElementBuffer::sort() -> void
+auto MCElementBuffer::Sort() -> void
 {
-    int32_t passes = numGroups;
+    int32_t passes = NumGroups;
 
     if (passes == 0)
     {
         return;
     }
 
-    currentGroup->sort();
-    ElementGroup** last = lastGroupPtr;
-    ElementGroup** first = groupList.data();
+    CurrentGroup->Sort();
+    MCElementGroup** last = LastGroupPtr;
+    MCElementGroup** first = GroupList.data();
 
     // A bubble sort, deepest first, of at most numGroups passes.
     while (first != last)
     {
         bool swapped = false;
 
-        for (ElementGroup** group = first; group != last; group++)
+        for (MCElementGroup** group = first; group != last; group++)
         {
-            ElementGroup* current = group[0];
+            MCElementGroup* current = group[0];
 
-            if (current->depth < group[1]->depth)
+            if (current->Depth < group[1]->Depth)
             {
                 swapped = true;
                 group[0] = group[1];
@@ -170,70 +170,70 @@ auto ElementBuffer::sort() -> void
     }
 }
 
-auto ElementBuffer::free() -> void
+auto MCElementBuffer::Free() -> void
 {
-    elements = {};
-    groups = {};
-    groupList = {};
+    Elements = {};
+    Groups = {};
+    GroupList = {};
 }
 
-auto ElementBuffer::reset() -> void
+auto MCElementBuffer::Reset() -> void
 {
-    numElements = 0;
-    currentGroup = groups.data();
-    numGroups = 1;
-    groups[0].reset(this);
-    lastGroupPtr = groupList.data();
-    *lastGroupPtr = currentGroup;
+    NumElements = 0;
+    CurrentGroup = Groups.data();
+    NumGroups = 1;
+    Groups[0].Reset(this);
+    LastGroupPtr = GroupList.data();
+    *LastGroupPtr = CurrentGroup;
 }
 
-auto ElementBuffer::openGroup() -> void
+auto MCElementBuffer::OpenGroup() -> void
 {
-    if (maxGroups == 1)
+    if (MaxGroups == 1)
     {
         return;
     }
 
-    currentGroup->sort();
-    numGroups++;
+    CurrentGroup->Sort();
+    NumGroups++;
 
-    if (maxGroups < numGroups)
+    if (MaxGroups < NumGroups)
     {
-        numGroups--;
+        NumGroups--;
         MaxObjectsDrawn = 1;
         return;
     }
 
-    currentGroup++;
-    currentGroup->reset(this);
-    lastGroupPtr++;
-    *lastGroupPtr = currentGroup;
+    CurrentGroup++;
+    CurrentGroup->Reset(this);
+    LastGroupPtr++;
+    *LastGroupPtr = CurrentGroup;
 }
 
-auto ElementBuffer::openGroup(int32_t depth, int sortElements) -> void
+auto MCElementBuffer::OpenGroup(int32_t depth, int sortElements) -> void
 {
-    if (maxGroups == 1)
+    if (MaxGroups == 1)
     {
         return;
     }
 
-    currentGroup->sort();
-    numGroups++;
+    CurrentGroup->Sort();
+    NumGroups++;
 
-    if (maxGroups < numGroups)
+    if (MaxGroups < NumGroups)
     {
-        numGroups--;
+        NumGroups--;
         MaxObjectsDrawn = 1;
         return;
     }
 
-    currentGroup++;
-    currentGroup->reset(this);
-    lastGroupPtr++;
-    *lastGroupPtr = currentGroup;
+    CurrentGroup++;
+    CurrentGroup->Reset(this);
+    LastGroupPtr++;
+    *LastGroupPtr = CurrentGroup;
     const float groupDepth = static_cast<float>(depth);
-    currentGroup->depth = groupDepth;
-    currentGroup->sortElements = sortElements;
-    currentGroup->minDepth = groupDepth;
-    currentGroup->maxDepth = groupDepth;
+    CurrentGroup->Depth = groupDepth;
+    CurrentGroup->SortElements = sortElements;
+    CurrentGroup->MinDepth = groupDepth;
+    CurrentGroup->MaxDepth = groupDepth;
 }

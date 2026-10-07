@@ -3,17 +3,18 @@
 #include "camera/camera.h"
 #include "vfx/vfxfuncs.h"
 
-EllipseElement::EllipseElement(vector_2d& _center, vector_2d& _size, int32_t _color, int32_t _depth) : Element(_depth)
+MCEllipseElement::MCEllipseElement(MCVector2D& center, MCVector2D& size, int32_t color, int32_t depth)
+    : MCElement(depth)
 {
-    center.x = _center.x;
-    center.y = _center.y;
-    size.x = _size.x;
-    color = _color;
-    size.y = _size.y;
+    Center.X = center.X;
+    Center.Y = center.Y;
+    Size.X = size.X;
+    Color = color;
+    Size.Y = size.Y;
 }
 
-auto EllipseElement::draw() -> void
+auto MCEllipseElement::Draw() -> void
 {
-    AG_ellipse_draw(globalPane, static_cast<int32_t>(center.x), static_cast<int32_t>(center.y),
-                    static_cast<int32_t>(size.x), static_cast<int32_t>(size.y), color);
+    AGEllipseDraw(GlobalPane, static_cast<int32_t>(Center.X), static_cast<int32_t>(Center.Y),
+                  static_cast<int32_t>(Size.X), static_cast<int32_t>(Size.Y), Color);
 }

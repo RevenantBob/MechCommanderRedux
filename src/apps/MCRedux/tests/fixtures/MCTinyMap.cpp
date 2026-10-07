@@ -21,51 +21,51 @@ namespace
 MCTinyMap::MCTinyMap(int32_t tiles)
     : _Tiles(tiles)
     , _PreviousMap(GameMap)
-    , _PreviousWorldUnitsMapSide(worldUnitsMapSide)
-    , _PreviousVerticesBlockSide(Terrain::verticesBlockSide)
-    , _PreviousBlocksMapSide(Terrain::blocksMapSide)
-    , _PreviousMetersPerVertex(Terrain::metersPerVertex)
-    , _PreviousOneOverMetersPerVertex(Terrain::OneOvermetersPerVertex)
-    , _PreviousMetersBlockSide(Terrain::metersBlockSide)
-    , _PreviousMetersPerVertexDivMapCell(Terrain::metersPerVertexDivMAPCELL_DIM)
+    , _PreviousWorldUnitsMapSide(WorldUnitsMapSide)
+    , _PreviousVerticesBlockSide(MCTerrain::VerticesBlockSide)
+    , _PreviousBlocksMapSide(MCTerrain::BlocksMapSide)
+    , _PreviousMetersPerVertex(MCTerrain::MetersPerVertex)
+    , _PreviousOneOverMetersPerVertex(MCTerrain::OneOvermetersPerVertex)
+    , _PreviousMetersBlockSide(MCTerrain::MetersBlockSide)
+    , _PreviousMetersPerVertexDivMapCell(MCTerrain::MetersPerVertexDivMapcellDim)
 {
     // As a terrain FIT's [TerrainData] sets it: one block of tiles x tiles vertices.
-    Terrain::verticesBlockSide = tiles;
-    Terrain::blocksMapSide = 1;
-    Terrain::metersPerVertex = MetersPerTile;
-    Terrain::OneOvermetersPerVertex = 1.0f / Terrain::metersPerVertex;
-    Terrain::metersBlockSide = static_cast<float>(Terrain::verticesBlockSide) * Terrain::metersPerVertex;
-    Terrain::metersPerVertexDivMAPCELL_DIM = Terrain::metersPerVertex * (1.0f / 3.0f);
-    worldUnitsMapSide = static_cast<float>(Terrain::blocksMapSide) * Terrain::metersBlockSide;
+    MCTerrain::VerticesBlockSide = tiles;
+    MCTerrain::BlocksMapSide = 1;
+    MCTerrain::MetersPerVertex = MetersPerTile;
+    MCTerrain::OneOvermetersPerVertex = 1.0f / MCTerrain::MetersPerVertex;
+    MCTerrain::MetersBlockSide = static_cast<float>(MCTerrain::VerticesBlockSide) * MCTerrain::MetersPerVertex;
+    MCTerrain::MetersPerVertexDivMapcellDim = MCTerrain::MetersPerVertex * (1.0f / 3.0f);
+    WorldUnitsMapSide = static_cast<float>(MCTerrain::BlocksMapSide) * MCTerrain::MetersBlockSide;
 
-    GameMap = new ScenarioMap;
-    GameMap->init(tiles, tiles);
+    GameMap = new MCScenarioMap;
+    GameMap->Init(tiles, tiles);
 
     for (int32_t i = 0; i < tiles * tiles; i++)
     {
-        GameMap->map[i].cells = AllPassable;
+        GameMap->Map[i].Cells = AllPassable;
     }
 }
 
 MCTinyMap::~MCTinyMap()
 {
-    GameMap->destroy();
+    GameMap->Destroy();
     delete GameMap;
     GameMap = _PreviousMap;
-    worldUnitsMapSide = _PreviousWorldUnitsMapSide;
-    Terrain::verticesBlockSide = _PreviousVerticesBlockSide;
-    Terrain::blocksMapSide = _PreviousBlocksMapSide;
-    Terrain::metersPerVertex = _PreviousMetersPerVertex;
-    Terrain::OneOvermetersPerVertex = _PreviousOneOverMetersPerVertex;
-    Terrain::metersBlockSide = _PreviousMetersBlockSide;
-    Terrain::metersPerVertexDivMAPCELL_DIM = _PreviousMetersPerVertexDivMapCell;
+    WorldUnitsMapSide = _PreviousWorldUnitsMapSide;
+    MCTerrain::VerticesBlockSide = _PreviousVerticesBlockSide;
+    MCTerrain::BlocksMapSide = _PreviousBlocksMapSide;
+    MCTerrain::MetersPerVertex = _PreviousMetersPerVertex;
+    MCTerrain::OneOvermetersPerVertex = _PreviousOneOverMetersPerVertex;
+    MCTerrain::MetersBlockSide = _PreviousMetersBlockSide;
+    MCTerrain::MetersPerVertexDivMapcellDim = _PreviousMetersPerVertexDivMapCell;
 }
 
 void MCTinyMap::Block(int32_t row, int32_t col)
 {
-    MapTile& tile = GameMap->map[(row / MAPCELL_DIM) * _Tiles + col / MAPCELL_DIM];
+    MCMapTile& tile = GameMap->Map[(row / MAPCELL_DIM) * _Tiles + col / MAPCELL_DIM];
     const uint32_t shift = static_cast<uint32_t>(((row % MAPCELL_DIM) * MAPCELL_DIM + col % MAPCELL_DIM) * 2);
-    tile.cells &= ~(0x4000u << shift);
+    tile.Cells &= ~(0x4000u << shift);
 }
 
 bool MCTinyMap::Passable(int32_t row, int32_t col) const
@@ -75,14 +75,14 @@ bool MCTinyMap::Passable(int32_t row, int32_t col) const
         return false;
     }
 
-    return GameMap->map[(row / MAPCELL_DIM) * _Tiles + col / MAPCELL_DIM].getCellPassable(row % MAPCELL_DIM,
+    return GameMap->Map[(row / MAPCELL_DIM) * _Tiles + col / MAPCELL_DIM].GetCellPassable(row % MAPCELL_DIM,
                                                                                           col % MAPCELL_DIM) != 0;
 }
 
-vector_3d MCTinyMap::CellCentre(int32_t row, int32_t col) const
+MCVector3D MCTinyMap::CellCentre(int32_t row, int32_t col) const
 {
-    const float cellSide = Terrain::metersPerVertexDivMAPCELL_DIM;
-    const float x = (static_cast<float>(col) + 0.5f) * cellSide - worldUnitsMapSide * 0.5f;
-    const float y = worldUnitsMapSide * 0.5f - (static_cast<float>(row) + 0.5f) * cellSide;
-    return vector_3d(x, y, 0.0f);
+    const float cellSide = MCTerrain::MetersPerVertexDivMapcellDim;
+    const float x = (static_cast<float>(col) + 0.5f) * cellSide - WorldUnitsMapSide * 0.5f;
+    const float y = WorldUnitsMapSide * 0.5f - (static_cast<float>(row) + 0.5f) * cellSide;
+    return MCVector3D(x, y, 0.0f);
 }

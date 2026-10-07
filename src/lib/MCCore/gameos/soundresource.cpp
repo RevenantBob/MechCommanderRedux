@@ -6,14 +6,14 @@
 #include "lib/file.h"
 #include "platform/MCFileSystem.h"
 
-SRLinkedList m_soundResources;
+MCSRLinkedList MSoundResources;
 std::recursive_mutex SoundCritSec;
-int32_t readEntries = 0;
+int32_t ReadEntries = 0;
 
 namespace
 {
     /// <summary>A malloc'd copy of <paramref name="text"/>.</summary>
-    char* copyName(const char* text)
+    char* CopyName(const char* text)
     {
         size_t size = std::strlen(text) + 1;
         char* copy = static_cast<char*>(std::malloc(size));
@@ -23,43 +23,43 @@ namespace
 
     /// <summary>Unlinks and frees the link holding <paramref name="resource"/> (the inlined
     /// <c>SRLinkedList::Remove</c>).</summary>
-    void removeLink(SoundResource* resource)
+    void RemoveLink(MCSoundResource* resource)
     {
-        SRLink* link = m_soundResources.head;
+        MCSRLink* link = MSoundResources.Head;
 
         if (link == nullptr)
         {
             return;
         }
 
-        if (link->data == resource)
+        if (link->Data == resource)
         {
-            m_soundResources.count--;
-            m_soundResources.head = link->next;
+            MSoundResources.Count--;
+            MSoundResources.Head = link->Next;
 
-            if (m_soundResources.head != nullptr)
+            if (MSoundResources.Head != nullptr)
             {
-                m_soundResources.head->prev = nullptr;
+                MSoundResources.Head->Prev = nullptr;
             }
 
             delete link;
             return;
         }
 
-        SRLink* previous = link;
+        MCSRLink* previous = link;
 
-        for (link = link->next; link != nullptr; link = link->next)
+        for (link = link->Next; link != nullptr; link = link->Next)
         {
-            if (link->data == resource)
+            if (link->Data == resource)
             {
-                previous->next = link->next;
+                previous->Next = link->Next;
 
-                if (link->next != nullptr)
+                if (link->Next != nullptr)
                 {
-                    link->next->prev = previous;
+                    link->Next->Prev = previous;
                 }
 
-                m_soundResources.count--;
+                MSoundResources.Count--;
                 delete link;
                 return;
             }
@@ -69,115 +69,115 @@ namespace
     }
 }
 
-SRLinkedList::~SRLinkedList()
+MCSRLinkedList::~MCSRLinkedList()
 {
-    while (head != nullptr)
+    while (Head != nullptr)
     {
-        SRLink* link = head;
-        head = link->next;
-        count--;
+        MCSRLink* link = Head;
+        Head = link->Next;
+        Count--;
         delete link;
     }
 }
 
-void gos_CreateSoundResource(void** resource, const char* source, gosEnum_SoundResourceType type, uint32_t flags)
+void GosCreateSoundResource(void** resource, const char* source, MCSoundResourceType type, uint32_t flags)
 {
-    *resource = new SoundResource(source, type, flags);
+    *resource = new MCSoundResource(source, type, flags);
 }
 
-void gos_DestroySoundResource(void* resource)
+void GosDestroySoundResource(void* resource)
 {
     std::lock_guard<std::recursive_mutex> lock(SoundCritSec);
 
-    for (int i = 0; i < g_SRData.numChannels; i++)
+    for (int i = 0; i < SRData.NumChannels; i++)
     {
-        if (g_SRData.channels[i]->resource == resource)
+        if (SRData.Channels[i]->Resource == resource)
         {
-            gos_StopChannel(i);
-            g_SRData.channels[i]->resource = nullptr;
+            GosStopChannel(i);
+            SRData.Channels[i]->Resource = nullptr;
         }
     }
 
-    for (SRLink* link = m_soundResources.head; link != nullptr && link->data != nullptr; link = link->next)
+    for (MCSRLink* link = MSoundResources.Head; link != nullptr && link->Data != nullptr; link = link->Next)
     {
-        if (link->data == resource)
+        if (link->Data == resource)
         {
-            delete link->data;
+            delete link->Data;
             break;
         }
     }
 }
 
-SoundResource::SoundResource(const char* source, gosEnum_SoundResourceType type, uint32_t flags)
-    : type(type), flags(flags)
+MCSoundResource::MCSoundResource(const char* source, MCSoundResourceType type, uint32_t flags)
+    : Type(type), Flags(flags)
 {
     if (type == SOUND_RESOURCE_FILE)
     {
-        fileName = copyName(source);
+        FileName = CopyName(source);
         LoadFile();
     }
     else if (type == SOUND_RESOURCE_MEMORY)
     {
-        fileImage = reinterpret_cast<uint8_t*>(const_cast<char*>(source));
+        FileImage = reinterpret_cast<uint8_t*>(const_cast<char*>(source));
         OpenFromMemory();
     }
     else if (type == SOUND_RESOURCE_STREAM)
     {
-        fileName = copyName(source);
+        FileName = CopyName(source);
         Open();
     }
 
-    SRLink* link = new SRLink();
-    link->data = this;
+    MCSRLink* link = new MCSRLink();
+    link->Data = this;
 
-    if (m_soundResources.head == nullptr)
+    if (MSoundResources.Head == nullptr)
     {
-        m_soundResources.count++;
-        m_soundResources.head = link;
+        MSoundResources.Count++;
+        MSoundResources.Head = link;
         return;
     }
 
-    SRLink* last = m_soundResources.head;
+    MCSRLink* last = MSoundResources.Head;
 
-    while (last->next != nullptr)
+    while (last->Next != nullptr)
     {
-        last = last->next;
+        last = last->Next;
     }
 
-    last->next = link;
-    link->prev = last;
-    m_soundResources.count++;
+    last->Next = link;
+    link->Prev = last;
+    MSoundResources.Count++;
 }
 
-SoundResource::~SoundResource()
+MCSoundResource::~MCSoundResource()
 {
-    if (fileName != nullptr)
+    if (FileName != nullptr)
     {
-        std::free(fileName);
+        std::free(FileName);
     }
 
-    fileName = nullptr;
+    FileName = nullptr;
 
-    if (stream != nullptr)
+    if (Stream != nullptr)
     {
-        if (format != nullptr)
+        if (Format != nullptr)
         {
-            std::free(format);
-            format = nullptr;
+            std::free(Format);
+            Format = nullptr;
         }
 
-        stream->close();
-        delete stream;
-        stream = nullptr;
+        Stream->Close();
+        delete Stream;
+        Stream = nullptr;
     }
 
     // A file resource's image is never freed (it leaks in the original too).
-    removeLink(this);
+    RemoveLink(this);
 }
 
-void SoundResource::LoadFile()
+void MCSoundResource::LoadFile()
 {
-    std::ifstream file(MCFileSystem::Resolve(fileName), std::ios::binary);
+    std::ifstream file(MCFileSystem::Resolve(FileName), std::ios::binary);
 
     // The original tested CreateFile's result against null, not INVALID_HANDLE_VALUE, so the Fatal never fired.
     if (!file)
@@ -186,19 +186,19 @@ void SoundResource::LoadFile()
     }
 
     file.seekg(0, std::ios::end);
-    fileSize = static_cast<uint32_t>(file.tellg());
+    FileSize = static_cast<uint32_t>(file.tellg());
     file.seekg(0, std::ios::beg);
-    fileImage = static_cast<uint8_t*>(std::malloc(fileSize));
+    FileImage = static_cast<uint8_t*>(std::malloc(FileSize));
 
-    if (fileImage != nullptr)
+    if (FileImage != nullptr)
     {
-        file.read(reinterpret_cast<char*>(fileImage), fileSize);
+        file.read(reinterpret_cast<char*>(FileImage), FileSize);
     }
 
-    GetWaveInfo(fileImage, &format, &waveData, &waveSize);
+    GetWaveInfo(FileImage, &Format, &WaveData, &WaveSize);
 }
 
-void SoundResource::GetWaveInfo(uint8_t* image, tWAVEFORMATEX** format, uint8_t** data, uint32_t* dataSize)
+void MCSoundResource::GetWaveInfo(uint8_t* image, tWAVEFORMATEX** format, uint8_t** data, uint32_t* dataSize)
 {
     uint32_t riffSize;
     std::memcpy(&riffSize, image + 4, 4);
@@ -242,20 +242,20 @@ void SoundResource::GetWaveInfo(uint8_t* image, tWAVEFORMATEX** format, uint8_t*
     }
 }
 
-uint32_t SoundResource::Read(uint8_t* buffer, uint32_t bytes, bool loop)
+uint32_t MCSoundResource::Read(uint8_t* buffer, uint32_t bytes, bool loop)
 {
-    readEntries++;
+    ReadEntries++;
 
-    if (readEntries > 3)
+    if (ReadEntries > 3)
     {
         Fatal(static_cast<int32_t>(bytes), " Recursed more than 3 times into SoundResource::Read");
     }
 
     uint32_t bytesRead = 0;
 
-    if (stream != nullptr)
+    if (Stream != nullptr)
     {
-        bytesRead = static_cast<uint32_t>(stream->read(buffer, static_cast<int32_t>(bytes)));
+        bytesRead = static_cast<uint32_t>(Stream->Read(buffer, static_cast<int32_t>(bytes)));
     }
 
     if (bytesRead != bytes)
@@ -264,7 +264,7 @@ uint32_t SoundResource::Read(uint8_t* buffer, uint32_t bytes, bool loop)
         {
             Rewind();
             uint32_t rest = Read(buffer + bytesRead, bytes - bytesRead, true);
-            readEntries--;
+            ReadEntries--;
             return rest + bytesRead;
         }
 
@@ -276,132 +276,132 @@ uint32_t SoundResource::Read(uint8_t* buffer, uint32_t bytes, bool loop)
             fill = bytes - bytesRead;
         }
 
-        std::memset(buffer, format->wBitsPerSample == 8 ? 0x80 : 0, fill);
+        std::memset(buffer, Format->wBitsPerSample == 8 ? 0x80 : 0, fill);
     }
 
-    readEntries--;
+    ReadEntries--;
     return bytes;
 }
 
-void SoundResource::CloseStream()
+void MCSoundResource::CloseStream()
 {
-    if (format != nullptr)
+    if (Format != nullptr)
     {
-        std::free(format);
-        format = nullptr;
+        std::free(Format);
+        Format = nullptr;
     }
 
-    if (stream != nullptr)
+    if (Stream != nullptr)
     {
-        stream->close();
-        delete stream;
-        stream = nullptr;
+        Stream->Close();
+        delete Stream;
+        Stream = nullptr;
     }
 }
 
-void SoundResource::Rewind()
+void MCSoundResource::Rewind()
 {
-    if (stream != nullptr)
+    if (Stream != nullptr)
     {
-        stream->seek(dataStart, SEEK_SET);
+        Stream->Seek(DataStart, SEEK_SET);
     }
 
-    streamPos = 0;
+    StreamPos = 0;
 }
 
-void SoundResource::Open()
+void MCSoundResource::Open()
 {
     char message[1024];
-    File* file = new File();
-    stream = file;
-    int32_t result = file->open(fileName, READ, 50);
+    MCFile* file = new MCFile();
+    Stream = file;
+    int32_t result = file->Open(FileName, READ, 50);
 
     if (result != 0)
     {
-        std::snprintf(message, sizeof(message), "Could not open Music File %s", fileName);
+        std::snprintf(message, sizeof(message), "Could not open Music File %s", FileName);
         Fatal(result, message);
     }
 
-    if (file->readLong() != 0x46464952)
+    if (file->ReadLong() != 0x46464952)
     {
-        std::snprintf(message, sizeof(message), "Music File %s Not a RIFF file", fileName);
+        std::snprintf(message, sizeof(message), "Music File %s Not a RIFF file", FileName);
         Fatal(-1, message);
     }
 
-    file->readLong();
+    file->ReadLong();
 
-    if (file->readLong() != 0x45564157)
+    if (file->ReadLong() != 0x45564157)
     {
-        std::snprintf(message, sizeof(message), "Music File %s Not a WAVE file", fileName);
+        std::snprintf(message, sizeof(message), "Music File %s Not a WAVE file", FileName);
         Fatal(-1, message);
     }
 
-    int32_t chunkId = file->readLong();
+    int32_t chunkId = file->ReadLong();
 
-    while (chunkId != 0x20746d66 && file->eof() == 0)
+    while (chunkId != 0x20746d66 && file->Eof() == 0)
     {
-        int32_t chunkSize = file->readLong();
-        file->seek((chunkSize + 1) & ~1, SEEK_CUR);
-        chunkId = file->readLong();
+        int32_t chunkSize = file->ReadLong();
+        file->Seek((chunkSize + 1) & ~1, SEEK_CUR);
+        chunkId = file->ReadLong();
     }
 
-    if (file->eof() != 0)
+    if (file->Eof() != 0)
     {
-        std::snprintf(message, sizeof(message), "Music File %s Has No FMT Chunk!", fileName);
+        std::snprintf(message, sizeof(message), "Music File %s Has No FMT Chunk!", FileName);
         Fatal(-1, message);
     }
 
     tWAVEFORMATEX* waveFormat = static_cast<tWAVEFORMATEX*>(std::malloc(sizeof(tWAVEFORMATEX)));
-    format = waveFormat;
-    int32_t formatEnd = file->readLong();
-    formatEnd += static_cast<int32_t>(file->getLogicalPosition());
-    uint32_t value = static_cast<uint32_t>(file->readLong());
+    Format = waveFormat;
+    int32_t formatEnd = file->ReadLong();
+    formatEnd += static_cast<int32_t>(file->GetLogicalPosition());
+    uint32_t value = static_cast<uint32_t>(file->ReadLong());
     waveFormat->wFormatTag = static_cast<uint16_t>(value);
 
     if (static_cast<int16_t>(value) != 1)
     {
-        std::snprintf(message, sizeof(message), "Music File %s Not Microsoft Format (PCM)", fileName);
+        std::snprintf(message, sizeof(message), "Music File %s Not Microsoft Format (PCM)", FileName);
         Fatal(-1, message);
     }
 
     waveFormat->nChannels = static_cast<uint16_t>(value >> 16);
-    waveFormat->nSamplesPerSec = static_cast<uint32_t>(file->readLong());
-    waveFormat->nAvgBytesPerSec = static_cast<uint32_t>(file->readLong());
-    value = static_cast<uint32_t>(file->readLong());
+    waveFormat->nSamplesPerSec = static_cast<uint32_t>(file->ReadLong());
+    waveFormat->nAvgBytesPerSec = static_cast<uint32_t>(file->ReadLong());
+    value = static_cast<uint32_t>(file->ReadLong());
     waveFormat->nBlockAlign = static_cast<uint16_t>(value);
     waveFormat->wBitsPerSample = static_cast<uint16_t>(value >> 16);
     waveFormat->cbSize = 0;
-    file->seek(formatEnd, SEEK_SET);
-    chunkId = file->readLong();
+    file->Seek(formatEnd, SEEK_SET);
+    chunkId = file->ReadLong();
 
     while (chunkId != 0x61746164)
     {
-        if (file->eof() != 0)
+        if (file->Eof() != 0)
         {
             break;
         }
 
-        int32_t chunkSize = file->readLong();
-        file->seek((chunkSize + 1) & ~1, SEEK_CUR);
-        chunkId = file->readLong();
+        int32_t chunkSize = file->ReadLong();
+        file->Seek((chunkSize + 1) & ~1, SEEK_CUR);
+        chunkId = file->ReadLong();
     }
 
-    if (file->eof() != 0)
+    if (file->Eof() != 0)
     {
-        std::snprintf(message, sizeof(message), "Music File %s Has No DATA Chunk!", fileName);
+        std::snprintf(message, sizeof(message), "Music File %s Has No DATA Chunk!", FileName);
         Fatal(-1, message);
     }
 
-    uint32_t size = static_cast<uint32_t>(file->readLong());
+    uint32_t size = static_cast<uint32_t>(file->ReadLong());
     int32_t frameBits = static_cast<int32_t>(waveFormat->wBitsPerSample * waveFormat->nChannels);
     int32_t frameBytes = (frameBits + ((frameBits >> 31) & 7)) >> 3;
-    dataSize = size & ~static_cast<uint32_t>(frameBytes - 1);
-    dataStart = static_cast<int32_t>(file->getLogicalPosition());
+    DataSize = size & ~static_cast<uint32_t>(frameBytes - 1);
+    DataStart = static_cast<int32_t>(file->GetLogicalPosition());
     Rewind();
-    durationMs = static_cast<uint32_t>(static_cast<int64_t>(dataSize) * 1000 / waveFormat->nAvgBytesPerSec);
+    DurationMs = static_cast<uint32_t>(static_cast<int64_t>(DataSize) * 1000 / waveFormat->nAvgBytesPerSec);
 }
 
-void SoundResource::OpenFromMemory()
+void MCSoundResource::OpenFromMemory()
 {
-    GetWaveInfo(fileImage, &format, &waveData, &waveSize);
+    GetWaveInfo(FileImage, &Format, &WaveData, &WaveSize);
 }

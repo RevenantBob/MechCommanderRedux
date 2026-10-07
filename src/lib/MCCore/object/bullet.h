@@ -3,54 +3,48 @@
 #include "object/gameobj.h"
 #include "object/objtype.h"
 
-class Appearance;
-class File;
-class GameObject;
-class Smoke;
+class MCAppearance;
+class MCFile;
+class MCGameObject;
+class MCSmoke;
 
-/// <summary>The type of a <see cref="Bullet"/>: its speed, sound, and the effects it makes on hit and miss.</summary>
+/// <summary>The type of a <see cref="MCBullet"/>: its speed, sound, and the effects it makes on hit and miss.</summary>
 /// <remarks>
 /// Original source: <c>object\bullet.cpp</c>, 0x4c bytes. Read from the "BulletData" block of its FIT; loading it
 /// also loads the hit, miss and smoke object types.
 /// </remarks>
-class BulletType : public ObjectType
+class MCBulletType : public MCObjectType
 {
 public:
     /// <summary>Sets the sound and the hit, miss and smoke objects to none (-1).</summary>
     /// <remarks>Inline in ObjectTypeManager::load (case 8).</remarks>
-    BulletType();
-    /// <remarks>MCX.EXE @ 0x006906c0 (vector deleting destructor)</remarks>
-    ~BulletType() override { destroy(); }
+    MCBulletType();
+    ~MCBulletType() override { Destroy(); }
 
-    /// <summary>Makes a <see cref="Bullet"/> of this type and gives it the next object id.</summary>
-    /// <remarks>MCX.EXE @ 0x006551a0</remarks>
-    BaseObject* createInstance() override;
-    /// <remarks>MCX.EXE @ 0x006552e0</remarks>
-    void destroy() override;
+    /// <summary>Makes a <see cref="MCBullet"/> of this type and gives it the next object id.</summary>
+    MCBaseObject* CreateInstance() override;
+    void Destroy() override;
     /// <summary>
     /// Reads the "BulletData" block (if present) and the common type data, then loads the hit, miss and smoke types.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006552f0</remarks>
-    int32_t init(File* objFile, uint32_t fileSize) override;
-    /// <remarks>MCX.EXE @ 0x00655440</remarks>
-    int handleCollision(GameObject* collidee, GameObject* collider) override;
-    /// <remarks>MCX.EXE @ 0x00655450</remarks>
-    int handleDestruction(GameObject* collidee, GameObject* collider) override;
+    int32_t Init(MCFile* objFile, uint32_t fileSize) override;
+    int HandleCollision(MCGameObject* collidee, MCGameObject* collider) override;
+    int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
 
     /// <summary>Sample played when the bullet is fired (FIT "SoundEffectId"); 0xFFFFFFFF for none.</summary>
-    uint32_t soundEffectId = 0; // +0x30
+    uint32_t SoundEffectId = 0;
     /// <summary>Object type created where the bullet hits its target (FIT "BulletHitEffect").</summary>
-    uint32_t bulletHitEffect = 0; // +0x34
+    uint32_t BulletHitEffect = 0;
     /// <summary>Object type created where a bullet without a target lands (FIT "BulletMissEffect").</summary>
-    uint32_t bulletMissEffect = 0; // +0x38
+    uint32_t BulletMissEffect = 0;
     /// <summary>Object type of the smoke trail (FIT "SmokeObjectId"); -1 for none.</summary>
-    uint32_t smokeObjectId = 0; // +0x3c
+    uint32_t SmokeObjectId = 0;
     /// <summary>Object type of the light that travels with the bullet (FIT "LightObjectId"); -1 for none.</summary>
-    uint32_t lightObjectId = 0; // +0x40
+    uint32_t LightObjectId = 0;
     /// <summary>Speed in world units per second (FIT "Velocity").</summary>
-    float velocity = 0; // +0x44
+    float Velocity = 0;
     /// <summary>FIT "CloseDistance"; not used by bullet.cpp.</summary>
-    float closeDistance = 0; // +0x48
+    float CloseDistance = 0;
 };
 
 /// <summary>
@@ -58,78 +52,65 @@ public:
 /// damage and creates a hit or miss effect; a miss on a mined cell sets the mine off.
 /// </summary>
 /// <remarks>Original source: <c>object\bullet.cpp</c>, <c>object\bullet.h</c>; 0x124 bytes.</remarks>
-class Bullet : public BigGameObject
+class MCBullet : public MCBigGameObject
 {
 public:
     /// <summary>Zeroes the pointers and counts and sets justCreated (inline in BulletType::createInstance).</summary>
-    Bullet();
-    /// <remarks>MCX.EXE @ 0x00655290 (vector deleting destructor)</remarks>
-    ~Bullet() override { destroy(); }
+    MCBullet();
+    ~MCBullet() override { Destroy(); }
 
     /// <summary>Empty in the original.</summary>
-    /// <remarks>MCX.EXE @ 0x00655260 (inline in <c>object\bullet.h</c>)</remarks>
-    void init() override;
+    void Init() override;
     /// <summary>Makes the arm appearance and the smoke and light objects of the type.</summary>
-    /// <remarks>MCX.EXE @ 0x00655ba0</remarks>
-    int32_t init(ObjectType* objType) override;
+    int32_t Init(MCObjectType* objType) override;
     /// <summary>Frees the target position and destroys the appearance, smoke and light.</summary>
-    /// <remarks>MCX.EXE @ 0x00655b30</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x00655270</remarks>
-    int32_t kill() override { return 0; }
+    void Destroy() override;
+    int32_t Kill() override { return 0; }
     /// <summary>
     /// Moves the bullet toward its target; once it stops getting closer applies the shots to the target and creates
     /// the hit (or miss) effect.
     /// </summary>
     /// <returns>1 while flying (or while the smoke trail lasts), 0 when done.</returns>
-    /// <remarks>MCX.EXE @ 0x00655510</remarks>
-    int32_t update() override;
-    /// <remarks>MCX.EXE @ 0x00655ae0</remarks>
-    void render() override;
+    int32_t Update() override;
+    void Render() override;
 
-    /// <remarks>MCX.EXE @ 0x00655280</remarks>
-    virtual Appearance* getAppearancePtr() { return nullptr; }
+    virtual MCAppearance* GetAppearancePtr() { return nullptr; }
 
     /// <summary>Projects the bullet to the screen; true unless its appearance is off screen.</summary>
-    /// <remarks>MCX.EXE @ 0x00655460</remarks>
-    int isVisible();
-    /// <remarks>MCX.EXE @ 0x00655d20</remarks>
-    void setOwner(BaseObject* newOwner);
-    /// <remarks>MCX.EXE @ 0x00655d30</remarks>
-    void setTarget(BaseObject* newTarget);
+    int IsVisible();
+    void SetOwner(MCBaseObject* newOwner);
+    void SetTarget(MCBaseObject* newTarget);
     /// <summary>Sets (allocating it the first time) the position the bullet flies to.</summary>
-    /// <remarks>MCX.EXE @ 0x00655d40</remarks>
-    void setTargetPosition(vector_3d position);
+    void SetTargetPosition(MCVector3D position);
     /// <summary>Sets the owner and the hot spot it fires from, and the target position.</summary>
-    /// <remarks>MCX.EXE @ 0x0065f6e0 (inline in <c>object\bullet.h</c>)</remarks>
-    void connect(GameObject* source, vector_3d targetPos, int32_t sourceHotSpot);
+    void Connect(MCGameObject* source, MCVector3D targetPos, int32_t sourceHotSpot);
 
     /// <summary>Set by the constructor and init; the first update clears it, plays the sound and places the bullet.</summary>
-    int32_t justCreated = 0; // +0x84
-    /// <summary>The object that fired the bullet (stored as a BaseObject by <see cref="setOwner"/>).</summary>
-    GameObject* owner = nullptr; // +0x88
+    int32_t JustCreated = 0;
+    /// <summary>The object that fired the bullet (stored as a BaseObject by <see cref="SetOwner"/>).</summary>
+    MCGameObject* Owner = nullptr;
     /// <summary>The owner's hot spot the bullet leaves from.</summary>
-    int32_t ownerHotSpot = 0; // +0x8c
+    int32_t OwnerHotSpot = 0;
     /// <summary>The object the bullet flies to and damages; null for a shot at a position.</summary>
-    GameObject* target = nullptr; // +0x90
+    MCGameObject* Target = nullptr;
     /// <summary>The target's hot spot where the hit effect is placed (not used for class 0x1e targets).</summary>
-    int32_t targetHotSpot = 0; // +0x94
-    /// <summary>Where the bullet flies to, allocated by <see cref="setTargetPosition"/>.</summary>
-    vector_3d* targetPosition = nullptr; // +0x98
+    int32_t TargetHotSpot = 0;
+    /// <summary>Where the bullet flies to, allocated by <see cref="SetTargetPosition"/>.</summary>
+    MCVector3D* TargetPosition = nullptr;
     /// <summary>The smallest squared ground distance to the target so far (starts at 1e8); growing again means arrival.</summary>
-    float closestDistanceSq = 0; // +0x9c
+    float ClosestDistanceSq = 0;
     /// <summary>The arm appearance of the bullet.</summary>
-    Appearance* appearance = nullptr; // +0xa0
+    MCAppearance* Appearance = nullptr;
     /// <summary>How many entries of shotInfo are applied on arrival.</summary>
-    int32_t numShots = 0; // +0xa4
+    int32_t NumShots = 0;
     /// <summary>The shots applied to the target on arrival (0x14 bytes each).</summary>
-    _WeaponShotInfo shotInfo[5]{}; // +0xa8
+    MCWeaponShotInfo ShotInfo[5]{};
     /// <summary>The smoke trail.</summary>
-    Smoke* smoke = nullptr; // +0x10c
+    MCSmoke* Smoke = nullptr;
     /// <summary>The bullet's own flight position (the object position follows the owner's hot spot).</summary>
-    vector_3d bulletPosition; // +0x110
+    MCVector3D BulletPosition;
     /// <summary>The light that travels with the bullet.</summary>
-    GameObject* light = nullptr; // +0x11c
+    MCGameObject* Light = nullptr;
     /// <summary>The draw rotation of the appearance: -150, or 150 when a mech owner faces the other way.</summary>
-    int32_t drawRotation = 0; // +0x120
+    int32_t DrawRotation = 0;
 };

@@ -1,29 +1,29 @@
 #pragma once
 
-class PacketFile;
+class MCPacketFile;
 
 /// <summary>
 /// A cache slot for one terrain tile: the tile's bitmap (a VFX tile shape, one packet of the tile file) while it is
 /// loaded and the turn it was last drawn, for the LRU flush.
 /// </summary>
 /// <remarks>
-/// 8 bytes in the original. <see cref="tileData"/> is null while the tile isn't loaded and the sentinel
+/// 8 bytes in the original. <see cref="TileData"/> is null while the tile isn't loaded and the sentinel
 /// <see cref="TILE_MISSING"/> (-1 in the original) when its packet doesn't exist.
 /// </remarks>
-struct TerrainTile
+struct MCTerrainTile
 {
-    /// <summary>The value of <see cref="tileData"/> for a tile whose packet is missing.</summary>
+    /// <summary>The value of <see cref="TileData"/> for a tile whose packet is missing.</summary>
     static inline uint8_t* const TILE_MISSING = reinterpret_cast<uint8_t*>(static_cast<intptr_t>(-1));
 
     /// <summary>Unregisters and frees the tile's data; the slot reads as not loaded.</summary>
-    void free();
+    void Free();
 
-    /// <summary>The tile's VFX shape data (<see cref="storage"/>, or <see cref="TILE_MISSING"/>).</summary>
-    uint8_t* tileData = nullptr; // +0x00
+    /// <summary>The tile's VFX shape data (<see cref="Storage"/>, or <see cref="TILE_MISSING"/>).</summary>
+    uint8_t* TileData = nullptr;
     /// <summary>The <c>turn</c> the tile was last used (-1: never flush).</summary>
-    int32_t lastTurnUsed = 0; // +0x04
+    int32_t LastTurnUsed = 0;
     /// <summary>The loaded tile's data.</summary>
-    std::unique_ptr<uint8_t[]> storage;
+    std::unique_ptr<uint8_t[]> Storage;
 };
 
 /// <summary>
@@ -33,49 +33,44 @@ struct TerrainTile
 /// </summary>
 /// <remarks>
 /// Original source: <c>terrain\terrtxm.cpp</c>, 0x20 bytes. The slot table has one entry per packet of the first
-/// file; <see cref="tileSetOffset"/>[1] (half the tiles) selects the second half of the table for the camera's
+/// file; <see cref="TileSetOffset"/>[1] (half the tiles) selects the second half of the table for the camera's
 /// rotated view. Tiles below that half come from the rotated file, the rest from the normal one. A <c>.pre</c>
 /// file in the terrain folder lists (as int32 indices) the tiles to preload.
 /// </remarks>
-class TerrainTiles
+class MCTerrainTiles
 {
 public:
     /// <summary>Opens both tile files and allocates the slot table.</summary>
-    /// <remarks>MCX.EXE @ 0x00747820</remarks>
-    int32_t init(char* tileFileName);
+    int32_t Init(char* tileFileName);
 
     /// <summary>Loads the tiles listed in <c>&lt;terrainPath&gt;&lt;terrainName&gt;.pre</c> (never flushed).</summary>
-    /// <remarks>MCX.EXE @ 0x00747a30</remarks>
-    int32_t preload(char* terrainName);
+    int32_t Preload(char* terrainName);
 
     /// <summary>Closes the tile files and frees the tiles.</summary>
-    /// <remarks>MCX.EXE @ 0x00747af0</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>Frees every tile not used this turn.</summary>
-    /// <remarks>MCX.EXE @ 0x00747b60</remarks>
-    void dumpLRU(int32_t bytesNeeded);
+    void DumpLru(int32_t bytesNeeded);
 
     /// <summary>Reads tile <paramref name="tileNum"/> into the cache.</summary>
     /// <returns>Its slot, or null when it doesn't exist or doesn't fit.</returns>
-    /// <remarks>MCX.EXE @ 0x00747bc0</remarks>
-    TerrainTile* readTile(int32_t tileNum);
+    MCTerrainTile* ReadTile(int32_t tileNum);
 
     /// <summary>Number of tile slots (packets in the tile file).</summary>
-    int32_t numTiles = 0; // +0x00
+    int32_t NumTiles = 0;
     /// <summary>Added to a vertex's tile index: [0] = 0 for the normal view, [1] = numTiles / 2 for the rotated one.</summary>
-    int32_t tileSetOffset[2] = {}; // +0x04
-    /// <summary>The slots (one more than <see cref="numTiles"/>).</summary>
-    std::vector<TerrainTile> tiles; // +0x0c
+    int32_t TileSetOffset[2] = {};
+    /// <summary>The slots (one more than <see cref="NumTiles"/>).</summary>
+    std::vector<MCTerrainTile> Tiles;
     /// <summary><c>&lt;name&gt;.pak</c>.</summary>
-    PacketFile* tileFile = nullptr; // +0x10
+    MCPacketFile* TileFile = nullptr;
     /// <summary><c>&lt;name&gt;90.pak</c>, the tiles for the rotated view.</summary>
-    PacketFile* tile90File = nullptr; // +0x14
+    MCPacketFile* Tile90File = nullptr;
     /// <summary>1 unless the tile set is the default one ("tiles").</summary>
-    int32_t customTileSet = 0; // +0x1c
+    int32_t CustomTileSet = 0;
 };
 
 /// <summary>The folder of the tile files ("data\tiles\").</summary>
-extern char tilePath[80];
+extern char TilePath[80];
 /// <summary>The folder of the rotated tile files ("data\tiles\").</summary>
-extern char tile90Path[80];
+extern char Tile90Path[80];

@@ -14,29 +14,28 @@
 /// player number <c>n</c>, so each receiver can put guaranteed messages back in order.
 /// </summary>
 /// <remarks>Original source: <c>linkup\ficommonnetwork.h</c>, 6 bytes on the wire.</remarks>
-class MessageTagger
+class MCMessageTagger
 {
 public:
     /// <summary>Zeroes the six counters.</summary>
-    /// <remarks>MCX.EXE @ 0x00607810</remarks>
     void Clear()
     {
         for (int i = 0; i < 6; i++)
         {
-            sendCount[i] = 0;
+            SendCount[i] = 0;
         }
     }
 
-    uint8_t sendCount[6]{}; // +0x0
+    uint8_t SendCount[6]{};
 };
 
-static_assert(sizeof(MessageTagger) == 6);
+static_assert(sizeof(MCMessageTagger) == 6);
 
-/// <summary>Bits 0-9 of <see cref="FIMessageHeader::header"/>: the message type.</summary>
+/// <summary>Bits 0-9 of <see cref="MCFIMessageHeader::Header"/>: the message type.</summary>
 inline constexpr uint16_t FIMSG_TYPE_MASK = 0x03ff;
 /// <summary>Set on a message sent to a whole group (the send counters of every member are filled in).</summary>
 inline constexpr uint16_t FIMSG_GROUP_MESSAGE = 0x0800;
-/// <summary>Set on a guaranteed message: it carries a <see cref="MessageTagger"/>, is verified and resent.</summary>
+/// <summary>Set on a guaranteed message: it carries a <see cref="MCMessageTagger"/>, is verified and resent.</summary>
 inline constexpr uint16_t FIMSG_GUARANTEED = 0x1000;
 
 /// <summary>
@@ -50,37 +49,37 @@ inline constexpr uint16_t FIMSG_GUARANTEED = 0x1000;
 /// as bitfields; the port keeps the word and masks (<see cref="FIMSG_TYPE_MASK"/>, <see cref="FIMSG_GROUP_MESSAGE"/>,
 /// <see cref="FIMSG_GUARANTEED"/>), which give the same bits on every compiler.
 /// </remarks>
-class FIMessageHeader
+class MCFIMessageHeader
 {
 public:
-    uint16_t header = 0; // +0x0
+    uint16_t Header = 0;
 };
 
-static_assert(sizeof(FIMessageHeader) == 2);
+static_assert(sizeof(MCFIMessageHeader) == 2);
 
 /// <summary>The header of a guaranteed message: the type word and the per-player send counters.</summary>
 /// <remarks>Original source: <c>linkup\ficommonnetwork.h</c>, 8 bytes on the wire.</remarks>
-class FIGuaranteedMessageHeader : public FIMessageHeader
+class MCFIGuaranteedMessageHeader : public MCFIMessageHeader
 {
 public:
-    MessageTagger tagger{}; // +0x2
+    MCMessageTagger Tagger{};
 };
 
-static_assert(sizeof(FIGuaranteedMessageHeader) == 8);
+static_assert(sizeof(MCFIGuaranteedMessageHeader) == 8);
 
 /// <summary>
 /// Message type 11 (guaranteed): a player's physical memory, sent to the server when a player joins so it can pick
 /// the best machine as the next server.
 /// </summary>
 /// <remarks>Original source: <c>linkup\ficommonnetwork.h</c>, 0xc bytes on the wire (header word 0x100b).</remarks>
-class FISystemInfoMessage : public FIGuaranteedMessageHeader
+class MCFISystemInfoMessage : public MCFIGuaranteedMessageHeader
 {
 public:
     /// <summary>GlobalMemoryStatus's dwTotalPhys.</summary>
-    uint32_t totalPhysicalMemory = 0; // +0x8
+    uint32_t TotalPhysicalMemory = 0;
 };
 
-static_assert(sizeof(FISystemInfoMessage) == 0xc);
+static_assert(sizeof(MCFISystemInfoMessage) == 0xc);
 
 /// <summary>
 /// Message type 7: announces a file transfer: the file's size, its transfer id and its name as "name\directory".
@@ -89,17 +88,17 @@ static_assert(sizeof(FISystemInfoMessage) == 0xc);
 /// Original source: <c>linkup\ficommonnetwork.h</c>. Variable length on the wire: 7 bytes plus the zero-terminated
 /// name (FileTransferInfo::CreateBeginTransferMessage allocates strlen(name) + strlen(dir) + 0xb).
 /// </remarks>
-class FIBeginFileTransferMessage : public FIMessageHeader
+class MCFIBeginFileTransferMessage : public MCFIMessageHeader
 {
 public:
-    uint32_t fileSize = 0; // +0x2
+    uint32_t FileSize = 0;
     /// <summary>The transfer's id (SessionManager's next file id, 0-255).</summary>
-    uint8_t fileID = 0; // +0x6
+    uint8_t FileID = 0;
     /// <summary>"name\directory", zero-terminated; the message runs on past this declaration.</summary>
-    char fileName[1]{}; // +0x7
+    char FileName[1]{};
 };
 
-static_assert(sizeof(FIBeginFileTransferMessage) == 8);
+static_assert(sizeof(MCFIBeginFileTransferMessage) == 8);
 
 /// <summary>
 /// Message type 8 (guaranteed): one piece of a file transfer: the transfer id and up to 100 bytes of the file. A
@@ -109,12 +108,12 @@ static_assert(sizeof(FIBeginFileTransferMessage) == 8);
 /// Built in place by FileTransferInfo::PrepareNextMessage (header word 0x1008, 9 + bytes read). The name is the
 /// port's; the original built it through raw pointers.
 /// </remarks>
-struct FIFileDataMessage : public FIGuaranteedMessageHeader
+struct MCFIFileDataMessage : public MCFIGuaranteedMessageHeader
 {
-    uint8_t fileID = 0;  // +0x8
-    uint8_t data[100]{}; // +0x9
+    uint8_t FileID = 0;
+    uint8_t Data[100]{};
 };
 
-static_assert(sizeof(FIFileDataMessage) == 0x6d);
+static_assert(sizeof(MCFIFileDataMessage) == 0x6d);
 
 #pragma pack(pop)

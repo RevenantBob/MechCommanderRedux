@@ -5,79 +5,79 @@
 #include "object/objtype.h"
 #include "object/objwtch.h"
 
-char DEFAULT_LIST_ID[] = "DEFAULT";
-char CLANMECH_LIST_ID[] = "CLANMEC";
-char ISMECH_LIST_ID[] = "ISMECH";
-char ICON_LIST_ID[] = "ICONS";
-char WEAPON_LIST_ID[] = "WEAPON";
+char DefaultListId[] = "DEFAULT";
+char ClanmechListId[] = "CLANMEC";
+char IsmechListId[] = "ISMECH";
+char IconListId[] = "ICONS";
+char WeaponListId[] = "WEAPON";
 
-ObjectQueue* objectList = nullptr;
-ObjectQueueNode* clanMechList = nullptr;
-ObjectQueueNode* innerSphereMechList = nullptr;
-ObjectQueueNode* iconList = nullptr;
-ObjectQueueNode* weaponList = nullptr;
-ObjectTypeManager* objectTypeManager = nullptr;
+MCObjectQueue* ObjectList = nullptr;
+MCObjectQueueNode* ClanMechList = nullptr;
+MCObjectQueueNode* InnerSphereMechList = nullptr;
+MCObjectQueueNode* IconList = nullptr;
+MCObjectQueueNode* WeaponList = nullptr;
+MCObjectTypeManager* ObjectTypeManager = nullptr;
 
 namespace
 {
     /// <summary>The list named <paramref name="listId"/>, made and appended (for no block) when missing.</summary>
-    ObjectQueueNode* FindOrAddList(const char* listId)
+    MCObjectQueueNode* FindOrAddList(const char* listId)
     {
-        ObjectQueueNode* node = objectList->findList(listId);
+        MCObjectQueueNode* node = ObjectList->FindList(listId);
 
         if (node == nullptr)
         {
-            node = new ObjectQueueNode;
-            node->init(listId, -1);
-            objectList->addList(node);
+            node = new MCObjectQueueNode;
+            node->Init(listId, -1);
+            ObjectList->AddList(node);
         }
 
         return node;
     }
 
     /// <summary>Deletes every list of <paramref name="queue"/> and empties it.</summary>
-    void DeleteLists(ObjectQueue* queue)
+    void DeleteLists(MCObjectQueue* queue)
     {
-        while (queue->head != nullptr)
+        while (queue->Head != nullptr)
         {
-            ObjectQueueNode* node = queue->head;
-            ObjectQueueNode* next = node->next;
-            node->destroy();
+            MCObjectQueueNode* node = queue->Head;
+            MCObjectQueueNode* next = node->Next;
+            node->Destroy();
             delete node;
-            queue->head = next;
+            queue->Head = next;
         }
 
-        queue->tail = nullptr;
-        queue->head = nullptr;
+        queue->Tail = nullptr;
+        queue->Head = nullptr;
     }
 }
 
-auto createObject(int32_t typeId) -> GameObject*
+auto CreateObject(int32_t typeId) -> MCGameObject*
 {
-    GameObject* result = nullptr;
+    MCGameObject* result = nullptr;
 
     if (typeId > -1)
     {
-        result = static_cast<GameObject*>(objectTypeManager->get(typeId));
+        result = static_cast<MCGameObject*>(ObjectTypeManager->Get(typeId));
     }
 
     return result;
 }
 
-auto destroyObject(GameObject* object) -> void
+auto DestroyObject(MCGameObject* object) -> void
 {
-    if (static_cast<uint32_t>(object->kill()) == 0xbeaddead)
+    if (static_cast<uint32_t>(object->Kill()) == 0xbeaddead)
     {
-        ObjectQueueNode* node = objectList->head;
+        MCObjectQueueNode* node = ObjectList->Head;
 
-        while (node != nullptr && node->remove(object) == 0)
+        while (node != nullptr && node->Remove(object) == 0)
         {
-            node = node->next;
+            node = node->Next;
         }
     }
 }
 
-auto startObjects(char* objectFileName, int32_t typeCacheSize, int32_t objectCacheSize, int32_t maxWatchers) -> int32_t
+auto StartObjects(char* objectFileName, int32_t typeCacheSize, int32_t objectCacheSize, int32_t maxWatchers) -> int32_t
 {
     int32_t result = 0;
 
@@ -86,16 +86,16 @@ auto startObjects(char* objectFileName, int32_t typeCacheSize, int32_t objectCac
         typeCacheSize = 0x17ffff;
     }
 
-    if (objectTypeManager == nullptr)
+    if (ObjectTypeManager == nullptr)
     {
-        objectTypeManager = new ObjectTypeManager;
+        ObjectTypeManager = new MCObjectTypeManager;
 
-        if (objectTypeManager == nullptr)
+        if (ObjectTypeManager == nullptr)
         {
             return static_cast<int32_t>(0xbeef0007);
         }
 
-        result = objectTypeManager->init(objectFileName, typeCacheSize, objectCacheSize);
+        result = ObjectTypeManager->Init(objectFileName, typeCacheSize, objectCacheSize);
 
         if (result != 0)
         {
@@ -103,55 +103,55 @@ auto startObjects(char* objectFileName, int32_t typeCacheSize, int32_t objectCac
         }
     }
 
-    if (objectList == nullptr)
+    if (ObjectList == nullptr)
     {
-        ObjectQueue* queue = new ObjectQueue;
-        ObjectQueueNode* node = queue->findList(DEFAULT_LIST_ID);
+        MCObjectQueue* queue = new MCObjectQueue;
+        MCObjectQueueNode* node = queue->FindList(DefaultListId);
 
         if (node == nullptr)
         {
-            node = new ObjectQueueNode(DEFAULT_LIST_ID);
-            queue->addList(node);
+            node = new MCObjectQueueNode(DefaultListId);
+            queue->AddList(node);
         }
 
-        queue->tail = node;
-        queue->head = node;
-        objectList = queue;
+        queue->Tail = node;
+        queue->Head = node;
+        ObjectList = queue;
 
-        clanMechList = FindOrAddList(CLANMECH_LIST_ID);
-        innerSphereMechList = FindOrAddList(ISMECH_LIST_ID);
-        iconList = FindOrAddList(ICON_LIST_ID);
-        weaponList = FindOrAddList(WEAPON_LIST_ID);
+        ClanMechList = FindOrAddList(ClanmechListId);
+        InnerSphereMechList = FindOrAddList(IsmechListId);
+        IconList = FindOrAddList(IconListId);
+        WeaponList = FindOrAddList(WeaponListId);
     }
 
-    if (objectWatchers == nullptr)
+    if (ObjectWatchers == nullptr)
     {
-        objectWatchers = new ObjectWatcherList;
-        objectWatchers->init(maxWatchers);
+        ObjectWatchers = new MCObjectWatcherList;
+        ObjectWatchers->Init(maxWatchers);
     }
 
     return result;
 }
 
-auto stopObjects() -> void
+auto StopObjects() -> void
 {
-    if (objectList != nullptr)
+    if (ObjectList != nullptr)
     {
         // The original empties the queue twice (the second time an inlined ~ObjectQueue) before deleting it.
-        DeleteLists(objectList);
-        DeleteLists(objectList);
-        delete objectList;
-        objectList = nullptr;
+        DeleteLists(ObjectList);
+        DeleteLists(ObjectList);
+        delete ObjectList;
+        ObjectList = nullptr;
     }
 
-    if (objectWatchers != nullptr)
+    if (ObjectWatchers != nullptr)
     {
-        objectWatchers->free();
-        delete objectWatchers;
-        objectWatchers = nullptr;
+        ObjectWatchers->Free();
+        delete ObjectWatchers;
+        ObjectWatchers = nullptr;
     }
 
-    clanMechList = nullptr;
-    innerSphereMechList = nullptr;
-    iconList = nullptr;
+    ClanMechList = nullptr;
+    InnerSphereMechList = nullptr;
+    IconList = nullptr;
 }

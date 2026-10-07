@@ -5,190 +5,190 @@
 #include "lib/packet.h"
 #include "platform/MCFileSystem.h"
 
-int File::logFileTraffic = 0;
-File* fileTrafficLog = nullptr;
+int MCFile::LogFileTraffic = 0;
+MCFile* FileTrafficLog = nullptr;
 
-void createTrafficLog()
+void CreateTrafficLog()
 {
-    if (fileTrafficLog != nullptr && fileTrafficLog->isOpen())
+    if (FileTrafficLog != nullptr && FileTrafficLog->IsOpen())
     {
         return;
     }
 
-    fileTrafficLog = new File;
-    fileTrafficLog->create("filetraffic.log");
+    FileTrafficLog = new MCFile;
+    FileTrafficLog->Create("filetraffic.log");
 }
 
-int fileExists(const char* fName)
+int FileExists(const char* fName)
 {
     return MCFileSystem::Exists(fName) ? 1 : 0;
 }
 
-File::File() = default;
+MCFile::MCFile() = default;
 
-File::~File()
+MCFile::~MCFile()
 {
-    close();
+    Close();
 }
 
-int File::eof()
+int MCFile::Eof()
 {
-    return getLength() <= logicalPosition;
+    return GetLength() <= _LogicalPosition;
 }
 
-int32_t File::open(const char* fName, FileMode _mode, int32_t numChild)
+int32_t MCFile::Open(const char* fName, MCFileMode mode, int32_t numChild)
 {
     const size_t nameLength = std::strlen(fName) + 1;
-    fileName = new char[nameLength];
-    std::memcpy(fileName, fName, nameLength);
-    fileMode = _mode;
+    _FileName = new char[nameLength];
+    std::memcpy(_FileName, fName, nameLength);
+    _FileMode = mode;
 
     // Port: files opened to write live in the user folder (an install file is copied there first).
     const std::string path =
-        (_mode == READ ? MCFileSystem::Resolve(fileName) : MCFileSystem::ResolveWrite(fileName, _mode != CREATE))
+        (mode == READ ? MCFileSystem::Resolve(_FileName) : MCFileSystem::ResolveWrite(_FileName, mode != CREATE))
             .string();
 
-    if (_mode == CREATE)
+    if (mode == CREATE)
     {
-        handle = std::fopen(path.c_str(), "w+b");
+        _Handle = std::fopen(path.c_str(), "w+b");
 
-        if (handle == nullptr)
+        if (_Handle == nullptr)
         {
             return FILE_NOT_FOUND;
         }
     }
     else
     {
-        const char* access = _mode == READ ? "rb" : "r+b";
-        handle = std::fopen(path.c_str(), access);
+        const char* access = mode == READ ? "rb" : "r+b";
+        _Handle = std::fopen(path.c_str(), access);
 
-        if (handle == nullptr && (_mode == WRITE || _mode == MC2_APPEND || _mode == RDWRITE))
+        if (_Handle == nullptr && (mode == WRITE || mode == MC2_APPEND || mode == RDWRITE))
         {
             // CreateFile's OPEN_EXISTING failed; the original then falls back to the FastFiles, which are read-only,
             // so writing modes on a missing file end up read-only in memory as well.
-            handle = nullptr;
+            _Handle = nullptr;
         }
 
-        if (handle == nullptr)
+        if (_Handle == nullptr)
         {
             // Port: a file the context's source holds in memory (a test's) reads as a FastFile entry does.
-            if (const auto image = MCFileSystem::FindImage(fileName); image.has_value())
+            if (const auto image = MCFileSystem::FindImage(_FileName); image.has_value())
             {
-                inRAM = 1;
-                length = static_cast<uint32_t>(image->size());
-                fileImage = new uint8_t[std::max<uint32_t>(length, 1)];
-                std::ranges::copy(*image, fileImage);
-                logicalPosition = 0;
+                _InRam = 1;
+                _Length = static_cast<uint32_t>(image->size());
+                _FileImage = new uint8_t[std::max<uint32_t>(_Length, 1)];
+                std::ranges::copy(*image, _FileImage);
+                _LogicalPosition = 0;
                 return NO_ERR;
             }
 
-            fastFile = FastFileFind(fileName);
+            _FastFile = FastFileFind(_FileName);
 
-            if (fastFile == nullptr)
+            if (_FastFile == nullptr)
             {
-                delete[] fileName;
-                fileName = nullptr;
+                delete[] _FileName;
+                _FileName = nullptr;
 
-                if (logFileTraffic)
+                if (LogFileTraffic)
                 {
-                    if (fileTrafficLog == nullptr)
+                    if (FileTrafficLog == nullptr)
                     {
-                        createTrafficLog();
+                        CreateTrafficLog();
                     }
 
                     char line[300];
                     std::snprintf(line, sizeof(line), "FNF       Length: 0000000000    File: %s", fName);
-                    fileTrafficLog->writeLine(line);
+                    FileTrafficLog->WriteLine(line);
                 }
 
                 return FILE_NOT_FOUND;
             }
 
-            fastFileHandle = fastFile->openFast(fileName);
+            _FastFileHandle = _FastFile->OpenFast(_FileName);
 
-            if (logFileTraffic)
+            if (LogFileTraffic)
             {
-                if (fileTrafficLog == nullptr)
+                if (FileTrafficLog == nullptr)
                 {
-                    createTrafficLog();
+                    CreateTrafficLog();
                 }
 
                 char line[300];
-                std::snprintf(line, sizeof(line), "FASTF     Length: %010u    File: %s", fileSize(), fileName);
-                fileTrafficLog->writeLine(line);
+                std::snprintf(line, sizeof(line), "FASTF     Length: %010u    File: %s", FileSize(), _FileName);
+                FileTrafficLog->WriteLine(line);
             }
 
             // A FastFile entry is read whole into memory at once.
-            inRAM = 1;
-            const uint32_t size = fileSize();
-            fileImage = new uint8_t[std::max<uint32_t>(size, 1)];
-            fastFile->readFast(fastFileHandle, fileImage, static_cast<int32_t>(size));
-            fastFile->closeFast(fastFileHandle);
-            fastFileHandle = -1;
-            fastFile = nullptr;
-            logicalPosition = 0;
+            _InRam = 1;
+            const uint32_t size = FileSize();
+            _FileImage = new uint8_t[std::max<uint32_t>(size, 1)];
+            _FastFile->ReadFast(_FastFileHandle, _FileImage, static_cast<int32_t>(size));
+            _FastFile->CloseFast(_FastFileHandle);
+            _FastFileHandle = -1;
+            _FastFile = nullptr;
+            _LogicalPosition = 0;
             return NO_ERR;
         }
     }
 
-    if (logFileTraffic)
+    if (LogFileTraffic)
     {
-        if (fileTrafficLog == nullptr)
+        if (FileTrafficLog == nullptr)
         {
-            createTrafficLog();
+            CreateTrafficLog();
         }
 
         char line[300];
-        std::snprintf(line, sizeof(line), "CFHandle  Length: %010u    File: %s", fileSize(), fileName);
-        fileTrafficLog->writeLine(line);
+        std::snprintf(line, sizeof(line), "CFHandle  Length: %010u    File: %s", FileSize(), _FileName);
+        FileTrafficLog->WriteLine(line);
     }
 
-    logicalPosition = 0;
-    length = isOpen() ? fileSize() : 0;
-    parent = nullptr;
-    parentOffset = 0;
-    physicalLength = length;
-    childList = nullptr;
-    numChildren = 0;
-    maxChildren = static_cast<uint32_t>(numChild);
-    childList = new File*[std::max(numChild, 1)]();
+    _LogicalPosition = 0;
+    _Length = IsOpen() ? FileSize() : 0;
+    _Parent = nullptr;
+    _ParentOffset = 0;
+    _PhysicalLength = _Length;
+    _ChildList = nullptr;
+    _NumChildren = 0;
+    _MaxChildren = static_cast<uint32_t>(numChild);
+    _ChildList = new MCFile*[std::max(numChild, 1)]();
     return NO_ERR;
 }
 
-int32_t File::open(File* _parent, uint32_t child_length, int32_t numChild)
+int32_t MCFile::Open(MCFile* parent, uint32_t childLength, int32_t numChild)
 {
-    if (_parent == nullptr || _parent->fastFile != nullptr)
+    if (parent == nullptr || parent->_FastFile != nullptr)
     {
         return PARENT_NULL;
     }
 
-    parent = _parent;
+    _Parent = parent;
 
-    if (_parent->fileMode != READ)
+    if (parent->_FileMode != READ)
     {
         return CANT_WRITE_TO_CHILD;
     }
 
-    physicalLength = child_length;
-    parentOffset = _parent->logicalPosition;
-    logicalPosition = 0;
-    fileName = _parent->getFilename();
-    fileMode = _parent->fileMode;
-    handle = _parent->handle;
+    _PhysicalLength = childLength;
+    _ParentOffset = parent->_LogicalPosition;
+    _LogicalPosition = 0;
+    _FileName = parent->GetFilename();
+    _FileMode = parent->_FileMode;
+    _Handle = parent->_Handle;
 
-    if (logFileTraffic)
+    if (LogFileTraffic)
     {
-        if (fileTrafficLog == nullptr)
+        if (FileTrafficLog == nullptr)
         {
-            createTrafficLog();
+            CreateTrafficLog();
         }
 
         char line[300];
-        std::snprintf(line, sizeof(line), "CHILD     Length: %010u    File: %s", child_length, _parent->getFilename());
-        fileTrafficLog->writeLine(line);
+        std::snprintf(line, sizeof(line), "CHILD     Length: %010u    File: %s", childLength, parent->GetFilename());
+        FileTrafficLog->WriteLine(line);
     }
 
-    const int32_t result = _parent->addChild(this);
+    const int32_t result = parent->AddChild(this);
 
     if (result != NO_ERR)
     {
@@ -198,44 +198,44 @@ int32_t File::open(File* _parent, uint32_t child_length, int32_t numChild)
     if (numChild == -1)
     {
         // Read the child's bytes into memory now.
-        maxChildren = 0;
-        inRAM = 1;
-        fileImage = new uint8_t[std::max<uint32_t>(child_length, 1)];
+        _MaxChildren = 0;
+        _InRam = 1;
+        _FileImage = new uint8_t[std::max<uint32_t>(childLength, 1)];
 
-        if (_parent->getFileClass() == PACKETFILE)
+        if (parent->GetFileClass() == PACKETFILE)
         {
-            PacketFile* packets = static_cast<PacketFile*>(_parent);
-            packets->readPacket(packets->getCurrentPacket(), fileImage);
+            MCPacketFile* packets = static_cast<MCPacketFile*>(parent);
+            packets->ReadPacket(packets->GetCurrentPacket(), _FileImage);
             return NO_ERR;
         }
 
-        _parent->readRawAt(parentOffset, fileImage, static_cast<int32_t>(child_length));
+        parent->ReadRawAt(_ParentOffset, _FileImage, static_cast<int32_t>(childLength));
         return NO_ERR;
     }
 
-    maxChildren = static_cast<uint32_t>(numChild);
-    childList = new File*[std::max(numChild, 1)]();
-    numChildren = 0;
+    _MaxChildren = static_cast<uint32_t>(numChild);
+    _ChildList = new MCFile*[std::max(numChild, 1)]();
+    _NumChildren = 0;
     return NO_ERR;
 }
 
-int32_t File::create(const char* fName)
+int32_t MCFile::Create(const char* fName)
 {
-    return open(fName, CREATE, 50);
+    return Open(fName, CREATE, 50);
 }
 
-int32_t File::addChild(File* child)
+int32_t MCFile::AddChild(MCFile* child)
 {
-    if (maxChildren == 0)
+    if (_MaxChildren == 0)
     {
         return TOO_MANY_CHILDREN;
     }
 
-    for (uint32_t i = 0; i < maxChildren; ++i)
+    for (uint32_t i = 0; i < _MaxChildren; ++i)
     {
-        if (childList[i] == nullptr)
+        if (_ChildList[i] == nullptr)
         {
-            childList[i] = child;
+            _ChildList[i] = child;
             return NO_ERR;
         }
     }
@@ -243,97 +243,97 @@ int32_t File::addChild(File* child)
     return TOO_MANY_CHILDREN;
 }
 
-void File::removeChild(File* child)
+void MCFile::RemoveChild(MCFile* child)
 {
-    if (maxChildren == 0 || childList == nullptr)
+    if (_MaxChildren == 0 || _ChildList == nullptr)
     {
         return;
     }
 
-    for (uint32_t i = 0; i < maxChildren; ++i)
+    for (uint32_t i = 0; i < _MaxChildren; ++i)
     {
-        if (childList[i] == child)
+        if (_ChildList[i] == child)
         {
-            childList[i] = nullptr;
+            _ChildList[i] = nullptr;
             return;
         }
     }
 }
 
-void File::close()
+void MCFile::Close()
 {
-    if (parent == nullptr)
+    if (_Parent == nullptr)
     {
-        delete[] fileName;
+        delete[] _FileName;
     }
 
-    fileName = nullptr;
-    length = 0;
+    _FileName = nullptr;
+    _Length = 0;
 
-    if (isOpen())
+    if (IsOpen())
     {
-        if (parent == nullptr && handle != nullptr)
+        if (_Parent == nullptr && _Handle != nullptr)
         {
-            std::fclose(handle);
+            std::fclose(_Handle);
         }
 
-        handle = nullptr;
+        _Handle = nullptr;
 
-        if (fastFile != nullptr)
+        if (_FastFile != nullptr)
         {
-            fastFile->closeFast(fastFileHandle);
+            _FastFile->CloseFast(_FastFileHandle);
         }
 
-        fastFile = nullptr;
-        fastFileHandle = -1;
+        _FastFile = nullptr;
+        _FastFileHandle = -1;
     }
 
-    if (maxChildren != 0 && childList != nullptr)
+    if (_MaxChildren != 0 && _ChildList != nullptr)
     {
-        for (uint32_t i = 0; i < maxChildren; ++i)
+        for (uint32_t i = 0; i < _MaxChildren; ++i)
         {
-            if (childList[i] != nullptr)
+            if (_ChildList[i] != nullptr)
             {
-                childList[i]->close();
+                _ChildList[i]->Close();
             }
         }
     }
 
-    delete[] childList;
-    childList = nullptr;
+    delete[] _ChildList;
+    _ChildList = nullptr;
 
-    if (parent != nullptr)
+    if (_Parent != nullptr)
     {
-        parent->removeChild(this);
+        _Parent->RemoveChild(this);
     }
 
-    parent = nullptr;
-    numChildren = 0;
-    maxChildren = 0;
+    _Parent = nullptr;
+    _NumChildren = 0;
+    _MaxChildren = 0;
 
-    if (inRAM)
+    if (_InRam)
     {
-        delete[] fileImage;
-        fileImage = nullptr;
-        inRAM = 0;
+        delete[] _FileImage;
+        _FileImage = nullptr;
+        _InRam = 0;
     }
 }
 
-void File::deleteFile()
+void MCFile::DeleteFile()
 {
-    if (isOpen() && parent == nullptr)
+    if (IsOpen() && _Parent == nullptr)
     {
-        close();
+        Close();
     }
 }
 
-int32_t File::seek(int32_t pos, int32_t from)
+int32_t MCFile::Seek(int32_t pos, int32_t from)
 {
     switch (from)
     {
         case SEEK_SET:
         {
-            if (static_cast<int32_t>(getLength()) < pos)
+            if (static_cast<int32_t>(GetLength()) < pos)
             {
                 return READ_PAST_EOF;
             }
@@ -341,7 +341,7 @@ int32_t File::seek(int32_t pos, int32_t from)
         }
         case SEEK_CUR:
         {
-            if (getLength() < logicalPosition + static_cast<uint32_t>(pos))
+            if (GetLength() < _LogicalPosition + static_cast<uint32_t>(pos))
             {
                 return READ_PAST_EOF;
             }
@@ -349,7 +349,7 @@ int32_t File::seek(int32_t pos, int32_t from)
         }
         case SEEK_END:
         {
-            if (static_cast<int32_t>(getLength()) < std::abs(pos) || pos > 0)
+            if (static_cast<int32_t>(GetLength()) < std::abs(pos) || pos > 0)
             {
                 return READ_PAST_EOF;
             }
@@ -357,7 +357,7 @@ int32_t File::seek(int32_t pos, int32_t from)
         }
     }
 
-    int32_t newPosition = static_cast<int32_t>(logicalPosition);
+    int32_t newPosition = static_cast<int32_t>(_LogicalPosition);
 
     switch (from)
     {
@@ -365,10 +365,10 @@ int32_t File::seek(int32_t pos, int32_t from)
             newPosition = pos;
             break;
         case SEEK_CUR:
-            newPosition = static_cast<int32_t>(logicalPosition) + pos;
+            newPosition = static_cast<int32_t>(_LogicalPosition) + pos;
             break;
         case SEEK_END:
-            newPosition = static_cast<int32_t>(getLength()) + pos;
+            newPosition = static_cast<int32_t>(GetLength()) + pos;
             break;
     }
 
@@ -377,21 +377,21 @@ int32_t File::seek(int32_t pos, int32_t from)
         return INVALID_SEEK;
     }
 
-    logicalPosition = static_cast<uint32_t>(newPosition);
+    _LogicalPosition = static_cast<uint32_t>(newPosition);
     return NO_ERR;
 }
 
-int32_t File::readRawAt(uint32_t pos, void* buffer, int32_t count)
+int32_t MCFile::ReadRawAt(uint32_t pos, void* buffer, int32_t count)
 {
     if (count <= 0)
     {
         return 0;
     }
 
-    if (inRAM && fileImage != nullptr)
+    if (_InRam && _FileImage != nullptr)
     {
         // Port fix: never copy past the image (the original trusts the caller).
-        const uint32_t size = getLength();
+        const uint32_t size = GetLength();
 
         if (pos >= size)
         {
@@ -399,136 +399,136 @@ int32_t File::readRawAt(uint32_t pos, void* buffer, int32_t count)
         }
 
         const int32_t n = static_cast<int32_t>(std::min<uint32_t>(static_cast<uint32_t>(count), size - pos));
-        std::memcpy(buffer, fileImage + pos, static_cast<size_t>(n));
+        std::memcpy(buffer, _FileImage + pos, static_cast<size_t>(n));
         return n;
     }
 
-    if (fastFile != nullptr)
+    if (_FastFile != nullptr)
     {
-        fastFile->seekFast(fastFileHandle, static_cast<int32_t>(pos), SEEK_SET);
-        return fastFile->readFast(fastFileHandle, buffer, count);
+        _FastFile->SeekFast(_FastFileHandle, static_cast<int32_t>(pos), SEEK_SET);
+        return _FastFile->ReadFast(_FastFileHandle, buffer, count);
     }
 
-    if (parent != nullptr && parent->handle == nullptr)
+    if (_Parent != nullptr && _Parent->_Handle == nullptr)
     {
         // Port fix: a child of a file read into memory reads from the parent's image; the original read from the
         // parent's (invalid) handle.
-        return parent->readRawAt(parentOffset + pos, buffer, count);
+        return _Parent->ReadRawAt(_ParentOffset + pos, buffer, count);
     }
 
-    if (handle == nullptr)
+    if (_Handle == nullptr)
     {
         return 0;
     }
 
-    std::fseek(handle, static_cast<long>(parentOffset + pos), SEEK_SET);
-    return static_cast<int32_t>(std::fread(buffer, 1, static_cast<size_t>(count), handle));
+    std::fseek(_Handle, static_cast<long>(_ParentOffset + pos), SEEK_SET);
+    return static_cast<int32_t>(std::fread(buffer, 1, static_cast<size_t>(count), _Handle));
 }
 
-int32_t File::read(uint32_t pos, uint8_t* buffer, int32_t count)
+int32_t MCFile::Read(uint32_t pos, uint8_t* buffer, int32_t count)
 {
-    if (!isOpen())
+    if (!IsOpen())
     {
         return 0;
     }
 
-    return readRawAt(pos, buffer, count);
+    return ReadRawAt(pos, buffer, count);
 }
 
-uint8_t File::readByte()
+uint8_t MCFile::ReadByte()
 {
     uint8_t value = 0;
 
-    if (!isOpen())
+    if (!IsOpen())
     {
         return value;
     }
 
-    readRawAt(logicalPosition, &value, 1);
-    ++logicalPosition;
+    ReadRawAt(_LogicalPosition, &value, 1);
+    ++_LogicalPosition;
     return value;
 }
 
-int16_t File::readWord()
+int16_t MCFile::ReadWord()
 {
     int16_t value = 0;
 
-    if (!isOpen())
+    if (!IsOpen())
     {
         return value;
     }
 
-    readRawAt(logicalPosition, &value, 2);
-    logicalPosition += 2;
+    ReadRawAt(_LogicalPosition, &value, 2);
+    _LogicalPosition += 2;
     return value;
 }
 
-int16_t File::readShort()
+int16_t MCFile::ReadShort()
 {
-    return readWord();
+    return ReadWord();
 }
 
-int32_t File::readLong()
+int32_t MCFile::ReadLong()
 {
     int32_t value = 0;
 
-    if (!isOpen())
+    if (!IsOpen())
     {
         return value;
     }
 
-    readRawAt(logicalPosition, &value, 4);
-    logicalPosition += 4;
+    ReadRawAt(_LogicalPosition, &value, 4);
+    _LogicalPosition += 4;
     return value;
 }
 
-float File::readFloat()
+float MCFile::ReadFloat()
 {
-    const int32_t bits = readLong();
+    const int32_t bits = ReadLong();
     return std::bit_cast<float>(bits);
 }
 
-int32_t File::readString(uint8_t* buffer)
+int32_t MCFile::ReadString(uint8_t* buffer)
 {
-    if (!isOpen())
+    if (!IsOpen())
     {
         return 0;
     }
 
     int32_t count = 0;
-    buffer[0] = readByte();
+    buffer[0] = ReadByte();
 
     while (buffer[count] != 0)
     {
         ++count;
-        buffer[count] = readByte();
+        buffer[count] = ReadByte();
     }
 
     return count;
 }
 
-int32_t File::read(uint8_t* buffer, int32_t count)
+int32_t MCFile::Read(uint8_t* buffer, int32_t count)
 {
-    if (!isOpen())
+    if (!IsOpen())
     {
         return 0;
     }
 
-    const int32_t got = readRawAt(logicalPosition, buffer, count);
-    logicalPosition += static_cast<uint32_t>(got);
+    const int32_t got = ReadRawAt(_LogicalPosition, buffer, count);
+    _LogicalPosition += static_cast<uint32_t>(got);
     return got;
 }
 
-int32_t File::readLine(uint8_t* buffer, int32_t maxLength)
+int32_t MCFile::ReadLine(uint8_t* buffer, int32_t maxLength)
 {
-    if (!isOpen() || maxLength <= 0)
+    if (!IsOpen() || maxLength <= 0)
     {
         return 0;
     }
 
     // Look at up to maxLength bytes, cut at the first CR, and step over CR LF.
     std::vector<uint8_t> window(static_cast<size_t>(maxLength) + 2, 0);
-    const int32_t got = readRawAt(logicalPosition, window.data(), maxLength + 1);
+    const int32_t got = ReadRawAt(_LogicalPosition, window.data(), maxLength + 1);
     const int32_t limit = std::min(got, maxLength);
     int32_t i = 0;
 
@@ -549,25 +549,25 @@ int32_t File::readLine(uint8_t* buffer, int32_t maxLength)
 
     std::memcpy(buffer, window.data(), static_cast<size_t>(i));
     buffer[i] = 0;
-    logicalPosition += static_cast<uint32_t>(i + 1);
+    _LogicalPosition += static_cast<uint32_t>(i + 1);
 
     if (window[i] == '\r' && window[i + 1] == '\n')
     {
-        ++logicalPosition;
+        ++_LogicalPosition;
     }
 
     return i + 1;
 }
 
-int32_t File::readLineEx(uint8_t* buffer, int32_t maxLength)
+int32_t MCFile::ReadLineEx(uint8_t* buffer, int32_t maxLength)
 {
-    if (!isOpen() || maxLength <= 0)
+    if (!IsOpen() || maxLength <= 0)
     {
         return 0;
     }
 
     std::vector<uint8_t> window(static_cast<size_t>(maxLength) + 2, 0);
-    const int32_t got = readRawAt(logicalPosition, window.data(), maxLength);
+    const int32_t got = ReadRawAt(_LogicalPosition, window.data(), maxLength);
     const int32_t limit = std::min(got, maxLength);
     int32_t i = 0;
 
@@ -579,97 +579,97 @@ int32_t File::readLineEx(uint8_t* buffer, int32_t maxLength)
     const int32_t copy = std::min(i + 1, maxLength);
     std::memcpy(buffer, window.data(), static_cast<size_t>(copy));
     buffer[std::min(i + 1, maxLength - 1)] = 0;
-    logicalPosition += static_cast<uint32_t>(i + 1);
+    _LogicalPosition += static_cast<uint32_t>(i + 1);
     return i + 2;
 }
 
-int32_t File::write(uint32_t pos, const uint8_t* buffer, int32_t count)
+int32_t MCFile::Write(uint32_t pos, const uint8_t* buffer, int32_t count)
 {
-    if (parent != nullptr)
+    if (_Parent != nullptr)
     {
         return 0;
     }
 
-    if (!isOpen() || handle == nullptr)
+    if (!IsOpen() || _Handle == nullptr)
     {
         return 0;
     }
 
-    if (logicalPosition != pos)
+    if (_LogicalPosition != pos)
     {
-        seek(static_cast<int32_t>(pos));
+        Seek(static_cast<int32_t>(pos));
     }
 
-    std::fseek(handle, static_cast<long>(pos), SEEK_SET);
-    return static_cast<int32_t>(std::fwrite(buffer, 1, static_cast<size_t>(count), handle));
+    std::fseek(_Handle, static_cast<long>(pos), SEEK_SET);
+    return static_cast<int32_t>(std::fwrite(buffer, 1, static_cast<size_t>(count), _Handle));
 }
 
-int32_t File::writeRaw(const void* buffer, int32_t count)
+int32_t MCFile::WriteRaw(const void* buffer, int32_t count)
 {
-    if (parent != nullptr)
+    if (_Parent != nullptr)
     {
         return 0;
     }
 
-    if (!isOpen() || handle == nullptr)
+    if (!IsOpen() || _Handle == nullptr)
     {
         return 0;
     }
 
-    std::fseek(handle, static_cast<long>(logicalPosition), SEEK_SET);
-    const size_t put = std::fwrite(buffer, 1, static_cast<size_t>(count), handle);
-    logicalPosition += static_cast<uint32_t>(put);
+    std::fseek(_Handle, static_cast<long>(_LogicalPosition), SEEK_SET);
+    const size_t put = std::fwrite(buffer, 1, static_cast<size_t>(count), _Handle);
+    _LogicalPosition += static_cast<uint32_t>(put);
     return static_cast<int32_t>(put);
 }
 
-int32_t File::writeByte(uint8_t value)
+int32_t MCFile::WriteByte(uint8_t value)
 {
-    if (parent != nullptr || !isOpen())
+    if (_Parent != nullptr || !IsOpen())
     {
         return 0;
     }
 
-    return writeRaw(&value, 1) == 1 ? NO_ERR : WRITE_ERR;
+    return WriteRaw(&value, 1) == 1 ? NO_ERR : WRITE_ERR;
 }
 
-int32_t File::writeWord(int16_t value)
+int32_t MCFile::WriteWord(int16_t value)
 {
-    if (parent != nullptr || !isOpen())
+    if (_Parent != nullptr || !IsOpen())
     {
         return 0;
     }
 
-    return writeRaw(&value, 2) == 2 ? NO_ERR : WRITE_ERR;
+    return WriteRaw(&value, 2) == 2 ? NO_ERR : WRITE_ERR;
 }
 
-int32_t File::writeShort(int16_t value)
+int32_t MCFile::WriteShort(int16_t value)
 {
-    return writeWord(value);
+    return WriteWord(value);
 }
 
-int32_t File::writeLong(int32_t value)
+int32_t MCFile::WriteLong(int32_t value)
 {
-    if (parent != nullptr || !isOpen())
+    if (_Parent != nullptr || !IsOpen())
     {
         return 0;
     }
 
-    return writeRaw(&value, 4) == 4 ? NO_ERR : WRITE_ERR;
+    return WriteRaw(&value, 4) == 4 ? NO_ERR : WRITE_ERR;
 }
 
-int32_t File::writeFloat(float value)
+int32_t MCFile::WriteFloat(float value)
 {
-    if (parent != nullptr || !isOpen())
+    if (_Parent != nullptr || !IsOpen())
     {
         return 0;
     }
 
-    return writeRaw(&value, 4) == 4 ? NO_ERR : WRITE_ERR;
+    return WriteRaw(&value, 4) == 4 ? NO_ERR : WRITE_ERR;
 }
 
-int32_t File::writeString(const char* text)
+int32_t MCFile::WriteString(const char* text)
 {
-    if (parent != nullptr || !isOpen())
+    if (_Parent != nullptr || !IsOpen())
     {
         return -1;
     }
@@ -678,15 +678,15 @@ int32_t File::writeString(const char* text)
 
     while (*c != 0)
     {
-        writeByte(static_cast<uint8_t>(*c++));
+        WriteByte(static_cast<uint8_t>(*c++));
     }
 
     return static_cast<int32_t>(c - text);
 }
 
-int32_t File::writeLine(const char* text)
+int32_t MCFile::WriteLine(const char* text)
 {
-    if (parent != nullptr || !isOpen())
+    if (_Parent != nullptr || !IsOpen())
     {
         return -1;
     }
@@ -695,84 +695,84 @@ int32_t File::writeLine(const char* text)
 
     while (*c != 0)
     {
-        writeByte(static_cast<uint8_t>(*c++));
+        WriteByte(static_cast<uint8_t>(*c++));
     }
 
-    writeByte('\r');
-    writeByte('\n');
+    WriteByte('\r');
+    WriteByte('\n');
     return static_cast<int32_t>(c - text);
 }
 
-int32_t File::write(const uint8_t* buffer, int32_t count)
+int32_t MCFile::Write(const uint8_t* buffer, int32_t count)
 {
-    if (parent != nullptr || !isOpen())
+    if (_Parent != nullptr || !IsOpen())
     {
         return 0;
     }
 
-    return writeRaw(buffer, count);
+    return WriteRaw(buffer, count);
 }
 
-int File::isOpen()
+int MCFile::IsOpen()
 {
-    return handle != nullptr || fileImage != nullptr;
+    return _Handle != nullptr || _FileImage != nullptr;
 }
 
-uint32_t File::getLength()
+uint32_t MCFile::GetLength()
 {
-    if (fastFile != nullptr && length == 0)
+    if (_FastFile != nullptr && _Length == 0)
     {
-        length = static_cast<uint32_t>(fastFile->sizeFast(fastFileHandle));
-        return length;
+        _Length = static_cast<uint32_t>(_FastFile->SizeFast(_FastFileHandle));
+        return _Length;
     }
 
-    if (parent != nullptr)
+    if (_Parent != nullptr)
     {
-        length = physicalLength;
-        return physicalLength;
+        _Length = _PhysicalLength;
+        return _PhysicalLength;
     }
 
-    if (isOpen())
+    if (IsOpen())
     {
-        if (handle != nullptr && (length == 0 || fileMode > READ))
+        if (_Handle != nullptr && (_Length == 0 || _FileMode > READ))
         {
-            const long here = std::ftell(handle);
-            std::fseek(handle, 0, SEEK_END);
-            length = static_cast<uint32_t>(std::ftell(handle));
-            std::fseek(handle, here, SEEK_SET);
+            const long here = std::ftell(_Handle);
+            std::fseek(_Handle, 0, SEEK_END);
+            _Length = static_cast<uint32_t>(std::ftell(_Handle));
+            std::fseek(_Handle, here, SEEK_SET);
         }
     }
 
-    return length;
+    return _Length;
 }
 
-uint32_t File::fileSize()
+uint32_t MCFile::FileSize()
 {
-    return getLength();
+    return GetLength();
 }
 
-uint32_t File::getNumLines()
+uint32_t MCFile::GetNumLines()
 {
     uint32_t lines = 0;
-    const uint32_t saved = logicalPosition;
-    seek(0);
+    const uint32_t saved = _LogicalPosition;
+    Seek(0);
 
-    for (uint32_t i = 0; i < getLength(); ++i)
+    for (uint32_t i = 0; i < GetLength(); ++i)
     {
-        if (readByte() == '\n')
+        if (ReadByte() == '\n')
         {
             ++lines;
         }
     }
 
-    seek(static_cast<int32_t>(saved));
+    Seek(static_cast<int32_t>(saved));
     return lines;
 }
 
-void File::skip(int32_t bytesToSkip)
+void MCFile::Skip(int32_t bytesToSkip)
 {
     if (bytesToSkip != 0)
     {
-        seek(static_cast<int32_t>(logicalPosition) + bytesToSkip);
+        Seek(static_cast<int32_t>(_LogicalPosition) + bytesToSkip);
     }
 }

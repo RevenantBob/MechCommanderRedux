@@ -9,49 +9,49 @@
 // MechNetControl
 //---------------------------------------------------------------------------
 
-auto MechNetControl::init(GameObject* object) -> int32_t
+auto MCMechNetControl::Init(MCGameObject* object) -> int32_t
 {
-    Control::init(object, 0);
-    pilot = object->getPilot();
-    dynamicsType = static_cast<BattleMechType*>(object->getObjectType())->dynamicsType;
+    MCControl::Init(object, 0);
+    Pilot = object->GetPilot();
+    DynamicsType = static_cast<MCBattleMechType*>(object->GetObjectType())->DynamicsType;
     return 0;
 }
 
-auto MechNetControl::update() -> int32_t
+auto MCMechNetControl::Update() -> int32_t
 {
-    auto* data = static_cast<MechControlData*>(controlData);
-    data->reset();
-    auto* mech = static_cast<BattleMech*>(me);
+    auto* data = static_cast<MCMechControlData*>(ControlData);
+    data->Reset();
+    auto* mech = static_cast<MCBattleMech*>(Me);
 
-    if (mech->getAwake())
+    if (mech->GetAwake())
     {
-        if (mech->leftArmBlownThisFrame != 0)
+        if (mech->LeftArmBlownThisFrame != 0)
         {
-            mech->leftArmBlownThisFrame = 0;
-            data->blowLeftArm = 1;
+            mech->LeftArmBlownThisFrame = 0;
+            data->BlowLeftArm = 1;
         }
 
-        if (mech->rightArmBlownThisFrame != 0)
+        if (mech->RightArmBlownThisFrame != 0)
         {
-            mech->rightArmBlownThisFrame = 0;
-            data->blowRightArm = 1;
+            mech->RightArmBlownThisFrame = 0;
+            data->BlowRightArm = 1;
         }
 
-        mech->updateWeaponFireChunks(1);
-        mech->updateCriticalHitChunks(1);
-        mech->updateRadioChunks(1);
+        mech->UpdateWeaponFireChunks(1);
+        mech->UpdateCriticalHitChunks(1);
+        mech->UpdateRadioChunks(1);
 
-        if (!mech->isDisabled() && pilot->wounds < 6.0f && pilot->status != 3 && pilot->status != 5 &&
-            pilot->status != 6)
+        if (!mech->IsDisabled() && Pilot->Wounds < 6.0f && Pilot->Status != 3 && Pilot->Status != 5 &&
+            Pilot->Status != 6)
         {
-            pilot->checkAlarms();
-            mech->netUpdateMovement();
+            Pilot->CheckAlarms();
+            mech->NetUpdateMovement();
             return 1;
         }
 
-        if (mech->shutDownThisFrame != 0 || mech->disableThisFrame != 0)
+        if (mech->ShutDownThisFrame != 0 || mech->DisableThisFrame != 0)
         {
-            mech->netUpdateMovement();
+            mech->NetUpdateMovement();
         }
     }
 
@@ -62,35 +62,35 @@ auto MechNetControl::update() -> int32_t
 // GroundVehicleNetControl
 //---------------------------------------------------------------------------
 
-auto GroundVehicleNetControl::init(GameObject* object) -> int32_t
+auto MCGroundVehicleNetControl::Init(MCGameObject* object) -> int32_t
 {
-    Control::init(object, 0);
-    pilot = object->getPilot();
-    dynamicsType = static_cast<GroundVehicleType*>(object->getObjectType())->dynamicsType;
+    MCControl::Init(object, 0);
+    Pilot = object->GetPilot();
+    DynamicsType = static_cast<MCGroundVehicleType*>(object->GetObjectType())->DynamicsType;
     return 0;
 }
 
-auto GroundVehicleNetControl::update() -> int32_t
+auto MCGroundVehicleNetControl::Update() -> int32_t
 {
-    controlData->reset();
-    auto* vehicle = static_cast<GroundVehicle*>(me);
+    ControlData->Reset();
+    auto* vehicle = static_cast<MCGroundVehicle*>(Me);
 
-    if (vehicle->getAwake())
+    if (vehicle->GetAwake())
     {
-        vehicle->updateWeaponFireChunks(1);
-        vehicle->updateCriticalHitChunks(1);
-        vehicle->updateRadioChunks(1);
+        vehicle->UpdateWeaponFireChunks(1);
+        vehicle->UpdateCriticalHitChunks(1);
+        vehicle->UpdateRadioChunks(1);
 
-        if (!vehicle->isDisabled() && pilot->wounds < 6.0f)
+        if (!vehicle->IsDisabled() && Pilot->Wounds < 6.0f)
         {
-            pilot->checkAlarms();
-            vehicle->netUpdateMovement();
+            Pilot->CheckAlarms();
+            vehicle->NetUpdateMovement();
             return 1;
         }
 
-        if (vehicle->shutDownThisFrame != 0 || vehicle->disableThisFrame != 0)
+        if (vehicle->ShutDownThisFrame != 0 || vehicle->DisableThisFrame != 0)
         {
-            vehicle->netUpdateMovement();
+            vehicle->NetUpdateMovement();
         }
     }
 

@@ -31,12 +31,9 @@
 #include "terrain/terrmap.h"
 #include "vfx/vfxfuncs.h"
 
-/// <remarks>MCX.EXE @ 0x0078fcfc</remarks>
 int32_t DefaultPilotId = 0x28d;
-/// <remarks>MCX.EXE @ 0x0078fd00</remarks>
-char marineProfileName[80] = "PEM00001";
-int drawExtents = 0;
-/// <remarks>MCX.EXE @ 0x007de524</remarks>
+char MarineProfileName[80] = "PEM00001";
+int DrawExtents = 0;
 int32_t NumMarines = 0;
 
 namespace
@@ -49,23 +46,23 @@ namespace
     constexpr double SIXTY_DEGREES = 0x1.0c152382d45b2p+0;
 
     /// <summary>Makes the type's blown effect (a fire) at the building; anything else it makes is returned as is.</summary>
-    GameObject* createBlownEffect(Building* building, int32_t effectId)
+    MCGameObject* CreateBlownEffect(MCBuilding* building, int32_t effectId)
     {
-        GameObject* effect = createObject(effectId);
+        MCGameObject* effect = CreateObject(effectId);
 
         if (effect == nullptr)
         {
             return nullptr;
         }
 
-        effect->setPosition(building->position);
+        effect->SetPosition(building->Position);
 
-        if (effect->objectClass == FIRE)
+        if (effect->ObjectClass == FIRE)
         {
-            building->fireObject = static_cast<Fire*>(effect);
-            building->fireObject->setPotentialContact(3);
-            building->fireObject->burningObject = building;
-            building->fireObject->setTonnage(40.0f);
+            building->FireObject = static_cast<MCFire*>(effect);
+            building->FireObject->SetPotentialContact(3);
+            building->FireObject->BurningObject = building;
+            building->FireObject->SetTonnage(40.0f);
         }
 
         return effect;
@@ -76,203 +73,203 @@ namespace
 // BuildingType
 //---------------------------------------------------------------------------
 
-auto BuildingType::init() -> void
+auto MCBuildingType::Init() -> void
 {
-    typeClass = -1;
-    destroyedObject = -1;
-    explosionObject = -1;
-    appearName = 0;
-    extentRadius = 0.0f;
-    keepMe = 0;
-    iconNumber = -1;
-    dmgLevel = 0;
-    blownEffectId = 0xffffffff;
-    normalEffectId = 0xffffffff;
-    damageEffectId = 0xffffffff;
-    sensorRange = -1.0f;
-    teamId = -1;
-    explRad = 0.0f;
-    explDmg = 0.0f;
-    baseTonnage = 0.0f;
-    timeToBurnDamage = 0.0f;
-    burnDamagePerTime = 0.0f;
-    damageLvlForBurn = 0.0f;
-    buildingName = 0;
-    battleRating = 0;
-    numMarines = 0;
+    TypeClass = -1;
+    DestroyedObject = -1;
+    ExplosionObject = -1;
+    AppearName = 0;
+    ExtentRadius = 0.0f;
+    KeepMe = 0;
+    IconNumber = -1;
+    DmgLevel = 0;
+    BlownEffectId = 0xffffffff;
+    NormalEffectId = 0xffffffff;
+    DamageEffectId = 0xffffffff;
+    SensorRange = -1.0f;
+    TeamId = -1;
+    ExplRad = 0.0f;
+    ExplDmg = 0.0f;
+    BaseTonnage = 0.0f;
+    TimeToBurnDamage = 0.0f;
+    BurnDamagePerTime = 0.0f;
+    DamageLvlForBurn = 0.0f;
+    BuildingName = 0;
+    BattleRating = 0;
+    NumMarines = 0;
 }
 
-auto BuildingType::createInstance() -> BaseObject*
+auto MCBuildingType::CreateInstance() -> MCBaseObject*
 {
-    auto* newBuilding = new Building;
+    auto* newBuilding = new MCBuilding;
 
     if (newBuilding == nullptr)
     {
         return nullptr;
     }
 
-    if (newBuilding->init(this) != 0)
+    if (newBuilding->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newBuilding->idNumber = NextIdNumber++;
+    newBuilding->IdNumber = NextIdNumber++;
     return newBuilding;
 }
 
-auto BuildingType::destroy() -> void
+auto MCBuildingType::Destroy() -> void
 {
 }
 
-auto BuildingType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCBuildingType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile bldgFile;
-    int32_t result = bldgFile.open(objFile, fileSize, 50);
+    MCFitIniFile bldgFile;
+    int32_t result = bldgFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = bldgFile.seekBlock("BuildingData")) != 0)
+    if ((result = bldgFile.SeekBlock("BuildingData")) != 0)
     {
         return result;
     }
 
-    if ((result = bldgFile.readIdULong("DmgLevel", dmgLevel)) != 0)
+    if ((result = bldgFile.ReadIdULong("DmgLevel", DmgLevel)) != 0)
     {
         return result;
     }
 
-    if ((result = bldgFile.readIdULong("BlownEffectId", blownEffectId)) != 0)
+    if ((result = bldgFile.ReadIdULong("BlownEffectId", BlownEffectId)) != 0)
     {
         return result;
     }
 
-    if (bldgFile.readIdULong("NormalEffectId", normalEffectId) != 0)
+    if (bldgFile.ReadIdULong("NormalEffectId", NormalEffectId) != 0)
     {
-        normalEffectId = 0xffffffff;
+        NormalEffectId = 0xffffffff;
     }
 
-    if ((result = bldgFile.readIdULong("DamageEffectId", damageEffectId)) != 0)
+    if ((result = bldgFile.ReadIdULong("DamageEffectId", DamageEffectId)) != 0)
     {
         return result;
     }
 
-    if (bldgFile.readIdLong("BasePixelOffsetX", basePixelOffsetX) != 0)
+    if (bldgFile.ReadIdLong("BasePixelOffsetX", BasePixelOffsetX) != 0)
     {
-        basePixelOffsetX = 0;
+        BasePixelOffsetX = 0;
     }
 
-    if (bldgFile.readIdLong("BasePixelOffsetY", basePixelOffsetY) != 0)
+    if (bldgFile.ReadIdLong("BasePixelOffsetY", BasePixelOffsetY) != 0)
     {
-        basePixelOffsetY = 0;
+        BasePixelOffsetY = 0;
     }
 
-    if (bldgFile.readIdLong("CollisionOffsetX", collisionOffsetX) != 0)
+    if (bldgFile.ReadIdLong("CollisionOffsetX", CollisionOffsetX) != 0)
     {
-        collisionOffsetX = 0;
+        CollisionOffsetX = 0;
     }
 
-    if (bldgFile.readIdLong("CollisionOffsetY", collisionOffsetY) != 0)
+    if (bldgFile.ReadIdLong("CollisionOffsetY", CollisionOffsetY) != 0)
     {
-        collisionOffsetY = 0;
+        CollisionOffsetY = 0;
     }
 
     // -1 has update measure the extent from the appearance.
     float fitExtentRadius = 0.0f;
 
-    if (bldgFile.readIdFloat("ExtentRadius", fitExtentRadius) != 0)
+    if (bldgFile.ReadIdFloat("ExtentRadius", fitExtentRadius) != 0)
     {
         fitExtentRadius = -1.0f;
     }
 
-    if (bldgFile.readIdFloat("Tonnage", baseTonnage) != 0)
+    if (bldgFile.ReadIdFloat("Tonnage", BaseTonnage) != 0)
     {
-        baseTonnage = 20.0f;
+        BaseTonnage = 20.0f;
     }
 
-    if (bldgFile.readIdLong("BattleRating", battleRating) != 0)
+    if (bldgFile.ReadIdLong("BattleRating", BattleRating) != 0)
     {
-        battleRating = 20;
+        BattleRating = 20;
     }
 
-    if (bldgFile.readIdLong("NumMarines", numMarines) != 0)
+    if (bldgFile.ReadIdLong("NumMarines", NumMarines) != 0)
     {
-        numMarines = 0;
+        NumMarines = 0;
     }
 
-    if (bldgFile.readIdFloat("ExplosionRadius", explRad) != 0)
+    if (bldgFile.ReadIdFloat("ExplosionRadius", ExplRad) != 0)
     {
-        explRad = 0.0f;
+        ExplRad = 0.0f;
     }
 
-    if (bldgFile.readIdFloat("ExplosionDamage", explDmg) != 0)
+    if (bldgFile.ReadIdFloat("ExplosionDamage", ExplDmg) != 0)
     {
-        explDmg = 0.0f;
+        ExplDmg = 0.0f;
     }
 
-    if (bldgFile.readIdFloat("TimeToBurnDamage", timeToBurnDamage) != 0)
+    if (bldgFile.ReadIdFloat("TimeToBurnDamage", TimeToBurnDamage) != 0)
     {
-        timeToBurnDamage = 5.0f;
+        TimeToBurnDamage = 5.0f;
     }
 
-    if (bldgFile.readIdFloat("BurnDamagePerTime", burnDamagePerTime) != 0)
+    if (bldgFile.ReadIdFloat("BurnDamagePerTime", BurnDamagePerTime) != 0)
     {
-        burnDamagePerTime = 1.0f;
+        BurnDamagePerTime = 1.0f;
     }
 
-    if (bldgFile.readIdFloat("DamageLvlForBurn", damageLvlForBurn) != 0)
+    if (bldgFile.ReadIdFloat("DamageLvlForBurn", DamageLvlForBurn) != 0)
     {
-        damageLvlForBurn = static_cast<float>(dmgLevel);
+        DamageLvlForBurn = static_cast<float>(DmgLevel);
     }
 
     int32_t potentialContact = 0;
-    bldgFile.readIdLong("PotentialContact", potentialContact);
+    bldgFile.ReadIdLong("PotentialContact", potentialContact);
 
-    if (bldgFile.readIdLong("TeamID", teamId) != 0)
+    if (bldgFile.ReadIdLong("TeamID", TeamId) != 0)
     {
-        teamId = -1;
+        TeamId = -1;
     }
 
-    if (bldgFile.readIdFloat("SensorRange", sensorRange) != 0)
+    if (bldgFile.ReadIdFloat("SensorRange", SensorRange) != 0)
     {
-        sensorRange = -1.0f;
+        SensorRange = -1.0f;
     }
 
-    if (bldgFile.readIdLong("BuildingName", buildingName) != 0)
+    if (bldgFile.ReadIdLong("BuildingName", BuildingName) != 0)
     {
-        buildingName = 0xa3;
+        BuildingName = 0xa3;
     }
 
-    result = ObjectType::init(&bldgFile);
-    extentRadius = fitExtentRadius;
+    result = MCObjectType::Init(&bldgFile);
+    ExtentRadius = fitExtentRadius;
     return result;
 }
 
-auto BuildingType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCBuildingType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 1;
     }
 
     // Movers (not artillery) that run into it do 10 points of damage.
-    if (collider->objectClass < 8 && collider->objectClass != 7)
+    if (collider->ObjectClass < 8 && collider->ObjectClass != 7)
     {
-        _WeaponShotInfo shot;
-        shot.init(nullptr, -1, 10.0f, 0, 0.0f);
+        MCWeaponShotInfo shot;
+        shot.Init(nullptr, -1, 10.0f, 0, 0.0f);
 
-        if (scenarioTime <= collider->getCollisionFreeTime())
+        if (ScenarioTime <= collider->GetCollisionFreeTime())
         {
-            collidee->handleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+            collidee->HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
         }
     }
 
     return 1;
 }
 
-auto BuildingType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCBuildingType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -281,39 +278,39 @@ auto BuildingType::handleDestruction(GameObject*, GameObject*) -> int
 // Building
 //---------------------------------------------------------------------------
 
-Building::Building()
+MCBuilding::MCBuilding()
 {
-    init();
-    justCreated = 1;
-    appearance = nullptr;
-    pixelOffsetY = 0;
-    pixelOffsetX = 0;
-    vertexNumber = 0;
-    blockNumber = 0;
-    burning = 0;
-    tileNum = 0;
-    burnTime = 0.0f;
-    captureable = 0;
-    commanderId = static_cast<char>(0xff);
-    name.clear();
-    soundHandle = 0xffffffff;
-    team = nullptr;
-    fireObject = nullptr;
+    Init();
+    JustCreated = 1;
+    Appearance = nullptr;
+    PixelOffsetY = 0;
+    PixelOffsetX = 0;
+    VertexNumber = 0;
+    BlockNumber = 0;
+    Burning = 0;
+    TileNum = 0;
+    BurnTime = 0.0f;
+    Captureable = 0;
+    CommanderId = static_cast<char>(0xff);
+    Name.clear();
+    SoundHandle = 0xffffffff;
+    Team = nullptr;
+    FireObject = nullptr;
 }
 
-auto Building::init() -> void
+auto MCBuilding::Init() -> void
 {
-    sensorSystem = nullptr;
+    SensorSystem = nullptr;
 
-    for (MechWarrior*& slot : prisonSlots)
+    for (MCMechWarrior*& slot : PrisonSlots)
     {
         slot = nullptr;
     }
 }
 
-auto Building::isPrison() -> int
+auto MCBuilding::IsPrison() -> int
 {
-    for (const MechWarrior* slot : prisonSlots)
+    for (const MCMechWarrior* slot : PrisonSlots)
     {
         if (slot != nullptr)
         {
@@ -324,48 +321,48 @@ auto Building::isPrison() -> int
     return 0;
 }
 
-auto Building::getBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
+auto MCBuilding::GetBlockAndVertexNumber(int32_t& blockNum, int32_t& vertexNum) -> void
 {
-    blockNum = blockNumber;
-    vertexNum = vertexNumber;
+    blockNum = BlockNumber;
+    vertexNum = VertexNumber;
 }
 
-auto Building::setTerrainPosition(vector_2d& offset, vector_2d& numbers) -> void
+auto MCBuilding::SetTerrainPosition(MCVector2D& offset, MCVector2D& numbers) -> void
 {
-    pixelOffsetX = static_cast<int32_t>(offset.x);
-    pixelOffsetY = static_cast<int32_t>(offset.y);
+    PixelOffsetX = static_cast<int32_t>(offset.X);
+    PixelOffsetY = static_cast<int32_t>(offset.Y);
 
-    if (tileNum != 10)
+    if (TileNum != 10)
     {
-        auto* type = static_cast<BuildingType*>(objType);
+        auto* type = static_cast<MCBuildingType*>(ObjType);
 
-        if (type->basePixelOffsetX != 0)
+        if (type->BasePixelOffsetX != 0)
         {
-            pixelOffsetX = type->basePixelOffsetX;
+            PixelOffsetX = type->BasePixelOffsetX;
         }
 
-        if (type->basePixelOffsetY != 0)
+        if (type->BasePixelOffsetY != 0)
         {
-            pixelOffsetY = type->basePixelOffsetY;
+            PixelOffsetY = type->BasePixelOffsetY;
         }
     }
 
-    vertexNumber = static_cast<int32_t>(numbers.x);
-    blockNumber = static_cast<int32_t>(numbers.y);
+    VertexNumber = static_cast<int32_t>(numbers.X);
+    BlockNumber = static_cast<int32_t>(numbers.Y);
 }
 
-auto Building::isVisible(Camera* cam) -> int
+auto MCBuilding::IsVisible(MCCamera* cam) -> int
 {
-    if (cam == nullptr || cam->active == 0)
+    if (cam == nullptr || cam->Active == 0)
     {
         return 0;
     }
 
-    int visible = cam->vertexProject(blockNumber, vertexNumber, screenPos);
+    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        visible = appearance->recalcBounds(cam);
+        visible = Appearance->RecalcBounds(cam);
     }
 
     if (visible == 0)
@@ -374,18 +371,18 @@ auto Building::isVisible(Camera* cam) -> int
     }
 
     // Back on screen after a gap: the looping sound is started afresh.
-    if (windowsVisible < turn - 2)
+    if (WindowsVisible < Turn - 2)
     {
-        soundHandle = 0xffffffff;
+        SoundHandle = 0xffffffff;
     }
 
-    windowsVisible = turn;
+    WindowsVisible = Turn;
     return 1;
 }
 
-auto Building::update() -> int32_t
+auto MCBuilding::Update() -> int32_t
 {
-    if (justCreated == 0)
+    if (JustCreated == 0)
     {
         return 1;
     }
@@ -393,32 +390,32 @@ auto Building::update() -> int32_t
     // Set the building on its vertex: the block's corner, the vertex within it, then the offset within the tile
     // (turned into the isometric grid's 60-degree axes). The type's collision offsets, when set, replace the pixel
     // offsets.
-    auto* type = static_cast<BuildingType*>(objType);
-    const int32_t blocksMapSide = Terrain::blocksMapSide;
-    const int32_t verticesBlockSide = Terrain::verticesBlockSide;
-    justCreated = 0;
-    float blockX = static_cast<float>(blockNumber % blocksMapSide - blocksMapSide / 2) * Terrain::metersBlockSide;
-    float blockY = static_cast<float>(blocksMapSide / 2 - blockNumber / blocksMapSide) * Terrain::metersBlockSide;
+    auto* type = static_cast<MCBuildingType*>(ObjType);
+    const int32_t blocksMapSide = MCTerrain::BlocksMapSide;
+    const int32_t verticesBlockSide = MCTerrain::VerticesBlockSide;
+    JustCreated = 0;
+    float blockX = static_cast<float>(BlockNumber % blocksMapSide - blocksMapSide / 2) * MCTerrain::MetersBlockSide;
+    float blockY = static_cast<float>(blocksMapSide / 2 - BlockNumber / blocksMapSide) * MCTerrain::MetersBlockSide;
 
     if ((blocksMapSide & 1) != 0)
     {
-        blockX = blockX - Terrain::metersBlockSide * 0.5f;
-        blockY = Terrain::metersBlockSide * 0.5f + blockY;
+        blockX = blockX - MCTerrain::MetersBlockSide * 0.5f;
+        blockY = MCTerrain::MetersBlockSide * 0.5f + blockY;
     }
 
-    const float vertexX = static_cast<float>(vertexNumber % verticesBlockSide) * Terrain::metersPerVertex;
-    int32_t offsetXPixels = pixelOffsetX;
+    const float vertexX = static_cast<float>(VertexNumber % verticesBlockSide) * MCTerrain::MetersPerVertex;
+    int32_t offsetXPixels = PixelOffsetX;
 
-    if (static_cast<double>(type->collisionOffsetX) != 0.0)
+    if (static_cast<double>(type->CollisionOffsetX) != 0.0)
     {
-        offsetXPixels = type->collisionOffsetX;
+        offsetXPixels = type->CollisionOffsetX;
     }
 
-    int32_t offsetYPixels = pixelOffsetY;
+    int32_t offsetYPixels = PixelOffsetY;
 
-    if (static_cast<float>(type->collisionOffsetY) != 0.0f)
+    if (static_cast<float>(type->CollisionOffsetY) != 0.0f)
     {
-        offsetYPixels = type->collisionOffsetY;
+        offsetYPixels = type->CollisionOffsetY;
     }
 
     const double offsetY = static_cast<double>(offsetYPixels);
@@ -434,91 +431,91 @@ auto Building::update() -> int32_t
         offsetAngle = std::atan(offsetX / offsetY) * RADIANS_TO_DEGREES;
     }
 
-    position.y = blockY - static_cast<float>(vertexNumber / verticesBlockSide) * Terrain::metersPerVertex;
+    Position.Y = blockY - static_cast<float>(VertexNumber / verticesBlockSide) * MCTerrain::MetersPerVertex;
     const auto offsetDistance = static_cast<float>(std::sqrt(offsetY * offsetY + offsetX * offsetX));
     const double axisAngle = (60.0 - offsetAngle) * DEGREES_TO_RADIANS;
     const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
-    position.x = vertexX + blockX;
-    const float elevation = land->getTerrainElevation(position);
-    position.x =
-        static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + position.x);
-    position.y = position.y - alongAxis;
-    position.z = elevation;
+    Position.X = vertexX + blockX;
+    const float elevation = Land->GetTerrainElevation(Position);
+    Position.X =
+        static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
+    Position.Y = Position.Y - alongAxis;
+    Position.Z = elevation;
 
-    cellColumn = (blockNumber % Terrain::blocksMapSide) * verticesBlockSide + vertexNumber % verticesBlockSide;
-    const int32_t halfMap = (verticesBlockSide * Terrain::blocksMapSide) >> 1;
-    vertexWorldX = static_cast<float>(cellColumn - halfMap) * Terrain::metersPerVertex;
-    cellRow = vertexNumber / verticesBlockSide + (blockNumber / Terrain::blocksMapSide) * verticesBlockSide;
-    vertexWorldY = static_cast<float>(halfMap - cellRow) * Terrain::metersPerVertex;
+    CellColumn = (BlockNumber % MCTerrain::BlocksMapSide) * verticesBlockSide + VertexNumber % verticesBlockSide;
+    const int32_t halfMap = (verticesBlockSide * MCTerrain::BlocksMapSide) >> 1;
+    VertexWorldX = static_cast<float>(CellColumn - halfMap) * MCTerrain::MetersPerVertex;
+    CellRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
+    VertexWorldY = static_cast<float>(halfMap - CellRow) * MCTerrain::MetersPerVertex;
     const auto inBounds = [&]
-    { return cellRow < 0 || GameMap->height <= cellRow || cellColumn < 0 || GameMap->width <= cellColumn ? 0u : 1u; };
+    { return CellRow < 0 || GameMap->Height <= CellRow || CellColumn < 0 || GameMap->Width <= CellColumn ? 0u : 1u; };
     Assert(inBounds(), 0, " bldng MapTile Out of Bounds ");
     Assert(inBounds(), 0, " Map Tile out of bounds ");
-    const MapTile& tile = GameMap->map[GameMap->width * cellRow + cellColumn];
-    const int32_t elevationLevel = static_cast<int32_t>((tile.cells >> 7) & 0x3f) + GameMap->baseElevation;
-    cellElevation = static_cast<float>(elevationLevel) * Terrain::metersPerElevLevel;
+    const MCMapTile& tile = GameMap->Map[GameMap->Width * CellRow + CellColumn];
+    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+    CellElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
 
     // No extent radius in the FIT: measure it from the appearance's bounds.
-    if (type->extentRadius < 0.0)
+    if (type->ExtentRadius < 0.0)
     {
-        auto* buildingAppearance = static_cast<VFXBuildingAppearance*>(appearance);
-        buildingAppearance->visible = 1;
-        buildingAppearance->update();
-        buildingAppearance->calcCollideBounds();
-        const float dx = buildingAppearance->upperLeft.x - buildingAppearance->lowerRight.x;
-        const float dy = buildingAppearance->upperLeft.y - buildingAppearance->lowerRight.y;
-        const float radius = std::sqrt(dx * dx + dy * dy) / worldUnitsPerMeter * 1.25f;
+        auto* buildingAppearance = static_cast<MCVfxBuildingAppearance*>(Appearance);
+        buildingAppearance->Visible = 1;
+        buildingAppearance->Update();
+        buildingAppearance->CalcCollideBounds();
+        const float dx = buildingAppearance->UpperLeft.X - buildingAppearance->LowerRight.X;
+        const float dy = buildingAppearance->UpperLeft.Y - buildingAppearance->LowerRight.Y;
+        const float radius = std::sqrt(dx * dx + dy * dy) / WorldUnitsPerMeter * 1.25f;
 
-        if (static_cast<float>(CollisionSystem::gridRadius) < radius)
+        if (static_cast<float>(MCCollisionSystem::GridRadius) < radius)
         {
             Fatal(static_cast<int32_t>(std::floor(static_cast<double>(radius))), " Object extent radius TOO large ");
         }
 
-        type->extentRadius = radius;
+        type->ExtentRadius = radius;
     }
 
-    if (type->extentRadius != 0.0)
+    if (type->ExtentRadius != 0.0)
     {
-        collisionsOn = 1;
+        CollisionsOn = 1;
     }
 
     return 1;
 }
 
-auto Building::setAlignment(int32_t align) -> void
+auto MCBuilding::SetAlignment(int32_t align) -> void
 {
-    BigGameObject::setAlignment(align);
+    MCBigGameObject::SetAlignment(align);
 
-    if (sensorSystem == nullptr)
+    if (SensorSystem == nullptr)
     {
         return;
     }
 
-    if (alignment == -1)
+    if (Alignment == -1)
     {
-        sensorSystem->setTeam(clanTeam);
+        SensorSystem->SetTeam(ClanTeam);
     }
-    else if (alignment == 1)
+    else if (Alignment == 1)
     {
-        sensorSystem->setTeam(innerSphereTeam);
+        SensorSystem->SetTeam(InnerSphereTeam);
     }
-    else if (alignment == 0)
+    else if (Alignment == 0)
     {
-        sensorSystem->setTeam(alliedTeam);
+        SensorSystem->SetTeam(AlliedTeam);
     }
 }
 
-auto Building::handleEvent(ObjectEvent* event) -> int32_t
+auto MCBuilding::HandleEvent(MCObjectEvent* event) -> int32_t
 {
-    if (event->type == 0)
+    if (event->Type == 0)
     {
-        switch (event->id)
+        switch (event->Id)
         {
             case 0x1c:
-                selected = 1;
+                Selected = 1;
                 break;
             case 0x1d:
-                selected = 0;
+                Selected = 0;
                 break;
         }
     }
@@ -526,172 +523,173 @@ auto Building::handleEvent(ObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto Building::lightOnFire(float timeToBurn) -> void
+auto MCBuilding::LightOnFire(float timeToBurn) -> void
 {
-    auto* type = static_cast<BuildingType*>(objType);
+    auto* type = static_cast<MCBuildingType*>(ObjType);
 
-    if (type->blownEffectId == 0xffffffff)
+    if (type->BlownEffectId == 0xffffffff)
     {
         return;
     }
 
-    if (fireObject == nullptr)
+    if (FireObject == nullptr)
     {
-        GameObject* effect = createBlownEffect(this, static_cast<int32_t>(type->blownEffectId));
+        MCGameObject* effect = CreateBlownEffect(this, static_cast<int32_t>(type->BlownEffectId));
 
-        if (effect != nullptr && effect->objectClass != FIRE)
+        if (effect != nullptr && effect->ObjectClass != FIRE)
         {
-            destroyObject(effect);
+            DestroyObject(effect);
         }
     }
 
-    if (fireObject != nullptr)
+    if (FireObject != nullptr)
     {
-        fireObject->addTimeLeftToBurn(timeToBurn);
-        burning = 1;
+        FireObject->AddTimeLeftToBurn(timeToBurn);
+        Burning = 1;
     }
 }
 
-auto Building::isCaptureable() -> int
+auto MCBuilding::IsCaptureable() -> int
 {
     if (MPlayer == nullptr)
     {
-        return captureable != 0 && isCaptured() == 0 && isDestroyed() == 0 ? 1 : 0;
+        return Captureable != 0 && IsCaptured() == 0 && IsDestroyed() == 0 ? 1 : 0;
     }
 
-    return captureable != 0 && isDestroyed() == 0 ? 1 : 0;
+    return Captureable != 0 && IsDestroyed() == 0 ? 1 : 0;
 }
 
-auto Building::setCommanderId(int32_t id) -> void
+auto MCBuilding::SetCommanderId(int32_t id) -> void
 {
-    commanderId = static_cast<char>(id);
+    CommanderId = static_cast<char>(id);
 }
 
-auto Building::isRevealed() -> int
+auto MCBuilding::IsRevealed() -> int
 {
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
-    const auto col = static_cast<uint32_t>((blockNumber % Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                           vertexNumber % Terrain::verticesBlockSide);
-    const auto row = static_cast<uint32_t>((blockNumber / Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                           vertexNumber / Terrain::verticesBlockSide);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    const auto col = static_cast<uint32_t>((BlockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                           VertexNumber % MCTerrain::VerticesBlockSide);
+    const auto row = static_cast<uint32_t>((BlockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                           VertexNumber / MCTerrain::VerticesBlockSide);
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         return 1;
     }
 
-    return visibleBits->getFlag(row, col + 1) != 0 ? 1 : 0;
+    return visibleBits->GetFlag(row, col + 1) != 0 ? 1 : 0;
 }
 
-auto Building::render() -> void
+auto MCBuilding::Render() -> void
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         return;
     }
 
-    auto* buildingAppearance = static_cast<VFXBuildingAppearance*>(appearance);
-    const int visible = isVisible(eye);
+    auto* buildingAppearance = static_cast<MCVfxBuildingAppearance*>(Appearance);
+    const int visible = IsVisible(Eye);
 
     if (buildingAppearance != nullptr)
     {
-        buildingAppearance->visible = visible;
-        buildingAppearance->tileNum = tileNum;
-        buildingAppearance->update();
+        buildingAppearance->Visible = visible;
+        buildingAppearance->TileNum = TileNum;
+        buildingAppearance->Update();
     }
 
     // Burning: the type's burn damage every TimeToBurnDamage seconds.
-    if (fireObject == nullptr)
+    if (FireObject == nullptr)
     {
-        burning = 0;
+        Burning = 0;
     }
     else
     {
-        const double burnSum = static_cast<double>(frameLength) + burnTime;
-        burnTime = static_cast<float>(burnSum);
-        auto* type = static_cast<BuildingType*>(objType);
+        const double burnSum = static_cast<double>(FrameLength) + BurnTime;
+        BurnTime = static_cast<float>(burnSum);
+        auto* type = static_cast<MCBuildingType*>(ObjType);
 
-        if (type->timeToBurnDamage < burnSum)
+        if (type->TimeToBurnDamage < burnSum)
         {
-            burnTime = 0.0f;
-            _WeaponShotInfo shot;
-            shot.init(nullptr, -1, type->burnDamagePerTime, 0, 0.0f);
+            BurnTime = 0.0f;
+            MCWeaponShotInfo shot;
+            shot.Init(nullptr, -1, type->BurnDamagePerTime, 0, 0.0f);
 
             if (MPlayer == nullptr)
             {
-                handleWeaponHit(&shot, 0);
+                HandleWeaponHit(&shot, 0);
             }
-            else if (MPlayer->isServer != 0)
+            else if (MPlayer->IsServer != 0)
             {
-                handleWeaponHit(&shot, 1);
+                HandleWeaponHit(&shot, 1);
             }
         }
     }
 
-    if (getContactType(homeTeam->id) == 2)
+    if (GetContactType(HomeTeam->Id) == 2)
     {
         // A sensor contact: a blip sized by tonnage.
         uint8_t* shape;
         const char* shapeName;
 
-        if (50.0f < getTonnage())
+        if (50.0f < GetTonnage())
         {
-            shape = scenario->sensorContactShapes[0];
+            shape = Scenario->SensorContactShapes[0];
             shapeName = "blip1";
         }
-        else if (35.0f < getTonnage())
+        else if (35.0f < GetTonnage())
         {
-            shape = scenario->sensorContactShapes[2];
+            shape = Scenario->SensorContactShapes[2];
             shapeName = "blip2";
         }
         else
         {
-            shape = scenario->sensorContactShapes[4];
+            shape = Scenario->SensorContactShapes[4];
             shapeName = "blip3";
         }
 
         if (shape != nullptr)
         {
-            if (VFX_shape_count(shape) < blipFrame)
+            if (VfxShapeCount(shape) < BlipFrame)
             {
-                if (soundSystem != nullptr && useSound != 0)
+                if (SoundSystem != nullptr && UseSound != 0)
                 {
-                    soundSystem->playDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
                 }
 
-                blipFrame = 0;
+                BlipFrame = 0;
             }
 
-            ElementList->openGroup(-100000, 1);
-            auto* element = ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0);
-            std::strcpy(element->name, shapeName);
-            ElementList->add(element);
-            blipTime = frameLength + blipTime;
+            ElementList->OpenGroup(-100000, 1);
+            auto* element =
+                MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 0);
+            std::strcpy(element->Name, shapeName);
+            ElementList->Add(element);
+            BlipTime = FrameLength + BlipTime;
 
-            if (0.067 < blipTime)
+            if (0.067 < BlipTime)
             {
-                blipFrame = static_cast<int32_t>(blipTime * (1.0 / 0.067) + blipFrame + 0.5);
-                blipTime = 0.0f;
+                BlipFrame = static_cast<int32_t>(BlipTime * (1.0 / 0.067) + BlipFrame + 0.5);
+                BlipTime = 0.0f;
             }
         }
     }
 
-    if (windowsVisible != turn)
+    if (WindowsVisible != Turn)
     {
-        if (soundHandle != 0xffffffff)
+        if (SoundHandle != 0xffffffff)
         {
-            soundSystem->stopDigitalSample(soundHandle);
-            soundHandle = 0xffffffff;
+            SoundSystem->StopDigitalSample(SoundHandle);
+            SoundHandle = 0xffffffff;
         }
 
         return;
@@ -699,244 +697,244 @@ auto Building::render() -> void
 
     // Hazed by how many corners of its vertex square the home team sees; drawn when any is. (The original also reads
     // each corner's seen bit and drops it.)
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
-    const auto col = static_cast<uint32_t>(cellColumn);
-    const auto row = static_cast<uint32_t>(cellRow);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    const auto col = static_cast<uint32_t>(CellColumn);
+    const auto row = static_cast<uint32_t>(CellRow);
     int32_t numVisible = 0;
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         numVisible++;
     }
 
-    if (visibleBits->getFlag(row, col + 1) != 0)
+    if (visibleBits->GetFlag(row, col + 1) != 0)
     {
         numVisible++;
     }
 
     uint8_t* hazePalette = nullptr;
-    const int32_t hazeLevel = eye->hazeLevel;
+    const int32_t hazeLevel = Eye->HazeLevel;
 
     if (numVisible != 4 && hazeLevel != 0x7fff)
     {
         int32_t level;
 
-        if (hazeLevel < 0 && 0 < eye->hazeInc * numVisible + hazeLevel)
+        if (hazeLevel < 0 && 0 < Eye->HazeInc * numVisible + hazeLevel)
         {
             level = 0;
         }
         else
         {
-            level = hazeLevel + eye->hazeInc * numVisible;
+            level = hazeLevel + Eye->HazeInc * numVisible;
         }
 
-        hazePalette = gamePalette->getHazePalette(level);
+        hazePalette = GamePalette->GetHazePalette(level);
     }
 
-    buildingAppearance->fadeTable = hazePalette;
+    buildingAppearance->FadeTable = hazePalette;
 
-    if (numVisible == 0 || justCreated != 0)
+    if (numVisible == 0 || JustCreated != 0)
     {
-        if (soundHandle != 0xffffffff)
+        if (SoundHandle != 0xffffffff)
         {
-            soundSystem->stopDigitalSample(soundHandle);
-            soundHandle = 0xffffffff;
+            SoundSystem->StopDigitalSample(SoundHandle);
+            SoundHandle = 0xffffffff;
         }
     }
     else
     {
-        buildingAppearance->render(0);
-        auto* type = static_cast<BuildingType*>(objType);
+        buildingAppearance->Render(0);
+        auto* type = static_cast<MCBuildingType*>(ObjType);
 
-        if (soundHandle == 0xffffffff && type->normalEffectId != 0xffffffff)
+        if (SoundHandle == 0xffffffff && type->NormalEffectId != 0xffffffff)
         {
-            soundHandle = static_cast<uint32_t>(soundSystem->playDigitalSample(type->normalEffectId, 0, this, 1, 0));
+            SoundHandle = static_cast<uint32_t>(SoundSystem->PlayDigitalSample(type->NormalEffectId, 0, this, 1, 0));
         }
     }
 
-    if (drawExtents != 0)
+    if (DrawExtents != 0)
     {
         // Debug: the extent radius as an ellipse.
-        const float diameter = objType->extentRadius + objType->extentRadius;
-        vector_2d size;
-        size.x = eye->cosAngle * diameter;
-        size.y = eye->sinAngle * diameter;
+        const float diameter = ObjType->ExtentRadius + ObjType->ExtentRadius;
+        MCVector2D size;
+        size.X = Eye->CosAngle * diameter;
+        size.Y = Eye->SinAngle * diameter;
 
-        if (eye->cameraScale == 1)
+        if (Eye->CameraScale == 1)
         {
-            size.x *= 0.5f;
-            size.y *= 0.5f;
+            size.X *= 0.5f;
+            size.Y *= 0.5f;
         }
 
-        const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-        const float sx = (position.x - eye->position.x) * scale;
-        const float sy = (position.y - eye->position.y) * scale;
-        vector_2d center;
-        center.x = sy * eye->cosAngle + sx * eye->cosAngle + eye->halfWidth;
-        center.y =
-            ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (position.z - eye->position.z);
-        ElementList->openGroup(-50000, 1);
+        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float sx = (Position.X - Eye->Position.X) * scale;
+        const float sy = (Position.Y - Eye->Position.Y) * scale;
+        MCVector2D center;
+        center.X = sy * Eye->CosAngle + sx * Eye->CosAngle + Eye->HalfWidth;
+        center.Y =
+            ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
+        ElementList->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
-        size.x *= MCOverlay.ScaleX;
-        size.y *= MCOverlay.ScaleY;
-        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
+        size.X *= MCOverlay.ScaleX;
+        size.Y *= MCOverlay.ScaleY;
+        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 
-auto Building::destroy() -> void
+auto MCBuilding::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 
-    if (sensorSystem != nullptr)
+    if (SensorSystem != nullptr)
     {
-        sensorSystemManager->freeSensor(sensorSystem);
-        sensorSystem = nullptr;
+        SensorSystemManager->FreeSensor(SensorSystem);
+        SensorSystem = nullptr;
     }
 
-    name.clear();
+    Name.clear();
 }
 
-auto Building::setDamage(float newDamage) -> void
+auto MCBuilding::SetDamage(float newDamage) -> void
 {
-    damage = newDamage;
+    Damage = newDamage;
     // Sixteen damage frames across the damage level.
-    auto* type = static_cast<BuildingType*>(objType);
+    auto* type = static_cast<MCBuildingType*>(ObjType);
     int32_t frame =
-        static_cast<int32_t>(newDamage / (static_cast<double>(static_cast<int32_t>(type->dmgLevel)) * 0.0625));
+        static_cast<int32_t>(newDamage / (static_cast<double>(static_cast<int32_t>(type->DmgLevel)) * 0.0625));
 
     if (frame > 15)
     {
         frame = 15;
     }
 
-    static_cast<VFXBuildingAppearance*>(appearance)->setDamageLvl(static_cast<uint32_t>(frame));
+    static_cast<MCVfxBuildingAppearance*>(Appearance)->SetDamageLvl(static_cast<uint32_t>(frame));
 }
 
-auto Building::setSensorData(Team* newTeam, float range, int setTeam) -> void
+auto MCBuilding::SetSensorData(MCTeam* newTeam, float range, int setTeam) -> void
 {
     if (!(-1.0 < range))
     {
         return;
     }
 
-    if (sensorSystem == nullptr)
+    if (SensorSystem == nullptr)
     {
-        sensorSystem = sensorSystemManager->newSensor();
+        SensorSystem = SensorSystemManager->NewSensor();
 
-        if (sensorSystem == nullptr)
+        if (SensorSystem == nullptr)
         {
             Fatal(0, " No RAM for Sensor System ");
         }
     }
 
-    sensorSystem->owner = this;
+    SensorSystem->Owner = this;
 
     if (setTeam != 0)
     {
-        sensorSystem->setTeam(newTeam);
+        SensorSystem->SetTeam(newTeam);
     }
 
-    sensorSystem->setRange(range);
+    SensorSystem->SetRange(range);
 }
 
-auto Building::init(ObjectType* objType) -> int32_t
+auto MCBuilding::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    setExists(1);
-    const uint32_t appearId = objType->appearName;
-    justCreated = 1;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(appearId, 0);
+    SetExists(1);
+    const uint32_t appearId = objType->AppearName;
+    JustCreated = 1;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0007);
     }
 
-    auto* buildingAppearance = new VFXBuildingAppearance;
+    auto* buildingAppearance = new MCVfxBuildingAppearance;
 
     if (buildingAppearance != nullptr)
     {
-        buildingAppearance->init(nullptr, nullptr);
+        buildingAppearance->Init(nullptr, nullptr);
     }
 
-    appearance = buildingAppearance;
+    Appearance = buildingAppearance;
 
     if (buildingAppearance == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0008);
     }
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x7000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x7000000)
     {
         return static_cast<int32_t>(0xdcdc0009);
     }
 
-    if ((result = buildingAppearance->init(apprType, this)) != 0)
+    if ((result = buildingAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    auto* type = static_cast<BuildingType*>(this->objType);
-    objectClass = BUILDING;
-    soundHandle = 0xffffffff;
+    auto* type = static_cast<MCBuildingType*>(this->ObjType);
+    ObjectClass = BUILDING;
+    SoundHandle = 0xffffffff;
 
-    if (0.0 < type->extentRadius)
+    if (0.0 < type->ExtentRadius)
     {
-        collisionsOn = 1;
+        CollisionsOn = 1;
     }
 
-    tonnage = type->baseTonnage;
-    explRadius = type->explRad;
-    explDamage = type->explDmg;
-    maxCV = type->battleRating;
-    curCV = type->battleRating;
+    Tonnage = type->BaseTonnage;
+    ExplRadius = type->ExplRad;
+    ExplDamage = type->ExplDmg;
+    MaxCV = type->BattleRating;
+    CurCV = type->BattleRating;
     char nameBuffer[256];
-    cLoadString(thisInstance, static_cast<uint32_t>(type->buildingName), nameBuffer, 0xfe);
-    name = nameBuffer;
+    CLoadString(ThisInstance, static_cast<uint32_t>(type->BuildingName), nameBuffer, 0xfe);
+    Name = nameBuffer;
 
     // Original behaviour (OB-016): a building with no team (TeamID -1) reads TeamTable[-1], the global before it in
     // MCX.EXE: homeTeam.
-    team = type->teamId == -1 ? homeTeam : TeamTable[type->teamId];
-    const float range = type->sensorRange;
+    Team = type->TeamId == -1 ? HomeTeam : TeamTable[type->TeamId];
+    const float range = type->SensorRange;
 
     if (-1.0 < range)
     {
-        switch (type->teamId)
+        switch (type->TeamId)
         {
             case 0:
             {
-                setSensorData(innerSphereTeam, range, 0);
-                setAlignment(1);
+                SetSensorData(InnerSphereTeam, range, 0);
+                SetAlignment(1);
                 break;
             }
             case 1:
             {
-                setSensorData(clanTeam, range, 0);
-                setAlignment(-1);
+                SetSensorData(ClanTeam, range, 0);
+                SetAlignment(-1);
                 break;
             }
             case 2:
             {
-                setSensorData(alliedTeam, range, 0);
-                setAlignment(0);
+                SetSensorData(AlliedTeam, range, 0);
+                SetAlignment(0);
                 break;
             }
             default:
@@ -947,10 +945,10 @@ auto Building::init(ObjectType* objType) -> int32_t
     return 0;
 }
 
-auto Building::createBuildingMarines() -> void
+auto MCBuilding::CreateBuildingMarines() -> void
 {
-    auto* type = static_cast<BuildingType*>(objType);
-    const int32_t marinesWanted = type->numMarines;
+    auto* type = static_cast<MCBuildingType*>(ObjType);
+    const int32_t marinesWanted = type->NumMarines;
 
     if (marinesWanted == 0)
     {
@@ -958,27 +956,27 @@ auto Building::createBuildingMarines() -> void
     }
 
     int32_t marinesMade = 0;
-    const auto numWarriors = static_cast<int32_t>(scenario->numWarriors);
+    const auto numWarriors = static_cast<int32_t>(Scenario->NumWarriors);
 
     // Each marine is piloted by an enemy warrior with no working vehicle (none, disabled or destroyed); warrior 0 is
     // never used.
     for (int32_t i = 0; i < numWarriors; i++)
     {
-        if (i <= 0 || static_cast<uint32_t>(i) > scenario->numWarriors)
+        if (i <= 0 || static_cast<uint32_t>(i) > Scenario->NumWarriors)
         {
             continue;
         }
 
-        MechWarrior* warrior = scenario->warriors[i];
+        MCMechWarrior* warrior = Scenario->Warriors[i];
 
-        if (warrior == nullptr || warrior->alignment == homeTeam->alignment)
+        if (warrior == nullptr || warrior->Alignment == HomeTeam->Alignment)
         {
             continue;
         }
 
-        if (warrior->vehicle != nullptr)
+        if (warrior->Vehicle != nullptr)
         {
-            const auto vehicleStatus = static_cast<int8_t>(warrior->vehicle->status);
+            const auto vehicleStatus = static_cast<int8_t>(warrior->Vehicle->Status);
 
             if (vehicleStatus != 2 && vehicleStatus != 1)
             {
@@ -986,73 +984,73 @@ auto Building::createBuildingMarines() -> void
             }
         }
 
-        auto* marine = static_cast<Mover*>(createObject(DefaultPilotId));
+        auto* marine = static_cast<MCMover*>(CreateObject(DefaultPilotId));
 
         if (marine == nullptr)
         {
             Fatal(-1, " Couldnt create Marine for Building ");
         }
 
-        marine->setAwake(1);
-        FullPathFileName profileName;
-        profileName.init(profilePath, marineProfileName, ".fit");
-        FitIniFile profileFile;
-        const int32_t result = profileFile.open(profileName, READ, 50);
+        marine->SetAwake(1);
+        MCFullPathFileName profileName;
+        profileName.Init(ProfilePath, MarineProfileName, ".fit");
+        MCFitIniFile profileFile;
+        const int32_t result = profileFile.Open(profileName, READ, 50);
 
         if (result != 0)
         {
             Fatal(result, " Unable to open Vehicle Marine Profile ");
         }
 
-        if (marine->init(&profileFile) != 0)
+        if (marine->Init(&profileFile) != 0)
         {
             Fatal(-1, " Bad Vehicle Marine Profile File ");
         }
 
-        profileFile.close();
+        profileFile.Close();
 
-        marine->setPilot(warrior);
-        warrior->setVehicle(marine);
-        warrior->lobotomy();
-        marine->setControl(2, 3, -1);
-        marine->setTeam(clanTeam);
+        marine->SetPilot(warrior);
+        warrior->SetVehicle(marine);
+        warrior->Lobotomy();
+        marine->SetControl(2, 3, -1);
+        marine->SetTeam(ClanTeam);
         // Somewhere within the extent radius of the building.
-        const float extentX = objType->extentRadius;
-        const float extentY = objType->extentRadius;
+        const float extentX = ObjType->ExtentRadius;
+        const float extentY = ObjType->ExtentRadius;
         const float offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(extentX + extentX))) - extentX;
         const float offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(extentY + extentY))) - extentY;
         const float offsetZ = static_cast<float>(RandomNumber(0));
-        vector_3d marinePosition;
-        marinePosition.x = offsetX + position.x;
-        marinePosition.y = offsetY + position.y;
-        marinePosition.z = offsetZ + position.z;
-        marine->setPosition(marinePosition);
-        GameObjectMap->addObject(marine);
-        marine->bounceToAdjCell();
-        marine->bounceToAdjCell();
-        auto* marineAppearance = static_cast<ElementalActor*>(marine->getAppearance());
+        MCVector3D marinePosition;
+        marinePosition.X = offsetX + Position.X;
+        marinePosition.Y = offsetY + Position.Y;
+        marinePosition.Z = offsetZ + Position.Z;
+        marine->SetPosition(marinePosition);
+        GameObjectMap->AddObject(marine);
+        marine->BounceToAdjCell();
+        marine->BounceToAdjCell();
+        auto* marineAppearance = static_cast<MCElementalActor*>(marine->GetAppearance());
 
         if (marineAppearance != nullptr)
         {
-            marineAppearance->setGesture(0);
-            marineAppearance->fadeTableIndex = getAlignment() == -1 ? 0x1c : 0x12;
+            marineAppearance->SetGesture(0);
+            marineAppearance->FadeTableIndex = GetAlignment() == -1 ? 0x1c : 0x12;
         }
 
-        marine->idNumber = 2500000;
-        marine->setPartId(0xfff - NumMarines++);
-        marine->setAlignment(getAlignment());
-        ObjectQueueNode* list = getAlignment() == -1 ? clanMechList : innerSphereMechList;
+        marine->IdNumber = 2500000;
+        marine->SetPartId(0xfff - NumMarines++);
+        marine->SetAlignment(GetAlignment());
+        MCObjectQueueNode* list = GetAlignment() == -1 ? ClanMechList : InnerSphereMechList;
 
         if (list != nullptr)
         {
-            list->addNode(marine);
+            list->AddNode(marine);
         }
 
-        marine->setPotentialContact(0);
-        marine->setExists(1);
-        warrior->clearAttackOrders();
-        warrior->clearMoveOrders();
-        warrior->orderMoveToPoint(0, 1, 0, vector_3d(0.0f, 0.0f, 0.0f), -1, 1);
+        marine->SetPotentialContact(0);
+        marine->SetExists(1);
+        warrior->ClearAttackOrders();
+        warrior->ClearMoveOrders();
+        warrior->OrderMoveToPoint(0, 1, 0, MCVector3D(0.0f, 0.0f, 0.0f), -1, 1);
 
         if (++marinesMade == marinesWanted)
         {
@@ -1061,7 +1059,7 @@ auto Building::createBuildingMarines() -> void
     }
 }
 
-auto Building::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
@@ -1070,67 +1068,67 @@ auto Building::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk)
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    if (isDestroyed() != 0)
+    if (IsDestroyed() != 0)
     {
         return 0;
     }
 
-    float newDamage = getDamage() + shotInfo->damage;
-    auto* type = static_cast<BuildingType*>(objType);
-    const auto destroyLevel = static_cast<float>(static_cast<int32_t>(type->dmgLevel));
+    float newDamage = GetDamage() + shotInfo->Damage;
+    auto* type = static_cast<MCBuildingType*>(ObjType);
+    const auto destroyLevel = static_cast<float>(static_cast<int32_t>(type->DmgLevel));
 
     if (destroyLevel <= newDamage)
     {
         // Destroyed: sensor off, a fire (or more burn time), the explosion, salvage gone and the marines out.
-        if (sensorSystem != nullptr)
+        if (SensorSystem != nullptr)
         {
-            sensorSystem->disable();
+            SensorSystem->Disable();
         }
 
-        if (burning == 0)
+        if (Burning == 0)
         {
-            if (type->blownEffectId != 0xffffffff)
+            if (type->BlownEffectId != 0xffffffff)
             {
-                GameObject* effect = createBlownEffect(this, static_cast<int32_t>(type->blownEffectId));
+                MCGameObject* effect = CreateBlownEffect(this, static_cast<int32_t>(type->BlownEffectId));
 
                 if (effect != nullptr)
                 {
-                    if (effect->objectClass == FIRE)
+                    if (effect->ObjectClass == FIRE)
                     {
-                        fireObject->update();
-                        burning = 1;
+                        FireObject->Update();
+                        Burning = 1;
                     }
-                    else if (objectList->head != nullptr)
+                    else if (ObjectList->Head != nullptr)
                     {
-                        objectList->head->addNode(effect);
+                        ObjectList->Head->AddNode(effect);
                     }
                 }
             }
         }
-        else if (fireObject != nullptr)
+        else if (FireObject != nullptr)
         {
-            fireObject->addTimeLeftToBurn(2.0f);
+            FireObject->AddTimeLeftToBurn(2.0f);
         }
 
-        type->createExplosion(position, explDamage, explRadius);
-        status = 2;
+        type->CreateExplosion(Position, ExplDamage, ExplRadius);
+        Status = 2;
 
-        if (isCaptured() != 0)
+        if (IsCaptured() != 0)
         {
-            Terrain::terrainTacticalMap->RemoveSalvage(this, 1);
+            MCTerrain::TerrainTacticalMap->RemoveSalvage(this, 1);
         }
 
         newDamage = destroyLevel;
 
         if (MPlayer == nullptr)
         {
-            createBuildingMarines();
+            CreateBuildingMarines();
         }
     }
 
-    setDamage(newDamage);
+    SetDamage(newDamage);
     return 0;
 }

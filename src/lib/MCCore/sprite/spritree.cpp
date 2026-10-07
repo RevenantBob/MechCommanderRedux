@@ -5,7 +5,7 @@
 #include "sprite/sprtmgr.h"
 #include "sprite/vfxshape.h"
 
-uint32_t packetFinderArray[28] = {0,  1,  2,  3,  4,  5,  6,  7,  8,  4,  5,  9, 10, 11,
+uint32_t PacketFinderArray[28] = {0,  1,  2,  3,  4,  5,  6,  7,  8,  4,  5,  9, 10, 11,
                                   12, 13, 14, 15, 16, 17, 18, 19, 20, 13, 12, 0, 21, 22};
 
 namespace
@@ -21,7 +21,7 @@ namespace
     constexpr int32_t NUM_LEG_ROTATIONS = 9;
 
     /// <summary>Upper-body rotations per gesture: 17 when the part is mirrored, else 32.</summary>
-    auto partRotations(bool symmetrical) -> int32_t
+    auto PartRotations(bool symmetrical) -> int32_t
     {
         return symmetrical ? 0x11 : 0x20;
     }
@@ -31,7 +31,7 @@ namespace
     /// the part is symmetrical, or wraps negatives to 0..360 when not. <paramref name="frameRate"/> gets the
     /// gesture's rate, made positive.
     /// </summary>
-    auto facingAndRate(const GestureData& data, bool symmetrical, float& rotation, int& reverse, float& frameRate)
+    auto FacingAndRate(const MCGestureData& data, bool symmetrical, float& rotation, int& reverse, float& frameRate)
         -> void
     {
         if (rotation > 180.0)
@@ -56,7 +56,7 @@ namespace
         }
 
         reverse = isReversed;
-        frameRate = data.frameRate;
+        frameRate = data.FrameRate;
 
         if (frameRate < 0.0)
         {
@@ -65,21 +65,21 @@ namespace
     }
 
     /// <summary>Whether <paramref name="part"/> (0 legs, 1 torso, 2 and 3 arms) is mirrored in the gesture.</summary>
-    auto partSymmetrical(const GestureData& data, int32_t part) -> bool
+    auto PartSymmetrical(const MCGestureData& data, int32_t part) -> bool
     {
-        return (data.symmetrical != 0 && part == 1) || part == 0 || (data.armSymmetrical != 0 && part > 1);
+        return (data.Symmetrical != 0 && part == 1) || part == 0 || (data.ArmSymmetrical != 0 && part > 1);
     }
 
     /// <summary>
     /// Loads (or, when the shape heap is half full or more, only reads ahead) the shapes of one part of
     /// <paramref name="gesture"/>.
     /// </summary>
-    auto preloadPart(SpriteTree* tree, uint32_t fileNumber, int32_t part, uint32_t listStart, int32_t gesture,
+    auto PreloadPart(MCSpriteTree* tree, uint32_t fileNumber, int32_t part, uint32_t listStart, int32_t gesture,
                      int32_t numRotations) -> void
     {
         for (int32_t i = 0; i < numRotations; i++)
         {
-            SpriteManager* manager = spriteManager;
+            MCSpriteManager* manager = SpriteManager;
 
             if (fileNumber == 0xffffffff || manager == nullptr)
             {
@@ -87,53 +87,53 @@ namespace
             }
 
             const uint32_t packet =
-                static_cast<uint32_t>(static_cast<int32_t>(packetFinderArray[gesture]) * numRotations + i);
+                static_cast<uint32_t>(static_cast<int32_t>(PacketFinderArray[gesture]) * numRotations + i);
             // The original only read ahead (touchMechShapeData) once its shape heap was half full; the port's cache
             // has no fill, so the shapes are always loaded. They load as the large (90-pixel) art, which
             // MechActor::render asks for: cameraScale is pinned to 100. The original loaded the small art here (it
             // started zoomed out), and the cached shape then stood in for the large one, so a preloaded gesture drew at
             // half size.
-            tree->shapeList[listStart + packet] = manager->getMechShapeData(fileNumber, packet, part, 1, tree, 1);
+            tree->ShapeList[listStart + packet] = manager->GetMechShapeData(fileNumber, packet, part, 1, tree, 1);
         }
     }
 }
 
-auto SpriteTree::init(File* apprFile, uint32_t fileSize, uint32_t) -> int32_t
+auto MCSpriteTree::Init(MCFile* apprFile, uint32_t fileSize, uint32_t) -> int32_t
 {
-    gesturesPreloaded = 0;
-    const int32_t result = loadIniFile(apprFile, fileSize);
-    numShapes = NUM_TREE_SHAPES;
+    GesturesPreloaded = 0;
+    const int32_t result = LoadIniFile(apprFile, fileSize);
+    NumShapes = NUM_TREE_SHAPES;
     // Port fix: sized by the port's pointer size (the original: count * 4).
-    shapeList =
-        static_cast<Shape**>(spriteManager->mallocDataRAM(NUM_TREE_SHAPES * static_cast<uint32_t>(sizeof(Shape*))));
+    ShapeList =
+        static_cast<MCShape**>(SpriteManager->MallocDataRam(NUM_TREE_SHAPES * static_cast<uint32_t>(sizeof(MCShape*))));
 
-    if (shapeList == nullptr)
+    if (ShapeList == nullptr)
     {
         return -1;
     }
 
     for (int32_t i = 0; i < NUM_TREE_SHAPES; i++)
     {
-        shapeList[i] = nullptr;
+        ShapeList[i] = nullptr;
     }
 
     return result;
 }
 
-auto SpriteTree::removeShape(Shape* shape) -> void
+auto MCSpriteTree::RemoveShape(MCShape* shape) -> void
 {
-    for (int32_t i = 0; i < numShapes; i++)
+    for (int32_t i = 0; i < NumShapes; i++)
     {
-        if (shapeList[i] == shape)
+        if (ShapeList[i] == shape)
         {
-            shapeList[i] = nullptr;
+            ShapeList[i] = nullptr;
         }
     }
 
     // The users are mech appearances, whose four part shapes are at +0x40..+0x4c.
-    for (AppearanceUser* user = userList; user != nullptr; user = user->next)
+    for (MCAppearanceUser* user = UserList; user != nullptr; user = user->Next)
     {
-        auto* partShapes = reinterpret_cast<Shape**>(static_cast<uint8_t*>(user->user) + 0x40);
+        auto* partShapes = reinterpret_cast<MCShape**>(static_cast<uint8_t*>(user->User) + 0x40);
 
         for (int32_t part = 0; part < 4; part++)
         {
@@ -145,9 +145,9 @@ auto SpriteTree::removeShape(Shape* shape) -> void
     }
 }
 
-auto SpriteTree::preloadGestures(int32_t, float) -> void
+auto MCSpriteTree::PreloadGestures(int32_t, float) -> void
 {
-    if (gesturesPreloaded != 0)
+    if (GesturesPreloaded != 0)
     {
         return;
     }
@@ -159,37 +159,37 @@ auto SpriteTree::preloadGestures(int32_t, float) -> void
 
     for (int32_t gesture : preloadList)
     {
-        preloadPart(this, legFileNumber, 0, LEG_SHAPES, gesture, NUM_LEG_ROTATIONS);
-        const GestureData& data = gestures[gesture];
+        PreloadPart(this, LegFileNumber, 0, LEG_SHAPES, gesture, NUM_LEG_ROTATIONS);
+        const MCGestureData& data = Gestures[gesture];
 
-        if (data.symmetrical != 0)
+        if (data.Symmetrical != 0)
         {
             torsoSymmetrical = true;
         }
 
-        preloadPart(this, torsoFileNumber, 1, TORSO_SHAPES, gesture, partRotations(torsoSymmetrical));
-        const bool armSymmetrical = data.armSymmetrical != 0;
-        preloadPart(this, rightArmFileNumber, 2, RIGHT_ARM_SHAPES, gesture, partRotations(armSymmetrical));
-        preloadPart(this, leftArmFileNumber, 3, LEFT_ARM_SHAPES, gesture, partRotations(armSymmetrical));
+        PreloadPart(this, TorsoFileNumber, 1, TORSO_SHAPES, gesture, PartRotations(torsoSymmetrical));
+        const bool armSymmetrical = data.ArmSymmetrical != 0;
+        PreloadPart(this, RightArmFileNumber, 2, RIGHT_ARM_SHAPES, gesture, PartRotations(armSymmetrical));
+        PreloadPart(this, LeftArmFileNumber, 3, LEFT_ARM_SHAPES, gesture, PartRotations(armSymmetrical));
     }
 
-    gesturesPreloaded = 1;
+    GesturesPreloaded = 1;
 }
 
-auto SpriteTree::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCSpriteTree::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    constexpr int32_t NO_RAM = static_cast<int32_t>(0xbeef0007);
-    constexpr int32_t NO_GESTURE_RAM = static_cast<int32_t>(0xbeef000a);
+    constexpr int32_t noRam = static_cast<int32_t>(0xbeef0007);
+    constexpr int32_t noGestureRam = static_cast<int32_t>(0xbeef000a);
 
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 50);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = iniFile.seekBlock("Main Info");
+    result = iniFile.SeekBlock("Main Info");
 
     if (result != 0)
     {
@@ -197,190 +197,190 @@ auto SpriteTree::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
     }
 
     char name[52];
-    result = iniFile.readIdString("Name", name, 0x31);
+    result = iniFile.ReadIdString("Name", name, 0x31);
 
     if (result != 0)
     {
         return result;
     }
 
-    treeInfo = static_cast<SpriteTreeInfo*>(spriteManager->mallocDataRAM(sizeof(SpriteTreeInfo)));
+    TreeInfo = static_cast<MCSpriteTreeInfo*>(SpriteManager->MallocDataRam(sizeof(MCSpriteTreeInfo)));
 
-    if (treeInfo == nullptr)
+    if (TreeInfo == nullptr)
     {
-        return NO_RAM;
+        return noRam;
     }
 
-    specialInfo = static_cast<MechSpecialInfo*>(spriteManager->mallocDataRAM(sizeof(MechSpecialInfo)));
+    SpecialInfo = static_cast<MCMechSpecialInfo*>(SpriteManager->MallocDataRam(sizeof(MCMechSpecialInfo)));
 
-    if (specialInfo == nullptr)
+    if (SpecialInfo == nullptr)
     {
-        return NO_RAM;
+        return noRam;
     }
 
-    if ((result = iniFile.readIdULong("legFileNumber", legFileNumber)) != 0)
+    if ((result = iniFile.ReadIdULong("legFileNumber", LegFileNumber)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("torsoFileNumber", torsoFileNumber)) != 0)
+    if ((result = iniFile.ReadIdULong("torsoFileNumber", TorsoFileNumber)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("rightArmFileNumber", rightArmFileNumber)) != 0)
+    if ((result = iniFile.ReadIdULong("rightArmFileNumber", RightArmFileNumber)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("leftArmFileNumber", leftArmFileNumber)) != 0)
+    if ((result = iniFile.ReadIdULong("leftArmFileNumber", LeftArmFileNumber)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.seekBlock("Parts")) != 0)
+    if ((result = iniFile.SeekBlock("Parts")) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdUChar("NumParts", treeInfo->numParts)) != 0)
+    if ((result = iniFile.ReadIdUChar("NumParts", TreeInfo->NumParts)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.seekBlock("SpecialInfo")) != 0)
+    if ((result = iniFile.SeekBlock("SpecialInfo")) != 0)
     {
         return result;
     }
 
-    MechSpecialInfo& info = *specialInfo;
+    MCMechSpecialInfo& info = *SpecialInfo;
 
-    if ((result = iniFile.readIdFloat("fb_d_xlat", info.fb_d_xlat)) != 0)
+    if ((result = iniFile.ReadIdFloat("fb_d_xlat", info.FbDXlat)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("jumpAirborne", info.jumpAirborne)) != 0)
+    if ((result = iniFile.ReadIdULong("jumpAirborne", info.JumpAirborne)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("jumpHold", info.jumpHold)) != 0)
+    if ((result = iniFile.ReadIdULong("jumpHold", info.JumpHold)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdFloat("jumpStartLandTime", info.jumpStartLandTime)) != 0)
+    if ((result = iniFile.ReadIdFloat("jumpStartLandTime", info.JumpStartLandTime)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdFloat("jumpMaxDistance", info.jumpMaxDistance)) != 0)
+    if ((result = iniFile.ReadIdFloat("jumpMaxDistance", info.JumpMaxDistance)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdFloat("jumpGravity", info.jumpGravity)) != 0)
+    if ((result = iniFile.ReadIdFloat("jumpGravity", info.JumpGravity)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdFloat("jumpStartVel", info.jumpStartVel)) != 0)
+    if ((result = iniFile.ReadIdFloat("jumpStartVel", info.JumpStartVel)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("r_fb_w_fb_frame", info.r_fb_w_fb_frame)) != 0)
+    if ((result = iniFile.ReadIdULong("r_fb_w_fb_frame", info.RFbWFbFrame)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("r_ff_w_ff_frame", info.r_ff_w_ff_frame)) != 0)
+    if ((result = iniFile.ReadIdULong("r_ff_w_ff_frame", info.RFfWFfFrame)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("s_fb_w_fb_frame", info.s_fb_w_fb_frame)) != 0)
+    if ((result = iniFile.ReadIdULong("s_fb_w_fb_frame", info.SFbWFbFrame)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("s_ff_w_ff_frame", info.s_ff_w_ff_frame)) != 0)
+    if ((result = iniFile.ReadIdULong("s_ff_w_ff_frame", info.SFfWFfFrame)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("walk_to_w_r_frame", info.walk_to_w_r_frame)) != 0)
+    if ((result = iniFile.ReadIdULong("walk_to_w_r_frame", info.WalkToWRFrame)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("run_to_r_w_frame", info.run_to_r_w_frame)) != 0)
+    if ((result = iniFile.ReadIdULong("run_to_r_w_frame", info.RunToRWFrame)) != 0)
     {
         return result;
     }
 
-    if (iniFile.readIdULong("walk_to_w_s_frame", info.walk_to_w_s_frame) != 0)
+    if (iniFile.ReadIdULong("walk_to_w_s_frame", info.WalkToWSFrame) != 0)
     {
-        info.walk_to_w_s_frame = 0xffffffff;
+        info.WalkToWSFrame = 0xffffffff;
     }
 
-    if (iniFile.readIdULong("s_w_to_walk_frame", info.s_w_to_walk_frame) != 0)
+    if (iniFile.ReadIdULong("s_w_to_walk_frame", info.SWToWalkFrame) != 0)
     {
-        info.s_w_to_walk_frame = 0xffffffff;
+        info.SWToWalkFrame = 0xffffffff;
     }
 
     // Optional flags: 0 when absent.
     auto readFlag = [&iniFile](const char* key) -> uint32_t
     {
         uint32_t value = 0;
-        iniFile.readIdULong(key, value);
+        iniFile.ReadIdULong(key, value);
         return value;
     };
 
-    info.stupidJamieReverseFlag = readFlag("stupidJamieReverseFlag");
+    info.StupidJamieReverseFlag = readFlag("stupidJamieReverseFlag");
     info.OtherJamieReverseFlag = readFlag("OtherJamieReverseFlag");
-    info.reallyStupidJamieReverseFlag = readFlag("reallyStupidJamieReverseFlag");
-    info.specialDuaneFlag = readFlag("specialDuaneFlag");
-    info.standToGunPose = readFlag("standToGunPose");
-    info.walkToGunPose = readFlag("walkToGunPose");
-    info.runToGunPose = readFlag("runToGunPose");
+    info.ReallyStupidJamieReverseFlag = readFlag("reallyStupidJamieReverseFlag");
+    info.SpecialDuaneFlag = readFlag("specialDuaneFlag");
+    info.StandToGunPose = readFlag("standToGunPose");
+    info.WalkToGunPose = readFlag("walkToGunPose");
+    info.RunToGunPose = readFlag("runToGunPose");
 
-    if (iniFile.seekBlock("TransitionTable") == 0)
+    if (iniFile.SeekBlock("TransitionTable") == 0)
     {
-        transitionArray = static_cast<char*>(spriteManager->mallocDataRAM(0x32a));
+        TransitionArray = static_cast<char*>(SpriteManager->MallocDataRam(0x32a));
 
-        if (transitionArray == nullptr)
+        if (TransitionArray == nullptr)
         {
-            return NO_GESTURE_RAM;
+            return noGestureRam;
         }
 
-        if ((result = iniFile.readIdCharArray("TransitionArray", transitionArray, 0x32a)) != 0)
+        if ((result = iniFile.ReadIdCharArray("TransitionArray", TransitionArray, 0x32a)) != 0)
         {
             return result;
         }
     }
     else
     {
-        transitionArray = nullptr;
+        TransitionArray = nullptr;
     }
 
-    if ((result = iniFile.seekBlock("Gestures")) != 0)
+    if ((result = iniFile.SeekBlock("Gestures")) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdUChar("NumGestures", treeInfo->numGestures)) != 0)
+    if ((result = iniFile.ReadIdUChar("NumGestures", TreeInfo->NumGestures)) != 0)
     {
         return result;
     }
 
-    const uint32_t numGestures = treeInfo->numGestures;
-    gestures = static_cast<GestureData*>(spriteManager->mallocDataRAM(numGestures * sizeof(GestureData)));
+    const uint32_t numGestures = TreeInfo->NumGestures;
+    Gestures = static_cast<MCGestureData*>(SpriteManager->MallocDataRam(numGestures * sizeof(MCGestureData)));
 
-    if (gestures == nullptr)
+    if (Gestures == nullptr)
     {
-        return NO_GESTURE_RAM;
+        return noGestureRam;
     }
 
     for (int32_t i = 0; i < static_cast<int32_t>(numGestures); i++)
@@ -388,121 +388,121 @@ auto SpriteTree::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
         char blockName[20];
         sprintf(blockName, "Gestures%d", i);
 
-        if ((result = iniFile.seekBlock(blockName)) != 0)
+        if ((result = iniFile.SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        GestureData& data = gestures[i];
+        MCGestureData& data = Gestures[i];
 
-        if ((result = iniFile.readIdUChar("State", data.state)) != 0)
+        if ((result = iniFile.ReadIdUChar("State", data.State)) != 0)
         {
             return result;
         }
 
         uint32_t numFrames = 0;
 
-        if ((result = iniFile.readIdULong("NumFrames", numFrames)) != 0)
+        if ((result = iniFile.ReadIdULong("NumFrames", numFrames)) != 0)
         {
             return result;
         }
 
-        data.numFrames = numFrames;
+        data.NumFrames = numFrames;
         float frameRate = 0.0f;
 
-        if ((result = iniFile.readIdFloat("FrameRate", frameRate)) != 0)
+        if ((result = iniFile.ReadIdFloat("FrameRate", frameRate)) != 0)
         {
             return result;
         }
 
-        data.frameRate = frameRate;
+        data.FrameRate = frameRate;
         uint32_t basePacketNumber = 0;
 
-        if ((result = iniFile.readIdULong("BasePacketNumber", basePacketNumber)) != 0)
+        if ((result = iniFile.ReadIdULong("BasePacketNumber", basePacketNumber)) != 0)
         {
             return result;
         }
 
-        data.basePacketNumber = basePacketNumber;
+        data.BasePacketNumber = basePacketNumber;
 
-        if ((result = iniFile.readIdUCharArray("NumRotations", data.numRotations, treeInfo->numParts)) != 0)
+        if ((result = iniFile.ReadIdUCharArray("NumRotations", data.NumRotations, TreeInfo->NumParts)) != 0)
         {
             return result;
         }
 
-        if ((result = iniFile.readIdUChar("Symmetrical", data.symmetrical)) != 0)
+        if ((result = iniFile.ReadIdUChar("Symmetrical", data.Symmetrical)) != 0)
         {
             return result;
         }
 
-        if (iniFile.readIdUChar("ArmSymmetrical", data.armSymmetrical) != 0)
+        if (iniFile.ReadIdUChar("ArmSymmetrical", data.ArmSymmetrical) != 0)
         {
-            data.armSymmetrical = 1;
+            data.ArmSymmetrical = 1;
         }
 
-        if ((result = iniFile.readIdUChar("ForwardResult", data.forwardResult)) != 0)
+        if ((result = iniFile.ReadIdUChar("ForwardResult", data.ForwardResult)) != 0)
         {
             return result;
         }
 
-        if ((result = iniFile.readIdUChar("ReverseResult", data.reverseResult)) != 0)
+        if ((result = iniFile.ReadIdUChar("ReverseResult", data.ReverseResult)) != 0)
         {
             return result;
         }
 
         float velocity = 0.0f;
 
-        if ((result = iniFile.readIdFloat("StartVelocity", velocity)) != 0)
+        if ((result = iniFile.ReadIdFloat("StartVelocity", velocity)) != 0)
         {
             return result;
         }
 
-        data.startVelocity = velocity;
+        data.StartVelocity = velocity;
 
-        if ((result = iniFile.readIdFloat("EndVelocity", velocity)) != 0)
+        if ((result = iniFile.ReadIdFloat("EndVelocity", velocity)) != 0)
         {
             return result;
         }
 
-        data.endVelocity = velocity;
+        data.EndVelocity = velocity;
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto SpriteTree::setGesture(int32_t gesture, int32_t part, float rotation, float, int& reverse, float& frameRate)
+auto MCSpriteTree::SetGesture(int32_t gesture, int32_t part, float rotation, float, int& reverse, float& frameRate)
     -> void
 {
     reverse = 0;
     frameRate = 0.0f;
-    const GestureData& data = gestures[gesture];
+    const MCGestureData& data = Gestures[gesture];
 
-    if (data.numFrames == 0)
+    if (data.NumFrames == 0)
     {
         return;
     }
 
     // The original also works out the rotation index here, then drops it.
-    facingAndRate(data, partSymmetrical(data, part), rotation, reverse, frameRate);
+    FacingAndRate(data, PartSymmetrical(data, part), rotation, reverse, frameRate);
 }
 
-auto SpriteTree::getGesture(int32_t gesture, int32_t part, float rotation, float, int& reverse, float& frameRate, int,
-                            int zoomedOut) -> Shape*
+auto MCSpriteTree::GetGesture(int32_t gesture, int32_t part, float rotation, float, int& reverse, float& frameRate, int,
+                              int zoomedOut) -> MCShape*
 {
     reverse = 0;
     frameRate = 0.0f;
-    const GestureData& data = gestures[gesture];
+    const MCGestureData& data = Gestures[gesture];
 
-    if (data.numFrames == 0)
+    if (data.NumFrames == 0)
     {
         return nullptr;
     }
 
-    const bool symmetrical = partSymmetrical(data, part);
-    facingAndRate(data, symmetrical, rotation, reverse, frameRate);
+    const bool symmetrical = PartSymmetrical(data, part);
+    FacingAndRate(data, symmetrical, rotation, reverse, frameRate);
 
-    const uint32_t numRotations = data.numRotations[part];
+    const uint32_t numRotations = data.NumRotations[part];
     int32_t rotationIndex = static_cast<int16_t>(static_cast<int32_t>(
         std::floor(static_cast<double>(static_cast<int32_t>(numRotations + 1)) * rotation * (1.0 / 360.0))));
 
@@ -568,13 +568,13 @@ auto SpriteTree::getGesture(int32_t gesture, int32_t part, float rotation, float
     int32_t filePart;
     uint32_t listStart;
     uint32_t packet;
-    const int32_t finder = static_cast<int32_t>(packetFinderArray[gesture]);
+    const int32_t finder = static_cast<int32_t>(PacketFinderArray[gesture]);
 
     switch (part)
     {
         case 0:
         {
-            fileNumber = legFileNumber;
+            fileNumber = LegFileNumber;
             filePart = 0;
             listStart = LEG_SHAPES;
             packet = static_cast<uint32_t>(index + finder * NUM_LEG_ROTATIONS);
@@ -582,88 +582,88 @@ auto SpriteTree::getGesture(int32_t gesture, int32_t part, float rotation, float
         }
         case 1:
         {
-            fileNumber = torsoFileNumber;
+            fileNumber = TorsoFileNumber;
             filePart = 1;
             listStart = TORSO_SHAPES;
-            packet = static_cast<uint32_t>(finder * partRotations(symmetrical) + index);
+            packet = static_cast<uint32_t>(finder * PartRotations(symmetrical) + index);
             break;
         }
         case 2:
         {
-            fileNumber = leftArmFileNumber;
+            fileNumber = LeftArmFileNumber;
             filePart = 3;
             listStart = LEFT_ARM_SHAPES;
-            packet = static_cast<uint32_t>(finder * partRotations(symmetrical) + index);
+            packet = static_cast<uint32_t>(finder * PartRotations(symmetrical) + index);
             break;
         }
         case 3:
         {
-            fileNumber = rightArmFileNumber;
+            fileNumber = RightArmFileNumber;
             filePart = 2;
             listStart = RIGHT_ARM_SHAPES;
-            packet = static_cast<uint32_t>(finder * partRotations(symmetrical) + index);
+            packet = static_cast<uint32_t>(finder * PartRotations(symmetrical) + index);
             break;
         }
         default:
             return nullptr;
     }
 
-    if (fileNumber == 0xffffffff || spriteManager == nullptr)
+    if (fileNumber == 0xffffffff || SpriteManager == nullptr)
     {
         return nullptr;
     }
 
-    Shape* shape = shapeList[listStart + packet];
+    MCShape* shape = ShapeList[listStart + packet];
 
     if (shape != nullptr)
     {
-        shape->lastTurnUsed = turn;
+        shape->LastTurnUsed = Turn;
         return shape;
     }
 
-    shape = spriteManager->getMechShapeData(fileNumber, packet, filePart, turn, this, zoomedOut);
-    shapeList[listStart + packet] = shape;
+    shape = SpriteManager->GetMechShapeData(fileNumber, packet, filePart, Turn, this, zoomedOut);
+    ShapeList[listStart + packet] = shape;
     return shape;
 }
 
-auto SpriteTree::destroy() -> void
+auto MCSpriteTree::Destroy() -> void
 {
     // The shapes stay in the sprite manager's cache, ownerless.
-    for (int32_t i = 0; i < numShapes; i++)
+    for (int32_t i = 0; i < NumShapes; i++)
     {
-        if (shapeList[i] != nullptr)
+        if (ShapeList[i] != nullptr)
         {
-            shapeList[i]->owner = nullptr;
+            ShapeList[i]->Owner = nullptr;
         }
     }
 
-    if (shapeList != nullptr)
+    if (ShapeList != nullptr)
     {
-        spriteManager->freeDataRAM(shapeList);
-        shapeList = nullptr;
+        SpriteManager->FreeDataRam(ShapeList);
+        ShapeList = nullptr;
     }
 
-    if (gestures != nullptr)
+    if (Gestures != nullptr)
     {
-        spriteManager->freeDataRAM(gestures);
-        gestures = nullptr;
+        SpriteManager->FreeDataRam(Gestures);
+        Gestures = nullptr;
     }
 
-    if (specialInfo != nullptr)
+    if (SpecialInfo != nullptr)
     {
-        spriteManager->freeDataRAM(specialInfo);
-        specialInfo = nullptr;
+        SpriteManager->FreeDataRam(SpecialInfo);
+        SpecialInfo = nullptr;
     }
 
-    if (treeInfo != nullptr)
+    if (TreeInfo != nullptr)
     {
-        spriteManager->freeDataRAM(treeInfo);
-        treeInfo = nullptr;
+        SpriteManager->FreeDataRam(TreeInfo);
+        TreeInfo = nullptr;
     }
 
-    if (transitionArray != nullptr)
+    if (TransitionArray != nullptr)
     {
-        spriteManager->freeDataRAM(transitionArray);
-        transitionArray = nullptr;
+        SpriteManager->FreeDataRam(TransitionArray);
+        TransitionArray = nullptr;
     }
 }

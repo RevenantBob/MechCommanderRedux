@@ -23,11 +23,11 @@ namespace
 {
     /// <summary>
     /// Per number of followers (1-4), the first of their formation slots in <see cref="FormationOffsets"/>. Entry 0
-    /// is read but never used. MCX.EXE @ 0x0078f9ec.
+    /// is read but never used.
     /// </summary>
     constexpr int32_t FormationStart[5] = {32, 0, 1, 3, 6};
 
-    /// <summary>The formation slots behind the goal: angle and distance. MCX.EXE @ 0x0078fa00.</summary>
+    /// <summary>The formation slots behind the goal: angle and distance.</summary>
     constexpr float FormationOffsets[10][2] = {{180.0f, 50.0f}, {-135.0f, 50.0f}, {135.0f, 50.0f},  {-135.0f, 50.0f},
                                                {135.0f, 50.0f}, {180.0f, 50.0f},  {-135.0f, 50.0f}, {135.0f, 50.0f},
                                                {180.0f, 50.0f}, {180.0f, 75.0f}};
@@ -41,21 +41,21 @@ namespace
 
     /// <summary>Blocks the cells of <paramref name="list"/>'s live mechs (other than <paramref name="dfaTarget"/>)
     /// that fall in the 9x9 area.</summary>
-    void BlockMechCells(ObjectQueueNode* list, GameObject* dfaTarget, int32_t (&cells)[81], int32_t areaCellR,
+    void BlockMechCells(MCObjectQueueNode* list, MCGameObject* dfaTarget, int32_t (&cells)[81], int32_t areaCellR,
                         int32_t areaCellC)
     {
-        for (BaseObject* object = list->head; object != nullptr; object = object->next)
+        for (MCBaseObject* object = list->Head; object != nullptr; object = object->Next)
         {
-            auto* mech = static_cast<GameObject*>(object);
+            auto* mech = static_cast<MCGameObject*>(object);
 
-            if (mech->objectClass == ELEMENTAL || mech == dfaTarget || mech->isDisabled() != 0)
+            if (mech->ObjectClass == ELEMENTAL || mech == dfaTarget || mech->IsDisabled() != 0)
             {
                 continue;
             }
 
-            const _ObjectPosition* position = mech->getObjPosition();
-            const int32_t row = position->mapCellR - areaCellR;
-            const int32_t col = position->mapCellC - areaCellC;
+            const MCObjectPosition* position = mech->GetObjPosition();
+            const int32_t row = position->MapCellR - areaCellR;
+            const int32_t col = position->MapCellC - areaCellC;
 
             if (row >= 0 && row < 9 && col >= 0 && col < 9)
             {
@@ -65,48 +65,48 @@ namespace
     }
 }
 
-auto MoverGroup::init() -> void
+auto MCMoverGroup::Init() -> void
 {
-    id = -1;
-    numMovers = 0;
-    point = nullptr;
-    disbandOnNoPoint = 0;
+    Id = -1;
+    NumMovers = 0;
+    Point = nullptr;
+    DisbandOnNoPoint = 0;
 }
 
-auto MoverGroup::destroy() -> void
+auto MCMoverGroup::Destroy() -> void
 {
 }
 
-auto MoverGroup::add(Mover* mover) -> int
+auto MCMoverGroup::Add(MCMover* mover) -> int
 {
-    if (numMovers == MAX_MOVERGROUP_COUNT)
+    if (NumMovers == MAX_MOVERGROUP_COUNT)
     {
         Fatal(0, " MoverGroup.add: Group too big ");
         return 0;
     }
 
-    movers[numMovers] = mover;
-    numMovers++;
-    mover->setGroup(this);
+    Movers[NumMovers] = mover;
+    NumMovers++;
+    mover->SetGroup(this);
     return 1;
 }
 
-auto MoverGroup::remove(Mover* mover) -> int
+auto MCMoverGroup::Remove(MCMover* mover) -> int
 {
-    if (mover == point)
+    if (mover == Point)
     {
-        disband();
+        Disband();
         return 1;
     }
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        if (movers[i] == mover)
+        if (Movers[i] == mover)
         {
-            mover->setGroup(nullptr);
-            movers[i] = movers[numMovers - 1];
-            movers[numMovers - 1] = nullptr;
-            numMovers--;
+            mover->SetGroup(nullptr);
+            Movers[i] = Movers[NumMovers - 1];
+            Movers[NumMovers - 1] = nullptr;
+            NumMovers--;
             return 1;
         }
     }
@@ -114,11 +114,11 @@ auto MoverGroup::remove(Mover* mover) -> int
     return 0;
 }
 
-auto MoverGroup::isMember(Mover* mover) -> int
+auto MCMoverGroup::IsMember(MCMover* mover) -> int
 {
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        if (movers[i] == mover)
+        if (Movers[i] == mover)
         {
             return 1;
         }
@@ -127,98 +127,98 @@ auto MoverGroup::isMember(Mover* mover) -> int
     return 0;
 }
 
-auto MoverGroup::disband() -> void
+auto MCMoverGroup::Disband() -> void
 {
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        movers[i]->setGroup(nullptr);
+        Movers[i]->SetGroup(nullptr);
     }
 
-    if (point != nullptr)
+    if (Point != nullptr)
     {
-        theInterface->setPoint(point->partId, 0);
+        TheInterface->SetPoint(Point->PartId, 0);
     }
 
-    point = nullptr;
-    numMovers = 0;
+    Point = nullptr;
+    NumMovers = 0;
 }
 
-auto MoverGroup::setPoint(Mover* mover) -> int32_t
+auto MCMoverGroup::SetPoint(MCMover* mover) -> int32_t
 {
-    if (isMember(mover) != 0)
+    if (IsMember(mover) != 0)
     {
-        if (point != nullptr)
+        if (Point != nullptr)
         {
-            theInterface->setPoint(point->partId, 0);
+            TheInterface->SetPoint(Point->PartId, 0);
         }
 
-        point = mover;
-        theInterface->setPoint(mover->partId, 1);
+        Point = mover;
+        TheInterface->SetPoint(mover->PartId, 1);
     }
 
     return 0;
 }
 
-auto MoverGroup::selectPoint(int excludePoint) -> Mover*
+auto MCMoverGroup::SelectPoint(int excludePoint) -> MCMover*
 {
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        if (excludePoint != 0 && movers[i] == point)
+        if (excludePoint != 0 && Movers[i] == Point)
         {
             continue;
         }
 
-        const MechWarrior* pilot = movers[i]->getPilot();
+        const MCMechWarrior* pilot = Movers[i]->GetPilot();
 
-        if (pilot != nullptr && pilot->wounds < 6.0f)
+        if (pilot != nullptr && pilot->Wounds < 6.0f)
         {
-            setPoint(movers[i]);
-            return movers[i];
+            SetPoint(Movers[i]);
+            return Movers[i];
         }
     }
 
-    setPoint(nullptr);
+    SetPoint(nullptr);
     return nullptr;
 }
 
-auto MoverGroup::getMovers(Mover** moverList) -> int32_t
+auto MCMoverGroup::GetMovers(MCMover** moverList) -> int32_t
 {
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        moverList[i] = movers[i];
+        moverList[i] = Movers[i];
     }
 
-    return numMovers;
+    return NumMovers;
 }
 
-auto MoverGroup::getPointPilot() -> MechWarrior*
+auto MCMoverGroup::GetPointPilot() -> MCMechWarrior*
 {
-    if (point != nullptr)
+    if (Point != nullptr)
     {
-        return point->getPilot();
+        return Point->GetPilot();
     }
 
     return nullptr;
 }
 
-auto MoverGroup::statusCount(int32_t* counts) -> void
+auto MCMoverGroup::StatusCount(int32_t* counts) -> void
 {
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
-        const MechWarrior* pilot = mover->getPilot();
+        MCMover* mover = Movers[i];
+        const MCMechWarrior* pilot = mover->GetPilot();
 
-        if (mover->getExists() == 0)
+        if (mover->GetExists() == 0)
         {
             counts[8]++;
         }
-        else if (mover->getAwake() == 0)
+        else if (mover->GetAwake() == 0)
         {
             counts[7]++;
         }
-        else if (pilot == nullptr || pilot->status != 2)
+        else if (pilot == nullptr || pilot->Status != 2)
         {
-            counts[static_cast<uint8_t>(mover->status)]++;
+            counts[static_cast<uint8_t>(mover->Status)]++;
         }
         else
         {
@@ -227,22 +227,22 @@ auto MoverGroup::statusCount(int32_t* counts) -> void
     }
 }
 
-auto MoverGroup::addToGUI(int visible) -> void
+auto MCMoverGroup::AddToGui(int visible) -> void
 {
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        theInterface->AddMech(movers[i]->partId, id, movers[i]->getAwake(), visible);
+        TheInterface->AddMech(Movers[i]->PartId, Id, Movers[i]->GetAwake(), visible);
     }
 }
 
-auto CalcJumpGoals(vector_3d goal, int32_t numGoals, vector_3d* goalList, GameObject* dfaTarget) -> int32_t
+auto CalcJumpGoals(MCVector3D goal, int32_t numGoals, MCVector3D* goalList, MCGameObject* dfaTarget) -> int32_t
 {
     int32_t numPlaced = 0;
     int32_t tileR = 0;
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->worldToMapPos(goal, tileR, tileC, cellR, cellC);
+    GameMap->WorldToMapPos(goal, tileR, tileC, cellR, cellC);
     // Port fix: the original reads these from tileMulMAPCELL_DIM (tile * 3), past its ends for a goal on the map's
     // first row or column (tile - 1) or off the map. The port multiplies.
     const int32_t goalCellR = cellR + tileR * MAPCELL_DIM;
@@ -262,7 +262,7 @@ auto CalcJumpGoals(vector_3d goal, int32_t numGoals, vector_3d* goalList, GameOb
             const int32_t col = tileC - 1 + tileCol;
             int32_t* block = &cells[tileRow * 27 + tileCol * 3];
 
-            if (row <= -1 || row >= GameMap->height || col <= -1 || col >= GameMap->width)
+            if (row <= -1 || row >= GameMap->Height || col <= -1 || col >= GameMap->Width)
             {
                 for (int32_t r = 0; r < 3; r++)
                 {
@@ -274,19 +274,19 @@ auto CalcJumpGoals(vector_3d goal, int32_t numGoals, vector_3d* goalList, GameOb
                 continue;
             }
 
-            Assert(row < GameMap->height && col < GameMap->width, 0, " Map Tile out of bounds ");
-            MapTile tile = GameMap->map[GameMap->width * row + col];
+            Assert(row < GameMap->Height && col < GameMap->Width, 0, " Map Tile out of bounds ");
+            MCMapTile tile = GameMap->Map[GameMap->Width * row + col];
 
             for (int32_t r = 0; r < 3; r++)
             {
                 for (int32_t c = 0; c < 3; c++)
                 {
-                    block[r * 9 + c] = tile.getCellPassable(r, c) == 0 ? JUMP_CELL_BLOCKED : JUMP_CELL_OPEN;
+                    block[r * 9 + c] = tile.GetCellPassable(r, c) == 0 ? JUMP_CELL_BLOCKED : JUMP_CELL_OPEN;
                 }
             }
 
             // Bridges: their rails (the sides the road doesn't cross), or the whole tile.
-            const uint32_t overlay = tile.overlay & 0x7f;
+            const uint32_t overlay = tile.Overlay & 0x7f;
 
             if (OverlayIsBridge[overlay] == 0)
             {
@@ -334,8 +334,8 @@ auto CalcJumpGoals(vector_3d goal, int32_t numGoals, vector_3d* goalList, GameOb
         }
     }
 
-    BlockMechCells(innerSphereMechList, dfaTarget, cells, areaCellR, areaCellC);
-    BlockMechCells(clanMechList, dfaTarget, cells, areaCellR, areaCellC);
+    BlockMechCells(InnerSphereMechList, dfaTarget, cells, areaCellR, areaCellC);
+    BlockMechCells(ClanMechList, dfaTarget, cells, areaCellR, areaCellC);
 
     // Each goal takes the first open cell on the spiral out from the goal's cell.
     for (int32_t i = 0; i < numGoals; i++)
@@ -368,113 +368,113 @@ auto CalcJumpGoals(vector_3d goal, int32_t numGoals, vector_3d* goalList, GameOb
 
         if (!found)
         {
-            goalList[i].x = NO_JUMP_GOAL;
-            goalList[i].y = NO_JUMP_GOAL;
-            goalList[i].z = NO_JUMP_GOAL;
+            goalList[i].X = NO_JUMP_GOAL;
+            goalList[i].Y = NO_JUMP_GOAL;
+            goalList[i].Z = NO_JUMP_GOAL;
             continue;
         }
 
         cells[row * 9 + col] = i;
-        mapCellToWorldPos(row + areaCellR, col + areaCellC, goalList[i]);
+        MapCellToWorldPos(row + areaCellR, col + areaCellC, goalList[i]);
         numPlaced++;
     }
 
     return numPlaced;
 }
 
-auto MoverGroup::calcJumpGoals(vector_3d goal, vector_3d* goalList, GameObject* dfaTarget) -> int32_t
+auto MCMoverGroup::CalcMemberJumpGoals(MCVector3D goal, MCVector3D* goalList, MCGameObject* dfaTarget) -> int32_t
 {
-    return CalcJumpGoals(goal, numMovers, goalList, dfaTarget);
+    return CalcJumpGoals(goal, NumMovers, goalList, dfaTarget);
 }
 
-auto MoverGroup::handleTacticalOrder(TacticalOrder tacOrder, int32_t priority, vector_3d* destinations,
-                                     int queueGroupOrder) -> int32_t
+auto MCMoverGroup::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, MCVector3D* destinations,
+                                       int queueGroupOrder) -> int32_t
 {
-    if (numMovers == 0)
+    if (NumMovers == 0)
     {
-        tacOrder.destroy();
+        tacOrder.Destroy();
         return 0;
     }
 
     if (queueGroupOrder != 0)
     {
-        tacOrder.pack(nullptr, nullptr);
+        tacOrder.Pack(nullptr, nullptr);
     }
 
     int jumping = 0;
     int formation = 0;
-    const vector_3d goal = tacOrder.getWayPoint(0);
-    getPoint();
+    const MCVector3D goal = tacOrder.GetWayPoint(0);
+    GetPoint();
 
     // An attack by jumping (method 1) becomes a jump onto the target.
-    if (tacOrder.code == TACTICAL_ORDER_ATTACK_OBJECT)
+    if (tacOrder.Code == TACTICAL_ORDER_ATTACK_OBJECT)
     {
-        if (tacOrder.attackParams.method == 1)
+        if (tacOrder.AttackParams.Method == 1)
         {
-            tacOrder.code = TACTICAL_ORDER_JUMPTO_OBJECT;
-            tacOrder.moveParams.wait = 0;
-            tacOrder.moveParams.wayPath.mode[0] = 0;
+            tacOrder.Code = TACTICAL_ORDER_JUMPTO_OBJECT;
+            tacOrder.MoveParams.Wait = 0;
+            tacOrder.MoveParams.WayPath.Mode[0] = 0;
 
-            if (tacOrder.target != nullptr)
+            if (tacOrder.Target != nullptr)
             {
-                tacOrder.setWayPoint(0, tacOrder.target->getPosition());
+                tacOrder.SetWayPoint(0, tacOrder.Target->GetPosition());
             }
         }
     }
 
-    if (tacOrder.code == TACTICAL_ORDER_JUMPTO_OBJECT)
+    if (tacOrder.Code == TACTICAL_ORDER_JUMPTO_OBJECT)
     {
-        GameObject* target = tacOrder.target;
-        tacOrder.code = TACTICAL_ORDER_JUMPTO_POINT;
+        MCGameObject* target = tacOrder.Target;
+        tacOrder.Code = TACTICAL_ORDER_JUMPTO_POINT;
         Assert(target != nullptr, 0, " JumpToObject is NULL ");
-        tacOrder.setWayPoint(0, target->getPosition());
+        tacOrder.SetWayPoint(0, target->GetPosition());
     }
 
-    vector_3d jumpGoals[MAX_MOVERGROUP_COUNT];
+    MCVector3D jumpGoals[MAX_MOVERGROUP_COUNT];
 
-    switch (tacOrder.code)
+    switch (tacOrder.Code)
     {
         case TACTICAL_ORDER_MOVETO_POINT:
         case TACTICAL_ORDER_MOVETO_OBJECT:
         {
             // Moving: the members set off in order of distance from the goal, the point first.
             formation = 1;
-            SortList* sortList = Mover::sortList;
+            MCSortList* sortList = MCMover::SortList;
 
             if (sortList == nullptr)
             {
                 break;
             }
 
-            sortList->clear(0);
+            sortList->Clear(0);
             int32_t numSorted = 0;
 
-            for (int32_t i = 0; i < numMovers; i++)
+            for (int32_t i = 0; i < NumMovers; i++)
             {
-                Mover* mover = movers[i];
+                MCMover* mover = Movers[i];
 
-                if (mover == nullptr || mover->isDisabled() != 0)
+                if (mover == nullptr || mover->IsDisabled() != 0)
                 {
                     continue;
                 }
 
-                if (numSorted >= 0 && numSorted < sortList->numItems)
+                if (numSorted >= 0 && numSorted < sortList->NumItems)
                 {
-                    sortList->list[numSorted].id = i;
+                    sortList->List[numSorted].Id = i;
                 }
 
-                vector_3d goalPosition = goal;
-                const auto distance = static_cast<float>(mover->distanceFrom(goalPosition));
+                MCVector3D goalPosition = goal;
+                const auto distance = static_cast<float>(mover->DistanceFrom(goalPosition));
 
-                if (numSorted >= 0 && numSorted < sortList->numItems)
+                if (numSorted >= 0 && numSorted < sortList->NumItems)
                 {
-                    sortList->list[numSorted].value = distance;
+                    sortList->List[numSorted].Value = distance;
                 }
 
                 numSorted++;
             }
 
-            sortList->sort(0);
+            sortList->Sort(0);
 
             // The followers' formation slots. The original works them out but orders every member to the goal itself.
             int32_t numFollowers = numSorted - 1;
@@ -486,12 +486,12 @@ auto MoverGroup::handleTacticalOrder(TacticalOrder tacOrder, int32_t priority, v
 
             if (numFollowers > 0)
             {
-                vector_3d formationGoals[4];
+                MCVector3D formationGoals[4];
                 const int32_t first = FormationStart[numFollowers];
 
                 for (int32_t i = 0; i < numFollowers; i++)
                 {
-                    formationGoals[i] = relativePositionToPoint(goal, FormationOffsets[first + i][0],
+                    formationGoals[i] = RelativePositionToPoint(goal, FormationOffsets[first + i][0],
                                                                 FormationOffsets[first + i][1], 2);
                 }
             }
@@ -500,15 +500,15 @@ auto MoverGroup::handleTacticalOrder(TacticalOrder tacOrder, int32_t priority, v
 
             for (int32_t i = 0; i < numSorted; i++)
             {
-                Mover* mover = movers[sortList->list[i].id];
+                MCMover* mover = Movers[sortList->List[i].Id];
 
-                if (mover == point)
+                if (mover == Point)
                 {
-                    mover->selectionIndex = 0;
+                    mover->SelectionIndex = 0;
                 }
                 else
                 {
-                    mover->selectionIndex = rank++;
+                    mover->SelectionIndex = rank++;
                 }
             }
             break;
@@ -521,20 +521,20 @@ auto MoverGroup::handleTacticalOrder(TacticalOrder tacOrder, int32_t priority, v
 
             if (destinations == nullptr)
             {
-                calcJumpGoals(tacOrder.getWayPoint(0), jumpGoals, tacOrder.target);
+                CalcMemberJumpGoals(tacOrder.GetWayPoint(0), jumpGoals, tacOrder.Target);
             }
             else
             {
-                for (int32_t i = 0; i < numMovers; i++)
+                for (int32_t i = 0; i < NumMovers; i++)
                 {
                     jumpGoals[i] = destinations[i];
                 }
             }
 
             // A member with no goal stays put.
-            for (int32_t i = 0; i < numMovers; i++)
+            for (int32_t i = 0; i < NumMovers; i++)
             {
-                movers[i]->selectionIndex = jumpGoals[i].x <= -99000.0f ? -2 : 0;
+                Movers[i]->SelectionIndex = jumpGoals[i].X <= -99000.0f ? -2 : 0;
             }
             break;
         }
@@ -562,293 +562,293 @@ auto MoverGroup::handleTacticalOrder(TacticalOrder tacOrder, int32_t priority, v
         {
             char message[256];
             std::snprintf(message, sizeof(message), "Unit::handleTacticalOrder->Bad TacOrder Code (%d)",
-                          static_cast<int>(tacOrder.code));
+                          static_cast<int>(tacOrder.Code));
             Assert(0, 1, message);
-            tacOrder.destroy();
+            tacOrder.Destroy();
             return 1;
         }
     }
 
-    tacOrder.unitOrder = 1;
+    tacOrder.UnitOrder = 1;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
 
-        if (mover == nullptr || mover->isDisabled() != 0)
+        if (mover == nullptr || mover->IsDisabled() != 0)
         {
             continue;
         }
 
-        const int32_t delay = mover->selectionIndex;
+        const int32_t delay = mover->SelectionIndex;
 
         if (delay != -2)
         {
-            tacOrder.selectionIndex = delay;
+            tacOrder.SelectionIndex = delay;
 
             if (delay != -1)
             {
                 if (formation != 0)
                 {
-                    tacOrder.setWayPoint(0, goal);
+                    tacOrder.SetWayPoint(0, goal);
                 }
                 else if (jumping != 0)
                 {
-                    tacOrder.setWayPoint(0, jumpGoals[i]);
+                    tacOrder.SetWayPoint(0, jumpGoals[i]);
                 }
 
-                tacOrder.delayedTime = static_cast<float>(mover->selectionIndex) * DelayedOrderTime + scenarioTime;
+                tacOrder.DelayedTime = static_cast<float>(mover->SelectionIndex) * DelayedOrderTime + ScenarioTime;
             }
 
             if (MPlayer != nullptr)
             {
-                tacOrder.id = 0;
-                tacOrder.setId(mover->getPilot());
+                tacOrder.Id = 0;
+                tacOrder.SetId(mover->GetPilot());
             }
 
-            switch (tacOrder.origin)
+            switch (tacOrder.Origin)
             {
                 case 0:
                 {
                     if (queueGroupOrder != 0)
                     {
-                        mover->getPilot()->addQueuedTacOrder(tacOrder);
-                        mover->getPilot()->tacOrderQueueExecuting = 1;
+                        mover->GetPilot()->AddQueuedTacOrder(tacOrder);
+                        mover->GetPilot()->TacOrderQueueExecuting = 1;
                     }
                     else
                     {
-                        mover->getPilot()->setPlayerTacOrder(tacOrder, 0);
+                        mover->GetPilot()->SetPlayerTacOrder(tacOrder, 0);
                     }
                     break;
                 }
                 case 1:
-                    mover->getPilot()->setGeneralTacOrder(tacOrder);
+                    mover->GetPilot()->SetGeneralTacOrder(tacOrder);
                     break;
                 case 2:
-                    mover->getPilot()->setAlarmTacOrder(tacOrder, priority);
+                    mover->GetPilot()->SetAlarmTacOrder(tacOrder, priority);
                     break;
                 default:
                     break;
             }
         }
 
-        mover->selectionIndex = -1;
+        mover->SelectionIndex = -1;
     }
 
-    tacOrder.destroy();
+    tacOrder.Destroy();
     return 0;
 }
 
-auto MoverGroup::orderMoveToPoint(int setTacOrder, int32_t origin, vector_3d location, uint32_t params) -> int32_t
+auto MCMoverGroup::OrderMoveToPoint(int setTacOrder, int32_t origin, MCVector3D location, uint32_t params) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         Assert(mover != nullptr, 0, " MoverGroup.orderMoveToPoint: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
-            result = pilot->orderMoveToPoint(1, setTacOrder, origin, location, -1, params);
+            result = pilot->OrderMoveToPoint(1, setTacOrder, origin, location, -1, params);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::orderMoveToObject(int setTacOrder, int32_t origin, GameObject* target, uint32_t params) -> int32_t
+auto MCMoverGroup::OrderMoveToObject(int setTacOrder, int32_t origin, MCGameObject* target, uint32_t params) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         Assert(mover != nullptr, 0, " MoverGroup.orderMoveToObject: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
-            result = pilot->orderMoveToObject(1, setTacOrder, origin, target, -1, params);
+            result = pilot->OrderMoveToObject(1, setTacOrder, origin, target, -1, params);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::orderTraversePath(int32_t origin, _WayPath* wayPath, uint32_t params) -> int32_t
+auto MCMoverGroup::OrderTraversePath(int32_t origin, MCWayPath* wayPath, uint32_t params) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         Assert(mover != nullptr, 0, " MoverGroup.orderTraversePath: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
-            result = pilot->orderTraversePath(1, 1, origin, wayPath, params);
+            result = pilot->OrderTraversePath(1, 1, origin, wayPath, params);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::orderPatrolPath(int32_t origin, _WayPath* wayPath) -> int32_t
+auto MCMoverGroup::OrderPatrolPath(int32_t origin, MCWayPath* wayPath) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         Assert(mover != nullptr, 0, " MoverGroup.orderPatrolPath: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
-            result = pilot->orderPatrolPath(1, 1, origin, wayPath);
+            result = pilot->OrderPatrolPath(1, 1, origin, wayPath);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::orderPowerDown(int32_t origin) -> int32_t
+auto MCMoverGroup::OrderPowerDown(int32_t origin) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         Assert(mover != nullptr, 0, " MoverGroup.orderPowerDown: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
-            result = pilot->orderPowerDown(1, origin);
+            result = pilot->OrderPowerDown(1, origin);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::orderPowerUp(int32_t origin) -> int32_t
+auto MCMoverGroup::OrderPowerUp(int32_t origin) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         Assert(mover != nullptr, 0, " MoverGroup.orderPowerUp: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
-            result = pilot->orderPowerUp(1, origin);
+            result = pilot->OrderPowerUp(1, origin);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::orderAttackObject(int32_t origin, GameObject* target, int32_t attackType, int32_t attackMethod,
-                                   int32_t attackRange, int32_t aimLocation, uint32_t params) -> int32_t
+auto MCMoverGroup::OrderAttackObject(int32_t origin, MCGameObject* target, int32_t attackType, int32_t attackMethod,
+                                     int32_t attackRange, int32_t aimLocation, uint32_t params) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         Assert(mover != nullptr, 0, " MoverGroup.orderAttackObject: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
             result =
-                pilot->orderAttackObject(1, origin, target, attackType, attackMethod, attackRange, aimLocation, params);
+                pilot->OrderAttackObject(1, origin, target, attackType, attackMethod, attackRange, aimLocation, params);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::orderWithdraw(int32_t origin, vector_3d location) -> int32_t
+auto MCMoverGroup::OrderWithdraw(int32_t origin, MCVector3D location) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         Assert(mover != nullptr, 0, " MoverGroup.orderWithdraw: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
-            result = pilot->orderWithdraw(1, origin, location);
+            result = pilot->OrderWithdraw(1, origin, location);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::orderEject(int32_t origin) -> int32_t
+auto MCMoverGroup::OrderEject(int32_t origin) -> int32_t
 {
     int32_t result = 0;
 
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        Mover* mover = movers[i];
+        MCMover* mover = Movers[i];
         // The original reuses orderWithdraw's message.
         Assert(mover != nullptr, 0, " MoverGroup.orderWithdraw: NULL mover ");
-        MechWarrior* pilot = mover->getPilot();
+        MCMechWarrior* pilot = mover->GetPilot();
 
         if (pilot != nullptr)
         {
-            result = pilot->orderEject(1, 1, origin);
+            result = pilot->OrderEject(1, 1, origin);
         }
     }
 
     return result;
 }
 
-auto MoverGroup::triggerAlarm(int32_t alarmCode, uint32_t triggerId) -> void
+auto MCMoverGroup::TriggerAlarm(int32_t alarmCode, uint32_t triggerId) -> void
 {
-    for (int32_t i = 0; i < numMovers; i++)
+    for (int32_t i = 0; i < NumMovers; i++)
     {
-        MechWarrior* pilot = movers[i]->getPilot();
+        MCMechWarrior* pilot = Movers[i]->GetPilot();
 
         if (pilot != nullptr)
         {
-            pilot->triggerAlarm(alarmCode, triggerId);
+            pilot->TriggerAlarm(alarmCode, triggerId);
         }
     }
 }
 
-auto MoverGroup::handleMateCrippled(uint32_t mateId) -> int32_t
+auto MCMoverGroup::HandleMateCrippled(uint32_t mateId) -> int32_t
 {
-    triggerAlarm(4, mateId);
+    TriggerAlarm(4, mateId);
     return 0;
 }
 
-auto MoverGroup::handleMateDisabled(uint32_t) -> int32_t
-{
-    return 0;
-}
-
-auto MoverGroup::handleMateDestroyed(uint32_t mateId) -> int32_t
-{
-    triggerAlarm(3, mateId);
-    return 0;
-}
-
-auto MoverGroup::handleMateEjected(uint32_t) -> int32_t
+auto MCMoverGroup::HandleMateDisabled(uint32_t) -> int32_t
 {
     return 0;
 }
 
-auto MoverGroup::handleMateFiredWeapon(uint32_t mateId) -> void
+auto MCMoverGroup::HandleMateDestroyed(uint32_t mateId) -> int32_t
 {
-    triggerAlarm(0xd, mateId);
+    TriggerAlarm(3, mateId);
+    return 0;
+}
+
+auto MCMoverGroup::HandleMateEjected(uint32_t) -> int32_t
+{
+    return 0;
+}
+
+auto MCMoverGroup::HandleMateFiredWeapon(uint32_t mateId) -> void
+{
+    TriggerAlarm(0xd, mateId);
 }

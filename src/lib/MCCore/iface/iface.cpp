@@ -51,16 +51,16 @@
 #include "vfx/vfx.h"
 #include "vfx/vfxfuncs.h"
 
-uint8_t lanceColorArray[8] = {0xee, 0xe5, 0x0e, 0xb5, 0x12, 0x00, 0x00, 0x00};
-int32_t sx = 20;
-int32_t sy = -10;
-float slopeTest[8] = {0.0984914f, 0.3033467f, 0.5345111f, 0.8206788f, 1.2185035f, 1.8708684f, 3.2965581f, 10.1531706f};
-uint8_t danceStep = 0;
-int16_t danceFrames = 0;
-InterfaceObject* theInterface = nullptr;
-aCallback* scrollCallback = nullptr;
-aCallback* moveCallback = nullptr;
-aObject* dragTarget = nullptr;
+uint8_t LanceColorArray[8] = {0xee, 0xe5, 0x0e, 0xb5, 0x12, 0x00, 0x00, 0x00};
+int32_t Sx = 20;
+int32_t Sy = -10;
+float SlopeTest[8] = {0.0984914f, 0.3033467f, 0.5345111f, 0.8206788f, 1.2185035f, 1.8708684f, 3.2965581f, 10.1531706f};
+uint8_t DanceStep = 0;
+int16_t DanceFrames = 0;
+MCInterfaceObject* TheInterface = nullptr;
+MCGuiCallback* ScrollCallback = nullptr;
+MCGuiCallback* MoveCallback = nullptr;
+MCGuiObject* DragTarget = nullptr;
 
 namespace
 {
@@ -72,29 +72,29 @@ namespace
 
     /// <summary>
     /// The building, turret, gate or terrain object the mouse last highlighted (<c>setSelected(1)</c>) in
-    /// <see cref="InterfaceObject::UpdateMouseState"/>; unhighlighted when the mouse leaves it.
+    /// <see cref="MCInterfaceObject::UpdateMouseState"/>; unhighlighted when the mouse leaves it.
     /// </summary>
     /// <remarks>0x00808048; its name was lost.</remarks>
-    GameObject* highlightedObject = nullptr;
+    MCGameObject* HighlightedObject = nullptr;
 
-    /// <summary>The modifier bits of a key binding (see <see cref="InterfaceObject"/>'s remarks).</summary>
+    /// <summary>The modifier bits of a key binding (see <see cref="MCInterfaceObject"/>'s remarks).</summary>
     constexpr uint32_t KEY_SHIFT = 0x10000;
     constexpr uint32_t KEY_CTRL = 0x100000;
     constexpr uint32_t KEY_ALT = 0x1000000;
 
     /// <summary>A default key binding: the slot in <c>keys</c>, the scan code and the modifiers it needs.</summary>
-    struct DefaultKey
+    struct MCDefaultKey
     {
-        int32_t slot = 0;
-        uint32_t code = 0;
-        uint32_t modifiers = 0;
+        int32_t Slot = 0;
+        uint32_t Code = 0;
+        uint32_t Modifiers = 0;
     };
 
     /// <summary>
-    /// The bindings <see cref="InterfaceObject::init"/> sets, in its order. Codes are DirectInput scan codes (0x1xx
+    /// The bindings <see cref="MCInterfaceObject::Init"/> sets, in its order. Codes are DirectInput scan codes (0x1xx
     /// = extended keys). Slot 20's code is -1 (no key).
     /// </summary>
-    constexpr DefaultKey DefaultKeys[] = {
+    constexpr MCDefaultKey DefaultKeys[] = {
         {1, 0x147, 0},
         {2, 0xe, 0},
         {3, 0x39, 0},
@@ -175,7 +175,7 @@ namespace
     /// Sets a binding's key code, keeping its modifier bits, then sets <paramref name="modifiers"/> (the original
     /// assigns a bitfield's members one by one).
     /// </summary>
-    void bindKey(uint32_t& key, uint32_t code, uint32_t modifiers)
+    void BindKey(uint32_t& key, uint32_t code, uint32_t modifiers)
     {
         key = (key & (KEY_SHIFT | KEY_CTRL | KEY_ALT)) + code;
 
@@ -189,10 +189,10 @@ namespace
     /// The fade table a mech icon's part is drawn through for its colour code (rows of the fade palettes past the
     /// haze levels).
     /// </summary>
-    uint8_t* mechIconPartTable(uint8_t color)
+    uint8_t* MechIconPartTable(uint8_t color)
     {
-        const int32_t row = gamePalette->numBitmapHazeLevels;
-        uint8_t* fades = gamePalette->fadePalettes.get();
+        const int32_t row = GamePalette->NumBitmapHazeLevels;
+        uint8_t* fades = GamePalette->FadePalettes.get();
 
         switch (color)
         {
@@ -208,7 +208,7 @@ namespace
     }
 
     /// <summary>The percentage of <paramref name="current"/> out of <paramref name="maximum"/>, floored.</summary>
-    int16_t armorPercent(float current, uint8_t maximum)
+    int16_t ArmorPercent(float current, uint8_t maximum)
     {
         // A location without armour divides by zero in MCX.EXE: __ftol returns 0x80000000, whose low half is 0.
         if (maximum == 0)
@@ -219,18 +219,18 @@ namespace
         return static_cast<int16_t>(std::floor(static_cast<double>(current) * 100.0 / static_cast<double>(maximum)));
     }
 
-    /// <summary>A mech bar button's place in <see cref="aMechBar::PlaceButtons"/>'s sort (8 bytes).</summary>
-    struct ButtonSortEntry
+    /// <summary>A mech bar button's place in <see cref="MCMechBar::PlaceButtons"/>'s sort (8 bytes).</summary>
+    struct MCButtonSortEntry
     {
-        int16_t index = 0;
-        int32_t key = 0;
+        int16_t Index = 0;
+        int32_t Key = 0;
     };
 
     /// <summary>The sort's comparison: by key, ascending.</summary>
-    int compareButtons(const void* a, const void* b)
+    int CompareButtons(const void* a, const void* b)
     {
-        const auto keyA = static_cast<const ButtonSortEntry*>(a)->key;
-        const auto keyB = static_cast<const ButtonSortEntry*>(b)->key;
+        const auto keyA = static_cast<const MCButtonSortEntry*>(a)->Key;
+        const auto keyB = static_cast<const MCButtonSortEntry*>(b)->Key;
 
         if (keyA == keyB)
         {
@@ -246,36 +246,36 @@ namespace
     }
 
     /// <summary>Shows <paramref name="mover"/>'s callsign and name on floating tag <paramref name="tag"/>.</summary>
-    void showMoverTag(aFloatHelp* tag, GameObject* mover)
+    void ShowMoverTag(MCFloatHelp* tag, MCGameObject* mover)
     {
         char text[100];
-        sprintf(text, "%s\n%s", mover->getPilot()->callsign, static_cast<Mover*>(mover)->getIfaceName());
-        tag->helpObject = mover;
-        tag->setBackColor(0);
-        tag->textColor = 0xb;
+        sprintf(text, "%s\n%s", mover->GetPilot()->Callsign, static_cast<MCMover*>(mover)->GetIfaceName());
+        tag->HelpObject = mover;
+        tag->SetBackColor(0);
+        tag->TextColor = 0xb;
         tag->SetHelpText(text);
     }
 
     /// <summary>The mech bar's lance icon <paramref name="index"/>, or null without a mech bar.</summary>
-    LanceIcon* barLanceIcon(int32_t index)
+    MCLanceIcon* BarLanceIcon(int32_t index)
     {
-        aMechBar* bar = theInterface->mechBar;
-        return bar != nullptr ? bar->lanceIcons[index] : nullptr;
+        MCMechBar* bar = TheInterface->MechBar;
+        return bar != nullptr ? bar->LanceIcons[index] : nullptr;
     }
 
     /// <summary>aObject::FillBox on any port: wipes the rectangle (port coordinates) of <paramref name="target"/>.</summary>
-    void fillPortBox(aPort* target, int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color)
+    void FillPortBox(MCGuiPort* target, int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color)
     {
-        _pane box = *target->frame();
-        box.x0 = left;
-        box.y0 = top;
-        box.x1 = right;
-        box.y1 = bottom;
-        VFX_pane_wipe(&box, color);
+        MCPane box = *target->Frame();
+        box.X0 = left;
+        box.Y0 = top;
+        box.X1 = right;
+        box.Y1 = bottom;
+        VfxPaneWipe(&box, color);
     }
 
     /// <summary>Unregisters and frees a mech icon's damage shapes.</summary>
-    void freeDamageShapes(void*& shapes)
+    void FreeDamageShapes(void*& shapes)
     {
         if (shapes != nullptr)
         {
@@ -288,24 +288,24 @@ namespace
 
 // aMechIcon
 
-auto aMechIcon::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
+auto MCMechIcon::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
 {
-    int32_t result = aObject::init(xPos, yPos, width, height, bitmapName);
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, bitmapName);
 
     if (result != 0)
     {
         return result;
     }
 
-    objectType = 8;
-    deadImage = new aPort;
+    ObjectType = 8;
+    DeadImage = new MCGuiPort;
 
-    if (deadImage == nullptr)
+    if (DeadImage == nullptr)
     {
         return 3;
     }
 
-    result = deadImage->init(10);
+    result = DeadImage->Init(10);
 
     if (result != 0)
     {
@@ -314,49 +314,49 @@ auto aMechIcon::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, 
 
     for (int32_t i = 0; i < 8; i++)
     {
-        partColor[i] = 0xff;
-        partDamaged[i] = 0;
-        partDirty[i] = 1;
+        PartColor[i] = 0xff;
+        PartDamaged[i] = 0;
+        PartDirty[i] = 1;
     }
 
-    setBackColor(0x10);
-    VFX_pane_wipe(displayPort->frame(), 0x10);
-    diagramX = 0;
-    diagramY = 0;
-    flashDamage = 0;
-    mover = nullptr;
-    damageShapes = nullptr;
-    lastUpdateTime = MCPort::Milliseconds();
+    SetBackColor(0x10);
+    VfxPaneWipe(DisplayPort->Frame(), 0x10);
+    DiagramX = 0;
+    DiagramY = 0;
+    FlashDamage = 0;
+    Mover = nullptr;
+    DamageShapes = nullptr;
+    LastUpdateTime = MCPort::Milliseconds();
     return 0;
 }
 
-auto aMechIcon::destroy() -> void
+auto MCMechIcon::Destroy() -> void
 {
-    if (deadImage != nullptr)
+    if (DeadImage != nullptr)
     {
-        deadImage->destroy();
-        delete deadImage;
-        deadImage = nullptr;
+        DeadImage->Destroy();
+        delete DeadImage;
+        DeadImage = nullptr;
     }
 
-    freeDamageShapes(damageShapes);
-    aObject::destroy();
+    FreeDamageShapes(DamageShapes);
+    MCGuiObject::Destroy();
 }
 
-auto aMechIcon::draw() -> void
+auto MCMechIcon::Draw() -> void
 {
     // Port: the colours are brought up to date by UpdateModel (the original called GetColors here).
-    DrawIcon(displayPort);
+    DrawIcon(DisplayPort);
 }
 
-auto aMechIcon::UpdateModel() -> void
+auto MCMechIcon::UpdateModel() -> void
 {
     GetColors();
 }
 
-auto aMechIcon::DrawIcon(aPort* target) -> void
+auto MCMechIcon::DrawIcon(MCGuiPort* target) -> void
 {
-    auto* shown = static_cast<GameObject*>(mover);
+    auto* shown = static_cast<MCGameObject*>(Mover);
 
     if (shown == nullptr)
     {
@@ -366,99 +366,99 @@ auto aMechIcon::DrawIcon(aPort* target) -> void
     DrawParts(target);
 
     // Destroyed or disabled: the "destroyed" image over the diagram.
-    if (shown->status == 1 || shown->status == 2)
+    if (shown->Status == 1 || shown->Status == 2)
     {
-        VFX_pane_copy(deadImage->frame(), 0, 0, target->frame(), diagramX, diagramY, 0xfff);
+        VfxPaneCopy(DeadImage->Frame(), 0, 0, target->Frame(), DiagramX, DiagramY, 0xfff);
     }
 }
 
-auto aMechIcon::enter() -> void
+auto MCMechIcon::Enter() -> void
 {
-    auto* bar = static_cast<aMechBar*>(parent);
-    bar->layout.highlightId = partId;
-    bar->draw();
-    aObject::enter();
+    auto* bar = static_cast<MCMechBar*>(Parent);
+    bar->Layout.HighlightId = PartId;
+    bar->Draw();
+    MCGuiObject::Enter();
 }
 
-auto aMechIcon::leave() -> void
+auto MCMechIcon::Leave() -> void
 {
-    auto* bar = static_cast<aMechBar*>(parent);
-    theInterface->floatingTags[0]->ShowGUIWindow(0);
+    auto* bar = static_cast<MCMechBar*>(Parent);
+    TheInterface->FloatingTags[0]->ShowGuiWindow(0);
 
     if (bar != nullptr)
     {
-        bar->layout.highlightId = -1;
-        bar->draw();
+        bar->Layout.HighlightId = -1;
+        bar->Draw();
     }
 
-    application->SetCurrentCursor(static_cast<CursorType>(0));
-    aObject::leave();
+    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+    MCGuiObject::Leave();
 }
 
-auto aMechIcon::DrawParts(aPort* target) -> void
+auto MCMechIcon::DrawParts(MCGuiPort* target) -> void
 {
-    for (int16_t i = 0; i < numParts; i++)
+    for (int16_t i = 0; i < NumParts; i++)
     {
-        const uint8_t color = (flashDamage != 0 && partDamaged[i] != 0) ? 0x10 : partColor[i];
+        const uint8_t color = (FlashDamage != 0 && PartDamaged[i] != 0) ? 0x10 : PartColor[i];
 
         if (color == 0xb)
         {
-            AG_shape_draw(target->frame(), damageShapes, i, diagramX, diagramY);
+            AGShapeDraw(target->Frame(), DamageShapes, i, DiagramX, DiagramY);
         }
         else
         {
-            AG_shape_lookaside(mechIconPartTable(color));
-            AG_shape_translate_draw(target->frame(), damageShapes, i, diagramX, diagramY);
+            AGShapeLookaside(MechIconPartTable(color));
+            AGShapeTranslateDraw(target->Frame(), DamageShapes, i, DiagramX, DiagramY);
         }
 
         // Port: the original cleared each part's dirty flag here; nothing reads it (every part is drawn each time).
     }
 
-    if (mover == nullptr)
+    if (Mover == nullptr)
     {
-        VFX_pane_copy(deadImage->frame(), 0, 0, target->frame(), diagramX, diagramY, 0xfff);
+        VfxPaneCopy(DeadImage->Frame(), 0, 0, target->Frame(), DiagramX, DiagramY, 0xfff);
     }
 }
 
-auto aMechIcon::GetColors() -> void
+auto MCMechIcon::GetColors() -> void
 {
-    auto* shown = static_cast<Mover*>(mover);
+    auto* shown = static_cast<MCMover*>(Mover);
 
     if (shown == nullptr)
     {
         return;
     }
 
-    const int8_t numLocations = shown->numBodyLocations;
+    const int8_t numLocations = shown->NumBodyLocations;
 
     for (int32_t i = 0; i < numLocations; i++)
     {
-        const BodyLocation& location = shown->bodyAt(i);
+        const MCBodyLocation& location = shown->BodyAt(i);
         uint8_t newColor;
 
-        if (location.damageState == 2)
+        if (location.DamageState == 2)
         {
             newColor = 0x19;
         }
         else
         {
-            if (static_cast<float>(location.maxInternalStructure) != location.curInternalStructure)
+            if (static_cast<float>(location.MaxInternalStructure) != location.CurInternalStructure)
             {
-                partDamaged[i] = 1;
+                PartDamaged[i] = 1;
             }
 
             // A mech's torsos (1..3) show the worse of their front and rear armour.
             int16_t percent;
 
-            if (shown->objectClass == BATTLEMECH && i > 0 && i < 4)
+            if (shown->ObjectClass == BATTLEMECH && i > 0 && i < 4)
             {
-                const int16_t front = armorPercent(shown->armor[i].curArmor, shown->armor[i].maxArmor);
-                const int16_t rear = armorPercent(shown->armor[i + 7].curArmor, shown->armor[i + 7].maxArmor);
+                const int16_t front = ArmorPercent(shown->Armor[i].CurArmor, shown->Armor[i].MaxArmor);
+                const int16_t rear = ArmorPercent(shown->Armor[i + 7].CurArmor, shown->Armor[i + 7].MaxArmor);
                 percent = rear < front ? rear : front;
             }
             else
             {
-                percent = armorPercent(shown->armor[i].curArmor, shown->armor[i].maxArmor);
+                percent = ArmorPercent(shown->Armor[i].CurArmor, shown->Armor[i].MaxArmor);
             }
 
             if (percent >= 0x4c)
@@ -479,22 +479,22 @@ auto aMechIcon::GetColors() -> void
             }
         }
 
-        if (partColor[i] != newColor)
+        if (PartColor[i] != newColor)
         {
-            partColor[i] = newColor;
-            partDirty[i] = 1;
+            PartColor[i] = newColor;
+            PartDirty[i] = 1;
         }
     }
 }
 
-auto aMechIcon::display() -> void
+auto MCMechIcon::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
@@ -502,38 +502,38 @@ auto aMechIcon::display() -> void
     // Port: the original redrew its picture every 500 ms here; the icon draws itself each frame, from a model
     // brought up to date first.
     UpdateModel();
-    aObject::display();
+    MCGuiObject::Display();
 }
 
-auto aMechIcon::SetID(int32_t newPartId) -> void
+auto MCMechIcon::SetID(int32_t newPartId) -> void
 {
     // A mover, or else a salvage craft among the scenario's objects.
-    mover = objectList->findObjectFromPart(newPartId);
+    Mover = ObjectList->FindObjectFromPart(newPartId);
 
-    if (mover == nullptr)
+    if (Mover == nullptr)
     {
-        BaseObject* object = nullptr;
+        MCBaseObject* object = nullptr;
 
-        while (scenario->scenarioObjectList->traverse(object) != nullptr)
+        while (Scenario->ScenarioObjectList->Traverse(object) != nullptr)
         {
-            if (object->partId == newPartId)
+            if (object->PartId == newPartId)
             {
-                mover = object;
+                Mover = object;
                 break;
             }
         }
     }
 
-    if (mover != nullptr)
+    if (Mover != nullptr)
     {
-        partId = newPartId;
-        numParts = static_cast<Mover*>(mover)->numBodyLocations;
+        PartId = newPartId;
+        NumParts = static_cast<MCMover*>(Mover)->NumBodyLocations;
     }
 }
 
-auto aMechIcon::SetFullUpdate(int fullUpdate) -> void
+auto MCMechIcon::SetFullUpdate(int fullUpdate) -> void
 {
-    for (int32_t& dirty : partDirty)
+    for (int32_t& dirty : PartDirty)
     {
         dirty = fullUpdate;
     }
@@ -541,87 +541,87 @@ auto aMechIcon::SetFullUpdate(int fullUpdate) -> void
 
 // FriendlyMechIcon
 
-auto FriendlyMechIcon::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
+auto MCFriendlyMechIcon::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
 {
-    showingWoundedPilot = 0;
-    showingDeadPilot = 0;
-    const int32_t result = aMechIcon::init(xPos, yPos, width, height, bitmapName);
+    ShowingWoundedPilot = 0;
+    ShowingDeadPilot = 0;
+    const int32_t result = MCMechIcon::Init(xPos, yPos, width, height, bitmapName);
 
     if (result != 0)
     {
         return result;
     }
 
-    pilotImage = new aPort;
-    diagramX = 6;
-    diagramY = 0x10;
+    PilotImage = new MCGuiPort;
+    DiagramX = 6;
+    DiagramY = 0x10;
 
     for (int32_t i = 0; i < 8; i++)
     {
-        partDamaged[i] = 0;
-        partDirty[i] = 1;
+        PartDamaged[i] = 0;
+        PartDirty[i] = 1;
     }
 
-    lance = 5;
-    isPoint = 0;
+    Lance = 5;
+    IsPoint = 0;
     return 0;
 }
 
-auto FriendlyMechIcon::destroy() -> void
+auto MCFriendlyMechIcon::Destroy() -> void
 {
-    if (pilotImage != nullptr)
+    if (PilotImage != nullptr)
     {
-        pilotImage->destroy();
-        delete pilotImage;
-        pilotImage = nullptr;
+        PilotImage->Destroy();
+        delete PilotImage;
+        PilotImage = nullptr;
     }
 
-    if (iconBackground != nullptr)
+    if (IconBackground != nullptr)
     {
-        iconBackground->destroy();
-        delete iconBackground;
-        iconBackground = nullptr;
+        IconBackground->Destroy();
+        delete IconBackground;
+        IconBackground = nullptr;
     }
 
-    aMechIcon::destroy();
+    MCMechIcon::Destroy();
 }
 
-auto FriendlyMechIcon::enter() -> void
+auto MCFriendlyMechIcon::Enter() -> void
 {
-    aFloatHelp* tag = theInterface->floatingTags[0];
-    auto* bar = static_cast<aMechBar*>(parent);
-    auto* shown = static_cast<GameObject*>(mover);
-    bar->layout.highlightId = partId;
-    bar->draw();
+    MCFloatHelp* tag = TheInterface->FloatingTags[0];
+    auto* bar = static_cast<MCMechBar*>(Parent);
+    auto* shown = static_cast<MCGameObject*>(Mover);
+    bar->Layout.HighlightId = PartId;
+    bar->Draw();
 
     // The pilot's tag, shown when the mover was seen this turn.
-    if (shown != nullptr && active != 0 && shown->getPilot() != nullptr)
+    if (shown != nullptr && Active != 0 && shown->GetPilot() != nullptr)
     {
-        showMoverTag(tag, shown);
+        ShowMoverTag(tag, shown);
 
-        if (shown->getWindowsVisible() == turn)
+        if (shown->GetWindowsVisible() == Turn)
         {
-            tag->ShowGUIWindow(1);
+            tag->ShowGuiWindow(1);
         }
     }
 
     // The cursor for the current command.
     int32_t cursor;
 
-    if (theInterface->AnySelected(0) == 0)
+    if (TheInterface->AnySelected(0) == 0)
     {
         cursor = 0;
     }
     else
     {
-        switch (theInterface->currentCommand)
+        switch (TheInterface->CurrentCommand)
         {
             case 0xb:
             case 0x10:
             {
-                if (theInterface->AnySelected(1) == 0)
+                if (TheInterface->AnySelected(1) == 0)
                 {
-                    aObject::enter();
+                    MCGuiObject::Enter();
                     return;
                 }
 
@@ -630,9 +630,9 @@ auto FriendlyMechIcon::enter() -> void
             }
             case 0xc:
             {
-                if (theInterface->AnySelected(1) == 0)
+                if (TheInterface->AnySelected(1) == 0)
                 {
-                    aObject::enter();
+                    MCGuiObject::Enter();
                     return;
                 }
 
@@ -641,9 +641,9 @@ auto FriendlyMechIcon::enter() -> void
             }
             case 0xd:
             {
-                if (theInterface->AnySelected(1) == 0)
+                if (TheInterface->AnySelected(1) == 0)
                 {
-                    aObject::enter();
+                    MCGuiObject::Enter();
                     return;
                 }
 
@@ -652,9 +652,9 @@ auto FriendlyMechIcon::enter() -> void
             }
             case 0xe:
             {
-                if (theInterface->AnySelected(1) == 0)
+                if (TheInterface->AnySelected(1) == 0)
                 {
-                    aObject::enter();
+                    MCGuiObject::Enter();
                     return;
                 }
 
@@ -671,9 +671,9 @@ auto FriendlyMechIcon::enter() -> void
             case 0x1d:
             case 0x1e:
             {
-                if (theInterface->AnySelected(1) == 0)
+                if (TheInterface->AnySelected(1) == 0)
                 {
-                    aObject::enter();
+                    MCGuiObject::Enter();
                     return;
                 }
 
@@ -688,18 +688,18 @@ auto FriendlyMechIcon::enter() -> void
                 // One selected refit vehicle over a mover needing a refit: the refit command.
                 cursor = 0;
 
-                if (theInterface->numSelectedMechs == 1 && static_cast<Mover*>(shown)->needsRefit(0) != 0)
+                if (TheInterface->NumSelectedMechs == 1 && static_cast<MCMover*>(shown)->NeedsRefit(0) != 0)
                 {
-                    const int32_t selectedId = theInterface->numSelectedMechs < 1 ? -1 : theInterface->selectedMechs[0];
-                    auto* selected = static_cast<GameObject*>(objectList->findObjectFromPart(selectedId));
+                    const int32_t selectedId = TheInterface->NumSelectedMechs < 1 ? -1 : TheInterface->SelectedMechs[0];
+                    auto* selected = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(selectedId));
 
-                    if (selected != nullptr && selected->objectClass == GROUNDVEHICLE &&
-                        selected->getRefitPoints() > 0.0f)
+                    if (selected != nullptr && selected->ObjectClass == GROUNDVEHICLE &&
+                        selected->GetRefitPoints() > 0.0f)
                     {
-                        application->SetCurrentCursor(static_cast<CursorType>(10));
-                        theInterface->currentCommand = 9;
-                        theInterface->commandOneShot = 0;
-                        aObject::enter();
+                        Application->SetCurrentCursor(static_cast<MCCursorType>(10));
+                        TheInterface->CurrentCommand = 9;
+                        TheInterface->CommandOneShot = 0;
+                        MCGuiObject::Enter();
                         return;
                     }
                 }
@@ -708,26 +708,26 @@ auto FriendlyMechIcon::enter() -> void
         }
     }
 
-    application->SetCurrentCursor(static_cast<CursorType>(cursor));
-    aObject::enter();
+    Application->SetCurrentCursor(static_cast<MCCursorType>(cursor));
+    MCGuiObject::Enter();
 }
 
-auto FriendlyMechIcon::draw() -> void
+auto MCFriendlyMechIcon::Draw() -> void
 {
-    DrawIcon(displayPort);
+    DrawIcon(DisplayPort);
 }
 
-auto FriendlyMechIcon::UpdateModel() -> void
+auto MCFriendlyMechIcon::UpdateModel() -> void
 {
-    aMechIcon::UpdateModel();
-    auto* shown = static_cast<GameObject*>(mover);
+    MCMechIcon::UpdateModel();
+    auto* shown = static_cast<MCGameObject*>(Mover);
 
-    if (shown == nullptr || active == 0)
+    if (shown == nullptr || Active == 0)
     {
         return;
     }
 
-    MechWarrior* pilot = shown->getPilot();
+    MCMechWarrior* pilot = shown->GetPilot();
 
     if (pilot == nullptr)
     {
@@ -736,56 +736,56 @@ auto FriendlyMechIcon::UpdateModel() -> void
 
     // Wounded (6 or more wounds), then dead or gone: the portrait changes once. (The original did this as it drew
     // the pilot.)
-    if (6.0f <= pilot->wounds && showingWoundedPilot == 0)
+    if (6.0f <= pilot->Wounds && ShowingWoundedPilot == 0)
     {
-        pilotImage->init(3);
-        showingWoundedPilot = 1;
+        PilotImage->Init(3);
+        ShowingWoundedPilot = 1;
     }
 
-    const int32_t status = pilot->status;
+    const int32_t status = pilot->Status;
 
-    if ((status == 3 || status == 5 || status == 6) && showingDeadPilot == 0)
+    if ((status == 3 || status == 5 || status == 6) && ShowingDeadPilot == 0)
     {
-        pilotImage->init(4);
-        showingDeadPilot = 1;
+        PilotImage->Init(4);
+        ShowingDeadPilot = 1;
     }
 }
 
-auto FriendlyMechIcon::DrawIcon(aPort* target) -> void
+auto MCFriendlyMechIcon::DrawIcon(MCGuiPort* target) -> void
 {
     // The icon's picture held its background, drawn over each time.
-    if (iconBackground != nullptr)
+    if (IconBackground != nullptr)
     {
-        iconBackground->copyTo(target->frame(), 0, 0, 0);
+        IconBackground->CopyTo(target->Frame(), 0, 0, 0);
     }
 
-    auto* shown = static_cast<Mover*>(mover);
+    auto* shown = static_cast<MCMover*>(Mover);
     DrawWeapon(target);
-    aMechIcon::DrawIcon(target);
-    fillPortBox(target, 2, 2, 0x31, 9, lanceColorArray[lance]);
+    MCMechIcon::DrawIcon(target);
+    FillPortBox(target, 2, 2, 0x31, 9, LanceColorArray[Lance]);
 
     // A vehicle with a name shows it instead of its pilot.
-    if (shown->objectClass == GROUNDVEHICLE && shown->getIfaceName() != nullptr)
+    if (shown->ObjectClass == GROUNDVEHICLE && shown->GetIfaceName() != nullptr)
     {
-        whiteFont->writeString(target->frame(), 5, 3,
-                               reinterpret_cast<uint8_t*>(const_cast<char*>(shown->getIfaceName())), -1);
+        WhiteFont->WriteString(target->Frame(), 5, 3,
+                               reinterpret_cast<uint8_t*>(const_cast<char*>(shown->GetIfaceName())), -1);
         return;
     }
 
     DrawPilot(target);
 }
 
-auto FriendlyMechIcon::display() -> void
+auto MCFriendlyMechIcon::Display() -> void
 {
-    if (active != 0)
+    if (Active != 0)
     {
-        aMechIcon::display();
+        MCMechIcon::Display();
     }
 }
 
-auto FriendlyMechIcon::drawBox(uint8_t color, int32_t left, int32_t top, int32_t right, int32_t bottom) -> void
+auto MCFriendlyMechIcon::DrawBox(uint8_t color, int32_t left, int32_t top, int32_t right, int32_t bottom) -> void
 {
-    if (theInterface->mechBar->dancing != 0)
+    if (TheInterface->MechBar->Dancing != 0)
     {
         return;
     }
@@ -802,30 +802,30 @@ auto FriendlyMechIcon::drawBox(uint8_t color, int32_t left, int32_t top, int32_t
 
     if (right == -1)
     {
-        right = width() - 1;
+        right = Width() - 1;
     }
 
     if (bottom == -1)
     {
-        bottom = height() - 1;
+        bottom = Height() - 1;
     }
 
-    VFX_line_draw(frame(), left, top, right, top, LD_DRAW, color);
-    VFX_line_draw(frame(), left, top, left, bottom, LD_DRAW, color);
-    VFX_line_draw(frame(), left, bottom, right, bottom, LD_DRAW, color);
-    VFX_line_draw(frame(), right, top, right, bottom, LD_DRAW, color);
+    VfxLineDraw(Frame(), left, top, right, top, LD_DRAW, color);
+    VfxLineDraw(Frame(), left, top, left, bottom, LD_DRAW, color);
+    VfxLineDraw(Frame(), left, bottom, right, bottom, LD_DRAW, color);
+    VfxLineDraw(Frame(), right, top, right, bottom, LD_DRAW, color);
 }
 
-auto FriendlyMechIcon::DrawPilot(aPort* target) -> void
+auto MCFriendlyMechIcon::DrawPilot(MCGuiPort* target) -> void
 {
-    auto* shown = static_cast<GameObject*>(mover);
+    auto* shown = static_cast<MCGameObject*>(Mover);
 
-    if (shown == nullptr || active == 0)
+    if (shown == nullptr || Active == 0)
     {
         return;
     }
 
-    MechWarrior* pilot = shown->getPilot();
+    MCMechWarrior* pilot = shown->GetPilot();
 
     if (pilot == nullptr)
     {
@@ -835,34 +835,34 @@ auto FriendlyMechIcon::DrawPilot(aPort* target) -> void
     // (The portrait was switched to the wounded or dead image here: see UpdateModel.)
 
     // The health bar loses 3 pixels per wound from its right end.
-    if (0.0f < shown->getPilot()->wounds)
+    if (0.0f < shown->GetPilot()->Wounds)
     {
-        const auto left = static_cast<int16_t>(47.0f - shown->getPilot()->wounds * 3.0f);
-        fillPortBox(target, left, 0xb, 0x30, 0xd, 0x10);
+        const auto left = static_cast<int16_t>(47.0f - shown->GetPilot()->Wounds * 3.0f);
+        FillPortBox(target, left, 0xb, 0x30, 0xd, 0x10);
     }
 
-    VFX_pane_copy(pilotImage->frame(), 0, 0, target->frame(), 0x1c, 0xe, 0xfff);
+    VfxPaneCopy(PilotImage->Frame(), 0, 0, target->Frame(), 0x1c, 0xe, 0xfff);
 
-    if (shown->objectClass == BATTLEMECH && shown->getPilot()->callsign != nullptr)
+    if (shown->ObjectClass == BATTLEMECH && shown->GetPilot()->Callsign != nullptr)
     {
-        whiteFont->writeString(target->frame(), 5, 3, reinterpret_cast<uint8_t*>(shown->getPilot()->callsign), -1);
+        WhiteFont->WriteString(target->Frame(), 5, 3, reinterpret_cast<uint8_t*>(shown->GetPilot()->Callsign), -1);
     }
 }
 
-auto FriendlyMechIcon::DrawWeapon(aPort* target) -> void
+auto MCFriendlyMechIcon::DrawWeapon(MCGuiPort* target) -> void
 {
     // The bar runs from x 2 on a mech (beside the portrait), from 0xd otherwise.
     int32_t start = 2;
-    auto* shown = static_cast<Mover*>(mover);
+    auto* shown = static_cast<MCMover*>(Mover);
 
-    if (shown == nullptr || shown->objectClass != BATTLEMECH)
+    if (shown == nullptr || shown->ObjectClass != BATTLEMECH)
     {
-        fillPortBox(target, 2, 0xb, 0x2e, 0xc, 0x10);
+        FillPortBox(target, 2, 0xb, 0x2e, 0xc, 0x10);
         start = 0xd;
     }
     else
     {
-        fillPortBox(target, 2, 0xb, 0x1b, 0xc, 0x10);
+        FillPortBox(target, 2, 0xb, 0x1b, 0xc, 0x10);
     }
 
     if (shown == nullptr)
@@ -870,7 +870,7 @@ auto FriendlyMechIcon::DrawWeapon(aPort* target) -> void
         return;
     }
 
-    const float effectiveness = shown->getTotalEffectiveness();
+    const float effectiveness = shown->GetTotalEffectiveness();
     int32_t length = static_cast<int16_t>(std::floor(static_cast<double>(effectiveness) * 25.0));
 
     if (length == 0 && 0.001 < static_cast<double>(effectiveness))
@@ -896,189 +896,189 @@ auto FriendlyMechIcon::DrawWeapon(aPort* target) -> void
 
     // A two-pixel bar, lit on its top and left, shaded (colour - 1) on its bottom and right.
     const int32_t end = length + start;
-    VFX_line_draw(target->frame(), start, 0xb, start, 0xc, LD_DRAW, color);
-    VFX_line_draw(target->frame(), start, 0xb, end, 0xb, LD_DRAW, color);
-    VFX_line_draw(target->frame(), start + 1, 0xc, end, 0xc, LD_DRAW, color - 1);
-    VFX_line_draw(target->frame(), end, 0xb, end, 0xc, LD_DRAW, color - 1);
+    VfxLineDraw(target->Frame(), start, 0xb, start, 0xc, LD_DRAW, color);
+    VfxLineDraw(target->Frame(), start, 0xb, end, 0xb, LD_DRAW, color);
+    VfxLineDraw(target->Frame(), start + 1, 0xc, end, 0xc, LD_DRAW, color - 1);
+    VfxLineDraw(target->Frame(), end, 0xb, end, 0xc, LD_DRAW, color - 1);
 }
 
-auto FriendlyMechIcon::SetID(int32_t newPartId) -> void
+auto MCFriendlyMechIcon::SetID(int32_t newPartId) -> void
 {
-    BaseObject* object = objectList->findObjectFromPart(newPartId);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(newPartId);
 
     if (object == nullptr)
     {
         return;
     }
 
-    const int32_t objectClass = object->objectClass;
+    const int32_t objectClass = object->ObjectClass;
 
     if (objectClass != BATTLEMECH && objectClass != GROUNDVEHICLE && objectClass != ELEMENTAL && objectClass != MOVER)
     {
         return;
     }
 
-    File shapeFile;
+    MCFile shapeFile;
     char shapeName[20];
 
     if (objectClass == BATTLEMECH)
     {
-        diagramX = 2;
-        diagramY = 0xe;
-        sprintf(shapeName, "mi%02i", object->getObjectType()->iconNumber);
+        DiagramX = 2;
+        DiagramY = 0xe;
+        sprintf(shapeName, "mi%02i", object->GetObjectType()->IconNumber);
     }
     else
     {
-        diagramX = 0xe;
-        diagramY = 0xe;
-        sprintf(shapeName, "vi%i", object->getObjectType()->iconNumber);
+        DiagramX = 0xe;
+        DiagramY = 0xe;
+        sprintf(shapeName, "vi%i", object->GetObjectType()->IconNumber);
     }
 
     // Port: the original loaded the background into the icon's own picture; it is kept apart, and the icon's view
     // takes its size.
-    if (iconBackground == nullptr)
+    if (IconBackground == nullptr)
     {
-        iconBackground = new aPort;
+        IconBackground = new MCGuiPort;
     }
 
-    iconBackground->init(const_cast<char*>("guiub00.tga"));
-    port()->initView(iconBackground->width(), iconBackground->height());
+    IconBackground->Init(const_cast<char*>("guiub00.tga"));
+    Port()->InitView(IconBackground->Width(), IconBackground->Height());
 
-    FullPathFileName shapePath;
-    shapePath.init(artPath, shapeName, ".shp");
+    MCFullPathFileName shapePath;
+    shapePath.Init(ArtPath, shapeName, ".shp");
 
-    if (shapeFile.open(shapePath, READ, 0x32) != 0)
+    if (shapeFile.Open(shapePath, READ, 0x32) != 0)
     {
         Fatal(0, "Unable to open damage display shape file");
     }
 
-    freeDamageShapes(damageShapes);
+    FreeDamageShapes(DamageShapes);
 
     // An empty file still fails, as it did when the GUI heap's malloc(0) returned null.
-    if (shapeFile.getLength() == 0)
+    if (shapeFile.GetLength() == 0)
     {
-        shapeFile.close();
+        shapeFile.Close();
         Fatal(0, "Not enough memory for damage display shape file");
     }
 
-    damageShapes = new uint8_t[shapeFile.getLength()]{};
-    shapeFile.read(static_cast<uint8_t*>(damageShapes), static_cast<int32_t>(shapeFile.getLength()));
-    MCRenderer::RegisterData(damageShapes, shapeFile.getLength(), MCDataKind::Shapes);
-    shapeFile.close();
+    DamageShapes = new uint8_t[shapeFile.GetLength()]{};
+    shapeFile.Read(static_cast<uint8_t*>(DamageShapes), static_cast<int32_t>(shapeFile.GetLength()));
+    MCRenderer::RegisterData(DamageShapes, shapeFile.GetLength(), MCDataKind::Shapes);
+    shapeFile.Close();
 
-    auto* shown = static_cast<Mover*>(object);
-    numParts = shown->numBodyLocations;
-    mover = object;
-    partId = newPartId;
+    auto* shown = static_cast<MCMover*>(object);
+    NumParts = shown->NumBodyLocations;
+    Mover = object;
+    PartId = newPartId;
 
-    if (shown->getPilot() != nullptr && shown->getPilot()->picture != nullptr)
+    if (shown->GetPilot() != nullptr && shown->GetPilot()->Picture != nullptr)
     {
-        pilotImage->init(shown->getPilot()->picture);
+        PilotImage->Init(shown->GetPilot()->Picture);
     }
 
-    isPoint = shown == shown->getPoint() ? 1 : 0;
+    IsPoint = shown == shown->GetPoint() ? 1 : 0;
     // The original drew the icon here; it draws itself each frame.
     UpdateModel();
 }
 
 // aSalvageIcon
 
-auto aSalvageIcon::display() -> void
+auto MCSalvageIcon::Display() -> void
 {
-    for (SalvageNode* node = objects; node != nullptr; node = node->next)
+    for (SalvageNode* node = Objects; node != nullptr; node = node->Next)
     {
-        GameObject* object = node->object;
+        MCGameObject* object = node->Object;
 
-        if (object->onScreen() == 0)
+        if (object->OnScreen() == 0)
         {
             continue;
         }
 
-        vector_2d screenPos = object->getScreenPos(0);
+        MCVector2D screenPos = object->GetScreenPos(0);
 
         // Port: from the main view's world surface to the view on the screen (through the zoom).
-        if (viewWindow* view = MCMainView(); view != nullptr)
+        if (MCViewWindow* view = MCMainView(); view != nullptr)
         {
             screenPos = view->WorldToWindow(screenPos);
         }
 
-        if (displayPort != nullptr)
+        if (DisplayPort != nullptr)
         {
-            const auto yPos = static_cast<int32_t>(static_cast<float>(sy) + screenPos.y);
-            const auto xPos = static_cast<int32_t>(screenPos.x + static_cast<float>(sx));
-            displayPort->copyTo(framePane, xPos, yPos, 0);
+            const auto yPos = static_cast<int32_t>(static_cast<float>(Sy) + screenPos.Y);
+            const auto xPos = static_cast<int32_t>(screenPos.X + static_cast<float>(Sx));
+            DisplayPort->CopyTo(FramePane, xPos, yPos, 0);
         }
     }
 }
 
 // aMechBar
 
-aMechBar::aMechBar()
+MCMechBar::MCMechBar()
 {
     // The original sets the layout's fields (see aMechBarLayout's initializers) and clears the button and lance
     // arrays; videoId is left as allocated.
-    layout.setSpacing(4, 4);
+    Layout.SetSpacing(4, 4);
 }
 
-auto aMechBar::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
+auto MCMechBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
 {
-    aObject::init(xPos, yPos, width, height, bitmapName);
+    MCGuiObject::Init(xPos, yPos, width, height, bitmapName);
     // The bar draws on its parent: no bitmap of its own.
-    MCRenderer::DestroyTexture(port()->bitmap());
-    aPort::freePixels(port()->bitmap()->buffer);
-    port()->bitmap()->buffer = nullptr;
-    ShowGUIWindow(0);
-    dancing = 0;
-    layout.setSpacing(0x34, 0x2e);
+    MCRenderer::DestroyTexture(Port()->Bitmap());
+    MCGuiPort::FreePixels(Port()->Bitmap()->Buffer);
+    Port()->Bitmap()->Buffer = nullptr;
+    ShowGuiWindow(0);
+    Dancing = 0;
+    Layout.SetSpacing(0x34, 0x2e);
     return 0;
 }
 
-auto aMechBar::destroy() -> void
+auto MCMechBar::Destroy() -> void
 {
-    cleanUp();
-    aObject::destroy();
+    CleanUp();
+    MCGuiObject::Destroy();
 }
 
-auto aMechBar::display() -> void
+auto MCMechBar::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        childList[i]->display();
+        ChildList[i]->Display();
     }
 
-    if (dancing == 0)
+    if (Dancing == 0)
     {
         // A separator after each lance icon shown, and around each button outside a lance.
-        for (LanceIcon* lanceIcon : lanceIcons)
+        for (MCLanceIcon* lanceIcon : LanceIcons)
         {
             if (lanceIcon != nullptr && lanceIcon->IsShowing() != 0)
             {
-                const int32_t lanceRight = lanceIcon->right();
-                VFX_line_draw(frame(), lanceRight - 1, 0xf, lanceRight - 1, height() - 1, LD_DRAW, 0x10);
+                const int32_t lanceRight = lanceIcon->Right();
+                VfxLineDraw(Frame(), lanceRight - 1, 0xf, lanceRight - 1, Height() - 1, LD_DRAW, 0x10);
             }
         }
 
         for (int16_t i = 0; i < 0xc; i++)
         {
-            FriendlyMechIcon* button = getButton(i);
+            MCFriendlyMechIcon* button = GetButton(i);
 
             if (button == nullptr)
             {
                 continue;
             }
 
-            button->drawBox(0x35, -1, -1, -1, -1);
+            button->DrawBox(0x35, -1, -1, -1, -1);
 
-            if (button->IsShowing() != 0 && button->lance == 5)
+            if (button->IsShowing() != 0 && button->Lance == 5)
             {
-                const int32_t buttonRight = button->right();
-                VFX_line_draw(frame(), buttonRight, 0xf, buttonRight, height() - 1, LD_DRAW, 0x10);
-                VFX_line_draw(frame(), 0, 0xf, buttonRight, 0xf, LD_DRAW, 0x10);
+                const int32_t buttonRight = button->Right();
+                VfxLineDraw(Frame(), buttonRight, 0xf, buttonRight, Height() - 1, LD_DRAW, 0x10);
+                VfxLineDraw(Frame(), 0, 0xf, buttonRight, 0xf, LD_DRAW, 0x10);
             }
         }
     }
@@ -1086,73 +1086,73 @@ auto aMechBar::display() -> void
     // Each button's frame: red on the video pilot, else yellow when selected, else white under the mouse.
     for (int16_t i = 0; i < 0xc; i++)
     {
-        FriendlyMechIcon* button = getButton(i);
+        MCFriendlyMechIcon* button = GetButton(i);
 
         if (button == nullptr)
         {
             continue;
         }
 
-        const int32_t buttonWidth = button->width();
-        const int32_t buttonHeight = button->height();
+        const int32_t buttonWidth = button->Width();
+        const int32_t buttonHeight = button->Height();
 
-        if (layout.videoId == button->partId)
+        if (Layout.VideoId == button->PartId)
         {
-            button->drawBox(0xef, 1, 1, buttonWidth - 2, buttonHeight - 2);
+            button->DrawBox(0xef, 1, 1, buttonWidth - 2, buttonHeight - 2);
         }
-        else if (theInterface->IsSelected(button->partId) != 0)
+        else if (TheInterface->IsSelected(button->PartId) != 0)
         {
-            button->drawBox(0x1f, 1, 1, buttonWidth - 2, buttonHeight - 2);
+            button->DrawBox(0x1f, 1, 1, buttonWidth - 2, buttonHeight - 2);
         }
-        else if (layout.highlightId == button->partId)
+        else if (Layout.HighlightId == button->PartId)
         {
-            button->drawBox(0xb, 1, 1, buttonWidth - 2, buttonHeight - 2);
+            button->DrawBox(0xb, 1, 1, buttonWidth - 2, buttonHeight - 2);
         }
     }
 }
 
-auto aMechBar::handleEvent(aEvent* event) -> void
+auto MCMechBar::HandleEvent(MCGuiEvent* event) -> void
 {
     // A broadcast (a resolution change): back to the bottom of the screen.
-    if (event->type == 0x12)
+    if (event->Type == 0x12)
     {
-        moveTo(1, application->height() - height() - 1, 0);
+        MoveTo(1, Application->Height() - Height() - 1, 0);
     }
 
-    event->target = mainHolder->GetActivePane();
-    theInterface->handleEvent(event);
+    event->Target = MainHolder->GetActivePane();
+    TheInterface->HandleEvent(event);
 }
 
-auto aMechBar::resize(int32_t width, int32_t height) -> void
+auto MCMechBar::Resize(int32_t width, int32_t height) -> void
 {
     if (width <= 0 || height <= 0)
     {
         return;
     }
 
-    if (width == winWidth && height == winHeight)
+    if (width == WinWidth && height == WinHeight)
     {
         return;
     }
 
-    winWidth = width;
-    winHeight = height;
-    framePane->x1 = framePane->x0 - 1 + width;
-    framePane->y1 = framePane->y0 - 1 + height;
+    WinWidth = width;
+    WinHeight = height;
+    FramePane->X1 = FramePane->X0 - 1 + width;
+    FramePane->Y1 = FramePane->Y0 - 1 + height;
 }
 
-auto aMechBar::cleanUp() -> void
+auto MCMechBar::CleanUp() -> void
 {
-    for (int16_t i = static_cast<int16_t>(layout.numButtons - 1); i > -1; i--)
+    for (int16_t i = static_cast<int16_t>(Layout.NumButtons - 1); i > -1; i--)
     {
         RemoveButton(i);
     }
 
-    for (LanceIcon*& lanceIcon : lanceIcons)
+    for (MCLanceIcon*& lanceIcon : LanceIcons)
     {
         if (lanceIcon != nullptr)
         {
-            lanceIcon->destroy();
+            lanceIcon->Destroy();
             delete lanceIcon;
         }
 
@@ -1160,48 +1160,48 @@ auto aMechBar::cleanUp() -> void
     }
 }
 
-auto aMechBar::AddButton(FriendlyMechIcon* button) -> int32_t
+auto MCMechBar::AddButton(MCFriendlyMechIcon* button) -> int32_t
 {
-    if (layout.numButtons >= layout.maxButtons)
+    if (Layout.NumButtons >= Layout.MaxButtons)
     {
         return static_cast<int32_t>(0xEEEE0001u);
     }
 
-    button->moveTo((layout.spacingX + 1) * layout.numButtons + 2, 0xf, 0);
-    buttons[layout.numButtons] = button;
-    addChild(button);
-    layout.numButtons++;
+    button->MoveTo((Layout.SpacingX + 1) * Layout.NumButtons + 2, 0xf, 0);
+    Buttons[Layout.NumButtons] = button;
+    AddChild(button);
+    Layout.NumButtons++;
     return 0;
 }
 
-auto aMechBar::RemoveButton(int16_t index) -> int32_t
+auto MCMechBar::RemoveButton(int16_t index) -> int32_t
 {
-    if (index >= layout.numButtons)
+    if (index >= Layout.NumButtons)
     {
         return static_cast<int32_t>(0xEEEE0003u);
     }
 
-    FriendlyMechIcon* button = buttons[index];
-    button->destroy();
+    MCFriendlyMechIcon* button = Buttons[index];
+    button->Destroy();
     delete button;
-    layout.numButtons--;
+    Layout.NumButtons--;
 
-    for (int32_t i = index; i < layout.numButtons; i++)
+    for (int32_t i = index; i < Layout.NumButtons; i++)
     {
-        buttons[i] = buttons[i + 1];
+        Buttons[i] = Buttons[i + 1];
     }
 
-    buttons[layout.numButtons] = nullptr;
+    Buttons[Layout.NumButtons] = nullptr;
     return 0;
 }
 
-auto aMechBar::RemoveButton(uint32_t buttonPartId) -> int32_t
+auto MCMechBar::RemoveButton(uint32_t buttonPartId) -> int32_t
 {
-    for (int16_t i = 0; i < layout.maxButtons; i++)
+    for (int16_t i = 0; i < Layout.MaxButtons; i++)
     {
-        FriendlyMechIcon* button = getButton(i);
+        MCFriendlyMechIcon* button = GetButton(i);
 
-        if (button != nullptr && static_cast<uint32_t>(button->partId) == buttonPartId)
+        if (button != nullptr && static_cast<uint32_t>(button->PartId) == buttonPartId)
         {
             return RemoveButton(i);
         }
@@ -1210,59 +1210,59 @@ auto aMechBar::RemoveButton(uint32_t buttonPartId) -> int32_t
     return static_cast<int32_t>(0xEEEE0003u);
 }
 
-auto aMechBar::GetButtonFromID(int32_t buttonPartId) -> FriendlyMechIcon*
+auto MCMechBar::GetButtonFromID(int32_t buttonPartId) -> MCFriendlyMechIcon*
 {
     int16_t i = 0;
 
-    for (; i < layout.numButtons; i++)
+    for (; i < Layout.NumButtons; i++)
     {
-        if (getButton(i) != nullptr && getButton(i)->partId == buttonPartId)
+        if (GetButton(i) != nullptr && GetButton(i)->PartId == buttonPartId)
         {
             break;
         }
     }
 
-    if (i >= layout.numButtons)
+    if (i >= Layout.NumButtons)
     {
         return nullptr;
     }
 
-    return buttons[i];
+    return Buttons[i];
 }
 
-auto aMechBar::PlaceButtons(int animate) -> void
+auto MCMechBar::PlaceButtons(int animate) -> void
 {
     // Sort the buttons by lance, then by x; a lance's point first; inactive movers last.
-    ButtonSortEntry order[12];
+    MCButtonSortEntry order[12];
 
     for (int16_t i = 0; i < 0xc; i++)
     {
-        FriendlyMechIcon* button = getButton(i);
+        MCFriendlyMechIcon* button = GetButton(i);
 
         if (button == nullptr)
         {
-            order[i].index = -1;
-            order[i].key = -999999;
+            order[i].Index = -1;
+            order[i].Key = -999999;
             continue;
         }
 
-        order[i].index = i;
-        order[i].key = button->x() + button->lance * 10000;
+        order[i].Index = i;
+        order[i].Key = button->X() + button->Lance * 10000;
 
-        if (button->isPoint != 0)
+        if (button->IsPoint != 0)
         {
-            order[i].key -= 1000;
+            order[i].Key -= 1000;
         }
 
-        if (button->active == 0)
+        if (button->Active == 0)
         {
-            order[i].key += 100000;
+            order[i].Key += 100000;
         }
     }
 
-    std::qsort(order, 0xc, sizeof(ButtonSortEntry), compareButtons);
+    std::qsort(order, 0xc, sizeof(MCButtonSortEntry), CompareButtons);
 
-    for (LanceIcon* lanceIcon : lanceIcons)
+    for (MCLanceIcon* lanceIcon : LanceIcons)
     {
         if (lanceIcon != nullptr)
         {
@@ -1274,16 +1274,16 @@ auto aMechBar::PlaceButtons(int animate) -> void
     int32_t nextX = 0;
     int32_t lastLance = -1;
 
-    for (const ButtonSortEntry& entry : order)
+    for (const MCButtonSortEntry& entry : order)
     {
-        FriendlyMechIcon* button = getButton(entry.index);
+        MCFriendlyMechIcon* button = GetButton(entry.Index);
 
         if (button == nullptr)
         {
             continue;
         }
 
-        const int32_t buttonLance = button->lance;
+        const int32_t buttonLance = button->Lance;
         int32_t xPos = nextX;
 
         if (buttonLance != lastLance || buttonLance == 5)
@@ -1295,88 +1295,88 @@ auto aMechBar::PlaceButtons(int animate) -> void
 
             lastLance = buttonLance;
 
-            if (buttonLance < 4 && lanceIcons[buttonLance] != nullptr)
+            if (buttonLance < 4 && LanceIcons[buttonLance] != nullptr)
             {
-                lanceIcons[buttonLance]->moveTo(xPos, 2, 0);
+                LanceIcons[buttonLance]->MoveTo(xPos, 2, 0);
             }
 
             xPos++;
         }
 
-        button->targetX = xPos;
+        button->TargetX = xPos;
 
-        if (button->active == 0)
+        if (button->Active == 0)
         {
-            button->targetX = xPos + 1000;
+            button->TargetX = xPos + 1000;
         }
 
-        button->shuffleStep = (xPos - button->x()) / theInterface->shuffleFrames;
-        nextX = xPos - 1 + layout.spacingX;
+        button->ShuffleStep = (xPos - button->X()) / TheInterface->ShuffleFrames;
+        nextX = xPos - 1 + Layout.SpacingX;
     }
 
     if (animate == 0)
     {
         for (int16_t i = 0; i < 0xc; i++)
         {
-            FriendlyMechIcon* button = getButton(i);
+            MCFriendlyMechIcon* button = GetButton(i);
 
             if (button != nullptr)
             {
-                button->moveTo(button->targetX, button->y(), 0);
+                button->MoveTo(button->TargetX, button->Y(), 0);
             }
         }
 
-        const int32_t linkWidth = layout.spacingX - 1;
+        const int32_t linkWidth = Layout.SpacingX - 1;
 
-        for (LanceIcon* lanceIcon : lanceIcons)
+        for (MCLanceIcon* lanceIcon : LanceIcons)
         {
-            const int32_t numActive = lanceIcon->getNumActiveMovers();
-            lanceIcon->resize(numActive * linkWidth + 3, lanceIcon->height());
+            const int32_t numActive = lanceIcon->GetNumActiveMovers();
+            lanceIcon->Resize(numActive * linkWidth + 3, lanceIcon->Height());
         }
     }
-    else if (moveCallback == nullptr)
+    else if (MoveCallback == nullptr)
     {
-        danceStep = 0;
-        danceFrames = 0;
-        dancing = 1;
-        moveCallback = new aCallback;
-        moveCallback->setExec(DancingButtons);
-        application->addCallback(moveCallback);
-        soundSystem->playDigitalSample(0x42, 1, nullptr, 0, 0);
+        DanceStep = 0;
+        DanceFrames = 0;
+        Dancing = 1;
+        MoveCallback = new MCGuiCallback;
+        MoveCallback->SetExec(DancingButtons);
+        Application->AddCallback(MoveCallback);
+        SoundSystem->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
     }
 }
 
-auto aMechBar::InitLances() -> int32_t
+auto MCMechBar::InitLances() -> int32_t
 {
     for (int16_t i = 0; i < 4; i++)
     {
-        lanceIcons[i] = new LanceIcon;
-        lanceIcons[i]->init(i);
-        addChild(lanceIcons[i]);
+        LanceIcons[i] = new MCLanceIcon;
+        LanceIcons[i]->Init(i);
+        AddChild(LanceIcons[i]);
     }
 
     PlaceButtons(0);
     return 0;
 }
 
-auto aMechBar::DestroyLances() -> void
+auto MCMechBar::DestroyLances() -> void
 {
-    for (LanceIcon*& lanceIcon : lanceIcons)
+    for (MCLanceIcon*& lanceIcon : LanceIcons)
     {
         if (lanceIcon != nullptr)
         {
-            lanceIcon->destroy();
+            lanceIcon->Destroy();
             delete lanceIcon;
             lanceIcon = nullptr;
         }
     }
 }
 
-auto aMechBar::GetLanceIconFromID(int32_t lanceId) -> LanceIcon*
+auto MCMechBar::GetLanceIconFromID(int32_t lanceId) -> MCLanceIcon*
 {
-    for (LanceIcon* lanceIcon : lanceIcons)
+    for (MCLanceIcon* lanceIcon : LanceIcons)
     {
-        if (lanceIcon != nullptr && lanceIcon->lanceId == lanceId)
+        if (lanceIcon != nullptr && lanceIcon->LanceId == lanceId)
         {
             return lanceIcon;
         }
@@ -1389,240 +1389,240 @@ auto DancingButtons() -> void
 {
     // Three phases: the lance icons drop out of sight while the buttons that move left rise; the buttons slide to
     // their places; then the lance icons come back up and the buttons drop into line.
-    const int32_t step = barLanceIcon(0)->height() / 3 + 1;
-    aMechBar* bar = theInterface->mechBar;
+    const int32_t step = BarLanceIcon(0)->Height() / 3 + 1;
+    MCMechBar* bar = TheInterface->MechBar;
 
-    if (danceFrames == 3)
+    if (DanceFrames == 3)
     {
-        danceStep++;
+        DanceStep++;
     }
 
-    if (danceFrames == theInterface->shuffleFrames + 3)
+    if (DanceFrames == TheInterface->ShuffleFrames + 3)
     {
         for (int16_t i = 0; i < 0xc; i++)
         {
-            FriendlyMechIcon* button = bar->getButton(i);
+            MCFriendlyMechIcon* button = bar->GetButton(i);
 
             if (button != nullptr)
             {
-                button->moveTo(button->targetX, button->y(), 0);
+                button->MoveTo(button->TargetX, button->Y(), 0);
             }
         }
 
-        danceStep++;
+        DanceStep++;
     }
 
-    if (danceStep == 0)
+    if (DanceStep == 0)
     {
         for (int32_t i = 0; i < 4; i++)
         {
-            LanceIcon* lanceIcon = barLanceIcon(i);
-            lanceIcon->moveTo(lanceIcon->x(), lanceIcon->y() + step, 0);
-            barLanceIcon(i)->setDepth(-10);
+            MCLanceIcon* lanceIcon = BarLanceIcon(i);
+            lanceIcon->MoveTo(lanceIcon->X(), lanceIcon->Y() + step, 0);
+            BarLanceIcon(i)->SetDepth(-10);
         }
 
         for (int16_t i = 0; i < 0xc; i++)
         {
-            FriendlyMechIcon* button = bar->getButton(i);
+            MCFriendlyMechIcon* button = bar->GetButton(i);
 
-            if (button != nullptr && button->targetX < button->x())
+            if (button != nullptr && button->TargetX < button->X())
             {
-                button->moveTo(button->x(), button->y() - step, 0);
-                button->setDepth(10);
+                button->MoveTo(button->X(), button->Y() - step, 0);
+                button->SetDepth(10);
             }
         }
     }
-    else if (danceStep == 1)
+    else if (DanceStep == 1)
     {
         for (int16_t i = 0; i < 0xc; i++)
         {
-            FriendlyMechIcon* button = bar->getButton(i);
+            MCFriendlyMechIcon* button = bar->GetButton(i);
 
             if (button != nullptr)
             {
-                button->moveTo(button->x() + button->shuffleStep, button->y(), 0);
+                button->MoveTo(button->X() + button->ShuffleStep, button->Y(), 0);
             }
         }
 
         for (int32_t i = 0; i < 4; i++)
         {
-            barLanceIcon(i)->ShowGUIWindow(0);
+            BarLanceIcon(i)->ShowGuiWindow(0);
         }
 
-        danceFrames++;
+        DanceFrames++;
         return;
     }
-    else if (danceStep == 2)
+    else if (DanceStep == 2)
     {
         for (int32_t i = 0; i < 4; i++)
         {
-            LanceIcon* lanceIcon = barLanceIcon(i);
+            MCLanceIcon* lanceIcon = BarLanceIcon(i);
 
-            if (lanceIcon->group != nullptr)
+            if (lanceIcon->Group != nullptr)
             {
-                lanceIcon->numActiveMovers = lanceIcon->getNumActiveMovers();
+                lanceIcon->NumActiveMovers = lanceIcon->GetNumActiveMovers();
             }
 
-            lanceIcon->moveTo(lanceIcon->x(), lanceIcon->y() - step, 0);
+            lanceIcon->MoveTo(lanceIcon->X(), lanceIcon->Y() - step, 0);
             lanceIcon->ShowTest();
         }
 
         for (int16_t i = 0; i < 0xc; i++)
         {
-            FriendlyMechIcon* button = bar->getButton(i);
+            MCFriendlyMechIcon* button = bar->GetButton(i);
 
-            if (button != nullptr && button->y() != 0xf)
+            if (button != nullptr && button->Y() != 0xf)
             {
-                button->moveTo(button->x(), button->y() + step, 0);
+                button->MoveTo(button->X(), button->Y() + step, 0);
             }
         }
 
-        if (theInterface->shuffleFrames + 6 <= danceFrames)
+        if (TheInterface->ShuffleFrames + 6 <= DanceFrames)
         {
             // Done: everything at rest, the lance icons sized to their lances.
             for (int16_t i = 0; i < 0xc; i++)
             {
-                FriendlyMechIcon* button = bar->getButton(i);
+                MCFriendlyMechIcon* button = bar->GetButton(i);
 
                 if (button != nullptr)
                 {
-                    button->setDepth(0);
+                    button->SetDepth(0);
                 }
             }
 
             for (int32_t i = 0; i < 4; i++)
             {
-                LanceIcon* lanceIcon = barLanceIcon(i);
-                lanceIcon->setDepth(0);
-                lanceIcon->moveTo(lanceIcon->x(), 2, 0);
-                const int32_t numActive = lanceIcon->getNumActiveMovers();
-                const int32_t spacing = theInterface->mechBar->layout.spacingX;
-                lanceIcon->resize(numActive * (spacing - 1) + 3, lanceIcon->height());
+                MCLanceIcon* lanceIcon = BarLanceIcon(i);
+                lanceIcon->SetDepth(0);
+                lanceIcon->MoveTo(lanceIcon->X(), 2, 0);
+                const int32_t numActive = lanceIcon->GetNumActiveMovers();
+                const int32_t spacing = TheInterface->MechBar->Layout.SpacingX;
+                lanceIcon->Resize(numActive * (spacing - 1) + 3, lanceIcon->Height());
             }
 
-            theInterface->mechBar->dancing = 0;
-            application->removeCallback(moveCallback);
-            theInterface->mechBar->draw();
-            delete moveCallback;
-            moveCallback = nullptr;
-            soundSystem->playDigitalSample(0x43, 1, nullptr, 0, 0);
-            danceFrames++;
+            TheInterface->MechBar->Dancing = 0;
+            Application->RemoveCallback(MoveCallback);
+            TheInterface->MechBar->Draw();
+            delete MoveCallback;
+            MoveCallback = nullptr;
+            SoundSystem->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
+            DanceFrames++;
             return;
         }
     }
 
-    danceFrames++;
+    DanceFrames++;
 }
 
 // LanceIcon
 
-auto LanceIcon::init(int16_t lanceNumber) -> int32_t
+auto MCLanceIcon::Init(int16_t lanceNumber) -> int32_t
 {
-    const int32_t result = aObject::init(0, 2, 0x25, 0xd, nullptr);
+    const int32_t result = MCGuiObject::Init(0, 2, 0x25, 0xd, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    numberImage = new aPort;
-    Assert(numberImage != nullptr, 0, "Not enough memory for Lance icon ports");
-    firstLinkImage = new aPort;
-    Assert(firstLinkImage != nullptr, 0, "Not enough memory for Lance icon ports");
-    shortLinkImage = new aPort;
-    Assert(shortLinkImage != nullptr, 0, "Not enough memory for Lance icon ports");
-    longLinkImage = new aPort;
-    Assert(longLinkImage != nullptr, 0, "Not enough memory for Lance icon ports");
-    lastLinkImage = new aPort;
-    Assert(lastLinkImage != nullptr, 0, "Not enough memory for Lance icon ports");
+    NumberImage = new MCGuiPort;
+    Assert(NumberImage != nullptr, 0, "Not enough memory for Lance icon ports");
+    FirstLinkImage = new MCGuiPort;
+    Assert(FirstLinkImage != nullptr, 0, "Not enough memory for Lance icon ports");
+    ShortLinkImage = new MCGuiPort;
+    Assert(ShortLinkImage != nullptr, 0, "Not enough memory for Lance icon ports");
+    LongLinkImage = new MCGuiPort;
+    Assert(LongLinkImage != nullptr, 0, "Not enough memory for Lance icon ports");
+    LastLinkImage = new MCGuiPort;
+    Assert(LastLinkImage != nullptr, 0, "Not enough memory for Lance icon ports");
 
     char numberName[16];
     sprintf(numberName, "guiubf%i.tga", lanceNumber + 1);
-    Assert(numberImage->init(numberName) == 0, 0, "Can't load lance icon's gold star");
-    Assert(firstLinkImage->init(const_cast<char*>("guiub01.tga")) == 0, 0, "Can't load lance icon's first curve");
-    Assert(shortLinkImage->init(const_cast<char*>("guiub02.tga")) == 0, 0, "Can't load lance icon's short line");
-    Assert(longLinkImage->init(const_cast<char*>("guiub03.tga")) == 0, 0, "Can't load lance icon's long line");
-    Assert(lastLinkImage->init(const_cast<char*>("guiub04.tga")) == 0, 0, "Can't load lance icon's second curve");
+    Assert(NumberImage->Init(numberName) == 0, 0, "Can't load lance icon's gold star");
+    Assert(FirstLinkImage->Init(const_cast<char*>("guiub01.tga")) == 0, 0, "Can't load lance icon's first curve");
+    Assert(ShortLinkImage->Init(const_cast<char*>("guiub02.tga")) == 0, 0, "Can't load lance icon's short line");
+    Assert(LongLinkImage->Init(const_cast<char*>("guiub03.tga")) == 0, 0, "Can't load lance icon's long line");
+    Assert(LastLinkImage->Init(const_cast<char*>("guiub04.tga")) == 0, 0, "Can't load lance icon's second curve");
 
-    group = HomeCommander->getGroup(lanceNumber);
-    lanceId = group->getId();
+    Group = HomeCommander->GetGroup(lanceNumber);
+    LanceId = Group->GetId();
     return result;
 }
 
-auto LanceIcon::destroy() -> void
+auto MCLanceIcon::Destroy() -> void
 {
-    for (aPort** image : {&numberImage, &firstLinkImage, &shortLinkImage, &longLinkImage, &lastLinkImage})
+    for (MCGuiPort** image : {&NumberImage, &FirstLinkImage, &ShortLinkImage, &LongLinkImage, &LastLinkImage})
     {
         if (*image != nullptr)
         {
-            (*image)->destroy();
+            (*image)->Destroy();
             delete *image;
             *image = nullptr;
         }
     }
 }
 
-auto LanceIcon::display() -> void
+auto MCLanceIcon::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    _pane* pane = framePane;
-    numberImage->copyTo(pane, 0, 0, 1);
-    const int32_t numberWidth = numberImage->width();
-    firstLinkImage->copyTo(pane, numberWidth, 0, 1);
-    const int32_t linkStart = numberWidth + firstLinkImage->width();
-    shortLinkImage->copyTo(pane, linkStart, 4, 1);
-    int32_t xPos = linkStart + shortLinkImage->width();
+    MCPane* pane = FramePane;
+    NumberImage->CopyTo(pane, 0, 0, 1);
+    const int32_t numberWidth = NumberImage->Width();
+    FirstLinkImage->CopyTo(pane, numberWidth, 0, 1);
+    const int32_t linkStart = numberWidth + FirstLinkImage->Width();
+    ShortLinkImage->CopyTo(pane, linkStart, 4, 1);
+    int32_t xPos = linkStart + ShortLinkImage->Width();
     int32_t linkEnd = xPos;
 
-    for (int32_t i = 1; i < getNumActiveMovers(); i++)
+    for (int32_t i = 1; i < GetNumActiveMovers(); i++)
     {
-        longLinkImage->copyTo(framePane, xPos, 4, 1);
-        xPos += longLinkImage->width();
-        linkEnd += longLinkImage->width();
+        LongLinkImage->CopyTo(FramePane, xPos, 4, 1);
+        xPos += LongLinkImage->Width();
+        linkEnd += LongLinkImage->Width();
     }
 
-    pane = framePane;
-    lastLinkImage->copyTo(pane, xPos, 4, 1);
+    pane = FramePane;
+    LastLinkImage->CopyTo(pane, xPos, 4, 1);
 
     // The lance colour under the links.
-    _pane bar = *pane;
-    bar.x0 = pane->x0 + linkStart;
-    bar.y1 = pane->y0 + 10;
-    bar.x1 = pane->x0 - 1 + linkEnd;
-    bar.y0 = pane->y0 + 8;
-    VFX_pane_wipe(&bar, lanceColorArray[lanceId]);
+    MCPane bar = *pane;
+    bar.X0 = pane->X0 + linkStart;
+    bar.Y1 = pane->Y0 + 10;
+    bar.X1 = pane->X0 - 1 + linkEnd;
+    bar.Y0 = pane->Y0 + 8;
+    VfxPaneWipe(&bar, LanceColorArray[LanceId]);
 }
 
-auto LanceIcon::handleEvent(aEvent* event) -> void
+auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
 {
-    TacticalOrder tacOrder;
-    tacOrder.init();
+    MCTacticalOrder tacOrder;
+    tacOrder.Init();
 
-    if (event->type == 1)
+    if (event->Type == 1)
     {
-        application->grab(this);
-        tacOrder.destroy();
+        Application->Grab(this);
+        tacOrder.Destroy();
         return;
     }
 
-    if (event->type != 4 || application->grabbedObject() != this)
+    if (event->Type != 4 || Application->GrabbedObject() != this)
     {
-        tacOrder.destroy();
+        tacOrder.Destroy();
         return;
     }
 
-    application->release();
+    Application->Release();
 
     // The eject, power down and power up commands go to the whole lance.
-    const int32_t command = theInterface->currentCommand;
+    const int32_t command = TheInterface->CurrentCommand;
 
     if (command == 1 || command == 0x15 || command == 0x16)
     {
-        TacticalOrderCode code;
+        MCTacticalOrderCode code;
 
         if (command == 1)
         {
@@ -1637,96 +1637,97 @@ auto LanceIcon::handleEvent(aEvent* event) -> void
             code = TACTICAL_ORDER_POWERDOWN;
         }
 
-        tacOrder.init(ORDER_ORIGIN_PLAYER, code, 1);
-        group->handleTacticalOrder(tacOrder, 1, nullptr, 0);
-        theInterface->UpdateInterface();
-        tacOrder.destroy();
+        tacOrder.Init(ORDER_ORIGIN_PLAYER, code, 1);
+        Group->HandleTacticalOrder(tacOrder, 1, nullptr, 0);
+        TheInterface->UpdateInterface();
+        tacOrder.Destroy();
         return;
     }
 
     // Otherwise the click selects the lance; shift adds it to the selection or takes it out.
-    if (event->shiftKey == 0)
+    if (event->ShiftKey == 0)
     {
-        theInterface->DeselectEnemy();
-        theInterface->ClearMechSelection();
-        theInterface->commandParser->ClearSubjects();
-        soundSystem->playDigitalSample(0x30, 1, nullptr, 0, 0);
-        theInterface->SelectLance(group);
-        theInterface->commandParser->AddSubject(group, 0);
-        theInterface->UpdateInterface();
-        tacOrder.destroy();
+        TheInterface->DeselectEnemy();
+        TheInterface->ClearMechSelection();
+        TheInterface->CommandParser->ClearSubjects();
+        SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+        TheInterface->SelectLance(Group);
+        TheInterface->CommandParser->AddSubject(Group, 0);
+        TheInterface->UpdateInterface();
+        tacOrder.Destroy();
         return;
     }
 
-    if (theInterface->IsSelected(group) != 0)
+    if (TheInterface->IsSelected(Group) != 0)
     {
-        theInterface->DeselectLance(group);
-        theInterface->commandParser->RemoveSubject(group);
-        theInterface->UpdateInterface();
-        tacOrder.destroy();
+        TheInterface->DeselectLance(Group);
+        TheInterface->CommandParser->RemoveSubject(Group);
+        TheInterface->UpdateInterface();
+        tacOrder.Destroy();
         return;
     }
 
-    theInterface->DeselectEnemy();
-    soundSystem->playDigitalSample(0x30, 1, nullptr, 0, 0);
-    theInterface->SelectLance(group);
-    theInterface->commandParser->AddSubject(group, 1);
-    theInterface->UpdateInterface();
-    tacOrder.destroy();
+    TheInterface->DeselectEnemy();
+    SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+    TheInterface->SelectLance(Group);
+    TheInterface->CommandParser->AddSubject(Group, 1);
+    TheInterface->UpdateInterface();
+    tacOrder.Destroy();
 }
 
-auto LanceIcon::enter() -> void
+auto MCLanceIcon::Enter() -> void
 {
-    for (uint32_t i = 0; static_cast<int32_t>(i) < getNumActiveMovers(); i++)
+    for (uint32_t i = 0; static_cast<int32_t>(i) < GetNumActiveMovers(); i++)
     {
-        aFloatHelp* tag = static_cast<uint8_t>(i) < 0xc ? theInterface->floatingTags[static_cast<uint8_t>(i)] : nullptr;
-        Mover* member = group->movers[i];
+        MCFloatHelp* tag =
+            static_cast<uint8_t>(i) < 0xc ? TheInterface->FloatingTags[static_cast<uint8_t>(i)] : nullptr;
+        MCMover* member = Group->Movers[i];
 
-        if (member == nullptr || member->onScreen() == 0)
+        if (member == nullptr || member->OnScreen() == 0)
         {
             continue;
         }
 
-        FriendlyMechIcon* button = theInterface->mechBar->GetButtonFromID(member->partId);
+        MCFriendlyMechIcon* button = TheInterface->MechBar->GetButtonFromID(member->PartId);
 
-        if (button == nullptr || button->active == 0 || member->getPilot() == nullptr)
+        if (button == nullptr || button->Active == 0 || member->GetPilot() == nullptr)
         {
             continue;
         }
 
-        showMoverTag(tag, member);
-        tag->ShowGUIWindow(1);
+        ShowMoverTag(tag, member);
+        tag->ShowGuiWindow(1);
     }
 
-    aObject::enter();
+    MCGuiObject::Enter();
 }
 
-auto LanceIcon::leave() -> void
+auto MCLanceIcon::Leave() -> void
 {
-    theInterface->HideTags();
-    aObject::leave();
+    TheInterface->HideTags();
+    MCGuiObject::Leave();
 }
 
-auto LanceIcon::ShowTest() -> void
+auto MCLanceIcon::ShowTest() -> void
 {
-    if (group != nullptr && getNumActiveMovers() > 0)
+    if (Group != nullptr && GetNumActiveMovers() > 0)
     {
-        ShowGUIWindow(1);
+        ShowGuiWindow(1);
         return;
     }
 
-    ShowGUIWindow(0);
+    ShowGuiWindow(0);
 }
 
-auto LanceIcon::getNumActiveMovers() -> int32_t
+auto MCLanceIcon::GetNumActiveMovers() -> int32_t
 {
     int32_t count = 0;
 
     for (int16_t i = 0; i < 0xc; i++)
     {
-        FriendlyMechIcon* button = theInterface->mechBar->getButton(i);
+        MCFriendlyMechIcon* button = TheInterface->MechBar->GetButton(i);
 
-        if (button != nullptr && button->lance == lanceId && button->active != 0)
+        if (button != nullptr && button->Lance == LanceId && button->Active != 0)
         {
             count++;
         }
@@ -1737,145 +1738,145 @@ auto LanceIcon::getNumActiveMovers() -> int32_t
 
 // InterfaceObject
 
-InterfaceObject::InterfaceObject()
+MCInterfaceObject::MCInterfaceObject()
 {
-    std::fill(std::begin(keys), std::end(keys), 0u);
-    currentCommand = -1;
-    mouseObjectType = -1;
-    mechBar = nullptr;
-    commandParser = nullptr;
-    tacticalMap = nullptr;
-    commandOneShot = 0;
-    mouseObject = nullptr;
-    std::fill(std::begin(selectedMechs), std::end(selectedMechs), 0);
-    std::fill(std::begin(selectedLances), std::end(selectedLances), nullptr);
-    numSelectedLances = 0;
-    numSelectedMechs = 0;
-    mouseDown = 0;
-    tacScrollSpeed = 1;
-    dragDistance = 10;
-    scrollSpeed = 4;
-    scrollStart = 500;
+    std::fill(std::begin(Keys), std::end(Keys), 0u);
+    CurrentCommand = -1;
+    MouseObjectType = -1;
+    MechBar = nullptr;
+    CommandParser = nullptr;
+    TacticalMap = nullptr;
+    CommandOneShot = 0;
+    MouseObject = nullptr;
+    std::fill(std::begin(SelectedMechs), std::end(SelectedMechs), 0);
+    std::fill(std::begin(SelectedLances), std::end(SelectedLances), nullptr);
+    NumSelectedLances = 0;
+    NumSelectedMechs = 0;
+    MouseDown = 0;
+    TacScrollSpeed = 1;
+    DragDistance = 10;
+    ScrollSpeed = 4;
+    ScrollStart = 500;
 }
 
-auto InterfaceObject::init() -> int32_t
+auto MCInterfaceObject::Init() -> int32_t
 {
-    scrollDirection = -1;
-    tacScrollDirection = -1;
+    ScrollDirection = -1;
+    TacScrollDirection = -1;
 
     // The mech bar, along the bottom of the screen.
-    mechBar = new aMechBar;
+    MechBar = new MCMechBar;
 
-    if (mechBar == nullptr)
+    if (MechBar == nullptr)
     {
         return 3;
     }
 
-    if (mechBar->layout.maxButtons < 0xd)
+    if (MechBar->Layout.MaxButtons < 0xd)
     {
-        mechBar->layout.maxButtons = 0xc;
+        MechBar->Layout.MaxButtons = 0xc;
     }
 
-    mechBar->init(0, 0, 1, 1, nullptr);
-    mechBar->resize(0x280, 0x3d);
-    mechBar->ShowGUIWindow(0);
-    screenWindow->addChild(mechBar);
-    mechBar->moveTo(0, application->height() - mechBar->height() - 1, 0);
-    mechBar->setDepth(0x4b);
+    MechBar->Init(0, 0, 1, 1, nullptr);
+    MechBar->Resize(0x280, 0x3d);
+    MechBar->ShowGuiWindow(0);
+    ScreenWindow->AddChild(MechBar);
+    MechBar->MoveTo(0, Application->Height() - MechBar->Height() - 1, 0);
+    MechBar->SetDepth(0x4b);
 
     // iface.fit's parameters.
-    auto* ifaceFile = new FitIniFile;
+    auto* ifaceFile = new MCFitIniFile;
 
     if (ifaceFile == nullptr)
     {
         return 3;
     }
 
-    FullPathFileName fileName;
-    fileName.init(interfacePath, "iface", ".fit");
-    int32_t result = ifaceFile->open(fileName, READ, 0x32);
+    MCFullPathFileName fileName;
+    fileName.Init(InterfacePath, "iface", ".fit");
+    int32_t result = ifaceFile->Open(fileName, READ, 0x32);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = ifaceFile->seekBlock("Parameters");
+    result = ifaceFile->SeekBlock("Parameters");
 
     if (result != 0)
     {
         return result;
     }
 
-    if (ifaceFile->readIdShort("Drag Distance", dragDistance) != 0)
+    if (ifaceFile->ReadIdShort("Drag Distance", DragDistance) != 0)
     {
-        dragDistance = SystemDragWidth;
+        DragDistance = SystemDragWidth;
     }
 
-    ifaceFile->readIdShort("Scroll Speed", scrollSpeed);
-    ifaceFile->readIdShort("Tac Scroll Speed", tacScrollSpeed);
-    ifaceFile->readIdShort("Scroll Start", scrollStart);
+    ifaceFile->ReadIdShort("Scroll Speed", ScrollSpeed);
+    ifaceFile->ReadIdShort("Tac Scroll Speed", TacScrollSpeed);
+    ifaceFile->ReadIdShort("Scroll Start", ScrollStart);
 
-    if (ifaceFile->readIdShort("Shuffle Frames", shuffleFrames) != 0)
+    if (ifaceFile->ReadIdShort("Shuffle Frames", ShuffleFrames) != 0)
     {
-        shuffleFrames = 0xf;
+        ShuffleFrames = 0xf;
     }
 
-    ifaceFile->close();
+    ifaceFile->Close();
     delete ifaceFile;
 
     // The floating tags.
-    for (aFloatHelp*& tag : floatingTags)
+    for (MCFloatHelp*& tag : FloatingTags)
     {
-        tag = new aFloatHelp;
+        tag = new MCFloatHelp;
         Assert(tag != nullptr, 0, "Not enough RAM for floating tags");
-        Assert(tag->init(0, 0, 10, 10, nullptr) == 0, 0, "Error initializing floating tags");
-        tag->setBackColor(0xf4);
-        screenWindow->addChild(tag);
-        tag->setDepth(0x28);
-        tag->ShowGUIWindow(0);
+        Assert(tag->Init(0, 0, 10, 10, nullptr) == 0, 0, "Error initializing floating tags");
+        tag->SetBackColor(0xf4);
+        ScreenWindow->AddChild(tag);
+        tag->SetDepth(0x28);
+        tag->ShowGuiWindow(0);
     }
 
     // The default key bindings.
-    for (const DefaultKey& binding : DefaultKeys)
+    for (const MCDefaultKey& binding : DefaultKeys)
     {
-        bindKey(keys[binding.slot], binding.code, binding.modifiers);
+        BindKey(Keys[binding.Slot], binding.Code, binding.Modifiers);
 
-        if (binding.slot == 63)
+        if (binding.Slot == 63)
         {
-            rotateKey = 0x38;
-            selectedEnemy = nullptr;
-            numReserveIcons = 0;
+            RotateKey = 0x38;
+            SelectedEnemy = nullptr;
+            NumReserveIcons = 0;
         }
     }
 
-    std::fill(std::begin(reserveIcons), std::end(reserveIcons), nullptr);
-    cursorOffset = 0;
-    forceOrderActive = 0;
-    forceOrderType = -1;
+    std::fill(std::begin(ReserveIcons), std::end(ReserveIcons), nullptr);
+    CursorOffset = 0;
+    ForceOrderActive = 0;
+    ForceOrderType = -1;
     return 0;
 }
 
-auto InterfaceObject::destroy() -> void
+auto MCInterfaceObject::Destroy() -> void
 {
-    if (mechBar != nullptr)
+    if (MechBar != nullptr)
     {
-        mechBar->destroy();
-        delete mechBar;
-        mechBar = nullptr;
+        MechBar->Destroy();
+        delete MechBar;
+        MechBar = nullptr;
     }
 
-    if (commandParser != nullptr)
+    if (CommandParser != nullptr)
     {
-        delete commandParser;
-        commandParser = nullptr;
+        delete CommandParser;
+        CommandParser = nullptr;
     }
 
-    for (aFloatHelp*& tag : floatingTags)
+    for (MCFloatHelp*& tag : FloatingTags)
     {
         if (tag != nullptr)
         {
-            tag->destroy();
+            tag->Destroy();
             delete tag;
             tag = nullptr;
         }
@@ -1885,31 +1886,31 @@ auto InterfaceObject::destroy() -> void
 namespace
 {
     /// <summary>Whether <paramref name="object"/> is a mech, vehicle, elemental or plain mover.</summary>
-    bool isMoverClass(const BaseObject* object)
+    bool IsMoverClass(const MCBaseObject* object)
     {
-        const ObjectClass objectClass = object->objectClass;
+        const MCObjectClass objectClass = object->ObjectClass;
         return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                objectClass == MOVER;
     }
 
     /// <summary>Whether the tactical map may show <paramref name="object"/>'s data: a revealed non-elemental mover.</summary>
-    bool canShowInfo(GameObject* object)
+    bool CanShowInfo(MCGameObject* object)
     {
-        return isMoverClass(object) && object->objectClass != ELEMENTAL && object->isRevealed() != 0;
+        return IsMoverClass(object) && object->ObjectClass != ELEMENTAL && object->IsRevealed() != 0;
     }
 
     /// <summary>A bridge (a misc terrain object of kind 5): clicking one moves onto it.</summary>
-    bool isBridge(BaseObject* object)
+    bool IsBridge(MCBaseObject* object)
     {
-        return object->objectClass == MISCTERRAINOBJECT &&
-               static_cast<MiscTerrainObject*>(object)->terrainObjectKind == 5;
+        return object->ObjectClass == MISCTERRAINOBJECT &&
+               static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind == 5;
     }
 
     /// <summary>The keys that pick a forced order (ctrl, F9-F12; slots 4-7).</summary>
-    bool isForceOrderKey(const InterfaceObject* iface, const aEvent* event, int16_t scanCode, uint32_t key)
+    bool IsForceOrderKey(const MCInterfaceObject* iface, const MCGuiEvent* event, int16_t scanCode, uint32_t key)
     {
-        return (event->ctrlKey != 0 && (scanCode == 0x1d || scanCode == 0x11d)) || key == iface->keys[4] ||
-               key == iface->keys[5] || key == iface->keys[7] || key == iface->keys[6];
+        return (event->CtrlKey != 0 && (scanCode == 0x1d || scanCode == 0x11d)) || key == iface->Keys[4] ||
+               key == iface->Keys[5] || key == iface->Keys[7] || key == iface->Keys[6];
     }
 
     /// <summary>
@@ -1917,7 +1918,7 @@ namespace
     /// object type's switch shares).
     /// </summary>
     /// <returns>False when <paramref name="command"/> is not one of them.</returns>
-    bool setAttackModifier(TacticalOrder& order, int32_t command, bool withLongRange)
+    bool SetAttackModifier(MCTacticalOrder& order, int32_t command, bool withLongRange)
     {
         switch (command)
         {
@@ -1928,32 +1929,32 @@ namespace
                     return false;
                 }
 
-                order.attackParams.range = -1;
+                order.AttackParams.Range = -1;
                 return true;
             }
             case 0xc:
             {
-                order.attackParams.range = 2;
+                order.AttackParams.Range = 2;
                 return true;
             }
             case 0xd:
             {
-                order.attackParams.range = 1;
+                order.AttackParams.Range = 1;
                 return true;
             }
             case 0xe:
             {
-                order.attackParams.range = 0;
+                order.AttackParams.Range = 0;
                 return true;
             }
             case 0xf:
             {
-                order.attackParams.pursue = 0;
+                order.AttackParams.Pursue = 0;
                 return true;
             }
             case 0x10:
             {
-                order.attackParams.type = 3;
+                order.AttackParams.Type = 3;
                 return true;
             }
             case 0x17:
@@ -1965,9 +1966,9 @@ namespace
             case 0x1d:
             case 0x1e:
             {
-                static constexpr int32_t AimLocations[8] = {0, 2, 3, 1, 4, 5, 6, 7};
-                order.attackParams.pursue = 0;
-                order.attackParams.aimLocation = AimLocations[command - 0x17];
+                static constexpr int32_t aimLocations[8] = {0, 2, 3, 1, 4, 5, 6, 7};
+                order.AttackParams.Pursue = 0;
+                order.AttackParams.AimLocation = aimLocations[command - 0x17];
                 return true;
             }
 
@@ -1977,49 +1978,49 @@ namespace
     }
 }
 
-auto InterfaceObject::handleEvent(aEvent* event) -> void
+auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 {
-    TacticalOrder order;
-    order.init();
+    MCTacticalOrder order;
+    order.Init();
 
     // Mission messages and keys.
-    if (event->type > 8)
+    if (event->Type > 8)
     {
-        if (event->type > 0x1403)
+        if (event->Type > 0x1403)
         {
-            if (event->type == 0x1404 && scenario != nullptr)
+            if (event->Type == 0x1404 && Scenario != nullptr)
             {
-                scenario->createPartObject(event->data);
+                Scenario->CreatePartObject(event->Data);
             }
 
-            order.destroy();
+            order.Destroy();
             return;
         }
 
-        if (event->type == 0x1403)
+        if (event->Type == 0x1403)
         {
-            if (scenario != nullptr)
+            if (Scenario != nullptr)
             {
-                scenario->destroyPartObject(event->data);
+                Scenario->DestroyPartObject(event->Data);
             }
 
-            order.destroy();
+            order.Destroy();
             return;
         }
 
-        if (event->type != 9)
+        if (event->Type != 9)
         {
-            if (event->type == 0x1402)
+            if (event->Type == 0x1402)
             {
-                RemoveMech(event->data);
+                RemoveMech(event->Data);
             }
 
-            order.destroy();
+            order.Destroy();
             return;
         }
 
         // Key down: fold right alt/ctrl onto the left ones, then add the modifiers.
-        const int16_t scanCode = event->scanCode;
+        const int16_t scanCode = event->ScanCode;
         uint32_t key = static_cast<uint32_t>(static_cast<int32_t>(scanCode));
 
         if (scanCode == 0x138 || scanCode == 0x11d)
@@ -2029,427 +2030,427 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
 
         key &= ~KEY_SHIFT;
 
-        if (event->shiftKey != 0)
+        if (event->ShiftKey != 0)
         {
             key += KEY_SHIFT;
         }
 
         key &= ~KEY_CTRL;
 
-        if (event->ctrlKey != 0)
+        if (event->CtrlKey != 0)
         {
             key += KEY_CTRL;
         }
 
         key &= ~KEY_ALT;
 
-        if (event->altKey != 0)
+        if (event->AltKey != 0)
         {
             key += KEY_ALT;
         }
 
-        if (scenario != nullptr)
+        if (Scenario != nullptr)
         {
-            if (isForceOrderKey(this, event, scanCode, key))
+            if (IsForceOrderKey(this, event, scanCode, key))
             {
-                if (forceOrderType == -1 && forceOrderActive == 0)
+                if (ForceOrderType == -1 && ForceOrderActive == 0)
                 {
-                    forceOrderType = 0;
+                    ForceOrderType = 0;
                 }
 
-                forceOrderActive = 1;
+                ForceOrderActive = 1;
 
-                for (int32_t i = 0; i < numSelectedMechs; i++)
+                for (int32_t i = 0; i < NumSelectedMechs; i++)
                 {
-                    FriendlyMechIcon* button = mechBar->GetButtonFromID(selectedMechs[i]);
+                    MCFriendlyMechIcon* button = MechBar->GetButtonFromID(SelectedMechs[i]);
 
-                    if (button != nullptr && button->mover != nullptr && isMoverClass(button->mover))
+                    if (button != nullptr && button->Mover != nullptr && IsMoverClass(button->Mover))
                     {
-                        static_cast<Mover*>(button->mover)->drawOrderLines = 1;
+                        static_cast<MCMover*>(button->Mover)->DrawOrderLines = 1;
                     }
                 }
             }
 
-            TacticalMap* tacMap = Terrain::terrainTacticalMap;
+            MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
 
-            if (key == keys[65])
+            if (key == Keys[65])
             {
-                scrollDirection = 0;
+                ScrollDirection = 0;
             }
-            else if (key == keys[66])
+            else if (key == Keys[66])
             {
-                scrollDirection = 4;
+                ScrollDirection = 4;
             }
-            else if (key == keys[67])
+            else if (key == Keys[67])
             {
-                scrollDirection = 6;
+                ScrollDirection = 6;
             }
-            else if (key == keys[68])
+            else if (key == Keys[68])
             {
-                scrollDirection = 2;
+                ScrollDirection = 2;
             }
-            else if (key == keys[69] || key == keys[70] || key == keys[71] || key == keys[72])
+            else if (key == Keys[69] || key == Keys[70] || key == Keys[71] || key == Keys[72])
             {
-                if (Terrain::terrainTacticalMap != nullptr)
+                if (MCTerrain::TerrainTacticalMap != nullptr)
                 {
-                    Terrain::terrainTacticalMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(TACMAP_MAP);
-                    tacScrollDirection = key == keys[69] ? 0 : key == keys[70] ? 4 : key == keys[71] ? 6 : 2;
+                    MCTerrain::TerrainTacticalMap->HideMe(0);
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MAP);
+                    TacScrollDirection = key == Keys[69] ? 0 : key == Keys[70] ? 4 : key == Keys[71] ? 6 : 2;
                 }
             }
-            else if (key == keys[52])
+            else if (key == Keys[52])
             {
-                tacMapShown = 1;
+                TacMapShown = 1;
             }
-            else if (key == keys[57] || key == keys[59])
+            else if (key == Keys[57] || key == Keys[59])
             {
-                if (Terrain::terrainTacticalMap != nullptr)
+                if (MCTerrain::TerrainTacticalMap != nullptr)
                 {
-                    Terrain::terrainTacticalMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(TACMAP_MAP);
-                    aPostMessage(Terrain::terrainTacticalMap, 0x1a);
+                    MCTerrain::TerrainTacticalMap->HideMe(0);
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MAP);
+                    APostMessage(MCTerrain::TerrainTacticalMap, 0x1a);
                 }
             }
-            else if (key == keys[58] || key == keys[60])
+            else if (key == Keys[58] || key == Keys[60])
             {
-                if (Terrain::terrainTacticalMap != nullptr)
+                if (MCTerrain::TerrainTacticalMap != nullptr)
                 {
-                    Terrain::terrainTacticalMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(TACMAP_MAP);
-                    aPostMessage(Terrain::terrainTacticalMap, 0x1b);
+                    MCTerrain::TerrainTacticalMap->HideMe(0);
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MAP);
+                    APostMessage(MCTerrain::TerrainTacticalMap, 0x1b);
                 }
             }
-            else if (key == keys[61])
+            else if (key == Keys[61])
             {
-                tacMapShown = 0;
-
-                if (tacMap != nullptr)
-                {
-                    tacMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(TACMAP_MAP);
-                }
-            }
-            else if (key == keys[62])
-            {
-                tacMapShown = 0;
+                TacMapShown = 0;
 
                 if (tacMap != nullptr)
                 {
                     tacMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(static_cast<TacmapDisplayTypes>(3));
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MAP);
                 }
             }
-            else if (MPlayer != nullptr && key == keys[76])
+            else if (key == Keys[62])
+            {
+                TacMapShown = 0;
+
+                if (tacMap != nullptr)
+                {
+                    tacMap->HideMe(0);
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(static_cast<MCTacmapDisplayTypes>(3));
+                }
+            }
+            else if (MPlayer != nullptr && key == Keys[76])
             {
                 // The chat line.
-                tacMapShown = 0;
+                TacMapShown = 0;
 
-                if (tacMap != nullptr && scenario != nullptr && EventsToMissionResultsScreen == 0 && gameAsked == 0)
+                if (tacMap != nullptr && Scenario != nullptr && EventsToMissionResultsScreen == 0 && GameAsked == 0)
                 {
                     tacMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(static_cast<TacmapDisplayTypes>(3));
-                    aObject* chatInput = Terrain::terrainTacticalMap->chatWindow->chatInput;
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(static_cast<MCTacmapDisplayTypes>(3));
+                    MCGuiObject* chatInput = MCTerrain::TerrainTacticalMap->ChatWindow->ChatInput;
 
-                    if (application->textObject() != chatInput)
+                    if (Application->TextObject() != chatInput)
                     {
-                        application->setText(Terrain::terrainTacticalMap->chatWindow->chatInput);
+                        Application->SetText(MCTerrain::TerrainTacticalMap->ChatWindow->ChatInput);
                         FirstReturn = 1;
                     }
                 }
             }
-            else if (key == keys[64])
+            else if (key == Keys[64])
             {
-                tacMapShown = 0;
+                TacMapShown = 0;
 
                 if (tacMap != nullptr)
                 {
                     tacMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(TACMAP_MISSION);
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_MISSION);
                 }
             }
-            else if (key == keys[63])
+            else if (key == Keys[63])
             {
-                tacMapShown = 0;
+                TacMapShown = 0;
 
                 if (tacMap != nullptr)
                 {
                     tacMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(TACMAP_INFO);
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
                 }
             }
-            else if (key == keys[53] || key == keys[55])
+            else if (key == Keys[53] || key == Keys[55])
             {
                 ZoomIn();
             }
-            else if (key == keys[54] || key == keys[56])
+            else if (key == Keys[54] || key == Keys[56])
             {
                 ZoomOut();
             }
-            else if (key == keys[2] && application->grabbedObject() == nullptr)
+            else if (key == Keys[2] && Application->GrabbedObject() == nullptr)
             {
-                currentCommand = 2;
-                commandOneShot = 0;
+                CurrentCommand = 2;
+                CommandOneShot = 0;
 
                 if (AnySelected(0) != 0)
                 {
-                    order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_STOP, 0);
+                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_STOP, 0);
 
-                    if (commandParser != nullptr)
+                    if (CommandParser != nullptr)
                     {
                         GetCommandParser()->SendTacOrder(order, 0);
                     }
                 }
             }
-            else if (key == keys[21])
+            else if (key == Keys[21])
             {
-                currentCommand = 0x15;
-                commandOneShot = 0;
+                CurrentCommand = 0x15;
+                CommandOneShot = 0;
 
                 if (AnySelected(0) != 0)
                 {
-                    order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 0);
+                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 0);
 
-                    if (commandParser != nullptr)
+                    if (CommandParser != nullptr)
                     {
                         GetCommandParser()->SendTacOrder(order, 0);
                     }
                 }
             }
-            else if (key == keys[22])
+            else if (key == Keys[22])
             {
-                currentCommand = 0x16;
-                commandOneShot = 0;
+                CurrentCommand = 0x16;
+                CommandOneShot = 0;
 
                 if (AnySelected(0) != 0)
                 {
-                    order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 0);
+                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 0);
 
-                    if (commandParser != nullptr)
+                    if (CommandParser != nullptr)
                     {
                         GetCommandParser()->SendTacOrder(order, 0);
                     }
                 }
             }
-            else if (key == keys[1])
+            else if (key == Keys[1])
             {
-                currentCommand = 1;
-                commandOneShot = 0;
+                CurrentCommand = 1;
+                CommandOneShot = 0;
             }
-            else if (key == keys[3] || key == keys[8] || key == keys[5])
+            else if (key == Keys[3] || key == Keys[8] || key == Keys[5])
             {
-                currentCommand = 3;
-                commandOneShot = 0;
+                CurrentCommand = 3;
+                CommandOneShot = 0;
             }
-            else if (key == keys[51])
+            else if (key == Keys[51])
             {
-                currentCommand = 0x33;
-                commandOneShot = 0;
+                CurrentCommand = 0x33;
+                CommandOneShot = 0;
             }
-            else if (key == keys[11] && AnySelected(1) != 0)
+            else if (key == Keys[11] && AnySelected(1) != 0)
             {
-                currentCommand = 0xb;
-                commandOneShot = 0;
+                CurrentCommand = 0xb;
+                CommandOneShot = 0;
             }
-            else if (key == keys[12] && AnySelected(1) != 0)
+            else if (key == Keys[12] && AnySelected(1) != 0)
             {
-                currentCommand = 0xc;
-                commandOneShot = 0;
+                CurrentCommand = 0xc;
+                CommandOneShot = 0;
             }
-            else if (key == keys[13] && AnySelected(1) != 0)
+            else if (key == Keys[13] && AnySelected(1) != 0)
             {
-                currentCommand = 0xd;
-                commandOneShot = 0;
+                CurrentCommand = 0xd;
+                CommandOneShot = 0;
             }
-            else if (key == keys[16] && AnySelected(1) != 0)
+            else if (key == Keys[16] && AnySelected(1) != 0)
             {
-                currentCommand = 0x10;
-                commandOneShot = 0;
+                CurrentCommand = 0x10;
+                CommandOneShot = 0;
             }
-            else if (key == keys[14] && AnySelected(1) != 0)
+            else if (key == Keys[14] && AnySelected(1) != 0)
             {
-                currentCommand = 0xe;
-                commandOneShot = 0;
+                CurrentCommand = 0xe;
+                CommandOneShot = 0;
             }
-            else if (key == keys[15] && AnySelected(1) != 0)
+            else if (key == Keys[15] && AnySelected(1) != 0)
             {
-                currentCommand = 0xf;
-                commandOneShot = 0;
+                CurrentCommand = 0xf;
+                CommandOneShot = 0;
             }
-            else if (key == keys[17] || key == keys[18] || key == keys[7])
+            else if (key == Keys[17] || key == Keys[18] || key == Keys[7])
             {
-                currentCommand = 0x11;
-                commandOneShot = 0;
+                CurrentCommand = 0x11;
+                CommandOneShot = 0;
             }
-            else if (key == keys[19])
+            else if (key == Keys[19])
             {
-                currentCommand = 0x13;
-                commandOneShot = 0;
+                CurrentCommand = 0x13;
+                CommandOneShot = 0;
             }
-            else if (key == keys[23] && AnySelected(1) != 0)
+            else if (key == Keys[23] && AnySelected(1) != 0)
             {
-                currentCommand = 0x17;
-                commandOneShot = 0;
+                CurrentCommand = 0x17;
+                CommandOneShot = 0;
             }
-            else if (key == keys[24] && AnySelected(1) != 0)
+            else if (key == Keys[24] && AnySelected(1) != 0)
             {
-                currentCommand = 0x18;
-                commandOneShot = 0;
+                CurrentCommand = 0x18;
+                CommandOneShot = 0;
             }
-            else if (key == keys[25] && AnySelected(1) != 0)
+            else if (key == Keys[25] && AnySelected(1) != 0)
             {
-                currentCommand = 0x19;
-                commandOneShot = 0;
+                CurrentCommand = 0x19;
+                CommandOneShot = 0;
             }
-            else if (key == keys[26] && AnySelected(1) != 0)
+            else if (key == Keys[26] && AnySelected(1) != 0)
             {
-                currentCommand = 0x1a;
-                commandOneShot = 0;
+                CurrentCommand = 0x1a;
+                CommandOneShot = 0;
             }
-            else if (key == keys[27] && AnySelected(1) != 0)
+            else if (key == Keys[27] && AnySelected(1) != 0)
             {
-                currentCommand = 0x1b;
-                commandOneShot = 0;
+                CurrentCommand = 0x1b;
+                CommandOneShot = 0;
             }
-            else if (key == keys[28] && AnySelected(1) != 0)
+            else if (key == Keys[28] && AnySelected(1) != 0)
             {
-                currentCommand = 0x1c;
-                commandOneShot = 0;
+                CurrentCommand = 0x1c;
+                CommandOneShot = 0;
             }
-            else if (key == keys[29] && AnySelected(1) != 0)
+            else if (key == Keys[29] && AnySelected(1) != 0)
             {
-                currentCommand = 0x1d;
-                commandOneShot = 0;
+                CurrentCommand = 0x1d;
+                CommandOneShot = 0;
             }
-            else if (key == keys[30] && AnySelected(1) != 0)
+            else if (key == Keys[30] && AnySelected(1) != 0)
             {
-                currentCommand = 0x1e;
-                commandOneShot = 0;
+                CurrentCommand = 0x1e;
+                CommandOneShot = 0;
             }
-            else if (key == keys[45] && AnySelected(0) != 0)
+            else if (key == Keys[45] && AnySelected(0) != 0)
             {
                 // Break up the selected movers' lances.
-                for (int32_t i = 0; i < numSelectedMechs; i++)
+                for (int32_t i = 0; i < NumSelectedMechs; i++)
                 {
-                    FriendlyMechIcon* button = mechBar->GetButtonFromID(selectedMechs[i]);
-                    Mover* member = nullptr;
+                    MCFriendlyMechIcon* button = MechBar->GetButtonFromID(SelectedMechs[i]);
+                    MCMover* member = nullptr;
 
                     if (button != nullptr)
                     {
-                        member = static_cast<Mover*>(button->mover);
+                        member = static_cast<MCMover*>(button->Mover);
 
-                        if (button->isPoint != 0)
+                        if (button->IsPoint != 0)
                         {
                             // A point takes its whole lance with it.
                             for (int16_t j = 0; j < 0xc; j++)
                             {
-                                FriendlyMechIcon* other = mechBar->getButton(j);
+                                MCFriendlyMechIcon* other = MechBar->GetButton(j);
 
-                                if (other != nullptr && other != button && other->lance == button->lance)
+                                if (other != nullptr && other != button && other->Lance == button->Lance)
                                 {
-                                    other->lance = 5;
+                                    other->Lance = 5;
                                 }
                             }
                         }
 
-                        button->lance = 5;
+                        button->Lance = 5;
                     }
 
                     // Port fix: the original read the group of a null mover when the button was missing.
-                    if (member != nullptr && member->group != nullptr)
+                    if (member != nullptr && member->Group != nullptr)
                     {
-                        member->group->remove(member);
+                        member->Group->Remove(member);
                     }
                 }
 
-                for (int32_t i = 0; i < numSelectedLances; i++)
+                for (int32_t i = 0; i < NumSelectedLances; i++)
                 {
-                    DeselectLance(selectedLances[i]);
+                    DeselectLance(SelectedLances[i]);
                 }
 
-                mechBar->PlaceButtons(1);
+                MechBar->PlaceButtons(1);
             }
-            else if (key == keys[33] || key == keys[34] || key == keys[35] || key == keys[36])
+            else if (key == Keys[33] || key == Keys[34] || key == Keys[35] || key == Keys[36])
             {
                 // Select a lance.
-                const int32_t lance = key == keys[33] ? 0 : key == keys[34] ? 1 : key == keys[35] ? 2 : 3;
+                const int32_t lance = key == Keys[33] ? 0 : key == Keys[34] ? 1 : key == Keys[35] ? 2 : 3;
 
-                if (HomeCommander->getGroup(lance)->numMovers > 0)
+                if (HomeCommander->GetGroup(lance)->NumMovers > 0)
                 {
                     ClearMechSelection();
-                    SelectLance(HomeCommander->getGroup(lance));
-                    commandParser->AddSubject(HomeCommander->getGroup(lance), 0);
-                    soundSystem->playDigitalSample(0x30, 1, nullptr, 0, 0);
+                    SelectLance(HomeCommander->GetGroup(lance));
+                    CommandParser->AddSubject(HomeCommander->GetGroup(lance), 0);
+                    SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
                 }
             }
-            else if (key == keys[37] || key == keys[38] || key == keys[39] || key == keys[40])
+            else if (key == Keys[37] || key == Keys[38] || key == Keys[39] || key == Keys[40])
             {
                 // Add a lance to the selection.
-                const int32_t lance = key == keys[37] ? 0 : key == keys[38] ? 1 : key == keys[39] ? 2 : 3;
+                const int32_t lance = key == Keys[37] ? 0 : key == Keys[38] ? 1 : key == Keys[39] ? 2 : 3;
 
-                if (HomeCommander->getGroup(lance)->numMovers > 0)
+                if (HomeCommander->GetGroup(lance)->NumMovers > 0)
                 {
-                    SelectLance(HomeCommander->getGroup(lance));
-                    commandParser->AddSubject(HomeCommander->getGroup(lance), 1);
-                    soundSystem->playDigitalSample(0x30, 1, nullptr, 0, 0);
+                    SelectLance(HomeCommander->GetGroup(lance));
+                    CommandParser->AddSubject(HomeCommander->GetGroup(lance), 1);
+                    SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
                 }
             }
-            else if (key == keys[74])
+            else if (key == Keys[74])
             {
-                currentCommand = 0x4a;
-                commandOneShot = 0;
+                CurrentCommand = 0x4a;
+                CommandOneShot = 0;
             }
-            else if (Terrain::terrainTacticalMap != nullptr &&
-                     (key == keys[46] || key == keys[47] || key == keys[49] || key == keys[48]))
+            else if (MCTerrain::TerrainTacticalMap != nullptr &&
+                     (key == Keys[46] || key == Keys[47] || key == Keys[49] || key == Keys[48]))
             {
                 // Arm an artillery strike.
-                const int32_t button = key == keys[46] ? 0 : key == keys[47] ? 1 : key == keys[49] ? 2 : 3;
-                Terrain::terrainTacticalMap->activateArtillery(button, 1);
+                const int32_t button = key == Keys[46] ? 0 : key == Keys[47] ? 1 : key == Keys[49] ? 2 : 3;
+                MCTerrain::TerrainTacticalMap->ActivateArtillery(button, 1);
             }
-            else if (BunnyStrikesOn != 0 && key == keys[50])
+            else if (BunnyStrikesOn != 0 && key == Keys[50])
             {
-                currentCommand = 0x32;
-                commandOneShot = 0;
+                CurrentCommand = 0x32;
+                CommandOneShot = 0;
             }
             else
             {
-                if (key == keys[73])
+                if (key == Keys[73])
                 {
                     TogglePalette();
                 }
 
-                if ((key == keys[31] || key == keys[32]) && AnySelected(0) != 0 && numSelectedMechs == 1)
+                if ((key == Keys[31] || key == Keys[32]) && AnySelected(0) != 0 && NumSelectedMechs == 1)
                 {
-                    BaseObject* selected = objectList->findObjectFromPart(selectedMechs[0]);
+                    MCBaseObject* selected = ObjectList->FindObjectFromPart(SelectedMechs[0]);
 
-                    if (selected == nullptr || selected->objectClass != BATTLEMECH ||
-                        static_cast<BattleMech*>(selected)->secondStepPrinted == 0 ||
-                        static_cast<BattleMech*>(selected)->firstStepPrinted < 1)
+                    if (selected == nullptr || selected->ObjectClass != BATTLEMECH ||
+                        static_cast<MCBattleMech*>(selected)->SecondStepPrinted == 0 ||
+                        static_cast<MCBattleMech*>(selected)->FirstStepPrinted < 1)
                     {
-                        order.destroy();
+                        order.Destroy();
                         return;
                     }
 
-                    currentCommand = 0x1f;
-                    commandOneShot = 0;
+                    CurrentCommand = 0x1f;
+                    CommandOneShot = 0;
                 }
             }
         }
 
         // A key other than a lance-link key ends the hidden-cursor state of a lance link.
-        if (application->cursorHidden != 0 && application->cursorShape == 0xd && currentCommand != 0x29 &&
-            currentCommand != 0x2a && currentCommand != 0x2b && currentCommand != 0x2c)
+        if (Application->CursorHidden != 0 && Application->CursorShape == 0xd && CurrentCommand != 0x29 &&
+            CurrentCommand != 0x2a && CurrentCommand != 0x2b && CurrentCommand != 0x2c)
         {
-            application->cursorHidden = 0;
+            Application->CursorHidden = 0;
         }
 
-        order.destroy();
+        order.Destroy();
         return;
     }
 
-    if (event->type == 8)
+    if (event->Type == 8)
     {
         // Key up.
-        const int16_t scanCode = event->scanCode;
+        const int16_t scanCode = event->ScanCode;
         uint32_t key = static_cast<uint32_t>(static_cast<int32_t>(scanCode));
 
         if (scanCode == 0x138)
@@ -2459,316 +2460,316 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
 
         key &= ~KEY_SHIFT;
 
-        if (event->shiftKey != 0)
+        if (event->ShiftKey != 0)
         {
             key += KEY_SHIFT;
         }
 
         key &= ~KEY_CTRL;
 
-        if (event->ctrlKey != 0)
+        if (event->CtrlKey != 0)
         {
             key += KEY_CTRL;
         }
 
         key &= ~KEY_ALT;
 
-        if (event->altKey != 0)
+        if (event->AltKey != 0)
         {
             key += KEY_ALT;
         }
 
-        if (scanCode == 0x1d || scanCode == 0x11d || key == keys[4] || key == keys[5] || key == keys[7] ||
-            key == keys[6])
+        if (scanCode == 0x1d || scanCode == 0x11d || key == Keys[4] || key == Keys[5] || key == Keys[7] ||
+            key == Keys[6])
         {
-            forceOrderActive = 0;
-            forceOrderType = -1;
+            ForceOrderActive = 0;
+            ForceOrderType = -1;
 
-            for (int32_t i = 0; i < mechBar->layout.numButtons; i++)
+            for (int32_t i = 0; i < MechBar->Layout.NumButtons; i++)
             {
-                FriendlyMechIcon* button = mechBar->getButton(static_cast<int16_t>(i));
+                MCFriendlyMechIcon* button = MechBar->GetButton(static_cast<int16_t>(i));
 
-                if (button != nullptr && button->mover != nullptr && isMoverClass(button->mover))
+                if (button != nullptr && button->Mover != nullptr && IsMoverClass(button->Mover))
                 {
-                    static_cast<Mover*>(button->mover)->drawOrderLines = 0;
+                    static_cast<MCMover*>(button->Mover)->DrawOrderLines = 0;
                 }
             }
         }
 
-        if (event->target == nullptr || event->target->parent != mainHolder)
+        if (event->Target == nullptr || event->Target->Parent != MainHolder)
         {
-            if (currentCommand != 0x29 && currentCommand != 0x2a && currentCommand != 0x2b && currentCommand != 0x2c)
+            if (CurrentCommand != 0x29 && CurrentCommand != 0x2a && CurrentCommand != 0x2b && CurrentCommand != 0x2c)
             {
-                currentCommand = 0;
-                commandOneShot = 0;
+                CurrentCommand = 0;
+                CommandOneShot = 0;
             }
 
-            scrollDirection = -1;
-            tacScrollDirection = -1;
+            ScrollDirection = -1;
+            TacScrollDirection = -1;
 
-            if (scanCode == rotateKey && eye != nullptr)
+            if (scanCode == RotateKey && Eye != nullptr)
             {
-                scrollWait = 0;
+                ScrollWait = 0;
             }
 
-            if (Terrain::terrainTacticalMap != nullptr)
+            if (MCTerrain::TerrainTacticalMap != nullptr)
             {
-                if (static_cast<int16_t>(key) == static_cast<int16_t>(keys[52]) && tacMapShown != 0)
+                if (static_cast<int16_t>(key) == static_cast<int16_t>(Keys[52]) && TacMapShown != 0)
                 {
-                    Terrain::terrainTacticalMap->HideMe(Terrain::terrainTacticalMap->IsHidden() == 0);
+                    MCTerrain::TerrainTacticalMap->HideMe(MCTerrain::TerrainTacticalMap->IsHidden() == 0);
                 }
 
-                if (Terrain::terrainTacticalMap != nullptr && key == keys[46])
+                if (MCTerrain::TerrainTacticalMap != nullptr && key == Keys[46])
                 {
-                    Terrain::terrainTacticalMap->activateArtillery(0, 0);
+                    MCTerrain::TerrainTacticalMap->ActivateArtillery(0, 0);
                 }
 
-                if (Terrain::terrainTacticalMap != nullptr && key == keys[47])
+                if (MCTerrain::TerrainTacticalMap != nullptr && key == Keys[47])
                 {
-                    Terrain::terrainTacticalMap->activateArtillery(1, 0);
+                    MCTerrain::TerrainTacticalMap->ActivateArtillery(1, 0);
                 }
 
-                if (Terrain::terrainTacticalMap != nullptr && key == keys[49])
+                if (MCTerrain::TerrainTacticalMap != nullptr && key == Keys[49])
                 {
-                    Terrain::terrainTacticalMap->activateArtillery(2, 0);
+                    MCTerrain::TerrainTacticalMap->ActivateArtillery(2, 0);
                 }
 
-                if (Terrain::terrainTacticalMap != nullptr && key == keys[48])
+                if (MCTerrain::TerrainTacticalMap != nullptr && key == Keys[48])
                 {
-                    Terrain::terrainTacticalMap->activateArtillery(3, 0);
+                    MCTerrain::TerrainTacticalMap->ActivateArtillery(3, 0);
                 }
             }
 
             // The lance-link keys (ctrl+F1-F4) wait for a click on the lance's point.
             for (int32_t lance = 0; lance < 4; lance++)
             {
-                if (key == keys[41 + lance] && AnySelected(0) != 0)
+                if (key == Keys[41 + lance] && AnySelected(0) != 0)
                 {
-                    currentCommand = 0x29 + lance;
-                    commandOneShot = 0;
-                    application->SetCurrentCursor(static_cast<CursorType>(0xd));
-                    application->cursorHidden = 1;
+                    CurrentCommand = 0x29 + lance;
+                    CommandOneShot = 0;
+                    Application->SetCurrentCursor(static_cast<MCCursorType>(0xd));
+                    Application->CursorHidden = 1;
                 }
             }
 
-            if (key == keys[75] && scenario != nullptr)
+            if (key == Keys[75] && Scenario != nullptr)
             {
                 SelectVisibleMechs();
-                order.destroy();
+                order.Destroy();
                 return;
             }
         }
 
-        order.destroy();
+        order.Destroy();
         return;
     }
 
     // The mouse position in the event's window (port: in a view, on its world surface, through the zoom).
-    auto windowPoint = [event](aObject* window) { return MCWindowPoint(window, event->x, event->y); };
+    auto windowPoint = [event](MCGuiObject* window) { return MCWindowPoint(window, event->X, event->Y); };
 
     // The command-mode reset after a lance link, then the usual redraw.
     auto endLanceLink = [&]()
     {
-        currentCommand = 0;
-        commandOneShot = 0;
-        application->cursorHidden = 0;
+        CurrentCommand = 0;
+        CommandOneShot = 0;
+        Application->CursorHidden = 0;
         UpdateInterface();
-        order.destroy();
+        order.Destroy();
     };
 
     auto sendOrder = [&](int sortMovers)
     {
         GetCommandParser()->SendTacOrder(order, sortMovers);
         UpdateInterface();
-        order.destroy();
+        order.Destroy();
     };
 
     auto finish = [&]()
     {
         UpdateInterface();
-        order.destroy();
+        order.Destroy();
     };
 
     // Sends the forced order to the selected movers' pilots (and to the server in multiplayer).
-    auto queueForcedOrder = [&](TacticalOrder& forcedOrder)
+    auto queueForcedOrder = [&](MCTacticalOrder& forcedOrder)
     {
-        forcedOrder.pack(nullptr, nullptr);
+        forcedOrder.Pack(nullptr, nullptr);
 
-        if (MPlayer != nullptr && MPlayer->isServer == 0)
+        if (MPlayer != nullptr && MPlayer->IsServer == 0)
         {
             int32_t moverParts[12];
 
-            for (int32_t i = 0; i < numSelectedMechs; i++)
+            for (int32_t i = 0; i < NumSelectedMechs; i++)
             {
                 moverParts[i] = 0;
-                FriendlyMechIcon* button = mechBar->GetButtonFromID(selectedMechs[i]);
+                MCFriendlyMechIcon* button = MechBar->GetButtonFromID(SelectedMechs[i]);
 
                 if (button != nullptr)
                 {
-                    moverParts[i] = button->mover->partId;
+                    moverParts[i] = button->Mover->PartId;
                 }
             }
 
-            MPlayer->sendPlayerOrder(0, &forcedOrder, 0, numSelectedMechs, moverParts, 0, nullptr, 1);
+            MPlayer->SendPlayerOrder(0, &forcedOrder, 0, NumSelectedMechs, moverParts, 0, nullptr, 1);
         }
 
-        for (int32_t i = 0; i < numSelectedMechs; i++)
+        for (int32_t i = 0; i < NumSelectedMechs; i++)
         {
-            FriendlyMechIcon* button = mechBar->GetButtonFromID(selectedMechs[i]);
+            MCFriendlyMechIcon* button = MechBar->GetButtonFromID(SelectedMechs[i]);
 
-            if (button == nullptr || button->mover == nullptr || !isMoverClass(button->mover))
+            if (button == nullptr || button->Mover == nullptr || !IsMoverClass(button->Mover))
             {
                 continue;
             }
 
-            auto* member = static_cast<Mover*>(button->mover);
+            auto* member = static_cast<MCMover*>(button->Mover);
 
-            if (member->getPilot() == nullptr)
+            if (member->GetPilot() == nullptr)
             {
                 continue;
             }
 
             if (MPlayer != nullptr)
             {
-                forcedOrder.id = 0;
-                forcedOrder.setId(member->getPilot());
+                forcedOrder.Id = 0;
+                forcedOrder.SetId(member->GetPilot());
             }
 
-            member->getPilot()->addQueuedTacOrder(forcedOrder);
-            member->getPilot()->tacOrderQueueExecuting = 1;
+            member->GetPilot()->AddQueuedTacOrder(forcedOrder);
+            member->GetPilot()->TacOrderQueueExecuting = 1;
         }
     };
 
-    GameObject* clicked = nullptr;
+    MCGameObject* clicked = nullptr;
     int32_t clickedPartId = 0;
     int32_t command = 0;
-    Camera* camera = nullptr;
-    aObject* target = nullptr;
+    MCCamera* camera = nullptr;
+    MCGuiObject* target = nullptr;
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
             // Left button down on the map: remember where, or give the forced order.
-            if (event->target != mainHolder->GetActivePane())
+            if (event->Target != MainHolder->GetActivePane())
             {
-                order.destroy();
+                order.Destroy();
                 return;
             }
 
-            const int32_t x = event->x;
-            const int32_t y = event->y;
-            mouseDownX = static_cast<float>(x);
-            mouseDownY = static_cast<float>(y);
+            const int32_t x = event->X;
+            const int32_t y = event->Y;
+            MouseDownX = static_cast<float>(x);
+            MouseDownY = static_cast<float>(y);
 
-            if (forceOrderActive == 0)
+            if (ForceOrderActive == 0)
             {
-                mouseDown = 1;
-                order.destroy();
+                MouseDown = 1;
+                order.Destroy();
                 return;
             }
 
-            if (forceOrderType == -1)
+            if (ForceOrderType == -1)
             {
-                soundSystem->playDigitalSample(0x46, 1, nullptr, 0, 0);
-                order.destroy();
+                SoundSystem->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
+                order.Destroy();
                 return;
             }
 
-            TacticalOrder forcedOrder;
-            forcedOrder.init();
-            target = event->target;
-            vector_2d screenPos = windowPoint(target);
+            MCTacticalOrder forcedOrder;
+            forcedOrder.Init();
+            target = event->Target;
+            MCVector2D screenPos = windowPoint(target);
             // Port fix: zeroed; the original left the point uninitialised when the window has no camera.
-            LocationNode node;
-            node.location = vector_3d(0.0f, 0.0f, 0.0f);
+            MCLocationNode node;
+            node.Location = MCVector3D(0.0f, 0.0f, 0.0f);
 
             if (target != nullptr && target->GetCamera() != nullptr)
             {
-                target->GetCamera()->inverseProject(screenPos, node.location);
+                target->GetCamera()->InverseProject(screenPos, node.Location);
             }
 
-            node.next = nullptr;
-            node.run = forceOrderType == 1;
+            node.Next = nullptr;
+            node.Run = ForceOrderType == 1;
 
-            if (forceOrderType == 2)
+            if (ForceOrderType == 2)
             {
-                forcedOrder.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_POINT, 0);
-                forcedOrder.initWayPath(&node);
-                forcedOrder.moveParams.wait = 0;
+                forcedOrder.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_POINT, 0);
+                forcedOrder.InitWayPath(&node);
+                forcedOrder.MoveParams.Wait = 0;
             }
             else
             {
-                forcedOrder.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_MOVETO_POINT, 0);
-                forcedOrder.initWayPath(&node);
-                forcedOrder.moveParams.wayPath.mode[0] = static_cast<uint8_t>(forceOrderType);
-                forcedOrder.moveParams.wait = 0;
+                forcedOrder.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_MOVETO_POINT, 0);
+                forcedOrder.InitWayPath(&node);
+                forcedOrder.MoveParams.WayPath.Mode[0] = static_cast<uint8_t>(ForceOrderType);
+                forcedOrder.MoveParams.Wait = 0;
 
-                if (currentCommand == 0x1f)
+                if (CurrentCommand == 0x1f)
                 {
-                    forcedOrder.moveParams.mode = 1;
+                    forcedOrder.MoveParams.Mode = 1;
                 }
             }
 
             queueForcedOrder(forcedOrder);
-            forcedOrder.destroy();
-            order.destroy();
+            forcedOrder.Destroy();
+            order.Destroy();
             return;
         }
 
         case 4:
         {
             // Left button up: ends a drag selection, or gives the order the click means.
-            if (mouseDown == 0)
+            if (MouseDown == 0)
             {
-                order.destroy();
+                order.Destroy();
                 return;
             }
 
-            target = event->target;
-            mouseDown = 0;
+            target = event->Target;
+            MouseDown = 0;
 
-            if (target != mainHolder->GetActivePane())
+            if (target != MainHolder->GetActivePane())
             {
-                mainHolder->SetActivePane(target);
+                MainHolder->SetActivePane(target);
                 UpdateMouseState(event);
-                order.destroy();
+                order.Destroy();
                 return;
             }
 
-            if (dragTarget != nullptr)
+            if (DragTarget != nullptr)
             {
-                application->cursorHidden = 0;
+                Application->CursorHidden = 0;
 
-                if (event->shiftKey == 0)
+                if (event->ShiftKey == 0)
                 {
                     ClearMechSelection();
-                    commandParser->ClearSubjects();
-                    numSelectedMechs = 0;
+                    CommandParser->ClearSubjects();
+                    NumSelectedMechs = 0;
                 }
 
                 DeselectEnemy();
-                application->release();
-                auto* dragWindow = static_cast<viewWindow*>(dragTarget);
+                Application->Release();
+                auto* dragWindow = static_cast<MCViewWindow*>(DragTarget);
 
-                for (int16_t i = 0; i < mechBar->layout.numButtons; i++)
+                for (int16_t i = 0; i < MechBar->Layout.NumButtons; i++)
                 {
-                    const int32_t partId = mechBar->getButton(i)->partId;
-                    BaseObject* member = mechBar->getButton(i)->mover;
+                    const int32_t partId = MechBar->GetButton(i)->PartId;
+                    MCBaseObject* member = MechBar->GetButton(i)->Mover;
 
-                    if (member == nullptr || member->getAppearance() == nullptr || dragTarget == nullptr)
+                    if (member == nullptr || member->GetAppearance() == nullptr || DragTarget == nullptr)
                     {
                         continue;
                     }
 
                     // Port: the box is in the view's own coordinates; the mover's position is mapped there through
                     // the zoom.
-                    const vector_2d screenPos =
-                        dragWindow->WorldToWindow(member->getAppearance()->getScreenPos(dragTarget->GetCamera()));
+                    const MCVector2D screenPos =
+                        dragWindow->WorldToWindow(member->GetAppearance()->GetScreenPos(DragTarget->GetCamera()));
                     POINT point;
-                    point.x = static_cast<int32_t>(screenPos.x);
-                    point.y = static_cast<int32_t>(screenPos.y);
-                    const float* box = dragWindow->selectionBox;
+                    point.x = static_cast<int32_t>(screenPos.X);
+                    point.y = static_cast<int32_t>(screenPos.Y);
+                    const float* box = dragWindow->SelectionBox;
                     RECT rect;
                     rect.left = static_cast<int32_t>(box[2] <= box[0] ? box[2] : box[0]);
                     rect.right = static_cast<int32_t>(box[2] < box[0] ? box[0] : box[2]);
@@ -2778,18 +2779,18 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     if (PtInRect(&rect, point) != 0)
                     {
                         SelectMech(partId);
-                        commandParser->AddSubject(partId, 1);
+                        CommandParser->AddSubject(partId, 1);
                     }
                 }
 
-                dragWindow->selectionBox[1] = 0.0f;
-                dragWindow->selectionBox[0] = 0.0f;
-                dragWindow->selectionBox[3] = 0.0f;
-                dragWindow->selectionBox[2] = 0.0f;
-                dragTarget = nullptr;
+                dragWindow->SelectionBox[1] = 0.0f;
+                dragWindow->SelectionBox[0] = 0.0f;
+                dragWindow->SelectionBox[3] = 0.0f;
+                dragWindow->SelectionBox[2] = 0.0f;
+                DragTarget = nullptr;
 
-                if (currentCommand == 0x29 || currentCommand == 0x2a || currentCommand == 0x2b ||
-                    currentCommand == 0x2c)
+                if (CurrentCommand == 0x29 || CurrentCommand == 0x2a || CurrentCommand == 0x2b ||
+                    CurrentCommand == 0x2c)
                 {
                     endLanceLink();
                 }
@@ -2801,39 +2802,39 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 return;
             }
 
-            command = currentCommand;
+            command = CurrentCommand;
 
             if (target != nullptr)
             {
                 camera = target->GetCamera();
             }
 
-            if (currentCommand == 0x32 && camera != nullptr)
+            if (CurrentCommand == 0x32 && camera != nullptr)
             {
                 // The debug "bunny" strike: a large strike where the player clicked.
-                vector_2d screenPos = windowPoint(target);
-                vector_3d strikePos;
-                camera->inverseProject(screenPos, strikePos);
-                HomeCommander->setNumLargeStrikes(HomeCommander->numLargeStrikes + 1);
-                CallArtillery(HomeCommander->id, 1, strikePos, 3, 0);
+                MCVector2D screenPos = windowPoint(target);
+                MCVector3D strikePos;
+                camera->InverseProject(screenPos, strikePos);
+                HomeCommander->SetNumLargeStrikes(HomeCommander->NumLargeStrikes + 1);
+                CallArtillery(HomeCommander->Id, 1, strikePos, 3, 0);
 
-                for (ArtilleryButton* button : tacticalMap->artilleryButtons)
+                for (MCArtilleryButton* button : TacticalMap->ArtilleryButtons)
                 {
-                    button->draw();
+                    button->Draw();
                 }
 
-                order.destroy();
+                order.Destroy();
                 return;
             }
 
-            clicked = static_cast<GameObject*>(mouseObject);
+            clicked = static_cast<MCGameObject*>(MouseObject);
 
             if (clicked != nullptr)
             {
-                clickedPartId = clicked->partId;
+                clickedPartId = clicked->PartId;
 
                 // Aimed shots only work on mechs; on anything else they are plain attacks.
-                if (clicked->objectClass != BATTLEMECH && currentCommand >= 0x17 && currentCommand <= 0x1e)
+                if (clicked->ObjectClass != BATTLEMECH && CurrentCommand >= 0x17 && CurrentCommand <= 0x1e)
                 {
                     command = 0xb;
                 }
@@ -2844,100 +2845,100 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
         case 6:
         {
             ClearMechSelection();
-            order.destroy();
+            order.Destroy();
             return;
         }
         case 7:
         {
             // Mouse move: track what is under the mouse, and drag out a selection box.
-            if (event->target == mainHolder->GetActivePane())
+            if (event->Target == MainHolder->GetActivePane())
             {
-                if (mouseDown == 0)
+                if (MouseDown == 0)
                 {
                     UpdateMouseState(event);
 
-                    if (selectedEnemy != nullptr)
+                    if (SelectedEnemy != nullptr)
                     {
-                        selectedEnemy->setSelected(0);
+                        SelectedEnemy->SetSelected(0);
                     }
 
-                    if (mouseObjectType == 1)
+                    if (MouseObjectType == 1)
                     {
-                        selectedEnemy = static_cast<GameObject*>(mouseObject);
+                        SelectedEnemy = static_cast<MCGameObject*>(MouseObject);
 
-                        if (selectedEnemy != nullptr)
+                        if (SelectedEnemy != nullptr)
                         {
-                            selectedEnemy->setSelected(1);
+                            SelectedEnemy->SetSelected(1);
                         }
                     }
                 }
 
-                if (event->leftButton != 0 && mouseDown != 0)
+                if (event->LeftButton != 0 && MouseDown != 0)
                 {
-                    int32_t x = event->x;
-                    int32_t y = event->y;
-                    bool dragging = dragTarget != nullptr;
+                    int32_t x = event->X;
+                    int32_t y = event->Y;
+                    bool dragging = DragTarget != nullptr;
 
                     if (!dragging)
                     {
                         // x87: the distance is compared at extended precision.
-                        const double dy = static_cast<double>(static_cast<float>(y)) - mouseDownY;
-                        const double dx = static_cast<double>(x) - mouseDownX;
-                        dragging = static_cast<double>(dragDistance) < std::sqrt(dx * dx + dy * dy);
+                        const double dy = static_cast<double>(static_cast<float>(y)) - MouseDownY;
+                        const double dx = static_cast<double>(x) - MouseDownX;
+                        dragging = static_cast<double>(DragDistance) < std::sqrt(dx * dx + dy * dy);
                     }
 
                     if (dragging)
                     {
-                        application->SetCurrentCursor(static_cast<CursorType>(0));
-                        aObject* dragWindow = dragTarget;
-                        application->cursorHidden = 1;
+                        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+                        MCGuiObject* dragWindow = DragTarget;
+                        Application->CursorHidden = 1;
 
-                        if (dragTarget == nullptr)
+                        if (DragTarget == nullptr)
                         {
-                            dragTarget = event->target;
-                            application->grab(dragTarget);
-                            dragWindow = dragTarget;
-                            static_cast<viewWindow*>(dragTarget)->selectionBox[0] = mouseDownX;
-                            static_cast<viewWindow*>(dragWindow)->selectionBox[1] = mouseDownY;
+                            DragTarget = event->Target;
+                            Application->Grab(DragTarget);
+                            dragWindow = DragTarget;
+                            static_cast<MCViewWindow*>(DragTarget)->SelectionBox[0] = MouseDownX;
+                            static_cast<MCViewWindow*>(dragWindow)->SelectionBox[1] = MouseDownY;
                         }
 
-                        if (x < dragWindow->globalX())
+                        if (x < dragWindow->GlobalX())
                         {
-                            x = dragTarget->globalX();
+                            x = DragTarget->GlobalX();
                         }
 
-                        if (y < dragTarget->globalY())
+                        if (y < DragTarget->GlobalY())
                         {
-                            y = dragTarget->globalY();
+                            y = DragTarget->GlobalY();
                         }
 
-                        if (dragTarget->globalX() + dragTarget->width() <= x)
+                        if (DragTarget->GlobalX() + DragTarget->Width() <= x)
                         {
-                            x = dragTarget->globalX() - 1 + dragTarget->width();
+                            x = DragTarget->GlobalX() - 1 + DragTarget->Width();
                         }
 
-                        if (dragTarget->globalY() + dragTarget->height() <= y)
+                        if (DragTarget->GlobalY() + DragTarget->Height() <= y)
                         {
-                            y = dragTarget->globalY() - 1 + dragTarget->height();
+                            y = DragTarget->GlobalY() - 1 + DragTarget->Height();
                         }
 
-                        const int32_t boxY = y - dragTarget->globalY();
-                        const int32_t boxX = x - dragTarget->globalX();
-                        static_cast<viewWindow*>(dragWindow)->selectionBox[2] = static_cast<float>(boxX);
-                        static_cast<viewWindow*>(dragWindow)->selectionBox[3] = static_cast<float>(boxY);
-                        order.destroy();
+                        const int32_t boxY = y - DragTarget->GlobalY();
+                        const int32_t boxX = x - DragTarget->GlobalX();
+                        static_cast<MCViewWindow*>(dragWindow)->SelectionBox[2] = static_cast<float>(boxX);
+                        static_cast<MCViewWindow*>(dragWindow)->SelectionBox[3] = static_cast<float>(boxY);
+                        order.Destroy();
                         return;
                     }
                 }
             }
 
-            order.destroy();
+            order.Destroy();
             return;
         }
 
         default:
         {
-            order.destroy();
+            order.Destroy();
             return;
         }
     }
@@ -2945,80 +2946,80 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
     // The click (event 4): what it means depends on what is under the mouse and the command mode.
     auto initAttack = [&]()
     {
-        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
-        order.target = clicked;
-        order.attackParams.type = 1;
-        order.attackParams.method = 0;
-        order.attackParams.range = -4;
-        order.attackParams.pursue = 1;
+        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
+        order.Target = clicked;
+        order.AttackParams.Type = 1;
+        order.AttackParams.Method = 0;
+        order.AttackParams.Range = -4;
+        order.AttackParams.Pursue = 1;
     };
 
     // An order on the clicked object: its code, the way path's run flag and the wait flag.
-    auto initObjectOrder = [&](TacticalOrderCode code, uint8_t run, int32_t wait)
+    auto initObjectOrder = [&](MCTacticalOrderCode code, uint8_t run, int32_t wait)
     {
-        order.init(ORDER_ORIGIN_PLAYER, code, 0);
-        order.target = clicked;
-        order.moveParams.wayPath.mode[0] = run;
-        order.moveParams.wait = wait;
+        order.Init(ORDER_ORIGIN_PLAYER, code, 0);
+        order.Target = clicked;
+        order.MoveParams.WayPath.Mode[0] = run;
+        order.MoveParams.Wait = wait;
     };
 
     // Command 0x1f: move onto the object with move mode 1.
     auto initMoveMode1 = [&]()
     {
-        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_MOVETO_OBJECT, 0);
-        order.target = clicked;
-        order.moveParams.wayPath.mode[0] = 0;
-        order.moveParams.wait = 0;
-        order.moveParams.mode = 1;
+        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_MOVETO_OBJECT, 0);
+        order.Target = clicked;
+        order.MoveParams.WayPath.Mode[0] = 0;
+        order.MoveParams.Wait = 0;
+        order.MoveParams.Mode = 1;
     };
 
     // Jumps onto the clicked object, when every selected mover can.
     auto jumpToObject = [&]() -> bool
     {
-        if (canSelectionJumpTo(clicked->getPosition(), clicked, forceOrderActive) == 0)
+        if (CanSelectionJumpTo(clicked->GetPosition(), clicked, ForceOrderActive) == 0)
         {
             return false;
         }
 
-        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_OBJECT, 0);
-        order.target = static_cast<GameObject*>(mouseObject);
-        order.moveParams.wayPath.mode[0] = 2;
-        order.moveParams.wait = 0;
-        order.setWayPoint(0, static_cast<GameObject*>(mouseObject)->getPosition());
+        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_OBJECT, 0);
+        order.Target = static_cast<MCGameObject*>(MouseObject);
+        order.MoveParams.WayPath.Mode[0] = 2;
+        order.MoveParams.Wait = 0;
+        order.SetWayPoint(0, static_cast<MCGameObject*>(MouseObject)->GetPosition());
         return true;
     };
 
     // An order along a one-point way path at <c>mouseWorldPos</c>.
-    auto initPointOrder = [&](TacticalOrderCode code, int run)
+    auto initPointOrder = [&](MCTacticalOrderCode code, int run)
     {
-        LocationNode node;
-        node.location = mouseWorldPos;
-        node.run = run;
-        node.next = nullptr;
-        order.init(ORDER_ORIGIN_PLAYER, code, 0);
-        order.initWayPath(&node);
-        order.moveParams.wait = 0;
+        MCLocationNode node;
+        node.Location = MouseWorldPos;
+        node.Run = run;
+        node.Next = nullptr;
+        order.Init(ORDER_ORIGIN_PLAYER, code, 0);
+        order.InitWayPath(&node);
+        order.MoveParams.Wait = 0;
     };
 
     // Unprojects the click into <c>mouseWorldPos</c>; false without a camera.
     auto unprojectClick = [&]() -> bool
     {
-        vector_2d screenPos = windowPoint(target);
+        MCVector2D screenPos = windowPoint(target);
 
         if (camera == nullptr)
         {
             return false;
         }
 
-        camera->inverseProject(screenPos, mouseWorldPos);
+        camera->InverseProject(screenPos, MouseWorldPos);
         return true;
     };
 
     auto showInfo = [&]()
     {
-        Terrain::terrainTacticalMap->HideMe(0);
-        Terrain::terrainTacticalMap->SetDisplayType(TACMAP_INFO);
-        Terrain::terrainTacticalMap->SetID(clickedPartId);
+        MCTerrain::TerrainTacticalMap->HideMe(0);
+        MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
+        MCTerrain::TerrainTacticalMap->SetID(clickedPartId);
         finish();
     };
 
@@ -3030,41 +3031,41 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
             return;
         }
 
-        camera->changeTarget(clicked, 0);
+        camera->ChangeTarget(clicked, 0);
         finish();
     };
 
-    auto selectEnemyOnMap = [&](GameObject* enemy)
+    auto selectEnemyOnMap = [&](MCGameObject* enemy)
     {
-        if (selectedEnemy != nullptr)
+        if (SelectedEnemy != nullptr)
         {
-            selectedEnemy->setSelected(0);
+            SelectedEnemy->SetSelected(0);
         }
 
-        selectedEnemy = enemy;
+        SelectedEnemy = enemy;
 
         if (enemy != nullptr)
         {
-            enemy->setSelected(1);
+            enemy->SetSelected(1);
         }
 
-        Terrain::terrainTacticalMap->SetID(enemy->partId);
+        MCTerrain::TerrainTacticalMap->SetID(enemy->PartId);
     };
 
-    switch (mouseObjectType)
+    switch (MouseObjectType)
     {
         case 0:
         {
             // One of the player's movers.
             initAttack();
 
-            if (setAttackModifier(order, command, true))
+            if (SetAttackModifier(order, command, true))
             {
                 sendOrder(0);
                 return;
             }
 
-            auto* member = static_cast<Mover*>(clicked);
+            auto* member = static_cast<MCMover*>(clicked);
 
             switch (command)
             {
@@ -3076,36 +3077,36 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     // Eject, stop, power up and down go to the mover alone.
                     if (command == 1)
                     {
-                        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_EJECT, 0);
+                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_EJECT, 0);
                     }
                     else if (command == 2)
                     {
-                        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_STOP, 0);
+                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_STOP, 0);
                     }
                     else if (command == 0x15)
                     {
-                        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 1);
+                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 1);
                     }
                     else
                     {
-                        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 1);
+                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 1);
                     }
 
-                    if (MPlayer == nullptr || MPlayer->isServer != 0)
+                    if (MPlayer == nullptr || MPlayer->IsServer != 0)
                     {
-                        member->handleTacticalOrder(order, 1, 0);
+                        member->HandleTacticalOrder(order, 1, 0);
                         finish();
                         return;
                     }
 
-                    int32_t partId = member->partId;
+                    int32_t partId = member->PartId;
 
                     if (command == 2)
                     {
-                        member->getPilot()->clearTacOrderQueue();
+                        member->GetPilot()->ClearTacOrderQueue();
                     }
 
-                    MPlayer->sendPlayerOrder(0, &order, 0, 1, &partId, 0, nullptr, 0);
+                    MPlayer->SendPlayerOrder(0, &order, 0, 1, &partId, 0, nullptr, 0);
                     finish();
                     return;
                 }
@@ -3118,9 +3119,9 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 }
                 case 9:
                 {
-                    order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_REFIT, 0);
-                    order.target = clicked;
-                    order.moveParams.wayPath.mode[0] = 1;
+                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_REFIT, 0);
+                    order.Target = clicked;
+                    order.MoveParams.WayPath.Mode[0] = 1;
                     sendOrder(0);
                     return;
                 }
@@ -3153,63 +3154,63 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 case 0x2c:
                 {
                     // Link the selected movers into a lance, the clicked one its point.
-                    soundSystem->playBettySample(5);
-                    const int32_t lance = currentCommand - 0x29;
+                    SoundSystem->PlayBettySample(5);
+                    const int32_t lance = CurrentCommand - 0x29;
 
                     if (IsSelected(clickedPartId) == 0)
                     {
                         SelectMech(clickedPartId);
                     }
 
-                    const int16_t numMovers = numSelectedMechs;
+                    const int16_t numMovers = NumSelectedMechs;
                     // Port fix: zeroed; the original left the entry of a missing button uninitialised.
-                    auto** movers = new GameObject*[numMovers]();
+                    auto** movers = new MCGameObject*[numMovers]();
                     // The original's point index is left at the command when the point is not found.
                     int32_t pointIndex = command;
 
-                    for (int32_t i = 0; i < numSelectedMechs; i++)
+                    for (int32_t i = 0; i < NumSelectedMechs; i++)
                     {
-                        FriendlyMechIcon* button = mechBar->GetButtonFromID(selectedMechs[i]);
+                        MCFriendlyMechIcon* button = MechBar->GetButtonFromID(SelectedMechs[i]);
 
                         if (button == nullptr)
                         {
                             continue;
                         }
 
-                        movers[i] = static_cast<GameObject*>(button->mover);
+                        movers[i] = static_cast<MCGameObject*>(button->Mover);
 
-                        if (button->isPoint != 0)
+                        if (button->IsPoint != 0)
                         {
-                            button->isPoint = 0;
+                            button->IsPoint = 0;
                         }
 
-                        if (button->mover == mouseObject)
+                        if (button->Mover == MouseObject)
                         {
-                            button->isPoint = 1;
+                            button->IsPoint = 1;
                             pointIndex = i;
                         }
                     }
 
                     for (int32_t i = 0; i < 4; i++)
                     {
-                        if (mechBar != nullptr && mechBar->lanceIcons[i] != nullptr &&
-                            mechBar->lanceIcons[i]->group != nullptr)
+                        if (MechBar != nullptr && MechBar->LanceIcons[i] != nullptr &&
+                            MechBar->LanceIcons[i]->Group != nullptr)
                         {
-                            mechBar->lanceIcons[i]->numActiveMovers = mechBar->lanceIcons[i]->group->numMovers;
+                            MechBar->LanceIcons[i]->NumActiveMovers = MechBar->LanceIcons[i]->Group->NumMovers;
                         }
                     }
 
-                    setUnit(lance, numSelectedMechs, movers, pointIndex);
+                    SetUnit(lance, NumSelectedMechs, movers, pointIndex);
                     delete[] movers;
-                    mechBar->PlaceButtons(1);
-                    currentCommand = 0;
-                    commandOneShot = 0;
-                    application->cursorHidden = 0;
+                    MechBar->PlaceButtons(1);
+                    CurrentCommand = 0;
+                    CommandOneShot = 0;
+                    Application->CursorHidden = 0;
                     ClearMechSelection();
-                    SelectLance(HomeCommander->getGroup(lance));
-                    commandParser->AddSubject(HomeCommander->getGroup(lance), 0);
+                    SelectLance(HomeCommander->GetGroup(lance));
+                    CommandParser->AddSubject(HomeCommander->GetGroup(lance), 0);
                     UpdateInterface();
-                    order.destroy();
+                    order.Destroy();
                     return;
                 }
 
@@ -3230,15 +3231,15 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
             // Otherwise the click selects the mover; shift adds it to the selection or takes it out.
             int addToExisting;
 
-            if (event->shiftKey == 0)
+            if (event->ShiftKey == 0)
             {
                 ClearMechSelection();
                 DeselectEnemy();
-                commandParser->ClearSubjects();
+                CommandParser->ClearSubjects();
 
                 if (AnySelected(0) == 0)
                 {
-                    Terrain::terrainTacticalMap->SetID(clickedPartId);
+                    MCTerrain::TerrainTacticalMap->SetID(clickedPartId);
                 }
 
                 SelectMech(clickedPartId);
@@ -3249,7 +3250,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 if (IsSelected(clickedPartId) != 0)
                 {
                     DeselectMech(clickedPartId);
-                    commandParser->RemoveSubject(clickedPartId);
+                    CommandParser->RemoveSubject(clickedPartId);
                     finish();
                     return;
                 }
@@ -3259,8 +3260,8 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 addToExisting = 1;
             }
 
-            commandParser->AddSubject(clickedPartId, addToExisting);
-            soundSystem->playDigitalSample(0x10, 1, nullptr, 0, 0);
+            CommandParser->AddSubject(clickedPartId, addToExisting);
+            SoundSystem->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
             finish();
             return;
         }
@@ -3272,24 +3273,24 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
             if (AnySelected(0) == 0)
             {
                 // Nothing selected: the click shows the enemy on the tactical map.
-                if (!canShowInfo(clicked))
+                if (!CanShowInfo(clicked))
                 {
                     finish();
                     return;
                 }
 
                 selectEnemyOnMap(clicked);
-                const int32_t mode = currentCommand;
+                const int32_t mode = CurrentCommand;
 
                 if (mode == 0x33)
                 {
-                    Terrain::terrainTacticalMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(TACMAP_INFO);
+                    MCTerrain::TerrainTacticalMap->HideMe(0);
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
                 }
 
                 if (mode == 0x4a && camera != nullptr)
                 {
-                    camera->changeTarget(clicked, 0);
+                    camera->ChangeTarget(clicked, 0);
                     finish();
                     return;
                 }
@@ -3298,16 +3299,16 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 return;
             }
 
-            order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
-            clicked = static_cast<GameObject*>(mouseObject);
-            order.moveParams.wayPath.mode[0] = currentCommand == 3;
-            order.attackParams.type = 1;
-            order.attackParams.pursue = 1;
-            order.target = clicked;
-            order.attackParams.method = 0;
-            order.attackParams.range = -4;
+            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
+            clicked = static_cast<MCGameObject*>(MouseObject);
+            order.MoveParams.WayPath.Mode[0] = CurrentCommand == 3;
+            order.AttackParams.Type = 1;
+            order.AttackParams.Pursue = 1;
+            order.Target = clicked;
+            order.AttackParams.Method = 0;
+            order.AttackParams.Range = -4;
 
-            if (setAttackModifier(order, command, false))
+            if (SetAttackModifier(order, command, false))
             {
                 sendOrder(0);
                 return;
@@ -3335,16 +3336,16 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 }
                 case 0x11:
                 {
-                    if (canSelectionJumpTo(clicked->getPosition(), nullptr, forceOrderActive) == 0)
+                    if (CanSelectionJumpTo(clicked->GetPosition(), nullptr, ForceOrderActive) == 0)
                     {
                         finish();
                         return;
                     }
 
-                    if (isMoverClass(mouseObject))
+                    if (IsMoverClass(MouseObject))
                     {
                         // A jump attack.
-                        order.attackParams.method = 1;
+                        order.AttackParams.Method = 1;
                         sendOrder(0);
                         return;
                     }
@@ -3356,14 +3357,14 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     }
 
                     {
-                        vector_2d screenPos = windowPoint(target);
-                        LocationNode node;
-                        camera->inverseProject(screenPos, node.location);
-                        node.run = 0;
-                        node.next = nullptr;
-                        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_POINT, 0);
-                        order.initWayPath(&node);
-                        order.moveParams.wait = 0;
+                        MCVector2D screenPos = windowPoint(target);
+                        MCLocationNode node;
+                        camera->InverseProject(screenPos, node.Location);
+                        node.Run = 0;
+                        node.Next = nullptr;
+                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_POINT, 0);
+                        order.InitWayPath(&node);
+                        order.MoveParams.Wait = 0;
                     }
 
                     sendOrder(1);
@@ -3379,7 +3380,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 }
                 case 0x33:
                 {
-                    if (!canShowInfo(clicked))
+                    if (!CanShowInfo(clicked))
                     {
                         finish();
                         return;
@@ -3395,23 +3396,23 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 }
                 default:
                 {
-                    if (canCapture != 0)
+                    if (CanCapture != 0)
                     {
-                        if (captureBlocked != 0)
+                        if (CaptureBlocked != 0)
                         {
                             finish();
                             return;
                         }
 
-                        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_CAPTURE, 0);
-                        order.target = clicked;
-                        order.moveParams.wayPath.mode[0] = 1;
+                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_CAPTURE, 0);
+                        order.Target = clicked;
+                        order.MoveParams.WayPath.Mode[0] = 1;
                         sendOrder(0);
                         return;
                     }
 
-                    order.moveParams.wait = 0;
-                    order.moveParams.wayPath.mode[0] = command == 3;
+                    order.MoveParams.Wait = 0;
+                    order.MoveParams.WayPath.Mode[0] = command == 3;
                     sendOrder(1);
                     return;
                 }
@@ -3429,17 +3430,17 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
             }
 
             initAttack();
-            order.moveParams.wayPath.mode[0] = 0;
+            order.MoveParams.WayPath.Mode[0] = 0;
 
-            if (!setAttackModifier(order, command, false))
+            if (!SetAttackModifier(order, command, false))
             {
                 switch (command)
                 {
                     case 0x11:
                     {
-                        if (canSelectionJumpTo(clicked->getPosition(), nullptr, forceOrderActive) != 0)
+                        if (CanSelectionJumpTo(clicked->GetPosition(), nullptr, ForceOrderActive) != 0)
                         {
-                            order.attackParams.method = 1;
+                            order.AttackParams.Method = 1;
                         }
                         break;
                     }
@@ -3448,7 +3449,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                         break;
                     case 0x33:
                     {
-                        if (!canShowInfo(clicked))
+                        if (!CanShowInfo(clicked))
                         {
                             finish();
                             return;
@@ -3467,9 +3468,9 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     case 0x2b:
                     case 0x2c:
                     {
-                        currentCommand = 0;
-                        commandOneShot = 0;
-                        application->cursorHidden = 0;
+                        CurrentCommand = 0;
+                        CommandOneShot = 0;
+                        Application->CursorHidden = 0;
                         [[fallthrough]];
                     }
                     default:
@@ -3489,8 +3490,8 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
             {
                 if (command == 0x33)
                 {
-                    Terrain::terrainTacticalMap->HideMe(0);
-                    Terrain::terrainTacticalMap->SetDisplayType(TACMAP_INFO);
+                    MCTerrain::TerrainTacticalMap->HideMe(0);
+                    MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
                 }
                 else if (command == 0x4a)
                 {
@@ -3498,14 +3499,14 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     return;
                 }
 
-                Terrain::terrainTacticalMap->SetID(clicked->partId);
+                MCTerrain::TerrainTacticalMap->SetID(clicked->PartId);
                 finish();
                 return;
             }
 
             initAttack();
 
-            if (setAttackModifier(order, command, true))
+            if (SetAttackModifier(order, command, true))
             {
                 sendOrder(0);
                 return;
@@ -3611,9 +3612,9 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
         {
             // Any other object.
             initAttack();
-            order.moveParams.wayPath.mode[0] = 0;
+            order.MoveParams.WayPath.Mode[0] = 0;
 
-            if (setAttackModifier(order, command, true))
+            if (SetAttackModifier(order, command, true))
             {
                 sendOrder(0);
                 return;
@@ -3623,7 +3624,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
             {
                 case 3:
                 {
-                    if (!isBridge(clicked))
+                    if (!IsBridge(clicked))
                     {
                         initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, 1, 0);
                         sendOrder(1);
@@ -3634,7 +3635,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     if (unprojectClick())
                     {
                         initPointOrder(TACTICAL_ORDER_MOVETO_POINT, 1);
-                        order.moveParams.wayPath.mode[0] = 1;
+                        order.MoveParams.WayPath.Mode[0] = 1;
                     }
 
                     sendOrder(1);
@@ -3642,15 +3643,15 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 }
                 case 0xa:
                 {
-                    order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_GETFIXED, 0);
-                    order.target = clicked;
-                    order.moveParams.wayPath.mode[0] = 1;
+                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_GETFIXED, 0);
+                    order.Target = clicked;
+                    order.MoveParams.WayPath.Mode[0] = 1;
                     sendOrder(0);
                     return;
                 }
                 case 0x11:
                 {
-                    if (!unprojectClick() || canSelectionJumpTo(mouseWorldPos, nullptr, forceOrderActive) == 0)
+                    if (!unprojectClick() || CanSelectionJumpTo(MouseWorldPos, nullptr, ForceOrderActive) == 0)
                     {
                         finish();
                         return;
@@ -3692,7 +3693,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 }
                 default:
                 {
-                    if (static_cast<uint8_t>(clicked->status) == 2 || static_cast<uint8_t>(clicked->status) == 1)
+                    if (static_cast<uint8_t>(clicked->Status) == 2 || static_cast<uint8_t>(clicked->Status) == 1)
                     {
                         // Wrecked: move to it.
                         initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, 0, 0);
@@ -3700,10 +3701,10 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                         return;
                     }
 
-                    if (!isBridge(clicked) && clicked->getAlignment() != homeTeam->alignment)
+                    if (!IsBridge(clicked) && clicked->GetAlignment() != HomeTeam->Alignment)
                     {
                         // Someone else's: attack it.
-                        order.attackParams.range = -4;
+                        order.AttackParams.Range = -4;
                         sendOrder(0);
                         return;
                     }
@@ -3716,7 +3717,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                     }
 
                     initPointOrder(TACTICAL_ORDER_MOVETO_POINT, command == 3);
-                    order.moveParams.wayPath.mode[0] = command == 3;
+                    order.MoveParams.WayPath.Mode[0] = command == 3;
                     sendOrder(0);
                     return;
                 }
@@ -3732,7 +3733,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 return;
             }
 
-            switch (currentCommand)
+            switch (CurrentCommand)
             {
                 case 0xb:
                 case 0xc:
@@ -3750,17 +3751,17 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 case 0x1e:
                 {
                     // Attack the point.
-                    order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_POINT, 0);
-                    order.attackParams.targetPoint = mouseWorldPos;
-                    order.target = nullptr;
-                    order.attackParams.type = 1;
-                    order.attackParams.method = 0;
-                    order.attackParams.range = -4;
-                    order.attackParams.pursue = 1;
+                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_POINT, 0);
+                    order.AttackParams.TargetPoint = MouseWorldPos;
+                    order.Target = nullptr;
+                    order.AttackParams.Type = 1;
+                    order.AttackParams.Method = 0;
+                    order.AttackParams.Range = -4;
+                    order.AttackParams.Pursue = 1;
 
                     if (command >= 0xb && command <= 0x10)
                     {
-                        setAttackModifier(order, command, true);
+                        SetAttackModifier(order, command, true);
                     }
 
                     sendOrder(1);
@@ -3771,7 +3772,7 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
             }
 
             initPointOrder(TACTICAL_ORDER_MOVETO_POINT, 0);
-            order.moveParams.wayPath.mode[0] = 0;
+            order.MoveParams.WayPath.Mode[0] = 0;
 
             switch (command)
             {
@@ -3782,33 +3783,33 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 }
                 case 3:
                 {
-                    order.moveParams.wayPath.mode[0] = 1;
+                    order.MoveParams.WayPath.Mode[0] = 1;
                     sendOrder(1);
                     return;
                 }
                 case 0x11:
                 {
-                    if (canSelectionJumpTo(mouseWorldPos, nullptr, forceOrderActive) == 0)
+                    if (CanSelectionJumpTo(MouseWorldPos, nullptr, ForceOrderActive) == 0)
                     {
                         finish();
                         return;
                     }
 
                     initPointOrder(TACTICAL_ORDER_JUMPTO_POINT, 0);
-                    order.moveParams.wayPath.mode[0] = 0;
+                    order.MoveParams.WayPath.Mode[0] = 0;
                     sendOrder(1);
                     return;
                 }
                 case 0x13:
                 {
                     initPointOrder(TACTICAL_ORDER_GUARD, 0);
-                    order.moveParams.wayPath.mode[0] = 0;
+                    order.MoveParams.WayPath.Mode[0] = 0;
                     sendOrder(1);
                     return;
                 }
                 case 0x1f:
                 {
-                    order.moveParams.mode = 1;
+                    order.MoveParams.Mode = 1;
                     sendOrder(1);
                     return;
                 }
@@ -3823,8 +3824,8 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
                 case 0x4a:
                 {
                     // Move the camera to the point.
-                    camera->changeTarget(nullptr, 0);
-                    camera->setPosition(mouseWorldPos);
+                    camera->ChangeTarget(nullptr, 0);
+                    camera->SetPosition(MouseWorldPos);
                     finish();
                     return;
                 }
@@ -3844,292 +3845,279 @@ auto InterfaceObject::handleEvent(aEvent* event) -> void
     }
 }
 
-auto InterfaceObject::ZoomIn(float factor, bool sound) -> void
+auto MCInterfaceObject::ZoomIn(float factor, bool sound) -> void
 {
     // Port: the view shows fewer lines of the world (the original switched the camera to scale 100); the tactical
     // map's zoom button follows.
-    if (eye == nullptr || eye->window == nullptr || gamePaused != 0 || gameAsked != 0)
+    if (Eye == nullptr || Eye->Window == nullptr || GamePaused != 0 || GameAsked != 0)
     {
         return;
     }
 
-    if (eye->window->ZoomBy(1.0f / factor))
+    if (Eye->Window->ZoomBy(1.0f / factor))
     {
         if (sound)
         {
-            soundSystem->playDigitalSample(0x44, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(0x44, 1, nullptr, 0, 0);
         }
 
-        eye->forceUpdate = 1;
-        Terrain::forceRedraw = 1;
+        Eye->ForceUpdate = 1;
+        MCTerrain::ForceRedraw = 1;
     }
 }
 
-auto InterfaceObject::ZoomOut(float factor, bool sound) -> void
+auto MCInterfaceObject::ZoomOut(float factor, bool sound) -> void
 {
     // Port: the view shows more lines of the world (the original switched the camera to scale 1); the tactical map's
     // zoom button follows.
-    if (eye == nullptr || eye->window == nullptr || gamePaused != 0 || gameAsked != 0)
+    if (Eye == nullptr || Eye->Window == nullptr || GamePaused != 0 || GameAsked != 0)
     {
         return;
     }
 
-    if (eye->window->ZoomBy(factor))
+    if (Eye->Window->ZoomBy(factor))
     {
         if (sound)
         {
-            soundSystem->playDigitalSample(0x45, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(0x45, 1, nullptr, 0, 0);
         }
 
-        eye->forceUpdate = 1;
-        Terrain::forceRedraw = 1;
+        Eye->ForceUpdate = 1;
+        MCTerrain::ForceRedraw = 1;
     }
 }
 
-auto InterfaceObject::StartScenario() -> int32_t
+auto MCInterfaceObject::StartScenario() -> int32_t
 {
-    commandParser = new Parser;
+    CommandParser = new MCParser;
 
-    if (commandParser == nullptr)
+    if (CommandParser == nullptr)
     {
         return 3;
     }
 
-    commandParser->init();
-    mouseObjectType = -1;
-    mouseObject = nullptr;
-    currentCommand = 0;
-    commandOneShot = 0;
+    CommandParser->Init();
+    MouseObjectType = -1;
+    MouseObject = nullptr;
+    CurrentCommand = 0;
+    CommandOneShot = 0;
     UpdateInterface();
 
-    if (mainHolder != nullptr)
+    if (MainHolder != nullptr)
     {
-        mainHolder->ShowGUIWindow(1);
+        MainHolder->ShowGuiWindow(1);
     }
 
-    if (scrollCallback == nullptr)
+    if (ScrollCallback == nullptr)
     {
-        scrollCallback = new aCallback;
-        scrollCallback->setExec(ScrollScreen);
-        application->addCallback(scrollCallback);
+        ScrollCallback = new MCGuiCallback;
+        ScrollCallback->SetExec(ScrollScreen);
+        Application->AddCallback(ScrollCallback);
     }
 
-    salvageIcon = nullptr;
-    selectedEnemy = nullptr;
-    Terrain::terrainTacticalMap->setDepth(0x50);
-    aMechBar* bar = mechBar;
+    SalvageIcon = nullptr;
+    SelectedEnemy = nullptr;
+    MCTerrain::TerrainTacticalMap->SetDepth(0x50);
+    MCMechBar* bar = MechBar;
 
-    if (bar->getButton(0) != nullptr)
+    if (bar->GetButton(0) != nullptr)
     {
-        Terrain::terrainTacticalMap->SetID(bar->getButton(0)->partId);
+        MCTerrain::TerrainTacticalMap->SetID(bar->GetButton(0)->PartId);
     }
 
-    bar->ShowGUIWindow(1);
+    bar->ShowGuiWindow(1);
     bar->InitLances();
-    dragTarget = nullptr;
-    forceOrderActive = 0;
+    DragTarget = nullptr;
+    ForceOrderActive = 0;
     // Slot 62 (alt+S by default) becomes alt+C in multiplayer.
-    bindKey(keys[62], MPlayer != nullptr ? 0x2e : 0x1f, 0);
+    BindKey(Keys[62], MPlayer != nullptr ? 0x2e : 0x1f, 0);
     return 0;
 }
 
-auto InterfaceObject::EndScenario() -> void
+auto MCInterfaceObject::EndScenario() -> void
 {
     ClearMechSelection();
-    highlightedObject = nullptr;
+    HighlightedObject = nullptr;
 
-    if (commandParser != nullptr)
+    if (CommandParser != nullptr)
     {
         // The original freed it without its destructor, which does nothing.
-        delete commandParser;
-        commandParser = nullptr;
+        delete CommandParser;
+        CommandParser = nullptr;
     }
 
-    aMechBar* bar = mechBar;
+    MCMechBar* bar = MechBar;
 
     for (int32_t i = 0; i < 12; i++)
     {
-        if (bar != nullptr && i < 4 && bar->lanceIcons[i] != nullptr)
+        if (bar != nullptr && i < 4 && bar->LanceIcons[i] != nullptr)
         {
-            bar->lanceIcons[i]->destroy();
+            bar->LanceIcons[i]->Destroy();
         }
     }
 
-    bar->cleanUp();
-    bar->ShowGUIWindow(0);
+    bar->CleanUp();
+    bar->ShowGuiWindow(0);
     bar->DestroyLances();
     HideTags();
 
-    if (salvageIcon != nullptr)
+    if (SalvageIcon != nullptr)
     {
-        salvageIcon->destroy();
-        delete salvageIcon;
-        salvageIcon = nullptr;
+        SalvageIcon->Destroy();
+        delete SalvageIcon;
+        SalvageIcon = nullptr;
     }
 
-    if (mainHolder != nullptr)
+    if (MainHolder != nullptr)
     {
-        mainHolder->ShowGUIWindow(0);
+        MainHolder->ShowGuiWindow(0);
     }
 
-    application->removeCallback(scrollCallback);
+    Application->RemoveCallback(ScrollCallback);
 
-    if (scrollCallback != nullptr)
+    if (ScrollCallback != nullptr)
     {
-        delete scrollCallback;
-        scrollCallback = nullptr;
+        delete ScrollCallback;
+        ScrollCallback = nullptr;
     }
 
-    numReserveIcons = 0;
+    NumReserveIcons = 0;
 
-    for (FriendlyMechIcon*& icon : reserveIcons)
+    for (MCFriendlyMechIcon*& icon : ReserveIcons)
     {
         if (icon != nullptr)
         {
-            icon->destroy();
+            icon->Destroy();
             delete icon;
             icon = nullptr;
         }
     }
 }
 
-auto InterfaceObject::AddMech(int32_t partId, int32_t lance, int active, int onBar) -> int32_t
+auto MCInterfaceObject::AddMech(int32_t partId, int32_t lance, int active, int onBar) -> int32_t
 {
-    auto* icon = new FriendlyMechIcon;
-    icon->init(0, 0, 0x34, 0x2e, nullptr);
+    auto* icon = new MCFriendlyMechIcon;
+    icon->Init(0, 0, 0x34, 0x2e, nullptr);
     icon->SetID(partId);
-    icon->active = active;
-    icon->ShowGUIWindow(active);
+    icon->Active = active;
+    icon->ShowGuiWindow(active);
 
     if (onBar != 0)
     {
-        aMechBar* bar = mechBar;
-        icon->lance = lance;
+        MCMechBar* bar = MechBar;
+        icon->Lance = lance;
         bar->AddButton(icon);
-        bar->draw();
-        icon->setEventRoutine(mechIconHandleEvent);
+        bar->Draw();
+        icon->SetEventRoutine(MechIconHandleEvent);
         return 0;
     }
 
-    icon->lance = 5;
-    reserveIcons[numReserveIcons] = icon;
-    numReserveIcons++;
+    icon->Lance = 5;
+    ReserveIcons[NumReserveIcons] = icon;
+    NumReserveIcons++;
     return 0;
 }
 
-auto InterfaceObject::ActivateMech(int32_t partId) -> void
+auto MCInterfaceObject::ActivateMech(int32_t partId) -> void
 {
-    aMechBar* bar = mechBar;
-    FriendlyMechIcon* icon = bar->GetButtonFromID(partId);
+    MCMechBar* bar = MechBar;
+    MCFriendlyMechIcon* icon = bar->GetButtonFromID(partId);
 
     if (icon != nullptr)
     {
-        icon->active = 1;
-        icon->ShowGUIWindow(1);
-        icon->SetID(icon->partId);
+        icon->Active = 1;
+        icon->ShowGuiWindow(1);
+        icon->SetID(icon->PartId);
         bar->PlaceButtons(1);
     }
 }
 
-auto InterfaceObject::RemoveMech(int32_t partId) -> void
+auto MCInterfaceObject::RemoveMech(int32_t partId) -> void
 {
     if (IsOurs(static_cast<int16_t>(partId)) != 0)
     {
-        aMechBar* bar = mechBar;
-        FriendlyMechIcon* icon = bar->GetButtonFromID(partId);
+        MCMechBar* bar = MechBar;
+        MCFriendlyMechIcon* icon = bar->GetButtonFromID(partId);
 
         if (icon != nullptr)
         {
-            if (icon->isPoint == 0)
+            if (icon->IsPoint == 0)
             {
                 // Drop it from the selection and tell the mover.
-                const int16_t count = numSelectedMechs;
+                const int16_t count = NumSelectedMechs;
                 int16_t index = 0;
 
-                while (index < count && selectedMechs[index] != partId)
+                while (index < count && SelectedMechs[index] != partId)
                 {
                     index++;
                 }
 
                 if (index < count)
                 {
-                    for (int32_t i = index; i < numSelectedMechs - 1; i++)
+                    for (int32_t i = index; i < NumSelectedMechs - 1; i++)
                     {
-                        selectedMechs[i] = selectedMechs[i + 1];
+                        SelectedMechs[i] = SelectedMechs[i + 1];
                     }
 
-                    selectedMechs[numSelectedMechs] = 0;
-                    numSelectedMechs--;
+                    SelectedMechs[NumSelectedMechs] = 0;
+                    NumSelectedMechs--;
                 }
 
-                if (objectList != nullptr)
+                if (ObjectList != nullptr)
                 {
-                    BaseObject* object = objectList->findObjectFromPart(partId);
-                    ObjectEvent deselect;
-                    deselect.init(0x1d, nullptr);
+                    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+                    MCObjectEvent deselect;
+                    deselect.Init(0x1d, nullptr);
 
                     if (object != nullptr)
                     {
-                        object->handleEvent(&deselect);
+                        object->HandleEvent(&deselect);
                     }
                 }
             }
             else
             {
                 // The lance's point died: once no member is left standing, the lance goes from the selection.
-                LanceIcon* lanceIcon = bar != nullptr ? bar->GetLanceIconFromID(icon->lance) : nullptr;
+                MCLanceIcon* lanceIcon = bar != nullptr ? bar->GetLanceIconFromID(icon->Lance) : nullptr;
                 Assert(lanceIcon != nullptr, partId, " InterfaceObject.RemoveMech: NULL lanceIcon ");
-                lanceIcon->linked = 0;
-                MoverGroup* group = lanceIcon->group;
+                lanceIcon->Linked = 0;
+                MCMoverGroup* group = lanceIcon->Group;
 
-                for (int16_t i = 0; i < group->numMovers; i++)
+                for (int16_t i = 0; i < group->NumMovers; i++)
                 {
-                    if (group->movers[i]->isDisabled() == 0)
+                    if (group->Movers[i]->IsDisabled() == 0)
                     {
                         goto removeSubject;
                     }
                 }
 
                 DeselectLance(group);
-                commandParser->RemoveSubject(group);
+                CommandParser->RemoveSubject(group);
             }
         }
     removeSubject:
-        if (commandParser != nullptr)
+        if (CommandParser != nullptr)
         {
-            commandParser->RemoveSubject(partId);
+            CommandParser->RemoveSubject(partId);
         }
     }
 
-    if (selectedEnemy != nullptr && selectedEnemy->partId == partId)
+    if (SelectedEnemy != nullptr && SelectedEnemy->PartId == partId)
     {
-        selectedEnemy = nullptr;
+        SelectedEnemy = nullptr;
     }
 }
 
-auto InterfaceObject::UpdateInterface() -> void
+auto MCInterfaceObject::UpdateInterface() -> void
 {
-    mechBar->draw();
+    MechBar->Draw();
 }
 
-auto InterfaceObject::IsSelected(int32_t partId) -> int
+auto MCInterfaceObject::IsSelected(int32_t partId) -> int
 {
-    for (int16_t i = 0; i < numSelectedMechs; i++)
+    for (int16_t i = 0; i < NumSelectedMechs; i++)
     {
-        if (selectedMechs[i] == partId)
-        {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-auto InterfaceObject::IsSelected(MoverGroup* group) -> int
-{
-    for (int16_t i = 0; i < numSelectedLances; i++)
-    {
-        if (selectedLances[i] == group)
+        if (SelectedMechs[i] == partId)
         {
             return 1;
         }
@@ -4138,191 +4126,204 @@ auto InterfaceObject::IsSelected(MoverGroup* group) -> int
     return 0;
 }
 
-auto InterfaceObject::SelectMech(int32_t partId) -> void
+auto MCInterfaceObject::IsSelected(MCMoverGroup* group) -> int
 {
-    ObjectEvent select;
-    const int16_t index = numSelectedMechs;
+    for (int16_t i = 0; i < NumSelectedLances; i++)
+    {
+        if (SelectedLances[i] == group)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+auto MCInterfaceObject::SelectMech(int32_t partId) -> void
+{
+    MCObjectEvent select;
+    const int16_t index = NumSelectedMechs;
 
     if (index >= 0xc)
     {
         return;
     }
 
-    if (objectList != nullptr)
+    if (ObjectList != nullptr)
     {
-        auto* object = static_cast<GameObject*>(objectList->findObjectFromPart(partId));
+        auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(partId));
 
         // Port fix: the original asks a missing object whether it is disabled.
-        if (object != nullptr && object->isDisabled() != 0)
+        if (object != nullptr && object->IsDisabled() != 0)
         {
             return;
         }
 
-        select.init(0x1c, nullptr);
-        select.selectionIndex = index;
+        select.Init(0x1c, nullptr);
+        select.SelectionIndex = index;
 
         if (object != nullptr)
         {
-            object->handleEvent(&select);
+            object->HandleEvent(&select);
         }
     }
 
-    selectedMechs[index] = partId;
-    numSelectedMechs++;
+    SelectedMechs[index] = partId;
+    NumSelectedMechs++;
 }
 
-auto InterfaceObject::SelectVisibleMechs() -> void
+auto MCInterfaceObject::SelectVisibleMechs() -> void
 {
     ClearMechSelection();
-    ObjectQueueNode* list = homeTeam->alignment == -1 ? clanMechList : innerSphereMechList;
+    MCObjectQueueNode* list = HomeTeam->Alignment == -1 ? ClanMechList : InnerSphereMechList;
 
     if (list == nullptr)
     {
         return;
     }
 
-    for (BaseObject* object = list->head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = list->Head; object != nullptr; object = object->Next)
     {
-        if (!isMoverClass(object))
+        if (!IsMoverClass(object))
         {
             continue;
         }
 
-        auto* mover = static_cast<Mover*>(object);
+        auto* mover = static_cast<MCMover*>(object);
 
-        if (mover->netPlayerId != -1 && mover->getWindowsVisible() == turn && mover->isDisabled() == 0)
+        if (mover->NetPlayerId != -1 && mover->GetWindowsVisible() == Turn && mover->IsDisabled() == 0)
         {
-            const int32_t partId = mover->partId;
+            const int32_t partId = mover->PartId;
             SelectMech(partId);
-            commandParser->AddSubject(partId, 1);
+            CommandParser->AddSubject(partId, 1);
         }
     }
 }
 
-auto InterfaceObject::DeselectMech(int32_t partId) -> void
+auto MCInterfaceObject::DeselectMech(int32_t partId) -> void
 {
-    ObjectEvent deselect;
-    const int16_t count = numSelectedMechs;
+    MCObjectEvent deselect;
+    const int16_t count = NumSelectedMechs;
     int16_t index = 0;
 
-    while (index < count && selectedMechs[index] != partId)
+    while (index < count && SelectedMechs[index] != partId)
     {
         index++;
     }
 
     if (index < count)
     {
-        for (int32_t i = index; i < numSelectedMechs - 1; i++)
+        for (int32_t i = index; i < NumSelectedMechs - 1; i++)
         {
-            selectedMechs[i] = selectedMechs[i + 1];
+            SelectedMechs[i] = SelectedMechs[i + 1];
         }
 
-        selectedMechs[numSelectedMechs] = 0;
-        numSelectedMechs--;
+        SelectedMechs[NumSelectedMechs] = 0;
+        NumSelectedMechs--;
     }
 
     // A mover taken out of a selected lance breaks the lance up: its other members stay selected on their own.
-    aMechBar* bar = mechBar;
-    FriendlyMechIcon* icon = bar->GetButtonFromID(partId);
+    MCMechBar* bar = MechBar;
+    MCFriendlyMechIcon* icon = bar->GetButtonFromID(partId);
 
     if (icon != nullptr && bar != nullptr)
     {
-        LanceIcon* lanceIcon = bar->GetLanceIconFromID(icon->lance);
+        MCLanceIcon* lanceIcon = bar->GetLanceIconFromID(icon->Lance);
 
         if (lanceIcon != nullptr)
         {
-            MoverGroup* group = lanceIcon->group;
+            MCMoverGroup* group = lanceIcon->Group;
 
             if (IsSelected(group) != 0)
             {
                 DeselectLance(group);
-                commandParser->RemoveSubject(group);
+                CommandParser->RemoveSubject(group);
 
-                for (int16_t i = 0; i < group->numMovers; i++)
+                for (int16_t i = 0; i < group->NumMovers; i++)
                 {
-                    Mover* member = group->movers[i];
+                    MCMover* member = group->Movers[i];
 
-                    if (member != icon->mover)
+                    if (member != icon->Mover)
                     {
-                        SelectMech(member->partId);
-                        commandParser->AddSubject(member->partId, 1);
+                        SelectMech(member->PartId);
+                        CommandParser->AddSubject(member->PartId, 1);
                     }
                 }
             }
         }
     }
 
-    if (objectList != nullptr)
+    if (ObjectList != nullptr)
     {
-        BaseObject* object = objectList->findObjectFromPart(partId);
-        deselect.init(0x1d, nullptr);
+        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        deselect.Init(0x1d, nullptr);
 
         if (object != nullptr)
         {
-            object->handleEvent(&deselect);
+            object->HandleEvent(&deselect);
         }
     }
 }
 
-auto InterfaceObject::SelectEnemy(int32_t partId) -> void
+auto MCInterfaceObject::SelectEnemy(int32_t partId) -> void
 {
-    ObjectEvent select;
+    MCObjectEvent select;
 
-    if (objectList != nullptr)
+    if (ObjectList != nullptr)
     {
-        BaseObject* object = objectList->findObjectFromPart(partId);
-        select.init(0x1c, nullptr);
-        select.selectionIndex = 0;
+        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        select.Init(0x1c, nullptr);
+        select.SelectionIndex = 0;
 
         if (object != nullptr)
         {
-            object->handleEvent(&select);
+            object->HandleEvent(&select);
         }
     }
 }
 
-auto InterfaceObject::DeselectEnemy() -> void
+auto MCInterfaceObject::DeselectEnemy() -> void
 {
-    ObjectEvent deselect;
+    MCObjectEvent deselect;
 
-    if (selectedEnemy != nullptr)
+    if (SelectedEnemy != nullptr)
     {
-        deselect.init(0x1d, nullptr);
-        selectedEnemy->handleEvent(&deselect);
+        deselect.Init(0x1d, nullptr);
+        SelectedEnemy->HandleEvent(&deselect);
     }
 }
 
-auto InterfaceObject::SelectLance(MoverGroup* group) -> void
+auto MCInterfaceObject::SelectLance(MCMoverGroup* group) -> void
 {
-    LanceIcon* lanceIcon = mechBar->GetLanceIconFromID(group->getId());
+    MCLanceIcon* lanceIcon = MechBar->GetLanceIconFromID(group->GetId());
 
-    if (lanceIcon->linked == 0)
+    if (lanceIcon->Linked == 0)
     {
         // Not a linked lance: select its movers one by one.
-        for (int32_t i = 0; i < group->numMovers; i++)
+        for (int32_t i = 0; i < group->NumMovers; i++)
         {
-            if (group->movers[i] != nullptr)
+            if (group->Movers[i] != nullptr)
             {
-                const int32_t partId = group->movers[i]->partId;
+                const int32_t partId = group->Movers[i]->PartId;
 
                 if (IsSelected(partId) == 0)
                 {
                     SelectMech(partId);
-                    commandParser->AddSubject(partId, 1);
+                    CommandParser->AddSubject(partId, 1);
                 }
             }
         }
     }
-    else if (numSelectedLances < 4 && IsSelected(group) == 0)
+    else if (NumSelectedLances < 4 && IsSelected(group) == 0)
     {
-        selectedLances[numSelectedLances] = group;
-        numSelectedLances++;
+        SelectedLances[NumSelectedLances] = group;
+        NumSelectedLances++;
 
-        for (int32_t i = 0; i < group->numMovers; i++)
+        for (int32_t i = 0; i < group->NumMovers; i++)
         {
-            if (group->movers[i] != nullptr)
+            if (group->Movers[i] != nullptr)
             {
-                const int32_t partId = group->movers[i]->partId;
+                const int32_t partId = group->Movers[i]->PartId;
 
                 if (IsSelected(partId) == 0)
                 {
@@ -4333,7 +4334,7 @@ auto InterfaceObject::SelectLance(MoverGroup* group) -> void
     }
 }
 
-auto InterfaceObject::DeselectLance(MoverGroup* group) -> void
+auto MCInterfaceObject::DeselectLance(MCMoverGroup* group) -> void
 {
     if (group == nullptr)
     {
@@ -4342,65 +4343,65 @@ auto InterfaceObject::DeselectLance(MoverGroup* group) -> void
 
     if (IsSelected(group) != 0)
     {
-        const int16_t count = numSelectedLances;
+        const int16_t count = NumSelectedLances;
         int32_t index = 0;
 
-        while (index < count && selectedLances[index] != group)
+        while (index < count && SelectedLances[index] != group)
         {
             index++;
         }
 
-        numSelectedLances = static_cast<int16_t>(count - 1);
+        NumSelectedLances = static_cast<int16_t>(count - 1);
 
         for (; index < static_cast<int16_t>(count - 1); index++)
         {
-            selectedLances[index] = selectedLances[index + 1];
+            SelectedLances[index] = SelectedLances[index + 1];
         }
 
-        selectedLances[index] = nullptr;
+        SelectedLances[index] = nullptr;
     }
 
-    for (int32_t i = 0; i < group->numMovers; i++)
+    for (int32_t i = 0; i < group->NumMovers; i++)
     {
-        DeselectMech(group->movers[i] != nullptr ? group->movers[i]->partId : -1);
+        DeselectMech(group->Movers[i] != nullptr ? group->Movers[i]->PartId : -1);
     }
 }
 
-auto InterfaceObject::ClearMechSelection() -> void
+auto MCInterfaceObject::ClearMechSelection() -> void
 {
-    ObjectEvent deselect;
+    MCObjectEvent deselect;
 
     for (int32_t i = 0; i < 0xc; i++)
     {
-        FriendlyMechIcon* icon = mechBar->getButton(static_cast<int16_t>(i));
+        MCFriendlyMechIcon* icon = MechBar->GetButton(static_cast<int16_t>(i));
 
-        if (scenarioCallback != nullptr && icon != nullptr && icon->mover != nullptr)
+        if (ScenarioCallback != nullptr && icon != nullptr && icon->Mover != nullptr)
         {
-            deselect.init(0x1d, nullptr);
-            icon->mover->handleEvent(&deselect);
+            deselect.Init(0x1d, nullptr);
+            icon->Mover->HandleEvent(&deselect);
         }
 
-        selectedMechs[i] = 0;
+        SelectedMechs[i] = 0;
     }
 
-    numSelectedMechs = 0;
-    numSelectedLances = 0;
+    NumSelectedMechs = 0;
+    NumSelectedLances = 0;
 
-    for (MoverGroup*& lance : selectedLances)
+    for (MCMoverGroup*& lance : SelectedLances)
     {
         lance = nullptr;
     }
 
-    commandParser->ClearSubjects();
+    CommandParser->ClearSubjects();
 }
 
-auto InterfaceObject::IsOurs(int16_t partId) -> int
+auto MCInterfaceObject::IsOurs(int16_t partId) -> int
 {
-    aMechBar* bar = mechBar;
+    MCMechBar* bar = MechBar;
 
-    for (int16_t i = 0; i < bar->layout.numButtons; i++)
+    for (int16_t i = 0; i < bar->Layout.NumButtons; i++)
     {
-        if (bar->getButton(i) != nullptr && bar->getButton(i)->partId == partId)
+        if (bar->GetButton(i) != nullptr && bar->GetButton(i)->PartId == partId)
         {
             return 1;
         }
@@ -4409,7 +4410,7 @@ auto InterfaceObject::IsOurs(int16_t partId) -> int
     return 0;
 }
 
-auto InterfaceObject::ObjectAttacked(int32_t) -> void
+auto MCInterfaceObject::ObjectAttacked(int32_t) -> void
 {
 }
 
@@ -4419,7 +4420,7 @@ namespace
     /// Writes into <paramref name="name"/> the name of the network player whose mover roster holds
     /// <paramref name="object"/>, or an empty string.
     /// </summary>
-    void netPlayerName(const BaseObject* object, char* name)
+    void NetPlayerName(const MCBaseObject* object, char* name)
     {
         int32_t player = -1;
 
@@ -4427,7 +4428,7 @@ namespace
         {
             for (int32_t i = 0; i < 12; i++)
             {
-                const Mover* mover = MPlayer->playerMoverRoster[p][i];
+                const MCMover* mover = MPlayer->PlayerMoverRoster[p][i];
 
                 if (mover == nullptr)
                 {
@@ -4444,25 +4445,25 @@ namespace
 
         name[0] = '\0';
 
-        if (player != -1 && MPlayer->sessionManager->GetPlayerNumber(player) != nullptr)
+        if (player != -1 && MPlayer->SessionManager->GetPlayerNumber(player) != nullptr)
         {
-            sprintf(name, "%s", MPlayer->sessionManager->GetPlayerNumber(player)->name);
+            sprintf(name, "%s", MPlayer->SessionManager->GetPlayerNumber(player)->Name);
         }
     }
 }
 
-auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
+auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
 {
-    aFloatHelp* tag = floatingTags[0];
-    ObjectEvent objectEvent;
-    aEvent cursorEvent;
+    MCFloatHelp* tag = FloatingTags[0];
+    MCObjectEvent objectEvent;
+    MCGuiEvent cursorEvent;
     char text[256];
     // Port fix: cleared. For a misc terrain object whose kind has no tag string (not 5-9) the original formats the tag from this buffer
     // without loading anything into it.
     char format[256] = {};
-    cursorOffset = 0;
+    CursorOffset = 0;
 
-    if (screenWindow == nullptr || objectList == nullptr)
+    if (ScreenWindow == nullptr || ObjectList == nullptr)
     {
         return;
     }
@@ -4471,17 +4472,17 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
     {
         // The per-frame call: a mouse event at the cursor, over the window under it (the map, not the mech bar).
         const MCPoint cursor = MCInput::GetCursorPos();
-        cursorEvent.clear();
-        cursorEvent.x = cursor.x;
-        cursorEvent.y = cursor.y;
-        cursorEvent.target = screenWindow->findObject(cursor.x, cursor.y);
+        cursorEvent.Clear();
+        cursorEvent.X = cursor.x;
+        cursorEvent.Y = cursor.y;
+        cursorEvent.Target = ScreenWindow->FindObject(cursor.x, cursor.y);
 
-        if (cursorEvent.target == mechBar)
+        if (cursorEvent.Target == MechBar)
         {
-            cursorEvent.target = mainHolder->GetActivePane();
+            cursorEvent.Target = MainHolder->GetActivePane();
         }
 
-        if (cursorEvent.target == nullptr)
+        if (cursorEvent.Target == nullptr)
         {
             return;
         }
@@ -4489,122 +4490,122 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         event = &cursorEvent;
     }
 
-    aObject* window = event->target;
+    MCGuiObject* window = event->Target;
 
-    if (window->objectType == 7)
+    if (window->ObjectType == 7)
     {
         return;
     }
 
-    if (window == nullptr || window->parent != mechBar)
+    if (window == nullptr || window->Parent != MechBar)
     {
         HideTags();
-        mechBar->layout.highlightId = -1;
+        MechBar->Layout.HighlightId = -1;
     }
 
     // The floating tag, in the colours the object calls for.
     auto showTag = [&](uint8_t backColor, uint8_t textColor)
     {
-        tag->setBackColor(backColor);
-        tag->textColor = textColor;
+        tag->SetBackColor(backColor);
+        tag->TextColor = textColor;
         tag->SetHelpText(text);
-        tag->ShowGUIWindow(1);
+        tag->ShowGuiWindow(1);
     };
 
     // What is under the mouse.
     if (window->GetCamera() == nullptr)
     {
-        if (window->objectType == 8)
+        if (window->ObjectType == 8)
         {
             // A mech icon: its mover.
-            mouseObjectType = 0;
-            mouseObject = static_cast<aMechIcon*>(window)->mover;
+            MouseObjectType = 0;
+            MouseObject = static_cast<MCMechIcon*>(window)->Mover;
         }
     }
     else
     {
-        objectEvent.init(0, event);
-        auto* object = static_cast<GameObject*>(objectList->findObjectFromEvent(&objectEvent));
-        mouseObject = object;
+        objectEvent.Init(0, event);
+        auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromEvent(&objectEvent));
+        MouseObject = object;
 
         if (object == nullptr)
         {
-            mouseObjectType = 7;
+            MouseObjectType = 7;
         }
         else
         {
             int tagged = 0;
-            const int32_t contactType = object->getContactType(homeTeam->id, tagged);
+            const int32_t contactType = object->GetContactType(HomeTeam->Id, tagged);
 
             if (tagged == 0 && contactType == 2)
             {
-                mouseObjectType = 4;
+                MouseObjectType = 4;
             }
-            else if (homeTeam->lineOfSight(object->getPosition()) == 0)
+            else if (HomeTeam->LineOfSight(object->GetPosition()) == 0)
             {
-                mouseObjectType = 7;
+                MouseObjectType = 7;
             }
             else
             {
                 const auto isScrap = [object]()
                 {
-                    return object->objectClass == MISCTERRAINOBJECT &&
-                           static_cast<MiscTerrainObject*>(object)->terrainObjectKind == 5;
+                    return object->ObjectClass == MISCTERRAINOBJECT &&
+                           static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind == 5;
                 };
 
-                switch (static_cast<int32_t>(object->objectClass))
+                switch (static_cast<int32_t>(object->ObjectClass))
                 {
                     case BATTLEMECH:
                     case GROUNDVEHICLE:
                     {
-                        auto* mover = static_cast<Mover*>(object);
-                        tag->helpObject = object;
+                        auto* mover = static_cast<MCMover*>(object);
+                        tag->HelpObject = object;
 
-                        if (mover->netPlayerId >= 0 && mover->isCaptureable() == 0)
+                        if (mover->NetPlayerId >= 0 && mover->IsCaptureable() == 0)
                         {
                             // The player's own: pilot and mover, and the mech bar highlights its icon.
-                            if (mover->getAwake() != 0)
+                            if (mover->GetAwake() != 0)
                             {
                                 if (MPlayer != nullptr)
                                 {
-                                    netPlayerName(object, format);
-                                    sprintf(text, "%s\n%s\n%s", mover->getPilot()->callsign, mover->getIfaceName(),
+                                    NetPlayerName(object, format);
+                                    sprintf(text, "%s\n%s\n%s", mover->GetPilot()->Callsign, mover->GetIfaceName(),
                                             format);
                                 }
                                 else
                                 {
-                                    sprintf(text, "%s\n%s", mover->getPilot()->callsign, mover->getIfaceName());
+                                    sprintf(text, "%s\n%s", mover->GetPilot()->Callsign, mover->GetIfaceName());
                                 }
                             }
                             else
                             {
-                                cLoadString(thisInstance, mover->isCaptureable() != 0 ? 0x99 : 0x9a, format, 0xfe);
-                                sprintf(text, format, mover->getIfaceName());
+                                CLoadString(ThisInstance, mover->IsCaptureable() != 0 ? 0x99 : 0x9a, format, 0xfe);
+                                sprintf(text, format, mover->GetIfaceName());
                             }
 
-                            mouseObjectType = 0;
+                            MouseObjectType = 0;
                             showTag(0, 0xb);
-                            mechBar->layout.highlightId = object->partId;
-                            mechBar->draw();
+                            MechBar->Layout.HighlightId = object->PartId;
+                            MechBar->Draw();
                             break;
                         }
 
-                        if ((mover->isCaptured() != 0 && mover->getAlignment() == homeTeam->alignment) ||
-                            alliedTeam == mover->getTeam())
+                        if ((mover->IsCaptured() != 0 && mover->GetAlignment() == HomeTeam->Alignment) ||
+                            AlliedTeam == mover->GetTeam())
                         {
                             // Captured by the player, or an ally.
-                            sprintf(text, "%s", mover->getIfaceName());
-                            mouseObjectType = 3;
+                            sprintf(text, "%s", mover->GetIfaceName());
+                            MouseObjectType = 3;
                             showTag(0x1f, 0xc);
                             break;
                         }
 
-                        if (MPlayer != nullptr && mover->getAlignment() == homeTeam->alignment)
+                        if (MPlayer != nullptr && mover->GetAlignment() == HomeTeam->Alignment)
                         {
                             // A teammate's mover.
-                            netPlayerName(object, format);
-                            sprintf(text, "%s\n%s\n%s", mover->getPilot()->callsign, mover->getIfaceName(), format);
-                            mouseObjectType = 3;
+                            NetPlayerName(object, format);
+                            sprintf(text, "%s\n%s\n%s", mover->GetPilot()->Callsign, mover->GetIfaceName(), format);
+                            MouseObjectType = 3;
                             showTag(0, 0xb);
                             break;
                         }
@@ -4615,36 +4616,36 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                         }
 
                         // An enemy in sight.
-                        if (mover->isDisabled() != 0)
+                        if (mover->IsDisabled() != 0)
                         {
-                            mouseObjectType = 2;
+                            MouseObjectType = 2;
                         }
-                        else if (mover->isDestroyed() == 0)
+                        else if (mover->IsDestroyed() == 0)
                         {
-                            mouseObjectType = 1;
+                            MouseObjectType = 1;
                         }
 
-                        if (mover->isCaptureable() != 0)
+                        if (mover->IsCaptureable() != 0)
                         {
-                            cLoadString(thisInstance, 0x99, format, 0xfe);
-                            sprintf(text, format, mover->getIfaceName());
+                            CLoadString(ThisInstance, 0x99, format, 0xfe);
+                            sprintf(text, format, mover->GetIfaceName());
                         }
-                        else if (mover->getAwake() != 0)
+                        else if (mover->GetAwake() != 0)
                         {
                             if (MPlayer != nullptr)
                             {
-                                netPlayerName(object, format);
-                                sprintf(text, "%s\n%s", mover->getIfaceName(), format);
+                                NetPlayerName(object, format);
+                                sprintf(text, "%s\n%s", mover->GetIfaceName(), format);
                             }
                             else
                             {
-                                sprintf(text, "%s", mover->getIfaceName());
+                                sprintf(text, "%s", mover->GetIfaceName());
                             }
                         }
                         else
                         {
-                            cLoadString(thisInstance, object->objectClass == BATTLEMECH ? 0x9c : 0x9d, format, 0xfe);
-                            sprintf(text, format, mover->getIfaceName());
+                            CLoadString(ThisInstance, object->ObjectClass == BATTLEMECH ? 0x9c : 0x9d, format, 0xfe);
+                            sprintf(text, format, mover->GetIfaceName());
                         }
 
                         showTag(0, 0xef);
@@ -4655,8 +4656,8 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     case DEBRIS:
                     case 0x14:
                     {
-                        mouseObjectType = 7;
-                        mouseObject = nullptr;
+                        MouseObjectType = 7;
+                        MouseObject = nullptr;
                         break;
                     }
                     case BUILDING:
@@ -4665,31 +4666,31 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     case TURRET:
                     case GATE:
                     {
-                        if (object->objectClass == BUILDING)
+                        if (object->ObjectClass == BUILDING)
                         {
-                            sprintf(text, "%s", static_cast<Building*>(object)->name.c_str());
+                            sprintf(text, "%s", static_cast<MCBuilding*>(object)->Name.c_str());
                         }
 
-                        if (object->objectClass == TREEBUILDING)
+                        if (object->ObjectClass == TREEBUILDING)
                         {
-                            sprintf(text, "%s", static_cast<TreeBuilding*>(object)->name.c_str());
+                            sprintf(text, "%s", static_cast<MCTreeBuilding*>(object)->Name.c_str());
                         }
 
-                        if (object->objectClass == TURRET)
+                        if (object->ObjectClass == TURRET)
                         {
-                            sprintf(text, "%s", static_cast<Turret*>(object)->name.c_str());
+                            sprintf(text, "%s", static_cast<MCTurret*>(object)->Name.c_str());
                         }
 
-                        if (object->objectClass == GATE)
+                        if (object->ObjectClass == GATE)
                         {
-                            sprintf(text, "%s", static_cast<Gate*>(object)->name.c_str());
+                            sprintf(text, "%s", static_cast<MCGate*>(object)->Name.c_str());
                         }
 
-                        if (object->objectClass == MISCTERRAINOBJECT)
+                        if (object->ObjectClass == MISCTERRAINOBJECT)
                         {
                             uint32_t stringId = 0;
 
-                            switch (static_cast<MiscTerrainObject*>(object)->terrainObjectKind)
+                            switch (static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind)
                             {
                                 case 5:
                                     stringId = 0x9e;
@@ -4712,36 +4713,36 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
 
                             if (stringId != 0)
                             {
-                                cLoadString(thisInstance, stringId, format, 0xfe);
+                                CLoadString(ThisInstance, stringId, format, 0xfe);
                             }
 
                             sprintf(text, format);
                         }
 
-                        if (highlightedObject != nullptr)
+                        if (HighlightedObject != nullptr)
                         {
-                            highlightedObject->setSelected(0);
-                            highlightedObject = nullptr;
+                            HighlightedObject->SetSelected(0);
+                            HighlightedObject = nullptr;
                         }
 
                         // A turret shows its tag only while deployed (or fixed).
-                        if (object->objectClass != TURRET || static_cast<Turret*>(object)->weaponDeployed != 0 ||
-                            static_cast<Turret*>(object)->fixedTurret != 0)
+                        if (object->ObjectClass != TURRET || static_cast<MCTurret*>(object)->WeaponDeployed != 0 ||
+                            static_cast<MCTurret*>(object)->FixedTurret != 0)
                         {
-                            highlightedObject = object;
-                            object->setSelected(1);
-                            tag->helpObject = object;
+                            HighlightedObject = object;
+                            object->SetSelected(1);
+                            tag->HelpObject = object;
 
-                            if (object->isCaptured() != 0 && object->getAlignment() == homeTeam->alignment)
+                            if (object->IsCaptured() != 0 && object->GetAlignment() == HomeTeam->Alignment)
                             {
                                 showTag(0x1f, 0xc);
                             }
-                            else if (object->getAlignment() == homeTeam->alignment)
+                            else if (object->GetAlignment() == HomeTeam->Alignment)
                             {
                                 showTag(0, 0xb);
                             }
-                            else if (object->getAlignment() != homeTeam->alignment &&
-                                     homeTeam->lineOfSight(object->getPosition()) != 0)
+                            else if (object->GetAlignment() != HomeTeam->Alignment &&
+                                     HomeTeam->LineOfSight(object->GetPosition()) != 0)
                             {
                                 showTag(0, 0xef);
                             }
@@ -4751,29 +4752,29 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     }
                     default:
                     {
-                        if (object->getAlignment() == homeTeam->alignment || object->isDestroyed() != 0 || isScrap())
+                        if (object->GetAlignment() == HomeTeam->Alignment || object->IsDestroyed() != 0 || isScrap())
                         {
-                            mouseObjectType = 5;
+                            MouseObjectType = 5;
                         }
                         else
                         {
-                            mouseObjectType = 6;
+                            MouseObjectType = 6;
                         }
                         break;
                     }
                     case CAMERADRONE:
                     {
-                        mouseObjectType = 5;
-                        cLoadString(thisInstance, 0x96, format, 0xfe);
+                        MouseObjectType = 5;
+                        CLoadString(ThisInstance, 0x96, format, 0xfe);
                         sprintf(text, format);
-                        tag->helpObject = object;
+                        tag->HelpObject = object;
 
-                        if (object->getAlignment() == homeTeam->alignment)
+                        if (object->GetAlignment() == HomeTeam->Alignment)
                         {
                             showTag(0, 0xb);
                         }
-                        else if (object->getAlignment() != homeTeam->alignment &&
-                                 homeTeam->lineOfSight(object->getPosition()) != 0)
+                        else if (object->GetAlignment() != HomeTeam->Alignment &&
+                                 HomeTeam->LineOfSight(object->GetPosition()) != 0)
                         {
                             showTag(0, 0xef);
                         }
@@ -4781,26 +4782,26 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     }
                     case TRAINCAR:
                     {
-                        tag->helpObject = object;
-                        sprintf(text, "%s", static_cast<TrainCar*>(object)->name.c_str());
-                        tag->setBackColor(0x1f);
-                        tag->textColor = 0xc;
+                        tag->HelpObject = object;
+                        sprintf(text, "%s", static_cast<MCTrainCar*>(object)->Name.c_str());
+                        tag->SetBackColor(0x1f);
+                        tag->TextColor = 0xc;
 
-                        if (object->isCaptured() != 0)
+                        if (object->IsCaptured() != 0)
                         {
                             showTag(0x1f, 0xc);
                         }
-                        else if (object->getAlignment() == homeTeam->alignment)
+                        else if (object->GetAlignment() == HomeTeam->Alignment)
                         {
                             showTag(0, 0xb);
                         }
-                        else if (object->getAlignment() != homeTeam->alignment &&
-                                 homeTeam->lineOfSight(object->getPosition()) != 0)
+                        else if (object->GetAlignment() != HomeTeam->Alignment &&
+                                 HomeTeam->LineOfSight(object->GetPosition()) != 0)
                         {
                             showTag(0, 0xef);
                         }
 
-                        mouseObjectType = object->getAlignment() == homeTeam->alignment ? 3 : 1;
+                        MouseObjectType = object->GetAlignment() == HomeTeam->Alignment ? 3 : 1;
                         break;
                     }
                 }
@@ -4809,21 +4810,21 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
     }
 
     // Port: in a view, on its world surface (through the zoom).
-    vector_2d mousePos = MCWindowPoint(window, event->x, event->y);
-    auto setCursor = [](int32_t cursor) { application->SetCurrentCursor(static_cast<CursorType>(cursor)); };
+    MCVector2D mousePos = MCWindowPoint(window, event->X, event->Y);
+    auto setCursor = [](int32_t cursor) { Application->SetCurrentCursor(static_cast<MCCursorType>(cursor)); };
 
     // A forced order (see handleEvent): a move, a move-and-attack (command 3) or a jump to the point.
-    if (forceOrderActive != 0)
+    if (ForceOrderActive != 0)
     {
         bool allowed = window->GetCamera() != nullptr;
 
-        for (int32_t i = 0; allowed && i < numSelectedMechs; i++)
+        for (int32_t i = 0; allowed && i < NumSelectedMechs; i++)
         {
-            BaseObject* object = objectList->findObjectFromPart(selectedMechs[i]);
+            MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[i]);
 
             // A mover whose order queue is full takes no more.
-            if (isMoverClass(object) && static_cast<Mover*>(object)->getPilot() != nullptr &&
-                static_cast<Mover*>(object)->getPilot()->getTacOrderQueue(nullptr) >= 0xf)
+            if (IsMoverClass(object) && static_cast<MCMover*>(object)->GetPilot() != nullptr &&
+                static_cast<MCMover*>(object)->GetPilot()->GetTacOrderQueue(nullptr) >= 0xf)
             {
                 allowed = false;
             }
@@ -4831,109 +4832,109 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
 
         if (allowed)
         {
-            if (currentCommand != 0x1f && currentCommand != 3 && currentCommand != 0x11 &&
-                application->cursorHidden == 0)
+            if (CurrentCommand != 0x1f && CurrentCommand != 3 && CurrentCommand != 0x11 &&
+                Application->CursorHidden == 0)
             {
-                currentCommand = 0;
-                commandOneShot = 0;
+                CurrentCommand = 0;
+                CommandOneShot = 0;
             }
 
-            vector_3d point;
+            MCVector3D point;
 
-            if (mouseObject != nullptr)
+            if (MouseObject != nullptr)
             {
-                point = static_cast<GameObject*>(mouseObject)->getPosition();
+                point = static_cast<MCGameObject*>(MouseObject)->GetPosition();
             }
             else
             {
-                window->GetCamera()->inverseProject(mousePos, point);
+                window->GetCamera()->InverseProject(mousePos, point);
             }
 
-            const int32_t command = currentCommand;
+            const int32_t command = CurrentCommand;
 
             if (command != 0x11)
             {
-                if (GameMap->cellPassable(point) != 0)
+                if (GameMap->CellPassable(point) != 0)
                 {
-                    setCursorOffset(mousePos);
+                    SetCursorOffset(mousePos);
 
-                    if (currentCommand == 3)
+                    if (CurrentCommand == 3)
                     {
                         setCursor(0x10);
-                        forceOrderType = 1;
+                        ForceOrderType = 1;
                         return;
                     }
 
                     setCursor(0xf);
-                    forceOrderType = 0;
+                    ForceOrderType = 0;
                     return;
                 }
 
                 setCursor(8);
-                forceOrderType = command == 3 ? 1 : 0;
+                ForceOrderType = command == 3 ? 1 : 0;
                 return;
             }
 
-            if (canSelectionJumpTo(point, nullptr, forceOrderActive) != 0)
+            if (CanSelectionJumpTo(point, nullptr, ForceOrderActive) != 0)
             {
-                setCursorOffset(mousePos);
+                SetCursorOffset(mousePos);
                 setCursor(0x11);
-                forceOrderType = 2;
+                ForceOrderType = 2;
                 return;
             }
         }
 
         setCursor(8);
-        forceOrderType = -1;
+        ForceOrderType = -1;
         return;
     }
 
     // Refit and repair modes follow what the mouse is over.
-    if (currentCommand == 9 && refitCheck(static_cast<GameObject*>(mouseObject)) == 0)
+    if (CurrentCommand == 9 && RefitCheck(static_cast<MCGameObject*>(MouseObject)) == 0)
     {
-        currentCommand = 0;
-        commandOneShot = 0;
+        CurrentCommand = 0;
+        CommandOneShot = 0;
     }
-    else if (currentCommand == 0 && refitCheck(static_cast<GameObject*>(mouseObject)) != 0)
+    else if (CurrentCommand == 0 && RefitCheck(static_cast<MCGameObject*>(MouseObject)) != 0)
     {
-        currentCommand = 9;
-        commandOneShot = 0;
+        CurrentCommand = 9;
+        CommandOneShot = 0;
     }
 
-    if (currentCommand == 10 && getFixedCheck(static_cast<GameObject*>(mouseObject)) == 0)
+    if (CurrentCommand == 10 && GetFixedCheck(static_cast<MCGameObject*>(MouseObject)) == 0)
     {
-        currentCommand = 0;
-        commandOneShot = 0;
+        CurrentCommand = 0;
+        CommandOneShot = 0;
     }
-    else if (currentCommand == 0 && getFixedCheck(static_cast<GameObject*>(mouseObject)) != 0)
+    else if (CurrentCommand == 0 && GetFixedCheck(static_cast<MCGameObject*>(MouseObject)) != 0)
     {
-        currentCommand = 10;
-        commandOneShot = 0;
+        CurrentCommand = 10;
+        CommandOneShot = 0;
     }
 
     // Port: the original asserts that mouseObject and homeTeam are null or readable (" Mouseobject is bad!!! ",
     // " homeTeam is bad!!! "), probing them with Win32's IsBadReadPtr. The port has no memory probe and treats a
     // non-null pointer as readable (as aObject does), so both asserts always pass and are left out.
-    auto* object = static_cast<GameObject*>(mouseObject);
-    canCapture = 0;
-    captureBlocked = 0;
+    auto* object = static_cast<MCGameObject*>(MouseObject);
+    CanCapture = 0;
+    CaptureBlocked = 0;
 
-    if (object != nullptr && object->isCaptureable() != 0 && (currentCommand == 0 || currentCommand == 3) &&
-        object->getAlignment() != homeTeam->alignment && homeTeam->lineOfSight(object->getPosition()) != 0)
+    if (object != nullptr && object->IsCaptureable() != 0 && (CurrentCommand == 0 || CurrentCommand == 3) &&
+        object->GetAlignment() != HomeTeam->Alignment && HomeTeam->LineOfSight(object->GetPosition()) != 0)
     {
-        canCapture = 1;
-        captureBlocked = object->getCaptureBlocker(homeTeam->alignment) != nullptr ? 1 : 0;
+        CanCapture = 1;
+        CaptureBlocked = object->GetCaptureBlocker(HomeTeam->Alignment) != nullptr ? 1 : 0;
     }
 
-    if (highlightedObject != nullptr && (object == nullptr || object->isBuilding() == 0))
+    if (HighlightedObject != nullptr && (object == nullptr || object->IsBuilding() == 0))
     {
-        highlightedObject->setSelected(0);
-        highlightedObject = nullptr;
+        HighlightedObject->SetSelected(0);
+        HighlightedObject = nullptr;
     }
 
-    Terrain::terrainTacticalMap->updateOrderPalette();
+    MCTerrain::TerrainTacticalMap->UpdateOrderPalette();
 
-    if (window->GetCamera() == nullptr && window->objectType != 8)
+    if (window->GetCamera() == nullptr && window->ObjectType != 8)
     {
         return;
     }
@@ -4946,7 +4947,7 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         {
             setCursor(8);
         }
-        else if (mouseObject != nullptr && mouseObject->objectClass == BATTLEMECH)
+        else if (MouseObject != nullptr && MouseObject->ObjectClass == BATTLEMECH)
         {
             setCursor(5);
         }
@@ -4958,15 +4959,15 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
 
     auto moveCursor = [&]()
     {
-        setCursorOffset(mousePos);
-        setCursor(currentCommand == 3 ? 0x10 : 0xf);
+        SetCursorOffset(mousePos);
+        setCursor(CurrentCommand == 3 ? 0x10 : 0xf);
     };
 
-    auto jumpCursor = [&](vector_3d point)
+    auto jumpCursor = [&](MCVector3D point)
     {
-        if (canSelectionJumpTo(point, nullptr, forceOrderActive) != 0)
+        if (CanSelectionJumpTo(point, nullptr, ForceOrderActive) != 0)
         {
-            setCursorOffset(mousePos);
+            SetCursorOffset(mousePos);
             setCursor(0x11);
         }
         else
@@ -4976,24 +4977,24 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
     };
 
     // The world point under the mouse; false without a camera.
-    auto mousePoint = [&](vector_3d& point)
+    auto mousePoint = [&](MCVector3D& point)
     {
-        Camera* camera = window->GetCamera();
+        MCCamera* camera = window->GetCamera();
 
         if (camera == nullptr)
         {
             return false;
         }
 
-        camera->inverseProject(mousePos, point);
+        camera->InverseProject(mousePos, point);
         return true;
     };
 
-    auto captureCursor = [&]() { setCursor(captureBlocked != 0 ? 0xc : 0xb); };
+    auto captureCursor = [&]() { setCursor(CaptureBlocked != 0 ? 0xc : 0xb); };
     // Over an ally, or (from the enemy case) over something not revealed: the plain command cursors.
     auto allyCursor = [&]()
     {
-        switch (currentCommand)
+        switch (CurrentCommand)
         {
             case 0xb:
             case 0x10:
@@ -5023,7 +5024,7 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
             }
             case 0x11:
             {
-                vector_3d point;
+                MCVector3D point;
 
                 // Port fix: the original projects through the window's camera without checking there is one.
                 if (!mousePoint(point))
@@ -5054,7 +5055,7 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
             }
             case 0x33:
             {
-                setCursor(mouseObjectType == 3 ? 0xe : 0xf);
+                setCursor(MouseObjectType == 3 ? 0xe : 0xf);
                 return;
             }
             default:
@@ -5064,20 +5065,20 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     return;
                 }
 
-                if (canCapture != 0)
+                if (CanCapture != 0)
                 {
                     captureCursor();
                     return;
                 }
 
-                vector_3d point;
+                MCVector3D point;
 
                 if (!mousePoint(point))
                 {
                     return;
                 }
 
-                if (GameMap->cellPassable(point) != 0)
+                if (GameMap->CellPassable(point) != 0)
                 {
                     moveCursor();
                 }
@@ -5091,10 +5092,10 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         }
     };
 
-    if (currentCommand == 0x33)
+    if (CurrentCommand == 0x33)
     {
         // Command 0x33 wants a revealed mover (not an elemental).
-        if (object != nullptr && isMoverClass(object) && object->objectClass != ELEMENTAL && object->isRevealed() != 0)
+        if (object != nullptr && IsMoverClass(object) && object->ObjectClass != ELEMENTAL && object->IsRevealed() != 0)
         {
             setCursor(0xe);
         }
@@ -5106,22 +5107,22 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         return;
     }
 
-    if (AnySelected(0) == 0 || currentCommand == 0x4a)
+    if (AnySelected(0) == 0 || CurrentCommand == 0x4a)
     {
         setCursor(0);
         return;
     }
 
-    switch (mouseObjectType)
+    switch (MouseObjectType)
     {
         case 0:
         {
             // A mover of the player's (or its icon).
-            switch (currentCommand)
+            switch (CurrentCommand)
             {
                 case 3:
                 {
-                    setCursorOffset(mousePos);
+                    SetCursorOffset(mousePos);
                     setCursor(0x10);
                     return;
                 }
@@ -5158,7 +5159,7 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                 }
                 case 0x11:
                 {
-                    vector_3d point;
+                    MCVector3D point;
 
                     if (!mousePoint(point))
                     {
@@ -5202,11 +5203,11 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         case 6:
         {
             // An enemy.
-            switch (currentCommand)
+            switch (CurrentCommand)
             {
                 case 3:
                 {
-                    setCursorOffset(mousePos);
+                    SetCursorOffset(mousePos);
                     setCursor(0x10);
                     return;
                 }
@@ -5237,14 +5238,14 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                 }
                 case 0x11:
                 {
-                    if (mouseObject != nullptr)
+                    if (MouseObject != nullptr)
                     {
                         // Jumping onto a mover attacks it (the attack cursor); onto anything else, to its place.
-                        const vector_3d point = static_cast<GameObject*>(mouseObject)->getPosition();
+                        const MCVector3D point = static_cast<MCGameObject*>(MouseObject)->GetPosition();
 
-                        if (isMoverClass(mouseObject))
+                        if (IsMoverClass(MouseObject))
                         {
-                            setCursor(canSelectionJumpTo(point, nullptr, forceOrderActive) != 0 ? 1 : 8);
+                            setCursor(CanSelectionJumpTo(point, nullptr, ForceOrderActive) != 0 ? 1 : 8);
                             return;
                         }
 
@@ -5253,7 +5254,7 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     }
                     else
                     {
-                        vector_3d point;
+                        MCVector3D point;
 
                         if (!mousePoint(point))
                         {
@@ -5283,12 +5284,12 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                 }
                 case 0x33:
                 {
-                    setCursor(mouseObjectType == 1 ? 0xe : 0xf);
+                    setCursor(MouseObjectType == 1 ? 0xe : 0xf);
                     return;
                 }
                 default:
                 {
-                    if (canCapture != 0)
+                    if (CanCapture != 0)
                     {
                         captureCursor();
                     }
@@ -5304,11 +5305,11 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         case 2:
         {
             // A disabled enemy.
-            switch (currentCommand)
+            switch (CurrentCommand)
             {
                 case 3:
                 {
-                    setCursorOffset(mousePos);
+                    SetCursorOffset(mousePos);
                     setCursor(0x10);
                     return;
                 }
@@ -5370,14 +5371,14 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         case 4:
         {
             // Terrain (or an unseen contact): a move if the cell is passable.
-            vector_3d point;
+            MCVector3D point;
 
             if (!mousePoint(point))
             {
                 return;
             }
 
-            if (GameMap->cellPassable(point) != 0)
+            if (GameMap->CellPassable(point) != 0)
             {
                 moveCursor();
             }
@@ -5393,19 +5394,19 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
         case 7:
         {
             // A building or other object (5), or nothing (7).
-            if (currentCommand == 10)
+            if (CurrentCommand == 10)
             {
                 setCursor(10);
                 return;
             }
 
-            if (AnySelected(0) == 0 || mouseObjectType != 5)
+            if (AnySelected(0) == 0 || MouseObjectType != 5)
             {
                 allyCursor();
                 return;
             }
 
-            if (object->isRevealed() == 0)
+            if (object->IsRevealed() == 0)
             {
                 moveCursor();
                 return;
@@ -5413,11 +5414,11 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
 
             int32_t cursor = 8;
 
-            switch (currentCommand)
+            switch (CurrentCommand)
             {
                 case 3:
                 {
-                    setCursorOffset(mousePos);
+                    SetCursorOffset(mousePos);
                     cursor = 0x10;
                     break;
                 }
@@ -5435,9 +5436,9 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                     break;
                 case 0x11:
                 {
-                    if (canSelectionJumpTo(object->getPosition(), nullptr, forceOrderActive) != 0)
+                    if (CanSelectionJumpTo(object->GetPosition(), nullptr, ForceOrderActive) != 0)
                     {
-                        setCursorOffset(mousePos);
+                        SetCursorOffset(mousePos);
                         cursor = 0x11;
                     }
                     break;
@@ -5448,12 +5449,12 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
                 default:
                 {
                     // Walking onto it: the move cursor for a wreck, scrap or the player's own; else the attack cursor.
-                    if (static_cast<uint8_t>(object->status) == 2 || static_cast<uint8_t>(object->status) == 1 ||
-                        (object->objectClass == MISCTERRAINOBJECT &&
-                         static_cast<MiscTerrainObject*>(object)->terrainObjectKind == 5) ||
-                        object->getAlignment() == homeTeam->alignment)
+                    if (static_cast<uint8_t>(object->Status) == 2 || static_cast<uint8_t>(object->Status) == 1 ||
+                        (object->ObjectClass == MISCTERRAINOBJECT &&
+                         static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind == 5) ||
+                        object->GetAlignment() == HomeTeam->Alignment)
                     {
-                        setCursorOffset(mousePos);
+                        SetCursorOffset(mousePos);
                         cursor = 0xf;
                     }
                     else
@@ -5466,7 +5467,7 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
 
             setCursor(cursor);
 
-            if (canCapture != 0)
+            if (CanCapture != 0)
             {
                 captureCursor();
             }
@@ -5482,17 +5483,16 @@ auto InterfaceObject::UpdateMouseState(aEvent* event) -> void
 namespace
 {
     /// <summary>
-    /// The strike types <see cref="InterfaceObject::CallStrike"/> takes (artillery object type numbers), each with
+    /// The strike types <see cref="MCInterfaceObject::CallStrike"/> takes (artillery object type numbers), each with
     /// the <c>CallArtillery</c> strike type for team 0 and team 1.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0079622c, 7 entries of 3 longs.</remarks>
-    struct StrikeTypeEntry
+    struct MCStrikeTypeEntry
     {
-        int32_t objectType = 0;
-        int32_t strikeType[2]{};
+        int32_t ObjectType = 0;
+        int32_t StrikeType[2]{};
     };
 
-    constexpr StrikeTypeEntry StrikeTypes[7] = {
+    constexpr MCStrikeTypeEntry StrikeTypes[7] = {
         {0xf9, {0, 4}},  {0xf8, {1, 5}},  {0xfa, {2, 6}},  {0x1fc, {0, 4}},
         {0x1fb, {1, 5}}, {0x1fd, {2, 6}}, {0x204, {3, 7}},
     };
@@ -5501,33 +5501,33 @@ namespace
     /// Whether <paramref name="mover"/> can jump from where it will be (its last queued order's point when
     /// <paramref name="fromWayPoint"/> and it has queued orders, else where it is) to <paramref name="position"/>.
     /// </summary>
-    bool inJumpRange(Mover* mover, const vector_3d& position, bool fromWayPoint)
+    bool InJumpRange(MCMover* mover, const MCVector3D& position, bool fromWayPoint)
     {
-        vector_3d from;
-        const int32_t numQueued = mover->getPilot()->getTacOrderQueue(nullptr);
+        MCVector3D from;
+        const int32_t numQueued = mover->GetPilot()->GetTacOrderQueue(nullptr);
 
         if (numQueued > 0 && fromWayPoint)
         {
-            _QueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
-            mover->getPilot()->getTacOrderQueue(queue);
-            from = queue[numQueued - 1].point;
+            MCQueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
+            mover->GetPilot()->GetTacOrderQueue(queue);
+            from = queue[numQueued - 1].Point;
         }
         else
         {
-            from = mover->getPosition();
+            from = mover->GetPosition();
         }
 
         // The x87 code keeps dx and dy at full precision and rounds dz to a float.
-        const double dx = static_cast<double>(from.x) - position.x;
-        const double dy = static_cast<double>(from.y) - position.y;
-        const float dz = from.z - position.z;
+        const double dx = static_cast<double>(from.X) - position.X;
+        const double dy = static_cast<double>(from.Y) - position.Y;
+        const float dz = from.Z - position.Z;
         const auto distance = static_cast<float>(std::sqrt(dy * dy + static_cast<double>(dz) * dz + dx * dx));
-        return !(mover->getJumpRange(nullptr, nullptr) < distance);
+        return !(mover->GetJumpRange(nullptr, nullptr) < distance);
     }
 } // namespace
 
-auto InterfaceObject::CallStrike(int strikeType, vector_3d* position, GameObject* target, int forCommander,
-                                 int forClans, float delay) -> void
+auto MCInterfaceObject::CallStrike(int strikeType, MCVector3D* position, MCGameObject* target, int forCommander,
+                                   int forClans, float delay) -> void
 {
     if (strikeType != 0xf8 && strikeType != 0xf9 && strikeType != 0xfa && strikeType != 0x1fb && strikeType != 0x1fc &&
         strikeType != 0x1fd && strikeType != 0x204)
@@ -5535,7 +5535,7 @@ auto InterfaceObject::CallStrike(int strikeType, vector_3d* position, GameObject
         return;
     }
 
-    vector_3d targetPosition;
+    MCVector3D targetPosition;
 
     if (position == nullptr)
     {
@@ -5544,19 +5544,19 @@ auto InterfaceObject::CallStrike(int strikeType, vector_3d* position, GameObject
             return;
         }
 
-        targetPosition = target->getPosition();
+        targetPosition = target->GetPosition();
         position = &targetPosition;
     }
 
-    const vector_3d location = *position;
+    const MCVector3D location = *position;
 
     int32_t commanderId = 0;
-    Team* team = innerSphereTeam;
+    MCTeam* team = InnerSphereTeam;
 
     if (forCommander != 0)
     {
-        commanderId = HomeCommander->getId();
-        team = HomeCommander->getTeam();
+        commanderId = HomeCommander->GetId();
+        team = HomeCommander->GetTeam();
     }
     else if (forClans != 0)
     {
@@ -5565,80 +5565,80 @@ auto InterfaceObject::CallStrike(int strikeType, vector_3d* position, GameObject
             Fatal(0, " Iface.CallStrike: Need more info than clanStrike in MPlayer ");
         }
 
-        team = clanTeam;
+        team = ClanTeam;
         commanderId = 1;
     }
 
     // Artillery and sensor strikes must be aimed at a point the team can see; the others can go anywhere.
     int32_t artilleryType = 0;
 
-    for (const StrikeTypeEntry& entry : StrikeTypes)
+    for (const MCStrikeTypeEntry& entry : StrikeTypes)
     {
-        if (entry.objectType == strikeType)
+        if (entry.ObjectType == strikeType)
         {
-            artilleryType = entry.strikeType[team->id];
+            artilleryType = entry.StrikeType[team->Id];
             break;
         }
     }
 
     const bool needsSight = artilleryType == 0 || artilleryType == 1 || artilleryType == 4 || artilleryType == 5;
 
-    if (needsSight && team->lineOfSight(location) == 0)
+    if (needsSight && team->LineOfSight(location) == 0)
     {
-        soundSystem->playDigitalSample(0x33, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
         return;
     }
 
     const auto seconds = static_cast<int32_t>(delay);
 
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
-        MPlayer->sendPlayerArtillery(MPlayer->serverID, artilleryType, location, seconds);
+        MPlayer->SendPlayerArtillery(MPlayer->ServerID, artilleryType, location, seconds);
         return;
     }
 
     CallArtillery(commanderId, artilleryType, location, seconds, 0);
 }
 
-auto InterfaceObject::AddSalvageIcon(GameObject* object) -> void
+auto MCInterfaceObject::AddSalvageIcon(MCGameObject* object) -> void
 {
-    auto* node = new aSalvageIcon::SalvageNode;
+    auto* node = new MCSalvageIcon::SalvageNode;
 
     if (node != nullptr)
     {
-        node->object = object;
-        node->next = salvageIcon->objects;
-        salvageIcon->objects = node;
+        node->Object = object;
+        node->Next = SalvageIcon->Objects;
+        SalvageIcon->Objects = node;
     }
 }
 
-auto InterfaceObject::HideTags() -> void
+auto MCInterfaceObject::HideTags() -> void
 {
-    for (aFloatHelp* tag : floatingTags)
+    for (MCFloatHelp* tag : FloatingTags)
     {
-        tag->ShowGUIWindow(0);
+        tag->ShowGuiWindow(0);
     }
 }
 
-auto InterfaceObject::WhackTags() -> void
+auto MCInterfaceObject::WhackTags() -> void
 {
     HideTags();
 
-    for (aFloatHelp* tag : floatingTags)
+    for (MCFloatHelp* tag : FloatingTags)
     {
-        tag->tossBitmaps();
+        tag->TossBitmaps();
     }
 }
 
-auto InterfaceObject::canSelectionJump() -> int
+auto MCInterfaceObject::CanSelectionJump() -> int
 {
     int result = 0;
 
-    for (int32_t i = 0; i < numSelectedMechs; i++)
+    for (int32_t i = 0; i < NumSelectedMechs; i++)
     {
-        BaseObject* object = objectList->findObjectFromPart(selectedMechs[i]);
+        MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[i]);
 
-        if (!isMoverClass(object) || static_cast<Mover*>(object)->canJump() == 0)
+        if (!IsMoverClass(object) || static_cast<MCMover*>(object)->CanJump() == 0)
         {
             return 0;
         }
@@ -5649,49 +5649,49 @@ auto InterfaceObject::canSelectionJump() -> int
     return result;
 }
 
-auto InterfaceObject::canSelectionJumpTo(vector_3d position, GameObject* target, int fromWayPoint) -> int
+auto MCInterfaceObject::CanSelectionJumpTo(MCVector3D position, MCGameObject* target, int fromWayPoint) -> int
 {
     int result = 1;
 
     // Not onto one of the player's own movers.
-    if (target != nullptr && isMoverClass(target) && target->getTeam() == homeTeam)
+    if (target != nullptr && IsMoverClass(target) && target->GetTeam() == HomeTeam)
     {
         return 0;
     }
 
-    if (GameMap->cellPassable(position) == 0)
+    if (GameMap->CellPassable(position) == 0)
     {
         return 0;
     }
 
-    const int16_t numMovers = numSelectedMechs;
+    const int16_t numMovers = NumSelectedMechs;
 
     for (int32_t i = 0; i < numMovers; i++)
     {
-        BaseObject* object = objectList->findObjectFromPart(selectedMechs[i]);
+        MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[i]);
 
-        if (isMoverClass(object) && static_cast<Mover*>(object)->getPilot() != nullptr &&
-            !inJumpRange(static_cast<Mover*>(object), position, fromWayPoint != 0))
+        if (IsMoverClass(object) && static_cast<MCMover*>(object)->GetPilot() != nullptr &&
+            !InJumpRange(static_cast<MCMover*>(object), position, fromWayPoint != 0))
         {
             return 0;
         }
     }
 
     // The lances' movers jump from where they are or their last way point.
-    for (int32_t i = 0; i < numSelectedLances; i++)
+    for (int32_t i = 0; i < NumSelectedLances; i++)
     {
-        MoverGroup* group = selectedLances[i];
+        MCMoverGroup* group = SelectedLances[i];
 
         if (group == nullptr)
         {
             continue;
         }
 
-        for (int32_t j = 0; j < group->numMovers; j++)
+        for (int32_t j = 0; j < group->NumMovers; j++)
         {
-            Mover* mover = group->movers[j];
+            MCMover* mover = group->Movers[j];
 
-            if (isMoverClass(mover) && mover->getPilot() != nullptr && !inJumpRange(mover, position, true))
+            if (IsMoverClass(mover) && mover->GetPilot() != nullptr && !InJumpRange(mover, position, true))
             {
                 result = 0;
                 break;
@@ -5702,11 +5702,11 @@ auto InterfaceObject::canSelectionJumpTo(vector_3d position, GameObject* target,
     return result;
 }
 
-auto InterfaceObject::AnySelected(int needsCommand) -> int
+auto MCInterfaceObject::AnySelected(int needsCommand) -> int
 {
     int result = 0;
 
-    if (numSelectedMechs == 0 && numSelectedLances == 0)
+    if (NumSelectedMechs == 0 && NumSelectedLances == 0)
     {
         return 0;
     }
@@ -5717,29 +5717,29 @@ auto InterfaceObject::AnySelected(int needsCommand) -> int
     }
 
     // A live mover with weapons can take an attack command.
-    for (int32_t i = 0; i < numSelectedMechs; i++)
+    for (int32_t i = 0; i < NumSelectedMechs; i++)
     {
-        auto* object = static_cast<GameObject*>(objectList->findObjectFromPart(selectedMechs[i]));
+        auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(SelectedMechs[i]));
 
-        if (object != nullptr && object->isDisabled() == 0 && isMoverClass(object) &&
-            static_cast<Mover*>(object)->numWeapons != 0)
+        if (object != nullptr && object->IsDisabled() == 0 && IsMoverClass(object) &&
+            static_cast<MCMover*>(object)->NumWeapons != 0)
         {
             return 1;
         }
     }
 
-    for (int32_t i = 0; i < numSelectedLances; i++)
+    for (int32_t i = 0; i < NumSelectedLances; i++)
     {
-        MoverGroup* group = selectedLances[i];
+        MCMoverGroup* group = SelectedLances[i];
 
         if (group == nullptr)
         {
             continue;
         }
 
-        for (int32_t j = 0; j < group->numMovers; j++)
+        for (int32_t j = 0; j < group->NumMovers; j++)
         {
-            if (group->movers[j] != nullptr && group->movers[j]->numWeapons != 0)
+            if (group->Movers[j] != nullptr && group->Movers[j]->NumWeapons != 0)
             {
                 result = 1;
                 break;
@@ -5750,145 +5750,145 @@ auto InterfaceObject::AnySelected(int needsCommand) -> int
     return result;
 }
 
-auto InterfaceObject::setUnit(int32_t groupId, int32_t numMovers, GameObject** movers, int32_t pointIndex) -> void
+auto MCInterfaceObject::SetUnit(int32_t groupId, int32_t numMovers, MCGameObject** movers, int32_t pointIndex) -> void
 {
-    auto** moverList = reinterpret_cast<Mover**>(movers);
-    HomeCommander->setGroup(groupId, numMovers, moverList, pointIndex);
+    auto** moverList = reinterpret_cast<MCMover**>(movers);
+    HomeCommander->SetGroup(groupId, numMovers, moverList, pointIndex);
 
     if (MPlayer != nullptr)
     {
-        MPlayer->sendPlayerMoverGroup(MPlayer->allPlayerGroupID, groupId, numMovers, moverList, pointIndex);
+        MPlayer->SendPlayerMoverGroup(MPlayer->AllPlayerGroupID, groupId, numMovers, moverList, pointIndex);
     }
 
     // Relink every icon to its lance and mark the points.
     for (int32_t i = 0; i < 0xc; i++)
     {
-        if (mechBar->getButton(static_cast<int16_t>(i)) != nullptr)
+        if (MechBar->GetButton(static_cast<int16_t>(i)) != nullptr)
         {
-            mechBar->getButton(static_cast<int16_t>(i))->lance = 5;
+            MechBar->GetButton(static_cast<int16_t>(i))->Lance = 5;
         }
     }
 
     for (int32_t lance = 0; lance < 4; lance++)
     {
-        MoverGroup* group = HomeCommander->getGroup(lance);
+        MCMoverGroup* group = HomeCommander->GetGroup(lance);
 
-        for (int32_t i = 0; i < group->numMovers; i++)
+        for (int32_t i = 0; i < group->NumMovers; i++)
         {
-            if (group->movers[i] != nullptr)
+            if (group->Movers[i] != nullptr)
             {
-                mechBar->GetButtonFromID(group->movers[i]->partId)->lance = lance;
+                MechBar->GetButtonFromID(group->Movers[i]->PartId)->Lance = lance;
             }
         }
 
-        Mover* point = group->getPoint();
+        MCMover* point = group->GetPoint();
 
         if (point != nullptr)
         {
-            mechBar->GetButtonFromID(point->partId)->isPoint = 1;
+            MechBar->GetButtonFromID(point->PartId)->IsPoint = 1;
         }
 
         // Original behaviour: marks the lance icon of groupId each time, not that of the lance just relinked.
-        mechBar->GetLanceIconFromID(groupId)->linked = 1;
+        MechBar->GetLanceIconFromID(groupId)->Linked = 1;
     }
 }
 
-auto InterfaceObject::setPoint(int32_t partId, int isPoint) -> void
+auto MCInterfaceObject::SetPoint(int32_t partId, int isPoint) -> void
 {
-    aMechBar* bar = mechBar;
+    MCMechBar* bar = MechBar;
 
     if (bar->GetButtonFromID(partId) != nullptr)
     {
-        bar->GetButtonFromID(partId)->isPoint = isPoint;
+        bar->GetButtonFromID(partId)->IsPoint = isPoint;
     }
 }
 
-auto InterfaceObject::setCursorOffset(vector_2d screenPos) -> void
+auto MCInterfaceObject::SetCursorOffset(MCVector2D screenPos) -> void
 {
-    if (Terrain::terrainTacticalMap != nullptr && Terrain::terrainTacticalMap->mouseInside != 0)
+    if (MCTerrain::TerrainTacticalMap != nullptr && MCTerrain::TerrainTacticalMap->MouseInside != 0)
     {
-        cursorOffset = 6;
+        CursorOffset = 6;
     }
 
-    if (numSelectedMechs == 0)
+    if (NumSelectedMechs == 0)
     {
-        cursorOffset = 6;
+        CursorOffset = 6;
     }
 
     // The centre of the selected movers on screen.
-    const int32_t count = numSelectedMechs;
+    const int32_t count = NumSelectedMechs;
     float sumX = 0.0f;
     float sumY = 0.0f;
 
     for (int32_t i = 0; i < count; i++)
     {
-        auto* object = static_cast<GameObject*>(objectList->findObjectFromPart(selectedMechs[i]));
+        auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(SelectedMechs[i]));
 
         if (object != nullptr)
         {
-            sumX += object->getScreenPos(0).x;
-            sumY += object->getScreenPos(0).y;
+            sumX += object->GetScreenPos(0).X;
+            sumY += object->GetScreenPos(0).Y;
         }
     }
 
     // The x87 code stores centreX as a float and keeps centreY at full precision.
     const float centerX = sumX / static_cast<float>(count);
     const double centerY = static_cast<double>(sumY) / static_cast<double>(count);
-    const auto slope = static_cast<float>(std::fabs(static_cast<double>(screenPos.y) - centerY) /
-                                          std::fabs(static_cast<double>(screenPos.x) - centerX));
+    const auto slope = static_cast<float>(std::fabs(static_cast<double>(screenPos.Y) - centerY) /
+                                          std::fabs(static_cast<double>(screenPos.X) - centerX));
     int32_t index = 0;
 
-    while (index < 8 && slope > slopeTest[index])
+    while (index < 8 && slope > SlopeTest[index])
     {
         index++;
     }
 
     // Written so that a NaN centre (nothing selected) takes the original's branches.
-    if (centerY <= screenPos.y)
+    if (centerY <= screenPos.Y)
     {
-        if (screenPos.x <= centerX)
+        if (screenPos.X <= centerX)
         {
-            cursorOffset = 0x20 - index;
+            CursorOffset = 0x20 - index;
 
-            if (cursorOffset == 0x20)
+            if (CursorOffset == 0x20)
             {
-                cursorOffset = 0;
+                CursorOffset = 0;
             }
 
             return;
         }
 
-        cursorOffset = index + 0x10;
+        CursorOffset = index + 0x10;
         return;
     }
 
-    if (centerX <= screenPos.x)
+    if (centerX <= screenPos.X)
     {
-        cursorOffset = 0x10 - index;
+        CursorOffset = 0x10 - index;
         return;
     }
 
-    cursorOffset = index;
+    CursorOffset = index;
 }
 
-auto InterfaceObject::refitCheck(GameObject* target) -> int
+auto MCInterfaceObject::RefitCheck(MCGameObject* target) -> int
 {
     int result = 0;
 
-    if (numSelectedMechs != 1)
+    if (NumSelectedMechs != 1)
     {
         return 0;
     }
 
-    BaseObject* object = objectList->findObjectFromPart(selectedMechs[0]);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[0]);
 
-    if (object != nullptr && object->objectClass == GROUNDVEHICLE)
+    if (object != nullptr && object->ObjectClass == GROUNDVEHICLE)
     {
-        auto* vehicle = static_cast<Mover*>(object);
+        auto* vehicle = static_cast<MCMover*>(object);
 
-        if (0.0f < vehicle->getRefitPoints() && target != nullptr && isMoverClass(target) &&
-            static_cast<Mover*>(target)->needsRefit(vehicle->ammoTruck) != 0 &&
-            static_cast<Mover*>(target)->netPlayerId > -1)
+        if (0.0f < vehicle->GetRefitPoints() && target != nullptr && IsMoverClass(target) &&
+            static_cast<MCMover*>(target)->NeedsRefit(vehicle->AmmoTruck) != 0 &&
+            static_cast<MCMover*>(target)->NetPlayerId > -1)
         {
             result = 1;
         }
@@ -5897,41 +5897,41 @@ auto InterfaceObject::refitCheck(GameObject* target) -> int
     return result;
 }
 
-auto InterfaceObject::getFixedCheck(GameObject* target) -> int
+auto MCInterfaceObject::GetFixedCheck(MCGameObject* target) -> int
 {
     int result = 0;
 
-    if (target == nullptr || target->objectClass != TREEBUILDING)
+    if (target == nullptr || target->ObjectClass != TREEBUILDING)
     {
         return 0;
     }
 
-    if (!(0.0f < target->getRefitPoints()))
+    if (!(0.0f < target->GetRefitPoints()))
     {
         return 0;
     }
 
-    if (homeTeam->alignment != target->getAlignment() || numSelectedMechs != 1)
+    if (HomeTeam->Alignment != target->GetAlignment() || NumSelectedMechs != 1)
     {
         return 0;
     }
 
-    BaseObject* object = objectList->findObjectFromPart(selectedMechs[0]);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[0]);
 
-    if (object == nullptr || !isMoverClass(object))
+    if (object == nullptr || !IsMoverClass(object))
     {
         return 0;
     }
 
-    auto* mover = static_cast<Mover*>(object);
-    const int32_t mechBay = static_cast<TreeBuilding*>(target)->mechBay;
+    auto* mover = static_cast<MCMover*>(object);
+    const int32_t mechBay = static_cast<MCTreeBuilding*>(target)->MechBay;
 
-    if (mover->needsRefit(0) != 0 &&
-        ((mover->objectClass == BATTLEMECH && mechBay != 0) || (mover->objectClass == GROUNDVEHICLE && mechBay == 0)))
+    if (mover->NeedsRefit(0) != 0 &&
+        ((mover->ObjectClass == BATTLEMECH && mechBay != 0) || (mover->ObjectClass == GROUNDVEHICLE && mechBay == 0)))
     {
-        vector_3d bayPosition = target->getPosition();
+        MCVector3D bayPosition = target->GetPosition();
 
-        if (mover->distanceFrom(bayPosition) < 100.0f)
+        if (mover->DistanceFrom(bayPosition) < 100.0f)
         {
             result = 1;
         }
@@ -5940,20 +5940,20 @@ auto InterfaceObject::getFixedCheck(GameObject* target) -> int
     return result;
 }
 
-auto InterfaceObject::GetMechIconFromID(int32_t partId) -> FriendlyMechIcon*
+auto MCInterfaceObject::GetMechIconFromID(int32_t partId) -> MCFriendlyMechIcon*
 {
-    FriendlyMechIcon* icon = mechBar->GetButtonFromID(partId);
+    MCFriendlyMechIcon* icon = MechBar->GetButtonFromID(partId);
 
     if (icon != nullptr)
     {
         return icon;
     }
 
-    for (int32_t i = 0; i < numReserveIcons; i++)
+    for (int32_t i = 0; i < NumReserveIcons; i++)
     {
-        if (reserveIcons[i] != nullptr && reserveIcons[i]->partId == partId)
+        if (ReserveIcons[i] != nullptr && ReserveIcons[i]->PartId == partId)
         {
-            return reserveIcons[i];
+            return ReserveIcons[i];
         }
     }
 

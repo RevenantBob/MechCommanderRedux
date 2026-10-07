@@ -15,86 +15,86 @@
 // DebrisType
 //---------------------------------------------------------------------------
 
-DebrisType::DebrisType()
+MCDebrisType::MCDebrisType()
 {
-    armFallYaw = 0.0f;
-    armFallYawRange = 0.0f;
-    armFallVelMag = 0.0f;
-    armFallVelRange = 0.0f;
-    armFallDecelRate = 0.0f;
+    ArmFallYaw = 0.0f;
+    ArmFallYawRange = 0.0f;
+    ArmFallVelMag = 0.0f;
+    ArmFallVelRange = 0.0f;
+    ArmFallDecelRate = 0.0f;
 }
 
-auto DebrisType::createInstance() -> BaseObject*
+auto MCDebrisType::CreateInstance() -> MCBaseObject*
 {
-    auto* newDebris = new Debris;
+    auto* newDebris = new MCDebris;
 
     if (newDebris == nullptr)
     {
         return nullptr;
     }
 
-    if (newDebris->init(this) != 0)
+    if (newDebris->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newDebris->idNumber = NextIdNumber++;
+    newDebris->IdNumber = NextIdNumber++;
     return newDebris;
 }
 
-auto DebrisType::destroy() -> void
+auto MCDebrisType::Destroy() -> void
 {
 }
 
-auto DebrisType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCDebrisType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile debrisFile;
-    int32_t result = debrisFile.open(objFile, fileSize, 50);
+    MCFitIniFile debrisFile;
+    int32_t result = debrisFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = debrisFile.seekBlock("ArmFall")) != 0)
+    if ((result = debrisFile.SeekBlock("ArmFall")) != 0)
     {
         return result;
     }
 
-    if ((result = debrisFile.readIdFloat("ArmFallYaw", armFallYaw)) != 0)
+    if ((result = debrisFile.ReadIdFloat("ArmFallYaw", ArmFallYaw)) != 0)
     {
         return result;
     }
 
-    if ((result = debrisFile.readIdFloat("ArmFallYawRange", armFallYawRange)) != 0)
+    if ((result = debrisFile.ReadIdFloat("ArmFallYawRange", ArmFallYawRange)) != 0)
     {
         return result;
     }
 
-    if ((result = debrisFile.readIdFloat("ArmFallVelMag", armFallVelMag)) != 0)
+    if ((result = debrisFile.ReadIdFloat("ArmFallVelMag", ArmFallVelMag)) != 0)
     {
         return result;
     }
 
-    if ((result = debrisFile.readIdFloat("ArmFallVelRange", armFallVelRange)) != 0)
+    if ((result = debrisFile.ReadIdFloat("ArmFallVelRange", ArmFallVelRange)) != 0)
     {
         return result;
     }
 
-    if ((result = debrisFile.readIdFloat("ArmFallDecelRate", armFallDecelRate)) != 0)
+    if ((result = debrisFile.ReadIdFloat("ArmFallDecelRate", ArmFallDecelRate)) != 0)
     {
         return result;
     }
 
-    return ObjectType::init(&debrisFile);
+    return MCObjectType::Init(&debrisFile);
 }
 
-auto DebrisType::handleCollision(GameObject*, GameObject*) -> int
+auto MCDebrisType::HandleCollision(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
 
-auto DebrisType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCDebrisType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -103,96 +103,96 @@ auto DebrisType::handleDestruction(GameObject*, GameObject*) -> int
 // Debris
 //---------------------------------------------------------------------------
 
-Debris::Debris()
+MCDebris::MCDebris()
 {
-    frame.i = UnitX;
-    frame.j = UnitY;
-    frame.k = UnitZ;
-    justCreated = 1;
-    visible = 1;
-    velocity.x = 0.0f;
-    appearance = nullptr;
-    decelRate = 0.0f;
-    velocity.z = 0.0f;
-    velocity.y = 0.0f;
-    stopped = 0;
-    fallDone = 0;
+    Frame.I = UnitX;
+    Frame.J = UnitY;
+    Frame.K = UnitZ;
+    JustCreated = 1;
+    Visible = 1;
+    Velocity.X = 0.0f;
+    Appearance = nullptr;
+    DecelRate = 0.0f;
+    Velocity.Z = 0.0f;
+    Velocity.Y = 0.0f;
+    Stopped = 0;
+    FallDone = 0;
 }
 
-auto Debris::init() -> void
+auto MCDebris::Init() -> void
 {
 }
 
-auto Debris::onScreen() -> int
+auto MCDebris::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    vector_2d screen100;
-    vector_2d screen50;
+    MCVector2D screen100;
+    MCVector2D screen50;
 
-    if (land != nullptr)
+    if (Land != nullptr)
     {
-        land->projectTerrain(position, screen100, screen50);
+        Land->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;
 
-    if (camera->cameraScale == 1)
+    if (camera->CameraScale == 1)
     {
-        screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-        screenY = screen50.y - camera->screenUL50.y;
+        ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+        screenY = screen50.Y - camera->ScreenUL50.Y;
     }
     else
     {
-        screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-        screenY = screen100.y - camera->screenUL.y;
+        ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+        screenY = screen100.Y - camera->ScreenUL.Y;
     }
 
-    screenPos.y = screenY + camera->halfHeight;
+    ScreenPos.Y = screenY + camera->HalfHeight;
 
-    if (appearance != nullptr && appearance->recalcBounds(camera) != 0)
+    if (Appearance != nullptr && Appearance->RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto Debris::update() -> int32_t
+auto MCDebris::Update() -> int32_t
 {
-    const auto* debrisType = static_cast<DebrisType*>(objType);
+    const auto* debrisType = static_cast<MCDebrisType*>(ObjType);
 
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         // The direction set by the creator becomes a velocity of armFallVelMag plus a random share.
-        const float speed = static_cast<float>(RandomNumber(static_cast<int32_t>(debrisType->armFallVelRange))) +
-                            debrisType->armFallVelMag;
-        decelRate = debrisType->armFallDecelRate;
-        justCreated = 0;
-        velocity.x = speed * velocity.x;
-        velocity.y = speed * velocity.y;
-        velocity.z = speed * velocity.z;
-        visible = onScreen();
+        const float speed = static_cast<float>(RandomNumber(static_cast<int32_t>(debrisType->ArmFallVelRange))) +
+                            debrisType->ArmFallVelMag;
+        DecelRate = debrisType->ArmFallDecelRate;
+        JustCreated = 0;
+        Velocity.X = speed * Velocity.X;
+        Velocity.Y = speed * Velocity.Y;
+        Velocity.Z = speed * Velocity.Z;
+        Visible = OnScreen();
     }
 
     // Slide along the ground; once the fall animation is over, slow down (by decelRate) until stopped.
-    if (stopped == 0)
+    if (Stopped == 0)
     {
-        const float moveX = velocity.x * frameLength * worldUnitsPerMeter;
-        const float moveY = worldUnitsPerMeter * frameLength * velocity.y;
+        const float moveX = Velocity.X * FrameLength * WorldUnitsPerMeter;
+        const float moveY = WorldUnitsPerMeter * FrameLength * Velocity.Y;
 
-        if (fallDone != 0)
+        if (FallDone != 0)
         {
-            const float change = frameLength * decelRate;
-            float dirX = velocity.x;
-            float dirY = velocity.y;
-            float dirZ = velocity.z;
+            const float change = FrameLength * DecelRate;
+            float dirX = Velocity.X;
+            float dirY = Velocity.Y;
+            float dirZ = Velocity.Z;
             const float speed = std::sqrt(dirX * dirX + dirZ * dirZ + dirY * dirY);
 
             if (speed != 0.0f)
@@ -202,118 +202,118 @@ auto Debris::update() -> int32_t
                 dirZ /= speed;
             }
 
-            velocity.z = 0.0f;
-            velocity.x = dirX * change + velocity.x;
-            velocity.y = dirY * change + velocity.y;
-            velocity.z = dirZ * change + velocity.z;
+            Velocity.Z = 0.0f;
+            Velocity.X = dirX * change + Velocity.X;
+            Velocity.Y = dirY * change + Velocity.Y;
+            Velocity.Z = dirZ * change + Velocity.Z;
 
-            if (std::sqrt(velocity.z * velocity.z + velocity.y * velocity.y + velocity.x * velocity.x) <= 0.0f)
+            if (std::sqrt(Velocity.Z * Velocity.Z + Velocity.Y * Velocity.Y + Velocity.X * Velocity.X) <= 0.0f)
             {
-                velocity.z = 0.0f;
-                velocity.y = 0.0f;
-                velocity.x = 0.0f;
-                stopped = 1;
+                Velocity.Z = 0.0f;
+                Velocity.Y = 0.0f;
+                Velocity.X = 0.0f;
+                Stopped = 1;
             }
         }
 
-        position.x = moveX + position.x;
-        position.y = moveY + position.y;
+        Position.X = moveX + Position.X;
+        Position.Y = moveY + Position.Y;
     }
 
-    visible = onScreen();
+    Visible = OnScreen();
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        appearance->visible = visible;
+        Appearance->Visible = Visible;
 
-        if (appearance->update() == 0)
+        if (Appearance->Update() == 0)
         {
-            fallDone = 1;
+            FallDone = 1;
         }
     }
 
     return 1;
 }
 
-auto Debris::randomAngle(float& angle) -> void
+auto MCDebris::RandomAngle(float& angle) -> void
 {
-    const auto* debrisType = static_cast<DebrisType*>(objType);
-    const float yaw = debrisType->armFallYaw + angle;
+    const auto* debrisType = static_cast<MCDebrisType*>(ObjType);
+    const float yaw = debrisType->ArmFallYaw + angle;
     angle = yaw;
 
     if (RollDice(50) != 0)
     {
-        angle = static_cast<float>(RandomNumber(static_cast<int32_t>(debrisType->armFallYawRange))) + yaw;
+        angle = static_cast<float>(RandomNumber(static_cast<int32_t>(debrisType->ArmFallYawRange))) + yaw;
     }
     else
     {
-        angle = yaw - static_cast<float>(RandomNumber(static_cast<int32_t>(debrisType->armFallYawRange)));
+        angle = yaw - static_cast<float>(RandomNumber(static_cast<int32_t>(debrisType->ArmFallYawRange)));
     }
 }
 
-auto Debris::render() -> void
+auto MCDebris::Render() -> void
 {
-    if (gamePaused != 0)
+    if (GamePaused != 0)
     {
-        onScreen();
+        OnScreen();
     }
 
-    if (windowsVisible == turn && justCreated == 0 && appearance != nullptr)
+    if (WindowsVisible == Turn && JustCreated == 0 && Appearance != nullptr)
     {
-        appearance->render(0);
+        Appearance->Render(0);
     }
 }
 
-auto Debris::destroy() -> void
+auto MCDebris::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 }
 
-auto Debris::init(ObjectType* objType) -> int32_t
+auto MCDebris::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justCreated = 1;
-    collisionsOn = 0;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    JustCreated = 1;
+    CollisionsOn = 0;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdebb0002);
     }
 
-    auto* armAppearance = new ArmAppearance;
-    appearance = armAppearance;
+    auto* armAppearance = new MCArmAppearance;
+    Appearance = armAppearance;
 
     if (armAppearance == nullptr)
     {
         return static_cast<int32_t>(0xdebb0003);
     }
 
-    armAppearance->init(nullptr, nullptr);
-    armAppearance->ownerObject = nullptr;
+    armAppearance->Init(nullptr, nullptr);
+    armAppearance->OwnerObject = nullptr;
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x6000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x6000000)
     {
         return static_cast<int32_t>(0xdebb0004);
     }
 
-    if ((result = armAppearance->init(apprType, this)) != 0)
+    if ((result = armAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    objectClass = DEBRIS;
+    ObjectClass = DEBRIS;
     return 0;
 }
 
-auto Debris::setPaintScheme(int32_t paintScheme) -> void
+auto MCDebris::SetPaintScheme(int32_t paintScheme) -> void
 {
-    static_cast<ArmAppearance*>(appearance)->fadeTableIndex = paintScheme;
+    static_cast<MCArmAppearance*>(Appearance)->FadeTableIndex = paintScheme;
 }

@@ -27,13 +27,13 @@ namespace
     constexpr double ONE_OVER_360 = 0x1.6c16c16c16c17p-9;
 
     /// <summary>A random offset of up to twice <paramref name="range"/>, centred on zero.</summary>
-    float randomSpread(float range)
+    float RandomSpread(float range)
     {
         return static_cast<float>(RandomNumber(static_cast<int32_t>(range + range))) - range;
     }
 
     /// <summary>A random value of up to half <paramref name="speed"/>, positive or (on a coin flip) negative.</summary>
-    float randomBounce(float speed)
+    float RandomBounce(float speed)
     {
         if (RollDice(50) != 0)
         {
@@ -47,11 +47,11 @@ namespace
     /// The frame of a rotated smoke shape facing along <paramref name="velocity"/>: the angle from the reference
     /// direction (the world frame turned by SMOKE_FRAME_ANGLE, looking down its -j axis) in 32 steps.
     /// </summary>
-    int32_t rotationIndex(const vector_3d& velocity)
+    int32_t RotationIndex(const MCVector3D& velocity)
     {
-        float vx = velocity.x;
-        float vy = velocity.y;
-        float vz = velocity.z;
+        float vx = velocity.X;
+        float vy = velocity.Y;
+        float vz = velocity.Z;
         const float length = std::sqrt(vx * vx + vy * vy + vz * vz);
 
         if (length != 0.0f)
@@ -64,30 +64,30 @@ namespace
         // The world frame turned about k.
         const auto s = static_cast<float>(std::sin(SMOKE_FRAME_ANGLE));
         const auto c = static_cast<float>(std::cos(SMOKE_FRAME_ANGLE));
-        frame_of_ref frame;
-        frame.i = UnitX;
-        frame.j = UnitY;
-        frame.k = UnitZ;
-        const vector_3d oldI = frame.i;
-        frame.i = frame.i * c + frame.j * s;
-        frame.j = frame.j * c - oldI * s;
+        MCFrameOfRef frame;
+        frame.I = UnitX;
+        frame.J = UnitY;
+        frame.K = UnitZ;
+        const MCVector3D oldI = frame.I;
+        frame.I = frame.I * c + frame.J * s;
+        frame.J = frame.J * c - oldI * s;
 
         // The angle between -j and the velocity, signed by the side it's on.
-        const float refX = -frame.j.x;
-        const float refY = -frame.j.y;
-        vector_3d reference(refX, refY, -frame.j.z);
-        const auto refLength = static_cast<float>(reference.magnitude());
+        const float refX = -frame.J.X;
+        const float refY = -frame.J.Y;
+        MCVector3D reference(refX, refY, -frame.J.Z);
+        const auto refLength = static_cast<float>(reference.Magnitude());
 
         if (refLength != 0.0f)
         {
-            reference.x /= refLength;
-            reference.y /= refLength;
-            reference.z /= refLength;
+            reference.X /= refLength;
+            reference.Y /= refLength;
+            reference.Z /= refLength;
         }
 
-        vector_3d direction(vx, vy, vz);
-        direction.normalize();
-        double angle = acosMatherr(static_cast<double>(reference | direction)) * RADIANS_TO_DEGREES;
+        MCVector3D direction(vx, vy, vz);
+        direction.Normalize();
+        double angle = AcosMatherr(static_cast<double>(reference | direction)) * RADIANS_TO_DEGREES;
 
         if (0.0f <= vy * refX - refY * vx)
         {
@@ -107,167 +107,167 @@ namespace
     }
 } // namespace
 
-SmokeManager* smokeManager = nullptr;
+MCSmokeManager* SmokeManager = nullptr;
 
 //---------------------------------------------------------------------------
 // SmokeType
 //---------------------------------------------------------------------------
 
-auto SmokeType::createInstance() -> BaseObject*
+auto MCSmokeType::CreateInstance() -> MCBaseObject*
 {
-    auto* newSmoke = new Smoke;
+    auto* newSmoke = new MCSmoke;
 
     if (newSmoke == nullptr)
     {
         return nullptr;
     }
 
-    if (newSmoke->init(this) != 0)
+    if (newSmoke->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newSmoke->idNumber = NextIdNumber++;
+    newSmoke->IdNumber = NextIdNumber++;
     return newSmoke;
 }
 
-auto SmokeType::destroy() -> void
+auto MCSmokeType::Destroy() -> void
 {
-    if (smokeManager != nullptr)
+    if (SmokeManager != nullptr)
     {
-        smokeManager->sphereBlocks.Free(smokeShape);
+        SmokeManager->SphereBlocks.Free(SmokeShape);
     }
 }
 
-auto SmokeType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCSmokeType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile smokeFile;
-    int32_t result = smokeFile.open(objFile, fileSize, 50);
+    MCFitIniFile smokeFile;
+    int32_t result = smokeFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.seekBlock("SmokeData")) != 0)
+    if ((result = smokeFile.SeekBlock("SmokeData")) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("zVelocity", zVelocity)) != 0)
+    if ((result = smokeFile.ReadIdFloat("zVelocity", ZVelocity)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdLong("Duration", duration)) != 0)
+    if ((result = smokeFile.ReadIdLong("Duration", Duration)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("SmokePerSecond", smokePerSecond)) != 0)
+    if ((result = smokeFile.ReadIdFloat("SmokePerSecond", SmokePerSecond)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdULong("MaxSmokeSpheres", maxSmokeSpheres)) != 0)
+    if ((result = smokeFile.ReadIdULong("MaxSmokeSpheres", MaxSmokeSpheres)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("SlowDownPercent", slowDownPercent)) != 0)
+    if ((result = smokeFile.ReadIdFloat("SlowDownPercent", SlowDownPercent)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("randomVelX", randomVelX)) != 0)
+    if ((result = smokeFile.ReadIdFloat("randomVelX", RandomVelX)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("randomVelY", randomVelY)) != 0)
+    if ((result = smokeFile.ReadIdFloat("randomVelY", RandomVelY)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("randomVelZ", randomVelZ)) != 0)
+    if ((result = smokeFile.ReadIdFloat("randomVelZ", RandomVelZ)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("randomPosX", randomPosX)) != 0)
+    if ((result = smokeFile.ReadIdFloat("randomPosX", RandomPosX)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("randomPosY", randomPosY)) != 0)
+    if ((result = smokeFile.ReadIdFloat("randomPosY", RandomPosY)) != 0)
     {
         return result;
     }
 
-    if ((result = smokeFile.readIdFloat("randomPosZ", randomPosZ)) != 0)
+    if ((result = smokeFile.ReadIdFloat("randomPosZ", RandomPosZ)) != 0)
     {
         return result;
     }
 
-    if (smokeFile.readIdFloat("FrameRate", frameRate) != 0)
+    if (smokeFile.ReadIdFloat("FrameRate", FrameRate) != 0)
     {
-        frameRate = 15.0f;
+        FrameRate = 15.0f;
     }
 
-    if (smokeFile.readIdBoolean("HasRotation", hasRotation) == 0)
+    if (smokeFile.ReadIdBoolean("HasRotation", HasRotation) == 0)
     {
-        if ((result = smokeFile.readIdLong("NumRotations", numRotations)) != 0)
+        if ((result = smokeFile.ReadIdLong("NumRotations", NumRotations)) != 0)
         {
             return result;
         }
     }
     else
     {
-        hasRotation = 0;
+        HasRotation = 0;
     }
 
     char shapeName[80];
 
-    if ((result = smokeFile.readIdString("SmokeShape", shapeName, 79)) != 0)
+    if ((result = smokeFile.ReadIdString("SmokeShape", shapeName, 79)) != 0)
     {
         return result;
     }
 
-    FullPathFileName shapePath;
-    shapePath.init(shapesPath, shapeName, ".shp");
-    File shapeFile;
+    MCFullPathFileName shapePath;
+    shapePath.Init(ShapesPath, shapeName, ".shp");
+    MCFile shapeFile;
 
-    if ((result = shapeFile.open(shapePath, READ, 50)) != 0)
+    if ((result = shapeFile.Open(shapePath, READ, 50)) != 0)
     {
         return result;
     }
 
-    const uint32_t size = shapeFile.fileSize();
+    const uint32_t size = shapeFile.FileSize();
 
     if (size != 0)
     {
-        if (smokeManager != nullptr)
+        if (SmokeManager != nullptr)
         {
-            smokeShape = static_cast<uint8_t*>(smokeManager->sphereBlocks.Allocate(size));
+            SmokeShape = static_cast<uint8_t*>(SmokeManager->SphereBlocks.Allocate(size));
         }
 
-        if (smokeShape != nullptr)
+        if (SmokeShape != nullptr)
         {
-            shapeFile.read(smokeShape, static_cast<int32_t>(size));
-            MCRenderer::RegisterData(smokeShape, size, MCDataKind::Shapes);
+            shapeFile.Read(SmokeShape, static_cast<int32_t>(size));
+            MCRenderer::RegisterData(SmokeShape, size, MCDataKind::Shapes);
         }
     }
 
-    zVelocity = worldUnitsPerMeter * zVelocity;
-    return ObjectType::init(&smokeFile);
+    ZVelocity = WorldUnitsPerMeter * ZVelocity;
+    return MCObjectType::Init(&smokeFile);
 }
 
-auto SmokeType::handleCollision(GameObject*, GameObject*) -> int
+auto MCSmokeType::HandleCollision(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
 
-auto SmokeType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCSmokeType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -276,129 +276,129 @@ auto SmokeType::handleDestruction(GameObject*, GameObject*) -> int
 // Smoke
 //---------------------------------------------------------------------------
 
-Smoke::Smoke()
+MCSmoke::MCSmoke()
 {
-    endTime = 0;
-    nextSphereTime = 0;
-    nextSphere = 0;
-    spheres = nullptr;
-    numSpheres = 0;
-    ownerHotSpot = 0;
-    ownerPosition = nullptr;
-    ownerVelocity = nullptr;
-    owner = nullptr;
+    EndTime = 0;
+    NextSphereTime = 0;
+    NextSphere = 0;
+    Spheres = nullptr;
+    NumSpheres = 0;
+    OwnerHotSpot = 0;
+    OwnerPosition = nullptr;
+    OwnerVelocity = nullptr;
+    Owner = nullptr;
 }
 
-auto Smoke::init() -> void
+auto MCSmoke::Init() -> void
 {
 }
 
-auto Smoke::stopSmoking() -> void
+auto MCSmoke::StopSmoking() -> void
 {
-    endTime = MCPort::Milliseconds();
+    EndTime = MCPort::Milliseconds();
 }
 
-auto Smoke::startSmoking() -> void
+auto MCSmoke::StartSmoking() -> void
 {
-    justStarted = 1;
+    JustStarted = 1;
 
-    for (int32_t i = 0; i < numSpheres; i++)
+    for (int32_t i = 0; i < NumSpheres; i++)
     {
-        spheres[i].active = 0;
+        Spheres[i].Active = 0;
     }
 }
 
-auto Smoke::isVisible(int32_t sphereIndex) -> int
+auto MCSmoke::IsVisible(int32_t sphereIndex) -> int
 {
-    if (spheres == nullptr || sphereIndex >= numSpheres)
+    if (Spheres == nullptr || sphereIndex >= NumSpheres)
     {
         return 0;
     }
 
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    SmokeSphere& sphere = spheres[sphereIndex];
-    vector_2d screen100;
-    vector_2d screen50;
+    MCSmokeSphere& sphere = Spheres[sphereIndex];
+    MCVector2D screen100;
+    MCVector2D screen50;
 
-    if (land != nullptr)
+    if (Land != nullptr)
     {
-        vector_3d spherePos = sphere.position;
-        land->projectTerrain(spherePos, screen100, screen50);
+        MCVector3D spherePos = sphere.Position;
+        Land->ProjectTerrain(spherePos, screen100, screen50);
     }
 
     float screenY;
 
-    if (camera->cameraScale == 1)
+    if (camera->CameraScale == 1)
     {
-        sphere.screenX = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-        screenY = screen50.y - camera->screenUL50.y;
+        sphere.ScreenX = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+        screenY = screen50.Y - camera->ScreenUL50.Y;
     }
     else
     {
-        sphere.screenX = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-        screenY = screen100.y - camera->screenUL.y;
+        sphere.ScreenX = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+        screenY = screen100.Y - camera->ScreenUL.Y;
     }
 
-    screenPos.x = sphere.screenX;
-    sphere.screenY = screenY + camera->halfHeight;
-    screenPos.y = sphere.screenY;
+    ScreenPos.X = sphere.ScreenX;
+    sphere.ScreenY = screenY + camera->HalfHeight;
+    ScreenPos.Y = sphere.ScreenY;
 
-    if (sphere.shape == nullptr)
+    if (sphere.Shape == nullptr)
     {
         return 0;
     }
 
     // On screen when the frame's box overlaps the view.
-    if (std::memcmp(sphere.shape, "1.10", 4) != 0)
+    if (std::memcmp(sphere.Shape, "1.10", 4) != 0)
     {
         Fatal(0, " BAD VFX Shape ");
     }
 
-    const int32_t count = VFX_shape_count(sphere.shape);
+    const int32_t count = VfxShapeCount(sphere.Shape);
 
-    if (count <= sphere.frame)
+    if (count <= sphere.Frame)
     {
-        sphere.frame = count - 1;
+        sphere.Frame = count - 1;
     }
 
-    const int32_t minXY = VFX_shape_minxy(sphere.shape, sphere.frame);
-    const int32_t resolution = VFX_shape_resolution(sphere.shape, sphere.frame);
-    const float scale = camera->cameraScale == 1 ? 0.5f : 1.0f;
-    const float left = scale * static_cast<float>(minXY >> 16) + sphere.screenX;
-    const float top = scale * static_cast<float>(static_cast<int16_t>(minXY)) + sphere.screenY;
+    const int32_t minXY = VfxShapeMinxy(sphere.Shape, sphere.Frame);
+    const int32_t resolution = VfxShapeResolution(sphere.Shape, sphere.Frame);
+    const float scale = camera->CameraScale == 1 ? 0.5f : 1.0f;
+    const float left = scale * static_cast<float>(minXY >> 16) + sphere.ScreenX;
+    const float top = scale * static_cast<float>(static_cast<int16_t>(minXY)) + sphere.ScreenY;
     const float right = scale * static_cast<float>(resolution >> 16) + left;
     const float bottom = scale * static_cast<float>(static_cast<int16_t>(resolution)) + top;
 
     if (0.0f <= right && 0.0f <= bottom &&
-        left <= static_cast<float>(static_cast<int16_t>(std::floor(camera->viewWidth))) &&
-        top <= static_cast<float>(static_cast<int16_t>(std::floor(camera->viewHeight))))
+        left <= static_cast<float>(static_cast<int16_t>(std::floor(camera->ViewWidth))) &&
+        top <= static_cast<float>(static_cast<int16_t>(std::floor(camera->ViewHeight))))
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto Smoke::update() -> int32_t
+auto MCSmoke::Update() -> int32_t
 {
-    const auto* smokeType = static_cast<SmokeType*>(objType);
+    const auto* smokeType = static_cast<MCSmokeType*>(ObjType);
 
-    if (justStarted != 0)
+    if (JustStarted != 0)
     {
-        justStarted = 0;
-        const int32_t durationMs = smokeType->duration * 1000;
-        nextSphereTime = 0;
-        endTime = MCPort::Milliseconds() + static_cast<uint32_t>(durationMs);
+        JustStarted = 0;
+        const int32_t durationMs = smokeType->Duration * 1000;
+        NextSphereTime = 0;
+        EndTime = MCPort::Milliseconds() + static_cast<uint32_t>(durationMs);
     }
 
-    if (spheres == nullptr)
+    if (Spheres == nullptr)
     {
         return 0;
     }
@@ -406,60 +406,60 @@ auto Smoke::update() -> int32_t
     // Puff a new sphere smokePerSecond times a second until the smoke ends.
     const uint32_t now = MCPort::Milliseconds();
 
-    if (now < endTime && nextSphereTime <= now)
+    if (now < EndTime && NextSphereTime <= now)
     {
         const auto interval =
-            static_cast<int32_t>(std::floor(1.0 / static_cast<double>(smokeType->smokePerSecond) * 1000.0));
-        nextSphereTime = static_cast<uint32_t>(interval) + now;
-        newSmokeSphere();
+            static_cast<int32_t>(std::floor(1.0 / static_cast<double>(smokeType->SmokePerSecond) * 1000.0));
+        NextSphereTime = static_cast<uint32_t>(interval) + now;
+        NewSmokeSphere();
     }
 
     // Drift the spheres; one that sinks into the ground bounces off sideways and creeps along it.
-    for (int32_t i = 0; i < numSpheres; i++)
+    for (int32_t i = 0; i < NumSpheres; i++)
     {
-        SmokeSphere& sphere = spheres[i];
+        MCSmokeSphere& sphere = Spheres[i];
 
-        if (sphere.active == 0)
+        if (sphere.Active == 0)
         {
             continue;
         }
 
-        const float stepY = frameLength * sphere.velocity.y;
-        const float stepZ = frameLength * sphere.velocity.z;
-        sphere.position.x =
-            static_cast<float>(static_cast<double>(sphere.velocity.x) * frameLength + sphere.position.x);
-        sphere.position.y = stepY + sphere.position.y;
-        sphere.position.z = stepZ + sphere.position.z;
+        const float stepY = FrameLength * sphere.Velocity.Y;
+        const float stepZ = FrameLength * sphere.Velocity.Z;
+        sphere.Position.X =
+            static_cast<float>(static_cast<double>(sphere.Velocity.X) * FrameLength + sphere.Position.X);
+        sphere.Position.Y = stepY + sphere.Position.Y;
+        sphere.Position.Z = stepZ + sphere.Position.Z;
 
-        if (sphere.onGround == 0 && smokeType->hasRotation == 0)
+        if (sphere.OnGround == 0 && smokeType->HasRotation == 0)
         {
-            const float elevation = land->getTerrainElevation(sphere.position);
+            const float elevation = Land->GetTerrainElevation(sphere.Position);
 
-            if (sphere.position.z < elevation)
+            if (sphere.Position.Z < elevation)
             {
-                sphere.velocity.x = randomBounce(sphere.velocity.z);
-                sphere.velocity.y = randomBounce(sphere.velocity.z);
-                sphere.velocity.z = 0.1f;
-                sphere.position.z = elevation;
-                sphere.onGround = 1;
+                sphere.Velocity.X = RandomBounce(sphere.Velocity.Z);
+                sphere.Velocity.Y = RandomBounce(sphere.Velocity.Z);
+                sphere.Velocity.Z = 0.1f;
+                sphere.Position.Z = elevation;
+                sphere.OnGround = 1;
             }
         }
 
         // Faithful: a sphere that goes off the screen dies.
-        spheres[i].active = isVisible(i);
+        Spheres[i].Active = IsVisible(i);
     }
 
     // Done once the time is up and every sphere has gone.
-    if (now <= endTime)
+    if (now <= EndTime)
     {
         return 1;
     }
 
     int32_t result = 0;
 
-    for (uint32_t i = 0; i < smokeType->maxSmokeSpheres; i++)
+    for (uint32_t i = 0; i < smokeType->MaxSmokeSpheres; i++)
     {
-        if (spheres[i].active != 0)
+        if (Spheres[i].Active != 0)
         {
             result = 1;
         }
@@ -468,236 +468,236 @@ auto Smoke::update() -> int32_t
     return result;
 }
 
-auto Smoke::render() -> void
+auto MCSmoke::Render() -> void
 {
-    if (gamePaused != 0)
+    if (GamePaused != 0)
     {
-        onScreen();
+        OnScreen();
     }
 
-    if (justStarted != 0 || spheres == nullptr)
+    if (JustStarted != 0 || Spheres == nullptr)
     {
         return;
     }
 
-    ElementList->openGroup(static_cast<int32_t>(static_cast<float>(depthBias) - screenPos.y), 1);
-    const auto* smokeType = static_cast<SmokeType*>(objType);
+    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(DepthBias) - ScreenPos.Y), 1);
+    const auto* smokeType = static_cast<MCSmokeType*>(ObjType);
 
-    for (int32_t i = 0; i < numSpheres; i++)
+    for (int32_t i = 0; i < NumSpheres; i++)
     {
-        SmokeSphere& sphere = spheres[i];
+        MCSmokeSphere& sphere = Spheres[i];
 
-        if (sphere.active == 0)
+        if (sphere.Active == 0)
         {
             continue;
         }
 
-        position = sphere.position;
-        screenPos.x = sphere.screenX;
-        screenPos.y = sphere.screenY;
+        Position = sphere.Position;
+        ScreenPos.X = sphere.ScreenX;
+        ScreenPos.Y = sphere.ScreenY;
 
         // Advance the animation by the whole frames the time now covers; a sphere past its last frame is done.
-        sphere.frameTime = frameLength + sphere.frameTime;
-        const double frames = std::floor(static_cast<double>(sphere.frameTime * smokeType->frameRate));
+        sphere.FrameTime = FrameLength + sphere.FrameTime;
+        const double frames = std::floor(static_cast<double>(sphere.FrameTime * smokeType->FrameRate));
 
-        if (sphere.frameCount < static_cast<int32_t>(frames))
+        if (sphere.FrameCount < static_cast<int32_t>(frames))
         {
-            const int32_t advanced = static_cast<int32_t>(frames) - sphere.frameCount;
-            sphere.frameCount = static_cast<int32_t>(frames);
+            const int32_t advanced = static_cast<int32_t>(frames) - sphere.FrameCount;
+            sphere.FrameCount = static_cast<int32_t>(frames);
 
             if (advanced != 0)
             {
-                sphere.frame += advanced;
-                int32_t lastFrame = VFX_shape_count(sphere.shape);
+                sphere.Frame += advanced;
+                int32_t lastFrame = VfxShapeCount(sphere.Shape);
 
-                if (smokeType->hasRotation != 0)
+                if (smokeType->HasRotation != 0)
                 {
-                    lastFrame /= smokeType->numRotations;
+                    lastFrame /= smokeType->NumRotations;
                 }
 
-                if (lastFrame <= sphere.frame)
+                if (lastFrame <= sphere.Frame)
                 {
-                    sphere.active = 0;
+                    sphere.Active = 0;
                 }
             }
         }
 
-        if (sphere.active == 0)
+        if (sphere.Active == 0)
         {
             continue;
         }
 
-        VFXElement* element;
+        MCVfxElement* element;
 
-        if (smokeType->hasRotation == 0)
+        if (smokeType->HasRotation == 0)
         {
-            element =
-                ElementPool::Make<VFXElement>(sphere.shape, screenPos.x, screenPos.y, sphere.frame, 0, nullptr, 0, 0);
-            std::strcpy(element->name, "smoke2");
+            element = MCElementPool::Make<MCVfxElement>(sphere.Shape, ScreenPos.X, ScreenPos.Y, sphere.Frame, 0,
+                                                        nullptr, 0, 0);
+            std::strcpy(element->Name, "smoke2");
         }
         else
         {
             // Rotated smoke picks its facing's set of frames.
-            const int32_t rotation = rotationIndex(sphere.velocity);
-            const int32_t framesPerRotation = VFX_shape_count(sphere.shape) / smokeType->numRotations;
-            element = ElementPool::Make<VFXElement>(sphere.shape, screenPos.x, screenPos.y,
-                                                    framesPerRotation * rotation + sphere.frame, 0, nullptr, 0, 0);
-            std::strcpy(element->name, "smoke1");
+            const int32_t rotation = RotationIndex(sphere.Velocity);
+            const int32_t framesPerRotation = VfxShapeCount(sphere.Shape) / smokeType->NumRotations;
+            element = MCElementPool::Make<MCVfxElement>(sphere.Shape, ScreenPos.X, ScreenPos.Y,
+                                                        framesPerRotation * rotation + sphere.Frame, 0, nullptr, 0, 0);
+            std::strcpy(element->Name, "smoke1");
         }
 
-        ElementList->add(element);
+        ElementList->Add(element);
     }
 }
 
-auto Smoke::destroy() -> void
+auto MCSmoke::Destroy() -> void
 {
-    if (ownerPosition != nullptr)
+    if (OwnerPosition != nullptr)
     {
-        delete ownerPosition;
-        ownerPosition = nullptr;
+        delete OwnerPosition;
+        OwnerPosition = nullptr;
     }
 
-    if (ownerVelocity != nullptr)
+    if (OwnerVelocity != nullptr)
     {
-        delete ownerVelocity;
-        ownerVelocity = nullptr;
+        delete OwnerVelocity;
+        OwnerVelocity = nullptr;
     }
 
-    smokeManager->freeSpheres(spheres, numSpheres);
-    spheres = nullptr;
+    SmokeManager->FreeSpheres(Spheres, NumSpheres);
+    Spheres = nullptr;
 }
 
-auto Smoke::newSmokeSphere() -> void
+auto MCSmoke::NewSmokeSphere() -> void
 {
-    if (spheres == nullptr)
+    if (Spheres == nullptr)
     {
         return;
     }
 
-    auto* source = static_cast<GameObject*>(owner);
+    auto* source = static_cast<MCGameObject*>(Owner);
 
     if (source != nullptr)
     {
-        setOwnerPosition(source->getPositionFromHS(ownerHotSpot));
+        SetOwnerPosition(source->GetPositionFromHS(OwnerHotSpot));
     }
 
-    if (ownerPosition == nullptr)
+    if (OwnerPosition == nullptr)
     {
         return;
     }
 
     // A new sphere near the owner, drifting with (a share of) its velocity plus a little randomness, and rising.
-    const auto* smokeType = static_cast<SmokeType*>(objType);
-    SmokeSphere& sphere = spheres[nextSphere];
-    sphere.position = *ownerPosition;
-    const float offsetX = randomSpread(smokeType->randomPosX);
-    const float offsetY = randomSpread(smokeType->randomPosY);
-    const float offsetZ = randomSpread(smokeType->randomPosZ);
-    sphere.position.x = offsetX + sphere.position.x;
-    sphere.position.y = offsetY + sphere.position.y;
-    sphere.position.z = offsetZ + sphere.position.z;
+    const auto* smokeType = static_cast<MCSmokeType*>(ObjType);
+    MCSmokeSphere& sphere = Spheres[NextSphere];
+    sphere.Position = *OwnerPosition;
+    const float offsetX = RandomSpread(smokeType->RandomPosX);
+    const float offsetY = RandomSpread(smokeType->RandomPosY);
+    const float offsetZ = RandomSpread(smokeType->RandomPosZ);
+    sphere.Position.X = offsetX + sphere.Position.X;
+    sphere.Position.Y = offsetY + sphere.Position.Y;
+    sphere.Position.Z = offsetZ + sphere.Position.Z;
 
     if (source != nullptr)
     {
-        setOwnerVelocity(source->getVelocity());
+        SetOwnerVelocity(source->GetVelocity());
     }
 
-    if (ownerVelocity == nullptr)
+    if (OwnerVelocity == nullptr)
     {
-        sphere.velocity.z = 0.0f;
-        sphere.velocity.y = 0.0f;
-        sphere.velocity.x = 0.0f;
+        sphere.Velocity.Z = 0.0f;
+        sphere.Velocity.Y = 0.0f;
+        sphere.Velocity.X = 0.0f;
     }
     else
     {
-        sphere.velocity = *ownerVelocity;
-        sphere.velocity.x = smokeType->slowDownPercent * sphere.velocity.x;
-        sphere.velocity.y = smokeType->slowDownPercent * sphere.velocity.y;
-        sphere.velocity.z = smokeType->slowDownPercent * sphere.velocity.z;
-        const float velX = randomSpread(smokeType->randomVelX);
-        const float velY = randomSpread(smokeType->randomVelY);
-        const float velZ = randomSpread(smokeType->randomVelZ);
-        sphere.velocity.x = velX + sphere.velocity.x;
-        sphere.velocity.y = velY + sphere.velocity.y;
-        sphere.velocity.z = velZ + sphere.velocity.z;
+        sphere.Velocity = *OwnerVelocity;
+        sphere.Velocity.X = smokeType->SlowDownPercent * sphere.Velocity.X;
+        sphere.Velocity.Y = smokeType->SlowDownPercent * sphere.Velocity.Y;
+        sphere.Velocity.Z = smokeType->SlowDownPercent * sphere.Velocity.Z;
+        const float velX = RandomSpread(smokeType->RandomVelX);
+        const float velY = RandomSpread(smokeType->RandomVelY);
+        const float velZ = RandomSpread(smokeType->RandomVelZ);
+        sphere.Velocity.X = velX + sphere.Velocity.X;
+        sphere.Velocity.Y = velY + sphere.Velocity.Y;
+        sphere.Velocity.Z = velZ + sphere.Velocity.Z;
     }
 
     // Faithful: the rise speed replaces the vertical velocity just worked out.
-    sphere.velocity.z = smokeType->zVelocity;
-    sphere.active = 1;
-    sphere.frame = 0;
-    sphere.frameCount = 0;
-    sphere.frameTime = 0.0f;
-    sphere.onGround = 0;
-    nextSphere++;
+    sphere.Velocity.Z = smokeType->ZVelocity;
+    sphere.Active = 1;
+    sphere.Frame = 0;
+    sphere.FrameCount = 0;
+    sphere.FrameTime = 0.0f;
+    sphere.OnGround = 0;
+    NextSphere++;
 
-    if (nextSphere == numSpheres)
+    if (NextSphere == NumSpheres)
     {
-        nextSphere = 0;
+        NextSphere = 0;
     }
 }
 
-auto Smoke::init(ObjectType* objType) -> int32_t
+auto MCSmoke::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justStarted = 1;
-    const auto* smokeType = static_cast<SmokeType*>(this->objType);
-    numSpheres = static_cast<int32_t>(smokeType->maxSmokeSpheres);
-    spheres = smokeManager->getSpheres(numSpheres);
+    JustStarted = 1;
+    const auto* smokeType = static_cast<MCSmokeType*>(this->ObjType);
+    NumSpheres = static_cast<int32_t>(smokeType->MaxSmokeSpheres);
+    Spheres = SmokeManager->GetSpheres(NumSpheres);
 
-    if (spheres == nullptr)
+    if (Spheres == nullptr)
     {
         return static_cast<int32_t>(0xdcdc000d);
     }
 
-    for (int32_t i = 0; i < numSpheres; i++)
+    for (int32_t i = 0; i < NumSpheres; i++)
     {
-        SmokeSphere& sphere = spheres[i];
-        sphere.position.z = 0.0f;
-        sphere.position.y = 0.0f;
-        sphere.position.x = 0.0f;
-        sphere.velocity.z = 0.0f;
-        sphere.velocity.y = 0.0f;
-        sphere.velocity.x = 0.0f;
-        sphere.active = 0;
-        sphere.shape = smokeType->smokeShape;
-        sphere.frame = 0;
-        sphere.frameCount = 0;
-        sphere.frameTime = 0.0f;
+        MCSmokeSphere& sphere = Spheres[i];
+        sphere.Position.Z = 0.0f;
+        sphere.Position.Y = 0.0f;
+        sphere.Position.X = 0.0f;
+        sphere.Velocity.Z = 0.0f;
+        sphere.Velocity.Y = 0.0f;
+        sphere.Velocity.X = 0.0f;
+        sphere.Active = 0;
+        sphere.Shape = smokeType->SmokeShape;
+        sphere.Frame = 0;
+        sphere.FrameCount = 0;
+        sphere.FrameTime = 0.0f;
     }
 
-    objectClass = SMOKE;
-    depthBias = -200;
+    ObjectClass = SMOKE;
+    DepthBias = -200;
     return 0;
 }
 
-auto Smoke::setOwner(BaseObject* owner) -> void
+auto MCSmoke::SetOwner(MCBaseObject* owner) -> void
 {
-    this->owner = owner;
+    this->Owner = owner;
 }
 
-auto Smoke::setOwnerPosition(vector_3d position) -> void
+auto MCSmoke::SetOwnerPosition(MCVector3D position) -> void
 {
-    if (ownerPosition == nullptr)
+    if (OwnerPosition == nullptr)
     {
-        ownerPosition = new vector_3d;
+        OwnerPosition = new MCVector3D;
     }
 
-    *ownerPosition = position;
+    *OwnerPosition = position;
 }
 
-auto Smoke::setOwnerVelocity(vector_3d velocity) -> void
+auto MCSmoke::SetOwnerVelocity(MCVector3D velocity) -> void
 {
-    if (ownerVelocity == nullptr)
+    if (OwnerVelocity == nullptr)
     {
-        ownerVelocity = new vector_3d;
+        OwnerVelocity = new MCVector3D;
     }
 
-    *ownerVelocity = velocity;
+    *OwnerVelocity = velocity;
 }

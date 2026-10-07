@@ -12,10 +12,10 @@
 #include "mission/scenario.h"
 #include "sound/radio.h"
 
-PotentialContactManager* potentialContactManager = nullptr;
-SensorSystemManager* sensorSystemManager = nullptr;
-int32_t SensorSystem::numSensors = 0;
-SortList* SensorSystem::sortList = nullptr;
+MCPotentialContactManager* PotentialContactManager = nullptr;
+MCSensorSystemManager* SensorSystemManager = nullptr;
+int32_t MCSensorSystem::NumSensors = 0;
+MCSortList* MCSensorSystem::SortList = nullptr;
 int SensorAutomaticSuccess = 0;
 char SensorSkillMoveRange[4] = {45, 59, 69, 80};
 float SensorSkillMoveFactor[4][2] = {{0.8f, 0.5f}, {0.85f, 0.55f}, {0.9f, 0.6f}, {0.95f, 0.65f}};
@@ -24,9 +24,9 @@ float SensorModifier[8] = {40.0f, 0.5f, 1.0f, 100.0f, -50.0f, 0.0f, -30.0f, -40.
 namespace
 {
     /// <summary>Whether <paramref name="object"/> is a mover (mech, vehicle, elemental or plain mover).</summary>
-    bool IsMover(const GameObject* object)
+    bool IsMover(const MCGameObject* object)
     {
-        const ObjectClass objectClass = object->objectClass;
+        const MCObjectClass objectClass = object->ObjectClass;
         return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                objectClass == MOVER;
     }
@@ -36,48 +36,48 @@ namespace
 // _PotentialContact
 //---------------------------------------------------------------------------
 
-auto _PotentialContact::init() -> void
+auto MCPotentialContact::Init() -> void
 {
-    object = nullptr;
-    contactType = POTENTIAL_CONTACT_ALLIED;
-    visibility = 0;
+    Object = nullptr;
+    ContactType = POTENTIAL_CONTACT_ALLIED;
+    Visibility = 0;
 
     for (int32_t i = 0; i < 3; i++)
     {
-        contactStatus[i] = CONTACT_NONE;
-        numSensors[i] = 0;
-        lostVisual[i] = 0;
-        teamSlot[i] = -1;
+        ContactStatus[i] = CONTACT_NONE;
+        NumSensors[i] = 0;
+        LostVisual[i] = 0;
+        TeamSlot[i] = -1;
     }
 
     for (int32_t i = 0; i < MAX_SENSORS; i++)
     {
-        sensorSlot[i] = 0xff;
+        SensorSlot[i] = 0xff;
     }
 
-    next = nullptr;
-    prev = nullptr;
+    Next = nullptr;
+    Prev = nullptr;
 }
 
-auto _PotentialContact::updateStatus(Team* team) -> void
+auto MCPotentialContact::UpdateStatus(MCTeam* team) -> void
 {
     if (team == nullptr)
     {
         return;
     }
 
-    const int32_t teamId = team->id;
-    const uint8_t oldStatus = contactStatus[teamId];
+    const int32_t teamId = team->Id;
+    const uint8_t oldStatus = ContactStatus[teamId];
     uint8_t newStatus = CONTACT_NONE;
 
-    if (team->lineOfSight(object->getPosition()) == 0)
+    if (team->LineOfSight(Object->GetPosition()) == 0)
     {
-        if (numSensors[teamId] != 0)
+        if (NumSensors[teamId] != 0)
         {
             newStatus = CONTACT_SENSOR;
         }
     }
-    else if (visibility != 3)
+    else if (Visibility != 3)
     {
         newStatus = CONTACT_VISUAL;
     }
@@ -87,21 +87,21 @@ auto _PotentialContact::updateStatus(Team* team) -> void
         return;
     }
 
-    contactStatus[teamId] = newStatus;
+    ContactStatus[teamId] = newStatus;
 
     if (oldStatus == CONTACT_VISUAL)
     {
-        team->removeLOSContact(this);
+        team->RemoveLosContact(this);
     }
     else if (oldStatus == CONTACT_SENSOR)
     {
-        lostVisual[teamId] = 0;
-        team->removeSensorContact(this);
+        LostVisual[teamId] = 0;
+        team->RemoveSensorContact(this);
     }
 
     if (newStatus == CONTACT_VISUAL)
     {
-        team->addLOSContact(this);
+        team->AddLosContact(this);
         return;
     }
 
@@ -109,10 +109,10 @@ auto _PotentialContact::updateStatus(Team* team) -> void
     {
         if (oldStatus == CONTACT_VISUAL)
         {
-            lostVisual[teamId] = 1;
+            LostVisual[teamId] = 1;
         }
 
-        team->addSensorContact(this);
+        team->AddSensorContact(this);
     }
 }
 
@@ -120,97 +120,97 @@ auto _PotentialContact::updateStatus(Team* team) -> void
 // PotentialContactManager
 //---------------------------------------------------------------------------
 
-auto PotentialContactManager::init(FitIniFile* file) -> int32_t
+auto MCPotentialContactManager::Init(MCFitIniFile* file) -> int32_t
 {
-    maxContacts = 0;
-    numFree = 0;
-    contactList[0] = nullptr;
-    contactList[1] = nullptr;
-    contactList[2] = nullptr;
-    contacts = nullptr;
-    freeList = nullptr;
+    MaxContacts = 0;
+    NumFree = 0;
+    ContactList[0] = nullptr;
+    ContactList[1] = nullptr;
+    ContactList[2] = nullptr;
+    Contacts = nullptr;
+    FreeList = nullptr;
 
-    int32_t result = file->seekBlock("PotentialContactManager");
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    result = file->readIdLong("MaxPotentialContacts", maxContacts);
+    int32_t result = file->SeekBlock("PotentialContactManager");
 
     if (result != 0)
     {
         return result;
     }
 
-    if (maxContacts < 2)
+    result = file->ReadIdLong("MaxPotentialContacts", MaxContacts);
+
+    if (result != 0)
+    {
+        return result;
+    }
+
+    if (MaxContacts < 2)
     {
         Fatal(0, " Way too few contacts in Potential Contact Manager! ");
     }
 
     // Port fix: sized by the port's struct (0x60 bytes in the original).
-    contacts = std::make_unique<_PotentialContact[]>(static_cast<size_t>(maxContacts));
+    Contacts = std::make_unique<MCPotentialContact[]>(static_cast<size_t>(MaxContacts));
 
     // Chain the pool into the free list; the rest of each contact is set when add() takes it.
-    contacts[0].id = 0;
-    contacts[0].object = nullptr;
-    contacts[0].prev = nullptr;
-    contacts[0].next = &contacts[1];
+    Contacts[0].Id = 0;
+    Contacts[0].Object = nullptr;
+    Contacts[0].Prev = nullptr;
+    Contacts[0].Next = &Contacts[1];
 
-    for (int32_t i = 1; i < maxContacts - 1; i++)
+    for (int32_t i = 1; i < MaxContacts - 1; i++)
     {
-        contacts[i].id = static_cast<uint16_t>(i);
-        contacts[i].object = nullptr;
-        contacts[i].prev = &contacts[i - 1];
-        contacts[i].next = &contacts[i + 1];
+        Contacts[i].Id = static_cast<uint16_t>(i);
+        Contacts[i].Object = nullptr;
+        Contacts[i].Prev = &Contacts[i - 1];
+        Contacts[i].Next = &Contacts[i + 1];
     }
 
-    _PotentialContact& last = contacts[maxContacts - 1];
-    last.id = static_cast<uint16_t>(maxContacts - 1);
-    last.object = nullptr;
-    last.prev = &contacts[maxContacts - 2];
-    last.next = nullptr;
+    MCPotentialContact& last = Contacts[MaxContacts - 1];
+    last.Id = static_cast<uint16_t>(MaxContacts - 1);
+    last.Object = nullptr;
+    last.Prev = &Contacts[MaxContacts - 2];
+    last.Next = nullptr;
 
-    freeList = contacts.get();
-    numFree = maxContacts;
+    FreeList = Contacts.get();
+    NumFree = MaxContacts;
     return 0;
 }
 
-auto PotentialContactManager::add(int32_t type, BigGameObject* object, char visibility) -> _PotentialContact*
+auto MCPotentialContactManager::Add(int32_t type, MCBigGameObject* object, char visibility) -> MCPotentialContact*
 {
-    if (numFree == 0)
+    if (NumFree == 0)
     {
         Fatal(0, " No More Free Potential Contacts ");
     }
 
-    numFree--;
+    NumFree--;
 
-    _PotentialContact* contact = freeList;
-    freeList = contact->next;
+    MCPotentialContact* contact = FreeList;
+    FreeList = contact->Next;
 
-    if (freeList != nullptr)
+    if (FreeList != nullptr)
     {
-        freeList->prev = nullptr;
+        FreeList->Prev = nullptr;
     }
 
-    contact->init();
-    contact->object = object;
-    contact->contactType = static_cast<int8_t>(type);
-    contact->visibility = visibility;
-    contact->prev = nullptr;
-    contact->next = contactList[type];
+    contact->Init();
+    contact->Object = object;
+    contact->ContactType = static_cast<int8_t>(type);
+    contact->Visibility = visibility;
+    contact->Prev = nullptr;
+    contact->Next = ContactList[type];
 
-    if (contactList[type] != nullptr)
+    if (ContactList[type] != nullptr)
     {
-        contactList[type]->prev = contact;
+        ContactList[type]->Prev = contact;
     }
 
-    contactList[type] = contact;
+    ContactList[type] = contact;
     return contact;
 }
 
-auto PotentialContactManager::getContactCounts(int32_t* counts, int32_t teamId, int enemiesOnly) -> int32_t
+auto MCPotentialContactManager::GetContactCounts(int32_t* counts, int32_t teamId, int enemiesOnly) -> int32_t
 {
     // Per team, the lists to count: the enemy's first.
     static constexpr int8_t listOrder[3][3] = {{1, 0, 2}, {0, 1, 2}, {1, 0, 2}};
@@ -223,10 +223,10 @@ auto PotentialContactManager::getContactCounts(int32_t* counts, int32_t teamId, 
 
     for (int32_t list = 0; list < numLists; list++)
     {
-        for (_PotentialContact* contact = contactList[order[list]]; contact != nullptr; contact = contact->next)
+        for (MCPotentialContact* contact = ContactList[order[list]]; contact != nullptr; contact = contact->Next)
         {
             int tagged = 0;
-            const int32_t contactType = contact->object->getContactType(teamId, tagged);
+            const int32_t contactType = contact->Object->GetContactType(teamId, tagged);
 
             if (tagged != 0)
             {
@@ -246,7 +246,7 @@ auto PotentialContactManager::getContactCounts(int32_t* counts, int32_t teamId, 
     return 0;
 }
 
-auto PotentialContactManager::remove(_PotentialContact* contact) -> void
+auto MCPotentialContactManager::Remove(MCPotentialContact* contact) -> void
 {
     if (contact == nullptr)
     {
@@ -255,182 +255,182 @@ auto PotentialContactManager::remove(_PotentialContact* contact) -> void
 
     for (int32_t i = 0; i < MAX_SENSORS; i++)
     {
-        if (contact->sensorSlot[i] != 0xff)
+        if (contact->SensorSlot[i] != 0xff)
         {
-            sensorSystemManager->sensors[i]->removeSensorContact(contact);
+            SensorSystemManager->Sensors[i]->RemoveSensorContact(contact);
         }
     }
 
     for (int32_t i = 0; i < 3; i++)
     {
-        if (contact->teamSlot[i] == -1)
+        if (contact->TeamSlot[i] == -1)
         {
             continue;
         }
 
-        if (contact->contactStatus[i] == CONTACT_VISUAL)
+        if (contact->ContactStatus[i] == CONTACT_VISUAL)
         {
-            TeamTable[i]->removeLOSContact(contact);
+            TeamTable[i]->RemoveLosContact(contact);
         }
-        else if (contact->contactStatus[i] == CONTACT_SENSOR)
+        else if (contact->ContactStatus[i] == CONTACT_SENSOR)
         {
-            TeamTable[i]->removeSensorContact(contact);
+            TeamTable[i]->RemoveSensorContact(contact);
         }
     }
 
-    if (contact->prev == nullptr)
+    if (contact->Prev == nullptr)
     {
-        contactList[contact->contactType] = contact->next;
+        ContactList[contact->ContactType] = contact->Next;
     }
     else
     {
-        contact->prev->next = contact->next;
+        contact->Prev->Next = contact->Next;
     }
 
-    if (contact->next != nullptr)
+    if (contact->Next != nullptr)
     {
-        contact->next->prev = contact->prev;
+        contact->Next->Prev = contact->Prev;
     }
 
-    contact->object = nullptr;
-    contact->prev = nullptr;
-    contact->next = freeList;
-    freeList = contact;
-    numFree++;
+    contact->Object = nullptr;
+    contact->Prev = nullptr;
+    contact->Next = FreeList;
+    FreeList = contact;
+    NumFree++;
 }
 
-auto PotentialContactManager::move(_PotentialContact* contact, int32_t type, char visibility) -> void
+auto MCPotentialContactManager::Move(MCPotentialContact* contact, int32_t type, char visibility) -> void
 {
     if (contact == nullptr)
     {
         return;
     }
 
-    if (contact->prev == nullptr)
+    if (contact->Prev == nullptr)
     {
-        contactList[contact->contactType] = contact->next;
+        ContactList[contact->ContactType] = contact->Next;
     }
     else
     {
-        contact->prev->next = contact->next;
+        contact->Prev->Next = contact->Next;
     }
 
-    if (contact->next != nullptr)
+    if (contact->Next != nullptr)
     {
-        contact->next->prev = contact->prev;
+        contact->Next->Prev = contact->Prev;
     }
 
-    contact->visibility = visibility;
-    contact->contactType = static_cast<int8_t>(type);
-    contact->prev = nullptr;
-    contact->next = contactList[type];
+    contact->Visibility = visibility;
+    contact->ContactType = static_cast<int8_t>(type);
+    contact->Prev = nullptr;
+    contact->Next = ContactList[type];
 
-    if (contactList[type] != nullptr)
+    if (ContactList[type] != nullptr)
     {
-        contactList[type]->prev = contact;
+        ContactList[type]->Prev = contact;
     }
 
-    contactList[type] = contact;
+    ContactList[type] = contact;
 }
 
-auto PotentialContactManager::updateStatus() -> void
+auto MCPotentialContactManager::UpdateStatus() -> void
 {
     for (int32_t list = 0; list < 3; list++)
     {
-        for (_PotentialContact* contact = contactList[list]; contact != nullptr; contact = contact->next)
+        for (MCPotentialContact* contact = ContactList[list]; contact != nullptr; contact = contact->Next)
         {
-            const Team* team = contact->object->getTeam();
+            const MCTeam* team = contact->Object->GetTeam();
 
-            if (team == clanTeam)
+            if (team == ClanTeam)
             {
-                contact->updateStatus(innerSphereTeam);
-                contact->updateStatus(alliedTeam);
+                contact->UpdateStatus(InnerSphereTeam);
+                contact->UpdateStatus(AlliedTeam);
             }
-            else if (team == innerSphereTeam)
+            else if (team == InnerSphereTeam)
             {
-                contact->updateStatus(clanTeam);
-                contact->updateStatus(alliedTeam);
+                contact->UpdateStatus(ClanTeam);
+                contact->UpdateStatus(AlliedTeam);
             }
             else
             {
-                contact->updateStatus(innerSphereTeam);
-                contact->updateStatus(clanTeam);
+                contact->UpdateStatus(InnerSphereTeam);
+                contact->UpdateStatus(ClanTeam);
             }
         }
     }
 }
 
-auto PotentialContactManager::destroy() -> void
+auto MCPotentialContactManager::Destroy() -> void
 {
-    contacts.reset();
-    maxContacts = 0;
-    numFree = 0;
-    freeList = nullptr;
+    Contacts.reset();
+    MaxContacts = 0;
+    NumFree = 0;
+    FreeList = nullptr;
 }
 
 //---------------------------------------------------------------------------
 // SensorSystem
 //---------------------------------------------------------------------------
 
-auto SensorSystem::init() -> void
+auto MCSensorSystem::Init() -> void
 {
-    teamIndex = -1;
-    teamSensorSlot = -1;
-    owner = nullptr;
-    team = nullptr;
-    range = -1.0f;
-    teamMultiplier[0] = 1.0f;
-    teamMultiplier[1] = 1.0f;
-    teamMultiplier[2] = 1.0f;
-    multiplier = 1.0f;
-    lastScanTime = 0.0f;
-    id = numSensors;
-    nextScanTime = static_cast<float>(numSensors * 0.1 + 0.25);
-    numSensors++;
-    scanFrequency = ContactUpdateFrequency;
-    lastMultiplierTime = 0.0f;
-    numContacts = 0;
-    totalContacts = 0;
+    TeamIndex = -1;
+    TeamSensorSlot = -1;
+    Owner = nullptr;
+    Team = nullptr;
+    Range = -1.0f;
+    TeamMultiplier[0] = 1.0f;
+    TeamMultiplier[1] = 1.0f;
+    TeamMultiplier[2] = 1.0f;
+    Multiplier = 1.0f;
+    LastScanTime = 0.0f;
+    Id = NumSensors;
+    NextScanTime = static_cast<float>(NumSensors * 0.1 + 0.25);
+    NumSensors++;
+    ScanFrequency = ContactUpdateFrequency;
+    LastMultiplierTime = 0.0f;
+    NumContacts = 0;
+    TotalContacts = 0;
 
-    if (sortList == nullptr)
+    if (SortList == nullptr)
     {
-        sortList = new SortList;
+        SortList = new MCSortList;
 
-        if (sortList == nullptr)
+        if (SortList == nullptr)
         {
             Fatal(0, " Unable to create Contact::sortList ");
         }
 
-        sortList->init(MAX_SENSOR_CONTACTS);
+        SortList->Init(MAX_SENSOR_CONTACTS);
     }
 }
 
-auto SensorSystem::destroy() -> void
+auto MCSensorSystem::Destroy() -> void
 {
-    numSensors--;
+    NumSensors--;
 
-    if (numSensors == 0)
+    if (NumSensors == 0)
     {
-        if (sortList != nullptr)
+        if (SortList != nullptr)
         {
-            sortList->destroy();
-            delete sortList;
+            SortList->Destroy();
+            delete SortList;
         }
 
-        sortList = nullptr;
+        SortList = nullptr;
     }
 }
 
-auto SensorSystem::setRange(float newRange) -> void
+auto MCSensorSystem::SetRange(float newRange) -> void
 {
-    range = newRange;
-    speedRange[2] = newRange;
-    speedRange[1] = newRange;
-    speedRange[0] = newRange;
-    currentRange = newRange;
-    rangeChangeTurn = -1;
+    Range = newRange;
+    SpeedRange[2] = newRange;
+    SpeedRange[1] = newRange;
+    SpeedRange[0] = newRange;
+    CurrentRange = newRange;
+    RangeChangeTurn = -1;
 
-    if (owner == nullptr || !IsMover(owner) || owner->getPilot() == nullptr)
+    if (Owner == nullptr || !IsMover(Owner) || Owner->GetPilot() == nullptr)
     {
         return;
     }
@@ -438,11 +438,11 @@ auto SensorSystem::setRange(float newRange) -> void
     // The pilot's sensor skill picks the row: the lower the skill, the more moving and running cut the range.
     float moveFactor = 1.0f;
     float runFactor = 1.0f;
-    const MechWarrior* pilot = owner->getPilot();
+    const MCMechWarrior* pilot = Owner->GetPilot();
 
     for (int32_t row = 0; row < 4; row++)
     {
-        if (static_cast<float>(pilot->skills[2]) <= static_cast<float>(SensorSkillMoveRange[row]))
+        if (static_cast<float>(pilot->Skills[2]) <= static_cast<float>(SensorSkillMoveRange[row]))
         {
             moveFactor = SensorSkillMoveFactor[row][0];
             runFactor = SensorSkillMoveFactor[row][1];
@@ -450,83 +450,83 @@ auto SensorSystem::setRange(float newRange) -> void
         }
     }
 
-    speedRange[0] = newRange;
-    speedRange[1] = moveFactor * newRange;
-    speedRange[2] = runFactor * newRange;
+    SpeedRange[0] = newRange;
+    SpeedRange[1] = moveFactor * newRange;
+    SpeedRange[2] = runFactor * newRange;
 }
 
 namespace
 {
-    double SkilledRangeUnrounded(SensorSystem& sensor)
+    double SkilledRangeUnrounded(MCSensorSystem& sensor)
     {
-        if (!IsMover(sensor.owner))
+        if (!IsMover(sensor.Owner))
         {
-            return static_cast<double>(sensor.multiplier) * sensor.range;
+            return static_cast<double>(sensor.Multiplier) * sensor.Range;
         }
 
-        const int32_t speedState = static_cast<Mover*>(sensor.owner)->getSpeedState();
-        const int32_t now = turn;
-        const double newRange = static_cast<double>(sensor.speedRange[speedState]) * sensor.multiplier;
+        const int32_t speedState = static_cast<MCMover*>(sensor.Owner)->GetSpeedState();
+        const int32_t now = Turn;
+        const double newRange = static_cast<double>(sensor.SpeedRange[speedState]) * sensor.Multiplier;
 
-        if (newRange != sensor.currentRange && sensor.rangeChangeTurn == -1)
+        if (newRange != sensor.CurrentRange && sensor.RangeChangeTurn == -1)
         {
-            sensor.rangeChangeTurn = turn + 6;
+            sensor.RangeChangeTurn = Turn + 6;
         }
 
-        if (sensor.rangeChangeTurn == -1)
+        if (sensor.RangeChangeTurn == -1)
         {
             return newRange;
         }
 
-        if (sensor.rangeChangeTurn <= now)
+        if (sensor.RangeChangeTurn <= now)
         {
-            sensor.currentRange = static_cast<float>(newRange);
-            sensor.rangeChangeTurn = -1;
+            sensor.CurrentRange = static_cast<float>(newRange);
+            sensor.RangeChangeTurn = -1;
             return newRange;
         }
 
-        return sensor.currentRange -
-               (sensor.currentRange - newRange) * (1.0 / static_cast<double>(sensor.rangeChangeTurn - now));
+        return sensor.CurrentRange -
+               (sensor.CurrentRange - newRange) * (1.0 / static_cast<double>(sensor.RangeChangeTurn - now));
     }
 }
 
-auto SensorSystem::getSkilledRange() -> float
+auto MCSensorSystem::GetSkilledRange() -> float
 {
     // Ease toward the new range over the turns left.
     return static_cast<float>(SkilledRangeUnrounded(*this));
 }
 
-auto SensorSystem::setTeam(Team* newTeam) -> void
+auto MCSensorSystem::SetTeam(MCTeam* newTeam) -> void
 {
-    clearSensorContacts();
+    ClearSensorContacts();
 
-    if (team != nullptr)
+    if (Team != nullptr)
     {
-        team->removeSensor(this);
-        teamSensorSlot = -1;
-        teamIndex = -1;
+        Team->RemoveSensor(this);
+        TeamSensorSlot = -1;
+        TeamIndex = -1;
     }
 
-    team = newTeam;
+    Team = newTeam;
 
     if (newTeam == nullptr)
     {
         return;
     }
 
-    newTeam->addSensor(this);
+    newTeam->AddSensor(this);
 
-    if (team == innerSphereTeam)
+    if (Team == InnerSphereTeam)
     {
-        teamIndex = 0;
+        TeamIndex = 0;
     }
-    else if (team == clanTeam)
+    else if (Team == ClanTeam)
     {
-        teamIndex = 1;
+        TeamIndex = 1;
     }
-    else if (team == alliedTeam)
+    else if (Team == AlliedTeam)
     {
-        teamIndex = 2;
+        TeamIndex = 2;
     }
     else
     {
@@ -534,21 +534,21 @@ auto SensorSystem::setTeam(Team* newTeam) -> void
     }
 }
 
-auto SensorSystem::enabled() -> int
+auto MCSensorSystem::Enabled() -> int
 {
-    if (teamSensorSlot < 0 || owner->getExistsAndAwake() == 0)
+    if (TeamSensorSlot < 0 || Owner->GetExistsAndAwake() == 0)
     {
         return 0;
     }
 
-    if (!IsMover(owner))
+    if (!IsMover(Owner))
     {
         return 1;
     }
 
-    const Mover* mover = static_cast<const Mover*>(owner);
+    const MCMover* mover = static_cast<const MCMover*>(Owner);
 
-    if (mover->status != 5 && mover->sensor != 0xff && mover->inventory[mover->sensor].disabled == 0)
+    if (mover->Status != 5 && mover->Sensor != 0xff && mover->Inventory[mover->Sensor].Disabled == 0)
     {
         return 1;
     }
@@ -556,48 +556,48 @@ auto SensorSystem::enabled() -> int
     return 0;
 }
 
-auto SensorSystem::disable() -> void
+auto MCSensorSystem::Disable() -> void
 {
-    clearSensorContacts();
-    setTeam(nullptr);
+    ClearSensorContacts();
+    SetTeam(nullptr);
 }
 
-auto SensorSystem::calcTeamEffect(Team* team) -> float
+auto MCSensorSystem::CalcTeamEffect(MCTeam* team) -> float
 {
-    const float jammerEffect = team->getJammerEffect();
-    const float ecmEffect = team->getECMEffect(owner->getPosition());
+    const float jammerEffect = team->GetJammerEffect();
+    const float ecmEffect = team->GetEcmEffect(Owner->GetPosition());
     return jammerEffect < ecmEffect ? jammerEffect : ecmEffect;
 }
 
-auto SensorSystem::calcTeamMultipliers() -> void
+auto MCSensorSystem::CalcTeamMultipliers() -> void
 {
-    if (scenarioTime == lastMultiplierTime)
+    if (ScenarioTime == LastMultiplierTime)
     {
         return;
     }
 
-    lastMultiplierTime = scenarioTime;
-    teamMultiplier[0] = 1.0f;
-    teamMultiplier[1] = 1.0f;
-    teamMultiplier[2] = 1.0f;
+    LastMultiplierTime = ScenarioTime;
+    TeamMultiplier[0] = 1.0f;
+    TeamMultiplier[1] = 1.0f;
+    TeamMultiplier[2] = 1.0f;
 
-    const int32_t alignment = owner->getAlignment();
+    const int32_t alignment = Owner->GetAlignment();
 
     if (alignment == -1)
     {
         // Unaligned: the Inner Sphere and allied effects both count, the stronger one for each slot it fills.
         float innerSphereEffect = 1.0f;
 
-        if (innerSphereTeam != nullptr)
+        if (InnerSphereTeam != nullptr)
         {
-            innerSphereEffect = calcTeamEffect(innerSphereTeam);
+            innerSphereEffect = CalcTeamEffect(InnerSphereTeam);
         }
 
         float effect = 1.0f;
 
-        if (alliedTeam != nullptr)
+        if (AlliedTeam != nullptr)
         {
-            effect = calcTeamEffect(alliedTeam);
+            effect = CalcTeamEffect(AlliedTeam);
         }
 
         if (innerSphereEffect < effect)
@@ -605,99 +605,99 @@ auto SensorSystem::calcTeamMultipliers() -> void
             effect = innerSphereEffect;
         }
 
-        teamMultiplier[0] = effect;
-        teamMultiplier[2] = effect;
+        TeamMultiplier[0] = effect;
+        TeamMultiplier[2] = effect;
     }
     else if (alignment == 0)
     {
-        if (innerSphereTeam != nullptr)
+        if (InnerSphereTeam != nullptr)
         {
-            teamMultiplier[0] = calcTeamEffect(innerSphereTeam);
+            TeamMultiplier[0] = CalcTeamEffect(InnerSphereTeam);
         }
 
-        if (clanTeam != nullptr)
+        if (ClanTeam != nullptr)
         {
-            teamMultiplier[1] = calcTeamEffect(clanTeam);
+            TeamMultiplier[1] = CalcTeamEffect(ClanTeam);
         }
 
-        if (alliedTeam != nullptr)
+        if (AlliedTeam != nullptr)
         {
-            teamMultiplier[2] = calcTeamEffect(alliedTeam);
+            TeamMultiplier[2] = CalcTeamEffect(AlliedTeam);
         }
     }
-    else if (alignment == 1 && clanTeam != nullptr)
+    else if (alignment == 1 && ClanTeam != nullptr)
     {
-        teamMultiplier[1] = calcTeamEffect(clanTeam);
+        TeamMultiplier[1] = CalcTeamEffect(ClanTeam);
     }
 
-    multiplier = team != clanTeam ? teamMultiplier[1] : teamMultiplier[0];
+    Multiplier = Team != ClanTeam ? TeamMultiplier[1] : TeamMultiplier[0];
 }
 
-auto SensorSystem::addSensorContact(_PotentialContact* contact) -> void
+auto MCSensorSystem::AddSensorContact(MCPotentialContact* contact) -> void
 {
-    if (numContacts >= MAX_SENSOR_CONTACTS || contact->sensorSlot[id] != 0xff)
+    if (NumContacts >= MAX_SENSOR_CONTACTS || contact->SensorSlot[Id] != 0xff)
     {
         return;
     }
 
-    contacts[numContacts] = contact->id;
-    contact->sensorSlot[id] = static_cast<uint8_t>(numContacts);
-    contact->numSensors[teamIndex]++;
-    numContacts++;
+    Contacts[NumContacts] = contact->Id;
+    contact->SensorSlot[Id] = static_cast<uint8_t>(NumContacts);
+    contact->NumSensors[TeamIndex]++;
+    NumContacts++;
 }
 
-auto SensorSystem::removeSensorContact(int32_t index) -> void
+auto MCSensorSystem::RemoveSensorContact(int32_t index) -> void
 {
-    _PotentialContact* pool = potentialContactManager->contacts.get();
-    _PotentialContact& contact = pool[contacts[index]];
-    contact.sensorSlot[id] = 0xff;
-    contact.numSensors[teamIndex]--;
-    numContacts--;
+    MCPotentialContact* pool = PotentialContactManager->Contacts.get();
+    MCPotentialContact& contact = pool[Contacts[index]];
+    contact.SensorSlot[Id] = 0xff;
+    contact.NumSensors[TeamIndex]--;
+    NumContacts--;
 
-    if (numContacts > 0 && index != numContacts)
+    if (NumContacts > 0 && index != NumContacts)
     {
-        contacts[index] = contacts[numContacts];
-        pool[contacts[numContacts]].sensorSlot[id] = static_cast<uint8_t>(index);
+        Contacts[index] = Contacts[NumContacts];
+        pool[Contacts[NumContacts]].SensorSlot[Id] = static_cast<uint8_t>(index);
     }
 }
 
-auto SensorSystem::removeSensorContact(_PotentialContact* contact) -> void
+auto MCSensorSystem::RemoveSensorContact(MCPotentialContact* contact) -> void
 {
-    if (contact->sensorSlot[id] < 0xff)
+    if (contact->SensorSlot[Id] < 0xff)
     {
-        removeSensorContact(static_cast<int32_t>(contact->sensorSlot[id]));
+        RemoveSensorContact(static_cast<int32_t>(contact->SensorSlot[Id]));
     }
 }
 
-auto SensorSystem::clearSensorContacts() -> void
+auto MCSensorSystem::ClearSensorContacts() -> void
 {
-    while (numContacts != 0)
+    while (NumContacts != 0)
     {
-        removeSensorContact(0);
+        RemoveSensorContact(0);
     }
 }
 
-auto SensorSystem::updateContacts() -> void
+auto MCSensorSystem::UpdateContacts() -> void
 {
-    if (teamSensorSlot == -1 || range == -1.0f)
+    if (TeamSensorSlot == -1 || Range == -1.0f)
     {
         return;
     }
 
-    if (owner->getAwake() == 0 || owner->getExists() == 0 || enabled() == 0)
+    if (Owner->GetAwake() == 0 || Owner->GetExists() == 0 || Enabled() == 0)
     {
-        clearSensorContacts();
+        ClearSensorContacts();
         return;
     }
 
-    if (scenarioTime == lastScanTime)
+    if (ScenarioTime == LastScanTime)
     {
         return;
     }
 
-    calcTeamMultipliers();
+    CalcTeamMultipliers();
 
-    if (numContacts < 1)
+    if (NumContacts < 1)
     {
         return;
     }
@@ -706,124 +706,124 @@ auto SensorSystem::updateContacts() -> void
 
     do
     {
-        GameObject* target = potentialContactManager->contacts[contacts[index]].object;
+        MCGameObject* target = PotentialContactManager->Contacts[Contacts[index]].Object;
 
-        if (target->isDisabled() == 0 && onSensors(target) != 0)
+        if (target->IsDisabled() == 0 && OnSensors(target) != 0)
         {
             index++;
         }
         else
         {
-            removeSensorContact(index);
+            RemoveSensorContact(index);
         }
-    } while (index < numContacts);
+    } while (index < NumContacts);
 }
 
-auto SensorSystem::updateScan(int forceScan) -> void
+auto MCSensorSystem::UpdateScan(int forceScan) -> void
 {
-    if (forceScan == 0 && (teamSensorSlot == -1 || range == -1.0f || turn <= 1))
+    if (forceScan == 0 && (TeamSensorSlot == -1 || Range == -1.0f || Turn <= 1))
     {
         return;
     }
 
-    if (owner->getAwake() == 0 || owner->getExists() == 0 || enabled() == 0)
+    if (Owner->GetAwake() == 0 || Owner->GetExists() == 0 || Enabled() == 0)
     {
-        clearSensorContacts();
+        ClearSensorContacts();
         return;
     }
 
-    if (scenarioTime <= nextScanTime && forceScan == 0)
+    if (ScenarioTime <= NextScanTime && forceScan == 0)
     {
         return;
     }
 
-    owner->getAlignment();
-    calcTeamMultipliers();
+    Owner->GetAlignment();
+    CalcTeamMultipliers();
 
-    if (scanBattlefield() > 0 && IsMover(owner))
+    if (ScanBattlefield() > 0 && IsMover(Owner))
     {
-        owner->getPilot()->radioMessage(RADIO_SENSOR_CONTACT, 0);
+        Owner->GetPilot()->RadioMessage(RADIO_SENSOR_CONTACT, 0);
     }
 
-    lastScanTime = scenarioTime;
+    LastScanTime = ScenarioTime;
 
     if (forceScan != 0)
     {
         return;
     }
 
-    nextScanTime = scanFrequency + nextScanTime;
+    NextScanTime = ScanFrequency + NextScanTime;
 }
 
-auto SensorSystem::scanBattlefield(PotentialContactType type) -> int32_t
+auto MCSensorSystem::ScanBattlefield(MCPotentialContactType type) -> int32_t
 {
-    if (team == nullptr)
+    if (Team == nullptr)
     {
         Fatal(0, " Sensor Owner has no team ");
     }
 
-    if (teamSensorSlot == -1 || range == -1.0f)
+    if (TeamSensorSlot == -1 || Range == -1.0f)
     {
         return 0;
     }
 
     int32_t newContacts = 0;
-    _PotentialContact* contact = potentialContactManager->contactList[type];
-    const Team* ownerTeam = owner->getTeam();
+    MCPotentialContact* contact = PotentialContactManager->ContactList[type];
+    const MCTeam* ownerTeam = Owner->GetTeam();
 
-    for (; contact != nullptr; contact = contact->next)
+    for (; contact != nullptr; contact = contact->Next)
     {
-        GameObject* target = contact->object;
+        MCGameObject* target = contact->Object;
 
-        if (target->getTeam() == ownerTeam)
+        if (target->GetTeam() == ownerTeam)
         {
             continue;
         }
 
-        if (onSensors(target) == 0)
+        if (OnSensors(target) == 0)
         {
-            removeSensorContact(contact);
+            RemoveSensorContact(contact);
         }
         else
         {
-            if (contact->contactStatus[teamIndex] == CONTACT_NONE)
+            if (contact->ContactStatus[TeamIndex] == CONTACT_NONE)
             {
                 newContacts++;
             }
 
-            addSensorContact(contact);
+            AddSensorContact(contact);
         }
     }
 
-    totalContacts += newContacts;
+    TotalContacts += newContacts;
     return newContacts;
 }
 
-auto SensorSystem::scanBattlefield() -> int32_t
+auto MCSensorSystem::ScanBattlefield() -> int32_t
 {
-    switch (owner->getAlignment())
+    switch (Owner->GetAlignment())
     {
         case -1:
         {
-            const int32_t innerSphere = scanBattlefield(POTENTIAL_CONTACT_INNER_SPHERE);
-            const int32_t allied = scanBattlefield(POTENTIAL_CONTACT_ALLIED);
+            const int32_t innerSphere = ScanBattlefield(POTENTIAL_CONTACT_INNER_SPHERE);
+            const int32_t allied = ScanBattlefield(POTENTIAL_CONTACT_ALLIED);
             return innerSphere + allied;
         }
 
         case 0:
         {
-            const int32_t innerSphere = scanBattlefield(POTENTIAL_CONTACT_INNER_SPHERE);
-            const int32_t clan = scanBattlefield(POTENTIAL_CONTACT_CLAN);
-            const int32_t allied = scanBattlefield(POTENTIAL_CONTACT_ALLIED);
+            const int32_t innerSphere = ScanBattlefield(POTENTIAL_CONTACT_INNER_SPHERE);
+            const int32_t clan = ScanBattlefield(POTENTIAL_CONTACT_CLAN);
+            const int32_t allied = ScanBattlefield(POTENTIAL_CONTACT_ALLIED);
             return innerSphere + clan + allied;
         }
 
         case 1:
         {
             // The Inner Sphere list is scanned, but its new contacts aren't counted.
-            scanBattlefield(POTENTIAL_CONTACT_INNER_SPHERE);
-            const int32_t clan = scanBattlefield(POTENTIAL_CONTACT_CLAN);
-            const int32_t allied = scanBattlefield(POTENTIAL_CONTACT_ALLIED);
+            ScanBattlefield(POTENTIAL_CONTACT_INNER_SPHERE);
+            const int32_t clan = ScanBattlefield(POTENTIAL_CONTACT_CLAN);
+            const int32_t allied = ScanBattlefield(POTENTIAL_CONTACT_ALLIED);
             return clan + allied;
         }
 
@@ -832,14 +832,14 @@ auto SensorSystem::scanBattlefield() -> int32_t
     }
 }
 
-auto SensorSystem::onSensors(GameObject* target) -> int
+auto MCSensorSystem::OnSensors(MCGameObject* target) -> int
 {
-    if (teamSensorSlot == -1)
+    if (TeamSensorSlot == -1)
     {
         return 0;
     }
 
-    if (range <= 0.0f)
+    if (Range <= 0.0f)
     {
         return 0;
     }
@@ -849,16 +849,16 @@ auto SensorSystem::onSensors(GameObject* target) -> int
         return 1;
     }
 
-    const _PotentialContact* contact = target->getPotentialContact();
+    const MCPotentialContact* contact = target->GetPotentialContact();
 
     if (contact != nullptr)
     {
-        if (contact->visibility == 2)
+        if (contact->Visibility == 2)
         {
             return 0;
         }
 
-        if (contact->visibility == 3 && team->lineOfSight(target->getPosition()) != 0)
+        if (contact->Visibility == 3 && Team->LineOfSight(target->GetPosition()) != 0)
         {
             return 0;
         }
@@ -867,29 +867,29 @@ auto SensorSystem::onSensors(GameObject* target) -> int
     float distance;
     double skilledRange;
 
-    if (IsMover(owner))
+    if (IsMover(Owner))
     {
-        const Mover* mover = static_cast<const Mover*>(owner);
+        const MCMover* mover = static_cast<const MCMover*>(Owner);
 
-        if (mover->sensor == 0xff)
+        if (mover->Sensor == 0xff)
         {
             return 0;
         }
 
-        if (mover->inventory[mover->sensor].disabled != 0)
+        if (mover->Inventory[mover->Sensor].Disabled != 0)
         {
             return 0;
         }
 
-        vector_3d targetPosition = target->getPosition();
-        distance = static_cast<float>(owner->distanceFrom(targetPosition));
+        MCVector3D targetPosition = target->GetPosition();
+        distance = static_cast<float>(Owner->DistanceFrom(targetPosition));
         skilledRange = SkilledRangeUnrounded(*this);
         // A working probe reaches hidden targets within its share of the range.
         double probeRange = -1.0;
 
-        if (mover->probe != 0xff && mover->inventory[mover->probe].disabled == 0)
+        if (mover->Probe != 0xff && mover->Inventory[mover->Probe].Disabled == 0)
         {
-            probeRange = static_cast<double>(MasterComponentList[mover->inventory[mover->probe].masterID].rangeOrHeat) *
+            probeRange = static_cast<double>(MasterComponentList[mover->Inventory[mover->Probe].MasterID].RangeOrHeat) *
                          skilledRange;
         }
 
@@ -900,12 +900,12 @@ auto SensorSystem::onSensors(GameObject* target) -> int
     }
     else
     {
-        vector_3d targetPosition = target->getPosition();
-        distance = static_cast<float>(owner->distanceFrom(targetPosition));
+        MCVector3D targetPosition = target->GetPosition();
+        distance = static_cast<float>(Owner->DistanceFrom(targetPosition));
         skilledRange = SkilledRangeUnrounded(*this);
     }
 
-    if (target->status == 5)
+    if (target->Status == 5)
     {
         return 0;
     }
@@ -917,101 +917,101 @@ auto SensorSystem::onSensors(GameObject* target) -> int
 // SensorSystemManager
 //---------------------------------------------------------------------------
 
-auto SensorSystemManager::init(FitIniFile*) -> int32_t
+auto MCSensorSystemManager::Init(MCFitIniFile*) -> int32_t
 {
     // Port fix: sized by the port's pointer (0x104 bytes in the original).
-    sensors = std::make_unique<SensorSystem*[]>(MAX_SENSORS);
+    Sensors = std::make_unique<MCSensorSystem*[]>(MAX_SENSORS);
 
     for (int32_t i = 0; i < MAX_SENSORS; i++)
     {
-        SensorSystem* sensor = new SensorSystem;
+        MCSensorSystem* sensor = new MCSensorSystem;
 
         if (sensor != nullptr)
         {
-            sensor->init();
+            sensor->Init();
         }
 
-        sensors[i] = sensor;
+        Sensors[i] = sensor;
     }
 
-    sensors[0]->id = 0;
-    sensors[0]->prev = nullptr;
-    sensors[0]->next = sensors[1];
+    Sensors[0]->Id = 0;
+    Sensors[0]->Prev = nullptr;
+    Sensors[0]->Next = Sensors[1];
 
     for (int32_t i = 1; i < MAX_SENSORS - 1; i++)
     {
-        sensors[i]->id = i;
-        sensors[i]->prev = sensors[i - 1];
-        sensors[i]->next = sensors[i + 1];
+        Sensors[i]->Id = i;
+        Sensors[i]->Prev = Sensors[i - 1];
+        Sensors[i]->Next = Sensors[i + 1];
     }
 
-    sensors[MAX_SENSORS - 1]->id = MAX_SENSORS - 1;
-    sensors[MAX_SENSORS - 1]->prev = sensors[MAX_SENSORS - 2];
-    sensors[MAX_SENSORS - 1]->next = nullptr;
+    Sensors[MAX_SENSORS - 1]->Id = MAX_SENSORS - 1;
+    Sensors[MAX_SENSORS - 1]->Prev = Sensors[MAX_SENSORS - 2];
+    Sensors[MAX_SENSORS - 1]->Next = nullptr;
 
-    freeList = sensors[0];
-    numFree = MAX_SENSORS;
+    FreeList = Sensors[0];
+    NumFree = MAX_SENSORS;
     return 0;
 }
 
-auto SensorSystemManager::newSensor() -> SensorSystem*
+auto MCSensorSystemManager::NewSensor() -> MCSensorSystem*
 {
-    if (numFree == 0)
+    if (NumFree == 0)
     {
         Fatal(0, " No More Free Sensors ");
     }
 
-    SensorSystem* sensor = freeList;
-    numFree--;
-    freeList = sensor->next;
+    MCSensorSystem* sensor = FreeList;
+    NumFree--;
+    FreeList = sensor->Next;
 
-    if (freeList != nullptr)
+    if (FreeList != nullptr)
     {
-        freeList->prev = nullptr;
+        FreeList->Prev = nullptr;
     }
 
-    sensor->next = nullptr;
+    sensor->Next = nullptr;
     return sensor;
 }
 
-auto SensorSystemManager::freeSensor(SensorSystem* sensor) -> void
+auto MCSensorSystemManager::FreeSensor(MCSensorSystem* sensor) -> void
 {
-    SensorSystem* oldFirst = freeList;
-    numFree++;
-    freeList = sensor;
-    sensor->prev = nullptr;
-    sensor->next = oldFirst;
+    MCSensorSystem* oldFirst = FreeList;
+    NumFree++;
+    FreeList = sensor;
+    sensor->Prev = nullptr;
+    sensor->Next = oldFirst;
 
     // Port fix: the original wrote through a null free list when every sensor was taken.
     if (oldFirst != nullptr)
     {
-        oldFirst->prev = sensor;
+        oldFirst->Prev = sensor;
     }
 }
 
-auto SensorSystemManager::destroy() -> void
+auto MCSensorSystemManager::Destroy() -> void
 {
     for (int32_t i = 0; i < MAX_SENSORS; i++)
     {
         // Clears duplicates from i on, i itself included, so the delete below never runs (see the header).
         for (int32_t j = i; j < MAX_SENSORS; j++)
         {
-            if (sensors[i] == sensors[j])
+            if (Sensors[i] == Sensors[j])
             {
-                sensors[j] = nullptr;
+                Sensors[j] = nullptr;
             }
         }
 
-        if (sensors[i] != nullptr)
+        if (Sensors[i] != nullptr)
         {
-            sensors[i]->destroy();
-            delete sensors[i];
+            Sensors[i]->Destroy();
+            delete Sensors[i];
         }
 
-        sensors[i] = nullptr;
+        Sensors[i] = nullptr;
     }
 
-    sensors.reset();
-    numFree = 0;
-    freeList = nullptr;
+    Sensors.reset();
+    NumFree = 0;
+    FreeList = nullptr;
 }

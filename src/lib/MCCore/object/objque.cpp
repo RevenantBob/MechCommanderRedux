@@ -16,25 +16,25 @@
 #include "sprite/sprtmgr.h"
 #include "terrain/terrain.h"
 
-int32_t ObjectQueue::objectsInList = 0;
-int updateObjects = 1;
-int updateTerrainObjects = 0;
-int renderObjects = 1;
-int renderTerrainObjects = 1;
+int32_t MCObjectQueue::ObjectsInList = 0;
+int UpdateObjects = 1;
+int UpdateTerrainObjects = 0;
+int RenderObjects = 1;
+int RenderTerrainObjects = 1;
 int MaxObjectsDrawn = 0;
 
 namespace
 {
     /// <summary>Whether a list holds a terrain block's objects ("TBlk%d" or "RBlk%d").</summary>
-    bool IsTerrainList(const ObjectQueueNode* node)
+    bool IsTerrainList(const MCObjectQueueNode* node)
     {
-        return std::strstr(node->id, "TBlk") != nullptr || std::strstr(node->id, "RBlk") != nullptr;
+        return std::strstr(node->Id, "TBlk") != nullptr || std::strstr(node->Id, "RBlk") != nullptr;
     }
 
     /// <summary>The list named <paramref name="listId"/> of <paramref name="first"/>'s chain, by IDString ==.</summary>
-    ObjectQueueNode* FindListById(ObjectQueueNode* first, const char* listId)
+    MCObjectQueueNode* FindListById(MCObjectQueueNode* first, const char* listId)
     {
-        for (ObjectQueueNode* node = first; node != nullptr; node = node->next)
+        for (MCObjectQueueNode* node = first; node != nullptr; node = node->Next)
         {
             if (*node == listId)
             {
@@ -46,11 +46,11 @@ namespace
     }
 
     /// <summary>The object with part id <paramref name="partId"/> in <paramref name="node"/>, or null.</summary>
-    BaseObject* FindPart(ObjectQueueNode* node, int32_t partId)
+    MCBaseObject* FindPart(MCObjectQueueNode* node, int32_t partId)
     {
-        for (BaseObject* object = node->head; object != nullptr; object = object->next)
+        for (MCBaseObject* object = node->Head; object != nullptr; object = object->Next)
         {
-            if (object->partId == partId)
+            if (object->PartId == partId)
             {
                 return object;
             }
@@ -60,86 +60,86 @@ namespace
     }
 }
 
-ObjectQueueNode::ObjectQueueNode(const char* newId)
+MCObjectQueueNode::MCObjectQueueNode(const char* newId)
 {
-    init(newId, -1);
+    Init(newId, -1);
 }
 
-auto ObjectQueueNode::init(const char* newId, int32_t newBlockNumber) -> void
+auto MCObjectQueueNode::Init(const char* newId, int32_t newBlockNumber) -> void
 {
-    std::strncpy(id, newId, 7);
-    blockNumber = newBlockNumber;
-    id[7] = 0;
-    next = nullptr;
-    tail = nullptr;
-    head = nullptr;
+    std::strncpy(Id, newId, 7);
+    BlockNumber = newBlockNumber;
+    Id[7] = 0;
+    Next = nullptr;
+    Tail = nullptr;
+    Head = nullptr;
 }
 
-auto ObjectQueueNode::addNode(BaseObject* object) -> BaseObject*
+auto MCObjectQueueNode::AddNode(MCBaseObject* object) -> MCBaseObject*
 {
     if (object != nullptr)
     {
-        object->next = nullptr;
+        object->Next = nullptr;
 
-        if (tail == nullptr)
+        if (Tail == nullptr)
         {
-            tail = object;
-            head = object;
+            Tail = object;
+            Head = object;
             return object;
         }
 
-        tail->next = object;
-        tail = object;
+        Tail->Next = object;
+        Tail = object;
     }
 
     return object;
 }
 
-auto ObjectQueueNode::removeNode(BaseObject* prev, BaseObject* object) -> void
+auto MCObjectQueueNode::RemoveNode(MCBaseObject* prev, MCBaseObject* object) -> void
 {
-    if (head == object)
+    if (Head == object)
     {
-        head = object->next;
+        Head = object->Next;
     }
 
-    if (tail == object)
+    if (Tail == object)
     {
-        tail = prev;
+        Tail = prev;
     }
 
     if (prev != nullptr)
     {
-        prev->next = object->next;
+        prev->Next = object->Next;
     }
 
-    object->next = nullptr;
+    object->Next = nullptr;
 }
 
-auto ObjectQueueNode::Traverse(BaseObject*& current) -> BaseObject*
+auto MCObjectQueueNode::Traverse(MCBaseObject*& current) -> MCBaseObject*
 {
-    current = current == nullptr ? head : current->next;
+    current = current == nullptr ? Head : current->Next;
     return current;
 }
 
-auto ObjectQueueNode::destroy() -> void
+auto MCObjectQueueNode::Destroy() -> void
 {
-    BaseObject* object = head;
+    MCBaseObject* object = Head;
 
     while (object != nullptr)
     {
-        BaseObject* nextObject = object->next;
+        MCBaseObject* nextObject = object->Next;
         delete object;
         object = nextObject;
     }
 
-    tail = nullptr;
-    head = nullptr;
+    Tail = nullptr;
+    Head = nullptr;
 }
 
-auto ObjectQueueNode::remove(BaseObject* object) -> int
+auto MCObjectQueueNode::Remove(MCBaseObject* object) -> int
 {
-    BaseObject* prev = nullptr;
-    BaseObject* current = head;
+    MCBaseObject* prev = nullptr;
+    MCBaseObject* current = Head;
 
     while (true)
     {
@@ -154,68 +154,68 @@ auto ObjectQueueNode::remove(BaseObject* object) -> int
         }
 
         prev = current;
-        current = current->next;
+        current = current->Next;
     }
 
-    removeNode(prev, current);
+    RemoveNode(prev, current);
     delete current;
     return 1;
 }
 
-auto ObjectQueueNode::render() -> void
+auto MCObjectQueueNode::Render() -> void
 {
-    if (!((IsTerrainList(this) && renderTerrainObjects != 0) || (!IsTerrainList(this) && renderObjects != 0)))
+    if (!((IsTerrainList(this) && RenderTerrainObjects != 0) || (!IsTerrainList(this) && RenderObjects != 0)))
     {
         return;
     }
 
     // The original breaks into the debugger (int 3) when "TBlk" is found other than at the start of the name.
-    if (!blockInList(blockNumber))
+    if (!BlockInList(BlockNumber))
     {
         return;
     }
 
-    for (BaseObject* object = head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = Head; object != nullptr; object = object->Next)
     {
-        object->render();
+        object->Render();
 
-        if (gRestartRender != 0 || MaxObjectsDrawn != 0)
+        if (GRestartRender != 0 || MaxObjectsDrawn != 0)
         {
             return;
         }
     }
 }
 
-auto ObjectQueueNode::update() -> void
+auto MCObjectQueueNode::Update() -> void
 {
     const bool terrain = IsTerrainList(this);
 
-    if (!((terrain && updateTerrainObjects != 0) || (!terrain && updateObjects != 0)))
+    if (!((terrain && UpdateTerrainObjects != 0) || (!terrain && UpdateObjects != 0)))
     {
         return;
     }
 
-    if (!blockInList(blockNumber))
+    if (!BlockInList(BlockNumber))
     {
         return;
     }
 
-    BaseObject* prev = nullptr;
+    MCBaseObject* prev = nullptr;
 
     while (true)
     {
-        BaseObject* object = prev == nullptr ? head : prev->next;
+        MCBaseObject* object = prev == nullptr ? Head : prev->Next;
 
         if (object == nullptr)
         {
             break;
         }
 
-        ObjectQueue::objectsInList++;
+        MCObjectQueue::ObjectsInList++;
 
-        if (object->update() == 0 && object->getObjectType() != nullptr)
+        if (object->Update() == 0 && object->GetObjectType() != nullptr)
         {
-            removeNode(prev, object);
+            RemoveNode(prev, object);
             delete object;
             continue;
         }
@@ -224,28 +224,28 @@ auto ObjectQueueNode::update() -> void
     }
 }
 
-auto ObjectQueueNode::findObjectFromEvent(ObjectEvent* event, int skipDisabled) -> BaseObject*
+auto MCObjectQueueNode::FindObjectFromEvent(MCObjectEvent* event, int skipDisabled) -> MCBaseObject*
 {
-    if (!blockInList(blockNumber))
+    if (!BlockInList(BlockNumber))
     {
         return nullptr;
     }
 
-    for (BaseObject* object = head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = Head; object != nullptr; object = object->Next)
     {
-        auto* gameObject = static_cast<GameObject*>(object);
-        Appearance* appearance = object->getAppearance();
+        auto* gameObject = static_cast<MCGameObject*>(object);
+        MCAppearance* appearance = object->GetAppearance();
 
-        if (appearance == nullptr || appearance->visible == 0)
+        if (appearance == nullptr || appearance->Visible == 0)
         {
             // The original also tests objectClass 0x14 against floats at +0x94..+0xa0, but no class ever sets
             // 0x14 (see ObjectClass), so that branch is dead and left out.
-            if (object->objectClass != MISCTERRAINOBJECT)
+            if (object->ObjectClass != MISCTERRAINOBJECT)
             {
                 continue;
             }
 
-            Camera* cam = event->window->GetCamera();
+            MCCamera* cam = event->Window->GetCamera();
 
             if (cam == nullptr)
             {
@@ -253,21 +253,21 @@ auto ObjectQueueNode::findObjectFromEvent(ObjectEvent* event, int skipDisabled) 
             }
 
             // Port: on the view's world surface, through the zoom.
-            const vector_2d mouse = MCWindowPoint(event->window, event->event.x, event->event.y);
-            const float mouseX = mouse.x;
-            const float mouseY = mouse.y;
-            auto* misc = static_cast<MiscTerrainObject*>(object);
-            int32_t block = misc->blockNumber;
-            int32_t vertex = misc->vertexNumber;
+            const MCVector2D mouse = MCWindowPoint(event->Window, event->Event.X, event->Event.Y);
+            const float mouseX = mouse.X;
+            const float mouseY = mouse.Y;
+            auto* misc = static_cast<MCMiscTerrainObject*>(object);
+            int32_t block = misc->BlockNumber;
+            int32_t vertex = misc->VertexNumber;
 
             if (block < 0)
             {
                 block = 0;
             }
 
-            if (block >= Terrain::totalBlocks)
+            if (block >= MCTerrain::TotalBlocks)
             {
-                block = Terrain::totalBlocks - 1;
+                block = MCTerrain::TotalBlocks - 1;
             }
 
             if (vertex < 0)
@@ -275,12 +275,12 @@ auto ObjectQueueNode::findObjectFromEvent(ObjectEvent* event, int skipDisabled) 
                 vertex = 0;
             }
 
-            if (vertex >= verticesPerBlock)
+            if (vertex >= VerticesPerBlock)
             {
-                vertex = verticesPerBlock - 1;
+                vertex = VerticesPerBlock - 1;
             }
 
-            const int32_t screenX = Terrain::screenPosX[Terrain::blockOffsets[block] + vertex];
+            const int32_t screenX = MCTerrain::ScreenPosX[MCTerrain::BlockOffsets[block] + vertex];
 
             if (screenX == 0x11111111)
             {
@@ -289,11 +289,11 @@ auto ObjectQueueNode::findObjectFromEvent(ObjectEvent* event, int skipDisabled) 
 
             // The box sits 70 pixels below the vertex: 50 pixels each way for kind 5, 30 otherwise, halved when
             // zoomed out.
-            const float scale = cam->cameraScale == 1 ? 0.5f : 1.0f;
-            const float halfSize = misc->terrainObjectKind == 5 ? 50.0f : 30.0f;
+            const float scale = cam->CameraScale == 1 ? 0.5f : 1.0f;
+            const float halfSize = misc->TerrainObjectKind == 5 ? 50.0f : 30.0f;
             const float centerX = static_cast<float>(screenX);
             const float centerY =
-                scale * 70.0f + static_cast<float>(Terrain::screenPosY[Terrain::blockOffsets[block] + vertex]);
+                scale * 70.0f + static_cast<float>(MCTerrain::ScreenPosY[MCTerrain::BlockOffsets[block] + vertex]);
 
             if (centerX - scale * halfSize <= mouseX && mouseX <= scale * halfSize + centerX &&
                 centerY - scale * halfSize <= mouseY && mouseY <= scale * halfSize + centerY)
@@ -304,43 +304,43 @@ auto ObjectQueueNode::findObjectFromEvent(ObjectEvent* event, int skipDisabled) 
             continue;
         }
 
-        if (gameObject->getWindowsVisible() <= turn - 3)
+        if (gameObject->GetWindowsVisible() <= Turn - 3)
         {
             continue;
         }
 
-        appearance->recalcBounds(event->window->GetCamera());
+        appearance->RecalcBounds(event->Window->GetCamera());
         // Port: on the view's world surface, through the zoom.
-        const vector_2d mouse = MCWindowPoint(event->window, event->event.x, event->event.y);
-        const float mouseX = mouse.x;
-        const float mouseY = mouse.y;
-        AppearanceType* type = appearance->getAppearanceType();
+        const MCVector2D mouse = MCWindowPoint(event->Window, event->Event.X, event->Event.Y);
+        const float mouseX = mouse.X;
+        const float mouseY = mouse.Y;
+        MCAppearanceType* type = appearance->GetAppearanceType();
 
-        if (type != nullptr && (type->boundsUpperLeftX != 0 || type->boundsUpperLeftY != 0 ||
-                                type->boundsLowerRightX != 0 || type->boundsLowerRightY != 0))
+        if (type != nullptr && (type->BoundsUpperLeftX != 0 || type->BoundsUpperLeftY != 0 ||
+                                type->BoundsLowerRightX != 0 || type->BoundsLowerRightY != 0))
         {
             // Zoomed out, the type's pixel bounds are halved.
-            const int shift = eye->cameraScale == 1 ? 1 : 0;
-            const int32_t left = type->boundsUpperLeftX >> shift;
-            const int32_t top = type->boundsUpperLeftY >> shift;
-            const int32_t right = type->boundsLowerRightX >> shift;
-            const int32_t bottom = type->boundsLowerRightY >> shift;
+            const int shift = Eye->CameraScale == 1 ? 1 : 0;
+            const int32_t left = type->BoundsUpperLeftX >> shift;
+            const int32_t top = type->BoundsUpperLeftY >> shift;
+            const int32_t right = type->BoundsLowerRightX >> shift;
+            const int32_t bottom = type->BoundsLowerRightY >> shift;
 
-            if (!(static_cast<float>(left) + appearance->getScreenPos(nullptr).x <= mouseX &&
-                  mouseX <= static_cast<float>(right) + appearance->getScreenPos(nullptr).x &&
-                  static_cast<float>(top) + appearance->getScreenPos(nullptr).y <= mouseY &&
-                  mouseY <= static_cast<float>(bottom) + appearance->getScreenPos(nullptr).y))
+            if (!(static_cast<float>(left) + appearance->GetScreenPos(nullptr).X <= mouseX &&
+                  mouseX <= static_cast<float>(right) + appearance->GetScreenPos(nullptr).X &&
+                  static_cast<float>(top) + appearance->GetScreenPos(nullptr).Y <= mouseY &&
+                  mouseY <= static_cast<float>(bottom) + appearance->GetScreenPos(nullptr).Y))
             {
                 continue;
             }
         }
-        else if (mouseX < appearance->upperLeft.x || appearance->lowerRight.x < mouseX ||
-                 mouseY < appearance->upperLeft.y || appearance->lowerRight.y < mouseY)
+        else if (mouseX < appearance->UpperLeft.X || appearance->LowerRight.X < mouseX ||
+                 mouseY < appearance->UpperLeft.Y || appearance->LowerRight.Y < mouseY)
         {
             continue;
         }
 
-        if (gameObject->isDisabled() == 0 && gameObject->isDestroyed() == 0)
+        if (gameObject->IsDisabled() == 0 && gameObject->IsDestroyed() == 0)
         {
             return object;
         }
@@ -354,39 +354,39 @@ auto ObjectQueueNode::findObjectFromEvent(ObjectEvent* event, int skipDisabled) 
     return nullptr;
 }
 
-auto ObjectQueueNode::handleEvent(ObjectEvent* event) -> BaseObject*
+auto MCObjectQueueNode::HandleEvent(MCObjectEvent* event) -> MCBaseObject*
 {
-    BaseObject* object = findObjectFromEvent(event, 0);
+    MCBaseObject* object = FindObjectFromEvent(event, 0);
 
     if (object != nullptr)
     {
-        object->handleEvent(event);
+        object->HandleEvent(event);
     }
 
     return object;
 }
 
-auto ObjectQueueNode::findObject(vector_3d position, float& distance) -> BaseObject*
+auto MCObjectQueueNode::FindObject(MCVector3D position, float& distance) -> MCBaseObject*
 {
-    BaseObject* result = nullptr;
+    MCBaseObject* result = nullptr;
 
-    for (BaseObject* object = head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = Head; object != nullptr; object = object->Next)
     {
-        if (static_cast<int32_t>(object->objectClass) <= 0)
+        if (static_cast<int32_t>(object->ObjectClass) <= 0)
         {
             continue;
         }
 
-        auto* gameObject = static_cast<GameObject*>(object);
+        auto* gameObject = static_cast<MCGameObject*>(object);
 
-        if (gameObject->inTransport() != 0)
+        if (gameObject->InTransport() != 0)
         {
             continue;
         }
 
-        const auto objectDistance = static_cast<float>(gameObject->distanceFrom(position));
-        ObjectType* type = gameObject->getObjectType();
-        const float extent = type != nullptr ? type->extentRadius : 0.0f;
+        const auto objectDistance = static_cast<float>(gameObject->DistanceFrom(position));
+        MCObjectType* type = gameObject->GetObjectType();
+        const float extent = type != nullptr ? type->ExtentRadius : 0.0f;
 
         if (objectDistance < extent && objectDistance < distance)
         {
@@ -398,72 +398,72 @@ auto ObjectQueueNode::findObject(vector_3d position, float& distance) -> BaseObj
     return result;
 }
 
-auto ObjectQueueNode::makeObjDataBlock(ObjData* data) -> int32_t
+auto MCObjectQueueNode::MakeObjDataBlock(MCObjData* data) -> int32_t
 {
     std::memset(data, 0xff, 0x898);
     int32_t count = 0;
 
-    for (BaseObject* object = head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = Head; object != nullptr; object = object->Next)
     {
         count++;
-        ObjectType* type = object->getObjectType();
+        MCObjectType* type = object->GetObjectType();
 
-        if (type == nullptr || object->objectClass != BUILDING)
+        if (type == nullptr || object->ObjectClass != BUILDING)
         {
-            data->objTypeNum = -1;
-            data->blockNumber = 0;
-            data->vertexNumber = 0;
-            data->pixelOffsetY = 0;
-            data->pixelOffsetX = 0;
-            data->damage = 0;
+            data->ObjTypeNum = -1;
+            data->BlockNumber = 0;
+            data->VertexNumber = 0;
+            data->PixelOffsetY = 0;
+            data->PixelOffsetX = 0;
+            data->Damage = 0;
         }
         else
         {
-            auto* building = static_cast<Building*>(object);
-            data->pixelOffsetX = static_cast<int16_t>(building->pixelOffsetX);
-            data->objTypeNum = static_cast<int16_t>(type->objTypeNum);
-            data->pixelOffsetY = static_cast<int16_t>(building->pixelOffsetY);
-            data->blockNumber = static_cast<int16_t>(building->blockNumber);
-            data->vertexNumber = static_cast<int16_t>(building->vertexNumber);
-            data->damage = static_cast<uint8_t>(static_cast<int32_t>(building->getDamage()));
+            auto* building = static_cast<MCBuilding*>(object);
+            data->PixelOffsetX = static_cast<int16_t>(building->PixelOffsetX);
+            data->ObjTypeNum = static_cast<int16_t>(type->ObjTypeNum);
+            data->PixelOffsetY = static_cast<int16_t>(building->PixelOffsetY);
+            data->BlockNumber = static_cast<int16_t>(building->BlockNumber);
+            data->VertexNumber = static_cast<int16_t>(building->VertexNumber);
+            data->Damage = static_cast<uint8_t>(static_cast<int32_t>(building->GetDamage()));
         }
 
         data++;
     }
 
-    data->objTypeNum = -1;
-    data->blockNumber = 0;
-    data->vertexNumber = 0;
-    data->pixelOffsetY = 0;
-    data->pixelOffsetX = 0;
-    data->damage = 0;
+    data->ObjTypeNum = -1;
+    data->BlockNumber = 0;
+    data->VertexNumber = 0;
+    data->PixelOffsetY = 0;
+    data->PixelOffsetX = 0;
+    data->Damage = 0;
     return count;
 }
 
-auto ObjectQueue::addList(ObjectQueueNode* node) -> void
+auto MCObjectQueue::AddList(MCObjectQueueNode* node) -> void
 {
     if (node != nullptr)
     {
-        node->next = nullptr;
+        node->Next = nullptr;
 
-        if (tail == nullptr)
+        if (Tail == nullptr)
         {
-            tail = node;
-            head = node;
+            Tail = node;
+            Head = node;
             return;
         }
 
-        tail->next = node;
-        tail = node;
+        Tail->Next = node;
+        Tail = node;
     }
 }
 
-auto ObjectQueue::findList(const char* listId) -> ObjectQueueNode*
+auto MCObjectQueue::FindList(const char* listId) -> MCObjectQueueNode*
 {
     // The original compares up to eight characters, stopping at the end of listId.
-    for (ObjectQueueNode* node = head; node != nullptr; node = node->next)
+    for (MCObjectQueueNode* node = Head; node != nullptr; node = node->Next)
     {
-        if (std::strncmp(listId, node->id, 8) == 0)
+        if (std::strncmp(listId, node->Id, 8) == 0)
         {
             return node;
         }
@@ -472,58 +472,58 @@ auto ObjectQueue::findList(const char* listId) -> ObjectQueueNode*
     return nullptr;
 }
 
-auto ObjectQueue::render() -> void
+auto MCObjectQueue::Render() -> void
 {
-    for (ObjectQueueNode* node = head; node != nullptr; node = node->next)
+    for (MCObjectQueueNode* node = Head; node != nullptr; node = node->Next)
     {
-        if (node->head != nullptr)
+        if (node->Head != nullptr)
         {
-            node->render();
+            node->Render();
         }
 
-        if (gRestartRender != 0 || MaxObjectsDrawn != 0)
+        if (GRestartRender != 0 || MaxObjectsDrawn != 0)
         {
             return;
         }
     }
 }
 
-auto ObjectQueue::update() -> void
+auto MCObjectQueue::Update() -> void
 {
-    objectsInList = 0;
+    ObjectsInList = 0;
 
-    for (ObjectQueueNode* node = head; node != nullptr; node = node->next)
+    for (MCObjectQueueNode* node = Head; node != nullptr; node = node->Next)
     {
-        if (node->head != nullptr)
+        if (node->Head != nullptr)
         {
-            node->update();
+            node->Update();
         }
     }
 }
 
-auto ObjectQueue::findObjectFromEvent(ObjectEvent* event) -> BaseObject*
+auto MCObjectQueue::FindObjectFromEvent(MCObjectEvent* event) -> MCBaseObject*
 {
-    ObjectQueueNode* node = head;
-    BaseObject* result;
+    MCObjectQueueNode* node = Head;
+    MCBaseObject* result;
 
-    if (homeTeam->id == -1)
+    if (HomeTeam->Id == -1)
     {
-        result = innerSphereMechList->findObjectFromEvent(event, 1);
+        result = InnerSphereMechList->FindObjectFromEvent(event, 1);
     }
     else
     {
-        result = clanMechList->findObjectFromEvent(event, 1);
+        result = ClanMechList->FindObjectFromEvent(event, 1);
     }
 
     if (result == nullptr)
     {
-        result = node->findObjectFromEvent(event, 1);
+        result = node->FindObjectFromEvent(event, 1);
 
-        for (; result == nullptr && node != nullptr; node = node->next)
+        for (; result == nullptr && node != nullptr; node = node->Next)
         {
-            if (node->head != nullptr)
+            if (node->Head != nullptr)
             {
-                result = node->findObjectFromEvent(event, 0);
+                result = node->FindObjectFromEvent(event, 0);
             }
         }
     }
@@ -531,48 +531,48 @@ auto ObjectQueue::findObjectFromEvent(ObjectEvent* event) -> BaseObject*
     return result;
 }
 
-auto ObjectQueue::handleEvent(ObjectEvent* event) -> BaseObject*
+auto MCObjectQueue::HandleEvent(MCObjectEvent* event) -> MCBaseObject*
 {
-    BaseObject* result = nullptr;
+    MCBaseObject* result = nullptr;
 
-    for (ObjectQueueNode* node = head; node != nullptr && result == nullptr; node = node->next)
+    for (MCObjectQueueNode* node = Head; node != nullptr && result == nullptr; node = node->Next)
     {
-        if (node->head != nullptr)
+        if (node->Head != nullptr)
         {
-            result = node->handleEvent(event);
+            result = node->HandleEvent(event);
         }
     }
 
     return result;
 }
 
-auto ObjectQueue::handleEvent(uint32_t partId, ObjectEvent* event) -> BaseObject*
+auto MCObjectQueue::HandleEvent(uint32_t partId, MCObjectEvent* event) -> MCBaseObject*
 {
-    BaseObject* object = findObjectFromPart(static_cast<int32_t>(partId));
+    MCBaseObject* object = FindObjectFromPart(static_cast<int32_t>(partId));
 
     if (object != nullptr)
     {
-        object->handleEvent(event);
+        object->HandleEvent(event);
         return object;
     }
 
     return nullptr;
 }
 
-auto ObjectQueue::findObject(vector_3d position) -> BaseObject*
+auto MCObjectQueue::FindObject(MCVector3D position) -> MCBaseObject*
 {
-    BaseObject* result = nullptr;
+    MCBaseObject* result = nullptr;
     float bestDistance = 100000.0f;
 
-    for (ObjectQueueNode* node = head; node != nullptr; node = node->next)
+    for (MCObjectQueueNode* node = Head; node != nullptr; node = node->Next)
     {
-        if (node->head == nullptr)
+        if (node->Head == nullptr)
         {
             continue;
         }
 
         float distance = 100000.0f;
-        BaseObject* object = node->findObject(position, distance);
+        MCBaseObject* object = node->FindObject(position, distance);
 
         if (object != nullptr && distance < bestDistance)
         {
@@ -584,15 +584,15 @@ auto ObjectQueue::findObject(vector_3d position) -> BaseObject*
     return result;
 }
 
-auto ObjectQueue::findObjectId(int32_t typeId) -> BaseObject*
+auto MCObjectQueue::FindObjectId(int32_t typeId) -> MCBaseObject*
 {
-    for (ObjectQueueNode* node = head; node != nullptr; node = node->next)
+    for (MCObjectQueueNode* node = Head; node != nullptr; node = node->Next)
     {
-        for (BaseObject* object = node->head; object != nullptr; object = object->next)
+        for (MCBaseObject* object = node->Head; object != nullptr; object = object->Next)
         {
-            ObjectType* type = object->getObjectType();
+            MCObjectType* type = object->GetObjectType();
 
-            if (type != nullptr && type->objTypeNum == typeId)
+            if (type != nullptr && type->ObjTypeNum == typeId)
             {
                 return object;
             }
@@ -602,7 +602,7 @@ auto ObjectQueue::findObjectId(int32_t typeId) -> BaseObject*
     return nullptr;
 }
 
-auto ObjectQueue::findObjectFromPart(int32_t partId) -> BaseObject*
+auto MCObjectQueue::FindObjectFromPart(int32_t partId) -> MCBaseObject*
 {
     if (partId == 0 || partId < 0x200)
     {
@@ -611,17 +611,17 @@ auto ObjectQueue::findObjectFromPart(int32_t partId) -> BaseObject*
 
     if (partId < 0x1000)
     {
-        return getMoverFromPartId(partId);
+        return GetMoverFromPartId(partId);
     }
 
     const int32_t blockNum = (partId - 0x1000) / 0xc80;
     char listId[12];
     std::snprintf(listId, sizeof(listId), "TBlk%d", blockNum);
-    ObjectQueueNode* node = FindListById(head, listId);
+    MCObjectQueueNode* node = FindListById(Head, listId);
 
-    if (node != nullptr && node->head != nullptr)
+    if (node != nullptr && node->Head != nullptr)
     {
-        if (BaseObject* object = FindPart(node, partId))
+        if (MCBaseObject* object = FindPart(node, partId))
         {
             return object;
         }
@@ -629,29 +629,29 @@ auto ObjectQueue::findObjectFromPart(int32_t partId) -> BaseObject*
 
     // Not in the block's TBlk list (movers, light walls): try its RBlk list (buildings and the rest).
     std::snprintf(listId, sizeof(listId), "RBlk%d", blockNum);
-    node = FindListById(head, listId);
+    node = FindListById(Head, listId);
 
-    if (node != nullptr && node->head != nullptr)
+    if (node != nullptr && node->Head != nullptr)
     {
-        if (BaseObject* object = FindPart(node, partId))
+        if (MCBaseObject* object = FindPart(node, partId))
         {
             return object;
         }
     }
 
-    return head != nullptr ? FindPart(head, partId) : nullptr;
+    return Head != nullptr ? FindPart(Head, partId) : nullptr;
 }
 
-auto ObjectQueue::findObjectInGroup(BaseObject* current, int32_t groupId) -> BaseObject*
+auto MCObjectQueue::FindObjectInGroup(MCBaseObject* current, int32_t groupId) -> MCBaseObject*
 {
     // Steps from current (or the list's head) until test passes; null at the end.
-    auto step = [current](ObjectQueueNode* list, auto test) -> BaseObject*
+    auto step = [current](MCObjectQueueNode* list, auto test) -> MCBaseObject*
     {
-        BaseObject* object = current == nullptr ? list->head : current->next;
+        MCBaseObject* object = current == nullptr ? list->Head : current->Next;
 
         while (object != nullptr && !test(object))
         {
-            object = object->next;
+            object = object->Next;
         }
 
         return object;
@@ -664,45 +664,46 @@ auto ObjectQueue::findObjectInGroup(BaseObject* current, int32_t groupId) -> Bas
 
     if (groupId == 500)
     {
-        return step(innerSphereMechList, [](BaseObject* object) { return object->underPlayerControl() != 0; });
+        return step(InnerSphereMechList, [](MCBaseObject* object) { return object->UnderPlayerControl() != 0; });
     }
 
     if (groupId == 501)
     {
-        return current != nullptr ? current->next : clanMechList->head;
+        return current != nullptr ? current->Next : ClanMechList->Head;
     }
 
     if (groupId == 502)
     {
-        return step(innerSphereMechList, [](BaseObject* object) { return object->underPlayerControl() == 0; });
+        return step(InnerSphereMechList, [](MCBaseObject* object) { return object->UnderPlayerControl() == 0; });
     }
 
     if (groupId >= 1 && groupId <= 0x20)
     {
-        return step(innerSphereMechList, [groupId](BaseObject* object) { return object->getGroupId() == groupId - 1; });
+        return step(InnerSphereMechList,
+                    [groupId](MCBaseObject* object) { return object->GetGroupId() == groupId - 1; });
     }
 
     if (groupId >= 0x149 && groupId <= 0x168)
     {
-        return step(innerSphereMechList,
-                    [groupId](BaseObject* object) { return object->getGroupId() == groupId - 0x149; });
+        return step(InnerSphereMechList,
+                    [groupId](MCBaseObject* object) { return object->GetGroupId() == groupId - 0x149; });
     }
 
     if (groupId >= 0xa5 && groupId <= 0xc4)
     {
-        return step(clanMechList, [groupId](BaseObject* object) { return object->getGroupId() == groupId - 0xa5; });
+        return step(ClanMechList, [groupId](MCBaseObject* object) { return object->GetGroupId() == groupId - 0xa5; });
     }
 
     return nullptr;
 }
 
-auto ObjectQueue::traverse(BaseObject*& current) -> BaseObject*
+auto MCObjectQueue::Traverse(MCBaseObject*& current) -> MCBaseObject*
 {
-    BaseObject* result = nullptr;
+    MCBaseObject* result = nullptr;
 
-    if (current == nullptr || (result = current->next) == nullptr)
+    if (current == nullptr || (result = current->Next) == nullptr)
     {
-        ObjectQueueNode* node = head;
+        MCObjectQueueNode* node = Head;
 
         if (current != nullptr)
         {
@@ -714,8 +715,8 @@ auto ObjectQueue::traverse(BaseObject*& current) -> BaseObject*
             }
             while (true)
             {
-                BaseObject* last = node->tail;
-                node = node->next;
+                MCBaseObject* last = node->Tail;
+                node = node->Next;
 
                 if (last == current)
                 {
@@ -730,7 +731,7 @@ auto ObjectQueue::traverse(BaseObject*& current) -> BaseObject*
             }
         }
 
-        for (; node != nullptr && (result = node->head) == nullptr; node = node->next)
+        for (; node != nullptr && (result = node->Head) == nullptr; node = node->Next)
         {
         }
     }
@@ -739,16 +740,16 @@ auto ObjectQueue::traverse(BaseObject*& current) -> BaseObject*
     return result;
 }
 
-auto blockInList(int32_t blockNumber) -> int
+auto BlockInList(int32_t blockNumber) -> int
 {
     for (int32_t i = 0; i < MAX_BLOCK_LIST; i++)
     {
-        if (usedBlockList[i] == blockNumber)
+        if (UsedBlockList[i] == blockNumber)
         {
             return 1;
         }
 
-        if (usedBlockList[i] == -1)
+        if (UsedBlockList[i] == -1)
         {
             break;
         }

@@ -1,24 +1,24 @@
 #include "stdafx.h"
 #include "lib/cident.h"
 
-FullPathFileName::~FullPathFileName()
+MCFullPathFileName::~MCFullPathFileName()
 {
-    destroy();
+    Destroy();
 }
 
-void FullPathFileName::destroy()
+void MCFullPathFileName::Destroy()
 {
-    fullName.clear();
+    FullName.clear();
 }
 
-void FullPathFileName::init(const char* dir_path, const char* name, const char* ext)
+void MCFullPathFileName::Init(const char* dirPath, const char* name, const char* ext)
 {
     // Port fix: a null extension crashed the original's length count.
-    fullName = dir_path;
-    fullName += name;
+    FullName = dirPath;
+    FullName += name;
 
     if (ext != nullptr)
     {
-        fullName += ext;
+        FullName += ext;
     }
 }

@@ -8,22 +8,22 @@
 TEST_CASE("linkup: a message's buffer is a zeroed linkup block, freed with the message")
 {
     InitLinkUpBlocks();
-    REQUIRE(linkUpBlocks != nullptr);
-    MCBlockStore* store = linkUpBlocks.get();
+    REQUIRE(LinkUpBlocks != nullptr);
+    MCBlockStore* store = LinkUpBlocks.get();
     InitLinkUpBlocks();
-    CHECK(linkUpBlocks.get() == store);
+    CHECK(LinkUpBlocks.get() == store);
     const size_t before = store->Count();
 
-    auto* message = new FIDPMessage(7, 64);
-    REQUIRE(message->messageBuffer != nullptr);
-    CHECK(store->Owns(message->messageBuffer));
+    auto* message = new MCFidpMessage(7, 64);
+    REQUIRE(message->MessageBuffer != nullptr);
+    CHECK(store->Owns(message->MessageBuffer));
     CHECK_EQ(store->Count(), before + 1);
-    CHECK(std::ranges::all_of(std::span(message->messageBuffer, 64), [](uint8_t value) { return value == 0; }));
+    CHECK(std::ranges::all_of(std::span(message->MessageBuffer, 64), [](uint8_t value) { return value == 0; }));
 
     uint8_t data[100] = {};
     data[0] = 0x42;
     CHECK_EQ(message->SetMessageBuffer(data, sizeof(data)), 64u);
-    CHECK_EQ(message->messageBuffer[0], 0x42);
+    CHECK_EQ(message->MessageBuffer[0], 0x42);
 
     delete message;
     CHECK_EQ(store->Count(), before);
@@ -31,5 +31,5 @@ TEST_CASE("linkup: a message's buffer is a zeroed linkup block, freed with the m
     // What is never freed goes when the store is destroyed.
     store->Allocate(16);
     DestroyLinkUpBlocks();
-    CHECK(linkUpBlocks == nullptr);
+    CHECK(LinkUpBlocks == nullptr);
 }

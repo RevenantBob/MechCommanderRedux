@@ -20,16 +20,16 @@
 #include "object/warrior.h"
 #include "terrain/terrain.h"
 
-int32_t GlobalMap::minTileR = 0;
-int32_t GlobalMap::maxTileR = 0;
-int32_t GlobalMap::minTileC = 0;
-int32_t GlobalMap::maxTileC = 0;
+int32_t MCGlobalMap::MinTileR = 0;
+int32_t MCGlobalMap::MaxTileR = 0;
+int32_t MCGlobalMap::MinTileC = 0;
+int32_t MCGlobalMap::MaxTileC = 0;
 
 int BlockWallTiles = 1;
 int32_t SimpleMovePathRange = 7;
-char rowShift[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
-char colShift[8] = {0, 1, 1, 1, 0, -1, -1, -1};
-int32_t cellShift[NUM_CELL_OFFSETS * 2] = {
+char RowShift[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+char ColShift[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+int32_t CellShift[NUM_CELL_OFFSETS * 2] = {
     -1,  0, -1,  1,   0, 1,   1,   1,   1,   0,  1,   -1,  0,  -1,  -1,  -1,  -2,  0, -2,  2,   0, 2,   2,   2,
     2,   0, 2,   -2,  0, -2,  -2,  -2,  -3,  0,  -3,  3,   0,  3,   3,   3,   3,   0, 3,   -3,  0, -3,  -3,  -3,
     -3,  2, -2,  3,   2, 3,   3,   2,   3,   -2, 2,   -3,  -2, -3,  -3,  -2,  -4,  0, -4,  4,   0, 4,   4,   4,
@@ -41,7 +41,7 @@ int32_t cellShift[NUM_CELL_OFFSETS * 2] = {
     -12, 0, -12, 12,  0, 12,  12,  12,  12,  0,  12,  -12, 0,  -12, -12, -12,
 };
 
-char reverseShift[NUM_CELL_OFFSETS] = {
+char ReverseShift[NUM_CELL_OFFSETS] = {
     4,  5,  6,  7,  0,  1,  2,  3,  12, 13, 14, 15, 8,  9,  10, 11, 20, 21, 22,  23,  16,  17,  18, 19, 28, 29,
     30, 31, 24, 25, 26, 27, 36, 37, 38, 39, 32, 33, 34, 35, 44, 45, 46, 47, 40,  41,  42,  43,  52, 53, 54, 55,
     48, 49, 50, 51, 60, 61, 62, 63, 56, 57, 58, 59, 68, 69, 70, 71, 64, 65, 66,  67,  76,  77,  78, 79, 72, 73,
@@ -50,8 +50,8 @@ char reverseShift[NUM_CELL_OFFSETS] = {
 
 int IsDiagonalStep[NUM_CELL_OFFSETS] = {0, 1, 0, 1, 0, 1, 0, 1};
 int32_t StepAdjDir[9] = {-1, 0, 2, 2, 4, 4, 6, 6, 0};
-int32_t adjTile[4][2] = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
-char mineLayout[4][9] = {{}, {}, {1, 0, 1, 0, 1, 0, 1, 0, 1}, {}};
+int32_t AdjTile[4][2] = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
+char MineLayout[4][9] = {{}, {}, {1, 0, 1, 0, 1, 0, 1, 0, 1}, {}};
 int32_t MaxHPrime = 1000;
 char OverlayIsBridge[NUM_OVERLAY_TYPES] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -67,7 +67,7 @@ char OverlayIsDirtRoad[NUM_OVERLAY_TYPES] = {
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
 };
 
-int32_t adjCellTable[MAPCELL_DIM * MAPCELL_DIM][8][4] = {
+int32_t AdjCellTable[MAPCELL_DIM * MAPCELL_DIM][8][4] = {
     {{-1, 0, 2, 0},
      {-1, 0, 2, 1},
      {0, 0, 0, 1},
@@ -86,27 +86,27 @@ int32_t adjCellTable[MAPCELL_DIM * MAPCELL_DIM][8][4] = {
     {{0, 0, 1, 2}, {0, 1, 1, 0}, {0, 1, 2, 0}, {1, 1, 0, 0}, {1, 0, 0, 2}, {1, 0, 0, 1}, {0, 0, 2, 1}, {0, 0, 1, 1}},
 };
 
-float cellColToWorldCoord[MAX_MAP_CELL_WIDTH] = {};
-float cellToWorldCoord[MAPCELL_DIM] = {};
-float tileColToWorldCoord[MAX_MAP_TILE_WIDTH] = {};
-float cellShiftDistance[NUM_CELL_OFFSETS] = {};
-float tileRowToWorldCoord[MAX_MAP_TILE_WIDTH] = {};
+float CellColToWorldCoord[MAX_MAP_CELL_WIDTH] = {};
+float CellToWorldCoord[MAPCELL_DIM] = {};
+float TileColWorldCoords[MAX_MAP_TILE_WIDTH] = {};
+float CellShiftDistance[NUM_CELL_OFFSETS] = {};
+float TileRowWorldCoords[MAX_MAP_TILE_WIDTH] = {};
 int32_t OverlayWeightIndex[NUM_OVERLAY_TYPES] = {};
-float cellRowToWorldCoord[MAX_MAP_CELL_WIDTH] = {};
+float CellRowToWorldCoord[MAX_MAP_CELL_WIDTH] = {};
 int32_t OverlayWeightTable[NUM_MOVE_LEVELS * OVERLAY_WEIGHT_LEVEL_SIZE] = {};
-int32_t tileMulMAPCELL_DIM[MAX_MAP_TILE_WIDTH] = {};
+int32_t TileMulMapcellDim[MAX_MAP_TILE_WIDTH] = {};
 int32_t MoveChunkUnpackErr = 0;
 int ClearBridgeTiles = 0;
-GameObject* MovingObject = nullptr;
-GameObject* RamObject = nullptr;
-PriorityQueue* openList = nullptr;
+MCGameObject* MovingObject = nullptr;
+MCGameObject* RamObject = nullptr;
+MCPriorityQueue* OpenList = nullptr;
 int JumpOnBlocked = 0;
 int FindingEscapePath = 0;
-ScenarioMap* GameMap = nullptr;
-GlobalMap* GlobalMoveMap = nullptr;
-MoveMap* PathFindMap = nullptr;
-ObjectMap* GameObjectMap = nullptr;
-MovePathManager* PathManager = nullptr;
+MCScenarioMap* GameMap = nullptr;
+MCGlobalMap* GlobalMoveMap = nullptr;
+MCMoveMap* PathFindMap = nullptr;
+MCObjectMap* GameObjectMap = nullptr;
+MCMovePathManager* PathManager = nullptr;
 int32_t CurPlanet = 0;
 int32_t DebugMovePathType = 0;
 int32_t NumPathsInQueue = 0;
@@ -120,14 +120,13 @@ float MetersPerCell = 0.0f;
 
 namespace
 {
-    /// <summary>Degrees to radians, as MCX.EXE stores it (MCX.EXE @ 0x0077c2a0; a hair under pi / 180).</summary>
+    /// <summary>Degrees to radians, as MCX.EXE stores it (a hair under pi / 180).</summary>
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
 
     /// <summary>
     /// Per gate overlay (67..74) and team alignment + 1, the overlay the gate behaves as for that team, or -1 when
     /// it is closed to it (cost 20000).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00795480 (read as 0x795394 + (overlay + alignment * 8) * 4); the name is the port's.</remarks>
     constexpr int32_t GateOverlayForAlignment[3][8] = {
         {71, 72, 73, 74, 67, 68, 69, 70},
         {-1, -1, -1, -1, -1, -1, -1, -1},
@@ -145,97 +144,100 @@ namespace
         return GateOverlayForAlignment[alignment + 1][overlay - FIRST_GATE_OVERLAY];
     }
 
-    /// <summary>The largest step count <see cref="MovePath::init"/> has seen.</summary>
-    /// <remarks>MCX.EXE @ 0x0080801c; the name is the port's.</remarks>
-    int32_t maxMovePathSteps = 0;
+    /// <summary>The largest step count <see cref="MCMovePath::Init"/> has seen.</summary>
+    int32_t MaxMovePathSteps = 0;
 
-    /// <summary>Whether a tile's cell (cellR, cellC) is passable (<see cref="MapTile::getCellPassable"/> on a copy).</summary>
-    uint32_t TileCellPassable(const MapTile& tile, int32_t cellR, int32_t cellC)
+    /// <summary>Whether a tile's cell (cellR, cellC) is passable (<see cref="MCMapTile::GetCellPassable"/> on a copy).</summary>
+    uint32_t TileCellPassable(const MCMapTile& tile, int32_t cellR, int32_t cellC)
     {
         const uint32_t shift = static_cast<uint32_t>((cellR * MAPCELL_DIM + cellC) * 2);
-        return (tile.cells & (0x4000u << shift)) >> (shift + 14);
+        return (tile.Cells & (0x4000u << shift)) >> (shift + 14);
     }
 
     /// <summary>
-    /// <see cref="tileColToWorldCoord"/>[tileC]. Port fix: the original reads past the table for a column off the
+    /// <see cref="TileColWorldCoords"/>[tileC]. Port fix: the original reads past the table for a column off the
     /// map; the port computes such a column's edge the way the table was filled.
     /// </summary>
     float TileColToWorldCoord(int32_t tileC, int32_t mapWidth)
     {
         if (tileC >= 0 && tileC < mapWidth)
         {
-            return tileColToWorldCoord[tileC];
+            return TileColWorldCoords[tileC];
         }
 
-        return static_cast<float>(static_cast<double>(tileC) * Terrain::metersPerVertex -
-                                  static_cast<double>(worldUnitsMapSide) * 0.5);
+        return static_cast<float>(static_cast<double>(tileC) * MCTerrain::MetersPerVertex -
+                                  static_cast<double>(WorldUnitsMapSide) * 0.5);
     }
 
     /// <summary>
-    /// <see cref="tileRowToWorldCoord"/>[tileR]. Port fix: the original reads past the table for a row off the map;
+    /// <see cref="TileRowWorldCoords"/>[tileR]. Port fix: the original reads past the table for a row off the map;
     /// the port computes such a row's edge the way the table was filled.
     /// </summary>
     float TileRowToWorldCoord(int32_t tileR, int32_t mapHeight)
     {
         if (tileR >= 0 && tileR < mapHeight)
         {
-            return tileRowToWorldCoord[tileR];
+            return TileRowWorldCoords[tileR];
         }
 
-        return static_cast<float>(static_cast<double>(worldUnitsMapSide) * 0.5 -
-                                  static_cast<double>(tileR) * Terrain::metersPerVertex);
+        return static_cast<float>(static_cast<double>(WorldUnitsMapSide) * 0.5 -
+                                  static_cast<double>(tileR) * MCTerrain::MetersPerVertex);
     }
 }
 
-auto worldCoordToMapCoord(vector_3d pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC) -> void
+auto WorldCoordToMapCoord(MCVector3D pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC) -> void
 {
-    tileC = static_cast<int32_t>(static_cast<double>(Terrain::OneOvermetersPerVertex) * pos.x + VerticesMapSideDivTwo);
-    tileR = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.y) * Terrain::OneOvermetersPerVertex);
+    tileC =
+        static_cast<int32_t>(static_cast<double>(MCTerrain::OneOvermetersPerVertex) * pos.X + VerticesMapSideDivTwo);
+    tileR =
+        static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.Y) * MCTerrain::OneOvermetersPerVertex);
     cellC =
-        static_cast<int32_t>((static_cast<double>(pos.x) - TileColToWorldCoord(tileC, GameMap->width)) / MetersPerCell);
-    cellR = static_cast<int32_t>((static_cast<double>(TileRowToWorldCoord(tileR, GameMap->height)) - pos.y) /
+        static_cast<int32_t>((static_cast<double>(pos.X) - TileColToWorldCoord(tileC, GameMap->Width)) / MetersPerCell);
+    cellR = static_cast<int32_t>((static_cast<double>(TileRowToWorldCoord(tileR, GameMap->Height)) - pos.Y) /
                                  MetersPerCell);
 }
 
-auto worldCoordToMapTile(vector_3d pos, int32_t& tileR, int32_t& tileC) -> void
+auto WorldCoordToMapTile(MCVector3D pos, int32_t& tileR, int32_t& tileC) -> void
 {
-    tileC = static_cast<int32_t>(static_cast<double>(Terrain::OneOvermetersPerVertex) * pos.x + VerticesMapSideDivTwo);
-    tileR = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.y) * Terrain::OneOvermetersPerVertex);
+    tileC =
+        static_cast<int32_t>(static_cast<double>(MCTerrain::OneOvermetersPerVertex) * pos.X + VerticesMapSideDivTwo);
+    tileR =
+        static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.Y) * MCTerrain::OneOvermetersPerVertex);
 }
 
-auto worldCoordToMapCell(vector_3d pos, int32_t& cellR, int32_t& cellC) -> void
+auto WorldCoordToMapCell(MCVector3D pos, int32_t& cellR, int32_t& cellC) -> void
 {
-    cellC = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) + pos.x) /
-                                 Terrain::metersPerVertexDivMAPCELL_DIM);
-    cellR = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.y) /
-                                 Terrain::metersPerVertexDivMAPCELL_DIM);
+    cellC = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) + pos.X) /
+                                 MCTerrain::MetersPerVertexDivMapcellDim);
+    cellR = static_cast<int32_t>((static_cast<double>(MetersMapSideDivTwo) - pos.Y) /
+                                 MCTerrain::MetersPerVertexDivMapcellDim);
 }
 
-auto relativePositionToPoint(vector_3d pos, float angle, float distance, uint32_t flags) -> vector_3d
+auto RelativePositionToPoint(MCVector3D pos, float angle, float distance, uint32_t flags) -> MCVector3D
 {
     const int reverse = (flags & 2) != 0;
     const double radians = angle * DEGREES_TO_RADIANS;
-    const float reach = -(worldUnitsPerMeter * distance);
-    const float pointX = (static_cast<float>(std::sin(radians)) + 0.0f) * reach + pos.x;
-    const float pointY = static_cast<float>(std::cos(radians) * reach) + pos.y;
+    const float reach = -(WorldUnitsPerMeter * distance);
+    const float pointX = (static_cast<float>(std::sin(radians)) + 0.0f) * reach + pos.X;
+    const float pointY = static_cast<float>(std::cos(radians) * reach) + pos.Y;
 
     // Walk from start toward end: from the point back toward pos, or (reverse) from pos out to the point.
-    vector_2d start;
-    vector_2d end;
+    MCVector2D start;
+    MCVector2D end;
 
     if (reverse)
     {
-        start = vector_2d(pos.x, pos.y);
-        end = vector_2d(pointX, pointY);
+        start = MCVector2D(pos.X, pos.Y);
+        end = MCVector2D(pointX, pointY);
     }
     else
     {
-        start = vector_2d(pointX, pointY);
-        end = vector_2d(pos.x, pos.y);
+        start = MCVector2D(pointX, pointY);
+        end = MCVector2D(pos.X, pos.Y);
     }
 
-    float stepX = end.x - start.x;
-    float stepY = end.y - start.y;
+    float stepX = end.X - start.X;
+    float stepY = end.Y - start.Y;
     const float length = std::sqrt(stepX * stepX + stepY * stepY);
 
     if (length != 0.0f)
@@ -244,19 +246,19 @@ auto relativePositionToPoint(vector_3d pos, float angle, float distance, uint32_
         stepY = stepY / length;
     }
 
-    const float stepLength = Terrain::metersPerVertex * (1.0f / 3.0f) * 0.5f;
+    const float stepLength = MCTerrain::MetersPerVertex * (1.0f / 3.0f) * 0.5f;
     stepX = stepX * stepLength;
     stepY = stepY * stepLength;
 
     if (std::sqrt(stepX * stepX + stepY * stepY) == 0.0f)
     {
-        return vector_3d(pos.x, pos.y, 0.0f);
+        return MCVector3D(pos.X, pos.Y, 0.0f);
     }
 
-    const vector_2d span = end - start;
-    const float totalDistance = std::sqrt(span.y * span.y + span.x * span.x);
-    vector_2d current = start;
-    vector_2d result = start;
+    const MCVector2D span = end - start;
+    const float totalDistance = std::sqrt(span.Y * span.Y + span.X * span.X);
+    MCVector2D current = start;
+    MCVector2D result = start;
     float travelled = 0.0f;
     int32_t tileR = 0;
     int32_t tileC = 0;
@@ -265,14 +267,14 @@ auto relativePositionToPoint(vector_3d pos, float angle, float distance, uint32_
     // Port fix: the point can be off the map, where the original reads outside it. Off the map is impassable.
     auto passableAt = [&]() -> uint32_t
     {
-        GameMap->worldToMapPos(vector_3d(current.x, current.y, 0.0f), tileR, tileC, cellR, cellC);
+        GameMap->WorldToMapPos(MCVector3D(current.X, current.Y, 0.0f), tileR, tileC, cellR, cellC);
 
-        if (!GameMap->onMap(tileR, tileC))
+        if (!GameMap->OnMap(tileR, tileC))
         {
             return 0;
         }
 
-        return GameMap->map[GameMap->width * tileR + tileC].getCellPassable(cellR, cellC);
+        return GameMap->Map[GameMap->Width * tileR + tileC].GetCellPassable(cellR, cellC);
     };
 
     uint32_t passable = passableAt();
@@ -282,99 +284,99 @@ auto relativePositionToPoint(vector_3d pos, float angle, float distance, uint32_
     while ((reverse ? passable != 0 : passable == 0) && travelled < totalDistance)
     {
         result = current;
-        current.x = stepX + current.x;
-        current.y = stepY + current.y;
+        current.X = stepX + current.X;
+        current.Y = stepY + current.Y;
         travelled =
-            std::sqrt((current.x - start.x) * (current.x - start.x) + (current.y - start.y) * (current.y - start.y));
+            std::sqrt((current.X - start.X) * (current.X - start.X) + (current.Y - start.Y) * (current.Y - start.Y));
         passable = passableAt();
     }
 
-    const float limit = worldUnitsMapSide * 0.5f - Terrain::metersPerVertex;
+    const float limit = WorldUnitsMapSide * 0.5f - MCTerrain::MetersPerVertex;
 
-    if (result.x < -limit)
+    if (result.X < -limit)
     {
-        result.x = -limit;
+        result.X = -limit;
     }
 
-    if (result.x > limit)
+    if (result.X > limit)
     {
-        result.x = limit;
+        result.X = limit;
     }
 
-    if (result.y < -limit)
+    if (result.Y < -limit)
     {
-        result.y = -limit;
+        result.Y = -limit;
     }
 
-    if (result.y > limit)
+    if (result.Y > limit)
     {
-        result.y = limit;
+        result.Y = limit;
     }
 
-    const float elevation = GameMap->getTerrainElevation(vector_3d(result.x, result.y, 0.0f));
-    return vector_3d(result.x, result.y, elevation);
+    const float elevation = GameMap->GetTerrainElevation(MCVector3D(result.X, result.Y, 0.0f));
+    return MCVector3D(result.X, result.Y, elevation);
 }
 
-auto mapTileCellToWorldPos(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, vector_3d& worldPos) -> void
+auto MapTileCellToWorldPos(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, MCVector3D& worldPos) -> void
 {
-    worldPos.z = 0.0f;
-    worldPos.x =
-        static_cast<float>(static_cast<double>(tileColToWorldCoord[tileC]) + cellToWorldCoord[cellC] + HalfMapCell);
-    worldPos.y =
-        static_cast<float>(static_cast<double>(tileRowToWorldCoord[tileR]) - cellToWorldCoord[cellR] - HalfMapCell);
+    worldPos.Z = 0.0f;
+    worldPos.X =
+        static_cast<float>(static_cast<double>(TileColWorldCoords[tileC]) + CellToWorldCoord[cellC] + HalfMapCell);
+    worldPos.Y =
+        static_cast<float>(static_cast<double>(TileRowWorldCoords[tileR]) - CellToWorldCoord[cellR] - HalfMapCell);
 }
 
-auto mapCellToWorldPos(int32_t cellR, int32_t cellC, vector_3d& worldPos) -> void
+auto MapCellToWorldPos(int32_t cellR, int32_t cellC, MCVector3D& worldPos) -> void
 {
-    worldPos.z = 0.0f;
-    worldPos.x = HalfMapCell + cellColToWorldCoord[cellC];
-    worldPos.y = cellRowToWorldCoord[cellR] - HalfMapCell;
+    worldPos.Z = 0.0f;
+    worldPos.X = HalfMapCell + CellColToWorldCoord[cellC];
+    worldPos.Y = CellRowToWorldCoord[cellR] - HalfMapCell;
 }
 
 auto DebugOpenList(char* msg) -> void
 {
-    File* debugFile = new File;
-    debugFile->create("openlist.dbg");
-    debugFile->writeString(msg);
+    MCFile* debugFile = new MCFile;
+    debugFile->Create("openlist.dbg");
+    debugFile->WriteString(msg);
     char line[512];
 
     if (MovingObject != nullptr)
     {
         std::snprintf(line, sizeof(line), "MovingObject = %s [%d]\n",
-                      static_cast<Mover*>(MovingObject)->debugStatus.c_str(), MovingObject->partId);
-        debugFile->writeString(line);
+                      static_cast<MCMover*>(MovingObject)->DebugStatus.c_str(), MovingObject->PartId);
+        debugFile->WriteString(line);
 
-        if (MovingObject->objectClass == ELEMENTAL)
+        if (MovingObject->ObjectClass == ELEMENTAL)
         {
-            debugFile->writeString("Is an elemental!\n");
+            debugFile->WriteString("Is an elemental!\n");
         }
     }
 
-    debugFile->writeString("\nOPENLIST INFO\n");
-    std::snprintf(line, sizeof(line), "NumItems = %d\n", openList->size());
-    debugFile->writeString(line);
+    debugFile->WriteString("\nOPENLIST INFO\n");
+    std::snprintf(line, sizeof(line), "NumItems = %d\n", OpenList->Size());
+    debugFile->WriteString(line);
 
-    for (int32_t i = 0; i < openList->size(); i++)
+    for (int32_t i = 0; i < OpenList->Size(); i++)
     {
         // As the original: items are read from pqList[0] (the sentinel) up, so the last item is left out.
-        const PQNode& item = *openList->getItem(i);
+        const MCPQNode& item = *OpenList->GetItem(i);
         std::snprintf(line, sizeof(line), "Item: %04d\n", i);
-        debugFile->writeString(line);
-        std::snprintf(line, sizeof(line), "     key: %d\n", item.key);
-        debugFile->writeString(line);
-        std::snprintf(line, sizeof(line), "      id: %d\n", item.id);
-        debugFile->writeString(line);
-        std::snprintf(line, sizeof(line), "     row: %d\n", item.row);
-        debugFile->writeString(line);
-        std::snprintf(line, sizeof(line), "     col: %d\n", item.col);
-        debugFile->writeString(line);
+        debugFile->WriteString(line);
+        std::snprintf(line, sizeof(line), "     key: %d\n", item.Key);
+        debugFile->WriteString(line);
+        std::snprintf(line, sizeof(line), "      id: %d\n", item.Id);
+        debugFile->WriteString(line);
+        std::snprintf(line, sizeof(line), "     row: %d\n", item.Row);
+        debugFile->WriteString(line);
+        std::snprintf(line, sizeof(line), "     col: %d\n", item.Col);
+        debugFile->WriteString(line);
     }
 
-    debugFile->close();
+    debugFile->Close();
     delete debugFile;
 }
 
-auto calcTileTypeFromIndex(int32_t tileIndex) -> int32_t
+auto CalcTileTypeFromIndex(int32_t tileIndex) -> int32_t
 {
     // Forty bands of 79 texture indices (types 1..40), then the smaller special bands.
     for (int32_t band = 1; band <= 40; band++)
@@ -387,8 +389,8 @@ auto calcTileTypeFromIndex(int32_t tileIndex) -> int32_t
 
     static constexpr struct
     {
-        int32_t limit = 0;
-        int32_t type = 0;
+        int32_t Limit = 0;
+        int32_t Type = 0;
     } bands[] = {
         {0xc6e, 0x29}, {0xc84, 0x2a}, {0xc88, 0x2b}, {0xc96, 0x2c}, {0xca4, 0x2d}, {0xcb0, 0x2e},
         {0xcbc, 0x2f}, {0xcc8, 0x30}, {0xcd4, 0x31}, {0xce0, 0x32}, {0xcec, 0x33}, {0xcf4, 0x34},
@@ -397,16 +399,16 @@ auto calcTileTypeFromIndex(int32_t tileIndex) -> int32_t
 
     for (const auto& band : bands)
     {
-        if (tileIndex < band.limit)
+        if (tileIndex < band.Limit)
         {
-            return band.type;
+            return band.Type;
         }
     }
 
     return tileIndex > 0xd65 ? 0 : 2;
 }
 
-auto calcOverlayTypeFromIndex(int32_t overlayIndex) -> int32_t
+auto CalcOverlayTypeFromIndex(int32_t overlayIndex) -> int32_t
 {
     if (overlayIndex == 0x29)
     {
@@ -533,248 +535,250 @@ auto calcOverlayTypeFromIndex(int32_t overlayIndex) -> int32_t
     return overlayIndex - 0xdd5;
 }
 
-auto ScenarioMap::init(int32_t newWidth, int32_t newHeight) -> void
+auto MCScenarioMap::Init(int32_t newWidth, int32_t newHeight) -> void
 {
-    MetersPerCell = Terrain::metersPerVertexDivMAPCELL_DIM;
+    MetersPerCell = MCTerrain::MetersPerVertexDivMapcellDim;
 
     for (int32_t i = 0; i < MAX_MAP_TILE_WIDTH; i++)
     {
-        tileMulMAPCELL_DIM[i] = i * MAPCELL_DIM;
+        TileMulMapcellDim[i] = i * MAPCELL_DIM;
     }
 
-    const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5;
+    const double mapHalf = static_cast<double>(WorldUnitsMapSide) * 0.5;
 
     for (int32_t row = 0; row < newHeight; row++)
     {
-        tileRowToWorldCoord[row] = static_cast<float>(mapHalf - static_cast<double>(row) * Terrain::metersPerVertex);
+        TileRowWorldCoords[row] = static_cast<float>(mapHalf - static_cast<double>(row) * MCTerrain::MetersPerVertex);
     }
 
     for (int32_t col = 0; col < newWidth; col++)
     {
-        tileColToWorldCoord[col] = static_cast<float>(static_cast<double>(col) * Terrain::metersPerVertex - mapHalf);
+        TileColWorldCoords[col] = static_cast<float>(static_cast<double>(col) * MCTerrain::MetersPerVertex - mapHalf);
     }
 
-    const double cellSide = static_cast<double>(Terrain::metersPerVertex) * (1.0f / 3.0f);
+    const double cellSide = static_cast<double>(MCTerrain::MetersPerVertex) * (1.0f / 3.0f);
 
     for (int32_t cell = 0; cell < MAPCELL_DIM; cell++)
     {
-        cellToWorldCoord[cell] = static_cast<float>(static_cast<double>(cell) * cellSide);
+        CellToWorldCoord[cell] = static_cast<float>(static_cast<double>(cell) * cellSide);
     }
 
-    width = newWidth;
-    height = newHeight;
-    VerticesMapSideDivTwo = static_cast<float>(Terrain::verticesBlockSide * Terrain::blocksMapSide) * 0.5f;
-    MetersMapSideDivTwo = worldUnitsMapSide * 0.5f;
-    MapCellDiagonal = static_cast<float>(cellSide * metersPerWorldUnit * 1.4142);
+    Width = newWidth;
+    Height = newHeight;
+    VerticesMapSideDivTwo = static_cast<float>(MCTerrain::VerticesBlockSide * MCTerrain::BlocksMapSide) * 0.5f;
+    MetersMapSideDivTwo = WorldUnitsMapSide * 0.5f;
+    MapCellDiagonal = static_cast<float>(cellSide * MetersPerWorldUnit * 1.4142);
     HalfMapCell = static_cast<float>(cellSide * 0.5);
 
     const size_t numTiles = static_cast<size_t>(newWidth * newHeight);
-    map = std::make_unique<MapTile[]>(numTiles);
-    pathMap = std::make_unique<uint8_t[]>(numTiles);
+    Map = std::make_unique<MCMapTile[]>(numTiles);
+    PathMap = std::make_unique<uint8_t[]>(numTiles);
 }
 
-auto ScenarioMap::init(File* mapFile) -> int32_t
+auto MCScenarioMap::Init(MCFile* mapFile) -> int32_t
 {
-    MetersPerCell = Terrain::metersPerVertexDivMAPCELL_DIM;
-    const double cellSide = static_cast<double>(Terrain::metersPerVertex) * (1.0f / 3.0f);
-    MapCellDiagonal = static_cast<float>(cellSide * metersPerWorldUnit * 1.4142);
+    MetersPerCell = MCTerrain::MetersPerVertexDivMapcellDim;
+    const double cellSide = static_cast<double>(MCTerrain::MetersPerVertex) * (1.0f / 3.0f);
+    MapCellDiagonal = static_cast<float>(cellSide * MetersPerWorldUnit * 1.4142);
     HalfMapCell = static_cast<float>(cellSide * 0.5);
-    VerticesMapSideDivTwo = static_cast<float>((Terrain::verticesBlockSide * Terrain::blocksMapSide) / 2);
-    MetersMapSideDivTwo = worldUnitsMapSide * 0.5f;
+    VerticesMapSideDivTwo = static_cast<float>((MCTerrain::VerticesBlockSide * MCTerrain::BlocksMapSide) / 2);
+    MetersMapSideDivTwo = WorldUnitsMapSide * 0.5f;
 
-    height = mapFile->readLong();
-    width = mapFile->readLong();
+    Height = mapFile->ReadLong();
+    Width = mapFile->ReadLong();
 
     for (int32_t i = 0; i < MAX_MAP_TILE_WIDTH; i++)
     {
-        tileMulMAPCELL_DIM[i] = i * MAPCELL_DIM;
+        TileMulMapcellDim[i] = i * MAPCELL_DIM;
     }
 
-    const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5;
+    const double mapHalf = static_cast<double>(WorldUnitsMapSide) * 0.5;
 
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        tileRowToWorldCoord[row] = static_cast<float>(mapHalf - static_cast<double>(row) * Terrain::metersPerVertex);
+        TileRowWorldCoords[row] = static_cast<float>(mapHalf - static_cast<double>(row) * MCTerrain::MetersPerVertex);
     }
 
-    for (int32_t col = 0; col < width; col++)
+    for (int32_t col = 0; col < Width; col++)
     {
-        tileColToWorldCoord[col] = static_cast<float>(static_cast<double>(col) * Terrain::metersPerVertex - mapHalf);
+        TileColWorldCoords[col] = static_cast<float>(static_cast<double>(col) * MCTerrain::MetersPerVertex - mapHalf);
     }
 
     for (int32_t cell = 0; cell < MAPCELL_DIM; cell++)
     {
-        cellToWorldCoord[cell] = static_cast<float>(static_cast<double>(cell) * cellSide);
+        CellToWorldCoord[cell] = static_cast<float>(static_cast<double>(cell) * cellSide);
     }
 
-    for (int32_t row = 0; row < height * MAPCELL_DIM; row++)
+    for (int32_t row = 0; row < Height * MAPCELL_DIM; row++)
     {
-        cellRowToWorldCoord[row] = static_cast<float>(mapHalf - static_cast<double>(row) * MetersPerCell);
+        CellRowToWorldCoord[row] = static_cast<float>(mapHalf - static_cast<double>(row) * MetersPerCell);
     }
 
-    for (int32_t col = 0; col < width * MAPCELL_DIM; col++)
+    for (int32_t col = 0; col < Width * MAPCELL_DIM; col++)
     {
-        cellColToWorldCoord[col] = static_cast<float>(static_cast<double>(col) * MetersPerCell - mapHalf);
+        CellColToWorldCoord[col] = static_cast<float>(static_cast<double>(col) * MetersPerCell - mapHalf);
     }
 
-    baseElevation = mapFile->readLong();
-    const size_t numTiles = static_cast<size_t>(width * height);
-    map = std::make_unique<MapTile[]>(numTiles);
-    mapFile->read(reinterpret_cast<uint8_t*>(map.get()), static_cast<int32_t>(numTiles * sizeof(MapTile)));
-    pathMap = std::make_unique<uint8_t[]>(numTiles);
+    BaseElevation = mapFile->ReadLong();
+    const size_t numTiles = static_cast<size_t>(Width * Height);
+    Map = std::make_unique<MCMapTile[]>(numTiles);
+    mapFile->Read(reinterpret_cast<uint8_t*>(Map.get()), static_cast<int32_t>(numTiles * sizeof(MCMapTile)));
+    PathMap = std::make_unique<uint8_t[]>(numTiles);
     return 0;
 }
 
-auto ScenarioMap::init(Scenario*) -> int32_t
+auto MCScenarioMap::Init(MCScenario*) -> int32_t
 {
     return 0;
 }
 
-auto ScenarioMap::write(File* mapFile) -> int32_t
+auto MCScenarioMap::Write(MCFile* mapFile) -> int32_t
 {
-    mapFile->writeLong(height);
-    mapFile->writeLong(width);
-    mapFile->writeLong(baseElevation);
-    mapFile->write(reinterpret_cast<const uint8_t*>(map.get()), static_cast<int32_t>(width * height * sizeof(MapTile)));
+    mapFile->WriteLong(Height);
+    mapFile->WriteLong(Width);
+    mapFile->WriteLong(BaseElevation);
+    mapFile->Write(reinterpret_cast<const uint8_t*>(Map.get()),
+                   static_cast<int32_t>(Width * Height * sizeof(MCMapTile)));
     return 0;
 }
 
-auto ScenarioMap::destroy() -> void
+auto MCScenarioMap::Destroy() -> void
 {
-    map.reset();
-    pathMap.reset();
+    Map.reset();
+    PathMap.reset();
 }
 
-auto ScenarioMap::worldToMapPos(vector_3d pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC) -> void
+auto MCScenarioMap::WorldToMapPos(MCVector3D pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC)
+    -> void
 {
     tileC = static_cast<int16_t>(static_cast<int32_t>(
-        std::floor(static_cast<double>(Terrain::OneOvermetersPerVertex) * pos.x + VerticesMapSideDivTwo)));
+        std::floor(static_cast<double>(MCTerrain::OneOvermetersPerVertex) * pos.X + VerticesMapSideDivTwo)));
     tileR = static_cast<int16_t>(static_cast<int32_t>(
-        std::floor((static_cast<double>(MetersMapSideDivTwo) - pos.y) * Terrain::OneOvermetersPerVertex)));
-    cellC = static_cast<int32_t>((static_cast<double>(pos.x) - TileColToWorldCoord(tileC, width)) / MetersPerCell);
-    cellR = static_cast<int32_t>((static_cast<double>(TileRowToWorldCoord(tileR, height)) - pos.y) / MetersPerCell);
+        std::floor((static_cast<double>(MetersMapSideDivTwo) - pos.Y) * MCTerrain::OneOvermetersPerVertex)));
+    cellC = static_cast<int32_t>((static_cast<double>(pos.X) - TileColToWorldCoord(tileC, Width)) / MetersPerCell);
+    cellR = static_cast<int32_t>((static_cast<double>(TileRowToWorldCoord(tileR, Height)) - pos.Y) / MetersPerCell);
 }
 
-auto ScenarioMap::worldToMapTilePos(vector_3d pos, int32_t& tileR, int32_t& tileC) -> void
+auto MCScenarioMap::WorldToMapTilePos(MCVector3D pos, int32_t& tileR, int32_t& tileC) -> void
 {
     tileC = static_cast<int16_t>(static_cast<int32_t>(
-        std::floor(static_cast<double>(Terrain::OneOvermetersPerVertex) * pos.x + VerticesMapSideDivTwo)));
+        std::floor(static_cast<double>(MCTerrain::OneOvermetersPerVertex) * pos.X + VerticesMapSideDivTwo)));
     tileR = static_cast<int16_t>(static_cast<int32_t>(
-        std::floor((static_cast<double>(MetersMapSideDivTwo) - pos.y) * Terrain::OneOvermetersPerVertex)));
+        std::floor((static_cast<double>(MetersMapSideDivTwo) - pos.Y) * MCTerrain::OneOvermetersPerVertex)));
 }
 
-auto ScenarioMap::cellPassable(vector_3d pos) -> int
+auto MCScenarioMap::CellPassable(MCVector3D pos) -> int
 {
     int32_t tileR = 0;
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    worldToMapPos(pos, tileR, tileC, cellR, cellC);
+    WorldToMapPos(pos, tileR, tileC, cellR, cellC);
 
     // Port fix: the original reads outside map for a point off it (the mouse past the terrain edge). Off the map is
     // impassable.
-    if (!onMap(tileR, tileC))
+    if (!OnMap(tileR, tileC))
     {
         return 0;
     }
 
-    return static_cast<int>(map[width * tileR + tileC].getCellPassable(cellR, cellC));
+    return static_cast<int>(Map[Width * tileR + tileC].GetCellPassable(cellR, cellC));
 }
 
-auto ScenarioMap::spreadState(int32_t cellRow, int32_t cellCol, int32_t depth) -> void
+auto MCScenarioMap::SpreadState(int32_t cellRow, int32_t cellCol, int32_t depth) -> void
 {
-    if (cellRow < 0 || cellRow >= height * MAPCELL_DIM || cellCol < 0 || cellCol >= width * MAPCELL_DIM || depth <= 0)
+    if (cellRow < 0 || cellRow >= Height * MAPCELL_DIM || cellCol < 0 || cellCol >= Width * MAPCELL_DIM || depth <= 0)
     {
         return;
     }
 
     const int32_t tileR = cellRow / MAPCELL_DIM;
     const int32_t tileC = cellCol / MAPCELL_DIM;
-    MapTile& tile = map[width * tileR + tileC];
+    MCMapTile& tile = Map[Width * tileR + tileC];
 
-    if (PreserveMapTiles != 0 && (tile.cells & 0x2000) == 0)
+    if (PreserveMapTiles != 0 && (tile.Cells & 0x2000) == 0)
     {
         // Port fix: the original writes past preservedTiles[] once MAX_PRESERVED_TILES tiles are saved.
-        if (numPreservedTiles < MAX_PRESERVED_TILES)
+        if (NumPreservedTiles < MAX_PRESERVED_TILES)
         {
-            preservedTiles[numPreservedTiles].cells = tile.cells;
-            preservedTiles[numPreservedTiles].row = static_cast<int16_t>(tileR);
-            preservedTiles[numPreservedTiles].col = static_cast<int16_t>(tileC);
-            tile.cells |= 0x2000;
-            numPreservedTiles++;
+            PreservedTiles[NumPreservedTiles].Cells = tile.Cells;
+            PreservedTiles[NumPreservedTiles].Row = static_cast<int16_t>(tileR);
+            PreservedTiles[NumPreservedTiles].Col = static_cast<int16_t>(tileC);
+            tile.Cells |= 0x2000;
+            NumPreservedTiles++;
         }
     }
 
     const uint32_t shift =
         static_cast<uint32_t>(((cellRow - tileR * MAPCELL_DIM) * MAPCELL_DIM + (cellCol - tileC * MAPCELL_DIM)) * 2);
-    tile.cells &= ~(0x4000u << shift);
+    tile.Cells &= ~(0x4000u << shift);
 
     for (int32_t dir = 0; dir < 8; dir++)
     {
-        spreadState(cellRow + rowShift[dir], cellCol + colShift[dir], depth - 1);
+        SpreadState(cellRow + RowShift[dir], cellCol + ColShift[dir], depth - 1);
     }
 }
 
-auto ScenarioMap::placeObject(vector_3d position, float radius) -> int32_t
+auto MCScenarioMap::PlaceObject(MCVector3D position, float radius) -> int32_t
 {
     int32_t cellR = 0;
     int32_t cellC = 0;
-    worldCoordToMapCell(position, cellR, cellC);
+    WorldCoordToMapCell(position, cellR, cellC);
     double depth = static_cast<double>(radius) /
-                   (static_cast<double>(metersPerWorldUnit) * Terrain::metersPerVertexDivMAPCELL_DIM);
+                   (static_cast<double>(MetersPerWorldUnit) * MCTerrain::MetersPerVertexDivMapcellDim);
 
     if (depth > 0.5 && depth < 1.0)
     {
         depth = 1.0;
     }
 
-    spreadState(cellR, cellC, static_cast<int32_t>(depth));
+    SpreadState(cellR, cellC, static_cast<int32_t>(depth));
     return 0;
 }
 
-auto ScenarioMap::placeObjects(ObjectQueueNode* objectList) -> int32_t
+auto MCScenarioMap::PlaceObjects(MCObjectQueueNode* objectList) -> int32_t
 {
-    if (objectList->head == nullptr)
+    if (objectList->Head == nullptr)
     {
         return 0;
     }
 
-    BaseObject* current = nullptr;
+    MCBaseObject* current = nullptr;
 
     while (objectList->Traverse(current) != nullptr)
     {
-        GameObject* object = static_cast<GameObject*>(current);
+        MCGameObject* object = static_cast<MCGameObject*>(current);
 
-        if (object->getUseMe() != 0 && object->getObjectType() != nullptr)
+        if (object->GetUseMe() != 0 && object->GetObjectType() != nullptr)
         {
-            placeObject(object->getPosition(), object->getObjectType()->extentRadius);
+            PlaceObject(object->GetPosition(), object->GetObjectType()->ExtentRadius);
         }
     }
 
     return 0;
 }
 
-auto ScenarioMap::placeTerrainObject(GameObject*) -> void
+auto MCScenarioMap::PlaceTerrainObject(MCGameObject*) -> void
 {
 }
 
-auto ScenarioMap::placeTerrainObjects(ObjectBlockManager* blockManager) -> void
+auto MCScenarioMap::PlaceTerrainObjects(MCObjectBlockManager* blockManager) -> void
 {
-    PacketFile* objectFile = blockManager->objectFile;
-    const int32_t numTiles = width * height;
+    MCPacketFile* objectFile = blockManager->ObjectFile;
+    const int32_t numTiles = Width * Height;
     // Original behaviour (OB-033): never written (placeTerrainObject does nothing), so the tiles' overlay bits 7-8
     // all end up cleared.
     std::vector<uint8_t> footprint(static_cast<size_t>(numTiles));
 
-    for (int32_t block = 0; block < Terrain::blocksMapSide * Terrain::blocksMapSide; block++)
+    for (int32_t block = 0; block < MCTerrain::BlocksMapSide * MCTerrain::BlocksMapSide; block++)
     {
-        if (objectFile == nullptr || objectFile->isOpen() == 0)
+        if (objectFile == nullptr || objectFile->IsOpen() == 0)
         {
             continue;
         }
 
-        objectFile->seekPacket(block);
-        const uint32_t packetSize = static_cast<uint32_t>(objectFile->getPacketSize());
+        objectFile->SeekPacket(block);
+        const uint32_t packetSize = static_cast<uint32_t>(objectFile->GetPacketSize());
 
         if (packetSize == 0)
         {
@@ -782,76 +786,76 @@ auto ScenarioMap::placeTerrainObjects(ObjectBlockManager* blockManager) -> void
         }
 
         std::vector<uint8_t> data(packetSize, 0xff);
-        objectFile->readPacket(block, data.data());
-        const uint32_t numRecords = packetSize / sizeof(ObjData);
+        objectFile->ReadPacket(block, data.data());
+        const uint32_t numRecords = packetSize / sizeof(MCObjData);
 
         for (uint32_t i = 0; i < numRecords; i++)
         {
-            ObjData record;
-            std::memcpy(&record, data.data() + i * sizeof(ObjData), sizeof(ObjData));
+            MCObjData record;
+            std::memcpy(&record, data.data() + i * sizeof(MCObjData), sizeof(MCObjData));
 
-            if (record.objTypeNum == -1)
+            if (record.ObjTypeNum == -1)
             {
                 continue;
             }
 
-            GameObject* object = createObject(record.objTypeNum);
-            vector_2d position(static_cast<float>(record.pixelOffsetX), static_cast<float>(record.pixelOffsetY));
-            vector_2d numbers(static_cast<float>(static_cast<uint16_t>(record.vertexNumber)),
-                              static_cast<float>(static_cast<uint16_t>(record.blockNumber)));
-            object->setTerrainPosition(position, numbers);
-            object->update();
-            placeTerrainObject(object);
+            MCGameObject* object = CreateObject(record.ObjTypeNum);
+            MCVector2D position(static_cast<float>(record.PixelOffsetX), static_cast<float>(record.PixelOffsetY));
+            MCVector2D numbers(static_cast<float>(static_cast<uint16_t>(record.VertexNumber)),
+                               static_cast<float>(static_cast<uint16_t>(record.BlockNumber)));
+            object->SetTerrainPosition(position, numbers);
+            object->Update();
+            PlaceTerrainObject(object);
             delete object;
         }
     }
 
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        for (int32_t col = 0; col < width; col++)
+        for (int32_t col = 0; col < Width; col++)
         {
-            MapTile& tile = map[row * width + col];
-            tile.overlay =
-                (static_cast<uint32_t>(footprint[row * width + col] & 0xfe) << 6) | (tile.overlay & 0xfffffe7f);
+            MCMapTile& tile = Map[row * Width + col];
+            tile.Overlay =
+                (static_cast<uint32_t>(footprint[row * Width + col] & 0xfe) << 6) | (tile.Overlay & 0xfffffe7f);
         }
     }
 }
 
-auto ScenarioMap::updateMovingObjects() -> void
+auto MCScenarioMap::UpdateMovingObjects() -> void
 {
     PreserveMapTiles = 1;
-    placeObjects(clanMechList);
-    placeObjects(innerSphereMechList);
+    PlaceObjects(ClanMechList);
+    PlaceObjects(InnerSphereMechList);
     PreserveMapTiles = 0;
 }
 
-auto ScenarioMap::restorePreservedMap() -> void
+auto MCScenarioMap::RestorePreservedMap() -> void
 {
-    for (int32_t i = 0; i < numPreservedTiles; i++)
+    for (int32_t i = 0; i < NumPreservedTiles; i++)
     {
-        map[preservedTiles[i].row * width + preservedTiles[i].col].cells = preservedTiles[i].cells;
+        Map[PreservedTiles[i].Row * Width + PreservedTiles[i].Col].Cells = PreservedTiles[i].Cells;
     }
 
-    numPreservedTiles = 0;
+    NumPreservedTiles = 0;
 }
 
-auto ScenarioMap::getTerrainElevation(vector_3d position) -> float
+auto MCScenarioMap::GetTerrainElevation(MCVector3D position) -> float
 {
-    return static_cast<float>(getTerrainElevationUnrounded(position));
+    return static_cast<float>(GetTerrainElevationUnrounded(position));
 }
 
-auto ScenarioMap::getTerrainElevationUnrounded(vector_3d position) -> double
+auto MCScenarioMap::GetTerrainElevationUnrounded(MCVector3D position) -> double
 {
-    const float mpv = Terrain::metersPerVertex;
-    const float oneOver = Terrain::OneOvermetersPerVertex;
-    const float vertexX = static_cast<float>(mpv * std::floor(static_cast<double>(oneOver) * position.x));
-    const float vertexY = static_cast<float>(mpv * (std::floor(static_cast<double>(oneOver) * position.y) + 1.0));
+    const float mpv = MCTerrain::MetersPerVertex;
+    const float oneOver = MCTerrain::OneOvermetersPerVertex;
+    const float vertexX = static_cast<float>(mpv * std::floor(static_cast<double>(oneOver) * position.X));
+    const float vertexY = static_cast<float>(mpv * (std::floor(static_cast<double>(oneOver) * position.Y) + 1.0));
     const double vertexCol = static_cast<double>(oneOver) * vertexX;
     const float vertexRow = oneOver * vertexY;
-    const int32_t halfSide = (Terrain::blocksMapSide * Terrain::verticesBlockSide) >> 1;
+    const int32_t halfSide = (MCTerrain::BlocksMapSide * MCTerrain::VerticesBlockSide) >> 1;
     int32_t tileC = static_cast<int32_t>(std::floor(vertexCol)) + halfSide;
     int32_t tileR = halfSide - static_cast<int32_t>(std::floor(static_cast<double>(vertexRow)));
-    const int32_t maxTile = Terrain::blocksMapSide * Terrain::verticesBlockSide - 2;
+    const int32_t maxTile = MCTerrain::BlocksMapSide * MCTerrain::VerticesBlockSide - 2;
 
     if (tileR < 0)
     {
@@ -874,20 +878,20 @@ auto ScenarioMap::getTerrainElevationUnrounded(vector_3d position) -> double
     }
 
     auto inMap = [](int32_t r, int32_t c)
-    { return r >= 0 && r < GameMap->height && c >= 0 && c < GameMap->width ? 1 : 0; };
+    { return r >= 0 && r < GameMap->Height && c >= 0 && c < GameMap->Width ? 1 : 0; };
     Assert(inMap(tileR, tileC), 0, " move:terrelev MapTile Out of Bounds ");
     Assert(inMap(tileR + 1, tileC + 1), 0, " move:terrelev2 MapTile Out of Bounds ");
     Assert(inMap(tileR, tileC), 0, " Map Tile out of bounds ");
-    const uint32_t cells00 = GameMap->map[GameMap->width * tileR + tileC].cells;
+    const uint32_t cells00 = GameMap->Map[GameMap->Width * tileR + tileC].Cells;
     Assert(inMap(tileR, tileC + 1), 0, " Map Tile out of bounds ");
-    const uint32_t cells01 = GameMap->map[GameMap->width * tileR + tileC + 1].cells;
+    const uint32_t cells01 = GameMap->Map[GameMap->Width * tileR + tileC + 1].Cells;
     Assert(inMap(tileR + 1, tileC + 1), 0, " Map Tile out of bounds ");
-    const uint32_t cells11 = GameMap->map[GameMap->width * (tileR + 1) + tileC + 1].cells;
+    const uint32_t cells11 = GameMap->Map[GameMap->Width * (tileR + 1) + tileC + 1].Cells;
     Assert(inMap(tileR + 1, tileC), 0, " Map Tile out of bounds ");
-    const uint32_t cells10 = GameMap->map[GameMap->width * (tileR + 1) + tileC].cells;
+    const uint32_t cells10 = GameMap->Map[GameMap->Width * (tileR + 1) + tileC].Cells;
 
-    const int32_t base = GameMap->baseElevation;
-    const float mpe = Terrain::metersPerElevLevel;
+    const int32_t base = GameMap->BaseElevation;
+    const float mpe = MCTerrain::MetersPerElevLevel;
     const auto levelOf = [base](uint32_t cells) -> double
     {
         return static_cast<double>(
@@ -897,9 +901,9 @@ auto ScenarioMap::getTerrainElevationUnrounded(vector_3d position) -> double
     const float cornerX = static_cast<float>(std::floor(vertexCol) * mpv);
     const float cornerY = static_cast<float>(std::floor(static_cast<double>(vertexRow)) * mpv);
     const float elevation00 = static_cast<float>(levelOf(cells00) * mpe);
-    const double offsetX = std::fabs(static_cast<double>(position.x) - vertexX);
+    const double offsetX = std::fabs(static_cast<double>(position.X) - vertexX);
     const float dx = static_cast<float>(offsetX);
-    const float dy = static_cast<float>(std::fabs(static_cast<double>(vertexY) - position.y));
+    const float dy = static_cast<float>(std::fabs(static_cast<double>(vertexY) - position.Y));
     const double cornerXPlus = static_cast<double>(cornerX) + mpv;
 
     // The two edges of the tile's triangle holding the point, from its upper-left corner.
@@ -978,84 +982,84 @@ auto ScenarioMap::getTerrainElevationUnrounded(vector_3d position) -> double
            elevation00;
 }
 
-auto ScenarioMap::getLOS(vector_3d position) -> int32_t
+auto MCScenarioMap::GetLos(MCVector3D position) -> int32_t
 {
     int32_t tileR = 0;
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    worldToMapPos(position, tileR, tileC, cellR, cellC);
+    WorldToMapPos(position, tileR, tileC, cellR, cellC);
 
     // Port fix: a line walked toward a point off the map reads outside it in the original. Off the map blocks.
-    if (!onMap(tileR, tileC))
+    if (!OnMap(tileR, tileC))
     {
         return 0;
     }
 
     const uint32_t shift = static_cast<uint32_t>((cellR * MAPCELL_DIM + cellC) * 2);
-    return ((map[width * tileR + tileC].cells & (0x8000u << shift)) >> (shift + 15)) != 0 ? 1 : 0;
+    return ((Map[Width * tileR + tileC].Cells & (0x8000u << shift)) >> (shift + 15)) != 0 ? 1 : 0;
 }
 
-auto ScenarioMap::getInnerSphereMine(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC) -> uint32_t
+auto MCScenarioMap::GetInnerSphereMine(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC) -> uint32_t
 {
-    const uint32_t layout = (map[width * tileR + tileC].overlay >> 11) & 3;
-    return static_cast<uint32_t>(static_cast<int32_t>(mineLayout[layout][cellR * MAPCELL_DIM + cellC]));
+    const uint32_t layout = (Map[Width * tileR + tileC].Overlay >> 11) & 3;
+    return static_cast<uint32_t>(static_cast<int32_t>(MineLayout[layout][cellR * MAPCELL_DIM + cellC]));
 }
 
-auto ScenarioMap::getClanMine(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC) -> uint32_t
+auto MCScenarioMap::GetClanMine(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC) -> uint32_t
 {
-    const uint32_t layout = (map[width * tileR + tileC].overlay >> 13) & 3;
-    return static_cast<uint32_t>(static_cast<int32_t>(mineLayout[layout][cellR * MAPCELL_DIM + cellC]));
+    const uint32_t layout = (Map[Width * tileR + tileC].Overlay >> 13) & 3;
+    return static_cast<uint32_t>(static_cast<int32_t>(MineLayout[layout][cellR * MAPCELL_DIM + cellC]));
 }
 
-auto ScenarioMap::getLOF(vector_3d position) -> int32_t
+auto MCScenarioMap::GetLof(MCVector3D position) -> int32_t
 {
     int32_t tileR = 0;
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    worldToMapPos(position, tileR, tileC, cellR, cellC);
+    WorldToMapPos(position, tileR, tileC, cellR, cellC);
 
-    if (position.z < getTerrainElevationUnrounded(position))
+    if (position.Z < GetTerrainElevationUnrounded(position))
     {
         return 0;
     }
 
     // Port fix: the original reads outside the map for a point off it. Off the map blocks.
-    if (!onMap(tileR, tileC))
+    if (!OnMap(tileR, tileC))
     {
         return 0;
     }
 
-    return map[width * tileR + tileC].getCellPassable(cellR, cellC) != 0 ? 1 : 0;
+    return Map[Width * tileR + tileC].GetCellPassable(cellR, cellC) != 0 ? 1 : 0;
 }
 
-auto ScenarioMap::lineOfSight(vector_3d start, vector_3d target) -> int
+auto MCScenarioMap::LineOfSight(MCVector3D start, MCVector3D target) -> int
 {
-    vector_3d step = target - start;
-    step.normalize();
-    const float stepLength = metersPerWorldUnit * Terrain::metersPerVertexDivMAPCELL_DIM * 0.33f;
-    step.x = step.x * stepLength;
-    step.y = step.y * stepLength;
-    step.z = step.z * stepLength;
-    const auto totalDistance = static_cast<float>((start - target).magnitude() * metersPerWorldUnit);
-    updateMovingObjects();
+    MCVector3D step = target - start;
+    step.Normalize();
+    const float stepLength = MetersPerWorldUnit * MCTerrain::MetersPerVertexDivMapcellDim * 0.33f;
+    step.X = step.X * stepLength;
+    step.Y = step.Y * stepLength;
+    step.Z = step.Z * stepLength;
+    const auto totalDistance = static_cast<float>((start - target).Magnitude() * MetersPerWorldUnit);
+    UpdateMovingObjects();
 
-    vector_3d current = start + step;
-    auto distance = static_cast<float>((current - start).magnitude() * metersPerWorldUnit);
+    MCVector3D current = start + step;
+    auto distance = static_cast<float>((current - start).Magnitude() * MetersPerWorldUnit);
     int result = 1;
 
     while (distance < totalDistance)
     {
-        if (getLOS(current) == 0)
+        if (GetLos(current) == 0)
         {
             result = 0;
         }
 
-        current.x = current.x + step.x;
-        current.y = current.y + step.y;
-        current.z = current.z + step.z;
-        distance = static_cast<float>((current - start).magnitude() * metersPerWorldUnit);
+        current.X = current.X + step.X;
+        current.Y = current.Y + step.Y;
+        current.Z = current.Z + step.Z;
+        distance = static_cast<float>((current - start).Magnitude() * MetersPerWorldUnit);
 
         if (result == 0)
         {
@@ -1063,14 +1067,14 @@ auto ScenarioMap::lineOfSight(vector_3d start, vector_3d target) -> int
         }
     }
 
-    restorePreservedMap();
+    RestorePreservedMap();
     return result;
 }
 
-auto ScenarioMap::lineOfFire(vector_3d start, vector_3d target) -> int
+auto MCScenarioMap::LineOfFire(MCVector3D start, MCVector3D target) -> int
 {
-    double directionX = static_cast<double>(target.x) - start.x;
-    const double deltaY = static_cast<double>(target.y) - start.y;
+    double directionX = static_cast<double>(target.X) - start.X;
+    const double deltaY = static_cast<double>(target.Y) - start.Y;
     float directionY = static_cast<float>(deltaY);
     const double length = std::sqrt(deltaY * directionY + directionX * directionX);
 
@@ -1080,27 +1084,27 @@ auto ScenarioMap::lineOfFire(vector_3d start, vector_3d target) -> int
         directionY = static_cast<float>(directionY / length);
     }
 
-    const float stepLength = Terrain::metersPerVertexDivMAPCELL_DIM * 0.33f;
+    const float stepLength = MCTerrain::MetersPerVertexDivMapcellDim * 0.33f;
     const float stepX = static_cast<float>(directionX * stepLength);
     const float stepY = directionY * stepLength;
-    const double spanX = static_cast<double>(start.x) - target.x;
-    const double spanY = static_cast<double>(start.y) - target.y;
+    const double spanX = static_cast<double>(start.X) - target.X;
+    const double spanY = static_cast<double>(start.Y) - target.Y;
     const float totalDistance = static_cast<float>(std::sqrt(spanX * spanX + spanY * spanY));
-    float currentX = stepX + start.x;
-    float currentY = stepY + start.y;
+    float currentX = stepX + start.X;
+    float currentY = stepY + start.Y;
     int result = 1;
 
     do
     {
-        const double travelledX = static_cast<double>(currentX) - start.x;
-        const double travelledY = static_cast<double>(currentY) - start.y;
+        const double travelledX = static_cast<double>(currentX) - start.X;
+        const double travelledY = static_cast<double>(currentY) - start.Y;
 
         if (totalDistance <= std::sqrt(travelledY * travelledY + travelledX * travelledX))
         {
             return result;
         }
 
-        if (getLOS(vector_3d(currentX, currentY, 0.0f)) == 0)
+        if (GetLos(MCVector3D(currentX, currentY, 0.0f)) == 0)
         {
             result = 0;
         }
@@ -1112,45 +1116,45 @@ auto ScenarioMap::lineOfFire(vector_3d start, vector_3d target) -> int
     return result;
 }
 
-auto ScenarioMap::lineOfSensor(vector_3d start, vector_3d target, int32_t& numBlockingTiles,
-                               int32_t& numBlockingObjects) -> void
+auto MCScenarioMap::LineOfSensor(MCVector3D start, MCVector3D target, int32_t& numBlockingTiles,
+                                 int32_t& numBlockingObjects) -> void
 {
-    vector_3d step = target - start;
-    const double length = std::sqrt((static_cast<double>(step.x) * step.x + static_cast<double>(step.y) * step.y) +
-                                    static_cast<double>(step.z) * step.z);
-    double directionZ = step.z;
+    MCVector3D step = target - start;
+    const double length = std::sqrt((static_cast<double>(step.X) * step.X + static_cast<double>(step.Y) * step.Y) +
+                                    static_cast<double>(step.Z) * step.Z);
+    double directionZ = step.Z;
 
     if (length > 0.0)
     {
-        step.x = static_cast<float>(step.x / length);
-        step.y = static_cast<float>(step.y / length);
-        directionZ = step.z / length;
+        step.X = static_cast<float>(step.X / length);
+        step.Y = static_cast<float>(step.Y / length);
+        directionZ = step.Z / length;
     }
 
-    const double stepLength = static_cast<double>(metersPerWorldUnit) * Terrain::metersPerVertexDivMAPCELL_DIM * 2.0f;
-    step.x = static_cast<float>(step.x * stepLength);
-    step.y = static_cast<float>(step.y * stepLength);
-    step.z = static_cast<float>(directionZ * stepLength);
-    const vector_3d span = start - target;
+    const double stepLength = static_cast<double>(MetersPerWorldUnit) * MCTerrain::MetersPerVertexDivMapcellDim * 2.0f;
+    step.X = static_cast<float>(step.X * stepLength);
+    step.Y = static_cast<float>(step.Y * stepLength);
+    step.Z = static_cast<float>(directionZ * stepLength);
+    const MCVector3D span = start - target;
     const float totalDistance =
-        static_cast<float>(std::sqrt((static_cast<double>(span.x) * span.x + static_cast<double>(span.y) * span.y) +
-                                     static_cast<double>(span.z) * span.z) *
-                           metersPerWorldUnit);
-    updateMovingObjects();
+        static_cast<float>(std::sqrt((static_cast<double>(span.X) * span.X + static_cast<double>(span.Y) * span.Y) +
+                                     static_cast<double>(span.Z) * span.Z) *
+                           MetersPerWorldUnit);
+    UpdateMovingObjects();
 
-    auto travelledDistance = [&](const vector_3d& travelled) -> double
+    auto travelledDistance = [&](const MCVector3D& travelled) -> double
     {
         return std::sqrt(
-                   (static_cast<double>(travelled.z) * travelled.z + static_cast<double>(travelled.y) * travelled.y) +
-                   static_cast<double>(travelled.x) * travelled.x) *
-               metersPerWorldUnit;
+                   (static_cast<double>(travelled.Z) * travelled.Z + static_cast<double>(travelled.Y) * travelled.Y) +
+                   static_cast<double>(travelled.X) * travelled.X) *
+               MetersPerWorldUnit;
     };
 
-    vector_3d current = start + step;
-    vector_3d travelled = current - start;
+    MCVector3D current = start + step;
+    MCVector3D travelled = current - start;
     int32_t prevTileR = 0;
     int32_t prevTileC = 0;
-    worldToMapTilePos(start, prevTileR, prevTileC);
+    WorldToMapTilePos(start, prevTileR, prevTileC);
     numBlockingTiles = 0;
     numBlockingObjects = 0;
 
@@ -1160,82 +1164,83 @@ auto ScenarioMap::lineOfSensor(vector_3d start, vector_3d target, int32_t& numBl
         {
             int32_t tileR = 0;
             int32_t tileC = 0;
-            worldToMapTilePos(current, tileR, tileC);
+            WorldToMapTilePos(current, tileR, tileC);
 
             // Port fix: the original counts blockers on tiles off the map too, reading outside it.
-            if ((tileR != prevTileR || tileC != prevTileC) && onMap(tileR, tileC))
+            if ((tileR != prevTileR || tileC != prevTileC) && OnMap(tileR, tileC))
             {
-                if (getTerrainElevationUnrounded(current) > current.z)
+                if (GetTerrainElevationUnrounded(current) > current.Z)
                 {
                     numBlockingTiles++;
                 }
 
-                numBlockingObjects += GameObjectMap->getNumSensorBlockingObjects(tileR, tileC);
-                numBlockingObjects += (map[width * tileR + tileC].overlay & 0x1000000) == 0x1000000 ? 1 : 0;
+                numBlockingObjects += GameObjectMap->GetNumSensorBlockingObjects(tileR, tileC);
+                numBlockingObjects += (Map[Width * tileR + tileC].Overlay & 0x1000000) == 0x1000000 ? 1 : 0;
                 prevTileR = tileR;
                 prevTileC = tileC;
             }
 
-            current.x = current.x + step.x;
-            current.y = current.y + step.y;
-            current.z = step.z + current.z;
+            current.X = current.X + step.X;
+            current.Y = current.Y + step.Y;
+            current.Z = step.Z + current.Z;
             travelled = current - start;
         } while (!(travelledDistance(travelled) >= totalDistance));
     }
 
-    restorePreservedMap();
+    RestorePreservedMap();
 }
 
-auto ScenarioMap::print(char* fileName, int32_t ULr, int32_t ULc, int32_t printHeight, int32_t printWidth) -> void
+auto MCScenarioMap::Print(char* fileName, int32_t uLr, int32_t uLc, int32_t printHeight, int32_t printWidth) -> void
 {
-    File* debugFile = new File;
-    debugFile->create(fileName);
+    MCFile* debugFile = new MCFile;
+    debugFile->Create(fileName);
 
-    for (int32_t row = ULr; row < ULr + printHeight; row++)
+    for (int32_t row = uLr; row < uLr + printHeight; row++)
     {
         char line[512];
         line[0] = '\0';
 
-        for (int32_t col = ULc; col < ULc + printWidth; col++)
+        for (int32_t col = uLc; col < uLc + printWidth; col++)
         {
-            const char* cell = (map[width * row + col].cells & 0x55554000) != 0 ? "." : "X";
+            const char* cell = (Map[Width * row + col].Cells & 0x55554000) != 0 ? "." : "X";
             std::strcat(line, cell);
         }
 
         std::strcat(line, "\n");
-        debugFile->writeString(line);
+        debugFile->WriteString(line);
     }
 
-    debugFile->writeString("\n");
-    debugFile->close();
+    debugFile->WriteString("\n");
+    debugFile->Close();
     delete debugFile;
 }
 
-auto ScenarioMap::inBounds(int32_t tileR, int32_t tileC) -> int
+auto MCScenarioMap::InBounds(int32_t tileR, int32_t tileC) -> int
 {
-    return tileR >= 0 && tileR < height && tileC >= 0 && tileC < width ? 1 : 0;
+    return tileR >= 0 && tileR < Height && tileC >= 0 && tileC < Width ? 1 : 0;
 }
 
-auto ScenarioMap::getTile(int32_t tileR, int32_t tileC) -> MapTile
+auto MCScenarioMap::GetTile(int32_t tileR, int32_t tileC) -> MCMapTile
 {
-    Assert(tileR >= 0 && tileR < height && tileC >= 0 && tileC < width ? 1 : 0, 0, " Map Tile out of bounds ");
-    return map[width * tileR + tileC];
+    Assert(tileR >= 0 && tileR < Height && tileC >= 0 && tileC < Width ? 1 : 0, 0, " Map Tile out of bounds ");
+    return Map[Width * tileR + tileC];
 }
 
-auto ScenarioMap::getOverlayWeight(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, Mover* mover) -> int32_t
+auto MCScenarioMap::GetOverlayWeight(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, MCMover* mover)
+    -> int32_t
 {
-    const uint32_t overlay = map[width * tileR + tileC].overlay & 0x7f;
+    const uint32_t overlay = Map[Width * tileR + tileC].Overlay & 0x7f;
 
     if (overlay == 0)
     {
         return 0;
     }
 
-    const int32_t level = mover->getOverlayWeightClass();
+    const int32_t level = mover->GetOverlayWeightClass();
 
     if (overlay >= FIRST_GATE_OVERLAY && overlay <= LAST_GATE_OVERLAY)
     {
-        const int32_t gate = GateOverlay(overlay, mover->getAlignment());
+        const int32_t gate = GateOverlay(overlay, mover->GetAlignment());
 
         if (gate == -1)
         {
@@ -1250,199 +1255,198 @@ auto ScenarioMap::getOverlayWeight(int32_t tileR, int32_t tileC, int32_t cellR, 
                               cellR * MAPCELL_DIM];
 }
 
-auto ObjectMap::init(ScenarioMap* newMap) -> void
+auto MCObjectMap::Init(MCScenarioMap* newMap) -> void
 {
-    map = newMap;
-    width = newMap->width;
-    height = newMap->height;
-    rows = std::make_unique<ObjectPosition*[]>(static_cast<size_t>(height));
+    Map = newMap;
+    Width = newMap->Width;
+    Height = newMap->Height;
+    Rows = std::make_unique<MCObjectPosition*[]>(static_cast<size_t>(Height));
 }
 
 namespace
 {
     /// <summary>Links <paramref name="node"/> into its row's list, before the first node at or past its column.</summary>
     /// <remarks>The list insertion shared by ObjectMap::addObject and updateObject (inlined in both).</remarks>
-    void InsertObjectPosition(ObjectPosition** rows, ObjectPosition* node)
+    void InsertObjectPosition(MCObjectPosition** rows, MCObjectPosition* node)
     {
-        ObjectPosition*& head = rows[node->tileR];
-        ObjectPosition* current = head;
+        MCObjectPosition*& head = rows[node->TileR];
+        MCObjectPosition* current = head;
 
         if (current == nullptr)
         {
-            node->prev = nullptr;
-            node->next = nullptr;
+            node->Prev = nullptr;
+            node->Next = nullptr;
             head = node;
             return;
         }
 
-        if (current->tileC < node->tileC)
+        if (current->TileC < node->TileC)
         {
-            while (current->next != nullptr)
+            while (current->Next != nullptr)
             {
-                Assert(current != current->next ? 1 : 0, 0, " Bad ObjPosition Next ");
-                current = current->next;
+                Assert(current != current->Next ? 1 : 0, 0, " Bad ObjPosition Next ");
+                current = current->Next;
 
-                if (current->tileC >= node->tileC)
+                if (current->TileC >= node->TileC)
                 {
                     break;
                 }
             }
         }
 
-        if (current->tileC < node->tileC)
+        if (current->TileC < node->TileC)
         {
-            node->prev = current;
-            node->next = nullptr;
-            current->next = node;
+            node->Prev = current;
+            node->Next = nullptr;
+            current->Next = node;
             return;
         }
 
-        node->next = current;
-        node->prev = current->prev;
-        current->prev = node;
+        node->Next = current;
+        node->Prev = current->Prev;
+        current->Prev = node;
 
-        if (node->prev == nullptr)
+        if (node->Prev == nullptr)
         {
             head = node;
         }
         else
         {
-            node->prev->next = node;
+            node->Prev->Next = node;
         }
     }
 
     /// <summary>Unlinks <paramref name="node"/> from its row's list.</summary>
-    void UnlinkObjectPosition(ObjectPosition** rows, ObjectPosition* node)
+    void UnlinkObjectPosition(MCObjectPosition** rows, MCObjectPosition* node)
     {
-        if (node->prev == nullptr)
+        if (node->Prev == nullptr)
         {
-            rows[node->tileR] = node->next;
+            rows[node->TileR] = node->Next;
         }
         else
         {
-            node->prev->next = node->next;
+            node->Prev->Next = node->Next;
         }
 
-        if (node->next != nullptr)
+        if (node->Next != nullptr)
         {
-            node->next->prev = node->prev;
+            node->Next->Prev = node->Prev;
         }
     }
 
     /// <summary>Frees a row's nodes from <paramref name="node"/> on, clearing their objects' positions.</summary>
-    /// <remarks>MCX.EXE @ 0x006bba10 (unnamed; recursive).</remarks>
-    void FreeObjectPositions(ObjectPosition* node)
+    void FreeObjectPositions(MCObjectPosition* node)
     {
         if (node == nullptr)
         {
             return;
         }
 
-        FreeObjectPositions(node->next);
+        FreeObjectPositions(node->Next);
 
-        if (node->object != nullptr)
+        if (node->Object != nullptr)
         {
-            node->object->setObjPosition(nullptr);
+            node->Object->SetObjPosition(nullptr);
         }
 
         delete node;
     }
 }
 
-auto ObjectMap::addObject(GameObject* object) -> void
+auto MCObjectMap::AddObject(MCGameObject* object) -> void
 {
     int32_t tileR = 0;
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->worldToMapPos(object->getPosition(), tileR, tileC, cellR, cellC);
-    auto* node = new ObjectPosition{};
-    node->object = object;
-    node->tileR = tileR;
-    node->tileC = tileC;
-    node->cellR = cellR;
-    node->cellC = cellC;
-    node->prev = nullptr;
-    node->next = nullptr;
-    object->setObjPosition(node);
-    InsertObjectPosition(rows.get(), node);
+    GameMap->WorldToMapPos(object->GetPosition(), tileR, tileC, cellR, cellC);
+    auto* node = new MCObjectPosition{};
+    node->Object = object;
+    node->TileR = tileR;
+    node->TileC = tileC;
+    node->CellR = cellR;
+    node->CellC = cellC;
+    node->Prev = nullptr;
+    node->Next = nullptr;
+    object->SetObjPosition(node);
+    InsertObjectPosition(Rows.get(), node);
 }
 
-auto ObjectMap::updateObject(GameObject* object, int) -> int
+auto MCObjectMap::UpdateObject(MCGameObject* object, int) -> int
 {
     int32_t tileR = 0;
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->worldToMapPos(object->getPosition(), tileR, tileC, cellR, cellC);
+    GameMap->WorldToMapPos(object->GetPosition(), tileR, tileC, cellR, cellC);
 
     char message[1024];
     std::snprintf(message, sizeof(message),
                   "Bad Cell - Object: %d   Positionx: %f   Positiony: %f\t CRow: %d   CCol: %d",
-                  object->getObjectType()->objTypeNum, static_cast<double>(object->getPosition().x),
-                  static_cast<double>(object->getPosition().y), cellR, cellC);
+                  object->GetObjectType()->ObjTypeNum, static_cast<double>(object->GetPosition().X),
+                  static_cast<double>(object->GetPosition().Y), cellR, cellC);
     Assert(cellR >= 0 && cellR <= 2 ? 1 : 0, static_cast<uint32_t>(cellR), message);
     Assert(cellC >= 0 && cellC <= 2 ? 1 : 0, static_cast<uint32_t>(cellC), message);
 
-    if (tileR < 0 || tileR >= GameMap->height || tileC < 0 || tileC >= GameMap->width)
+    if (tileR < 0 || tileR >= GameMap->Height || tileC < 0 || tileC >= GameMap->Width)
     {
         char offMap[1024];
         std::snprintf(offMap, sizeof(offMap), "Object: %d   Positionx: %f   Positiony: %f\t TRow: %d   TCol: %d",
-                      object->getObjectType()->objTypeNum, static_cast<double>(object->getPosition().x),
-                      static_cast<double>(object->getPosition().y), tileR, tileC);
-        const ObjectClass objectClass = object->objectClass;
+                      object->GetObjectType()->ObjTypeNum, static_cast<double>(object->GetPosition().X),
+                      static_cast<double>(object->GetPosition().Y), tileR, tileC);
+        const MCObjectClass objectClass = object->ObjectClass;
         const bool isMover = objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                              objectClass == MOVER;
         Assert(isMover ? 0 : 1, 0, offMap);
-        removeObject(object);
+        RemoveObject(object);
         return 0;
     }
 
-    Assert(tileR >= 0 && tileR < height ? 1 : 0, 0, " Object moved off map ");
-    Assert(tileC >= 0 && tileC < width ? 1 : 0, 0, " Object moved off map ");
+    Assert(tileR >= 0 && tileR < Height ? 1 : 0, 0, " Object moved off map ");
+    Assert(tileC >= 0 && tileC < Width ? 1 : 0, 0, " Object moved off map ");
 
-    ObjectPosition* node = object->getObjPosition();
+    MCObjectPosition* node = object->GetObjPosition();
 
-    if (tileR != node->tileR || tileC != node->tileC)
+    if (tileR != node->TileR || tileC != node->TileC)
     {
-        UnlinkObjectPosition(rows.get(), node);
-        node->tileR = tileR;
-        node->tileC = tileC;
-        InsertObjectPosition(rows.get(), node);
+        UnlinkObjectPosition(Rows.get(), node);
+        node->TileR = tileR;
+        node->TileC = tileC;
+        InsertObjectPosition(Rows.get(), node);
     }
 
-    node->cellR = cellR;
-    node->cellC = cellC;
-    node->mapCellR = tileMulMAPCELL_DIM[tileR] + cellR;
-    node->mapCellC = tileMulMAPCELL_DIM[tileC] + cellC;
+    node->CellR = cellR;
+    node->CellC = cellC;
+    node->MapCellR = TileMulMapcellDim[tileR] + cellR;
+    node->MapCellC = TileMulMapcellDim[tileC] + cellC;
     return 1;
 }
 
-auto ObjectMap::removeObject(GameObject* object) -> void
+auto MCObjectMap::RemoveObject(MCGameObject* object) -> void
 {
-    ObjectPosition* node = object->getObjPosition();
+    MCObjectPosition* node = object->GetObjPosition();
 
     if (node != nullptr)
     {
-        UnlinkObjectPosition(rows.get(), node);
+        UnlinkObjectPosition(Rows.get(), node);
     }
 
     delete node;
-    object->setObjPosition(nullptr);
+    object->SetObjPosition(nullptr);
 }
 
-auto ObjectMap::getNumObjects(int32_t tileR, int32_t tileC) -> int32_t
+auto MCObjectMap::GetNumObjects(int32_t tileR, int32_t tileC) -> int32_t
 {
     int32_t count = 0;
-    ObjectPosition* node = GameObjectMap->rows[tileR];
+    MCObjectPosition* node = GameObjectMap->Rows[tileR];
 
     if (node == nullptr)
     {
         return 0;
     }
-    while (node->tileC < tileC)
+    while (node->TileC < tileC)
     {
-        node = node->next;
+        node = node->Next;
 
         if (node == nullptr)
         {
@@ -1450,14 +1454,14 @@ auto ObjectMap::getNumObjects(int32_t tileR, int32_t tileC) -> int32_t
         }
     }
 
-    for (; node != nullptr; node = node->next)
+    for (; node != nullptr; node = node->Next)
     {
-        if (tileC + 1 <= node->tileC)
+        if (tileC + 1 <= node->TileC)
         {
             return count;
         }
 
-        if (node->object != nullptr)
+        if (node->Object != nullptr)
         {
             count++;
         }
@@ -1466,18 +1470,18 @@ auto ObjectMap::getNumObjects(int32_t tileR, int32_t tileC) -> int32_t
     return count;
 }
 
-auto ObjectMap::getNumSensorBlockingObjects(int32_t tileR, int32_t tileC) -> int32_t
+auto MCObjectMap::GetNumSensorBlockingObjects(int32_t tileR, int32_t tileC) -> int32_t
 {
     int32_t count = 0;
-    ObjectPosition* node = GameObjectMap->rows[tileR];
+    MCObjectPosition* node = GameObjectMap->Rows[tileR];
 
     if (node == nullptr)
     {
         return 0;
     }
-    while (node->tileC < tileC)
+    while (node->TileC < tileC)
     {
-        node = node->next;
+        node = node->Next;
 
         if (node == nullptr)
         {
@@ -1485,14 +1489,14 @@ auto ObjectMap::getNumSensorBlockingObjects(int32_t tileR, int32_t tileC) -> int
         }
     }
 
-    for (; node != nullptr; node = node->next)
+    for (; node != nullptr; node = node->Next)
     {
-        if (tileC + 1 <= node->tileC)
+        if (tileC + 1 <= node->TileC)
         {
             return count;
         }
 
-        if (node->object != nullptr && node->object->objectClass != TREE)
+        if (node->Object != nullptr && node->Object->ObjectClass != TREE)
         {
             count++;
         }
@@ -1501,27 +1505,26 @@ auto ObjectMap::getNumSensorBlockingObjects(int32_t tileR, int32_t tileC) -> int
     return count;
 }
 
-auto ObjectMap::destroy() -> void
+auto MCObjectMap::Destroy() -> void
 {
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        if (rows[row] != nullptr)
+        if (Rows[row] != nullptr)
         {
-            FreeObjectPositions(rows[row]);
-            rows[row] = nullptr;
+            FreeObjectPositions(Rows[row]);
+            Rows[row] = nullptr;
         }
     }
 
-    rows.reset();
+    Rows.reset();
 }
 
-auto cellDirToCell(int32_t fromTileR, int32_t fromTileC, int32_t fromCellR, int32_t fromCellC, int32_t toTileR,
+auto CellDirToCell(int32_t fromTileR, int32_t fromTileC, int32_t fromCellR, int32_t fromCellC, int32_t toTileR,
                    int32_t toTileC, int32_t toCellR, int32_t toCellC) -> int32_t
 {
-    /// <remarks>MCX.EXE @ 0x00795880 (static deltaDir of cellDirToCell).</remarks>
     static const int32_t deltaDir[3][3] = {{7, 0, 1}, {6, -1, 2}, {5, 4, 3}};
-    const int32_t rowDelta = tileMulMAPCELL_DIM[toTileR] + toCellR - tileMulMAPCELL_DIM[fromTileR] - fromCellR + 1;
-    const int32_t colDelta = tileMulMAPCELL_DIM[toTileC] + toCellC - tileMulMAPCELL_DIM[fromTileC] - fromCellC + 1;
+    const int32_t rowDelta = TileMulMapcellDim[toTileR] + toCellR - TileMulMapcellDim[fromTileR] - fromCellR + 1;
+    const int32_t colDelta = TileMulMapcellDim[toTileC] + toCellC - TileMulMapcellDim[fromTileC] - fromCellC + 1;
 
     if (rowDelta < 0 || rowDelta > 2 || colDelta < 0 || colDelta > 2)
     {
@@ -1532,35 +1535,35 @@ auto cellDirToCell(int32_t fromTileR, int32_t fromTileC, int32_t fromCellR, int3
     return dir == -1 ? -2 : dir;
 }
 
-auto DebugMoveChunk(Mover* mover, MoveChunk* chunk1, MoveChunk* chunk2) -> void
+auto DebugMoveChunk(MCMover* mover, MCMoveChunk* chunk1, MCMoveChunk* chunk2) -> void
 {
     char line[512];
     ChunkDebugMsg[0] = '\0';
 
     if (mover != nullptr)
     {
-        std::snprintf(line, sizeof(line), "Mover = %s (%d)\n", mover->debugStatus.c_str(), mover->partId);
+        std::snprintf(line, sizeof(line), "Mover = %s (%d)\n", mover->DebugStatus.c_str(), mover->PartId);
         std::strcat(ChunkDebugMsg, line);
         std::snprintf(line, sizeof(line), "Mover World Pos = (%.4f, %.4f, %.4f)\n",
-                      static_cast<double>(mover->getPosition().x), static_cast<double>(mover->getPosition().y),
-                      static_cast<double>(mover->getPosition().z));
+                      static_cast<double>(mover->GetPosition().X), static_cast<double>(mover->GetPosition().Y),
+                      static_cast<double>(mover->GetPosition().Z));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "Mover Obj Pos = [%d, %d, %d, %d]\n", mover->getObjPosition()->tileR,
-                      mover->getObjPosition()->tileC, mover->getObjPosition()->cellR, mover->getObjPosition()->cellC);
+        std::snprintf(line, sizeof(line), "Mover Obj Pos = [%d, %d, %d, %d]\n", mover->GetObjPosition()->TileR,
+                      mover->GetObjPosition()->TileC, mover->GetObjPosition()->CellR, mover->GetObjPosition()->CellC);
         std::strcat(ChunkDebugMsg, line);
 
-        if (mover->getPilot() == nullptr)
+        if (mover->GetPilot() == nullptr)
         {
             std::strcat(ChunkDebugMsg, "NULL pilot!\n");
         }
 
-        if (mover->objectClass == BATTLEMECH && static_cast<BattleMech*>(mover)->inJump != 0)
+        if (mover->ObjectClass == BATTLEMECH && static_cast<MCBattleMech*>(mover)->InJump != 0)
         {
             int32_t tileR = 0;
             int32_t tileC = 0;
             int32_t cellR = 0;
             int32_t cellC = 0;
-            worldCoordToMapCoord(static_cast<BattleMech*>(mover)->jumpGoal, tileR, tileC, cellR, cellC);
+            WorldCoordToMapCoord(static_cast<MCBattleMech*>(mover)->JumpGoal, tileR, tileC, cellR, cellC);
             std::snprintf(line, sizeof(line), "Jumping to [%d, %d, %d, %d]\n", tileR, tileC, cellR, cellC);
             std::strcat(ChunkDebugMsg, line);
         }
@@ -1568,23 +1571,23 @@ auto DebugMoveChunk(Mover* mover, MoveChunk* chunk1, MoveChunk* chunk2) -> void
         std::strcat(ChunkDebugMsg, "\n");
     }
 
-    auto writeChunk = [&line](const char* title, const MoveChunk* chunk)
+    auto writeChunk = [&line](const char* title, const MCMoveChunk* chunk)
     {
         std::strcat(ChunkDebugMsg, title);
 
         for (int32_t i = 0; i < MOVECHUNK_NUM_STEPS; i++)
         {
-            std::snprintf(line, sizeof(line), "stepPos[%d] = (%d, %d, %d, %d)\n", i, chunk->stepPos[i][0],
-                          chunk->stepPos[i][1], chunk->stepPos[i][2], chunk->stepPos[i][3]);
+            std::snprintf(line, sizeof(line), "stepPos[%d] = (%d, %d, %d, %d)\n", i, chunk->StepPos[i][0],
+                          chunk->StepPos[i][1], chunk->StepPos[i][2], chunk->StepPos[i][3]);
             std::strcat(ChunkDebugMsg, line);
         }
 
-        std::snprintf(line, sizeof(line), "stepRelPos = %d, %d, %d\n", chunk->stepRelPos[0], chunk->stepRelPos[1],
-                      chunk->stepRelPos[2]);
+        std::snprintf(line, sizeof(line), "stepRelPos = %d, %d, %d\n", chunk->StepRelPos[0], chunk->StepRelPos[1],
+                      chunk->StepRelPos[2]);
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "numSteps = %d\n", chunk->numSteps);
+        std::snprintf(line, sizeof(line), "numSteps = %d\n", chunk->NumSteps);
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "run = %c\n", chunk->run != 0 ? 'T' : 'F');
+        std::snprintf(line, sizeof(line), "run = %c\n", chunk->Run != 0 ? 'T' : 'F');
         std::strcat(ChunkDebugMsg, line);
     };
 
@@ -1598,10 +1601,10 @@ auto DebugMoveChunk(Mover* mover, MoveChunk* chunk1, MoveChunk* chunk2) -> void
         writeChunk("\nCHUNK2\n", chunk2);
     }
 
-    File* debugFile = new File;
-    debugFile->create("mvchunk.dbg");
-    debugFile->writeString(ChunkDebugMsg);
-    debugFile->close();
+    MCFile* debugFile = new MCFile;
+    debugFile->Create("mvchunk.dbg");
+    debugFile->WriteString(ChunkDebugMsg);
+    debugFile->Close();
     delete debugFile;
     ExceptionGameMsg = ChunkDebugMsg;
 }
@@ -1613,60 +1616,60 @@ namespace
     /// the start cell for the first step, else the path step's own.
     /// </summary>
     /// <remarks>Inlined three times in MoveChunk::build.</remarks>
-    void CopyChunkStep(MoveChunk* chunk, int32_t index, const PathStep& step)
+    void CopyChunkStep(MCMoveChunk* chunk, int32_t index, const MCPathStep& step)
     {
-        int32_t* pos = chunk->stepPos[index];
-        pos[0] = step.tileR;
-        pos[1] = step.tileC;
-        pos[2] = step.cellR;
-        pos[3] = step.cellC;
+        int32_t* pos = chunk->StepPos[index];
+        pos[0] = step.TileR;
+        pos[1] = step.TileC;
+        pos[2] = step.CellR;
+        pos[3] = step.CellC;
 
         if (index == 1)
         {
-            const int32_t* start = chunk->stepPos[0];
-            chunk->stepRelPos[0] =
-                cellDirToCell(start[0], start[1], start[2], start[3], pos[0], pos[1], pos[2], pos[3]);
+            const int32_t* start = chunk->StepPos[0];
+            chunk->StepRelPos[0] =
+                CellDirToCell(start[0], start[1], start[2], start[3], pos[0], pos[1], pos[2], pos[3]);
         }
         else
         {
-            chunk->stepRelPos[index - 1] = static_cast<int8_t>(step.direction);
+            chunk->StepRelPos[index - 1] = static_cast<int8_t>(step.Direction);
         }
     }
 
     /// <summary>Makes the chunk a single step at the mover's cell.</summary>
-    void SetChunkAtMover(MoveChunk* chunk, Mover* mover)
+    void SetChunkAtMover(MCMoveChunk* chunk, MCMover* mover)
     {
-        const ObjectPosition* objPosition = mover->getObjPosition();
-        chunk->stepPos[0][0] = objPosition->tileR;
-        chunk->stepPos[0][1] = objPosition->tileC;
-        chunk->stepPos[0][2] = objPosition->cellR;
-        chunk->stepPos[0][3] = objPosition->cellC;
-        chunk->stepRelPos[0] = 0;
-        chunk->stepRelPos[1] = 0;
-        chunk->stepRelPos[2] = 0;
-        chunk->numSteps = 1;
+        const MCObjectPosition* objPosition = mover->GetObjPosition();
+        chunk->StepPos[0][0] = objPosition->TileR;
+        chunk->StepPos[0][1] = objPosition->TileC;
+        chunk->StepPos[0][2] = objPosition->CellR;
+        chunk->StepPos[0][3] = objPosition->CellC;
+        chunk->StepRelPos[0] = 0;
+        chunk->StepRelPos[1] = 0;
+        chunk->StepRelPos[2] = 0;
+        chunk->NumSteps = 1;
     }
 }
 
-auto MoveChunk::build(Mover* mover, MovePath* path1, MovePath* path2) -> void
+auto MCMoveChunk::Build(MCMover* mover, MCMovePath* path1, MCMovePath* path2) -> void
 {
     SetChunkAtMover(this, mover);
 
-    if (path1 != nullptr && path1->numSteps > 0)
+    if (path1 != nullptr && path1->NumSteps > 0)
     {
-        const int32_t pathSteps = path1->numSteps;
-        const int32_t curStep = path1->curStep;
+        const int32_t pathSteps = path1->NumSteps;
+        const int32_t curStep = path1->CurStep;
         int32_t index = 1;
         int roomLeft = 1;
 
         if (curStep < pathSteps)
         {
-            const PathStep& current = path1->stepList[curStep];
-            int onCurrentStep = stepPos[0][0] == current.tileR && stepPos[0][1] == current.tileC &&
-                                stepPos[0][2] == current.cellR && stepPos[0][3] == current.cellC;
+            const MCPathStep& current = path1->StepList[curStep];
+            int onCurrentStep = StepPos[0][0] == current.TileR && StepPos[0][1] == current.TileC &&
+                                StepPos[0][2] == current.CellR && StepPos[0][3] == current.CellC;
 
-            if (!onCurrentStep && cellDirToCell(stepPos[0][0], stepPos[0][1], stepPos[0][2], stepPos[0][3],
-                                                current.tileR, current.tileC, current.cellR, current.cellC) == -2)
+            if (!onCurrentStep && CellDirToCell(StepPos[0][0], StepPos[0][1], StepPos[0][2], StepPos[0][3],
+                                                current.TileR, current.TileC, current.CellR, current.CellC) == -2)
             {
                 onCurrentStep = 1; // not next to the current step: start the chunk from it
             }
@@ -1676,10 +1679,10 @@ auto MoveChunk::build(Mover* mover, MovePath* path1, MovePath* path2) -> void
 
             if (onCurrentStep)
             {
-                stepPos[0][0] = current.tileR;
-                stepPos[0][1] = current.tileC;
-                stepPos[0][2] = current.cellR;
-                stepPos[0][3] = current.cellC;
+                StepPos[0][0] = current.TileR;
+                StepPos[0][1] = current.TileC;
+                StepPos[0][2] = current.CellR;
+                StepPos[0][3] = current.CellC;
                 firstStep = curStep + 1;
                 stepsLeft = pathSteps - firstStep;
             }
@@ -1689,31 +1692,31 @@ auto MoveChunk::build(Mover* mover, MovePath* path1, MovePath* path2) -> void
                 stepsLeft = pathSteps - curStep;
             }
 
-            numSteps = MOVECHUNK_NUM_STEPS - 1;
+            NumSteps = MOVECHUNK_NUM_STEPS - 1;
             roomLeft = stepsLeft < MOVECHUNK_NUM_STEPS - 1;
 
             if (roomLeft)
             {
-                numSteps = stepsLeft;
+                NumSteps = stepsLeft;
             }
 
-            for (int32_t i = 0; i < numSteps; i++)
+            for (int32_t i = 0; i < NumSteps; i++)
             {
-                CopyChunkStep(this, index++, path1->stepList[firstStep + i]);
+                CopyChunkStep(this, index++, path1->StepList[firstStep + i]);
             }
 
-            numSteps++;
+            NumSteps++;
         }
 
-        const int nextLeg = path2 != nullptr && path1->globalStep >= 0 && path2->globalStep == path1->globalStep + 1;
+        const int nextLeg = path2 != nullptr && path1->GlobalStep >= 0 && path2->GlobalStep == path1->GlobalStep + 1;
 
-        if (roomLeft && nextLeg && path2->numStepsWhenNotPaused > 0 && numSteps < MOVECHUNK_NUM_STEPS)
+        if (roomLeft && nextLeg && path2->NumStepsWhenNotPaused > 0 && NumSteps < MOVECHUNK_NUM_STEPS)
         {
-            int32_t extraSteps = MOVECHUNK_NUM_STEPS - numSteps;
+            int32_t extraSteps = MOVECHUNK_NUM_STEPS - NumSteps;
 
-            if (path2->numSteps < extraSteps)
+            if (path2->NumSteps < extraSteps)
             {
-                extraSteps = path2->numSteps;
+                extraSteps = path2->NumSteps;
             }
 
             for (int32_t i = 0; i < extraSteps; i++)
@@ -1727,91 +1730,91 @@ auto MoveChunk::build(Mover* mover, MovePath* path1, MovePath* path2) -> void
                     break;
                 }
 
-                CopyChunkStep(this, index++, path2->stepList[i]);
+                CopyChunkStep(this, index++, path2->StepList[i]);
             }
 
-            numSteps = extraSteps + numSteps;
-            Assert(numSteps < MOVECHUNK_NUM_STEPS + 1 ? 1 : 0, static_cast<uint32_t>(index),
+            NumSteps = extraSteps + NumSteps;
+            Assert(NumSteps < MOVECHUNK_NUM_STEPS + 1 ? 1 : 0, static_cast<uint32_t>(index),
                    " MoveChunk.build: path2 and bad curStep > MOVECHUNK_NUM_STEPS ");
         }
     }
 
-    if (numSteps < 1 || numSteps > MOVECHUNK_NUM_STEPS)
+    if (NumSteps < 1 || NumSteps > MOVECHUNK_NUM_STEPS)
     {
         SetChunkAtMover(this, mover);
     }
 
-    run = mover->getPilot()->moveOrders.run;
+    Run = mover->GetPilot()->MoveOrders.Run;
 
-    if (run != 0 && mover->objectClass == BATTLEMECH)
+    if (Run != 0 && mover->ObjectClass == BATTLEMECH)
     {
-        run = static_cast<BattleMech*>(mover)->legStatus == 0 ? 1 : 0;
+        Run = static_cast<MCBattleMech*>(mover)->LegStatus == 0 ? 1 : 0;
     }
 
-    data = 0;
+    Data = 0;
 }
 
-auto MoveChunk::build(Mover*, vector_3d jumpGoal) -> void
+auto MCMoveChunk::Build(MCMover*, MCVector3D jumpGoal) -> void
 {
-    worldCoordToMapCoord(jumpGoal, stepPos[0][0], stepPos[0][1], stepPos[0][2], stepPos[0][3]);
-    stepRelPos[0] = 0;
-    stepRelPos[1] = 0;
-    stepRelPos[2] = 0;
-    numSteps = 1;
-    run = 0;
+    WorldCoordToMapCoord(jumpGoal, StepPos[0][0], StepPos[0][1], StepPos[0][2], StepPos[0][3]);
+    StepRelPos[0] = 0;
+    StepRelPos[1] = 0;
+    StepRelPos[2] = 0;
+    NumSteps = 1;
+    Run = 0;
 }
 
-auto MoveChunk::pack(Mover* mover) -> void
+auto MCMoveChunk::Pack(MCMover* mover) -> void
 {
-    const int32_t stepCount = numSteps;
-    uint32_t packed = static_cast<uint32_t>(tileMulMAPCELL_DIM[stepPos[0][1]] + stepPos[0][3]) << 3 |
-                      static_cast<uint32_t>(tileMulMAPCELL_DIM[stepPos[0][0]] + stepPos[0][2]) << 13 |
+    const int32_t stepCount = NumSteps;
+    uint32_t packed = static_cast<uint32_t>(TileMulMapcellDim[StepPos[0][1]] + StepPos[0][3]) << 3 |
+                      static_cast<uint32_t>(TileMulMapcellDim[StepPos[0][0]] + StepPos[0][2]) << 13 |
                       static_cast<uint32_t>(stepCount * 2 - 2);
 
-    if (run != 0)
+    if (Run != 0)
     {
         packed |= 1;
     }
 
     // Original behaviour (OB-029): a direction of -2 (MoveChunk::build found no neighbour) spills into the upper
     // bits.
-    packed = ((packed << 3 | static_cast<uint32_t>(stepRelPos[0])) << 3 | static_cast<uint32_t>(stepRelPos[1])) << 3 |
-             static_cast<uint32_t>(stepRelPos[2]);
-    data = packed;
+    packed = ((packed << 3 | static_cast<uint32_t>(StepRelPos[0])) << 3 | static_cast<uint32_t>(StepRelPos[1])) << 3 |
+             static_cast<uint32_t>(StepRelPos[2]);
+    Data = packed;
 
     if (stepCount < 1 || stepCount > MOVECHUNK_NUM_STEPS)
     {
         DebugMoveChunk(mover, this, nullptr);
         char message[1024];
-        std::snprintf(message, sizeof(message), " MoveChunk.pack: bad numSteps %d (save mvchunk.dbg file) ", numSteps);
-        Assert(0, static_cast<uint32_t>(numSteps), message);
+        std::snprintf(message, sizeof(message), " MoveChunk.pack: bad numSteps %d (save mvchunk.dbg file) ", NumSteps);
+        Assert(0, static_cast<uint32_t>(NumSteps), message);
     }
 }
 
-auto MoveChunk::unpack(Mover* mover) -> void
+auto MCMoveChunk::Unpack(MCMover* mover) -> void
 {
     MoveChunkUnpackErr = 0;
-    const uint32_t packed = data;
-    stepRelPos[2] = static_cast<int32_t>(packed & 7);
-    stepRelPos[1] = static_cast<int32_t>((packed >> 3) & 7);
-    stepRelPos[0] = static_cast<int32_t>((packed >> 6) & 7);
-    numSteps = static_cast<int32_t>((packed >> 10) & 3) + 1;
-    run = static_cast<int32_t>((packed >> 9) & 1);
+    const uint32_t packed = Data;
+    StepRelPos[2] = static_cast<int32_t>(packed & 7);
+    StepRelPos[1] = static_cast<int32_t>((packed >> 3) & 7);
+    StepRelPos[0] = static_cast<int32_t>((packed >> 6) & 7);
+    NumSteps = static_cast<int32_t>((packed >> 10) & 3) + 1;
+    Run = static_cast<int32_t>((packed >> 9) & 1);
     const uint32_t cellCol = (packed >> 12) & 0x3ff;
-    stepPos[0][1] = static_cast<int32_t>(cellCol / 3);
-    stepPos[0][3] = static_cast<int32_t>(cellCol) - tileMulMAPCELL_DIM[cellCol / 3];
+    StepPos[0][1] = static_cast<int32_t>(cellCol / 3);
+    StepPos[0][3] = static_cast<int32_t>(cellCol) - TileMulMapcellDim[cellCol / 3];
     const uint32_t cellRow = packed >> 22;
-    data = cellRow; // as the original: the packed word is left holding the start cell row
-    stepPos[0][0] = static_cast<int32_t>(cellRow / 3);
-    stepPos[0][2] = static_cast<int32_t>(cellRow) - tileMulMAPCELL_DIM[cellRow / 3];
+    Data = cellRow; // as the original: the packed word is left holding the start cell row
+    StepPos[0][0] = static_cast<int32_t>(cellRow / 3);
+    StepPos[0][2] = static_cast<int32_t>(cellRow) - TileMulMapcellDim[cellRow / 3];
 
-    if (numSteps < 1 || numSteps > MOVECHUNK_NUM_STEPS)
+    if (NumSteps < 1 || NumSteps > MOVECHUNK_NUM_STEPS)
     {
         MoveChunkUnpackErr = 1;
         return;
     }
 
-    for (int32_t i = 0; i < numSteps - 1; i++)
+    for (int32_t i = 0; i < NumSteps - 1; i++)
     {
         if (i < 0 || i > 2)
         {
@@ -1819,7 +1822,7 @@ auto MoveChunk::unpack(Mover* mover) -> void
             return;
         }
 
-        const int32_t dir = stepRelPos[i];
+        const int32_t dir = StepRelPos[i];
 
         if (dir < 0 || dir > 7)
         {
@@ -1827,36 +1830,36 @@ auto MoveChunk::unpack(Mover* mover) -> void
             return;
         }
 
-        const int32_t* adj = adjCellTable[stepPos[i][2] * MAPCELL_DIM + stepPos[i][3]][dir];
-        stepPos[i + 1][0] = adj[0] + stepPos[i][0];
-        stepPos[i + 1][1] = adj[1] + stepPos[i][1];
-        stepPos[i + 1][2] = adj[2];
-        stepPos[i + 1][3] = adj[3];
+        const int32_t* adj = AdjCellTable[StepPos[i][2] * MAPCELL_DIM + StepPos[i][3]][dir];
+        StepPos[i + 1][0] = adj[0] + StepPos[i][0];
+        StepPos[i + 1][1] = adj[1] + StepPos[i][1];
+        StepPos[i + 1][2] = adj[2];
+        StepPos[i + 1][3] = adj[3];
     }
 
-    if (numSteps < 1 || numSteps > MOVECHUNK_NUM_STEPS)
+    if (NumSteps < 1 || NumSteps > MOVECHUNK_NUM_STEPS)
     {
         DebugMoveChunk(mover, this, nullptr);
         char message[1024];
         std::snprintf(message, sizeof(message), " MoveChunk.unpack: bad numSteps %d (save mvchunk.dbg file) ",
-                      numSteps);
-        Assert(0, static_cast<uint32_t>(numSteps), message);
+                      NumSteps);
+        Assert(0, static_cast<uint32_t>(NumSteps), message);
     }
 }
 
-auto MoveChunk::equalTo(Mover* mover, MoveChunk* chunk) -> int
+auto MCMoveChunk::EqualTo(MCMover* mover, MCMoveChunk* chunk) -> int
 {
-    if (numSteps != chunk->numSteps || run != chunk->run)
+    if (NumSteps != chunk->NumSteps || Run != chunk->Run)
     {
         DebugMoveChunk(mover, this, chunk);
         return 0;
     }
 
-    for (int32_t i = 0; i < numSteps; i++)
+    for (int32_t i = 0; i < NumSteps; i++)
     {
         for (int32_t j = 0; j < 4; j++)
         {
-            if (stepPos[i][j] != chunk->stepPos[i][j])
+            if (StepPos[i][j] != chunk->StepPos[i][j])
             {
                 DebugMoveChunk(mover, this, chunk);
                 return 0;
@@ -1864,9 +1867,9 @@ auto MoveChunk::equalTo(Mover* mover, MoveChunk* chunk) -> int
         }
     }
 
-    for (int32_t i = 0; i < numSteps - 1; i++)
+    for (int32_t i = 0; i < NumSteps - 1; i++)
     {
-        if (stepRelPos[i] != chunk->stepRelPos[i])
+        if (StepRelPos[i] != chunk->StepRelPos[i])
         {
             DebugMoveChunk(mover, this, chunk);
             return 0;
@@ -1876,113 +1879,113 @@ auto MoveChunk::equalTo(Mover* mover, MoveChunk* chunk) -> int
     return 1;
 }
 
-auto MovePath::init(int32_t newNumSteps) -> int32_t
+auto MCMovePath::Init(int32_t newNumSteps) -> int32_t
 {
-    numStepsWhenNotPaused = newNumSteps;
-    numSteps = newNumSteps;
+    NumStepsWhenNotPaused = newNumSteps;
+    NumSteps = newNumSteps;
 
-    if (maxMovePathSteps < newNumSteps)
+    if (MaxMovePathSteps < newNumSteps)
     {
-        maxMovePathSteps = newNumSteps;
+        MaxMovePathSteps = newNumSteps;
         return newNumSteps;
     }
 
     return -1;
 }
 
-auto MovePath::clear() -> void
+auto MCMovePath::Clear() -> void
 {
-    if (numSteps > 0)
+    if (NumSteps > 0)
     {
-        unmark();
+        Unmark();
     }
 
-    goal.zero();
-    numSteps = 0;
-    numStepsWhenNotPaused = 0;
-    curStep = 0;
-    cost = 0;
-    marked = 0;
-    globalStep = -1;
+    Goal.Zero();
+    NumSteps = 0;
+    NumStepsWhenNotPaused = 0;
+    CurStep = 0;
+    Cost = 0;
+    Marked = 0;
+    GlobalStep = -1;
 }
 
-auto MovePath::destroy() -> void
+auto MCMovePath::Destroy() -> void
 {
-    numSteps = 0;
+    NumSteps = 0;
 }
 
-auto MovePath::getDistanceLeft(vector_3d position, int32_t fromStep) -> float
+auto MCMovePath::GetDistanceLeft(MCVector3D position, int32_t fromStep) -> float
 {
     if (fromStep == -1)
     {
-        fromStep = curStep;
+        fromStep = CurStep;
     }
 
-    const PathStep& step = stepList[fromStep];
-    return std::sqrt((position.x - step.destination.x) * (position.x - step.destination.x) +
-                     (position.z - step.destination.z) * (position.z - step.destination.z) +
-                     (position.y - step.destination.y) * (position.y - step.destination.y)) *
-               metersPerWorldUnit +
-           step.distanceToGoal;
+    const MCPathStep& step = StepList[fromStep];
+    return std::sqrt((position.X - step.Destination.X) * (position.X - step.Destination.X) +
+                     (position.Z - step.Destination.Z) * (position.Z - step.Destination.Z) +
+                     (position.Y - step.Destination.Y) * (position.Y - step.Destination.Y)) *
+               MetersPerWorldUnit +
+           step.DistanceToGoal;
 }
 
-auto MovePath::mark() -> void
+auto MCMovePath::Mark() -> void
 {
-    if (marked != 0)
+    if (Marked != 0)
     {
         return;
     }
 
-    for (int32_t i = 0; i < numSteps; i++)
+    for (int32_t i = 0; i < NumSteps; i++)
     {
-        GameMap->pathMap[GameMap->width * stepList[i].tileR + stepList[i].tileC]++;
+        GameMap->PathMap[GameMap->Width * StepList[i].TileR + StepList[i].TileC]++;
         Assert(1, 0, " Negative pathMap Count ");
     }
 
-    marked = 1;
+    Marked = 1;
 }
 
-auto MovePath::unmark() -> void
+auto MCMovePath::Unmark() -> void
 {
-    if (marked == 0)
+    if (Marked == 0)
     {
         return;
     }
 
-    for (int32_t i = 0; i < numSteps; i++)
+    for (int32_t i = 0; i < NumSteps; i++)
     {
-        GameMap->pathMap[GameMap->width * stepList[i].tileR + stepList[i].tileC]--;
+        GameMap->PathMap[GameMap->Width * StepList[i].TileR + StepList[i].TileC]--;
         Assert(1, 0, " Negative pathMap Count ");
     }
 
-    marked = 0;
+    Marked = 0;
 }
 
-auto MovePath::lock(int32_t start, int32_t range, uint32_t setting) -> void
+auto MCMovePath::Lock(int32_t start, int32_t range, uint32_t setting) -> void
 {
     if (start == -1)
     {
-        start = curStep;
+        start = CurStep;
     }
 
     int32_t end = start + range;
 
-    if (numStepsWhenNotPaused <= end)
+    if (NumStepsWhenNotPaused <= end)
     {
-        end = numStepsWhenNotPaused;
+        end = NumStepsWhenNotPaused;
     }
 
     for (int32_t i = start; i < end; i++)
     {
-        GameMap->setCellPathLocked(stepList[i].tileR, stepList[i].tileC, stepList[i].cellR, stepList[i].cellC, setting);
+        GameMap->SetCellPathLocked(StepList[i].TileR, StepList[i].TileC, StepList[i].CellR, StepList[i].CellC, setting);
     }
 }
 
-auto MovePath::isLocked(int32_t start, int32_t range, int* reachedEnd) -> int
+auto MCMovePath::IsLocked(int32_t start, int32_t range, int* reachedEnd) -> int
 {
     if (start == -1)
     {
-        start = curStep;
+        start = CurStep;
     }
 
     if (reachedEnd != nullptr)
@@ -1992,9 +1995,9 @@ auto MovePath::isLocked(int32_t start, int32_t range, int* reachedEnd) -> int
 
     int32_t end = range + start;
 
-    if (numStepsWhenNotPaused <= end)
+    if (NumStepsWhenNotPaused <= end)
     {
-        end = numStepsWhenNotPaused;
+        end = NumStepsWhenNotPaused;
 
         if (reachedEnd != nullptr)
         {
@@ -2004,7 +2007,7 @@ auto MovePath::isLocked(int32_t start, int32_t range, int* reachedEnd) -> int
 
     for (int32_t i = start; i < end; i++)
     {
-        if (GameMap->getCellPathLocked(stepList[i].tileR, stepList[i].tileC, stepList[i].cellR, stepList[i].cellC) != 0)
+        if (GameMap->GetCellPathLocked(StepList[i].TileR, StepList[i].TileC, StepList[i].CellR, StepList[i].CellC) != 0)
         {
             return 1;
         }
@@ -2013,11 +2016,11 @@ auto MovePath::isLocked(int32_t start, int32_t range, int* reachedEnd) -> int
     return 0;
 }
 
-auto MovePath::isBlocked(int32_t start, int32_t range, int* reachedEnd) -> int
+auto MCMovePath::IsBlocked(int32_t start, int32_t range, int* reachedEnd) -> int
 {
     if (start == -1)
     {
-        start = curStep;
+        start = CurStep;
     }
 
     if (reachedEnd != nullptr)
@@ -2027,9 +2030,9 @@ auto MovePath::isBlocked(int32_t start, int32_t range, int* reachedEnd) -> int
 
     int32_t end = range + start;
 
-    if (numStepsWhenNotPaused <= end)
+    if (NumStepsWhenNotPaused <= end)
     {
-        end = numStepsWhenNotPaused;
+        end = NumStepsWhenNotPaused;
 
         if (reachedEnd != nullptr)
         {
@@ -2039,9 +2042,9 @@ auto MovePath::isBlocked(int32_t start, int32_t range, int* reachedEnd) -> int
 
     for (int32_t i = start; i < end; i++)
     {
-        const MapTile& tile = GameMap->map[stepList[i].tileR * GameMap->width + stepList[i].tileC];
+        const MCMapTile& tile = GameMap->Map[StepList[i].TileR * GameMap->Width + StepList[i].TileC];
 
-        if (TileCellPassable(tile, stepList[i].cellR, stepList[i].cellC) == 0)
+        if (TileCellPassable(tile, StepList[i].CellR, StepList[i].CellC) == 0)
         {
             return 1;
         }
@@ -2050,50 +2053,50 @@ auto MovePath::isBlocked(int32_t start, int32_t range, int* reachedEnd) -> int
     return 0;
 }
 
-auto MovePath::crossesBridge(int32_t start, int32_t range) -> int32_t
+auto MCMovePath::CrossesBridge(int32_t start, int32_t range) -> int32_t
 {
     if (start == -1)
     {
-        start = curStep;
+        start = CurStep;
     }
 
     int32_t end = start + range;
 
-    if (numStepsWhenNotPaused <= end)
+    if (NumStepsWhenNotPaused <= end)
     {
-        end = numStepsWhenNotPaused;
+        end = NumStepsWhenNotPaused;
     }
 
     for (int32_t i = start; i < end; i++)
     {
-        const uint32_t overlay = GameMap->map[stepList[i].tileR * GameMap->width + stepList[i].tileC].overlay & 0x7f;
+        const uint32_t overlay = GameMap->Map[StepList[i].TileR * GameMap->Width + StepList[i].TileC].Overlay & 0x7f;
 
         if (OverlayIsBridge[overlay] != 0)
         {
-            return GlobalMoveMap->calcArea(stepList[i].tileR, stepList[i].tileC);
+            return GlobalMoveMap->CalcArea(StepList[i].TileR, StepList[i].TileC);
         }
     }
 
     return -1;
 }
 
-auto MovePath::crossesTile(int32_t start, int32_t range, int32_t tileR, int32_t tileC) -> int32_t
+auto MCMovePath::CrossesTile(int32_t start, int32_t range, int32_t tileR, int32_t tileC) -> int32_t
 {
     if (start == -1)
     {
-        start = curStep;
+        start = CurStep;
     }
 
     int32_t end = range + start;
 
-    if (numStepsWhenNotPaused <= end)
+    if (NumStepsWhenNotPaused <= end)
     {
-        end = numStepsWhenNotPaused;
+        end = NumStepsWhenNotPaused;
     }
 
     for (int32_t i = start; i < end; i++)
     {
-        if (tileR == stepList[i].tileR && tileC == stepList[i].tileC)
+        if (tileR == StepList[i].TileR && tileC == StepList[i].TileC)
         {
             return i;
         }
@@ -2102,33 +2105,33 @@ auto MovePath::crossesTile(int32_t start, int32_t range, int32_t tileR, int32_t 
     return -1;
 }
 
-auto MovePath::crossesClosedClanGate(int32_t, int32_t) -> int32_t
+auto MCMovePath::CrossesClosedClanGate(int32_t, int32_t) -> int32_t
 {
     return -1;
 }
 
-auto MovePath::crossesClosedISGate(int32_t, int32_t) -> int32_t
+auto MCMovePath::CrossesClosedISGate(int32_t, int32_t) -> int32_t
 {
     return -1;
 }
 
-auto MovePath::crossesClosedGate(int32_t start, int32_t range) -> int32_t
+auto MCMovePath::CrossesClosedGate(int32_t start, int32_t range) -> int32_t
 {
     if (start == -1)
     {
-        start = curStep;
+        start = CurStep;
     }
 
     int32_t end = range + start;
 
-    if (numStepsWhenNotPaused <= end)
+    if (NumStepsWhenNotPaused <= end)
     {
-        end = numStepsWhenNotPaused;
+        end = NumStepsWhenNotPaused;
     }
 
     for (int32_t i = start; i < end; i++)
     {
-        const uint32_t overlay = GameMap->map[stepList[i].tileR * GameMap->width + stepList[i].tileC].overlay & 0x7f;
+        const uint32_t overlay = GameMap->Map[StepList[i].TileR * GameMap->Width + StepList[i].TileC].Overlay & 0x7f;
 
         if (OverlayIsClosedGate[overlay] != 0)
         {
@@ -2139,148 +2142,148 @@ auto MovePath::crossesClosedGate(int32_t start, int32_t range) -> int32_t
     return -1;
 }
 
-auto MovePath::setMoveChunk(MoveChunk* chunk) -> void
+auto MCMovePath::SetMoveChunk(MCMoveChunk* chunk) -> void
 {
-    const int32_t stepCount = chunk->numSteps;
+    const int32_t stepCount = chunk->NumSteps;
 
     for (int32_t i = 0; i < stepCount; i++)
     {
-        PathStep& step = stepList[i];
-        step.tileR = static_cast<int16_t>(chunk->stepPos[i][0]);
-        step.tileC = static_cast<int16_t>(chunk->stepPos[i][1]);
-        step.cellR = static_cast<int16_t>(chunk->stepPos[i][2]);
-        step.cellC = static_cast<int16_t>(chunk->stepPos[i][3]);
-        step.destination.x = static_cast<float>(static_cast<double>(cellToWorldCoord[step.cellC]) +
-                                                tileColToWorldCoord[step.tileC] + HalfMapCell);
-        step.distanceToGoal = 0.0f;
-        step.destination.z = 0.0f;
-        step.direction = 0;
-        step.destination.y = static_cast<float>(static_cast<double>(tileRowToWorldCoord[step.tileR]) -
-                                                cellToWorldCoord[step.cellR] - HalfMapCell);
+        MCPathStep& step = StepList[i];
+        step.TileR = static_cast<int16_t>(chunk->StepPos[i][0]);
+        step.TileC = static_cast<int16_t>(chunk->StepPos[i][1]);
+        step.CellR = static_cast<int16_t>(chunk->StepPos[i][2]);
+        step.CellC = static_cast<int16_t>(chunk->StepPos[i][3]);
+        step.Destination.X = static_cast<float>(static_cast<double>(CellToWorldCoord[step.CellC]) +
+                                                TileColWorldCoords[step.TileC] + HalfMapCell);
+        step.DistanceToGoal = 0.0f;
+        step.Destination.Z = 0.0f;
+        step.Direction = 0;
+        step.Destination.Y = static_cast<float>(static_cast<double>(TileRowWorldCoords[step.TileR]) -
+                                                CellToWorldCoord[step.CellR] - HalfMapCell);
     }
 
-    numStepsWhenNotPaused = stepCount;
-    numSteps = stepCount;
-    curStep = 0;
+    NumStepsWhenNotPaused = stepCount;
+    NumSteps = stepCount;
+    CurStep = 0;
     // With no steps the original reads numSteps, numStepsWhenNotPaused and curStep (all 0 by then) as the goal.
-    goal = stepCount > 0 ? stepList[stepCount - 1].destination : vector_3d(0.0f, 0.0f, 0.0f);
-    target.zero();
-    marked = 0;
-    cost = -1;
-    globalStep = -1;
+    Goal = stepCount > 0 ? StepList[stepCount - 1].Destination : MCVector3D(0.0f, 0.0f, 0.0f);
+    Target.Zero();
+    Marked = 0;
+    Cost = -1;
+    GlobalStep = -1;
 }
 
-auto MovePath::getMoveChunk(MoveChunk*, int32_t, int32_t, int) -> void
+auto MCMovePath::GetMoveChunk(MCMoveChunk*, int32_t, int32_t, int) -> void
 {
 }
 
-auto MovePath::setDestination(int32_t stepNumber, vector_3d position) -> void
+auto MCMovePath::SetDestination(int32_t stepNumber, MCVector3D position) -> void
 {
-    stepList[stepNumber].destination = position;
+    StepList[stepNumber].Destination = position;
 }
 
-auto MovePathManager::init() -> int32_t
+auto MCMovePathManager::Init() -> int32_t
 {
     for (int32_t i = 0; i < MAX_PATH_QUEUE_RECS; i++)
     {
-        pool[i].pilot = nullptr;
-        pool[i].selectionIndex = 0;
-        pool[i].moveParams = 0;
-        pool[i].prev = i > 0 ? &pool[i - 1] : nullptr;
-        pool[i].next = i < MAX_PATH_QUEUE_RECS - 1 ? &pool[i + 1] : nullptr;
+        Pool[i].Pilot = nullptr;
+        Pool[i].SelectionIndex = 0;
+        Pool[i].MoveParams = 0;
+        Pool[i].Prev = i > 0 ? &Pool[i - 1] : nullptr;
+        Pool[i].Next = i < MAX_PATH_QUEUE_RECS - 1 ? &Pool[i + 1] : nullptr;
     }
 
-    queueFront = nullptr;
-    queueEnd = nullptr;
+    QueueFront = nullptr;
+    QueueEnd = nullptr;
     NumPathsInQueue = 0;
-    freeList = &pool[0];
+    FreeList = &Pool[0];
     return 0;
 }
 
-auto MovePathManager::destroy() -> void
+auto MCMovePathManager::Destroy() -> void
 {
 }
 
-auto MovePathManager::remove(PathQueueRec* rec) -> void
+auto MCMovePathManager::Remove(MCPathQueueRec* rec) -> void
 {
-    if (rec->prev == nullptr)
+    if (rec->Prev == nullptr)
     {
-        queueFront = rec->next;
+        QueueFront = rec->Next;
     }
     else
     {
-        rec->prev->next = rec->next;
+        rec->Prev->Next = rec->Next;
     }
 
-    if (rec->next == nullptr)
+    if (rec->Next == nullptr)
     {
-        queueEnd = rec->prev;
+        QueueEnd = rec->Prev;
     }
     else
     {
-        rec->next->prev = rec->prev;
+        rec->Next->Prev = rec->Prev;
     }
 
-    rec->prev = nullptr;
-    rec->next = freeList;
-    freeList = rec;
+    rec->Prev = nullptr;
+    rec->Next = FreeList;
+    FreeList = rec;
     NumPathsInQueue--;
 }
 
-auto MovePathManager::remove(MechWarrior* pilot) -> PathQueueRec*
+auto MCMovePathManager::Remove(MCMechWarrior* pilot) -> MCPathQueueRec*
 {
-    PathQueueRec* rec = pilot->movePathRequest;
+    MCPathQueueRec* rec = pilot->MovePathRequest;
 
     if (rec == nullptr)
     {
         return nullptr;
     }
 
-    remove(rec);
-    pilot->movePathRequest = nullptr;
+    Remove(rec);
+    pilot->MovePathRequest = nullptr;
     return rec;
 }
 
-auto MovePathManager::request(MechWarrior* pilot, int32_t selectionIndex, uint32_t moveParams, float priority,
-                              int32_t initPath) -> void
+auto MCMovePathManager::Request(MCMechWarrior* pilot, int32_t selectionIndex, uint32_t moveParams, float priority,
+                                int32_t initPath) -> void
 {
-    remove(pilot);
-    PathQueueRec* rec = freeList;
+    Remove(pilot);
+    MCPathQueueRec* rec = FreeList;
 
     if (rec == nullptr)
     {
         Fatal(0, " Too many pilots calcing paths ");
     }
 
-    freeList = rec->next;
+    FreeList = rec->Next;
 
-    if (freeList != nullptr)
+    if (FreeList != nullptr)
     {
-        freeList->prev = nullptr;
+        FreeList->Prev = nullptr;
     }
 
-    rec->selectionIndex = selectionIndex;
-    rec->initPath = initPath;
-    rec->priority = priority;
-    rec->pilot = pilot;
-    rec->moveParams = moveParams;
+    rec->SelectionIndex = selectionIndex;
+    rec->InitPath = initPath;
+    rec->Priority = priority;
+    rec->Pilot = pilot;
+    rec->MoveParams = moveParams;
 
-    if (queueEnd == nullptr)
+    if (QueueEnd == nullptr)
     {
-        rec->prev = nullptr;
-        rec->next = nullptr;
-        queueEnd = rec;
-        queueFront = rec;
+        rec->Prev = nullptr;
+        rec->Next = nullptr;
+        QueueEnd = rec;
+        QueueFront = rec;
     }
     else
     {
         // Walk back from the end to the last request of higher priority value, and queue behind it.
-        PathQueueRec* after = nullptr;
-        PathQueueRec* current = queueEnd;
+        MCPathQueueRec* after = nullptr;
+        MCPathQueueRec* current = QueueEnd;
 
-        for (; current != nullptr; current = current->prev)
+        for (; current != nullptr; current = current->Prev)
         {
-            if (priority < current->priority)
+            if (priority < current->Priority)
             {
                 break;
             }
@@ -2290,61 +2293,61 @@ auto MovePathManager::request(MechWarrior* pilot, int32_t selectionIndex, uint32
 
         if (current != nullptr)
         {
-            rec->prev = current;
-            rec->next = current->next;
-            current->next = rec;
+            rec->Prev = current;
+            rec->Next = current->Next;
+            current->Next = rec;
 
-            if (rec->next == nullptr)
+            if (rec->Next == nullptr)
             {
-                queueEnd = rec;
+                QueueEnd = rec;
             }
             else
             {
-                rec->next->prev = rec;
+                rec->Next->Prev = rec;
             }
         }
         else
         {
-            rec->prev = nullptr;
-            rec->next = after;
-            after->prev = rec;
-            queueFront = rec;
+            rec->Prev = nullptr;
+            rec->Next = after;
+            after->Prev = rec;
+            QueueFront = rec;
         }
     }
 
-    pilot->movePathRequest = rec;
+    pilot->MovePathRequest = rec;
     NumPathsInQueue++;
 }
 
-auto MovePathManager::calcPath() -> void
+auto MCMovePathManager::CalcPath() -> void
 {
-    PathQueueRec* rec = queueFront;
+    MCPathQueueRec* rec = QueueFront;
 
     if (rec == nullptr)
     {
         return;
     }
 
-    remove(rec);
-    MechWarrior* pilot = rec->pilot;
-    pilot->movePathRequest = nullptr;
+    Remove(rec);
+    MCMechWarrior* pilot = rec->Pilot;
+    pilot->MovePathRequest = nullptr;
 
-    if (pilot->vehicle != nullptr)
+    if (pilot->Vehicle != nullptr)
     {
-        pilot->calcMovePath(rec->selectionIndex, rec->moveParams, rec->initPath);
+        pilot->CalcMovePath(rec->SelectionIndex, rec->MoveParams, rec->InitPath);
     }
 }
 
-auto MovePathManager::update() -> void
+auto MCMovePathManager::Update() -> void
 {
     for (int32_t i = 0; i < 5; i++)
     {
-        if (queueFront == nullptr)
+        if (QueueFront == nullptr)
         {
             return;
         }
 
-        calcPath();
+        CalcPath();
     }
 }
 
@@ -2367,154 +2370,154 @@ namespace
     }
 
     /// <summary>Decodes a 0x29-byte area record (the doors pointer is left for the caller).</summary>
-    void DecodeArea(const uint8_t* record, GlobalMapArea& area)
+    void DecodeArea(const uint8_t* record, MCGlobalMapArea& area)
     {
-        area.sectorR = ReadRecordField<int16_t>(record);
-        area.sectorC = ReadRecordField<int16_t>(record);
+        area.SectorR = ReadRecordField<int16_t>(record);
+        area.SectorC = ReadRecordField<int16_t>(record);
         ReadRecordField<uint32_t>(record);
-        area.doors = nullptr;
-        area.type = ReadRecordField<int32_t>(record);
-        area.numDoors = ReadRecordField<char>(record);
-        area.open = ReadRecordField<int32_t>(record);
-        // +0x11 and +0x15: editor-only words nothing reads.
+        area.Doors = nullptr;
+        area.Type = ReadRecordField<int32_t>(record);
+        area.NumDoors = ReadRecordField<char>(record);
+        area.Open = ReadRecordField<int32_t>(record);
+        // Two editor-only words nothing reads.
         ReadRecordField<int32_t>(record);
         ReadRecordField<int32_t>(record);
-        area.closed = ReadRecordField<int32_t>(record);
-        // +0x1d .. +0x25: editor-only words nothing reads.
+        area.Closed = ReadRecordField<int32_t>(record);
+        // The record ends with three editor-only words nothing reads.
     }
 
     /// <summary>Encodes an area as its 0x29-byte file record (the doors pointer written as 0).</summary>
-    void EncodeArea(const GlobalMapArea& area, uint8_t* record)
+    void EncodeArea(const MCGlobalMapArea& area, uint8_t* record)
     {
-        WriteRecordField<int16_t>(record, area.sectorR);
-        WriteRecordField<int16_t>(record, area.sectorC);
+        WriteRecordField<int16_t>(record, area.SectorR);
+        WriteRecordField<int16_t>(record, area.SectorC);
         WriteRecordField<uint32_t>(record, 0);
-        WriteRecordField<int32_t>(record, area.type);
-        WriteRecordField<char>(record, area.numDoors);
-        WriteRecordField<int32_t>(record, area.open);
+        WriteRecordField<int32_t>(record, area.Type);
+        WriteRecordField<char>(record, area.NumDoors);
+        WriteRecordField<int32_t>(record, area.Open);
         // The editor-only words, with the values the editor's calcAreas gives them.
         WriteRecordField<int32_t>(record, -1);
         WriteRecordField<int32_t>(record, 0);
-        WriteRecordField<int32_t>(record, area.closed);
+        WriteRecordField<int32_t>(record, area.Closed);
         WriteRecordField<int32_t>(record, 0);
         WriteRecordField<int32_t>(record, 0);
         WriteRecordField<int32_t>(record, 0);
     }
 
     /// <summary>Decodes a 0x3b-byte door record (the link pointers are left for the caller).</summary>
-    void DecodeDoor(const uint8_t* record, GlobalMapDoor& door)
+    void DecodeDoor(const uint8_t* record, MCGlobalMapDoor& door)
     {
-        door.row = ReadRecordField<int16_t>(record);
-        door.col = ReadRecordField<int16_t>(record);
-        door.cellR = ReadRecordField<uint8_t>(record);
-        door.cellC = ReadRecordField<uint8_t>(record);
-        door.length = ReadRecordField<char>(record);
-        door.open = ReadRecordField<int32_t>(record);
-        door.area[0] = ReadRecordField<int16_t>(record);
-        door.area[1] = ReadRecordField<int16_t>(record);
-        door.areaCost[0] = ReadRecordField<int16_t>(record);
-        door.areaCost[1] = ReadRecordField<int16_t>(record);
-        door.direction[0] = ReadRecordField<char>(record);
-        door.direction[1] = ReadRecordField<char>(record);
-        door.numLinks[0] = ReadRecordField<char>(record);
-        door.numLinks[1] = ReadRecordField<char>(record);
+        door.Row = ReadRecordField<int16_t>(record);
+        door.Col = ReadRecordField<int16_t>(record);
+        door.CellR = ReadRecordField<uint8_t>(record);
+        door.CellC = ReadRecordField<uint8_t>(record);
+        door.Length = ReadRecordField<char>(record);
+        door.Open = ReadRecordField<int32_t>(record);
+        door.Area[0] = ReadRecordField<int16_t>(record);
+        door.Area[1] = ReadRecordField<int16_t>(record);
+        door.AreaCost[0] = ReadRecordField<int16_t>(record);
+        door.AreaCost[1] = ReadRecordField<int16_t>(record);
+        door.Direction[0] = ReadRecordField<char>(record);
+        door.Direction[1] = ReadRecordField<char>(record);
+        door.NumLinks[0] = ReadRecordField<char>(record);
+        door.NumLinks[1] = ReadRecordField<char>(record);
         ReadRecordField<uint32_t>(record);
         ReadRecordField<uint32_t>(record);
-        door.links[0] = nullptr;
-        door.links[1] = nullptr;
-        door.cost = ReadRecordField<int32_t>(record);
-        door.parent = ReadRecordField<int32_t>(record);
-        door.fromAreaIndex = ReadRecordField<int32_t>(record);
-        door.flags = ReadRecordField<uint32_t>(record);
-        door.g = ReadRecordField<int32_t>(record);
-        door.hPrime = ReadRecordField<int32_t>(record);
-        door.fPrime = ReadRecordField<int32_t>(record);
+        door.Links[0] = nullptr;
+        door.Links[1] = nullptr;
+        door.Cost = ReadRecordField<int32_t>(record);
+        door.Parent = ReadRecordField<int32_t>(record);
+        door.FromAreaIndex = ReadRecordField<int32_t>(record);
+        door.Flags = ReadRecordField<uint32_t>(record);
+        door.G = ReadRecordField<int32_t>(record);
+        door.HPrime = ReadRecordField<int32_t>(record);
+        door.FPrime = ReadRecordField<int32_t>(record);
     }
 
     /// <summary>Encodes a door as its 0x3b-byte file record (the link pointers written as 0).</summary>
-    void EncodeDoor(const GlobalMapDoor& door, uint8_t* record)
+    void EncodeDoor(const MCGlobalMapDoor& door, uint8_t* record)
     {
-        WriteRecordField<int16_t>(record, door.row);
-        WriteRecordField<int16_t>(record, door.col);
-        WriteRecordField<uint8_t>(record, door.cellR);
-        WriteRecordField<uint8_t>(record, door.cellC);
-        WriteRecordField<char>(record, door.length);
-        WriteRecordField<int32_t>(record, door.open);
-        WriteRecordField<int16_t>(record, door.area[0]);
-        WriteRecordField<int16_t>(record, door.area[1]);
-        WriteRecordField<int16_t>(record, door.areaCost[0]);
-        WriteRecordField<int16_t>(record, door.areaCost[1]);
-        WriteRecordField<char>(record, door.direction[0]);
-        WriteRecordField<char>(record, door.direction[1]);
-        WriteRecordField<char>(record, door.numLinks[0]);
-        WriteRecordField<char>(record, door.numLinks[1]);
+        WriteRecordField<int16_t>(record, door.Row);
+        WriteRecordField<int16_t>(record, door.Col);
+        WriteRecordField<uint8_t>(record, door.CellR);
+        WriteRecordField<uint8_t>(record, door.CellC);
+        WriteRecordField<char>(record, door.Length);
+        WriteRecordField<int32_t>(record, door.Open);
+        WriteRecordField<int16_t>(record, door.Area[0]);
+        WriteRecordField<int16_t>(record, door.Area[1]);
+        WriteRecordField<int16_t>(record, door.AreaCost[0]);
+        WriteRecordField<int16_t>(record, door.AreaCost[1]);
+        WriteRecordField<char>(record, door.Direction[0]);
+        WriteRecordField<char>(record, door.Direction[1]);
+        WriteRecordField<char>(record, door.NumLinks[0]);
+        WriteRecordField<char>(record, door.NumLinks[1]);
         WriteRecordField<uint32_t>(record, 0);
         WriteRecordField<uint32_t>(record, 0);
-        WriteRecordField<int32_t>(record, door.cost);
-        WriteRecordField<int32_t>(record, door.parent);
-        WriteRecordField<int32_t>(record, door.fromAreaIndex);
-        WriteRecordField<uint32_t>(record, door.flags);
-        WriteRecordField<int32_t>(record, door.g);
-        WriteRecordField<int32_t>(record, door.hPrime);
-        WriteRecordField<int32_t>(record, door.fPrime);
+        WriteRecordField<int32_t>(record, door.Cost);
+        WriteRecordField<int32_t>(record, door.Parent);
+        WriteRecordField<int32_t>(record, door.FromAreaIndex);
+        WriteRecordField<uint32_t>(record, door.Flags);
+        WriteRecordField<int32_t>(record, door.G);
+        WriteRecordField<int32_t>(record, door.HPrime);
+        WriteRecordField<int32_t>(record, door.FPrime);
     }
 
     /// <summary>Whether (row, col) lies in the sector being filled (GlobalMap::minTileR and friends).</summary>
     bool InFillSector(int32_t row, int32_t col)
     {
-        return row >= GlobalMap::minTileR && row < GlobalMap::maxTileR && col >= GlobalMap::minTileC &&
-               col < GlobalMap::maxTileC;
+        return row >= MCGlobalMap::MinTileR && row < MCGlobalMap::MaxTileR && col >= MCGlobalMap::MinTileC &&
+               col < MCGlobalMap::MaxTileC;
     }
 
     /// <summary>A tile's overlay type.</summary>
-    uint32_t TileOverlay(ScenarioMap* map, int32_t row, int32_t col)
+    uint32_t TileOverlay(MCScenarioMap* map, int32_t row, int32_t col)
     {
-        return map->map[map->width * row + col].overlay & 0x7f;
+        return map->Map[map->Width * row + col].Overlay & 0x7f;
     }
 
     /// <summary>Cells per row of the door finder's cell map (MCX: a 120 x 120 short array on the stack).</summary>
     constexpr int32_t DOOR_CELL_MAP_SIDE = 120;
 }
 
-auto GlobalMap::init(int32_t newWidth, int32_t newHeight) -> void
+auto MCGlobalMap::Init(int32_t newWidth, int32_t newHeight) -> void
 {
-    width = newWidth;
-    height = newHeight;
-    areaMap = static_cast<int16_t*>(blocks.Allocate(static_cast<uint32_t>(newWidth * newHeight * sizeof(int16_t))));
+    Width = newWidth;
+    Height = newHeight;
+    AreaMap = static_cast<int16_t*>(Blocks.Allocate(static_cast<uint32_t>(newWidth * newHeight * sizeof(int16_t))));
 
-    if (areaMap == nullptr)
+    if (AreaMap == nullptr)
     {
         Fatal(0, "Not enough Memory for LargeAreaMap");
     }
 
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        for (int32_t col = 0; col < width; col++)
+        for (int32_t col = 0; col < Width; col++)
         {
-            areaMap[width * row + col] = -1;
+            AreaMap[Width * row + col] = -1;
         }
     }
 
-    sectorDim = 10;
+    SectorDim = 10;
 
-    if (width % 10 != 0 || height % 10 != 0)
+    if (Width % 10 != 0 || Height % 10 != 0)
     {
         Fatal(0, "Scenario Map Dimensions must be multiples of SectorDim");
     }
 
-    numAreas = 0;
-    areas = nullptr;
-    numDoors = 0;
-    sectorWidth = newWidth / 10;
-    sectorHeight = newWidth / 10;
-    doors = nullptr;
-    doorBuildList = nullptr;
-    pathCostTable = nullptr;
+    NumAreas = 0;
+    Areas = nullptr;
+    NumDoors = 0;
+    SectorWidth = newWidth / 10;
+    SectorHeight = newWidth / 10;
+    Doors = nullptr;
+    DoorBuildList = nullptr;
+    PathCostTable = nullptr;
 }
 
-auto GlobalMap::init(File* mapFile) -> int32_t
+auto MCGlobalMap::Init(MCFile* mapFile) -> int32_t
 {
-    const int32_t version = mapFile->readLong();
+    const int32_t version = mapFile->ReadLong();
 
     if (version != GLOBALMAP_VERSION)
     {
@@ -2522,211 +2525,212 @@ auto GlobalMap::init(File* mapFile) -> int32_t
     }
 
     // Header words 1 and 2: written by the editor (always 0), read by nothing.
-    mapFile->readLong();
-    mapFile->readLong();
-    height = mapFile->readLong();
-    width = mapFile->readLong();
-    sectorDim = mapFile->readLong();
-    sectorHeight = mapFile->readLong();
-    sectorWidth = mapFile->readLong();
-    numAreas = mapFile->readLong();
-    numDoors = mapFile->readLong();
-    numDoorInfos = mapFile->readLong();
-    numDoorLinks = mapFile->readLong();
-    smallAreaMap = nullptr;
-    areaMap = nullptr;
+    mapFile->ReadLong();
+    mapFile->ReadLong();
+    Height = mapFile->ReadLong();
+    Width = mapFile->ReadLong();
+    SectorDim = mapFile->ReadLong();
+    SectorHeight = mapFile->ReadLong();
+    SectorWidth = mapFile->ReadLong();
+    NumAreas = mapFile->ReadLong();
+    NumDoors = mapFile->ReadLong();
+    NumDoorInfos = mapFile->ReadLong();
+    NumDoorLinks = mapFile->ReadLong();
+    SmallAreaMap = nullptr;
+    AreaMap = nullptr;
 
-    if (numAreas < 256)
+    if (NumAreas < 256)
     {
-        const int32_t size = width * height;
-        smallAreaMap = static_cast<uint8_t*>(blocks.Allocate(static_cast<uint32_t>(size)));
+        const int32_t size = Width * Height;
+        SmallAreaMap = static_cast<uint8_t*>(Blocks.Allocate(static_cast<uint32_t>(size)));
 
-        if (smallAreaMap == nullptr)
+        if (SmallAreaMap == nullptr)
         {
             Fatal(0, " Not Enough Memory for GlobalMap:smallAreaMap ");
         }
 
-        mapFile->read(smallAreaMap, size);
+        mapFile->Read(SmallAreaMap, size);
     }
     else
     {
-        const int32_t size = width * height * 2;
-        areaMap = static_cast<int16_t*>(blocks.Allocate(static_cast<uint32_t>(size)));
+        const int32_t size = Width * Height * 2;
+        AreaMap = static_cast<int16_t*>(Blocks.Allocate(static_cast<uint32_t>(size)));
 
-        if (areaMap == nullptr)
+        if (AreaMap == nullptr)
         {
             Fatal(0, " Not Enough Memory for GlobalMap:largeAreaMap ");
         }
 
-        mapFile->read(reinterpret_cast<uint8_t*>(areaMap), size);
+        mapFile->Read(reinterpret_cast<uint8_t*>(AreaMap), size);
     }
 
-    doorInfos = static_cast<DoorInfo*>(blocks.Allocate(static_cast<uint32_t>(numDoorInfos * sizeof(DoorInfo))));
+    DoorInfos = static_cast<MCDoorInfo*>(Blocks.Allocate(static_cast<uint32_t>(NumDoorInfos * sizeof(MCDoorInfo))));
 
-    if (doorInfos == nullptr)
+    if (DoorInfos == nullptr)
     {
         Fatal(0, " Not Enough Memory for GlobalMap:doorInfos ");
     }
 
-    mapFile->read(reinterpret_cast<uint8_t*>(doorInfos), numDoorInfos * static_cast<int32_t>(sizeof(DoorInfo)));
+    mapFile->Read(reinterpret_cast<uint8_t*>(DoorInfos), NumDoorInfos * static_cast<int32_t>(sizeof(MCDoorInfo)));
 
     // Port fix: room for the spare area setTempArea writes (the original allocated exactly numAreas here).
-    areas = static_cast<GlobalMapArea*>(blocks.Allocate(static_cast<uint32_t>((numAreas + 1) * sizeof(GlobalMapArea))));
+    Areas =
+        static_cast<MCGlobalMapArea*>(Blocks.Allocate(static_cast<uint32_t>((NumAreas + 1) * sizeof(MCGlobalMapArea))));
 
-    if (areas == nullptr)
+    if (Areas == nullptr)
     {
         Fatal(0, " Not Enough Memory for GlobalMap:areas ");
     }
 
-    std::vector<uint8_t> records(static_cast<size_t>(numAreas) * GLOBALMAP_AREA_RECORD_SIZE);
-    mapFile->read(records.data(), numAreas * GLOBALMAP_AREA_RECORD_SIZE);
+    std::vector<uint8_t> records(static_cast<size_t>(NumAreas) * GLOBALMAP_AREA_RECORD_SIZE);
+    mapFile->Read(records.data(), NumAreas * GLOBALMAP_AREA_RECORD_SIZE);
     int32_t infoIndex = 0;
 
-    for (int32_t i = 0; i < numAreas; i++)
+    for (int32_t i = 0; i < NumAreas; i++)
     {
-        DecodeArea(records.data() + static_cast<size_t>(i) * GLOBALMAP_AREA_RECORD_SIZE, areas[i]);
-        areas[i].doors = doorInfos + infoIndex;
-        infoIndex += areas[i].numDoors;
+        DecodeArea(records.data() + static_cast<size_t>(i) * GLOBALMAP_AREA_RECORD_SIZE, Areas[i]);
+        Areas[i].Doors = DoorInfos + infoIndex;
+        infoIndex += Areas[i].NumDoors;
     }
 
-    std::memset(&areas[numAreas], 0, sizeof(GlobalMapArea));
+    std::memset(&Areas[NumAreas], 0, sizeof(MCGlobalMapArea));
 
-    doorLinks = static_cast<DoorLink*>(blocks.Allocate(static_cast<uint32_t>(numDoorLinks * sizeof(DoorLink))));
+    DoorLinks = static_cast<MCDoorLink*>(Blocks.Allocate(static_cast<uint32_t>(NumDoorLinks * sizeof(MCDoorLink))));
 
-    if (doorLinks == nullptr)
+    if (DoorLinks == nullptr)
     {
         Fatal(0, " Not Enough Memory for GlobalMap:doorlinks ");
     }
 
-    mapFile->read(reinterpret_cast<uint8_t*>(doorLinks), numDoorLinks * static_cast<int32_t>(sizeof(DoorLink)));
+    mapFile->Read(reinterpret_cast<uint8_t*>(DoorLinks), NumDoorLinks * static_cast<int32_t>(sizeof(MCDoorLink)));
 
-    const int32_t totalDoors = numDoors + 2;
-    doors = static_cast<GlobalMapDoor*>(blocks.Allocate(static_cast<uint32_t>(totalDoors * sizeof(GlobalMapDoor))));
+    const int32_t totalDoors = NumDoors + 2;
+    Doors = static_cast<MCGlobalMapDoor*>(Blocks.Allocate(static_cast<uint32_t>(totalDoors * sizeof(MCGlobalMapDoor))));
 
-    if (doors == nullptr)
+    if (Doors == nullptr)
     {
         Fatal(0, " Not Enough Memory for GlobalMap:doors ");
     }
 
     records.assign(static_cast<size_t>(totalDoors) * GLOBALMAP_DOOR_RECORD_SIZE, 0);
-    mapFile->read(records.data(), totalDoors * GLOBALMAP_DOOR_RECORD_SIZE);
+    mapFile->Read(records.data(), totalDoors * GLOBALMAP_DOOR_RECORD_SIZE);
     int32_t linkIndex = 0;
 
     for (int32_t i = 0; i < totalDoors; i++)
     {
-        GlobalMapDoor& door = doors[i];
+        MCGlobalMapDoor& door = Doors[i];
         DecodeDoor(records.data() + static_cast<size_t>(i) * GLOBALMAP_DOOR_RECORD_SIZE, door);
 
         for (int32_t side = 0; side < 2; side++)
         {
-            door.links[side] = doorLinks + linkIndex;
-            Assert(door.numLinks[side] + 2 > 1 ? 1 : 0, 0, " Bad Door Links Count ");
-            linkIndex += door.numLinks[side] + 2;
+            door.Links[side] = DoorLinks + linkIndex;
+            Assert(door.NumLinks[side] + 2 > 1 ? 1 : 0, 0, " Bad Door Links Count ");
+            linkIndex += door.NumLinks[side] + 2;
         }
     }
 
-    pathCostTable = static_cast<uint8_t*>(blocks.Allocate(static_cast<uint32_t>(numAreas * numAreas)));
+    PathCostTable = static_cast<uint8_t*>(Blocks.Allocate(static_cast<uint32_t>(NumAreas * NumAreas)));
 
-    if (pathCostTable == nullptr)
+    if (PathCostTable == nullptr)
     {
         Fatal(0, " Not Enough Memory for GlobalMap.pathCostTable ");
     }
 
-    mapFile->read(pathCostTable, numAreas * numAreas);
+    mapFile->Read(PathCostTable, NumAreas * NumAreas);
     return 0;
 }
 
-auto GlobalMap::init(ScenarioMap* map, int32_t newHeight, int32_t newWidth) -> int32_t
+auto MCGlobalMap::Init(MCScenarioMap* map, int32_t newHeight, int32_t newWidth) -> int32_t
 {
     if (newHeight == -1)
     {
-        newHeight = map->height;
+        newHeight = map->Height;
     }
 
     if (newWidth == -1)
     {
-        newWidth = map->width;
+        newWidth = map->Width;
     }
 
-    init(newHeight, newWidth); // as the original: the map's height goes to init's width slot (maps are square)
-    calcAreas(map);
-    calcBridges(map);
-    calcGlobalDoors(map);
-    calcAreaDoors();
-    calcDoorLinks();
+    Init(newHeight, newWidth); // as the original: the map's height goes to init's width slot (maps are square)
+    CalcAreas(map);
+    CalcBridges(map);
+    CalcGlobalDoors(map);
+    CalcAreaDoors();
+    CalcDoorLinks();
 
-    if (numAreas < 256)
+    if (NumAreas < 256)
     {
-        smallAreaMap = static_cast<uint8_t*>(blocks.Allocate(static_cast<uint32_t>(height * width)));
+        SmallAreaMap = static_cast<uint8_t*>(Blocks.Allocate(static_cast<uint32_t>(Height * Width)));
 
-        if (smallAreaMap == nullptr)
+        if (SmallAreaMap == nullptr)
         {
             Fatal(0, " Not Enough Memory for SmallAreaMap ");
         }
 
-        for (int32_t row = 0; row < height; row++)
+        for (int32_t row = 0; row < Height; row++)
         {
-            for (int32_t col = 0; col < width; col++)
+            for (int32_t col = 0; col < Width; col++)
             {
-                const int16_t area = areaMap[width * row + col];
-                smallAreaMap[width * row + col] = area < 0 ? 0xff : static_cast<uint8_t>(area);
+                const int16_t area = AreaMap[Width * row + col];
+                SmallAreaMap[Width * row + col] = area < 0 ? 0xff : static_cast<uint8_t>(area);
             }
         }
 
-        blocks.Free(areaMap);
-        areaMap = nullptr;
+        Blocks.Free(AreaMap);
+        AreaMap = nullptr;
     }
 
     return 0;
 }
 
-auto GlobalMap::write(File* mapFile) -> int32_t
+auto MCGlobalMap::Write(MCFile* mapFile) -> int32_t
 {
-    mapFile->writeLong(GLOBALMAP_VERSION);
-    mapFile->writeLong(0);
-    mapFile->writeLong(0);
-    mapFile->writeLong(height);
-    mapFile->writeLong(width);
-    mapFile->writeLong(sectorDim);
-    mapFile->writeLong(sectorHeight);
-    mapFile->writeLong(sectorWidth);
-    mapFile->writeLong(numAreas);
-    mapFile->writeLong(numDoors);
-    mapFile->writeLong(numDoorInfos);
-    mapFile->writeLong(numDoorLinks);
+    mapFile->WriteLong(GLOBALMAP_VERSION);
+    mapFile->WriteLong(0);
+    mapFile->WriteLong(0);
+    mapFile->WriteLong(Height);
+    mapFile->WriteLong(Width);
+    mapFile->WriteLong(SectorDim);
+    mapFile->WriteLong(SectorHeight);
+    mapFile->WriteLong(SectorWidth);
+    mapFile->WriteLong(NumAreas);
+    mapFile->WriteLong(NumDoors);
+    mapFile->WriteLong(NumDoorInfos);
+    mapFile->WriteLong(NumDoorLinks);
 
-    if (smallAreaMap != nullptr)
+    if (SmallAreaMap != nullptr)
     {
-        mapFile->write(smallAreaMap, width * height);
+        mapFile->Write(SmallAreaMap, Width * Height);
     }
     else
     {
-        mapFile->write(reinterpret_cast<const uint8_t*>(areaMap), width * height * 2);
+        mapFile->Write(reinterpret_cast<const uint8_t*>(AreaMap), Width * Height * 2);
     }
 
-    for (int32_t i = 0; i < numAreas; i++)
+    for (int32_t i = 0; i < NumAreas; i++)
     {
-        mapFile->write(reinterpret_cast<const uint8_t*>(areas[i].doors), areas[i].numDoors * 3);
+        mapFile->Write(reinterpret_cast<const uint8_t*>(Areas[i].Doors), Areas[i].NumDoors * 3);
     }
 
-    std::vector<uint8_t> records(static_cast<size_t>(numAreas) * GLOBALMAP_AREA_RECORD_SIZE);
+    std::vector<uint8_t> records(static_cast<size_t>(NumAreas) * GLOBALMAP_AREA_RECORD_SIZE);
 
-    for (int32_t i = 0; i < numAreas; i++)
+    for (int32_t i = 0; i < NumAreas; i++)
     {
-        EncodeArea(areas[i], records.data() + static_cast<size_t>(i) * GLOBALMAP_AREA_RECORD_SIZE);
+        EncodeArea(Areas[i], records.data() + static_cast<size_t>(i) * GLOBALMAP_AREA_RECORD_SIZE);
     }
 
-    mapFile->write(records.data(), numAreas * GLOBALMAP_AREA_RECORD_SIZE);
+    mapFile->Write(records.data(), NumAreas * GLOBALMAP_AREA_RECORD_SIZE);
 
-    const int32_t totalDoors = numDoors + 2;
+    const int32_t totalDoors = NumDoors + 2;
 
     for (int32_t i = 0; i < totalDoors; i++)
     {
         for (int32_t side = 0; side < 2; side++)
         {
-            const int32_t count = doors[i].numLinks[side] + 2;
+            const int32_t count = Doors[i].NumLinks[side] + 2;
             Assert(count > 1 ? 1 : 0, 0, " Bad Door Links Count ");
-            mapFile->write(reinterpret_cast<const uint8_t*>(doors[i].links[side]), count * 7);
+            mapFile->Write(reinterpret_cast<const uint8_t*>(Doors[i].Links[side]), count * 7);
         }
     }
 
@@ -2734,190 +2738,190 @@ auto GlobalMap::write(File* mapFile) -> int32_t
 
     for (int32_t i = 0; i < totalDoors; i++)
     {
-        EncodeDoor(doors[i], records.data() + static_cast<size_t>(i) * GLOBALMAP_DOOR_RECORD_SIZE);
+        EncodeDoor(Doors[i], records.data() + static_cast<size_t>(i) * GLOBALMAP_DOOR_RECORD_SIZE);
     }
 
-    mapFile->write(records.data(), totalDoors * GLOBALMAP_DOOR_RECORD_SIZE);
+    mapFile->Write(records.data(), totalDoors * GLOBALMAP_DOOR_RECORD_SIZE);
 
-    calcPathCostTable();
-    mapFile->write(pathCostTable, numAreas * numAreas);
+    CalcPathCostTable();
+    mapFile->Write(PathCostTable, NumAreas * NumAreas);
     return 0;
 }
 
-auto GlobalMap::destroy() -> void
+auto MCGlobalMap::Destroy() -> void
 {
-    if (smallAreaMap != nullptr)
+    if (SmallAreaMap != nullptr)
     {
-        blocks.Free(smallAreaMap);
-        smallAreaMap = nullptr;
+        Blocks.Free(SmallAreaMap);
+        SmallAreaMap = nullptr;
     }
 
-    if (areaMap != nullptr)
+    if (AreaMap != nullptr)
     {
-        blocks.Free(areaMap);
-        areaMap = nullptr;
+        Blocks.Free(AreaMap);
+        AreaMap = nullptr;
     }
 
-    if (areas != nullptr)
+    if (Areas != nullptr)
     {
         // Computed maps give each area its own door list; loaded ones point into doorInfos.
-        if (doorInfos == nullptr)
+        if (DoorInfos == nullptr)
         {
-            for (int32_t i = 0; i < numAreas + 1; i++)
+            for (int32_t i = 0; i < NumAreas + 1; i++)
             {
-                if (areas[i].doors != nullptr)
+                if (Areas[i].Doors != nullptr)
                 {
-                    blocks.Free(areas[i].doors);
-                    areas[i].doors = nullptr;
+                    Blocks.Free(Areas[i].Doors);
+                    Areas[i].Doors = nullptr;
                 }
             }
         }
 
-        blocks.Free(areas);
-        areas = nullptr;
+        Blocks.Free(Areas);
+        Areas = nullptr;
     }
 
-    if (doors != nullptr)
+    if (Doors != nullptr)
     {
-        if (doorLinks == nullptr)
+        if (DoorLinks == nullptr)
         {
-            for (int32_t i = 0; i < numDoors + 2; i++)
+            for (int32_t i = 0; i < NumDoors + 2; i++)
             {
                 for (int32_t side = 0; side < 2; side++)
                 {
-                    if (doors[i].links[side] != nullptr)
+                    if (Doors[i].Links[side] != nullptr)
                     {
-                        blocks.Free(doors[i].links[side]);
-                        doors[i].links[side] = nullptr;
+                        Blocks.Free(Doors[i].Links[side]);
+                        Doors[i].Links[side] = nullptr;
                     }
                 }
             }
         }
 
-        blocks.Free(doors);
-        doors = nullptr;
+        Blocks.Free(Doors);
+        Doors = nullptr;
     }
 
-    if (doorInfos != nullptr)
+    if (DoorInfos != nullptr)
     {
-        blocks.Free(doorInfos);
-        doorInfos = nullptr;
+        Blocks.Free(DoorInfos);
+        DoorInfos = nullptr;
     }
 
-    if (doorLinks != nullptr)
+    if (DoorLinks != nullptr)
     {
-        blocks.Free(doorLinks);
-        doorLinks = nullptr;
+        Blocks.Free(DoorLinks);
+        DoorLinks = nullptr;
     }
 
-    if (pathCostTable != nullptr)
+    if (PathCostTable != nullptr)
     {
-        blocks.Free(pathCostTable);
-        pathCostTable = nullptr;
+        Blocks.Free(PathCostTable);
+        PathCostTable = nullptr;
     }
 
     // Blocks nothing points to any more (a path cost table recomputed over an older one, an unused build list).
-    blocks.Clear();
+    Blocks.Clear();
 }
 
-auto GlobalMap::setTempArea(int32_t tileR, int32_t tileC, int32_t) -> int32_t
+auto MCGlobalMap::SetTempArea(int32_t tileR, int32_t tileC, int32_t) -> int32_t
 {
-    GlobalMapArea& area = areas[numAreas];
-    area.numDoors = 0;
-    area.sectorR = static_cast<int16_t>(tileR / sectorDim);
-    area.sectorC = static_cast<int16_t>(tileC / sectorDim);
-    area.open = 1;
-    return numAreas;
+    MCGlobalMapArea& area = Areas[NumAreas];
+    area.NumDoors = 0;
+    area.SectorR = static_cast<int16_t>(tileR / SectorDim);
+    area.SectorC = static_cast<int16_t>(tileC / SectorDim);
+    area.Open = 1;
+    return NumAreas;
 }
 
-auto GlobalMap::fillNorthSouthBridgeArea(ScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
+auto MCGlobalMap::FillNorthSouthBridgeArea(MCScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
 {
     if (!InFillSector(row, col))
     {
         return 0;
     }
 
-    areaMap[row * width + col] = static_cast<int16_t>(area);
+    AreaMap[row * Width + col] = static_cast<int16_t>(area);
 
     for (const int32_t next : {row - 1, row + 1})
     {
-        if (InFillSector(next, col) && TileOverlay(map, next, col) == 0x25 && areaMap[next * width + col] == -1)
+        if (InFillSector(next, col) && TileOverlay(map, next, col) == 0x25 && AreaMap[next * Width + col] == -1)
         {
-            fillNorthSouthBridgeArea(map, next, col, area);
+            FillNorthSouthBridgeArea(map, next, col, area);
         }
     }
 
     return 1;
 }
 
-auto GlobalMap::fillEastWestBridgeArea(ScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
+auto MCGlobalMap::FillEastWestBridgeArea(MCScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
 {
     if (!InFillSector(row, col))
     {
         return 0;
     }
 
-    areaMap[row * width + col] = static_cast<int16_t>(area);
+    AreaMap[row * Width + col] = static_cast<int16_t>(area);
 
     for (const int32_t next : {col + 1, col - 1})
     {
-        if (InFillSector(row, next) && TileOverlay(map, row, next) == 0x27 && areaMap[row * width + next] == -1)
+        if (InFillSector(row, next) && TileOverlay(map, row, next) == 0x27 && AreaMap[row * Width + next] == -1)
         {
-            fillEastWestBridgeArea(map, row, next, area);
+            FillEastWestBridgeArea(map, row, next, area);
         }
     }
 
     return 1;
 }
 
-auto GlobalMap::fillNorthSouthRailroadBridgeArea(ScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
+auto MCGlobalMap::FillNorthSouthRailroadBridgeArea(MCScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
 {
     if (!InFillSector(row, col))
     {
         return 0;
     }
 
-    areaMap[row * width + col] = static_cast<int16_t>(area);
+    AreaMap[row * Width + col] = static_cast<int16_t>(area);
 
     for (const int32_t next : {row - 1, row + 1})
     {
-        if (InFillSector(next, col) && TileOverlay(map, next, col) == 0x37 && areaMap[next * width + col] == -1)
+        if (InFillSector(next, col) && TileOverlay(map, next, col) == 0x37 && AreaMap[next * Width + col] == -1)
         {
-            fillNorthSouthRailroadBridgeArea(map, next, col, area);
+            FillNorthSouthRailroadBridgeArea(map, next, col, area);
         }
     }
 
     return 1;
 }
 
-auto GlobalMap::fillEastWestRailroadBridgeArea(ScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
+auto MCGlobalMap::FillEastWestRailroadBridgeArea(MCScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
 {
     if (!InFillSector(row, col))
     {
         return 0;
     }
 
-    areaMap[row * width + col] = static_cast<int16_t>(area);
+    AreaMap[row * Width + col] = static_cast<int16_t>(area);
 
     for (const int32_t next : {col + 1, col - 1})
     {
-        if (InFillSector(row, next) && TileOverlay(map, row, next) == 0x39 && areaMap[row * width + next] == -1)
+        if (InFillSector(row, next) && TileOverlay(map, row, next) == 0x39 && AreaMap[row * Width + next] == -1)
         {
-            fillEastWestRailroadBridgeArea(map, row, next, area);
+            FillEastWestRailroadBridgeArea(map, row, next, area);
         }
     }
 
     return 1;
 }
 
-auto isLRBlocked(MapTile* tile) -> int
+auto IsLRBlocked(MCMapTile* tile) -> int
 {
     // Per cell (row-major), whether it is impassable.
     uint32_t blocked[9];
 
     for (int32_t cell = 0; cell < 9; cell++)
     {
-        blocked[cell] = (~tile->cells >> (14 + cell * 2)) & 1;
+        blocked[cell] = (~tile->Cells >> (14 + cell * 2)) & 1;
     }
 
     // A full row or a full column of blocked cells.
@@ -2940,15 +2944,15 @@ auto isLRBlocked(MapTile* tile) -> int
     return 0;
 }
 
-auto GlobalMap::fillArea(ScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
+auto MCGlobalMap::FillArea(MCScenarioMap* map, int32_t row, int32_t col, int32_t area) -> int
 {
     if (!InFillSector(row, col))
     {
         return 0;
     }
 
-    const MapTile* mapTile = &map->map[map->width * row + col];
-    const uint32_t overlay = mapTile->overlay & 0x7f;
+    const MCMapTile* mapTile = &map->Map[map->Width * row + col];
+    const uint32_t overlay = mapTile->Overlay & 0x7f;
 
     if (overlay == 0x27 || overlay == 0x25 || overlay == 0x39 || overlay == 0x37)
     {
@@ -2960,12 +2964,12 @@ auto GlobalMap::fillArea(ScenarioMap* map, int32_t row, int32_t col, int32_t are
         return 0;
     }
 
-    Assert(row >= 0 && row < map->height && col >= 0 && col < map->width ? 1 : 0, 0, " Map Tile out of bounds ");
-    MapTile tile = *mapTile;
-    const uint32_t terrain = tile.cells & 0x7f;
+    Assert(row >= 0 && row < map->Height && col >= 0 && col < map->Width ? 1 : 0, 0, " Map Tile out of bounds ");
+    MCMapTile tile = *mapTile;
+    const uint32_t terrain = tile.Cells & 0x7f;
     bool open = false;
 
-    if ((tile.cells & 0x55554000) != 0 && isLRBlocked(&tile) == 0 && overlay != 0x3e && terrain != 0x2a &&
+    if ((tile.Cells & 0x55554000) != 0 && IsLRBlocked(&tile) == 0 && overlay != 0x3e && terrain != 0x2a &&
         terrain != 0x29)
     {
         open = BlockWallTiles == 0 || overlay != 0x3c;
@@ -2973,38 +2977,38 @@ auto GlobalMap::fillArea(ScenarioMap* map, int32_t row, int32_t col, int32_t are
 
     if (!open)
     {
-        areaMap[width * row + col] = -2;
+        AreaMap[Width * row + col] = -2;
         return 0;
     }
 
-    areaMap[width * row + col] = static_cast<int16_t>(area);
+    AreaMap[Width * row + col] = static_cast<int16_t>(area);
 
     for (int32_t dir = 0; dir < 4; dir++)
     {
-        const int32_t nextRow = adjTile[dir][0] + row;
-        const int32_t nextCol = adjTile[dir][1] + col;
+        const int32_t nextRow = AdjTile[dir][0] + row;
+        const int32_t nextCol = AdjTile[dir][1] + col;
 
-        if (InFillSector(nextRow, nextCol) && areaMap[width * nextRow + nextCol] == -1)
+        if (InFillSector(nextRow, nextCol) && AreaMap[Width * nextRow + nextCol] == -1)
         {
-            fillArea(map, nextRow, nextCol, area);
+            FillArea(map, nextRow, nextCol, area);
         }
     }
 
     return 1;
 }
 
-auto GlobalMap::calcSectorAreas(ScenarioMap* map, int32_t sectorR, int32_t sectorC) -> void
+auto MCGlobalMap::CalcSectorAreas(MCScenarioMap* map, int32_t sectorR, int32_t sectorC) -> void
 {
-    minTileR = sectorDim * sectorR;
-    maxTileR = sectorDim + minTileR;
-    minTileC = sectorDim * sectorC;
-    maxTileC = sectorDim + minTileC;
+    MinTileR = SectorDim * sectorR;
+    MaxTileR = SectorDim + MinTileR;
+    MinTileC = SectorDim * sectorC;
+    MaxTileC = SectorDim + MinTileC;
 
-    for (int32_t row = minTileR; row < maxTileR; row++)
+    for (int32_t row = MinTileR; row < MaxTileR; row++)
     {
-        for (int32_t col = minTileC; col < maxTileC; col++)
+        for (int32_t col = MinTileC; col < MaxTileC; col++)
         {
-            if (areaMap[width * row + col] != -1)
+            if (AreaMap[Width * row + col] != -1)
             {
                 continue;
             }
@@ -3014,79 +3018,79 @@ auto GlobalMap::calcSectorAreas(ScenarioMap* map, int32_t sectorR, int32_t secto
             switch (TileOverlay(map, row, col))
             {
                 case 0x25:
-                    filled = fillNorthSouthBridgeArea(map, row, col, numAreas);
+                    filled = FillNorthSouthBridgeArea(map, row, col, NumAreas);
                     break;
                 case 0x27:
-                    filled = fillEastWestBridgeArea(map, row, col, numAreas);
+                    filled = FillEastWestBridgeArea(map, row, col, NumAreas);
                     break;
                 case 0x37:
-                    filled = fillNorthSouthRailroadBridgeArea(map, row, col, numAreas);
+                    filled = FillNorthSouthRailroadBridgeArea(map, row, col, NumAreas);
                     break;
                 case 0x39:
-                    filled = fillEastWestRailroadBridgeArea(map, row, col, numAreas);
+                    filled = FillEastWestRailroadBridgeArea(map, row, col, NumAreas);
                     break;
                 default:
-                    filled = fillArea(map, row, col, numAreas);
+                    filled = FillArea(map, row, col, NumAreas);
                     break;
             }
 
             if (filled != 0)
             {
-                numAreas++;
+                NumAreas++;
             }
         }
     }
 }
 
-auto GlobalMap::calcAreas(ScenarioMap* map) -> void
+auto MCGlobalMap::CalcAreas(MCScenarioMap* map) -> void
 {
-    for (int32_t sectorR = 0; sectorR < sectorHeight; sectorR++)
+    for (int32_t sectorR = 0; sectorR < SectorHeight; sectorR++)
     {
-        for (int32_t sectorC = 0; sectorC < sectorWidth; sectorC++)
+        for (int32_t sectorC = 0; sectorC < SectorWidth; sectorC++)
         {
-            calcSectorAreas(map, sectorR, sectorC);
+            CalcSectorAreas(map, sectorR, sectorC);
         }
     }
 
-    if (numAreas > 10000)
+    if (NumAreas > 10000)
     {
         Fatal(0, " Too many GlobalMapAreas ");
     }
 
     // One spare area past the last, for setTempArea.
-    const int32_t count = numAreas + 1;
-    areas = static_cast<GlobalMapArea*>(blocks.Allocate(static_cast<uint32_t>(count * sizeof(GlobalMapArea))));
+    const int32_t count = NumAreas + 1;
+    Areas = static_cast<MCGlobalMapArea*>(Blocks.Allocate(static_cast<uint32_t>(count * sizeof(MCGlobalMapArea))));
 
     for (int32_t i = 0; i < count; i++)
     {
-        GlobalMapArea& area = areas[i];
-        area.type = 0;
-        area.numDoors = 0;
-        area.doors = nullptr;
-        area.open = 1;
-        area.closed = 0;
+        MCGlobalMapArea& area = Areas[i];
+        area.Type = 0;
+        area.NumDoors = 0;
+        area.Doors = nullptr;
+        area.Open = 1;
+        area.Closed = 0;
     }
 
-    for (int32_t sectorR = 0; sectorR < sectorHeight; sectorR++)
+    for (int32_t sectorR = 0; sectorR < SectorHeight; sectorR++)
     {
-        minTileR = sectorDim * sectorR;
-        maxTileR = sectorDim + minTileR;
+        MinTileR = SectorDim * sectorR;
+        MaxTileR = SectorDim + MinTileR;
 
-        for (int32_t sectorC = 0; sectorC < sectorWidth; sectorC++)
+        for (int32_t sectorC = 0; sectorC < SectorWidth; sectorC++)
         {
-            minTileC = sectorDim * sectorC;
-            maxTileC = sectorDim + minTileC;
+            MinTileC = SectorDim * sectorC;
+            MaxTileC = SectorDim + MinTileC;
 
-            for (int32_t row = minTileR; row < maxTileR; row++)
+            for (int32_t row = MinTileR; row < MaxTileR; row++)
             {
-                for (int32_t col = minTileC; col < maxTileC; col++)
+                for (int32_t col = MinTileC; col < MaxTileC; col++)
                 {
-                    const int16_t area = areaMap[width * row + col];
+                    const int16_t area = AreaMap[Width * row + col];
 
                     if (area >= 0)
                     {
-                        areas[area].sectorR = static_cast<int16_t>(sectorR);
-                        areas[area].sectorC = static_cast<int16_t>(sectorC);
+                        Areas[area].SectorR = static_cast<int16_t>(sectorR);
+                        Areas[area].SectorC = static_cast<int16_t>(sectorC);
                     }
                 }
             }
@@ -3094,93 +3098,93 @@ auto GlobalMap::calcAreas(ScenarioMap* map) -> void
     }
 }
 
-auto GlobalMap::calcBridges(ScenarioMap* map) -> void
+auto MCGlobalMap::CalcBridges(MCScenarioMap* map) -> void
 {
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        for (int32_t col = 0; col < width; col++)
+        for (int32_t col = 0; col < Width; col++)
         {
-            const uint32_t overlay = map->map[row * map->width + col].overlay & 0x7f;
+            const uint32_t overlay = map->Map[row * map->Width + col].Overlay & 0x7f;
 
             if (overlay == 0x25 || overlay == 0x37)
             {
-                areas[areaMap[width * row + col]].type = 1;
+                Areas[AreaMap[Width * row + col]].Type = 1;
             }
             else if (overlay == 0x27 || overlay == 0x39)
             {
-                areas[areaMap[width * row + col]].type = 2;
+                Areas[AreaMap[Width * row + col]].Type = 2;
             }
         }
     }
 }
 
-auto GlobalMap::beginDoorProcessing() -> void
+auto MCGlobalMap::BeginDoorProcessing() -> void
 {
-    doorBuildList = static_cast<GlobalMapDoor*>(blocks.Allocate(MAX_BUILD_DOORS * sizeof(GlobalMapDoor)));
+    DoorBuildList = static_cast<MCGlobalMapDoor*>(Blocks.Allocate(MAX_BUILD_DOORS * sizeof(MCGlobalMapDoor)));
 
-    if (doorBuildList == nullptr)
+    if (DoorBuildList == nullptr)
     {
         Fatal(0, " No RAM for Door Build List ");
     }
 }
 
-auto GlobalMap::addDoor(int32_t area1, int32_t area2, int32_t row, int32_t col, int32_t cellR, int32_t cellC,
-                        int32_t length, int32_t direction) -> void
+auto MCGlobalMap::AddDoor(int32_t area1, int32_t area2, int32_t row, int32_t col, int32_t cellR, int32_t cellC,
+                          int32_t length, int32_t direction) -> void
 {
-    for (int32_t i = 0; i < numDoors; i++)
+    for (int32_t i = 0; i < NumDoors; i++)
     {
-        const GlobalMapDoor& door = doorBuildList[i];
+        const MCGlobalMapDoor& door = DoorBuildList[i];
 
-        if (door.row == row && door.col == col && door.cellR == cellR && door.cellC == cellC && door.length == length &&
-            door.direction[0] == direction)
+        if (door.Row == row && door.Col == col && door.CellR == cellR && door.CellC == cellC && door.Length == length &&
+            door.Direction[0] == direction)
         {
             return;
         }
     }
 
     // Port fix: the original writes past the build list once it holds MAX_BUILD_DOORS doors.
-    if (numDoors >= MAX_BUILD_DOORS - 2)
+    if (NumDoors >= MAX_BUILD_DOORS - 2)
     {
         return;
     }
 
-    GlobalMapDoor& door = doorBuildList[numDoors];
-    door.row = static_cast<int16_t>(row);
-    door.col = static_cast<int16_t>(col);
-    door.cellR = static_cast<uint8_t>(cellR);
-    door.cellC = static_cast<uint8_t>(cellC);
-    door.length = static_cast<char>(length);
-    door.open = 1;
-    door.area[0] = static_cast<int16_t>(area1);
-    door.areaCost[0] = 1;
-    door.direction[0] = static_cast<char>(direction);
-    door.area[1] = static_cast<int16_t>(area2);
-    door.areaCost[1] = 1;
-    door.direction[1] = static_cast<char>((direction + 2) % 4);
-    numDoors++;
+    MCGlobalMapDoor& door = DoorBuildList[NumDoors];
+    door.Row = static_cast<int16_t>(row);
+    door.Col = static_cast<int16_t>(col);
+    door.CellR = static_cast<uint8_t>(cellR);
+    door.CellC = static_cast<uint8_t>(cellC);
+    door.Length = static_cast<char>(length);
+    door.Open = 1;
+    door.Area[0] = static_cast<int16_t>(area1);
+    door.AreaCost[0] = 1;
+    door.Direction[0] = static_cast<char>(direction);
+    door.Area[1] = static_cast<int16_t>(area2);
+    door.AreaCost[1] = 1;
+    door.Direction[1] = static_cast<char>((direction + 2) % 4);
+    NumDoors++;
 }
 
-auto GlobalMap::endDoorProcessing() -> void
+auto MCGlobalMap::EndDoorProcessing() -> void
 {
-    if (doorBuildList == nullptr)
+    if (DoorBuildList == nullptr)
     {
         return;
     }
 
-    const uint32_t size = static_cast<uint32_t>((numDoors + 2) * sizeof(GlobalMapDoor));
-    doors = static_cast<GlobalMapDoor*>(blocks.Allocate(size));
-    std::memcpy(doors, doorBuildList, size);
-    blocks.Free(doorBuildList);
-    doorBuildList = nullptr;
+    const uint32_t size = static_cast<uint32_t>((NumDoors + 2) * sizeof(MCGlobalMapDoor));
+    Doors = static_cast<MCGlobalMapDoor*>(Blocks.Allocate(size));
+    std::memcpy(Doors, DoorBuildList, size);
+    Blocks.Free(DoorBuildList);
+    DoorBuildList = nullptr;
 }
 
-auto GlobalMap::numAreaDoors(int32_t area) -> int32_t
+auto MCGlobalMap::NumAreaDoors(int32_t area) -> int32_t
 {
     int32_t count = 0;
 
-    for (int32_t i = 0; i < numDoors; i++)
+    for (int32_t i = 0; i < NumDoors; i++)
     {
-        if (doors[i].area[0] == area || doors[i].area[1] == area)
+        if (Doors[i].Area[0] == area || Doors[i].Area[1] == area)
         {
             count++;
         }
@@ -3189,63 +3193,63 @@ auto GlobalMap::numAreaDoors(int32_t area) -> int32_t
     return count;
 }
 
-auto GlobalMap::getAreaDoors(int32_t area, DoorInfo* doorList) -> void
+auto MCGlobalMap::GetAreaDoors(int32_t area, MCDoorInfo* doorList) -> void
 {
-    for (int32_t i = 0; i < numDoors; i++)
+    for (int32_t i = 0; i < NumDoors; i++)
     {
-        if (doors[i].area[0] == area || doors[i].area[1] == area)
+        if (Doors[i].Area[0] == area || Doors[i].Area[1] == area)
         {
-            doorList->doorIndex = static_cast<int16_t>(i);
-            doorList->doorSide = doors[i].area[1] == area ? 1 : 0;
+            doorList->DoorIndex = static_cast<int16_t>(i);
+            doorList->DoorSide = Doors[i].Area[1] == area ? 1 : 0;
             doorList++;
         }
     }
 }
 
-auto GlobalMap::calcGlobalDoors(ScenarioMap* map) -> void
+auto MCGlobalMap::CalcGlobalDoors(MCScenarioMap* map) -> void
 {
-    beginDoorProcessing();
+    BeginDoorProcessing();
     std::vector<int16_t> cellMap(DOOR_CELL_MAP_SIDE * DOOR_CELL_MAP_SIDE);
 
-    for (int32_t sectorR = 0; sectorR < sectorHeight; sectorR++)
+    for (int32_t sectorR = 0; sectorR < SectorHeight; sectorR++)
     {
-        for (int32_t sectorC = 0; sectorC < sectorWidth; sectorC++)
+        for (int32_t sectorC = 0; sectorC < SectorWidth; sectorC++)
         {
             // Direction 1 looks east, 2 south (adjTile), for the cells an area can cross into its neighbour by.
             for (int32_t dir = 1; dir < 3; dir++)
             {
                 std::fill(cellMap.begin(), cellMap.end(), static_cast<int16_t>(-1));
-                minTileR = sectorDim * sectorR;
-                maxTileR = sectorDim + minTileR;
-                minTileC = sectorDim * sectorC;
-                maxTileC = sectorDim + minTileC;
-                const int32_t minCellR = minTileR * MAPCELL_DIM;
-                const int32_t maxCellR = maxTileR * MAPCELL_DIM;
-                const int32_t minCellC = minTileC * MAPCELL_DIM;
-                const int32_t maxCellC = maxTileC * MAPCELL_DIM;
+                MinTileR = SectorDim * sectorR;
+                MaxTileR = SectorDim + MinTileR;
+                MinTileC = SectorDim * sectorC;
+                MaxTileC = SectorDim + MinTileC;
+                const int32_t minCellR = MinTileR * MAPCELL_DIM;
+                const int32_t maxCellR = MaxTileR * MAPCELL_DIM;
+                const int32_t minCellC = MinTileC * MAPCELL_DIM;
+                const int32_t maxCellC = MaxTileC * MAPCELL_DIM;
                 auto cell = [&](int32_t cellRow, int32_t cellCol) -> int16_t&
                 { return cellMap[(cellRow - minCellR) * DOOR_CELL_MAP_SIDE + (cellCol - minCellC)]; };
 
-                for (int32_t row = minTileR; row < maxTileR; row++)
+                for (int32_t row = MinTileR; row < MaxTileR; row++)
                 {
-                    for (int32_t col = minTileC; col < maxTileC; col++)
+                    for (int32_t col = MinTileC; col < MaxTileC; col++)
                     {
-                        const int32_t area = areaMap[width * row + col];
+                        const int32_t area = AreaMap[Width * row + col];
 
                         if (area < 0)
                         {
                             continue;
                         }
 
-                        const int32_t nextRow = adjTile[dir][0] + row;
-                        const int32_t nextCol = adjTile[dir][1] + col;
+                        const int32_t nextRow = AdjTile[dir][0] + row;
+                        const int32_t nextCol = AdjTile[dir][1] + col;
 
-                        if (nextRow < 0 || nextRow >= height || nextCol < 0 || nextCol >= width)
+                        if (nextRow < 0 || nextRow >= Height || nextCol < 0 || nextCol >= Width)
                         {
                             continue;
                         }
 
-                        const int16_t nextArea = areaMap[width * nextRow + nextCol];
+                        const int16_t nextArea = AreaMap[Width * nextRow + nextCol];
 
                         if (nextArea < 0 || area == nextArea)
                         {
@@ -3253,8 +3257,8 @@ auto GlobalMap::calcGlobalDoors(ScenarioMap* map) -> void
                         }
 
                         // Bridges only join areas along their own direction.
-                        const int32_t type = areas[area].type;
-                        const int32_t nextType = areas[nextArea].type;
+                        const int32_t type = Areas[area].Type;
+                        const int32_t nextType = Areas[nextArea].Type;
                         const int32_t crossType = dir == 1 ? 2 : 1;
 
                         if ((type != 0 && type != crossType) || (nextType != 0 && nextType != crossType))
@@ -3262,12 +3266,12 @@ auto GlobalMap::calcGlobalDoors(ScenarioMap* map) -> void
                             continue;
                         }
 
-                        Assert(row >= 0 && row < map->height && col >= 0 && col < map->width ? 1 : 0, 0,
+                        Assert(row >= 0 && row < map->Height && col >= 0 && col < map->Width ? 1 : 0, 0,
                                " Map Tile out of bounds ");
-                        const MapTile tile = map->map[map->width * row + col];
-                        Assert(nextRow >= 0 && nextRow < map->height && nextCol >= 0 && nextCol < map->width ? 1 : 0, 0,
+                        const MCMapTile tile = map->Map[map->Width * row + col];
+                        Assert(nextRow >= 0 && nextRow < map->Height && nextCol >= 0 && nextCol < map->Width ? 1 : 0, 0,
                                " Map Tile out of bounds ");
-                        const MapTile nextTile = map->map[map->width * nextRow + nextCol];
+                        const MCMapTile nextTile = map->Map[map->Width * nextRow + nextCol];
                         const int32_t baseRow = row * MAPCELL_DIM;
                         const int32_t baseCol = col * MAPCELL_DIM;
 
@@ -3309,17 +3313,17 @@ auto GlobalMap::calcGlobalDoors(ScenarioMap* map) -> void
                             }
 
                             const int32_t tileC = cellCol / 3;
-                            const int32_t area = areaMap[(cellRow / 3) * width + tileC];
+                            const int32_t area = AreaMap[(cellRow / 3) * Width + tileC];
                             int32_t length = 0;
 
-                            while (cellRow < maxCellR && areaMap[(cellRow / 3) * width + tileC] == area &&
+                            while (cellRow < maxCellR && AreaMap[(cellRow / 3) * Width + tileC] == area &&
                                    cell(cellRow, cellCol) == nextArea)
                             {
                                 length++;
                                 cellRow++;
                             }
 
-                            addDoor(area, nextArea, (cellRow - length) / 3, tileC, (cellRow - length) % 3, cellCol % 3,
+                            AddDoor(area, nextArea, (cellRow - length) / 3, tileC, (cellRow - length) % 3, cellCol % 3,
                                     length, 1);
                         }
                     }
@@ -3342,17 +3346,17 @@ auto GlobalMap::calcGlobalDoors(ScenarioMap* map) -> void
                             }
 
                             const int32_t tileR = cellRow / 3;
-                            const int32_t area = areaMap[cellCol / 3 + width * tileR];
+                            const int32_t area = AreaMap[cellCol / 3 + Width * tileR];
                             int32_t length = 0;
 
-                            while (cellCol < maxCellC && areaMap[cellCol / 3 + width * tileR] == area &&
+                            while (cellCol < maxCellC && AreaMap[cellCol / 3 + Width * tileR] == area &&
                                    cell(cellRow, cellCol) == nextArea)
                             {
                                 length++;
                                 cellCol++;
                             }
 
-                            addDoor(area, nextArea, tileR, (cellCol - length) / 3, cellRow % 3, (cellCol - length) % 3,
+                            AddDoor(area, nextArea, tileR, (cellCol - length) / 3, cellRow % 3, (cellCol - length) % 3,
                                     length, dir);
                         }
                     }
@@ -3361,31 +3365,31 @@ auto GlobalMap::calcGlobalDoors(ScenarioMap* map) -> void
         }
     }
 
-    endDoorProcessing();
+    EndDoorProcessing();
 }
 
-auto GlobalMap::calcAreaDoors() -> void
+auto MCGlobalMap::CalcAreaDoors() -> void
 {
-    numDoorInfos = 0;
+    NumDoorInfos = 0;
 
-    for (int32_t i = 0; i < numAreas; i++)
+    for (int32_t i = 0; i < NumAreas; i++)
     {
-        GlobalMapArea& area = areas[i];
-        area.numDoors = static_cast<char>(numAreaDoors(i));
-        numDoorInfos += area.numDoors;
+        MCGlobalMapArea& area = Areas[i];
+        area.NumDoors = static_cast<char>(NumAreaDoors(i));
+        NumDoorInfos += area.NumDoors;
 
-        if (area.numDoors == 0)
+        if (area.NumDoors == 0)
         {
-            area.doors = nullptr;
+            area.Doors = nullptr;
             continue;
         }
 
-        area.doors = static_cast<DoorInfo*>(blocks.Allocate(static_cast<uint32_t>(area.numDoors * 3)));
-        getAreaDoors(i, area.doors);
+        area.Doors = static_cast<MCDoorInfo*>(Blocks.Allocate(static_cast<uint32_t>(area.NumDoors * 3)));
+        GetAreaDoors(i, area.Doors);
     }
 }
 
-auto GlobalMap::calcLinkCost(int32_t startDoor, int32_t thruArea, int32_t goalDoor) -> int32_t
+auto MCGlobalMap::CalcLinkCost(int32_t startDoor, int32_t thruArea, int32_t goalDoor) -> int32_t
 {
     if (CurPlanet == 1)
     {
@@ -3400,30 +3404,30 @@ auto GlobalMap::calcLinkCost(int32_t startDoor, int32_t thruArea, int32_t goalDo
     // The middle cell of a door, on the side facing thruArea.
     auto doorCell = [this, thruArea](int32_t doorIndex, int32_t& cellRow, int32_t& cellCol) -> bool
     {
-        const GlobalMapDoor& door = doors[doorIndex];
+        const MCGlobalMapDoor& door = Doors[doorIndex];
 
-        if (door.area[0] != thruArea && door.area[1] != thruArea)
+        if (door.Area[0] != thruArea && door.Area[1] != thruArea)
         {
             return false;
         }
 
-        const int32_t side = door.area[1] == thruArea ? 1 : 0;
+        const int32_t side = door.Area[1] == thruArea ? 1 : 0;
         int32_t rowOffset;
         int32_t colOffset;
 
-        if (door.direction[0] == 1)
+        if (door.Direction[0] == 1)
         {
             colOffset = side;
-            rowOffset = door.length / 2;
+            rowOffset = door.Length / 2;
         }
         else
         {
-            colOffset = door.length / 2;
+            colOffset = door.Length / 2;
             rowOffset = side;
         }
 
-        cellCol = door.col * 3 + door.cellC + colOffset;
-        cellRow = door.cellR + door.row * 3 + rowOffset;
+        cellCol = door.Col * 3 + door.CellC + colOffset;
+        cellRow = door.CellR + door.Row * 3 + rowOffset;
         return true;
     };
 
@@ -3443,86 +3447,86 @@ auto GlobalMap::calcLinkCost(int32_t startDoor, int32_t thruArea, int32_t goalDo
         return -2;
     }
 
-    vector_3d goalPos;
-    const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5f;
-    goalPos.x = static_cast<float>((static_cast<double>(goalCol) + 0.5) * MetersPerCell - mapHalf);
-    goalPos.y = static_cast<float>((mapHalf - static_cast<double>(goalRow) * MetersPerCell) -
+    MCVector3D goalPos;
+    const double mapHalf = static_cast<double>(WorldUnitsMapSide) * 0.5f;
+    goalPos.X = static_cast<float>((static_cast<double>(goalCol) + 0.5) * MetersPerCell - mapHalf);
+    goalPos.Y = static_cast<float>((mapHalf - static_cast<double>(goalRow) * MetersPerCell) -
                                    static_cast<double>(MetersPerCell) * 0.5);
-    goalPos.z = 0.0f;
+    goalPos.Z = 0.0f;
 
     if (PathFindMap == nullptr)
     {
         Fatal(0, " No PathFindMap ");
     }
 
-    MovePath path;
-    path.goal.zero();
-    path.numSteps = 0;
-    path.numStepsWhenNotPaused = 0;
-    path.curStep = 0;
-    path.cost = 0;
-    path.marked = 0;
-    path.globalStep = -1;
-    const int32_t ULr = areas[thruArea].sectorR * sectorDim;
-    const int32_t ULc = areas[thruArea].sectorC * sectorDim;
+    MCMovePath path;
+    path.Goal.Zero();
+    path.NumSteps = 0;
+    path.NumStepsWhenNotPaused = 0;
+    path.CurStep = 0;
+    path.Cost = 0;
+    path.Marked = 0;
+    path.GlobalStep = -1;
+    const int32_t uLr = Areas[thruArea].SectorR * SectorDim;
+    const int32_t uLc = Areas[thruArea].SectorC * SectorDim;
     ClearBridgeTiles = 1;
-    PathFindMap->setUp(GameMap, ULr, ULc, sectorDim, sectorDim, nullptr, (startRow / 3 - ULr) * 3 + startRow % 3,
-                       (startCol / 3 - ULc) * 3 + startCol % 3, goalPos, (goalRow / 3 - ULr) * 3 + goalRow % 3,
-                       (goalCol / 3 - ULc) * 3 + goalCol % 3, nullptr, 10, 0, 8, 0);
+    PathFindMap->SetUp(GameMap, uLr, uLc, SectorDim, SectorDim, nullptr, (startRow / 3 - uLr) * 3 + startRow % 3,
+                       (startCol / 3 - uLc) * 3 + startCol % 3, goalPos, (goalRow / 3 - uLr) * 3 + goalRow % 3,
+                       (goalCol / 3 - uLc) * 3 + goalCol % 3, nullptr, 10, 0, 8, 0);
     int32_t goalCell[2] = {};
-    PathFindMap->calcPath(&path, nullptr, goalCell);
+    PathFindMap->CalcPath(&path, nullptr, goalCell);
     ClearBridgeTiles = 0;
 
-    if (path.numSteps == 0)
+    if (path.NumSteps == 0)
     {
-        path.destroy();
+        path.Destroy();
         return 9999;
     }
 
-    const int32_t cost = path.cost;
-    path.destroy();
+    const int32_t cost = path.Cost;
+    path.Destroy();
     return cost;
 }
 
-auto GlobalMap::calcDoorLinks() -> void
+auto MCGlobalMap::CalcDoorLinks() -> void
 {
     int32_t maxAreaDoors = 0;
-    numDoorLinks = 0;
+    NumDoorLinks = 0;
 
-    for (int32_t doorIndex = 0; doorIndex < numDoors; doorIndex++)
+    for (int32_t doorIndex = 0; doorIndex < NumDoors; doorIndex++)
     {
-        GlobalMapDoor& door = doors[doorIndex];
+        MCGlobalMapDoor& door = Doors[doorIndex];
 
         for (int32_t side = 0; side < 2; side++)
         {
-            door.numLinks[side] = 0;
-            door.links[side] = nullptr;
-            const int32_t area = door.area[side];
-            const int32_t areaDoors = areas[area].numDoors;
-            door.numLinks[side] = static_cast<char>(areaDoors - 1);
-            door.links[side] =
-                static_cast<DoorLink*>(blocks.Allocate(static_cast<uint32_t>((door.numLinks[side] + 2) * 7)));
-            numDoorLinks += door.numLinks[side] + 2;
+            door.NumLinks[side] = 0;
+            door.Links[side] = nullptr;
+            const int32_t area = door.Area[side];
+            const int32_t areaDoors = Areas[area].NumDoors;
+            door.NumLinks[side] = static_cast<char>(areaDoors - 1);
+            door.Links[side] =
+                static_cast<MCDoorLink*>(Blocks.Allocate(static_cast<uint32_t>((door.NumLinks[side] + 2) * 7)));
+            NumDoorLinks += door.NumLinks[side] + 2;
 
-            if (door.links[side] == nullptr)
+            if (door.Links[side] == nullptr)
             {
                 Fatal(0, " Coud not malloc systemHeap door link ");
             }
 
-            DoorLink* link = door.links[side];
+            MCDoorLink* link = door.Links[side];
 
             for (int32_t i = 0; i < areaDoors; i++)
             {
-                const int16_t otherIndex = areas[area].doors[i].doorIndex;
+                const int16_t otherIndex = Areas[area].Doors[i].DoorIndex;
 
                 if (otherIndex == doorIndex)
                 {
                     continue;
                 }
 
-                link->doorIndex = otherIndex;
-                link->doorSide = doors[otherIndex].area[1] == area ? 1 : 0;
-                link->cost = calcLinkCost(doorIndex, area, otherIndex);
+                link->DoorIndex = otherIndex;
+                link->DoorSide = Doors[otherIndex].Area[1] == area ? 1 : 0;
+                link->Cost = CalcLinkCost(doorIndex, area, otherIndex);
                 link++;
             }
 
@@ -3534,254 +3538,254 @@ auto GlobalMap::calcDoorLinks() -> void
     }
 
     // The temporary start and goal doors link out of any area, so they get room for the most doors an area has.
-    for (int32_t doorIndex = numDoors; doorIndex < numDoors + 2; doorIndex++)
+    for (int32_t doorIndex = NumDoors; doorIndex < NumDoors + 2; doorIndex++)
     {
-        GlobalMapDoor& door = doors[doorIndex];
-        door.numLinks[0] = static_cast<char>(maxAreaDoors);
-        numDoorLinks += door.numLinks[0] + 2;
-        door.links[0] = static_cast<DoorLink*>(blocks.Allocate(static_cast<uint32_t>((door.numLinks[0] + 2) * 7)));
-        door.numLinks[1] = 0;
-        numDoorLinks += door.numLinks[1] + 2;
-        door.links[1] = static_cast<DoorLink*>(blocks.Allocate(static_cast<uint32_t>((door.numLinks[1] + 2) * 7)));
+        MCGlobalMapDoor& door = Doors[doorIndex];
+        door.NumLinks[0] = static_cast<char>(maxAreaDoors);
+        NumDoorLinks += door.NumLinks[0] + 2;
+        door.Links[0] = static_cast<MCDoorLink*>(Blocks.Allocate(static_cast<uint32_t>((door.NumLinks[0] + 2) * 7)));
+        door.NumLinks[1] = 0;
+        NumDoorLinks += door.NumLinks[1] + 2;
+        door.Links[1] = static_cast<MCDoorLink*>(Blocks.Allocate(static_cast<uint32_t>((door.NumLinks[1] + 2) * 7)));
     }
 }
 
-auto GlobalMap::calcSectorPaths(ScenarioMap*, int32_t, int32_t) -> void
+auto MCGlobalMap::CalcSectorPaths(MCScenarioMap*, int32_t, int32_t) -> void
 {
 }
 
-auto GlobalMap::calcPathCostTable() -> void
+auto MCGlobalMap::CalcPathCostTable() -> void
 {
-    pathCostTable = static_cast<uint8_t*>(blocks.Allocate(static_cast<uint32_t>(numAreas * numAreas)));
-    Assert(pathCostTable != nullptr ? 1 : 0, 0, " GlobalMap.calcPathCostTable: unable to malloc pathCostTable ");
-    GlobalPathStep path[MAX_GLOBAL_PATH];
+    PathCostTable = static_cast<uint8_t*>(Blocks.Allocate(static_cast<uint32_t>(NumAreas * NumAreas)));
+    Assert(PathCostTable != nullptr ? 1 : 0, 0, " GlobalMap.calcPathCostTable: unable to malloc pathCostTable ");
+    MCGlobalPathStep path[MAX_GLOBAL_PATH];
 
-    for (int32_t startArea = 0; startArea < numAreas; startArea++)
+    for (int32_t startArea = 0; startArea < NumAreas; startArea++)
     {
-        for (int32_t goalArea = 0; goalArea < numAreas; goalArea++)
+        for (int32_t goalArea = 0; goalArea < NumAreas; goalArea++)
         {
             if (startArea == goalArea)
             {
-                pathCostTable[numAreas * startArea + goalArea] = 0;
+                PathCostTable[NumAreas * startArea + goalArea] = 0;
             }
             else
             {
-                pathCostTable[startArea * numAreas + goalArea] =
-                    static_cast<uint8_t>(calcPath(startArea, goalArea, path));
+                PathCostTable[startArea * NumAreas + goalArea] =
+                    static_cast<uint8_t>(CalcPath(startArea, goalArea, path));
             }
         }
     }
 }
 
-auto GlobalMap::exitDirection(int32_t doorIndex, int32_t fromArea) -> int32_t
+auto MCGlobalMap::ExitDirection(int32_t doorIndex, int32_t fromArea) -> int32_t
 {
-    const GlobalMapDoor& door = doors[doorIndex];
+    const MCGlobalMapDoor& door = Doors[doorIndex];
 
-    if (door.area[0] == fromArea)
+    if (door.Area[0] == fromArea)
     {
-        return door.direction[0];
+        return door.Direction[0];
     }
 
-    if (door.area[1] == fromArea)
+    if (door.Area[1] == fromArea)
     {
-        return door.direction[1];
+        return door.Direction[1];
     }
 
     return -1;
 }
 
-auto GlobalMap::getDoorTiles(int32_t area, int32_t doorIndex, GlobalMapDoor* door) -> void
+auto MCGlobalMap::GetDoorTiles(int32_t area, int32_t doorIndex, MCGlobalMapDoor* door) -> void
 {
-    *door = doors[areas[area].doors[doorIndex].doorIndex];
+    *door = Doors[Areas[area].Doors[doorIndex].DoorIndex];
 }
 
-auto GlobalMap::getDoorWorldPos(int32_t, int32_t, int32_t* prevGoalCell) -> vector_3d
+auto MCGlobalMap::GetDoorWorldPos(int32_t, int32_t, int32_t* prevGoalCell) -> MCVector3D
 {
-    const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5f;
+    const double mapHalf = static_cast<double>(WorldUnitsMapSide) * 0.5f;
     const float x = static_cast<float>((static_cast<double>(prevGoalCell[1]) + 0.5) * MetersPerCell - mapHalf);
     const float y = static_cast<float>((mapHalf - static_cast<double>(prevGoalCell[0]) * MetersPerCell) -
                                        static_cast<double>(MetersPerCell) * 0.5);
-    const float z = GameMap->getTerrainElevation(vector_3d(x, y, 0.0f));
-    return vector_3d(x, y, z);
+    const float z = GameMap->GetTerrainElevation(MCVector3D(x, y, 0.0f));
+    return MCVector3D(x, y, z);
 }
 
 namespace
 {
     /// <summary>Makes a temporary door joining <paramref name="areaIndex"/> to itself (the start or goal door).</summary>
     /// <remarks>The field setup shared by GlobalMap::setStartDoor and setGoalDoor (inlined in both).</remarks>
-    void InitTempDoor(GlobalMapDoor& door, int32_t areaIndex, char numLinks)
+    void InitTempDoor(MCGlobalMapDoor& door, int32_t areaIndex, char numLinks)
     {
-        door.direction[0] = -1;
-        door.direction[1] = -1;
-        door.area[0] = static_cast<int16_t>(areaIndex);
-        door.area[1] = static_cast<int16_t>(areaIndex);
-        door.row = 0;
-        door.col = 0;
-        door.cellR = 0;
-        door.cellC = 0;
-        door.length = 0;
-        door.open = 1;
-        door.areaCost[0] = 1;
-        door.areaCost[1] = 1;
-        door.numLinks[0] = numLinks;
-        door.numLinks[1] = 0;
+        door.Direction[0] = -1;
+        door.Direction[1] = -1;
+        door.Area[0] = static_cast<int16_t>(areaIndex);
+        door.Area[1] = static_cast<int16_t>(areaIndex);
+        door.Row = 0;
+        door.Col = 0;
+        door.CellR = 0;
+        door.CellC = 0;
+        door.Length = 0;
+        door.Open = 1;
+        door.AreaCost[0] = 1;
+        door.AreaCost[1] = 1;
+        door.NumLinks[0] = numLinks;
+        door.NumLinks[1] = 0;
     }
 }
 
-auto GlobalMap::setStartDoor(int32_t startArea) -> void
+auto MCGlobalMap::SetStartDoor(int32_t startArea) -> void
 {
-    GlobalMapDoor& startDoor = doors[numDoors];
-    const GlobalMapArea& area = areas[startArea];
-    InitTempDoor(startDoor, startArea, area.numDoors);
-    startDoor.fromAreaIndex = 1;
+    MCGlobalMapDoor& startDoor = Doors[NumDoors];
+    const MCGlobalMapArea& area = Areas[startArea];
+    InitTempDoor(startDoor, startArea, area.NumDoors);
+    startDoor.FromAreaIndex = 1;
 
-    for (int32_t i = 0; i < startDoor.numLinks[0]; i++)
+    for (int32_t i = 0; i < startDoor.NumLinks[0]; i++)
     {
-        const DoorInfo& info = area.doors[i];
-        DoorLink& link = startDoor.links[0][i];
-        link.doorIndex = info.doorIndex;
-        link.doorSide = info.doorSide;
-        link.cost = 1;
+        const MCDoorInfo& info = area.Doors[i];
+        MCDoorLink& link = startDoor.Links[0][i];
+        link.DoorIndex = info.DoorIndex;
+        link.DoorSide = info.DoorSide;
+        link.Cost = 1;
         // Links the area's door back to the start door, in the spare room past its links.
-        GlobalMapDoor& areaDoor = doors[info.doorIndex];
-        const int32_t side = info.doorSide;
-        DoorLink& backLink = areaDoor.links[side][areaDoor.numLinks[side]];
-        backLink.doorIndex = static_cast<int16_t>(numDoors);
-        backLink.doorSide = 0;
-        backLink.cost = 1;
-        areaDoor.numLinks[side]++;
+        MCGlobalMapDoor& areaDoor = Doors[info.DoorIndex];
+        const int32_t side = info.DoorSide;
+        MCDoorLink& backLink = areaDoor.Links[side][areaDoor.NumLinks[side]];
+        backLink.DoorIndex = static_cast<int16_t>(NumDoors);
+        backLink.DoorSide = 0;
+        backLink.Cost = 1;
+        areaDoor.NumLinks[side]++;
     }
 }
 
-auto GlobalMap::resetStartDoor(int32_t startArea) -> void
+auto MCGlobalMap::ResetStartDoor(int32_t startArea) -> void
 {
-    const GlobalMapDoor& startDoor = doors[numDoors];
+    const MCGlobalMapDoor& startDoor = Doors[NumDoors];
 
-    for (int32_t i = 0; i < startDoor.numLinks[0]; i++)
+    for (int32_t i = 0; i < startDoor.NumLinks[0]; i++)
     {
-        const DoorInfo& info = areas[startArea].doors[i];
-        doors[info.doorIndex].numLinks[static_cast<int32_t>(info.doorSide)]--;
+        const MCDoorInfo& info = Areas[startArea].Doors[i];
+        Doors[info.DoorIndex].NumLinks[static_cast<int32_t>(info.DoorSide)]--;
     }
 }
 
-auto GlobalMap::setGoalDoor(int32_t goalArea) -> void
+auto MCGlobalMap::SetGoalDoor(int32_t goalArea) -> void
 {
-    if (goalArea < 0 || goalArea >= numAreas)
+    if (goalArea < 0 || goalArea >= NumAreas)
     {
         char message[256];
-        std::snprintf(message, sizeof(message), " GlobalMap.setGoalDoor: bad goalArea (%d of %d) ", goalArea, numAreas);
+        std::snprintf(message, sizeof(message), " GlobalMap.setGoalDoor: bad goalArea (%d of %d) ", goalArea, NumAreas);
         Fatal(0, message);
     }
 
-    GlobalMapDoor& goalDoor = doors[numDoors + 1];
-    const GlobalMapArea& area = areas[goalArea];
-    goalDoor.area[0] = static_cast<int16_t>(goalArea);
-    goalDoor.area[1] = static_cast<int16_t>(goalArea);
-    goalSectorR = area.sectorR;
-    goalSectorC = area.sectorC;
-    InitTempDoor(goalDoor, goalArea, area.numDoors);
+    MCGlobalMapDoor& goalDoor = Doors[NumDoors + 1];
+    const MCGlobalMapArea& area = Areas[goalArea];
+    goalDoor.Area[0] = static_cast<int16_t>(goalArea);
+    goalDoor.Area[1] = static_cast<int16_t>(goalArea);
+    GoalSectorR = area.SectorR;
+    GoalSectorC = area.SectorC;
+    InitTempDoor(goalDoor, goalArea, area.NumDoors);
 
-    for (int32_t i = 0; i < goalDoor.numLinks[0]; i++)
+    for (int32_t i = 0; i < goalDoor.NumLinks[0]; i++)
     {
-        const DoorInfo& info = area.doors[i];
-        DoorLink& link = goalDoor.links[0][i];
-        link.doorIndex = info.doorIndex;
-        link.doorSide = info.doorSide;
-        link.cost = 1;
-        Assert(info.doorIndex >= 0 && info.doorIndex < numDoors + 2 ? 1 : 0, static_cast<uint32_t>(info.doorIndex),
+        const MCDoorInfo& info = area.Doors[i];
+        MCDoorLink& link = goalDoor.Links[0][i];
+        link.DoorIndex = info.DoorIndex;
+        link.DoorSide = info.DoorSide;
+        link.Cost = 1;
+        Assert(info.DoorIndex >= 0 && info.DoorIndex < NumDoors + 2 ? 1 : 0, static_cast<uint32_t>(info.DoorIndex),
                " GlobalMap.setGoalDoor: bad doorIndex ");
-        GlobalMapDoor& areaDoor = doors[info.doorIndex];
-        const int32_t side = info.doorSide;
-        DoorLink& backLink = areaDoor.links[side][areaDoor.numLinks[side]];
-        backLink.doorIndex = static_cast<int16_t>(numDoors + 1);
-        backLink.doorSide = 0;
-        backLink.cost = 1;
-        areaDoor.numLinks[side]++;
+        MCGlobalMapDoor& areaDoor = Doors[info.DoorIndex];
+        const int32_t side = info.DoorSide;
+        MCDoorLink& backLink = areaDoor.Links[side][areaDoor.NumLinks[side]];
+        backLink.DoorIndex = static_cast<int16_t>(NumDoors + 1);
+        backLink.DoorSide = 0;
+        backLink.Cost = 1;
+        areaDoor.NumLinks[side]++;
     }
 }
 
-auto GlobalMap::resetGoalDoor(int32_t goalArea) -> void
+auto MCGlobalMap::ResetGoalDoor(int32_t goalArea) -> void
 {
-    const GlobalMapDoor& goalDoor = doors[numDoors + 1];
+    const MCGlobalMapDoor& goalDoor = Doors[NumDoors + 1];
 
-    for (int32_t i = 0; i < goalDoor.numLinks[0]; i++)
+    for (int32_t i = 0; i < goalDoor.NumLinks[0]; i++)
     {
-        const DoorInfo& info = areas[goalArea].doors[i];
-        doors[info.doorIndex].numLinks[static_cast<int32_t>(info.doorSide)]--;
+        const MCDoorInfo& info = Areas[goalArea].Doors[i];
+        Doors[info.DoorIndex].NumLinks[static_cast<int32_t>(info.DoorSide)]--;
     }
 }
 
-auto GlobalMap::calcHPrime(int32_t door) -> int32_t
+auto MCGlobalMap::CalcHPrime(int32_t door) -> int32_t
 {
-    Assert(door >= 0 && door < numDoors + 2 ? 1 : 0, 0xffffffff, " CalcHPrime: Bad Door ");
-    const GlobalMapArea& area0 = areas[doors[door].area[0]];
-    const GlobalMapArea& area1 = areas[doors[door].area[1]];
-    const int32_t sectorR = (area1.sectorR + area0.sectorR) / 2;
-    const int32_t sectorC = (area0.sectorC + area1.sectorC) / 2;
-    const int32_t rowDistance = goalSectorR < sectorR ? sectorR - goalSectorR : goalSectorR - sectorR;
-    const int32_t colDistance = goalSectorC < sectorC ? sectorC - goalSectorC : goalSectorC - sectorC;
+    Assert(door >= 0 && door < NumDoors + 2 ? 1 : 0, 0xffffffff, " CalcHPrime: Bad Door ");
+    const MCGlobalMapArea& area0 = Areas[Doors[door].Area[0]];
+    const MCGlobalMapArea& area1 = Areas[Doors[door].Area[1]];
+    const int32_t sectorR = (area1.SectorR + area0.SectorR) / 2;
+    const int32_t sectorC = (area0.SectorC + area1.SectorC) / 2;
+    const int32_t rowDistance = GoalSectorR < sectorR ? sectorR - GoalSectorR : GoalSectorR - sectorR;
+    const int32_t colDistance = GoalSectorC < sectorC ? sectorC - GoalSectorC : GoalSectorC - sectorC;
     return rowDistance + colDistance;
 }
 
-auto GlobalMap::calcPath(int32_t startArea, int32_t goalArea, GlobalPathStep* path) -> int32_t
+auto MCGlobalMap::CalcPath(int32_t startArea, int32_t goalArea, MCGlobalPathStep* path) -> int32_t
 {
     if (startArea == -1 || goalArea == -1)
     {
         return -1;
     }
 
-    if (openList == nullptr)
+    if (OpenList == nullptr)
     {
-        openList = new PriorityQueue;
+        OpenList = new MCPriorityQueue;
 
-        if (openList == nullptr)
+        if (OpenList == nullptr)
         {
             Fatal(0, " Unable to create MoveMap::openList ");
         }
 
-        openList->init(5000, -2000000);
+        OpenList->Init(5000, -2000000);
     }
 
-    const int32_t startDoor = numDoors;
-    const int32_t goalDoor = numDoors + 1;
+    const int32_t startDoor = NumDoors;
+    const int32_t goalDoor = NumDoors + 1;
 
-    for (int32_t i = 0; i < numDoors + 2; i++)
+    for (int32_t i = 0; i < NumDoors + 2; i++)
     {
-        GlobalMapDoor& door = doors[i];
-        door.cost = 1;
-        door.parent = -1;
-        door.fromAreaIndex = -1;
-        door.flags = 0;
-        door.g = 0;
-        door.hPrime = -1;
-        door.fPrime = 0;
+        MCGlobalMapDoor& door = Doors[i];
+        door.Cost = 1;
+        door.Parent = -1;
+        door.FromAreaIndex = -1;
+        door.Flags = 0;
+        door.G = 0;
+        door.HPrime = -1;
+        door.FPrime = 0;
     }
 
-    setStartDoor(startArea);
-    setGoalDoor(goalArea);
+    SetStartDoor(startArea);
+    SetGoalDoor(goalArea);
 
-    openList->clear();
-    PQNode startNode = {};
-    startNode.key = 0;
-    startNode.id = startDoor;
+    OpenList->Clear();
+    MCPQNode startNode = {};
+    startNode.Key = 0;
+    startNode.Id = startDoor;
 
-    if (openList->insert(startNode) != 0)
+    if (OpenList->Insert(startNode) != 0)
     {
         Fatal(0, "PathFind OPEN overflow");
     }
 
-    doors[startDoor].flags |= 1;
+    Doors[startDoor].Flags |= 1;
 
     int goalFound = 0;
 
-    while (openList->size() != 0)
+    while (OpenList->Size() != 0)
     {
-        PQNode best;
-        openList->remove(best);
-        const int32_t curIndex = best.id;
-        GlobalMapDoor& current = doors[curIndex];
-        const int32_t g = current.g;
-        current.flags = (current.flags & ~1u) | 2;
+        MCPQNode best;
+        OpenList->Remove(best);
+        const int32_t curIndex = best.Id;
+        MCGlobalMapDoor& current = Doors[curIndex];
+        const int32_t g = current.G;
+        current.Flags = (current.Flags & ~1u) | 2;
 
         if (curIndex == goalDoor)
         {
@@ -3789,68 +3793,68 @@ auto GlobalMap::calcPath(int32_t startArea, int32_t goalArea, GlobalPathStep* pa
             break;
         }
 
-        const int32_t side = 1 - current.fromAreaIndex;
-        const int32_t thruArea = current.area[side];
-        const int32_t numLinks = current.numLinks[side];
+        const int32_t side = 1 - current.FromAreaIndex;
+        const int32_t thruArea = current.Area[side];
+        const int32_t numLinks = current.NumLinks[side];
 
         for (int32_t i = 0; i < numLinks; i++)
         {
-            const DoorLink& link = current.links[side][i];
-            const int32_t succIndex = link.doorIndex;
-            Assert(succIndex >= 0 && succIndex < numDoors + 2 ? 1 : 0, 0, " Bad Door Index ");
-            const int32_t linkCost = link.cost;
-            GlobalMapDoor& successor = doors[succIndex];
+            const MCDoorLink& link = current.Links[side][i];
+            const int32_t succIndex = link.DoorIndex;
+            Assert(succIndex >= 0 && succIndex < NumDoors + 2 ? 1 : 0, 0, " Bad Door Index ");
+            const int32_t linkCost = link.Cost;
+            MCGlobalMapDoor& successor = Doors[succIndex];
 
-            if (successor.open == 0 || linkCost >= 10000)
+            if (successor.Open == 0 || linkCost >= 10000)
             {
                 continue;
             }
 
-            if (successor.hPrime == -1)
+            if (successor.HPrime == -1)
             {
-                successor.hPrime = calcHPrime(succIndex);
+                successor.HPrime = CalcHPrime(succIndex);
             }
 
             const int32_t newG = g + linkCost;
-            const int32_t succSide = successor.area[1] == thruArea ? 1 : 0;
+            const int32_t succSide = successor.Area[1] == thruArea ? 1 : 0;
 
-            if ((successor.flags & 1) == 0)
+            if ((successor.Flags & 1) == 0)
             {
-                if ((successor.flags & 2) == 0)
+                if ((successor.Flags & 2) == 0)
                 {
-                    successor.fromAreaIndex = succSide;
-                    successor.parent = curIndex;
-                    successor.g = newG;
-                    successor.fPrime = newG + successor.hPrime;
-                    successor.cost = linkCost;
-                    PQNode node = {};
-                    node.key = successor.fPrime;
-                    node.id = succIndex;
+                    successor.FromAreaIndex = succSide;
+                    successor.Parent = curIndex;
+                    successor.G = newG;
+                    successor.FPrime = newG + successor.HPrime;
+                    successor.Cost = linkCost;
+                    MCPQNode node = {};
+                    node.Key = successor.FPrime;
+                    node.Id = succIndex;
 
-                    if (openList->insert(node) != 0)
+                    if (OpenList->Insert(node) != 0)
                     {
                         Fatal(0, "PathFind OPEN overflow");
                     }
 
-                    successor.flags |= 1;
+                    successor.Flags |= 1;
                 }
-                else if (newG < successor.g)
+                else if (newG < successor.G)
                 {
                     // A cheaper way to a closed door: reparent it and push the saving on.
-                    successor.cost = linkCost;
-                    successor.parent = curIndex;
-                    successor.fromAreaIndex = succSide;
-                    propogateCost(succIndex, linkCost, succSide, g);
+                    successor.Cost = linkCost;
+                    successor.Parent = curIndex;
+                    successor.FromAreaIndex = succSide;
+                    PropogateCost(succIndex, linkCost, succSide, g);
                 }
             }
-            else if (newG < successor.g)
+            else if (newG < successor.G)
             {
-                successor.fromAreaIndex = succSide;
-                successor.cost = linkCost;
-                successor.fPrime = successor.hPrime + newG;
-                successor.parent = curIndex;
-                successor.g = newG;
-                const int32_t itemIndex = openList->find(succIndex);
+                successor.FromAreaIndex = succSide;
+                successor.Cost = linkCost;
+                successor.FPrime = successor.HPrime + newG;
+                successor.Parent = curIndex;
+                successor.G = newG;
+                const int32_t itemIndex = OpenList->Find(succIndex);
 
                 if (itemIndex == 0)
                 {
@@ -3862,13 +3866,13 @@ auto GlobalMap::calcPath(int32_t startArea, int32_t goalArea, GlobalPathStep* pa
                     Fatal(0, "GlobalMap.calcPath: Save OPENLIST.DBG file for Glenn!");
                 }
 
-                openList->change(itemIndex, successor.fPrime);
+                OpenList->Change(itemIndex, successor.FPrime);
             }
         }
     }
 
-    resetStartDoor(startArea);
-    resetGoalDoor(goalArea);
+    ResetStartDoor(startArea);
+    ResetGoalDoor(goalArea);
 
     if (goalFound == 0)
     {
@@ -3877,7 +3881,7 @@ auto GlobalMap::calcPath(int32_t startArea, int32_t goalArea, GlobalPathStep* pa
 
     int32_t count = 1;
 
-    for (int32_t door = goalDoor; door != startDoor; door = doors[door].parent)
+    for (int32_t door = goalDoor; door != startDoor; door = Doors[door].Parent)
     {
         count++;
     }
@@ -3892,18 +3896,18 @@ auto GlobalMap::calcPath(int32_t startArea, int32_t goalArea, GlobalPathStep* pa
         // Port fix: the original writes past the caller's MAX_GLOBAL_PATH steps when the assert above fails.
         if (i < MAX_GLOBAL_PATH)
         {
-            path[i].thruArea = doors[door].area[doors[door].fromAreaIndex];
-            path[i].goalDoor = door;
-            path[i].costToGoal = costToGoal;
+            path[i].ThruArea = Doors[door].Area[Doors[door].FromAreaIndex];
+            path[i].GoalDoor = door;
+            path[i].CostToGoal = costToGoal;
         }
 
-        costToGoal += doors[door].cost;
-        door = doors[door].parent;
+        costToGoal += Doors[door].Cost;
+        door = Doors[door].Parent;
     }
 
-    if (pathCostTable != nullptr)
+    if (PathCostTable != nullptr)
     {
-        uint8_t& entry = pathCostTable[numAreas * startArea + goalArea];
+        uint8_t& entry = PathCostTable[NumAreas * startArea + goalArea];
 
         if (entry != numSteps)
         {
@@ -3914,24 +3918,24 @@ auto GlobalMap::calcPath(int32_t startArea, int32_t goalArea, GlobalPathStep* pa
     return numSteps;
 }
 
-auto GlobalMap::propogateCost(int32_t door, int32_t cost, int32_t fromSide, int32_t g) -> void
+auto MCGlobalMap::PropogateCost(int32_t door, int32_t cost, int32_t fromSide, int32_t g) -> void
 {
-    Assert(door >= 0 && door < numDoors + 2 && (fromSide == 0 || fromSide == 1) && g >= 0 ? 1 : 0, 0xffffffff,
+    Assert(door >= 0 && door < NumDoors + 2 && (fromSide == 0 || fromSide == 1) && g >= 0 ? 1 : 0, 0xffffffff,
            " Bad Door Propogate ");
     const int32_t newG = cost + g;
-    GlobalMapDoor& current = doors[door];
+    MCGlobalMapDoor& current = Doors[door];
 
-    if (newG >= current.g)
+    if (newG >= current.G)
     {
         return;
     }
 
-    current.g = newG;
-    current.fPrime = current.hPrime + newG;
+    current.G = newG;
+    current.FPrime = current.HPrime + newG;
 
-    if ((current.flags & 1) != 0)
+    if ((current.Flags & 1) != 0)
     {
-        if (openList->find(door) == 0)
+        if (OpenList->Find(door) == 0)
         {
             char message[256];
             std::snprintf(message, sizeof(message),
@@ -3942,114 +3946,114 @@ auto GlobalMap::propogateCost(int32_t door, int32_t cost, int32_t fromSide, int3
         }
 
         // Original behaviour (OB-025): passes the door number where PriorityQueue::change wants the heap index.
-        openList->change(door, current.fPrime);
+        OpenList->Change(door, current.FPrime);
         return;
     }
 
     const int32_t side = 1 - fromSide;
-    const int32_t numLinks = current.numLinks[side];
+    const int32_t numLinks = current.NumLinks[side];
 
     for (int32_t i = 0; i < numLinks; i++)
     {
-        const DoorLink& link = current.links[side][i];
-        const int32_t nextIndex = link.doorIndex;
-        Assert(nextIndex >= 0 && nextIndex < numDoors + 2 ? 1 : 0, 0, " Bad Door Index ");
-        const int32_t linkCost = link.cost;
-        GlobalMapDoor& next = doors[nextIndex];
-        const int32_t nextSide = next.area[1] == current.area[side] ? 1 : 0;
+        const MCDoorLink& link = current.Links[side][i];
+        const int32_t nextIndex = link.DoorIndex;
+        Assert(nextIndex >= 0 && nextIndex < NumDoors + 2 ? 1 : 0, 0, " Bad Door Index ");
+        const int32_t linkCost = link.Cost;
+        MCGlobalMapDoor& next = Doors[nextIndex];
+        const int32_t nextSide = next.Area[1] == current.Area[side] ? 1 : 0;
 
-        if (next.open == 0 || linkCost >= 10000 || next.hPrime == -1)
+        if (next.Open == 0 || linkCost >= 10000 || next.HPrime == -1)
         {
             continue;
         }
 
-        if (door == next.parent)
+        if (door == next.Parent)
         {
             // Original behaviour (OB-026): passes this door's exit side, not the next door's entry side.
-            propogateCost(nextIndex, linkCost, side, current.g);
+            PropogateCost(nextIndex, linkCost, side, current.G);
         }
-        else if (current.g + linkCost < next.g)
+        else if (current.G + linkCost < next.G)
         {
-            next.cost = linkCost;
-            next.parent = door;
-            next.fromAreaIndex = nextSide;
-            propogateCost(nextIndex, linkCost, nextSide, current.g);
+            next.Cost = linkCost;
+            next.Parent = door;
+            next.FromAreaIndex = nextSide;
+            PropogateCost(nextIndex, linkCost, nextSide, current.G);
         }
     }
 }
 
-auto GlobalMap::calcPath(vector_3d start, vector_3d goal, GlobalPathStep* path) -> int32_t
+auto MCGlobalMap::CalcPath(MCVector3D start, MCVector3D goal, MCGlobalPathStep* path) -> int32_t
 {
     int32_t startR = 0;
     int32_t startC = 0;
-    GameMap->worldToMapTilePos(start, startR, startC);
+    GameMap->WorldToMapTilePos(start, startR, startC);
     int32_t goalR = 0;
     int32_t goalC = 0;
-    GameMap->worldToMapTilePos(goal, goalR, goalC);
-    const int32_t goalArea = calcArea(goalR, goalC);
-    const int32_t startArea = calcArea(startR, startC);
-    return calcPath(startArea, goalArea, path);
+    GameMap->WorldToMapTilePos(goal, goalR, goalC);
+    const int32_t goalArea = CalcArea(goalR, goalC);
+    const int32_t startArea = CalcArea(startR, startC);
+    return CalcPath(startArea, goalArea, path);
 }
 
-auto GlobalMap::getPathCost(int32_t startArea, int32_t goalArea) -> int32_t
+auto MCGlobalMap::GetPathCost(int32_t startArea, int32_t goalArea) -> int32_t
 {
     if (startArea < 0 || goalArea < 0)
     {
         return 0;
     }
 
-    return pathCostTable[numAreas * startArea + goalArea];
+    return PathCostTable[NumAreas * startArea + goalArea];
 }
 
-auto GlobalMap::openDoor(int32_t door) -> void
+auto MCGlobalMap::OpenDoor(int32_t door) -> void
 {
-    doors[door].open = 1;
+    Doors[door].Open = 1;
 }
 
-auto GlobalMap::closeDoor(int32_t door) -> void
+auto MCGlobalMap::CloseDoor(int32_t door) -> void
 {
-    doors[door].open = 0;
+    Doors[door].Open = 0;
 }
 
-auto GlobalMap::closeArea(int32_t area) -> void
+auto MCGlobalMap::CloseArea(int32_t area) -> void
 {
-    GlobalMapArea& closing = areas[area];
-    closing.closed = 1;
+    MCGlobalMapArea& closing = Areas[area];
+    closing.Closed = 1;
 
-    for (int32_t i = 0; i < closing.numDoors; i++)
+    for (int32_t i = 0; i < closing.NumDoors; i++)
     {
-        closeDoor(closing.doors[i].doorIndex);
+        CloseDoor(closing.Doors[i].DoorIndex);
     }
 
-    for (int32_t i = 0; i < numAreas; i++)
+    for (int32_t i = 0; i < NumAreas; i++)
     {
-        pathCostTable[numAreas * i + area] = 0;
-        pathCostTable[numAreas * area + i] = 0;
+        PathCostTable[NumAreas * i + area] = 0;
+        PathCostTable[NumAreas * area + i] = 0;
     }
 }
 
-auto GlobalMap::print(char* fileName, int32_t ULr, int32_t ULc, int32_t printHeight, int32_t printWidth) -> void
+auto MCGlobalMap::Print(char* fileName, int32_t uLr, int32_t uLc, int32_t printHeight, int32_t printWidth) -> void
 {
     // Port fix: the original tests the other way round (it prints only when areaMap is null, and then reads through
     // the null pointer).
-    if (areaMap == nullptr)
+    if (AreaMap == nullptr)
     {
         return;
     }
 
-    File* debugFile = new File;
-    debugFile->create(fileName);
+    MCFile* debugFile = new MCFile;
+    debugFile->Create(fileName);
     char line[512];
-    std::snprintf(line, sizeof(line), "ULr: %d, ULc: %d, h: %d, w: %d\n", ULr, ULc, printHeight, printWidth);
-    debugFile->writeString(line);
+    std::snprintf(line, sizeof(line), "ULr: %d, ULc: %d, h: %d, w: %d\n", uLr, uLc, printHeight, printWidth);
+    debugFile->WriteString(line);
 
-    for (int32_t row = ULr; row < ULr + printHeight; row++)
+    for (int32_t row = uLr; row < uLr + printHeight; row++)
     {
         line[0] = '\0';
 
-        for (int32_t col = ULc; col < ULc + printWidth; col++)
+        for (int32_t col = uLc; col < uLc + printWidth; col++)
         {
-            const int16_t area = areaMap[width * row + col];
+            const int16_t area = AreaMap[Width * row + col];
             char cell[16];
 
             if (area == -2)
@@ -4069,29 +4073,29 @@ auto GlobalMap::print(char* fileName, int32_t ULr, int32_t ULc, int32_t printHei
         }
 
         std::strcat(line, "\n");
-        debugFile->writeString(line);
+        debugFile->WriteString(line);
     }
 
-    debugFile->writeString("\n");
-    debugFile->close();
+    debugFile->WriteString("\n");
+    debugFile->Close();
     delete debugFile;
 }
 
-auto GlobalMap::calcArea(int32_t tileR, int32_t tileC) -> int32_t
+auto MCGlobalMap::CalcArea(int32_t tileR, int32_t tileC) -> int32_t
 {
     // Port fix: the original reads outside the area map for a goal off the map. Off the map is in no area.
-    if (tileR < 0 || tileR >= height || tileC < 0 || tileC >= width)
+    if (tileR < 0 || tileR >= Height || tileC < 0 || tileC >= Width)
     {
         return -1;
     }
 
-    if (smallAreaMap == nullptr)
+    if (SmallAreaMap == nullptr)
     {
-        const int32_t area = areaMap[width * tileR + tileC];
+        const int32_t area = AreaMap[Width * tileR + tileC];
         return area < 0 ? -1 : area;
     }
 
-    const int32_t area = smallAreaMap[width * tileR + tileC];
+    const int32_t area = SmallAreaMap[Width * tileR + tileC];
     return area == 0xff ? -1 : area;
 }
 
@@ -4129,38 +4133,37 @@ namespace
     }
 
     /// <summary>Whether a standing mover blocks MoveMap cells (not an elemental, not the mover itself, alive).</summary>
-    bool IsBlockingMover(GameObject* object)
+    bool IsBlockingMover(MCGameObject* object)
     {
-        return object->objectClass != ELEMENTAL && object != MovingObject && object != RamObject &&
-               object->isDisabled() == 0;
+        return object->ObjectClass != ELEMENTAL && object != MovingObject && object != RamObject &&
+               object->IsDisabled() == 0;
     }
 
     /// <summary>MoveMap::markGoalCells's per-cell "free" state of the goal door (a function static in MCX).</summary>
-    /// <remarks>MCX.EXE @ 0x0080bf00</remarks>
-    char doorCellState[256];
+    char DoorCellState[256];
 
     /// <summary>Whether cellShiftDistance has been filled (once per search function in MCX).</summary>
-    /// <remarks>MCX.EXE @ 0x00808024 (calcPath) and 0x00808028 (calcEscapePath).</remarks>
-    int cellShiftDistanceReady[2] = {};
+    /// <remarks>and 0x00808028 (calcEscapePath).</remarks>
+    int CellShiftDistanceReady[2] = {};
 }
 
-auto MoveMap::init(int32_t newMaxWidth, int32_t newMaxHeight) -> void
+auto MCMoveMap::Init(int32_t newMaxWidth, int32_t newMaxHeight) -> void
 {
-    maxWidth = newMaxWidth;
-    width = newMaxWidth;
-    maxHeight = newMaxHeight;
-    maxCellHeight = newMaxHeight * MAPCELL_DIM;
-    cellHeight = newMaxHeight * MAPCELL_DIM;
-    height = newMaxHeight;
-    maxCellWidth = newMaxWidth * MAPCELL_DIM;
-    cellWidth = newMaxWidth * MAPCELL_DIM;
-    map = std::make_unique<MoveMapNode[]>(static_cast<size_t>(maxCellHeight * maxCellWidth));
-    clear();
+    MaxWidth = newMaxWidth;
+    Width = newMaxWidth;
+    MaxHeight = newMaxHeight;
+    MaxCellHeight = newMaxHeight * MAPCELL_DIM;
+    CellHeight = newMaxHeight * MAPCELL_DIM;
+    Height = newMaxHeight;
+    MaxCellWidth = newMaxWidth * MAPCELL_DIM;
+    CellWidth = newMaxWidth * MAPCELL_DIM;
+    Map = std::make_unique<MCMoveMapNode[]>(static_cast<size_t>(MaxCellHeight * MaxCellWidth));
+    Clear();
 }
 
-auto MoveMap::init(FitIniFile* mapFile) -> int32_t
+auto MCMoveMap::Init(MCFitIniFile* mapFile) -> int32_t
 {
-    int32_t result = mapFile->seekBlock("Header");
+    int32_t result = mapFile->SeekBlock("Header");
 
     if (result != 0)
     {
@@ -4168,7 +4171,7 @@ auto MoveMap::init(FitIniFile* mapFile) -> int32_t
     }
 
     char fileType[128];
-    result = mapFile->readIdString("FileType", fileType, 127);
+    result = mapFile->ReadIdString("FileType", fileType, 127);
 
     if (result != 0)
     {
@@ -4180,47 +4183,47 @@ auto MoveMap::init(FitIniFile* mapFile) -> int32_t
         return -1;
     }
 
-    result = mapFile->seekBlock("MapData");
+    result = mapFile->SeekBlock("MapData");
 
     if (result != 0)
     {
         return result;
     }
 
-    result = mapFile->readIdLong("Height", height);
+    result = mapFile->ReadIdLong("Height", Height);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = mapFile->readIdLong("Width", width);
+    result = mapFile->ReadIdLong("Width", Width);
 
     if (result != 0)
     {
         return result;
     }
 
-    init(height, width); // as the original: the height goes to init's width slot (maps are square)
-    const int32_t tileRows = height;
-    const int32_t tileCols = width;
+    Init(Height, Width); // as the original: the height goes to init's width slot (maps are square)
+    const int32_t tileRows = Height;
+    const int32_t tileCols = Width;
     std::vector<char> vertexCost(static_cast<size_t>(tileRows * tileCols));
-    result = mapFile->readIdCharArray("VertexCost", vertexCost.data(), static_cast<uint32_t>(tileRows * tileCols));
+    result = mapFile->ReadIdCharArray("VertexCost", vertexCost.data(), static_cast<uint32_t>(tileRows * tileCols));
 
     if (result != 0)
     {
         return result;
     }
 
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        for (int32_t col = 0; col < width; col++)
+        for (int32_t col = 0; col < Width; col++)
         {
             for (int32_t cellR = 0; cellR < MAPCELL_DIM; cellR++)
             {
                 for (int32_t cellC = 0; cellC < MAPCELL_DIM; cellC++)
                 {
-                    map[cellWidth * (row * 3 + cellR) + col * 3 + cellC].cost = vertexCost[col + width * row];
+                    Map[CellWidth * (row * 3 + cellR) + col * 3 + cellC].Cost = vertexCost[col + Width * row];
                 }
             }
         }
@@ -4229,84 +4232,84 @@ auto MoveMap::init(FitIniFile* mapFile) -> int32_t
     return 0;
 }
 
-auto MoveMap::clear() -> void
+auto MCMoveMap::Clear() -> void
 {
-    const int32_t numCells = cellHeight * maxCellWidth;
+    const int32_t numCells = CellHeight * MaxCellWidth;
 
     for (int32_t i = 0; i < numCells; i++)
     {
-        map[i].parent = -1;
-        map[i].flags = 0;
-        map[i].hPrime = -1;
+        Map[i].Parent = -1;
+        Map[i].Flags = 0;
+        Map[i].HPrime = -1;
     }
 
-    goalPos = vector_3d(0.0f, 0.0f, 0.0f);
-    target = vector_3d(NO_POSITION, NO_POSITION, NO_POSITION);
+    GoalPos = MCVector3D(0.0f, 0.0f, 0.0f);
+    Target = MCVector3D(NO_POSITION, NO_POSITION, NO_POSITION);
 }
 
-auto MoveMap::placeMovers(int) -> void
+auto MCMoveMap::PlaceMovers(int) -> void
 {
-    auto placeList = [this](ObjectQueueNode* list, int bridgeCost)
+    auto placeList = [this](MCObjectQueueNode* list, int bridgeCost)
     {
-        BaseObject* current = nullptr;
+        MCBaseObject* current = nullptr;
 
         while (list->Traverse(current) != nullptr)
         {
-            GameObject* object = static_cast<GameObject*>(current);
+            MCGameObject* object = static_cast<MCGameObject*>(current);
 
             if (!IsBlockingMover(object))
             {
                 continue;
             }
 
-            const ObjectPosition* position = object->getObjPosition();
-            const int32_t r = (position->tileR - ULr) * 3 + position->cellR;
-            const int32_t c = (position->tileC - ULc) * 3 + position->cellC;
+            const MCObjectPosition* position = object->GetObjPosition();
+            const int32_t r = (position->TileR - ULr) * 3 + position->CellR;
+            const int32_t c = (position->TileC - ULc) * 3 + position->CellC;
 
-            if (r < 0 || r >= cellHeight || c < 0 || c >= cellWidth || (r == startR && c == startC))
+            if (r < 0 || r >= CellHeight || c < 0 || c >= CellWidth || (r == StartR && c == StartC))
             {
                 continue;
             }
 
-            MoveMapNode& node = map[maxCellWidth * r + c];
+            MCMoveMapNode& node = Map[MaxCellWidth * r + c];
 
-            if ((node.flags & 8) != 0)
+            if ((node.Flags & 8) != 0)
             {
                 continue;
             }
 
-            MovePath* path = object->getPilot()->getMovePath();
+            MCMovePath* path = object->GetPilot()->GetMovePath();
 
-            if (path == nullptr || path->numSteps != 0)
+            if (path == nullptr || path->NumSteps != 0)
             {
                 continue;
             }
 
-            node.flags |= 0x10;
-            const uint32_t overlay = GameMap->map[GameMap->width * position->tileR + position->tileC].overlay & 0x7f;
-            node.cost = AddCost(node.cost, OverlayIsBridge[overlay] == 0 ? 20000 : bridgeCost);
+            node.Flags |= 0x10;
+            const uint32_t overlay = GameMap->Map[GameMap->Width * position->TileR + position->TileC].Overlay & 0x7f;
+            node.Cost = AddCost(node.Cost, OverlayIsBridge[overlay] == 0 ? 20000 : bridgeCost);
         }
     };
 
     // Original behaviour (OB-030): Inner Sphere mechs standing on a bridge cost 3333 to pass, Clan ones nothing extra.
-    placeList(innerSphereMechList, 0xd05);
-    placeList(clanMechList, 0);
+    placeList(InnerSphereMechList, 0xd05);
+    placeList(ClanMechList, 0);
 }
 
-auto MoveMap::setTarget(vector_3d targetPos) -> void
+auto MCMoveMap::SetTarget(MCVector3D targetPos) -> void
 {
-    target = targetPos;
+    Target = targetPos;
 }
 
-auto MoveMap::setStart(vector_3d* newStartPos, int32_t newStartR, int32_t newStartC) -> void
+auto MCMoveMap::SetStart(MCVector3D* newStartPos, int32_t newStartR, int32_t newStartC) -> void
 {
     if (newStartPos == nullptr)
     {
-        startPos = vector_3d(NO_POSITION, NO_POSITION, NO_POSITION);
+        StartPos = MCVector3D(NO_POSITION, NO_POSITION, NO_POSITION);
     }
     else
     {
-        startPos = *newStartPos;
+        StartPos = *newStartPos;
     }
 
     if (newStartR == -1)
@@ -4315,19 +4318,19 @@ auto MoveMap::setStart(vector_3d* newStartPos, int32_t newStartR, int32_t newSta
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->worldToMapPos(*newStartPos, tileR, tileC, cellR, cellC);
-        startR = (tileR - ULr) * 3 + cellR;
-        startC = (tileC - ULc) * 3 + cellC;
+        GameMap->WorldToMapPos(*newStartPos, tileR, tileC, cellR, cellC);
+        StartR = (tileR - ULr) * 3 + cellR;
+        StartC = (tileC - ULc) * 3 + cellC;
         return;
     }
 
-    startR = newStartR;
-    startC = newStartC;
+    StartR = newStartR;
+    StartC = newStartC;
 }
 
-auto MoveMap::setGoal(vector_3d newGoalPos, int32_t newGoalR, int32_t newGoalC) -> void
+auto MCMoveMap::SetGoal(MCVector3D newGoalPos, int32_t newGoalR, int32_t newGoalC) -> void
 {
-    goalPos = newGoalPos;
+    GoalPos = newGoalPos;
 
     if (newGoalR == -1)
     {
@@ -4335,55 +4338,55 @@ auto MoveMap::setGoal(vector_3d newGoalPos, int32_t newGoalR, int32_t newGoalC) 
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->worldToMapPos(goalPos, tileR, tileC, cellR, cellC);
-        goalR = (tileR - ULr) * 3 + cellR;
-        goalC = (tileC - ULc) * 3 + cellC;
+        GameMap->WorldToMapPos(GoalPos, tileR, tileC, cellR, cellC);
+        GoalR = (tileR - ULr) * 3 + cellR;
+        GoalC = (tileC - ULc) * 3 + cellC;
     }
     else
     {
-        goalR = newGoalR;
-        goalC = newGoalC;
+        GoalR = newGoalR;
+        GoalC = newGoalC;
     }
 
-    doorDirection = -1;
+    DoorDirection = -1;
     GoalIsDoor = 0;
 }
 
-auto MoveMap::setGoal(int32_t thruArea, int32_t goalDoor) -> void
+auto MCMoveMap::SetGoal(int32_t thruArea, int32_t goalDoor) -> void
 {
-    goalPos = vector_3d(NO_POSITION, NO_POSITION, NO_POSITION);
-    door = goalDoor;
+    GoalPos = MCVector3D(NO_POSITION, NO_POSITION, NO_POSITION);
+    Door = goalDoor;
     GoalIsDoor = 1;
     // Per door direction (1 east-west, 2 north-south) and side: the direction the door is entered from.
     static constexpr int32_t entryDirection[8] = {-1, -1, 1, 3, 2, 0, -1, -1};
-    const GlobalMapDoor& goal = GlobalMoveMap->doors[goalDoor];
-    doorSide = goal.area[1] == thruArea ? 1 : 0;
-    const int32_t direction = goal.direction[0];
+    const MCGlobalMapDoor& goal = GlobalMoveMap->Doors[goalDoor];
+    DoorSide = goal.Area[1] == thruArea ? 1 : 0;
+    const int32_t direction = goal.Direction[0];
     Assert(direction == 1 || direction == 2 ? 1 : 0, 0, " MoveMap: Bad Area Door Direction in setGoal() ");
-    doorDirection = entryDirection[doorSide + direction * 2];
+    DoorDirection = entryDirection[DoorSide + direction * 2];
 
-    if (doorDirection == 0 || doorDirection == 2)
+    if (DoorDirection == 0 || DoorDirection == 2)
     {
-        goalR = goal.row * 3 + doorSide + (goal.cellR - minRow);
-        goalC = ((goal.col * 3 + goal.cellC) - minCol) + goal.length / 2;
+        GoalR = goal.Row * 3 + DoorSide + (goal.CellR - MinRow);
+        GoalC = ((goal.Col * 3 + goal.CellC) - MinCol) + goal.Length / 2;
     }
-    else if (doorDirection == 1 || doorDirection == 3)
+    else if (DoorDirection == 1 || DoorDirection == 3)
     {
-        goalR = (goal.cellR - minRow) + goal.row * 3 + goal.length / 2;
-        goalC = ((goal.col * 3 + goal.cellC) - minCol) + doorSide;
+        GoalR = (goal.CellR - MinRow) + goal.Row * 3 + goal.Length / 2;
+        GoalC = ((goal.Col * 3 + goal.CellC) - MinCol) + DoorSide;
     }
 }
 
-auto cellFacing(GameObject* object) -> int32_t
+auto CellFacing(MCGameObject* object) -> int32_t
 {
     if (object == nullptr)
     {
         return 0;
     }
 
-    vector_3d ahead = object->getPosition();
-    ahead.y = static_cast<float>(static_cast<double>(ahead.y) + 50.0);
-    const float facing = object->relFacingTo(ahead, -1);
+    MCVector3D ahead = object->GetPosition();
+    ahead.Y = static_cast<float>(static_cast<double>(ahead.Y) + 50.0);
+    const float facing = object->RelFacingTo(ahead, -1);
 
     if (facing < -157.5f)
     {
@@ -4428,77 +4431,77 @@ auto cellFacing(GameObject* object) -> int32_t
     return 4;
 }
 
-auto MoveMap::setUp(ScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, int32_t newHeight, int32_t newWidth,
-                    vector_3d* newStartPos, int32_t newStartR, int32_t newStartC, vector_3d newGoalPos,
-                    int32_t newGoalR, int32_t newGoalC, int32_t* newOverlayWeightTable, int32_t newMoveLevel,
-                    int32_t newJumpCost, int32_t newNumOffsets, uint32_t params) -> int32_t
+auto MCMoveMap::SetUp(MCScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, int32_t newHeight, int32_t newWidth,
+                      MCVector3D* newStartPos, int32_t newStartR, int32_t newStartC, MCVector3D newGoalPos,
+                      int32_t newGoalR, int32_t newGoalC, int32_t* newOverlayWeightTable, int32_t newMoveLevel,
+                      int32_t newJumpCost, int32_t newNumOffsets, uint32_t params) -> int32_t
 {
-    if (map == nullptr)
+    if (Map == nullptr)
     {
-        init(newHeight, newWidth); // as the original: the height goes to init's width slot (windows are square)
+        Init(newHeight, newWidth); // as the original: the height goes to init's width slot (windows are square)
     }
     else
     {
-        width = newWidth;
-        height = newHeight;
-        cellWidth = newWidth * 3;
-        cellHeight = newHeight * 3;
-        clear();
+        Width = newWidth;
+        Height = newHeight;
+        CellWidth = newWidth * 3;
+        CellHeight = newHeight * 3;
+        Clear();
     }
 
     ULr = newULr;
     ULc = newULc;
-    minCol = newULc * 3;
-    minRow = newULr * 3;
-    overlayWeightTable = newOverlayWeightTable == nullptr ? OverlayWeightTable : newOverlayWeightTable;
-    moveLevel = newMoveLevel;
-    jumpCost = newJumpCost;
-    numOffsets = newNumOffsets;
-    setStart(newStartPos, newStartR, newStartC);
-    setGoal(newGoalPos, newGoalR, newGoalC);
+    MinCol = newULc * 3;
+    MinRow = newULr * 3;
+    OverlayWeights = newOverlayWeightTable == nullptr ? OverlayWeightTable : newOverlayWeightTable;
+    MoveLevel = newMoveLevel;
+    JumpCost = newJumpCost;
+    NumOffsets = newNumOffsets;
+    SetStart(newStartPos, newStartR, newStartC);
+    SetGoal(newGoalPos, newGoalR, newGoalC);
 
     if (ClearBridgeTiles != 0)
     {
-        AdjustBridgeWeights(overlayWeightTable, -10000);
+        AdjustBridgeWeights(OverlayWeights, -10000);
     }
 
     int checkMines = 1;
-    const int32_t lockCost = moveLevel << 3;
+    const int32_t lockCost = MoveLevel << 3;
 
-    if (MovingObject != nullptr && MovingObject->objectClass == GROUNDVEHICLE &&
-        static_cast<GroundVehicle*>(MovingObject)->mineSweeper != 0)
+    if (MovingObject != nullptr && MovingObject->ObjectClass == GROUNDVEHICLE &&
+        static_cast<MCGroundVehicle*>(MovingObject)->MineSweeper != 0)
     {
         checkMines = 0;
     }
 
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        for (int32_t col = 0; col < width; col++)
+        for (int32_t col = 0; col < Width; col++)
         {
             const int32_t tileR = ULr + row;
             const int32_t tileC = ULc + col;
 
-            if (tileR < 0 || tileR >= GameMap->height || tileC < 0 || tileC >= GameMap->width)
+            if (tileR < 0 || tileR >= GameMap->Height || tileC < 0 || tileC >= GameMap->Width)
             {
                 continue;
             }
 
-            Assert(tileR >= 0 && tileR < scenarioMap->height && tileC >= 0 && tileC < scenarioMap->width ? 1 : 0, 0,
+            Assert(tileR >= 0 && tileR < scenarioMap->Height && tileC >= 0 && tileC < scenarioMap->Width ? 1 : 0, 0,
                    " Map Tile out of bounds ");
-            const MapTile tile = scenarioMap->map[scenarioMap->width * tileR + tileC];
-            MoveMapNode* tileNodes = &map[maxCellWidth * row * 3 + col * 3];
-            auto node = [&](int32_t cellR, int32_t cellC) -> MoveMapNode&
-            { return tileNodes[maxCellWidth * cellR + cellC]; };
+            const MCMapTile tile = scenarioMap->Map[scenarioMap->Width * tileR + tileC];
+            MCMoveMapNode* tileNodes = &Map[MaxCellWidth * row * 3 + col * 3];
+            auto node = [&](int32_t cellR, int32_t cellC) -> MCMoveMapNode&
+            { return tileNodes[MaxCellWidth * cellR + cellC]; };
 
             for (int32_t cellR = 0; cellR < MAPCELL_DIM; cellR++)
             {
                 for (int32_t cellC = 0; cellC < MAPCELL_DIM; cellC++)
                 {
-                    node(cellR, cellC).cost = TileCellPassable(tile, cellR, cellC) != 0 ? moveLevel : 10000;
+                    node(cellR, cellC).Cost = TileCellPassable(tile, cellR, cellC) != 0 ? MoveLevel : 10000;
                 }
             }
 
-            const uint32_t overlay = tile.overlay & 0x7f;
+            const uint32_t overlay = tile.Overlay & 0x7f;
 
             if (overlay != 0)
             {
@@ -4506,18 +4509,18 @@ auto MoveMap::setUp(ScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, in
 
                 if (overlay >= FIRST_GATE_OVERLAY && overlay <= LAST_GATE_OVERLAY)
                 {
-                    weightOverlay = GateOverlay(overlay, MovingObject->getAlignment());
+                    weightOverlay = GateOverlay(overlay, MovingObject->GetAlignment());
                 }
 
                 for (int32_t cell = 0; cell < MAPCELL_DIM * MAPCELL_DIM; cell++)
                 {
                     const int32_t weight =
-                        weightOverlay == -1 ? 20000 : overlayWeightTable[OverlayWeightIndex[weightOverlay] + cell];
-                    node(cell / 3, cell % 3).cost = AddCost(node(cell / 3, cell % 3).cost, weight);
+                        weightOverlay == -1 ? 20000 : OverlayWeights[OverlayWeightIndex[weightOverlay] + cell];
+                    node(cell / 3, cell % 3).Cost = AddCost(node(cell / 3, cell % 3).Cost, weight);
                 }
             }
 
-            uint32_t locks = (tile.overlay >> 15) & 0x1ff;
+            uint32_t locks = (tile.Overlay >> 15) & 0x1ff;
 
             if (locks != 0 && (params & 0x80) != 0)
             {
@@ -4525,44 +4528,44 @@ auto MoveMap::setUp(ScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, in
                 {
                     if ((locks & 1) != 0)
                     {
-                        node(cell / 3, cell % 3).cost = AddCost(node(cell / 3, cell % 3).cost, lockCost);
+                        node(cell / 3, cell % 3).Cost = AddCost(node(cell / 3, cell % 3).Cost, lockCost);
                     }
                 }
             }
 
             if (checkMines != 0)
             {
-                const int32_t alignment = MovingObject->getAlignment();
-                const uint32_t knownMines = (tile.overlay >> (alignment == -1 ? 0x19 : 0x1b)) & 3;
+                const int32_t alignment = MovingObject->GetAlignment();
+                const uint32_t knownMines = (tile.Overlay >> (alignment == -1 ? 0x19 : 0x1b)) & 3;
 
                 if (knownMines != 0)
                 {
                     for (int32_t cell = 0; cell < MAPCELL_DIM * MAPCELL_DIM; cell++)
                     {
-                        node(cell / 3, cell % 3).cost = AddCost(node(cell / 3, cell % 3).cost, moveLevel << knownMines);
+                        node(cell / 3, cell % 3).Cost = AddCost(node(cell / 3, cell % 3).Cost, MoveLevel << knownMines);
                     }
                 }
 
-                const uint32_t ownMines = (tile.overlay >> (alignment == -1 ? 0xb : 0xd)) & 3;
+                const uint32_t ownMines = (tile.Overlay >> (alignment == -1 ? 0xb : 0xd)) & 3;
 
                 if (ownMines == 3 || ownMines == 1)
                 {
                     for (int32_t cell = 0; cell < MAPCELL_DIM * MAPCELL_DIM; cell++)
                     {
-                        node(cell / 3, cell % 3).cost =
-                            AddCost(node(cell / 3, cell % 3).cost, (moveLevel << ownMines) * -2);
+                        node(cell / 3, cell % 3).Cost =
+                            AddCost(node(cell / 3, cell % 3).Cost, (MoveLevel << ownMines) * -2);
                     }
                 }
             }
 
             // A mine layer laying mines is drawn to the middle of each tile.
-            if (MovingObject->objectClass == GROUNDVEHICLE)
+            if (MovingObject->ObjectClass == GROUNDVEHICLE)
             {
-                GroundVehicle* vehicle = static_cast<GroundVehicle*>(MovingObject);
+                MCGroundVehicle* vehicle = static_cast<MCGroundVehicle*>(MovingObject);
 
-                if (vehicle->mineLayer != 0 && vehicle->pilot->curTacOrder.moveParams.mode == 1)
+                if (vehicle->MineLayer != 0 && vehicle->Pilot->CurTacOrder.MoveParams.Mode == 1)
                 {
-                    node(1, 1).cost = AddCost(node(1, 1).cost, moveLevel * -16);
+                    node(1, 1).Cost = AddCost(node(1, 1).Cost, MoveLevel * -16);
                 }
             }
         }
@@ -4572,47 +4575,47 @@ auto MoveMap::setUp(ScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, in
     {
         // Port fix: the original marks a goal outside the window too, writing outside map, before searchPath stops
         // on it (" Bad Move Goal "). The port leaves the mark out so that Fatal is what reports it.
-        if (goalR >= 0 && goalR < cellHeight && goalC >= 0 && goalC < cellWidth)
+        if (GoalR >= 0 && GoalR < CellHeight && GoalC >= 0 && GoalC < CellWidth)
         {
-            map[goalR * maxCellWidth + goalC].flags |= 8;
+            Map[GoalR * MaxCellWidth + GoalC].Flags |= 8;
         }
     }
     else
     {
-        markEscapeGoalCells(newGoalPos);
+        MarkEscapeGoalCells(newGoalPos);
     }
 
     if ((params & 0x40) != 0)
     {
-        placeMovers(1);
+        PlaceMovers(1);
     }
 
     return 0;
 }
 
-auto MoveMap::markEscapeGoalCells(vector_3d escapeGoal) -> int32_t
+auto MCMoveMap::MarkEscapeGoalCells(MCVector3D escapeGoal) -> int32_t
 {
     int32_t goalTileR = 0;
     int32_t goalTileC = 0;
     int32_t goalCellR = 0;
     int32_t goalCellC = 0;
-    GameMap->worldToMapPos(escapeGoal, goalTileR, goalTileC, goalCellR, goalCellC);
-    const int32_t goalArea = GlobalMoveMap->calcArea(goalTileR, goalTileC);
+    GameMap->WorldToMapPos(escapeGoal, goalTileR, goalTileC, goalCellR, goalCellC);
+    const int32_t goalArea = GlobalMoveMap->CalcArea(goalTileR, goalTileC);
 
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        for (int32_t col = 0; col < width; col++)
+        for (int32_t col = 0; col < Width; col++)
         {
             const int32_t tileR = ULr + row;
             const int32_t tileC = ULc + col;
 
-            if (tileR < 0 || tileR >= GameMap->height || tileC < 0 || tileC >= GameMap->width)
+            if (tileR < 0 || tileR >= GameMap->Height || tileC < 0 || tileC >= GameMap->Width)
             {
                 continue;
             }
 
-            const int32_t area = GlobalMoveMap->calcArea(tileR, tileC);
-            const int32_t cost = GlobalMoveMap->getPathCost(area, goalArea);
+            const int32_t area = GlobalMoveMap->CalcArea(tileR, tileC);
+            const int32_t cost = GlobalMoveMap->GetPathCost(area, goalArea);
 
             if (area != goalArea && cost <= 0)
             {
@@ -4623,7 +4626,7 @@ auto MoveMap::markEscapeGoalCells(vector_3d escapeGoal) -> int32_t
             {
                 for (int32_t cellC = 0; cellC < MAPCELL_DIM; cellC++)
                 {
-                    map[maxCellWidth * (row * 3 + cellR) + col * 3 + cellC].flags |= 8;
+                    Map[MaxCellWidth * (row * 3 + cellR) + col * 3 + cellC].Flags |= 8;
                 }
             }
         }
@@ -4632,68 +4635,68 @@ auto MoveMap::markEscapeGoalCells(vector_3d escapeGoal) -> int32_t
     return 0;
 }
 
-auto MoveMap::setUp(ScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, int32_t newHeight, int32_t newWidth,
-                    vector_3d* newStartPos, int32_t newStartR, int32_t newStartC, int32_t thruArea, int32_t goalDoor,
-                    vector_3d targetPos, int32_t* newOverlayWeightTable, int32_t newMoveLevel, int32_t newJumpCost,
-                    int32_t newNumOffsets, uint32_t params) -> int32_t
+auto MCMoveMap::SetUp(MCScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, int32_t newHeight, int32_t newWidth,
+                      MCVector3D* newStartPos, int32_t newStartR, int32_t newStartC, int32_t thruArea, int32_t goalDoor,
+                      MCVector3D targetPos, int32_t* newOverlayWeightTable, int32_t newMoveLevel, int32_t newJumpCost,
+                      int32_t newNumOffsets, uint32_t params) -> int32_t
 {
-    if (map == nullptr)
+    if (Map == nullptr)
     {
-        init(newHeight, newWidth); // as the original: the height goes to init's width slot (windows are square)
+        Init(newHeight, newWidth); // as the original: the height goes to init's width slot (windows are square)
     }
     else
     {
-        width = newWidth;
-        height = newHeight;
-        cellWidth = newWidth * 3;
-        cellHeight = newHeight * 3;
-        clear();
+        Width = newWidth;
+        Height = newHeight;
+        CellWidth = newWidth * 3;
+        CellHeight = newHeight * 3;
+        Clear();
     }
 
     ULr = newULr;
     ULc = newULc;
-    minCol = newULc * 3;
-    minRow = newULr * 3;
-    overlayWeightTable = newOverlayWeightTable == nullptr ? OverlayWeightTable : newOverlayWeightTable;
-    moveLevel = newMoveLevel;
-    jumpCost = newJumpCost;
-    numOffsets = newNumOffsets;
-    setStart(newStartPos, newStartR, newStartC);
-    setGoal(thruArea, goalDoor);
+    MinCol = newULc * 3;
+    MinRow = newULr * 3;
+    OverlayWeights = newOverlayWeightTable == nullptr ? OverlayWeightTable : newOverlayWeightTable;
+    MoveLevel = newMoveLevel;
+    JumpCost = newJumpCost;
+    NumOffsets = newNumOffsets;
+    SetStart(newStartPos, newStartR, newStartC);
+    SetGoal(thruArea, goalDoor);
 
     if (ClearBridgeTiles != 0)
     {
-        AdjustBridgeWeights(overlayWeightTable, -10000);
+        AdjustBridgeWeights(OverlayWeights, -10000);
     }
 
-    for (int32_t row = 0; row < height; row++)
+    for (int32_t row = 0; row < Height; row++)
     {
-        for (int32_t col = 0; col < width; col++)
+        for (int32_t col = 0; col < Width; col++)
         {
             const int32_t tileR = ULr + row;
             const int32_t tileC = ULc + col;
 
-            if (tileR < 0 || tileR >= GameMap->height || tileC < 0 || tileC >= GameMap->width)
+            if (tileR < 0 || tileR >= GameMap->Height || tileC < 0 || tileC >= GameMap->Width)
             {
                 continue;
             }
 
-            Assert(tileR >= 0 && tileR < scenarioMap->height && tileC >= 0 && tileC < scenarioMap->width ? 1 : 0, 0,
+            Assert(tileR >= 0 && tileR < scenarioMap->Height && tileC >= 0 && tileC < scenarioMap->Width ? 1 : 0, 0,
                    " Map Tile out of bounds ");
-            const MapTile tile = scenarioMap->map[scenarioMap->width * tileR + tileC];
-            MoveMapNode* tileNodes = &map[maxCellWidth * row * 3 + col * 3];
-            auto node = [&](int32_t cellR, int32_t cellC) -> MoveMapNode&
-            { return tileNodes[maxCellWidth * cellR + cellC]; };
+            const MCMapTile tile = scenarioMap->Map[scenarioMap->Width * tileR + tileC];
+            MCMoveMapNode* tileNodes = &Map[MaxCellWidth * row * 3 + col * 3];
+            auto node = [&](int32_t cellR, int32_t cellC) -> MCMoveMapNode&
+            { return tileNodes[MaxCellWidth * cellR + cellC]; };
 
             for (int32_t cellR = 0; cellR < MAPCELL_DIM; cellR++)
             {
                 for (int32_t cellC = 0; cellC < MAPCELL_DIM; cellC++)
                 {
-                    node(cellR, cellC).cost = TileCellPassable(tile, cellR, cellC) != 0 ? moveLevel : 10000;
+                    node(cellR, cellC).Cost = TileCellPassable(tile, cellR, cellC) != 0 ? MoveLevel : 10000;
                 }
             }
 
-            const uint32_t overlay = tile.overlay & 0x7f;
+            const uint32_t overlay = tile.Overlay & 0x7f;
 
             if (overlay != 0)
             {
@@ -4701,19 +4704,19 @@ auto MoveMap::setUp(ScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, in
 
                 if (overlay >= FIRST_GATE_OVERLAY && overlay <= LAST_GATE_OVERLAY)
                 {
-                    weightOverlay = GateOverlay(overlay, MovingObject->getAlignment());
+                    weightOverlay = GateOverlay(overlay, MovingObject->GetAlignment());
                 }
 
                 for (int32_t cell = 0; cell < MAPCELL_DIM * MAPCELL_DIM; cell++)
                 {
                     const int32_t weight =
-                        weightOverlay == -1 ? 20000 : overlayWeightTable[OverlayWeightIndex[weightOverlay] + cell];
-                    node(cell / 3, cell % 3).cost = AddCost(node(cell / 3, cell % 3).cost, weight);
+                        weightOverlay == -1 ? 20000 : OverlayWeights[OverlayWeightIndex[weightOverlay] + cell];
+                    node(cell / 3, cell % 3).Cost = AddCost(node(cell / 3, cell % 3).Cost, weight);
                 }
             }
 
             // Unlike the other setUp: a lock costs moveLevel (not 8 x), and only the known mines count.
-            uint32_t locks = (tile.overlay >> 15) & 0x1ff;
+            uint32_t locks = (tile.Overlay >> 15) & 0x1ff;
 
             if (locks != 0 && (params & 0x80) != 0)
             {
@@ -4721,191 +4724,191 @@ auto MoveMap::setUp(ScenarioMap* scenarioMap, int32_t newULr, int32_t newULc, in
                 {
                     if ((locks & 1) != 0)
                     {
-                        node(cell / 3, cell % 3).cost = AddCost(node(cell / 3, cell % 3).cost, moveLevel);
+                        node(cell / 3, cell % 3).Cost = AddCost(node(cell / 3, cell % 3).Cost, MoveLevel);
                     }
                 }
             }
 
-            const uint32_t knownMines = (tile.overlay >> (MovingObject->getAlignment() == -1 ? 0x19 : 0x1b)) & 3;
+            const uint32_t knownMines = (tile.Overlay >> (MovingObject->GetAlignment() == -1 ? 0x19 : 0x1b)) & 3;
 
             for (int32_t cell = 0; cell < MAPCELL_DIM * MAPCELL_DIM; cell++)
             {
                 if (knownMines != 0)
                 {
-                    node(cell / 3, cell % 3).cost = AddCost(node(cell / 3, cell % 3).cost, moveLevel << knownMines);
+                    node(cell / 3, cell % 3).Cost = AddCost(node(cell / 3, cell % 3).Cost, MoveLevel << knownMines);
                 }
             }
         }
     }
 
-    if (markGoalCells(targetPos) == 0)
+    if (MarkGoalCells(targetPos) == 0)
     {
         return -1;
     }
 
     if ((params & 0x40) != 0)
     {
-        placeMovers(1);
+        PlaceMovers(1);
     }
 
     return 0;
 }
 
-auto MoveMap::markGoalCells(vector_3d targetPos) -> int32_t
+auto MCMoveMap::MarkGoalCells(MCVector3D targetPos) -> int32_t
 {
-    const GlobalMapDoor& goal = GlobalMoveMap->doors[door];
-    const int32_t length = goal.length;
+    const MCGlobalMapDoor& goal = GlobalMoveMap->Doors[Door];
+    const int32_t length = goal.Length;
 
     if (length > 0)
     {
-        std::memset(doorCellState, 1, static_cast<size_t>(length));
+        std::memset(DoorCellState, 1, static_cast<size_t>(length));
     }
 
-    Assert(door >= 0 && door < GlobalMoveMap->numDoors ? 1 : 0, 0, " FUDGE 1");
-    Assert(goal.direction[0] == 1 || goal.direction[0] == 2 ? 1 : 0, 0, " FUDGE 2");
-    Assert(goal.length >= 1 && goal.length <= 0x3ff ? 1 : 0, 0, " FUDGE 3");
+    Assert(Door >= 0 && Door < GlobalMoveMap->NumDoors ? 1 : 0, 0, " FUDGE 1");
+    Assert(goal.Direction[0] == 1 || goal.Direction[0] == 2 ? 1 : 0, 0, " FUDGE 2");
+    Assert(goal.Length >= 1 && goal.Length <= 0x3ff ? 1 : 0, 0, " FUDGE 3");
 
     // Clears the door cells a standing mech occupies (on either side of the door).
-    const bool alongRows = goal.direction[0] == 1;
-    const int32_t doorRow = tileMulMAPCELL_DIM[goal.row] + goal.cellR;
-    const int32_t doorCol = tileMulMAPCELL_DIM[goal.col] + goal.cellC;
-    auto clearOccupied = [&](ObjectQueueNode* list)
+    const bool alongRows = goal.Direction[0] == 1;
+    const int32_t doorRow = TileMulMapcellDim[goal.Row] + goal.CellR;
+    const int32_t doorCol = TileMulMapcellDim[goal.Col] + goal.CellC;
+    auto clearOccupied = [&](MCObjectQueueNode* list)
     {
-        BaseObject* current = nullptr;
+        MCBaseObject* current = nullptr;
 
         while (list->Traverse(current) != nullptr)
         {
-            GameObject* object = static_cast<GameObject*>(current);
+            MCGameObject* object = static_cast<MCGameObject*>(current);
 
             if (!IsBlockingMover(object))
             {
                 continue;
             }
 
-            const ObjectPosition* position = object->getObjPosition();
+            const MCObjectPosition* position = object->GetObjPosition();
             int32_t index;
 
             if (alongRows)
             {
-                if (position->mapCellR < doorRow || position->mapCellR >= length + doorRow ||
-                    position->mapCellC < doorCol || position->mapCellC >= doorCol + 2)
+                if (position->MapCellR < doorRow || position->MapCellR >= length + doorRow ||
+                    position->MapCellC < doorCol || position->MapCellC >= doorCol + 2)
                 {
                     continue;
                 }
 
-                index = position->mapCellR - doorRow;
+                index = position->MapCellR - doorRow;
             }
             else
             {
-                if (position->mapCellR < doorRow || position->mapCellR >= doorRow + 2 || position->mapCellC < doorCol ||
-                    position->mapCellC >= length + doorCol)
+                if (position->MapCellR < doorRow || position->MapCellR >= doorRow + 2 || position->MapCellC < doorCol ||
+                    position->MapCellC >= length + doorCol)
                 {
                     continue;
                 }
 
-                index = position->mapCellC - doorCol;
+                index = position->MapCellC - doorCol;
             }
 
             Assert(index >= 0 && index < length ? 1 : 0, 0, " Bad Cell Index ");
-            doorCellState[index] = 0;
+            DoorCellState[index] = 0;
         }
     };
 
-    clearOccupied(innerSphereMechList);
-    clearOccupied(clanMechList);
+    clearOccupied(InnerSphereMechList);
+    clearOccupied(ClanMechList);
 
     int32_t tileR = 0;
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->worldToMapPos(targetPos, tileR, tileC, cellR, cellC);
-    const int32_t targetR = cellR + (tileR * 3 - minRow);
-    const int32_t targetC = cellC + (tileC * 3 - minCol);
+    GameMap->WorldToMapPos(targetPos, tileR, tileC, cellR, cellC);
+    const int32_t targetR = cellR + (tileR * 3 - MinRow);
+    const int32_t targetC = cellC + (tileC * 3 - MinCol);
     int32_t numMarked = 0;
     const int32_t half = length / 2;
-    const int32_t step = moveLevel / 2;
+    const int32_t step = MoveLevel / 2;
 
-    if (doorDirection == 0 || doorDirection == 2)
+    if (DoorDirection == 0 || DoorDirection == 2)
     {
         // The door runs along goal row goalR; the target just past it is the only goal.
-        const int32_t firstCol = goalC - half;
-        const int32_t beyondRow = doorSide == 0 ? goalR + 1 : goalR - 1;
+        const int32_t firstCol = GoalC - half;
+        const int32_t beyondRow = DoorSide == 0 ? GoalR + 1 : GoalR - 1;
 
         if (targetR == beyondRow && targetC >= firstCol && targetC < firstCol + length)
         {
-            map[maxCellWidth * goalR + targetC].flags |= 8;
+            Map[MaxCellWidth * GoalR + targetC].Flags |= 8;
             return 1;
         }
 
         // Else every free door cell is a goal, costing more the further from the middle.
         for (int32_t i = 0; i < length; i++)
         {
-            if (doorCellState[i] == 0)
+            if (DoorCellState[i] == 0)
             {
                 continue;
             }
 
-            MoveMapNode& node = map[maxCellWidth * goalR + i + firstCol];
-            node.flags |= 8;
+            MCMoveMapNode& node = Map[MaxCellWidth * GoalR + i + firstCol];
+            node.Flags |= 8;
             numMarked++;
-            node.cost = AddCost(node.cost, (i < half ? half - i : i - half) * step);
+            node.Cost = AddCost(node.Cost, (i < half ? half - i : i - half) * step);
         }
     }
-    else if (doorDirection == 1 || doorDirection == 3)
+    else if (DoorDirection == 1 || DoorDirection == 3)
     {
-        const int32_t firstRow = goalR - half;
+        const int32_t firstRow = GoalR - half;
 
-        if (targetC == goalC + doorSide * -2 + 1 && targetR >= firstRow && targetR < length + firstRow)
+        if (targetC == GoalC + DoorSide * -2 + 1 && targetR >= firstRow && targetR < length + firstRow)
         {
-            map[maxCellWidth * targetR + goalC].flags |= 8;
+            Map[MaxCellWidth * targetR + GoalC].Flags |= 8;
             return 1;
         }
 
         for (int32_t i = 0; i < length; i++)
         {
-            if (doorCellState[i] == 0)
+            if (DoorCellState[i] == 0)
             {
                 continue;
             }
 
-            MoveMapNode& node = map[maxCellWidth * (firstRow + i) + goalC];
-            node.flags |= 8;
+            MCMoveMapNode& node = Map[MaxCellWidth * (firstRow + i) + GoalC];
+            node.Flags |= 8;
             numMarked++;
-            node.cost = AddCost(node.cost, (i < half ? half - i : i - half) * step);
+            node.Cost = AddCost(node.Cost, (i < half ? half - i : i - half) * step);
         }
     }
 
     return numMarked;
 }
 
-auto MoveMap::adjacentCellOpen(int32_t r, int32_t c, int32_t dir) -> int
+auto MCMoveMap::AdjacentCellOpen(int32_t r, int32_t c, int32_t dir) -> int
 {
-    const int32_t nextR = cellShift[dir * 2] + r;
-    const int32_t nextC = cellShift[dir * 2 + 1] + c;
+    const int32_t nextR = CellShift[dir * 2] + r;
+    const int32_t nextC = CellShift[dir * 2 + 1] + c;
 
-    if (nextR < 0 || nextR >= cellHeight || nextC < 0 || nextC >= cellWidth)
+    if (nextR < 0 || nextR >= CellHeight || nextC < 0 || nextC >= CellWidth)
     {
         return 0;
     }
 
-    const MoveMapNode& node = map[maxCellWidth * nextR + nextC];
+    const MCMoveMapNode& node = Map[MaxCellWidth * nextR + nextC];
 
-    if ((node.flags & 0x10) != 0)
+    if ((node.Flags & 0x10) != 0)
     {
         return 0;
     }
 
     // Original behaviour (OB-027): the known-mine bits are read from the map tile at the window cell's coordinates.
-    const uint32_t mineBits = MovingObject->getAlignment() == -1 ? 0x6000000u : 0x18000000u;
-    Assert(nextR >= 0 && nextR < GameMap->height && nextC >= 0 && nextC < GameMap->width ? 1 : 0, 0,
+    const uint32_t mineBits = MovingObject->GetAlignment() == -1 ? 0x6000000u : 0x18000000u;
+    Assert(nextR >= 0 && nextR < GameMap->Height && nextC >= 0 && nextC < GameMap->Width ? 1 : 0, 0,
            " Map Tile out of bounds ");
 
-    if ((GameMap->map[GameMap->width * nextR + nextC].overlay & mineBits) != 0)
+    if ((GameMap->Map[GameMap->Width * nextR + nextC].Overlay & mineBits) != 0)
     {
         return 0;
     }
 
-    return node.cost < 10000 ? 1 : 0;
+    return node.Cost < 10000 ? 1 : 0;
 }
 
 namespace
@@ -4930,7 +4933,7 @@ namespace
     }
 }
 
-auto MoveMap::propogateCost(int32_t r, int32_t c, int32_t cost, int32_t g) -> void
+auto MCMoveMap::PropogateCost(int32_t r, int32_t c, int32_t cost, int32_t g) -> void
 {
     Assert(cost > 0 ? 1 : 0, 0, " MoveMap.propogateCost: bad cost ");
 
@@ -4939,28 +4942,28 @@ auto MoveMap::propogateCost(int32_t r, int32_t c, int32_t cost, int32_t g) -> vo
         Fatal(0, "Negative g-cost in MoveMap");
     }
 
-    MoveMapNode& current = map[maxCellWidth * r + c];
+    MCMoveMapNode& current = Map[MaxCellWidth * r + c];
     const int32_t newG = g + cost;
 
-    if (newG >= current.g)
+    if (newG >= current.G)
     {
         return;
     }
 
     // Original behaviour (OB-028): the cell's own cost is replaced by the step cost (diagonal and jump extras
     // included), so later searches through it see the inflated cost.
-    current.cost = cost;
-    current.g = newG;
-    current.fPrime = current.hPrime + newG;
+    current.Cost = cost;
+    current.G = newG;
+    current.FPrime = current.HPrime + newG;
 
-    if ((current.flags & 1) != 0)
+    if ((current.Flags & 1) != 0)
     {
         const int32_t id = CellId(r, c);
-        const int32_t itemIndex = openList->find(id);
+        const int32_t itemIndex = OpenList->Find(id);
 
         if (itemIndex != 0)
         {
-            openList->change(itemIndex, current.fPrime);
+            OpenList->Change(itemIndex, current.FPrime);
             return;
         }
 
@@ -4971,48 +4974,48 @@ auto MoveMap::propogateCost(int32_t r, int32_t c, int32_t cost, int32_t g) -> vo
         return;
     }
 
-    for (int32_t i = 0; i < numOffsets; i++)
+    for (int32_t i = 0; i < NumOffsets; i++)
     {
-        if (IsDiagonalStep[i] != 0 && adjacentCellOpen(r, c, StepAdjDir[i]) == 0 &&
-            adjacentCellOpen(r, c, StepAdjDir[i + 1]) == 0)
+        if (IsDiagonalStep[i] != 0 && AdjacentCellOpen(r, c, StepAdjDir[i]) == 0 &&
+            AdjacentCellOpen(r, c, StepAdjDir[i + 1]) == 0)
         {
             continue;
         }
 
-        const int32_t nextR = r + cellShift[i * 2];
-        const int32_t nextC = c + cellShift[i * 2 + 1];
+        const int32_t nextR = r + CellShift[i * 2];
+        const int32_t nextC = c + CellShift[i * 2 + 1];
 
-        if (nextR < 0 || nextR >= cellHeight || nextC < 0 || nextC >= cellWidth)
+        if (nextR < 0 || nextR >= CellHeight || nextC < 0 || nextC >= CellWidth)
         {
             continue;
         }
 
-        MoveMapNode& next = map[maxCellWidth * nextR + nextC];
+        MCMoveMapNode& next = Map[MaxCellWidth * nextR + nextC];
 
-        if (next.cost >= 10000 || next.hPrime == -1 || next.hPrime >= MaxHPrime)
+        if (next.Cost >= 10000 || next.HPrime == -1 || next.HPrime >= MaxHPrime)
         {
             continue;
         }
 
-        const int32_t dir = reverseShift[i];
-        Assert(next.cost > 0 ? 1 : 0, 0, " MoveMap.propogateCost: bad cost 1");
-        const int32_t stepCost = StepCost(next.cost, i, jumpCost);
+        const int32_t dir = ReverseShift[i];
+        Assert(next.Cost > 0 ? 1 : 0, 0, " MoveMap.propogateCost: bad cost 1");
+        const int32_t stepCost = StepCost(next.Cost, i, JumpCost);
 
-        if (dir != next.parent)
+        if (dir != next.Parent)
         {
-            if (next.g <= current.g + stepCost)
+            if (next.G <= current.G + stepCost)
             {
                 continue;
             }
 
-            next.parent = dir;
+            next.Parent = dir;
         }
 
-        propogateCost(nextR, nextC, stepCost, current.g);
+        PropogateCost(nextR, nextC, stepCost, current.G);
     }
 }
 
-auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalCell, bool escape) -> int32_t
+auto MCMoveMap::SearchPath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* goalCell, bool escape) -> int32_t
 {
     if (escape)
     {
@@ -5020,20 +5023,20 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
     }
     else
     {
-        if (goalR < 0 || goalR >= cellHeight || goalC < 0 || goalC >= cellWidth)
+        if (GoalR < 0 || GoalR >= CellHeight || GoalC < 0 || GoalC >= CellWidth)
         {
-            const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5f;
-            const float x = static_cast<float>((static_cast<double>(goalC) + 0.5) * MetersPerCell - mapHalf);
-            const float y = static_cast<float>((mapHalf - static_cast<double>(goalR) * MetersPerCell) -
+            const double mapHalf = static_cast<double>(WorldUnitsMapSide) * 0.5f;
+            const float x = static_cast<float>((static_cast<double>(GoalC) + 0.5) * MetersPerCell - mapHalf);
+            const float y = static_cast<float>((mapHalf - static_cast<double>(GoalR) * MetersPerCell) -
                                                static_cast<double>(MetersPerCell) * 0.5);
             char message[256];
             std::snprintf(message, sizeof(message), " Bad Move Goal: %d [%d(%d), %d(%d)], (%.2f, %.2f, %.2f)",
-                          DebugMovePathType, goalR, cellHeight, goalC, cellWidth, static_cast<double>(x),
+                          DebugMovePathType, GoalR, CellHeight, GoalC, CellWidth, static_cast<double>(x),
                           static_cast<double>(y), 0.0);
             Fatal(0, message);
         }
 
-        const int32_t distance = std::abs(goalR - startR) + std::abs(goalC - startC);
+        const int32_t distance = std::abs(GoalR - StartR) + std::abs(GoalC - StartC);
         MaxHPrime = static_cast<int32_t>(std::floor(static_cast<double>(distance) * 2.5));
 
         if (MaxHPrime < 500)
@@ -5042,51 +5045,51 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
         }
     }
 
-    if (openList == nullptr)
+    if (OpenList == nullptr)
     {
-        openList = new PriorityQueue;
+        OpenList = new MCPriorityQueue;
 
-        if (openList == nullptr)
+        if (OpenList == nullptr)
         {
             Fatal(0, " Unable to create MoveMap::openList ");
         }
 
-        openList->init(5000, -2000000);
+        OpenList->Init(5000, -2000000);
     }
 
-    MoveMapNode& start = map[maxCellWidth * startR + startC];
-    start.g = 0;
-    const int32_t startH = escape ? 10 : std::abs(goalR - startR) + std::abs(goalC - startC);
-    start.hPrime = startH;
-    start.fPrime = startH;
-    openList->clear();
-    PQNode startNode;
-    startNode.key = startH;
-    startNode.id = CellId(startR, startC);
-    startNode.row = startR;
-    startNode.col = startC;
+    MCMoveMapNode& start = Map[MaxCellWidth * StartR + StartC];
+    start.G = 0;
+    const int32_t startH = escape ? 10 : std::abs(GoalR - StartR) + std::abs(GoalC - StartC);
+    start.HPrime = startH;
+    start.FPrime = startH;
+    OpenList->Clear();
+    MCPQNode startNode;
+    startNode.Key = startH;
+    startNode.Id = CellId(StartR, StartC);
+    startNode.Row = StartR;
+    startNode.Col = StartC;
 
-    if (openList->insert(startNode) != 0)
+    if (OpenList->Insert(startNode) != 0)
     {
         Fatal(0, "PathFind OPEN overflow");
     }
 
-    start.flags |= 1;
+    start.Flags |= 1;
 
     int32_t bestR = -1;
     int32_t bestC = -1;
     int goalFound = 0;
 
-    while (openList->size() != 0)
+    while (OpenList->Size() != 0)
     {
-        PQNode best;
-        openList->remove(best);
-        bestR = best.row;
-        bestC = best.col;
-        MoveMapNode& current = map[maxCellWidth * bestR + bestC];
-        const int32_t g = current.g;
-        const uint32_t flags = current.flags;
-        current.flags = (flags & ~1u) | 2;
+        MCPQNode best;
+        OpenList->Remove(best);
+        bestR = best.Row;
+        bestC = best.Col;
+        MCMoveMapNode& current = Map[MaxCellWidth * bestR + bestC];
+        const int32_t g = current.G;
+        const uint32_t flags = current.Flags;
+        current.Flags = (flags & ~1u) | 2;
 
         if ((flags & 8) != 0)
         {
@@ -5094,77 +5097,77 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
             break;
         }
 
-        for (int32_t i = 0; i < numOffsets; i++)
+        for (int32_t i = 0; i < NumOffsets; i++)
         {
-            if (IsDiagonalStep[i] != 0 && adjacentCellOpen(bestR, bestC, StepAdjDir[i]) == 0 &&
-                adjacentCellOpen(bestR, bestC, StepAdjDir[i + 1]) == 0)
+            if (IsDiagonalStep[i] != 0 && AdjacentCellOpen(bestR, bestC, StepAdjDir[i]) == 0 &&
+                AdjacentCellOpen(bestR, bestC, StepAdjDir[i + 1]) == 0)
             {
                 continue;
             }
 
-            const int32_t nextR = cellShift[i * 2] + bestR;
-            const int32_t nextC = cellShift[i * 2 + 1] + bestC;
+            const int32_t nextR = CellShift[i * 2] + bestR;
+            const int32_t nextC = CellShift[i * 2 + 1] + bestC;
 
-            if (nextR < 0 || nextR >= cellHeight || nextC < 0 || nextC >= cellWidth)
+            if (nextR < 0 || nextR >= CellHeight || nextC < 0 || nextC >= CellWidth)
             {
                 continue;
             }
 
-            MoveMapNode& next = map[maxCellWidth * nextR + nextC];
+            MCMoveMapNode& next = Map[MaxCellWidth * nextR + nextC];
 
-            if (next.cost >= 10000)
+            if (next.Cost >= 10000)
             {
                 continue;
             }
 
-            if (next.hPrime == -1)
+            if (next.HPrime == -1)
             {
-                next.hPrime = escape ? 10 : std::abs(goalR - nextR) + std::abs(goalC - nextC);
+                next.HPrime = escape ? 10 : std::abs(GoalR - nextR) + std::abs(GoalC - nextC);
             }
 
-            if (next.hPrime >= MaxHPrime)
+            if (next.HPrime >= MaxHPrime)
             {
                 continue;
             }
 
-            const int32_t dir = reverseShift[i];
-            const int32_t stepCost = StepCost(next.cost, i, jumpCost);
+            const int32_t dir = ReverseShift[i];
+            const int32_t stepCost = StepCost(next.Cost, i, JumpCost);
             Assert(stepCost > 0 ? 1 : 0, 0, " MoveMap.propogateCost: bad cost 3");
             const int32_t newG = stepCost + g;
 
-            if ((next.flags & 1) == 0)
+            if ((next.Flags & 1) == 0)
             {
-                if ((next.flags & 2) == 0)
+                if ((next.Flags & 2) == 0)
                 {
-                    next.parent = dir;
-                    next.g = newG;
-                    next.fPrime = newG + next.hPrime;
-                    PQNode node;
-                    node.key = next.fPrime;
-                    node.id = CellId(nextR, nextC);
-                    node.row = nextR;
-                    node.col = nextC;
+                    next.Parent = dir;
+                    next.G = newG;
+                    next.FPrime = newG + next.HPrime;
+                    MCPQNode node;
+                    node.Key = next.FPrime;
+                    node.Id = CellId(nextR, nextC);
+                    node.Row = nextR;
+                    node.Col = nextC;
 
-                    if (openList->insert(node) != 0)
+                    if (OpenList->Insert(node) != 0)
                     {
                         Fatal(0, "PathFind OPEN overflow");
                     }
 
-                    next.flags |= 1;
+                    next.Flags |= 1;
                 }
-                else if (newG < next.g)
+                else if (newG < next.G)
                 {
-                    next.parent = dir;
-                    propogateCost(nextR, nextC, stepCost, g);
+                    next.Parent = dir;
+                    PropogateCost(nextR, nextC, stepCost, g);
                 }
             }
-            else if (newG < next.g)
+            else if (newG < next.G)
             {
-                next.parent = dir;
-                next.g = newG;
-                next.fPrime = next.hPrime + newG;
+                next.Parent = dir;
+                next.G = newG;
+                next.FPrime = next.HPrime + newG;
                 const int32_t id = CellId(nextR, nextC);
-                const int32_t itemIndex = openList->find(id);
+                const int32_t itemIndex = OpenList->Find(id);
 
                 if (itemIndex == 0)
                 {
@@ -5179,7 +5182,7 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
                 }
                 else
                 {
-                    openList->change(itemIndex, next.fPrime);
+                    OpenList->Change(itemIndex, next.FPrime);
                 }
             }
         }
@@ -5187,7 +5190,7 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
 
     if (ClearBridgeTiles != 0)
     {
-        AdjustBridgeWeights(overlayWeightTable, 10000);
+        AdjustBridgeWeights(OverlayWeights, 10000);
     }
 
     if (goalFound == 0)
@@ -5199,190 +5202,190 @@ auto MoveMap::searchPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalC
     goalCell[1] = bestC;
     int32_t count = 0;
 
-    for (int32_t r = bestR, c = bestC; r != startR || c != startC;)
+    for (int32_t r = bestR, c = bestC; r != StartR || c != StartC;)
     {
         count++;
-        const int32_t parent = map[maxCellWidth * r + c].parent;
-        r += cellShift[parent * 2];
-        c += cellShift[parent * 2 + 1];
+        const int32_t parent = Map[MaxCellWidth * r + c].Parent;
+        r += CellShift[parent * 2];
+        c += CellShift[parent * 2 + 1];
     }
 
-    if (doorDirection != -1)
+    if (DoorDirection != -1)
     {
         count++;
     }
 
-    path->goal.zero();
-    path->numSteps = 0;
-    path->numStepsWhenNotPaused = 0;
-    path->curStep = 0;
-    path->cost = 0;
-    path->marked = 0;
-    path->globalStep = -1;
+    path->Goal.Zero();
+    path->NumSteps = 0;
+    path->NumStepsWhenNotPaused = 0;
+    path->CurStep = 0;
+    path->Cost = 0;
+    path->Marked = 0;
+    path->GlobalStep = -1;
 
     if (count == 0)
     {
-        return path->numSteps;
+        return path->NumSteps;
     }
 
     // Port fix: the original writes past stepList when the path is longer than MAX_STEPS_PER_MOVEPATH.
     if (count > MAX_STEPS_PER_MOVEPATH)
     {
-        return path->numSteps;
+        return path->NumSteps;
     }
 
-    path->init(count);
-    path->target = target;
-    path->cost = map[maxCellWidth * bestR + bestC].g;
+    path->Init(count);
+    path->Target = Target;
+    path->Cost = Map[MaxCellWidth * bestR + bestC].G;
     int32_t stepIndex = count;
 
-    if (doorDirection == -1)
+    if (DoorDirection == -1)
     {
         if (goalWorldPos == nullptr)
         {
-            path->goal = goalPos;
+            path->Goal = GoalPos;
         }
         else
         {
-            goalWorldPos->z = 0.0f;
-            path->goal.z = 0.0f;
-            const double mapHalf = static_cast<double>(worldUnitsMapSide * 0.5f);
-            const float x = static_cast<float>((static_cast<double>(minCol + bestC) + 0.5) * MetersPerCell - mapHalf);
-            const float y = static_cast<float>((mapHalf - static_cast<double>(minRow + bestR) * MetersPerCell) -
+            goalWorldPos->Z = 0.0f;
+            path->Goal.Z = 0.0f;
+            const double mapHalf = static_cast<double>(WorldUnitsMapSide * 0.5f);
+            const float x = static_cast<float>((static_cast<double>(MinCol + bestC) + 0.5) * MetersPerCell - mapHalf);
+            const float y = static_cast<float>((mapHalf - static_cast<double>(MinRow + bestR) * MetersPerCell) -
                                                static_cast<double>(MetersPerCell) * 0.5);
-            goalWorldPos->x = x;
-            goalWorldPos->y = y;
-            path->goal.x = x;
-            path->goal.y = y;
+            goalWorldPos->X = x;
+            goalWorldPos->Y = y;
+            path->Goal.X = x;
+            path->Goal.Y = y;
         }
     }
     else
     {
         // The last step goes through the door, into the next area.
         stepIndex = count - 1;
-        PathStep& doorStep = path->stepList[stepIndex];
-        doorStep.direction = static_cast<uint8_t>(static_cast<char>(doorDirection) << 1);
-        const int32_t doorRow = adjTile[doorDirection][0] + minRow + bestR;
-        const int32_t doorCol = minCol + adjTile[doorDirection][1] + bestC;
+        MCPathStep& doorStep = path->StepList[stepIndex];
+        doorStep.Direction = static_cast<uint8_t>(static_cast<char>(DoorDirection) << 1);
+        const int32_t doorRow = AdjTile[DoorDirection][0] + MinRow + bestR;
+        const int32_t doorCol = MinCol + AdjTile[DoorDirection][1] + bestC;
         goalCell[0] = doorRow;
         goalCell[1] = doorCol;
-        const double mapHalf = static_cast<double>(worldUnitsMapSide) * 0.5f;
+        const double mapHalf = static_cast<double>(WorldUnitsMapSide) * 0.5f;
         const float x = static_cast<float>((static_cast<double>(doorCol) + 0.5) * MetersPerCell - mapHalf);
         const float y = static_cast<float>((mapHalf - static_cast<double>(doorRow) * MetersPerCell) -
                                            static_cast<double>(MetersPerCell) * 0.5);
-        path->setDestination(stepIndex, vector_3d(x, y, 0.0f));
-        doorStep.distanceToGoal = 0.0f;
-        doorStep.tileR = static_cast<int16_t>(doorRow / 3);
-        doorStep.tileC = static_cast<int16_t>(doorCol / 3);
-        doorStep.cellR = static_cast<int16_t>(doorRow - doorStep.tileR * 3);
-        doorStep.cellC = static_cast<int16_t>(doorCol - doorStep.tileC * 3);
-        path->goal = vector_3d(x, y, 0.0f);
+        path->SetDestination(stepIndex, MCVector3D(x, y, 0.0f));
+        doorStep.DistanceToGoal = 0.0f;
+        doorStep.TileR = static_cast<int16_t>(doorRow / 3);
+        doorStep.TileC = static_cast<int16_t>(doorCol / 3);
+        doorStep.CellR = static_cast<int16_t>(doorRow - doorStep.TileR * 3);
+        doorStep.CellC = static_cast<int16_t>(doorCol - doorStep.TileC * 3);
+        path->Goal = MCVector3D(x, y, 0.0f);
 
         if (goalWorldPos != nullptr)
         {
-            *goalWorldPos = vector_3d(x, y, 0.0f);
+            *goalWorldPos = MCVector3D(x, y, 0.0f);
         }
     }
 
-    int& ready = cellShiftDistanceReady[escape ? 1 : 0];
+    int& ready = CellShiftDistanceReady[escape ? 1 : 0];
 
     if (ready == 0)
     {
-        const double scale = static_cast<double>(metersPerWorldUnit) * Terrain::metersPerVertexDivMAPCELL_DIM;
+        const double scale = static_cast<double>(MetersPerWorldUnit) * MCTerrain::MetersPerVertexDivMapcellDim;
 
         for (int32_t i = 0; i < NUM_CELL_OFFSETS; i++)
         {
-            const double dr = static_cast<double>(cellShift[i * 2]);
-            const double dc = static_cast<double>(cellShift[i * 2 + 1]);
-            cellShiftDistance[i] = static_cast<float>(std::sqrt(dr * dr + dc * dc) * scale);
+            const double dr = static_cast<double>(CellShift[i * 2]);
+            const double dc = static_cast<double>(CellShift[i * 2 + 1]);
+            CellShiftDistance[i] = static_cast<float>(std::sqrt(dr * dr + dc * dc) * scale);
         }
 
         ready = 1;
     }
 
     // Walks back from the goal cell, filling the steps from the end.
-    for (int32_t r = bestR, c = bestC; r != startR || c != startC;)
+    for (int32_t r = bestR, c = bestC; r != StartR || c != StartC;)
     {
         stepIndex--;
-        MoveMapNode& node = map[maxCellWidth * r + c];
-        PathStep& step = path->stepList[stepIndex];
-        step.direction = static_cast<uint8_t>(reverseShift[node.parent]);
-        const int32_t mapRow = minRow + r;
-        const int32_t mapCol = minCol + c;
-        const double mapHalf = static_cast<double>(worldUnitsMapSide * 0.5f);
+        MCMoveMapNode& node = Map[MaxCellWidth * r + c];
+        MCPathStep& step = path->StepList[stepIndex];
+        step.Direction = static_cast<uint8_t>(ReverseShift[node.Parent]);
+        const int32_t mapRow = MinRow + r;
+        const int32_t mapCol = MinCol + c;
+        const double mapHalf = static_cast<double>(WorldUnitsMapSide * 0.5f);
         const float x = static_cast<float>((static_cast<double>(mapCol) + 0.5) * MetersPerCell - mapHalf);
         const float y = static_cast<float>((mapHalf - static_cast<double>(mapRow) * MetersPerCell) -
                                            static_cast<double>(MetersPerCell) * 0.5);
 
-        if (stepIndex == count - 1 && static_cast<int8_t>(step.direction) < 8)
+        if (stepIndex == count - 1 && static_cast<int8_t>(step.Direction) < 8)
         {
-            step.distanceToGoal = 0.0f;
+            step.DistanceToGoal = 0.0f;
         }
         else
         {
             // As the original: for a final jump step this reads the (unused) step past the end.
-            const PathStep& nextStep = path->stepList[stepIndex + 1];
-            step.distanceToGoal = nextStep.distanceToGoal + cellShiftDistance[static_cast<int8_t>(nextStep.direction)];
+            const MCPathStep& nextStep = path->StepList[stepIndex + 1];
+            step.DistanceToGoal = nextStep.DistanceToGoal + CellShiftDistance[static_cast<int8_t>(nextStep.Direction)];
         }
 
-        path->setDestination(stepIndex, vector_3d(x, y, 0.0f));
-        step.tileR = static_cast<int16_t>(mapRow / 3);
-        step.tileC = static_cast<int16_t>(mapCol / 3);
-        step.cellR = static_cast<int16_t>(mapRow - step.tileR * 3);
-        step.cellC = static_cast<int16_t>(mapCol - step.tileC * 3);
-        node.flags |= 4;
-        r += cellShift[node.parent * 2];
-        c += cellShift[node.parent * 2 + 1];
+        path->SetDestination(stepIndex, MCVector3D(x, y, 0.0f));
+        step.TileR = static_cast<int16_t>(mapRow / 3);
+        step.TileC = static_cast<int16_t>(mapCol / 3);
+        step.CellR = static_cast<int16_t>(mapRow - step.TileR * 3);
+        step.CellC = static_cast<int16_t>(mapCol - step.TileC * 3);
+        node.Flags |= 4;
+        r += CellShift[node.Parent * 2];
+        c += CellShift[node.Parent * 2 + 1];
     }
 
-    return path->numSteps;
+    return path->NumSteps;
 }
 
-auto MoveMap::calcPath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalCell) -> int32_t
+auto MCMoveMap::CalcPath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* goalCell) -> int32_t
 {
-    return searchPath(path, goalWorldPos, goalCell, false);
+    return SearchPath(path, goalWorldPos, goalCell, false);
 }
 
-auto MoveMap::calcEscapePath(MovePath* path, vector_3d* goalWorldPos, int32_t* goalCell) -> int32_t
+auto MCMoveMap::CalcEscapePath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* goalCell) -> int32_t
 {
-    return searchPath(path, goalWorldPos, goalCell, true);
+    return SearchPath(path, goalWorldPos, goalCell, true);
 }
 
-auto MoveMap::writeDebug(File* debugFile) -> void
+auto MCMoveMap::WriteDebug(MCFile* debugFile) -> void
 {
     char line[512];
-    std::snprintf(line, sizeof(line), "Time = %.6f\n\n", static_cast<double>(calcTime));
-    debugFile->writeString(line);
-    std::snprintf(line, sizeof(line), "Start = (%d, %d)\n", startR, startC);
-    debugFile->writeString(line);
-    std::snprintf(line, sizeof(line), "Goal = (%d, %d)\n", goalR, goalC);
-    debugFile->writeString(line);
+    std::snprintf(line, sizeof(line), "Time = %.6f\n\n", static_cast<double>(CalcTime));
+    debugFile->WriteString(line);
+    std::snprintf(line, sizeof(line), "Start = (%d, %d)\n", StartR, StartC);
+    debugFile->WriteString(line);
+    std::snprintf(line, sizeof(line), "Goal = (%d, %d)\n", GoalR, GoalC);
+    debugFile->WriteString(line);
     std::strcpy(line, "\n");
-    debugFile->writeString(line);
+    debugFile->WriteString(line);
 
     char cell[16] = {};
-    debugFile->writeString("PARENT:\n");
-    debugFile->writeString("-------\n");
+    debugFile->WriteString("PARENT:\n");
+    debugFile->WriteString("-------\n");
 
-    for (int32_t r = 0; r < cellHeight; r++)
+    for (int32_t r = 0; r < CellHeight; r++)
     {
         line[0] = '\0';
 
-        for (int32_t c = 0; c < cellWidth; c++)
+        for (int32_t c = 0; c < CellWidth; c++)
         {
-            const MoveMapNode& node = map[maxCellWidth * r + c];
+            const MCMoveMapNode& node = Map[MaxCellWidth * r + c];
 
-            if (startR == r && startC == c)
+            if (StartR == r && StartC == c)
             {
                 std::strcpy(cell, "S");
             }
-            else if (node.parent == -1)
+            else if (node.Parent == -1)
             {
                 std::strcpy(cell, ".");
             }
-            else if ((node.flags & 4) == 0)
+            else if ((node.Flags & 4) == 0)
             {
-                std::snprintf(cell, sizeof(cell), "%d", node.parent);
+                std::snprintf(cell, sizeof(cell), "%d", node.Parent);
             }
             else
             {
@@ -5393,30 +5396,30 @@ auto MoveMap::writeDebug(File* debugFile) -> void
         }
 
         std::strcat(line, "\n");
-        debugFile->writeString(line);
+        debugFile->WriteString(line);
     }
 
-    debugFile->writeString("\n");
-    debugFile->writeString("MAP:\n");
-    debugFile->writeString("-------\n");
+    debugFile->WriteString("\n");
+    debugFile->WriteString("MAP:\n");
+    debugFile->WriteString("-------\n");
 
-    for (int32_t r = 0; r < cellHeight; r++)
+    for (int32_t r = 0; r < CellHeight; r++)
     {
         line[0] = '\0';
 
-        for (int32_t c = 0; c < cellWidth; c++)
+        for (int32_t c = 0; c < CellWidth; c++)
         {
-            const int32_t cost = map[maxCellWidth * r + c].cost;
+            const int32_t cost = Map[MaxCellWidth * r + c].Cost;
 
-            if (goalR == r && goalC == c)
+            if (GoalR == r && GoalC == c)
             {
                 std::strcpy(cell, "G");
             }
-            else if (startR == r && startC == c)
+            else if (StartR == r && StartC == c)
             {
                 std::strcpy(cell, "S");
             }
-            else if (cost == moveLevel)
+            else if (cost == MoveLevel)
             {
                 std::strcpy(cell, ".");
             }
@@ -5434,38 +5437,38 @@ auto MoveMap::writeDebug(File* debugFile) -> void
         }
 
         std::strcat(line, "\n");
-        debugFile->writeString(line);
+        debugFile->WriteString(line);
     }
 
-    debugFile->writeString("\n");
-    debugFile->writeString("PATH:\n");
-    debugFile->writeString("-------\n");
+    debugFile->WriteString("\n");
+    debugFile->WriteString("PATH:\n");
+    debugFile->WriteString("-------\n");
 
-    for (int32_t r = 0; r < cellHeight; r++)
+    for (int32_t r = 0; r < CellHeight; r++)
     {
         line[0] = '\0';
 
-        for (int32_t c = 0; c < cellWidth; c++)
+        for (int32_t c = 0; c < CellWidth; c++)
         {
-            const MoveMapNode& node = map[maxCellWidth * r + c];
+            const MCMoveMapNode& node = Map[MaxCellWidth * r + c];
 
-            if (goalR == r && goalC == c)
+            if (GoalR == r && GoalC == c)
             {
                 std::strcpy(cell, "G");
             }
-            else if (startR == r && startC == c)
+            else if (StartR == r && StartC == c)
             {
                 std::strcpy(cell, "S");
             }
-            else if ((node.flags & 4) != 0)
+            else if ((node.Flags & 4) != 0)
             {
                 std::strcpy(cell, "*");
             }
-            else if (node.cost == moveLevel)
+            else if (node.Cost == MoveLevel)
             {
                 std::strcpy(cell, ".");
             }
-            else if (node.cost >= 10000)
+            else if (node.Cost >= 10000)
             {
                 std::strcpy(cell, " ");
             }
@@ -5478,13 +5481,13 @@ auto MoveMap::writeDebug(File* debugFile) -> void
         }
 
         std::strcat(line, "\n");
-        debugFile->writeString(line);
+        debugFile->WriteString(line);
     }
 
-    debugFile->writeString("\n");
+    debugFile->WriteString("\n");
 }
 
-auto MoveMap::destroy() -> void
+auto MCMoveMap::Destroy() -> void
 {
-    map.reset();
+    Map.reset();
 }

@@ -8,60 +8,60 @@
 #include "lib/aerror.h"
 #include "lib/file.h"
 
-ReservedWord keywords2[] = {
+MCReservedWord Keywords2[] = {
     {"if", TKN_IF}, {"or", TKN_OR}, {"do", TKN_DO}, {"to", TKN_TO}, {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords3[] = {
+MCReservedWord Keywords3[] = {
     {"and", TKN_AND}, {"for", TKN_FOR}, {"mod", TKN_MOD}, {"not", TKN_NOT}, {"var", TKN_VAR}, {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords4[] = {
+MCReservedWord Keywords4[] = {
     {"else", TKN_ELSE}, {"then", TKN_THEN}, {"case", TKN_CASE},
     {"code", TKN_CODE}, {"type", TKN_TYPE}, {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords5[] = {
+MCReservedWord Keywords5[] = {
     {"const", TKN_CONST}, {"until", TKN_UNTIL}, {"while", TKN_WHILE}, {"endif", TKN_END_IF}, {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords6[] = {
+MCReservedWord Keywords6[] = {
     {"module", TKN_MODULE}, {"repeat", TKN_REPEAT}, {"endfor", TKN_END_FOR},
     {"switch", TKN_SWITCH}, {"static", TKN_STATIC}, {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords7[] = {
+MCReservedWord Keywords7[] = {
     {"endcase", TKN_END_CASE},
     {"eternal", TKN_ETERNAL},
     {"library", TKN_LIBRARY},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords8[] = {
+MCReservedWord Keywords8[] = {
     {"function", TKN_FUNCTION},
     {"endwhile", TKN_END_WHILE},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords9[] = {
+MCReservedWord Keywords9[] = {
     {"endswitch", TKN_END_SWITCH},
     {"endmodule", TKN_END_MODULE},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords10[] = {
+MCReservedWord Keywords10[] = {
     {"endlibrary", TKN_END_LIBRARY},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord keywords11[] = {
+MCReservedWord Keywords11[] = {
     {"endfunction", TKN_END_FUNCTION},
     {nullptr, TKN_NONE},
 };
 
-ReservedWord* keywordTable[12] = {
-    nullptr,   nullptr,   keywords2, keywords3, keywords4,  keywords5,
-    keywords6, keywords7, keywords8, keywords9, keywords10, keywords11,
+MCReservedWord* KeywordTable[12] = {
+    nullptr,   nullptr,   Keywords2, Keywords3, Keywords4,  Keywords5,
+    Keywords6, Keywords7, Keywords8, Keywords9, Keywords10, Keywords11,
 };
 
 const char* TokenStrings[NUM_TOKENS] = {
@@ -136,31 +136,31 @@ const char* TokenStrings[NUM_TOKENS] = {
     "{ADDRESS MARKER}",
 };
 
-CharCodeType charTable[256];
-char sourceBuffer[MAXLEN_SOURCELINE];
-char* bufferp = sourceBuffer;
-char* tokenp = tokenString;
-char tokenString[MAXLEN_TOKENSTRING];
-char wordString[MAXLEN_TOKENSTRING];
-char curChar;
-TokenCodeType curToken;
-Literal curLiteral;
+MCCharCodeType CharTable[256];
+char SourceBuffer[MAXLEN_SOURCELINE];
+char* Bufferp = SourceBuffer;
+char* Tokenp = TokenString;
+char TokenString[MAXLEN_TOKENSTRING];
+char WordString[MAXLEN_TOKENSTRING];
+char CurChar;
+MCTokenCodeType CurToken;
+MCLiteral CurLiteral;
 char SourceFiles[MAX_SOURCE_FILES][MAXLEN_FILENAME];
 int32_t NumSourceFiles;
-SourceFile openFiles[MAX_INCLUDE_DEPTH];
+MCSourceFile OpenFiles[MAX_INCLUDE_DEPTH];
 int32_t NumOpenFiles;
-File* sourceFile;
-int32_t lineNumber;
+MCFile* SourceFile;
+int32_t LineNumber;
 int32_t FileNumber;
-int32_t bufferOffset;
+int32_t BufferOffset;
 int DumbGetCharOn;
-int32_t digitCount;
-int countError;
-int printFlag = 1;
-int32_t lineCount = MAX_LINES_PER_PAGE;
-int32_t pageNumber;
-char sourceName[256];
-char date[26];
+int32_t DigitCount;
+int CountError;
+int PrintFlag = 1;
+int32_t LineCount = MAX_LINES_PER_PAGE;
+int32_t PageNumber;
+char SourceName[256];
+char Date[26];
 
 namespace
 {
@@ -169,36 +169,36 @@ namespace
     /// Port fix: the original indexed charTable with the signed char, so bytes 0x80..0xff read the 512 bytes before
     /// it. The port indexes with the byte value (those bytes are CHR_SPECIAL, which scans as TKN_ERROR).
     /// </remarks>
-    auto charCode(char ch) -> CharCodeType
+    auto CharCode(char ch) -> MCCharCodeType
     {
-        return charTable[static_cast<uint8_t>(ch)];
+        return CharTable[static_cast<uint8_t>(ch)];
     }
 
     /// <summary>Whether <paramref name="ch"/> can continue an identifier.</summary>
-    auto isWordChar(char ch) -> bool
+    auto IsWordChar(char ch) -> bool
     {
-        return charCode(ch) == CHR_LETTER || charCode(ch) == CHR_DIGIT || ch == '_';
+        return CharCode(ch) == CHR_LETTER || CharCode(ch) == CHR_DIGIT || ch == '_';
     }
 
     /// <summary>Reads a double-quoted #include file name into <paramref name="fileName"/> (up to 127 characters).
     /// </summary>
     /// <returns>false if curChar is not the opening quote.</returns>
-    auto readDirectiveFileName(char (&fileName)[128]) -> bool
+    auto ReadDirectiveFileName(char (&fileName)[128]) -> bool
     {
-        getChar();
+        GetChar();
 
-        if (curChar != '"')
+        if (CurChar != '"')
         {
             return false;
         }
 
-        getChar();
+        GetChar();
         int32_t i = 0;
 
-        for (; curChar != '"' && i < 127; i++)
+        for (; CurChar != '"' && i < 127; i++)
         {
-            fileName[i] = curChar;
-            getChar();
+            fileName[i] = CurChar;
+            GetChar();
         }
 
         fileName[i] = '\0';
@@ -206,27 +206,27 @@ namespace
     }
 }
 
-auto isReservedWord() -> int
+auto IsReservedWord() -> int
 {
-    auto wordLength = static_cast<int32_t>(strlen(wordString));
+    auto wordLength = static_cast<int32_t>(strlen(WordString));
 
     if (wordLength < 2 || wordLength > 11)
     {
         return 0;
     }
 
-    ReservedWord* rwp = keywordTable[wordLength];
+    MCReservedWord* rwp = KeywordTable[wordLength];
 
     if (rwp == nullptr)
     {
         return 0;
     }
 
-    for (; rwp->string != nullptr; rwp++)
+    for (; rwp->String != nullptr; rwp++)
     {
-        if (strcmp(wordString, rwp->string) == 0)
+        if (strcmp(WordString, rwp->String) == 0)
         {
-            curToken = rwp->tokenCode;
+            CurToken = rwp->TokenCode;
             return 1;
         }
     }
@@ -234,107 +234,107 @@ auto isReservedWord() -> int
     return 0;
 }
 
-auto initScanner(char* fileName) -> void
+auto InitScanner(char* fileName) -> void
 {
-    for (auto& code : charTable)
+    for (auto& code : CharTable)
     {
         code = CHR_SPECIAL;
     }
 
     for (int32_t ch = '0'; ch <= '9'; ch++)
     {
-        charTable[ch] = CHR_DIGIT;
+        CharTable[ch] = CHR_DIGIT;
     }
 
     for (int32_t ch = 'A'; ch <= 'Z'; ch++)
     {
-        charTable[ch] = CHR_LETTER;
+        CharTable[ch] = CHR_LETTER;
     }
 
     for (int32_t ch = 'a'; ch <= 'z'; ch++)
     {
-        charTable[ch] = CHR_LETTER;
+        CharTable[ch] = CHR_LETTER;
     }
 
-    charTable['"'] = CHR_DQUOTE;
-    charTable[0x7f] = CHR_EOF;
+    CharTable['"'] = CHR_DQUOTE;
+    CharTable[0x7f] = CHR_EOF;
 
     if (fileName != nullptr)
     {
-        sourceFile = new File;
+        SourceFile = new MCFile;
 
-        if (sourceFile->open(fileName) != 0)
+        if (SourceFile->Open(fileName) != 0)
         {
-            syntaxError(ABL_ERR_SYNTAX_SOURCE_FILE_OPEN);
-            curToken = TKN_ERROR;
+            SyntaxError(ABL_ERR_SYNTAX_SOURCE_FILE_OPEN);
+            CurToken = TKN_ERROR;
         }
 
-        sourceBuffer[0] = '\0';
-        bufferp = sourceBuffer;
-        getChar();
+        SourceBuffer[0] = '\0';
+        Bufferp = SourceBuffer;
+        GetChar();
     }
 }
 
-auto quitScanner() -> void
+auto QuitScanner() -> void
 {
-    sourceFile->close();
-    delete sourceFile;
-    sourceFile = nullptr;
+    SourceFile->Close();
+    delete SourceFile;
+    SourceFile = nullptr;
 }
 
-auto skipBlockComment() -> void
+auto SkipBlockComment() -> void
 {
     DumbGetCharOn = 1;
-    getChar();
-    getChar();
+    GetChar();
+    GetChar();
 
     while (true)
     {
-        if (curChar != '*')
+        if (CurChar != '*')
         {
-            if (curChar != 0x7f)
+            if (CurChar != 0x7f)
             {
-                getChar();
+                GetChar();
                 continue;
             }
 
-            syntaxError(ABL_ERR_SYNTAX_UNEXPECTED_EOF);
-            curToken = TKN_ERROR;
+            SyntaxError(ABL_ERR_SYNTAX_UNEXPECTED_EOF);
+            CurToken = TKN_ERROR;
         }
 
-        getChar();
+        GetChar();
 
-        if (curChar == '/')
+        if (CurChar == '/')
         {
-            curChar = ' ';
+            CurChar = ' ';
             DumbGetCharOn = 0;
             return;
         }
     }
 }
 
-auto skipBlanks() -> void
+auto SkipBlanks() -> void
 {
-    while (curChar == ' ')
+    while (CurChar == ' ')
     {
-        getChar();
+        GetChar();
     }
 }
 
-auto languageDirective() -> void
+auto LanguageDirective() -> void
 {
     char directive[32];
     char fileName[128];
     char fullPath[256];
 
     DumbGetCharOn = 1;
-    getChar();
+    GetChar();
     int32_t i = 0;
 
-    for (; curChar != ' ' && curChar != '\n' && curChar != '\r' && i < 31; i++)
+    for (; CurChar != ' ' && CurChar != '\n' && CurChar != '\r' && i < 31; i++)
     {
-        directive[i] = curChar;
-        getChar();
+        directive[i] = CurChar;
+        GetChar();
     }
 
     directive[i] = '\0';
@@ -345,10 +345,10 @@ auto languageDirective() -> void
     if (strcmp(directive, "include") == 0)
     {
         // #include "file": the name as written.
-        if (!readDirectiveFileName(fileName))
+        if (!ReadDirectiveFileName(fileName))
         {
-            syntaxError(ABL_ERR_SYNTAX_BAD_LANGUAGE_DIRECTIVE_PARAM);
-            curToken = TKN_ERROR;
+            SyntaxError(ABL_ERR_SYNTAX_BAD_LANGUAGE_DIRECTIVE_PARAM);
+            CurToken = TKN_ERROR;
             return;
         }
 
@@ -358,10 +358,10 @@ auto languageDirective() -> void
     else if (strcmp(directive, "include_") == 0)
     {
         // #include_ "file": relative to the folder of the module's main file (SourceFiles[0]).
-        if (!readDirectiveFileName(fileName))
+        if (!ReadDirectiveFileName(fileName))
         {
-            syntaxError(ABL_ERR_SYNTAX_BAD_LANGUAGE_DIRECTIVE_PARAM);
-            curToken = TKN_ERROR;
+            SyntaxError(ABL_ERR_SYNTAX_BAD_LANGUAGE_DIRECTIVE_PARAM);
+            CurToken = TKN_ERROR;
             return;
         }
 
@@ -418,82 +418,82 @@ auto languageDirective() -> void
 
         if (flag == nullptr)
         {
-            syntaxError(ABL_ERR_SYNTAX_UNKNOWN_LANGUAGE_DIRECTIVE);
-            curToken = TKN_ERROR;
+            SyntaxError(ABL_ERR_SYNTAX_UNKNOWN_LANGUAGE_DIRECTIVE);
+            CurToken = TKN_ERROR;
             return;
         }
 
         *flag = value;
         DumbGetCharOn = 0;
-        curChar = ' ';
+        CurChar = ' ';
         return;
     }
 
-    if (openSourceFile(const_cast<char*>(openName)) != 0)
+    if (OpenSourceFile(const_cast<char*>(openName)) != 0)
     {
-        syntaxError(ABL_ERR_SYNTAX_SOURCE_FILE_OPEN);
-        curToken = TKN_ERROR;
+        SyntaxError(ABL_ERR_SYNTAX_SOURCE_FILE_OPEN);
+        CurToken = TKN_ERROR;
     }
 }
 
-auto getChar() -> void
+auto GetChar() -> void
 {
-    if (*bufferp == '\0')
+    if (*Bufferp == '\0')
     {
-        if (getSourceLine() == 0)
+        if (GetSourceLine() == 0)
         {
             // The end of an #include returns to the including file without setting curChar.
             if (NumOpenFiles > 1)
             {
-                closeSourceFile();
+                CloseSourceFile();
                 return;
             }
 
-            curChar = 0x7f;
+            CurChar = 0x7f;
             return;
         }
 
-        bufferOffset = 0;
-        bufferp = sourceBuffer;
+        BufferOffset = 0;
+        Bufferp = SourceBuffer;
     }
 
-    curChar = *bufferp++;
+    CurChar = *Bufferp++;
 
     if (DumbGetCharOn == 0)
     {
-        switch (curChar)
+        switch (CurChar)
         {
             case '\t':
             {
-                bufferOffset += 4 - bufferOffset % 4;
-                curChar = ' ';
+                BufferOffset += 4 - BufferOffset % 4;
+                CurChar = ' ';
                 return;
             }
             case '\n':
             case '\r':
             {
-                bufferOffset++;
-                curChar = ' ';
+                BufferOffset++;
+                CurChar = ' ';
                 return;
             }
             case '#':
             {
-                languageDirective();
+                LanguageDirective();
                 return;
             }
             case '/':
             {
-                if (*bufferp == '/')
+                if (*Bufferp == '/')
                 {
                     // A line comment: drop the rest of the line.
-                    curChar = ' ';
-                    *bufferp = '\0';
+                    CurChar = ' ';
+                    *Bufferp = '\0';
                     return;
                 }
 
-                if (*bufferp == '*')
+                if (*Bufferp == '*')
                 {
-                    skipBlockComment();
+                    SkipBlockComment();
                     return;
                 }
                 break;
@@ -503,18 +503,18 @@ auto getChar() -> void
         }
     }
 
-    bufferOffset++;
+    BufferOffset++;
 }
 
-auto downShiftWord() -> void
+auto DownShiftWord() -> void
 {
-    if (strlen(wordString) >= MAXLEN_TOKENSTRING || strlen(tokenString) >= MAXLEN_TOKENSTRING)
+    if (strlen(WordString) >= MAXLEN_TOKENSTRING || strlen(TokenString) >= MAXLEN_TOKENSTRING)
     {
         Fatal(-1, " Boy did Glenn screw the pooch here!! ");
     }
 
-    char* wp = wordString;
-    const char* tp = tokenString;
+    char* wp = WordString;
+    const char* tp = TokenString;
 
     do
     {
@@ -532,155 +532,155 @@ auto downShiftWord() -> void
     *wp = '\0';
 }
 
-auto getToken() -> void
+auto GetToken() -> void
 {
-    skipBlanks();
-    tokenp = tokenString;
+    SkipBlanks();
+    Tokenp = TokenString;
 
-    switch (charCode(curChar))
+    switch (CharCode(CurChar))
     {
         case CHR_LETTER:
-            getWord();
+            GetWord();
             break;
         case CHR_DIGIT:
-            getNumber();
+            ScanNumber();
             break;
         case CHR_DQUOTE:
-            getString();
+            GetString();
             break;
         case CHR_EOF:
-            curToken = TKN_EOF;
+            CurToken = TKN_EOF;
             break;
         default:
-            getSpecial();
+            GetSpecial();
             break;
     }
 
-    if (blockFlag != 0)
+    if (BlockFlag != 0)
     {
-        crunchToken();
+        CrunchToken();
     }
 }
 
-auto getWord() -> void
+auto GetWord() -> void
 {
-    while (isWordChar(curChar))
+    while (IsWordChar(CurChar))
     {
-        *tokenp++ = curChar;
-        getChar();
+        *Tokenp++ = CurChar;
+        GetChar();
     }
 
-    *tokenp = '\0';
-    downShiftWord();
+    *Tokenp = '\0';
+    DownShiftWord();
 
     // "library.name": a qualified identifier, unless the word is this module's end keyword.
-    if (curChar == '.' && strcmp(wordString, TokenStrings[TKN_END_MODULE + (CurLibrary != nullptr ? 1 : 0)]) != 0)
+    if (CurChar == '.' && strcmp(WordString, TokenStrings[TKN_END_MODULE + (CurLibrary != nullptr ? 1 : 0)]) != 0)
     {
-        *tokenp = '.';
+        *Tokenp = '.';
         while (true)
         {
-            tokenp++;
-            getChar();
+            Tokenp++;
+            GetChar();
 
-            if (!isWordChar(curChar))
+            if (!IsWordChar(CurChar))
             {
                 break;
             }
 
-            *tokenp = curChar;
+            *Tokenp = CurChar;
         }
 
-        *tokenp = '\0';
-        downShiftWord();
+        *Tokenp = '\0';
+        DownShiftWord();
     }
 
-    if (isReservedWord() == 0)
+    if (IsReservedWord() == 0)
     {
-        curToken = TKN_IDENTIFIER;
+        CurToken = TKN_IDENTIFIER;
     }
 }
 
-auto accumulateValue(float* valuePtr, SyntaxErrorType errCode) -> void
+auto AccumulateValue(float* valuePtr, MCSyntaxErrorType errCode) -> void
 {
     float value = *valuePtr;
 
-    if (charCode(curChar) != CHR_DIGIT)
+    if (CharCode(CurChar) != CHR_DIGIT)
     {
-        syntaxError(errCode);
-        curToken = TKN_ERROR;
+        SyntaxError(errCode);
+        CurToken = TKN_ERROR;
         return;
     }
 
     do
     {
-        *tokenp++ = curChar;
-        if (++digitCount <= 20)
+        *Tokenp++ = CurChar;
+        if (++DigitCount <= 20)
         {
-            value = value * 10.0f + static_cast<float>(curChar - '0');
+            value = value * 10.0f + static_cast<float>(CurChar - '0');
         }
         else
         {
-            countError = 1;
+            CountError = 1;
         }
 
-        getChar();
-    } while (charCode(curChar) == CHR_DIGIT);
+        GetChar();
+    } while (CharCode(CurChar) == CHR_DIGIT);
 
     *valuePtr = value;
 }
 
-auto getNumber() -> void
+auto ScanNumber() -> void
 {
     int32_t decimalOffset = 0;
     char exponentSign = '+';
     float numberValue = 0.0f;
     float exponentValue = 0.0f;
-    digitCount = 0;
-    countError = 0;
-    curToken = TKN_NONE;
-    curLiteral.type = LIT_INTEGER;
+    DigitCount = 0;
+    CountError = 0;
+    CurToken = TKN_NONE;
+    CurLiteral.Type = LIT_INTEGER;
 
-    accumulateValue(&numberValue, ABL_ERR_SYNTAX_INVALID_NUMBER);
+    AccumulateValue(&numberValue, ABL_ERR_SYNTAX_INVALID_NUMBER);
 
-    if (curToken == TKN_ERROR)
+    if (CurToken == TKN_ERROR)
     {
         return;
     }
 
-    int32_t wholeCount = digitCount;
+    int32_t wholeCount = DigitCount;
 
-    if (curChar == '.')
+    if (CurChar == '.')
     {
-        getChar();
-        *tokenp++ = '.';
-        curLiteral.type = LIT_REAL;
-        accumulateValue(&numberValue, ABL_ERR_SYNTAX_INVALID_FRACTION);
+        GetChar();
+        *Tokenp++ = '.';
+        CurLiteral.Type = LIT_REAL;
+        AccumulateValue(&numberValue, ABL_ERR_SYNTAX_INVALID_FRACTION);
 
-        if (curToken == TKN_ERROR)
+        if (CurToken == TKN_ERROR)
         {
             return;
         }
 
-        decimalOffset = wholeCount - digitCount;
+        decimalOffset = wholeCount - DigitCount;
     }
 
-    if (curChar == 'E' || curChar == 'e')
+    if (CurChar == 'E' || CurChar == 'e')
     {
-        curLiteral.type = LIT_REAL;
+        CurLiteral.Type = LIT_REAL;
 
         // Original behaviour (OB-037): the 'E' is not consumed (no getChar), so the sign test and accumulateValue
         // see the 'E' again and every exponent is ABL_ERR_SYNTAX_INVALID_EXPONENT.
-        *tokenp++ = curChar;
-        if (curChar == '+' || curChar == '-')
+        *Tokenp++ = CurChar;
+        if (CurChar == '+' || CurChar == '-')
         {
-            exponentSign = curChar;
-            *tokenp++ = curChar;
-            getChar();
+            exponentSign = CurChar;
+            *Tokenp++ = CurChar;
+            GetChar();
         }
 
-        accumulateValue(&exponentValue, ABL_ERR_SYNTAX_INVALID_EXPONENT);
+        AccumulateValue(&exponentValue, ABL_ERR_SYNTAX_INVALID_EXPONENT);
 
-        if (curToken == TKN_ERROR)
+        if (CurToken == TKN_ERROR)
         {
             return;
         }
@@ -691,10 +691,10 @@ auto getNumber() -> void
         }
     }
 
-    if (countError != 0)
+    if (CountError != 0)
     {
-        syntaxError(ABL_ERR_SYNTAX_TOO_MANY_DIGITS);
-        curToken = TKN_ERROR;
+        SyntaxError(ABL_ERR_SYNTAX_TOO_MANY_DIGITS);
+        CurToken = TKN_ERROR;
         return;
     }
 
@@ -702,8 +702,8 @@ auto getNumber() -> void
 
     if (exponent + wholeCount < -20 || exponent + wholeCount > 20)
     {
-        syntaxError(ABL_ERR_SYNTAX_REAL_OUT_OF_RANGE);
-        curToken = TKN_ERROR;
+        SyntaxError(ABL_ERR_SYNTAX_REAL_OUT_OF_RANGE);
+        CurToken = TKN_ERROR;
         return;
     }
 
@@ -712,173 +712,173 @@ auto getNumber() -> void
         numberValue = static_cast<float>(pow(10.0, exponent) * numberValue);
     }
 
-    if (curLiteral.type == LIT_INTEGER)
+    if (CurLiteral.Type == LIT_INTEGER)
     {
         // __ftol gives 0x80000000 for anything out of range, which the original rejects.
         if (numberValue >= 2147483648.0f)
         {
-            syntaxError(ABL_ERR_SYNTAX_INTEGER_OUT_OF_RANGE);
-            curToken = TKN_ERROR;
+            SyntaxError(ABL_ERR_SYNTAX_INTEGER_OUT_OF_RANGE);
+            CurToken = TKN_ERROR;
             return;
         }
 
-        curLiteral.value.integer = static_cast<int32_t>(numberValue);
+        CurLiteral.Value.Integer = static_cast<int32_t>(numberValue);
     }
     else
     {
-        curLiteral.value.real = numberValue;
+        CurLiteral.Value.Real = numberValue;
     }
 
-    curToken = TKN_NUMBER;
-    *tokenp = '\0';
+    CurToken = TKN_NUMBER;
+    *Tokenp = '\0';
 }
 
-auto getString() -> void
+auto GetString() -> void
 {
-    char* sp = curLiteral.value.string;
+    char* sp = CurLiteral.Value.String;
     // The opening quote is written but then overwritten by the first character (tokenp is not advanced).
-    *tokenp = '"';
-    getChar();
+    *Tokenp = '"';
+    GetChar();
 
-    while (curChar != 0x7f && curChar != '"')
+    while (CurChar != 0x7f && CurChar != '"')
     {
         // Port fix: an unterminated string ran past the literal and token buffers; the port stops storing.
-        if (sp < curLiteral.value.string + MAXLEN_TOKENSTRING - 1)
+        if (sp < CurLiteral.Value.String + MAXLEN_TOKENSTRING - 1)
         {
-            *sp++ = curChar;
-            *tokenp++ = curChar;
+            *sp++ = CurChar;
+            *Tokenp++ = CurChar;
         }
 
-        getChar();
+        GetChar();
     }
 
     *sp = '\0';
     // The closing quote is dropped by replacing it with a blank.
-    curChar = ' ';
-    curToken = TKN_STRING;
-    *tokenp = '\0';
-    curLiteral.type = LIT_STRING;
+    CurChar = ' ';
+    CurToken = TKN_STRING;
+    *Tokenp = '\0';
+    CurLiteral.Type = LIT_STRING;
 }
 
-auto getSpecial() -> void
+auto GetSpecial() -> void
 {
-    char firstChar = curChar;
+    char firstChar = CurChar;
 
-    *tokenp++ = curChar;
+    *Tokenp++ = CurChar;
     switch (firstChar)
     {
         case '#':
-            curToken = TKN_POUND;
+            CurToken = TKN_POUND;
             break;
         case '(':
-            curToken = TKN_LPAREN;
+            CurToken = TKN_LPAREN;
             break;
         case ')':
-            curToken = TKN_RPAREN;
+            CurToken = TKN_RPAREN;
             break;
         case '*':
-            curToken = TKN_STAR;
+            CurToken = TKN_STAR;
             break;
         case '+':
-            curToken = TKN_PLUS;
+            CurToken = TKN_PLUS;
             break;
         case ',':
-            curToken = TKN_COMMA;
+            CurToken = TKN_COMMA;
             break;
         case '-':
-            curToken = TKN_MINUS;
+            CurToken = TKN_MINUS;
             break;
         case '.':
-            curToken = TKN_PERIOD;
+            CurToken = TKN_PERIOD;
             break;
         case '/':
-            curToken = TKN_FSLASH;
+            CurToken = TKN_FSLASH;
             break;
         case ':':
-            curToken = TKN_COLON;
+            CurToken = TKN_COLON;
             break;
         case ';':
-            curToken = TKN_SEMICOLON;
+            CurToken = TKN_SEMICOLON;
             break;
         case '@':
-            curToken = TKN_REF;
+            CurToken = TKN_REF;
             break;
         case '[':
-            curToken = TKN_LBRACKET;
+            CurToken = TKN_LBRACKET;
             break;
         case ']':
-            curToken = TKN_RBRACKET;
+            CurToken = TKN_RBRACKET;
             break;
         case '<':
         {
-            getChar();
+            GetChar();
 
-            if (curChar == '=')
+            if (CurChar == '=')
             {
-                curToken = TKN_LE;
-                *tokenp++ = '=';
-                getChar();
+                CurToken = TKN_LE;
+                *Tokenp++ = '=';
+                GetChar();
             }
-            else if (curChar == '>')
+            else if (CurChar == '>')
             {
-                curToken = TKN_NE;
-                *tokenp++ = '>';
-                getChar();
+                CurToken = TKN_NE;
+                *Tokenp++ = '>';
+                GetChar();
             }
             else
             {
-                curToken = TKN_LT;
+                CurToken = TKN_LT;
             }
 
-            *tokenp = '\0';
+            *Tokenp = '\0';
             return;
         }
         case '=':
         {
-            getChar();
+            GetChar();
 
-            if (curChar == '=')
+            if (CurChar == '=')
             {
-                curToken = TKN_EQUALEQUAL;
-                *tokenp++ = '=';
-                getChar();
+                CurToken = TKN_EQUALEQUAL;
+                *Tokenp++ = '=';
+                GetChar();
             }
             else
             {
-                curToken = TKN_EQUAL;
+                CurToken = TKN_EQUAL;
             }
 
-            *tokenp = '\0';
+            *Tokenp = '\0';
             return;
         }
         case '>':
         {
-            getChar();
+            GetChar();
 
-            if (curChar == '=')
+            if (CurChar == '=')
             {
-                curToken = TKN_GE;
-                *tokenp++ = '=';
-                getChar();
+                CurToken = TKN_GE;
+                *Tokenp++ = '=';
+                GetChar();
             }
             else
             {
-                curToken = TKN_GT;
+                CurToken = TKN_GT;
             }
 
-            *tokenp = '\0';
+            *Tokenp = '\0';
             return;
         }
         default:
-            curToken = TKN_ERROR;
+            CurToken = TKN_ERROR;
             break;
     }
 
-    getChar();
-    *tokenp = '\0';
+    GetChar();
+    *Tokenp = '\0';
 }
 
-auto tokenIn(TokenCodeType* tokenList) -> int
+auto TokenIn(MCTokenCodeType* tokenList) -> int
 {
     if (tokenList == nullptr)
     {
@@ -887,7 +887,7 @@ auto tokenIn(TokenCodeType* tokenList) -> int
 
     for (; *tokenList != TKN_NONE; tokenList++)
     {
-        if (curToken == *tokenList)
+        if (CurToken == *tokenList)
         {
             return 1;
         }
@@ -896,44 +896,44 @@ auto tokenIn(TokenCodeType* tokenList) -> int
     return 0;
 }
 
-auto synchronize(TokenCodeType* tokenList1, TokenCodeType* tokenList2, TokenCodeType* tokenList3) -> void
+auto Synchronize(MCTokenCodeType* tokenList1, MCTokenCodeType* tokenList2, MCTokenCodeType* tokenList3) -> void
 {
-    auto inAny = [&] { return tokenIn(tokenList1) || tokenIn(tokenList2) || tokenIn(tokenList3); };
+    auto inAny = [&] { return TokenIn(tokenList1) || TokenIn(tokenList2) || TokenIn(tokenList3); };
 
     if (inAny())
     {
         return;
     }
 
-    syntaxError(curToken == TKN_EOF ? ABL_ERR_SYNTAX_UNEXPECTED_EOF : ABL_ERR_SYNTAX_UNEXPECTED_TOKEN);
+    SyntaxError(CurToken == TKN_EOF ? ABL_ERR_SYNTAX_UNEXPECTED_EOF : ABL_ERR_SYNTAX_UNEXPECTED_TOKEN);
 
-    while (!inAny() && curToken != TKN_EOF)
+    while (!inAny() && CurToken != TKN_EOF)
     {
-        getToken();
+        GetToken();
     }
 }
 
-auto getSourceLine() -> int
+auto GetSourceLine() -> int
 {
-    if (sourceFile->eof())
+    if (SourceFile->Eof())
     {
         return 0;
     }
 
-    sourceFile->readLineEx(reinterpret_cast<uint8_t*>(sourceBuffer), MAXLEN_SOURCELINE);
-    lineNumber++;
+    SourceFile->ReadLineEx(reinterpret_cast<uint8_t*>(SourceBuffer), MAXLEN_SOURCELINE);
+    LineNumber++;
 
-    if (printFlag != 0)
+    if (PrintFlag != 0)
     {
         char printBuffer[MAXLEN_SOURCELINE + 16];
-        snprintf(printBuffer, sizeof(printBuffer), "%4d %d: %s", lineNumber, level, sourceBuffer);
-        printLine(printBuffer);
+        snprintf(printBuffer, sizeof(printBuffer), "%4d %d: %s", LineNumber, Level, SourceBuffer);
+        PrintLine(printBuffer);
     }
 
     return 1;
 }
 
-auto openSourceFile(char* sourceFileName) -> int32_t
+auto OpenSourceFile(char* sourceFileName) -> int32_t
 {
     if (sourceFileName == nullptr)
     {
@@ -950,72 +950,72 @@ auto openSourceFile(char* sourceFileName) -> int32_t
         return -3;
     }
 
-    auto* newFile = new File;
+    auto* newFile = new MCFile;
 
-    if (newFile->open(sourceFileName) != 0)
+    if (newFile->Open(sourceFileName) != 0)
     {
         // Port fix: the original leaked the File.
         delete newFile;
         return -3;
     }
 
-    sourceFile = newFile;
+    SourceFile = newFile;
     strcpy(SourceFiles[NumSourceFiles], sourceFileName);
     FileNumber = NumSourceFiles;
     NumSourceFiles++;
 
-    SourceFile& openFile = openFiles[NumOpenFiles];
-    strcpy(openFile.fileName, sourceFileName);
-    openFile.fileNumber = static_cast<uint8_t>(FileNumber);
-    openFile.filePtr = newFile;
-    openFile.lineNumber = 0;
+    MCSourceFile& openFile = OpenFiles[NumOpenFiles];
+    strcpy(openFile.FileName, sourceFileName);
+    openFile.FileNumber = static_cast<uint8_t>(FileNumber);
+    openFile.FilePtr = newFile;
+    openFile.LineNumber = 0;
 
     if (NumOpenFiles > 0)
     {
-        openFiles[NumOpenFiles - 1].lineNumber = lineNumber;
+        OpenFiles[NumOpenFiles - 1].LineNumber = LineNumber;
     }
 
     NumOpenFiles++;
 
-    lineNumber = 0;
-    sourceBuffer[0] = '\0';
-    bufferp = sourceBuffer;
-    getChar();
+    LineNumber = 0;
+    SourceBuffer[0] = '\0';
+    Bufferp = SourceBuffer;
+    GetChar();
     return 0;
 }
 
-auto closeSourceFile() -> int32_t
+auto CloseSourceFile() -> int32_t
 {
     if (NumOpenFiles == 0)
     {
         return -1;
     }
 
-    sourceFile->close();
-    delete sourceFile;
-    sourceFile = nullptr;
+    SourceFile->Close();
+    delete SourceFile;
+    SourceFile = nullptr;
     // Port fix: the original cleared openFiles[NumOpenFiles].filePtr, one past the closing file (out of bounds when
     // six files are open); the port clears the closing file's entry.
     NumOpenFiles--;
-    openFiles[NumOpenFiles].filePtr = nullptr;
+    OpenFiles[NumOpenFiles].FilePtr = nullptr;
 
     if (NumOpenFiles > 0)
     {
-        const SourceFile& openFile = openFiles[NumOpenFiles - 1];
-        sourceFile = openFile.filePtr;
-        FileNumber = openFile.fileNumber;
-        lineNumber = openFile.lineNumber;
+        const MCSourceFile& openFile = OpenFiles[NumOpenFiles - 1];
+        SourceFile = openFile.FilePtr;
+        FileNumber = openFile.FileNumber;
+        LineNumber = openFile.LineNumber;
     }
 
     return 0;
 }
 
-auto printLine(char* line) -> void
+auto PrintLine(char* line) -> void
 {
-    if (++lineCount > MAX_LINES_PER_PAGE)
+    if (++LineCount > MAX_LINES_PER_PAGE)
     {
-        printPageHeader();
-        lineCount = 1;
+        PrintPageHeader();
+        LineCount = 1;
     }
 
     char* truncatedAt = nullptr;
@@ -1036,15 +1036,15 @@ auto printLine(char* line) -> void
     }
 }
 
-auto initPageHeader(char* fileName) -> void
+auto InitPageHeader(char* fileName) -> void
 {
-    strncpy(sourceName, fileName, 255);
+    strncpy(SourceName, fileName, 255);
     time_t timer = time(nullptr);
-    strcpy(date, asctime(localtime(&timer)));
+    strcpy(Date, asctime(localtime(&timer)));
 }
 
-auto printPageHeader() -> void
+auto PrintPageHeader() -> void
 {
-    pageNumber++;
-    printf("Page %d   %s   %s\n\n", pageNumber, sourceName, date);
+    PageNumber++;
+    printf("Page %d   %s   %s\n\n", PageNumber, SourceName, Date);
 }

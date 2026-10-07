@@ -12,80 +12,80 @@
 namespace
 {
     /// <summary>Allocates in a logistics block.</summary>
-    void* logAlloc(uint32_t size)
+    void* LogAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsBlocks->Allocate(size);
+        return GlobalLogPtr->LogisticsBlocks->Allocate(size);
     }
 
     /// <summary>Frees a logistics block.</summary>
-    void logFree(void* block)
+    void LogFree(void* block)
     {
-        globalLogPtr->logisticsBlocks->Free(block);
+        GlobalLogPtr->LogisticsBlocks->Free(block);
     }
 
-    /// <summary>The art <see cref="logArt"/> loaded, by file name (null for a file that couldn't be read).</summary>
-    std::unordered_map<std::string, lPort*> loadedArt;
+    /// <summary>The art <see cref="LogArt"/> loaded, by file name (null for a file that couldn't be read).</summary>
+    std::unordered_map<std::string, MCLogPort*> LoadedArt;
 }
 
-auto logArt(const char* fileName) -> lPort*
+auto LogArt(const char* fileName) -> MCLogPort*
 {
-    const auto found = loadedArt.find(fileName);
+    const auto found = LoadedArt.find(fileName);
 
-    if (found != loadedArt.end())
+    if (found != LoadedArt.end())
     {
         return found->second;
     }
 
-    auto* art = new lPort;
+    auto* art = new MCLogPort;
 
-    if (art->init(const_cast<char*>(fileName)) != 0)
+    if (art->Init(const_cast<char*>(fileName)) != 0)
     {
         delete art;
         art = nullptr;
     }
 
-    loadedArt.emplace(fileName, art);
+    LoadedArt.emplace(fileName, art);
     return art;
 }
 
-auto logArtf(const char* format, ...) -> lPort*
+auto LogArtf(const char* format, ...) -> MCLogPort*
 {
     char fileName[256];
     va_list args;
     va_start(args, format);
     std::vsnprintf(fileName, sizeof(fileName), format, args);
     va_end(args);
-    return logArt(fileName);
+    return LogArt(fileName);
 }
 
 auto ClearLogArt() -> void
 {
-    for (auto& [name, art] : loadedArt)
+    for (auto& [name, art] : LoadedArt)
     {
         delete art;
     }
 
-    loadedArt.clear();
+    LoadedArt.clear();
 }
 
 // lPort
 
-auto lPort::init(int32_t width, int32_t height, int allocBitmap) -> int32_t
+auto MCLogPort::Init(int32_t width, int32_t height, int allocBitmap) -> int32_t
 {
-    if (portWindow != nullptr)
+    if (PortWindow != nullptr)
     {
-        MCRenderer::DestroyTexture(portWindow);
+        MCRenderer::DestroyTexture(PortWindow);
 
-        if (portWindow->buffer != nullptr)
+        if (PortWindow->Buffer != nullptr)
         {
-            logFree(portWindow->buffer);
+            LogFree(PortWindow->Buffer);
         }
 
-        logFree(portWindow);
+        LogFree(PortWindow);
     }
 
-    auto* window = static_cast<_window*>(logAlloc(sizeof(_window)));
-    portWindow = window;
+    auto* window = static_cast<MCWindow*>(LogAlloc(sizeof(MCWindow)));
+    PortWindow = window;
 
     if (window == nullptr)
     {
@@ -94,43 +94,43 @@ auto lPort::init(int32_t width, int32_t height, int allocBitmap) -> int32_t
 
     window->View = nullptr;
     window->Texture = nullptr;
-    window->x_max = width - 1;
-    window->y_max = height - 1;
+    window->XMax = width - 1;
+    window->YMax = height - 1;
     // Port fix: the original left the buffer uninitialised without a bitmap (and destroy then freed it).
-    window->buffer = nullptr;
+    window->Buffer = nullptr;
 
-    if (allocBitmap != 0 && this != screenPort)
+    if (allocBitmap != 0 && this != ScreenPort)
     {
-        window->buffer = static_cast<uint8_t*>(logAlloc(static_cast<uint32_t>(width * height)));
+        window->Buffer = static_cast<uint8_t*>(LogAlloc(static_cast<uint32_t>(width * height)));
 
-        if (window->buffer == nullptr)
+        if (window->Buffer == nullptr)
         {
             return 3;
         }
     }
 
-    if (portPane != nullptr)
+    if (PortPane != nullptr)
     {
-        logFree(portPane);
+        LogFree(PortPane);
     }
 
-    auto* pane = static_cast<_pane*>(logAlloc(sizeof(_pane)));
-    portPane = pane;
+    auto* pane = static_cast<MCPane*>(LogAlloc(sizeof(MCPane)));
+    PortPane = pane;
 
     if (pane == nullptr)
     {
         return 3;
     }
 
-    pane->window = window;
-    pane->x0 = 0;
-    pane->y0 = 0;
-    portWidth = width;
-    pane->x1 = width - 1;
-    portHeight = height;
-    pane->y1 = height - 1;
+    pane->Window = window;
+    pane->X0 = 0;
+    pane->Y0 = 0;
+    PortWidth = width;
+    pane->X1 = width - 1;
+    PortHeight = height;
+    pane->Y1 = height - 1;
 
-    if (window->buffer != nullptr)
+    if (window->Buffer != nullptr)
     {
         MCRenderer::CreateTexture(window, MCTextureUse::Dynamic);
     }
@@ -138,18 +138,18 @@ auto lPort::init(int32_t width, int32_t height, int allocBitmap) -> int32_t
     return 0;
 }
 
-auto lPort::init(char* fileName) -> int32_t
+auto MCLogPort::Init(char* fileName) -> int32_t
 {
     char message[256];
     char path[256];
-    File file;
-    std::snprintf(path, sizeof(path), "%s%s", artPath, fileName);
+    MCFile file;
+    std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (file.open(path, READ, 0x32) != 0)
+    if (file.Open(path, READ, 0x32) != 0)
     {
         std::snprintf(path, sizeof(path), "%s", fileName);
 
-        if (file.open(path, READ, 0x32) != 0)
+        if (file.Open(path, READ, 0x32) != 0)
         {
             std::snprintf(message, sizeof(message), "Error reading '%s'", fileName);
             GeneralMsg(message);
@@ -157,7 +157,7 @@ auto lPort::init(char* fileName) -> int32_t
         }
     }
 
-    const uint32_t size = file.fileSize();
+    const uint32_t size = file.FileSize();
 
     if (size == 0)
     {
@@ -166,156 +166,157 @@ auto lPort::init(char* fileName) -> int32_t
         return -2;
     }
 
-    auto* data = static_cast<uint8_t*>(logAlloc(size));
+    auto* data = static_cast<uint8_t*>(LogAlloc(size));
 
     if (data == nullptr)
     {
         return 3;
     }
 
-    file.read(data, static_cast<int32_t>(size));
-    file.close();
+    file.Read(data, static_cast<int32_t>(size));
+    file.Close();
     // A TGA header: the 16-bit width and height at +0x0c/+0x0e; the 8-bit pixels follow the 18-byte header and a
     // 256-entry palette.
     int16_t tgaWidth = 0;
     int16_t tgaHeight = 0;
     std::memcpy(&tgaWidth, data + 0x0c, sizeof(tgaWidth));
     std::memcpy(&tgaHeight, data + 0x0e, sizeof(tgaHeight));
-    const int32_t result = init(tgaWidth, tgaHeight, -1);
+    const int32_t result = Init(tgaWidth, tgaHeight, -1);
 
     if (result != 0)
     {
         return result; // The original leaks the file data here.
     }
 
-    MCTexture* texture = portPane->window->Texture;
+    MCTexture* texture = PortPane->Window->Texture;
     std::memcpy(MCRenderer::LockTexture(texture), data + 0x312, static_cast<size_t>(tgaHeight * tgaWidth));
     MCRenderer::UnlockTexture(texture);
-    logFree(data);
+    LogFree(data);
     return 0;
 }
 
-auto lPort::initView(int32_t width, int32_t height) -> int32_t
+auto MCLogPort::InitView(int32_t width, int32_t height) -> int32_t
 {
-    if (isView() && width == portWidth && height == portHeight)
+    if (IsView() && width == PortWidth && height == PortHeight)
     {
         return 0;
     }
 
-    destroy();
-    auto* window = static_cast<_window*>(logAlloc(sizeof(_window)));
-    auto* pane = static_cast<_pane*>(logAlloc(sizeof(_pane)));
+    Destroy();
+    auto* window = static_cast<MCWindow*>(LogAlloc(sizeof(MCWindow)));
+    auto* pane = static_cast<MCPane*>(LogAlloc(sizeof(MCPane)));
 
     if (window == nullptr || pane == nullptr)
     {
         return 3;
     }
 
-    portWindow = window;
-    portPane = pane;
-    window->buffer = nullptr;
+    PortWindow = window;
+    PortPane = pane;
+    window->Buffer = nullptr;
     window->Texture = nullptr;
-    window->View = &view;
-    window->x_max = width - 1;
-    window->y_max = height - 1;
-    view = MCView{};
-    pane->window = window;
-    pane->x0 = 0;
-    pane->y0 = 0;
-    pane->x1 = width - 1;
-    pane->y1 = height - 1;
-    portWidth = width;
-    portHeight = height;
+    window->View = &View;
+    window->XMax = width - 1;
+    window->YMax = height - 1;
+    View = MCView{};
+    pane->Window = window;
+    pane->X0 = 0;
+    pane->Y0 = 0;
+    pane->X1 = width - 1;
+    pane->Y1 = height - 1;
+    PortWidth = width;
+    PortHeight = height;
     return 0;
 }
 
-auto lPort::resize(int32_t width, int32_t height) -> int32_t
+auto MCLogPort::Resize(int32_t width, int32_t height) -> int32_t
 {
     // Port: a view has no pixels to reallocate.
-    if (this != screenPort && !isView())
+    if (this != ScreenPort && !IsView())
     {
-        if (portWindow->buffer != nullptr)
+        if (PortWindow->Buffer != nullptr)
         {
-            logFree(portWindow->buffer);
+            LogFree(PortWindow->Buffer);
         }
 
-        portWindow->buffer = static_cast<uint8_t*>(logAlloc(static_cast<uint32_t>(width * height)));
+        PortWindow->Buffer = static_cast<uint8_t*>(LogAlloc(static_cast<uint32_t>(width * height)));
     }
 
-    portHeight = height;
-    portPane->window = portWindow;
-    portPane->x1 = width - 1;
-    portPane->y1 = height - 1;
-    portWindow->x_max = width - 1;
-    portWindow->y_max = height - 1;
-    portWidth = width;
-    MCRenderer::ResizeTexture(portWindow);
+    PortHeight = height;
+    PortPane->Window = PortWindow;
+    PortPane->X1 = width - 1;
+    PortPane->Y1 = height - 1;
+    PortWindow->XMax = width - 1;
+    PortWindow->YMax = height - 1;
+    PortWidth = width;
+    MCRenderer::ResizeTexture(PortWindow);
     return 0;
 }
 
-auto lPort::destroy() -> void
+auto MCLogPort::Destroy() -> void
 {
-    if (portWindow != nullptr)
+    if (PortWindow != nullptr)
     {
-        MCRenderer::DestroyTexture(portWindow);
+        MCRenderer::DestroyTexture(PortWindow);
 
-        if (portWindow->buffer != nullptr)
+        if (PortWindow->Buffer != nullptr)
         {
-            logFree(portWindow->buffer);
+            LogFree(PortWindow->Buffer);
         }
 
-        logFree(portWindow);
-        portWindow = nullptr;
+        LogFree(PortWindow);
+        PortWindow = nullptr;
     }
 
-    if (portPane != nullptr)
+    if (PortPane != nullptr)
     {
-        logFree(portPane);
-        portPane = nullptr;
+        LogFree(PortPane);
+        PortPane = nullptr;
     }
 }
 
 // lObject
 
-lObject::~lObject()
+MCLogObject::~MCLogObject()
 {
-    lObject::destroy();
+    MCLogObject::Destroy();
 }
 
-auto lObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name, lPort* port) -> int32_t
+auto MCLogObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name, MCLogPort* port)
+    -> int32_t
 {
     (void)name;
-    winX = xPos;
-    maxX = xPos;
-    normalX = xPos;
-    iconX = xPos;
-    homeX = xPos;
-    winWidth = width;
-    ownPort = nullptr;
-    sharedPort = nullptr;
-    winHeight = height;
-    winY = yPos;
-    maxWidth = width;
-    maxHeight = height;
-    maxY = yPos;
-    normalWidth = width;
-    normalHeight = height;
-    normalY = yPos;
-    iconWidth = width;
-    iconHeight = height;
-    iconY = yPos;
-    hideOffset = 0;
-    homeY = yPos;
-    winState = aSTATE_NORMAL;
-    showWindow = -1;
-    dragOn = 0;
-    transparent = 0;
-    backgroundColor = 0xff;
+    WinX = xPos;
+    MaxX = xPos;
+    NormalX = xPos;
+    IconX = xPos;
+    HomeX = xPos;
+    WinWidth = width;
+    _OwnPort = nullptr;
+    _SharedPort = nullptr;
+    WinHeight = height;
+    WinY = yPos;
+    MaxWidth = width;
+    MaxHeight = height;
+    MaxY = yPos;
+    NormalWidth = width;
+    NormalHeight = height;
+    NormalY = yPos;
+    IconWidth = width;
+    IconHeight = height;
+    IconY = yPos;
+    HideOffset = 0;
+    HomeY = yPos;
+    WinState = aSTATE_NORMAL;
+    ShowWindow = -1;
+    DragOn = 0;
+    Transparent = 0;
+    BackgroundColor = 0xff;
 
     if (port == nullptr)
     {
-        ownPort = new lPort;
-        const int32_t result = DrawsLive() ? ownPort->initView(width, height) : ownPort->init(width, height, -1);
+        _OwnPort = new MCLogPort;
+        const int32_t result = DrawsLive() ? _OwnPort->InitView(width, height) : _OwnPort->Init(width, height, -1);
 
         if (result != 0)
         {
@@ -324,183 +325,183 @@ auto lObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, ch
     }
     else
     {
-        sharedPort = port;
+        _SharedPort = port;
     }
 
-    if (framePane != nullptr)
+    if (FramePane != nullptr)
     {
         // Port fix: the original freed it with the CRT's delete although it came in a logistics block.
-        logFree(framePane);
-        framePane = nullptr;
+        LogFree(FramePane);
+        FramePane = nullptr;
     }
 
-    framePane = static_cast<_pane*>(logAlloc(sizeof(_pane)));
+    FramePane = static_cast<MCPane*>(LogAlloc(sizeof(MCPane)));
 
-    if (framePane == nullptr)
+    if (FramePane == nullptr)
     {
         return 3;
     }
 
-    framePane->window = screenPort->bitmap();
-    framePane->x0 = xPos;
-    framePane->y0 = yPos;
-    framePane->x1 = xPos + width;
-    hidden = 0;
-    framePane->y1 = yPos + height;
-    hideDirection = DIRECTION_DOWN;
-    paintRoutine = nullptr;
-    eventRoutine = nullptr;
-    numChildren = 0;
-    parent = nullptr;
-    winDepth = 0;
-    windowAnimation = nullptr;
-    animating = 0;
-    iconAnimation = nullptr;
-    aObject::backgroundPort = nullptr;
-    backgroundPort = nullptr;
-    objectType = -1;
+    FramePane->Window = ScreenPort->Bitmap();
+    FramePane->X0 = xPos;
+    FramePane->Y0 = yPos;
+    FramePane->X1 = xPos + width;
+    Hidden = 0;
+    FramePane->Y1 = yPos + height;
+    HideDirection = DIRECTION_DOWN;
+    PaintRoutine = nullptr;
+    EventRoutine = nullptr;
+    NumChildren = 0;
+    Parent = nullptr;
+    WinDepth = 0;
+    WindowAnimation = nullptr;
+    Animating = 0;
+    IconAnimation = nullptr;
+    MCGuiObject::BackgroundPort = nullptr;
+    _BackgroundPort = nullptr;
+    ObjectType = -1;
     return 0;
 }
 
-auto lObject::destroy() -> void
+auto MCLogObject::Destroy() -> void
 {
-    application->RemoveTimers(this);
+    Application->RemoveTimers(this);
 
-    if (ownPort != nullptr)
+    if (_OwnPort != nullptr)
     {
-        ownPort->destroy();
-        delete ownPort;
-        ownPort = nullptr;
+        _OwnPort->Destroy();
+        delete _OwnPort;
+        _OwnPort = nullptr;
     }
 
-    if (framePane != nullptr)
+    if (FramePane != nullptr)
     {
-        logFree(framePane);
-        framePane = nullptr;
+        LogFree(FramePane);
+        FramePane = nullptr;
     }
 
-    if (aObject::backgroundPort != nullptr)
+    if (MCGuiObject::BackgroundPort != nullptr)
     {
-        aObject::backgroundPort->destroy();
-        delete aObject::backgroundPort;
-        aObject::backgroundPort = nullptr;
+        MCGuiObject::BackgroundPort->Destroy();
+        delete MCGuiObject::BackgroundPort;
+        MCGuiObject::BackgroundPort = nullptr;
     }
 
-    if (backgroundPort != nullptr)
+    if (_BackgroundPort != nullptr)
     {
-        backgroundPort->destroy();
-        delete backgroundPort;
-        backgroundPort = nullptr;
+        _BackgroundPort->Destroy();
+        delete _BackgroundPort;
+        _BackgroundPort = nullptr;
     }
 
-    if (iconAnimation != nullptr)
+    if (IconAnimation != nullptr)
     {
-        iconAnimation->destroy();
-        delete iconAnimation;
-        iconAnimation = nullptr;
+        IconAnimation->Destroy();
+        delete IconAnimation;
+        IconAnimation = nullptr;
     }
 
-    if (windowAnimation != nullptr)
+    if (WindowAnimation != nullptr)
     {
-        windowAnimation->destroy();
-        delete windowAnimation;
-        windowAnimation = nullptr;
+        WindowAnimation->Destroy();
+        delete WindowAnimation;
+        WindowAnimation = nullptr;
     }
 
-    if (numChildren > 0)
+    if (NumChildren > 0)
     {
         // Original behaviour (OB-071): removes the first child, then deletes whichever child is first after that
         // (its destroy removes it). The first child is therefore only unlinked, and each later pass "removes" the
         // child just deleted (no longer listed, so nothing happens).
-        aObject* child = childList[0];
+        MCGuiObject* child = ChildList[0];
 
         do
         {
-            removeChild(child);
-            child = childList[0];
+            RemoveChild(child);
+            child = ChildList[0];
 
             if (child != nullptr)
             {
                 delete child;
             }
-        } while (numChildren > 0);
+        } while (NumChildren > 0);
     }
 
-    if (parent != nullptr)
+    if (Parent != nullptr)
     {
-        parent->removeChild(this);
+        Parent->RemoveChild(this);
     }
 
-    parent = nullptr;
-    animating = 0;
+    Parent = nullptr;
+    Animating = 0;
 
-    if (application->grabbedObject() == this)
+    if (Application->GrabbedObject() == this)
     {
-        application->release();
+        Application->Release();
     }
 
-    if (application->textObject() == this)
+    if (Application->TextObject() == this)
     {
-        application->releaseText();
+        Application->ReleaseText();
     }
 
-    if (application->modalObject() == this)
+    if (Application->ModalObject() == this)
     {
-        application->clearModal();
+        Application->ClearModal();
     }
 
-    if (application->currentObject() == this)
+    if (Application->CurrentObject() == this)
     {
         const MCPoint cursor = MCInput::GetCursorPos();
-        application->setCurrentObject(screenWindow->findObject(cursor.x, cursor.y));
+        Application->SetCurrentObject(ScreenWindow->FindObject(cursor.x, cursor.y));
     }
 }
 
-auto lObject::lport() -> lPort*
+auto MCLogObject::Lport() -> MCLogPort*
 {
-    return ownPort;
+    return _OwnPort;
 }
 
-auto lObject::draw() -> void
+auto MCLogObject::Draw() -> void
 {
-    const int32_t state = winState;
+    const int32_t state = WinState;
 
     if (state == aSTATE_ICONIZED)
     {
-        iconAnimation->draw(ownPort->frame(), 0, 0);
+        IconAnimation->Draw(_OwnPort->Frame(), 0, 0);
     }
     else
     {
-        if (backgroundPort != nullptr)
+        if (_BackgroundPort != nullptr)
         {
-            backgroundPort->copyTo(ownPort->frame(), 0, 0, -1);
+            _BackgroundPort->CopyTo(_OwnPort->Frame(), 0, 0, -1);
         }
 
-        if (windowAnimation != nullptr && animating != 0)
+        if (WindowAnimation != nullptr && Animating != 0)
         {
-            windowAnimation->draw(ownPort->frame(), 0, 0);
+            WindowAnimation->Draw(_OwnPort->Frame(), 0, 0);
         }
     }
 
     if (state != aSTATE_ICONIZED)
     {
-        paint();
+        Paint();
 
-        for (int32_t i = 0; i < numChildren; i++)
+        for (int32_t i = 0; i < NumChildren; i++)
         {
-            DrawChild(childList[i]);
+            DrawChild(ChildList[i]);
         }
     }
 }
 
-auto lObject::display() -> void
+auto MCLogObject::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
@@ -508,123 +509,123 @@ auto lObject::display() -> void
     // An object that draws itself does so after the slide has moved it.
     if (!DrawsLive())
     {
-        if (winState == aSTATE_ICONIZED)
+        if (WinState == aSTATE_ICONIZED)
         {
-            if (iconAnimation != nullptr)
+            if (IconAnimation != nullptr)
             {
-                draw();
+                Draw();
             }
         }
-        else if (windowAnimation != nullptr)
+        else if (WindowAnimation != nullptr)
         {
-            windowAnimation->draw(ownPort->frame(), 0, 0);
-            draw();
+            WindowAnimation->Draw(_OwnPort->Frame(), 0, 0);
+            Draw();
         }
     }
 
-    if (hideOffset != 0)
+    if (HideOffset != 0)
     {
         // A slide (HideMe) moves the whole offset each frame until the object is off the screen, or back home.
-        if (hideDirection == DIRECTION_LEFT || hideDirection == DIRECTION_RIGHT)
+        if (HideDirection == DIRECTION_LEFT || HideDirection == DIRECTION_RIGHT)
         {
-            moveTo(x() + hideOffset, y(), -1);
+            MoveTo(X() + HideOffset, Y(), -1);
         }
         else
         {
-            moveTo(x(), y() + hideOffset, -1);
+            MoveTo(X(), Y() + HideOffset, -1);
         }
 
-        if (hidden != 0)
+        if (Hidden != 0)
         {
-            if (rectIntersect(0, 0, application->width(), application->height()) == 0)
+            if (RectIntersect(0, 0, Application->Width(), Application->Height()) == 0)
             {
-                hideOffset = 0;
+                HideOffset = 0;
             }
         }
         else
         {
             bool home = false;
 
-            if (hideOffset < 0)
+            if (HideOffset < 0)
             {
-                home = homeX >= globalX() && homeY >= globalY();
+                home = HomeX >= GlobalX() && HomeY >= GlobalY();
             }
-            else if (hideOffset > 0)
+            else if (HideOffset > 0)
             {
-                home = homeX <= globalX() && homeY <= globalY();
+                home = HomeX <= GlobalX() && HomeY <= GlobalY();
             }
 
             if (home)
             {
-                const int32_t homeYOffset = homeY - parent->globalY();
-                moveTo(homeX - parent->globalX(), homeYOffset, -1);
-                hideOffset = 0;
+                const int32_t homeYOffset = HomeY - Parent->GlobalY();
+                MoveTo(HomeX - Parent->GlobalX(), homeYOffset, -1);
+                HideOffset = 0;
             }
         }
     }
 
-    if (DrawsLive() && ownPort != nullptr)
+    if (DrawsLive() && _OwnPort != nullptr)
     {
-        DrawInFramePass(ownPort);
+        DrawInFramePass(_OwnPort);
         return;
     }
 
-    if (ownPort != nullptr)
+    if (_OwnPort != nullptr)
     {
-        ownPort->copyTo(framePane, 0, 0, transparent);
+        _OwnPort->CopyTo(FramePane, 0, 0, Transparent);
     }
 
-    if (winState != aSTATE_ICONIZED)
+    if (WinState != aSTATE_ICONIZED)
     {
-        for (int32_t i = 0; i < numChildren; i++)
+        for (int32_t i = 0; i < NumChildren; i++)
         {
-            childList[i]->display();
+            ChildList[i]->Display();
         }
     }
 }
 
-auto lObject::resize(int32_t width, int32_t height) -> void
+auto MCLogObject::Resize(int32_t width, int32_t height) -> void
 {
-    if (width > 0 && height > 0 && (width != winWidth || height != winHeight))
+    if (width > 0 && height > 0 && (width != WinWidth || height != WinHeight))
     {
-        if (ownPort != nullptr)
+        if (_OwnPort != nullptr)
         {
-            ownPort->resize(width, height);
+            _OwnPort->Resize(width, height);
         }
 
-        winWidth = width;
-        winHeight = height;
-        framePane->x1 = framePane->x0 - 1 + width;
-        framePane->y1 = framePane->y0 - 1 + height;
+        WinWidth = width;
+        WinHeight = height;
+        FramePane->X1 = FramePane->X0 - 1 + width;
+        FramePane->Y1 = FramePane->Y0 - 1 + height;
     }
 }
 
-auto lObject::FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color) -> void
+auto MCLogObject::FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color) -> void
 {
     // The rectangle is in the port's bitmap coordinates (the pane's own origin is not added).
-    _pane box = *ownPort->frame();
-    box.x0 = left;
-    box.y0 = top;
-    box.x1 = right;
-    box.y1 = bottom;
-    VFX_pane_wipe(&box, color);
+    MCPane box = *_OwnPort->Frame();
+    box.X0 = left;
+    box.Y0 = top;
+    box.X1 = right;
+    box.Y1 = bottom;
+    VfxPaneWipe(&box, color);
 }
 
-auto lObject::setBackground(char* fileName) -> int32_t
+auto MCLogObject::SetBackground(char* fileName) -> int32_t
 {
-    if (backgroundPort != nullptr)
+    if (_BackgroundPort != nullptr)
     {
-        backgroundPort->destroy();
-        delete backgroundPort;
-        backgroundPort = nullptr;
+        _BackgroundPort->Destroy();
+        delete _BackgroundPort;
+        _BackgroundPort = nullptr;
     }
 
-    backgroundPort = new lPort;
+    _BackgroundPort = new MCLogPort;
 
-    if (backgroundPort == nullptr)
+    if (_BackgroundPort == nullptr)
     {
         Fatal(0, "Not enough memory to create background port");
     }
 
-    return backgroundPort->init(fileName);
+    return _BackgroundPort->Init(fileName);
 }

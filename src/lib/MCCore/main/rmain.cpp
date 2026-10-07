@@ -4,8 +4,8 @@
 #include "lib/aerror.h"
 #include "main/main.h"
 
-uint32_t ulDisableAutoRun = 0xff;
-uint32_t ulDataSize = 4;
+uint32_t UlDisableAutoRun = 0xff;
+uint32_t UlDataSize = 4;
 
 int WinMain(void* instance, void* prevInstance, char* commandLine, int showCommand)
 {

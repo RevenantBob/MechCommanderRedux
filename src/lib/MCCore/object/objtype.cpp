@@ -33,34 +33,34 @@
 #include "sprite/bactor.h"
 
 uint32_t NextIdNumber = 0x30000001;
-char objectPath[80] = "data\\objects\\";
-PacketFile* ObjectTypeManager::objectFile = nullptr;
-MCBlockStore ObjectTypeManager::objectTypeCache;
-MCBlockStore ObjectTypeManager::objectCache;
+char ObjectPath[80] = "data\\objects\\";
+MCPacketFile* MCObjectTypeManager::ObjectFile = nullptr;
+MCBlockStore MCObjectTypeManager::ObjectTypeCache;
+MCBlockStore MCObjectTypeManager::ObjectCache;
 
 //---------------------------------------------------------------------------
 // ObjectType
 //---------------------------------------------------------------------------
 
-auto ObjectType::createInstance() -> BaseObject*
+auto MCObjectType::CreateInstance() -> MCBaseObject*
 {
-    auto* object = new BaseObject;
-    object->init(this);
-    object->idNumber = NextIdNumber++;
+    auto* object = new MCBaseObject;
+    object->Init(this);
+    object->IdNumber = NextIdNumber++;
     return object;
 }
 
-auto ObjectType::init(FitIniFile* typeFile) -> int32_t
+auto MCObjectType::Init(MCFitIniFile* typeFile) -> int32_t
 {
-    int32_t result = typeFile->seekBlock("ObjectType");
+    int32_t result = typeFile->SeekBlock("ObjectType");
 
     if (result != 0)
     {
         return result;
     }
 
-    numUsers = 0;
-    result = typeFile->readIdLong("Type", typeClass);
+    NumUsers = 0;
+    result = typeFile->ReadIdLong("Type", TypeClass);
 
     if (result != 0)
     {
@@ -68,87 +68,87 @@ auto ObjectType::init(FitIniFile* typeFile) -> int32_t
     }
 
     int32_t appearance = 0;
-    result = typeFile->readIdLong("Appearance", appearance);
-    appearName = static_cast<uint32_t>(appearance);
+    result = typeFile->ReadIdLong("Appearance", appearance);
+    AppearName = static_cast<uint32_t>(appearance);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = typeFile->readIdLong("ExplosionObject", explosionObject);
+    result = typeFile->ReadIdLong("ExplosionObject", ExplosionObject);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = typeFile->readIdLong("DestroyedObject", destroyedObject);
+    result = typeFile->ReadIdLong("DestroyedObject", DestroyedObject);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = typeFile->readIdFloat("ExtentRadius", extentRadius);
+    result = typeFile->ReadIdFloat("ExtentRadius", ExtentRadius);
 
     if (result != 0)
     {
         return result;
     }
 
-    if (typeFile->readIdLong("KeepMe", keepMe) != 0)
+    if (typeFile->ReadIdLong("KeepMe", KeepMe) != 0)
     {
-        keepMe = 0;
+        KeepMe = 0;
     }
 
-    if (typeFile->readIdLong("IconNumber", iconNumber) != 0)
+    if (typeFile->ReadIdLong("IconNumber", IconNumber) != 0)
     {
-        iconNumber = -1;
+        IconNumber = -1;
     }
 
-    if (typeFile->readIdLong("Alignment", teamId) != 0)
+    if (typeFile->ReadIdLong("Alignment", TeamId) != 0)
     {
-        teamId = 0;
+        TeamId = 0;
     }
 
     return 0;
 }
 
-auto ObjectType::createExplosion(vector_3d& position, float damage, float radius) -> void
+auto MCObjectType::CreateExplosion(MCVector3D& position, float damage, float radius) -> void
 {
-    if (explosionObject == -1)
+    if (ExplosionObject == -1)
     {
         return;
     }
 
-    GameObject* explosion = createObject(explosionObject);
+    MCGameObject* explosion = CreateObject(ExplosionObject);
 
     if (explosion == nullptr)
     {
         return;
     }
 
-    explosion->setPosition(position);
+    explosion->SetPosition(position);
 
     if (radius != 0.0)
     {
-        explosion->setExplRad(radius);
-        explosion->setExplDmg(damage);
+        explosion->SetExplRad(radius);
+        explosion->SetExplDmg(damage);
     }
 
-    if (objectList->head != nullptr)
+    if (ObjectList->Head != nullptr)
     {
-        objectList->head->addNode(explosion);
+        ObjectList->Head->AddNode(explosion);
     }
 }
 
-auto ObjectType::handleDestruction(GameObject* collidee, GameObject*) -> int
+auto MCObjectType::HandleDestruction(MCGameObject* collidee, MCGameObject*) -> int
 {
-    if (explosionObject != -1)
+    if (ExplosionObject != -1)
     {
-        vector_3d position = collidee->getPosition();
-        createExplosion(position, 0.0f, 0.0f);
+        MCVector3D position = collidee->GetPosition();
+        CreateExplosion(position, 0.0f, 0.0f);
     }
 
     return 1;
@@ -158,19 +158,19 @@ auto ObjectType::handleDestruction(GameObject* collidee, GameObject*) -> int
 // ObjectTypeManager
 //---------------------------------------------------------------------------
 
-auto ObjectTypeManager::init(char* objectFileName, int32_t objectTypeCacheSize, int32_t objectCacheSize) -> int32_t
+auto MCObjectTypeManager::Init(char* objectFileName, int32_t objectTypeCacheSize, int32_t objectCacheSize) -> int32_t
 {
-    FullPathFileName fileName;
-    fileName.init(objectPath, objectFileName, ".pak");
+    MCFullPathFileName fileName;
+    fileName.Init(ObjectPath, objectFileName, ".pak");
 
-    objectFile = new PacketFile;
+    ObjectFile = new MCPacketFile;
 
-    if (objectFile == nullptr)
+    if (ObjectFile == nullptr)
     {
         return static_cast<int32_t>(0xbeef0008);
     }
 
-    int32_t result = objectFile->open(fileName, READ, 50);
+    int32_t result = ObjectFile->Open(fileName, READ, 50);
 
     if (result != 0)
     {
@@ -180,39 +180,39 @@ auto ObjectTypeManager::init(char* objectFileName, int32_t objectTypeCacheSize, 
     return 0;
 }
 
-auto ObjectTypeManager::destroy() -> void
+auto MCObjectTypeManager::Destroy() -> void
 {
-    if (objectFile != nullptr)
+    if (ObjectFile != nullptr)
     {
-        objectFile->close();
+        ObjectFile->Close();
     }
 
-    delete objectFile;
-    objectFile = nullptr;
+    delete ObjectFile;
+    ObjectFile = nullptr;
 
     // The original's heap went with the types still loaded (kept or still used) without running their destructors;
     // the port deletes them, then frees the blocks nothing freed.
-    while (head != nullptr)
+    while (_Head != nullptr)
     {
-        auto* node = static_cast<ObjectTypeNode*>(head);
-        delete node->objType;
-        Destroy(node);
+        auto* node = static_cast<MCObjectTypeNode*>(_Head);
+        delete node->ObjType;
+        MCLinkedList::Destroy(node);
     }
 
-    objectTypeCache.Clear();
-    objectCache.Clear();
+    ObjectTypeCache.Clear();
+    ObjectCache.Clear();
 }
 
-auto ObjectTypeManager::add(ObjectType* objType) -> void
+auto MCObjectTypeManager::Add(MCObjectType* objType) -> void
 {
-    auto* node = new ObjectTypeNode;
-    node->objType = objType;
+    auto* node = new MCObjectTypeNode;
+    node->ObjType = objType;
     AddToTail(node);
 }
 
-auto ObjectTypeManager::remove(int32_t index) -> void
+auto MCObjectTypeManager::Remove(int32_t index) -> void
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
     int more = Traverse(link);
     int32_t i = 0;
 
@@ -224,52 +224,52 @@ auto ObjectTypeManager::remove(int32_t index) -> void
 
     if (link != nullptr)
     {
-        remove(static_cast<ObjectTypeNode*>(link));
+        Remove(static_cast<MCObjectTypeNode*>(link));
     }
 }
 
-auto ObjectTypeManager::remove(ObjectType* objType) -> void
+auto MCObjectTypeManager::Remove(MCObjectType* objType) -> void
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
     int more = Traverse(link);
 
-    while (more != 0 && static_cast<ObjectTypeNode*>(link)->objType != objType)
+    while (more != 0 && static_cast<MCObjectTypeNode*>(link)->ObjType != objType)
     {
         more = Traverse(link);
     }
 
     if (link != nullptr)
     {
-        remove(static_cast<ObjectTypeNode*>(link));
+        Remove(static_cast<MCObjectTypeNode*>(link));
     }
 }
 
-auto ObjectTypeManager::remove(ObjectTypeNode* node) -> void
+auto MCObjectTypeManager::Remove(MCObjectTypeNode* node) -> void
 {
     if (node == nullptr)
     {
         return;
     }
 
-    ObjectType* objType = node->objType;
-    objType->numUsers--;
+    MCObjectType* objType = node->ObjType;
+    objType->NumUsers--;
 
-    if (objType->numUsers < 1 && objType->keepMe == 0)
+    if (objType->NumUsers < 1 && objType->KeepMe == 0)
     {
         delete objType;
-        Destroy(node);
+        MCLinkedList::Destroy(node);
     }
 }
 
-auto ObjectTypeManager::find(int32_t objTypeNum) -> ObjectType*
+auto MCObjectTypeManager::Find(int32_t objTypeNum) -> MCObjectType*
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
 
     for (int more = Traverse(link); more != 0; more = Traverse(link))
     {
-        ObjectType* objType = static_cast<ObjectTypeNode*>(link)->objType;
+        MCObjectType* objType = static_cast<MCObjectTypeNode*>(link)->ObjType;
 
-        if (objType->objTypeNum == objTypeNum)
+        if (objType->ObjTypeNum == objTypeNum)
         {
             return objType;
         }
@@ -278,16 +278,16 @@ auto ObjectTypeManager::find(int32_t objTypeNum) -> ObjectType*
     return nullptr;
 }
 
-auto ObjectTypeManager::element(int32_t index) -> ObjectType*
+auto MCObjectTypeManager::Element(int32_t index) -> MCObjectType*
 {
-    Link* link = nullptr;
+    MCLink* link = nullptr;
     int32_t i = 0;
 
     for (int more = Traverse(link); more != 0; more = Traverse(link))
     {
         if (i == index)
         {
-            return static_cast<ObjectTypeNode*>(link)->objType;
+            return static_cast<MCObjectTypeNode*>(link)->ObjType;
         }
 
         i++;
@@ -296,13 +296,13 @@ auto ObjectTypeManager::element(int32_t index) -> ObjectType*
     return nullptr;
 }
 
-auto ObjectTypeManager::get(int32_t objTypeNum) -> BaseObject*
+auto MCObjectTypeManager::Get(int32_t objTypeNum) -> MCBaseObject*
 {
-    ObjectType* objType = find(objTypeNum);
+    MCObjectType* objType = Find(objTypeNum);
 
     if (objType == nullptr)
     {
-        objType = load(objTypeNum, 0);
+        objType = Load(objTypeNum, 0);
     }
 
     if (objType == nullptr)
@@ -310,23 +310,23 @@ auto ObjectTypeManager::get(int32_t objTypeNum) -> BaseObject*
         return nullptr;
     }
 
-    BaseObject* object = objType->createInstance();
+    MCBaseObject* object = objType->CreateInstance();
 
     if (object == nullptr)
     {
         return nullptr;
     }
 
-    objType->numUsers++;
+    objType->NumUsers++;
     return object;
 }
 
-auto ObjectTypeManager::load(int32_t objTypeNum, int keepMe) -> ObjectType*
+auto MCObjectTypeManager::Load(int32_t objTypeNum, int keepMe) -> MCObjectType*
 {
-    dynamicFrameTiming = 0;
+    DynamicFrameTiming = 0;
 
     // Original behaviour: a type already loaded isn't returned; the caller gets null.
-    if (objTypeNum < 1 || find(objTypeNum) != nullptr || objectFile->seekPacket(objTypeNum) != 0)
+    if (objTypeNum < 1 || Find(objTypeNum) != nullptr || ObjectFile->SeekPacket(objTypeNum) != 0)
     {
         return nullptr;
     }
@@ -334,45 +334,45 @@ auto ObjectTypeManager::load(int32_t objTypeNum, int keepMe) -> ObjectType*
     // The packet's "ObjectClass" block names the class to make.
     int32_t objectClassNum = -1;
     {
-        FitIniFile classFile;
+        MCFitIniFile classFile;
 
-        if (classFile.open(objectFile, static_cast<uint32_t>(objectFile->getPacketSize()), 50) != 0)
+        if (classFile.Open(ObjectFile, static_cast<uint32_t>(ObjectFile->GetPacketSize()), 50) != 0)
         {
             Fatal(static_cast<int32_t>(0xbeef0006), nullptr);
         }
 
-        if (classFile.seekBlock("ObjectClass") != 0)
+        if (classFile.SeekBlock("ObjectClass") != 0)
         {
             Fatal(static_cast<int32_t>(0xbeef0006), nullptr);
         }
 
-        if (classFile.readIdLong("ObjectTypeNum", objectClassNum) != 0)
+        if (classFile.ReadIdLong("ObjectTypeNum", objectClassNum) != 0)
         {
             Fatal(static_cast<int32_t>(0xbeef0006), nullptr);
         }
 
-        classFile.close();
+        classFile.Close();
     }
 
-    objectFile->seekPacket(objTypeNum);
+    ObjectFile->SeekPacket(objTypeNum);
 
-    ObjectType* objType = nullptr;
+    MCObjectType* objType = nullptr;
 
     switch (objectClassNum)
     {
         case 0:
-            objType = new TreeType;
+            objType = new MCTreeType;
             break;
         case 1:
-            objType = new BuildingType;
+            objType = new MCBuildingType;
             break;
         case 2:
         {
-            auto* mechType = new BattleMechType;
+            auto* mechType = new MCBattleMechType;
 
             if (mechType != nullptr)
             {
-                mechType->init();
+                mechType->Init();
             }
 
             objType = mechType;
@@ -381,11 +381,11 @@ auto ObjectTypeManager::load(int32_t objTypeNum, int keepMe) -> ObjectType*
 
         case 3:
         {
-            auto* vehicleType = new GroundVehicleType;
+            auto* vehicleType = new MCGroundVehicleType;
 
             if (vehicleType != nullptr)
             {
-                vehicleType->init();
+                vehicleType->Init();
             }
 
             objType = vehicleType;
@@ -393,61 +393,61 @@ auto ObjectTypeManager::load(int32_t objTypeNum, int keepMe) -> ObjectType*
         }
 
         case 4:
-            objType = new ExplosionType;
+            objType = new MCExplosionType;
             break;
         case 5:
-            objType = new FireType;
+            objType = new MCFireType;
             break;
         case 6:
-            objType = new LaserType;
+            objType = new MCLaserType;
             break;
         case 7:
-            objType = new SmokeType;
+            objType = new MCSmokeType;
             break;
         case 8:
-            objType = new BulletType;
+            objType = new MCBulletType;
             break;
         case 9:
-            objType = new DebrisType;
+            objType = new MCDebrisType;
             break;
         case 0xb:
-            objType = new TerrainObjectType;
+            objType = new MCTerrainObjectType;
             break;
         case 0xc:
-            objType = new ArtilleryType;
+            objType = new MCArtilleryType;
             break;
         case 0xd:
             // Port fix: the original returns the type number as a pointer (and writes through it for a kept type).
             return nullptr;
         case 0xe:
-            objType = new ElementalType;
+            objType = new MCElementalType;
             break;
         case 0xf:
-            objType = new MiscTerrainObjectType;
+            objType = new MCMiscTerrainObjectType;
             break;
         case 0x10:
-            objType = new JetType;
+            objType = new MCJetType;
             break;
         case 0x11:
-            objType = new ProjectileLaserType;
+            objType = new MCProjectileLaserType;
             break;
         case 0x12:
-            objType = new TreeBuildingType;
+            objType = new MCTreeBuildingType;
             break;
         case 0x13:
-            objType = new CameraDroneType;
+            objType = new MCCameraDroneType;
             break;
         case 0x14:
-            objType = new TrainCarType;
+            objType = new MCTrainCarType;
             break;
         case 0x15:
-            objType = new TurretType;
+            objType = new MCTurretType;
             break;
         case 0x16:
-            objType = new GateType;
+            objType = new MCGateType;
             break;
         case 0x17:
-            objType = new LightType;
+            objType = new MCLightType;
             break;
         case -1:
             Fatal(static_cast<int32_t>(0xbeef0001), nullptr);
@@ -461,7 +461,7 @@ auto ObjectTypeManager::load(int32_t objTypeNum, int keepMe) -> ObjectType*
         return nullptr;
     }
 
-    if (objType->init(objectFile, static_cast<uint32_t>(objectFile->getPacketSize())) != 0)
+    if (objType->Init(ObjectFile, static_cast<uint32_t>(ObjectFile->GetPacketSize())) != 0)
     {
         Fatal(static_cast<int32_t>(0xbeef0006), nullptr);
     }
@@ -469,12 +469,12 @@ auto ObjectTypeManager::load(int32_t objTypeNum, int keepMe) -> ObjectType*
     if (keepMe != 0)
     {
         // A kept type preloads its appearance and explosion.
-        objType->keepMe = 1;
-        appearanceTypeList->getAppearance(objType->appearName, 0);
-        load(objType->explosionObject, 0);
+        objType->KeepMe = 1;
+        AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+        Load(objType->ExplosionObject, 0);
     }
 
-    objType->objTypeNum = objTypeNum;
-    add(objType);
+    objType->ObjTypeNum = objTypeNum;
+    Add(objType);
     return objType;
 }

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "lib/routines.h"
 
-void memclear(void* buffer, int length)
+void Memclear(void* buffer, int length)
 {
     if (length > 0)
     {
@@ -9,7 +9,7 @@ void memclear(void* buffer, int length)
     }
 }
 
-void memfill(void* buffer, int length)
+void Memfill(void* buffer, int length)
 {
     if (length > 0)
     {

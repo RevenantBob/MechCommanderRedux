@@ -2,90 +2,90 @@
 #include "linkup/session.h"
 #include "linkup/sessionmanager.h"
 
-FIDPSession::FIDPSession()
+MCFidpSession::MCFidpSession()
 {
-    name[0] = '\0';
-    password[0] = '\0';
-    std::memset(&sessionDesc, 0, sizeof(sessionDesc));
+    Name[0] = '\0';
+    Password[0] = '\0';
+    std::memset(&SessionDesc, 0, sizeof(SessionDesc));
     // Port: the size is the port's structure's (0x50, DirectPlay's 32-bit one, in the original).
-    sessionDesc.dwSize = sizeof(DPSESSIONDESC2);
-    sessionDesc.dwFlags = DPSESSION_KEEPALIVE | DPSESSION_MIGRATEHOST;
-    sessionDesc.guidApplication = thisAppGUID;
-    sessionDesc.dwMaxPlayers = 6;
+    SessionDesc.dwSize = sizeof(DPSESSIONDESC2);
+    SessionDesc.dwFlags = DPSESSION_KEEPALIVE | DPSESSION_MIGRATEHOST;
+    SessionDesc.guidApplication = ThisAppGuid;
+    SessionDesc.dwMaxPlayers = 6;
 }
 
-FIDPSession::FIDPSession(DPSESSIONDESC2 desc)
+MCFidpSession::MCFidpSession(DPSESSIONDESC2 desc)
 {
     Initialize(desc);
 }
 
-FIDPSession::FIDPSession(FIDPSession& session)
+MCFidpSession::MCFidpSession(MCFidpSession& session)
 {
-    Initialize(session.sessionDesc);
+    Initialize(session.SessionDesc);
 }
 
-FIDPSession::~FIDPSession() = default;
+MCFidpSession::~MCFidpSession() = default;
 
-void FIDPSession::Initialize(DPSESSIONDESC2 desc)
+void MCFidpSession::Initialize(DPSESSIONDESC2 desc)
 {
-    name[0] = '\0';
-    password[0] = '\0';
+    Name[0] = '\0';
+    Password[0] = '\0';
     // Port fix: the whole structure is cleared (the original cleared desc.dwSize bytes, DirectPlay's 0x50).
-    std::memset(&sessionDesc, 0, sizeof(sessionDesc));
-    sessionDesc.dwSize = desc.dwSize;
-    sessionDesc.dwFlags = desc.dwFlags;
-    sessionDesc.guidApplication = desc.guidApplication;
-    sessionDesc.dwMaxPlayers = desc.dwMaxPlayers;
-    sessionDesc.dwCurrentPlayers = desc.dwCurrentPlayers;
-    sessionDesc.guidInstance = desc.guidInstance;
-    sessionDesc.dwUser1 = desc.dwUser1;
-    sessionDesc.dwUser2 = desc.dwUser2;
+    std::memset(&SessionDesc, 0, sizeof(SessionDesc));
+    SessionDesc.dwSize = desc.dwSize;
+    SessionDesc.dwFlags = desc.dwFlags;
+    SessionDesc.guidApplication = desc.guidApplication;
+    SessionDesc.dwMaxPlayers = desc.dwMaxPlayers;
+    SessionDesc.dwCurrentPlayers = desc.dwCurrentPlayers;
+    SessionDesc.guidInstance = desc.guidInstance;
+    SessionDesc.dwUser1 = desc.dwUser1;
+    SessionDesc.dwUser2 = desc.dwUser2;
     SetName(desc.lpszSessionNameA);
     SetPassword(desc.lpszPasswordA);
 }
 
-void FIDPSession::SetName(char* sessionName)
+void MCFidpSession::SetName(char* sessionName)
 {
     if (sessionName == nullptr)
     {
-        std::strcpy(name, "No name");
-        sessionDesc.lpszSessionNameA = name;
+        std::strcpy(Name, "No name");
+        SessionDesc.lpszSessionNameA = Name;
     }
     else
     {
         // Port fix: always terminated (strncpy of 63 characters left the last byte as it was).
-        std::memset(name, 0, sizeof(name));
-        std::strncpy(name, sessionName, 0x3f);
-        sessionDesc.lpszSessionNameA = name;
+        std::memset(Name, 0, sizeof(Name));
+        std::strncpy(Name, sessionName, 0x3f);
+        SessionDesc.lpszSessionNameA = Name;
     }
 }
 
-void FIDPSession::SetPassword(char* sessionPassword)
+void MCFidpSession::SetPassword(char* sessionPassword)
 {
     if (sessionPassword == nullptr)
     {
-        sessionDesc.lpszPasswordA = nullptr;
-        sessionDesc.dwFlags &= ~DPSESSION_PASSWORDREQUIRED;
+        SessionDesc.lpszPasswordA = nullptr;
+        SessionDesc.dwFlags &= ~DPSESSION_PASSWORDREQUIRED;
     }
     else
     {
-        std::memset(password, 0, sizeof(password));
-        std::strncpy(password, sessionPassword, 0x3f);
-        sessionDesc.lpszPasswordA = password;
-        sessionDesc.dwFlags |= DPSESSION_PASSWORDREQUIRED;
+        std::memset(Password, 0, sizeof(Password));
+        std::strncpy(Password, sessionPassword, 0x3f);
+        SessionDesc.lpszPasswordA = Password;
+        SessionDesc.dwFlags |= DPSESSION_PASSWORDREQUIRED;
     }
 
-    sessionDesc.lpszPasswordA = password;
+    SessionDesc.lpszPasswordA = Password;
 }
 
-void FIDPSession::ClearList(FLinkedList<FIDPSession>& list)
+void MCFidpSession::ClearList(MCFLinkedList<MCFidpSession>& list)
 {
-    const int numSessions = list.count;
-    list.current = list.head;
+    const int numSessions = list.Count;
+    list.Current = list.HeadLink;
 
     for (int i = 0; i < numSessions; i++)
     {
-        FIDPSession* session = list.current->data;
+        MCFidpSession* session = list.Current->Data;
         list.Del(session);
         delete session;
     }

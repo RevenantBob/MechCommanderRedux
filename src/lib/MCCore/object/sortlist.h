@@ -1,47 +1,41 @@
 #pragma once
 
-/// <summary>One entry of a <see cref="SortList"/>: a value to sort by and the id it belongs to.</summary>
+/// <summary>One entry of a <see cref="MCSortList"/>: a value to sort by and the id it belongs to.</summary>
 /// <remarks>8 bytes.</remarks>
-struct SortListNode
+struct MCSortListNode
 {
     /// <summary>The value sorted on.</summary>
-    float value = 0; // +0x00
+    float Value = 0;
     /// <summary>The caller's id (clear numbers the entries 0..n-1).</summary>
-    int32_t id = 0; // +0x04
+    int32_t Id = 0;
 };
 
 /// <summary>
 /// A fixed-size list of (value, id) pairs sorted with qsort: movers rank weapons, contacts and ranges with it.
 /// </summary>
 /// <remarks>Original source: <c>object\sortlist.cpp</c>; 8 bytes.</remarks>
-class SortList
+class MCSortList
 {
 public:
     /// <summary>Allocates <paramref name="numItems"/> entries. Returns 0.</summary>
-    /// <remarks>MCX.EXE @ 0x006b4d90</remarks>
-    int32_t init(int32_t numItems);
+    int32_t Init(int32_t numItems);
     /// <summary>
     /// Numbers the entries 0..n-1 and sets every value to +FLT_MAX-ish (3.4e38), or its negative when
     /// <paramref name="setToMin"/>, so unused entries sort last.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006b4dd0</remarks>
-    void clear(int setToMin);
+    void Clear(int setToMin);
     /// <summary>Sorts by value, descending when <paramref name="descending"/>, else ascending.</summary>
-    /// <remarks>MCX.EXE @ 0x006b4ea0</remarks>
-    void sort(int descending);
+    void Sort(int descending);
     /// <summary>Frees the entries.</summary>
-    /// <remarks>MCX.EXE @ 0x006b4ee0</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>The entries.</summary>
-    std::unique_ptr<SortListNode[]> list; // +0x00
+    std::unique_ptr<MCSortListNode[]> List;
     /// <summary>How many.</summary>
-    int32_t numItems = 0; // +0x04
+    int32_t NumItems = 0;
 };
 
 /// <summary>qsort comparer: larger values first.</summary>
-/// <remarks>MCX.EXE @ 0x006b4e20</remarks>
-int descendingCompare(const void* elem1, const void* elem2);
+int DescendingCompare(const void* elem1, const void* elem2);
 /// <summary>qsort comparer: smaller values first.</summary>
-/// <remarks>MCX.EXE @ 0x006b4e60</remarks>
-int ascendingCompare(const void* elem1, const void* elem2);
+int AscendingCompare(const void* elem1, const void* elem2);

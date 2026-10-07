@@ -7,24 +7,24 @@
 namespace
 {
     /// <summary>The driver name buffer VFX_driver_name returns (0x007a8100 in MCX.EXE).</summary>
-    char driverName[16] = "SDL";
+    char DriverName[16] = "SDL";
 }
 
-char* VFX_driver_name(void* driver)
+char* VfxDriverName(void* driver)
 {
     // The asm called the driver's first entry to get its name and copied it here; the port has one "driver".
     (void)driver;
-    return driverName;
+    return DriverName;
 }
 
-void VFX_register_driver(void* describe)
+void VfxRegisterDriver(void* describe)
 {
     // The asm copied the driver's 13-dword description table into VFX_describe_driver (0x007a80cc); the port has no
     // VFX drivers.
     (void)describe;
 }
 
-int32_t VFX_pixel_write(PANE* pane, int32_t x, int32_t y, uint8_t color)
+int32_t VfxPixelWrite(MCPane* pane, int32_t x, int32_t y, uint8_t color)
 {
     MCVfxClip clip;
     const int32_t status = MCVfxClipPane(pane, clip);
@@ -44,11 +44,11 @@ int32_t VFX_pixel_write(PANE* pane, int32_t x, int32_t y, uint8_t color)
 
     // The pixel it replaces is returned (no caller uses it; a view has no pixels to read).
     const int32_t previous = clip.Buffer != nullptr ? *clip.At(x, y) : 0;
-    MCRenderer::For(pane->window).Pixel(pane->window, x, y, color);
+    MCRenderer::For(pane->Window).Pixel(pane->Window, x, y, color);
     return previous;
 }
 
-int32_t VFX_pixel_read(PANE* pane, int32_t x, int32_t y)
+int32_t VfxPixelRead(MCPane* pane, int32_t x, int32_t y)
 {
     MCVfxClip clip;
     const int32_t status = MCVfxClipPane(pane, clip);
@@ -128,7 +128,7 @@ namespace
     /// Draws the resolved line in LD_DRAW or LD_TRANSLATE mode: <paramref name="count"/> pixels from (x, y), moving
     /// by the major step each pixel and also by the minor step when the fraction carries.
     /// </summary>
-    void DrawLine(WINDOW* window, int32_t x, int32_t y, int32_t count, int32_t majorX, int32_t majorY, int32_t minorX,
+    void DrawLine(MCWindow* window, int32_t x, int32_t y, int32_t count, int32_t majorX, int32_t majorY, int32_t minorX,
                   int32_t minorY, uint32_t slope, uint32_t fraction, int32_t mode, intptr_t parm)
     {
         MCLineCommand command;
@@ -147,7 +147,7 @@ namespace
     }
 }
 
-int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t mode, intptr_t parm)
+int32_t VfxLineDraw(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t mode, intptr_t parm)
 {
     MCVfxClip clip;
     const int32_t status = MCVfxClipPane(pane, clip);
@@ -162,8 +162,8 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
     x1 += clip.PaneX;
     y0 += clip.PaneY;
     y1 += clip.PaneY;
-    const int32_t P = x0;
-    const int32_t Q = y0;
+    const int32_t p = x0;
+    const int32_t q = y0;
 
     const int32_t dx = x1 - x0;
     const int32_t signX = dx < 0 ? -1 : 0;
@@ -224,42 +224,42 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
                 if (codeStart & 8)
                 {
                     startX = clip.X0;
-                    startY = Q + Negate(MinorFromMajor(static_cast<uint32_t>(clip.X0 - P), slope), sameSign);
+                    startY = q + Negate(MinorFromMajor(static_cast<uint32_t>(clip.X0 - p), slope), sameSign);
                 }
                 else if (codeStart & 4)
                 {
                     startX = clip.X1;
-                    startY = Q + Negate(MinorFromMajor(static_cast<uint32_t>(P - clip.X1), slope), notSame);
+                    startY = q + Negate(MinorFromMajor(static_cast<uint32_t>(p - clip.X1), slope), notSame);
                 }
                 else if (codeStart & 2)
                 {
                     startY = clip.Y0;
-                    startX = P + Negate(MajorFromMinorStart(static_cast<uint32_t>(clip.Y0 - Q), slope), sameSign);
+                    startX = p + Negate(MajorFromMinorStart(static_cast<uint32_t>(clip.Y0 - q), slope), sameSign);
                 }
                 else if (codeStart & 1)
                 {
                     startY = clip.Y1;
-                    startX = P + Negate(MajorFromMinorStart(static_cast<uint32_t>(Q - clip.Y1), slope), notSame);
+                    startX = p + Negate(MajorFromMinorStart(static_cast<uint32_t>(q - clip.Y1), slope), notSame);
                 }
                 else if (codeEnd & 8)
                 {
                     endX = clip.X0;
-                    endY = Q + Negate(MinorFromMajor(static_cast<uint32_t>(P - clip.X0), slope), notSame);
+                    endY = q + Negate(MinorFromMajor(static_cast<uint32_t>(p - clip.X0), slope), notSame);
                 }
                 else if (codeEnd & 4)
                 {
                     endX = clip.X1;
-                    endY = Q + Negate(MinorFromMajor(static_cast<uint32_t>(clip.X1 - P), slope), sameSign);
+                    endY = q + Negate(MinorFromMajor(static_cast<uint32_t>(clip.X1 - p), slope), sameSign);
                 }
                 else if (codeEnd & 2)
                 {
                     endY = clip.Y0;
-                    endX = P + Negate(MajorFromMinorEnd(static_cast<uint32_t>(Q - clip.Y0), slope), notSame);
+                    endX = p + Negate(MajorFromMinorEnd(static_cast<uint32_t>(q - clip.Y0), slope), notSame);
                 }
                 else
                 {
                     endY = clip.Y1;
-                    endX = P + Negate(MajorFromMinorEnd(static_cast<uint32_t>(clip.Y1 - Q), slope), sameSign);
+                    endX = p + Negate(MajorFromMinorEnd(static_cast<uint32_t>(clip.Y1 - q), slope), sameSign);
                 }
             }
             else
@@ -267,42 +267,42 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
                 if (codeStart & 8)
                 {
                     startX = clip.X0;
-                    startY = Q + Negate(MajorFromMinorStart(static_cast<uint32_t>(clip.X0 - P), slope), sameSign);
+                    startY = q + Negate(MajorFromMinorStart(static_cast<uint32_t>(clip.X0 - p), slope), sameSign);
                 }
                 else if (codeStart & 4)
                 {
                     startX = clip.X1;
-                    startY = Q + Negate(MajorFromMinorStart(static_cast<uint32_t>(P - clip.X1), slope), notSame);
+                    startY = q + Negate(MajorFromMinorStart(static_cast<uint32_t>(p - clip.X1), slope), notSame);
                 }
                 else if (codeStart & 2)
                 {
                     startY = clip.Y0;
-                    startX = P + Negate(MinorFromMajor(static_cast<uint32_t>(clip.Y0 - Q), slope), sameSign);
+                    startX = p + Negate(MinorFromMajor(static_cast<uint32_t>(clip.Y0 - q), slope), sameSign);
                 }
                 else if (codeStart & 1)
                 {
                     startY = clip.Y1;
-                    startX = P + Negate(MinorFromMajor(static_cast<uint32_t>(Q - clip.Y1), slope), notSame);
+                    startX = p + Negate(MinorFromMajor(static_cast<uint32_t>(q - clip.Y1), slope), notSame);
                 }
                 else if (codeEnd & 8)
                 {
                     endX = clip.X0;
-                    endY = Q + Negate(MajorFromMinorEnd(static_cast<uint32_t>(P - clip.X0), slope), notSame);
+                    endY = q + Negate(MajorFromMinorEnd(static_cast<uint32_t>(p - clip.X0), slope), notSame);
                 }
                 else if (codeEnd & 4)
                 {
                     endX = clip.X1;
-                    endY = Q + Negate(MajorFromMinorEnd(static_cast<uint32_t>(clip.X1 - P), slope), sameSign);
+                    endY = q + Negate(MajorFromMinorEnd(static_cast<uint32_t>(clip.X1 - p), slope), sameSign);
                 }
                 else if (codeEnd & 2)
                 {
                     endY = clip.Y0;
-                    endX = P + Negate(MinorFromMajor(static_cast<uint32_t>(Q - clip.Y0), slope), notSame);
+                    endX = p + Negate(MinorFromMajor(static_cast<uint32_t>(q - clip.Y0), slope), notSame);
                 }
                 else
                 {
                     endY = clip.Y1;
-                    endX = P + Negate(MinorFromMajor(static_cast<uint32_t>(clip.Y1 - Q), slope), sameSign);
+                    endX = p + Negate(MinorFromMajor(static_cast<uint32_t>(clip.Y1 - q), slope), sameSign);
                 }
             }
         }
@@ -318,13 +318,13 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
             {
                 // y-major: one row per pixel, the column advancing when the fraction carries.
                 count = std::abs(endY - startY) + 1;
-                uint32_t fraction = static_cast<uint32_t>(std::abs(startY - Q)) * slope + 0x80000000u;
+                uint32_t fraction = static_cast<uint32_t>(std::abs(startY - q)) * slope + 0x80000000u;
 
                 if (mode == LD_EXECUTE)
                 {
-                    const auto callback = reinterpret_cast<VFX_LINE_CALLBACK>(parm);
-                    int32_t x = startX - pane->x0;
-                    int32_t y = startY - pane->y0;
+                    const auto callback = reinterpret_cast<MCVfxLineCallback>(parm);
+                    int32_t x = startX - pane->X0;
+                    int32_t y = startY - pane->Y0;
                     const int32_t yStep = signY * 2 + 1;
                     const int32_t xStep = signX != 0 ? -1 : 1;
 
@@ -345,20 +345,20 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
                     return result;
                 }
 
-                DrawLine(pane->window, startX, startY, count, 0, rowStep, signX != 0 ? -1 : 1, 0, slope, fraction, mode,
+                DrawLine(pane->Window, startX, startY, count, 0, rowStep, signX != 0 ? -1 : 1, 0, slope, fraction, mode,
                          parm);
                 return result;
             }
 
             // x-major: one column per pixel, the row advancing when the fraction carries.
             count = std::abs(endX - startX) + 1;
-            uint32_t fraction = static_cast<uint32_t>(std::abs(startX - P)) * slope + 0x80000000u;
+            uint32_t fraction = static_cast<uint32_t>(std::abs(startX - p)) * slope + 0x80000000u;
 
             if (mode == LD_EXECUTE)
             {
-                const auto callback = reinterpret_cast<VFX_LINE_CALLBACK>(parm);
-                int32_t x = startX - pane->x0;
-                int32_t y = startY - pane->y0;
+                const auto callback = reinterpret_cast<MCVfxLineCallback>(parm);
+                int32_t x = startX - pane->X0;
+                int32_t y = startY - pane->Y0;
                 // OB-125: the asm stepped x by the sign of dy and y by the sign of dx here (the y-major case's
                 // registers), so LD_EXECUTE walked x-major lines wrongly unless both ran right and down.
                 const int32_t xStep = signX != 0 ? -1 : 1;
@@ -381,7 +381,7 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
                 return result;
             }
 
-            DrawLine(pane->window, startX, startY, count, signX != 0 ? -1 : 1, 0, 0, rowStep, slope, fraction, mode,
+            DrawLine(pane->Window, startX, startY, count, signX != 0 ? -1 : 1, 0, 0, rowStep, slope, fraction, mode,
                      parm);
             return result;
         }
@@ -391,9 +391,9 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
 
         if (mode == LD_EXECUTE)
         {
-            const auto callback = reinterpret_cast<VFX_LINE_CALLBACK>(parm);
-            int32_t x = startX - pane->x0;
-            int32_t y = startY - pane->y0;
+            const auto callback = reinterpret_cast<MCVfxLineCallback>(parm);
+            int32_t x = startX - pane->X0;
+            int32_t y = startY - pane->Y0;
             const int32_t yStep = 1 | signY;
             const int32_t xStep = 1 | signX;
 
@@ -405,7 +405,7 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
             return result;
         }
 
-        DrawLine(pane->window, startX, startY, count, signX != 0 ? -1 : 1, rowStep, 0, 0, 0, 0, mode, parm);
+        DrawLine(pane->Window, startX, startY, count, signX != 0 ? -1 : 1, rowStep, 0, 0, 0, 0, mode, parm);
         return result;
     }
 
@@ -460,9 +460,9 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
 
     if (mode == LD_EXECUTE)
     {
-        const auto callback = reinterpret_cast<VFX_LINE_CALLBACK>(parm);
-        int32_t x = startX - pane->x0;
-        int32_t y = startY - pane->y0;
+        const auto callback = reinterpret_cast<MCVfxLineCallback>(parm);
+        int32_t x = startX - pane->X0;
+        int32_t y = startY - pane->Y0;
         const int32_t yStep = (dy != 0 ? 1 : 0) | signY;
         const int32_t xStep = (dx != 0 ? 1 : 0) | signX;
 
@@ -474,11 +474,11 @@ int32_t VFX_line_draw(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
         return 0;
     }
 
-    DrawLine(pane->window, startX, startY, count, stepX, stepY, 0, 0, 0, 0, mode, parm);
+    DrawLine(pane->Window, startX, startY, count, stepX, stepY, 0, 0, 0, 0, mode, parm);
     return 0;
 }
 
-int32_t VFX_rectangle_hash(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color)
+int32_t VfxRectangleHash(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color)
 {
     MCVfxClip clip;
     const int32_t status = MCVfxClipPane(pane, clip);
@@ -501,11 +501,11 @@ int32_t VFX_rectangle_hash(PANE* pane, int32_t x0, int32_t y0, int32_t x1, int32
 
     // The pattern's phase follows the number of rows below the current one: rows an even distance above y1 start
     // at x0, the others one pixel in.
-    MCRenderer::For(pane->window).Hash(pane->window, MCRect{x0, y0, x1, y1}, color);
+    MCRenderer::For(pane->Window).Hash(pane->Window, MCRect{x0, y0, x1, y1}, color);
     return 0;
 }
 
-int32_t VFX_pane_wipe(PANE* pane, int32_t color)
+int32_t VfxPaneWipe(MCPane* pane, int32_t color)
 {
     MCVfxClip clip;
     const int32_t status = MCVfxClipPane(pane, clip);
@@ -515,12 +515,12 @@ int32_t VFX_pane_wipe(PANE* pane, int32_t color)
         return status;
     }
 
-    MCRenderer::For(pane->window)
-        .Clear(pane->window, MCRect{clip.X0, clip.Y0, clip.X1, clip.Y1}, static_cast<uint8_t>(color));
+    MCRenderer::For(pane->Window)
+        .Clear(pane->Window, MCRect{clip.X0, clip.Y0, clip.X1, clip.Y1}, static_cast<uint8_t>(color));
     return 0;
 }
 
-int32_t VFX_pane_copy(PANE* source, int32_t sx, int32_t sy, PANE* target, int32_t tx, int32_t ty, int32_t fill)
+int32_t VfxPaneCopy(MCPane* source, int32_t sx, int32_t sy, MCPane* target, int32_t tx, int32_t ty, int32_t fill)
 {
     MCVfxClip from;
     int32_t status = MCVfxClipPane(source, from);
@@ -568,12 +568,12 @@ int32_t VFX_pane_copy(PANE* source, int32_t sx, int32_t sy, PANE* target, int32_
     // The two areas in window coordinates.
     const MCRect sourceRect{left + from.PaneX, top + from.PaneY, right + from.PaneX, bottom + from.PaneY};
     const MCRect targetRect{toLeft + to.PaneX, toTop + to.PaneY, toRight + to.PaneX, toBottom + to.PaneY};
-    MCRenderer& renderer = MCRenderer::For(target->window);
+    MCRenderer& renderer = MCRenderer::For(target->Window);
 
     if (fill >= 0 && (fill & 0xffffff00) == 0)
     {
         // A colour: the target area is filled with it instead of copied.
-        renderer.Clear(target->window, targetRect, static_cast<uint8_t>(fill));
+        renderer.Clear(target->Window, targetRect, static_cast<uint8_t>(fill));
         return 0;
     }
 
@@ -581,7 +581,7 @@ int32_t VFX_pane_copy(PANE* source, int32_t sx, int32_t sy, PANE* target, int32_
     // (fill & 0xff) alone. Rows are copied downwards when the source row is below the target row (in pane
     // coordinates), else upwards; columns likewise, so an overlapping copy within a window survives.
     MCCopyCommand command;
-    command.Source = source->window;
+    command.Source = source->Window;
     command.SourceRect = sourceRect;
     command.X = targetRect.X0;
     command.Y = targetRect.Y0;
@@ -589,30 +589,30 @@ int32_t VFX_pane_copy(PANE* source, int32_t sx, int32_t sy, PANE* target, int32_
     command.Key = static_cast<uint8_t>(fill);
     command.Downwards = top > toTop;
     command.Rightwards = left > toLeft;
-    renderer.Copy(target->window, command);
+    renderer.Copy(target->Window, command);
     return 0;
 }
 
-int32_t VFX_pane_scroll(PANE* pane, int32_t dx, int32_t dy, int32_t mode, int32_t parm)
+int32_t VfxPaneScroll(MCPane* pane, int32_t dx, int32_t dy, int32_t mode, int32_t parm)
 {
-    const int32_t width = pane->x1 + 1 - pane->x0;
-    const int32_t height = pane->y1 + 1 - pane->y0;
+    const int32_t width = pane->X1 + 1 - pane->X0;
+    const int32_t height = pane->Y1 + 1 - pane->Y0;
 
     if (width <= 0 || height <= 0)
     {
         return VFX_ERR_EMPTY_PANE;
     }
 
-    PANE* source = pane;
+    MCPane* source = pane;
     int32_t fill = parm;
-    WINDOW wrapWindow;
-    PANE wrapPane;
+    MCWindow wrapWindow;
+    MCPane wrapPane;
 
     if (mode != 1)
     {
         if (std::abs(dx) >= width || std::abs(dy) >= height)
         {
-            return VFX_pane_wipe(pane, parm & 0xff);
+            return VfxPaneWipe(pane, parm & 0xff);
         }
     }
     else
@@ -625,9 +625,9 @@ int32_t VFX_pane_scroll(PANE* pane, int32_t dx, int32_t dy, int32_t mode, int32_
         }
 
         std::vector<uint8_t> scratch(static_cast<size_t>(width) * height);
-        wrapWindow = WINDOW{scratch.data(), width - 1, height - 1};
-        wrapPane = PANE{&wrapWindow, 0, 0, width - 1, height - 1};
-        VFX_pane_copy(pane, 0, 0, &wrapPane, 0, 0, NO_COLOR);
+        wrapWindow = MCWindow{scratch.data(), width - 1, height - 1};
+        wrapPane = MCPane{&wrapWindow, 0, 0, width - 1, height - 1};
+        VfxPaneCopy(pane, 0, 0, &wrapPane, 0, 0, NO_COLOR);
         dx %= width;
         dy %= height;
         fill = NO_COLOR;
@@ -635,13 +635,13 @@ int32_t VFX_pane_scroll(PANE* pane, int32_t dx, int32_t dy, int32_t mode, int32_
 
         if ((dx | dy) != 0)
         {
-            VFX_pane_copy(source, 0, 0, pane, dx, dy, NO_COLOR);
+            VfxPaneCopy(source, 0, 0, pane, dx, dy, NO_COLOR);
             const int32_t offsets[8][2] = {{width, height}, {width, 0},       {width, -height}, {0, height},
                                            {0, -height},    {-width, height}, {-width, 0},      {-width, -height}};
 
             for (const auto& offset : offsets)
             {
-                VFX_pane_copy(source, offset[0], offset[1], pane, dx, dy, fill);
+                VfxPaneCopy(source, offset[0], offset[1], pane, dx, dy, fill);
             }
         }
 
@@ -653,7 +653,7 @@ int32_t VFX_pane_scroll(PANE* pane, int32_t dx, int32_t dy, int32_t mode, int32_
         return 0;
     }
 
-    VFX_pane_copy(source, 0, 0, pane, dx, dy, NO_COLOR);
+    VfxPaneCopy(source, 0, 0, pane, dx, dy, NO_COLOR);
     // The eight neighbours of the moved image: with a colour they fill the uncovered strips (VFX_pane_copy fills
     // with a colour of 0..255); with NO_COLOR they copy the pane's already-moved pixels (original behaviour).
     const int32_t offsets[8][2] = {{width, height}, {width, 0},       {width, -height}, {0, height},
@@ -661,7 +661,7 @@ int32_t VFX_pane_scroll(PANE* pane, int32_t dx, int32_t dy, int32_t mode, int32_
 
     for (const auto& offset : offsets)
     {
-        VFX_pane_copy(source, offset[0], offset[1], pane, dx, dy, fill);
+        VfxPaneCopy(source, offset[0], offset[1], pane, dx, dy, fill);
     }
 
     return 0;
@@ -670,11 +670,11 @@ int32_t VFX_pane_scroll(PANE* pane, int32_t dx, int32_t dy, int32_t mode, int32_
 namespace
 {
     /// <summary>VFX_ellipse_draw and VFX_ellipse_fill: the midpoint ellipse, outlined or filled, clipped to the pane.</summary>
-    int32_t DrawEllipse(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color, bool fill)
+    int32_t DrawEllipse(MCPane* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color, bool fill)
     {
         if (width == 0 || height == 0)
         {
-            return VFX_line_draw(pane, xc - width, yc - height, xc + width, yc + height, LD_DRAW, color);
+            return VfxLineDraw(pane, xc - width, yc - height, xc + width, yc + height, LD_DRAW, color);
         }
 
         MCVfxClip clip;
@@ -694,18 +694,18 @@ namespace
         command.Fill = fill;
         command.Color = static_cast<uint8_t>(color);
         command.Alpha = false;
-        MCRenderer::For(pane->window).Ellipse(pane->window, command);
+        MCRenderer::For(pane->Window).Ellipse(pane->Window, command);
         // Original behaviour: the outline's asm returned whatever EAX held (a leftover of the stepping); 0 here.
         return 0;
     }
 }
 
-int32_t VFX_ellipse_draw(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color)
+int32_t VfxEllipseDraw(MCPane* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color)
 {
     return DrawEllipse(pane, xc, yc, width, height, color, false);
 }
 
-int32_t VFX_ellipse_fill(PANE* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color)
+int32_t VfxEllipseFill(MCPane* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color)
 {
     return DrawEllipse(pane, xc, yc, width, height, color, true);
 }

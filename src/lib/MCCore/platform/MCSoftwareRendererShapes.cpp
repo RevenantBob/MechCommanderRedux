@@ -189,10 +189,10 @@ namespace
         }
     }
 
-    template <MCShapeOp Op> void DrawRows(_window* target, const MCShapeCommand& command, const uint8_t* data)
+    template <MCShapeOp Op> void DrawRows(MCWindow* target, const MCShapeCommand& command, const uint8_t* data)
     {
-        const intptr_t stride = target->x_max + 1;
-        uint8_t* row = target->buffer + command.Top * stride;
+        const intptr_t stride = target->XMax + 1;
+        uint8_t* row = target->Buffer + command.Top * stride;
         MCSeeThrough seeThrough(target);
 
         for (int32_t rows = command.Rows; rows > 0; --rows, row += stride)
@@ -470,7 +470,7 @@ namespace
     }
 }
 
-void MCSoftwareRenderer::Shape(_window* target, const MCShapeCommand& command)
+void MCSoftwareRenderer::Shape(MCWindow* target, const MCShapeCommand& command)
 {
     const uint8_t* data = MCVfxShape(const_cast<void*>(command.ShapeTable), command.ShapeNum) + 0x18;
 
@@ -502,13 +502,13 @@ void MCSoftwareRenderer::Shape(_window* target, const MCShapeCommand& command)
     }
 }
 
-void MCSoftwareRenderer::FastShape(_window* target, const MCFastShapeCommand& command)
+void MCSoftwareRenderer::FastShape(MCWindow* target, const MCFastShapeCommand& command)
 {
-    const intptr_t stride = target->x_max + 1;
+    const intptr_t stride = target->XMax + 1;
     const uint8_t* shape = command.Shape;
     const FastMode mode = command.Alpha ? (command.Table != nullptr ? FastMode::AlphaTranslate : FastMode::Alpha)
                                         : (command.Table != nullptr ? FastMode::Translate : FastMode::Plain);
-    uint8_t* row = target->buffer + command.Top * stride;
+    uint8_t* row = target->Buffer + command.Top * stride;
 
     // OB-117: the asm advanced the row-offset pointer only after reading it for the second row, so the first two rows
     // drawn both started at the first row's offset.
@@ -521,11 +521,11 @@ void MCSoftwareRenderer::FastShape(_window* target, const MCFastShapeCommand& co
     }
 }
 
-void MCSoftwareRenderer::Tile(_window* target, const MCTileCommand& command)
+void MCSoftwareRenderer::Tile(MCWindow* target, const MCTileCommand& command)
 {
-    const intptr_t stride = target->x_max + 1;
+    const intptr_t stride = target->XMax + 1;
     const uint8_t* tile = command.Tile;
-    uint8_t* row = target->buffer + command.Top * stride;
+    uint8_t* row = target->Buffer + command.Top * stride;
     uint32_t offset = ReadOffset(tile, command.FirstRow);
 
     if (command.Unclipped)

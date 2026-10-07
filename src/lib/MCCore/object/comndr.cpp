@@ -7,46 +7,46 @@
 #include "terrain/terrmap.h"
 
 int32_t NumCommanders = 0;
-Commander* CommanderTable[MAX_COMMANDERS] = {};
-Commander* HomeCommander = nullptr;
+MCCommander* CommanderTable[MAX_COMMANDERS] = {};
+MCCommander* HomeCommander = nullptr;
 
 namespace
 {
     /// <summary>The home commander's support changed: redraw the tactical map.</summary>
-    void RedrawTacticalMap(const Commander* commander)
+    void RedrawTacticalMap(const MCCommander* commander)
     {
-        if (Terrain::terrainTacticalMap != nullptr && commander == HomeCommander)
+        if (MCTerrain::TerrainTacticalMap != nullptr && commander == HomeCommander)
         {
-            Terrain::terrainTacticalMap->RefreshPage();
+            MCTerrain::TerrainTacticalMap->RefreshPage();
         }
     }
 }
 
-auto Commander::init() -> void
+auto MCCommander::Init() -> void
 {
-    id = -1;
-    team = nullptr;
+    Id = -1;
+    Team = nullptr;
 
     for (int32_t i = 0; i < MAX_GROUPS_PER_COMMANDER; i++)
     {
-        MoverGroup* group = new MoverGroup;
-        groups[i] = group;
-        group->setId(i);
+        MCMoverGroup* group = new MCMoverGroup;
+        Groups[i] = group;
+        group->SetId(i);
     }
 
-    numSmallStrikes = 0;
-    numLargeStrikes = 0;
-    numSensorStrikes = 0;
-    numCameraDrones = 0;
+    NumSmallStrikes = 0;
+    NumLargeStrikes = 0;
+    NumSensorStrikes = 0;
+    NumCameraDrones = 0;
 }
 
-auto Commander::destroy() -> void
+auto MCCommander::Destroy() -> void
 {
-    for (MoverGroup*& group : groups)
+    for (MCMoverGroup*& group : Groups)
     {
         if (group != nullptr)
         {
-            group->destroy();
+            group->Destroy();
             delete group;
         }
 
@@ -54,72 +54,72 @@ auto Commander::destroy() -> void
     }
 }
 
-auto Commander::setGroup(int32_t groupId, int32_t numMovers, Mover** moverList, int32_t point) -> int32_t
+auto MCCommander::SetGroup(int32_t groupId, int32_t numMovers, MCMover** moverList, int32_t point) -> int32_t
 {
     Assert(groupId >= 0 && groupId < MAX_GROUPS_PER_COMMANDER, 0, " Commander::bad id in setGroup ");
-    MoverGroup* group = groups[groupId];
+    MCMoverGroup* group = Groups[groupId];
     Assert(group != nullptr, 0, " Commander::setGroup has null group ");
-    group->disband();
+    group->Disband();
 
     for (int32_t i = 0; i < numMovers; i++)
     {
-        Mover* mover = moverList[i];
+        MCMover* mover = moverList[i];
 
-        if (mover->group != nullptr)
+        if (mover->Group != nullptr)
         {
-            mover->group->remove(mover);
+            mover->Group->Remove(mover);
         }
 
-        group->add(mover);
+        group->Add(mover);
     }
 
     if (point < numMovers && point > -1)
     {
-        group->setPoint(moverList[point]);
+        group->SetPoint(moverList[point]);
     }
 
     return 0;
 }
 
-auto Commander::setNetPlayerId(int32_t playerId) -> void
+auto MCCommander::SetNetPlayerId(int32_t playerId) -> void
 {
-    for (MoverGroup* group : groups)
+    for (MCMoverGroup* group : Groups)
     {
-        for (int32_t i = 0; i < group->numMovers; i++)
+        for (int32_t i = 0; i < group->NumMovers; i++)
         {
-            group->movers[i]->netPlayerId = playerId;
+            group->Movers[i]->NetPlayerId = playerId;
         }
     }
 }
 
-auto Commander::addToGUI(int visible) -> void
+auto MCCommander::AddToGui(int visible) -> void
 {
     for (int32_t i = 0; i < 4; i++)
     {
-        groups[i]->addToGUI(visible);
+        Groups[i]->AddToGui(visible);
     }
 }
 
-auto Commander::setNumSmallStrikes(int32_t strikes) -> void
+auto MCCommander::SetNumSmallStrikes(int32_t strikes) -> void
 {
-    numSmallStrikes = strikes;
+    NumSmallStrikes = strikes;
     RedrawTacticalMap(this);
 }
 
-auto Commander::setNumLargeStrikes(int32_t strikes) -> void
+auto MCCommander::SetNumLargeStrikes(int32_t strikes) -> void
 {
-    numLargeStrikes = strikes;
+    NumLargeStrikes = strikes;
     RedrawTacticalMap(this);
 }
 
-auto Commander::setNumSensorStrikes(int32_t strikes) -> void
+auto MCCommander::SetNumSensorStrikes(int32_t strikes) -> void
 {
-    numSensorStrikes = strikes;
+    NumSensorStrikes = strikes;
     RedrawTacticalMap(this);
 }
 
-auto Commander::setNumCameraDrones(int32_t drones) -> void
+auto MCCommander::SetNumCameraDrones(int32_t drones) -> void
 {
-    numCameraDrones = drones;
+    NumCameraDrones = drones;
     RedrawTacticalMap(this);
 }

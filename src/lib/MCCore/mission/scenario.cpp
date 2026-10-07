@@ -61,16 +61,16 @@
 #include "vfx/vfxfuncs.h"
 #include "platform/MCRenderer.h"
 
-Scenario* scenario = nullptr;
-float actualTime = 0.0f;
-int nextStep = 0;
-int prevStep = 0;
-int32_t scenarioEndTurn = -1;
-float minFrameLength = 0.25f;
-float partCreateTime = -1.0f;
-int collisionSwitch = 1;
-int32_t tonnageDivisor = 5;
-int32_t resourcesPerTonDivided = 200;
+MCScenario* Scenario = nullptr;
+float ActualTime = 0.0f;
+int NextStep = 0;
+int PrevStep = 0;
+int32_t ScenarioEndTurn = -1;
+float MinFrameLength = 0.25f;
+float PartCreateTime = -1.0f;
+int CollisionSwitch = 1;
+int32_t TonnageDivisor = 5;
+int32_t ResourcesPerTonDivided = 200;
 uint32_t AblSymbolTableHeapSize = 102400;
 uint32_t AblStackHeapSize = 40960;
 uint32_t AblCodeHeapSize = 102400;
@@ -78,30 +78,30 @@ uint32_t AblRunTimeStackSize = 20480;
 uint32_t AblMaxCodeBlockSize = 10240;
 uint32_t AblMaxRegisteredModules = 200;
 uint32_t AblMaxStaticVariables = 100;
-CollisionSystem* collisionSystem = nullptr;
-BaseObject* MoverRoster[0xe00] = {};
+MCCollisionSystem* CollisionSystem = nullptr;
+MCBaseObject* MoverRoster[0xe00] = {};
 int32_t MineLayThrottle = 0;
 int32_t MineSweepThrottle = 0;
 float MineWaitTime = 0.0f;
-Team* TeamTable[3] = {};
-TrainManager* trainManager = nullptr;
-int32_t visualRangeTable[256] = {};
-int32_t globalPlayerWeapons[2] = {};
-int32_t globalEnemySkills[2] = {};
-CreatedPartRoster createdPartRoster[100] = {};
-int32_t globalEnemyWeapons[2] = {};
-int32_t globalPlayerSkills[2] = {};
-int32_t globalSalvageModifier[2] = {};
+MCTeam* TeamTable[3] = {};
+MCTrainManager* TrainManager = nullptr;
+int32_t VisualRangeTable[256] = {};
+int32_t GlobalPlayerWeapons[2] = {};
+int32_t GlobalEnemySkills[2] = {};
+MCCreatedPartRoster CreatedPartRoster[100] = {};
+int32_t GlobalEnemyWeapons[2] = {};
+int32_t GlobalPlayerSkills[2] = {};
+int32_t GlobalSalvageModifier[2] = {};
 uint32_t MissionStartTime = 0;
-float runningTime = 0.0f;
-int32_t startMusic = 0;
+float RunningTime = 0.0f;
+int32_t StartMusic = 0;
 float InfluenceTime = 0.0f;
-int drawRevealedTacMap = 0;
-int32_t currentCreatorPart = 0;
-uint8_t* waypointMarkers = nullptr;
-int endingScenario = 0;
-uint8_t forceAlways = 0;
-char saveTempPath[80] = "data\\save\\temp\\";
+int DrawRevealedTacMap = 0;
+int32_t CurrentCreatorPart = 0;
+uint8_t* WaypointMarkers = nullptr;
+int EndingScenario = 0;
+uint8_t ForceAlways = 0;
+char SaveTempPath[80] = "data\\save\\temp\\";
 
 namespace
 {
@@ -117,78 +117,78 @@ namespace
     constexpr int32_t BAD_OBJECTIVE = -0x550fff4;
     /// <summary>The objective queries' answer for a bad objective number.</summary>
     constexpr uint32_t NO_OBJECTIVE = 9999;
-    /// <summary>Degrees to radians, as MCX.EXE stores it (MCX.EXE @ 0x0077c2a0; a hair under pi / 180).</summary>
+    /// <summary>Degrees to radians, as MCX.EXE stores it (a hair under pi / 180).</summary>
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
 
     /// <summary>Asserts that a FIT read or system start returned 0.</summary>
-    void requireOk(int32_t result, const char* message)
+    void RequireOk(int32_t result, const char* message)
     {
         Assert(result == 0, static_cast<uint32_t>(result), message);
     }
 
     /// <summary>Turns a frame about its k axis (MC2's inline frame_of_ref::rotate_about_k).</summary>
-    void rotateAboutK(frame_of_ref& frame, float s, float c)
+    void RotateAboutK(MCFrameOfRef& frame, float s, float c)
     {
-        const vector_3d oldI = frame.i;
-        frame.i = frame.i * c + frame.j * s;
-        frame.j = frame.j * c - oldI * s;
+        const MCVector3D oldI = frame.I;
+        frame.I = frame.I * c + frame.J * s;
+        frame.J = frame.J * c - oldI * s;
     }
 
     /// <summary>A team with its (inlined) constructor: <c>Team::init()</c>.</summary>
-    Team* newTeam()
+    MCTeam* NewTeam()
     {
-        auto* team = new Team;
+        auto* team = new MCTeam;
 
         if (team != nullptr)
         {
-            team->Team::init();
+            team->MCTeam::Init();
         }
 
         return team;
     }
 
     /// <summary>A team's (inlined) destructor: <c>Team::destroy</c>, then free it.</summary>
-    void deleteTeam(Team* team)
+    void DeleteTeam(MCTeam* team)
     {
         if (team == nullptr)
         {
             return;
         }
 
-        team->Team::destroy();
+        team->MCTeam::Destroy();
         delete team;
     }
 
     /// <summary>A warrior with its (inlined) constructor: every tactical order cleared, then <c>init()</c>.</summary>
-    MechWarrior* newWarrior()
+    MCMechWarrior* NewWarrior()
     {
-        auto* warrior = new MechWarrior;
+        auto* warrior = new MCMechWarrior;
 
         if (warrior != nullptr)
         {
-            for (TacticalOrder& order : warrior->tacOrder)
+            for (MCTacticalOrder& order : warrior->TacOrder)
             {
-                order.init();
+                order.Init();
             }
 
-            warrior->lastTacOrder.init();
-            warrior->curTacOrder.init();
-            warrior->init();
+            warrior->LastTacOrder.Init();
+            warrior->CurTacOrder.Init();
+            warrior->Init();
         }
 
         return warrior;
     }
 
     /// <summary>A warrior's (inlined) destructor: <c>destroy()</c>, its tactical orders, then free it.</summary>
-    void deleteWarrior(MechWarrior* warrior)
+    void DeleteWarrior(MCMechWarrior* warrior)
     {
-        warrior->destroy();
-        warrior->curTacOrder.destroy();
-        warrior->lastTacOrder.destroy();
+        warrior->Destroy();
+        warrior->CurTacOrder.Destroy();
+        warrior->LastTacOrder.Destroy();
 
         for (int32_t i = NUM_ORDERSTATES - 1; i >= 0; --i)
         {
-            warrior->tacOrder[i].destroy();
+            warrior->TacOrder[i].Destroy();
         }
 
         delete warrior;
@@ -196,13 +196,13 @@ namespace
 
     /// <summary>Reads a whole file into a new block (the scenario's connect and waypoint shapes).</summary>
     /// <returns>The block, or null when the file can't be opened (the old one is kept).</returns>
-    uint8_t* loadShapeFile(const char* name, uint8_t* oldShapes, int freeOld)
+    uint8_t* LoadShapeFile(const char* name, uint8_t* oldShapes, int freeOld)
     {
-        FullPathFileName fileName;
-        fileName.init(shapesPath, name, ".shp");
-        File shapeFile;
+        MCFullPathFileName fileName;
+        fileName.Init(ShapesPath, name, ".shp");
+        MCFile shapeFile;
 
-        if (shapeFile.open(fileName) != 0)
+        if (shapeFile.Open(fileName) != 0)
         {
             return oldShapes;
         }
@@ -214,15 +214,15 @@ namespace
             std::free(oldShapes);
         }
 
-        auto* shapes = static_cast<uint8_t*>(std::malloc(shapeFile.fileSize()));
+        auto* shapes = static_cast<uint8_t*>(std::malloc(shapeFile.FileSize()));
 
         if (shapes != nullptr)
         {
-            shapeFile.read(shapes, static_cast<int32_t>(shapeFile.fileSize()));
-            MCRenderer::RegisterData(shapes, shapeFile.fileSize(), MCDataKind::Shapes);
+            shapeFile.Read(shapes, static_cast<int32_t>(shapeFile.FileSize()));
+            MCRenderer::RegisterData(shapes, shapeFile.FileSize(), MCDataKind::Shapes);
         }
 
-        shapeFile.close();
+        shapeFile.Close();
         return shapes;
     }
 
@@ -231,118 +231,118 @@ namespace
     /// on the temporary save folder (a saved game's copy).
     /// </summary>
     /// <returns>The result of the last open.</returns>
-    int32_t openWithSaveFallback(FitIniFile& file, const char* path, const char* name)
+    int32_t OpenWithSaveFallback(MCFitIniFile& file, const char* path, const char* name)
     {
-        FullPathFileName fileName;
-        fileName.init(path, name, ".fit");
-        int32_t result = file.open(fileName);
+        MCFullPathFileName fileName;
+        fileName.Init(path, name, ".fit");
+        int32_t result = file.Open(fileName);
 
         if (result != 0)
         {
-            fileName.init(saveTempPath, name, ".fit");
-            result = file.open(fileName);
+            fileName.Init(SaveTempPath, name, ".fit");
+            result = file.Open(fileName);
         }
 
         return result;
     }
 }
 
-auto Scenario::update() -> int32_t
+auto MCScenario::Update() -> int32_t
 {
-    if (frameLength <= 0.0f)
+    if (FrameLength <= 0.0f)
     {
-        frameLength = 0.05f;
+        FrameLength = 0.05f;
     }
 
-    if (minFrameLength < frameLength)
+    if (MinFrameLength < FrameLength)
     {
-        frameLength = minFrameLength;
+        FrameLength = MinFrameLength;
     }
 
-    if (dynamicFrameTiming == 0)
+    if (DynamicFrameTiming == 0)
     {
-        dynamicFrameTiming = 1;
+        DynamicFrameTiming = 1;
     }
 
-    scenarioTime = scenarioTime + frameLength;
+    ScenarioTime = ScenarioTime + FrameLength;
 
     if (MissionStartTime == 0)
     {
-        if (MPlayer != nullptr && 10.0f < scenarioTime)
+        if (MPlayer != nullptr && 10.0f < ScenarioTime)
         {
             Fatal(0, " runningTime is not working...why? ");
         }
     }
     else
     {
-        runningTime = static_cast<float>(static_cast<double>(MCPort::Milliseconds() - MissionStartTime) * 0.001);
+        RunningTime = static_cast<float>(static_cast<double>(MCPort::Milliseconds() - MissionStartTime) * 0.001);
     }
 
-    actualTime = (MPlayer != nullptr) ? runningTime : scenarioTime;
+    ActualTime = (MPlayer != nullptr) ? RunningTime : ScenarioTime;
 
-    if (0 < scenario->timeLimit)
+    if (0 < Scenario->TimeLimit)
     {
-        if (twoMinuteWarningPlayed == 0 && static_cast<float>(scenario->timeLimit) - actualTime < 120.0f)
+        if (TwoMinuteWarningPlayed == 0 && static_cast<float>(Scenario->TimeLimit) - ActualTime < 120.0f)
         {
-            soundSystem->playBettySample(8);
-            twoMinuteWarningPlayed = 1;
+            SoundSystem->PlayBettySample(8);
+            TwoMinuteWarningPlayed = 1;
         }
 
-        if (thirtySecondWarningPlayed == 0 && static_cast<float>(scenario->timeLimit) - actualTime < 30.0f)
+        if (ThirtySecondWarningPlayed == 0 && static_cast<float>(Scenario->TimeLimit) - ActualTime < 30.0f)
         {
-            soundSystem->playBettySample(7);
-            thirtySecondWarningPlayed = 1;
+            SoundSystem->PlayBettySample(7);
+            ThirtySecondWarningPlayed = 1;
         }
     }
 
-    const int32_t musicPending = startMusic;
-    turn++;
-    nextStep = 0;
-    prevStep = 0;
+    const int32_t musicPending = StartMusic;
+    Turn++;
+    NextStep = 0;
+    PrevStep = 0;
 
-    if (turn < startUpTurns)
+    if (Turn < StartUpTurns)
     {
-        startingUp = 1;
-        startUpCountdown = (startUpTurns - turn) * 10;
+        StartingUp = 1;
+        StartUpCountdown = (StartUpTurns - Turn) * 10;
         return 0;
     }
 
-    startingUp = 0;
-    startUpCountdown = 0;
+    StartingUp = 0;
+    StartUpCountdown = 0;
 
     if (musicPending != 0)
     {
-        if (soundSystem != nullptr)
+        if (SoundSystem != nullptr)
         {
-            soundSystem->stopStaticNoise();
+            SoundSystem->StopStaticNoise();
 
-            if (soundSystem != nullptr)
+            if (SoundSystem != nullptr)
             {
-                soundSystem->playDigitalMusic(scenario->scenarioTuneNum, false);
+                SoundSystem->PlayDigitalMusic(Scenario->ScenarioTuneNum, false);
             }
         }
 
-        application->showCursor(1);
-        startMusic = 0;
+        Application->SetCursorVisible(1);
+        StartMusic = 0;
         MissionStartTime = MCPort::Milliseconds();
     }
 
     return 0;
 }
 
-auto Scenario::render(aObject* window) -> int32_t
+auto MCScenario::Render(MCGuiObject* window) -> int32_t
 {
-    if (1 < turn)
+    if (1 < Turn)
     {
-        cameraList->renderView(window);
+        CameraList->RenderView(window);
     }
 
     return 0;
 }
 
-auto applyDifficultySkill(float skill, int player) -> float
+auto ApplyDifficultySkill(float skill, int player) -> float
 {
-    const int32_t* percentages = (player == 0) ? globalEnemySkills : globalPlayerSkills;
+    const int32_t* percentages = (player == 0) ? GlobalEnemySkills : GlobalPlayerSkills;
 
     if (GameDifficulty == 0)
     {
@@ -356,9 +356,9 @@ auto applyDifficultySkill(float skill, int player) -> float
     return skill;
 }
 
-auto applyDifficultyWeapon(float value, int player) -> float
+auto ApplyDifficultyWeapon(float value, int player) -> float
 {
-    const int32_t* percentages = (player == 0) ? globalEnemyWeapons : globalPlayerWeapons;
+    const int32_t* percentages = (player == 0) ? GlobalEnemyWeapons : GlobalPlayerWeapons;
 
     if (GameDifficulty == 0)
     {
@@ -390,225 +390,225 @@ auto applyDifficultyWeapon(float value, int player) -> float
     return value;
 }
 
-auto InitDifficultySettings(FitIniFile* gameSystemFile) -> void
+auto InitDifficultySettings(MCFitIniFile* gameSystemFile) -> void
 {
-    int32_t result = gameSystemFile->seekBlock("DifficultySettings");
+    int32_t result = gameSystemFile->SeekBlock("DifficultySettings");
     Assert(result == 0, static_cast<uint32_t>(result), "No Difficulty Settings in gameSys");
-    result = gameSystemFile->readIdLongArray("PlayerSkills", globalPlayerSkills, 2);
+    result = gameSystemFile->ReadIdLongArray("PlayerSkills", GlobalPlayerSkills, 2);
     Assert(result == 0, static_cast<uint32_t>(result), "No Difficulty Settings for Player Skills in gameSys");
-    result = gameSystemFile->readIdLongArray("EnemySkills", globalEnemySkills, 2);
+    result = gameSystemFile->ReadIdLongArray("EnemySkills", GlobalEnemySkills, 2);
     Assert(result == 0, static_cast<uint32_t>(result), "No Difficulty Settings for Enemy Skills in gameSys");
-    result = gameSystemFile->readIdLongArray("PlayerWeapons", globalPlayerWeapons, 2);
+    result = gameSystemFile->ReadIdLongArray("PlayerWeapons", GlobalPlayerWeapons, 2);
     Assert(result == 0, static_cast<uint32_t>(result), "No Difficulty Settings for Player Weapons in gameSys");
-    result = gameSystemFile->readIdLongArray("EnemyWeapons", globalEnemyWeapons, 2);
+    result = gameSystemFile->ReadIdLongArray("EnemyWeapons", GlobalEnemyWeapons, 2);
     Assert(result == 0, static_cast<uint32_t>(result), "No Difficulty Settings for Enemy Weapons in gameSys");
-    result = gameSystemFile->readIdLongArray("SalvageChance", globalSalvageModifier, 2);
+    result = gameSystemFile->ReadIdLongArray("SalvageChance", GlobalSalvageModifier, 2);
     Assert(result == 0, static_cast<uint32_t>(result), "Do Difficulty Settings for Salvage Chance in GameSys");
 }
 
-auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
+auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 {
     int32_t result = 0;
     TacOrderQueuePos = 0;
-    numCameraDrones = 0;
+    NumCameraDrones = 0;
 
-    connectShape = loadShapeFile("connect", connectShape, 0);
-    waypointMarkers = loadShapeFile("waypoints", waypointMarkers, 1);
+    ConnectShape = LoadShapeFile("connect", ConnectShape, 0);
+    WaypointMarkers = LoadShapeFile("waypoints", WaypointMarkers, 1);
 
-    ABLi_init(AblSymbolTableHeapSize, AblStackHeapSize, AblCodeHeapSize, AblRunTimeStackSize, AblMaxCodeBlockSize,
-              AblMaxRegisteredModules, AblMaxStaticVariables, ABLDebuggerPrintCallback, 0, 0, 0);
-    turn = 0;
+    AblInit(AblSymbolTableHeapSize, AblStackHeapSize, AblCodeHeapSize, AblRunTimeStackSize, AblMaxCodeBlockSize,
+            AblMaxRegisteredModules, AblMaxStaticVariables, AblDebuggerPrintCallback, 0, 0, 0);
+    Turn = 0;
 
     // The objects placed now but brought into play later by the script.
-    auto* objectQueue = new ObjectQueue;
+    auto* objectQueue = new MCObjectQueue;
 
     if (objectQueue != nullptr)
     {
-        ObjectQueueNode* node = objectQueue->findList(DEFAULT_LIST_ID);
+        MCObjectQueueNode* node = objectQueue->FindList(DefaultListId);
 
         if (node == nullptr)
         {
-            node = new ObjectQueueNode(DEFAULT_LIST_ID);
+            node = new MCObjectQueueNode(DefaultListId);
 
             if (node != nullptr)
             {
-                objectQueue->addList(node);
+                objectQueue->AddList(node);
             }
         }
 
-        objectQueue->tail = node;
-        objectQueue->head = node;
+        objectQueue->Tail = node;
+        objectQueue->Head = node;
     }
 
-    scenarioObjectList = objectQueue;
-    std::memset(createdPartRoster, 0, sizeof(createdPartRoster));
-    currentCreatorPart = 0;
+    ScenarioObjectList = objectQueue;
+    std::memset(CreatedPartRoster, 0, sizeof(CreatedPartRoster));
+    CurrentCreatorPart = 0;
 
     UpdateDisplay(0, 1, 100, 1, 0);
-    soundSystem->playStaticNoise();
+    SoundSystem->PlayStaticNoise();
 
     //---------------------------------------------------------------------------------------------------------------
     // The game system file.
-    FullPathFileName gameSystemName;
-    gameSystemName.init(missionPath, "gamesys", ".fit");
-    auto* gameSystemFile = new FitIniFile;
+    MCFullPathFileName gameSystemName;
+    gameSystemName.Init(MissionPath, "gamesys", ".fit");
+    auto* gameSystemFile = new MCFitIniFile;
 
     if (gameSystemFile == nullptr)
     {
         Fatal(static_cast<int32_t>(0xfaaf0001), " Game System File ");
     }
 
-    result = gameSystemFile->open(gameSystemName);
-    requireOk(result, " Could not open GameSys.Fit file ");
+    result = gameSystemFile->Open(gameSystemName);
+    RequireOk(result, " Could not open GameSys.Fit file ");
 
-    result = gameSystemFile->seekBlock("General");
-    requireOk(result, " Could not find General Block in GameSys ");
-    result = gameSystemFile->readIdFloat("MaxVisualRange", maxVisualRange);
-    requireOk(result, " Could not find MaxVisualRange in GameSys ");
-    MaxVisualRadius = maxVisualRange * 1.4142f;
-    result = gameSystemFile->readIdFloat("FireVisualRange", fireVisualRange);
-    requireOk(result, " Could not find FireVisualRange in GameSys ");
-    result = gameSystemFile->readIdFloat("MaxWeaponRange", maxWeaponRange);
-    requireOk(result, " Could not find MaxWeaponRange in GameSys ");
-    result = gameSystemFile->readIdFloatArray("WeaponRange", WeaponRange, 3);
-    requireOk(result, " Could not find WeaponRange in GameSys ");
-    result = gameSystemFile->readIdFloat("DefaultAttackRange", DefaultAttackRange);
+    result = gameSystemFile->SeekBlock("General");
+    RequireOk(result, " Could not find General Block in GameSys ");
+    result = gameSystemFile->ReadIdFloat("MaxVisualRange", MaxVisualRange);
+    RequireOk(result, " Could not find MaxVisualRange in GameSys ");
+    MaxVisualRadius = MaxVisualRange * 1.4142f;
+    result = gameSystemFile->ReadIdFloat("FireVisualRange", FireVisualRange);
+    RequireOk(result, " Could not find FireVisualRange in GameSys ");
+    result = gameSystemFile->ReadIdFloat("MaxWeaponRange", MaxWeaponRange);
+    RequireOk(result, " Could not find MaxWeaponRange in GameSys ");
+    result = gameSystemFile->ReadIdFloatArray("WeaponRange", WeaponRange, 3);
+    RequireOk(result, " Could not find WeaponRange in GameSys ");
+    result = gameSystemFile->ReadIdFloat("DefaultAttackRange", DefaultAttackRange);
 
     if (result != 0)
     {
         DefaultAttackRange = 75.0f;
     }
 
-    result = gameSystemFile->readIdFloat("BaseSensorRange", baseSensorRange);
-    requireOk(result, " Could not find BaseSensorRange in GameSys ");
-    result = gameSystemFile->readIdLongArray("VisualRangeTable", visualRangeTable, 256);
-    requireOk(result, " Could not find Visual Range Table ");
+    result = gameSystemFile->ReadIdFloat("BaseSensorRange", BaseSensorRange);
+    RequireOk(result, " Could not find BaseSensorRange in GameSys ");
+    result = gameSystemFile->ReadIdLongArray("VisualRangeTable", VisualRangeTable, 256);
+    RequireOk(result, " Could not find Visual Range Table ");
     UpdateDisplay(0, 1, 30, 1, 2);
 
     if (MasterComponentList == nullptr)
     {
-        FullPathFileName componentName;
-        componentName.init(objectPath, "compbas", ".csv");
+        MCFullPathFileName componentName;
+        componentName.Init(ObjectPath, "compbas", ".csv");
         const int32_t loadResult =
-            initMasterComponentListEXCEL(componentName, 0xff, maxVisualRange / maxWeaponRange, baseSensorRange);
+            InitMasterComponentListExcel(componentName, 0xff, MaxVisualRange / MaxWeaponRange, BaseSensorRange);
         // Faithful: the assert reports the previous read's code.
         Assert(loadResult == 0, static_cast<uint32_t>(result), " Could not load compBas.csv ");
     }
 
-    result = gameSystemFile->readIdUChar("AlwaysRevealed", alwaysRevealed);
-    requireOk(result, " Could not find AlwaysRevealed in GameSys ");
+    result = gameSystemFile->ReadIdUChar("AlwaysRevealed", AlwaysRevealed);
+    RequireOk(result, " Could not find AlwaysRevealed in GameSys ");
 
-    if (gameSystemFile->readIdUChar("GodMode", godMode) != 0)
+    if (gameSystemFile->ReadIdUChar("GodMode", GodMode) != 0)
     {
-        godMode = 0;
+        GodMode = 0;
     }
 
-    if (gameSystemFile->readIdUChar("AlwaysDraw", forceAlways) != 0)
+    if (gameSystemFile->ReadIdUChar("AlwaysDraw", ForceAlways) != 0)
     {
-        forceAlways = 0;
+        ForceAlways = 0;
     }
 
     uint8_t revealTacMap = 0;
 
-    if (gameSystemFile->readIdUChar("RevealTacMap", revealTacMap) != 0)
+    if (gameSystemFile->ReadIdUChar("RevealTacMap", revealTacMap) != 0)
     {
         revealTacMap = 0;
     }
 
-    drawRevealedTacMap = revealTacMap;
+    DrawRevealedTacMap = revealTacMap;
 
-    if (gameSystemFile->readIdUChar("FootPrints", footPrints) != 0)
+    if (gameSystemFile->ReadIdUChar("FootPrints", FootPrints) != 0)
     {
-        footPrints = 1;
+        FootPrints = 1;
     }
 
-    result = gameSystemFile->readIdLong("BonusTonnageDivisor", tonnageDivisor);
-    requireOk(result, " No Tonnage divisor in GameSys ");
-    result = gameSystemFile->readIdLong("BonusPointsPerTon", resourcesPerTonDivided);
-    requireOk(result, " No Bonus points per Ton in GameSys ");
+    result = gameSystemFile->ReadIdLong("BonusTonnageDivisor", TonnageDivisor);
+    RequireOk(result, " No Tonnage divisor in GameSys ");
+    result = gameSystemFile->ReadIdLong("BonusPointsPerTon", ResourcesPerTonDivided);
+    RequireOk(result, " No Bonus points per Ton in GameSys ");
 
     InitDifficultySettings(gameSystemFile);
-    result = loadMoverGameSystem(gameSystemFile, maxVisualRange);
-    requireOk(result, " could not load Mover System in GameSys ");
-    result = loadMultiplayerGameSystem(gameSystemFile);
-    requireOk(result, " could not load Multiplayer System in GameSys ");
-    result = loadMechGameSystem(gameSystemFile);
-    requireOk(result, " could not load Mech System in GameSys ");
+    result = LoadMoverGameSystem(gameSystemFile, MaxVisualRange);
+    RequireOk(result, " could not load Mover System in GameSys ");
+    result = LoadMultiplayerGameSystem(gameSystemFile);
+    RequireOk(result, " could not load Multiplayer System in GameSys ");
+    result = LoadMechGameSystem(gameSystemFile);
+    RequireOk(result, " could not load Mech System in GameSys ");
 
     if (GameDifficulty == 0)
     {
-        MechSalvageChance = globalSalvageModifier[0];
+        MechSalvageChance = GlobalSalvageModifier[0];
     }
     else if (GameDifficulty == 2)
     {
-        MechSalvageChance = globalSalvageModifier[1];
+        MechSalvageChance = GlobalSalvageModifier[1];
     }
 
-    result = loadGroundVehicleGameSystem(gameSystemFile);
-    requireOk(result, " could not load Ground Vehicle System in GameSys ");
-    result = loadElementalGameSystem(gameSystemFile);
-    requireOk(result, " could not load Elemental System in GameSys ");
+    result = LoadGroundVehicleGameSystem(gameSystemFile);
+    RequireOk(result, " could not load Ground Vehicle System in GameSys ");
+    result = LoadElementalGameSystem(gameSystemFile);
+    RequireOk(result, " could not load Elemental System in GameSys ");
 
-    result = gameSystemFile->seekBlock("Mine");
-    requireOk(result, " Could not find Mine Block in GameSys ");
-    result = gameSystemFile->readIdFloat("BaseDamage", MineBaseDamage);
-    requireOk(result, " Could not find Damage variable in Mine Block in GameSys ");
-    result = gameSystemFile->readIdFloat("SplashDamage", MineSplashDamage);
-    requireOk(result, " Could not find Splash Damage variable in Mine Block in GameSys ");
-    result = gameSystemFile->readIdFloat("SplashRange", MineSplashRange);
-    requireOk(result, " Could not find Splash Range variable in Mine Block in GameSys ");
-    result = gameSystemFile->readIdLong("Explosion", MineExplosion);
-    requireOk(result, " Could not find Explosion variable in Mine Block in GameSys ");
+    result = gameSystemFile->SeekBlock("Mine");
+    RequireOk(result, " Could not find Mine Block in GameSys ");
+    result = gameSystemFile->ReadIdFloat("BaseDamage", MineBaseDamage);
+    RequireOk(result, " Could not find Damage variable in Mine Block in GameSys ");
+    result = gameSystemFile->ReadIdFloat("SplashDamage", MineSplashDamage);
+    RequireOk(result, " Could not find Splash Damage variable in Mine Block in GameSys ");
+    result = gameSystemFile->ReadIdFloat("SplashRange", MineSplashRange);
+    RequireOk(result, " Could not find Splash Range variable in Mine Block in GameSys ");
+    result = gameSystemFile->ReadIdLong("Explosion", MineExplosion);
+    RequireOk(result, " Could not find Explosion variable in Mine Block in GameSys ");
 
-    if (gameSystemFile->readIdLong("MineLayThrottle", MineLayThrottle) != 0)
+    if (gameSystemFile->ReadIdLong("MineLayThrottle", MineLayThrottle) != 0)
     {
         MineLayThrottle = 50;
     }
 
-    if (gameSystemFile->readIdLong("MineSweepThrottle", MineSweepThrottle) != 0)
+    if (gameSystemFile->ReadIdLong("MineSweepThrottle", MineSweepThrottle) != 0)
     {
         MineSweepThrottle = 50;
     }
 
-    result = gameSystemFile->readIdFloat("MineWaitTime", MineWaitTime);
-    requireOk(result, " Could not find mine Wait time in Mine Block ");
+    result = gameSystemFile->ReadIdFloat("MineWaitTime", MineWaitTime);
+    RequireOk(result, " Could not find mine Wait time in Mine Block ");
 
-    result = gameSystemFile->seekBlock("Smoke");
-    requireOk(result, " Could not find Smoke Block in GameSys ");
-    result = gameSystemFile->readIdLong("MaxSmokeSpheres", totalSmokeSpheres);
-    requireOk(result, " Could not find total Smoke Count in GameSys ");
-    result = gameSystemFile->readIdLong("TotalSmokeShapeSize", totalSmokeShapeSize);
-    requireOk(result, " Could not find total Smoke Shape Size in GameSys ");
+    result = gameSystemFile->SeekBlock("Smoke");
+    RequireOk(result, " Could not find Smoke Block in GameSys ");
+    result = gameSystemFile->ReadIdLong("MaxSmokeSpheres", TotalSmokeSpheres);
+    RequireOk(result, " Could not find total Smoke Count in GameSys ");
+    result = gameSystemFile->ReadIdLong("TotalSmokeShapeSize", TotalSmokeShapeSize);
+    RequireOk(result, " Could not find total Smoke Shape Size in GameSys ");
 
-    result = gameSystemFile->seekBlock("Fire");
-    requireOk(result, " Could not find Fire Block in GameSys ");
-    result = gameSystemFile->readIdLong("MaxFiresBurning", maxFiresBurning);
-    requireOk(result, " COuld not find max fires burning in gameSys ");
-    result = gameSystemFile->readIdFloat("MaxFireBurnTime", maxFireBurnTime);
-    requireOk(result, " COuld not find max fire burn time in gameSys ");
+    result = gameSystemFile->SeekBlock("Fire");
+    RequireOk(result, " Could not find Fire Block in GameSys ");
+    result = gameSystemFile->ReadIdLong("MaxFiresBurning", MaxFiresBurning);
+    RequireOk(result, " COuld not find max fires burning in gameSys ");
+    result = gameSystemFile->ReadIdFloat("MaxFireBurnTime", MaxFireBurnTime);
+    RequireOk(result, " COuld not find max fire burn time in gameSys ");
     UpdateDisplay(0, 1, 30, 1, 5);
 
     //---------------------------------------------------------------------------------------------------------------
     // The scenario file (from the missions folder, or a saved game's copy).
-    FullPathFileName scenarioFileName;
-    scenarioFileName.init(missionPath, scenarioName, ".fit");
-    scenarioFile = new FitIniFile;
-    Assert(scenarioFile != nullptr, 0, " no RAM for scenario file ");
-    result = scenarioFile->open(scenarioFileName);
+    MCFullPathFileName scenarioFileName;
+    scenarioFileName.Init(MissionPath, scenarioName, ".fit");
+    ScenarioFile = new MCFitIniFile;
+    Assert(ScenarioFile != nullptr, 0, " no RAM for scenario file ");
+    result = ScenarioFile->Open(scenarioFileName);
 
     if (result != 0)
     {
-        scenarioFileName.init(saveTempPath, scenarioName, ".fit");
-        result = scenarioFile->open(scenarioFileName);
-        requireOk(result, " could not open scenario file ");
+        scenarioFileName.Init(SaveTempPath, scenarioName, ".fit");
+        result = ScenarioFile->Open(scenarioFileName);
+        RequireOk(result, " could not open scenario file ");
     }
 
-    result = scenarioFile->seekBlock("Planet");
+    result = ScenarioFile->SeekBlock("Planet");
 
     if (result == 0)
     {
-        scenarioFile->readIdLong("Setting", CurPlanet);
-        requireOk(result, " could not find Setting in Planet Block ");
+        ScenarioFile->ReadIdLong("Setting", CurPlanet);
+        RequireOk(result, " could not find Setting in Planet Block ");
     }
 
     if (CurPlanet == 1)
@@ -623,109 +623,109 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
         }
     }
 
-    result = scenarioFile->seekBlock("PaletteSystem");
-    requireOk(result, " could not find PaletteSystem Block ");
-    result = scenarioFile->readIdString("PaletteSystem", paletteSystem, 79);
-    requireOk(result, " could not find PaletteSystem in PaletteSystem Block ");
-    oldPalette = gamePalette;
-    auto* palette = new Palette;
+    result = ScenarioFile->SeekBlock("PaletteSystem");
+    RequireOk(result, " could not find PaletteSystem Block ");
+    result = ScenarioFile->ReadIdString("PaletteSystem", PaletteSystem, 79);
+    RequireOk(result, " could not find PaletteSystem in PaletteSystem Block ");
+    OldPalette = GamePalette;
+    auto* palette = new MCPalette;
 
     if (palette != nullptr)
     {
-        palette->numColors = 0;
-        palette->rgbData.reset();
-        palette->init();
+        palette->NumColors = 0;
+        palette->RgbData.reset();
+        palette->Init();
     }
 
-    gamePalette = palette;
+    GamePalette = palette;
     Assert(palette != nullptr, static_cast<uint32_t>(result), " no RAM for gamePalette ");
-    result = gamePalette->init(paletteSystem);
-    requireOk(result, " could not start gamePalette ");
-    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData.get()));
-    application->activatePalette(gamePalette->rgbData.get(), 10, 0xf6);
+    result = GamePalette->Init(PaletteSystem);
+    RequireOk(result, " could not start gamePalette ");
+    InitAlphaLookup(reinterpret_cast<MCVfxRgb*>(GamePalette->RgbData.get()));
+    Application->ActivatePalette(GamePalette->RgbData.get(), 10, 0xf6);
     UpdateDisplay(0, 1, 20, 1, 7);
 
     //---------------------------------------------------------------------------------------------------------------
     // Teams and commanders.
-    result = scenarioFile->seekBlock("Teams");
-    requireOk(result, "Could not find Teams Block");
+    result = ScenarioFile->SeekBlock("Teams");
+    RequireOk(result, "Could not find Teams Block");
     int haveAlliedTeam = 0;
-    result = scenarioFile->readIdBoolean("AlliedTeam", haveAlliedTeam);
-    requireOk(result, " Could not find AlliedTeam in Teams Block ");
+    result = ScenarioFile->ReadIdBoolean("AlliedTeam", haveAlliedTeam);
+    RequireOk(result, " Could not find AlliedTeam in Teams Block ");
 
-    if (clanTeam != nullptr)
+    if (ClanTeam != nullptr)
     {
-        deleteTeam(clanTeam);
+        DeleteTeam(ClanTeam);
     }
 
-    clanTeam = newTeam();
-    clanTeam->alignment = -1;
-    clanTeam->init(1, 0x80);
-    TeamTable[1] = clanTeam;
+    ClanTeam = NewTeam();
+    ClanTeam->Alignment = -1;
+    ClanTeam->Init(1, 0x80);
+    TeamTable[1] = ClanTeam;
 
-    if (alliedTeam != nullptr)
+    if (AlliedTeam != nullptr)
     {
-        deleteTeam(alliedTeam);
-        alliedTeam = nullptr;
+        DeleteTeam(AlliedTeam);
+        AlliedTeam = nullptr;
     }
 
     if (haveAlliedTeam != 0)
     {
-        alliedTeam = newTeam();
-        alliedTeam->alignment = 1;
-        alliedTeam->init(2, 0x80);
-        TeamTable[2] = alliedTeam;
+        AlliedTeam = NewTeam();
+        AlliedTeam->Alignment = 1;
+        AlliedTeam->Init(2, 0x80);
+        TeamTable[2] = AlliedTeam;
     }
 
-    if (innerSphereTeam != nullptr)
+    if (InnerSphereTeam != nullptr)
     {
-        deleteTeam(innerSphereTeam);
+        DeleteTeam(InnerSphereTeam);
     }
 
-    innerSphereTeam = newTeam();
-    innerSphereTeam->alignment = 1;
-    innerSphereTeam->init(0, 0x80);
-    TeamTable[0] = innerSphereTeam;
+    InnerSphereTeam = NewTeam();
+    InnerSphereTeam->Alignment = 1;
+    InnerSphereTeam->Init(0, 0x80);
+    TeamTable[0] = InnerSphereTeam;
     UpdateDisplay(0, 1, 30, 1, 10);
 
-    result = scenarioFile->seekBlock("Artillery");
-    requireOk(result, " could not find Artillery block in Scenario File ");
-    numCameraStrikes = 0;
-    numSensorStrikes = 0;
-    numSmallStrikes = 0;
-    numLargeStrikes = 0;
-    scenarioFile->readIdLong("NumLargeStrikes", numLargeStrikes);
-    scenarioFile->readIdLong("NumSmallStrikes", numSmallStrikes);
-    scenarioFile->readIdLong("NumSensorStrikes", numSensorStrikes);
-    scenarioFile->readIdLong("NumCameraStrikes", numCameraStrikes);
+    result = ScenarioFile->SeekBlock("Artillery");
+    RequireOk(result, " could not find Artillery block in Scenario File ");
+    NumCameraStrikes = 0;
+    NumSensorStrikes = 0;
+    NumSmallStrikes = 0;
+    NumLargeStrikes = 0;
+    ScenarioFile->ReadIdLong("NumLargeStrikes", NumLargeStrikes);
+    ScenarioFile->ReadIdLong("NumSmallStrikes", NumSmallStrikes);
+    ScenarioFile->ReadIdLong("NumSensorStrikes", NumSensorStrikes);
+    ScenarioFile->ReadIdLong("NumCameraStrikes", NumCameraStrikes);
 
     if (MPlayer == nullptr)
     {
-        homeTeam = innerSphereTeam;
-        NumCommanders = (alliedTeam == nullptr) ? 2 : 3;
+        HomeTeam = InnerSphereTeam;
+        NumCommanders = (AlliedTeam == nullptr) ? 2 : 3;
 
         for (int32_t i = 0; i < NumCommanders; i++)
         {
-            auto* commander = new Commander;
+            auto* commander = new MCCommander;
 
             if (commander != nullptr)
             {
-                commander->init();
+                commander->Init();
             }
 
             CommanderTable[i] = commander;
-            CommanderTable[i]->setId(i);
+            CommanderTable[i]->SetId(i);
         }
 
         HomeCommander = CommanderTable[0];
-        CommanderTable[0]->setNumSmallStrikes(numSmallStrikes);
-        HomeCommander->setNumLargeStrikes(numLargeStrikes);
-        HomeCommander->setNumSensorStrikes(numSensorStrikes);
-        HomeCommander->setNumCameraDrones(numCameraStrikes);
-        CommanderTable[1]->setNumSmallStrikes(999);
-        CommanderTable[1]->setNumLargeStrikes(999);
-        CommanderTable[1]->setNumSensorStrikes(999);
-        CommanderTable[1]->setNumCameraDrones(999);
+        CommanderTable[0]->SetNumSmallStrikes(NumSmallStrikes);
+        HomeCommander->SetNumLargeStrikes(NumLargeStrikes);
+        HomeCommander->SetNumSensorStrikes(NumSensorStrikes);
+        HomeCommander->SetNumCameraDrones(NumCameraStrikes);
+        CommanderTable[1]->SetNumSmallStrikes(999);
+        CommanderTable[1]->SetNumLargeStrikes(999);
+        CommanderTable[1]->SetNumSensorStrikes(999);
+        CommanderTable[1]->SetNumCameraDrones(999);
     }
     else
     {
@@ -733,74 +733,74 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
         for (int32_t i = 0; i < NumCommanders; i++)
         {
-            auto* commander = new Commander;
+            auto* commander = new MCCommander;
 
             if (commander != nullptr)
             {
-                commander->init();
+                commander->Init();
             }
 
             CommanderTable[i] = commander;
-            CommanderTable[i]->setId(i);
+            CommanderTable[i]->SetId(i);
         }
 
-        if (MPlayer->homeTeam == 0)
+        if (MPlayer->HomeTeam == 0)
         {
-            homeTeam = innerSphereTeam;
+            HomeTeam = InnerSphereTeam;
         }
-        else if (MPlayer->homeTeam == 1)
+        else if (MPlayer->HomeTeam == 1)
         {
-            homeTeam = clanTeam;
+            HomeTeam = ClanTeam;
         }
         else
         {
             Fatal(0, " Must Be Clan or InnerSphere in Multiplayer! ");
         }
 
-        HomeCommander = CommanderTable[MPlayer->checkInId];
+        HomeCommander = CommanderTable[MPlayer->CheckInId];
     }
 
     UpdateDisplay(0, 1, 30, 1, 13);
 
     //---------------------------------------------------------------------------------------------------------------
     // Music, scale and the element (draw list) system.
-    result = scenarioFile->seekBlock("Music");
-    requireOk(result, " could not find Music block in Scenario File ");
-    result = scenarioFile->readIdUChar("scenarioTuneNum", scenarioTuneNum);
-    requireOk(result, " could not find ScenarioTuneNum in Music block in Scenario File ");
+    result = ScenarioFile->SeekBlock("Music");
+    RequireOk(result, " could not find Music block in Scenario File ");
+    result = ScenarioFile->ReadIdUChar("scenarioTuneNum", ScenarioTuneNum);
+    RequireOk(result, " could not find ScenarioTuneNum in Music block in Scenario File ");
 
-    result = scenarioFile->seekBlock("GameScale");
-    requireOk(result, " could not find GameScale block in Scenario File ");
-    result = scenarioFile->readIdFloat("WorldUnitsPerMeter", worldUnitsPerMeter);
-    requireOk(result, " could not find worldUnitsperMeter in GameScale block in Scenario File ");
-    result = scenarioFile->readIdFloat("MetersPerWorldUnit", metersPerWorldUnit);
-    requireOk(result, " could not find MetersperWorldUnit in GameScale block in Scenario File ");
-    result = scenarioFile->readIdULong("Duration", duration);
-    requireOk(result, " could not find Duration in GameScale block in Scenario File ");
-    result = scenarioFile->readIdFloat("CycleLength", cycleLength);
-    requireOk(result, " could not find CycleLength in GameScale block in Scenario File ");
+    result = ScenarioFile->SeekBlock("GameScale");
+    RequireOk(result, " could not find GameScale block in Scenario File ");
+    result = ScenarioFile->ReadIdFloat("WorldUnitsPerMeter", WorldUnitsPerMeter);
+    RequireOk(result, " could not find worldUnitsperMeter in GameScale block in Scenario File ");
+    result = ScenarioFile->ReadIdFloat("MetersPerWorldUnit", MetersPerWorldUnit);
+    RequireOk(result, " could not find MetersperWorldUnit in GameScale block in Scenario File ");
+    result = ScenarioFile->ReadIdULong("Duration", Duration);
+    RequireOk(result, " could not find Duration in GameScale block in Scenario File ");
+    result = ScenarioFile->ReadIdFloat("CycleLength", CycleLength);
+    RequireOk(result, " could not find CycleLength in GameScale block in Scenario File ");
     uint32_t singleStep = 0;
-    result = scenarioFile->readIdULong("SingleStep", singleStep);
-    singleStepMode = static_cast<int>(singleStep);
+    result = ScenarioFile->ReadIdULong("SingleStep", singleStep);
+    SingleStepMode = static_cast<int>(singleStep);
     int32_t scenarioVisualRanges[256];
-    result = scenarioFile->readIdLongArray("VisualRangeTable", scenarioVisualRanges, 256);
+    result = ScenarioFile->ReadIdLongArray("VisualRangeTable", scenarioVisualRanges, 256);
 
     if (result == 0)
     {
-        std::memcpy(visualRangeTable, scenarioVisualRanges, sizeof(visualRangeTable));
+        std::memcpy(VisualRangeTable, scenarioVisualRanges, sizeof(VisualRangeTable));
     }
 
-    result = scenarioFile->seekBlock("ElementSystem");
-    requireOk(result, " could not find ElementSystem block in Scenario File ");
+    result = ScenarioFile->SeekBlock("ElementSystem");
+    RequireOk(result, " could not find ElementSystem block in Scenario File ");
     uint32_t elementHeapSize = 0;
-    result = scenarioFile->readIdULong("ElementHeapSize", elementHeapSize);
-    requireOk(result, " could not find ElementHeapSize in ElementSystem block in Scenario File ");
+    result = ScenarioFile->ReadIdULong("ElementHeapSize", elementHeapSize);
+    RequireOk(result, " could not find ElementHeapSize in ElementSystem block in Scenario File ");
     uint32_t maxElements = 0;
-    result = scenarioFile->readIdULong("MaxElements", maxElements);
-    requireOk(result, " could not find MaxElements in ElementSystem block in Scenario File ");
+    result = ScenarioFile->ReadIdULong("MaxElements", maxElements);
+    RequireOk(result, " could not find MaxElements in ElementSystem block in Scenario File ");
     uint32_t maxGroups = 0;
-    result = scenarioFile->readIdULong("MaxGroups", maxGroups);
-    requireOk(result, " could not find MaxGroups in ElementSystem block in Scenario File ");
+    result = ScenarioFile->ReadIdULong("MaxGroups", maxGroups);
+    RequireOk(result, " could not find MaxGroups in ElementSystem block in Scenario File ");
 
     if (MPlayer != nullptr)
     {
@@ -810,9 +810,9 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     // Port fix: ElementHeapSize was tuned for 32-bit elements; the x64 ones (vtable and pointer fields) are up to
     // twice the size, and running the pool dry is Fatal(0xeeeb0003).
     elementHeapSize <<= 1;
-    result = ElementPool::init(static_cast<int32_t>(elementHeapSize));
-    requireOk(result, " could not Start ElementSystem ");
-    ElementList = new ElementBuffer;
+    result = MCElementPool::Init(static_cast<int32_t>(elementHeapSize));
+    RequireOk(result, " could not Start ElementSystem ");
+    ElementList = new MCElementBuffer;
     Assert(ElementList != nullptr, static_cast<uint32_t>(result), " no RAM for ElementList ");
 
     if (MPlayer == nullptr)
@@ -826,146 +826,146 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
         maxElements <<= 2;
     }
 
-    result = ElementList->init(static_cast<int32_t>(maxElements), 0, static_cast<int32_t>(maxGroups));
-    requireOk(result, " could not start ElementList ");
+    result = ElementList->Init(static_cast<int32_t>(maxElements), 0, static_cast<int32_t>(maxGroups));
+    RequireOk(result, " could not start ElementList ");
     UpdateDisplay(0, 1, 30, 1, 15);
 
     //---------------------------------------------------------------------------------------------------------------
     // The sensor contact blips.
-    result = scenarioFile->seekBlock("SensorContactShape");
-    requireOk(result, " could not find SensorContactShape block in Scenario File ");
+    result = ScenarioFile->SeekBlock("SensorContactShape");
+    RequireOk(result, " could not find SensorContactShape block in Scenario File ");
     char sensorShapeName[80];
-    result = scenarioFile->readIdString("shapeName", sensorShapeName, 79);
-    requireOk(result, " could not find ShapeName in SensorContactShape block in Scenario File ");
-    FullPathFileName sensorShapeFileName;
-    sensorShapeFileName.init(spritePath, sensorShapeName, ".pak");
-    PacketFile sensorShapeFile;
-    result = sensorShapeFile.open(sensorShapeFileName);
+    result = ScenarioFile->ReadIdString("shapeName", sensorShapeName, 79);
+    RequireOk(result, " could not find ShapeName in SensorContactShape block in Scenario File ");
+    MCFullPathFileName sensorShapeFileName;
+    sensorShapeFileName.Init(SpritePath, sensorShapeName, ".pak");
+    MCPacketFile sensorShapeFile;
+    result = sensorShapeFile.Open(sensorShapeFileName);
 
     if (result != 0)
     {
-        FullPathFileName cdFileName;
-        cdFileName.init(CDspritePath, sensorShapeName, ".pak");
-        result = sensorShapeFile.open(cdFileName);
-        requireOk(result, " could not open sensor shape file ");
+        MCFullPathFileName cdFileName;
+        cdFileName.Init(CDspritePath, sensorShapeName, ".pak");
+        result = sensorShapeFile.Open(cdFileName);
+        RequireOk(result, " could not open sensor shape file ");
     }
 
     for (int32_t i = 0; i < 6; i++)
     {
-        sensorShapeFile.seekPacket(i);
+        sensorShapeFile.SeekPacket(i);
         // An empty packet still fails, as it did when systemHeap's malloc(0) returned null.
-        Assert(sensorShapeFile.getPacketSize() > 0, static_cast<uint32_t>(result), " no RAM for Large Sensor Shape ");
-        sensorContactShapes[i] = new uint8_t[static_cast<size_t>(sensorShapeFile.getPacketSize())]{};
-        sensorShapeFile.readPacket(i, sensorContactShapes[i]);
-        MCRenderer::RegisterData(sensorContactShapes[i], static_cast<size_t>(sensorShapeFile.getPacketSize()),
+        Assert(sensorShapeFile.GetPacketSize() > 0, static_cast<uint32_t>(result), " no RAM for Large Sensor Shape ");
+        SensorContactShapes[i] = new uint8_t[static_cast<size_t>(sensorShapeFile.GetPacketSize())]{};
+        sensorShapeFile.ReadPacket(i, SensorContactShapes[i]);
+        MCRenderer::RegisterData(SensorContactShapes[i], static_cast<size_t>(sensorShapeFile.GetPacketSize()),
                                  MCDataKind::Shapes);
     }
 
-    sensorShapeFile.close();
+    sensorShapeFile.Close();
 
     //---------------------------------------------------------------------------------------------------------------
     // Craters, cameras, objects, sprites, appearances, sensors and contacts.
     int32_t numCraters = 0;
     uint32_t craterShapeSize = 0;
-    result = scenarioFile->seekBlock("CraterSystem");
-    requireOk(result, " could not find CraterSystem Block in Scenario File ");
-    result = scenarioFile->readIdLong("NumCraters", numCraters);
-    requireOk(result, " could not find NumCraters in CraterSystem Block in Scenario File ");
-    result = scenarioFile->readIdULong("CraterShapeSize", craterShapeSize);
-    requireOk(result, " could not find CraterShapeSize in CraterSystem Block in Scenario File ");
+    result = ScenarioFile->SeekBlock("CraterSystem");
+    RequireOk(result, " could not find CraterSystem Block in Scenario File ");
+    result = ScenarioFile->ReadIdLong("NumCraters", numCraters);
+    RequireOk(result, " could not find NumCraters in CraterSystem Block in Scenario File ");
+    result = ScenarioFile->ReadIdULong("CraterShapeSize", craterShapeSize);
+    RequireOk(result, " could not find CraterShapeSize in CraterSystem Block in Scenario File ");
     char craterFileName[16];
-    result = scenarioFile->readIdString("CraterFile", craterFileName, 15);
-    requireOk(result, " could not find CraterFile in CraterSystem Block in Scenario File ");
+    result = ScenarioFile->ReadIdString("CraterFile", craterFileName, 15);
+    RequireOk(result, " could not find CraterFile in CraterSystem Block in Scenario File ");
 
-    craterManager = new CraterManager;
-    Assert(craterManager != nullptr, static_cast<uint32_t>(result), " no RAM for Crater Manager ");
-    result = craterManager->init(numCraters, craterShapeSize, craterFileName);
-    requireOk(result, " could not Start CraterManager ");
+    CraterManager = new MCCraterManager;
+    Assert(CraterManager != nullptr, static_cast<uint32_t>(result), " no RAM for Crater Manager ");
+    result = CraterManager->Init(numCraters, craterShapeSize, craterFileName);
+    RequireOk(result, " could not Start CraterManager ");
 
-    result = scenarioFile->seekBlock("CameraSystem");
-    requireOk(result, " could not Find CameraSystem Block ");
-    result = scenarioFile->readIdULong("CameraHeapSize", cameraHeapSize);
-    requireOk(result, " could not Find CameraHeapSize in CameraSystem Block ");
-    result = scenarioFile->readIdString("CameraFileName", cameraFileName, 79);
-    requireOk(result, " could not Find CameraFileName in CameraSystem Block ");
-    cameraList = new CameraList;
-    Assert(cameraList != nullptr, static_cast<uint32_t>(result), " no RAM for CameraList ");
-    result = cameraList->init(cameraFileName);
-    requireOk(result, " could start CameraSystem ");
+    result = ScenarioFile->SeekBlock("CameraSystem");
+    RequireOk(result, " could not Find CameraSystem Block ");
+    result = ScenarioFile->ReadIdULong("CameraHeapSize", CameraHeapSize);
+    RequireOk(result, " could not Find CameraHeapSize in CameraSystem Block ");
+    result = ScenarioFile->ReadIdString("CameraFileName", CameraFileName, 79);
+    RequireOk(result, " could not Find CameraFileName in CameraSystem Block ");
+    CameraList = new MCCameraList;
+    Assert(CameraList != nullptr, static_cast<uint32_t>(result), " no RAM for CameraList ");
+    result = CameraList->Init(CameraFileName);
+    RequireOk(result, " could start CameraSystem ");
     UpdateDisplay(0, 1, 30, 1, 20);
 
-    result = scenarioFile->seekBlock("ObjectSystem");
-    requireOk(result, " could not Find ObjectSystem Block ");
-    result = scenarioFile->readIdULong("ObjectHeapSize", objectHeapSize);
-    requireOk(result, " could not Find objectHeapSize in ObjectSystem Block ");
-    result = scenarioFile->readIdULong("ObjectTypeHeapSize", objectTypeHeapSize);
-    requireOk(result, " could not Find ObjectTypeHeapSzize in ObjectSystem Block ");
-    result = scenarioFile->readIdULong("NumObjects", numObjects);
-    requireOk(result, " could not Find NumObjects in ObjectSystem Block ");
-    result = scenarioFile->readIdString("ObjectFileName", objectFileName, 79);
-    requireOk(result, " could not Find ObjectFileName in ObjectSystem Block ");
-    result = startObjects(objectFileName, static_cast<int32_t>(objectTypeHeapSize),
-                          static_cast<int32_t>(objectHeapSize), static_cast<int32_t>(numObjects));
-    requireOk(result, " could not Start ObjectSystem ");
+    result = ScenarioFile->SeekBlock("ObjectSystem");
+    RequireOk(result, " could not Find ObjectSystem Block ");
+    result = ScenarioFile->ReadIdULong("ObjectHeapSize", ObjectHeapSize);
+    RequireOk(result, " could not Find objectHeapSize in ObjectSystem Block ");
+    result = ScenarioFile->ReadIdULong("ObjectTypeHeapSize", ObjectTypeHeapSize);
+    RequireOk(result, " could not Find ObjectTypeHeapSzize in ObjectSystem Block ");
+    result = ScenarioFile->ReadIdULong("NumObjects", NumObjects);
+    RequireOk(result, " could not Find NumObjects in ObjectSystem Block ");
+    result = ScenarioFile->ReadIdString("ObjectFileName", ObjectFileName, 79);
+    RequireOk(result, " could not Find ObjectFileName in ObjectSystem Block ");
+    result = StartObjects(ObjectFileName, static_cast<int32_t>(ObjectTypeHeapSize),
+                          static_cast<int32_t>(ObjectHeapSize), static_cast<int32_t>(NumObjects));
+    RequireOk(result, " could not Start ObjectSystem ");
 
-    result = scenarioFile->seekBlock("SpriteSystem");
-    requireOk(result, " could not Find SpriteSystem Block ");
-    result = scenarioFile->readIdULong("SpriteHeapSize", spriteHeapSize);
-    requireOk(result, " could not Find SpriteHeapSize in SpriteSystem Block ");
+    result = ScenarioFile->SeekBlock("SpriteSystem");
+    RequireOk(result, " could not Find SpriteSystem Block ");
+    result = ScenarioFile->ReadIdULong("SpriteHeapSize", SpriteHeapSize);
+    RequireOk(result, " could not Find SpriteHeapSize in SpriteSystem Block ");
     uint32_t spriteManagerHeapSize = 0;
-    result = scenarioFile->readIdULong("SpriteManagerHeapSize", spriteManagerHeapSize);
-    requireOk(result, " could not Find SpriteManagerHeapSize in SpriteSystem Block ");
+    result = ScenarioFile->ReadIdULong("SpriteManagerHeapSize", spriteManagerHeapSize);
+    RequireOk(result, " could not Find SpriteManagerHeapSize in SpriteSystem Block ");
     uint32_t spriteDataHeapSize = 0;
-    result = scenarioFile->readIdULong("SpriteDataHeapSize", spriteDataHeapSize);
-    requireOk(result, " could not Find SpriteDataHeapSize in SpriteSystem Block ");
-    result = scenarioFile->readIdString("SpriteFileName", spriteFileName, 79);
-    requireOk(result, " could not Find SpriteFileName in SpriteSystem Block ");
+    result = ScenarioFile->ReadIdULong("SpriteDataHeapSize", spriteDataHeapSize);
+    RequireOk(result, " could not Find SpriteDataHeapSize in SpriteSystem Block ");
+    result = ScenarioFile->ReadIdString("SpriteFileName", SpriteFileName, 79);
+    RequireOk(result, " could not Find SpriteFileName in SpriteSystem Block ");
     char shapeFileName[80];
-    result = scenarioFile->readIdString("ShapeFileName", shapeFileName, 79);
-    requireOk(result, " could not Find ShapeFileName in SpriteSystem Block ");
-    spriteManager = new SpriteManager;
-    Assert(spriteManager != nullptr, static_cast<uint32_t>(result), " no RAM for SpriteManager ");
+    result = ScenarioFile->ReadIdString("ShapeFileName", shapeFileName, 79);
+    RequireOk(result, " could not Find ShapeFileName in SpriteSystem Block ");
+    SpriteManager = new MCSpriteManager;
+    Assert(SpriteManager != nullptr, static_cast<uint32_t>(result), " no RAM for SpriteManager ");
 
     uint32_t legHeapSize = 0;
     uint32_t torsoHeapSize = 0;
     uint32_t rightArmHeapSize = 0;
     uint32_t leftArmHeapSize = 0;
     uint32_t totalMechs = 0;
-    result = scenarioFile->seekBlock("SpriteManager");
-    requireOk(result, " could not Find SpriteManager Block ");
-    result = scenarioFile->readIdULong("LegHeapSize", legHeapSize);
-    requireOk(result, " could not Find LegHeapSize in SpriteManager Block ");
-    result = scenarioFile->readIdULong("TorsoHeapSize", torsoHeapSize);
-    requireOk(result, " could not Find TorsoHeapSize in SpriteManager Block ");
-    result = scenarioFile->readIdULong("RightArmHeapSize", rightArmHeapSize);
-    requireOk(result, " could not Find RightArmHeapSize in SpriteManager Block ");
-    result = scenarioFile->readIdULong("LeftArmHeapSize", leftArmHeapSize);
-    requireOk(result, " could not Find LeftArmHeapSize in SpriteManager Block ");
-    result = scenarioFile->readIdULong("TotalMechs", totalMechs);
-    requireOk(result, " could not Find TotalMechs in SpriteManager Block ");
+    result = ScenarioFile->SeekBlock("SpriteManager");
+    RequireOk(result, " could not Find SpriteManager Block ");
+    result = ScenarioFile->ReadIdULong("LegHeapSize", legHeapSize);
+    RequireOk(result, " could not Find LegHeapSize in SpriteManager Block ");
+    result = ScenarioFile->ReadIdULong("TorsoHeapSize", torsoHeapSize);
+    RequireOk(result, " could not Find TorsoHeapSize in SpriteManager Block ");
+    result = ScenarioFile->ReadIdULong("RightArmHeapSize", rightArmHeapSize);
+    RequireOk(result, " could not Find RightArmHeapSize in SpriteManager Block ");
+    result = ScenarioFile->ReadIdULong("LeftArmHeapSize", leftArmHeapSize);
+    RequireOk(result, " could not Find LeftArmHeapSize in SpriteManager Block ");
+    result = ScenarioFile->ReadIdULong("TotalMechs", totalMechs);
+    RequireOk(result, " could not Find TotalMechs in SpriteManager Block ");
 
     // The original sized the sprite manager's heaps from the sizes above (still read, then ignored).
-    result = spriteManager->init(shapeFileName);
-    requireOk(result, " could not Start SpriteManager ");
+    result = SpriteManager->Init(shapeFileName);
+    RequireOk(result, " could not Start SpriteManager ");
 
-    appearanceTypeList = new AppearanceTypeList;
-    Assert(appearanceTypeList != nullptr, static_cast<uint32_t>(result), " no RAM for AppearanceList ");
-    result = appearanceTypeList->init(spriteFileName);
+    AppearanceTypeList = new MCAppearanceTypeList;
+    Assert(AppearanceTypeList != nullptr, static_cast<uint32_t>(result), " no RAM for AppearanceList ");
+    result = AppearanceTypeList->Init(SpriteFileName);
     // Faithful: tests the list, not the result.
-    Assert(appearanceTypeList != nullptr, static_cast<uint32_t>(result), " could not start AppearanceList ");
+    Assert(AppearanceTypeList != nullptr, static_cast<uint32_t>(result), " could not start AppearanceList ");
 
-    sensorSystemManager = new SensorSystemManager;
-    Assert(sensorSystemManager != nullptr, 0, " Unable to init sensor system manager ");
-    result = sensorSystemManager->init(gameSystemFile);
-    requireOk(result, " could not start Sensor System Manager ");
+    SensorSystemManager = new MCSensorSystemManager;
+    Assert(SensorSystemManager != nullptr, 0, " Unable to init sensor system manager ");
+    result = SensorSystemManager->Init(gameSystemFile);
+    RequireOk(result, " could not start Sensor System Manager ");
 
-    potentialContactManager = new PotentialContactManager;
-    result = potentialContactManager->init(scenarioFile);
-    requireOk(result, " could not start PotentialContactManager ");
+    PotentialContactManager = new MCPotentialContactManager;
+    result = PotentialContactManager->Init(ScenarioFile);
+    RequireOk(result, " could not start PotentialContactManager ");
     UpdateDisplay(0, 1, 20, 1, 25);
 
-    smokeManager = new SmokeManager;
-    result = smokeManager->init(scenarioFile);
+    SmokeManager = new MCSmokeManager;
+    result = SmokeManager->Init(ScenarioFile);
 
     if (result != 0)
     {
@@ -974,107 +974,107 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
     UpdateDisplay(0, 1, 30, 1, 35);
 
-    collisionSystem = new CollisionSystem;
+    CollisionSystem = new MCCollisionSystem;
 
-    if (collisionSystem == nullptr)
+    if (CollisionSystem == nullptr)
     {
         Assert(0, static_cast<uint32_t>(result), " no RAM for Collision System ");
     }
 
-    result = collisionSystem->init(scenarioFile);
-    requireOk(result, " could not start Collision System ");
+    result = CollisionSystem->Init(ScenarioFile);
+    RequireOk(result, " could not start Collision System ");
     UpdateDisplay(0, 1, 30, 1, 37);
 
     //---------------------------------------------------------------------------------------------------------------
     // The terrain and its move maps (the editor passes a terrain of its own and gets no maps).
     if (terrainName == nullptr)
     {
-        result = scenarioFile->seekBlock("TerrainSystem");
-        requireOk(result, " could not find TerrainSystem block ");
-        result = scenarioFile->readIdString("TerrainFileName", terrainFileName, 79);
-        requireOk(result, " could not find TerrainFileName in TerrainSystem block ");
-        land = new Terrain;
+        result = ScenarioFile->SeekBlock("TerrainSystem");
+        RequireOk(result, " could not find TerrainSystem block ");
+        result = ScenarioFile->ReadIdString("TerrainFileName", TerrainFileName, 79);
+        RequireOk(result, " could not find TerrainFileName in TerrainSystem block ");
+        Land = new MCTerrain;
 
-        if (land != nullptr)
+        if (Land != nullptr)
         {
-            land->Terrain::init();
+            Land->MCTerrain::Init();
         }
 
-        Assert(land != nullptr, static_cast<uint32_t>(result), " no RAM for Terrain ");
-        result = land->init(terrainFileName);
-        requireOk(result, " could not start Terrain System ");
+        Assert(Land != nullptr, static_cast<uint32_t>(result), " no RAM for Terrain ");
+        result = Land->Init(TerrainFileName);
+        RequireOk(result, " could not start Terrain System ");
         UpdateDisplay(0, 1, 30, 1, 50);
 
-        GameMap = new ScenarioMap;
+        GameMap = new MCScenarioMap;
 
         if (GameMap == nullptr)
         {
             Assert(0, static_cast<uint32_t>(result), " no RAM for Game Map ");
         }
 
-        FullPathFileName mapFileName;
-        mapFileName.init(terrainPath, terrainFileName, ".dat");
-        auto* mapFile = new File;
+        MCFullPathFileName mapFileName;
+        mapFileName.Init(TerrainPath, TerrainFileName, ".dat");
+        auto* mapFile = new MCFile;
         Assert(mapFile != nullptr, static_cast<uint32_t>(result), " no RAM for Map File");
-        result = mapFile->open(mapFileName);
-        requireOk(result, " could not start Game Map ");
-        GameMap->init(mapFile);
-        mapFile->close();
+        result = mapFile->Open(mapFileName);
+        RequireOk(result, " could not start Game Map ");
+        GameMap->Init(mapFile);
+        mapFile->Close();
         delete mapFile;
         UpdateDisplay(0, 1, 30, 1, 60);
 
-        GameObjectMap = new ObjectMap;
+        GameObjectMap = new MCObjectMap;
         Assert(GameObjectMap != nullptr, static_cast<uint32_t>(result), " no RAM for Game Object Map ");
-        GameObjectMap->init(GameMap);
-        PathManager = new MovePathManager;
+        GameObjectMap->Init(GameMap);
+        PathManager = new MCMovePathManager;
 
         if (PathManager != nullptr)
         {
-            PathManager->init();
+            PathManager->Init();
         }
 
-        PathFindMap = new MoveMap;
+        PathFindMap = new MCMoveMap;
         Assert(PathFindMap != nullptr, static_cast<uint32_t>(result), " no RAM for Path Find Map ");
-        PathFindMap->init(SimpleMovePathRange * 2 + 1, SimpleMovePathRange * 2 + 1);
-        GlobalMoveMap = new GlobalMap;
+        PathFindMap->Init(SimpleMovePathRange * 2 + 1, SimpleMovePathRange * 2 + 1);
+        GlobalMoveMap = new MCGlobalMap;
 
-        auto* globalMapFile = new File;
-        FullPathFileName globalMapFileName;
-        globalMapFileName.init(terrainPath, terrainFileName, ".gmm");
-        result = globalMapFile->open(globalMapFileName);
-        requireOk(result, " Could not open global Map ");
-        GlobalMoveMap->init(globalMapFile);
+        auto* globalMapFile = new MCFile;
+        MCFullPathFileName globalMapFileName;
+        globalMapFileName.Init(TerrainPath, TerrainFileName, ".gmm");
+        result = globalMapFile->Open(globalMapFileName);
+        RequireOk(result, " Could not open global Map ");
+        GlobalMoveMap->Init(globalMapFile);
         delete globalMapFile;
         UpdateDisplay(0, 1, 30, 1, 65);
-        land->updateAllObjects();
+        Land->UpdateAllObjects();
         UpdateDisplay(0, 1, 30, 1, 70);
     }
     else
     {
-        land = new Terrain;
+        Land = new MCTerrain;
 
-        if (land != nullptr)
+        if (Land != nullptr)
         {
-            land->Terrain::init();
+            Land->MCTerrain::Init();
         }
 
-        Assert(land != nullptr, static_cast<uint32_t>(result), " no RAM for Terrain ");
-        MCStrCopy(terrainFileName, std::filesystem::path(terrainName).stem().string().c_str());
-        result = land->init(terrainFileName);
-        requireOk(result, " could not start Terrain System ");
+        Assert(Land != nullptr, static_cast<uint32_t>(result), " no RAM for Terrain ");
+        MCStrCopy(TerrainFileName, std::filesystem::path(terrainName).stem().string().c_str());
+        result = Land->Init(TerrainFileName);
+        RequireOk(result, " could not start Terrain System ");
     }
 
     char tacMapGifName[80];
-    result = scenarioFile->readIdString("TacMapGifName", tacMapGifName, 79);
+    result = ScenarioFile->ReadIdString("TacMapGifName", tacMapGifName, 79);
 
     if (result == 0)
     {
-        Terrain::terrainTacticalMap->setRevealedBitmap(tacMapGifName);
+        MCTerrain::TerrainTacticalMap->SetRevealedBitmap(tacMapGifName);
     }
 
     //---------------------------------------------------------------------------------------------------------------
     // ABL: the libraries, then the scenario's own brain.
-    result = scenarioFile->seekBlock("ABLibraries");
+    result = ScenarioFile->SeekBlock("ABLibraries");
 
     if (result == 0)
     {
@@ -1085,16 +1085,16 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
             char libraryId[32];
             char libraryName[512];
             std::snprintf(libraryId, sizeof(libraryId), "Library%d", libraryNumber++);
-            result = scenarioFile->readIdString(libraryId, libraryName, 511);
+            result = ScenarioFile->ReadIdString(libraryId, libraryName, 511);
 
             if (result == 0)
             {
-                FullPathFileName libraryFileName;
-                libraryFileName.init(missionPath, libraryName, ".abx");
+                MCFullPathFileName libraryFileName;
+                libraryFileName.Init(MissionPath, libraryName, ".abx");
                 int32_t numErrors = 0;
                 int32_t numLines = 0;
 
-                if (ABLi_loadLibrary(libraryFileName, &numErrors, &numLines, nullptr, 0) != 0)
+                if (AblLoadLibrary(libraryFileName, &numErrors, &numLines, nullptr, 0) != 0)
                 {
                     char message[512];
                     std::snprintf(message, sizeof(message), " Cannot load ABL Library %s ", libraryName);
@@ -1106,12 +1106,12 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
     UpdateDisplay(0, 1, 30, 1, 73);
 
-    result = scenarioFile->seekBlock("Script");
-    requireOk(result, " could not find Script Block ");
-    result = scenarioFile->readIdString("ScenarioScript", scenarioScript, 79);
-    requireOk(result, " could not find ScenarioScript in Script Block ");
+    result = ScenarioFile->SeekBlock("Script");
+    RequireOk(result, " could not find Script Block ");
+    result = ScenarioFile->ReadIdString("ScenarioScript", ScenarioScript, 79);
+    RequireOk(result, " could not find ScenarioScript in Script Block ");
     static char windowTitle[256];
-    std::snprintf(windowTitle, sizeof(windowTitle), "%s - %s", appName, scenarioScript);
+    std::snprintf(windowTitle, sizeof(windowTitle), "%s - %s", AppName, ScenarioScript);
 
     // Port: SetWindowTextA -> the SDL window's title.
     if (MCDisplay* display = MCInput::Display())
@@ -1122,137 +1122,137 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     std::strcpy(WindowTitle, windowTitle);
     UpdateDisplay(0, 1, 30, 1, 75);
 
-    FullPathFileName scriptFileName;
-    scriptFileName.init(missionPath, scenarioScript, ".abl");
+    MCFullPathFileName scriptFileName;
+    scriptFileName.Init(MissionPath, ScenarioScript, ".abl");
     int32_t numErrors = 0;
     int32_t numLines = 0;
-    scenarioScriptHandle = ABLi_preProcess(scriptFileName, &numErrors, &numLines, nullptr, 0);
-    Assert(-1 < scenarioScriptHandle, static_cast<uint32_t>(scenarioScriptHandle), " Bad Scenario Script ");
-    scenarioBrain = new ABLModule;
+    ScenarioScriptHandle = AblPreProcess(scriptFileName, &numErrors, &numLines, nullptr, 0);
+    Assert(-1 < ScenarioScriptHandle, static_cast<uint32_t>(ScenarioScriptHandle), " Bad Scenario Script ");
+    ScenarioBrain = new MCAblModule;
 
-    if (scenarioBrain == nullptr)
+    if (ScenarioBrain == nullptr)
     {
         return static_cast<int32_t>(0xfaaf000b);
     }
 
-    const int32_t brainResult = scenarioBrain->init(scenarioScriptHandle);
+    const int32_t brainResult = ScenarioBrain->Init(ScenarioScriptHandle);
     Assert(brainResult == 0, static_cast<uint32_t>(result), " Error Starting Scenario Brain ");
-    scenarioBrain->setName(const_cast<char*>("Scenario"));
-    scenarioBrain->step = 1;
-    scenarioBrainParams = new ABLParam;
-    Assert(scenarioBrainParams != nullptr, 0, " No RAM for Scenario Brain Parameters ");
-    scenarioBrainHandleMessage = scenarioBrain->findFunction(const_cast<char*>("handlemessage"), 1);
+    ScenarioBrain->SetName(const_cast<char*>("Scenario"));
+    ScenarioBrain->Step = 1;
+    ScenarioBrainParams = new MCAblParam;
+    Assert(ScenarioBrainParams != nullptr, 0, " No RAM for Scenario Brain Parameters ");
+    ScenarioBrainHandleMessage = ScenarioBrain->FindFunction(const_cast<char*>("handlemessage"), 1);
 
     //---------------------------------------------------------------------------------------------------------------
     // The warriors.
-    result = scenarioFile->seekBlock("Warriors");
+    result = ScenarioFile->SeekBlock("Warriors");
     Assert(result == 0, 0, " Could not find Warriors Block ");
-    result = scenarioFile->readIdUChar("CaptureChance", captureChance);
+    result = ScenarioFile->ReadIdUChar("CaptureChance", CaptureChance);
 
-    if (result != 0 || 4 < captureChance)
+    if (result != 0 || 4 < CaptureChance)
     {
-        captureChance = 2;
+        CaptureChance = 2;
     }
 
-    result = scenarioFile->readIdULong("NumWarriors", numWarriors);
-    requireOk(result, " Could not find NumWarriors in Warriors Block ");
+    result = ScenarioFile->ReadIdULong("NumWarriors", NumWarriors);
+    RequireOk(result, " Could not find NumWarriors in Warriors Block ");
     char brainParameterFileName[1024];
-    result = scenarioFile->readIdString("BrainParameterFile", brainParameterFileName, 1023);
+    result = ScenarioFile->ReadIdString("BrainParameterFile", brainParameterFileName, 1023);
     const bool haveBrainParameters = (result == 0);
-    result = scenarioFile->readIdUChar("CaptureChance", captureChance);
+    result = ScenarioFile->ReadIdUChar("CaptureChance", CaptureChance);
 
-    if (result != 0 || 4 < captureChance)
+    if (result != 0 || 4 < CaptureChance)
     {
-        captureChance = 2;
+        CaptureChance = 2;
     }
 
     UpdateDisplay(0, 1, 30, 1, 77);
 
     NumMarines = 0;
 
-    if (numWarriors != 0)
+    if (NumWarriors != 0)
     {
-        warriors = std::make_unique<MechWarrior*[]>(numWarriors + 1);
+        Warriors = std::make_unique<MCMechWarrior*[]>(NumWarriors + 1);
 
-        for (uint32_t i = 1; i < numWarriors + 1; i++)
+        for (uint32_t i = 1; i < NumWarriors + 1; i++)
         {
             char blockName[32];
             std::snprintf(blockName, sizeof(blockName), "Warrior%d", i);
-            result = scenarioFile->seekBlock(blockName);
+            result = ScenarioFile->SeekBlock(blockName);
             Assert(result == 0, i, " Could not find Warrior Number Block ");
             char profileName[100];
-            result = scenarioFile->readIdString("Profile", profileName, 99);
+            result = ScenarioFile->ReadIdString("Profile", profileName, 99);
             Assert(result == 0, 0, " Could not find Warrior Profile in Warrior Number Block ");
-            warriors[i] = newWarrior();
-            Assert(warriors[i] != nullptr, 0, " No RAM for Warrior ");
+            Warriors[i] = NewWarrior();
+            Assert(Warriors[i] != nullptr, 0, " No RAM for Warrior ");
 
-            FullPathFileName profileFileName;
-            profileFileName.init(warriorPath, profileName, ".fit");
-            auto* profileFile = new FitIniFile;
+            MCFullPathFileName profileFileName;
+            profileFileName.Init(WarriorPath, profileName, ".fit");
+            auto* profileFile = new MCFitIniFile;
             Assert(profileFile != nullptr, 0, " No RAM for Warrior Profile File ");
-            int32_t profileResult = profileFile->open(profileFileName);
+            int32_t profileResult = profileFile->Open(profileFileName);
 
             if (profileResult == 0)
             {
-                profileResult = warriors[i]->init(profileFile);
+                profileResult = Warriors[i]->Init(profileFile);
                 Assert(profileResult == 0, static_cast<uint32_t>(profileResult), " Could not load Warrior Profile ");
             }
             else
             {
                 // A saved game keeps its warriors' profiles in the temporary save folder.
-                FitIniFile savedProfileFile;
-                FullPathFileName savedProfileName;
-                savedProfileName.init(saveTempPath, profileName, ".fit");
-                profileResult = savedProfileFile.open(savedProfileName);
+                MCFitIniFile savedProfileFile;
+                MCFullPathFileName savedProfileName;
+                savedProfileName.Init(SaveTempPath, profileName, ".fit");
+                profileResult = savedProfileFile.Open(savedProfileName);
                 Assert(profileResult == 0, static_cast<uint32_t>(profileResult),
                        " Could not open Warrior Profile File ");
-                profileResult = warriors[i]->init(&savedProfileFile);
+                profileResult = Warriors[i]->Init(&savedProfileFile);
                 Assert(profileResult == 0, static_cast<uint32_t>(profileResult), " Could not load Warrior Profile ");
             }
 
-            profileFile->close();
+            profileFile->Close();
             delete profileFile;
 
-            warriors[i]->index = static_cast<int32_t>(i);
+            Warriors[i]->Index = static_cast<int32_t>(i);
             char brainName[128];
-            profileResult = scenarioFile->readIdString("Brain", brainName, 127);
+            profileResult = ScenarioFile->ReadIdString("Brain", brainName, 127);
             Assert(profileResult == 0, static_cast<uint32_t>(profileResult),
                    " Could not find Warrior Brain in Warrior Number Block ");
-            warriors[i]->setBrainName(brainName);
-            FullPathFileName brainFileName;
-            brainFileName.init(warriorPath, brainName, ".abl");
+            Warriors[i]->SetBrainName(brainName);
+            MCFullPathFileName brainFileName;
+            brainFileName.Init(WarriorPath, brainName, ".abl");
             int32_t brainErrors = 0;
             int32_t brainLines = 0;
-            const int32_t brainHandle = ABLi_preProcess(brainFileName, &brainErrors, &brainLines, nullptr, 0);
+            const int32_t brainHandle = AblPreProcess(brainFileName, &brainErrors, &brainLines, nullptr, 0);
             Assert(-1 < brainHandle, static_cast<uint32_t>(brainHandle), " Could not start Warrior Brain ");
-            const int32_t setBrainResult = warriors[i]->setBrain(brainHandle);
+            const int32_t setBrainResult = Warriors[i]->SetBrain(brainHandle);
             Assert(setBrainResult == 0, static_cast<uint32_t>(setBrainResult), " Could Not Set Brain ");
             int notMineYet = 0;
 
-            if (scenarioFile->readIdBoolean("NotMineYet", notMineYet) != 0)
+            if (ScenarioFile->ReadIdBoolean("NotMineYet", notMineYet) != 0)
             {
                 notMineYet = 0;
             }
 
-            warriors[i]->notMineYet = notMineYet;
+            Warriors[i]->NotMineYet = notMineYet;
         }
     }
 
     if (haveBrainParameters)
     {
-        FullPathFileName parameterFileName;
-        parameterFileName.init(warriorPath, brainParameterFileName, ".fit");
-        auto* parameterFile = new FitIniFile;
+        MCFullPathFileName parameterFileName;
+        parameterFileName.Init(WarriorPath, brainParameterFileName, ".fit");
+        auto* parameterFile = new MCFitIniFile;
         Assert(parameterFile != nullptr, 0, " No RAM for Brain Parameter File ");
-        const int32_t openResult = parameterFile->open(parameterFileName);
+        const int32_t openResult = parameterFile->Open(parameterFileName);
         Assert(openResult == 0, static_cast<uint32_t>(openResult), " Could not open Brain Parameter File ");
 
-        for (uint32_t i = 1; i <= numWarriors; i++)
+        for (uint32_t i = 1; i <= NumWarriors; i++)
         {
-            warriors[i]->loadBrainParameters(parameterFile, static_cast<int32_t>(i));
+            Warriors[i]->LoadBrainParameters(parameterFile, static_cast<int32_t>(i));
         }
 
-        parameterFile->close();
+        parameterFile->Close();
         delete parameterFile;
     }
 
@@ -1260,59 +1260,59 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
     //---------------------------------------------------------------------------------------------------------------
     // The parts.
-    result = scenarioFile->seekBlock("Parts");
-    requireOk(result, " Could not find Parts Block ");
-    result = scenarioFile->readIdULong("NumParts", numParts);
-    requireOk(result, " Could not find NumParts in Parts Block ");
+    result = ScenarioFile->SeekBlock("Parts");
+    RequireOk(result, " Could not find Parts Block ");
+    result = ScenarioFile->ReadIdULong("NumParts", NumParts);
+    RequireOk(result, " Could not find NumParts in Parts Block ");
 
-    for (BaseObject*& mover : MoverRoster)
+    for (MCBaseObject*& mover : MoverRoster)
     {
         mover = nullptr;
     }
 
-    if (numParts != 0)
+    if (NumParts != 0)
     {
-        parts = std::make_unique<Part[]>(numParts + 1);
+        Parts = std::make_unique<MCPart[]>(NumParts + 1);
 
-        for (int32_t i = 1; i < static_cast<int32_t>(numParts) + 1; i++)
+        for (int32_t i = 1; i < static_cast<int32_t>(NumParts) + 1; i++)
         {
             UpdateDisplay(0, 1, 30, 1,
-                          static_cast<int32_t>(static_cast<double>(i) / static_cast<int32_t>(numParts) * 10.0 + 80.0));
-            Part& part = parts[i];
+                          static_cast<int32_t>(static_cast<double>(i) / static_cast<int32_t>(NumParts) * 10.0 + 80.0));
+            MCPart& part = Parts[i];
             char blockName[32];
             std::snprintf(blockName, sizeof(blockName), "Part%d", i);
-            result = scenarioFile->seekBlock(blockName);
-            requireOk(result, " Could not find PartNumber Block ");
-            result = scenarioFile->readIdULong("ObjectNumber", part.objNumber);
-            requireOk(result, " Could not find ObjectNumber in PartNumber Block ");
-            result = scenarioFile->readIdULong("ControlType", part.controlType);
-            requireOk(result, " Could not find ControlType in PartNumber Block ");
-            result = scenarioFile->readIdULong("ControlDataType", part.controlDataType);
-            requireOk(result, " Could not find ControlDataType in PartNumber Block ");
-            result = scenarioFile->readIdString("ObjectProfile", part.profileName, 9);
-            requireOk(result, " Could not find ObjectProfile in PartNumber Block ");
-            result = scenarioFile->readIdULong("Pilot", part.pilot);
-            requireOk(result, " Could not find Pilot in PartNumber Block ");
-            result = scenarioFile->readIdFloat("PositionX", part.position[0]);
-            requireOk(result, " Could not find PositionX in PartNumber Block ");
-            result = scenarioFile->readIdFloat("PositionY", part.position[1]);
-            requireOk(result, " Could not find PositionY in PartNumber Block ");
-            result = scenarioFile->readIdFloat("PositionZ", part.position[2]);
-            requireOk(result, " Could not find PositionZ in PartNumber Block ");
-            result = scenarioFile->readIdFloat("Rotation", part.rotation);
-            requireOk(result, " Could not find Rotation in PartNumber Block ");
+            result = ScenarioFile->SeekBlock(blockName);
+            RequireOk(result, " Could not find PartNumber Block ");
+            result = ScenarioFile->ReadIdULong("ObjectNumber", part.ObjNumber);
+            RequireOk(result, " Could not find ObjectNumber in PartNumber Block ");
+            result = ScenarioFile->ReadIdULong("ControlType", part.ControlType);
+            RequireOk(result, " Could not find ControlType in PartNumber Block ");
+            result = ScenarioFile->ReadIdULong("ControlDataType", part.ControlDataType);
+            RequireOk(result, " Could not find ControlDataType in PartNumber Block ");
+            result = ScenarioFile->ReadIdString("ObjectProfile", part.ProfileName, 9);
+            RequireOk(result, " Could not find ObjectProfile in PartNumber Block ");
+            result = ScenarioFile->ReadIdULong("Pilot", part.Pilot);
+            RequireOk(result, " Could not find Pilot in PartNumber Block ");
+            result = ScenarioFile->ReadIdFloat("PositionX", part.Position[0]);
+            RequireOk(result, " Could not find PositionX in PartNumber Block ");
+            result = ScenarioFile->ReadIdFloat("PositionY", part.Position[1]);
+            RequireOk(result, " Could not find PositionY in PartNumber Block ");
+            result = ScenarioFile->ReadIdFloat("PositionZ", part.Position[2]);
+            RequireOk(result, " Could not find PositionZ in PartNumber Block ");
+            result = ScenarioFile->ReadIdFloat("Rotation", part.Rotation);
+            RequireOk(result, " Could not find Rotation in PartNumber Block ");
             char teamId = 0;
-            result = scenarioFile->readIdChar("TeamId", teamId);
-            part.teamId = static_cast<int8_t>(teamId);
-            requireOk(result, " Could not find TeamId in PartNumber Block ");
+            result = ScenarioFile->ReadIdChar("TeamId", teamId);
+            part.TeamId = static_cast<int8_t>(teamId);
+            RequireOk(result, " Could not find TeamId in PartNumber Block ");
 
-            if (part.teamId == 0 || part.teamId == 2)
+            if (part.TeamId == 0 || part.TeamId == 2)
             {
-                part.alignment = 1;
+                part.Alignment = 1;
             }
-            else if (part.teamId == 1)
+            else if (part.TeamId == 1)
             {
-                part.alignment = -1;
+                part.Alignment = -1;
             }
             else
             {
@@ -1320,45 +1320,45 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
             }
 
             char commanderId = 0;
-            result = scenarioFile->readIdChar("CommanderId", commanderId);
+            result = ScenarioFile->ReadIdChar("CommanderId", commanderId);
 
             if (result == 0)
             {
-                part.commanderId = commanderId;
+                part.CommanderId = commanderId;
                 result = 0;
             }
             else
             {
-                result = scenarioFile->readIdLong("CommanderId", part.commanderId);
-                requireOk(result, " Could not find CommanderId in PartNumber Block ");
+                result = ScenarioFile->ReadIdLong("CommanderId", part.CommanderId);
+                RequireOk(result, " Could not find CommanderId in PartNumber Block ");
             }
 
-            result = scenarioFile->readIdULong("Gesture", part.gestureId);
-            requireOk(result, " Could not find Gesture in PartNumber Block ");
+            result = ScenarioFile->ReadIdULong("Gesture", part.GestureId);
+            RequireOk(result, " Could not find Gesture in PartNumber Block ");
 
-            if (scenarioFile->readIdLong("PaintScheme", part.paintScheme) != 0)
+            if (ScenarioFile->ReadIdLong("PaintScheme", part.PaintScheme) != 0)
             {
-                part.paintScheme = -1;
+                part.PaintScheme = -1;
             }
 
-            result = scenarioFile->readIdFloat("Velocity", part.velocity);
-            requireOk(result, " Could not find Velocity in PartNumber Block ");
-            result = scenarioFile->readIdLong("Active", part.active);
-            requireOk(result, " Could not find Active Flag in PartNumber Block ");
-            result = scenarioFile->readIdLong("Exists", part.exists);
-            requireOk(result, " Could not find Exists Flag in PartNumber Block ");
+            result = ScenarioFile->ReadIdFloat("Velocity", part.Velocity);
+            RequireOk(result, " Could not find Velocity in PartNumber Block ");
+            result = ScenarioFile->ReadIdLong("Active", part.Active);
+            RequireOk(result, " Could not find Active Flag in PartNumber Block ");
+            result = ScenarioFile->ReadIdLong("Exists", part.Exists);
+            RequireOk(result, " Could not find Exists Flag in PartNumber Block ");
             // Read twice in the original.
-            result = scenarioFile->readIdChar("MyIcon", part.myIcon);
-            requireOk(result, " Could not find MyIcon in PartNumber Block ");
-            result = scenarioFile->readIdChar("MyIcon", part.myIcon);
-            requireOk(result, " Could not find MyIcon in PartNumber Block ");
+            result = ScenarioFile->ReadIdChar("MyIcon", part.MyIcon);
+            RequireOk(result, " Could not find MyIcon in PartNumber Block ");
+            result = ScenarioFile->ReadIdChar("MyIcon", part.MyIcon);
+            RequireOk(result, " Could not find MyIcon in PartNumber Block ");
             int captureable = 0;
-            result = scenarioFile->readIdBoolean("Captureable", captureable);
-            part.captureable = (result != 0) ? 0 : captureable;
+            result = ScenarioFile->ReadIdBoolean("Captureable", captureable);
+            part.Captureable = (result != 0) ? 0 : captureable;
 
-            partCreateTime = -1.0f;
+            PartCreateTime = -1.0f;
             InfluenceTime = 0.0f;
-            createPartObject(i);
+            CreatePartObject(i);
         }
     }
 
@@ -1366,73 +1366,73 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
     //---------------------------------------------------------------------------------------------------------------
     // Trains, elemental carriers and buses: parts that carry other parts.
-    trainManager = nullptr;
-    result = scenarioFile->seekBlock("Trains");
+    TrainManager = nullptr;
+    result = ScenarioFile->SeekBlock("Trains");
 
     if (result == 0)
     {
         int32_t numTrains = 0;
-        trainManager = new TrainManager;
+        TrainManager = new MCTrainManager;
 
-        if (trainManager != nullptr)
+        if (TrainManager != nullptr)
         {
-            trainManager->init();
+            TrainManager->Init();
         }
 
-        Assert(trainManager != nullptr, 0, "Couldn't create manager");
-        result = scenarioFile->readIdLong("NumTrains", numTrains);
-        requireOk(result, " Could not find number of trains");
+        Assert(TrainManager != nullptr, 0, "Couldn't create manager");
+        result = ScenarioFile->ReadIdLong("NumTrains", numTrains);
+        RequireOk(result, " Could not find number of trains");
 
         for (int32_t trainNumber = 0; trainNumber < numTrains; trainNumber++)
         {
             char blockName[32];
             std::snprintf(blockName, sizeof(blockName), "Train%d", trainNumber);
-            result = scenarioFile->seekBlock(blockName);
-            requireOk(result, " Could not find train block");
+            result = ScenarioFile->SeekBlock(blockName);
+            RequireOk(result, " Could not find train block");
             int32_t numCars = 0;
-            result = scenarioFile->readIdLong("NumCars", numCars);
-            requireOk(result, " Could not find number of cars in train block");
+            result = ScenarioFile->ReadIdLong("NumCars", numCars);
+            RequireOk(result, " Could not find number of cars in train block");
             Assert(0 < numCars, static_cast<uint32_t>(result), " Need at least one car in train...");
-            Train* train = trainManager->CreateTrain();
+            MCTrain* train = TrainManager->CreateTrain();
 
             for (int32_t carNumber = 0; carNumber < numCars; carNumber++)
             {
                 std::snprintf(blockName, sizeof(blockName), "Car%d", carNumber);
                 int32_t carPart = 0;
-                result = scenarioFile->readIdLong(blockName, carPart);
-                requireOk(result, " Could not find a car in train block");
-                Assert(carPart <= static_cast<int32_t>(numParts), 0, "Illegal part number for train car");
-                auto* car = static_cast<TrainCar*>(parts[carPart].object);
-                Assert(car->objectClass == TRAINCAR, 0, "Car in train block isn't a traincar!");
+                result = ScenarioFile->ReadIdLong(blockName, carPart);
+                RequireOk(result, " Could not find a car in train block");
+                Assert(carPart <= static_cast<int32_t>(NumParts), 0, "Illegal part number for train car");
+                auto* car = static_cast<MCTrainCar*>(Parts[carPart].Object);
+                Assert(car->ObjectClass == TRAINCAR, 0, "Car in train block isn't a traincar!");
                 train->AddCar(car);
-                car->setPartId(trainNumber, carNumber);
+                car->SetPartId(trainNumber, carNumber);
 
                 if (carNumber == 0)
                 {
                     // The lead car's part sets the train's speed (clamped to its top speed) and direction.
-                    const float velocity = parts[carPart].velocity;
+                    const float velocity = Parts[carPart].Velocity;
 
-                    if (std::fabs(velocity) <= train->maxSpeed)
+                    if (std::fabs(velocity) <= train->MaxSpeed)
                     {
-                        train->desiredSpeed = velocity;
+                        train->DesiredSpeed = velocity;
                     }
                     else if (velocity <= 0.0f)
                     {
-                        train->desiredSpeed = -train->maxSpeed;
+                        train->DesiredSpeed = -train->MaxSpeed;
                     }
                     else
                     {
-                        train->desiredSpeed = train->maxSpeed;
+                        train->DesiredSpeed = train->MaxSpeed;
                     }
 
-                    const float rotation = parts[carPart].rotation;
+                    const float rotation = Parts[carPart].Rotation;
 
                     if (rotation != 45.0f && rotation != -45.0f && rotation != 135.0f && rotation != -135.0f)
                     {
                         Fatal(static_cast<int32_t>(rotation), " Train Rotation Invalid.  (must be 45,-45,135,-135) ");
                     }
 
-                    train->trackDirection = static_cast<int32_t>(rotation);
+                    train->TrackDirection = static_cast<int32_t>(rotation);
                 }
             }
         }
@@ -1440,166 +1440,166 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
 
     UpdateDisplay(0, 1, 20, 1, 92);
 
-    result = scenarioFile->seekBlock("Elemental Carriers");
+    result = ScenarioFile->SeekBlock("Elemental Carriers");
 
     if (result == 0)
     {
         int32_t numCarriers = 0;
-        result = scenarioFile->readIdLong("Carriers", numCarriers);
-        requireOk(result, " Could not find number of carriers");
+        result = ScenarioFile->ReadIdLong("Carriers", numCarriers);
+        RequireOk(result, " Could not find number of carriers");
 
         for (int32_t carrierNumber = 0; carrierNumber < numCarriers; carrierNumber++)
         {
             char blockName[32];
             std::snprintf(blockName, sizeof(blockName), "ECarrier%d", carrierNumber);
-            result = scenarioFile->seekBlock(blockName);
-            requireOk(result, " Could not find carrier block");
+            result = ScenarioFile->SeekBlock(blockName);
+            RequireOk(result, " Could not find carrier block");
             int32_t partNumber = 0;
-            result = scenarioFile->readIdLong("Carrier", partNumber);
-            requireOk(result, " Could not read carrier in carrier block");
-            Assert(partNumber < static_cast<int32_t>(numParts), static_cast<uint32_t>(partNumber),
+            result = ScenarioFile->ReadIdLong("Carrier", partNumber);
+            RequireOk(result, " Could not read carrier in carrier block");
+            Assert(partNumber < static_cast<int32_t>(NumParts), static_cast<uint32_t>(partNumber),
                    "Illegal part number for elemental carrier");
-            auto* carrier = static_cast<GroundVehicle*>(parts[partNumber].object);
-            Assert(carrier != nullptr && carrier->objectClass == GROUNDVEHICLE && carrier->elementalCarrier != 0, 0,
+            auto* carrier = static_cast<MCGroundVehicle*>(Parts[partNumber].Object);
+            Assert(carrier != nullptr && carrier->ObjectClass == GROUNDVEHICLE && carrier->ElementalCarrier != 0, 0,
                    "Illegal carrier object");
 
             for (int32_t i = 0; i < 10; i++)
             {
                 std::snprintf(blockName, sizeof(blockName), "Elemental%d", i);
-                result = scenarioFile->readIdLong(blockName, partNumber);
+                result = ScenarioFile->ReadIdLong(blockName, partNumber);
 
                 if (result != 0)
                 {
                     break;
                 }
 
-                auto* elemental = static_cast<Elemental*>(parts[partNumber].object);
-                Assert(elemental != nullptr && elemental->objectClass == ELEMENTAL, 0, "Illegal elemental object");
-                carrier->elementals[i] = elemental;
-                elemental->transport = carrier;
+                auto* elemental = static_cast<MCElemental*>(Parts[partNumber].Object);
+                Assert(elemental != nullptr && elemental->ObjectClass == ELEMENTAL, 0, "Illegal elemental object");
+                carrier->Elementals[i] = elemental;
+                elemental->Transport = carrier;
             }
         }
     }
 
     UpdateDisplay(0, 1, 20, 1, 93);
 
-    result = scenarioFile->seekBlock("BusBlock");
+    result = ScenarioFile->SeekBlock("BusBlock");
 
     if (result == 0)
     {
         int32_t numBuses = 0;
-        result = scenarioFile->readIdLong("Buses", numBuses);
-        requireOk(result, " Could not find number of buses");
+        result = ScenarioFile->ReadIdLong("Buses", numBuses);
+        RequireOk(result, " Could not find number of buses");
 
         for (int32_t busNumber = 0; busNumber < numBuses; busNumber++)
         {
             char blockName[32];
             std::snprintf(blockName, sizeof(blockName), "Bus%d", busNumber);
-            result = scenarioFile->seekBlock(blockName);
-            requireOk(result, " Could not find bus block");
+            result = ScenarioFile->SeekBlock(blockName);
+            RequireOk(result, " Could not find bus block");
             int32_t number = 0;
-            result = scenarioFile->readIdLong("Bus", number);
-            requireOk(result, " Could not read carrier in carrier block");
-            Assert(number <= static_cast<int32_t>(numParts), static_cast<uint32_t>(number),
+            result = ScenarioFile->ReadIdLong("Bus", number);
+            RequireOk(result, " Could not read carrier in carrier block");
+            Assert(number <= static_cast<int32_t>(NumParts), static_cast<uint32_t>(number),
                    "Illegal part number for elemental carrier");
-            auto* bus = static_cast<GroundVehicle*>(parts[number].object);
-            Assert(bus != nullptr && bus->objectClass == GROUNDVEHICLE, 0, "Illegal bus object");
+            auto* bus = static_cast<MCGroundVehicle*>(Parts[number].Object);
+            Assert(bus != nullptr && bus->ObjectClass == GROUNDVEHICLE, 0, "Illegal bus object");
 
-            for (int32_t seat = 0; seat < 4 && seat < static_cast<int32_t>(bus->seats); seat++)
+            for (int32_t seat = 0; seat < 4 && seat < static_cast<int32_t>(bus->Seats); seat++)
             {
                 std::snprintf(blockName, sizeof(blockName), "Passenger%d", seat);
-                result = scenarioFile->readIdLong(blockName, number);
+                result = ScenarioFile->ReadIdLong(blockName, number);
 
                 if (result != 0)
                 {
                     break;
                 }
 
-                Assert(number <= static_cast<int32_t>(numWarriors), 0, "Illegal passenger");
-                bus->passengers[seat] = warriors[number];
+                Assert(number <= static_cast<int32_t>(NumWarriors), 0, "Illegal passenger");
+                bus->Passengers[seat] = Warriors[number];
             }
         }
     }
 
     //---------------------------------------------------------------------------------------------------------------
     // The objectives.
-    result = scenarioFile->seekBlock("Objectives");
-    requireOk(result, " Could not find Objective Block ");
+    result = ScenarioFile->SeekBlock("Objectives");
+    RequireOk(result, " Could not find Objective Block ");
 
-    if (scenarioFile->readIdLong("TimeLeft", timeLimit) != 0)
+    if (ScenarioFile->ReadIdLong("TimeLeft", TimeLimit) != 0)
     {
-        timeLimit = -1;
+        TimeLimit = -1;
     }
 
-    twoMinuteWarningPlayed = 0;
-    thirtySecondWarningPlayed = 0;
-    result = scenarioFile->readIdULong("NumObjectives", numObjectives);
-    requireOk(result, " Could not find numObjectives in Objective Block ");
-    Assert(numObjectives < 10, static_cast<uint32_t>(result), " Too Many Objectives ");
+    TwoMinuteWarningPlayed = 0;
+    ThirtySecondWarningPlayed = 0;
+    result = ScenarioFile->ReadIdULong("NumObjectives", NumObjectives);
+    RequireOk(result, " Could not find numObjectives in Objective Block ");
+    Assert(NumObjectives < 10, static_cast<uint32_t>(result), " Too Many Objectives ");
 
     if (MPlayer == nullptr)
     {
-        innerSphereTeam->firstObjective = 0;
-        innerSphereTeam->numObjectives = numObjectives;
+        InnerSphereTeam->FirstObjective = 0;
+        InnerSphereTeam->NumObjectives = NumObjectives;
     }
     else
     {
         uint32_t numInnerSphereObjectives = 0;
         uint32_t numClanObjectives = 0;
-        result = scenarioFile->readIdULong("NumInnerSphereObjectives", numInnerSphereObjectives);
-        requireOk(result, " Could not find NumInnerSphereObjectives in Objective Block ");
-        result = scenarioFile->readIdULong("NumClanObjectives", numClanObjectives);
-        requireOk(result, " Could not find NumClanObjectives in Objective Block ");
-        Assert(numInnerSphereObjectives + numClanObjectives == numObjectives, static_cast<uint32_t>(result),
+        result = ScenarioFile->ReadIdULong("NumInnerSphereObjectives", numInnerSphereObjectives);
+        RequireOk(result, " Could not find NumInnerSphereObjectives in Objective Block ");
+        result = ScenarioFile->ReadIdULong("NumClanObjectives", numClanObjectives);
+        RequireOk(result, " Could not find NumClanObjectives in Objective Block ");
+        Assert(numInnerSphereObjectives + numClanObjectives == NumObjectives, static_cast<uint32_t>(result),
                " Incorrect # of objectives ");
-        innerSphereTeam->firstObjective = 0;
-        innerSphereTeam->numObjectives = numInnerSphereObjectives;
-        clanTeam->firstObjective = static_cast<int32_t>(numInnerSphereObjectives);
-        clanTeam->numObjectives = numClanObjectives;
+        InnerSphereTeam->FirstObjective = 0;
+        InnerSphereTeam->NumObjectives = numInnerSphereObjectives;
+        ClanTeam->FirstObjective = static_cast<int32_t>(numInnerSphereObjectives);
+        ClanTeam->NumObjectives = numClanObjectives;
     }
 
-    if (numObjectives != 0)
+    if (NumObjectives != 0)
     {
-        objectives = std::make_unique<ScenarioObjective[]>(MAX_OBJECTIVES);
+        Objectives = std::make_unique<MCScenarioObjective[]>(MAX_OBJECTIVES);
 
-        for (int32_t i = 0; i < static_cast<int32_t>(numObjectives); i++)
+        for (int32_t i = 0; i < static_cast<int32_t>(NumObjectives); i++)
         {
             UpdateDisplay(
                 0, 1, 20, 1,
-                static_cast<int32_t>(static_cast<double>(i) / static_cast<int32_t>(numObjectives) * 5.0 + 93.0));
-            ScenarioObjective& objective = objectives[i];
+                static_cast<int32_t>(static_cast<double>(i) / static_cast<int32_t>(NumObjectives) * 5.0 + 93.0));
+            MCScenarioObjective& objective = Objectives[i];
             char blockName[32];
             std::snprintf(blockName, sizeof(blockName), "Objective%d", i);
-            result = scenarioFile->seekBlock(blockName);
+            result = ScenarioFile->SeekBlock(blockName);
             Assert(result == 0, static_cast<uint32_t>(i), " Could not find ObjectiveNumber Block ");
-            result = scenarioFile->readIdString("Name", objective.name, 79);
-            requireOk(result, " Could not find Name in Objective Block ");
-            result = scenarioFile->readIdULong("Type", objective.type);
-            requireOk(result, " Could not find Type in Objective Block ");
-            result = scenarioFile->readIdFloat("TimeLeft", objective.timeLeft);
-            requireOk(result, " Could not find TimeLeft in Objective Block ");
-            result = scenarioFile->readIdULong("Status", objective.status);
-            requireOk(result, " Could not find Status in Objective Block");
+            result = ScenarioFile->ReadIdString("Name", objective.Name, 79);
+            RequireOk(result, " Could not find Name in Objective Block ");
+            result = ScenarioFile->ReadIdULong("Type", objective.Type);
+            RequireOk(result, " Could not find Type in Objective Block ");
+            result = ScenarioFile->ReadIdFloat("TimeLeft", objective.TimeLeft);
+            RequireOk(result, " Could not find TimeLeft in Objective Block ");
+            result = ScenarioFile->ReadIdULong("Status", objective.Status);
+            RequireOk(result, " Could not find Status in Objective Block");
 
-            if (scenarioFile->readIdLong("Points", objective.points) != 0)
+            if (ScenarioFile->ReadIdLong("Points", objective.Points) != 0)
             {
-                objective.points = 0;
+                objective.Points = 0;
             }
 
-            if (scenarioFile->readIdFloat("Radius", objective.radius) != 0)
+            if (ScenarioFile->ReadIdFloat("Radius", objective.Radius) != 0)
             {
-                objective.radius = 0.0f;
+                objective.Radius = 0.0f;
             }
 
-            objective.position[0] = -99.0f;
-            objective.position[1] = -99.0f;
-            objective.position[2] = -99.0f;
+            objective.Position[0] = -99.0f;
+            objective.Position[1] = -99.0f;
+            objective.Position[2] = -99.0f;
         }
 
-        for (int32_t i = static_cast<int32_t>(numObjectives); i < MAX_OBJECTIVES; i++)
+        for (int32_t i = static_cast<int32_t>(NumObjectives); i < MAX_OBJECTIVES; i++)
         {
-            objectives[i].type = UNUSED_OBJECTIVE;
-            objectives[i].status = UNUSED_OBJECTIVE;
+            Objectives[i].Type = UNUSED_OBJECTIVE;
+            Objectives[i].Status = UNUSED_OBJECTIVE;
         }
     }
 
@@ -1607,29 +1607,29 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
     // Each commander's support strikes and groups ("Commander%dGroup:%d": the part numbers of its mates).
     for (int32_t commanderId = 0; commanderId < NumCommanders; commanderId++)
     {
-        Commander* commander = CommanderTable[commanderId];
+        MCCommander* commander = CommanderTable[commanderId];
         int32_t groupId = 0;
         UpdateDisplay(0, 1, 30, 1, 98);
         char blockName[64];
         std::snprintf(blockName, sizeof(blockName), "Commander:%d", commanderId);
 
-        if (scenarioFile->seekBlock(blockName) == 0)
+        if (ScenarioFile->SeekBlock(blockName) == 0)
         {
             int32_t strikes = 0;
-            commander->setNumSmallStrikes(scenarioFile->readIdLong("NumSmallStrikes", strikes) == 0 ? strikes : 0);
-            commander->setNumLargeStrikes(scenarioFile->readIdLong("NumLargeStrikes", strikes) == 0 ? strikes : 0);
-            commander->setNumSensorStrikes(scenarioFile->readIdLong("NumSensorStrikes", strikes) == 0 ? strikes : 0);
-            commander->setNumCameraDrones(scenarioFile->readIdLong("NumCameraDrones", strikes) == 0 ? strikes : 0);
+            commander->SetNumSmallStrikes(ScenarioFile->ReadIdLong("NumSmallStrikes", strikes) == 0 ? strikes : 0);
+            commander->SetNumLargeStrikes(ScenarioFile->ReadIdLong("NumLargeStrikes", strikes) == 0 ? strikes : 0);
+            commander->SetNumSensorStrikes(ScenarioFile->ReadIdLong("NumSensorStrikes", strikes) == 0 ? strikes : 0);
+            commander->SetNumCameraDrones(ScenarioFile->ReadIdLong("NumCameraDrones", strikes) == 0 ? strikes : 0);
         }
 
         std::snprintf(blockName, sizeof(blockName), "Commander%dGroup:%d", commanderId, groupId);
-        int32_t groupResult = scenarioFile->seekBlock(blockName);
+        int32_t groupResult = ScenarioFile->SeekBlock(blockName);
 
         while (groupResult == 0)
         {
             bool pointChosen = false;
             int32_t mates[MAX_MOVERGROUP_COUNT];
-            groupResult = scenarioFile->readIdLongArray("Mates", mates, MAX_MOVERGROUP_COUNT);
+            groupResult = ScenarioFile->ReadIdLongArray("Mates", mates, MAX_MOVERGROUP_COUNT);
             Assert(groupResult == 0, static_cast<uint32_t>(groupResult),
                    " could not find Mates in Group in Scenario File ");
 
@@ -1640,52 +1640,52 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
                     continue;
                 }
 
-                Part& mate = parts[mates[i]];
+                MCPart& mate = Parts[mates[i]];
                 const int32_t partId = 0x200 + commanderId * 0x180 + groupId * MAX_MOVERGROUP_COUNT + i;
-                mate.object->setPartId(partId);
+                mate.Object->SetPartId(partId);
 
-                if (mate.exists == 0)
+                if (mate.Exists == 0)
                 {
-                    createdPartRoster[currentCreatorPart].partId = partId;
-                    createdPartRoster[currentCreatorPart].created = 0;
-                    currentCreatorPart++;
+                    CreatedPartRoster[CurrentCreatorPart].PartId = partId;
+                    CreatedPartRoster[CurrentCreatorPart].Created = 0;
+                    CurrentCreatorPart++;
                 }
 
-                commander->getGroup(groupId)->add(static_cast<Mover*>(mate.object));
+                commander->GetGroup(groupId)->Add(static_cast<MCMover*>(mate.Object));
 
                 if (!pointChosen)
                 {
-                    commander->getGroup(groupId)->selectPoint(1);
+                    commander->GetGroup(groupId)->SelectPoint(1);
                     pointChosen = true;
-                    commander->setTeam(commander->getGroup(groupId)->getPoint()->getTeam());
+                    commander->SetTeam(commander->GetGroup(groupId)->GetPoint()->GetTeam());
                 }
             }
 
             if (MPlayer == nullptr && commanderId == 1)
             {
-                CommanderTable[1]->getGroup(groupId)->setDisbandOnNoPoint(0);
+                CommanderTable[1]->GetGroup(groupId)->SetDisbandOnNoPoint(0);
             }
 
             groupId++;
             std::snprintf(blockName, sizeof(blockName), "Commander%dGroup:%d", commanderId, groupId);
-            groupResult = scenarioFile->seekBlock(blockName);
+            groupResult = ScenarioFile->SeekBlock(blockName);
         }
     }
 
-    clanTeam->buildRoster(this);
-    innerSphereTeam->buildRoster(this);
+    ClanTeam->BuildRoster(this);
+    InnerSphereTeam->BuildRoster(this);
 
-    if (alliedTeam != nullptr)
+    if (AlliedTeam != nullptr)
     {
-        alliedTeam->buildRoster(this);
+        AlliedTeam->BuildRoster(this);
     }
 
     if (MPlayer == nullptr)
     {
-        HomeCommander->setNetPlayerId(0);
+        HomeCommander->SetNetPlayerId(0);
     }
 
-    HomeCommander->addToGUI(1);
+    HomeCommander->AddToGui(1);
 
     if (MPlayer != nullptr)
     {
@@ -1693,597 +1693,597 @@ auto Scenario::init(char* scenarioName, char* terrainName) -> int32_t
         {
             if (CommanderTable[i] != HomeCommander)
             {
-                CommanderTable[i]->addToGUI(0);
+                CommanderTable[i]->AddToGui(0);
             }
         }
     }
 
-    scenarioTime = 0.0f;
+    ScenarioTime = 0.0f;
     MissionStartTime = 0;
-    runningTime = 0.0f;
-    actualTime = 0.0f;
-    gameSystemFile->close();
+    RunningTime = 0.0f;
+    ActualTime = 0.0f;
+    gameSystemFile->Close();
     delete gameSystemFile;
     UpdateDisplay(0, 1, 30, 1, 100);
 
-    eye = cameraList->activateAllReady();
+    Eye = CameraList->ActivateAllReady();
 
     if (MPlayer != nullptr)
     {
-        eye->changeTarget(MPlayer->localMovers[0], 1);
+        Eye->ChangeTarget(MPlayer->LocalMovers[0], 1);
     }
 
     // The 'Mechs start with the damage their loadouts carried over.
-    for (BaseObject* object = innerSphereMechList->head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = InnerSphereMechList->Head; object != nullptr; object = object->Next)
     {
-        if (object->objectClass == BATTLEMECH)
+        if (object->ObjectClass == BATTLEMECH)
         {
-            static_cast<BattleMech*>(object)->damageLoadedComponents();
+            static_cast<MCBattleMech*>(object)->DamageLoadedComponents();
         }
     }
 
-    for (BaseObject* object = clanMechList->head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = ClanMechList->Head; object != nullptr; object = object->Next)
     {
-        if (object->objectClass == BATTLEMECH)
+        if (object->ObjectClass == BATTLEMECH)
         {
-            static_cast<BattleMech*>(object)->damageLoadedComponents();
+            static_cast<MCBattleMech*>(object)->DamageLoadedComponents();
         }
     }
 
-    if (scenarioFile->seekBlock("Output") == 0)
+    if (ScenarioFile->SeekBlock("Output") == 0)
     {
-        hasOutputBlock = 1;
+        HasOutputBlock = 1;
     }
 
-    scenarioFile->close();
-    delete scenarioFile;
-    scenarioFile = nullptr;
+    ScenarioFile->Close();
+    delete ScenarioFile;
+    ScenarioFile = nullptr;
 
-    scenarioEndTurn = -1;
-    startUpTurns = 10;
-    startMusic = 1;
+    ScenarioEndTurn = -1;
+    StartUpTurns = 10;
+    StartMusic = 1;
 
     if (MPlayer != nullptr)
     {
-        MPlayer->chatCallback = ScenarioChatCallback;
+        MPlayer->ChatCallback = ScenarioChatCallback;
 
-        if (MPlayer->isServer != 0)
+        if (MPlayer->IsServer != 0)
         {
-            for (int32_t& checkedIn : MPlayer->playerCheckedIn)
+            for (int32_t& checkedIn : MPlayer->PlayerCheckedIn)
             {
                 checkedIn = 0;
             }
         }
 
-        MPlayer->sendPlayerCheckIn();
+        MPlayer->SendPlayerCheckIn();
     }
 
-    startingUp = 1;
-    startUpCountdown = 100;
-    std::free(connectShape);
-    connectShape = nullptr;
+    StartingUp = 1;
+    StartUpCountdown = 100;
+    std::free(ConnectShape);
+    ConnectShape = nullptr;
     return 0;
 }
 
-auto Scenario::run() -> int32_t
+auto MCScenario::Run() -> int32_t
 {
-    if (MPlayer != nullptr && MPlayer->inMission == 0)
+    if (MPlayer != nullptr && MPlayer->InMission == 0)
     {
-        MPlayer->processReceiveList();
+        MPlayer->ProcessReceiveList();
         return 0;
     }
 
-    if (gamePaused != 0)
+    if (GamePaused != 0)
     {
-        cameraList->update();
-        return static_cast<int32_t>(scenarioResult);
+        CameraList->Update();
+        return static_cast<int32_t>(ScenarioResult);
     }
 
-    update();
-    cameraList->update();
-    land->update();
-    craterManager->update();
-    PathManager->update();
+    Update();
+    CameraList->Update();
+    Land->Update();
+    CraterManager->Update();
+    PathManager->Update();
 
-    if (trainManager != nullptr)
+    if (TrainManager != nullptr)
     {
-        trainManager->UpdateTrains();
+        TrainManager->UpdateTrains();
     }
 
-    objectList->update();
-    clanTeam->updateSensors();
+    ObjectList->Update();
+    ClanTeam->UpdateSensors();
 
-    if (alliedTeam != nullptr)
+    if (AlliedTeam != nullptr)
     {
-        alliedTeam->updateSensors();
+        AlliedTeam->UpdateSensors();
     }
 
-    innerSphereTeam->updateSensors();
-    potentialContactManager->updateStatus();
+    InnerSphereTeam->UpdateSensors();
+    PotentialContactManager->UpdateStatus();
 
-    if (collisionSwitch != 0)
+    if (CollisionSwitch != 0)
     {
-        collisionSystem->checkObjects();
+        CollisionSystem->CheckObjects();
     }
 
-    if (turn < 2)
+    if (Turn < 2)
     {
-        startObjectiveTimers();
+        StartObjectiveTimers();
     }
 
     if (MPlayer == nullptr)
     {
-        scenarioBrain->execute(scenarioBrainParams);
-        scenarioResult = static_cast<uint32_t>(scenarioBrain->returnVal);
+        ScenarioBrain->Execute(ScenarioBrainParams);
+        ScenarioResult = static_cast<uint32_t>(ScenarioBrain->ReturnVal);
     }
     else
     {
         CurMultiplayCode = 0;
         CurMultiplayParam = 0;
-        scenarioBrain->execute(scenarioBrainParams);
+        ScenarioBrain->Execute(ScenarioBrainParams);
         CurMultiplayCode = 0;
         CurMultiplayParam = 0;
 
-        if (MPlayer->isServer == 0)
+        if (MPlayer->IsServer == 0)
         {
-            scenarioResult = static_cast<uint32_t>(MPlayer->scenarioResult);
+            ScenarioResult = static_cast<uint32_t>(MPlayer->ScenarioResult);
         }
         else
         {
-            scenarioResult = static_cast<uint32_t>(scenarioBrain->returnVal);
+            ScenarioResult = static_cast<uint32_t>(ScenarioBrain->ReturnVal);
 
-            if (scenarioResult != 0)
+            if (ScenarioResult != 0)
             {
-                MPlayer->sendEndScenario(0, static_cast<int32_t>(scenarioResult));
+                MPlayer->SendEndScenario(0, static_cast<int32_t>(ScenarioResult));
             }
         }
     }
 
     if (MPlayer != nullptr)
     {
-        if (MPlayer->isServer != 0)
+        if (MPlayer->IsServer != 0)
         {
-            MPlayer->updateClients();
+            MPlayer->UpdateClients();
         }
 
-        MPlayer->processReceiveList();
+        MPlayer->ProcessReceiveList();
     }
 
-    return static_cast<int32_t>(scenarioResult);
+    return static_cast<int32_t>(ScenarioResult);
 }
 
-auto Scenario::destroy() -> void
+auto MCScenario::Destroy() -> void
 {
     // Faithful: the id wraps to a short when the timer is removed (0x249f1 -> 0x49f1).
-    for (uint32_t id = 0x249f1; id < numObjectives + 0x249f1u; id++)
+    for (uint32_t id = 0x249f1; id < NumObjectives + 0x249f1u; id++)
     {
-        application->RemoveTimer(application, static_cast<int16_t>(id));
+        Application->RemoveTimer(Application, static_cast<int16_t>(id));
     }
 
-    endingScenario = 1;
+    EndingScenario = 1;
 
-    Assert(collisionSystem != nullptr, 0, " collisionSystem already NULL ");
+    Assert(CollisionSystem != nullptr, 0, " collisionSystem already NULL ");
 
-    if (collisionSystem != nullptr)
+    if (CollisionSystem != nullptr)
     {
-        collisionSystem->destroy();
-        delete collisionSystem;
+        CollisionSystem->Destroy();
+        delete CollisionSystem;
     }
 
-    collisionSystem = nullptr;
+    CollisionSystem = nullptr;
 
     Assert(ElementList != nullptr, 0, " ElementList already NULL ");
 
     if (ElementList != nullptr)
     {
-        ElementList->free();
+        ElementList->Free();
         delete ElementList;
     }
 
     ElementList = nullptr;
-    ElementPool::free();
+    MCElementPool::Free();
 
-    if (craterManager != nullptr)
+    if (CraterManager != nullptr)
     {
-        craterManager->destroy();
-        delete craterManager;
-        craterManager = nullptr;
+        CraterManager->Destroy();
+        delete CraterManager;
+        CraterManager = nullptr;
     }
 
-    Assert(land != nullptr, 0, " land already NULL ");
-    delete land;
-    land = nullptr;
+    Assert(Land != nullptr, 0, " land already NULL ");
+    delete Land;
+    Land = nullptr;
 
-    Assert(scenarioObjectList != nullptr, 0, " scenarioObjectList already NULL ");
+    Assert(ScenarioObjectList != nullptr, 0, " scenarioObjectList already NULL ");
 
-    if (scenarioObjectList != nullptr)
+    if (ScenarioObjectList != nullptr)
     {
-        while (ObjectQueueNode* node = scenarioObjectList->head)
+        while (MCObjectQueueNode* node = ScenarioObjectList->Head)
         {
-            ObjectQueueNode* next = node->next;
-            node->destroy();
+            MCObjectQueueNode* next = node->Next;
+            node->Destroy();
             delete node;
-            scenarioObjectList->head = next;
+            ScenarioObjectList->Head = next;
         }
 
-        scenarioObjectList->tail = nullptr;
-        scenarioObjectList->head = nullptr;
-        delete scenarioObjectList;
+        ScenarioObjectList->Tail = nullptr;
+        ScenarioObjectList->Head = nullptr;
+        delete ScenarioObjectList;
     }
 
-    scenarioObjectList = nullptr;
-    stopObjects();
+    ScenarioObjectList = nullptr;
+    StopObjects();
 
-    if (sensorSystemManager != nullptr)
+    if (SensorSystemManager != nullptr)
     {
-        sensorSystemManager->destroy();
-        delete sensorSystemManager;
-        sensorSystemManager = nullptr;
-        SensorSystem::sortList = nullptr;
+        SensorSystemManager->Destroy();
+        delete SensorSystemManager;
+        SensorSystemManager = nullptr;
+        MCSensorSystem::SortList = nullptr;
         ContactSortList = nullptr;
     }
 
-    if (potentialContactManager != nullptr)
+    if (PotentialContactManager != nullptr)
     {
-        potentialContactManager->destroy();
-        delete potentialContactManager;
-        potentialContactManager = nullptr;
+        PotentialContactManager->Destroy();
+        delete PotentialContactManager;
+        PotentialContactManager = nullptr;
     }
 
-    if (objectTypeManager != nullptr)
+    if (ObjectTypeManager != nullptr)
     {
-        objectTypeManager->destroy();
-        delete objectTypeManager;
-        objectTypeManager = nullptr;
+        ObjectTypeManager->Destroy();
+        delete ObjectTypeManager;
+        ObjectTypeManager = nullptr;
     }
 
-    if (trainManager != nullptr)
+    if (TrainManager != nullptr)
     {
         // Faithful: destroyed twice (once here, once by the inlined destructor).
-        trainManager->destroy();
-        trainManager->destroy();
-        delete trainManager;
-        trainManager = nullptr;
+        TrainManager->Destroy();
+        TrainManager->Destroy();
+        delete TrainManager;
+        TrainManager = nullptr;
     }
 
-    destroyMechShadows();
+    DestroyMechShadows();
     // The original freed the scratch buffer; the next mission's came back zeroed.
-    tempBuffer.fill(0);
+    TempBuffer.fill(0);
 
-    Assert(parts != nullptr, 0, " parts already NULL ");
-    parts.reset();
-    Assert(objectives != nullptr, 0, " parts already NULL ");
-    objectives.reset();
+    Assert(Parts != nullptr, 0, " parts already NULL ");
+    Parts.reset();
+    Assert(Objectives != nullptr, 0, " parts already NULL ");
+    Objectives.reset();
 
     for (int32_t i = 0; i < NumCommanders; i++)
     {
         if (CommanderTable[i] != nullptr)
         {
-            CommanderTable[i]->Commander::destroy();
+            CommanderTable[i]->MCCommander::Destroy();
             delete CommanderTable[i];
         }
 
         CommanderTable[i] = nullptr;
     }
 
-    deleteTeam(clanTeam);
-    clanTeam = nullptr;
-    deleteTeam(alliedTeam);
-    alliedTeam = nullptr;
-    deleteTeam(innerSphereTeam);
-    innerSphereTeam = nullptr;
+    DeleteTeam(ClanTeam);
+    ClanTeam = nullptr;
+    DeleteTeam(AlliedTeam);
+    AlliedTeam = nullptr;
+    DeleteTeam(InnerSphereTeam);
+    InnerSphereTeam = nullptr;
     TeamTable[0] = nullptr;
     TeamTable[1] = nullptr;
     TeamTable[2] = nullptr;
 
     for (int32_t i = 0; i < 6; i++)
     {
-        if (sensorContactShapes[i] != nullptr)
+        if (SensorContactShapes[i] != nullptr)
         {
-            MCRenderer::UnregisterData(sensorContactShapes[i]);
-            delete[] sensorContactShapes[i];
-            sensorContactShapes[i] = nullptr;
+            MCRenderer::UnregisterData(SensorContactShapes[i]);
+            delete[] SensorContactShapes[i];
+            SensorContactShapes[i] = nullptr;
         }
     }
 
-    if (smokeManager != nullptr)
+    if (SmokeManager != nullptr)
     {
-        smokeManager->destroy();
-        delete smokeManager;
-        smokeManager = nullptr;
+        SmokeManager->Destroy();
+        delete SmokeManager;
+        SmokeManager = nullptr;
     }
 
-    Assert(appearanceTypeList != nullptr, 0, " appearanceTypeList already NULL ");
+    Assert(AppearanceTypeList != nullptr, 0, " appearanceTypeList already NULL ");
 
-    if (appearanceTypeList != nullptr)
+    if (AppearanceTypeList != nullptr)
     {
-        appearanceTypeList->destroy();
-        delete appearanceTypeList;
+        AppearanceTypeList->Destroy();
+        delete AppearanceTypeList;
     }
 
-    appearanceTypeList = nullptr;
-    Assert(spriteManager != nullptr, 0, " spriteManager already NULL ");
+    AppearanceTypeList = nullptr;
+    Assert(SpriteManager != nullptr, 0, " spriteManager already NULL ");
 
-    if (spriteManager != nullptr)
+    if (SpriteManager != nullptr)
     {
-        spriteManager->destroy();
-        delete spriteManager;
+        SpriteManager->Destroy();
+        delete SpriteManager;
     }
 
-    spriteManager = nullptr;
-    Assert(cameraList != nullptr, 0, " cameraList already NULL ");
-    delete cameraList;
-    cameraList = nullptr;
-    eye = nullptr;
+    SpriteManager = nullptr;
+    Assert(CameraList != nullptr, 0, " cameraList already NULL ");
+    delete CameraList;
+    CameraList = nullptr;
+    Eye = nullptr;
 
-    Assert(scenarioBrainParams != nullptr, 0, " scenarioParams already NULL ");
-    delete scenarioBrainParams;
-    scenarioBrainParams = nullptr;
+    Assert(ScenarioBrainParams != nullptr, 0, " scenarioParams already NULL ");
+    delete ScenarioBrainParams;
+    ScenarioBrainParams = nullptr;
 
-    if (oldPalette != nullptr)
+    if (OldPalette != nullptr)
     {
-        if (gamePalette != nullptr)
+        if (GamePalette != nullptr)
         {
-            gamePalette->destroy();
-            delete gamePalette;
+            GamePalette->Destroy();
+            delete GamePalette;
         }
 
-        gamePalette = oldPalette;
-        oldPalette = nullptr;
+        GamePalette = OldPalette;
+        OldPalette = nullptr;
     }
 
     if (GameMap != nullptr)
     {
-        GameMap->destroy();
+        GameMap->Destroy();
         delete GameMap;
         GameMap = nullptr;
     }
 
     if (GameObjectMap != nullptr)
     {
-        GameObjectMap->destroy();
+        GameObjectMap->Destroy();
         delete GameObjectMap;
         GameObjectMap = nullptr;
     }
 
     if (GlobalMoveMap != nullptr)
     {
-        GlobalMoveMap->destroy();
+        GlobalMoveMap->Destroy();
         delete GlobalMoveMap;
         GlobalMoveMap = nullptr;
     }
 
     if (PathFindMap != nullptr)
     {
-        PathFindMap->destroy();
+        PathFindMap->Destroy();
         delete PathFindMap;
         PathFindMap = nullptr;
     }
 
     if (PathManager != nullptr)
     {
-        PathManager->destroy();
+        PathManager->Destroy();
         delete PathManager;
         PathManager = nullptr;
     }
 
-    Fire::maxFiresList.reset();
+    MCFire::MaxFiresList.reset();
 
-    destroyWarriors();
+    DestroyWarriors();
 
-    if (scenarioBrain != nullptr)
+    if (ScenarioBrain != nullptr)
     {
-        scenarioBrain->destroy();
-        delete scenarioBrain;
-        scenarioBrain = nullptr;
+        ScenarioBrain->Destroy();
+        delete ScenarioBrain;
+        ScenarioBrain = nullptr;
     }
 
-    if (openList != nullptr)
+    if (OpenList != nullptr)
     {
         // Faithful: destroyed twice (once here, once by the inlined destructor).
-        openList->destroy();
-        openList->destroy();
-        delete openList;
+        OpenList->Destroy();
+        OpenList->Destroy();
+        delete OpenList;
     }
 
-    openList = nullptr;
-    ABLi_close();
-    MCRenderer::UnregisterData(waypointMarkers);
-    std::free(waypointMarkers);
-    waypointMarkers = nullptr;
+    OpenList = nullptr;
+    AblClose();
+    MCRenderer::UnregisterData(WaypointMarkers);
+    std::free(WaypointMarkers);
+    WaypointMarkers = nullptr;
 }
 
-auto Scenario::destroyWarriors() -> void
+auto MCScenario::DestroyWarriors() -> void
 {
-    if (warriors == nullptr)
+    if (Warriors == nullptr)
     {
         return;
     }
 
-    for (uint32_t i = 0; i < numWarriors + 1; i++)
+    for (uint32_t i = 0; i < NumWarriors + 1; i++)
     {
-        if (warriors[i] != nullptr)
+        if (Warriors[i] != nullptr)
         {
-            deleteWarrior(warriors[i]);
-            warriors[i] = nullptr;
+            DeleteWarrior(Warriors[i]);
+            Warriors[i] = nullptr;
         }
     }
 
-    warriors.reset();
-    numWarriors = 0;
+    Warriors.reset();
+    NumWarriors = 0;
 }
 
-auto Scenario::createPartObject(int32_t partNumber) -> void
+auto MCScenario::CreatePartObject(int32_t partNumber) -> void
 {
-    Part& part = parts[partNumber];
+    MCPart& part = Parts[partNumber];
 
-    if (part.destroyed != 0 || part.object != nullptr)
+    if (part.Destroyed != 0 || part.Object != nullptr)
     {
         return;
     }
 
-    GameObject* object = createObject(static_cast<int32_t>(part.objNumber));
-    part.object = object;
+    MCGameObject* object = CreateObject(static_cast<int32_t>(part.ObjNumber));
+    part.Object = object;
 
     if (object == nullptr)
     {
         char message[256];
         std::snprintf(message, sizeof(message), " Couldnt create object number %d  which is part Number %d",
-                      part.objNumber, partNumber);
-        Fatal(static_cast<int32_t>(part.objNumber), message);
+                      part.ObjNumber, partNumber);
+        Fatal(static_cast<int32_t>(part.ObjNumber), message);
     }
 
-    object->setAwake(part.active);
+    object->SetAwake(part.Active);
 
-    if (std::strcmp(part.profileName, "NONE") != 0)
+    if (std::strcmp(part.ProfileName, "NONE") != 0)
     {
-        FullPathFileName profileFileName;
-        profileFileName.init(profilePath, part.profileName, ".fit");
-        auto* profileFile = new FitIniFile;
+        MCFullPathFileName profileFileName;
+        profileFileName.Init(ProfilePath, part.ProfileName, ".fit");
+        auto* profileFile = new MCFitIniFile;
 
         if (profileFile == nullptr)
         {
             Fatal(static_cast<int32_t>(0xfaaf0001), " Profile File ");
         }
 
-        if (profileFile->open(profileFileName) == 0)
+        if (profileFile->Open(profileFileName) == 0)
         {
-            if (object->init(profileFile) != 0)
+            if (object->Init(profileFile) != 0)
             {
                 Fatal(static_cast<int32_t>(0xfaaf0007), " Bad Profile File ");
             }
         }
         else
         {
-            FitIniFile savedProfileFile;
-            FullPathFileName savedProfileName;
-            savedProfileName.init(saveTempPath, part.profileName, ".fit");
-            const int32_t openResult = savedProfileFile.open(savedProfileName);
+            MCFitIniFile savedProfileFile;
+            MCFullPathFileName savedProfileName;
+            savedProfileName.Init(SaveTempPath, part.ProfileName, ".fit");
+            const int32_t openResult = savedProfileFile.Open(savedProfileName);
 
             if (openResult != 0)
             {
                 Fatal(openResult, nullptr);
             }
 
-            if (object->init(&savedProfileFile) != 0)
+            if (object->Init(&savedProfileFile) != 0)
             {
                 Fatal(static_cast<int32_t>(0xfaaf0007), " Bad Profile File ");
             }
         }
 
-        profileFile->close();
+        profileFile->Close();
         delete profileFile;
     }
 
-    Team* team = nullptr;
+    MCTeam* team = nullptr;
 
-    if (part.teamId == 0)
+    if (part.TeamId == 0)
     {
-        team = innerSphereTeam;
+        team = InnerSphereTeam;
     }
-    else if (part.teamId == 1)
+    else if (part.TeamId == 1)
     {
-        team = clanTeam;
+        team = ClanTeam;
     }
-    else if (part.teamId == 2)
+    else if (part.TeamId == 2)
     {
-        team = alliedTeam;
+        team = AlliedTeam;
     }
 
-    const ObjectClass objectClass = object->objectClass;
+    const MCObjectClass objectClass = object->ObjectClass;
 
     if (objectClass == BATTLEMECH)
     {
-        auto* mech = static_cast<BattleMech*>(object);
-        mech->setPilot(warriors[part.pilot]);
-        mech->setTeam(team);
-        mech->calcWeaponEffectiveness(1);
-        mech->calcWeaponEffectiveness(0);
-        mech->calcWeaponRangeRatings();
-        mech->captureable = part.captureable;
-        const int32_t paintScheme = (part.paintScheme == -1) ? warriors[part.pilot]->paintScheme : part.paintScheme;
-        static_cast<MechActor*>(mech->appearance)->fadeTableIndex = paintScheme;
+        auto* mech = static_cast<MCBattleMech*>(object);
+        mech->SetPilot(Warriors[part.Pilot]);
+        mech->SetTeam(team);
+        mech->CalcWeaponEffectiveness(1);
+        mech->CalcWeaponEffectiveness(0);
+        mech->CalcWeaponRangeRatings();
+        mech->Captureable = part.Captureable;
+        const int32_t paintScheme = (part.PaintScheme == -1) ? Warriors[part.Pilot]->PaintScheme : part.PaintScheme;
+        static_cast<MCMechActor*>(mech->Appearance)->FadeTableIndex = paintScheme;
     }
     else if (objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL)
     {
-        auto* mover = static_cast<Mover*>(object);
-        mover->setPilot(warriors[part.pilot]);
-        mover->setTeam(team);
-        mover->calcWeaponRangeRatings();
+        auto* mover = static_cast<MCMover*>(object);
+        mover->SetPilot(Warriors[part.Pilot]);
+        mover->SetTeam(team);
+        mover->CalcWeaponRangeRatings();
 
         // The original tests +0x8b8 of both: a vehicle's gvAppearance flag, and an elemental's field there, which
         // MCX.EXE only ever sets to 0.
-        if (objectClass == GROUNDVEHICLE && static_cast<GroundVehicle*>(mover)->gvAppearance != 0)
+        if (objectClass == GROUNDVEHICLE && static_cast<MCGroundVehicle*>(mover)->GvAppearance != 0)
         {
-            static_cast<GVAppearance*>(mover->appearance)->fadeTableIndex =
-                (part.paintScheme == -1) ? warriors[part.pilot]->paintScheme : part.paintScheme;
+            static_cast<MCGVAppearance*>(mover->Appearance)->FadeTableIndex =
+                (part.PaintScheme == -1) ? Warriors[part.Pilot]->PaintScheme : part.PaintScheme;
         }
     }
 
-    object->setControl(part.controlType, part.controlDataType, -1);
-    vector_3d position(part.position[0], part.position[1], part.position[2]);
-    object->setPosition(position);
+    object->SetControl(part.ControlType, part.ControlDataType, -1);
+    MCVector3D position(part.Position[0], part.Position[1], part.Position[2]);
+    object->SetPosition(position);
 
     if (objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL || objectClass == MOVER)
     {
-        static_cast<Mover*>(object)->setLastValidPosition(position);
+        static_cast<MCMover*>(object)->SetLastValidPosition(position);
     }
 
-    frame_of_ref frame;
-    frame.reset_to_world_frame();
-    const double radians = part.rotation * DEGREES_TO_RADIANS;
-    rotateAboutK(frame, static_cast<float>(std::sin(radians)), static_cast<float>(std::cos(radians)));
-    object->setFrame(frame);
+    MCFrameOfRef frame;
+    frame.ResetToWorldFrame();
+    const double radians = part.Rotation * DEGREES_TO_RADIANS;
+    RotateAboutK(frame, static_cast<float>(std::sin(radians)), static_cast<float>(std::cos(radians)));
+    object->SetFrame(frame);
 
     if (objectClass == BATTLEMECH)
     {
-        auto* actor = static_cast<MechActor*>(object->getAppearance());
+        auto* actor = static_cast<MCMechActor*>(object->GetAppearance());
 
         if (actor != nullptr)
         {
-            actor->setGesture(part.gestureId);
+            actor->SetGesture(part.GestureId);
         }
 
-        if (part.alignment == homeTeam->alignment)
+        if (part.Alignment == HomeTeam->Alignment)
         {
-            actor->preloadGestures(static_cast<int32_t>(part.gestureId), part.rotation);
+            actor->PreloadGestures(static_cast<int32_t>(part.GestureId), part.Rotation);
         }
     }
     else if (objectClass == ELEMENTAL)
     {
-        auto* actor = static_cast<ElementalActor*>(object->getAppearance());
+        auto* actor = static_cast<MCElementalActor*>(object->GetAppearance());
 
         if (actor != nullptr)
         {
-            actor->setGesture(part.gestureId);
+            actor->SetGesture(part.GestureId);
         }
 
-        actor->preloadGestures(static_cast<int32_t>(part.gestureId), part.rotation);
+        actor->PreloadGestures(static_cast<int32_t>(part.GestureId), part.Rotation);
     }
 
     // The part number is kept in the object's id.
-    object->idNumber = static_cast<uint32_t>(partNumber);
+    object->IdNumber = static_cast<uint32_t>(partNumber);
 
     if (MPlayer != nullptr)
     {
-        MPlayer->addToMoverRoster(static_cast<Mover*>(object));
-        MPlayer->addToPlayerMoverRoster(part.commanderId, static_cast<Mover*>(object));
+        MPlayer->AddToMoverRoster(static_cast<MCMover*>(object));
+        MPlayer->AddToPlayerMoverRoster(part.CommanderId, static_cast<MCMover*>(object));
 
-        if (part.commanderId == MPlayer->checkInId)
+        if (part.CommanderId == MPlayer->CheckInId)
         {
-            MPlayer->addToLocalMovers(static_cast<Mover*>(object));
+            MPlayer->AddToLocalMovers(static_cast<MCMover*>(object));
         }
     }
 
-    if (part.exists == 0)
+    if (part.Exists == 0)
     {
         // Not in play yet: the script brings it in with createScenarioObject.
-        object->setCommanderId(part.commanderId);
-        object->setAlignment(part.alignment);
+        object->SetCommanderId(part.CommanderId);
+        object->SetAlignment(part.Alignment);
 
-        if (ObjectQueueNode* node = scenarioObjectList->head)
+        if (MCObjectQueueNode* node = ScenarioObjectList->Head)
         {
-            node->addNode(object);
+            node->AddNode(object);
         }
 
         return;
@@ -2291,40 +2291,40 @@ auto Scenario::createPartObject(int32_t partNumber) -> void
 
     if (objectClass < BATTLEMECH || ELEMENTAL < objectClass)
     {
-        object->setExists(1);
+        object->SetExists(1);
 
-        if (ObjectQueueNode* node = objectList->head)
+        if (MCObjectQueueNode* node = ObjectList->Head)
         {
-            node->addNode(object);
+            node->AddNode(object);
         }
     }
     else
     {
-        object->setCommanderId(part.commanderId);
-        object->setAlignment(part.alignment);
-        ObjectQueueNode* list = (part.alignment == -1) ? clanMechList : innerSphereMechList;
+        object->SetCommanderId(part.CommanderId);
+        object->SetAlignment(part.Alignment);
+        MCObjectQueueNode* list = (part.Alignment == -1) ? ClanMechList : InnerSphereMechList;
 
         if (list != nullptr)
         {
-            list->addNode(object);
+            list->AddNode(object);
         }
 
-        object->setPotentialContact(objectClass == ELEMENTAL ? 2 : 1);
-        object->setExists(1);
+        object->SetPotentialContact(objectClass == ELEMENTAL ? 2 : 1);
+        object->SetExists(1);
     }
 
-    GameObjectMap->addObject(object);
+    GameObjectMap->AddObject(object);
 }
 
-auto Scenario::createScenarioObject(int32_t partId) -> void
+auto MCScenario::CreateScenarioObject(int32_t partId) -> void
 {
-    ObjectQueue* queue = scenarioObjectList;
-    BaseObject* object = nullptr;
-    object = queue->traverse(object);
+    MCObjectQueue* queue = ScenarioObjectList;
+    MCBaseObject* object = nullptr;
+    object = queue->Traverse(object);
 
-    while (object != nullptr && object->partId != partId)
+    while (object != nullptr && object->PartId != partId)
     {
-        object = queue->traverse(object);
+        object = queue->Traverse(object);
     }
 
     if (object == nullptr)
@@ -2338,96 +2338,96 @@ auto Scenario::createScenarioObject(int32_t partId) -> void
     }
 
     // Take it out of the scenario list.
-    for (ObjectQueueNode* node = queue->head; node != nullptr; node = node->next)
+    for (MCObjectQueueNode* node = queue->Head; node != nullptr; node = node->Next)
     {
-        BaseObject* prev = nullptr;
-        BaseObject* current = node->head;
+        MCBaseObject* prev = nullptr;
+        MCBaseObject* current = node->Head;
 
         while (current != nullptr && current != object)
         {
             prev = current;
-            current = current->next;
+            current = current->Next;
         }
 
         if (current != nullptr)
         {
-            node->removeNode(prev, current);
+            node->RemoveNode(prev, current);
             break;
         }
     }
 
-    auto* gameObject = static_cast<GameObject*>(object);
-    ObjectQueueNode* list = (gameObject->getAlignment() != -1) ? innerSphereMechList : clanMechList;
+    auto* gameObject = static_cast<MCGameObject*>(object);
+    MCObjectQueueNode* list = (gameObject->GetAlignment() != -1) ? InnerSphereMechList : ClanMechList;
 
     if (list != nullptr)
     {
-        list->addNode(object);
+        list->AddNode(object);
     }
 
-    gameObject->setPotentialContact(object->objectClass == ELEMENTAL ? 2 : 1);
-    GameObjectMap->addObject(gameObject);
-    gameObject->setExists(1);
+    gameObject->SetPotentialContact(object->ObjectClass == ELEMENTAL ? 2 : 1);
+    GameObjectMap->AddObject(gameObject);
+    gameObject->SetExists(1);
 
-    for (int32_t i = 0; i < currentCreatorPart; i++)
+    for (int32_t i = 0; i < CurrentCreatorPart; i++)
     {
-        if (createdPartRoster[i].partId == object->partId)
+        if (CreatedPartRoster[i].PartId == object->PartId)
         {
-            createdPartRoster[i].created = 1;
+            CreatedPartRoster[i].Created = 1;
             return;
         }
     }
 }
 
-auto Scenario::destroyPartObject(int32_t partNumber) -> void
+auto MCScenario::DestroyPartObject(int32_t partNumber) -> void
 {
-    Part& part = parts[partNumber];
-    auto* object = static_cast<GameObject*>(part.object);
+    MCPart& part = Parts[partNumber];
+    auto* object = static_cast<MCGameObject*>(part.Object);
 
     if (object == nullptr)
     {
         return;
     }
 
-    object->getObjectType()->handleDestruction(object, nullptr);
+    object->GetObjectType()->HandleDestruction(object, nullptr);
 
-    for (ObjectQueueNode* node = objectList->head; node != nullptr && node->remove(object) == 0; node = node->next)
+    for (MCObjectQueueNode* node = ObjectList->Head; node != nullptr && node->Remove(object) == 0; node = node->Next)
     {
     }
 
-    part.destroyed = 1;
-    part.active = 0;
-    part.exists = 0;
+    part.Destroyed = 1;
+    part.Active = 0;
+    part.Exists = 0;
 }
 
-auto Scenario::objectInArea(GameObject* object, int32_t areaNumber) -> int
+auto MCScenario::ObjectInArea(MCGameObject* object, int32_t areaNumber) -> int
 {
-    if (areas == nullptr || numAreas <= areaNumber)
+    if (Areas == nullptr || NumAreas <= areaNumber)
     {
         return 0;
     }
 
-    const ScenarioArea& area = areas[areaNumber];
+    const MCScenarioArea& area = Areas[areaNumber];
     // OB-056: the area's size (a circle's radius, a rectangle's extent) is an uninitialised local in MCX.EXE; the
     // port reads it as 0. Never matters: nothing fills the areas, so numAreas stays 0.
     const float size = 0.0f;
-    const vector_3d position = object->getPosition();
+    const MCVector3D position = object->GetPosition();
 
-    if (area.areaType == 0)
+    if (area.AreaType == 0)
     {
-        const float dx = area.coords[0] - position.x;
-        const float dy = area.coords[1] - position.y;
-        const float dz = area.coords[2] - position.z;
+        const float dx = area.Coords[0] - position.X;
+        const float dy = area.Coords[1] - position.Y;
+        const float dz = area.Coords[2] - position.Z;
 
         if (std::sqrt(dx * dx + dy * dy + dz * dz) < size)
         {
             return 1;
         }
     }
-    else if (area.areaType == 1)
+    else if (area.AreaType == 1)
     {
         // Faithful: the rectangle test compares x with y and y with z.
-        if (size + area.coords[0] < position.x && position.x < position.y + area.coords[0] &&
-            position.x + area.coords[1] < position.y && position.y < position.z + area.coords[1])
+        if (size + area.Coords[0] < position.X && position.X < position.Y + area.Coords[0] &&
+            position.X + area.Coords[1] < position.Y && position.Y < position.Z + area.Coords[1])
         {
             return 1;
         }
@@ -2436,108 +2436,108 @@ auto Scenario::objectInArea(GameObject* object, int32_t areaNumber) -> int
     return 0;
 }
 
-auto Scenario::startObjectiveTimers() -> void
+auto MCScenario::StartObjectiveTimers() -> void
 {
-    for (int32_t i = 0; i < static_cast<int32_t>(numObjectives); i++)
+    for (int32_t i = 0; i < static_cast<int32_t>(NumObjectives); i++)
     {
-        if (0.0f < objectives[i].timeLeft)
+        if (0.0f < Objectives[i].TimeLeft)
         {
-            setObjectiveTimer(i, objectives[i].timeLeft * 1000.0f);
+            SetObjectiveTimer(i, Objectives[i].TimeLeft * 1000.0f);
         }
     }
 }
 
-auto Scenario::setObjectiveTimer(int32_t objectiveNumber, float time) -> int32_t
+auto MCScenario::SetObjectiveTimer(int32_t objectiveNumber, float time) -> int32_t
 {
-    if (objectiveNumber < 0 || static_cast<int32_t>(numObjectives) <= objectiveNumber)
+    if (objectiveNumber < 0 || static_cast<int32_t>(NumObjectives) <= objectiveNumber)
     {
         return BAD_OBJECTIVE;
     }
 
     const auto id = static_cast<int16_t>(objectiveNumber + OBJECTIVE_TIMER_ID);
-    application->RemoveTimer(application, id);
-    application->AddTimer(application, id, static_cast<int32_t>(time), OBJECTIVE_TIMER_EVENT, 0, 1);
+    Application->RemoveTimer(Application, id);
+    Application->AddTimer(Application, id, static_cast<int32_t>(time), OBJECTIVE_TIMER_EVENT, 0, 1);
     return 0;
 }
 
-auto Scenario::checkObjectiveTimer(int32_t objectiveNumber) -> float
+auto MCScenario::CheckObjectiveTimer(int32_t objectiveNumber) -> float
 {
-    if (objectiveNumber < 0 || static_cast<int32_t>(numObjectives) <= objectiveNumber)
+    if (objectiveNumber < 0 || static_cast<int32_t>(NumObjectives) <= objectiveNumber)
     {
         return 0.0f;
     }
 
     uint32_t remaining = 0;
 
-    if (aTimer* timer = application->timerManager->GetTimer(application,
-                                                            static_cast<int16_t>(objectiveNumber + OBJECTIVE_TIMER_ID)))
+    if (MCGuiTimer* timer = Application->TimerManager->GetTimer(
+            Application, static_cast<int16_t>(objectiveNumber + OBJECTIVE_TIMER_ID)))
     {
         // The timer counts in scenario milliseconds.
-        const uint32_t fireTime = timer->interval + timer->lastTime;
+        const uint32_t fireTime = timer->Interval + timer->LastTime;
         remaining = static_cast<uint32_t>(
-            static_cast<int32_t>(static_cast<double>(fireTime) - static_cast<double>(scenarioTime) * 1000.0));
+            static_cast<int32_t>(static_cast<double>(fireTime) - static_cast<double>(ScenarioTime) * 1000.0));
     }
 
     return static_cast<float>(static_cast<double>(remaining) * 0.001);
 }
 
-auto Scenario::setObjectiveStatus(int32_t objectiveNumber, uint32_t status) -> int32_t
+auto MCScenario::SetObjectiveStatus(int32_t objectiveNumber, uint32_t status) -> int32_t
 {
-    if (objectiveNumber < 0 || static_cast<int32_t>(numObjectives) <= objectiveNumber)
+    if (objectiveNumber < 0 || static_cast<int32_t>(NumObjectives) <= objectiveNumber)
     {
         return BAD_OBJECTIVE;
     }
 
-    objectives[objectiveNumber].status = status;
+    Objectives[objectiveNumber].Status = status;
     return 0;
 }
 
-auto Scenario::checkObjectiveStatus(int32_t objectiveNumber) -> uint32_t
+auto MCScenario::CheckObjectiveStatus(int32_t objectiveNumber) -> uint32_t
 {
-    if (objectiveNumber < 0 || static_cast<int32_t>(numObjectives) <= objectiveNumber)
+    if (objectiveNumber < 0 || static_cast<int32_t>(NumObjectives) <= objectiveNumber)
     {
         return NO_OBJECTIVE;
     }
 
-    return objectives[objectiveNumber].status;
+    return Objectives[objectiveNumber].Status;
 }
 
-auto Scenario::setObjectiveType(int32_t objectiveNumber, uint32_t type) -> int32_t
+auto MCScenario::SetObjectiveType(int32_t objectiveNumber, uint32_t type) -> int32_t
 {
-    if (objectiveNumber < 0 || static_cast<int32_t>(numObjectives) <= objectiveNumber)
+    if (objectiveNumber < 0 || static_cast<int32_t>(NumObjectives) <= objectiveNumber)
     {
         return BAD_OBJECTIVE;
     }
 
-    objectives[objectiveNumber].type = type;
+    Objectives[objectiveNumber].Type = type;
     return 0;
 }
 
-auto Scenario::checkObjectiveType(int32_t objectiveNumber) -> uint32_t
+auto MCScenario::CheckObjectiveType(int32_t objectiveNumber) -> uint32_t
 {
-    if (objectiveNumber < 0 || static_cast<int32_t>(numObjectives) <= objectiveNumber)
+    if (objectiveNumber < 0 || static_cast<int32_t>(NumObjectives) <= objectiveNumber)
     {
         return NO_OBJECTIVE;
     }
 
-    return objectives[objectiveNumber].type;
+    return Objectives[objectiveNumber].Type;
 }
 
-auto Scenario::setObjectivePos(int32_t objectiveNumber, float x, float y, float z) -> void
+auto MCScenario::SetObjectivePos(int32_t objectiveNumber, float x, float y, float z) -> void
 {
-    if (objectiveNumber < 0 || static_cast<int32_t>(numObjectives) <= objectiveNumber)
+    if (objectiveNumber < 0 || static_cast<int32_t>(NumObjectives) <= objectiveNumber)
     {
         return;
     }
 
-    objectives[objectiveNumber].position[0] = x;
-    objectives[objectiveNumber].position[1] = y;
-    objectives[objectiveNumber].position[2] = z;
+    Objectives[objectiveNumber].Position[0] = x;
+    Objectives[objectiveNumber].Position[1] = y;
+    Objectives[objectiveNumber].Position[2] = z;
 }
 
-auto Scenario::calcResourcePointsEarned() -> int32_t
+auto MCScenario::CalcResourcePointsEarned() -> int32_t
 {
-    if (scenarioResult <= 3)
+    if (ScenarioResult <= 3)
     {
         return 0;
     }
@@ -2546,71 +2546,71 @@ auto Scenario::calcResourcePointsEarned() -> int32_t
 
     for (int32_t i = 0; i < MAX_OBJECTIVES; i++)
     {
-        if (objectives[i].status == 1 || mission->endScenarioRequested != 0)
+        if (Objectives[i].Status == 1 || Mission->EndScenarioRequested != 0)
         {
-            points += objectives[i].points;
+            points += Objectives[i].Points;
         }
     }
 
     return points;
 }
 
-auto Scenario::setupBonus() -> void
+auto MCScenario::SetupBonus() -> void
 {
     // Port fix: the original's search read one objective past the array when all nine were in use.
     int32_t slot = 0;
 
-    while (slot < MAX_OBJECTIVES && objectives[slot].status != UNUSED_OBJECTIVE)
+    while (slot < MAX_OBJECTIVES && Objectives[slot].Status != UNUSED_OBJECTIVE)
     {
         slot++;
     }
 
     Assert(slot < MAX_OBJECTIVES, static_cast<uint32_t>(slot), " Too Many objectives in use ");
 
-    ScenarioObjective& bonus = objectives[slot];
-    const int32_t unusedTonnage = maxDeployTonnage - curDeployTonnage;
-    bonus.status = 1;
-    bonus.type = 3;
-    bonus.points = unusedTonnage / tonnageDivisor * resourcesPerTonDivided;
+    MCScenarioObjective& bonus = Objectives[slot];
+    const int32_t unusedTonnage = MaxDeployTonnage - CurDeployTonnage;
+    bonus.Status = 1;
+    bonus.Type = 3;
+    bonus.Points = unusedTonnage / TonnageDivisor * ResourcesPerTonDivided;
     char format[256];
-    cLoadString(thisInstance, 0x376, format, 0xfe);
-    std::snprintf(bonus.name, sizeof(bonus.name), format, unusedTonnage);
+    CLoadString(ThisInstance, 0x376, format, 0xfe);
+    std::snprintf(bonus.Name, sizeof(bonus.Name), format, unusedTonnage);
 }
 
-auto Scenario::handleMultiplayMessage(int32_t code, int32_t param) -> void
+auto MCScenario::HandleMultiplayMessage(int32_t code, int32_t param) -> void
 {
-    if (scenarioBrainHandleMessage == nullptr)
+    if (ScenarioBrainHandleMessage == nullptr)
     {
         return;
     }
 
     CurMultiplayCode = code;
     CurMultiplayParam = param;
-    scenarioBrain->execute(nullptr, scenarioBrainHandleMessage, nullptr);
+    ScenarioBrain->Execute(nullptr, ScenarioBrainHandleMessage, nullptr);
     CurMultiplayCode = 0;
     CurMultiplayParam = 0;
 }
 
-auto Scenario::checkAnyoneInCombat() -> void
+auto MCScenario::CheckAnyoneInCombat() -> void
 {
-    for (int32_t i = 1; i <= static_cast<int32_t>(numWarriors); i++)
+    for (int32_t i = 1; i <= static_cast<int32_t>(NumWarriors); i++)
     {
-        MechWarrior* warrior = warriors[i];
+        MCMechWarrior* warrior = Warriors[i];
 
-        if (warrior == nullptr || warrior->status != 0)
+        if (warrior == nullptr || warrior->Status != 0)
         {
             continue;
         }
 
-        GameObject* target = warrior->getLastTarget();
+        MCGameObject* target = warrior->GetLastTarget();
 
-        if (target != nullptr && target->getAlignment() != warrior->alignment && target->getAlignment() != 0 &&
-            target->isDisabled() == 0)
+        if (target != nullptr && target->GetAlignment() != warrior->Alignment && target->GetAlignment() != 0 &&
+            target->IsDisabled() == 0)
         {
-            inCombat = 1;
+            InCombat = 1;
             return;
         }
     }
 
-    inCombat = 0;
+    InCombat = 0;
 }

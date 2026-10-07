@@ -7,22 +7,22 @@
 #include "lib/inifile.h"
 #include "object/gameobj.h"
 
-auto LineAppearanceType::init(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCLineAppearanceType::Init(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    return loadIniFile(apprFile, fileSize);
+    return LoadIniFile(apprFile, fileSize);
 }
 
-auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCLineAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 0x32);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 0x32);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = iniFile.seekBlock("Main Info");
+    result = iniFile.SeekBlock("Main Info");
 
     if (result != 0)
     {
@@ -30,7 +30,7 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
     }
 
     char name[12];
-    result = iniFile.readIdString("Name", name, 9);
+    result = iniFile.ReadIdString("Name", name, 9);
 
     if (result != 0)
     {
@@ -39,7 +39,7 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
 
     // The type's heap size: the states lived in a heap of this size, so a size of 0 fails as the original did.
     uint32_t heapSize = 0;
-    result = iniFile.readIdULong("HeapSize", heapSize);
+    result = iniFile.ReadIdULong("HeapSize", heapSize);
 
     if (result != 0)
     {
@@ -51,10 +51,10 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
         return -0x4152fff6;
     }
 
-    states.assign(NUM_LINE_STATES, LineStateData{});
-    LineStateData* state = states.data();
+    States.assign(NUM_LINE_STATES, MCLineStateData{});
+    MCLineStateData* state = States.data();
 
-    result = iniFile.seekBlock("States");
+    result = iniFile.SeekBlock("States");
 
     if (result != 0)
     {
@@ -62,7 +62,7 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
     }
 
     uint8_t numStates;
-    result = iniFile.readIdUChar("NumStates", numStates);
+    result = iniFile.ReadIdUChar("NumStates", numStates);
 
     if (result != 0)
     {
@@ -78,7 +78,7 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
     {
         char blockName[20];
         std::snprintf(blockName, sizeof(blockName), "State%d", i);
-        result = iniFile.seekBlock(blockName);
+        result = iniFile.SeekBlock(blockName);
 
         if (result != 0)
         {
@@ -86,36 +86,36 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
         }
 
         uint8_t stateNum;
-        result = iniFile.readIdUChar("State", stateNum);
+        result = iniFile.ReadIdUChar("State", stateNum);
 
         if (result != 0)
         {
             return result;
         }
 
-        state->state = stateNum;
-        result = iniFile.readIdLong("StartColor", state->startColor);
+        state->State = stateNum;
+        result = iniFile.ReadIdLong("StartColor", state->StartColor);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = iniFile.readIdLong("EndColor", state->endColor);
+        result = iniFile.ReadIdLong("EndColor", state->EndColor);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = iniFile.readIdLong("FadeTable", state->fadeTable);
+        result = iniFile.ReadIdLong("FadeTable", state->FadeTable);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = iniFile.readIdLong("SingleColor", state->singleColor);
+        result = iniFile.ReadIdLong("SingleColor", state->SingleColor);
 
         if (result != 0)
         {
@@ -123,25 +123,25 @@ auto LineAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32
         }
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto LineAppearanceType::destroy() -> void
+auto MCLineAppearanceType::Destroy() -> void
 {
-    states.clear();
+    States.clear();
 }
 
-auto LineAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
+auto MCLineAppearance::Init(MCAppearanceType* tree, MCGameObject* obj) -> int32_t
 {
-    owner = obj;
-    visible = 0;
-    appearType = static_cast<LineAppearanceType*>(tree);
-    currentState = LINE_STATE_0;
+    Owner = obj;
+    Visible = 0;
+    AppearType = static_cast<MCLineAppearanceType*>(tree);
+    CurrentState = LINE_STATE_0;
     return 0;
 }
 
-auto LineAppearance::recalcBounds(Camera* cam) -> int
+auto MCLineAppearance::RecalcBounds(MCCamera* cam) -> int
 {
     if (cam == nullptr)
     {
@@ -149,41 +149,41 @@ auto LineAppearance::recalcBounds(Camera* cam) -> int
     }
 
     // Both ends are projected through the game's camera; cam only gives the view size.
-    Camera* camera = eye;
-    float scale = camera->getScaleFactor();
-    vector_3d offset = startPos - camera->position;
+    MCCamera* camera = Eye;
+    float scale = camera->GetScaleFactor();
+    MCVector3D offset = StartPos - camera->Position;
     offset *= scale;
-    screenStart.x = offset.y * camera->cosAngle + offset.x * camera->cosAngle + camera->halfWidth;
-    screenStart.y = ((offset.x * camera->sinAngle + camera->halfHeight) - offset.y * camera->sinAngle) - offset.z;
-    camera = eye;
-    scale = camera->getScaleFactor();
-    offset = endPos - camera->position;
+    ScreenStart.X = offset.Y * camera->CosAngle + offset.X * camera->CosAngle + camera->HalfWidth;
+    ScreenStart.Y = ((offset.X * camera->SinAngle + camera->HalfHeight) - offset.Y * camera->SinAngle) - offset.Z;
+    camera = Eye;
+    scale = camera->GetScaleFactor();
+    offset = EndPos - camera->Position;
     offset *= scale;
-    screenEnd.x = offset.y * camera->cosAngle + offset.x * camera->cosAngle + camera->halfWidth;
-    screenEnd.y = ((offset.x * camera->sinAngle + camera->halfHeight) - offset.y * camera->sinAngle) - offset.z;
+    ScreenEnd.X = offset.Y * camera->CosAngle + offset.X * camera->CosAngle + camera->HalfWidth;
+    ScreenEnd.Y = ((offset.X * camera->SinAngle + camera->HalfHeight) - offset.Y * camera->SinAngle) - offset.Z;
 
-    if (screenEnd.x <= screenStart.x)
+    if (ScreenEnd.X <= ScreenStart.X)
     {
-        upperLeft = screenEnd;
-        lowerRight = screenStart;
+        UpperLeft = ScreenEnd;
+        LowerRight = ScreenStart;
     }
     else
     {
-        upperLeft = screenStart;
-        lowerRight = screenEnd;
+        UpperLeft = ScreenStart;
+        LowerRight = ScreenEnd;
     }
 
-    if (0.0f <= lowerRight.x && 0.0f <= lowerRight.y)
+    if (0.0f <= LowerRight.X && 0.0f <= LowerRight.Y)
     {
         const int32_t viewWidth =
-            static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(cam->viewWidth))));
+            static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(cam->ViewWidth))));
 
-        if (upperLeft.x <= static_cast<float>(viewWidth))
+        if (UpperLeft.X <= static_cast<float>(viewWidth))
         {
             const int32_t viewHeight =
-                static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(cam->viewHeight))));
+                static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(cam->ViewHeight))));
 
-            if (upperLeft.y <= static_cast<float>(viewHeight))
+            if (UpperLeft.Y <= static_cast<float>(viewHeight))
             {
                 return 1;
             }
@@ -193,45 +193,45 @@ auto LineAppearance::recalcBounds(Camera* cam) -> int
     return 0;
 }
 
-auto LineAppearance::render() -> int32_t
+auto MCLineAppearance::Render() -> int32_t
 {
-    if (visible == 0)
+    if (Visible == 0)
     {
         return 0;
     }
 
-    const auto depth = static_cast<int32_t>(screenStart.y);
-    ElementList->openGroup(depth, 1);
-    LineStateData& state = appearType->states[currentState];
+    const auto depth = static_cast<int32_t>(ScreenStart.Y);
+    ElementList->OpenGroup(depth, 1);
+    MCLineStateData& state = AppearType->States[CurrentState];
     uint8_t* fadeTable = nullptr;
 
-    if (state.fadeTable != -1 && state.fadeTable > -1)
+    if (state.FadeTable != -1 && state.FadeTable > -1)
     {
-        fadeTable = gamePalette->fadePalettes.get() + (state.fadeTable + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+        fadeTable = GamePalette->FadePalettes.get() + (state.FadeTable + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
     }
 
-    ElementList->add(
-        ElementPool::Make<LineElement>(screenStart, screenEnd, state.startColor, fadeTable, depth, state.endColor));
+    ElementList->Add(
+        MCElementPool::Make<MCLineElement>(ScreenStart, ScreenEnd, state.StartColor, fadeTable, depth, state.EndColor));
 
-    if (owner != nullptr && owner->selected != 0)
+    if (Owner != nullptr && Owner->Selected != 0)
     {
-        recalcBounds(eye);
+        RecalcBounds(Eye);
     }
 
     return 0;
 }
 
-auto LineAppearance::update() -> int32_t
+auto MCLineAppearance::Update() -> int32_t
 {
     return 1;
 }
 
-auto LineAppearance::destroy() -> void
+auto MCLineAppearance::Destroy() -> void
 {
-    appearanceTypeList->removeAppearance(appearType);
+    AppearanceTypeList->RemoveAppearance(AppearType);
 }
 
-auto LineAppearance::stateExists(LineState state) -> int32_t
+auto MCLineAppearance::StateExists(MCLineState state) -> int32_t
 {
     if (state < NUM_LINE_STATES && state > -1)
     {

@@ -47,63 +47,63 @@
 #include "platform/MCSmacker.h"
 #include "platform/MCWin32Defs.h"
 
-aSystem* application = nullptr;
-aObject* screenWindow = nullptr;
-aPort* screenPort = nullptr;
-PacketFile* artFile = nullptr;
-char* startupPakFile = nullptr;
-aMessageBox* versionDialog = nullptr;
-aObject* smackWindowPointer = nullptr;
-aObject* featureScreen = nullptr;
-int featureScreenDone = 0;
-int escapedSmackerMovie = 0;
-aCallback* mouseTrackerCallback = nullptr;
-aFont* systemFont = nullptr;
-aFont* blackFont = nullptr;
-aFont* greyFont = nullptr;
-aFont* whiteFont = nullptr;
-aFont* redFont = nullptr;
-aFont* greenFont = nullptr;
-aFont* blueFont = nullptr;
-aFont* dimFont = nullptr;
-aFont* yellowFont = nullptr;
-aFont* yellowDropFont = nullptr;
-aFont* blueDropFont = nullptr;
-aFont* medBlackFont = nullptr;
-aFont* medGreyFont = nullptr;
-aFont* medWhiteFont = nullptr;
-aFont* medRedFont = nullptr;
-aFont* medGreenFont = nullptr;
-aFont* medBlueFont = nullptr;
-aFont* medDimFont = nullptr;
-aFont* medYellowFont = nullptr;
-aFont* lgBlackFont = nullptr;
-aFont* lgGreyFont = nullptr;
-aFont* lgWhiteFont = nullptr;
-aFont* lgRedFont = nullptr;
-aFont* lgGreenFont = nullptr;
-aFont* lgBlueFont = nullptr;
-aFont* lgDimFont = nullptr;
-aFont* lgYellowFont = nullptr;
-aFont* fonts[10][3] = {};
-int gamePaused = 0;
-int gameAsked = 0;
-Font* lineFont = nullptr;
-int gWidth = 640;
-int gHeight = 480;
-int gBitDepth = 8;
-int gFullScreen = 0;
-int gStretchToFit = 0;
-int gSoftwareCursor = 0;
-int gHiddenWindow = 0;
-int gRenderer = 0;
-int gRendererPreference = 0;
-int gShowFps = 0;
-int gShowFpsPreference = 0;
-int gVSync = 1;
-int applicationActive = -1;
-uint32_t stackSize = 0x100000;
-uint32_t topOfStack = 0;
+MCGuiSystem* Application = nullptr;
+MCGuiObject* ScreenWindow = nullptr;
+MCGuiPort* ScreenPort = nullptr;
+MCPacketFile* ArtFile = nullptr;
+char* StartupPakFile = nullptr;
+MCGuiMessageBox* VersionDialog = nullptr;
+MCGuiObject* SmackWindowPointer = nullptr;
+MCGuiObject* FeatureScreen = nullptr;
+int FeatureScreenDone = 0;
+int EscapedSmackerMovie = 0;
+MCGuiCallback* MouseTrackerCallback = nullptr;
+MCGuiFont* SystemFont = nullptr;
+MCGuiFont* BlackFont = nullptr;
+MCGuiFont* GreyFont = nullptr;
+MCGuiFont* WhiteFont = nullptr;
+MCGuiFont* RedFont = nullptr;
+MCGuiFont* GreenFont = nullptr;
+MCGuiFont* BlueFont = nullptr;
+MCGuiFont* DimFont = nullptr;
+MCGuiFont* YellowFont = nullptr;
+MCGuiFont* YellowDropFont = nullptr;
+MCGuiFont* BlueDropFont = nullptr;
+MCGuiFont* MedBlackFont = nullptr;
+MCGuiFont* MedGreyFont = nullptr;
+MCGuiFont* MedWhiteFont = nullptr;
+MCGuiFont* MedRedFont = nullptr;
+MCGuiFont* MedGreenFont = nullptr;
+MCGuiFont* MedBlueFont = nullptr;
+MCGuiFont* MedDimFont = nullptr;
+MCGuiFont* MedYellowFont = nullptr;
+MCGuiFont* LgBlackFont = nullptr;
+MCGuiFont* LgGreyFont = nullptr;
+MCGuiFont* LgWhiteFont = nullptr;
+MCGuiFont* LgRedFont = nullptr;
+MCGuiFont* LgGreenFont = nullptr;
+MCGuiFont* LgBlueFont = nullptr;
+MCGuiFont* LgDimFont = nullptr;
+MCGuiFont* LgYellowFont = nullptr;
+MCGuiFont* Fonts[10][3] = {};
+int GamePaused = 0;
+int GameAsked = 0;
+MCFont* LineFont = nullptr;
+int GWidth = 640;
+int GHeight = 480;
+int GBitDepth = 8;
+int GFullScreen = 0;
+int GStretchToFit = 0;
+int GSoftwareCursor = 0;
+int GHiddenWindow = 0;
+int GRenderer = 0;
+int GRendererPreference = 0;
+int GShowFps = 0;
+int GShowFpsPreference = 0;
+int GVSync = 1;
+int ApplicationActive = -1;
+uint32_t StackSize = 0x100000;
+uint32_t TopOfStack = 0;
 uint8_t GammaColorTranslation[256] = {
     0,   6,   10,  13,  16,  19,  21,  23,  25,  27,  29,  31,  33,  35,  37,  39,  40,  42,  44,  45,  47,  48,
     50,  51,  53,  54,  56,  57,  58,  60,  61,  63,  64,  65,  67,  68,  69,  70,  72,  73,  74,  75,  77,  78,
@@ -117,79 +117,79 @@ uint8_t GammaColorTranslation[256] = {
     215, 216, 217, 218, 218, 219, 220, 220, 221, 222, 223, 223, 224, 225, 225, 226, 227, 228, 228, 229, 230, 230,
     231, 232, 232, 233, 234, 235, 235, 236, 237, 237, 238, 239, 239, 240, 241, 241, 242, 243, 244, 244, 245, 246,
     246, 247, 248, 248, 249, 250, 250, 251, 252, 252, 253, 254, 254, 255};
-int allowMagicWindowSwitching = -1;
-int32_t displayWidth = 0;
-int32_t displayHeight = 0;
-int oldMouseX = 0;
-int oldMouseY = 0;
-float frameRate = 0.0f;
-int64_t startTime = 0;
-int64_t stopTime = 0;
-int64_t prevStart = 0;
-int64_t countsPerSecond = 0;
-int32_t lastX = 0;
-int32_t lastY = 0;
-int leftMouseButtonDown = 0;
-int rightMouseButtonDown = 0;
+int AllowMagicWindowSwitching = -1;
+int32_t DisplayWidth = 0;
+int32_t DisplayHeight = 0;
+int OldMouseX = 0;
+int OldMouseY = 0;
+float FrameRate = 0.0f;
+int64_t PerfStartTime = 0;
+int64_t PerfStopTime = 0;
+int64_t PrevStart = 0;
+int64_t CountsPerSecond = 0;
+int32_t LastX = 0;
+int32_t LastY = 0;
+int LeftMouseButtonDown = 0;
+int RightMouseButtonDown = 0;
 // appName and WindowTitle are 0x400 bytes (0x007aa9a0..0x007aada0 and 0x007f050c..0x007f090c), paletteName 80.
-char appName[0x400] = {};
+char AppName[0x400] = {};
 char WindowTitle[0x400] = {};
-char paletteName[80] = {};
-char* backPtr = nullptr;
+char PaletteName[80] = {};
+char* BackPtr = nullptr;
 // The cheat codes: a length byte, then the letters plus 0x32 (Cheat subtracts it). Cheat_CantHitMe's length (5) is
 // one short of its six letters, so only the first five count.
-char Cheat_framegraph[12] = {'\x0a', '\x98', '\xa4', '\x93', '\x9f', '\x97', '\x99', '\xa4', '\x93', '\xa2', '\x9a'};
-char Cheat_BunnyStrike[12] = {'\x09', '\x9e', '\xa1', '\xa4', '\x96', '\x94', '\xa7', '\xa0', '\xa0', '\xab'};
-char Cheat_HealAll[8] = {'\x06', '\x9e', '\xa1', '\xa4', '\xa4', '\x9b', '\x97'};
-char Cheat_DeadEye[8] = {'\x07', '\x96', '\x97', '\x93', '\x96', '\x97', '\xab', '\x97'};
-char Cheat_CantHitMe[8] = {'\x05', '\xa1', '\xa5', '\x9f', '\x9b', '\xa7', '\x9f'};
-char Cheat_GetSalvage[20] = {'\x12', '\x99', '\x9e', '\x97', '\xa0', '\xa0', '\xa4', '\xa1', '\x95', '\x9d',
-                             '\xa5', '\xa6', '\x9a', '\x97', '\x9a', '\xa1', '\xa7', '\xa5', '\x97'};
-char Cheat_Reveal[28] = {'\x18', '\x9f', '\x9b', '\xa0', '\x97', '\x97', '\xab', '\x97', '\xa5',
-                         '\x9a', '\x93', '\xa8', '\x97', '\xa5', '\x97', '\x97', '\xa0', '\xa6',
-                         '\x9a', '\x97', '\x99', '\x9e', '\xa1', '\xa4', '\xab'};
-char Cheat_Duh[4] = {'\x03', '\x96', '\xa7', '\x9a'};
+char CheatFramegraph[12] = {'\x0a', '\x98', '\xa4', '\x93', '\x9f', '\x97', '\x99', '\xa4', '\x93', '\xa2', '\x9a'};
+char CheatBunnyStrike[12] = {'\x09', '\x9e', '\xa1', '\xa4', '\x96', '\x94', '\xa7', '\xa0', '\xa0', '\xab'};
+char CheatHealAll[8] = {'\x06', '\x9e', '\xa1', '\xa4', '\xa4', '\x9b', '\x97'};
+char CheatDeadEye[8] = {'\x07', '\x96', '\x97', '\x93', '\x96', '\x97', '\xab', '\x97'};
+char CheatCantHitMe[8] = {'\x05', '\xa1', '\xa5', '\x9f', '\x9b', '\xa7', '\x9f'};
+char CheatGetSalvage[20] = {'\x12', '\x99', '\x9e', '\x97', '\xa0', '\xa0', '\xa4', '\xa1', '\x95', '\x9d',
+                            '\xa5', '\xa6', '\x9a', '\x97', '\x9a', '\xa1', '\xa7', '\xa5', '\x97'};
+char CheatReveal[28] = {'\x18', '\x9f', '\x9b', '\xa0', '\x97', '\x97', '\xab', '\x97', '\xa5',
+                        '\x9a', '\x93', '\xa8', '\x97', '\xa5', '\x97', '\x97', '\xa0', '\xa6',
+                        '\x9a', '\x97', '\x99', '\x9e', '\xa1', '\xa4', '\xab'};
+char CheatDuh[4] = {'\x03', '\x96', '\xa7', '\x9a'};
 char CheatKey[128] = {};
 int CheatPointer = 0;
 uint32_t CantHitMe = 0;
-int cheatsOn = 0;
+int CheatsOn = 0;
 int CantBlowSalvage = 0;
 int BunnyStrikesOn = 0;
 int Duh = 0;
-int recordClicks = 0;
+int RecordClicks = 0;
 int SavedPosition = 0;
-int lockFrameRate = 0;
-int lockActive = 0;
-int takeScreenShot = 0;
-uint32_t scrollWait = 0;
-int32_t displayProfileData = 0;
-char keySetting = 0;
+int LockFrameRate = 0;
+int LockActive = 0;
+int TakeScreenShot = 0;
+uint32_t ScrollWait = 0;
+int32_t DisplayProfileData = 0;
+char KeySetting = 0;
 int QueuePlayerOrders = 0;
-int forceGatesClosed = 0;
-int drawTerrainGrid = 0;
-VFX_RGB* paletteRgb = nullptr;
-int32_t globalEntries = 0;
-int32_t globalFirst = 0;
+int ForceGatesClosed = 0;
+int DrawTerrainGrid = 0;
+MCVfxRgb* PaletteRgb = nullptr;
+int32_t GlobalEntries = 0;
+int32_t GlobalFirst = 0;
 uint32_t Networkframe = 0;
-uint32_t MP_Start_Time = 0;
-uint32_t uMessage = 0;
+uint32_t MPStartTime = 0;
+uint32_t UMessage = 0;
 std::recursive_mutex MouseCritSec;
 volatile int InMouseCritSec = 0;
 int AndyFramerate = 0;
-int AG_mouseFrame = 0;
-int mouseThreadStarted = 0;
-void* memoryStatus = nullptr;
-void* backbm = nullptr;
-void* holdpalette = nullptr;
+int AGMouseFrame = 0;
+int MouseThreadStarted = 0;
+void* MemoryStatus = nullptr;
+void* Backbm = nullptr;
+void* Holdpalette = nullptr;
 void* OffScreenhOldBitmap = nullptr;
 void* OffScreenBufferDC = nullptr;
-void* OffScreenhDIBSection = nullptr;
+void* OffScreenhDibSection = nullptr;
 void* DesktopDC = nullptr;
-void* hPalette = nullptr;
-void* ghWindow = nullptr;
-void* backpbmi = nullptr;
-void* thePalette = nullptr;
-uint8_t* screenBits = nullptr;
+void* HPalette = nullptr;
+void* GhWindow = nullptr;
+void* Backpbmi = nullptr;
+void* ThePalette = nullptr;
+uint8_t* ScreenBits = nullptr;
 int32_t Processor = 0;
 
 namespace
@@ -198,59 +198,59 @@ namespace
     /// Set once the display is up (DirectDraw or the DIB section in the original): palette changes and repaints wait
     /// for it (0x007ab108).
     /// </summary>
-    int displayReady = 0;
+    int DisplayReady = 0;
 
     /// <summary>
     /// A byte the window procedure tests before selecting the GDI palette on repaint and activation; nothing in
     /// MCX.EXE sets it (0x007aa994).
     /// </summary>
-    uint8_t keepDesktopPalette = 0;
+    uint8_t KeepDesktopPalette = 0;
 
-    /// <summary>Two windows <see cref="aSystem::stop"/> destroys; nothing in MCX.EXE sets them (0x007ab134/138).</summary>
-    aObject* stopWindow1 = nullptr;
-    aObject* stopWindow2 = nullptr;
+    /// <summary>Two windows <see cref="MCGuiSystem::Stop"/> destroys; nothing in MCX.EXE sets them (0x007ab134/138).</summary>
+    MCGuiObject* StopWindow1 = nullptr;
+    MCGuiObject* StopWindow2 = nullptr;
 
     /// <summary>
     /// The palette as shown: the GDI LOGPALETTE's entries (0x007aa3c4) and the DIB colour table's (0x007a9fb8)
-    /// in the original, the colours handed to the display in the port. <see cref="aSystem::currentPalette"/> through
+    /// in the original, the colours handed to the display in the port. <see cref="MCGuiSystem::CurrentPalette"/> through
     /// the gamma table.
     /// </summary>
-    VFX_RGB logicalPalette[256] = {};
+    MCVfxRgb LogicalPalette[256] = {};
 
     /// <summary>The display (DirectDraw's objects and the window in the original).</summary>
-    std::unique_ptr<MCDisplay> gameDisplay;
+    std::unique_ptr<MCDisplay> GameDisplay;
 
     /// <summary>Hands <paramref name="count"/> shown colours from <paramref name="first"/> to the display.</summary>
-    void showPalette(int first, int count)
+    void ShowPalette(int first, int count)
     {
         if (MCDisplay* display = MCInput::Display())
         {
-            display->SetPalette(first, count, &logicalPalette[first]);
+            display->SetPalette(first, count, &LogicalPalette[first]);
         }
     }
 
     /// <summary>Takes the mouse thread's lock when the thread runs (the original's EnterCriticalSection pairs).</summary>
-    void lockMouse()
+    void LockMouse()
     {
-        if (mouseThreadStarted != 0)
+        if (MouseThreadStarted != 0)
         {
             MouseCritSec.lock();
         }
     }
 
-    void unlockMouse()
+    void UnlockMouse()
     {
-        if (mouseThreadStarted != 0)
+        if (MouseThreadStarted != 0)
         {
             MouseCritSec.unlock();
         }
     }
 
     /// <summary>Ends a movie window: stops the movie, destroys and deletes the window.</summary>
-    void closeMovieWindow(aObject*& window)
+    void CloseMovieWindow(MCGuiObject*& window)
     {
-        static_cast<aSmackerWindow*>(window)->endSmackerMovie();
-        window->destroy();
+        static_cast<MCGuiSmackerWindow*>(window)->EndSmackerMovie();
+        window->Destroy();
         delete window;
         window = nullptr;
     }
@@ -259,48 +259,48 @@ namespace
     /// The table <c>cursorShapes</c> points at: one slot per cursor shape id. 128 slots are kept, since the cursor
     /// ids the game sets are indexes into it.
     /// </summary>
-    std::array<uint8_t*, 128> cursorShapeTable = {};
+    std::array<uint8_t*, 128> CursorShapeTable = {};
 
-    /// <summary>Owns the cursor shapes (registered with the renderers) until <see cref="aSystem::stop"/>.</summary>
-    MCBlockStore cursorShapeBlocks;
+    /// <summary>Owns the cursor shapes (registered with the renderers) until <see cref="MCGuiSystem::Stop"/>.</summary>
+    MCBlockStore CursorShapeBlocks;
 
-    /// <summary>Frees a font loaded by <see cref="aSystem::start"/>.</summary>
-    void deleteFont(aFont*& font)
+    /// <summary>Frees a font loaded by <see cref="MCGuiSystem::Start"/>.</summary>
+    void DeleteFont(MCGuiFont*& font)
     {
         if (font != nullptr)
         {
-            font->destroy();
+            font->Destroy();
             delete font;
             font = nullptr;
         }
     }
 
-    /// <summary>Loads a font for <see cref="aSystem::start"/>.</summary>
-    aFont* loadFont(const char* fileName)
+    /// <summary>Loads a font for <see cref="MCGuiSystem::Start"/>.</summary>
+    MCGuiFont* LoadFont(const char* fileName)
     {
-        aFont* font = new (std::nothrow) aFont;
-        font->init(const_cast<char*>(fileName));
+        MCGuiFont* font = new (std::nothrow) MCGuiFont;
+        font->Init(const_cast<char*>(fileName));
         return font;
     }
 
     /// <summary>
     /// Reads a TGA's colour map (at byte 0x12, blue-green-red, 8 bits) into a 6-bit VFX palette, as
-    /// <see cref="GetPaletteFromArt"/> and <see cref="aSystem::activatePaletteFromTGA"/> do.
+    /// <see cref="GetPaletteFromArt"/> and <see cref="MCGuiSystem::ActivatePaletteFromTga"/> do.
     /// </summary>
-    void tgaColorMapToPalette(const uint8_t* tga, VFX_RGB* palette)
+    void TgaColorMapToPalette(const uint8_t* tga, MCVfxRgb* palette)
     {
         const uint8_t* entry = tga + 0x12;
 
         for (int i = 0; i < 256; i++, entry += 3)
         {
-            palette[i].r = static_cast<uint8_t>(entry[2] >> 2);
-            palette[i].g = static_cast<uint8_t>(entry[1] >> 2);
-            palette[i].b = static_cast<uint8_t>(entry[0] >> 2);
+            palette[i].R = static_cast<uint8_t>(entry[2] >> 2);
+            palette[i].G = static_cast<uint8_t>(entry[1] >> 2);
+            palette[i].B = static_cast<uint8_t>(entry[0] >> 2);
         }
     }
 
     /// <summary>Whether a key is held (GetAsyncKeyState's top bit).</summary>
-    bool keyHeld(int vk)
+    bool KeyHeld(int vk)
     {
         return (MCInput::GetAsyncKeyState(vk) & 0x8000) != 0;
     }
@@ -309,33 +309,33 @@ namespace
     /// The scissors of the objects drawing in the frame pass around the one displaying now (innermost last), with the
     /// window each is on: a child that draws itself is cut to its nearest such ancestor's.
     /// </summary>
-    std::vector<std::pair<const _window*, MCRect>> viewClips;
+    std::vector<std::pair<const MCWindow*, MCRect>> ViewClips;
 
     /// <summary>The object drawing in the frame pass right now (its view open), or null.</summary>
-    aObject* drawingLive = nullptr;
+    MCGuiObject* DrawingLive = nullptr;
 
     /// <summary>The test message <see cref="SendAndReceiveTestMessages"/> sends: a header, the frame and a count.</summary>
 #pragma pack(push, 1)
-    struct TestMessage
+    struct MCTestMessage
     {
-        FIGuaranteedMessageHeader header; // +0x00
-        uint32_t frame = 0;               // +0x08
-        uint32_t index = 0;               // +0x0c
+        MCFIGuaranteedMessageHeader Header;
+        uint32_t Frame = 0;
+        uint32_t Index = 0;
     };
 #pragma pack(pop)
-    static_assert(sizeof(TestMessage) == 0x10);
+    static_assert(sizeof(MCTestMessage) == 0x10);
 }
 
 // aObject's inline virtuals from gui\asystem.h.
 
-auto aObject::drawBox(uint8_t color, tagRECT area) -> void
+auto MCGuiObject::DrawBox(uint8_t color, tagRECT area) -> void
 {
-    drawBox(color, area.left, area.top, area.right, area.bottom);
+    DrawBox(color, area.left, area.top, area.right, area.bottom);
 }
 
 // aSystem's DirectDraw layer: the display in the port.
 
-auto aSystem::startupDirectDraw(int32_t width, int32_t height, int32_t bitDepth) -> int32_t
+auto MCGuiSystem::StartupDirectDraw(int32_t width, int32_t height, int32_t bitDepth) -> int32_t
 {
     // Port: the original made the DirectDraw object (exclusive full screen, a primary surface and its palette) or,
     // in a window, a GDI palette from the system palette and an 8-bit DIB section to BitBlt from. The port opens
@@ -347,15 +347,15 @@ auto aSystem::startupDirectDraw(int32_t width, int32_t height, int32_t bitDepth)
     (void)width;
     (void)height;
     MCDisplayOptions options;
-    options.Title = appName;
+    options.Title = AppName;
     options.Width = 640;
     options.Height = 480;
     options.FollowWindow = true;
-    options.Fullscreen = gFullScreen != 0;
-    options.Stretch = gStretchToFit != 0;
-    options.Hidden = gHiddenWindow != 0;
-    options.Renderer = static_cast<MCRendererKind>(gRenderer);
-    options.VSync = gVSync != 0;
+    options.Fullscreen = GFullScreen != 0;
+    options.Stretch = GStretchToFit != 0;
+    options.Hidden = GHiddenWindow != 0;
+    options.Renderer = static_cast<MCRendererKind>(GRenderer);
+    options.VSync = GVSync != 0;
     auto display = MCDisplay::Create(options);
 
     if (!display)
@@ -363,65 +363,65 @@ auto aSystem::startupDirectDraw(int32_t width, int32_t height, int32_t bitDepth)
         Fatal(0, "Cannot initialize DirectDraw.", display.error().c_str());
     }
 
-    gameDisplay = std::move(*display);
-    gWidth = gameDisplay->Width();
-    gHeight = gameDisplay->Height();
-    displayWidth = gWidth;
-    displayHeight = gHeight;
-    screenWidth = gWidth;
-    screenHeight = gHeight;
-    ddObject = gameDisplay.get();
-    MCInput::Attach(gameDisplay.get());
-    screenBits = gameDisplay->Pixels();
-    showPalette(0, 256);
-    displayReady = 1;
+    GameDisplay = std::move(*display);
+    GWidth = GameDisplay->Width();
+    GHeight = GameDisplay->Height();
+    DisplayWidth = GWidth;
+    DisplayHeight = GHeight;
+    ScreenWidth = GWidth;
+    ScreenHeight = GHeight;
+    DdObject = GameDisplay.get();
+    MCInput::Attach(GameDisplay.get());
+    ScreenBits = GameDisplay->Pixels();
+    ShowPalette(0, 256);
+    DisplayReady = 1;
     return 0;
 }
 
-auto aSystem::resetDirectDraw(int32_t width, int32_t height, int32_t bitDepth) -> int32_t
+auto MCGuiSystem::ResetDirectDraw(int32_t width, int32_t height, int32_t bitDepth) -> int32_t
 {
     // Port: the original released and remade the surfaces in the new mode (full screen or windowed), restored the
     // window style and re-attached the palette. The port switches the display and, for another size, its buffer.
-    gBitDepth = bitDepth;
-    gWidth = width;
-    gHeight = height;
+    GBitDepth = bitDepth;
+    GWidth = width;
+    GHeight = height;
 
-    if (gameDisplay == nullptr)
+    if (GameDisplay == nullptr)
     {
-        return startupDirectDraw(width, height, bitDepth);
+        return StartupDirectDraw(width, height, bitDepth);
     }
 
-    gameDisplay->SetFullscreen(gFullScreen != 0);
+    GameDisplay->SetFullscreen(GFullScreen != 0);
 
-    if (width != gameDisplay->Width() || height != gameDisplay->Height())
+    if (width != GameDisplay->Width() || height != GameDisplay->Height())
     {
-        auto resized = gameDisplay->SetLogicalSize(width, height);
+        auto resized = GameDisplay->SetLogicalSize(width, height);
 
         if (!resized)
         {
             Fatal(0, " Unable to Set Display Mode ", resized.error().c_str());
         }
 
-        screenBits = gameDisplay->Pixels();
+        ScreenBits = GameDisplay->Pixels();
 
         // Port fix: the screen port keeps pointing at the display's buffer, which the resize moved.
-        if (lockActive != 0 && screenPort != nullptr && screenPort->bitmap() != nullptr)
+        if (LockActive != 0 && ScreenPort != nullptr && ScreenPort->Bitmap() != nullptr)
         {
-            screenPort->bitmap()->buffer = screenBits;
+            ScreenPort->Bitmap()->Buffer = ScreenBits;
         }
     }
 
     MCInput::RefreshMouseArea();
-    showPalette(0, 256);
-    displayReady = 1;
+    ShowPalette(0, 256);
+    DisplayReady = 1;
     return 0;
 }
 
 auto MCFollowWindowSize() -> bool
 {
-    MCDisplay* display = gameDisplay.get();
+    MCDisplay* display = GameDisplay.get();
 
-    if (display == nullptr || !display->FollowsWindow() || application == nullptr)
+    if (display == nullptr || !display->FollowsWindow() || Application == nullptr)
     {
         return false;
     }
@@ -442,284 +442,274 @@ auto MCFollowWindowSize() -> bool
         Fatal(0, " Unable to Set Display Mode ", resized.error().c_str());
     }
 
-    gWidth = width;
-    gHeight = height;
-    displayWidth = width;
-    displayHeight = height;
-    application->screenWidth = width;
-    application->screenHeight = height;
-    screenBits = display->Pixels();
+    GWidth = width;
+    GHeight = height;
+    DisplayWidth = width;
+    DisplayHeight = height;
+    Application->ScreenWidth = width;
+    Application->ScreenHeight = height;
+    ScreenBits = display->Pixels();
 
-    if (screenPort != nullptr && screenPort->bitmap() != nullptr)
+    if (ScreenPort != nullptr && ScreenPort->Bitmap() != nullptr)
     {
-        screenPort->resize(width, height);
-        screenPort->bitmap()->buffer = screenBits;
+        ScreenPort->Resize(width, height);
+        ScreenPort->Bitmap()->Buffer = ScreenBits;
     }
 
     MCInput::RefreshMouseArea();
 
-    if (screenWindow != nullptr)
+    if (ScreenWindow != nullptr)
     {
-        screenWindow->resize(width, height);
+        ScreenWindow->Resize(width, height);
 
-        if (mainHolder != nullptr)
+        if (MainHolder != nullptr)
         {
             // The original's resolution-change broadcast (nothing in MCX.EXE sends it): the main window takes the
             // screen's size and re-tiles its panes, the mech bar goes back to the bottom.
-            aEvent event;
-            event.clear();
-            event.type = 0x12;
-            screenWindow->handleEvent(&event);
+            MCGuiEvent event;
+            event.Clear();
+            event.Type = 0x12;
+            ScreenWindow->HandleEvent(&event);
         }
-        else if (theInterface != nullptr && theInterface->mechBar != nullptr)
+        else if (TheInterface != nullptr && TheInterface->MechBar != nullptr)
         {
             // Before the scenario's windows exist (StartScenario after the window was resized in the menus),
             // aMechBar::handleEvent would pass the event to mainHolder's active pane: just move the bar down.
-            aMechBar* bar = theInterface->mechBar;
-            bar->moveTo(1, application->height() - bar->height() - 1, 0);
+            MCMechBar* bar = TheInterface->MechBar;
+            bar->MoveTo(1, Application->Height() - bar->Height() - 1, 0);
         }
     }
 
     return true;
 }
 
-auto aSystem::shutdownDirectDraw() -> int32_t
+auto MCGuiSystem::ShutdownDirectDraw() -> int32_t
 {
     MCCursor::Shutdown();
     MCInput::Attach(nullptr);
-    gameDisplay.reset();
-    ddObject = nullptr;
-    ddObject2 = nullptr;
-    screenBits = nullptr;
+    GameDisplay.reset();
+    DdObject = nullptr;
+    DdObject2 = nullptr;
+    ScreenBits = nullptr;
     OffScreenBufferDC = nullptr;
-    OffScreenhDIBSection = nullptr;
+    OffScreenhDibSection = nullptr;
     OffScreenhOldBitmap = nullptr;
-    displayReady = 0;
+    DisplayReady = 0;
     return 0;
 }
 
-auto aSystem::setFlipToGDI() -> void
+auto MCGuiSystem::SetFlipToGdi() -> void
 {
-    flipToGDIRequested = -1;
+    FlipToGdiRequested = -1;
 }
 
-auto aSystem::clearFlipToGDI() -> void
+auto MCGuiSystem::ClearFlipToGdi() -> void
 {
-    flipToGDIRequested = 0;
+    FlipToGdiRequested = 0;
 }
 
-auto aSystem::flipToGDI() -> void
+auto MCGuiSystem::FlipToGdi() -> void
 {
 }
 
-auto aSystem::setScrollRect() -> void
+auto MCGuiSystem::SetScrollRect() -> void
 {
-    scrollRect.left = 1;
-    scrollRect.right = width() - 4;
-    scrollRect.top = 1;
-    scrollRect.bottom = height() - 4;
+    ScrollRect.left = 1;
+    ScrollRect.right = Width() - 4;
+    ScrollRect.top = 1;
+    ScrollRect.bottom = Height() - 4;
 }
 
 // aObject.
 
-aObject::aObject()
+MCGuiObject::MCGuiObject()
 {
-    framePane = nullptr;
-    backgroundPort = nullptr;
-    animating = 0;
-    displayPort = nullptr;
-    gridAligned = 0;
-    objectType = 0;
-    paintRoutine = nullptr;
-    eventRoutine = nullptr;
-    numChildren = 0;
-    parent = nullptr;
-    windowAnimation = nullptr;
-    iconAnimation = nullptr;
-    dropTargets = nullptr;
-    numDropTargets = 0;
+    FramePane = nullptr;
+    BackgroundPort = nullptr;
+    Animating = 0;
+    DisplayPort = nullptr;
+    GridAligned = 0;
+    ObjectType = 0;
+    PaintRoutine = nullptr;
+    EventRoutine = nullptr;
+    NumChildren = 0;
+    Parent = nullptr;
+    WindowAnimation = nullptr;
+    IconAnimation = nullptr;
+    DropTargets = nullptr;
+    NumDropTargets = 0;
 }
 
-aObject::~aObject()
+MCGuiObject::~MCGuiObject()
 {
-    destroy();
+    Destroy();
 }
 
-auto aObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
     (void)name;
-    winHeight = height;
-    maxHeight = height;
-    normalHeight = height;
-    iconHeight = height;
-    winWidth = width;
-    winX = xPos;
-    winY = yPos;
-    maxWidth = width;
-    maxX = xPos;
-    maxY = yPos;
-    normalWidth = width;
-    normalX = xPos;
-    normalY = yPos;
-    iconWidth = width;
-    iconX = xPos;
-    iconY = yPos;
-    hideOffset = 0;
-    homeX = xPos;
-    homeY = yPos;
-    winState = aSTATE_NORMAL;
-    showWindow = -1;
-    dragOn = 0;
-    transparent = 0;
-    backgroundColor = 0xff;
-    numDropTargets = 0;
+    WinHeight = height;
+    MaxHeight = height;
+    NormalHeight = height;
+    IconHeight = height;
+    WinWidth = width;
+    WinX = xPos;
+    WinY = yPos;
+    MaxWidth = width;
+    MaxX = xPos;
+    MaxY = yPos;
+    NormalWidth = width;
+    NormalX = xPos;
+    NormalY = yPos;
+    IconWidth = width;
+    IconX = xPos;
+    IconY = yPos;
+    HideOffset = 0;
+    HomeX = xPos;
+    HomeY = yPos;
+    WinState = aSTATE_NORMAL;
+    ShowWindow = -1;
+    DragOn = 0;
+    Transparent = 0;
+    BackgroundColor = 0xff;
+    NumDropTargets = 0;
 
-    if (displayPort != nullptr)
+    if (DisplayPort != nullptr)
     {
-        displayPort->destroy();
-        delete displayPort;
-        displayPort = nullptr;
+        DisplayPort->Destroy();
+        delete DisplayPort;
+        DisplayPort = nullptr;
     }
 
-    displayPort = new aPort;
-    const int32_t result = DrawsLive() ? displayPort->initView(width, height) : displayPort->init(width, height);
+    DisplayPort = new MCGuiPort;
+    const int32_t result = DrawsLive() ? DisplayPort->InitView(width, height) : DisplayPort->Init(width, height);
 
     if (result != 0)
     {
         return result;
     }
 
-    if (framePane != nullptr)
+    if (FramePane != nullptr)
     {
-        delete framePane;
-        framePane = nullptr;
+        delete FramePane;
+        FramePane = nullptr;
     }
 
-    framePane = new (std::nothrow) _pane;
+    FramePane = new (std::nothrow) MCPane;
 
-    if (framePane == nullptr)
+    if (FramePane == nullptr)
     {
         return 3;
     }
 
-    framePane->window = screenPort->bitmap();
-    framePane->x0 = xPos;
-    framePane->y0 = yPos;
-    framePane->x1 = xPos + width;
-    framePane->y1 = yPos + height;
-    hidden = 0;
-    hideDirection = DIRECTION_DOWN;
-    paintRoutine = nullptr;
-    eventRoutine = nullptr;
-    numChildren = 0;
-    parent = nullptr;
-    winDepth = 0;
-    windowAnimation = nullptr;
-    animating = 0;
-    iconAnimation = nullptr;
-    objectType = -1;
+    FramePane->Window = ScreenPort->Bitmap();
+    FramePane->X0 = xPos;
+    FramePane->Y0 = yPos;
+    FramePane->X1 = xPos + width;
+    FramePane->Y1 = yPos + height;
+    Hidden = 0;
+    HideDirection = DIRECTION_DOWN;
+    PaintRoutine = nullptr;
+    EventRoutine = nullptr;
+    NumChildren = 0;
+    Parent = nullptr;
+    WinDepth = 0;
+    WindowAnimation = nullptr;
+    Animating = 0;
+    IconAnimation = nullptr;
+    ObjectType = -1;
     return 0;
 }
 
-auto aObject::destroy() -> void
+auto MCGuiObject::Destroy() -> void
 {
-    application->RemoveTimers(this);
+    Application->RemoveTimers(this);
 
-    if (displayPort != nullptr)
+    if (DisplayPort != nullptr)
     {
-        displayPort->destroy();
-        delete displayPort;
-        displayPort = nullptr;
+        DisplayPort->Destroy();
+        delete DisplayPort;
+        DisplayPort = nullptr;
     }
 
-    if (framePane != nullptr)
+    if (FramePane != nullptr)
     {
-        delete framePane;
-        framePane = nullptr;
+        delete FramePane;
+        FramePane = nullptr;
     }
 
-    if (backgroundPort != nullptr)
+    if (BackgroundPort != nullptr)
     {
-        backgroundPort->destroy();
-        delete backgroundPort;
-        backgroundPort = nullptr;
+        BackgroundPort->Destroy();
+        delete BackgroundPort;
+        BackgroundPort = nullptr;
     }
 
-    if (iconAnimation != nullptr)
+    if (IconAnimation != nullptr)
     {
-        iconAnimation->destroy();
-        delete iconAnimation;
-        iconAnimation = nullptr;
+        IconAnimation->Destroy();
+        delete IconAnimation;
+        IconAnimation = nullptr;
     }
 
-    if (windowAnimation != nullptr)
+    if (WindowAnimation != nullptr)
     {
-        windowAnimation->destroy();
-        delete windowAnimation;
-        windowAnimation = nullptr;
+        WindowAnimation->Destroy();
+        delete WindowAnimation;
+        WindowAnimation = nullptr;
     }
 
-    if (dropTargets != nullptr)
+    if (DropTargets != nullptr)
     {
-        delete[] dropTargets;
-        dropTargets = nullptr;
+        delete[] DropTargets;
+        DropTargets = nullptr;
     }
 
-    Assert(numChildren == 0, 0, " Number of Children NOT Zero ");
+    Assert(NumChildren == 0, 0, " Number of Children NOT Zero ");
 
-    if (parent != nullptr)
+    if (Parent != nullptr)
     {
-        parent->removeChild(this);
+        Parent->RemoveChild(this);
     }
 
-    parent = nullptr;
-    animating = 0;
+    Parent = nullptr;
+    Animating = 0;
 
-    if (application->grabbedObject() == this)
+    if (Application->GrabbedObject() == this)
     {
-        application->release();
+        Application->Release();
     }
 
-    if (application->textObject() == this)
+    if (Application->TextObject() == this)
     {
-        application->releaseText();
+        Application->ReleaseText();
     }
 
-    if (application->modalObject() == this)
+    if (Application->ModalObject() == this)
     {
-        application->clearModal();
+        Application->ClearModal();
     }
 
-    if (application->currentObject() == this)
+    if (Application->CurrentObject() == this)
     {
         const MCPoint cursor = MCInput::GetCursorPos();
-        application->setCurrentObject(screenWindow->findObject(cursor.x, cursor.y));
+        Application->SetCurrentObject(ScreenWindow->FindObject(cursor.x, cursor.y));
     }
 }
 
-auto aObject::setDisplayPort(aPort* newPort) -> void
+auto MCGuiObject::SetDisplayPort(MCGuiPort* newPort) -> void
 {
-    framePane->window = newPort->bitmap();
+    FramePane->Window = newPort->Bitmap();
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        childList[i]->setDisplayPort(newPort);
+        ChildList[i]->SetDisplayPort(newPort);
     }
 }
 
-auto aObject::pointInside(int32_t xPos, int32_t yPos) -> int
+auto MCGuiObject::PointInside(int32_t xPos, int32_t yPos) -> int
 {
-    if (framePane->x0 <= xPos && xPos <= framePane->x1 && framePane->y0 <= yPos && yPos <= framePane->y1)
-    {
-        return -1;
-    }
-
-    return 0;
-}
-
-auto aObject::rectIntersect(int32_t left, int32_t top, int32_t right, int32_t bottom) -> int
-{
-    if (framePane->x0 < right && left < framePane->x1 && framePane->y0 < bottom && top < framePane->y1)
+    if (FramePane->X0 <= xPos && xPos <= FramePane->X1 && FramePane->Y0 <= yPos && yPos <= FramePane->Y1)
     {
         return -1;
     }
@@ -727,10 +717,9 @@ auto aObject::rectIntersect(int32_t left, int32_t top, int32_t right, int32_t bo
     return 0;
 }
 
-auto aObject::rectIntersect(tagRECT area) -> int
+auto MCGuiObject::RectIntersect(int32_t left, int32_t top, int32_t right, int32_t bottom) -> int
 {
-    if (framePane->x0 < area.right && area.left < framePane->x1 && framePane->y0 < area.bottom &&
-        area.top < framePane->y1)
+    if (FramePane->X0 < right && left < FramePane->X1 && FramePane->Y0 < bottom && top < FramePane->Y1)
     {
         return -1;
     }
@@ -738,36 +727,47 @@ auto aObject::rectIntersect(tagRECT area) -> int
     return 0;
 }
 
-auto aObject::setPaintRoutine(void (*routine)(aObject*)) -> void
+auto MCGuiObject::RectIntersect(tagRECT area) -> int
 {
-    paintRoutine = routine;
-}
-
-auto aObject::setEventRoutine(void (*routine)(aObject*, aEvent*)) -> void
-{
-    eventRoutine = routine;
-}
-
-auto aObject::paint() -> void
-{
-    if (paintRoutine != nullptr)
+    if (FramePane->X0 < area.right && area.left < FramePane->X1 && FramePane->Y0 < area.bottom &&
+        area.top < FramePane->Y1)
     {
-        paintRoutine(this);
+        return -1;
+    }
+
+    return 0;
+}
+
+auto MCGuiObject::SetPaintRoutine(void (*routine)(MCGuiObject*)) -> void
+{
+    PaintRoutine = routine;
+}
+
+auto MCGuiObject::SetEventRoutine(void (*routine)(MCGuiObject*, MCGuiEvent*)) -> void
+{
+    EventRoutine = routine;
+}
+
+auto MCGuiObject::Paint() -> void
+{
+    if (PaintRoutine != nullptr)
+    {
+        PaintRoutine(this);
     }
 }
 
-auto aObject::findObject(int32_t xPos, int32_t yPos) -> aObject*
+auto MCGuiObject::FindObject(int32_t xPos, int32_t yPos) -> MCGuiObject*
 {
-    if (winState != aSTATE_ICONIZED)
+    if (WinState != aSTATE_ICONIZED)
     {
-        if (showWindow == 0)
+        if (ShowWindow == 0)
         {
             return nullptr;
         }
 
-        for (int32_t i = numChildren; i > 0; i--)
+        for (int32_t i = NumChildren; i > 0; i--)
         {
-            aObject* found = childList[i - 1]->findObject(xPos, yPos);
+            MCGuiObject* found = ChildList[i - 1]->FindObject(xPos, yPos);
 
             if (found != nullptr)
             {
@@ -776,7 +776,7 @@ auto aObject::findObject(int32_t xPos, int32_t yPos) -> aObject*
         }
     }
 
-    if (showWindow != 0 && framePane != nullptr && pointInside(xPos, yPos) != 0)
+    if (ShowWindow != 0 && FramePane != nullptr && PointInside(xPos, yPos) != 0)
     {
         return this;
     }
@@ -784,69 +784,69 @@ auto aObject::findObject(int32_t xPos, int32_t yPos) -> aObject*
     return nullptr;
 }
 
-auto aObject::children() -> aObject*
+auto MCGuiObject::Children() -> MCGuiObject*
 {
     return nullptr;
 }
 
-auto aObject::setParent(aObject* newParent) -> void
+auto MCGuiObject::SetParent(MCGuiObject* newParent) -> void
 {
-    parent = newParent;
+    Parent = newParent;
 }
 
-auto aObject::setDepth(int32_t newDepth) -> void
+auto MCGuiObject::SetDepth(int32_t newDepth) -> void
 {
-    aObject* owner = parent;
+    MCGuiObject* owner = Parent;
 
     if (owner != nullptr)
     {
-        owner->removeChild(this);
+        owner->RemoveChild(this);
     }
 
-    winDepth = newDepth;
+    WinDepth = newDepth;
 
     if (owner != nullptr)
     {
-        owner->addChild(this);
+        owner->AddChild(this);
     }
 }
 
-auto aObject::depth() -> int32_t
+auto MCGuiObject::Depth() -> int32_t
 {
-    return winDepth;
+    return WinDepth;
 }
 
-auto aObject::startAnimation() -> void
+auto MCGuiObject::StartAnimation() -> void
 {
-    animating = -1;
+    Animating = -1;
 }
 
-auto aObject::stopAnimation() -> void
+auto MCGuiObject::StopAnimation() -> void
 {
-    animating = 0;
+    Animating = 0;
 }
 
-auto aObject::startModal() -> void
+auto MCGuiObject::StartModal() -> void
 {
-    application->setModalObject(this);
+    Application->SetModalObject(this);
 }
 
-auto aObject::stopModal() -> void
+auto MCGuiObject::StopModal() -> void
 {
-    application->clearModal();
+    Application->ClearModal();
 }
 
-auto aObject::setBackColor(int32_t color) -> void
+auto MCGuiObject::SetBackColor(int32_t color) -> void
 {
-    backgroundColor = color;
+    BackgroundColor = color;
 }
 
-auto aObject::backColor() -> int32_t
+auto MCGuiObject::BackColor() -> int32_t
 {
-    return backgroundColor;
+    return BackgroundColor;
 }
 
-auto aObject::drawBox(uint8_t color, int32_t left, int32_t top, int32_t right, int32_t bottom) -> void
+auto MCGuiObject::DrawBox(uint8_t color, int32_t left, int32_t top, int32_t right, int32_t bottom) -> void
 {
     if (left == -1)
     {
@@ -860,22 +860,22 @@ auto aObject::drawBox(uint8_t color, int32_t left, int32_t top, int32_t right, i
 
     if (right == -1)
     {
-        right = width() - 1;
+        right = Width() - 1;
     }
 
     if (bottom == -1)
     {
-        bottom = height() - 1;
+        bottom = Height() - 1;
     }
 
-    aPort* port = displayPort;
-    VFX_line_draw(port->frame(), left, top, right, top, LD_DRAW, color);
-    VFX_line_draw(port->frame(), left, top, left, bottom, LD_DRAW, color);
-    VFX_line_draw(port->frame(), left, bottom, right, bottom, LD_DRAW, color);
-    VFX_line_draw(port->frame(), right, top, right, bottom, LD_DRAW, color);
+    MCGuiPort* port = DisplayPort;
+    VfxLineDraw(port->Frame(), left, top, right, top, LD_DRAW, color);
+    VfxLineDraw(port->Frame(), left, top, left, bottom, LD_DRAW, color);
+    VfxLineDraw(port->Frame(), left, bottom, right, bottom, LD_DRAW, color);
+    VfxLineDraw(port->Frame(), right, top, right, bottom, LD_DRAW, color);
 }
 
-auto aObject::drawFramed(int pushed, int fill) -> void
+auto MCGuiObject::DrawFramed(int pushed, int fill) -> void
 {
     int32_t innerTopLeft = 0xc;
     int32_t outerTopLeft = 10;
@@ -890,132 +890,132 @@ auto aObject::drawFramed(int pushed, int fill) -> void
         outerBottomRight = 10;
     }
 
-    if (fill != 0 && backgroundColor != 0xff)
+    if (fill != 0 && BackgroundColor != 0xff)
     {
-        VFX_pane_wipe(displayPort->frame(), backColor());
+        VfxPaneWipe(DisplayPort->Frame(), BackColor());
     }
 
-    VFX_line_draw(displayPort->frame(), 0, height() - 1, width(), height() - 1, LD_DRAW, 0x10);
-    VFX_line_draw(displayPort->frame(), 0, 0, width(), 0, LD_DRAW, 0x10);
-    VFX_line_draw(displayPort->frame(), 0, 0, 0, height() - 1, LD_DRAW, 0x10);
-    VFX_line_draw(displayPort->frame(), width() - 1, 0, width() - 1, height() - 1, LD_DRAW, 0x10);
-    VFX_line_draw(displayPort->frame(), 1, 1, width() - 2, 1, LD_DRAW, innerTopLeft);
-    VFX_line_draw(displayPort->frame(), 2, 2, width() - 3, 2, LD_DRAW, outerTopLeft);
-    VFX_line_draw(displayPort->frame(), 1, 1, 1, height() - 2, LD_DRAW, innerTopLeft);
-    VFX_line_draw(displayPort->frame(), 2, 2, 2, height() - 3, LD_DRAW, outerTopLeft);
-    VFX_line_draw(displayPort->frame(), width() - 2, 1, width() - 2, height() - 2, LD_DRAW, innerBottomRight);
-    VFX_line_draw(displayPort->frame(), width() - 3, 2, width() - 3, height() - 3, LD_DRAW, outerBottomRight);
-    VFX_line_draw(displayPort->frame(), 1, height() - 2, width() - 2, height() - 2, LD_DRAW, innerBottomRight);
-    VFX_line_draw(displayPort->frame(), 2, height() - 3, width() - 3, height() - 3, LD_DRAW, outerBottomRight);
+    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width(), Height() - 1, LD_DRAW, 0x10);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width(), 0, LD_DRAW, 0x10);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, LD_DRAW, 0x10);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, LD_DRAW, 0x10);
+    VfxLineDraw(DisplayPort->Frame(), 1, 1, Width() - 2, 1, LD_DRAW, innerTopLeft);
+    VfxLineDraw(DisplayPort->Frame(), 2, 2, Width() - 3, 2, LD_DRAW, outerTopLeft);
+    VfxLineDraw(DisplayPort->Frame(), 1, 1, 1, Height() - 2, LD_DRAW, innerTopLeft);
+    VfxLineDraw(DisplayPort->Frame(), 2, 2, 2, Height() - 3, LD_DRAW, outerTopLeft);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 2, 1, Width() - 2, Height() - 2, LD_DRAW, innerBottomRight);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 3, 2, Width() - 3, Height() - 3, LD_DRAW, outerBottomRight);
+    VfxLineDraw(DisplayPort->Frame(), 1, Height() - 2, Width() - 2, Height() - 2, LD_DRAW, innerBottomRight);
+    VfxLineDraw(DisplayPort->Frame(), 2, Height() - 3, Width() - 3, Height() - 3, LD_DRAW, outerBottomRight);
 }
 
-auto aObject::FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color) -> void
+auto MCGuiObject::FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color) -> void
 {
-    _pane box = *displayPort->frame();
-    box.x0 = left;
-    box.y0 = top;
-    box.x1 = right;
-    box.y1 = bottom;
-    VFX_pane_wipe(&box, color);
+    MCPane box = *DisplayPort->Frame();
+    box.X0 = left;
+    box.Y0 = top;
+    box.X1 = right;
+    box.Y1 = bottom;
+    VfxPaneWipe(&box, color);
 }
 
-auto aObject::bringToFront(int noShuffle) -> void
+auto MCGuiObject::BringToFront(int noShuffle) -> void
 {
-    if (parent == nullptr)
+    if (Parent == nullptr)
     {
         return;
     }
 
-    parent->bringToFront(noShuffle);
+    Parent->BringToFront(noShuffle);
 
-    if (parent->numberOfChildren() > 1)
+    if (Parent->NumberOfChildren() > 1)
     {
         // The parent's children are kept sorted by depth: the ones in front of this object's depth stay, then this
         // object's depth, with this object last (in front), then the rest.
-        aObject* sorted[255];
-        std::memcpy(sorted, parent->childList, sizeof(sorted));
+        MCGuiObject* sorted[255];
+        std::memcpy(sorted, Parent->ChildList, sizeof(sorted));
         int32_t next = 0;
         int32_t placed = 0;
 
-        while (next < parent->numberOfChildren())
+        while (next < Parent->NumberOfChildren())
         {
-            aObject* sibling = sorted[next];
+            MCGuiObject* sibling = sorted[next];
 
-            if (sibling->depth() >= winDepth)
+            if (sibling->Depth() >= WinDepth)
             {
                 break;
             }
 
-            parent->childList[next] = sibling;
+            Parent->ChildList[next] = sibling;
             next++;
             placed++;
         }
-        while (next < parent->numberOfChildren())
+        while (next < Parent->NumberOfChildren())
         {
-            aObject* sibling = sorted[next];
+            MCGuiObject* sibling = sorted[next];
 
-            if (sibling->depth() != winDepth)
+            if (sibling->Depth() != WinDepth)
             {
                 break;
             }
 
             if (sibling != this)
             {
-                parent->childList[placed++] = sibling;
+                Parent->ChildList[placed++] = sibling;
             }
 
             next++;
         }
 
-        parent->childList[placed] = this;
+        Parent->ChildList[placed] = this;
 
-        for (int32_t slot = placed + 1; slot < parent->numberOfChildren(); slot++)
+        for (int32_t slot = placed + 1; slot < Parent->NumberOfChildren(); slot++)
         {
-            parent->childList[slot] = sorted[next++];
+            Parent->ChildList[slot] = sorted[next++];
         }
 
-        if (gridAligned != 0 && noShuffle == 0)
+        if (GridAligned != 0 && noShuffle == 0)
         {
-            for (int32_t i = parent->numberOfChildren() - 1; i >= 0; i--)
+            for (int32_t i = Parent->NumberOfChildren() - 1; i >= 0; i--)
             {
-                aObject* sibling = parent->child(i);
+                MCGuiObject* sibling = Parent->Child(i);
 
-                if (sibling->IsShowing() != 0 && sibling != this && sibling->gridAligned != 0 &&
-                    sibling->x() / 40 == x() / 40 && sibling->y() / 40 == y() / 40)
+                if (sibling->IsShowing() != 0 && sibling != this && sibling->GridAligned != 0 &&
+                    sibling->X() / 40 == X() / 40 && sibling->Y() / 40 == Y() / 40)
                 {
-                    sibling->gridAligned = 0;
-                    const int32_t newY = 5 - sibling->y() % 40 + sibling->y();
-                    const int32_t newX = 5 - sibling->x() % 40 + sibling->x();
-                    sibling->moveTo(newX, newY, 0);
-                    sibling->gridAligned = -1;
+                    sibling->GridAligned = 0;
+                    const int32_t newY = 5 - sibling->Y() % 40 + sibling->Y();
+                    const int32_t newX = 5 - sibling->X() % 40 + sibling->X();
+                    sibling->MoveTo(newX, newY, 0);
+                    sibling->GridAligned = -1;
                 }
             }
         }
     }
 }
 
-auto aObject::numberOfChildren() -> int32_t
+auto MCGuiObject::NumberOfChildren() -> int32_t
 {
-    return numChildren;
+    return NumChildren;
 }
 
-auto aObject::addChild(aObject* child) -> void
+auto MCGuiObject::AddChild(MCGuiObject* child) -> void
 {
-    Assert(numChildren < 255, numChildren + 1, "Too many children!");
-    Assert(child->parent == nullptr || child->parent == this, 0, " Adding child that's someone else's ");
+    Assert(NumChildren < 255, NumChildren + 1, "Too many children!");
+    Assert(child->Parent == nullptr || child->Parent == this, 0, " Adding child that's someone else's ");
 
     if (child != nullptr)
     {
-        removeChild(child);
-        child->setParent(this);
-        childList[numChildren] = child;
-        numChildren++;
-        child->bringToFront(-1);
-        child->moveTo(child->x(), child->y(), 0);
+        RemoveChild(child);
+        child->SetParent(this);
+        ChildList[NumChildren] = child;
+        NumChildren++;
+        child->BringToFront(-1);
+        child->MoveTo(child->X(), child->Y(), 0);
     }
 }
 
-auto aObject::removeChild(aObject* child) -> void
+auto MCGuiObject::RemoveChild(MCGuiObject* child) -> void
 {
     // Port: the original checked IsBadReadPtr(child) and, for an unreadable pointer, removed it without clearing
     // its parent; a pointer here is always readable or null.
@@ -1026,176 +1026,176 @@ auto aObject::removeChild(aObject* child) -> void
 
     int32_t index = 0;
 
-    while (index < numChildren && childList[index] != child)
+    while (index < NumChildren && ChildList[index] != child)
     {
         index++;
     }
 
-    if (index >= numChildren)
+    if (index >= NumChildren)
     {
         return;
     }
 
-    for (; index < numChildren - 1; index++)
+    for (; index < NumChildren - 1; index++)
     {
-        childList[index] = childList[index + 1];
+        ChildList[index] = ChildList[index + 1];
     }
 
-    childList[numChildren] = nullptr;
-    numChildren--;
-    child->setParent(nullptr);
+    ChildList[NumChildren] = nullptr;
+    NumChildren--;
+    child->SetParent(nullptr);
 }
 
-auto aObject::dragging() -> int
+auto MCGuiObject::Dragging() -> int
 {
-    return dragOn;
+    return DragOn;
 }
 
-auto aObject::startDrag(int32_t xPos, int32_t yPos) -> void
+auto MCGuiObject::StartDrag(int32_t xPos, int32_t yPos) -> void
 {
-    dragOn = -1;
-    dragX = xPos;
-    dragY = yPos;
+    DragOn = -1;
+    DragX = xPos;
+    DragY = yPos;
 }
 
-auto aObject::stopDrag() -> void
+auto MCGuiObject::StopDrag() -> void
 {
-    dragOn = 0;
+    DragOn = 0;
 }
 
-auto aObject::dragStartX() -> int32_t
+auto MCGuiObject::DragStartX() -> int32_t
 {
-    return dragX;
+    return DragX;
 }
 
-auto aObject::dragStartY() -> int32_t
+auto MCGuiObject::DragStartY() -> int32_t
 {
-    return dragY;
+    return DragY;
 }
 
-auto aObject::foremostChild(int32_t atDepth) -> aObject*
+auto MCGuiObject::ForemostChild(int32_t atDepth) -> MCGuiObject*
 {
-    for (int32_t i = numChildren; i > 0; i--)
+    for (int32_t i = NumChildren; i > 0; i--)
     {
-        if (childList[i - 1]->winDepth == atDepth)
+        if (ChildList[i - 1]->WinDepth == atDepth)
         {
-            return childList[i - 1];
+            return ChildList[i - 1];
         }
     }
 
     return nullptr;
 }
 
-auto aObject::child(int32_t index) -> aObject*
+auto MCGuiObject::Child(int32_t index) -> MCGuiObject*
 {
-    if (numChildren - 1 < index)
+    if (NumChildren - 1 < index)
     {
         return nullptr;
     }
 
-    return childList[index];
+    return ChildList[index];
 }
 
-auto aObject::width() -> int32_t
+auto MCGuiObject::Width() -> int32_t
 {
-    return winWidth;
+    return WinWidth;
 }
 
-auto aObject::height() -> int32_t
+auto MCGuiObject::Height() -> int32_t
 {
-    return winHeight;
+    return WinHeight;
 }
 
-auto aObject::ptr() -> void*
+auto MCGuiObject::Ptr() -> void*
 {
-    if (displayPort != nullptr)
+    if (DisplayPort != nullptr)
     {
-        return displayPort->buffer();
+        return DisplayPort->Buffer();
     }
 
     return nullptr;
 }
 
-auto aObject::port() -> aPort*
+auto MCGuiObject::Port() -> MCGuiPort*
 {
-    return displayPort;
+    return DisplayPort;
 }
 
-auto aObject::x() -> int32_t
+auto MCGuiObject::X() -> int32_t
 {
-    return winX;
+    return WinX;
 }
 
-auto aObject::y() -> int32_t
+auto MCGuiObject::Y() -> int32_t
 {
-    return winY;
+    return WinY;
 }
 
-auto aObject::globalX() -> int32_t
+auto MCGuiObject::GlobalX() -> int32_t
 {
-    int32_t result = winX;
+    int32_t result = WinX;
 
-    for (aObject* owner = parent; owner != nullptr; owner = owner->parent)
+    for (MCGuiObject* owner = Parent; owner != nullptr; owner = owner->Parent)
     {
-        result += owner->x();
+        result += owner->X();
     }
 
     return result;
 }
 
-auto aObject::globalY() -> int32_t
+auto MCGuiObject::GlobalY() -> int32_t
 {
-    int32_t result = winY;
+    int32_t result = WinY;
 
-    for (aObject* owner = parent; owner != nullptr; owner = owner->parent)
+    for (MCGuiObject* owner = Parent; owner != nullptr; owner = owner->Parent)
     {
-        result += owner->y();
+        result += owner->Y();
     }
 
     return result;
 }
 
-auto aObject::frame() -> _pane*
+auto MCGuiObject::Frame() -> MCPane*
 {
-    return framePane;
+    return FramePane;
 }
 
-auto aObject::moveTo(int32_t xPos, int32_t yPos, int temporary) -> void
+auto MCGuiObject::MoveTo(int32_t xPos, int32_t yPos, int temporary) -> void
 {
     int32_t parentX = 0;
     int32_t parentY = 0;
-    winY = yPos;
-    winX = xPos;
+    WinY = yPos;
+    WinX = xPos;
 
-    if (parent != nullptr)
+    if (Parent != nullptr)
     {
-        parentX = parent->globalX();
-        parentY = parent->globalY();
+        parentX = Parent->GlobalX();
+        parentY = Parent->GlobalY();
     }
 
-    framePane->x0 = parentX + xPos;
-    framePane->y0 = parentY + yPos;
-    framePane->x1 = winWidth - 1 + framePane->x0;
-    framePane->y1 = winHeight - 1 + framePane->y0;
+    FramePane->X0 = parentX + xPos;
+    FramePane->Y0 = parentY + yPos;
+    FramePane->X1 = WinWidth - 1 + FramePane->X0;
+    FramePane->Y1 = WinHeight - 1 + FramePane->Y0;
 
     if (temporary == 0)
     {
-        homeX = xPos;
-        homeY = yPos;
+        HomeX = xPos;
+        HomeY = yPos;
     }
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        aObject* child = childList[i];
-        child->moveTo(child->x(), child->y(), 0);
+        MCGuiObject* child = ChildList[i];
+        child->MoveTo(child->X(), child->Y(), 0);
     }
 }
 
-auto aObject::resize(int32_t newWidth, int32_t newHeight) -> void
+auto MCGuiObject::Resize(int32_t newWidth, int32_t newHeight) -> void
 {
-    if (newWidth > 0 && newHeight > 0 && (newWidth != winWidth || newHeight != winHeight))
+    if (newWidth > 0 && newHeight > 0 && (newWidth != WinWidth || newHeight != WinHeight))
     {
-        if (gridAligned != 0)
+        if (GridAligned != 0)
         {
             if (newWidth % 40 > 19)
             {
@@ -1217,58 +1217,58 @@ auto aObject::resize(int32_t newWidth, int32_t newHeight) -> void
             newHeight -= newHeight % 40;
         }
 
-        if (displayPort != nullptr)
+        if (DisplayPort != nullptr)
         {
-            displayPort->resize(newWidth, newHeight);
+            DisplayPort->Resize(newWidth, newHeight);
         }
 
-        winWidth = newWidth;
-        winHeight = newHeight;
-        framePane->x1 = framePane->x0 - 1 + newWidth;
-        framePane->y1 = framePane->y0 - 1 + newHeight;
+        WinWidth = newWidth;
+        WinHeight = newHeight;
+        FramePane->X1 = FramePane->X0 - 1 + newWidth;
+        FramePane->Y1 = FramePane->Y0 - 1 + newHeight;
     }
 }
 
-auto aObject::draw() -> void
+auto MCGuiObject::Draw() -> void
 {
-    const int32_t state = winState;
+    const int32_t state = WinState;
 
     if (state == aSTATE_ICONIZED)
     {
-        iconAnimation->draw(displayPort->frame(), 0, 0);
+        IconAnimation->Draw(DisplayPort->Frame(), 0, 0);
     }
     else
     {
-        if (backgroundPort != nullptr)
+        if (BackgroundPort != nullptr)
         {
-            backgroundPort->copyTo(displayPort->frame(), 0, 0, -1);
+            BackgroundPort->CopyTo(DisplayPort->Frame(), 0, 0, -1);
         }
 
-        if (windowAnimation != nullptr && animating != 0)
+        if (WindowAnimation != nullptr && Animating != 0)
         {
-            windowAnimation->draw(displayPort->frame(), 0, 0);
+            WindowAnimation->Draw(DisplayPort->Frame(), 0, 0);
         }
     }
 
     if (state != aSTATE_ICONIZED)
     {
-        paint();
+        Paint();
 
-        for (int32_t i = 0; i < numChildren; i++)
+        for (int32_t i = 0; i < NumChildren; i++)
         {
-            DrawChild(childList[i]);
+            DrawChild(ChildList[i]);
         }
     }
 }
 
-auto aObject::display() -> void
+auto MCGuiObject::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
@@ -1276,75 +1276,75 @@ auto aObject::display() -> void
     if (DrawsLive())
     {
         SlideStep();
-        DrawInFramePass(displayPort);
+        DrawInFramePass(DisplayPort);
         return;
     }
 
-    if (winState == aSTATE_ICONIZED)
+    if (WinState == aSTATE_ICONIZED)
     {
-        if (iconAnimation != nullptr)
+        if (IconAnimation != nullptr)
         {
-            draw();
+            Draw();
         }
     }
-    else if (windowAnimation != nullptr)
+    else if (WindowAnimation != nullptr)
     {
-        windowAnimation->draw(displayPort->frame(), 0, 0);
-        draw();
+        WindowAnimation->Draw(DisplayPort->Frame(), 0, 0);
+        Draw();
     }
 
     SlideStep();
 
-    if (displayPort != nullptr)
+    if (DisplayPort != nullptr)
     {
-        displayPort->copyTo(framePane, 0, 0, transparent);
+        DisplayPort->CopyTo(FramePane, 0, 0, Transparent);
     }
 
-    if (winState != aSTATE_ICONIZED)
+    if (WinState != aSTATE_ICONIZED)
     {
-        for (int32_t i = 0; i < numChildren; i++)
+        for (int32_t i = 0; i < NumChildren; i++)
         {
-            childList[i]->display();
+            ChildList[i]->Display();
         }
     }
 }
 
-auto aObject::SetDrawsLive() -> void
+auto MCGuiObject::SetDrawsLive() -> void
 {
-    drawsLive = true;
+    LiveDraw = true;
 
-    if (displayPort != nullptr && !displayPort->isView())
+    if (DisplayPort != nullptr && !DisplayPort->IsView())
     {
-        displayPort->initView(width(), height());
+        DisplayPort->InitView(Width(), Height());
     }
 }
 
-auto aObject::DrawsChild(aObject* child) -> bool
+auto MCGuiObject::DrawsChild(MCGuiObject* child) -> bool
 {
-    return !child->DrawsLive() && drawingLive != this;
+    return !child->DrawsLive() && DrawingLive != this;
 }
 
-auto aObject::DrawChild(aObject* child) -> void
+auto MCGuiObject::DrawChild(MCGuiObject* child) -> void
 {
-    if (drawingLive == this || child->DrawsLive())
+    if (DrawingLive == this || child->DrawsLive())
     {
         return;
     }
 
-    child->draw();
+    child->Draw();
 }
 
-auto aObject::DrawInFramePass(aPort* port, int32_t scrollY, bool wipe, bool displayChildren) -> void
+auto MCGuiObject::DrawInFramePass(MCGuiPort* port, int32_t scrollY, bool wipe, bool displayChildren) -> void
 {
     // The view lies over the pane, on the window the pane is on (the screen, or a scroll pane's content), cut to the
     // window and to the scissor of the nearest clipping ancestor on the same window.
-    _window* target = framePane->window;
-    MCRect scissor{std::max(framePane->x0, 0), std::max(framePane->y0, 0), std::min(framePane->x1, target->x_max),
-                   std::min(framePane->y1, target->y_max)};
+    MCWindow* target = FramePane->Window;
+    MCRect scissor{std::max(FramePane->X0, 0), std::max(FramePane->Y0, 0), std::min(FramePane->X1, target->XMax),
+                   std::min(FramePane->Y1, target->YMax)};
 
-    if (!viewClips.empty() && viewClips.back().first == target)
+    if (!ViewClips.empty() && ViewClips.back().first == target)
     {
-        const MCRect& outer = viewClips.back().second;
+        const MCRect& outer = ViewClips.back().second;
         scissor.X0 = std::max(scissor.X0, outer.X0);
         scissor.Y0 = std::max(scissor.Y0, outer.Y0);
         scissor.X1 = std::min(scissor.X1, outer.X1);
@@ -1357,455 +1357,455 @@ auto aObject::DrawInFramePass(aPort* port, int32_t scrollY, bool wipe, bool disp
         scissor = MCRect{0, 0, -1, -1};
     }
 
-    port->openView(target, framePane->x0, framePane->y0 - scrollY, scissor, transparent != 0);
-    aObject* const outerDrawing = drawingLive;
-    drawingLive = this;
+    port->OpenView(target, FramePane->X0, FramePane->Y0 - scrollY, scissor, Transparent != 0);
+    MCGuiObject* const outerDrawing = DrawingLive;
+    DrawingLive = this;
 
     // A picture that was never painted held zeros (a port's bitmap starts zeroed), and an opaque object copied
     // them to the screen; a transparent one let what was under it show.
-    if (transparent == 0 && wipe)
+    if (Transparent == 0 && wipe)
     {
-        VFX_pane_wipe(port->frame(), 0);
+        VfxPaneWipe(port->Frame(), 0);
     }
 
-    if (winState != aSTATE_ICONIZED || iconAnimation != nullptr)
+    if (WinState != aSTATE_ICONIZED || IconAnimation != nullptr)
     {
-        draw();
+        Draw();
     }
 
-    drawingLive = outerDrawing;
-    port->closeView();
+    DrawingLive = outerDrawing;
+    port->CloseView();
 
-    if (winState != aSTATE_ICONIZED && displayChildren)
+    if (WinState != aSTATE_ICONIZED && displayChildren)
     {
         const bool clips = ClipsChildren();
 
         if (clips)
         {
-            viewClips.emplace_back(target, scissor);
+            ViewClips.emplace_back(target, scissor);
         }
 
-        for (int32_t i = 0; i < numChildren; i++)
+        for (int32_t i = 0; i < NumChildren; i++)
         {
-            childList[i]->display();
+            ChildList[i]->Display();
         }
 
         if (clips)
         {
-            viewClips.pop_back();
+            ViewClips.pop_back();
         }
     }
 }
 
-auto aObject::SlideStep() -> void
+auto MCGuiObject::SlideStep() -> void
 {
-    if (hideOffset != 0)
+    if (HideOffset != 0)
     {
         // A slide (HideMe) moves the whole offset each frame until the object is off the screen, or back home.
-        if (hideDirection == DIRECTION_LEFT || hideDirection == DIRECTION_RIGHT)
+        if (HideDirection == DIRECTION_LEFT || HideDirection == DIRECTION_RIGHT)
         {
-            moveTo(x() + hideOffset, y(), -1);
+            MoveTo(X() + HideOffset, Y(), -1);
         }
         else
         {
-            moveTo(x(), y() + hideOffset, -1);
+            MoveTo(X(), Y() + HideOffset, -1);
         }
 
-        if (hidden != 0)
+        if (Hidden != 0)
         {
-            const tagRECT screen = {0, 0, application->width(), application->height()};
+            const tagRECT screen = {0, 0, Application->Width(), Application->Height()};
 
-            if (rectIntersect(screen) == 0)
+            if (RectIntersect(screen) == 0)
             {
-                hideOffset = 0;
+                HideOffset = 0;
             }
         }
         else
         {
             bool home = false;
 
-            if (hideOffset < 0)
+            if (HideOffset < 0)
             {
-                home = homeX >= globalX() && homeY >= globalY();
+                home = HomeX >= GlobalX() && HomeY >= GlobalY();
             }
-            else if (hideOffset > 0)
+            else if (HideOffset > 0)
             {
-                home = homeX <= globalX() && homeY <= globalY();
+                home = HomeX <= GlobalX() && HomeY <= GlobalY();
             }
 
             if (home)
             {
-                const int32_t homeYOffset = homeY - parent->globalY();
-                moveTo(homeX - parent->globalX(), homeYOffset, -1);
-                hideOffset = 0;
+                const int32_t homeYOffset = HomeY - Parent->GlobalY();
+                MoveTo(HomeX - Parent->GlobalX(), homeYOffset, -1);
+                HideOffset = 0;
             }
         }
     }
 }
 
-auto aObject::handleEvent(aEvent* event) -> void
+auto MCGuiObject::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 1)
+    if (event->Type == 1)
     {
-        if (parent != nullptr)
+        if (Parent != nullptr)
         {
-            bringToFront(0);
-            aRedrawScreen();
+            BringToFront(0);
+            ARedrawScreen();
         }
     }
-    else if (event->type == 0x12)
+    else if (event->Type == 0x12)
     {
-        for (int32_t i = 0; i < numChildren; i++)
+        for (int32_t i = 0; i < NumChildren; i++)
         {
-            childList[i]->handleEvent(event);
+            ChildList[i]->HandleEvent(event);
         }
     }
 
-    if (winState == aSTATE_ICONIZED)
+    if (WinState == aSTATE_ICONIZED)
     {
-        switch (event->type)
+        switch (event->Type)
         {
             case 1:
             {
-                application->grab(this);
-                lastX = event->x;
-                lastY = event->y;
+                Application->Grab(this);
+                LastX = event->X;
+                LastY = event->Y;
                 break;
             }
             case 4:
             {
-                if (application->grabbedObject() == this)
+                if (Application->GrabbedObject() == this)
                 {
-                    application->release();
-                    aObject* target = screenWindow->findObject(event->x, event->y);
+                    Application->Release();
+                    MCGuiObject* target = ScreenWindow->FindObject(event->X, event->Y);
 
                     if (target != nullptr)
                     {
-                        target->enter();
+                        target->Enter();
                     }
                 }
                 break;
             }
             case 7:
             {
-                if (application->grabbedObject() == this)
+                if (Application->GrabbedObject() == this)
                 {
-                    const int32_t eventY = event->y;
-                    aObject* target = screenWindow->findObject(event->x, eventY);
+                    const int32_t eventY = event->Y;
+                    MCGuiObject* target = ScreenWindow->FindObject(event->X, eventY);
 
-                    if (target != nullptr && target->depth() == 100)
+                    if (target != nullptr && target->Depth() == 100)
                     {
                         return;
                     }
 
-                    const int32_t newY = y() + (eventY - lastY);
-                    moveTo(x() + (event->x - lastX), newY, 0);
-                    lastX = event->x;
-                    lastY = eventY;
+                    const int32_t newY = Y() + (eventY - LastY);
+                    MoveTo(X() + (event->X - LastX), newY, 0);
+                    LastX = event->X;
+                    LastY = eventY;
                 }
                 break;
             }
             case 0x10:
             {
-                if (application->grabbedObject() == this)
+                if (Application->GrabbedObject() == this)
                 {
-                    application->release();
+                    Application->Release();
                 }
 
-                normalize();
+                Normalize();
                 break;
             }
         }
     }
-    else if (event->type == 0xd)
+    else if (event->Type == 0xd)
     {
-        destroy();
+        Destroy();
     }
 
-    if (eventRoutine != nullptr)
+    if (EventRoutine != nullptr)
     {
-        eventRoutine(this, event);
+        EventRoutine(this, event);
     }
 }
 
-auto aObject::setBackground(char* fileName) -> int32_t
+auto MCGuiObject::SetBackground(char* fileName) -> int32_t
 {
-    if (backgroundPort != nullptr)
+    if (BackgroundPort != nullptr)
     {
-        backgroundPort->destroy();
-        delete backgroundPort;
-        backgroundPort = nullptr;
+        BackgroundPort->Destroy();
+        delete BackgroundPort;
+        BackgroundPort = nullptr;
     }
 
-    backgroundPort = new aPort;
+    BackgroundPort = new MCGuiPort;
 
-    if (backgroundPort == nullptr)
-    {
-        Fatal(0, "Not enough memory to create background port");
-    }
-
-    return backgroundPort->init(fileName);
-}
-
-auto aObject::setBackground(int32_t artPacket) -> int32_t
-{
-    if (backgroundPort != nullptr)
-    {
-        backgroundPort->destroy();
-        delete backgroundPort;
-        backgroundPort = nullptr;
-    }
-
-    backgroundPort = new aPort;
-
-    if (backgroundPort == nullptr)
+    if (BackgroundPort == nullptr)
     {
         Fatal(0, "Not enough memory to create background port");
     }
 
-    return backgroundPort->init(artPacket);
+    return BackgroundPort->Init(fileName);
 }
 
-auto aObject::maximize() -> void
+auto MCGuiObject::SetBackground(int32_t artPacket) -> int32_t
 {
-    setState(aSTATE_MAXIMIZED);
+    if (BackgroundPort != nullptr)
+    {
+        BackgroundPort->Destroy();
+        delete BackgroundPort;
+        BackgroundPort = nullptr;
+    }
+
+    BackgroundPort = new MCGuiPort;
+
+    if (BackgroundPort == nullptr)
+    {
+        Fatal(0, "Not enough memory to create background port");
+    }
+
+    return BackgroundPort->Init(artPacket);
 }
 
-auto aObject::normalize() -> void
+auto MCGuiObject::Maximize() -> void
 {
-    setState(aSTATE_NORMAL);
+    SetState(aSTATE_MAXIMIZED);
 }
 
-auto aObject::iconize() -> void
+auto MCGuiObject::Normalize() -> void
 {
-    setState(aSTATE_ICONIZED);
+    SetState(aSTATE_NORMAL);
 }
 
-auto aObject::state() -> int32_t
+auto MCGuiObject::Iconize() -> void
 {
-    return winState;
+    SetState(aSTATE_ICONIZED);
 }
 
-auto aObject::setState(int32_t newState) -> void
+auto MCGuiObject::State() -> int32_t
+{
+    return WinState;
+}
+
+auto MCGuiObject::SetState(int32_t newState) -> void
 {
     // Saves the placement of the state left, then takes the new state's. From the iconized state the new state is
     // stored first, so a state the switch doesn't list sticks (with the icon's placement).
-    switch (winState)
+    switch (WinState)
     {
         case aSTATE_NORMAL:
         {
-            normalY = winY;
-            normalX = winX;
-            normalWidth = winWidth;
-            normalHeight = winHeight;
+            NormalY = WinY;
+            NormalX = WinX;
+            NormalWidth = WinWidth;
+            NormalHeight = WinHeight;
 
             if (newState == aSTATE_MAXIMIZED)
             {
-                winX = maxX;
-                winState = aSTATE_MAXIMIZED;
-                winY = maxY;
-                winWidth = maxWidth;
-                winHeight = maxHeight;
+                WinX = MaxX;
+                WinState = aSTATE_MAXIMIZED;
+                WinY = MaxY;
+                WinWidth = MaxWidth;
+                WinHeight = MaxHeight;
             }
             else if (newState == aSTATE_ICONIZED)
             {
-                winX = iconX;
-                winState = aSTATE_ICONIZED;
-                winY = iconY;
-                winWidth = iconWidth;
-                winHeight = iconHeight;
+                WinX = IconX;
+                WinState = aSTATE_ICONIZED;
+                WinY = IconY;
+                WinWidth = IconWidth;
+                WinHeight = IconHeight;
             }
             break;
         }
         case aSTATE_MAXIMIZED:
         {
-            maxY = winY;
-            maxX = winX;
-            maxWidth = winWidth;
-            maxHeight = winHeight;
+            MaxY = WinY;
+            MaxX = WinX;
+            MaxWidth = WinWidth;
+            MaxHeight = WinHeight;
 
             if (newState == aSTATE_NORMAL)
             {
-                winX = normalX;
-                winState = aSTATE_NORMAL;
-                winY = normalY;
-                winWidth = normalWidth;
-                winHeight = normalHeight;
+                WinX = NormalX;
+                WinState = aSTATE_NORMAL;
+                WinY = NormalY;
+                WinWidth = NormalWidth;
+                WinHeight = NormalHeight;
             }
             else if (newState == aSTATE_ICONIZED)
             {
-                winX = iconX;
-                winState = aSTATE_ICONIZED;
-                winY = iconY;
-                winWidth = iconWidth;
-                winHeight = iconHeight;
+                WinX = IconX;
+                WinState = aSTATE_ICONIZED;
+                WinY = IconY;
+                WinWidth = IconWidth;
+                WinHeight = IconHeight;
             }
             break;
         }
         case aSTATE_ICONIZED:
         {
-            iconX = winX;
-            iconY = winY;
-            winState = newState;
-            iconWidth = winWidth;
-            iconHeight = winHeight;
+            IconX = WinX;
+            IconY = WinY;
+            WinState = newState;
+            IconWidth = WinWidth;
+            IconHeight = WinHeight;
 
             if (newState == aSTATE_NORMAL)
             {
-                winX = normalX;
-                winState = aSTATE_NORMAL;
-                winY = normalY;
-                winWidth = normalWidth;
-                winHeight = normalHeight;
+                WinX = NormalX;
+                WinState = aSTATE_NORMAL;
+                WinY = NormalY;
+                WinWidth = NormalWidth;
+                WinHeight = NormalHeight;
             }
             else if (newState == aSTATE_MAXIMIZED)
             {
-                winX = maxX;
-                winState = aSTATE_MAXIMIZED;
-                winY = maxY;
-                winWidth = maxWidth;
-                winHeight = maxHeight;
+                WinX = MaxX;
+                WinState = aSTATE_MAXIMIZED;
+                WinY = MaxY;
+                WinWidth = MaxWidth;
+                WinHeight = MaxHeight;
             }
             break;
         }
     }
 
-    resize(winWidth, winHeight);
-    moveTo(winX, winY, 0);
-    aRedrawScreen();
+    Resize(WinWidth, WinHeight);
+    MoveTo(WinX, WinY, 0);
+    ARedrawScreen();
 }
 
-auto aObject::setAnimation(char* fileName) -> int32_t
+auto MCGuiObject::SetAnimation(char* fileName) -> int32_t
 {
-    if (windowAnimation != nullptr)
+    if (WindowAnimation != nullptr)
     {
-        windowAnimation->destroy();
-        delete windowAnimation;
-        windowAnimation = nullptr;
+        WindowAnimation->Destroy();
+        delete WindowAnimation;
+        WindowAnimation = nullptr;
     }
 
-    windowAnimation = new (std::nothrow) aAnimation;
-    return windowAnimation->init(fileName);
+    WindowAnimation = new (std::nothrow) MCGuiAnimation;
+    return WindowAnimation->Init(fileName);
 }
 
-auto aObject::setIcon(char* fileName) -> int32_t
+auto MCGuiObject::SetIcon(char* fileName) -> int32_t
 {
-    if (iconAnimation != nullptr)
+    if (IconAnimation != nullptr)
     {
-        iconAnimation->destroy();
-        delete iconAnimation;
-        iconAnimation = nullptr;
+        IconAnimation->Destroy();
+        delete IconAnimation;
+        IconAnimation = nullptr;
     }
 
-    aAnimation* newIcon = new (std::nothrow) aAnimation;
-    iconAnimation = newIcon;
-    const int32_t result = newIcon->init(fileName);
+    MCGuiAnimation* newIcon = new (std::nothrow) MCGuiAnimation;
+    IconAnimation = newIcon;
+    const int32_t result = newIcon->Init(fileName);
 
     if (result == 0)
     {
-        iconWidth = newIcon->width();
-        iconHeight = newIcon->height();
+        IconWidth = newIcon->Width();
+        IconHeight = newIcon->Height();
     }
 
     return result;
 }
 
-auto aObject::animation() -> aAnimation*
+auto MCGuiObject::Animation() -> MCGuiAnimation*
 {
-    return windowAnimation;
+    return WindowAnimation;
 }
 
-auto aObject::icon() -> aAnimation*
+auto MCGuiObject::Icon() -> MCGuiAnimation*
 {
-    return iconAnimation;
+    return IconAnimation;
 }
 
-auto aObject::background() -> aPort*
+auto MCGuiObject::Background() -> MCGuiPort*
 {
-    return backgroundPort;
+    return BackgroundPort;
 }
 
-auto aObject::SetBit(int32_t xPos, int32_t yPos, uint8_t color) -> void
+auto MCGuiObject::SetBit(int32_t xPos, int32_t yPos, uint8_t color) -> void
 {
-    if (xPos > -1 && xPos < width() && yPos > -1 && yPos < height())
+    if (xPos > -1 && xPos < Width() && yPos > -1 && yPos < Height())
     {
-        const int32_t rowLength = width();
+        const int32_t rowLength = Width();
 
-        if (displayPort->buffer() != nullptr)
+        if (DisplayPort->Buffer() != nullptr)
         {
-            displayPort->buffer()[rowLength * yPos + xPos] = color;
+            DisplayPort->Buffer()[rowLength * yPos + xPos] = color;
         }
-        else if (displayPort->isView())
+        else if (DisplayPort->IsView())
         {
             // Port: a view has no pixels; the pixel is drawn through it.
-            VFX_pixel_write(displayPort->frame(), xPos, yPos, color);
+            VfxPixelWrite(DisplayPort->Frame(), xPos, yPos, color);
         }
     }
 }
 
-auto aObject::HideMe(int hide) -> void
+auto MCGuiObject::HideMe(int hide) -> void
 {
-    if (hidden == hide || hideOffset != 0)
+    if (Hidden == hide || HideOffset != 0)
     {
         return;
     }
 
     if (hide != 0)
     {
-        homeX = globalX();
-        homeY = globalY();
+        HomeX = GlobalX();
+        HomeY = GlobalY();
 
-        switch (hideDirection)
+        switch (HideDirection)
         {
             case DIRECTION_LEFT:
             {
-                hidden = hide;
-                hideOffset = -(globalX() + width());
+                Hidden = hide;
+                HideOffset = -(GlobalX() + Width());
                 return;
             }
             case DIRECTION_UP:
             {
-                hidden = hide;
-                hideOffset = -(globalY() + height());
+                Hidden = hide;
+                HideOffset = -(GlobalY() + Height());
                 return;
             }
             case DIRECTION_RIGHT:
             {
-                hidden = hide;
-                hideOffset = application->width() - globalX();
+                Hidden = hide;
+                HideOffset = Application->Width() - GlobalX();
                 return;
             }
             case DIRECTION_DOWN:
             {
-                hidden = hide;
-                hideOffset = application->height() - globalY();
+                Hidden = hide;
+                HideOffset = Application->Height() - GlobalY();
                 return;
             }
             default:
             {
-                hidden = 0;
-                hideOffset = 0;
+                Hidden = 0;
+                HideOffset = 0;
                 return;
             }
         }
     }
 
-    if (homeX != globalX())
+    if (HomeX != GlobalX())
     {
-        const int32_t current = globalX();
-        hidden = 0;
-        hideOffset = homeX - current;
+        const int32_t current = GlobalX();
+        Hidden = 0;
+        HideOffset = HomeX - current;
         return;
     }
 
-    const int32_t current = globalY();
-    hidden = 0;
-    hideOffset = homeY - current;
+    const int32_t current = GlobalY();
+    Hidden = 0;
+    HideOffset = HomeY - current;
 }
 
 // Free functions.
 
-auto createDIBSection(int32_t width, int32_t height, void** bitmapInfo, void** bitmap, uint8_t** bits) -> int32_t
+auto CreateDibSection(int32_t width, int32_t height, void** bitmapInfo, void** bitmap, uint8_t** bits) -> int32_t
 {
     // Port: no GDI. The original filled a BITMAPINFO (0x428 bytes from the GUI heap, colour table = palette indexes)
     // and made an 8-bit top-down DIB section; the port gives a zeroed buffer (the caller deletes[] it) as the section
@@ -1820,23 +1820,23 @@ auto createDIBSection(int32_t width, int32_t height, void** bitmapInfo, void** b
     return *bitmap != nullptr ? 0 : 2;
 }
 
-auto CreatePaletteFromGIF(char* fileName) -> void*
+auto CreatePaletteFromGif(char* fileName) -> void*
 {
     // Port: no GDI palettes. The "palette" returned is 256 VFX_RGB (the caller deletes[] them), 8 bits per channel as the
     // original's PALETTEENTRY values. Uncalled in MCX.EXE.
     char path[128];
     char message[256];
-    File gifFile;
-    std::snprintf(path, sizeof(path), "%s%s", palettePath, fileName);
+    MCFile gifFile;
+    std::snprintf(path, sizeof(path), "%s%s", PalettePath, fileName);
 
-    if (fileExists(path) == 0)
+    if (FileExists(path) == 0)
     {
         std::snprintf(message, sizeof(message), "Unable to find '%s'", path);
         GeneralMsg(message);
     }
 
-    gifFile.open(path, READ, 50);
-    const uint32_t size = gifFile.fileSize();
+    gifFile.Open(path, READ, 50);
+    const uint32_t size = gifFile.FileSize();
 
     if (size == 0)
     {
@@ -1845,98 +1845,98 @@ auto CreatePaletteFromGIF(char* fileName) -> void*
     }
 
     std::vector<uint8_t> gif(size);
-    gifFile.read(gif.data(), static_cast<int32_t>(size));
-    gifFile.close();
-    VFX_RGB colors[256];
-    VFX_GIF_palette(gif.data(), colors);
-    return CreatePaletteFromRAM(colors);
+    gifFile.Read(gif.data(), static_cast<int32_t>(size));
+    gifFile.Close();
+    MCVfxRgb colors[256];
+    VfxGifPalette(gif.data(), colors);
+    return CreatePaletteFromRam(colors);
 }
 
-auto CreatePaletteFromRAM(void* colors) -> void*
+auto CreatePaletteFromRam(void* colors) -> void*
 {
     // Port: see CreatePaletteFromGIF. The colours are 6-bit, shifted up.
-    VFX_RGB source[256];
+    MCVfxRgb source[256];
     std::memcpy(source, colors, sizeof(source));
-    auto* palette = new VFX_RGB[256]{};
+    auto* palette = new MCVfxRgb[256]{};
 
     for (int i = 0; i < 256; i++)
     {
-        palette[i].r = static_cast<uint8_t>(source[i].r << 2);
-        palette[i].g = static_cast<uint8_t>(source[i].g << 2);
-        palette[i].b = static_cast<uint8_t>(source[i].b << 2);
+        palette[i].R = static_cast<uint8_t>(source[i].R << 2);
+        palette[i].G = static_cast<uint8_t>(source[i].G << 2);
+        palette[i].B = static_cast<uint8_t>(source[i].B << 2);
     }
 
     return palette;
 }
 
-auto CreateSmackPaletteFromRAM(void* colors) -> void*
+auto CreateSmackPaletteFromRam(void* colors) -> void*
 {
     // Port: see CreatePaletteFromGIF. Smacker's colours are already 8-bit.
-    auto* palette = new VFX_RGB[256];
-    std::memcpy(palette, colors, sizeof(VFX_RGB) * 256);
+    auto* palette = new MCVfxRgb[256];
+    std::memcpy(palette, colors, sizeof(MCVfxRgb) * 256);
     return palette;
 }
 
-auto aRedrawScreen() -> void
+auto ARedrawScreen() -> void
 {
-    for (int32_t i = 0; i < screenWindow->numberOfChildren(); i++)
+    for (int32_t i = 0; i < ScreenWindow->NumberOfChildren(); i++)
     {
-        screenWindow->child(i)->draw();
+        ScreenWindow->Child(i)->Draw();
     }
 }
 
-auto aLockScreen() -> int32_t
+auto ALockScreen() -> int32_t
 {
-    if (lockActive == 0)
+    if (LockActive == 0)
     {
-        lockActive = -1;
+        LockActive = -1;
         // Port: the original locked the DirectDraw back surface here in 16-bit full screen and drew straight into
         // it; the port's screen is always 8-bit, so the screen port always shows the display's buffer.
-        screenPort->resize(gWidth, gHeight);
-        screenPort->bitmap()->buffer = screenBits;
+        ScreenPort->Resize(GWidth, GHeight);
+        ScreenPort->Bitmap()->Buffer = ScreenBits;
     }
 
     return 0;
 }
 
-auto aUnlockScreen() -> int32_t
+auto AUnlockScreen() -> int32_t
 {
     // Port: unlocking the 16-bit full-screen surface is gone with it (see aLockScreen).
-    if (lockActive != 0)
+    if (LockActive != 0)
     {
-        lockActive = 0;
+        LockActive = 0;
     }
 
     return 0;
 }
 
-auto aPostMessage(aObject* obj, int32_t message) -> void
+auto APostMessage(MCGuiObject* obj, int32_t message) -> void
 {
-    aEvent event;
-    event.clear();
-    event.type = message;
+    MCGuiEvent event;
+    event.Clear();
+    event.Type = message;
 
     // Port: the original skipped unreadable pointers (IsBadReadPtr); the port skips null.
     if (obj != nullptr)
     {
-        obj->handleEvent(&event);
+        obj->HandleEvent(&event);
     }
 }
 
-auto TestMsgCallback(FIDPMessage* message, void* data) -> void
+auto TestMsgCallback(MCFidpMessage* message, void* data) -> void
 {
     (void)data;
-    MPlayer->sessionManager->GetPlayer(message->fromID);
+    MPlayer->SessionManager->GetPlayer(message->FromID);
 }
 
 auto SendAndReceiveTestMessages() -> void
 {
-    SessionManager* manager = MPlayer->sessionManager;
-    TestMessage test = {};
-    test.header.header = 0x1064;
-    manager->applicationCallback = TestMsgCallback;
-    manager->applicationCallbackData = nullptr;
-    MP_Start_Time = MCPort::Milliseconds();
+    MCSessionManager* manager = MPlayer->SessionManager;
+    MCTestMessage test = {};
+    test.Header.Header = 0x1064;
+    manager->ApplicationCallback = TestMsgCallback;
+    manager->ApplicationCallbackData = nullptr;
+    MPStartTime = MCPort::Milliseconds();
 
     for (;;)
     {
@@ -1950,9 +1950,9 @@ auto SendAndReceiveTestMessages() -> void
 
             for (uint32_t i = 0; i < 2; i++)
             {
-                test.frame = Networkframe;
-                test.index = i;
-                manager->SendMessageToGroup(0, &test.header, sizeof(test));
+                test.Frame = Networkframe;
+                test.Index = i;
+                manager->SendMessageToGroup(0, &test.Header, sizeof(test));
             }
 
             Networkframe++;
@@ -1968,27 +1968,27 @@ auto SendAndReceiveTestMessages() -> void
 auto StartMultiplayerGame(char* commandLine) -> int
 {
     int started = 0;
-    FullPathFileName fileName;
-    FitIniFile gameFile;
+    MCFullPathFileName fileName;
+    MCFitIniFile gameFile;
     MCInput::GetAsyncKeyState(VK_ESCAPE);
-    fileName.init(missionPath, commandLine, "");
+    fileName.Init(MissionPath, commandLine, "");
 
-    if (gameFile.open(fileName, READ, 50) != 0 || gameFile.seekBlock("Multiplayer") != 0)
+    if (gameFile.Open(fileName, READ, 50) != 0 || gameFile.SeekBlock("Multiplayer") != 0)
     {
         return 0;
     }
 
     uint32_t tries = 0;
-    MultiPlayer* newPlayer = new MultiPlayer;
+    MCMultiPlayer* newPlayer = new MCMultiPlayer;
     MPlayer = newPlayer;
     Assert(MPlayer != nullptr, 0, " Unable to create MultiPlayer object ");
-    Assert(MPlayer->init(0x7d000, 0x100, 100) == 0, 0, "could not initialize multiplayer");
+    Assert(MPlayer->Init(0x7d000, 0x100, 100) == 0, 0, "could not initialize multiplayer");
 
-    if (MPlayer->init(&gameFile) == static_cast<int32_t>(0x8877042e))
+    if (MPlayer->Init(&gameFile) == static_cast<int32_t>(0x8877042e))
     {
-        const int32_t numPlayers = MPlayer->numPlayers();
+        const int32_t numPlayers = MPlayer->NumPlayers();
 
-        if (MPlayer->isServer == 0)
+        if (MPlayer->IsServer == 0)
         {
             uint32_t result;
 
@@ -2000,37 +2000,37 @@ auto StartMultiplayerGame(char* commandLine) -> int
                 } while (tries % 50 != 0);
 
                 Assert((MCInput::GetAsyncKeyState(VK_ESCAPE) & 0x8000) == 0, 0, "User exited");
-                result = static_cast<uint32_t>(MPlayer->joinSession(nullptr, nullptr));
+                result = static_cast<uint32_t>(MPlayer->JoinSession(nullptr, nullptr));
                 Assert(result != 0xfffffffe, result, "Error joining session!");
             } while (result != 0);
         }
         else
         {
-            MPlayer->createSession(nullptr, nullptr, 6);
+            MPlayer->CreateSession(nullptr, nullptr, 6);
 
-            while (MPlayer->playersInSession() < numPlayers)
+            while (MPlayer->PlayersInSession() < numPlayers)
             {
                 tries++;
 
                 if (tries % 50 == 0)
                 {
-                    MPlayer->processReceiveList();
+                    MPlayer->ProcessReceiveList();
                     Assert((MCInput::GetAsyncKeyState(VK_ESCAPE) & 1) == 0, 0, "User exited");
                 }
             }
 
-            Assert(MPlayer->playersInSession() > 1, 0, "No other players joined in time.");
+            Assert(MPlayer->PlayersInSession() > 1, 0, "No other players joined in time.");
         }
 
         started = -1;
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    MPlayer->processReceiveList();
+    MPlayer->ProcessReceiveList();
 
-    while (MPlayer->sessionManager->myPlayer->playerNumber < 0)
+    while (MPlayer->SessionManager->MyPlayer->PlayerNumber < 0)
     {
-        MPlayer->processReceiveList();
+        MPlayer->ProcessReceiveList();
         Assert((MCInput::GetAsyncKeyState(VK_ESCAPE) & 0x8000) == 0, 0, "User exited");
     }
 
@@ -2075,11 +2075,11 @@ auto ParseCommandLine(char* commandLine) -> void
 
             if (i < numWords)
             {
-                globalGameSegment = std::atoi(words[i]);
+                GlobalGameSegment = std::atoi(words[i]);
 
-                if (globalGameSegment < 1 || globalGameSegment > 99)
+                if (GlobalGameSegment < 1 || GlobalGameSegment > 99)
                 {
-                    globalGameSegment = 0;
+                    GlobalGameSegment = 0;
                 }
             }
         }
@@ -2089,11 +2089,11 @@ auto ParseCommandLine(char* commandLine) -> void
 
             if (i < numWords)
             {
-                globalGameSegment = std::atoi(words[i]);
+                GlobalGameSegment = std::atoi(words[i]);
 
-                if (globalGameSegment < 1 || globalGameSegment > 50)
+                if (GlobalGameSegment < 1 || GlobalGameSegment > 50)
                 {
-                    globalGameSegment = 0;
+                    GlobalGameSegment = 0;
                 }
             }
         }
@@ -2106,7 +2106,7 @@ auto ParseCommandLine(char* commandLine) -> void
             {
                 if (const std::optional<MCRendererKind> kind = MCRendererKindFromName(words[i]))
                 {
-                    gRenderer = static_cast<int>(*kind);
+                    GRenderer = static_cast<int>(*kind);
                 }
             }
         }
@@ -2126,7 +2126,7 @@ auto ParseCommandLine(char* commandLine) -> void
         else if (MCPort::StrICmp(word, "-fps") == 0)
         {
             // Port: "-fps" draws the frame counter (as PREFS "ShowFps").
-            gShowFps = 1;
+            GShowFps = 1;
         }
         else if (MCPort::StrICmp(word, "-framelog") == 0)
         {
@@ -2141,7 +2141,7 @@ auto ParseCommandLine(char* commandLine) -> void
         else if (MCPort::StrICmp(word, "-novsync") == 0)
         {
             // Port: "-novsync" shows frames as soon as they are drawn instead of at the display's refresh.
-            gVSync = 0;
+            GVSync = 0;
         }
         else if (MCPort::StrICmp(word, "-gpudump") == 0)
         {
@@ -2170,8 +2170,8 @@ auto ParseCommandLine(char* commandLine) -> void
             if (i < numWords)
             {
                 const size_t length = std::strlen(words[i]) + 1;
-                startupPakFile = new char[length];
-                std::memcpy(startupPakFile, words[i], length);
+                StartupPakFile = new char[length];
+                std::memcpy(StartupPakFile, words[i], length);
             }
         }
     }
@@ -2182,7 +2182,7 @@ auto ParseCommandLine(char* commandLine) -> void
     }
 }
 
-auto parseCommandLine(char* line, int32_t pos, char* word, int32_t maxLength) -> int32_t
+auto NextCommandLineWord(char* line, int32_t pos, char* word, int32_t maxLength) -> int32_t
 {
     int32_t count = 0;
 
@@ -2249,122 +2249,122 @@ auto RealWinMain(void* instance, void* prevInstance, char* commandLine, int show
         GeneralMsg("An instance of this application is already running.");
     }
 
-    thisInstance = instance;
-    std::strcpy(savePath, "c:\\Program Files\\Honor Bound\\");
-    std::strcpy(directXPath, "\\honorb\\directx\\");
-    std::strcpy(terrainPath, "data\\terrain\\");
-    std::strcpy(palettePath, "data\\palette\\");
-    std::strcpy(artPath, "data\\art\\");
-    std::strcpy(fontPath, "data\\fonts\\");
-    std::strcpy(soundPath, "data\\sound\\");
-    std::strcpy(spritePath, "data\\sprites\\");
-    std::strcpy(interfacePath, "data\\iface\\");
-    std::strcpy(paletteName, "palette.gif");
+    ThisInstance = instance;
+    std::strcpy(SavePath, "c:\\Program Files\\Honor Bound\\");
+    std::strcpy(DirectXPath, "\\honorb\\directx\\");
+    std::strcpy(TerrainPath, "data\\terrain\\");
+    std::strcpy(PalettePath, "data\\palette\\");
+    std::strcpy(ArtPath, "data\\art\\");
+    std::strcpy(FontPath, "data\\fonts\\");
+    std::strcpy(SoundPath, "data\\sound\\");
+    std::strcpy(SpritePath, "data\\sprites\\");
+    std::strcpy(InterfacePath, "data\\iface\\");
+    std::strcpy(PaletteName, "palette.gif");
 
-    oldMouseY = -1;
-    oldMouseX = -1;
-    rightMouseButtonDown = 0;
-    leftMouseButtonDown = 0;
-    application = new aSystem;
+    OldMouseY = -1;
+    OldMouseX = -1;
+    RightMouseButtonDown = 0;
+    LeftMouseButtonDown = 0;
+    Application = new MCGuiSystem;
 
-    if (application->start(instance, nullptr, commandLine, showCommand, 640, 480) != 0)
+    if (Application->Start(instance, nullptr, commandLine, showCommand, 640, 480) != 0)
     {
         return -4;
     }
 
-    application->run();
-    application->stop();
-    delete application;
+    Application->Run();
+    Application->Stop();
+    delete Application;
     return 0;
 }
 
 auto DestroyVersion() -> void
 {
-    if (versionDialog != nullptr)
+    if (VersionDialog != nullptr)
     {
-        versionDialog->destroy();
-        delete versionDialog;
-        versionDialog = nullptr;
+        VersionDialog->Destroy();
+        delete VersionDialog;
+        VersionDialog = nullptr;
     }
 }
 
-auto handleEvent(aEvent* event) -> void
+auto HandleEvent(MCGuiEvent* event) -> void
 {
-    if (screenWindow == nullptr)
+    if (ScreenWindow == nullptr)
     {
         return;
     }
 
-    const int32_t type = event->type;
+    const int32_t type = event->Type;
 
     if (type == 0x13 || (type > 0x13ff && type < 0x2401))
     {
         // Timer events and posted messages go to the tactical interface.
-        if (scenario == nullptr || turn < 1)
+        if (Scenario == nullptr || Turn < 1)
         {
             return;
         }
 
-        theInterface->handleEvent(event);
+        TheInterface->HandleEvent(event);
         return;
     }
 
-    aObject* target;
+    MCGuiObject* target;
 
-    if (application->textObject() != nullptr && (type == 10 || type == 9 || type == 8))
+    if (Application->TextObject() != nullptr && (type == 10 || type == 9 || type == 8))
     {
-        target = application->textObject();
+        target = Application->TextObject();
     }
-    else if (application->grabbedObject() != nullptr)
+    else if (Application->GrabbedObject() != nullptr)
     {
-        target = application->grabbedObject();
+        target = Application->GrabbedObject();
     }
-    else if (EventsToMissionResultsScreen != 0 && mission->resultsScreen != nullptr)
+    else if (EventsToMissionResultsScreen != 0 && Mission->ResultsScreen != nullptr)
     {
-        aObject* results = mission->resultsScreen;
+        MCGuiObject* results = Mission->ResultsScreen;
 
-        if (type == 10 && event->key == VK_ESCAPE)
+        if (type == 10 && event->Key == VK_ESCAPE)
         {
             target = results;
         }
         else
         {
-            target = results->findObject(event->x, event->y);
+            target = results->FindObject(event->X, event->Y);
         }
     }
     else
     {
         if (type == 9)
         {
-            if (featureScreen != nullptr)
+            if (FeatureScreen != nullptr)
             {
-                featureScreenDone = -1;
+                FeatureScreenDone = -1;
             }
 
-            const uint8_t key = event->key;
+            const uint8_t key = event->Key;
 
             switch (key)
             {
                 case VK_RETURN:
                 {
-                    if (scenario != nullptr && (gamePaused != 0 || gameAsked != 0) && event->ctrlKey == 0 &&
-                        event->altKey == 0)
+                    if (Scenario != nullptr && (GamePaused != 0 || GameAsked != 0) && event->CtrlKey == 0 &&
+                        event->AltKey == 0)
                     {
-                        mission->endScenarioRequested = -1;
+                        Mission->EndScenarioRequested = -1;
 
-                        if (gameAsked != 0)
+                        if (GameAsked != 0)
                         {
-                            scenarioResult = 3;
+                            ScenarioResult = 3;
                         }
 
-                        gamePaused = 0;
-                        gameAsked = 0;
+                        GamePaused = 0;
+                        GameAsked = 0;
                     }
                     break;
                 }
                 default:
                 {
-                    keySetting = static_cast<char>(key);
+                    KeySetting = static_cast<char>(key);
 
                     if (key == VK_F12)
                     {
@@ -2374,12 +2374,12 @@ auto handleEvent(aEvent* event) -> void
                 }
                 case VK_PAUSE:
                 {
-                    if (scenario != nullptr && MPlayer == nullptr && turn > 0)
+                    if (Scenario != nullptr && MPlayer == nullptr && Turn > 0)
                     {
-                        gamePaused = ~gamePaused;
+                        GamePaused = ~GamePaused;
                     }
 
-                    if (event->altKey != 0 && AssertTest(0x80, const_cast<char*>("User Break")) != 0)
+                    if (event->AltKey != 0 && AssertTest(0x80, const_cast<char*>("User Break")) != 0)
                     {
                         SDL_TriggerBreakpoint();
                         return;
@@ -2388,39 +2388,39 @@ auto handleEvent(aEvent* event) -> void
                 }
                 case VK_ESCAPE:
                 {
-                    if (scenario != nullptr && EventsToMissionResultsScreen == 0 && scenario->startingUp == 0 &&
-                        scenario->startUpTurns < turn)
+                    if (Scenario != nullptr && EventsToMissionResultsScreen == 0 && Scenario->StartingUp == 0 &&
+                        Scenario->StartUpTurns < Turn)
                     {
                         if (MPlayer == nullptr)
                         {
-                            gamePaused = ~gamePaused;
+                            GamePaused = ~GamePaused;
                         }
                         else
                         {
-                            gameAsked = ~gameAsked;
+                            GameAsked = ~GameAsked;
                         }
                     }
                     break;
                 }
                 case 'D':
                 {
-                    if (scenario != nullptr && cheatsOn != 0 && MPlayer == nullptr && keyHeld(VK_CONTROL) &&
-                        keyHeld(VK_MENU))
+                    if (Scenario != nullptr && CheatsOn != 0 && MPlayer == nullptr && KeyHeld(VK_CONTROL) &&
+                        KeyHeld(VK_MENU))
                     {
-                        disableHomeTeamTargets();
+                        DisableHomeTeamTargets();
                     }
                     break;
                 }
                 case 'G':
                 {
-                    if (scenario == nullptr)
+                    if (Scenario == nullptr)
                     {
                         break;
                     }
 
-                    if (cheatsOn != 0 && MPlayer == nullptr && keyHeld(VK_CONTROL) && keyHeld(VK_MENU))
+                    if (CheatsOn != 0 && MPlayer == nullptr && KeyHeld(VK_CONTROL) && KeyHeld(VK_MENU))
                     {
-                        forceGatesClosed = -1;
+                        ForceGatesClosed = -1;
                     }
 
                     // Original bug (OB-063): no break, so the gate cheat also runs the kill cheat below.
@@ -2428,146 +2428,146 @@ auto handleEvent(aEvent* event) -> void
                 }
                 case 'K':
                 {
-                    if (scenario != nullptr && cheatsOn != 0 && MPlayer == nullptr && keyHeld(VK_CONTROL) &&
-                        keyHeld(VK_MENU))
+                    if (Scenario != nullptr && CheatsOn != 0 && MPlayer == nullptr && KeyHeld(VK_CONTROL) &&
+                        KeyHeld(VK_MENU))
                     {
-                        killHomeTeamTargets();
+                        KillHomeTeamTargets();
                     }
                     break;
                 }
                 case 'L':
                 {
-                    if (scenario != nullptr && cheatsOn != 0 && keyHeld(VK_CONTROL))
+                    if (Scenario != nullptr && CheatsOn != 0 && KeyHeld(VK_CONTROL))
                     {
-                        drawTerrainGrid = ~drawTerrainGrid;
+                        DrawTerrainGrid = ~DrawTerrainGrid;
                     }
                     break;
                 }
                 case 'P':
                 {
-                    if (keyHeld(VK_CONTROL) && keyHeld(VK_MENU))
+                    if (KeyHeld(VK_CONTROL) && KeyHeld(VK_MENU))
                     {
-                        if (displayProfileData == 0)
+                        if (DisplayProfileData == 0)
                         {
-                            displayProfileData = 1;
+                            DisplayProfileData = 1;
                         }
-                        else if (displayProfileData == 1)
+                        else if (DisplayProfileData == 1)
                         {
-                            displayProfileData = 2;
+                            DisplayProfileData = 2;
                         }
-                        else if (displayProfileData == 2)
+                        else if (DisplayProfileData == 2)
                         {
-                            displayProfileData = 0;
+                            DisplayProfileData = 0;
                         }
                     }
                     break;
                 }
                 case 'Q':
                 {
-                    if (scenario != nullptr && cheatsOn != 0 && event->ctrlKey != 0 && event->altKey != 0 &&
+                    if (Scenario != nullptr && CheatsOn != 0 && event->CtrlKey != 0 && event->AltKey != 0 &&
                         MPlayer == nullptr)
                     {
-                        mission->endScenarioRequested = -1;
+                        Mission->EndScenarioRequested = -1;
                     }
                     break;
                 }
                 case 'S':
                 {
-                    if (keyHeld(VK_CONTROL) && keyHeld(VK_MENU))
+                    if (KeyHeld(VK_CONTROL) && KeyHeld(VK_MENU))
                     {
-                        lockFrameRate = ~lockFrameRate;
+                        LockFrameRate = ~LockFrameRate;
                     }
                     break;
                 }
                 case 'V':
                 {
-                    if (cheatsOn != 0 && keyHeld(VK_CONTROL) && keyHeld(VK_MENU))
+                    if (CheatsOn != 0 && KeyHeld(VK_CONTROL) && KeyHeld(VK_MENU))
                     {
                         char version[256];
                         char name[256];
                         char release[256];
                         char text[256];
-                        cLoadString(thisInstance, 0x280, name, 0xfe);
-                        cLoadString(thisInstance, 0x281, version, 0xfe);
-                        cLoadString(thisInstance, 0x282, release, 0xfe);
+                        CLoadString(ThisInstance, 0x280, name, 0xfe);
+                        CLoadString(ThisInstance, 0x281, version, 0xfe);
+                        CLoadString(ThisInstance, 0x282, release, 0xfe);
                         std::snprintf(text, sizeof(text), "Release Version: %s", release);
                         DestroyVersion();
-                        versionDialog = new aMessageBox;
-                        versionDialog->init(reinterpret_cast<uint8_t*>(text));
-                        screenWindow->addChild(versionDialog);
-                        application->grab(versionDialog);
+                        VersionDialog = new MCGuiMessageBox;
+                        VersionDialog->Init(reinterpret_cast<uint8_t*>(text));
+                        ScreenWindow->AddChild(VersionDialog);
+                        Application->Grab(VersionDialog);
                     }
                     break;
                 }
                 case 'W':
                 {
-                    if (cheatsOn != 0 && scenario != nullptr && event->ctrlKey != 0 && event->altKey != 0 &&
+                    if (CheatsOn != 0 && Scenario != nullptr && event->CtrlKey != 0 && event->AltKey != 0 &&
                         MPlayer == nullptr)
                     {
-                        scenario->startingUp = 0;
-                        mission->endScenarioRequested = -1;
-                        scenarioResult = 5;
-                        scenario->startUpCountdown = 0;
+                        Scenario->StartingUp = 0;
+                        Mission->EndScenarioRequested = -1;
+                        ScenarioResult = 5;
+                        Scenario->StartUpCountdown = 0;
                     }
                     break;
                 }
                 case 'Z':
                 {
-                    if (keyHeld(VK_CONTROL) && application->smackerWindow == nullptr &&
-                        application->smackerWindow2 == nullptr)
+                    if (KeyHeld(VK_CONTROL) && Application->SmackerWindow == nullptr &&
+                        Application->SmackerWindow2 == nullptr)
                     {
-                        application->gammaCorrectCurrentPalette();
+                        Application->GammaCorrectCurrentPalette();
                     }
                     break;
                 }
             }
         }
 
-        target = screenWindow->findObject(event->x, event->y);
+        target = ScreenWindow->FindObject(event->X, event->Y);
     }
 
-    if ((event->type == 8 || event->type == 9) && application->textObject() == nullptr && theInterface != nullptr &&
-        EventsToMissionResultsScreen == 0 && scenario != nullptr && turn > 0)
+    if ((event->Type == 8 || event->Type == 9) && Application->TextObject() == nullptr && TheInterface != nullptr &&
+        EventsToMissionResultsScreen == 0 && Scenario != nullptr && Turn > 0)
     {
-        theInterface->handleEvent(event);
+        TheInterface->HandleEvent(event);
     }
 
-    if (application->grabbedObject() == nullptr && application->modalObject() != nullptr)
+    if (Application->GrabbedObject() == nullptr && Application->ModalObject() != nullptr)
     {
         // A modal object only takes events for itself and its children.
-        aObject* owner = target;
+        MCGuiObject* owner = target;
 
-        while (owner != nullptr && owner != application->modalObject())
+        while (owner != nullptr && owner != Application->ModalObject())
         {
-            owner = owner->parent;
+            owner = owner->Parent;
         }
 
-        if (owner != application->modalObject())
+        if (owner != Application->ModalObject())
         {
             return;
         }
     }
 
-    if (event->type == 1 || event->type == 3)
+    if (event->Type == 1 || event->Type == 3)
     {
-        if (application->textObject() != nullptr && target != application->textObject())
+        if (Application->TextObject() != nullptr && target != Application->TextObject())
         {
-            application->releaseText();
+            Application->ReleaseText();
         }
     }
-    else if (event->type == 7 && application->grabbedObject() == nullptr && target != application->currentObject())
+    else if (event->Type == 7 && Application->GrabbedObject() == nullptr && target != Application->CurrentObject())
     {
-        if (application->currentObject() != nullptr)
+        if (Application->CurrentObject() != nullptr)
         {
-            application->currentObject()->leave();
+            Application->CurrentObject()->Leave();
         }
 
         if (target != nullptr)
         {
-            target->enter();
+            target->Enter();
         }
 
-        application->setCurrentObject(target);
+        Application->SetCurrentObject(target);
     }
 
     if (target == nullptr)
@@ -2575,8 +2575,8 @@ auto handleEvent(aEvent* event) -> void
         return;
     }
 
-    event->target = target;
-    target->handleEvent(event);
+    event->Target = target;
+    target->HandleEvent(event);
 }
 
 auto Cheat(char* code) -> int
@@ -2611,25 +2611,25 @@ auto Cheat(char* code) -> int
     return matched;
 }
 
-auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
+auto TranslateMessage(void* window, uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
 {
     (void)window;
 
-    if (applicationActive == 0)
+    if (ApplicationActive == 0)
     {
         return 0;
     }
 
     const tagPOINT cursor = GetMessageCursorLoc();
-    aEvent event;
-    event.clear();
+    MCGuiEvent event;
+    event.Clear();
     const uint8_t low = static_cast<uint8_t>(wParam);
     const int16_t scanCode = static_cast<int16_t>((lParam >> 16) & 0x1ff);
 
     switch (message)
     {
         case WM_PAINT:
-            event.type = 0xc;
+            event.Type = 0xc;
             break;
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
@@ -2637,105 +2637,105 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
             // Only the first press, not the repeats.
             if ((lParam & 0xffff) == 1)
             {
-                event.type = 9;
-                event.key = low;
-                event.scanCode = scanCode;
-                event.ctrlKey = (MCInput::GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 0xff : 0;
-                event.shiftKey = (MCInput::GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 0xff : 0;
+                event.Type = 9;
+                event.Key = low;
+                event.ScanCode = scanCode;
+                event.CtrlKey = (MCInput::GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 0xff : 0;
+                event.ShiftKey = (MCInput::GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 0xff : 0;
             }
             break;
         }
         case WM_KEYUP:
         case WM_SYSKEYUP:
         {
-            event.type = 8;
-            event.key = low;
-            event.scanCode = scanCode;
-            event.ctrlKey = (MCInput::GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 0xff : 0;
-            event.shiftKey = (MCInput::GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 0xff : 0;
+            event.Type = 8;
+            event.Key = low;
+            event.ScanCode = scanCode;
+            event.CtrlKey = (MCInput::GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 0xff : 0;
+            event.ShiftKey = (MCInput::GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 0xff : 0;
             break;
         }
         case WM_CHAR:
         {
-            if (cheatsOn != 0)
+            if (CheatsOn != 0)
             {
                 CheatKey[CheatPointer] = static_cast<char>(low);
                 CheatPointer = (CheatPointer + 1) & 0x7f;
 
-                if (Cheat(Cheat_framegraph) != 0)
+                if (Cheat(CheatFramegraph) != 0)
                 {
                     AndyFramerate ^= 1;
                 }
 
-                if (scenario != nullptr && turn > 0 && MPlayer == nullptr)
+                if (Scenario != nullptr && Turn > 0 && MPlayer == nullptr)
                 {
-                    if (Cheat(Cheat_HealAll) != 0)
+                    if (Cheat(CheatHealAll) != 0)
                     {
-                        soundSystem->playBettySample(0x1c);
+                        SoundSystem->PlayBettySample(0x1c);
                         HealAll();
                     }
 
-                    if (Cheat(Cheat_DeadEye) != 0)
+                    if (Cheat(CheatDeadEye) != 0)
                     {
-                        soundSystem->playBettySample(0x1c);
+                        SoundSystem->PlayBettySample(0x1c);
                         DeadEye();
                     }
 
-                    if (Cheat(Cheat_CantHitMe) != 0)
+                    if (Cheat(CheatCantHitMe) != 0)
                     {
-                        soundSystem->playBettySample(0x1c);
+                        SoundSystem->PlayBettySample(0x1c);
                         CantHitMe = CantHitMe == 0;
                     }
 
-                    if (Cheat(Cheat_GetSalvage) != 0)
+                    if (Cheat(CheatGetSalvage) != 0)
                     {
-                        soundSystem->playBettySample(0x1c);
+                        SoundSystem->PlayBettySample(0x1c);
                         CantBlowSalvage = CantBlowSalvage == 0;
                     }
 
-                    if (Cheat(Cheat_Reveal) != 0)
+                    if (Cheat(CheatReveal) != 0)
                     {
-                        soundSystem->playBettySample(0x1c);
+                        SoundSystem->PlayBettySample(0x1c);
                         RevealAll();
                     }
 
-                    if (Cheat(Cheat_BunnyStrike) != 0)
+                    if (Cheat(CheatBunnyStrike) != 0)
                     {
-                        soundSystem->playBettySample(0x16);
+                        SoundSystem->PlayBettySample(0x16);
                         BunnyStrikesOn = BunnyStrikesOn == 0;
                     }
 
-                    if (Cheat(Cheat_Duh) != 0)
+                    if (Cheat(CheatDuh) != 0)
                     {
-                        soundSystem->playBettySample(0x1c);
+                        SoundSystem->PlayBettySample(0x1c);
                         Duh = Duh == 0;
                     }
                 }
             }
 
-            event.type = 10;
-            event.key = low;
-            event.scanCode = scanCode;
+            event.Type = 10;
+            event.Key = low;
+            event.ScanCode = scanCode;
             // The character's modifiers are read from wParam's MK_ bits, as for a mouse message.
-            event.ctrlKey = low & MK_CONTROL;
-            event.shiftKey = low & MK_SHIFT;
+            event.CtrlKey = low & MK_CONTROL;
+            event.ShiftKey = low & MK_SHIFT;
             break;
         }
         case WM_TIMER:
-            event.type = 0x13;
+            event.Type = 0x13;
             break;
         case WM_LBUTTONDBLCLK:
         {
-            event.type = 0x10;
-            event.ctrlKey = low & MK_CONTROL;
-            event.shiftKey = low & MK_SHIFT;
+            event.Type = 0x10;
+            event.CtrlKey = low & MK_CONTROL;
+            event.ShiftKey = low & MK_SHIFT;
             break;
         }
         case WM_RBUTTONDBLCLK:
         {
-            event.type = 0x11;
-            event.ctrlKey = low & MK_CONTROL;
-            event.shiftKey = low & MK_SHIFT;
+            event.Type = 0x11;
+            event.CtrlKey = low & MK_CONTROL;
+            event.ShiftKey = low & MK_SHIFT;
             break;
         }
         case WM_MOUSEWHEEL:
@@ -2744,26 +2744,26 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
             // over it) it zooms like the zoom keys: up in, down out. Over anything else it scrolls the first of the
             // object and its parents that has a scroll bar (aObject::MouseWheel). While an object holds the mouse,
             // only that object is offered it (an open drop-down list; a dragged thumb doesn't take it).
-            if (screenWindow == nullptr)
+            if (ScreenWindow == nullptr)
             {
                 return 1;
             }
 
             const int16_t delta = static_cast<int16_t>(wParam >> 16);
-            aObject* const grabbed = application->grabbedObject();
-            aObject* target = nullptr;
+            MCGuiObject* const grabbed = Application->GrabbedObject();
+            MCGuiObject* target = nullptr;
 
             if (grabbed != nullptr)
             {
                 target = grabbed;
             }
-            else if (EventsToMissionResultsScreen != 0 && mission != nullptr && mission->resultsScreen != nullptr)
+            else if (EventsToMissionResultsScreen != 0 && Mission != nullptr && Mission->ResultsScreen != nullptr)
             {
-                target = mission->resultsScreen->findObject(cursor.x, cursor.y);
+                target = Mission->ResultsScreen->FindObject(cursor.x, cursor.y);
             }
             else
             {
-                target = screenWindow->findObject(cursor.x, cursor.y);
+                target = ScreenWindow->FindObject(cursor.x, cursor.y);
             }
 
             if (target == nullptr)
@@ -2771,32 +2771,32 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
                 return 1;
             }
 
-            if (grabbed == nullptr && theInterface != nullptr && scenario != nullptr && turn > 0 &&
-                EventsToMissionResultsScreen == 0 && mainHolder != nullptr && target == mainHolder->GetActivePane())
+            if (grabbed == nullptr && TheInterface != nullptr && Scenario != nullptr && Turn > 0 &&
+                EventsToMissionResultsScreen == 0 && MainHolder != nullptr && target == MainHolder->GetActivePane())
             {
                 // A step per notch (finer wheels zoom finer); not while paused or asked.
-                const float step = std::pow(InterfaceObject::ZoomWheelStep, std::fabs(delta / 120.0f));
+                const float step = std::pow(MCInterfaceObject::ZoomWheelStep, std::fabs(delta / 120.0f));
 
                 if (delta > 0)
                 {
-                    theInterface->ZoomIn(step, false);
+                    TheInterface->ZoomIn(step, false);
                 }
                 else if (delta < 0)
                 {
-                    theInterface->ZoomOut(step, false);
+                    TheInterface->ZoomOut(step, false);
                 }
 
                 return 1;
             }
 
             // A modal object only takes the wheel for itself and its children, as for other events.
-            if (grabbed == nullptr && application->modalObject() != nullptr)
+            if (grabbed == nullptr && Application->ModalObject() != nullptr)
             {
-                aObject* owner = target;
+                MCGuiObject* owner = target;
 
-                while (owner != nullptr && owner != application->modalObject())
+                while (owner != nullptr && owner != Application->ModalObject())
                 {
-                    owner = owner->parent;
+                    owner = owner->Parent;
                 }
 
                 if (owner == nullptr)
@@ -2823,7 +2823,8 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
                 return 1;
             }
 
-            for (aObject* object = target; object != nullptr; object = grabbed != nullptr ? nullptr : object->parent)
+            for (MCGuiObject* object = target; object != nullptr;
+                 object = grabbed != nullptr ? nullptr : object->Parent)
             {
                 if (object->MouseWheel(steps, cursor.x, cursor.y))
                 {
@@ -2839,22 +2840,22 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
     // game messages.
     if (message >= 0x1400)
     {
-        event.type = static_cast<int32_t>(message);
+        event.Type = static_cast<int32_t>(message);
     }
 
-    event.lParam = lParam;
-    event.x = cursor.x;
-    event.data = static_cast<int32_t>(wParam);
-    event.leftButton = low & MK_LBUTTON;
-    event.middleButton = low & MK_MBUTTON;
-    event.rightButton = low & MK_RBUTTON;
-    event.y = cursor.y;
-    event.target = nullptr;
-    event.altKey = (MCInput::GetKeyState(VK_MENU) & 0x8000) != 0 ? 0xff : 0;
+    event.LParam = lParam;
+    event.X = cursor.x;
+    event.Data = static_cast<int32_t>(wParam);
+    event.LeftButton = low & MK_LBUTTON;
+    event.MiddleButton = low & MK_MBUTTON;
+    event.RightButton = low & MK_RBUTTON;
+    event.Y = cursor.y;
+    event.Target = nullptr;
+    event.AltKey = (MCInput::GetKeyState(VK_MENU) & 0x8000) != 0 ? 0xff : 0;
 
-    if (event.type != 0)
+    if (event.Type != 0)
     {
-        handleEvent(&event);
+        HandleEvent(&event);
     }
 
     return 0;
@@ -2862,24 +2863,24 @@ auto translateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
 
 auto ScrollScreen() -> void
 {
-    Camera* camera = nullptr;
-    const tagRECT scrollArea = application->scrollRect;
+    MCCamera* camera = nullptr;
+    const tagRECT scrollArea = Application->ScrollRect;
 
-    if (theInterface == nullptr)
+    if (TheInterface == nullptr)
     {
         return;
     }
 
-    if (scenario != nullptr && turn < 5)
+    if (Scenario != nullptr && Turn < 5)
     {
         return;
     }
 
-    int16_t speed = theInterface->scrollSpeed;
+    int16_t speed = TheInterface->ScrollSpeed;
 
-    if (mainHolder != nullptr && mainHolder->GetActivePane() != nullptr)
+    if (MainHolder != nullptr && MainHolder->GetActivePane() != nullptr)
     {
-        camera = mainHolder->GetActivePane()->GetCamera();
+        camera = MainHolder->GetActivePane()->GetCamera();
     }
 
     int32_t dx = 0;
@@ -2887,38 +2888,38 @@ auto ScrollScreen() -> void
 
     if (camera != nullptr)
     {
-        if (camera->cameraScale == 100)
+        if (camera->CameraScale == 100)
         {
             speed = static_cast<int16_t>(speed / 2);
         }
 
         // MCX.EXE's constant is a hair under 15 (14.999999).
-        float step = frameLength * 0x1.dffffep+3f * static_cast<float>(speed);
+        float step = FrameLength * 0x1.dffffep+3f * static_cast<float>(speed);
 
         // Port: the same speed on the screen at any zoom (the world surface's pixels per screen pixel).
-        if (camera->window != nullptr && camera->window->WorldScaleY() > 0.0f)
+        if (camera->Window != nullptr && camera->Window->WorldScaleY() > 0.0f)
         {
-            step /= camera->window->WorldScaleY();
+            step /= camera->Window->WorldScaleY();
         }
 
         bool scroll = true;
 
-        if (theInterface->scrollDirection == -1)
+        if (TheInterface->ScrollDirection == -1)
         {
             // Scroll by the mouse at the screen's edge, after the interface's start delay.
             const MCPoint cursor = MCInput::GetCursorPos();
 
             if (PtInRect(&scrollArea, POINT{cursor.x, cursor.y}) == 0)
             {
-                if (scrollWait == 0)
+                if (ScrollWait == 0)
                 {
-                    scrollWait = MCPort::Milliseconds();
+                    ScrollWait = MCPort::Milliseconds();
                 }
                 else
                 {
-                    const int16_t delay = theInterface->scrollStart;
+                    const int16_t delay = TheInterface->ScrollStart;
 
-                    if (static_cast<uint32_t>(delay + static_cast<int32_t>(scrollWait)) > MCPort::Milliseconds())
+                    if (static_cast<uint32_t>(delay + static_cast<int32_t>(ScrollWait)) > MCPort::Milliseconds())
                     {
                         scroll = false;
                     }
@@ -2947,13 +2948,13 @@ auto ScrollScreen() -> void
             }
             else
             {
-                scrollWait = 0;
+                ScrollWait = 0;
                 scroll = false;
             }
         }
         else
         {
-            switch (theInterface->scrollDirection)
+            switch (TheInterface->ScrollDirection)
             {
                 case 0:
                     dy = static_cast<int32_t>(-step);
@@ -3001,36 +3002,36 @@ auto ScrollScreen() -> void
         {
             // Keep the window's anchor point (selectionBox's first corner) on the same spot of the world.
             // Port: the box is in the view's own coordinates, the projection on its world surface (through the zoom).
-            viewWindow* window = camera->window;
-            vector_2d anchor(window->selectionBox[0] / window->WorldScaleX(),
-                             window->selectionBox[1] / window->WorldScaleY());
-            vector_3d point;
-            camera->inverseProject(anchor, point);
-            camera->scrollCamera(dx, dy);
-            const float scale = camera->cameraScale == 1 ? 0.5f : 1.0f;
-            const float offsetX = (point.x - camera->position.x) * scale;
-            const float offsetY = (point.y - camera->position.y) * scale;
-            const float offsetZ = scale * (point.z - camera->position.z);
-            const vector_2d moved(offsetY * camera->cosAngle + offsetX * camera->cosAngle + camera->halfWidth,
-                                  ((offsetX * camera->sinAngle + camera->halfHeight) - offsetY * camera->sinAngle) -
-                                      offsetZ);
-            const vector_2d shown = window->WorldToWindow(moved);
-            window->selectionBox[0] = shown.x;
-            window->selectionBox[1] = shown.y;
+            MCViewWindow* window = camera->Window;
+            MCVector2D anchor(window->SelectionBox[0] / window->WorldScaleX(),
+                              window->SelectionBox[1] / window->WorldScaleY());
+            MCVector3D point;
+            camera->InverseProject(anchor, point);
+            camera->ScrollCamera(dx, dy);
+            const float scale = camera->CameraScale == 1 ? 0.5f : 1.0f;
+            const float offsetX = (point.X - camera->Position.X) * scale;
+            const float offsetY = (point.Y - camera->Position.Y) * scale;
+            const float offsetZ = scale * (point.Z - camera->Position.Z);
+            const MCVector2D moved(offsetY * camera->CosAngle + offsetX * camera->CosAngle + camera->HalfWidth,
+                                   ((offsetX * camera->SinAngle + camera->HalfHeight) - offsetY * camera->SinAngle) -
+                                       offsetZ);
+            const MCVector2D shown = window->WorldToWindow(moved);
+            window->SelectionBox[0] = shown.X;
+            window->SelectionBox[1] = shown.Y;
         }
     }
 
     // The tactical map scrolls by its buttons.
-    const int16_t mapSpeed = theInterface->tacScrollSpeed;
+    const int16_t mapSpeed = TheInterface->TacScrollSpeed;
     int32_t mapDx = 0;
     int32_t mapDy = 0;
 
-    if (Terrain::terrainTacticalMap == nullptr)
+    if (MCTerrain::TerrainTacticalMap == nullptr)
     {
         return;
     }
 
-    switch (theInterface->tacScrollDirection)
+    switch (TheInterface->TacScrollDirection)
     {
         case 0:
             mapDy = -mapSpeed;
@@ -3077,28 +3078,28 @@ auto ScrollScreen() -> void
         return;
     }
 
-    Terrain::terrainTacticalMap->scrollMap(mapDx, mapDy);
+    MCTerrain::TerrainTacticalMap->ScrollMap(mapDx, mapDy);
 }
 
 auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
 {
     // Port: the GDI palette work (SelectPalette / RealizePalette on the desktop DC) and the window placement calls
     // have no counterpart: the display owns the palette and the window. What remains is when the original repainted.
-    constexpr uint32_t WM_ERASEBKGND = 0x14;
-    constexpr uint32_t SC_KEYMENU = 0xf100;
-    constexpr uint32_t SC_MAXIMIZE = 0xf030;
-    constexpr uint32_t SC_MINIMIZE = 0xf020;
+    constexpr uint32_t wmErasebkgnd = 0x14;
+    constexpr uint32_t scKeymenu = 0xf100;
+    constexpr uint32_t scMaximize = 0xf030;
+    constexpr uint32_t scMinimize = 0xf020;
 
-    if (message == uMessage)
+    if (message == UMessage)
     {
         return 1;
     }
 
     switch (message)
     {
-        case WM_ERASEBKGND:
+        case wmErasebkgnd:
         {
-            if (displayReady != 0)
+            if (DisplayReady != 0)
             {
                 return -1;
             }
@@ -3109,20 +3110,20 @@ auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam)
             break;
         case WM_MOVE:
         {
-            application->setScreenOffsetX(lParam & 0xffff);
-            application->setScreenOffsetY(static_cast<uint32_t>(lParam) >> 16);
+            Application->SetScreenOffsetX(lParam & 0xffff);
+            Application->SetScreenOffsetY(static_cast<uint32_t>(lParam) >> 16);
             break;
         }
         case WM_SIZE:
         {
-            gWinHeight = static_cast<uint32_t>(lParam) >> 16;
-            gWinWidth = lParam & 0xffff;
+            GWinHeight = static_cast<uint32_t>(lParam) >> 16;
+            GWinWidth = lParam & 0xffff;
             // Port: the original snapped the window back to the screen's size (SetWindowPos); the display letterboxes.
             return 0;
         }
         case WM_PAINT:
         {
-            if (displayReady != 0 && gFullScreen == 0 && keepDesktopPalette == 0)
+            if (DisplayReady != 0 && GFullScreen == 0 && KeepDesktopPalette == 0)
             {
                 UpdateDisplay(0, 0, 0, 0, 0);
             }
@@ -3130,7 +3131,7 @@ auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam)
         }
         case WM_QUERYNEWPALETTE:
         {
-            if (displayReady == 0 || gFullScreen != 0)
+            if (DisplayReady == 0 || GFullScreen != 0)
             {
                 return 0;
             }
@@ -3141,26 +3142,26 @@ auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam)
             return 0;
         case WM_ACTIVATEAPP:
         {
-            if (application->smackerWindow2 != nullptr)
+            if (Application->SmackerWindow2 != nullptr)
             {
-                closeMovieWindow(application->smackerWindow2);
+                CloseMovieWindow(Application->SmackerWindow2);
             }
 
-            if (application->smackerWindow != nullptr)
+            if (Application->SmackerWindow != nullptr)
             {
-                closeMovieWindow(application->smackerWindow);
+                CloseMovieWindow(Application->SmackerWindow);
             }
 
             if (MPlayer == nullptr)
             {
-                applicationActive = static_cast<int>(wParam);
+                ApplicationActive = static_cast<int>(wParam);
             }
-            else if (gFullScreen != 0 && applicationActive != 0)
+            else if (GFullScreen != 0 && ApplicationActive != 0)
             {
                 InitWindowMode();
             }
 
-            if (applicationActive != 0 && displayReady != 0 && keepDesktopPalette == 0)
+            if (ApplicationActive != 0 && DisplayReady != 0 && KeepDesktopPalette == 0)
             {
                 UpdateDisplay(0, 0, 0, 0, 0);
             }
@@ -3170,24 +3171,24 @@ auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam)
         {
             if (wParam == VK_ESCAPE)
             {
-                if (application->smackerWindow2 != nullptr)
+                if (Application->SmackerWindow2 != nullptr)
                 {
-                    blankScreen();
-                    blankScreen();
-                    closeMovieWindow(application->smackerWindow2);
-                    escapedSmackerMovie = -1;
+                    BlankScreen();
+                    BlankScreen();
+                    CloseMovieWindow(Application->SmackerWindow2);
+                    EscapedSmackerMovie = -1;
                 }
-                else if (application->smackerWindow != nullptr)
+                else if (Application->SmackerWindow != nullptr)
                 {
-                    static_cast<aSmackerWindow*>(application->smackerWindow)->endSmackerMovie();
-                    escapedSmackerMovie = -1;
+                    static_cast<MCGuiSmackerWindow*>(Application->SmackerWindow)->EndSmackerMovie();
+                    EscapedSmackerMovie = -1;
                 }
             }
             break;
         }
     }
 
-    if (translateMessage(window, message, wParam, lParam) != 0)
+    if (TranslateMessage(window, message, wParam, lParam) != 0)
     {
         return 0;
     }
@@ -3195,14 +3196,14 @@ auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam)
     if (message == WM_SYSKEYDOWN)
     {
         // Alt+Enter switches between full screen and a window.
-        if (wParam == VK_RETURN && allowMagicWindowSwitching != 0)
+        if (wParam == VK_RETURN && AllowMagicWindowSwitching != 0)
         {
-            if (application->smackerWindow2 != nullptr || displayReady == 0 || application->smackerWindow != nullptr)
+            if (Application->SmackerWindow2 != nullptr || DisplayReady == 0 || Application->SmackerWindow != nullptr)
             {
                 return 0;
             }
 
-            if (gFullScreen != 0)
+            if (GFullScreen != 0)
             {
                 InitWindowMode();
             }
@@ -3220,18 +3221,18 @@ auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam)
     }
     else if (message == WM_SYSCOMMAND)
     {
-        if (wParam == SC_KEYMENU || allowMagicWindowSwitching == 0)
+        if (wParam == scKeymenu || AllowMagicWindowSwitching == 0)
         {
             return 0;
         }
 
-        if (wParam == SC_MAXIMIZE && (gFullScreen != 0 || displayReady == 0 || application->smackerWindow2 != nullptr ||
-                                      application->smackerWindow != nullptr))
+        if (wParam == scMaximize && (GFullScreen != 0 || DisplayReady == 0 || Application->SmackerWindow2 != nullptr ||
+                                     Application->SmackerWindow != nullptr))
         {
             return 0;
         }
 
-        if (wParam == SC_MINIMIZE)
+        if (wParam == scMinimize)
         {
             return 0;
         }
@@ -3242,22 +3243,22 @@ auto WindowProc(void* window, uint32_t message, uint32_t wParam, int32_t lParam)
 
 auto InitWindowMode() -> void
 {
-    if (gFullScreen != 0)
+    if (GFullScreen != 0)
     {
-        if (mouseThreadStarted != 0)
+        if (MouseThreadStarted != 0)
         {
             MouseCritSec.lock();
             InMouseCritSec = 1;
         }
 
-        gFullScreen = 0;
-        application->resetDirectDraw(gWidth, gHeight, 8);
-        displayReady = 0;
+        GFullScreen = 0;
+        Application->ResetDirectDraw(GWidth, GHeight, 8);
+        DisplayReady = 0;
         // Port: the original centred the window on the desktop the first time (or restored its saved placement)
         // and showed it; leaving full screen puts the SDL window back where it was.
-        displayReady = 1;
+        DisplayReady = 1;
 
-        if (mouseThreadStarted != 0)
+        if (MouseThreadStarted != 0)
         {
             MouseCritSec.unlock();
             InMouseCritSec = 0;
@@ -3267,21 +3268,21 @@ auto InitWindowMode() -> void
 
 auto InitFullScreen() -> void
 {
-    if (gFullScreen == 0 && application->ddObject != nullptr)
+    if (GFullScreen == 0 && Application->DdObject != nullptr)
     {
-        if (mouseThreadStarted != 0)
+        if (MouseThreadStarted != 0)
         {
             MouseCritSec.lock();
             InMouseCritSec = 1;
         }
 
-        displayReady = 0;
+        DisplayReady = 0;
         // Port: the original saved the window's placement and made it a popup (WS_POPUP) first.
         SavedPosition = 1;
-        gFullScreen = 1;
-        application->resetDirectDraw(gWidth, gHeight, 8);
+        GFullScreen = 1;
+        Application->ResetDirectDraw(GWidth, GHeight, 8);
 
-        if (mouseThreadStarted != 0)
+        if (MouseThreadStarted != 0)
         {
             MouseCritSec.unlock();
             InMouseCritSec = 0;
@@ -3297,109 +3298,109 @@ auto CheckMouse() -> void
     const int16_t left = MCInput::GetAsyncKeyState(VK_LBUTTON);
     const int16_t right = MCInput::GetAsyncKeyState(VK_RBUTTON);
     const auto held = [](int16_t state) -> uint8_t { return (static_cast<uint16_t>(state) >> 15) & 1; };
-    aEvent event;
+    MCGuiEvent event;
 
-    if (leftMouseButtonDown == 0)
+    if (LeftMouseButtonDown == 0)
     {
         if (left != 0)
         {
-            event.clear();
-            event.rightButton = held(right);
-            event.ctrlKey = held(ctrl);
-            event.shiftKey = held(shift);
-            event.altKey = held(alt);
-            event.type = 1;
-            event.leftButton = 0xff;
-            leftMouseButtonDown = -1;
-            event.x = mouseScreenX;
-            event.y = mouseScreenY;
-            handleEvent(&event);
+            event.Clear();
+            event.RightButton = held(right);
+            event.CtrlKey = held(ctrl);
+            event.ShiftKey = held(shift);
+            event.AltKey = held(alt);
+            event.Type = 1;
+            event.LeftButton = 0xff;
+            LeftMouseButtonDown = -1;
+            event.X = MouseScreenX;
+            event.Y = MouseScreenY;
+            HandleEvent(&event);
         }
     }
     else if ((left & 0x8000) == 0)
     {
-        event.clear();
-        event.rightButton = held(right);
-        event.ctrlKey = held(ctrl);
-        event.shiftKey = held(shift);
-        event.altKey = held(alt);
-        leftMouseButtonDown = 0;
-        event.type = 4;
-        event.x = mouseScreenX;
-        event.y = mouseScreenY;
-        handleEvent(&event);
+        event.Clear();
+        event.RightButton = held(right);
+        event.CtrlKey = held(ctrl);
+        event.ShiftKey = held(shift);
+        event.AltKey = held(alt);
+        LeftMouseButtonDown = 0;
+        event.Type = 4;
+        event.X = MouseScreenX;
+        event.Y = MouseScreenY;
+        HandleEvent(&event);
     }
 
     bool rightChanged = false;
 
-    if (rightMouseButtonDown == 0)
+    if (RightMouseButtonDown == 0)
     {
         if (right != 0)
         {
-            event.clear();
-            event.leftButton = held(left);
-            event.shiftKey = held(shift);
-            event.type = 3;
-            event.rightButton = 0xff;
-            rightMouseButtonDown = -1;
+            event.Clear();
+            event.LeftButton = held(left);
+            event.ShiftKey = held(shift);
+            event.Type = 3;
+            event.RightButton = 0xff;
+            RightMouseButtonDown = -1;
             rightChanged = true;
         }
     }
     else if ((right & 0x8000) == 0)
     {
-        event.clear();
-        event.leftButton = held(left);
-        event.shiftKey = held(shift);
-        rightMouseButtonDown = 0;
-        event.type = 6;
+        event.Clear();
+        event.LeftButton = held(left);
+        event.ShiftKey = held(shift);
+        RightMouseButtonDown = 0;
+        event.Type = 6;
         rightChanged = true;
     }
 
     if (rightChanged)
     {
-        event.ctrlKey = held(ctrl);
-        event.altKey = held(alt);
-        event.x = mouseScreenX;
-        event.y = mouseScreenY;
-        handleEvent(&event);
+        event.CtrlKey = held(ctrl);
+        event.AltKey = held(alt);
+        event.X = MouseScreenX;
+        event.Y = MouseScreenY;
+        HandleEvent(&event);
     }
 
-    if (oldMouseX != mouseScreenX || oldMouseY != mouseScreenY)
+    if (OldMouseX != MouseScreenX || OldMouseY != MouseScreenY)
     {
-        event.clear();
-        event.leftButton = held(left);
-        event.rightButton = held(right);
-        event.type = 7;
-        event.altKey = held(alt);
-        event.y = mouseScreenY;
-        oldMouseY = mouseScreenY;
-        event.ctrlKey = held(ctrl);
-        event.shiftKey = held(shift);
-        event.x = mouseScreenX;
-        oldMouseX = mouseScreenX;
-        handleEvent(&event);
+        event.Clear();
+        event.LeftButton = held(left);
+        event.RightButton = held(right);
+        event.Type = 7;
+        event.AltKey = held(alt);
+        event.Y = MouseScreenY;
+        OldMouseY = MouseScreenY;
+        event.CtrlKey = held(ctrl);
+        event.ShiftKey = held(shift);
+        event.X = MouseScreenX;
+        OldMouseX = MouseScreenX;
+        HandleEvent(&event);
     }
 }
 
-auto GetPaletteFromArt(char* fileName) -> VFX_RGB*
+auto GetPaletteFromArt(char* fileName) -> MCVfxRgb*
 {
     char path[252];
     char message[256];
-    File artFileHandle;
-    std::snprintf(path, sizeof(path), "%s%s", artPath, fileName);
+    MCFile artFileHandle;
+    std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (artFileHandle.open(path, READ, 50) != 0)
+    if (artFileHandle.Open(path, READ, 50) != 0)
     {
         MCPort::StrCopy(path, sizeof(path), fileName);
 
-        if (artFileHandle.open(path, READ, 50) != 0)
+        if (artFileHandle.Open(path, READ, 50) != 0)
         {
             std::snprintf(message, sizeof(message), "Error reading '%s'", path);
             GeneralMsg(message);
         }
     }
 
-    const uint32_t size = artFileHandle.fileSize();
+    const uint32_t size = artFileHandle.FileSize();
 
     if (size == 0)
     {
@@ -3413,75 +3414,75 @@ auto GetPaletteFromArt(char* fileName) -> VFX_RGB*
     }
 
     std::vector<uint8_t> tga(size);
-    artFileHandle.read(tga.data(), static_cast<int32_t>(size));
-    artFileHandle.close();
+    artFileHandle.Read(tga.data(), static_cast<int32_t>(size));
+    artFileHandle.Close();
     // The caller deletes[] the palette.
-    auto* palette = new VFX_RGB[256]{};
-    tgaColorMapToPalette(tga.data(), palette);
+    auto* palette = new MCVfxRgb[256]{};
+    TgaColorMapToPalette(tga.data(), palette);
     return palette;
 }
 
 // aSystem.
 
-auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int showCommand, int16_t screenWidth,
-                    int16_t screenHeight) -> int
+auto MCGuiSystem::Start(void* instance, void* prevInstance, char* commandLine, int showCommand, int16_t screenWidth,
+                        int16_t screenHeight) -> int
 {
     (void)prevInstance;
     (void)showCommand;
-    ddObject = nullptr;
-    ddObject2 = nullptr;
-    ddPrimarySurface = nullptr;
-    ddBackSurface = nullptr;
-    ddPalette = nullptr;
-    backpbmi = nullptr;
-    windowHandle = nullptr;
-    numCallbacks = 0;
-    numChildren = 0;
-    grabbed = nullptr;
-    textFocus = nullptr;
-    current = nullptr;
-    parent = nullptr;
-    modal = nullptr;
-    thePalette = nullptr;
-    gammaLevel = 0;
-    smackerWindow = nullptr;
-    smackerWindow2 = nullptr;
-    openingSmackerWindow = nullptr;
-    flipToGDIRequested = 0;
-    paletteCycle = -1;
+    DdObject = nullptr;
+    DdObject2 = nullptr;
+    DdPrimarySurface = nullptr;
+    DdBackSurface = nullptr;
+    DdPalette = nullptr;
+    Backpbmi = nullptr;
+    WindowHandle = nullptr;
+    NumCallbacks = 0;
+    NumChildren = 0;
+    Grabbed = nullptr;
+    TextFocus = nullptr;
+    Current = nullptr;
+    Parent = nullptr;
+    Modal = nullptr;
+    ThePalette = nullptr;
+    GammaLevel = 0;
+    SmackerWindow = nullptr;
+    SmackerWindow2 = nullptr;
+    OpeningSmackerWindow = nullptr;
+    FlipToGdiRequested = 0;
+    PaletteCycle = -1;
     char title[256];
     char name[256];
     char version[256];
     char release[256];
-    cLoadString(thisInstance, 0x284, title, 0xfe);
-    cLoadString(thisInstance, 0x283, title, 0xfe);
-    cLoadString(thisInstance, 0x280, name, 0xfe);
-    cLoadString(thisInstance, 0x281, version, 0xfe);
-    cLoadString(thisInstance, 0x282, release, 0xfe);
+    CLoadString(ThisInstance, 0x284, title, 0xfe);
+    CLoadString(ThisInstance, 0x283, title, 0xfe);
+    CLoadString(ThisInstance, 0x280, name, 0xfe);
+    CLoadString(ThisInstance, 0x281, version, 0xfe);
+    CLoadString(ThisInstance, 0x282, release, 0xfe);
     // Port: the window is named after the port, not the string table's title (string 0x283).
 #ifdef _DEBUG
-    std::strcpy(appName, "MechCommander Redux (Debug)");
+    std::strcpy(AppName, "MechCommander Redux (Debug)");
 #else
-    std::strcpy(appName, "MechCommander Redux");
+    std::strcpy(AppName, "MechCommander Redux");
 #endif
-    std::strcpy(WindowTitle, appName);
-    offsetX = 0;
-    offsetY = 0;
+    std::strcpy(WindowTitle, AppName);
+    OffsetX = 0;
+    OffsetY = 0;
 
     // Port: the original gave up when another copy was running (a window of class "MCX", brought to the front, or
     // the "MCX" file mapping), registered the window class, and checked for a Pentium with CPUID (Processor 1, 2
     // with MMX, 3 for a 486 without CPUID; 0 refused to run). Every x64 processor has MMX.
     Processor = 2;
 
-    displayWidth = screenWidth;
-    displayHeight = screenHeight;
-    systemInit();
-    const int32_t width = static_cast<int16_t>(displayWidth);
-    const int32_t height = static_cast<int16_t>(displayHeight);
-    this->screenWidth = width;
-    this->screenHeight = height;
+    DisplayWidth = screenWidth;
+    DisplayHeight = screenHeight;
+    SystemInit();
+    const int32_t width = static_cast<int16_t>(DisplayWidth);
+    const int32_t height = static_cast<int16_t>(DisplayHeight);
+    this->ScreenWidth = width;
+    this->ScreenHeight = height;
 
-    for (aCallback*& callback : callbacks)
+    for (MCGuiCallback*& callback : Callbacks)
     {
         callback = nullptr;
     }
@@ -3493,134 +3494,134 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
     // through the platform layer.
     MCInput::SetWindowProc(
         [](uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
-        { return WindowProc(application != nullptr ? application->windowHandle : nullptr, message, wParam, lParam); });
+        { return WindowProc(Application != nullptr ? Application->WindowHandle : nullptr, message, wParam, lParam); });
 
-    blackFont = loadFont("blkfnt.fnt");
-    fonts[0][0] = blackFont;
-    redFont = loadFont("red.fnt");
-    fonts[1][0] = redFont;
-    yellowFont = loadFont("yellow.fnt");
-    fonts[2][0] = yellowFont;
-    greenFont = loadFont("green.fnt");
-    fonts[3][0] = greenFont;
-    blueFont = loadFont("blue.fnt");
-    fonts[4][0] = blueFont;
-    greyFont = loadFont("gryfnt.fnt");
-    fonts[5][0] = greyFont;
-    whiteFont = loadFont("white.fnt");
-    fonts[6][0] = whiteFont;
-    dimFont = loadFont("dim.fnt");
-    fonts[7][0] = dimFont;
-    yellowDropFont = loadFont("yelldrp.fnt");
-    fonts[8][0] = yellowDropFont;
-    blueDropFont = loadFont("bluedrp.fnt");
-    fonts[9][0] = blueDropFont;
-    medBlackFont = loadFont("blkfnt10.fnt");
-    fonts[0][1] = medBlackFont;
-    medRedFont = loadFont("red10.fnt");
-    fonts[1][1] = medRedFont;
-    medYellowFont = loadFont("yellow10.fnt");
-    fonts[2][1] = medYellowFont;
-    medGreenFont = loadFont("green10.fnt");
-    fonts[3][1] = medGreenFont;
-    medBlueFont = loadFont("blue10.fnt");
-    fonts[4][1] = medBlueFont;
-    medGreyFont = loadFont("gryfnt10.fnt");
-    fonts[5][1] = medGreyFont;
-    medWhiteFont = loadFont("white10.fnt");
-    fonts[6][1] = medWhiteFont;
-    medDimFont = loadFont("dim10.fnt");
-    fonts[7][1] = medDimFont;
-    fonts[8][1] = yellowDropFont;
-    fonts[9][1] = blueDropFont;
-    lgBlackFont = loadFont("blkfnt12.fnt");
-    fonts[0][2] = lgBlackFont;
-    lgRedFont = loadFont("red12.fnt");
-    fonts[1][2] = lgRedFont;
-    lgYellowFont = loadFont("yellow12.fnt");
-    fonts[2][2] = lgYellowFont;
-    lgGreenFont = loadFont("green12.fnt");
-    fonts[3][2] = lgGreenFont;
-    lgBlueFont = loadFont("blue12.fnt");
-    fonts[4][2] = lgBlueFont;
-    lgGreyFont = loadFont("gryfnt12.fnt");
-    fonts[5][2] = lgGreyFont;
-    lgWhiteFont = loadFont("white12.fnt");
-    fonts[6][2] = lgWhiteFont;
-    lgDimFont = loadFont("dim12.fnt");
-    fonts[7][2] = lgDimFont;
-    systemFont = greyFont;
+    BlackFont = LoadFont("blkfnt.fnt");
+    Fonts[0][0] = BlackFont;
+    RedFont = LoadFont("red.fnt");
+    Fonts[1][0] = RedFont;
+    YellowFont = LoadFont("yellow.fnt");
+    Fonts[2][0] = YellowFont;
+    GreenFont = LoadFont("green.fnt");
+    Fonts[3][0] = GreenFont;
+    BlueFont = LoadFont("blue.fnt");
+    Fonts[4][0] = BlueFont;
+    GreyFont = LoadFont("gryfnt.fnt");
+    Fonts[5][0] = GreyFont;
+    WhiteFont = LoadFont("white.fnt");
+    Fonts[6][0] = WhiteFont;
+    DimFont = LoadFont("dim.fnt");
+    Fonts[7][0] = DimFont;
+    YellowDropFont = LoadFont("yelldrp.fnt");
+    Fonts[8][0] = YellowDropFont;
+    BlueDropFont = LoadFont("bluedrp.fnt");
+    Fonts[9][0] = BlueDropFont;
+    MedBlackFont = LoadFont("blkfnt10.fnt");
+    Fonts[0][1] = MedBlackFont;
+    MedRedFont = LoadFont("red10.fnt");
+    Fonts[1][1] = MedRedFont;
+    MedYellowFont = LoadFont("yellow10.fnt");
+    Fonts[2][1] = MedYellowFont;
+    MedGreenFont = LoadFont("green10.fnt");
+    Fonts[3][1] = MedGreenFont;
+    MedBlueFont = LoadFont("blue10.fnt");
+    Fonts[4][1] = MedBlueFont;
+    MedGreyFont = LoadFont("gryfnt10.fnt");
+    Fonts[5][1] = MedGreyFont;
+    MedWhiteFont = LoadFont("white10.fnt");
+    Fonts[6][1] = MedWhiteFont;
+    MedDimFont = LoadFont("dim10.fnt");
+    Fonts[7][1] = MedDimFont;
+    Fonts[8][1] = YellowDropFont;
+    Fonts[9][1] = BlueDropFont;
+    LgBlackFont = LoadFont("blkfnt12.fnt");
+    Fonts[0][2] = LgBlackFont;
+    LgRedFont = LoadFont("red12.fnt");
+    Fonts[1][2] = LgRedFont;
+    LgYellowFont = LoadFont("yellow12.fnt");
+    Fonts[2][2] = LgYellowFont;
+    LgGreenFont = LoadFont("green12.fnt");
+    Fonts[3][2] = LgGreenFont;
+    LgBlueFont = LoadFont("blue12.fnt");
+    Fonts[4][2] = LgBlueFont;
+    LgGreyFont = LoadFont("gryfnt12.fnt");
+    Fonts[5][2] = LgGreyFont;
+    LgWhiteFont = LoadFont("white12.fnt");
+    Fonts[6][2] = LgWhiteFont;
+    LgDimFont = LoadFont("dim12.fnt");
+    Fonts[7][2] = LgDimFont;
+    SystemFont = GreyFont;
 
     // The engine's line font (Font's constructor, inlined).
-    lineFont = new (std::nothrow) Font;
-    lineFont->curY = 0;
-    lineFont->curX = 0;
-    lineFont->color = 0xf;
-    lineFont->scale = 2.0f;
-    lineFont->scaled = -1;
-    lineFont->fontData.reset();
+    LineFont = new (std::nothrow) MCFont;
+    LineFont->CurY = 0;
+    LineFont->CurX = 0;
+    LineFont->Color = 0xf;
+    LineFont->Scale = 2.0f;
+    LineFont->Scaled = -1;
+    LineFont->FontData.reset();
 
-    for (uint8_t*& letter : lineFont->letterCache)
+    for (uint8_t*& letter : LineFont->LetterCache)
     {
         letter = reinterpret_cast<uint8_t*>(intptr_t{-1});
     }
 
-    lineFont->init(const_cast<char*>("font"));
+    LineFont->Init(const_cast<char*>("font"));
 
-    Palette* palette = new Palette();
+    MCPalette* palette = new MCPalette();
 
     if (palette == nullptr)
     {
-        gamePalette = nullptr;
+        GamePalette = nullptr;
         Fatal(-1, " No RAM for Game palette ");
     }
 
-    palette->init();
-    gamePalette = palette;
-    const int32_t paletteResult = gamePalette->init(const_cast<char*>("palette"));
+    palette->Init();
+    GamePalette = palette;
+    const int32_t paletteResult = GamePalette->Init(const_cast<char*>("palette"));
 
     if (paletteResult != 0)
     {
         Fatal(paletteResult, " Unable to initialize game palette ");
     }
 
-    InitAlphaLookup(reinterpret_cast<VFX_RGB*>(gamePalette->rgbData.get()));
+    InitAlphaLookup(reinterpret_cast<MCVfxRgb*>(GamePalette->RgbData.get()));
 
-    artFile = new PacketFile;
-    Assert(artFile != nullptr, 0, "Not enough RAM for artFile (Something's way wrong...)");
+    ArtFile = new MCPacketFile;
+    Assert(ArtFile != nullptr, 0, "Not enough RAM for artFile (Something's way wrong...)");
     {
-        FullPathFileName artFileName;
-        artFileName.init(artPath, "art", ".pak");
+        MCFullPathFileName artFileName;
+        artFileName.Init(ArtPath, "art", ".pak");
 
-        if (artFile->open(artFileName, READ, 50) != 0)
+        if (ArtFile->Open(artFileName, READ, 50) != 0)
         {
             Fatal(0, "Error opening art file");
         }
     }
 
-    startupDirectDraw(width, height, 8);
-    windowHandle = gameDisplay.get();
-    ghWindow = windowHandle;
+    StartupDirectDraw(width, height, 8);
+    WindowHandle = GameDisplay.get();
+    GhWindow = WindowHandle;
 
-    cursorShapeBlocks.Clear();
-    cursorShapeTable.fill(nullptr);
-    cursorShapes = cursorShapeTable.data();
-    FullPathFileName cursorFileName;
-    cursorFileName.init(spritePath, "cursors", ".pak");
-    PacketFile* cursorFile = new PacketFile;
+    CursorShapeBlocks.Clear();
+    CursorShapeTable.fill(nullptr);
+    CursorShapes = CursorShapeTable.data();
+    MCFullPathFileName cursorFileName;
+    cursorFileName.Init(SpritePath, "cursors", ".pak");
+    MCPacketFile* cursorFile = new MCPacketFile;
 
-    if (cursorFile->open(cursorFileName, READ, 50) != 0)
+    if (cursorFile->Open(cursorFileName, READ, 50) != 0)
     {
-        FullPathFileName cdCursorFileName;
-        cdCursorFileName.init(CDspritePath, "cursors", ".pak");
+        MCFullPathFileName cdCursorFileName;
+        cdCursorFileName.Init(CDspritePath, "cursors", ".pak");
 
-        if (cursorFile->open(cdCursorFileName, READ, 50) != 0)
+        if (cursorFile->Open(cdCursorFileName, READ, 50) != 0)
         {
             Fatal(0, "Cannot find cursors.pak file");
         }
     }
 
-    const int32_t numCursors = cursorFile->getNumPackets();
+    const int32_t numCursors = cursorFile->GetNumPackets();
 
     if (numCursors > 0x7f)
     {
@@ -3629,30 +3630,30 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
 
     for (int32_t i = 0; i < numCursors; i++)
     {
-        cursorFile->seekPacket(i);
-        const auto size = static_cast<uint32_t>(cursorFile->getPacketSize());
-        cursorShapes[i] = static_cast<uint8_t*>(cursorShapeBlocks.Allocate(size));
+        cursorFile->SeekPacket(i);
+        const auto size = static_cast<uint32_t>(cursorFile->GetPacketSize());
+        CursorShapes[i] = static_cast<uint8_t*>(CursorShapeBlocks.Allocate(size));
 
         // An empty packet still fails, as it did when systemHeap's malloc(0) returned null.
-        if (cursorShapes[i] == nullptr)
+        if (CursorShapes[i] == nullptr)
         {
             Fatal(-1, " no RAM for cursors ");
         }
 
-        cursorFile->readPacket(i, cursorShapes[i]);
-        MCRenderer::RegisterData(cursorShapes[i], size, MCDataKind::Shapes);
+        cursorFile->ReadPacket(i, CursorShapes[i]);
+        MCRenderer::RegisterData(CursorShapes[i], size, MCDataKind::Shapes);
     }
 
-    cursorFile->close();
+    cursorFile->Close();
     delete cursorFile;
     MCHardwareCursorPreload();
 
     MCInput::ShowCursor(false);
-    cursorShape = -1;
+    CursorShape = -1;
     MouseTimerInit();
 
-    screenPort = new aPort;
-    const int32_t portResult = screenPort->init(width, height);
+    ScreenPort = new MCGuiPort;
+    const int32_t portResult = ScreenPort->Init(width, height);
 
     if (portResult != 0)
     {
@@ -3660,66 +3661,66 @@ auto aSystem::start(void* instance, void* prevInstance, char* commandLine, int s
     }
 
     // The screen port shows the display's buffer, set by aLockScreen.
-    screenPort->bitmap()->buffer = nullptr;
-    screenWindow = new aObject;
-    screenWindow->init(0, 0, this->screenWidth, this->screenHeight, nullptr);
-    screenWindow->setDepth(-100);
-    screenWindow->objectType = 1;
-    gamePalette->activate(0, 0);
-    countsPerSecond = MCPort::PerformanceFrequency();
+    ScreenPort->Bitmap()->Buffer = nullptr;
+    ScreenWindow = new MCGuiObject;
+    ScreenWindow->Init(0, 0, this->ScreenWidth, this->ScreenHeight, nullptr);
+    ScreenWindow->SetDepth(-100);
+    ScreenWindow->ObjectType = 1;
+    GamePalette->Activate(0, 0);
+    CountsPerSecond = MCPort::PerformanceFrequency();
     UpdateDisplay(0, 0, 0, 0, 0);
-    aUnlockScreen();
+    AUnlockScreen();
 
-    aTimerManager* timers = new aTimerManager;
-    timerManager = timers;
+    MCGuiTimerManager* timers = new MCGuiTimerManager;
+    TimerManager = timers;
     timers->Init();
-    theInterface = new InterfaceObject;
+    TheInterface = new MCInterfaceObject;
 
-    if (theInterface == nullptr)
+    if (TheInterface == nullptr)
     {
         return 2;
     }
 
-    theInterface->init();
+    TheInterface->Init();
 
-    if (userInit() != 0)
+    if (UserInit() != 0)
     {
         return -10;
     }
 
-    setScrollRect();
-    cursorHidden = 0;
-    SetCurrentCursor(static_cast<CursorType>(0));
-    showCursor(0);
-    mouseTrackerCallback = new aCallback;
-    mouseTrackerCallback->setExec(CheckMouse);
-    application->addCallback(mouseTrackerCallback);
+    SetScrollRect();
+    CursorHidden = 0;
+    SetCurrentCursor(static_cast<MCCursorType>(0));
+    SetCursorVisible(0);
+    MouseTrackerCallback = new MCGuiCallback;
+    MouseTrackerCallback->SetExec(CheckMouse);
+    Application->AddCallback(MouseTrackerCallback);
     (void)instance;
     return 0;
 }
 
-auto aSystem::stop() -> void
+auto MCGuiSystem::Stop() -> void
 {
-    destroyAllFITFiles(saveTempPath);
+    DestroyAllFitFiles(SaveTempPath);
     // The temp folder is this process's own (temp\<pid>\, see systemInit): it goes with its files.
-    MCFileSystem::RemoveDirectory(saveTempPath);
-    application->removeCallback(mouseTrackerCallback);
+    MCFileSystem::RemoveDirectory(SaveTempPath);
+    Application->RemoveCallback(MouseTrackerCallback);
 
-    if (mouseTrackerCallback != nullptr)
+    if (MouseTrackerCallback != nullptr)
     {
-        delete mouseTrackerCallback;
+        delete MouseTrackerCallback;
     }
 
-    mouseTrackerCallback = nullptr;
+    MouseTrackerCallback = nullptr;
 
-    if (mission != nullptr && mission->resultsScreen != nullptr)
+    if (Mission != nullptr && Mission->ResultsScreen != nullptr)
     {
-        mission->resultsScreen->destroy();
-        delete mission->resultsScreen;
-        mission->resultsScreen = nullptr;
+        Mission->ResultsScreen->Destroy();
+        delete Mission->ResultsScreen;
+        Mission->ResultsScreen = nullptr;
     }
 
-    userDestroy();
+    UserDestroy();
 
     if (MPlayer != nullptr)
     {
@@ -3730,128 +3731,128 @@ auto aSystem::stop() -> void
     MouseTimerKill();
     SoundRendererUninstall();
     MCInput::ShowCursor(true);
-    shutdownDirectDraw();
+    ShutdownDirectDraw();
     MCInput::ClipCursor(nullptr);
-    application->setCurrentObject(nullptr);
+    Application->SetCurrentObject(nullptr);
 
-    if (startupPakFile != nullptr)
+    if (StartupPakFile != nullptr)
     {
-        delete[] startupPakFile;
+        delete[] StartupPakFile;
     }
 
-    if (theInterface != nullptr)
+    if (TheInterface != nullptr)
     {
         // The original freed it without its destructor (the aObject teardown: its port and timers).
-        theInterface->destroy();
-        delete theInterface;
-        theInterface = nullptr;
+        TheInterface->Destroy();
+        delete TheInterface;
+        TheInterface = nullptr;
     }
 
-    if (mainHolder != nullptr)
+    if (MainHolder != nullptr)
     {
-        mainHolder->destroy();
-        delete mainHolder;
-        mainHolder = nullptr;
+        MainHolder->Destroy();
+        delete MainHolder;
+        MainHolder = nullptr;
     }
 
-    if (stopWindow1 != nullptr)
+    if (StopWindow1 != nullptr)
     {
-        stopWindow1->destroy();
-        delete stopWindow1;
-        stopWindow1 = nullptr;
+        StopWindow1->Destroy();
+        delete StopWindow1;
+        StopWindow1 = nullptr;
     }
 
-    if (stopWindow2 != nullptr)
+    if (StopWindow2 != nullptr)
     {
-        stopWindow2->destroy();
-        delete stopWindow2;
-        stopWindow2 = nullptr;
+        StopWindow2->Destroy();
+        delete StopWindow2;
+        StopWindow2 = nullptr;
     }
 
-    if (screenWindow != nullptr)
+    if (ScreenWindow != nullptr)
     {
-        screenWindow->destroy();
-        delete screenWindow;
-        screenWindow = nullptr;
+        ScreenWindow->Destroy();
+        delete ScreenWindow;
+        ScreenWindow = nullptr;
     }
 
-    if (gamePalette != nullptr)
+    if (GamePalette != nullptr)
     {
-        gamePalette->destroy();
-        delete gamePalette;
-        gamePalette = nullptr;
+        GamePalette->Destroy();
+        delete GamePalette;
+        GamePalette = nullptr;
     }
 
     // Port: the GDI palette, back bitmap and its BITMAPINFO (thePalette, backbm, backpbmi) never exist.
-    thePalette = nullptr;
-    backbm = nullptr;
-    backpbmi = nullptr;
+    ThePalette = nullptr;
+    Backbm = nullptr;
+    Backpbmi = nullptr;
 
-    if (artFile != nullptr)
+    if (ArtFile != nullptr)
     {
-        artFile->close();
-        delete artFile;
-        artFile = nullptr;
+        ArtFile->Close();
+        delete ArtFile;
+        ArtFile = nullptr;
     }
 
-    deleteFont(blackFont);
-    deleteFont(greyFont);
+    DeleteFont(BlackFont);
+    DeleteFont(GreyFont);
 
-    if (greyFont == nullptr)
+    if (GreyFont == nullptr)
     {
-        systemFont = nullptr;
+        SystemFont = nullptr;
     }
 
-    deleteFont(whiteFont);
-    deleteFont(redFont);
-    deleteFont(greenFont);
-    deleteFont(blueFont);
-    deleteFont(yellowFont);
-    deleteFont(dimFont);
-    deleteFont(yellowDropFont);
-    deleteFont(blueDropFont);
-    deleteFont(medBlackFont);
-    deleteFont(medGreyFont);
-    deleteFont(medWhiteFont);
-    deleteFont(medRedFont);
-    deleteFont(medGreenFont);
-    deleteFont(medBlueFont);
-    deleteFont(medYellowFont);
-    deleteFont(medDimFont);
-    deleteFont(lgBlackFont);
-    deleteFont(lgGreyFont);
-    deleteFont(lgWhiteFont);
-    deleteFont(lgRedFont);
-    deleteFont(lgGreenFont);
-    deleteFont(lgBlueFont);
-    deleteFont(lgYellowFont);
-    deleteFont(lgDimFont);
+    DeleteFont(WhiteFont);
+    DeleteFont(RedFont);
+    DeleteFont(GreenFont);
+    DeleteFont(BlueFont);
+    DeleteFont(YellowFont);
+    DeleteFont(DimFont);
+    DeleteFont(YellowDropFont);
+    DeleteFont(BlueDropFont);
+    DeleteFont(MedBlackFont);
+    DeleteFont(MedGreyFont);
+    DeleteFont(MedWhiteFont);
+    DeleteFont(MedRedFont);
+    DeleteFont(MedGreenFont);
+    DeleteFont(MedBlueFont);
+    DeleteFont(MedYellowFont);
+    DeleteFont(MedDimFont);
+    DeleteFont(LgBlackFont);
+    DeleteFont(LgGreyFont);
+    DeleteFont(LgWhiteFont);
+    DeleteFont(LgRedFont);
+    DeleteFont(LgGreenFont);
+    DeleteFont(LgBlueFont);
+    DeleteFont(LgYellowFont);
+    DeleteFont(LgDimFont);
 
-    if (lineFont != nullptr)
+    if (LineFont != nullptr)
     {
         // Font's destroy and destructor, inlined: frees the font data and forgets the cached letters.
-        lineFont->fontData.reset();
+        LineFont->FontData.reset();
 
-        for (uint8_t*& letter : lineFont->letterCache)
+        for (uint8_t*& letter : LineFont->LetterCache)
         {
             letter = reinterpret_cast<uint8_t*>(intptr_t{-1});
         }
 
-        delete lineFont;
-        lineFont = nullptr;
+        delete LineFont;
+        LineFont = nullptr;
     }
 
-    if (timerManager != nullptr)
+    if (TimerManager != nullptr)
     {
         // The destructor has no timers left to free after destroy.
-        timerManager->destroy();
-        delete timerManager;
-        timerManager = nullptr;
+        TimerManager->Destroy();
+        delete TimerManager;
+        TimerManager = nullptr;
     }
 
     // The cursor shapes went with systemHeap in the original.
-    cursorShapes = nullptr;
-    cursorShapeBlocks.Clear();
+    CursorShapes = nullptr;
+    CursorShapeBlocks.Clear();
 
     if (LZPacketBuffer != nullptr)
     {
@@ -3862,10 +3863,10 @@ auto aSystem::stop() -> void
     // Port: the original repainted the desktop (InvalidateRect of every window).
 }
 
-auto aSystem::startSmackerMovie(char* fileName, uint32_t flags, aObject* window, int exclusive) -> int32_t
+auto MCGuiSystem::StartSmackerMovie(char* fileName, uint32_t flags, MCGuiObject* window, int exclusive) -> int32_t
 {
     (void)flags;
-    SmackTag* movie = SmackOpen(fileName, 0xfe000, -1);
+    MCSmackTag* movie = SmackOpen(fileName, 0xfe000, -1);
 
     if (movie == nullptr)
     {
@@ -3877,9 +3878,9 @@ auto aSystem::startSmackerMovie(char* fileName, uint32_t flags, aObject* window,
         // A window of the movie's size, centred on the screen.
         const int32_t movieWidth = movie->Player->Width();
         const int32_t movieHeight = movie->Player->Height();
-        const int32_t screenW = application->width();
-        const int32_t screenH = application->height();
-        aSmackerWindow* movieWindow = new aSmackerWindow;
+        const int32_t screenW = Application->Width();
+        const int32_t screenH = Application->Height();
+        MCGuiSmackerWindow* movieWindow = new MCGuiSmackerWindow;
 
         if (movieWindow == nullptr)
         {
@@ -3887,7 +3888,7 @@ auto aSystem::startSmackerMovie(char* fileName, uint32_t flags, aObject* window,
         }
 
         window = movieWindow;
-        const int32_t result = window->init(static_cast<int32_t>(static_cast<uint32_t>(screenW - movieWidth) >> 1),
+        const int32_t result = window->Init(static_cast<int32_t>(static_cast<uint32_t>(screenW - movieWidth) >> 1),
                                             static_cast<int32_t>(static_cast<uint32_t>(screenH - movieHeight) >> 1),
                                             movieWidth, movieHeight, const_cast<char*>("Movie Time"));
 
@@ -3897,8 +3898,8 @@ auto aSystem::startSmackerMovie(char* fileName, uint32_t flags, aObject* window,
         }
     }
 
-    smackWindowPointer = window;
-    const int32_t result = static_cast<aSmackerWindow*>(window)->startSmackerMovie(movie, exclusive);
+    SmackWindowPointer = window;
+    const int32_t result = static_cast<MCGuiSmackerWindow*>(window)->StartSmackerMovie(movie, exclusive);
 
     if (result != 0)
     {
@@ -3907,20 +3908,20 @@ auto aSystem::startSmackerMovie(char* fileName, uint32_t flags, aObject* window,
 
     if (exclusive != 0)
     {
-        smackerWindow = window;
+        SmackerWindow = window;
     }
 
-    window->setDepth(100);
-    screenWindow->addChild(window);
-    window->draw();
+    window->SetDepth(100);
+    ScreenWindow->AddChild(window);
+    window->Draw();
     return 0;
 }
 
-auto aSystem::run() -> void
+auto MCGuiSystem::Run() -> void
 {
-    for (int32_t i = 0; i < screenWindow->numberOfChildren(); i++)
+    for (int32_t i = 0; i < ScreenWindow->NumberOfChildren(); i++)
     {
-        screenWindow->child(i)->draw();
+        ScreenWindow->Child(i)->Draw();
     }
 
     UpdateDisplay(0, 0, 0, 0, 0);
@@ -3928,7 +3929,7 @@ auto aSystem::run() -> void
 
     do
     {
-        startTime = MCPort::PerformanceCounter();
+        PerfStartTime = MCPort::PerformanceCounter();
         MCFrameLog::NextFrame();
 
         // Port: the PeekMessage / TranslateMessage / DispatchMessage loop, which stopped at WM_QUIT.
@@ -3937,18 +3938,18 @@ auto aSystem::run() -> void
             quit = -1;
         }
 
-        if (applicationActive != 0)
+        if (ApplicationActive != 0)
         {
-            if (smackerWindow2 == nullptr && smackerWindow == nullptr)
+            if (SmackerWindow2 == nullptr && SmackerWindow == nullptr)
             {
                 MCFrameLog::Scope logic("logic");
-                const int32_t count = numCallbacks;
+                const int32_t count = NumCallbacks;
 
                 for (int32_t i = 0; i < count; i++)
                 {
-                    if (callbacks[i] != nullptr)
+                    if (Callbacks[i] != nullptr)
                     {
-                        callbacks[i]->execute();
+                        Callbacks[i]->Execute();
                     }
                 }
             }
@@ -3956,14 +3957,14 @@ auto aSystem::run() -> void
             int32_t staticNoise = 0;
             int32_t noiseChance = 0;
 
-            if (scenario != nullptr)
+            if (Scenario != nullptr)
             {
-                staticNoise = scenario->startingUp;
-                noiseChance = scenario->startUpCountdown;
+                staticNoise = Scenario->StartingUp;
+                noiseChance = Scenario->StartUpCountdown;
             }
 
-            UpdateDisplay(takeScreenShot, staticNoise, noiseChance, 0, 0);
-            takeScreenShot = 0;
+            UpdateDisplay(TakeScreenShot, staticNoise, noiseChance, 0, 0);
+            TakeScreenShot = 0;
         }
         else if (quit == 0)
         {
@@ -3972,33 +3973,33 @@ auto aSystem::run() -> void
         else
         {
             // Quitting while inactive: close the movies and the feature screen.
-            if (application->smackerWindow2 != nullptr)
+            if (Application->SmackerWindow2 != nullptr)
             {
-                closeMovieWindow(application->smackerWindow2);
+                CloseMovieWindow(Application->SmackerWindow2);
             }
-            else if (application->smackerWindow != nullptr)
+            else if (Application->SmackerWindow != nullptr)
             {
-                closeMovieWindow(application->smackerWindow);
+                CloseMovieWindow(Application->SmackerWindow);
             }
 
-            if (featureScreen != nullptr)
+            if (FeatureScreen != nullptr)
             {
-                screenWindow->removeChild(featureScreen);
-                delete featureScreen;
-                featureScreen = nullptr;
+                ScreenWindow->RemoveChild(FeatureScreen);
+                delete FeatureScreen;
+                FeatureScreen = nullptr;
             }
         }
 
-        stopTime = MCPort::PerformanceCounter();
+        PerfStopTime = MCPort::PerformanceCounter();
 
         // The frame's length. The counters are split in 32-bit halves and the low halves' difference taken as a
         // signed 32-bit number, so a carry into the high half counts 2^32 too many (OB-062): that frame reads as
         // longer than 0.25 s and is clamped.
-        const int32_t highDifference = static_cast<int32_t>(static_cast<uint64_t>(stopTime) >> 32) -
-                                       static_cast<int32_t>(static_cast<uint64_t>(startTime) >> 32);
+        const int32_t highDifference = static_cast<int32_t>(static_cast<uint64_t>(PerfStopTime) >> 32) -
+                                       static_cast<int32_t>(static_cast<uint64_t>(PerfStartTime) >> 32);
         const int32_t lowDifference =
-            static_cast<int32_t>(static_cast<uint32_t>(stopTime) - static_cast<uint32_t>(startTime));
-        prevStart = startTime;
+            static_cast<int32_t>(static_cast<uint32_t>(PerfStopTime) - static_cast<uint32_t>(PerfStartTime));
+        PrevStart = PerfStartTime;
         double elapsed = static_cast<double>(highDifference) * 4294967296.0 + static_cast<double>(lowDifference);
 
         if (elapsed == 0.0)
@@ -4006,75 +4007,75 @@ auto aSystem::run() -> void
             elapsed = 9.999999747378752e-05;
         }
 
-        const double countsLow = static_cast<double>(static_cast<uint32_t>(countsPerSecond));
-        frameLength = static_cast<float>(elapsed / countsLow);
-        frameRate = static_cast<float>(
-            (static_cast<double>(static_cast<int32_t>(static_cast<uint64_t>(countsPerSecond) >> 32)) * 4294967296.0 +
+        const double countsLow = static_cast<double>(static_cast<uint32_t>(CountsPerSecond));
+        FrameLength = static_cast<float>(elapsed / countsLow);
+        FrameRate = static_cast<float>(
+            (static_cast<double>(static_cast<int32_t>(static_cast<uint64_t>(CountsPerSecond) >> 32)) * 4294967296.0 +
              countsLow) /
             elapsed);
 
-        if (frameLength > 0.25f)
+        if (FrameLength > 0.25f)
         {
-            frameLength = 0.25f;
+            FrameLength = 0.25f;
         }
 
-        if (frameRate < 4.0f)
+        if (FrameRate < 4.0f)
         {
-            frameRate = 4.0f;
+            FrameRate = 4.0f;
         }
 
-        if (lockFrameRate != 0)
+        if (LockFrameRate != 0)
         {
-            const int32_t wait = static_cast<int32_t>(67.0f - frameLength * 1000.0f);
+            const int32_t wait = static_cast<int32_t>(67.0f - FrameLength * 1000.0f);
 
             if (wait > 0)
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(wait));
-                frameLength = 0.06666667f;
-                frameRate = 15.0f;
+                FrameLength = 0.06666667f;
+                FrameRate = 15.0f;
             }
         }
     } while (quit == 0);
 }
 
-auto aSystem::width() -> int32_t
+auto MCGuiSystem::Width() -> int32_t
 {
-    return screenWidth;
+    return ScreenWidth;
 }
 
-auto aSystem::height() -> int32_t
+auto MCGuiSystem::Height() -> int32_t
 {
-    return screenHeight;
+    return ScreenHeight;
 }
 
-auto aSystem::screenOffsetX() -> int32_t
+auto MCGuiSystem::ScreenOffsetX() -> int32_t
 {
-    return offsetX;
+    return OffsetX;
 }
 
-auto aSystem::screenOffsetY() -> int32_t
+auto MCGuiSystem::ScreenOffsetY() -> int32_t
 {
-    return offsetY;
+    return OffsetY;
 }
 
-auto aSystem::window() -> void*
+auto MCGuiSystem::Window() -> void*
 {
-    return windowHandle;
+    return WindowHandle;
 }
 
-auto aSystem::setScreenOffsetX(int32_t offset) -> void
+auto MCGuiSystem::SetScreenOffsetX(int32_t offset) -> void
 {
-    offsetX = offset;
+    OffsetX = offset;
 }
 
-auto aSystem::setScreenOffsetY(int32_t offset) -> void
+auto MCGuiSystem::SetScreenOffsetY(int32_t offset) -> void
 {
-    offsetY = offset;
+    OffsetY = offset;
 }
 
-auto aSystem::addCallback(aCallback* callback) -> int32_t
+auto MCGuiSystem::AddCallback(MCGuiCallback* callback) -> int32_t
 {
-    if (numCallbacks == 0x62)
+    if (NumCallbacks == 0x62)
     {
         return 3;
     }
@@ -4084,29 +4085,29 @@ auto aSystem::addCallback(aCallback* callback) -> int32_t
         return 2;
     }
 
-    callbacks[numCallbacks] = callback;
-    numCallbacks++;
+    Callbacks[NumCallbacks] = callback;
+    NumCallbacks++;
     return 0;
 }
 
-auto aSystem::removeCallback(aCallback* callback) -> int32_t
+auto MCGuiSystem::RemoveCallback(MCGuiCallback* callback) -> int32_t
 {
     if (callback == nullptr)
     {
         return 2;
     }
 
-    for (int32_t i = 0; i < numCallbacks; i++)
+    for (int32_t i = 0; i < NumCallbacks; i++)
     {
-        if (callbacks[i] == callback)
+        if (Callbacks[i] == callback)
         {
-            for (; i < numCallbacks - 1; i++)
+            for (; i < NumCallbacks - 1; i++)
             {
-                callbacks[i] = callbacks[i + 1];
+                Callbacks[i] = Callbacks[i + 1];
             }
 
-            numCallbacks--;
-            callbacks[numCallbacks] = nullptr;
+            NumCallbacks--;
+            Callbacks[NumCallbacks] = nullptr;
             return 0;
         }
     }
@@ -4114,96 +4115,96 @@ auto aSystem::removeCallback(aCallback* callback) -> int32_t
     return 1;
 }
 
-auto aSystem::setModalObject(aObject* obj) -> void
+auto MCGuiSystem::SetModalObject(MCGuiObject* obj) -> void
 {
-    modal = obj;
-    obj->bringToFront(0);
+    Modal = obj;
+    obj->BringToFront(0);
 }
 
-auto aSystem::clearModal() -> void
+auto MCGuiSystem::ClearModal() -> void
 {
-    modal = nullptr;
+    Modal = nullptr;
 }
 
-auto aSystem::grab(aObject* obj) -> void
+auto MCGuiSystem::Grab(MCGuiObject* obj) -> void
 {
-    Assert(recordClicks == 0 || Terrain::terrainTacticalMap == nullptr ||
-               obj != Terrain::terrainTacticalMap->scrollButtons[5],
+    Assert(RecordClicks == 0 || MCTerrain::TerrainTacticalMap == nullptr ||
+               obj != MCTerrain::TerrainTacticalMap->ScrollButtons[5],
            0, " Get Jon! Or save this for him! ");
-    grabbed = obj;
+    Grabbed = obj;
     MCInput::SetCapture();
 }
 
-auto aSystem::setText(aObject* obj) -> void
+auto MCGuiSystem::SetText(MCGuiObject* obj) -> void
 {
-    if (textFocus != nullptr)
+    if (TextFocus != nullptr)
     {
-        releaseText();
+        ReleaseText();
     }
 
-    textFocus = obj;
+    TextFocus = obj;
 
     if (obj != nullptr)
     {
-        aEvent event;
-        event.clear();
-        event.type = 0x1e;
-        event.target = obj;
-        event.data = 7;
-        obj->handleEvent(&event);
+        MCGuiEvent event;
+        event.Clear();
+        event.Type = 0x1e;
+        event.Target = obj;
+        event.Data = 7;
+        obj->HandleEvent(&event);
     }
 }
 
-auto aSystem::setCurrentObject(aObject* obj) -> void
+auto MCGuiSystem::SetCurrentObject(MCGuiObject* obj) -> void
 {
-    current = obj;
+    Current = obj;
 }
 
-auto aSystem::release() -> void
+auto MCGuiSystem::Release() -> void
 {
-    grabbed = nullptr;
+    Grabbed = nullptr;
     MCInput::ReleaseCapture();
 }
 
-auto aSystem::releaseText() -> void
+auto MCGuiSystem::ReleaseText() -> void
 {
-    aObject* obj = textFocus;
+    MCGuiObject* obj = TextFocus;
 
     if (obj != nullptr)
     {
-        aEvent event;
-        event.clear();
-        event.type = 0x1e;
-        event.data = 8;
-        event.target = obj;
-        obj->handleEvent(&event);
-        textFocus = nullptr;
+        MCGuiEvent event;
+        event.Clear();
+        event.Type = 0x1e;
+        event.Data = 8;
+        event.Target = obj;
+        obj->HandleEvent(&event);
+        TextFocus = nullptr;
     }
 }
 
-auto aSystem::grabbedObject() -> aObject*
+auto MCGuiSystem::GrabbedObject() -> MCGuiObject*
 {
-    return grabbed;
+    return Grabbed;
 }
 
-auto aSystem::textObject() -> aObject*
+auto MCGuiSystem::TextObject() -> MCGuiObject*
 {
-    return textFocus;
+    return TextFocus;
 }
 
-auto aSystem::currentObject() -> aObject*
+auto MCGuiSystem::CurrentObject() -> MCGuiObject*
 {
-    return current;
+    return Current;
 }
 
-auto aSystem::tweakDDPalette(int first, int count, VFX_RGB* colors, int sixBit) -> int
+auto MCGuiSystem::TweakDDPalette(int first, int count, MCVfxRgb* colors, int sixBit) -> int
 {
-    if (displayReady == 0)
+    if (DisplayReady == 0)
     {
         return 0;
     }
 
-    if (smackerWindow == nullptr)
+    if (SmackerWindow == nullptr)
     {
         // Entries 0..9 and 246..255 are Windows' own unless a movie plays.
         if (first < 10)
@@ -4224,90 +4225,90 @@ auto aSystem::tweakDDPalette(int first, int count, VFX_RGB* colors, int sixBit) 
 
     for (int i = first; i < end; i++, colors++)
     {
-        VFX_RGB color = *colors;
+        MCVfxRgb color = *colors;
 
         if (sixBit != 0)
         {
-            color.r = static_cast<uint8_t>(color.r << 2);
-            color.g = static_cast<uint8_t>(color.g << 2);
-            color.b = static_cast<uint8_t>(color.b << 2);
+            color.R = static_cast<uint8_t>(color.R << 2);
+            color.G = static_cast<uint8_t>(color.G << 2);
+            color.B = static_cast<uint8_t>(color.B << 2);
         }
 
-        currentPalette[i] = color;
-        logicalPalette[i] = color;
+        CurrentPalette[i] = color;
+        LogicalPalette[i] = color;
     }
 
-    if (gammaLevel != 0)
+    if (GammaLevel != 0)
     {
         for (int i = first; i < end; i++)
         {
-            logicalPalette[i].r = GammaColorTranslation[currentPalette[i].r];
-            logicalPalette[i].g = GammaColorTranslation[currentPalette[i].g];
-            logicalPalette[i].b = GammaColorTranslation[currentPalette[i].b];
+            LogicalPalette[i].R = GammaColorTranslation[CurrentPalette[i].R];
+            LogicalPalette[i].G = GammaColorTranslation[CurrentPalette[i].G];
+            LogicalPalette[i].B = GammaColorTranslation[CurrentPalette[i].B];
         }
 
-        if (gammaLevel == 2)
+        if (GammaLevel == 2)
         {
             for (int i = first; i < end; i++)
             {
-                logicalPalette[i].r = GammaColorTranslation[logicalPalette[i].r];
-                logicalPalette[i].g = GammaColorTranslation[logicalPalette[i].g];
-                logicalPalette[i].b = GammaColorTranslation[logicalPalette[i].b];
+                LogicalPalette[i].R = GammaColorTranslation[LogicalPalette[i].R];
+                LogicalPalette[i].G = GammaColorTranslation[LogicalPalette[i].G];
+                LogicalPalette[i].B = GammaColorTranslation[LogicalPalette[i].B];
             }
         }
     }
 
-    showPalette(first, count);
+    ShowPalette(first, count);
     // The original returned AnimatePalette's -1 in a window, and whether SetEntries succeeded in full screen.
-    return gFullScreen != 0 ? 1 : -1;
+    return GFullScreen != 0 ? 1 : -1;
 }
 
-auto aSystem::gammaCorrectCurrentPalette() -> void
+auto MCGuiSystem::GammaCorrectCurrentPalette() -> void
 {
-    if (displayReady != 0)
+    if (DisplayReady != 0)
     {
-        gammaLevel++;
+        GammaLevel++;
 
-        if (gammaLevel > 3)
+        if (GammaLevel > 3)
         {
-            gammaLevel = 0;
+            GammaLevel = 0;
         }
 
-        gammaCorrectCurrentPalette(gammaLevel);
+        GammaCorrectCurrentPalette(GammaLevel);
     }
 }
 
-auto aSystem::gammaCorrectCurrentPalette(int32_t level) -> void
+auto MCGuiSystem::GammaCorrectCurrentPalette(int32_t level) -> void
 {
-    if (displayReady == 0)
+    if (DisplayReady == 0)
     {
         return;
     }
 
-    gammaLevel = level;
+    GammaLevel = level;
 
     // Entries 10..245, through the gamma table once per level.
     for (int i = 10; i < 0xf6; i++)
     {
-        logicalPalette[i] = currentPalette[i];
+        LogicalPalette[i] = CurrentPalette[i];
     }
 
     for (int32_t pass = 0; pass < level && pass < 3; pass++)
     {
         for (int i = 10; i < 0xf6; i++)
         {
-            logicalPalette[i].r = GammaColorTranslation[logicalPalette[i].r];
-            logicalPalette[i].g = GammaColorTranslation[logicalPalette[i].g];
-            logicalPalette[i].b = GammaColorTranslation[logicalPalette[i].b];
+            LogicalPalette[i].R = GammaColorTranslation[LogicalPalette[i].R];
+            LogicalPalette[i].G = GammaColorTranslation[LogicalPalette[i].G];
+            LogicalPalette[i].B = GammaColorTranslation[LogicalPalette[i].B];
         }
     }
 
-    showPalette(10, 0xec);
+    ShowPalette(10, 0xec);
 }
 
-auto aSystem::fadeDownCurrentPalette() -> void
+auto MCGuiSystem::FadeDownCurrentPalette() -> void
 {
-    if (displayReady == 0 || currentPalette[10].r == 0)
+    if (DisplayReady == 0 || CurrentPalette[10].R == 0)
     {
         return;
     }
@@ -4319,7 +4320,7 @@ auto aSystem::fadeDownCurrentPalette() -> void
     MCDisplay* display = MCInput::Display();
     int32_t step = 1;
     int32_t faded = 0;
-    const double frequency = static_cast<double>(countsPerSecond);
+    const double frequency = static_cast<double>(CountsPerSecond);
 
     do
     {
@@ -4346,11 +4347,11 @@ auto aSystem::fadeDownCurrentPalette() -> void
     // the screen stays black.
     for (int i = 10; i < 0xf6; i++)
     {
-        currentPalette[i] = {};
-        logicalPalette[i] = {};
+        CurrentPalette[i] = {};
+        LogicalPalette[i] = {};
     }
 
-    showPalette(10, 0xec);
+    ShowPalette(10, 0xec);
 
     if (display != nullptr)
     {
@@ -4358,44 +4359,44 @@ auto aSystem::fadeDownCurrentPalette() -> void
     }
 }
 
-auto aSystem::activatePalette(uint8_t* colors, int first, int count) -> void
+auto MCGuiSystem::ActivatePalette(uint8_t* colors, int first, int count) -> void
 {
     if (first != 0)
     {
-        tweakDDPalette(first, count, reinterpret_cast<VFX_RGB*>(colors + first * 3), -1);
+        TweakDDPalette(first, count, reinterpret_cast<MCVfxRgb*>(colors + first * 3), -1);
         return;
     }
 
     // From entry 0 the palette is only remembered.
-    if (paletteRgb == nullptr)
+    if (PaletteRgb == nullptr)
     {
-        paletteRgb = new VFX_RGB[256]{};
+        PaletteRgb = new MCVfxRgb[256]{};
     }
 
-    globalEntries = count;
-    globalFirst = 0;
-    std::memcpy(paletteRgb, colors, static_cast<size_t>(count * 3));
+    GlobalEntries = count;
+    GlobalFirst = 0;
+    std::memcpy(PaletteRgb, colors, static_cast<size_t>(count * 3));
 }
 
-auto aSystem::activatePaletteFromTGA(char* fileName) -> void
+auto MCGuiSystem::ActivatePaletteFromTga(char* fileName) -> void
 {
     char path[252];
     char message[256];
-    File tgaFile;
-    std::snprintf(path, sizeof(path), "%s%s", artPath, fileName);
+    MCFile tgaFile;
+    std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (tgaFile.open(path, READ, 50) != 0)
+    if (tgaFile.Open(path, READ, 50) != 0)
     {
         MCPort::StrCopy(path, sizeof(path), fileName);
 
-        if (tgaFile.open(path, READ, 50) != 0)
+        if (tgaFile.Open(path, READ, 50) != 0)
         {
             std::snprintf(message, sizeof(message), "Error reading '%s'", path);
             GeneralMsg(message);
         }
     }
 
-    const uint32_t size = tgaFile.fileSize();
+    const uint32_t size = tgaFile.FileSize();
 
     if (size == 0)
     {
@@ -4409,187 +4410,187 @@ auto aSystem::activatePaletteFromTGA(char* fileName) -> void
     }
 
     std::vector<uint8_t> tga(size);
-    tgaFile.read(tga.data(), static_cast<int32_t>(size));
-    tgaFile.close();
-    std::array<VFX_RGB, 256> palette = {};
-    tgaColorMapToPalette(tga.data(), palette.data());
-    activatePalette(reinterpret_cast<uint8_t*>(palette.data()), 0, 0x100);
+    tgaFile.Read(tga.data(), static_cast<int32_t>(size));
+    tgaFile.Close();
+    std::array<MCVfxRgb, 256> palette = {};
+    TgaColorMapToPalette(tga.data(), palette.data());
+    ActivatePalette(reinterpret_cast<uint8_t*>(palette.data()), 0, 0x100);
     InitAlphaLookup(palette.data());
 }
 
-auto aSystem::activatePaletteFromGIF(char* fileName) -> void
+auto MCGuiSystem::ActivatePaletteFromGif(char* fileName) -> void
 {
     // Reads the GIF's palette and does nothing with it.
     char path[128];
-    File gifFile;
-    std::snprintf(path, sizeof(path), "%s%s", palettePath, fileName);
+    MCFile gifFile;
+    std::snprintf(path, sizeof(path), "%s%s", PalettePath, fileName);
 
-    if (fileExists(path) == 0)
+    if (FileExists(path) == 0)
     {
         std::strncpy(path, fileName, 0x7f);
-        Assert(fileExists(path), 0, "Unable to find palette .gif");
+        Assert(FileExists(path), 0, "Unable to find palette .gif");
     }
 
-    gifFile.open(path, READ, 50);
-    const uint32_t size = gifFile.fileSize();
+    gifFile.Open(path, READ, 50);
+    const uint32_t size = gifFile.FileSize();
     Assert(size != 0, 0, "Error reading from palette gif");
     std::vector<uint8_t> gif(size);
-    gifFile.read(gif.data(), static_cast<int32_t>(size));
-    gifFile.close();
-    VFX_RGB colors[256];
-    VFX_GIF_palette(gif.data(), colors);
+    gifFile.Read(gif.data(), static_cast<int32_t>(size));
+    gifFile.Close();
+    MCVfxRgb colors[256];
+    VfxGifPalette(gif.data(), colors);
 }
 
-auto aSystem::activateSmackerPalette(uint8_t* colors) -> void
+auto MCGuiSystem::ActivateSmackerPalette(uint8_t* colors) -> void
 {
-    tweakDDPalette(0, 0x100, reinterpret_cast<VFX_RGB*>(colors), 0);
+    TweakDDPalette(0, 0x100, reinterpret_cast<MCVfxRgb*>(colors), 0);
 }
 
-auto aSystem::AddTimer(aObject* target, int16_t id, int32_t interval, int32_t eventType, int32_t eventData,
-                       int useScenarioTime) -> int32_t
+auto MCGuiSystem::AddTimer(MCGuiObject* target, int16_t id, int32_t interval, int32_t eventType, int32_t eventData,
+                           int useScenarioTime) -> int32_t
 {
-    lockMouse();
+    LockMouse();
     const int32_t result =
-        timerManager->AddTimer(target, id, static_cast<uint32_t>(interval), eventType, eventData, useScenarioTime);
-    unlockMouse();
+        TimerManager->AddTimer(target, id, static_cast<uint32_t>(interval), eventType, eventData, useScenarioTime);
+    UnlockMouse();
     return result;
 }
 
-auto aSystem::AddUniqueTimer(aObject* target, int16_t id, int32_t interval, int32_t eventType, int32_t eventData,
-                             int useScenarioTime) -> int32_t
+auto MCGuiSystem::AddUniqueTimer(MCGuiObject* target, int16_t id, int32_t interval, int32_t eventType,
+                                 int32_t eventData, int useScenarioTime) -> int32_t
 {
-    lockMouse();
-    const int32_t result = timerManager->AddUniqueTimer(target, id, static_cast<uint32_t>(interval), eventType,
+    LockMouse();
+    const int32_t result = TimerManager->AddUniqueTimer(target, id, static_cast<uint32_t>(interval), eventType,
                                                         eventData, useScenarioTime);
-    unlockMouse();
+    UnlockMouse();
     return result;
 }
 
-auto aSystem::RemoveTimer(aObject* target, int16_t id) -> void
+auto MCGuiSystem::RemoveTimer(MCGuiObject* target, int16_t id) -> void
 {
-    aTimerManager* manager = timerManager;
+    MCGuiTimerManager* manager = TimerManager;
 
     if (manager != nullptr)
     {
-        lockMouse();
+        LockMouse();
         manager->RemoveTimer(target, id);
-        unlockMouse();
+        UnlockMouse();
     }
 }
 
-auto aSystem::RemoveTimers(aObject* target) -> void
+auto MCGuiSystem::RemoveTimers(MCGuiObject* target) -> void
 {
-    aTimerManager* manager = timerManager;
+    MCGuiTimerManager* manager = TimerManager;
 
     if (manager != nullptr)
     {
-        lockMouse();
+        LockMouse();
         manager->RemoveTimers(target);
-        unlockMouse();
+        UnlockMouse();
     }
 }
 
-auto aSystem::SetCurrentCursor(CursorType cursor) -> void
+auto MCGuiSystem::SetCurrentCursor(MCCursorType cursor) -> void
 {
-    if (cursorHidden != 0)
+    if (CursorHidden != 0)
     {
         return;
     }
 
-    AG_mouseFrame = 0;
-    currentCursor = cursor;
-    cursorShape = static_cast<int32_t>(cursor);
+    AGMouseFrame = 0;
+    CurrentCursor = cursor;
+    CursorShape = static_cast<int32_t>(cursor);
 
     // 0xf..0x11 are offset by the interface's cursor set; 0x12 is shape 1.
     switch (static_cast<int32_t>(cursor))
     {
         case 0xf:
         {
-            if (theInterface != nullptr)
+            if (TheInterface != nullptr)
             {
-                cursorShape = theInterface->cursorOffset + 0xf;
+                CursorShape = TheInterface->CursorOffset + 0xf;
             }
             break;
         }
         case 0x10:
         {
-            if (theInterface != nullptr)
+            if (TheInterface != nullptr)
             {
-                cursorShape = theInterface->cursorOffset + 0x2f;
+                CursorShape = TheInterface->CursorOffset + 0x2f;
             }
             break;
         }
         case 0x11:
         {
-            if (theInterface != nullptr)
+            if (TheInterface != nullptr)
             {
-                cursorShape = theInterface->cursorOffset + 0x4f;
+                CursorShape = TheInterface->CursorOffset + 0x4f;
             }
             break;
         }
         case 0x12:
-            cursorShape = 1;
+            CursorShape = 1;
             break;
     }
 }
 
-auto aSystem::showCursor(int show) -> void
+auto MCGuiSystem::SetCursorVisible(int show) -> void
 {
     if (show != 0)
     {
-        cursorHidden = 0;
-        SetCurrentCursor(static_cast<CursorType>(0));
+        CursorHidden = 0;
+        SetCurrentCursor(static_cast<MCCursorType>(0));
         return;
     }
 
-    cursorShape = -1;
-    cursorHidden = -1;
+    CursorShape = -1;
+    CursorHidden = -1;
 }
 
 // aCallback.
 
-aCallback::aCallback()
+MCGuiCallback::MCGuiCallback()
 {
-    destroy();
+    Destroy();
 }
 
 namespace
 {
     /// <summary>
-    /// Port: the callback whose function is running (<see cref="aCallback::execute"/>), cleared when it is deleted.
+    /// Port: the callback whose function is running (<see cref="MCGuiCallback::Execute"/>), cleared when it is deleted.
     /// </summary>
-    aCallback* executingCallback = nullptr;
+    MCGuiCallback* ExecutingCallback = nullptr;
 }
 
-aCallback::~aCallback()
+MCGuiCallback::~MCGuiCallback()
 {
-    if (this == executingCallback)
+    if (this == ExecutingCallback)
     {
-        executingCallback = nullptr;
+        ExecutingCallback = nullptr;
     }
 
-    destroy();
+    Destroy();
 }
 
-auto aCallback::destroy() -> void
+auto MCGuiCallback::Destroy() -> void
 {
-    exec = nullptr;
-    message = 0;
-    object = nullptr;
+    Exec = nullptr;
+    Message = 0;
+    Object = nullptr;
 }
 
-auto aCallback::execute() -> void
+auto MCGuiCallback::Execute() -> void
 {
-    if (exec != nullptr)
+    if (Exec != nullptr)
     {
         // Port fix: a function can delete its own callback (DancingButtons deletes moveCallback). The original then
         // read message and object from the freed block, which destroy() had zeroed, so it posted nothing. Return
         // instead of reading freed memory (OB-109).
-        aCallback* outerCallback = executingCallback;
-        executingCallback = this;
-        exec();
-        const bool deleted = executingCallback != this;
-        executingCallback = outerCallback;
+        MCGuiCallback* outerCallback = ExecutingCallback;
+        ExecutingCallback = this;
+        Exec();
+        const bool deleted = ExecutingCallback != this;
+        ExecutingCallback = outerCallback;
 
         if (deleted)
         {
@@ -4597,60 +4598,60 @@ auto aCallback::execute() -> void
         }
     }
 
-    if (message != 0 && object != nullptr)
+    if (Message != 0 && Object != nullptr)
     {
-        aPostMessage(object, message);
+        APostMessage(Object, Message);
     }
 }
 
-auto aCallback::setExec(void (*func)()) -> void
+auto MCGuiCallback::SetExec(void (*func)()) -> void
 {
-    exec = func;
+    Exec = func;
 }
 
-auto aCallback::setMessage(aObject* obj, int32_t msg) -> void
+auto MCGuiCallback::SetMessage(MCGuiObject* obj, int32_t msg) -> void
 {
-    message = msg;
-    object = obj;
+    Message = msg;
+    Object = obj;
 }
 
-auto aEvent::clear() -> void
+auto MCGuiEvent::Clear() -> void
 {
     // data (+0x1c) and lParam (+0x20) are left as they were.
-    type = 0;
-    target = nullptr;
-    leftButton = 0;
-    middleButton = 0;
-    rightButton = 0;
-    altKey = 0;
-    ctrlKey = 0;
-    shiftKey = 0;
-    key = 0;
-    scanCode = 0;
-    x = 0;
-    y = 0;
+    Type = 0;
+    Target = nullptr;
+    LeftButton = 0;
+    MiddleButton = 0;
+    RightButton = 0;
+    AltKey = 0;
+    CtrlKey = 0;
+    ShiftKey = 0;
+    Key = 0;
+    ScanCode = 0;
+    X = 0;
+    Y = 0;
 }
 
 auto TimerCallback() -> void
 {
     const uint32_t now = MCPort::Milliseconds();
-    int32_t count = application->timerManager->numTimers;
+    int32_t count = Application->TimerManager->NumTimers;
 
-    for (int32_t i = 0; i < application->timerManager->numTimers; i++)
+    for (int32_t i = 0; i < Application->TimerManager->NumTimers; i++)
     {
-        aTimerManager* manager = application->timerManager;
-        aTimer* timer = manager->GetTimer(static_cast<int16_t>(i));
+        MCGuiTimerManager* manager = Application->TimerManager;
+        MCGuiTimer* timer = manager->GetTimer(static_cast<int16_t>(i));
 
         if (timer == nullptr)
         {
             continue;
         }
 
-        const uint32_t due = timer->lastTime + timer->interval;
+        const uint32_t due = timer->LastTime + timer->Interval;
 
-        if (timer->useScenarioTime != 0)
+        if (timer->UseScenarioTime != 0)
         {
-            if (!(static_cast<double>(due) < static_cast<double>(scenarioTime) * 1000.0))
+            if (!(static_cast<double>(due) < static_cast<double>(ScenarioTime) * 1000.0))
             {
                 continue;
             }
@@ -4661,55 +4662,55 @@ auto TimerCallback() -> void
         }
 
         const tagPOINT cursor = GetMessageCursorLoc();
-        aEvent event;
+        MCGuiEvent event;
 
-        if (timer->eventType != 0)
+        if (timer->EventType != 0)
         {
             // A one-shot event: sent, then the timer goes (unless the handler changed the timer list).
-            event.clear();
-            event.x = cursor.x;
-            event.y = cursor.y;
-            event.data = timer->eventData;
-            event.type = timer->eventType;
-            manager = application->timerManager;
+            event.Clear();
+            event.X = cursor.x;
+            event.Y = cursor.y;
+            event.Data = timer->EventData;
+            event.Type = timer->EventType;
+            manager = Application->TimerManager;
             manager->LockTimersExcept(manager->GetTimer(static_cast<int16_t>(i)));
-            timer->target->handleEvent(&event);
-            application->timerManager->UnlockTimers();
+            timer->Target->HandleEvent(&event);
+            Application->TimerManager->UnlockTimers();
 
-            if (count == application->timerManager->numTimers)
+            if (count == Application->TimerManager->NumTimers)
             {
-                lockMouse();
-                application->timerManager->RemoveTimer(i);
-                unlockMouse();
+                LockMouse();
+                Application->TimerManager->RemoveTimer(i);
+                UnlockMouse();
             }
             else
             {
-                count = application->timerManager->numTimers;
+                count = Application->TimerManager->NumTimers;
             }
         }
         else
         {
-            event.clear();
-            event.x = cursor.x;
-            event.y = cursor.y;
-            event.data = timer->id;
-            event.type = 0x13;
-            manager = application->timerManager;
+            event.Clear();
+            event.X = cursor.x;
+            event.Y = cursor.y;
+            event.Data = timer->Id;
+            event.Type = 0x13;
+            manager = Application->TimerManager;
             manager->LockTimersExcept(manager->GetTimer(static_cast<int16_t>(i)));
-            timer->target->handleEvent(&event);
-            application->timerManager->UnlockTimers();
-            const int32_t numTimers = application->timerManager->numTimers;
+            timer->Target->HandleEvent(&event);
+            Application->TimerManager->UnlockTimers();
+            const int32_t numTimers = Application->TimerManager->NumTimers;
 
             if (count == numTimers)
             {
-                timer->lastTime = now;
+                timer->LastTime = now;
             }
             else
             {
                 // Faithful: when the handler removed a timer other than this one, this one's time is set too.
                 if (count - 1 != numTimers)
                 {
-                    timer->lastTime = now;
+                    timer->LastTime = now;
                 }
 
                 count = numTimers;
@@ -4720,69 +4721,69 @@ auto TimerCallback() -> void
 
 // aTimerManager.
 
-aTimerManager::aTimerManager()
+MCGuiTimerManager::MCGuiTimerManager()
 {
-    for (aTimer*& timer : timers)
+    for (MCGuiTimer*& timer : Timers)
     {
         timer = nullptr;
     }
 
-    numTimers = 0;
-    numTimersToWhack = 0;
-    locked = 0;
+    NumTimers = 0;
+    NumTimersToWhack = 0;
+    Locked = 0;
 }
 
-aTimerManager::~aTimerManager()
+MCGuiTimerManager::~MCGuiTimerManager()
 {
-    for (int16_t i = 0; i < numTimers; i++)
+    for (int16_t i = 0; i < NumTimers; i++)
     {
-        delete timers[i];
+        delete Timers[i];
     }
 }
 
-auto aTimerManager::Init() -> int32_t
+auto MCGuiTimerManager::Init() -> int32_t
 {
-    timerCallback = new aCallback;
+    RunTimersCallback = new MCGuiCallback;
 
-    if (timerCallback == nullptr)
+    if (RunTimersCallback == nullptr)
     {
         return -1;
     }
 
-    timerCallback->setExec(TimerCallback);
+    RunTimersCallback->SetExec(TimerCallback);
     return 0;
 }
 
-auto aTimerManager::destroy() -> void
+auto MCGuiTimerManager::Destroy() -> void
 {
-    while (numTimers > 0)
+    while (NumTimers > 0)
     {
-        delete timers[numTimers - 1];
-        timers[numTimers - 1] = nullptr;
-        numTimers--;
+        delete Timers[NumTimers - 1];
+        Timers[NumTimers - 1] = nullptr;
+        NumTimers--;
     }
 
-    aCallback* callback = timerCallback;
-    application->removeCallback(callback);
+    MCGuiCallback* callback = RunTimersCallback;
+    Application->RemoveCallback(callback);
 
     if (callback != nullptr)
     {
-        callback->destroy();
+        callback->Destroy();
         delete callback;
     }
 
-    timerCallback = nullptr;
+    RunTimersCallback = nullptr;
 }
 
-auto aTimerManager::AddUniqueTimer(aObject* target, int16_t id, uint32_t interval, int32_t eventType, int32_t eventData,
-                                   int useScenarioTime) -> int32_t
+auto MCGuiTimerManager::AddUniqueTimer(MCGuiObject* target, int16_t id, uint32_t interval, int32_t eventType,
+                                       int32_t eventData, int useScenarioTime) -> int32_t
 {
-    for (int16_t i = 0; i < numTimers; i++)
+    for (int16_t i = 0; i < NumTimers; i++)
     {
-        const aTimer* timer = timers[i];
+        const MCGuiTimer* timer = Timers[i];
 
-        if (timer != nullptr && timer->target == target && timer->id == id && timer->interval == interval &&
-            timer->eventType == eventType && timer->eventData == eventData)
+        if (timer != nullptr && timer->Target == target && timer->Id == id && timer->Interval == interval &&
+            timer->EventType == eventType && timer->EventData == eventData)
         {
             return -1;
         }
@@ -4791,10 +4792,10 @@ auto aTimerManager::AddUniqueTimer(aObject* target, int16_t id, uint32_t interva
     return AddTimer(target, id, interval, eventType, eventData, useScenarioTime);
 }
 
-auto aTimerManager::AddTimer(aObject* target, int16_t id, uint32_t interval, int32_t eventType, int32_t eventData,
-                             int useScenarioTime) -> int32_t
+auto MCGuiTimerManager::AddTimer(MCGuiObject* target, int16_t id, uint32_t interval, int32_t eventType,
+                                 int32_t eventData, int useScenarioTime) -> int32_t
 {
-    const int32_t index = numTimers;
+    const int32_t index = NumTimers;
 
     // Port fix: the original accepted a 100th timer (index 99), one past the array, over timersToWhack[0].
     if (index >= 99)
@@ -4802,12 +4803,12 @@ auto aTimerManager::AddTimer(aObject* target, int16_t id, uint32_t interval, int
         return -1;
     }
 
-    timers[index] = new aTimer{};
-    aTimer* timer = timers[numTimers];
+    Timers[index] = new MCGuiTimer{};
+    MCGuiTimer* timer = Timers[NumTimers];
 
     if (index == 0)
     {
-        application->addCallback(timerCallback);
+        Application->AddCallback(RunTimersCallback);
     }
 
     uint32_t startTime;
@@ -4818,64 +4819,64 @@ auto aTimerManager::AddTimer(aObject* target, int16_t id, uint32_t interval, int
     }
     else
     {
-        startTime = static_cast<uint32_t>(static_cast<int32_t>(static_cast<double>(scenarioTime) * 1000.0));
+        startTime = static_cast<uint32_t>(static_cast<int32_t>(static_cast<double>(ScenarioTime) * 1000.0));
     }
 
-    timer->target = target;
-    timer->id = id;
-    timer->interval = interval;
-    timer->lastTime = startTime;
-    timer->eventType = eventType;
-    timer->eventData = eventData;
-    numTimers = index + 1;
-    timer->useScenarioTime = useScenarioTime;
+    timer->Target = target;
+    timer->Id = id;
+    timer->Interval = interval;
+    timer->LastTime = startTime;
+    timer->EventType = eventType;
+    timer->EventData = eventData;
+    NumTimers = index + 1;
+    timer->UseScenarioTime = useScenarioTime;
     return 0;
 }
 
-auto aTimerManager::RemoveTimers(aObject* target) -> void
+auto MCGuiTimerManager::RemoveTimers(MCGuiObject* target) -> void
 {
-    for (int32_t i = 0; i < numTimers; i++)
+    for (int32_t i = 0; i < NumTimers; i++)
     {
-        aTimer* timer = timers[i];
+        MCGuiTimer* timer = Timers[i];
 
-        if (target != timer->target)
+        if (target != timer->Target)
         {
             continue;
         }
 
-        if (locked != 0 && timer != lockedExcept)
+        if (Locked != 0 && timer != LockedExcept)
         {
             // Locked: queued for UnlockTimers (once per matching timer).
-            timersToWhack[numTimersToWhack].target = target;
-            timersToWhack[numTimersToWhack].id = -1;
-            numTimersToWhack++;
+            TimersToWhack[NumTimersToWhack].Target = target;
+            TimersToWhack[NumTimersToWhack].Id = -1;
+            NumTimersToWhack++;
             continue;
         }
 
         delete timer;
-        numTimers--;
+        NumTimers--;
 
-        for (int32_t j = i; j < numTimers; j++)
+        for (int32_t j = i; j < NumTimers; j++)
         {
-            timers[j] = timers[j + 1];
+            Timers[j] = Timers[j + 1];
         }
 
-        timers[numTimers] = nullptr;
+        Timers[NumTimers] = nullptr;
         i--;
 
-        if (numTimers == 0)
+        if (NumTimers == 0)
         {
-            application->removeCallback(timerCallback);
+            Application->RemoveCallback(RunTimersCallback);
         }
     }
 }
 
-auto aTimerManager::RemoveTimer(aObject* target, int16_t id) -> void
+auto MCGuiTimerManager::RemoveTimer(MCGuiObject* target, int16_t id) -> void
 {
-    const int32_t count = numTimers;
+    const int32_t count = NumTimers;
     int32_t index = 0;
 
-    while (index < count && !(timers[index]->id == id && target == timers[index]->target))
+    while (index < count && !(Timers[index]->Id == id && target == Timers[index]->Target))
     {
         index++;
     }
@@ -4885,127 +4886,127 @@ auto aTimerManager::RemoveTimer(aObject* target, int16_t id) -> void
         return;
     }
 
-    if (locked != 0 && timers[index] != lockedExcept)
+    if (Locked != 0 && Timers[index] != LockedExcept)
     {
-        timersToWhack[numTimersToWhack].target = target;
-        timersToWhack[numTimersToWhack].id = id;
-        numTimersToWhack++;
+        TimersToWhack[NumTimersToWhack].Target = target;
+        TimersToWhack[NumTimersToWhack].Id = id;
+        NumTimersToWhack++;
         return;
     }
 
-    delete timers[index];
-    numTimers = count - 1;
+    delete Timers[index];
+    NumTimers = count - 1;
 
-    for (; index < numTimers; index++)
+    for (; index < NumTimers; index++)
     {
-        timers[index] = timers[index + 1];
+        Timers[index] = Timers[index + 1];
     }
 
-    timers[numTimers] = nullptr;
+    Timers[NumTimers] = nullptr;
 
-    if (numTimers == 0)
+    if (NumTimers == 0)
     {
-        application->removeCallback(timerCallback);
+        Application->RemoveCallback(RunTimersCallback);
     }
 }
 
-auto aTimerManager::RemoveTimer(int32_t index) -> void
+auto MCGuiTimerManager::RemoveTimer(int32_t index) -> void
 {
-    if (index >= numTimers)
+    if (index >= NumTimers)
     {
         return;
     }
 
-    if (locked != 0 && timers[index] != lockedExcept)
+    if (Locked != 0 && Timers[index] != LockedExcept)
     {
-        timersToWhack[numTimersToWhack].target = nullptr;
-        timersToWhack[numTimersToWhack].id = index;
-        numTimersToWhack++;
+        TimersToWhack[NumTimersToWhack].Target = nullptr;
+        TimersToWhack[NumTimersToWhack].Id = index;
+        NumTimersToWhack++;
         return;
     }
 
-    delete timers[index];
-    numTimers--;
+    delete Timers[index];
+    NumTimers--;
 
-    for (; index < numTimers; index++)
+    for (; index < NumTimers; index++)
     {
-        timers[index] = timers[index + 1];
+        Timers[index] = Timers[index + 1];
     }
 
-    timers[numTimers] = nullptr;
+    Timers[NumTimers] = nullptr;
 
-    if (numTimers == 0)
+    if (NumTimers == 0)
     {
-        application->removeCallback(timerCallback);
+        Application->RemoveCallback(RunTimersCallback);
     }
 }
 
-auto aTimerManager::GetTimer(int16_t index) -> aTimer*
+auto MCGuiTimerManager::GetTimer(int16_t index) -> MCGuiTimer*
 {
-    if (index < numTimers)
+    if (index < NumTimers)
     {
-        return timers[index];
+        return Timers[index];
     }
 
     return nullptr;
 }
 
-auto aTimerManager::GetTimer(aObject* target, int16_t id) -> aTimer*
+auto MCGuiTimerManager::GetTimer(MCGuiObject* target, int16_t id) -> MCGuiTimer*
 {
     int32_t index = 0;
 
-    while (index < numTimers && !(timers[index]->id == id && target == timers[index]->target))
+    while (index < NumTimers && !(Timers[index]->Id == id && target == Timers[index]->Target))
     {
         index++;
     }
 
-    if (index >= numTimers)
+    if (index >= NumTimers)
     {
         return nullptr;
     }
 
-    return timers[index];
+    return Timers[index];
 }
 
-auto aTimerManager::LockTimersExcept(aTimer* running) -> void
+auto MCGuiTimerManager::LockTimersExcept(MCGuiTimer* running) -> void
 {
-    locked = -1;
-    lockedExcept = running;
+    Locked = -1;
+    LockedExcept = running;
 }
 
-auto aTimerManager::UnlockTimers() -> void
+auto MCGuiTimerManager::UnlockTimers() -> void
 {
-    locked = 0;
+    Locked = 0;
 
     // The queued removals, last first.
-    for (int32_t i = numTimersToWhack; i > 0; i--)
+    for (int32_t i = NumTimersToWhack; i > 0; i--)
     {
-        const TimerToWhack& whack = timersToWhack[i - 1];
+        const TimerToWhack& whack = TimersToWhack[i - 1];
 
-        if (whack.target != nullptr && whack.id != -1)
+        if (whack.Target != nullptr && whack.Id != -1)
         {
-            lockMouse();
-            RemoveTimer(whack.target, static_cast<int16_t>(whack.id));
-            unlockMouse();
+            LockMouse();
+            RemoveTimer(whack.Target, static_cast<int16_t>(whack.Id));
+            UnlockMouse();
         }
-        else if (whack.target != nullptr)
+        else if (whack.Target != nullptr)
         {
-            lockMouse();
-            RemoveTimers(whack.target);
-            unlockMouse();
+            LockMouse();
+            RemoveTimers(whack.Target);
+            UnlockMouse();
         }
-        else if (whack.id != -1)
+        else if (whack.Id != -1)
         {
-            lockMouse();
-            RemoveTimer(whack.id);
-            unlockMouse();
+            LockMouse();
+            RemoveTimer(whack.Id);
+            UnlockMouse();
         }
         else
         {
-            Fatal(numTimersToWhack, " Illegal timersToWhack structure!");
+            Fatal(NumTimersToWhack, " Illegal timersToWhack structure!");
         }
 
-        numTimersToWhack--;
+        NumTimersToWhack--;
     }
 }
 
@@ -5018,112 +5019,112 @@ auto GetMessageCursorLoc() -> tagPOINT
 
 // aHolderObject.
 
-auto aHolderObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiHolderObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
     // aObject::init inlined, without the port: a holder only shows its panes.
     (void)name;
-    winWidth = width;
-    maxWidth = width;
-    normalWidth = width;
-    iconWidth = width;
-    winHeight = height;
-    winX = xPos;
-    winY = yPos;
-    maxHeight = height;
-    maxX = xPos;
-    maxY = yPos;
-    normalHeight = height;
-    normalX = xPos;
-    normalY = yPos;
-    iconHeight = height;
-    iconX = xPos;
-    iconY = yPos;
-    hideOffset = 0;
-    hidden = 0;
-    winState = aSTATE_NORMAL;
-    showWindow = -1;
-    dragOn = 0;
-    backgroundColor = 0xff;
-    displayPort = nullptr;
+    WinWidth = width;
+    MaxWidth = width;
+    NormalWidth = width;
+    IconWidth = width;
+    WinHeight = height;
+    WinX = xPos;
+    WinY = yPos;
+    MaxHeight = height;
+    MaxX = xPos;
+    MaxY = yPos;
+    NormalHeight = height;
+    NormalX = xPos;
+    NormalY = yPos;
+    IconHeight = height;
+    IconX = xPos;
+    IconY = yPos;
+    HideOffset = 0;
+    Hidden = 0;
+    WinState = aSTATE_NORMAL;
+    ShowWindow = -1;
+    DragOn = 0;
+    BackgroundColor = 0xff;
+    DisplayPort = nullptr;
 
-    if (framePane != nullptr)
+    if (FramePane != nullptr)
     {
-        delete framePane;
-        framePane = nullptr;
+        delete FramePane;
+        FramePane = nullptr;
     }
 
-    framePane = new (std::nothrow) _pane;
+    FramePane = new (std::nothrow) MCPane;
 
-    if (framePane == nullptr)
+    if (FramePane == nullptr)
     {
         return 3;
     }
 
-    framePane->window = screenPort->bitmap();
-    framePane->x0 = xPos;
-    framePane->y0 = yPos;
-    framePane->x1 = xPos + width;
-    framePane->y1 = yPos + height;
-    paintRoutine = nullptr;
-    eventRoutine = nullptr;
-    numChildren = 0;
-    parent = nullptr;
-    winDepth = 0;
-    windowAnimation = nullptr;
-    animating = 0;
-    iconAnimation = nullptr;
-    objectType = -1;
-    vertical = 0;
-    activePane = -1;
-    panes[0] = nullptr;
-    panes[1] = nullptr;
-    tiled = 0;
+    FramePane->Window = ScreenPort->Bitmap();
+    FramePane->X0 = xPos;
+    FramePane->Y0 = yPos;
+    FramePane->X1 = xPos + width;
+    FramePane->Y1 = yPos + height;
+    PaintRoutine = nullptr;
+    EventRoutine = nullptr;
+    NumChildren = 0;
+    Parent = nullptr;
+    WinDepth = 0;
+    WindowAnimation = nullptr;
+    Animating = 0;
+    IconAnimation = nullptr;
+    ObjectType = -1;
+    Vertical = 0;
+    ActivePane = -1;
+    Panes[0] = nullptr;
+    Panes[1] = nullptr;
+    Tiled = 0;
     return 0;
 }
 
-auto aHolderObject::destroy() -> void
+auto MCGuiHolderObject::Destroy() -> void
 {
-    aObject::destroy();
-    panes[0] = nullptr;
-    panes[1] = nullptr;
+    MCGuiObject::Destroy();
+    Panes[0] = nullptr;
+    Panes[1] = nullptr;
 }
 
-auto aHolderObject::removeChild(aObject* oldChild) -> void
+auto MCGuiHolderObject::RemoveChild(MCGuiObject* oldChild) -> void
 {
-    if (panes[0] == oldChild)
+    if (Panes[0] == oldChild)
     {
-        panes[0] = nullptr;
+        Panes[0] = nullptr;
     }
 
-    if (panes[1] == oldChild)
+    if (Panes[1] == oldChild)
     {
-        panes[1] = nullptr;
+        Panes[1] = nullptr;
     }
 
-    aObject::removeChild(oldChild);
+    MCGuiObject::RemoveChild(oldChild);
 }
 
-auto aHolderObject::display() -> void
+auto MCGuiHolderObject::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if ((IsHidden() == 0 || hideOffset != 0) && winState != aSTATE_ICONIZED)
+    if ((IsHidden() == 0 || HideOffset != 0) && WinState != aSTATE_ICONIZED)
     {
-        for (int32_t i = 0; i < numChildren; i++)
+        for (int32_t i = 0; i < NumChildren; i++)
         {
-            childList[i]->display();
+            ChildList[i]->Display();
         }
     }
 }
 
-auto aHolderObject::resize(int32_t newWidth, int32_t newHeight) -> void
+auto MCGuiHolderObject::Resize(int32_t newWidth, int32_t newHeight) -> void
 {
     if (newWidth > 0 && newHeight > 0)
     {
-        if (gridAligned != 0)
+        if (GridAligned != 0)
         {
             if (newWidth % 40 > 19)
             {
@@ -5145,24 +5146,24 @@ auto aHolderObject::resize(int32_t newWidth, int32_t newHeight) -> void
             newHeight -= newHeight % 40;
         }
 
-        winWidth = newWidth;
-        winHeight = newHeight;
-        framePane->x1 = framePane->x0 - 1 + newWidth;
-        framePane->y1 = framePane->y0 - 1 + newHeight;
+        WinWidth = newWidth;
+        WinHeight = newHeight;
+        FramePane->X1 = FramePane->X0 - 1 + newWidth;
+        FramePane->Y1 = FramePane->Y0 - 1 + newHeight;
         Retile();
     }
 }
 
-auto aHolderObject::Retile() -> void
+auto MCGuiHolderObject::Retile() -> void
 {
     int32_t paneX = 0;
     int32_t paneY = 0;
-    int32_t paneWidth = width();
-    int32_t paneHeight = height();
+    int32_t paneWidth = Width();
+    int32_t paneHeight = Height();
 
-    if (panes[1] != nullptr && tiled != 0)
+    if (Panes[1] != nullptr && Tiled != 0)
     {
-        if (vertical == 0)
+        if (Vertical == 0)
         {
             paneHeight /= 2;
         }
@@ -5175,9 +5176,9 @@ auto aHolderObject::Retile() -> void
     int16_t index = 0;
     int16_t end;
 
-    if (tiled == 0)
+    if (Tiled == 0)
     {
-        index = activePane;
+        index = ActivePane;
         end = static_cast<int16_t>(index + 1);
 
         // Port fix: with no active pane (-1) the original read the word before panes[0] (the drop-target list) as a
@@ -5194,21 +5195,21 @@ auto aHolderObject::Retile() -> void
 
     do
     {
-        aObject* pane = panes[index];
+        MCGuiObject* pane = Panes[index];
 
         if (pane == nullptr)
         {
             return;
         }
 
-        pane->moveTo(paneX, paneY, 0);
-        pane->resize(paneWidth, paneHeight);
+        pane->MoveTo(paneX, paneY, 0);
+        pane->Resize(paneWidth, paneHeight);
 
-        if (tiled != 0)
+        if (Tiled != 0)
         {
-            if (vertical == 0)
+            if (Vertical == 0)
             {
-                if (height() % 2 != 0)
+                if (Height() % 2 != 0)
                 {
                     paneHeight++;
                 }
@@ -5217,7 +5218,7 @@ auto aHolderObject::Retile() -> void
             }
             else
             {
-                if (width() % 2 != 0)
+                if (Width() % 2 != 0)
                 {
                     paneWidth++;
                 }
@@ -5230,100 +5231,100 @@ auto aHolderObject::Retile() -> void
     } while (index < end);
 }
 
-auto aHolderObject::AddPane(aObject* pane) -> void
+auto MCGuiHolderObject::AddPane(MCGuiObject* pane) -> void
 {
-    if (panes[0] == nullptr)
+    if (Panes[0] == nullptr)
     {
-        addChild(pane);
-        panes[0] = pane;
-        activePane = 0;
+        AddChild(pane);
+        Panes[0] = pane;
+        ActivePane = 0;
         Retile();
         return;
     }
 
-    if (panes[1] == nullptr)
+    if (Panes[1] == nullptr)
     {
-        addChild(pane);
-        panes[1] = pane;
+        AddChild(pane);
+        Panes[1] = pane;
     }
 
     Retile();
 }
 
-auto aHolderObject::RemovePane(aObject* pane) -> void
+auto MCGuiHolderObject::RemovePane(MCGuiObject* pane) -> void
 {
-    aObject* second = panes[1];
+    MCGuiObject* second = Panes[1];
 
     if (second == pane)
     {
-        panes[1] = nullptr;
-        removeChild(pane);
+        Panes[1] = nullptr;
+        RemoveChild(pane);
         Retile();
         return;
     }
 
-    if (panes[0] == pane)
+    if (Panes[0] == pane)
     {
         // Faithful: with a second pane, it moves to the first slot but stays in the second too.
         if (second == nullptr)
         {
-            panes[0] = nullptr;
-            activePane = -1;
+            Panes[0] = nullptr;
+            ActivePane = -1;
         }
         else
         {
-            panes[0] = second;
+            Panes[0] = second;
         }
 
-        removeChild(pane);
+        RemoveChild(pane);
     }
 
     Retile();
 }
 
-auto aHolderObject::SetActivePane(aObject* pane) -> void
+auto MCGuiHolderObject::SetActivePane(MCGuiObject* pane) -> void
 {
-    if (pane == panes[1])
+    if (pane == Panes[1])
     {
-        activePane = 1;
+        ActivePane = 1;
         return;
     }
 
-    activePane = 0;
+    ActivePane = 0;
 }
 
-auto aHolderObject::SetTiled(int newTiled) -> void
+auto MCGuiHolderObject::SetTiled(int newTiled) -> void
 {
-    tiled = newTiled;
+    Tiled = newTiled;
 
     if (newTiled == 0)
     {
         if (GetInactivePane() != nullptr)
         {
-            GetInactivePane()->ShowGUIWindow(0);
+            GetInactivePane()->ShowGuiWindow(0);
         }
     }
     else
     {
-        if (panes[0] != nullptr)
+        if (Panes[0] != nullptr)
         {
-            panes[0]->ShowGUIWindow(-1);
+            Panes[0]->ShowGuiWindow(-1);
         }
 
-        if (panes[1] != nullptr)
+        if (Panes[1] != nullptr)
         {
-            panes[1]->ShowGUIWindow(-1);
+            Panes[1]->ShowGuiWindow(-1);
         }
     }
 
     Retile();
 }
 
-auto aHolderObject::SetActivePaneNumber(char index) -> void
+auto MCGuiHolderObject::SetActivePaneNumber(char index) -> void
 {
-    if (index == 0 || (index == 1 && panes[1] != nullptr))
+    if (index == 0 || (index == 1 && Panes[1] != nullptr))
     {
-        activePane = index;
+        ActivePane = index;
     }
 
     Retile();
@@ -5331,77 +5332,77 @@ auto aHolderObject::SetActivePaneNumber(char index) -> void
 
 // aMessageBox.
 
-auto aMessageBox::init(uint8_t* text) -> int32_t
+auto MCGuiMessageBox::Init(uint8_t* text) -> int32_t
 {
-    if (whiteFont == nullptr)
+    if (WhiteFont == nullptr)
     {
         return -3;
     }
 
-    int32_t boxWidth = whiteFont->width(text) + 0xc;
+    int32_t boxWidth = WhiteFont->Width(text) + 0xc;
 
     if (boxWidth < 0x48)
     {
         boxWidth = 0x48;
     }
 
-    const int32_t fontHeight = whiteFont->height();
-    const int32_t screenW = application->width();
-    const int32_t screenH = application->height();
-    int32_t result = aObject::init((screenW - boxWidth) / 2, (screenH - (fontHeight + 0x28)) / 2, boxWidth,
-                                   fontHeight + 0x28, nullptr);
+    const int32_t fontHeight = WhiteFont->Height();
+    const int32_t screenW = Application->Width();
+    const int32_t screenH = Application->Height();
+    int32_t result = MCGuiObject::Init((screenW - boxWidth) / 2, (screenH - (fontHeight + 0x28)) / 2, boxWidth,
+                                       fontHeight + 0x28, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    aButton* button = new aButton;
-    okButton = button;
-    result = button->init((boxWidth - 0x30) / 2, fontHeight + 0xe, 0x3c, 0x14, nullptr);
+    MCGuiButton* button = new MCGuiButton;
+    OkButton = button;
+    result = button->Init((boxWidth - 0x30) / 2, fontHeight + 0xe, 0x3c, 0x14, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    button->setUpPicture(0x10);
-    button->setDownPicture(0x11);
-    button->callback()->setExec(DestroyVersion);
-    button->setDepth(100);
-    addChild(button);
+    button->SetUpPicture(0x10);
+    button->SetDownPicture(0x11);
+    button->Callback()->SetExec(DestroyVersion);
+    button->SetDepth(100);
+    AddChild(button);
     // The box is drawn by draw, each frame.
-    message = reinterpret_cast<const char*>(text);
+    Message = reinterpret_cast<const char*>(text);
     return 0;
 }
 
-auto aMessageBox::draw() -> void
+auto MCGuiMessageBox::Draw() -> void
 {
-    aPort* boxPort = displayPort;
-    VFX_pane_wipe(boxPort->frame(), 0x11);
-    auto* text = reinterpret_cast<uint8_t*>(message.data());
-    const int32_t textWidth = whiteFont->width(text);
-    whiteFont->writeString(boxPort->frame(), (width() - textWidth) / 2, 8, text, -1);
-    drawBox(0x1f, -1, -1, -1, -1);
-    aObject::draw();
+    MCGuiPort* boxPort = DisplayPort;
+    VfxPaneWipe(boxPort->Frame(), 0x11);
+    auto* text = reinterpret_cast<uint8_t*>(Message.data());
+    const int32_t textWidth = WhiteFont->Width(text);
+    WhiteFont->WriteString(boxPort->Frame(), (Width() - textWidth) / 2, 8, text, -1);
+    DrawBox(0x1f, -1, -1, -1, -1);
+    MCGuiObject::Draw();
 }
 
-auto aMessageBox::destroy() -> void
+auto MCGuiMessageBox::Destroy() -> void
 {
-    if (okButton != nullptr)
+    if (OkButton != nullptr)
     {
-        okButton->destroy();
-        delete okButton;
-        okButton = nullptr;
+        OkButton->Destroy();
+        delete OkButton;
+        OkButton = nullptr;
     }
 
-    aObject::destroy();
+    MCGuiObject::Destroy();
 }
 
-auto aMessageBox::handleEvent(aEvent* event) -> void
+auto MCGuiMessageBox::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (pointInside(event->x, event->y) != 0)
+    if (PointInside(event->X, event->Y) != 0)
     {
-        okButton->handleEvent(event);
+        OkButton->HandleEvent(event);
     }
 }

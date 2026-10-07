@@ -17,27 +17,27 @@
 #include "vfx/vfxfuncs.h"
 #include "platform/MCRenderer.h"
 
-int32_t startupRects[24] = {};
-int32_t noiseSample = 0;
-int movieOver = 0;
+int32_t StartupRects[24] = {};
+int32_t NoiseSample = 0;
+int MovieOver = 0;
 
 namespace
 {
     /// <summary>Destroys and frees a frame part, and clears the pointer.</summary>
-    template <typename T> void destroyPart(T*& part)
+    template <typename T> void DestroyPart(T*& part)
     {
         if (part != nullptr)
         {
-            part->destroy();
+            part->Destroy();
             delete part;
             part = nullptr;
         }
     }
 
     /// <summary>Makes a plain frame part: a new aObject, fatal when out of memory.</summary>
-    aObject* newPart(const char* outOfMemory)
+    MCGuiObject* NewPart(const char* outOfMemory)
     {
-        aObject* part = new aObject;
+        MCGuiObject* part = new MCGuiObject;
 
         if (part == nullptr)
         {
@@ -50,7 +50,7 @@ namespace
     }
 
     /// <summary>Snaps a size to the 40-pixel grid of a grid-aligned window, rounding to the nearest step.</summary>
-    void snapToGrid(int32_t& newWidth, int32_t& newHeight)
+    void SnapToGrid(int32_t& newWidth, int32_t& newHeight)
     {
         if (newWidth % 0x28 > 0x13)
         {
@@ -77,8 +77,8 @@ namespace
     /// buttons fill rows (horizontal) or columns of <paramref name="maxLength"/>.
     /// </summary>
     template <typename TButton>
-    void placeBarButtons(aObject* bar, TButton* const* buttons, int32_t numButtons, int16_t maxLength, int horizontal,
-                         int32_t buttonWidth, int32_t buttonHeight)
+    void PlaceBarButtons(MCGuiObject* bar, TButton* const* buttons, int32_t numButtons, int16_t maxLength,
+                         int horizontal, int32_t buttonWidth, int32_t buttonHeight)
     {
         const int32_t length = maxLength;
         const int32_t across = numButtons < length ? numButtons : length;
@@ -98,13 +98,13 @@ namespace
             columns = static_cast<int16_t>(across);
         }
 
-        bar->resize(columns * buttonWidth, barHeight);
+        bar->Resize(columns * buttonWidth, barHeight);
         int16_t column = 0;
         int16_t row = 0;
 
         for (int16_t i = 0; i < numButtons; i++)
         {
-            buttons[i]->moveTo(column * buttonWidth, row * buttonHeight, 0);
+            buttons[i]->MoveTo(column * buttonWidth, row * buttonHeight, 0);
 
             if (horizontal == 0)
             {
@@ -133,188 +133,188 @@ namespace
     /// Keeps a dragged window's title bar inside the scroll rectangle: when the bar has left it, the window is moved
     /// back against the side it crossed.
     /// </summary>
-    void keepTitleBarInside(aTitleBar* bar, const tagRECT& area)
+    void KeepTitleBarInside(MCGuiTitleBar* bar, const tagRECT& area)
     {
-        aObject* window = bar->parent;
+        MCGuiObject* window = bar->Parent;
 
-        if (bar->rectIntersect(area) != 0)
+        if (bar->RectIntersect(area) != 0)
         {
             return;
         }
 
-        if (area.right < bar->frame()->x0)
+        if (area.right < bar->Frame()->X0)
         {
-            window->moveTo(area.right, window->frame()->y0, 0);
+            window->MoveTo(area.right, window->Frame()->Y0, 0);
         }
 
-        if (bar->frame()->x0 + bar->width() < area.left)
+        if (bar->Frame()->X0 + bar->Width() < area.left)
         {
-            window->moveTo(area.left - bar->width(), window->frame()->y0, 0);
+            window->MoveTo(area.left - bar->Width(), window->Frame()->Y0, 0);
         }
 
-        if (area.bottom < bar->frame()->y0)
+        if (area.bottom < bar->Frame()->Y0)
         {
-            window->moveTo(bar->frame()->x0, area.bottom + 0xd, 0);
+            window->MoveTo(bar->Frame()->X0, area.bottom + 0xd, 0);
         }
 
-        if (bar->frame()->y0 + bar->height() < area.top)
+        if (bar->Frame()->Y0 + bar->Height() < area.top)
         {
-            window->moveTo(bar->frame()->x0, area.top, 0);
+            window->MoveTo(bar->Frame()->X0, area.top, 0);
         }
     }
 
     /// <summary>Clears the whole screen buffer (a full-screen movie's background).</summary>
-    void clearScreen()
+    void ClearScreen()
     {
         // Port: the original cleared 640x480 bytes (0x96000 in 16-bit mode) of the surface; the port wipes the
         // screen at its real size, through the renderer.
-        _pane screen{screenPort->frame()->window, 0, 0, screenPort->frame()->window->x_max,
-                     screenPort->frame()->window->y_max};
-        VFX_pane_wipe(&screen, 0);
+        MCPane screen{ScreenPort->Frame()->Window, 0, 0, ScreenPort->Frame()->Window->XMax,
+                      ScreenPort->Frame()->Window->YMax};
+        VfxPaneWipe(&screen, 0);
     }
 
     /// <summary>Remaps a windowed movie onto the game's current palette (<c>SmackColorRemap</c>).</summary>
-    void remapToGamePalette(SmackTag* movie)
+    void RemapToGamePalette(MCSmackTag* movie)
     {
-        VFX_RGB palette[256];
-        std::memcpy(palette, application->currentPalette, sizeof(palette));
+        MCVfxRgb palette[256];
+        std::memcpy(palette, Application->CurrentPalette, sizeof(palette));
         movie->Player->ColorRemap(reinterpret_cast<const uint8_t*>(palette), 0x100);
     }
 }
 
 // Frame paint routines.
 
-auto titleBarPaint(aObject* object) -> void
+auto TitleBarPaint(MCGuiObject* object) -> void
 {
-    VFX_pane_wipe(object->port()->frame(), 0x1b);
-    VFX_line_draw(object->port()->frame(), 0, 6, object->width() - 1, 6, LD_DRAW, 0x10);
-    VFX_line_draw(object->port()->frame(), 0, 7, object->width() - 1, 7, LD_DRAW, 0x10);
+    VfxPaneWipe(object->Port()->Frame(), 0x1b);
+    VfxLineDraw(object->Port()->Frame(), 0, 6, object->Width() - 1, 6, LD_DRAW, 0x10);
+    VfxLineDraw(object->Port()->Frame(), 0, 7, object->Width() - 1, 7, LD_DRAW, 0x10);
 }
 
-auto cameraBottomBarPaint(aObject* object) -> void
+auto CameraBottomBarPaint(MCGuiObject* object) -> void
 {
-    VFX_pane_wipe(object->port()->frame(), 0x10);
-    VFX_line_draw(object->port()->frame(), 0, 0, 0, 1, LD_DRAW, 0x15);
-    VFX_line_draw(object->port()->frame(), 1, 0, 1, 1, LD_DRAW, 0x10);
+    VfxPaneWipe(object->Port()->Frame(), 0x10);
+    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, 1, LD_DRAW, 0x15);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, 1, LD_DRAW, 0x10);
 }
 
-auto cameraLeftBarPaint(aObject* object) -> void
+auto CameraLeftBarPaint(MCGuiObject* object) -> void
 {
-    VFX_line_draw(object->port()->frame(), 0, 0, 0, object->height(), LD_DRAW, 0x15);
-    VFX_line_draw(object->port()->frame(), 1, 0, 1, object->height(), LD_DRAW, 0x10);
+    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height(), LD_DRAW, 0x15);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height(), LD_DRAW, 0x10);
 }
 
-auto cameraRightBarPaint(aObject* object) -> void
+auto CameraRightBarPaint(MCGuiObject* object) -> void
 {
-    VFX_pane_wipe(object->port()->frame(), 0x10);
+    VfxPaneWipe(object->Port()->Frame(), 0x10);
 }
 
-auto bottomBarPaint(aObject* object) -> void
+auto BottomBarPaint(MCGuiObject* object) -> void
 {
     object->SetBit(0, 0, 0xe);
-    object->SetBit(object->width(), 0, 0xe);
-    VFX_line_draw(object->port()->frame(), 1, 0, object->width(), 0, LD_DRAW, 3);
-    VFX_line_draw(object->port()->frame(), 0, 1, object->width(), 1, LD_DRAW, 0xe);
+    object->SetBit(object->Width(), 0, 0xe);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, object->Width(), 0, LD_DRAW, 3);
+    VfxLineDraw(object->Port()->Frame(), 0, 1, object->Width(), 1, LD_DRAW, 0xe);
 }
 
-auto leftBarPaint(aObject* object) -> void
+auto LeftBarPaint(MCGuiObject* object) -> void
 {
-    object->SetBit(object->width(), object->height(), 0xe);
-    VFX_line_draw(object->port()->frame(), 0, 0, 0, object->height(), LD_DRAW, 0xe);
-    VFX_line_draw(object->port()->frame(), 1, 0, 1, object->height() - 1, LD_DRAW, 3);
+    object->SetBit(object->Width(), object->Height(), 0xe);
+    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height(), LD_DRAW, 0xe);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height() - 1, LD_DRAW, 3);
 }
 
-auto rightBarPaint(aObject* object) -> void
+auto RightBarPaint(MCGuiObject* object) -> void
 {
-    object->SetBit(0, object->height(), 0xe);
-    VFX_pane_wipe(object->port()->frame(), 8);
-    VFX_line_draw(object->port()->frame(), 0, 0, 0, object->height() - 2, LD_DRAW, 3);
-    VFX_line_draw(object->port()->frame(), 1, 0, 1, object->height() - 1, LD_DRAW, 0xe);
+    object->SetBit(0, object->Height(), 0xe);
+    VfxPaneWipe(object->Port()->Frame(), 8);
+    VfxLineDraw(object->Port()->Frame(), 0, 0, 0, object->Height() - 2, LD_DRAW, 3);
+    VfxLineDraw(object->Port()->Frame(), 1, 0, 1, object->Height() - 1, LD_DRAW, 0xe);
 }
 
-auto handleResizeButtonEvent(aObject* object, aEvent* event) -> void
+auto HandleResizeButtonEvent(MCGuiObject* object, MCGuiEvent* event) -> void
 {
-    if (object->parent == nullptr)
+    if (object->Parent == nullptr)
     {
         return;
     }
 
     // The window is the handle's parent's parent (the handle sits in the right frame bar).
-    aObject* window = object->parent->parent;
+    MCGuiObject* window = object->Parent->Parent;
 
     if (window == nullptr)
     {
         return;
     }
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1: // left button down
         {
             MCInput::SetCapture();
-            application->grab(object);
+            Application->Grab(object);
             break;
         }
         case 4: // left button up
         {
-            application->release();
+            Application->Release();
             MCInput::ReleaseCapture();
-            window->draw();
+            window->Draw();
             break;
         }
         case 7: // mouse move
         {
-            if (application->grabbedObject() == object)
+            if (Application->GrabbedObject() == object)
             {
-                window->resize(event->x - window->globalX(), event->y - window->globalY());
-                window->draw();
+                window->Resize(event->X - window->GlobalX(), event->Y - window->GlobalY());
+                window->Draw();
             }
             break;
         }
     }
 }
 
-auto handleSwoopyButtonEvent(aObject* object, aEvent* event) -> void
+auto HandleSwoopyButtonEvent(MCGuiObject* object, MCGuiEvent* event) -> void
 {
-    if (event->type == 1)
+    if (event->Type == 1)
     {
-        application->grab(object);
-        object->draw();
+        Application->Grab(object);
+        object->Draw();
     }
-    else if (event->type == 4 && application->grabbedObject() == object && object->parent != nullptr)
+    else if (event->Type == 4 && Application->GrabbedObject() == object && object->Parent != nullptr)
     {
-        aObject* window = object->parent->parent;
+        MCGuiObject* window = object->Parent->Parent;
 
         if (window != nullptr && window->GetCamera() != nullptr)
         {
-            window->GetCamera()->swoopy ^= 1;
-            application->release();
-            object->draw();
+            window->GetCamera()->Swoopy ^= 1;
+            Application->Release();
+            object->Draw();
         }
     }
 }
 
 // aTitleButton
 
-auto aTitleButton::handleEvent(aEvent* event) -> void
+auto MCGuiTitleButton::HandleEvent(MCGuiEvent* event) -> void
 {
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
 // aTitleWindow
 
-aTitleWindow::aTitleWindow()
+MCGuiTitleWindow::MCGuiTitleWindow()
 {
 }
 
-aTitleWindow::~aTitleWindow()
+MCGuiTitleWindow::~MCGuiTitleWindow()
 {
-    aTitleWindow::destroy();
+    MCGuiTitleWindow::Destroy();
 }
 
-auto aTitleWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiTitleWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    int32_t result = aObject::init(xPos, yPos, width, height, name);
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
@@ -323,154 +323,154 @@ auto aTitleWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t heigh
 
     SetTransparent(0);
 
-    titleBar = new aTitleBar;
+    TitleBar = new MCGuiTitleBar;
 
-    if (titleBar == nullptr)
+    if (TitleBar == nullptr)
     {
         Fatal(0, "Not enough memory to allocate titlebar");
     }
 
-    result = titleBar->init(0, 0, width + 0xc, 0xd, name);
+    result = TitleBar->Init(0, 0, width + 0xc, 0xd, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    addChild(titleBar);
-    titleBar->showCloseButton(1);
-    titleBar->moveTo(-2, -0xd, 0);
-    titleBar->SetZoomCallbacks();
+    AddChild(TitleBar);
+    TitleBar->ShowCloseButton(1);
+    TitleBar->MoveTo(-2, -0xd, 0);
+    TitleBar->SetZoomCallbacks();
 
-    leftBar = newPart("Not enough memory to allocate left bar");
+    LeftBar = NewPart("Not enough memory to allocate left bar");
     // The left bar's init result is not checked.
-    leftBar->init(0, 0, 2, height, nullptr);
-    leftBar->setPaintRoutine(leftBarPaint);
-    addChild(leftBar);
-    leftBar->moveTo(-2, 0, 0);
+    LeftBar->Init(0, 0, 2, height, nullptr);
+    LeftBar->SetPaintRoutine(LeftBarPaint);
+    AddChild(LeftBar);
+    LeftBar->MoveTo(-2, 0, 0);
 
-    bottomBar = newPart("Not enough memory to allocate bottom bar");
-    result = bottomBar->init(0, 0, width + 4, 2, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    bottomBar->setPaintRoutine(bottomBarPaint);
-    addChild(bottomBar);
-    bottomBar->moveTo(-2, height, 0);
-
-    rightBar = newPart("Not enough memory to allocate right bar");
-    result = rightBar->init(0, 0, 10, height + 2, nullptr);
+    BottomBar = NewPart("Not enough memory to allocate bottom bar");
+    result = BottomBar->Init(0, 0, width + 4, 2, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    rightBar->setPaintRoutine(rightBarPaint);
-    addChild(rightBar);
-    rightBar->moveTo(width, 0, 0);
+    BottomBar->SetPaintRoutine(BottomBarPaint);
+    AddChild(BottomBar);
+    BottomBar->MoveTo(-2, height, 0);
 
-    resizeButton = newPart("Not enough memory to allocate resize area");
-    result = resizeButton->init(0, 0, 8, 8, nullptr);
+    RightBar = NewPart("Not enough memory to allocate right bar");
+    result = RightBar->Init(0, 0, 10, height + 2, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    resizeButton->setBackground(0x29);
-    resizeButton->draw();
-    rightBar->addChild(resizeButton);
-    resizeButton->moveTo(2, rightBar->height() - resizeButton->height(), 0);
-    resizeButton->setEventRoutine(handleResizeButtonEvent);
+    RightBar->SetPaintRoutine(RightBarPaint);
+    AddChild(RightBar);
+    RightBar->MoveTo(width, 0, 0);
 
-    moveTo(xPos, yPos + 0xd, 0);
+    ResizeButton = NewPart("Not enough memory to allocate resize area");
+    result = ResizeButton->Init(0, 0, 8, 8, nullptr);
+
+    if (result != 0)
+    {
+        return result;
+    }
+
+    ResizeButton->SetBackground(0x29);
+    ResizeButton->Draw();
+    RightBar->AddChild(ResizeButton);
+    ResizeButton->MoveTo(2, RightBar->Height() - ResizeButton->Height(), 0);
+    ResizeButton->SetEventRoutine(HandleResizeButtonEvent);
+
+    MoveTo(xPos, yPos + 0xd, 0);
     return 0;
 }
 
-auto aTitleWindow::destroy() -> void
+auto MCGuiTitleWindow::Destroy() -> void
 {
-    destroyPart(titleBar);
-    destroyPart(leftBar);
-    destroyPart(resizeButton);
-    destroyPart(rightBar);
-    destroyPart(bottomBar);
-    aObject::destroy();
+    DestroyPart(TitleBar);
+    DestroyPart(LeftBar);
+    DestroyPart(ResizeButton);
+    DestroyPart(RightBar);
+    DestroyPart(BottomBar);
+    MCGuiObject::Destroy();
 }
 
-auto aTitleWindow::draw() -> void
+auto MCGuiTitleWindow::Draw() -> void
 {
-    VFX_pane_wipe(displayPort->frame(), backColor());
+    VfxPaneWipe(DisplayPort->Frame(), BackColor());
 
-    if (dragging() == 0 || winState == 2)
+    if (Dragging() == 0 || WinState == 2)
     {
-        aObject::draw();
+        MCGuiObject::Draw();
         return;
     }
 
     // While dragged, only the frame is drawn (the right bar twice, as the original).
-    titleBar->draw();
-    leftBar->draw();
-    rightBar->draw();
-    rightBar->draw();
-    bottomBar->draw();
+    TitleBar->Draw();
+    LeftBar->Draw();
+    RightBar->Draw();
+    RightBar->Draw();
+    BottomBar->Draw();
 
-    if (resizeButton != nullptr)
+    if (ResizeButton != nullptr)
     {
-        resizeButton->draw();
+        ResizeButton->Draw();
     }
 }
 
-auto aTitleWindow::resize(int32_t newWidth, int32_t newHeight) -> void
+auto MCGuiTitleWindow::Resize(int32_t newWidth, int32_t newHeight) -> void
 {
-    if (newWidth < 0 || newHeight < 0 || titleBar->ResizeOK(newWidth) == 0)
+    if (newWidth < 0 || newHeight < 0 || TitleBar->ResizeOK(newWidth) == 0)
     {
         return;
     }
 
-    if (gridAligned != 0)
+    if (GridAligned != 0)
     {
-        snapToGrid(newWidth, newHeight);
+        SnapToGrid(newWidth, newHeight);
     }
 
-    aObject::resize(newWidth, newHeight);
-    titleBar->resize(newWidth + 0xc, titleBar->height());
-    leftBar->resize(leftBar->width(), newHeight);
-    rightBar->resize(rightBar->width(), newHeight);
-    rightBar->moveTo(newWidth, 0, 0);
-    bottomBar->resize(newWidth + 4, bottomBar->height());
-    bottomBar->moveTo(-2, newHeight, 0);
-    resizeButton->moveTo(2, rightBar->height() - resizeButton->height(), 0);
+    MCGuiObject::Resize(newWidth, newHeight);
+    TitleBar->Resize(newWidth + 0xc, TitleBar->Height());
+    LeftBar->Resize(LeftBar->Width(), newHeight);
+    RightBar->Resize(RightBar->Width(), newHeight);
+    RightBar->MoveTo(newWidth, 0, 0);
+    BottomBar->Resize(newWidth + 4, BottomBar->Height());
+    BottomBar->MoveTo(-2, newHeight, 0);
+    ResizeButton->MoveTo(2, RightBar->Height() - ResizeButton->Height(), 0);
 }
 
-auto aTitleWindow::setTitle(char* newTitle) -> void
+auto MCGuiTitleWindow::SetTitle(char* newTitle) -> void
 {
-    if (titleBar != nullptr)
+    if (TitleBar != nullptr)
     {
-        titleBar->setTitle(newTitle);
+        TitleBar->SetTitle(newTitle);
     }
 }
 
 // aTitleBar
 
-aTitleBar::aTitleBar()
+MCGuiTitleBar::MCGuiTitleBar()
 {
 }
 
-auto aTitleBar::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiTitleBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    int32_t result = aObject::init(xPos, yPos, width, height, name);
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    setBackColor(8);
-    font = blackFont;
+    SetBackColor(8);
+    Font = BlackFont;
 
     if (name == nullptr)
     {
@@ -478,140 +478,140 @@ auto aTitleBar::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, 
     }
 
     // Unbounded, as the original.
-    std::strcpy(title, name);
+    std::strcpy(Title, name);
 
-    closeButton = new aCloseButton;
-    result = closeButton->init(0, 0, 4, 4, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    closeButton->setUpPicture(0x12);
-    closeButton->setDownPicture(0x13);
-    addChild(closeButton);
-    closeButton->moveTo(winWidth - closeButton->width(), 0, 0);
-
-    zoomButton = new aButton;
-    result = zoomButton->init(0, 0, 4, 4, nullptr);
+    CloseButton = new MCGuiCloseButton;
+    result = CloseButton->Init(0, 0, 4, 4, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    zoomButton->setUpPicture(0x14);
-    zoomButton->setDownPicture(0x15);
-    addChild(zoomButton);
-    zoomButton->moveTo(0, 0, 0);
+    CloseButton->SetUpPicture(0x12);
+    CloseButton->SetDownPicture(0x13);
+    AddChild(CloseButton);
+    CloseButton->MoveTo(WinWidth - CloseButton->Width(), 0, 0);
 
-    zoomOutButton = new aButton;
-    result = zoomOutButton->init(0, 0, 4, 4, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    zoomOutButton->setUpPicture(0x16);
-    zoomOutButton->setDownPicture(0x17);
-    addChild(zoomOutButton);
-    zoomOutButton->moveTo(zoomButton->x() + zoomButton->width(), 0, 0);
-    showZoomButtons(0);
-
-    swoopyButton = new aTitleButton;
-    result = swoopyButton->init(0, 0, 4, 4, nullptr);
+    ZoomButton = new MCGuiButton;
+    result = ZoomButton->Init(0, 0, 4, 4, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    swoopyButton->setUpPicture(0x18);
-    swoopyButton->setDownPicture(0x19);
-    addChild(swoopyButton);
-    swoopyButton->moveTo(winWidth - closeButton->width() - swoopyButton->width(), 0, 0);
-    swoopyButton->setEventRoutine(handleSwoopyButtonEvent);
-    showSwoopyButton(0);
+    ZoomButton->SetUpPicture(0x14);
+    ZoomButton->SetDownPicture(0x15);
+    AddChild(ZoomButton);
+    ZoomButton->MoveTo(0, 0, 0);
+
+    ZoomOutButton = new MCGuiButton;
+    result = ZoomOutButton->Init(0, 0, 4, 4, nullptr);
+
+    if (result != 0)
+    {
+        return result;
+    }
+
+    ZoomOutButton->SetUpPicture(0x16);
+    ZoomOutButton->SetDownPicture(0x17);
+    AddChild(ZoomOutButton);
+    ZoomOutButton->MoveTo(ZoomButton->X() + ZoomButton->Width(), 0, 0);
+    ShowZoomButtons(0);
+
+    SwoopyButton = new MCGuiTitleButton;
+    result = SwoopyButton->Init(0, 0, 4, 4, nullptr);
+
+    if (result != 0)
+    {
+        return result;
+    }
+
+    SwoopyButton->SetUpPicture(0x18);
+    SwoopyButton->SetDownPicture(0x19);
+    AddChild(SwoopyButton);
+    SwoopyButton->MoveTo(WinWidth - CloseButton->Width() - SwoopyButton->Width(), 0, 0);
+    SwoopyButton->SetEventRoutine(HandleSwoopyButtonEvent);
+    ShowSwoopyButton(0);
     return 0;
 }
 
-auto aTitleBar::destroy() -> void
+auto MCGuiTitleBar::Destroy() -> void
 {
-    destroyPart(closeButton);
-    destroyPart(zoomButton);
-    destroyPart(zoomOutButton);
-    destroyPart(swoopyButton);
-    aObject::destroy();
+    DestroyPart(CloseButton);
+    DestroyPart(ZoomButton);
+    DestroyPart(ZoomOutButton);
+    DestroyPart(SwoopyButton);
+    MCGuiObject::Destroy();
 }
 
-auto aTitleBar::SetZoomCallbacks() -> void
+auto MCGuiTitleBar::SetZoomCallbacks() -> void
 {
-    if (parent == nullptr)
+    if (Parent == nullptr)
     {
         return;
     }
 
-    zoomButton->callback()->setMessage(parent, 0x1a);
-    zoomOutButton->callback()->setMessage(parent, 0x1b);
+    ZoomButton->Callback()->SetMessage(Parent, 0x1a);
+    ZoomOutButton->Callback()->SetMessage(Parent, 0x1b);
 }
 
-auto aTitleBar::setTitle(char* newTitle) -> void
+auto MCGuiTitleBar::SetTitle(char* newTitle) -> void
 {
-    std::strcpy(title, newTitle);
+    std::strcpy(Title, newTitle);
 }
 
-auto aTitleBar::handleEvent(aEvent* event) -> void
+auto MCGuiTitleBar::HandleEvent(MCGuiEvent* event) -> void
 {
-    switch (event->type)
+    switch (event->Type)
     {
         case 1: // left button down: start dragging the window
         {
-            aObject* window = parent;
-            lastX = event->x - window->x();
-            lastY = event->y - window->y();
+            MCGuiObject* window = Parent;
+            LastX = event->X - window->X();
+            LastY = event->Y - window->Y();
 
-            if (window != nullptr && window->parent != nullptr &&
-                window->parent->foremostChild(window->depth()) != window)
+            if (window != nullptr && window->Parent != nullptr &&
+                window->Parent->ForemostChild(window->Depth()) != window)
             {
-                window->bringToFront(0);
-                aRedrawScreen();
+                window->BringToFront(0);
+                ARedrawScreen();
             }
 
-            application->grab(this);
-            parent->startDrag(parent->x(), parent->y());
-            parent->draw();
+            Application->Grab(this);
+            Parent->StartDrag(Parent->X(), Parent->Y());
+            Parent->Draw();
             return;
         }
 
         case 4: // left button up: drop the window
         {
-            if (application->grabbedObject() != this)
+            if (Application->GrabbedObject() != this)
             {
                 return;
             }
 
-            aObject* window = parent;
-            const tagRECT area = application->scrollRect;
-            window->stopDrag();
+            MCGuiObject* window = Parent;
+            const tagRECT area = Application->ScrollRect;
+            window->StopDrag();
 
-            for (int16_t i = 9; i < window->numberOfChildren(); i++)
+            for (int16_t i = 9; i < window->NumberOfChildren(); i++)
             {
-                window->child(i)->ShowGUIWindow(1);
+                window->Child(i)->ShowGuiWindow(1);
             }
 
-            const int32_t mouseX = event->x;
-            const int32_t mouseY = event->y;
-            window->moveTo(mouseX - lastX, mouseY - lastY, 0);
-            keepTitleBarInside(this, area);
-            parent->draw();
-            application->release();
-            aObject* under = screenWindow->findObject(mouseX, mouseY);
+            const int32_t mouseX = event->X;
+            const int32_t mouseY = event->Y;
+            window->MoveTo(mouseX - LastX, mouseY - LastY, 0);
+            KeepTitleBarInside(this, area);
+            Parent->Draw();
+            Application->Release();
+            MCGuiObject* under = ScreenWindow->FindObject(mouseX, mouseY);
 
             if (under != nullptr)
             {
-                under->enter();
+                under->Enter();
             }
 
             return;
@@ -619,20 +619,20 @@ auto aTitleBar::handleEvent(aEvent* event) -> void
 
         case 7: // mouse move: drag, unless over a depth-100 (modal) object
         {
-            if (application->grabbedObject() != this)
+            if (Application->GrabbedObject() != this)
             {
                 return;
             }
 
-            const int32_t mouseX = event->x;
-            const int32_t mouseY = event->y;
-            const tagRECT area = application->scrollRect;
-            aObject* under = screenWindow->findObject(mouseX, mouseY);
+            const int32_t mouseX = event->X;
+            const int32_t mouseY = event->Y;
+            const tagRECT area = Application->ScrollRect;
+            MCGuiObject* under = ScreenWindow->FindObject(mouseX, mouseY);
 
-            if (under == nullptr || under->depth() != 100)
+            if (under == nullptr || under->Depth() != 100)
             {
-                parent->moveTo(mouseX - lastX, mouseY - lastY, 0);
-                keepTitleBarInside(this, area);
+                Parent->MoveTo(mouseX - LastX, mouseY - LastY, 0);
+                KeepTitleBarInside(this, area);
             }
 
             return;
@@ -640,105 +640,105 @@ auto aTitleBar::handleEvent(aEvent* event) -> void
 
         case 0xc:
         {
-            draw();
+            Draw();
             return;
         }
     }
 }
 
-auto aTitleBar::draw() -> void
+auto MCGuiTitleBar::Draw() -> void
 {
-    VFX_pane_wipe(displayPort->frame(), backColor());
-    aPort* barPort = displayPort;
-    VFX_line_draw(barPort->frame(), 0, 0, width(), 0, LD_DRAW, 0xe);
-    VFX_line_draw(barPort->frame(), 0, 0, 0, 0xd, LD_DRAW, 0xe);
+    VfxPaneWipe(DisplayPort->Frame(), BackColor());
+    MCGuiPort* barPort = DisplayPort;
+    VfxLineDraw(barPort->Frame(), 0, 0, Width(), 0, LD_DRAW, 0xe);
+    VfxLineDraw(barPort->Frame(), 0, 0, 0, 0xd, LD_DRAW, 0xe);
 
-    if (parent != nullptr)
+    if (Parent != nullptr)
     {
-        barPort = displayPort;
-        VFX_line_draw(barPort->frame(), 1, height() - 1, parent->width() + 2, height() - 1, LD_DRAW, 3);
+        barPort = DisplayPort;
+        VfxLineDraw(barPort->Frame(), 1, Height() - 1, Parent->Width() + 2, Height() - 1, LD_DRAW, 3);
     }
 
     int32_t textX = 3;
 
-    if (zoomButton != nullptr && zoomButton->IsShowing() != 0)
+    if (ZoomButton != nullptr && ZoomButton->IsShowing() != 0)
     {
-        textX = zoomButton->x() + zoomButton->width() + zoomOutButton->width() + 3;
+        textX = ZoomButton->X() + ZoomButton->Width() + ZoomOutButton->Width() + 3;
     }
 
-    font->writeString(barPort->frame(), textX, 3, reinterpret_cast<uint8_t*>(title), -1);
-    aObject::draw();
+    Font->WriteString(barPort->Frame(), textX, 3, reinterpret_cast<uint8_t*>(Title), -1);
+    MCGuiObject::Draw();
 }
 
-auto aTitleBar::showCloseButton(int show) -> void
+auto MCGuiTitleBar::ShowCloseButton(int show) -> void
 {
-    if (closeButton == nullptr)
+    if (CloseButton == nullptr)
     {
         return;
     }
 
-    closeButton->ShowGUIWindow(show);
+    CloseButton->ShowGuiWindow(show);
 
     if (show != 0)
     {
-        closeButton->callback()->setMessage(parent, 0xd);
+        CloseButton->Callback()->SetMessage(Parent, 0xd);
     }
 }
 
-auto aTitleBar::showZoomButton(int show) -> void
+auto MCGuiTitleBar::ShowZoomButton(int show) -> void
 {
-    if (zoomButton != nullptr)
+    if (ZoomButton != nullptr)
     {
-        zoomButton->ShowGUIWindow(show);
+        ZoomButton->ShowGuiWindow(show);
     }
 }
 
-auto aTitleBar::showZoomButtons(int show) -> void
+auto MCGuiTitleBar::ShowZoomButtons(int show) -> void
 {
-    if (zoomButton != nullptr)
+    if (ZoomButton != nullptr)
     {
-        zoomButton->ShowGUIWindow(show);
+        ZoomButton->ShowGuiWindow(show);
     }
 
-    if (zoomOutButton != nullptr)
+    if (ZoomOutButton != nullptr)
     {
-        zoomOutButton->ShowGUIWindow(show);
+        ZoomOutButton->ShowGuiWindow(show);
     }
 }
 
-auto aTitleBar::showSwoopyButton(int show) -> void
+auto MCGuiTitleBar::ShowSwoopyButton(int show) -> void
 {
-    if (swoopyButton != nullptr)
+    if (SwoopyButton != nullptr)
     {
-        swoopyButton->ShowGUIWindow(show);
+        SwoopyButton->ShowGuiWindow(show);
     }
 }
 
-auto aTitleBar::resize(int32_t newWidth, int32_t newHeight) -> void
+auto MCGuiTitleBar::Resize(int32_t newWidth, int32_t newHeight) -> void
 {
-    aObject::resize(newWidth, newHeight);
-    const int32_t barWidth = winWidth;
-    closeButton->moveTo(barWidth - closeButton->width(), 0, 0);
-    swoopyButton->moveTo(barWidth - closeButton->width() - swoopyButton->width(), 0, 0);
+    MCGuiObject::Resize(newWidth, newHeight);
+    const int32_t barWidth = WinWidth;
+    CloseButton->MoveTo(barWidth - CloseButton->Width(), 0, 0);
+    SwoopyButton->MoveTo(barWidth - CloseButton->Width() - SwoopyButton->Width(), 0, 0);
 }
 
-auto aTitleBar::ResizeOK(int32_t newWidth) -> int
+auto MCGuiTitleBar::ResizeOK(int32_t newWidth) -> int
 {
     int32_t needed = 4;
 
-    if (closeButton != nullptr && closeButton->IsShowing() != 0)
+    if (CloseButton != nullptr && CloseButton->IsShowing() != 0)
     {
-        needed = closeButton->width() + 5;
+        needed = CloseButton->Width() + 5;
     }
 
-    if (zoomButton != nullptr && zoomButton->IsShowing() != 0)
+    if (ZoomButton != nullptr && ZoomButton->IsShowing() != 0)
     {
-        needed += zoomButton->width() + 1;
+        needed += ZoomButton->Width() + 1;
     }
 
-    if (zoomOutButton != nullptr && zoomOutButton->IsShowing() != 0)
+    if (ZoomOutButton != nullptr && ZoomOutButton->IsShowing() != 0)
     {
-        needed += zoomOutButton->width() + 1;
+        needed += ZoomOutButton->Width() + 1;
     }
 
     return needed <= newWidth ? 1 : 0;
@@ -756,220 +756,220 @@ namespace
     constexpr int32_t MaxMenuItems = 25;
 }
 
-aMenu::aMenu()
+MCGuiMenu::MCGuiMenu()
 {
 }
 
-auto aMenu::ShowGUIWindow(int show) -> void
+auto MCGuiMenu::ShowGuiWindow(int show) -> void
 {
-    showWindow = show;
+    ShowWindow = show;
 
     if (show != 0)
     {
-        shown = 1;
+        Shown = 1;
     }
 }
 
-auto aMenu::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiMenu::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    font = nullptr;
-    numItems = 0;
-    selectedItem = -1;
-    itemText = nullptr;
-    int32_t result = aObject::init(xPos, yPos, width, height, name);
+    Font = nullptr;
+    NumItems = 0;
+    SelectedItem = -1;
+    ItemText = nullptr;
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    font = whiteFont;
-    itemText = std::make_unique<char[]>(1000);
+    Font = WhiteFont;
+    ItemText = std::make_unique<char[]>(1000);
 
     for (int32_t i = 0; i < MaxMenuItems; i++)
     {
-        itemCallbacks[i] = nullptr;
-        itemData[i] = -1;
-        itemLetters[i] = 0;
+        ItemCallbacks[i] = nullptr;
+        ItemData[i] = -1;
+        ItemLetters[i] = 0;
     }
 
-    setBackColor(0);
-    moveTo(xPos, yPos, 0);
-    itemHeight = font->height() + 8;
-    hasLetters = 0;
-    rightAligned = 0;
+    SetBackColor(0);
+    MoveTo(xPos, yPos, 0);
+    ItemHeight = Font->Height() + 8;
+    HasLetters = 0;
+    RightAligned = 0;
     return 0;
 }
 
-auto aMenu::destroy() -> void
+auto MCGuiMenu::Destroy() -> void
 {
-    itemText.reset();
+    ItemText.reset();
 
-    for (int16_t i = 0; i < numItems; i++)
+    for (int16_t i = 0; i < NumItems; i++)
     {
-        if (itemCallbacks[i] != nullptr)
+        if (ItemCallbacks[i] != nullptr)
         {
-            delete itemCallbacks[i];
-            itemCallbacks[i] = nullptr;
+            delete ItemCallbacks[i];
+            ItemCallbacks[i] = nullptr;
         }
     }
 
-    numItems = 0;
-    selectedItem = -1;
-    aObject::destroy();
+    NumItems = 0;
+    SelectedItem = -1;
+    MCGuiObject::Destroy();
 }
 
-auto aMenu::handleEvent(aEvent* event) -> void
+auto MCGuiMenu::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 4)
+    if (event->Type == 4)
     {
         // A release runs the item under the cursor, then hides the menu wherever it happened.
-        const int32_t mouseY = event->y;
-        selectedItem = (mouseY - globalY()) / itemHeight;
+        const int32_t mouseY = event->Y;
+        SelectedItem = (mouseY - GlobalY()) / ItemHeight;
 
-        if (pointInside(event->x, mouseY) != 0 && selectedItem > -1 && selectedItem < numItems &&
-            itemCallbacks[selectedItem] != nullptr)
+        if (PointInside(event->X, mouseY) != 0 && SelectedItem > -1 && SelectedItem < NumItems &&
+            ItemCallbacks[SelectedItem] != nullptr)
         {
-            itemCallbacks[selectedItem]->execute();
+            ItemCallbacks[SelectedItem]->Execute();
         }
 
-        ShowGUIWindow(0);
-        application->release();
+        ShowGuiWindow(0);
+        Application->Release();
     }
-    else if (event->type == 7)
+    else if (event->Type == 7)
     {
-        const int32_t item = (event->y - globalY()) / itemHeight;
+        const int32_t item = (event->Y - GlobalY()) / ItemHeight;
 
-        if (item != selectedItem)
+        if (item != SelectedItem)
         {
-            selectedItem = item;
-            draw();
+            SelectedItem = item;
+            Draw();
         }
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto aMenu::draw() -> void
+auto MCGuiMenu::Draw() -> void
 {
-    const int32_t halfItem = itemHeight / 2;
+    const int32_t halfItem = ItemHeight / 2;
     int32_t itemY = 0;
-    char* text = itemText.get();
-    VFX_pane_wipe(displayPort->frame(), backgroundColor);
-    aObject::draw();
+    char* text = ItemText.get();
+    VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
+    MCGuiObject::Draw();
 
-    if (dragging() != 0)
+    if (Dragging() != 0)
     {
         return;
     }
 
-    VFX_line_draw(displayPort->frame(), 0, 0, width() - 1, 0, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), width() - 1, 0, width() - 1, height() - 1, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), 0, height() - 1, width() - 1, height() - 1, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), 0, 0, 0, height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, LD_DRAW, 0xf);
 
-    for (int16_t i = 0; i < numItems; i++)
+    for (int16_t i = 0; i < NumItems; i++)
     {
         if (std::strcmp(text, MenuSeparator) == 0)
         {
             const int32_t lineY = halfItem + itemY;
-            VFX_line_draw(displayPort->frame(), 4, lineY, width() - 8, lineY, LD_DRAW, 9);
+            VfxLineDraw(DisplayPort->Frame(), 4, lineY, Width() - 8, lineY, LD_DRAW, 9);
         }
         else
         {
-            if (i == selectedItem)
+            if (i == SelectedItem)
             {
-                FillBox(1, static_cast<int16_t>(itemY + 1), static_cast<int16_t>(width() - 1),
-                        static_cast<int16_t>(itemY + itemHeight), 0xb);
+                FillBox(1, static_cast<int16_t>(itemY + 1), static_cast<int16_t>(Width() - 1),
+                        static_cast<int16_t>(itemY + ItemHeight), 0xb);
             }
 
             int32_t textX = 2;
 
-            if (rightAligned != 0)
+            if (RightAligned != 0)
             {
-                textX = width() + (-6 - font->width(reinterpret_cast<uint8_t*>(text)));
+                textX = Width() + (-6 - Font->Width(reinterpret_cast<uint8_t*>(text)));
             }
 
-            font->writeString(displayPort->frame(), textX, itemY + 4, reinterpret_cast<uint8_t*>(text), -1);
-            const char letter = itemLetters[i];
+            Font->WriteString(DisplayPort->Frame(), textX, itemY + 4, reinterpret_cast<uint8_t*>(text), -1);
+            const char letter = ItemLetters[i];
 
             if (letter != 0)
             {
-                const int32_t letterX = width() + (-3 - font->width(static_cast<uint8_t>(letter)));
-                font->writeChar(displayPort->frame(), letterX, itemY + 4, letter);
+                const int32_t letterX = Width() + (-3 - Font->Width(static_cast<uint8_t>(letter)));
+                Font->WriteChar(DisplayPort->Frame(), letterX, itemY + 4, letter);
             }
         }
 
-        VFX_line_draw(displayPort->frame(), 1, itemY, width() - 2, itemY, LD_DRAW, 0xf);
+        VfxLineDraw(DisplayPort->Frame(), 1, itemY, Width() - 2, itemY, LD_DRAW, 0xf);
         text += MenuItemLength;
-        itemY += itemHeight;
+        itemY += ItemHeight;
     }
 }
 
-auto aMenu::ResizeMenu() -> void
+auto MCGuiMenu::ResizeMenu() -> void
 {
-    uint8_t* text = reinterpret_cast<uint8_t*>(itemText.get());
-    const int32_t menuHeight = (font->height() + 8) * numItems;
+    uint8_t* text = reinterpret_cast<uint8_t*>(ItemText.get());
+    const int32_t menuHeight = (Font->Height() + 8) * NumItems;
     int32_t menuWidth = 0;
 
-    for (int16_t i = 0; i < numItems; i++)
+    for (int16_t i = 0; i < NumItems; i++)
     {
-        if (static_cast<double>(menuWidth) < static_cast<double>(font->width(text) + 4) * 1.25)
+        if (static_cast<double>(menuWidth) < static_cast<double>(Font->Width(text) + 4) * 1.25)
         {
-            menuWidth = static_cast<int32_t>(static_cast<double>(font->width(text) + 4) * 1.25);
+            menuWidth = static_cast<int32_t>(static_cast<double>(Font->Width(text) + 4) * 1.25);
         }
 
         text += MenuItemLength;
     }
 
-    if (hasLetters != 0)
+    if (HasLetters != 0)
     {
-        menuWidth += 6 + font->width(reinterpret_cast<uint8_t*>(const_cast<char*>("W")));
+        menuWidth += 6 + Font->Width(reinterpret_cast<uint8_t*>(const_cast<char*>("W")));
     }
 
-    if (width() == menuWidth && height() == menuHeight)
+    if (Width() == menuWidth && Height() == menuHeight)
     {
         return;
     }
 
-    resize(menuWidth, menuHeight);
+    Resize(menuWidth, menuHeight);
 }
 
-auto aMenu::AddItem(char* text) -> int32_t
+auto MCGuiMenu::AddItem(char* text) -> int32_t
 {
-    const int32_t index = numItems;
+    const int32_t index = NumItems;
 
     if (index > MaxMenuItems - 1)
     {
         return static_cast<int32_t>(0xeeee0001);
     }
 
-    aCallback* callback = new aCallback;
+    MCGuiCallback* callback = new MCGuiCallback;
 
     if (callback == nullptr)
     {
         return static_cast<int32_t>(0xeeee0002);
     }
 
-    itemCallbacks[index] = callback;
-    itemData[numItems] = 0;
+    ItemCallbacks[index] = callback;
+    ItemData[NumItems] = 0;
 
     if (std::strlen(text) > MenuItemLength - 1)
     {
         text[MenuItemLength - 1] = 0;
     }
 
-    std::strcpy(itemText.get() + numItems * MenuItemLength, text);
-    numItems++;
+    std::strcpy(ItemText.get() + NumItems * MenuItemLength, text);
+    NumItems++;
     ResizeMenu();
-    return numItems - 1;
+    return NumItems - 1;
 }
 
-auto aMenu::RemoveItem(char* text) -> int
+auto MCGuiMenu::RemoveItem(char* text) -> int
 {
     int16_t i = 0;
 
-    while (i < numItems && MCPort::StrICmp(itemText.get() + i * MenuItemLength, text) != 0)
+    while (i < NumItems && MCPort::StrICmp(ItemText.get() + i * MenuItemLength, text) != 0)
     {
         i++;
     }
@@ -977,71 +977,71 @@ auto aMenu::RemoveItem(char* text) -> int
     return RemoveItem(i);
 }
 
-auto aMenu::RemoveItem(int16_t index) -> int
+auto MCGuiMenu::RemoveItem(int16_t index) -> int
 {
-    if (index >= numItems)
+    if (index >= NumItems)
     {
         return 0;
     }
 
-    if (itemCallbacks[index] != nullptr)
+    if (ItemCallbacks[index] != nullptr)
     {
-        delete itemCallbacks[index];
+        delete ItemCallbacks[index];
     }
 
     int16_t i = index;
 
-    while (i < numItems - 1)
+    while (i < NumItems - 1)
     {
-        itemCallbacks[i] = itemCallbacks[i + 1];
-        itemData[i] = itemData[i + 1];
+        ItemCallbacks[i] = ItemCallbacks[i + 1];
+        ItemData[i] = ItemData[i + 1];
         i++;
     }
 
-    itemCallbacks[i] = nullptr;
-    itemData[i] = 0;
+    ItemCallbacks[i] = nullptr;
+    ItemData[i] = 0;
     // The letters are not shifted with the items.
-    char* slot = itemText.get() + index * MenuItemLength;
+    char* slot = ItemText.get() + index * MenuItemLength;
     std::memmove(slot, slot + MenuItemLength,
                  static_cast<size_t>(static_cast<int16_t>((0x18 - index) * MenuItemLength)));
-    numItems--;
+    NumItems--;
     ResizeMenu();
     return 1;
 }
 
-auto aMenu::AddSeparator() -> int32_t
+auto MCGuiMenu::AddSeparator() -> int32_t
 {
-    const int32_t index = numItems;
+    const int32_t index = NumItems;
 
     if (index > MaxMenuItems - 1)
     {
         return static_cast<int32_t>(0xeeee0001);
     }
 
-    std::strcpy(itemText.get() + index * MenuItemLength, MenuSeparator);
-    numItems = index + 1;
+    std::strcpy(ItemText.get() + index * MenuItemLength, MenuSeparator);
+    NumItems = index + 1;
     return index + 1;
 }
 
-auto aMenu::SetCallback(int16_t index, void (*exec)()) -> void
+auto MCGuiMenu::SetCallback(int16_t index, void (*exec)()) -> void
 {
-    if (index < numItems)
+    if (index < NumItems)
     {
-        itemCallbacks[index]->setExec(exec);
+        ItemCallbacks[index]->SetExec(exec);
     }
 }
 
-auto aMenu::SetMessage(int16_t index, aObject* target, int32_t message) -> void
+auto MCGuiMenu::SetMessage(int16_t index, MCGuiObject* target, int32_t message) -> void
 {
-    if (index < numItems)
+    if (index < NumItems)
     {
-        itemCallbacks[index]->setMessage(target, message);
+        ItemCallbacks[index]->SetMessage(target, message);
     }
 }
 
-auto aMenu::ChangeItemString(int16_t index, char* text) -> int32_t
+auto MCGuiMenu::ChangeItemString(int16_t index, char* text) -> int32_t
 {
-    if (index >= numItems)
+    if (index >= NumItems)
     {
         return static_cast<int32_t>(0xeeee0003);
     }
@@ -1051,310 +1051,310 @@ auto aMenu::ChangeItemString(int16_t index, char* text) -> int32_t
         text[MenuItemLength - 1] = 0;
     }
 
-    std::strcpy(itemText.get() + index * MenuItemLength, text);
+    std::strcpy(ItemText.get() + index * MenuItemLength, text);
     ResizeMenu();
     return 0;
 }
 
-auto aMenu::KeepOnScreen() -> void
+auto MCGuiMenu::KeepOnScreen() -> void
 {
-    const tagRECT area = application->scrollRect;
+    const tagRECT area = Application->ScrollRect;
 
-    if (x() < area.left)
+    if (X() < area.left)
     {
-        moveTo(area.left, y(), 0);
+        MoveTo(area.left, Y(), 0);
     }
 
-    if (y() < area.top)
+    if (Y() < area.top)
     {
-        moveTo(x(), area.top, 0);
+        MoveTo(X(), area.top, 0);
     }
 
-    if (area.right < x() + width())
+    if (area.right < X() + Width())
     {
-        moveTo(area.right - width() - 10, y(), 0);
+        MoveTo(area.right - Width() - 10, Y(), 0);
     }
 
-    if (area.bottom < y() + height())
+    if (area.bottom < Y() + Height())
     {
-        moveTo(x(), area.bottom - height() - 10, 0);
+        MoveTo(X(), area.bottom - Height() - 10, 0);
     }
 }
 
-auto aMenu::SetItemData(int16_t index, int32_t data) -> void
+auto MCGuiMenu::SetItemData(int16_t index, int32_t data) -> void
 {
-    if (index < numItems)
+    if (index < NumItems)
     {
-        itemData[index] = data;
+        ItemData[index] = data;
     }
 }
 
-auto aMenu::GetItemData(int16_t index) -> int32_t
+auto MCGuiMenu::GetItemData(int16_t index) -> int32_t
 {
-    if (index >= numItems)
+    if (index >= NumItems)
     {
         return static_cast<int32_t>(0xeeee0003);
     }
 
-    return itemData[index];
+    return ItemData[index];
 }
 
-auto aMenu::SetItemLetter(int16_t index, char letter) -> void
+auto MCGuiMenu::SetItemLetter(int16_t index, char letter) -> void
 {
-    if (index < numItems)
+    if (index < NumItems)
     {
-        itemLetters[index] = letter;
-        hasLetters = 1;
+        ItemLetters[index] = letter;
+        HasLetters = 1;
         ResizeMenu();
     }
 }
 
-auto aMenu::GetItemLetter(int16_t index) -> char
+auto MCGuiMenu::GetItemLetter(int16_t index) -> char
 {
-    if (index >= numItems)
+    if (index >= NumItems)
     {
         return 3;
     }
 
-    return itemLetters[index];
+    return ItemLetters[index];
 }
 
 // aToolBar
 
-aToolBar::aToolBar()
+MCGuiToolBar::MCGuiToolBar()
 {
 }
 
-auto aToolBar::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiToolBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    const int32_t result = aTitleWindow::init(xPos, yPos, width, height, name);
-    setBackColor(0);
+    const int32_t result = MCGuiTitleWindow::Init(xPos, yPos, width, height, name);
+    SetBackColor(0);
 
-    if (titleBar != nullptr)
+    if (TitleBar != nullptr)
     {
-        titleBar->showCloseButton(0);
+        TitleBar->ShowCloseButton(0);
     }
 
-    maxLength = 8;
+    MaxLength = 8;
     return result;
 }
 
-auto aToolBar::destroy() -> void
+auto MCGuiToolBar::Destroy() -> void
 {
-    for (int16_t i = 0; i < numButtons; i++)
+    for (int16_t i = 0; i < NumButtons; i++)
     {
-        destroyPart(buttons[i]);
+        DestroyPart(Buttons[i]);
     }
 
-    aTitleWindow::destroy();
+    MCGuiTitleWindow::Destroy();
 }
 
-auto aToolBar::AddButton(aToolButton* button) -> int32_t
+auto MCGuiToolBar::AddButton(MCGuiToolButton* button) -> int32_t
 {
-    if (numButtons > MaxMenuItems - 1)
+    if (NumButtons > MaxMenuItems - 1)
     {
         return static_cast<int32_t>(0xeeee0001);
     }
 
-    buttons[numButtons] = button;
-    numButtons++;
-    addChild(button);
+    Buttons[NumButtons] = button;
+    NumButtons++;
+    AddChild(button);
     PlaceButtons();
     return 0;
 }
 
-auto aToolBar::RemoveButton(int32_t index) -> int32_t
+auto MCGuiToolBar::RemoveButton(int32_t index) -> int32_t
 {
-    if (index >= numButtons)
+    if (index >= NumButtons)
     {
         return static_cast<int32_t>(0xeeee0003);
     }
 
-    removeChild(GetButton(index));
+    RemoveChild(GetButton(index));
 
-    while (index < numButtons - 1)
+    while (index < NumButtons - 1)
     {
-        buttons[index] = buttons[index + 1];
+        Buttons[index] = Buttons[index + 1];
         index++;
     }
 
     // Original bug (OB-064): clears the slot past the last button, not the last one; with a full bar that slot is
     // `horizontal` (+0x52c), which is zeroed.
-    if (numButtons < MaxMenuItems)
+    if (NumButtons < MaxMenuItems)
     {
-        buttons[numButtons] = nullptr;
+        Buttons[NumButtons] = nullptr;
     }
     else
     {
-        horizontal = 0;
+        Horizontal = 0;
     }
 
-    numButtons--;
+    NumButtons--;
     PlaceButtons();
     return 0;
 }
 
-auto aToolBar::GetButton(int32_t index) -> aToolButton*
+auto MCGuiToolBar::GetButton(int32_t index) -> MCGuiToolButton*
 {
     if (index > MaxMenuItems - 1)
     {
         return nullptr;
     }
 
-    return buttons[index];
+    return Buttons[index];
 }
 
-auto aToolBar::IsPushed(int32_t index) -> int
+auto MCGuiToolBar::IsPushed(int32_t index) -> int
 {
     if (GetButton(index) == nullptr)
     {
         return 0;
     }
 
-    return GetButton(index)->pushed;
+    return GetButton(index)->Pushed;
 }
 
-auto aToolBar::SetHorizontal(int on) -> void
+auto MCGuiToolBar::SetHorizontal(int on) -> void
 {
-    horizontal = on;
+    Horizontal = on;
     PlaceButtons();
 }
 
-auto aToolBar::SetMaxLength(int16_t length) -> void
+auto MCGuiToolBar::SetMaxLength(int16_t length) -> void
 {
-    maxLength = length;
+    MaxLength = length;
     PlaceButtons();
 }
 
-auto aToolBar::PlaceButtons() -> void
+auto MCGuiToolBar::PlaceButtons() -> void
 {
-    placeBarButtons(this, buttons, numButtons, maxLength, horizontal, buttonWidth, buttonHeight);
+    PlaceBarButtons(this, Buttons, NumButtons, MaxLength, Horizontal, ButtonWidth, ButtonHeight);
 }
 
-auto aToolBar::SetButtonSize(int32_t width, int32_t height) -> void
+auto MCGuiToolBar::SetButtonSize(int32_t width, int32_t height) -> void
 {
-    buttonWidth = width;
-    buttonHeight = height;
+    ButtonWidth = width;
+    ButtonHeight = height;
 }
 
 // aWindowBar
 
-aWindowBar::aWindowBar()
+MCGuiWindowBar::MCGuiWindowBar()
 {
 }
 
-auto aWindowBar::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiWindowBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    const int32_t result = aObject::init(xPos, yPos, width, height, name);
-    setBackColor(0);
-    maxLength = 8;
+    const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
+    SetBackColor(0);
+    MaxLength = 8;
     return result;
 }
 
-auto aWindowBar::destroy() -> void
+auto MCGuiWindowBar::Destroy() -> void
 {
-    for (int16_t i = 0; i < numButtons; i++)
+    for (int16_t i = 0; i < NumButtons; i++)
     {
-        destroyPart(buttons[i]);
+        DestroyPart(Buttons[i]);
     }
 
-    aObject::destroy();
+    MCGuiObject::Destroy();
 }
 
-auto aWindowBar::InsertButton(aButton* button, int32_t index) -> int32_t
+auto MCGuiWindowBar::InsertButton(MCGuiButton* button, int32_t index) -> int32_t
 {
-    if (numButtons >= MaxMenuItems || index > numButtons)
+    if (NumButtons >= MaxMenuItems || index > NumButtons)
     {
         return static_cast<int32_t>(0xeeee0001);
     }
 
-    for (int32_t i = numButtons; i > index; i--)
+    for (int32_t i = NumButtons; i > index; i--)
     {
-        buttons[i] = buttons[i - 1];
+        Buttons[i] = Buttons[i - 1];
     }
 
-    buttons[index] = button;
-    numButtons++;
-    addChild(button);
+    Buttons[index] = button;
+    NumButtons++;
+    AddChild(button);
     PlaceButtons();
     return 0;
 }
 
-auto aWindowBar::AddButton(aButton* button) -> int32_t
+auto MCGuiWindowBar::AddButton(MCGuiButton* button) -> int32_t
 {
-    if (numButtons > MaxMenuItems - 1)
+    if (NumButtons > MaxMenuItems - 1)
     {
         return static_cast<int32_t>(0xeeee0001);
     }
 
-    buttons[numButtons] = button;
-    numButtons++;
-    addChild(button);
+    Buttons[NumButtons] = button;
+    NumButtons++;
+    AddChild(button);
     PlaceButtons();
     return 0;
 }
 
-auto aWindowBar::RemoveButton(int32_t index) -> int32_t
+auto MCGuiWindowBar::RemoveButton(int32_t index) -> int32_t
 {
-    if (index >= numButtons)
+    if (index >= NumButtons)
     {
         return static_cast<int32_t>(0xeeee0003);
     }
 
-    removeChild(GetButton(index));
+    RemoveChild(GetButton(index));
 
-    while (index < numButtons - 1)
+    while (index < NumButtons - 1)
     {
-        buttons[index] = buttons[index + 1];
+        Buttons[index] = Buttons[index + 1];
         index++;
     }
 
     // Original bug (OB-064): as aToolBar::RemoveButton; past a full bar the slot is `horizontal` (+0x518).
-    if (numButtons < MaxMenuItems)
+    if (NumButtons < MaxMenuItems)
     {
-        buttons[numButtons] = nullptr;
+        Buttons[NumButtons] = nullptr;
     }
     else
     {
-        horizontal = 0;
+        Horizontal = 0;
     }
 
-    numButtons--;
+    NumButtons--;
     PlaceButtons();
     return 0;
 }
 
-auto aWindowBar::GetButton(int32_t index) -> aButton*
+auto MCGuiWindowBar::GetButton(int32_t index) -> MCGuiButton*
 {
     if (index > MaxMenuItems - 1)
     {
         return nullptr;
     }
 
-    return buttons[index];
+    return Buttons[index];
 }
 
-auto aWindowBar::SetHorizontal(int on) -> void
+auto MCGuiWindowBar::SetHorizontal(int on) -> void
 {
-    horizontal = on;
+    Horizontal = on;
     PlaceButtons();
 }
 
-auto aWindowBar::SetMaxLength(int16_t length) -> void
+auto MCGuiWindowBar::SetMaxLength(int16_t length) -> void
 {
-    maxLength = length;
+    MaxLength = length;
     PlaceButtons();
 }
 
-auto aWindowBar::PlaceButtons() -> void
+auto MCGuiWindowBar::PlaceButtons() -> void
 {
-    placeBarButtons(this, buttons, numButtons, maxLength, horizontal, buttonWidth, buttonHeight);
+    PlaceBarButtons(this, Buttons, NumButtons, MaxLength, Horizontal, ButtonWidth, ButtonHeight);
 }
 
-auto aWindowBar::SetButtonSize(int32_t width, int32_t height) -> void
+auto MCGuiWindowBar::SetButtonSize(int32_t width, int32_t height) -> void
 {
-    buttonWidth = width;
-    buttonHeight = height;
+    ButtonWidth = width;
+    ButtonHeight = height;
 }
 
 // aSmackerWindow
@@ -1366,11 +1366,11 @@ auto aWindowBar::SetButtonSize(int32_t width, int32_t height) -> void
 // decoded a full-screen movie straight onto the screen), and the window copies the pane to the screen in the frame
 // pass: movie frames are the one picture that changes under the renderer every frame.
 
-aSmackerWindow::aSmackerWindow()
+MCGuiSmackerWindow::MCGuiSmackerWindow()
 {
 }
 
-auto aSmackerWindow::init(tagRECT* area, tagPOINT* position) -> int32_t
+auto MCGuiSmackerWindow::Init(tagRECT* area, tagPOINT* position) -> int32_t
 {
     int32_t left = area->left;
     int32_t top = area->top;
@@ -1382,170 +1382,170 @@ auto aSmackerWindow::init(tagRECT* area, tagPOINT* position) -> int32_t
     }
 
     // The rectangle's right and bottom are the width and height.
-    return aObject::init(left, top, area->right, area->bottom, nullptr);
+    return MCGuiObject::Init(left, top, area->right, area->bottom, nullptr);
 }
 
-auto aSmackerWindow::startSmackerMovie(SmackTag* newMovie, int fullScreenPlay) -> int32_t
+auto MCGuiSmackerWindow::StartSmackerMovie(MCSmackTag* newMovie, int fullScreenPlay) -> int32_t
 {
-    fullScreen = fullScreenPlay;
-    movie = newMovie;
-    movieOver = 0;
+    FullScreen = fullScreenPlay;
+    Movie = newMovie;
+    MovieOver = 0;
     // (The original returned here for a full-screen movie: it had no pane.)
-    moviePane = new _pane{*frame()};
-    _window* movieWindow = new _window{};
-    moviePane->window = movieWindow;
+    MoviePane = new MCPane{*Frame()};
+    MCWindow* movieWindow = new MCWindow{};
+    MoviePane->Window = movieWindow;
     movieWindow->View = nullptr;
     movieWindow->Texture = nullptr;
 
-    if (moviePane->x1 < 0 || moviePane->y1 < 0)
+    if (MoviePane->X1 < 0 || MoviePane->Y1 < 0)
     {
-        movieWindow->buffer = nullptr;
+        movieWindow->Buffer = nullptr;
         return static_cast<int32_t>(0xd4d40000);
     }
 
-    movieWindow->x_max = moviePane->x1;
-    movieWindow->y_max = moviePane->y1;
-    movieWindow->buffer = new uint8_t[static_cast<size_t>((movieWindow->y_max + 1) * (movieWindow->x_max + 1))]{};
+    movieWindow->XMax = MoviePane->X1;
+    movieWindow->YMax = MoviePane->Y1;
+    movieWindow->Buffer = new uint8_t[static_cast<size_t>((movieWindow->YMax + 1) * (movieWindow->XMax + 1))]{};
     MCRenderer::CreateTexture(movieWindow, MCTextureUse::Stream);
 
-    if (fullScreen == 0)
+    if (FullScreen == 0)
     {
-        remapToGamePalette(movie);
+        RemapToGamePalette(Movie);
     }
 
     return 0;
 }
 
-auto aSmackerWindow::destroy() -> void
+auto MCGuiSmackerWindow::Destroy() -> void
 {
-    SmackClose(movie);
-    movie = nullptr;
+    SmackClose(Movie);
+    Movie = nullptr;
 
-    if (moviePane != nullptr && moviePane->window != nullptr)
+    if (MoviePane != nullptr && MoviePane->Window != nullptr)
     {
-        MCRenderer::DestroyTexture(moviePane->window);
-        delete[] moviePane->window->buffer;
-        delete moviePane->window;
+        MCRenderer::DestroyTexture(MoviePane->Window);
+        delete[] MoviePane->Window->Buffer;
+        delete MoviePane->Window;
     }
 
-    delete moviePane;
-    moviePane = nullptr;
-    aObject::destroy();
-    screenWindow->removeChild(this);
+    delete MoviePane;
+    MoviePane = nullptr;
+    MCGuiObject::Destroy();
+    ScreenWindow->RemoveChild(this);
 }
 
-auto aSmackerWindow::endSmackerMovie() -> void
+auto MCGuiSmackerWindow::EndSmackerMovie() -> void
 {
-    SmackClose(movie);
-    movie = nullptr;
-    movieOver = 1;
-    destroy();
+    SmackClose(Movie);
+    Movie = nullptr;
+    MovieOver = 1;
+    Destroy();
 }
 
-auto aSmackerWindow::checkSmackerPalette() -> void
+auto MCGuiSmackerWindow::CheckSmackerPalette() -> void
 {
     // Port fix: the original reads the movie unguarded.
-    if (movie == nullptr || !movie->Player->NewPalette())
+    if (Movie == nullptr || !Movie->Player->NewPalette())
     {
         return;
     }
 
-    if (fullScreen == 0)
+    if (FullScreen == 0)
     {
-        remapToGamePalette(movie);
+        RemapToGamePalette(Movie);
         return;
     }
 
-    application->activateSmackerPalette(const_cast<uint8_t*>(movie->Player->Palette().data()));
+    Application->ActivateSmackerPalette(const_cast<uint8_t*>(Movie->Player->Palette().data()));
 }
 
-auto aSmackerWindow::display() -> void
+auto MCGuiSmackerWindow::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
 
-    if (movie == nullptr)
+    if (Movie == nullptr)
     {
-        if (fullScreen != 0)
+        if (FullScreen != 0)
         {
-            clearScreen();
+            ClearScreen();
         }
 
-        if (moviePane != nullptr)
+        if (MoviePane != nullptr)
         {
-            VFX_pane_wipe(moviePane, 0);
+            VfxPaneWipe(MoviePane, 0);
         }
 
         // (The original left the screen as it was.) An escaped movie has destroyed the window already (endSmackerMovie)
         // while application->smackerWindow still names it until its owner clears it, so there is no pane to draw.
-        if (framePane != nullptr)
+        if (FramePane != nullptr)
         {
-            DrawInFramePass(displayPort);
+            DrawInFramePass(DisplayPort);
         }
 
         return;
     }
 
-    MCSmackerPlayer* player = movie->Player.get();
+    MCSmackerPlayer* player = Movie->Player.get();
 
-    if (static_cast<uint32_t>(width()) < static_cast<uint32_t>(player->Width()) ||
-        static_cast<uint32_t>(height()) < static_cast<uint32_t>(player->Height()))
+    if (static_cast<uint32_t>(Width()) < static_cast<uint32_t>(player->Width()) ||
+        static_cast<uint32_t>(Height()) < static_cast<uint32_t>(player->Height()))
     {
         Fatal(0, "Movie is too big for its window");
     }
 
-    if (firstFrame != 0)
+    if (FirstFrame != 0)
     {
-        VFX_pane_wipe(moviePane, 0);
+        VfxPaneWipe(MoviePane, 0);
 
-        if (fullScreen != 0)
+        if (FullScreen != 0)
         {
-            clearScreen();
+            ClearScreen();
         }
 
-        firstFrame = 0;
+        FirstFrame = 0;
     }
 
     // (The original set SmackToBuffer every display; the port locks the movie's rectangle of the texture only while
     // a frame is decoded into it, so a display with no new frame sends nothing up.)
     if (!player->Wait())
     {
-        MCTexture* texture = moviePane->window->Texture;
-        const MCRect rect{moviePane->x0, moviePane->y0, moviePane->x0 + player->Width() - 1,
-                          moviePane->y0 + player->Height() - 1};
+        MCTexture* texture = MoviePane->Window->Texture;
+        const MCRect rect{MoviePane->X0, MoviePane->Y0, MoviePane->X0 + player->Width() - 1,
+                          MoviePane->Y0 + player->Height() - 1};
         player->ToBuffer(0, 0, texture->Width, player->Height(), MCRenderer::LockTexture(texture, rect));
-        const int more = nextFrame();
+        const int more = NextFrame();
         MCRenderer::UnlockTexture(texture);
         player->ToBuffer(0, 0, 0, 0, nullptr);
 
         if (more == 0)
         {
-            movieOver = 1;
+            MovieOver = 1;
         }
     }
 
-    DrawInFramePass(displayPort);
+    DrawInFramePass(DisplayPort);
 }
 
-auto aSmackerWindow::draw() -> void
+auto MCGuiSmackerWindow::Draw() -> void
 {
     // (The original drew the window's own picture, and only while the movie played.)
-    if (moviePane != nullptr && moviePane->window != nullptr && moviePane->window->buffer != nullptr)
+    if (MoviePane != nullptr && MoviePane->Window != nullptr && MoviePane->Window->Buffer != nullptr)
     {
-        VFX_pane_copy(moviePane, 0, 0, port()->frame(), 0, 0, -1);
+        VfxPaneCopy(MoviePane, 0, 0, Port()->Frame(), 0, 0, -1);
     }
 }
 
-auto aSmackerWindow::nextFrame() -> int
+auto MCGuiSmackerWindow::NextFrame() -> int
 {
-    MCSmackerPlayer* player = movie->Player.get();
+    MCSmackerPlayer* player = Movie->Player.get();
     // Port: SmackToBufferRect (collecting the changed rectangle) has no use here; the whole frame is copied.
     (void)player->DoFrame();
 
@@ -1558,7 +1558,7 @@ auto aSmackerWindow::nextFrame() -> int
     return 1;
 }
 
-auto aSmackerWindow::findObject(int32_t, int32_t) -> aObject*
+auto MCGuiSmackerWindow::FindObject(int32_t, int32_t) -> MCGuiObject*
 {
     return nullptr;
 }
@@ -1574,88 +1574,88 @@ namespace
     };
 }
 
-aStartupWindow::aStartupWindow()
+MCGuiStartupWindow::MCGuiStartupWindow()
 {
-    std::memcpy(startupRects, StartupPoints, sizeof(startupRects));
+    std::memcpy(StartupRects, StartupPoints, sizeof(StartupRects));
 }
 
-auto aStartupWindow::destroy() -> void
+auto MCGuiStartupWindow::Destroy() -> void
 {
-    for (uint8_t*& image : staticImages)
+    for (uint8_t*& image : StaticImages)
     {
         MCRenderer::UnregisterData(image);
         std::free(image);
         image = nullptr;
     }
 
-    if (staticPort != nullptr)
+    if (StaticPort != nullptr)
     {
-        staticPort->destroy();
-        delete staticPort;
-        staticPort = nullptr;
+        StaticPort->Destroy();
+        delete StaticPort;
+        StaticPort = nullptr;
     }
 
-    aObject::destroy();
-    screenWindow->removeChild(this);
+    MCGuiObject::Destroy();
+    ScreenWindow->RemoveChild(this);
 }
 
-auto aStartupWindow::doStatic() -> void
+auto MCGuiStartupWindow::DoStatic() -> void
 {
-    for (int32_t row = 0; row < height(); row++)
+    for (int32_t row = 0; row < Height(); row++)
     {
         if (RollDice(0x1e) == 0)
         {
             // Now and then a whole row is copied from a random one.
             if (RollDice(0x32) != 0)
             {
-                uint8_t* buffer = StaticPane()->window->buffer;
-                uint8_t* dest = buffer + width() * row;
-                const int32_t sourceRow = RandomNumber(height());
-                uint8_t* source = StaticPane()->window->buffer + sourceRow * width();
-                std::memmove(dest, source, static_cast<size_t>(width()));
+                uint8_t* buffer = StaticPane()->Window->Buffer;
+                uint8_t* dest = buffer + Width() * row;
+                const int32_t sourceRow = RandomNumber(Height());
+                uint8_t* source = StaticPane()->Window->Buffer + sourceRow * Width();
+                std::memmove(dest, source, static_cast<size_t>(Width()));
             }
         }
         else
         {
-            for (int32_t column = 0; column < width(); column++)
+            for (int32_t column = 0; column < Width(); column++)
             {
-                AG_pixel_write(StaticPane(), column, row, static_cast<uint32_t>(MCPort::Rand()) & 0x1f);
+                AGPixelWrite(StaticPane(), column, row, static_cast<uint32_t>(MCPort::Rand()) & 0x1f);
             }
         }
     }
 }
 
-auto aStartupWindow::endStatic() -> void
+auto MCGuiStartupWindow::EndStatic() -> void
 {
-    VFX_pane_wipe(StaticPane(), 0);
+    VfxPaneWipe(StaticPane(), 0);
 }
 
-auto aStartupWindow::display() -> void
+auto MCGuiStartupWindow::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
 
     // (The original drew each step straight onto the screen.)
-    if (staticPort != nullptr)
+    if (StaticPort != nullptr)
     {
         Step();
-        DrawInFramePass(displayPort);
+        DrawInFramePass(DisplayPort);
     }
 }
 
-auto aStartupWindow::Step() -> void
+auto MCGuiStartupWindow::Step() -> void
 {
-    SoundSystem* sounds = soundSystem;
-    const int32_t step = startupState;
-    startupState = step + 1;
-    Font* font = lineFont;
+    MCSoundSystem* sounds = SoundSystem;
+    const int32_t step = StartupState;
+    StartupState = step + 1;
+    MCFont* font = LineFont;
 
     if (sounds == nullptr)
     {
@@ -1663,12 +1663,12 @@ auto aStartupWindow::Step() -> void
     }
 
     // Once the sequence is over, the screen shows noise.
-    if (startupState > 0xaa)
+    if (StartupState > 0xaa)
     {
         if (RollDice(10) != 0)
         {
-            doStatic();
-            AG_shape_draw(StaticPane(), staticImages[2], 0, 0x140, 0xf0);
+            DoStatic();
+            AGShapeDraw(StaticPane(), StaticImages[2], 0, 0x140, 0xf0);
             return;
         }
 
@@ -1677,18 +1677,18 @@ auto aStartupWindow::Step() -> void
             return;
         }
 
-        soundSystem->update();
-        doStatic();
-        AG_shape_draw(StaticPane(), staticImages[2], 1, 0x140, 0xf0);
+        SoundSystem->Update();
+        DoStatic();
+        AGShapeDraw(StaticPane(), StaticImages[2], 1, 0x140, 0xf0);
         return;
     }
 
-    const int32_t pointX = startupRects[randomStart * 2];
-    const int32_t pointY = startupRects[randomStart * 2 + 1];
+    const int32_t pointX = StartupRects[RandomStart * 2];
+    const int32_t pointY = StartupRects[RandomStart * 2 + 1];
     auto setLarge = [font](int large)
     {
-        font->scale = large != 0 ? 1.6f : 1.0f;
-        font->scaled = large;
+        font->Scale = large != 0 ? 1.6f : 1.0f;
+        font->Scaled = large;
     };
 
     // The text is typed two letters a frame: the first piece restarts the line, the next ones follow the width
@@ -1696,36 +1696,36 @@ auto aStartupWindow::Step() -> void
     auto typeFirst = [&](int32_t lineX, int32_t lineY, const char* text)
     {
         setLarge(0);
-        font->print(lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
-        textX = font->printWidth(const_cast<char*>(text), 0);
+        font->Print(lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
+        TextX = font->PrintWidth(const_cast<char*>(text), 0);
     };
 
     auto typeNext = [&](int32_t lineX, int32_t lineY, const char* text, const char* measured)
     {
-        const int32_t typed = textX;
+        const int32_t typed = TextX;
         setLarge(0);
-        font->print(typed + lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
-        textX = font->printWidth(const_cast<char*>(measured), 0) + typed;
+        font->Print(typed + lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
+        TextX = font->PrintWidth(const_cast<char*>(measured), 0) + typed;
     };
 
     auto typeLast = [&](int32_t lineX, int32_t lineY, const char* text)
     {
         setLarge(0);
-        font->print(textX + lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
+        font->Print(TextX + lineX, lineY, const_cast<char*>(text), 0xfd, StaticPane());
     };
 
     // The finished picture: the map, the bunker and its uplink to the chosen point.
     auto drawUplink = [&]()
     {
-        AG_shape_draw(StaticPane(), staticImages[0], 0, 0x140, 0xf0);
-        AG_ellipse_fill(StaticPane(), 0x10a, 0xe5, 3, 3, 0xfd);
-        VFX_line_draw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
+        AGShapeDraw(StaticPane(), StaticImages[0], 0, 0x140, 0xf0);
+        AGEllipseFill(StaticPane(), 0x10a, 0xe5, 3, 3, 0xfd);
+        VfxLineDraw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
         setLarge(0);
-        font->print(0x1c2, 0x18b, const_cast<char*>("Forward Command Bunker"), 0xfd, StaticPane());
+        font->Print(0x1c2, 0x18b, const_cast<char*>("Forward Command Bunker"), 0xfd, StaticPane());
         setLarge(1);
-        font->print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, StaticPane());
-        VFX_line_draw(StaticPane(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
-        VFX_line_draw(StaticPane(), pointX, pointY, 10, pointY, LD_DRAW, 0xfd);
+        font->Print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, StaticPane());
+        VfxLineDraw(StaticPane(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
+        VfxLineDraw(StaticPane(), pointX, pointY, 10, pointY, LD_DRAW, 0xfd);
     };
 
     uint32_t sample = 0x10;
@@ -1734,23 +1734,23 @@ auto aStartupWindow::Step() -> void
     {
         case 0:
         {
-            AG_shape_draw(StaticPane(), staticImages[0], 0, 0x140, 0xf0);
+            AGShapeDraw(StaticPane(), StaticImages[0], 0, 0x140, 0xf0);
             sample = 0x11;
             break;
         }
         case 9:
         {
-            AG_ellipse_fill(StaticPane(), 0x10a, 0xe5, 3, 3, 0xfd);
+            AGEllipseFill(StaticPane(), 0x10a, 0xe5, 3, 3, 0xfd);
             sample = 0xf;
             break;
         }
         case 0x13:
-            VFX_line_draw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
+            VfxLineDraw(StaticPane(), 0x10a, 0xe5, 0x1c1, 400, LD_DRAW, 0xfd);
             break;
         // "Forward Command Bunker"
         case 0x1d:
         {
-            textX = 0;
+            TextX = 0;
             typeFirst(0x1c7, 0x18b, "Fo");
             break;
         }
@@ -1782,17 +1782,17 @@ auto aStartupWindow::Step() -> void
         case 0x27:
         {
             setLarge(1);
-            font->print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, StaticPane());
+            font->Print(0x1c2, 0x19f, const_cast<char*>("Uplinking..."), 0xfc, StaticPane());
             break;
         }
         case 0x31:
-            VFX_line_draw(StaticPane(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
+            VfxLineDraw(StaticPane(), 0x10a, 0xe5, pointX, pointY, LD_DRAW, 0xfe);
             break;
         case 0x3b:
         {
-            sounds->playDigitalSample(0x20, 1, nullptr, 0, 0);
-            soundSystem->update();
-            doStatic();
+            sounds->PlayDigitalSample(0x20, 1, nullptr, 0, 0);
+            SoundSystem->Update();
+            DoStatic();
             return;
         }
         case 0x3c:
@@ -1805,20 +1805,20 @@ auto aStartupWindow::Step() -> void
         case 0x43:
         case 0x44:
         {
-            VFX_pane_wipe(StaticPane(), 0);
+            VfxPaneWipe(StaticPane(), 0);
             drawUplink();
-            soundSystem->update();
-            doStatic();
-            AG_shape_draw(StaticPane(), staticImages[1], 0, 0x140, 0xf0);
+            SoundSystem->Update();
+            DoStatic();
+            AGShapeDraw(StaticPane(), StaticImages[1], 0, 0x140, 0xf0);
             return;
         }
         case 0x45:
         {
-            endStatic();
+            EndStatic();
             drawUplink();
-            soundSystem->playDigitalSample(0x10, 1, nullptr, 0, 0);
-            soundSystem->update();
-            AG_ellipse_fill(StaticPane(), pointX, pointY, 2, 2, 0xfc);
+            SoundSystem->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            SoundSystem->Update();
+            AGEllipseFill(StaticPane(), pointX, pointY, 2, 2, 0xfc);
             return;
         }
 
@@ -1878,8 +1878,8 @@ auto aStartupWindow::Step() -> void
             break;
         case 0x63:
         {
-            sounds->playDigitalSample(0x10, 1, nullptr, 0, 0);
-            soundSystem->update();
+            sounds->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            SoundSystem->Update();
             return;
         }
 
@@ -1916,16 +1916,16 @@ auto aStartupWindow::Step() -> void
             break;
         // The field site
         case 0x77:
-            VFX_line_draw(StaticPane(), pointX, pointY, 0xf3, 0x101, LD_DRAW, 0xfd);
+            VfxLineDraw(StaticPane(), pointX, pointY, 0xf3, 0x101, LD_DRAW, 0xfd);
             break;
         case 0x81:
         {
-            AG_ellipse_fill(StaticPane(), 0xf3, 0x101, 5, 5, 0xfb);
+            AGEllipseFill(StaticPane(), 0xf3, 0x101, 5, 5, 0xfb);
             sample = 0xf;
             break;
         }
         case 0x8b:
-            VFX_line_draw(StaticPane(), 0xf3, 0x101, 0x1b, 0x101, LD_DRAW, 0xfd);
+            VfxLineDraw(StaticPane(), 0xf3, 0x101, 0x1b, 0x101, LD_DRAW, 0xfd);
             break;
         // "Field Site Linking..."
         case 0x95:
@@ -1961,77 +1961,77 @@ auto aStartupWindow::Step() -> void
         case 0x9f:
         {
             setLarge(1);
-            font->print(0x1b, 0x113, const_cast<char*>("GO"), 0xfd, StaticPane());
+            font->Print(0x1b, 0x113, const_cast<char*>("GO"), 0xfd, StaticPane());
             sample = 0x11;
             break;
         }
         case 0xa9:
         {
-            noiseSample = sounds->playDigitalSample(0x21, 0, nullptr, 0, 0);
-            soundSystem->update();
-            doStatic();
-            AG_shape_draw(StaticPane(), staticImages[2], 0, 0x140, 0xf0);
+            NoiseSample = sounds->PlayDigitalSample(0x21, 0, nullptr, 0, 0);
+            SoundSystem->Update();
+            DoStatic();
+            AGShapeDraw(StaticPane(), StaticImages[2], 0, 0x140, 0xf0);
             return;
         }
         default:
             return;
     }
 
-    soundSystem->playDigitalSample(sample, 1, nullptr, 0, 0);
-    soundSystem->update();
+    SoundSystem->PlayDigitalSample(sample, 1, nullptr, 0, 0);
+    SoundSystem->Update();
 }
 
-auto aStartupWindow::draw() -> void
+auto MCGuiStartupWindow::Draw() -> void
 {
-    aObject::draw();
+    MCGuiObject::Draw();
 
-    if (staticPort != nullptr)
+    if (StaticPort != nullptr)
     {
-        staticPort->copyTo(port()->frame(), 0, 0, 0);
+        StaticPort->CopyTo(Port()->Frame(), 0, 0, 0);
     }
 }
 
-auto aStartupWindow::StaticPane() -> _pane*
+auto MCGuiStartupWindow::StaticPane() -> MCPane*
 {
-    return staticPort->frame();
+    return StaticPort->Frame();
 }
 
-auto aStartupWindow::setup() -> int32_t
+auto MCGuiStartupWindow::Setup() -> int32_t
 {
-    File file;
+    MCFile file;
     // Reads art packet `packet` whole into a CRT block.
     auto loadPacket = [&file](int32_t packet, uint8_t*& image) -> int32_t
     {
-        int32_t result = artFile->seekPacket(packet);
+        int32_t result = ArtFile->SeekPacket(packet);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = file.open(artFile, static_cast<uint32_t>(artFile->getPacketSize()), 0x32);
+        result = file.Open(ArtFile, static_cast<uint32_t>(ArtFile->GetPacketSize()), 0x32);
 
         if (result != 0)
         {
             return result;
         }
 
-        image = static_cast<uint8_t*>(std::malloc(file.fileSize()));
+        image = static_cast<uint8_t*>(std::malloc(file.FileSize()));
 
         if (image == nullptr)
         {
             return -1;
         }
 
-        file.read(image, static_cast<int32_t>(file.fileSize()));
-        MCRenderer::RegisterData(image, file.fileSize(), MCDataKind::Shapes);
-        file.close();
+        file.Read(image, static_cast<int32_t>(file.FileSize()));
+        MCRenderer::RegisterData(image, file.FileSize(), MCDataKind::Shapes);
+        file.Close();
         return 0;
     };
 
     for (int32_t i = 0; i < 3; i++)
     {
-        const int32_t result = loadPacket(0x2d + i, staticImages[i]);
+        const int32_t result = loadPacket(0x2d + i, StaticImages[i]);
 
         if (result != 0)
         {
@@ -2039,202 +2039,202 @@ auto aStartupWindow::setup() -> int32_t
         }
     }
 
-    staticPort = new aPort;
+    StaticPort = new MCGuiPort;
 
-    if (staticPort->init(width(), height()) != 0)
+    if (StaticPort->Init(Width(), Height()) != 0)
     {
         return -1;
     }
 
-    frameCount = 0;
-    randomStart = RandomNumber(0xc);
+    FrameCount = 0;
+    RandomStart = RandomNumber(0xc);
     return 0;
 }
 
 // aEmptyTitleWindow
 
-aEmptyTitleWindow::aEmptyTitleWindow()
+MCGuiEmptyTitleWindow::MCGuiEmptyTitleWindow()
 {
 }
 
-aEmptyTitleWindow::~aEmptyTitleWindow()
+MCGuiEmptyTitleWindow::~MCGuiEmptyTitleWindow()
 {
-    aEmptyTitleWindow::destroy();
+    MCGuiEmptyTitleWindow::Destroy();
 }
 
-auto aEmptyTitleWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiEmptyTitleWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    int32_t result = aHolderObject::init(xPos, yPos, width, height, name);
+    int32_t result = MCGuiHolderObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    titleBar = new aTitleBar;
+    TitleBar = new MCGuiTitleBar;
 
-    if (titleBar == nullptr)
+    if (TitleBar == nullptr)
     {
         Fatal(0, "Not enough memory to allocate titlebar");
     }
 
-    result = titleBar->init(0, 0, width + 4, 8, name);
+    result = TitleBar->Init(0, 0, width + 4, 8, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    addChild(titleBar);
-    titleBar->setDepth(1);
-    titleBar->showCloseButton(0);
-    titleBar->moveTo(-2, -8, 0);
-    titleBar->SetZoomCallbacks();
+    AddChild(TitleBar);
+    TitleBar->SetDepth(1);
+    TitleBar->ShowCloseButton(0);
+    TitleBar->MoveTo(-2, -8, 0);
+    TitleBar->SetZoomCallbacks();
 
-    leftBar = newPart("Not enough memory to allocate left bar");
+    LeftBar = NewPart("Not enough memory to allocate left bar");
     // The left bar's init result is not checked.
-    leftBar->init(0, 0, 2, height, nullptr);
-    leftBar->setPaintRoutine(cameraLeftBarPaint);
-    addChild(leftBar);
-    leftBar->moveTo(-2, 0, 0);
+    LeftBar->Init(0, 0, 2, height, nullptr);
+    LeftBar->SetPaintRoutine(CameraLeftBarPaint);
+    AddChild(LeftBar);
+    LeftBar->MoveTo(-2, 0, 0);
 
-    bottomBar = newPart("Not enough memory to allocate bottom bar");
-    result = bottomBar->init(0, 0, width + 4, 2, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    bottomBar->setPaintRoutine(cameraBottomBarPaint);
-    addChild(bottomBar);
-    bottomBar->moveTo(-2, height, 0);
-
-    rightBar = newPart("Not enough memory to allocate right bar");
-    result = rightBar->init(0, 0, 2, height, nullptr);
+    BottomBar = NewPart("Not enough memory to allocate bottom bar");
+    result = BottomBar->Init(0, 0, width + 4, 2, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    rightBar->setPaintRoutine(cameraRightBarPaint);
-    addChild(rightBar);
-    rightBar->moveTo(width, 0, 0);
+    BottomBar->SetPaintRoutine(CameraBottomBarPaint);
+    AddChild(BottomBar);
+    BottomBar->MoveTo(-2, height, 0);
 
-    resizeButton = newPart("Not enough memory to allocate resize area");
-    result = resizeButton->init(0, 0, 8, 8, nullptr);
+    RightBar = NewPart("Not enough memory to allocate right bar");
+    result = RightBar->Init(0, 0, 2, height, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    resizeButton->setBackground(0x29);
-    resizeButton->draw();
+    RightBar->SetPaintRoutine(CameraRightBarPaint);
+    AddChild(RightBar);
+    RightBar->MoveTo(width, 0, 0);
+
+    ResizeButton = NewPart("Not enough memory to allocate resize area");
+    result = ResizeButton->Init(0, 0, 8, 8, nullptr);
+
+    if (result != 0)
+    {
+        return result;
+    }
+
+    ResizeButton->SetBackground(0x29);
+    ResizeButton->Draw();
     // Original bug (OB-066): the handle is the window's own child here, so handleResizeButtonEvent resizes the
     // window's parent (the screen window), not the window.
-    addChild(resizeButton);
-    resizeButton->moveTo(2 - resizeButton->width() + this->width(), 2 - resizeButton->height() + this->height(), 0);
-    resizeButton->setEventRoutine(handleResizeButtonEvent);
-    resizeButton->setDepth(1);
+    AddChild(ResizeButton);
+    ResizeButton->MoveTo(2 - ResizeButton->Width() + this->Width(), 2 - ResizeButton->Height() + this->Height(), 0);
+    ResizeButton->SetEventRoutine(HandleResizeButtonEvent);
+    ResizeButton->SetDepth(1);
 
-    moveTo(xPos, yPos + 8, 0);
+    MoveTo(xPos, yPos + 8, 0);
     return 0;
 }
 
-auto aEmptyTitleWindow::destroy() -> void
+auto MCGuiEmptyTitleWindow::Destroy() -> void
 {
-    destroyPart(titleBar);
-    destroyPart(leftBar);
-    destroyPart(rightBar);
-    destroyPart(bottomBar);
-    destroyPart(resizeButton);
-    aHolderObject::destroy();
+    DestroyPart(TitleBar);
+    DestroyPart(LeftBar);
+    DestroyPart(RightBar);
+    DestroyPart(BottomBar);
+    DestroyPart(ResizeButton);
+    MCGuiHolderObject::Destroy();
 }
 
-auto aEmptyTitleWindow::resize(int32_t newWidth, int32_t newHeight) -> void
+auto MCGuiEmptyTitleWindow::Resize(int32_t newWidth, int32_t newHeight) -> void
 {
-    if (newWidth < 0 || newHeight < 0 || titleBar->ResizeOK(newWidth) == 0)
+    if (newWidth < 0 || newHeight < 0 || TitleBar->ResizeOK(newWidth) == 0)
     {
         return;
     }
 
-    if (gridAligned != 0)
+    if (GridAligned != 0)
     {
-        snapToGrid(newWidth, newHeight);
+        SnapToGrid(newWidth, newHeight);
     }
 
-    aHolderObject::resize(newWidth, newHeight);
-    titleBar->resize(newWidth + 4, titleBar->height());
-    leftBar->resize(leftBar->width(), newHeight);
-    rightBar->resize(rightBar->width(), newHeight);
-    rightBar->moveTo(newWidth, 0, 0);
-    bottomBar->resize(newWidth + 4, bottomBar->height());
-    bottomBar->moveTo(-2, newHeight, 0);
-    resizeButton->moveTo(2 - resizeButton->width() + width(), 2 - resizeButton->height() + height(), 0);
+    MCGuiHolderObject::Resize(newWidth, newHeight);
+    TitleBar->Resize(newWidth + 4, TitleBar->Height());
+    LeftBar->Resize(LeftBar->Width(), newHeight);
+    RightBar->Resize(RightBar->Width(), newHeight);
+    RightBar->MoveTo(newWidth, 0, 0);
+    BottomBar->Resize(newWidth + 4, BottomBar->Height());
+    BottomBar->MoveTo(-2, newHeight, 0);
+    ResizeButton->MoveTo(2 - ResizeButton->Width() + Width(), 2 - ResizeButton->Height() + Height(), 0);
 }
 
-auto aEmptyTitleWindow::handleEvent(aEvent* event) -> void
+auto MCGuiEmptyTitleWindow::HandleEvent(MCGuiEvent* event) -> void
 {
-    aObject* pane = panes[0];
+    MCGuiObject* pane = Panes[0];
 
     if (pane != nullptr)
     {
-        if (event->type == 0xd)
+        if (event->Type == 0xd)
         {
             // Close: the camera goes off and the window leaves the screen.
             if (pane->GetCamera() != nullptr)
             {
-                pane->GetCamera()->deactivate();
+                pane->GetCamera()->Deactivate();
             }
 
-            screenWindow->removeChild(this);
+            ScreenWindow->RemoveChild(this);
             return;
         }
 
-        if (event->type == 0x1a)
+        if (event->Type == 0x1a)
         {
             // Zoom. Port: the view goes between the closest and the furthest zoom, not while paused or asked; the camera
             // stays at full scale (the original flipped it between 100 and 1, only 1 while paused or asked, or when
             // only the 45-pixel art is loaded, and locked multiplayer to 1).
-            Camera* camera = pane->GetCamera();
+            MCCamera* camera = pane->GetCamera();
 
             if (camera != nullptr)
             {
-                if (gamePaused == 0 && gameAsked == 0 && camera->window != nullptr)
+                if (GamePaused == 0 && GameAsked == 0 && camera->Window != nullptr)
                 {
-                    camera->window->ToggleZoom();
+                    camera->Window->ToggleZoom();
                 }
 
-                camera->forceUpdate = 1;
-                Terrain::forceRedraw = 1;
+                camera->ForceUpdate = 1;
+                MCTerrain::ForceRedraw = 1;
             }
         }
-        else if (event->type == 0x1c)
+        else if (event->Type == 0x1c)
         {
             if (pane->GetCamera() != nullptr)
             {
-                pane->GetCamera()->changeTarget(nullptr, 0);
+                pane->GetCamera()->ChangeTarget(nullptr, 0);
             }
         }
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto aEmptyTitleWindow::setTitle(char* newTitle) -> void
+auto MCGuiEmptyTitleWindow::SetTitle(char* newTitle) -> void
 {
-    if (titleBar != nullptr)
+    if (TitleBar != nullptr)
     {
-        titleBar->setTitle(newTitle);
+        TitleBar->SetTitle(newTitle);
     }
 }
 
-auto aEmptyTitleWindow::setBackColor(int32_t color) -> void
+auto MCGuiEmptyTitleWindow::SetBackColor(int32_t color) -> void
 {
-    if (titleBar != nullptr)
+    if (TitleBar != nullptr)
     {
-        titleBar->setBackColor(color);
+        TitleBar->SetBackColor(color);
     }
 }

@@ -211,28 +211,28 @@ TEST_CASE("services: a FitIniFile reads from an in-memory file")
                                              "l Gunnery=4\r\n"
                                              "FITend \r\n");
 
-    FitIniFile fit;
-    REQUIRE_EQ(fit.open("DATA\\OBJECTS\\TEST.FIT"), 0);
-    CHECK_EQ(fit.getNumBlocks(), 2);
-    REQUIRE_EQ(fit.seekBlock("Mech"), 0);
+    MCFitIniFile fit;
+    REQUIRE_EQ(fit.Open("DATA\\OBJECTS\\TEST.FIT"), 0);
+    CHECK_EQ(fit.GetNumBlocks(), 2);
+    REQUIRE_EQ(fit.SeekBlock("Mech"), 0);
     int32_t tonnage = 0;
-    CHECK_EQ(fit.readIdLong("Tonnage", tonnage), 0);
+    CHECK_EQ(fit.ReadIdLong("Tonnage", tonnage), 0);
     CHECK_EQ(tonnage, 35);
     float speed = 0.0f;
-    CHECK_EQ(fit.readIdFloat("Speed", speed), 0);
+    CHECK_EQ(fit.ReadIdFloat("Speed", speed), 0);
     CHECK_EQ(speed, 64.5f);
     char name[32] = {};
-    CHECK_EQ(fit.readIdString("Name", name, sizeof(name)), 0);
+    CHECK_EQ(fit.ReadIdString("Name", name, sizeof(name)), 0);
     CHECK_EQ(std::string(name), std::string("Uller"));
-    REQUIRE_EQ(fit.seekBlock("Pilot"), 0);
+    REQUIRE_EQ(fit.SeekBlock("Pilot"), 0);
     int32_t gunnery = 0;
-    CHECK_EQ(fit.readIdLong("Gunnery", gunnery), 0);
+    CHECK_EQ(fit.ReadIdLong("Gunnery", gunnery), 0);
     CHECK_EQ(gunnery, 4);
-    fit.close();
+    fit.Close();
 
     // A file the source doesn't have isn't found (and nothing on disk or in the FastFiles stands in).
-    File missing;
-    CHECK(missing.open("data\\objects\\nothere.fit") != NO_ERR);
+    MCFile missing;
+    CHECK(missing.Open("data\\objects\\nothere.fit") != NO_ERR);
 }
 
 /// <summary>What the game writes lands in the source's scratch folder and reads back from there.</summary>
@@ -241,20 +241,20 @@ TEST_CASE("services: files the game writes through a memory source read back")
     MCTestContextScope scope;
     MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
     {
-        File out;
-        REQUIRE_EQ(out.create("savegame\\test.sav"), NO_ERR);
+        MCFile out;
+        REQUIRE_EQ(out.Create("savegame\\test.sav"), NO_ERR);
         const uint8_t bytes[] = {1, 2, 3, 4};
-        out.write(bytes, 4);
-        out.close();
+        out.Write(bytes, 4);
+        out.Close();
     }
 
     CHECK(MCFileSystem::Exists("SAVEGAME\\TEST.SAV"));
     CHECK(std::filesystem::exists(files.ScratchFolder() / "SAVEGAME" / "TEST.SAV"));
-    File in;
-    REQUIRE_EQ(in.open("savegame\\test.sav"), NO_ERR);
-    CHECK_EQ(in.fileSize(), 4u);
+    MCFile in;
+    REQUIRE_EQ(in.Open("savegame\\test.sav"), NO_ERR);
+    CHECK_EQ(in.FileSize(), 4u);
     uint8_t back[4] = {};
-    in.read(back, 4);
+    in.Read(back, 4);
     CHECK_EQ(back[3], 4);
 }
 
@@ -266,24 +266,24 @@ TEST_CASE("services: a sound channel's play and stop reach the null audio device
 {
     MCTestContextScope scope;
     MCNullAudioDevice& device = scope.Context().SetAudio(std::make_unique<MCNullAudioDevice>());
-    globalSoundUninstalled = 0;
+    GlobalSoundUninstalled = 0;
     SoundRendererInstall(2);
     CHECK_CALLED(device.Opened, 1);
 
     const std::vector<uint8_t> wave = SilentWave(441);
-    auto* resource = new SoundResource(reinterpret_cast<const char*>(wave.data()), SOUND_RESOURCE_MEMORY, 0);
-    gos_SetChannelLooping(1, true);
-    gos_PlayChannel(1, resource);
+    auto* resource = new MCSoundResource(reinterpret_cast<const char*>(wave.data()), SOUND_RESOURCE_MEMORY, 0);
+    GosSetChannelLooping(1, true);
+    GosPlayChannel(1, resource);
     CHECK_CALLED(device.Played, 1);
     CHECK(std::get<1>(device.Played.Last()) == true);
     CHECK_CALLED(device.Stopped, 0);
-    gos_StopChannel(1);
+    GosStopChannel(1);
     CHECK_CALLED(device.Stopped, 1);
     CHECK(std::get<0>(device.Stopped.Last()) == std::get<0>(device.Played.Last()));
 
     // The renderer frees the resources and the mixer.
     SoundRendererUninstall();
-    globalSoundUninstalled = 0;
+    GlobalSoundUninstalled = 0;
 }
 
 /// <summary>The loopback network carries TCP streams and UDP datagrams between its own sockets.</summary>
@@ -372,11 +372,11 @@ TEST_CASE("services: MCMock records calls and returns queued results")
 /// </summary>
 TEST_CASE("services: the tiny map is flat and passable with the cells it blocks")
 {
-    ScenarioMap* const before = GameMap;
+    MCScenarioMap* const before = GameMap;
     {
         MCTinyMap map(8);
-        CHECK_EQ(GameMap->width, 8);
-        CHECK_EQ(GameMap->height, 8);
+        CHECK_EQ(GameMap->Width, 8);
+        CHECK_EQ(GameMap->Height, 8);
         CHECK(map.Passable(0, 0));
         CHECK(map.Passable(23, 23));
         CHECK(!map.Passable(24, 0));
@@ -392,7 +392,7 @@ TEST_CASE("services: the tiny map is flat and passable with the cells it blocks"
             int32_t tileC = 0;
             int32_t cellR = 0;
             int32_t cellC = 0;
-            GameMap->worldToMapPos(map.CellCentre(row, col), tileR, tileC, cellR, cellC);
+            GameMap->WorldToMapPos(map.CellCentre(row, col), tileR, tileC, cellR, cellC);
             CHECK_EQ(tileR * MAPCELL_DIM + cellR, row);
             CHECK_EQ(tileC * MAPCELL_DIM + cellC, col);
         }
@@ -414,11 +414,11 @@ TEST_CASE("game: the retail data fixture loads FIT files into a memory source")
     CHECK_EQ(data->Count(), static_cast<size_t>(1));
     MCTestContextScope scope;
     scope.Context().SetFiles(std::move(data));
-    FitIniFile fit;
-    REQUIRE_EQ(fit.open("data\\missions\\gamesys.fit"), 0);
-    CHECK_EQ(fit.seekBlock("Pathfinding"), 0);
+    MCFitIniFile fit;
+    REQUIRE_EQ(fit.Open("data\\missions\\gamesys.fit"), 0);
+    CHECK_EQ(fit.SeekBlock("Pathfinding"), 0);
     int32_t range = 0;
-    CHECK_EQ(fit.readIdLong("SimplePathTileRange", range), 0);
+    CHECK_EQ(fit.ReadIdLong("SimplePathTileRange", range), 0);
     CHECK(range > 0);
 }
 

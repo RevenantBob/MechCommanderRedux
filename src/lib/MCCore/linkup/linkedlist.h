@@ -4,62 +4,55 @@
 
 #include "linkup/linkedlist.hpp"
 
-class FIDPMessage;
+class MCFidpMessage;
 
-/// <summary>One link of an <see cref="FIDPMsgList"/>.</summary>
+/// <summary>One link of an <see cref="MCFidpMsgList"/>.</summary>
 /// <remarks>Original source: <c>linkup\linkedlist.cpp</c>, 0xc bytes (vtable, next, message).</remarks>
-class FIDPMsgLink
+class MCFidpMsgLink
 {
 public:
     /// <summary>A link holding <paramref name="msg"/>, not yet chained.</summary>
     /// <remarks>Inlined in FIDPMsgList::Add.</remarks>
-    explicit FIDPMsgLink(FIDPMessage* msg) : next(nullptr), message(msg) {}
+    explicit MCFidpMsgLink(MCFidpMessage* msg) : Next(nullptr), Message(msg) {}
 
     /// <summary>Unchains the link (the message is not deleted).</summary>
-    /// <remarks>MCX.EXE @ 0x0074ce90 (vector deleting destructor)</remarks>
-    virtual ~FIDPMsgLink() { next = nullptr; }
+    virtual ~MCFidpMsgLink() { Next = nullptr; }
 
-    FIDPMsgLink(const FIDPMsgLink&) = delete;
-    FIDPMsgLink& operator=(const FIDPMsgLink&) = delete;
+    MCFidpMsgLink(const MCFidpMsgLink&) = delete;
+    MCFidpMsgLink& operator=(const MCFidpMsgLink&) = delete;
 
-    FIDPMsgLink* next = nullptr;    // +0x4
-    FIDPMessage* message = nullptr; // +0x8
+    MCFidpMsgLink* Next = nullptr;
+    MCFidpMessage* Message = nullptr;
 };
 
 /// <summary>
-/// A FIFO queue of <see cref="FIDPMessage"/> pointers: the SessionManager's free, system, application, and outgoing
+/// A FIFO queue of <see cref="MCFidpMessage"/> pointers: the SessionManager's free, system, application, and outgoing
 /// message queues. It owns its links, not the messages.
 /// </summary>
 /// <remarks>Original source: <c>linkup\linkedlist.cpp</c>, 0xc bytes, no vtable (allocated with the global new).</remarks>
-class FIDPMsgList
+class MCFidpMsgList
 {
 public:
-    /// <remarks>MCX.EXE @ 0x0074cdd0</remarks>
-    FIDPMsgList();
+    MCFidpMsgList();
     /// <summary>Drops every link (<see cref="TossHead"/> until empty).</summary>
-    /// <remarks>MCX.EXE @ 0x0074cde0</remarks>
-    ~FIDPMsgList();
+    ~MCFidpMsgList();
 
-    FIDPMsgList(const FIDPMsgList&) = delete;
-    FIDPMsgList& operator=(const FIDPMsgList&) = delete;
+    MCFidpMsgList(const MCFidpMsgList&) = delete;
+    MCFidpMsgList& operator=(const MCFidpMsgList&) = delete;
 
     /// <summary>Appends <paramref name="msg"/> (asserts it isn't null).</summary>
-    /// <remarks>MCX.EXE @ 0x0074ce00</remarks>
-    void Add(FIDPMessage* msg);
+    void Add(MCFidpMessage* msg);
 
     /// <summary>Removes the first link (the message is not deleted).</summary>
-    /// <remarks>MCX.EXE @ 0x0074cec0</remarks>
     void TossHead();
 
     /// <summary>The first message, or null.</summary>
-    /// <remarks>MCX.EXE @ 0x0074cef0</remarks>
-    FIDPMessage* Head();
+    MCFidpMessage* Head();
 
     /// <summary>The number of messages; fatal ("Msg List Trashed") when the links don't add up to the count.</summary>
-    /// <remarks>MCX.EXE @ 0x0074cf00</remarks>
     int Size();
 
-    FIDPMsgLink* tail = nullptr; // +0x0
-    int32_t count = 0;           // +0x4
-    FIDPMsgLink* head = nullptr; // +0x8
+    MCFidpMsgLink* Tail = nullptr;
+    int32_t Count = 0;
+    MCFidpMsgLink* HeadLink = nullptr;
 };

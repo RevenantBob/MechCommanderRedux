@@ -1,42 +1,36 @@
 #pragma once
 
-class BaseObject;
+class MCBaseObject;
 
 /// <summary>
-/// The registry of object watchers: the addresses of every <see cref="BaseObjectWatcher"/> pointer in use, so that a
+/// The registry of object watchers: the addresses of every <see cref="MCBaseObjectWatcher"/> pointer in use, so that a
 /// destroyed object can null every pointer still aiming at it.
 /// </summary>
 /// <remarks>Original source: <c>object\objwtch.cpp</c>; 0xc bytes.</remarks>
-class ObjectWatcherList
+class MCObjectWatcherList
 {
 public:
     /// <summary>Makes room for 200 watchers ; <paramref name="maxWatchers"/> is ignored.</summary>
-    /// <remarks>MCX.EXE @ 0x00690bd0</remarks>
-    void init(int32_t maxWatchers);
+    void Init(int32_t maxWatchers);
     /// <summary>Frees the watcher table.</summary>
-    /// <remarks>MCX.EXE @ 0x00690c00</remarks>
-    void free();
+    void Free();
     /// <summary>Registers the watched pointer <paramref name="watcher"/>; fatal when the table is full.</summary>
-    /// <remarks>MCX.EXE @ 0x00690c20</remarks>
-    void watch(BaseObject** watcher);
+    void Watch(MCBaseObject** watcher);
     /// <summary>Nulls and unregisters every watcher pointing at <paramref name="obj"/> (called as it is destroyed).</summary>
     /// <returns>The number of watchers cleared.</returns>
-    /// <remarks>MCX.EXE @ 0x00690c60 (unnamed in Ghidra)</remarks>
-    int32_t removeObject(BaseObject* obj);
+    int32_t RemoveObject(MCBaseObject* obj);
     /// <summary>Nulls and unregisters <paramref name="watcher"/>.</summary>
     /// <returns>1 when it was registered.</returns>
-    /// <remarks>MCX.EXE @ 0x00690cd0</remarks>
-    int32_t removeWatch(BaseObject** watcher);
+    int32_t RemoveWatch(MCBaseObject** watcher);
     /// <summary>Nulls every registered watcher and empties the table.</summary>
-    /// <remarks>MCX.EXE @ 0x00690d20</remarks>
-    void restart();
+    void Restart();
 
     /// <summary>Watchers registered.</summary>
-    int32_t numWatchers = 0; // +0x00
+    int32_t NumWatchers = 0;
     /// <summary>The table's size (200).</summary>
-    int32_t maxWatchers = 0; // +0x04
+    int32_t MaxWatchers = 0;
     /// <summary>The registered watchers: each the address of a pointer to an object.</summary>
-    std::unique_ptr<BaseObject**[]> watchers; // +0x08
+    std::unique_ptr<MCBaseObject**[]> Watchers;
 };
 
 /// <summary>
@@ -44,19 +38,17 @@ public:
 /// <c>objectWatchers</c> while it points at something.
 /// </summary>
 /// <remarks>Original source: <c>object\objwtch.cpp</c>; 4 bytes.</remarks>
-class BaseObjectWatcher
+class MCBaseObjectWatcher
 {
 public:
     /// <summary>Stops watching (unregisters and nulls the pointer).</summary>
-    /// <remarks>MCX.EXE @ 0x00690d50</remarks>
-    void free();
+    void Free();
     /// <summary>Watches <paramref name="obj"/> (null: watches nothing).</summary>
-    /// <remarks>MCX.EXE @ 0x00690d70</remarks>
-    void setWatcher(BaseObject* obj);
+    void SetWatcher(MCBaseObject* obj);
 
     /// <summary>The watched object, or null once it is destroyed.</summary>
-    BaseObject* object = nullptr; // +0x00
+    MCBaseObject* Object = nullptr;
 };
 
 /// <summary>The one watcher registry.</summary>
-extern ObjectWatcherList* objectWatchers;
+extern MCObjectWatcherList* ObjectWatchers;

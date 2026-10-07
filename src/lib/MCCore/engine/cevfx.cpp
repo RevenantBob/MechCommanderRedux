@@ -4,88 +4,88 @@
 #include "engine/scale.h"
 #include "vfx/vfxfuncs.h"
 
-char CurrentVFX[8] = {};
-char CurrentVFX2[8] = {};
-std::array<uint8_t, TEMP_BUFFER_SIZE> tempBuffer{};
+char CurrentVfx[8] = {};
+char CurrentVfx2[8] = {};
+std::array<uint8_t, TEMP_BUFFER_SIZE> TempBuffer{};
 
-VFXElement::VFXElement(uint8_t* _shape, int32_t _x, int32_t _y, int32_t frame, int _reverse, uint8_t* fadeTbl,
-                       int _noScaleDraw, int _scaleUp)
-    : Element(-_y)
+MCVfxElement::MCVfxElement(uint8_t* shape, int32_t x, int32_t y, int32_t frame, int reverse, uint8_t* fadeTbl,
+                           int noScaleDraw, int scaleUp)
+    : MCElement(-y)
 {
-    x = _x;
-    y = _y;
-    reverse = _reverse;
-    fadeTable = fadeTbl;
-    shapeTable = _shape;
-    frameNum = frame;
-    noScaleDraw = _noScaleDraw;
-    scaleUp = _scaleUp;
-    const int32_t count = VFX_shape_count(_shape);
+    X = x;
+    Y = y;
+    Reverse = reverse;
+    FadeTable = fadeTbl;
+    ShapeTable = shape;
+    FrameNum = frame;
+    NoScaleDraw = noScaleDraw;
+    ScaleUp = scaleUp;
+    const int32_t count = VfxShapeCount(shape);
 
     if (count <= frame)
     {
-        frameNum = count - 1;
+        FrameNum = count - 1;
     }
 }
 
-VFXElement::VFXElement(uint8_t* _shape, float _x, float _y, int32_t frame, int _reverse, uint8_t* fadeTbl,
-                       int _noScaleDraw, int _scaleUp)
-    : Element(-_y)
+MCVfxElement::MCVfxElement(uint8_t* shape, float x, float y, int32_t frame, int reverse, uint8_t* fadeTbl,
+                           int noScaleDraw, int scaleUp)
+    : MCElement(-y)
 {
-    shapeTable = _shape;
-    x = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(_x))));
-    y = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(_y))));
-    reverse = _reverse;
-    frameNum = frame;
-    fadeTable = fadeTbl;
-    noScaleDraw = _noScaleDraw;
-    scaleUp = _scaleUp;
-    const int32_t count = VFX_shape_count(_shape);
+    ShapeTable = shape;
+    X = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(x))));
+    Y = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(y))));
+    Reverse = reverse;
+    FrameNum = frame;
+    FadeTable = fadeTbl;
+    NoScaleDraw = noScaleDraw;
+    ScaleUp = scaleUp;
+    const int32_t count = VfxShapeCount(shape);
 
     if (count <= frame)
     {
-        frameNum = count - 1;
+        FrameNum = count - 1;
     }
 }
 
-auto VFXElement::draw() -> void
+auto MCVfxElement::Draw() -> void
 {
     // Port fix: bounded copies. Nothing sets the names, so the original strcpy'd whatever the element pool held.
-    std::memcpy(CurrentVFX, name, sizeof(CurrentVFX));
-    CurrentVFX[sizeof(CurrentVFX) - 1] = 0;
-    std::memcpy(CurrentVFX2, name2, sizeof(CurrentVFX2));
-    CurrentVFX2[sizeof(CurrentVFX2) - 1] = 0;
+    std::memcpy(CurrentVfx, Name, sizeof(CurrentVfx));
+    CurrentVfx[sizeof(CurrentVfx) - 1] = 0;
+    std::memcpy(CurrentVfx2, Name2, sizeof(CurrentVfx2));
+    CurrentVfx2[sizeof(CurrentVfx2) - 1] = 0;
 
-    if (noScaleDraw == 0)
+    if (NoScaleDraw == 0)
     {
-        scaleDraw(shapeTable, static_cast<uint32_t>(frameNum), x, y, reverse, fadeTable, scaleUp);
+        ScaleDraw(ShapeTable, static_cast<uint32_t>(FrameNum), X, Y, Reverse, FadeTable, ScaleUp);
         return;
     }
 
-    if (std::memcmp(shapeTable, "1.10", 4) != 0)
+    if (std::memcmp(ShapeTable, "1.10", 4) != 0)
     {
         return;
     }
 
-    if (reverse == 0)
+    if (Reverse == 0)
     {
-        if (fadeTable == nullptr)
+        if (FadeTable == nullptr)
         {
-            AG_shape_draw(globalPane, shapeTable, frameNum, x, y);
+            AGShapeDraw(GlobalPane, ShapeTable, FrameNum, X, Y);
             return;
         }
 
-        AG_shape_lookaside(fadeTable);
-        AG_shape_translate_draw(globalPane, shapeTable, frameNum, x, y);
+        AGShapeLookaside(FadeTable);
+        AGShapeTranslateDraw(GlobalPane, ShapeTable, FrameNum, X, Y);
         return;
     }
 
-    if (fadeTable != nullptr)
+    if (FadeTable != nullptr)
     {
-        AG_shape_lookaside(fadeTable);
-        AG_shape_translate_transform(globalPane, shapeTable, frameNum, x, y, tempBuffer.data(), reverse, 1);
+        AGShapeLookaside(FadeTable);
+        AGShapeTranslateTransform(GlobalPane, ShapeTable, FrameNum, X, Y, TempBuffer.data(), Reverse, 1);
         return;
     }
 
-    AG_shape_transform(globalPane, shapeTable, frameNum, x, y, tempBuffer.data(), reverse, 1);
+    AGShapeTransform(GlobalPane, ShapeTable, FrameNum, X, Y, TempBuffer.data(), Reverse, 1);
 }

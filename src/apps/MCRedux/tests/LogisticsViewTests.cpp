@@ -22,37 +22,37 @@ namespace
     /// The chat history as the original kept it: a picture wiped to 0x10, moved up by each line's height, the strip
     /// along the bottom wiped and the line written there (LogChatWindow::processChatString @ 0x0070b2a0).
     /// </summary>
-    void AddLineAsOriginal(lPort* picture, const char* line)
+    void AddLineAsOriginal(MCLogPort* picture, const char* line)
     {
         std::string text = line;
         auto* bytes = reinterpret_cast<uint8_t*>(text.data());
-        const int32_t width = picture->width();
-        const int32_t height = picture->height();
-        const int32_t used = application->textFormatter.process(bytes, nullptr, width, 0);
-        uint8_t* pixels = picture->bitmap()->buffer;
+        const int32_t width = picture->Width();
+        const int32_t height = picture->Height();
+        const int32_t used = Application->TextFormatter.Process(bytes, nullptr, width, 0);
+        uint8_t* pixels = picture->Bitmap()->Buffer;
         std::memmove(pixels, pixels + width * used, static_cast<size_t>((height - used) * width));
-        _pane bottom = *picture->frame();
-        bottom.x0 = 0;
-        bottom.y0 = height - used - 1;
-        bottom.x1 = width - 1;
-        bottom.y1 = height - 1;
-        VFX_pane_wipe(&bottom, 0x10);
-        application->textFormatter.process(bytes, picture, 0, height - used - 1);
+        MCPane bottom = *picture->Frame();
+        bottom.X0 = 0;
+        bottom.Y0 = height - used - 1;
+        bottom.X1 = width - 1;
+        bottom.Y1 = height - 1;
+        VfxPaneWipe(&bottom, 0x10);
+        Application->TextFormatter.Process(bytes, picture, 0, height - used - 1);
     }
 
     /// <summary>Draws the chat window's history view into a picture of its size (scrolled to its top).</summary>
-    std::vector<uint8_t> DrawHistory(LogChatWindow* chat)
+    std::vector<uint8_t> DrawHistory(MCLogChatWindow* chat)
     {
-        lPort* view = chat->historyPane->contentPort;
-        lPort picture;
-        picture.init(view->width(), view->height(), -1);
-        VFX_pane_wipe(picture.frame(), 0xff);
-        view->openView(picture.bitmap(), 0, 0, MCRect{0, 0, view->width() - 1, view->height() - 1}, false);
+        MCLogPort* view = chat->HistoryPane->ContentPort;
+        MCLogPort picture;
+        picture.Init(view->Width(), view->Height(), -1);
+        VfxPaneWipe(picture.Frame(), 0xff);
+        view->OpenView(picture.Bitmap(), 0, 0, MCRect{0, 0, view->Width() - 1, view->Height() - 1}, false);
         view->DrawContent(view);
-        view->closeView();
-        const uint8_t* pixels = picture.bitmap()->buffer;
-        std::vector<uint8_t> result(pixels, pixels + static_cast<size_t>(view->width()) * view->height());
-        picture.destroy();
+        view->CloseView();
+        const uint8_t* pixels = picture.Bitmap()->Buffer;
+        std::vector<uint8_t> result(pixels, pixels + static_cast<size_t>(view->Width()) * view->Height());
+        picture.Destroy();
         return result;
     }
 }
@@ -70,19 +70,19 @@ TEST_CASE_ISOLATED("game: the logistics chat history draws as the original's pic
     }
 
     REQUIRE(MCTestGame::StartLogistics());
-    LogChatWindow* chat = globalLogPtr->chatWindow;
+    MCLogChatWindow* chat = GlobalLogPtr->ChatWindow;
     REQUIRE(chat != nullptr);
-    lPort* view = chat->historyPane->contentPort;
-    REQUIRE(view->isView());
+    MCLogPort* view = chat->HistoryPane->ContentPort;
+    REQUIRE(view->IsView());
 
-    lPort original;
-    original.init(view->width(), view->height(), -1);
-    VFX_pane_wipe(original.frame(), 0x10);
+    MCLogPort original;
+    original.Init(view->Width(), view->Height(), -1);
+    VfxPaneWipe(original.Frame(), 0x10);
 
     const auto same = [&]
     {
         const std::vector<uint8_t> drawn = DrawHistory(chat);
-        const uint8_t* expected = original.bitmap()->buffer;
+        const uint8_t* expected = original.Bitmap()->Buffer;
         return std::equal(drawn.begin(), drawn.end(), expected);
     };
 
@@ -110,18 +110,18 @@ TEST_CASE_ISOLATED("game: the logistics chat history draws as the original's pic
     }
 
     // A resize keeps the history (the original copied its picture into the new pane).
-    chat->resize(0xe7);
-    CHECK(chat->historyPane->contentPort->isView());
+    chat->Resize(0xe7);
+    CHECK(chat->HistoryPane->ContentPort->IsView());
     CHECK(same());
 
     // A reset clears it.
-    chat->reset();
-    VFX_pane_wipe(original.frame(), 0x10);
+    chat->Reset();
+    VfxPaneWipe(original.Frame(), 0x10);
     CHECK(same());
     AddLineAsOriginal(&original, lines[1].c_str());
     chat->AddLine(lines[1].c_str());
     CHECK(same());
-    original.destroy();
+    original.Destroy();
 }
 
 namespace
@@ -144,14 +144,14 @@ namespace
     constexpr PrefsDropDown RendererDropDown{243};
 
     /// <summary>The preferences screen's drop-down whose field lies at <paramref name="dropDown"/>.</summary>
-    lComboBox* FindDropDown(const PrefsDropDown& dropDown)
+    MCLogComboBox* FindDropDown(const PrefsDropDown& dropDown)
     {
-        GenericScreen* screen = globalLogPtr->prefScreen;
+        MCGenericScreen* screen = GlobalLogPtr->PrefScreen;
 
-        for (int32_t i = 0; i < screen->numberOfChildren(); i++)
+        for (int32_t i = 0; i < screen->NumberOfChildren(); i++)
         {
-            if (auto* combo = dynamic_cast<lComboBox*>(screen->child(i));
-                combo != nullptr && combo->globalY() == dropDown.Top)
+            if (auto* combo = dynamic_cast<MCLogComboBox*>(screen->Child(i));
+                combo != nullptr && combo->GlobalY() == dropDown.Top)
             {
                 return combo;
             }
@@ -177,8 +177,8 @@ TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves 
     // The tests' user folder overlays the install, so a PREFS written here would be every later test's.
     const std::filesystem::path prefsPath = MCFileSystem::UserRoot() / "prefs.cfg";
     std::filesystem::remove(prefsPath);
-    const int32_t running = gRenderer;
-    const int32_t chosen = gRendererPreference;
+    const int32_t running = GRenderer;
+    const int32_t chosen = GRendererPreference;
     REQUIRE_EQ(chosen, static_cast<int32_t>(MCRendererKind::Vulkan));
 
     const auto frames = []
@@ -190,15 +190,15 @@ TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves 
     };
 
     // Choosing another renderer than the running one says it needs a restart; OK closes the message.
-    ReusableDialog* dialog = globalLogPtr->messageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
     const auto closeRestartNotice = [&](const char* shot)
     {
-        CHECK(dialog->showWindow != 0);
+        CHECK(dialog->ShowWindow != 0);
         MCScreenInput::SaveShot(shot, MCScreenInput::ScreenHash());
-        lDialogButton* ok = dialog->okButton;
-        MCScreenInput::Click(ok->globalX() + ok->width() / 2, ok->globalY() + ok->height() / 2);
+        MCLogDialogButton* ok = dialog->OkButton;
+        MCScreenInput::Click(ok->GlobalX() + ok->Width() / 2, ok->GlobalY() + ok->Height() / 2);
         frames();
-        CHECK(dialog->showWindow == 0);
+        CHECK(dialog->ShowWindow == 0);
     };
 
     const auto choose = [&](int32_t row)
@@ -214,7 +214,7 @@ TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves 
     const uint32_t vulkanShown = MCScreenInput::ScreenHash();
     MCScreenInput::SaveShot("prefs vulkan", vulkanShown);
     choose(1);
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
     closeRestartNotice("prefs restart notice");
     const uint32_t softwareShown = MCScreenInput::ScreenHash();
     MCScreenInput::SaveShot("prefs software", softwareShown);
@@ -222,12 +222,12 @@ TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves 
 
     // VULKAN back: no message (it's the running renderer); VULKAN again: no change, no message.
     choose(0);
-    CHECK(dialog->showWindow == 0);
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
+    CHECK(dialog->ShowWindow == 0);
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
     CHECK_EQ(MCScreenInput::ScreenHash(), vulkanShown);
     choose(0);
-    CHECK(dialog->showWindow == 0);
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
+    CHECK(dialog->ShowWindow == 0);
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
     CHECK_EQ(MCScreenInput::ScreenHash(), vulkanShown);
     choose(1);
     closeRestartNotice("prefs restart notice again");
@@ -236,7 +236,7 @@ TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves 
     // CANCEL puts the choice back, and the field shows it when the screen opens again.
     CancelPrefs();
     frames();
-    CHECK_EQ(gRendererPreference, chosen);
+    CHECK_EQ(GRendererPreference, chosen);
     ShowPreferences();
     frames();
     CHECK_EQ(MCScreenInput::ScreenHash(), vulkanShown);
@@ -245,14 +245,14 @@ TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves 
     closeRestartNotice("prefs restart notice before accept");
     WritePrefs();
     frames();
-    CHECK_EQ(gRenderer, running);
+    CHECK_EQ(GRenderer, running);
 
     char renderer[32] = {};
     {
-        FitIniFile prefs;
-        REQUIRE_EQ(prefs.open(prefsPath.string().c_str()), 0);
-        REQUIRE_EQ(prefs.seekBlock("MechCommander"), 0);
-        CHECK_EQ(prefs.readIdString("Renderer", renderer, sizeof(renderer) - 1), 0);
+        MCFitIniFile prefs;
+        REQUIRE_EQ(prefs.Open(prefsPath.string().c_str()), 0);
+        REQUIRE_EQ(prefs.SeekBlock("MechCommander"), 0);
+        CHECK_EQ(prefs.ReadIdString("Renderer", renderer, sizeof(renderer) - 1), 0);
     }
 
     std::filesystem::remove(prefsPath);
@@ -276,14 +276,14 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     }
 
     REQUIRE(MCTestGame::StartLogistics());
-    REQUIRE_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
-    REQUIRE(gRenderer != static_cast<int32_t>(MCRendererKind::Software));
-    ReusableDialog* dialog = globalLogPtr->messageDialog;
-    GenericScreen* screen = globalLogPtr->prefScreen;
+    REQUIRE_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
+    REQUIRE(GRenderer != static_cast<int32_t>(MCRendererKind::Software));
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCGenericScreen* screen = GlobalLogPtr->PrefScreen;
     ShowPreferences();
     MCScreenInput::RealMove(320, 400);
-    lComboBox* renderer = FindDropDown(RendererDropDown);
-    lComboBox* difficulty = FindDropDown(DifficultyDropDown);
+    MCLogComboBox* renderer = FindDropDown(RendererDropDown);
+    MCLogComboBox* difficulty = FindDropDown(DifficultyDropDown);
     REQUIRE(renderer != nullptr);
     REQUIRE(difficulty != nullptr);
     const int32_t startDifficulty = GameDifficulty;
@@ -293,16 +293,16 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     // The original's DIFFICULTY checks are gone from the screen.
     for (int32_t i = 0; i < 3; i++)
     {
-        CHECK(screen->elements[8 + i]->IsShowing() == 0);
+        CHECK(screen->Elements[8 + i]->IsShowing() == 0);
     }
 
     const auto closeNotice = [&]
     {
-        if (dialog->showWindow != 0)
+        if (dialog->ShowWindow != 0)
         {
-            lDialogButton* ok = dialog->okButton;
-            MCScreenInput::RealClick(ok->globalX() + ok->width() / 2, ok->globalY() + ok->height() / 2);
-            CHECK(dialog->showWindow == 0);
+            MCLogDialogButton* ok = dialog->OkButton;
+            MCScreenInput::RealClick(ok->GlobalX() + ok->Width() / 2, ok->GlobalY() + ok->Height() / 2);
+            CHECK(dialog->ShowWindow == 0);
         }
     };
 
@@ -310,22 +310,22 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     {
         MCScreenInput::RealClick(RendererDropDown.FieldX(), RendererDropDown.FieldY());
         CHECK(renderer->IsOpen());
-        CHECK(application->grabbedObject() == renderer);
+        CHECK(Application->GrabbedObject() == renderer);
         MCScreenInput::RealClick(RendererDropDown.FieldX(), RendererDropDown.RowY(row));
         CHECK(!renderer->IsOpen());
         // (The message, when it shows, takes the mouse itself.)
-        CHECK(application->grabbedObject() != renderer);
-        CHECK_EQ(gRendererPreference, static_cast<int32_t>(expected));
-        CHECK_EQ(dialog->showWindow != 0, notice);
+        CHECK(Application->GrabbedObject() != renderer);
+        CHECK_EQ(GRendererPreference, static_cast<int32_t>(expected));
+        CHECK_EQ(dialog->ShowWindow != 0, notice);
         closeNotice();
-        CHECK(application->grabbedObject() == nullptr);
+        CHECK(Application->GrabbedObject() == nullptr);
     };
 
     // Open: in front of every other child of the screen, with its list; the look differs from the closed one.
     MCScreenInput::RealClick(RendererDropDown.FieldX(), RendererDropDown.FieldY());
     REQUIRE(renderer->IsOpen());
-    CHECK(screen->child(screen->numberOfChildren() - 1) == renderer);
-    CHECK_EQ(renderer->height(), lComboBox::FieldHeight + 2 * lComboBox::RowHeight + 1);
+    CHECK(screen->Child(screen->NumberOfChildren() - 1) == renderer);
+    CHECK_EQ(renderer->Height(), MCLogComboBox::FieldHeight + 2 * MCLogComboBox::RowHeight + 1);
     CHECK_EQ(renderer->Hovered(), 0);
     MCScreenInput::RealMove(RendererDropDown.FieldX(), RendererDropDown.RowY(1));
     CHECK_EQ(renderer->Hovered(), 1);
@@ -336,12 +336,12 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     // A press outside closes it with no change, and doesn't reach what's there (ACCEPT would leave the screen).
     constexpr int32_t AcceptX = 546;
     constexpr int32_t AcceptY = 283;
-    CHECK(dynamic_cast<lButton*>(screen->findObject(AcceptX, AcceptY)) != nullptr);
+    CHECK(dynamic_cast<MCLogButton*>(screen->FindObject(AcceptX, AcceptY)) != nullptr);
     MCScreenInput::RealClick(AcceptX, AcceptY);
     CHECK(!renderer->IsOpen());
-    CHECK(application->grabbedObject() == nullptr);
+    CHECK(Application->GrabbedObject() == nullptr);
     CHECK(screen->IsShowing() != 0);
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
     MCScreenInput::RealMove(320, 400);
     CHECK_EQ(MCScreenInput::ScreenHash(), startShown);
 
@@ -350,7 +350,7 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     CHECK(renderer->IsOpen());
     MCScreenInput::RealClick(RendererDropDown.FieldX() + 30, RendererDropDown.FieldY());
     CHECK(!renderer->IsOpen());
-    CHECK(application->grabbedObject() == nullptr);
+    CHECK(Application->GrabbedObject() == nullptr);
 
     for (int32_t round = 0; round < 3; round++)
     {
@@ -361,9 +361,9 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
         MCScreenInput::RealClick(540, 232);
         MCScreenInput::RealClick(481, 250);
         MCScreenInput::RealClick(540, 165);
-        CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
-        CHECK(dialog->showWindow == 0);
-        CHECK(application->grabbedObject() == nullptr);
+        CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
+        CHECK(dialog->ShowWindow == 0);
+        CHECK(Application->GrabbedObject() == nullptr);
     }
 
     // The chosen item again: no change, no message.
@@ -379,8 +379,8 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     MCScreenInput::RealMove(RendererDropDown.FieldX(), RendererDropDown.RowY(1));
     MCScreenInput::RealButton(false);
     CHECK(!renderer->IsOpen());
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
-    CHECK(dialog->showWindow != 0);
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
+    CHECK(dialog->ShowWindow != 0);
     closeNotice();
 
     // Keys on the open list: down/up move the lit row, Escape closes with no change, Return chooses.
@@ -393,14 +393,14 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     MCScreenInput::RealKey(SDL_SCANCODE_ESCAPE);
     CHECK(!renderer->IsOpen());
     CHECK(screen->IsShowing() != 0);
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
     MCScreenInput::RealClick(RendererDropDown.FieldX(), RendererDropDown.FieldY());
     MCScreenInput::RealKey(SDL_SCANCODE_UP);
     MCScreenInput::RealKey(SDL_SCANCODE_RETURN);
     CHECK(!renderer->IsOpen());
-    CHECK(application->grabbedObject() == nullptr);
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
-    CHECK(dialog->showWindow == 0);
+    CHECK(Application->GrabbedObject() == nullptr);
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
+    CHECK(dialog->ShowWindow == 0);
 
     // The wheel on the open list moves the lit row (down is the next row); Return chooses it.
     MCScreenInput::RealClick(RendererDropDown.FieldX(), RendererDropDown.FieldY());
@@ -409,8 +409,8 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     CHECK_EQ(renderer->Hovered(), 1);
     CHECK(renderer->IsOpen());
     MCScreenInput::RealKey(SDL_SCANCODE_RETURN);
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
-    CHECK(dialog->showWindow != 0);
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Software));
+    CHECK(dialog->ShowWindow != 0);
     closeNotice();
 
     // A closed field under the mouse: the wheel and up/down move the choice, clamped at the ends.
@@ -438,11 +438,11 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
             MCTest::Scope scope(std::format("round {}, difficulty {}", round, level));
             MCScreenInput::RealClick(DifficultyDropDown.FieldX(), DifficultyDropDown.FieldY());
             CHECK(difficulty->IsOpen());
-            CHECK(screen->child(screen->numberOfChildren() - 1) == difficulty);
+            CHECK(screen->Child(screen->NumberOfChildren() - 1) == difficulty);
             MCScreenInput::RealClick(DifficultyDropDown.FieldX(), DifficultyDropDown.RowY(level));
             CHECK(!difficulty->IsOpen());
             CHECK_EQ(GameDifficulty, level);
-            CHECK(dialog->showWindow == 0);
+            CHECK(dialog->ShowWindow == 0);
         }
     }
 
@@ -453,7 +453,7 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     CHECK_EQ(MCScreenInput::ScreenHash(), startShown);
     CancelPrefs();
     MCScreenInput::RealMove(320, 400);
-    CHECK_EQ(gRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
+    CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
     CHECK_EQ(GameDifficulty, startDifficulty);
 }
 
@@ -471,38 +471,38 @@ TEST_CASE_ISOLATED("game: a scroll pane's arrow lets go wherever the mouse butto
     REQUIRE(MCTestGame::StartLogistics());
 
     // A pane 0x80 x 0x60 at (100, 100) showing content four times its height: the slider is a quarter of the track.
-    auto* pane = new ScrollPane;
-    pane->init();
-    pane->init(0x80, 0x60, 100, 100, static_cast<char*>(nullptr));
-    auto* content = new lPort;
-    content->init(0x80 - 13, 0x180, -1);
-    pane->setDisplayPort(content, -1, -1);
-    REQUIRE(pane->sliderHeight > 0);
+    auto* pane = new MCScrollPane;
+    pane->Init();
+    pane->Init(0x80, 0x60, 100, 100, static_cast<char*>(nullptr));
+    auto* content = new MCLogPort;
+    content->Init(0x80 - 13, 0x180, -1);
+    pane->SetDisplayPort(content, -1, -1);
+    REQUIRE(pane->SliderHeight > 0);
 
     const auto send = [pane](int32_t type, int32_t xPos, int32_t yPos)
     {
-        aEvent event;
-        event.clear();
-        event.type = type;
-        event.x = xPos;
-        event.y = yPos;
-        pane->handleEvent(&event);
+        MCGuiEvent event;
+        event.Clear();
+        event.Type = type;
+        event.X = xPos;
+        event.Y = yPos;
+        pane->HandleEvent(&event);
     };
 
     // Press the down arrow (it shows pressed while held), then let go left of the column.
-    const int32_t column = pane->globalX() + pane->width() - 6;
-    send(1, column, pane->globalY() + pane->height() - 5);
+    const int32_t column = pane->GlobalX() + pane->Width() - 6;
+    send(1, column, pane->GlobalY() + pane->Height() - 5);
     CHECK_EQ(pane->HeldArrow(), 2);
-    send(4, pane->globalX() + 10, pane->globalY() + 10);
+    send(4, pane->GlobalX() + 10, pane->GlobalY() + 10);
     CHECK_EQ(pane->HeldArrow(), 0);
 
     // The slider drags.
-    const int32_t before = pane->sliderPos;
-    const int32_t sliderY = pane->globalY() + before + pane->sliderHeight / 2;
+    const int32_t before = pane->SliderPos;
+    const int32_t sliderY = pane->GlobalY() + before + pane->SliderHeight / 2;
     send(1, column, sliderY);
     send(7, column, sliderY + 10);
     send(4, column, sliderY + 10);
-    CHECK_EQ(pane->sliderPos, before + 10);
+    CHECK_EQ(pane->SliderPos, before + 10);
 
     delete pane;
 }
@@ -519,25 +519,25 @@ TEST_CASE_ISOLATED("game: a save list longer than its pane draws its slider")
     }
 
     REQUIRE(MCTestGame::StartLogistics());
-    auto* pane = new FileScrollPane;
-    pane->ScrollPane::init();
-    pane->init(10, 10, 0xc0, 0x80);
+    auto* pane = new MCFileScrollPane;
+    pane->MCScrollPane::Init();
+    pane->Init(10, 10, 0xc0, 0x80);
 
     // Four panes' worth of files.
-    lPort* content = pane->contentPort;
-    content->initView(0xc0 - 13, 0x200);
-    pane->setDisplayPort(content, 0, -1);
-    REQUIRE(pane->sliderHeight > 0);
-    CHECK(pane->sliderTexture != nullptr);
-    CHECK_EQ(pane->sliderTexture->Height, pane->sliderHeight);
+    MCLogPort* content = pane->ContentPort;
+    content->InitView(0xc0 - 13, 0x200);
+    pane->SetDisplayPort(content, 0, -1);
+    REQUIRE(pane->SliderHeight > 0);
+    CHECK(pane->SliderTexture != nullptr);
+    CHECK_EQ(pane->SliderTexture->Height, pane->SliderHeight);
 
     // The column draws: the slider's rows land at its place.
-    lPort picture;
-    picture.init(13, 0x80, -1);
-    VFX_pane_wipe(picture.frame(), 0);
-    pane->DrawSliderColumn(picture.frame(), 0, 0, false);
-    const uint8_t* pixels = picture.bitmap()->buffer;
-    CHECK_EQ(pixels[(pane->sliderPos + 1) * 13 + 5], uint8_t{0x1a});
-    picture.destroy();
+    MCLogPort picture;
+    picture.Init(13, 0x80, -1);
+    VfxPaneWipe(picture.Frame(), 0);
+    pane->DrawSliderColumn(picture.Frame(), 0, 0, false);
+    const uint8_t* pixels = picture.Bitmap()->Buffer;
+    CHECK_EQ(pixels[(pane->SliderPos + 1) * 13 + 5], uint8_t{0x1a});
+    picture.Destroy();
     delete pane;
 }

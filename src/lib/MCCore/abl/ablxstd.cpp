@@ -51,143 +51,143 @@
 // between them, and ")". Most pop their arguments and leave the last slot on the stack holding the result.
 
 int TacOrderOrigin = 1;
-TokenCodeType ExitRoutineCodeSegment[2] = {TKN_END_FUNCTION, TKN_SEMICOLON};
-TokenCodeType ExitOrderCodeSegment[2] = {TKN_END_FUNCTION, TKN_SEMICOLON};
+MCTokenCodeType ExitRoutineCodeSegment[2] = {TKN_END_FUNCTION, TKN_SEMICOLON};
+MCTokenCodeType ExitOrderCodeSegment[2] = {TKN_END_FUNCTION, TKN_SEMICOLON};
 int16_t MissionScriptMessageLog[1000][3] = {};
 int32_t NumMissionScriptMessages = 0;
-Mover* moverList[256] = {};
+MCMover* MoverList[256] = {};
 int IsUnitOrder = 0;
-MoverGroup* CurGroup = nullptr;
-GameObject* CurObject = nullptr;
+MCMoverGroup* CurGroup = nullptr;
+MCGameObject* CurObject = nullptr;
 int32_t CurObjectClass = 0;
 int32_t CurAlarm = 0;
-MechWarrior* CurWarrior = nullptr;
-GameObject* CurContact = nullptr;
+MCMechWarrior* CurWarrior = nullptr;
+MCGameObject* CurContact = nullptr;
 int32_t CurMultiplayCode = 0;
 int32_t CurMultiplayParam = 0;
-float globalMissionValues[50] = {};
+float GlobalMissionValues[50] = {};
 
 namespace
 {
     /// <summary>Evaluates the next argument (after its separator token) and pops it as an integer.</summary>
-    auto nextInteger() -> int32_t
+    auto NextInteger() -> int32_t
     {
-        getCodeToken();
-        execExpression();
-        int32_t value = tos->integer;
-        pop();
+        GetCodeToken();
+        ExecExpression();
+        int32_t value = Tos->Integer;
+        Pop();
         return value;
     }
 
     /// <summary>Evaluates the next argument (after its separator token) and pops it as a real.</summary>
-    auto nextReal() -> float
+    auto NextReal() -> float
     {
-        getCodeToken();
-        execExpression();
-        float value = tos->real;
-        pop();
+        GetCodeToken();
+        ExecExpression();
+        float value = Tos->Real;
+        Pop();
         return value;
     }
 
     /// <summary>Evaluates the next argument (after its separator token) and pops it as an address (an array's
     /// memory or a string).</summary>
-    auto nextAddress() -> Address
+    auto NextAddress() -> MCAddress
     {
-        getCodeToken();
-        execExpression();
-        Address value = tos->address;
-        pop();
+        GetCodeToken();
+        ExecExpression();
+        MCAddress value = Tos->Address;
+        Pop();
         return value;
     }
 
     /// <summary>Evaluates the next by-reference argument: the variable's address, left on the stack.</summary>
-    auto nextReference() -> Address
+    auto NextReference() -> MCAddress
     {
-        SymTableNodePtr idPtr = getCodeSymTableNodePtr();
-        baseType(execVariable(idPtr, USE_REFPARAM));
-        return tos->address;
+        MCSymTableNodePtr idPtr = GetCodeSymTableNodePtr();
+        BaseType(ExecVariable(idPtr, USE_REFPARAM));
+        return Tos->Address;
     }
 
     /// <summary>Whether <paramref name="object"/> is a mover (mech, vehicle, elemental or mover).</summary>
-    auto isMover(BaseObject* object) -> bool
+    auto IsMover(MCBaseObject* object) -> bool
     {
-        ObjectClass objectClass = object->objectClass;
+        MCObjectClass objectClass = object->ObjectClass;
         return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                objectClass == MOVER;
     }
 
     /// <summary>The object a script names by part id: -1 is the object whose brain runs.</summary>
-    auto findObject(int32_t partId) -> GameObject*
+    auto FindObject(int32_t partId) -> MCGameObject*
     {
         if (partId == -1)
         {
             return CurObject;
         }
 
-        return static_cast<GameObject*>(objectList->findObjectFromPart(partId));
+        return static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(partId));
     }
 
     /// <summary>Whether <paramref name="partId"/> names a group of movers (1..0x1ff) rather than one object.</summary>
-    auto isGroupId(int32_t partId) -> bool
+    auto IsGroupId(int32_t partId) -> bool
     {
         return partId >= 1 && partId <= 0x1ff;
     }
 
     /// <summary>
-    /// Fills <see cref="moverList"/> with the movers a group id names: 1..32 the player commander's groups,
+    /// Fills <see cref="MoverList"/> with the movers a group id names: 1..32 the player commander's groups,
     /// 0xa5..0xc4 commander 1's, 0x149..0x168 commander 2's, 500 / 501 / 502 the Inner Sphere, Clan and allied
     /// teams.
     /// </summary>
     /// <returns>How many movers.</returns>
-    auto getGroupMovers(int32_t groupId) -> int32_t
+    auto GetGroupMovers(int32_t groupId) -> int32_t
     {
         if (groupId < 0x21)
         {
-            return CommanderTable[0]->getGroup(groupId - 1)->getMovers(moverList);
+            return CommanderTable[0]->GetGroup(groupId - 1)->GetMovers(MoverList);
         }
 
         if (groupId >= 0x149 && groupId < 0x169)
         {
-            return CommanderTable[2]->getGroup(groupId - 0x149)->getMovers(moverList);
+            return CommanderTable[2]->GetGroup(groupId - 0x149)->GetMovers(MoverList);
         }
 
         if (groupId >= 0xa5 && groupId < 0xc5)
         {
-            return CommanderTable[1]->getGroup(groupId - 0xa5)->getMovers(moverList);
+            return CommanderTable[1]->GetGroup(groupId - 0xa5)->GetMovers(MoverList);
         }
 
         if (groupId == 500)
         {
-            return innerSphereTeam->getRoster(reinterpret_cast<GameObject**>(moverList));
+            return InnerSphereTeam->GetRoster(reinterpret_cast<MCGameObject**>(MoverList));
         }
 
         if (groupId == 0x1f6)
         {
-            if (alliedTeam == nullptr)
+            if (AlliedTeam == nullptr)
             {
                 return 0;
             }
 
-            return alliedTeam->getRoster(reinterpret_cast<GameObject**>(moverList));
+            return AlliedTeam->GetRoster(reinterpret_cast<MCGameObject**>(MoverList));
         }
 
         if (groupId == 0x1f5)
         {
-            return clanTeam->getRoster(reinterpret_cast<GameObject**>(moverList));
+            return ClanTeam->GetRoster(reinterpret_cast<MCGameObject**>(MoverList));
         }
 
         return 0;
     }
 
     /// <summary>The frame of the routine running (<see cref="CurRoutineIdPtr"/>), for its function value.</summary>
-    auto currentRoutineFrame() -> StackItemPtr
+    auto CurrentRoutineFrame() -> MCStackItemPtr
     {
-        StackItemPtr framePtr = stackFrameBasePtr;
+        MCStackItemPtr framePtr = StackFrameBasePtr;
 
-        for (int32_t delta = level - CurRoutineIdPtr->level - 1; delta > 0; delta--)
+        for (int32_t delta = Level - CurRoutineIdPtr->Level - 1; delta > 0; delta--)
         {
             framePtr =
-                reinterpret_cast<StackItemPtr>(reinterpret_cast<StackFrameHeaderPtr>(framePtr)->staticLink.address);
+                reinterpret_cast<MCStackItemPtr>(reinterpret_cast<MCStackFrameHeaderPtr>(framePtr)->StaticLink.Address);
         }
 
         return framePtr;
@@ -197,46 +197,46 @@ namespace
     /// Formats the value on top of the stack for print and concat: an integer, char or real into
     /// <paramref name="buffer"/>, a string as itself.
     /// </summary>
-    auto formatValue(TypePtr typePtr, char* buffer, size_t bufferSize) -> char*
+    auto FormatValue(MCTypePtr typePtr, char* buffer, size_t bufferSize) -> char*
     {
         if (typePtr == IntegerTypePtr)
         {
-            std::snprintf(buffer, bufferSize, "%d", tos->integer);
+            std::snprintf(buffer, bufferSize, "%d", Tos->Integer);
         }
         else if (typePtr == CharTypePtr)
         {
-            std::snprintf(buffer, bufferSize, "%c", tos->byte);
+            std::snprintf(buffer, bufferSize, "%c", Tos->Byte);
         }
         else if (typePtr == RealTypePtr)
         {
-            std::snprintf(buffer, bufferSize, "%.4f", static_cast<double>(tos->real));
+            std::snprintf(buffer, bufferSize, "%.4f", static_cast<double>(Tos->Real));
         }
-        else if (typePtr->form == FRM_ARRAY && typePtr->info.array.elementTypePtr == CharTypePtr)
+        else if (typePtr->Form == FRM_ARRAY && typePtr->Info.Array.ElementTypePtr == CharTypePtr)
         {
-            return reinterpret_cast<char*>(tos->address);
+            return reinterpret_cast<char*>(Tos->Address);
         }
 
         return buffer;
     }
 
     /// <summary>The debugger's report of where a print, fatal or assert ran.</summary>
-    auto printLocation(char* message) -> void
+    auto PrintLocation(char* message) -> void
     {
-        debugger->print(message);
+        Debugger->Print(message);
     }
 }
 
-auto execOrderReturn(SymTableNodePtr routineIdPtr, int32_t returnValue) -> void
+auto ExecOrderReturn(MCSymTableNodePtr routineIdPtr, int32_t returnValue) -> void
 {
-    SymTableNodePtr curRoutineIdPtr = CurRoutineIdPtr;
-    StackItemPtr framePtr = currentRoutineFrame();
-    framePtr->integer = returnValue;
-    ::returnValue = {};
-    ::returnValue.integer = returnValue;
+    MCSymTableNodePtr curRoutineIdPtr = CurRoutineIdPtr;
+    MCStackItemPtr framePtr = CurrentRoutineFrame();
+    framePtr->Integer = returnValue;
+    ::ReturnValue = {};
+    ::ReturnValue.Integer = returnValue;
 
-    if (debugger)
+    if (Debugger)
     {
-        debugger->traceDataStore(curRoutineIdPtr, curRoutineIdPtr->typePtr, framePtr, curRoutineIdPtr->typePtr);
+        Debugger->TraceDataStore(curRoutineIdPtr, curRoutineIdPtr->TypePtr, framePtr, curRoutineIdPtr->TypePtr);
     }
 
     ExitWithReturn = 1;
@@ -244,260 +244,260 @@ auto execOrderReturn(SymTableNodePtr routineIdPtr, int32_t returnValue) -> void
 
     if (returnValue != 1)
     {
-        codeSegmentPtr = reinterpret_cast<char*>(ExitOrderCodeSegment);
-        getCodeToken();
+        CodeSegmentPtr = reinterpret_cast<char*>(ExitOrderCodeSegment);
+        GetCodeToken();
     }
 }
 
-auto execStdReturn(SymTableNodePtr routineIdPtr) -> void
+auto ExecStdReturn(MCSymTableNodePtr routineIdPtr) -> void
 {
-    returnValue = {};
-    TypePtr returnTypePtr = CurRoutineIdPtr->typePtr;
+    ReturnValue = {};
+    MCTypePtr returnTypePtr = CurRoutineIdPtr->TypePtr;
 
     if (returnTypePtr)
     {
-        StackItemPtr framePtr = currentRoutineFrame();
-        getCodeToken();
-        TypePtr returnBaseTypePtr = baseType(returnTypePtr);
-        getCodeToken();
-        TypePtr expressionTypePtr = execExpression();
+        MCStackItemPtr framePtr = CurrentRoutineFrame();
+        GetCodeToken();
+        MCTypePtr returnBaseTypePtr = BaseType(returnTypePtr);
+        GetCodeToken();
+        MCTypePtr expressionTypePtr = ExecExpression();
 
-        if (returnTypePtr == RealTypePtr && baseType(expressionTypePtr) == IntegerTypePtr)
+        if (returnTypePtr == RealTypePtr && BaseType(expressionTypePtr) == IntegerTypePtr)
         {
-            framePtr->real = static_cast<float>(tos->integer);
+            framePtr->Real = static_cast<float>(Tos->Integer);
         }
-        else if (returnTypePtr->form == FRM_ARRAY)
+        else if (returnTypePtr->Form == FRM_ARRAY)
         {
             // Original behaviour: the array is copied over the frame's function value slot (and past it).
-            std::memcpy(framePtr, tos->address, static_cast<size_t>(returnTypePtr->size));
+            std::memcpy(framePtr, Tos->Address, static_cast<size_t>(returnTypePtr->Size));
         }
-        else if (returnBaseTypePtr == IntegerTypePtr || returnTypePtr->form == FRM_ENUM)
+        else if (returnBaseTypePtr == IntegerTypePtr || returnTypePtr->Form == FRM_ENUM)
         {
-            framePtr->integer = tos->integer;
+            framePtr->Integer = Tos->Integer;
         }
         else
         {
-            framePtr->real = tos->real;
+            framePtr->Real = Tos->Real;
         }
 
-        pop();
-        returnValue.real = framePtr->real;
+        Pop();
+        ReturnValue.Real = framePtr->Real;
 
-        if (debugger)
+        if (Debugger)
         {
-            debugger->traceDataStore(CurRoutineIdPtr, CurRoutineIdPtr->typePtr, framePtr, returnTypePtr);
+            Debugger->TraceDataStore(CurRoutineIdPtr, CurRoutineIdPtr->TypePtr, framePtr, returnTypePtr);
         }
     }
 
-    getCodeToken();
-    codeSegmentPtr = reinterpret_cast<char*>(ExitRoutineCodeSegment);
+    GetCodeToken();
+    CodeSegmentPtr = reinterpret_cast<char*>(ExitRoutineCodeSegment);
     ExitWithReturn = 1;
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execStdPrint(SymTableNodePtr routineIdPtr) -> void
+auto ExecStdPrint(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    TypePtr typePtr = baseType(execExpression());
+    GetCodeToken();
+    GetCodeToken();
+    MCTypePtr typePtr = BaseType(ExecExpression());
     char buffer[20];
-    char* text = formatValue(typePtr, buffer, sizeof(buffer));
-    pop();
+    char* text = FormatValue(typePtr, buffer, sizeof(buffer));
+    Pop();
 
-    if (debugger)
+    if (Debugger)
     {
         char message[512];
         std::snprintf(message, sizeof(message), "PRINT:  \"%s\"", text);
-        printLocation(message);
-        std::snprintf(message, sizeof(message), "   MODULE %s", CurModule->getName());
-        printLocation(message);
-        std::snprintf(message, sizeof(message), "   FILE %s", CurModule->getSourceFile(FileNumber));
-        printLocation(message);
-        std::snprintf(message, sizeof(message), "   LINE %d", execLineNumber);
-        printLocation(message);
-        getCodeToken();
+        PrintLocation(message);
+        std::snprintf(message, sizeof(message), "   MODULE %s", CurModule->GetName());
+        PrintLocation(message);
+        std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(FileNumber));
+        PrintLocation(message);
+        std::snprintf(message, sizeof(message), "   LINE %d", ExecLineNumber);
+        PrintLocation(message);
+        GetCodeToken();
         return;
     }
 
-    if (Terrain::terrainTacticalMap && Terrain::terrainTacticalMap->chatWindow)
+    if (MCTerrain::TerrainTacticalMap && MCTerrain::TerrainTacticalMap->ChatWindow)
     {
-        Terrain::terrainTacticalMap->chatWindow->processChatString(0, text, -1);
+        MCTerrain::TerrainTacticalMap->ChatWindow->ProcessChatString(0, text, -1);
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execStdConcat(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdConcat(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    char* destination = reinterpret_cast<char*>(tos->address);
-    pop();
-    getCodeToken();
-    TypePtr typePtr = baseType(execExpression());
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    char* destination = reinterpret_cast<char*>(Tos->Address);
+    Pop();
+    GetCodeToken();
+    MCTypePtr typePtr = BaseType(ExecExpression());
     char buffer[20];
-    char* text = formatValue(typePtr, buffer, sizeof(buffer));
+    char* text = FormatValue(typePtr, buffer, sizeof(buffer));
     std::strcat(destination, text);
-    tos->integer = 0;
-    getCodeToken();
+    Tos->Integer = 0;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execStdAbs(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdAbs(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    TypePtr resultTypePtr = IntegerTypePtr;
+    GetCodeToken();
+    GetCodeToken();
+    MCTypePtr resultTypePtr = IntegerTypePtr;
 
-    if (baseType(execExpression()) == IntegerTypePtr)
+    if (BaseType(ExecExpression()) == IntegerTypePtr)
     {
-        if (tos->integer < 0)
+        if (Tos->Integer < 0)
         {
-            tos->integer = -tos->integer;
+            Tos->Integer = -Tos->Integer;
         }
     }
     else
     {
         resultTypePtr = RealTypePtr;
 
-        if (tos->real < 0.0f)
+        if (Tos->Real < 0.0f)
         {
-            tos->real = -tos->real;
+            Tos->Real = -Tos->Real;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return resultTypePtr;
 }
 
-auto execStdRound(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdRound(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
 
-    if (static_cast<double>(tos->real) > 0.0)
+    if (static_cast<double>(Tos->Real) > 0.0)
     {
-        tos->integer = static_cast<int32_t>(static_cast<double>(tos->real) + 0.5);
+        Tos->Integer = static_cast<int32_t>(static_cast<double>(Tos->Real) + 0.5);
     }
     else
     {
-        tos->integer = static_cast<int32_t>(static_cast<double>(tos->real) - 0.5);
+        Tos->Integer = static_cast<int32_t>(static_cast<double>(Tos->Real) - 0.5);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execStdSqrt(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdSqrt(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
 
-    if (baseType(execExpression()) == IntegerTypePtr)
+    if (BaseType(ExecExpression()) == IntegerTypePtr)
     {
-        tos->real = static_cast<float>(tos->integer);
+        Tos->Real = static_cast<float>(Tos->Integer);
     }
 
-    if (tos->real < 0.0f)
+    if (Tos->Real < 0.0f)
     {
-        runtimeError(ABL_ERR_RUNTIME_INVALID_FUNCTION_ARGUMENT);
+        RuntimeError(ABL_ERR_RUNTIME_INVALID_FUNCTION_ARGUMENT);
     }
     else
     {
-        tos->real = std::sqrt(tos->real);
+        Tos->Real = std::sqrt(Tos->Real);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execStdTrunc(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdTrunc(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
 
-    if (baseType(execExpression()) == RealTypePtr)
+    if (BaseType(ExecExpression()) == RealTypePtr)
     {
-        tos->integer = static_cast<int32_t>(tos->real);
+        Tos->Integer = static_cast<int32_t>(Tos->Real);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execStdRandom(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdRandom(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    tos->integer = RandomNumber(tos->integer);
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = RandomNumber(Tos->Integer);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execStdGetModHandle(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdGetModHandle(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushInteger(CurModuleHandle);
-    getCodeToken();
+    PushInteger(CurModuleHandle);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execStdGetModName(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdGetModName(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
     return nullptr;
 }
 
-auto execStdSetModName(SymTableNodePtr routineIdPtr) -> void
+auto ExecStdSetModName(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    TypePtr typePtr = baseType(execExpression());
+    GetCodeToken();
+    GetCodeToken();
+    MCTypePtr typePtr = BaseType(ExecExpression());
 
-    if (typePtr->form != FRM_ARRAY || typePtr->info.array.elementTypePtr != CharTypePtr)
+    if (typePtr->Form != FRM_ARRAY || typePtr->Info.Array.ElementTypePtr != CharTypePtr)
     {
-        runtimeError(ABL_ERR_RUNTIME_INVALID_FUNCTION_ARGUMENT);
+        RuntimeError(ABL_ERR_RUNTIME_INVALID_FUNCTION_ARGUMENT);
     }
 
     // Original behaviour: the name is left on the stack and never used.
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execStdSetMaxLoops(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdSetMaxLoops(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    MaxLoopIterations = tos->integer + 1;
-    pop();
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MaxLoopIterations = Tos->Integer + 1;
+    Pop();
+    GetCodeToken();
     return nullptr;
 }
 
-auto execStdFatal(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdFatal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t code = tos->integer;
-    pop();
-    char* text = reinterpret_cast<char*>(nextAddress());
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t code = Tos->Integer;
+    Pop();
+    char* text = reinterpret_cast<char*>(NextAddress());
 
     char message[512];
 
-    if (debugger)
+    if (Debugger)
     {
         std::snprintf(message, sizeof(message), "FATAL:  [%d] \"%s\"", code, text);
-        printLocation(message);
-        std::snprintf(message, sizeof(message), "   MODULE (%d) %s", CurModule->getId(), CurModule->getName());
-        printLocation(message);
-        std::snprintf(message, sizeof(message), "   FILE %s", CurModule->getSourceFile(FileNumber));
-        printLocation(message);
-        std::snprintf(message, sizeof(message), "   LINE %d", execLineNumber);
-        printLocation(message);
-        debugger->debugMode();
-        getCodeToken();
+        PrintLocation(message);
+        std::snprintf(message, sizeof(message), "   MODULE (%d) %s", CurModule->GetId(), CurModule->GetName());
+        PrintLocation(message);
+        std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(FileNumber));
+        PrintLocation(message);
+        std::snprintf(message, sizeof(message), "   LINE %d", ExecLineNumber);
+        PrintLocation(message);
+        Debugger->DebugMode();
+        GetCodeToken();
         return nullptr;
     }
 
@@ -506,32 +506,32 @@ auto execStdFatal(SymTableNodePtr routineIdPtr) -> TypePtr
     Fatal(0, text);
 }
 
-auto execStdAssert(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStdAssert(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t expression = tos->integer;
-    pop();
-    int32_t code = nextInteger();
-    char* text = reinterpret_cast<char*>(nextAddress());
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t expression = Tos->Integer;
+    Pop();
+    int32_t code = NextInteger();
+    char* text = reinterpret_cast<char*>(NextAddress());
 
     if (expression == 0)
     {
         char message[512];
 
-        if (debugger)
+        if (Debugger)
         {
             std::snprintf(message, sizeof(message), "ASSERT:  [%d] \"%s\"", code, text);
-            printLocation(message);
-            std::snprintf(message, sizeof(message), "   MODULE (%d) %s", CurModule->getId(), CurModule->getName());
-            printLocation(message);
-            std::snprintf(message, sizeof(message), "   FILE %s", CurModule->getSourceFile(FileNumber));
-            printLocation(message);
-            std::snprintf(message, sizeof(message), "   LINE %d", execLineNumber);
-            printLocation(message);
-            debugger->debugMode();
-            getCodeToken();
+            PrintLocation(message);
+            std::snprintf(message, sizeof(message), "   MODULE (%d) %s", CurModule->GetId(), CurModule->GetName());
+            PrintLocation(message);
+            std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(FileNumber));
+            PrintLocation(message);
+            std::snprintf(message, sizeof(message), "   LINE %d", ExecLineNumber);
+            PrintLocation(message);
+            Debugger->DebugMode();
+            GetCodeToken();
             return nullptr;
         }
 
@@ -539,41 +539,41 @@ auto execStdAssert(SymTableNodePtr routineIdPtr) -> TypePtr
         Fatal(0, message);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return nullptr;
 }
 
-auto execHbGetId(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushInteger(0);
+    PushInteger(0);
 
     if (CurObject)
     {
-        tos->integer = CurObject->partId;
+        Tos->Integer = CurObject->PartId;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetTime(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetTime(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushReal(actualTime);
-    getCodeToken();
+    PushReal(ActualTime);
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbGetTimeLeft(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetTimeLeft(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
     float timeLeft;
 
-    if (scenario->timeLimit < 0)
+    if (Scenario->TimeLimit < 0)
     {
         timeLeft = -1.0f;
     }
     else
     {
-        timeLeft = static_cast<float>(scenario->timeLimit) - actualTime;
+        timeLeft = static_cast<float>(Scenario->TimeLimit) - ActualTime;
 
         if (timeLeft <= 0.0f)
         {
@@ -581,312 +581,312 @@ auto execHbGetTimeLeft(SymTableNodePtr routineIdPtr) -> TypePtr
         }
     }
 
-    pushReal(timeLeft);
-    getCodeToken();
+    PushReal(timeLeft);
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbGetTarget(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetTarget(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = 0;
 
     if (IsUnitOrder == 0)
     {
-        if (!isGroupId(partId))
+        if (!IsGroupId(partId))
         {
-            GameObject* object = findObject(partId);
+            MCGameObject* object = FindObject(partId);
 
-            if (object && isMover(object))
+            if (object && IsMover(object))
             {
-                MechWarrior* pilot = object->getPilot();
+                MCMechWarrior* pilot = object->GetPilot();
                 Assert(pilot != nullptr, 0, " execHbGetTarget:No pilot in mover! ");
-                GameObject* target = pilot->getLastTarget();
+                MCGameObject* target = pilot->GetLastTarget();
 
                 if (target)
                 {
-                    tos->integer = target->partId;
+                    Tos->Integer = target->PartId;
                 }
             }
         }
     }
     else
     {
-        GameObject* target = CurGroup->getPointPilot()->getLastTarget();
+        MCGameObject* target = CurGroup->GetPointPilot()->GetLastTarget();
 
         // Port fix: the original reads the part id of a null target.
         if (target)
         {
-            tos->integer = target->partId;
+            Tos->Integer = target->PartId;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetTarget(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetTarget(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t targetId = nextInteger();
-    GameObject* target = findObject(targetId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t targetId = NextInteger();
+    MCGameObject* target = FindObject(targetId);
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
-        int32_t numMovers = getGroupMovers(partId);
+        int32_t numMovers = GetGroupMovers(partId);
 
         for (int32_t i = 0; i < numMovers; i++)
         {
-            MechWarrior* pilot = moverList[i]->getPilot();
+            MCMechWarrior* pilot = MoverList[i]->GetPilot();
 
             if (pilot)
             {
-                pilot->setCurrentTarget(target);
-                static_cast<Mover*>(pilot->vehicle)->calcOptimalRange(nullptr);
+                pilot->SetCurrentTarget(target);
+                static_cast<MCMover*>(pilot->Vehicle)->CalcOptimalRange(nullptr);
             }
         }
     }
     else
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            MechWarrior* pilot = object->getPilot();
+            MCMechWarrior* pilot = object->GetPilot();
 
             if (pilot)
             {
-                pilot->setCurrentTarget(target);
-                static_cast<Mover*>(pilot->vehicle)->calcOptimalRange(nullptr);
+                pilot->SetCurrentTarget(target);
+                static_cast<MCMover*>(pilot->Vehicle)->CalcOptimalRange(nullptr);
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSelectUnit(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSelectUnit(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    tos->integer = -1;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = -1;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSelectObject(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSelectObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
     int32_t previousId = 0;
-    execExpression();
+    ExecExpression();
 
     if (CurObject)
     {
-        previousId = CurObject->partId;
+        previousId = CurObject->PartId;
     }
 
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
     if (object)
     {
-        CurObject = static_cast<GameObject*>(object);
-        tos->integer = previousId;
+        CurObject = static_cast<MCGameObject*>(object);
+        Tos->Integer = previousId;
     }
     else
     {
-        tos->integer = -1;
+        Tos->Integer = -1;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSelectWarrior(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSelectWarrior(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t warriorIndex = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t warriorIndex = Tos->Integer;
+    Tos->Integer = -1;
     int32_t previousIndex = 0;
 
     if (CurWarrior)
     {
-        previousIndex = CurWarrior->index;
+        previousIndex = CurWarrior->Index;
     }
 
-    tos->integer = previousIndex;
+    Tos->Integer = previousIndex;
 
-    if (warriorIndex > 0 && static_cast<uint32_t>(warriorIndex) <= scenario->numWarriors)
+    if (warriorIndex > 0 && static_cast<uint32_t>(warriorIndex) <= Scenario->NumWarriors)
     {
-        CurWarrior = scenario->warriors[warriorIndex];
+        CurWarrior = Scenario->Warriors[warriorIndex];
     }
     else
     {
         CurWarrior = nullptr;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetWarriorStatus(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetWarriorStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t warriorIndex = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t warriorIndex = Tos->Integer;
+    Tos->Integer = -1;
 
-    if (warriorIndex > 0 && static_cast<uint32_t>(warriorIndex) <= scenario->numWarriors)
+    if (warriorIndex > 0 && static_cast<uint32_t>(warriorIndex) <= Scenario->NumWarriors)
     {
-        MechWarrior* warrior = scenario->warriors[warriorIndex];
+        MCMechWarrior* warrior = Scenario->Warriors[warriorIndex];
 
         if (warrior)
         {
-            tos->integer = warrior->status;
+            Tos->Integer = warrior->Status;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetContacts(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetContacts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    int32_t* contacts = reinterpret_cast<int32_t*>(nextReference());
-    pop();
-    int32_t contactCriteria = nextInteger();
-    getCodeToken();
-    execExpression();
-    int32_t sortType = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    int32_t* contacts = reinterpret_cast<int32_t*>(NextReference());
+    Pop();
+    int32_t contactCriteria = NextInteger();
+    GetCodeToken();
+    ExecExpression();
+    int32_t sortType = Tos->Integer;
+    Tos->Integer = -1;
 
-    if (isMover(CurObject))
+    if (IsMover(CurObject))
     {
-        tos->integer = CurObject->getTeam()->getContacts(CurObject, contacts, contactCriteria, sortType);
+        Tos->Integer = CurObject->GetTeam()->GetContacts(CurObject, contacts, contactCriteria, sortType);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetEnemyCount(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetEnemyCount(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = -1;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            if (isMover(object))
+            if (IsMover(object))
             {
-                tos->integer = object->getTeam()->numLOSContacts;
+                Tos->Integer = object->GetTeam()->NumLosContacts;
             }
-            else if (object->objectClass == ARTILLERY || object->objectClass == BUILDING ||
-                     object->objectClass == TREEBUILDING)
+            else if (object->ObjectClass == ARTILLERY || object->ObjectClass == BUILDING ||
+                     object->ObjectClass == TREEBUILDING)
             {
-                int32_t alignment = object->getAlignment();
+                int32_t alignment = object->GetAlignment();
 
                 if (alignment == -1)
                 {
-                    tos->integer = clanTeam->numLOSContacts;
+                    Tos->Integer = ClanTeam->NumLosContacts;
                 }
                 else if (alignment == 1)
                 {
-                    tos->integer = innerSphereTeam->numLOSContacts;
+                    Tos->Integer = InnerSphereTeam->NumLosContacts;
                 }
             }
         }
     }
     else if (partId == 500)
     {
-        tos->integer = innerSphereTeam->numLOSContacts;
+        Tos->Integer = InnerSphereTeam->NumLosContacts;
     }
     else if (partId == 0x1f5)
     {
-        tos->integer = clanTeam->numLOSContacts;
+        Tos->Integer = ClanTeam->NumLosContacts;
     }
-    else if (partId == 0x1f6 && alliedTeam)
+    else if (partId == 0x1f6 && AlliedTeam)
     {
-        tos->integer = alliedTeam->numLOSContacts;
+        Tos->Integer = AlliedTeam->NumLosContacts;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSelectContact(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSelectContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = -1;
 
-    if (isMover(CurObject))
+    if (IsMover(CurObject))
     {
-        GameObject* contact = findObject(partId);
+        MCGameObject* contact = FindObject(partId);
 
-        if (contact && CurObject->getTeam()->getContactType(contact) != 0)
+        if (contact && CurObject->GetTeam()->GetContactType(contact) != 0)
         {
             CurContact = contact;
-            tos->integer = 0;
+            Tos->Integer = 0;
         }
         else
         {
-            tos->integer = 1;
+            Tos->Integer = 1;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbIsContact(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbIsContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t contactCriteria = nextInteger();
-    getCodeToken();
-    execExpression();
-    int32_t select = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t contactCriteria = NextInteger();
+    GetCodeToken();
+    ExecExpression();
+    int32_t select = Tos->Integer;
+    Tos->Integer = -1;
 
-    if (isMover(CurObject))
+    if (IsMover(CurObject))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
-        if (CurObject->getTeam()->isContact(object, contactCriteria) == 0)
+        if (CurObject->GetTeam()->IsContact(object, contactCriteria) == 0)
         {
-            tos->integer = 0;
+            Tos->Integer = 0;
         }
         else
         {
-            tos->integer = partId;
+            Tos->Integer = partId;
 
             if (select)
             {
@@ -895,182 +895,182 @@ auto execHbIsContact(SymTableNodePtr routineIdPtr) -> TypePtr
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetContactId(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetContactId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushInteger(CurContact ? CurContact->partId : 0);
-    getCodeToken();
+    PushInteger(CurContact ? CurContact->PartId : 0);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetContactStatus(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetContactStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    int32_t* tagged = reinterpret_cast<int32_t*>(nextReference());
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    int32_t* tagged = reinterpret_cast<int32_t*>(NextReference());
+    Tos->Integer = 0;
 
     *tagged = 0;
     if (CurContact)
     {
         int taggedFlag;
-        tos->integer = CurContact->getContactType(CurObject->getTeam()->id, taggedFlag);
+        Tos->Integer = CurContact->GetContactType(CurObject->GetTeam()->Id, taggedFlag);
         *tagged = (taggedFlag == 1) ? 1 : 0;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetContactRelativePosition(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetContactRelativePosition(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    float* range = reinterpret_cast<float*>(nextReference());
-    pop();
-    getCodeToken();
-    float* angle = reinterpret_cast<float*>(nextReference());
+    GetCodeToken();
+    GetCodeToken();
+    float* range = reinterpret_cast<float*>(NextReference());
+    Pop();
+    GetCodeToken();
+    float* angle = reinterpret_cast<float*>(NextReference());
     *range = -1.0f;
-    tos->integer = 1;
+    Tos->Integer = 1;
 
     *angle = 0.0f;
     if (CurContact && CurObject)
     {
-        vector_3d contactPosition = CurContact->getPosition();
-        *range = static_cast<float>(CurObject->distanceFrom(contactPosition));
-        *angle = CurObject->relFacingTo(CurContact->getPosition(), -1);
-        tos->integer = 0;
+        MCVector3D contactPosition = CurContact->GetPosition();
+        *range = static_cast<float>(CurObject->DistanceFrom(contactPosition));
+        *angle = CurObject->RelFacingTo(CurContact->GetPosition(), -1);
+        Tos->Integer = 0;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetPotentialContact(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetPotentialContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t contactType = tos->integer;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t contactType = Tos->Integer;
 
     // Original behaviour: the contact type is left on the stack as the result.
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
-        int32_t numMovers = getGroupMovers(partId);
+        int32_t numMovers = GetGroupMovers(partId);
 
         for (int32_t i = 0; i < numMovers; i++)
         {
-            moverList[i]->setPotentialContact(contactType);
+            MoverList[i]->SetPotentialContact(contactType);
         }
     }
     else
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            object->setPotentialContact(contactType);
+            object->SetPotentialContact(contactType);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetWeapons(SymTableNodePtr routineIdPtr, int32_t key) -> TypePtr
+auto ExecHbGetWeapons(MCSymTableNodePtr routineIdPtr, int32_t key) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    int32_t* weaponList = reinterpret_cast<int32_t*>(nextReference());
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t listSize = tos->integer;
-    GameObject* target = CurWarrior->getLastTarget();
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    int32_t* weaponList = reinterpret_cast<int32_t*>(NextReference());
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t listSize = Tos->Integer;
+    MCGameObject* target = CurWarrior->GetLastTarget();
+    Tos->Integer = -1;
 
-    if (isMover(CurObject))
+    if (IsMover(CurObject))
     {
-        Mover* mover = static_cast<Mover*>(CurObject);
+        MCMover* mover = static_cast<MCMover*>(CurObject);
 
         if (key == RTN_GET_WEAPONS_READY)
         {
-            tos->integer = mover->getWeaponsReady(weaponList, listSize);
+            Tos->Integer = mover->GetWeaponsReady(weaponList, listSize);
         }
         else if (key == RTN_GET_WEAPONS_IN_RANGE && target)
         {
-            vector_3d targetPosition = target->getPosition();
-            tos->integer =
-                mover->getWeaponsInRange(weaponList, listSize, static_cast<float>(mover->distanceFrom(targetPosition)));
+            MCVector3D targetPosition = target->GetPosition();
+            Tos->Integer =
+                mover->GetWeaponsInRange(weaponList, listSize, static_cast<float>(mover->DistanceFrom(targetPosition)));
         }
         else
         {
-            tos->integer = mover->getWeaponsLocked(weaponList, listSize);
+            Tos->Integer = mover->GetWeaponsLocked(weaponList, listSize);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetWeaponShots(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetWeaponShots(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t weaponIndex = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t weaponIndex = Tos->Integer;
+    Tos->Integer = -1;
 
-    if (isMover(CurObject))
+    if (IsMover(CurObject))
     {
-        tos->integer = static_cast<Mover*>(CurObject)->getWeaponShots(weaponIndex);
+        Tos->Integer = static_cast<MCMover*>(CurObject)->GetWeaponShots(weaponIndex);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetWeaponRanges(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbGetWeaponRanges(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    float* ranges = reinterpret_cast<float*>(nextReference());
-    pop();
-    GameObject* object = findObject(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    float* ranges = reinterpret_cast<float*>(NextReference());
+    Pop();
+    MCGameObject* object = FindObject(partId);
 
-    if (object && isMover(object))
+    if (object && IsMover(object))
     {
-        Mover* mover = static_cast<Mover*>(object);
+        MCMover* mover = static_cast<MCMover*>(object);
 
-        if (mover->shortestRangeWeapon == 0xff)
+        if (mover->ShortestRangeWeapon == 0xff)
         {
             ranges[0] = -1.0f;
         }
         else
         {
-            ranges[0] = MasterComponentList[mover->inventory[mover->shortestRangeWeapon].masterID].weaponRange[1];
+            ranges[0] = MasterComponentList[mover->Inventory[mover->ShortestRangeWeapon].MasterID].WeaponRange[1];
         }
 
-        ranges[1] = mover->getFireRange(-1);
+        ranges[1] = mover->GetFireRange(-1);
 
         if (ranges[1] == -1.0f)
         {
-            mover->calcOptimalRange(nullptr);
-            ranges[1] = mover->getFireRange(-1);
+            mover->CalcOptimalRange(nullptr);
+            ranges[1] = mover->GetFireRange(-1);
         }
 
-        ranges[2] = mover->getFireRange(-2);
+        ranges[2] = mover->GetFireRange(-2);
     }
     else
     {
@@ -1079,253 +1079,253 @@ auto execHbGetWeaponRanges(SymTableNodePtr routineIdPtr) -> void
         ranges[0] = 0.0f;
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetMoveGoal(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetMoveGoal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    uint32_t goalType = static_cast<uint32_t>(tos->integer);
-    pop();
-    getCodeToken();
-    float* location = reinterpret_cast<float*>(nextReference());
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    uint32_t goalType = static_cast<uint32_t>(Tos->Integer);
+    Pop();
+    GetCodeToken();
+    float* location = reinterpret_cast<float*>(NextReference());
 
     if (CurWarrior)
     {
-        vector_3d goal;
-        goal.x = location[0];
-        goal.y = location[1];
-        goal.z = location[2];
-        CurWarrior->setMoveGoal(goalType, &goal, nullptr);
-        location[0] = goal.x;
-        location[1] = goal.y;
-        location[2] = goal.z;
-        CurWarrior->moveOrders.scriptGoal = 1;
+        MCVector3D goal;
+        goal.X = location[0];
+        goal.Y = location[1];
+        goal.Z = location[2];
+        CurWarrior->SetMoveGoal(goalType, &goal, nullptr);
+        location[0] = goal.X;
+        location[1] = goal.Y;
+        location[2] = goal.Z;
+        CurWarrior->MoveOrders.ScriptGoal = 1;
     }
 
-    tos->integer = 0;
-    getCodeToken();
+    Tos->Integer = 0;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetChallenger(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetChallenger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = 0;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
-        if (object && isMover(object))
+        if (object && IsMover(object))
         {
-            GameObject* challenger = static_cast<Mover*>(object)->getChallenger();
+            MCGameObject* challenger = static_cast<MCMover*>(object)->GetChallenger();
 
             if (challenger)
             {
-                tos->integer = challenger->partId;
+                Tos->Integer = challenger->PartId;
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetFireRanges(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetFireRanges(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    float* ranges = reinterpret_cast<float*>(nextReference());
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    float* ranges = reinterpret_cast<float*>(NextReference());
+    Pop();
     ranges[0] = WeaponRange[0];
     ranges[1] = WeaponRange[1];
     ranges[2] = WeaponRange[2];
-    ranges[3] = scenario->maxWeaponRange;
-    getCodeToken();
+    ranges[3] = Scenario->MaxWeaponRange;
+    GetCodeToken();
     return nullptr;
 }
 
-auto execHbGetAttackers(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetAttackers(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    uint32_t* attackerList = reinterpret_cast<uint32_t*>(nextReference());
-    pop();
-    getCodeToken();
-    execExpression();
-    float seconds = tos->real;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    uint32_t* attackerList = reinterpret_cast<uint32_t*>(NextReference());
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    float seconds = Tos->Real;
+    Tos->Integer = 0;
 
     if (CurWarrior)
     {
-        tos->integer = CurWarrior->getAttackers(attackerList, seconds);
+        Tos->Integer = CurWarrior->GetAttackers(attackerList, seconds);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetAttackerInfo(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetAttackerInfo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    uint32_t attackerId = static_cast<uint32_t>(tos->integer);
-    tos->real = 1000000.0f;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    uint32_t attackerId = static_cast<uint32_t>(Tos->Integer);
+    Tos->Real = 1000000.0f;
 
     if ((attackerId == 0 || attackerId > 0x1ff) && CurWarrior)
     {
-        _AttackerRec* attackerRec = CurWarrior->getAttackerInfo(attackerId);
+        MCAttackerRec* attackerRec = CurWarrior->GetAttackerInfo(attackerId);
 
         if (attackerRec)
         {
-            tos->real = scenarioTime - attackerRec->lastTime;
+            Tos->Real = ScenarioTime - attackerRec->LastTime;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbGetTimeWithoutOrders(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetTimeWithoutOrders(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushReal(0.0f);
+    PushReal(0.0f);
 
-    if (CurWarrior && CurWarrior->timeOfLastOrders >= 0.0f)
+    if (CurWarrior && CurWarrior->TimeOfLastOrders >= 0.0f)
     {
-        tos->real = scenarioTime - CurWarrior->timeOfLastOrders;
+        Tos->Real = ScenarioTime - CurWarrior->TimeOfLastOrders;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbSetChallenger(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetChallenger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t challengerId = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t challengerId = Tos->Integer;
+    Tos->Integer = 0;
 
-    if (isGroupId(challengerId))
+    if (IsGroupId(challengerId))
     {
-        tos->integer = -1;
+        Tos->Integer = -1;
     }
     else
     {
-        GameObject* challenger = findObject(challengerId);
-        GameObject* object = findObject(partId);
+        MCGameObject* challenger = FindObject(challengerId);
+        MCGameObject* object = FindObject(partId);
 
-        if (object && isMover(object))
+        if (object && IsMover(object))
         {
-            static_cast<Mover*>(object)->setChallenger(challenger);
+            static_cast<MCMover*>(object)->SetChallenger(challenger);
         }
         else
         {
-            tos->integer = -2;
+            Tos->Integer = -2;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetMemoryInteger(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetMemoryInteger(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t cell = tos->integer;
-    pop();
-    int32_t value = nextInteger();
-    CurWarrior->memory[cell].integer = value;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t cell = Tos->Integer;
+    Pop();
+    int32_t value = NextInteger();
+    CurWarrior->Memory[cell].Integer = value;
+    GetCodeToken();
 }
 
-auto execHbSetMemoryReal(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetMemoryReal(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t cell = tos->integer;
-    pop();
-    float value = nextReal();
-    CurWarrior->memory[cell].real = value;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t cell = Tos->Integer;
+    Pop();
+    float value = NextReal();
+    CurWarrior->Memory[cell].Real = value;
+    GetCodeToken();
 }
 
-auto execHbHasMoveGoal(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbHasMoveGoal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    if (CurWarrior && CurWarrior->moveOrders.scriptGoal != 0 && CurWarrior->moveOrders.goalType != -1)
+    if (CurWarrior && CurWarrior->MoveOrders.ScriptGoal != 0 && CurWarrior->MoveOrders.GoalType != -1)
     {
-        pushInteger(1);
+        PushInteger(1);
     }
     else
     {
-        pushInteger(0);
+        PushInteger(0);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto execHbHasMovePath(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbHasMovePath(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    if (CurWarrior && CurWarrior->getMovePath() && CurWarrior->moveOrders.scriptGoal == 0)
+    if (CurWarrior && CurWarrior->GetMovePath() && CurWarrior->MoveOrders.ScriptGoal == 0)
     {
-        pushInteger(1);
+        PushInteger(1);
     }
     else
     {
-        pushInteger(0);
+        PushInteger(0);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto execHbSortWeapons(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSortWeapons(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    int32_t* weaponList = reinterpret_cast<int32_t*>(nextReference());
-    pop();
-    int32_t listSize = nextInteger();
-    int32_t sortType = nextInteger();
+    GetCodeToken();
+    GetCodeToken();
+    int32_t* weaponList = reinterpret_cast<int32_t*>(NextReference());
+    Pop();
+    int32_t listSize = NextInteger();
+    int32_t sortType = NextInteger();
     int32_t valueList[48];
 
-    if (CurObject && isMover(CurObject))
+    if (CurObject && IsMover(CurObject))
     {
-        static_cast<Mover*>(CurObject)->sortWeapons(weaponList, valueList, listSize, sortType, 1);
+        static_cast<MCMover*>(CurObject)->SortWeapons(weaponList, valueList, listSize, sortType, 1);
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbGetObjectPosition(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetObjectPosition(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    float* position = reinterpret_cast<float*>(nextReference());
-    pop();
-    pushInteger(0);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    float* position = reinterpret_cast<float*>(NextReference());
+    Pop();
+    PushInteger(0);
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
         position[0] = 0.0f;
         position[1] = 0.0f;
@@ -1333,455 +1333,455 @@ auto execHbGetObjectPosition(SymTableNodePtr routineIdPtr) -> TypePtr
     }
     else
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            vector_3d objectPosition = object->getPosition();
-            position[0] = objectPosition.x;
-            position[1] = objectPosition.y;
-            position[2] = objectPosition.z;
+            MCVector3D objectPosition = object->GetPosition();
+            position[0] = objectPosition.X;
+            position[1] = objectPosition.Y;
+            position[2] = objectPosition.Z;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetVisualRange(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetVisualRange(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
-        tos->real = -1.0f;
+        Tos->Real = -1.0f;
     }
     else
     {
         // Original behaviour: for an object that isn't a mover the part id stays as the (real) result.
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
-        if (object && isMover(object))
+        if (object && IsMover(object))
         {
-            tos->real = static_cast<Mover*>(object)->getVisualRange();
+            Tos->Real = static_cast<MCMover*>(object)->GetVisualRange();
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbGetMemoryInteger(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetMemoryInteger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    tos->integer = CurWarrior->memory[tos->integer].integer;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = CurWarrior->Memory[Tos->Integer].Integer;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetMemoryReal(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetMemoryReal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    tos->real = CurWarrior->memory[tos->integer].real;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Real = CurWarrior->Memory[Tos->Integer].Real;
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbGetAlarmTriggers(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetAlarmTriggers(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    uint32_t* triggerList = reinterpret_cast<uint32_t*>(nextReference());
-    tos->integer = CurWarrior->getAlarmTriggers(CurAlarm, triggerList);
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    uint32_t* triggerList = reinterpret_cast<uint32_t*>(NextReference());
+    Tos->Integer = CurWarrior->GetAlarmTriggers(CurAlarm, triggerList);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetUnitMates(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetUnitMates(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    getCodeToken();
-    int32_t* mateList = reinterpret_cast<int32_t*>(nextReference());
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    GetCodeToken();
+    int32_t* mateList = reinterpret_cast<int32_t*>(NextReference());
+    Tos->Integer = 0;
     int32_t numMates = 0;
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
-        numMates = getGroupMovers(partId);
+        numMates = GetGroupMovers(partId);
     }
     else
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
-        if (!object || !isMover(object) || !static_cast<Mover*>(object)->group)
+        if (!object || !IsMover(object) || !static_cast<MCMover*>(object)->Group)
         {
-            getCodeToken();
+            GetCodeToken();
             return IntegerTypePtr;
         }
 
-        numMates = static_cast<Mover*>(object)->group->getMovers(moverList);
+        numMates = static_cast<MCMover*>(object)->Group->GetMovers(MoverList);
     }
 
     for (int32_t i = 0; i < numMates; i++)
     {
-        mateList[i] = moverList[i]->partId;
+        mateList[i] = MoverList[i]->PartId;
     }
 
-    tos->integer = numMates;
-    getCodeToken();
+    Tos->Integer = numMates;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
 namespace
 {
     /// <summary>gettacorder / getlasttacorder: the order's time stamp and parameters of a mover's pilot.</summary>
-    auto getTacOrderData(bool last) -> void
+    auto GetTacOrderData(bool last) -> void
     {
-        getCodeToken();
-        getCodeToken();
-        execExpression();
-        int32_t partId = tos->integer;
-        getCodeToken();
-        float* timeStamp = reinterpret_cast<float*>(nextReference());
-        pop();
-        getCodeToken();
-        int32_t* paramList = reinterpret_cast<int32_t*>(nextReference());
-        tos->integer = 0;
+        GetCodeToken();
+        GetCodeToken();
+        ExecExpression();
+        int32_t partId = Tos->Integer;
+        GetCodeToken();
+        float* timeStamp = reinterpret_cast<float*>(NextReference());
+        Pop();
+        GetCodeToken();
+        int32_t* paramList = reinterpret_cast<int32_t*>(NextReference());
+        Tos->Integer = 0;
 
-        if (!isGroupId(partId))
+        if (!IsGroupId(partId))
         {
-            GameObject* object = findObject(partId);
+            MCGameObject* object = FindObject(partId);
 
-            if (object && isMover(object))
+            if (object && IsMover(object))
             {
-                MechWarrior* pilot = object->getPilot();
+                MCMechWarrior* pilot = object->GetPilot();
 
                 if (pilot)
                 {
-                    TacticalOrder& order = last ? pilot->lastTacOrder : pilot->curTacOrder;
-                    tos->integer = order.getParamData(timeStamp, paramList);
+                    MCTacticalOrder& order = last ? pilot->LastTacOrder : pilot->CurTacOrder;
+                    Tos->Integer = order.GetParamData(timeStamp, paramList);
                 }
             }
         }
 
-        getCodeToken();
+        GetCodeToken();
     }
 }
 
-auto execHbGetTacOrder(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetTacOrder(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getTacOrderData(false);
+    GetTacOrderData(false);
     return IntegerTypePtr;
 }
 
-auto execHbGetLastTacOrder(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetLastTacOrder(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getTacOrderData(true);
+    GetTacOrderData(true);
     return IntegerTypePtr;
 }
 
-auto execHbSetOrderMode(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetOrderMode(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
     // Original behaviour: the argument is ignored; the mode is always reset to pilot orders.
     int wasUnitOrder = IsUnitOrder != 0;
     IsUnitOrder = 0;
-    tos->integer = wasUnitOrder;
-    getCodeToken();
+    Tos->Integer = wasUnitOrder;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbWait(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbWait(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    float seconds = tos->real;
-    pop();
-    getCodeToken();
-    execExpression();
-    int clearLastTarget = tos->integer == 1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    float seconds = Tos->Real;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int clearLastTarget = Tos->Integer == 1;
     int32_t result = 0;
 
     if (IsUnitOrder == 0)
     {
         // The original rounds with the 1.5 * 2^52 addition trick: to nearest, ties to even.
-        result = CurWarrior->orderWait(0, 1, static_cast<int32_t>(std::nearbyint(seconds)), clearLastTarget);
+        result = CurWarrior->OrderWait(0, 1, static_cast<int32_t>(std::nearbyint(seconds)), clearLastTarget);
     }
     else
     {
         Fatal(0, " Team orderwait needs support ");
     }
 
-    tos->integer = result;
-    getCodeToken();
+    Tos->Integer = result;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetAttackRadius(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetAttackRadius(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    float radius = tos->real;
-    tos->real = CurWarrior->attackRadius;
-    CurWarrior->attackRadius = radius;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    float radius = Tos->Real;
+    Tos->Real = CurWarrior->AttackRadius;
+    CurWarrior->AttackRadius = radius;
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbMoveToPoint(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbMoveToPoint(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    float* location = reinterpret_cast<float*>(nextReference());
-    pop();
-    getCodeToken();
-    execExpression();
-    vector_3d goal;
-    goal.x = location[0];
-    goal.y = location[1];
-    goal.z = location[2];
-    uint32_t params = tos->integer == 1 ? 1 : 0;
+    GetCodeToken();
+    GetCodeToken();
+    float* location = reinterpret_cast<float*>(NextReference());
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    MCVector3D goal;
+    goal.X = location[0];
+    goal.Y = location[1];
+    goal.Z = location[2];
+    uint32_t params = Tos->Integer == 1 ? 1 : 0;
     int32_t result;
 
     if (IsUnitOrder == 0)
     {
-        result = CurWarrior->orderMoveToPoint(0, 1, 1, goal, -1, params);
+        result = CurWarrior->OrderMoveToPoint(0, 1, 1, goal, -1, params);
     }
     else
     {
-        result = CurGroup->orderMoveToPoint(1, 1, goal, params);
+        result = CurGroup->OrderMoveToPoint(1, 1, goal, params);
     }
 
-    tos->integer = result;
-    getCodeToken();
+    Tos->Integer = result;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbMoveToObject(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbMoveToObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t flag = tos->integer;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t flag = Tos->Integer;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
             if (IsUnitOrder == 0)
             {
-                tos->integer = CurWarrior->orderMoveToObject(0, 1, 1, object, -1, flag == 1 ? 1 : 0);
+                Tos->Integer = CurWarrior->OrderMoveToObject(0, 1, 1, object, -1, flag == 1 ? 1 : 0);
             }
             else
             {
-                tos->integer = CurGroup->orderMoveToObject(1, 1, object, 1);
+                Tos->Integer = CurGroup->OrderMoveToObject(1, 1, object, 1);
             }
 
-            getCodeToken();
+            GetCodeToken();
             return IntegerTypePtr;
         }
     }
 
-    tos->integer = 1;
-    getCodeToken();
+    Tos->Integer = 1;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbMoveToContact(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbMoveToContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
     int32_t result = -1;
 
     if (CurContact)
     {
         if (IsUnitOrder != 0)
         {
-            result = CurGroup->orderMoveToObject(1, 1, CurContact, 1);
+            result = CurGroup->OrderMoveToObject(1, 1, CurContact, 1);
         }
         else
         {
-            result = CurWarrior->orderMoveToObject(0, 1, 1, CurContact, -1, tos->integer == 1 ? 1 : 0);
+            result = CurWarrior->OrderMoveToObject(0, 1, 1, CurContact, -1, Tos->Integer == 1 ? 1 : 0);
         }
     }
 
-    tos->integer = result;
-    getCodeToken();
+    Tos->Integer = result;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbOrderPowerDown(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbOrderPowerDown(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushInteger(0);
+    PushInteger(0);
 
     if (IsUnitOrder != 0)
     {
-        tos->integer = CurGroup->orderPowerDown(TacOrderOrigin);
+        Tos->Integer = CurGroup->OrderPowerDown(TacOrderOrigin);
     }
     else
     {
-        tos->integer = CurWarrior->orderPowerDown(0, TacOrderOrigin);
+        Tos->Integer = CurWarrior->OrderPowerDown(0, TacOrderOrigin);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbOrderPowerUp(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbOrderPowerUp(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushInteger(0);
+    PushInteger(0);
 
     if (IsUnitOrder != 0)
     {
-        tos->integer = CurGroup->orderPowerUp(TacOrderOrigin);
+        Tos->Integer = CurGroup->OrderPowerUp(TacOrderOrigin);
     }
     else
     {
-        tos->integer = CurWarrior->orderPowerUp(0, TacOrderOrigin);
+        Tos->Integer = CurWarrior->OrderPowerUp(0, TacOrderOrigin);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbOrderAttackObject(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbOrderAttackObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    uint32_t partId = static_cast<uint32_t>(tos->integer);
-    pop();
-    int32_t attackType = nextInteger();
-    int32_t attackMethod = nextInteger();
-    int32_t attackRange = nextInteger();
-    getCodeToken();
-    execExpression();
-    uint32_t params = tos->integer != 0 ? 0x10 : 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    uint32_t partId = static_cast<uint32_t>(Tos->Integer);
+    Pop();
+    int32_t attackType = NextInteger();
+    int32_t attackMethod = NextInteger();
+    int32_t attackRange = NextInteger();
+    GetCodeToken();
+    ExecExpression();
+    uint32_t params = Tos->Integer != 0 ? 0x10 : 0;
 
     if (partId != 0 && partId < 0x200)
     {
-        tos->integer = 1;
-        getCodeToken();
+        Tos->Integer = 1;
+        GetCodeToken();
         return IntegerTypePtr;
     }
 
     // Unlike the other routines, -1 is looked up as a part id rather than meaning the current object.
-    GameObject* target = nullptr;
+    MCGameObject* target = nullptr;
 
     if (partId != 0)
     {
-        target = static_cast<GameObject*>(objectList->findObjectFromPart(static_cast<int32_t>(partId)));
+        target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(static_cast<int32_t>(partId)));
     }
 
     if (IsUnitOrder != 0)
     {
-        tos->integer = CurGroup->orderAttackObject(1, target, attackType, attackMethod, attackRange, -1, params);
+        Tos->Integer = CurGroup->OrderAttackObject(1, target, attackType, attackMethod, attackRange, -1, params);
     }
     else
     {
-        tos->integer = CurWarrior->orderAttackObject(0, 1, target, attackType, attackMethod, attackRange, -1, params);
+        Tos->Integer = CurWarrior->OrderAttackObject(0, 1, target, attackType, attackMethod, attackRange, -1, params);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbOrderAttackContact(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbOrderAttackContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t attackType = tos->integer;
-    pop();
-    int32_t attackMethod = nextInteger();
-    int32_t attackRange = nextInteger();
-    getCodeToken();
-    execExpression();
-    uint32_t params = tos->integer != 0 ? 0x10 : 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t attackType = Tos->Integer;
+    Pop();
+    int32_t attackMethod = NextInteger();
+    int32_t attackRange = NextInteger();
+    GetCodeToken();
+    ExecExpression();
+    uint32_t params = Tos->Integer != 0 ? 0x10 : 0;
     int32_t result = -2;
 
     if (CurContact)
     {
-        result = CurWarrior->orderAttackObject(0, 1, CurContact, attackType, attackMethod, attackRange, -1, params);
+        result = CurWarrior->OrderAttackObject(0, 1, CurContact, attackType, attackMethod, attackRange, -1, params);
     }
 
-    tos->integer = result;
-    getCodeToken();
+    Tos->Integer = result;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbOrderTest(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbOrderTest(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbPlaySmacker(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbPlaySmacker(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    tos->integer = 0;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = 0;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjectChangeSides(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbObjectChangeSides(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t alignment = nextInteger();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t alignment = NextInteger();
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
         Fatal(0, " Cannot ABL:ObjectChangeSides for Mover Units ");
     }
 
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-    if (object && object->getObjectType())
+    if (object && object->GetObjectType())
     {
-        static_cast<GameObject*>(object)->setAlignment(alignment);
+        static_cast<MCGameObject*>(object)->SetAlignment(alignment);
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
 namespace
 {
     /// <summary>The distance in world units from <paramref name="object"/> to (x, y), ignoring height.</summary>
-    auto flatDistance(GameObject* object, float x, float y) -> double
+    auto FlatDistance(MCGameObject* object, float x, float y) -> double
     {
-        vector_3d objectPosition = object->getPosition();
-        const float dx = x - objectPosition.x;
-        const float dy = y - objectPosition.y;
+        MCVector3D objectPosition = object->GetPosition();
+        const float dx = x - objectPosition.X;
+        const float dy = y - objectPosition.Y;
         return std::sqrt(static_cast<double>(dx) * dx + static_cast<double>(dy) * dy + 0.0);
     }
 
@@ -1789,28 +1789,28 @@ namespace
     /// distancetoobject / distancetoposition: meters from (x, y) to an object, or to the nearest existing, awake
     /// mover of a group; <paramref name="result"/> keeps its value when there is none.
     /// </summary>
-    auto distanceFromId(int32_t partId, float x, float y, float& result) -> void
+    auto DistanceFromId(int32_t partId, float x, float y, float& result) -> void
     {
-        if (!isGroupId(partId))
+        if (!IsGroupId(partId))
         {
-            GameObject* object = findObject(partId);
+            MCGameObject* object = FindObject(partId);
 
             if (object)
             {
-                result = static_cast<float>(flatDistance(object, x, y) * metersPerWorldUnit);
+                result = static_cast<float>(FlatDistance(object, x, y) * MetersPerWorldUnit);
             }
 
             return;
         }
 
-        int32_t numMovers = getGroupMovers(partId);
+        int32_t numMovers = GetGroupMovers(partId);
         float closest = 3.4e38f;
 
         for (int32_t i = 0; i < numMovers; i++)
         {
-            if (moverList[i]->getExistsAndAwake())
+            if (MoverList[i]->GetExistsAndAwake())
             {
-                const auto distance = static_cast<float>(flatDistance(moverList[i], x, y));
+                const auto distance = static_cast<float>(FlatDistance(MoverList[i], x, y));
 
                 if (distance < closest)
                 {
@@ -1821,16 +1821,16 @@ namespace
 
         if (static_cast<double>(closest) < 3.4e38)
         {
-            result = metersPerWorldUnit * closest;
+            result = MetersPerWorldUnit * closest;
         }
     }
 
     /// <summary>Takes <paramref name="object"/> out of the object list (it gets destroyed with it).</summary>
-    auto removeFromObjectList(BaseObject* object) -> void
+    auto RemoveFromObjectList(MCBaseObject* object) -> void
     {
-        for (ObjectQueueNode* node = objectList->head; node; node = node->next)
+        for (MCObjectQueueNode* node = ObjectList->Head; node; node = node->Next)
         {
-            if (node->remove(object))
+            if (node->Remove(object))
             {
                 break;
             }
@@ -1839,399 +1839,399 @@ namespace
 
     /// <summary>The pilot a script names by index: -1 is the current one, otherwise 1..numWarriors.</summary>
     /// <returns>Null for an index out of range.</returns>
-    auto findWarrior(int32_t warriorIndex) -> MechWarrior*
+    auto FindWarrior(int32_t warriorIndex) -> MCMechWarrior*
     {
         if (warriorIndex == -1)
         {
             return CurWarrior;
         }
 
-        if (warriorIndex < 1 || static_cast<uint32_t>(warriorIndex) > scenario->numWarriors)
+        if (warriorIndex < 1 || static_cast<uint32_t>(warriorIndex) > Scenario->NumWarriors)
         {
             return nullptr;
         }
 
-        return scenario->warriors[warriorIndex];
+        return Scenario->Warriors[warriorIndex];
     }
 }
 
-auto execHbDistanceToObject(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbDistanceToObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t targetId = tos->integer;
-    tos->real = -1.0f;
-    GameObject* target = findObject(targetId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t targetId = Tos->Integer;
+    Tos->Real = -1.0f;
+    MCGameObject* target = FindObject(targetId);
 
     if (target)
     {
-        vector_3d targetPosition = target->getPosition();
-        distanceFromId(partId, targetPosition.x, targetPosition.y, tos->real);
+        MCVector3D targetPosition = target->GetPosition();
+        DistanceFromId(partId, targetPosition.X, targetPosition.Y, Tos->Real);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbDistanceToPosition(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbDistanceToPosition(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    float* position = reinterpret_cast<float*>(nextReference());
-    pop();
-    pushReal(-1.0f);
-    distanceFromId(partId, position[0], position[1], tos->real);
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    float* position = reinterpret_cast<float*>(NextReference());
+    Pop();
+    PushReal(-1.0f);
+    DistanceFromId(partId, position[0], position[1], Tos->Real);
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbObjectSuicide(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbObjectSuicide(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
-        int32_t numMovers = getGroupMovers(partId);
+        int32_t numMovers = GetGroupMovers(partId);
 
         for (int32_t i = 0; i < numMovers; i++)
         {
-            removeFromObjectList(moverList[i]);
+            RemoveFromObjectList(MoverList[i]);
         }
     }
     else
     {
-        BaseObject* object = objectList->findObjectFromPart(partId);
+        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
         if (object)
         {
-            removeFromObjectList(object);
+            RemoveFromObjectList(object);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbObjectCreate(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjectCreate(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = 0;
 
-    for (int32_t i = 0; i < currentCreatorPart; i++)
+    for (int32_t i = 0; i < CurrentCreatorPart; i++)
     {
-        if (createdPartRoster[i].partId == partId)
+        if (CreatedPartRoster[i].PartId == partId)
         {
-            if (createdPartRoster[i].created == 0)
+            if (CreatedPartRoster[i].Created == 0)
             {
-                scenario->createScenarioObject(partId);
-                innerSphereTeam->scanBattlefield();
+                Scenario->CreateScenarioObject(partId);
+                InnerSphereTeam->ScanBattlefield();
 
-                if (alliedTeam)
+                if (AlliedTeam)
                 {
-                    alliedTeam->scanBattlefield();
+                    AlliedTeam->ScanBattlefield();
                 }
 
-                tos->integer = partId;
+                Tos->Integer = partId;
             }
             break;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjectExists(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjectExists(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = 0;
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
-        if (getGroupMovers(partId) > 0)
+        if (GetGroupMovers(partId) > 0)
         {
-            tos->integer = 1;
+            Tos->Integer = 1;
         }
     }
-    else if (findObject(partId))
+    else if (FindObject(partId))
     {
-        tos->integer = 1;
+        Tos->Integer = 1;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjectStatus(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjectStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = -1;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            tos->integer = static_cast<uint8_t>(object->status);
+            Tos->Integer = static_cast<uint8_t>(object->Status);
         }
 
-        getCodeToken();
+        GetCodeToken();
         return IntegerTypePtr;
     }
 
     // A group is 1 (gone) unless one of its movers is neither disabled nor destroyed and has a pilot who hasn't
     // withdrawn.
-    int32_t numMovers = getGroupMovers(partId);
+    int32_t numMovers = GetGroupMovers(partId);
 
     for (int32_t i = 0; i < numMovers; i++)
     {
-        uint8_t status = static_cast<uint8_t>(moverList[i]->status);
+        uint8_t status = static_cast<uint8_t>(MoverList[i]->Status);
 
         if (status != 2 && status != 1)
         {
-            MechWarrior* pilot = moverList[i]->getPilot();
+            MCMechWarrior* pilot = MoverList[i]->GetPilot();
 
-            if (pilot && pilot->status != 2)
+            if (pilot && pilot->Status != 2)
             {
-                tos->integer = 0;
-                getCodeToken();
+                Tos->Integer = 0;
+                GetCodeToken();
                 return IntegerTypePtr;
             }
         }
     }
 
-    tos->integer = 1;
-    getCodeToken();
+    Tos->Integer = 1;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjectStatusCount(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjectStatusCount(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    int32_t* counts = reinterpret_cast<int32_t*>(nextReference());
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    int32_t* counts = reinterpret_cast<int32_t*>(NextReference());
+    Pop();
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            counts[static_cast<uint8_t>(object->status)]++;
+            counts[static_cast<uint8_t>(object->Status)]++;
         }
     }
     else if (partId < 0x21)
     {
-        CommanderTable[0]->getGroup(partId - 1)->statusCount(counts);
+        CommanderTable[0]->GetGroup(partId - 1)->StatusCount(counts);
     }
     else if (partId >= 0x149 && partId < 0x169)
     {
-        CommanderTable[2]->getGroup(partId - 0x149)->statusCount(counts);
+        CommanderTable[2]->GetGroup(partId - 0x149)->StatusCount(counts);
     }
     else if (partId >= 0xa5 && partId < 0xc5)
     {
-        CommanderTable[1]->getGroup(partId - 0xa5)->statusCount(counts);
+        CommanderTable[1]->GetGroup(partId - 0xa5)->StatusCount(counts);
     }
     else if (partId == 500)
     {
-        innerSphereTeam->statusCount(counts);
+        InnerSphereTeam->StatusCount(counts);
     }
     else if (partId == 0x1f6)
     {
-        if (alliedTeam)
+        if (AlliedTeam)
         {
-            alliedTeam->statusCount(counts);
+            AlliedTeam->StatusCount(counts);
         }
     }
     else if (partId == 0x1f5)
     {
-        clanTeam->statusCount(counts);
+        ClanTeam->StatusCount(counts);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return nullptr;
 }
 
-auto execHbObjectVisible(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjectVisible(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t lookerId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    GameObject* target = static_cast<GameObject*>(objectList->findObjectFromPart(tos->integer));
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t lookerId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    MCGameObject* target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(Tos->Integer));
+    Tos->Integer = 0;
 
     if (target)
     {
-        if (!isGroupId(lookerId))
+        if (!IsGroupId(lookerId))
         {
-            GameObject* looker = static_cast<GameObject*>(objectList->findObjectFromPart(lookerId));
+            MCGameObject* looker = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(lookerId));
 
             if (looker)
             {
-                tos->integer = looker->lineOfSight(target);
+                Tos->Integer = looker->LineOfSight(target);
             }
         }
         else
         {
-            for (BaseObject* looker = objectList->findObjectInGroup(nullptr, lookerId); looker;
-                 looker = objectList->findObjectInGroup(looker, lookerId))
+            for (MCBaseObject* looker = ObjectList->FindObjectInGroup(nullptr, lookerId); looker;
+                 looker = ObjectList->FindObjectInGroup(looker, lookerId))
             {
-                if (static_cast<GameObject*>(looker)->lineOfSight(target))
+                if (static_cast<MCGameObject*>(looker)->LineOfSight(target))
                 {
-                    tos->integer = 1;
+                    Tos->Integer = 1;
                     break;
                 }
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjectSide(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjectSide(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
-    if (object && object->getObjectType())
+    if (object && object->GetObjectType())
     {
-        tos->integer = static_cast<GameObject*>(object)->getAlignment();
+        Tos->Integer = static_cast<MCGameObject*>(object)->GetAlignment();
     }
     else
     {
-        tos->integer = 0;
+        Tos->Integer = 0;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjectCommander(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjectCommander(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = -1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = -1;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            tos->integer = object->getCommanderId();
+            Tos->Integer = object->GetCommanderId();
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjectClass(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjectClass(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
-    tos->integer = object ? static_cast<int32_t>(object->objectClass) : -1;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
+    Tos->Integer = object ? static_cast<int32_t>(object->ObjectClass) : -1;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbInArea(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbInArea(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    float* position = reinterpret_cast<float*>(nextReference());
-    pop();
-    float radius = nextReal();
-    getCodeToken();
-    execExpression();
-    int32_t numRequired = tos->integer;
-    vector_3d center;
-    center.x = position[0];
-    center.y = position[1];
-    center.z = position[2];
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    float* position = reinterpret_cast<float*>(NextReference());
+    Pop();
+    float radius = NextReal();
+    GetCodeToken();
+    ExecExpression();
+    int32_t numRequired = Tos->Integer;
+    MCVector3D center;
+    center.X = position[0];
+    center.Y = position[1];
+    center.Z = position[2];
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
         // Original behaviour: with a count of 0 a single object is always in the area.
-        tos->integer = 1;
+        Tos->Integer = 1;
 
         if (numRequired != 0)
         {
-            tos->integer = 0;
-            GameObject* object = findObject(partId);
+            Tos->Integer = 0;
+            MCGameObject* object = FindObject(partId);
 
-            if (object && object->getExists() && object->getAwake() && !object->isDisabled() &&
-                !object->isDestroyed() && object->distanceFrom(center) <= radius)
+            if (object && object->GetExists() && object->GetAwake() && !object->IsDisabled() &&
+                !object->IsDestroyed() && object->DistanceFrom(center) <= radius)
             {
-                tos->integer = 1;
+                Tos->Integer = 1;
             }
         }
 
-        getCodeToken();
+        GetCodeToken();
         return BooleanTypePtr;
     }
 
-    int32_t numMovers = getGroupMovers(partId);
+    int32_t numMovers = GetGroupMovers(partId);
 
     if (numRequired == -1)
     {
         // All of the group's working movers: false if one that exists and is awake is outside, or there are none.
-        tos->integer = 1;
+        Tos->Integer = 1;
         int32_t numWorking = 0;
 
         for (int32_t i = 0; i < numMovers; i++)
         {
-            Mover* mover = moverList[i];
+            MCMover* mover = MoverList[i];
 
-            if (!mover->isDisabled())
+            if (!mover->IsDisabled())
             {
                 numWorking++;
 
-                if (mover->getExists() && mover->getAwake() && mover->distanceFrom(center) > radius)
+                if (mover->GetExists() && mover->GetAwake() && mover->DistanceFrom(center) > radius)
                 {
-                    tos->integer = 0;
+                    Tos->Integer = 0;
                     break;
                 }
             }
@@ -2239,45 +2239,45 @@ auto execHbInArea(SymTableNodePtr routineIdPtr) -> TypePtr
 
         if (numWorking == 0)
         {
-            tos->integer = 0;
+            Tos->Integer = 0;
         }
 
-        getCodeToken();
+        GetCodeToken();
         return BooleanTypePtr;
     }
 
     // At least numRequired movers that exist, are awake and work.
-    tos->integer = 0;
+    Tos->Integer = 0;
     int32_t numInside = 0;
 
     for (int32_t i = 0; i < numMovers; i++)
     {
-        Mover* mover = moverList[i];
+        MCMover* mover = MoverList[i];
 
-        if (mover->getExists() && mover->getAwake() && !mover->isDisabled() && !mover->isDestroyed() &&
-            mover->distanceFrom(center) <= radius)
+        if (mover->GetExists() && mover->GetAwake() && !mover->IsDisabled() && !mover->IsDestroyed() &&
+            mover->DistanceFrom(center) <= radius)
         {
             if (++numInside == numRequired)
             {
-                tos->integer = 1;
+                Tos->Integer = 1;
                 break;
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto execHbSetTimer(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int16_t timerId = static_cast<int16_t>(tos->integer);
-    pop();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int16_t timerId = static_cast<int16_t>(Tos->Integer);
+    Pop();
+    GetCodeToken();
+    ExecExpression();
 
     if (timerId < 7 || timerId > 14)
     {
@@ -2286,622 +2286,622 @@ auto execHbSetTimer(SymTableNodePtr routineIdPtr) -> TypePtr
     else
     {
         // Original behaviour: the time is read as a real even when the script passed an integer.
-        application->AddTimer(application, timerId, static_cast<int32_t>(static_cast<double>(tos->real) * 1000.0),
+        Application->AddTimer(Application, timerId, static_cast<int32_t>(static_cast<double>(Tos->Real) * 1000.0),
                               0x1406, 0, 0);
     }
 
-    tos->integer = timerId;
-    getCodeToken();
+    Tos->Integer = timerId;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbChkTimer(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbChkTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    aTimer* timer = application->timerManager->GetTimer(application, static_cast<int16_t>(tos->integer));
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCGuiTimer* timer = Application->TimerManager->GetTimer(Application, static_cast<int16_t>(Tos->Integer));
     uint32_t remaining = 0;
 
     if (timer)
     {
-        remaining = timer->interval + timer->lastTime - MCPort::Milliseconds();
+        remaining = timer->Interval + timer->LastTime - MCPort::Milliseconds();
     }
 
-    tos->real = static_cast<float>(static_cast<double>(remaining) * 0.001);
-    getCodeToken();
+    Tos->Real = static_cast<float>(static_cast<double>(remaining) * 0.001);
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbEndTimer(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbEndTimer(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int16_t timerId = static_cast<int16_t>(tos->integer);
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int16_t timerId = static_cast<int16_t>(Tos->Integer);
+    Pop();
 
     if (timerId > 6 && timerId < 15)
     {
-        application->RemoveTimer(application, timerId);
+        Application->RemoveTimer(Application, timerId);
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetObjectiveTimer(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetObjectiveTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t objectiveNumber = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    tos->integer = scenario->setObjectiveTimer(objectiveNumber, tos->real * 1000.0f);
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t objectiveNumber = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = Scenario->SetObjectiveTimer(objectiveNumber, Tos->Real * 1000.0f);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbCheckObjectiveTimer(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbCheckObjectiveTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    tos->real = scenario->checkObjectiveTimer(tos->integer);
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Real = Scenario->CheckObjectiveTimer(Tos->Integer);
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbSetObjectiveStatus(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetObjectiveStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t objectiveNumber = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    tos->integer = scenario->setObjectiveStatus(objectiveNumber, static_cast<uint32_t>(tos->integer));
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t objectiveNumber = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = Scenario->SetObjectiveStatus(objectiveNumber, static_cast<uint32_t>(Tos->Integer));
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbCheckObjectiveStatus(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbCheckObjectiveStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    tos->integer = static_cast<int32_t>(scenario->checkObjectiveStatus(tos->integer));
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = static_cast<int32_t>(Scenario->CheckObjectiveStatus(Tos->Integer));
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetObjectiveType(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetObjectiveType(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t objectiveNumber = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    tos->integer = scenario->setObjectiveType(objectiveNumber, static_cast<uint32_t>(tos->integer));
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t objectiveNumber = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = Scenario->SetObjectiveType(objectiveNumber, static_cast<uint32_t>(Tos->Integer));
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbCheckObjectiveType(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbCheckObjectiveType(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    tos->integer = static_cast<int32_t>(scenario->checkObjectiveType(tos->integer));
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = static_cast<int32_t>(Scenario->CheckObjectiveType(Tos->Integer));
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbPlayDigitalMusic(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbPlayDigitalMusic(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
 
-    if (soundSystem)
+    if (SoundSystem)
     {
-        soundSystem->playABLDigitalMusic(tos->integer);
+        SoundSystem->PlayAblDigitalMusic(Tos->Integer);
     }
 
-    tos->integer = 0;
-    getCodeToken();
+    Tos->Integer = 0;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbStopMusic(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbStopMusic(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
+    GetCodeToken();
 
-    if (soundSystem)
+    if (SoundSystem)
     {
-        soundSystem->stopABLMusic();
+        SoundSystem->StopAblMusic();
     }
 
     // Original behaviour: nothing was pushed, so this overwrites whatever is on top of the stack.
-    tos->integer = 0;
-    getCodeToken();
+    Tos->Integer = 0;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbPlaySoundEffect(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbPlaySoundEffect(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
 
-    if (soundSystem)
+    if (SoundSystem)
     {
-        soundSystem->playABLSFX(tos->integer);
+        SoundSystem->PlayAblsfx(Tos->Integer);
     }
 
-    tos->integer = 0;
-    getCodeToken();
+    Tos->Integer = 0;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbPlayVideo(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbPlayVideo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
 
-    if (soundSystem)
+    if (SoundSystem)
     {
-        soundSystem->playABLVideo(tos->integer);
+        SoundSystem->PlayAblVideo(Tos->Integer);
     }
 
-    tos->integer = 0;
-    getCodeToken();
+    Tos->Integer = 0;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetRadio(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetRadio(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t warriorIndex = tos->integer;
-    pop();
-    int32_t enable = nextInteger();
-    MechWarrior* warrior = findWarrior(warriorIndex);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t warriorIndex = Tos->Integer;
+    Pop();
+    int32_t enable = NextInteger();
+    MCMechWarrior* warrior = FindWarrior(warriorIndex);
 
-    if (warrior && warrior->radio)
+    if (warrior && warrior->Radio)
     {
-        warrior->radio->enabled = (enable == 1) ? 1 : 0;
+        warrior->Radio->Enabled = (enable == 1) ? 1 : 0;
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbPlaySpeech(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbPlaySpeech(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t warriorIndex = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    MechWarrior* warrior = findWarrior(warriorIndex);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t warriorIndex = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    MCMechWarrior* warrior = FindWarrior(warriorIndex);
 
     if (warrior)
     {
-        warrior->radioMessage(tos->integer, 1);
+        warrior->RadioMessage(Tos->Integer, 1);
     }
 
-    tos->integer = 0;
-    getCodeToken();
+    Tos->Integer = 0;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbPlayBetty(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbPlayBetty(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    uint32_t bettyId = static_cast<uint32_t>(tos->integer);
-    pop();
-    pushInteger(soundSystem->playBettySample(bettyId));
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    uint32_t bettyId = static_cast<uint32_t>(Tos->Integer);
+    Pop();
+    PushInteger(SoundSystem->PlayBettySample(bettyId));
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetObjActive(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetObjActive(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    int active = tos->integer == 1 ? 1 : 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int active = Tos->Integer == 1 ? 1 : 0;
     int32_t numChanged = 0;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
-        if (object && object->getAwake() != active)
+        if (object && object->GetAwake() != active)
         {
-            object->setAwake(active);
-            theInterface->ActivateMech(object->partId);
+            object->SetAwake(active);
+            TheInterface->ActivateMech(object->PartId);
             numChanged = 1;
         }
     }
     else
     {
         // Original behaviour: the walk stops at the first member already in the wanted state.
-        BaseObject* object = objectList->findObjectInGroup(nullptr, partId);
+        MCBaseObject* object = ObjectList->FindObjectInGroup(nullptr, partId);
 
-        while (object && static_cast<GameObject*>(object)->getAwake() != active)
+        while (object && static_cast<MCGameObject*>(object)->GetAwake() != active)
         {
-            object->setAwake(active);
-            theInterface->ActivateMech(object->partId);
+            object->SetAwake(active);
+            TheInterface->ActivateMech(object->PartId);
             numChanged++;
-            object = objectList->findObjectInGroup(object, partId);
+            object = ObjectList->FindObjectInGroup(object, partId);
         }
     }
 
-    tos->integer = numChanged;
-    getCodeToken();
+    Tos->Integer = numChanged;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjWithdraw(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjWithdraw(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
     // Original behaviour (OB-043): two items are pushed for the one result, so every call leaves one behind.
-    pushInteger(0);
-    pushInteger(0);
-    vector_3d nowhere;
-    nowhere.x = 0.0f;
-    nowhere.y = 0.0f;
-    nowhere.z = 0.0f;
+    PushInteger(0);
+    PushInteger(0);
+    MCVector3D nowhere;
+    nowhere.X = 0.0f;
+    nowhere.Y = 0.0f;
+    nowhere.Z = 0.0f;
 
     if (IsUnitOrder == 0)
     {
         if (CurWarrior)
         {
-            CurWarrior->orderWithdraw(0, 1, nowhere);
+            CurWarrior->OrderWithdraw(0, 1, nowhere);
         }
         else
         {
-            tos->integer = -2;
+            Tos->Integer = -2;
         }
     }
     else if (CurGroup)
     {
-        CurGroup->orderWithdraw(1, nowhere);
+        CurGroup->OrderWithdraw(1, nowhere);
     }
     else
     {
-        tos->integer = -1;
+        Tos->Integer = -1;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjInWithdraw(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjInWithdraw(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = 1;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = 1;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        BaseObject* object = objectList->findObjectFromPart(partId);
+        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-        if (object && object->getObjectType() && !static_cast<GameObject*>(object)->isWithdrawing())
+        if (object && object->GetObjectType() && !static_cast<MCGameObject*>(object)->IsWithdrawing())
         {
-            tos->integer = 0;
+            Tos->Integer = 0;
         }
     }
     else
     {
-        for (BaseObject* object = objectList->findObjectInGroup(nullptr, partId); object && tos->integer == 1;
-             object = objectList->findObjectInGroup(object, partId))
+        for (MCBaseObject* object = ObjectList->FindObjectInGroup(nullptr, partId); object && Tos->Integer == 1;
+             object = ObjectList->FindObjectInGroup(object, partId))
         {
-            if (!static_cast<GameObject*>(object)->isWithdrawing())
+            if (!static_cast<MCGameObject*>(object)->IsWithdrawing())
             {
-                tos->integer = 0;
+                Tos->Integer = 0;
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbObjTypeId(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbObjTypeId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = -1;
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = -1;
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-    if (object && object->getObjectType())
+    if (object && object->GetObjectType())
     {
-        tos->integer = object->getObjectType()->objTypeNum;
+        Tos->Integer = object->GetObjectType()->ObjTypeNum;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbTerrainObjectId(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbTerrainObjectId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t blockNumber = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    tos->integer = (blockNumber * 400 + tos->integer) * 8 + 0x1000;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t blockNumber = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = (blockNumber * 400 + Tos->Integer) * 8 + 0x1000;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbVehicleId(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbVehicleId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    pop();
-    getCodeToken();
-    execExpression();
-    tos->integer = -1;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    Tos->Integer = -1;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetWeaponAmmo(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetWeaponAmmo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
     // The weapon index goes through a float on its way to the call.
-    float weaponIndex = static_cast<float>(tos->integer);
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    float weaponIndex = static_cast<float>(Tos->Integer);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-    if (object && isMover(object))
+    if (object && IsMover(object))
     {
-        tos->integer = static_cast<Mover*>(object)->getWeaponShots(static_cast<int32_t>(weaponIndex));
+        Tos->Integer = static_cast<MCMover*>(object)->GetWeaponShots(static_cast<int32_t>(weaponIndex));
     }
     else
     {
-        tos->integer = -1;
+        Tos->Integer = -1;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetSensors(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetSensors(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
-    if (object && isMover(object) && static_cast<Mover*>(object)->sensorSystem)
+    if (object && IsMover(object) && static_cast<MCMover*>(object)->SensorSystem)
     {
-        tos->integer = static_cast<Mover*>(object)->sensorSystem->enabled();
+        Tos->Integer = static_cast<MCMover*>(object)->SensorSystem->Enabled();
     }
     else
     {
-        tos->integer = -1;
+        Tos->Integer = -1;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetBRValue(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetBRValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    GameObject* object = findObject(tos->integer);
-    tos->integer = object ? object->getCurCV() : -1;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCGameObject* object = FindObject(Tos->Integer);
+    Tos->Integer = object ? object->GetCurCV() : -1;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetBRValue(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetBRValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t newCV = nextInteger();
-    GameObject* object = findObject(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t newCV = NextInteger();
+    MCGameObject* object = FindObject(partId);
 
     if (object)
     {
-        object->setCurCV(newCV);
+        object->SetCurCV(newCV);
     }
 
     // Original behaviour: nothing is left on the stack for the integer result.
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetArmorPts(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetArmorPts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
-    if (object && isMover(object))
+    if (object && IsMover(object))
     {
-        Mover* mover = static_cast<Mover*>(object);
+        MCMover* mover = static_cast<MCMover*>(object);
         int32_t total = 0;
 
-        for (int32_t i = 0; i < mover->numArmorLocations; i++)
+        for (int32_t i = 0; i < mover->NumArmorLocations; i++)
         {
-            total = static_cast<int32_t>(static_cast<float>(total) + mover->armor[i].curArmor);
+            total = static_cast<int32_t>(static_cast<float>(total) + mover->Armor[i].CurArmor);
         }
 
-        tos->integer = total;
+        Tos->Integer = total;
     }
     else
     {
-        tos->integer = 0;
+        Tos->Integer = 0;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetMaxArmor(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetMaxArmor(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
-    if (object && isMover(object))
+    if (object && IsMover(object))
     {
-        Mover* mover = static_cast<Mover*>(object);
+        MCMover* mover = static_cast<MCMover*>(object);
         int32_t total = 0;
 
-        for (int32_t i = 0; i < mover->numArmorLocations; i++)
+        for (int32_t i = 0; i < mover->NumArmorLocations; i++)
         {
-            total += mover->armor[i].maxArmor;
+            total += mover->Armor[i].MaxArmor;
         }
 
-        tos->integer = total;
+        Tos->Integer = total;
     }
     else
     {
-        tos->integer = 0;
+        Tos->Integer = 0;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetPilotId(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetPilotId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
-    if (object && isMover(object))
+    if (object && IsMover(object))
     {
-        tos->integer = static_cast<GameObject*>(object)->getPilot()->index;
+        Tos->Integer = static_cast<MCGameObject*>(object)->GetPilot()->Index;
     }
     else
     {
-        tos->integer = -1;
+        Tos->Integer = -1;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetPilotWounds(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetPilotWounds(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
-    if (object && isMover(object))
+    if (object && IsMover(object))
     {
-        tos->real = static_cast<GameObject*>(object)->getPilot()->wounds;
+        Tos->Real = static_cast<MCGameObject*>(object)->GetPilot()->Wounds;
     }
     else
     {
-        tos->integer = 0;
+        Tos->Integer = 0;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbSetPilotWounds(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetPilotWounds(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t wounds = nextInteger();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t wounds = NextInteger();
 
     if (wounds > 6)
     {
         wounds = 6;
     }
 
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-    if (object && isMover(object))
+    if (object && IsMover(object))
     {
-        static_cast<GameObject*>(object)->getPilot()->wounds = static_cast<float>(wounds);
+        static_cast<MCGameObject*>(object)->GetPilot()->Wounds = static_cast<float>(wounds);
     }
 
     // Original behaviour: nothing is left on the stack for the real result.
-    getCodeToken();
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbGetObjActive(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetObjActive(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = 0;
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
         int32_t numAwake = 0;
 
-        for (BaseObject* object = objectList->findObjectInGroup(nullptr, partId); object && tos->integer == 0;
-             object = objectList->findObjectInGroup(object, partId))
+        for (MCBaseObject* object = ObjectList->FindObjectInGroup(nullptr, partId); object && Tos->Integer == 0;
+             object = ObjectList->FindObjectInGroup(object, partId))
         {
-            if (static_cast<GameObject*>(object)->getAwake())
+            if (static_cast<MCGameObject*>(object)->GetAwake())
             {
                 numAwake++;
             }
         }
 
-        tos->integer = numAwake;
+        Tos->Integer = numAwake;
     }
     else
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
-        if (object && object->getAwake())
+        if (object && object->GetAwake())
         {
-            tos->integer = 1;
+            Tos->Integer = 1;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
@@ -2909,15 +2909,15 @@ namespace
 {
     /// <summary>Whether getobjectdamage and its kin handle <paramref name="object"/>: a typed building, terrain
     /// object or misc terrain object.</summary>
-    auto isDamageableScenery(BaseObject* object) -> bool
+    auto IsDamageableScenery(MCBaseObject* object) -> bool
     {
-        if (!object || !object->getObjectType())
+        if (!object || !object->GetObjectType())
         {
             return false;
         }
 
-        return static_cast<GameObject*>(object)->isBuilding() || object->objectClass == TERRAINOBJECT ||
-               object->objectClass == MISCTERRAINOBJECT;
+        return static_cast<MCGameObject*>(object)->IsBuilding() || object->ObjectClass == TERRAINOBJECT ||
+               object->ObjectClass == MISCTERRAINOBJECT;
     }
 
     /// <summary>
@@ -2926,61 +2926,61 @@ namespace
     /// wall).
     /// </summary>
     /// <returns>False for any other class or kind.</returns>
-    auto getDamageLevel(GameObject* object, uint32_t& damageLevel) -> bool
+    auto GetDamageLevel(MCGameObject* object, uint32_t& damageLevel) -> bool
     {
-        ObjectType* type = object->getObjectType();
+        MCObjectType* type = object->GetObjectType();
 
-        switch (object->objectClass)
+        switch (object->ObjectClass)
         {
             case BUILDING:
             {
-                damageLevel = static_cast<BuildingType*>(type)->dmgLevel;
+                damageLevel = static_cast<MCBuildingType*>(type)->DmgLevel;
                 return true;
             }
             case TURRET:
             {
-                damageLevel = static_cast<TurretType*>(type)->dmgLevel;
+                damageLevel = static_cast<MCTurretType*>(type)->DmgLevel;
                 return true;
             }
             case TERRAINOBJECT:
             {
-                damageLevel = static_cast<TerrainObjectType*>(type)->dmgLevel;
+                damageLevel = static_cast<MCTerrainObjectType*>(type)->DmgLevel;
                 return true;
             }
             case TREEBUILDING:
             {
-                damageLevel = static_cast<TreeBuildingType*>(type)->dmgLevel;
+                damageLevel = static_cast<MCTreeBuildingType*>(type)->DmgLevel;
                 return true;
             }
             case MISCTERRAINOBJECT:
             {
-                MiscTerrainObjectType* miscType = static_cast<MiscTerrainObjectType*>(type);
+                MCMiscTerrainObjectType* miscType = static_cast<MCMiscTerrainObjectType*>(type);
 
-                switch (static_cast<MiscTerrainObject*>(object)->terrainObjectKind)
+                switch (static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind)
                 {
                     case 5:
                     {
-                        damageLevel = miscType->bridgeDmgLevel;
+                        damageLevel = miscType->BridgeDmgLevel;
                         return true;
                     }
                     case 6:
                     {
-                        damageLevel = miscType->forestDmgLevel;
+                        damageLevel = miscType->ForestDmgLevel;
                         return true;
                     }
                     case 7:
                     {
-                        damageLevel = miscType->wallDmgLevel;
+                        damageLevel = miscType->WallDmgLevel;
                         return true;
                     }
                     case 8:
                     {
-                        damageLevel = miscType->mediumWallDmgLevel;
+                        damageLevel = miscType->MediumWallDmgLevel;
                         return true;
                     }
                     case 9:
                     {
-                        damageLevel = miscType->lightWallDmgLevel;
+                        damageLevel = miscType->LightWallDmgLevel;
                         return true;
                     }
                     default:
@@ -2996,311 +2996,311 @@ namespace
     /// <summary>Applies <paramref name="shotInfo"/> to <paramref name="target"/> as the game's weapon hits do: in
     /// multiplayer only on the server, which sends it on.</summary>
     /// <returns>False on a multiplayer client (nothing applied).</returns>
-    auto applyShot(GameObject* target, _WeaponShotInfo* shotInfo) -> bool
+    auto ApplyShot(MCGameObject* target, MCWeaponShotInfo* shotInfo) -> bool
     {
         if (MPlayer == nullptr)
         {
-            target->handleWeaponHit(shotInfo, 0);
+            target->HandleWeaponHit(shotInfo, 0);
             return true;
         }
 
-        if (MPlayer->isServer == 0)
+        if (MPlayer->IsServer == 0)
         {
             return false;
         }
 
-        target->handleWeaponHit(shotInfo, 1);
+        target->HandleWeaponHit(shotInfo, 1);
         return true;
     }
 }
 
-auto execHbGetObjDamage(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetObjDamage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* baseObject = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* baseObject = ObjectList->FindObjectFromPart(Tos->Integer);
 
-    if (!isDamageableScenery(baseObject))
+    if (!IsDamageableScenery(baseObject))
     {
-        tos->integer = 0;
-        getCodeToken();
+        Tos->Integer = 0;
+        GetCodeToken();
         return IntegerTypePtr;
     }
 
-    GameObject* object = static_cast<GameObject*>(baseObject);
-    double damage = object->getDamage();
+    MCGameObject* object = static_cast<MCGameObject*>(baseObject);
+    double damage = object->GetDamage();
     uint32_t damageLevel;
 
     // Original behaviour: a misc terrain object getDamageLevel doesn't list gives its raw damage times 100.
-    if (getDamageLevel(object, damageLevel))
+    if (GetDamageLevel(object, damageLevel))
     {
         damage = damage / static_cast<double>(static_cast<int32_t>(damageLevel));
     }
 
-    tos->integer = static_cast<int32_t>(std::floor(damage * 100.0));
-    getCodeToken();
+    Tos->Integer = static_cast<int32_t>(std::floor(damage * 100.0));
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetObjDmgPts(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetObjDmgPts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
-    if (isDamageableScenery(object))
+    if (IsDamageableScenery(object))
     {
-        tos->integer = static_cast<int32_t>(static_cast<GameObject*>(object)->getDamage());
+        Tos->Integer = static_cast<int32_t>(static_cast<MCGameObject*>(object)->GetDamage());
     }
     else
     {
-        tos->integer = 0;
+        Tos->Integer = 0;
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetMaxDmg(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetMaxDmg(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
     uint32_t damageLevel = 0;
 
-    if (isDamageableScenery(object))
+    if (IsDamageableScenery(object))
     {
-        getDamageLevel(static_cast<GameObject*>(object), damageLevel);
+        GetDamageLevel(static_cast<MCGameObject*>(object), damageLevel);
     }
 
-    tos->integer = static_cast<int32_t>(damageLevel);
-    getCodeToken();
+    Tos->Integer = static_cast<int32_t>(damageLevel);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetObjDamage(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetObjDamage(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t percent = nextInteger();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t percent = NextInteger();
 
     if (percent > 100)
     {
         percent = 100;
     }
 
-    BaseObject* baseObject = objectList->findObjectFromPart(partId);
+    MCBaseObject* baseObject = ObjectList->FindObjectFromPart(partId);
 
-    if (baseObject && baseObject->getObjectType() && percent > 0)
+    if (baseObject && baseObject->GetObjectType() && percent > 0)
     {
         // Raises the damage to percent of the damage level (it never lowers it).
-        GameObject* object = static_cast<GameObject*>(baseObject);
+        MCGameObject* object = static_cast<MCGameObject*>(baseObject);
         uint32_t damageLevel;
 
-        if (getDamageLevel(object, damageLevel))
+        if (GetDamageLevel(object, damageLevel))
         {
-            float currentDamage = object->getDamage();
+            float currentDamage = object->GetDamage();
             float extraDamage = static_cast<float>(static_cast<double>(percent) * 0.01 *
                                                        static_cast<float>(static_cast<int32_t>(damageLevel)) -
                                                    currentDamage);
 
             if (extraDamage > 0.0f)
             {
-                _WeaponShotInfo shotInfo;
-                shotInfo.init(nullptr, -1, extraDamage, 0, 0.0f);
-                applyShot(object, &shotInfo);
+                MCWeaponShotInfo shotInfo;
+                shotInfo.Init(nullptr, -1, extraDamage, 0, 0.0f);
+                ApplyShot(object, &shotInfo);
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbDamageObject(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbDamageObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t attackerId = nextInteger();
-    int32_t weaponMasterId = nextInteger();
-    float damage = nextReal();
-    int32_t hitLocation = nextInteger();
-    getCodeToken();
-    execExpression();
-    pop();
-    getCodeToken();
-    execExpression();
-    float entryAngle = tos->real;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t attackerId = NextInteger();
+    int32_t weaponMasterId = NextInteger();
+    float damage = NextReal();
+    int32_t hitLocation = NextInteger();
+    GetCodeToken();
+    ExecExpression();
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    float entryAngle = Tos->Real;
 
-    GameObject* attacker = findObject(attackerId);
+    MCGameObject* attacker = FindObject(attackerId);
 
     if (!attacker)
     {
-        tos->integer = -1;
-        getCodeToken();
+        Tos->Integer = -1;
+        GetCodeToken();
         return IntegerTypePtr;
     }
 
-    _WeaponShotInfo shotInfo;
+    MCWeaponShotInfo shotInfo;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* target = findObject(partId);
+        MCGameObject* target = FindObject(partId);
 
         if (!target)
         {
-            tos->integer = -2;
-            getCodeToken();
+            Tos->Integer = -2;
+            GetCodeToken();
             return IntegerTypePtr;
         }
 
-        shotInfo.init(attacker, weaponMasterId, damage, hitLocation, entryAngle);
-        applyShot(target, &shotInfo);
-        tos->integer = 1;
-        getCodeToken();
+        shotInfo.Init(attacker, weaponMasterId, damage, hitLocation, entryAngle);
+        ApplyShot(target, &shotInfo);
+        Tos->Integer = 1;
+        GetCodeToken();
         return IntegerTypePtr;
     }
 
-    int32_t numMovers = getGroupMovers(partId);
-    shotInfo.init(attacker, weaponMasterId, damage, hitLocation, entryAngle);
+    int32_t numMovers = GetGroupMovers(partId);
+    shotInfo.Init(attacker, weaponMasterId, damage, hitLocation, entryAngle);
 
     for (int32_t i = 0; i < numMovers; i++)
     {
-        if (!applyShot(moverList[i], &shotInfo))
+        if (!ApplyShot(MoverList[i], &shotInfo))
         {
             break;
         }
     }
 
-    tos->integer = numMovers;
-    getCodeToken();
+    Tos->Integer = numMovers;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetGlobalValue(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetGlobalValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t index = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t index = Tos->Integer;
+    Tos->Integer = 0;
 
     if (index > -1 && index < 50)
     {
-        tos->real = globalMissionValues[index];
+        Tos->Real = GlobalMissionValues[index];
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetGlobalValue(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetGlobalValue(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t index = tos->integer;
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t index = Tos->Integer;
+    Pop();
     // Original behaviour: the value is stored as a real even when the script passed an integer.
-    float value = nextReal();
+    float value = NextReal();
 
     if (index > -1 && index < 50)
     {
-        globalMissionValues[index] = value;
+        GlobalMissionValues[index] = value;
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetObjectivePos(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetObjectivePos(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t objectiveNumber = tos->integer;
-    pop();
-    float x = nextReal();
-    float y = nextReal();
-    float z = nextReal();
-    scenario->setObjectivePos(objectiveNumber, x, y, z);
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t objectiveNumber = Tos->Integer;
+    Pop();
+    float x = NextReal();
+    float y = NextReal();
+    float z = NextReal();
+    Scenario->SetObjectivePos(objectiveNumber, x, y, z);
+    GetCodeToken();
 }
 
-auto execHbSetTonnage(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetTonnage(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    float tonnage = nextReal();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    float tonnage = NextReal();
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            object->setTonnage(tonnage);
+            object->SetTonnage(tonnage);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetSensorRange(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetSensorRange(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    float range = tos->real;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    float range = Tos->Real;
+    Tos->Integer = 0;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            switch (object->objectClass)
+            switch (object->ObjectClass)
             {
                 case BATTLEMECH:
                 case GROUNDVEHICLE:
                 case ELEMENTAL:
                 {
-                    if (static_cast<Mover*>(object)->sensorSystem)
+                    if (static_cast<MCMover*>(object)->SensorSystem)
                     {
-                        static_cast<Mover*>(object)->sensorSystem->setRange(range);
+                        static_cast<MCMover*>(object)->SensorSystem->SetRange(range);
                     }
                     break;
                 }
                 case ARTILLERY:
                 {
-                    static_cast<Artillery*>(object)->sensorRange = range;
-                    static_cast<Artillery*>(object)->sensorSystem->setRange(range);
+                    static_cast<MCArtillery*>(object)->SensorRange = range;
+                    static_cast<MCArtillery*>(object)->SensorSystem->SetRange(range);
                     break;
                 }
                 case BUILDING:
                 {
-                    if (static_cast<Building*>(object)->sensorSystem)
+                    if (static_cast<MCBuilding*>(object)->SensorSystem)
                     {
-                        static_cast<Building*>(object)->sensorSystem->setRange(range);
+                        static_cast<MCBuilding*>(object)->SensorSystem->SetRange(range);
                     }
                     else
                     {
-                        tos->integer = -1;
+                        Tos->Integer = -1;
                     }
                     break;
                 }
@@ -3310,245 +3310,245 @@ auto execHbSetSensorRange(SymTableNodePtr routineIdPtr) -> void
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetExplDmg(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetExplDmg(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    float damage = nextReal();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    float damage = NextReal();
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            object->setExplDmg(damage);
+            object->SetExplDmg(damage);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetExplRad(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetExplRad(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    float radius = nextReal();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    float radius = NextReal();
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            object->setExplRad(radius);
+            object->SetExplRad(radius);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetSalvage(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetSalvage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t itemId = nextInteger();
-    getCodeToken();
-    execExpression();
-    int32_t numItems = tos->integer;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t itemId = NextInteger();
+    GetCodeToken();
+    ExecExpression();
+    int32_t numItems = Tos->Integer;
     int added = 0;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            SalvageItem* last = object->getSalvage();
-            SalvageItem* item = new (std::nothrow) SalvageItem;
+            MCSalvageItem* last = object->GetSalvage();
+            MCSalvageItem* item = new (std::nothrow) MCSalvageItem;
 
             if (item)
             {
-                item->next = nullptr;
+                item->Next = nullptr;
                 added = 1;
-                item->itemId = static_cast<uint8_t>(itemId);
-                item->numItems = static_cast<uint8_t>(numItems);
+                item->ItemId = static_cast<uint8_t>(itemId);
+                item->NumItems = static_cast<uint8_t>(numItems);
 
-                while (last && last->next)
+                while (last && last->Next)
                 {
-                    last = last->next;
+                    last = last->Next;
                 }
 
-                if (object->getSalvage() == nullptr)
+                if (object->GetSalvage() == nullptr)
                 {
-                    object->setSalvage(item);
+                    object->SetSalvage(item);
                 }
                 else
                 {
-                    last->next = item;
+                    last->Next = item;
                 }
             }
         }
     }
 
-    tos->integer = added;
-    getCodeToken();
+    Tos->Integer = added;
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto execHbSetSalvageStatus(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbSetSalvageStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t status = tos->integer;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t status = Tos->Integer;
     int result = 0;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
-        if (object && Terrain::terrainTacticalMap && (isMover(object) || object->isBuilding()))
+        if (object && MCTerrain::TerrainTacticalMap && (IsMover(object) || object->IsBuilding()))
         {
             if (status == 1)
             {
-                result = Terrain::terrainTacticalMap->AddSalvage(object);
+                result = MCTerrain::TerrainTacticalMap->AddSalvage(object);
             }
             else
             {
-                result = Terrain::terrainTacticalMap->RemoveSalvage(object, 1);
+                result = MCTerrain::TerrainTacticalMap->RemoveSalvage(object, 1);
             }
         }
     }
 
-    tos->integer = result;
-    getCodeToken();
+    Tos->Integer = result;
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto execHbSetAnimation(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetAnimation(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    uint32_t state = static_cast<uint32_t>(nextInteger());
-    int32_t subState = nextInteger();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    uint32_t state = static_cast<uint32_t>(NextInteger());
+    int32_t subState = NextInteger();
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        GameObject* object = findObject(partId);
+        MCGameObject* object = FindObject(partId);
 
         if (object)
         {
-            if (object->objectClass == BUILDING)
+            if (object->ObjectClass == BUILDING)
             {
                 auto* buildingAppearance =
-                    static_cast<VFXBuildingAppearance*>(static_cast<Building*>(object)->appearance);
+                    static_cast<MCVfxBuildingAppearance*>(static_cast<MCBuilding*>(object)->Appearance);
 
-                if (state >= buildingAppearance->buildType->numAnimStates)
+                if (state >= buildingAppearance->BuildType->NumAnimStates)
                 {
-                    buildingAppearance->animState = -1;
+                    buildingAppearance->AnimState = -1;
                 }
                 else
                 {
-                    buildingAppearance->animState = static_cast<int32_t>(state);
+                    buildingAppearance->AnimState = static_cast<int32_t>(state);
                 }
 
-                buildingAppearance->currentFrame = 0;
+                buildingAppearance->CurrentFrame = 0;
             }
-            else if (object->objectClass == TREEBUILDING)
+            else if (object->ObjectClass == TREEBUILDING)
             {
-                static_cast<VFXAppearance*>(static_cast<TreeBuilding*>(object)->appearance)
-                    ->setTypeId(static_cast<ActorState>(state), static_cast<uint8_t>(subState));
+                static_cast<MCVfxAppearance*>(static_cast<MCTreeBuilding*>(object)->Appearance)
+                    ->SetTypeId(static_cast<MCActorState>(state), static_cast<uint8_t>(subState));
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbPlayWave(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbPlayWave(MCSymTableNodePtr routineIdPtr) -> void
 {
     // Original behaviour (OB-045): only the first of the two arguments is read; the code pointer is left on the
     // comma before the second.
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    pop();
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    Pop();
+    GetCodeToken();
 }
 
-auto execHbSetRevealed(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetRevealed(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t teamId = tos->integer;
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t teamId = Tos->Integer;
+    Pop();
     // Original behaviour: the radius is read as a real even when the script passed an integer.
-    float radius = nextReal();
-    getCodeToken();
-    float* position = reinterpret_cast<float*>(nextReference());
-    pop();
-    vector_3d looker;
-    looker.x = position[0];
-    looker.y = position[1];
-    looker.z = 0.0f;
-    vector_3d lookVector;
-    lookVector.x = 0.0f;
-    lookVector.y = 0.0f;
-    lookVector.z = 0.0f;
-    land->markRadiusSeen(looker, lookVector, 360.0f, radius, static_cast<uint8_t>(teamId));
+    float radius = NextReal();
+    GetCodeToken();
+    float* position = reinterpret_cast<float*>(NextReference());
+    Pop();
+    MCVector3D looker;
+    looker.X = position[0];
+    looker.Y = position[1];
+    looker.Z = 0.0f;
+    MCVector3D lookVector;
+    lookVector.X = 0.0f;
+    lookVector.Y = 0.0f;
+    lookVector.Z = 0.0f;
+    Land->MarkRadiusSeen(looker, lookVector, 360.0f, radius, static_cast<uint8_t>(teamId));
 
     if (teamId == 1)
     {
-        innerSphereTeam->scanBattlefield();
+        InnerSphereTeam->ScanBattlefield();
     }
     else
     {
-        clanTeam->scanBattlefield();
+        ClanTeam->ScanBattlefield();
     }
 
-    if (alliedTeam)
+    if (AlliedTeam)
     {
-        alliedTeam->scanBattlefield();
+        AlliedTeam->ScanBattlefield();
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbGetSalvage(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbGetSalvage(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t listSize = nextInteger();
-    getCodeToken();
-    int32_t* itemIds = reinterpret_cast<int32_t*>(nextReference());
-    pop();
-    getCodeToken();
-    int32_t* itemCounts = reinterpret_cast<int32_t*>(nextReference());
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t listSize = NextInteger();
+    GetCodeToken();
+    int32_t* itemIds = reinterpret_cast<int32_t*>(NextReference());
+    Pop();
+    GetCodeToken();
+    int32_t* itemCounts = reinterpret_cast<int32_t*>(NextReference());
+    Pop();
 
     for (int32_t i = 0; i < listSize; i++)
     {
@@ -3556,148 +3556,148 @@ auto execHbGetSalvage(SymTableNodePtr routineIdPtr) -> void
         itemCounts[i] = -1;
     }
 
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
     if (object)
     {
         int32_t i = 0;
 
-        for (SalvageItem* item = static_cast<GameObject*>(object)->getSalvage(); item && i < listSize;
-             item = item->next, i++)
+        for (MCSalvageItem* item = static_cast<MCGameObject*>(object)->GetSalvage(); item && i < listSize;
+             item = item->Next, i++)
         {
-            itemIds[i] = item->itemId;
-            itemCounts[i] = item->numItems;
+            itemIds[i] = item->ItemId;
+            itemCounts[i] = item->NumItems;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbRefit(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbRefit(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t targetId = tos->integer;
-    pop();
-    uint32_t params = static_cast<uint32_t>(nextInteger());
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t targetId = Tos->Integer;
+    Pop();
+    uint32_t params = static_cast<uint32_t>(NextInteger());
 
-    if (CurObject && isMover(CurObject))
+    if (CurObject && IsMover(CurObject))
     {
-        MechWarrior* pilot = CurObject->getPilot();
+        MCMechWarrior* pilot = CurObject->GetPilot();
 
         if (pilot)
         {
-            BaseObject* target = objectList->findObjectFromPart(targetId);
+            MCBaseObject* target = ObjectList->FindObjectFromPart(targetId);
 
-            if (target && target->objectClass == BATTLEMECH)
+            if (target && target->ObjectClass == BATTLEMECH)
             {
-                pilot->orderRefit(1, static_cast<GameObject*>(target), params);
+                pilot->OrderRefit(1, static_cast<MCGameObject*>(target), params);
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetCaptured(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetCaptured(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
     if (object)
     {
-        static_cast<GameObject*>(object)->setCaptured();
+        static_cast<MCGameObject*>(object)->SetCaptured();
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbCaptureObject(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbCaptureObject(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t targetId = tos->integer;
-    pop();
-    uint32_t params = static_cast<uint32_t>(nextInteger());
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t targetId = Tos->Integer;
+    Pop();
+    uint32_t params = static_cast<uint32_t>(NextInteger());
     // Port fix: the original leaves the target register unset when the current object isn't a mover (and then
     // orders its pilot anyway).
-    BaseObject* target = nullptr;
+    MCBaseObject* target = nullptr;
 
-    if (CurObject && isMover(CurObject))
+    if (CurObject && IsMover(CurObject))
     {
-        target = objectList->findObjectFromPart(targetId);
+        target = ObjectList->FindObjectFromPart(targetId);
     }
 
     if (target)
     {
-        CurObject->getPilot()->orderCapture(1, static_cast<GameObject*>(target), params);
+        CurObject->GetPilot()->OrderCapture(1, static_cast<MCGameObject*>(target), params);
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbSetCaptureable(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetCaptureable(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    int32_t captureable = nextInteger() == 1 ? 1 : 0;
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    int32_t captureable = NextInteger() == 1 ? 1 : 0;
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
     if (object)
     {
         if (MPlayer)
         {
-            static_cast<GameObject*>(object)->clearCaptured();
+            static_cast<MCGameObject*>(object)->ClearCaptured();
         }
 
-        switch (object->objectClass)
+        switch (object->ObjectClass)
         {
             case GROUNDVEHICLE:
-                static_cast<GroundVehicle*>(object)->captureable = captureable;
+                static_cast<MCGroundVehicle*>(object)->Captureable = captureable;
                 break;
             case BUILDING:
-                static_cast<Building*>(object)->captureable = captureable;
+                static_cast<MCBuilding*>(object)->Captureable = captureable;
                 break;
             case TREEBUILDING:
-                static_cast<TreeBuilding*>(object)->captureable = captureable;
+                static_cast<MCTreeBuilding*>(object)->Captureable = captureable;
                 break;
             case TURRET:
                 // Original behaviour (OB-044): a turret's flag goes where tree buildings keep theirs, +0x110,
                 // which is the turret's lastFireTime.
-                static_cast<Turret*>(object)->lastFireTime = std::bit_cast<float>(captureable);
+                static_cast<MCTurret*>(object)->LastFireTime = std::bit_cast<float>(captureable);
                 break;
             default:
                 break;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbIsCaptured(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbIsCaptured(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
     int32_t numCaptured = 0;
 
-    if (isGroupId(partId))
+    if (IsGroupId(partId))
     {
-        int32_t numMovers = getGroupMovers(partId);
+        int32_t numMovers = GetGroupMovers(partId);
 
         for (int32_t i = 0; i < numMovers; i++)
         {
-            if (moverList[i]->isCaptured())
+            if (MoverList[i]->IsCaptured())
             {
                 numCaptured++;
             }
@@ -3705,84 +3705,84 @@ auto execHbIsCaptured(SymTableNodePtr routineIdPtr) -> TypePtr
     }
     else
     {
-        BaseObject* object = objectList->findObjectFromPart(partId);
+        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-        if (object && static_cast<GameObject*>(object)->isCaptured())
+        if (object && static_cast<MCGameObject*>(object)->IsCaptured())
         {
             numCaptured = 1;
         }
     }
 
-    tos->integer = numCaptured;
-    getCodeToken();
+    Tos->Integer = numCaptured;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbIsCapturable(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbIsCapturable(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
     int captureable = 0;
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
     if (object)
     {
-        captureable = static_cast<GameObject*>(object)->isCaptureable();
+        captureable = static_cast<MCGameObject*>(object)->IsCaptureable();
     }
 
-    tos->integer = captureable != 0 ? 1 : 0;
-    getCodeToken();
+    Tos->Integer = captureable != 0 ? 1 : 0;
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto execHbWasEverCapturable(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbWasEverCapturable(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
     int32_t captureable = 0;
-    BaseObject* object = objectList->findObjectFromPart(tos->integer);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(Tos->Integer);
 
     if (object)
     {
-        switch (object->objectClass)
+        switch (object->ObjectClass)
         {
             case GROUNDVEHICLE:
-                captureable = static_cast<GroundVehicle*>(object)->captureable;
+                captureable = static_cast<MCGroundVehicle*>(object)->Captureable;
                 break;
             case BUILDING:
-                captureable = static_cast<Building*>(object)->captureable;
+                captureable = static_cast<MCBuilding*>(object)->Captureable;
                 break;
             case TREEBUILDING:
-                captureable = static_cast<TreeBuilding*>(object)->captureable;
+                captureable = static_cast<MCTreeBuilding*>(object)->Captureable;
                 break;
             case TURRET:
                 // Original behaviour (OB-044): reads the turret's lastFireTime bits.
-                captureable = std::bit_cast<int32_t>(static_cast<Turret*>(object)->lastFireTime);
+                captureable = std::bit_cast<int32_t>(static_cast<MCTurret*>(object)->LastFireTime);
                 break;
             default:
                 break;
         }
     }
 
-    tos->integer = captureable != 0 ? 1 : 0;
-    getCodeToken();
+    Tos->Integer = captureable != 0 ? 1 : 0;
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
 namespace
 {
     /// <summary>Replaces <paramref name="name"/> with string resource <paramref name="stringId"/>.</summary>
-    auto setNameFromResource(std::string& name, uint32_t stringId) -> void
+    auto SetNameFromResource(std::string& name, uint32_t stringId) -> void
     {
         char buffer[256];
-        cLoadString(thisInstance, stringId, buffer, 0xfe);
+        CLoadString(ThisInstance, stringId, buffer, 0xfe);
         name = buffer;
     }
 
     /// <summary>What <c>__ftol</c> gives: the value truncated, or 0x80000000 for NaN or out of range.</summary>
-    auto x87Ftol(double value) -> int32_t
+    auto X87Ftol(double value) -> int32_t
     {
         if (!(value > -2147483649.0 && value < 2147483648.0))
         {
@@ -3793,173 +3793,173 @@ namespace
     }
 }
 
-auto execHbSetBuildingName(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetBuildingName(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    uint32_t stringId = static_cast<uint32_t>(nextInteger());
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    uint32_t stringId = static_cast<uint32_t>(NextInteger());
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-    if (object && static_cast<GameObject*>(object)->isBuilding())
+    if (object && static_cast<MCGameObject*>(object)->IsBuilding())
     {
-        if (object->objectClass == BUILDING)
+        if (object->ObjectClass == BUILDING)
         {
-            setNameFromResource(static_cast<Building*>(object)->name, stringId);
+            SetNameFromResource(static_cast<MCBuilding*>(object)->Name, stringId);
         }
 
-        if (object->objectClass == TREEBUILDING)
+        if (object->ObjectClass == TREEBUILDING)
         {
-            setNameFromResource(static_cast<TreeBuilding*>(object)->name, stringId);
+            SetNameFromResource(static_cast<MCTreeBuilding*>(object)->Name, stringId);
         }
 
-        if (object->objectClass == TURRET)
+        if (object->ObjectClass == TURRET)
         {
-            setNameFromResource(static_cast<Turret*>(object)->name, stringId);
+            SetNameFromResource(static_cast<MCTurret*>(object)->Name, stringId);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
 namespace
 {
     /// <summary>callstrike / callstrikeex: an artillery strike on an object, or on a point at ground level.</summary>
-    auto callStrike(int32_t strikeType, int32_t targetId, vector_3d& position, int forClansOnPoint,
+    auto CallStrike(int32_t strikeType, int32_t targetId, MCVector3D& position, int forClansOnPoint,
                     int forClansOnTarget, float delay) -> void
     {
-        GameObject* target = static_cast<GameObject*>(objectList->findObjectFromPart(targetId));
+        MCGameObject* target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(targetId));
 
         if (!target)
         {
-            position.z = land->getTerrainElevation(position);
-            theInterface->CallStrike(strikeType, &position, nullptr, 0, forClansOnPoint, delay);
+            position.Z = Land->GetTerrainElevation(position);
+            TheInterface->CallStrike(strikeType, &position, nullptr, 0, forClansOnPoint, delay);
         }
         else
         {
-            theInterface->CallStrike(strikeType, nullptr, target, 0, forClansOnTarget, delay);
+            TheInterface->CallStrike(strikeType, nullptr, target, 0, forClansOnTarget, delay);
         }
     }
 }
 
-auto execHbCallStrike(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbCallStrike(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
+    GetCodeToken();
 
     if (MPlayer)
     {
         Fatal(0, " ABL: Calling ArtilleryStrike in Multiplayer game ");
     }
 
-    getCodeToken();
-    execExpression();
-    int32_t strikeType = tos->integer;
-    pop();
-    int32_t targetId = nextInteger();
-    vector_3d position;
-    position.x = nextReal();
-    position.y = nextReal();
-    position.z = nextReal();
-    int forClans = nextInteger() == 1 ? 1 : 0;
+    GetCodeToken();
+    ExecExpression();
+    int32_t strikeType = Tos->Integer;
+    Pop();
+    int32_t targetId = NextInteger();
+    MCVector3D position;
+    position.X = NextReal();
+    position.Y = NextReal();
+    position.Z = NextReal();
+    int forClans = NextInteger() == 1 ? 1 : 0;
     // Original behaviour: the clan flag only counts for a strike on a point.
-    callStrike(strikeType, targetId, position, forClans, 0, -1.0f);
-    getCodeToken();
+    CallStrike(strikeType, targetId, position, forClans, 0, -1.0f);
+    GetCodeToken();
 }
 
-auto execHbCallStrikeEx(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbCallStrikeEx(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
+    GetCodeToken();
 
     if (MPlayer)
     {
         Fatal(0, " ABL: Calling ArtilleryStrike in Multiplayer game ");
     }
 
-    getCodeToken();
-    execExpression();
-    int32_t strikeType = tos->integer;
-    pop();
-    int32_t targetId = nextInteger();
-    vector_3d position;
-    position.x = nextReal();
-    position.y = nextReal();
-    position.z = nextReal();
-    int forClans = nextInteger() == 1 ? 1 : 0;
-    float delay = nextReal();
+    GetCodeToken();
+    ExecExpression();
+    int32_t strikeType = Tos->Integer;
+    Pop();
+    int32_t targetId = NextInteger();
+    MCVector3D position;
+    position.X = NextReal();
+    position.Y = NextReal();
+    position.Z = NextReal();
+    int forClans = NextInteger() == 1 ? 1 : 0;
+    float delay = NextReal();
 
     if (delay < 0.0f)
     {
         delay = 0.0f;
     }
 
-    callStrike(strikeType, targetId, position, forClans, forClans, delay);
-    getCodeToken();
+    CallStrike(strikeType, targetId, position, forClans, forClans, delay);
+    GetCodeToken();
 }
 
-auto execHbLoadElementals(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbLoadElementals(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t carrierId = tos->integer;
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t carrierId = Tos->Integer;
+    Pop();
 
-    if (CurObject && CurObject->objectClass == ELEMENTAL)
+    if (CurObject && CurObject->ObjectClass == ELEMENTAL)
     {
-        BaseObject* carrier = objectList->findObjectFromPart(carrierId);
+        MCBaseObject* carrier = ObjectList->FindObjectFromPart(carrierId);
 
-        if (carrier && carrier->objectClass == GROUNDVEHICLE &&
-            static_cast<GroundVehicle*>(carrier)->elementalCarrier != 0)
+        if (carrier && carrier->ObjectClass == GROUNDVEHICLE &&
+            static_cast<MCGroundVehicle*>(carrier)->ElementalCarrier != 0)
         {
-            CurObject->getPilot()->orderLoadIntoCarrier(1, static_cast<GameObject*>(carrier), 0);
+            CurObject->GetPilot()->OrderLoadIntoCarrier(1, static_cast<MCGameObject*>(carrier), 0);
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbDeployElementals(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbDeployElementals(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    uint32_t params = static_cast<uint32_t>(tos->integer);
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    uint32_t params = static_cast<uint32_t>(Tos->Integer);
+    Pop();
 
-    if (CurObject && CurObject->objectClass == GROUNDVEHICLE &&
-        static_cast<GroundVehicle*>(CurObject)->elementalCarrier != 0)
+    if (CurObject && CurObject->ObjectClass == GROUNDVEHICLE &&
+        static_cast<MCGroundVehicle*>(CurObject)->ElementalCarrier != 0)
     {
-        CurObject->getPilot()->orderDeployElementals(1, params);
+        CurObject->GetPilot()->OrderDeployElementals(1, params);
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbAddPrisoner(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbAddPrisoner(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t buildingId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t pilotIndex = tos->integer;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t buildingId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t pilotIndex = Tos->Integer;
     int32_t result = -1;
-    BaseObject* object = objectList->findObjectFromPart(buildingId);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(buildingId);
 
-    if (object && static_cast<GameObject*>(object)->isBuilding() && scenario)
+    if (object && static_cast<MCGameObject*>(object)->IsBuilding() && Scenario)
     {
         // Port fix: with no warriors at all the original fills the prison with the pointer -1.
-        MechWarrior* prisoner = nullptr;
+        MCMechWarrior* prisoner = nullptr;
 
-        for (uint32_t i = 1; i <= scenario->numWarriors; i++)
+        for (uint32_t i = 1; i <= Scenario->NumWarriors; i++)
         {
-            MechWarrior* warrior = scenario->warriors[i];
+            MCMechWarrior* warrior = Scenario->Warriors[i];
 
-            if (warrior && warrior->index == pilotIndex)
+            if (warrior && warrior->Index == pilotIndex)
             {
                 prisoner = warrior;
                 break;
@@ -3969,15 +3969,15 @@ auto execHbAddPrisoner(SymTableNodePtr routineIdPtr) -> TypePtr
         if (prisoner)
         {
             // Original behaviour (OB-046): the prisoner goes into every empty slot, not just the first.
-            MechWarrior** prisonSlots = nullptr;
+            MCMechWarrior** prisonSlots = nullptr;
 
-            if (object->objectClass == BUILDING)
+            if (object->ObjectClass == BUILDING)
             {
-                prisonSlots = static_cast<Building*>(object)->prisonSlots;
+                prisonSlots = static_cast<MCBuilding*>(object)->PrisonSlots;
             }
-            else if (object->objectClass == TREEBUILDING)
+            else if (object->ObjectClass == TREEBUILDING)
             {
-                prisonSlots = static_cast<TreeBuilding*>(object)->prisonSlots;
+                prisonSlots = static_cast<MCTreeBuilding*>(object)->PrisonSlots;
             }
 
             if (prisonSlots)
@@ -3994,92 +3994,92 @@ auto execHbAddPrisoner(SymTableNodePtr routineIdPtr) -> TypePtr
         }
     }
 
-    tos->integer = result;
-    getCodeToken();
+    Tos->Integer = result;
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbSetTrainSpeed(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetTrainSpeed(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    float speed = nextReal();
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    float speed = NextReal();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-    if (object && object->objectClass == TRAINCAR)
+    if (object && object->ObjectClass == TRAINCAR)
     {
-        Train* train = static_cast<TrainCar*>(object)->train;
+        MCTrain* train = static_cast<MCTrainCar*>(object)->Train;
 
-        if (std::fabs(speed) > train->maxSpeed)
+        if (std::fabs(speed) > train->MaxSpeed)
         {
-            speed = speed > 0.0f ? train->maxSpeed : -train->maxSpeed;
+            speed = speed > 0.0f ? train->MaxSpeed : -train->MaxSpeed;
         }
 
-        train->desiredSpeed = speed;
+        train->DesiredSpeed = speed;
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
 namespace
 {
     /// <summary>lockgateopen / lockgateclosed / releasegatelock: sets a gate's two lock flags.</summary>
-    auto setGateLocks(int32_t blownOpen, int32_t lockedClosed) -> void
+    auto SetGateLocks(int32_t blownOpen, int32_t lockedClosed) -> void
     {
-        getCodeToken();
-        getCodeToken();
-        execExpression();
-        int32_t partId = tos->integer;
-        pop();
-        BaseObject* object = objectList->findObjectFromPart(partId);
+        GetCodeToken();
+        GetCodeToken();
+        ExecExpression();
+        int32_t partId = Tos->Integer;
+        Pop();
+        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-        if (object && object->objectClass == GATE)
+        if (object && object->ObjectClass == GATE)
         {
-            static_cast<Gate*>(object)->blownOpen = blownOpen;
-            static_cast<Gate*>(object)->lockedClosed = lockedClosed;
+            static_cast<MCGate*>(object)->BlownOpen = blownOpen;
+            static_cast<MCGate*>(object)->LockedClosed = lockedClosed;
         }
 
-        getCodeToken();
+        GetCodeToken();
     }
 }
 
-auto execHbLockGateOpen(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbLockGateOpen(MCSymTableNodePtr routineIdPtr) -> void
 {
-    setGateLocks(1, 0);
+    SetGateLocks(1, 0);
 }
 
-auto execHbLockGateClosed(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbLockGateClosed(MCSymTableNodePtr routineIdPtr) -> void
 {
-    setGateLocks(0, 1);
+    SetGateLocks(0, 1);
 }
 
-auto execHbReleaseGateLock(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbReleaseGateLock(MCSymTableNodePtr routineIdPtr) -> void
 {
-    setGateLocks(0, 0);
+    SetGateLocks(0, 0);
 }
 
-auto execHbIsGateOpen(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbIsGateOpen(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Tos->Integer = 0;
 
-    if (!isGroupId(partId))
+    if (!IsGroupId(partId))
     {
-        BaseObject* object = objectList->findObjectFromPart(partId);
+        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-        if (object && object->objectClass == GATE)
+        if (object && object->ObjectClass == GATE)
         {
-            tos->integer = static_cast<Gate*>(object)->isOpen != 0 ? 1 : 0;
+            Tos->Integer = static_cast<MCGate*>(object)->IsOpen != 0 ? 1 : 0;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
@@ -4089,33 +4089,33 @@ namespace
     constexpr float WoundEffectiveness[7] = {1.0f, 0.95f, 0.85f, 0.75f, 0.5f, 0.3f, 0.0f};
 
     /// <summary>An armor location's share left, scaled into 0.4 .. 1.0.</summary>
-    auto armorFactor(const ArmorLocation& location) -> double
+    auto ArmorFactor(const MCArmorLocation& location) -> double
     {
-        return static_cast<double>(location.curArmor) / static_cast<double>(location.maxArmor) * 0.6 + 0.4;
+        return static_cast<double>(location.CurArmor) / static_cast<double>(location.MaxArmor) * 0.6 + 0.4;
     }
 
     /// <summary>getunitstatus of a mech: its armor state times its weapon effectiveness (without the pilot).</summary>
-    auto mechStatus(Mover* mech) -> float
+    auto MechStatus(MCMover* mech) -> float
     {
         // Armor locations: 0 head, 1 center torso, 2 / 3 arms, 4 / 5 side torsos, 8 rear center torso, 9 / 10 legs.
-        ArmorLocation* armor = mech->armor.get();
-        float centerArmor = armor[1].curArmor;
-        uint8_t centerMax = armor[1].maxArmor;
+        MCArmorLocation* armor = mech->Armor.get();
+        float centerArmor = armor[1].CurArmor;
+        uint8_t centerMax = armor[1].MaxArmor;
 
-        if (centerArmor > armor[8].curArmor)
+        if (centerArmor > armor[8].CurArmor)
         {
-            centerArmor = armor[8].curArmor;
-            centerMax = armor[8].maxArmor;
+            centerArmor = armor[8].CurArmor;
+            centerMax = armor[8].MaxArmor;
         }
 
-        double head = armorFactor(armor[0]);
-        double sides = static_cast<double>(armor[5].curArmor + armor[4].curArmor) /
-                           static_cast<double>(armor[5].maxArmor + armor[4].maxArmor) * 0.25 +
+        double head = ArmorFactor(armor[0]);
+        double sides = static_cast<double>(armor[5].CurArmor + armor[4].CurArmor) /
+                           static_cast<double>(armor[5].MaxArmor + armor[4].MaxArmor) * 0.25 +
                        0.75;
         float sidesFactor = static_cast<float>(sides);
-        int32_t limbMax = armor[10].maxArmor + armor[9].maxArmor + armor[3].maxArmor + armor[2].maxArmor;
+        int32_t limbMax = armor[10].MaxArmor + armor[9].MaxArmor + armor[3].MaxArmor + armor[2].MaxArmor;
         double limbs =
-            static_cast<double>(armor[10].curArmor + armor[9].curArmor + armor[3].curArmor + armor[2].curArmor) /
+            static_cast<double>(armor[10].CurArmor + armor[9].CurArmor + armor[3].CurArmor + armor[2].CurArmor) /
                 static_cast<double>(limbMax) * 0.25 +
             0.75;
         double center = (static_cast<double>(centerArmor) / static_cast<double>(centerMax) + 1.0) * 0.5;
@@ -4123,25 +4123,25 @@ namespace
     }
 
     /// <summary>getunitstatus of a ground vehicle: the product of its five armor locations' factors.</summary>
-    auto vehicleStatus(Mover* vehicle) -> float
+    auto VehicleStatus(MCMover* vehicle) -> float
     {
-        ArmorLocation* armor = vehicle->armor.get();
+        MCArmorLocation* armor = vehicle->Armor.get();
         double turret = 1.0;
 
-        if (armor[4].maxArmor != 0)
+        if (armor[4].MaxArmor != 0)
         {
-            turret = armorFactor(armor[4]);
+            turret = ArmorFactor(armor[4]);
         }
 
-        return static_cast<float>(turret * armorFactor(armor[0]) * armorFactor(armor[1]) * armorFactor(armor[2]) *
-                                  armorFactor(armor[3]));
+        return static_cast<float>(turret * ArmorFactor(armor[0]) * ArmorFactor(armor[1]) * ArmorFactor(armor[2]) *
+                                  ArmorFactor(armor[3]));
     }
 
     /// <summary>The share of <paramref name="damageLevel"/> the damage leaves (at least 0).</summary>
-    auto healthLeft(GameObject* object, uint32_t damageLevel) -> double
+    auto HealthLeft(MCGameObject* object, uint32_t damageLevel) -> double
     {
         float maxDamage = static_cast<float>(static_cast<int32_t>(damageLevel));
-        float left = maxDamage - object->getDamage();
+        float left = maxDamage - object->GetDamage();
 
         if (left < 0.0f)
         {
@@ -4152,9 +4152,9 @@ namespace
     }
 
     /// <summary>The damage taken as a share of <paramref name="damageLevel"/>, both truncated, capped at 1.</summary>
-    auto damageTaken(GameObject* object, int32_t damageLevel) -> double
+    auto DamageTaken(MCGameObject* object, int32_t damageLevel) -> double
     {
-        int32_t damage = x87Ftol(object->getDamage());
+        int32_t damage = X87Ftol(object->GetDamage());
 
         if (damage > damageLevel)
         {
@@ -4165,47 +4165,47 @@ namespace
     }
 }
 
-auto execHbGetUnitStatus(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetUnitStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    BaseObject* baseObject = objectList->findObjectFromPart(tos->integer);
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    MCBaseObject* baseObject = ObjectList->FindObjectFromPart(Tos->Integer);
+    Tos->Integer = 0;
 
     if (baseObject)
     {
-        GameObject* object = static_cast<GameObject*>(baseObject);
+        MCGameObject* object = static_cast<MCGameObject*>(baseObject);
         // Port fix: other classes scale an uninitialized local in the original.
         double status = 0.0;
 
-        switch (object->objectClass)
+        switch (object->ObjectClass)
         {
             case BATTLEMECH:
             case GROUNDVEHICLE:
             {
-                Mover* mover = static_cast<Mover*>(object);
+                MCMover* mover = static_cast<MCMover*>(object);
                 float weaponShare;
                 float armorStatus;
 
-                if (object->objectClass == BATTLEMECH)
+                if (object->ObjectClass == BATTLEMECH)
                 {
-                    weaponShare = mover->weaponEffectiveness / mover->maxWeaponEffectiveness;
-                    armorStatus = mechStatus(mover);
+                    weaponShare = mover->WeaponEffectiveness / mover->MaxWeaponEffectiveness;
+                    armorStatus = MechStatus(mover);
                 }
                 else
                 {
-                    weaponShare = mover->maxWeaponEffectiveness == 0.0f
+                    weaponShare = mover->MaxWeaponEffectiveness == 0.0f
                                       ? 1.0f
-                                      : mover->weaponEffectiveness / mover->maxWeaponEffectiveness;
-                    armorStatus = vehicleStatus(mover);
+                                      : mover->WeaponEffectiveness / mover->MaxWeaponEffectiveness;
+                    armorStatus = VehicleStatus(mover);
                 }
 
                 // Port fix: wounds past 6 index past the table in the original.
-                int32_t wounds = std::clamp(x87Ftol(object->getPilot()->wounds), 0, 6);
+                int32_t wounds = std::clamp(X87Ftol(object->GetPilot()->Wounds), 0, 6);
                 float pilotShare = WoundEffectiveness[wounds];
 
-                if (object->isDestroyed() || object->isDisabled())
+                if (object->IsDestroyed() || object->IsDisabled())
                 {
                     status = 0.0f * armorStatus * weaponShare;
                 }
@@ -4217,313 +4217,312 @@ auto execHbGetUnitStatus(SymTableNodePtr routineIdPtr) -> TypePtr
             }
 
             case BUILDING:
-                status = healthLeft(object, static_cast<BuildingType*>(object->getObjectType())->dmgLevel);
+                status = HealthLeft(object, static_cast<MCBuildingType*>(object->GetObjectType())->DmgLevel);
                 break;
             case TREEBUILDING:
-                status = healthLeft(object, static_cast<TreeBuildingType*>(object->getObjectType())->dmgLevel);
+                status = HealthLeft(object, static_cast<MCTreeBuildingType*>(object->GetObjectType())->DmgLevel);
                 break;
             case MISCTERRAINOBJECT:
             {
                 uint32_t damageLevel = 0;
                 // Original behaviour: a kind getDamageLevel doesn't list divides 0 by 0.
-                getDamageLevel(object, damageLevel);
-                status = 1.0 - damageTaken(object, static_cast<int32_t>(damageLevel));
+                GetDamageLevel(object, damageLevel);
+                status = 1.0 - DamageTaken(object, static_cast<int32_t>(damageLevel));
                 break;
             }
 
             case TRAINCAR:
                 // Original behaviour (OB-047): a train car reports the damage taken, not the health left.
-                status = damageTaken(object, static_cast<TrainCarType*>(object->getObjectType())->damage);
+                status = DamageTaken(object, static_cast<MCTrainCarType*>(object->GetObjectType())->Damage);
                 break;
             case TURRET:
-                status = 1.0 - damageTaken(object, static_cast<int32_t>(
-                                                       static_cast<TurretType*>(object->getObjectType())->dmgLevel));
+                status = 1.0 - DamageTaken(object, static_cast<int32_t>(
+                                                       static_cast<MCTurretType*>(object->GetObjectType())->DmgLevel));
                 break;
             case GATE:
-                status =
-                    1.0 - damageTaken(object,
-                                      static_cast<int32_t>(static_cast<GateType*>(object->getObjectType())->dmgLevel));
+                status = 1.0 - DamageTaken(object, static_cast<int32_t>(
+                                                       static_cast<MCGateType*>(object->GetObjectType())->DmgLevel));
                 break;
             default:
                 break;
         }
 
-        tos->real = static_cast<float>(status * 100.0);
+        Tos->Real = static_cast<float>(status * 100.0);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return RealTypePtr;
 }
 
-auto execHbRelPosPoint(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbRelPosPoint(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    float* point = reinterpret_cast<float*>(nextReference());
-    pop();
-    float angle = nextReal();
-    float distance = nextReal();
-    uint32_t flags = static_cast<uint32_t>(nextInteger());
-    getCodeToken();
-    float* result = reinterpret_cast<float*>(nextReference());
-    pop();
-    vector_3d start;
-    start.x = point[0];
-    start.y = point[1];
-    start.z = 0.0f;
-    vector_3d position = relativePositionToPoint(start, angle, distance, flags);
-    result[0] = position.x;
-    result[1] = position.y;
-    result[2] = position.z;
-    getCodeToken();
+    GetCodeToken();
+    GetCodeToken();
+    float* point = reinterpret_cast<float*>(NextReference());
+    Pop();
+    float angle = NextReal();
+    float distance = NextReal();
+    uint32_t flags = static_cast<uint32_t>(NextInteger());
+    GetCodeToken();
+    float* result = reinterpret_cast<float*>(NextReference());
+    Pop();
+    MCVector3D start;
+    start.X = point[0];
+    start.Y = point[1];
+    start.Z = 0.0f;
+    MCVector3D position = RelativePositionToPoint(start, angle, distance, flags);
+    result[0] = position.X;
+    result[1] = position.Y;
+    result[2] = position.Z;
+    GetCodeToken();
 }
 
-auto execHbRelPosObject(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbRelPosObject(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    float angle = nextReal();
-    float distance = nextReal();
-    uint32_t flags = static_cast<uint32_t>(nextInteger());
-    getCodeToken();
-    float* result = reinterpret_cast<float*>(nextReference());
-    pop();
-    GameObject* object = findObject(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    float angle = NextReal();
+    float distance = NextReal();
+    uint32_t flags = static_cast<uint32_t>(NextInteger());
+    GetCodeToken();
+    float* result = reinterpret_cast<float*>(NextReference());
+    Pop();
+    MCGameObject* object = FindObject(partId);
 
     if (object)
     {
-        vector_3d position = object->relativePosition(angle, distance, flags);
-        result[0] = position.x;
-        result[1] = position.y;
-        result[2] = position.z;
+        MCVector3D position = object->RelativePosition(angle, distance, flags);
+        result[0] = position.X;
+        result[1] = position.Y;
+        result[2] = position.Z;
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
 namespace
 {
     /// <summary>The damage state of the body location an armor location covers (the rear locations, from
     /// numBodyLocations on, cover the torsos from 1 on).</summary>
-    auto armorLocationState(Mover* mover, int32_t armorIndex) -> uint8_t
+    auto ArmorLocationState(MCMover* mover, int32_t armorIndex) -> uint8_t
     {
-        if (armorIndex < mover->numBodyLocations)
+        if (armorIndex < mover->NumBodyLocations)
         {
-            return mover->bodyAt(armorIndex).damageState;
+            return mover->BodyAt(armorIndex).DamageState;
         }
 
-        return mover->bodyAt(armorIndex - mover->numBodyLocations + 1).damageState;
+        return mover->BodyAt(armorIndex - mover->NumBodyLocations + 1).DamageState;
     }
 }
 
-auto execHbRepair(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbRepair(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
-    float points = nextReal();
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
+    float points = NextReal();
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-    if (object && object->objectClass == BATTLEMECH)
+    if (object && object->ObjectClass == BATTLEMECH)
     {
         // Fills internal structure first, then armor, location by location, skipping destroyed ones.
-        Mover* mech = static_cast<Mover*>(object);
+        MCMover* mech = static_cast<MCMover*>(object);
 
-        for (int32_t i = 0; i < mech->numBodyLocations; i++)
+        for (int32_t i = 0; i < mech->NumBodyLocations; i++)
         {
-            BodyLocation& location = mech->bodyAt(i);
-            float needed = static_cast<float>(location.maxInternalStructure) - location.curInternalStructure;
+            MCBodyLocation& location = mech->BodyAt(i);
+            float needed = static_cast<float>(location.MaxInternalStructure) - location.CurInternalStructure;
 
-            if (location.damageState != 2 && needed > 0.0f)
+            if (location.DamageState != 2 && needed > 0.0f)
             {
                 if (points <= needed)
                 {
-                    location.curInternalStructure += points;
+                    location.CurInternalStructure += points;
                     points = 0.0f;
                     break;
                 }
 
                 points -= needed;
-                location.curInternalStructure = static_cast<float>(location.maxInternalStructure);
+                location.CurInternalStructure = static_cast<float>(location.MaxInternalStructure);
             }
         }
 
-        for (int32_t i = 0; i < mech->numArmorLocations; i++)
+        for (int32_t i = 0; i < mech->NumArmorLocations; i++)
         {
-            ArmorLocation& location = mech->armor[i];
-            float needed = static_cast<float>(location.maxArmor) - location.curArmor;
+            MCArmorLocation& location = mech->Armor[i];
+            float needed = static_cast<float>(location.MaxArmor) - location.CurArmor;
 
-            if (armorLocationState(mech, i) != 2 && needed > 0.0f)
+            if (ArmorLocationState(mech, i) != 2 && needed > 0.0f)
             {
                 if (points <= needed)
                 {
-                    location.curArmor += points;
+                    location.CurArmor += points;
                     break;
                 }
 
                 points -= needed;
-                location.curArmor = static_cast<float>(location.maxArmor);
+                location.CurArmor = static_cast<float>(location.MaxArmor);
             }
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbGetRepairState(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetRepairState(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t partId = tos->integer;
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t partId = Tos->Integer;
+    Pop();
     // The percentage of internal structure and armor left, over the locations that aren't destroyed.
     double sum = 0.0;
     int32_t maximum = 0;
-    BaseObject* object = objectList->findObjectFromPart(partId);
+    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
 
-    if (object && isMover(object))
+    if (object && IsMover(object))
     {
-        Mover* mover = static_cast<Mover*>(object);
+        MCMover* mover = static_cast<MCMover*>(object);
 
-        for (int32_t i = 0; i < mover->numBodyLocations; i++)
+        for (int32_t i = 0; i < mover->NumBodyLocations; i++)
         {
-            if (mover->bodyAt(i).damageState != 2)
+            if (mover->BodyAt(i).DamageState != 2)
             {
-                sum += mover->bodyAt(i).curInternalStructure;
-                maximum += mover->bodyAt(i).maxInternalStructure;
+                sum += mover->BodyAt(i).CurInternalStructure;
+                maximum += mover->BodyAt(i).MaxInternalStructure;
             }
         }
 
-        for (int32_t i = 0; i < mover->numArmorLocations; i++)
+        for (int32_t i = 0; i < mover->NumArmorLocations; i++)
         {
-            if (armorLocationState(mover, i) != 2)
+            if (ArmorLocationState(mover, i) != 2)
             {
-                sum += mover->armor[i].curArmor;
-                maximum += mover->armor[i].maxArmor;
+                sum += mover->Armor[i].CurArmor;
+                maximum += mover->Armor[i].MaxArmor;
             }
         }
     }
 
     if (maximum != 0)
     {
-        pushInteger(x87Ftol(sum * 100.0 / static_cast<double>(maximum)));
+        PushInteger(X87Ftol(sum * 100.0 / static_cast<double>(maximum)));
     }
     else
     {
         // Original behaviour (OB-111): with no object, or no location left, MCX.EXE divides by zero and __ftol turns
         // the NaN or infinity into 0x80000000.
-        pushInteger(INT32_MIN);
+        PushInteger(INT32_MIN);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbIsTeamTargeting(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbIsTeamTargeting(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t teamId = tos->integer;
-    pop();
-    uint32_t targetId = static_cast<uint32_t>(nextInteger());
-    uint32_t exceptId = static_cast<uint32_t>(nextInteger());
-    Team* team = nullptr;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t teamId = Tos->Integer;
+    Pop();
+    uint32_t targetId = static_cast<uint32_t>(NextInteger());
+    uint32_t exceptId = static_cast<uint32_t>(NextInteger());
+    MCTeam* team = nullptr;
 
     if (teamId == 500)
     {
-        team = innerSphereTeam;
+        team = InnerSphereTeam;
     }
     else if (teamId == 0x1f6)
     {
-        team = alliedTeam;
+        team = AlliedTeam;
     }
     else if (teamId == 0x1f5)
     {
-        team = clanTeam;
+        team = ClanTeam;
     }
 
     int targeting = 0;
 
     if (team)
     {
-        targeting = team->isTargeting(targetId, exceptId);
+        targeting = team->IsTargeting(targetId, exceptId);
     }
 
-    pushInteger(targeting != 0 ? 1 : 0);
-    getCodeToken();
+    PushInteger(targeting != 0 ? 1 : 0);
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto execHbGetFixed(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetFixed(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t moverId = tos->integer;
-    pop();
-    int32_t bayId = nextInteger();
-    uint32_t params = static_cast<uint32_t>(nextInteger());
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t moverId = Tos->Integer;
+    Pop();
+    int32_t bayId = NextInteger();
+    uint32_t params = static_cast<uint32_t>(NextInteger());
 
     // -1 ordered, 0 order refused, 1 bay out of points, 2 wrong kind of bay, 3 already this bay's, 4 bay busy,
     // 5 already being fixed, 6 needs nothing, 7 not a mech or vehicle, 8 not a repair bay, 9 other side.
     int32_t result = -1;
-    BaseObject* bayObject = objectList->findObjectFromPart(bayId);
+    MCBaseObject* bayObject = ObjectList->FindObjectFromPart(bayId);
 
-    if (!bayObject || bayObject->objectClass != TREEBUILDING || static_cast<TreeBuilding*>(bayObject)->canRefit == 0)
+    if (!bayObject || bayObject->ObjectClass != TREEBUILDING || static_cast<MCTreeBuilding*>(bayObject)->CanRefit == 0)
     {
         result = 8;
     }
     else
     {
-        TreeBuilding* bay = static_cast<TreeBuilding*>(bayObject);
+        MCTreeBuilding* bay = static_cast<MCTreeBuilding*>(bayObject);
 
-        if (bay->getRefitPoints() > 0.0f)
+        if (bay->GetRefitPoints() > 0.0f)
         {
-            BaseObject* moverObject = objectList->findObjectFromPart(moverId);
+            MCBaseObject* moverObject = ObjectList->FindObjectFromPart(moverId);
 
-            if (!moverObject || (moverObject->objectClass != BATTLEMECH && moverObject->objectClass != GROUNDVEHICLE))
+            if (!moverObject || (moverObject->ObjectClass != BATTLEMECH && moverObject->ObjectClass != GROUNDVEHICLE))
             {
                 result = 7;
             }
             else
             {
-                Mover* mover = static_cast<Mover*>(moverObject);
+                MCMover* mover = static_cast<MCMover*>(moverObject);
 
-                if (bay->getAlignment() != mover->getAlignment())
+                if (bay->GetAlignment() != mover->GetAlignment())
                 {
                     result = 9;
                 }
-                else if (bay->refitBuddy)
+                else if (bay->RefitBuddy)
                 {
-                    result = (bay->refitBuddy != mover) ? 4 : 3;
+                    result = (bay->RefitBuddy != mover) ? 4 : 3;
                 }
                 else
                 {
                     // A mech bay fixes mechs only, a vehicle bay vehicles only.
-                    bool rightBay = (mover->objectClass == BATTLEMECH) == (bay->mechBay != 0);
+                    bool rightBay = (mover->ObjectClass == BATTLEMECH) == (bay->MechBay != 0);
 
                     if (!rightBay)
                     {
                         result = 2;
                     }
-                    else if (mover->refitBuddy)
+                    else if (mover->RefitBuddy)
                     {
                         result = 5;
                     }
-                    else if (mover->needsRefit(0) == 0)
+                    else if (mover->NeedsRefit(0) == 0)
                     {
                         result = 6;
                     }
                     else
                     {
-                        result = mover->getPilot()->orderGetFixed(1, bay, params) != 0 ? -1 : 0;
+                        result = mover->GetPilot()->OrderGetFixed(1, bay, params) != 0 ? -1 : 0;
                     }
                 }
             }
@@ -4534,8 +4533,8 @@ auto execHbGetFixed(SymTableNodePtr routineIdPtr) -> TypePtr
         }
     }
 
-    pushInteger(result);
-    getCodeToken();
+    PushInteger(result);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
@@ -4556,26 +4555,26 @@ auto DebugMissionScriptMessages() -> void
         std::strncat(ChunkDebugMsg, line, bufferSize - 1 - std::strlen(ChunkDebugMsg));
     }
 
-    auto* file = new File;
-    file->create("scriptmsg.dbg");
-    file->writeString(ChunkDebugMsg);
-    file->close();
+    auto* file = new MCFile;
+    file->Create("scriptmsg.dbg");
+    file->WriteString(ChunkDebugMsg);
+    file->Close();
     delete file;
     ExceptionGameMsg = ChunkDebugMsg;
 }
 
-auto execHbSendMessage(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSendMessage(MCSymTableNodePtr routineIdPtr) -> void
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    CurMultiplayCode = tos->integer;
-    pop();
-    CurMultiplayParam = nextInteger();
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    CurMultiplayCode = Tos->Integer;
+    Pop();
+    CurMultiplayParam = NextInteger();
 
-    if (MPlayer && MPlayer->isServer)
+    if (MPlayer && MPlayer->IsServer)
     {
-        MPlayer->addMissionScriptMessageChunk(CurMultiplayCode, CurMultiplayParam);
+        MPlayer->AddMissionScriptMessageChunk(CurMultiplayCode, CurMultiplayParam);
 
         if (NumMissionScriptMessages == 1000)
         {
@@ -4583,63 +4582,63 @@ auto execHbSendMessage(SymTableNodePtr routineIdPtr) -> void
             Assert(0, static_cast<uint32_t>(NumMissionScriptMessages), " Way too many Mission Script Messages! ");
         }
 
-        MissionScriptMessageLog[NumMissionScriptMessages][0] = static_cast<int16_t>(execLineNumber);
+        MissionScriptMessageLog[NumMissionScriptMessages][0] = static_cast<int16_t>(ExecLineNumber);
         MissionScriptMessageLog[NumMissionScriptMessages][1] = static_cast<int16_t>(CurMultiplayCode);
         MissionScriptMessageLog[NumMissionScriptMessages][2] = static_cast<int16_t>(CurMultiplayParam);
         NumMissionScriptMessages++;
     }
 
-    getCodeToken();
+    GetCodeToken();
 }
 
-auto execHbGetMessage(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetMessage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    int32_t* param = reinterpret_cast<int32_t*>(nextReference());
-    pop();
+    GetCodeToken();
+    GetCodeToken();
+    int32_t* param = reinterpret_cast<int32_t*>(NextReference());
+    Pop();
     *param = CurMultiplayParam;
-    pushInteger(CurMultiplayCode);
-    getCodeToken();
+    PushInteger(CurMultiplayCode);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execHbGetStrikes(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetStrikes(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    getCodeToken();
-    getCodeToken();
-    execExpression();
-    int32_t commanderId = tos->integer;
-    pop();
-    getCodeToken();
-    execExpression();
-    int32_t strikeType = tos->integer;
-    tos->integer = 0;
+    GetCodeToken();
+    GetCodeToken();
+    ExecExpression();
+    int32_t commanderId = Tos->Integer;
+    Pop();
+    GetCodeToken();
+    ExecExpression();
+    int32_t strikeType = Tos->Integer;
+    Tos->Integer = 0;
 
     if (commanderId > -1 && commanderId < NumCommanders && strikeType > -1)
     {
-        Commander* commander = CommanderTable[commanderId];
+        MCCommander* commander = CommanderTable[commanderId];
 
         switch (strikeType)
         {
             case 0:
-                tos->integer = commander->numSmallStrikes;
+                Tos->Integer = commander->NumSmallStrikes;
                 break;
             case 1:
-                tos->integer = commander->numLargeStrikes;
+                Tos->Integer = commander->NumLargeStrikes;
                 break;
             case 2:
-                tos->integer = commander->numSensorStrikes;
+                Tos->Integer = commander->NumSensorStrikes;
                 break;
             case 3:
-                tos->integer = commander->numCameraDrones;
+                Tos->Integer = commander->NumCameraDrones;
                 break;
             default:
                 break;
         }
     }
 
-    getCodeToken();
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
@@ -4647,213 +4646,213 @@ namespace
 {
     /// <summary>setstrikes / addstrikes: a commander's strikes of one type (0 small, 1 large, 2 sensor, 3 camera
     /// drones), set to <paramref name="count"/> or raised by it.</summary>
-    auto changeStrikes(bool add) -> void
+    auto ChangeStrikes(bool add) -> void
     {
-        getCodeToken();
-        getCodeToken();
-        execExpression();
-        int32_t commanderId = tos->integer;
-        pop();
-        int32_t strikeType = nextInteger();
-        int32_t count = nextInteger();
+        GetCodeToken();
+        GetCodeToken();
+        ExecExpression();
+        int32_t commanderId = Tos->Integer;
+        Pop();
+        int32_t strikeType = NextInteger();
+        int32_t count = NextInteger();
 
         if (commanderId > -1 && commanderId < NumCommanders && strikeType > -1)
         {
-            Commander* commander = CommanderTable[commanderId];
+            MCCommander* commander = CommanderTable[commanderId];
 
             switch (strikeType)
             {
                 case 0:
-                    commander->setNumSmallStrikes(add ? commander->numSmallStrikes + count : count);
+                    commander->SetNumSmallStrikes(add ? commander->NumSmallStrikes + count : count);
                     break;
                 case 1:
-                    commander->setNumLargeStrikes(add ? commander->numLargeStrikes + count : count);
+                    commander->SetNumLargeStrikes(add ? commander->NumLargeStrikes + count : count);
                     break;
                 case 2:
-                    commander->setNumSensorStrikes(add ? commander->numSensorStrikes + count : count);
+                    commander->SetNumSensorStrikes(add ? commander->NumSensorStrikes + count : count);
                     break;
                 case 3:
-                    commander->setNumCameraDrones(add ? commander->numCameraDrones + count : count);
+                    commander->SetNumCameraDrones(add ? commander->NumCameraDrones + count : count);
                     break;
                 default:
                     break;
             }
         }
 
-        getCodeToken();
+        GetCodeToken();
     }
 }
 
-auto execHbSetStrikes(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetStrikes(MCSymTableNodePtr routineIdPtr) -> void
 {
-    changeStrikes(false);
+    ChangeStrikes(false);
 }
 
-auto execHbAddStrikes(SymTableNodePtr routineIdPtr) -> void
+auto ExecHbAddStrikes(MCSymTableNodePtr routineIdPtr) -> void
 {
-    changeStrikes(true);
+    ChangeStrikes(true);
 }
 
-auto execHbIsServer(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbIsServer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushInteger(MPlayer && MPlayer->isServer ? 1 : 0);
-    getCodeToken();
+    PushInteger(MPlayer && MPlayer->IsServer ? 1 : 0);
+    GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto execHbGetHomeTeam(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecHbGetHomeTeam(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    pushInteger(homeTeam->id + 500);
-    getCodeToken();
+    PushInteger(HomeTeam->Id + 500);
+    GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto execStandardRoutineCall(SymTableNodePtr routineIdPtr) -> TypePtr
+auto ExecStandardRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 {
-    int32_t key = routineIdPtr->defn.info.routine.key;
+    int32_t key = routineIdPtr->Defn.Info.Routine.Key;
 
     switch (key)
     {
         case RTN_RETURN:
         {
-            execStdReturn(routineIdPtr);
+            ExecStdReturn(routineIdPtr);
             return nullptr;
         }
         case RTN_PRINT:
         {
-            execStdPrint(routineIdPtr);
+            ExecStdPrint(routineIdPtr);
             return nullptr;
         }
         case RTN_CONCAT:
-            return execStdConcat(routineIdPtr);
+            return ExecStdConcat(routineIdPtr);
         case RTN_ABS:
-            return execStdAbs(routineIdPtr);
+            return ExecStdAbs(routineIdPtr);
         case RTN_ROUND:
-            return execStdRound(routineIdPtr);
+            return ExecStdRound(routineIdPtr);
         case RTN_SQRT:
-            return execStdSqrt(routineIdPtr);
+            return ExecStdSqrt(routineIdPtr);
         case RTN_TRUNC:
-            return execStdTrunc(routineIdPtr);
+            return ExecStdTrunc(routineIdPtr);
         case RTN_RANDOM:
-            return execStdRandom(routineIdPtr);
+            return ExecStdRandom(routineIdPtr);
         case RTN_SET_MAX_LOOPS:
-            return execStdSetMaxLoops(routineIdPtr);
+            return ExecStdSetMaxLoops(routineIdPtr);
         case RTN_FATAL:
-            return execStdFatal(routineIdPtr);
+            return ExecStdFatal(routineIdPtr);
         case RTN_ASSERT:
-            return execStdAssert(routineIdPtr);
+            return ExecStdAssert(routineIdPtr);
         case RTN_GET_MODULE_HANDLE:
-            return execStdGetModHandle(routineIdPtr);
+            return ExecStdGetModHandle(routineIdPtr);
         case RTN_GET_ID:
-            return execHbGetId(routineIdPtr);
+            return ExecHbGetId(routineIdPtr);
         case RTN_GET_TIME:
-            return execHbGetTime(routineIdPtr);
+            return ExecHbGetTime(routineIdPtr);
         case RTN_GET_TIME_LEFT:
-            return execHbGetTimeLeft(routineIdPtr);
+            return ExecHbGetTimeLeft(routineIdPtr);
         case RTN_GET_WARRIOR_STATUS:
-            return execHbGetWarriorStatus(routineIdPtr);
+            return ExecHbGetWarriorStatus(routineIdPtr);
         case RTN_SELECT_UNIT:
-            return execHbSelectUnit(routineIdPtr);
+            return ExecHbSelectUnit(routineIdPtr);
         case RTN_SELECT_WARRIOR:
-            return execHbSelectWarrior(routineIdPtr);
+            return ExecHbSelectWarrior(routineIdPtr);
         case RTN_SELECT_OBJECT:
-            return execHbSelectObject(routineIdPtr);
+            return ExecHbSelectObject(routineIdPtr);
         case RTN_GET_CONTACTS:
-            return execHbGetContacts(routineIdPtr);
+            return ExecHbGetContacts(routineIdPtr);
         case RTN_GET_ENEMY_COUNT:
-            return execHbGetEnemyCount(routineIdPtr);
+            return ExecHbGetEnemyCount(routineIdPtr);
         case RTN_SELECT_CONTACT:
-            return execHbSelectContact(routineIdPtr);
+            return ExecHbSelectContact(routineIdPtr);
         case RTN_GET_CONTACT_ID:
-            return execHbGetContactId(routineIdPtr);
+            return ExecHbGetContactId(routineIdPtr);
         case RTN_IS_CONTACT:
-            return execHbIsContact(routineIdPtr);
+            return ExecHbIsContact(routineIdPtr);
         case RTN_GET_CONTACT_STATUS:
-            return execHbGetContactStatus(routineIdPtr);
+            return ExecHbGetContactStatus(routineIdPtr);
         case RTN_GET_CONTACT_RELATIVE_POSITION:
-            return execHbGetContactRelativePosition(routineIdPtr);
+            return ExecHbGetContactRelativePosition(routineIdPtr);
         case RTN_GET_TARGET:
-            return execHbGetTarget(routineIdPtr);
+            return ExecHbGetTarget(routineIdPtr);
         case RTN_SET_TARGET:
         {
-            execHbSetTarget(routineIdPtr);
+            ExecHbSetTarget(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_WEAPONS_READY:
         case RTN_GET_WEAPONS_LOCKED:
         case RTN_GET_WEAPONS_IN_RANGE:
-            return execHbGetWeapons(routineIdPtr, key);
+            return ExecHbGetWeapons(routineIdPtr, key);
         case RTN_GET_WEAPON_SHOTS:
-            return execHbGetWeaponShots(routineIdPtr);
+            return ExecHbGetWeaponShots(routineIdPtr);
         case RTN_GET_WEAPON_RANGES:
         {
-            execHbGetWeaponRanges(routineIdPtr);
+            ExecHbGetWeaponRanges(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_OBJECT_POSITION:
-            return execHbGetObjectPosition(routineIdPtr);
+            return ExecHbGetObjectPosition(routineIdPtr);
         case RTN_GET_INTEGER_MEMORY:
-            return execHbGetMemoryInteger(routineIdPtr);
+            return ExecHbGetMemoryInteger(routineIdPtr);
         case RTN_GET_REAL_MEMORY:
-            return execHbGetMemoryReal(routineIdPtr);
+            return ExecHbGetMemoryReal(routineIdPtr);
         case RTN_GET_ALARM_TRIGGERS:
-            return execHbGetAlarmTriggers(routineIdPtr);
+            return ExecHbGetAlarmTriggers(routineIdPtr);
         case RTN_GET_CHALLENGER:
-            return execHbGetChallenger(routineIdPtr);
+            return ExecHbGetChallenger(routineIdPtr);
         case RTN_GET_FIRE_RANGES:
-            return execHbGetFireRanges(routineIdPtr);
+            return ExecHbGetFireRanges(routineIdPtr);
         case RTN_GET_ATTACKERS:
-            return execHbGetAttackers(routineIdPtr);
+            return ExecHbGetAttackers(routineIdPtr);
         case RTN_GET_ATTACKER_INFO:
-            return execHbGetAttackerInfo(routineIdPtr);
+            return ExecHbGetAttackerInfo(routineIdPtr);
         case RTN_SET_CHALLENGER:
-            return execHbSetChallenger(routineIdPtr);
+            return ExecHbSetChallenger(routineIdPtr);
         case RTN_GET_TIME_WITHOUT_ORDERS:
-            return execHbGetTimeWithoutOrders(routineIdPtr);
+            return ExecHbGetTimeWithoutOrders(routineIdPtr);
         case RTN_SET_RADIO:
         {
-            execHbSetRadio(routineIdPtr);
+            ExecHbSetRadio(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_MOVE_GOAL:
-            return execHbSetMoveGoal(routineIdPtr);
+            return ExecHbSetMoveGoal(routineIdPtr);
         case RTN_SET_INTEGER_MEMORY:
         {
-            execHbSetMemoryInteger(routineIdPtr);
+            ExecHbSetMemoryInteger(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_REAL_MEMORY:
         {
-            execHbSetMemoryReal(routineIdPtr);
+            ExecHbSetMemoryReal(routineIdPtr);
             return nullptr;
         }
         case RTN_HAS_MOVE_GOAL:
-            return execHbHasMoveGoal(routineIdPtr);
+            return ExecHbHasMoveGoal(routineIdPtr);
         case RTN_HAS_MOVE_PATH:
-            return execHbHasMovePath(routineIdPtr);
+            return ExecHbHasMovePath(routineIdPtr);
         case RTN_SORT_WEAPONS:
         {
-            execHbSortWeapons(routineIdPtr);
+            ExecHbSortWeapons(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_VISUAL_RANGE:
-            return execHbGetVisualRange(routineIdPtr);
+            return ExecHbGetVisualRange(routineIdPtr);
         case RTN_GET_UNIT_MATES:
-            return execHbGetUnitMates(routineIdPtr);
+            return ExecHbGetUnitMates(routineIdPtr);
         case RTN_GET_TAC_ORDER:
-            return execHbGetTacOrder(routineIdPtr);
+            return ExecHbGetTacOrder(routineIdPtr);
         case RTN_GET_LAST_TAC_ORDER:
-            return execHbGetLastTacOrder(routineIdPtr);
+            return ExecHbGetLastTacOrder(routineIdPtr);
         case RTN_SET_ORDER_MODE:
-            return execHbSetOrderMode(routineIdPtr);
+            return ExecHbSetOrderMode(routineIdPtr);
         case RTN_ORDER_WAIT:
-            return execHbWait(routineIdPtr);
+            return ExecHbWait(routineIdPtr);
         case RTN_ORDER_MOVE_TO:
-            return execHbMoveToPoint(routineIdPtr);
+            return ExecHbMoveToPoint(routineIdPtr);
         case RTN_ORDER_MOVE_TO_OBJECT:
-            return execHbMoveToObject(routineIdPtr);
+            return ExecHbMoveToObject(routineIdPtr);
         case RTN_ORDER_MOVE_TO_CONTACT:
-            return execHbMoveToContact(routineIdPtr);
+            return ExecHbMoveToContact(routineIdPtr);
         case RTN_ORDER_TRAVERSE_PATH:
         case RTN_ORDER_PATROL_PATH:
         case RTN_ATTACK_CLOSEST_TARGET:
@@ -4863,311 +4862,311 @@ auto execStandardRoutineCall(SymTableNodePtr routineIdPtr) -> TypePtr
             // Original behaviour: these do nothing, not even read their call's tokens.
             return nullptr;
         case RTN_ORDER_POWER_UP:
-            return execHbOrderPowerUp(routineIdPtr);
+            return ExecHbOrderPowerUp(routineIdPtr);
         case RTN_ORDER_POWER_DOWN:
-            return execHbOrderPowerDown(routineIdPtr);
+            return ExecHbOrderPowerDown(routineIdPtr);
         case RTN_ORDER_ATTACK_OBJECT:
-            return execHbOrderAttackObject(routineIdPtr);
+            return ExecHbOrderAttackObject(routineIdPtr);
         case RTN_ORDER_ATTACK_CONTACT:
-            return execHbOrderAttackContact(routineIdPtr);
+            return ExecHbOrderAttackContact(routineIdPtr);
         case RTN_ORDER_WITHDRAW:
-            return execHbObjWithdraw(routineIdPtr);
+            return ExecHbObjWithdraw(routineIdPtr);
         case RTN_DAMAGE_OBJECT:
-            return execHbDamageObject(routineIdPtr);
+            return ExecHbDamageObject(routineIdPtr);
         case RTN_SET_ATTACK_RADIUS:
-            return execHbSetAttackRadius(routineIdPtr);
+            return ExecHbSetAttackRadius(routineIdPtr);
         case RTN_ORDER_TEST:
-            return execHbOrderTest(routineIdPtr);
+            return ExecHbOrderTest(routineIdPtr);
         case RTN_PLAY_SMACKER:
-            return execHbPlaySmacker(routineIdPtr);
+            return ExecHbPlaySmacker(routineIdPtr);
         case RTN_OBJECT_CHANGE_SIDES:
         {
-            execHbObjectChangeSides(routineIdPtr);
+            ExecHbObjectChangeSides(routineIdPtr);
             return nullptr;
         }
         case RTN_DISTANCE_TO_OBJECT:
-            return execHbDistanceToObject(routineIdPtr);
+            return ExecHbDistanceToObject(routineIdPtr);
         case RTN_DISTANCE_TO_POSITION:
-            return execHbDistanceToPosition(routineIdPtr);
+            return ExecHbDistanceToPosition(routineIdPtr);
         case RTN_OBJECT_SUICIDE:
         {
-            execHbObjectSuicide(routineIdPtr);
+            ExecHbObjectSuicide(routineIdPtr);
             return nullptr;
         }
         case RTN_OBJECT_CREATE:
-            return execHbObjectCreate(routineIdPtr);
+            return ExecHbObjectCreate(routineIdPtr);
         case RTN_OBJECT_EXISTS:
-            return execHbObjectExists(routineIdPtr);
+            return ExecHbObjectExists(routineIdPtr);
         case RTN_OBJECT_STATUS:
-            return execHbObjectStatus(routineIdPtr);
+            return ExecHbObjectStatus(routineIdPtr);
         case RTN_OBJECT_VISIBLE:
-            return execHbObjectVisible(routineIdPtr);
+            return ExecHbObjectVisible(routineIdPtr);
         case RTN_OBJECT_CLASS:
-            return execHbObjectClass(routineIdPtr);
+            return ExecHbObjectClass(routineIdPtr);
         case RTN_OBJECT_SIDE:
-            return execHbObjectSide(routineIdPtr);
+            return ExecHbObjectSide(routineIdPtr);
         case RTN_OBJECT_COMMANDER:
-            return execHbObjectCommander(routineIdPtr);
+            return ExecHbObjectCommander(routineIdPtr);
         case RTN_SET_TIMER:
-            return execHbSetTimer(routineIdPtr);
+            return ExecHbSetTimer(routineIdPtr);
         case RTN_CHECK_TIMER:
-            return execHbChkTimer(routineIdPtr);
+            return ExecHbChkTimer(routineIdPtr);
         case RTN_END_TIMER:
         {
-            execHbEndTimer(routineIdPtr);
+            ExecHbEndTimer(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_OBJECTIVE_TIMER:
-            return execHbSetObjectiveTimer(routineIdPtr);
+            return ExecHbSetObjectiveTimer(routineIdPtr);
         case RTN_CHECK_OBJECTIVE_TIMER:
-            return execHbCheckObjectiveTimer(routineIdPtr);
+            return ExecHbCheckObjectiveTimer(routineIdPtr);
         case RTN_SET_OBJECTIVE_STATUS:
-            return execHbSetObjectiveStatus(routineIdPtr);
+            return ExecHbSetObjectiveStatus(routineIdPtr);
         case RTN_CHECK_OBJECTIVE_STATUS:
-            return execHbCheckObjectiveStatus(routineIdPtr);
+            return ExecHbCheckObjectiveStatus(routineIdPtr);
         case RTN_SET_OBJECTIVE_TYPE:
-            return execHbSetObjectiveType(routineIdPtr);
+            return ExecHbSetObjectiveType(routineIdPtr);
         case RTN_CHECK_OBJECTIVE_TYPE:
-            return execHbCheckObjectiveType(routineIdPtr);
+            return ExecHbCheckObjectiveType(routineIdPtr);
         case RTN_PLAY_DIGITAL_MUSIC:
-            return execHbPlayDigitalMusic(routineIdPtr);
+            return ExecHbPlayDigitalMusic(routineIdPtr);
         case RTN_STOP_MUSIC:
-            return execHbStopMusic(routineIdPtr);
+            return ExecHbStopMusic(routineIdPtr);
         case RTN_PLAY_SOUND_EFFECT:
-            return execHbPlaySoundEffect(routineIdPtr);
+            return ExecHbPlaySoundEffect(routineIdPtr);
         case RTN_PLAY_VIDEO:
-            return execHbPlayVideo(routineIdPtr);
+            return ExecHbPlayVideo(routineIdPtr);
         case RTN_PLAY_SPEECH:
-            return execHbPlaySpeech(routineIdPtr);
+            return ExecHbPlaySpeech(routineIdPtr);
         case RTN_PLAY_BETTY:
-            return execHbPlayBetty(routineIdPtr);
+            return ExecHbPlayBetty(routineIdPtr);
         case RTN_SET_OBJECT_ACTIVE:
-            return execHbSetObjActive(routineIdPtr);
+            return ExecHbSetObjActive(routineIdPtr);
         case RTN_OBJECT_IN_WITHDRAWAL:
-            return execHbObjInWithdraw(routineIdPtr);
+            return ExecHbObjInWithdraw(routineIdPtr);
         case RTN_OBJECT_TYPE_ID:
-            return execHbObjTypeId(routineIdPtr);
+            return ExecHbObjTypeId(routineIdPtr);
         case RTN_GET_TERRAIN_OBJECT_PART_ID:
-            return execHbTerrainObjectId(routineIdPtr);
+            return ExecHbTerrainObjectId(routineIdPtr);
         case RTN_GET_VEHICLE_PART_ID:
-            return execHbVehicleId(routineIdPtr);
+            return ExecHbVehicleId(routineIdPtr);
         case RTN_GET_WEAPON_AMMO:
-            return execHbGetWeaponAmmo(routineIdPtr);
+            return ExecHbGetWeaponAmmo(routineIdPtr);
         case RTN_OBJECT_STATUS_COUNT:
-            return execHbObjectStatusCount(routineIdPtr);
+            return ExecHbObjectStatusCount(routineIdPtr);
         case RTN_IN_AREA:
-            return execHbInArea(routineIdPtr);
+            return ExecHbInArea(routineIdPtr);
         case RTN_GET_RELATIVE_POSITION_TO_POINT:
         {
-            execHbRelPosPoint(routineIdPtr);
+            ExecHbRelPosPoint(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_RELATIVE_POSITION_TO_OBJECT:
         {
-            execHbRelPosObject(routineIdPtr);
+            ExecHbRelPosObject(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_SENSORS_WORKING:
-            return execHbGetSensors(routineIdPtr);
+            return ExecHbGetSensors(routineIdPtr);
         case RTN_GET_CURRENT_BR_VALUE:
-            return execHbGetBRValue(routineIdPtr);
+            return ExecHbGetBRValue(routineIdPtr);
         case RTN_GET_ARMOR_PTS:
-            return execHbGetArmorPts(routineIdPtr);
+            return ExecHbGetArmorPts(routineIdPtr);
         case RTN_GET_PILOT_ID:
-            return execHbGetPilotId(routineIdPtr);
+            return ExecHbGetPilotId(routineIdPtr);
         case RTN_GET_PILOT_WOUNDS:
-            return execHbGetPilotWounds(routineIdPtr);
+            return ExecHbGetPilotWounds(routineIdPtr);
         case RTN_SET_PILOT_WOUNDS:
         {
-            execHbSetPilotWounds(routineIdPtr);
+            ExecHbSetPilotWounds(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_OBJECT_ACTIVE:
-            return execHbGetObjActive(routineIdPtr);
+            return ExecHbGetObjActive(routineIdPtr);
         case RTN_GET_OBJECT_MAX_DMG:
             // Original behaviour (OB-050): getobjectmaxdmg runs the damage points routine.
-            return execHbGetObjDmgPts(routineIdPtr);
+            return ExecHbGetObjDmgPts(routineIdPtr);
         case RTN_GET_OBJECT_DAMAGE:
-            return execHbGetObjDamage(routineIdPtr);
+            return ExecHbGetObjDamage(routineIdPtr);
         case RTN_SET_OBJECT_DAMAGE:
         {
-            execHbSetObjDamage(routineIdPtr);
+            ExecHbSetObjDamage(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_GLOBAL_VALUE:
-            return execHbGetGlobalValue(routineIdPtr);
+            return ExecHbGetGlobalValue(routineIdPtr);
         case RTN_SET_GLOBAL_VALUE:
         {
-            execHbSetGlobalValue(routineIdPtr);
+            ExecHbSetGlobalValue(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_OBJECTIVE_POS:
         {
-            execHbSetObjectivePos(routineIdPtr);
+            ExecHbSetObjectivePos(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_POTENTIAL_CONTACT:
-            return execHbSetPotentialContact(routineIdPtr);
+            return ExecHbSetPotentialContact(routineIdPtr);
         case RTN_SET_SENSOR_RANGE:
         {
-            execHbSetSensorRange(routineIdPtr);
+            ExecHbSetSensorRange(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_TONNAGE:
         {
-            execHbSetTonnage(routineIdPtr);
+            ExecHbSetTonnage(routineIdPtr);
             return nullptr;
         }
         case RTN_PLAY_WAVE_FILE:
         {
-            execHbPlayWave(routineIdPtr);
+            ExecHbPlayWave(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_EXPLOSION_DAMAGE:
         {
-            execHbSetExplDmg(routineIdPtr);
+            ExecHbSetExplDmg(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_EXPLOSION_RADIUS:
         {
-            execHbSetExplRad(routineIdPtr);
+            ExecHbSetExplRad(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_SALVAGE:
         {
-            execHbGetSalvage(routineIdPtr);
+            ExecHbGetSalvage(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_SALVAGE:
         {
             // Original behaviour: the boolean result type is dropped.
-            execHbSetSalvage(routineIdPtr);
+            ExecHbSetSalvage(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_SALVAGE_STATUS:
         {
-            execHbSetSalvageStatus(routineIdPtr);
+            ExecHbSetSalvageStatus(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_ANIMATION:
         {
-            execHbSetAnimation(routineIdPtr);
+            ExecHbSetAnimation(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_REVEALED:
         {
-            execHbSetRevealed(routineIdPtr);
+            ExecHbSetRevealed(routineIdPtr);
             return nullptr;
         }
         case RTN_ORDER_REFIT:
         {
-            execHbRefit(routineIdPtr);
+            ExecHbRefit(routineIdPtr);
             return nullptr;
         }
         case RTN_ORDER_CAPTURE:
         {
-            execHbCaptureObject(routineIdPtr);
+            ExecHbCaptureObject(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_CAPTURED:
         {
-            execHbSetCaptured(routineIdPtr);
+            ExecHbSetCaptured(routineIdPtr);
             return nullptr;
         }
         case RTN_SET_CAPTUREABLE:
         {
-            execHbSetCaptureable(routineIdPtr);
+            ExecHbSetCaptureable(routineIdPtr);
             return nullptr;
         }
         case RTN_IS_CAPTURED:
-            return execHbIsCaptured(routineIdPtr);
+            return ExecHbIsCaptured(routineIdPtr);
         case RTN_IS_CAPTURABLE:
-            return execHbIsCapturable(routineIdPtr);
+            return ExecHbIsCapturable(routineIdPtr);
         case RTN_WAS_EVER_CAPTURABLE:
-            return execHbWasEverCapturable(routineIdPtr);
+            return ExecHbWasEverCapturable(routineIdPtr);
         case RTN_SET_BUILDING_NAME:
         {
-            execHbSetBuildingName(routineIdPtr);
+            ExecHbSetBuildingName(routineIdPtr);
             return nullptr;
         }
         case RTN_CALL_STRIKE:
         {
-            execHbCallStrike(routineIdPtr);
+            ExecHbCallStrike(routineIdPtr);
             return nullptr;
         }
         case RTN_ORDER_LOAD_ELEMENTALS:
         {
-            execHbLoadElementals(routineIdPtr);
+            ExecHbLoadElementals(routineIdPtr);
             return nullptr;
         }
         case RTN_ORDER_DEPLOY_ELEMENTALS:
         {
-            execHbDeployElementals(routineIdPtr);
+            ExecHbDeployElementals(routineIdPtr);
             return nullptr;
         }
         case RTN_ADD_PRISONER:
-            return execHbAddPrisoner(routineIdPtr);
+            return ExecHbAddPrisoner(routineIdPtr);
         case RTN_SET_TRAIN_SPEED:
         {
-            execHbSetTrainSpeed(routineIdPtr);
+            ExecHbSetTrainSpeed(routineIdPtr);
             return nullptr;
         }
         case RTN_LOCK_GATE_OPEN:
         {
-            execHbLockGateOpen(routineIdPtr);
+            ExecHbLockGateOpen(routineIdPtr);
             return nullptr;
         }
         case RTN_LOCK_GATE_CLOSED:
         {
-            execHbLockGateClosed(routineIdPtr);
+            ExecHbLockGateClosed(routineIdPtr);
             return nullptr;
         }
         case RTN_RELEASE_GATE_LOCK:
         {
-            execHbReleaseGateLock(routineIdPtr);
+            ExecHbReleaseGateLock(routineIdPtr);
             return nullptr;
         }
         case RTN_IS_GATE_OPEN:
-            return execHbIsGateOpen(routineIdPtr);
+            return ExecHbIsGateOpen(routineIdPtr);
         case RTN_CALL_STRIKE_EX:
         {
-            execHbCallStrikeEx(routineIdPtr);
+            ExecHbCallStrikeEx(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_UNIT_STATUS:
-            return execHbGetUnitStatus(routineIdPtr);
+            return ExecHbGetUnitStatus(routineIdPtr);
         case RTN_REPAIR:
         {
-            execHbRepair(routineIdPtr);
+            ExecHbRepair(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_FIXED:
-            return execHbGetFixed(routineIdPtr);
+            return ExecHbGetFixed(routineIdPtr);
         case RTN_GET_REPAIR_STATE:
-            return execHbGetRepairState(routineIdPtr);
+            return ExecHbGetRepairState(routineIdPtr);
         case RTN_IS_TEAM_TARGETING:
-            return execHbIsTeamTargeting(routineIdPtr);
+            return ExecHbIsTeamTargeting(routineIdPtr);
         case RTN_SEND_MESSAGE:
         {
-            execHbSendMessage(routineIdPtr);
+            ExecHbSendMessage(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_MESSAGE:
-            return execHbGetMessage(routineIdPtr);
+            return ExecHbGetMessage(routineIdPtr);
         case RTN_GET_HOME_TEAM:
-            return execHbGetHomeTeam(routineIdPtr);
+            return ExecHbGetHomeTeam(routineIdPtr);
         case RTN_SET_STRIKES:
         {
-            execHbSetStrikes(routineIdPtr);
+            ExecHbSetStrikes(routineIdPtr);
             return nullptr;
         }
         case RTN_GET_STRIKES:
-            return execHbGetStrikes(routineIdPtr);
+            return ExecHbGetStrikes(routineIdPtr);
         case RTN_IS_SERVER:
-            return execHbIsServer(routineIdPtr);
+            return ExecHbIsServer(routineIdPtr);
         case RTN_ADD_STRIKES:
         {
-            execHbAddStrikes(routineIdPtr);
+            ExecHbAddStrikes(routineIdPtr);
             return nullptr;
         }
         default:
@@ -5175,8 +5174,8 @@ auto execStandardRoutineCall(SymTableNodePtr routineIdPtr) -> TypePtr
             // Original behaviour (OB-050): among others the module name and mode routines, the guard routines, the scans, getmaxarmor,
             // getobjectdmgpts and setcurrentbrvalue compile but have no runtime routine.
             char message[256];
-            std::snprintf(message, sizeof(message), " ABL: Undefined ABL RoutineKey in %s:%d", CurModule->getName(),
-                          execLineNumber);
+            std::snprintf(message, sizeof(message), " ABL: Undefined ABL RoutineKey in %s:%d", CurModule->GetName(),
+                          ExecLineNumber);
             Fatal(0, message);
         }
     }

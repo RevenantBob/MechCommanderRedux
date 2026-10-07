@@ -12,7 +12,7 @@
 #include "terrain/terrain.h"
 #include "vfx/vfxfuncs.h"
 
-int dynamicFrameTiming = 1;
+int DynamicFrameTiming = 1;
 
 namespace
 {
@@ -22,17 +22,17 @@ namespace
     constexpr uint32_t NUM_TILE_SHAPES = 10;
 
     /// <summary>Adds a VFX element of frame <paramref name="frame"/> of <paramref name="shapeTable"/>.</summary>
-    auto addShape(uint8_t* shapeTable, float x, float y, int32_t frame, uint8_t* fadeTable, const char* name) -> void
+    auto AddShape(uint8_t* shapeTable, float x, float y, int32_t frame, uint8_t* fadeTable, const char* name) -> void
     {
-        auto* element = ElementPool::Make<VFXElement>(shapeTable, x, y, frame, 0, fadeTable, 1, 0);
+        auto* element = MCElementPool::Make<MCVfxElement>(shapeTable, x, y, frame, 0, fadeTable, 1, 0);
 
         // Port fix: the original copies the debug name through a null element too.
         if (element != nullptr)
         {
-            strcpy(element->name, name);
+            strcpy(element->Name, name);
         }
 
-        ElementList->add(element);
+        ElementList->Add(element);
     }
 }
 
@@ -40,90 +40,92 @@ namespace
 // VFXBuildingAppearanceType
 //---------------------------------------------------------------------------
 
-auto VFXBuildingAppearanceType::init(File* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
+auto MCVfxBuildingAppearanceType::Init(MCFile* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
 {
-    const int32_t result = loadIniFile(apprFile, fileSize);
+    const int32_t result = LoadIniFile(apprFile, fileSize);
 
     if (result != 0)
     {
         return result;
     }
 
-    keepLoaded = static_cast<int32_t>(loadFlags);
-    numPackets = static_cast<uint32_t>(spriteManager->getNumShapes(appearanceNum & 0xffffff));
+    KeepLoaded = static_cast<int32_t>(loadFlags);
+    NumPackets = static_cast<uint32_t>(SpriteManager->GetNumShapes(AppearanceNum & 0xffffff));
     // Port fix: sized by the port's pointer size (the original: count * 4).
-    shapeList = static_cast<Shape**>(spriteManager->mallocDataRAM(numPackets * static_cast<uint32_t>(sizeof(Shape*))));
+    ShapeList =
+        static_cast<MCShape**>(SpriteManager->MallocDataRam(NumPackets * static_cast<uint32_t>(sizeof(MCShape*))));
 
-    if (shapeList == nullptr)
+    if (ShapeList == nullptr)
     {
         return static_cast<int32_t>(0xbead0002);
     }
 
-    for (uint32_t i = 0; i < numPackets; i++)
+    for (uint32_t i = 0; i < NumPackets; i++)
     {
-        shapeList[i] = nullptr;
+        ShapeList[i] = nullptr;
     }
 
     return 0;
 }
 
-auto VFXBuildingAppearanceType::removeShape(Shape* shape) -> void
+auto MCVfxBuildingAppearanceType::RemoveShape(MCShape* shape) -> void
 {
-    for (int32_t i = 0; i < static_cast<int32_t>(numPackets); i++)
+    for (int32_t i = 0; i < static_cast<int32_t>(NumPackets); i++)
     {
-        if (shapeList[i] == shape)
+        if (ShapeList[i] == shape)
         {
-            shapeList[i] = nullptr;
+            ShapeList[i] = nullptr;
         }
     }
 
-    for (AppearanceUser* user = userList; user != nullptr; user = user->next)
+    for (MCAppearanceUser* user = UserList; user != nullptr; user = user->Next)
     {
-        auto* appearance = static_cast<VFXBuildingAppearance*>(user->user);
+        auto* appearance = static_cast<MCVfxBuildingAppearance*>(user->User);
 
-        if (appearance->currentShape == shape)
+        if (appearance->CurrentShape == shape)
         {
-            appearance->currentShape = nullptr;
+            appearance->CurrentShape = nullptr;
         }
 
-        if (appearance->tileShape == shape)
+        if (appearance->TileShape == shape)
         {
-            appearance->tileShape = nullptr;
+            appearance->TileShape = nullptr;
         }
     }
 }
 
-auto VFXBuildingAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCVfxBuildingAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 50);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.seekBlock("Main Info")) != 0)
+    if ((result = iniFile.SeekBlock("Main Info")) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("NumFrames", numFrames)) != 0)
+    if ((result = iniFile.ReadIdULong("NumFrames", NumFrames)) != 0)
     {
         return result;
     }
 
-    if (iniFile.seekBlock("AnimationInfo") == 0)
+    if (iniFile.SeekBlock("AnimationInfo") == 0)
     {
-        if ((result = iniFile.readIdULong("NumAnimStates", numAnimStates)) != 0)
+        if ((result = iniFile.ReadIdULong("NumAnimStates", NumAnimStates)) != 0)
         {
             return result;
         }
 
-        const uint32_t count = numAnimStates;
-        animStates = static_cast<BuildingAnimState*>(spriteManager->mallocDataRAM(count * sizeof(BuildingAnimState)));
+        const uint32_t count = NumAnimStates;
+        AnimStates =
+            static_cast<MCBuildingAnimState*>(SpriteManager->MallocDataRam(count * sizeof(MCBuildingAnimState)));
 
-        if (animStates == nullptr)
+        if (AnimStates == nullptr)
         {
             return static_cast<int32_t>(0xbead0001);
         }
@@ -133,17 +135,17 @@ auto VFXBuildingAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -
             char blockName[20];
             sprintf(blockName, "AnimState%d", i);
 
-            if ((result = iniFile.seekBlock(blockName)) != 0)
+            if ((result = iniFile.SeekBlock(blockName)) != 0)
             {
                 return result;
             }
 
-            if ((result = iniFile.readIdULong("numFrames", animStates[i].numFrames)) != 0)
+            if ((result = iniFile.ReadIdULong("numFrames", AnimStates[i].NumFrames)) != 0)
             {
                 return result;
             }
 
-            if ((result = iniFile.readIdFloat("frameRate", animStates[i].frameRate)) != 0)
+            if ((result = iniFile.ReadIdFloat("frameRate", AnimStates[i].FrameRate)) != 0)
             {
                 return result;
             }
@@ -151,186 +153,186 @@ auto VFXBuildingAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -
     }
     else
     {
-        numAnimStates = 0;
-        animStates = nullptr;
+        NumAnimStates = 0;
+        AnimStates = nullptr;
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto VFXBuildingAppearanceType::getShape(uint32_t frame) -> Shape*
+auto MCVfxBuildingAppearanceType::GetShape(uint32_t frame) -> MCShape*
 {
     const uint32_t packet = frame + FIRST_FRAME_PACKET;
 
-    if (numPackets <= packet)
+    if (NumPackets <= packet)
     {
         return nullptr;
     }
 
-    Shape* shape = shapeList[packet];
+    MCShape* shape = ShapeList[packet];
 
     if (shape != nullptr)
     {
-        shape->lastTurnUsed = turn;
+        shape->LastTurnUsed = Turn;
         return shape;
     }
 
-    dynamicFrameTiming = 0;
-    shape = spriteManager->getShapeData(appearanceNum & 0xffffff, packet, turn, this, 0);
-    shapeList[packet] = shape;
+    DynamicFrameTiming = 0;
+    shape = SpriteManager->GetShapeData(AppearanceNum & 0xffffff, packet, Turn, this, 0);
+    ShapeList[packet] = shape;
     return shape;
 }
 
-auto VFXBuildingAppearanceType::getTileShape(uint32_t tileNum) -> Shape*
+auto MCVfxBuildingAppearanceType::GetTileShape(uint32_t tileNum) -> MCShape*
 {
-    if (tileNum >= NUM_TILE_SHAPES || numPackets <= tileNum)
+    if (tileNum >= NUM_TILE_SHAPES || NumPackets <= tileNum)
     {
         return nullptr;
     }
 
-    Shape* shape = shapeList[tileNum];
+    MCShape* shape = ShapeList[tileNum];
 
     if (shape != nullptr)
     {
-        shape->lastTurnUsed = turn;
+        shape->LastTurnUsed = Turn;
         return shape;
     }
 
-    dynamicFrameTiming = 0;
-    shape = spriteManager->getShapeData(appearanceNum & 0xffffff, tileNum, turn, this, 0);
-    shapeList[tileNum] = shape;
+    DynamicFrameTiming = 0;
+    shape = SpriteManager->GetShapeData(AppearanceNum & 0xffffff, tileNum, Turn, this, 0);
+    ShapeList[tileNum] = shape;
     return shape;
 }
 
-auto VFXBuildingAppearanceType::destroy() -> void
+auto MCVfxBuildingAppearanceType::Destroy() -> void
 {
     // The shapes stay in the sprite manager's cache, ownerless.
-    for (int32_t i = 0; i < static_cast<int32_t>(numPackets); i++)
+    for (int32_t i = 0; i < static_cast<int32_t>(NumPackets); i++)
     {
-        if (shapeList[i] != nullptr)
+        if (ShapeList[i] != nullptr)
         {
-            shapeList[i]->owner = nullptr;
+            ShapeList[i]->Owner = nullptr;
         }
     }
 
     // Faithful: the animation states are not freed (they go with the data heap).
-    spriteManager->freeDataRAM(shapeList);
-    shapeList = nullptr;
+    SpriteManager->FreeDataRam(ShapeList);
+    ShapeList = nullptr;
 }
 
 //---------------------------------------------------------------------------
 // VFXBuildingAppearance
 //---------------------------------------------------------------------------
 
-auto VFXBuildingAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
+auto MCVfxBuildingAppearance::Init(MCAppearanceType* tree, MCGameObject* obj) -> int32_t
 {
-    fadeTable = nullptr;
-    damageSet = 0;
-    damageLevel = 0;
-    inView = 0;
-    animState = -1;
-    const int32_t result = VFXAppearance::init(tree, obj);
-    buildType = static_cast<VFXBuildingAppearanceType*>(tree);
+    FadeTable = nullptr;
+    DamageSet = 0;
+    DamageLevel = 0;
+    InView = 0;
+    AnimState = -1;
+    const int32_t result = MCVfxAppearance::Init(tree, obj);
+    BuildType = static_cast<MCVfxBuildingAppearanceType*>(tree);
     return result;
 }
 
-auto VFXBuildingAppearance::update() -> int32_t
+auto MCVfxBuildingAppearance::Update() -> int32_t
 {
-    if (visible != 0 && owner->isCaptured() != 0 && highlighted == 0 && highlighting == 0)
+    if (Visible != 0 && Owner->IsCaptured() != 0 && Highlighted == 0 && Highlighting == 0)
     {
-        highlighting = 1;
-        highlightTime = 3.0f;
+        Highlighting = 1;
+        HighlightTime = 3.0f;
     }
 
     return 1;
 }
 
-auto VFXBuildingAppearance::setDamageLvl(uint32_t newDamageLevel) -> void
+auto MCVfxBuildingAppearance::SetDamageLvl(uint32_t newDamageLevel) -> void
 {
-    damageSet = 1;
+    DamageSet = 1;
     const uint32_t level = newDamageLevel & 0xf;
-    damageLevel = level;
+    DamageLevel = level;
 
-    if (level != 0 && buildType->numFrames <= level)
+    if (level != 0 && BuildType->NumFrames <= level)
     {
-        damageLevel = buildType->numFrames - 1;
+        DamageLevel = BuildType->NumFrames - 1;
     }
 
-    if (tileNum > 9)
+    if (TileNum > 9)
     {
-        tileNum = 0;
+        TileNum = 0;
     }
 }
 
-auto VFXBuildingAppearance::recalcBounds(Camera*) -> int
+auto MCVfxBuildingAppearance::RecalcBounds(MCCamera*) -> int
 {
     // Faithful: without a tile shape the visibility test takes in the previous shape's bounds.
-    float tileMinX = shapeMinX;
-    float tileMinY = shapeMinY;
-    float tileMaxX = shapeMaxX;
-    float tileMaxY = shapeMaxY;
+    float tileMinX = ShapeMinX;
+    float tileMinY = ShapeMinY;
+    float tileMaxX = ShapeMaxX;
+    float tileMaxY = ShapeMaxY;
     int result = 0;
 
-    if (currentShape != nullptr && currentShape->frameList != nullptr)
+    if (CurrentShape != nullptr && CurrentShape->FrameList != nullptr)
     {
-        uint8_t* shapeTable = currentShape->frameList;
-        result = VFX_shape_minxy(shapeTable, 0);
-        shapeMinX = static_cast<float>(result >> 16);
-        shapeMinY = static_cast<float>(static_cast<int16_t>(result));
-        result = VFX_shape_resolution(shapeTable, 0);
-        shapeMaxX = static_cast<float>(result >> 16);
-        shapeMaxY = static_cast<float>(static_cast<int16_t>(result));
+        uint8_t* shapeTable = CurrentShape->FrameList;
+        result = VfxShapeMinxy(shapeTable, 0);
+        ShapeMinX = static_cast<float>(result >> 16);
+        ShapeMinY = static_cast<float>(static_cast<int16_t>(result));
+        result = VfxShapeResolution(shapeTable, 0);
+        ShapeMaxX = static_cast<float>(result >> 16);
+        ShapeMaxY = static_cast<float>(static_cast<int16_t>(result));
 
-        if (tileShape != nullptr && tileShape->frameList != nullptr)
+        if (TileShape != nullptr && TileShape->FrameList != nullptr)
         {
-            uint8_t* tileTable = tileShape->frameList;
-            result = VFX_shape_minxy(tileTable, 0);
+            uint8_t* tileTable = TileShape->FrameList;
+            result = VfxShapeMinxy(tileTable, 0);
             tileMinX = static_cast<float>(result >> 16);
             tileMinY = static_cast<float>(static_cast<int16_t>(result));
-            result = VFX_shape_resolution(tileTable, 0);
+            result = VfxShapeResolution(tileTable, 0);
             tileMaxX = static_cast<float>(result >> 16);
             tileMaxY = static_cast<float>(static_cast<int16_t>(result));
         }
 
-        inView = 1;
+        InView = 1;
     }
 
-    if (eye == nullptr)
+    if (Eye == nullptr)
     {
         return result;
     }
 
     // Faithful: the camera passed in is ignored; the eye's zoom and screen position 0 are used.
-    Building* building = owner->objectClass == BUILDING ? static_cast<Building*>(owner) : nullptr;
-    const float scale = eye->cameraScale == 1 ? 0.5f : 1.0f;
-    const vector_2d pos = owner->getScreenPos(0);
-    float x = pos.x;
-    float y = pos.y;
+    MCBuilding* building = Owner->ObjectClass == BUILDING ? static_cast<MCBuilding*>(Owner) : nullptr;
+    const float scale = Eye->CameraScale == 1 ? 0.5f : 1.0f;
+    const MCVector2D pos = Owner->GetScreenPos(0);
+    float x = pos.X;
+    float y = pos.Y;
 
     if (building != nullptr)
     {
-        x = static_cast<float>(building->pixelOffsetX) * scale + x;
-        y = static_cast<float>(building->pixelOffsetY) * scale + y;
+        x = static_cast<float>(building->PixelOffsetX) * scale + x;
+        y = static_cast<float>(building->PixelOffsetY) * scale + y;
     }
 
-    upperLeft.x = scale * shapeMinX + x;
-    upperLeft.y = scale * shapeMinY + y;
-    lowerRight.x = scale * shapeMaxX + upperLeft.x;
-    lowerRight.y = scale * shapeMaxY + upperLeft.y;
+    UpperLeft.X = scale * ShapeMinX + x;
+    UpperLeft.Y = scale * ShapeMinY + y;
+    LowerRight.X = scale * ShapeMaxX + UpperLeft.X;
+    LowerRight.Y = scale * ShapeMaxY + UpperLeft.Y;
 
     // On screen when the building or its tile is.
-    const float minX = shapeMinX > tileMinX ? tileMinX : shapeMinX;
-    const float minY = shapeMinY > tileMinY ? tileMinY : shapeMinY;
-    const float maxX = shapeMaxX < tileMaxX ? tileMaxX : shapeMaxX;
-    const float maxY = shapeMaxY < tileMaxY ? tileMaxY : shapeMaxY;
+    const float minX = ShapeMinX > tileMinX ? tileMinX : ShapeMinX;
+    const float minY = ShapeMinY > tileMinY ? tileMinY : ShapeMinY;
+    const float maxX = ShapeMaxX < tileMaxX ? tileMaxX : ShapeMaxX;
+    const float maxY = ShapeMaxY < tileMaxY ? tileMaxY : ShapeMaxY;
     const float left = minX * scale + x;
     const float top = minY * scale + y;
     const float bottom = maxY * scale + top;
 
     if (0.0f <= maxX * scale + left && 0.0f <= bottom &&
-        left <= static_cast<float>(static_cast<int32_t>(std::floor(eye->viewWidth))) &&
-        top <= static_cast<float>(static_cast<int32_t>(std::floor(eye->viewHeight))))
+        left <= static_cast<float>(static_cast<int32_t>(std::floor(Eye->ViewWidth))) &&
+        top <= static_cast<float>(static_cast<int32_t>(std::floor(Eye->ViewHeight))))
     {
         return 1;
     }
@@ -338,31 +340,31 @@ auto VFXBuildingAppearance::recalcBounds(Camera*) -> int
     return result;
 }
 
-auto VFXBuildingAppearance::calcCollideBounds() -> void
+auto MCVfxBuildingAppearance::CalcCollideBounds() -> void
 {
     float offsetX = 0.0f;
     float offsetY = 0.0f;
-    GameObject* obj = owner;
+    MCGameObject* obj = Owner;
 
-    if (obj->objectClass == BUILDING && obj != nullptr)
+    if (obj->ObjectClass == BUILDING && obj != nullptr)
     {
-        offsetX = static_cast<float>(static_cast<Building*>(obj)->pixelOffsetX);
-        offsetY = static_cast<float>(static_cast<Building*>(obj)->pixelOffsetY);
+        offsetX = static_cast<float>(static_cast<MCBuilding*>(obj)->PixelOffsetX);
+        offsetY = static_cast<float>(static_cast<MCBuilding*>(obj)->PixelOffsetY);
     }
 
-    upperLeft.x = offsetX;
-    upperLeft.y = offsetY;
-    lowerRight.y = offsetY;
-    lowerRight.x = offsetX;
+    UpperLeft.X = offsetX;
+    UpperLeft.Y = offsetY;
+    LowerRight.Y = offsetY;
+    LowerRight.X = offsetX;
 
-    if (currentShape == nullptr || currentShape->frameList == nullptr)
+    if (CurrentShape == nullptr || CurrentShape->FrameList == nullptr)
     {
         return;
     }
 
-    uint8_t* shapeTable = currentShape->frameList;
-    int32_t frame = currentFrame;
-    const int32_t numShapeFrames = VFX_shape_count(shapeTable);
+    uint8_t* shapeTable = CurrentShape->FrameList;
+    int32_t frame = CurrentFrame;
+    const int32_t numShapeFrames = VfxShapeCount(shapeTable);
 
     if (frame == -1)
     {
@@ -374,118 +376,118 @@ auto VFXBuildingAppearance::calcCollideBounds() -> void
         frame = numShapeFrames - 1;
     }
 
-    const int32_t minXY = VFX_shape_minxy(shapeTable, frame);
-    upperLeft.x = static_cast<float>(minXY >> 16) + offsetX;
-    upperLeft.y = static_cast<float>(static_cast<int16_t>(minXY)) + offsetY;
-    const int32_t size = VFX_shape_resolution(shapeTable, frame);
-    lowerRight.x = static_cast<float>(size >> 16) + upperLeft.x;
-    lowerRight.y = static_cast<float>(static_cast<int16_t>(size)) + upperLeft.y;
+    const int32_t minXY = VfxShapeMinxy(shapeTable, frame);
+    UpperLeft.X = static_cast<float>(minXY >> 16) + offsetX;
+    UpperLeft.Y = static_cast<float>(static_cast<int16_t>(minXY)) + offsetY;
+    const int32_t size = VfxShapeResolution(shapeTable, frame);
+    LowerRight.X = static_cast<float>(size >> 16) + UpperLeft.X;
+    LowerRight.Y = static_cast<float>(static_cast<int16_t>(size)) + UpperLeft.Y;
 }
 
-auto VFXBuildingAppearance::render(int32_t) -> int32_t
+auto MCVfxBuildingAppearance::Render(int32_t) -> int32_t
 {
-    Building* building = nullptr;
+    MCBuilding* building = nullptr;
 
-    if (owner->objectClass == BUILDING && owner != nullptr)
+    if (Owner->ObjectClass == BUILDING && Owner != nullptr)
     {
-        building = static_cast<Building*>(owner);
-        screenPos = building->getScreenPos(eye->cameraId - 1);
+        building = static_cast<MCBuilding*>(Owner);
+        ScreenPos = building->GetScreenPos(Eye->CameraId - 1);
     }
 
-    VFXBuildingAppearanceType* type = buildType;
-    Shape* shape = type->getShape(damageLevel);
-    currentShape = shape;
-    Shape* tile = type->getTileShape(tileNum);
-    tileShape = tile;
-    const float scale = eye->cameraScale == 1 ? 0.5f : 1.0f;
+    MCVfxBuildingAppearanceType* type = BuildType;
+    MCShape* shape = type->GetShape(DamageLevel);
+    CurrentShape = shape;
+    MCShape* tile = type->GetTileShape(TileNum);
+    TileShape = tile;
+    const float scale = Eye->CameraScale == 1 ? 0.5f : 1.0f;
     const bool fullSize = scale == 1.0;
 
     // The tile goes under everything; zoomed out uses the table's second (small) frame.
-    ElementList->openGroup(20000000, 1);
+    ElementList->OpenGroup(20000000, 1);
 
-    if (tile != nullptr && tile->frameList != nullptr)
+    if (tile != nullptr && tile->FrameList != nullptr)
     {
-        addShape(tile->frameList, screenPos.x, screenPos.y, fullSize ? 0 : 1, fadeTable,
+        AddShape(tile->FrameList, ScreenPos.X, ScreenPos.Y, fullSize ? 0 : 1, FadeTable,
                  fullSize ? "bactor1" : "bactor2");
     }
 
     if (building != nullptr)
     {
-        screenPos.x = static_cast<float>(building->pixelOffsetX) * scale + screenPos.x;
-        screenPos.y = static_cast<float>(building->pixelOffsetY) * scale + screenPos.y;
+        ScreenPos.X = static_cast<float>(building->PixelOffsetX) * scale + ScreenPos.X;
+        ScreenPos.Y = static_cast<float>(building->PixelOffsetY) * scale + ScreenPos.Y;
     }
 
-    if (shape != nullptr && shape->frameList != nullptr)
+    if (shape != nullptr && shape->FrameList != nullptr)
     {
-        if (animState == -1)
+        if (AnimState == -1)
         {
-            ElementList->openGroup(static_cast<int32_t>(-screenPos.y), 1);
-            addShape(shape->frameList, screenPos.x, screenPos.y, fullSize ? 0 : 1, fadeTable,
+            ElementList->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
+            AddShape(shape->FrameList, ScreenPos.X, ScreenPos.Y, fullSize ? 0 : 1, FadeTable,
                      fullSize ? "bactor4" : "bactor5");
         }
         else
         {
-            const int32_t numShapeFrames = VFX_shape_count(shape->frameList);
+            const int32_t numShapeFrames = VfxShapeCount(shape->FrameList);
 
-            if (numShapeFrames <= currentFrame)
+            if (numShapeFrames <= CurrentFrame)
             {
-                currentFrame = numShapeFrames - 1;
+                CurrentFrame = numShapeFrames - 1;
             }
 
-            ElementList->openGroup(static_cast<int32_t>(-screenPos.y), 1);
-            addShape(shape->frameList, screenPos.x, screenPos.y, currentFrame, fadeTable, "bactor3");
+            ElementList->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
+            AddShape(shape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame, FadeTable, "bactor3");
         }
     }
 
-    if (owner->selected == 1 || owner->getNumAttackers() > 0)
+    if (Owner->Selected == 1 || Owner->GetNumAttackers() > 0)
     {
-        drawBars();
+        DrawBars();
     }
 
-    GameObject* obj = owner;
+    MCGameObject* obj = Owner;
 
-    if (obj != nullptr && obj->selected != 0)
+    if (obj != nullptr && obj->Selected != 0)
     {
-        const int32_t homeAlignment = homeTeam->alignment;
+        const int32_t homeAlignment = HomeTeam->Alignment;
 
-        if (obj->getAlignment() != homeAlignment && obj->getAlignment() != 0 && static_cast<uint8_t>(obj->status) != 2)
+        if (obj->GetAlignment() != homeAlignment && obj->GetAlignment() != 0 && static_cast<uint8_t>(obj->Status) != 2)
         {
-            recalcBounds(eye);
-            drawSelectBrackets(0xcf);
+            RecalcBounds(Eye);
+            DrawSelectBrackets(0xcf);
         }
         else
         {
-            recalcBounds(eye);
-            drawSelectBox(0xe1);
+            RecalcBounds(Eye);
+            DrawSelectBox(0xe1);
         }
     }
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
-        drawSelectBox(0xe1);
+        DrawSelectBox(0xe1);
     }
 
-    if (highlighting != 0)
+    if (Highlighting != 0)
     {
-        if (highlightTime > 0.0f)
+        if (HighlightTime > 0.0f)
         {
-            highlightTime -= frameLength;
-            drawSelectBox(0xfc);
+            HighlightTime -= FrameLength;
+            DrawSelectBox(0xfc);
             return 0;
         }
 
-        highlighted = 1;
+        Highlighted = 1;
     }
 
     return 0;
 }
 
-auto VFXBuildingAppearance::destroy() -> void
+auto MCVfxBuildingAppearance::Destroy() -> void
 {
-    appearType->removeUsers(this);
+    AppearType->RemoveUsers(this);
 }
 
-auto VFXBuildingAppearance::drawBars() -> void
+auto MCVfxBuildingAppearance::DrawBars() -> void
 {
-    MCDrawDamageBar(this, getAppearanceType(), owner);
+    MCDrawDamageBar(this, GetAppearanceType(), Owner);
 }

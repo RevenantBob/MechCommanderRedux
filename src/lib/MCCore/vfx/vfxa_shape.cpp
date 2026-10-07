@@ -4,12 +4,12 @@
 // VFX's shape routines (vfxa.asm in MCX.EXE): drawing, translating, measuring and encoding the run-length shapes the
 // game's sprites, buttons and cursors are stored as.
 
-uint8_t VFXShapeLookaside[256];
+uint8_t VfxShapeLookasideTable[256];
 
 namespace
 {
     /// <summary>A shape's header fields, read from the table.</summary>
-    struct ShapeInfo
+    struct MCShapeInfo
     {
         const uint8_t* Header;
         int32_t XMin;
@@ -20,9 +20,9 @@ namespace
         const uint8_t* Data;
     };
 
-    ShapeInfo ReadShape(void* shapeTable, int32_t shapeNum)
+    MCShapeInfo ReadShape(void* shapeTable, int32_t shapeNum)
     {
-        ShapeInfo info;
+        MCShapeInfo info;
         info.Header = MCVfxShape(shapeTable, shapeNum);
         info.XMin = MCVfxRead32(info.Header + 0x08);
         info.YMin = MCVfxRead32(info.Header + 0x0c);
@@ -36,7 +36,7 @@ namespace
     /// The common body of VFX_shape_draw and VFX_shape_translate_draw (the latter with the lookaside table as
     /// <paramref name="xlat"/>).
     /// </summary>
-    int32_t DrawShape(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, const uint8_t* xlat)
+    int32_t DrawShape(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, const uint8_t* xlat)
     {
         MCVfxClip clip;
         const int32_t status = MCVfxClipPane(pane, clip);
@@ -48,7 +48,7 @@ namespace
 
         hotX += clip.PaneX;
         hotY += clip.PaneY;
-        const ShapeInfo shape = ReadShape(shapeTable, shapeNum);
+        const MCShapeInfo shape = ReadShape(shapeTable, shapeNum);
         const int32_t x0 = shape.XMin + hotX;
         const int32_t y0 = shape.YMin + hotY;
         const int32_t x1 = shape.XMax + hotX;
@@ -89,31 +89,31 @@ namespace
         command.Hi = clip.X1;
         command.Op = xlat != nullptr ? MCShapeOp::Xlat : MCShapeOp::Draw;
         command.Table = xlat;
-        MCRenderer::For(pane->window).Shape(pane->window, command);
+        MCRenderer::For(pane->Window).Shape(pane->Window, command);
         return 0;
     }
 }
 
-int32_t VFX_shape_draw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
+int32_t VfxShapeDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
 {
     return DrawShape(pane, shapeTable, shapeNum, hotX, hotY, nullptr);
 }
 
-void VFX_shape_lookaside(uint8_t* table)
+void VfxShapeLookaside(uint8_t* table)
 {
-    std::memcpy(VFXShapeLookaside, table, sizeof(VFXShapeLookaside));
+    std::memcpy(VfxShapeLookasideTable, table, sizeof(VfxShapeLookasideTable));
     // The copy is the table draws read: registered (again) as new bytes.
-    MCRenderer::RegisterData(VFXShapeLookaside, sizeof(VFXShapeLookaside), MCDataKind::Tables);
+    MCRenderer::RegisterData(VfxShapeLookasideTable, sizeof(VfxShapeLookasideTable), MCDataKind::Tables);
 }
 
-int32_t VFX_shape_translate_draw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
+int32_t VfxShapeTranslateDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
 {
-    return DrawShape(pane, shapeTable, shapeNum, hotX, hotY, VFXShapeLookaside);
+    return DrawShape(pane, shapeTable, shapeNum, hotX, hotY, VfxShapeLookasideTable);
 }
 
-int32_t VFX_shape_remap_colors(void* shapeTable, int32_t shapeNum)
+int32_t VfxShapeRemapColors(void* shapeTable, int32_t shapeNum)
 {
-    const ShapeInfo shape = ReadShape(shapeTable, shapeNum);
+    const MCShapeInfo shape = ReadShape(shapeTable, shapeNum);
     uint8_t* data = const_cast<uint8_t*>(shape.Data);
 
     for (int32_t rows = shape.YMax + 1 - shape.YMin; rows > 0; --rows)
@@ -136,12 +136,12 @@ int32_t VFX_shape_remap_colors(void* shapeTable, int32_t shapeNum)
             {
                 for (uint32_t i = 0; i < count; ++i, ++data)
                 {
-                    *data = VFXShapeLookaside[*data];
+                    *data = VfxShapeLookasideTable[*data];
                 }
             }
             else
             {
-                *data = VFXShapeLookaside[*data];
+                *data = VfxShapeLookasideTable[*data];
                 ++data;
             }
         }
@@ -152,15 +152,15 @@ int32_t VFX_shape_remap_colors(void* shapeTable, int32_t shapeNum)
     return 0;
 }
 
-int32_t VFX_shape_visible_rectangle(void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, int32_t mirror,
-                                    int32_t* rectangle)
+int32_t VfxShapeVisibleRectangle(void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, int32_t mirror,
+                                 int32_t* rectangle)
 {
     int32_t left = 0;
     int32_t top = 0;
     int32_t right = 0;
     int32_t bottom = 0;
 
-    const ShapeInfo shape = ReadShape(shapeTable, shapeNum);
+    const MCShapeInfo shape = ReadShape(shapeTable, shapeNum);
     int32_t rows = shape.YMax + 1 - shape.YMin;
 
     if (rows > 0)
@@ -229,7 +229,7 @@ namespace
     /// The state VFX's shape encoder kept in globals between ScanLine and FlushPacket (0x007a810d..0x007a8141 in
     /// MCX.EXE).
     /// </summary>
-    struct ShapeScanner
+    struct MCShapeScanner
     {
         /// <summary>Where packets go; null only measures (the asm's flag at 0x007a810d).</summary>
         uint8_t* Buffer = nullptr;
@@ -267,7 +267,7 @@ namespace
         }
 
         /// <summary>
-        /// FlushPacket (MCX.EXE @ 0x0076f5ef): 0 starts a row, 1 writes the pixels from PacketStart to
+        /// FlushPacket: 0 starts a row, 1 writes the pixels from PacketStart to
         /// ScanPos - <paramref name="holdBack"/> as literals, 2 as runs of their first colour, 3 records them as
         /// pending skips, 4 ends the row.
         /// </summary>
@@ -330,7 +330,7 @@ namespace
         }
 
         /// <summary>
-        /// ScanLine (MCX.EXE @ 0x0076f466): encodes <paramref name="width"/> pixels from <see cref="Row"/>. Pixels
+        /// ScanLine: encodes <paramref name="width"/> pixels from <see cref="Row"/>. Pixels
         /// of <paramref name="transparent"/> become skips (trailing ones are dropped); three or more equal pixels, or
         /// two starting a packet, become a run; anything else literals.
         /// </summary>
@@ -519,7 +519,7 @@ namespace
     }
 }
 
-int32_t VFX_shape_scan_asm(PANE* pane, uint8_t transparentColor, int32_t hotX, int32_t hotY, void* buffer)
+int32_t VfxShapeScanAsm(MCPane* pane, uint8_t transparentColor, int32_t hotX, int32_t hotY, void* buffer)
 {
     MCVfxClip clip;
     const int32_t status = MCVfxClipPane(pane, clip);
@@ -541,7 +541,7 @@ int32_t VFX_shape_scan_asm(PANE* pane, uint8_t transparentColor, int32_t hotX, i
     {
         // Bounds and origin words; the extent is the pane's (unclipped) size less one.
         const uint32_t bounds =
-            (static_cast<uint32_t>(pane->x1 - pane->x0) << 16) | static_cast<uint16_t>(pane->y1 - pane->y0);
+            (static_cast<uint32_t>(pane->X1 - pane->X0) << 16) | static_cast<uint16_t>(pane->Y1 - pane->Y0);
         const uint32_t origin = (static_cast<uint32_t>(hotX) << 16) | static_cast<uint16_t>(hotY);
         Write32(out + 0x00, static_cast<int32_t>(bounds));
         Write32(out + 0x04, static_cast<int32_t>(origin));
@@ -602,7 +602,7 @@ int32_t VFX_shape_scan_asm(PANE* pane, uint8_t transparentColor, int32_t hotX, i
     }
 
     // Pass 2: encode the rows of the bounding box.
-    ShapeScanner scanner;
+    MCShapeScanner scanner;
     scanner.Buffer = out;
     scanner.Out = 0x18;
     const int32_t rowWidth = wrap(maxX, minX) + 1;
@@ -616,27 +616,27 @@ int32_t VFX_shape_scan_asm(PANE* pane, uint8_t transparentColor, int32_t hotX, i
     return static_cast<int32_t>(scanner.Out);
 }
 
-int32_t VFX_shape_bounds(void* shapeTable, int32_t shapeNum)
+int32_t VfxShapeBounds(void* shapeTable, int32_t shapeNum)
 {
     return MCVfxRead32(MCVfxShape(shapeTable, shapeNum));
 }
 
-int32_t VFX_shape_origin(void* shapeTable, int32_t shapeNum)
+int32_t VfxShapeOrigin(void* shapeTable, int32_t shapeNum)
 {
     return MCVfxRead32(MCVfxShape(shapeTable, shapeNum) + 4);
 }
 
-int32_t VFX_shape_resolution(void* shapeTable, int32_t shapeNum)
+int32_t VfxShapeResolution(void* shapeTable, int32_t shapeNum)
 {
-    const ShapeInfo shape = ReadShape(shapeTable, shapeNum);
+    const MCShapeInfo shape = ReadShape(shapeTable, shapeNum);
     const uint32_t width = static_cast<uint32_t>(shape.XMax - shape.XMin + 1);
     const uint32_t height = static_cast<uint32_t>(shape.YMax - shape.YMin + 1);
     return static_cast<int32_t>((width << 16) | (height & 0xffff));
 }
 
-int32_t VFX_shape_minxy(void* shapeTable, int32_t shapeNum)
+int32_t VfxShapeMinxy(void* shapeTable, int32_t shapeNum)
 {
-    const ShapeInfo shape = ReadShape(shapeTable, shapeNum);
+    const MCShapeInfo shape = ReadShape(shapeTable, shapeNum);
     return static_cast<int32_t>((static_cast<uint32_t>(shape.XMin) << 16) | static_cast<uint16_t>(shape.YMin));
 }
 
@@ -651,7 +651,7 @@ namespace
     }
 }
 
-void VFX_shape_palette(void* shapeTable, int32_t shapeNum, VFX_RGB* palette)
+void VfxShapePalette(void* shapeTable, int32_t shapeNum, MCVfxRgb* palette)
 {
     const uint8_t* block = ShapePalette(shapeTable, shapeNum);
 
@@ -666,12 +666,12 @@ void VFX_shape_palette(void* shapeTable, int32_t shapeNum, VFX_RGB* palette)
 
     do
     {
-        palette[block[0]] = VFX_RGB{block[1], block[2], block[3]};
+        palette[block[0]] = MCVfxRgb{block[1], block[2], block[3]};
         block += 4;
     } while (--count != 0);
 }
 
-int32_t VFX_shape_colors(void* shapeTable, int32_t shapeNum, VFX_CRGB* colors)
+int32_t VfxShapeColors(void* shapeTable, int32_t shapeNum, MCVfxCrgb* colors)
 {
     const uint8_t* block = ShapePalette(shapeTable, shapeNum);
 
@@ -684,13 +684,13 @@ int32_t VFX_shape_colors(void* shapeTable, int32_t shapeNum, VFX_CRGB* colors)
 
     if (colors != nullptr)
     {
-        std::memcpy(colors, block + 4, static_cast<size_t>(count) * sizeof(VFX_CRGB));
+        std::memcpy(colors, block + 4, static_cast<size_t>(count) * sizeof(MCVfxCrgb));
     }
 
     return count;
 }
 
-int32_t VFX_shape_set_colors(void* shapeTable, int32_t shapeNum, VFX_CRGB* colors)
+int32_t VfxShapeSetColors(void* shapeTable, int32_t shapeNum, MCVfxCrgb* colors)
 {
     uint8_t* block = ShapePalette(shapeTable, shapeNum);
 
@@ -703,13 +703,13 @@ int32_t VFX_shape_set_colors(void* shapeTable, int32_t shapeNum, VFX_CRGB* color
 
     if (colors != nullptr)
     {
-        std::memcpy(block + 4, colors, static_cast<size_t>(count) * sizeof(VFX_CRGB));
+        std::memcpy(block + 4, colors, static_cast<size_t>(count) * sizeof(MCVfxCrgb));
     }
 
     return count;
 }
 
-int32_t VFX_shape_count(void* shapeTable)
+int32_t VfxShapeCount(void* shapeTable)
 {
     return MCVfxRead32(static_cast<uint8_t*>(shapeTable) + 4);
 }
@@ -760,12 +760,12 @@ namespace
     }
 }
 
-int32_t VFX_shape_list(void* shapeTable, uint32_t* indexList)
+int32_t VfxShapeList(void* shapeTable, uint32_t* indexList)
 {
     return ListDistinct(shapeTable, 0, indexList);
 }
 
-int32_t VFX_shape_palette_list(void* shapeTable, uint32_t* indexList)
+int32_t VfxShapePaletteList(void* shapeTable, uint32_t* indexList)
 {
     return ListDistinct(shapeTable, 4, indexList);
 }

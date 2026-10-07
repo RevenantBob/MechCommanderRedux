@@ -1,24 +1,24 @@
 #include "stdafx.h"
 #include "object/mechctrl.h"
 
-auto MechControlData::init(int32_t) -> int32_t
+auto MCMechControlData::Init(int32_t) -> int32_t
 {
     return 0;
 }
 
-auto MechControlData::destroy() -> void
+auto MCMechControlData::Destroy() -> void
 {
 }
 
-auto MechControlData::reset() -> void
+auto MCMechControlData::Reset() -> void
 {
-    gestureGoal = -1;
-    buttonState &= 0xfffffff8;
-    torsoRotate = 0;
-    rotate = 0;
-    leftArmRotate = 0;
-    rightArmRotate = 0;
-    blowRightArm = 0;
-    blowLeftArm = 0;
-    pivot = 0;
+    GestureGoal = -1;
+    ButtonState &= 0xfffffff8;
+    TorsoRotate = 0;
+    Rotate = 0;
+    LeftArmRotate = 0;
+    RightArmRotate = 0;
+    BlowRightArm = 0;
+    BlowLeftArm = 0;
+    Pivot = 0;
 }

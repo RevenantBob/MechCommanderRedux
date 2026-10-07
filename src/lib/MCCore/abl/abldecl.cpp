@@ -9,250 +9,250 @@
 #include "abl/ablsymt.h"
 #include "lib/aerror.h"
 
-TokenCodeType followRoutineList[] = {TKN_SEMICOLON, TKN_EOF, TKN_NONE};
-TokenCodeType followDeclarationList[] = {TKN_SEMICOLON, TKN_IDENTIFIER, TKN_EOF, TKN_NONE};
-TokenCodeType followVariablesList[] = {TKN_SEMICOLON, TKN_IDENTIFIER, TKN_EOF, TKN_NONE};
-TokenCodeType followVarBlockList[] = {TKN_FUNCTION, TKN_CODE, TKN_EOF, TKN_NONE};
-TokenCodeType followDimensionList[] = {TKN_COMMA, TKN_RBRACKET, TKN_EOF, TKN_NONE};
-TokenCodeType indexTypeStartList[] = {TKN_IDENTIFIER, TKN_NUMBER, TKN_NONE};
-TokenCodeType declarationStartList[] = {TKN_CONST, TKN_VAR, TKN_FUNCTION, TKN_NONE};
+MCTokenCodeType FollowRoutineList[] = {TKN_SEMICOLON, TKN_EOF, TKN_NONE};
+MCTokenCodeType FollowDeclarationList[] = {TKN_SEMICOLON, TKN_IDENTIFIER, TKN_EOF, TKN_NONE};
+MCTokenCodeType FollowVariablesList[] = {TKN_SEMICOLON, TKN_IDENTIFIER, TKN_EOF, TKN_NONE};
+MCTokenCodeType FollowVarBlockList[] = {TKN_FUNCTION, TKN_CODE, TKN_EOF, TKN_NONE};
+MCTokenCodeType FollowDimensionList[] = {TKN_COMMA, TKN_RBRACKET, TKN_EOF, TKN_NONE};
+MCTokenCodeType IndexTypeStartList[] = {TKN_IDENTIFIER, TKN_NUMBER, TKN_NONE};
+MCTokenCodeType DeclarationStartList[] = {TKN_CONST, TKN_VAR, TKN_FUNCTION, TKN_NONE};
 
 namespace
 {
     /// <summary>After a definition: a semicolon is skipped; a missing one is reported if a declaration or statement
     /// follows.</summary>
-    auto skipSemicolon() -> void
+    auto SkipSemicolon() -> void
     {
-        if (curToken == TKN_SEMICOLON)
+        if (CurToken == TKN_SEMICOLON)
         {
-            getToken();
+            GetToken();
         }
-        else if (tokenIn(declarationStartList) || tokenIn(statementStartList))
+        else if (TokenIn(DeclarationStartList) || TokenIn(StatementStartList))
         {
-            syntaxError(ABL_ERR_SYNTAX_MISSING_SEMICOLON);
+            SyntaxError(ABL_ERR_SYNTAX_MISSING_SEMICOLON);
         }
     }
 }
 
-auto ifTokenGet(TokenCodeType tokenCode) -> void
+auto IfTokenGet(MCTokenCodeType tokenCode) -> void
 {
-    if (curToken == tokenCode)
+    if (CurToken == tokenCode)
     {
-        getToken();
+        GetToken();
     }
 }
 
-auto ifTokenGetElseError(TokenCodeType tokenCode, SyntaxErrorType errorCode) -> void
+auto IfTokenGetElseError(MCTokenCodeType tokenCode, MCSyntaxErrorType errorCode) -> void
 {
-    if (curToken == tokenCode)
+    if (CurToken == tokenCode)
     {
-        getToken();
+        GetToken();
     }
     else
     {
-        syntaxError(errorCode);
+        SyntaxError(errorCode);
     }
 }
 
-auto declarations(SymTableNodePtr routineIdPtr, int allowFunctions) -> void
+auto Declarations(MCSymTableNodePtr routineIdPtr, int allowFunctions) -> void
 {
-    if (curToken == TKN_CONST)
+    if (CurToken == TKN_CONST)
     {
-        getToken();
-        constDefinitions();
+        GetToken();
+        ConstDefinitions();
     }
 
-    if (curToken == TKN_TYPE)
+    if (CurToken == TKN_TYPE)
     {
-        getToken();
-        typeDefinitions();
+        GetToken();
+        TypeDefinitions();
     }
 
-    if (curToken == TKN_VAR)
+    if (CurToken == TKN_VAR)
     {
-        getToken();
-        varDeclarations(routineIdPtr);
+        GetToken();
+        VarDeclarations(routineIdPtr);
     }
 
     if (allowFunctions == 0)
     {
-        if (curToken == TKN_FUNCTION)
+        if (CurToken == TKN_FUNCTION)
         {
-            syntaxError(ABL_ERR_SYNTAX_NO_FUNCTION_NESTING);
+            SyntaxError(ABL_ERR_SYNTAX_NO_FUNCTION_NESTING);
         }
 
         return;
     }
-    while (curToken == TKN_FUNCTION)
+    while (CurToken == TKN_FUNCTION)
     {
-        routine();
-        synchronize(followRoutineList, declarationStartList, statementStartList);
-        skipSemicolon();
+        Routine();
+        Synchronize(FollowRoutineList, DeclarationStartList, StatementStartList);
+        SkipSemicolon();
     }
 }
 
-auto constDefinitions() -> void
+auto ConstDefinitions() -> void
 {
-    SymTableNodePtr constantIdPtr = nullptr;
+    MCSymTableNodePtr constantIdPtr = nullptr;
 
-    while (curToken == TKN_IDENTIFIER)
+    while (CurToken == TKN_IDENTIFIER)
     {
-        searchAndEnterLocalSymTable(constantIdPtr);
-        constantIdPtr->defn.key = DFN_CONST;
-        constantIdPtr->library = CurLibrary;
-        getToken();
-        ifTokenGetElseError(TKN_EQUAL, ABL_ERR_SYNTAX_MISSING_EQUAL);
-        doConst(constantIdPtr);
-        synchronize(followDeclarationList, declarationStartList, statementStartList);
-        skipSemicolon();
+        SearchAndEnterLocalSymTable(constantIdPtr);
+        constantIdPtr->Defn.Key = DFN_CONST;
+        constantIdPtr->Library = CurLibrary;
+        GetToken();
+        IfTokenGetElseError(TKN_EQUAL, ABL_ERR_SYNTAX_MISSING_EQUAL);
+        DoConst(constantIdPtr);
+        Synchronize(FollowDeclarationList, DeclarationStartList, StatementStartList);
+        SkipSemicolon();
     }
 }
 
-auto makeStringType(int32_t length) -> TypePtr
+auto MakeStringType(int32_t length) -> MCTypePtr
 {
-    TypePtr stringTypePtr = createType();
-    stringTypePtr->form = FRM_ARRAY;
-    stringTypePtr->size = length;
-    stringTypePtr->typeIdPtr = nullptr;
-    stringTypePtr->info.array.indexTypePtr = IntegerTypePtr;
-    stringTypePtr->info.array.elementTypePtr = CharTypePtr;
-    stringTypePtr->info.array.elementCount = length + 1;
+    MCTypePtr stringTypePtr = CreateType();
+    stringTypePtr->Form = FRM_ARRAY;
+    stringTypePtr->Size = length;
+    stringTypePtr->TypeIdPtr = nullptr;
+    stringTypePtr->Info.Array.IndexTypePtr = IntegerTypePtr;
+    stringTypePtr->Info.Array.ElementTypePtr = CharTypePtr;
+    stringTypePtr->Info.Array.ElementCount = length + 1;
     return stringTypePtr;
 }
 
-auto doConst(SymTableNodePtr constantIdPtr) -> void
+auto DoConst(MCSymTableNodePtr constantIdPtr) -> void
 {
-    TokenCodeType sign = TKN_PLUS;
+    MCTokenCodeType sign = TKN_PLUS;
     bool sawSign = false;
 
-    if (curToken == TKN_PLUS || curToken == TKN_MINUS)
+    if (CurToken == TKN_PLUS || CurToken == TKN_MINUS)
     {
-        sign = curToken;
+        sign = CurToken;
         sawSign = true;
-        getToken();
+        GetToken();
     }
 
-    Value& value = constantIdPtr->defn.info.constant.value;
+    MCValue& value = constantIdPtr->Defn.Info.Constant.Value;
 
-    if (curToken == TKN_NUMBER)
+    if (CurToken == TKN_NUMBER)
     {
-        if (curLiteral.type == LIT_INTEGER)
+        if (CurLiteral.Type == LIT_INTEGER)
         {
-            value.integer = sign == TKN_PLUS ? curLiteral.value.integer : -curLiteral.value.integer;
-            constantIdPtr->typePtr = setType(IntegerTypePtr);
+            value.Integer = sign == TKN_PLUS ? CurLiteral.Value.Integer : -CurLiteral.Value.Integer;
+            constantIdPtr->TypePtr = SetType(IntegerTypePtr);
         }
         else
         {
-            value.real = sign == TKN_PLUS ? curLiteral.value.real : -curLiteral.value.real;
-            constantIdPtr->typePtr = setType(RealTypePtr);
+            value.Real = sign == TKN_PLUS ? CurLiteral.Value.Real : -CurLiteral.Value.Real;
+            constantIdPtr->TypePtr = SetType(RealTypePtr);
         }
     }
-    else if (curToken == TKN_IDENTIFIER)
+    else if (CurToken == TKN_IDENTIFIER)
     {
-        SymTableNodePtr idPtr = nullptr;
-        searchAllSymTables(idPtr);
+        MCSymTableNodePtr idPtr = nullptr;
+        SearchAllSymTables(idPtr);
 
         if (idPtr == nullptr)
         {
-            syntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
+            SyntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
         }
-        else if (idPtr->defn.key != DFN_CONST)
+        else if (idPtr->Defn.Key != DFN_CONST)
         {
-            syntaxError(ABL_ERR_SYNTAX_NOT_A_CONSTANT_IDENTIFIER);
+            SyntaxError(ABL_ERR_SYNTAX_NOT_A_CONSTANT_IDENTIFIER);
         }
         else
         {
-            const Value& otherValue = idPtr->defn.info.constant.value;
-            TypePtr typePtr = idPtr->typePtr;
+            const MCValue& otherValue = idPtr->Defn.Info.Constant.Value;
+            MCTypePtr typePtr = idPtr->TypePtr;
 
             if (typePtr == IntegerTypePtr)
             {
-                value.integer = sign == TKN_PLUS ? otherValue.integer : -otherValue.integer;
-                constantIdPtr->typePtr = setType(IntegerTypePtr);
+                value.Integer = sign == TKN_PLUS ? otherValue.Integer : -otherValue.Integer;
+                constantIdPtr->TypePtr = SetType(IntegerTypePtr);
             }
             else if (typePtr == CharTypePtr)
             {
                 if (sawSign)
                 {
-                    syntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
+                    SyntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
                 }
 
-                value.character = otherValue.character;
-                constantIdPtr->typePtr = setType(CharTypePtr);
+                value.Character = otherValue.Character;
+                constantIdPtr->TypePtr = SetType(CharTypePtr);
             }
             else if (typePtr == RealTypePtr)
             {
-                value.real = sign == TKN_PLUS ? otherValue.real : -otherValue.real;
-                constantIdPtr->typePtr = setType(RealTypePtr);
+                value.Real = sign == TKN_PLUS ? otherValue.Real : -otherValue.Real;
+                constantIdPtr->TypePtr = SetType(RealTypePtr);
             }
-            else if (typePtr->form == FRM_ENUM || typePtr->form == FRM_ARRAY)
+            else if (typePtr->Form == FRM_ENUM || typePtr->Form == FRM_ARRAY)
             {
                 // An enumeration value, or a string constant (the pointer to its text is shared).
                 if (sawSign)
                 {
-                    syntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
+                    SyntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
                 }
 
                 value = otherValue;
-                constantIdPtr->typePtr = setType(typePtr);
+                constantIdPtr->TypePtr = SetType(typePtr);
             }
         }
     }
-    else if (curToken == TKN_STRING)
+    else if (CurToken == TKN_STRING)
     {
         if (sawSign)
         {
-            syntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
+            SyntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
         }
 
-        auto length = static_cast<int32_t>(strlen(curLiteral.value.string));
+        auto length = static_cast<int32_t>(strlen(CurLiteral.Value.String));
 
         if (length == 1)
         {
-            value.character = curLiteral.value.string[0];
-            constantIdPtr->typePtr = setType(CharTypePtr);
+            value.Character = CurLiteral.Value.String[0];
+            constantIdPtr->TypePtr = SetType(CharTypePtr);
         }
         else
         {
-            value.stringPtr = AblMemory.CopyString(curLiteral.value.string);
-            constantIdPtr->typePtr = makeStringType(length);
+            value.StringPtr = AblMemory.CopyString(CurLiteral.Value.String);
+            constantIdPtr->TypePtr = MakeStringType(length);
         }
     }
     else
     {
-        constantIdPtr->typePtr = nullptr;
-        syntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
+        constantIdPtr->TypePtr = nullptr;
+        SyntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
     }
 
-    getToken();
+    GetToken();
 }
 
-auto typeDefinitions() -> void
+auto TypeDefinitions() -> void
 {
-    SymTableNodePtr typeIdPtr = nullptr;
+    MCSymTableNodePtr typeIdPtr = nullptr;
 
-    while (curToken == TKN_IDENTIFIER)
+    while (CurToken == TKN_IDENTIFIER)
     {
-        searchAndEnterLocalSymTable(typeIdPtr);
-        typeIdPtr->defn.key = DFN_TYPE;
-        typeIdPtr->library = CurLibrary;
-        getToken();
-        ifTokenGetElseError(TKN_EQUAL, ABL_ERR_SYNTAX_MISSING_EQUAL);
-        typeIdPtr->typePtr = doType();
+        SearchAndEnterLocalSymTable(typeIdPtr);
+        typeIdPtr->Defn.Key = DFN_TYPE;
+        typeIdPtr->Library = CurLibrary;
+        GetToken();
+        IfTokenGetElseError(TKN_EQUAL, ABL_ERR_SYNTAX_MISSING_EQUAL);
+        typeIdPtr->TypePtr = DoType();
 
-        if (typeIdPtr->typePtr->typeIdPtr == nullptr)
+        if (typeIdPtr->TypePtr->TypeIdPtr == nullptr)
         {
-            typeIdPtr->typePtr->typeIdPtr = typeIdPtr;
+            typeIdPtr->TypePtr->TypeIdPtr = typeIdPtr;
         }
 
-        synchronize(followDeclarationList, declarationStartList, statementStartList);
-        skipSemicolon();
+        Synchronize(FollowDeclarationList, DeclarationStartList, StatementStartList);
+        SkipSemicolon();
     }
 }
 
-auto doType() -> TypePtr
+auto DoType() -> MCTypePtr
 {
-    switch (curToken)
+    switch (CurToken)
     {
         case TKN_IDENTIFIER:
             break;
@@ -263,314 +263,314 @@ auto doType() -> TypePtr
             // Subrange types: never supported.
             exit(666);
         case TKN_LPAREN:
-            return enumerationType();
+            return EnumerationType();
         default:
         {
-            syntaxError(ABL_ERR_SYNTAX_INVALID_TYPE);
+            SyntaxError(ABL_ERR_SYNTAX_INVALID_TYPE);
             return nullptr;
         }
     }
 
-    SymTableNodePtr idPtr = nullptr;
-    searchAllSymTables(idPtr);
+    MCSymTableNodePtr idPtr = nullptr;
+    SearchAllSymTables(idPtr);
 
     if (idPtr == nullptr)
     {
-        syntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
+        SyntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
         return nullptr;
     }
 
-    if (idPtr->defn.key != DFN_TYPE)
+    if (idPtr->Defn.Key != DFN_TYPE)
     {
-        syntaxError(ABL_ERR_SYNTAX_NOT_A_TYPE_IDENTIFIER);
+        SyntaxError(ABL_ERR_SYNTAX_NOT_A_TYPE_IDENTIFIER);
         return nullptr;
     }
 
-    TypePtr elementTypePtr = setType(identifierType(idPtr));
+    MCTypePtr elementTypePtr = SetType(IdentifierType(idPtr));
 
-    if (curToken != TKN_LBRACKET)
+    if (CurToken != TKN_LBRACKET)
     {
         return elementTypePtr;
     }
 
     // "type[d1, d2, ...]": one array type per dimension, each the element type of the one before.
-    TypePtr arrayTypePtr = createType();
-    TypePtr dimensionTypePtr = arrayTypePtr;
+    MCTypePtr arrayTypePtr = CreateType();
+    MCTypePtr dimensionTypePtr = arrayTypePtr;
 
     while (true)
     {
-        getToken();
+        GetToken();
         bool validIndex = false;
 
-        if (tokenIn(indexTypeStartList))
+        if (TokenIn(IndexTypeStartList))
         {
-            dimensionTypePtr->form = FRM_ARRAY;
-            dimensionTypePtr->size = 0;
-            dimensionTypePtr->typeIdPtr = nullptr;
-            dimensionTypePtr->info.array.indexTypePtr = setType(IntegerTypePtr);
+            dimensionTypePtr->Form = FRM_ARRAY;
+            dimensionTypePtr->Size = 0;
+            dimensionTypePtr->TypeIdPtr = nullptr;
+            dimensionTypePtr->Info.Array.IndexTypePtr = SetType(IntegerTypePtr);
 
-            if (curToken == TKN_IDENTIFIER)
+            if (CurToken == TKN_IDENTIFIER)
             {
-                SymTableNodePtr countIdPtr = nullptr;
-                searchAllSymTables(countIdPtr);
+                MCSymTableNodePtr countIdPtr = nullptr;
+                SearchAllSymTables(countIdPtr);
 
                 if (countIdPtr == nullptr)
                 {
-                    syntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
+                    SyntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
                     validIndex = true;
                 }
-                else if (countIdPtr->defn.key == DFN_CONST && countIdPtr->typePtr == IntegerTypePtr)
+                else if (countIdPtr->Defn.Key == DFN_CONST && countIdPtr->TypePtr == IntegerTypePtr)
                 {
-                    dimensionTypePtr->info.array.elementCount = countIdPtr->defn.info.constant.value.integer;
+                    dimensionTypePtr->Info.Array.ElementCount = countIdPtr->Defn.Info.Constant.Value.Integer;
                     validIndex = true;
                 }
             }
-            else if (curToken == TKN_NUMBER && curLiteral.type == LIT_INTEGER)
+            else if (CurToken == TKN_NUMBER && CurLiteral.Type == LIT_INTEGER)
             {
-                dimensionTypePtr->info.array.elementCount = curLiteral.value.integer;
+                dimensionTypePtr->Info.Array.ElementCount = CurLiteral.Value.Integer;
                 validIndex = true;
             }
         }
 
         if (!validIndex)
         {
-            dimensionTypePtr->form = FRM_NONE;
-            dimensionTypePtr->size = 0;
-            dimensionTypePtr->typeIdPtr = nullptr;
-            dimensionTypePtr->info.array.indexTypePtr = nullptr;
-            syntaxError(ABL_ERR_SYNTAX_INVALID_INDEX_TYPE);
+            dimensionTypePtr->Form = FRM_NONE;
+            dimensionTypePtr->Size = 0;
+            dimensionTypePtr->TypeIdPtr = nullptr;
+            dimensionTypePtr->Info.Array.IndexTypePtr = nullptr;
+            SyntaxError(ABL_ERR_SYNTAX_INVALID_INDEX_TYPE);
         }
 
-        getToken();
-        synchronize(followDimensionList, nullptr, nullptr);
+        GetToken();
+        Synchronize(FollowDimensionList, nullptr, nullptr);
 
-        if (curToken != TKN_COMMA)
+        if (CurToken != TKN_COMMA)
         {
             break;
         }
 
-        TypePtr nextDimensionTypePtr = createType();
-        dimensionTypePtr->info.array.elementTypePtr = nextDimensionTypePtr;
+        MCTypePtr nextDimensionTypePtr = CreateType();
+        dimensionTypePtr->Info.Array.ElementTypePtr = nextDimensionTypePtr;
         dimensionTypePtr = nextDimensionTypePtr;
     }
 
-    ifTokenGetElseError(TKN_RBRACKET, ABL_ERR_SYNTAX_MISSING_RBRACKET);
-    dimensionTypePtr->info.array.elementTypePtr = elementTypePtr;
-    arrayTypePtr->size = arraySize(arrayTypePtr);
+    IfTokenGetElseError(TKN_RBRACKET, ABL_ERR_SYNTAX_MISSING_RBRACKET);
+    dimensionTypePtr->Info.Array.ElementTypePtr = elementTypePtr;
+    arrayTypePtr->Size = ArraySize(arrayTypePtr);
     return arrayTypePtr;
 }
 
-auto identifierType(SymTableNodePtr idPtr) -> TypePtr
+auto IdentifierType(MCSymTableNodePtr idPtr) -> MCTypePtr
 {
-    getToken();
-    return idPtr->typePtr;
+    GetToken();
+    return idPtr->TypePtr;
 }
 
-auto enumerationType() -> TypePtr
+auto EnumerationType() -> MCTypePtr
 {
-    SymTableNodePtr constantIdPtr = nullptr;
-    SymTableNodePtr lastIdPtr = nullptr;
+    MCSymTableNodePtr constantIdPtr = nullptr;
+    MCSymTableNodePtr lastIdPtr = nullptr;
     int32_t constantValue = -1;
 
-    TypePtr typePtr = createType();
-    typePtr->form = FRM_ENUM;
-    typePtr->size = 4;
-    typePtr->typeIdPtr = nullptr;
+    MCTypePtr typePtr = CreateType();
+    typePtr->Form = FRM_ENUM;
+    typePtr->Size = 4;
+    typePtr->TypeIdPtr = nullptr;
 
-    getToken();
+    GetToken();
 
-    while (curToken == TKN_IDENTIFIER)
+    while (CurToken == TKN_IDENTIFIER)
     {
-        searchAndEnterLocalSymTable(constantIdPtr);
-        constantIdPtr->defn.key = DFN_CONST;
-        constantIdPtr->defn.info.constant.value.integer = ++constantValue;
-        constantIdPtr->typePtr = typePtr;
-        constantIdPtr->library = CurLibrary;
+        SearchAndEnterLocalSymTable(constantIdPtr);
+        constantIdPtr->Defn.Key = DFN_CONST;
+        constantIdPtr->Defn.Info.Constant.Value.Integer = ++constantValue;
+        constantIdPtr->TypePtr = typePtr;
+        constantIdPtr->Library = CurLibrary;
 
         if (lastIdPtr == nullptr)
         {
-            typePtr->info.enumeration.constIdPtr = constantIdPtr;
+            typePtr->Info.Enumeration.ConstIdPtr = constantIdPtr;
         }
         else
         {
-            lastIdPtr->next = constantIdPtr;
+            lastIdPtr->Next = constantIdPtr;
         }
 
         lastIdPtr = constantIdPtr;
-        getToken();
-        ifTokenGet(TKN_COMMA);
+        GetToken();
+        IfTokenGet(TKN_COMMA);
     }
 
-    ifTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
-    typePtr->info.enumeration.max = constantValue;
+    IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+    typePtr->Info.Enumeration.Max = constantValue;
     return typePtr;
 }
 
-auto subrangeType() -> TypePtr
+auto SubrangeType() -> MCTypePtr
 {
     return nullptr;
 }
 
-auto getSubrangeLimit(SymTableNodePtr, int32_t*, TypePtr*) -> void
+auto GetSubrangeLimit(MCSymTableNodePtr, int32_t*, MCTypePtr*) -> void
 {
 }
 
-auto arraySize(TypePtr typePtr) -> int32_t
+auto ArraySize(MCTypePtr typePtr) -> int32_t
 {
-    TypePtr elementTypePtr = typePtr->info.array.elementTypePtr;
+    MCTypePtr elementTypePtr = typePtr->Info.Array.ElementTypePtr;
 
-    if (elementTypePtr->size == 0)
+    if (elementTypePtr->Size == 0)
     {
-        elementTypePtr->size = arraySize(elementTypePtr);
+        elementTypePtr->Size = ArraySize(elementTypePtr);
     }
 
-    if (typePtr->info.array.elementCount == -1)
+    if (typePtr->Info.Array.ElementCount == -1)
     {
-        typePtr->size = elementTypePtr->size;
+        typePtr->Size = elementTypePtr->Size;
     }
     else
     {
-        typePtr->size = elementTypePtr->size * typePtr->info.array.elementCount;
+        typePtr->Size = elementTypePtr->Size * typePtr->Info.Array.ElementCount;
     }
 
-    return typePtr->size;
+    return typePtr->Size;
 }
 
-auto varDeclarations(SymTableNodePtr routineIdPtr) -> void
+auto VarDeclarations(MCSymTableNodePtr routineIdPtr) -> void
 {
     // Locals follow the frame header (4 items) and the parameters.
-    varOrFieldDeclarations(routineIdPtr, nullptr, routineIdPtr->defn.info.routine.totalParamSize + 4);
+    VarOrFieldDeclarations(routineIdPtr, nullptr, routineIdPtr->Defn.Info.Routine.TotalParamSize + 4);
 }
 
-auto varOrFieldDeclarations(SymTableNodePtr routineIdPtr, TypePtr, int32_t offset) -> void
+auto VarOrFieldDeclarations(MCSymTableNodePtr routineIdPtr, MCTypePtr, int32_t offset) -> void
 {
     bool varFlag = routineIdPtr != nullptr;
-    SymTableNodePtr idPtr = nullptr;
-    SymTableNodePtr prevIdPtr = nullptr;
+    MCSymTableNodePtr idPtr = nullptr;
+    MCSymTableNodePtr prevIdPtr = nullptr;
     // The last variable of the previous (non-eternal) line, linked to the first of the next.
-    SymTableNodePtr prevLineLastIdPtr = nullptr;
+    MCSymTableNodePtr prevLineLastIdPtr = nullptr;
     int32_t totalSize = 0;
 
-    while (curToken == TKN_IDENTIFIER || curToken == TKN_ETERNAL || curToken == TKN_STATIC)
+    while (CurToken == TKN_IDENTIFIER || CurToken == TKN_ETERNAL || CurToken == TKN_STATIC)
     {
-        VariableType varType = VAR_TYPE_NORMAL;
+        MCVariableType varType = VAR_TYPE_NORMAL;
 
-        if (curToken == TKN_ETERNAL || curToken == TKN_STATIC)
+        if (CurToken == TKN_ETERNAL || CurToken == TKN_STATIC)
         {
-            varType = curToken == TKN_ETERNAL ? VAR_TYPE_ETERNAL : VAR_TYPE_STATIC;
-            getToken();
+            varType = CurToken == TKN_ETERNAL ? VAR_TYPE_ETERNAL : VAR_TYPE_STATIC;
+            GetToken();
 
-            if (curToken != TKN_IDENTIFIER)
+            if (CurToken != TKN_IDENTIFIER)
             {
-                syntaxError(ABL_ERR_SYNTAX_MISSING_IDENTIFIER);
+                SyntaxError(ABL_ERR_SYNTAX_MISSING_IDENTIFIER);
             }
         }
 
         // "type name, name, ...;"
-        SymTableNodePtr firstIdPtr = nullptr;
-        TypePtr typePtr = doType();
-        int32_t size = typePtr->size;
+        MCSymTableNodePtr firstIdPtr = nullptr;
+        MCTypePtr typePtr = DoType();
+        int32_t size = typePtr->Size;
         // doType's reference is dropped here; every variable below takes its own.
-        typePtr->numInstances--;
+        typePtr->NumInstances--;
 
-        while (curToken == TKN_IDENTIFIER)
+        while (CurToken == TKN_IDENTIFIER)
         {
             if (varFlag)
             {
                 if (varType == VAR_TYPE_ETERNAL)
                 {
                     // Eternals are global: entered at level 0.
-                    int32_t saveLevel = level;
-                    level = 0;
-                    searchAndEnterThisTable(idPtr, SymTableDisplay[0]);
-                    level = saveLevel;
+                    int32_t saveLevel = Level;
+                    Level = 0;
+                    SearchAndEnterThisTable(idPtr, SymTableDisplay[0]);
+                    Level = saveLevel;
                 }
                 else
                 {
-                    searchAndEnterLocalSymTable(idPtr);
+                    SearchAndEnterLocalSymTable(idPtr);
                 }
 
-                idPtr->library = CurLibrary;
-                idPtr->defn.key = DFN_VAR;
+                idPtr->Library = CurLibrary;
+                idPtr->Defn.Key = DFN_VAR;
             }
             else
             {
-                syntaxError(ABL_ERR_SYNTAX_NO_RECORD_TYPES);
+                SyntaxError(ABL_ERR_SYNTAX_NO_RECORD_TYPES);
             }
 
-            idPtr->labelIndex = 0;
+            idPtr->LabelIndex = 0;
 
             if (firstIdPtr == nullptr)
             {
                 firstIdPtr = idPtr;
 
-                if (varFlag && varType != VAR_TYPE_ETERNAL && routineIdPtr->defn.info.routine.locals == nullptr)
+                if (varFlag && varType != VAR_TYPE_ETERNAL && routineIdPtr->Defn.Info.Routine.Locals == nullptr)
                 {
-                    routineIdPtr->defn.info.routine.locals = idPtr;
+                    routineIdPtr->Defn.Info.Routine.Locals = idPtr;
                 }
             }
             else
             {
-                prevIdPtr->next = idPtr;
+                prevIdPtr->Next = idPtr;
             }
 
-            getToken();
-            ifTokenGet(TKN_COMMA);
+            GetToken();
+            IfTokenGet(TKN_COMMA);
             prevIdPtr = idPtr;
         }
 
-        for (idPtr = firstIdPtr; idPtr != nullptr; idPtr = idPtr->next)
+        for (idPtr = firstIdPtr; idPtr != nullptr; idPtr = idPtr->Next)
         {
-            idPtr->typePtr = setType(typePtr);
+            idPtr->TypePtr = SetType(typePtr);
 
             if (!varFlag)
             {
-                idPtr->defn.info.data.varType = VAR_TYPE_NORMAL;
-                idPtr->defn.info.data.offset = offset;
+                idPtr->Defn.Info.Data.VarType = VAR_TYPE_NORMAL;
+                idPtr->Defn.Info.Data.Offset = offset;
                 offset += size;
                 continue;
             }
 
-            idPtr->defn.info.data.varType = varType;
+            idPtr->Defn.Info.Data.VarType = varType;
 
             switch (varType)
             {
                 case VAR_TYPE_NORMAL:
                 {
                     totalSize += size;
-                    idPtr->defn.info.data.offset = offset++;
+                    idPtr->Defn.Info.Data.Offset = offset++;
                     break;
                 }
                 case VAR_TYPE_STATIC:
                 {
                     if (NumStaticVariables == MaxStaticVariables)
                     {
-                        syntaxError(ABL_ERR_SYNTAX_TOO_MANY_STATIC_VARS);
+                        SyntaxError(ABL_ERR_SYNTAX_TOO_MANY_STATIC_VARS);
                     }
 
-                    idPtr->defn.info.data.offset = NumStaticVariables;
+                    idPtr->Defn.Info.Data.Offset = NumStaticVariables;
                     // Arrays record their byte size (ABLModule::init allocates them); scalars 0.
-                    StaticVariablesSizes[NumStaticVariables++] = typePtr->form == FRM_ARRAY ? size : 0;
+                    StaticVariablesSizes[NumStaticVariables++] = typePtr->Form == FRM_ARRAY ? size : 0;
                     break;
                 }
                 case VAR_TYPE_ETERNAL:
                 {
-                    idPtr->defn.info.data.offset = eternalOffset;
-                    StackItem& slot = stack[eternalOffset];
-                    slot = StackItem{};
+                    idPtr->Defn.Info.Data.Offset = EternalOffset;
+                    MCStackItem& slot = Stack[EternalOffset];
+                    slot = MCStackItem{};
 
-                    if (typePtr->form == FRM_ARRAY)
+                    if (typePtr->Form == FRM_ARRAY)
                     {
-                        slot.address = static_cast<Address>(AblMemory.Allocate(static_cast<size_t>(size)));
+                        slot.Address = static_cast<MCAddress>(AblMemory.Allocate(static_cast<size_t>(size)));
 
                         // An empty array got no block from the heap, which was fatal.
-                        if (slot.address == nullptr)
+                        if (slot.Address == nullptr)
                         {
                             Fatal(0, " ABL: Unable to AblStackHeap->malloc eternal array ");
                         }
                     }
 
-                    eternalOffset++;
+                    EternalOffset++;
                     break;
                 }
             }
@@ -580,7 +580,7 @@ auto varOrFieldDeclarations(SymTableNodePtr routineIdPtr, TypePtr, int32_t offse
         {
             if (prevLineLastIdPtr != nullptr)
             {
-                prevLineLastIdPtr->next = firstIdPtr;
+                prevLineLastIdPtr->Next = firstIdPtr;
             }
 
             prevLineLastIdPtr = prevIdPtr;
@@ -588,23 +588,23 @@ auto varOrFieldDeclarations(SymTableNodePtr routineIdPtr, TypePtr, int32_t offse
 
         if (varFlag)
         {
-            synchronize(followVariablesList, declarationStartList, statementStartList);
+            Synchronize(FollowVariablesList, DeclarationStartList, StatementStartList);
         }
 
-        if (curToken == TKN_SEMICOLON)
+        if (CurToken == TKN_SEMICOLON)
         {
-            getToken();
+            GetToken();
         }
-        else if (varFlag && (tokenIn(declarationStartList) || tokenIn(statementStartList)))
+        else if (varFlag && (TokenIn(DeclarationStartList) || TokenIn(StatementStartList)))
         {
-            syntaxError(ABL_ERR_SYNTAX_MISSING_SEMICOLON);
+            SyntaxError(ABL_ERR_SYNTAX_MISSING_SEMICOLON);
         }
     }
 
-    synchronize(followVarBlockList, nullptr, nullptr);
+    Synchronize(FollowVarBlockList, nullptr, nullptr);
 
     if (varFlag)
     {
-        routineIdPtr->defn.info.routine.totalLocalSize = totalSize;
+        routineIdPtr->Defn.Info.Routine.TotalLocalSize = totalSize;
     }
 }

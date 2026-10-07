@@ -2,80 +2,80 @@
 #include "linkup/linkedlist.h"
 #include "lib/aerror.h"
 
-FIDPMsgList::FIDPMsgList()
+MCFidpMsgList::MCFidpMsgList()
 {
-    head = nullptr;
-    tail = nullptr;
-    count = 0;
+    HeadLink = nullptr;
+    Tail = nullptr;
+    Count = 0;
 }
 
-FIDPMsgList::~FIDPMsgList()
+MCFidpMsgList::~MCFidpMsgList()
 {
-    while (head != nullptr)
+    while (HeadLink != nullptr)
     {
         TossHead();
     }
 }
 
-void FIDPMsgList::Add(FIDPMessage* msg)
+void MCFidpMsgList::Add(MCFidpMessage* msg)
 {
     Assert(msg != nullptr, 0, " Tried to add a NULL Message to the list ");
-    FIDPMsgLink* link = new FIDPMsgLink(msg);
+    MCFidpMsgLink* link = new MCFidpMsgLink(msg);
     Assert(link != nullptr, 0, " Tried to add a NULL link to the list ");
 
-    if (head == nullptr)
+    if (HeadLink == nullptr)
     {
-        head = link;
+        HeadLink = link;
     }
     else
     {
-        tail->next = link;
+        Tail->Next = link;
     }
 
-    tail = link;
-    link->next = nullptr;
-    count++;
+    Tail = link;
+    link->Next = nullptr;
+    Count++;
     Size();
 }
 
-void FIDPMsgList::TossHead()
+void MCFidpMsgList::TossHead()
 {
-    FIDPMsgLink* link = head;
+    MCFidpMsgLink* link = HeadLink;
 
     if (link != nullptr)
     {
-        head = link->next;
+        HeadLink = link->Next;
         delete link;
-        count--;
+        Count--;
         Size();
     }
 }
 
-FIDPMessage* FIDPMsgList::Head()
+MCFidpMessage* MCFidpMsgList::Head()
 {
-    if (head == nullptr)
+    if (HeadLink == nullptr)
     {
         return nullptr;
     }
 
-    return head->message;
+    return HeadLink->Message;
 }
 
-int FIDPMsgList::Size()
+int MCFidpMsgList::Size()
 {
     int links = 0;
 
-    for (FIDPMsgLink* link = head; link != nullptr; link = link->next)
+    for (MCFidpMsgLink* link = HeadLink; link != nullptr; link = link->Next)
     {
         links++;
     }
 
-    if (links != count)
+    if (links != Count)
     {
         char message[1024];
-        std::snprintf(message, sizeof(message), "Msg List Trashed:  Cnt: %d  Size: %d", links, count);
+        std::snprintf(message, sizeof(message), "Msg List Trashed:  Cnt: %d  Size: %d", links, Count);
         Fatal(links, message);
     }
 
-    return count;
+    return Count;
 }

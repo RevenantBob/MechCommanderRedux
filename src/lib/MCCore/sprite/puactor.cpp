@@ -22,25 +22,25 @@ namespace
     constexpr int32_t NO_DATA_RAM = static_cast<int32_t>(0xeada000c);
 
     /// <summary>0.5 when the camera is zoomed out, else 1.</summary>
-    auto zoomScale(const Camera* cam) -> float
+    auto ZoomScale(const MCCamera* cam) -> float
     {
-        return cam->cameraScale == 1 ? 0.5f : 1.0f;
+        return cam->CameraScale == 1 ? 0.5f : 1.0f;
     }
 
     /// <summary>The pixel offset of a turret or gate (both at +0x8c/+0x90); false for other classes.</summary>
-    auto pixelOffset(GameObject* obj, int32_t& offsetX, int32_t& offsetY) -> bool
+    auto PixelOffset(MCGameObject* obj, int32_t& offsetX, int32_t& offsetY) -> bool
     {
-        if (obj->objectClass == TURRET)
+        if (obj->ObjectClass == TURRET)
         {
-            offsetX = static_cast<Turret*>(obj)->tileOffsetX;
-            offsetY = static_cast<Turret*>(obj)->tileOffsetY;
+            offsetX = static_cast<MCTurret*>(obj)->TileOffsetX;
+            offsetY = static_cast<MCTurret*>(obj)->TileOffsetY;
             return true;
         }
 
-        if (obj->objectClass == GATE)
+        if (obj->ObjectClass == GATE)
         {
-            offsetX = static_cast<Gate*>(obj)->pixelOffsetX;
-            offsetY = static_cast<Gate*>(obj)->pixelOffsetY;
+            offsetX = static_cast<MCGate*>(obj)->PixelOffsetX;
+            offsetY = static_cast<MCGate*>(obj)->PixelOffsetY;
             return true;
         }
 
@@ -52,85 +52,86 @@ namespace
 // PUAppearanceType
 //---------------------------------------------------------------------------
 
-auto PUAppearanceType::init(File* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
+auto MCPUAppearanceType::Init(MCFile* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
 {
-    const int32_t result = loadIniFile(apprFile, fileSize);
+    const int32_t result = LoadIniFile(apprFile, fileSize);
 
     if (result != 0)
     {
         return result;
     }
 
-    keepLoaded = static_cast<int32_t>(loadFlags);
-    numPackets = spriteManager->getNumShapes(appearanceNum & 0xffffff);
+    KeepLoaded = static_cast<int32_t>(loadFlags);
+    NumPackets = SpriteManager->GetNumShapes(AppearanceNum & 0xffffff);
     // Port fix: sized by the port's pointer size (the original: count * 4).
-    shapeList = static_cast<Shape**>(
-        spriteManager->mallocDataRAM(static_cast<uint32_t>(numPackets) * static_cast<uint32_t>(sizeof(Shape*))));
+    ShapeList = static_cast<MCShape**>(
+        SpriteManager->MallocDataRam(static_cast<uint32_t>(NumPackets) * static_cast<uint32_t>(sizeof(MCShape*))));
 
-    if (shapeList == nullptr)
+    if (ShapeList == nullptr)
     {
         return NO_DATA_RAM;
     }
 
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        shapeList[i] = nullptr;
+        ShapeList[i] = nullptr;
     }
 
     return 0;
 }
 
-auto PUAppearanceType::removeShape(Shape* shape) -> void
+auto MCPUAppearanceType::RemoveShape(MCShape* shape) -> void
 {
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        if (shapeList[i] == shape)
+        if (ShapeList[i] == shape)
         {
-            shapeList[i] = nullptr;
+            ShapeList[i] = nullptr;
         }
     }
 
-    for (AppearanceUser* user = userList; user != nullptr; user = user->next)
+    for (MCAppearanceUser* user = UserList; user != nullptr; user = user->Next)
     {
-        auto* appearance = static_cast<PUAppearance*>(user->user);
+        auto* appearance = static_cast<MCPUAppearance*>(user->User);
 
-        if (appearance->currentShape == shape)
+        if (appearance->CurrentShape == shape)
         {
-            appearance->currentShape = nullptr;
+            appearance->CurrentShape = nullptr;
         }
     }
 }
 
-auto PUAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCPUAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 50);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.seekBlock("Main Info")) != 0)
+    if ((result = iniFile.SeekBlock("Main Info")) != 0)
     {
         return result;
     }
 
-    actorStateData = static_cast<PUActorData*>(spriteManager->mallocDataRAM(MAX_PU_ACTOR_STATES * sizeof(PUActorData)));
+    ActorStateData =
+        static_cast<MCPUActorData*>(SpriteManager->MallocDataRam(MAX_PU_ACTOR_STATES * sizeof(MCPUActorData)));
 
-    if (actorStateData == nullptr)
+    if (ActorStateData == nullptr)
     {
         return NO_DATA_RAM;
     }
 
-    if ((result = iniFile.seekBlock("States")) != 0)
+    if ((result = iniFile.SeekBlock("States")) != 0)
     {
         return result;
     }
 
     uint8_t numStates = 0;
 
-    if ((result = iniFile.readIdUChar("NumStates", numStates)) != 0)
+    if ((result = iniFile.ReadIdUChar("NumStates", numStates)) != 0)
     {
         return result;
     }
@@ -140,9 +141,9 @@ auto PUAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
         return static_cast<int32_t>(0xeada000e);
     }
 
-    if (iniFile.readIdUChar("Scaled", scaled) != 0)
+    if (iniFile.ReadIdUChar("Scaled", Scaled) != 0)
     {
-        scaled = 0;
+        Scaled = 0;
     }
 
     for (int32_t i = 0; i < MAX_PU_ACTOR_STATES; i++)
@@ -150,51 +151,51 @@ auto PUAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
         char blockName[20];
         sprintf(blockName, "State%d", i);
 
-        if ((result = iniFile.seekBlock(blockName)) != 0)
+        if ((result = iniFile.SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
         uint8_t state = 0;
 
-        if ((result = iniFile.readIdUChar("State", state)) != 0)
+        if ((result = iniFile.ReadIdUChar("State", state)) != 0)
         {
             return result;
         }
 
-        PUActorData& data = actorStateData[i];
-        data.state = static_cast<PUActorState>(state);
+        MCPUActorData& data = ActorStateData[i];
+        data.State = static_cast<MCPUActorState>(state);
 
-        if ((result = iniFile.readIdULong("NumFrames", data.numFrames)) != 0)
+        if ((result = iniFile.ReadIdULong("NumFrames", data.NumFrames)) != 0)
         {
             return result;
         }
 
-        if ((result = iniFile.readIdFloat("FrameRate", data.frameRate)) != 0)
+        if ((result = iniFile.ReadIdFloat("FrameRate", data.FrameRate)) != 0)
         {
             return result;
         }
 
-        if ((result = iniFile.readIdULong("BasePacketNumber", data.basePacketNumber)) != 0)
+        if ((result = iniFile.ReadIdULong("BasePacketNumber", data.BasePacketNumber)) != 0)
         {
             return result;
         }
 
-        if ((result = iniFile.readIdUChar("NumRotations", data.numRotations)) != 0)
+        if ((result = iniFile.ReadIdUChar("NumRotations", data.NumRotations)) != 0)
         {
             return result;
         }
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto PUAppearanceType::getShape(PUActorState state, int32_t rotation, int32_t part, float& frameRate) -> Shape*
+auto MCPUAppearanceType::GetShape(MCPUActorState state, int32_t rotation, int32_t part, float& frameRate) -> MCShape*
 {
-    const PUActorData& data = actorStateData[state];
+    const MCPUActorData& data = ActorStateData[state];
 
-    if (data.numFrames == 0)
+    if (data.NumFrames == 0)
     {
         return nullptr;
     }
@@ -204,11 +205,11 @@ auto PUAppearanceType::getShape(PUActorState state, int32_t rotation, int32_t pa
         rotation += 360;
     }
 
-    const uint32_t numRotations = data.numRotations;
-    frameRate = data.frameRate;
+    const uint32_t numRotations = data.NumRotations;
+    frameRate = data.FrameRate;
     const int32_t rotationIndex = static_cast<int16_t>(static_cast<int32_t>(std::floor(
         static_cast<double>(static_cast<int32_t>(numRotations * static_cast<uint32_t>(rotation))) * (1.0 / 360.0))));
-    uint32_t basePacket = data.basePacketNumber;
+    uint32_t basePacket = data.BasePacketNumber;
 
     if (part > 0)
     {
@@ -218,166 +219,166 @@ auto PUAppearanceType::getShape(PUActorState state, int32_t rotation, int32_t pa
     uint32_t packet = basePacket + static_cast<uint32_t>(rotationIndex);
     float zoom = 1.0f;
 
-    if (eye != nullptr && eye->cameraScale == 1)
+    if (Eye != nullptr && Eye->CameraScale == 1)
     {
         zoom = 0.5f;
     }
 
     // Scaled types keep their zoomed out rotations after the full size ones.
-    if (zoom != 1.0f && scaled != 0)
+    if (zoom != 1.0f && Scaled != 0)
     {
         packet += numRotations;
     }
 
-    if (numPackets <= static_cast<int32_t>(packet))
+    if (NumPackets <= static_cast<int32_t>(packet))
     {
         return nullptr;
     }
 
-    Shape* shape = shapeList[packet];
+    MCShape* shape = ShapeList[packet];
 
     if (shape != nullptr)
     {
-        shape->lastTurnUsed = turn;
+        shape->LastTurnUsed = Turn;
         return shape;
     }
 
-    dynamicFrameTiming = 0;
-    shape = spriteManager->getShapeData(appearanceNum & 0xffffff, packet, turn, this, zoom != 1.0f ? 1 : 0);
-    shapeList[packet] = shape;
+    DynamicFrameTiming = 0;
+    shape = SpriteManager->GetShapeData(AppearanceNum & 0xffffff, packet, Turn, this, zoom != 1.0f ? 1 : 0);
+    ShapeList[packet] = shape;
     return shape;
 }
 
-auto PUAppearanceType::destroy() -> void
+auto MCPUAppearanceType::Destroy() -> void
 {
     // The shapes stay in the sprite manager's cache, ownerless.
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        if (shapeList[i] != nullptr)
+        if (ShapeList[i] != nullptr)
         {
-            shapeList[i]->owner = nullptr;
+            ShapeList[i]->Owner = nullptr;
         }
     }
 
-    spriteManager->freeDataRAM(shapeList);
-    shapeList = nullptr;
-    spriteManager->freeDataRAM(actorStateData);
-    actorStateData = nullptr;
+    SpriteManager->FreeDataRam(ShapeList);
+    ShapeList = nullptr;
+    SpriteManager->FreeDataRam(ActorStateData);
+    ActorStateData = nullptr;
 }
 
 //---------------------------------------------------------------------------
 // PUAppearance
 //---------------------------------------------------------------------------
 
-auto PUAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
+auto MCPUAppearance::Init(MCAppearanceType* tree, MCGameObject* obj) -> int32_t
 {
-    visible = 0;
-    owner = obj;
-    appearType = static_cast<PUAppearanceType*>(tree);
+    Visible = 0;
+    Owner = obj;
+    AppearType = static_cast<MCPUAppearanceType*>(tree);
 
     if (tree != nullptr)
     {
-        tree->addUsers(this);
+        tree->AddUsers(this);
     }
 
-    currentShape = nullptr;
-    shapeMinY = -25.0f;
-    shapeMinX = -25.0f;
-    visible = 0;
-    currentTime = 0.0f;
-    lastFrame = 0;
-    currentState = PU_ACTOR_STATE_CLOSED;
-    inView = 0;
-    rotation = 0.0f;
-    currentFrame = -1;
-    shapeMaxY = 50.0f;
-    shapeMaxX = 50.0f;
-    frameRate = 15.0f;
+    CurrentShape = nullptr;
+    ShapeMinY = -25.0f;
+    ShapeMinX = -25.0f;
+    Visible = 0;
+    CurrentTime = 0.0f;
+    LastFrame = 0;
+    CurrentState = PU_ACTOR_STATE_CLOSED;
+    InView = 0;
+    Rotation = 0.0f;
+    CurrentFrame = -1;
+    ShapeMaxY = 50.0f;
+    ShapeMaxX = 50.0f;
+    FrameRate = 15.0f;
     return 0;
 }
 
-auto PUAppearance::recalcBounds(Camera* cam) -> int
+auto MCPUAppearance::RecalcBounds(MCCamera* cam) -> int
 {
     if (cam == nullptr)
     {
         return 0;
     }
 
-    GameObject* obj = owner;
-    const vector_2d pos = obj->getScreenPos(cam->cameraId - 1);
-    float x = pos.x;
-    float y = pos.y;
+    MCGameObject* obj = Owner;
+    const MCVector2D pos = obj->GetScreenPos(cam->CameraId - 1);
+    float x = pos.X;
+    float y = pos.Y;
     int32_t offsetX = 0;
     int32_t offsetY = 0;
 
-    if (pixelOffset(obj, offsetX, offsetY))
+    if (PixelOffset(obj, offsetX, offsetY))
     {
-        const float camScale = zoomScale(cam);
+        const float camScale = ZoomScale(cam);
         x = static_cast<float>(offsetX) * camScale + x;
         y = static_cast<float>(offsetY) * camScale + y;
     }
 
-    upperLeft.x = x;
-    upperLeft.y = y;
-    lowerRight.y = y;
-    lowerRight.x = x;
+    UpperLeft.X = x;
+    UpperLeft.Y = y;
+    LowerRight.Y = y;
+    LowerRight.X = x;
 
     // The shape's bounds are taken once, from the first shape seen.
-    if (currentShape != nullptr && currentShape->frameList != nullptr && inView == 0)
+    if (CurrentShape != nullptr && CurrentShape->FrameList != nullptr && InView == 0)
     {
-        uint8_t* shapeTable = currentShape->frameList;
-        int32_t frame = currentFrame;
+        uint8_t* shapeTable = CurrentShape->FrameList;
+        int32_t frame = CurrentFrame;
 
         if (frame < 0)
         {
             frame = 0;
         }
 
-        const int32_t numShapeFrames = VFX_shape_count(shapeTable);
+        const int32_t numShapeFrames = VfxShapeCount(shapeTable);
 
         if (numShapeFrames <= frame)
         {
-            currentFrame = numShapeFrames - 1;
+            CurrentFrame = numShapeFrames - 1;
             // Port fix: the original clamps only the object's frame and measures past the shape table.
             frame = numShapeFrames - 1;
         }
 
-        const int32_t minXY = VFX_shape_minxy(shapeTable, frame);
+        const int32_t minXY = VfxShapeMinxy(shapeTable, frame);
 
-        if (static_cast<float>(minXY >> 16) < shapeMinX)
+        if (static_cast<float>(minXY >> 16) < ShapeMinX)
         {
-            shapeMinX = static_cast<float>(minXY >> 16);
+            ShapeMinX = static_cast<float>(minXY >> 16);
         }
 
-        if (static_cast<float>(static_cast<int16_t>(minXY)) < shapeMinY)
+        if (static_cast<float>(static_cast<int16_t>(minXY)) < ShapeMinY)
         {
-            shapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
+            ShapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
         }
 
-        const int32_t size = VFX_shape_resolution(shapeTable, frame);
+        const int32_t size = VfxShapeResolution(shapeTable, frame);
 
-        if (shapeMaxX < static_cast<float>(size >> 16))
+        if (ShapeMaxX < static_cast<float>(size >> 16))
         {
-            shapeMaxX = static_cast<float>(size >> 16);
+            ShapeMaxX = static_cast<float>(size >> 16);
         }
 
-        if (shapeMaxY < static_cast<float>(static_cast<int16_t>(size)))
+        if (ShapeMaxY < static_cast<float>(static_cast<int16_t>(size)))
         {
-            shapeMaxY = static_cast<float>(static_cast<int16_t>(size));
+            ShapeMaxY = static_cast<float>(static_cast<int16_t>(size));
         }
 
-        inView = 1;
+        InView = 1;
     }
 
-    const float scale = zoomScale(eye);
-    upperLeft.x = scale * shapeMinX + x;
-    upperLeft.y = scale * shapeMinY + y;
-    lowerRight.x = scale * shapeMaxX + upperLeft.x;
-    lowerRight.y = scale * shapeMaxY + upperLeft.y;
+    const float scale = ZoomScale(Eye);
+    UpperLeft.X = scale * ShapeMinX + x;
+    UpperLeft.Y = scale * ShapeMinY + y;
+    LowerRight.X = scale * ShapeMaxX + UpperLeft.X;
+    LowerRight.Y = scale * ShapeMaxY + UpperLeft.Y;
 
-    if (0.0f <= lowerRight.x && 0.0f <= lowerRight.y &&
-        upperLeft.x <= static_cast<float>(static_cast<int32_t>(std::floor(cam->viewWidth))) &&
-        upperLeft.y <= static_cast<float>(static_cast<int32_t>(std::floor(cam->viewHeight))))
+    if (0.0f <= LowerRight.X && 0.0f <= LowerRight.Y &&
+        UpperLeft.X <= static_cast<float>(static_cast<int32_t>(std::floor(cam->ViewWidth))) &&
+        UpperLeft.Y <= static_cast<float>(static_cast<int32_t>(std::floor(cam->ViewHeight))))
     {
         return 1;
     }
@@ -385,24 +386,24 @@ auto PUAppearance::recalcBounds(Camera* cam) -> int
     return 0;
 }
 
-auto PUAppearance::render(int32_t depthFixup) -> int32_t
+auto MCPUAppearance::Render(int32_t depthFixup) -> int32_t
 {
-    GameObject* obj = owner;
-    screenPos = obj->getScreenPos(eye->cameraId - 1);
-    const float scale = zoomScale(eye);
+    MCGameObject* obj = Owner;
+    ScreenPos = obj->GetScreenPos(Eye->CameraId - 1);
+    const float scale = ZoomScale(Eye);
     int32_t offsetX = 0;
     int32_t offsetY = 0;
 
-    if (pixelOffset(obj, offsetX, offsetY))
+    if (PixelOffset(obj, offsetX, offsetY))
     {
-        screenPos.x = static_cast<float>(offsetX) * scale + screenPos.x;
-        screenPos.y = static_cast<float>(offsetY) * scale + screenPos.y;
+        ScreenPos.X = static_cast<float>(offsetX) * scale + ScreenPos.X;
+        ScreenPos.Y = static_cast<float>(offsetY) * scale + ScreenPos.Y;
     }
 
-    if (obj->objectClass == GROUNDVEHICLE)
+    if (obj->ObjectClass == GROUNDVEHICLE)
     {
-        const frame_of_ref frame = obj->getFrame();
-        float cosFacing = UnitX.x * frame.i.x + UnitX.y * frame.i.y + UnitX.z * frame.i.z;
+        const MCFrameOfRef frame = obj->GetFrame();
+        float cosFacing = UnitX.X * frame.I.X + UnitX.Y * frame.I.Y + UnitX.Z * frame.I.Z;
 
         if (cosFacing < -1.0)
         {
@@ -414,204 +415,204 @@ auto PUAppearance::render(int32_t depthFixup) -> int32_t
             cosFacing = 1.0f;
         }
 
-        double facing = acosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
+        double facing = AcosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
 
-        if (frame.i.y < 0.0)
+        if (frame.I.Y < 0.0)
         {
             facing = -facing;
         }
 
-        rotation = static_cast<float>(facing + static_cast<GroundVehicle*>(obj)->turretRotation);
+        Rotation = static_cast<float>(facing + static_cast<MCGroundVehicle*>(obj)->TurretRotation);
     }
-    else if (obj->objectClass == TURRET)
+    else if (obj->ObjectClass == TURRET)
     {
-        rotation = static_cast<Turret*>(obj)->turretRotation;
+        Rotation = static_cast<MCTurret*>(obj)->TurretRotation;
     }
 
-    if (rotation < 0.0)
+    if (Rotation < 0.0)
     {
-        rotation = static_cast<float>(rotation + 360.0);
+        Rotation = static_cast<float>(Rotation + 360.0);
     }
 
     // Snap to the nearest drawn rotation.
-    const PUActorState state = currentState;
-    const int32_t numRotations = appearType->actorStateData[state].numRotations + 1;
+    const MCPUActorState state = CurrentState;
+    const int32_t numRotations = AppearType->ActorStateData[state].NumRotations + 1;
     const int32_t rotationIndex = static_cast<int16_t>(static_cast<int32_t>(
-        std::floor(static_cast<double>(static_cast<float>(numRotations) * rotation) * (1.0 / 360.0))));
-    rotation = static_cast<float>(360.0 / numRotations) * static_cast<float>(rotationIndex);
-    currentShape = appearType->getShape(state, static_cast<int32_t>(rotation), 0, frameRate);
+        std::floor(static_cast<double>(static_cast<float>(numRotations) * Rotation) * (1.0 / 360.0))));
+    Rotation = static_cast<float>(360.0 / numRotations) * static_cast<float>(rotationIndex);
+    CurrentShape = AppearType->GetShape(state, static_cast<int32_t>(Rotation), 0, FrameRate);
 
-    ElementList->openGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - screenPos.y), 0);
+    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 0);
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
-        drawSelectBox(0xfd);
+        DrawSelectBox(0xfd);
     }
 
-    if (currentShape != nullptr && currentShape->frameList != nullptr)
+    if (CurrentShape != nullptr && CurrentShape->FrameList != nullptr)
     {
         uint8_t* fadeTable = nullptr;
 
-        if (fadeTableIndex != -1 && fadeTableIndex >= 0)
+        if (FadeTableIndex != -1 && FadeTableIndex >= 0)
         {
             fadeTable =
-                gamePalette->fadePalettes.get() + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+                GamePalette->FadePalettes.get() + (FadeTableIndex + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
         }
 
-        ElementList->add(ElementPool::Make<VFXElement>(currentShape->frameList, screenPos.x, screenPos.y, currentFrame,
-                                                       0, fadeTable, 1, 0));
+        ElementList->Add(MCElementPool::Make<MCVfxElement>(CurrentShape->FrameList, ScreenPos.X, ScreenPos.Y,
+                                                           CurrentFrame, 0, fadeTable, 1, 0));
     }
 
-    const int32_t selected = owner->selected;
+    const int32_t selected = Owner->Selected;
     bool showBars = selected == -1 || selected == 1;
 
     if (!showBars)
     {
         if (selected == 2)
         {
-            recalcBounds(eye);
-            GameObject* selectedObj = owner;
-            const int32_t alignment = selectedObj->getAlignment();
+            RecalcBounds(Eye);
+            MCGameObject* selectedObj = Owner;
+            const int32_t alignment = selectedObj->GetAlignment();
 
             if (alignment == -1)
             {
-                drawSelectBrackets(0xfd);
+                DrawSelectBrackets(0xfd);
             }
             else if (alignment == 0)
             {
-                drawSelectBrackets(0xfe);
+                DrawSelectBrackets(0xfe);
             }
             else if (alignment == 1)
             {
-                drawSelectBrackets(selectedObj->getAlignment() == homeTeam->alignment ? 0xfc : 0xfb);
+                DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam->Alignment ? 0xfc : 0xfb);
             }
         }
 
-        showBars = owner->getNumAttackers() >= 1;
+        showBars = Owner->GetNumAttackers() >= 1;
     }
 
     if (showBars)
     {
-        recalcBounds(eye);
-        drawBars();
+        RecalcBounds(Eye);
+        DrawBars();
     }
 
-    if (highlighting != 0)
+    if (Highlighting != 0)
     {
-        if (highlightTime > 0.0f)
+        if (HighlightTime > 0.0f)
         {
-            highlightTime -= frameLength;
-            drawSelectBox(0xfc);
+            HighlightTime -= FrameLength;
+            DrawSelectBox(0xfc);
             return 0;
         }
 
-        highlighted = 1;
+        Highlighted = 1;
     }
 
     return 0;
 }
 
-auto PUAppearance::setDestroyed() -> void
+auto MCPUAppearance::SetDestroyed() -> void
 {
     // Destroyed closed from closed, destroyed open from any other state.
-    currentState =
-        currentState != PU_ACTOR_STATE_CLOSED ? PU_ACTOR_STATE_DESTROYED_OPEN : PU_ACTOR_STATE_DESTROYED_CLOSED;
+    CurrentState =
+        CurrentState != PU_ACTOR_STATE_CLOSED ? PU_ACTOR_STATE_DESTROYED_OPEN : PU_ACTOR_STATE_DESTROYED_CLOSED;
 }
 
-auto PUAppearance::setCombatMode(int combatMode) -> int32_t
+auto MCPUAppearance::SetCombatMode(int combatMode) -> int32_t
 {
-    const PUActorData* states = appearType->actorStateData;
-    const int32_t lastOpeningFrame = static_cast<int32_t>(states[PU_ACTOR_STATE_OPENING].numFrames) - 1;
-    const int32_t lastClosingFrame = static_cast<int32_t>(states[PU_ACTOR_STATE_CLOSING].numFrames) - 1;
+    const MCPUActorData* states = AppearType->ActorStateData;
+    const int32_t lastOpeningFrame = static_cast<int32_t>(states[PU_ACTOR_STATE_OPENING].NumFrames) - 1;
+    const int32_t lastClosingFrame = static_cast<int32_t>(states[PU_ACTOR_STATE_CLOSING].NumFrames) - 1;
 
     // Finish an opening or closing that has played out.
-    if (currentState == PU_ACTOR_STATE_OPENING || currentState == PU_ACTOR_STATE_CLOSING)
+    if (CurrentState == PU_ACTOR_STATE_OPENING || CurrentState == PU_ACTOR_STATE_CLOSING)
     {
-        if (currentState == PU_ACTOR_STATE_CLOSING && currentFrame == lastClosingFrame)
+        if (CurrentState == PU_ACTOR_STATE_CLOSING && CurrentFrame == lastClosingFrame)
         {
-            currentState = PU_ACTOR_STATE_CLOSED;
-            currentFrame = -1;
+            CurrentState = PU_ACTOR_STATE_CLOSED;
+            CurrentFrame = -1;
         }
 
-        if (currentState == PU_ACTOR_STATE_OPENING && currentFrame == lastOpeningFrame)
+        if (CurrentState == PU_ACTOR_STATE_OPENING && CurrentFrame == lastOpeningFrame)
         {
-            currentState = PU_ACTOR_STATE_OPEN;
-            currentFrame = -1;
+            CurrentState = PU_ACTOR_STATE_OPEN;
+            CurrentFrame = -1;
         }
     }
 
     if (combatMode == 0)
     {
-        if (currentState == PU_ACTOR_STATE_OPEN)
+        if (CurrentState == PU_ACTOR_STATE_OPEN)
         {
-            currentState = PU_ACTOR_STATE_CLOSING;
+            CurrentState = PU_ACTOR_STATE_CLOSING;
         }
 
-        if (currentState == PU_ACTOR_STATE_CLOSING && currentFrame == lastClosingFrame)
+        if (CurrentState == PU_ACTOR_STATE_CLOSING && CurrentFrame == lastClosingFrame)
         {
-            currentState = PU_ACTOR_STATE_CLOSED;
-            currentFrame = -1;
+            CurrentState = PU_ACTOR_STATE_CLOSED;
+            CurrentFrame = -1;
         }
     }
     else
     {
-        if (currentState == PU_ACTOR_STATE_CLOSED)
+        if (CurrentState == PU_ACTOR_STATE_CLOSED)
         {
-            currentState = PU_ACTOR_STATE_OPENING;
+            CurrentState = PU_ACTOR_STATE_OPENING;
         }
 
-        if (currentState == PU_ACTOR_STATE_OPENING && currentFrame == lastOpeningFrame)
+        if (CurrentState == PU_ACTOR_STATE_OPENING && CurrentFrame == lastOpeningFrame)
         {
-            currentState = PU_ACTOR_STATE_OPEN;
-            currentFrame = -1;
+            CurrentState = PU_ACTOR_STATE_OPEN;
+            CurrentFrame = -1;
         }
 
-        if (currentState == PU_ACTOR_STATE_CLOSING)
+        if (CurrentState == PU_ACTOR_STATE_CLOSING)
         {
             // Reopen from the matching point of the opening.
             const double closedShare =
-                static_cast<double>(static_cast<uint32_t>(currentFrame)) / static_cast<double>(lastClosingFrame);
-            currentFrame = static_cast<int32_t>((1.0 - closedShare) *
-                                                static_cast<double>(states[PU_ACTOR_STATE_OPENING].numFrames));
-            currentState = PU_ACTOR_STATE_OPENING;
+                static_cast<double>(static_cast<uint32_t>(CurrentFrame)) / static_cast<double>(lastClosingFrame);
+            CurrentFrame = static_cast<int32_t>((1.0 - closedShare) *
+                                                static_cast<double>(states[PU_ACTOR_STATE_OPENING].NumFrames));
+            CurrentState = PU_ACTOR_STATE_OPENING;
             return 1;
         }
     }
 
-    return currentState;
+    return CurrentState;
 }
 
-auto PUAppearance::update() -> int32_t
+auto MCPUAppearance::Update() -> int32_t
 {
-    if (currentFrame == -1)
+    if (CurrentFrame == -1)
     {
-        currentFrame = 0;
+        CurrentFrame = 0;
     }
 
-    if (visible != 0 && owner->isCaptured() != 0 && highlighted == 0 && highlighting == 0)
+    if (Visible != 0 && Owner->IsCaptured() != 0 && Highlighted == 0 && Highlighting == 0)
     {
-        highlighting = 1;
-        highlightTime = 3.0f;
+        Highlighting = 1;
+        HighlightTime = 3.0f;
     }
 
-    currentTime = frameLength + currentTime;
-    const int32_t wholeFrames = static_cast<int32_t>(std::floor(static_cast<double>(currentTime * frameRate)));
+    CurrentTime = FrameLength + CurrentTime;
+    const int32_t wholeFrames = static_cast<int32_t>(std::floor(static_cast<double>(CurrentTime * FrameRate)));
 
-    if (lastFrame < wholeFrames)
+    if (LastFrame < wholeFrames)
     {
-        const int32_t played = lastFrame;
-        lastFrame = wholeFrames;
+        const int32_t played = LastFrame;
+        LastFrame = wholeFrames;
         const int32_t advanced = wholeFrames - played;
 
         if (advanced != 0)
         {
-            const uint32_t frame = static_cast<uint32_t>(currentFrame + advanced);
-            currentFrame = static_cast<int32_t>(frame);
-            const uint32_t numFrames = appearType->actorStateData[currentState].numFrames;
+            const uint32_t frame = static_cast<uint32_t>(CurrentFrame + advanced);
+            CurrentFrame = static_cast<int32_t>(frame);
+            const uint32_t numFrames = AppearType->ActorStateData[CurrentState].NumFrames;
 
             if (numFrames <= frame)
             {
-                currentFrame = static_cast<int32_t>(numFrames - 1);
+                CurrentFrame = static_cast<int32_t>(numFrames - 1);
                 return 0;
             }
         }
@@ -620,64 +621,64 @@ auto PUAppearance::update() -> int32_t
     return 1;
 }
 
-auto PUAppearance::destroy() -> void
+auto MCPUAppearance::Destroy() -> void
 {
-    appearType->removeUsers(this);
-    appearanceTypeList->removeAppearance(appearType);
+    AppearType->RemoveUsers(this);
+    AppearanceTypeList->RemoveAppearance(AppearType);
 }
 
-auto PUAppearance::stateExists(PUActorState state) -> int32_t
+auto MCPUAppearance::StateExists(MCPUActorState state) -> int32_t
 {
     if (static_cast<int32_t>(state) < MAX_PU_ACTOR_STATES && state >= 0)
     {
-        return static_cast<int32_t>(appearType->actorStateData[state].numFrames);
+        return static_cast<int32_t>(AppearType->ActorStateData[state].NumFrames);
     }
 
     return 0;
 }
 
-auto PUAppearance::drawBars() -> void
+auto MCPUAppearance::DrawBars() -> void
 {
     // Port: the bar is an overlay, on the screen over the view: it follows the sprite through the zoom, its size
     // doesn't change.
-    const float scale = zoomScale(eye);
+    const float scale = ZoomScale(Eye);
     const float barWidth = scale * 38.0f;
     const float barHeight = scale * 4.0f;
-    const float barY = (MCOverlayY(upperLeft.y) - scale * 7.0f) - barHeight;
-    const float barX = static_cast<float>(std::floor(static_cast<double>(MCOverlayX(screenPos.x) - barWidth * 0.5f)));
+    const float barY = (MCOverlayY(UpperLeft.Y) - scale * 7.0f) - barHeight;
+    const float barX = static_cast<float>(std::floor(static_cast<double>(MCOverlayX(ScreenPos.X) - barWidth * 0.5f)));
 
     // A turret shows its bar only with its weapon deployed.
-    GameObject* obj = owner;
+    MCGameObject* obj = Owner;
 
-    if (obj->objectClass == TURRET && static_cast<Turret*>(obj)->weaponDeployed == 0)
+    if (obj->ObjectClass == TURRET && static_cast<MCTurret*>(obj)->WeaponDeployed == 0)
     {
         return;
     }
 
     double health = 0.0; // Port fix: the original leaves this unset for other classes.
-    const int32_t objectClass = obj->objectClass;
+    const int32_t objectClass = obj->ObjectClass;
 
     if (objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL || objectClass == MOVER)
     {
-        auto* mover = static_cast<Mover*>(obj);
+        auto* mover = static_cast<MCMover*>(obj);
 
         if (mover == nullptr)
         {
             return;
         }
 
-        if (mover->weaponEffectiveness < 0.0f || mover->maxWeaponEffectiveness < mover->weaponEffectiveness)
+        if (mover->WeaponEffectiveness < 0.0f || mover->MaxWeaponEffectiveness < mover->WeaponEffectiveness)
         {
             return;
         }
 
-        health = mover->getTotalEffectiveness();
+        health = mover->GetTotalEffectiveness();
     }
     else if (objectClass == TURRET || objectClass == GATE)
     {
-        int32_t damage = static_cast<int32_t>(obj->getDamage());
+        int32_t damage = static_cast<int32_t>(obj->GetDamage());
         // Turret and gate types both keep their damage level at +0x30.
-        const int32_t dmgLevel = static_cast<int32_t>(static_cast<TurretType*>(obj->getObjectType())->dmgLevel);
+        const int32_t dmgLevel = static_cast<int32_t>(static_cast<MCTurretType*>(obj->GetObjectType())->DmgLevel);
 
         if (dmgLevel < damage)
         {
@@ -707,25 +708,25 @@ auto PUAppearance::drawBars() -> void
         barLength = 1.0f;
     }
 
-    ElementList->openGroup(-50000, 1);
-    PolyElementData data;
-    data.numVertices = 0;
-    data.textureMapOff = 0;
-    data.texture = nullptr;
-    data.textureWidth = 0;
-    data.textureHeight = 0;
-    data.fadeTable = nullptr;
-    data.translate = 0;
-    data.statusBar = 1;
-    data.barColor = barColor;
-    data.vertices[0].x = static_cast<int32_t>(barX - 1.0f);
-    data.vertices[0].y = static_cast<int32_t>(barY - 1.0f);
-    data.vertices[1].x = static_cast<int32_t>(barX + barWidth + 1.0f);
-    data.vertices[1].y = static_cast<int32_t>(barY + barHeight + 1.0f);
-    data.barPercent = static_cast<int32_t>(barLength);
+    ElementList->OpenGroup(-50000, 1);
+    MCPolyElementData data;
+    data.NumVertices = 0;
+    data.TextureMapOff = 0;
+    data.Texture = nullptr;
+    data.TextureWidth = 0;
+    data.TextureHeight = 0;
+    data.FadeTable = nullptr;
+    data.Translate = 0;
+    data.StatusBar = 1;
+    data.BarColor = barColor;
+    data.Vertices[0].X = static_cast<int32_t>(barX - 1.0f);
+    data.Vertices[0].Y = static_cast<int32_t>(barY - 1.0f);
+    data.Vertices[1].X = static_cast<int32_t>(barX + barWidth + 1.0f);
+    data.Vertices[1].Y = static_cast<int32_t>(barY + barHeight + 1.0f);
+    data.BarPercent = static_cast<int32_t>(barLength);
 
-    if (data.barPercent > 0)
+    if (data.BarPercent > 0)
     {
-        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
+        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, -50000));
     }
 }

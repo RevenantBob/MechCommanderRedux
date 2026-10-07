@@ -53,17 +53,17 @@ namespace
     constexpr int32_t MAX_CAMERA_DRONES = 1000;
 
     /// <summary>Turns a frame about its k axis (MC2's inline frame_of_ref::rotate_about_k).</summary>
-    void rotateAboutK(frame_of_ref& frame, float s, float c)
+    void RotateAboutK(MCFrameOfRef& frame, float s, float c)
     {
-        const vector_3d oldI = frame.i;
-        frame.i = frame.i * c + frame.j * s;
-        frame.j = frame.j * c - oldI * s;
+        const MCVector3D oldI = frame.I;
+        frame.I = frame.I * c + frame.J * s;
+        frame.J = frame.J * c - oldI * s;
     }
 
     /// <summary>The object list named <paramref name="listName"/>, or null.</summary>
-    ObjectQueueNode* findObjectList(const char* listName)
+    MCObjectQueueNode* FindObjectList(const char* listName)
     {
-        for (ObjectQueueNode* list = objectList->head; list != nullptr; list = list->next)
+        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
         {
             if (list->operator==(listName) != 0)
             {
@@ -75,26 +75,26 @@ namespace
     }
 
     /// <summary>Runs a collision check between the strike and every object of the list.</summary>
-    void collideWithList(Artillery* strike, ObjectQueueNode* list)
+    void CollideWithList(MCArtillery* strike, MCObjectQueueNode* list)
     {
         if (list == nullptr)
         {
             return;
         }
 
-        BaseObject* object = list->head;
+        MCBaseObject* object = list->Head;
 
         while (object != nullptr)
         {
-            auto* other = static_cast<GameObject*>(object);
+            auto* other = static_cast<MCGameObject*>(object);
 
-            if (other->getObjectType() != nullptr)
+            if (other->GetObjectType() != nullptr)
             {
                 // The block and vertex are fetched but never used.
                 int32_t otherBlock = -1;
                 int32_t otherVertex = -1;
 
-                switch (other->objectClass)
+                switch (other->ObjectClass)
                 {
                     case BUILDING:
                     case TREE:
@@ -102,18 +102,18 @@ namespace
                     case MISCTERRAINOBJECT:
                     case TREEBUILDING:
                     case CAMERADRONE:
-                        other->getBlockAndVertexNumber(otherBlock, otherVertex);
+                        other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                         break;
                     default:
                         break;
                 }
 
-                collisionSystem->detectStaticCollision(strike, other);
+                CollisionSystem->DetectStaticCollision(strike, other);
             }
 
             // Port fix (OB-015): the original only steps to the next object after one with a type, so an object
             // without one hangs the game here.
-            object = object->next;
+            object = object->Next;
         }
     }
 
@@ -122,24 +122,24 @@ namespace
     /// gone off: <c>explosionsPerExplosion</c> explosions scattered around the entry's offset.
     /// </summary>
     /// <returns>True when the pattern's last entry just went off (the strike is over).</returns>
-    bool setOffExplosions(Artillery* strike)
+    bool SetOffExplosions(MCArtillery* strike)
     {
-        auto* type = static_cast<ArtilleryType*>(strike->objType);
+        auto* type = static_cast<MCArtilleryType*>(strike->ObjType);
 
-        for (int32_t i = 0; i < type->numExplosions; i++)
+        for (int32_t i = 0; i < type->NumExplosions; i++)
         {
-            if (type->explosionDelay[i] < std::fabs(strike->timeToImpact) && strike->explosionsDone[i] == 0)
+            if (type->ExplosionDelay[i] < std::fabs(strike->TimeToImpact) && strike->ExplosionsDone[i] == 0)
             {
-                const float centerX = strike->position.x + type->explosionOffsetX[i];
-                const float centerY = strike->position.y + type->explosionOffsetY[i];
-                const float centerZ = strike->position.z;
+                const float centerX = strike->Position.X + type->ExplosionOffsetX[i];
+                const float centerY = strike->Position.Y + type->ExplosionOffsetY[i];
+                const float centerZ = strike->Position.Z;
 
-                for (int32_t n = 0; n < type->explosionsPerExplosion; n++)
+                for (int32_t n = 0; n < type->ExplosionsPerExplosion; n++)
                 {
                     float offsetX = static_cast<float>(
-                        RandomNumber(static_cast<ArtilleryType*>(strike->getObjectType())->explosionRandomOffsetX));
+                        RandomNumber(static_cast<MCArtilleryType*>(strike->GetObjectType())->ExplosionRandomOffsetX));
                     float offsetY = static_cast<float>(
-                        RandomNumber(static_cast<ArtilleryType*>(strike->getObjectType())->explosionRandomOffsetY));
+                        RandomNumber(static_cast<MCArtilleryType*>(strike->GetObjectType())->ExplosionRandomOffsetY));
 
                     if (RollDice(50) != 0)
                     {
@@ -151,14 +151,14 @@ namespace
                         offsetY = -offsetY;
                     }
 
-                    vector_3d spot(offsetX + centerX, offsetY + centerY, centerZ);
-                    type->createExplosion(spot, 0.0f, 0.0f);
+                    MCVector3D spot(offsetX + centerX, offsetY + centerY, centerZ);
+                    type->CreateExplosion(spot, 0.0f, 0.0f);
                 }
 
-                type = static_cast<ArtilleryType*>(strike->objType);
-                strike->explosionsDone[i] = 1;
+                type = static_cast<MCArtilleryType*>(strike->ObjType);
+                strike->ExplosionsDone[i] = 1;
 
-                if (i + 1 == type->numExplosions)
+                if (i + 1 == type->NumExplosions)
                 {
                     return true;
                 }
@@ -172,88 +172,88 @@ namespace
     /// Projects the object to the screen through the terrain (the 100% or 50% projection, by the camera's scale)
     /// into <c>screenPos</c>.
     /// </summary>
-    void projectToScreen(BigGameObject* object, Camera* camera)
+    void ProjectToScreen(MCBigGameObject* object, MCCamera* camera)
     {
-        vector_2d screen100;
-        vector_2d screen50;
+        MCVector2D screen100;
+        MCVector2D screen50;
 
-        if (land != nullptr)
+        if (Land != nullptr)
         {
-            land->projectTerrain(object->position, screen100, screen50);
+            Land->ProjectTerrain(object->Position, screen100, screen50);
         }
 
         float screenY;
 
-        if (camera->cameraScale == 1)
+        if (camera->CameraScale == 1)
         {
-            object->screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-            screenY = screen50.y - camera->screenUL50.y;
+            object->ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+            screenY = screen50.Y - camera->ScreenUL50.Y;
         }
         else
         {
-            object->screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-            screenY = screen100.y - camera->screenUL.y;
+            object->ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+            screenY = screen100.Y - camera->ScreenUL.Y;
         }
 
-        object->screenPos.y = screenY + camera->halfHeight;
+        object->ScreenPos.Y = screenY + camera->HalfHeight;
     }
 } // namespace
 
-int32_t artilleryTypeTable[8] = {249, 248, 250, 516, 508, 507, 509, 516};
-int32_t numCameraDrones = 0;
+int32_t ArtilleryTypeTable[8] = {249, 248, 250, 516, 508, 507, 509, 516};
+int32_t NumCameraDrones = 0;
 
 //---------------------------------------------------------------------------
 // CallArtillery / ArtilleryChunk
 //---------------------------------------------------------------------------
 
-void CallArtillery(int32_t commanderId, int32_t strikeType, vector_3d location, int32_t seconds, int randomOffset)
+void CallArtillery(int32_t commanderId, int32_t strikeType, MCVector3D location, int32_t seconds, int randomOffset)
 {
-    Commander* commander = CommanderTable[commanderId];
+    MCCommander* commander = CommanderTable[commanderId];
 
     switch (strikeType)
     {
         case 0:
         case 4:
         {
-            if (commander->numSmallStrikes < 1)
+            if (commander->NumSmallStrikes < 1)
             {
                 return;
             }
 
-            commander->numSmallStrikes--;
+            commander->NumSmallStrikes--;
             break;
         }
         case 1:
         case 5:
         {
-            if (commander->numLargeStrikes < 1)
+            if (commander->NumLargeStrikes < 1)
             {
                 return;
             }
 
-            commander->numLargeStrikes--;
+            commander->NumLargeStrikes--;
             break;
         }
         case 2:
         case 6:
         {
-            if (commander->numSensorStrikes < 1)
+            if (commander->NumSensorStrikes < 1)
             {
                 return;
             }
 
-            commander->numSensorStrikes--;
+            commander->NumSensorStrikes--;
             break;
         }
         case 3:
         case 7:
         {
-            if (commander->numCameraDrones < 1)
+            if (commander->NumCameraDrones < 1)
             {
                 return;
             }
 
-            commander->numCameraDrones--;
+            commander->NumCameraDrones--;
             break;
         }
         default:
@@ -276,342 +276,342 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, vector_3d location, 
         }
     }
 
-    auto* strike = static_cast<Artillery*>(createObject(artilleryTypeTable[strikeType]));
-    strike->randomOffset = randomOffset;
-    strike->setAlignment(CommanderTable[commanderId]->getTeam()->alignment);
+    auto* strike = static_cast<MCArtillery*>(CreateObject(ArtilleryTypeTable[strikeType]));
+    strike->RandomOffset = randomOffset;
+    strike->SetAlignment(CommanderTable[commanderId]->GetTeam()->Alignment);
 
-    if (objectList->head != nullptr && strike != nullptr)
+    if (ObjectList->Head != nullptr && strike != nullptr)
     {
-        objectList->head->addNode(strike);
+        ObjectList->Head->AddNode(strike);
     }
 
-    strike->setPosition(location);
+    strike->SetPosition(location);
 
     if (CommanderTable[commanderId] == HomeCommander)
     {
-        for (ArtilleryButton* button : theInterface->tacticalMap->artilleryButtons)
+        for (MCArtilleryButton* button : TheInterface->TacticalMap->ArtilleryButtons)
         {
-            button->draw();
+            button->Draw();
         }
     }
 
     if (seconds != -1)
     {
-        strike->timeToImpact = static_cast<float>(seconds);
+        strike->TimeToImpact = static_cast<float>(seconds);
     }
 
     if (seconds < 3)
     {
-        strike->timeToImpact = -1.0f;
+        strike->TimeToImpact = -1.0f;
     }
 
-    if (MPlayer != nullptr && MPlayer->isServer != 0)
+    if (MPlayer != nullptr && MPlayer->IsServer != 0)
     {
-        MPlayer->addArtilleryChunk(commanderId, strikeType, location, seconds);
+        MPlayer->AddArtilleryChunk(commanderId, strikeType, location, seconds);
     }
 }
 
-auto ArtilleryChunk::build(int32_t newCommanderId, int32_t newStrikeType, vector_3d location, int32_t newSeconds)
+auto MCArtilleryChunk::Build(int32_t newCommanderId, int32_t newStrikeType, MCVector3D location, int32_t newSeconds)
     -> void
 {
-    commanderId = static_cast<int8_t>(newCommanderId);
-    strikeType = static_cast<int8_t>(newStrikeType);
-    worldCoordToMapCell(location, cellRow, cellCol);
-    seconds = static_cast<int8_t>(newSeconds);
-    data = 0;
+    CommanderId = static_cast<int8_t>(newCommanderId);
+    StrikeType = static_cast<int8_t>(newStrikeType);
+    WorldCoordToMapCell(location, CellRow, CellCol);
+    Seconds = static_cast<int8_t>(newSeconds);
+    Data = 0;
 }
 
-auto ArtilleryChunk::pack() -> void
+auto MCArtilleryChunk::Pack() -> void
 {
     // The signed fields are sign-extended, as in the original.
-    data = static_cast<uint32_t>(((((cellRow << 10) | cellCol) << 3 | static_cast<int32_t>(strikeType)) << 3) |
-                                 ((static_cast<int32_t>(seconds) + 1) * 0x4000000) | static_cast<int32_t>(commanderId));
+    Data = static_cast<uint32_t>(((((CellRow << 10) | CellCol) << 3 | static_cast<int32_t>(StrikeType)) << 3) |
+                                 ((static_cast<int32_t>(Seconds) + 1) * 0x4000000) | static_cast<int32_t>(CommanderId));
 }
 
-auto ArtilleryChunk::unpack() -> void
+auto MCArtilleryChunk::Unpack() -> void
 {
-    commanderId = static_cast<int8_t>(data & 7);
-    strikeType = static_cast<int8_t>((data >> 3) & 7);
-    cellCol = static_cast<int32_t>((data >> 6) & 0x3ff);
-    cellRow = static_cast<int32_t>((data >> 16) & 0x3ff);
-    seconds = static_cast<int8_t>(static_cast<uint8_t>(data >> 26) - 1);
+    CommanderId = static_cast<int8_t>(Data & 7);
+    StrikeType = static_cast<int8_t>((Data >> 3) & 7);
+    CellCol = static_cast<int32_t>((Data >> 6) & 0x3ff);
+    CellRow = static_cast<int32_t>((Data >> 16) & 0x3ff);
+    Seconds = static_cast<int8_t>(static_cast<uint8_t>(Data >> 26) - 1);
 }
 
-auto ArtilleryChunk::equalTo(ArtilleryChunk* chunk) -> int
+auto MCArtilleryChunk::EqualTo(MCArtilleryChunk* chunk) -> int
 {
-    if (commanderId != chunk->commanderId)
+    if (CommanderId != chunk->CommanderId)
     {
         return 0;
     }
 
-    if (strikeType != chunk->strikeType)
+    if (StrikeType != chunk->StrikeType)
     {
         return 0;
     }
 
-    if (cellRow != chunk->cellRow)
+    if (CellRow != chunk->CellRow)
     {
         return 0;
     }
 
-    if (cellCol != chunk->cellCol)
+    if (CellCol != chunk->CellCol)
     {
         return 0;
     }
 
-    return seconds == chunk->seconds ? 1 : 0;
+    return Seconds == chunk->Seconds ? 1 : 0;
 }
 
 //---------------------------------------------------------------------------
 // ArtilleryType
 //---------------------------------------------------------------------------
 
-auto ArtilleryType::createInstance() -> BaseObject*
+auto MCArtilleryType::CreateInstance() -> MCBaseObject*
 {
-    auto* newStrike = new Artillery;
+    auto* newStrike = new MCArtillery;
 
     if (newStrike == nullptr)
     {
         return nullptr;
     }
 
-    if (newStrike->init(this) != 0)
+    if (newStrike->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newStrike->idNumber = NextIdNumber++;
+    newStrike->IdNumber = NextIdNumber++;
     return newStrike;
 }
 
-auto ArtilleryType::destroy() -> void
+auto MCArtilleryType::Destroy() -> void
 {
-    spriteManager->freeShapeRAM(shapeData);
-    shapeData = nullptr;
-    explosionOffsetX.reset();
-    explosionOffsetY.reset();
-    explosionDelay.reset();
+    SpriteManager->FreeShapeRam(ShapeData);
+    ShapeData = nullptr;
+    ExplosionOffsetX.reset();
+    ExplosionOffsetY.reset();
+    ExplosionDelay.reset();
 }
 
-auto ArtilleryType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCArtilleryType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile artFile;
-    int32_t result = artFile.open(objFile, fileSize, 50);
+    MCFitIniFile artFile;
+    int32_t result = artFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = artFile.seekBlock("Artillery")) != 0)
+    if ((result = artFile.SeekBlock("Artillery")) != 0)
     {
         return result;
     }
 
     char spriteName[80];
 
-    if ((result = artFile.readIdString("ArtillerySpriteName", spriteName, 79)) != 0)
+    if ((result = artFile.ReadIdString("ArtillerySpriteName", spriteName, 79)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdULong("FrameCount", frameCount)) != 0)
+    if ((result = artFile.ReadIdULong("FrameCount", FrameCount)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdULong("StartFrame", startFrame)) != 0)
+    if ((result = artFile.ReadIdULong("StartFrame", StartFrame)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("FrameRate", frameRate)) != 0)
+    if ((result = artFile.ReadIdFloat("FrameRate", FrameRate)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("NominalTimeToImpact", nominalTimeToImpact)) != 0)
+    if ((result = artFile.ReadIdFloat("NominalTimeToImpact", NominalTimeToImpact)) != 0)
     {
         return result;
     }
 
-    if (artFile.readIdFloat("NominalTimeToLaunch", nominalTimeToLaunch) != 0)
+    if (artFile.ReadIdFloat("NominalTimeToLaunch", NominalTimeToLaunch) != 0)
     {
-        nominalTimeToLaunch = nominalTimeToImpact - 10.0f;
+        NominalTimeToLaunch = NominalTimeToImpact - 10.0f;
     }
 
-    if ((result = artFile.readIdFloat("NominalDamage", nominalDamage)) != 0)
+    if ((result = artFile.ReadIdFloat("NominalDamage", NominalDamage)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("NominalMajorRange", nominalMajorRange)) != 0)
+    if ((result = artFile.ReadIdFloat("NominalMajorRange", NominalMajorRange)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("NominalMajorHits", nominalMajorHits)) != 0)
+    if ((result = artFile.ReadIdFloat("NominalMajorHits", NominalMajorHits)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("NominalMinorRange", nominalMinorRange)) != 0)
+    if ((result = artFile.ReadIdFloat("NominalMinorRange", NominalMinorRange)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("NominalMinorHits", nominalMinorHits)) != 0)
+    if ((result = artFile.ReadIdFloat("NominalMinorHits", NominalMinorHits)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("NominalSensorTime", nominalSensorTime)) != 0)
+    if ((result = artFile.ReadIdFloat("NominalSensorTime", NominalSensorTime)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("NominalSensorRange", nominalSensorRange)) != 0)
+    if ((result = artFile.ReadIdFloat("NominalSensorRange", NominalSensorRange)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("fontScale", fontScale)) != 0)
+    if ((result = artFile.ReadIdFloat("fontScale", FontScale)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("fontXOffset", fontXOffset)) != 0)
+    if ((result = artFile.ReadIdFloat("fontXOffset", FontXOffset)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdFloat("fontYOffset", fontYOffset)) != 0)
+    if ((result = artFile.ReadIdFloat("fontYOffset", FontYOffset)) != 0)
     {
         return result;
     }
 
-    if ((result = artFile.readIdULong("fontColor", fontColor)) != 0)
+    if ((result = artFile.ReadIdULong("fontColor", FontColor)) != 0)
     {
         return result;
     }
 
-    if (nominalDamage == 0.0f)
+    if (NominalDamage == 0.0f)
     {
-        explosionDelay = nullptr;
-        explosionOffsetY = nullptr;
-        explosionOffsetX = nullptr;
+        ExplosionDelay = nullptr;
+        ExplosionOffsetY = nullptr;
+        ExplosionOffsetX = nullptr;
     }
     else
     {
-        if ((result = artFile.readIdLong("NumExplosions", numExplosions)) != 0)
+        if ((result = artFile.ReadIdLong("NumExplosions", NumExplosions)) != 0)
         {
             return result;
         }
 
-        const int32_t count = numExplosions;
-        explosionOffsetX = std::make_unique<float[]>(static_cast<size_t>(count));
-        explosionOffsetY = std::make_unique<float[]>(static_cast<size_t>(count));
-        explosionDelay = std::make_unique<float[]>(static_cast<size_t>(count));
+        const int32_t count = NumExplosions;
+        ExplosionOffsetX = std::make_unique<float[]>(static_cast<size_t>(count));
+        ExplosionOffsetY = std::make_unique<float[]>(static_cast<size_t>(count));
+        ExplosionDelay = std::make_unique<float[]>(static_cast<size_t>(count));
         char keyName[52];
 
         for (int32_t i = 0; i < count; i++)
         {
             std::sprintf(keyName, "ExplosionDelay%d", i);
 
-            if ((result = artFile.readIdFloat(keyName, explosionDelay[i])) != 0)
+            if ((result = artFile.ReadIdFloat(keyName, ExplosionDelay[i])) != 0)
             {
                 return result;
             }
 
             std::sprintf(keyName, "ExplosionOffsetX%d", i);
 
-            if ((result = artFile.readIdFloat(keyName, explosionOffsetX[i])) != 0)
+            if ((result = artFile.ReadIdFloat(keyName, ExplosionOffsetX[i])) != 0)
             {
                 return result;
             }
 
             std::sprintf(keyName, "ExplosionOffsetY%d", i);
 
-            if ((result = artFile.readIdFloat(keyName, explosionOffsetY[i])) != 0)
+            if ((result = artFile.ReadIdFloat(keyName, ExplosionOffsetY[i])) != 0)
             {
                 return result;
             }
         }
 
-        if ((result = artFile.readIdLong("ExplosionsPerExplosion", explosionsPerExplosion)) != 0)
+        if ((result = artFile.ReadIdLong("ExplosionsPerExplosion", ExplosionsPerExplosion)) != 0)
         {
             return result;
         }
 
-        if ((result = artFile.readIdLong("ExplosionRandomOffsetX", explosionRandomOffsetX)) != 0)
+        if ((result = artFile.ReadIdLong("ExplosionRandomOffsetX", ExplosionRandomOffsetX)) != 0)
         {
             return result;
         }
 
-        if ((result = artFile.readIdLong("ExplosionRandomOffsetY", explosionRandomOffsetY)) != 0)
+        if ((result = artFile.ReadIdLong("ExplosionRandomOffsetY", ExplosionRandomOffsetY)) != 0)
         {
             return result;
         }
 
-        if (artFile.readIdLong("MinArtilleryHeadRange", minArtilleryHeadRange) != 0)
+        if (artFile.ReadIdLong("MinArtilleryHeadRange", MinArtilleryHeadRange) != 0)
         {
-            minArtilleryHeadRange = 5;
+            MinArtilleryHeadRange = 5;
         }
     }
 
-    FullPathFileName spritePath;
-    spritePath.init(shapesPath, spriteName, ".shp");
-    File spriteFile;
+    MCFullPathFileName spritePath;
+    spritePath.Init(ShapesPath, spriteName, ".shp");
+    MCFile spriteFile;
 
-    if ((result = spriteFile.open(spritePath, READ, 50)) != 0)
+    if ((result = spriteFile.Open(spritePath, READ, 50)) != 0)
     {
         return result;
     }
 
-    const uint32_t spriteSize = spriteFile.fileSize();
-    shapeData = static_cast<uint8_t*>(spriteManager->mallocShapeRAM(spriteSize));
+    const uint32_t spriteSize = spriteFile.FileSize();
+    ShapeData = static_cast<uint8_t*>(SpriteManager->MallocShapeRam(spriteSize));
 
-    if (shapeData == nullptr)
+    if (ShapeData == nullptr)
     {
-        spriteManager->dumpLRU(static_cast<int32_t>(spriteSize));
-        shapeData = static_cast<uint8_t*>(spriteManager->mallocShapeRAM(spriteSize));
+        SpriteManager->DumpLru(static_cast<int32_t>(spriteSize));
+        ShapeData = static_cast<uint8_t*>(SpriteManager->MallocShapeRam(spriteSize));
 
-        if (shapeData == nullptr)
+        if (ShapeData == nullptr)
         {
             return -0x2102ffff;
         }
     }
 
-    spriteFile.read(shapeData, static_cast<int32_t>(spriteSize));
-    spriteFile.close();
-    return ObjectType::init(&artFile);
+    spriteFile.Read(ShapeData, static_cast<int32_t>(spriteSize));
+    spriteFile.Close();
+    return MCObjectType::Init(&artFile);
 }
 
-auto ArtilleryType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCArtilleryType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    auto* strike = static_cast<Artillery*>(collidee);
+    auto* strike = static_cast<MCArtillery*>(collidee);
 
-    if ((MPlayer != nullptr && MPlayer->isServer == 0) || strike->hasImpacted == 0)
+    if ((MPlayer != nullptr && MPlayer->IsServer == 0) || strike->HasImpacted == 0)
     {
         return 0;
     }
 
-    const vector_3d colliderPos = collider->getPosition();
-    const vector_3d strikePos = collidee->getPosition();
-    const double dx = static_cast<double>(colliderPos.x) - strikePos.x;
-    const double dy = static_cast<double>(colliderPos.y) - strikePos.y;
-    const auto distance = static_cast<float>(std::sqrt(dx * dx + dy * dy) * metersPerWorldUnit);
+    const MCVector3D colliderPos = collider->GetPosition();
+    const MCVector3D strikePos = collidee->GetPosition();
+    const double dx = static_cast<double>(colliderPos.X) - strikePos.X;
+    const double dy = static_cast<double>(colliderPos.Y) - strikePos.Y;
+    const auto distance = static_cast<float>(std::sqrt(dx * dx + dy * dy) * MetersPerWorldUnit);
 
     // A turret or gate counts as hit from anywhere within its little extent of the major range.
-    if (collider->objectClass == TURRET || collider->objectClass == GATE)
+    if (collider->ObjectClass == TURRET || collider->ObjectClass == GATE)
     {
         // TurretType and GateType both keep littleExtent at +0x58.
         const double extent =
-            collider->objectClass == TURRET
-                ? static_cast<double>(static_cast<TurretType*>(collider->objType)->littleExtent) * metersPerWorldUnit
-                : static_cast<double>(static_cast<GateType*>(collider->objType)->littleExtent) * metersPerWorldUnit;
+            collider->ObjectClass == TURRET
+                ? static_cast<double>(static_cast<MCTurretType*>(collider->ObjType)->LittleExtent) * MetersPerWorldUnit
+                : static_cast<double>(static_cast<MCGateType*>(collider->ObjType)->LittleExtent) * MetersPerWorldUnit;
 
-        if (extent < distance && static_cast<ArtilleryType*>(collidee->getObjectType())->nominalMajorRange <
+        if (extent < distance && static_cast<MCArtilleryType*>(collidee->GetObjectType())->NominalMajorRange <
                                      static_cast<float>(distance - extent))
         {
             return 0;
@@ -619,11 +619,11 @@ auto ArtilleryType::handleCollision(GameObject* collidee, GameObject* collider) 
     }
 
     // Beyond the major range the minor hit count lands, else the major one.
-    const bool minor = static_cast<ArtilleryType*>(collidee->getObjectType())->nominalMajorRange < distance;
+    const bool minor = static_cast<MCArtilleryType*>(collidee->GetObjectType())->NominalMajorRange < distance;
     auto hitCount = [&]()
     {
-        auto* type = static_cast<ArtilleryType*>(collidee->getObjectType());
-        return minor ? type->nominalMinorHits : type->nominalMajorHits;
+        auto* type = static_cast<MCArtilleryType*>(collidee->GetObjectType());
+        return minor ? type->NominalMinorHits : type->NominalMajorHits;
     };
 
     if (0.0f < hitCount())
@@ -632,19 +632,19 @@ auto ArtilleryType::handleCollision(GameObject* collidee, GameObject* collider) 
 
         do
         {
-            _WeaponShotInfo shot;
-            shot.init(nullptr, -3, static_cast<ArtilleryType*>(collidee->getObjectType())->nominalDamage, 0, 0.0f);
-            const int32_t colliderClass = collider->objectClass;
+            MCWeaponShotInfo shot;
+            shot.Init(nullptr, -3, static_cast<MCArtilleryType*>(collidee->GetObjectType())->NominalDamage, 0, 0.0f);
+            const int32_t colliderClass = collider->ObjectClass;
 
             if (colliderClass == BATTLEMECH || colliderClass == GROUNDVEHICLE || colliderClass == ELEMENTAL ||
                 colliderClass == MOVER)
             {
-                const int32_t hitTable = static_cast<float>(minArtilleryHeadRange) < distance ? 4 : 2;
-                shot.hitLocation = collider->calcHitLocation(collidee, -1, hitTable, 0);
-                shot.setEntryAngle(collider->relFacingTo(collidee->getPosition(), -1));
+                const int32_t hitTable = static_cast<float>(MinArtilleryHeadRange) < distance ? 4 : 2;
+                shot.HitLocation = collider->CalcHitLocation(collidee, -1, hitTable, 0);
+                shot.SetEntryAngle(collider->RelFacingTo(collidee->GetPosition(), -1));
             }
 
-            collider->handleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+            collider->HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
             hit++;
         } while (static_cast<float>(hit) < hitCount());
     }
@@ -652,7 +652,7 @@ auto ArtilleryType::handleCollision(GameObject* collidee, GameObject* collider) 
     return 0;
 }
 
-auto ArtilleryType::handleDestruction(GameObject* /*collidee*/, GameObject* /*collider*/) -> int
+auto MCArtilleryType::HandleDestruction(MCGameObject* /*collidee*/, MCGameObject* /*collider*/) -> int
 {
     return 0;
 }
@@ -661,221 +661,221 @@ auto ArtilleryType::handleDestruction(GameObject* /*collidee*/, GameObject* /*co
 // Artillery
 //---------------------------------------------------------------------------
 
-Artillery::Artillery()
+MCArtillery::MCArtillery()
 {
-    init();
-    timeToImpact = -1.0f;
-    timeToLaunch = -1.0f;
-    justCreated = 1;
-    randomOffset = 1;
-    currentFrame = 0;
-    frameTime = 0.0f;
-    frameCount = 0;
-    startTime = 0.0f;
-    sensorSystem = nullptr;
-    sensorRange = 0.0f;
-    sensorTime = 0.0f;
-    hasImpacted = 0;
-    impactSoundPlayed = 0;
+    Init();
+    TimeToImpact = -1.0f;
+    TimeToLaunch = -1.0f;
+    JustCreated = 1;
+    RandomOffset = 1;
+    CurrentFrame = 0;
+    FrameTime = 0.0f;
+    FrameCount = 0;
+    StartTime = 0.0f;
+    SensorSystem = nullptr;
+    SensorRange = 0.0f;
+    SensorTime = 0.0f;
+    HasImpacted = 0;
+    ImpactSoundPlayed = 0;
 }
 
-auto Artillery::init() -> void
+auto MCArtillery::Init() -> void
 {
-    startTime = scenarioTime;
+    StartTime = ScenarioTime;
 }
 
-auto Artillery::init(ObjectType* objType) -> int32_t
+auto MCArtillery::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    setExists(1);
-    justCreated = 1;
-    objectClass = ARTILLERY;
-    hasImpacted = 0;
-    timeToImpact = -1.0f;
-    auto* type = static_cast<ArtilleryType*>(objType);
+    SetExists(1);
+    JustCreated = 1;
+    ObjectClass = ARTILLERY;
+    HasImpacted = 0;
+    TimeToImpact = -1.0f;
+    auto* type = static_cast<MCArtilleryType*>(objType);
 
-    if (type->nominalDamage != 0.0f)
+    if (type->NominalDamage != 0.0f)
     {
-        const uint32_t count = static_cast<uint32_t>(type->numExplosions);
-        explosionsDone = std::make_unique<int32_t[]>(count);
+        const uint32_t count = static_cast<uint32_t>(type->NumExplosions);
+        ExplosionsDone = std::make_unique<int32_t[]>(count);
         return 0;
     }
 
-    explosionsDone.reset();
+    ExplosionsDone.reset();
     return 0;
 }
 
-auto Artillery::destroy() -> void
+auto MCArtillery::Destroy() -> void
 {
-    if (sensorSystem != nullptr)
+    if (SensorSystem != nullptr)
     {
-        sensorSystem->setTeam(nullptr);
-        sensorSystemManager->freeSensor(sensorSystem);
-        sensorSystem = nullptr;
+        SensorSystem->SetTeam(nullptr);
+        SensorSystemManager->FreeSensor(SensorSystem);
+        SensorSystem = nullptr;
     }
 
-    explosionsDone.reset();
+    ExplosionsDone.reset();
 }
 
-auto Artillery::update() -> int32_t
+auto MCArtillery::Update() -> int32_t
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
-        setJustCreated();
+        SetJustCreated();
     }
 
-    auto* type = static_cast<ArtilleryType*>(objType);
+    auto* type = static_cast<MCArtilleryType*>(ObjType);
 
-    if (type != nullptr && type->shapeData != nullptr)
+    if (type != nullptr && type->ShapeData != nullptr)
     {
-        frameTime += frameLength;
-        const double frames = static_cast<double>(frameTime * type->frameRate);
+        FrameTime += FrameLength;
+        const double frames = static_cast<double>(FrameTime * type->FrameRate);
 
-        if (frameCount < static_cast<int32_t>(std::floor(frames)))
+        if (FrameCount < static_cast<int32_t>(std::floor(frames)))
         {
             const int32_t newCount = static_cast<int32_t>(std::floor(frames));
-            const int32_t oldCount = frameCount;
-            frameCount = static_cast<int32_t>(std::floor(frames));
+            const int32_t oldCount = FrameCount;
+            FrameCount = static_cast<int32_t>(std::floor(frames));
 
             if (newCount - oldCount != 0)
             {
-                currentFrame += static_cast<uint32_t>(newCount - oldCount);
+                CurrentFrame += static_cast<uint32_t>(newCount - oldCount);
 
-                if (type->frameCount <= currentFrame)
+                if (type->FrameCount <= CurrentFrame)
                 {
-                    currentFrame %= type->frameCount;
+                    CurrentFrame %= type->FrameCount;
                 }
             }
         }
     }
 
-    timeToImpact -= frameLength;
-    timeToLaunch -= frameLength;
+    TimeToImpact -= FrameLength;
+    TimeToLaunch -= FrameLength;
 
     // After impact the rest of the pattern goes off on its delays.
-    if (hasImpacted != 0 && 0.0 < type->nominalDamage)
+    if (HasImpacted != 0 && 0.0 < type->NominalDamage)
     {
-        collisionsOn = 0;
+        CollisionsOn = 0;
 
-        if (setOffExplosions(this))
+        if (SetOffExplosions(this))
         {
             return 0;
         }
     }
 
-    if (timeToImpact <= 5.0 && impactSoundPlayed == 0 && soundSystem != nullptr &&
-        0.0 < static_cast<ArtilleryType*>(objType)->nominalDamage)
+    if (TimeToImpact <= 5.0 && ImpactSoundPlayed == 0 && SoundSystem != nullptr &&
+        0.0 < static_cast<MCArtilleryType*>(ObjType)->NominalDamage)
     {
-        const int32_t typeNum = getObjectType()->objTypeNum;
+        const int32_t typeNum = GetObjectType()->ObjTypeNum;
 
-        if (typeNum >= 507 && typeNum <= 509 && timeToImpact < 4.0)
+        if (typeNum >= 507 && typeNum <= 509 && TimeToImpact < 4.0)
         {
-            impactSoundPlayed = 1;
-            soundSystem->playDigitalSample(SAMPLE_INCOMING_MP, 1, this, 0, 0);
+            ImpactSoundPlayed = 1;
+            SoundSystem->PlayDigitalSample(SAMPLE_INCOMING_MP, 1, this, 0, 0);
         }
-        else if (timeToImpact < 2.0)
+        else if (TimeToImpact < 2.0)
         {
-            impactSoundPlayed = 1;
-            soundSystem->playDigitalSample(SAMPLE_INCOMING, 1, this, 0, 0);
+            ImpactSoundPlayed = 1;
+            SoundSystem->PlayDigitalSample(SAMPLE_INCOMING, 1, this, 0, 0);
         }
     }
 
     // Impact: the first explosions go off, and from now on the strike collides.
-    if (hasImpacted == 0 && timeToImpact <= 0.0 && 0.0 < static_cast<ArtilleryType*>(objType)->nominalDamage)
+    if (HasImpacted == 0 && TimeToImpact <= 0.0 && 0.0 < static_cast<MCArtilleryType*>(ObjType)->NominalDamage)
     {
-        if (setOffExplosions(this))
+        if (SetOffExplosions(this))
         {
             return 0;
         }
 
-        if (randomOffset != 0)
+        if (RandomOffset != 0)
         {
             RandomNumber(500);
             RandomNumber(500);
         }
 
-        hasImpacted = 1;
-        collisionsOn = 1;
+        HasImpacted = 1;
+        CollisionsOn = 1;
     }
 
     // The sensor probe's sensor shrinks as its time runs out; the strike ends with it.
-    if (0.0 < sensorTime && sensorActive != 0)
+    if (0.0 < SensorTime && SensorActive != 0)
     {
-        sensorTime -= frameLength;
-        auto* sensorType = static_cast<ArtilleryType*>(objType);
-        sensorRange = sensorTime / sensorType->nominalSensorTime * sensorType->nominalSensorRange * worldUnitsPerMeter;
-        sensorSystem->setRange(sensorRange * metersPerWorldUnit);
+        SensorTime -= FrameLength;
+        auto* sensorType = static_cast<MCArtilleryType*>(ObjType);
+        SensorRange = SensorTime / sensorType->NominalSensorTime * sensorType->NominalSensorRange * WorldUnitsPerMeter;
+        SensorSystem->SetRange(SensorRange * MetersPerWorldUnit);
     }
-    else if (sensorTime <= 0.0 && sensorActive != 0)
+    else if (SensorTime <= 0.0 && SensorActive != 0)
     {
         return 0;
     }
 
-    type = static_cast<ArtilleryType*>(objType);
+    type = static_cast<MCArtilleryType*>(ObjType);
 
-    if (type->nominalDamage == 0.0f && timeToImpact <= 0.0 && sensorActive == 0)
+    if (type->NominalDamage == 0.0f && TimeToImpact <= 0.0 && SensorActive == 0)
     {
-        if (0.0f < type->nominalSensorTime)
+        if (0.0f < type->NominalSensorTime)
         {
-            sensorActive = 1;
-            sensorTime = type->nominalSensorTime;
+            SensorActive = 1;
+            SensorTime = type->NominalSensorTime;
             return 1;
         }
 
         // No sensor time: the strike launches a camera drone instead.
-        if (numCameraDrones == MAX_CAMERA_DRONES)
+        if (NumCameraDrones == MAX_CAMERA_DRONES)
         {
             Fatal(0, " Artillery.update: Too many camera drones ");
         }
 
-        auto* drone = static_cast<CameraDrone*>(createObject(CAMERA_DRONE_TYPE));
-        const int32_t partId = numCameraDrones + FIRST_CAMERA_DRONE_PART_ID;
-        numCameraDrones++;
-        drone->launchTime = scenarioTime;
-        drone->setPartId(partId);
-        vector_3d here = getPosition();
-        drone->setPosition(here);
-        drone->spiralDirection = -1;
-        drone->setAlignment(alignment);
-        GameObjectMap->addObject(drone);
+        auto* drone = static_cast<MCCameraDrone*>(CreateObject(CAMERA_DRONE_TYPE));
+        const int32_t partId = NumCameraDrones + FIRST_CAMERA_DRONE_PART_ID;
+        NumCameraDrones++;
+        drone->LaunchTime = ScenarioTime;
+        drone->SetPartId(partId);
+        MCVector3D here = GetPosition();
+        drone->SetPosition(here);
+        drone->SpiralDirection = -1;
+        drone->SetAlignment(Alignment);
+        GameObjectMap->AddObject(drone);
 
-        if (objectList->head != nullptr && drone != nullptr)
+        if (ObjectList->Head != nullptr && drone != nullptr)
         {
-            objectList->head->addNode(drone);
+            ObjectList->Head->AddNode(drone);
         }
 
-        drone->findNextTargetTile();
+        drone->FindNextTargetTile();
         return 0;
     }
 
     return 1;
 }
 
-auto Artillery::render() -> void
+auto MCArtillery::Render() -> void
 {
-    if (onScreen() == 0 || objType == nullptr)
+    if (OnScreen() == 0 || ObjType == nullptr)
     {
         return;
     }
 
-    auto* type = static_cast<ArtilleryType*>(objType);
-    uint8_t* shape = type->shapeData;
+    auto* type = static_cast<MCArtilleryType*>(ObjType);
+    uint8_t* shape = type->ShapeData;
 
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
-        setJustCreated();
+        SetJustCreated();
     }
 
     // The home side sees its own strikes count down; everyone sees one in its last four seconds.
-    const int32_t homeAlignment = homeTeam->alignment;
+    const int32_t homeAlignment = HomeTeam->Alignment;
 
-    if (getAlignment() != homeAlignment && !(timeToImpact < 4.0))
+    if (GetAlignment() != homeAlignment && !(TimeToImpact < 4.0))
     {
         return;
     }
@@ -885,51 +885,51 @@ auto Artillery::render() -> void
         return;
     }
 
-    if (!(0.0 < timeToImpact) && static_cast<ArtilleryType*>(objType)->nominalSensorTime == 0.0)
+    if (!(0.0 < TimeToImpact) && static_cast<MCArtilleryType*>(ObjType)->NominalSensorTime == 0.0)
     {
         return;
     }
 
-    int32_t frame = static_cast<int32_t>(currentFrame);
+    int32_t frame = static_cast<int32_t>(CurrentFrame);
 
-    if (selected != 0)
+    if (Selected != 0)
     {
-        recalcBounds(eye);
-        drawSelectBox(0xfd);
+        RecalcBounds(Eye);
+        DrawSelectBox(0xfd);
     }
 
     // The 50% frames follow the 100% ones.
-    if (eye->cameraScale == 1)
+    if (Eye->CameraScale == 1)
     {
-        frame += static_cast<int32_t>(static_cast<ArtilleryType*>(objType)->frameCount);
+        frame += static_cast<int32_t>(static_cast<MCArtilleryType*>(ObjType)->FrameCount);
     }
 
-    ElementList->openGroup(-40000, 1);
-    ElementList->add(ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, frame, 0, nullptr, 1, 0));
+    ElementList->OpenGroup(-40000, 1);
+    ElementList->Add(MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, frame, 0, nullptr, 1, 0));
 
-    const int32_t seconds = std::abs(static_cast<int32_t>(std::floor(static_cast<double>(timeToImpact))));
-    std::sprintf(timeString, "%01d:%02d", seconds / 60, seconds % 60);
-    type = static_cast<ArtilleryType*>(objType);
+    const int32_t seconds = std::abs(static_cast<int32_t>(std::floor(static_cast<double>(TimeToImpact))));
+    std::sprintf(TimeString, "%01d:%02d", seconds / 60, seconds % 60);
+    type = static_cast<MCArtilleryType*>(ObjType);
     // Port: the countdown is an overlay, on the screen over the view at its scale; the marker stays on the ground.
-    const vector_2d textPos = MCOverlayPoint(screenPos);
-    screenPos.x = type->fontXOffset + textPos.x + 6.0f;
-    screenPos.y = type->fontYOffset + textPos.y;
+    const MCVector2D textPos = MCOverlayPoint(ScreenPos);
+    ScreenPos.X = type->FontXOffset + textPos.X + 6.0f;
+    ScreenPos.Y = type->FontYOffset + textPos.Y;
     // Blue after impact, yellow before (the original has the same code for both camera scales).
-    aFont* font = timeToImpact <= 0.0f ? blueDropFont : yellowDropFont;
-    ElementList->add(ElementPool::Make<FontElement>(font, screenPos, timeString, -40000));
+    MCGuiFont* font = TimeToImpact <= 0.0f ? BlueDropFont : YellowDropFont;
+    ElementList->Add(MCElementPool::Make<MCFontElement>(font, ScreenPos, TimeString, -40000));
 }
 
-auto Artillery::handleEvent(ObjectEvent* event) -> int32_t
+auto MCArtillery::HandleEvent(MCObjectEvent* event) -> int32_t
 {
-    if (event->type == 0)
+    if (event->Type == 0)
     {
-        switch (event->id)
+        switch (event->Id)
         {
             case 0x1c:
-                selected = 1;
+                Selected = 1;
                 break;
             case 0x1d:
-                selected = 0;
+                Selected = 0;
                 break;
             default:
                 break;
@@ -939,169 +939,169 @@ auto Artillery::handleEvent(ObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto Artillery::handleStaticCollision() -> void
+auto MCArtillery::HandleStaticCollision() -> void
 {
-    if (collisionsOn == 0)
+    if (CollisionsOn == 0)
     {
         return;
     }
 
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
-    getBlockAndVertexNumber(blockNumber, vertexNumber);
+    GetBlockAndVertexNumber(blockNumber, vertexNumber);
 
     // Mines in the 3x3 map tiles around the strike go off.
     int32_t centerR = 0;
     int32_t centerC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->worldToMapPos(getPosition(), centerR, centerC, cellR, cellC);
+    GameMap->WorldToMapPos(GetPosition(), centerR, centerC, cellR, cellC);
 
     for (int32_t tileR = centerR - 1; tileR < centerR + 2; tileR++)
     {
         for (int32_t tileC = centerC - 1; tileC < centerC + 2; tileC++)
         {
-            if (tileR * 3 <= -3 || tileR >= GameMap->height || tileC * 3 <= -3 || tileC >= GameMap->width)
+            if (tileR * 3 <= -3 || tileR >= GameMap->Height || tileC * 3 <= -3 || tileC >= GameMap->Width)
             {
                 continue;
             }
 
-            const uint32_t overlay = GameMap->map[GameMap->width * tileR + tileC].overlay;
+            const uint32_t overlay = GameMap->Map[GameMap->Width * tileR + tileC].Overlay;
 
             if ((overlay & 0x6000) == 0x4000)
             {
-                vector_3d minePos;
-                mapTileCellToWorldPos(tileR, tileC, 1, 1, minePos);
-                GameMap->map[GameMap->width * tileR + tileC].overlay |= 0x6000;
+                MCVector3D minePos;
+                MapTileCellToWorldPos(tileR, tileC, 1, 1, minePos);
+                GameMap->Map[GameMap->Width * tileR + tileC].Overlay |= 0x6000;
 
                 if (MPlayer != nullptr)
                 {
-                    MPlayer->addMineChunk(tileR * 3, tileC * 3, 1, 3, 2);
+                    MPlayer->AddMineChunk(tileR * 3, tileC * 3, 1, 3, 2);
                 }
 
-                CreateExplosion(MineExplosion, minePos, MineSplashDamage, worldUnitsPerMeter * MineSplashRange);
+                CreateExplosion(MineExplosion, minePos, MineSplashDamage, WorldUnitsPerMeter * MineSplashRange);
             }
 
             if (((overlay >> 11) & 3) == 2)
             {
-                vector_3d minePos;
-                mapTileCellToWorldPos(tileR, tileC, 1, 1, minePos);
-                GameMap->map[GameMap->width * tileR + tileC].overlay |= 0x1800;
+                MCVector3D minePos;
+                MapTileCellToWorldPos(tileR, tileC, 1, 1, minePos);
+                GameMap->Map[GameMap->Width * tileR + tileC].Overlay |= 0x1800;
 
                 if (MPlayer != nullptr)
                 {
-                    MPlayer->addMineChunk(tileR * 3, tileC * 3, 0, 3, 2);
+                    MPlayer->AddMineChunk(tileR * 3, tileC * 3, 0, 3, 2);
                 }
 
-                CreateExplosion(MineExplosion, minePos, MineSplashDamage, worldUnitsPerMeter * MineSplashRange);
+                CreateExplosion(MineExplosion, minePos, MineSplashDamage, WorldUnitsPerMeter * MineSplashRange);
             }
         }
     }
 
     // Then the terrain objects of the 3x3 terrain blocks around it.
-    const int32_t firstBlock = blockNumber - Terrain::blocksMapSide - 1;
+    const int32_t firstBlock = blockNumber - MCTerrain::BlocksMapSide - 1;
 
     for (int32_t row = 0; row < 3; row++)
     {
-        int32_t block = row * Terrain::blocksMapSide + firstBlock;
+        int32_t block = row * MCTerrain::BlocksMapSide + firstBlock;
 
         for (int32_t col = 0; col < 3; col++, block++)
         {
             char listName[12];
             std::sprintf(listName, "TBlk%d", block);
-            collideWithList(this, findObjectList(listName));
+            CollideWithList(this, FindObjectList(listName));
             std::sprintf(listName, "RBlk%d", block);
-            collideWithList(this, findObjectList(listName));
+            CollideWithList(this, FindObjectList(listName));
         }
     }
 }
 
-auto Artillery::onScreen() -> int
+auto MCArtillery::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    projectToScreen(this, camera);
+    ProjectToScreen(this, camera);
 
-    if (recalcBounds(camera) != 0)
+    if (RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto Artillery::setJustCreated() -> void
+auto MCArtillery::SetJustCreated() -> void
 {
-    if (justCreated == 0)
+    if (JustCreated == 0)
     {
         return;
     }
 
-    justCreated = 0;
-    auto* type = static_cast<ArtilleryType*>(objType);
+    JustCreated = 0;
+    auto* type = static_cast<MCArtilleryType*>(ObjType);
 
-    if (timeToImpact == -1.0f)
+    if (TimeToImpact == -1.0f)
     {
-        timeToImpact = type->nominalTimeToImpact;
+        TimeToImpact = type->NominalTimeToImpact;
     }
 
-    sensorTime = 0.0f;
-    collisionsOn = 0;
-    sensorActive = 0;
-    sensorRange = type->nominalSensorRange;
-    currentFrame = type->startFrame;
-    timeToLaunch = type->nominalTimeToLaunch;
+    SensorTime = 0.0f;
+    CollisionsOn = 0;
+    SensorActive = 0;
+    SensorRange = type->NominalSensorRange;
+    CurrentFrame = type->StartFrame;
+    TimeToLaunch = type->NominalTimeToLaunch;
 
-    if (sensorRange != 0.0f)
+    if (SensorRange != 0.0f)
     {
-        sensorSystem = sensorSystemManager->newSensor();
+        SensorSystem = SensorSystemManager->NewSensor();
 
-        if (alignment == -1)
+        if (Alignment == -1)
         {
-            setSensorData(clanTeam, -1.0f, -1.0f);
+            SetSensorData(ClanTeam, -1.0f, -1.0f);
         }
-        else if (alignment == 1)
+        else if (Alignment == 1)
         {
-            setSensorData(innerSphereTeam, -1.0f, -1.0f);
+            SetSensorData(InnerSphereTeam, -1.0f, -1.0f);
         }
     }
 }
 
-auto Artillery::recalcBounds(Camera* camera) -> int
+auto MCArtillery::RecalcBounds(MCCamera* camera) -> int
 {
-    const float left = screenPos.x;
-    const float top = screenPos.y;
-    boundsLeft = left;
-    boundsTop = top;
-    boundsRight = left;
-    boundsBottom = top;
-    uint8_t* shape = static_cast<ArtilleryType*>(objType)->shapeData;
+    const float left = ScreenPos.X;
+    const float top = ScreenPos.Y;
+    BoundsLeft = left;
+    BoundsTop = top;
+    BoundsRight = left;
+    BoundsBottom = top;
+    uint8_t* shape = static_cast<MCArtilleryType*>(ObjType)->ShapeData;
 
     if (shape != nullptr)
     {
-        const int32_t minXY = VFX_shape_minxy(shape, static_cast<int32_t>(currentFrame));
-        boundsLeft = static_cast<float>(minXY >> 16) + left;
-        boundsTop = static_cast<float>(static_cast<int16_t>(minXY)) + top;
-        const int32_t size = VFX_shape_resolution(shape, static_cast<int32_t>(currentFrame));
-        boundsRight = static_cast<float>(size >> 16) + boundsLeft;
-        boundsBottom = static_cast<float>(static_cast<int16_t>(size)) + boundsTop;
+        const int32_t minXY = VfxShapeMinxy(shape, static_cast<int32_t>(CurrentFrame));
+        BoundsLeft = static_cast<float>(minXY >> 16) + left;
+        BoundsTop = static_cast<float>(static_cast<int16_t>(minXY)) + top;
+        const int32_t size = VfxShapeResolution(shape, static_cast<int32_t>(CurrentFrame));
+        BoundsRight = static_cast<float>(size >> 16) + BoundsLeft;
+        BoundsBottom = static_cast<float>(static_cast<int16_t>(size)) + BoundsTop;
     }
 
-    if (0.0f <= boundsRight && 0.0f <= boundsBottom)
+    if (0.0f <= BoundsRight && 0.0f <= BoundsBottom)
     {
-        const auto viewRight = static_cast<int16_t>(std::floor(static_cast<double>(camera->viewWidth)));
+        const auto viewRight = static_cast<int16_t>(std::floor(static_cast<double>(camera->ViewWidth)));
 
-        if (boundsLeft <= static_cast<float>(viewRight))
+        if (BoundsLeft <= static_cast<float>(viewRight))
         {
-            const auto viewBottom = static_cast<int16_t>(std::floor(static_cast<double>(camera->viewHeight)));
+            const auto viewBottom = static_cast<int16_t>(std::floor(static_cast<double>(camera->ViewHeight)));
 
-            if (boundsTop <= static_cast<float>(viewBottom))
+            if (BoundsTop <= static_cast<float>(viewBottom))
             {
                 return 1;
             }
@@ -1111,26 +1111,26 @@ auto Artillery::recalcBounds(Camera* camera) -> int
     return 0;
 }
 
-auto Artillery::setSensorData(Team* team, float newSensorTime, float newSensorRange) -> void
+auto MCArtillery::SetSensorData(MCTeam* team, float newSensorTime, float newSensorRange) -> void
 {
     if (newSensorTime != -1.0f)
     {
-        sensorTime = newSensorTime;
+        SensorTime = newSensorTime;
     }
 
     if (newSensorRange != -1.0f)
     {
-        sensorRange = newSensorRange;
+        SensorRange = newSensorRange;
     }
 
-    sensorSystem->owner = this;
-    sensorSystem->setTeam(team);
+    SensorSystem->Owner = this;
+    SensorSystem->SetTeam(team);
     // The range passed, even -1, not the one kept.
-    sensorSystem->setRange(newSensorRange);
-    sensorSystem->scanFrequency = 0.5f;
+    SensorSystem->SetRange(newSensorRange);
+    SensorSystem->ScanFrequency = 0.5f;
 }
 
-auto Artillery::drawSelectBox(uint8_t /*color*/) -> void
+auto MCArtillery::DrawSelectBox(uint8_t /*color*/) -> void
 {
 }
 
@@ -1138,66 +1138,66 @@ auto Artillery::drawSelectBox(uint8_t /*color*/) -> void
 // CameraDroneType
 //---------------------------------------------------------------------------
 
-auto CameraDroneType::createInstance() -> BaseObject*
+auto MCCameraDroneType::CreateInstance() -> MCBaseObject*
 {
-    auto* newDrone = new CameraDrone;
+    auto* newDrone = new MCCameraDrone;
 
     if (newDrone == nullptr)
     {
         return nullptr;
     }
 
-    if (newDrone->init(this) != 0)
+    if (newDrone->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newDrone->idNumber = NextIdNumber++;
+    newDrone->IdNumber = NextIdNumber++;
     return newDrone;
 }
 
-auto CameraDroneType::destroy() -> void
+auto MCCameraDroneType::Destroy() -> void
 {
 }
 
-auto CameraDroneType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCCameraDroneType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile droneFile;
-    int32_t result = droneFile.open(objFile, fileSize, 50);
+    MCFitIniFile droneFile;
+    int32_t result = droneFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = droneFile.seekBlock("General")) != 0)
+    if ((result = droneFile.SeekBlock("General")) != 0)
     {
         return result;
     }
 
-    if ((result = droneFile.readIdFloat("maxVelocity", maxVelocity)) != 0)
+    if ((result = droneFile.ReadIdFloat("maxVelocity", MaxVelocity)) != 0)
     {
         return result;
     }
 
-    if ((result = droneFile.readIdLong("maxDamage", maxDamage)) != 0)
+    if ((result = droneFile.ReadIdLong("maxDamage", MaxDamage)) != 0)
     {
         return result;
     }
 
-    if (droneFile.readIdLong("BRValue", brValue) != 0)
+    if (droneFile.ReadIdLong("BRValue", BrValue) != 0)
     {
-        brValue = 0;
+        BrValue = 0;
     }
 
-    result = ObjectType::init(&droneFile);
-    extentRadius = -1.0f;
+    result = MCObjectType::Init(&droneFile);
+    ExtentRadius = -1.0f;
     return result;
 }
 
-auto CameraDroneType::handleDestruction(GameObject* collidee, GameObject* /*collider*/) -> int
+auto MCCameraDroneType::HandleDestruction(MCGameObject* collidee, MCGameObject* /*collider*/) -> int
 {
-    collidee->status = 2;
+    collidee->Status = 2;
     return 1;
 }
 
@@ -1205,101 +1205,101 @@ auto CameraDroneType::handleDestruction(GameObject* collidee, GameObject* /*coll
 // CameraDrone
 //---------------------------------------------------------------------------
 
-CameraDrone::CameraDrone()
+MCCameraDrone::MCCameraDrone()
 {
-    frame.reset_to_world_frame();
-    init();
+    Frame.ResetToWorldFrame();
+    Init();
 }
 
-auto CameraDrone::init() -> void
+auto MCCameraDrone::Init() -> void
 {
-    appearance = nullptr;
-    spiralDirection = -1;
-    spiralLength = 1;
-    targetTileCol = -1;
-    targetTileRow = -1;
-    launchTime = -1.0f;
-    maxVelocity = 0.0f;
-    hitPoints = 0;
+    Appearance = nullptr;
+    SpiralDirection = -1;
+    SpiralLength = 1;
+    TargetTileCol = -1;
+    TargetTileRow = -1;
+    LaunchTime = -1.0f;
+    MaxVelocity = 0.0f;
+    HitPoints = 0;
 }
 
-auto CameraDrone::init(ObjectType* objType) -> int32_t
+auto MCCameraDrone::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return -0x2102fffd;
     }
 
-    auto* droneAppearance = new GVAppearance;
-    appearance = droneAppearance;
+    auto* droneAppearance = new MCGVAppearance;
+    Appearance = droneAppearance;
 
     if (droneAppearance == nullptr)
     {
         return -0x2102fffc;
     }
 
-    droneAppearance->init(nullptr, nullptr);
+    droneAppearance->Init(nullptr, nullptr);
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x5000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x5000000)
     {
         return -0x2323fff7;
     }
 
-    if ((result = droneAppearance->init(apprType, this)) != 0)
+    if ((result = droneAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    objectClass = CAMERADRONE;
-    auto* type = static_cast<CameraDroneType*>(objType);
-    maxVelocity = type->maxVelocity;
-    hitPoints = type->maxDamage;
-    curCV = type->brValue;
-    maxCV = type->brValue;
+    ObjectClass = CAMERADRONE;
+    auto* type = static_cast<MCCameraDroneType*>(objType);
+    MaxVelocity = type->MaxVelocity;
+    HitPoints = type->MaxDamage;
+    CurCV = type->BrValue;
+    MaxCV = type->BrValue;
 
-    if (0 < type->brValue)
+    if (0 < type->BrValue)
     {
-        setPotentialContact(1);
+        SetPotentialContact(1);
     }
 
     // The drone starts turned 45 degrees from the world frame.
-    frame.reset_to_world_frame();
-    rotateAboutK(frame, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
-    collisionsOn = 1;
-    launchTime = scenarioTime;
+    Frame.ResetToWorldFrame();
+    RotateAboutK(Frame, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
+    CollisionsOn = 1;
+    LaunchTime = ScenarioTime;
     return 0;
 }
 
-auto CameraDrone::destroy() -> void
+auto MCCameraDrone::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 }
 
-auto CameraDrone::update() -> int32_t
+auto MCCameraDrone::Update() -> int32_t
 {
-    const float speed = maxVelocity;
+    const float speed = MaxVelocity;
 
-    if (isDestroyed() != 0)
+    if (IsDestroyed() != 0)
     {
         return 1;
     }
 
     // Fly straight at the target tile's corner.
-    const float step = frameLength * speed * worldUnitsPerMeter;
-    const float targetX = static_cast<float>(targetTileCol) * Terrain::metersPerVertex - worldUnitsMapSide * 0.5f;
-    const float targetY = worldUnitsMapSide * 0.5f - static_cast<float>(targetTileRow) * Terrain::metersPerVertex;
-    float dirX = targetX - position.x;
-    float dirY = targetY - position.y;
+    const float step = FrameLength * speed * WorldUnitsPerMeter;
+    const float targetX = static_cast<float>(TargetTileCol) * MCTerrain::MetersPerVertex - WorldUnitsMapSide * 0.5f;
+    const float targetY = WorldUnitsMapSide * 0.5f - static_cast<float>(TargetTileRow) * MCTerrain::MetersPerVertex;
+    float dirX = targetX - Position.X;
+    float dirY = targetY - Position.Y;
     float dirZ = 0.0f;
     const float distance = std::sqrt(dirX * dirX + dirY * dirY);
 
@@ -1310,36 +1310,36 @@ auto CameraDrone::update() -> int32_t
         dirZ = 0.0f / distance;
     }
 
-    position.x = dirX * step + position.x;
-    position.y = dirY * step + position.y;
-    position.z = dirZ * step + position.z;
+    Position.X = dirX * step + Position.X;
+    Position.Y = dirY * step + Position.Y;
+    Position.Z = dirZ * step + Position.Z;
 
     // Leaving the map ends the drone (clamped to the edge on its way out).
-    const float halfSide = worldUnitsMapSide * 0.5f;
-    const float movedX = position.x;
+    const float halfSide = WorldUnitsMapSide * 0.5f;
+    const float movedX = Position.X;
 
     if (movedX < -halfSide)
     {
-        position.x = -halfSide;
+        Position.X = -halfSide;
     }
 
-    const float clampedX = position.x;
+    const float clampedX = Position.X;
 
     if (halfSide < clampedX)
     {
-        position.x = halfSide;
+        Position.X = halfSide;
     }
 
-    const float movedY = position.y;
+    const float movedY = Position.Y;
 
     if (-halfSide > movedY)
     {
-        position.y = -halfSide;
+        Position.Y = -halfSide;
     }
 
-    if (position.y > halfSide)
+    if (Position.Y > halfSide)
     {
-        position.y = halfSide;
+        Position.Y = halfSide;
         return 0;
     }
 
@@ -1350,59 +1350,59 @@ auto CameraDrone::update() -> int32_t
 
     int32_t tileR = 0;
     int32_t tileC = 0;
-    GameMap->worldToMapTilePos(position, tileR, tileC);
+    GameMap->WorldToMapTilePos(Position, tileR, tileC);
 
-    if (tileR < 0 || tileR >= GameMap->height || tileC < 0 || tileC >= GameMap->width)
+    if (tileR < 0 || tileR >= GameMap->Height || tileC < 0 || tileC >= GameMap->Width)
     {
         return 0;
     }
 
-    GameObjectMap->updateObject(this, 0);
-    const uint8_t seenBy = alignment == 1 ? 1 : 2;
-    frame_of_ref lookFrame = getFrame();
-    land->markRadiusSeen(position, lookFrame.j, 360.0f, scenario->maxVisualRange * 0.5f, seenBy);
+    GameObjectMap->UpdateObject(this, 0);
+    const uint8_t seenBy = Alignment == 1 ? 1 : 2;
+    MCFrameOfRef lookFrame = GetFrame();
+    Land->MarkRadiusSeen(Position, lookFrame.J, 360.0f, Scenario->MaxVisualRange * 0.5f, seenBy);
 
     // Within a tile of the target: on to the next one.
-    if (std::abs(targetTileCol - tileC) > 1)
+    if (std::abs(TargetTileCol - tileC) > 1)
     {
         return 1;
     }
 
-    if (std::abs(targetTileRow - tileR) > 1)
+    if (std::abs(TargetTileRow - tileR) > 1)
     {
         return 1;
     }
 
-    findNextTargetTile();
+    FindNextTargetTile();
     return 1;
 }
 
-auto CameraDrone::render() -> void
+auto MCCameraDrone::Render() -> void
 {
-    const int visibleNow = onScreen();
-    auto* droneAppearance = static_cast<GVAppearance*>(appearance);
-    droneAppearance->visible = visibleNow;
-    droneAppearance->update();
+    const int visibleNow = OnScreen();
+    auto* droneAppearance = static_cast<MCGVAppearance*>(Appearance);
+    droneAppearance->Visible = visibleNow;
+    droneAppearance->Update();
 
     if (visibleNow != 0)
     {
-        windowsVisible = turn;
-        droneAppearance->hazePalette = nullptr;
-        droneAppearance->render(-150);
+        WindowsVisible = Turn;
+        droneAppearance->HazePalette = nullptr;
+        droneAppearance->Render(-150);
     }
 }
 
-auto CameraDrone::handleEvent(ObjectEvent* event) -> int32_t
+auto MCCameraDrone::HandleEvent(MCObjectEvent* event) -> int32_t
 {
-    if (event->type == 0)
+    if (event->Type == 0)
     {
-        switch (event->id)
+        switch (event->Id)
         {
             case 0x1c:
-                selected = 1;
+                Selected = 1;
                 break;
             case 0x1d:
-                selected = 0;
+                Selected = 0;
                 break;
             default:
                 break;
@@ -1412,27 +1412,27 @@ auto CameraDrone::handleEvent(ObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto CameraDrone::onScreen() -> int
+auto MCCameraDrone::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    projectToScreen(this, camera);
+    ProjectToScreen(this, camera);
 
-    if (appearance->recalcBounds(camera) != 0)
+    if (Appearance->RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto CameraDrone::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCCameraDrone::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
@@ -1441,66 +1441,66 @@ auto CameraDrone::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChu
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    if (isDestroyed() == 0 && 0.0f < shotInfo->damage)
+    if (IsDestroyed() == 0 && 0.0f < shotInfo->Damage)
     {
-        BadGuy = shotInfo->attacker;
-        hitPoints = static_cast<int32_t>(static_cast<float>(hitPoints) - shotInfo->damage);
+        BadGuy = shotInfo->Attacker;
+        HitPoints = static_cast<int32_t>(static_cast<float>(HitPoints) - shotInfo->Damage);
 
-        if (hitPoints < 1)
+        if (HitPoints < 1)
         {
-            objType->handleDestruction(this, nullptr);
-            objType->createExplosion(position, 0.0f, 0.0f);
-            static_cast<GVAppearance*>(appearance)->setTypeId(GV_ACTOR_STATE_DESTROYED);
+            ObjType->HandleDestruction(this, nullptr);
+            ObjType->CreateExplosion(Position, 0.0f, 0.0f);
+            static_cast<MCGVAppearance*>(Appearance)->SetTypeId(GV_ACTOR_STATE_DESTROYED);
         }
     }
 
     return 0;
 }
 
-auto CameraDrone::findNextTargetTile() -> void
+auto MCCameraDrone::FindNextTargetTile() -> void
 {
-    rotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
+    RotateAboutK(Frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
 
     // An outward square spiral: each leg turns a quarter, and every other leg is one tile longer.
-    spiralDirection++;
+    SpiralDirection++;
 
-    if (spiralDirection > 3)
+    if (SpiralDirection > 3)
     {
-        spiralDirection = 0;
+        SpiralDirection = 0;
     }
 
-    if (spiralDirection % 2 != 0)
+    if (SpiralDirection % 2 != 0)
     {
-        spiralLength++;
+        SpiralLength++;
     }
 
-    switch (spiralDirection)
+    switch (SpiralDirection)
     {
         case 0:
         {
-            targetTileCol = getObjPosition()->tileC;
-            targetTileRow = getObjPosition()->tileR - spiralLength;
+            TargetTileCol = GetObjPosition()->TileC;
+            TargetTileRow = GetObjPosition()->TileR - SpiralLength;
             break;
         }
         case 1:
         {
-            targetTileCol = getObjPosition()->tileC + spiralLength;
-            targetTileRow = getObjPosition()->tileR;
+            TargetTileCol = GetObjPosition()->TileC + SpiralLength;
+            TargetTileRow = GetObjPosition()->TileR;
             break;
         }
         case 2:
         {
-            targetTileCol = getObjPosition()->tileC;
-            targetTileRow = getObjPosition()->tileR + spiralLength;
+            TargetTileCol = GetObjPosition()->TileC;
+            TargetTileRow = GetObjPosition()->TileR + SpiralLength;
             break;
         }
         case 3:
         {
-            targetTileCol = getObjPosition()->tileC - spiralLength;
-            targetTileRow = getObjPosition()->tileR;
+            TargetTileCol = GetObjPosition()->TileC - SpiralLength;
+            TargetTileRow = GetObjPosition()->TileR;
             break;
         }
         default:

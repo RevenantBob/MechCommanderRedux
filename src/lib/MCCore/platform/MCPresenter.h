@@ -70,7 +70,7 @@ struct MCColorCycle
 struct MCFrame
 {
     /// <summary>The screen as a VFX window (its pixels, <c>Width</c> bytes a row).</summary>
-    const _window* Screen = nullptr;
+    const MCWindow* Screen = nullptr;
     const uint8_t* Pixels = nullptr;
     int Width = 0;
     int Height = 0;

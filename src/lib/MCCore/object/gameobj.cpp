@@ -18,8 +18,8 @@
 #include "object/turret.h"
 #include "terrain/terrain.h"
 
-int32_t objCellArray[9] = {};
-char ChunkDebugMsg[0x1400] = {}; // 0x1408 bytes lie before the next global (MCX.EXE @ 0x007dd100).
+int32_t ObjCellArray[9] = {};
+char ChunkDebugMsg[0x1400] = {}; // 0x1408 bytes lie before the next global.
 float BlockCaptureRange = 0.0f;
 
 namespace
@@ -30,9 +30,9 @@ namespace
     constexpr double RADIANS_TO_DEGREES_F = 0x1.ca5dc2p+5;
 
     /// <summary>Whether <paramref name="object"/> is a mover (mech, vehicle, elemental or plain mover).</summary>
-    bool IsMover(const BaseObject* object)
+    bool IsMover(const MCBaseObject* object)
     {
-        const ObjectClass objectClass = object->objectClass;
+        const MCObjectClass objectClass = object->ObjectClass;
         return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                objectClass == MOVER;
     }
@@ -99,17 +99,17 @@ namespace
                           bool hitChunk)
     {
         char line[512];
-        BaseObject* target = nullptr;
+        MCBaseObject* target = nullptr;
         bool haveTarget = false;
 
         if (targetType == 0)
         {
-            target = MPlayer->moverRoster[targetId];
+            target = MPlayer->MoverRoster[targetId];
             haveTarget = true;
         }
         else if (targetType == 1 || targetType == 2)
         {
-            target = objectList->findObjectFromPart(targetId);
+            target = ObjectList->FindObjectFromPart(targetId);
             haveTarget = true;
         }
         else if (targetType == 3)
@@ -121,15 +121,15 @@ namespace
             }
 
             // The middle of the target cell, on the ground.
-            const float halfSide = worldUnitsMapSide * 0.5f;
-            vector_3d point;
-            point.x = static_cast<float>((cellC + 0.5f) * static_cast<double>(MetersPerCell) - halfSide);
-            point.y = static_cast<float>((static_cast<double>(halfSide) - cellR * static_cast<double>(MetersPerCell)) -
+            const float halfSide = WorldUnitsMapSide * 0.5f;
+            MCVector3D point;
+            point.X = static_cast<float>((cellC + 0.5f) * static_cast<double>(MetersPerCell) - halfSide);
+            point.Y = static_cast<float>((static_cast<double>(halfSide) - cellR * static_cast<double>(MetersPerCell)) -
                                          static_cast<double>(MetersPerCell) * 0.5f);
-            point.z = 0.0f;
-            const float elevation = GameMap->getTerrainElevation(point);
-            std::snprintf(line, sizeof(line), "target point = (%f, %f, %f)\n", static_cast<double>(point.x),
-                          static_cast<double>(point.y), static_cast<double>(elevation));
+            point.Z = 0.0f;
+            const float elevation = GameMap->GetTerrainElevation(point);
+            std::snprintf(line, sizeof(line), "target point = (%f, %f, %f)\n", static_cast<double>(point.X),
+                          static_cast<double>(point.Y), static_cast<double>(elevation));
             std::strcat(ChunkDebugMsg, line);
             return;
         }
@@ -139,12 +139,12 @@ namespace
             if (IsMover(target))
             {
                 std::snprintf(line, sizeof(line), "target = %s (%d)\n",
-                              static_cast<Mover*>(target)->debugStatus.c_str(), target->partId);
+                              static_cast<MCMover*>(target)->DebugStatus.c_str(), target->PartId);
             }
             else
             {
-                std::snprintf(line, sizeof(line), "target = objClass %d (%d)\n", static_cast<int>(target->objectClass),
-                              target->partId);
+                std::snprintf(line, sizeof(line), "target = objClass %d (%d)\n", static_cast<int>(target->ObjectClass),
+                              target->PartId);
             }
 
             std::strcat(ChunkDebugMsg, line);
@@ -164,7 +164,7 @@ namespace
 
         for (int32_t i = 0; i < 8; i++)
         {
-            BaseObject* object = objectList->findObjectFromPart(firstId + i);
+            MCBaseObject* object = ObjectList->FindObjectFromPart(firstId + i);
 
             if (object == nullptr)
             {
@@ -172,8 +172,8 @@ namespace
             }
 
             numObjects++;
-            std::snprintf(line, sizeof(line), "    %d: objClass %d (%d)\n", i, static_cast<int>(object->objectClass),
-                          object->partId);
+            std::snprintf(line, sizeof(line), "    %d: objClass %d (%d)\n", i, static_cast<int>(object->ObjectClass),
+                          object->PartId);
             std::strcat(ChunkDebugMsg, line);
         }
 
@@ -188,105 +188,105 @@ namespace
     /// Appends one weapon fire chunk's fields. <paramref name="first"/> is the first chunk of the pair, whose cell
     /// column and item number the original prints for the second one too.
     /// </summary>
-    void AppendWeaponFireChunk(const WeaponFireChunk* chunk, const WeaponFireChunk* first)
+    void AppendWeaponFireChunk(const MCWeaponFireChunk* chunk, const MCWeaponFireChunk* first)
     {
         // Original behaviour (OB-010): the second chunk's target point and terrain listing use the first chunk's
         // cell column and item number.
-        const uint16_t cellC = first->targetCell[1];
-        AppendTargetLine(chunk->targetType, chunk->targetId, chunk->targetCell[0], cellC, first->targetItemNumber,
+        const uint16_t cellC = first->TargetCell[1];
+        AppendTargetLine(chunk->TargetType, chunk->TargetId, chunk->TargetCell[0], cellC, first->TargetItemNumber,
                          false);
 
         char line[512];
-        std::snprintf(line, sizeof(line), "targetType = %d\n", static_cast<int>(chunk->targetType));
+        std::snprintf(line, sizeof(line), "targetType = %d\n", static_cast<int>(chunk->TargetType));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetId = %d\n", chunk->targetId);
+        std::snprintf(line, sizeof(line), "targetId = %d\n", chunk->TargetId);
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetBlockOrTrainNumber = %d\n", chunk->targetBlockOrTrainNumber);
+        std::snprintf(line, sizeof(line), "targetBlockOrTrainNumber = %d\n", chunk->TargetBlockOrTrainNumber);
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetVertexOrCarNumber = %d\n", chunk->targetVertexOrCarNumber);
+        std::snprintf(line, sizeof(line), "targetVertexOrCarNumber = %d\n", chunk->TargetVertexOrCarNumber);
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetItemNumber = %d\n", static_cast<int>(chunk->targetItemNumber));
+        std::snprintf(line, sizeof(line), "targetItemNumber = %d\n", static_cast<int>(chunk->TargetItemNumber));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetCellRC = (%d, %d)\n", static_cast<int>(chunk->targetCell[0]),
+        std::snprintf(line, sizeof(line), "targetCellRC = (%d, %d)\n", static_cast<int>(chunk->TargetCell[0]),
                       static_cast<int>(cellC));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "weaponIndex = %d\n", static_cast<int>(chunk->weaponIndex));
+        std::snprintf(line, sizeof(line), "weaponIndex = %d\n", static_cast<int>(chunk->WeaponIndex));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "hit = %c\n", chunk->hit != 0 ? 'T' : 'N');
+        std::snprintf(line, sizeof(line), "hit = %c\n", chunk->Hit != 0 ? 'T' : 'N');
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "entryAngle = %d\n", static_cast<int>(chunk->entryAngle));
+        std::snprintf(line, sizeof(line), "entryAngle = %d\n", static_cast<int>(chunk->EntryAngle));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "numMissiles = %d\n", static_cast<int>(chunk->numMissiles));
+        std::snprintf(line, sizeof(line), "numMissiles = %d\n", static_cast<int>(chunk->NumMissiles));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "numMissilesHit = %d\n", static_cast<int>(chunk->numMissilesPastAMS));
+        std::snprintf(line, sizeof(line), "numMissilesHit = %d\n", static_cast<int>(chunk->NumMissilesPastAms));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "numAntiMissiles = %d\n", static_cast<int>(chunk->numAntiMissileShots));
+        std::snprintf(line, sizeof(line), "numAntiMissiles = %d\n", static_cast<int>(chunk->NumAntiMissileShots));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "hitLocation = %d\n", static_cast<int>(chunk->hitLocation));
+        std::snprintf(line, sizeof(line), "hitLocation = %d\n", static_cast<int>(chunk->HitLocation));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "data = %x\n", chunk->data);
+        std::snprintf(line, sizeof(line), "data = %x\n", chunk->Data);
         std::strcat(ChunkDebugMsg, line);
     }
 
     /// <summary>Appends one weapon hit chunk's fields.</summary>
-    void AppendWeaponHitChunk(const WeaponHitChunk* chunk)
+    void AppendWeaponHitChunk(const MCWeaponHitChunk* chunk)
     {
-        AppendTargetLine(chunk->targetType, chunk->targetId, 0, 0, 0, true);
+        AppendTargetLine(chunk->TargetType, chunk->TargetId, 0, 0, 0, true);
 
         char line[512];
-        std::snprintf(line, sizeof(line), "targetType = %d\n", static_cast<int>(chunk->targetType));
+        std::snprintf(line, sizeof(line), "targetType = %d\n", static_cast<int>(chunk->TargetType));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetId = %d\n", chunk->targetId);
+        std::snprintf(line, sizeof(line), "targetId = %d\n", chunk->TargetId);
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetBlockOrTrainNumber = %d\n", chunk->targetBlockOrTrainNumber);
+        std::snprintf(line, sizeof(line), "targetBlockOrTrainNumber = %d\n", chunk->TargetBlockOrTrainNumber);
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetVertexOrCarNumber = %d\n", chunk->targetVertexOrCarNumber);
+        std::snprintf(line, sizeof(line), "targetVertexOrCarNumber = %d\n", chunk->TargetVertexOrCarNumber);
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetItemNumber = %d\n", static_cast<int>(chunk->targetItemNumber));
+        std::snprintf(line, sizeof(line), "targetItemNumber = %d\n", static_cast<int>(chunk->TargetItemNumber));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "cause = %d\n", static_cast<int>(chunk->cause));
+        std::snprintf(line, sizeof(line), "cause = %d\n", static_cast<int>(chunk->Cause));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "damage = %f\n", static_cast<double>(chunk->damage));
+        std::snprintf(line, sizeof(line), "damage = %f\n", static_cast<double>(chunk->Damage));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "hitLocation = %d\n", static_cast<int>(chunk->hitLocation));
+        std::snprintf(line, sizeof(line), "hitLocation = %d\n", static_cast<int>(chunk->HitLocation));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "entryAngle = %d\n", static_cast<int>(chunk->entryAngle));
+        std::snprintf(line, sizeof(line), "entryAngle = %d\n", static_cast<int>(chunk->EntryAngle));
         std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "refit = %s\n", chunk->refit != 0 ? "TRUE" : "FALSE");
+        std::snprintf(line, sizeof(line), "refit = %s\n", chunk->Refit != 0 ? "TRUE" : "FALSE");
         std::strcat(ChunkDebugMsg, line);
     }
 
     /// <summary>Writes ChunkDebugMsg to <paramref name="fileName"/> and hands it to the crash handler.</summary>
     void SaveChunkDebugMsg(const char* fileName)
     {
-        auto* file = new File;
-        file->create(fileName);
-        file->writeString(ChunkDebugMsg);
-        file->close();
+        auto* file = new MCFile;
+        file->Create(fileName);
+        file->WriteString(ChunkDebugMsg);
+        file->Close();
         delete file;
         ExceptionGameMsg = ChunkDebugMsg;
     }
 
     /// <summary>The frame's i and j axes turned by an eighth turn, as the facing math uses them.</summary>
-    frame_of_ref TurnedFrame(const frame_of_ref& frame)
+    MCFrameOfRef TurnedFrame(const MCFrameOfRef& frame)
     {
         const float s = static_cast<float>(std::sin(EIGHTH_TURN));
         const float c = static_cast<float>(std::cos(EIGHTH_TURN));
-        frame_of_ref turned = frame;
-        turned.i = frame.i * c + frame.j * s;
-        turned.j = frame.j * c - frame.i * s;
+        MCFrameOfRef turned = frame;
+        turned.I = frame.I * c + frame.J * s;
+        turned.J = frame.J * c - frame.I * s;
         return turned;
     }
 
     /// <summary>The tile under <paramref name="position"/>.</summary>
-    MapTile& TileAt(const vector_3d& position)
+    MCMapTile& TileAt(const MCVector3D& position)
     {
         int32_t tileR;
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap->worldToMapPos(position, tileR, tileC, cellR, cellC);
-        return GameMap->map[GameMap->width * tileR + tileC];
+        GameMap->WorldToMapPos(position, tileR, tileC, cellR, cellC);
+        return GameMap->Map[GameMap->Width * tileR + tileC];
     }
 }
 
@@ -294,55 +294,55 @@ namespace
 // _WeaponShotInfo
 //---------------------------------------------------------------------------
 
-auto _WeaponShotInfo::init(GameObject* shooter, int32_t weaponMasterId, float shotDamage, int32_t shotHitLocation,
-                           float shotEntryAngle) -> void
+auto MCWeaponShotInfo::Init(MCGameObject* shooter, int32_t weaponMasterId, float shotDamage, int32_t shotHitLocation,
+                            float shotEntryAngle) -> void
 {
-    attacker = shooter;
+    Attacker = shooter;
 
     if (MPlayer == nullptr && shooter != nullptr)
     {
         // The difficulty scales the player's shots, and the enemy's mechs, vehicles, elementals and turrets.
-        const ObjectClass shooterClass = shooter->objectClass;
-        const int player = shooter->getAlignment() == homeTeam->alignment ? 1 : 0;
+        const MCObjectClass shooterClass = shooter->ObjectClass;
+        const int player = shooter->GetAlignment() == HomeTeam->Alignment ? 1 : 0;
 
         if (player != 0 || shooterClass == BATTLEMECH || shooterClass == GROUNDVEHICLE || shooterClass == ELEMENTAL ||
             shooterClass == TURRET)
         {
-            shotDamage = applyDifficultyWeapon(shotDamage, player);
+            shotDamage = ApplyDifficultyWeapon(shotDamage, player);
         }
     }
 
-    damage = shotDamage;
-    masterId = weaponMasterId;
-    hitLocation = shotHitLocation;
-    entryAngle = shotEntryAngle;
+    Damage = shotDamage;
+    MasterId = weaponMasterId;
+    HitLocation = shotHitLocation;
+    EntryAngle = shotEntryAngle;
     Assert(shotDamage >= 0.0 && shotDamage <= 255.0, static_cast<int32_t>(shotDamage),
            " WeaponShotInfo.init: damage out of range ");
 
-    if (MPlayer != nullptr && MPlayer->isServer != 0)
+    if (MPlayer != nullptr && MPlayer->IsServer != 0)
     {
-        damage = QuarterPoints(shotDamage);
-        entryAngle = SnapAngle(shotEntryAngle);
+        Damage = QuarterPoints(shotDamage);
+        EntryAngle = SnapAngle(shotEntryAngle);
     }
 }
 
-auto _WeaponShotInfo::setDamage(float shotDamage) -> void
+auto MCWeaponShotInfo::SetDamage(float shotDamage) -> void
 {
-    damage = shotDamage;
+    Damage = shotDamage;
 
-    if (MPlayer != nullptr && MPlayer->isServer != 0)
+    if (MPlayer != nullptr && MPlayer->IsServer != 0)
     {
-        damage = QuarterPoints(shotDamage);
+        Damage = QuarterPoints(shotDamage);
     }
 }
 
-auto _WeaponShotInfo::setEntryAngle(float shotEntryAngle) -> void
+auto MCWeaponShotInfo::SetEntryAngle(float shotEntryAngle) -> void
 {
-    entryAngle = shotEntryAngle;
+    EntryAngle = shotEntryAngle;
 
-    if (MPlayer != nullptr && MPlayer->isServer != 0)
+    if (MPlayer != nullptr && MPlayer->IsServer != 0)
     {
-        entryAngle = SnapAngle(shotEntryAngle);
+        EntryAngle = SnapAngle(shotEntryAngle);
     }
 }
 
@@ -350,173 +350,175 @@ auto _WeaponShotInfo::setEntryAngle(float shotEntryAngle) -> void
 // WeaponFireChunk
 //---------------------------------------------------------------------------
 
-auto WeaponFireChunk::init() -> void
+auto MCWeaponFireChunk::Init() -> void
 {
-    hitLocation = -1;
-    targetType = 0;
-    targetId = 0;
-    targetBlockOrTrainNumber = 0;
-    targetVertexOrCarNumber = 0;
-    targetItemNumber = 0;
-    targetCell[0] = 0;
-    targetCell[1] = 0;
-    weaponIndex = 0;
-    hit = 0;
-    entryAngle = 0;
-    numMissiles = 0;
-    numMissilesPastAMS = 0;
-    numAntiMissileShots = 0;
-    data = 0;
+    HitLocation = -1;
+    TargetType = 0;
+    TargetId = 0;
+    TargetBlockOrTrainNumber = 0;
+    TargetVertexOrCarNumber = 0;
+    TargetItemNumber = 0;
+    TargetCell[0] = 0;
+    TargetCell[1] = 0;
+    WeaponIndex = 0;
+    Hit = 0;
+    EntryAngle = 0;
+    NumMissiles = 0;
+    NumMissilesPastAms = 0;
+    NumAntiMissileShots = 0;
+    Data = 0;
 }
 
-auto WeaponFireChunk::buildMoverTarget(BigGameObject* target, int32_t weapon, int hitTarget, float angle,
-                                       int32_t missiles, int32_t missilesPastAMS, int32_t antiMissileShots,
-                                       int32_t location) -> void
+auto MCWeaponFireChunk::BuildMoverTarget(MCBigGameObject* target, int32_t weapon, int hitTarget, float angle,
+                                         int32_t missiles, int32_t missilesPastAMS, int32_t antiMissileShots,
+                                         int32_t location) -> void
 {
-    const int32_t rosterIndex = static_cast<Mover*>(target)->netRosterIndex;
-    hit = hitTarget;
-    targetType = 0;
-    targetId = rosterIndex;
-    weaponIndex = static_cast<uint8_t>(weapon);
-    entryAngle = AngleQuadrant(angle);
-    numMissilesPastAMS = static_cast<int8_t>(missilesPastAMS);
-    numMissiles = static_cast<int8_t>(missiles);
-    numAntiMissileShots = static_cast<int8_t>(antiMissileShots);
-    hitLocation = static_cast<int8_t>(location);
-    Assert(rosterIndex >= 0 && rosterIndex < MPlayer->numMovers, rosterIndex,
+    const int32_t rosterIndex = static_cast<MCMover*>(target)->NetRosterIndex;
+    Hit = hitTarget;
+    TargetType = 0;
+    TargetId = rosterIndex;
+    WeaponIndex = static_cast<uint8_t>(weapon);
+    EntryAngle = AngleQuadrant(angle);
+    NumMissilesPastAms = static_cast<int8_t>(missilesPastAMS);
+    NumMissiles = static_cast<int8_t>(missiles);
+    NumAntiMissileShots = static_cast<int8_t>(antiMissileShots);
+    HitLocation = static_cast<int8_t>(location);
+    Assert(rosterIndex >= 0 && rosterIndex < MPlayer->NumMovers, rosterIndex,
            " WeaponFireChunk.buildMoverTarget: bad targetId ");
-    Assert(weaponIndex < 0x20, weaponIndex, " WeaponFireChunk.buildMoverTarget: bad weaponIndex ");
-    Assert(numMissiles >= 0 && numMissiles <= 15, numMissiles, " WeaponFireChunk.buildMoverTarget: bad numMissiles ");
-    Assert(numMissilesPastAMS >= 0 && numMissilesPastAMS <= 15, numMissilesPastAMS,
+    Assert(WeaponIndex < 0x20, WeaponIndex, " WeaponFireChunk.buildMoverTarget: bad weaponIndex ");
+    Assert(NumMissiles >= 0 && NumMissiles <= 15, NumMissiles, " WeaponFireChunk.buildMoverTarget: bad numMissiles ");
+    Assert(NumMissilesPastAms >= 0 && NumMissilesPastAms <= 15, NumMissilesPastAms,
            " WeaponFireChunk.buildMoverTarget: bad numMissilesHit ");
-    Assert(numAntiMissileShots >= 0 && numAntiMissileShots <= 15, numAntiMissileShots,
+    Assert(NumAntiMissileShots >= 0 && NumAntiMissileShots <= 15, NumAntiMissileShots,
            " WeaponFireChunk.buildMoverTarget: bad numAntiMissiles ");
-    Assert(hitLocation >= -1 && hitLocation <= 11, hitLocation, " WeaponFireChunk.buildMoverTarget: bad hitLocation ");
-    data = 0;
+    Assert(HitLocation >= -1 && HitLocation <= 11, HitLocation, " WeaponFireChunk.buildMoverTarget: bad hitLocation ");
+    Data = 0;
 }
 
-auto WeaponFireChunk::buildTerrainTarget(BigGameObject* target, int32_t weapon, int hitTarget, int32_t missiles) -> void
+auto MCWeaponFireChunk::BuildTerrainTarget(MCBigGameObject* target, int32_t weapon, int hitTarget, int32_t missiles)
+    -> void
 {
     // A terrain object's part id is 0x1000 + (block * 400 + vertex) * 8 + item.
-    const int32_t partId = target->partId;
-    targetType = 1;
-    targetId = partId;
-    targetBlockOrTrainNumber = (partId - 0x1000) / 0xc80;
+    const int32_t partId = target->PartId;
+    TargetType = 1;
+    TargetId = partId;
+    TargetBlockOrTrainNumber = (partId - 0x1000) / 0xc80;
     const int32_t rest = (partId - 0x1000) % 0xc80;
-    targetVertexOrCarNumber = rest / 8;
-    weaponIndex = static_cast<uint8_t>(weapon);
-    numMissiles = static_cast<int8_t>(missiles);
-    numMissilesPastAMS = static_cast<int8_t>(missiles);
-    targetItemNumber = static_cast<int8_t>(rest - targetVertexOrCarNumber * 8);
-    hit = hitTarget;
-    Assert(partId != -1, target->objectClass, " WeaponFireChunk.buildTerrainTarget: -1 partId ");
-    data = 0;
+    TargetVertexOrCarNumber = rest / 8;
+    WeaponIndex = static_cast<uint8_t>(weapon);
+    NumMissiles = static_cast<int8_t>(missiles);
+    NumMissilesPastAms = static_cast<int8_t>(missiles);
+    TargetItemNumber = static_cast<int8_t>(rest - TargetVertexOrCarNumber * 8);
+    Hit = hitTarget;
+    Assert(partId != -1, target->ObjectClass, " WeaponFireChunk.buildTerrainTarget: -1 partId ");
+    Data = 0;
 }
 
-auto WeaponFireChunk::buildTrainTarget(BigGameObject* target, int32_t weapon, int hitTarget, float angle,
-                                       int32_t missiles) -> void
+auto MCWeaponFireChunk::BuildTrainTarget(MCBigGameObject* target, int32_t weapon, int hitTarget, float angle,
+                                         int32_t missiles) -> void
 {
     // A train car's part id is 0x7d000 + train * 100 + car.
-    targetType = 2;
-    targetId = target->partId;
-    targetBlockOrTrainNumber = (target->partId - 0x7d000) / 100;
-    weaponIndex = static_cast<uint8_t>(weapon);
-    hit = hitTarget;
-    targetVertexOrCarNumber = (target->partId - 0x7d000) % 100;
-    entryAngle = AngleQuadrant(angle);
-    numMissiles = static_cast<int8_t>(missiles);
-    numMissilesPastAMS = static_cast<int8_t>(missiles);
-    data = 0;
+    TargetType = 2;
+    TargetId = target->PartId;
+    TargetBlockOrTrainNumber = (target->PartId - 0x7d000) / 100;
+    WeaponIndex = static_cast<uint8_t>(weapon);
+    Hit = hitTarget;
+    TargetVertexOrCarNumber = (target->PartId - 0x7d000) % 100;
+    EntryAngle = AngleQuadrant(angle);
+    NumMissiles = static_cast<int8_t>(missiles);
+    NumMissilesPastAms = static_cast<int8_t>(missiles);
+    Data = 0;
 }
 
-auto WeaponFireChunk::buildCameraDroneTarget(BigGameObject* target, int32_t weapon, int hitTarget, float angle,
-                                             int32_t missiles) -> void
+auto MCWeaponFireChunk::BuildCameraDroneTarget(MCBigGameObject* target, int32_t weapon, int hitTarget, float angle,
+                                               int32_t missiles) -> void
 {
-    weaponIndex = static_cast<uint8_t>(weapon);
-    targetId = target->partId;
-    targetVertexOrCarNumber = target->partId - 0x802c8;
-    hit = hitTarget;
-    targetType = 2;
-    targetBlockOrTrainNumber = 0x80;
-    entryAngle = AngleQuadrant(angle);
-    numMissiles = static_cast<int8_t>(missiles);
-    numMissilesPastAMS = static_cast<int8_t>(missiles);
-    data = 0;
+    WeaponIndex = static_cast<uint8_t>(weapon);
+    TargetId = target->PartId;
+    TargetVertexOrCarNumber = target->PartId - 0x802c8;
+    Hit = hitTarget;
+    TargetType = 2;
+    TargetBlockOrTrainNumber = 0x80;
+    EntryAngle = AngleQuadrant(angle);
+    NumMissiles = static_cast<int8_t>(missiles);
+    NumMissilesPastAms = static_cast<int8_t>(missiles);
+    Data = 0;
 }
 
-auto WeaponFireChunk::buildLocationTarget(vector_3d location, int32_t weapon, int hitTarget, int32_t missiles) -> void
+auto MCWeaponFireChunk::BuildLocationTarget(MCVector3D location, int32_t weapon, int hitTarget, int32_t missiles)
+    -> void
 {
-    targetType = 3;
+    TargetType = 3;
     int32_t cellR;
     int32_t cellC;
-    worldCoordToMapCell(location, cellR, cellC);
-    targetCell[0] = static_cast<uint16_t>(cellR);
-    hit = hitTarget;
-    targetCell[1] = static_cast<uint16_t>(cellC);
-    weaponIndex = static_cast<uint8_t>(weapon);
-    numMissiles = static_cast<int8_t>(missiles);
-    numMissilesPastAMS = static_cast<int8_t>(missiles);
-    data = 0;
+    WorldCoordToMapCell(location, cellR, cellC);
+    TargetCell[0] = static_cast<uint16_t>(cellR);
+    Hit = hitTarget;
+    TargetCell[1] = static_cast<uint16_t>(cellC);
+    WeaponIndex = static_cast<uint8_t>(weapon);
+    NumMissiles = static_cast<int8_t>(missiles);
+    NumMissilesPastAms = static_cast<int8_t>(missiles);
+    Data = 0;
 }
 
-auto WeaponFireChunk::pack() -> void
+auto MCWeaponFireChunk::Pack() -> void
 {
     // From the low bit: target type (2), weapon index (5), hit (1), then the target, and for a missile weapon the
     // missile counts (4 bits each) in front of it.
-    data = 0;
+    Data = 0;
     uint32_t packed;
     bool packTarget = true;
 
-    switch (targetType)
+    switch (TargetType)
     {
         case 0:
         {
-            packed = static_cast<uint32_t>((hitLocation + 2) * 0x20) | (static_cast<uint32_t>(entryAngle) << 9) |
-                     static_cast<uint32_t>(targetId);
-            data = packed;
+            packed = static_cast<uint32_t>((HitLocation + 2) * 0x20) | (static_cast<uint32_t>(EntryAngle) << 9) |
+                     static_cast<uint32_t>(TargetId);
+            Data = packed;
 
-            if (numMissiles > 0)
+            if (NumMissiles > 0)
             {
-                packed = ((packed << 4 | static_cast<uint32_t>(numMissiles)) << 4) |
-                         static_cast<uint32_t>(numMissilesPastAMS);
-                data = packed << 4 | static_cast<uint32_t>(numAntiMissileShots);
+                packed = ((packed << 4 | static_cast<uint32_t>(NumMissiles)) << 4) |
+                         static_cast<uint32_t>(NumMissilesPastAms);
+                Data = packed << 4 | static_cast<uint32_t>(NumAntiMissileShots);
             }
             break;
         }
         case 1:
         {
             packed =
-                ((static_cast<uint32_t>(targetBlockOrTrainNumber) << 9 | static_cast<uint32_t>(targetVertexOrCarNumber))
+                ((static_cast<uint32_t>(TargetBlockOrTrainNumber) << 9 | static_cast<uint32_t>(TargetVertexOrCarNumber))
                  << 3) |
-                static_cast<uint32_t>(targetItemNumber);
-            data = packed;
+                static_cast<uint32_t>(TargetItemNumber);
+            Data = packed;
 
-            if (numMissiles > 0)
+            if (NumMissiles > 0)
             {
-                data = packed << 4 | static_cast<uint32_t>(numMissiles);
+                Data = packed << 4 | static_cast<uint32_t>(NumMissiles);
             }
             break;
         }
         case 2:
         {
-            packed = ((static_cast<uint32_t>(entryAngle) << 8 | static_cast<uint32_t>(targetBlockOrTrainNumber)) << 8) |
-                     static_cast<uint32_t>(targetVertexOrCarNumber);
-            data = packed;
+            packed = ((static_cast<uint32_t>(EntryAngle) << 8 | static_cast<uint32_t>(TargetBlockOrTrainNumber)) << 8) |
+                     static_cast<uint32_t>(TargetVertexOrCarNumber);
+            Data = packed;
 
-            if (numMissiles > 0)
+            if (NumMissiles > 0)
             {
-                data = packed << 4 | static_cast<uint32_t>(numMissiles);
+                Data = packed << 4 | static_cast<uint32_t>(NumMissiles);
             }
             break;
         }
         case 3:
         {
-            packed = static_cast<uint32_t>(targetCell[0]) << 10 | targetCell[1];
-            data = packed;
+            packed = static_cast<uint32_t>(TargetCell[0]) << 10 | TargetCell[1];
+            Data = packed;
 
-            if (numMissiles > 0)
+            if (NumMissiles > 0)
             {
-                data = packed << 4 | static_cast<uint32_t>(numMissiles);
+                Data = packed << 4 | static_cast<uint32_t>(NumMissiles);
             }
             break;
         }
@@ -527,72 +529,72 @@ auto WeaponFireChunk::pack() -> void
 
     if (packTarget)
     {
-        data = data << 1;
+        Data = Data << 1;
     }
 
-    if (hit != 0)
+    if (Hit != 0)
     {
-        data |= 1;
+        Data |= 1;
     }
 
-    data = ((static_cast<uint32_t>(weaponIndex) | data << 5) << 2) | static_cast<uint32_t>(targetType);
+    Data = ((static_cast<uint32_t>(WeaponIndex) | Data << 5) << 2) | static_cast<uint32_t>(TargetType);
 }
 
-auto WeaponFireChunk::unpack(BigGameObject* attacker) -> void
+auto MCWeaponFireChunk::Unpack(MCBigGameObject* attacker) -> void
 {
-    const uint32_t packed = data;
-    weaponIndex = static_cast<uint8_t>((packed >> 2) & 0x1f);
-    targetType = static_cast<int8_t>(packed & 3);
-    hit = static_cast<int32_t>((packed >> 7) & 1);
+    const uint32_t packed = Data;
+    WeaponIndex = static_cast<uint8_t>((packed >> 2) & 0x1f);
+    TargetType = static_cast<int8_t>(packed & 3);
+    Hit = static_cast<int32_t>((packed >> 7) & 1);
     uint32_t rest = packed >> 8;
 
     int missileWeapon = 0;
 
     if (IsMover(attacker))
     {
-        auto* mover = static_cast<Mover*>(attacker);
-        missileWeapon = mover->isWeaponMissile(mover->numOther + weaponIndex);
+        auto* mover = static_cast<MCMover*>(attacker);
+        missileWeapon = mover->IsWeaponMissile(mover->NumOther + WeaponIndex);
     }
-    else if (attacker->objectClass == TURRET)
+    else if (attacker->ObjectClass == TURRET)
     {
-        missileWeapon = static_cast<Turret*>(attacker)->isWeaponMissile();
+        missileWeapon = static_cast<MCTurret*>(attacker)->IsWeaponMissile();
     }
 
     const uint8_t low = static_cast<uint8_t>(packed >> 8);
 
-    switch (targetType)
+    switch (TargetType)
     {
         case 0:
         {
             if (missileWeapon != 0)
             {
-                numAntiMissileShots = static_cast<int8_t>(low & 0xf);
-                numMissilesPastAMS = static_cast<int8_t>((packed >> 12) & 0xf);
-                numMissiles = static_cast<int8_t>((packed >> 16) & 0xf);
+                NumAntiMissileShots = static_cast<int8_t>(low & 0xf);
+                NumMissilesPastAms = static_cast<int8_t>((packed >> 12) & 0xf);
+                NumMissiles = static_cast<int8_t>((packed >> 16) & 0xf);
                 rest = packed >> 20;
             }
 
-            targetId = static_cast<int32_t>(rest & 0x1f);
-            hitLocation = static_cast<int8_t>(((rest >> 5) & 0xf) - 2);
-            entryAngle = static_cast<int8_t>((rest >> 9) & 3);
+            TargetId = static_cast<int32_t>(rest & 0x1f);
+            HitLocation = static_cast<int8_t>(((rest >> 5) & 0xf) - 2);
+            EntryAngle = static_cast<int8_t>((rest >> 9) & 3);
             return;
         }
         case 1:
         {
             if (missileWeapon != 0)
             {
-                numMissiles = static_cast<int8_t>(low & 0xf);
+                NumMissiles = static_cast<int8_t>(low & 0xf);
                 rest = packed >> 12;
-                numMissilesPastAMS = static_cast<int8_t>(low & 0xf);
+                NumMissilesPastAms = static_cast<int8_t>(low & 0xf);
             }
 
             const int8_t item = static_cast<int8_t>(rest & 7);
             const uint32_t block = (rest >> 12) & 0xff;
-            targetItemNumber = item;
+            TargetItemNumber = item;
             const uint32_t vertex = (rest >> 3) & 0x1ff;
-            targetBlockOrTrainNumber = static_cast<int32_t>(block);
-            targetVertexOrCarNumber = static_cast<int32_t>(vertex);
-            targetId = static_cast<int32_t>(item + 0x1000 + (block * 400 + vertex) * 8);
+            TargetBlockOrTrainNumber = static_cast<int32_t>(block);
+            TargetVertexOrCarNumber = static_cast<int32_t>(vertex);
+            TargetId = static_cast<int32_t>(item + 0x1000 + (block * 400 + vertex) * 8);
             return;
         }
 
@@ -600,25 +602,25 @@ auto WeaponFireChunk::unpack(BigGameObject* attacker) -> void
         {
             if (missileWeapon != 0)
             {
-                numMissiles = static_cast<int8_t>(low & 0xf);
+                NumMissiles = static_cast<int8_t>(low & 0xf);
                 rest = packed >> 12;
-                numMissilesPastAMS = static_cast<int8_t>(low & 0xf);
+                NumMissilesPastAms = static_cast<int8_t>(low & 0xf);
             }
 
             const uint32_t trainNumber = (rest >> 8) & 0xff;
-            targetVertexOrCarNumber = static_cast<int32_t>(rest & 0xff);
-            targetBlockOrTrainNumber = static_cast<int32_t>(trainNumber);
+            TargetVertexOrCarNumber = static_cast<int32_t>(rest & 0xff);
+            TargetBlockOrTrainNumber = static_cast<int32_t>(trainNumber);
             const uint8_t angleBits = static_cast<uint8_t>(rest >> 16);
 
             if (trainNumber != 0x80)
             {
-                entryAngle = static_cast<int8_t>(angleBits & 3);
-                targetId = targetVertexOrCarNumber + static_cast<int32_t>((trainNumber * 5 + 0x6400) * 0x14);
+                EntryAngle = static_cast<int8_t>(angleBits & 3);
+                TargetId = TargetVertexOrCarNumber + static_cast<int32_t>((trainNumber * 5 + 0x6400) * 0x14);
                 return;
             }
 
-            targetId = targetVertexOrCarNumber + 0x802c8;
-            entryAngle = static_cast<int8_t>(angleBits & 3);
+            TargetId = TargetVertexOrCarNumber + 0x802c8;
+            EntryAngle = static_cast<int8_t>(angleBits & 3);
             return;
         }
 
@@ -626,13 +628,13 @@ auto WeaponFireChunk::unpack(BigGameObject* attacker) -> void
         {
             if (missileWeapon != 0)
             {
-                numMissiles = static_cast<int8_t>(low & 0xf);
+                NumMissiles = static_cast<int8_t>(low & 0xf);
                 rest = packed >> 12;
-                numMissilesPastAMS = static_cast<int8_t>(low & 0xf);
+                NumMissilesPastAms = static_cast<int8_t>(low & 0xf);
             }
 
-            targetCell[1] = static_cast<uint16_t>(rest & 0x3ff);
-            targetCell[0] = static_cast<uint16_t>((rest >> 10) & 0x3ff);
+            TargetCell[1] = static_cast<uint16_t>(rest & 0x3ff);
+            TargetCell[0] = static_cast<uint16_t>((rest >> 10) & 0x3ff);
             return;
         }
         default:
@@ -640,13 +642,13 @@ auto WeaponFireChunk::unpack(BigGameObject* attacker) -> void
     }
 }
 
-auto WeaponFireChunk::equalTo(WeaponFireChunk* chunk) -> int
+auto MCWeaponFireChunk::EqualTo(MCWeaponFireChunk* chunk) -> int
 {
-    if (targetType != chunk->targetType || targetId != chunk->targetId || targetCell[0] != chunk->targetCell[0] ||
-        targetCell[1] != chunk->targetCell[1] || weaponIndex != chunk->weaponIndex || hit != chunk->hit ||
-        entryAngle != chunk->entryAngle || numMissiles != chunk->numMissiles ||
-        numMissilesPastAMS != chunk->numMissilesPastAMS || numAntiMissileShots != chunk->numAntiMissileShots ||
-        hitLocation != chunk->hitLocation)
+    if (TargetType != chunk->TargetType || TargetId != chunk->TargetId || TargetCell[0] != chunk->TargetCell[0] ||
+        TargetCell[1] != chunk->TargetCell[1] || WeaponIndex != chunk->WeaponIndex || Hit != chunk->Hit ||
+        EntryAngle != chunk->EntryAngle || NumMissiles != chunk->NumMissiles ||
+        NumMissilesPastAms != chunk->NumMissilesPastAms || NumAntiMissileShots != chunk->NumAntiMissileShots ||
+        HitLocation != chunk->HitLocation)
     {
         DebugWeaponFireChunk(this, chunk, nullptr);
         return 0;
@@ -659,68 +661,68 @@ auto WeaponFireChunk::equalTo(WeaponFireChunk* chunk) -> int
 // WeaponHitChunk
 //---------------------------------------------------------------------------
 
-auto WeaponHitChunk::buildMoverTarget(BigGameObject* target, int32_t hitCause, float hitDamage, int32_t location,
-                                      float angle, int isRefit) -> void
+auto MCWeaponHitChunk::BuildMoverTarget(MCBigGameObject* target, int32_t hitCause, float hitDamage, int32_t location,
+                                        float angle, int isRefit) -> void
 {
-    targetType = 0;
-    targetId = static_cast<Mover*>(target)->netRosterIndex;
-    cause = static_cast<int8_t>(hitCause);
-    damage = hitDamage;
-    hitLocation = static_cast<int8_t>(location);
-    entryAngle = AngleQuadrant(angle);
-    refit = isRefit;
-    data = 0;
+    TargetType = 0;
+    TargetId = static_cast<MCMover*>(target)->NetRosterIndex;
+    Cause = static_cast<int8_t>(hitCause);
+    Damage = hitDamage;
+    HitLocation = static_cast<int8_t>(location);
+    EntryAngle = AngleQuadrant(angle);
+    Refit = isRefit;
+    Data = 0;
 }
 
-auto WeaponHitChunk::buildTerrainTarget(BigGameObject* target, float hitDamage) -> void
+auto MCWeaponHitChunk::BuildTerrainTarget(MCBigGameObject* target, float hitDamage) -> void
 {
-    targetType = 1;
-    data = 0;
-    const int32_t partId = target->partId;
-    targetId = partId;
-    targetBlockOrTrainNumber = (partId - 0x1000) / 0xc80;
+    TargetType = 1;
+    Data = 0;
+    const int32_t partId = target->PartId;
+    TargetId = partId;
+    TargetBlockOrTrainNumber = (partId - 0x1000) / 0xc80;
     const int32_t rest = (partId - 0x1000) % 0xc80;
-    targetVertexOrCarNumber = rest / 8;
-    targetItemNumber = static_cast<int8_t>(rest - targetVertexOrCarNumber * 8);
-    damage = hitDamage;
+    TargetVertexOrCarNumber = rest / 8;
+    TargetItemNumber = static_cast<int8_t>(rest - TargetVertexOrCarNumber * 8);
+    Damage = hitDamage;
 }
 
-auto WeaponHitChunk::buildTrainTarget(BigGameObject* target, float hitDamage, float angle) -> void
+auto MCWeaponHitChunk::BuildTrainTarget(MCBigGameObject* target, float hitDamage, float angle) -> void
 {
-    targetType = 2;
-    targetId = target->partId;
-    targetBlockOrTrainNumber = (target->partId - 0x7d000) / 100;
-    damage = hitDamage;
-    targetVertexOrCarNumber = (target->partId - 0x7d000) % 100;
-    entryAngle = AngleQuadrant(angle);
-    data = 0;
+    TargetType = 2;
+    TargetId = target->PartId;
+    TargetBlockOrTrainNumber = (target->PartId - 0x7d000) / 100;
+    Damage = hitDamage;
+    TargetVertexOrCarNumber = (target->PartId - 0x7d000) % 100;
+    EntryAngle = AngleQuadrant(angle);
+    Data = 0;
 }
 
-auto WeaponHitChunk::buildCameraDroneTarget(BigGameObject* target, float hitDamage, float angle) -> void
+auto MCWeaponHitChunk::BuildCameraDroneTarget(MCBigGameObject* target, float hitDamage, float angle) -> void
 {
-    targetType = 2;
-    targetId = target->partId;
-    targetVertexOrCarNumber = target->partId - 0x802c8;
-    targetBlockOrTrainNumber = 0x80;
-    damage = hitDamage;
-    entryAngle = AngleQuadrant(angle);
-    data = 0;
+    TargetType = 2;
+    TargetId = target->PartId;
+    TargetVertexOrCarNumber = target->PartId - 0x802c8;
+    TargetBlockOrTrainNumber = 0x80;
+    Damage = hitDamage;
+    EntryAngle = AngleQuadrant(angle);
+    Data = 0;
 }
 
-auto WeaponHitChunk::build(GameObject* target, _WeaponShotInfo* shotInfo, int isRefit) -> void
+auto MCWeaponHitChunk::Build(MCGameObject* target, MCWeaponShotInfo* shotInfo, int isRefit) -> void
 {
     if (target == nullptr)
     {
         Fatal(0, " WeaponHitChunk.build: NULL target ");
     }
 
-    const float shotDamage = shotInfo->damage;
-    Assert(static_cast<double>(shotDamage) == static_cast<int32_t>(static_cast<double>(shotInfo->damage) * 4.0) * 0.25,
+    const float shotDamage = shotInfo->Damage;
+    Assert(static_cast<double>(shotDamage) == static_cast<int32_t>(static_cast<double>(shotInfo->Damage) * 4.0) * 0.25,
            0, " WeaponHitChunk.build: damage round error ");
 
     if (!IsMover(target))
     {
-        switch (target->objectClass)
+        switch (target->ObjectClass)
         {
             case BUILDING:
             case TREE:
@@ -729,17 +731,17 @@ auto WeaponHitChunk::build(GameObject* target, _WeaponShotInfo* shotInfo, int is
             case TURRET:
             case GATE:
             {
-                buildTerrainTarget(static_cast<BigGameObject*>(target), shotDamage);
+                BuildTerrainTarget(static_cast<MCBigGameObject*>(target), shotDamage);
                 return;
             }
             case CAMERADRONE:
             {
-                buildCameraDroneTarget(static_cast<BigGameObject*>(target), shotDamage, shotInfo->entryAngle);
+                BuildCameraDroneTarget(static_cast<MCBigGameObject*>(target), shotDamage, shotInfo->EntryAngle);
                 return;
             }
             case TRAINCAR:
             {
-                buildTrainTarget(static_cast<BigGameObject*>(target), shotDamage, shotInfo->entryAngle);
+                BuildTrainTarget(static_cast<MCBigGameObject*>(target), shotDamage, shotInfo->EntryAngle);
                 return;
             }
             default:
@@ -748,42 +750,42 @@ auto WeaponHitChunk::build(GameObject* target, _WeaponShotInfo* shotInfo, int is
     }
 
     // The chunk's cause: 0 for a weapon, -4 for a component whose form is 10. The shot keeps the change.
-    if (shotInfo->masterId > 0)
+    if (shotInfo->MasterId > 0)
     {
-        shotInfo->masterId = MasterComponentList[shotInfo->masterId].form == 10 ? -4 : 0;
+        shotInfo->MasterId = MasterComponentList[shotInfo->MasterId].Form == 10 ? -4 : 0;
     }
 
-    buildMoverTarget(static_cast<BigGameObject*>(target), shotInfo->masterId, shotDamage, shotInfo->hitLocation,
-                     shotInfo->entryAngle, isRefit);
+    BuildMoverTarget(static_cast<MCBigGameObject*>(target), shotInfo->MasterId, shotDamage, shotInfo->HitLocation,
+                     shotInfo->EntryAngle, isRefit);
 }
 
-auto WeaponHitChunk::pack() -> void
+auto MCWeaponHitChunk::Pack() -> void
 {
     // From the low bit: target type (2), damage in quarter points (10), then the target.
-    const uint32_t type = static_cast<uint32_t>(static_cast<int32_t>(targetType));
-    data = 0;
+    const uint32_t type = static_cast<uint32_t>(static_cast<int32_t>(TargetType));
+    Data = 0;
 
     if (type == 0)
     {
-        if (refit != 0)
+        if (Refit != 0)
         {
-            data = 1;
+            Data = 1;
         }
 
-        data = ((static_cast<uint32_t>(entryAngle) | data << 2) << 12 | static_cast<uint32_t>(targetId)) << 10 |
-               static_cast<uint32_t>((hitLocation + 2) * 0x40000) | static_cast<uint32_t>((cause + 7) * 0x8000);
+        Data = ((static_cast<uint32_t>(EntryAngle) | Data << 2) << 12 | static_cast<uint32_t>(TargetId)) << 10 |
+               static_cast<uint32_t>((HitLocation + 2) * 0x40000) | static_cast<uint32_t>((Cause + 7) * 0x8000);
     }
     else if (type == 1)
     {
-        data = ((static_cast<uint32_t>(targetBlockOrTrainNumber) << 9 | static_cast<uint32_t>(targetVertexOrCarNumber))
+        Data = ((static_cast<uint32_t>(TargetBlockOrTrainNumber) << 9 | static_cast<uint32_t>(TargetVertexOrCarNumber))
                     << 3 |
-                static_cast<uint32_t>(targetItemNumber))
+                static_cast<uint32_t>(TargetItemNumber))
                << 10;
     }
     else if (type == 2)
     {
-        data = ((static_cast<uint32_t>(entryAngle) << 8 | static_cast<uint32_t>(targetBlockOrTrainNumber)) << 8 |
-                static_cast<uint32_t>(targetVertexOrCarNumber))
+        Data = ((static_cast<uint32_t>(EntryAngle) << 8 | static_cast<uint32_t>(TargetBlockOrTrainNumber)) << 8 |
+                static_cast<uint32_t>(TargetVertexOrCarNumber))
                << 10;
     }
     else
@@ -791,59 +793,59 @@ auto WeaponHitChunk::pack() -> void
         Fatal(0, " Bad WeaponHitChunk Target Type ");
     }
 
-    const uint32_t quarters = static_cast<uint32_t>(static_cast<int32_t>(static_cast<double>(damage) * 4.0));
-    data = (quarters | data) << 2 | type;
+    const uint32_t quarters = static_cast<uint32_t>(static_cast<int32_t>(static_cast<double>(Damage) * 4.0));
+    Data = (quarters | Data) << 2 | type;
 }
 
-auto WeaponHitChunk::unpack() -> void
+auto MCWeaponHitChunk::Unpack() -> void
 {
-    const uint32_t packed = data;
-    targetType = static_cast<int8_t>(packed & 3);
+    const uint32_t packed = Data;
+    TargetType = static_cast<int8_t>(packed & 3);
     const uint32_t rest = packed >> 12;
-    damage = static_cast<float>(((packed >> 2) & 0x3ff) * 0.25);
-    Assert(damage >= 0.0 && damage <= 255.0, 0, " WeaponHitChunk.unpack: bad damage ");
+    Damage = static_cast<float>(((packed >> 2) & 0x3ff) * 0.25);
+    Assert(Damage >= 0.0 && Damage <= 255.0, 0, " WeaponHitChunk.unpack: bad damage ");
     const uint8_t high = static_cast<uint8_t>(packed >> 24);
 
-    if (targetType == 0)
+    if (TargetType == 0)
     {
-        targetId = static_cast<int32_t>(rest & 0x1f);
-        Assert(targetId < MPlayer->numMovers, targetId, " WeaponHitChunk.unpack: bad targetId ");
-        cause = static_cast<int8_t>(((packed >> 17) & 7) - 7);
-        Assert(cause >= -7 && cause <= 0, cause, " WeaponHitChunk.unpack: bad cause ");
-        hitLocation = static_cast<int8_t>(((packed >> 20) & 0xf) - 2);
-        Assert(hitLocation >= -1 && hitLocation <= 11, hitLocation, " WeaponHitChunk.unpack: bad hitLocation ");
-        entryAngle = static_cast<int8_t>(high & 3);
-        refit = static_cast<int32_t>((packed >> 26) & 1);
+        TargetId = static_cast<int32_t>(rest & 0x1f);
+        Assert(TargetId < MPlayer->NumMovers, TargetId, " WeaponHitChunk.unpack: bad targetId ");
+        Cause = static_cast<int8_t>(((packed >> 17) & 7) - 7);
+        Assert(Cause >= -7 && Cause <= 0, Cause, " WeaponHitChunk.unpack: bad cause ");
+        HitLocation = static_cast<int8_t>(((packed >> 20) & 0xf) - 2);
+        Assert(HitLocation >= -1 && HitLocation <= 11, HitLocation, " WeaponHitChunk.unpack: bad hitLocation ");
+        EntryAngle = static_cast<int8_t>(high & 3);
+        Refit = static_cast<int32_t>((packed >> 26) & 1);
         return;
     }
 
-    if (targetType == 1)
+    if (TargetType == 1)
     {
         const int8_t item = static_cast<int8_t>(rest & 7);
-        targetItemNumber = item;
+        TargetItemNumber = item;
         const uint32_t vertex = (packed >> 15) & 0x1ff;
-        targetBlockOrTrainNumber = static_cast<int32_t>(packed >> 24);
-        targetVertexOrCarNumber = static_cast<int32_t>(vertex);
-        targetId = static_cast<int32_t>(item + 0x1000 + ((packed >> 24) * 400 + vertex) * 8);
+        TargetBlockOrTrainNumber = static_cast<int32_t>(packed >> 24);
+        TargetVertexOrCarNumber = static_cast<int32_t>(vertex);
+        TargetId = static_cast<int32_t>(item + 0x1000 + ((packed >> 24) * 400 + vertex) * 8);
         return;
     }
 
-    if (targetType == 2)
+    if (TargetType == 2)
     {
         const uint32_t trainNumber = (packed >> 20) & 0xff;
-        targetVertexOrCarNumber = static_cast<int32_t>(rest & 0xff);
-        targetBlockOrTrainNumber = static_cast<int32_t>(trainNumber);
+        TargetVertexOrCarNumber = static_cast<int32_t>(rest & 0xff);
+        TargetBlockOrTrainNumber = static_cast<int32_t>(trainNumber);
         const uint8_t angleBits = high >> 4;
 
         if (trainNumber != 0x80)
         {
-            entryAngle = static_cast<int8_t>(angleBits & 3);
-            targetId = targetVertexOrCarNumber + static_cast<int32_t>((trainNumber * 5 + 0x6400) * 0x14);
+            EntryAngle = static_cast<int8_t>(angleBits & 3);
+            TargetId = TargetVertexOrCarNumber + static_cast<int32_t>((trainNumber * 5 + 0x6400) * 0x14);
             return;
         }
 
-        targetId = static_cast<int32_t>((rest & 0xff) + 0x802c8);
-        entryAngle = static_cast<int8_t>(angleBits & 3);
+        TargetId = static_cast<int32_t>((rest & 0xff) + 0x802c8);
+        EntryAngle = static_cast<int8_t>(angleBits & 3);
         return;
     }
 
@@ -851,11 +853,11 @@ auto WeaponHitChunk::unpack() -> void
     Fatal(0, " Bad WeaponHitChunk Target Type ");
 }
 
-auto WeaponHitChunk::equalTo(WeaponHitChunk* chunk) -> int
+auto MCWeaponHitChunk::EqualTo(MCWeaponHitChunk* chunk) -> int
 {
-    if (targetType != chunk->targetType || targetId != chunk->targetId || cause != chunk->cause ||
-        damage != chunk->damage || entryAngle != chunk->entryAngle || refit != chunk->refit ||
-        hitLocation != chunk->hitLocation)
+    if (TargetType != chunk->TargetType || TargetId != chunk->TargetId || Cause != chunk->Cause ||
+        Damage != chunk->Damage || EntryAngle != chunk->EntryAngle || Refit != chunk->Refit ||
+        HitLocation != chunk->HitLocation)
     {
         DebugWeaponHitChunk(this, chunk);
         return 0;
@@ -868,7 +870,7 @@ auto WeaponHitChunk::equalTo(WeaponHitChunk* chunk) -> int
 // Debug chunk routines
 //---------------------------------------------------------------------------
 
-auto DebugWeaponFireChunk(WeaponFireChunk* chunk1, WeaponFireChunk* chunk2, GameObject* attacker) -> void
+auto DebugWeaponFireChunk(MCWeaponFireChunk* chunk1, MCWeaponFireChunk* chunk2, MCGameObject* attacker) -> void
 {
     char line[512];
     ChunkDebugMsg[0] = '\0';
@@ -882,12 +884,12 @@ auto DebugWeaponFireChunk(WeaponFireChunk* chunk1, WeaponFireChunk* chunk2, Game
         if (IsMover(attacker))
         {
             std::snprintf(line, sizeof(line), "attacker = %s (%d)\n",
-                          static_cast<Mover*>(attacker)->debugStatus.c_str(), attacker->partId);
+                          static_cast<MCMover*>(attacker)->DebugStatus.c_str(), attacker->PartId);
         }
         else
         {
-            std::snprintf(line, sizeof(line), "attacker = objClass %d (%d)\n", static_cast<int>(attacker->objectClass),
-                          attacker->partId);
+            std::snprintf(line, sizeof(line), "attacker = objClass %d (%d)\n", static_cast<int>(attacker->ObjectClass),
+                          attacker->PartId);
         }
 
         std::strcat(ChunkDebugMsg, line);
@@ -913,11 +915,11 @@ auto OpenWeaponFireLog() -> void
 {
 }
 
-auto LogWeaponFireChunk(WeaponFireChunk*, GameObject*, GameObject*) -> void
+auto LogWeaponFireChunk(MCWeaponFireChunk*, MCGameObject*, MCGameObject*) -> void
 {
 }
 
-auto DebugWeaponHitChunk(WeaponHitChunk* chunk1, WeaponHitChunk* chunk2) -> void
+auto DebugWeaponHitChunk(MCWeaponHitChunk* chunk1, MCWeaponHitChunk* chunk2) -> void
 {
     ChunkDebugMsg[0] = '\0';
 
@@ -940,115 +942,115 @@ auto DebugWeaponHitChunk(WeaponHitChunk* chunk1, WeaponHitChunk* chunk2) -> void
 // GameObject
 //---------------------------------------------------------------------------
 
-GameObject::GameObject()
+MCGameObject::MCGameObject()
 {
-    objectClass = GAMEOBJECT;
-    idNumber = 0;
-    next = nullptr;
-    partId = -1;
-    objType = nullptr;
-    position.z = 0.0f;
-    position.y = 0.0f;
-    position.x = 0.0f;
-    selected = 0;
-    collisionsOn = 0;
-    alignment = 0;
-    status = 0;
+    ObjectClass = GAMEOBJECT;
+    IdNumber = 0;
+    Next = nullptr;
+    PartId = -1;
+    ObjType = nullptr;
+    Position.Z = 0.0f;
+    Position.Y = 0.0f;
+    Position.X = 0.0f;
+    Selected = 0;
+    CollisionsOn = 0;
+    Alignment = 0;
+    Status = 0;
 }
 
-auto GameObject::init(ObjectType* type) -> int32_t
+auto MCGameObject::Init(MCObjectType* type) -> int32_t
 {
-    objectClass = GAMEOBJECT;
-    objType = type;
-    alignment = type->teamId;
+    ObjectClass = GAMEOBJECT;
+    ObjType = type;
+    Alignment = type->TeamId;
     return 0;
 }
 
-auto GameObject::init() -> void
+auto MCGameObject::Init() -> void
 {
-    objectClass = GAMEOBJECT;
-    idNumber = 0;
-    next = nullptr;
-    partId = -1;
-    objType = nullptr;
-    position.z = 0.0f;
-    position.y = 0.0f;
-    position.x = 0.0f;
-    selected = 0;
-    collisionsOn = 0;
-    alignment = 0;
-    status = 0;
+    ObjectClass = GAMEOBJECT;
+    IdNumber = 0;
+    Next = nullptr;
+    PartId = -1;
+    ObjType = nullptr;
+    Position.Z = 0.0f;
+    Position.Y = 0.0f;
+    Position.X = 0.0f;
+    Selected = 0;
+    CollisionsOn = 0;
+    Alignment = 0;
+    Status = 0;
 }
 
-auto GameObject::destroy() -> void
+auto MCGameObject::Destroy() -> void
 {
-    objectTypeManager->remove(objType);
+    ObjectTypeManager->Remove(ObjType);
 }
 
-auto GameObject::getPositionFromHS(uint32_t) -> vector_3d
+auto MCGameObject::GetPositionFromHS(uint32_t) -> MCVector3D
 {
-    return position;
+    return Position;
 }
 
-auto GameObject::getBlockAndVertexNumber(int32_t& blockNumber, int32_t& vertexNumber) -> void
+auto MCGameObject::GetBlockAndVertexNumber(int32_t& blockNumber, int32_t& vertexNumber) -> void
 {
-    Assert(Terrain::metersPerVertex == 128.0f, 0, " Optimizations now broken ");
+    Assert(MCTerrain::MetersPerVertex == 128.0f, 0, " Optimizations now broken ");
     // The original keeps each floored coordinate and block index as a 16-bit value.
     const int32_t vertexCol =
-        (static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(position.x)))) >> 7) +
-        Terrain::verticesMapSide;
+        (static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(Position.X)))) >> 7) +
+        MCTerrain::VerticesMapSide;
     const int32_t blockCol = static_cast<int16_t>(
-        static_cast<int32_t>(std::floor(static_cast<double>(vertexCol) * Terrain::OneOververticesBlockSide)));
+        static_cast<int32_t>(std::floor(static_cast<double>(vertexCol) * MCTerrain::OneOververticesBlockSide)));
     const int32_t vertexRow =
-        (Terrain::verticesMapSide -
-         (static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(position.y)))) >> 7)) -
+        (MCTerrain::VerticesMapSide -
+         (static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(Position.Y)))) >> 7)) -
         1;
     const int32_t blockRow = static_cast<int16_t>(
-        static_cast<int32_t>(std::floor(static_cast<double>(vertexRow) * Terrain::OneOververticesBlockSide)));
-    blockNumber = Terrain::blocksMapSide * blockRow + blockCol;
+        static_cast<int32_t>(std::floor(static_cast<double>(vertexRow) * MCTerrain::OneOververticesBlockSide)));
+    blockNumber = MCTerrain::BlocksMapSide * blockRow + blockCol;
     vertexNumber =
-        ((vertexRow - Terrain::verticesBlockSide * blockRow) - blockCol) * Terrain::verticesBlockSide + vertexCol;
+        ((vertexRow - MCTerrain::VerticesBlockSide * blockRow) - blockCol) * MCTerrain::VerticesBlockSide + vertexCol;
 }
 
-auto GameObject::getPosition() -> vector_3d
+auto MCGameObject::GetPosition() -> MCVector3D
 {
-    return position;
+    return Position;
 }
 
-auto GameObject::relativePosition(float angle, float distance, uint32_t flags) -> vector_3d
+auto MCGameObject::RelativePosition(float angle, float distance, uint32_t flags) -> MCVector3D
 {
     // The point distance meters away at the absolute angle (radians), pulled back along the line to the first
     // cell whose passability changes. The x87 keeps the reach at extended precision, done here in double.
-    const double reach = -(static_cast<double>(worldUnitsPerMeter) * distance);
-    const float x = position.x;
-    const float y = position.y;
+    const double reach = -(static_cast<double>(WorldUnitsPerMeter) * distance);
+    const float x = Position.X;
+    const float y = Position.Y;
     const float offsetX = static_cast<float>((std::sin(static_cast<double>(angle)) + 0.0) * reach);
     const float offsetY = static_cast<float>(static_cast<float>(std::cos(static_cast<double>(angle))) * reach);
     const float targetX = offsetX + x;
     const float targetY = offsetY + y;
 
     // Flag 2 walks from the object out to the point; otherwise from the point back to the object.
-    vector_2d start;
-    vector_2d end;
+    MCVector2D start;
+    MCVector2D end;
 
     if ((flags & 2) != 0)
     {
-        start.x = x;
-        start.y = y;
-        end.x = targetX;
-        end.y = targetY;
+        start.X = x;
+        start.Y = y;
+        end.X = targetX;
+        end.Y = targetY;
     }
     else
     {
-        start.x = targetX;
-        start.y = targetY;
-        end.x = x;
-        end.y = y;
+        start.X = targetX;
+        start.Y = targetY;
+        end.X = x;
+        end.Y = y;
     }
 
     // Half a map cell per step.
-    const float deltaX = end.x - start.x;
-    const float deltaY = end.y - start.y;
+    const float deltaX = end.X - start.X;
+    const float deltaY = end.Y - start.Y;
     const float length =
         static_cast<float>(std::sqrt(static_cast<double>(deltaY) * deltaY + static_cast<double>(deltaX) * deltaX));
     // The x87 keeps the x direction unrounded.
@@ -1061,49 +1063,49 @@ auto GameObject::relativePosition(float angle, float distance, uint32_t flags) -
         directionY = deltaY / length;
     }
 
-    const float stepLength = static_cast<float>(static_cast<double>(Terrain::metersPerVertex) * 0.33333334f * 0.5);
+    const float stepLength = static_cast<float>(static_cast<double>(MCTerrain::MetersPerVertex) * 0.33333334f * 0.5);
     const float stepX = static_cast<float>(directionX * stepLength);
     const float stepY = directionY * stepLength;
 
     if (std::sqrt(static_cast<double>(stepX) * stepX + static_cast<double>(stepY) * stepY) == 0.0)
     {
-        vector_3d result;
-        result.x = x;
-        result.y = y;
-        result.z = 0.0f;
+        MCVector3D result;
+        result.X = x;
+        result.Y = y;
+        result.Z = 0.0f;
         return result;
     }
 
-    const vector_2d span = start - end;
+    const MCVector2D span = start - end;
     const float maxDistance =
-        static_cast<float>(std::sqrt(static_cast<double>(span.y) * span.y + static_cast<double>(span.x) * span.x));
+        static_cast<float>(std::sqrt(static_cast<double>(span.Y) * span.Y + static_cast<double>(span.X) * span.X));
     float traveled = 0.0f;
-    vector_2d current = start;
+    MCVector2D current = start;
 
     // Whether the cell under current is passable.
     auto cellPassable = [&]()
     {
-        vector_3d point;
-        point.x = current.x;
-        point.y = current.y;
-        point.z = 0.0f;
+        MCVector3D point;
+        point.X = current.X;
+        point.Y = current.Y;
+        point.Z = 0.0f;
         int32_t tileR;
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap->worldToMapPos(point, tileR, tileC, cellR, cellC);
+        GameMap->WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
-        if (!GameMap->onMap(tileR, tileC))
+        if (!GameMap->OnMap(tileR, tileC))
         {
             return 0u;
         }
 
-        return GameMap->map[GameMap->width * tileR + tileC].getCellPassable(cellR, cellC);
+        return GameMap->Map[GameMap->Width * tileR + tileC].GetCellPassable(cellR, cellC);
     };
 
     uint32_t passable = cellPassable();
-    vector_2d previous = start;
+    MCVector2D previous = start;
     // Walk until the cell changes kind (or the distance runs out); the answer is the step before.
     const uint32_t keepGoingWhile = (flags & 2) != 0 ? 1u : 0u;
 
@@ -1112,10 +1114,10 @@ auto GameObject::relativePosition(float angle, float distance, uint32_t flags) -
         while (traveled < maxDistance)
         {
             previous = current;
-            current.x = stepX + current.x;
-            current.y = stepY + current.y;
-            const double dx = static_cast<double>(current.x) - start.x;
-            const double dy = static_cast<double>(current.y) - start.y;
+            current.X = stepX + current.X;
+            current.Y = stepY + current.Y;
+            const double dx = static_cast<double>(current.X) - start.X;
+            const double dy = static_cast<double>(current.Y) - start.Y;
             traveled = static_cast<float>(std::sqrt(dx * dx + dy * dy));
             passable = cellPassable();
 
@@ -1126,131 +1128,131 @@ auto GameObject::relativePosition(float angle, float distance, uint32_t flags) -
         }
     }
 
-    vector_3d ground;
-    ground.x = previous.x;
-    ground.y = previous.y;
-    ground.z = 0.0f;
-    vector_3d result;
-    result.x = previous.x;
-    result.y = previous.y;
-    result.z = GameMap->getTerrainElevation(ground);
+    MCVector3D ground;
+    ground.X = previous.X;
+    ground.Y = previous.Y;
+    ground.Z = 0.0f;
+    MCVector3D result;
+    result.X = previous.X;
+    result.Y = previous.Y;
+    result.Z = GameMap->GetTerrainElevation(ground);
     return result;
 }
 
-auto GameObject::setPosition(vector_3d& newPosition) -> void
+auto MCGameObject::SetPosition(MCVector3D& newPosition) -> void
 {
-    position = newPosition;
+    Position = newPosition;
 }
 
-auto GameObject::getVelocity() -> vector_3d
+auto MCGameObject::GetVelocity() -> MCVector3D
 {
-    vector_3d velocity;
-    velocity.x = 0.0f;
-    velocity.y = 0.0f;
-    velocity.z = 0.0f;
+    MCVector3D velocity;
+    velocity.X = 0.0f;
+    velocity.Y = 0.0f;
+    velocity.Z = 0.0f;
     return velocity;
 }
 
-auto GameObject::getScreenPos(int32_t) -> vector_2d
+auto MCGameObject::GetScreenPos(int32_t) -> MCVector2D
 {
-    vector_2d screen;
-    screen.x = 0.0f;
-    screen.y = 0.0f;
+    MCVector2D screen;
+    screen.X = 0.0f;
+    screen.Y = 0.0f;
     return screen;
 }
 
-auto GameObject::getFrame() -> frame_of_ref
+auto MCGameObject::GetFrame() -> MCFrameOfRef
 {
-    return frame_of_ref(UnitX, UnitY, UnitZ);
+    return MCFrameOfRef(UnitX, UnitY, UnitZ);
 }
 
-auto GameObject::distanceFrom(vector_3d& goal) -> double
+auto MCGameObject::DistanceFrom(MCVector3D& goal) -> double
 {
-    const double dx = static_cast<double>(position.x) - goal.x;
-    const double dy = static_cast<double>(position.y) - goal.y;
-    return std::sqrt(dy * dy + dx * dx) * metersPerWorldUnit;
+    const double dx = static_cast<double>(Position.X) - goal.X;
+    const double dy = static_cast<double>(Position.Y) - goal.Y;
+    return std::sqrt(dy * dy + dx * dx) * MetersPerWorldUnit;
 }
 
-auto GameObject::lineOfSight(vector_3d point) -> int
+auto MCGameObject::LineOfSight(MCVector3D point) -> int
 {
-    const vector_3d start = position;
-    setUseMe(0);
-    const int result = GameMap->lineOfSight(start, point);
-    setUseMe(1);
+    const MCVector3D start = Position;
+    SetUseMe(0);
+    const int result = GameMap->LineOfSight(start, point);
+    SetUseMe(1);
     return result;
 }
 
-auto GameObject::lineOfSight(GameObject* target) -> int
+auto MCGameObject::LineOfSight(MCGameObject* target) -> int
 {
     // From eye to eye, ten meters up.
-    vector_3d start;
-    start.x = position.x;
-    start.y = position.y;
-    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + position.z);
-    const vector_3d targetPosition = target->getPosition();
-    vector_3d end;
-    end.x = targetPosition.x;
-    end.y = targetPosition.y;
-    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + targetPosition.z);
-    setUseMe(0);
-    target->setUseMe(0);
-    const int result = GameMap->lineOfSight(start, end);
-    setUseMe(1);
-    target->setUseMe(1);
+    MCVector3D start;
+    start.X = Position.X;
+    start.Y = Position.Y;
+    start.Z = static_cast<float>(static_cast<double>(WorldUnitsPerMeter) * 10.0 + Position.Z);
+    const MCVector3D targetPosition = target->GetPosition();
+    MCVector3D end;
+    end.X = targetPosition.X;
+    end.Y = targetPosition.Y;
+    end.Z = static_cast<float>(static_cast<double>(WorldUnitsPerMeter) * 10.0 + targetPosition.Z);
+    SetUseMe(0);
+    target->SetUseMe(0);
+    const int result = GameMap->LineOfSight(start, end);
+    SetUseMe(1);
+    target->SetUseMe(1);
     return result;
 }
 
-auto GameObject::lineOfFire(GameObject* target) -> int
+auto MCGameObject::LineOfFire(MCGameObject* target) -> int
 {
-    vector_3d start;
-    start.x = position.x;
-    start.y = position.y;
-    start.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + position.z);
-    const vector_3d targetPosition = target->getPosition();
-    vector_3d end;
-    end.x = targetPosition.x;
-    end.y = targetPosition.y;
-    end.z = static_cast<float>(static_cast<double>(worldUnitsPerMeter) * 10.0 + targetPosition.z);
-    setUseMe(0);
-    target->setUseMe(0);
-    const int result = GameMap->lineOfFire(start, end);
-    setUseMe(1);
-    target->setUseMe(1);
+    MCVector3D start;
+    start.X = Position.X;
+    start.Y = Position.Y;
+    start.Z = static_cast<float>(static_cast<double>(WorldUnitsPerMeter) * 10.0 + Position.Z);
+    const MCVector3D targetPosition = target->GetPosition();
+    MCVector3D end;
+    end.X = targetPosition.X;
+    end.Y = targetPosition.Y;
+    end.Z = static_cast<float>(static_cast<double>(WorldUnitsPerMeter) * 10.0 + targetPosition.Z);
+    SetUseMe(0);
+    target->SetUseMe(0);
+    const int result = GameMap->LineOfFire(start, end);
+    SetUseMe(1);
+    target->SetUseMe(1);
     return result;
 }
 
-auto GameObject::relFacingTo(vector_3d goal, int32_t) -> float
+auto MCGameObject::RelFacingTo(MCVector3D goal, int32_t) -> float
 {
     // The facing is the world frame's -j, turned an eighth.
-    const float x = position.x;
-    const float y = position.y;
-    const frame_of_ref turned = TurnedFrame(frame_of_ref(UnitX, UnitY, UnitZ));
-    vector_3d facing;
-    facing.x = -turned.j.x;
-    facing.y = -turned.j.y;
-    facing.z = -turned.j.z;
+    const float x = Position.X;
+    const float y = Position.Y;
+    const MCFrameOfRef turned = TurnedFrame(MCFrameOfRef(UnitX, UnitY, UnitZ));
+    MCVector3D facing;
+    facing.X = -turned.J.X;
+    facing.Y = -turned.J.Y;
+    facing.Z = -turned.J.Z;
 
-    vector_3d toGoal;
-    toGoal.x = goal.x - x;
-    toGoal.y = goal.y - y;
-    toGoal.z = 0.0f;
+    MCVector3D toGoal;
+    toGoal.X = goal.X - x;
+    toGoal.Y = goal.Y - y;
+    toGoal.Z = 0.0f;
     const double length =
-        std::sqrt((static_cast<double>(toGoal.x) * toGoal.x + static_cast<double>(toGoal.y) * toGoal.y) +
-                  static_cast<double>(toGoal.z) * toGoal.z);
+        std::sqrt((static_cast<double>(toGoal.X) * toGoal.X + static_cast<double>(toGoal.Y) * toGoal.Y) +
+                  static_cast<double>(toGoal.Z) * toGoal.Z);
 
     if (length != 0.0)
     {
-        toGoal.x = static_cast<float>(toGoal.x / length);
-        toGoal.y = static_cast<float>(toGoal.y / length);
-        toGoal.z = static_cast<float>(toGoal.z / length);
+        toGoal.X = static_cast<float>(toGoal.X / length);
+        toGoal.Y = static_cast<float>(toGoal.Y / length);
+        toGoal.Z = static_cast<float>(toGoal.Z / length);
     }
 
-    const double cosine = static_cast<double>(toGoal.z) * facing.z + static_cast<double>(toGoal.y) * facing.y +
-                          static_cast<double>(toGoal.x) * facing.x;
-    const float angle = static_cast<float>(acosMatherr(cosine) * RADIANS_TO_DEGREES_F);
+    const double cosine = static_cast<double>(toGoal.Z) * facing.Z + static_cast<double>(toGoal.Y) * facing.Y +
+                          static_cast<double>(toGoal.X) * facing.X;
+    const float angle = static_cast<float>(AcosMatherr(cosine) * RADIANS_TO_DEGREES_F);
 
     // Negative to the left.
-    if ((facing & toGoal).z >= 0.0f)
+    if ((facing & toGoal).Z >= 0.0f)
     {
         return -angle;
     }
@@ -1258,50 +1260,50 @@ auto GameObject::relFacingTo(vector_3d goal, int32_t) -> float
     return angle;
 }
 
-auto GameObject::relViewFacingTo(vector_3d goal) -> float
+auto MCGameObject::RelViewFacingTo(MCVector3D goal) -> float
 {
-    return GameObject::relFacingTo(goal, -1);
+    return MCGameObject::RelFacingTo(goal, -1);
 }
 
-auto GameObject::getExtentRadius() -> float
+auto MCGameObject::GetExtentRadius() -> float
 {
-    return objType->extentRadius;
+    return ObjType->ExtentRadius;
 }
 
-auto GameObject::setExtentRadius(float newRadius) -> void
+auto MCGameObject::SetExtentRadius(float newRadius) -> void
 {
-    objType->extentRadius = newRadius;
+    ObjType->ExtentRadius = newRadius;
 }
 
-auto GameObject::getCaptureBlocker(int32_t side) -> GameObject*
+auto MCGameObject::GetCaptureBlocker(int32_t side) -> MCGameObject*
 {
     // Clan movers block only when they aren't marines.
     const bool clan = side == 1;
-    ObjectQueueNode* list = clan ? clanMechList : innerSphereMechList;
+    MCObjectQueueNode* list = clan ? ClanMechList : InnerSphereMechList;
 
-    for (BaseObject* object = list->head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = list->Head; object != nullptr; object = object->Next)
     {
         if (!IsMover(object))
         {
             continue;
         }
 
-        auto* mover = static_cast<Mover*>(object);
+        auto* mover = static_cast<MCMover*>(object);
 
-        if (clan && mover->isMarine() != 0)
+        if (clan && mover->IsMarine() != 0)
         {
             continue;
         }
 
-        if (mover->numWeapons == 0)
+        if (mover->NumWeapons == 0)
         {
             continue;
         }
 
-        vector_3d moverPosition = mover->getPosition();
+        MCVector3D moverPosition = mover->GetPosition();
 
-        if (distanceFrom(moverPosition) < BlockCaptureRange && mover->isDestroyed() == 0 && mover->isDisabled() == 0 &&
-            mover->getAwake() != 0)
+        if (DistanceFrom(moverPosition) < BlockCaptureRange && mover->IsDestroyed() == 0 && mover->IsDisabled() == 0 &&
+            mover->GetAwake() != 0)
         {
             return mover;
         }
@@ -1310,28 +1312,28 @@ auto GameObject::getCaptureBlocker(int32_t side) -> GameObject*
     return nullptr;
 }
 
-auto GameObject::clearLineOfFire() -> void
+auto MCGameObject::ClearLineOfFire() -> void
 {
     // Sets the line-of-sight bit (15 + 2c) of each of the tile's nine cells, saving the old bits.
-    MapTile& tile = TileAt(position);
+    MCMapTile& tile = TileAt(Position);
 
     for (int32_t cell = 0; cell < 9; cell++)
     {
         const uint32_t shift = static_cast<uint32_t>(cell * 2 + 15);
         const uint32_t mask = 1u << shift;
-        objCellArray[cell] = static_cast<int32_t>((tile.cells & mask) >> shift);
-        tile.cells = (~mask & tile.cells) | mask;
+        ObjCellArray[cell] = static_cast<int32_t>((tile.Cells & mask) >> shift);
+        tile.Cells = (~mask & tile.Cells) | mask;
     }
 }
 
-auto GameObject::restoreLineOfFire() -> void
+auto MCGameObject::RestoreLineOfFire() -> void
 {
-    MapTile& tile = TileAt(position);
+    MCMapTile& tile = TileAt(Position);
 
     for (int32_t cell = 0; cell < 9; cell++)
     {
         const uint32_t shift = static_cast<uint32_t>(cell * 2 + 15);
-        tile.cells = static_cast<uint32_t>(objCellArray[cell]) << shift | (~(1u << shift) & tile.cells);
+        tile.Cells = static_cast<uint32_t>(ObjCellArray[cell]) << shift | (~(1u << shift) & tile.Cells);
     }
 }
 
@@ -1339,189 +1341,189 @@ auto GameObject::restoreLineOfFire() -> void
 // BigGameObject
 //---------------------------------------------------------------------------
 
-auto BigGameObject::init(ObjectType* type) -> int32_t
+auto MCBigGameObject::Init(MCObjectType* type) -> int32_t
 {
-    objectClass = BIGGAMEOBJECT;
-    objType = type;
+    ObjectClass = BIGGAMEOBJECT;
+    ObjType = type;
     return 0;
 }
 
-auto BigGameObject::init() -> void
+auto MCBigGameObject::Init() -> void
 {
-    objectClass = BIGGAMEOBJECT;
-    idNumber = 0;
-    next = nullptr;
-    partId = -1;
-    objType = nullptr;
-    tonnage = 0.0f;
-    blipTime = 0.0f;
-    position.z = 0.0f;
-    position.y = 0.0f;
-    position.x = 0.0f;
-    objPosition = nullptr;
-    team = nullptr;
-    potentialContact = nullptr;
-    collisionFreeFrom = nullptr;
-    collisionFreeTime = 0.0f;
-    status = 0;
-    damage = 0.0f;
-    flags = 5;
-    alignment = 0;
-    selected = 0;
-    screenPos.x = 0.0f;
-    screenPos.y = 0.0f;
-    windowsVisible = 0;
-    maxCV = 0;
-    curCV = 0;
-    collisionsOn = 0;
-    explDamage = 0.0f;
-    explRadius = 0.0f;
-    salvage = nullptr;
-    blipFrame = 0;
-    numAttackers = 0;
+    ObjectClass = BIGGAMEOBJECT;
+    IdNumber = 0;
+    Next = nullptr;
+    PartId = -1;
+    ObjType = nullptr;
+    Tonnage = 0.0f;
+    BlipTime = 0.0f;
+    Position.Z = 0.0f;
+    Position.Y = 0.0f;
+    Position.X = 0.0f;
+    ObjPosition = nullptr;
+    Team = nullptr;
+    PotentialContact = nullptr;
+    CollisionFreeFrom = nullptr;
+    CollisionFreeTime = 0.0f;
+    Status = 0;
+    Damage = 0.0f;
+    Flags = 5;
+    Alignment = 0;
+    Selected = 0;
+    ScreenPos.X = 0.0f;
+    ScreenPos.Y = 0.0f;
+    WindowsVisible = 0;
+    MaxCV = 0;
+    CurCV = 0;
+    CollisionsOn = 0;
+    ExplDamage = 0.0f;
+    ExplRadius = 0.0f;
+    Salvage = nullptr;
+    BlipFrame = 0;
+    NumAttackers = 0;
 }
 
-auto BigGameObject::destroy() -> void
+auto MCBigGameObject::Destroy() -> void
 {
-    while (salvage != nullptr)
+    while (Salvage != nullptr)
     {
-        SalvageItem* nextItem = salvage->next;
-        delete salvage;
-        salvage = nextItem;
+        MCSalvageItem* nextItem = Salvage->Next;
+        delete Salvage;
+        Salvage = nextItem;
     }
 
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        potentialContactManager->remove(potentialContact);
+        PotentialContactManager->Remove(PotentialContact);
     }
 
-    if (objPosition != nullptr)
+    if (ObjPosition != nullptr)
     {
-        GameObjectMap->removeObject(this);
+        GameObjectMap->RemoveObject(this);
     }
 }
 
-auto BigGameObject::kill() -> int32_t
+auto MCBigGameObject::Kill() -> int32_t
 {
     // Port fix: with no type the original used uninitialised ids.
     int32_t explosionId = -1;
     int32_t destroyedId = -1;
 
-    if (getObjectType() != nullptr)
+    if (GetObjectType() != nullptr)
     {
-        explosionId = getObjectType()->explosionObject;
-        destroyedId = getObjectType()->destroyedObject;
+        explosionId = GetObjectType()->ExplosionObject;
+        destroyedId = GetObjectType()->DestroyedObject;
     }
 
     if (explosionId != -1)
     {
-        GameObject* explosion = createObject(explosionId);
-        vector_3d here = getPosition();
-        explosion->setPosition(here);
-        vector_3d velocity = getVelocity();
-        explosion->setVelocity(velocity);
+        MCGameObject* explosion = CreateObject(explosionId);
+        MCVector3D here = GetPosition();
+        explosion->SetPosition(here);
+        MCVector3D velocity = GetVelocity();
+        explosion->SetVelocity(velocity);
 
-        if (objectList->head != nullptr && explosion != nullptr)
+        if (ObjectList->Head != nullptr && explosion != nullptr)
         {
-            objectList->head->addNode(explosion);
+            ObjectList->Head->AddNode(explosion);
         }
     }
 
     if (destroyedId != -1)
     {
-        GameObject* wreck = createObject(destroyedId);
-        vector_3d here = getPosition();
-        wreck->setPosition(here);
-        vector_3d velocity = getVelocity();
-        wreck->setVelocity(velocity);
-        frame_of_ref frame = getFrame();
-        wreck->setFrame(frame);
+        MCGameObject* wreck = CreateObject(destroyedId);
+        MCVector3D here = GetPosition();
+        wreck->SetPosition(here);
+        MCVector3D velocity = GetVelocity();
+        wreck->SetVelocity(velocity);
+        MCFrameOfRef frame = GetFrame();
+        wreck->SetFrame(frame);
 
-        if (objectList->head != nullptr && wreck != nullptr)
+        if (ObjectList->Head != nullptr && wreck != nullptr)
         {
-            objectList->head->addNode(wreck);
+            ObjectList->Head->AddNode(wreck);
         }
     }
 
     return static_cast<int32_t>(0xbeaddead);
 }
 
-auto BigGameObject::onScreen() -> int
+auto MCBigGameObject::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
     // At camera scale 1 everything is drawn at half size.
-    const float scale = camera->cameraScale != 1 ? 1.0f : 0.5f;
-    const float dx = (position.x - camera->position.x) * scale;
-    const float dy = (position.y - camera->position.y) * scale;
-    const float dz = scale * position.z - camera->position.z;
-    const float screenX = static_cast<float>(static_cast<double>(dy) * camera->cosAngle +
-                                             static_cast<double>(dx) * camera->cosAngle + camera->halfWidth);
-    screenPos.x = screenX;
-    const float screenY = static_cast<float>(((static_cast<double>(dx) * camera->sinAngle + camera->halfHeight) -
-                                              static_cast<double>(dy) * camera->sinAngle) -
+    const float scale = camera->CameraScale != 1 ? 1.0f : 0.5f;
+    const float dx = (Position.X - camera->Position.X) * scale;
+    const float dy = (Position.Y - camera->Position.Y) * scale;
+    const float dz = scale * Position.Z - camera->Position.Z;
+    const float screenX = static_cast<float>(static_cast<double>(dy) * camera->CosAngle +
+                                             static_cast<double>(dx) * camera->CosAngle + camera->HalfWidth);
+    ScreenPos.X = screenX;
+    const float screenY = static_cast<float>(((static_cast<double>(dx) * camera->SinAngle + camera->HalfHeight) -
+                                              static_cast<double>(dy) * camera->SinAngle) -
                                              static_cast<double>(scale) * dz);
-    screenPos.y = screenY;
+    ScreenPos.Y = screenY;
 
-    if (screenX >= 0.0f && screenY >= 0.0f && screenX <= camera->viewWidth && screenY <= camera->viewHeight)
+    if (screenX >= 0.0f && screenY >= 0.0f && screenX <= camera->ViewWidth && screenY <= camera->ViewHeight)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto BigGameObject::setPotentialContact(int32_t contactType) -> void
+auto MCBigGameObject::SetPotentialContact(int32_t contactType) -> void
 {
     // The contact list by alignment: 1 for -1, 0 for 1, else 2.
     int32_t listType;
 
-    if (alignment == -1)
+    if (Alignment == -1)
     {
         listType = 1;
     }
     else
     {
-        listType = alignment != 1 ? 2 : 0;
+        listType = Alignment != 1 ? 2 : 0;
     }
 
     if (contactType == 0)
     {
-        potentialContactManager->remove(potentialContact);
-        potentialContact = nullptr;
+        PotentialContactManager->Remove(PotentialContact);
+        PotentialContact = nullptr;
         return;
     }
 
-    if (potentialContact == nullptr)
+    if (PotentialContact == nullptr)
     {
-        potentialContact = potentialContactManager->add(listType, this, static_cast<char>(contactType));
+        PotentialContact = PotentialContactManager->Add(listType, this, static_cast<char>(contactType));
         return;
     }
 
-    potentialContactManager->move(potentialContact, listType, static_cast<char>(contactType));
+    PotentialContactManager->Move(PotentialContact, listType, static_cast<char>(contactType));
 }
 
-auto BigGameObject::updateContactStatus(Team* contactTeam) -> void
+auto MCBigGameObject::UpdateContactStatus(MCTeam* contactTeam) -> void
 {
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        potentialContact->updateStatus(contactTeam);
+        PotentialContact->UpdateStatus(contactTeam);
     }
 }
 
-auto BigGameObject::getContactCount(int32_t teamId) -> int32_t
+auto MCBigGameObject::GetContactCount(int32_t teamId) -> int32_t
 {
     Assert(teamId > -1, -1, " Bad Team Id ");
 
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        return static_cast<uint8_t>(potentialContact->numSensors[teamId]);
+        return static_cast<uint8_t>(PotentialContact->NumSensors[teamId]);
     }
 
     return 0;
@@ -1529,98 +1531,98 @@ auto BigGameObject::getContactCount(int32_t teamId) -> int32_t
 
 // The "tagged" flag is the contact's lostVisual byte (+0x0e).
 
-auto BigGameObject::setContactTagged(int32_t teamId, int tagged) -> void
+auto MCBigGameObject::SetContactTagged(int32_t teamId, int tagged) -> void
 {
     Assert(teamId > -1, -1, " Bad Team Id ");
-    Assert(potentialContact != nullptr, -1, " Is Not Potential Contact ");
+    Assert(PotentialContact != nullptr, -1, " Is Not Potential Contact ");
 
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        potentialContact->lostVisual[teamId] = static_cast<uint8_t>(tagged);
+        PotentialContact->LostVisual[teamId] = static_cast<uint8_t>(tagged);
     }
 }
 
-auto BigGameObject::getContactTagged(int32_t teamId) -> int
+auto MCBigGameObject::GetContactTagged(int32_t teamId) -> int
 {
     Assert(teamId > -1, -1, " Bad Team Id ");
 
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        return potentialContact->lostVisual[teamId];
+        return PotentialContact->LostVisual[teamId];
     }
 
     return 0;
 }
 
-auto BigGameObject::getContactType(int32_t teamId, int& tagged) -> int32_t
+auto MCBigGameObject::GetContactType(int32_t teamId, int& tagged) -> int32_t
 {
     Assert(teamId > -1, -1, " Bad Team Id ");
 
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        tagged = potentialContact->lostVisual[teamId];
-        return potentialContact->contactStatus[teamId];
+        tagged = PotentialContact->LostVisual[teamId];
+        return PotentialContact->ContactStatus[teamId];
     }
 
     return 0;
 }
 
-auto BigGameObject::getContactType(int32_t teamId) -> int32_t
+auto MCBigGameObject::GetContactType(int32_t teamId) -> int32_t
 {
     Assert(teamId > -1, -1, " Bad Team Id ");
 
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        return potentialContact->contactStatus[teamId];
+        return PotentialContact->ContactStatus[teamId];
     }
 
     return 0;
 }
 
-auto BigGameObject::getScreenPos(int32_t) -> vector_2d
+auto MCBigGameObject::GetScreenPos(int32_t) -> MCVector2D
 {
-    return screenPos;
+    return ScreenPos;
 }
 
-auto BigGameObject::setAlignment(int32_t newAlignment) -> void
+auto MCBigGameObject::SetAlignment(int32_t newAlignment) -> void
 {
-    alignment = newAlignment;
+    Alignment = newAlignment;
 
-    if (potentialContact != nullptr)
+    if (PotentialContact != nullptr)
     {
-        setPotentialContact(potentialContact->visibility);
+        SetPotentialContact(PotentialContact->Visibility);
     }
 }
 
-auto BigGameObject::write(File* objFile) -> int32_t
+auto MCBigGameObject::Write(MCFile* objFile) -> int32_t
 {
-    objFile->write(reinterpret_cast<const uint8_t*>(&tonnage), 4);
-    objFile->writeLong(status);
-    objFile->writeLong(static_cast<int32_t>(damage));
-    objFile->writeByte(isCaptured() != 0 ? 1 : 0);
-    objFile->write(reinterpret_cast<const uint8_t*>(&explRadius), 4);
-    objFile->write(reinterpret_cast<const uint8_t*>(&explDamage), 4);
+    objFile->Write(reinterpret_cast<const uint8_t*>(&Tonnage), 4);
+    objFile->WriteLong(Status);
+    objFile->WriteLong(static_cast<int32_t>(Damage));
+    objFile->WriteByte(IsCaptured() != 0 ? 1 : 0);
+    objFile->Write(reinterpret_cast<const uint8_t*>(&ExplRadius), 4);
+    objFile->Write(reinterpret_cast<const uint8_t*>(&ExplDamage), 4);
     return 0;
 }
 
-auto BigGameObject::getMechClass() -> MechClass
+auto MCBigGameObject::GetMechClass() -> MCMechClass
 {
-    if (objectClass != BATTLEMECH)
+    if (ObjectClass != BATTLEMECH)
     {
         return MECH_CLASS_NONE;
     }
 
-    if (tonnage < 35.0f)
+    if (Tonnage < 35.0f)
     {
         return MECH_CLASS_LIGHT;
     }
 
-    if (tonnage < 55.0f)
+    if (Tonnage < 55.0f)
     {
         return MECH_CLASS_MEDIUM;
     }
 
-    if (tonnage >= 75.0f)
+    if (Tonnage >= 75.0f)
     {
         return MECH_CLASS_ASSAULT;
     }
@@ -1628,18 +1630,18 @@ auto BigGameObject::getMechClass() -> MechClass
     return MECH_CLASS_HEAVY;
 }
 
-auto BigGameObject::decrementAttackers() -> void
+auto MCBigGameObject::DecrementAttackers() -> void
 {
-    Assert(numAttackers > 0, 0, nullptr);
-    numAttackers--;
+    Assert(NumAttackers > 0, 0, nullptr);
+    NumAttackers--;
 }
 
-auto BigGameObject::getVitalInfo(void* vitalInfo) -> int32_t
+auto MCBigGameObject::GetVitalInfo(void* vitalInfo) -> int32_t
 {
     // The original only asks isCaptured and fills nothing.
     if (vitalInfo != nullptr)
     {
-        isCaptured();
+        IsCaptured();
     }
 
     return 0x19;

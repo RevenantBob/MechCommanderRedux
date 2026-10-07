@@ -2,39 +2,39 @@
 #include "object/objevnt.h"
 #include "object/gameobj.h"
 
-auto ObjectEvent::init(int32_t newId, aEvent* newEvent) -> void
+auto MCObjectEvent::Init(int32_t newId, MCGuiEvent* newEvent) -> void
 {
-    type = 0;
-    id = newId;
+    Type = 0;
+    Id = newId;
 
     if (newEvent == nullptr)
     {
-        event.type = 0x2401;
-        window = nullptr;
+        Event.Type = 0x2401;
+        Window = nullptr;
     }
     else
     {
-        aObject* target = newEvent->target;
-        event = *newEvent;
-        window = target;
+        MCGuiObject* target = newEvent->Target;
+        Event = *newEvent;
+        Window = target;
     }
 
-    selectionIndex = -1;
+    SelectionIndex = -1;
 }
 
-auto ObjectEvent::initCombat(int32_t newId, GameObject* attacker, GameObject* target) -> void
+auto MCObjectEvent::InitCombat(int32_t newId, MCGameObject* attacker, MCGameObject* target) -> void
 {
-    type = 2;
+    Type = 2;
 
     if (attacker != nullptr)
     {
-        attackerPartId = attacker->partId;
+        AttackerPartId = attacker->PartId;
     }
 
     if (target != nullptr)
     {
-        targetPartId = target->partId;
+        TargetPartId = target->PartId;
     }
 
-    id = newId;
+    Id = newId;
 }

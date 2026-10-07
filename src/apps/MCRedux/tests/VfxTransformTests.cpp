@@ -8,18 +8,18 @@ namespace
     struct TestSurface
     {
         std::vector<uint8_t> Pixels;
-        WINDOW Window{};
-        PANE Pane{};
+        MCWindow Window{};
+        MCPane Pane{};
 
         TestSurface(int32_t width, int32_t height, uint8_t fill) : Pixels(static_cast<size_t>(width) * height, fill)
         {
-            Window.buffer = Pixels.data();
-            Window.x_max = width - 1;
-            Window.y_max = height - 1;
+            Window.Buffer = Pixels.data();
+            Window.XMax = width - 1;
+            Window.YMax = height - 1;
             Pane = {&Window, 0, 0, width - 1, height - 1};
         }
 
-        uint8_t At(int32_t x, int32_t y) const { return Pixels[static_cast<size_t>(y) * (Window.x_max + 1) + x]; }
+        uint8_t At(int32_t x, int32_t y) const { return Pixels[static_cast<size_t>(y) * (Window.XMax + 1) + x]; }
     };
 
     void Put32(std::vector<uint8_t>& data, int32_t value)
@@ -54,38 +54,38 @@ namespace
 
 TEST_CASE("vfx: VFX_Cos_Sin reads the quarter-wave table")
 {
-    FIXED16 c = 0;
-    FIXED16 s = 0;
-    VFX_Cos_Sin(0, &c, &s);
+    MCFixed16 c = 0;
+    MCFixed16 s = 0;
+    VfxCosSin(0, &c, &s);
     CHECK_EQ(c, 0x10000);
     CHECK_EQ(s, 0);
-    VFX_Cos_Sin(900, &c, &s);
+    VfxCosSin(900, &c, &s);
     CHECK_EQ(c, 0);
     CHECK_EQ(s, 0x10000);
-    VFX_Cos_Sin(1800, &c, &s);
+    VfxCosSin(1800, &c, &s);
     CHECK_EQ(c, -0x10000);
     CHECK_EQ(s, 0);
-    VFX_Cos_Sin(2700, &c, &s);
+    VfxCosSin(2700, &c, &s);
     CHECK_EQ(c, 0);
     CHECK_EQ(s, -0x10000);
-    VFX_Cos_Sin(450, &c, &s);
+    VfxCosSin(450, &c, &s);
     CHECK_EQ(c, 46341); // round(cos 45 * 65536)
     CHECK_EQ(s, 46341);
-    VFX_Cos_Sin(300, &c, &s);
+    VfxCosSin(300, &c, &s);
     CHECK_EQ(c, 56756);
     CHECK_EQ(s, 32768);
     // Angles wrap either way.
-    VFX_Cos_Sin(-900, &c, &s);
+    VfxCosSin(-900, &c, &s);
     CHECK_EQ(c, 0);
     CHECK_EQ(s, -0x10000);
-    VFX_Cos_Sin(3600 + 1350, &c, &s);
+    VfxCosSin(3600 + 1350, &c, &s);
     CHECK_EQ(c, -46341);
     CHECK_EQ(s, 46341);
 
     // Every angle agrees with the maths to the table's rounding.
     for (int32_t angle = -3600; angle <= 7200; angle += 7)
     {
-        VFX_Cos_Sin(angle, &c, &s);
+        VfxCosSin(angle, &c, &s);
         const double radians = angle / 10.0 * std::numbers::pi / 180.0;
         CHECK(std::abs(c - std::cos(radians) * 65536.0) <= 1.0);
         CHECK(std::abs(s - std::sin(radians) * 65536.0) <= 1.0);
@@ -94,44 +94,44 @@ TEST_CASE("vfx: VFX_Cos_Sin reads the quarter-wave table")
 
 TEST_CASE("vfx: VFX_fixed_mul rounds the 16.16 product")
 {
-    FIXED16 result = 0;
-    CHECK_EQ(VFX_fixed_mul(0x20000, 0x30000, &result), 0x60000);
+    MCFixed16 result = 0;
+    CHECK_EQ(VfxFixedMul(0x20000, 0x30000, &result), 0x60000);
     CHECK_EQ(result, 0x60000);
-    CHECK_EQ(VFX_fixed_mul(0x18000, 0x18000, &result), 0x24000); // 1.5 * 1.5
-    CHECK_EQ(VFX_fixed_mul(-0x20000, 0x8000, &result), -0x10000);
-    CHECK_EQ(VFX_fixed_mul(1, 0x8000, &result), 1); // 0.5 ulp rounds up
-    CHECK_EQ(VFX_fixed_mul(1, 0x7fff, &result), 0);
-    CHECK_EQ(VFX_fixed_mul(-1, 0x8000, &result), 0); // -0.5 ulp rounds towards +infinity
+    CHECK_EQ(VfxFixedMul(0x18000, 0x18000, &result), 0x24000); // 1.5 * 1.5
+    CHECK_EQ(VfxFixedMul(-0x20000, 0x8000, &result), -0x10000);
+    CHECK_EQ(VfxFixedMul(1, 0x8000, &result), 1); // 0.5 ulp rounds up
+    CHECK_EQ(VfxFixedMul(1, 0x7fff, &result), 0);
+    CHECK_EQ(VfxFixedMul(-1, 0x8000, &result), 0); // -0.5 ulp rounds towards +infinity
 }
 
 TEST_CASE("vfx: VFX_point_transform rotates and scales about the origin")
 {
-    VFX_POINT origin{10, 20};
-    VFX_POINT in{15, 20};
-    VFX_POINT out{};
-    VFX_point_transform(&in, &out, &origin, 0, 0x10000, 0x10000);
-    CHECK_EQ(out.x, 15);
-    CHECK_EQ(out.y, 20);
+    MCVfxPoint origin{10, 20};
+    MCVfxPoint in{15, 20};
+    MCVfxPoint out{};
+    VfxPointTransform(&in, &out, &origin, 0, 0x10000, 0x10000);
+    CHECK_EQ(out.X, 15);
+    CHECK_EQ(out.Y, 20);
     // 90 degrees turns +x into +y (clockwise with y down).
-    VFX_point_transform(&in, &out, &origin, 900, 0x10000, 0x10000);
-    CHECK_EQ(out.x, 10);
-    CHECK_EQ(out.y, 25);
-    VFX_point_transform(&in, &out, &origin, 1800, 0x10000, 0x10000);
-    CHECK_EQ(out.x, 5);
-    CHECK_EQ(out.y, 20);
+    VfxPointTransform(&in, &out, &origin, 900, 0x10000, 0x10000);
+    CHECK_EQ(out.X, 10);
+    CHECK_EQ(out.Y, 25);
+    VfxPointTransform(&in, &out, &origin, 1800, 0x10000, 0x10000);
+    CHECK_EQ(out.X, 5);
+    CHECK_EQ(out.Y, 20);
     // Scaling happens before rotating.
-    VFX_point_transform(&in, &out, &origin, 0, 0x20000, 0x10000);
-    CHECK_EQ(out.x, 20);
-    CHECK_EQ(out.y, 20);
-    VFX_POINT below{10, 24};
-    VFX_point_transform(&below, &out, &origin, 900, 0x10000, 0x8000);
-    CHECK_EQ(out.x, 8);
-    CHECK_EQ(out.y, 20);
+    VfxPointTransform(&in, &out, &origin, 0, 0x20000, 0x10000);
+    CHECK_EQ(out.X, 20);
+    CHECK_EQ(out.Y, 20);
+    MCVfxPoint below{10, 24};
+    VfxPointTransform(&below, &out, &origin, 900, 0x10000, 0x8000);
+    CHECK_EQ(out.X, 8);
+    CHECK_EQ(out.Y, 20);
     // 45 degrees of (10, 0): 7.07 each way.
-    VFX_POINT far{20, 20};
-    VFX_point_transform(&far, &out, &origin, 450, 0x10000, 0x10000);
-    CHECK_EQ(out.x, 17);
-    CHECK_EQ(out.y, 27);
+    MCVfxPoint far{20, 20};
+    VfxPointTransform(&far, &out, &origin, 450, 0x10000, 0x10000);
+    CHECK_EQ(out.X, 17);
+    CHECK_EQ(out.Y, 27);
 }
 
 TEST_CASE("vfx: VFX_shape_transform untransformed matches VFX_shape_draw")
@@ -142,12 +142,12 @@ TEST_CASE("vfx: VFX_shape_transform untransformed matches VFX_shape_draw")
     TestSurface plain(16, 12, 9);
     TestSurface transformed(16, 12, 9);
     TestSurface mapped(16, 12, 9);
-    VFX_shape_draw(&plain.Pane, table.data(), 0, 6, 5);
-    CHECK_EQ(VFX_shape_transform(&transformed.Pane, table.data(), 0, 6, 5, work.data(), 0, 0x10000, 0x10000, 0), 0);
+    VfxShapeDraw(&plain.Pane, table.data(), 0, 6, 5);
+    CHECK_EQ(VfxShapeTransform(&transformed.Pane, table.data(), 0, 6, 5, work.data(), 0, 0x10000, 0x10000, 0), 0);
     CHECK(plain.Pixels == transformed.Pixels);
 
     // A full turn goes through the texture mapper and must land on the same pixels.
-    VFX_shape_transform(&mapped.Pane, table.data(), 0, 6, 5, work.data(), 3600, 0x10000, 0x10000, 0);
+    VfxShapeTransform(&mapped.Pane, table.data(), 0, 6, 5, work.data(), 3600, 0x10000, 0x10000, 0);
     CHECK(plain.Pixels == mapped.Pixels);
     CHECK_EQ(plain.At(5, 4), 1);
     CHECK_EQ(plain.At(7, 5), 6);
@@ -162,7 +162,7 @@ TEST_CASE("vfx: VFX_shape_transform rotates a quarter turn")
     std::vector<uint8_t> table = MakeShapeTable(0, 0);
     std::vector<uint8_t> work(3 * 2);
     TestSurface surface(16, 12, 9);
-    VFX_shape_transform(&surface.Pane, table.data(), 0, 5, 5, work.data(), 900, 0x10000, 0x10000, 0);
+    VfxShapeTransform(&surface.Pane, table.data(), 0, 5, 5, work.data(), 900, 0x10000, 0x10000, 0);
     // Texel (u, v) lands at (5 - v, 5 + u).
     CHECK_EQ(surface.At(5, 5), 1);
     CHECK_EQ(surface.At(5, 6), 2);
@@ -183,7 +183,7 @@ TEST_CASE("vfx: VFX_shape_transform rotates a quarter turn")
     std::fill(work.begin(), work.end(), uint8_t{0xff});
     work[0] = 42;
     TestSurface reuse(16, 12, 9);
-    VFX_shape_transform(&reuse.Pane, table.data(), 0, 5, 5, work.data(), 900, 0x10000, 0x10000, ST_REUSE);
+    VfxShapeTransform(&reuse.Pane, table.data(), 0, 5, 5, work.data(), 900, 0x10000, 0x10000, ST_REUSE);
     CHECK_EQ(reuse.At(5, 5), 42);
     touched = 0;
 
@@ -201,8 +201,8 @@ TEST_CASE("vfx: VFX_shape_transform scales and clips to the pane")
     std::vector<uint8_t> work(3 * 2);
     TestSurface surface(16, 12, 9);
     // Twice the size, into a pane that cuts off the right part.
-    PANE pane{&surface.Window, 2, 2, 5, 11};
-    VFX_shape_transform(&pane, table.data(), 0, 0, 0, work.data(), 3600, 0x20000, 0x20000, 0);
+    MCPane pane{&surface.Window, 2, 2, 5, 11};
+    VfxShapeTransform(&pane, table.data(), 0, 0, 0, work.data(), 3600, 0x20000, 0x20000, 0);
 
     for (int32_t y = 0; y < 12; ++y)
     {

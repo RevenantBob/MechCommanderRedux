@@ -341,11 +341,11 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
 
         for (size_t i = 0; i < frame.Underlays.size(); ++i)
         {
-            const _window* source = frame.Underlays[i].Source;
+            const MCWindow* source = frame.Underlays[i].Source;
 
             if (auto made =
-                    Ensure(_Underlays[i], R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, static_cast<uint32_t>(source->x_max + 1),
-                           static_cast<uint32_t>(source->y_max + 1), false);
+                    Ensure(_Underlays[i], R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, static_cast<uint32_t>(source->XMax + 1),
+                           static_cast<uint32_t>(source->YMax + 1), false);
                 !made)
             {
                 return made;
@@ -363,9 +363,9 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
 
         for (size_t i = 0; i < frame.Underlays.size(); ++i)
         {
-            const _window* source = frame.Underlays[i].Source;
-            parts.push_back({source->buffer, _Underlays[i].Handle, static_cast<uint32_t>(source->x_max + 1),
-                             static_cast<uint32_t>(source->y_max + 1), 1, 0});
+            const MCWindow* source = frame.Underlays[i].Source;
+            parts.push_back({source->Buffer, _Underlays[i].Handle, static_cast<uint32_t>(source->XMax + 1),
+                             static_cast<uint32_t>(source->YMax + 1), 1, 0});
         }
     }
 
@@ -523,8 +523,8 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
         if (!gpuSurfaces)
         {
             world = _Underlays[i].Handle;
-            worldSize[0] = static_cast<float>(underlay.Source->x_max + 1);
-            worldSize[1] = static_cast<float>(underlay.Source->y_max + 1);
+            worldSize[0] = static_cast<float>(underlay.Source->XMax + 1);
+            worldSize[1] = static_cast<float>(underlay.Source->YMax + 1);
             worldSize[2] = static_cast<float>(_Underlays[i].Width);
             worldSize[3] = static_cast<float>(_Underlays[i].Height);
         }

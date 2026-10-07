@@ -14,62 +14,62 @@
 // LightType
 //---------------------------------------------------------------------------
 
-auto LightType::createInstance() -> BaseObject*
+auto MCLightType::CreateInstance() -> MCBaseObject*
 {
-    auto* newLight = new Light;
+    auto* newLight = new MCLight;
 
     if (newLight == nullptr)
     {
         return nullptr;
     }
 
-    if (newLight->init(this) != 0)
+    if (newLight->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newLight->idNumber = NextIdNumber++;
+    newLight->IdNumber = NextIdNumber++;
     return newLight;
 }
 
-auto LightType::destroy() -> void
+auto MCLightType::Destroy() -> void
 {
 }
 
-auto LightType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCLightType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile lightFile;
-    int32_t result = lightFile.open(objFile, fileSize, 50);
+    MCFitIniFile lightFile;
+    int32_t result = lightFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = lightFile.seekBlock("LightData")) != 0)
+    if ((result = lightFile.SeekBlock("LightData")) != 0)
     {
         return result;
     }
 
-    if ((result = lightFile.readIdBoolean("OneShotFlag", oneShotFlag)) != 0)
+    if ((result = lightFile.ReadIdBoolean("OneShotFlag", OneShotFlag)) != 0)
     {
         return result;
     }
 
-    if ((result = lightFile.readIdFloat("AltitudeOffset", altitudeOffset)) != 0)
+    if ((result = lightFile.ReadIdFloat("AltitudeOffset", AltitudeOffset)) != 0)
     {
         return result;
     }
 
-    return ObjectType::init(&lightFile);
+    return MCObjectType::Init(&lightFile);
 }
 
-auto LightType::handleCollision(GameObject*, GameObject*) -> int
+auto MCLightType::HandleCollision(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
 
-auto LightType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCLightType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -78,139 +78,139 @@ auto LightType::handleDestruction(GameObject*, GameObject*) -> int
 // Light
 //---------------------------------------------------------------------------
 
-auto Light::init() -> void
+auto MCLight::Init() -> void
 {
-    appearance = nullptr;
-    justCreated = 1;
+    Appearance = nullptr;
+    JustCreated = 1;
 }
 
-auto Light::onScreen() -> int
+auto MCLight::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    vector_2d screen100;
-    vector_2d screen50;
+    MCVector2D screen100;
+    MCVector2D screen50;
 
-    if (land != nullptr)
+    if (Land != nullptr)
     {
-        land->projectTerrain(position, screen100, screen50);
+        Land->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;
 
-    if (camera->cameraScale == 1)
+    if (camera->CameraScale == 1)
     {
-        screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-        screenY = screen50.y - camera->screenUL50.y;
+        ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+        screenY = screen50.Y - camera->ScreenUL50.Y;
     }
     else
     {
-        screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-        screenY = screen100.y - camera->screenUL.y;
+        ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+        screenY = screen100.Y - camera->ScreenUL.Y;
     }
 
-    screenPos.y = screenY + camera->halfHeight;
+    ScreenPos.Y = screenY + camera->HalfHeight;
 
-    if (appearance != nullptr && appearance->recalcBounds(camera) != 0)
+    if (Appearance != nullptr && Appearance->RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto Light::update() -> int32_t
+auto MCLight::Update() -> int32_t
 {
-    if (finished != 0)
+    if (Finished != 0)
     {
         return 1;
     }
 
     // The owner sets the position every frame; the light sits altitudeOffset above it.
-    position.z = static_cast<LightType*>(objType)->altitudeOffset + position.z;
-    const int visibleNow = onScreen();
+    Position.Z = static_cast<MCLightType*>(ObjType)->AltitudeOffset + Position.Z;
+    const int visibleNow = OnScreen();
 
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
-        justCreated = 0;
-        collisionsOn = 0;
+        JustCreated = 0;
+        CollisionsOn = 0;
     }
 
-    appearance->visible = visibleNow;
+    Appearance->Visible = visibleNow;
 
     // A one-shot light stops drawing once its animation ends.
-    if (appearance->update() == 0 && static_cast<LightType*>(objType)->oneShotFlag != 0)
+    if (Appearance->Update() == 0 && static_cast<MCLightType*>(ObjType)->OneShotFlag != 0)
     {
-        finished = 1;
+        Finished = 1;
     }
 
     return 1;
 }
 
-auto Light::render() -> void
+auto MCLight::Render() -> void
 {
-    if (gamePaused != 0)
+    if (GamePaused != 0)
     {
-        onScreen();
+        OnScreen();
     }
 
-    if (justCreated == 0 && windowsVisible == turn && finished == 0)
+    if (JustCreated == 0 && WindowsVisible == Turn && Finished == 0)
     {
-        appearance->render(-500);
+        Appearance->Render(-500);
     }
 }
 
-auto Light::destroy() -> void
+auto MCLight::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 }
 
-auto Light::init(ObjectType* objType) -> int32_t
+auto MCLight::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justCreated = 1;
-    collisionsOn = 0;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    JustCreated = 1;
+    CollisionsOn = 0;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0003);
     }
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x2000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x2000000)
     {
         return static_cast<int32_t>(0xdcdc0005);
     }
 
-    auto* vfxAppearance = new VFXAppearance;
-    appearance = vfxAppearance;
+    auto* vfxAppearance = new MCVfxAppearance;
+    Appearance = vfxAppearance;
 
     if (vfxAppearance == nullptr)
     {
         return static_cast<int32_t>(0xdcdc0004);
     }
 
-    vfxAppearance->init(nullptr, nullptr);
+    vfxAppearance->Init(nullptr, nullptr);
 
-    if ((result = vfxAppearance->init(apprType, this)) != 0)
+    if ((result = vfxAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    objectClass = LIGHT;
-    finished = 0;
+    ObjectClass = LIGHT;
+    Finished = 0;
     return 0;
 }

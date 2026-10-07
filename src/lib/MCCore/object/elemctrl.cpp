@@ -1,17 +1,17 @@
 #include "stdafx.h"
 #include "object/elemctrl.h"
 
-auto ElementalControlData::init(int32_t) -> int32_t
+auto MCElementalControlData::Init(int32_t) -> int32_t
 {
     return 0;
 }
 
-auto ElementalControlData::destroy() -> void
+auto MCElementalControlData::Destroy() -> void
 {
 }
 
-auto ElementalControlData::reset() -> void
+auto MCElementalControlData::Reset() -> void
 {
-    rotate = 0;
-    jump = 0;
+    Rotate = 0;
+    Jump = 0;
 }

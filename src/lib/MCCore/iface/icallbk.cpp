@@ -25,15 +25,15 @@ namespace
 {
     /// <summary>Points the main window's active camera at the mover and shows the floating tags.</summary>
     /// <returns>False when there is no camera.</returns>
-    bool centerCameraOn(BaseObject* mover)
+    bool CenterCameraOn(MCBaseObject* mover)
     {
         // Port fix: with no active pane the original used the icon itself as the camera, calling its resize
         // (slot 0x20) with the mover pointer.
-        Camera* camera = nullptr;
+        MCCamera* camera = nullptr;
 
-        if (mainHolder->GetActivePane() != nullptr)
+        if (MainHolder->GetActivePane() != nullptr)
         {
-            camera = mainHolder->GetActivePane()->GetCamera();
+            camera = MainHolder->GetActivePane()->GetCamera();
         }
 
         if (camera == nullptr)
@@ -41,198 +41,198 @@ namespace
             return false;
         }
 
-        camera->changeTarget(mover, 0);
-        theInterface->floatingTags[0]->ShowGUIWindow(-1);
+        camera->ChangeTarget(mover, 0);
+        TheInterface->FloatingTags[0]->ShowGuiWindow(-1);
         return true;
     }
 
     /// <summary>
     /// A single-mover order: sent to the server in a multiplayer client, otherwise given to the mover straight away.
     /// </summary>
-    void giveMoverOrder(TacticalOrder& order, Mover* mover, int32_t* partId)
+    void GiveMoverOrder(MCTacticalOrder& order, MCMover* mover, int32_t* partId)
     {
-        if (MPlayer != nullptr && MPlayer->isServer == 0)
+        if (MPlayer != nullptr && MPlayer->IsServer == 0)
         {
-            MPlayer->sendPlayerOrder(0, &order, 0, 1, partId, 0, nullptr, 0);
+            MPlayer->SendPlayerOrder(0, &order, 0, 1, partId, 0, nullptr, 0);
         }
         else
         {
-            mover->handleTacticalOrder(order, 1, 0);
+            mover->HandleTacticalOrder(order, 1, 0);
         }
     }
 }
 
-auto mechIconHandleEvent(aObject* icon, aEvent* event) -> void
+auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
 {
-    auto* mechIcon = static_cast<aMechIcon*>(icon);
-    auto* mover = static_cast<Mover*>(mechIcon->mover);
-    TacticalOrder order;
-    order.init();
+    auto* mechIcon = static_cast<MCMechIcon*>(icon);
+    auto* mover = static_cast<MCMover*>(mechIcon->Mover);
+    MCTacticalOrder order;
+    order.Init();
 
     // Port fix: the original reads the mover's part id before checking the mover is there.
-    int32_t partId = mover != nullptr ? mover->partId : 0;
+    int32_t partId = mover != nullptr ? mover->PartId : 0;
 
-    if (event->type == 1)
+    if (event->Type == 1)
     {
-        application->grab(icon);
-        order.destroy();
+        Application->Grab(icon);
+        order.Destroy();
         return;
     }
 
-    if (event->type == 6)
+    if (event->Type == 6)
     {
-        centerCameraOn(mover);
-        order.destroy();
+        CenterCameraOn(mover);
+        order.Destroy();
         return;
     }
 
-    if (event->type != 4 || application->grabbedObject() != icon || mover == nullptr)
+    if (event->Type != 4 || Application->GrabbedObject() != icon || mover == nullptr)
     {
-        order.destroy();
+        order.Destroy();
         return;
     }
 
-    application->release();
+    Application->Release();
 
     // An attack command (or aimed shot, which only a mech can take) makes the selection attack this mover.
-    int32_t command = theInterface->currentCommand;
+    int32_t command = TheInterface->CurrentCommand;
     bool attackCommand = (command >= 0xb && command <= 0x10) || (command >= 0x17 && command <= 0x1e);
 
-    if (attackCommand && theInterface->AnySelected(-1) != 0)
+    if (attackCommand && TheInterface->AnySelected(-1) != 0)
     {
-        command = theInterface->currentCommand;
+        command = TheInterface->CurrentCommand;
 
-        if (mover->objectClass != BATTLEMECH && command >= 0x17 && command <= 0x1e)
+        if (mover->ObjectClass != BATTLEMECH && command >= 0x17 && command <= 0x1e)
         {
             command = 0xb;
         }
 
-        order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
-        order.target = mover;
-        order.attackParams.type = 1;
-        order.attackParams.method = 0;
-        order.attackParams.range = -4;
-        order.attackParams.pursue = -1;
+        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
+        order.Target = mover;
+        order.AttackParams.Type = 1;
+        order.AttackParams.Method = 0;
+        order.AttackParams.Range = -4;
+        order.AttackParams.Pursue = -1;
 
         switch (command)
         {
             case 0xb:
-                order.attackParams.range = -1;
+                order.AttackParams.Range = -1;
                 break;
             case 0xc:
-                order.attackParams.range = 2;
+                order.AttackParams.Range = 2;
                 break;
             case 0xd:
-                order.attackParams.range = 1;
+                order.AttackParams.Range = 1;
                 break;
             case 0xe:
-                order.attackParams.range = 0;
+                order.AttackParams.Range = 0;
                 break;
             case 0xf:
-                order.attackParams.pursue = 0;
+                order.AttackParams.Pursue = 0;
                 break;
         }
 
-        theInterface->GetCommandParser()->SendTacOrder(order, -1);
-        theInterface->UpdateInterface();
-        order.destroy();
+        TheInterface->GetCommandParser()->SendTacOrder(order, -1);
+        TheInterface->UpdateInterface();
+        order.Destroy();
         return;
     }
 
-    switch (theInterface->currentCommand)
+    switch (TheInterface->CurrentCommand)
     {
         case 0:
         {
             // Select the mover; shift adds it to (or takes it out of) the selection.
-            int32_t iconPartId = mechIcon->partId;
+            int32_t iconPartId = mechIcon->PartId;
             int addToExisting;
 
-            if (event->shiftKey == 0)
+            if (event->ShiftKey == 0)
             {
-                theInterface->DeselectEnemy();
-                theInterface->ClearMechSelection();
-                theInterface->commandParser->ClearSubjects();
+                TheInterface->DeselectEnemy();
+                TheInterface->ClearMechSelection();
+                TheInterface->CommandParser->ClearSubjects();
 
-                if (theInterface->AnySelected(0) == 0)
+                if (TheInterface->AnySelected(0) == 0)
                 {
-                    Terrain::terrainTacticalMap->SetID(mechIcon->partId);
+                    MCTerrain::TerrainTacticalMap->SetID(mechIcon->PartId);
                 }
 
-                iconPartId = mechIcon->partId;
-                theInterface->SelectMech(iconPartId);
+                iconPartId = mechIcon->PartId;
+                TheInterface->SelectMech(iconPartId);
                 addToExisting = 0;
             }
             else
             {
-                if (theInterface->IsSelected(iconPartId) != 0)
+                if (TheInterface->IsSelected(iconPartId) != 0)
                 {
-                    theInterface->DeselectMech(iconPartId);
-                    theInterface->commandParser->RemoveSubject(iconPartId);
-                    theInterface->UpdateInterface();
-                    order.destroy();
+                    TheInterface->DeselectMech(iconPartId);
+                    TheInterface->CommandParser->RemoveSubject(iconPartId);
+                    TheInterface->UpdateInterface();
+                    order.Destroy();
                     return;
                 }
 
-                theInterface->SelectMech(iconPartId);
-                theInterface->DeselectEnemy();
+                TheInterface->SelectMech(iconPartId);
+                TheInterface->DeselectEnemy();
                 addToExisting = -1;
             }
 
-            theInterface->commandParser->AddSubject(iconPartId, addToExisting);
-            soundSystem->playDigitalSample(0x10, 1, nullptr, 0, 0);
+            TheInterface->CommandParser->AddSubject(iconPartId, addToExisting);
+            SoundSystem->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
             break;
         }
 
         case 1:
         {
-            order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_EJECT, 0);
-            giveMoverOrder(order, mover, &partId);
-            theInterface->UpdateInterface();
-            order.destroy();
+            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_EJECT, 0);
+            GiveMoverOrder(order, mover, &partId);
+            TheInterface->UpdateInterface();
+            order.Destroy();
             return;
         }
         case 2:
         {
-            order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_HOLD_FIRE, 0);
-            giveMoverOrder(order, mover, &partId);
-            theInterface->UpdateInterface();
-            order.destroy();
+            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_HOLD_FIRE, 0);
+            GiveMoverOrder(order, mover, &partId);
+            TheInterface->UpdateInterface();
+            order.Destroy();
             return;
         }
         case 9:
         {
-            order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_REFIT, 0);
-            order.target = mover;
-            theInterface->GetCommandParser()->SendTacOrder(order, 0);
-            theInterface->UpdateInterface();
-            order.destroy();
+            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_REFIT, 0);
+            order.Target = mover;
+            TheInterface->GetCommandParser()->SendTacOrder(order, 0);
+            TheInterface->UpdateInterface();
+            order.Destroy();
             return;
         }
         case 0x13:
         {
-            order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_GUARD, 0);
-            order.target = mover;
-            order.moveParams.wayPath.mode[0] = 0;
-            order.moveParams.wait = -1;
-            theInterface->GetCommandParser()->SendTacOrder(order, -1);
-            theInterface->UpdateInterface();
-            order.destroy();
+            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_GUARD, 0);
+            order.Target = mover;
+            order.MoveParams.WayPath.Mode[0] = 0;
+            order.MoveParams.Wait = -1;
+            TheInterface->GetCommandParser()->SendTacOrder(order, -1);
+            TheInterface->UpdateInterface();
+            order.Destroy();
             return;
         }
         case 0x15:
         {
-            order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 0);
-            giveMoverOrder(order, mover, &partId);
-            theInterface->UpdateInterface();
-            order.destroy();
+            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 0);
+            GiveMoverOrder(order, mover, &partId);
+            TheInterface->UpdateInterface();
+            order.Destroy();
             return;
         }
         case 0x16:
         {
-            order.init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 0);
-            giveMoverOrder(order, mover, &partId);
-            theInterface->UpdateInterface();
-            order.destroy();
+            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 0);
+            GiveMoverOrder(order, mover, &partId);
+            TheInterface->UpdateInterface();
+            order.Destroy();
             return;
         }
         case 0x29:
@@ -241,147 +241,147 @@ auto mechIconHandleEvent(aObject* icon, aEvent* event) -> void
         case 0x2c:
         {
             // Make the selection lance (command - 0x29), with this mover as its point.
-            soundSystem->playBettySample(5);
-            int32_t groupId = theInterface->currentCommand - 0x29;
+            SoundSystem->PlayBettySample(5);
+            int32_t groupId = TheInterface->CurrentCommand - 0x29;
 
-            if (theInterface->IsSelected(mover->partId) == 0)
+            if (TheInterface->IsSelected(mover->PartId) == 0)
             {
-                theInterface->SelectMech(mover->partId);
+                TheInterface->SelectMech(mover->PartId);
             }
 
-            std::vector<GameObject*> movers(static_cast<size_t>(theInterface->numSelectedMechs));
+            std::vector<MCGameObject*> movers(static_cast<size_t>(TheInterface->NumSelectedMechs));
             // Port fix: the original leaves the point index unset when no selected button holds this mover.
             int32_t pointIndex = 0;
 
-            for (int32_t i = 0; i < theInterface->numSelectedMechs; i++)
+            for (int32_t i = 0; i < TheInterface->NumSelectedMechs; i++)
             {
-                FriendlyMechIcon* button = theInterface->mechBar->GetButtonFromID(theInterface->selectedMechs[i]);
+                MCFriendlyMechIcon* button = TheInterface->MechBar->GetButtonFromID(TheInterface->SelectedMechs[i]);
 
                 if (button == nullptr)
                 {
                     continue;
                 }
 
-                movers[i] = static_cast<GameObject*>(button->mover);
+                movers[i] = static_cast<MCGameObject*>(button->Mover);
 
-                if (button->isPoint != 0)
+                if (button->IsPoint != 0)
                 {
-                    button->isPoint = 0;
+                    button->IsPoint = 0;
                 }
 
-                if (button->mover == mover)
+                if (button->Mover == mover)
                 {
-                    button->isPoint = -1;
+                    button->IsPoint = -1;
                     pointIndex = i;
                 }
             }
 
-            theInterface->setUnit(groupId, theInterface->numSelectedMechs, movers.data(), pointIndex);
-            theInterface->mechBar->PlaceButtons(-1);
+            TheInterface->SetUnit(groupId, TheInterface->NumSelectedMechs, movers.data(), pointIndex);
+            TheInterface->MechBar->PlaceButtons(-1);
 
-            theInterface->currentCommand = 0;
-            theInterface->commandOneShot = 0;
-            application->cursorHidden = 0;
-            icon->enter();
-            theInterface->SelectLance(HomeCommander->getGroup(groupId));
-            theInterface->commandParser->AddSubject(HomeCommander->getGroup(groupId), -1);
-            theInterface->UpdateInterface();
-            order.destroy();
+            TheInterface->CurrentCommand = 0;
+            TheInterface->CommandOneShot = 0;
+            Application->CursorHidden = 0;
+            icon->Enter();
+            TheInterface->SelectLance(HomeCommander->GetGroup(groupId));
+            TheInterface->CommandParser->AddSubject(HomeCommander->GetGroup(groupId), -1);
+            TheInterface->UpdateInterface();
+            order.Destroy();
             return;
         }
 
         case 0x33:
         {
-            Terrain::terrainTacticalMap->HideMe(0);
-            Terrain::terrainTacticalMap->SetDisplayType(TACMAP_INFO);
-            Terrain::terrainTacticalMap->SetID(mechIcon->partId);
-            theInterface->UpdateInterface();
-            order.destroy();
+            MCTerrain::TerrainTacticalMap->HideMe(0);
+            MCTerrain::TerrainTacticalMap->SetDisplayType(TACMAP_INFO);
+            MCTerrain::TerrainTacticalMap->SetID(mechIcon->PartId);
+            TheInterface->UpdateInterface();
+            order.Destroy();
             return;
         }
         case 0x4a:
-            centerCameraOn(mover);
+            CenterCameraOn(mover);
             break;
     }
 
-    theInterface->UpdateInterface();
-    order.destroy();
+    TheInterface->UpdateInterface();
+    order.Destroy();
 }
 
-auto PaintSelBox(aObject* box) -> void
+auto PaintSelBox(MCGuiObject* box) -> void
 {
-    int32_t width = box->width();
-    int32_t height = box->height();
-    _pane* pane = box->port()->frame();
-    VFX_pane_wipe(pane, 0xff);
+    int32_t width = box->Width();
+    int32_t height = box->Height();
+    MCPane* pane = box->Port()->Frame();
+    VfxPaneWipe(pane, 0xff);
     int32_t bottom = height - 1;
     int32_t right = width - 1;
-    VFX_line_draw(pane, 0, bottom, right, bottom, LD_DRAW, 0);
-    VFX_line_draw(pane, 0, 0, right, 0, LD_DRAW, 0);
-    VFX_line_draw(pane, 0, 0, 0, bottom, LD_DRAW, 0);
-    VFX_line_draw(pane, right, 0, right, bottom, LD_DRAW, 0);
+    VfxLineDraw(pane, 0, bottom, right, bottom, LD_DRAW, 0);
+    VfxLineDraw(pane, 0, 0, right, 0, LD_DRAW, 0);
+    VfxLineDraw(pane, 0, 0, 0, bottom, LD_DRAW, 0);
+    VfxLineDraw(pane, right, 0, right, bottom, LD_DRAW, 0);
 }
 
-auto interfaceHandleEvent(aObject*, aEvent* event) -> void
+auto InterfaceHandleEvent(MCGuiObject*, MCGuiEvent* event) -> void
 {
-    theInterface->handleEvent(event);
+    TheInterface->HandleEvent(event);
 }
 
 auto UpdateMouseStateCallback() -> void
 {
-    if (turn > 1)
+    if (Turn > 1)
     {
         MCFrameLog::Scope part("logic.mouseState");
-        theInterface->UpdateMouseState(nullptr);
+        TheInterface->UpdateMouseState(nullptr);
     }
 }
 
 auto HealAll() -> void
 {
-    aMechBar* bar = theInterface->mechBar;
+    MCMechBar* bar = TheInterface->MechBar;
 
-    for (int16_t i = 0; i < static_cast<int16_t>(bar->layout.numButtons); i++)
+    for (int16_t i = 0; i < static_cast<int16_t>(bar->Layout.NumButtons); i++)
     {
-        if (bar->getButton(i) == nullptr)
+        if (bar->GetButton(i) == nullptr)
         {
             continue;
         }
 
-        auto* mover = static_cast<Mover*>(bar->getButton(i)->mover);
+        auto* mover = static_cast<MCMover*>(bar->GetButton(i)->Mover);
 
-        if (mover == nullptr || mover->isDisabled() != 0)
+        if (mover == nullptr || mover->IsDisabled() != 0)
         {
             continue;
         }
 
-        for (int32_t j = 0; j < mover->numArmorLocations; j++)
+        for (int32_t j = 0; j < mover->NumArmorLocations; j++)
         {
-            mover->armor[j].curArmor = static_cast<float>(mover->armor[j].maxArmor);
+            mover->Armor[j].CurArmor = static_cast<float>(mover->Armor[j].MaxArmor);
         }
 
-        for (int32_t j = 0; j < mover->numBodyLocations; j++)
+        for (int32_t j = 0; j < mover->NumBodyLocations; j++)
         {
-            mover->bodyAt(j).curInternalStructure = static_cast<float>(mover->bodyAt(j).maxInternalStructure);
+            mover->BodyAt(j).CurInternalStructure = static_cast<float>(mover->BodyAt(j).MaxInternalStructure);
         }
 
-        if (mover->objectClass == BATTLEMECH)
+        if (mover->ObjectClass == BATTLEMECH)
         {
-            static_cast<BattleMech*>(mover)->calcLegStatus();
-            static_cast<BattleMech*>(mover)->calcTorsoStatus();
+            static_cast<MCBattleMech*>(mover)->CalcLegStatus();
+            static_cast<MCBattleMech*>(mover)->CalcTorsoStatus();
         }
 
-        uint32_t firstWeapon = mover->numOther;
+        uint32_t firstWeapon = mover->NumOther;
 
-        for (uint32_t j = firstWeapon; j < firstWeapon + mover->numWeapons; j++)
+        for (uint32_t j = firstWeapon; j < firstWeapon + mover->NumWeapons; j++)
         {
-            mover->inventory[j].disabled = 0;
+            mover->Inventory[j].Disabled = 0;
         }
 
-        for (int32_t j = 0; j < mover->numAmmoTypes; j++)
+        for (int32_t j = 0; j < mover->NumAmmoTypes; j++)
         {
-            if (mover->ammoTypeTotal[j].curAmount != 9999)
+            if (mover->AmmoTypeTotal[j].CurAmount != 9999)
             {
-                mover->ammoTypeTotal[j].curAmount = mover->ammoTypeTotal[j].startAmount;
+                mover->AmmoTypeTotal[j].CurAmount = mover->AmmoTypeTotal[j].StartAmount;
             }
         }
     }
@@ -389,56 +389,56 @@ auto HealAll() -> void
 
 auto DeadEye() -> void
 {
-    aMechBar* bar = theInterface->mechBar;
+    MCMechBar* bar = TheInterface->MechBar;
 
-    for (int16_t i = 0; i < static_cast<int16_t>(bar->layout.numButtons); i++)
+    for (int16_t i = 0; i < static_cast<int16_t>(bar->Layout.NumButtons); i++)
     {
-        if (bar->getButton(i) == nullptr)
+        if (bar->GetButton(i) == nullptr)
         {
             continue;
         }
 
-        auto* mover = static_cast<Mover*>(bar->getButton(i)->mover);
+        auto* mover = static_cast<MCMover*>(bar->GetButton(i)->Mover);
 
-        if (mover != nullptr && mover->isDisabled() == 0 && mover->getPilot() != nullptr)
+        if (mover != nullptr && mover->IsDisabled() == 0 && mover->GetPilot() != nullptr)
         {
-            mover->getPilot()->skills[MWS_GUNNERY] = 120;
+            mover->GetPilot()->Skills[MWS_GUNNERY] = 120;
         }
     }
 }
 
 auto Test3() -> void
 {
-    aMechBar* bar = theInterface->mechBar;
+    MCMechBar* bar = TheInterface->MechBar;
 
-    for (int16_t i = 0; i < static_cast<int16_t>(bar->layout.numButtons); i++)
+    for (int16_t i = 0; i < static_cast<int16_t>(bar->Layout.NumButtons); i++)
     {
-        if (bar->getButton(i) == nullptr)
+        if (bar->GetButton(i) == nullptr)
         {
             continue;
         }
 
-        auto* mover = static_cast<Mover*>(bar->getButton(i)->mover);
+        auto* mover = static_cast<MCMover*>(bar->GetButton(i)->Mover);
 
-        if (mover == nullptr || mover->isDisabled() != 0)
+        if (mover == nullptr || mover->IsDisabled() != 0)
         {
             continue;
         }
 
-        uint32_t firstWeapon = mover->numOther;
-        uint32_t endWeapon = firstWeapon + mover->numWeapons;
+        uint32_t firstWeapon = mover->NumOther;
+        uint32_t endWeapon = firstWeapon + mover->NumWeapons;
 
-        if (mover->ammoTypeTotal == nullptr)
+        if (mover->AmmoTypeTotal == nullptr)
         {
             // No ammunition: every weapon becomes component 0x9a, which needs none.
             for (uint32_t j = firstWeapon; j < endWeapon; j++)
             {
-                InventoryItem& item = mover->inventory[j];
-                item.masterID = 0x9a;
-                item.health = MasterComponentList[0x9a].health;
-                item.amount = -1;
-                item.disabled = 0;
-                item.ammoIndex = -1;
+                MCInventoryItem& item = mover->Inventory[j];
+                item.MasterID = 0x9a;
+                item.Health = MasterComponentList[0x9a].Health;
+                item.Amount = -1;
+                item.Disabled = 0;
+                item.AmmoIndex = -1;
             }
         }
         else
@@ -446,22 +446,22 @@ auto Test3() -> void
             // Every weapon becomes component 0x70, fed from the first ammunition type (refilled to 333).
             for (uint32_t j = firstWeapon; j < endWeapon; j++)
             {
-                InventoryItem& item = mover->inventory[j];
-                item.masterID = 0x70;
-                item.health = MasterComponentList[0x70].health;
-                item.amount = static_cast<int16_t>(MasterComponentList[item.masterID].longValue);
-                item.disabled = 0;
-                item.ammoIndex = 0;
+                MCInventoryItem& item = mover->Inventory[j];
+                item.MasterID = 0x70;
+                item.Health = MasterComponentList[0x70].Health;
+                item.Amount = static_cast<int16_t>(MasterComponentList[item.MasterID].LongValue);
+                item.Disabled = 0;
+                item.AmmoIndex = 0;
             }
 
-            AmmoTally* ammo = mover->ammoTypeTotal.get();
-            ammo->masterId = MasterComponentList[0x70].ammoMasterId;
-            ammo->curAmount = 0x14d;
-            ammo->startAmount = 0x14d;
+            MCAmmoTally* ammo = mover->AmmoTypeTotal.get();
+            ammo->MasterId = MasterComponentList[0x70].AmmoMasterId;
+            ammo->CurAmount = 0x14d;
+            ammo->StartAmount = 0x14d;
         }
 
-        mover->calcWeaponEffectiveness(-1);
-        mover->calcWeaponEffectiveness(0);
-        mover->calcWeaponRangeRatings();
+        mover->CalcWeaponEffectiveness(-1);
+        mover->CalcWeaponEffectiveness(0);
+        mover->CalcWeaponRangeRatings();
     }
 }

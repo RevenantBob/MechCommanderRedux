@@ -8,78 +8,78 @@
 #include "lib/aerror.h"
 #include "platform/MCSocket.h"
 
-std::unique_ptr<MCBlockStore> linkUpBlocks;
-_GUID thisAppGUID{};
+std::unique_ptr<MCBlockStore> LinkUpBlocks;
+_GUID ThisAppGuid{};
 uint32_t TicksPerMS = 0;
 uint32_t StartTime = 0;
 std::recursive_mutex AddingMessageList;
-uint32_t newPlayerNumbers[6];
-int sessionLocked = 0;
-int inReceiveThread = 0;
-int oldVersionOfMPlayer = 1;
+uint32_t NewPlayerNumbers[6];
+int SessionLocked = 0;
+int InReceiveThread = 0;
+int OldVersionOfMPlayer = 1;
 int DisabledCallerID = 0;
 int CallerIDChanged[6];
-int32_t launchedFromLobby = 0;
+int32_t LaunchedFromLobby = 0;
 
 namespace
 {
     using namespace MCDirectPlayGuids;
 
     /// <summary>Whether a SessionManager exists (0x0080a680).</summary>
-    int instanceExists = 0;
+    int InstanceExists = 0;
     /// <summary>The SessionManager (0x0080a684).</summary>
-    SessionManager* instance = nullptr;
+    MCSessionManager* Instance = nullptr;
     /// <summary>Who last took the global pointer (0x0080a688).</summary>
-    void* globalPointerHolder = nullptr;
+    void* GlobalPointerHolder = nullptr;
     /// <summary>RemovePlayerFromGame's re-entry guard (0x0080a69c).</summary>
-    int removingPlayer = 0;
+    int RemovingPlayer = 0;
 
     /// <summary>
     /// Port: stands in for the Win32 events CreatePlayer made (DirectPlay signalled one on every arrival; nothing
     /// ever waited on either), so the fields read as "created".
     /// </summary>
-    int eventStandIn = 0;
+    int EventStandIn = 0;
 
 #pragma pack(push, 1)
 
     /// <summary>Message type 2 (guaranteed): the server's numbering of the players.</summary>
     /// <remarks>0x21 bytes. The names are the port's.</remarks>
-    struct FIPlayerNumbersMessage : FIGuaranteedMessageHeader
+    struct MCFIPlayerNumbersMessage : MCFIGuaranteedMessageHeader
     {
         /// <summary>The DPID of player number n (0 = no such player).</summary>
-        uint32_t playerIDs[6]{}; // +0x8
+        uint32_t PlayerIDs[6]{};
         /// <summary>The sending server's own number.</summary>
-        uint8_t serverNumber = 0; // +0x20
+        uint8_t ServerNumber = 0;
     };
 
-    static_assert(sizeof(FIPlayerNumbersMessage) == 0x21);
+    static_assert(sizeof(MCFIPlayerNumbersMessage) == 0x21);
 
     /// <summary>Message type 3: the players of a group, as the server knows them.</summary>
     /// <remarks>Sent as 0x24 bytes (six members) from a 300-byte buffer. The names are the port's.</remarks>
-    struct FIPlayersInGroupMessage : FIGuaranteedMessageHeader
+    struct MCFIPlayersInGroupMessage : MCFIGuaranteedMessageHeader
     {
-        uint32_t groupID = 0;     // +0x8
-        uint32_t playerIDs[72]{}; // +0xc
+        uint32_t GroupID = 0;
+        uint32_t PlayerIDs[72]{};
     };
 
     /// <summary>Message types 6 (new server), 9 (player removed) and 12 (latency): the header and one 32-bit value.</summary>
     /// <remarks>0xc bytes. The names are the port's.</remarks>
-    struct FIValueMessage : FIGuaranteedMessageHeader
+    struct MCFIValueMessage : MCFIGuaranteedMessageHeader
     {
-        uint32_t value = 0; // +0x8
+        uint32_t Value = 0;
     };
 
-    static_assert(sizeof(FIValueMessage) == 0xc);
+    static_assert(sizeof(MCFIValueMessage) == 0xc);
 
     /// <summary>
     /// Message type 10: the server's ping, with the other players' numbers sorted by latency (the order the next
     /// server is picked in).
     /// </summary>
     /// <remarks>9 + count bytes, built in a 256-byte buffer. The names are the port's.</remarks>
-    struct FIPingMessage : FIGuaranteedMessageHeader
+    struct MCFIPingMessage : MCFIGuaranteedMessageHeader
     {
-        uint8_t count = 0;          // +0x8
-        uint8_t playerNumbers[6]{}; // +0x9
+        uint8_t Count = 0;
+        uint8_t PlayerNumbers[6]{};
     };
 
     /// <summary>
@@ -87,10 +87,10 @@ namespace
     /// entry is a MessageTagger with only the receiver's slot set.
     /// </summary>
     /// <remarks>3 + count * 6 bytes, built in a 0x2400-byte buffer per player number. The names are the port's.</remarks>
-    struct FIVerifyMessage : FIMessageHeader
+    struct MCFIVerifyMessage : MCFIMessageHeader
     {
-        uint8_t count = 0;       // +0x2
-        uint8_t entries[1][6]{}; // +0x3
+        uint8_t Count = 0;
+        uint8_t Entries[1][6]{};
     };
 
 #pragma pack(pop)
@@ -98,13 +98,13 @@ namespace
     /// <summary>The message buffer's header word.</summary>
     uint16_t& HeaderOf(void* buffer)
     {
-        return static_cast<FIMessageHeader*>(buffer)->header;
+        return static_cast<MCFIMessageHeader*>(buffer)->Header;
     }
 
     /// <summary>The message type (bits 0-9) of a buffer.</summary>
     uint16_t TypeOf(const void* buffer)
     {
-        return static_cast<const FIMessageHeader*>(buffer)->header & FIMSG_TYPE_MASK;
+        return static_cast<const MCFIMessageHeader*>(buffer)->Header & FIMSG_TYPE_MASK;
     }
 
     /// <summary>Sets a header word to <paramref name="type"/> with <paramref name="flags"/>.</summary>
@@ -126,17 +126,17 @@ namespace
     void ResetVerify(uint8_t* verify)
     {
         SetHeader(verify, 0, 1);
-        reinterpret_cast<FIVerifyMessage*>(verify)->count = 0;
+        reinterpret_cast<MCFIVerifyMessage*>(verify)->Count = 0;
     }
 }
 
 // ---- free functions ----------------------------------------------------------------------------------------------
 
-void ClearList(FIDPMsgList* list)
+void ClearList(MCFidpMsgList* list)
 {
     list->Size();
 
-    while (list->head != nullptr)
+    while (list->HeadLink != nullptr)
     {
         list->TossHead();
     }
@@ -178,35 +178,35 @@ void ReEnableCallerID()
 
 void InitLinkUpBlocks()
 {
-    if (linkUpBlocks == nullptr)
+    if (LinkUpBlocks == nullptr)
     {
-        linkUpBlocks = std::make_unique<MCBlockStore>();
+        LinkUpBlocks = std::make_unique<MCBlockStore>();
     }
 }
 
 void DestroyLinkUpBlocks()
 {
-    if (linkUpBlocks != nullptr)
+    if (LinkUpBlocks != nullptr)
     {
-        linkUpBlocks->Clear();
-        linkUpBlocks.reset();
+        LinkUpBlocks->Clear();
+        LinkUpBlocks.reset();
     }
 }
 
 int EnumPlayersCallback(uint32_t playerID, uint32_t playerType, const DPNAME* name, uint32_t flags, void* context)
 {
-    return static_cast<SessionManager*>(context)->NewPlayerEnumeration(playerID, playerType, name, flags);
+    return static_cast<MCSessionManager*>(context)->NewPlayerEnumeration(playerID, playerType, name, flags);
 }
 
 int EnumGroupsCallback(uint32_t groupID, uint32_t, const DPNAME* name, uint32_t flags, void* context)
 {
-    static_cast<SessionManager*>(context)->NewGroupEnumeration(groupID, name, flags);
+    static_cast<MCSessionManager*>(context)->NewGroupEnumeration(groupID, name, flags);
     return 1;
 }
 
 uint32_t SessionManagerReceiveThread(void* sessionManager)
 {
-    return static_cast<uint32_t>(static_cast<SessionManager*>(sessionManager)->ReceiveThread());
+    return static_cast<uint32_t>(static_cast<MCSessionManager*>(sessionManager)->ReceiveThread());
 }
 
 int EnumConnectionsCallback(const _GUID* serviceProvider, void* connection, uint32_t connectionSize, const DPNAME* name,
@@ -217,18 +217,18 @@ int EnumConnectionsCallback(const _GUID* serviceProvider, void* connection, uint
         return 0;
     }
 
-    return static_cast<SessionManager*>(context)->AddConnection(serviceProvider, connection, connectionSize, name,
-                                                                flags, context);
+    return static_cast<MCSessionManager*>(context)->AddConnection(serviceProvider, connection, connectionSize, name,
+                                                                  flags, context);
 }
 
 int ModemCallback(const _GUID& dataType, uint32_t dataSize, const void* data, void*)
 {
     if (MCSameGuid(dataType, DPAID_Modem))
     {
-        SessionManager::GetGlobalPointer(nullptr)->AddModemName(data, dataSize);
+        MCSessionManager::GetGlobalPointer(nullptr)->AddModemName(data, dataSize);
     }
 
-    return SessionManager::GetGlobalPointer(nullptr)->numModems < 10;
+    return MCSessionManager::GetGlobalPointer(nullptr)->NumModems < 10;
 }
 
 int EnumSessionsCallback(const DPSESSIONDESC2* desc, uint32_t* timeout, uint32_t flags, void* context)
@@ -243,7 +243,7 @@ int EnumSessionsCallback(const DPSESSIONDESC2* desc, uint32_t* timeout, uint32_t
         return 0;
     }
 
-    return static_cast<SessionManager*>(context)->AddSession(desc, timeout, flags, context);
+    return static_cast<MCSessionManager*>(context)->AddSession(desc, timeout, flags, context);
 }
 
 void ShiftPointerArray(int32_t* array, int index, int count)
@@ -254,9 +254,9 @@ void ShiftPointerArray(int32_t* array, int index, int count)
 
 int CompareLatencies(const int32_t* playerNumber1, const int32_t* playerNumber2)
 {
-    SessionManager* sessionManager = SessionManager::GetGlobalPointer(nullptr);
-    FIDPPlayer* player1 = sessionManager->GetPlayerNumber(*playerNumber1);
-    FIDPPlayer* player2 = sessionManager->GetPlayerNumber(*playerNumber2);
+    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
+    MCFidpPlayer* player1 = sessionManager->GetPlayerNumber(*playerNumber1);
+    MCFidpPlayer* player2 = sessionManager->GetPlayerNumber(*playerNumber2);
 
     if (player2->AverageLatency() < player1->AverageLatency())
     {
@@ -288,326 +288,326 @@ int CompareLongs(const int32_t* value1, const int32_t* value2)
 
 void OutputSessionManagerStats()
 {
-    SessionManager* sessionManager = SessionManager::GetGlobalPointer(nullptr);
-    FLinkedList<FIDPPlayer>* players = sessionManager->GetPlayers(nullptr);
-    FLinkedListIterator<FIDPPlayer> iterator(players);
-    iterator.current = players->head;
-    const int numPlayers = players->count;
+    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
+    MCFLinkedList<MCFidpPlayer>* players = sessionManager->GetPlayers(nullptr);
+    MCFLinkedListIterator<MCFidpPlayer> iterator(players);
+    iterator.Current = players->HeadLink;
+    const int numPlayers = players->Count;
 
     for (int i = 0; i < numPlayers; i++)
     {
-        FIDPPlayer* player = iterator.current != nullptr ? iterator.current->data : nullptr;
+        MCFidpPlayer* player = iterator.Current != nullptr ? iterator.Current->Data : nullptr;
         char line[512];
         // Original behaviour: the line is formatted and dropped (its output call was compiled out).
-        std::snprintf(line, sizeof(line), "Messages to player %s - vlist size = %d\\n", player->name,
-                      player->verifyList.count);
-        Assert(iterator.current != nullptr, 0, nullptr);
-        iterator.current = iterator.current->next;
+        std::snprintf(line, sizeof(line), "Messages to player %s - vlist size = %d\\n", player->Name,
+                      player->VerifyList.Count);
+        Assert(iterator.Current != nullptr, 0, nullptr);
+        iterator.Current = iterator.Current->Next;
     }
 }
 
 // ---- FIDPNetworkProtocol -----------------------------------------------------------------------------------------
 
-FIDPNetworkProtocol::FIDPNetworkProtocol()
+MCFidpNetworkProtocol::MCFidpNetworkProtocol()
 {
-    shortName[0] = '\0';
-    longName[0] = '\0';
-    connectionBuffer = nullptr;
-    protocolType = -1;
+    ShortName[0] = '\0';
+    LongName[0] = '\0';
+    ConnectionBuffer = nullptr;
+    ProtocolType = -1;
 }
 
-FIDPNetworkProtocol::~FIDPNetworkProtocol()
+MCFidpNetworkProtocol::~MCFidpNetworkProtocol()
 {
-    destroy();
+    Destroy();
 }
 
-void FIDPNetworkProtocol::destroy()
+void MCFidpNetworkProtocol::Destroy()
 {
-    if (connectionBuffer != nullptr)
+    if (ConnectionBuffer != nullptr)
     {
-        linkUpBlocks->Free(connectionBuffer);
+        LinkUpBlocks->Free(ConnectionBuffer);
         // Port fix: cleared, so the destructor after ClearList's destroy() doesn't free it twice.
-        connectionBuffer = nullptr;
+        ConnectionBuffer = nullptr;
     }
 }
 
-int FIDPNetworkProtocol::SetConnectionBuffer(void* connection, int size)
+int MCFidpNetworkProtocol::SetConnectionBuffer(void* connection, int size)
 {
-    if (connectionBuffer != nullptr)
+    if (ConnectionBuffer != nullptr)
     {
-        linkUpBlocks->Free(connectionBuffer);
+        LinkUpBlocks->Free(ConnectionBuffer);
     }
 
-    connectionBuffer = linkUpBlocks->Allocate(size);
+    ConnectionBuffer = LinkUpBlocks->Allocate(size);
 
-    if (connectionBuffer == nullptr)
+    if (ConnectionBuffer == nullptr)
     {
         return -1;
     }
 
-    std::memcpy(connectionBuffer, connection, size);
+    std::memcpy(ConnectionBuffer, connection, size);
     return 0;
 }
 
-void FIDPNetworkProtocol::SetShortName(char* name)
+void MCFidpNetworkProtocol::SetShortName(char* name)
 {
     if (name == nullptr)
     {
-        shortName[0] = '\0';
+        ShortName[0] = '\0';
     }
     else
     {
         // Port fix: always terminated.
-        std::memset(shortName, 0, sizeof(shortName));
-        std::strncpy(shortName, name, 0x3f);
+        std::memset(ShortName, 0, sizeof(ShortName));
+        std::strncpy(ShortName, name, 0x3f);
     }
 }
 
-void FIDPNetworkProtocol::SetLongName(char* name)
+void MCFidpNetworkProtocol::SetLongName(char* name)
 {
     if (name == nullptr)
     {
-        longName[0] = '\0';
+        LongName[0] = '\0';
     }
     else
     {
-        std::memset(longName, 0, sizeof(longName));
-        std::strncpy(longName, name, 0xff);
+        std::memset(LongName, 0, sizeof(LongName));
+        std::strncpy(LongName, name, 0xff);
     }
 }
 
-void FIDPNetworkProtocol::ClearList(FLinkedList<FIDPNetworkProtocol>& list)
+void MCFidpNetworkProtocol::ClearList(MCFLinkedList<MCFidpNetworkProtocol>& list)
 {
-    const int numProtocols = list.count;
-    list.current = list.head;
+    const int numProtocols = list.Count;
+    list.Current = list.HeadLink;
 
     for (int i = 0; i < numProtocols; i++)
     {
-        FIDPNetworkProtocol* protocol = list.current->data;
+        MCFidpNetworkProtocol* protocol = list.Current->Data;
         list.Del(protocol);
-        protocol->destroy();
+        protocol->Destroy();
         delete protocol;
     }
 }
 
 // ---- SessionManager: lifetime ------------------------------------------------------------------------------------
 
-SessionManager::SessionManager(_GUID appGUID)
+MCSessionManager::MCSessionManager(_GUID appGUID)
 {
-    Assert(instanceExists == 0, 0, nullptr);
+    Assert(InstanceExists == 0, 0, nullptr);
     TicksPerMS = static_cast<uint32_t>(static_cast<uint32_t>(MCPort::PerformanceFrequency()) / 1000);
-    globalPointerHolder = nullptr;
-    instanceExists = 1;
-    instance = this;
-    ipxChecked = 0;
-    tcpChecked = 0;
-    modemChecked = 0;
-    directPlay = nullptr;
-    gameStarted = 0;
+    GlobalPointerHolder = nullptr;
+    InstanceExists = 1;
+    Instance = this;
+    IpxChecked = 0;
+    TcpChecked = 0;
+    ModemChecked = 0;
+    DirectPlay = nullptr;
+    GameStarted = 0;
     StartTime = MCPort::Milliseconds();
     const int32_t result = CreateDirectPlayInterface();
     Assert(result == 0, 0, "This application requires DirectX 5 or later.");
-    thisAppGUID = appGUID;
-    myPlayerID = 0;
-    serverID = 0;
-    playerEvent = nullptr;
-    killReceiveEvent = nullptr;
-    receiveThread = nullptr;
-    currentSession = nullptr;
-    currentConnection = -1;
-    isHost = 0;
-    hasPlayerNumber = 0;
-    nextFileID = 0;
+    ThisAppGuid = appGUID;
+    MyPlayerID = 0;
+    ServerID = 0;
+    PlayerEvent = nullptr;
+    KillReceiveEvent = nullptr;
+    ReceiveThreadHandle = nullptr;
+    CurrentSession = nullptr;
+    CurrentConnection = -1;
+    IsHost = 0;
+    HasPlayerNumber = 0;
+    NextFileID = 0;
 
-    auto* newServer = new FIValueMessage{};
-    newServer->header = 0;
-    newServer->header |= FIMSG_GUARANTEED;
-    newServer->tagger.Clear();
-    newServer->value = 0;
-    newServer->header = static_cast<uint16_t>((newServer->header & ~FIMSG_TYPE_MASK) | 6);
-    serverMessage = newServer;
-
-    for (int i = 0; i < 6; i++)
-    {
-        deletedPlayerIDs[i] = 0xffffffffu;
-        playersByLatency[i] = i;
-    }
-
-    applicationCallback = nullptr;
-    applicationCallbackData = nullptr;
-    systemCallback = nullptr;
-    systemCallbackData = nullptr;
-    fileSentCallback = nullptr;
-    fileSentCallbackData = nullptr;
-    fileReceivedCallback = nullptr;
-    fileReceivedCallbackData = nullptr;
-    playerIterator = new FLinkedListIterator<FIDPPlayer>(&players);
-    verifyMessageMemory = static_cast<uint8_t*>(linkUpBlocks->Allocate(0xd800));
+    auto* newServer = new MCFIValueMessage{};
+    newServer->Header = 0;
+    newServer->Header |= FIMSG_GUARANTEED;
+    newServer->Tagger.Clear();
+    newServer->Value = 0;
+    newServer->Header = static_cast<uint16_t>((newServer->Header & ~FIMSG_TYPE_MASK) | 6);
+    ServerMessage = newServer;
 
     for (int i = 0; i < 6; i++)
     {
-        verifyMessages[i] = verifyMessageMemory + i * 0x2400;
+        DeletedPlayerIDs[i] = 0xffffffffu;
+        PlayersByLatency[i] = i;
     }
 
-    emptyMessages = new FIDPMsgList();
-    systemMessages = new FIDPMsgList();
-    applicationMessages = new FIDPMsgList();
-    preIDReceivedMessages = new FIDPMsgList();
-    preIDGroupMessages = new FIDPMsgList();
-    preIDServerMessages = new FIDPMsgList();
-    nextPingTime = PerformanceTicks();
-    pingInterval = 2000;
-    dialupState = 0;
+    ApplicationCallback = nullptr;
+    ApplicationCallbackData = nullptr;
+    SystemCallback = nullptr;
+    SystemCallbackData = nullptr;
+    FileSentCallback = nullptr;
+    FileSentCallbackData = nullptr;
+    FileReceivedCallback = nullptr;
+    FileReceivedCallbackData = nullptr;
+    PlayerIterator = new MCFLinkedListIterator<MCFidpPlayer>(&Players);
+    VerifyMessageMemory = static_cast<uint8_t*>(LinkUpBlocks->Allocate(0xd800));
+
+    for (int i = 0; i < 6; i++)
+    {
+        VerifyMessages[i] = VerifyMessageMemory + i * 0x2400;
+    }
+
+    EmptyMessages = new MCFidpMsgList();
+    SystemMessages = new MCFidpMsgList();
+    ApplicationMessages = new MCFidpMsgList();
+    PreIDReceivedMessages = new MCFidpMsgList();
+    PreIDGroupMessages = new MCFidpMsgList();
+    PreIDServerMessages = new MCFidpMsgList();
+    NextPingTime = PerformanceTicks();
+    PingInterval = 2000;
+    DialupState = 0;
 }
 
-SessionManager::~SessionManager()
+MCSessionManager::~MCSessionManager()
 {
-    destroy();
+    Destroy();
 
-    while (pendingPlayers.head != nullptr)
+    while (PendingPlayers.HeadLink != nullptr)
     {
-        pendingPlayers.Del(pendingPlayers.head->data);
+        PendingPlayers.Del(PendingPlayers.HeadLink->Data);
     }
 
-    while (incomingFiles.head != nullptr)
+    while (IncomingFiles.HeadLink != nullptr)
     {
-        incomingFiles.Del(incomingFiles.head->data);
+        IncomingFiles.Del(IncomingFiles.HeadLink->Data);
     }
 
-    while (outgoingFiles.head != nullptr)
+    while (OutgoingFiles.HeadLink != nullptr)
     {
-        outgoingFiles.Del(outgoingFiles.head->data);
+        OutgoingFiles.Del(OutgoingFiles.HeadLink->Data);
     }
 
-    while (groups.head != nullptr)
+    while (Groups.HeadLink != nullptr)
     {
-        groups.Del(groups.head->data);
+        Groups.Del(Groups.HeadLink->Data);
     }
 
-    while (players.head != nullptr)
+    while (Players.HeadLink != nullptr)
     {
-        players.Del(players.head->data);
+        Players.Del(Players.HeadLink->Data);
     }
 
-    while (sessions.head != nullptr)
+    while (Sessions.HeadLink != nullptr)
     {
-        sessions.Del(sessions.head->data);
+        Sessions.Del(Sessions.HeadLink->Data);
     }
 
-    while (connections.head != nullptr)
+    while (Connections.HeadLink != nullptr)
     {
-        connections.Del(connections.head->data);
+        Connections.Del(Connections.HeadLink->Data);
     }
 }
 
-void SessionManager::destroy()
+void MCSessionManager::Destroy()
 {
-    std::lock_guard lock(criticalSection);
-    delete emptyMessages;
-    emptyMessages = nullptr;
-    delete systemMessages;
-    systemMessages = nullptr;
-    delete applicationMessages;
-    applicationMessages = nullptr;
-    delete preIDReceivedMessages;
-    preIDReceivedMessages = nullptr;
-    delete preIDGroupMessages;
-    preIDGroupMessages = nullptr;
-    delete preIDServerMessages;
-    preIDServerMessages = nullptr;
-    instance = nullptr;
-    globalPointerHolder = nullptr;
-    instanceExists = 0;
+    std::lock_guard lock(CriticalSection);
+    delete EmptyMessages;
+    EmptyMessages = nullptr;
+    delete SystemMessages;
+    SystemMessages = nullptr;
+    delete ApplicationMessages;
+    ApplicationMessages = nullptr;
+    delete PreIDReceivedMessages;
+    PreIDReceivedMessages = nullptr;
+    delete PreIDGroupMessages;
+    PreIDGroupMessages = nullptr;
+    delete PreIDServerMessages;
+    PreIDServerMessages = nullptr;
+    Instance = nullptr;
+    GlobalPointerHolder = nullptr;
+    InstanceExists = 0;
     DestroyDirectPlayInterface();
-    delete static_cast<FIValueMessage*>(serverMessage);
-    serverMessage = nullptr;
-    delete playerIterator;
-    playerIterator = nullptr;
+    delete static_cast<MCFIValueMessage*>(ServerMessage);
+    ServerMessage = nullptr;
+    delete PlayerIterator;
+    PlayerIterator = nullptr;
 }
 
-int32_t SessionManager::CreateDirectPlayInterface()
+int32_t MCSessionManager::CreateDirectPlayInterface()
 {
     // Port: CoCreateInstance(CLSID_DirectPlay, IID_IDirectPlay3A) becomes the port's stand-in, which can't fail.
-    if (directPlay == nullptr)
+    if (DirectPlay == nullptr)
     {
-        directPlay = new MCDirectPlay();
+        DirectPlay = new MCDirectPlay();
     }
 
     EnumerateConnections();
     return 0;
 }
 
-int32_t SessionManager::DestroyDirectPlayInterface()
+int32_t MCSessionManager::DestroyDirectPlayInterface()
 {
     LeaveSession();
 
-    if (directPlay != nullptr)
+    if (DirectPlay != nullptr)
     {
-        delete directPlay;
-        directPlay = nullptr;
+        delete DirectPlay;
+        DirectPlay = nullptr;
     }
 
-    currentConnection = -1;
+    CurrentConnection = -1;
     return 0;
 }
 
 // ---- message queues ----------------------------------------------------------------------------------------------
 
-void SessionManager::AddMessageToEmptyQueue(FIDPMessage* msg)
+void MCSessionManager::AddMessageToEmptyQueue(MCFidpMessage* msg)
 {
     std::lock_guard lock(AddingMessageList);
     msg->Clear();
-    emptyMessages->Add(msg);
+    EmptyMessages->Add(msg);
 }
 
-FIDPMessage* SessionManager::GetMessageFromEmptyQueue()
+MCFidpMessage* MCSessionManager::GetMessageFromEmptyQueue()
 {
     std::lock_guard lock(AddingMessageList);
-    FIDPMessage* msg = emptyMessages->Head();
-    emptyMessages->TossHead();
+    MCFidpMessage* msg = EmptyMessages->Head();
+    EmptyMessages->TossHead();
     return msg;
 }
 
 // ---- connections, sessions, players, groups ----------------------------------------------------------------------
 
-int32_t SessionManager::EnumerateConnections()
+int32_t MCSessionManager::EnumerateConnections()
 {
-    Assert(directPlay != nullptr, 0, nullptr);
-    FIDPNetworkProtocol::ClearList(connections);
-    return static_cast<int32_t>(directPlay->EnumConnections(&thisAppGUID, EnumConnectionsCallback, this, 0));
+    Assert(DirectPlay != nullptr, 0, nullptr);
+    MCFidpNetworkProtocol::ClearList(Connections);
+    return static_cast<int32_t>(DirectPlay->EnumConnections(&ThisAppGuid, EnumConnectionsCallback, this, 0));
 }
 
-void SessionManager::SetConnectionType(FIDPNetworkProtocol* protocol, const _GUID* guid)
+void MCSessionManager::SetConnectionType(MCFidpNetworkProtocol* protocol, const _GUID* guid)
 {
     if (MCSameGuid(*guid, DPSPGUID_TCPIP))
     {
-        protocol->protocolType = PROTOCOL_TCPIP;
-        availableProtocols |= PROTOCOL_TCPIP;
+        protocol->ProtocolType = PROTOCOL_TCPIP;
+        AvailableProtocols |= PROTOCOL_TCPIP;
     }
     else if (MCSameGuid(*guid, DPSPGUID_IPX))
     {
-        protocol->protocolType = PROTOCOL_IPX;
-        availableProtocols |= PROTOCOL_IPX;
+        protocol->ProtocolType = PROTOCOL_IPX;
+        AvailableProtocols |= PROTOCOL_IPX;
     }
     else if (MCSameGuid(*guid, DPSPGUID_MODEM))
     {
-        protocol->protocolType = PROTOCOL_MODEM;
-        availableProtocols |= PROTOCOL_MODEM;
+        protocol->ProtocolType = PROTOCOL_MODEM;
+        AvailableProtocols |= PROTOCOL_MODEM;
     }
     else if (MCSameGuid(*guid, DPSPGUID_SERIAL))
     {
-        protocol->protocolType = PROTOCOL_SERIAL;
-        availableProtocols |= PROTOCOL_SERIAL;
+        protocol->ProtocolType = PROTOCOL_SERIAL;
+        AvailableProtocols |= PROTOCOL_SERIAL;
     }
     else if (MCSameGuid(*guid, DPSPGUID_LOBBY))
     {
-        protocol->protocolType = PROTOCOL_LOBBY;
-        availableProtocols |= PROTOCOL_LOBBY;
+        protocol->ProtocolType = PROTOCOL_LOBBY;
+        AvailableProtocols |= PROTOCOL_LOBBY;
     }
 }
 
-int SessionManager::AddConnection(const _GUID* serviceProvider, void* connection, uint32_t connectionSize,
-                                  const DPNAME* name, uint32_t, void* context)
+int MCSessionManager::AddConnection(const _GUID* serviceProvider, void* connection, uint32_t connectionSize,
+                                    const DPNAME* name, uint32_t, void* context)
 {
     if (context != this)
     {
@@ -615,16 +615,16 @@ int SessionManager::AddConnection(const _GUID* serviceProvider, void* connection
         return 0;
     }
 
-    FIDPNetworkProtocol* protocol = new FIDPNetworkProtocol();
+    MCFidpNetworkProtocol* protocol = new MCFidpNetworkProtocol();
     protocol->SetShortName(name->lpszShortNameA);
     protocol->SetLongName(name->lpszLongNameA);
     protocol->SetConnectionBuffer(connection, static_cast<int>(connectionSize));
     SetConnectionType(protocol, serviceProvider);
-    connections.Add(protocol);
+    Connections.Add(protocol);
     return 1;
 }
 
-int SessionManager::AddSession(const DPSESSIONDESC2* desc, uint32_t*, uint32_t, void* context)
+int MCSessionManager::AddSession(const DPSESSIONDESC2* desc, uint32_t*, uint32_t, void* context)
 {
     if (context != this)
     {
@@ -635,45 +635,45 @@ int SessionManager::AddSession(const DPSESSIONDESC2* desc, uint32_t*, uint32_t, 
 
     Assert(desc != nullptr, 0, nullptr);
 
-    if (currentSession != nullptr && MCSameGuid(currentSession->sessionDesc.guidInstance, desc->guidInstance))
+    if (CurrentSession != nullptr && MCSameGuid(CurrentSession->SessionDesc.guidInstance, desc->guidInstance))
     {
         return 1;
     }
 
-    sessions.Add(new FIDPSession(*desc));
+    Sessions.Add(new MCFidpSession(*desc));
     return 1;
 }
 
-int SessionManager::NewPlayerEnumeration(uint32_t playerID, uint32_t, const DPNAME* name, uint32_t flags)
+int MCSessionManager::NewPlayerEnumeration(uint32_t playerID, uint32_t, const DPNAME* name, uint32_t flags)
 {
-    FIDPPlayer* player = new FIDPPlayer(playerID, name, flags);
+    MCFidpPlayer* player = new MCFidpPlayer(playerID, name, flags);
     Assert(player != nullptr, 0, "Player is null");
 
     {
         // Port fix: a scoped lock; the original left the critical section entered when the player was already
         // listed (and leaked the new one, as the port still does).
-        std::lock_guard lock(criticalSection);
+        std::lock_guard lock(CriticalSection);
 
         if (GetPlayer(playerID) != nullptr)
         {
             return 1;
         }
 
-        players.Add(player);
+        Players.Add(player);
     }
 
-    if (player->id == myPlayerID)
+    if (player->Id == MyPlayerID)
     {
-        myPlayer = player;
+        MyPlayer = player;
 
-        if (isHost != 0)
+        if (IsHost != 0)
         {
-            myPlayer->playerNumber = 0;
+            MyPlayer->PlayerNumber = 0;
         }
     }
-    else if (launchedFromLobby == 0)
+    else if (LaunchedFromLobby == 0)
     {
-        if (isHost == 0 && hasPlayerNumber != 0)
+        if (IsHost == 0 && HasPlayerNumber != 0)
         {
             GivePlayerAnID(player);
         }
@@ -682,10 +682,10 @@ int SessionManager::NewPlayerEnumeration(uint32_t playerID, uint32_t, const DPNA
     {
         for (int i = 0; i < 6; i++)
         {
-            if (newPlayerNumbers[i] == playerID)
+            if (NewPlayerNumbers[i] == playerID)
             {
-                player->playerNumber = i;
-                player->hasPlayerNumber = 1;
+                player->PlayerNumber = i;
+                player->HasPlayerNumber = 1;
             }
         }
     }
@@ -693,21 +693,21 @@ int SessionManager::NewPlayerEnumeration(uint32_t playerID, uint32_t, const DPNA
     return 1;
 }
 
-int SessionManager::NewGroupEnumeration(uint32_t groupID, const DPNAME* name, uint32_t flags)
+int MCSessionManager::NewGroupEnumeration(uint32_t groupID, const DPNAME* name, uint32_t flags)
 {
-    groups.Add(new FIDPGroup(groupID, 0, name, flags));
+    Groups.Add(new MCFidpGroup(groupID, 0, name, flags));
     return 1;
 }
 
-FIDPGroup* SessionManager::GetGroup(uint32_t groupID)
+MCFidpGroup* MCSessionManager::GetGroup(uint32_t groupID)
 {
-    groups.current = groups.head;
+    Groups.Current = Groups.HeadLink;
 
-    for (int i = 0; i < groups.count; i++)
+    for (int i = 0; i < Groups.Count; i++)
     {
-        FIDPGroup* group = groups.ReadAndNext();
+        MCFidpGroup* group = Groups.ReadAndNext();
 
-        if (group->id == groupID)
+        if (group->Id == groupID)
         {
             return group;
         }
@@ -716,106 +716,106 @@ FIDPGroup* SessionManager::GetGroup(uint32_t groupID)
     return nullptr;
 }
 
-FIDPPlayer* SessionManager::GetPlayer(uint32_t playerID)
+MCFidpPlayer* MCSessionManager::GetPlayer(uint32_t playerID)
 {
     for (int i = 0; i < 6; i++)
     {
-        if (deletedPlayerIDs[i] == playerID)
+        if (DeletedPlayerIDs[i] == playerID)
         {
             return nullptr;
         }
     }
 
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (link->data->id == playerID)
+        if (link->Data->Id == playerID)
         {
-            return link->data;
+            return link->Data;
         }
     }
 
     return nullptr;
 }
 
-int32_t SessionManager::CreatePlayer(char* playerName)
+int32_t MCSessionManager::CreatePlayer(char* playerName)
 {
-    sessionLocked = 0;
+    SessionLocked = 0;
 
     for (int i = 0; i < 6; i++)
     {
-        newPlayerNumbers[i] = 0;
+        NewPlayerNumbers[i] = 0;
     }
 
     DPNAME name{0x10, 0, playerName, nullptr};
-    Assert(playerEvent == nullptr, 0, "Player event already initialized");
-    Assert(killReceiveEvent == nullptr, 0, " kill event already initialized");
-    playerEvent = &eventStandIn;
-    killReceiveEvent = &eventStandIn;
-    Assert(playerEvent != nullptr, 0, "Could not create hKillReceiveEvent");
-    Assert(killReceiveEvent != nullptr, 0, "Could not create hKillReceiveEvent");
-    const uint32_t result = directPlay->CreatePlayer(&myPlayerID, &name, playerEvent, nullptr, 0, 0);
+    Assert(PlayerEvent == nullptr, 0, "Player event already initialized");
+    Assert(KillReceiveEvent == nullptr, 0, " kill event already initialized");
+    PlayerEvent = &EventStandIn;
+    KillReceiveEvent = &EventStandIn;
+    Assert(PlayerEvent != nullptr, 0, "Could not create hKillReceiveEvent");
+    Assert(KillReceiveEvent != nullptr, 0, "Could not create hKillReceiveEvent");
+    const uint32_t result = DirectPlay->CreatePlayer(&MyPlayerID, &name, PlayerEvent, nullptr, 0, 0);
 
     if (result == DP_OK)
     {
         {
             std::lock_guard lock(AddingMessageList);
-            emptyMessages->Head();
+            EmptyMessages->Head();
 
             for (int i = 0; i < 900; i++)
             {
-                emptyMessages->Add(new FIDPMessage(myPlayerID, 0x200));
+                EmptyMessages->Add(new MCFidpMessage(MyPlayerID, 0x200));
             }
         }
 
-        if (isHost != 0)
+        if (IsHost != 0)
         {
-            serverID = myPlayerID;
-            static_cast<FIValueMessage*>(serverMessage)->value = myPlayerID;
-            hasPlayerNumber = 1;
+            ServerID = MyPlayerID;
+            static_cast<MCFIValueMessage*>(ServerMessage)->Value = MyPlayerID;
+            HasPlayerNumber = 1;
         }
 
         EnumeratePlayers(nullptr);
         GetGroups(nullptr);
 
-        if (dialupState != 0)
+        if (DialupState != 0)
         {
-            EnableDialupNetworking(dialupState);
-            dialupState = 0;
+            EnableDialupNetworking(DialupState);
+            DialupState = 0;
         }
     }
     else
     {
-        playerEvent = nullptr;
-        killReceiveEvent = nullptr;
-        myPlayerID = 0;
+        PlayerEvent = nullptr;
+        KillReceiveEvent = nullptr;
+        MyPlayerID = 0;
     }
 
     return static_cast<int32_t>(result);
 }
 
-void SessionManager::SetHomeDirectory(char* directory)
+void MCSessionManager::SetHomeDirectory(char* directory)
 {
     std::strncpy(HomeDirectory, directory, 0x1ff);
 }
 
-int32_t SessionManager::HostSession(FIDPSession& session, char* playerName)
+int32_t MCSessionManager::HostSession(MCFidpSession& session, char* playerName)
 {
-    Assert(directPlay != nullptr, 0, "Can't host session.  No DirectPlayObject");
-    isHost = 1;
+    Assert(DirectPlay != nullptr, 0, "Can't host session.  No DirectPlayObject");
+    IsHost = 1;
 
-    if (currentConnection == PROTOCOL_MODEM)
+    if (CurrentConnection == PROTOCOL_MODEM)
     {
         DisableCallerID();
     }
 
-    if (directPlay->Open(&session.sessionDesc, DPOPEN_CREATE | DPOPEN_RETURNSTATUS) != DP_OK)
+    if (DirectPlay->Open(&session.SessionDesc, DPOPEN_CREATE | DPOPEN_RETURNSTATUS) != DP_OK)
     {
         return -1;
     }
 
-    FIDPSession* hosted = new FIDPSession(session);
-    sessions.Add(hosted);
-    currentSession = hosted;
+    MCFidpSession* hosted = new MCFidpSession(session);
+    Sessions.Add(hosted);
+    CurrentSession = hosted;
 
     if (CreatePlayer(playerName) != 0)
     {
@@ -826,38 +826,38 @@ int32_t SessionManager::HostSession(FIDPSession& session, char* playerName)
     return 0;
 }
 
-FIDPSession* SessionManager::FindMatchingSession(_GUID* sessionGUID)
+MCFidpSession* MCSessionManager::FindMatchingSession(_GUID* sessionGUID)
 {
-    sessions.current = sessions.head;
+    Sessions.Current = Sessions.HeadLink;
 
     for (;;)
     {
-        FIDPSession* session = sessions.ReadAndNext();
+        MCFidpSession* session = Sessions.ReadAndNext();
 
         if (session == nullptr)
         {
             return nullptr;
         }
 
-        if (MCSameGuid(session->sessionDesc.guidInstance, *sessionGUID))
+        if (MCSameGuid(session->SessionDesc.guidInstance, *sessionGUID))
         {
             return session;
         }
     }
 }
 
-int32_t SessionManager::JoinSession(_GUID* sessionGUID, char* playerName)
+int32_t MCSessionManager::JoinSession(_GUID* sessionGUID, char* playerName)
 {
-    Assert(directPlay != nullptr, 0, nullptr);
-    FIDPSession* session = FindMatchingSession(sessionGUID);
+    Assert(DirectPlay != nullptr, 0, nullptr);
+    MCFidpSession* session = FindMatchingSession(sessionGUID);
 
     if (session == nullptr)
     {
         return -1;
     }
 
-    currentSession = session;
-    int32_t result = static_cast<int32_t>(directPlay->Open(&session->sessionDesc, DPOPEN_JOIN | DPOPEN_RETURNSTATUS));
+    CurrentSession = session;
+    int32_t result = static_cast<int32_t>(DirectPlay->Open(&session->SessionDesc, DPOPEN_JOIN | DPOPEN_RETURNSTATUS));
 
     if (result == 0)
     {
@@ -872,63 +872,63 @@ int32_t SessionManager::JoinSession(_GUID* sessionGUID, char* playerName)
     return result;
 }
 
-void SessionManager::SendSystemInformation()
+void MCSessionManager::SendSystemInformation()
 {
-    FISystemInfoMessage msg;
-    msg.tagger.Clear();
-    msg.header = 0x100b;
-    msg.totalPhysicalMemory = MCPort::TotalPhysicalMemory();
+    MCFISystemInfoMessage msg;
+    msg.Tagger.Clear();
+    msg.Header = 0x100b;
+    msg.TotalPhysicalMemory = MCPort::TotalPhysicalMemory();
 
-    if (isHost == 0)
+    if (IsHost == 0)
     {
         SendMessageToServerGuaranteed(&msg, sizeof(msg));
     }
     else
     {
-        myPlayer->totalPhysicalMemory = msg.totalPhysicalMemory;
+        MyPlayer->TotalPhysicalMemory = msg.TotalPhysicalMemory;
     }
 }
 
-int SessionManager::ReadyToChooseServer()
+int MCSessionManager::ReadyToChooseServer()
 {
-    if (myPlayer == nullptr)
+    if (MyPlayer == nullptr)
     {
         return 0;
     }
 
-    return readyToChooseServer;
+    return LatencyReportsIn;
 }
 
-void SessionManager::ProcessSystemInfoMessage(FISystemInfoMessage* msg, uint32_t fromID)
+void MCSessionManager::ProcessSystemInfoMessage(MCFISystemInfoMessage* msg, uint32_t fromID)
 {
-    FIDPPlayer* player = GetPlayer(fromID);
+    MCFidpPlayer* player = GetPlayer(fromID);
 
     if (player != nullptr)
     {
-        player->totalPhysicalMemory = msg->totalPhysicalMemory;
+        player->TotalPhysicalMemory = msg->TotalPhysicalMemory;
     }
 }
 
-int SessionManager::LockSession()
+int MCSessionManager::LockSession()
 {
-    if (currentSession == nullptr || isHost == 0)
+    if (CurrentSession == nullptr || IsHost == 0)
     {
         return 0;
     }
 
-    currentSession->sessionDesc.dwFlags |= DPSESSION_NEWPLAYERSDISABLED;
-    ReportError(directPlay->SetSessionDesc(&currentSession->sessionDesc, 0));
-    sessionLocked = 1;
-    gameStarted = 1;
+    CurrentSession->SessionDesc.dwFlags |= DPSESSION_NEWPLAYERSDISABLED;
+    ReportError(DirectPlay->SetSessionDesc(&CurrentSession->SessionDesc, 0));
+    SessionLocked = 1;
+    GameStarted = 1;
     return 1;
 }
 
-int SessionManager::LeaveSession()
+int MCSessionManager::LeaveSession()
 {
-    if (currentConnection == PROTOCOL_TCPIP && dialupState != 0)
+    if (CurrentConnection == PROTOCOL_TCPIP && DialupState != 0)
     {
-        EnableDialupNetworking(dialupState);
-        dialupState = 0;
+        EnableDialupNetworking(DialupState);
+        DialupState = 0;
     }
 
     if (DisabledCallerID != 0)
@@ -937,71 +937,71 @@ int SessionManager::LeaveSession()
         DisabledCallerID = 0;
     }
 
-    if (currentSession == nullptr || myPlayer == nullptr)
+    if (CurrentSession == nullptr || MyPlayer == nullptr)
     {
         return 0;
     }
 
-    receiveThread = nullptr;
-    killReceiveEvent = nullptr;
-    playerEvent = nullptr;
-    myPlayerID = 0;
-    isHost = 0;
-    serverID = 0;
-    hasPlayerNumber = 0;
-    currentSession = nullptr;
-    myPlayer = nullptr;
-    directPlay->Close();
+    ReceiveThreadHandle = nullptr;
+    KillReceiveEvent = nullptr;
+    PlayerEvent = nullptr;
+    MyPlayerID = 0;
+    IsHost = 0;
+    ServerID = 0;
+    HasPlayerNumber = 0;
+    CurrentSession = nullptr;
+    MyPlayer = nullptr;
+    DirectPlay->Close();
     DestroyDirectPlayInterface();
     CreateDirectPlayInterface();
 
     for (int i = 0; i < 6; i++)
     {
-        playersByLatency[i] = i;
+        PlayersByLatency[i] = i;
     }
 
     return 1;
 }
 
-void SessionManager::CreateGroup(uint32_t* groupID, char* groupName, void* data, uint32_t dataSize, uint32_t flags)
+void MCSessionManager::CreateGroup(uint32_t* groupID, char* groupName, void* data, uint32_t dataSize, uint32_t flags)
 {
     DPNAME name{0x10, 0, groupName, nullptr};
-    const uint32_t result = directPlay->CreateGroup(groupID, &name, nullptr, 0, flags);
+    const uint32_t result = DirectPlay->CreateGroup(groupID, &name, nullptr, 0, flags);
     ReportError(result);
-    FIDPGroup* group = new FIDPGroup(*groupID, 0, &name, flags);
+    MCFidpGroup* group = new MCFidpGroup(*groupID, 0, &name, flags);
 
     if (data != nullptr)
     {
         group->SetGroupData(data, dataSize);
     }
 
-    groups.Add(group);
+    Groups.Add(group);
     SetGroupData(*groupID, data, dataSize, 0);
     ReportError(result);
 }
 
-int SessionManager::AddPlayerToGroup(uint32_t groupID, uint32_t playerID)
+int MCSessionManager::AddPlayerToGroup(uint32_t groupID, uint32_t playerID)
 {
     int added = 0;
-    groups.current = groups.head;
+    Groups.Current = Groups.HeadLink;
 
     if (playerID == 0)
     {
-        playerID = myPlayerID;
+        playerID = MyPlayerID;
     }
 
-    for (int i = 0; i < groups.count; i++)
+    for (int i = 0; i < Groups.Count; i++)
     {
-        FIDPGroup* group = groups.ReadAndNext();
+        MCFidpGroup* group = Groups.ReadAndNext();
 
-        if (group->id != groupID)
+        if (group->Id != groupID)
         {
             continue;
         }
 
         if (group->AddPlayer(playerID) != 0)
         {
-            FIDPPlayer* player = GetPlayer(playerID);
+            MCFidpPlayer* player = GetPlayer(playerID);
 
             if (player == nullptr)
             {
@@ -1017,15 +1017,15 @@ int SessionManager::AddPlayerToGroup(uint32_t groupID, uint32_t playerID)
 
     if (added != 0)
     {
-        ReportError(directPlay->AddPlayerToGroup(groupID, playerID));
+        ReportError(DirectPlay->AddPlayerToGroup(groupID, playerID));
     }
 
     return added;
 }
 
-int SessionManager::RemovePlayerWithID(uint32_t playerID)
+int MCSessionManager::RemovePlayerWithID(uint32_t playerID)
 {
-    FIDPPlayer* player = GetPlayer(playerID);
+    MCFidpPlayer* player = GetPlayer(playerID);
 
     if (player == nullptr)
     {
@@ -1035,53 +1035,53 @@ int SessionManager::RemovePlayerWithID(uint32_t playerID)
     return RemovePlayerFromGame(player);
 }
 
-int SessionManager::RemovePlayerFromGame(FIDPPlayer* player)
+int MCSessionManager::RemovePlayerFromGame(MCFidpPlayer* player)
 {
-    if (removingPlayer != 0)
+    if (RemovingPlayer != 0)
     {
         return -1;
     }
 
-    removingPlayer = 1;
+    RemovingPlayer = 1;
 
-    if (player->hasPlayerNumber == 0)
+    if (player->HasPlayerNumber == 0)
     {
-        removingPlayer = 0;
+        RemovingPlayer = 0;
         return -1;
     }
 
-    FIValueMessage* msg = static_cast<FIValueMessage*>(linkUpBlocks->Allocate(sizeof(FIValueMessage)));
-    msg->tagger.Clear();
+    MCFIValueMessage* msg = static_cast<MCFIValueMessage*>(LinkUpBlocks->Allocate(sizeof(MCFIValueMessage)));
+    msg->Tagger.Clear();
     SetHeader(msg, FIMSG_GUARANTEED, 9);
-    msg->value = player->id;
-    SendMessageToPlayerGuaranteed(player->id, msg, sizeof(FIValueMessage), 1);
-    player->hasPlayerNumber = 0;
-    linkUpBlocks->Free(msg);
-    removingPlayer = 0;
+    msg->Value = player->Id;
+    SendMessageToPlayerGuaranteed(player->Id, msg, sizeof(MCFIValueMessage), 1);
+    player->HasPlayerNumber = 0;
+    LinkUpBlocks->Free(msg);
+    RemovingPlayer = 0;
     return 0;
 }
 
-int SessionManager::RemovePlayerFromGroup(uint32_t groupID, uint32_t playerID)
+int MCSessionManager::RemovePlayerFromGroup(uint32_t groupID, uint32_t playerID)
 {
     int removed = 0;
 
     if (playerID == 0)
     {
-        playerID = myPlayerID;
+        playerID = MyPlayerID;
     }
 
-    for (FLink<FIDPGroup>* link = groups.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpGroup>* link = Groups.HeadLink; link != nullptr; link = link->Next)
     {
-        FIDPGroup* group = link->data;
+        MCFidpGroup* group = link->Data;
 
-        if (group->id != groupID)
+        if (group->Id != groupID)
         {
             continue;
         }
 
         if (group->RemovePlayer(playerID) != 0)
         {
-            FIDPPlayer* player = GetPlayer(playerID);
+            MCFidpPlayer* player = GetPlayer(playerID);
 
             if (player != nullptr)
             {
@@ -1095,37 +1095,37 @@ int SessionManager::RemovePlayerFromGroup(uint32_t groupID, uint32_t playerID)
 
     if (removed != 0)
     {
-        ReportError(directPlay->DeletePlayerFromGroup(groupID, playerID));
+        ReportError(DirectPlay->DeletePlayerFromGroup(groupID, playerID));
     }
 
     return removed;
 }
 
-void SessionManager::SetGroupData(uint32_t groupID, void* data, uint32_t dataSize, uint32_t flags)
+void MCSessionManager::SetGroupData(uint32_t groupID, void* data, uint32_t dataSize, uint32_t flags)
 {
     if (data != nullptr && dataSize != 0)
     {
-        ReportError(directPlay->SetGroupData(groupID, data, dataSize, flags));
+        ReportError(DirectPlay->SetGroupData(groupID, data, dataSize, flags));
     }
 }
 
-int32_t SessionManager::SetCurrentConnection(int type)
+int32_t MCSessionManager::SetCurrentConnection(int type)
 {
     void* connection = nullptr;
-    connections.current = connections.head;
+    Connections.Current = Connections.HeadLink;
 
     for (;;)
     {
-        FIDPNetworkProtocol* protocol = connections.ReadAndNext();
+        MCFidpNetworkProtocol* protocol = Connections.ReadAndNext();
 
         if (protocol == nullptr)
         {
             break;
         }
 
-        if (protocol->protocolType == type)
+        if (protocol->ProtocolType == type)
         {
-            connection = protocol->connectionBuffer;
+            connection = protocol->ConnectionBuffer;
             break;
         }
     }
@@ -1136,51 +1136,51 @@ int32_t SessionManager::SetCurrentConnection(int type)
     std::vector<uint8_t> copy(static_cast<uint8_t*>(connection),
                               static_cast<uint8_t*>(connection) + MCDirectPlay::ConnectionDataSize);
 
-    if (currentConnection >= 0)
+    if (CurrentConnection >= 0)
     {
         DestroyDirectPlayInterface();
         CreateDirectPlayInterface();
     }
 
-    const int32_t result = static_cast<int32_t>(directPlay->InitializeConnection(copy.data(), 0));
+    const int32_t result = static_cast<int32_t>(DirectPlay->InitializeConnection(copy.data(), 0));
 
     if (type != PROTOCOL_MODEM && result == 0)
     {
         GetSessions();
     }
 
-    currentConnection = type;
+    CurrentConnection = type;
     return result;
 }
 
-void SessionManager::ConnectIPX()
+void MCSessionManager::ConnectIpx()
 {
     SetCurrentConnection(PROTOCOL_IPX);
 }
 
-int32_t SessionManager::EnableDialupNetworking(uint32_t)
+int32_t MCSessionManager::EnableDialupNetworking(uint32_t)
 {
     // Port: the original restored HKCU "Software\Microsoft\Windows\CurrentVersion\Internet Settings\EnableAutodial".
     // The port never changes it (see DisableDialupNetworking).
     return 0;
 }
 
-uint32_t SessionManager::DisableDialupNetworking()
+uint32_t MCSessionManager::DisableDialupNetworking()
 {
     // Port: the original switched Windows' dial-up autodial off in the registry for the length of a TCP/IP game, so
     // looking for sessions wouldn't dial the internet provider. Not the port's business: it reports "was off".
     return 0;
 }
 
-void SessionManager::ConnectTCP(char* ipAddress)
+void MCSessionManager::ConnectTcp(char* ipAddress)
 {
-    if (currentConnection == PROTOCOL_TCPIP)
+    if (CurrentConnection == PROTOCOL_TCPIP)
     {
         DestroyDirectPlayInterface();
         CreateDirectPlayInterface();
     }
 
-    dialupState = DisableDialupNetworking();
+    DialupState = DisableDialupNetworking();
     DPCOMPOUNDADDRESSELEMENT address[2];
     address[0].guidDataType = DPAID_ServiceProvider;
     address[0].dwDataSize = sizeof(_GUID);
@@ -1191,11 +1191,11 @@ void SessionManager::ConnectTCP(char* ipAddress)
 
     if (InitializeConnection(address, 2) == 0)
     {
-        currentConnection = PROTOCOL_TCPIP;
+        CurrentConnection = PROTOCOL_TCPIP;
     }
 }
 
-int32_t SessionManager::ConnectModem(char* phoneNumber, char* modemName)
+int32_t MCSessionManager::ConnectModem(char* phoneNumber, char* modemName)
 {
     if (modemName == nullptr)
     {
@@ -1223,14 +1223,14 @@ int32_t SessionManager::ConnectModem(char* phoneNumber, char* modemName)
 
     if (result == 0)
     {
-        currentConnection = PROTOCOL_MODEM;
+        CurrentConnection = PROTOCOL_MODEM;
     }
 
     return result;
 }
 
-int32_t SessionManager::ConnectComPort(uint32_t port, uint32_t baudRate, uint32_t stopBits, uint32_t parity,
-                                       uint32_t flowControl)
+int32_t MCSessionManager::ConnectComPort(uint32_t port, uint32_t baudRate, uint32_t stopBits, uint32_t parity,
+                                         uint32_t flowControl)
 {
     uint32_t settings[5] = {port, baudRate, stopBits, parity, flowControl};
     DPCOMPOUNDADDRESSELEMENT address[2];
@@ -1244,16 +1244,16 @@ int32_t SessionManager::ConnectComPort(uint32_t port, uint32_t baudRate, uint32_
 
     if (result == 0)
     {
-        currentConnection = PROTOCOL_SERIAL;
+        CurrentConnection = PROTOCOL_SERIAL;
         GetSessions();
     }
 
     return result;
 }
 
-int32_t SessionManager::InitializeConnection(DPCOMPOUNDADDRESSELEMENT* elements, int numElements)
+int32_t MCSessionManager::InitializeConnection(DPCOMPOUNDADDRESSELEMENT* elements, int numElements)
 {
-    if (currentConnection >= 0)
+    if (CurrentConnection >= 0)
     {
         DestroyDirectPlayInterface();
         CreateDirectPlayInterface();
@@ -1270,30 +1270,30 @@ int32_t SessionManager::InitializeConnection(DPCOMPOUNDADDRESSELEMENT* elements,
         ReportError(result);
     }
 
-    void* address = linkUpBlocks->Allocate(size);
+    void* address = LinkUpBlocks->Allocate(size);
     result = MCDirectPlay::CreateCompoundAddress(elements, numElements, address, &size);
 
     if (result == DP_OK)
     {
-        result = directPlay->InitializeConnection(address, 0);
+        result = DirectPlay->InitializeConnection(address, 0);
     }
 
     if (address != nullptr)
     {
-        linkUpBlocks->Free(address);
+        LinkUpBlocks->Free(address);
     }
 
     return static_cast<int32_t>(result);
 }
 
-void SessionManager::AddModemName(const void* data, uint32_t dataSize)
+void MCSessionManager::AddModemName(const void* data, uint32_t dataSize)
 {
     uint32_t used = 0;
     const char* name = static_cast<const char*>(data);
 
     while (used < dataSize)
     {
-        char* slot = modemNames[numModems];
+        char* slot = ModemNames[NumModems];
         std::strncpy(slot, name, 0x3f);
         used += static_cast<uint32_t>(std::strlen(slot) + 1);
         name += std::strlen(slot) + 1;
@@ -1303,13 +1303,13 @@ void SessionManager::AddModemName(const void* data, uint32_t dataSize)
             break;
         }
 
-        numModems++;
+        NumModems++;
     }
 }
 
-int SessionManager::FindModems()
+int MCSessionManager::FindModems()
 {
-    if (currentSession != nullptr)
+    if (CurrentSession != nullptr)
     {
         return -1;
     }
@@ -1322,21 +1322,21 @@ int SessionManager::FindModems()
     // Port: not reached. MCDirectPlay has no modem service provider, so ConnectModem always fails above. The
     // original went on to read the modem connection's address (GetPlayerAddress) and walk it with the lobby's
     // EnumAddress, collecting the names through ModemCallback / AddModemName.
-    numModems = 0;
+    NumModems = 0;
     return -1;
 }
 
-char* SessionManager::GetModemName(int32_t index)
+char* MCSessionManager::GetModemName(int32_t index)
 {
-    if (index < numModems)
+    if (index < NumModems)
     {
-        return modemNames[index];
+        return ModemNames[index];
     }
 
     return nullptr;
 }
 
-int32_t SessionManager::CreateLobby(void** lobby)
+int32_t MCSessionManager::CreateLobby(void** lobby)
 {
     // Port: the DirectPlay lobby object (DirectPlayLobbyCreateA, IDirectPlayLobby2A) only served to build compound
     // addresses, which the port's stand-in does itself (MCDirectPlay::CreateCompoundAddress).
@@ -1344,66 +1344,66 @@ int32_t SessionManager::CreateLobby(void** lobby)
     return 0;
 }
 
-int SessionManager::WasLaunchedFromLobby()
+int MCSessionManager::WasLaunchedFromLobby()
 {
     // Port: no DirectPlay lobby launches the game; GetConnectionSettings answered DPERR_NOTLOBBIED.
     ReportError(DPERR_NOTLOBBIED);
     return 0;
 }
 
-uint32_t SessionManager::SetupLobbyConnection(void (*)(), void (*)())
+uint32_t MCSessionManager::SetupLobbyConnection(void (*)(), void (*)())
 {
     // Port: the original dropped its DirectPlay object, asked the lobby for the connection it was launched with
     // (Connect), and joined or hosted that session. Without a lobby GetConnectionSettings answers DPERR_NOTLOBBIED,
     // and the original then made a new DirectPlay object without enumerating its connections; so does the port.
-    if (directPlay != nullptr)
+    if (DirectPlay != nullptr)
     {
-        directPlay->Close();
-        delete directPlay;
-        directPlay = nullptr;
+        DirectPlay->Close();
+        delete DirectPlay;
+        DirectPlay = nullptr;
     }
 
-    if (directPlay == nullptr)
+    if (DirectPlay == nullptr)
     {
-        directPlay = new MCDirectPlay();
+        DirectPlay = new MCDirectPlay();
     }
 
     return DPERR_NOTLOBBIED;
 }
 
-FLinkedList<FIDPNetworkProtocol>* SessionManager::GetConnections()
+MCFLinkedList<MCFidpNetworkProtocol>* MCSessionManager::GetConnections()
 {
-    connections.current = connections.head;
-    return &connections;
+    Connections.Current = Connections.HeadLink;
+    return &Connections;
 }
 
-void SessionManager::ClearSessionList()
+void MCSessionManager::ClearSessionList()
 {
-    sessions.current = sessions.head;
+    Sessions.Current = Sessions.HeadLink;
 
-    if (currentSession == nullptr)
+    if (CurrentSession == nullptr)
     {
-        FIDPSession::ClearList(sessions);
+        MCFidpSession::ClearList(Sessions);
         return;
     }
 
-    const int numSessions = sessions.count;
+    const int numSessions = Sessions.Count;
 
     for (int i = 0; i < numSessions; i++)
     {
-        FIDPSession* session = sessions.ReadAndNext();
+        MCFidpSession* session = Sessions.ReadAndNext();
 
-        if (session != currentSession)
+        if (session != CurrentSession)
         {
-            sessions.Del(session);
+            Sessions.Del(session);
             delete session;
         }
     }
 }
 
-FLinkedList<FIDPSession>* SessionManager::GetSessions()
+MCFLinkedList<MCFidpSession>* MCSessionManager::GetSessions()
 {
-    if (directPlay == nullptr)
+    if (DirectPlay == nullptr)
     {
         return nullptr;
     }
@@ -1412,75 +1412,75 @@ FLinkedList<FIDPSession>* SessionManager::GetSessions()
     DPSESSIONDESC2 desc;
     std::memset(&desc, 0, sizeof(desc));
     desc.dwSize = sizeof(DPSESSIONDESC2);
-    desc.guidApplication = thisAppGUID;
-    directPlay->EnumSessions(&desc, 0, EnumSessionsCallback, this,
+    desc.guidApplication = ThisAppGuid;
+    DirectPlay->EnumSessions(&desc, 0, EnumSessionsCallback, this,
                              DPENUMSESSIONS_AVAILABLE | DPENUMSESSIONS_ASYNC | DPENUMSESSIONS_PASSWORDREQUIRED |
                                  DPENUMSESSIONS_RETURNSTATUS);
-    sessions.current = sessions.head;
-    return &sessions;
+    Sessions.Current = Sessions.HeadLink;
+    return &Sessions;
 }
 
-FLinkedList<FIDPPlayer>* SessionManager::GetPlayers(FIDPSession* session)
+MCFLinkedList<MCFidpPlayer>* MCSessionManager::GetPlayers(MCFidpSession* session)
 {
-    if (myPlayerID == 0)
+    if (MyPlayerID == 0)
     {
         EnumeratePlayers(session);
     }
     else
     {
-        players.current = players.head;
+        Players.Current = Players.HeadLink;
     }
 
-    players.current = players.head;
-    return &players;
+    Players.Current = Players.HeadLink;
+    return &Players;
 }
 
-void SessionManager::EnumeratePlayers(FIDPSession* session)
+void MCSessionManager::EnumeratePlayers(MCFidpSession* session)
 {
-    FIDPPlayer::ClearList(players);
-    Assert(directPlay != nullptr, 0, nullptr);
-    Assert(currentConnection >= 0, 0, nullptr);
+    MCFidpPlayer::ClearList(Players);
+    Assert(DirectPlay != nullptr, 0, nullptr);
+    Assert(CurrentConnection >= 0, 0, nullptr);
 
     if (session == nullptr)
     {
-        directPlay->EnumPlayers(nullptr, EnumPlayersCallback, this, 0);
+        DirectPlay->EnumPlayers(nullptr, EnumPlayersCallback, this, 0);
     }
     else
     {
-        directPlay->EnumPlayers(&session->sessionDesc.guidInstance, EnumPlayersCallback, this, DPENUMPLAYERS_SESSION);
+        DirectPlay->EnumPlayers(&session->SessionDesc.guidInstance, EnumPlayersCallback, this, DPENUMPLAYERS_SESSION);
     }
 
-    players.current = players.head;
+    Players.Current = Players.HeadLink;
 
-    if (currentSession != nullptr)
+    if (CurrentSession != nullptr)
     {
-        currentSession->sessionDesc.dwCurrentPlayers = players.count;
+        CurrentSession->SessionDesc.dwCurrentPlayers = Players.Count;
     }
 }
 
-FLinkedList<FIDPGroup>* SessionManager::GetGroups(FIDPSession* session)
+MCFLinkedList<MCFidpGroup>* MCSessionManager::GetGroups(MCFidpSession* session)
 {
-    FIDPGroup::ClearList(groups);
-    Assert(directPlay != nullptr, 0, nullptr);
-    Assert(currentConnection >= 0, 0, nullptr);
+    MCFidpGroup::ClearList(Groups);
+    Assert(DirectPlay != nullptr, 0, nullptr);
+    Assert(CurrentConnection >= 0, 0, nullptr);
 
     if (session == nullptr)
     {
-        directPlay->EnumGroups(nullptr, EnumGroupsCallback, this, 0);
+        DirectPlay->EnumGroups(nullptr, EnumGroupsCallback, this, 0);
     }
     else
     {
         // Original behaviour: a listed session's groups are asked for with EnumPlayers (its players come back).
-        directPlay->EnumPlayers(&session->sessionDesc.guidInstance, EnumGroupsCallback, this, DPENUMPLAYERS_SESSION);
+        DirectPlay->EnumPlayers(&session->SessionDesc.guidInstance, EnumGroupsCallback, this, DPENUMPLAYERS_SESSION);
     }
 
-    groups.current = groups.head;
-    return &groups;
+    Groups.Current = Groups.HeadLink;
+    return &Groups;
 }
 
-int32_t SessionManager::Dial()
+int32_t MCSessionManager::Dial()
 {
-    if (currentConnection != PROTOCOL_MODEM)
+    if (CurrentConnection != PROTOCOL_MODEM)
     {
         return 1;
     }
@@ -1489,9 +1489,9 @@ int32_t SessionManager::Dial()
     DPSESSIONDESC2 desc;
     std::memset(&desc, 0, sizeof(desc));
     desc.dwSize = sizeof(DPSESSIONDESC2);
-    desc.guidApplication = thisAppGUID;
+    desc.guidApplication = ThisAppGuid;
     const int32_t result = static_cast<int32_t>(
-        directPlay->EnumSessions(&desc, 0, EnumSessionsCallback, this,
+        DirectPlay->EnumSessions(&desc, 0, EnumSessionsCallback, this,
                                  DPENUMSESSIONS_AVAILABLE | DPENUMSESSIONS_ASYNC | DPENUMSESSIONS_PASSWORDREQUIRED |
                                      DPENUMSESSIONS_RETURNSTATUS));
 
@@ -1504,7 +1504,7 @@ int32_t SessionManager::Dial()
     return result;
 }
 
-void SessionManager::CancelDialing()
+void MCSessionManager::CancelDialing()
 {
     DestroyDirectPlayInterface();
     CreateDirectPlayInterface();
@@ -1512,52 +1512,53 @@ void SessionManager::CancelDialing()
 
 // ---- the per-frame pump ------------------------------------------------------------------------------------------
 
-int SessionManager::SendVerifies()
+int MCSessionManager::SendVerifies()
 {
     for (int i = 0; i < 6; i++)
     {
-        const FIVerifyMessage* verify = reinterpret_cast<FIVerifyMessage*>(verifyMessages[i]);
+        const MCFIVerifyMessage* verify = reinterpret_cast<MCFIVerifyMessage*>(VerifyMessages[i]);
 
-        if (verify->count != 0)
+        if (verify->Count != 0)
         {
-            FIDPPlayer* player = GetPlayerNumber(i);
+            MCFidpPlayer* player = GetPlayerNumber(i);
 
             if (player != nullptr)
             {
-                SendMessageA(player->id, reinterpret_cast<FIMessageHeader*>(verifyMessages[i]), verify->count * 6 + 3);
+                SendMessageA(player->Id, reinterpret_cast<MCFIMessageHeader*>(VerifyMessages[i]),
+                             verify->Count * 6 + 3);
             }
         }
     }
 
     for (int i = 0; i < 6; i++)
     {
-        ResetVerify(verifyMessages[i]);
+        ResetVerify(VerifyMessages[i]);
     }
 
     return 0;
 }
 
-void SessionManager::ProcessMessages()
+void MCSessionManager::ProcessMessages()
 {
-    if (myPlayerID == 0)
+    if (MyPlayerID == 0)
     {
         return;
     }
 
-    if (hasPlayerNumber != 0 && players.count > 1 && isHost != 0)
+    if (HasPlayerNumber != 0 && Players.Count > 1 && IsHost != 0)
     {
         const uint32_t now = PerformanceTicks();
 
         // Port fix: compared as a signed difference; the low 32 bits of a modern performance counter wrap every few
         // minutes, and a plain "next < now" then stopped (or flooded) the pings until it wrapped again.
-        if (static_cast<int32_t>(now - nextPingTime) > 0)
+        if (static_cast<int32_t>(now - NextPingTime) > 0)
         {
             SendPing();
-            nextPingTime = now + pingInterval * TicksPerMS;
+            NextPingTime = now + PingInterval * TicksPerMS;
         }
     }
 
-    std::lock_guard lock(criticalSection);
+    std::lock_guard lock(CriticalSection);
     ReceiveThread();
     UpdateGuaranteedMessages();
 
@@ -1567,23 +1568,23 @@ void SessionManager::ProcessMessages()
     }
 }
 
-int SessionManager::ProcessSystemMessages()
+int MCSessionManager::ProcessSystemMessages()
 {
-    const int numMessages = systemMessages->Size();
+    const int numMessages = SystemMessages->Size();
     int i = 0;
 
     for (; i < numMessages; i++)
     {
-        FIDPMessage* msg = systemMessages->Head();
+        MCFidpMessage* msg = SystemMessages->Head();
         HandlePreSystemMessage(msg);
-        systemMessages->TossHead();
+        SystemMessages->TossHead();
 
-        if (systemCallback != nullptr)
+        if (SystemCallback != nullptr)
         {
-            systemCallback(msg, systemCallbackData);
+            SystemCallback(msg, SystemCallbackData);
         }
 
-        if (reinterpret_cast<DPMSG_GENERIC*>(msg->messageBuffer)->dwType == DPSYS_SESSIONLOST)
+        if (reinterpret_cast<DPMSG_GENERIC*>(msg->MessageBuffer)->dwType == DPSYS_SESSIONLOST)
         {
             return -1;
         }
@@ -1595,20 +1596,20 @@ int SessionManager::ProcessSystemMessages()
     return i;
 }
 
-void SessionManager::ProcessGuaranteedMessages()
+void MCSessionManager::ProcessGuaranteedMessages()
 {
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        FIDPPlayer* player = link->data;
+        MCFidpPlayer* player = link->Data;
 
-        if (player == myPlayer)
+        if (player == MyPlayer)
         {
             continue;
         }
 
-        while (FIDPMessage* msg = player->NextMessageToProcess())
+        while (MCFidpMessage* msg = player->NextMessageToProcess())
         {
-            if (msg->messageBuffer == nullptr)
+            if (msg->MessageBuffer == nullptr)
             {
                 delete msg;
                 continue;
@@ -1616,7 +1617,7 @@ void SessionManager::ProcessGuaranteedMessages()
 
             HandleApplicationMessage(msg);
 
-            if (TypeOf(msg->messageBuffer) == 9)
+            if (TypeOf(msg->MessageBuffer) == 9)
             {
                 return;
             }
@@ -1624,60 +1625,60 @@ void SessionManager::ProcessGuaranteedMessages()
     }
 }
 
-int SessionManager::ProcessApplicationMessages()
+int MCSessionManager::ProcessApplicationMessages()
 {
-    const int numMessages = applicationMessages->Size();
-    FIDPMessage* msg = applicationMessages->Head();
+    const int numMessages = ApplicationMessages->Size();
+    MCFidpMessage* msg = ApplicationMessages->Head();
 
     while (msg != nullptr)
     {
         HandleApplicationMessage(msg);
 
-        if (TypeOf(msg->messageBuffer) == 9)
+        if (TypeOf(msg->MessageBuffer) == 9)
         {
             return -1;
         }
 
-        applicationMessages->TossHead();
-        msg = applicationMessages->Head();
+        ApplicationMessages->TossHead();
+        msg = ApplicationMessages->Head();
     }
 
     ProcessGuaranteedMessages();
     return numMessages;
 }
 
-int SessionManager::ReceiveThread()
+int MCSessionManager::ReceiveThread()
 {
-    if (myPlayer == nullptr)
+    if (MyPlayer == nullptr)
     {
         return -1;
     }
 
-    inReceiveThread = 1;
+    InReceiveThread = 1;
 
     for (int i = 0; i < 6; i++)
     {
-        ResetVerify(verifyMessages[i]);
+        ResetVerify(VerifyMessages[i]);
     }
 
     int32_t result;
 
     do
     {
-        FIDPMessage* msg = GetMessageFromEmptyQueue();
+        MCFidpMessage* msg = GetMessageFromEmptyQueue();
 
         if (msg == nullptr)
         {
             return 0;
         }
 
-        result = msg->ReceiveMessage(directPlay);
+        result = msg->ReceiveMessage(DirectPlay);
 
         if (result == 0)
         {
-            if (msg->fromID == DPID_SYSMSG)
+            if (msg->FromID == DPID_SYSMSG)
             {
-                systemMessages->Add(msg);
+                SystemMessages->Add(msg);
             }
             else
             {
@@ -1692,22 +1693,22 @@ int SessionManager::ReceiveThread()
 
     for (int i = 0; i < 6; i++)
     {
-        const FIVerifyMessage* verify = reinterpret_cast<FIVerifyMessage*>(verifyMessages[i]);
+        const MCFIVerifyMessage* verify = reinterpret_cast<MCFIVerifyMessage*>(VerifyMessages[i]);
 
-        if (verify->count != 0)
+        if (verify->Count != 0)
         {
-            SendMessageA(RTGetIDFromPlayerNumber(i), reinterpret_cast<FIMessageHeader*>(verifyMessages[i]),
-                         verify->count * 6 + 3);
+            SendMessageA(RTGetIDFromPlayerNumber(i), reinterpret_cast<MCFIMessageHeader*>(VerifyMessages[i]),
+                         verify->Count * 6 + 3);
         }
     }
 
-    inReceiveThread = 0;
+    InReceiveThread = 0;
     return 0;
 }
 
-void SessionManager::RTProcessApplicationMessage(FIDPMessage* msg)
+void MCSessionManager::RTProcessApplicationMessage(MCFidpMessage* msg)
 {
-    FIDPPlayer* sender = RTGetPlayer(msg->fromID);
+    MCFidpPlayer* sender = RTGetPlayer(msg->FromID);
 
     if (sender == nullptr)
     {
@@ -1715,21 +1716,21 @@ void SessionManager::RTProcessApplicationMessage(FIDPMessage* msg)
         return;
     }
 
-    uint8_t* buffer = msg->messageBuffer;
+    uint8_t* buffer = msg->MessageBuffer;
     const uint16_t header = HeaderOf(buffer);
     const uint16_t type = header & FIMSG_TYPE_MASK;
 
-    if (hasPlayerNumber != 0)
+    if (HasPlayerNumber != 0)
     {
         if ((header & FIMSG_GUARANTEED) == 0 || type == 9)
         {
             if (type == 1)
             {
-                const FIVerifyMessage* verify = reinterpret_cast<FIVerifyMessage*>(buffer);
+                const MCFIVerifyMessage* verify = reinterpret_cast<MCFIVerifyMessage*>(buffer);
 
-                for (int i = 0; i < verify->count; i++)
+                for (int i = 0; i < verify->Count; i++)
                 {
-                    FIDPMessage* verified = sender->RemoveFromVerifyList(verify->entries[i][myPlayer->playerNumber]);
+                    MCFidpMessage* verified = sender->RemoveFromVerifyList(verify->Entries[i][MyPlayer->PlayerNumber]);
 
                     if (verified != nullptr)
                     {
@@ -1741,7 +1742,7 @@ void SessionManager::RTProcessApplicationMessage(FIDPMessage* msg)
             }
             else
             {
-                applicationMessages->Add(msg);
+                ApplicationMessages->Add(msg);
             }
         }
         else
@@ -1756,11 +1757,11 @@ void SessionManager::RTProcessApplicationMessage(FIDPMessage* msg)
     {
         if ((header & FIMSG_GUARANTEED) == 0 || type == 9)
         {
-            applicationMessages->Add(msg);
+            ApplicationMessages->Add(msg);
         }
-        else if (launchedFromLobby == 0)
+        else if (LaunchedFromLobby == 0)
         {
-            preIDReceivedMessages->Add(msg);
+            PreIDReceivedMessages->Add(msg);
         }
         else
         {
@@ -1771,29 +1772,29 @@ void SessionManager::RTProcessApplicationMessage(FIDPMessage* msg)
     }
 
     // The server's player numbers: this machine (and everyone it knows) gets its number.
-    const FIPlayerNumbersMessage* numbers = reinterpret_cast<FIPlayerNumbersMessage*>(buffer);
-    const int numPlayers = players.count;
+    const MCFIPlayerNumbersMessage* numbers = reinterpret_cast<MCFIPlayerNumbersMessage*>(buffer);
+    const int numPlayers = Players.Count;
 
-    if (launchedFromLobby == 0)
+    if (LaunchedFromLobby == 0)
     {
-        for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+        for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
         {
-            FIDPPlayer* player = link->data;
+            MCFidpPlayer* player = link->Data;
             int number = -1;
 
             for (int i = 0; i < 6; i++)
             {
-                if (numbers->playerIDs[i] == player->id)
+                if (numbers->PlayerIDs[i] == player->Id)
                 {
                     number = i;
                     break;
                 }
             }
 
-            player->playerNumber = number;
-            player->hasPlayerNumber = 1;
+            player->PlayerNumber = number;
+            player->HasPlayerNumber = 1;
 
-            if (player->playerNumber > 5)
+            if (player->PlayerNumber > 5)
             {
                 return;
             }
@@ -1803,48 +1804,48 @@ void SessionManager::RTProcessApplicationMessage(FIDPMessage* msg)
     {
         for (int i = 0; i < 6; i++)
         {
-            if (numbers->playerIDs[i] == 0)
+            if (numbers->PlayerIDs[i] == 0)
             {
                 continue;
             }
 
-            FIDPPlayer* player = GetPlayer(numbers->playerIDs[i]);
+            MCFidpPlayer* player = GetPlayer(numbers->PlayerIDs[i]);
 
             if (player == nullptr)
             {
-                newPlayerNumbers[i] = numbers->playerIDs[i];
+                NewPlayerNumbers[i] = numbers->PlayerIDs[i];
             }
             else
             {
-                player->playerNumber = i;
-                player->hasPlayerNumber = 1;
+                player->PlayerNumber = i;
+                player->HasPlayerNumber = 1;
             }
         }
     }
 
-    serverID = numbers->playerIDs[numbers->serverNumber];
+    ServerID = numbers->PlayerIDs[numbers->ServerNumber];
 
-    if (myPlayer->playerNumber == -1)
+    if (MyPlayer->PlayerNumber == -1)
     {
         AddMessageToEmptyQueue(msg);
         return;
     }
 
-    hasPlayerNumber = 1;
+    HasPlayerNumber = 1;
 
-    if (launchedFromLobby == 0)
+    if (LaunchedFromLobby == 0)
     {
         int numbered = 0;
 
-        for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+        for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
         {
-            FIDPPlayer* player = link->data;
+            MCFidpPlayer* player = link->Data;
 
-            if (player->playerNumber == -1)
+            if (player->PlayerNumber == -1)
             {
                 GivePlayerAnID(player);
 
-                if (player->playerNumber < 0 || player->playerNumber > 5)
+                if (player->PlayerNumber < 0 || player->PlayerNumber > 5)
                 {
                     return;
                 }
@@ -1859,23 +1860,23 @@ void SessionManager::RTProcessApplicationMessage(FIDPMessage* msg)
         }
     }
 
-    const uint8_t sendCount = numbers->tagger.sendCount[myPlayer->playerNumber];
+    const uint8_t sendCount = numbers->Tagger.SendCount[MyPlayer->PlayerNumber];
     sender->HandleIncomingMessage(msg, sendCount);
     sender->NextMessageToProcess();
-    uint8_t* verify = verifyMessages[sender->playerNumber];
-    FIVerifyMessage* verifyMessage = reinterpret_cast<FIVerifyMessage*>(verify);
-    std::memset(verifyMessage->entries[verifyMessage->count], 0, 6);
-    verifyMessage->entries[verifyMessage->count][sender->playerNumber] = sendCount;
-    verifyMessage->count++;
+    uint8_t* verify = VerifyMessages[sender->PlayerNumber];
+    MCFIVerifyMessage* verifyMessage = reinterpret_cast<MCFIVerifyMessage*>(verify);
+    std::memset(verifyMessage->Entries[verifyMessage->Count], 0, 6);
+    verifyMessage->Entries[verifyMessage->Count][sender->PlayerNumber] = sendCount;
+    verifyMessage->Count++;
     AddMessageToEmptyQueue(msg);
 
     // The guaranteed messages that came before the numbers can be put in order now.
-    const int numEarly = preIDReceivedMessages->Size();
+    const int numEarly = PreIDReceivedMessages->Size();
 
     for (int i = 0; i < numEarly; i++)
     {
-        FIDPMessage* early = preIDReceivedMessages->Head();
-        FIDPPlayer* earlySender = RTGetPlayer(early->fromID);
+        MCFidpMessage* early = PreIDReceivedMessages->Head();
+        MCFidpPlayer* earlySender = RTGetPlayer(early->FromID);
 
         if (earlySender == nullptr)
         {
@@ -1886,29 +1887,29 @@ void SessionManager::RTProcessApplicationMessage(FIDPMessage* msg)
             RTHandleNewGuaranteedMessage(early, earlySender);
         }
 
-        preIDReceivedMessages->TossHead();
+        PreIDReceivedMessages->TossHead();
     }
 
     SendPreIDGuaranteedMessages();
 }
 
-void SessionManager::RTHandleNewGuaranteedMessage(FIDPMessage* msg, FIDPPlayer* player)
+void MCSessionManager::RTHandleNewGuaranteedMessage(MCFidpMessage* msg, MCFidpPlayer* player)
 {
     int stored = 0;
-    const uint8_t sendCount = msg->messageBuffer[2 + myPlayer->playerNumber];
+    const uint8_t sendCount = msg->MessageBuffer[2 + MyPlayer->PlayerNumber];
 
-    if (player == nullptr || player->playerNumber >= 6 || player->playerNumber < 0)
+    if (player == nullptr || player->PlayerNumber >= 6 || player->PlayerNumber < 0)
     {
         return;
     }
 
-    FIVerifyMessage* verify = reinterpret_cast<FIVerifyMessage*>(verifyMessages[player->playerNumber]);
+    MCFIVerifyMessage* verify = reinterpret_cast<MCFIVerifyMessage*>(VerifyMessages[player->PlayerNumber]);
 
-    if (verify->count < 0x28)
+    if (verify->Count < 0x28)
     {
-        std::memset(verify->entries[verify->count], 0, 6);
-        verify->entries[verify->count][player->playerNumber] = sendCount;
-        verify->count++;
+        std::memset(verify->Entries[verify->Count], 0, 6);
+        verify->Entries[verify->Count][player->PlayerNumber] = sendCount;
+        verify->Count++;
         stored = player->HandleIncomingMessage(msg, sendCount);
     }
 
@@ -1918,84 +1919,84 @@ void SessionManager::RTHandleNewGuaranteedMessage(FIDPMessage* msg, FIDPPlayer* 
     }
 }
 
-uint32_t SessionManager::RTGetIDFromPlayerNumber(int playerNumber)
+uint32_t MCSessionManager::RTGetIDFromPlayerNumber(int playerNumber)
 {
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (link->data->playerNumber == playerNumber)
+        if (link->Data->PlayerNumber == playerNumber)
         {
-            return link->data->id;
+            return link->Data->Id;
         }
     }
 
     return 0;
 }
 
-FIDPPlayer* SessionManager::RTGetPlayer(uint32_t playerID)
+MCFidpPlayer* MCSessionManager::RTGetPlayer(uint32_t playerID)
 {
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (link->data->id == playerID)
+        if (link->Data->Id == playerID)
         {
-            return link->data;
+            return link->Data;
         }
     }
 
     return nullptr;
 }
 
-void SessionManager::UpdatePlayerGuaranteedMessages(FIDPPlayer* player, uint32_t now)
+void MCSessionManager::UpdatePlayerGuaranteedMessages(MCFidpPlayer* player, uint32_t now)
 {
-    player->verifyList.current = player->verifyList.head;
-    const int numMessages = player->verifyList.count;
+    player->VerifyList.Current = player->VerifyList.HeadLink;
+    const int numMessages = player->VerifyList.Count;
 
     for (int i = 0; i < numMessages; i++)
     {
-        FIDPMessage* msg = player->verifyList.ReadAndNext();
+        MCFidpMessage* msg = player->VerifyList.ReadAndNext();
 
-        if ((player->hasPlayerNumber != 0 || TypeOf(msg->messageBuffer) == 9) &&
-            player->resendDelay * msg->timesSent < (now - msg->sendTime) / TicksPerMS)
+        if ((player->HasPlayerNumber != 0 || TypeOf(msg->MessageBuffer) == 9) &&
+            player->ResendDelay * msg->TimesSent < (now - msg->SendTime) / TicksPerMS)
         {
-            SendMessageA(player->id, reinterpret_cast<FIMessageHeader*>(msg->messageBuffer), msg->messageSize);
-            msg->wasResent = 1;
-            msg->timesSent++;
-            msg->sendTime = now;
+            SendMessageA(player->Id, reinterpret_cast<MCFIMessageHeader*>(msg->MessageBuffer), msg->MessageSize);
+            msg->WasResent = 1;
+            msg->TimesSent++;
+            msg->SendTime = now;
         }
     }
 }
 
-void SessionManager::UpdateGuaranteedMessages()
+void MCSessionManager::UpdateGuaranteedMessages()
 {
     const uint32_t now = PerformanceTicks();
 
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (link->data != myPlayer)
+        if (link->Data != MyPlayer)
         {
-            UpdatePlayerGuaranteedMessages(link->data, now);
+            UpdatePlayerGuaranteedMessages(link->Data, now);
         }
     }
 }
 
 // Nothing in MCX.EXE calls this (OB-107).
-void SessionManager::UpdateFileTransfers()
+void MCSessionManager::UpdateFileTransfers()
 {
-    const int numTransfers = outgoingFiles.count;
-    outgoingFiles.current = outgoingFiles.head;
+    const int numTransfers = OutgoingFiles.Count;
+    OutgoingFiles.Current = OutgoingFiles.HeadLink;
 
     for (int i = 0; i < numTransfers; i++)
     {
-        FileTransferInfo* transfer = outgoingFiles.current->data;
+        MCFileTransferInfo* transfer = OutgoingFiles.Current->Data;
         const int finished = transfer->PrepareNextMessage();
-        SendMessageFromInfo(transfer->message);
+        SendMessageFromInfo(transfer->Message);
 
         if (finished != 0)
         {
-            outgoingFiles.Del(transfer);
+            OutgoingFiles.Del(transfer);
 
-            if (transfer->callback != nullptr)
+            if (transfer->Callback != nullptr)
             {
-                transfer->callback(transfer->fileName, nullptr);
+                transfer->Callback(transfer->FileName, nullptr);
             }
 
             delete transfer;
@@ -2005,41 +2006,41 @@ void SessionManager::UpdateFileTransfers()
 
 // ---- sending -----------------------------------------------------------------------------------------------------
 
-void SessionManager::SetupMessageSendCounts(FIGuaranteedMessageHeader* header, FLinkedList<FIDPPlayer>* list)
+void MCSessionManager::SetupMessageSendCounts(MCFIGuaranteedMessageHeader* header, MCFLinkedList<MCFidpPlayer>* list)
 {
-    for (FLink<FIDPPlayer>* link = list->head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = list->HeadLink; link != nullptr; link = link->Next)
     {
-        FIDPPlayer* player = link->data;
+        MCFidpPlayer* player = link->Data;
 
-        if (player != myPlayer && player->hasPlayerNumber != 0 && player->playerNumber != -1 &&
-            player->playerNumber < 6)
+        if (player != MyPlayer && player->HasPlayerNumber != 0 && player->PlayerNumber != -1 &&
+            player->PlayerNumber < 6)
         {
-            player->outgoingSendCount++;
-            header->tagger.sendCount[player->playerNumber] = player->outgoingSendCount;
+            player->OutgoingSendCount++;
+            header->Tagger.SendCount[player->PlayerNumber] = player->OutgoingSendCount;
         }
     }
 
-    header->header |= FIMSG_GROUP_MESSAGE;
-    header->header |= FIMSG_GUARANTEED;
+    header->Header |= FIMSG_GROUP_MESSAGE;
+    header->Header |= FIMSG_GUARANTEED;
 }
 
-void SessionManager::StartGame()
+void MCSessionManager::StartGame()
 {
-    FIGuaranteedMessageHeader msg;
-    msg.tagger.Clear();
-    msg.header = 0x1005;
+    MCFIGuaranteedMessageHeader msg;
+    msg.Tagger.Clear();
+    msg.Header = 0x1005;
     SendMessageToGroup(0, &msg, sizeof(msg));
-    gameStarted = 1;
+    GameStarted = 1;
 }
 
-int32_t SessionManager::SendPing()
+int32_t MCSessionManager::SendPing()
 {
     // Port fix: cleared (the original sent the uninitialised rest of a stack buffer, its header included).
     uint8_t buffer[256] = {};
-    FIPingMessage* ping = reinterpret_cast<FIPingMessage*>(buffer);
-    ping->header |= 10;
+    MCFIPingMessage* ping = reinterpret_cast<MCFIPingMessage*>(buffer);
+    ping->Header |= 10;
 
-    if (isHost == 0)
+    if (IsHost == 0)
     {
         SendMessageToGroup(0, ping, 9);
         return 0;
@@ -2048,46 +2049,46 @@ int32_t SessionManager::SendPing()
     int32_t numbers[6];
     size_t count = 0;
 
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
         // Port fix: bounded to the six numbers the message holds.
-        if (link->data != myPlayer && count < 6)
+        if (link->Data != MyPlayer && count < 6)
         {
-            numbers[count] = link->data->playerNumber;
+            numbers[count] = link->Data->PlayerNumber;
             count++;
         }
     }
 
-    Assert(count == static_cast<size_t>(players.count - 1), 0, "nPlayers is incorrect");
+    Assert(count == static_cast<size_t>(Players.Count - 1), 0, "nPlayers is incorrect");
     std::qsort(numbers, count, sizeof(int32_t), [](const void* a, const void* b)
                { return CompareLatencies(static_cast<const int32_t*>(a), static_cast<const int32_t*>(b)); });
-    ping->count = static_cast<uint8_t>(count);
+    ping->Count = static_cast<uint8_t>(count);
 
     for (size_t i = 0; i < count; i++)
     {
-        ping->playerNumbers[i] = static_cast<uint8_t>(numbers[i]);
+        ping->PlayerNumbers[i] = static_cast<uint8_t>(numbers[i]);
     }
 
-    SendMessageToGroup(0, ping, ping->count + 9);
+    SendMessageToGroup(0, ping, ping->Count + 9);
     return 0;
 }
 
-void SessionManager::SendPlayersInGroupMessages(uint32_t groupID)
+void MCSessionManager::SendPlayersInGroupMessages(uint32_t groupID)
 {
-    FIPlayersInGroupMessage* msg = static_cast<FIPlayersInGroupMessage*>(linkUpBlocks->Allocate(300));
-    groups.current = groups.head;
+    MCFIPlayersInGroupMessage* msg = static_cast<MCFIPlayersInGroupMessage*>(LinkUpBlocks->Allocate(300));
+    Groups.Current = Groups.HeadLink;
 
-    for (int i = 0; i < groups.count; i++)
+    for (int i = 0; i < Groups.Count; i++)
     {
         std::memset(msg, 0, 300);
-        msg->header = static_cast<uint16_t>((msg->header & ~FIMSG_TYPE_MASK) | 3);
-        FIDPGroup* group = groups.ReadAndNext();
-        msg->groupID = group->id;
-        group->players.current = group->players.head;
+        msg->Header = static_cast<uint16_t>((msg->Header & ~FIMSG_TYPE_MASK) | 3);
+        MCFidpGroup* group = Groups.ReadAndNext();
+        msg->GroupID = group->Id;
+        group->Players.Current = group->Players.HeadLink;
 
-        for (int j = 0; j < group->players.count; j++)
+        for (int j = 0; j < group->Players.Count; j++)
         {
-            msg->playerIDs[j] = *group->players.ReadAndNext();
+            msg->PlayerIDs[j] = *group->Players.ReadAndNext();
         }
 
         if (groupID == 0)
@@ -2100,110 +2101,110 @@ void SessionManager::SendPlayersInGroupMessages(uint32_t groupID)
         }
     }
 
-    linkUpBlocks->Free(msg);
+    LinkUpBlocks->Free(msg);
 }
 
-void SessionManager::SendPreIDGuaranteedMessages()
+void MCSessionManager::SendPreIDGuaranteedMessages()
 {
-    preIDGroupMessages->Head();
-    const int numGroupMessages = preIDGroupMessages->Size();
+    PreIDGroupMessages->Head();
+    const int numGroupMessages = PreIDGroupMessages->Size();
 
     for (int i = 0; i < numGroupMessages; i++)
     {
-        FIDPMessage* msg = preIDGroupMessages->Head();
+        MCFidpMessage* msg = PreIDGroupMessages->Head();
         SendMessageFromInfo(msg);
         AddMessageToEmptyQueue(msg);
-        preIDGroupMessages->TossHead();
+        PreIDGroupMessages->TossHead();
     }
 
-    const int numServerMessages = preIDServerMessages->Size();
-    preIDServerMessages->Head();
+    const int numServerMessages = PreIDServerMessages->Size();
+    PreIDServerMessages->Head();
 
     for (int i = 0; i < numServerMessages; i++)
     {
-        FIDPMessage* msg = preIDServerMessages->Head();
-        FIGuaranteedMessageHeader* header = reinterpret_cast<FIGuaranteedMessageHeader*>(msg->messageBuffer);
+        MCFidpMessage* msg = PreIDServerMessages->Head();
+        MCFIGuaranteedMessageHeader* header = reinterpret_cast<MCFIGuaranteedMessageHeader*>(msg->MessageBuffer);
 
         // Original behaviour: these messages are not returned to the free queue.
-        if ((header->header & FIMSG_GUARANTEED) == 0)
+        if ((header->Header & FIMSG_GUARANTEED) == 0)
         {
-            SendMessageToServer(header, msg->messageSize);
+            SendMessageToServer(header, msg->MessageSize);
         }
         else
         {
-            SendMessageToServerGuaranteed(header, msg->messageSize);
+            SendMessageToServerGuaranteed(header, msg->MessageSize);
         }
 
-        preIDServerMessages->TossHead();
+        PreIDServerMessages->TossHead();
     }
 }
 
-void SessionManager::SendMessageToGroup(uint32_t groupID, FIGuaranteedMessageHeader* header, uint32_t size)
+void MCSessionManager::SendMessageToGroup(uint32_t groupID, MCFIGuaranteedMessageHeader* header, uint32_t size)
 {
-    if (hasPlayerNumber == 0)
+    if (HasPlayerNumber == 0)
     {
-        if (launchedFromLobby == 0)
+        if (LaunchedFromLobby == 0)
         {
-            std::lock_guard lock(criticalSection);
-            FIDPMessage* msg = GetMessageFromEmptyQueue();
-            header->header |= FIMSG_GROUP_MESSAGE;
+            std::lock_guard lock(CriticalSection);
+            MCFidpMessage* msg = GetMessageFromEmptyQueue();
+            header->Header |= FIMSG_GROUP_MESSAGE;
             msg->SetMessageBuffer(header, size);
-            msg->toID = groupID;
-            preIDGroupMessages->Add(msg);
+            msg->ToID = groupID;
+            PreIDGroupMessages->Add(msg);
         }
 
         return;
     }
 
-    FLinkedList<FIDPPlayer>* list;
+    MCFLinkedList<MCFidpPlayer>* list;
 
     if (groupID == 0)
     {
-        list = &players;
+        list = &Players;
     }
     else
     {
-        list = new FLinkedList<FIDPPlayer>();
+        list = new MCFLinkedList<MCFidpPlayer>();
         GetPlayerListForGroup(groupID, list);
     }
 
-    if (sessionLocked == 0 || launchedFromLobby == 0)
+    if (SessionLocked == 0 || LaunchedFromLobby == 0)
     {
-        for (FLink<FIDPPlayer>* link = list->head; link != nullptr; link = link->next)
+        for (MCFLink<MCFidpPlayer>* link = list->HeadLink; link != nullptr; link = link->Next)
         {
             // Port fix: a member the session no longer knows is listed as null; skipped.
-            if (link->data != myPlayer && link->data != nullptr)
+            if (link->Data != MyPlayer && link->Data != nullptr)
             {
-                SendMessageToPlayerGuaranteed(link->data->id, header, size, 1);
+                SendMessageToPlayerGuaranteed(link->Data->Id, header, size, 1);
             }
         }
     }
     else
     {
-        for (FLink<FIDPPlayer>* link = list->head; link != nullptr; link = link->next)
+        for (MCFLink<MCFidpPlayer>* link = list->HeadLink; link != nullptr; link = link->Next)
         {
-            if (link->data != myPlayer && link->data != nullptr && link->data->IsVerifyListFull() != 0)
+            if (link->Data != MyPlayer && link->Data != nullptr && link->Data->IsVerifyListFull() != 0)
             {
-                RemovePlayerFromGame(link->data);
+                RemovePlayerFromGame(link->Data);
             }
         }
 
-        std::lock_guard lock(criticalSection);
+        std::lock_guard lock(CriticalSection);
         SetupMessageSendCounts(header, list);
 
         if (SendMessageA(groupID, header, size) == 0)
         {
-            for (FLink<FIDPPlayer>* link = list->head; link != nullptr; link = link->next)
+            for (MCFLink<MCFidpPlayer>* link = list->HeadLink; link != nullptr; link = link->Next)
             {
-                FIDPPlayer* player = link->data;
+                MCFidpPlayer* player = link->Data;
 
-                if (player != nullptr && player->hasPlayerNumber != 0 && player != myPlayer)
+                if (player != nullptr && player->HasPlayerNumber != 0 && player != MyPlayer)
                 {
-                    const uint32_t playerID = player->id;
-                    FIDPMessage* msg = GetMessageFromEmptyQueue();
-                    header->header &= ~FIMSG_GROUP_MESSAGE;
+                    const uint32_t playerID = player->Id;
+                    MCFidpMessage* msg = GetMessageFromEmptyQueue();
+                    header->Header &= ~FIMSG_GROUP_MESSAGE;
                     msg->SetMessageBuffer(header, size);
-                    msg->toID = playerID;
+                    msg->ToID = playerID;
                     player->AddToVerifyList(msg);
                 }
             }
@@ -2216,269 +2217,269 @@ void SessionManager::SendMessageToGroup(uint32_t groupID, FIGuaranteedMessageHea
     }
 }
 
-void SessionManager::GetPlayerListForGroup(uint32_t groupID, FLinkedList<FIDPPlayer>* list)
+void MCSessionManager::GetPlayerListForGroup(uint32_t groupID, MCFLinkedList<MCFidpPlayer>* list)
 {
-    FIDPGroup* group = GetGroup(groupID);
+    MCFidpGroup* group = GetGroup(groupID);
     Assert(group != nullptr, 0, "Group does not exist");
-    group->players.current = group->players.head;
-    const int numPlayers = group->players.count;
+    group->Players.Current = group->Players.HeadLink;
+    const int numPlayers = group->Players.Count;
 
     for (int i = 0; i < numPlayers; i++)
     {
-        const uint32_t* playerID = group->players.ReadAndNext();
+        const uint32_t* playerID = group->Players.ReadAndNext();
         list->Add(GetPlayer(*playerID));
     }
 }
 
-uint32_t SessionManager::TallyLatencies()
+uint32_t MCSessionManager::TallyLatencies()
 {
     uint32_t total = 0;
 
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (link->data != myPlayer)
+        if (link->Data != MyPlayer)
         {
-            total += link->data->AverageLatency();
+            total += link->Data->AverageLatency();
         }
     }
 
-    if (players.count == 1)
+    if (Players.Count == 1)
     {
         return 0;
     }
 
-    return total / static_cast<uint32_t>(players.count - 1);
+    return total / static_cast<uint32_t>(Players.Count - 1);
 }
 
-void SessionManager::ProcessLatencyMessage(FIMessageHeader* msg, uint32_t fromID)
+void MCSessionManager::ProcessLatencyMessage(MCFIMessageHeader* msg, uint32_t fromID)
 {
     bool allReported = true;
-    FIDPPlayer* player = GetPlayer(fromID);
+    MCFidpPlayer* player = GetPlayer(fromID);
     Assert(player != nullptr, 0, "ProcessLatencyMessage - null player");
-    player->reportedLatency = reinterpret_cast<FIValueMessage*>(msg)->value;
+    player->ReportedLatency = reinterpret_cast<MCFIValueMessage*>(msg)->Value;
 
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (link->data->reportedLatency == 0)
+        if (link->Data->ReportedLatency == 0)
         {
             allReported = false;
             break;
         }
     }
 
-    readyToChooseServer = allReported ? 1 : 0;
+    LatencyReportsIn = allReported ? 1 : 0;
 }
 
-void SessionManager::SendLatencyInfo()
+void MCSessionManager::SendLatencyInfo()
 {
-    if (isHost == 0)
+    if (IsHost == 0)
     {
-        FIValueMessage msg;
-        msg.value = TallyLatencies();
-        msg.tagger.Clear();
-        msg.header = 0x100c;
+        MCFIValueMessage msg;
+        msg.Value = TallyLatencies();
+        msg.Tagger.Clear();
+        msg.Header = 0x100c;
         SendMessageToServerGuaranteed(&msg, sizeof(msg));
     }
     else
     {
-        myPlayer->reportedLatency = TallyLatencies();
+        MyPlayer->ReportedLatency = TallyLatencies();
 
-        if (myPlayer->reportedLatency == 0)
+        if (MyPlayer->ReportedLatency == 0)
         {
-            myPlayer->reportedLatency = 1000;
+            MyPlayer->ReportedLatency = 1000;
         }
     }
 }
 
-void SessionManager::SwitchServers()
+void MCSessionManager::SwitchServers()
 {
-    if (isHost == 0 || launchedFromLobby != 0)
+    if (IsHost == 0 || LaunchedFromLobby != 0)
     {
         return;
     }
 
     uint32_t mostMemory = 100000;
-    FIDPPlayer* best = players.head != nullptr ? players.head->data : nullptr;
+    MCFidpPlayer* best = Players.HeadLink != nullptr ? Players.HeadLink->Data : nullptr;
 
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (mostMemory < link->data->totalPhysicalMemory)
+        if (mostMemory < link->Data->TotalPhysicalMemory)
         {
-            best = link->data;
-            mostMemory = link->data->totalPhysicalMemory;
+            best = link->Data;
+            mostMemory = link->Data->TotalPhysicalMemory;
         }
     }
 
-    if (best != myPlayer)
+    if (best != MyPlayer)
     {
-        serverID = best->id;
-        isHost = 0;
-        static_cast<FIValueMessage*>(serverMessage)->value = serverID;
-        SendMessageToGroup(0, serverMessage, sizeof(FIValueMessage));
+        ServerID = best->Id;
+        IsHost = 0;
+        static_cast<MCFIValueMessage*>(ServerMessage)->Value = ServerID;
+        SendMessageToGroup(0, ServerMessage, sizeof(MCFIValueMessage));
     }
 }
 
-void SessionManager::SendMessageToPlayerGuaranteed(uint32_t playerID, FIGuaranteedMessageHeader* header, uint32_t size,
-                                                   int firstSend)
+void MCSessionManager::SendMessageToPlayerGuaranteed(uint32_t playerID, MCFIGuaranteedMessageHeader* header,
+                                                     uint32_t size, int firstSend)
 {
-    if (hasPlayerNumber == 0)
+    if (HasPlayerNumber == 0)
     {
-        if (launchedFromLobby == 0)
+        if (LaunchedFromLobby == 0)
         {
-            std::lock_guard lock(criticalSection);
-            FIDPMessage* msg = GetMessageFromEmptyQueue();
-            header->header &= ~FIMSG_GROUP_MESSAGE;
+            std::lock_guard lock(CriticalSection);
+            MCFidpMessage* msg = GetMessageFromEmptyQueue();
+            header->Header &= ~FIMSG_GROUP_MESSAGE;
             msg->SetMessageBuffer(header, size);
-            msg->toID = playerID;
-            preIDGroupMessages->Add(msg);
+            msg->ToID = playerID;
+            PreIDGroupMessages->Add(msg);
         }
 
         return;
     }
 
-    FIDPPlayer* player = GetPlayer(playerID);
+    MCFidpPlayer* player = GetPlayer(playerID);
 
-    if (player == myPlayer || player == nullptr)
+    if (player == MyPlayer || player == nullptr)
     {
         return;
     }
 
-    if ((header->header & FIMSG_TYPE_MASK) != 9 &&
-        (player->hasPlayerNumber == 0 || (player->IsVerifyListFull() != 0 && RemovePlayerFromGame(player) == 0)))
+    if ((header->Header & FIMSG_TYPE_MASK) != 9 &&
+        (player->HasPlayerNumber == 0 || (player->IsVerifyListFull() != 0 && RemovePlayerFromGame(player) == 0)))
     {
         return;
     }
 
-    std::lock_guard lock(criticalSection);
+    std::lock_guard lock(CriticalSection);
 
-    if (firstSend != 0 && player->playerNumber >= 0 && player->playerNumber < 6)
+    if (firstSend != 0 && player->PlayerNumber >= 0 && player->PlayerNumber < 6)
     {
-        player->outgoingSendCount++;
-        header->tagger.sendCount[player->playerNumber] = player->outgoingSendCount;
+        player->OutgoingSendCount++;
+        header->Tagger.SendCount[player->PlayerNumber] = player->OutgoingSendCount;
     }
 
-    header->header |= FIMSG_GUARANTEED;
-    header->header &= ~FIMSG_GROUP_MESSAGE;
+    header->Header |= FIMSG_GUARANTEED;
+    header->Header &= ~FIMSG_GROUP_MESSAGE;
     const uint32_t sendTime = MCPort::Milliseconds();
     const int32_t result = SendMessageA(playerID, header, size);
-    FIDPMessage* msg = GetMessageFromEmptyQueue();
-    header->header &= ~FIMSG_GROUP_MESSAGE;
+    MCFidpMessage* msg = GetMessageFromEmptyQueue();
+    header->Header &= ~FIMSG_GROUP_MESSAGE;
     msg->SetMessageBuffer(header, size);
-    msg->toID = playerID;
+    msg->ToID = playerID;
     player->AddToVerifyList(msg);
 
     if (result != 0)
     {
         // Original behaviour: a failed send is backdated so it is resent at once; the time is timeGetTime's (ms)
         // where the verify list keeps performance-counter ticks.
-        msg->sendTime = sendTime - player->resendDelay * TicksPerMS;
+        msg->SendTime = sendTime - player->ResendDelay * TicksPerMS;
 
-        if (msg->wasResent == 0)
+        if (msg->WasResent == 0)
         {
-            msg->firstSendTime = msg->sendTime;
+            msg->FirstSendTime = msg->SendTime;
         }
     }
 }
 
-void SessionManager::SendMessageToServerGuaranteed(FIGuaranteedMessageHeader* header, uint32_t size)
+void MCSessionManager::SendMessageToServerGuaranteed(MCFIGuaranteedMessageHeader* header, uint32_t size)
 {
-    if (hasPlayerNumber == 0)
+    if (HasPlayerNumber == 0)
     {
-        std::lock_guard lock(criticalSection);
-        FIDPMessage* msg = GetMessageFromEmptyQueue();
-        header->header &= ~FIMSG_GROUP_MESSAGE;
+        std::lock_guard lock(CriticalSection);
+        MCFidpMessage* msg = GetMessageFromEmptyQueue();
+        header->Header &= ~FIMSG_GROUP_MESSAGE;
         msg->SetMessageBuffer(header, size);
-        msg->toID = serverID;
-        preIDServerMessages->Add(msg);
+        msg->ToID = ServerID;
+        PreIDServerMessages->Add(msg);
         return;
     }
 
-    SendMessageToPlayerGuaranteed(serverID, header, size, 1);
+    SendMessageToPlayerGuaranteed(ServerID, header, size, 1);
 }
 
-void SessionManager::BroadcastMessage(FIMessageHeader* header, uint32_t size)
+void MCSessionManager::BroadcastMessage(MCFIMessageHeader* header, uint32_t size)
 {
     SendMessageA(0, header, size);
 }
 
-void SessionManager::SendMessageToServer(FIMessageHeader* header, uint32_t size)
+void MCSessionManager::SendMessageToServer(MCFIMessageHeader* header, uint32_t size)
 {
-    std::lock_guard lock(criticalSection);
+    std::lock_guard lock(CriticalSection);
 
-    if (hasPlayerNumber == 0)
+    if (HasPlayerNumber == 0)
     {
-        FIDPMessage* msg = GetMessageFromEmptyQueue();
-        header->header &= ~FIMSG_GROUP_MESSAGE;
+        MCFidpMessage* msg = GetMessageFromEmptyQueue();
+        header->Header &= ~FIMSG_GROUP_MESSAGE;
         msg->SetMessageBuffer(header, size);
-        msg->toID = serverID;
-        preIDServerMessages->Add(msg);
+        msg->ToID = ServerID;
+        PreIDServerMessages->Add(msg);
     }
-    else if (serverID != myPlayerID)
+    else if (ServerID != MyPlayerID)
     {
-        SendMessageA(serverID, header, size);
+        SendMessageA(ServerID, header, size);
     }
 }
 
-int32_t SessionManager::SendMessageA(uint32_t toID, FIMessageHeader* header, uint32_t size)
+int32_t MCSessionManager::SendMessageA(uint32_t toID, MCFIMessageHeader* header, uint32_t size)
 {
-    std::lock_guard lock(criticalSection);
+    std::lock_guard lock(CriticalSection);
 
     if (size > 0x200)
     {
         size = 0x200;
     }
 
-    const uint32_t result = directPlay->Send(myPlayerID, toID, 0, header, size);
+    const uint32_t result = DirectPlay->Send(MyPlayerID, toID, 0, header, size);
     ReportError(result);
     return static_cast<int32_t>(result);
 }
 
-int SessionManager::BroadcastFile(char* fileName, char* directory, void (*callback)(char* fileName, void* data))
+int MCSessionManager::BroadcastFile(char* fileName, char* directory, void (*callback)(char* fileName, void* data))
 {
-    FileTransferInfo* transfer =
-        new FileTransferInfo(myPlayerID, 0, fileName, directory, 0, FileTransferInfo::TRANSFER_SEND);
-    transfer->callback = callback;
-    transfer->fileID = nextFileID;
-    nextFileID++;
+    MCFileTransferInfo* transfer =
+        new MCFileTransferInfo(MyPlayerID, 0, fileName, directory, 0, MCFileTransferInfo::TRANSFER_SEND);
+    transfer->Callback = callback;
+    transfer->FileID = NextFileID;
+    NextFileID++;
 
-    if (nextFileID > 0xff)
+    if (NextFileID > 0xff)
     {
-        nextFileID = 0;
+        NextFileID = 0;
     }
 
-    outgoingFiles.Add(transfer);
+    OutgoingFiles.Add(transfer);
     int size;
-    FIBeginFileTransferMessage* begin = transfer->CreateBeginTransferMessage(size);
+    MCFIBeginFileTransferMessage* begin = transfer->CreateBeginTransferMessage(size);
     BroadcastMessage(begin, static_cast<uint32_t>(size));
-    linkUpBlocks->Free(begin);
-    return nextFileID - 1;
+    LinkUpBlocks->Free(begin);
+    return NextFileID - 1;
 }
 
-void SessionManager::SendMessageFromInfo(FIDPMessage* msg)
+void MCSessionManager::SendMessageFromInfo(MCFidpMessage* msg)
 {
-    FIGuaranteedMessageHeader* header = reinterpret_cast<FIGuaranteedMessageHeader*>(msg->messageBuffer);
+    MCFIGuaranteedMessageHeader* header = reinterpret_cast<MCFIGuaranteedMessageHeader*>(msg->MessageBuffer);
 
-    if (msg->toID == 0)
+    if (msg->ToID == 0)
     {
-        SendMessageToGroup(0, header, msg->messageSize);
+        SendMessageToGroup(0, header, msg->MessageSize);
     }
-    else if ((header->header & FIMSG_GROUP_MESSAGE) != 0)
+    else if ((header->Header & FIMSG_GROUP_MESSAGE) != 0)
     {
-        SendMessageToGroup(msg->toID, header, msg->messageSize);
+        SendMessageToGroup(msg->ToID, header, msg->MessageSize);
     }
-    else if ((header->header & FIMSG_GUARANTEED) == 0)
+    else if ((header->Header & FIMSG_GUARANTEED) == 0)
     {
-        SendMessageA(msg->toID, header, msg->messageSize);
+        SendMessageA(msg->ToID, header, msg->MessageSize);
     }
     else
     {
-        SendMessageToPlayerGuaranteed(msg->toID, header, msg->messageSize, 1);
+        SendMessageToPlayerGuaranteed(msg->ToID, header, msg->MessageSize, 1);
     }
 }
 
-int32_t SessionManager::GetAverageBandwidth(int*)
+int32_t MCSessionManager::GetAverageBandwidth(int*)
 {
-    if (currentSession == nullptr)
+    if (CurrentSession == nullptr)
     {
         return -1;
     }
@@ -2486,24 +2487,24 @@ int32_t SessionManager::GetAverageBandwidth(int*)
     return -3;
 }
 
-SessionManager* SessionManager::GetGlobalPointer(void* owner)
+MCSessionManager* MCSessionManager::GetGlobalPointer(void* owner)
 {
-    if (instanceExists == 0)
+    if (InstanceExists == 0)
     {
         return nullptr;
     }
 
-    globalPointerHolder = owner;
-    return instance;
+    GlobalPointerHolder = owner;
+    return Instance;
 }
 
-int SessionManager::ReleaseGlobalPointer(void* owner)
+int MCSessionManager::ReleaseGlobalPointer(void* owner)
 {
-    const bool held = owner == globalPointerHolder;
+    const bool held = owner == GlobalPointerHolder;
 
     if (held)
     {
-        globalPointerHolder = nullptr;
+        GlobalPointerHolder = nullptr;
     }
 
     return held;
@@ -2511,7 +2512,7 @@ int SessionManager::ReleaseGlobalPointer(void* owner)
 
 // ---- players coming and going ------------------------------------------------------------------------------------
 
-void SessionManager::GivePlayerAnID(FIDPPlayer* player)
+void MCSessionManager::GivePlayerAnID(MCFidpPlayer* player)
 {
     // numbers[0] is a sentinel; numbers[1..count] are the listed players' numbers, sorted.
     int32_t numbers[7];
@@ -2523,14 +2524,14 @@ void SessionManager::GivePlayerAnID(FIDPPlayer* player)
 
     numbers[0] = 0;
     // Port fix: at most six numbers fit (the original would write past the array with more players listed).
-    const int count = std::min(players.count, 6);
-    FLink<FIDPPlayer>* link = players.head;
+    const int count = std::min(Players.Count, 6);
+    MCFLink<MCFidpPlayer>* link = Players.HeadLink;
 
     for (int i = 0; i < count; i++)
     {
-        numbers[i + 1] = link != nullptr ? link->data->playerNumber : 0;
+        numbers[i + 1] = link != nullptr ? link->Data->PlayerNumber : 0;
         Assert(link != nullptr, 0, nullptr);
-        link = link->next;
+        link = link->Next;
     }
 
     std::qsort(numbers + 1, count, sizeof(int32_t), [](const void* a, const void* b)
@@ -2546,27 +2547,28 @@ void SessionManager::GivePlayerAnID(FIDPPlayer* player)
         }
     }
 
-    player->playerNumber = number;
-    player->hasPlayerNumber = 1;
+    player->PlayerNumber = number;
+    player->HasPlayerNumber = 1;
 }
 
-void SessionManager::AddPlayerOrGroup(uint32_t playerType, uint32_t id, uint32_t parentID, DPNAME* name, uint32_t flags)
+void MCSessionManager::AddPlayerOrGroup(uint32_t playerType, uint32_t id, uint32_t parentID, DPNAME* name,
+                                        uint32_t flags)
 {
-    FLink<FIDPPlayer>* firstLink = players.head;
+    MCFLink<MCFidpPlayer>* firstLink = Players.HeadLink;
 
     if (playerType != DPPLAYERTYPE_PLAYER)
     {
-        groups.current = groups.head;
+        Groups.Current = Groups.HeadLink;
 
-        for (int i = 0; i < groups.count; i++)
+        for (int i = 0; i < Groups.Count; i++)
         {
-            if (groups.ReadAndNext()->id == id)
+            if (Groups.ReadAndNext()->Id == id)
             {
                 return;
             }
         }
 
-        groups.Add(new FIDPGroup(id, parentID, name, flags));
+        Groups.Add(new MCFidpGroup(id, parentID, name, flags));
         return;
     }
 
@@ -2575,134 +2577,134 @@ void SessionManager::AddPlayerOrGroup(uint32_t playerType, uint32_t id, uint32_t
         return;
     }
 
-    FIDPPlayer* player = new FIDPPlayer(id, name, flags);
+    MCFidpPlayer* player = new MCFidpPlayer(id, name, flags);
     Assert(player != nullptr, 0, "Player is null");
 
-    if (hasPlayerNumber == 0)
+    if (HasPlayerNumber == 0)
     {
-        pendingPlayers.Add(player);
+        PendingPlayers.Add(player);
     }
-    else if (isHost != 0 || launchedFromLobby == 0)
+    else if (IsHost != 0 || LaunchedFromLobby == 0)
     {
         GivePlayerAnID(player);
 
-        if (player->playerNumber < 0 || player->playerNumber > 5)
+        if (player->PlayerNumber < 0 || player->PlayerNumber > 5)
         {
-            Fatal(player->playerNumber, "Could not connect to game.");
+            Fatal(player->PlayerNumber, "Could not connect to game.");
         }
     }
 
-    players.Add(player);
+    Players.Add(player);
 
-    if (isHost == 0 && launchedFromLobby != 0)
+    if (IsHost == 0 && LaunchedFromLobby != 0)
     {
-        player->hasPlayerNumber = 0;
+        player->HasPlayerNumber = 0;
     }
 
-    if (launchedFromLobby != 0)
+    if (LaunchedFromLobby != 0)
     {
         for (int i = 0; i < 6; i++)
         {
-            if (newPlayerNumbers[i] == id)
+            if (NewPlayerNumbers[i] == id)
             {
-                player->playerNumber = i;
-                player->hasPlayerNumber = 1;
+                player->PlayerNumber = i;
+                player->HasPlayerNumber = 1;
             }
         }
     }
 
-    currentSession->sessionDesc.dwCurrentPlayers = players.count;
+    CurrentSession->SessionDesc.dwCurrentPlayers = Players.Count;
 
-    if (isHost == 0)
+    if (IsHost == 0)
     {
         return;
     }
 
     // The server tells the new player (or, in a lobby game, everyone) who has which number.
-    FIPlayerNumbersMessage numbersMessage = {};
-    FIPlayerNumbersMessage* numbers = &numbersMessage;
-    numbers->header = 0;
-    numbers->header |= FIMSG_GUARANTEED;
-    numbers->tagger.Clear();
-    numbers->header = static_cast<uint16_t>((numbers->header & ~FIMSG_TYPE_MASK) | 2);
-    numbers->serverNumber = 0;
+    MCFIPlayerNumbersMessage numbersMessage = {};
+    MCFIPlayerNumbersMessage* numbers = &numbersMessage;
+    numbers->Header = 0;
+    numbers->Header |= FIMSG_GUARANTEED;
+    numbers->Tagger.Clear();
+    numbers->Header = static_cast<uint16_t>((numbers->Header & ~FIMSG_TYPE_MASK) | 2);
+    numbers->ServerNumber = 0;
 
     for (int i = 0; i < 6; i++)
     {
-        numbers->playerIDs[i] = 0;
+        numbers->PlayerIDs[i] = 0;
     }
 
-    for (FLink<FIDPPlayer>* link = firstLink; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = firstLink; link != nullptr; link = link->Next)
     {
-        FIDPPlayer* listed = link->data;
+        MCFidpPlayer* listed = link->Data;
 
         // Port fix: an unnumbered player is skipped (the original wrote it at index -1, into the send counters).
-        if (listed->playerNumber >= 0 && listed->playerNumber < 6)
+        if (listed->PlayerNumber >= 0 && listed->PlayerNumber < 6)
         {
-            numbers->playerIDs[listed->playerNumber] = listed->id;
+            numbers->PlayerIDs[listed->PlayerNumber] = listed->Id;
         }
 
-        if (listed->id == myPlayerID)
+        if (listed->Id == MyPlayerID)
         {
-            numbers->serverNumber = static_cast<uint8_t>(listed->playerNumber);
+            numbers->ServerNumber = static_cast<uint8_t>(listed->PlayerNumber);
         }
     }
 
-    if (launchedFromLobby == 0)
+    if (LaunchedFromLobby == 0)
     {
-        SendMessageToPlayerGuaranteed(player->id, numbers, sizeof(FIPlayerNumbersMessage), 1);
+        SendMessageToPlayerGuaranteed(player->Id, numbers, sizeof(MCFIPlayerNumbersMessage), 1);
     }
     else
     {
-        SendMessageToGroup(0, numbers, sizeof(FIPlayerNumbersMessage));
+        SendMessageToGroup(0, numbers, sizeof(MCFIPlayerNumbersMessage));
     }
 
-    SendPlayersInGroupMessages(player->id);
+    SendPlayersInGroupMessages(player->Id);
 }
 
-FIDPPlayer* SessionManager::GetPlayerNumber(int32_t playerNumber)
+MCFidpPlayer* MCSessionManager::GetPlayerNumber(int32_t playerNumber)
 {
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (link->data->playerNumber == playerNumber)
+        if (link->Data->PlayerNumber == playerNumber)
         {
-            return link->data;
+            return link->Data;
         }
     }
 
     return nullptr;
 }
 
-void SessionManager::PlayerOrGroupLeaving(uint32_t playerType, uint32_t id)
+void MCSessionManager::PlayerOrGroupLeaving(uint32_t playerType, uint32_t id)
 {
     if (playerType != DPPLAYERTYPE_PLAYER)
     {
         return;
     }
 
-    FIDPPlayer* player = GetPlayer(id);
+    MCFidpPlayer* player = GetPlayer(id);
 
     if (player == nullptr)
     {
         return;
     }
 
-    player->hasPlayerNumber = 0;
+    player->HasPlayerNumber = 0;
 
-    if (player->id != serverID)
+    if (player->Id != ServerID)
     {
         return;
     }
 
     // The server left: the next player by the server's latency order takes over.
-    FIDPPlayer* next = nullptr;
+    MCFidpPlayer* next = nullptr;
 
     // Port fix: bounded to the six numbers (the original ran on past the array when nobody was left).
     for (int i = 0; next == nullptr && i < 6; i++)
     {
-        next = GetPlayerNumber(playersByLatency[i]);
+        next = GetPlayerNumber(PlayersByLatency[i]);
 
-        if (next != nullptr && next->hasPlayerNumber == 0)
+        if (next != nullptr && next->HasPlayerNumber == 0)
         {
             next = nullptr;
         }
@@ -2715,108 +2717,108 @@ void SessionManager::PlayerOrGroupLeaving(uint32_t playerType, uint32_t id)
         return;
     }
 
-    if (next == myPlayer)
+    if (next == MyPlayer)
     {
-        isHost = 1;
+        IsHost = 1;
     }
 
-    serverID = next->id;
+    ServerID = next->Id;
 }
 
-void SessionManager::DeletePlayerOrGroup(uint32_t playerType, uint32_t id)
+void MCSessionManager::DeletePlayerOrGroup(uint32_t playerType, uint32_t id)
 {
     if (playerType == DPPLAYERTYPE_PLAYER)
     {
-        FIDPPlayer* player = GetPlayer(id);
+        MCFidpPlayer* player = GetPlayer(id);
 
         if (player == nullptr)
         {
             return;
         }
 
-        players.Del(player);
+        Players.Del(player);
         delete player;
-        currentSession->sessionDesc.dwCurrentPlayers = players.count;
+        CurrentSession->SessionDesc.dwCurrentPlayers = Players.Count;
 
         // Original behaviour: only slots already in use are overwritten, and the constructor leaves them all unused,
         // so no id is ever recorded.
         for (int i = 0; i < 6; i++)
         {
-            if (deletedPlayerIDs[i] != 0xffffffffu)
+            if (DeletedPlayerIDs[i] != 0xffffffffu)
             {
-                deletedPlayerIDs[i] = id;
+                DeletedPlayerIDs[i] = id;
             }
         }
 
         return;
     }
 
-    FIDPGroup* group = GetGroup(id);
+    MCFidpGroup* group = GetGroup(id);
 
     if (group != nullptr)
     {
         // Original behaviour: the group leaves the list but is not deleted.
-        groups.Del(group);
+        Groups.Del(group);
     }
 }
 
-int SessionManager::isTCPAvailable()
+int MCSessionManager::IsTcpAvailable()
 {
     // Port: the original looked for the TCP/IP stack in the registry (Enum\Network\MSTCP, or the Tcpip service).
     // The port's transport is TCP/IP: available when the sockets library starts.
-    if (tcpChecked == 0)
+    if (TcpChecked == 0)
     {
-        tcpAvailable = MCSocket::Startup() ? 1 : 0;
-        tcpChecked = 1;
+        TcpAvailable = MCSocket::Startup() ? 1 : 0;
+        TcpChecked = 1;
     }
 
-    return tcpAvailable;
+    return TcpAvailable;
 }
 
-int SessionManager::isIPXAvailable()
+int MCSessionManager::IsIpxAvailable()
 {
     // Port: the original looked for the IPX stack in the registry (Enum\Network\NWLINK, or the NwlnkIpx service).
     // The port's "IPX" connection is its LAN search over TCP/IP (see MCDirectPlay), available with TCP/IP.
-    if (ipxChecked == 0)
+    if (IpxChecked == 0)
     {
-        ipxAvailable = MCSocket::Startup() ? 1 : 0;
-        ipxChecked = 1;
+        IpxAvailable = MCSocket::Startup() ? 1 : 0;
+        IpxChecked = 1;
     }
 
-    return ipxAvailable;
+    return IpxAvailable;
 }
 
-int SessionManager::isModemAvailable()
+int MCSessionManager::IsModemAvailable()
 {
     // Original behaviour: modemChecked is never set, so every call looks for modems again.
-    if (modemChecked == 0)
+    if (ModemChecked == 0)
     {
         if (FindModems() == 0)
         {
-            modemAvailable = GetModemName(0) != nullptr ? 1 : 0;
+            ModemAvailable = GetModemName(0) != nullptr ? 1 : 0;
         }
         else
         {
-            modemAvailable = 0;
+            ModemAvailable = 0;
         }
     }
 
-    return modemAvailable;
+    return ModemAvailable;
 }
 
-void SessionManager::HandlePreSystemMessage(FIDPMessage* msg)
+void MCSessionManager::HandlePreSystemMessage(MCFidpMessage* msg)
 {
-    const uint32_t type = reinterpret_cast<DPMSG_GENERIC*>(msg->messageBuffer)->dwType;
+    const uint32_t type = reinterpret_cast<DPMSG_GENERIC*>(msg->MessageBuffer)->dwType;
 
     if (type == DPSYS_ADDPLAYERTOGROUP)
     {
-        DPMSG_ADDPLAYERTOGROUP* added = reinterpret_cast<DPMSG_ADDPLAYERTOGROUP*>(msg->messageBuffer);
-        FIDPGroup* group = GetGroup(added->dpIdGroup);
+        DPMSG_ADDPLAYERTOGROUP* added = reinterpret_cast<DPMSG_ADDPLAYERTOGROUP*>(msg->MessageBuffer);
+        MCFidpGroup* group = GetGroup(added->dpIdGroup);
         Assert(group != nullptr, 0, "group is null");
 
         if (group != nullptr && group->AddPlayer(added->dpIdPlayer) != 0)
         {
-            FIDPPlayer* player = GetPlayer(added->dpIdPlayer);
+            MCFidpPlayer* player = GetPlayer(added->dpIdPlayer);
 
             if (player != nullptr)
             {
@@ -2826,44 +2828,44 @@ void SessionManager::HandlePreSystemMessage(FIDPMessage* msg)
     }
     else if (type == DPSYS_CREATEPLAYERORGROUP)
     {
-        DPMSG_CREATEPLAYERORGROUP* created = reinterpret_cast<DPMSG_CREATEPLAYERORGROUP*>(msg->messageBuffer);
+        DPMSG_CREATEPLAYERORGROUP* created = reinterpret_cast<DPMSG_CREATEPLAYERORGROUP*>(msg->MessageBuffer);
         AddPlayerOrGroup(created->dwPlayerType, created->dpId, created->dpIdParent, &created->dpnName,
                          created->dwFlags);
     }
     else if (type == DPSYS_DESTROYPLAYERORGROUP)
     {
-        DPMSG_DESTROYPLAYERORGROUP* destroyed = reinterpret_cast<DPMSG_DESTROYPLAYERORGROUP*>(msg->messageBuffer);
+        DPMSG_DESTROYPLAYERORGROUP* destroyed = reinterpret_cast<DPMSG_DESTROYPLAYERORGROUP*>(msg->MessageBuffer);
         PlayerOrGroupLeaving(destroyed->dwPlayerType, destroyed->dpId);
     }
-    else if (type == DPSYS_SETSESSIONDESC && launchedFromLobby != 0)
+    else if (type == DPSYS_SETSESSIONDESC && LaunchedFromLobby != 0)
     {
-        DPMSG_SETSESSIONDESC* changed = reinterpret_cast<DPMSG_SETSESSIONDESC*>(msg->messageBuffer);
+        DPMSG_SETSESSIONDESC* changed = reinterpret_cast<DPMSG_SETSESSIONDESC*>(msg->MessageBuffer);
 
         if ((changed->dpDesc.dwFlags & DPSESSION_NEWPLAYERSDISABLED) != 0)
         {
-            sessionLocked = 1;
+            SessionLocked = 1;
         }
     }
 }
 
-void SessionManager::HandlePostSystemMessage(FIDPMessage* msg)
+void MCSessionManager::HandlePostSystemMessage(MCFidpMessage* msg)
 {
-    const uint32_t type = reinterpret_cast<DPMSG_GENERIC*>(msg->messageBuffer)->dwType;
+    const uint32_t type = reinterpret_cast<DPMSG_GENERIC*>(msg->MessageBuffer)->dwType;
 
     if (type == DPSYS_DESTROYPLAYERORGROUP)
     {
-        DPMSG_DESTROYPLAYERORGROUP* destroyed = reinterpret_cast<DPMSG_DESTROYPLAYERORGROUP*>(msg->messageBuffer);
+        DPMSG_DESTROYPLAYERORGROUP* destroyed = reinterpret_cast<DPMSG_DESTROYPLAYERORGROUP*>(msg->MessageBuffer);
         DeletePlayerOrGroup(destroyed->dwPlayerType, destroyed->dpId);
     }
     else if (type == DPSYS_DELETEPLAYERFROMGROUP)
     {
-        DPMSG_ADDPLAYERTOGROUP* removed = reinterpret_cast<DPMSG_ADDPLAYERTOGROUP*>(msg->messageBuffer);
-        FIDPGroup* group = GetGroup(removed->dpIdGroup);
+        DPMSG_ADDPLAYERTOGROUP* removed = reinterpret_cast<DPMSG_ADDPLAYERTOGROUP*>(msg->MessageBuffer);
+        MCFidpGroup* group = GetGroup(removed->dpIdGroup);
 
         // Port fix: a group that no longer exists is skipped (the original called through a null group).
         if (group != nullptr && group->RemovePlayer(removed->dpIdPlayer) != 0)
         {
-            FIDPPlayer* player = GetPlayer(removed->dpIdPlayer);
+            MCFidpPlayer* player = GetPlayer(removed->dpIdPlayer);
 
             if (player != nullptr)
             {
@@ -2873,36 +2875,36 @@ void SessionManager::HandlePostSystemMessage(FIDPMessage* msg)
     }
 }
 
-void SessionManager::HandleApplicationMessage(FIDPMessage* msg)
+void MCSessionManager::HandleApplicationMessage(MCFidpMessage* msg)
 {
     bool passOn = true;
-    uint8_t* buffer = msg->messageBuffer;
+    uint8_t* buffer = msg->MessageBuffer;
 
     switch (TypeOf(buffer))
     {
         case 2:
         {
-            if (launchedFromLobby != 0)
+            if (LaunchedFromLobby != 0)
             {
-                const FIPlayerNumbersMessage* numbers = reinterpret_cast<FIPlayerNumbersMessage*>(buffer);
+                const MCFIPlayerNumbersMessage* numbers = reinterpret_cast<MCFIPlayerNumbersMessage*>(buffer);
 
                 for (int i = 0; i < 6; i++)
                 {
-                    if (numbers->playerIDs[i] == 0)
+                    if (numbers->PlayerIDs[i] == 0)
                     {
                         continue;
                     }
 
-                    FIDPPlayer* player = GetPlayer(numbers->playerIDs[i]);
+                    MCFidpPlayer* player = GetPlayer(numbers->PlayerIDs[i]);
 
                     if (player == nullptr)
                     {
-                        newPlayerNumbers[i] = numbers->playerIDs[i];
+                        NewPlayerNumbers[i] = numbers->PlayerIDs[i];
                     }
                     else
                     {
-                        player->playerNumber = i;
-                        player->hasPlayerNumber = 1;
+                        player->PlayerNumber = i;
+                        player->HasPlayerNumber = 1;
                     }
                 }
             }
@@ -2912,22 +2914,22 @@ void SessionManager::HandleApplicationMessage(FIDPMessage* msg)
 
         case 3:
         {
-            const FIPlayersInGroupMessage* members = reinterpret_cast<FIPlayersInGroupMessage*>(buffer);
-            FIDPGroup* group = GetGroup(members->groupID);
+            const MCFIPlayersInGroupMessage* members = reinterpret_cast<MCFIPlayersInGroupMessage*>(buffer);
+            MCFidpGroup* group = GetGroup(members->GroupID);
 
             if (group != nullptr)
             {
-                for (int i = 0; i < 6 && members->playerIDs[i] != 0; i++)
+                for (int i = 0; i < 6 && members->PlayerIDs[i] != 0; i++)
                 {
-                    uint32_t playerID = members->playerIDs[i];
+                    uint32_t playerID = members->PlayerIDs[i];
 
                     if (group->AddPlayer(playerID) != 0)
                     {
-                        FIDPPlayer* player = GetPlayer(playerID);
+                        MCFidpPlayer* player = GetPlayer(playerID);
 
                         if (player != nullptr)
                         {
-                            player->JoinGroup(members->groupID);
+                            player->JoinGroup(members->GroupID);
                         }
                     }
                 }
@@ -2939,52 +2941,52 @@ void SessionManager::HandleApplicationMessage(FIDPMessage* msg)
 
         case 5:
         {
-            gameStarted = 1;
+            GameStarted = 1;
             break;
         }
 
         case 6:
         {
-            serverID = reinterpret_cast<FIValueMessage*>(buffer)->value;
-            isHost = serverID == myPlayerID ? 1 : 0;
+            ServerID = reinterpret_cast<MCFIValueMessage*>(buffer)->Value;
+            IsHost = ServerID == MyPlayerID ? 1 : 0;
             break;
         }
 
         case 7:
         {
-            FIBeginFileTransferMessage* begin = reinterpret_cast<FIBeginFileTransferMessage*>(buffer);
-            char* fileName = std::strtok(begin->fileName, "\\");
+            MCFIBeginFileTransferMessage* begin = reinterpret_cast<MCFIBeginFileTransferMessage*>(buffer);
+            char* fileName = std::strtok(begin->FileName, "\\");
             char* directory = std::strtok(nullptr, "");
-            FileTransferInfo* transfer = new FileTransferInfo(msg->fromID, myPlayerID, fileName, directory,
-                                                              begin->fileSize, FileTransferInfo::TRANSFER_RECEIVE);
-            transfer->fileID = begin->fileID;
-            incomingFiles.Add(transfer);
+            MCFileTransferInfo* transfer = new MCFileTransferInfo(
+                msg->FromID, MyPlayerID, fileName, directory, begin->FileSize, MCFileTransferInfo::TRANSFER_RECEIVE);
+            transfer->FileID = begin->FileID;
+            IncomingFiles.Add(transfer);
             passOn = false;
             break;
         }
 
         case 8:
         {
-            const FIFileDataMessage* piece = reinterpret_cast<FIFileDataMessage*>(buffer);
-            const int size = static_cast<int>(msg->messageSize);
-            incomingFiles.current = incomingFiles.head;
+            const MCFIFileDataMessage* piece = reinterpret_cast<MCFIFileDataMessage*>(buffer);
+            const int size = static_cast<int>(msg->MessageSize);
+            IncomingFiles.Current = IncomingFiles.HeadLink;
 
-            for (int i = 0; i < incomingFiles.count; i++)
+            for (int i = 0; i < IncomingFiles.Count; i++)
             {
-                FileTransferInfo* transfer = incomingFiles.ReadAndNext();
+                MCFileTransferInfo* transfer = IncomingFiles.ReadAndNext();
 
-                if (static_cast<uint32_t>(transfer->fileID) != piece->fileID)
+                if (static_cast<uint32_t>(transfer->FileID) != piece->FileID)
                 {
                     continue;
                 }
 
-                if (transfer->AddBytes(const_cast<uint8_t*>(piece->data), size - 9) != 0)
+                if (transfer->AddBytes(const_cast<uint8_t*>(piece->Data), size - 9) != 0)
                 {
-                    incomingFiles.Del(transfer);
+                    IncomingFiles.Del(transfer);
 
-                    if (fileReceivedCallback != nullptr)
+                    if (FileReceivedCallback != nullptr)
                     {
-                        fileReceivedCallback(transfer->fileName, fileReceivedCallbackData);
+                        FileReceivedCallback(transfer->FileName, FileReceivedCallbackData);
                     }
 
                     delete transfer;
@@ -3006,14 +3008,14 @@ void SessionManager::HandleApplicationMessage(FIDPMessage* msg)
 
         case 11:
         {
-            ProcessSystemInfoMessage(reinterpret_cast<FISystemInfoMessage*>(buffer), msg->fromID);
+            ProcessSystemInfoMessage(reinterpret_cast<MCFISystemInfoMessage*>(buffer), msg->FromID);
             passOn = false;
             break;
         }
 
         case 12:
         {
-            ProcessLatencyMessage(reinterpret_cast<FIMessageHeader*>(buffer), msg->fromID);
+            ProcessLatencyMessage(reinterpret_cast<MCFIMessageHeader*>(buffer), msg->FromID);
             passOn = true;
             break;
         }
@@ -3024,93 +3026,94 @@ void SessionManager::HandleApplicationMessage(FIDPMessage* msg)
         }
     }
 
-    if (passOn && applicationCallback != nullptr)
+    if (passOn && ApplicationCallback != nullptr)
     {
         // Port: the original left the critical section around the callback (for its receive thread, which never
         // existed); the port has one thread, and its callers don't always hold the lock, so it is left alone.
-        applicationCallback(msg, applicationCallbackData);
+        ApplicationCallback(msg, ApplicationCallbackData);
     }
 
     AddMessageToEmptyQueue(msg);
 }
 
-void SessionManager::HandlePingUpdate(FIDPMessage* msg)
+void MCSessionManager::HandlePingUpdate(MCFidpMessage* msg)
 {
-    if (msg->fromID != serverID)
+    if (msg->FromID != ServerID)
     {
         return;
     }
 
-    const FIPingMessage* ping = reinterpret_cast<FIPingMessage*>(msg->messageBuffer);
+    const MCFIPingMessage* ping = reinterpret_cast<MCFIPingMessage*>(msg->MessageBuffer);
 
     // Port fix: bounded to the six numbers the message holds.
-    for (int i = 0; i < ping->count && i < 6; i++)
+    for (int i = 0; i < ping->Count && i < 6; i++)
     {
-        playersByLatency[i] = ping->playerNumbers[i];
+        PlayersByLatency[i] = ping->PlayerNumbers[i];
     }
 }
 
-int SessionManager::ReportError(uint32_t error)
+int MCSessionManager::ReportError(uint32_t error)
 {
     // The original copied the error's description into a local buffer (a long switch over the DirectPlay and COM
     // codes, else FormatMessage) for a debugger to look at, and dropped it. Only the answer is used.
     return error != 0 ? 1 : 0;
 }
 
-void SessionManager::GetProfileData(char* fileName)
+void MCSessionManager::GetProfileData(char* fileName)
 {
     uint8_t lastVerified = 0xff;
-    players.current = players.head;
+    Players.Current = Players.HeadLink;
 
-    for (int i = 0; i < players.count; i++)
+    for (int i = 0; i < Players.Count; i++)
     {
-        FIDPPlayer* player = players.ReadAndNext();
+        MCFidpPlayer* player = Players.ReadAndNext();
 
-        if (player == myPlayer)
+        if (player == MyPlayer)
         {
             continue;
         }
 
         char line[64];
-        std::snprintf(line, sizeof(line), "[%02d]:  SC:%02d ", player->playerNumber, player->outgoingSendCount);
+        std::snprintf(line, sizeof(line), "[%02d]:  SC:%02d ", player->PlayerNumber, player->OutgoingSendCount);
         std::strcat(fileName, line);
 
-        if (player->verifyList.count > 0)
+        if (player->VerifyList.Count > 0)
         {
-            player->verifyList.current = player->verifyList.head;
-            FIDPMessage* oldest = player->verifyList.head != nullptr ? player->verifyList.head->data : nullptr;
-            lastVerified = oldest->messageBuffer[2 + player->playerNumber];
+            player->VerifyList.Current = player->VerifyList.HeadLink;
+            MCFidpMessage* oldest =
+                player->VerifyList.HeadLink != nullptr ? player->VerifyList.HeadLink->Data : nullptr;
+            lastVerified = oldest->MessageBuffer[2 + player->PlayerNumber];
         }
 
         std::snprintf(line, sizeof(line), "(%02d) ", lastVerified);
         std::strcat(fileName, line);
-        std::snprintf(line, sizeof(line), "Rcv %02d |||  ", player->nextIncomingToProcess);
+        std::snprintf(line, sizeof(line), "Rcv %02d |||  ", player->NextIncomingToProcess);
         std::strcat(fileName, line);
     }
 }
 
-int32_t SessionManager::GetStats(char* buffer)
+int32_t MCSessionManager::GetStats(char* buffer)
 {
-    if (currentSession == nullptr)
+    if (CurrentSession == nullptr)
     {
         return -1;
     }
 
-    if (isHost == 0)
+    if (IsHost == 0)
     {
-        FIDPPlayer* server = GetPlayer(serverID);
-        std::sprintf(buffer, "Latency to server (%s) = %d", server->name, server->lastLatency);
+        MCFidpPlayer* server = GetPlayer(ServerID);
+        std::sprintf(buffer, "Latency to server (%s) = %d", server->Name, server->LastLatency);
         return 0;
     }
 
     std::sprintf(buffer, "Latencies -- ");
 
-    for (FLink<FIDPPlayer>* link = players.head; link != nullptr; link = link->next)
+    for (MCFLink<MCFidpPlayer>* link = Players.HeadLink; link != nullptr; link = link->Next)
     {
-        if (link->data != myPlayer)
+        if (link->Data != MyPlayer)
         {
             char entry[512];
-            std::snprintf(entry, sizeof(entry), "<%s: %4d> ", link->data->name, link->data->lastLatency);
+            std::snprintf(entry, sizeof(entry), "<%s: %4d> ", link->Data->Name, link->Data->LastLatency);
             std::strcat(buffer, entry);
         }
     }

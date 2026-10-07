@@ -4,13 +4,13 @@
 #include "object/mover.h"
 #include "object/objtype.h"
 
-class DynamicsType;
-class File;
-class FitIniFile;
-class Smoke;
+class MCDynamicsType;
+class MCFile;
+class MCFitIniFile;
+class MCSmoke;
 
 /// <summary>A mech's body locations, in the mech file's order.</summary>
-enum MechBodyLocation : int32_t
+enum MCMechBodyLocation : int32_t
 {
     MECH_BODY_LOCATION_HEAD = 0,
     MECH_BODY_LOCATION_CTORSO = 1,
@@ -27,515 +27,385 @@ enum MechBodyLocation : int32_t
 constexpr int32_t NUM_MECH_ARMOR_LOCATIONS = 11;
 
 /// <summary>Critical spaces of each body location.</summary>
-/// <remarks>MCX.EXE @ 0x00790bdc</remarks>
 extern int32_t NumLocationCriticalSpaces[NUM_MECH_BODY_LOCATIONS];
 /// <summary>Percent chance a disabled enemy mech leaves salvage (100 by default; the scenario may set it).</summary>
-/// <remarks>MCX.EXE @ 0x00790e3c</remarks>
 extern int32_t MechSalvageChance;
 /// <summary>"MoveMarginOfError" (5, 10), read by loadMoverGameSystem.</summary>
-/// <remarks>MCX.EXE @ 0x00790e34</remarks>
 extern float MoveMarginOfError[2];
 /// <summary>Attack modifiers by rank and chassis; [r][1..4] are WeaponFireModifiers[7 + 4r..] (loadMoverGameSystem).</summary>
-/// <remarks>MCX.EXE @ 0x00790c64</remarks>
 extern float RankVersusChassisCombatModifier[4][5];
 /// <summary>The body location a hit on each hit section lands on.</summary>
-/// <remarks>MCX.EXE @ 0x00790bfc</remarks>
 extern int32_t MechHitSectionTable[5];
 /// <summary>Each armor location's body location (the rear torso ones map to their torso).</summary>
-/// <remarks>MCX.EXE @ 0x00790e20</remarks>
 extern char MechArmorToBodyLocation[12];
 /// <summary>The two orthogonal neighbour directions of each path direction (crashAvoidanceSystem, diagonals).</summary>
-/// <remarks>MCX.EXE @ 0x00790c10</remarks>
-extern int32_t adjClippedCell[8][2];
+extern int32_t AdjClippedCell[8][2];
 /// <summary>"AttackerMoveModifier".</summary>
-/// <remarks>MCX.EXE @ 0x00790d30</remarks>
 extern int32_t AttackerMoveModifier[9];
 /// <summary>"CriticalHitTable".</summary>
-/// <remarks>MCX.EXE @ 0x00790d54</remarks>
 extern char CriticalHitTable[4];
 /// <summary>"TargetMoveModifierTable": (speed, modifier) pairs.</summary>
-/// <remarks>MCX.EXE @ 0x00790d58</remarks>
 extern int32_t TargetMoveModifierTable[5][2];
 /// <summary>The tonnage bounds of the mech classes ("MaxLightMech", "MaxHeavyMech"; getMechClass).</summary>
-/// <remarks>MCX.EXE @ 0x00790d80</remarks>
 extern float MechClassWeights[5];
 /// <summary>"HitLocationTable".</summary>
-/// <remarks>MCX.EXE @ 0x00790d94</remarks>
 extern char MechHitLocationTable[0x84];
 /// <summary>"MechTransferHitTable": where a hit on a destroyed location goes.</summary>
-/// <remarks>MCX.EXE @ 0x00790e18</remarks>
 extern char MechTransferHitTable[8];
 /// <summary>"PilotCheckConditions".</summary>
-/// <remarks>MCX.EXE @ 0x00790e2c</remarks>
 extern int32_t MechPilotCheckConditions[2];
 /// <summary>"PilotCheckTerrainEffect", by terrain type.</summary>
-/// <remarks>MCX.EXE @ 0x007de54c</remarks>
 extern int32_t MechPilotCheckTerrainEffect[0x40];
 /// <summary>"CrashAvoidSelf" of "Mech:Movement", the mech types' default.</summary>
-/// <remarks>MCX.EXE @ 0x00790e40</remarks>
 extern int32_t DefaultMechCrashAvoidSelf;
-/// <remarks>MCX.EXE @ 0x00790e44</remarks>
 extern int32_t DefaultMechCrashAvoidPath;
-/// <remarks>MCX.EXE @ 0x00790e48</remarks>
 extern int32_t DefaultMechCrashBlockSelf;
-/// <remarks>MCX.EXE @ 0x00790e4c</remarks>
 extern int32_t DefaultMechCrashBlockPath;
-/// <remarks>MCX.EXE @ 0x00790e50</remarks>
 extern float DefaultMechCrashYieldTime;
 /// <summary>Jump offsets (getJumpRange) by jump jets fitted, the last for six or more (the name is the port's).</summary>
-/// <remarks>MCX.EXE @ 0x00790e58</remarks>
 extern int32_t MechJumpOffsets[7];
 /// <summary>"JumpCost".</summary>
-/// <remarks>MCX.EXE @ 0x00790e54</remarks>
 extern int32_t DefaultMechJumpCost;
 /// <summary>"collisionThreshold": a slower mech bouncing off an object stops.</summary>
-/// <remarks>MCX.EXE @ 0x007de64c</remarks>
-extern float mechCollisionThreshold;
+extern float MechCollisionThreshold;
 /// <summary>"objectThreshold".</summary>
-/// <remarks>MCX.EXE @ 0x007de650</remarks>
-extern float objectCollisionThreshold;
+extern float ObjectCollisionThreshold;
 /// <summary>"tonnageThreshold": mechs under it are deflected by trees.</summary>
-/// <remarks>MCX.EXE @ 0x007de654</remarks>
-extern float tonnageCollisionThreshold;
+extern float TonnageCollisionThreshold;
 /// <summary>"treeDeflection", in degrees at the threshold tonnage.</summary>
-/// <remarks>MCX.EXE @ 0x007de658</remarks>
-extern float treeDeflection;
+extern float TreeDeflection;
 /// <summary>"pivotAngle".</summary>
-/// <remarks>MCX.EXE @ 0x007de65c</remarks>
-extern float mechPivotAngle;
+extern float MechPivotAngle;
 /// <summary>"pivotThrottle".</summary>
-/// <remarks>MCX.EXE @ 0x007de660</remarks>
-extern float mechPivotThrottle;
-/// <remarks>MCX.EXE @ 0x007de668</remarks>
-extern GameObject* BadGuy;
+extern float MechPivotThrottle;
+extern MCGameObject* BadGuy;
 /// <summary>Speed state by gesture.</summary>
-/// <remarks>MCX.EXE @ 0x0078d760</remarks>
-extern char mechSpeedStateArray[32];
+extern char MechSpeedStateArray[32];
 /// <summary>Body state by gesture.</summary>
-/// <remarks>MCX.EXE @ 0x00790bc0</remarks>
 extern char MechStateByGesture[28];
 /// <summary>Whether mechs leave footprints (1).</summary>
-/// <remarks>MCX.EXE @ 0x007a1c44</remarks>
-extern uint8_t footPrints;
-/// <remarks>MCX.EXE @ 0x00808bc0</remarks>
+extern uint8_t FootPrints;
 extern float MineSplashRange;
-/// <remarks>MCX.EXE @ 0x00808c8c</remarks>
 extern float MineSplashDamage;
-/// <remarks>MCX.EXE @ 0x00808c98</remarks>
 extern int32_t MineExplosion;
 /// <summary>The "Mine" block's "BaseDamage": a mine's hit on the mech stepping on it (the name is the port's).</summary>
-/// <remarks>MCX.EXE @ 0x00808fd8</remarks>
 extern float MineBaseDamage;
 
 /// <summary>
 /// Reads the "Mech:Class", "Mech:Movement", "Mech:FireWeapon", "Mech:Damage" and "Mech:Collision" blocks of the
 /// game system file.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x00674ac0</remarks>
-int32_t loadMechGameSystem(FitIniFile* sysFile);
+int32_t LoadMechGameSystem(MCFitIniFile* sysFile);
 
 /// <summary>A mech type: the mech file's header, internal structure, debris, dynamics and movement settings.</summary>
 /// <remarks>Original source: <c>object\mech.cpp</c>; 0xac bytes.</remarks>
-class BattleMechType : public ObjectType
+class MCBattleMechType : public MCObjectType
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006903a0 (vector deleting destructor)</remarks>
-    ~BattleMechType() override { destroy(); }
+    ~MCBattleMechType() override { Destroy(); }
 
     /// <summary>Clears the fields; debris pieces -1; crash avoidance from the defaults.</summary>
-    /// <remarks>MCX.EXE @ 0x00674db0</remarks>
-    void init();
+    void Init();
     /// <summary>
     /// Reads the mech file: "General" (id, type, name, chassis, tonnage, explosion, endo steel, internal structure
     /// tonnage), "InternalStructure", "Debris", "Dynamics", "MovementSystem", hot spots, then the common type data.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00674e50</remarks>
-    int32_t init(File* objFile, uint32_t fileSize) override;
+    int32_t Init(MCFile* objFile, uint32_t fileSize) override;
     /// <summary>Frees the name and the dynamics type.</summary>
-    /// <remarks>MCX.EXE @ 0x00675330</remarks>
-    void destroy() override;
-    /// <summary>Makes a <see cref="BattleMech"/> of this type and gives it the next object id.</summary>
-    /// <remarks>MCX.EXE @ 0x00676820</remarks>
-    BaseObject* createInstance() override;
-    /// <remarks>MCX.EXE @ 0x00675380</remarks>
-    int handleCollision(GameObject* collidee, GameObject* collider) override;
-    /// <remarks>MCX.EXE @ 0x00675f80</remarks>
-    int handleDestruction(GameObject* collidee, GameObject* collider) override;
+    void Destroy() override;
+    /// <summary>Makes a <see cref="MCBattleMech"/> of this type and gives it the next object id.</summary>
+    MCBaseObject* CreateInstance() override;
+    int HandleCollision(MCGameObject* collidee, MCGameObject* collider) override;
+    int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
     /// <summary>Reads the appearance's hot spots (weapon mounts, jump jets).</summary>
-    /// <remarks>MCX.EXE @ 0x006760a0</remarks>
-    int32_t loadHotSpots(FitIniFile* mechFile);
-    void layOutHotSpotPackets(const std::vector<uint32_t>& packetSizes, const std::vector<uint32_t>& outlineSizes);
+    int32_t LoadHotSpots(MCFitIniFile* mechFile);
+    void LayOutHotSpotPackets(const std::vector<uint32_t>& packetSizes, const std::vector<uint32_t>& outlineSizes);
 
     /// <summary>"ID".</summary>
-    uint32_t mechId = 0; // +0x30
+    uint32_t MechId = 0;
     /// <summary>"Name".</summary>
-    std::string name; // +0x34
+    std::string Name;
     /// <summary>"Type", mapped.</summary>
-    uint8_t mechType = 0; // +0x38
+    uint8_t MechType = 0;
     /// <summary>"Chassis".</summary>
-    uint8_t chassis = 0; // +0x39
+    uint8_t Chassis = 0;
     /// <summary>"TonnageClass".</summary>
-    float tonnageClass = 0.0f; // +0x3c
+    float TonnageClass = 0.0f;
     /// <summary>"EndoSteel".</summary>
-    uint32_t endoSteel = 0; // +0x40
+    uint32_t EndoSteel = 0;
     /// <summary>"InternalStructureTonnage".</summary>
-    float internalStructureTonnage = 0.0f; // +0x44
+    float InternalStructureTonnage = 0.0f;
     /// <summary>"InternalStructure" per body location.</summary>
-    uint8_t internalStructure[NUM_MECH_BODY_LOCATIONS] = {}; // +0x48
+    uint8_t InternalStructure[NUM_MECH_BODY_LOCATIONS] = {};
     /// <summary>The dynamics type ("Dynamics" block, type 1).</summary>
-    DynamicsType* dynamicsType = nullptr; // +0x58
+    MCDynamicsType* DynamicsType = nullptr;
     /// <summary>The hot spot file's last packet: 32 bytes per hot spot packet (objectTypeCache).</summary>
-    uint8_t* hotSpotData = nullptr; // +0x5c
+    uint8_t* HotSpotData = nullptr;
     /// <summary>"numHotSpotPackets" of the .inf file: one per gesture.</summary>
-    uint32_t numHotSpotPackets = 0; // +0x60
+    uint32_t NumHotSpotPackets = 0;
     /// <summary>"numWeapons".</summary>
-    uint32_t numWeapons = 0; // +0x64
+    uint32_t NumWeapons = 0;
     /// <summary>"numOthers".</summary>
-    uint32_t numOthers = 0; // +0x68
+    uint32_t NumOthers = 0;
     /// <summary>"numFramesPerHotSpot" per gesture.</summary>
-    uint32_t* numFramesPerHotSpot = nullptr; // +0x6c
+    uint32_t* NumFramesPerHotSpot = nullptr;
     /// <summary>The mech file's "weapon%d" hot spot entries.</summary>
-    uint32_t* weaponHotSpots = nullptr; // +0x70
+    uint32_t* WeaponHotSpots = nullptr;
     /// <summary>The hot spot file's packet per gesture.</summary>
-    uint8_t** gestureHotSpots = nullptr; // +0x74
+    uint8_t** GestureHotSpots = nullptr;
     /// <summary>The .jmp file.</summary>
-    uint8_t* jumpData = nullptr; // +0x78
+    uint8_t* JumpData = nullptr;
     /// <summary>The .out file's packet per gesture (null where empty).</summary>
-    uint8_t** gestureOutlines = nullptr; // +0x7c
+    uint8_t** GestureOutlines = nullptr;
     /// <summary>"FootprintType".</summary>
-    int32_t footprintType = 1; // +0x80
+    int32_t FootprintType = 1;
     /// <summary>"RightArmPiece": the debris type of the right arm, -1 for none.</summary>
-    uint32_t rightArmDebrisId = 0xffffffff; // +0x84
+    uint32_t RightArmDebrisId = 0xffffffff;
     /// <summary>"LeftArmPiece".</summary>
-    uint32_t leftArmDebrisId = 0xffffffff; // +0x88
+    uint32_t LeftArmDebrisId = 0xffffffff;
     /// <summary>"DestroyedPiece".</summary>
-    uint32_t destroyedPiece = 0xffffffff; // +0x8c
+    uint32_t DestroyedPiece = 0xffffffff;
     /// <summary>"CrashAvoidSelf".</summary>
-    int32_t crashAvoidSelf = 0; // +0x90
+    int32_t CrashAvoidSelf = 0;
     /// <summary>"CrashAvoidPath".</summary>
-    int32_t crashAvoidPath = 0; // +0x94
+    int32_t CrashAvoidPath = 0;
     /// <summary>"CrashBlockSelf".</summary>
-    int32_t crashBlockSelf = 0; // +0x98
+    int32_t CrashBlockSelf = 0;
     /// <summary>"CrashBlockPath".</summary>
-    int32_t crashBlockPath = 0; // +0x9c
+    int32_t CrashBlockPath = 0;
     /// <summary>"CrashYieldTime".</summary>
-    float crashYieldTime = 0.0f; // +0xa0
+    float CrashYieldTime = 0.0f;
     /// <summary>"ExplosionDamage".</summary>
-    float explDmg = 0.0f; // +0xa4
+    float ExplDmg = 0.0f;
     /// <summary>"ExplosionRadius".</summary>
-    float explRad = 0.0f; // +0xa8
+    float ExplRad = 0.0f;
 
     /// <summary>
     /// Port: the hot spots each gesture's packet actually holds (packet size / (numFramesPerHotSpot * 12)). The
     /// Commando's (cm.hsp) gestures 0-14 hold 3, not numWeapons + numOthers = 6.
     /// </summary>
-    std::vector<std::vector<float>> hotSpotPackets;
-    std::vector<uint32_t> hotSpotPacketShippedFloats;
+    std::vector<std::vector<float>> HotSpotPackets;
+    std::vector<uint32_t> HotSpotPacketShippedFloats;
 };
 
 /// <summary>A BattleMech: legs and torso, arms, jump jets, heat, and the mech's movement and combat.</summary>
 /// <remarks>Original source: <c>object\mech.cpp</c>, <c>object\mech.h</c>; 0x958 bytes.</remarks>
-class BattleMech : public Mover
+class MCBattleMech : public MCMover
 {
 public:
     /// <summary>The constructor calls init (inlined in BattleMechType::createInstance).</summary>
-    BattleMech() { init(); }
-    /// <remarks>MCX.EXE @ 0x00676970 (vector deleting destructor)</remarks>
-    ~BattleMech() override { destroy(); }
+    MCBattleMech() { Init(); }
+    ~MCBattleMech() override { Destroy(); }
 
     /// <summary>
     /// Class BATTLEMECH; eight body locations and eleven armor locations; legs and torso intact; no jump; torso and
     /// arms straight.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00676b60 (unnamed in Ghidra)</remarks>
-    void init() override;
-    /// <remarks>MCX.EXE @ 0x00676c70</remarks>
-    int32_t init(ObjectType* objType) override;
+    void Init() override;
+    int32_t Init(MCObjectType* objType) override;
     /// <summary>Frees the interface name; closes the status window.</summary>
-    /// <remarks>MCX.EXE @ 0x00678830</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x0067b780</remarks>
-    int32_t update() override;
-    /// <remarks>MCX.EXE @ 0x0067d6b0</remarks>
-    void render() override;
-    /// <remarks>MCX.EXE @ 0x0067ad50</remarks>
-    vector_3d getPositionFromHS(uint32_t hotSpot) override;
-    /// <remarks>MCX.EXE @ 0x006769e0</remarks>
-    void handleStaticCollision() override;
-    /// <remarks>MCX.EXE @ 0x006770c0</remarks>
-    int32_t init(FitIniFile* mechFile) override;
-    /// <remarks>MCX.EXE @ 0x0067afd0</remarks>
-    int onScreen() override;
-    /// <remarks>MCX.EXE @ 0x0067e450</remarks>
-    int32_t calcHitLocation(GameObject* attacker, int32_t weaponIndex, int32_t attackSource,
+    void Destroy() override;
+    int32_t Update() override;
+    void Render() override;
+    MCVector3D GetPositionFromHS(uint32_t hotSpot) override;
+    void HandleStaticCollision() override;
+    int32_t Init(MCFitIniFile* mechFile) override;
+    int OnScreen() override;
+    int32_t CalcHitLocation(MCGameObject* attacker, int32_t weaponIndex, int32_t attackSource,
                             int32_t attackType) override;
-    /// <remarks>MCX.EXE @ 0x0067f940</remarks>
-    int32_t handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) override;
-    /// <remarks>MCX.EXE @ 0x00676eb0</remarks>
-    int32_t setControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) override;
+    int32_t HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) override;
+    int32_t SetControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) override;
     /// <summary>Whether a leg is gone (leg status 2 or 3).</summary>
-    /// <remarks>MCX.EXE @ 0x006768c0</remarks>
-    int isCrippled() override;
-    /// <remarks>MCX.EXE @ 0x00678230</remarks>
-    int32_t write(File* objFile) override;
-    /// <remarks>MCX.EXE @ 0x0067e2b0</remarks>
-    float relFacingTo(vector_3d goal, int32_t bodyPart) override;
-    /// <remarks>MCX.EXE @ 0x00676910</remarks>
-    float relViewFacingTo(vector_3d goal) override;
-    /// <remarks>MCX.EXE @ 0x00682940</remarks>
-    int32_t openStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) override;
-    /// <remarks>MCX.EXE @ 0x00682a20</remarks>
-    int32_t closeStatusWindow() override;
+    int IsCrippled() override;
+    int32_t Write(MCFile* objFile) override;
+    float RelFacingTo(MCVector3D goal, int32_t bodyPart) override;
+    float RelViewFacingTo(MCVector3D goal) override;
+    int32_t OpenStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) override;
+    int32_t CloseStatusWindow() override;
     /// <summary>A home team mech flagged captureable and not destroyed.</summary>
-    /// <remarks>MCX.EXE @ 0x00682a80</remarks>
-    int isCaptureable() override;
-    /// <remarks>MCX.EXE @ 0x00682a50</remarks>
-    int32_t getVitalInfo(void* vitalInfo) override;
+    int IsCaptureable() override;
+    int32_t GetVitalInfo(void* vitalInfo) override;
     /// <summary>From the appearance's gesture (mechSpeedStateArray).</summary>
-    /// <remarks>MCX.EXE @ 0x006794d0</remarks>
-    int32_t getSpeedState() override;
-    /// <remarks>MCX.EXE @ 0x00678660</remarks>
-    void pilotingCheck(uint32_t situation, float modifier) override;
-    /// <remarks>MCX.EXE @ 0x0067b3e0</remarks>
-    int crashAvoidanceSystem() override;
-    /// <remarks>MCX.EXE @ 0x00678870</remarks>
-    void mineCheck() override;
-    /// <remarks>MCX.EXE @ 0x0067a190</remarks>
-    void updateMovement() override;
-    /// <remarks>MCX.EXE @ 0x0067f0d0</remarks>
-    int32_t updateCriticalHitChunks(int32_t which) override;
-    /// <remarks>MCX.EXE @ 0x0067f150</remarks>
-    int32_t buildStatusChunk() override;
-    /// <remarks>MCX.EXE @ 0x0067f430</remarks>
-    int32_t handleStatusChunk(int32_t updateAge, uint32_t chunk) override;
-    /// <remarks>MCX.EXE @ 0x0067f540 (unnamed in Ghidra)</remarks>
-    int32_t buildMoveChunk() override;
-    /// <remarks>MCX.EXE @ 0x0067f6f0</remarks>
-    int32_t handleMoveChunk(uint32_t chunk) override;
-    /// <remarks>MCX.EXE @ 0x00678530</remarks>
-    int32_t calcCV(int calcMax) override;
+    int32_t GetSpeedState() override;
+    void PilotingCheck(uint32_t situation, float modifier) override;
+    int CrashAvoidanceSystem() override;
+    void MineCheck() override;
+    void UpdateMovement() override;
+    int32_t UpdateCriticalHitChunks(int32_t which) override;
+    int32_t BuildStatusChunk() override;
+    int32_t HandleStatusChunk(int32_t updateAge, uint32_t chunk) override;
+    int32_t BuildMoveChunk() override;
+    int32_t HandleMoveChunk(uint32_t chunk) override;
+    int32_t CalcCV(int calcMax) override;
     /// <summary>From the appearance's gesture (MechStateByGesture).</summary>
-    /// <remarks>MCX.EXE @ 0x0067e360</remarks>
-    int32_t getBodyState() override;
-    /// <remarks>MCX.EXE @ 0x00682e50</remarks>
-    float getTotalEffectiveness() override;
-    /// <remarks>MCX.EXE @ 0x0067f900</remarks>
-    float weaponLocked(int32_t weaponIndex, vector_3d targetPosition) override;
-    /// <remarks>MCX.EXE @ 0x0067e380</remarks>
-    int isWeaponReady(int32_t weaponIndex) override;
-    /// <remarks>MCX.EXE @ 0x00682e10</remarks>
-    int isWeaponWorking(int32_t weaponIndex) override;
-    /// <remarks>MCX.EXE @ 0x0067e3d0</remarks>
-    float calcAttackChance(GameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
-                           float modifiers, int32_t* range, vector_3d* targetPoint) override;
-    /// <remarks>MCX.EXE @ 0x0067e800</remarks>
-    int hitInventoryItem(int32_t itemIndex, int setupOnly) override;
-    /// <remarks>MCX.EXE @ 0x0067ed10</remarks>
-    void destroyBodyLocation(int32_t location) override;
-    /// <remarks>MCX.EXE @ 0x0067ee80</remarks>
-    void calcCriticalHit(int32_t hitLocation) override;
-    /// <remarks>MCX.EXE @ 0x0067f810</remarks>
-    int injureBodyLocation(int32_t bodyLocation, float damage) override;
-    /// <remarks>MCX.EXE @ 0x0067ff00</remarks>
-    int32_t fireWeapon(GameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
-                       int32_t aimLocation, vector_3d* targetPoint) override;
-    /// <remarks>MCX.EXE @ 0x00681970</remarks>
-    int32_t handleWeaponFire(int32_t weaponIndex, GameObject* target, vector_3d* targetPoint, int hit, float entryAngle,
-                             int32_t numMissiles, int32_t missilesPastAMS, int32_t antiMissileShots,
+    int32_t GetBodyState() override;
+    float GetTotalEffectiveness() override;
+    float WeaponLocked(int32_t weaponIndex, MCVector3D targetPosition) override;
+    int IsWeaponReady(int32_t weaponIndex) override;
+    int IsWeaponWorking(int32_t weaponIndex) override;
+    float CalcAttackChance(MCGameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
+                           float modifiers, int32_t* range, MCVector3D* targetPoint) override;
+    int HitInventoryItem(int32_t itemIndex, int setupOnly) override;
+    void DestroyBodyLocation(int32_t location) override;
+    void CalcCriticalHit(int32_t hitLocation) override;
+    int InjureBodyLocation(int32_t bodyLocation, float damage) override;
+    int32_t FireWeapon(MCGameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
+                       int32_t aimLocation, MCVector3D* targetPoint) override;
+    int32_t HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, MCVector3D* targetPoint, int hit,
+                             float entryAngle, int32_t numMissiles, int32_t missilesPastAMS, int32_t antiMissileShots,
                              int32_t hitLocation) override;
-    /// <remarks>MCX.EXE @ 0x00678820</remarks>
-    int canPowerUp() override;
+    int CanPowerUp() override;
     /// <summary>Unless both legs are gone (leg status 3).</summary>
-    /// <remarks>MCX.EXE @ 0x00676940</remarks>
-    int canMove() override;
+    int CanMove() override;
     /// <summary>Whether the mech has jump jets.</summary>
-    /// <remarks>MCX.EXE @ 0x00676950</remarks>
-    int canJump() override;
-    /// <remarks>MCX.EXE @ 0x0067e620</remarks>
-    float getJumpRange(int32_t* numOffsets, int32_t* jumpCost) override;
-    /// <remarks>MCX.EXE @ 0x0067e5f0</remarks>
-    int isJumping(vector_3d* jumpGoal) override;
-    /// <remarks>MCX.EXE @ 0x00682770</remarks>
-    float calcMaxSpeed() override;
-    /// <remarks>MCX.EXE @ 0x006827c0</remarks>
-    float calcSlowSpeed() override;
-    /// <remarks>MCX.EXE @ 0x006827f0</remarks>
-    float calcModerateSpeed() override;
-    /// <remarks>MCX.EXE @ 0x00682820</remarks>
-    int32_t calcSpriteSpeed(float speed, uint32_t flags, int32_t& state, int32_t& throttle) override;
-    /// <remarks>MCX.EXE @ 0x0067e6a0</remarks>
-    int handleEjection() override;
-    /// <remarks>MCX.EXE @ 0x00676960</remarks>
-    const char* getIfaceName() override { return ifaceName.c_str(); }
+    int CanJump() override;
+    float GetJumpRange(int32_t* numOffsets, int32_t* jumpCost) override;
+    int IsJumping(MCVector3D* jumpGoal) override;
+    float CalcMaxSpeed() override;
+    float CalcSlowSpeed() override;
+    float CalcModerateSpeed() override;
+    int32_t CalcSpriteSpeed(float speed, uint32_t flags, int32_t& state, int32_t& throttle) override;
+    int HandleEjection() override;
+    const char* GetIfaceName() override { return IfaceName.c_str(); }
 
     // Slots 219.. are BattleMech's own.
 
-    /// <remarks>MCX.EXE @ 0x00678220</remarks>
-    virtual int32_t init(File* objFile) { return 0; }
-    /// <remarks>MCX.EXE @ 0x006768e0</remarks>
-    virtual float getWeaponHeat(int32_t weaponIndex);
-    /// <remarks>MCX.EXE @ 0x0067a990</remarks>
-    virtual void netUpdateMovement();
-    /// <remarks>MCX.EXE @ 0x0067f080</remarks>
-    virtual void handleCriticalHit(int32_t bodyLocation, int32_t criticalSpace);
-    /// <remarks>MCX.EXE @ 0x0067e690</remarks>
-    virtual int handleFall(int forward) { return 0; }
-    /// <remarks>MCX.EXE @ 0x00682ac0</remarks>
-    virtual float calcMaxTargetDamage();
-    /// <remarks>MCX.EXE @ 0x00682bd0</remarks>
-    virtual float calcExpectedTargetDamage(GameObject* target);
+    virtual int32_t Init(MCFile* objFile) { return 0; }
+    virtual float GetWeaponHeat(int32_t weaponIndex);
+    virtual void NetUpdateMovement();
+    virtual void HandleCriticalHit(int32_t bodyLocation, int32_t criticalSpace);
+    virtual int HandleFall(int forward) { return 0; }
+    virtual float CalcMaxTargetDamage();
+    virtual float CalcExpectedTargetDamage(MCGameObject* target);
 
-    using Mover::calcExpectedTargetDamage;
-    using Mover::init;
+    using MCMover::CalcExpectedTargetDamage;
+    using MCMover::Init;
 
     /// <summary>Sets and returns the leg status from the legs' damage (alarms / radio on change).</summary>
-    /// <remarks>MCX.EXE @ 0x006785b0</remarks>
-    int32_t calcLegStatus();
-    /// <remarks>MCX.EXE @ 0x00678630</remarks>
-    int32_t calcTorsoStatus();
-    /// <remarks>MCX.EXE @ 0x00678c60</remarks>
-    int updateJump();
-    /// <remarks>MCX.EXE @ 0x00678e70</remarks>
-    int pivotTo();
-    /// <remarks>MCX.EXE @ 0x006794f0</remarks>
-    void updateMoveStateGoal();
+    int32_t CalcLegStatus();
+    int32_t CalcTorsoStatus();
+    int UpdateJump();
+    int PivotTo();
+    void UpdateMoveStateGoal();
     /// <summary>
     /// Steers along the pilot's move path: advances the step once within the margin of error, then sets the
     /// gesture, throttle and turn (or asks for a pivot through <paramref name="newMoveState"/>). Nonzero once the
     /// path is done. The last two parameters are unused.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006796f0</remarks>
-    int updateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec, int32_t& newGestureStateGoal,
+    int UpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec, int32_t& newGestureStateGoal,
                        int32_t& newMoveState, int32_t& minThrottle, int32_t& maxThrottle);
-    /// <remarks>MCX.EXE @ 0x00679e10</remarks>
-    void setNextMovePath(char& newThrottleSetting, int32_t& newGestureStateGoal);
-    /// <remarks>MCX.EXE @ 0x00679e60</remarks>
-    void updateTorso(float newRotatePerSec);
-    /// <remarks>MCX.EXE @ 0x00679f90</remarks>
-    void setControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+    void SetNextMovePath(char& newThrottleSetting, int32_t& newGestureStateGoal);
+    void UpdateTorso(float newRotatePerSec);
+    void SetControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
                             int32_t& newGestureStateGoal, int32_t& minThrottle, int32_t& maxThrottle);
-    /// <remarks>MCX.EXE @ 0x0067a440</remarks>
-    int netUpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+    int NetUpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
                           int32_t& newGestureStateGoal, int32_t& newMoveState, int32_t& minThrottle,
                           int32_t& maxThrottle);
-    /// <remarks>MCX.EXE @ 0x0067b140</remarks>
-    void createJumpFX();
-    /// <remarks>MCX.EXE @ 0x0067b1b0</remarks>
-    void endJumpFX();
+    void CreateJumpFX();
+    void EndJumpFX();
     /// <summary>Where jump jet <paramref name="jet"/> (0 or 1) is this frame.</summary>
-    /// <remarks>MCX.EXE @ 0x0067b200</remarks>
-    vector_3d getJumpPosition(int32_t jet);
-    /// <remarks>MCX.EXE @ 0x0067e580</remarks>
-    int32_t transferHitLocation(int32_t hitLocation);
-    /// <remarks>MCX.EXE @ 0x0067e5c0</remarks>
-    int32_t startJump(vector_3d jumpGoal);
-    /// <remarks>MCX.EXE @ 0x00683000</remarks>
-    void damageLoadedComponents();
+    MCVector3D GetJumpPosition(int32_t jet);
+    int32_t TransferHitLocation(int32_t hitLocation);
+    int32_t StartJump(MCVector3D jumpGoal);
+    void DamageLoadedComponents();
 
     /// <summary>The weight class (getMechClass; 1 by init), indexing RankVersusChassisCombatModifier.</summary>
-    uint8_t mechClass = 1; // +0x8a0
+    uint8_t MechClass = 1;
     /// <summary>"ChassisBR" (100 when missing).</summary>
-    int32_t chassisBR = 0; // +0x8a4
+    int32_t ChassisBR = 0;
     /// <summary>0 intact, 2 a leg gone, 3 both legs gone (calcLegStatus).</summary>
-    int8_t legStatus = 0; // +0x8a8
+    int8_t LegStatus = 0;
     /// <summary>calcTorsoStatus.</summary>
-    int8_t torsoStatus = 0; // +0x8a9
+    int8_t TorsoStatus = 0;
     /// <summary>Inventory index of the left arm actuator.</summary>
-    uint8_t leftArmActuator = 0; // +0x8aa
+    uint8_t LeftArmActuator = 0;
     /// <summary>Inventory index of the right arm actuator.</summary>
-    uint8_t rightArmActuator = 0; // +0x8ab
+    uint8_t RightArmActuator = 0;
     /// <summary>Inventory index of the left leg actuator.</summary>
-    uint8_t leftLegActuator = 0; // +0x8ac
+    uint8_t LeftLegActuator = 0;
     /// <summary>Inventory index of the right leg actuator.</summary>
-    uint8_t rightLegActuator = 0; // +0x8ad
+    uint8_t RightLegActuator = 0;
     /// <summary>Inventory index of the gyro.</summary>
-    uint8_t gyro = 0; // +0x8ae
+    uint8_t Gyro = 0;
     /// <summary>Jump jets fitted (canJump, getJumpRange).</summary>
-    uint8_t numJumpJets = 0; // +0x8af
+    uint8_t NumJumpJets = 0;
     /// <summary>-100 by init (updateJump).</summary>
-    float jumpTime = -100.0f; // +0x8b0
+    float JumpTime = -100.0f;
     /// <summary>Set while jumping.</summary>
-    int32_t inJump = 0; // +0x8b4
+    int32_t InJump = 0;
     /// <summary>Where the jump lands.</summary>
-    vector_3d jumpGoal; // +0x8b8
+    MCVector3D JumpGoal;
     /// <summary>When the center torso's internal structure was first injured (-1 before); destroyBodyLocation.</summary>
-    float centerTorsoInjuredTime = -1.0f; // +0x8c4
+    float CenterTorsoInjuredTime = -1.0f;
     /// <summary>Set by a hit from behind (outside 90 degrees of the torso); a fall then goes forward (gesture 7).</summary>
-    int32_t hitFromBehindThisFrame = 0; // +0x8c8
+    int32_t HitFromBehindThisFrame = 0;
     /// <summary>Set by a hit from the front; a fall then goes backward (gesture 8). Both clear when the fall starts.</summary>
-    int32_t hitFromFrontThisFrame = 0; // +0x8cc
+    int32_t HitFromFrontThisFrame = 0;
     /// <summary>Set when the left arm is destroyed; the control turns it into MechControlData::blowLeftArm.</summary>
-    int32_t leftArmBlownThisFrame = 0; // +0x8d0
+    int32_t LeftArmBlownThisFrame = 0;
     /// <summary>Set when the right arm is destroyed; the control turns it into MechControlData::blowRightArm.</summary>
-    int32_t rightArmBlownThisFrame = 0; // +0x8d4
+    int32_t RightArmBlownThisFrame = 0;
     /// <summary>The footprint of the gesture's second step (hot spot packet slot 4) is down; the walking gestures
     /// re-arm it once past that frame.</summary>
-    int32_t secondStepPrinted = 0; // +0x8d8
+    int32_t SecondStepPrinted = 0;
     /// <summary>The same for the first step (packet slot 0).</summary>
-    int32_t firstStepPrinted = 0; // +0x8dc
+    int32_t FirstStepPrinted = 0;
     /// <summary>Torso yaw in degrees, within the dynamics type's maxTorsoYaw.</summary>
-    float torsoRotation = 0.0f; // +0x8e0
+    float TorsoRotation = 0.0f;
     /// <summary>Right arm yaw in degrees, within maxArmYaw.</summary>
-    float rightArmRotation = 0.0f; // +0x8e4
+    float RightArmRotation = 0.0f;
     /// <summary>Left arm yaw in degrees, within maxArmYaw.</summary>
-    float leftArmRotation = 0.0f; // +0x8e8
+    float LeftArmRotation = 0.0f;
     /// <summary>Latched once the dead mech's actor lies still; the death sequence (deathTimer) runs from then.</summary>
-    int32_t lyingDead = 0; // +0x8ec
+    int32_t LyingDead = 0;
     /// <summary>Set once the wreck and its crater are left and the mech is off the interface.</summary>
-    int32_t wreckDone = 0; // +0x8f0
+    int32_t WreckDone = 0;
     /// <summary>The status window.</summary>
-    aTitleWindow* statusWindow = nullptr; // +0x8f4
+    MCGuiTitleWindow* StatusWindow = nullptr;
     /// <summary>Smoke streaming from damaged equipment (hitInventoryItem).</summary>
-    Smoke* smoke[4] = {}; // +0x8fc
+    MCSmoke* Smoke[4] = {};
     /// <summary>The hot spot each smoke streams from.</summary>
-    int32_t smokeHotSpot[4] = {}; // +0x90c
+    int32_t SmokeHotSpot[4] = {};
     /// <summary>Seconds each smoke has left (15 at the start).</summary>
-    float smokeTime[4] = {}; // +0x91c
+    float SmokeTime[4] = {};
     /// <summary>The jump jet effects.</summary>
-    GameObject* jumpFX[2] = {}; // +0x92c
+    MCGameObject* JumpFX[2] = {};
     /// <summary>calcMaxTargetDamage.</summary>
-    float maxTargetDamage = 0.0f; // +0x934
+    float MaxTargetDamage = 0.0f;
     /// <summary>The name the interface shows.</summary>
-    std::string ifaceName; // +0x938
+    std::string IfaceName;
     /// <summary>"Pilot" (-1 when missing).</summary>
-    int32_t pilotId = 0; // +0x93c
+    int32_t PilotId = 0;
     /// <summary>Whether the mech can be captured.</summary>
-    int32_t captureable = 0; // +0x940
+    int32_t Captureable = 0;
     /// <summary>"NotMineYet" (1 when missing).</summary>
-    int notMineYet = 0; // +0x944
+    int NotMineYet = 0;
     /// <summary>Set when a mine goes off under the mech; mineCheck then marks the next tile without its side's mine
     /// state (state 1) and clears it.</summary>
-    int32_t steppedOnMine = 0; // +0x948
+    int32_t SteppedOnMine = 0;
     /// <summary>"DescIndex": the interface name is string 300 + it (-1 when missing).</summary>
-    int32_t descIndex = 0; // +0x94c
+    int32_t DescIndex = 0;
     /// <summary>"NameIndex".</summary>
-    int32_t nameIndex = 0; // +0x950
+    int32_t NameIndex = 0;
     /// <summary>"NameVariant".</summary>
-    int32_t nameVariant = 0; // +0x954
+    int32_t NameVariant = 0;
 };
 
 /// <summary>A mech's status window.</summary>
 /// <remarks>Original source: <c>object\mech.cpp</c>, <c>object\mech.h</c>; 0x4c4 bytes.</remarks>
-class MechStatusWindow : public aTitleWindow
+class MCMechStatusWindow : public MCGuiTitleWindow
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006829f0 (vector deleting destructor)</remarks>
-    ~MechStatusWindow() override;
-    /// <remarks>MCX.EXE @ 0x00683070</remarks>
-    void init(int32_t x, int32_t y, int32_t w, int32_t h, BattleMech* newMech);
-    /// <remarks>MCX.EXE @ 0x006830c0</remarks>
-    void handleEvent(aEvent* event) override;
-    /// <remarks>MCX.EXE @ 0x006830f0</remarks>
-    void resize(int32_t w, int32_t h) override;
-    /// <remarks>MCX.EXE @ 0x00683110</remarks>
-    void display() override;
-    /// <remarks>MCX.EXE @ 0x00683720</remarks>
-    void draw() override;
+    ~MCMechStatusWindow() override;
+    void Init(int32_t x, int32_t y, int32_t w, int32_t h, MCBattleMech* newMech);
+    void HandleEvent(MCGuiEvent* event) override;
+    void Resize(int32_t w, int32_t h) override;
+    void Display() override;
+    void Draw() override;
     /// <summary>Port: still paints a picture (in display), so it keeps one.</summary>
     bool DrawsLive() override { return false; }
-    /// <remarks>MCX.EXE @ 0x006829e0</remarks>
-    virtual BattleMech* getMech() { return mech; }
+    virtual MCBattleMech* GetMech() { return Mech; }
 
     /// <summary>The mech shown.</summary>
-    BattleMech* mech = nullptr; // +0x4c0
+    MCBattleMech* Mech = nullptr;
 };

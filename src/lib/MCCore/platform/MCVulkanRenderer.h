@@ -31,29 +31,29 @@ public:
 
     ~MCVulkanRenderer() override;
 
-    void Clear(_window* target, const MCRect& rect, uint8_t color) override;
-    void Hash(_window* target, const MCRect& rect, uint8_t color) override;
-    void Copy(_window* target, const MCCopyCommand& command) override;
-    void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) override;
-    void ShapeBlit(_window* target, const MCShapeBlitCommand& command) override;
-    void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override;
-    void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) override;
-    void Shape(_window* target, const MCShapeCommand& command) override;
-    void FastShape(_window* target, const MCFastShapeCommand& command) override;
-    void Tile(_window* target, const MCTileCommand& command) override;
-    void Polygon(_window* target, const MCPolygonCommand& command) override;
-    void MapQuad(_window* target, const MCMapQuadCommand& command) override;
-    void Line(_window* target, const MCLineCommand& command) override;
-    void Ellipse(_window* target, const MCEllipseCommand& command) override;
-    void StatusBar(_window* target, const MCStatusBarCommand& command) override;
-    void Glyph(_window* target, const MCGlyphCommand& command) override;
+    void Clear(MCWindow* target, const MCRect& rect, uint8_t color) override;
+    void Hash(MCWindow* target, const MCRect& rect, uint8_t color) override;
+    void Copy(MCWindow* target, const MCCopyCommand& command) override;
+    void AlphaBlit(MCWindow* target, const MCAlphaBlitCommand& command) override;
+    void ShapeBlit(MCWindow* target, const MCShapeBlitCommand& command) override;
+    void Write(MCWindow* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override;
+    void Pixel(MCWindow* target, int32_t x, int32_t y, uint8_t color) override;
+    void Shape(MCWindow* target, const MCShapeCommand& command) override;
+    void FastShape(MCWindow* target, const MCFastShapeCommand& command) override;
+    void Tile(MCWindow* target, const MCTileCommand& command) override;
+    void Polygon(MCWindow* target, const MCPolygonCommand& command) override;
+    void MapQuad(MCWindow* target, const MCMapQuadCommand& command) override;
+    void Line(MCWindow* target, const MCLineCommand& command) override;
+    void Ellipse(MCWindow* target, const MCEllipseCommand& command) override;
+    void StatusBar(MCWindow* target, const MCStatusBarCommand& command) override;
+    void Glyph(MCWindow* target, const MCGlyphCommand& command) override;
     /// <summary>
     /// Draws the frame's terrain tiles from the mesh in one draw (shaders/terrain.vshader), uploading the mesh and its
     /// tiles when it is new; the pass's tile commands are then left. An error when the mesh can't be held or the fog of
     /// war isn't a frame surface.
     /// </summary>
-    std::expected<void, std::string> TerrainLayer(_window* target, const MCTerrainFrame& frame) override;
-    void EndTerrainLayer(_window* target) override;
+    std::expected<void, std::string> TerrainLayer(MCWindow* target, const MCTerrainFrame& frame) override;
+    void EndTerrainLayer(MCWindow* target) override;
 
     /// <summary>
     /// The colours the next <see cref="Execute"/> draws with: the palette as shown (gamma applied, 256 entries; null
@@ -79,7 +79,7 @@ public:
     /// The colour texture of <paramref name="window"/>'s surface (premultiplied RGBA, as <see cref="Execute"/> left it)
     /// and its size in use; null when the window has no surface yet.
     /// </summary>
-    SDL_GPUTexture* SurfaceTexture(const _window* window, uint32_t& width, uint32_t& height) const;
+    SDL_GPUTexture* SurfaceTexture(const MCWindow* window, uint32_t& width, uint32_t& height) const;
 
     /// <summary>
     /// <paramref name="screen"/> in palette indices with its layout, for screenshots and tests: flushes, reads the
@@ -87,7 +87,7 @@ public:
     /// each key pixel's centre over an underlay. Blended colours aren't indices: their pixels keep the index under
     /// them. Empty when the screen has no surface yet.
     /// </summary>
-    std::expected<std::vector<uint8_t>, std::string> ReadShown(const _window* screen,
+    std::expected<std::vector<uint8_t>, std::string> ReadShown(const MCWindow* screen,
                                                                std::span<const MCUnderlay> underlays);
 
     /// <summary>The result of <see cref="Compare"/>.</summary>
@@ -154,7 +154,7 @@ protected:
     void OnDataChanged(const void* begin, size_t size) override;
 
     /// <summary>The surface is let go: its commands still run, then its textures go (after the next execution).</summary>
-    void OnFrameSurfaceRemoved(const _window* window) override;
+    void OnFrameSurfaceRemoved(const MCWindow* window) override;
 
 private:
     MCVulkanRenderer() = default;
@@ -170,7 +170,7 @@ private:
     /// <summary>A frame surface on the GPU.</summary>
     struct Surface
     {
-        const _window* Window = nullptr;
+        const MCWindow* Window = nullptr;
         /// <summary>
         /// The surface's colours (premultiplied RGBA) and indices (R8), both colour targets, and the copy of the indices
         /// draws that read the surface itself read.
@@ -258,7 +258,7 @@ private:
     };
 
     /// <summary>The surface for <paramref name="window"/> (made on first use); records a resize when its size changed.</summary>
-    uint16_t SurfaceFor(const _window* window);
+    uint16_t SurfaceFor(const MCWindow* window);
     /// <summary>Starts a frame's recording, if this is its first command.</summary>
     void BeginRecording();
     /// <summary>
@@ -276,7 +276,7 @@ private:
         uint32_t Index = 0;
     };
 
-    std::optional<SourceRef> SourceFor(uint16_t target, const _window* window);
+    std::optional<SourceRef> SourceFor(uint16_t target, const MCWindow* window);
     /// <summary>
     /// Adds a span of a polygon or quadrilateral (<paramref name="from"/>: the texture's width and height for a texel
     /// walk), with its values.
@@ -297,7 +297,7 @@ private:
     /// <paramref name="picture"/> gives once the blit is known to stay inside it (else <paramref name="command"/> is
     /// noted as not supported).
     /// </summary>
-    void BlitPicture(_window* target, const MCAlphaBlitCommand& blit, int32_t width, int32_t height,
+    void BlitPicture(MCWindow* target, const MCAlphaBlitCommand& blit, int32_t width, int32_t height,
                      const char* command, const std::function<std::optional<uint32_t>()>& picture);
     /// <summary>A registered table's row of the table texture, and a number no other table's bytes ever had.</summary>
     struct TableSlot
@@ -373,7 +373,7 @@ private:
                             const std::function<Extent()>& measure,
                             const std::function<void(uint8_t*, const Extent&)>& decode);
     /// <summary>The frame's picture index of <paramref name="window"/>'s pixels (uploaded when new).</summary>
-    std::optional<uint32_t> PictureFor(const _window* window);
+    std::optional<uint32_t> PictureFor(const MCWindow* window);
     /// <summary>Queues <paramref name="size"/> bytes for an upload into a rectangle of a texture.</summary>
     uint8_t* QueueUpload(SDL_GPUTexture* texture, uint32_t x, uint32_t y, uint32_t width, uint32_t height,
                          uint32_t bytesPerPixel);
@@ -582,5 +582,5 @@ private:
     MCSpanState _Spans;
     MirrorTally _Mirror;
     /// <summary>The surfaces dumped (-gpudump).</summary>
-    std::set<const _window*> _Dumped;
+    std::set<const MCWindow*> _Dumped;
 };

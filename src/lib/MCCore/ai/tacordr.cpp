@@ -26,10 +26,10 @@
 
 namespace
 {
-    /// <summary>Degrees to radians, as MCX.EXE stores it (MCX.EXE @ 0x0077c2a0; a hair under pi / 180).</summary>
+    /// <summary>Degrees to radians, as MCX.EXE stores it (a hair under pi / 180).</summary>
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
 
-    /// <summary>The "no time" value of <see cref="TacticalOrder::delayedTime"/> and lastTime.</summary>
+    /// <summary>The "no time" value of <see cref="MCTacticalOrder::DelayedTime"/> and lastTime.</summary>
     constexpr float NO_TIME = -1.0f;
 
     /// <summary>A mech, vehicle, elemental or plain mover.</summary>
@@ -40,121 +40,121 @@ namespace
     }
 
     /// <summary>The order's first waypoint.</summary>
-    vector_3d FirstWayPoint(const TacticalOrder* order)
+    MCVector3D FirstWayPoint(const MCTacticalOrder* order)
     {
-        const float* point = order->moveParams.wayPath.points;
-        return vector_3d(point[0], point[1], point[2]);
+        const float* point = order->MoveParams.WayPath.Points;
+        return MCVector3D(point[0], point[1], point[2]);
     }
 
     /// <summary>
     /// The shared start of the delayed orders: 0 to wait (the delay isn't over), else clears the delay and
     /// returns 1.
     /// </summary>
-    bool DelayOver(TacticalOrder* order)
+    bool DelayOver(MCTacticalOrder* order)
     {
-        if (order->delayedTime != NO_TIME)
+        if (order->DelayedTime != NO_TIME)
         {
-            if (scenarioTime < order->delayedTime)
+            if (ScenarioTime < order->DelayedTime)
             {
                 return false;
             }
 
-            order->delayedTime = NO_TIME;
+            order->DelayedTime = NO_TIME;
         }
 
         return true;
     }
 
     /// <summary>As DelayOver, for the power orders (which test "later than -1" rather than "not -1").</summary>
-    bool PowerDelayOver(TacticalOrder* order)
+    bool PowerDelayOver(MCTacticalOrder* order)
     {
-        if (NO_TIME < order->delayedTime)
+        if (NO_TIME < order->DelayedTime)
         {
-            if (scenarioTime < order->delayedTime)
+            if (ScenarioTime < order->DelayedTime)
             {
                 return false;
             }
 
-            order->delayedTime = NO_TIME;
+            order->DelayedTime = NO_TIME;
         }
 
         return true;
     }
 }
 
-auto TacticalOrder::operator=(TacticalOrder copy) -> void
+auto MCTacticalOrder::operator=(MCTacticalOrder copy) -> void
 {
-    id = copy.id;
-    delayedTime = copy.delayedTime;
-    time = copy.time;
-    unitOrder = copy.unitOrder;
-    lastTime = copy.lastTime;
-    code = copy.code;
-    origin = copy.origin;
-    moveParams = copy.moveParams;
-    attackParams = copy.attackParams;
-    target = copy.target;
-    targetObjectClass = copy.targetObjectClass;
-    selectionIndex = copy.selectionIndex;
-    stage = copy.stage;
-    pointLocalMoverId = copy.pointLocalMoverId;
-    groupFlags = copy.groupFlags;
-    data[0] = copy.data[0];
-    data[1] = copy.data[1];
-    copy.destroy();
+    Id = copy.Id;
+    DelayedTime = copy.DelayedTime;
+    Time = copy.Time;
+    UnitOrder = copy.UnitOrder;
+    LastTime = copy.LastTime;
+    Code = copy.Code;
+    Origin = copy.Origin;
+    MoveParams = copy.MoveParams;
+    AttackParams = copy.AttackParams;
+    Target = copy.Target;
+    TargetObjectClass = copy.TargetObjectClass;
+    SelectionIndex = copy.SelectionIndex;
+    Stage = copy.Stage;
+    PointLocalMoverId = copy.PointLocalMoverId;
+    GroupFlags = copy.GroupFlags;
+    Data[0] = copy.Data[0];
+    Data[1] = copy.Data[1];
+    copy.Destroy();
 }
 
-auto TacticalOrder::init() -> void
+auto MCTacticalOrder::Init() -> void
 {
-    time = NO_TIME;
-    id = 0;
-    origin = ORDER_ORIGIN_SELF;
-    unitOrder = 0;
-    code = TACTICAL_ORDER_NONE;
-    target = nullptr;
-    targetObjectClass = 0;
-    stage = 0;
+    Time = NO_TIME;
+    Id = 0;
+    Origin = ORDER_ORIGIN_SELF;
+    UnitOrder = 0;
+    Code = TACTICAL_ORDER_NONE;
+    Target = nullptr;
+    TargetObjectClass = 0;
+    Stage = 0;
 }
 
-auto TacticalOrder::init(OrderOriginType _origin, TacticalOrderCode _code, int _unitOrder) -> void
+auto MCTacticalOrder::Init(MCOrderOriginType origin, MCTacticalOrderCode code, int unitOrder) -> void
 {
-    time = scenarioTime;
-    delayedTime = NO_TIME;
-    lastTime = NO_TIME;
-    id = 0;
-    unitOrder = _unitOrder;
-    origin = _origin;
-    code = _code;
-    moveParams.wayPath.numPoints = 0;
-    moveParams.wayPath.curPoint = 0;
-    moveParams.wayPath.points[0] = 0.0f;
-    moveParams.wayPath.points[1] = 0.0f;
-    moveParams.wayPath.points[2] = 0.0f;
-    moveParams.wayPath.mode[0] = 0;
-    moveParams.faceObject = 1;
-    moveParams.wait = 0;
-    moveParams.mode = 0;
-    moveParams.escapeTile = 0;
-    attackParams.type = 1;
-    attackParams.method = 0;
-    attackParams.range = -1;
-    attackParams.aimLocation = -1;
-    attackParams.pursue = 1;
-    attackParams.obliterate = 0;
-    attackParams.targetPoint = vector_3d(0.0f, 0.0f, 0.0f);
-    target = nullptr;
-    targetObjectClass = 0;
-    selectionIndex = -1;
-    stage = 1;
-    pointLocalMoverId = 0xf;
-    groupFlags = 0;
+    Time = ScenarioTime;
+    DelayedTime = NO_TIME;
+    LastTime = NO_TIME;
+    Id = 0;
+    UnitOrder = unitOrder;
+    Origin = origin;
+    Code = code;
+    MoveParams.WayPath.NumPoints = 0;
+    MoveParams.WayPath.CurPoint = 0;
+    MoveParams.WayPath.Points[0] = 0.0f;
+    MoveParams.WayPath.Points[1] = 0.0f;
+    MoveParams.WayPath.Points[2] = 0.0f;
+    MoveParams.WayPath.Mode[0] = 0;
+    MoveParams.FaceObject = 1;
+    MoveParams.Wait = 0;
+    MoveParams.Mode = 0;
+    MoveParams.EscapeTile = 0;
+    AttackParams.Type = 1;
+    AttackParams.Method = 0;
+    AttackParams.Range = -1;
+    AttackParams.AimLocation = -1;
+    AttackParams.Pursue = 1;
+    AttackParams.Obliterate = 0;
+    AttackParams.TargetPoint = MCVector3D(0.0f, 0.0f, 0.0f);
+    Target = nullptr;
+    TargetObjectClass = 0;
+    SelectionIndex = -1;
+    Stage = 1;
+    PointLocalMoverId = 0xf;
+    GroupFlags = 0;
 }
 
-auto TacticalOrder::initWayPath(LocationNode* path) -> void
+auto MCTacticalOrder::InitWayPath(MCLocationNode* path) -> void
 {
     int32_t numPoints = 0;
 
-    for (; path != nullptr; path = path->next)
+    for (; path != nullptr; path = path->Next)
     {
         if (numPoints == MAX_WAYPTS)
         {
@@ -162,223 +162,223 @@ auto TacticalOrder::initWayPath(LocationNode* path) -> void
         }
         else
         {
-            moveParams.wayPath.points[numPoints * 3] = path->location.x;
-            moveParams.wayPath.points[numPoints * 3 + 1] = path->location.y;
-            moveParams.wayPath.points[numPoints * 3 + 2] = path->location.z;
-            moveParams.wayPath.mode[numPoints] = path->run != 0 ? 1 : 0;
+            MoveParams.WayPath.Points[numPoints * 3] = path->Location.X;
+            MoveParams.WayPath.Points[numPoints * 3 + 1] = path->Location.Y;
+            MoveParams.WayPath.Points[numPoints * 3 + 2] = path->Location.Z;
+            MoveParams.WayPath.Mode[numPoints] = path->Run != 0 ? 1 : 0;
         }
 
         numPoints++;
     }
 
-    moveParams.wayPath.numPoints = numPoints;
+    MoveParams.WayPath.NumPoints = numPoints;
 }
 
-auto TacticalOrder::getWayPoint(int32_t index) -> vector_3d
+auto MCTacticalOrder::GetWayPoint(int32_t index) -> MCVector3D
 {
-    const float* point = &moveParams.wayPath.points[index * 3];
-    return vector_3d(point[0], point[1], point[2]);
+    const float* point = &MoveParams.WayPath.Points[index * 3];
+    return MCVector3D(point[0], point[1], point[2]);
 }
 
-auto TacticalOrder::setWayPoint(int32_t index, vector_3d wayPoint) -> void
+auto MCTacticalOrder::SetWayPoint(int32_t index, MCVector3D wayPoint) -> void
 {
-    float* point = &moveParams.wayPath.points[index * 3];
-    point[0] = wayPoint.x;
-    point[1] = wayPoint.y;
-    point[2] = wayPoint.z;
+    float* point = &MoveParams.WayPath.Points[index * 3];
+    point[0] = wayPoint.X;
+    point[1] = wayPoint.Y;
+    point[2] = wayPoint.Z;
 }
 
-auto TacticalOrder::addWayPoint(vector_3d wayPoint, int32_t run) -> void
+auto MCTacticalOrder::AddWayPoint(MCVector3D wayPoint, int32_t run) -> void
 {
-    const int32_t index = moveParams.wayPath.numPoints;
+    const int32_t index = MoveParams.WayPath.NumPoints;
 
     if (index == MAX_WAYPTS)
     {
         Fatal(MAX_WAYPTS, " tacticalOrder.addWayPoint: too many! ");
     }
 
-    float* point = &moveParams.wayPath.points[index * 3];
-    point[0] = wayPoint.x;
-    point[1] = wayPoint.y;
-    point[2] = wayPoint.z;
-    moveParams.wayPath.mode[index] = static_cast<uint8_t>(run);
-    moveParams.wayPath.numPoints++;
+    float* point = &MoveParams.WayPath.Points[index * 3];
+    point[0] = wayPoint.X;
+    point[1] = wayPoint.Y;
+    point[2] = wayPoint.Z;
+    MoveParams.WayPath.Mode[index] = static_cast<uint8_t>(run);
+    MoveParams.WayPath.NumPoints++;
 }
 
-auto TacticalOrder::getRamTarget() -> GameObject*
+auto MCTacticalOrder::GetRamTarget() -> MCGameObject*
 {
-    if (code == TACTICAL_ORDER_ATTACK_OBJECT && attackParams.method == 2)
+    if (Code == TACTICAL_ORDER_ATTACK_OBJECT && AttackParams.Method == 2)
     {
-        return target;
+        return Target;
     }
 
     return nullptr;
 }
 
-auto TacticalOrder::getJumpTarget() -> GameObject*
+auto MCTacticalOrder::GetJumpTarget() -> MCGameObject*
 {
-    if (code == TACTICAL_ORDER_JUMPTO_POINT)
+    if (Code == TACTICAL_ORDER_JUMPTO_POINT)
     {
-        return target;
+        return Target;
     }
 
     return nullptr;
 }
 
-auto TacticalOrder::isGroupOrder() -> int
+auto MCTacticalOrder::IsGroupOrder() -> int
 {
-    return unitOrder;
+    return UnitOrder;
 }
 
-auto TacticalOrder::isCombatOrder() -> int
+auto MCTacticalOrder::IsCombatOrder() -> int
 {
-    return code == TACTICAL_ORDER_ATTACK_OBJECT || code == TACTICAL_ORDER_ATTACK_POINT ? 1 : 0;
+    return Code == TACTICAL_ORDER_ATTACK_OBJECT || Code == TACTICAL_ORDER_ATTACK_POINT ? 1 : 0;
 }
 
-auto TacticalOrder::isMoveOrder() -> int
+auto MCTacticalOrder::IsMoveOrder() -> int
 {
-    return code == TACTICAL_ORDER_MOVETO_POINT || code == TACTICAL_ORDER_MOVETO_OBJECT ? 1 : 0;
+    return Code == TACTICAL_ORDER_MOVETO_POINT || Code == TACTICAL_ORDER_MOVETO_OBJECT ? 1 : 0;
 }
 
-auto TacticalOrder::isWayPathOrder() -> int
+auto MCTacticalOrder::IsWayPathOrder() -> int
 {
-    return code == TACTICAL_ORDER_TRAVERSE_PATH || code == TACTICAL_ORDER_PATROL_PATH ? 1 : 0;
+    return Code == TACTICAL_ORDER_TRAVERSE_PATH || Code == TACTICAL_ORDER_PATROL_PATH ? 1 : 0;
 }
 
-auto TacticalOrder::isJumpOrder() -> int
+auto MCTacticalOrder::IsJumpOrder() -> int
 {
-    return code == TACTICAL_ORDER_JUMPTO_POINT || code == TACTICAL_ORDER_JUMPTO_OBJECT ? 1 : 0;
+    return Code == TACTICAL_ORDER_JUMPTO_POINT || Code == TACTICAL_ORDER_JUMPTO_OBJECT ? 1 : 0;
 }
 
-auto TacticalOrder::setId(MechWarrior* pilot) -> void
+auto MCTacticalOrder::SetId(MCMechWarrior* pilot) -> void
 {
-    Assert(id == 0 ? 1 : 0, static_cast<uint32_t>(id), " TacticalOrder.setId: id != 0 ");
-    id = pilot->nextTacOrderId;
+    Assert(Id == 0 ? 1 : 0, static_cast<uint32_t>(Id), " TacticalOrder.setId: id != 0 ");
+    Id = pilot->NextTacOrderId;
 
-    if (id == 0xff)
+    if (Id == 0xff)
     {
-        pilot->nextTacOrderId = 1;
+        pilot->NextTacOrderId = 1;
     }
     else
     {
-        pilot->nextTacOrderId = id + 1;
+        pilot->NextTacOrderId = Id + 1;
     }
 }
 
-auto TacticalOrder::getParamData(float* timeStamp, int32_t* paramList) -> int32_t
+auto MCTacticalOrder::GetParamData(float* timeStamp, int32_t* paramList) -> int32_t
 {
     if (timeStamp != nullptr)
     {
-        *timeStamp = time;
+        *timeStamp = Time;
     }
 
-    paramList[0] = code;
-    paramList[1] = origin;
-    paramList[2] = unitOrder != 0 ? 1 : 0;
-    paramList[3] = target == nullptr ? 0 : target->partId;
-    paramList[4] = targetObjectClass;
+    paramList[0] = Code;
+    paramList[1] = Origin;
+    paramList[2] = UnitOrder != 0 ? 1 : 0;
+    paramList[3] = Target == nullptr ? 0 : Target->PartId;
+    paramList[4] = TargetObjectClass;
     paramList[5] = 0;
-    paramList[6] = selectionIndex;
+    paramList[6] = SelectionIndex;
 
-    switch (code)
+    switch (Code)
     {
         case TACTICAL_ORDER_MOVETO_POINT:
         case TACTICAL_ORDER_GUARD:
         {
-            paramList[7] = moveParams.wayPath.mode[0] == 1 ? 1 : 0;
-            paramList[8] = moveParams.wait;
-            paramList[9] = static_cast<int32_t>(moveParams.wayPath.points[0]);
-            paramList[10] = static_cast<int32_t>(moveParams.wayPath.points[1]);
-            paramList[11] = static_cast<int32_t>(moveParams.wayPath.points[2]);
+            paramList[7] = MoveParams.WayPath.Mode[0] == 1 ? 1 : 0;
+            paramList[8] = MoveParams.Wait;
+            paramList[9] = static_cast<int32_t>(MoveParams.WayPath.Points[0]);
+            paramList[10] = static_cast<int32_t>(MoveParams.WayPath.Points[1]);
+            paramList[11] = static_cast<int32_t>(MoveParams.WayPath.Points[2]);
             break;
         }
         case TACTICAL_ORDER_MOVETO_OBJECT:
         {
-            paramList[8] = moveParams.wait;
-            paramList[7] = moveParams.wayPath.mode[0] == 1 ? 1 : 0;
-            paramList[9] = moveParams.faceObject;
+            paramList[8] = MoveParams.Wait;
+            paramList[7] = MoveParams.WayPath.Mode[0] == 1 ? 1 : 0;
+            paramList[9] = MoveParams.FaceObject;
             break;
         }
         case TACTICAL_ORDER_ATTACK_OBJECT:
         {
-            paramList[7] = moveParams.wayPath.mode[0] == 1 ? 1 : 0;
-            paramList[10] = attackParams.range;
-            paramList[9] = attackParams.method;
-            paramList[8] = attackParams.type;
-            paramList[12] = attackParams.pursue != 0 ? 1 : 0;
-            paramList[11] = attackParams.aimLocation;
-            paramList[13] = attackParams.obliterate != 0 ? 1 : 0;
+            paramList[7] = MoveParams.WayPath.Mode[0] == 1 ? 1 : 0;
+            paramList[10] = AttackParams.Range;
+            paramList[9] = AttackParams.Method;
+            paramList[8] = AttackParams.Type;
+            paramList[12] = AttackParams.Pursue != 0 ? 1 : 0;
+            paramList[11] = AttackParams.AimLocation;
+            paramList[13] = AttackParams.Obliterate != 0 ? 1 : 0;
             break;
         }
         default:
             break;
     }
 
-    return code;
+    return Code;
 }
 
-auto TacticalOrder::pack(MoverGroup*, Mover*) -> int32_t
+auto MCTacticalOrder::Pack(MCMoverGroup*, MCMover*) -> int32_t
 {
     // First word: code (5 bits, 0x1f for a GUARD without target), origin, unit order, group flags, point mover,
     // attack type and method, aim location.
-    uint32_t header = static_cast<uint32_t>(attackParams.method) << 2 | static_cast<uint32_t>(attackParams.type);
-    header = header << 4 | static_cast<uint32_t>(static_cast<int32_t>(pointLocalMoverId));
-    header = header << 12 | groupFlags;
-    header = header << 1 | (unitOrder != 0 ? 1u : 0u);
-    header = header << 2 | static_cast<uint32_t>(origin);
+    uint32_t header = static_cast<uint32_t>(AttackParams.Method) << 2 | static_cast<uint32_t>(AttackParams.Type);
+    header = header << 4 | static_cast<uint32_t>(static_cast<int32_t>(PointLocalMoverId));
+    header = header << 12 | GroupFlags;
+    header = header << 1 | (UnitOrder != 0 ? 1u : 0u);
+    header = header << 2 | static_cast<uint32_t>(Origin);
     header = header << 5;
-    uint32_t word0 = header | static_cast<uint32_t>(attackParams.aimLocation + 2) << 28;
+    uint32_t word0 = header | static_cast<uint32_t>(AttackParams.AimLocation + 2) << 28;
 
-    if (code == TACTICAL_ORDER_GUARD)
+    if (Code == TACTICAL_ORDER_GUARD)
     {
-        word0 |= target == nullptr ? 0x1f : TACTICAL_ORDER_GUARD;
+        word0 |= Target == nullptr ? 0x1f : TACTICAL_ORDER_GUARD;
     }
     else
     {
-        word0 |= static_cast<uint32_t>(code);
+        word0 |= static_cast<uint32_t>(Code);
     }
 
-    data[0] = word0;
+    Data[0] = word0;
 
     // The target (low 2 bits: 0 a mover's net roster index, 1 a terrain object part, 2 a train car part) or cell.
-    auto encodeObject = [](GameObject* object) -> uint32_t
+    auto encodeObject = [](MCGameObject* object) -> uint32_t
     {
-        const int32_t objectClass = object->objectClass;
+        const int32_t objectClass = object->ObjectClass;
 
         if (IsMoverClass(objectClass))
         {
-            return static_cast<uint32_t>(static_cast<Mover*>(object)->netRosterIndex) << 2;
+            return static_cast<uint32_t>(static_cast<MCMover*>(object)->NetRosterIndex) << 2;
         }
 
         if (objectClass == TRAINCAR)
         {
-            const int32_t part = object->partId - 0x7d000;
+            const int32_t part = object->PartId - 0x7d000;
             const int32_t high = part / 100;
             return static_cast<uint32_t>(part - high * 100) << 2 | static_cast<uint32_t>(high) << 10 | 2;
         }
 
-        const int32_t part = object->partId - 0x1000;
+        const int32_t part = object->PartId - 0x1000;
         const int32_t block = part / 3200;
         const int32_t rest = part - block * 3200;
         return (static_cast<uint32_t>(block) << 9 | static_cast<uint32_t>(rest / 8)) << 5 |
                static_cast<uint32_t>(rest % 8) << 2 | 1;
     };
 
-    auto encodeCell = [](vector_3d position) -> uint32_t
+    auto encodeCell = [](MCVector3D position) -> uint32_t
     {
         int32_t cellR = 0;
         int32_t cellC = 0;
-        worldCoordToMapCell(position, cellR, cellC);
+        WorldCoordToMapCell(position, cellR, cellC);
         return static_cast<uint32_t>(cellR) << 10 | static_cast<uint32_t>(cellC);
     };
 
     uint32_t targetBits = 0;
 
-    switch (code)
+    switch (Code)
     {
         case TACTICAL_ORDER_MOVETO_POINT:
         case TACTICAL_ORDER_JUMPTO_POINT:
-            targetBits = encodeCell(getWayPoint(0));
+            targetBits = encodeCell(GetWayPoint(0));
             break;
         case TACTICAL_ORDER_MOVETO_OBJECT:
         case TACTICAL_ORDER_JUMPTO_OBJECT:
@@ -386,57 +386,57 @@ auto TacticalOrder::pack(MoverGroup*, Mover*) -> int32_t
         case TACTICAL_ORDER_CAPTURE:
         case TACTICAL_ORDER_REFIT:
         case TACTICAL_ORDER_GETFIXED:
-            targetBits = encodeObject(target);
+            targetBits = encodeObject(Target);
             break;
         case TACTICAL_ORDER_GUARD:
-            targetBits = target != nullptr ? encodeObject(target) : encodeCell(getWayPoint(0));
+            targetBits = Target != nullptr ? encodeObject(Target) : encodeCell(GetWayPoint(0));
             break;
         case TACTICAL_ORDER_ATTACK_POINT:
-            targetBits = encodeCell(attackParams.targetPoint);
+            targetBits = encodeCell(AttackParams.TargetPoint);
             break;
         default:
             break;
     }
 
     // Second word: the target, then the move and attack flags and the fire range.
-    uint32_t word1 = targetBits << 1 | (moveParams.wayPath.mode[0] == 1 ? 1u : 0u);
-    word1 = word1 << 1 | static_cast<uint32_t>(moveParams.mode);
-    word1 = word1 << 1 | (moveParams.wait != 0 ? 1u : 0u);
-    word1 = word1 << 1 | (moveParams.faceObject != 0 ? 1u : 0u);
-    word1 = word1 << 1 | (attackParams.obliterate != 0 ? 1u : 0u);
-    word1 = word1 << 1 | (attackParams.pursue != 0 ? 1u : 0u);
-    data[1] = word1 << 3 | static_cast<uint32_t>(attackParams.range + 4);
+    uint32_t word1 = targetBits << 1 | (MoveParams.WayPath.Mode[0] == 1 ? 1u : 0u);
+    word1 = word1 << 1 | static_cast<uint32_t>(MoveParams.Mode);
+    word1 = word1 << 1 | (MoveParams.Wait != 0 ? 1u : 0u);
+    word1 = word1 << 1 | (MoveParams.FaceObject != 0 ? 1u : 0u);
+    word1 = word1 << 1 | (AttackParams.Obliterate != 0 ? 1u : 0u);
+    word1 = word1 << 1 | (AttackParams.Pursue != 0 ? 1u : 0u);
+    Data[1] = word1 << 3 | static_cast<uint32_t>(AttackParams.Range + 4);
     return 0;
 }
 
-auto TacticalOrder::unpack() -> int32_t
+auto MCTacticalOrder::Unpack() -> int32_t
 {
-    const uint32_t word0 = data[0];
+    const uint32_t word0 = Data[0];
     const uint32_t packedCode = word0 & 0x1f;
-    code = static_cast<TacticalOrderCode>(packedCode);
+    Code = static_cast<MCTacticalOrderCode>(packedCode);
 
     if (packedCode == 0x1f)
     {
-        code = TACTICAL_ORDER_GUARD;
+        Code = TACTICAL_ORDER_GUARD;
     }
 
     const int packedUnitOrder = static_cast<int>((static_cast<int32_t>(word0) >> 7) & 1);
-    origin = static_cast<OrderOriginType>((static_cast<int32_t>(word0) >> 5) & 3);
-    unitOrder = packedUnitOrder;
-    init(origin, code, packedUnitOrder);
-    groupFlags = (static_cast<int32_t>(word0) >> 8) & 0xfff;
-    pointLocalMoverId = static_cast<char>((static_cast<int32_t>(word0) >> 20) & 0xf);
-    attackParams.method = (static_cast<int32_t>(word0) >> 26) & 3;
-    const uint32_t word1 = data[1];
-    attackParams.type = (static_cast<int32_t>(word0) >> 24) & 3;
-    attackParams.aimLocation = ((static_cast<int32_t>(word0) >> 28) & 0xf) - 2;
-    attackParams.range = static_cast<int32_t>(word1 & 7) - 4;
-    attackParams.pursue = (static_cast<int32_t>(word1) >> 3) & 1;
-    attackParams.obliterate = (static_cast<int32_t>(word1) >> 4) & 1;
-    moveParams.faceObject = (static_cast<int32_t>(word1) >> 5) & 1;
-    moveParams.wait = (static_cast<int32_t>(word1) >> 6) & 1;
-    moveParams.wayPath.mode[0] = static_cast<uint8_t>((word1 >> 8) & 1);
-    moveParams.mode = (static_cast<int32_t>(word1) >> 7) & 1;
+    Origin = static_cast<MCOrderOriginType>((static_cast<int32_t>(word0) >> 5) & 3);
+    UnitOrder = packedUnitOrder;
+    Init(Origin, Code, packedUnitOrder);
+    GroupFlags = (static_cast<int32_t>(word0) >> 8) & 0xfff;
+    PointLocalMoverId = static_cast<char>((static_cast<int32_t>(word0) >> 20) & 0xf);
+    AttackParams.Method = (static_cast<int32_t>(word0) >> 26) & 3;
+    const uint32_t word1 = Data[1];
+    AttackParams.Type = (static_cast<int32_t>(word0) >> 24) & 3;
+    AttackParams.AimLocation = ((static_cast<int32_t>(word0) >> 28) & 0xf) - 2;
+    AttackParams.Range = static_cast<int32_t>(word1 & 7) - 4;
+    AttackParams.Pursue = (static_cast<int32_t>(word1) >> 3) & 1;
+    AttackParams.Obliterate = (static_cast<int32_t>(word1) >> 4) & 1;
+    MoveParams.FaceObject = (static_cast<int32_t>(word1) >> 5) & 1;
+    MoveParams.Wait = (static_cast<int32_t>(word1) >> 6) & 1;
+    MoveParams.WayPath.Mode[0] = static_cast<uint8_t>((word1 >> 8) & 1);
+    MoveParams.Mode = (static_cast<int32_t>(word1) >> 7) & 1;
 
     const uint32_t targetBits = static_cast<uint32_t>(static_cast<int32_t>(word1) >> 9);
     const uint32_t cellRow = static_cast<uint32_t>(static_cast<int32_t>(word1) >> 0x13) & 0x3ff;
@@ -449,14 +449,14 @@ auto TacticalOrder::unpack() -> int32_t
             {
                 if (MPlayer != nullptr)
                 {
-                    target = MPlayer->moverRoster[objectBits & 0x1f];
+                    Target = MPlayer->MoverRoster[objectBits & 0x1f];
                 }
 
                 return;
             }
             case 1:
             {
-                target = static_cast<GameObject*>(objectList->findObjectFromPart(
+                Target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(
                     static_cast<int32_t>(objectBits & 7) + 0x1000 +
                     (static_cast<int32_t>((static_cast<int32_t>(word1) >> 0x17) & 0xff) * 400 +
                      static_cast<int32_t>((static_cast<int32_t>(word1) >> 0xe) & 0x1ff)) *
@@ -465,8 +465,8 @@ auto TacticalOrder::unpack() -> int32_t
             }
             case 2:
             {
-                target = static_cast<GameObject*>(
-                    objectList->findObjectFromPart(static_cast<int32_t>(objectBits & 0xff) +
+                Target = static_cast<MCGameObject*>(
+                    ObjectList->FindObjectFromPart(static_cast<int32_t>(objectBits & 0xff) +
                                                    (static_cast<int32_t>((objectBits >> 8) & 0xff) + 0x1400) * 100));
                 return;
             }
@@ -477,13 +477,13 @@ auto TacticalOrder::unpack() -> int32_t
 
     auto decodeWayPoint = [&]()
     {
-        vector_3d position;
-        mapCellToWorldPos(static_cast<int32_t>(cellRow), static_cast<int32_t>(targetBits & 0x3ff), position);
-        setWayPoint(0, position);
-        moveParams.wayPath.numPoints = 1;
+        MCVector3D position;
+        MapCellToWorldPos(static_cast<int32_t>(cellRow), static_cast<int32_t>(targetBits & 0x3ff), position);
+        SetWayPoint(0, position);
+        MoveParams.WayPath.NumPoints = 1;
     };
 
-    switch (code)
+    switch (Code)
     {
         case TACTICAL_ORDER_MOVETO_POINT:
         case TACTICAL_ORDER_JUMPTO_POINT:
@@ -511,38 +511,38 @@ auto TacticalOrder::unpack() -> int32_t
         }
         case TACTICAL_ORDER_ATTACK_POINT:
         {
-            mapCellToWorldPos(static_cast<int32_t>(cellRow), static_cast<int32_t>(targetBits & 0x3ff),
-                              attackParams.targetPoint);
-            attackParams.targetPoint.z = land->getTerrainElevation(attackParams.targetPoint);
+            MapCellToWorldPos(static_cast<int32_t>(cellRow), static_cast<int32_t>(targetBits & 0x3ff),
+                              AttackParams.TargetPoint);
+            AttackParams.TargetPoint.Z = Land->GetTerrainElevation(AttackParams.TargetPoint);
             break;
         }
         default:
             break;
     }
 
-    if (target != nullptr)
+    if (Target != nullptr)
     {
-        targetObjectClass = target->objectClass;
+        TargetObjectClass = Target->ObjectClass;
     }
 
     return 0;
 }
 
-auto TacticalOrder::setGroupFlag(int32_t localMoverId, int set) -> void
+auto MCTacticalOrder::SetGroupFlag(int32_t localMoverId, int set) -> void
 {
     const uint32_t bit = 1u << (localMoverId & 0x1f);
 
     if (set != 0)
     {
-        groupFlags |= bit;
+        GroupFlags |= bit;
     }
     else
     {
-        groupFlags &= ~bit;
+        GroupFlags &= ~bit;
     }
 }
 
-auto TacticalOrder::getGroup(int32_t commanderId, Mover** moverList, Mover** point, int32_t) -> int32_t
+auto MCTacticalOrder::GetGroup(int32_t commanderId, MCMover** moverList, MCMover** point, int32_t) -> int32_t
 {
     if (MPlayer == nullptr)
     {
@@ -550,13 +550,13 @@ auto TacticalOrder::getGroup(int32_t commanderId, Mover** moverList, Mover** poi
     }
 
     int32_t numMovers = 0;
-    uint32_t flags = groupFlags;
+    uint32_t flags = GroupFlags;
 
     for (int32_t i = 0; i < 12; i++)
     {
         if ((flags & 1) != 0)
         {
-            *moverList++ = MPlayer->playerMoverRoster[commanderId][i];
+            *moverList++ = MPlayer->PlayerMoverRoster[commanderId][i];
             numMovers++;
         }
 
@@ -564,48 +564,48 @@ auto TacticalOrder::getGroup(int32_t commanderId, Mover** moverList, Mover** poi
     }
 
     *point = nullptr;
-    if (pointLocalMoverId != 0xf)
+    if (PointLocalMoverId != 0xf)
     {
-        *point = MPlayer->playerMoverRoster[commanderId][static_cast<int32_t>(pointLocalMoverId)];
+        *point = MPlayer->PlayerMoverRoster[commanderId][static_cast<int32_t>(PointLocalMoverId)];
     }
 
     return numMovers;
 }
 
-auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
+auto MCTacticalOrder::Execute(MCMechWarrior* pilot, int32_t& message) -> int32_t
 {
     int32_t result = 0;
-    Mover* vehicle = static_cast<Mover*>(pilot->vehicle);
+    MCMover* vehicle = static_cast<MCMover*>(pilot->Vehicle);
     message = -1;
 
     // A new order ends any refit the vehicle was part of.
-    if (vehicle->refitBuddy != nullptr)
+    if (vehicle->RefitBuddy != nullptr)
     {
-        if (vehicle->objectClass == GROUNDVEHICLE)
+        if (vehicle->ObjectClass == GROUNDVEHICLE)
         {
-            static_cast<GroundVehicle*>(vehicle)->refitting = 0;
+            static_cast<MCGroundVehicle*>(vehicle)->Refitting = 0;
         }
 
-        GameObject* buddy = vehicle->refitBuddy;
+        MCGameObject* buddy = vehicle->RefitBuddy;
 
-        if (buddy->objectClass == GROUNDVEHICLE)
+        if (buddy->ObjectClass == GROUNDVEHICLE)
         {
-            static_cast<GroundVehicle*>(buddy)->refitting = 0;
+            static_cast<MCGroundVehicle*>(buddy)->Refitting = 0;
         }
 
-        if (IsMoverClass(buddy->objectClass))
+        if (IsMoverClass(buddy->ObjectClass))
         {
-            static_cast<Mover*>(buddy)->refitBuddy = nullptr;
+            static_cast<MCMover*>(buddy)->RefitBuddy = nullptr;
         }
-        else if (buddy->objectClass == TREEBUILDING)
+        else if (buddy->ObjectClass == TREEBUILDING)
         {
-            static_cast<TreeBuilding*>(buddy)->refitBuddy = nullptr;
+            static_cast<MCTreeBuilding*>(buddy)->RefitBuddy = nullptr;
         }
 
-        vehicle->refitBuddy = nullptr;
+        vehicle->RefitBuddy = nullptr;
     }
 
-    switch (code)
+    switch (Code)
     {
         case TACTICAL_ORDER_MOVETO_POINT:
         {
@@ -614,43 +614,43 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
                 return 0;
             }
 
-            uint32_t params = moveParams.wayPath.mode[0] == 1 ? 1 : 0;
+            uint32_t params = MoveParams.WayPath.Mode[0] == 1 ? 1 : 0;
 
-            if (moveParams.wait != 0)
+            if (MoveParams.Wait != 0)
             {
                 params |= 2;
             }
 
-            if (moveParams.mode == 1)
+            if (MoveParams.Mode == 1)
             {
                 params |= 8;
             }
 
-            if (moveParams.escapeTile != 0)
+            if (MoveParams.EscapeTile != 0)
             {
                 params |= 0x40;
             }
 
-            result = pilot->orderMoveToPoint(unitOrder, 1, origin, FirstWayPoint(this), selectionIndex, params);
+            result = pilot->OrderMoveToPoint(UnitOrder, 1, Origin, FirstWayPoint(this), SelectionIndex, params);
             message = -1;
             break;
         }
 
         case TACTICAL_ORDER_MOVETO_OBJECT:
         {
-            uint32_t params = moveParams.wayPath.mode[0] == 1 ? 1 : 0;
+            uint32_t params = MoveParams.WayPath.Mode[0] == 1 ? 1 : 0;
 
-            if (moveParams.faceObject != 0)
+            if (MoveParams.FaceObject != 0)
             {
                 params |= 4;
             }
 
-            if (moveParams.mode == 1)
+            if (MoveParams.Mode == 1)
             {
                 params |= 8;
             }
 
-            pilot->orderMoveToObject(unitOrder, 1, origin, target, selectionIndex, params);
+            pilot->OrderMoveToObject(UnitOrder, 1, Origin, Target, SelectionIndex, params);
             message = -1;
             break;
         }
@@ -662,7 +662,7 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
                 return 0;
             }
 
-            result = pilot->orderJumpToPoint(unitOrder, 1, origin, FirstWayPoint(this), -1);
+            result = pilot->OrderJumpToPoint(UnitOrder, 1, Origin, FirstWayPoint(this), -1);
 
             if (result == 0)
             {
@@ -677,12 +677,12 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
                 return 0;
             }
 
-            if (target == nullptr)
+            if (Target == nullptr)
             {
                 return 1;
             }
 
-            result = pilot->orderJumpToObject(unitOrder, 1, origin, target, -1);
+            result = pilot->OrderJumpToObject(UnitOrder, 1, Origin, Target, -1);
 
             if (result == 0)
             {
@@ -692,29 +692,29 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
         }
         case TACTICAL_ORDER_TRAVERSE_PATH:
         {
-            pilot->orderTraversePath(unitOrder, 1, origin, &moveParams.wayPath, moveParams.mode == 1 ? 8 : 0);
+            pilot->OrderTraversePath(UnitOrder, 1, Origin, &MoveParams.WayPath, MoveParams.Mode == 1 ? 8 : 0);
             message = 0;
             break;
         }
         case TACTICAL_ORDER_PATROL_PATH:
         {
-            pilot->orderPatrolPath(unitOrder, 1, origin, &moveParams.wayPath);
+            pilot->OrderPatrolPath(UnitOrder, 1, Origin, &MoveParams.WayPath);
             message = 0;
             break;
         }
         case TACTICAL_ORDER_GUARD:
         {
             message = 0;
-            attackParams.type = 1;
-            attackParams.method = 0;
-            attackParams.pursue = 1;
-            attackParams.range = -1;
+            AttackParams.Type = 1;
+            AttackParams.Method = 0;
+            AttackParams.Pursue = 1;
+            AttackParams.Range = -1;
             break;
         }
         case TACTICAL_ORDER_STOP:
         {
             message = 3;
-            pilot->orderStop(unitOrder, 1);
+            pilot->OrderStop(UnitOrder, 1);
             break;
         }
         case TACTICAL_ORDER_POWERUP:
@@ -726,7 +726,7 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
                 return 0;
             }
 
-            pilot->orderPowerUp(unitOrder, origin);
+            pilot->OrderPowerUp(UnitOrder, Origin);
             break;
         }
         case TACTICAL_ORDER_POWERDOWN:
@@ -738,37 +738,37 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
                 return 0;
             }
 
-            pilot->orderPowerDown(unitOrder, origin);
+            pilot->OrderPowerDown(UnitOrder, Origin);
             break;
         }
         case TACTICAL_ORDER_EJECT:
-            pilot->orderEject(unitOrder, 1, origin);
+            pilot->OrderEject(UnitOrder, 1, Origin);
             break;
         case TACTICAL_ORDER_ATTACK_OBJECT:
         {
             result = -1;
             message = 0x1b;
 
-            if (target == nullptr)
+            if (Target == nullptr)
             {
-                pilot->setLastTarget(nullptr, 0, 0);
-                static_cast<Mover*>(pilot->vehicle)->calcOptimalRange(nullptr);
-                uint32_t params = attackParams.obliterate != 0 ? 0x20 : 0;
+                pilot->SetLastTarget(nullptr, 0, 0);
+                static_cast<MCMover*>(pilot->Vehicle)->CalcOptimalRange(nullptr);
+                uint32_t params = AttackParams.Obliterate != 0 ? 0x20 : 0;
 
-                if (attackParams.pursue != 0)
+                if (AttackParams.Pursue != 0)
                 {
                     params |= 0x10;
                 }
 
-                result = pilot->orderAttackPoint(unitOrder, origin, attackParams.targetPoint, attackParams.type,
-                                                 attackParams.method, attackParams.range, params);
+                result = pilot->OrderAttackPoint(UnitOrder, Origin, AttackParams.TargetPoint, AttackParams.Type,
+                                                 AttackParams.Method, AttackParams.Range, params);
 
                 if (result != 0)
                 {
                     break;
                 }
 
-                if (attackParams.range != -1 && attackParams.range != -4)
+                if (AttackParams.Range != -1 && AttackParams.Range != -4)
                 {
                     message = 5;
                     break;
@@ -776,34 +776,34 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
             }
             else
             {
-                GameObject* attackTarget = target;
+                MCGameObject* attackTarget = Target;
 
-                if (attackTarget->inTransport() != 0)
+                if (attackTarget->InTransport() != 0)
                 {
-                    attackTarget = static_cast<Elemental*>(attackTarget)->transport;
-                    target = attackTarget;
+                    attackTarget = static_cast<MCElemental*>(attackTarget)->Transport;
+                    Target = attackTarget;
                 }
 
-                static_cast<Mover*>(pilot->vehicle)->calcOptimalRange(attackTarget);
-                targetObjectClass = attackTarget->objectClass;
-                const int disabled = attackTarget->isDisabled();
-                attackParams.obliterate = disabled;
+                static_cast<MCMover*>(pilot->Vehicle)->CalcOptimalRange(attackTarget);
+                TargetObjectClass = attackTarget->ObjectClass;
+                const int disabled = attackTarget->IsDisabled();
+                AttackParams.Obliterate = disabled;
 
-                if (attackTarget->isDestroyed() != 0)
+                if (attackTarget->IsDestroyed() != 0)
                 {
                     break;
                 }
 
                 uint32_t params = disabled != 0 ? 0x20 : 0;
 
-                if (attackParams.pursue != 0)
+                if (AttackParams.Pursue != 0)
                 {
                     params |= 0x10;
                 }
 
                 result =
-                    pilot->orderAttackObject(unitOrder, origin, attackTarget, attackParams.type, attackParams.method,
-                                             attackParams.range, attackParams.aimLocation, params);
+                    pilot->OrderAttackObject(UnitOrder, Origin, attackTarget, AttackParams.Type, AttackParams.Method,
+                                             AttackParams.Range, AttackParams.AimLocation, params);
 
                 if (result != 0)
                 {
@@ -812,32 +812,32 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
 
                 message = 4;
 
-                if (attackParams.method == 2)
+                if (AttackParams.Method == 2)
                 {
                     message = 7;
                     break;
                 }
 
-                if (attackParams.method == 1)
+                if (AttackParams.Method == 1)
                 {
                     message = 8;
                     break;
                 }
 
-                if (attackParams.range != -1 && attackParams.range != -4)
+                if (AttackParams.Range != -1 && AttackParams.Range != -4)
                 {
                     message = 5;
                     break;
                 }
 
-                if (attackParams.aimLocation != -1)
+                if (AttackParams.AimLocation != -1)
                 {
                     message = 9;
                     break;
                 }
             }
 
-            if (attackParams.pursue == 0)
+            if (AttackParams.Pursue == 0)
             {
                 message = 6;
             }
@@ -847,23 +847,23 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
         case TACTICAL_ORDER_ATTACK_POINT:
         {
             message = 0x1b;
-            pilot->setLastTarget(nullptr, 0, 0);
-            static_cast<Mover*>(pilot->vehicle)->calcOptimalRange(nullptr);
-            uint32_t params = attackParams.obliterate != 0 ? 0x20 : 0;
+            pilot->SetLastTarget(nullptr, 0, 0);
+            static_cast<MCMover*>(pilot->Vehicle)->CalcOptimalRange(nullptr);
+            uint32_t params = AttackParams.Obliterate != 0 ? 0x20 : 0;
 
-            if (attackParams.pursue != 0)
+            if (AttackParams.Pursue != 0)
             {
                 params |= 0x10;
             }
 
-            result = pilot->orderAttackPoint(unitOrder, origin, attackParams.targetPoint, attackParams.type,
-                                             attackParams.method, attackParams.range, params);
+            result = pilot->OrderAttackPoint(UnitOrder, Origin, AttackParams.TargetPoint, AttackParams.Type,
+                                             AttackParams.Method, AttackParams.Range, params);
 
             if (result == 0)
             {
-                if (attackParams.range == -1 || attackParams.range == -4)
+                if (AttackParams.Range == -1 || AttackParams.Range == -4)
                 {
-                    message = attackParams.pursue != 0 ? -1 : 6;
+                    message = AttackParams.Pursue != 0 ? -1 : 6;
                 }
                 else
                 {
@@ -876,33 +876,33 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
         case TACTICAL_ORDER_HOLD_FIRE:
         {
             message = 3;
-            pilot->orderWait(unitOrder, origin, 0, 1);
+            pilot->OrderWait(UnitOrder, Origin, 0, 1);
             break;
         }
         case TACTICAL_ORDER_WITHDRAW:
-            pilot->orderWithdraw(unitOrder, origin, FirstWayPoint(this));
+            pilot->OrderWithdraw(UnitOrder, Origin, FirstWayPoint(this));
             break;
         case TACTICAL_ORDER_CAPTURE:
         {
             result = 1;
-            uint32_t params = moveParams.wayPath.mode[0] == 1 ? 1 : 0;
+            uint32_t params = MoveParams.WayPath.Mode[0] == 1 ? 1 : 0;
 
-            if (moveParams.faceObject != 0)
+            if (MoveParams.FaceObject != 0)
             {
                 params |= 4;
             }
 
-            bool refuse = target == nullptr || target->isCaptureable() == 0 ||
-                          target->getAlignment() == pilot->alignment ||
-                          target->getCaptureBlocker(pilot->alignment) != nullptr;
+            bool refuse = Target == nullptr || Target->IsCaptureable() == 0 ||
+                          Target->GetAlignment() == pilot->Alignment ||
+                          Target->GetCaptureBlocker(pilot->Alignment) != nullptr;
 
-            if (!refuse && target->isBuilding() != 0)
+            if (!refuse && Target->IsBuilding() != 0)
             {
                 // Only a vehicle with seats can empty a prison.
-                int isPrison = target->objectClass == BUILDING && target->isPrison() != 0;
+                int isPrison = Target->ObjectClass == BUILDING && Target->IsPrison() != 0;
 
-                if (((target->objectClass == TREEBUILDING && target->isPrison() != 0) || isPrison) &&
-                    (vehicle->objectClass != GROUNDVEHICLE || static_cast<GroundVehicle*>(vehicle)->seats == 0))
+                if (((Target->ObjectClass == TREEBUILDING && Target->IsPrison() != 0) || isPrison) &&
+                    (vehicle->ObjectClass != GROUNDVEHICLE || static_cast<MCGroundVehicle*>(vehicle)->Seats == 0))
                 {
                     refuse = true;
                 }
@@ -914,7 +914,7 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
             }
             else
             {
-                result = pilot->orderMoveToObject(0, 0, origin, target, 0, params);
+                result = pilot->OrderMoveToObject(0, 0, Origin, Target, 0, params);
 
                 if (result == 0)
                 {
@@ -927,43 +927,43 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
                 }
             }
 
-            stage = 0xff;
+            Stage = 0xff;
             break;
         }
 
         case TACTICAL_ORDER_REFIT:
         {
             // Port fix: the original calls target->getPilot() (and drops the result) before the null check.
-            if (target != nullptr)
+            if (Target != nullptr)
             {
-                target->getPilot();
+                Target->GetPilot();
             }
 
             result = 1;
 
-            if (target == nullptr || target->objectClass != BATTLEMECH ||
-                static_cast<Mover*>(target)->needsRefit(0) == 0)
+            if (Target == nullptr || Target->ObjectClass != BATTLEMECH ||
+                static_cast<MCMover*>(Target)->NeedsRefit(0) == 0)
             {
                 break;
             }
 
-            if (vehicle->objectClass == GROUNDVEHICLE && vehicle->getRefitPoints() > 0.0f &&
-                vehicle->refitBuddy == nullptr)
+            if (vehicle->ObjectClass == GROUNDVEHICLE && vehicle->GetRefitPoints() > 0.0f &&
+                vehicle->RefitBuddy == nullptr)
             {
-                result = pilot->orderMoveToObject(unitOrder, 0, origin, target, selectionIndex,
-                                                  moveParams.wayPath.mode[0] == 1 ? 5 : 4);
-                time = 0.0f;
+                result = pilot->OrderMoveToObject(UnitOrder, 0, Origin, Target, SelectionIndex,
+                                                  MoveParams.WayPath.Mode[0] == 1 ? 5 : 4);
+                Time = 0.0f;
 
                 if (result == 0)
                 {
-                    static_cast<Mover*>(target)->refitBuddy = vehicle;
-                    vehicle->refitBuddy = target;
+                    static_cast<MCMover*>(Target)->RefitBuddy = vehicle;
+                    vehicle->RefitBuddy = Target;
                     message = 0xe;
                     break;
                 }
             }
 
-            stage = 0xff;
+            Stage = 0xff;
             break;
         }
 
@@ -971,36 +971,36 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
         {
             result = 1;
 
-            if (target == nullptr || target->objectClass != TREEBUILDING)
+            if (Target == nullptr || Target->ObjectClass != TREEBUILDING)
             {
                 break;
             }
 
-            TreeBuilding* bay = static_cast<TreeBuilding*>(target);
+            MCTreeBuilding* bay = static_cast<MCTreeBuilding*>(Target);
 
-            if (bay->getRefitPoints() > 0.0f && bay->refitBuddy == nullptr &&
-                ((vehicle->objectClass == BATTLEMECH && bay->mechBay == 1) ||
-                 (vehicle->objectClass == GROUNDVEHICLE && bay->mechBay == 0)))
+            if (bay->GetRefitPoints() > 0.0f && bay->RefitBuddy == nullptr &&
+                ((vehicle->ObjectClass == BATTLEMECH && bay->MechBay == 1) ||
+                 (vehicle->ObjectClass == GROUNDVEHICLE && bay->MechBay == 0)))
             {
                 int32_t tileR = 0;
                 int32_t tileC = 0;
-                worldCoordToMapTile(bay->getPosition(), tileR, tileC);
-                vector_3d dest;
-                mapTileCellToWorldPos(tileR, tileC, 2, 1, dest);
-                result = pilot->orderMoveToPoint(unitOrder, 0, origin, dest, selectionIndex,
-                                                 moveParams.wayPath.mode[0] == 1 ? 5 : 4);
-                time = 0.0f;
+                WorldCoordToMapTile(bay->GetPosition(), tileR, tileC);
+                MCVector3D dest;
+                MapTileCellToWorldPos(tileR, tileC, 2, 1, dest);
+                result = pilot->OrderMoveToPoint(UnitOrder, 0, Origin, dest, SelectionIndex,
+                                                 MoveParams.WayPath.Mode[0] == 1 ? 5 : 4);
+                Time = 0.0f;
 
                 if (result == 0)
                 {
                     message = 0xe;
-                    bay->refitBuddy = vehicle;
-                    vehicle->refitBuddy = target;
+                    bay->RefitBuddy = vehicle;
+                    vehicle->RefitBuddy = Target;
                     break;
                 }
             }
 
-            stage = 0xff;
+            Stage = 0xff;
             break;
         }
 
@@ -1008,10 +1008,10 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
         {
             result = 1;
 
-            if (vehicle->objectClass == ELEMENTAL && target != nullptr && target->objectClass == GROUNDVEHICLE &&
-                static_cast<GroundVehicle*>(target)->elementalCarrier != 0)
+            if (vehicle->ObjectClass == ELEMENTAL && Target != nullptr && Target->ObjectClass == GROUNDVEHICLE &&
+                static_cast<MCGroundVehicle*>(Target)->ElementalCarrier != 0)
             {
-                result = target->getPilot()->orderMoveToObject(0, 0, origin, vehicle, -1, 4);
+                result = Target->GetPilot()->OrderMoveToObject(0, 0, Origin, vehicle, -1, 4);
 
                 if (result == 0)
                 {
@@ -1020,59 +1020,60 @@ auto TacticalOrder::execute(MechWarrior* pilot, int32_t& message) -> int32_t
                 }
             }
 
-            stage = 0xff;
+            Stage = 0xff;
             break;
         }
         case TACTICAL_ORDER_DEPLOY_ELEMENTALS:
         {
             result = 1;
 
-            if (vehicle->objectClass == GROUNDVEHICLE && static_cast<GroundVehicle*>(vehicle)->elementals[0] != nullptr)
+            if (vehicle->ObjectClass == GROUNDVEHICLE &&
+                static_cast<MCGroundVehicle*>(vehicle)->Elementals[0] != nullptr)
             {
                 result = 0;
-                static_cast<GroundVehicle*>(vehicle)->elementals[0]->playMessage(static_cast<RadioMessageType>(0x26),
-                                                                                 0);
-                time = scenarioTime + 5.0f;
+                static_cast<MCGroundVehicle*>(vehicle)->Elementals[0]->PlayMessage(
+                    static_cast<MCRadioMessageType>(0x26), 0);
+                Time = ScenarioTime + 5.0f;
                 break;
             }
 
-            stage = 0xff;
+            Stage = 0xff;
             break;
         }
         default:
             break;
     }
 
-    if (origin == ORDER_ORIGIN_PLAYER)
+    if (Origin == ORDER_ORIGIN_PLAYER)
     {
-        pilot->triggerAlarm(0xe, static_cast<uint32_t>(code));
+        pilot->TriggerAlarm(0xe, static_cast<uint32_t>(Code));
     }
     else
     {
         message = -1;
     }
 
-    if (code != TACTICAL_ORDER_WITHDRAW && static_cast<char>(pilot->vehicle->status) != 2)
+    if (Code != TACTICAL_ORDER_WITHDRAW && static_cast<char>(pilot->Vehicle->Status) != 2)
     {
-        static_cast<Mover*>(pilot->vehicle)->withdrawing = 0;
+        static_cast<MCMover*>(pilot->Vehicle)->Withdrawing = 0;
     }
 
     return result;
 }
 
-auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
+auto MCTacticalOrder::Status(MCMechWarrior* pilot) -> int32_t
 {
-    TacticalOrder queued;
-    queued.init();
-    const int nextIsMove = pilot->peekQueuedTacOrder(&queued) == 0 && queued.code == TACTICAL_ORDER_MOVETO_POINT;
-    Mover* vehicle = static_cast<Mover*>(pilot->vehicle);
+    MCTacticalOrder queued;
+    queued.Init();
+    const int nextIsMove = pilot->PeekQueuedTacOrder(&queued) == 0 && queued.Code == TACTICAL_ORDER_MOVETO_POINT;
+    MCMover* vehicle = static_cast<MCMover*>(pilot->Vehicle);
     int32_t done = 1;
 
-    switch (code)
+    switch (Code)
     {
         case TACTICAL_ORDER_WAIT:
         {
-            if (scenarioTime <= delayedTime)
+            if (ScenarioTime <= DelayedTime)
             {
                 done = 0;
             }
@@ -1080,28 +1081,28 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
         }
         case TACTICAL_ORDER_MOVETO_POINT:
         {
-            if (NO_TIME < delayedTime)
+            if (NO_TIME < DelayedTime)
             {
-                if (scenarioTime < delayedTime)
+                if (ScenarioTime < DelayedTime)
                 {
-                    queued.destroy();
+                    queued.Destroy();
                     return 0;
                 }
 
-                delayedTime = NO_TIME;
+                DelayedTime = NO_TIME;
                 int32_t message = 0;
-                execute(pilot, message);
+                Execute(pilot, message);
             }
 
-            vector_3d point = FirstWayPoint(this);
-            const double distance = vehicle->distanceFrom(point);
+            MCVector3D point = FirstWayPoint(this);
+            const double distance = vehicle->DistanceFrom(point);
             const float margin = nextIsMove ? 8.0f : MoveMarginOfError[1];
 
             if (distance < margin)
             {
-                if (moveParams.wait != 0)
+                if (MoveParams.Wait != 0)
                 {
-                    code = TACTICAL_ORDER_WAIT;
+                    Code = TACTICAL_ORDER_WAIT;
                     done = 0;
                 }
                 break;
@@ -1121,24 +1122,24 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
             break;
         case TACTICAL_ORDER_MOVETO_OBJECT:
         {
-            if (target == nullptr)
+            if (Target == nullptr)
             {
                 break;
             }
 
-            vector_3d targetPos = target->getPosition();
+            MCVector3D targetPos = Target->GetPosition();
 
-            if (vehicle->distanceFrom(targetPos) > MoveMarginOfError[1])
+            if (vehicle->DistanceFrom(targetPos) > MoveMarginOfError[1])
             {
                 done = 0;
                 break;
             }
 
-            if (moveParams.faceObject != 0)
+            if (MoveParams.FaceObject != 0)
             {
                 // Done only once the target is inside the fire arc.
-                const float facing = pilot->getVehicle()->relViewFacingTo(target->getPosition());
-                const float fireArc = static_cast<Mover*>(pilot->vehicle)->getFireArc();
+                const float facing = pilot->GetVehicle()->RelViewFacingTo(Target->GetPosition());
+                const float fireArc = static_cast<MCMover*>(pilot->Vehicle)->GetFireArc();
 
                 if (facing < -fireArc)
                 {
@@ -1154,7 +1155,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
         case TACTICAL_ORDER_JUMPTO_POINT:
         {
-            if (stage != 3)
+            if (Stage != 3)
             {
                 done = 0;
             }
@@ -1162,34 +1163,34 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
         }
         case TACTICAL_ORDER_JUMPTO_OBJECT:
         {
-            if (static_cast<BattleMech*>(vehicle)->inJump == 0 ||
-                static_cast<MechActor*>(vehicle->appearance)->inJump != 0)
+            if (static_cast<MCBattleMech*>(vehicle)->InJump == 0 ||
+                static_cast<MCMechActor*>(vehicle->Appearance)->InJump != 0)
             {
                 done = 0;
             }
             break;
         }
         case TACTICAL_ORDER_TRAVERSE_PATH:
-            done = stage == 2 ? 1 : 0;
+            done = Stage == 2 ? 1 : 0;
             break;
         case TACTICAL_ORDER_STOP:
             break;
         case TACTICAL_ORDER_POWERUP:
         {
-            if (NO_TIME < delayedTime)
+            if (NO_TIME < DelayedTime)
             {
-                if (scenarioTime < delayedTime)
+                if (ScenarioTime < DelayedTime)
                 {
-                    queued.destroy();
+                    queued.Destroy();
                     return 0;
                 }
 
-                delayedTime = NO_TIME;
+                DelayedTime = NO_TIME;
                 int32_t message = 0;
-                execute(pilot, message);
+                Execute(pilot, message);
             }
 
-            if (pilot->getVehicleStatus() != 0)
+            if (pilot->GetVehicleStatus() != 0)
             {
                 done = 0;
             }
@@ -1197,17 +1198,17 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
         }
         case TACTICAL_ORDER_POWERDOWN:
         {
-            if (NO_TIME < delayedTime)
+            if (NO_TIME < DelayedTime)
             {
-                if (scenarioTime < delayedTime)
+                if (ScenarioTime < DelayedTime)
                 {
-                    queued.destroy();
+                    queued.Destroy();
                     return 0;
                 }
 
-                delayedTime = NO_TIME;
+                DelayedTime = NO_TIME;
                 int32_t message = 0;
-                execute(pilot, message);
+                Execute(pilot, message);
             }
 
             done = 0;
@@ -1215,27 +1216,27 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
         }
         case TACTICAL_ORDER_ATTACK_OBJECT:
         {
-            GameObject* attackTarget = target;
+            MCGameObject* attackTarget = Target;
 
             if (attackTarget == nullptr)
             {
                 break;
             }
 
-            if (attackTarget->objectClass == ELEMENTAL && static_cast<Elemental*>(attackTarget)->transport != nullptr)
+            if (attackTarget->ObjectClass == ELEMENTAL && static_cast<MCElemental*>(attackTarget)->Transport != nullptr)
             {
-                attackTarget = static_cast<Elemental*>(attackTarget)->transport;
-                target = attackTarget;
+                attackTarget = static_cast<MCElemental*>(attackTarget)->Transport;
+                Target = attackTarget;
             }
 
-            if (attackTarget->isDestroyed() != 0)
+            if (attackTarget->IsDestroyed() != 0)
             {
                 break;
             }
 
-            if (attackTarget->isDisabled() != 0)
+            if (attackTarget->IsDisabled() != 0)
             {
-                done = attackParams.obliterate == 0 ? 1 : 0;
+                done = AttackParams.Obliterate == 0 ? 1 : 0;
             }
             else
             {
@@ -1247,64 +1248,64 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
         case TACTICAL_ORDER_SCRAMBLE:
         {
             done = 0;
-            vector_3d point = FirstWayPoint(this);
-            vehicle->distanceFrom(point);
+            MCVector3D point = FirstWayPoint(this);
+            vehicle->DistanceFrom(point);
             break;
         }
 
         case TACTICAL_ORDER_CAPTURE:
         {
-            if (stage == 0xff)
+            if (Stage == 0xff)
             {
                 break;
             }
 
-            GameObject* prize = target;
-            vector_3d prizePos = prize->getPosition();
-            const auto distance = static_cast<float>(vehicle->distanceFrom(prizePos));
-            const int32_t alignment = pilot->alignment;
+            MCGameObject* prize = Target;
+            MCVector3D prizePos = prize->GetPosition();
+            const auto distance = static_cast<float>(vehicle->DistanceFrom(prizePos));
+            const int32_t alignment = pilot->Alignment;
             done = 0;
 
-            if (prize->getCaptureBlocker(alignment) != nullptr)
+            if (prize->GetCaptureBlocker(alignment) != nullptr)
             {
                 done = 1;
-                pilot->radioMessage(0xb, 1);
+                pilot->RadioMessage(0xb, 1);
                 break;
             }
 
-            if (distance >= 30.0f || prize->isCaptureable() == 0)
+            if (distance >= 30.0f || prize->IsCaptureable() == 0)
             {
                 break;
             }
 
-            switch (prize->objectClass)
+            switch (prize->ObjectClass)
             {
                 case BATTLEMECH:
                 {
                     // A seated pilot takes over the mech.
-                    const ObjectPosition* position = prize->getObjPosition();
+                    const MCObjectPosition* position = prize->GetObjPosition();
                     const uint32_t overlay =
-                        GameMap->map[position->tileR * GameMap->width + position->tileC].overlay & 0x7f;
+                        GameMap->Map[position->TileR * GameMap->Width + position->TileC].Overlay & 0x7f;
 
-                    if (OverlayIsBridge[overlay] != 0 || vehicle->objectClass != GROUNDVEHICLE)
+                    if (OverlayIsBridge[overlay] != 0 || vehicle->ObjectClass != GROUNDVEHICLE)
                     {
                         break;
                     }
 
-                    GroundVehicle* carrier = static_cast<GroundVehicle*>(vehicle);
+                    MCGroundVehicle* carrier = static_cast<MCGroundVehicle*>(vehicle);
 
-                    for (int32_t seat = 0; seat < carrier->seats; seat++)
+                    for (int32_t seat = 0; seat < carrier->Seats; seat++)
                     {
-                        if (carrier->passengers[seat] == nullptr)
+                        if (carrier->Passengers[seat] == nullptr)
                         {
                             continue;
                         }
 
-                        MechWarrior* newPilot = carrier->passengers[seat];
-                        carrier->passengers[seat] = nullptr;
-                        static_cast<Mover*>(prize)->pilot = newPilot;
-                        prize->setAwake(1);
-                        theInterface->ActivateMech(prize->partId);
+                        MCMechWarrior* newPilot = carrier->Passengers[seat];
+                        carrier->Passengers[seat] = nullptr;
+                        static_cast<MCMover*>(prize)->Pilot = newPilot;
+                        prize->SetAwake(1);
+                        TheInterface->ActivateMech(prize->PartId);
                         done = 1;
                         break;
                     }
@@ -1313,62 +1314,62 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
                 case GROUNDVEHICLE:
                 {
-                    const ObjectPosition* position = prize->getObjPosition();
+                    const MCObjectPosition* position = prize->GetObjPosition();
                     const uint32_t overlay =
-                        GameMap->map[position->tileR * GameMap->width + position->tileC].overlay & 0x7f;
+                        GameMap->Map[position->TileR * GameMap->Width + position->TileC].Overlay & 0x7f;
 
                     if (OverlayIsBridge[overlay] != 0)
                     {
                         break;
                     }
 
-                    prize->setCaptured();
+                    prize->SetCaptured();
 
-                    if (prize->getSalvage() != nullptr)
+                    if (prize->GetSalvage() != nullptr)
                     {
-                        Terrain::terrainTacticalMap->AddSalvage(prize);
+                        MCTerrain::TerrainTacticalMap->AddSalvage(prize);
                     }
 
                     done = 1;
-                    pilot->radioMessage(0xd, 1);
+                    pilot->RadioMessage(0xd, 1);
                     break;
                 }
 
                 case BUILDING:
                 case TREEBUILDING:
                 {
-                    prize->setCaptured();
-                    prize->setAlignment(alignment);
-                    prize->setCommanderId(vehicle->getCommanderId());
+                    prize->SetCaptured();
+                    prize->SetAlignment(alignment);
+                    prize->SetCommanderId(vehicle->GetCommanderId());
 
-                    if (prize->getSalvage() != nullptr)
+                    if (prize->GetSalvage() != nullptr)
                     {
-                        Terrain::terrainTacticalMap->AddSalvage(prize);
+                        MCTerrain::TerrainTacticalMap->AddSalvage(prize);
                     }
 
-                    if (prize->isPrison() != 0 && vehicle->objectClass == GROUNDVEHICLE)
+                    if (prize->IsPrison() != 0 && vehicle->ObjectClass == GROUNDVEHICLE)
                     {
                         // Original behaviour (OB-031): every seat pass moves all the prisoners into that seat, so only the
                         // last prisoner is kept, in the first seat.
-                        GroundVehicle* carrier = static_cast<GroundVehicle*>(vehicle);
-                        MechWarrior** prisoners = nullptr;
+                        MCGroundVehicle* carrier = static_cast<MCGroundVehicle*>(vehicle);
+                        MCMechWarrior** prisoners = nullptr;
 
-                        if (prize->objectClass == BUILDING)
+                        if (prize->ObjectClass == BUILDING)
                         {
-                            prisoners = static_cast<Building*>(prize)->prisonSlots;
+                            prisoners = static_cast<MCBuilding*>(prize)->PrisonSlots;
                         }
                         else
                         {
-                            prisoners = static_cast<TreeBuilding*>(prize)->prisonSlots;
+                            prisoners = static_cast<MCTreeBuilding*>(prize)->PrisonSlots;
                         }
 
-                        for (int32_t seat = 0; seat < carrier->seats; seat++)
+                        for (int32_t seat = 0; seat < carrier->Seats; seat++)
                         {
                             for (int32_t slot = 0; slot < 4; slot++)
                             {
                                 if (prisoners[slot] != nullptr)
                                 {
-                                    carrier->passengers[seat] = prisoners[slot];
+                                    carrier->Passengers[seat] = prisoners[slot];
                                     prisoners[slot] = nullptr;
                                 }
                             }
@@ -1376,7 +1377,7 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                     }
 
                     done = 1;
-                    pilot->radioMessage(0xc, 1);
+                    pilot->RadioMessage(0xc, 1);
                     break;
                 }
 
@@ -1388,73 +1389,73 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
         case TACTICAL_ORDER_REFIT:
         {
-            Mover* refitee = static_cast<Mover*>(target);
-            Mover* refitter = vehicle;
+            MCMover* refitee = static_cast<MCMover*>(Target);
+            MCMover* refitter = vehicle;
 
-            if (refitter->refitBuddy == nullptr || refitee->refitBuddy == nullptr)
+            if (refitter->RefitBuddy == nullptr || refitee->RefitBuddy == nullptr)
             {
                 break;
             }
 
-            Assert(refitter->refitBuddy == refitee && refitee->refitBuddy == refitter ? 1 : 0, 0,
+            Assert(refitter->RefitBuddy == refitee && refitee->RefitBuddy == refitter ? 1 : 0, 0,
                    "Refitee and refitter aren't pointing at each other.");
-            const uint8_t currentStage = stage;
+            const uint8_t currentStage = Stage;
             done = 0;
 
             switch (currentStage)
             {
                 case 1:
                 {
-                    vector_3d refiteePos = refitee->getPosition();
+                    MCVector3D refiteePos = refitee->GetPosition();
 
-                    if (refitter->distanceFrom(refiteePos) < RefitRange)
+                    if (refitter->DistanceFrom(refiteePos) < RefitRange)
                     {
-                        stage = currentStage + 1;
+                        Stage = currentStage + 1;
                     }
                     break;
                 }
 
                 case 2:
                 {
-                    if (time == 0.0f)
+                    if (Time == 0.0f)
                     {
-                        refitee->getPilot()->orderPowerDown(unitOrder, 2);
-                        time = scenarioTime;
+                        refitee->GetPilot()->OrderPowerDown(UnitOrder, 2);
+                        Time = ScenarioTime;
                     }
-                    else if (static_cast<double>(time) + 3.0 < scenarioTime)
+                    else if (static_cast<double>(Time) + 3.0 < ScenarioTime)
                     {
-                        stage = currentStage + 1;
-                        time = scenarioTime;
+                        Stage = currentStage + 1;
+                        Time = ScenarioTime;
                     }
                     break;
                 }
                 case 3:
                 {
-                    GroundVehicle* truck = static_cast<GroundVehicle*>(refitter);
-                    truck->refitting = 1;
+                    MCGroundVehicle* truck = static_cast<MCGroundVehicle*>(refitter);
+                    truck->Refitting = 1;
 
-                    if (static_cast<double>(RefitTime) + time < scenarioTime)
+                    if (static_cast<double>(RefitTime) + Time < ScenarioTime)
                     {
                         float pointsUsed = 0.0f;
-                        const int ammoOnly = truck->ammoTruck;
-                        const int32_t finished = DoRefit(refitee, refitter->getRefitPoints(), pointsUsed, ammoOnly);
-                        refitter->burnRefitPoints(pointsUsed);
+                        const int ammoOnly = truck->AmmoTruck;
+                        const int32_t finished = DoRefit(refitee, refitter->GetRefitPoints(), pointsUsed, ammoOnly);
+                        refitter->BurnRefitPoints(pointsUsed);
 
                         if (MPlayer != nullptr)
                         {
-                            const int32_t shotType = -5 - (truck->ammoTruck != 0 ? 1 : 0);
-                            _WeaponShotInfo shot;
-                            shot.init(nullptr, shotType, pointsUsed, 4, 0.0f);
-                            MPlayer->addWeaponHitChunk(refitter, &shot, 0);
-                            shot.init(nullptr, shotType, pointsUsed, 0, 0.0f);
-                            MPlayer->addWeaponHitChunk(refitee, &shot, 1);
+                            const int32_t shotType = -5 - (truck->AmmoTruck != 0 ? 1 : 0);
+                            MCWeaponShotInfo shot;
+                            shot.Init(nullptr, shotType, pointsUsed, 4, 0.0f);
+                            MPlayer->AddWeaponHitChunk(refitter, &shot, 0);
+                            shot.Init(nullptr, shotType, pointsUsed, 0, 0.0f);
+                            MPlayer->AddWeaponHitChunk(refitee, &shot, 1);
                         }
 
-                        stage = static_cast<uint8_t>(currentStage + finished);
+                        Stage = static_cast<uint8_t>(currentStage + finished);
 
                         if (finished == 0)
                         {
-                            time = scenarioTime;
+                            Time = ScenarioTime;
                         }
                     }
                     break;
@@ -1462,11 +1463,11 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
                 case 4:
                 {
-                    static_cast<GroundVehicle*>(refitter)->refitting = 0;
-                    refitee->getPilot()->orderPowerUp(unitOrder, 2);
+                    static_cast<MCGroundVehicle*>(refitter)->Refitting = 0;
+                    refitee->GetPilot()->OrderPowerUp(UnitOrder, 2);
                     done = 1;
-                    refitee->refitBuddy = nullptr;
-                    refitter->refitBuddy = nullptr;
+                    refitee->RefitBuddy = nullptr;
+                    refitter->RefitBuddy = nullptr;
                     break;
                 }
                 case 0xff:
@@ -1480,18 +1481,18 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
         case TACTICAL_ORDER_GETFIXED:
         {
-            Mover* mover = vehicle;
-            TreeBuilding* bay = static_cast<TreeBuilding*>(target);
+            MCMover* mover = vehicle;
+            MCTreeBuilding* bay = static_cast<MCTreeBuilding*>(Target);
 
-            if (mover->refitBuddy == nullptr || bay->refitBuddy == nullptr)
+            if (mover->RefitBuddy == nullptr || bay->RefitBuddy == nullptr)
             {
                 break;
             }
 
-            Assert(mover->refitBuddy == bay && bay->refitBuddy == mover ? 1 : 0, 0,
+            Assert(mover->RefitBuddy == bay && bay->RefitBuddy == mover ? 1 : 0, 0,
                    "Refitee and refitter aren't pointing at each other.");
-            const float now = scenarioTime;
-            const uint8_t currentStage = stage;
+            const float now = ScenarioTime;
+            const uint8_t currentStage = Stage;
             done = 0;
 
             switch (currentStage)
@@ -1499,59 +1500,59 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                 case 1:
                 case 4:
                 {
-                    if (pilot->getMovePath()->numStepsWhenNotPaused == 0 && pilot->movePathRequest == nullptr)
+                    if (pilot->GetMovePath()->NumStepsWhenNotPaused == 0 && pilot->MovePathRequest == nullptr)
                     {
-                        stage = currentStage + 1;
+                        Stage = currentStage + 1;
                     }
                     break;
                 }
                 case 2:
                 {
-                    if (time == 0.0f)
+                    if (Time == 0.0f)
                     {
-                        pilot->orderPowerDown(unitOrder, 2);
-                        time = scenarioTime;
+                        pilot->OrderPowerDown(UnitOrder, 2);
+                        Time = ScenarioTime;
                     }
-                    else if (static_cast<double>(time) + 3.0 < scenarioTime)
+                    else if (static_cast<double>(Time) + 3.0 < ScenarioTime)
                     {
-                        stage = currentStage + 1;
-                        time = now;
+                        Stage = currentStage + 1;
+                        Time = now;
                     }
                     break;
                 }
                 case 3:
                 {
-                    if (static_cast<double>(RefitTime) + time < scenarioTime)
+                    if (static_cast<double>(RefitTime) + Time < ScenarioTime)
                     {
                         float pointsUsed = 0.0f;
-                        const int32_t finished = DoRefit(mover, bay->getRefitPoints(), pointsUsed, 0);
-                        bay->burnRefitPoints(pointsUsed);
+                        const int32_t finished = DoRefit(mover, bay->GetRefitPoints(), pointsUsed, 0);
+                        bay->BurnRefitPoints(pointsUsed);
 
                         if (MPlayer != nullptr)
                         {
-                            _WeaponShotInfo shot;
-                            shot.init(nullptr, -5, pointsUsed, -1, 0.0f);
-                            MPlayer->addWeaponHitChunk(bay, &shot, 0);
-                            shot.init(nullptr, -5, pointsUsed, 0, 0.0f);
-                            MPlayer->addWeaponHitChunk(mover, &shot, 1);
+                            MCWeaponShotInfo shot;
+                            shot.Init(nullptr, -5, pointsUsed, -1, 0.0f);
+                            MPlayer->AddWeaponHitChunk(bay, &shot, 0);
+                            shot.Init(nullptr, -5, pointsUsed, 0, 0.0f);
+                            MPlayer->AddWeaponHitChunk(mover, &shot, 1);
                         }
 
-                        stage = static_cast<uint8_t>(currentStage + finished);
+                        Stage = static_cast<uint8_t>(currentStage + finished);
 
                         if (finished == 0)
                         {
-                            time = scenarioTime;
+                            Time = ScenarioTime;
                         }
                         else
                         {
                             // Repaired: power up and roll out of the bay.
-                            pilot->orderPowerUp(unitOrder, 2);
+                            pilot->OrderPowerUp(UnitOrder, 2);
                             int32_t tileR = 0;
                             int32_t tileC = 0;
-                            worldCoordToMapTile(target->getPosition(), tileR, tileC);
-                            vector_3d exitPos;
-                            mapTileCellToWorldPos(tileR + 1, tileC, 1, 1, exitPos);
-                            pilot->orderMoveToPoint(unitOrder, 0, ORDER_ORIGIN_SELF, exitPos, selectionIndex, 0);
+                            WorldCoordToMapTile(Target->GetPosition(), tileR, tileC);
+                            MCVector3D exitPos;
+                            MapTileCellToWorldPos(tileR + 1, tileC, 1, 1, exitPos);
+                            pilot->OrderMoveToPoint(UnitOrder, 0, ORDER_ORIGIN_SELF, exitPos, SelectionIndex, 0);
                         }
                     }
                     break;
@@ -1559,8 +1560,8 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                 case 5:
                 {
                     done = 1;
-                    bay->refitBuddy = nullptr;
-                    mover->refitBuddy = nullptr;
+                    bay->RefitBuddy = nullptr;
+                    mover->RefitBuddy = nullptr;
                     break;
                 }
                 case 0xff:
@@ -1575,74 +1576,74 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
         case TACTICAL_ORDER_LOAD_INTO_CARRIER:
         {
             done = 0;
-            MoverGroup* group = pilot->getGroup();
-            GameObject* carrier = target;
+            MCMoverGroup* group = pilot->GetGroup();
+            MCGameObject* carrier = Target;
 
             if (group == nullptr)
             {
                 break;
             }
 
-            const uint8_t currentStage = stage;
+            const uint8_t currentStage = Stage;
 
             switch (currentStage)
             {
                 case 1:
                 {
-                    const vector_3d carrierPos = carrier->getPosition();
-                    const vector_3d pos = pilot->vehicle->getPosition();
-                    const double dx = static_cast<double>(pos.x) - carrierPos.x;
-                    const double dy = static_cast<double>(pos.y) - carrierPos.y;
-                    const float dz = pos.z - carrierPos.z;
+                    const MCVector3D carrierPos = carrier->GetPosition();
+                    const MCVector3D pos = pilot->Vehicle->GetPosition();
+                    const double dx = static_cast<double>(pos.X) - carrierPos.X;
+                    const double dy = static_cast<double>(pos.Y) - carrierPos.Y;
+                    const float dz = pos.Z - carrierPos.Z;
 
                     if (std::sqrt((dy * dy + static_cast<double>(dz) * dz) + dx * dx) < 200.0)
                     {
-                        pilot->clearMoveOrders();
+                        pilot->ClearMoveOrders();
 
-                        for (int32_t i = 0; i < group->numMovers; i++)
+                        for (int32_t i = 0; i < group->NumMovers; i++)
                         {
-                            group->movers[i]->getPilot()->clearMoveOrders();
+                            group->Movers[i]->GetPilot()->ClearMoveOrders();
                         }
 
-                        carrier->getPilot()->clearMoveOrders();
-                        time = scenarioTime;
-                        stage = currentStage + 1;
+                        carrier->GetPilot()->ClearMoveOrders();
+                        Time = ScenarioTime;
+                        Stage = currentStage + 1;
                     }
                     break;
                 }
 
                 case 2:
                 {
-                    if (static_cast<double>(time) + 3.0 < scenarioTime)
+                    if (static_cast<double>(Time) + 3.0 < ScenarioTime)
                     {
-                        for (int32_t i = 0; i < group->numMovers; i++)
+                        for (int32_t i = 0; i < group->NumMovers; i++)
                         {
-                            group->movers[i]->getPilot()->orderMoveToObject(0, 0, 2, carrier, -1, 4);
+                            group->Movers[i]->GetPilot()->OrderMoveToObject(0, 0, 2, carrier, -1, 4);
                         }
 
-                        stage = currentStage + 1;
+                        Stage = currentStage + 1;
                     }
                     break;
                 }
                 case 3:
                 {
-                    if (scenarioTime <= static_cast<double>(time) + 5.0)
+                    if (ScenarioTime <= static_cast<double>(Time) + 5.0)
                     {
                         break;
                     }
 
-                    GroundVehicle* transport = static_cast<GroundVehicle*>(carrier);
+                    MCGroundVehicle* transport = static_cast<MCGroundVehicle*>(carrier);
 
-                    for (int32_t i = 0; i < group->numMovers; i++)
+                    for (int32_t i = 0; i < group->NumMovers; i++)
                     {
-                        Mover* passenger = group->movers[i];
-                        static_cast<Elemental*>(passenger)->transport = carrier;
+                        MCMover* passenger = group->Movers[i];
+                        static_cast<MCElemental*>(passenger)->Transport = carrier;
 
                         for (int32_t slot = 0; slot < 10; slot++)
                         {
-                            if (transport->elementals[slot] == nullptr)
+                            if (transport->Elementals[slot] == nullptr)
                             {
-                                transport->elementals[slot] = passenger;
+                                transport->Elementals[slot] = passenger;
                                 break;
                             }
                         }
@@ -1663,26 +1664,26 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
 
         case TACTICAL_ORDER_DEPLOY_ELEMENTALS:
         {
-            if (stage == 0xff)
+            if (Stage == 0xff)
             {
                 break;
             }
 
             done = 0;
 
-            if (scenarioTime <= static_cast<double>(time) + 5.0)
+            if (ScenarioTime <= static_cast<double>(Time) + 5.0)
             {
                 break;
             }
 
             // Up to five at a time, set down in a ring around the carrier.
             int16_t toDeploy = 5;
-            GroundVehicle* transport = static_cast<GroundVehicle*>(pilot->vehicle);
+            MCGroundVehicle* transport = static_cast<MCGroundVehicle*>(pilot->Vehicle);
             int32_t slot = 0;
 
             for (; slot < 10; slot++)
             {
-                Mover* elemental = transport->elementals[slot];
+                MCMover* elemental = transport->Elementals[slot];
 
                 if (elemental == nullptr)
                 {
@@ -1694,15 +1695,15 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
                 const float sinPart = static_cast<float>(std::sin(angle)) * 50.0f;
                 const float offsetX = static_cast<float>(std::cos(angle) * 50.0 + sinPart);
                 const float offsetY = static_cast<float>(std::cos(angle) * 50.0 - sinPart);
-                const vector_3d pos = transport->getPosition();
-                vector_3d dropPos(pos.x + offsetX, pos.y + offsetY, pos.z);
-                elemental->setPosition(dropPos);
-                static_cast<Elemental*>(elemental)->transport = nullptr;
-                transport->elementals[slot] = nullptr;
+                const MCVector3D pos = transport->GetPosition();
+                MCVector3D dropPos(pos.X + offsetX, pos.Y + offsetY, pos.Z);
+                elemental->SetPosition(dropPos);
+                static_cast<MCElemental*>(elemental)->Transport = nullptr;
+                transport->Elementals[slot] = nullptr;
 
                 if (toDeploy == 0)
                 {
-                    time = scenarioTime;
+                    Time = ScenarioTime;
                     break;
                 }
             }
@@ -1718,15 +1719,15 @@ auto TacticalOrder::status(MechWarrior* pilot) -> int32_t
             break;
     }
 
-    queued.destroy();
+    queued.Destroy();
     return done;
 }
 
-auto TacticalOrder::destroy() -> void
+auto MCTacticalOrder::Destroy() -> void
 {
 }
 
-auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -> int32_t
+auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -> int32_t
 {
     float pointsLeft = refitPoints;
     int32_t finished = 0;
@@ -1735,11 +1736,11 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
 
     // Locations 4 and 5 (the arms) aren't repaired once destroyed.
     auto skipLocation = [mover](int32_t location)
-    { return (location == 4 || location == 5) && mover->bodyAt(location).damageState == 2; };
+    { return (location == 4 || location == 5) && mover->BodyAt(location).DamageState == 2; };
 
     if (refitPoints <= 0.0f)
     {
-        if (mover->netPlayerId != -1)
+        if (mover->NetPlayerId != -1)
         {
             bettySample = 0x15;
             playBetty = true;
@@ -1755,46 +1756,46 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
 
         if (ammoOnly == 0)
         {
-            for (char location = 0; location < mover->numArmorLocations; location++)
+            for (char location = 0; location < mover->NumArmorLocations; location++)
             {
                 if (skipLocation(location))
                 {
                     continue;
                 }
 
-                if (location < mover->numBodyLocations &&
-                    mover->bodyAt(location).curInternalStructure <
-                        static_cast<float>(mover->bodyAt(location).maxInternalStructure))
+                if (location < mover->NumBodyLocations &&
+                    mover->BodyAt(location).CurInternalStructure <
+                        static_cast<float>(mover->BodyAt(location).MaxInternalStructure))
                 {
                     locationsToFix++;
                 }
 
-                if (mover->armor[location].curArmor < static_cast<float>(mover->armor[location].maxArmor))
+                if (mover->Armor[location].CurArmor < static_cast<float>(mover->Armor[location].MaxArmor))
                 {
                     locationsToFix++;
                 }
             }
         }
 
-        for (char i = 0; i < mover->numAmmoTypes; i++)
+        for (char i = 0; i < mover->NumAmmoTypes; i++)
         {
-            if (mover->ammoTypeTotal[i].curAmount < mover->ammoTypeTotal[i].startAmount)
+            if (mover->AmmoTypeTotal[i].CurAmount < mover->AmmoTypeTotal[i].StartAmount)
             {
                 ammoToFix++;
             }
         }
 
-        for (char location = 0; location < mover->numArmorLocations; location++)
+        for (char location = 0; location < mover->NumArmorLocations; location++)
         {
             if (locationsToFix == 0 || pointsLeft <= 0.0f || skipLocation(location))
             {
                 continue;
             }
 
-            ArmorLocation& armor = mover->armor[location];
-            const float maxArmor = static_cast<float>(armor.maxArmor);
+            MCArmorLocation& armor = mover->Armor[location];
+            const float maxArmor = static_cast<float>(armor.MaxArmor);
 
-            if (armor.curArmor < maxArmor)
+            if (armor.CurArmor < maxArmor)
             {
                 double share = static_cast<double>(shareBase) / static_cast<int32_t>(locationsToFix);
 
@@ -1806,23 +1807,23 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
                 const double added = static_cast<double>(RefitCostArray[0][0]) * share;
                 float addedStored = static_cast<float>(added);
 
-                if (maxArmor < added + armor.curArmor)
+                if (maxArmor < added + armor.CurArmor)
                 {
-                    const double room = static_cast<double>(maxArmor) - armor.curArmor;
+                    const double room = static_cast<double>(maxArmor) - armor.CurArmor;
                     addedStored = static_cast<float>(room);
                     share = room / RefitCostArray[0][0];
                 }
 
-                armor.curArmor = static_cast<float>(static_cast<double>(addedStored) + armor.curArmor);
+                armor.CurArmor = static_cast<float>(static_cast<double>(addedStored) + armor.CurArmor);
                 pointsLeft = static_cast<float>(pointsLeft - share);
             }
 
-            if (location < mover->numBodyLocations)
+            if (location < mover->NumBodyLocations)
             {
-                BodyLocation& body = mover->bodyAt(location);
-                const float maxStructure = static_cast<float>(body.maxInternalStructure);
+                MCBodyLocation& body = mover->BodyAt(location);
+                const float maxStructure = static_cast<float>(body.MaxInternalStructure);
 
-                if (body.curInternalStructure < maxStructure)
+                if (body.CurInternalStructure < maxStructure)
                 {
                     const double shareRaw = static_cast<double>(shareBase) / static_cast<int32_t>(locationsToFix);
                     float share = static_cast<float>(shareRaw);
@@ -1834,14 +1835,14 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
 
                     double added = static_cast<double>(RefitCostArray[1][0]) * share;
 
-                    if (maxStructure < added + body.curInternalStructure)
+                    if (maxStructure < added + body.CurInternalStructure)
                     {
-                        added = static_cast<double>(maxStructure) - body.curInternalStructure;
+                        added = static_cast<double>(maxStructure) - body.CurInternalStructure;
                         share = static_cast<float>(added / RefitCostArray[1][0]);
                     }
 
-                    const double newStructure = added + body.curInternalStructure;
-                    body.curInternalStructure = static_cast<float>(newStructure);
+                    const double newStructure = added + body.CurInternalStructure;
+                    body.CurInternalStructure = static_cast<float>(newStructure);
                     uint8_t damageState;
 
                     if (newStructure == 0.0)
@@ -1853,35 +1854,35 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
                         damageState = 0.5 < newStructure / maxStructure ? 0 : 1;
                     }
 
-                    if (mover->objectClass == BATTLEMECH && damageState != body.damageState)
+                    if (mover->ObjectClass == BATTLEMECH && damageState != body.DamageState)
                     {
                         if (location == 6 || location == 7)
                         {
-                            static_cast<BattleMech*>(mover)->calcLegStatus();
+                            static_cast<MCBattleMech*>(mover)->CalcLegStatus();
                         }
 
                         if (location == 1)
                         {
-                            static_cast<BattleMech*>(mover)->calcTorsoStatus();
+                            static_cast<MCBattleMech*>(mover)->CalcTorsoStatus();
                         }
                     }
 
                     pointsLeft = static_cast<float>(static_cast<double>(pointsLeft) - share);
-                    body.damageState = damageState;
+                    body.DamageState = damageState;
                 }
             }
         }
 
-        for (char i = 0; i < mover->numAmmoTypes; i++)
+        for (char i = 0; i < mover->NumAmmoTypes; i++)
         {
             if (ammoToFix <= 0 || pointsLeft <= 0.0f)
             {
                 continue;
             }
 
-            AmmoTally& ammo = mover->ammoTypeTotal[i];
-            const int32_t curAmount = ammo.curAmount;
-            const int32_t maxAmount = ammo.startAmount;
+            MCAmmoTally& ammo = mover->AmmoTypeTotal[i];
+            const int32_t curAmount = ammo.CurAmount;
+            const int32_t maxAmount = ammo.StartAmount;
 
             if (curAmount >= maxAmount)
             {
@@ -1897,7 +1898,7 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
             }
 
             const double costPerPoint =
-                static_cast<double>(MasterComponentList[ammo.masterId].longValue) * RefitCostArray[2][0];
+                static_cast<double>(MasterComponentList[ammo.MasterId].LongValue) * RefitCostArray[2][0];
             const float costPerPointStored = static_cast<float>(costPerPoint);
             float added = static_cast<float>(costPerPoint * share);
             const float current = static_cast<float>(curAmount);
@@ -1908,14 +1909,14 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
                 share = static_cast<double>(maxAmount - curAmount) / costPerPointStored;
             }
 
-            ammo.curAmount = static_cast<int32_t>(static_cast<double>(current) + added);
+            ammo.CurAmount = static_cast<int32_t>(static_cast<double>(current) + added);
             pointsLeft = static_cast<float>(pointsLeft - share);
 
             if (wasEmpty)
             {
-                mover->calcLongestRangeWeapon();
-                mover->calcWeaponEffectiveness(0);
-                mover->calcOptimalRange(nullptr);
+                mover->CalcLongestRangeWeapon();
+                mover->CalcWeaponEffectiveness(0);
+                mover->CalcOptimalRange(nullptr);
             }
         }
 
@@ -1924,26 +1925,26 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
 
         if (ammoOnly == 0)
         {
-            for (char location = 0; location < mover->numArmorLocations && !needsMore; location++)
+            for (char location = 0; location < mover->NumArmorLocations && !needsMore; location++)
             {
                 if (skipLocation(location))
                 {
                     continue;
                 }
 
-                if ((location < mover->numBodyLocations &&
-                     mover->bodyAt(location).curInternalStructure <
-                         static_cast<float>(mover->bodyAt(location).maxInternalStructure)) ||
-                    mover->armor[location].curArmor < static_cast<float>(mover->armor[location].maxArmor))
+                if ((location < mover->NumBodyLocations &&
+                     mover->BodyAt(location).CurInternalStructure <
+                         static_cast<float>(mover->BodyAt(location).MaxInternalStructure)) ||
+                    mover->Armor[location].CurArmor < static_cast<float>(mover->Armor[location].MaxArmor))
                 {
                     needsMore = true;
                 }
             }
         }
 
-        for (char i = 0; i < mover->numAmmoTypes && !needsMore; i++)
+        for (char i = 0; i < mover->NumAmmoTypes && !needsMore; i++)
         {
-            if (mover->ammoTypeTotal[i].curAmount < mover->ammoTypeTotal[i].startAmount)
+            if (mover->AmmoTypeTotal[i].CurAmount < mover->AmmoTypeTotal[i].StartAmount)
             {
                 needsMore = true;
             }
@@ -1951,9 +1952,9 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
 
         if (!needsMore)
         {
-            if (mover->netPlayerId != -1)
+            if (mover->NetPlayerId != -1)
             {
-                mover->getPilot()->radioMessage(0xf, 1);
+                mover->GetPilot()->RadioMessage(0xf, 1);
                 bettySample = 0x14;
                 playBetty = true;
             }
@@ -1964,7 +1965,7 @@ auto DoRefit(Mover* mover, float refitPoints, float& pointsUsed, int ammoOnly) -
 
     if (playBetty)
     {
-        soundSystem->playBettySample(bettySample);
+        SoundSystem->PlayBettySample(bettySample);
     }
 
     // Points used, at least a quarter and rounded to quarters.

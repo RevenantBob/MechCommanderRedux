@@ -4,26 +4,24 @@
 // from a directory, a name and an extension, and a fixed-capacity string builder.
 
 /// <summary>An identifier of up to seven characters, stored inline (8 bytes).</summary>
-class IDString
+class MCIDString
 {
 public:
-    IDString() { id[0] = 0; }
+    MCIDString() { Id[0] = 0; }
 
     /// <summary>Copies up to seven characters of <paramref name="newId"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x007367b0</remarks>
-    void init(const char* newId)
+    void Init(const char* newId)
     {
-        std::strncpy(id, newId, 7);
-        id[7] = 0;
+        std::strncpy(Id, newId, 7);
+        Id[7] = 0;
     }
 
     /// <summary>Whether the first eight characters match (stopping at the end of either string).</summary>
-    /// <remarks>MCX.EXE @ 0x00660050</remarks>
     int operator==(const char* otherId) const
     {
         for (int i = 0; i < 7; ++i)
         {
-            if (otherId[i] != id[i])
+            if (otherId[i] != Id[i])
             {
                 return 0;
             }
@@ -34,38 +32,35 @@ public:
             }
         }
 
-        return otherId[7] == id[7];
+        return otherId[7] == Id[7];
     }
 
     /// <summary>The identifier.</summary>
-    operator char*() { return id; }
+    operator char*() { return Id; }
 
     /// <summary>The characters, zero-terminated.</summary>
-    char id[8]; // +0x00
+    char Id[8];
 };
 
 /// <summary>A path built from a directory, a file name and an extension, allocated to fit.</summary>
-class FullPathFileName
+class MCFullPathFileName
 {
 public:
-    FullPathFileName() = default;
-    FullPathFileName(const FullPathFileName&) = delete;
-    FullPathFileName& operator=(const FullPathFileName&) = delete;
+    MCFullPathFileName() = default;
+    MCFullPathFileName(const MCFullPathFileName&) = delete;
+    MCFullPathFileName& operator=(const MCFullPathFileName&) = delete;
 
-    /// <remarks>MCX.EXE @ 0x006448f0</remarks>
-    ~FullPathFileName();
+    ~MCFullPathFileName();
 
-    /// <summary>Sets the path to <paramref name="dir_path"/> + <paramref name="name"/> + <paramref name="ext"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x00644940</remarks>
-    void init(const char* dir_path, const char* name, const char* ext);
+    /// <summary>Sets the path to <paramref name="dirPath"/> + <paramref name="name"/> + <paramref name="ext"/>.</summary>
+    void Init(const char* dirPath, const char* name, const char* ext);
 
     /// <summary>Frees the path.</summary>
-    /// <remarks>MCX.EXE @ 0x00644900</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>The path.</summary>
-    operator char*() { return fullName.empty() ? nullptr : fullName.data(); }
+    operator char*() { return FullName.empty() ? nullptr : FullName.data(); }
 
-    /// <summary>The path (empty before <see cref="init"/>).</summary>
-    std::string fullName; // +0x00
+    /// <summary>The path (empty before <see cref="Init"/>).</summary>
+    std::string FullName;
 };

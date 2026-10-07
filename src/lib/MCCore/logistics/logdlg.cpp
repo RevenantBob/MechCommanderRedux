@@ -14,30 +14,30 @@
 namespace
 {
     /// <summary>Which way a held purchase spinner arrow counts (1 up, 0 down; 0x008080cc).</summary>
-    int32_t spinUp = 0;
+    int32_t SpinUp = 0;
 
-    void* logAlloc(uint32_t size)
+    void* LogAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsBlocks->Allocate(size);
+        return GlobalLogPtr->LogisticsBlocks->Allocate(size);
     }
 
-    void logFree(void* block)
+    void LogFree(void* block)
     {
-        globalLogPtr->logisticsBlocks->Free(block);
+        GlobalLogPtr->LogisticsBlocks->Free(block);
     }
 
-    void freePort(lPort*& port)
+    void FreePort(MCLogPort*& port)
     {
         if (port != nullptr)
         {
-            port->destroy();
+            port->Destroy();
             delete port;
             port = nullptr;
         }
     }
 
     /// <summary>A copy of <paramref name="text"/> with the CRT's new (null stays null).</summary>
-    char* copyString(const char* text)
+    char* CopyString(const char* text)
     {
         if (text == nullptr)
         {
@@ -51,103 +51,103 @@ namespace
 }
 
 // 0x008015d0 is AlphaTable row 0x10c (AlphaTable is at 0x007f09d0): the alpha colour the dialogs fade through.
-char* g_logistic_dlgfade = AlphaTable + 0x10c * 256;
+char* LogisticDlgfade = AlphaTable + 0x10c * 256;
 
 // lDialogButton
 
-auto lDialogButton::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCLogDialogButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    pressedDown = 0;
-    result = 0;
-    return lButton::init(xPos, yPos, width, height, name);
+    PressedDown = 0;
+    Result = 0;
+    return MCLogButton::Init(xPos, yPos, width, height, name);
 }
 
-auto lDialogButton::draw() -> void
+auto MCLogDialogButton::Draw() -> void
 {
-    drawFace(disabled != 0 ? grayPicture : (pressedDown != 0 ? downPicture : upPicture), true);
+    DrawFace(Disabled != 0 ? GrayPicture : (PressedDown != 0 ? DownPicture : UpPicture), true);
 }
 
-auto lDialogButton::handleEvent(aEvent* event) -> void
+auto MCLogDialogButton::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (disabled != 0)
+    if (Disabled != 0)
     {
         return;
     }
 
-    if (event->type == 4)
+    if (event->Type == 4)
     {
-        pressedDown = 0;
+        PressedDown = 0;
     }
 
-    if (event->type == 1)
+    if (event->Type == 1)
     {
         // Show the press, then close the dialog with this button's result.
-        pressedDown = -1;
+        PressedDown = -1;
         UpdateDisplay(0, 0, 0, 0, 0);
-        soundSystem->playDigitalSample(0x34, 1, nullptr, 0, 0);
-        callback()->execute();
-        static_cast<ReusableDialog*>(parent)->deactivate(result);
+        SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+        Callback()->Execute();
+        static_cast<MCReusableDialog*>(Parent)->Deactivate(Result);
     }
 
-    if (eventRoutine != nullptr)
+    if (EventRoutine != nullptr)
     {
-        eventRoutine(this, event);
+        EventRoutine(this, event);
     }
 }
 
 // LogDialogBox
 
-auto LogDialogBox::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height) -> void
+auto MCLogDialogBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height) -> void
 {
-    twoButton = -1;
-    spinner = -1;
-    callback = nullptr;
-    picturePort = nullptr;
+    TwoButton = -1;
+    Spinner = -1;
+    Callback = nullptr;
+    PicturePort = nullptr;
     // The original loaded the box's frame (lspcb00) as its port; the box draws the frame each frame instead.
-    lObject::init(xPos, yPos, width, height, nullptr, nullptr);
+    MCLogObject::Init(xPos, yPos, width, height, nullptr, nullptr);
     SetTransparent(-1);
-    ShowGUIWindow(0);
-    fadedBackground = nullptr;
+    ShowGuiWindow(0);
+    FadedBackground = nullptr;
 }
 
-auto LogDialogBox::destroy() -> void
+auto MCLogDialogBox::Destroy() -> void
 {
-    freePort(fadedBackground);
-    freePort(picturePort);
-    callback = nullptr;
-    lObject::destroy();
-    freePort(ownPort);
+    FreePort(FadedBackground);
+    FreePort(PicturePort);
+    Callback = nullptr;
+    MCLogObject::Destroy();
+    FreePort(_OwnPort);
 }
 
-auto LogDialogBox::drawBackground() -> void
+auto MCLogDialogBox::DrawBackground() -> void
 {
-    if (needBackground != 0)
+    if (NeedBackground != 0)
     {
         // The original copied the screen under the box into fadedBackground here and darkened it, then filled it
         // with 0x10, which is all the box shows of it.
-        application->showCursor(0);
+        Application->SetCursorVisible(0);
         UpdateDisplay(0, 0, 0, 0, 0);
-        application->showCursor(-1);
-        needBackground = 0;
+        Application->SetCursorVisible(-1);
+        NeedBackground = 0;
     }
 
-    pressedPart = PressedPart::None;
+    Pressed = PressedPart::None;
 }
 
-auto LogDialogBox::draw() -> void
+auto MCLogDialogBox::Draw() -> void
 {
-    drawBox();
-    drawPressed();
+    DrawBox();
+    DrawPressed();
 }
 
-auto LogDialogBox::drawPressed() -> void
+auto MCLogDialogBox::DrawPressed() -> void
 {
     // Each part's pressed art and where it goes.
     struct PressedArt
     {
-        const char* name = nullptr;
-        int32_t x = 0;
-        int32_t y = 0;
+        const char* Name = nullptr;
+        int32_t X = 0;
+        int32_t Y = 0;
     };
 
     static constexpr PressedArt arts[] = {{"lspcb03.tga", 0x3f, 0x82},
@@ -155,166 +155,166 @@ auto LogDialogBox::drawPressed() -> void
                                           {"lspcb07.tga", 0x92, 0x53},
                                           {"lspcb09.tga", 0x92, 0x5b}};
 
-    if (pressedPart == PressedPart::None)
+    if (Pressed == PressedPart::None)
     {
         return;
     }
 
-    const PressedArt& art = arts[static_cast<int32_t>(pressedPart) - 1];
+    const PressedArt& art = arts[static_cast<int32_t>(Pressed) - 1];
 
-    if (lPort* picture = logArtf("%slogart\\%s", artPath, art.name); picture != nullptr)
+    if (MCLogPort* picture = LogArtf("%slogart\\%s", ArtPath, art.Name); picture != nullptr)
     {
-        picture->copyTo(ownPort->frame(), art.x, art.y, -1);
+        picture->CopyTo(_OwnPort->Frame(), art.X, art.Y, -1);
     }
 }
 
-auto LogDialogBox::drawBox() -> void
+auto MCLogDialogBox::DrawBox() -> void
 {
-    _pane* port = ownPort->frame();
+    MCPane* port = _OwnPort->Frame();
     // The box was its frame's picture: the fill covers the frame, not the whole pane.
-    lPort* frameArt = logArtf("%slogart\\lspcb00.tga", artPath);
-    _pane fill = *port;
-    fill.x1 = fill.x0 + frameArt->width() - 1;
-    fill.y1 = fill.y0 + frameArt->height() - 1;
-    VFX_pane_wipe(&fill, 0x10);
-    frameArt->copyTo(port, 0, 0, -1);
+    MCLogPort* frameArt = LogArtf("%slogart\\lspcb00.tga", ArtPath);
+    MCPane fill = *port;
+    fill.X1 = fill.X0 + frameArt->Width() - 1;
+    fill.Y1 = fill.Y0 + frameArt->Height() - 1;
+    VfxPaneWipe(&fill, 0x10);
+    frameArt->CopyTo(port, 0, 0, -1);
 
     // Without a spinner its place is left as the frame is (the original copied a transparent block there).
-    if (spinner != 0)
+    if (Spinner != 0)
     {
-        VFX_pane_copy(logArtf("%slogart\\lspcb05.tga", artPath)->frame(), 0, 0, port, 0x92, 0x53, -1);
-        VFX_pane_copy(logArtf("%slogart\\lspcb06.tga", artPath)->frame(), 0, 0, port, 0x92, 0x5b, -1);
+        VfxPaneCopy(LogArtf("%slogart\\lspcb05.tga", ArtPath)->Frame(), 0, 0, port, 0x92, 0x53, -1);
+        VfxPaneCopy(LogArtf("%slogart\\lspcb06.tga", ArtPath)->Frame(), 0, 0, port, 0x92, 0x5b, -1);
     }
 
-    logArtf("%slogart\\lspcb01.tga", artPath)->copyTo(port, 0x3f, 0x82, -1);
+    LogArtf("%slogart\\lspcb01.tga", ArtPath)->CopyTo(port, 0x3f, 0x82, -1);
 
-    if (twoButton != 0)
+    if (TwoButton != 0)
     {
-        logArtf("%slogart\\lspcb02.tga", artPath)->copyTo(port, 0x76, 0x82, -1);
+        LogArtf("%slogart\\lspcb02.tga", ArtPath)->CopyTo(port, 0x76, 0x82, -1);
     }
 
-    if (picturePort != nullptr)
+    if (PicturePort != nullptr)
     {
-        picturePort->copyTo(port, 10, 0x1b, -1);
-    }
-}
-
-auto LogDialogBox::setTwoButton(int twoButtons) -> void
-{
-    twoButton = twoButtons;
-}
-
-auto LogDialogBox::setSpinner(int newSpinner) -> void
-{
-    spinner = newSpinner;
-}
-
-auto LogDialogBox::activate() -> void
-{
-    needBackground = -1;
-    freePort(fadedBackground);
-    application->grab(this);
-    bringToFront(0);
-    drawBackground();
-    ShowGUIWindow(-1);
-}
-
-auto LogDialogBox::deactivate(int dialogResult) -> void
-{
-    application->release();
-    ShowGUIWindow(0);
-
-    if (callback != nullptr)
-    {
-        callback(dialogResult);
+        PicturePort->CopyTo(port, 10, 0x1b, -1);
     }
 }
 
-auto LogDialogBox::setCallback(void (*newCallback)(int)) -> void
+auto MCLogDialogBox::SetTwoButton(int twoButtons) -> void
 {
-    callback = newCallback;
+    TwoButton = twoButtons;
 }
 
-auto LogDialogBox::setPort(lPort* port) -> void
+auto MCLogDialogBox::SetSpinner(int newSpinner) -> void
 {
-    sharedPort = port;
+    Spinner = newSpinner;
+}
+
+auto MCLogDialogBox::Activate() -> void
+{
+    NeedBackground = -1;
+    FreePort(FadedBackground);
+    Application->Grab(this);
+    BringToFront(0);
+    DrawBackground();
+    ShowGuiWindow(-1);
+}
+
+auto MCLogDialogBox::Deactivate(int dialogResult) -> void
+{
+    Application->Release();
+    ShowGuiWindow(0);
+
+    if (Callback != nullptr)
+    {
+        Callback(dialogResult);
+    }
+}
+
+auto MCLogDialogBox::SetCallback(void (*newCallback)(int)) -> void
+{
+    Callback = newCallback;
+}
+
+auto MCLogDialogBox::SetPort(MCLogPort* port) -> void
+{
+    _SharedPort = port;
 }
 
 // PurchaseDlg
 
-auto PurchaseDlg::init(int32_t newPurchaseType, int32_t newUnitCost, int32_t newMaxQuantity, char* newTitle,
-                       char* newSubtitle, lPort* picture) -> void
+auto MCPurchaseDlg::Init(int32_t newPurchaseType, int32_t newUnitCost, int32_t newMaxQuantity, char* newTitle,
+                         char* newSubtitle, MCLogPort* picture) -> void
 {
     if (newMaxQuantity < 0)
     {
         newMaxQuantity = 199;
     }
 
-    quantity = 1;
-    purchaseType = newPurchaseType;
-    unitCost = newUnitCost;
-    title = copyString(newTitle);
-    subtitle = copyString(newSubtitle);
+    Quantity = 1;
+    PurchaseType = newPurchaseType;
+    UnitCost = newUnitCost;
+    Title = CopyString(newTitle);
+    Subtitle = CopyString(newSubtitle);
 
-    if (picturePort != nullptr)
+    if (PicturePort != nullptr)
     {
-        delete picturePort;
+        delete PicturePort;
     }
 
     if (picture == nullptr)
     {
-        picturePort = nullptr;
+        PicturePort = nullptr;
     }
     else
     {
-        picturePort = new lPort;
-        picturePort->init(picture->width(), picture->height(), -1);
-        VFX_pane_copy(picture->frame(), 0, 0, picturePort->frame(), 0, 0, -1);
+        PicturePort = new MCLogPort;
+        PicturePort->Init(picture->Width(), picture->Height(), -1);
+        VfxPaneCopy(picture->Frame(), 0, 0, PicturePort->Frame(), 0, 0, -1);
     }
 
-    maxQuantity = newMaxQuantity;
+    MaxQuantity = newMaxQuantity;
     // A single item needs no spinner.
-    spinner = newMaxQuantity != 1 ? -1 : 0;
+    Spinner = newMaxQuantity != 1 ? -1 : 0;
 }
 
-auto PurchaseDlg::destroy() -> void
+auto MCPurchaseDlg::Destroy() -> void
 {
-    delete[] subtitle;
-    subtitle = nullptr;
-    delete[] title;
-    title = nullptr;
-    LogDialogBox::destroy();
+    delete[] Subtitle;
+    Subtitle = nullptr;
+    delete[] Title;
+    Title = nullptr;
+    MCLogDialogBox::Destroy();
 }
 
-auto PurchaseDlg::handleEvent(aEvent* event) -> void
+auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
 {
-    const int32_t localX = event->x - globalX();
-    const int32_t localY = event->y - globalY();
+    const int32_t localX = event->X - GlobalX();
+    const int32_t localY = event->Y - GlobalY();
     // Spinner arrows only work for purchases (even types) and type 5.
-    const bool arrowsLocked = (purchaseType & 1) != 0 && purchaseType != 5;
-    auto canAddOne = [this]() { return quantity < maxQuantity && unitCost * (quantity + 1) <= ResourcePoints; };
+    const bool arrowsLocked = (PurchaseType & 1) != 0 && PurchaseType != 5;
+    auto canAddOne = [this]() { return Quantity < MaxQuantity && UnitCost * (Quantity + 1) <= ResourcePoints; };
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
             if (localX >= 0x40 && localX <= 0x6e && localY >= 0x83 && localY <= 0x8e)
             {
                 // OK.
-                soundSystem->playDigitalSample(0xf, 1, nullptr, 0, 0);
-                pressedPart = PressedPart::Ok;
+                SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+                Pressed = PressedPart::Ok;
                 UpdateDisplay(0, 0, 0, 0, 0);
-                deactivate(-1);
+                Deactivate(-1);
             }
             else if (localX >= 0x77 && localX <= 0xa5 && localY >= 0x83 && localY <= 0x8e)
             {
                 // Cancel.
-                soundSystem->playDigitalSample(0xf, 1, nullptr, 0, 0);
-                pressedPart = PressedPart::Cancel;
+                SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+                Pressed = PressedPart::Cancel;
                 UpdateDisplay(0, 0, 0, 0, 0);
-                deactivate(0);
+                Deactivate(0);
             }
-            else if (spinner != 0)
+            else if (Spinner != 0)
             {
                 if (localX >= 0x92 && localX <= 0x9a && localY >= 0x53 && localY <= 0x59)
                 {
@@ -324,82 +324,82 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
                         break;
                     }
 
-                    drawBackground();
-                    pressedPart = PressedPart::Up;
-                    spinUp = 1;
-                    application->AddTimer(this, 6, 200, 0, 0, 0);
-                    application->grab(this);
+                    DrawBackground();
+                    Pressed = PressedPart::Up;
+                    SpinUp = 1;
+                    Application->AddTimer(this, 6, 200, 0, 0, 0);
+                    Application->Grab(this);
 
                     if (canAddOne())
                     {
-                        soundSystem->playDigitalSample(0xf, 1, nullptr, 0, 0);
-                        quantity++;
+                        SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+                        Quantity++;
                         break;
                     }
 
-                    soundSystem->playDigitalSample(0x33, 1, nullptr, 0, 0);
+                    SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
                 }
                 else if (localX >= 0x92 && localX <= 0x9a && localY >= 0x5b && localY <= 0x61 && !arrowsLocked)
                 {
                     // Down.
-                    drawBackground();
-                    pressedPart = PressedPart::Down;
-                    spinUp = 0;
-                    application->AddTimer(this, 6, 200, 0, 0, 0);
-                    application->grab(this);
+                    DrawBackground();
+                    Pressed = PressedPart::Down;
+                    SpinUp = 0;
+                    Application->AddTimer(this, 6, 200, 0, 0, 0);
+                    Application->Grab(this);
 
-                    if (quantity != 0)
+                    if (Quantity != 0)
                     {
-                        soundSystem->playDigitalSample(0xf, 1, nullptr, 0, 0);
-                        quantity--;
+                        SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+                        Quantity--;
                         break;
                     }
 
-                    soundSystem->playDigitalSample(0x33, 1, nullptr, 0, 0);
+                    SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
                 }
             }
             break;
         }
         case 4:
         {
-            drawBackground();
-            application->RemoveTimer(this, 6);
+            DrawBackground();
+            Application->RemoveTimer(this, 6);
             break;
         }
         case 9:
         {
-            if (event->key == 0x0d)
+            if (event->Key == 0x0d)
             {
-                deactivate(twoButton != 0 ? -1 : 0);
+                Deactivate(TwoButton != 0 ? -1 : 0);
             }
-            else if (event->key == 0x1b)
+            else if (event->Key == 0x1b)
             {
-                deactivate(0);
+                Deactivate(0);
             }
             break;
         }
         case 0x13:
         {
             // The held arrow repeats (up to 200).
-            if (spinUp == 0)
+            if (SpinUp == 0)
             {
-                if (quantity != 0)
+                if (Quantity != 0)
                 {
-                    quantity--;
+                    Quantity--;
                 }
 
-                drawBackground();
-                pressedPart = PressedPart::Down;
+                DrawBackground();
+                Pressed = PressedPart::Down;
             }
             else
             {
-                if (quantity < maxQuantity && quantity < 200 && unitCost * (quantity + 1) <= ResourcePoints)
+                if (Quantity < MaxQuantity && Quantity < 200 && UnitCost * (Quantity + 1) <= ResourcePoints)
                 {
-                    quantity++;
+                    Quantity++;
                 }
 
-                drawBackground();
-                pressedPart = PressedPart::Up;
+                DrawBackground();
+                Pressed = PressedPart::Up;
             }
             break;
         }
@@ -409,95 +409,95 @@ auto PurchaseDlg::handleEvent(aEvent* event) -> void
     }
 }
 
-auto PurchaseDlg::drawBackground() -> void
+auto MCPurchaseDlg::DrawBackground() -> void
 {
-    LogDialogBox::drawBackground();
+    MCLogDialogBox::DrawBackground();
 }
 
-auto PurchaseDlg::draw() -> void
+auto MCPurchaseDlg::Draw() -> void
 {
-    drawBox();
+    DrawBox();
     char text[256];
-    _pane* port = ownPort->frame();
+    MCPane* port = _OwnPort->Frame();
     // Labels: price, resource points, quantity, remaining.
-    cLoadString(thisInstance, 0x48, text, 0xfe);
-    medWhiteFont->writeString(port, 0x15, 0x47, reinterpret_cast<uint8_t*>(text), -1);
-    cLoadString(thisInstance, 0x4b, text, 0xfe);
-    medWhiteFont->writeString(port, 0x91, 0x47, reinterpret_cast<uint8_t*>(text), -1);
-    cLoadString(thisInstance, 0x49, text, 0xfe);
-    medWhiteFont->writeString(port, 0x15, 0x57, reinterpret_cast<uint8_t*>(text), -1);
-    cLoadString(thisInstance, 0x4a, text, 0xfe);
-    medWhiteFont->writeString(port, 0x16, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
-    cLoadString(thisInstance, 0x4b, text, 0xfe);
-    medWhiteFont->writeString(port, 0x91, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    CLoadString(ThisInstance, 0x48, text, 0xfe);
+    MedWhiteFont->WriteString(port, 0x15, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    CLoadString(ThisInstance, 0x4b, text, 0xfe);
+    MedWhiteFont->WriteString(port, 0x91, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    CLoadString(ThisInstance, 0x49, text, 0xfe);
+    MedWhiteFont->WriteString(port, 0x15, 0x57, reinterpret_cast<uint8_t*>(text), -1);
+    CLoadString(ThisInstance, 0x4a, text, 0xfe);
+    MedWhiteFont->WriteString(port, 0x16, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    CLoadString(ThisInstance, 0x4b, text, 0xfe);
+    MedWhiteFont->WriteString(port, 0x91, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
 
-    if (title != nullptr)
+    if (Title != nullptr)
     {
-        medWhiteFont->writeString(port, 0x2a, 0x20, reinterpret_cast<uint8_t*>(title), -1);
+        MedWhiteFont->WriteString(port, 0x2a, 0x20, reinterpret_cast<uint8_t*>(Title), -1);
     }
 
-    if (subtitle != nullptr)
+    if (Subtitle != nullptr)
     {
-        aFont* font = purchaseType == 3 ? medRedFont : medWhiteFont;
-        font->writeString(port, 0x2a, 0x2e, reinterpret_cast<uint8_t*>(subtitle), -1);
+        MCGuiFont* font = PurchaseType == 3 ? MedRedFont : MedWhiteFont;
+        font->WriteString(port, 0x2a, 0x2e, reinterpret_cast<uint8_t*>(Subtitle), -1);
     }
 
     // The numbers are right-aligned at 0x8e, measured in the black font.
-    std::snprintf(text, sizeof(text), "%d", unitCost < 0 ? -unitCost : unitCost);
-    int32_t textWidth = medBlackFont->width(reinterpret_cast<uint8_t*>(text));
-    medWhiteFont->writeString(port, 0x8e - textWidth, 0x47, reinterpret_cast<uint8_t*>(text), -1);
-    std::snprintf(text, sizeof(text), "%d", ResourcePoints - quantity * unitCost);
-    textWidth = medBlackFont->width(reinterpret_cast<uint8_t*>(text));
-    medWhiteFont->writeString(port, 0x8e - textWidth, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
-    std::snprintf(text, sizeof(text), "%d", quantity);
-    textWidth = medBlackFont->width(reinterpret_cast<uint8_t*>(text));
-    medWhiteFont->writeString(port, (0x11 - textWidth) / 2 + 0x7e, 0x55, reinterpret_cast<uint8_t*>(text), -1);
+    std::snprintf(text, sizeof(text), "%d", UnitCost < 0 ? -UnitCost : UnitCost);
+    int32_t textWidth = MedBlackFont->Width(reinterpret_cast<uint8_t*>(text));
+    MedWhiteFont->WriteString(port, 0x8e - textWidth, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    std::snprintf(text, sizeof(text), "%d", ResourcePoints - Quantity * UnitCost);
+    textWidth = MedBlackFont->Width(reinterpret_cast<uint8_t*>(text));
+    MedWhiteFont->WriteString(port, 0x8e - textWidth, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    std::snprintf(text, sizeof(text), "%d", Quantity);
+    textWidth = MedBlackFont->Width(reinterpret_cast<uint8_t*>(text));
+    MedWhiteFont->WriteString(port, (0x11 - textWidth) / 2 + 0x7e, 0x55, reinterpret_cast<uint8_t*>(text), -1);
 
     // The item kind's icon (mech, part, component, vehicle; sell/buy). Another type loads the quantity text as a
     // file name, as the original did.
     static constexpr const char* icons[8] = {"lspcbm00.tga", "lspcbm01.tga", "lspcbp00.tga", "lspcbp01.tga",
                                              "lspcbc00.tga", "lspcbc01.tga", "lspcbv00.tga", "lspcbv01.tga"};
-    lPort* icon =
-        purchaseType >= 0 && purchaseType < 8 ? logArtf("%slogart\\%s", artPath, icons[purchaseType]) : logArt(text);
+    MCLogPort* icon =
+        PurchaseType >= 0 && PurchaseType < 8 ? LogArtf("%slogart\\%s", ArtPath, icons[PurchaseType]) : LogArt(text);
 
     if (icon != nullptr)
     {
-        icon->copyTo(port, 3, 3, -1);
+        icon->CopyTo(port, 3, 3, -1);
     }
 
-    drawPressed();
+    DrawPressed();
 }
 
-auto PurchaseDlg::activate() -> void
+auto MCPurchaseDlg::Activate() -> void
 {
-    needBackground = -1;
-    freePort(fadedBackground);
-    application->grab(this);
-    bringToFront(0);
-    drawBackground();
-    ShowGUIWindow(-1);
+    NeedBackground = -1;
+    FreePort(FadedBackground);
+    Application->Grab(this);
+    BringToFront(0);
+    DrawBackground();
+    ShowGuiWindow(-1);
 }
 
-auto PurchaseDlg::deactivate(int dialogResult) -> void
+auto MCPurchaseDlg::Deactivate(int dialogResult) -> void
 {
-    application->RemoveTimer(this, 6);
-    application->release();
-    ShowGUIWindow(0);
+    Application->RemoveTimer(this, 6);
+    Application->Release();
+    ShowGuiWindow(0);
 
-    if (purchaseCallback != nullptr)
+    if (PurchaseCallback != nullptr)
     {
-        purchaseCallback(dialogResult, quantity);
+        PurchaseCallback(dialogResult, Quantity);
     }
 }
 
-auto PurchaseDlg::setCallback(void (*newCallback)(int, int32_t)) -> void
+auto MCPurchaseDlg::SetCallback(void (*newCallback)(int, int32_t)) -> void
 {
-    purchaseCallback = newCallback;
+    PurchaseCallback = newCallback;
 }
 
 // ReusableDialog
 
-auto ReusableDialog::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCReusableDialog::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
     (void)xPos;
     (void)yPos;
@@ -505,99 +505,99 @@ auto ReusableDialog::init(int32_t xPos, int32_t yPos, int32_t width, int32_t hei
     (void)height;
     (void)name;
     // The box is its top, some middle pieces and its bottom, centred across the screen at y 200.
-    topPiece = new lPort;
-    int32_t result = topPiece->init(const_cast<char*>("dbox_top.tga"));
+    TopPiece = new MCLogPort;
+    int32_t result = TopPiece->Init(const_cast<char*>("dbox_top.tga"));
     Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
-    middlePiece = new lPort;
-    result = middlePiece->init(const_cast<char*>("dbox_middle.tga"));
+    MiddlePiece = new MCLogPort;
+    result = MiddlePiece->Init(const_cast<char*>("dbox_middle.tga"));
     Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
-    bottomPiece = new lPort;
-    result = bottomPiece->init(const_cast<char*>("dbox_bottom.tga"));
+    BottomPiece = new MCLogPort;
+    result = BottomPiece->Init(const_cast<char*>("dbox_bottom.tga"));
     Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
-    const int32_t boxWidth = topPiece->width();
-    result = lObject::init(application->width() / 2 - boxWidth / 2, 200, boxWidth,
-                           bottomPiece->height() + middlePiece->height() + topPiece->height(), nullptr, nullptr);
+    const int32_t boxWidth = TopPiece->Width();
+    result = MCLogObject::Init(Application->Width() / 2 - boxWidth / 2, 200, boxWidth,
+                               BottomPiece->Height() + MiddlePiece->Height() + TopPiece->Height(), nullptr, nullptr);
     Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
 
-    okButton = new lDialogButton;
-    result = okButton->init(0, 0, 0x3f, 0xe, nullptr);
+    OkButton = new MCLogDialogButton;
+    result = OkButton->Init(0, 0, 0x3f, 0xe, nullptr);
     Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
-    addChild(okButton);
-    cancelButton = new lDialogButton;
-    result = cancelButton->init(0, 0, 0x3f, 0xe, nullptr);
+    AddChild(OkButton);
+    CancelButton = new MCLogDialogButton;
+    result = CancelButton->Init(0, 0, 0x3f, 0xe, nullptr);
     Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
-    addChild(cancelButton);
-    setTwoButton(0);
-    ShowGUIWindow(0);
-    setDepth(100);
-    timeoutResult = 0;
-    keepCallbacks = 0;
+    AddChild(CancelButton);
+    SetTwoButton(0);
+    ShowGuiWindow(0);
+    SetDepth(100);
+    TimeoutResult = 0;
+    KeepCallbacks = 0;
     return 0;
 }
 
-auto ReusableDialog::destroy() -> void
+auto MCReusableDialog::Destroy() -> void
 {
-    freePort(topPiece);
-    freePort(middlePiece);
-    freePort(bottomPiece);
+    FreePort(TopPiece);
+    FreePort(MiddlePiece);
+    FreePort(BottomPiece);
 
-    if (okButton != nullptr)
+    if (OkButton != nullptr)
     {
-        delete okButton;
-        okButton = nullptr;
+        delete OkButton;
+        OkButton = nullptr;
     }
 
-    if (cancelButton != nullptr)
+    if (CancelButton != nullptr)
     {
-        delete cancelButton;
-        cancelButton = nullptr;
+        delete CancelButton;
+        CancelButton = nullptr;
     }
 
-    if (text != nullptr)
+    if (Text != nullptr)
     {
-        logFree(text);
-        text = nullptr;
+        LogFree(Text);
+        Text = nullptr;
     }
 
-    lObject::destroy();
+    MCLogObject::Destroy();
 }
 
-auto ReusableDialog::draw() -> void
+auto MCReusableDialog::Draw() -> void
 {
     int32_t pieceY = 0;
 
-    if (topPiece != nullptr)
+    if (TopPiece != nullptr)
     {
-        topPiece->copyTo(lport()->frame(), 0, 0, -1);
-        pieceY = topPiece->height();
+        TopPiece->CopyTo(Lport()->Frame(), 0, 0, -1);
+        pieceY = TopPiece->Height();
     }
 
-    for (int32_t i = 0; i < numMiddlePieces; i++)
+    for (int32_t i = 0; i < NumMiddlePieces; i++)
     {
-        if (middlePiece != nullptr)
+        if (MiddlePiece != nullptr)
         {
-            middlePiece->copyTo(lport()->frame(), 0, pieceY, -1);
-            pieceY += middlePiece->height();
+            MiddlePiece->CopyTo(Lport()->Frame(), 0, pieceY, -1);
+            pieceY += MiddlePiece->Height();
         }
     }
 
-    if (bottomPiece != nullptr)
+    if (BottomPiece != nullptr)
     {
-        bottomPiece->copyTo(lport()->frame(), 0, pieceY, -1);
+        BottomPiece->CopyTo(Lport()->Frame(), 0, pieceY, -1);
     }
 
     // The text, word-wrapped to the box.
-    int32_t lineY = topPiece->height() + 2;
+    int32_t lineY = TopPiece->Height() + 2;
 
-    if (text != nullptr)
+    if (Text != nullptr)
     {
-        int32_t length = static_cast<int32_t>(std::strlen(text));
-        auto* line = reinterpret_cast<uint8_t*>(text);
-        int32_t fit = medBlueFont->charactersToWidth(line, width() - 0x14, -1);
+        int32_t length = static_cast<int32_t>(std::strlen(Text));
+        auto* line = reinterpret_cast<uint8_t*>(Text);
+        int32_t fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
 
         if (fit == length)
         {
-            medBlueFont->writeString(ownPort->frame(), 0xc, lineY, line, -1);
+            MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, lineY, line, -1);
         }
         else
         {
@@ -606,7 +606,7 @@ auto ReusableDialog::draw() -> void
                 const uint8_t saved = line[fit];
                 uint8_t* next = line + fit;
                 *next = 0;
-                medBlueFont->writeString(ownPort->frame(), 0xc, lineY, line, -1);
+                MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, lineY, line, -1);
 
                 *next = saved;
                 if (saved != 0)
@@ -615,109 +615,109 @@ auto ReusableDialog::draw() -> void
                 }
 
                 length = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(next)));
-                fit = medBlueFont->charactersToWidth(next, width() - 0x14, -1);
-                lineY += medBlueFont->height() + 3;
+                fit = MedBlueFont->CharactersToWidth(next, Width() - 0x14, -1);
+                lineY += MedBlueFont->Height() + 3;
                 line = next;
             }
         }
     }
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        DrawChild(childList[i]);
+        DrawChild(ChildList[i]);
     }
 }
 
-auto ReusableDialog::handleEvent(aEvent* event) -> void
+auto MCReusableDialog::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 9)
+    if (event->Type == 9)
     {
-        if (event->key == 0x0d)
+        if (event->Key == 0x0d)
         {
-            okButton->callback()->execute();
-            deactivate(twoButton != 0 ? -1 : 0);
+            OkButton->Callback()->Execute();
+            Deactivate(TwoButton != 0 ? -1 : 0);
         }
-        else if (event->key == 0x1b)
+        else if (event->Key == 0x1b)
         {
             // Original behaviour (OB-074): Escape runs the OK button's callback too.
-            okButton->callback()->execute();
-            deactivate(0);
+            OkButton->Callback()->Execute();
+            Deactivate(0);
         }
     }
-    else if (event->type == 0x13)
+    else if (event->Type == 0x13)
     {
         // Timed out.
-        deactivate(timeoutResult);
+        Deactivate(TimeoutResult);
     }
 
     // While grabbed, clicks go to the child under the mouse.
-    if (application->grabbedObject() == this)
+    if (Application->GrabbedObject() == this)
     {
-        aObject* target = findObject(event->x, event->y);
+        MCGuiObject* target = FindObject(event->X, event->Y);
 
         if (target != nullptr && target != this)
         {
-            target->handleEvent(event);
+            target->HandleEvent(event);
             return;
         }
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto ReusableDialog::activate() -> void
+auto MCReusableDialog::Activate() -> void
 {
-    application->grab(this);
+    Application->Grab(this);
     // The original painted the dialog afresh: a press left on its buttons was gone.
-    okButton->pressedDown = 0;
-    cancelButton->pressedDown = 0;
-    moveTo(0x140 - width() / 2, 0xf0 - height() / 2, 0);
-    ShowGUIWindow(-1);
+    OkButton->PressedDown = 0;
+    CancelButton->PressedDown = 0;
+    MoveTo(0x140 - Width() / 2, 0xf0 - Height() / 2, 0);
+    ShowGuiWindow(-1);
 
-    if (timeout > 0)
+    if (Timeout > 0)
     {
-        application->AddTimer(this, 0, timeout, 0, 0, 0);
+        Application->AddTimer(this, 0, Timeout, 0, 0, 0);
     }
 }
 
-auto ReusableDialog::deactivate(int32_t dialogResult) -> void
+auto MCReusableDialog::Deactivate(int32_t dialogResult) -> void
 {
-    application->release();
-    ShowGUIWindow(0);
+    Application->Release();
+    ShowGuiWindow(0);
 
     // Port: the original also skipped a callback pointer IsBadReadPtr rejected; a function pointer is always valid.
-    if (callback != nullptr)
+    if (Callback != nullptr)
     {
-        callback(dialogResult);
+        Callback(dialogResult);
     }
 
-    if (keepCallbacks != 0)
+    if (KeepCallbacks != 0)
     {
-        keepCallbacks = 0;
+        KeepCallbacks = 0;
         return;
     }
 
-    callback = nullptr;
-    okButton->callback()->setExec(nullptr);
-    cancelButton->callback()->setExec(nullptr);
-    application->RemoveTimer(this, 0);
-    timeout = 0;
-    timeoutResult = 0;
+    Callback = nullptr;
+    OkButton->Callback()->SetExec(nullptr);
+    CancelButton->Callback()->SetExec(nullptr);
+    Application->RemoveTimer(this, 0);
+    Timeout = 0;
+    TimeoutResult = 0;
 }
 
-auto ReusableDialog::setText(char* newText) -> void
+auto MCReusableDialog::SetText(char* newText) -> void
 {
-    if (text != nullptr)
+    if (Text != nullptr)
     {
-        logFree(text);
+        LogFree(Text);
     }
 
     size_t size = std::strlen(newText) + 1;
-    text = static_cast<char*>(logAlloc(static_cast<uint32_t>(size)));
-    std::strcpy(text, newText);
+    Text = static_cast<char*>(LogAlloc(static_cast<uint32_t>(size)));
+    std::strcpy(Text, newText);
     // Count the wrapped lines; each middle piece holds two.
-    auto* line = reinterpret_cast<uint8_t*>(text);
-    int32_t fit = medBlueFont->charactersToWidth(line, width() - 0x14, -1);
+    auto* line = reinterpret_cast<uint8_t*>(Text);
+    int32_t fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
     int32_t lines = 1;
 
     while (fit >= 1 && fit < static_cast<int32_t>(size - 1))
@@ -725,96 +725,96 @@ auto ReusableDialog::setText(char* newText) -> void
         line += fit + 1;
         lines++;
         size = std::strlen(reinterpret_cast<char*>(line)) + 1;
-        fit = medBlueFont->charactersToWidth(line, width() - 0x14, -1);
+        fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
     }
 
-    numMiddlePieces = (lines + 1) / 2;
-    resize(width(), middlePiece->height() * ((lines + 1) / 2) + bottomPiece->height() + topPiece->height());
-    setTwoButton(twoButton);
+    NumMiddlePieces = (lines + 1) / 2;
+    Resize(Width(), MiddlePiece->Height() * ((lines + 1) / 2) + BottomPiece->Height() + TopPiece->Height());
+    SetTwoButton(TwoButton);
 }
 
-auto ReusableDialog::setTwoButton(int twoButtons) -> void
+auto MCReusableDialog::SetTwoButton(int twoButtons) -> void
 {
-    twoButton = twoButtons;
-    const int32_t buttonY = height() - 0x17;
+    TwoButton = twoButtons;
+    const int32_t buttonY = Height() - 0x17;
 
-    if (twoButton != 0)
+    if (TwoButton != 0)
     {
-        cancelButton->ShowGUIWindow(-1);
-        cancelButton->moveTo(0x68, buttonY, 0);
-        okButton->moveTo(0x23, buttonY, 0);
+        CancelButton->ShowGuiWindow(-1);
+        CancelButton->MoveTo(0x68, buttonY, 0);
+        OkButton->MoveTo(0x23, buttonY, 0);
         return;
     }
 
-    cancelButton->ShowGUIWindow(0);
-    okButton->moveTo(0x68, buttonY, 0);
+    CancelButton->ShowGuiWindow(0);
+    OkButton->MoveTo(0x68, buttonY, 0);
 }
 
 // RefitDialog
 
-auto RefitDialog::setText(char* newText) -> void
+auto MCRefitDialog::SetText(char* newText) -> void
 {
-    if (text != nullptr)
+    if (Text != nullptr)
     {
-        logFree(text);
+        LogFree(Text);
     }
 
-    text = static_cast<char*>(logAlloc(static_cast<uint32_t>(std::strlen(newText) + 1)));
-    std::strcpy(text, newText);
+    Text = static_cast<char*>(LogAlloc(static_cast<uint32_t>(std::strlen(newText) + 1)));
+    std::strcpy(Text, newText);
     // The text is a comma-separated list, one item per line, between six lines of framing text.
     int32_t lines = 7;
-    numItems = 0;
+    NumItems = 0;
 
-    for (char* comma = std::strchr(text, ','); comma != nullptr; comma = std::strchr(text, ','))
+    for (char* comma = std::strchr(Text, ','); comma != nullptr; comma = std::strchr(Text, ','))
     {
         lines++;
         *comma = '.';
     }
 
-    numMiddlePieces = lines / 2;
-    std::strcpy(text, newText);
-    numItems = lines - 6;
-    resize(width(), middlePiece->height() * numMiddlePieces + bottomPiece->height() + topPiece->height());
-    ReusableDialog::setTwoButton(twoButton);
-    drawn = 0;
+    NumMiddlePieces = lines / 2;
+    std::strcpy(Text, newText);
+    NumItems = lines - 6;
+    Resize(Width(), MiddlePiece->Height() * NumMiddlePieces + BottomPiece->Height() + TopPiece->Height());
+    MCReusableDialog::SetTwoButton(TwoButton);
+    Drawn = 0;
 }
 
-auto RefitDialog::draw() -> void
+auto MCRefitDialog::Draw() -> void
 {
     int32_t pieceY = 0;
 
-    if (topPiece != nullptr)
+    if (TopPiece != nullptr)
     {
-        topPiece->copyTo(lport()->frame(), 0, 0, -1);
-        pieceY = topPiece->height();
+        TopPiece->CopyTo(Lport()->Frame(), 0, 0, -1);
+        pieceY = TopPiece->Height();
     }
 
-    for (int32_t i = 0; i < numMiddlePieces; i++)
+    for (int32_t i = 0; i < NumMiddlePieces; i++)
     {
-        if (middlePiece != nullptr)
+        if (MiddlePiece != nullptr)
         {
-            middlePiece->copyTo(lport()->frame(), 0, pieceY, -1);
-            pieceY += middlePiece->height();
+            MiddlePiece->CopyTo(Lport()->Frame(), 0, pieceY, -1);
+            pieceY += MiddlePiece->Height();
         }
     }
 
-    if (bottomPiece != nullptr)
+    if (BottomPiece != nullptr)
     {
-        bottomPiece->copyTo(lport()->frame(), 0, pieceY, -1);
+        BottomPiece->CopyTo(Lport()->Frame(), 0, pieceY, -1);
     }
 
     char message[264];
-    cLoadString(thisInstance, 0x54, message, 0xfe);
-    int32_t lineY = wrapText(message, topPiece->height() + 2);
-    lineY += medBlueFont->height() + 3;
+    CLoadString(ThisInstance, 0x54, message, 0xfe);
+    int32_t lineY = WrapText(message, TopPiece->Height() + 2);
+    lineY += MedBlueFont->Height() + 3;
 
-    if (text != nullptr)
+    if (Text != nullptr)
     {
         // One item per line, cut at the commas (in a copy: the original cut the text itself, once).
-        std::string items(text);
+        std::string items(Text);
         size_t item = 0;
 
-        for (int32_t i = numItems; i > 0; i--)
+        for (int32_t i = NumItems; i > 0; i--)
         {
             const size_t comma = items.find(',', item);
 
@@ -823,9 +823,9 @@ auto RefitDialog::draw() -> void
                 items[comma] = '\0';
             }
 
-            medBlueFont->writeString(ownPort->frame(), 0x14, lineY, reinterpret_cast<uint8_t*>(items.data() + item),
+            MedBlueFont->WriteString(_OwnPort->Frame(), 0x14, lineY, reinterpret_cast<uint8_t*>(items.data() + item),
                                      -1);
-            lineY += medBlueFont->height() + 3;
+            lineY += MedBlueFont->Height() + 3;
 
             if (comma != std::string::npos)
             {
@@ -834,25 +834,25 @@ auto RefitDialog::draw() -> void
         }
     }
 
-    const int32_t fontHeight = medBlueFont->height();
-    cLoadString(thisInstance, 0x62, message, 0xfe);
-    wrapText(message, lineY + 3 + fontHeight);
+    const int32_t fontHeight = MedBlueFont->Height();
+    CLoadString(ThisInstance, 0x62, message, 0xfe);
+    WrapText(message, lineY + 3 + fontHeight);
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        DrawChild(childList[i]);
+        DrawChild(ChildList[i]);
     }
 }
 
-auto RefitDialog::wrapText(char* string, int32_t yPos) -> int32_t
+auto MCRefitDialog::WrapText(char* string, int32_t yPos) -> int32_t
 {
     auto* line = reinterpret_cast<uint8_t*>(string);
     const int32_t length = static_cast<int32_t>(std::strlen(string));
-    int32_t fit = medBlueFont->charactersToWidth(line, width() - 0x14, -1);
+    int32_t fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
 
     if (fit == length)
     {
-        medBlueFont->writeString(ownPort->frame(), 0xc, yPos, line, -1);
+        MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, yPos, line, -1);
         return yPos;
     }
     while (fit > 0)
@@ -862,8 +862,8 @@ auto RefitDialog::wrapText(char* string, int32_t yPos) -> int32_t
         // on past it (OB-075).
         const bool last = *end == 0;
         *end = 0;
-        medBlueFont->writeString(ownPort->frame(), 0xc, yPos, line, -1);
-        yPos += medBlueFont->height() + 3;
+        MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, yPos, line, -1);
+        yPos += MedBlueFont->Height() + 3;
 
         if (last)
         {
@@ -872,14 +872,14 @@ auto RefitDialog::wrapText(char* string, int32_t yPos) -> int32_t
 
         *end = ' ';
         line = end + 1;
-        fit = medBlueFont->charactersToWidth(line, width() - 0x14, -1);
+        fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
     }
 
     return yPos;
 }
 
-auto RefitDialog::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCRefitDialog::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    drawn = 0;
-    return ReusableDialog::init(xPos, yPos, width, height, name);
+    Drawn = 0;
+    return MCReusableDialog::Init(xPos, yPos, width, height, name);
 }

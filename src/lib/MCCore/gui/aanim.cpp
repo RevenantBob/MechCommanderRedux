@@ -13,74 +13,74 @@ namespace
     /// The original's <c>clock()</c>: MSVC's counts wall-clock milliseconds since the process started
     /// (<c>CLOCKS_PER_SEC</c> is 1000).
     /// </summary>
-    int32_t clockTicks()
+    int32_t ClockTicks()
     {
         return static_cast<int32_t>(MCPort::Milliseconds());
     }
 
     /// <summary>The fields every reset clears (the times are left alone).</summary>
-    void reset(aAnimation& animation)
+    void Reset(MCGuiAnimation& animation)
     {
-        animation.curFrame = 0;
-        animation.numFrames = 0;
-        animation.shapeWidth = 0;
-        animation.shapeHeight = 0;
-        animation.rate = 15.0f;
+        animation.CurFrame = 0;
+        animation.NumFrames = 0;
+        animation.ShapeWidth = 0;
+        animation.ShapeHeight = 0;
+        animation.Rate = 15.0f;
     }
 
     /// <summary>Unregisters and frees the shape table.</summary>
-    void freeShapes(aAnimation& animation)
+    void FreeShapes(MCGuiAnimation& animation)
     {
-        if (animation.shapes != nullptr)
+        if (animation.Shapes != nullptr)
         {
-            MCRenderer::UnregisterData(animation.shapes.get());
-            animation.shapes.reset();
+            MCRenderer::UnregisterData(animation.Shapes.get());
+            animation.Shapes.reset();
         }
     }
 }
 
-aAnimation::aAnimation()
+MCGuiAnimation::MCGuiAnimation()
 {
 }
 
-aAnimation::~aAnimation()
+MCGuiAnimation::~MCGuiAnimation()
 {
-    reset(*this);
-    freeShapes(*this);
+    Reset(*this);
+    FreeShapes(*this);
 }
 
-auto aAnimation::init(char* fileName) -> int32_t
+auto MCGuiAnimation::Init(char* fileName) -> int32_t
 {
-    reset(*this);
-    freeShapes(*this);
+    Reset(*this);
+    FreeShapes(*this);
 
     if (fileName != nullptr)
     {
-        return loadShape(fileName);
+        return LoadShape(fileName);
     }
 
     return 0;
 }
 
-auto aAnimation::destroy() -> void
+auto MCGuiAnimation::Destroy() -> void
 {
-    reset(*this);
-    freeShapes(*this);
+    Reset(*this);
+    FreeShapes(*this);
 }
 
-auto aAnimation::shapeTable() -> void*
+auto MCGuiAnimation::ShapeTable() -> void*
 {
-    return shapes.get();
+    return Shapes.get();
 }
 
-auto aAnimation::loadShape(char* fileName) -> int32_t
+auto MCGuiAnimation::LoadShape(char* fileName) -> int32_t
 {
-    freeShapes(*this);
-    File file;
+    FreeShapes(*this);
+    MCFile file;
     char path[128];
-    std::snprintf(path, sizeof(path), "%s%s", artPath, fileName);
+    std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (fileExists(path) == 0)
+    if (FileExists(path) == 0)
     {
         char message[256];
         std::snprintf(message, sizeof(message), "Unable to find '%s'", path);
@@ -88,81 +88,81 @@ auto aAnimation::loadShape(char* fileName) -> int32_t
         return -1;
     }
 
-    file.open(path, READ, 0x32);
-    const uint32_t size = file.fileSize();
+    file.Open(path, READ, 0x32);
+    const uint32_t size = file.FileSize();
 
     if (size == 0)
     {
         return -2;
     }
 
-    shapes = std::make_unique<uint8_t[]>(size);
-    file.read(shapes.get(), static_cast<int32_t>(size));
-    file.close();
-    MCRenderer::RegisterData(shapes.get(), size, MCDataKind::Shapes);
-    numFrames = VFX_shape_count(shapes.get());
-    curFrame = 0;
+    Shapes = std::make_unique<uint8_t[]>(size);
+    file.Read(Shapes.get(), static_cast<int32_t>(size));
+    file.Close();
+    MCRenderer::RegisterData(Shapes.get(), size, MCDataKind::Shapes);
+    NumFrames = VfxShapeCount(Shapes.get());
+    CurFrame = 0;
 
-    if (numFrames != 0)
+    if (NumFrames != 0)
     {
-        const int32_t bounds = VFX_shape_bounds(shapes.get(), 0);
-        shapeWidth = bounds >> 16;
-        shapeHeight = bounds & 0xffff;
+        const int32_t bounds = VfxShapeBounds(Shapes.get(), 0);
+        ShapeWidth = bounds >> 16;
+        ShapeHeight = bounds & 0xffff;
     }
 
-    lastTime = clockTicks();
+    LastTime = ClockTicks();
     return 0;
 }
 
-auto aAnimation::width() -> int32_t
+auto MCGuiAnimation::Width() -> int32_t
 {
-    return shapeWidth;
+    return ShapeWidth;
 }
 
-auto aAnimation::drawFrame(int32_t frame, _pane* pane, int32_t xPos, int32_t yPos) -> void
+auto MCGuiAnimation::DrawFrame(int32_t frame, MCPane* pane, int32_t xPos, int32_t yPos) -> void
 {
-    AG_shape_draw(pane, shapes.get(), frame, xPos, yPos);
+    AGShapeDraw(pane, Shapes.get(), frame, xPos, yPos);
 }
 
-auto aAnimation::draw(_pane* pane, int32_t xPos, int32_t yPos) -> void
+auto MCGuiAnimation::Draw(MCPane* pane, int32_t xPos, int32_t yPos) -> void
 {
-    AG_shape_draw(pane, shapes.get(), curFrame, xPos, yPos);
-    thisTime = clockTicks();
+    AGShapeDraw(pane, Shapes.get(), CurFrame, xPos, yPos);
+    ThisTime = ClockTicks();
 
-    if (1.0f / rate < static_cast<float>(thisTime - lastTime) * 0.001f)
+    if (1.0f / Rate < static_cast<float>(ThisTime - LastTime) * 0.001f)
     {
-        setFrame(nextFrame());
-        lastTime = thisTime;
+        SetFrame(NextFrame());
+        LastTime = ThisTime;
     }
 }
 
-auto aAnimation::nextFrame() -> int32_t
+auto MCGuiAnimation::NextFrame() -> int32_t
 {
-    const int32_t next = curFrame + 1;
-    return next < numFrames ? next : 0;
+    const int32_t next = CurFrame + 1;
+    return next < NumFrames ? next : 0;
 }
 
-auto aAnimation::setFrame(int32_t frame) -> void
+auto MCGuiAnimation::SetFrame(int32_t frame) -> void
 {
-    curFrame = frame;
+    CurFrame = frame;
 }
 
-auto aAnimation::setFrameRate(float newRate) -> void
+auto MCGuiAnimation::SetFrameRate(float newRate) -> void
 {
-    rate = newRate;
+    Rate = newRate;
 }
 
-auto aAnimation::currentFrame() -> int32_t
+auto MCGuiAnimation::CurrentFrame() -> int32_t
 {
-    return curFrame;
+    return CurFrame;
 }
 
-auto aAnimation::numberOfFrames() -> int32_t
+auto MCGuiAnimation::NumberOfFrames() -> int32_t
 {
-    return numFrames;
+    return NumFrames;
 }
 
-auto aAnimation::frameRate() -> float
+auto MCGuiAnimation::FrameRate() -> float
 {
-    return rate;
+    return Rate;
 }

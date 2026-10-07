@@ -8,17 +8,17 @@
 namespace
 {
     /// <summary>The map lookaside table (0x007a9b8c), set by VFX_map_lookaside.</summary>
-    uint8_t mapLookaside[256];
+    uint8_t MapLookaside[256];
 
     /// <summary>
     /// The vfx3d prologue: clips the pane to its window and draws <paramref name="command"/> there (vertices relative
     /// to the clipped corner, clipped to 0..xmax, 0..ymax from it).
     /// </summary>
-    void DrawPolygon(PANE* pane, MCPolygonCommand& command)
+    void DrawPolygon(MCPane* pane, MCPolygonCommand& command)
     {
-        const WINDOW* window = pane->window;
-        const int32_t x1 = window->x_max < pane->x1 ? window->x_max : pane->x1;
-        const int32_t x0 = 0 > pane->x0 ? 0 : pane->x0;
+        const MCWindow* window = pane->Window;
+        const int32_t x1 = window->XMax < pane->X1 ? window->XMax : pane->X1;
+        const int32_t x0 = 0 > pane->X0 ? 0 : pane->X0;
         command.XMax = x1 - x0;
 
         if (command.XMax < 0)
@@ -26,8 +26,8 @@ namespace
             return;
         }
 
-        const int32_t y1 = window->y_max < pane->y1 ? window->y_max : pane->y1;
-        const int32_t y0 = 0 > pane->y0 ? 0 : pane->y0;
+        const int32_t y1 = window->YMax < pane->Y1 ? window->YMax : pane->Y1;
+        const int32_t y0 = 0 > pane->Y0 ? 0 : pane->Y0;
         command.YMax = y1 - y0;
 
         if (command.YMax < 0)
@@ -56,13 +56,13 @@ namespace
 
             if (cutX0 != x0 || cutY0 != y0)
             {
-                static std::vector<SCRNVERTEX> moved;
+                static std::vector<MCScreenVertex> moved;
                 moved.assign(command.Vertices, command.Vertices + command.VertexCount);
 
-                for (SCRNVERTEX& vertex : moved)
+                for (MCScreenVertex& vertex : moved)
                 {
-                    vertex.x -= cutX0 - x0;
-                    vertex.y -= cutY0 - y0;
+                    vertex.X -= cutX0 - x0;
+                    vertex.Y -= cutY0 - y0;
                 }
 
                 command.Vertices = moved.data();
@@ -74,11 +74,11 @@ namespace
             command.YMax = cutY1 - cutY0;
         }
 
-        MCRenderer::For(pane->window).Polygon(pane->window, command);
+        MCRenderer::For(pane->Window).Polygon(pane->Window, command);
     }
 
     /// <summary>A polygon command of <paramref name="kind"/> over the vertices.</summary>
-    MCPolygonCommand MakePolygon(MCPolygonKind kind, int32_t vcnt, const SCRNVERTEX* vlist)
+    MCPolygonCommand MakePolygon(MCPolygonKind kind, int32_t vcnt, const MCScreenVertex* vlist)
     {
         MCPolygonCommand command{};
         command.Kind = kind;
@@ -88,50 +88,50 @@ namespace
     }
 }
 
-void VFX_flat_polygon(PANE* pane, int32_t vcnt, SCRNVERTEX* vlist)
+void VfxFlatPolygon(MCPane* pane, int32_t vcnt, MCScreenVertex* vlist)
 {
     MCPolygonCommand command = MakePolygon(MCPolygonKind::Flat, vcnt, vlist);
     DrawPolygon(pane, command);
 }
 
-void VFX_Gouraud_polygon(PANE* pane, int32_t vcnt, SCRNVERTEX* vlist)
+void VfxGouraudPolygon(MCPane* pane, int32_t vcnt, MCScreenVertex* vlist)
 {
     MCPolygonCommand command = MakePolygon(MCPolygonKind::Gouraud, vcnt, vlist);
     DrawPolygon(pane, command);
 }
 
-void VFX_dithered_Gouraud_polygon(PANE* pane, FIXED16 ditherAmount, int32_t vcnt, SCRNVERTEX* vlist)
+void VfxDitheredGouraudPolygon(MCPane* pane, MCFixed16 ditherAmount, int32_t vcnt, MCScreenVertex* vlist)
 {
     MCPolygonCommand command = MakePolygon(MCPolygonKind::DitheredGouraud, vcnt, vlist);
     command.DitherAmount = ditherAmount;
     DrawPolygon(pane, command);
 }
 
-void VFX_translate_polygon(PANE* pane, int32_t vcnt, SCRNVERTEX* vlist, void* lookaside)
+void VfxTranslatePolygon(MCPane* pane, int32_t vcnt, MCScreenVertex* vlist, void* lookaside)
 {
     MCPolygonCommand command = MakePolygon(MCPolygonKind::Translate, vcnt, vlist);
     command.Table = static_cast<const uint8_t*>(lookaside);
     DrawPolygon(pane, command);
 }
 
-void VFX_illuminate_polygon(PANE* pane, FIXED16 ditherAmount, int32_t vcnt, SCRNVERTEX* vlist)
+void VfxIlluminatePolygon(MCPane* pane, MCFixed16 ditherAmount, int32_t vcnt, MCScreenVertex* vlist)
 {
     MCPolygonCommand command = MakePolygon(MCPolygonKind::Illuminate, vcnt, vlist);
     command.DitherAmount = ditherAmount;
     DrawPolygon(pane, command);
 }
 
-void VFX_map_lookaside(uint8_t* table)
+void VfxMapLookaside(uint8_t* table)
 {
-    std::memcpy(mapLookaside, table, sizeof(mapLookaside));
+    std::memcpy(MapLookaside, table, sizeof(MapLookaside));
     // The copy is the table draws read: registered (again) as new bytes.
-    MCRenderer::RegisterData(mapLookaside, sizeof(mapLookaside), MCDataKind::Tables);
+    MCRenderer::RegisterData(MapLookaside, sizeof(MapLookaside), MCDataKind::Tables);
 }
 
-void VFX_map_polygon(PANE* pane, int32_t vcnt, SCRNVERTEX* vlist, WINDOW* texture, uint32_t flags)
+void VfxMapPolygon(MCPane* pane, int32_t vcnt, MCScreenVertex* vlist, MCWindow* texture, uint32_t flags)
 {
     MCPolygonCommand command = MakePolygon(MCPolygonKind::Map, vcnt, vlist);
-    command.Table = mapLookaside;
+    command.Table = MapLookaside;
     command.Texture = texture;
     command.MapFlags = flags;
     DrawPolygon(pane, command);

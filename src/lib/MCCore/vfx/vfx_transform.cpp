@@ -8,7 +8,7 @@
 // shape's skipped pixels stay transparent. The port hands both steps to the renderer as one command (ShapeBlit), so a
 // hardware renderer can draw the shape's picture without the scratch buffer.
 
-uint8_t* lookaside = nullptr;
+uint8_t* Lookaside = nullptr;
 
 namespace
 {
@@ -17,20 +17,20 @@ namespace
     /// (<paramref name="x"/>, <paramref name="y"/>) of the pane into <paramref name="command"/>; false when nothing
     /// is drawn.
     /// </summary>
-    bool ClipSprite(PANE* pane, int x, int y, int width, int height, int mirror, int fullSize,
+    bool ClipSprite(MCPane* pane, int x, int y, int width, int height, int mirror, int fullSize,
                     MCAlphaBlitCommand& command)
     {
-        const WINDOW* window = pane->window;
-        const int32_t stride = window->x_max + 1;
-        int32_t cx0 = pane->x0 < 0 ? 0 : pane->x0;
-        int32_t cy0 = pane->y0 < 0 ? 0 : pane->y0;
-        int32_t cx1 = pane->x1 < stride ? pane->x1 : window->x_max;
-        int32_t cy1 = pane->y1 < window->y_max + 1 ? pane->y1 : window->y_max;
+        const MCWindow* window = pane->Window;
+        const int32_t stride = window->XMax + 1;
+        int32_t cx0 = pane->X0 < 0 ? 0 : pane->X0;
+        int32_t cy0 = pane->Y0 < 0 ? 0 : pane->Y0;
+        int32_t cx1 = pane->X1 < stride ? pane->X1 : window->XMax;
+        int32_t cy1 = pane->Y1 < window->YMax + 1 ? pane->Y1 : window->YMax;
         MCClipToView(window, cx0, cy0, cx1, cy1);
 
         // OB-115: (x, y) are relative to the pane's origin; the asm offset by its corner clipped to the window.
-        int32_t left = x + pane->x0;
-        int32_t top = y + pane->y0;
+        int32_t left = x + pane->X0;
+        int32_t top = y + pane->Y0;
         const int32_t pitch = width;
         int32_t columns = width;
         int32_t rows = height;
@@ -126,7 +126,7 @@ namespace
     /// The body of AG_shape_transform and AG_shape_translate_transform: renders the shape into
     /// <paramref name="buffer"/> (through <paramref name="table"/> when there is one), then copies it to the pane.
     /// </summary>
-    void TransformShape(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, void* buffer,
+    void TransformShape(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, void* buffer,
                         int32_t mirror, int32_t fullSize, const uint8_t* table)
     {
         const uint8_t* header = MCVfxShape(shapeTable, shapeNum);
@@ -173,23 +173,23 @@ namespace
         command.Width = width;
         command.Height = height;
         command.Blit.Sprite = command.Buffer;
-        MCRenderer::For(pane->window).ShapeBlit(pane->window, command);
+        MCRenderer::For(pane->Window).ShapeBlit(pane->Window, command);
     }
 }
 
-void AG_shape_transform(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, void* buffer,
-                        int32_t mirror, int32_t fullSize)
+void AGShapeTransform(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, void* buffer,
+                      int32_t mirror, int32_t fullSize)
 {
     TransformShape(pane, shapeTable, shapeNum, hotX, hotY, buffer, mirror, fullSize, nullptr);
 }
 
-void AG_shape_translate_transform(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY,
-                                  void* buffer, int32_t mirror, int32_t fullSize)
+void AGShapeTranslateTransform(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY,
+                               void* buffer, int32_t mirror, int32_t fullSize)
 {
-    TransformShape(pane, shapeTable, shapeNum, hotX, hotY, buffer, mirror, fullSize, lookaside);
+    TransformShape(pane, shapeTable, shapeNum, hotX, hotY, buffer, mirror, fullSize, Lookaside);
 }
 
-void CopySprite(PANE* pane, uint8_t* sprite, int x, int y, int width, int height, int mirror, int fullSize)
+void CopySprite(MCPane* pane, uint8_t* sprite, int x, int y, int width, int height, int mirror, int fullSize)
 {
     MCAlphaBlitCommand command;
 
@@ -199,10 +199,10 @@ void CopySprite(PANE* pane, uint8_t* sprite, int x, int y, int width, int height
     }
 
     command.Sprite = sprite;
-    MCRenderer::For(pane->window).AlphaBlit(pane->window, command);
+    MCRenderer::For(pane->Window).AlphaBlit(pane->Window, command);
 }
 
-void CopySprite(PANE* pane, WINDOW* sprite, int x, int y, int width, int height, int mirror, int fullSize)
+void CopySprite(MCPane* pane, MCWindow* sprite, int x, int y, int width, int height, int mirror, int fullSize)
 {
     MCAlphaBlitCommand command;
 
@@ -212,16 +212,16 @@ void CopySprite(PANE* pane, WINDOW* sprite, int x, int y, int width, int height,
     }
 
     command.Texture = sprite->Texture;
-    command.Sprite = sprite->buffer;
-    MCRenderer::For(pane->window).AlphaBlit(pane->window, command);
+    command.Sprite = sprite->Buffer;
+    MCRenderer::For(pane->Window).AlphaBlit(pane->Window, command);
 }
 
-void AG_shape_fill(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
+void AGShapeFill(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
 {
     MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::Fill, nullptr);
 }
 
-void AG_shape_translate_fill(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
+void AGShapeTranslateFill(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
 {
-    MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::XlatFill, lookaside);
+    MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::XlatFill, Lookaside);
 }

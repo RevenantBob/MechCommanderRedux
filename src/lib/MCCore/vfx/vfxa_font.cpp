@@ -14,17 +14,17 @@ namespace
     }
 }
 
-int32_t VFX_font_height(void* font)
+int32_t VfxFontHeight(void* font)
 {
     return MCVfxRead32(static_cast<uint8_t*>(font) + 8);
 }
 
-int32_t VFX_character_width(void* font, int32_t character)
+int32_t VfxCharacterWidth(void* font, int32_t character)
 {
     return MCVfxRead32(Glyph(font, character));
 }
 
-int32_t VFX_character_draw(PANE* pane, int32_t x, int32_t y, void* font, int32_t character, uint8_t* colorTranslate)
+int32_t VfxCharacterDraw(MCPane* pane, int32_t x, int32_t y, void* font, int32_t character, uint8_t* colorTranslate)
 {
     MCVfxClip clip;
     const int32_t status = MCVfxClipPane(pane, clip);
@@ -36,7 +36,7 @@ int32_t VFX_character_draw(PANE* pane, int32_t x, int32_t y, void* font, int32_t
 
     x += clip.PaneX;
     y += clip.PaneY;
-    int32_t rows = VFX_font_height(font);
+    int32_t rows = VfxFontHeight(font);
     const uint8_t* glyph = Glyph(font, character);
     const int32_t width = MCVfxRead32(glyph);
 
@@ -115,17 +115,17 @@ int32_t VFX_character_draw(PANE* pane, int32_t x, int32_t y, void* font, int32_t
     command.Columns = columns;
     command.Rows = rows;
     command.Table = colorTranslate;
-    MCRenderer::For(pane->window).Glyph(pane->window, command);
+    MCRenderer::For(pane->Window).Glyph(pane->Window, command);
     return width;
 }
 
-void VFX_string_draw(PANE* pane, int32_t x, int32_t y, void* font, const char* string, uint8_t* colorTranslate)
+void VfxStringDraw(MCPane* pane, int32_t x, int32_t y, void* font, const char* string, uint8_t* colorTranslate)
 {
     // OB-124: the asm drew the first character before looking for the terminator (an empty string drew character
     // 0), and moved x back by a negative (error) result.
     for (; *string != 0; ++string)
     {
-        const int32_t width = VFX_character_draw(pane, x, y, font, static_cast<uint8_t>(*string), colorTranslate);
+        const int32_t width = VfxCharacterDraw(pane, x, y, font, static_cast<uint8_t>(*string), colorTranslate);
 
         if (width < 0)
         {

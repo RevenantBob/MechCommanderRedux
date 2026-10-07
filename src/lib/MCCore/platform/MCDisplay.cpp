@@ -13,7 +13,7 @@ namespace
     }
 
     /// <summary>The palette through a gamma and brightness, as the GPU gets it.</summary>
-    void ApplyGamma(const std::array<VFX_RGB, 256>& palette, float gamma, float brightness, SDL_Color* out)
+    void ApplyGamma(const std::array<MCVfxRgb, 256>& palette, float gamma, float brightness, SDL_Color* out)
     {
         std::array<uint8_t, 256> curve{};
 
@@ -32,7 +32,7 @@ namespace
 
         for (size_t i = 0; i < 256; ++i)
         {
-            out[i] = {curve[palette[i].r], curve[palette[i].g], curve[palette[i].b], 255};
+            out[i] = {curve[palette[i].R], curve[palette[i].G], curve[palette[i].B], 255};
         }
     }
 
@@ -185,9 +185,9 @@ void MCDisplay::SetTitle(const char* title)
 void MCDisplay::MakeScreen()
 {
     _Pixels.assign(static_cast<size_t>(_Width) * _Height, 0);
-    _Screen.buffer = _Pixels.data();
-    _Screen.x_max = _Width - 1;
-    _Screen.y_max = _Height - 1;
+    _Screen.Buffer = _Pixels.data();
+    _Screen.XMax = _Width - 1;
+    _Screen.YMax = _Height - 1;
     _Ops.assign(_Pixels.size(), 0);
     MCRenderer::SetOpPlane(&_Screen, _Ops.data());
     MCRenderer::AddFrameSurface(&_Screen);
@@ -294,7 +294,7 @@ bool MCDisplay::SetView(int x, int y, int width, int height)
     return true;
 }
 
-void MCDisplay::SetPalette(int first, int count, const VFX_RGB* entries)
+void MCDisplay::SetPalette(int first, int count, const MCVfxRgb* entries)
 {
     if (entries == nullptr || first < 0 || first >= 256)
     {
@@ -341,7 +341,7 @@ void MCDisplay::EndCycleOver(int first, int count)
     }
 }
 
-void MCDisplay::GetPalette(int first, int count, VFX_RGB* out) const
+void MCDisplay::GetPalette(int first, int count, MCVfxRgb* out) const
 {
     if (out == nullptr || first < 0 || first >= 256)
     {
@@ -505,8 +505,8 @@ std::vector<MCUnderlay> MCDisplay::ScreenUnderlays() const
 
     for (const MCUnderlay& underlay : MCRenderer::Underlays())
     {
-        if (underlay.Target != nullptr && underlay.Target->buffer == _Screen.buffer && underlay.Source != nullptr &&
-            underlay.Source->buffer != nullptr)
+        if (underlay.Target != nullptr && underlay.Target->Buffer == _Screen.Buffer && underlay.Source != nullptr &&
+            underlay.Source->Buffer != nullptr)
         {
             underlays.push_back(underlay);
         }
@@ -561,7 +561,7 @@ std::expected<void, std::string> MCDisplay::SaveScreenshot(const std::filesystem
 
             for (size_t i = 0; i < 256; ++i)
             {
-                colors[i] = {_Palette[i].r, _Palette[i].g, _Palette[i].b, 255};
+                colors[i] = {_Palette[i].R, _Palette[i].G, _Palette[i].B, 255};
             }
         }
 

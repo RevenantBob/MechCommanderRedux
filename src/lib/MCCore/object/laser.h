@@ -4,13 +4,13 @@
 #include "object/objtype.h"
 #include "object/objwtch.h"
 
-class File;
-class GameObject;
-struct _pane;
-struct _window;
+class MCFile;
+class MCGameObject;
+struct MCPane;
+struct MCWindow;
 
 /// <summary>
-/// The type of a <see cref="Laser"/> beam: its width and colour stages (one set for friendly, one for enemy
+/// The type of a <see cref="MCLaser"/> beam: its width and colour stages (one set for friendly, one for enemy
 /// shooters), damage, sound and hit effects, and for a PPC the effect shape played along the beam.
 /// </summary>
 /// <remarks>
@@ -18,69 +18,62 @@ struct _window;
 /// "FLaser%d"/"ELaser%d" stage blocks and, with a LaserEffectShape, the "PPCData" block. The stage arrays come
 /// from ObjectTypeManager::objectTypeCache.
 /// </remarks>
-class LaserType : public ObjectType
+class MCLaserType : public MCObjectType
 {
 public:
-    LaserType() { init(); }
-    /// <remarks>MCX.EXE @ 0x00690440 (vector deleting destructor)</remarks>
-    ~LaserType() override { destroy(); }
+    MCLaserType() { Init(); }
+    ~MCLaserType() override { Destroy(); }
 
     /// <summary>Resets the common type data and this type's fields.</summary>
-    /// <remarks>MCX.EXE @ 0x006903e0 (inline in <c>object\laser.h</c>)</remarks>
-    void init();
-    /// <summary>Makes a <see cref="Laser"/> of this type and gives it the next object id.</summary>
-    /// <remarks>MCX.EXE @ 0x00672f70</remarks>
-    BaseObject* createInstance() override;
+    void Init();
+    /// <summary>Makes a <see cref="MCLaser"/> of this type and gives it the next object id.</summary>
+    MCBaseObject* CreateInstance() override;
     /// <summary>Frees the stage arrays (when the type cache is up).</summary>
-    /// <remarks>MCX.EXE @ 0x006731e0</remarks>
-    void destroy() override;
+    void Destroy() override;
     /// <summary>
     /// Reads the laser data, loads the effect shape (from the sprite path) and its PPC data, reads numStages friendly
     /// then numStages enemy stages, the common type data, and loads the hit and miss types.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00673240</remarks>
-    int32_t init(File* objFile, uint32_t fileSize) override;
-    /// <remarks>MCX.EXE @ 0x00673750</remarks>
-    int handleCollision(GameObject* collidee, GameObject* collider) override;
-    /// <remarks>MCX.EXE @ 0x00673760</remarks>
-    int handleDestruction(GameObject* collidee, GameObject* collider) override;
+    int32_t Init(MCFile* objFile, uint32_t fileSize) override;
+    int HandleCollision(MCGameObject* collidee, MCGameObject* collider) override;
+    int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
 
     /// <summary>Beam width in pixels (FIT "PixelWidth").</summary>
-    uint8_t pixelWidth = 0; // +0x30
+    uint8_t PixelWidth = 0;
     /// <summary>Stages per beam (FIT "NumStages"); the stage arrays hold 2 * numStages entries (friendly, then enemy).</summary>
-    uint8_t numStages = 0; // +0x31
+    uint8_t NumStages = 0;
     /// <summary>Per stage: its duration in seconds (FIT "StageDuration").</summary>
-    float* stageDuration = nullptr; // +0x34
+    float* StageDuration = nullptr;
     /// <summary>Per stage: the outer (cool) palette colour (FIT "StageCool").</summary>
-    uint8_t* stageCool = nullptr; // +0x38
+    uint8_t* StageCool = nullptr;
     /// <summary>Per stage: the core (hot) palette colour (FIT "StageHot").</summary>
-    uint8_t* stageHot = nullptr; // +0x3c
+    uint8_t* StageHot = nullptr;
     /// <summary>FIT "DmgLevel".</summary>
-    uint32_t dmgLevel = 0; // +0x40
+    uint32_t DmgLevel = 0;
     /// <summary>Sample played when the laser fires (FIT "SoundEffectId").</summary>
-    uint32_t soundEffectId = 0; // +0x44
+    uint32_t SoundEffectId = 0;
     /// <summary>Object type created where the beam hits its target (FIT "LaserHitEffect").</summary>
-    uint32_t laserHitEffect = 0; // +0x48
+    uint32_t LaserHitEffect = 0;
     /// <summary>Object type created where a beam without a target lands (FIT "LaserMissEffect").</summary>
-    uint32_t laserMissEffect = 0; // +0x4c
+    uint32_t LaserMissEffect = 0;
     /// <summary>The PPC effect shape file's data (FIT "LaserEffectShape"), or null for a plain beam.</summary>
-    uint8_t* laserEffectShape = nullptr; // +0x50
+    uint8_t* LaserEffectShape = nullptr;
     /// <summary>Frames of the PPC effect (FIT "numPPCFrames"); the beam ends after the last.</summary>
-    uint32_t numPPCFrames = 0; // +0x54
+    uint32_t NumPpcFrames = 0;
     /// <summary>Left edge of the effect in its shape (FIT "lPPC").</summary>
-    uint32_t lPPC = 0; // +0x58
+    uint32_t Lppc = 0;
     /// <summary>Top edge (FIT "tPPC").</summary>
-    uint32_t tPPC = 0; // +0x5c
+    uint32_t Tppc = 0;
     /// <summary>Right edge (FIT "rPPC").</summary>
-    uint32_t rPPC = 0; // +0x60
+    uint32_t Rppc = 0;
     /// <summary>Bottom edge (FIT "bPPC").</summary>
-    uint32_t bPPC = 0; // +0x64
+    uint32_t Bppc = 0;
     /// <summary>The frame at which the PPC hits and deals its damage (FIT "hitPPC").</summary>
-    uint32_t hitPPC = 0; // +0x68
+    uint32_t HitPpc = 0;
     /// <summary>Seconds per PPC frame (FIT "lengthPPC").</summary>
-    float lengthPPC = 0; // +0x6c
+    float LengthPpc = 0;
     /// <summary>Animation period of the PPC effect (FIT "animPPC").</summary>
-    float animPPC = 0; // +0x70
+    float AnimPpc = 0;
 };
 
 /// <summary>
@@ -88,93 +81,84 @@ public:
 /// stages (or the PPC's hit frame) are reached it applies its shot to the target and creates the hit or miss effect.
 /// </summary>
 /// <remarks>Original source: <c>object\laser.cpp</c>, <c>object\laser.h</c>; 0xd4 bytes.</remarks>
-class Laser : public BigGameObject
+class MCLaser : public MCBigGameObject
 {
 public:
-    Laser() { init(); }
+    MCLaser() { Init(); }
     /// <summary>Frees the target position and stops watching the target and source.</summary>
-    /// <remarks>MCX.EXE @ 0x00673160 (vector deleting destructor)</remarks>
-    ~Laser() override
+    ~MCLaser() override
     {
-        destroy();
-        target.free();
-        source.free();
+        Destroy();
+        Target.Free();
+        Source.Free();
     }
 
     /// <summary>Resets the base object fields and this beam's state (stage 0xff: not started).</summary>
-    /// <remarks>MCX.EXE @ 0x00673070 (inline in <c>object\laser.h</c>)</remarks>
-    void init() override;
+    void Init() override;
     /// <summary>Resets (vtable init()), then initialises from the type; class 0xe.</summary>
-    /// <remarks>MCX.EXE @ 0x00674580</remarks>
-    int32_t init(ObjectType* objType) override;
+    int32_t Init(MCObjectType* objType) override;
     /// <summary>Frees the target position.</summary>
-    /// <remarks>MCX.EXE @ 0x00673120 (inline in <c>object\laser.h</c>)</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x00673150</remarks>
-    int32_t kill() override { return 0; }
+    void Destroy() override;
+    int32_t Kill() override { return 0; }
     /// <summary>
     /// Steps the beam through its colour stages (the enemy set when the source's alignment isn't 1) or, for a PPC,
     /// its effect frames; applies the shot to the target once (host only in multiplayer).
     /// </summary>
     /// <returns>1 while the beam lasts, 0 when done.</returns>
-    /// <remarks>MCX.EXE @ 0x00673770</remarks>
-    int32_t update() override;
+    int32_t Update() override;
     /// <summary>
     /// Draws the beam (polygons in the stage colours, or the PPC shape stretched along it through the laser pane);
     /// creates the hit or miss effect (and a crater on a miss) once.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00673b90</remarks>
-    void render() override;
+    void Render() override;
 
     /// <summary>Sets (allocating it the first time) the point the beam ends at.</summary>
-    /// <remarks>MCX.EXE @ 0x006745c0</remarks>
-    void setTargetPosition(vector_3d position);
+    void SetTargetPosition(MCVector3D position);
     /// <summary>
     /// Watches <paramref name="source"/>, fires from its hot spot <paramref name="sourceHotSpot"/> at
     /// <paramref name="targetPos"/>, and copies <paramref name="shotInfo"/> (if any) as the shot to apply.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0065f5e0 (inline in <c>object\laser.h</c>)</remarks>
-    void connect(GameObject* source, vector_3d targetPos, _WeaponShotInfo* shotInfo, int32_t sourceHotSpot);
+    void Connect(MCGameObject* source, MCVector3D targetPos, MCWeaponShotInfo* shotInfo, int32_t sourceHotSpot);
 
     /// <summary>The current colour stage; 0xff before the first update.</summary>
-    uint8_t currentStage = 0; // +0x84
+    uint8_t CurrentStage = 0;
     /// <summary>Seconds left in the current stage.</summary>
-    float stageTimeLeft = 0; // +0x88
+    float StageTimeLeft = 0;
     /// <summary>The current stage's outer (cool) colour.</summary>
-    uint32_t coolColor = 0; // +0x8c
+    uint32_t CoolColor = 0;
     /// <summary>The current stage's core (hot) colour; the core is drawn only when it differs from the outer.</summary>
-    uint32_t hotColor = 0; // +0x90
+    uint32_t HotColor = 0;
     /// <summary>The object that fired.</summary>
-    BaseObjectWatcher source; // +0x94
+    MCBaseObjectWatcher Source;
     /// <summary>The source's hot spot the beam starts at.</summary>
-    int32_t sourceHotSpot = 0; // +0x98
+    int32_t SourceHotSpot = 0;
     /// <summary>The object hit; the shot is applied to it.</summary>
-    BaseObjectWatcher target; // +0x9c
+    MCBaseObjectWatcher Target;
     /// <summary>
     /// The target's hot spot that was hit, set by the launchers. The original never read it (OB-017); the beam ends there.
     /// </summary>
-    int32_t targetHotSpot = 0; // +0xa0
-    /// <summary>Where the beam ends, allocated by <see cref="setTargetPosition"/>.</summary>
-    vector_3d* targetPosition = nullptr; // +0xa4
+    int32_t TargetHotSpot = 0;
+    /// <summary>Where the beam ends, allocated by <see cref="SetTargetPosition"/>.</summary>
+    MCVector3D* TargetPosition = nullptr;
     /// <summary>The shot applied to the target.</summary>
-    _WeaponShotInfo shotInfo{}; // +0xa8
+    MCWeaponShotInfo ShotInfo{};
     /// <summary>Set once the hit or miss effect has been created.</summary>
-    int32_t hitEffectCreated = 0; // +0xbc
+    int32_t HitEffectCreated = 0;
     /// <summary>The current frame of the PPC effect.</summary>
-    int32_t ppcFrame = 0; // +0xc0
+    int32_t PpcFrame = 0;
     /// <summary>Time left in the PPC effect's animation period (restarts at the type's animPPC).</summary>
-    float ppcAnimTimeLeft = 0; // +0xc4
+    float PpcAnimTimeLeft = 0;
     /// <summary>Time left in the current PPC frame (restarts at the type's lengthPPC).</summary>
-    float ppcFrameTimeLeft = 0; // +0xc8
+    float PpcFrameTimeLeft = 0;
     /// <summary>Set by init; the first update of a PPC clears it and plays the sound.</summary>
-    int32_t justCreated = 0; // +0xcc
+    int32_t JustCreated = 0;
     /// <summary>Set once the shot has been applied to the target.</summary>
-    int32_t damageApplied = 0; // +0xd0
+    int32_t DamageApplied = 0;
 };
 
 /// <summary>The 256x256 8-bit buffer the PPC effect shape is drawn into (allocated on first use).</summary>
-extern std::unique_ptr<uint8_t[]> laserEffectBuffer;
+extern std::unique_ptr<uint8_t[]> LaserEffectBuffer;
 /// <summary>The pane over laserEffectBuffer.</summary>
-extern std::unique_ptr<_pane> laserPane;
+extern std::unique_ptr<MCPane> LaserPane;
 /// <summary>The window over laserEffectBuffer.</summary>
-extern std::unique_ptr<_window> laserWindow;
+extern std::unique_ptr<MCWindow> LaserWindow;

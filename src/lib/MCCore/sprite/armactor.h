@@ -3,126 +3,113 @@
 #include "appear/appear.h"
 #include "appear/apprtype.h"
 
-class Shape;
+class MCShape;
 
 /// <summary>The single animation state of an arm (weapon effect) appearance type, 0x14 bytes.</summary>
-struct ArmActorData
+struct MCArmActorData
 {
     /// <summary>FIT "NumRotations".</summary>
-    uint8_t numRotations; // +0x00
+    uint8_t NumRotations;
     /// <summary>FIT "NumFrames".</summary>
-    uint32_t numFrames; // +0x04
+    uint32_t NumFrames;
     /// <summary>FIT "BasePacketNumber".</summary>
-    uint32_t basePacketNumber; // +0x08
+    uint32_t BasePacketNumber;
     /// <summary>FIT "FrameRate".</summary>
-    float frameRate; // +0x0c
+    float FrameRate;
     /// <summary>FIT "Symmetrical".</summary>
-    uint32_t symmetrical; // +0x10
+    uint32_t Symmetrical;
 };
 
 /// <summary>
-/// The type of an <see cref="ArmAppearance"/>: a weapon effect (missile, bullet, jet...) drawn from one shape per
+/// The type of an <see cref="MCArmAppearance"/>: a weapon effect (missile, bullet, jet...) drawn from one shape per
 /// facing.
 /// </summary>
 /// <remarks>
 /// Original source: <c>sprite\armactor.cpp</c>, 0x3c bytes (class 6 of the sprite PAK). FIT: "State" (NumFrames,
 /// FrameRate, BasePacketNumber, NumRotations, Symmetrical, CheckForHeader).
 /// </remarks>
-class ArmAppearanceType : public AppearanceType
+class MCArmAppearanceType : public MCAppearanceType
 {
 public:
-    ArmAppearanceType() = default;
-    /// <remarks>MCX.EXE @ 0x006ac9c0 (vector deleting destructor); slot 2</remarks>
-    ~ArmAppearanceType() override { ArmAppearanceType::destroy(); }
+    MCArmAppearanceType() = default;
+    ~MCArmAppearanceType() override { MCArmAppearanceType::Destroy(); }
 
     /// <summary>Loads the FIT and makes the shape list; with <paramref name="loadFlags"/> loads every shape now.</summary>
-    /// <remarks>MCX.EXE @ 0x006392e0; slot 0</remarks>
-    int32_t init(File* apprFile, uint32_t fileSize, uint32_t loadFlags) override;
+    int32_t Init(MCFile* apprFile, uint32_t fileSize, uint32_t loadFlags) override;
 
-    /// <remarks>MCX.EXE @ 0x00639760; slot 1</remarks>
-    void destroy() override;
+    void Destroy() override;
 
-    /// <remarks>MCX.EXE @ 0x00639370; slot 3</remarks>
-    void removeShape(Shape* shape) override;
+    void RemoveShape(MCShape* shape) override;
 
     /// <summary>Loads every packet's shape.</summary>
-    /// <remarks>MCX.EXE @ 0x006393c0</remarks>
-    void preloadGestures();
+    void PreloadGestures();
 
     /// <summary>Reads the type's FIT.</summary>
-    /// <remarks>MCX.EXE @ 0x00639400</remarks>
-    int32_t loadIniFile(File* apprFile, uint32_t fileSize);
+    int32_t LoadIniFile(MCFile* apprFile, uint32_t fileSize);
 
     /// <summary>
     /// The shape facing <paramref name="rotation"/> degrees (clamped to +-180); <paramref name="frameRate"/> gets the
     /// frame rate, <paramref name="reverse"/> whether to mirror it. <paramref name="frame"/> is unused.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006395a0</remarks>
-    Shape* getShape(int32_t rotation, int32_t frame, float& frameRate, int& reverse);
+    MCShape* GetShape(int32_t rotation, int32_t frame, float& frameRate, int& reverse);
 
     /// <summary>The state.</summary>
-    ArmActorData* actorData = nullptr; // +0x2c
+    MCArmActorData* ActorData = nullptr;
     /// <summary>The loaded shape of each packet.</summary>
-    Shape** shapeList = nullptr; // +0x30
+    MCShape** ShapeList = nullptr;
     /// <summary>FIT "CheckForHeader" (1 when absent).</summary>
-    uint8_t checkForHeader = 1; // +0x34
+    uint8_t CheckForHeader = 1;
     /// <summary>The number of packets.</summary>
-    int32_t numPackets = 0; // +0x38
+    int32_t NumPackets = 0;
 };
 
 /// <summary>A weapon effect's appearance, turned to its owner's direction of travel.</summary>
 /// <remarks>Original source: <c>sprite\armactor.cpp</c>, 0x78 bytes.</remarks>
-class ArmAppearance : public Appearance
+class MCArmAppearance : public MCAppearance
 {
 public:
-    ArmAppearance() = default;
+    MCArmAppearance() = default;
     /// <remarks>Vector deleting destructor; slot 2</remarks>
-    ~ArmAppearance() override { ArmAppearance::destroy(); }
+    ~MCArmAppearance() override { MCArmAppearance::Destroy(); }
 
-    /// <remarks>MCX.EXE @ 0x006397b0; slot 0</remarks>
-    int32_t init(AppearanceType* tree = nullptr, GameObject* obj = nullptr) override;
+    int32_t Init(MCAppearanceType* tree = nullptr, MCGameObject* obj = nullptr) override;
 
-    /// <remarks>MCX.EXE @ 0x00639d30; slot 1</remarks>
-    void destroy() override;
+    void Destroy() override;
 
     /// <summary>Advances the animation (looping).</summary>
-    /// <remarks>MCX.EXE @ 0x00639c80; slot 3</remarks>
-    int32_t update() override;
+    int32_t Update() override;
 
     /// <summary>Faces the owner's velocity and adds the shape to the element list.</summary>
-    /// <remarks>MCX.EXE @ 0x00639a50; slot 4</remarks>
-    int32_t render(int32_t depthFixup = 0) override;
+    int32_t Render(int32_t depthFixup = 0) override;
 
-    /// <remarks>MCX.EXE @ 0x00639820; slot 7</remarks>
-    int recalcBounds(Camera* cam) override;
+    int RecalcBounds(MCCamera* cam) override;
 
-    /// <remarks>MCX.EXE @ 0x00655cd0 (no symbol: <c>mov eax, [ecx+0x44]; ret</c>); slot 11</remarks>
-    int32_t getFrameNumber() override { return currentFrame; }
+    int32_t GetFrameNumber() override { return CurrentFrame; }
 
     /// <summary>The object the effect belongs to (its type name labels the VFX element); set by the owner.</summary>
-    GameObject* ownerObject = nullptr; // +0x38
+    MCGameObject* OwnerObject = nullptr;
     /// <summary>The type.</summary>
-    ArmAppearanceType* appearType = nullptr; // +0x3c
+    MCArmAppearanceType* AppearType = nullptr;
     /// <summary>The shape drawn.</summary>
-    Shape* currentShape = nullptr; // +0x40
+    MCShape* CurrentShape = nullptr;
     /// <summary>The frame drawn (-1: not started).</summary>
-    int32_t currentFrame = -1; // +0x44
+    int32_t CurrentFrame = -1;
     /// <summary>Nonzero when the shape is drawn mirrored.</summary>
-    int reverse = 0; // +0x4c
+    int Reverse = 0;
     /// <summary>Seconds into the animation.</summary>
-    float currentTime = 0.0f; // +0x54
+    float CurrentTime = 0.0f;
     /// <summary>The state's frame rate.</summary>
-    float frameRate = 0.0f; // +0x58
+    float FrameRate = 0.0f;
     /// <summary>Frames played so far.</summary>
-    int32_t lastFrame = 0; // +0x5c
+    int32_t LastFrame = 0;
     /// <summary>The facing, in degrees.</summary>
-    float rotation = 0.0f; // +0x60
+    float Rotation = 0.0f;
     /// <summary>The fade table (index into the palette's haze tables) to draw through, -1 for none.</summary>
-    int32_t fadeTableIndex = -1; // +0x64
+    int32_t FadeTableIndex = -1;
     /// <summary>The shape's top-left offset from its hotspot (-15 before a shape).</summary>
-    float shapeMinX = -15.0f; // +0x68
-    float shapeMinY = -15.0f; // +0x6c
+    float ShapeMinX = -15.0f;
+    float ShapeMinY = -15.0f;
     /// <summary>The shape's size (15 before a shape).</summary>
-    float shapeMaxX = 15.0f; // +0x70
-    float shapeMaxY = 15.0f; // +0x74
+    float ShapeMaxX = 15.0f;
+    float ShapeMaxY = 15.0f;
 };

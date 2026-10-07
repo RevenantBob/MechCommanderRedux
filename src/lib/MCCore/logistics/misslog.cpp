@@ -21,7 +21,7 @@
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 
-char* componentComment[NUM_FIT_COMPONENTS] = {
+char* ComponentComment[NUM_FIT_COMPONENTS] = {
     const_cast<char*>("// Medium Pulse Laser (IS) "),
     const_cast<char*>("// Medium Pulse Laser (Clan)"),
     const_cast<char*>("// Short-Range Missile/2 (IS) "),
@@ -74,14 +74,14 @@ char* componentComment[NUM_FIT_COMPONENTS] = {
     const_cast<char*>("// Sniper Cannon "),
 };
 
-uint8_t componentId[NUM_FIT_COMPONENTS] = {
+uint8_t ComponentId[NUM_FIT_COMPONENTS] = {
     0x90, 0x99, 0x7b, 0x85, 0x8f, 0x7d, 0x87, 0x93, 0x9b, 0x66, 0x70, 0x8e, 0x98, 0x97, 0x8c, 0x65, 0x6f,
     0x91, 0x78, 0x82, 0x64, 0x67, 0x6e, 0x8d, 0x96, 0x92, 0x68, 0x71, 0x9a, 0x0d, 0x10, 0x0e, 0x0f, 0x11,
     0x25, 0x26, 0x2a, 0x2b, 0x62, 0x63, 0x6b, 0x6c, 0x6d, 0x74, 0x75, 0x76, 0x7e, 0x8b, 0xa0, 0xa1,
 };
 
-float totalScenarioTime = 0.0f;
-float totalLogisticsTime = 0.0f;
+float TotalScenarioTime = 0.0f;
+float TotalLogisticsTime = 0.0f;
 
 namespace
 {
@@ -98,46 +98,46 @@ namespace
     constexpr const char* VehicleLocationNames[5] = {"Front", "Left", "Right", "Rear", "Turret"};
 
     /// <summary>The master component forms a profile lists as weapons (FacesForward); form 10 is ammo.</summary>
-    bool isWeaponForm(int32_t form)
+    bool IsWeaponForm(int32_t form)
     {
         return form == 6 || form == 7 || form == 8 || form == 9;
     }
 
     /// <summary>The CRT's <c>DeleteFileA</c> on a game path.</summary>
-    void deleteFile(const char* fileName)
+    void DeleteFile(const char* fileName)
     {
         MCFileSystem::RemoveFile(fileName);
     }
 
     /// <summary>The name of profile <paramref name="index"/> ("tpak<i>n</i>").</summary>
-    void profileName(char* name, size_t size, int32_t index)
+    void ProfileName(char* name, size_t size, int32_t index)
     {
         std::snprintf(name, size, "tpak%d", index);
     }
 
     /// <summary>Starts block <paramref name="format"/> <paramref name="index"/> with its PacketNum.</summary>
-    void writePacketBlock(FitIniFile& file, const char* format, int32_t index, uint32_t packetNum)
+    void WritePacketBlock(MCFitIniFile& file, const char* format, int32_t index, uint32_t packetNum)
     {
         char block[32];
         std::snprintf(block, sizeof(block), format, index);
-        file.writeBlock(block);
-        file.writeIdULong("PacketNum", packetNum);
+        file.WriteBlock(block);
+        file.WriteIdULong("PacketNum", packetNum);
     }
 
     /// <summary>Writes the 50 "Componant" blocks: each one's comment line, id and the count from <paramref name="countOf"/>.</summary>
-    template <typename CountFn> void writeComponents(FitIniFile& file, CountFn countOf)
+    template <typename CountFn> void WriteComponents(MCFitIniFile& file, CountFn countOf)
     {
-        file.writeBlock("Components");
-        file.writeIdULong("NumComponents", NUM_FIT_COMPONENTS);
+        file.WriteBlock("Components");
+        file.WriteIdULong("NumComponents", NUM_FIT_COMPONENTS);
 
         for (int32_t i = 0; i < NUM_FIT_COMPONENTS; i++)
         {
             char block[32];
             std::snprintf(block, sizeof(block), "Componant%d", i);
-            file.writeBlock(block);
-            file.writeLine(componentComment[i]);
-            file.writeIdUChar("ComponantId", componentId[i]);
-            file.writeIdLong("NumAvailable", countOf(componentId[i]));
+            file.WriteBlock(block);
+            file.WriteLine(ComponentComment[i]);
+            file.WriteIdUChar("ComponantId", ComponentId[i]);
+            file.WriteIdLong("NumAvailable", countOf(ComponentId[i]));
         }
     }
 
@@ -145,33 +145,33 @@ namespace
     /// Copies file <paramref name="fileName"/> into packet <paramref name="packet"/> of <paramref name="packFile"/>.
     /// Returns the open error, if any.
     /// </summary>
-    int32_t packFileInto(PacketFile& packFile, File& file, const char* fileName, int32_t packet)
+    int32_t PackFileInto(MCPacketFile& packFile, MCFile& file, const char* fileName, int32_t packet)
     {
-        const int32_t result = file.open(fileName, READ, 0x32);
+        const int32_t result = file.Open(fileName, READ, 0x32);
 
         if (result != 0)
         {
             return result;
         }
 
-        const uint32_t size = file.fileSize();
+        const uint32_t size = file.FileSize();
         std::vector<uint8_t> buffer(size);
-        file.read(buffer.data(), static_cast<int32_t>(size));
-        packFile.writePacket(packet, buffer.data(), static_cast<int32_t>(size), 2);
-        file.close();
+        file.Read(buffer.data(), static_cast<int32_t>(size));
+        packFile.WritePacket(packet, buffer.data(), static_cast<int32_t>(size), 2);
+        file.Close();
         return 0;
     }
 
     /// <summary>Packs profile files tpak0 .. tpak<paramref name="count"/>-1 into packets 1 .. <paramref name="count"/>.</summary>
-    int32_t packProfiles(PacketFile& packFile, File& file, int32_t count)
+    int32_t PackProfiles(MCPacketFile& packFile, MCFile& file, int32_t count)
     {
         for (int32_t i = 0; i < count; i++)
         {
             char name[32];
-            profileName(name, sizeof(name), i);
-            FullPathFileName fileName;
-            fileName.init(saveTempPath, name, ".fit");
-            const int32_t result = packFileInto(packFile, file, fileName, i + 1);
+            ProfileName(name, sizeof(name), i);
+            MCFullPathFileName fileName;
+            fileName.Init(SaveTempPath, name, ".fit");
+            const int32_t result = PackFileInto(packFile, file, fileName, i + 1);
 
             if (result != 0)
             {
@@ -183,45 +183,45 @@ namespace
     }
 
     /// <summary>Deletes profile files tpak0 .. tpak<paramref name="count"/>-1.</summary>
-    void deleteProfiles(int32_t count)
+    void DeleteProfiles(int32_t count)
     {
         for (int32_t i = 0; i < count; i++)
         {
             char name[32];
-            profileName(name, sizeof(name), i);
-            FullPathFileName fileName;
-            fileName.init(saveTempPath, name, ".fit");
-            deleteFile(fileName);
+            ProfileName(name, sizeof(name), i);
+            MCFullPathFileName fileName;
+            fileName.Init(SaveTempPath, name, ".fit");
+            DeleteFile(fileName);
         }
     }
 
     /// <summary>The warrior at <paramref name="index"/> of <paramref name="list"/> (walked from the head).</summary>
-    LogWarrior* warriorAt(LogWarriorList* list, int32_t index)
+    MCLogWarrior* WarriorAt(MCLogWarriorList* list, int32_t index)
     {
-        LogWarrior* warrior = list->warriors;
+        MCLogWarrior* warrior = list->Warriors;
 
         for (int32_t i = index; i > 0; i--)
         {
-            warrior = warrior->next;
+            warrior = warrior->Next;
         }
 
         return warrior;
     }
 
     /// <summary>How many warriors of <paramref name="list"/> are (or are not) assigned.</summary>
-    uint32_t countWarriors(LogWarriorList* list, bool assigned)
+    uint32_t CountWarriors(MCLogWarriorList* list, bool assigned)
     {
         uint32_t count = 0;
-        LogWarrior* warrior = list->warriors;
+        MCLogWarrior* warrior = list->Warriors;
 
-        for (int32_t i = list->numWarriors; i > 0; i--)
+        for (int32_t i = list->NumWarriors; i > 0; i--)
         {
-            if ((warrior->assigned != 0) == assigned)
+            if ((warrior->Assigned != 0) == assigned)
             {
                 ++count;
             }
 
-            warrior = warrior->next;
+            warrior = warrior->Next;
         }
 
         return count;
@@ -232,114 +232,114 @@ namespace
     /// was sold, 1 when one is alive, 2 when one is dead; otherwise the pilot's own status. The player's unassigned
     /// pilots are searched first, then the assigned ones; the last match of a list wins.
     /// </summary>
-    int32_t purchasePilotStatus(Logistics* logistics, const PurPilotData* pilot)
+    int32_t PurchasePilotStatus(MCLogistics* logistics, const MCPurPilotData* pilot)
     {
-        auto search = [pilot](LogWarriorList* list)
+        auto search = [pilot](MCLogWarriorList* list)
         {
             int32_t status = -1;
 
-            for (int32_t i = 0; i < list->numWarriors; i++)
+            for (int32_t i = 0; i < list->NumWarriors; i++)
             {
-                LogWarrior* warrior = nullptr;
-                list->getWarriorInfo(i, warrior);
+                MCLogWarrior* warrior = nullptr;
+                list->GetWarriorInfo(i, warrior);
 
-                if (warrior->descIndex != pilot->descIndex)
+                if (warrior->DescIndex != pilot->DescIndex)
                 {
                     continue;
                 }
 
-                if (warrior->sold != 0)
+                if (warrior->Sold != 0)
                 {
                     status = 3;
                 }
                 else
                 {
-                    status = warrior->health > 0.0f ? 1 : 2;
+                    status = warrior->Health > 0.0f ? 1 : 2;
                 }
             }
 
             return status;
         };
 
-        int32_t status = search(logistics->warriorList);
+        int32_t status = search(logistics->WarriorList);
 
         if (status == -1)
         {
-            status = search(logistics->assignedWarriorList);
+            status = search(logistics->AssignedWarriorList);
         }
 
         if (status == -1)
         {
-            status = pilot->status;
+            status = pilot->Status;
         }
 
         return status;
     }
 
     /// <summary>Writes the purchase file: what the shop has left of each mech, vehicle, component and pilot.</summary>
-    int32_t writePurchaseFile(const char* fileName)
+    int32_t WritePurchaseFile(const char* fileName)
     {
-        Logistics* logistics = mission->logistics;
-        FitIniFile file;
-        const int32_t result = file.create(fileName);
+        MCLogistics* logistics = Mission->Logistics;
+        MCFitIniFile file;
+        const int32_t result = file.Create(fileName);
 
         if (result != 0)
         {
             return result;
         }
 
-        file.writeBlock("Header");
-        file.writeIdLong("NumGifts", 0);
-        file.writeIdLong("NumMechs", logistics->purMechList->count);
-        file.writeIdLong("NumVehicles", logistics->purVehicleList->count);
-        file.writeIdLong("NumComponants", logistics->purchaseComponents->numItems);
-        file.writeIdLong("NumWarriors", logistics->purPilotList->count);
+        file.WriteBlock("Header");
+        file.WriteIdLong("NumGifts", 0);
+        file.WriteIdLong("NumMechs", logistics->PurMechList->Count);
+        file.WriteIdLong("NumVehicles", logistics->PurVehicleList->Count);
+        file.WriteIdLong("NumComponants", logistics->PurchaseComponents->NumItems);
+        file.WriteIdLong("NumWarriors", logistics->PurPilotList->Count);
         char block[32];
 
-        for (int32_t i = 0; i < logistics->purMechList->count; i++)
+        for (int32_t i = 0; i < logistics->PurMechList->Count; i++)
         {
             std::snprintf(block, sizeof(block), "Mech%d", i);
-            file.writeBlock(block);
-            PurMech* mech = nullptr;
-            logistics->purMechList->getMechInfo(i, mech);
-            file.writeIdLong("TypeAAvailable", mech->variants[0]->numAvailable);
-            file.writeIdLong("TypeWAvailable", mech->variants[1]->numAvailable);
-            file.writeIdLong("TypeJAvailable", mech->variants[2]->numAvailable);
-            file.writeIdString("TypeAFile", mech->variants[0]->fileName);
-            file.writeIdString("TypeWFile", mech->variants[1]->fileName);
-            file.writeIdString("TypeJFile", mech->variants[2]->fileName);
+            file.WriteBlock(block);
+            MCPurMech* mech = nullptr;
+            logistics->PurMechList->GetMechInfo(i, mech);
+            file.WriteIdLong("TypeAAvailable", mech->Variants[0]->NumAvailable);
+            file.WriteIdLong("TypeWAvailable", mech->Variants[1]->NumAvailable);
+            file.WriteIdLong("TypeJAvailable", mech->Variants[2]->NumAvailable);
+            file.WriteIdString("TypeAFile", mech->Variants[0]->FileName);
+            file.WriteIdString("TypeWFile", mech->Variants[1]->FileName);
+            file.WriteIdString("TypeJFile", mech->Variants[2]->FileName);
         }
 
-        for (int32_t i = 0; i < logistics->purVehicleList->count; i++)
+        for (int32_t i = 0; i < logistics->PurVehicleList->Count; i++)
         {
             std::snprintf(block, sizeof(block), "Vehicle%d", i);
-            file.writeBlock(block);
-            PurVehicle* vehicle = nullptr;
-            logistics->purVehicleList->getVehicleInfo(i, vehicle);
-            file.writeIdLong("NumAvailable", vehicle->data->numAvailable);
-            file.writeIdString("Filename", vehicle->data->fileName);
+            file.WriteBlock(block);
+            MCPurVehicle* vehicle = nullptr;
+            logistics->PurVehicleList->GetVehicleInfo(i, vehicle);
+            file.WriteIdLong("NumAvailable", vehicle->Data->NumAvailable);
+            file.WriteIdString("Filename", vehicle->Data->FileName);
         }
 
-        for (int32_t i = 0; i < logistics->purchaseComponents->numItems; i++)
+        for (int32_t i = 0; i < logistics->PurchaseComponents->NumItems; i++)
         {
             std::snprintf(block, sizeof(block), "Componant%d", i);
-            file.writeBlock(block);
-            _LogInventoryItem* item = logistics->purchaseComponents->getItemInfo(i);
-            file.writeIdUChar("ComponantID", item->masterID);
-            file.writeIdLong("NumAvailable", item->count);
+            file.WriteBlock(block);
+            MCLogInventoryItem* item = logistics->PurchaseComponents->GetItemInfo(i);
+            file.WriteIdUChar("ComponantID", item->MasterID);
+            file.WriteIdLong("NumAvailable", item->Count);
         }
 
-        for (int32_t i = 0; i < logistics->purPilotList->count; i++)
+        for (int32_t i = 0; i < logistics->PurPilotList->Count; i++)
         {
             std::snprintf(block, sizeof(block), "Warrior%d", i);
-            file.writeBlock(block);
-            PurPilotData* pilot = nullptr;
-            logistics->purPilotList->getPilotInfo(i, pilot);
-            file.writeIdString("Profile", pilot->fileName);
-            file.writeIdLong("Status", purchasePilotStatus(logistics, pilot));
+            file.WriteBlock(block);
+            MCPurPilotData* pilot = nullptr;
+            logistics->PurPilotList->GetPilotInfo(i, pilot);
+            file.WriteIdString("Profile", pilot->FileName);
+            file.WriteIdLong("Status", PurchasePilotStatus(logistics, pilot));
         }
 
-        file.close();
+        file.Close();
         return 0;
     }
 
@@ -347,28 +347,28 @@ namespace
     /// Writes the pilots of the player's list: first the unassigned ones as "Warriors", then the assigned ones as
     /// "AssWarriors", each list walked from its last pilot to its first. Returns the first error.
     /// </summary>
-    int32_t writeWarriors(MissionLogisticsBridge* bridge, FitIniFile& file, uint32_t& numWarriors,
+    int32_t WriteWarriors(MCMissionLogisticsBridge* bridge, MCFitIniFile& file, uint32_t& numWarriors,
                           uint32_t& numAssigned)
     {
-        Logistics* logistics = mission->logistics;
-        file.writeBlock("Warriors");
-        numWarriors = countWarriors(logistics->warriorList, false);
-        file.writeIdULong("NumWarriors", numWarriors);
+        MCLogistics* logistics = Mission->Logistics;
+        file.WriteBlock("Warriors");
+        numWarriors = CountWarriors(logistics->WarriorList, false);
+        file.WriteIdULong("NumWarriors", numWarriors);
         uint32_t packet = 0;
 
-        for (int32_t i = logistics->warriorList->numWarriors - 1; i >= 0; i--)
+        for (int32_t i = logistics->WarriorList->NumWarriors - 1; i >= 0; i--)
         {
-            LogWarrior* warrior = warriorAt(logistics->warriorList, i);
+            MCLogWarrior* warrior = WarriorAt(logistics->WarriorList, i);
 
-            if (warrior->assigned != 0)
+            if (warrior->Assigned != 0)
             {
                 continue;
             }
 
-            writePacketBlock(file, "Warrior%d", static_cast<int32_t>(packet), packet);
+            WritePacketBlock(file, "Warrior%d", static_cast<int32_t>(packet), packet);
             char name[32];
-            profileName(name, sizeof(name), static_cast<int32_t>(packet));
-            const int32_t result = bridge->logisticsWarriorProfileWriter(name, warrior);
+            ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+            const int32_t result = bridge->LogisticsWarriorProfileWriter(name, warrior);
 
             if (result != 0)
             {
@@ -378,24 +378,24 @@ namespace
             ++packet;
         }
 
-        file.writeBlock("AssWarriors");
-        numAssigned = countWarriors(logistics->assignedWarriorList, true);
-        file.writeIdULong("NumAssWarriors", numAssigned);
+        file.WriteBlock("AssWarriors");
+        numAssigned = CountWarriors(logistics->AssignedWarriorList, true);
+        file.WriteIdULong("NumAssWarriors", numAssigned);
         packet = numWarriors;
 
-        for (int32_t i = logistics->assignedWarriorList->numWarriors - 1; i >= 0; i--)
+        for (int32_t i = logistics->AssignedWarriorList->NumWarriors - 1; i >= 0; i--)
         {
-            LogWarrior* warrior = warriorAt(logistics->assignedWarriorList, i);
+            MCLogWarrior* warrior = WarriorAt(logistics->AssignedWarriorList, i);
 
-            if (warrior->assigned == 0)
+            if (warrior->Assigned == 0)
             {
                 continue;
             }
 
-            writePacketBlock(file, "Warrior%d", static_cast<int32_t>(packet), packet);
+            WritePacketBlock(file, "Warrior%d", static_cast<int32_t>(packet), packet);
             char name[32];
-            profileName(name, sizeof(name), static_cast<int32_t>(packet));
-            const int32_t result = bridge->logisticsWarriorProfileWriter(name, warrior);
+            ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+            const int32_t result = bridge->LogisticsWarriorProfileWriter(name, warrior);
 
             if (result != 0)
             {
@@ -409,28 +409,28 @@ namespace
     }
 
     /// <summary>The scenario's warrior <paramref name="index"/> (1-based; null out of range).</summary>
-    MechWarrior* scenarioWarrior(uint32_t index)
+    MCMechWarrior* ScenarioWarrior(uint32_t index)
     {
-        if (static_cast<int32_t>(index) < 1 || scenario->numWarriors < index)
+        if (static_cast<int32_t>(index) < 1 || Scenario->NumWarriors < index)
         {
             return nullptr;
         }
 
-        return scenario->warriors[index];
+        return Scenario->Warriors[index];
     }
 
     /// <summary>
     /// Whether a mission unit goes back to logistics: a player mech still under player control, not one that
     /// only joins on a win (NotMineYet) unless the mission was won.
     /// </summary>
-    bool returnsFromMission(int32_t objectClass, int32_t alignment, int32_t netPlayerId, int notMineYet)
+    bool ReturnsFromMission(int32_t objectClass, int32_t alignment, int32_t netPlayerId, int notMineYet)
     {
-        return objectClass == BATTLEMECH && alignment == homeTeam->alignment && netPlayerId != -1 &&
-               (notMineYet == 0 || scenarioResult > 3);
+        return objectClass == BATTLEMECH && alignment == HomeTeam->Alignment && netPlayerId != -1 &&
+               (notMineYet == 0 || ScenarioResult > 3);
     }
 }
 
-void destroyAllFITFiles(char* path)
+void DestroyAllFitFiles(char* path)
 {
     char pattern[0x1000];
     std::snprintf(pattern, sizeof(pattern), "%s*.fit", path);
@@ -439,63 +439,63 @@ void destroyAllFITFiles(char* path)
     {
         char fileName[0x1000];
         std::snprintf(fileName, sizeof(fileName), "%s%s", path, name.c_str());
-        deleteFile(fileName);
+        DeleteFile(fileName);
     }
 }
 
-auto MissionLogisticsBridge::missionResultsStartingFitWriter(char* fileName) -> int32_t
+auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -> int32_t
 {
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    int32_t result = file.create(fitName);
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("Planet");
-    file.writeIdLong("Setting", CurPlanet);
-    file.writeBlock("General");
-    file.writeIdString("PurchaseFile", CurPlanet == 0 ? "purchase" : "xpur");
-    file.writeBlock("ResourcePoints");
-    file.writeIdULong("numPoints", static_cast<uint32_t>(scenario->calcResourcePointsEarned()));
+    file.WriteBlock("Planet");
+    file.WriteIdLong("Setting", CurPlanet);
+    file.WriteBlock("General");
+    file.WriteIdString("PurchaseFile", CurPlanet == 0 ? "purchase" : "xpur");
+    file.WriteBlock("ResourcePoints");
+    file.WriteIdULong("numPoints", static_cast<uint32_t>(Scenario->CalcResourcePointsEarned()));
 
     // The surviving pilots of the player's mechs.
-    file.writeBlock("Warriors");
-    auto warriorReturns = [](MechWarrior* warrior)
+    file.WriteBlock("Warriors");
+    auto warriorReturns = [](MCMechWarrior* warrior)
     {
-        auto* vehicle = static_cast<Mover*>(warrior->vehicle);
-        return returnsFromMission(vehicle->objectClass, warrior->alignment, vehicle->netPlayerId, warrior->notMineYet);
+        auto* vehicle = static_cast<MCMover*>(warrior->Vehicle);
+        return ReturnsFromMission(vehicle->ObjectClass, warrior->Alignment, vehicle->NetPlayerId, warrior->NotMineYet);
     };
 
     uint32_t numWarriors = 0;
 
-    for (uint32_t i = 1; static_cast<int32_t>(i) <= static_cast<int32_t>(scenario->numWarriors); i++)
+    for (uint32_t i = 1; static_cast<int32_t>(i) <= static_cast<int32_t>(Scenario->NumWarriors); i++)
     {
-        if (warriorReturns(scenarioWarrior(i)))
+        if (warriorReturns(ScenarioWarrior(i)))
         {
             ++numWarriors;
         }
     }
 
-    file.writeIdULong("NumWarriors", numWarriors);
+    file.WriteIdULong("NumWarriors", numWarriors);
     uint32_t packet = 0;
 
-    for (uint32_t i = 1; static_cast<int32_t>(i) <= static_cast<int32_t>(scenario->numWarriors); i++)
+    for (uint32_t i = 1; static_cast<int32_t>(i) <= static_cast<int32_t>(Scenario->NumWarriors); i++)
     {
-        MechWarrior* warrior = scenarioWarrior(i);
+        MCMechWarrior* warrior = ScenarioWarrior(i);
 
         if (!warriorReturns(warrior))
         {
             continue;
         }
 
-        writePacketBlock(file, "Warrior%d", static_cast<int32_t>(packet), packet);
+        WritePacketBlock(file, "Warrior%d", static_cast<int32_t>(packet), packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = missionResultsWarriorProfileWriter(name, warrior);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = MissionResultsWarriorProfileWriter(name, warrior);
 
         if (result != 0)
         {
@@ -506,18 +506,18 @@ auto MissionLogisticsBridge::missionResultsStartingFitWriter(char* fileName) -> 
     }
 
     // The player's mechs, then the salvaged ones.
-    file.writeBlock("Mechs");
-    auto mechReturns = [](BaseObject* object)
+    file.WriteBlock("Mechs");
+    auto mechReturns = [](MCBaseObject* object)
     {
-        auto* mech = static_cast<BattleMech*>(object);
-        return object->objectClass == BATTLEMECH &&
-               returnsFromMission(object->objectClass, mech->getAlignment(), mech->netPlayerId, mech->notMineYet);
+        auto* mech = static_cast<MCBattleMech*>(object);
+        return object->ObjectClass == BATTLEMECH &&
+               ReturnsFromMission(object->ObjectClass, mech->GetAlignment(), mech->NetPlayerId, mech->NotMineYet);
     };
 
-    TacticalMap* tacMap = Terrain::terrainTacticalMap;
+    MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
     uint32_t numMechs = 0;
 
-    for (BaseObject* object = innerSphereMechList->head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = InnerSphereMechList->Head; object != nullptr; object = object->Next)
     {
         if (mechReturns(object))
         {
@@ -525,29 +525,29 @@ auto MissionLogisticsBridge::missionResultsStartingFitWriter(char* fileName) -> 
         }
     }
 
-    for (int32_t i = 0; i < tacMap->numSalvage; i++)
+    for (int32_t i = 0; i < tacMap->NumSalvage; i++)
     {
-        if (tacMap->salvage[i] != nullptr && tacMap->salvage[i]->objectClass == BATTLEMECH)
+        if (tacMap->Salvage[i] != nullptr && tacMap->Salvage[i]->ObjectClass == BATTLEMECH)
         {
             ++numMechs;
         }
     }
 
-    file.writeIdULong("NumMechs", numMechs);
+    file.WriteIdULong("NumMechs", numMechs);
     int32_t mechIndex = 0;
     packet = numWarriors;
 
-    for (BaseObject* object = innerSphereMechList->head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = InnerSphereMechList->Head; object != nullptr; object = object->Next)
     {
         if (!mechReturns(object))
         {
             continue;
         }
 
-        writePacketBlock(file, "Mech%d", mechIndex, packet);
+        WritePacketBlock(file, "Mech%d", mechIndex, packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = missionResultsMechProfileWriter(name, static_cast<BattleMech*>(object), 0);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = MissionResultsMechProfileWriter(name, static_cast<MCBattleMech*>(object), 0);
 
         if (result != 0)
         {
@@ -558,21 +558,21 @@ auto MissionLogisticsBridge::missionResultsStartingFitWriter(char* fileName) -> 
         ++packet;
     }
 
-    for (int32_t i = 0; i < tacMap->numSalvage; i++)
+    for (int32_t i = 0; i < tacMap->NumSalvage; i++)
     {
-        GameObject* salvage = tacMap->salvage[i];
+        MCGameObject* salvage = tacMap->Salvage[i];
 
-        if (salvage == nullptr || salvage->objectClass != BATTLEMECH)
+        if (salvage == nullptr || salvage->ObjectClass != BATTLEMECH)
         {
             continue;
         }
 
-        writePacketBlock(file, "Mech%d", mechIndex, packet);
-        auto* mech = static_cast<BattleMech*>(salvage);
-        mech->notMineYet = 0;
+        WritePacketBlock(file, "Mech%d", mechIndex, packet);
+        auto* mech = static_cast<MCBattleMech*>(salvage);
+        mech->NotMineYet = 0;
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = missionResultsMechProfileWriter(name, mech, 1);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = MissionResultsMechProfileWriter(name, mech, 1);
 
         if (result != 0)
         {
@@ -583,364 +583,364 @@ auto MissionLogisticsBridge::missionResultsStartingFitWriter(char* fileName) -> 
         ++packet;
     }
 
-    file.writeIdULong("NumVehicles", 0);
+    file.WriteIdULong("NumVehicles", 0);
 
     // The components salvaged on the map.
-    writeComponents(file,
+    WriteComponents(file,
                     [tacMap](uint8_t id)
                     {
                         int32_t count = 0;
 
-                        for (int32_t i = 0; i < tacMap->numSalvage; i++)
+                        for (int32_t i = 0; i < tacMap->NumSalvage; i++)
                         {
-                            GameObject* salvage = tacMap->salvage[i];
+                            MCGameObject* salvage = tacMap->Salvage[i];
 
                             if (salvage == nullptr)
                             {
                                 continue;
                             }
 
-                            for (SalvageItem* item = salvage->getSalvage(); item != nullptr; item = item->next)
+                            for (MCSalvageItem* item = salvage->GetSalvage(); item != nullptr; item = item->Next)
                             {
-                                if (item->itemId == id)
+                                if (item->ItemId == id)
                                 {
-                                    count += item->numItems;
+                                    count += item->NumItems;
                                 }
                             }
                         }
 
                         return count;
                     });
-    file.close();
+    file.Close();
 
     // Everything goes into one packet file: the starting fit, then the profiles.
-    FullPathFileName packName;
-    packName.init(savePath, fileName, ".pkk");
-    PacketFile packFile;
-    packFile.create(packName);
+    MCFullPathFileName packName;
+    packName.Init(SavePath, fileName, ".pkk");
+    MCPacketFile packFile;
+    packFile.Create(packName);
     const auto numProfiles = static_cast<int32_t>(numMechs + numWarriors);
-    packFile.reserve(numProfiles + 1, 1);
-    File source;
-    result = packFileInto(packFile, source, fitName, 0);
+    packFile.Reserve(numProfiles + 1, 1);
+    MCFile source;
+    result = PackFileInto(packFile, source, fitName, 0);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = packProfiles(packFile, source, numProfiles);
+    result = PackProfiles(packFile, source, numProfiles);
 
     if (result != 0)
     {
         return result;
     }
 
-    packFile.close();
-    deleteFile(fitName);
-    deleteProfiles(numProfiles);
-    FullPathFileName bridgeName;
-    bridgeName.init(saveTempPath, "bridge", ".fit");
-    deleteFile(bridgeName);
+    packFile.Close();
+    DeleteFile(fitName);
+    DeleteProfiles(numProfiles);
+    MCFullPathFileName bridgeName;
+    bridgeName.Init(SaveTempPath, "bridge", ".fit");
+    DeleteFile(bridgeName);
 
     for (int32_t i = 0; i < 12; i++)
     {
         char name[32];
         std::snprintf(name, sizeof(name), "mech%04d", i);
-        FullPathFileName mechName;
-        mechName.init(saveTempPath, name, ".fit");
-        deleteFile(mechName);
+        MCFullPathFileName mechName;
+        mechName.Init(SaveTempPath, name, ".fit");
+        DeleteFile(mechName);
         std::snprintf(name, sizeof(name), "warr%04d", i);
-        FullPathFileName warriorName;
-        warriorName.init(saveTempPath, name, ".fit");
-        deleteFile(warriorName);
+        MCFullPathFileName warriorName;
+        warriorName.Init(SaveTempPath, name, ".fit");
+        DeleteFile(warriorName);
     }
 
     return 0;
 }
 
-auto MissionLogisticsBridge::missionResultsMechProfileWriter(char* fileName, BattleMech* mech, int notAssigned)
+auto MCMissionLogisticsBridge::MissionResultsMechProfileWriter(char* fileName, MCBattleMech* mech, int notAssigned)
     -> int32_t
 {
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    const int32_t result = file.create(fitName);
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    const int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("Header");
-    file.writeIdString("FileType", "MechProfile");
-    file.writeBlock("General");
-    file.writeIdString("MechType", mech->ifaceName.c_str());
-    file.writeIdString("Name", mech->debugStatus.c_str());
-    file.writeIdFloat("CurTonnage", mech->getTonnage());
-    file.writeIdString("icon", mech->iconName);
-    file.writeIdChar("Status", static_cast<char>(mech->status));
-    file.writeIdULong("Chassis", static_cast<uint32_t>(mech->getObjectType()->objTypeNum));
-    file.writeIdLong("Pilot", mech->pilotId == -1 ? -8 : mech->pilotId);
-    file.writeIdBoolean("Assigned", notAssigned == 0);
-    file.writeIdBoolean("NotMineYet", mech->notMineYet);
-    file.writeIdLong("DescIndex", mech->descIndex);
-    file.writeIdLong("NameIndex", mech->nameIndex);
-    file.writeIdLong("NameVariant", mech->nameVariant);
-    file.writeBlock("Engine");
-    file.writeIdFloat("Tonnage", mech->engineTonnage);
-    file.writeIdULong("Rating", mech->engineRating);
-    file.writeIdUChar("MaxRunSpeed", static_cast<uint8_t>(static_cast<int32_t>(mech->maxRunSpeed)));
-    file.writeBlock("Armor");
-    file.writeIdUChar("Type", mech->armorType);
-    file.writeIdFloat("Tonnage", mech->armorTonnage);
-    file.writeBlock("MaxArmorPoints");
+    file.WriteBlock("Header");
+    file.WriteIdString("FileType", "MechProfile");
+    file.WriteBlock("General");
+    file.WriteIdString("MechType", mech->IfaceName.c_str());
+    file.WriteIdString("Name", mech->DebugStatus.c_str());
+    file.WriteIdFloat("CurTonnage", mech->GetTonnage());
+    file.WriteIdString("icon", mech->IconName);
+    file.WriteIdChar("Status", static_cast<char>(mech->Status));
+    file.WriteIdULong("Chassis", static_cast<uint32_t>(mech->GetObjectType()->ObjTypeNum));
+    file.WriteIdLong("Pilot", mech->PilotId == -1 ? -8 : mech->PilotId);
+    file.WriteIdBoolean("Assigned", notAssigned == 0);
+    file.WriteIdBoolean("NotMineYet", mech->NotMineYet);
+    file.WriteIdLong("DescIndex", mech->DescIndex);
+    file.WriteIdLong("NameIndex", mech->NameIndex);
+    file.WriteIdLong("NameVariant", mech->NameVariant);
+    file.WriteBlock("Engine");
+    file.WriteIdFloat("Tonnage", mech->EngineTonnage);
+    file.WriteIdULong("Rating", mech->EngineRating);
+    file.WriteIdUChar("MaxRunSpeed", static_cast<uint8_t>(static_cast<int32_t>(mech->MaxRunSpeed)));
+    file.WriteBlock("Armor");
+    file.WriteIdUChar("Type", mech->ArmorType);
+    file.WriteIdFloat("Tonnage", mech->ArmorTonnage);
+    file.WriteBlock("MaxArmorPoints");
 
     for (int32_t i = 0; i < 11; i++)
     {
-        file.writeIdUChar(MechArmorNames[i], mech->armor[i].maxArmor);
+        file.WriteIdUChar(MechArmorNames[i], mech->Armor[i].MaxArmor);
     }
 
-    file.writeBlock("CurArmorPoints");
+    file.WriteBlock("CurArmorPoints");
 
     for (int32_t i = 0; i < 11; i++)
     {
-        file.writeIdUChar(MechArmorNames[i], static_cast<uint8_t>(static_cast<int32_t>(mech->armor[i].curArmor)));
+        file.WriteIdUChar(MechArmorNames[i], static_cast<uint8_t>(static_cast<int32_t>(mech->Armor[i].CurArmor)));
     }
 
-    file.writeBlock("InventoryInfo");
-    file.writeIdUChar("NumOther", mech->numOther);
-    file.writeIdUChar("NumWeapons", mech->numWeapons);
-    file.writeIdUChar("NumAmmo", mech->numAmmos);
+    file.WriteBlock("InventoryInfo");
+    file.WriteIdUChar("NumOther", mech->NumOther);
+    file.WriteIdUChar("NumWeapons", mech->NumWeapons);
+    file.WriteIdUChar("NumAmmo", mech->NumAmmos);
 
     // Each location's CASE, structure, hot spot and critical spaces (component, hit).
     for (int32_t location = 0; location < 8; location++)
     {
-        const BodyLocation& body = mech->bodyAt(location);
-        file.writeBlock(MechLocationNames[location]);
-        file.writeIdUChar("CASE", static_cast<uint8_t>(body.hasCASE));
-        file.writeIdUChar("CurInternalStructure",
-                          static_cast<uint8_t>(static_cast<int32_t>(body.curInternalStructure)));
-        file.writeIdUChar("HotSpotNumber", body.hotSpotNumber);
+        const MCBodyLocation& body = mech->BodyAt(location);
+        file.WriteBlock(MechLocationNames[location]);
+        file.WriteIdUChar("CASE", static_cast<uint8_t>(body.HasCase));
+        file.WriteIdUChar("CurInternalStructure",
+                          static_cast<uint8_t>(static_cast<int32_t>(body.CurInternalStructure)));
+        file.WriteIdUChar("HotSpotNumber", body.HotSpotNumber);
 
         for (int32_t space = 0; space < NumLocationCriticalSpaces[location]; space++)
         {
             char id[32];
             std::snprintf(id, sizeof(id), "Component:%d", space);
-            const CriticalSpace& critical = body.criticalSpaces[space];
+            const MCCriticalSpace& critical = body.CriticalSpaces[space];
             // Port: the original printed "hit a component" for hit spaces (a debug trace).
-            const uint8_t values[2] = {critical.inventoryID, static_cast<uint8_t>(critical.hit)};
-            file.writeIdUCharArray(id, values, 2);
+            const uint8_t values[2] = {critical.InventoryID, static_cast<uint8_t>(critical.Hit)};
+            file.WriteIdUCharArray(id, values, 2);
         }
     }
 
     // The inventory: the other equipment, then the weapons with their facing, then the ammo with its amount.
-    const int32_t numOther = mech->numOther;
-    const int32_t numWeapons = mech->numWeapons;
-    const int32_t numAmmo = mech->numAmmos;
+    const int32_t numOther = mech->NumOther;
+    const int32_t numWeapons = mech->NumWeapons;
+    const int32_t numAmmo = mech->NumAmmos;
     char block[32];
     int32_t item = 0;
 
     for (; item < numOther; item++)
     {
         std::snprintf(block, sizeof(block), "Item:%d", item);
-        file.writeBlock(block);
-        file.writeIdUChar("MasterID", mech->inventory[item].masterID);
+        file.WriteBlock(block);
+        file.WriteIdUChar("MasterID", mech->Inventory[item].MasterID);
     }
 
     for (; item < numOther + numWeapons; item++)
     {
         std::snprintf(block, sizeof(block), "Item:%d", item);
-        file.writeBlock(block);
-        file.writeIdUChar("MasterID", mech->inventory[item].masterID);
-        file.writeIdUChar("FacesForward", mech->inventory[item].facesForward);
+        file.WriteBlock(block);
+        file.WriteIdUChar("MasterID", mech->Inventory[item].MasterID);
+        file.WriteIdUChar("FacesForward", mech->Inventory[item].FacesForward);
     }
 
     for (; item < numOther + numWeapons + numAmmo; item++)
     {
         std::snprintf(block, sizeof(block), "Item:%d", item);
-        file.writeBlock(block);
-        file.writeIdUChar("MasterID", mech->inventory[item].masterID);
-        file.writeIdLong("Amount", mech->inventory[item].amount);
+        file.WriteBlock(block);
+        file.WriteIdUChar("MasterID", mech->Inventory[item].MasterID);
+        file.WriteIdLong("Amount", mech->Inventory[item].Amount);
     }
 
-    file.close();
+    file.Close();
     return 0;
 }
 
-auto MissionLogisticsBridge::missionResultsVehicleProfileWriter(char* fileName, GroundVehicle* vehicle) -> int32_t
+auto MCMissionLogisticsBridge::MissionResultsVehicleProfileWriter(char* fileName, MCGroundVehicle* vehicle) -> int32_t
 {
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    const int32_t result = file.create(fitName);
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    const int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("Header");
-    file.writeIdString("FileType", "GroundVehicleProfile");
-    file.writeBlock("General");
-    file.writeIdString("Name", vehicle->debugStatus.c_str());
-    file.writeIdFloat("CurTonnage", vehicle->getTonnage());
-    file.writeIdString("icon", vehicle->iconName);
-    file.writeIdChar("Status", static_cast<char>(vehicle->status));
-    file.writeIdString("Crew", vehicle->crewName.c_str());
-    file.writeIdULong("Chassis", static_cast<uint32_t>(vehicle->getObjectType()->objTypeNum));
-    file.writeIdBoolean("Assigned", 1);
-    file.writeIdBoolean("NotMineYet", vehicle->notMineYet);
-    file.writeIdLong("DescIndex", vehicle->descIndex);
-    file.writeIdLong("NameIndex", vehicle->nameIndex);
-    file.writeBlock("Engine");
-    file.writeIdFloat("Tonnage", vehicle->engineTonnage);
-    file.writeIdULong("Rating", vehicle->engineRating);
-    file.writeIdUChar("MaxMoveSpeed", static_cast<uint8_t>(static_cast<int32_t>(vehicle->maxRunSpeed)));
-    file.writeBlock("Armor");
-    file.writeIdUChar("Type", vehicle->armorType);
-    file.writeIdFloat("Tonnage", vehicle->armorTonnage);
+    file.WriteBlock("Header");
+    file.WriteIdString("FileType", "GroundVehicleProfile");
+    file.WriteBlock("General");
+    file.WriteIdString("Name", vehicle->DebugStatus.c_str());
+    file.WriteIdFloat("CurTonnage", vehicle->GetTonnage());
+    file.WriteIdString("icon", vehicle->IconName);
+    file.WriteIdChar("Status", static_cast<char>(vehicle->Status));
+    file.WriteIdString("Crew", vehicle->CrewName.c_str());
+    file.WriteIdULong("Chassis", static_cast<uint32_t>(vehicle->GetObjectType()->ObjTypeNum));
+    file.WriteIdBoolean("Assigned", 1);
+    file.WriteIdBoolean("NotMineYet", vehicle->NotMineYet);
+    file.WriteIdLong("DescIndex", vehicle->DescIndex);
+    file.WriteIdLong("NameIndex", vehicle->NameIndex);
+    file.WriteBlock("Engine");
+    file.WriteIdFloat("Tonnage", vehicle->EngineTonnage);
+    file.WriteIdULong("Rating", vehicle->EngineRating);
+    file.WriteIdUChar("MaxMoveSpeed", static_cast<uint8_t>(static_cast<int32_t>(vehicle->MaxRunSpeed)));
+    file.WriteBlock("Armor");
+    file.WriteIdUChar("Type", vehicle->ArmorType);
+    file.WriteIdFloat("Tonnage", vehicle->ArmorTonnage);
 
     for (int32_t location = 0; location < 5; location++)
     {
-        file.writeBlock(VehicleLocationNames[location]);
-        file.writeIdUChar("CurInternalStructure",
-                          static_cast<uint8_t>(static_cast<int32_t>(vehicle->bodyAt(location).curInternalStructure)));
-        file.writeIdUChar("MaxArmorPoints", vehicle->armor[location].maxArmor);
-        file.writeIdUChar("CurArmorPoints",
-                          static_cast<uint8_t>(static_cast<int32_t>(vehicle->armor[location].curArmor)));
+        file.WriteBlock(VehicleLocationNames[location]);
+        file.WriteIdUChar("CurInternalStructure",
+                          static_cast<uint8_t>(static_cast<int32_t>(vehicle->BodyAt(location).CurInternalStructure)));
+        file.WriteIdUChar("MaxArmorPoints", vehicle->Armor[location].MaxArmor);
+        file.WriteIdUChar("CurArmorPoints",
+                          static_cast<uint8_t>(static_cast<int32_t>(vehicle->Armor[location].CurArmor)));
     }
 
-    file.writeBlock("InventoryInfo");
-    const int32_t numOther = vehicle->numOther;
-    file.writeIdUChar("NumOther", vehicle->numOther);
-    file.writeIdUChar("NumWeapons", vehicle->numWeapons);
-    const int32_t numAmmo = vehicle->numAmmos;
-    file.writeIdUChar("NumAmmo", vehicle->numAmmos);
-    const int32_t numWeapons = vehicle->numWeapons;
+    file.WriteBlock("InventoryInfo");
+    const int32_t numOther = vehicle->NumOther;
+    file.WriteIdUChar("NumOther", vehicle->NumOther);
+    file.WriteIdUChar("NumWeapons", vehicle->NumWeapons);
+    const int32_t numAmmo = vehicle->NumAmmos;
+    file.WriteIdUChar("NumAmmo", vehicle->NumAmmos);
+    const int32_t numWeapons = vehicle->NumWeapons;
     char block[32];
     int32_t item = 0;
 
     for (; item < numOther; item++)
     {
         std::snprintf(block, sizeof(block), "Item:%d", item);
-        file.writeBlock(block);
-        file.writeIdUChar("MasterID", vehicle->inventory[item].masterID);
+        file.WriteBlock(block);
+        file.WriteIdUChar("MasterID", vehicle->Inventory[item].MasterID);
     }
 
     for (; item < numOther + numWeapons; item++)
     {
         std::snprintf(block, sizeof(block), "Item:%d", item);
-        file.writeBlock(block);
-        file.writeIdUChar("MasterID", vehicle->inventory[item].masterID);
-        file.writeIdUChar("FacesForward", vehicle->inventory[item].facesForward);
+        file.WriteBlock(block);
+        file.WriteIdUChar("MasterID", vehicle->Inventory[item].MasterID);
+        file.WriteIdUChar("FacesForward", vehicle->Inventory[item].FacesForward);
     }
 
     for (; item < numOther + numAmmo + numWeapons; item++)
     {
         std::snprintf(block, sizeof(block), "Item:%d", item);
-        file.writeBlock(block);
-        file.writeIdUChar("MasterID", vehicle->inventory[item].masterID);
-        file.writeIdLong("Amount", vehicle->inventory[item].amount);
+        file.WriteBlock(block);
+        file.WriteIdUChar("MasterID", vehicle->Inventory[item].MasterID);
+        file.WriteIdLong("Amount", vehicle->Inventory[item].Amount);
     }
 
-    file.close();
+    file.Close();
     return 0;
 }
 
-auto MissionLogisticsBridge::missionResultsWarriorProfileWriter(char* fileName, MechWarrior* warrior) -> int32_t
+auto MCMissionLogisticsBridge::MissionResultsWarriorProfileWriter(char* fileName, MCMechWarrior* warrior) -> int32_t
 {
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    const int32_t result = file.create(fitName);
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    const int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("General");
-    file.writeIdString("Name", warrior->name);
-    file.writeIdString("Callsign", warrior->callsign);
-    file.writeIdLong("paintScheme", warrior->paintScheme);
-    file.writeIdString("pilotAudio", warrior->audioStr);
-    file.writeIdString("pilotVideo", warrior->videoStr);
-    file.writeIdString("Picture", warrior->picture);
-    file.writeIdString("Brain", warrior->brainStr);
-    file.writeIdBoolean("Assigned", 1);
+    file.WriteBlock("General");
+    file.WriteIdString("Name", warrior->Name);
+    file.WriteIdString("Callsign", warrior->Callsign);
+    file.WriteIdLong("paintScheme", warrior->PaintScheme);
+    file.WriteIdString("pilotAudio", warrior->AudioStr);
+    file.WriteIdString("pilotVideo", warrior->VideoStr);
+    file.WriteIdString("Picture", warrior->Picture);
+    file.WriteIdString("Brain", warrior->BrainStr);
+    file.WriteIdBoolean("Assigned", 1);
 
     // Statuses 3, 5 and 6: the pilot got out.
-    if (warrior->status == 3 || warrior->status == 5 || warrior->status == 6)
+    if (warrior->Status == 3 || warrior->Status == 5 || warrior->Status == 6)
     {
-        file.writeIdBoolean("Ejected", 1);
+        file.WriteIdBoolean("Ejected", 1);
     }
 
-    file.writeIdBoolean("NotMineYet", warrior->notMineYet);
-    file.writeIdLong("DescIndex", warrior->descIndex);
-    file.writeIdLong("NameIndex", warrior->nameIndex);
-    file.writeBlock("PersonalityTraits");
-    file.writeIdChar("Professionalism", warrior->professionalism);
-    file.writeIdChar("Decorum", warrior->decorum);
-    file.writeIdChar("Aggressiveness", static_cast<char>(warrior->getAggressiveness(1)));
-    file.writeIdChar("Courage", warrior->courage);
-    static constexpr const char* SkillNames[4] = {"Piloting", "Jumping", "Sensors", "Gunnery"};
-    file.writeBlock("Skills");
+    file.WriteIdBoolean("NotMineYet", warrior->NotMineYet);
+    file.WriteIdLong("DescIndex", warrior->DescIndex);
+    file.WriteIdLong("NameIndex", warrior->NameIndex);
+    file.WriteBlock("PersonalityTraits");
+    file.WriteIdChar("Professionalism", warrior->Professionalism);
+    file.WriteIdChar("Decorum", warrior->Decorum);
+    file.WriteIdChar("Aggressiveness", static_cast<char>(warrior->GetAggressiveness(1)));
+    file.WriteIdChar("Courage", warrior->Courage);
+    static constexpr const char* skillNames[4] = {"Piloting", "Jumping", "Sensors", "Gunnery"};
+    file.WriteBlock("Skills");
 
     for (int32_t i = 0; i < 4; i++)
     {
-        file.writeIdChar(SkillNames[i], static_cast<char>(static_cast<int32_t>(warrior->skillRank[i])));
+        file.WriteIdChar(skillNames[i], static_cast<char>(static_cast<int32_t>(warrior->SkillRank[i])));
     }
 
-    file.writeBlock("OriginalSkills");
+    file.WriteBlock("OriginalSkills");
 
     for (int32_t i = 0; i < 4; i++)
     {
-        file.writeIdChar(SkillNames[i], warrior->originalSkills[i]);
+        file.WriteIdChar(skillNames[i], warrior->OriginalSkills[i]);
     }
 
-    file.writeBlock("LatestSkills");
+    file.WriteBlock("LatestSkills");
 
     for (int32_t i = 0; i < 4; i++)
     {
-        file.writeIdChar(SkillNames[i], warrior->latestSkills[i]);
+        file.WriteIdChar(skillNames[i], warrior->LatestSkills[i]);
     }
 
-    file.writeBlock("SkillPoints");
+    file.WriteBlock("SkillPoints");
 
     for (int32_t i = 0; i < 4; i++)
     {
-        file.writeIdFloat(SkillNames[i], warrior->skillPoints[i]);
+        file.WriteIdFloat(skillNames[i], warrior->SkillPoints[i]);
     }
 
-    file.writeBlock("Status");
-    file.writeIdChar("Wounds", static_cast<char>(static_cast<int32_t>(warrior->wounds)));
-    file.close();
+    file.WriteBlock("Status");
+    file.WriteIdChar("Wounds", static_cast<char>(static_cast<int32_t>(warrior->Wounds)));
+    file.Close();
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skipFlagged) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsStartingFitWriter(char* fileName, int skipFlagged) -> int32_t
 {
-    Logistics* logistics = mission->logistics;
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    int32_t result = file.create(fitName);
+    MCLogistics* logistics = Mission->Logistics;
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("Planet");
-    file.writeIdLong("Setting", CurPlanet);
-    file.writeBlock("General");
-    file.writeIdString("PurchaseFile", globalLogPtr->purchaseFile);
-    file.writeBlock("ResourcePoints");
-    file.writeIdULong("numPoints", static_cast<uint32_t>(ResourcePoints));
+    file.WriteBlock("Planet");
+    file.WriteIdLong("Setting", CurPlanet);
+    file.WriteBlock("General");
+    file.WriteIdString("PurchaseFile", GlobalLogPtr->PurchaseFile);
+    file.WriteBlock("ResourcePoints");
+    file.WriteIdULong("numPoints", static_cast<uint32_t>(ResourcePoints));
 
     uint32_t numWarriors = 0;
     uint32_t numAssWarriors = 0;
-    result = writeWarriors(this, file, numWarriors, numAssWarriors);
+    result = WriteWarriors(this, file, numWarriors, numAssWarriors);
 
     if (result != 0)
     {
@@ -948,34 +948,34 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
     }
 
     // The spare mechs.
-    file.writeBlock("Mechs");
+    file.WriteBlock("Mechs");
     uint32_t numMechs = 0;
-    LogMech* mech = logistics->mechList->mechs;
+    MCLogMech* mech = logistics->MechList->Mechs;
 
-    for (int32_t i = logistics->mechList->numMechs; i > 0; i--, mech = mech->next)
+    for (int32_t i = logistics->MechList->NumMechs; i > 0; i--, mech = mech->Next)
     {
-        if (mech->assigned == 0)
+        if (mech->Assigned == 0)
         {
             ++numMechs;
         }
     }
 
-    file.writeIdULong("NumMechs", numMechs);
+    file.WriteIdULong("NumMechs", numMechs);
     int32_t index = 0;
-    mech = logistics->mechList->mechs;
+    mech = logistics->MechList->Mechs;
 
-    for (int32_t i = 0; i < logistics->mechList->numMechs; i++, mech = mech->next)
+    for (int32_t i = 0; i < logistics->MechList->NumMechs; i++, mech = mech->Next)
     {
-        if (mech->assigned != 0)
+        if (mech->Assigned != 0)
         {
             continue;
         }
 
         const uint32_t packet = index + numAssWarriors + numWarriors;
-        writePacketBlock(file, "Mech%d", index, packet);
+        WritePacketBlock(file, "Mech%d", index, packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = logisticsMechProfileWriter(name, mech, 0);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = LogisticsMechProfileWriter(name, mech, 0);
 
         if (result != 0)
         {
@@ -986,13 +986,13 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
     }
 
     // The force's mechs (without the flagged ones when asked, and without the ones not the player's yet).
-    auto forceMechWritten = [skipFlagged](LogMech* part)
-    { return part->assigned != 0 && (part->deployed == 0 || skipFlagged == 0) && part->notMineYet == 0; };
-    file.writeBlock("AssMechs");
+    auto forceMechWritten = [skipFlagged](MCLogMech* part)
+    { return part->Assigned != 0 && (part->Deployed == 0 || skipFlagged == 0) && part->NotMineYet == 0; };
+    file.WriteBlock("AssMechs");
     uint32_t numAssMechs = 0;
-    mech = logistics->forceMechList->mechs;
+    mech = logistics->ForceMechList->Mechs;
 
-    for (int32_t i = logistics->forceMechList->numMechs; i > 0; i--, mech = mech->next)
+    for (int32_t i = logistics->ForceMechList->NumMechs; i > 0; i--, mech = mech->Next)
     {
         if (forceMechWritten(mech))
         {
@@ -1000,11 +1000,11 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
         }
     }
 
-    file.writeIdULong("NumAssMechs", numAssMechs);
+    file.WriteIdULong("NumAssMechs", numAssMechs);
     index = 0;
-    mech = logistics->forceMechList->mechs;
+    mech = logistics->ForceMechList->Mechs;
 
-    for (int32_t i = 0; i < logistics->forceMechList->numMechs; i++, mech = mech->next)
+    for (int32_t i = 0; i < logistics->ForceMechList->NumMechs; i++, mech = mech->Next)
     {
         if (!forceMechWritten(mech))
         {
@@ -1012,10 +1012,10 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
         }
 
         const uint32_t packet = index + numMechs + numAssWarriors + numWarriors;
-        writePacketBlock(file, "Mech%d", static_cast<int32_t>(index + numMechs), packet);
+        WritePacketBlock(file, "Mech%d", static_cast<int32_t>(index + numMechs), packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = logisticsMechProfileWriter(name, mech, 0);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = LogisticsMechProfileWriter(name, mech, 0);
 
         if (result != 0)
         {
@@ -1026,37 +1026,37 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
     }
 
     // The vehicles not deployed: the spare ones, then the force's.
-    file.writeBlock("Vehicles");
+    file.WriteBlock("Vehicles");
     uint32_t numVehicles = 0;
-    LogVehicle* vehicle = logistics->vehicleList->vehicles;
+    MCLogVehicle* vehicle = logistics->VehicleList->Vehicles;
 
-    for (int32_t i = logistics->vehicleList->numVehicles; i > 0; i--, vehicle = vehicle->next)
+    for (int32_t i = logistics->VehicleList->NumVehicles; i > 0; i--, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned == 0 && vehicle->deployed == 0)
+        if (vehicle->Assigned == 0 && vehicle->Deployed == 0)
         {
             ++numVehicles;
         }
     }
 
-    vehicle = logistics->forceVehicleList->vehicles;
+    vehicle = logistics->ForceVehicleList->Vehicles;
 
-    for (int32_t i = logistics->forceVehicleList->numVehicles; i > 0; i--, vehicle = vehicle->next)
+    for (int32_t i = logistics->ForceVehicleList->NumVehicles; i > 0; i--, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned != 0 && vehicle->deployed == 0)
+        if (vehicle->Assigned != 0 && vehicle->Deployed == 0)
         {
             ++numVehicles;
         }
     }
 
-    file.writeIdULong("NumVehicles", numVehicles);
+    file.WriteIdULong("NumVehicles", numVehicles);
     index = 0;
-    auto writeVehicle = [&](LogVehicle* part) -> int32_t
+    auto writeVehicle = [&](MCLogVehicle* part) -> int32_t
     {
         const uint32_t packet = index + numAssMechs + numMechs + numAssWarriors + numWarriors;
-        writePacketBlock(file, "Vehicle%d", index, packet);
+        WritePacketBlock(file, "Vehicle%d", index, packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        const int32_t written = logisticsVehicleProfileWriter(name, part, 0);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        const int32_t written = LogisticsVehicleProfileWriter(name, part, 0);
 
         if (written == 0)
         {
@@ -1066,11 +1066,11 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
         return written;
     };
 
-    vehicle = logistics->vehicleList->vehicles;
+    vehicle = logistics->VehicleList->Vehicles;
 
-    for (int32_t i = 0; i < logistics->vehicleList->numVehicles; i++, vehicle = vehicle->next)
+    for (int32_t i = 0; i < logistics->VehicleList->NumVehicles; i++, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned != 0 || vehicle->deployed != 0)
+        if (vehicle->Assigned != 0 || vehicle->Deployed != 0)
         {
             continue;
         }
@@ -1083,11 +1083,11 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
         }
     }
 
-    vehicle = logistics->forceVehicleList->vehicles;
+    vehicle = logistics->ForceVehicleList->Vehicles;
 
-    for (int32_t i = 0; i < logistics->forceVehicleList->numVehicles; i++, vehicle = vehicle->next)
+    for (int32_t i = 0; i < logistics->ForceVehicleList->NumVehicles; i++, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned == 0 || vehicle->deployed != 0)
+        if (vehicle->Assigned == 0 || vehicle->Deployed != 0)
         {
             continue;
         }
@@ -1101,34 +1101,34 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
     }
 
     // The deployed vehicles of the force.
-    file.writeBlock("AssVehicles");
+    file.WriteBlock("AssVehicles");
     uint32_t numAssVehicles = 0;
-    vehicle = logistics->forceVehicleList->vehicles;
+    vehicle = logistics->ForceVehicleList->Vehicles;
 
-    for (int32_t i = logistics->forceVehicleList->numVehicles; i > 0; i--, vehicle = vehicle->next)
+    for (int32_t i = logistics->ForceVehicleList->NumVehicles; i > 0; i--, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned != 0 && vehicle->deployed != 0 && vehicle->notMineYet == 0)
+        if (vehicle->Assigned != 0 && vehicle->Deployed != 0 && vehicle->NotMineYet == 0)
         {
             ++numAssVehicles;
         }
     }
 
-    file.writeIdULong("NumAssVehicles", numAssVehicles);
+    file.WriteIdULong("NumAssVehicles", numAssVehicles);
     index = 0;
-    vehicle = logistics->forceVehicleList->vehicles;
+    vehicle = logistics->ForceVehicleList->Vehicles;
 
-    for (int32_t i = 0; i < logistics->forceVehicleList->numVehicles; i++, vehicle = vehicle->next)
+    for (int32_t i = 0; i < logistics->ForceVehicleList->NumVehicles; i++, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned == 0 || vehicle->deployed == 0 || vehicle->notMineYet != 0)
+        if (vehicle->Assigned == 0 || vehicle->Deployed == 0 || vehicle->NotMineYet != 0)
         {
             continue;
         }
 
         const uint32_t packet = index + numVehicles + numAssMechs + numMechs + numAssWarriors + numWarriors;
-        writePacketBlock(file, "Vehicle%d", static_cast<int32_t>(index + numVehicles), packet);
+        WritePacketBlock(file, "Vehicle%d", static_cast<int32_t>(index + numVehicles), packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = logisticsVehicleProfileWriter(name, vehicle, 0);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = LogisticsVehicleProfileWriter(name, vehicle, 0);
 
         if (result != 0)
         {
@@ -1138,12 +1138,12 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
         ++index;
     }
 
-    writeComponents(file, [logistics](uint8_t id) { return logistics->componentInventory->getItemCount(id); });
-    file.close();
+    WriteComponents(file, [logistics](uint8_t id) { return logistics->ComponentInventory->GetItemCount(id); });
+    file.Close();
 
-    FullPathFileName purchaseName;
-    purchaseName.init(savePath, fileName, ".pur");
-    result = writePurchaseFile(purchaseName);
+    MCFullPathFileName purchaseName;
+    purchaseName.Init(SavePath, fileName, ".pur");
+    result = WritePurchaseFile(purchaseName);
 
     if (result != 0)
     {
@@ -1151,111 +1151,111 @@ auto MissionLogisticsBridge::logisticsStartingFitWriter(char* fileName, int skip
     }
 
     // The starting fit, the profiles and the purchase file go into one packet file.
-    FullPathFileName packName;
-    packName.init(savePath, fileName, ".pkk");
-    PacketFile packFile;
-    packFile.create(packName);
+    MCFullPathFileName packName;
+    packName.Init(SavePath, fileName, ".pkk");
+    MCPacketFile packFile;
+    packFile.Create(packName);
     const auto numProfiles =
         static_cast<int32_t>(numAssVehicles + numVehicles + numAssMechs + numMechs + numAssWarriors + numWarriors);
-    packFile.reserve(numProfiles + 2, 1);
-    File source;
-    result = packFileInto(packFile, source, fitName, 0);
+    packFile.Reserve(numProfiles + 2, 1);
+    MCFile source;
+    result = PackFileInto(packFile, source, fitName, 0);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = packProfiles(packFile, source, numProfiles);
+    result = PackProfiles(packFile, source, numProfiles);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = packFileInto(packFile, source, purchaseName, numProfiles + 1);
+    result = PackFileInto(packFile, source, purchaseName, numProfiles + 1);
 
     if (result != 0)
     {
         return result;
     }
 
-    packFile.close();
-    deleteFile(fitName);
-    deleteFile(purchaseName);
+    packFile.Close();
+    DeleteFile(fitName);
+    DeleteFile(purchaseName);
     // Original behaviour: only the first vehicles + mechs + warriors profiles are deleted; the rest are left in
     // the temp folder (and overwritten next time).
-    deleteProfiles(static_cast<int32_t>(numVehicles + numMechs + numWarriors));
+    DeleteProfiles(static_cast<int32_t>(numVehicles + numMechs + numWarriors));
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsMechProfileWriter(char* fileName, LogMech* mech, int writeRequired) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsMechProfileWriter(char* fileName, MCLogMech* mech, int writeRequired) -> int32_t
 {
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    const int32_t result = file.create(fitName);
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    const int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("Header");
-    file.writeIdString("FileType", "MechProfile");
-    file.writeBlock("General");
-    file.writeIdString("MechType", mech->fileName);
-    file.writeIdString("Name", mech->mechName);
-    file.writeIdFloat("CurTonnage", mech->curTonnage);
-    file.writeIdString("icon", mech->iconName);
-    file.writeIdChar("Status", mech->status);
-    file.writeIdULong("Chassis", mech->chassis);
-    file.writeIdLong("NameIndex", mech->nameIndex);
-    file.writeIdLong("NameVariant", mech->nameVariant);
-    file.writeIdBoolean("Assigned", mech->assigned);
-    file.writeIdBoolean("NotMineYet", mech->notMineYet);
-    int32_t pilot = mech->pilotIndex;
+    file.WriteBlock("Header");
+    file.WriteIdString("FileType", "MechProfile");
+    file.WriteBlock("General");
+    file.WriteIdString("MechType", mech->FileName);
+    file.WriteIdString("Name", mech->MechName);
+    file.WriteIdFloat("CurTonnage", mech->CurTonnage);
+    file.WriteIdString("icon", mech->IconName);
+    file.WriteIdChar("Status", mech->Status);
+    file.WriteIdULong("Chassis", mech->Chassis);
+    file.WriteIdLong("NameIndex", mech->NameIndex);
+    file.WriteIdLong("NameVariant", mech->NameVariant);
+    file.WriteIdBoolean("Assigned", mech->Assigned);
+    file.WriteIdBoolean("NotMineYet", mech->NotMineYet);
+    int32_t pilot = mech->PilotIndex;
 
-    if (pilot == -8 && mech->notMineYet == 0)
+    if (pilot == -8 && mech->NotMineYet == 0)
     {
         pilot = -1;
     }
 
-    file.writeIdLong("Pilot", pilot);
+    file.WriteIdLong("Pilot", pilot);
 
     if (writeRequired != 0)
     {
-        file.writeIdBoolean("Required", mech->required);
+        file.WriteIdBoolean("Required", mech->Required);
     }
 
-    file.writeIdLong("DescIndex", mech->descIndex);
-    file.writeBlock("Engine");
-    file.writeIdFloat("Tonnage", mech->engineTonnage);
-    file.writeIdULong("Rating", mech->engineRating);
-    file.writeIdUChar("MaxRunSpeed", mech->maxRunSpeed);
-    file.writeBlock("Armor");
-    file.writeIdUChar("Type", mech->armorType);
-    file.writeIdFloat("Tonnage", mech->armorTonnage);
-    file.writeBlock("MaxArmorPoints");
+    file.WriteIdLong("DescIndex", mech->DescIndex);
+    file.WriteBlock("Engine");
+    file.WriteIdFloat("Tonnage", mech->EngineTonnage);
+    file.WriteIdULong("Rating", mech->EngineRating);
+    file.WriteIdUChar("MaxRunSpeed", mech->MaxRunSpeed);
+    file.WriteBlock("Armor");
+    file.WriteIdUChar("Type", mech->ArmorType);
+    file.WriteIdFloat("Tonnage", mech->ArmorTonnage);
+    file.WriteBlock("MaxArmorPoints");
 
     for (int32_t i = 0; i < 11; i++)
     {
-        file.writeIdUChar(MechArmorNames[i], mech->armor[i].maxArmor);
+        file.WriteIdUChar(MechArmorNames[i], mech->Armor[i].MaxArmor);
     }
 
-    file.writeBlock("CurArmorPoints");
+    file.WriteBlock("CurArmorPoints");
 
     for (int32_t i = 0; i < 11; i++)
     {
-        file.writeIdUChar(MechArmorNames[i], mech->armor[i].curArmor);
+        file.WriteIdUChar(MechArmorNames[i], mech->Armor[i].CurArmor);
     }
 
     // The critical slots are rebuilt from the inventory as it is written: other equipment, weapons, then ammo.
-    mech->numOther = 0;
-    mech->numWeapons = 0;
-    mech->numAmmo = 0;
+    mech->NumOther = 0;
+    mech->NumWeapons = 0;
+    mech->NumAmmo = 0;
 
-    for (auto& location : mech->itemSlots)
+    for (auto& location : mech->ItemSlots)
     {
         for (auto& slot : location)
         {
@@ -1266,324 +1266,324 @@ auto MissionLogisticsBridge::logisticsMechProfileWriter(char* fileName, LogMech*
     char block[32];
     int32_t item = 0;
 
-    for (_LogInventoryItem* entry = mech->inventory->getItemInfo(0); entry != nullptr; entry = entry->next)
+    for (MCLogInventoryItem* entry = mech->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
-        const uint8_t masterID = entry->masterID;
-        const int32_t form = MasterComponentList[masterID].form;
+        const uint8_t masterID = entry->MasterID;
+        const int32_t form = MasterComponentList[masterID].Form;
 
-        if (isWeaponForm(form) || form == 10)
+        if (IsWeaponForm(form) || form == 10)
         {
             continue;
         }
 
-        for (_LogInventoryStat* stat = entry->stats; stat != nullptr; stat = stat->next)
+        for (MCLogInventoryStat* stat = entry->Stats; stat != nullptr; stat = stat->Next)
         {
-            mech->placeItem(masterID, item, stat->hits);
+            mech->PlaceItem(masterID, item, stat->Hits);
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            file.writeBlock(block);
-            file.writeIdUChar("MasterID", masterID);
-            stat->itemNum = item;
+            file.WriteBlock(block);
+            file.WriteIdUChar("MasterID", masterID);
+            stat->ItemNum = item;
             ++item;
-            ++mech->numOther;
+            ++mech->NumOther;
         }
     }
 
-    for (_LogInventoryItem* entry = mech->inventory->getItemInfo(0); entry != nullptr; entry = entry->next)
+    for (MCLogInventoryItem* entry = mech->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
-        const uint8_t masterID = entry->masterID;
+        const uint8_t masterID = entry->MasterID;
 
-        if (!isWeaponForm(MasterComponentList[masterID].form))
+        if (!IsWeaponForm(MasterComponentList[masterID].Form))
         {
             continue;
         }
 
-        for (_LogInventoryStat* stat = entry->stats; stat != nullptr; stat = stat->next)
+        for (MCLogInventoryStat* stat = entry->Stats; stat != nullptr; stat = stat->Next)
         {
-            mech->placeItem(masterID, item, stat->hits);
+            mech->PlaceItem(masterID, item, stat->Hits);
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            file.writeBlock(block);
-            file.writeIdUChar("MasterID", masterID);
-            stat->itemNum = item;
-            file.writeIdUChar("FacesForward", mech->inventory->getFacing(static_cast<uint8_t>(item)));
+            file.WriteBlock(block);
+            file.WriteIdUChar("MasterID", masterID);
+            stat->ItemNum = item;
+            file.WriteIdUChar("FacesForward", mech->Inventory->GetFacing(static_cast<uint8_t>(item)));
             ++item;
-            ++mech->numWeapons;
+            ++mech->NumWeapons;
         }
     }
 
-    for (_LogInventoryItem* entry = mech->inventory->getItemInfo(0); entry != nullptr; entry = entry->next)
+    for (MCLogInventoryItem* entry = mech->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
-        const uint8_t masterID = entry->masterID;
+        const uint8_t masterID = entry->MasterID;
 
-        if (MasterComponentList[masterID].form != 10)
+        if (MasterComponentList[masterID].Form != 10)
         {
             continue;
         }
 
-        for (_LogInventoryStat* stat = entry->stats; stat != nullptr; stat = stat->next)
+        for (MCLogInventoryStat* stat = entry->Stats; stat != nullptr; stat = stat->Next)
         {
-            mech->placeItem(masterID, item, stat->hits);
+            mech->PlaceItem(masterID, item, stat->Hits);
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            file.writeBlock(block);
-            file.writeIdUChar("MasterID", masterID);
-            file.writeIdLong("Amount", -1);
-            stat->itemNum = item;
+            file.WriteBlock(block);
+            file.WriteIdUChar("MasterID", masterID);
+            file.WriteIdLong("Amount", -1);
+            stat->ItemNum = item;
             ++item;
-            ++mech->numAmmo;
+            ++mech->NumAmmo;
         }
     }
 
-    file.writeBlock("InventoryInfo");
-    file.writeIdUChar("NumOther", mech->numOther);
-    file.writeIdUChar("NumWeapons", mech->numWeapons);
-    file.writeIdUChar("NumAmmo", mech->numAmmo);
+    file.WriteBlock("InventoryInfo");
+    file.WriteIdUChar("NumOther", mech->NumOther);
+    file.WriteIdUChar("NumWeapons", mech->NumWeapons);
+    file.WriteIdUChar("NumAmmo", mech->NumAmmo);
 
     for (int32_t location = 0; location < 8; location++)
     {
-        file.writeBlock(MechLocationNames[location]);
-        file.writeIdUChar("CASE", static_cast<uint8_t>(mech->hasCASE[location]));
-        file.writeIdUChar("CurInternalStructure", mech->internals[location].curArmor);
-        file.writeIdUChar("HotSpotNumber", mech->hotSpotNumber[location]);
+        file.WriteBlock(MechLocationNames[location]);
+        file.WriteIdUChar("CASE", static_cast<uint8_t>(mech->HasCase[location]));
+        file.WriteIdUChar("CurInternalStructure", mech->Internals[location].CurArmor);
+        file.WriteIdUChar("HotSpotNumber", mech->HotSpotNumber[location]);
 
         for (int32_t space = 0; space < NumLocationCriticalSpaces[location]; space++)
         {
             char id[32];
             std::snprintf(id, sizeof(id), "Component:%d", space);
-            const LogMech::ItemSlot& slot = mech->itemSlots[location][space];
-            const uint8_t values[2] = {slot.row, slot.column};
-            file.writeIdUCharArray(id, values, 2);
+            const MCLogMech::ItemSlot& slot = mech->ItemSlots[location][space];
+            const uint8_t values[2] = {slot.Row, slot.Column};
+            file.WriteIdUCharArray(id, values, 2);
         }
     }
 
-    std::strncpy(mech->profileName, fileName, 9);
-    file.close();
+    std::strncpy(mech->ProfileName, fileName, 9);
+    file.Close();
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsVehicleProfileWriter(char* fileName, LogVehicle* vehicle, int writeRequired)
+auto MCMissionLogisticsBridge::LogisticsVehicleProfileWriter(char* fileName, MCLogVehicle* vehicle, int writeRequired)
     -> int32_t
 {
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    const int32_t result = file.create(fitName);
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    const int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("Header");
-    file.writeIdString("FileType", "GroundVehicleProfile");
-    file.writeBlock("General");
-    file.writeIdString("Name", vehicle->fileName);
-    file.writeIdFloat("CurTonnage", vehicle->curTonnage);
-    file.writeIdLong("NameIndex", vehicle->nameIndex);
-    file.writeIdString("icon", vehicle->iconName);
-    file.writeIdChar("Status", vehicle->status);
-    file.writeIdString("Crew", vehicle->crew);
-    file.writeIdULong("Chassis", vehicle->chassis);
-    file.writeIdBoolean("Assigned", vehicle->assigned);
-    file.writeIdBoolean("NotMineYet", vehicle->notMineYet);
-    file.writeIdBoolean("Deployed", vehicle->deployed);
+    file.WriteBlock("Header");
+    file.WriteIdString("FileType", "GroundVehicleProfile");
+    file.WriteBlock("General");
+    file.WriteIdString("Name", vehicle->FileName);
+    file.WriteIdFloat("CurTonnage", vehicle->CurTonnage);
+    file.WriteIdLong("NameIndex", vehicle->NameIndex);
+    file.WriteIdString("icon", vehicle->IconName);
+    file.WriteIdChar("Status", vehicle->Status);
+    file.WriteIdString("Crew", vehicle->Crew);
+    file.WriteIdULong("Chassis", vehicle->Chassis);
+    file.WriteIdBoolean("Assigned", vehicle->Assigned);
+    file.WriteIdBoolean("NotMineYet", vehicle->NotMineYet);
+    file.WriteIdBoolean("Deployed", vehicle->Deployed);
 
     if (writeRequired != 0)
     {
-        file.writeIdBoolean("Required", vehicle->required);
+        file.WriteIdBoolean("Required", vehicle->Required);
     }
 
-    file.writeIdLong("DescIndex", vehicle->descIndex);
-    file.writeBlock("Engine");
-    file.writeIdFloat("Tonnage", vehicle->engineTonnage);
-    file.writeIdULong("Rating", vehicle->engineRating);
-    file.writeIdUChar("MaxMoveSpeed", vehicle->maxMoveSpeed);
-    file.writeBlock("Armor");
-    file.writeIdUChar("Type", vehicle->armorType);
-    file.writeIdFloat("Tonnage", vehicle->armorTonnage);
+    file.WriteIdLong("DescIndex", vehicle->DescIndex);
+    file.WriteBlock("Engine");
+    file.WriteIdFloat("Tonnage", vehicle->EngineTonnage);
+    file.WriteIdULong("Rating", vehicle->EngineRating);
+    file.WriteIdUChar("MaxMoveSpeed", vehicle->MaxMoveSpeed);
+    file.WriteBlock("Armor");
+    file.WriteIdUChar("Type", vehicle->ArmorType);
+    file.WriteIdFloat("Tonnage", vehicle->ArmorTonnage);
 
     for (int32_t location = 0; location < 5; location++)
     {
-        file.writeBlock(VehicleLocationNames[location]);
-        file.writeIdUChar("CurInternalStructure", vehicle->curInternalStructure[location]);
-        file.writeIdUChar("MaxArmorPoints", vehicle->maxArmorPoints[location]);
-        file.writeIdUChar("CurArmorPoints", vehicle->curArmorPoints[location]);
+        file.WriteBlock(VehicleLocationNames[location]);
+        file.WriteIdUChar("CurInternalStructure", vehicle->CurInternalStructure[location]);
+        file.WriteIdUChar("MaxArmorPoints", vehicle->MaxArmorPoints[location]);
+        file.WriteIdUChar("CurArmorPoints", vehicle->CurArmorPoints[location]);
     }
 
-    file.writeBlock("InventoryInfo");
-    file.writeIdUChar("NumOther", vehicle->numOther);
-    file.writeIdUChar("NumWeapons", vehicle->numWeapons);
-    file.writeIdUChar("NumAmmo", vehicle->numAmmo);
+    file.WriteBlock("InventoryInfo");
+    file.WriteIdUChar("NumOther", vehicle->NumOther);
+    file.WriteIdUChar("NumWeapons", vehicle->NumWeapons);
+    file.WriteIdUChar("NumAmmo", vehicle->NumAmmo);
 
     char block[32];
     int32_t item = 0;
 
-    for (_LogInventoryItem* entry = vehicle->inventory->getItemInfo(0); entry != nullptr; entry = entry->next)
+    for (MCLogInventoryItem* entry = vehicle->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
-        const int32_t form = MasterComponentList[entry->masterID].form;
+        const int32_t form = MasterComponentList[entry->MasterID].Form;
 
-        if (isWeaponForm(form) || form == 10)
+        if (IsWeaponForm(form) || form == 10)
         {
             continue;
         }
 
-        for (_LogInventoryStat* stat = entry->stats; stat != nullptr; stat = stat->next)
+        for (MCLogInventoryStat* stat = entry->Stats; stat != nullptr; stat = stat->Next)
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            file.writeBlock(block);
-            file.writeIdUChar("MasterID", entry->masterID);
+            file.WriteBlock(block);
+            file.WriteIdUChar("MasterID", entry->MasterID);
             ++item;
         }
     }
 
-    for (_LogInventoryItem* entry = vehicle->inventory->getItemInfo(0); entry != nullptr; entry = entry->next)
+    for (MCLogInventoryItem* entry = vehicle->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
-        if (!isWeaponForm(MasterComponentList[entry->masterID].form))
+        if (!IsWeaponForm(MasterComponentList[entry->MasterID].Form))
         {
             continue;
         }
 
-        for (_LogInventoryStat* stat = entry->stats; stat != nullptr; stat = stat->next)
+        for (MCLogInventoryStat* stat = entry->Stats; stat != nullptr; stat = stat->Next)
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            file.writeBlock(block);
-            file.writeIdUChar("MasterID", entry->masterID);
-            file.writeIdUChar("FacesForward", stat->facing);
+            file.WriteBlock(block);
+            file.WriteIdUChar("MasterID", entry->MasterID);
+            file.WriteIdUChar("FacesForward", stat->Facing);
             ++item;
         }
     }
 
-    for (_LogInventoryItem* entry = vehicle->inventory->getItemInfo(0); entry != nullptr; entry = entry->next)
+    for (MCLogInventoryItem* entry = vehicle->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
-        if (MasterComponentList[entry->masterID].form != 10)
+        if (MasterComponentList[entry->MasterID].Form != 10)
         {
             continue;
         }
 
-        for (_LogInventoryStat* stat = entry->stats; stat != nullptr; stat = stat->next)
+        for (MCLogInventoryStat* stat = entry->Stats; stat != nullptr; stat = stat->Next)
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
-            file.writeBlock(block);
-            file.writeIdUChar("MasterID", entry->masterID);
-            file.writeIdLong("Amount", -1);
+            file.WriteBlock(block);
+            file.WriteIdUChar("MasterID", entry->MasterID);
+            file.WriteIdLong("Amount", -1);
             ++item;
         }
     }
 
-    std::strncpy(vehicle->profileName, fileName, 9);
-    file.close();
+    std::strncpy(vehicle->ProfileName, fileName, 9);
+    file.Close();
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsWarriorProfileWriter(char* fileName, LogWarrior* warrior) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsWarriorProfileWriter(char* fileName, MCLogWarrior* warrior) -> int32_t
 {
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    const int32_t result = file.create(fitName);
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    const int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("General");
-    file.writeIdString("Name", warrior->name);
-    file.writeIdString("Callsign", warrior->callsign);
-    file.writeIdLong("paintScheme", warrior->paintScheme);
-    file.writeIdString("pilotAudio", warrior->pilotAudio);
-    file.writeIdString("pilotVideo", warrior->pilotVideo);
-    file.writeIdString("Picture", warrior->picture);
-    file.writeIdString("Brain", warrior->brain);
-    file.writeIdBoolean("Assigned", warrior->assigned);
-    file.writeIdBoolean("NotMineYet", warrior->notMineYet);
-    file.writeIdLong("NameIndex", warrior->nameIndex);
-    file.writeIdLong("DescIndex", warrior->descIndex);
-    file.writeBlock("PersonalityTraits");
-    file.writeIdChar("Professionalism", warrior->personality[0]);
-    file.writeIdChar("Decorum", warrior->personality[1]);
-    file.writeIdChar("Aggressiveness", warrior->personality[2]);
-    file.writeIdChar("Courage", warrior->personality[3]);
-    static constexpr const char* SkillNames[4] = {"Piloting", "Jumping", "Sensors", "Gunnery"};
-    file.writeBlock("Skills");
+    file.WriteBlock("General");
+    file.WriteIdString("Name", warrior->Name);
+    file.WriteIdString("Callsign", warrior->Callsign);
+    file.WriteIdLong("paintScheme", warrior->PaintScheme);
+    file.WriteIdString("pilotAudio", warrior->PilotAudio);
+    file.WriteIdString("pilotVideo", warrior->PilotVideo);
+    file.WriteIdString("Picture", warrior->Picture);
+    file.WriteIdString("Brain", warrior->Brain);
+    file.WriteIdBoolean("Assigned", warrior->Assigned);
+    file.WriteIdBoolean("NotMineYet", warrior->NotMineYet);
+    file.WriteIdLong("NameIndex", warrior->NameIndex);
+    file.WriteIdLong("DescIndex", warrior->DescIndex);
+    file.WriteBlock("PersonalityTraits");
+    file.WriteIdChar("Professionalism", warrior->Personality[0]);
+    file.WriteIdChar("Decorum", warrior->Personality[1]);
+    file.WriteIdChar("Aggressiveness", warrior->Personality[2]);
+    file.WriteIdChar("Courage", warrior->Personality[3]);
+    static constexpr const char* skillNames[4] = {"Piloting", "Jumping", "Sensors", "Gunnery"};
+    file.WriteBlock("Skills");
 
     for (int32_t i = 0; i < 4; i++)
     {
-        file.writeIdChar(SkillNames[i], warrior->skills[i]);
+        file.WriteIdChar(skillNames[i], warrior->Skills[i]);
     }
 
-    file.writeBlock("OriginalSkills");
+    file.WriteBlock("OriginalSkills");
 
     for (int32_t i = 0; i < 4; i++)
     {
-        file.writeIdChar(SkillNames[i], warrior->originalSkills[i]);
+        file.WriteIdChar(skillNames[i], warrior->OriginalSkills[i]);
     }
 
-    file.writeBlock("LatestSkills");
+    file.WriteBlock("LatestSkills");
 
     for (int32_t i = 0; i < 4; i++)
     {
-        file.writeIdChar(SkillNames[i], warrior->startingSkills[i]);
+        file.WriteIdChar(skillNames[i], warrior->StartingSkills[i]);
     }
 
-    file.writeBlock("SkillPoints");
+    file.WriteBlock("SkillPoints");
 
     for (int32_t i = 0; i < 4; i++)
     {
-        file.writeIdFloat(SkillNames[i], warrior->skillPoints[i]);
+        file.WriteIdFloat(skillNames[i], warrior->SkillPoints[i]);
     }
 
-    file.writeBlock("Status");
-    file.writeIdChar("Wounds", static_cast<char>(static_cast<int32_t>(warrior->wounds)));
-    std::strncpy(warrior->fileName, fileName, 9);
-    file.close();
+    file.WriteBlock("Status");
+    file.WriteIdChar("Wounds", static_cast<char>(static_cast<int32_t>(warrior->Wounds)));
+    std::strncpy(warrior->FileName, fileName, 9);
+    file.Close();
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsStartingFitReader(char*) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsStartingFitReader(char*) -> int32_t
 {
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsMechProfileReader(char*) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsMechProfileReader(char*) -> int32_t
 {
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsVehicleProfileReader(char*) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsVehicleProfileReader(char*) -> int32_t
 {
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsWarriorProfileReader(char*) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsWarriorProfileReader(char*) -> int32_t
 {
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsSaveGame(char* fileName) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsSaveGame(char* fileName) -> int32_t
 {
-    Logistics* logistics = mission->logistics;
-    FullPathFileName fitName;
-    fitName.init(saveTempPath, fileName, ".fit");
-    FitIniFile file;
-    int32_t result = file.create(fitName);
+    MCLogistics* logistics = Mission->Logistics;
+    MCFullPathFileName fitName;
+    fitName.Init(SaveTempPath, fileName, ".fit");
+    MCFitIniFile file;
+    int32_t result = file.Create(fitName);
 
     if (result != 0)
     {
         return result;
     }
 
-    file.writeBlock("Planet");
-    file.writeIdLong("Setting", CurPlanet);
-    file.writeBlock("General");
-    file.writeIdString("PurchaseFile", CurPlanet == 0 ? "purchase" : "xpur");
-    file.writeIdLong("MissionNumber", logistics->currentMission);
-    file.writeIdFloat("LastScenarioTime", totalScenarioTime);
-    file.writeIdFloat("LastLogisticsTime", totalLogisticsTime);
-    file.writeBlock("ResourcePoints");
-    file.writeIdULong("numPoints", static_cast<uint32_t>(ResourcePoints));
+    file.WriteBlock("Planet");
+    file.WriteIdLong("Setting", CurPlanet);
+    file.WriteBlock("General");
+    file.WriteIdString("PurchaseFile", CurPlanet == 0 ? "purchase" : "xpur");
+    file.WriteIdLong("MissionNumber", logistics->CurrentMission);
+    file.WriteIdFloat("LastScenarioTime", TotalScenarioTime);
+    file.WriteIdFloat("LastLogisticsTime", TotalLogisticsTime);
+    file.WriteBlock("ResourcePoints");
+    file.WriteIdULong("numPoints", static_cast<uint32_t>(ResourcePoints));
 
     uint32_t numWarriors = 0;
     uint32_t numAssWarriors = 0;
-    result = writeWarriors(this, file, numWarriors, numAssWarriors);
+    result = WriteWarriors(this, file, numWarriors, numAssWarriors);
 
     if (result != 0)
     {
@@ -1591,34 +1591,34 @@ auto MissionLogisticsBridge::logisticsSaveGame(char* fileName) -> int32_t
     }
 
     // Every mech: the spare ones, then the force.
-    file.writeBlock("Mechs");
+    file.WriteBlock("Mechs");
     uint32_t numMechs = 0;
-    LogMech* mech = logistics->mechList->mechs;
+    MCLogMech* mech = logistics->MechList->Mechs;
 
-    for (int32_t i = logistics->mechList->numMechs; i > 0; i--, mech = mech->next)
+    for (int32_t i = logistics->MechList->NumMechs; i > 0; i--, mech = mech->Next)
     {
-        if (mech->assigned == 0)
+        if (mech->Assigned == 0)
         {
             ++numMechs;
         }
     }
 
-    file.writeIdULong("NumMechs", numMechs);
+    file.WriteIdULong("NumMechs", numMechs);
     int32_t index = 0;
-    mech = logistics->mechList->mechs;
+    mech = logistics->MechList->Mechs;
 
-    for (int32_t i = 0; i < logistics->mechList->numMechs; i++, mech = mech->next)
+    for (int32_t i = 0; i < logistics->MechList->NumMechs; i++, mech = mech->Next)
     {
-        if (mech->assigned != 0)
+        if (mech->Assigned != 0)
         {
             continue;
         }
 
         const uint32_t packet = index + numAssWarriors + numWarriors;
-        writePacketBlock(file, "Mech%d", index, packet);
+        WritePacketBlock(file, "Mech%d", index, packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = logisticsMechProfileWriter(name, mech, 1);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = LogisticsMechProfileWriter(name, mech, 1);
 
         if (result != 0)
         {
@@ -1628,34 +1628,34 @@ auto MissionLogisticsBridge::logisticsSaveGame(char* fileName) -> int32_t
         ++index;
     }
 
-    file.writeBlock("AssMechs");
+    file.WriteBlock("AssMechs");
     uint32_t numAssMechs = 0;
-    mech = logistics->forceMechList->mechs;
+    mech = logistics->ForceMechList->Mechs;
 
-    for (int32_t i = logistics->forceMechList->numMechs; i > 0; i--, mech = mech->next)
+    for (int32_t i = logistics->ForceMechList->NumMechs; i > 0; i--, mech = mech->Next)
     {
-        if (mech->assigned != 0)
+        if (mech->Assigned != 0)
         {
             ++numAssMechs;
         }
     }
 
-    file.writeIdULong("NumAssMechs", numAssMechs);
+    file.WriteIdULong("NumAssMechs", numAssMechs);
     index = 0;
-    mech = logistics->forceMechList->mechs;
+    mech = logistics->ForceMechList->Mechs;
 
-    for (int32_t i = 0; i < logistics->forceMechList->numMechs; i++, mech = mech->next)
+    for (int32_t i = 0; i < logistics->ForceMechList->NumMechs; i++, mech = mech->Next)
     {
-        if (mech->assigned == 0)
+        if (mech->Assigned == 0)
         {
             continue;
         }
 
         const uint32_t packet = index + numMechs + numAssWarriors + numWarriors;
-        writePacketBlock(file, "Mech%d", static_cast<int32_t>(index + numMechs), packet);
+        WritePacketBlock(file, "Mech%d", static_cast<int32_t>(index + numMechs), packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = logisticsMechProfileWriter(name, mech, 1);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = LogisticsMechProfileWriter(name, mech, 1);
 
         if (result != 0)
         {
@@ -1666,34 +1666,34 @@ auto MissionLogisticsBridge::logisticsSaveGame(char* fileName) -> int32_t
     }
 
     // Every vehicle: the spare ones, then the force.
-    file.writeBlock("Vehicles");
+    file.WriteBlock("Vehicles");
     uint32_t numVehicles = 0;
-    LogVehicle* vehicle = logistics->vehicleList->vehicles;
+    MCLogVehicle* vehicle = logistics->VehicleList->Vehicles;
 
-    for (int32_t i = logistics->vehicleList->numVehicles; i > 0; i--, vehicle = vehicle->next)
+    for (int32_t i = logistics->VehicleList->NumVehicles; i > 0; i--, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned == 0)
+        if (vehicle->Assigned == 0)
         {
             ++numVehicles;
         }
     }
 
-    file.writeIdULong("NumVehicles", numVehicles);
+    file.WriteIdULong("NumVehicles", numVehicles);
     index = 0;
-    vehicle = logistics->vehicleList->vehicles;
+    vehicle = logistics->VehicleList->Vehicles;
 
-    for (int32_t i = 0; i < logistics->vehicleList->numVehicles; i++, vehicle = vehicle->next)
+    for (int32_t i = 0; i < logistics->VehicleList->NumVehicles; i++, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned != 0)
+        if (vehicle->Assigned != 0)
         {
             continue;
         }
 
         const uint32_t packet = index + numAssMechs + numMechs + numAssWarriors + numWarriors;
-        writePacketBlock(file, "Vehicle%d", index, packet);
+        WritePacketBlock(file, "Vehicle%d", index, packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = logisticsVehicleProfileWriter(name, vehicle, 1);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = LogisticsVehicleProfileWriter(name, vehicle, 1);
 
         if (result != 0)
         {
@@ -1703,34 +1703,34 @@ auto MissionLogisticsBridge::logisticsSaveGame(char* fileName) -> int32_t
         ++index;
     }
 
-    file.writeBlock("AssVehicles");
+    file.WriteBlock("AssVehicles");
     uint32_t numAssVehicles = 0;
-    vehicle = logistics->forceVehicleList->vehicles;
+    vehicle = logistics->ForceVehicleList->Vehicles;
 
-    for (int32_t i = logistics->forceVehicleList->numVehicles; i > 0; i--, vehicle = vehicle->next)
+    for (int32_t i = logistics->ForceVehicleList->NumVehicles; i > 0; i--, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned != 0)
+        if (vehicle->Assigned != 0)
         {
             ++numAssVehicles;
         }
     }
 
-    file.writeIdULong("NumAssVehicles", numAssVehicles);
+    file.WriteIdULong("NumAssVehicles", numAssVehicles);
     index = 0;
-    vehicle = logistics->forceVehicleList->vehicles;
+    vehicle = logistics->ForceVehicleList->Vehicles;
 
-    for (int32_t i = 0; i < logistics->forceVehicleList->numVehicles; i++, vehicle = vehicle->next)
+    for (int32_t i = 0; i < logistics->ForceVehicleList->NumVehicles; i++, vehicle = vehicle->Next)
     {
-        if (vehicle->assigned == 0)
+        if (vehicle->Assigned == 0)
         {
             continue;
         }
 
         const uint32_t packet = numVehicles + numWarriors + numAssWarriors + numMechs + numAssMechs + index;
-        writePacketBlock(file, "Vehicle%d", static_cast<int32_t>(numVehicles + index), packet);
+        WritePacketBlock(file, "Vehicle%d", static_cast<int32_t>(numVehicles + index), packet);
         char name[32];
-        profileName(name, sizeof(name), static_cast<int32_t>(packet));
-        result = logisticsVehicleProfileWriter(name, vehicle, 1);
+        ProfileName(name, sizeof(name), static_cast<int32_t>(packet));
+        result = LogisticsVehicleProfileWriter(name, vehicle, 1);
 
         if (result != 0)
         {
@@ -1740,22 +1740,22 @@ auto MissionLogisticsBridge::logisticsSaveGame(char* fileName) -> int32_t
         ++index;
     }
 
-    writeComponents(file, [logistics](uint8_t id) { return logistics->componentInventory->getItemCount(id); });
-    file.close();
+    WriteComponents(file, [logistics](uint8_t id) { return logistics->ComponentInventory->GetItemCount(id); });
+    file.Close();
 
-    FullPathFileName purchaseName;
-    purchaseName.init(savePath, fileName, ".pur");
-    result = writePurchaseFile(purchaseName);
+    MCFullPathFileName purchaseName;
+    purchaseName.Init(SavePath, fileName, ".pur");
+    result = WritePurchaseFile(purchaseName);
 
     if (result != 0)
     {
         return result;
     }
 
-    FullPathFileName saveName;
-    saveName.init(savePath, fileName, ".sav");
-    PacketFile packFile;
-    result = packFile.create(saveName);
+    MCFullPathFileName saveName;
+    saveName.Init(SavePath, fileName, ".sav");
+    MCPacketFile packFile;
+    result = packFile.Create(saveName);
 
     if (result != 0)
     {
@@ -1764,42 +1764,42 @@ auto MissionLogisticsBridge::logisticsSaveGame(char* fileName) -> int32_t
 
     const auto numProfiles =
         static_cast<int32_t>(numVehicles + numWarriors + numAssWarriors + numMechs + numAssMechs + numAssVehicles);
-    packFile.reserve(numProfiles + 2, 1);
-    File source;
-    result = packFileInto(packFile, source, fitName, 0);
+    packFile.Reserve(numProfiles + 2, 1);
+    MCFile source;
+    result = PackFileInto(packFile, source, fitName, 0);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = packProfiles(packFile, source, numProfiles);
+    result = PackProfiles(packFile, source, numProfiles);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = packFileInto(packFile, source, purchaseName, numProfiles + 1);
+    result = PackFileInto(packFile, source, purchaseName, numProfiles + 1);
 
     if (result != 0)
     {
         return result;
     }
 
-    packFile.close();
-    deleteFile(fitName);
-    deleteFile(purchaseName);
-    deleteProfiles(numProfiles);
+    packFile.Close();
+    DeleteFile(fitName);
+    DeleteFile(purchaseName);
+    DeleteProfiles(numProfiles);
     return 0;
 }
 
-auto MissionLogisticsBridge::logisticsLoadGame(char*) -> int32_t
+auto MCMissionLogisticsBridge::LogisticsLoadGame(char*) -> int32_t
 {
     return 0;
 }
 
-auto MissionLogisticsBridge::missionToLogisticsBridgeSave(char*) -> int32_t
+auto MCMissionLogisticsBridge::MissionToLogisticsBridgeSave(char*) -> int32_t
 {
     return 0;
 }

@@ -24,11 +24,11 @@
 #include "sound/soundsys.h"
 #include "vfx/vfxfuncs.h"
 
-std::type_identity_t<char[256]> MCSplashScreen::genericPortFileName{};
-std::type_identity_t<lPort*> MCSplashScreen::genericPort{};
-std::type_identity_t<int32_t> MCSplashScreen::instanceCount{};
-_GUID deletedSessions[50] = {};
-int32_t nextDeletedSession = 0;
+std::type_identity_t<char[256]> MCSplashScreen::_GenericPortFileName{};
+std::type_identity_t<MCLogPort*> MCSplashScreen::_GenericPort{};
+std::type_identity_t<int32_t> MCSplashScreen::_InstanceCount{};
+_GUID DeletedSessions[50] = {};
+int32_t NextDeletedSession = 0;
 char* EmptyFile = nullptr;
 
 namespace
@@ -36,40 +36,40 @@ namespace
     /// <summary>The width of a scroll pane's slider column.</summary>
     constexpr int32_t SliderWidth = 0xd;
 
-    /// <summary>The size of an <see cref="lScrollTextObject"/>'s text buffer (one more byte is allocated).</summary>
+    /// <summary>The size of an <see cref="MCLogScrollTextObject"/>'s text buffer (one more byte is allocated).</summary>
     constexpr int32_t TextBufferSize = 0x1000;
 
-    void* logAlloc(uint32_t size)
+    void* LogAlloc(uint32_t size)
     {
-        return globalLogPtr->logisticsBlocks->Allocate(size);
+        return GlobalLogPtr->LogisticsBlocks->Allocate(size);
     }
 
-    void logFree(void* block)
+    void LogFree(void* block)
     {
-        globalLogPtr->logisticsBlocks->Free(block);
+        GlobalLogPtr->LogisticsBlocks->Free(block);
     }
 
     /// <summary>Frees a logistics port (destroy, then delete) and clears the pointer.</summary>
-    void freePort(lPort*& port)
+    void FreePort(MCLogPort*& port)
     {
         if (port != nullptr)
         {
-            port->destroy();
+            port->Destroy();
             delete port;
             port = nullptr;
         }
     }
 
     /// <summary>Loads <paramref name="fileName"/> into a new port at <paramref name="port"/>; on failure frees it.</summary>
-    int32_t loadPicture(lPort*& port, char* fileName)
+    int32_t LoadPicture(MCLogPort*& port, char* fileName)
     {
-        freePort(port);
-        port = new lPort;
-        const int32_t result = port->init(fileName);
+        FreePort(port);
+        port = new MCLogPort;
+        const int32_t result = port->Init(fileName);
 
         if (result != 0)
         {
-            freePort(port);
+            FreePort(port);
         }
 
         return result;
@@ -79,7 +79,7 @@ namespace
     /// The row of <c>fonts</c> a scroll text line is drawn in, from its colour byte (0x0b..0xf2 are the palette
     /// indices of the font colours; anything else is row 7).
     /// </summary>
-    int32_t fontRowForColor(uint8_t color)
+    int32_t FontRowForColor(uint8_t color)
     {
         switch (color)
         {
@@ -103,14 +103,14 @@ namespace
     }
 
     /// <summary>A new text entry field as the generic screens make them (black text on colour 0x1f).</summary>
-    lTextObject* makeTextEntry(int32_t xPos, int32_t yPos, int32_t width, int32_t height)
+    MCLogTextObject* MakeTextEntry(int32_t xPos, int32_t yPos, int32_t width, int32_t height)
     {
-        auto* entry = new lTextObject;
-        entry->lObject::init(xPos, yPos, width, height, nullptr, nullptr);
-        entry->cursorPos = 0;
-        entry->cursorPixel = 0;
-        entry->backgroundColor = 0x1f;
-        entry->font = lgBlackFont;
+        auto* entry = new MCLogTextObject;
+        entry->MCLogObject::Init(xPos, yPos, width, height, nullptr, nullptr);
+        entry->CursorPos = 0;
+        entry->CursorPixel = 0;
+        entry->BackgroundColor = 0x1f;
+        entry->Font = LgBlackFont;
         return entry;
     }
 
@@ -119,52 +119,52 @@ namespace
     /// callback number. "NONE" skips a picture.
     /// </summary>
     /// <returns>Whether a Callback entry was found (in <paramref name="callback"/>).</returns>
-    bool readButton(FitIniFile* file, lButton* button, char* art, int32_t& callback)
+    bool ReadButton(MCFitIniFile* file, MCLogButton* button, char* art, int32_t& callback)
     {
         int32_t result = 0;
 
         if (MCPort::StrICmp(art, "NONE") != 0)
         {
-            result = button->setUpPicture(art);
+            result = button->SetUpPicture(art);
             Assert(result == 0, result, " Couldn't locate button upPicture image ", nullptr);
         }
 
-        result = file->readIdString("GreyArt", art, 0xf9);
+        result = file->ReadIdString("GreyArt", art, 0xf9);
         Assert(result == 0, result, " Could not Find gray button art in Generic Screen ", nullptr);
 
         if (MCPort::StrICmp(art, "NONE") != 0)
         {
-            result = button->setGrayPicture(art);
+            result = button->SetGrayPicture(art);
             Assert(result == 0, result, " Couldn't locate button grayPicture image ", nullptr);
         }
 
-        result = file->readIdString("PressArt", art, 0xf9);
+        result = file->ReadIdString("PressArt", art, 0xf9);
         Assert(result == 0, result, " Could not Find down button art in Generic Screen ", nullptr);
 
         if (MCPort::StrICmp(art, "NONE") != 0)
         {
-            result = button->setDownPicture(art);
+            result = button->SetDownPicture(art);
             Assert(result == 0, result, " Couldn't locate button downPicture image ", nullptr);
         }
 
-        result = file->readIdString("OverArt", art, 0xf9);
+        result = file->ReadIdString("OverArt", art, 0xf9);
         Assert(result == 0, result, " Could not Find button rollover art in Generic Screen ", nullptr);
 
         if (MCPort::StrICmp(art, "NONE") != 0)
         {
-            result = button->setOverPicture(art);
+            result = button->SetOverPicture(art);
             // The original reports the down picture's message here too.
             Assert(result == 0, result, " Couldn't locate button downPicture image ", nullptr);
         }
 
         int32_t sound = 0;
-        result = file->readIdLong("OverSFX", sound);
+        result = file->ReadIdLong("OverSFX", sound);
         Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ", nullptr);
-        button->overSound = static_cast<uint32_t>(sound);
-        result = file->readIdLong("PressSFX", sound);
+        button->OverSound = static_cast<uint32_t>(sound);
+        result = file->ReadIdLong("PressSFX", sound);
         Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ", nullptr);
-        button->pressSound = static_cast<uint32_t>(sound);
-        return file->readIdLong("Callback", callback) == 0;
+        button->PressSound = static_cast<uint32_t>(sound);
+        return file->ReadIdLong("Callback", callback) == 0;
     }
 
     /// <summary>
@@ -172,14 +172,14 @@ namespace
     /// and cancel buttons are remembered by the screen; the first two start disabled.
     /// </summary>
     /// <returns>Whether the number was one of these.</returns>
-    bool setScreenCallback(GenericScreen* screen, lButton* button, int32_t callback)
+    bool SetScreenCallback(MCGenericScreen* screen, MCLogButton* button, int32_t callback)
     {
         void (*exec)() = nullptr;
 
         switch (callback)
         {
             case 0:
-                exec = NewMCXCampaign;
+                exec = NewMcxCampaign;
                 break;
             case 1:
                 exec = SaveScreen;
@@ -205,88 +205,88 @@ namespace
             case 8:
             case 9:
             {
-                button->callback()->setExec(callback == 8 ? LoadGame : SaveGame);
-                screen->loadSaveButton = button;
-                button->disabled = -1;
+                button->Callback()->SetExec(callback == 8 ? LoadGame : SaveGame);
+                screen->LoadSaveButton = button;
+                button->Disabled = -1;
                 return true;
             }
             case 10:
             {
-                button->callback()->setExec(DeleteGame);
-                screen->deleteButton = button;
-                button->disabled = -1;
+                button->Callback()->SetExec(DeleteGame);
+                screen->DeleteButton = button;
+                button->Disabled = -1;
                 return true;
             }
             case 11:
             {
-                button->callback()->setExec(Cancel);
-                screen->cancelButton = button;
+                button->Callback()->SetExec(Cancel);
+                screen->CancelButton = button;
                 return true;
             }
             default:
                 return false;
         }
 
-        button->callback()->setExec(exec);
+        button->Callback()->SetExec(exec);
         return true;
     }
 
     /// <summary>Makes a file pane element (type 5) and reads its SavePane flag.</summary>
-    FileScrollPane* makeFilePane(FitIniFile* file, int32_t xPos, int32_t yPos, int32_t width, int32_t height)
+    MCFileScrollPane* MakeFilePane(MCFitIniFile* file, int32_t xPos, int32_t yPos, int32_t width, int32_t height)
     {
-        auto* pane = new FileScrollPane;
+        auto* pane = new MCFileScrollPane;
         // The inlined constructors each clear the scroll pane.
-        pane->ScrollPane::init();
-        pane->init(xPos, yPos, width, height);
+        pane->MCScrollPane::Init();
+        pane->Init(xPos, yPos, width, height);
 
-        if (file->readIdBoolean("SavePane", pane->savePane) != 0)
+        if (file->ReadIdBoolean("SavePane", pane->SavePane) != 0)
         {
-            pane->savePane = 0;
+            pane->SavePane = 0;
         }
 
-        pane->setStartDirectory(savePath);
+        pane->SetStartDirectory(SavePath);
         return pane;
     }
 
     /// <summary>Reads the Element block header: type, rectangle and NormalArt.</summary>
-    void readElement(FitIniFile* file, int32_t index, int32_t& type, int32_t& left, int32_t& top, int32_t& width,
+    void ReadElement(MCFitIniFile* file, int32_t index, int32_t& type, int32_t& left, int32_t& top, int32_t& width,
                      int32_t& height, char* art)
     {
         char blockName[20];
         std::snprintf(blockName, sizeof(blockName), "Element%d", index);
-        int32_t result = file->seekBlock(blockName);
+        int32_t result = file->SeekBlock(blockName);
         Assert(result == 0, result, " Could not Find Element block in Generic Screen ", nullptr);
         type = -1;
-        result = file->readIdLong("ElementType", type);
+        result = file->ReadIdLong("ElementType", type);
         Assert(result == 0, result, " Could not Find Element Type in Generic Screen ", nullptr);
-        result = file->readIdLong("Left", left);
+        result = file->ReadIdLong("Left", left);
         Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ", nullptr);
-        result = file->readIdLong("Top", top);
+        result = file->ReadIdLong("Top", top);
         Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ", nullptr);
-        result = file->readIdLong("Width", width);
+        result = file->ReadIdLong("Width", width);
         Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ", nullptr);
-        result = file->readIdLong("Height", height);
+        result = file->ReadIdLong("Height", height);
         Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ", nullptr);
-        result = file->readIdString("NormalArt", art, 0xf9);
+        result = file->ReadIdString("NormalArt", art, 0xf9);
         Assert(result == 0, result, " Could not Find Element Art in Generic Screen ", nullptr);
     }
 
     /// <summary>Reads the Elements block and allocates the element array.</summary>
-    void readElementCount(FitIniFile* file, GenericScreen* screen)
+    void ReadElementCount(MCFitIniFile* file, MCGenericScreen* screen)
     {
-        int32_t result = file->seekBlock("Elements");
+        int32_t result = file->SeekBlock("Elements");
         Assert(result == 0, result, " Could not Find Elements block in Generic Screen ", nullptr);
-        result = file->readIdLong("NumElements", screen->numElements);
+        result = file->ReadIdLong("NumElements", screen->NumElements);
         Assert(result == 0, result, " Could not Find Elements number in Generic Screen ", nullptr);
         // Port fix: sized by the port's pointer size (the original's count * 4 overran the array on 64-bit).
-        screen->elements = static_cast<aObject**>(
-            logAlloc(static_cast<uint32_t>(sizeof(aObject*) * static_cast<size_t>(screen->numElements))));
-        Assert(screen->elements != nullptr, 0, " No RAM for Generic Screen Elements ", nullptr);
+        screen->Elements = static_cast<MCGuiObject**>(
+            LogAlloc(static_cast<uint32_t>(sizeof(MCGuiObject*) * static_cast<size_t>(screen->NumElements))));
+        Assert(screen->Elements != nullptr, 0, " No RAM for Generic Screen Elements ", nullptr);
 
         // Port fix: element types 2 and 3 leave their slot unset, which GenericScreen::destroy then deleted.
-        if (screen->elements != nullptr)
+        if (screen->Elements != nullptr)
         {
-            std::memset(screen->elements, 0, sizeof(aObject*) * static_cast<size_t>(screen->numElements));
+            std::memset(screen->Elements, 0, sizeof(MCGuiObject*) * static_cast<size_t>(screen->NumElements));
         }
     }
 }
@@ -295,232 +295,232 @@ namespace
 
 // lButton
 
-lButton::~lButton()
+MCLogButton::~MCLogButton()
 {
-    lButton::destroy();
+    MCLogButton::Destroy();
 }
 
-auto lButton::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCLogButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    const int32_t result = lObject::init(xPos, yPos, width, height, name, nullptr);
+    const int32_t result = MCLogObject::Init(xPos, yPos, width, height, name, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    buttonCallback = new lCallback;
-    upPicture = nullptr;
-    downPicture = nullptr;
-    grayPicture = nullptr;
-    overPicture = nullptr;
-    disabled = 0;
-    overState = 0;
-    pressed = 0;
-    backgroundColor = 0;
-    pressSound = 0xf;
-    overSound = 0xffffffff;
+    ButtonCallback = new MCLogCallback;
+    UpPicture = nullptr;
+    DownPicture = nullptr;
+    GrayPicture = nullptr;
+    OverPicture = nullptr;
+    Disabled = 0;
+    OverState = 0;
+    Pressed = 0;
+    BackgroundColor = 0;
+    PressSound = 0xf;
+    OverSound = 0xffffffff;
     return 0;
 }
 
-auto lButton::destroy() -> void
+auto MCLogButton::Destroy() -> void
 {
-    freePort(upPicture);
-    freePort(downPicture);
-    freePort(grayPicture);
-    freePort(overPicture);
+    FreePort(UpPicture);
+    FreePort(DownPicture);
+    FreePort(GrayPicture);
+    FreePort(OverPicture);
 
-    if (buttonCallback != nullptr)
+    if (ButtonCallback != nullptr)
     {
-        buttonCallback->destroy();
-        delete buttonCallback;
-        buttonCallback = nullptr;
+        ButtonCallback->Destroy();
+        delete ButtonCallback;
+        ButtonCallback = nullptr;
     }
 
-    if (heldButton == this)
+    if (HeldButton == this)
     {
-        heldButton = nullptr;
+        HeldButton = nullptr;
     }
 
-    lObject::destroy();
+    MCLogObject::Destroy();
 }
 
-auto lButton::Press() -> void
+auto MCLogButton::Press() -> void
 {
     LetGoPress();
-    pressed = -1;
-    heldButton = this;
+    Pressed = -1;
+    HeldButton = this;
 }
 
-auto lButton::LetGoPress() -> void
+auto MCLogButton::LetGoPress() -> void
 {
-    if (heldButton != nullptr)
+    if (HeldButton != nullptr)
     {
-        heldButton->pressed = 0;
-        heldButton = nullptr;
+        HeldButton->Pressed = 0;
+        HeldButton = nullptr;
     }
 }
 
-auto lButton::setUpPicture(char* fileName) -> int32_t
+auto MCLogButton::SetUpPicture(char* fileName) -> int32_t
 {
-    const int32_t result = loadPicture(upPicture, fileName);
+    const int32_t result = LoadPicture(UpPicture, fileName);
 
     if (result == 0)
     {
         // The button takes the picture's size.
-        backgroundColor = 0xff;
-        resize(upPicture->width(), upPicture->height());
+        BackgroundColor = 0xff;
+        Resize(UpPicture->Width(), UpPicture->Height());
     }
 
     return result;
 }
 
-auto lButton::setOverPicture(char* fileName) -> int32_t
+auto MCLogButton::SetOverPicture(char* fileName) -> int32_t
 {
-    return loadPicture(overPicture, fileName);
+    return LoadPicture(OverPicture, fileName);
 }
 
-auto lButton::setGrayPicture(char* fileName) -> int32_t
+auto MCLogButton::SetGrayPicture(char* fileName) -> int32_t
 {
-    return loadPicture(grayPicture, fileName);
+    return LoadPicture(GrayPicture, fileName);
 }
 
-auto lButton::setDownPicture(char* fileName) -> int32_t
+auto MCLogButton::SetDownPicture(char* fileName) -> int32_t
 {
-    return loadPicture(downPicture, fileName);
+    return LoadPicture(DownPicture, fileName);
 }
 
-auto lButton::handleEvent(aEvent* event) -> void
+auto MCLogButton::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 1)
+    if (event->Type == 1)
     {
-        if (disabled == 0)
+        if (Disabled == 0)
         {
             // Shown pressed, and on screen before the callback runs.
             Press();
-            soundSystem->playDigitalSample(pressSound, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(PressSound, 1, nullptr, 0, 0);
             UpdateDisplay(0, 0, 0, 0, 0);
-            buttonCallback->execute();
+            ButtonCallback->Execute();
         }
         else
         {
-            soundSystem->playDigitalSample(0x33, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
         }
     }
-    else if (event->type == 4)
+    else if (event->Type == 4)
     {
         // The press shows until the button is let go (the original's next paint put the face back up).
         LetGoPress();
     }
 
-    if (disabled == 0 && eventRoutine != nullptr)
+    if (Disabled == 0 && EventRoutine != nullptr)
     {
-        eventRoutine(this, event);
+        EventRoutine(this, event);
     }
 }
 
-auto lButton::draw() -> void
+auto MCLogButton::Draw() -> void
 {
-    lPort* picture = nullptr;
+    MCLogPort* picture = nullptr;
 
-    if (disabled != 0)
+    if (Disabled != 0)
     {
-        picture = grayPicture;
+        picture = GrayPicture;
     }
-    else if (pressed == 0 && (application->grabbedObject() != this || application->currentObject() != this))
+    else if (Pressed == 0 && (Application->GrabbedObject() != this || Application->CurrentObject() != this))
     {
-        picture = overState == 0 ? upPicture : overPicture;
+        picture = OverState == 0 ? UpPicture : OverPicture;
     }
     else
     {
-        picture = downPicture;
+        picture = DownPicture;
     }
 
-    drawFace(picture, false);
+    DrawFace(picture, false);
 }
 
-auto lButton::drawFace(lPort* picture, bool keyed) -> void
+auto MCLogButton::DrawFace(MCLogPort* picture, bool keyed) -> void
 {
     if (picture != nullptr)
     {
-        picture->copyTo(ownPort->frame(), 0, 0, keyed ? -1 : 0);
+        picture->CopyTo(_OwnPort->Frame(), 0, 0, keyed ? -1 : 0);
     }
     else
     {
-        VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(backgroundColor));
+        VfxPaneWipe(_OwnPort->Frame(), static_cast<uint32_t>(BackgroundColor));
     }
 
-    lObject::draw();
+    MCLogObject::Draw();
 }
 
-auto lButton::enter() -> void
+auto MCLogButton::Enter() -> void
 {
-    if (disabled == 0)
+    if (Disabled == 0)
     {
-        overState = -1;
+        OverState = -1;
 
-        if (heldButton == this)
+        if (HeldButton == this)
         {
             LetGoPress();
         }
 
-        soundSystem->playDigitalSample(overSound, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(OverSound, 1, nullptr, 0, 0);
     }
 }
 
 // lTextObject
 
-lTextObject::~lTextObject()
+MCLogTextObject::~MCLogTextObject()
 {
-    lTextObject::destroy();
+    MCLogTextObject::Destroy();
 }
 
-auto lTextObject::destroy() -> void
+auto MCLogTextObject::Destroy() -> void
 {
-    lObject::destroy();
-    bufferSize = 0;
-    logFree(buffer);
-    buffer = nullptr;
-    logFree(originalBuffer);
-    originalBuffer = nullptr;
+    MCLogObject::Destroy();
+    BufferSize = 0;
+    LogFree(Buffer);
+    Buffer = nullptr;
+    LogFree(OriginalBuffer);
+    OriginalBuffer = nullptr;
 }
 
-auto lTextObject::draw() -> void
+auto MCLogTextObject::Draw() -> void
 {
-    VFX_pane_wipe(ownPort->frame(), static_cast<uint32_t>(backgroundColor));
-    font->writeString(ownPort->frame(), 1, 1, reinterpret_cast<uint8_t*>(buffer), -1);
+    VfxPaneWipe(_OwnPort->Frame(), static_cast<uint32_t>(BackgroundColor));
+    Font->WriteString(_OwnPort->Frame(), 1, 1, reinterpret_cast<uint8_t*>(Buffer), -1);
 
-    if (cursorPos > -1 && cursorPos < bufferSize)
+    if (CursorPos > -1 && CursorPos < BufferSize)
     {
-        const uint32_t color = cursorOn == 0 ? 0x1f : 0x10;
-        VFX_line_draw(ownPort->frame(), cursorPixel, 0, cursorPixel, height(), LD_DRAW, color);
+        const uint32_t color = CursorOn == 0 ? 0x1f : 0x10;
+        VfxLineDraw(_OwnPort->Frame(), CursorPixel, 0, CursorPixel, Height(), LD_DRAW, color);
     }
 }
 
-auto lTextObject::RestartBlink() -> void
+auto MCLogTextObject::RestartBlink() -> void
 {
-    cursorOn = -1;
+    CursorOn = -1;
 }
 
-auto lTextObject::display() -> void
+auto MCLogTextObject::Display() -> void
 {
-    lObject::display();
+    MCLogObject::Display();
 }
 
-auto lTextObject::setCursorPos(int32_t pos) -> void
+auto MCLogTextObject::SetCursorPos(int32_t pos) -> void
 {
-    cursorPos = pos;
+    CursorPos = pos;
     // The cursor sits one pixel after the text up to it.
-    const char saved = buffer[pos];
-    buffer[pos] = 0;
-    const int32_t textWidth = font->width(reinterpret_cast<uint8_t*>(buffer));
-    buffer[pos] = saved;
-    cursorPixel = textWidth + 1;
+    const char saved = Buffer[pos];
+    Buffer[pos] = 0;
+    const int32_t textWidth = Font->Width(reinterpret_cast<uint8_t*>(Buffer));
+    Buffer[pos] = saved;
+    CursorPixel = textWidth + 1;
 }
 
-auto lTextObject::isValid(char key) -> int
+auto MCLogTextObject::IsValid(char key) -> int
 {
-    switch (inputType)
+    switch (AllowedInput)
     {
         case INPUT_TEXT:
         {
@@ -556,58 +556,58 @@ auto lTextObject::isValid(char key) -> int
     }
 }
 
-auto lTextObject::handleEvent(aEvent* event) -> void
+auto MCLogTextObject::HandleEvent(MCGuiEvent* event) -> void
 {
     // Tells the parent the entry is finished (Enter, or focus moving on).
     auto sendDone = [this]()
     {
-        aEvent done;
-        done.clear();
-        done.type = 0x1e;
-        done.data = 5;
-        parent->handleEvent(&done);
+        MCGuiEvent done;
+        done.Clear();
+        done.Type = 0x1e;
+        done.Data = 5;
+        Parent->HandleEvent(&done);
     };
 
     // Clears the whole buffer.
     auto clearBuffer = [this]()
     {
-        std::memset(buffer, 0, static_cast<size_t>(textLength));
-        textLength = 0;
+        std::memset(Buffer, 0, static_cast<size_t>(TextLength));
+        TextLength = 0;
     };
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
-            application->setText(this);
+            Application->SetText(this);
             break;
         case 10:
         {
-            if (inputType == INPUT_NONE)
+            if (AllowedInput == INPUT_NONE)
             {
                 break;
             }
 
-            const uint8_t key = event->key;
+            const uint8_t key = event->Key;
 
             if (key == 8)
             {
-                if (textLength != 0)
+                if (TextLength != 0)
                 {
                     // Backspace on untouched text clears all of it.
                     int32_t newPos = 0;
 
-                    if (std::strcmp(buffer, originalBuffer) == 0)
+                    if (std::strcmp(Buffer, OriginalBuffer) == 0)
                     {
                         clearBuffer();
                     }
                     else
                     {
-                        buffer[textLength - 1] = 0;
-                        newPos = cursorPos - 1;
-                        textLength--;
+                        Buffer[TextLength - 1] = 0;
+                        newPos = CursorPos - 1;
+                        TextLength--;
                     }
 
-                    setCursorPos(newPos);
+                    SetCursorPos(newPos);
                     RestartBlink();
                 }
             }
@@ -619,10 +619,10 @@ auto lTextObject::handleEvent(aEvent* event) -> void
             {
                 Cancel();
             }
-            else if (textLength + 1 < bufferSize && isValid(static_cast<char>(key)) != 0)
+            else if (TextLength + 1 < BufferSize && IsValid(static_cast<char>(key)) != 0)
             {
-                buffer[textLength++] = static_cast<char>(key);
-                setCursorPos(cursorPos + 1);
+                Buffer[TextLength++] = static_cast<char>(key);
+                SetCursorPos(CursorPos + 1);
                 RestartBlink();
             }
             break;
@@ -634,30 +634,30 @@ auto lTextObject::handleEvent(aEvent* event) -> void
         case 0x13:
         {
             // Timer 0: the cursor blink.
-            if (event->data == 0)
+            if (event->Data == 0)
             {
-                cursorOn = cursorOn == 0 ? 1 : 0;
+                CursorOn = CursorOn == 0 ? 1 : 0;
             }
             break;
         }
         case 0x1e:
         {
-            if (event->data == 7)
+            if (event->Data == 7)
             {
                 // Focus: start the blink, and clear an empty-slot name so the player can type one.
-                application->AddTimer(this, 0, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
+                Application->AddTimer(this, 0, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
 
-                if (clearEmptyOnFocus != 0 && std::strcmp(buffer, EmptyFile) == 0)
+                if (ClearEmptyOnFocus != 0 && std::strcmp(Buffer, EmptyFile) == 0)
                 {
                     clearBuffer();
-                    setCursorPos(0);
+                    SetCursorPos(0);
                     RestartBlink();
                 }
             }
-            else if (event->data == 8)
+            else if (event->Data == 8)
             {
-                application->RemoveTimer(this, 0);
-                cursorOn = -1;
+                Application->RemoveTimer(this, 0);
+                CursorOn = -1;
             }
             break;
         }
@@ -665,99 +665,99 @@ auto lTextObject::handleEvent(aEvent* event) -> void
             break;
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto lTextObject::initBuffer(int32_t size, int32_t type) -> void
+auto MCLogTextObject::InitBuffer(int32_t size, int32_t type) -> void
 {
-    if (bufferSize != 0)
+    if (BufferSize != 0)
     {
-        logFree(buffer);
-        buffer = nullptr;
-        logFree(originalBuffer);
-        originalBuffer = nullptr;
-        bufferSize = 0;
+        LogFree(Buffer);
+        Buffer = nullptr;
+        LogFree(OriginalBuffer);
+        OriginalBuffer = nullptr;
+        BufferSize = 0;
     }
 
     if (size != 0)
     {
-        bufferSize = size;
-        buffer = static_cast<char*>(logAlloc(static_cast<uint32_t>(size)));
-        originalBuffer = static_cast<char*>(logAlloc(static_cast<uint32_t>(size)));
+        BufferSize = size;
+        Buffer = static_cast<char*>(LogAlloc(static_cast<uint32_t>(size)));
+        OriginalBuffer = static_cast<char*>(LogAlloc(static_cast<uint32_t>(size)));
     }
 
-    std::memset(buffer, 0, static_cast<size_t>(bufferSize));
-    std::memset(originalBuffer, 0, static_cast<size_t>(bufferSize));
-    inputType = type;
+    std::memset(Buffer, 0, static_cast<size_t>(BufferSize));
+    std::memset(OriginalBuffer, 0, static_cast<size_t>(BufferSize));
+    AllowedInput = type;
 }
 
-auto lTextObject::setStringBuffer(char* text) -> int32_t
+auto MCLogTextObject::SetStringBuffer(char* text) -> int32_t
 {
     int32_t result = 0;
     int32_t length = static_cast<int32_t>(std::strlen(text));
 
-    if (length < bufferSize)
+    if (length < BufferSize)
     {
-        std::strcpy(buffer, text);
-        std::strcpy(originalBuffer, text);
-        textLength = length;
+        std::strcpy(Buffer, text);
+        std::strcpy(OriginalBuffer, text);
+        TextLength = length;
     }
     else
     {
         // Too long: cut to the buffer (strncpy writes no terminator; the buffer's last byte stays 0). The length
         // is left as it was.
-        std::strncpy(buffer, text, static_cast<size_t>(bufferSize - 1));
-        std::strncpy(originalBuffer, text, static_cast<size_t>(bufferSize - 1));
-        length = bufferSize - 1;
+        std::strncpy(Buffer, text, static_cast<size_t>(BufferSize - 1));
+        std::strncpy(OriginalBuffer, text, static_cast<size_t>(BufferSize - 1));
+        length = BufferSize - 1;
         result = -1;
     }
 
-    setCursorPos(length);
+    SetCursorPos(length);
     RestartBlink();
     return result;
 }
 
 // FileScrollPane
 
-FileScrollPane::~FileScrollPane()
+MCFileScrollPane::~MCFileScrollPane()
 {
-    FileScrollPane::destroy();
+    MCFileScrollPane::Destroy();
 }
 
-auto FileScrollPane::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height) -> void
+auto MCFileScrollPane::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height) -> void
 {
-    if (lgWhiteFont != nullptr)
+    if (LgWhiteFont != nullptr)
     {
-        lineHeight = lgWhiteFont->height() + 1;
+        LineHeight = LgWhiteFont->Height() + 1;
     }
 
-    ScrollPane::init(width, height, xPos, yPos, static_cast<char*>(nullptr));
+    MCScrollPane::Init(width, height, xPos, yPos, static_cast<char*>(nullptr));
     // The files are drawn into the content each frame (drawContent).
-    contentPort->initView(width - SliderWidth, height);
+    ContentPort->InitView(width - SliderWidth, height);
 
     // The splash screens' own slider art over the scroll pane's.
     char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\splashscroll.tga", artPath);
-    auto* art = new lPort;
-    art->init(fileName);
-    const int32_t numTiles = height / art->height() - 1;
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\splashscroll.tga", ArtPath);
+    auto* art = new MCLogPort;
+    art->Init(fileName);
+    const int32_t numTiles = height / art->Height() - 1;
 
     for (int32_t i = 0; i < numTiles; i++)
     {
-        art->copyTo(sliderPort->frame(), 0, art->height() * i + 1, -1);
+        art->CopyTo(SliderPort->Frame(), 0, art->Height() * i + 1, -1);
     }
 
-    art->destroy();
+    art->Destroy();
     delete art;
 
-    upArrowPort = new lPort;
-    downArrowPort = new lPort;
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\splashsupbup.tga", artPath);
-    upArrowPort->init(fileName);
-    upArrowPort->copyTo(sliderPort->frame(), 0, 0, -1);
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\splashsdnbup.tga", artPath);
-    downArrowPort->init(fileName);
-    downArrowPort->copyTo(sliderPort->frame(), 0, height - 0xf, -1);
+    UpArrowPort = new MCLogPort;
+    DownArrowPort = new MCLogPort;
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\splashsupbup.tga", ArtPath);
+    UpArrowPort->Init(fileName);
+    UpArrowPort->CopyTo(SliderPort->Frame(), 0, 0, -1);
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\splashsdnbup.tga", ArtPath);
+    DownArrowPort->Init(fileName);
+    DownArrowPort->CopyTo(SliderPort->Frame(), 0, height - 0xf, -1);
 
     // The column headers (operation, mission, resource points). Each is added and removed again straight away:
     // they are drawn by the pane itself, not as children.
@@ -766,42 +766,42 @@ auto FileScrollPane::init(int32_t xPos, int32_t yPos, int32_t width, int32_t hei
 
     for (int32_t i = 0; i < 3; i++)
     {
-        auto* header = new FileColumnHeader;
-        columnHeaders[i] = header;
-        header->init(headerRects[i][0], headerRects[i][1], headerRects[i][2], headerRects[i][3], nullptr, nullptr);
-        header->pane = this;
-        header->column = i;
-        addChild(header);
-        removeChild(columnHeaders[i]);
+        auto* header = new MCFileColumnHeader;
+        ColumnHeaders[i] = header;
+        header->Init(headerRects[i][0], headerRects[i][1], headerRects[i][2], headerRects[i][3], nullptr, nullptr);
+        header->Pane = this;
+        header->Column = i;
+        AddChild(header);
+        RemoveChild(ColumnHeaders[i]);
     }
 
     // The slider's clean track, to erase the slider with.
-    std::memcpy(trackImage, sliderPort->frame()->window->buffer, static_cast<size_t>(height * SliderWidth));
+    std::memcpy(TrackImage, SliderPort->Frame()->Window->Buffer, static_cast<size_t>(height * SliderWidth));
 }
 
-auto FileScrollPane::destroy() -> void
+auto MCFileScrollPane::Destroy() -> void
 {
-    logFree(startDirectory);
-    startDirectory = nullptr;
+    LogFree(StartDirectory);
+    StartDirectory = nullptr;
 
-    for (int32_t i = 0; i < numFiles; i++)
+    for (int32_t i = 0; i < NumFiles; i++)
     {
-        logFree(fileNames[i]);
-        fileNames[i] = nullptr;
+        LogFree(FileNames[i]);
+        FileNames[i] = nullptr;
     }
 
-    logFree(fileNames);
-    fileNames = nullptr;
-    numFiles = 0;
+    LogFree(FileNames);
+    FileNames = nullptr;
+    NumFiles = 0;
 
-    if (nameEntry != nullptr)
+    if (NameEntry != nullptr)
     {
-        nameEntry->destroy();
-        delete nameEntry;
-        nameEntry = nullptr;
+        NameEntry->Destroy();
+        delete NameEntry;
+        NameEntry = nullptr;
     }
 
-    for (FileColumnHeader*& header : columnHeaders)
+    for (MCFileColumnHeader*& header : ColumnHeaders)
     {
         if (header != nullptr)
         {
@@ -810,139 +810,139 @@ auto FileScrollPane::destroy() -> void
         }
     }
 
-    if (fileOperations != nullptr)
+    if (FileOperations != nullptr)
     {
-        logFree(fileOperations);
-        fileOperations = nullptr;
+        LogFree(FileOperations);
+        FileOperations = nullptr;
     }
 
-    if (fileMissions != nullptr)
+    if (FileMissions != nullptr)
     {
-        logFree(fileMissions);
-        fileMissions = nullptr;
+        LogFree(FileMissions);
+        FileMissions = nullptr;
     }
 
-    if (fileResourcePoints != nullptr)
+    if (FileResourcePoints != nullptr)
     {
-        logFree(fileResourcePoints);
-        fileResourcePoints = nullptr;
+        LogFree(FileResourcePoints);
+        FileResourcePoints = nullptr;
     }
 
-    freePort(upArrowPort);
-    freePort(downArrowPort);
-    ScrollPane::destroy();
+    FreePort(UpArrowPort);
+    FreePort(DownArrowPort);
+    MCScrollPane::Destroy();
 }
 
-auto FileColumnHeader::draw() -> void
+auto MCFileColumnHeader::Draw() -> void
 {
-    VFX_pane_wipe(lport()->frame(), 0x10);
+    VfxPaneWipe(Lport()->Frame(), 0x10);
 
     // The selected save's operation, mission and resource points (none for the multiplayer list, nor for a save
     // without an operation).
-    const int32_t file = pane->selectedFile;
+    const int32_t file = Pane->SelectedFile;
 
-    if (pane->parent == nullptr || file < 0 || pane->multiplayer != 0 || pane->fileOperations[file] <= 0)
+    if (Pane->Parent == nullptr || file < 0 || Pane->Multiplayer != 0 || Pane->FileOperations[file] <= 0)
     {
         return;
     }
 
-    int32_t value = pane->fileOperations[file];
+    int32_t value = Pane->FileOperations[file];
 
-    if (column == 1)
+    if (Column == 1)
     {
-        value = pane->fileMissions[file];
+        value = Pane->FileMissions[file];
     }
-    else if (column == 2)
+    else if (Column == 2)
     {
-        value = static_cast<int32_t>(pane->fileResourcePoints[file]);
+        value = static_cast<int32_t>(Pane->FileResourcePoints[file]);
     }
 
     char text[16];
     std::snprintf(text, sizeof(text), "%i", value);
-    lgWhiteFont->writeString(lport()->frame(), 2, 2, reinterpret_cast<uint8_t*>(text), -1);
+    LgWhiteFont->WriteString(Lport()->Frame(), 2, 2, reinterpret_cast<uint8_t*>(text), -1);
 }
 
-auto FileScrollPane::draw() -> void
+auto MCFileScrollPane::Draw() -> void
 {
-    ScrollPane::draw();
+    MCScrollPane::Draw();
 }
 
-auto FileScrollPane::PressedArrowArt(bool down) -> lPort*
+auto MCFileScrollPane::PressedArrowArt(bool down) -> MCLogPort*
 {
     (void)down;
     return nullptr;
 }
 
-auto FileScrollPane::drawContent() -> void
+auto MCFileScrollPane::DrawContent() -> void
 {
-    drawFiles();
+    DrawFiles();
 }
 
-auto FileScrollPane::display() -> void
+auto MCFileScrollPane::Display() -> void
 {
     if (IsShowing() != 0)
     {
-        DrawInFramePass(panePort, 0, false, false);
+        DrawInFramePass(PanePort, 0, false, false);
     }
 
-    for (FileColumnHeader* header : columnHeaders)
+    for (MCFileColumnHeader* header : ColumnHeaders)
     {
-        header->display();
+        header->Display();
     }
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        childList[i]->display();
+        ChildList[i]->Display();
     }
 }
 
-auto FileScrollPane::handleEvent(aEvent* event) -> void
+auto MCFileScrollPane::HandleEvent(MCGuiEvent* event) -> void
 {
-    ScrollPane::handleEvent(event);
+    MCScrollPane::HandleEvent(event);
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            if (nameEntry != nullptr && nameEntry->parent == this)
+            if (NameEntry != nullptr && NameEntry->Parent == this)
             {
-                nameEntry->destroy();
+                NameEntry->Destroy();
             }
 
-            const int32_t file = getFileAtPosition(event->x - globalX(), event->y - globalY());
+            const int32_t file = GetFileAtPosition(event->X - GlobalX(), event->Y - GlobalY());
 
             if (file < 0)
             {
                 return;
             }
 
-            if (file != selectedFile)
+            if (file != SelectedFile)
             {
-                setSelectedFile(file);
+                SetSelectedFile(file);
             }
 
-            if (savePane == 0)
+            if (SavePane == 0)
             {
                 return;
             }
 
             // Saving: an entry field over the clicked name.
-            if (nameEntry == nullptr)
+            if (NameEntry == nullptr)
             {
-                nameEntry = new lTextObject;
+                NameEntry = new MCLogTextObject;
             }
             else
             {
-                if (nameEntry->parent != nullptr)
+                if (NameEntry->Parent != nullptr)
                 {
                     return;
                 }
 
-                nameEntry->destroy();
+                NameEntry->Destroy();
             }
 
-            int32_t entryY = lineHeight * file - getScrollOffset() - 1;
-            int32_t entryHeight = lineHeight;
+            int32_t entryY = LineHeight * file - GetScrollOffset() - 1;
+            int32_t entryHeight = LineHeight;
 
             if (entryY < 0)
             {
@@ -950,30 +950,30 @@ auto FileScrollPane::handleEvent(aEvent* event) -> void
                 entryHeight--;
             }
 
-            lTextObject* entry = nameEntry;
-            entry->lObject::init(1, entryY, width() - 0x12, entryHeight, nullptr, nullptr);
-            entry->cursorPos = 0;
-            entry->cursorPixel = 0;
-            entry->backgroundColor = 0x1f;
-            entry->font = lgBlackFont;
-            entry->clearEmptyOnFocus = -1;
-            entry->initBuffer(0x20, lTextObject::INPUT_ANY);
-            entry->setStringBuffer(fileNames[selectedFile]);
-            application->setText(entry);
-            addChild(entry);
+            MCLogTextObject* entry = NameEntry;
+            entry->MCLogObject::Init(1, entryY, Width() - 0x12, entryHeight, nullptr, nullptr);
+            entry->CursorPos = 0;
+            entry->CursorPixel = 0;
+            entry->BackgroundColor = 0x1f;
+            entry->Font = LgBlackFont;
+            entry->ClearEmptyOnFocus = -1;
+            entry->InitBuffer(0x20, MCLogTextObject::INPUT_ANY);
+            entry->SetStringBuffer(FileNames[SelectedFile]);
+            Application->SetText(entry);
+            AddChild(entry);
             break;
         }
 
         case 0x10:
         {
             // A double click on the selected file presses the screen's load/save button.
-            const int32_t file = getFileAtPosition(event->x - globalX(), event->y - globalY());
+            const int32_t file = GetFileAtPosition(event->X - GlobalX(), event->Y - GlobalY());
 
-            if (file > -1 && file == selectedFile)
+            if (file > -1 && file == SelectedFile)
             {
-                lButton* button = static_cast<GenericScreen*>(parent)->loadSaveButton;
-                soundSystem->playDigitalSample(button->pressSound, 1, nullptr, 0, 0);
-                button->callback()->execute();
+                MCLogButton* button = static_cast<MCGenericScreen*>(Parent)->LoadSaveButton;
+                SoundSystem->PlayDigitalSample(button->PressSound, 1, nullptr, 0, 0);
+                button->Callback()->Execute();
                 return;
             }
             break;
@@ -983,7 +983,7 @@ auto FileScrollPane::handleEvent(aEvent* event) -> void
             return;
         case 0x1e:
         {
-            parent->handleEvent(event);
+            Parent->HandleEvent(event);
             return;
         }
         default:
@@ -991,39 +991,39 @@ auto FileScrollPane::handleEvent(aEvent* event) -> void
     }
 }
 
-auto FileScrollPane::setUpSlider() -> void
+auto MCFileScrollPane::SetUpSlider() -> void
 {
-    const int32_t paneHeight = winHeight;
+    const int32_t paneHeight = WinHeight;
 
-    if (contentPort->height() <= paneHeight)
+    if (ContentPort->Height() <= paneHeight)
     {
-        sliderHeight = 0;
+        SliderHeight = 0;
         return;
     }
 
-    if (sliderImage != nullptr)
+    if (SliderImage != nullptr)
     {
-        logFree(sliderImage);
+        LogFree(SliderImage);
     }
 
     const float paneHeightF = static_cast<float>(paneHeight);
-    sliderHeight = static_cast<int32_t>(static_cast<double>(paneHeightF) / contentPort->height() * (paneHeight - 0x20));
-    sliderPos = 0x10;
+    SliderHeight = static_cast<int32_t>(static_cast<double>(paneHeightF) / ContentPort->Height() * (paneHeight - 0x20));
+    SliderPos = 0x10;
 
-    if (sliderHeight < 3)
+    if (SliderHeight < 3)
     {
-        sliderHeight = 3;
+        SliderHeight = 3;
     }
 
-    const uint32_t size = static_cast<uint32_t>(sliderHeight * SliderWidth);
-    sliderImageSize = size;
-    auto* image = static_cast<uint8_t*>(logAlloc(size));
-    sliderImage = image;
+    const uint32_t size = static_cast<uint32_t>(SliderHeight * SliderWidth);
+    SliderImageSize = size;
+    auto* image = static_cast<uint8_t*>(LogAlloc(size));
+    SliderImage = image;
     // As ScrollPane's slider, with the splash screens' edge colour (0xc0).
     static constexpr uint8_t sliderRow[SliderWidth] = {0xc0, 0x10, 0x1c, 0x1a, 0x1a, 0x1a, 0x1a,
                                                        0x1a, 0x1a, 0x1a, 0x17, 0x10, 0xc0};
 
-    for (int32_t row = 0; row < sliderHeight; row++)
+    for (int32_t row = 0; row < SliderHeight; row++)
     {
         std::memcpy(image + row * SliderWidth, sliderRow, SliderWidth);
     }
@@ -1034,13 +1034,13 @@ auto FileScrollPane::setUpSlider() -> void
     MakeSliderTexture();
 }
 
-auto FileScrollPane::getFileAtPosition(int32_t xPos, int32_t yPos) -> int32_t
+auto MCFileScrollPane::GetFileAtPosition(int32_t xPos, int32_t yPos) -> int32_t
 {
-    const int32_t contentY = getScrollOffset() + yPos;
+    const int32_t contentY = GetScrollOffset() + yPos;
 
-    for (int32_t i = 0; i < numFiles; i++)
+    for (int32_t i = 0; i < NumFiles; i++)
     {
-        const tagRECT row = {1, lineHeight * i, width() - SliderWidth, (i + 1) * lineHeight};
+        const tagRECT row = {1, LineHeight * i, Width() - SliderWidth, (i + 1) * LineHeight};
 
         if (PtInRect(&row, tagPOINT{xPos, contentY}))
         {
@@ -1051,153 +1051,153 @@ auto FileScrollPane::getFileAtPosition(int32_t xPos, int32_t yPos) -> int32_t
     return -1;
 }
 
-auto FileScrollPane::setStartDirectory(char* directory) -> void
+auto MCFileScrollPane::SetStartDirectory(char* directory) -> void
 {
-    startDirectory = static_cast<char*>(logAlloc(static_cast<uint32_t>(std::strlen(directory) + 1)));
-    std::sprintf(startDirectory, "%s", directory);
-    getAllFiles(const_cast<char*>(multiplayer != 0 ? ".mpk" : ".sav"), true);
+    StartDirectory = static_cast<char*>(LogAlloc(static_cast<uint32_t>(std::strlen(directory) + 1)));
+    std::sprintf(StartDirectory, "%s", directory);
+    GetAllFiles(const_cast<char*>(Multiplayer != 0 ? ".mpk" : ".sav"), true);
 }
 
-auto FileScrollPane::layoutFiles() -> void
+auto MCFileScrollPane::LayoutFiles() -> void
 {
-    int32_t contentHeight = numFiles * lineHeight;
+    int32_t contentHeight = NumFiles * LineHeight;
 
-    if (contentHeight < height())
+    if (contentHeight < Height())
     {
-        contentHeight = height();
+        contentHeight = Height();
     }
 
-    if (contentPort->height() != contentHeight)
+    if (ContentPort->Height() != contentHeight)
     {
-        lPort* port = contentPort;
-        port->resize(width() - 0x12, contentHeight);
-        setDisplayPort(port, 0, -1);
+        MCLogPort* port = ContentPort;
+        port->Resize(Width() - 0x12, contentHeight);
+        SetDisplayPort(port, 0, -1);
     }
 }
 
-auto FileScrollPane::drawFiles() -> void
+auto MCFileScrollPane::DrawFiles() -> void
 {
-    lPort* port = contentPort;
-    VFX_pane_wipe(port->frame(), 0x10);
+    MCLogPort* port = ContentPort;
+    VfxPaneWipe(port->Frame(), 0x10);
 
-    for (int32_t i = 0; i < numFiles; i++)
+    for (int32_t i = 0; i < NumFiles; i++)
     {
-        if (i == selectedFile)
+        if (i == SelectedFile)
         {
-            _pane box = *ownPort->frame();
-            box.x0 = 1;
-            box.x1 = width() - 0x12;
-            const int32_t rowY = lineHeight * i;
-            box.y0 = rowY - 1;
-            box.y1 = (i + 1) * lineHeight - 2;
-            VFX_pane_wipe(&box, 0x14);
-            port = contentPort;
-            lgWhiteFont->writeString(port->frame(), 1, rowY, reinterpret_cast<uint8_t*>(fileNames[i]), -1);
+            MCPane box = *_OwnPort->Frame();
+            box.X0 = 1;
+            box.X1 = Width() - 0x12;
+            const int32_t rowY = LineHeight * i;
+            box.Y0 = rowY - 1;
+            box.Y1 = (i + 1) * LineHeight - 2;
+            VfxPaneWipe(&box, 0x14);
+            port = ContentPort;
+            LgWhiteFont->WriteString(port->Frame(), 1, rowY, reinterpret_cast<uint8_t*>(FileNames[i]), -1);
         }
         else
         {
-            lgGreyFont->writeString(port->frame(), 1, i * lineHeight, reinterpret_cast<uint8_t*>(fileNames[i]), -1);
+            LgGreyFont->WriteString(port->Frame(), 1, i * LineHeight, reinterpret_cast<uint8_t*>(FileNames[i]), -1);
         }
     }
 }
 
-auto FileScrollPane::getAllFiles(char* extension, bool sort) -> void
+auto MCFileScrollPane::GetAllFiles(char* extension, bool sort) -> void
 {
-    FitIniFile masterFiles[2];
-    FullPathFileName pattern;
-    FullPathFileName path;
-    pattern.init(startDirectory, "*", extension);
+    MCFitIniFile masterFiles[2];
+    MCFullPathFileName pattern;
+    MCFullPathFileName path;
+    pattern.Init(StartDirectory, "*", extension);
     const std::vector<std::string> found = MCFileSystem::FindFiles(static_cast<char*>(pattern));
 
-    if (numFiles != 0 && fileNames != nullptr)
+    if (NumFiles != 0 && FileNames != nullptr)
     {
-        for (int32_t i = 0; i < numFiles; i++)
+        for (int32_t i = 0; i < NumFiles; i++)
         {
-            if (fileNames[i] != nullptr)
+            if (FileNames[i] != nullptr)
             {
-                logFree(fileNames[i]);
+                LogFree(FileNames[i]);
             }
         }
 
-        logFree(fileNames);
-        fileNames = nullptr;
+        LogFree(FileNames);
+        FileNames = nullptr;
     }
 
-    if (fileOperations != nullptr)
+    if (FileOperations != nullptr)
     {
-        logFree(fileOperations);
-        fileOperations = nullptr;
+        LogFree(FileOperations);
+        FileOperations = nullptr;
     }
 
-    if (fileMissions != nullptr)
+    if (FileMissions != nullptr)
     {
-        logFree(fileMissions);
-        fileMissions = nullptr;
+        LogFree(FileMissions);
+        FileMissions = nullptr;
     }
 
-    if (fileResourcePoints != nullptr)
+    if (FileResourcePoints != nullptr)
     {
-        logFree(fileResourcePoints);
-        fileResourcePoints = nullptr;
+        LogFree(FileResourcePoints);
+        FileResourcePoints = nullptr;
     }
 
     // Saving mid-campaign offers a new (empty) slot first.
-    const bool newSlot = savePane != 0 && globalLogPtr->currentMission >= 0;
-    numFiles = static_cast<int32_t>(found.size()) + (newSlot ? 1 : 0);
+    const bool newSlot = SavePane != 0 && GlobalLogPtr->CurrentMission >= 0;
+    NumFiles = static_cast<int32_t>(found.size()) + (newSlot ? 1 : 0);
 
-    if (numFiles == 0)
+    if (NumFiles == 0)
     {
-        setSelectedFile(-1);
+        SetSelectedFile(-1);
     }
     else
     {
         // Port fix: sized by the port's pointer size (the original: count * 4).
-        fileNames = static_cast<char**>(logAlloc(static_cast<uint32_t>(sizeof(char*) * static_cast<size_t>(numFiles))));
-        std::memset(fileNames, 0, sizeof(char*) * static_cast<size_t>(numFiles));
+        FileNames = static_cast<char**>(LogAlloc(static_cast<uint32_t>(sizeof(char*) * static_cast<size_t>(NumFiles))));
+        std::memset(FileNames, 0, sizeof(char*) * static_cast<size_t>(NumFiles));
 
-        if (multiplayer == 0)
+        if (Multiplayer == 0)
         {
-            const uint32_t size = static_cast<uint32_t>(numFiles) << 2;
-            fileOperations = static_cast<int32_t*>(logAlloc(size));
-            fileMissions = static_cast<int32_t*>(logAlloc(size));
-            fileResourcePoints = static_cast<uint32_t*>(logAlloc(size));
+            const uint32_t size = static_cast<uint32_t>(NumFiles) << 2;
+            FileOperations = static_cast<int32_t*>(LogAlloc(size));
+            FileMissions = static_cast<int32_t*>(LogAlloc(size));
+            FileResourcePoints = static_cast<uint32_t*>(LogAlloc(size));
         }
     }
 
     int32_t firstFile = 0;
 
-    if (multiplayer == 0)
+    if (Multiplayer == 0)
     {
         // The operation and mission numbers come from the planets' master mission files (Port Arthur, Cermak).
-        path.init(missionPath, "mechcmdr1", ".fit");
-        int32_t result = masterFiles[0].open(static_cast<char*>(path), READ, 0x32);
+        path.Init(MissionPath, "mechcmdr1", ".fit");
+        int32_t result = masterFiles[0].Open(static_cast<char*>(path), READ, 0x32);
         Assert(result == 0, 0, " could not open Port Arthur master mission file ", nullptr);
-        result = masterFiles[0].seekBlock("OpInfo");
+        result = masterFiles[0].SeekBlock("OpInfo");
         Assert(result == 0, 0, " could not find operation information in master mission file", nullptr);
-        path.init(missionPath, "xmechcmdr1", ".fit");
-        result = masterFiles[1].open(static_cast<char*>(path), READ, 0x32);
+        path.Init(MissionPath, "xmechcmdr1", ".fit");
+        result = masterFiles[1].Open(static_cast<char*>(path), READ, 0x32);
         Assert(result == 0, 0, " could not open Cermak master mission file ", nullptr);
-        result = masterFiles[1].seekBlock("OpInfo");
+        result = masterFiles[1].SeekBlock("OpInfo");
         Assert(result == 0, 0, " could not find operation information in master mission file", nullptr);
 
         if (newSlot)
         {
-            FitIniFile& master = CurPlanet == 0 ? masterFiles[0] : masterFiles[1];
+            MCFitIniFile& master = CurPlanet == 0 ? masterFiles[0] : masterFiles[1];
             // The empty slot's name block is 16 bytes (EmptyFile fits).
-            fileNames[0] = static_cast<char*>(logAlloc(0x10));
-            std::strcpy(fileNames[0], EmptyFile);
+            FileNames[0] = static_cast<char*>(LogAlloc(0x10));
+            std::strcpy(FileNames[0], EmptyFile);
             char key[64];
             int32_t operation = 0;
             int32_t mission = 0;
-            std::snprintf(key, sizeof(key), "Scenario%iOperation", globalLogPtr->currentMission);
-            result = master.readIdLong(key, operation);
+            std::snprintf(key, sizeof(key), "Scenario%iOperation", GlobalLogPtr->CurrentMission);
+            result = master.ReadIdLong(key, operation);
             Assert(result == 0, 0, " could not find operation number in master mission file ", nullptr);
-            std::snprintf(key, sizeof(key), "Scenario%iMission", globalLogPtr->currentMission);
-            result = master.readIdLong(key, mission);
+            std::snprintf(key, sizeof(key), "Scenario%iMission", GlobalLogPtr->CurrentMission);
+            result = master.ReadIdLong(key, mission);
             Assert(result == 0, 0, " could not find mission number in master mission file ", nullptr);
-            fileOperations[0] = operation;
-            fileMissions[0] = mission;
-            fileResourcePoints[0] = static_cast<uint32_t>(ResourcePoints);
+            FileOperations[0] = operation;
+            FileMissions[0] = mission;
+            FileResourcePoints[0] = static_cast<uint32_t>(ResourcePoints);
             firstFile = 1;
         }
     }
@@ -1208,60 +1208,60 @@ auto FileScrollPane::getAllFiles(char* extension, bool sort) -> void
     {
         // The name without its extension.
         const std::string stem = std::filesystem::path(name).stem().string();
-        fileNames[index] = static_cast<char*>(logAlloc(static_cast<uint32_t>(stem.size() + 1)));
-        std::sprintf(fileNames[index], "%s", stem.c_str());
-        path.init(startDirectory, stem.c_str(), extension);
+        FileNames[index] = static_cast<char*>(LogAlloc(static_cast<uint32_t>(stem.size() + 1)));
+        std::sprintf(FileNames[index], "%s", stem.c_str());
+        path.Init(StartDirectory, stem.c_str(), extension);
 
-        if (multiplayer == 0)
+        if (Multiplayer == 0)
         {
-            PacketFile saveFile;
-            FitIniFile saveFit;
+            MCPacketFile saveFile;
+            MCFitIniFile saveFit;
             int32_t planet = 0;
-            int32_t result = saveFile.open(static_cast<char*>(path), READ, 0x32);
+            int32_t result = saveFile.Open(static_cast<char*>(path), READ, 0x32);
             Assert(result == 0, result, " Could not find save game file ", nullptr);
-            result = saveFile.seekPacket(0);
+            result = saveFile.SeekPacket(0);
             Assert(result == 0, 0, " could not find packet 0 in save game file ", nullptr);
-            result = saveFit.open(&saveFile, static_cast<uint32_t>(saveFile.getPacketSize()), 0x32);
+            result = saveFit.Open(&saveFile, static_cast<uint32_t>(saveFile.GetPacketSize()), 0x32);
             Assert(result == 0, 0, " could not open save game file ", nullptr);
 
-            if (saveFit.seekBlock("Planet") == 0)
+            if (saveFit.SeekBlock("Planet") == 0)
             {
-                saveFit.readIdLong("Setting", planet);
+                saveFit.ReadIdLong("Setting", planet);
             }
 
-            result = saveFit.seekBlock("General");
+            result = saveFit.SeekBlock("General");
             Assert(result == 0, 0, " could not find General Block in campaign file ", nullptr);
             int32_t missionNumber = 0;
-            result = saveFit.readIdLong("MissionNumber", missionNumber);
+            result = saveFit.ReadIdLong("MissionNumber", missionNumber);
             Assert(result == 0, 0, " Could not find MissionNumber in save game file ", nullptr);
-            result = saveFit.seekBlock("ResourcePoints");
+            result = saveFit.SeekBlock("ResourcePoints");
             Assert(result == 0, 0, " could not find ResourcePoints Block in save game file ", nullptr);
-            result = saveFit.readIdULong("numPoints", fileResourcePoints[index]);
+            result = saveFit.ReadIdULong("numPoints", FileResourcePoints[index]);
             Assert(result == 0, 0, " Could not find numPoints in save game file ", nullptr);
-            saveFit.close();
-            saveFile.close();
+            saveFit.Close();
+            saveFile.Close();
             char key[64];
             int32_t operation = 0;
             int32_t mission = 0;
             std::snprintf(key, sizeof(key), "Scenario%iOperation", missionNumber);
-            result = masterFiles[planet].readIdLong(key, operation);
+            result = masterFiles[planet].ReadIdLong(key, operation);
             Assert(result == 0, 0, " could not find operation number in master mission file ", nullptr);
             std::snprintf(key, sizeof(key), "Scenario%iMission", missionNumber);
-            result = masterFiles[planet].readIdLong(key, mission);
+            result = masterFiles[planet].ReadIdLong(key, mission);
             Assert(result == 0, 0, " could not find mission number in master mission file ", nullptr);
-            fileOperations[index] = operation;
-            fileMissions[index] = mission;
+            FileOperations[index] = operation;
+            FileMissions[index] = mission;
         }
 
         index++;
     }
 
-    masterFiles[0].close();
-    masterFiles[1].close();
+    masterFiles[0].Close();
+    masterFiles[1].Close();
 
-    if (selectedFile >= numFiles)
+    if (SelectedFile >= NumFiles)
     {
-        selectedFile = -1;
+        SelectedFile = -1;
     }
 
     if (sort)
@@ -1270,114 +1270,114 @@ auto FileScrollPane::getAllFiles(char* extension, bool sort) -> void
         char selectedName[0x800];
         selectedName[0] = 0;
 
-        if (selectedFile != -1)
+        if (SelectedFile != -1)
         {
-            std::strcpy(selectedName, fileNames[selectedFile]);
+            std::strcpy(selectedName, FileNames[SelectedFile]);
         }
 
-        for (int32_t i = 0; i < numFiles; i++)
+        for (int32_t i = 0; i < NumFiles; i++)
         {
-            for (int32_t j = i; j < numFiles; j++)
+            for (int32_t j = i; j < NumFiles; j++)
             {
-                if (std::strcmp(fileNames[i], fileNames[j]) > 0)
+                if (std::strcmp(FileNames[i], FileNames[j]) > 0)
                 {
-                    std::swap(fileNames[i], fileNames[j]);
+                    std::swap(FileNames[i], FileNames[j]);
 
-                    if (multiplayer == 0)
+                    if (Multiplayer == 0)
                     {
-                        std::swap(fileOperations[i], fileOperations[j]);
-                        std::swap(fileMissions[i], fileMissions[j]);
-                        std::swap(fileResourcePoints[i], fileResourcePoints[j]);
+                        std::swap(FileOperations[i], FileOperations[j]);
+                        std::swap(FileMissions[i], FileMissions[j]);
+                        std::swap(FileResourcePoints[i], FileResourcePoints[j]);
                     }
                 }
             }
         }
 
-        if (selectedFile != -1)
+        if (SelectedFile != -1)
         {
-            for (int32_t i = 0; i < numFiles; i++)
+            for (int32_t i = 0; i < NumFiles; i++)
             {
-                if (std::strcmp(fileNames[i], selectedName) == 0)
+                if (std::strcmp(FileNames[i], selectedName) == 0)
                 {
-                    selectedFile = i;
+                    SelectedFile = i;
                     break;
                 }
             }
         }
     }
 
-    layoutFiles();
+    LayoutFiles();
 }
 
-auto FileScrollPane::setSelectedFile(int32_t file) -> void
+auto MCFileScrollPane::SetSelectedFile(int32_t file) -> void
 {
-    if (nameEntry != nullptr)
+    if (NameEntry != nullptr)
     {
-        nameEntry->destroy();
+        NameEntry->Destroy();
     }
 
-    aEvent event;
-    event.clear();
+    MCGuiEvent event;
+    event.Clear();
 
-    if (file < 0 || file >= numFiles)
+    if (file < 0 || file >= NumFiles)
     {
-        selectedFile = -1;
-        layoutFiles();
+        SelectedFile = -1;
+        LayoutFiles();
 
-        if (parent != nullptr)
+        if (Parent != nullptr)
         {
-            event.type = 0x1e;
-            event.data = 2;
-            event.lParam = file;
-            parent->handleEvent(&event);
+            event.Type = 0x1e;
+            event.Data = 2;
+            event.LParam = file;
+            Parent->HandleEvent(&event);
         }
 
         return;
     }
 
     // Scroll half a unit at a time until the row is in view.
-    while (lineHeight * file - getScrollOffset() < 0 && scrollPos > 0.0f)
+    while (LineHeight * file - GetScrollOffset() < 0 && ScrollPos > 0.0f)
     {
-        setScrollPos(static_cast<float>(scrollPos - 0.5));
+        SetScrollPos(static_cast<float>(ScrollPos - 0.5));
     }
-    while (height() < (lineHeight + 1) * file - getScrollOffset() && scrollPos < maxScroll)
+    while (Height() < (LineHeight + 1) * file - GetScrollOffset() && ScrollPos < MaxScroll)
     {
-        setScrollPos(static_cast<float>(scrollPos + 0.5));
+        SetScrollPos(static_cast<float>(ScrollPos + 0.5));
     }
 
-    selectedFile = file;
-    layoutFiles();
-    event.type = 0x1e;
-    event.data = 1;
-    event.lParam = file;
-    parent->handleEvent(&event);
+    SelectedFile = file;
+    LayoutFiles();
+    event.Type = 0x1e;
+    event.Data = 1;
+    event.LParam = file;
+    Parent->HandleEvent(&event);
 }
 
-auto FileScrollPane::setMultiplayer(int newMultiplayer) -> void
+auto MCFileScrollPane::SetMultiplayer(int newMultiplayer) -> void
 {
-    multiplayer = newMultiplayer;
-    getAllFiles(const_cast<char*>(newMultiplayer != 0 ? ".mpk" : ".sav"), true);
+    Multiplayer = newMultiplayer;
+    GetAllFiles(const_cast<char*>(newMultiplayer != 0 ? ".mpk" : ".sav"), true);
 }
 
 // GenericScreen
 
-GenericScreen::~GenericScreen()
+MCGenericScreen::~MCGenericScreen()
 {
-    GenericScreen::destroy();
+    MCGenericScreen::Destroy();
 }
 
-auto GenericScreen::getPaletteFromArt(char* fileName) -> uint8_t*
+auto MCGenericScreen::GetPaletteFromArt(char* fileName) -> uint8_t*
 {
     char message[256];
     char path[252];
-    File file;
-    std::snprintf(path, sizeof(path), "%s%s", artPath, fileName);
+    MCFile file;
+    std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (file.open(path, READ, 0x32) != 0)
+    if (file.Open(path, READ, 0x32) != 0)
     {
         std::snprintf(path, sizeof(path), "%s", fileName);
 
-        if (file.open(path, READ, 0x32) != 0)
+        if (file.Open(path, READ, 0x32) != 0)
         {
             std::snprintf(message, sizeof(message), "Error reading '%s'", path);
             GeneralMsg(message);
@@ -1385,7 +1385,7 @@ auto GenericScreen::getPaletteFromArt(char* fileName) -> uint8_t*
         }
     }
 
-    const uint32_t size = file.fileSize();
+    const uint32_t size = file.FileSize();
 
     if (size == 0)
     {
@@ -1394,35 +1394,35 @@ auto GenericScreen::getPaletteFromArt(char* fileName) -> uint8_t*
         return nullptr;
     }
 
-    auto* data = static_cast<uint8_t*>(logAlloc(size));
+    auto* data = static_cast<uint8_t*>(LogAlloc(size));
 
     if (data == nullptr)
     {
         return nullptr;
     }
 
-    file.read(data, static_cast<int32_t>(size));
-    file.close();
+    file.Read(data, static_cast<int32_t>(size));
+    file.Close();
     // The TGA's palette (BGR after the 18-byte header), as 6-bit RGB.
-    palette = static_cast<uint8_t*>(logAlloc(0x300));
+    Palette = static_cast<uint8_t*>(LogAlloc(0x300));
     const uint8_t* source = data + 0x12;
 
     for (int32_t i = 0; i < 0x100; i++)
     {
-        palette[i * 3] = source[i * 3 + 2] >> 2;
-        palette[i * 3 + 1] = source[i * 3 + 1] >> 2;
-        palette[i * 3 + 2] = source[i * 3] >> 2;
+        Palette[i * 3] = source[i * 3 + 2] >> 2;
+        Palette[i * 3 + 1] = source[i * 3 + 1] >> 2;
+        Palette[i * 3 + 2] = source[i * 3] >> 2;
     }
 
-    logFree(data);
-    return palette;
+    LogFree(data);
+    return Palette;
 }
 
-auto GenericScreen::init(FitIniFile* screenFile) -> int32_t
+auto MCGenericScreen::Init(MCFitIniFile* screenFile) -> int32_t
 {
-    readElementCount(screenFile, this);
+    ReadElementCount(screenFile, this);
 
-    for (int32_t i = 0; i < numElements; i++)
+    for (int32_t i = 0; i < NumElements; i++)
     {
         int32_t type = -1;
         int32_t left = 0;
@@ -1430,7 +1430,7 @@ auto GenericScreen::init(FitIniFile* screenFile) -> int32_t
         int32_t width = 0;
         int32_t height = 0;
         char art[256];
-        readElement(screenFile, i, type, left, top, width, height, art);
+        ReadElement(screenFile, i, type, left, top, width, height, art);
 
         switch (type)
         {
@@ -1439,55 +1439,55 @@ auto GenericScreen::init(FitIniFile* screenFile) -> int32_t
                 // The background: the screen itself.
                 Assert(i == 0, i, " Background MUST be first element ", nullptr);
                 int useBackPalette = 0;
-                int32_t result = screenFile->readIdBoolean("UseBackPalette", useBackPalette);
+                int32_t result = screenFile->ReadIdBoolean("UseBackPalette", useBackPalette);
                 Assert(result == 0, result, " Could not find UseBackPalette for background Generic Screen", nullptr);
 
                 if (useBackPalette != 0)
                 {
-                    palette = getPaletteFromArt(art);
+                    Palette = GetPaletteFromArt(art);
                 }
 
-                result = lObject::init(left, top, width, height, nullptr, nullptr);
+                result = MCLogObject::Init(left, top, width, height, nullptr, nullptr);
                 Assert(result == 0, result, " Could not start background Generic Screen ", nullptr);
-                artPort = new lPort;
-                result = artPort->init(art);
+                ArtPort = new MCLogPort;
+                result = ArtPort->Init(art);
                 Assert(result == 0, result, " Could not find background Art in Generic Screen ", nullptr);
-                elements[i] = this;
+                Elements[i] = this;
                 break;
             }
 
             case 1:
             {
-                auto* button = new lButton;
-                const int32_t result = button->init(left, top, width, height, nullptr);
+                auto* button = new MCLogButton;
+                const int32_t result = button->Init(left, top, width, height, nullptr);
                 Assert(result == 0, result, " Couldn't init new button ", nullptr);
                 int32_t callback = 0;
 
-                if (readButton(screenFile, button, art, callback) && !setScreenCallback(this, button, callback))
+                if (ReadButton(screenFile, button, art, callback) && !SetScreenCallback(this, button, callback))
                 {
                     Fatal(callback, " Illegal callback value");
                 }
 
-                elements[i] = button;
-                addChild(button);
+                Elements[i] = button;
+                AddChild(button);
                 break;
             }
 
             case 4:
             {
-                lTextObject* entry = makeTextEntry(left, top, width, height);
-                elements[i] = entry;
-                addChild(entry);
+                MCLogTextObject* entry = MakeTextEntry(left, top, width, height);
+                Elements[i] = entry;
+                AddChild(entry);
                 break;
             }
 
             case 5:
             {
-                FileScrollPane* pane = makeFilePane(screenFile, left, top, width, height);
-                pane->ShowGUIWindow(-1);
-                elements[i] = pane;
-                addChild(pane);
-                filePane = pane;
+                MCFileScrollPane* pane = MakeFilePane(screenFile, left, top, width, height);
+                pane->ShowGuiWindow(-1);
+                Elements[i] = pane;
+                AddChild(pane);
+                FilePane = pane;
                 break;
             }
 
@@ -1496,163 +1496,163 @@ auto GenericScreen::init(FitIniFile* screenFile) -> int32_t
         }
     }
 
-    screenWindow->addChild(this);
-    ShowGUIWindow(0);
+    ScreenWindow->AddChild(this);
+    ShowGuiWindow(0);
     return 0;
 }
 
-auto GenericScreen::destroy() -> void
+auto MCGenericScreen::Destroy() -> void
 {
-    screenWindow->removeChild(this);
+    ScreenWindow->RemoveChild(this);
 
     // Element 0 is the background (the screen itself).
-    for (int32_t i = 1; i < numElements; i++)
+    for (int32_t i = 1; i < NumElements; i++)
     {
-        aObject* element = elements[i];
-        removeChild(element);
+        MCGuiObject* element = Elements[i];
+        RemoveChild(element);
 
         // Port fix: slots of skipped element types are empty (the original deleted whatever the heap held).
         if (element != nullptr)
         {
-            element->destroy();
+            element->Destroy();
             delete element;
         }
 
-        elements[i] = nullptr;
+        Elements[i] = nullptr;
     }
 
-    logFree(elements);
-    elements = nullptr;
-    logFree(palette);
-    palette = nullptr;
-    numElements = 0;
-    numChildren = 0;
-    freePort(artPort);
-    lObject::destroy();
+    LogFree(Elements);
+    Elements = nullptr;
+    LogFree(Palette);
+    Palette = nullptr;
+    NumElements = 0;
+    NumChildren = 0;
+    FreePort(ArtPort);
+    MCLogObject::Destroy();
 }
 
-auto GenericScreen::draw() -> void
+auto MCGenericScreen::Draw() -> void
 {
-    if (artPort != nullptr && lport()->viewOpen())
+    if (ArtPort != nullptr && Lport()->ViewOpen())
     {
-        artPort->copyTo(lport()->frame(), 0, 0, 0);
+        ArtPort->CopyTo(Lport()->Frame(), 0, 0, 0);
     }
 
-    lObject::draw();
+    MCLogObject::Draw();
 }
 
-auto lImage::destroy() -> void
+auto MCLogImage::Destroy() -> void
 {
-    freePort(art);
-    lObject::destroy();
+    FreePort(Art);
+    MCLogObject::Destroy();
 }
 
-auto lImage::draw() -> void
+auto MCLogImage::Draw() -> void
 {
-    if (art != nullptr)
+    if (Art != nullptr)
     {
-        art->copyTo(lport()->frame(), 0, 0, 0);
+        Art->CopyTo(Lport()->Frame(), 0, 0, 0);
     }
 
-    lObject::draw();
+    MCLogObject::Draw();
 }
 
-auto GenericScreen::handleEvent(aEvent* event) -> void
+auto MCGenericScreen::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 9 && event->key == 0x1b)
+    if (event->Type == 9 && event->Key == 0x1b)
     {
         Cancel();
     }
 
-    if (eventRoutine != nullptr)
+    if (EventRoutine != nullptr)
     {
-        eventRoutine(this, event);
+        EventRoutine(this, event);
     }
 }
 
-auto GenericScreen::ShowGUIWindow(int show) -> void
+auto MCGenericScreen::ShowGuiWindow(int show) -> void
 {
     // A screen shows its buttons up (the original painted it afresh), the one clicked to leave it included.
-    lButton::LetGoPress();
+    MCLogButton::LetGoPress();
 
     if (show == 0)
     {
         // Hiding drops a half-typed save name.
-        if (filePane != nullptr && filePane->nameEntry != nullptr)
+        if (FilePane != nullptr && FilePane->NameEntry != nullptr)
         {
-            filePane->nameEntry->destroy();
-            showWindow = 0;
+            FilePane->NameEntry->Destroy();
+            ShowWindow = 0;
             return;
         }
 
-        showWindow = show;
+        ShowWindow = show;
         return;
     }
 
-    if (this == globalLogPtr->mainScreen)
+    if (this == GlobalLogPtr->MainScreen)
     {
         // The main menu enables what the install and the campaign allow.
-        const int noMission = globalLogPtr->currentMission < 0 ? 1 : 0;
-        auto* saveButton = static_cast<lButton*>(elements[2]);
-        saveButton->disabled = Solo == 0 ? noMission : -1;
-        auto* returnButton = static_cast<lButton*>(elements[7]);
-        returnButton->disabled = noMission;
+        const int noMission = GlobalLogPtr->CurrentMission < 0 ? 1 : 0;
+        auto* saveButton = static_cast<MCLogButton*>(Elements[2]);
+        saveButton->Disabled = Solo == 0 ? noMission : -1;
+        auto* returnButton = static_cast<MCLogButton*>(Elements[7]);
+        returnButton->Disabled = noMission;
 
         char pattern[256];
-        std::snprintf(pattern, sizeof(pattern), "%s*.sav", savePath);
-        auto* loadButton = static_cast<lButton*>(elements[3]);
-        loadButton->disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
-        std::snprintf(pattern, sizeof(pattern), "%s*.sol", savePath);
-        auto* soloLoadButton = static_cast<lButton*>(elements[10]);
-        soloLoadButton->disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
+        std::snprintf(pattern, sizeof(pattern), "%s*.sav", SavePath);
+        auto* loadButton = static_cast<MCLogButton*>(Elements[3]);
+        loadButton->Disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
+        std::snprintf(pattern, sizeof(pattern), "%s*.sol", SavePath);
+        auto* soloLoadButton = static_cast<MCLogButton*>(Elements[10]);
+        soloLoadButton->Disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
 
         // Multiplayer needs 30 MB.
         if (MCPort::TotalPhysicalMemory() < 30000000)
         {
-            auto* multiplayerButton = static_cast<lButton*>(elements[5]);
-            multiplayerButton->disabled = -1;
+            auto* multiplayerButton = static_cast<MCLogButton*>(Elements[5]);
+            multiplayerButton->Disabled = -1;
         }
 
         if (InDemo != 0)
         {
-            auto* button = static_cast<lButton*>(elements[4]);
-            button->disabled = -1;
-            button = static_cast<lButton*>(elements[5]);
-            button->disabled = -1;
+            auto* button = static_cast<MCLogButton*>(Elements[4]);
+            button->Disabled = -1;
+            button = static_cast<MCLogButton*>(Elements[5]);
+            button->Disabled = -1;
             std::snprintf(pattern, sizeof(pattern), "%sopening.smk", CDmoviePath);
-            auto* cinemaButton = static_cast<lButton*>(elements[6]);
-            cinemaButton->disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
+            auto* cinemaButton = static_cast<MCLogButton*>(Elements[6]);
+            cinemaButton->Disabled = MCFileSystem::FindFiles(pattern).empty() ? -1 : 0;
         }
     }
-    else if (this == globalLogPtr->saveScreen || this == globalLogPtr->loadScreen)
+    else if (this == GlobalLogPtr->SaveScreen || this == GlobalLogPtr->LoadScreen)
     {
-        if (filePane->multiplayer != 0)
+        if (FilePane->Multiplayer != 0)
         {
-            filePane->getAllFiles(const_cast<char*>(".mpk"), true);
+            FilePane->GetAllFiles(const_cast<char*>(".mpk"), true);
         }
         else
         {
-            filePane->getAllFiles(const_cast<char*>(LoadingSolo == 0 ? ".sav" : ".sol"), true);
+            FilePane->GetAllFiles(const_cast<char*>(LoadingSolo == 0 ? ".sav" : ".sol"), true);
         }
     }
 
     // The load and save screens (single player) and the preferences keep the current palette.
-    lObject* current = globalLogPtr->currentScreen;
-    const bool fileScreen = current == globalLogPtr->saveScreen || current == globalLogPtr->loadScreen;
+    MCLogObject* current = GlobalLogPtr->CurrentScreen;
+    const bool fileScreen = current == GlobalLogPtr->SaveScreen || current == GlobalLogPtr->LoadScreen;
 
-    if ((!fileScreen || globalLogPtr->loadScreen->filePane->multiplayer != 0) && current != globalLogPtr->prefScreen)
+    if ((!fileScreen || GlobalLogPtr->LoadScreen->FilePane->Multiplayer != 0) && current != GlobalLogPtr->PrefScreen)
     {
-        if (palette != nullptr)
+        if (Palette != nullptr)
         {
-            application->activatePalette(palette, 0, 0x100);
-            showWindow = show;
+            Application->ActivatePalette(Palette, 0, 0x100);
+            ShowWindow = show;
             return;
         }
 
-        gamePalette->activate(0, 0);
+        GamePalette->Activate(0, 0);
     }
 
-    showWindow = show;
+    ShowWindow = show;
 }
 
 // MCSplashScreen
@@ -1660,71 +1660,71 @@ auto GenericScreen::ShowGUIWindow(int show) -> void
 MCSplashScreen::MCSplashScreen()
 {
     // The screens share one background port while any exists.
-    if (instanceCount == 0 && genericPort == nullptr)
+    if (_InstanceCount == 0 && _GenericPort == nullptr)
     {
-        genericPort = new lPort;
-        std::strcpy(genericPortFileName, "None");
+        _GenericPort = new MCLogPort;
+        std::strcpy(_GenericPortFileName, "None");
     }
 
-    instanceCount++;
+    _InstanceCount++;
 }
 
 MCSplashScreen::~MCSplashScreen()
 {
-    instanceCount--;
+    _InstanceCount--;
     // The shared art isn't this screen's to free.
-    artPort = nullptr;
+    ArtPort = nullptr;
 
-    if (instanceCount == 0 && genericPort != nullptr)
+    if (_InstanceCount == 0 && _GenericPort != nullptr)
     {
-        genericPort->destroy();
-        delete genericPort;
-        genericPort = nullptr;
+        _GenericPort->Destroy();
+        delete _GenericPort;
+        _GenericPort = nullptr;
     }
 
-    if (blocks != nullptr)
+    if (Blocks != nullptr)
     {
-        for (int32_t i = 0; i < numBlocks; i++)
+        for (int32_t i = 0; i < NumBlocks; i++)
         {
-            if (blocks[i] != nullptr)
+            if (Blocks[i] != nullptr)
             {
-                logFree(blocks[i]);
-                blocks[i] = nullptr;
+                LogFree(Blocks[i]);
+                Blocks[i] = nullptr;
             }
         }
 
-        logFree(blocks);
-        blocks = nullptr;
+        LogFree(Blocks);
+        Blocks = nullptr;
     }
 
-    GenericScreen::destroy();
+    MCGenericScreen::Destroy();
 }
 
-auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
+auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
 {
-    readElementCount(screenFile, this);
+    ReadElementCount(screenFile, this);
 
     // Blocks: which elements show together (showBlock), one byte per element.
-    if (screenFile->seekBlock("Blocks") == 0)
+    if (screenFile->SeekBlock("Blocks") == 0)
     {
-        int32_t result = screenFile->readIdLong("Block Count", numBlocks);
+        int32_t result = screenFile->ReadIdLong("Block Count", NumBlocks);
         Assert(result == 0, result, " Could not find block count in Generic Screen ", nullptr);
         // Port fix: sized by the port's pointer size (the original: count * 4).
-        blocks =
-            static_cast<uint8_t**>(logAlloc(static_cast<uint32_t>(sizeof(uint8_t*) * static_cast<size_t>(numBlocks))));
-        Assert(blocks != nullptr, 0, " No RAM for Generic Screen Block Array ", nullptr);
-        const uint32_t blockSize = static_cast<uint32_t>(numElements);
+        Blocks =
+            static_cast<uint8_t**>(LogAlloc(static_cast<uint32_t>(sizeof(uint8_t*) * static_cast<size_t>(NumBlocks))));
+        Assert(Blocks != nullptr, 0, " No RAM for Generic Screen Block Array ", nullptr);
+        const uint32_t blockSize = static_cast<uint32_t>(NumElements);
 
-        for (int32_t i = 0; i < numBlocks; i++)
+        for (int32_t i = 0; i < NumBlocks; i++)
         {
-            blocks[i] = static_cast<uint8_t*>(logAlloc(blockSize));
+            Blocks[i] = static_cast<uint8_t*>(LogAlloc(blockSize));
             char blockName[20];
             std::snprintf(blockName, sizeof(blockName), "Block%d", i);
-            screenFile->readIdUCharArray(blockName, blocks[i], blockSize);
+            screenFile->ReadIdUCharArray(blockName, Blocks[i], blockSize);
         }
     }
 
-    for (int32_t i = 0; i < numElements; i++)
+    for (int32_t i = 0; i < NumElements; i++)
     {
         int32_t type = -1;
         int32_t left = 0;
@@ -1732,8 +1732,8 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
         int32_t width = 0;
         int32_t height = 0;
         char art[256];
-        readElement(screenFile, i, type, left, top, width, height, art);
-        aObject* element = nullptr;
+        ReadElement(screenFile, i, type, left, top, width, height, art);
+        MCGuiObject* element = nullptr;
 
         switch (type)
         {
@@ -1742,39 +1742,39 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
                 // The background: the shared port, reloaded only when the art changes.
                 Assert(i == 0, i, " If there's a background it MUST be the first element ", nullptr);
 
-                if (MCPort::StrICmp(genericPortFileName, art) != 0)
+                if (MCPort::StrICmp(_GenericPortFileName, art) != 0)
                 {
-                    std::strcpy(genericPortFileName, art);
-                    const int32_t result = genericPort->init(art);
+                    std::strcpy(_GenericPortFileName, art);
+                    const int32_t result = _GenericPort->Init(art);
                     Assert(result == 0, result, " Could not find background Art in Generic Screen ", nullptr);
                 }
 
                 int useBackPalette = 0;
-                int32_t result = screenFile->readIdBoolean("UseBackPalette", useBackPalette);
+                int32_t result = screenFile->ReadIdBoolean("UseBackPalette", useBackPalette);
                 Assert(result == 0, result, " Could not find UseBackPalette for background Generic Screen", nullptr);
 
                 if (useBackPalette != 0)
                 {
-                    palette = getPaletteFromArt(art);
+                    Palette = GetPaletteFromArt(art);
                 }
 
                 // The screen draws the shared art each frame (the original made the shared port its own).
-                result = lObject::init(left, top, width, height, nullptr, nullptr);
+                result = MCLogObject::Init(left, top, width, height, nullptr, nullptr);
                 Assert(result == 0, result, " Could not start background Generic Screen ", nullptr);
-                artPort = genericPort;
-                elements[i] = this;
+                ArtPort = _GenericPort;
+                Elements[i] = this;
                 continue;
             }
 
             case 1:
             {
-                auto* button = new lButton;
-                const int32_t result = button->init(left, top, width, height, nullptr);
+                auto* button = new MCLogButton;
+                const int32_t result = button->Init(left, top, width, height, nullptr);
                 button->SetTransparent(-1);
                 Assert(result == 0, result, " Couldn't init new button ", nullptr);
                 int32_t callback = 0;
 
-                if (readButton(screenFile, button, art, callback))
+                if (ReadButton(screenFile, button, art, callback))
                 {
                     void (*exec)() = nullptr;
 
@@ -1787,7 +1787,7 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
                             exec = ShowSerialScreen;
                             break;
                         case 14:
-                            exec = ShowLANScreen;
+                            exec = ShowLanScreen;
                             break;
                         case 15:
                             exec = ShowInternet;
@@ -1796,7 +1796,7 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
                             exec = CancelToConnect;
                             break;
                         case 17:
-                            exec = CancelToLAN;
+                            exec = CancelToLan;
                             break;
                         case 18:
                             exec = HostGame;
@@ -1808,10 +1808,10 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
                             exec = CreateSession;
                             break;
                         case 21:
-                            exec = GO;
+                            exec = Go;
                             break;
                         case 22:
-                            exec = Leave;
+                            exec = ::Leave;
                             break;
                         case 23:
                             exec = WaitForCall;
@@ -1846,105 +1846,105 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
 
                     if (exec != nullptr)
                     {
-                        button->callback()->setExec(exec);
+                        button->Callback()->SetExec(exec);
                     }
-                    else if (!setScreenCallback(this, button, callback))
+                    else if (!SetScreenCallback(this, button, callback))
                     {
                         Fatal(callback, " Illegal callback value");
                     }
                 }
 
-                elements[i] = button;
-                addChild(button);
+                Elements[i] = button;
+                AddChild(button);
                 continue;
             }
 
             case 4:
             {
-                lTextObject* entry = makeTextEntry(left, top, width, height);
-                elements[i] = entry;
-                entry->ShowGUIWindow(-1);
-                addChild(entry);
+                MCLogTextObject* entry = MakeTextEntry(left, top, width, height);
+                Elements[i] = entry;
+                entry->ShowGuiWindow(-1);
+                AddChild(entry);
                 continue;
             }
 
             case 5:
             {
-                FileScrollPane* pane = makeFilePane(screenFile, left, top, width, height);
-                filePane = pane;
-                pane->ShowGUIWindow(-1);
-                addChild(pane);
-                elements[i] = pane;
+                MCFileScrollPane* pane = MakeFilePane(screenFile, left, top, width, height);
+                FilePane = pane;
+                pane->ShowGuiWindow(-1);
+                AddChild(pane);
+                Elements[i] = pane;
                 continue;
             }
 
             case 6:
             {
                 // A picture; elements 6 and the others go just behind the rest.
-                auto* image = new lImage;
-                elements[i] = image;
-                image->init(left, top, width, height, nullptr, nullptr);
-                image->art = new lPort;
-                image->art->init(art);
-                addChild(image);
-                elements[i]->setDepth(i == 6 ? -0xb : -0xa);
-                elements[i]->setEventRoutine(ImageHandleEvent);
+                auto* image = new MCLogImage;
+                Elements[i] = image;
+                image->Init(left, top, width, height, nullptr, nullptr);
+                image->Art = new MCLogPort;
+                image->Art->Init(art);
+                AddChild(image);
+                Elements[i]->SetDepth(i == 6 ? -0xb : -0xa);
+                Elements[i]->SetEventRoutine(ImageHandleEvent);
                 continue;
             }
 
             case 7:
             {
-                auto* text = new lScrollTextObject;
-                text->init(left, top, width, height, nullptr);
+                auto* text = new MCLogScrollTextObject;
+                text->Init(left, top, width, height, nullptr);
                 int scrolling = 0;
-                const int32_t result = screenFile->readIdBoolean("Scrolling", scrolling);
+                const int32_t result = screenFile->ReadIdBoolean("Scrolling", scrolling);
                 Assert(result == 0, result, " Couldn't locate Scrolling in textscrollpane ", nullptr);
-                text->scrollTab->ShowGUIWindow(scrolling);
-                text->scrolling = scrolling;
-                text->ShowGUIWindow(-1);
-                addChild(text);
-                elements[i] = text;
+                text->ScrollTab->ShowGuiWindow(scrolling);
+                text->Scrolling = scrolling;
+                text->ShowGuiWindow(-1);
+                AddChild(text);
+                Elements[i] = text;
                 continue;
             }
 
             case 8:
             {
-                auto* list = new GameList;
-                elements[i] = list;
-                list->init(left, top, width, height, nullptr);
+                auto* list = new MCGameList;
+                Elements[i] = list;
+                list->Init(left, top, width, height, nullptr);
                 element = list;
                 break;
             }
 
             case 9:
             {
-                auto* slider = new lSlider;
-                elements[i] = slider;
-                slider->init(left, top, width, height, nullptr);
+                auto* slider = new MCLogSlider;
+                Elements[i] = slider;
+                slider->Init(left, top, width, height, nullptr);
                 int32_t value = 0;
-                int32_t result = screenFile->readIdLong("MinValue", value);
+                int32_t result = screenFile->ReadIdLong("MinValue", value);
                 Assert(result == 0, result, " Couldn't locate min slider value", nullptr);
-                slider->minValue = value;
-                result = screenFile->readIdLong("MaxValue", value);
+                slider->MinValue = value;
+                result = screenFile->ReadIdLong("MaxValue", value);
                 Assert(result == 0, result, " Couldn't locate max slider value", nullptr);
-                slider->maxValue = value;
+                slider->MaxValue = value;
                 int32_t callback = 0;
-                result = screenFile->readIdLong("Callback", callback);
+                result = screenFile->ReadIdLong("Callback", callback);
                 Assert(result == 0, result, " Couldn't locate callback value", nullptr);
 
                 switch (callback)
                 {
                     case 0x1a:
-                        slider->setEventRoutine(SlideScreenBrightness);
+                        slider->SetEventRoutine(SlideScreenBrightness);
                         break;
                     case 0x1b:
-                        slider->setEventRoutine(SlideMusicVolume);
+                        slider->SetEventRoutine(SlideMusicVolume);
                         break;
                     case 0x1c:
-                        slider->setEventRoutine(SlideRadioVolume);
+                        slider->SetEventRoutine(SlideRadioVolume);
                         break;
                     case 0x1d:
-                        slider->setEventRoutine(SlideFXVolume);
+                        slider->SetEventRoutine(SlideFXVolume);
                         break;
                     default:
                         break;
@@ -1957,70 +1957,70 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
             case 10:
             {
                 // A difficulty toggle.
-                auto* toggle = new lToolButton;
-                elements[i] = toggle;
-                toggle->init(left, top, width, height, nullptr);
+                auto* toggle = new MCLogToolButton;
+                Elements[i] = toggle;
+                toggle->Init(left, top, width, height, nullptr);
                 toggle->SetTransparent(-1);
 
                 if (MCPort::StrICmp(art, "NONE") == 0)
                 {
-                    toggle->setBackColor(0xff);
+                    toggle->SetBackColor(0xff);
                 }
                 else
                 {
-                    const int32_t result = toggle->setUpPicture(art);
+                    const int32_t result = toggle->SetUpPicture(art);
                     Assert(result == 0, result, " Couldn't locate button upPicture image ", nullptr);
                 }
 
                 // readButton would load NormalArt again; the rest is the same.
-                int32_t result = screenFile->readIdString("GreyArt", art, 0xf9);
+                int32_t result = screenFile->ReadIdString("GreyArt", art, 0xf9);
                 Assert(result == 0, result, " Could not Find gray button art in Generic Screen ", nullptr);
 
                 if (MCPort::StrICmp(art, "NONE") != 0)
                 {
-                    result = toggle->setGrayPicture(art);
+                    result = toggle->SetGrayPicture(art);
                     Assert(result == 0, result, " Couldn't locate button grayPicture image ", nullptr);
                 }
 
-                result = screenFile->readIdString("PressArt", art, 0xf9);
+                result = screenFile->ReadIdString("PressArt", art, 0xf9);
                 Assert(result == 0, result, " Could not Find down button art in Generic Screen ", nullptr);
 
                 if (MCPort::StrICmp(art, "NONE") != 0)
                 {
-                    result = toggle->setDownPicture(art);
+                    result = toggle->SetDownPicture(art);
                     Assert(result == 0, result, " Couldn't locate button downPicture image ", nullptr);
                 }
 
-                result = screenFile->readIdString("OverArt", art, 0xf9);
+                result = screenFile->ReadIdString("OverArt", art, 0xf9);
                 Assert(result == 0, result, " Could not Find button rollover art in Generic Screen ", nullptr);
 
                 if (MCPort::StrICmp(art, "NONE") != 0)
                 {
-                    result = toggle->setOverPicture(art);
+                    result = toggle->SetOverPicture(art);
                     Assert(result == 0, result, " Couldn't locate button downPicture image ", nullptr);
                 }
 
                 int32_t sound = 0;
-                result = screenFile->readIdLong("OverSFX", sound);
+                result = screenFile->ReadIdLong("OverSFX", sound);
                 Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ", nullptr);
-                toggle->overSound = static_cast<uint32_t>(sound);
-                result = screenFile->readIdLong("PressSFX", sound);
+                toggle->OverSound = static_cast<uint32_t>(sound);
+                result = screenFile->ReadIdLong("PressSFX", sound);
                 Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ", nullptr);
-                toggle->pressSound = static_cast<uint32_t>(sound);
+                toggle->PressSound = static_cast<uint32_t>(sound);
                 int32_t callback = 0;
 
-                if (screenFile->readIdLong("Callback", callback) == 0)
+                if (screenFile->ReadIdLong("Callback", callback) == 0)
                 {
                     switch (callback)
                     {
                         case 0x29:
-                            toggle->callback()->setExec(EasyToggle);
+                            toggle->Callback()->SetExec(EasyToggle);
                             break;
                         case 0x2a:
-                            toggle->callback()->setExec(RegularToggle);
+                            toggle->Callback()->SetExec(RegularToggle);
                             break;
                         case 0x2b:
-                            toggle->callback()->setExec(HardToggle);
+                            toggle->Callback()->SetExec(HardToggle);
                             break;
                         default:
                             Fatal(callback, " Illegal callback value");
@@ -2036,122 +2036,122 @@ auto MCSplashScreen::init(FitIniFile* screenFile) -> int32_t
                 continue;
         }
 
-        element->ShowGUIWindow(-1);
-        addChild(element);
+        element->ShowGuiWindow(-1);
+        AddChild(element);
     }
 
-    screenWindow->addChild(this);
-    ShowGUIWindow(0);
+    ScreenWindow->AddChild(this);
+    ShowGuiWindow(0);
     return 0;
 }
 
-auto MCSplashScreen::destroy() -> void
+auto MCSplashScreen::Destroy() -> void
 {
-    if (blocks != nullptr)
+    if (Blocks != nullptr)
     {
-        for (int32_t i = 0; i < numBlocks; i++)
+        for (int32_t i = 0; i < NumBlocks; i++)
         {
-            if (blocks[i] != nullptr)
+            if (Blocks[i] != nullptr)
             {
-                logFree(blocks[i]);
-                blocks[i] = nullptr;
+                LogFree(Blocks[i]);
+                Blocks[i] = nullptr;
             }
         }
 
-        logFree(blocks);
-        blocks = nullptr;
+        LogFree(Blocks);
+        Blocks = nullptr;
     }
 
     // The shared art isn't this screen's to free.
-    artPort = nullptr;
-    GenericScreen::destroy();
+    ArtPort = nullptr;
+    MCGenericScreen::Destroy();
 }
 
-auto MCSplashScreen::ShowGUIWindow(int show) -> void
+auto MCSplashScreen::ShowGuiWindow(int show) -> void
 {
     // The connection screens poll (timer 0, every 2 s) while shown: the connect screen through its element 3.
-    if (this == globalLogPtr->connectScreen)
+    if (this == GlobalLogPtr->ConnectScreen)
     {
         if (show != 0)
         {
-            application->AddTimer(elements[3], 0, 2000, 0, 0, 0);
-            GenericScreen::ShowGUIWindow(show);
+            Application->AddTimer(Elements[3], 0, 2000, 0, 0, 0);
+            MCGenericScreen::ShowGuiWindow(show);
             return;
         }
 
-        application->RemoveTimer(elements[3], 0);
+        Application->RemoveTimer(Elements[3], 0);
     }
-    else if (this == globalLogPtr->lanScreen)
+    else if (this == GlobalLogPtr->LanScreen)
     {
         if (show != 0)
         {
-            application->AddTimer(this, 0, 2000, 0, 0, 0);
-            GenericScreen::ShowGUIWindow(show);
+            Application->AddTimer(this, 0, 2000, 0, 0, 0);
+            MCGenericScreen::ShowGuiWindow(show);
             return;
         }
 
-        application->RemoveTimer(this, 0);
+        Application->RemoveTimer(this, 0);
     }
 
-    GenericScreen::ShowGUIWindow(show);
+    MCGenericScreen::ShowGuiWindow(show);
 }
 
-auto MCSplashScreen::showBlock(int32_t block) -> void
+auto MCSplashScreen::ShowBlock(int32_t block) -> void
 {
-    if (block >= numBlocks)
+    if (block >= NumBlocks)
     {
         return;
     }
 
-    const uint8_t* shown = blocks[block];
+    const uint8_t* shown = Blocks[block];
 
-    for (int32_t i = 1; i < numElements; i++)
+    for (int32_t i = 1; i < NumElements; i++)
     {
-        elements[i]->ShowGUIWindow(0);
+        Elements[i]->ShowGuiWindow(0);
     }
 
-    for (int32_t i = 1; i < numElements; i++)
+    for (int32_t i = 1; i < NumElements; i++)
     {
         if (shown[i] != 0)
         {
-            elements[shown[i]]->ShowGUIWindow(-1);
+            Elements[shown[i]]->ShowGuiWindow(-1);
         }
     }
 }
 
 // The scroll text thumb
 
-auto LogPaintScrollTab(aObject* tab) -> void
+auto LogPaintScrollTab(MCGuiObject* tab) -> void
 {
-    const int32_t width = tab->width();
-    const int32_t height = tab->height();
-    _pane* pane = static_cast<lObject*>(tab)->lport()->frame();
-    VFX_pane_wipe(pane, 0x1a);
-    VFX_line_draw(pane, 0, 0, width - 2, 0, LD_DRAW, 0x1f);
-    VFX_line_draw(pane, 0, 0, 0, height - 2, LD_DRAW, 0x1f);
-    VFX_line_draw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0x16);
-    VFX_line_draw(pane, 0, height - 1, width - 1, height - 1, LD_DRAW, 0x16);
+    const int32_t width = tab->Width();
+    const int32_t height = tab->Height();
+    MCPane* pane = static_cast<MCLogObject*>(tab)->Lport()->Frame();
+    VfxPaneWipe(pane, 0x1a);
+    VfxLineDraw(pane, 0, 0, width - 2, 0, LD_DRAW, 0x1f);
+    VfxLineDraw(pane, 0, 0, 0, height - 2, LD_DRAW, 0x1f);
+    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0x16);
+    VfxLineDraw(pane, 0, height - 1, width - 1, height - 1, LD_DRAW, 0x16);
 }
 
-auto LogScrollTabHandleEvent(aObject* tab, aEvent* event) -> void
+auto LogScrollTabHandleEvent(MCGuiObject* tab, MCGuiEvent* event) -> void
 {
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            application->grab(tab);
-            tab->startDrag(0, event->y - tab->globalY());
+            Application->Grab(tab);
+            tab->StartDrag(0, event->Y - tab->GlobalY());
             break;
         }
         case 4:
         {
-            application->release();
-            tab->stopDrag();
+            Application->Release();
+            tab->StopDrag();
             break;
         }
         case 7:
         {
-            if (application->grabbedObject() == nullptr)
+            if (Application->GrabbedObject() == nullptr)
             {
                 break;
             }
@@ -2160,20 +2160,20 @@ auto LogScrollTabHandleEvent(aObject* tab, aEvent* event) -> void
             // thumb at aScrollTextObject's offset (+0x4c8, here highlightLine[1]) and calls
             // aScrollTextObject::CalcFirstPixel, which writes over lObject's port pointer (OB-073). The port uses the
             // lScrollTextObject's own thumb and CalcFirstPixel.
-            auto* textObject = static_cast<lScrollTextObject*>(tab->parent);
-            tab->moveTo(tab->x(), (event->y - tab->parent->y()) - tab->dragStartY(), 0);
+            auto* textObject = static_cast<MCLogScrollTextObject*>(tab->Parent);
+            tab->MoveTo(tab->X(), (event->Y - tab->Parent->Y()) - tab->DragStartY(), 0);
 
-            if (tab->y() < 0xf)
+            if (tab->Y() < 0xf)
             {
-                tab->moveTo(tab->x(), 0xf, 0);
+                tab->MoveTo(tab->X(), 0xf, 0);
             }
 
-            if (tab->y() > (-0x10 - textObject->scrollTab->height()) + textObject->height())
+            if (tab->Y() > (-0x10 - textObject->ScrollTab->Height()) + textObject->Height())
             {
-                tab->moveTo(tab->x(), (-0x10 - textObject->scrollTab->height()) + textObject->height(), 0);
+                tab->MoveTo(tab->X(), (-0x10 - textObject->ScrollTab->Height()) + textObject->Height(), 0);
             }
 
-            textObject->CalcFirstPixel(tab->y() - 0xf);
+            textObject->CalcFirstPixel(tab->Y() - 0xf);
             break;
         }
 
@@ -2184,63 +2184,63 @@ auto LogScrollTabHandleEvent(aObject* tab, aEvent* event) -> void
 
 // lScrollTextObject
 
-lScrollTextObject::~lScrollTextObject()
+MCLogScrollTextObject::~MCLogScrollTextObject()
 {
-    lScrollTextObject::destroy();
+    MCLogScrollTextObject::Destroy();
 }
 
-auto lScrollTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCLogScrollTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
 {
-    int32_t result = lObject::init(xPos, yPos, width, height, newText, nullptr);
+    int32_t result = MCLogObject::Init(xPos, yPos, width, height, newText, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    auto* tab = new lObject;
-    scrollTab = tab;
+    auto* tab = new MCLogObject;
+    ScrollTab = tab;
 
     if (tab == nullptr)
     {
         Fatal(0, "Not enough memory for scrollbar tab.");
     }
 
-    result = tab->init(0, 0, 9, height - 0x1e, nullptr, nullptr);
+    result = tab->Init(0, 0, 9, height - 0x1e, nullptr, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    tab->moveTo(this->width() + 2, 0xf, 0);
-    tab->setDepth(100);
-    addChild(tab);
-    tab->ShowGUIWindow(-1);
-    tab->setEventRoutine(LogScrollTabHandleEvent);
-    tab->setPaintRoutine(LogPaintScrollTab);
+    tab->MoveTo(this->Width() + 2, 0xf, 0);
+    tab->SetDepth(100);
+    AddChild(tab);
+    tab->ShowGuiWindow(-1);
+    tab->SetEventRoutine(LogScrollTabHandleEvent);
+    tab->SetPaintRoutine(LogPaintScrollTab);
     tab->SetDrawsLive();
-    tab->setDepth(1);
+    tab->SetDepth(1);
 
-    text = static_cast<char*>(logAlloc(TextBufferSize + 1));
+    Text = static_cast<char*>(LogAlloc(TextBufferSize + 1));
 
-    if (text == nullptr)
+    if (Text == nullptr)
     {
         Fatal(0, "Not enough memory for text.");
     }
 
-    std::memset(text, 0, TextBufferSize);
-    fontIndex = 0;
-    numLines = 0;
-    textLength = 0;
-    firstPixel = 0;
-    scrollTab->ShowGUIWindow(-1);
-    scrolling = -1;
+    std::memset(Text, 0, TextBufferSize);
+    FontIndex = 0;
+    NumLines = 0;
+    TextLength = 0;
+    FirstPixel = 0;
+    ScrollTab->ShowGuiWindow(-1);
+    Scrolling = -1;
 
     for (int32_t i = 0; i < 4; i++)
     {
-        highlightLine[i] = -1;
-        highlightColor[i] = 0xff;
+        HighlightLine[i] = -1;
+        HighlightColor[i] = 0xff;
     }
 
     // Text given at init prints in colour 0x1f; without it the object doesn't scroll.
@@ -2250,52 +2250,52 @@ auto lScrollTextObject::init(int32_t xPos, int32_t yPos, int32_t width, int32_t 
     }
     else
     {
-        scrolling = 0;
+        Scrolling = 0;
     }
 
-    tabColumn = -1;
+    TabColumn = -1;
     PositionScrollTab();
     return 0;
 }
 
-auto lScrollTextObject::destroy() -> void
+auto MCLogScrollTextObject::Destroy() -> void
 {
-    if (scrollTab != nullptr)
+    if (ScrollTab != nullptr)
     {
-        scrollTab->destroy();
-        delete scrollTab;
-        scrollTab = nullptr;
+        ScrollTab->Destroy();
+        delete ScrollTab;
+        ScrollTab = nullptr;
     }
 
-    if (text != nullptr)
+    if (Text != nullptr)
     {
-        logFree(text);
-        text = nullptr;
+        LogFree(Text);
+        Text = nullptr;
     }
 
-    lObject::destroy();
+    MCLogObject::Destroy();
 }
 
-auto lScrollTextObject::draw() -> void
+auto MCLogScrollTextObject::Draw() -> void
 {
     int32_t lineY = 2;
-    char* line = text;
-    const int32_t lineHeight = fonts[0][fontIndex]->height() + 4;
-    VFX_pane_wipe(lport()->frame(), 0x10);
+    char* line = Text;
+    const int32_t lineHeight = Fonts[0][FontIndex]->Height() + 4;
+    VfxPaneWipe(Lport()->Frame(), 0x10);
 
     // Highlighted lines.
     for (int32_t i = 0; i < 4; i++)
     {
-        const int32_t start = highlightLine[i];
+        const int32_t start = HighlightLine[i];
 
         if (start != -1 && start < start + 1)
         {
-            _pane box = *lport()->frame();
-            box.x0 = 0;
-            box.y0 = start * lineHeight;
-            box.x1 = width();
-            box.y1 = (start + 1) * lineHeight;
-            VFX_pane_wipe(&box, highlightColor[i]);
+            MCPane box = *Lport()->Frame();
+            box.X0 = 0;
+            box.Y0 = start * lineHeight;
+            box.X1 = Width();
+            box.Y1 = (start + 1) * lineHeight;
+            VfxPaneWipe(&box, HighlightColor[i]);
         }
     }
 
@@ -2309,7 +2309,7 @@ auto lScrollTextObject::draw() -> void
 
         if (char* tab = std::strchr(line, '\t'); tab != nullptr)
         {
-            if (tabColumn < 0)
+            if (TabColumn < 0)
             {
                 *tab = ' ';
             }
@@ -2320,11 +2320,11 @@ auto lScrollTextObject::draw() -> void
             }
         }
 
-        const int32_t fontRow = fontRowForColor(color);
+        const int32_t fontRow = FontRowForColor(color);
 
         do
         {
-            fonts[fontRow][fontIndex]->writeStringToNewline(lport()->frame(), lineX, lineY,
+            Fonts[fontRow][FontIndex]->WriteStringToNewline(Lport()->Frame(), lineX, lineY,
                                                             reinterpret_cast<uint8_t*>(line));
             line = std::strchr(line, '\n');
 
@@ -2335,7 +2335,7 @@ auto lScrollTextObject::draw() -> void
                     *line = '\t';
                 }
 
-                lineX = tabColumn;
+                lineX = TabColumn;
             }
 
             pieces--;
@@ -2349,47 +2349,47 @@ auto lScrollTextObject::draw() -> void
         lineY += lineHeight;
     }
 
-    for (int32_t i = 0; i < numChildren; i++)
+    for (int32_t i = 0; i < NumChildren; i++)
     {
-        DrawChild(childList[i]);
+        DrawChild(ChildList[i]);
     }
 }
 
-auto lScrollTextObject::display() -> void
+auto MCLogScrollTextObject::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
 
     // The lines scrolled by firstPixel (a list that doesn't scroll shows its top), then the children.
-    DrawInFramePass(lport(), scrolling != 0 ? firstPixel : 0);
+    DrawInFramePass(Lport(), Scrolling != 0 ? FirstPixel : 0);
 }
 
-auto lScrollTextObject::resize(int32_t width, int32_t height) -> void
+auto MCLogScrollTextObject::Resize(int32_t width, int32_t height) -> void
 {
-    const int32_t fontHeight = fonts[0][fontIndex]->height();
+    const int32_t fontHeight = Fonts[0][FontIndex]->Height();
 
-    if (width <= 0 || height <= 0 || (width == winWidth && height == winHeight))
+    if (width <= 0 || height <= 0 || (width == WinWidth && height == WinHeight))
     {
         return;
     }
 
-    winWidth = width;
-    winHeight = height;
-    framePane->x1 = framePane->x0 - 1 + width;
-    framePane->y1 = framePane->y0 - 1 + height;
+    WinWidth = width;
+    WinHeight = height;
+    FramePane->X1 = FramePane->X0 - 1 + width;
+    FramePane->Y1 = FramePane->Y0 - 1 + height;
     // A scrolling object's port holds all its lines.
     int32_t portHeight = height;
 
-    if (scrolling != 0)
+    if (Scrolling != 0)
     {
-        const int32_t textHeight = numLines * (fontHeight + 4);
+        const int32_t textHeight = NumLines * (fontHeight + 4);
 
         if (textHeight > height)
         {
@@ -2397,52 +2397,52 @@ auto lScrollTextObject::resize(int32_t width, int32_t height) -> void
         }
     }
 
-    lport()->resize(width, portHeight);
-    scrollTab->moveTo(width + 2, scrollTab->y(), 0);
+    Lport()->Resize(width, portHeight);
+    ScrollTab->MoveTo(width + 2, ScrollTab->Y(), 0);
     PositionScrollTab();
 }
 
-auto lScrollTextObject::ResetPortSize() -> void
+auto MCLogScrollTextObject::ResetPortSize() -> void
 {
-    if (scrolling == 0)
+    if (Scrolling == 0)
     {
         return;
     }
 
     // The port only grows.
-    int32_t portHeight = (fonts[0][fontIndex]->height() + 4) * numLines;
+    int32_t portHeight = (Fonts[0][FontIndex]->Height() + 4) * NumLines;
 
-    if (portHeight <= lport()->height())
+    if (portHeight <= Lport()->Height())
     {
-        portHeight = lport()->height();
+        portHeight = Lport()->Height();
     }
 
-    lport()->resize(lport()->width(), portHeight);
+    Lport()->Resize(Lport()->Width(), portHeight);
 }
 
-auto lScrollTextObject::Print(char* line, uint8_t color) -> void
+auto MCLogScrollTextObject::Print(char* line, uint8_t color) -> void
 {
-    const int32_t used = textLength;
-    const int32_t fontHeight = fonts[0][fontIndex]->height();
+    const int32_t used = TextLength;
+    const int32_t fontHeight = Fonts[0][FontIndex]->Height();
 
     if (TextBufferSize - used <= 2)
     {
         return;
     }
 
-    text[used] = static_cast<char>(color);
-    char* dest = text + used + 1;
+    Text[used] = static_cast<char>(color);
+    char* dest = Text + used + 1;
     const int32_t textStart = used + 1;
-    textLength = textStart;
+    TextLength = textStart;
 
     if (line == nullptr)
     {
         if (TextBufferSize - textStart > 2)
         {
             // A blank line.
-            numLines++;
-            textLength = used + 2;
-            text[used + 1] = '\n';
+            NumLines++;
+            TextLength = used + 2;
+            Text[used + 1] = '\n';
             return;
         }
 
@@ -2453,38 +2453,38 @@ auto lScrollTextObject::Print(char* line, uint8_t color) -> void
     if (static_cast<int32_t>(std::strlen(line)) + textStart <= TextBufferSize)
     {
         std::sprintf(dest, "%s\n", line);
-        textLength = static_cast<int32_t>(std::strlen(line)) + 1 + textStart;
+        TextLength = static_cast<int32_t>(std::strlen(line)) + 1 + textStart;
     }
     else
     {
         // No room: the line is cut and the buffer is full (the length isn't advanced).
         std::strncpy(dest, line, static_cast<size_t>(TextBufferSize - textStart));
-        text[TextBufferSize] = '\0';
+        Text[TextBufferSize] = '\0';
     }
 
-    numLines++;
-    const int32_t needed = numLines * (fontHeight + 4);
+    NumLines++;
+    const int32_t needed = NumLines * (fontHeight + 4);
 
-    if (scrolling != 0 && needed > lport()->height())
+    if (Scrolling != 0 && needed > Lport()->Height())
     {
-        lport()->resize(lport()->width(), needed);
+        Lport()->Resize(Lport()->Width(), needed);
     }
 
     PositionScrollTab();
 }
 
-auto lScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrapWidth) -> void
+auto MCLogScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrapWidth) -> void
 {
     if (wrapWidth == -1)
     {
-        wrapWidth = width();
+        wrapWidth = Width();
     }
     while (line != nullptr)
     {
-        aFont* font = fonts[0][fontIndex];
+        MCGuiFont* font = Fonts[0][FontIndex];
         char* split = nullptr;
 
-        if (font->width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
+        if (font->Width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
         {
             split = std::strrchr(line, ' ');
 
@@ -2494,7 +2494,7 @@ auto lScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrapWidt
                 *split = '\0';
                 char* cut = split;
 
-                while (font->width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
+                while (font->Width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
                 {
                     split = std::strrchr(line, ' ');
 
@@ -2522,114 +2522,114 @@ auto lScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrapWidt
     }
 }
 
-auto lScrollTextObject::Clear() -> void
+auto MCLogScrollTextObject::Clear() -> void
 {
-    firstPixel = 0;
-    textLength = 0;
-    numLines = 0;
-    std::memset(text, 0, TextBufferSize);
+    FirstPixel = 0;
+    TextLength = 0;
+    NumLines = 0;
+    std::memset(Text, 0, TextBufferSize);
 
-    for (int32_t& line : highlightLine)
+    for (int32_t& line : HighlightLine)
     {
         line = -1;
     }
 }
 
-auto lScrollTextObject::CalcFirstPixel(int32_t tabPos) -> void
+auto MCLogScrollTextObject::CalcFirstPixel(int32_t tabPos) -> void
 {
-    const int32_t track = (-0x1e - scrollTab->height()) + height();
-    const int32_t range = lport()->height() - height();
+    const int32_t track = (-0x1e - ScrollTab->Height()) + Height();
+    const int32_t range = Lport()->Height() - Height();
 
-    if (scrolling != 0 && track > 0 && range > 0)
+    if (Scrolling != 0 && track > 0 && range > 0)
     {
-        firstPixel = (range * tabPos) / track;
+        FirstPixel = (range * tabPos) / track;
         return;
     }
 
-    firstPixel = 0;
+    FirstPixel = 0;
 }
 
-auto lScrollTextObject::PositionScrollTab() -> void
+auto MCLogScrollTextObject::PositionScrollTab() -> void
 {
-    if (application->grabbedObject() == scrollTab)
+    if (Application->GrabbedObject() == ScrollTab)
     {
         return;
     }
 
-    const int32_t track = height() - 0x1e;
-    const int32_t range = lport()->height() - height();
+    const int32_t track = Height() - 0x1e;
+    const int32_t range = Lport()->Height() - Height();
 
     if (range == 0)
     {
-        scrollTab->ShowGUIWindow(0);
+        ScrollTab->ShowGuiWindow(0);
         return;
     }
 
     // The thumb's length is the visible fraction of the track (x87: float quotient, then times the track).
-    const float shown = static_cast<float>(height());
-    int32_t tabLength = static_cast<int32_t>(static_cast<double>(shown) / lport()->height() * track);
+    const float shown = static_cast<float>(Height());
+    int32_t tabLength = static_cast<int32_t>(static_cast<double>(shown) / Lport()->Height() * track);
 
     if (tabLength < 3)
     {
         tabLength = 3;
     }
 
-    scrollTab->ShowGUIWindow(-1);
-    scrollTab->resize(scrollTab->width(), tabLength);
-    scrollTab->moveTo(scrollTab->x(), ((track - tabLength) * firstPixel) / range + 0xf, 0);
+    ScrollTab->ShowGuiWindow(-1);
+    ScrollTab->Resize(ScrollTab->Width(), tabLength);
+    ScrollTab->MoveTo(ScrollTab->X(), ((track - tabLength) * FirstPixel) / range + 0xf, 0);
 }
 
-auto lScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
+auto MCLogScrollTextObject::ReceiveClick(int32_t direction, int32_t yPos) -> void
 {
-    if (height() == lport()->height())
+    if (Height() == Lport()->Height())
     {
         return;
     }
 
-    const int32_t lineHeight = fonts[0][fontIndex]->height() + 4;
+    const int32_t lineHeight = Fonts[0][FontIndex]->Height() + 4;
     auto clampToEnd = [this]()
     {
-        if (firstPixel > lport()->height() - height())
+        if (FirstPixel > Lport()->Height() - Height())
         {
-            firstPixel = lport()->height() - height();
+            FirstPixel = Lport()->Height() - Height();
         }
     };
 
     if (direction == -1)
     {
-        firstPixel -= lineHeight;
+        FirstPixel -= lineHeight;
 
-        if (firstPixel < 0)
+        if (FirstPixel < 0)
         {
-            firstPixel = 0;
+            FirstPixel = 0;
         }
     }
     else if (direction == 0)
     {
         // A page up isn't clamped at the top (unlike aScrollTextObject's).
-        if (yPos < scrollTab->y())
+        if (yPos < ScrollTab->Y())
         {
-            firstPixel -= height();
+            FirstPixel -= Height();
         }
 
-        if (yPos > scrollTab->bottom())
+        if (yPos > ScrollTab->Bottom())
         {
-            firstPixel += height();
+            FirstPixel += Height();
             clampToEnd();
         }
     }
     else if (direction == 1)
     {
-        firstPixel += lineHeight;
+        FirstPixel += lineHeight;
         clampToEnd();
     }
 
     PositionScrollTab();
 }
 
-auto lScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
+auto MCLogScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
-    if (height() == lport()->height())
+    if (Height() == Lport()->Height())
     {
         return false;
     }
@@ -2642,9 +2642,9 @@ auto lScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) ->
     return true;
 }
 
-auto lScrollTextObject::getTextLine(int32_t line, char* dest, int32_t destSize) -> int
+auto MCLogScrollTextObject::GetTextLine(int32_t line, char* dest, int32_t destSize) -> int
 {
-    char* p = text;
+    char* p = Text;
 
     if (line < 0)
     {
@@ -2693,45 +2693,45 @@ auto lScrollTextObject::getTextLine(int32_t line, char* dest, int32_t destSize) 
 
 // GameList
 
-GameList::~GameList()
+MCGameList::~MCGameList()
 {
-    lScrollTextObject::destroy();
+    MCLogScrollTextObject::Destroy();
 }
 
-auto GameList::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCGameList::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
 {
-    numSessions = -1;
-    selectedSession = -1;
-    const int32_t result = lScrollTextObject::init(xPos, yPos, width, height, newText);
-    tabColumn = 0x73;
-    highlightColor[0] = 0x14;
+    NumSessions = -1;
+    SelectedSession = -1;
+    const int32_t result = MCLogScrollTextObject::Init(xPos, yPos, width, height, newText);
+    TabColumn = 0x73;
+    HighlightColor[0] = 0x14;
     return result;
 }
 
-auto GameList::draw() -> void
+auto MCGameList::Draw() -> void
 {
-    lScrollTextObject::draw();
+    MCLogScrollTextObject::Draw();
 }
 
-auto GameList::RebuildLines() -> void
+auto MCGameList::RebuildLines() -> void
 {
-    firstPixel = 0;
-    textLength = 0;
-    numLines = 0;
+    FirstPixel = 0;
+    TextLength = 0;
+    NumLines = 0;
 
-    for (int32_t& line : highlightLine)
+    for (int32_t& line : HighlightLine)
     {
         line = -1;
     }
 
-    std::memset(text, 0, TextBufferSize);
+    std::memset(Text, 0, TextBufferSize);
 
     if (MPlayer != nullptr)
     {
         // "name <tab> free slots", or FULL; the selection is highlighted.
-        for (int32_t i = 0; i < numSessions; i++)
+        for (int32_t i = 0; i < NumSessions; i++)
         {
-            FIDPSession* session = MPlayer->sessionManager->FindMatchingSession(&sessions[i]);
+            MCFidpSession* session = MPlayer->SessionManager->FindMatchingSession(&Sessions[i]);
 
             if (session == nullptr)
             {
@@ -2739,22 +2739,22 @@ auto GameList::RebuildLines() -> void
             }
 
             const int32_t freeSlots =
-                static_cast<int32_t>(session->sessionDesc.dwMaxPlayers - session->sessionDesc.dwCurrentPlayers);
+                static_cast<int32_t>(session->SessionDesc.dwMaxPlayers - session->SessionDesc.dwCurrentPlayers);
             char line[256];
 
             if (freeSlots == 0)
             {
-                std::snprintf(line, sizeof(line), "%s\tFULL", session->sessionDesc.lpszSessionNameA);
+                std::snprintf(line, sizeof(line), "%s\tFULL", session->SessionDesc.lpszSessionNameA);
             }
             else
             {
-                std::snprintf(line, sizeof(line), "%s\t%d", session->sessionDesc.lpszSessionNameA, freeSlots);
+                std::snprintf(line, sizeof(line), "%s\t%d", session->SessionDesc.lpszSessionNameA, freeSlots);
             }
 
-            if (i == selectedSession)
+            if (i == SelectedSession)
             {
                 Print(line, 0x1f);
-                highlightLine[0] = i;
+                HighlightLine[0] = i;
             }
             else
             {
@@ -2764,11 +2764,11 @@ auto GameList::RebuildLines() -> void
     }
 }
 
-auto IsSessionDeleted(FIDPSession* session) -> int
+auto IsSessionDeleted(MCFidpSession* session) -> int
 {
-    for (int32_t i = 0; i < nextDeletedSession; i++)
+    for (int32_t i = 0; i < NextDeletedSession; i++)
     {
-        if (std::memcmp(&session->sessionDesc.guidInstance, &deletedSessions[i], sizeof(_GUID)) == 0)
+        if (std::memcmp(&session->SessionDesc.guidInstance, &DeletedSessions[i], sizeof(_GUID)) == 0)
         {
             return -1;
         }
@@ -2777,18 +2777,18 @@ auto IsSessionDeleted(FIDPSession* session) -> int
     return 0;
 }
 
-auto GameList::handleEvent(aEvent* event) -> void
+auto MCGameList::HandleEvent(MCGuiEvent* event) -> void
 {
-    MultiPlayer* multiPlayer = MPlayer;
+    MCMultiPlayer* multiPlayer = MPlayer;
 
-    if (event->type == 1)
+    if (event->Type == 1)
     {
         // Selects the clicked session and tells the parent (event 0x1e, data 3).
-        const int32_t rowHeight = fonts[0][fontIndex]->height() + 4;
-        const int32_t clickX = event->x - globalX();
-        const int32_t clickY = (firstPixel + event->y) - globalY();
+        const int32_t rowHeight = Fonts[0][FontIndex]->Height() + 4;
+        const int32_t clickX = event->X - GlobalX();
+        const int32_t clickY = (FirstPixel + event->Y) - GlobalY();
 
-        if (numSessions <= 0)
+        if (NumSessions <= 0)
         {
             return;
         }
@@ -2798,7 +2798,7 @@ auto GameList::handleEvent(aEvent* event) -> void
 
         for (;;)
         {
-            const tagRECT rect = {1, rowTop, width() - 0xd, rowTop + rowHeight};
+            const tagRECT rect = {1, rowTop, Width() - 0xd, rowTop + rowHeight};
 
             if (PtInRect(&rect, tagPOINT{clickX, clickY}))
             {
@@ -2808,82 +2808,82 @@ auto GameList::handleEvent(aEvent* event) -> void
             row++;
             rowTop += rowHeight;
 
-            if (row >= numSessions)
+            if (row >= NumSessions)
             {
                 return;
             }
         }
 
-        if (row < numSessions)
+        if (row < NumSessions)
         {
-            selectedSession = row;
-            selectedGuid = sessions[row];
+            SelectedSession = row;
+            SelectedGuid = Sessions[row];
         }
 
         RebuildLines();
-        aEvent selected;
-        selected.type = 0x1e;
-        selected.data = 3;
-        parent->handleEvent(&selected);
+        MCGuiEvent selected;
+        selected.Type = 0x1e;
+        selected.Data = 3;
+        Parent->HandleEvent(&selected);
     }
-    else if (event->type == 0x13)
+    else if (event->Type == 0x13)
     {
         // Refresh: the sessions that have players (an empty one is remembered as deleted and never listed again).
-        numSessions = 0;
+        NumSessions = 0;
 
-        if (multiPlayer != nullptr && multiPlayer->sessionManager != nullptr)
+        if (multiPlayer != nullptr && multiPlayer->SessionManager != nullptr)
         {
-            FLinkedList<FIDPSession>* list = multiPlayer->sessionManager->GetSessions();
-            FLink<FIDPSession>* link = list->head;
-            FIDPSession* session = link != nullptr ? link->data : nullptr;
+            MCFLinkedList<MCFidpSession>* list = multiPlayer->SessionManager->GetSessions();
+            MCFLink<MCFidpSession>* link = list->HeadLink;
+            MCFidpSession* session = link != nullptr ? link->Data : nullptr;
 
             // The scan stops at the first deleted session.
             while (session != nullptr && IsSessionDeleted(session) == 0)
             {
-                if (multiPlayer->sessionManager->GetPlayers(session)->count < 1)
+                if (multiPlayer->SessionManager->GetPlayers(session)->Count < 1)
                 {
                     // Port fix: the list holds 50; the original ran past it.
-                    if (nextDeletedSession < 50)
+                    if (NextDeletedSession < 50)
                     {
-                        deletedSessions[nextDeletedSession++] = session->sessionDesc.guidInstance;
+                        DeletedSessions[NextDeletedSession++] = session->SessionDesc.guidInstance;
                     }
                 }
-                else if (numSessions < MAX_GAMES)
+                else if (NumSessions < MAX_GAMES)
                 {
                     // Port fix: bounded to the 64 slots (the original wasn't).
-                    sessions[numSessions++] = session->sessionDesc.guidInstance;
+                    Sessions[NumSessions++] = session->SessionDesc.guidInstance;
                 }
 
-                link = link->next;
+                link = link->Next;
 
                 if (link == nullptr)
                 {
                     break;
                 }
 
-                session = link->data;
+                session = link->Data;
             }
 
             // Keep the selection on its session, or tell the parent it went (data 4).
             int32_t i = 0;
 
-            for (; i < numSessions; i++)
+            for (; i < NumSessions; i++)
             {
-                if (std::memcmp(&sessions[i], &selectedGuid, sizeof(_GUID)) == 0)
+                if (std::memcmp(&Sessions[i], &SelectedGuid, sizeof(_GUID)) == 0)
                 {
-                    selectedSession = i;
+                    SelectedSession = i;
                     break;
                 }
             }
 
-            if (i == numSessions)
+            if (i == NumSessions)
             {
-                aEvent lost;
-                lost.type = 0x1e;
-                lost.data = 4;
-                lost.lParam = -1;
-                parent->handleEvent(&lost);
-                selectedSession = -1;
+                MCGuiEvent lost;
+                lost.Type = 0x1e;
+                lost.Data = 4;
+                lost.LParam = -1;
+                Parent->HandleEvent(&lost);
+                SelectedSession = -1;
             }
         }
 
@@ -2891,117 +2891,117 @@ auto GameList::handleEvent(aEvent* event) -> void
     }
 }
 
-auto GameList::getSelectedGame() -> _GUID*
+auto MCGameList::GetSelectedGame() -> _GUID*
 {
-    if (selectedSession >= numSessions)
+    if (SelectedSession >= NumSessions)
     {
-        selectedSession = -1;
-        aEvent refresh;
-        refresh.clear();
-        refresh.type = 0x13;
-        handleEvent(&refresh);
+        SelectedSession = -1;
+        MCGuiEvent refresh;
+        refresh.Clear();
+        refresh.Type = 0x13;
+        HandleEvent(&refresh);
         return nullptr;
     }
 
     // Port fix: with no selection the original returned &sessions[-1] (inside this object).
-    if (selectedSession < 0)
+    if (SelectedSession < 0)
     {
         return nullptr;
     }
 
-    return &sessions[selectedSession];
+    return &Sessions[SelectedSession];
 }
 
 // lSlider
 
-lSlider::lSlider()
+MCLogSlider::MCLogSlider()
 {
-    minValue = 0;
-    maxValue = 0;
-    currentValue = 0;
-    thumbPort = new lPort;
+    MinValue = 0;
+    MaxValue = 0;
+    CurrentValue = 0;
+    ThumbPort = new MCLogPort;
     char fileName[256];
-    std::snprintf(fileName, sizeof(fileName), "%sprefs_02.tga", artPath);
-    thumbPort->init(fileName);
+    std::snprintf(fileName, sizeof(fileName), "%sprefs_02.tga", ArtPath);
+    ThumbPort->Init(fileName);
 }
 
-lSlider::~lSlider()
+MCLogSlider::~MCLogSlider()
 {
-    lSlider::destroy();
+    MCLogSlider::Destroy();
 }
 
-auto lSlider::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCLogSlider::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    const int32_t result = lObject::init(xPos, yPos, width, height, name, nullptr);
+    const int32_t result = MCLogObject::Init(xPos, yPos, width, height, name, nullptr);
     SetTransparent(-1);
     return result;
 }
 
-auto lSlider::destroy() -> void
+auto MCLogSlider::Destroy() -> void
 {
-    freePort(thumbPort);
-    lObject::destroy();
+    FreePort(ThumbPort);
+    MCLogObject::Destroy();
 }
 
-auto lSlider::draw() -> void
+auto MCLogSlider::Draw() -> void
 {
-    VFX_pane_wipe(lport()->frame(), 0xff);
+    VfxPaneWipe(Lport()->Frame(), 0xff);
     // The thumb's x is the value's share of the travel (x87).
-    const int32_t travel = width() - thumbPort->width();
+    const int32_t travel = Width() - ThumbPort->Width();
     const int32_t thumbX = static_cast<int32_t>(static_cast<double>(travel) *
-                                                (static_cast<double>(currentValue - minValue) / (maxValue - minValue)));
-    thumbPort->copyTo(lport()->frame(), thumbX, 0, 0);
+                                                (static_cast<double>(CurrentValue - MinValue) / (MaxValue - MinValue)));
+    ThumbPort->CopyTo(Lport()->Frame(), thumbX, 0, 0);
 }
 
-auto lSlider::setCurrentValue(int32_t value) -> void
+auto MCLogSlider::SetCurrentValue(int32_t value) -> void
 {
-    if (value < minValue)
+    if (value < MinValue)
     {
-        currentValue = minValue;
+        CurrentValue = MinValue;
     }
-    else if (value > maxValue)
+    else if (value > MaxValue)
     {
-        currentValue = maxValue;
+        CurrentValue = MaxValue;
     }
     else
     {
-        currentValue = value;
+        CurrentValue = value;
     }
 }
 
-auto lSlider::handleEvent(aEvent* event) -> void
+auto MCLogSlider::HandleEvent(MCGuiEvent* event) -> void
 {
     // The value under the mouse: the offset (as a float) over the travel, times the range.
     auto valueAt = [this](int32_t mouseX)
     {
-        const float offset = static_cast<float>(mouseX - x());
-        const int32_t travel = width() - thumbPort->width();
-        return static_cast<int32_t>(static_cast<double>(offset) / travel * (maxValue - minValue)) + minValue;
+        const float offset = static_cast<float>(mouseX - X());
+        const int32_t travel = Width() - ThumbPort->Width();
+        return static_cast<int32_t>(static_cast<double>(offset) / travel * (MaxValue - MinValue)) + MinValue;
     };
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            application->grab(this);
+            Application->Grab(this);
 
-            if (application->grabbedObject() != nullptr)
+            if (Application->GrabbedObject() != nullptr)
             {
-                setCurrentValue(valueAt(event->x));
+                SetCurrentValue(valueAt(event->X));
             }
             break;
         }
         case 4:
         {
-            application->release();
-            setCurrentValue(valueAt(event->x));
+            Application->Release();
+            SetCurrentValue(valueAt(event->X));
             break;
         }
         case 7:
         {
-            if (application->grabbedObject() != nullptr)
+            if (Application->GrabbedObject() != nullptr)
             {
-                setCurrentValue(valueAt(event->x));
+                SetCurrentValue(valueAt(event->X));
             }
             break;
         }
@@ -3009,9 +3009,9 @@ auto lSlider::handleEvent(aEvent* event) -> void
             break;
     }
 
-    if (eventRoutine != nullptr)
+    if (EventRoutine != nullptr)
     {
-        eventRoutine(this, event);
+        EventRoutine(this, event);
     }
 }
 
@@ -3028,27 +3028,27 @@ namespace
     constexpr int32_t ComboArrowWidth = 11;
 }
 
-lComboBox::~lComboBox()
+MCLogComboBox::~MCLogComboBox()
 {
-    lComboBox::destroy();
+    MCLogComboBox::Destroy();
 }
 
-auto lComboBox::init(int32_t xPos, int32_t yPos, int32_t width, int32_t* setting, std::vector<Item> items,
-                     void (*changed)(int32_t value)) -> void
+auto MCLogComboBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t* setting, std::vector<Item> items,
+                         void (*changed)(int32_t value)) -> void
 {
-    lObject::init(xPos, yPos, width, FieldHeight, nullptr, nullptr);
+    MCLogObject::Init(xPos, yPos, width, FieldHeight, nullptr, nullptr);
     _Setting = setting;
     _Items = std::move(items);
     _Changed = changed;
 }
 
-auto lComboBox::destroy() -> void
+auto MCLogComboBox::Destroy() -> void
 {
     Close();
-    lObject::destroy();
+    MCLogObject::Destroy();
 }
 
-auto lComboBox::LabelColors() -> uint8_t*
+auto MCLogComboBox::LabelColors() -> uint8_t*
 {
     static uint8_t* table = []
     {
@@ -3066,14 +3066,14 @@ auto lComboBox::LabelColors() -> uint8_t*
     return table;
 }
 
-auto lComboBox::WriteLabel(int32_t xPos, int32_t yPos, const std::string& text) -> void
+auto MCLogComboBox::WriteLabel(int32_t xPos, int32_t yPos, const std::string& text) -> void
 {
-    VFX_string_draw(ownPort->frame(), xPos, yPos, whiteFont->fontData.get(), text.c_str(), LabelColors());
+    VfxStringDraw(_OwnPort->Frame(), xPos, yPos, WhiteFont->FontData.get(), text.c_str(), LabelColors());
 }
 
-auto lComboBox::draw() -> void
+auto MCLogComboBox::Draw() -> void
 {
-    if (!ownPort->viewOpen())
+    if (!_OwnPort->ViewOpen())
     {
         return;
     }
@@ -3086,13 +3086,13 @@ auto lComboBox::draw() -> void
         FillBox(right, top, right, bottom, ComboLineColor);
     };
 
-    const auto right = static_cast<int16_t>(width() - 1);
-    const auto bottom = static_cast<int16_t>(height() - 1);
+    const auto right = static_cast<int16_t>(Width() - 1);
+    const auto bottom = static_cast<int16_t>(Height() - 1);
     FillBox(0, 0, right, bottom, ComboBackColor);
 
     // The field: the choice, then the arrow button at the right end (a triangle pointing down).
     outline(0, 0, right, FieldHeight - 1);
-    const auto arrowLeft = static_cast<int16_t>(width() - ComboArrowWidth);
+    const auto arrowLeft = static_cast<int16_t>(Width() - ComboArrowWidth);
     FillBox(arrowLeft, 0, arrowLeft, FieldHeight - 1, ComboLineColor);
     const auto arrowMiddle = static_cast<int16_t>(arrowLeft + ComboArrowWidth / 2);
 
@@ -3142,7 +3142,7 @@ auto lComboBox::draw() -> void
     }
 }
 
-auto lComboBox::Selected() const -> int32_t
+auto MCLogComboBox::Selected() const -> int32_t
 {
     for (size_t i = 0; i < _Items.size(); i++)
     {
@@ -3155,12 +3155,12 @@ auto lComboBox::Selected() const -> int32_t
     return -1;
 }
 
-auto lComboBox::VisibleRows() const -> int32_t
+auto MCLogComboBox::VisibleRows() const -> int32_t
 {
     return std::min(static_cast<int32_t>(_Items.size()), MaxRows);
 }
 
-auto lComboBox::Open() -> void
+auto MCLogComboBox::Open() -> void
 {
     if (_Open || _Items.empty())
     {
@@ -3170,13 +3170,13 @@ auto lComboBox::Open() -> void
     _Open = true;
     _FirstRow = 0;
     Hover(std::max(Selected(), 0));
-    resize(width(), FieldHeight + VisibleRows() * RowHeight + 1);
+    Resize(Width(), FieldHeight + VisibleRows() * RowHeight + 1);
     RaiseAmongSiblings();
-    application->grab(this);
-    soundSystem->playDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
+    Application->Grab(this);
+    SoundSystem->PlayDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
 }
 
-auto lComboBox::Close() -> void
+auto MCLogComboBox::Close() -> void
 {
     if (!_Open && !_HoldUntilRelease)
     {
@@ -3186,22 +3186,22 @@ auto lComboBox::Close() -> void
     CloseList();
     _HoldUntilRelease = false;
 
-    if (application->grabbedObject() == this)
+    if (Application->GrabbedObject() == this)
     {
-        application->release();
+        Application->Release();
     }
 }
 
-auto lComboBox::CloseList() -> void
+auto MCLogComboBox::CloseList() -> void
 {
     if (_Open)
     {
         _Open = false;
-        resize(width(), FieldHeight);
+        Resize(Width(), FieldHeight);
     }
 }
 
-auto lComboBox::Choose(int32_t index) -> void
+auto MCLogComboBox::Choose(int32_t index) -> void
 {
     if (index < 0 || index >= static_cast<int32_t>(_Items.size()))
     {
@@ -3223,7 +3223,7 @@ auto lComboBox::Choose(int32_t index) -> void
     }
 }
 
-auto lComboBox::Hover(int32_t index) -> void
+auto MCLogComboBox::Hover(int32_t index) -> void
 {
     const int32_t rows = VisibleRows();
     _Hovered = std::clamp(index, 0, static_cast<int32_t>(_Items.size()) - 1);
@@ -3238,24 +3238,24 @@ auto lComboBox::Hover(int32_t index) -> void
     }
 }
 
-auto lComboBox::InField(int32_t xPos, int32_t yPos) -> bool
+auto MCLogComboBox::InField(int32_t xPos, int32_t yPos) -> bool
 {
-    const int32_t localX = xPos - globalX();
-    const int32_t localY = yPos - globalY();
-    return localX >= 0 && localX < width() && localY >= 0 && localY < FieldHeight;
+    const int32_t localX = xPos - GlobalX();
+    const int32_t localY = yPos - GlobalY();
+    return localX >= 0 && localX < Width() && localY >= 0 && localY < FieldHeight;
 }
 
-auto lComboBox::RowAt(int32_t xPos, int32_t yPos) -> int32_t
+auto MCLogComboBox::RowAt(int32_t xPos, int32_t yPos) -> int32_t
 {
     if (!_Open)
     {
         return -1;
     }
 
-    const int32_t localX = xPos - globalX();
-    const int32_t localY = yPos - FieldHeight - globalY();
+    const int32_t localX = xPos - GlobalX();
+    const int32_t localY = yPos - FieldHeight - GlobalY();
 
-    if (localX < 0 || localX >= width() || localY < 0)
+    if (localX < 0 || localX >= Width() || localY < 0)
     {
         return -1;
     }
@@ -3264,16 +3264,16 @@ auto lComboBox::RowAt(int32_t xPos, int32_t yPos) -> int32_t
     return row < VisibleRows() ? _FirstRow + row : -1;
 }
 
-auto lComboBox::RaiseAmongSiblings() -> void
+auto MCLogComboBox::RaiseAmongSiblings() -> void
 {
-    if (parent == nullptr)
+    if (Parent == nullptr)
     {
         return;
     }
 
-    aObject** first = parent->childList;
-    aObject** last = first + parent->numChildren;
-    aObject** at = std::find(first, last, this);
+    MCGuiObject** first = Parent->ChildList;
+    MCGuiObject** last = first + Parent->NumChildren;
+    MCGuiObject** at = std::find(first, last, this);
 
     if (at == last)
     {
@@ -3281,9 +3281,9 @@ auto lComboBox::RaiseAmongSiblings() -> void
     }
 
     // The children are sorted by depth, front-most last: this one goes after the others of its depth.
-    aObject** end = at + 1;
+    MCGuiObject** end = at + 1;
 
-    while (end != last && (*end)->depth() <= winDepth)
+    while (end != last && (*end)->Depth() <= WinDepth)
     {
         ++end;
     }
@@ -3291,9 +3291,9 @@ auto lComboBox::RaiseAmongSiblings() -> void
     std::rotate(at, at + 1, end);
 }
 
-auto lComboBox::handleEvent(aEvent* event) -> void
+auto MCLogComboBox::HandleEvent(MCGuiEvent* event) -> void
 {
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         case 3:
@@ -3305,7 +3305,7 @@ auto lComboBox::handleEvent(aEvent* event) -> void
             {
                 Open();
             }
-            else if (RowAt(event->x, event->y) < 0)
+            else if (RowAt(event->X, event->Y) < 0)
             {
                 CloseList();
                 _HoldUntilRelease = true;
@@ -3314,7 +3314,7 @@ auto lComboBox::handleEvent(aEvent* event) -> void
         }
         case 4:
         {
-            const int32_t row = RowAt(event->x, event->y);
+            const int32_t row = RowAt(event->X, event->Y);
 
             if (_HoldUntilRelease)
             {
@@ -3323,14 +3323,14 @@ auto lComboBox::handleEvent(aEvent* event) -> void
             else if (row >= 0)
             {
                 Close();
-                soundSystem->playDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
+                SoundSystem->PlayDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
                 Choose(row);
             }
             break;
         }
         case 7:
         {
-            const int32_t row = RowAt(event->x, event->y);
+            const int32_t row = RowAt(event->X, event->Y);
 
             if (row >= 0)
             {
@@ -3340,7 +3340,7 @@ auto lComboBox::handleEvent(aEvent* event) -> void
         }
         case 9:
         {
-            const uint8_t key = event->key;
+            const uint8_t key = event->Key;
 
             if (key == VK_UP || key == VK_DOWN)
             {
@@ -3372,10 +3372,10 @@ auto lComboBox::handleEvent(aEvent* event) -> void
             {
                 Close();
             }
-            else if (!_Open && parent != nullptr)
+            else if (!_Open && Parent != nullptr)
             {
                 // Other keys are the screen's (Escape leaves it).
-                parent->handleEvent(event);
+                Parent->HandleEvent(event);
             }
             break;
         }
@@ -3384,7 +3384,7 @@ auto lComboBox::handleEvent(aEvent* event) -> void
     }
 }
 
-auto lComboBox::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
+auto MCLogComboBox::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
     (void)xPos;
     (void)yPos;

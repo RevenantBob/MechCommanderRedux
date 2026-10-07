@@ -43,13 +43,13 @@ namespace
     constexpr int32_t TRACK_DIAGONAL_B = 135;
 
     /// <summary>The frame turned an eighth of a turn about its up axis (the facing the art is drawn at).</summary>
-    frame_of_ref TurnedFrame(const frame_of_ref& frame)
+    MCFrameOfRef TurnedFrame(const MCFrameOfRef& frame)
     {
         const float s = static_cast<float>(std::sin(EIGHTH_TURN));
         const float c = static_cast<float>(std::cos(EIGHTH_TURN));
-        frame_of_ref turned = frame;
-        turned.i = frame.i * c + frame.j * s;
-        turned.j = frame.j * c - frame.i * s;
+        MCFrameOfRef turned = frame;
+        turned.I = frame.I * c + frame.J * s;
+        turned.J = frame.J * c - frame.I * s;
         return turned;
     }
 
@@ -58,18 +58,18 @@ namespace
     /// column (one right of it) for the -45/135 tracks, along a row (one below it) for the others. The cell index is
     /// not wrapped at the tile's edge (a car in the last column locks index row * 3 + 3).
     /// </summary>
-    void lockTrackCells(TrainCar* car, int32_t trackDirection, uint32_t locked)
+    void LockTrackCells(MCTrainCar* car, int32_t trackDirection, uint32_t locked)
     {
         int32_t tileR = 0;
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->worldToMapPos(car->getPosition(), tileR, tileC, cellR, cellC);
+        GameMap->WorldToMapPos(car->GetPosition(), tileR, tileC, cellR, cellC);
         const auto lock = [&]
         {
-            MapTile& tile = GameMap->map[GameMap->width * tileR + tileC];
+            MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
             const auto shift = static_cast<uint32_t>(cellC + cellR * 3);
-            tile.overlay = (locked << ((shift + 0xf) & 0x1f)) | (~(0x8000u << (shift & 0x1f)) & tile.overlay);
+            tile.Overlay = (locked << ((shift + 0xf) & 0x1f)) | (~(0x8000u << (shift & 0x1f)) & tile.Overlay);
         };
 
         if (trackDirection == TRACK_DIAGONAL_A || trackDirection == TRACK_DIAGONAL_B)
@@ -119,9 +119,9 @@ namespace
     }
 
     /// <summary>The object list named <paramref name="listName"/>, or null.</summary>
-    ObjectQueueNode* findObjectList(const char* listName)
+    MCObjectQueueNode* FindObjectList(const char* listName)
     {
-        for (ObjectQueueNode* list = objectList->head; list != nullptr; list = list->next)
+        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
         {
             if (list->operator==(listName) != 0)
             {
@@ -133,52 +133,52 @@ namespace
     }
 } // namespace
 
-float carOffset = 84.0f;
+float CarOffset = 84.0f;
 
 //---------------------------------------------------------------------------
 // Train
 //---------------------------------------------------------------------------
 
-Train::Train()
+MCTrain::MCTrain()
 {
-    init();
+    Init();
 }
 
-Train::~Train()
+MCTrain::~MCTrain()
 {
     // Faithful: the list entries are walked but not freed.
-    while (cars != nullptr)
+    while (Cars != nullptr)
     {
-        cars = cars->next;
+        Cars = Cars->Next;
     }
 }
 
-auto Train::init() -> void
+auto MCTrain::Init() -> void
 {
-    speed = 0.0f;
-    leadPosition.y = 0.0f;
-    leadPosition.x = 0.0f;
-    maxAccel = 0.0f;
-    maxDecel = 0.0f;
-    maxSpeed = 0.0f;
-    desiredSpeed = 0.0f;
-    leadPosition.z = 0.0f;
-    numCars = 0;
-    cars = nullptr;
+    Speed = 0.0f;
+    LeadPosition.Y = 0.0f;
+    LeadPosition.X = 0.0f;
+    MaxAccel = 0.0f;
+    MaxDecel = 0.0f;
+    MaxSpeed = 0.0f;
+    DesiredSpeed = 0.0f;
+    LeadPosition.Z = 0.0f;
+    NumCars = 0;
+    Cars = nullptr;
 }
 
-auto Train::destroy() -> void
+auto MCTrain::Destroy() -> void
 {
     // Faithful: the list entries are walked but not freed.
-    while (cars != nullptr)
+    while (Cars != nullptr)
     {
-        cars = cars->next;
+        Cars = Cars->Next;
     }
 }
 
-auto Train::Update() -> void
+auto MCTrain::Update() -> void
 {
-    TrainListEntry* entry = cars;
+    MCTrainListEntry* entry = Cars;
 
     if (entry == nullptr)
     {
@@ -189,11 +189,11 @@ auto Train::Update() -> void
     // slow or to come back through zero) within maxSpeed.
     int32_t anyDerailed = 0;
 
-    for (TrainListEntry* check = entry; check != nullptr; check = check->next)
+    for (MCTrainListEntry* check = entry; check != nullptr; check = check->Next)
     {
-        if (check->car->derailed != 0)
+        if (check->Car->Derailed != 0)
         {
-            anyDerailed = check->car->derailed;
+            anyDerailed = check->Car->Derailed;
             break;
         }
     }
@@ -202,195 +202,195 @@ auto Train::Update() -> void
 
     if (anyDerailed == 0)
     {
-        if (maxAccel <= 0.0f)
+        if (MaxAccel <= 0.0f)
         {
-            if (0.0f < speed)
+            if (0.0f < Speed)
             {
-                speed = static_cast<float>(static_cast<double>(frameLength) * maxAccel + speed);
+                Speed = static_cast<float>(static_cast<double>(FrameLength) * MaxAccel + Speed);
 
-                if (speed < 0.0f)
+                if (Speed < 0.0f)
                 {
-                    speed = 0.0f;
+                    Speed = 0.0f;
                 }
             }
 
-            if (speed < 0.0f)
+            if (Speed < 0.0f)
             {
-                speed = static_cast<float>(speed - static_cast<double>(frameLength) * maxAccel);
-                stop = 0.0f < speed;
+                Speed = static_cast<float>(Speed - static_cast<double>(FrameLength) * MaxAccel);
+                stop = 0.0f < Speed;
             }
         }
-        else if (desiredSpeed <= speed)
+        else if (DesiredSpeed <= Speed)
         {
-            if (desiredSpeed < speed)
+            if (DesiredSpeed < Speed)
             {
-                if (speed <= 0.0f)
+                if (Speed <= 0.0f)
                 {
-                    speed = static_cast<float>(speed - static_cast<double>(frameLength) * maxAccel);
+                    Speed = static_cast<float>(Speed - static_cast<double>(FrameLength) * MaxAccel);
 
-                    if (speed < desiredSpeed)
+                    if (Speed < DesiredSpeed)
                     {
-                        speed = desiredSpeed;
+                        Speed = DesiredSpeed;
                     }
 
-                    if (maxSpeed < -speed)
+                    if (MaxSpeed < -Speed)
                     {
-                        speed = -maxSpeed;
+                        Speed = -MaxSpeed;
                     }
                 }
                 else
                 {
-                    speed = static_cast<float>(speed - static_cast<double>(frameLength) * maxDecel);
-                    stop = speed < 0.0f;
+                    Speed = static_cast<float>(Speed - static_cast<double>(FrameLength) * MaxDecel);
+                    stop = Speed < 0.0f;
                 }
             }
         }
-        else if (0.0f <= speed)
+        else if (0.0f <= Speed)
         {
-            speed = static_cast<float>(static_cast<double>(frameLength) * maxAccel + speed);
+            Speed = static_cast<float>(static_cast<double>(FrameLength) * MaxAccel + Speed);
 
-            if (desiredSpeed < speed)
+            if (DesiredSpeed < Speed)
             {
-                speed = desiredSpeed;
+                Speed = DesiredSpeed;
             }
 
-            if (maxSpeed < speed)
+            if (MaxSpeed < Speed)
             {
-                speed = maxSpeed;
+                Speed = MaxSpeed;
             }
         }
         else
         {
-            speed = static_cast<float>(static_cast<double>(frameLength) * maxDecel + speed);
-            stop = 0.0f < speed;
+            Speed = static_cast<float>(static_cast<double>(FrameLength) * MaxDecel + Speed);
+            stop = 0.0f < Speed;
         }
     }
     else
     {
-        if (0.0f < speed)
+        if (0.0f < Speed)
         {
-            speed = static_cast<float>(speed - static_cast<double>(frameLength) * maxDecel);
+            Speed = static_cast<float>(Speed - static_cast<double>(FrameLength) * MaxDecel);
 
-            if (speed < 0.0f)
+            if (Speed < 0.0f)
             {
-                speed = 0.0f;
+                Speed = 0.0f;
             }
         }
 
-        if (speed < 0.0f)
+        if (Speed < 0.0f)
         {
-            speed = static_cast<float>(static_cast<double>(frameLength) * maxDecel + speed);
-            stop = 0.0f < speed;
+            Speed = static_cast<float>(static_cast<double>(FrameLength) * MaxDecel + Speed);
+            stop = 0.0f < Speed;
         }
     }
 
     if (stop)
     {
-        speed = 0.0f;
+        Speed = 0.0f;
     }
 
     // The step this frame, along the lead car's (turned) facing.
-    vector_3d move;
-    move.x = 0.0f;
-    move.y = 0.0f;
-    move.z = 0.0f;
+    MCVector3D move;
+    move.X = 0.0f;
+    move.Y = 0.0f;
+    move.Z = 0.0f;
 
-    if (speed != 0.0f)
+    if (Speed != 0.0f)
     {
-        const float reach = -(worldUnitsPerMeter * speed);
-        const frame_of_ref turned = TurnedFrame(entry->car->getFrame());
-        move.x = static_cast<float>(static_cast<double>(turned.j.x) * reach * frameLength);
-        move.y = turned.j.y * reach * frameLength;
-        move.z = turned.j.z * reach * frameLength;
+        const float reach = -(WorldUnitsPerMeter * Speed);
+        const MCFrameOfRef turned = TurnedFrame(entry->Car->GetFrame());
+        move.X = static_cast<float>(static_cast<double>(turned.J.X) * reach * FrameLength);
+        move.Y = turned.J.Y * reach * FrameLength;
+        move.Z = turned.J.Z * reach * FrameLength;
     }
 
     // Each car on the rails: unlock its cells, move, lock the new ones.
-    for (; entry != nullptr; entry = entry->next)
+    for (; entry != nullptr; entry = entry->Next)
     {
-        TrainCar* car = entry->car;
+        MCTrainCar* car = entry->Car;
 
-        if (car->derailed == 1)
+        if (car->Derailed == 1)
         {
             continue;
         }
 
-        lockTrackCells(car, trackDirection, 0);
-        car->speed = speed;
-        const vector_3d carPos = car->getPosition();
-        vector_3d newPos;
-        newPos.x = carPos.x + move.x;
-        newPos.y = carPos.y + move.y;
-        newPos.z = carPos.z + move.z;
-        car->setPosition(newPos);
-        lockTrackCells(car, trackDirection, 1);
+        LockTrackCells(car, TrackDirection, 0);
+        car->Speed = Speed;
+        const MCVector3D carPos = car->GetPosition();
+        MCVector3D newPos;
+        newPos.X = carPos.X + move.X;
+        newPos.Y = carPos.Y + move.Y;
+        newPos.Z = carPos.Z + move.Z;
+        car->SetPosition(newPos);
+        LockTrackCells(car, TrackDirection, 1);
     }
 }
 
-auto Train::AddCar(TrainCar* car) -> int32_t
+auto MCTrain::AddCar(MCTrainCar* car) -> int32_t
 {
-    if (car->objectClass != TRAINCAR)
+    if (car->ObjectClass != TRAINCAR)
     {
         return static_cast<int32_t>(0xdefc0005);
     }
 
-    auto* newEntry = new TrainListEntry;
+    auto* newEntry = new MCTrainListEntry;
     Assert(newEntry != nullptr ? 1u : 0u, 0, "Not enough memory to allocate new TrainListEntry");
-    newEntry->car = car;
-    TrainListEntry* tail = cars;
+    newEntry->Car = car;
+    MCTrainListEntry* tail = Cars;
 
-    while (tail != nullptr && tail->next != nullptr)
+    while (tail != nullptr && tail->Next != nullptr)
     {
-        tail = tail->next;
+        tail = tail->Next;
     }
 
     if (tail == nullptr)
     {
-        cars = newEntry;
+        Cars = newEntry;
     }
     else
     {
         // Hitch it carOffset behind the last car, along the (turned) lead car's main axis.
-        const frame_of_ref turned = TurnedFrame(cars->car->getFrame());
-        vector_3d carPos = tail->car->getPosition();
+        const MCFrameOfRef turned = TurnedFrame(Cars->Car->GetFrame());
+        MCVector3D carPos = tail->Car->GetPosition();
 
-        if (std::abs(turned.j.x) <= std::abs(turned.j.y))
+        if (std::abs(turned.J.X) <= std::abs(turned.J.Y))
         {
-            if (turned.j.y <= 0.0f)
+            if (turned.J.Y <= 0.0f)
             {
-                carPos.y = carPos.y - carOffset;
+                carPos.Y = carPos.Y - CarOffset;
             }
             else
             {
-                carPos.y = carOffset + carPos.y;
+                carPos.Y = CarOffset + carPos.Y;
             }
         }
-        else if (turned.j.x <= 0.0f)
+        else if (turned.J.X <= 0.0f)
         {
-            carPos.x = carPos.x - carOffset;
+            carPos.X = carPos.X - CarOffset;
         }
         else
         {
-            carPos.x = carOffset + carPos.x;
+            carPos.X = CarOffset + carPos.X;
         }
 
-        car->setPosition(carPos);
-        tail->next = newEntry;
-        newEntry->prev = tail;
+        car->SetPosition(carPos);
+        tail->Next = newEntry;
+        newEntry->Prev = tail;
     }
 
-    car->train = this;
-    numCars++;
+    car->Train = this;
+    NumCars++;
     RecalcInfo();
-    return numCars;
+    return NumCars;
 }
 
-auto Train::RemoveCar(TrainCar* car, int justUnlink) -> int32_t
+auto MCTrain::RemoveCar(MCTrainCar* car, int justUnlink) -> int32_t
 {
-    TrainListEntry* entry = cars;
+    MCTrainListEntry* entry = Cars;
 
-    while (entry != nullptr && entry->car != car)
+    while (entry != nullptr && entry->Car != car)
     {
-        entry = entry->next;
+        entry = entry->Next;
     }
 
     if (entry == nullptr)
@@ -403,131 +403,131 @@ auto Train::RemoveCar(TrainCar* car, int justUnlink) -> int32_t
         // Split the train: the car becomes a train of its own, and the cars behind it another.
         // Port fix: the original reads this train's speeds (and car count) after the last car has left and it has
         // been freed; the values it would have read are kept from before each move.
-        float lastSpeed = speed;
-        float lastDesiredSpeed = desiredSpeed;
-        int32_t carsLeft = numCars;
-        const auto moveCar = [&](Train* to, TrainCar* moving)
+        float lastSpeed = Speed;
+        float lastDesiredSpeed = DesiredSpeed;
+        int32_t carsLeft = NumCars;
+        const auto moveCar = [&](MCTrain* to, MCTrainCar* moving)
         {
             to->AddCar(moving);
-            lastSpeed = speed;
-            lastDesiredSpeed = desiredSpeed;
+            lastSpeed = Speed;
+            lastDesiredSpeed = DesiredSpeed;
             carsLeft = RemoveCar(moving, 1);
         };
 
-        Train* alone = trainManager->CreateTrain();
-        TrainListEntry* behind = entry->next;
-        moveCar(alone, entry->car);
+        MCTrain* alone = TrainManager->CreateTrain();
+        MCTrainListEntry* behind = entry->Next;
+        moveCar(alone, entry->Car);
 
         if (behind != nullptr)
         {
-            Train* rest = trainManager->CreateTrain();
+            MCTrain* rest = TrainManager->CreateTrain();
 
             do
             {
-                TrainListEntry* nextEntry = behind->next;
-                moveCar(rest, behind->car);
+                MCTrainListEntry* nextEntry = behind->Next;
+                moveCar(rest, behind->Car);
                 behind = nextEntry;
             } while (behind != nullptr);
 
             if (carsLeft != 0)
             {
-                lastSpeed = speed;
-                lastDesiredSpeed = desiredSpeed;
+                lastSpeed = Speed;
+                lastDesiredSpeed = DesiredSpeed;
             }
 
-            rest->speed = lastSpeed;
-            rest->desiredSpeed = lastDesiredSpeed;
+            rest->Speed = lastSpeed;
+            rest->DesiredSpeed = lastDesiredSpeed;
             rest->RecalcInfo();
         }
 
-        return carsLeft != 0 ? numCars : 0;
+        return carsLeft != 0 ? NumCars : 0;
     }
 
     // Unlink it; a train left with no cars is removed and freed.
-    TrainListEntry* before = entry->prev;
-    TrainListEntry* after = entry->next;
+    MCTrainListEntry* before = entry->Prev;
+    MCTrainListEntry* after = entry->Next;
 
     if (before == nullptr)
     {
-        cars = after;
+        Cars = after;
     }
     else
     {
-        before->next = after;
+        before->Next = after;
     }
 
     if (after != nullptr)
     {
-        after->prev = before;
+        after->Prev = before;
     }
 
     delete entry;
-    numCars--;
+    NumCars--;
 
-    if (numCars == 0)
+    if (NumCars == 0)
     {
-        trainManager->RemoveTrain(this);
-        destroy();
+        TrainManager->RemoveTrain(this);
+        Destroy();
         delete this;
         return 0;
     }
 
     RecalcInfo();
-    return numCars;
+    return NumCars;
 }
 
-auto Train::RecalcInfo() -> void
+auto MCTrain::RecalcInfo() -> void
 {
     // The train goes at the pace of its weakest car.
-    maxDecel = -9999999.0f;
-    maxAccel = -9999999.0f;
-    maxSpeed = 9999999.0f;
+    MaxDecel = -9999999.0f;
+    MaxAccel = -9999999.0f;
+    MaxSpeed = 9999999.0f;
 
-    if (cars != nullptr)
+    if (Cars != nullptr)
     {
-        leadPosition = cars->car->getPosition();
+        LeadPosition = Cars->Car->GetPosition();
 
-        for (TrainListEntry* entry = cars; entry != nullptr; entry = entry->next)
+        for (MCTrainListEntry* entry = Cars; entry != nullptr; entry = entry->Next)
         {
-            TrainCar* car = entry->car;
+            MCTrainCar* car = entry->Car;
 
-            if (maxAccel < car->GetMaxAccel())
+            if (MaxAccel < car->GetMaxAccel())
             {
-                maxAccel = car->GetMaxAccel();
+                MaxAccel = car->GetMaxAccel();
             }
 
-            if (maxDecel < car->GetMaxDecel())
+            if (MaxDecel < car->GetMaxDecel())
             {
-                maxDecel = car->GetMaxDecel();
+                MaxDecel = car->GetMaxDecel();
             }
 
-            if (car->GetMaxSpeed() < maxSpeed)
+            if (car->GetMaxSpeed() < MaxSpeed)
             {
-                maxSpeed = car->GetMaxSpeed();
+                MaxSpeed = car->GetMaxSpeed();
             }
         }
     }
 
-    if (maxSpeed < std::abs(desiredSpeed))
+    if (MaxSpeed < std::abs(DesiredSpeed))
     {
-        if (0.0f < desiredSpeed)
+        if (0.0f < DesiredSpeed)
         {
-            desiredSpeed = maxSpeed;
+            DesiredSpeed = MaxSpeed;
         }
         else
         {
-            desiredSpeed = -maxSpeed;
+            DesiredSpeed = -MaxSpeed;
         }
     }
 }
 
-auto Train::GetTotalTonnage() -> float
+auto MCTrain::GetTotalTonnage() -> float
 {
     float tonnage = 0.0f;
 
-    for (TrainListEntry* entry = cars; entry != nullptr; entry = entry->next)
+    for (MCTrainListEntry* entry = Cars; entry != nullptr; entry = entry->Next)
     {
-        tonnage = entry->car->getTonnage() + tonnage;
+        tonnage = entry->Car->GetTonnage() + tonnage;
     }
 
     return tonnage;
@@ -537,102 +537,102 @@ auto Train::GetTotalTonnage() -> float
 // TrainCarType
 //---------------------------------------------------------------------------
 
-TrainCarType::TrainCarType()
+MCTrainCarType::MCTrainCarType()
 {
-    damage = 0;
-    explosionChance = 0;
-    explosionDamage = 0;
-    velocityMultiplier = 0;
-    topSpeed = 0.0f;
-    acceleration = 0.0f;
-    deceleration = 0.0f;
-    tonnageClass = -1.0f;
-    nameId = 0;
+    Damage = 0;
+    ExplosionChance = 0;
+    ExplosionDamage = 0;
+    VelocityMultiplier = 0;
+    TopSpeed = 0.0f;
+    Acceleration = 0.0f;
+    Deceleration = 0.0f;
+    TonnageClass = -1.0f;
+    NameId = 0;
 }
 
-auto TrainCarType::createInstance() -> BaseObject*
+auto MCTrainCarType::CreateInstance() -> MCBaseObject*
 {
-    auto* newCar = new TrainCar;
+    auto* newCar = new MCTrainCar;
 
     if (newCar == nullptr)
     {
         return nullptr;
     }
 
-    if (newCar->init(this) != 0)
+    if (newCar->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newCar->idNumber = NextIdNumber++;
+    newCar->IdNumber = NextIdNumber++;
     return newCar;
 }
 
-auto TrainCarType::destroy() -> void
+auto MCTrainCarType::Destroy() -> void
 {
 }
 
-auto TrainCarType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCTrainCarType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile trainFile;
-    int32_t result = trainFile.open(objFile, fileSize, 50);
+    MCFitIniFile trainFile;
+    int32_t result = trainFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.seekBlock("Train")) != 0)
+    if ((result = trainFile.SeekBlock("Train")) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdLong("Name", nameId)) != 0)
+    if ((result = trainFile.ReadIdLong("Name", NameId)) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdUChar("Explosion Chance", explosionChance)) != 0)
+    if ((result = trainFile.ReadIdUChar("Explosion Chance", ExplosionChance)) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdUChar("Explosion Damage", explosionDamage)) != 0)
+    if ((result = trainFile.ReadIdUChar("Explosion Damage", ExplosionDamage)) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdUChar("Velocity Multiplier", velocityMultiplier)) != 0)
+    if ((result = trainFile.ReadIdUChar("Velocity Multiplier", VelocityMultiplier)) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdFloat("Acceleration", acceleration)) != 0)
+    if ((result = trainFile.ReadIdFloat("Acceleration", Acceleration)) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdFloat("Deceleration", deceleration)) != 0)
+    if ((result = trainFile.ReadIdFloat("Deceleration", Deceleration)) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdFloat("TopSpeed", topSpeed)) != 0)
+    if ((result = trainFile.ReadIdFloat("TopSpeed", TopSpeed)) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdLong("Damage", damage)) != 0)
+    if ((result = trainFile.ReadIdLong("Damage", Damage)) != 0)
     {
         return result;
     }
 
-    if ((result = trainFile.readIdFloat("TonnageClass", tonnageClass)) != 0)
+    if ((result = trainFile.ReadIdFloat("TonnageClass", TonnageClass)) != 0)
     {
         return result;
     }
 
-    if ((result = ObjectType::init(&trainFile)) != 0)
+    if ((result = MCObjectType::Init(&trainFile)) != 0)
     {
         return result;
     }
@@ -640,30 +640,30 @@ auto TrainCarType::init(File* objFile, uint32_t fileSize) -> int32_t
     return 0;
 }
 
-auto TrainCarType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCTrainCarType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // The server's job in multiplayer.
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 0;
     }
 
-    auto* car = static_cast<TrainCar*>(collidee);
-    Train* train = car->train;
+    auto* car = static_cast<MCTrainCar*>(collidee);
+    MCTrain* train = car->Train;
     const int multiplayer = MPlayer != nullptr ? 1 : 0;
     // The car takes (collider tonnage + 1) / 2, from the collider's side.
     const auto hitCar = [&](int32_t hitLocation)
     {
-        const auto angle = static_cast<float>(car->relFacingTo(collider->getPosition(), -1));
-        _WeaponShotInfo shot;
-        shot.init(collider, -1, static_cast<float>((collider->getTonnage() + 1.0) * 0.5), hitLocation, angle);
-        car->handleWeaponHit(&shot, multiplayer);
+        const auto angle = static_cast<float>(car->RelFacingTo(collider->GetPosition(), -1));
+        MCWeaponShotInfo shot;
+        shot.Init(collider, -1, static_cast<float>((collider->GetTonnage() + 1.0) * 0.5), hitLocation, angle);
+        car->HandleWeaponHit(&shot, multiplayer);
     };
 
-    if (car->derailed == 1)
+    if (car->Derailed == 1)
     {
         // A derailed car is only hurt by mechs, vehicles and elementals.
-        if (collider->objectClass < BATTLEMECH || ELEMENTAL < collider->objectClass)
+        if (collider->ObjectClass < BATTLEMECH || ELEMENTAL < collider->ObjectClass)
         {
             return 0;
         }
@@ -673,22 +673,22 @@ auto TrainCarType::handleCollision(GameObject* collidee, GameObject* collider) -
     }
 
     // Something heavy stops the train; movers and buildings in the way take the train's weight.
-    if (20.0f <= collider->getTonnage())
+    if (20.0f <= collider->GetTonnage())
     {
-        train->speed = 0.0f;
+        train->Speed = 0.0f;
     }
 
-    switch (collider->objectClass)
+    switch (collider->ObjectClass)
     {
         case BATTLEMECH:
         case GROUNDVEHICLE:
         case ELEMENTAL:
         {
-            const int32_t hitLocation = collider->calcHitLocation(car, -1, 1, 0);
-            const auto angle = static_cast<float>(collider->relFacingTo(car->getPosition(), -1));
-            _WeaponShotInfo shot;
-            shot.init(car, -1, train->GetTotalTonnage() * 0.2f + 0.5f, hitLocation, angle);
-            collider->handleWeaponHit(&shot, multiplayer);
+            const int32_t hitLocation = collider->CalcHitLocation(car, -1, 1, 0);
+            const auto angle = static_cast<float>(collider->RelFacingTo(car->GetPosition(), -1));
+            MCWeaponShotInfo shot;
+            shot.Init(car, -1, train->GetTotalTonnage() * 0.2f + 0.5f, hitLocation, angle);
+            collider->HandleWeaponHit(&shot, multiplayer);
             hitCar(hitLocation);
             return 0;
         }
@@ -696,10 +696,10 @@ auto TrainCarType::handleCollision(GameObject* collidee, GameObject* collider) -
         case BUILDING:
         case TREEBUILDING:
         {
-            train->speed = 0.0f;
-            _WeaponShotInfo shot;
-            shot.init(car, -1, train->GetTotalTonnage() * 0.2f + 0.5f, -1, -1.0f);
-            collider->handleWeaponHit(&shot, multiplayer);
+            train->Speed = 0.0f;
+            MCWeaponShotInfo shot;
+            shot.Init(car, -1, train->GetTotalTonnage() * 0.2f + 0.5f, -1, -1.0f);
+            collider->HandleWeaponHit(&shot, multiplayer);
             hitCar(-1);
             return 0;
         }
@@ -709,11 +709,11 @@ auto TrainCarType::handleCollision(GameObject* collidee, GameObject* collider) -
     }
 }
 
-auto TrainCarType::handleDestruction(GameObject* collidee, GameObject*) -> int
+auto MCTrainCarType::HandleDestruction(MCGameObject* collidee, MCGameObject*) -> int
 {
-    const auto blast = static_cast<float>(explosionDamage);
-    vector_3d where = collidee->getPosition();
-    createExplosion(where, blast, blast);
+    const auto blast = static_cast<float>(ExplosionDamage);
+    MCVector3D where = collidee->GetPosition();
+    CreateExplosion(where, blast, blast);
     return 0;
 }
 
@@ -721,41 +721,41 @@ auto TrainCarType::handleDestruction(GameObject* collidee, GameObject*) -> int
 // TrainCar
 //---------------------------------------------------------------------------
 
-auto TrainCar::init() -> void
+auto MCTrainCar::Init() -> void
 {
-    appearance = nullptr;
-    train = nullptr;
-    name.clear();
-    speed = 0.0f;
-    wrecked = 0;
-    onMap = 1;
-    damageTaken = 0.0f;
-    justCreated = 1;
+    Appearance = nullptr;
+    Train = nullptr;
+    Name.clear();
+    Speed = 0.0f;
+    Wrecked = 0;
+    OnMap = 1;
+    DamageTaken = 0.0f;
+    JustCreated = 1;
 }
 
-auto TrainCar::getFrame() -> frame_of_ref
+auto MCTrainCar::GetFrame() -> MCFrameOfRef
 {
-    return frame;
+    return Frame;
 }
 
-auto TrainCar::setFrame(frame_of_ref& newFrame) -> void
+auto MCTrainCar::SetFrame(MCFrameOfRef& newFrame) -> void
 {
-    frame = newFrame;
+    Frame = newFrame;
 }
 
-auto TrainCar::handleStaticCollision() -> void
+auto MCTrainCar::HandleStaticCollision() -> void
 {
-    if (collisionsOn == 0 || onMap == 0)
+    if (CollisionsOn == 0 || OnMap == 0)
     {
         return;
     }
 
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
-    getBlockAndVertexNumber(blockNumber, vertexNumber);
+    GetBlockAndVertexNumber(blockNumber, vertexNumber);
     char listName[12];
     std::sprintf(listName, "TBlk%d", blockNumber);
-    ObjectQueueNode* list = findObjectList(listName);
+    MCObjectQueueNode* list = FindObjectList(listName);
 
     // Port fix: the original reads the list's objects without checking that the block has a list.
     if (list == nullptr)
@@ -764,29 +764,29 @@ auto TrainCar::handleStaticCollision() -> void
     }
 
     // The terrain objects of its own block, on its own vertex.
-    BaseObject* object = list->head;
+    MCBaseObject* object = list->Head;
 
     while (object != nullptr)
     {
-        auto* other = static_cast<GameObject*>(object);
+        auto* other = static_cast<MCGameObject*>(object);
 
-        if (other->getObjectType() != nullptr)
+        if (other->GetObjectType() != nullptr)
         {
             int32_t otherBlock = -1;
             int32_t otherVertex = -1;
 
-            switch (other->objectClass)
+            switch (other->ObjectClass)
             {
                 case BUILDING:
                 case TREE:
                 case TERRAINOBJECT:
                 case TREEBUILDING:
-                    other->getBlockAndVertexNumber(otherBlock, otherVertex);
+                    other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                     break;
                 case MISCTERRAINOBJECT:
                     // Original behaviour (OB-022): walls, bridges and forests read the train car's own vertex, so they
                     // always match.
-                    getBlockAndVertexNumber(otherBlock, otherVertex);
+                    GetBlockAndVertexNumber(otherBlock, otherVertex);
                     break;
                 default:
                     break;
@@ -794,181 +794,181 @@ auto TrainCar::handleStaticCollision() -> void
 
             if (vertexNumber == otherVertex)
             {
-                collisionSystem->detectStaticCollision(this, other);
+                CollisionSystem->DetectStaticCollision(this, other);
             }
         }
 
         // Port fix (OB-015): the original only steps to the next object after one with a type, so an object
         // without one hangs the game here.
-        object = object->next;
+        object = object->Next;
     }
 }
 
-auto TrainCar::init(ObjectType* objType) -> int32_t
+auto MCTrainCar::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    objectClass = TRAINCAR;
+    ObjectClass = TRAINCAR;
 
     if (objType != nullptr)
     {
-        auto* carType = static_cast<TrainCarType*>(objType);
+        auto* carType = static_cast<MCTrainCarType*>(objType);
         char nameBuffer[256];
-        cLoadString(thisInstance, static_cast<uint32_t>(carType->nameId), nameBuffer, 0xfe);
-        name = nameBuffer;
-        damage = static_cast<float>(carType->damage);
-        setTonnage(carType->tonnageClass);
-        collisionsOn = 1;
+        CLoadString(ThisInstance, static_cast<uint32_t>(carType->NameId), nameBuffer, 0xfe);
+        Name = nameBuffer;
+        Damage = static_cast<float>(carType->Damage);
+        SetTonnage(carType->TonnageClass);
+        CollisionsOn = 1;
     }
 
-    derailed = 0;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    Derailed = 0;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdefc0003);
     }
 
-    auto* vehicleAppearance = new GVAppearance;
-    appearance = vehicleAppearance;
+    auto* vehicleAppearance = new MCGVAppearance;
+    Appearance = vehicleAppearance;
 
     if (vehicleAppearance == nullptr)
     {
         return static_cast<int32_t>(0xdefc0001);
     }
 
-    vehicleAppearance->init(nullptr, nullptr);
+    vehicleAppearance->Init(nullptr, nullptr);
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x5000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x5000000)
     {
         return -0x2fff6;
     }
 
-    if ((result = vehicleAppearance->init(apprType, this)) != 0)
+    if ((result = vehicleAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    setPotentialContact(1);
-    justCreated = 1;
+    SetPotentialContact(1);
+    JustCreated = 1;
     return 0;
 }
 
-auto TrainCar::destroy() -> void
+auto MCTrainCar::Destroy() -> void
 {
-    name.clear();
+    Name.clear();
 }
 
-auto TrainCar::setPartId(int32_t trainNumber, int32_t carNumber) -> void
+auto MCTrainCar::SetPartId(int32_t trainNumber, int32_t carNumber) -> void
 {
-    partId = carNumber + (trainNumber * 5 + 0x6400) * 0x14;
+    PartId = carNumber + (trainNumber * 5 + 0x6400) * 0x14;
 }
 
-auto TrainCar::isRevealed() -> int
+auto MCTrainCar::IsRevealed() -> int
 {
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
-    getBlockAndVertexNumber(blockNumber, vertexNumber);
-    const auto col = static_cast<uint32_t>((blockNumber % Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                           vertexNumber % Terrain::verticesBlockSide);
-    const auto row = static_cast<uint32_t>((blockNumber / Terrain::blocksMapSide) * Terrain::verticesBlockSide +
-                                           vertexNumber / Terrain::verticesBlockSide);
+    GetBlockAndVertexNumber(blockNumber, vertexNumber);
+    const auto col = static_cast<uint32_t>((blockNumber % MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                           vertexNumber % MCTerrain::VerticesBlockSide);
+    const auto row = static_cast<uint32_t>((blockNumber / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
+                                           vertexNumber / MCTerrain::VerticesBlockSide);
 
-    if (visibleBits->getFlag(row, col) != 0)
+    if (visibleBits->GetFlag(row, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col) != 0)
+    if (visibleBits->GetFlag(row + 1, col) != 0)
     {
         return 1;
     }
 
-    if (visibleBits->getFlag(row + 1, col + 1) != 0)
+    if (visibleBits->GetFlag(row + 1, col + 1) != 0)
     {
         return 1;
     }
 
-    return visibleBits->getFlag(row, col + 1) != 0 ? 1 : 0;
+    return visibleBits->GetFlag(row, col + 1) != 0 ? 1 : 0;
 }
 
-auto TrainCar::onScreen() -> int
+auto MCTrainCar::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (onMap == 0 || camera == nullptr || camera->active == 0)
+    if (OnMap == 0 || camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    vector_2d screen100;
-    vector_2d screen50;
+    MCVector2D screen100;
+    MCVector2D screen50;
 
-    if (land != nullptr)
+    if (Land != nullptr)
     {
-        land->projectTerrain(position, screen100, screen50);
+        Land->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;
 
-    if (camera->cameraScale == 1)
+    if (camera->CameraScale == 1)
     {
-        screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-        screenY = screen50.y - camera->screenUL50.y;
+        ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+        screenY = screen50.Y - camera->ScreenUL50.Y;
     }
     else
     {
-        screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-        screenY = screen100.y - camera->screenUL.y;
+        ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+        screenY = screen100.Y - camera->ScreenUL.Y;
     }
 
-    screenPos.y = screenY + camera->halfHeight;
+    ScreenPos.Y = screenY + camera->HalfHeight;
 
-    if (appearance->recalcBounds(camera) == 0)
+    if (Appearance->RecalcBounds(camera) == 0)
     {
         return 0;
     }
 
-    windowsVisible = turn;
+    WindowsVisible = Turn;
     return 1;
 }
 
-auto TrainCar::update() -> int32_t
+auto MCTrainCar::Update() -> int32_t
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
-        justCreated = 0;
+        JustCreated = 0;
     }
 
     int visibleNow = 0;
 
-    if (wrecked == 0)
+    if (Wrecked == 0)
     {
         // Damaged past half (or, from 10 points up, by chance) the car blows up and jumps the rails.
-        const auto* carType = static_cast<TrainCarType*>(objType);
-        const int32_t maxDamage = carType->damage;
-        bool blowUp = static_cast<float>(maxDamage / 2) <= damageTaken;
+        const auto* carType = static_cast<MCTrainCarType*>(ObjType);
+        const int32_t maxDamage = carType->Damage;
+        bool blowUp = static_cast<float>(maxDamage / 2) <= DamageTaken;
 
-        if (!blowUp && 10.0f <= damageTaken)
+        if (!blowUp && 10.0f <= DamageTaken)
         {
             // Original behaviour (OB-024): the roll derails the car when its damage percentage is BELOW the roll, so
             // lightly damaged cars go more often.
             const int32_t roll = RandomNumber(100);
-            blowUp = damageTaken * 100.0f / static_cast<float>(maxDamage) < static_cast<float>(roll);
+            blowUp = DamageTaken * 100.0f / static_cast<float>(maxDamage) < static_cast<float>(roll);
         }
 
-        if (blowUp && derailed != 1)
+        if (blowUp && Derailed != 1)
         {
-            damage = 0.0f;
-            status = 2;
-            objType->handleDestruction(this, nullptr);
-            derail(lastHitAngle);
+            Damage = 0.0f;
+            Status = 2;
+            ObjType->HandleDestruction(this, nullptr);
+            Derail(LastHitAngle);
         }
 
         // Off the map it stops drawing; on a broken bridge it falls in.
@@ -976,144 +976,144 @@ auto TrainCar::update() -> int32_t
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->worldToMapPos(getPosition(), tileR, tileC, cellR, cellC);
-        onMap = tileR < 0 || GameMap->height <= tileR || tileC < 0 || GameMap->width <= tileC ? 0 : 1;
+        GameMap->WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
+        OnMap = tileR < 0 || GameMap->Height <= tileR || tileC < 0 || GameMap->Width <= tileC ? 0 : 1;
 
-        if (onMap != 0)
+        if (OnMap != 0)
         {
-            const uint32_t overlayType = GameMap->map[GameMap->width * tileR + tileC].overlay & 0x7f;
+            const uint32_t overlayType = GameMap->Map[GameMap->Width * tileR + tileC].Overlay & 0x7f;
 
             if (overlayType == 0x38 || overlayType == 0x3a)
             {
-                wrecked = 1;
-                derailed = 1;
-                collisionsOn = 0;
-                vector_3d where = getPosition();
+                Wrecked = 1;
+                Derailed = 1;
+                CollisionsOn = 0;
+                MCVector3D where = GetPosition();
                 CreateExplosion(MineExplosion, where, 0.0f, 0.0f);
-                status = 2;
-                train->RemoveCar(this, 0);
-                speed = 0.0f;
-                train->RecalcInfo();
-                objType->handleDestruction(this, nullptr);
+                Status = 2;
+                Train->RemoveCar(this, 0);
+                Speed = 0.0f;
+                Train->RecalcInfo();
+                ObjType->HandleDestruction(this, nullptr);
             }
         }
 
-        if (onMap != 0 && onScreen() != 0)
+        if (OnMap != 0 && OnScreen() != 0)
         {
             visibleNow = 1;
         }
     }
 
-    mineCheck();
+    MineCheck();
 
-    if (appearance != nullptr)
+    if (Appearance != nullptr)
     {
-        appearance->visible = visibleNow;
+        Appearance->Visible = visibleNow;
 
-        if (isDestroyed() != 0)
+        if (IsDestroyed() != 0)
         {
-            static_cast<GVAppearance*>(appearance)->setTypeId(GV_ACTOR_STATE_DESTROYED);
+            static_cast<MCGVAppearance*>(Appearance)->SetTypeId(GV_ACTOR_STATE_DESTROYED);
         }
     }
 
-    appearance->update();
+    Appearance->Update();
     return 1;
 }
 
-auto TrainCar::render() -> void
+auto MCTrainCar::Render() -> void
 {
-    if (wrecked != 0)
+    if (Wrecked != 0)
     {
         return;
     }
 
-    if (justCreated == 0)
+    if (JustCreated == 0)
     {
-        if (appearance != nullptr)
+        if (Appearance != nullptr)
         {
-            appearance->visible = onScreen() != 0 && onMap != 0 ? 1 : 0;
-            appearance->update();
+            Appearance->Visible = OnScreen() != 0 && OnMap != 0 ? 1 : 0;
+            Appearance->Update();
         }
 
-        const int32_t contactType = getContactType(homeTeam->id);
+        const int32_t contactType = GetContactType(HomeTeam->Id);
 
         if (contactType == 2)
         {
             // A sensor contact: a blip sized by tonnage.
             uint8_t* shape;
 
-            if (50.0f < getTonnage())
+            if (50.0f < GetTonnage())
             {
-                shape = scenario->sensorContactShapes[0];
+                shape = Scenario->SensorContactShapes[0];
             }
-            else if (35.0f < getTonnage())
+            else if (35.0f < GetTonnage())
             {
-                shape = scenario->sensorContactShapes[2];
+                shape = Scenario->SensorContactShapes[2];
             }
             else
             {
-                shape = scenario->sensorContactShapes[4];
+                shape = Scenario->SensorContactShapes[4];
             }
 
             if (shape != nullptr)
             {
-                if (VFX_shape_count(shape) < blipFrame)
+                if (VfxShapeCount(shape) < BlipFrame)
                 {
-                    if (soundSystem != nullptr)
+                    if (SoundSystem != nullptr)
                     {
-                        soundSystem->playDigitalSample(0x14, 1, this, 0, 1);
+                        SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
                     }
 
-                    blipFrame = 0;
+                    BlipFrame = 0;
                 }
 
-                ElementList->openGroup(-100000, 1);
-                ElementList->add(
-                    ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 0));
-                blipFrame++;
+                ElementList->OpenGroup(-100000, 1);
+                ElementList->Add(
+                    MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 0));
+                BlipFrame++;
             }
         }
         else if (contactType == 1)
         {
             // Seen: drawn. The original also started and stopped a looping sound here, from a type field nothing
             // ever set (always -1), so a train car never makes one (OB-023).
-            if (windowsVisible == turn)
+            if (WindowsVisible == Turn)
             {
-                auto* carAppearance = static_cast<GVAppearance*>(appearance);
-                carAppearance->hazePalette = nullptr;
-                carAppearance->render(0);
+                auto* carAppearance = static_cast<MCGVAppearance*>(Appearance);
+                carAppearance->HazePalette = nullptr;
+                carAppearance->Render(0);
             }
         }
     }
 
-    if (drawExtents != 0)
+    if (DrawExtents != 0)
     {
         // Debug: the extent radius as an ellipse.
-        float radius = objType->extentRadius;
+        float radius = ObjType->ExtentRadius;
 
-        if (eye->cameraScale == 1)
+        if (Eye->CameraScale == 1)
         {
             radius *= 0.5f;
         }
 
-        const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-        const float sx = (position.x - eye->position.x) * scale;
-        const float sy = (position.y - eye->position.y) * scale;
-        vector_2d center;
-        center.x = sx * eye->cosAngle + sy * eye->cosAngle + eye->halfWidth;
-        center.y =
-            ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * (position.z - eye->position.z);
-        vector_2d size(radius, radius);
-        ElementList->openGroup(-50000, 1);
+        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float sx = (Position.X - Eye->Position.X) * scale;
+        const float sy = (Position.Y - Eye->Position.Y) * scale;
+        MCVector2D center;
+        center.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
+        center.Y =
+            ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
+        MCVector2D size(radius, radius);
+        ElementList->OpenGroup(-50000, 1);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
-        size.x *= MCOverlay.ScaleX;
-        size.y *= MCOverlay.ScaleY;
-        ElementList->add(ElementPool::Make<EllipseElement>(center, size, 0xfe, -50000));
+        size.X *= MCOverlay.ScaleX;
+        size.Y *= MCOverlay.ScaleY;
+        ElementList->Add(MCElementPool::Make<MCEllipseElement>(center, size, 0xfe, -50000));
     }
 }
 
-auto TrainCar::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCTrainCar::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
     if (shotInfo == nullptr)
     {
@@ -1122,74 +1122,74 @@ auto TrainCar::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk)
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    if (0.0f < shotInfo->damage && isDestroyed() == 0)
+    if (0.0f < shotInfo->Damage && IsDestroyed() == 0)
     {
-        lastHitAngle = shotInfo->entryAngle;
-        damageTaken = shotInfo->damage + damageTaken;
-        const float remaining = damage - shotInfo->damage;
-        damage = remaining;
+        LastHitAngle = shotInfo->EntryAngle;
+        DamageTaken = shotInfo->Damage + DamageTaken;
+        const float remaining = Damage - shotInfo->Damage;
+        Damage = remaining;
 
         if (remaining <= 0.0f)
         {
             // Destroyed: it jumps the rails and leaves its train.
-            status = 2;
-            derail(static_cast<float>(RandomNumber(10) - 20));
-            train->RemoveCar(this, 0);
-            speed = 0.0f;
-            train->RecalcInfo();
-            objType->handleDestruction(this, nullptr);
-            collisionsOn = 0;
+            Status = 2;
+            Derail(static_cast<float>(RandomNumber(10) - 20));
+            Train->RemoveCar(this, 0);
+            Speed = 0.0f;
+            Train->RecalcInfo();
+            ObjType->HandleDestruction(this, nullptr);
+            CollisionsOn = 0;
         }
     }
 
     return 0;
 }
 
-auto TrainCar::derail(float angle) -> void
+auto MCTrainCar::Derail(float angle) -> void
 {
-    if (derailed == 1)
+    if (Derailed == 1)
     {
         return;
     }
 
     // Off the rails: free its cells, then (by the train's speed and a roll) take the car ahead or behind with it.
-    lockTrackCells(this, train->trackDirection, 0);
-    Assert(train != nullptr ? 1u : 0u, 0, "Car must have a train to derail");
-    TrainListEntry* entry = train->cars;
+    LockTrackCells(this, Train->TrackDirection, 0);
+    Assert(Train != nullptr ? 1u : 0u, 0, "Car must have a train to derail");
+    MCTrainListEntry* entry = Train->Cars;
 
-    while (entry != nullptr && entry->car != this)
+    while (entry != nullptr && entry->Car != this)
     {
-        entry = entry->next;
+        entry = entry->Next;
     }
 
     Assert(entry != nullptr ? 1u : 0u, 0, "Can't find carEntry for this car");
-    derailed = 1;
+    Derailed = 1;
     const auto roll = static_cast<float>(RandomNumber(100));
-    Train* oldTrain = train;
-    const bool slowEnough = static_cast<double>(std::abs(oldTrain->speed)) * 5.0 <= roll;
+    MCTrain* oldTrain = Train;
+    const bool slowEnough = static_cast<double>(std::abs(oldTrain->Speed)) * 5.0 <= roll;
 
-    if ((speed <= 0.0f && slowEnough) || entry->next == nullptr)
+    if ((Speed <= 0.0f && slowEnough) || entry->Next == nullptr)
     {
-        if ((speed < 0.0f || !slowEnough) && entry->prev != nullptr)
+        if ((Speed < 0.0f || !slowEnough) && entry->Prev != nullptr)
         {
-            entry->prev->car->derail(-angle);
+            entry->Prev->Car->Derail(-angle);
         }
     }
     else
     {
-        entry->next->car->derail(-angle);
+        entry->Next->Car->Derail(-angle);
     }
 
     // Port fix: the neighbour's derail can split and free the old train; the original then calls RemoveCar on the
     // freed train. Only a train the manager still holds is used.
     bool oldTrainAlive = false;
 
-    for (int32_t i = 0; i < trainManager->numTrains && i < TrainManager::MAX_TRAINS; i++)
+    for (int32_t i = 0; i < TrainManager->NumTrains && i < MCTrainManager::MAX_TRAINS; i++)
     {
-        if (trainManager->trains[i] == oldTrain)
+        if (TrainManager->Trains[i] == oldTrain)
         {
             oldTrainAlive = true;
         }
@@ -1201,7 +1201,7 @@ auto TrainCar::derail(float angle) -> void
     }
 
     // Slew it round: a random swing (Faithful: -50..0 whichever side it was hit, 1..100 when head on).
-    frame_of_ref turned = getFrame();
+    MCFrameOfRef turned = GetFrame();
     double swing;
 
     if (angle <= 0.0f && 0.0f <= angle)
@@ -1215,66 +1215,66 @@ auto TrainCar::derail(float angle) -> void
 
     const auto s = static_cast<float>(std::sin(swing * DEGREES_TO_RADIANS));
     const auto c = static_cast<float>(std::cos(swing * DEGREES_TO_RADIANS));
-    const vector_3d oldI = turned.i;
-    turned.i = turned.i * c + turned.j * s;
-    turned.j = turned.j * c - oldI * s;
-    setFrame(turned);
+    const MCVector3D oldI = turned.I;
+    turned.I = turned.I * c + turned.J * s;
+    turned.J = turned.J * c - oldI * s;
+    SetFrame(turned);
 
     // Into water: the car (and its one-car train) is gone.
-    _ObjectPosition* objectPosition = getObjPosition();
+    MCObjectPosition* objectPosition = GetObjPosition();
 
     // Port fix: the original reads the object position without checking it for null.
     if (objectPosition != nullptr)
     {
-        const int32_t tileR = objectPosition->tileR;
-        const int32_t tileC = objectPosition->tileC;
-        const MapTile& tile = GameMap->map[GameMap->width * tileR + tileC];
+        const int32_t tileR = objectPosition->TileR;
+        const int32_t tileC = objectPosition->TileC;
+        const MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
 
-        if ((tile.cells & 0x7f) == 0x2b)
+        if ((tile.Cells & 0x7f) == 0x2b)
         {
-            Train* lostTrain = train;
-            trainManager->RemoveTrain(lostTrain);
-            lostTrain->destroy();
-            wrecked = 1;
-            collisionsOn = 0;
+            MCTrain* lostTrain = Train;
+            TrainManager->RemoveTrain(lostTrain);
+            lostTrain->Destroy();
+            Wrecked = 1;
+            CollisionsOn = 0;
             return;
         }
 
         // Onto a wall or bridge: it takes the train's weight.
-        if ((tile.overlay & 0x7f) == 0x3e)
+        if ((tile.Overlay & 0x7f) == 0x3e)
         {
-            const int32_t vbs = Terrain::verticesBlockSide;
-            const int32_t partId = ((Terrain::blocksMapSide * (tileR / vbs) + tileC / vbs) * 400 + tileC +
+            const int32_t vbs = MCTerrain::VerticesBlockSide;
+            const int32_t partId = ((MCTerrain::BlocksMapSide * (tileR / vbs) + tileC / vbs) * 400 + tileC +
                                     ((tileR - vbs * (tileR / vbs)) - tileC / vbs) * vbs) *
                                        8 +
                                    0x1000;
-            auto* hit = static_cast<GameObject*>(objectList->findObjectFromPart(partId));
+            auto* hit = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(partId));
 
             // Port fix: the original reads the object's class without checking that one was found.
-            if (hit != nullptr && hit->objectClass == MISCTERRAINOBJECT)
+            if (hit != nullptr && hit->ObjectClass == MISCTERRAINOBJECT)
             {
-                _WeaponShotInfo shot;
-                shot.init(nullptr, 0, train->GetTotalTonnage() * 0.1f + 0.5f, 0, 0.0f);
+                MCWeaponShotInfo shot;
+                shot.Init(nullptr, 0, Train->GetTotalTonnage() * 0.1f + 0.5f, 0, 0.0f);
 
                 if (MPlayer == nullptr)
                 {
-                    hit->handleWeaponHit(&shot, 0);
+                    hit->HandleWeaponHit(&shot, 0);
                 }
-                else if (MPlayer->isServer != 0)
+                else if (MPlayer->IsServer != 0)
                 {
-                    hit->handleWeaponHit(&shot, 1);
+                    hit->HandleWeaponHit(&shot, 1);
                 }
             }
         }
     }
 
-    vector_3d where = getPosition();
+    MCVector3D where = GetPosition();
     CreateExplosion(MineExplosion, where, 0.0f, 0.0f);
 }
 
-auto TrainCar::mineCheck() -> void
+auto MCTrainCar::MineCheck() -> void
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return;
     }
@@ -1283,70 +1283,70 @@ auto TrainCar::mineCheck() -> void
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->worldToMapPos(getPosition(), tileR, tileC, cellR, cellC);
+    GameMap->WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
     // Each side's mines only go off under the other side.
-    const uint32_t mine = alignment == -1 || alignment == 0 ? GameMap->getInnerSphereMine(tileR, tileC, cellR, cellC)
-                                                            : GameMap->getClanMine(tileR, tileC, cellR, cellC);
+    const uint32_t mine = Alignment == -1 || Alignment == 0 ? GameMap->GetInnerSphereMine(tileR, tileC, cellR, cellC)
+                                                            : GameMap->GetClanMine(tileR, tileC, cellR, cellC);
 
     if (mine == 0)
     {
         return;
     }
 
-    vector_3d where = getPosition();
-    CreateExplosion(MineExplosion, where, MineSplashDamage, worldUnitsPerMeter * MineSplashRange);
-    const int32_t hitLocation = calcHitLocation(nullptr, -1, 3, 0);
-    _WeaponShotInfo shot;
-    shot.init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
-    handleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
-    MapTile& tile = GameMap->map[GameMap->width * tileR + tileC];
+    MCVector3D where = GetPosition();
+    CreateExplosion(MineExplosion, where, MineSplashDamage, WorldUnitsPerMeter * MineSplashRange);
+    const int32_t hitLocation = CalcHitLocation(nullptr, -1, 3, 0);
+    MCWeaponShotInfo shot;
+    shot.Init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
+    HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+    MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
 
-    if (getAlignment() == -1 || getAlignment() == 0)
+    if (GetAlignment() == -1 || GetAlignment() == 0)
     {
-        tile.overlay |= 0x1800;
+        tile.Overlay |= 0x1800;
     }
     else
     {
-        tile.overlay |= 0x6000;
+        tile.Overlay |= 0x6000;
     }
 
     if (MPlayer != nullptr)
     {
-        MPlayer->addMineChunk(cellR + tileR * 3, cellC + tileC * 3, alignment == -1 || alignment != 0 ? 0 : 1, 3, 2);
+        MPlayer->AddMineChunk(cellR + tileR * 3, cellC + tileC * 3, Alignment == -1 || Alignment != 0 ? 0 : 1, 3, 2);
     }
 }
 
-auto TrainCar::relFacingTo(vector_3d goal, int32_t) -> float
+auto MCTrainCar::RelFacingTo(MCVector3D goal, int32_t) -> float
 {
-    const float x = position.x;
-    const float y = position.y;
-    const frame_of_ref turned = TurnedFrame(frame);
-    vector_3d facing;
-    facing.x = -turned.j.x;
-    facing.y = -turned.j.y;
-    facing.z = -turned.j.z;
+    const float x = Position.X;
+    const float y = Position.Y;
+    const MCFrameOfRef turned = TurnedFrame(Frame);
+    MCVector3D facing;
+    facing.X = -turned.J.X;
+    facing.Y = -turned.J.Y;
+    facing.Z = -turned.J.Z;
 
-    vector_3d toGoal;
-    toGoal.x = goal.x - x;
-    toGoal.y = goal.y - y;
-    toGoal.z = 0.0f;
+    MCVector3D toGoal;
+    toGoal.X = goal.X - x;
+    toGoal.Y = goal.Y - y;
+    toGoal.Z = 0.0f;
     const double length =
-        std::sqrt((static_cast<double>(toGoal.x) * toGoal.x + static_cast<double>(toGoal.y) * toGoal.y) +
-                  static_cast<double>(toGoal.z) * toGoal.z);
+        std::sqrt((static_cast<double>(toGoal.X) * toGoal.X + static_cast<double>(toGoal.Y) * toGoal.Y) +
+                  static_cast<double>(toGoal.Z) * toGoal.Z);
 
     if (length != 0.0)
     {
-        toGoal.x = static_cast<float>(toGoal.x / length);
-        toGoal.y = static_cast<float>(toGoal.y / length);
-        toGoal.z = static_cast<float>(toGoal.z / length);
+        toGoal.X = static_cast<float>(toGoal.X / length);
+        toGoal.Y = static_cast<float>(toGoal.Y / length);
+        toGoal.Z = static_cast<float>(toGoal.Z / length);
     }
 
-    const double cosine = static_cast<double>(toGoal.z) * facing.z + static_cast<double>(toGoal.y) * facing.y +
-                          static_cast<double>(toGoal.x) * facing.x;
-    const float angle = static_cast<float>(acosMatherr(cosine) * RADIANS_TO_DEGREES_F);
+    const double cosine = static_cast<double>(toGoal.Z) * facing.Z + static_cast<double>(toGoal.Y) * facing.Y +
+                          static_cast<double>(toGoal.X) * facing.X;
+    const float angle = static_cast<float>(AcosMatherr(cosine) * RADIANS_TO_DEGREES_F);
 
     // Negative to the left.
-    if ((facing & toGoal).z >= 0.0f)
+    if ((facing & toGoal).Z >= 0.0f)
     {
         return -angle;
     }
@@ -1354,23 +1354,23 @@ auto TrainCar::relFacingTo(vector_3d goal, int32_t) -> float
     return angle;
 }
 
-auto TrainCar::relativePosition(float angle, float distance, uint32_t flags) -> vector_3d
+auto MCTrainCar::RelativePosition(float angle, float distance, uint32_t flags) -> MCVector3D
 {
     // Off the map: nowhere.
-    if (onMap == 0)
+    if (OnMap == 0)
     {
-        vector_3d nowhere;
-        nowhere.x = -999999.0f;
-        nowhere.y = -999999.0f;
-        nowhere.z = -999999.0f;
+        MCVector3D nowhere;
+        nowhere.X = -999999.0f;
+        nowhere.Y = -999999.0f;
+        nowhere.Z = -999999.0f;
         return nowhere;
     }
 
     // The point distance meters away at angle: flag 1, an absolute angle in radians; else degrees from the car's
     // facing. The x87 keeps some of the sums below at extended precision, done here in double.
-    const float reach = -(worldUnitsPerMeter * distance);
-    const float x = position.x;
-    const float y = position.y;
+    const float reach = -(WorldUnitsPerMeter * distance);
+    const float x = Position.X;
+    const float y = Position.Y;
     double offsetX;
     float offsetY;
 
@@ -1383,44 +1383,44 @@ auto TrainCar::relativePosition(float angle, float distance, uint32_t flags) -> 
     }
     else
     {
-        frame_of_ref turned = frame;
+        MCFrameOfRef turned = Frame;
         const double radians = (static_cast<double>(angle) + 45.0) * DEGREES_TO_RADIANS;
         const float s = static_cast<float>(std::sin(radians));
         const float c = static_cast<float>(std::cos(radians));
-        const vector_3d oldI = turned.i;
-        turned.i = turned.i * c + turned.j * s;
-        turned.j = turned.j * c - oldI * s;
-        const vector_3d offset = turned.j * reach;
-        offsetX = offset.x;
-        offsetY = offset.y;
+        const MCVector3D oldI = turned.I;
+        turned.I = turned.I * c + turned.J * s;
+        turned.J = turned.J * c - oldI * s;
+        const MCVector3D offset = turned.J * reach;
+        offsetX = offset.X;
+        offsetY = offset.Y;
     }
 
     const double targetX = offsetX + x;
     const float targetY = static_cast<float>(static_cast<double>(offsetY) + y);
 
     // Flag 2 walks from the car out to the point; otherwise from the point back to the car.
-    vector_2d start;
-    vector_2d end;
+    MCVector2D start;
+    MCVector2D end;
 
     if ((flags & 2) != 0)
     {
-        end.x = static_cast<float>(targetX);
-        start.x = x;
-        start.y = y;
-        end.y = targetY;
+        end.X = static_cast<float>(targetX);
+        start.X = x;
+        start.Y = y;
+        end.Y = targetY;
     }
     else
     {
-        start.y = targetY;
-        start.x = static_cast<float>(targetX);
-        end.x = x;
-        end.y = y;
+        start.Y = targetY;
+        start.X = static_cast<float>(targetX);
+        end.X = x;
+        end.Y = y;
     }
 
     // Half a map cell per step.
-    const double deltaX = static_cast<double>(end.x) - start.x;
+    const double deltaX = static_cast<double>(end.X) - start.X;
     const float deltaXf = static_cast<float>(deltaX);
-    const float deltaY = end.y - start.y;
+    const float deltaY = end.Y - start.Y;
     const float length =
         static_cast<float>(std::sqrt(static_cast<double>(deltaY) * deltaY + static_cast<double>(deltaXf) * deltaXf));
     double directionX = deltaX;
@@ -1432,50 +1432,50 @@ auto TrainCar::relativePosition(float angle, float distance, uint32_t flags) -> 
         directionY = static_cast<float>(static_cast<double>(deltaY) / length);
     }
 
-    const float stepLength = static_cast<float>(static_cast<double>(Terrain::metersPerVertex) * 0.33333334f * 0.5);
+    const float stepLength = static_cast<float>(static_cast<double>(MCTerrain::MetersPerVertex) * 0.33333334f * 0.5);
     const float stepX = static_cast<float>(directionX * stepLength);
     const double stepYExact = static_cast<double>(directionY) * stepLength;
     const float stepY = static_cast<float>(stepYExact);
 
     if (std::sqrt(stepYExact * stepY + static_cast<double>(stepX) * stepX) == 0.0)
     {
-        vector_3d result;
-        result.x = x;
-        result.y = y;
-        result.z = 0.0f;
+        MCVector3D result;
+        result.X = x;
+        result.Y = y;
+        result.Z = 0.0f;
         return result;
     }
 
-    const vector_2d span = start - end;
+    const MCVector2D span = start - end;
     const float maxDistance =
-        static_cast<float>(std::sqrt(static_cast<double>(span.x) * span.x + static_cast<double>(span.y) * span.y));
+        static_cast<float>(std::sqrt(static_cast<double>(span.X) * span.X + static_cast<double>(span.Y) * span.Y));
     float traveled = 0.0f;
-    vector_2d current = start;
+    MCVector2D current = start;
 
     // Whether the cell under current is passable.
     auto cellPassable = [&]()
     {
-        vector_3d point;
-        point.x = current.x;
-        point.y = current.y;
-        point.z = 0.0f;
+        MCVector3D point;
+        point.X = current.X;
+        point.Y = current.Y;
+        point.Z = 0.0f;
         int32_t tileR;
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap->worldToMapPos(point, tileR, tileC, cellR, cellC);
+        GameMap->WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
-        if (!GameMap->onMap(tileR, tileC))
+        if (!GameMap->OnMap(tileR, tileC))
         {
             return 0u;
         }
 
-        return GameMap->map[GameMap->width * tileR + tileC].getCellPassable(cellR, cellC);
+        return GameMap->Map[GameMap->Width * tileR + tileC].GetCellPassable(cellR, cellC);
     };
 
     uint32_t passable = cellPassable();
-    vector_2d previous = start;
+    MCVector2D previous = start;
     // Walk until the cell changes kind (or the distance runs out); the answer is the step before.
     const uint32_t keepGoingWhile = (flags & 2) != 0 ? 1u : 0u;
 
@@ -1484,10 +1484,10 @@ auto TrainCar::relativePosition(float angle, float distance, uint32_t flags) -> 
         while (traveled < maxDistance)
         {
             previous = current;
-            current.x = stepX + current.x;
-            current.y = stepY + current.y;
-            const double dx = static_cast<double>(current.x) - start.x;
-            const double dy = static_cast<double>(current.y) - start.y;
+            current.X = stepX + current.X;
+            current.Y = stepY + current.Y;
+            const double dx = static_cast<double>(current.X) - start.X;
+            const double dy = static_cast<double>(current.Y) - start.Y;
             traveled = static_cast<float>(std::sqrt(dx * dx + dy * dy));
             passable = cellPassable();
 
@@ -1498,124 +1498,124 @@ auto TrainCar::relativePosition(float angle, float distance, uint32_t flags) -> 
         }
     }
 
-    vector_3d ground;
-    ground.x = previous.x;
-    ground.y = previous.y;
-    ground.z = 0.0f;
-    vector_3d result;
-    result.x = previous.x;
-    result.y = previous.y;
-    result.z = GameMap->getTerrainElevation(ground);
+    MCVector3D ground;
+    ground.X = previous.X;
+    ground.Y = previous.Y;
+    ground.Z = 0.0f;
+    MCVector3D result;
+    result.X = previous.X;
+    result.Y = previous.Y;
+    result.Z = GameMap->GetTerrainElevation(ground);
     return result;
 }
 
-auto TrainCar::GetMaxAccel() -> float
+auto MCTrainCar::GetMaxAccel() -> float
 {
-    return static_cast<TrainCarType*>(objType)->acceleration;
+    return static_cast<MCTrainCarType*>(ObjType)->Acceleration;
 }
 
-auto TrainCar::GetMaxDecel() -> float
+auto MCTrainCar::GetMaxDecel() -> float
 {
-    return static_cast<TrainCarType*>(objType)->deceleration;
+    return static_cast<MCTrainCarType*>(ObjType)->Deceleration;
 }
 
-auto TrainCar::GetMaxSpeed() -> float
+auto MCTrainCar::GetMaxSpeed() -> float
 {
-    return static_cast<TrainCarType*>(objType)->topSpeed;
+    return static_cast<MCTrainCarType*>(ObjType)->TopSpeed;
 }
 
 //---------------------------------------------------------------------------
 // TrainListEntry
 //---------------------------------------------------------------------------
 
-TrainListEntry::TrainListEntry()
+MCTrainListEntry::MCTrainListEntry()
 {
-    init();
+    Init();
 }
 
-auto TrainListEntry::init() -> void
+auto MCTrainListEntry::Init() -> void
 {
-    car = nullptr;
-    prev = nullptr;
-    next = nullptr;
+    Car = nullptr;
+    Prev = nullptr;
+    Next = nullptr;
 }
 
 //---------------------------------------------------------------------------
 // TrainManager
 //---------------------------------------------------------------------------
 
-auto TrainManager::init() -> void
+auto MCTrainManager::Init() -> void
 {
     for (int32_t i = 0; i < MAX_TRAINS; i++)
     {
-        trains[i] = nullptr;
+        Trains[i] = nullptr;
     }
 
-    numTrains = 0;
+    NumTrains = 0;
 }
 
-auto TrainManager::destroy() -> void
+auto MCTrainManager::Destroy() -> void
 {
     for (int32_t i = 0; i < MAX_TRAINS; i++)
     {
-        if (trains[i] != nullptr)
+        if (Trains[i] != nullptr)
         {
             // The original freed the train without its destructor, which only repeats destroy.
-            trains[i]->destroy();
-            delete trains[i];
-            trains[i] = nullptr;
+            Trains[i]->Destroy();
+            delete Trains[i];
+            Trains[i] = nullptr;
         }
     }
 }
 
-auto TrainManager::CreateTrain() -> Train*
+auto MCTrainManager::CreateTrain() -> MCTrain*
 {
-    Train* newTrain = nullptr;
-    const int32_t index = numTrains;
+    MCTrain* newTrain = nullptr;
+    const int32_t index = NumTrains;
 
     if (index < MAX_TRAINS)
     {
-        newTrain = new Train;
-        trains[index] = newTrain;
+        newTrain = new MCTrain;
+        Trains[index] = newTrain;
 
         if (newTrain != nullptr)
         {
-            numTrains++;
+            NumTrains++;
         }
     }
 
     return newTrain;
 }
 
-auto TrainManager::RemoveTrain(Train* train) -> void
+auto MCTrainManager::RemoveTrain(MCTrain* train) -> void
 {
     int32_t index = 0;
 
-    while (index < numTrains && trains[index] != train)
+    while (index < NumTrains && Trains[index] != train)
     {
         index++;
     }
 
     // Port fix: the original shifts in (and then clears) the slot after the last, which with 64 trains is the
     // count itself.
-    for (; index < numTrains; index++)
+    for (; index < NumTrains; index++)
     {
-        trains[index] = index + 1 < MAX_TRAINS ? trains[index + 1] : nullptr;
+        Trains[index] = index + 1 < MAX_TRAINS ? Trains[index + 1] : nullptr;
     }
 
-    if (numTrains < MAX_TRAINS)
+    if (NumTrains < MAX_TRAINS)
     {
-        trains[numTrains] = nullptr;
+        Trains[NumTrains] = nullptr;
     }
 
     // Faithful: the count drops even when the train wasn't in the list.
-    numTrains--;
+    NumTrains--;
 }
 
-auto TrainManager::UpdateTrains() -> void
+auto MCTrainManager::UpdateTrains() -> void
 {
-    for (int32_t i = 0; i < numTrains; i++)
+    for (int32_t i = 0; i < NumTrains; i++)
     {
-        trains[i]->Update();
+        Trains[i]->Update();
     }
 }

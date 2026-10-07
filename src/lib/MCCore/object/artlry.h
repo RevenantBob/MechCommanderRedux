@@ -3,15 +3,15 @@
 #include "object/gameobj.h"
 #include "object/objtype.h"
 
-class Appearance;
-class BaseObject;
-class Camera;
-class File;
-class GameObject;
-class ObjectEvent;
-class SensorSystem;
-class Team;
-struct _WeaponShotInfo;
+class MCAppearance;
+class MCBaseObject;
+class MCCamera;
+class MCFile;
+class MCGameObject;
+class MCObjectEvent;
+class MCSensorSystem;
+class MCTeam;
+struct MCWeaponShotInfo;
 
 /// <summary>
 /// Calls an artillery strike (or a sensor probe) for commander <paramref name="commanderId"/>: spends one of the
@@ -23,9 +23,8 @@ struct _WeaponShotInfo;
 /// type is made. In multiplayer 4-6 are turned into 0-2.
 /// </param>
 /// <param name="seconds">Seconds until impact; -1 keeps the type's nominal time, under 3 means -1.</param>
-/// <param name="randomOffset">Stored in the strike (<see cref="Artillery::randomOffset"/>).</param>
-/// <remarks>MCX.EXE @ 0x0064dda0</remarks>
-void CallArtillery(int32_t commanderId, int32_t strikeType, vector_3d location, int32_t seconds, int randomOffset);
+/// <param name="randomOffset">Stored in the strike (<see cref="MCArtillery::RandomOffset"/>).</param>
+void CallArtillery(int32_t commanderId, int32_t strikeType, MCVector3D location, int32_t seconds, int randomOffset);
 
 /// <summary>
 /// A multiplayer message announcing an artillery strike: the commander, the strike type, the map cell and the
@@ -35,256 +34,226 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, vector_3d location, 
 /// Original source: <c>object\artlry.cpp</c>, 0x14 bytes. <c>data</c> is what goes over the network:
 /// bits 0-2 commanderId, 3-5 strikeType, 6-15 cellCol, 16-25 cellRow, 26-31 seconds + 1.
 /// </remarks>
-class ArtilleryChunk
+class MCArtilleryChunk
 {
 public:
     /// <summary>Fills the chunk for a strike at <paramref name="location"/> (converted to a map cell).</summary>
-    /// <remarks>MCX.EXE @ 0x0064e000</remarks>
-    void build(int32_t commanderId, int32_t strikeType, vector_3d location, int32_t seconds);
-    /// <summary>Packs the fields into <see cref="data"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064e050</remarks>
-    void pack();
-    /// <summary>Unpacks <see cref="data"/> into the fields.</summary>
-    /// <remarks>MCX.EXE @ 0x0064e080</remarks>
-    void unpack();
+    void Build(int32_t commanderId, int32_t strikeType, MCVector3D location, int32_t seconds);
+    /// <summary>Packs the fields into <see cref="Data"/>.</summary>
+    void Pack();
+    /// <summary>Unpacks <see cref="Data"/> into the fields.</summary>
+    void Unpack();
     /// <summary>Whether the unpacked fields of both chunks match.</summary>
-    /// <remarks>MCX.EXE @ 0x0064e0c0</remarks>
-    int equalTo(ArtilleryChunk* chunk);
+    int EqualTo(MCArtilleryChunk* chunk);
 
-    int8_t commanderId = 0; // +0x0
-    int8_t strikeType = 0;  // +0x1
-    int32_t cellRow = 0;    // +0x4
-    int32_t cellCol = 0;    // +0x8
+    int8_t CommanderId = 0;
+    int8_t StrikeType = 0;
+    int32_t CellRow = 0;
+    int32_t CellCol = 0;
     /// <summary>Seconds to impact (-1 = the type's nominal time).</summary>
-    int8_t seconds = 0; // +0xc
+    int8_t Seconds = 0;
     /// <summary>The packed word sent over the network.</summary>
-    uint32_t data = 0; // +0x10
+    uint32_t Data = 0;
 };
 
 /// <summary>
-/// The type of an <see cref="Artillery"/> strike: its countdown sprite, timing, damage, the ranges and hit counts of
+/// The type of an <see cref="MCArtillery"/> strike: its countdown sprite, timing, damage, the ranges and hit counts of
 /// its major and minor blast, its sensor probe and the pattern of explosions it sets off.
 /// </summary>
 /// <remarks>
 /// Original source: <c>object\artlry.cpp</c>, 0x94 bytes. Read from the "Artillery" block of its FIT. Constructed
 /// inline in ObjectTypeManager::load (only the ObjectType defaults).
 /// </remarks>
-class ArtilleryType : public ObjectType
+class MCArtilleryType : public MCObjectType
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00690850 (vector deleting destructor)</remarks>
-    ~ArtilleryType() override { destroy(); }
+    ~MCArtilleryType() override { Destroy(); }
 
-    /// <summary>Makes an <see cref="Artillery"/> of this type and gives it the next object id.</summary>
-    /// <remarks>MCX.EXE @ 0x0064e120</remarks>
-    BaseObject* createInstance() override;
+    /// <summary>Makes an <see cref="MCArtillery"/> of this type and gives it the next object id.</summary>
+    MCBaseObject* CreateInstance() override;
     /// <summary>Frees the sprite and the explosion tables.</summary>
-    /// <remarks>MCX.EXE @ 0x0064ef20</remarks>
-    void destroy() override;
+    void Destroy() override;
     /// <summary>Reads the "Artillery" block and the explosion pattern, and loads the countdown sprite.</summary>
-    /// <remarks>MCX.EXE @ 0x0064ef80</remarks>
-    int32_t init(File* objFile, uint32_t fileSize) override;
+    int32_t Init(MCFile* objFile, uint32_t fileSize) override;
     /// <summary>
     /// Damages <paramref name="collider"/> once the strike (<paramref name="collidee"/>) has hit: the major hit count
     /// inside the major range, else the minor one.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0064f5b0</remarks>
-    int handleCollision(GameObject* collidee, GameObject* collider) override;
-    /// <remarks>MCX.EXE @ 0x0064f8f0</remarks>
-    int handleDestruction(GameObject* collidee, GameObject* collider) override;
+    int HandleCollision(MCGameObject* collidee, MCGameObject* collider) override;
+    int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
 
     /// <summary>The countdown sprite (a VFX shape file), in the sprite manager's shape RAM.</summary>
-    uint8_t* shapeData = nullptr; // +0x30
+    uint8_t* ShapeData = nullptr;
     /// <summary>FIT "FrameCount".</summary>
-    uint32_t frameCount = 0; // +0x34
+    uint32_t FrameCount = 0;
     /// <summary>FIT "StartFrame".</summary>
-    uint32_t startFrame = 0; // +0x38
+    uint32_t StartFrame = 0;
     /// <summary>FIT "FrameRate", frames per second.</summary>
-    float frameRate = 0; // +0x3c
+    float FrameRate = 0;
     /// <summary>FIT "NominalTimeToImpact", seconds.</summary>
-    float nominalTimeToImpact = 0; // +0x40
+    float NominalTimeToImpact = 0;
     /// <summary>FIT "NominalTimeToLaunch", seconds (default: time to impact - 10).</summary>
-    float nominalTimeToLaunch = 0; // +0x44
+    float NominalTimeToLaunch = 0;
     /// <summary>FIT "NominalDamage": damage per hit; 0 for a sensor probe.</summary>
-    float nominalDamage = 0; // +0x48
+    float NominalDamage = 0;
     /// <summary>FIT "NominalMajorRange", meters.</summary>
-    float nominalMajorRange = 0; // +0x4c
+    float NominalMajorRange = 0;
     /// <summary>FIT "NominalMajorHits".</summary>
-    float nominalMajorHits = 0; // +0x50
+    float NominalMajorHits = 0;
     /// <summary>FIT "NominalMinorRange", meters.</summary>
-    float nominalMinorRange = 0; // +0x54
+    float NominalMinorRange = 0;
     /// <summary>FIT "NominalMinorHits".</summary>
-    float nominalMinorHits = 0; // +0x58
+    float NominalMinorHits = 0;
     /// <summary>FIT "NominalSensorTime", seconds the sensor probe lasts.</summary>
-    float nominalSensorTime = 0; // +0x5c
+    float NominalSensorTime = 0;
     /// <summary>FIT "NominalSensorRange", meters.</summary>
-    float nominalSensorRange = 0; // +0x60
+    float NominalSensorRange = 0;
     /// <summary>FIT "fontScale".</summary>
-    float fontScale = 0; // +0x64
+    float FontScale = 0;
     /// <summary>FIT "fontXOffset": where the countdown text goes, relative to the sprite.</summary>
-    float fontXOffset = 0; // +0x68
+    float FontXOffset = 0;
     /// <summary>FIT "fontYOffset".</summary>
-    float fontYOffset = 0; // +0x6c
+    float FontYOffset = 0;
     /// <summary>FIT "fontColor".</summary>
-    uint32_t fontColor = 0; // +0x70
+    uint32_t FontColor = 0;
     /// <summary>FIT "NumExplosions": entries of the three tables below (only read when there is damage).</summary>
-    int32_t numExplosions = 0; // +0x74
+    int32_t NumExplosions = 0;
     /// <summary>FIT "ExplosionOffsetX%d", world units from the strike point.</summary>
-    std::unique_ptr<float[]> explosionOffsetX; // +0x78
+    std::unique_ptr<float[]> ExplosionOffsetX;
     /// <summary>FIT "ExplosionOffsetY%d".</summary>
-    std::unique_ptr<float[]> explosionOffsetY; // +0x7c
+    std::unique_ptr<float[]> ExplosionOffsetY;
     /// <summary>FIT "ExplosionDelay%d", seconds after impact.</summary>
-    std::unique_ptr<float[]> explosionDelay; // +0x80
+    std::unique_ptr<float[]> ExplosionDelay;
     /// <summary>FIT "ExplosionsPerExplosion": explosions made at each entry.</summary>
-    int32_t explosionsPerExplosion = 0; // +0x84
+    int32_t ExplosionsPerExplosion = 0;
     /// <summary>FIT "ExplosionRandomOffsetX": random spread of each explosion.</summary>
-    int32_t explosionRandomOffsetX = 0; // +0x88
+    int32_t ExplosionRandomOffsetX = 0;
     /// <summary>FIT "ExplosionRandomOffsetY".</summary>
-    int32_t explosionRandomOffsetY = 0; // +0x8c
+    int32_t ExplosionRandomOffsetY = 0;
     /// <summary>
     /// FIT "MinArtilleryHeadRange" (default 5), meters: beyond it a hit lands on hit-location table 4, else 2.
     /// </summary>
-    int32_t minArtilleryHeadRange = 0; // +0x90
+    int32_t MinArtilleryHeadRange = 0;
 };
 
 /// <summary>
 /// An artillery strike or sensor probe on its way: shows a countdown at the target, then sets off its explosion
-/// pattern (or, for a probe, opens a shrinking sensor and launches a <see cref="CameraDrone"/>).
+/// pattern (or, for a probe, opens a shrinking sensor and launches a <see cref="MCCameraDrone"/>).
 /// </summary>
 /// <remarks>Original source: <c>object\artlry.cpp</c>, <c>object\artlry.h</c>; 0xd8 bytes.</remarks>
-class Artillery : public BigGameObject
+class MCArtillery : public MCBigGameObject
 {
 public:
     /// <summary>
     /// Calls <see cref="init()"/>, then sets the defaults (times -1, justCreated and randomOffset 1, the rest 0).
     /// </summary>
-    /// <remarks>Inline in ArtilleryType::createInstance (MCX.EXE @ 0x0064e120).</remarks>
-    Artillery();
-    /// <remarks>MCX.EXE @ 0x0064eed0 (vector deleting destructor)</remarks>
-    ~Artillery() override { destroy(); }
+    /// <remarks>Inline in ArtilleryType::createInstance.</remarks>
+    MCArtillery();
+    ~MCArtillery() override { Destroy(); }
 
     /// <summary>Records the scenario time the strike was made.</summary>
-    /// <remarks>MCX.EXE @ 0x0064fe10</remarks>
-    void init() override;
+    void Init() override;
     /// <summary>Sets up the object and, for a damaging strike, the table of explosions already set off.</summary>
-    /// <remarks>MCX.EXE @ 0x00650b20</remarks>
-    int32_t init(ObjectType* objType) override;
+    int32_t Init(MCObjectType* objType) override;
     /// <summary>Frees the sensor and the explosion table.</summary>
-    /// <remarks>MCX.EXE @ 0x00650ad0</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x0064eec0</remarks>
-    int32_t kill() override { return 0; }
+    void Destroy() override;
+    int32_t Kill() override { return 0; }
     /// <summary>Counts down, animates, plays the incoming sound, sets off the explosions and runs the probe.</summary>
     /// <returns>0 when the strike is over.</returns>
-    /// <remarks>MCX.EXE @ 0x0064ff90</remarks>
-    int32_t update() override;
+    int32_t Update() override;
     /// <summary>Draws the countdown sprite and the time left.</summary>
-    /// <remarks>MCX.EXE @ 0x00650830</remarks>
-    void render() override;
+    void Render() override;
     /// <summary>Tracks the mouse-over (0x1c/0x1d) and select (0x1e/0x1f) events.</summary>
-    /// <remarks>MCX.EXE @ 0x006507d0 (unnamed in the symbols; vtable slot 9 of Artillery)</remarks>
-    int32_t handleEvent(ObjectEvent* event) override;
+    int32_t HandleEvent(MCObjectEvent* event) override;
     /// <summary>
     /// After impact: sets off the mines in the 3x3 map cells around the strike and runs collision checks with the
     /// terrain objects of the 3x3 terrain blocks around it.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0064f900</remarks>
-    void handleStaticCollision() override;
+    void HandleStaticCollision() override;
     /// <summary>Projects the strike to the screen; true when its sprite is inside the main camera.</summary>
-    /// <remarks>MCX.EXE @ 0x0064fe20</remarks>
-    int onScreen() override;
+    int OnScreen() override;
 
     /// <summary>
     /// First update/render: takes the type's times and start frame, and for a probe opens its sensor for the
     /// strike's side.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0064fec0</remarks>
-    void setJustCreated();
+    void SetJustCreated();
     /// <summary>Recomputes the sprite's screen bounds; true when they overlap the camera's view.</summary>
-    /// <remarks>MCX.EXE @ 0x00650610</remarks>
-    int recalcBounds(Camera* camera);
+    int RecalcBounds(MCCamera* camera);
     /// <summary>Gives the sensor probe its team, time and range (-1 keeps the current value).</summary>
-    /// <remarks>MCX.EXE @ 0x00650750</remarks>
-    void setSensorData(Team* team, float sensorTime, float sensorRange);
+    void SetSensorData(MCTeam* team, float sensorTime, float sensorRange);
     /// <summary>Does nothing.</summary>
-    /// <remarks>MCX.EXE @ 0x006507c0</remarks>
-    void drawSelectBox(uint8_t color);
+    void DrawSelectBox(uint8_t color);
 
-    /// <summary>Set until the first update or render has run <see cref="setJustCreated"/>.</summary>
-    int32_t justCreated = 0; // +0x84
+    /// <summary>Set until the first update or render has run <see cref="SetJustCreated"/>.</summary>
+    int32_t JustCreated = 0;
     /// <summary>The sprite frame drawn (wraps at the type's frame count).</summary>
-    uint32_t currentFrame = 0; // +0x88
+    uint32_t CurrentFrame = 0;
     /// <summary>Seconds the sprite has been animating.</summary>
-    float frameTime = 0; // +0x8c
+    float FrameTime = 0;
     /// <summary>floor(frameTime * frameRate) at the last frame advance.</summary>
-    int32_t frameCount = 0; // +0x90
+    int32_t FrameCount = 0;
     /// <summary>Screen bounds of the sprite: left, top.</summary>
-    float boundsLeft = 0; // +0x94
-    float boundsTop = 0;  // +0x98
+    float BoundsLeft = 0;
+    float BoundsTop = 0;
     /// <summary>Screen bounds of the sprite: right, bottom.</summary>
-    float boundsRight = 0;  // +0x9c
-    float boundsBottom = 0; // +0xa0
+    float BoundsRight = 0;
+    float BoundsBottom = 0;
     /// <summary>Seconds to impact (negative after it; -1 until set).</summary>
-    float timeToImpact = 0; // +0xa4
+    float TimeToImpact = 0;
     /// <summary>Seconds to launch (counts down with timeToImpact).</summary>
-    float timeToLaunch = 0; // +0xa8
+    float TimeToLaunch = 0;
     /// <summary>The sensor probe's current range, world units.</summary>
-    float sensorRange = 0; // +0xac
+    float SensorRange = 0;
     /// <summary>Seconds of sensor time left.</summary>
-    float sensorTime = 0; // +0xb0
+    float SensorTime = 0;
     /// <summary>The sensor probe's sensor (from the SensorSystemManager).</summary>
-    SensorSystem* sensorSystem = nullptr; // +0xb4
+    MCSensorSystem* SensorSystem = nullptr;
     /// <summary>Scenario time the strike was made.</summary>
-    float startTime = 0; // +0xb8
+    float StartTime = 0;
     /// <summary>Set once the strike has hit (from then on it collides and explodes).</summary>
-    int32_t hasImpacted = 0; // +0xbc
+    int32_t HasImpacted = 0;
     /// <summary>Set once the sensor probe's sensor is running.</summary>
-    int32_t sensorActive = 0; // +0xc0
+    int32_t SensorActive = 0;
     /// <summary>The countdown text, "%01d:%02d".</summary>
-    char timeString[8]{}; // +0xc4
+    char TimeString[8]{};
     /// <summary>
     /// Whether the impact is scattered: the last argument of <see cref="CallArtillery"/> (default 1; every caller
     /// passes 0). The scatter itself is gone from the original: when nonzero, two
     /// RandomNumber(500) draws are made (and discarded) at impact.
     /// </summary>
-    int32_t randomOffset = 0; // +0xcc
+    int32_t RandomOffset = 0;
     /// <summary>Set once the incoming-shell sound has played.</summary>
-    int32_t impactSoundPlayed = 0; // +0xd0
+    int32_t ImpactSoundPlayed = 0;
     /// <summary>One flag per entry of the type's explosion tables: set once that explosion went off.</summary>
-    std::unique_ptr<int32_t[]> explosionsDone; // +0xd4
+    std::unique_ptr<int32_t[]> ExplosionsDone;
 };
 
-/// <summary>The type of a <see cref="CameraDrone"/>: speed, hit points and battle value.</summary>
+/// <summary>The type of a <see cref="MCCameraDrone"/>: speed, hit points and battle value.</summary>
 /// <remarks>
 /// Original source: <c>object\artlry.cpp</c>, 0x3c bytes. Read from the "General" block of its FIT; the extent
 /// radius is forced to -1. Constructed inline in ObjectTypeManager::load (only the ObjectType defaults).
 /// </remarks>
-class CameraDroneType : public ObjectType
+class MCCameraDroneType : public MCObjectType
 {
 public:
-    /// <remarks>MCX.EXE @ 0x006908a0 (vector deleting destructor)</remarks>
-    ~CameraDroneType() override { destroy(); }
+    ~MCCameraDroneType() override { Destroy(); }
 
-    /// <summary>Makes a <see cref="CameraDrone"/> of this type and gives it the next object id.</summary>
-    /// <remarks>MCX.EXE @ 0x00650bc0</remarks>
-    BaseObject* createInstance() override;
-    /// <remarks>MCX.EXE @ 0x00650e80</remarks>
-    void destroy() override;
+    /// <summary>Makes a <see cref="MCCameraDrone"/> of this type and gives it the next object id.</summary>
+    MCBaseObject* CreateInstance() override;
+    void Destroy() override;
     /// <summary>Reads maxVelocity, maxDamage and BRValue from the "General" block.</summary>
-    /// <remarks>MCX.EXE @ 0x00650dd0</remarks>
-    int32_t init(File* objFile, uint32_t fileSize) override;
-    /// <remarks>MCX.EXE @ 0x00690890</remarks>
-    int handleCollision(GameObject* /*collidee*/, GameObject* /*collider*/) override { return 0; }
+    int32_t Init(MCFile* objFile, uint32_t fileSize) override;
+    int HandleCollision(MCGameObject* /*collidee*/, MCGameObject* /*collider*/) override { return 0; }
     /// <summary>Marks the drone destroyed (status 2).</summary>
-    /// <remarks>MCX.EXE @ 0x00650e90</remarks>
-    int handleDestruction(GameObject* collidee, GameObject* collider) override;
+    int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
 
     /// <summary>FIT "maxVelocity", meters per second.</summary>
-    float maxVelocity = 0; // +0x30
+    float MaxVelocity = 0;
     /// <summary>FIT "maxDamage": hit points.</summary>
-    int32_t maxDamage = 0; // +0x34
+    int32_t MaxDamage = 0;
     /// <summary>FIT "BRValue" (default 0): the drone's max and current CV.</summary>
-    int32_t brValue = 0; // +0x38
+    int32_t BrValue = 0;
 };
 
 /// <summary>
@@ -292,65 +261,52 @@ public:
 /// revealing the terrain it passes over.
 /// </summary>
 /// <remarks>Original source: <c>object\artlry.cpp</c>, <c>object\artlry.h</c>; 0xc4 bytes.</remarks>
-class CameraDrone : public BigGameObject
+class MCCameraDrone : public MCBigGameObject
 {
 public:
     /// <summary>Starts in the world frame, then calls <see cref="init()"/>.</summary>
-    /// <remarks>Inline in CameraDroneType::createInstance (MCX.EXE @ 0x00650bc0).</remarks>
-    CameraDrone();
-    /// <remarks>MCX.EXE @ 0x00650d80 (vector deleting destructor)</remarks>
-    ~CameraDrone() override { destroy(); }
+    /// <remarks>Inline in CameraDroneType::createInstance.</remarks>
+    MCCameraDrone();
+    ~MCCameraDrone() override { Destroy(); }
 
     /// <summary>Resets the spiral, the target tile and the appearance.</summary>
-    /// <remarks>MCX.EXE @ 0x00650cc0 (inline in <c>object\artlry.h</c>)</remarks>
-    void init() override;
+    void Init() override;
     /// <summary>Makes the GV appearance, takes the type's speed, hit points and CV, and sets the frame.</summary>
-    /// <remarks>MCX.EXE @ 0x00650eb0</remarks>
-    int32_t init(ObjectType* objType) override;
+    int32_t Init(MCObjectType* objType) override;
     /// <summary>Destroys the appearance.</summary>
-    /// <remarks>MCX.EXE @ 0x006512d0</remarks>
-    void destroy() override;
-    /// <remarks>MCX.EXE @ 0x00650d10</remarks>
-    int32_t kill() override { return 0; }
+    void Destroy() override;
+    int32_t Kill() override { return 0; }
     /// <summary>Flies toward the target tile, reveals the terrain around it and picks the next tile on arrival.</summary>
-    /// <remarks>MCX.EXE @ 0x006513a0</remarks>
-    int32_t update() override;
-    /// <remarks>MCX.EXE @ 0x006516a0</remarks>
-    void render() override;
-    /// <remarks>MCX.EXE @ 0x00650d00</remarks>
-    Appearance* getAppearance() override { return appearance; }
+    int32_t Update() override;
+    void Render() override;
+    MCAppearance* GetAppearance() override { return Appearance; }
     /// <summary>Tracks the mouse-over (0x1c/0x1d) and select (0x1e/0x1f) events.</summary>
-    /// <remarks>MCX.EXE @ 0x00651640</remarks>
-    int32_t handleEvent(ObjectEvent* event) override;
-    /// <remarks>MCX.EXE @ 0x006512f0</remarks>
-    int onScreen() override;
+    int32_t HandleEvent(MCObjectEvent* event) override;
+    int OnScreen() override;
     /// <summary>Takes the damage off the hit points; at none left the drone is destroyed and explodes.</summary>
-    /// <remarks>MCX.EXE @ 0x006516f0</remarks>
-    int32_t handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) override;
-    /// <remarks>MCX.EXE @ 0x00650d20 (inline in <c>object\artlry.h</c>)</remarks>
-    frame_of_ref getFrame() override { return frame; }
+    int32_t HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) override;
+    MCFrameOfRef GetFrame() override { return Frame; }
 
     /// <summary>Turns the frame and steps the spiral: the next leg's direction and, every other leg, its length.</summary>
-    /// <remarks>MCX.EXE @ 0x00651790</remarks>
-    void findNextTargetTile();
+    void FindNextTargetTile();
 
     /// <summary>The spiral leg's direction, 0-3 (-1 before the first).</summary>
-    int8_t spiralDirection = 0; // +0x84
+    int8_t SpiralDirection = 0;
     /// <summary>The spiral leg's length in tiles.</summary>
-    int8_t spiralLength = 0; // +0x85
+    int8_t SpiralLength = 0;
     /// <summary>The map tile being flown to.</summary>
-    int32_t targetTileRow = 0; // +0x88
-    int32_t targetTileCol = 0; // +0x8c
+    int32_t TargetTileRow = 0;
+    int32_t TargetTileCol = 0;
     /// <summary>Meters per second (from the type).</summary>
-    float maxVelocity = 0; // +0x90
+    float MaxVelocity = 0;
     /// <summary>Hit points left.</summary>
-    int32_t hitPoints = 0; // +0x94
+    int32_t HitPoints = 0;
     /// <summary>The drone's orientation.</summary>
-    frame_of_ref frame; // +0x98
+    MCFrameOfRef Frame;
     /// <summary>Scenario time the drone was launched (-1 until then).</summary>
-    float launchTime = 0; // +0xbc
+    float LaunchTime = 0;
     /// <summary>The drone's GV appearance.</summary>
-    Appearance* appearance = nullptr; // +0xc0
+    MCAppearance* Appearance = nullptr;
 };
 
 /// <summary>The object type numbers made by <see cref="CallArtillery"/>, one per strike type.</summary>
@@ -358,7 +314,7 @@ public:
 /// At 0x0078e4f8 (no symbol; the name is the port's), indexed by strike type. Initial values:
 /// 249, 248, 250, 516, 508, 507, 509, 516.
 /// </remarks>
-extern int32_t artilleryTypeTable[8];
+extern int32_t ArtilleryTypeTable[8];
 /// <summary>How many camera drones have been launched; their part ids start at 0x802c8 (limit 1000).</summary>
 /// <remarks>At 0x007dd018 (no symbol; the name is the port's).</remarks>
-extern int32_t numCameraDrones;
+extern int32_t NumCameraDrones;

@@ -17,12 +17,12 @@
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 
-RadioMessageInfo messageInfo[NUM_RADIO_MESSAGES];
-Radio* Radio::radioList[MAX_RADIOS] = {};
-PacketFile* Radio::noiseFile = nullptr;
-int32_t Radio::messageInfoLoaded = 0;
-int32_t Radio::currentRadio = 0;
-int32_t Radio::radioListInitialized = 0;
+MCRadioMessageInfo MessageInfo[NUM_RADIO_MESSAGES];
+MCRadio* MCRadio::RadioList[MAX_RADIOS] = {};
+MCPacketFile* MCRadio::NoiseFile = nullptr;
+int32_t MCRadio::MessageInfoLoaded = 0;
+int32_t MCRadio::CurrentRadio = 0;
+int32_t MCRadio::RadioListInitialized = 0;
 
 namespace
 {
@@ -30,47 +30,47 @@ namespace
     constexpr int32_t RADIO_NOT_PLAYED = -0x152fffd;
 
     /// <summary>Ends and deletes a message's video window.</summary>
-    void closeMovieWindow(aSmackerWindow* window)
+    void CloseMovieWindow(MCGuiSmackerWindow* window)
     {
         if (window != nullptr)
         {
-            window->endSmackerMovie();
+            window->EndSmackerMovie();
             delete window;
         }
     }
 }
 
-int32_t Radio::init(char* fileName, uint32_t heapSize, char* movieName)
+int32_t MCRadio::Init(char* fileName, uint32_t heapSize, char* movieName)
 {
-    if (radioListInitialized == 0)
+    if (RadioListInitialized == 0)
     {
-        for (Radio*& radio : radioList)
+        for (MCRadio*& radio : RadioList)
         {
             radio = nullptr;
         }
 
-        radioListInitialized = 1;
-        currentRadio = 0;
+        RadioListInitialized = 1;
+        CurrentRadio = 0;
     }
 
-    FullPathFileName radioName;
-    radioName.init(CDsoundPath, fileName, ".pak");
-    FullPathFileName noiseName;
-    noiseName.init(CDsoundPath, "noise", ".pak");
-    radioFile = new PacketFile();
-    int32_t result = radioFile->open(radioName);
+    MCFullPathFileName radioName;
+    radioName.Init(CDsoundPath, fileName, ".pak");
+    MCFullPathFileName noiseName;
+    noiseName.Init(CDsoundPath, "noise", ".pak");
+    RadioFile = new MCPacketFile();
+    int32_t result = RadioFile->Open(radioName);
 
     if (result != 0)
     {
         return result;
     }
 
-    this->movieName = movieName;
+    this->MovieName = movieName;
 
-    if (noiseFile == nullptr)
+    if (NoiseFile == nullptr)
     {
-        noiseFile = new PacketFile();
-        result = noiseFile->open(noiseName);
+        NoiseFile = new MCPacketFile();
+        result = NoiseFile->Open(noiseName);
 
         if (result != 0)
         {
@@ -78,11 +78,11 @@ int32_t Radio::init(char* fileName, uint32_t heapSize, char* movieName)
         }
     }
 
-    if (messageInfoLoaded == 0)
+    if (MessageInfoLoaded == 0)
     {
-        if (loadMessageInfo() == 0)
+        if (LoadMessageInfo() == 0)
         {
-            messageInfoLoaded = 1;
+            MessageInfoLoaded = 1;
         }
         else
         {
@@ -90,21 +90,21 @@ int32_t Radio::init(char* fileName, uint32_t heapSize, char* movieName)
         }
     }
 
-    radioList[currentRadio] = this;
-    currentRadio++;
+    RadioList[CurrentRadio] = this;
+    CurrentRadio++;
     return 0;
 }
 
-int32_t Radio::playMessage(RadioMessageType msgType)
+int32_t MCRadio::PlayMessage(MCRadioMessageType msgType)
 {
-    if (useSound == 0 || enabled == 0 || owner == nullptr)
+    if (UseSound == 0 || Enabled == 0 || Owner == nullptr)
     {
         return RADIO_NOT_PLAYED;
     }
 
-    RadioMessageInfo& info = messageInfo[msgType];
+    MCRadioMessageInfo& info = MessageInfo[msgType];
 
-    if (soundSystem->checkMessage(owner, info.priority, msgType) == 0)
+    if (SoundSystem->CheckMessage(Owner, info.Priority, msgType) == 0)
     {
         return RADIO_NOT_PLAYED;
     }
@@ -112,10 +112,10 @@ int32_t Radio::playMessage(RadioMessageType msgType)
     // Pick a variation by its odds, not the one this pilot just said.
     int32_t variation = 0;
 
-    if (info.styles > 1)
+    if (info.Styles > 1)
     {
         int32_t roll = RandomNumber(100);
-        int32_t styles = info.styles;
+        int32_t styles = info.Styles;
         // The odds are read as bytes from +0x0a on, past styleChance when a message has more than 3 styles.
         const uint8_t* chances = reinterpret_cast<const uint8_t*>(&info) + 0xa;
         int32_t total = 0;
@@ -138,7 +138,7 @@ int32_t Radio::playMessage(RadioMessageType msgType)
 
         variation = style;
 
-        if (info.msgId + variation == owner->lastMessage)
+        if (info.MsgId + variation == Owner->LastMessage)
         {
             variation++;
         }
@@ -149,39 +149,39 @@ int32_t Radio::playMessage(RadioMessageType msgType)
         }
     }
 
-    auto* message = new RadioData();
-    message->expirationDate = scenarioTime + info.shelfLife;
-    message->msgType = msgType;
-    message->turnQueued = turn;
-    message->msgId = static_cast<uint32_t>(info.msgId + variation);
-    message->movieWindow = nullptr;
-    message->movie = nullptr;
-    message->noiseId = 0;
-    message->priority = info.priority;
-    message->pilot = owner;
+    auto* message = new MCRadioData();
+    message->ExpirationDate = ScenarioTime + info.ShelfLife;
+    message->MsgType = msgType;
+    message->TurnQueued = Turn;
+    message->MsgId = static_cast<uint32_t>(info.MsgId + variation);
+    message->MovieWindow = nullptr;
+    message->Movie = nullptr;
+    message->NoiseId = 0;
+    message->Priority = info.Priority;
+    message->Pilot = Owner;
 
     // The pilot's video, when the tactical map shows its video window.
-    TacticalMap* tacMap = Terrain::terrainTacticalMap;
+    MCTacticalMap* tacMap = MCTerrain::TerrainTacticalMap;
 
-    if (info.movieCode != 'x' && !movieName.empty() && owner->vehicle->objectClass == BATTLEMECH &&
-        tacMap->IsShowing() != 0 && tacMap->IsHidden() == 0 && tacMap->displayType == 0 &&
-        tacMap->videoWindow != nullptr)
+    if (info.MovieCode != 'x' && !MovieName.empty() && Owner->Vehicle->ObjectClass == BATTLEMECH &&
+        tacMap->IsShowing() != 0 && tacMap->IsHidden() == 0 && tacMap->DisplayType == 0 &&
+        tacMap->VideoWindow != nullptr)
     {
         char videoName[80];
-        std::snprintf(videoName, sizeof(videoName), "%s%c", movieName.c_str(), info.movieCode);
-        aSmackerWindow* window = new aSmackerWindow();
+        std::snprintf(videoName, sizeof(videoName), "%s%c", MovieName.c_str(), info.MovieCode);
+        MCGuiSmackerWindow* window = new MCGuiSmackerWindow();
         tagRECT area = tacMap->GetVideoRect();
-        window->init(&area, nullptr);
-        message->movieWindow = window;
-        FullPathFileName videoPath;
-        videoPath.init(moviePath, videoName, ".smk");
-        message->movie = SmackOpen(videoPath, 0xfe000, -1);
+        window->Init(&area, nullptr);
+        message->MovieWindow = window;
+        MCFullPathFileName videoPath;
+        videoPath.Init(MoviePath, videoName, ".smk");
+        message->Movie = SmackOpen(videoPath, 0xfe000, -1);
     }
 
     // The pilot's name first (sometimes), then the message, and the static under it.
     int32_t fragment = 0;
 
-    if (info.pilotIdentifiesSelf != 0)
+    if (info.PilotIdentifiesSelf != 0)
     {
         int32_t idPacket = 0;
         int32_t roll = RandomNumber(100);
@@ -196,44 +196,44 @@ int32_t Radio::playMessage(RadioMessageType msgType)
             idPacket = 9;
         }
 
-        if (idPacket != 0 && radioFile->seekPacket(idPacket) == 0)
+        if (idPacket != 0 && RadioFile->SeekPacket(idPacket) == 0)
         {
             // The original gave up on the message when the radio heap was full; the port's memory isn't.
-            message->data[0] = std::make_unique<uint8_t[]>(radioFile->getPacketSize());
-            radioFile->readPacket(idPacket, message->data[0].get());
+            message->Data[0] = std::make_unique<uint8_t[]>(RadioFile->GetPacketSize());
+            RadioFile->ReadPacket(idPacket, message->Data[0].get());
             fragment = 1;
         }
     }
 
-    if (radioFile->seekPacket(static_cast<int32_t>(message->msgId)) == 0)
+    if (RadioFile->SeekPacket(static_cast<int32_t>(message->MsgId)) == 0)
     {
-        message->data[fragment] = std::make_unique<uint8_t[]>(radioFile->getPacketSize());
-        radioFile->readPacket(static_cast<int32_t>(message->msgId), message->data[fragment].get());
-        int32_t noiseId = static_cast<int32_t>(message->noiseId);
+        message->Data[fragment] = std::make_unique<uint8_t[]>(RadioFile->GetPacketSize());
+        RadioFile->ReadPacket(static_cast<int32_t>(message->MsgId), message->Data[fragment].get());
+        int32_t noiseId = static_cast<int32_t>(message->NoiseId);
 
-        if (noiseFile->seekPacket(noiseId) == 0)
+        if (NoiseFile->SeekPacket(noiseId) == 0)
         {
-            message->noise[0] = std::make_unique<uint8_t[]>(noiseFile->getPacketSize());
-            noiseFile->readPacket(noiseId, message->noise[0].get());
+            message->Noise[0] = std::make_unique<uint8_t[]>(NoiseFile->GetPacketSize());
+            NoiseFile->ReadPacket(noiseId, message->Noise[0].get());
         }
     }
 
-    if (soundSystem->queueRadioMessage(message) == 0)
+    if (SoundSystem->QueueRadioMessage(message) == 0)
     {
-        return static_cast<int32_t>(message->msgId);
+        return static_cast<int32_t>(message->MsgId);
     }
 
-    closeMovieWindow(message->movieWindow);
+    CloseMovieWindow(message->MovieWindow);
     delete message;
     return RADIO_NOT_PLAYED;
 }
 
-int32_t Radio::loadMessageInfo()
+int32_t MCRadio::LoadMessageInfo()
 {
-    FullPathFileName infoName;
-    infoName.init(soundPath, "radio", ".csv");
-    File* infoFile = new File();
-    int32_t result = infoFile->open(infoName);
+    MCFullPathFileName infoName;
+    infoName.Init(SoundPath, "radio", ".csv");
+    MCFile* infoFile = new MCFile();
+    int32_t result = infoFile->Open(infoName);
 
     if (result != 0)
     {
@@ -242,11 +242,11 @@ int32_t Radio::loadMessageInfo()
     }
 
     uint8_t line[0x200];
-    infoFile->readLine(line, 0x1ff);
+    infoFile->ReadLine(line, 0x1ff);
 
-    for (RadioMessageInfo& info : messageInfo)
+    for (MCRadioMessageInfo& info : MessageInfo)
     {
-        if (infoFile->readLine(line, 0x1ff) == 0)
+        if (infoFile->ReadLine(line, 0x1ff) == 0)
         {
             Fatal(0, "Bad Message Info File");
         }
@@ -254,27 +254,27 @@ int32_t Radio::loadMessageInfo()
         char* text = reinterpret_cast<char*>(line);
         std::strtok(text, ",");
         char* field = std::strtok(nullptr, ",");
-        info.priority = field == nullptr ? 4 : static_cast<uint8_t>(std::atoi(field));
+        info.Priority = field == nullptr ? 4 : static_cast<uint8_t>(std::atoi(field));
         field = std::strtok(nullptr, ",");
-        info.shelfLife = field == nullptr ? 0.0f : static_cast<float>(std::atoi(field));
+        info.ShelfLife = field == nullptr ? 0.0f : static_cast<float>(std::atoi(field));
         field = std::strtok(nullptr, ",");
-        info.movieCode = field == nullptr ? '\0' : *field;
+        info.MovieCode = field == nullptr ? '\0' : *field;
         field = std::strtok(nullptr, ",");
-        info.styles = field == nullptr ? 1 : static_cast<uint8_t>(std::atoi(field));
+        info.Styles = field == nullptr ? 1 : static_cast<uint8_t>(std::atoi(field));
 
-        for (uint8_t& chance : info.styleChance)
+        for (uint8_t& chance : info.StyleChance)
         {
             field = std::strtok(nullptr, ",");
             chance = field == nullptr ? 0 : static_cast<uint8_t>(std::atoi(field));
         }
 
         field = std::strtok(nullptr, ",");
-        info.pilotIdentifiesSelf = field == nullptr ? 0 : (*field == 'y');
+        info.PilotIdentifiesSelf = field == nullptr ? 0 : (*field == 'y');
         field = std::strtok(nullptr, ",");
-        info.msgId = field == nullptr ? 0 : std::atoi(field);
+        info.MsgId = field == nullptr ? 0 : std::atoi(field);
     }
 
-    infoFile->close();
+    infoFile->Close();
     delete infoFile;
     return 0;
 }

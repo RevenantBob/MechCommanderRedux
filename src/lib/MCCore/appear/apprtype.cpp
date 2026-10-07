@@ -15,42 +15,42 @@
 #include "sprite/spritree.h"
 #include "sprite/sprtmgr.h"
 
-AppearanceTypeList* appearanceTypeList = nullptr;
+MCAppearanceTypeList* AppearanceTypeList = nullptr;
 
-auto AppearanceType::initType(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCAppearanceType::InitType(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 0x32);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 0x32);
 
     if (result != 0)
     {
         return result;
     }
 
-    if (iniFile.seekBlock("Bounds") == 0)
+    if (iniFile.SeekBlock("Bounds") == 0)
     {
-        result = iniFile.readIdLong("UpperLeftX", boundsUpperLeftX);
+        result = iniFile.ReadIdLong("UpperLeftX", BoundsUpperLeftX);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = iniFile.readIdLong("UpperLeftY", boundsUpperLeftY);
+        result = iniFile.ReadIdLong("UpperLeftY", BoundsUpperLeftY);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = iniFile.readIdLong("LowerRightX", boundsLowerRightX);
+        result = iniFile.ReadIdLong("LowerRightX", BoundsLowerRightX);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = iniFile.readIdLong("LowerRightY", boundsLowerRightY);
+        result = iniFile.ReadIdLong("LowerRightY", BoundsLowerRightY);
 
         if (result != 0)
         {
@@ -58,61 +58,61 @@ auto AppearanceType::initType(File* apprFile, uint32_t fileSize) -> int32_t
         }
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto AppearanceType::addUsers(void* user) -> void
+auto MCAppearanceType::AddUsers(void* user) -> void
 {
-    auto* node = static_cast<AppearanceUser*>(spriteManager->mallocDataRAM(sizeof(AppearanceUser)));
+    auto* node = static_cast<MCAppearanceUser*>(SpriteManager->MallocDataRam(sizeof(MCAppearanceUser)));
     Assert(node != nullptr, 0, " Too much sprite data ");
-    node->next = nullptr;
-    node->user = user;
+    node->Next = nullptr;
+    node->User = user;
 
-    if (userList == nullptr)
+    if (UserList == nullptr)
     {
-        userList = node;
-        lastUser = node;
+        UserList = node;
+        LastUser = node;
         return;
     }
 
-    AppearanceUser* previous = lastUser;
-    lastUser = node;
-    previous->next = node;
+    MCAppearanceUser* previous = LastUser;
+    LastUser = node;
+    previous->Next = node;
 }
 
-auto AppearanceType::destroy() -> void
+auto MCAppearanceType::Destroy() -> void
 {
-    AppearanceUser* node = userList;
+    MCAppearanceUser* node = UserList;
 
     while (node != nullptr)
     {
-        userList = node->next;
+        UserList = node->Next;
 
-        if (node == lastUser)
+        if (node == LastUser)
         {
-            lastUser = nullptr;
-            userList = nullptr;
+            LastUser = nullptr;
+            UserList = nullptr;
         }
 
-        spriteManager->freeDataRAM(node);
-        node = userList;
+        SpriteManager->FreeDataRam(node);
+        node = UserList;
     }
 }
 
-auto AppearanceType::removeUsers(void* user) -> void
+auto MCAppearanceType::RemoveUsers(void* user) -> void
 {
-    AppearanceUser* previous = nullptr;
-    AppearanceUser* node = userList;
+    MCAppearanceUser* previous = nullptr;
+    MCAppearanceUser* node = UserList;
 
     if (node == nullptr)
     {
         return;
     }
-    while (node->user != user)
+    while (node->User != user)
     {
         previous = node;
-        node = node->next;
+        node = node->Next;
 
         if (node == nullptr)
         {
@@ -122,37 +122,37 @@ auto AppearanceType::removeUsers(void* user) -> void
 
     if (previous == nullptr)
     {
-        userList = node->next;
+        UserList = node->Next;
     }
     else
     {
-        previous->next = node->next;
+        previous->Next = node->Next;
     }
 
-    if (node == lastUser)
+    if (node == LastUser)
     {
-        lastUser = previous;
+        LastUser = previous;
     }
 
-    spriteManager->freeDataRAM(node);
+    SpriteManager->FreeDataRam(node);
 }
 
-auto AppearanceTypeList::init(char* fileName) -> int32_t
+auto MCAppearanceTypeList::Init(char* fileName) -> int32_t
 {
-    FullPathFileName spriteName;
-    spriteName.init(spritePath, fileName, ".pak");
-    appearanceFile = new PacketFile();
+    MCFullPathFileName spriteName;
+    spriteName.Init(SpritePath, fileName, ".pak");
+    AppearanceFile = new MCPacketFile();
 
-    if (appearanceFile == nullptr)
+    if (AppearanceFile == nullptr)
     {
         return -0x5225fffe;
     }
 
-    if (appearanceFile->open(spriteName, READ, 0x32) != 0)
+    if (AppearanceFile->Open(spriteName, READ, 0x32) != 0)
     {
-        FullPathFileName cdName;
-        cdName.init(CDspritePath, fileName, ".pak");
-        const int32_t result = appearanceFile->open(cdName, READ, 0x32);
+        MCFullPathFileName cdName;
+        cdName.Init(CDspritePath, fileName, ".pak");
+        const int32_t result = AppearanceFile->Open(cdName, READ, 0x32);
 
         if (result != 0)
         {
@@ -163,7 +163,7 @@ auto AppearanceTypeList::init(char* fileName) -> int32_t
     return 0;
 }
 
-auto AppearanceTypeList::getAppearance(uint32_t appearanceId, uint32_t loadFlags) -> AppearanceType*
+auto MCAppearanceTypeList::GetAppearance(uint32_t appearanceId, uint32_t loadFlags) -> MCAppearanceType*
 {
     const auto packetNum = static_cast<int32_t>(appearanceId & 0xffffff);
     const uint32_t appearanceClass = appearanceId >> 24;
@@ -173,50 +173,50 @@ auto AppearanceTypeList::getAppearance(uint32_t appearanceId, uint32_t loadFlags
         return nullptr;
     }
 
-    for (AppearanceType* type = head; type != nullptr; type = type->next)
+    for (MCAppearanceType* type = Head; type != nullptr; type = type->Next)
     {
-        if (type->appearanceNum == appearanceId)
+        if (type->AppearanceNum == appearanceId)
         {
-            type->numUsers++;
+            type->NumUsers++;
             return type;
         }
     }
 
-    PacketFile* packetFile = appearanceFile;
+    MCPacketFile* packetFile = AppearanceFile;
 
-    if (packetFile->seekPacket(packetNum) != 0)
+    if (packetFile->SeekPacket(packetNum) != 0)
     {
         return nullptr;
     }
 
-    const auto packetSize = static_cast<uint32_t>(packetFile->getPacketSize());
-    AppearanceType* type = nullptr;
+    const auto packetSize = static_cast<uint32_t>(packetFile->GetPacketSize());
+    MCAppearanceType* type = nullptr;
 
     switch (appearanceClass)
     {
         case SPRITE_TREE:
-            type = new SpriteTree();
+            type = new MCSpriteTree();
             break;
         case VFX_APPEAR:
-            type = new VFXAppearanceType();
+            type = new MCVfxAppearanceType();
             break;
         case LINE_APPEAR:
-            type = new LineAppearanceType();
+            type = new MCLineAppearanceType();
             break;
         case GV_APPEAR:
-            type = new GVAppearanceType();
+            type = new MCGVAppearanceType();
             break;
         case ARM_APPEAR:
-            type = new ArmAppearanceType();
+            type = new MCArmAppearanceType();
             break;
         case BUILD_APPEAR:
-            type = new VFXBuildingAppearanceType();
+            type = new MCVfxBuildingAppearanceType();
             break;
         case ELM_TREE:
-            type = new ElementalTree();
+            type = new MCElementalTree();
             break;
         case PU_APPEAR:
-            type = new PUAppearanceType();
+            type = new MCPUAppearanceType();
             break;
         default:
             return nullptr;
@@ -229,40 +229,40 @@ auto AppearanceTypeList::getAppearance(uint32_t appearanceId, uint32_t loadFlags
         return nullptr;
     }
 
-    type->appearanceNum = appearanceId;
+    type->AppearanceNum = appearanceId;
 
-    if (type->init(packetFile, packetSize, loadFlags) != 0)
+    if (type->Init(packetFile, packetSize, loadFlags) != 0)
     {
         return nullptr;
     }
 
-    packetFile->seekPacket(packetNum);
+    packetFile->SeekPacket(packetNum);
 
-    if (type->initType(packetFile, packetSize) != 0)
+    if (type->InitType(packetFile, packetSize) != 0)
     {
         return nullptr;
     }
 
-    type->numUsers = 1;
-    type->next = nullptr;
+    type->NumUsers = 1;
+    type->Next = nullptr;
 
-    if (head == nullptr)
+    if (Head == nullptr)
     {
-        head = type;
-        last = type;
+        Head = type;
+        Last = type;
         return type;
     }
 
-    AppearanceType* previous = last;
-    last = type;
-    previous->next = type;
+    MCAppearanceType* previous = Last;
+    Last = type;
+    previous->Next = type;
     return type;
 }
 
-auto AppearanceTypeList::removeAppearance(AppearanceType* which) -> int32_t
+auto MCAppearanceTypeList::RemoveAppearance(MCAppearanceType* which) -> int32_t
 {
-    AppearanceType* previous = nullptr;
-    AppearanceType* type = head;
+    MCAppearanceType* previous = nullptr;
+    MCAppearanceType* type = Head;
 
     while (true)
     {
@@ -277,25 +277,25 @@ auto AppearanceTypeList::removeAppearance(AppearanceType* which) -> int32_t
         }
 
         previous = type;
-        type = type->next;
+        type = type->Next;
     }
 
-    type->numUsers--;
+    type->NumUsers--;
 
-    if (type->numUsers == 0 && type->keepLoaded == 0)
+    if (type->NumUsers == 0 && type->KeepLoaded == 0)
     {
         if (previous == nullptr)
         {
-            head = type->next;
+            Head = type->Next;
         }
         else
         {
-            previous->next = type->next;
+            previous->Next = type->Next;
         }
 
-        if (type == last)
+        if (type == Last)
         {
-            last = previous;
+            Last = previous;
         }
 
         delete type;
@@ -304,26 +304,26 @@ auto AppearanceTypeList::removeAppearance(AppearanceType* which) -> int32_t
     return 0;
 }
 
-auto AppearanceTypeList::destroy() -> void
+auto MCAppearanceTypeList::Destroy() -> void
 {
-    if (appearanceFile != nullptr)
+    if (AppearanceFile != nullptr)
     {
-        appearanceFile->close();
-        delete appearanceFile;
+        AppearanceFile->Close();
+        delete AppearanceFile;
     }
 
-    appearanceFile = nullptr;
+    AppearanceFile = nullptr;
     // The original only destroyed the types and let them go with its appearance heap.
-    AppearanceType* type = head;
+    MCAppearanceType* type = Head;
 
     while (type != nullptr)
     {
-        AppearanceType* next = type->next;
-        type->destroy();
+        MCAppearanceType* next = type->Next;
+        type->Destroy();
         delete type;
         type = next;
     }
 
-    last = nullptr;
-    head = nullptr;
+    Last = nullptr;
+    Head = nullptr;
 }

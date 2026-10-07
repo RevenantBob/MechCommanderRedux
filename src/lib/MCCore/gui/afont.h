@@ -6,58 +6,46 @@
 /// the game uses are globals made by <c>aSystem::start</c> (<c>whiteFont</c>, <c>medRedFont</c>, ...,
 /// gui/asystem.h).
 /// </remarks>
-class aFont
+class MCGuiFont
 {
 public:
-    /// <remarks>MCX.EXE @ 0x0060a970</remarks>
-    aFont();
-    /// <summary>Unregisters the colour table (the data is freed by <see cref="destroy"/>).</summary>
-    /// <remarks>MCX.EXE @ 0x0060a980</remarks>
-    ~aFont();
-    aFont(const aFont&) = delete;
-    aFont& operator=(const aFont&) = delete;
+    MCGuiFont();
+    /// <summary>Unregisters the colour table (the data is freed by <see cref="Destroy"/>).</summary>
+    ~MCGuiFont();
+    MCGuiFont(const MCGuiFont&) = delete;
+    MCGuiFont& operator=(const MCGuiFont&) = delete;
 
     /// <summary>Loads font file <paramref name="fileName"/> under <c>fontPath</c>; the colour table is the identity.</summary>
     /// <returns>0, -1 when missing, -2 when empty, 3 when out of memory.</returns>
-    /// <remarks>MCX.EXE @ 0x0060a990</remarks>
-    int32_t init(char* fileName);
-    /// <remarks>MCX.EXE @ 0x0060aaa0</remarks>
-    void destroy();
-    /// <summary><see cref="destroy"/> then <see cref="init"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0060aac0</remarks>
-    int32_t load(char* fileName);
+    int32_t Init(char* fileName);
+    void Destroy();
+    /// <summary><see cref="Destroy"/> then <see cref="Init"/>.</summary>
+    int32_t Load(char* fileName);
     /// <summary>The font's height (0 when not loaded).</summary>
-    /// <remarks>MCX.EXE @ 0x0060aae0</remarks>
-    int32_t height();
+    int32_t Height();
     /// <summary>The width of <paramref name="text"/> in pixels.</summary>
-    /// <remarks>MCX.EXE @ 0x0060ab00</remarks>
-    int32_t width(uint8_t* text);
+    int32_t Width(uint8_t* text);
     /// <summary>The width of one character.</summary>
-    /// <remarks>MCX.EXE @ 0x0060ab70</remarks>
-    int32_t width(uint8_t c);
+    int32_t Width(uint8_t c);
     /// <summary>Draws one character at (<paramref name="xPos"/>, <paramref name="yPos"/>).</summary>
     /// <returns>0, or -3 when not loaded.</returns>
-    /// <remarks>MCX.EXE @ 0x0060aba0 (unnamed in the symbols)</remarks>
-    int32_t writeChar(_pane* pane, int32_t xPos, int32_t yPos, char c);
+    int32_t WriteChar(MCPane* pane, int32_t xPos, int32_t yPos, char c);
     /// <summary>
     /// Draws <paramref name="text"/>, cut to <paramref name="maxWidth"/> pixels unless it is -1 (the string is
     /// shortened in place while drawing and restored).
     /// </summary>
     /// <returns>0, or -3 when not loaded.</returns>
-    /// <remarks>MCX.EXE @ 0x0060abf0</remarks>
-    int32_t writeString(_pane* pane, int32_t xPos, int32_t yPos, uint8_t* text, int32_t maxWidth);
+    int32_t WriteString(MCPane* pane, int32_t xPos, int32_t yPos, uint8_t* text, int32_t maxWidth);
     /// <summary>Draws <paramref name="text"/> up to its first newline.</summary>
-    /// <remarks>MCX.EXE @ 0x0060aca0</remarks>
-    int32_t writeStringToNewline(_pane* pane, int32_t xPos, int32_t yPos, uint8_t* text);
+    int32_t WriteStringToNewline(MCPane* pane, int32_t xPos, int32_t yPos, uint8_t* text);
     /// <summary>
     /// How many characters of <paramref name="text"/> fit in <paramref name="maxWidth"/> pixels; with
     /// <paramref name="wordWrap"/>, breaking at a space (-1 when no break fits).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0060ad20</remarks>
-    int32_t charactersToWidth(uint8_t* text, int32_t maxWidth, int wordWrap);
+    int32_t CharactersToWidth(uint8_t* text, int32_t maxWidth, int wordWrap);
 
     /// <summary>The font file's contents (registered with the renderers while loaded).</summary>
-    std::unique_ptr<uint8_t[]> fontData; // +0x00
+    std::unique_ptr<uint8_t[]> FontData;
     /// <summary>The colour translation the characters are drawn through.</summary>
-    uint8_t colorTable[256] = {}; // +0x04
+    uint8_t ColorTable[256] = {};
 };

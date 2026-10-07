@@ -7,7 +7,7 @@
 //   table:  +0 "DNAH", then at +8 + 4n the offset of shape n from the table
 //   shape:  +4 int16 hot spot x, +6 int16 hot spot y,
 //           +8 uint16 height (rows), +10 uint16 width (pixels per row, less one),
-//           +0xc uint16 row offsets from the shape
+//           +12 uint16 row offsets from the shape
 //   row:    packets until width + 1 pixels are covered: a byte c < 0x80 is a run of c pixels of the colour in the
 //           next byte (255: transparent); c >= 0x80 is c - 0x80 literal pixels following.
 //
@@ -23,7 +23,7 @@ namespace
     }
 }
 
-int32_t fastShapeDraw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, uint8_t* xlat,
+int32_t FastShapeDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, uint8_t* xlat,
                       int unused)
 {
     (void)unused;
@@ -33,17 +33,17 @@ int32_t fastShapeDraw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t ho
     const int32_t height = static_cast<int32_t>(dims & 0xffff);
     const int32_t width = static_cast<int32_t>(dims >> 16);
 
-    const WINDOW* window = pane->window;
-    int32_t clipX1 = std::min(pane->x1, window->x_max);
-    int32_t clipY1 = std::min(pane->y1, window->y_max);
-    int32_t clipX0 = std::max(pane->x0, 0);
-    int32_t clipY0 = std::max(pane->y0, 0);
+    const MCWindow* window = pane->Window;
+    int32_t clipX1 = std::min(pane->X1, window->XMax);
+    int32_t clipY1 = std::min(pane->Y1, window->YMax);
+    int32_t clipX0 = std::max(pane->X0, 0);
+    int32_t clipY0 = std::max(pane->Y0, 0);
     MCClipToView(window, clipX0, clipY0, clipX1, clipY1);
 
     // OB-115: the asm offset by the pane's origin clipped to the window. OB-116: and counted a shape starting on the
     // last column or row as outside.
-    const int32_t sx = pane->x0 + hotX - static_cast<int16_t>(Read16(shape + 4));
-    const int32_t sy = pane->y0 + hotY - static_cast<int16_t>(Read16(shape + 6));
+    const int32_t sx = pane->X0 + hotX - static_cast<int16_t>(Read16(shape + 4));
+    const int32_t sy = pane->Y0 + hotY - static_cast<int16_t>(Read16(shape + 6));
 
     if (clipX1 < clipX0 || clipY1 < clipY0 || sx > clipX1 || sy > clipY1 || sx + width < clipX0 ||
         sy + height <= clipY0)
@@ -88,6 +88,6 @@ int32_t fastShapeDraw(PANE* pane, void* shapeTable, int32_t shapeNum, int32_t ho
     command.Limit = limit;
     command.Alpha = Read16(shape + Read16(shape + 0xc)) == 1;
     command.Table = xlat;
-    MCRenderer::For(pane->window).FastShape(pane->window, command);
+    MCRenderer::For(pane->Window).FastShape(pane->Window, command);
     return 0;
 }

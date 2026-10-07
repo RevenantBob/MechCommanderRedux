@@ -9,64 +9,64 @@
 #include "platform/MCFrameLog.h"
 #include "vfx/vfxfuncs.h"
 
-auto aFloatHelp::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCFloatHelp::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    setBackColor(0);
-    textColor = 0x1f;
-    helpText[0] = 0;
-    helpObject = nullptr;
-    int32_t result = aObject::init(xPos, yPos, width, height, name);
-    objectType = 7;
+    SetBackColor(0);
+    TextColor = 0x1f;
+    HelpText[0] = 0;
+    HelpObject = nullptr;
+    int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
+    ObjectType = 7;
     return result;
 }
 
-auto aFloatHelp::tossBitmaps() -> void
+auto MCFloatHelp::TossBitmaps() -> void
 {
     // Port: a tag draws itself through a view, which has no pixels to free.
-    if (port()->frame()->window->buffer != nullptr)
+    if (Port()->Frame()->Window->Buffer != nullptr)
     {
-        MCRenderer::DestroyTexture(port()->frame()->window);
-        aPort::freePixels(port()->frame()->window->buffer);
-        port()->frame()->window->buffer = nullptr;
+        MCRenderer::DestroyTexture(Port()->Frame()->Window);
+        MCGuiPort::FreePixels(Port()->Frame()->Window->Buffer);
+        Port()->Frame()->Window->Buffer = nullptr;
     }
 }
 
-auto aFloatHelp::draw() -> void
+auto MCFloatHelp::Draw() -> void
 {
-    VFX_pane_wipe(displayPort->frame(), backColor());
+    VfxPaneWipe(DisplayPort->Frame(), BackColor());
 
-    if (backColor() != 0)
+    if (BackColor() != 0)
     {
-        drawBox(0, -1, -1, -1, -1);
+        DrawBox(0, -1, -1, -1, -1);
     }
 
-    if (helpText[0] != 0 && lineFont != nullptr)
+    if (HelpText[0] != 0 && LineFont != nullptr)
     {
-        char* newline = strchr(helpText, '\n');
+        char* newline = strchr(HelpText, '\n');
         int16_t lineY = 2;
-        lineFont->scale = 1.0f;
-        lineFont->scaled = 0;
-        lineFont->printToNewline(2, 2, helpText, textColor, displayPort->frame());
+        LineFont->Scale = 1.0f;
+        LineFont->Scaled = 0;
+        LineFont->PrintToNewline(2, 2, HelpText, TextColor, DisplayPort->Frame());
 
         while (newline != nullptr)
         {
-            uint8_t lineHeight = lineFont->fontHeight;
+            uint8_t lineHeight = LineFont->FontHeight;
 
-            if (lineFont->scaled != 0)
+            if (LineFont->Scaled != 0)
             {
-                lineHeight = static_cast<uint8_t>(static_cast<int32_t>(floor(lineHeight * lineFont->scale)));
+                lineHeight = static_cast<uint8_t>(static_cast<int32_t>(floor(lineHeight * LineFont->Scale)));
             }
 
             lineY = static_cast<int16_t>(lineY + 2 + lineHeight);
-            lineFont->printToNewline(2, lineY, newline + 1, textColor, displayPort->frame());
+            LineFont->PrintToNewline(2, lineY, newline + 1, TextColor, DisplayPort->Frame());
             newline = strchr(newline + 1, '\n');
         }
     }
 }
 
-auto aFloatHelp::display() -> void
+auto MCFloatHelp::Display() -> void
 {
-    if (gamePaused != 0 || showWindow == 0 || helpObject == nullptr)
+    if (GamePaused != 0 || ShowWindow == 0 || HelpObject == nullptr)
     {
         return;
     }
@@ -75,36 +75,36 @@ auto aFloatHelp::display() -> void
     float screenY;
     // Port: the tag sits on the screen where the main view shows the object (through the zoom); its offsets are in
     // screen pixels.
-    viewWindow* view = MCMainView();
-    const auto shown = [view](vector_2d point) { return view != nullptr ? view->WorldToScreen(point) : point; };
+    MCViewWindow* view = MCMainView();
+    const auto shown = [view](MCVector2D point) { return view != nullptr ? view->WorldToScreen(point) : point; };
 
-    if (helpObject->objectClass == MISCTERRAINOBJECT)
+    if (HelpObject->ObjectClass == MISCTERRAINOBJECT)
     {
-        vector_2d screenPos = static_cast<MiscTerrainObject*>(helpObject)->getScreenPos();
-        screenPos.y += 90.0f;
+        MCVector2D screenPos = static_cast<MCMiscTerrainObject*>(HelpObject)->GetScreenPos();
+        screenPos.Y += 90.0f;
         screenPos = shown(screenPos);
-        screenX = screenPos.x;
-        screenY = screenPos.y;
+        screenX = screenPos.X;
+        screenY = screenPos.Y;
     }
     else
     {
-        if (helpObject->getWindowsVisible() != turn)
+        if (HelpObject->GetWindowsVisible() != Turn)
         {
             return;
         }
 
-        vector_2d screenPos = helpObject->getScreenPos(0);
+        MCVector2D screenPos = HelpObject->GetScreenPos(0);
 
-        if (Appearance* appearance = helpObject->getAppearance())
+        if (MCAppearance* appearance = HelpObject->GetAppearance())
         {
-            screenPos.y = appearance->lowerRight.y;
+            screenPos.Y = appearance->LowerRight.Y;
         }
 
         screenPos = shown(screenPos);
-        screenX = screenPos.x;
-        screenY = screenPos.y;
+        screenX = screenPos.X;
+        screenY = screenPos.Y;
 
-        switch (helpObject->objectClass)
+        switch (HelpObject->ObjectClass)
         {
             case BATTLEMECH:
                 screenY += 7.0f;
@@ -119,14 +119,14 @@ auto aFloatHelp::display() -> void
         }
     }
 
-    int32_t halfWidth = width() / 2;
-    moveTo(static_cast<int32_t>(screenX - static_cast<float>(halfWidth)), static_cast<int32_t>(screenY), 0);
-    aObject::display();
+    int32_t halfWidth = Width() / 2;
+    MoveTo(static_cast<int32_t>(screenX - static_cast<float>(halfWidth)), static_cast<int32_t>(screenY), 0);
+    MCGuiObject::Display();
 }
 
-auto aFloatHelp::SetHelpText(char* text) -> void
+auto MCFloatHelp::SetHelpText(char* text) -> void
 {
-    if (MCFrameLog::Enabled() && std::strncmp(helpText, text, 0x3f) != 0)
+    if (MCFrameLog::Enabled() && std::strncmp(HelpText, text, 0x3f) != 0)
     {
         std::string shown = text;
         std::ranges::replace(shown, '\n', '/');
@@ -135,16 +135,16 @@ auto aFloatHelp::SetHelpText(char* text) -> void
 
     if (strlen(text) < 0x40)
     {
-        strcpy(helpText, text);
+        strcpy(HelpText, text);
     }
     else
     {
-        strncpy(helpText, text, 0x3f);
+        strncpy(HelpText, text, 0x3f);
         // Port fix: the original wrote this terminator at helpText[64], the low byte of helpObject.
-        helpText[0x3f] = 0;
+        HelpText[0x3f] = 0;
     }
 
-    if (lineFont != nullptr)
+    if (LineFont != nullptr)
     {
         int16_t numLines = 1;
 
@@ -153,34 +153,34 @@ auto aFloatHelp::SetHelpText(char* text) -> void
             numLines++;
         }
 
-        lineFont->scale = 1.0f;
-        lineFont->scaled = 0;
+        LineFont->Scale = 1.0f;
+        LineFont->Scaled = 0;
 
-        int32_t textWidth = lineFont->printWidth(helpText, -1) + 4;
+        int32_t textWidth = LineFont->PrintWidth(HelpText, -1) + 4;
 
-        if (width() == textWidth)
+        if (Width() == textWidth)
         {
             int32_t lineHeight = 6;
 
-            if (lineFont->scaled != 0)
+            if (LineFont->Scaled != 0)
             {
-                lineHeight = static_cast<int16_t>(static_cast<int32_t>(floor(lineFont->scale * 6.0f)));
+                lineHeight = static_cast<int16_t>(static_cast<int32_t>(floor(LineFont->Scale * 6.0f)));
             }
 
-            if (height() == numLines * lineHeight)
+            if (Height() == numLines * lineHeight)
             {
                 return;
             }
         }
 
-        int32_t fontHeight = lineFont->fontHeight;
+        int32_t fontHeight = LineFont->FontHeight;
 
-        if (lineFont->scaled != 0)
+        if (LineFont->Scaled != 0)
         {
-            fontHeight = static_cast<int16_t>(static_cast<int32_t>(floor(fontHeight * lineFont->scale)));
+            fontHeight = static_cast<int16_t>(static_cast<int32_t>(floor(fontHeight * LineFont->Scale)));
         }
 
         fontHeight &= 0xff;
-        resize(lineFont->printWidth(helpText, -1) + 4, (fontHeight + 2) * numLines);
+        Resize(LineFont->PrintWidth(HelpText, -1) + 4, (fontHeight + 2) * numLines);
     }
 }

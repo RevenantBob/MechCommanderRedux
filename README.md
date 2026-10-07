@@ -4,7 +4,7 @@ An unofficial recreation of **MechCommander Gold** (FASA Interactive / MicroPros
 
 MechCommander Redux rebuilds MechCommander Gold's game code as 64-bit C++. The original game was a 32-bit Win32 program
 built on DirectDraw, DirectSound, DirectPlay and Smacker video. Redux keeps the game's own classes, functions and logic,
-under their original names, and replaces that Windows/DirectX layer with SDL3.
+rewritten as modern C++, and replaces that Windows/DirectX layer with SDL3.
 
 It is not an emulator and not a patch to the original executable. It is a from-scratch reconstruction that reads the
 data files from your own copy of MechCommander Gold.

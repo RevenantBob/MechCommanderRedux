@@ -7,93 +7,93 @@
 uint8_t* LZPacketBuffer = nullptr;
 uint32_t LZPacketBufferSize = 512000;
 
-FastFile::FastFile() = default;
+MCFastFile::MCFastFile() = default;
 
-FastFile::~FastFile()
+MCFastFile::~MCFastFile()
 {
-    close();
+    Close();
 }
 
-int32_t FastFile::open(const char* fName)
+int32_t MCFastFile::Open(const char* fName)
 {
     const size_t nameLength = std::strlen(fName) + 1;
-    fileName = new char[nameLength];
-    std::memcpy(fileName, fName, nameLength);
+    _FileName = new char[nameLength];
+    std::memcpy(_FileName, fName, nameLength);
 
-    handle = std::fopen(MCFileSystem::Resolve(fileName).string().c_str(), "rb");
+    _Handle = std::fopen(MCFileSystem::Resolve(_FileName).string().c_str(), "rb");
 
-    if (handle == nullptr)
+    if (_Handle == nullptr)
     {
         return FILE_NOT_FOUND;
     }
 
-    logicalPosition = 0;
+    _LogicalPosition = 0;
 
-    if (length == 0)
+    if (_Length == 0)
     {
-        std::fseek(handle, 0, SEEK_END);
-        length = static_cast<int32_t>(std::ftell(handle));
+        std::fseek(_Handle, 0, SEEK_END);
+        _Length = static_cast<int32_t>(std::ftell(_Handle));
     }
 
-    std::fseek(handle, 0, SEEK_SET);
-    logicalPosition = 0;
+    std::fseek(_Handle, 0, SEEK_SET);
+    _LogicalPosition = 0;
 
     int32_t count = 0;
-    const bool readCount = std::fread(&count, 4, 1, handle) == 1;
-    logicalPosition += 4;
+    const bool readCount = std::fread(&count, 4, 1, _Handle) == 1;
+    _LogicalPosition += 4;
 
     if (!readCount)
     {
         return READ_ERR;
     }
 
-    numFiles = count;
-    files = static_cast<FILE_HANDLE*>(std::malloc(sizeof(FILE_HANDLE) * static_cast<size_t>(numFiles)));
+    _NumFiles = count;
+    _Files = static_cast<MCFileHandle*>(std::malloc(sizeof(MCFileHandle) * static_cast<size_t>(_NumFiles)));
 
-    for (int32_t i = 0; i < numFiles; ++i)
+    for (int32_t i = 0; i < _NumFiles; ++i)
     {
-        FILEENTRY* entry = static_cast<FILEENTRY*>(std::calloc(1, sizeof(FILEENTRY)));
-        files[i].file = entry;
+        MCFileEntry* entry = static_cast<MCFileEntry*>(std::calloc(1, sizeof(MCFileEntry)));
+        _Files[i].File = entry;
         // The original ignores the byte count; a short directory leaves the rest of the entry zeroed.
-        (void)std::fread(entry, sizeof(FILEENTRY), 1, handle);
-        entry->name[sizeof(entry->name) - 1] = 0;
-        files[i].inuse = 0;
-        files[i].pos = 0;
+        (void)std::fread(entry, sizeof(MCFileEntry), 1, _Handle);
+        entry->Name[sizeof(entry->Name) - 1] = 0;
+        _Files[i].Inuse = 0;
+        _Files[i].Pos = 0;
     }
 
     return NO_ERR;
 }
 
-void FastFile::close()
+void MCFastFile::Close()
 {
-    delete[] fileName;
-    fileName = nullptr;
-    length = 0;
+    delete[] _FileName;
+    _FileName = nullptr;
+    _Length = 0;
 
-    if (handle != nullptr)
+    if (_Handle != nullptr)
     {
-        std::fclose(handle);
-        handle = nullptr;
+        std::fclose(_Handle);
+        _Handle = nullptr;
     }
 
-    for (int32_t i = 0; i < numFiles; ++i)
+    for (int32_t i = 0; i < _NumFiles; ++i)
     {
-        std::free(files[i].file);
+        std::free(_Files[i].File);
     }
 
-    std::free(files);
-    files = nullptr;
-    numFiles = 0;
+    std::free(_Files);
+    _Files = nullptr;
+    _NumFiles = 0;
 }
 
-int32_t FastFile::openFast(const char* fName)
+int32_t MCFastFile::OpenFast(const char* fName)
 {
-    for (int32_t i = 0; i < numFiles; ++i)
+    for (int32_t i = 0; i < _NumFiles; ++i)
     {
-        if (MCPort::StrICmp(files[i].file->name, fName) == 0)
+        if (MCPort::StrICmp(_Files[i].File->Name, fName) == 0)
         {
-            files[i].inuse = 1;
-            files[i].pos = 0;
+            _Files[i].Inuse = 1;
+            _Files[i].Pos = 0;
             return i;
         }
     }
@@ -101,30 +101,30 @@ int32_t FastFile::openFast(const char* fName)
     return -1;
 }
 
-void FastFile::closeFast(int32_t fastFileHandle)
+void MCFastFile::CloseFast(int32_t fastFileHandle)
 {
-    if (fastFileHandle >= 0 && fastFileHandle < numFiles && files[fastFileHandle].inuse)
+    if (fastFileHandle >= 0 && fastFileHandle < _NumFiles && _Files[fastFileHandle].Inuse)
     {
-        files[fastFileHandle].inuse = 0;
-        files[fastFileHandle].pos = 0;
+        _Files[fastFileHandle].Inuse = 0;
+        _Files[fastFileHandle].Pos = 0;
     }
 }
 
-int32_t FastFile::seekFast(int32_t fastFileHandle, int32_t off, int32_t from)
+int32_t MCFastFile::SeekFast(int32_t fastFileHandle, int32_t off, int32_t from)
 {
-    if (fastFileHandle < 0 || fastFileHandle >= numFiles || !files[fastFileHandle].inuse)
+    if (fastFileHandle < 0 || fastFileHandle >= _NumFiles || !_Files[fastFileHandle].Inuse)
     {
         return FILE_NOT_OPEN;
     }
 
-    FILE_HANDLE& fh = files[fastFileHandle];
+    MCFileHandle& fh = _Files[fastFileHandle];
 
     // Original behaviour: the bounds checks use the stored (packed) size, and SEEK_END adds to it.
     switch (from)
     {
         case SEEK_SET:
         {
-            if (off > fh.file->size)
+            if (off > fh.File->Size)
             {
                 return READ_PAST_EOF;
             }
@@ -132,30 +132,30 @@ int32_t FastFile::seekFast(int32_t fastFileHandle, int32_t off, int32_t from)
         }
         case SEEK_CUR:
         {
-            if (fh.pos + off > fh.file->size)
+            if (fh.Pos + off > fh.File->Size)
             {
                 return READ_PAST_EOF;
             }
 
-            off += fh.pos;
+            off += fh.Pos;
             break;
         }
         case SEEK_END:
         {
-            if (std::abs(off) > fh.file->size || off > 0)
+            if (std::abs(off) > fh.File->Size || off > 0)
             {
                 return READ_PAST_EOF;
             }
 
-            off += fh.file->size;
+            off += fh.File->Size;
             break;
         }
         default:
         {
             off = 0;
-            fh.pos = off;
-            logicalPosition = fh.file->offset + off;
-            std::fseek(handle, logicalPosition, SEEK_SET);
+            fh.Pos = off;
+            _LogicalPosition = fh.File->Offset + off;
+            std::fseek(_Handle, _LogicalPosition, SEEK_SET);
             return off;
         }
     }
@@ -165,29 +165,29 @@ int32_t FastFile::seekFast(int32_t fastFileHandle, int32_t off, int32_t from)
         return INVALID_SEEK;
     }
 
-    fh.pos = off;
-    logicalPosition = fh.file->offset + off;
-    std::fseek(handle, logicalPosition, SEEK_SET);
+    fh.Pos = off;
+    _LogicalPosition = fh.File->Offset + off;
+    std::fseek(_Handle, _LogicalPosition, SEEK_SET);
     return off;
 }
 
-int32_t FastFile::readFast(int32_t fastFileHandle, void* bfr, int32_t size)
+int32_t MCFastFile::ReadFast(int32_t fastFileHandle, void* bfr, int32_t size)
 {
-    if (fastFileHandle < 0 || fastFileHandle >= numFiles || !files[fastFileHandle].inuse)
+    if (fastFileHandle < 0 || fastFileHandle >= _NumFiles || !_Files[fastFileHandle].Inuse)
     {
         return FILE_NOT_OPEN;
     }
 
-    FILE_HANDLE& fh = files[fastFileHandle];
-    FILEENTRY* entry = fh.file;
+    MCFileHandle& fh = _Files[fastFileHandle];
+    MCFileEntry* entry = fh.File;
 
-    logicalPosition = entry->offset + fh.pos;
-    std::fseek(handle, logicalPosition, SEEK_SET);
+    _LogicalPosition = entry->Offset + fh.Pos;
+    std::fseek(_Handle, _LogicalPosition, SEEK_SET);
 
-    if (entry->size == entry->realSize)
+    if (entry->Size == entry->RealSize)
     {
-        logicalPosition += size;
-        return static_cast<int32_t>(std::fread(bfr, 1, static_cast<size_t>(size), handle));
+        _LogicalPosition += size;
+        return static_cast<int32_t>(std::fread(bfr, 1, static_cast<size_t>(size), _Handle));
     }
 
     // Packed: read the whole stored entry and unpack it all into the caller's buffer.
@@ -201,9 +201,9 @@ int32_t FastFile::readFast(int32_t fastFileHandle, void* bfr, int32_t size)
         }
     }
 
-    if (static_cast<int32_t>(LZPacketBufferSize) < entry->size)
+    if (static_cast<int32_t>(LZPacketBufferSize) < entry->Size)
     {
-        LZPacketBufferSize = static_cast<uint32_t>(entry->size);
+        LZPacketBufferSize = static_cast<uint32_t>(entry->Size);
         std::free(LZPacketBuffer);
         LZPacketBuffer = static_cast<uint8_t*>(std::malloc(LZPacketBufferSize));
 
@@ -213,39 +213,39 @@ int32_t FastFile::readFast(int32_t fastFileHandle, void* bfr, int32_t size)
         }
     }
 
-    logicalPosition += entry->size;
-    const size_t got = std::fread(LZPacketBuffer, 1, static_cast<size_t>(entry->size), handle);
+    _LogicalPosition += entry->Size;
+    const size_t got = std::fread(LZPacketBuffer, 1, static_cast<size_t>(entry->Size), _Handle);
     // Port fix: unpack no further than the entry's real size, which is what every caller sizes its buffer to.
     const int32_t unpacked = LZDecomp(static_cast<uint8_t*>(bfr), LZPacketBuffer, static_cast<uint32_t>(got),
-                                      static_cast<uint32_t>(entry->realSize));
-    return unpacked == entry->realSize ? unpacked : 0;
+                                      static_cast<uint32_t>(entry->RealSize));
+    return unpacked == entry->RealSize ? unpacked : 0;
 }
 
-int32_t FastFile::tellFast(int32_t fastFileHandle)
+int32_t MCFastFile::TellFast(int32_t fastFileHandle)
 {
-    if (fastFileHandle >= 0 && fastFileHandle < numFiles && files[fastFileHandle].inuse)
+    if (fastFileHandle >= 0 && fastFileHandle < _NumFiles && _Files[fastFileHandle].Inuse)
     {
-        return files[fastFileHandle].pos;
+        return _Files[fastFileHandle].Pos;
     }
 
     return -1;
 }
 
-int32_t FastFile::sizeFast(int32_t fastFileHandle)
+int32_t MCFastFile::SizeFast(int32_t fastFileHandle)
 {
-    if (fastFileHandle >= 0 && fastFileHandle < numFiles && files[fastFileHandle].inuse)
+    if (fastFileHandle >= 0 && fastFileHandle < _NumFiles && _Files[fastFileHandle].Inuse)
     {
-        return files[fastFileHandle].file->realSize;
+        return _Files[fastFileHandle].File->RealSize;
     }
 
     return -1;
 }
 
-int32_t FastFile::lzSizeFast(int32_t fastFileHandle)
+int32_t MCFastFile::LzSizeFast(int32_t fastFileHandle)
 {
-    if (fastFileHandle >= 0 && fastFileHandle < numFiles && files[fastFileHandle].inuse)
+    if (fastFileHandle >= 0 && fastFileHandle < _NumFiles && _Files[fastFileHandle].Inuse)
     {
-        return files[fastFileHandle].file->size;
+        return _Files[fastFileHandle].File->Size;
     }
 
     return -1;

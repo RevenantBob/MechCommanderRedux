@@ -1,12 +1,12 @@
 #include "stdafx.h"
 #include "lib/cvmath.h"
 
-// Set by the original's static initialisers (MCX.EXE @ 0x00644a30..0x00644af0).
-vector_3d UnitX(1.0f, 0.0f, 0.0f);
-vector_3d UnitY(0.0f, 1.0f, 0.0f);
-vector_3d UnitZ(0.0f, 0.0f, 1.0f);
-vector_3d NULL_vector_3d(0.0f, 0.0f, 0.0f);
-frame_of_ref NULL_frame_of_ref(vector_3d(1.0f, 0.0f, 0.0f), vector_3d(0.0f, 1.0f, 0.0f), vector_3d(0.0f, 0.0f, 1.0f));
+// Set by the original's static initialisers.
+MCVector3D UnitX(1.0f, 0.0f, 0.0f);
+MCVector3D UnitY(0.0f, 1.0f, 0.0f);
+MCVector3D UnitZ(0.0f, 0.0f, 1.0f);
+MCVector3D NullVector3d(0.0f, 0.0f, 0.0f);
+MCFrameOfRef NullFrameOfRef(MCVector3D(1.0f, 0.0f, 0.0f), MCVector3D(0.0f, 1.0f, 0.0f), MCVector3D(0.0f, 0.0f, 1.0f));
 
 namespace
 {

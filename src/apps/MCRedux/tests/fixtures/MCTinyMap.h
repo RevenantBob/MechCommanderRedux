@@ -33,11 +33,11 @@ public:
     bool Passable(int32_t row, int32_t col) const;
 
     /// <summary>The world position of a movement cell's centre.</summary>
-    vector_3d CellCentre(int32_t row, int32_t col) const;
+    MCVector3D CellCentre(int32_t row, int32_t col) const;
 
 private:
     int32_t _Tiles;
-    ScenarioMap* _PreviousMap;
+    MCScenarioMap* _PreviousMap;
     float _PreviousWorldUnitsMapSide;
     int32_t _PreviousVerticesBlockSide;
     int32_t _PreviousBlocksMapSide;

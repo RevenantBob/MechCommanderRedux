@@ -5,21 +5,21 @@
 namespace
 {
     /// <summary>The port's multimedia timers: one thread each, by timer id.</summary>
-    struct TimerThread
+    struct MCTimerThread
     {
         std::jthread Thread;
     };
 
-    std::mutex timerLock;
-    std::unordered_map<uint32_t, std::unique_ptr<TimerThread>> timers;
-    uint32_t nextTimerId = 1;
+    std::mutex TimerLock;
+    std::unordered_map<uint32_t, std::unique_ptr<MCTimerThread>> Timers;
+    uint32_t NextTimerId = 1;
 
     /// <summary>timeSetEvent(delay, resolution, TimeProc, user, TIME_PERIODIC).</summary>
-    uint32_t startTimer(uint32_t delay, uintptr_t user)
+    uint32_t StartTimer(uint32_t delay, uintptr_t user)
     {
-        std::lock_guard<std::mutex> lock(timerLock);
-        uint32_t id = nextTimerId++;
-        auto timer = std::make_unique<TimerThread>();
+        std::lock_guard<std::mutex> lock(TimerLock);
+        uint32_t id = NextTimerId++;
+        auto timer = std::make_unique<MCTimerThread>();
         timer->Thread = std::jthread(
             [id, delay, user](std::stop_token stop)
             {
@@ -35,28 +35,28 @@ namespace
                         break;
                     }
 
-                    SoundTimer::TimeProc(id, 0, user, 0, 0);
+                    MCSoundTimer::TimeProc(id, 0, user, 0, 0);
                 }
             });
-        timers[id] = std::move(timer);
+        Timers[id] = std::move(timer);
         return id;
     }
 
     /// <summary>timeKillEvent: stops the timer and waits for its thread.</summary>
-    void killTimer(uint32_t id)
+    void KillTimer(uint32_t id)
     {
-        std::unique_ptr<TimerThread> timer;
+        std::unique_ptr<MCTimerThread> timer;
         {
-            std::lock_guard<std::mutex> lock(timerLock);
-            auto found = timers.find(id);
+            std::lock_guard<std::mutex> lock(TimerLock);
+            auto found = Timers.find(id);
 
-            if (found == timers.end())
+            if (found == Timers.end())
             {
                 return;
             }
 
             timer = std::move(found->second);
-            timers.erase(found);
+            Timers.erase(found);
         }
 
         // Port fix: a timer killed from its own callback can't join itself; it is left to finish.
@@ -68,36 +68,36 @@ namespace
     }
 }
 
-SoundTimer::SoundTimer()
+MCSoundTimer::MCSoundTimer()
 {
-    timerId = 0;
+    TimerId = 0;
 }
 
-SoundTimer::~SoundTimer()
+MCSoundTimer::~MCSoundTimer()
 {
-    if (timerId != 0)
+    if (TimerId != 0)
     {
-        killTimer(timerId);
+        KillTimer(TimerId);
     }
 }
 
-void SoundTimer::Create(uint32_t delay, uint32_t resolution, uintptr_t user, Callback callback)
+void MCSoundTimer::Create(uint32_t delay, uint32_t resolution, uintptr_t user, Callback callback)
 {
-    this->user = user;
-    this->delay = delay;
-    this->resolution = resolution;
-    this->callback = callback;
+    this->User = user;
+    this->Delay = delay;
+    this->Resolution = resolution;
+    this->Handler = callback;
     // The timer's user value is the SoundTimer itself.
-    timerId = startTimer(delay, reinterpret_cast<uintptr_t>(this));
+    TimerId = StartTimer(delay, reinterpret_cast<uintptr_t>(this));
 
-    if (timerId == 0)
+    if (TimerId == 0)
     {
         Fatal(-1, "SoundTimer: Couldn't create timer");
     }
 }
 
-void SoundTimer::TimeProc(uint32_t timerId, uint32_t msg, uintptr_t user, uintptr_t dw1, uintptr_t dw2)
+void MCSoundTimer::TimeProc(uint32_t timerId, uint32_t msg, uintptr_t user, uintptr_t dw1, uintptr_t dw2)
 {
-    SoundTimer* timer = reinterpret_cast<SoundTimer*>(user);
-    timer->callback(timer->user);
+    MCSoundTimer* timer = reinterpret_cast<MCSoundTimer*>(user);
+    timer->Handler(timer->User);
 }

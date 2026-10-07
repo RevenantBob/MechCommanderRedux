@@ -13,75 +13,72 @@ namespace
     constexpr int32_t SliderWidth = 13;
 
     /// <summary>The mouse y the slider drag last moved to; -1 when not dragging.</summary>
-    /// <remarks>MCX.EXE @ 0x007a1560</remarks>
-    int32_t dragY = -1;
+    int32_t DragY = -1;
     /// <summary>Nonzero while the slider is being dragged.</summary>
-    /// <remarks>MCX.EXE @ 0x00808744</remarks>
-    int32_t draggingSlider = 0;
+    int32_t DraggingSlider = 0;
     /// <summary>The arrow held down: 0 none, 1 up, 2 down.</summary>
-    /// <remarks>MCX.EXE @ 0x00808748</remarks>
-    int32_t arrowPressed = 0;
+    int32_t ArrowPressed = 0;
 
     /// <summary>
     /// Passes <paramref name="event"/> to the first child whose box holds the mouse, unless the mouse is over the
     /// slider column (or right of it).
     /// </summary>
-    void forwardToChildren(ScrollPane* pane, aEvent* event)
+    void ForwardToChildren(MCScrollPane* pane, MCGuiEvent* event)
     {
-        int32_t mouseX = event->x;
+        int32_t mouseX = event->X;
 
-        if (pane->globalX() - 14 + pane->winWidth <= mouseX)
+        if (pane->GlobalX() - 14 + pane->WinWidth <= mouseX)
         {
             return;
         }
 
-        for (int32_t i = 0; i < pane->numberOfChildren(); i++)
+        for (int32_t i = 0; i < pane->NumberOfChildren(); i++)
         {
-            aObject* child = pane->child(i);
+            MCGuiObject* child = pane->Child(i);
 
-            if (child->globalX() <= mouseX && mouseX <= child->globalX() + child->width() &&
-                child->globalY() <= event->y && event->y <= child->height() + child->globalY())
+            if (child->GlobalX() <= mouseX && mouseX <= child->GlobalX() + child->Width() &&
+                child->GlobalY() <= event->Y && event->Y <= child->Height() + child->GlobalY())
             {
-                pane->child(i)->handleEvent(event);
+                pane->Child(i)->HandleEvent(event);
                 return;
             }
         }
     }
 }
 
-ScrollPane::~ScrollPane()
+MCScrollPane::~MCScrollPane()
 {
-    destroy();
+    Destroy();
 }
 
-auto ScrollPane::init() -> void
+auto MCScrollPane::Init() -> void
 {
-    trackImage = nullptr;
-    backgroundCopy = nullptr;
-    contentPort = nullptr;
-    sliderPort = nullptr;
-    sliderHeight = -1;
-    sliderPos = 0;
-    sliderImage = nullptr;
-    sliderImageSize = 0;
-    lastScrollOffset = 0;
-    scrollUnit = 0.0f;
-    scrollPos = 0.0f;
-    maxScroll = 0.0f;
-    sliderMax = 0;
+    TrackImage = nullptr;
+    BackgroundCopy = nullptr;
+    ContentPort = nullptr;
+    SliderPort = nullptr;
+    SliderHeight = -1;
+    SliderPos = 0;
+    SliderImage = nullptr;
+    SliderImageSize = 0;
+    LastScrollOffset = 0;
+    ScrollUnit = 0.0f;
+    ScrollPos = 0.0f;
+    MaxScroll = 0.0f;
+    SliderMax = 0;
 }
 
-auto ScrollPane::init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, char* name) -> int32_t
+auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, char* name) -> int32_t
 {
-    lPort* background = nullptr;
+    MCLogPort* background = nullptr;
 
     if (name != nullptr)
     {
-        background = new lPort;
-        background->init(name);
+        background = new MCLogPort;
+        background->Init(name);
     }
 
-    init(width, height, xPos, yPos, background);
+    Init(width, height, xPos, yPos, background);
 
     if (background != nullptr)
     {
@@ -91,165 +88,165 @@ auto ScrollPane::init(int32_t width, int32_t height, int32_t xPos, int32_t yPos,
     return 0;
 }
 
-auto ScrollPane::init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, lPort* background) -> void
+auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, MCLogPort* background) -> void
 {
-    ownPort = nullptr;
-    framePane = nullptr;
+    _OwnPort = nullptr;
+    FramePane = nullptr;
 
-    lPort* content = new lPort;
-    contentPort = content;
+    MCLogPort* content = new MCLogPort;
+    ContentPort = content;
     Assert(content != nullptr, 0, " not enough memory for fullPane ", nullptr);
-    content->init(width - SliderWidth, height, -1);
-    VFX_pane_wipe(content->frame(), 0x10);
+    content->Init(width - SliderWidth, height, -1);
+    VfxPaneWipe(content->Frame(), 0x10);
 
-    lPort* art = new lPort;
+    MCLogPort* art = new MCLogPort;
 
     if (background != nullptr)
     {
-        if (backgroundCopy != nullptr)
+        if (BackgroundCopy != nullptr)
         {
-            delete backgroundCopy;
+            delete BackgroundCopy;
         }
 
-        backgroundCopy = new lPort;
-        backgroundCopy->init(background->width(), background->height(), -1);
-        background->copyTo(backgroundCopy->frame(), 0, 0, -1);
+        BackgroundCopy = new MCLogPort;
+        BackgroundCopy->Init(background->Width(), background->Height(), -1);
+        background->CopyTo(BackgroundCopy->Frame(), 0, 0, -1);
     }
 
-    int32_t result = lObject::init(xPos, yPos, width, height, nullptr, content);
+    int32_t result = MCLogObject::Init(xPos, yPos, width, height, nullptr, content);
     Assert(result == 0, 0, " could not initialize ScrollPane ", nullptr);
-    ownPort = contentPort;
+    _OwnPort = ContentPort;
 
-    lPort* slider = new lPort;
-    sliderPort = slider;
+    MCLogPort* slider = new MCLogPort;
+    SliderPort = slider;
     Assert(slider != nullptr, 0, " not enought memory to allocate ", nullptr);
-    slider->init(SliderWidth, height, -1);
+    slider->Init(SliderWidth, height, -1);
 
     char fileName[256];
-    sprintf(fileName, "%slogart\\scroll.tga", artPath);
+    sprintf(fileName, "%slogart\\scroll.tga", ArtPath);
 
-    if (trackImage != nullptr)
+    if (TrackImage != nullptr)
     {
-        globalLogPtr->logisticsBlocks->Free(trackImage);
+        GlobalLogPtr->LogisticsBlocks->Free(TrackImage);
     }
 
     uint32_t trackSize = static_cast<uint32_t>(height * SliderWidth);
-    trackImage = static_cast<uint8_t*>(globalLogPtr->logisticsBlocks->Allocate(trackSize));
+    TrackImage = static_cast<uint8_t*>(GlobalLogPtr->LogisticsBlocks->Allocate(trackSize));
 
     // The track tile repeats down the column, below the first row.
-    art->init(fileName);
-    int32_t numTiles = height / art->height() - 1;
+    art->Init(fileName);
+    int32_t numTiles = height / art->Height() - 1;
 
     for (int32_t i = 0; i < numTiles; i++)
     {
-        art->copyTo(slider->frame(), 0, art->height() * i + 1, -1);
+        art->CopyTo(slider->Frame(), 0, art->Height() * i + 1, -1);
     }
 
-    sprintf(fileName, "%slogart\\supbup.tga", artPath);
-    art->init(fileName);
-    art->copyTo(slider->frame(), 0, 0, -1);
-    art->destroy();
-    sprintf(fileName, "%slogart\\sdnbup.tga", artPath);
-    art->init(fileName);
-    art->copyTo(slider->frame(), 0, height - 15, -1);
+    sprintf(fileName, "%slogart\\supbup.tga", ArtPath);
+    art->Init(fileName);
+    art->CopyTo(slider->Frame(), 0, 0, -1);
+    art->Destroy();
+    sprintf(fileName, "%slogart\\sdnbup.tga", ArtPath);
+    art->Init(fileName);
+    art->CopyTo(slider->Frame(), 0, height - 15, -1);
 
     if (art != nullptr)
     {
         delete art;
     }
 
-    memcpy(trackImage, slider->frame()->window->buffer, trackSize);
+    memcpy(TrackImage, slider->Frame()->Window->Buffer, trackSize);
 
-    if (panePort == nullptr)
+    if (PanePort == nullptr)
     {
-        panePort = new lPort;
+        PanePort = new MCLogPort;
     }
 
-    panePort->initView(width, height);
-    setUpSlider();
-    setScrollPos(0.0f);
-    ShowGUIWindow(0);
-    setDepth(100);
+    PanePort->InitView(width, height);
+    SetUpSlider();
+    SetScrollPos(0.0f);
+    ShowGuiWindow(0);
+    SetDepth(100);
 }
 
-auto ScrollPane::destroy() -> void
+auto MCScrollPane::Destroy() -> void
 {
-    ownPort = nullptr;
-    lObject::destroy();
+    _OwnPort = nullptr;
+    MCLogObject::Destroy();
 
-    if (trackImage != nullptr)
+    if (TrackImage != nullptr)
     {
-        globalLogPtr->logisticsBlocks->Free(trackImage);
-        trackImage = nullptr;
+        GlobalLogPtr->LogisticsBlocks->Free(TrackImage);
+        TrackImage = nullptr;
     }
 
-    if (contentPort != nullptr)
+    if (ContentPort != nullptr)
     {
-        contentPort->destroy();
-        delete contentPort;
-        contentPort = nullptr;
+        ContentPort->Destroy();
+        delete ContentPort;
+        ContentPort = nullptr;
     }
 
-    if (sliderPort != nullptr)
+    if (SliderPort != nullptr)
     {
-        sliderPort->destroy();
-        delete sliderPort;
-        sliderPort = nullptr;
+        SliderPort->Destroy();
+        delete SliderPort;
+        SliderPort = nullptr;
     }
 
-    if (sliderImage != nullptr)
+    if (SliderImage != nullptr)
     {
-        MCRenderer::DestroyTexture(sliderTexture);
-        globalLogPtr->logisticsBlocks->Free(sliderImage);
-        sliderImage = nullptr;
+        MCRenderer::DestroyTexture(SliderTexture);
+        GlobalLogPtr->LogisticsBlocks->Free(SliderImage);
+        SliderImage = nullptr;
     }
 
-    if (backgroundCopy != nullptr)
+    if (BackgroundCopy != nullptr)
     {
-        delete backgroundCopy;
-        backgroundCopy = nullptr;
+        delete BackgroundCopy;
+        BackgroundCopy = nullptr;
     }
 
-    if (panePort != nullptr)
+    if (PanePort != nullptr)
     {
-        delete panePort;
-        panePort = nullptr;
-    }
-}
-
-auto ScrollPane::setScrollPos(float position) -> void
-{
-    scrollPos = position;
-
-    if (maxScroll < position)
-    {
-        scrollPos = maxScroll;
-    }
-
-    if (scrollPos < 0.0f)
-    {
-        scrollPos = 0.0f;
-    }
-
-    if (sliderHeight != 0)
-    {
-        eraseSlider();
-        int32_t newSliderPos = static_cast<int32_t>((winHeight - 32) * static_cast<double>(0.01f) * scrollPos + 16.0);
-        setChildren();
-        sliderPos = newSliderPos;
+        delete PanePort;
+        PanePort = nullptr;
     }
 }
 
-auto ScrollPane::setSliderPos(int32_t position) -> void
+auto MCScrollPane::SetScrollPos(float position) -> void
 {
-    if (sliderHeight == 0)
+    ScrollPos = position;
+
+    if (MaxScroll < position)
+    {
+        ScrollPos = MaxScroll;
+    }
+
+    if (ScrollPos < 0.0f)
+    {
+        ScrollPos = 0.0f;
+    }
+
+    if (SliderHeight != 0)
+    {
+        EraseSlider();
+        int32_t newSliderPos = static_cast<int32_t>((WinHeight - 32) * static_cast<double>(0.01f) * ScrollPos + 16.0);
+        SetChildren();
+        SliderPos = newSliderPos;
+    }
+}
+
+auto MCScrollPane::SetSliderPos(int32_t position) -> void
+{
+    if (SliderHeight == 0)
     {
         return;
     }
 
-    if (sliderMax < position)
+    if (SliderMax < position)
     {
-        position = sliderMax;
+        position = SliderMax;
     }
 
     if (position < 0x10)
@@ -257,90 +254,90 @@ auto ScrollPane::setSliderPos(int32_t position) -> void
         position = 0x10;
     }
 
-    eraseSlider();
-    sliderPos = position;
+    EraseSlider();
+    SliderPos = position;
     float newScrollPos =
-        static_cast<float>(static_cast<double>(position - 0x10) / static_cast<double>(winHeight - 0x20) * 100.0);
-    scrollPos = newScrollPos;
+        static_cast<float>(static_cast<double>(position - 0x10) / static_cast<double>(WinHeight - 0x20) * 100.0);
+    ScrollPos = newScrollPos;
 
-    if (maxScroll < newScrollPos)
+    if (MaxScroll < newScrollPos)
     {
-        scrollPos = maxScroll;
+        ScrollPos = MaxScroll;
     }
 
-    setChildren();
+    SetChildren();
 }
 
-auto ScrollPane::setChildren() -> void
+auto MCScrollPane::SetChildren() -> void
 {
-    for (int32_t i = 0; i < numberOfChildren(); i++)
+    for (int32_t i = 0; i < NumberOfChildren(); i++)
     {
-        aObject* child = this->child(i);
-        int32_t newY = lastScrollOffset - getScrollOffset() + child->y();
-        child->moveTo(child->x(), newY, 0);
+        MCGuiObject* child = this->Child(i);
+        int32_t newY = LastScrollOffset - GetScrollOffset() + child->Y();
+        child->MoveTo(child->X(), newY, 0);
     }
 
-    lastScrollOffset = getScrollOffset();
+    LastScrollOffset = GetScrollOffset();
 }
 
-auto ScrollPane::draw() -> void
+auto MCScrollPane::Draw() -> void
 {
-    _pane* view = panePort->frame();
+    MCPane* view = PanePort->Frame();
 
-    if (backgroundCopy != nullptr)
+    if (BackgroundCopy != nullptr)
     {
-        backgroundCopy->copyTo(view, 0, 0, -1);
+        BackgroundCopy->CopyTo(view, 0, 0, -1);
     }
 
-    if (contentPort != nullptr)
+    if (ContentPort != nullptr)
     {
-        const auto offset = static_cast<int32_t>(-(static_cast<double>(scrollPos) * scrollUnit));
+        const auto offset = static_cast<int32_t>(-(static_cast<double>(ScrollPos) * ScrollUnit));
 
-        if (contentPort->isView())
+        if (ContentPort->IsView())
         {
-            const MCView& pane = panePort->view;
-            contentPort->openView(pane.Target, pane.OriginX, pane.OriginY + offset, pane.Scissor, true);
-            drawContent();
-            contentPort->closeView();
+            const MCView& pane = PanePort->View;
+            ContentPort->OpenView(pane.Target, pane.OriginX, pane.OriginY + offset, pane.Scissor, true);
+            DrawContent();
+            ContentPort->CloseView();
         }
         else
         {
-            contentPort->copyTo(view, 0, offset, -1);
+            ContentPort->CopyTo(view, 0, offset, -1);
         }
     }
 
-    DrawSliderColumn(view, winWidth - SliderWidth, 0, true);
+    DrawSliderColumn(view, WinWidth - SliderWidth, 0, true);
 }
 
-auto ScrollPane::drawContent() -> void
+auto MCScrollPane::DrawContent() -> void
 {
-    if (contentPort->DrawContent)
+    if (ContentPort->DrawContent)
     {
-        contentPort->DrawContent(contentPort);
+        ContentPort->DrawContent(ContentPort);
     }
 }
 
-auto ScrollPane::DrawContentTo(_pane* target, int32_t xPos, int32_t yPos) -> void
+auto MCScrollPane::DrawContentTo(MCPane* target, int32_t xPos, int32_t yPos) -> void
 {
-    if (contentPort == nullptr)
+    if (ContentPort == nullptr)
     {
         return;
     }
 
-    if (!contentPort->isView())
+    if (!ContentPort->IsView())
     {
-        VFX_pane_copy(contentPort->frame(), 0, getScrollOffset(), target, xPos, yPos, -1);
+        VfxPaneCopy(ContentPort->Frame(), 0, GetScrollOffset(), target, xPos, yPos, -1);
         return;
     }
 
-    const auto offset = static_cast<int32_t>(-(static_cast<double>(scrollPos) * scrollUnit));
-    const MCRect scissor{target->x0 + xPos, target->y0 + yPos, target->x1, target->y1};
-    contentPort->openView(target->window, target->x0 + xPos, target->y0 + yPos + offset, scissor, false);
-    drawContent();
-    contentPort->closeView();
+    const auto offset = static_cast<int32_t>(-(static_cast<double>(ScrollPos) * ScrollUnit));
+    const MCRect scissor{target->X0 + xPos, target->Y0 + yPos, target->X1, target->Y1};
+    ContentPort->OpenView(target->Window, target->X0 + xPos, target->Y0 + yPos + offset, scissor, false);
+    DrawContent();
+    ContentPort->CloseView();
 }
 
-auto ScrollPane::display() -> void
+auto MCScrollPane::Display() -> void
 {
     if (IsShowing() == 0)
     {
@@ -348,102 +345,102 @@ auto ScrollPane::display() -> void
     }
 
     // The original copied its pieces over what the parent had shown there, and showed no children.
-    DrawInFramePass(panePort, 0, false, false);
+    DrawInFramePass(PanePort, 0, false, false);
 }
 
-auto ScrollPane::HeldArrow() const -> int32_t
+auto MCScrollPane::HeldArrow() const -> int32_t
 {
     // An arrow shows held only while the content scrolls (the original put its art in the column when it erased
     // the slider, and there is none to erase when the content fits).
-    if (sliderHeight == 0 || application->grabbedObject() != this)
+    if (SliderHeight == 0 || Application->GrabbedObject() != this)
     {
         return 0;
     }
 
-    return arrowPressed;
+    return ArrowPressed;
 }
 
-auto ScrollPane::PressedArrowArt(bool down) -> lPort*
+auto MCScrollPane::PressedArrowArt(bool down) -> MCLogPort*
 {
-    return logArtf("%slogart\\%s", artPath, down ? "lscsb04.tga" : "lscsb03.tga");
+    return LogArtf("%slogart\\%s", ArtPath, down ? "lscsb04.tga" : "lscsb03.tga");
 }
 
-auto ScrollPane::DrawSliderColumn(_pane* target, int32_t xPos, int32_t yPos, bool keyed) -> void
+auto MCScrollPane::DrawSliderColumn(MCPane* target, int32_t xPos, int32_t yPos, bool keyed) -> void
 {
     const int key = keyed ? -1 : 0;
-    sliderPort->copyTo(target, xPos, yPos, key);
+    SliderPort->CopyTo(target, xPos, yPos, key);
     const int32_t held = HeldArrow();
 
     if (held == 1)
     {
-        if (lPort* art = PressedArrowArt(false); art != nullptr)
+        if (MCLogPort* art = PressedArrowArt(false); art != nullptr)
         {
-            art->copyTo(target, xPos, yPos, key);
+            art->CopyTo(target, xPos, yPos, key);
         }
     }
     else if (held == 2)
     {
-        if (lPort* art = PressedArrowArt(true); art != nullptr)
+        if (MCLogPort* art = PressedArrowArt(true); art != nullptr)
         {
-            art->copyTo(target, xPos, yPos + height() - art->height(), key);
+            art->CopyTo(target, xPos, yPos + Height() - art->Height(), key);
         }
     }
 
-    if (sliderHeight > 0 && sliderTexture != nullptr)
+    if (SliderHeight > 0 && SliderTexture != nullptr)
     {
         // The slider image is a 13-wide picture of whole rows.
-        _window image{};
-        image.buffer = sliderImage;
-        image.x_max = SliderWidth - 1;
-        image.y_max = sliderTexture->Height - 1;
-        image.Texture = sliderTexture;
-        _pane imagePane{&image, 0, 0, SliderWidth - 1, sliderTexture->Height - 1};
-        VFX_pane_copy(&imagePane, 0, 0, target, xPos, yPos + sliderPos, -1);
+        MCWindow image{};
+        image.Buffer = SliderImage;
+        image.XMax = SliderWidth - 1;
+        image.YMax = SliderTexture->Height - 1;
+        image.Texture = SliderTexture;
+        MCPane imagePane{&image, 0, 0, SliderWidth - 1, SliderTexture->Height - 1};
+        VfxPaneCopy(&imagePane, 0, 0, target, xPos, yPos + SliderPos, -1);
     }
 }
 
-auto ScrollPane::MakeSliderTexture() -> void
+auto MCScrollPane::MakeSliderTexture() -> void
 {
-    MCRenderer::DestroyTexture(sliderTexture);
-    sliderTexture = MCRenderer::CreateTexture(sliderImage, SliderWidth, sliderHeight, MCTextureUse::Static);
+    MCRenderer::DestroyTexture(SliderTexture);
+    SliderTexture = MCRenderer::CreateTexture(SliderImage, SliderWidth, SliderHeight, MCTextureUse::Static);
 }
 
-auto ScrollPane::setUpSlider() -> void
+auto MCScrollPane::SetUpSlider() -> void
 {
-    int32_t paneHeight = winHeight;
+    int32_t paneHeight = WinHeight;
 
-    if (contentPort->height() <= paneHeight)
+    if (ContentPort->Height() <= paneHeight)
     {
-        sliderHeight = 0;
+        SliderHeight = 0;
         return;
     }
 
-    if (sliderImage != nullptr)
+    if (SliderImage != nullptr)
     {
-        MCRenderer::DestroyTexture(sliderTexture);
-        globalLogPtr->logisticsBlocks->Free(sliderImage);
+        MCRenderer::DestroyTexture(SliderTexture);
+        GlobalLogPtr->LogisticsBlocks->Free(SliderImage);
     }
 
     // The slider's share of the track (the column less its two 16-pixel arrows) is the pane's share of the content.
     float paneHeightF = static_cast<float>(paneHeight);
-    sliderHeight = static_cast<int32_t>(static_cast<double>(paneHeightF) / contentPort->height() * (paneHeight - 0x20));
-    sliderPos = 0x10;
+    SliderHeight = static_cast<int32_t>(static_cast<double>(paneHeightF) / ContentPort->Height() * (paneHeight - 0x20));
+    SliderPos = 0x10;
 
-    if (sliderHeight < 3)
+    if (SliderHeight < 3)
     {
-        sliderHeight = 3;
+        SliderHeight = 3;
     }
 
-    uint32_t size = static_cast<uint32_t>(sliderHeight * SliderWidth);
-    sliderImageSize = size;
-    uint8_t* image = static_cast<uint8_t*>(globalLogPtr->logisticsBlocks->Allocate(size));
-    sliderImage = image;
+    uint32_t size = static_cast<uint32_t>(SliderHeight * SliderWidth);
+    SliderImageSize = size;
+    uint8_t* image = static_cast<uint8_t*>(GlobalLogPtr->LogisticsBlocks->Allocate(size));
+    SliderImage = image;
 
     // Every row: dark edges, a light left bevel, a mid fill and a shadowed right bevel.
     static constexpr uint8_t sliderRow[SliderWidth] = {0x35, 0x10, 0x1c, 0x1a, 0x1a, 0x1a, 0x1a,
                                                        0x1a, 0x1a, 0x1a, 0x17, 0x10, 0x35};
 
-    for (int32_t row = 0; row < sliderHeight; row++)
+    for (int32_t row = 0; row < SliderHeight; row++)
     {
         memcpy(image + row * SliderWidth, sliderRow, SliderWidth);
     }
@@ -454,83 +451,83 @@ auto ScrollPane::setUpSlider() -> void
     MakeSliderTexture();
 }
 
-auto ScrollPane::setDisplayPort(lPort* port, int deleteOld, int resetPosition) -> void
+auto MCScrollPane::SetDisplayPort(MCLogPort* port, int deleteOld, int resetPosition) -> void
 {
     // Port fix: not when the new content is the old one (the logistics store keeps its views and resizes them).
-    if (deleteOld != 0 && contentPort != nullptr && contentPort != port)
+    if (deleteOld != 0 && ContentPort != nullptr && ContentPort != port)
     {
-        delete contentPort;
+        delete ContentPort;
     }
 
     if (port == nullptr)
     {
-        contentPort = nullptr;
-        ownPort = nullptr;
+        ContentPort = nullptr;
+        _OwnPort = nullptr;
         return;
     }
 
-    contentPort = port;
-    ownPort = port;
-    float unit = static_cast<float>(port->height() * 0.01);
-    scrollUnit = unit;
-    maxScroll = static_cast<float>(port->height() - winHeight) / unit;
+    ContentPort = port;
+    _OwnPort = port;
+    float unit = static_cast<float>(port->Height() * 0.01);
+    ScrollUnit = unit;
+    MaxScroll = static_cast<float>(port->Height() - WinHeight) / unit;
 
     float newScrollPos = 0.0f;
 
-    if (resetPosition == 0 && height() <= port->height())
+    if (resetPosition == 0 && Height() <= port->Height())
     {
-        newScrollPos = static_cast<float>(lastScrollOffset) / static_cast<float>(port->height()) * 100.0f;
+        newScrollPos = static_cast<float>(LastScrollOffset) / static_cast<float>(port->Height()) * 100.0f;
     }
 
-    lastScrollOffset = 0;
-    eraseSlider();
-    setUpSlider();
-    setScrollPos(0.0f);
-    sliderMax = winHeight - sliderHeight - 0x10;
+    LastScrollOffset = 0;
+    EraseSlider();
+    SetUpSlider();
+    SetScrollPos(0.0f);
+    SliderMax = WinHeight - SliderHeight - 0x10;
 
     if (newScrollPos != 0.0f)
     {
-        setScrollPos(newScrollPos);
+        SetScrollPos(newScrollPos);
     }
 }
 
-auto ScrollPane::eraseSlider() -> void
+auto MCScrollPane::EraseSlider() -> void
 {
 }
 
-auto ScrollPane::lport() -> lPort*
+auto MCScrollPane::Lport() -> MCLogPort*
 {
-    return contentPort;
+    return ContentPort;
 }
 
-auto ScrollPane::getDisplayPort(lPort*& port) -> void
+auto MCScrollPane::GetDisplayPort(MCLogPort*& port) -> void
 {
-    port = contentPort;
+    port = ContentPort;
 }
 
-auto ScrollPane::handleEvent(aEvent* event) -> void
+auto MCScrollPane::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (contentPort == nullptr)
+    if (ContentPort == nullptr)
     {
         return;
     }
 
     float newScrollPos;
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            if (event->x <= globalX() - SliderWidth + winWidth || globalX() + winWidth <= event->x)
+            if (event->X <= GlobalX() - SliderWidth + WinWidth || GlobalX() + WinWidth <= event->X)
             {
                 // Outside the slider column: the first child whose rows hold the mouse.
-                for (int32_t i = 0; i < numberOfChildren(); i++)
+                for (int32_t i = 0; i < NumberOfChildren(); i++)
                 {
-                    aObject* child = this->child(i);
+                    MCGuiObject* child = this->Child(i);
 
-                    if (child->globalY() <= event->y && event->y <= child->globalY() + child->height())
+                    if (child->GlobalY() <= event->Y && event->Y <= child->GlobalY() + child->Height())
                     {
-                        child->handleEvent(event);
+                        child->HandleEvent(event);
                         return;
                     }
                 }
@@ -538,148 +535,148 @@ auto ScrollPane::handleEvent(aEvent* event) -> void
                 return;
             }
 
-            application->grab(this);
-            int32_t mouseY = event->y;
+            Application->Grab(this);
+            int32_t mouseY = event->Y;
 
-            if (globalY() + 0x10 <= mouseY)
+            if (GlobalY() + 0x10 <= mouseY)
             {
-                if (mouseY <= globalY() - 0x10 + winHeight)
+                if (mouseY <= GlobalY() - 0x10 + WinHeight)
                 {
                     // The track: grab the slider, or page toward the click.
-                    if (globalY() + sliderPos < mouseY && mouseY < globalY() + sliderHeight + sliderPos)
+                    if (GlobalY() + SliderPos < mouseY && mouseY < GlobalY() + SliderHeight + SliderPos)
                     {
-                        dragY = mouseY;
-                        draggingSlider = 1;
+                        DragY = mouseY;
+                        DraggingSlider = 1;
                         return;
                     }
 
-                    int32_t oldSliderPos = sliderPos;
+                    int32_t oldSliderPos = SliderPos;
 
-                    if (globalY() + 0x10 + oldSliderPos <= mouseY)
+                    if (GlobalY() + 0x10 + oldSliderPos <= mouseY)
                     {
-                        setSliderPos(sliderHeight + oldSliderPos);
+                        SetSliderPos(SliderHeight + oldSliderPos);
                     }
                     else
                     {
-                        setSliderPos(oldSliderPos - sliderHeight);
+                        SetSliderPos(oldSliderPos - SliderHeight);
                     }
 
                     return;
                 }
 
                 // The down arrow.
-                application->AddTimer(this, 6, 200, 0, 0, 0);
+                Application->AddTimer(this, 6, 200, 0, 0, 0);
 
-                if (this->child(0) == nullptr)
+                if (this->Child(0) == nullptr)
                 {
-                    setSliderPos(blackFont->height() + sliderPos);
-                    arrowPressed = 2;
+                    SetSliderPos(BlackFont->Height() + SliderPos);
+                    ArrowPressed = 2;
                     return;
                 }
 
-                int32_t rowHeight = this->child(0)->height();
-                int32_t offset = getScrollOffset();
-                int32_t row = (getScrollOffset() % this->child(0)->height() == 0) ? offset / rowHeight + 1
+                int32_t rowHeight = this->Child(0)->Height();
+                int32_t offset = GetScrollOffset();
+                int32_t row = (GetScrollOffset() % this->Child(0)->Height() == 0) ? offset / rowHeight + 1
                                                                                   : offset / rowHeight + 2;
-                float rowTop = static_cast<float>(this->child(0)->height() * row);
-                setScrollPos(rowTop / static_cast<float>(contentPort->height()) * 100.0f);
-                arrowPressed = 2;
+                float rowTop = static_cast<float>(this->Child(0)->Height() * row);
+                SetScrollPos(rowTop / static_cast<float>(ContentPort->Height()) * 100.0f);
+                ArrowPressed = 2;
                 return;
             }
 
             // The up arrow.
-            arrowPressed = 1;
-            application->AddTimer(this, 6, 200, 0, 0, 0);
+            ArrowPressed = 1;
+            Application->AddTimer(this, 6, 200, 0, 0, 0);
 
-            if (this->child(0) == nullptr)
+            if (this->Child(0) == nullptr)
             {
-                setSliderPos(sliderPos - blackFont->height());
+                SetSliderPos(SliderPos - BlackFont->Height());
                 return;
             }
 
-            int32_t offset = getScrollOffset();
-            int32_t row = offset / this->child(0)->height();
+            int32_t offset = GetScrollOffset();
+            int32_t row = offset / this->Child(0)->Height();
 
-            if (getScrollOffset() % this->child(0)->height() == 0)
+            if (GetScrollOffset() % this->Child(0)->Height() == 0)
             {
                 row--;
             }
 
-            float rowTop = static_cast<float>(this->child(0)->height() * row);
-            newScrollPos = rowTop / static_cast<float>(contentPort->height());
+            float rowTop = static_cast<float>(this->Child(0)->Height() * row);
+            newScrollPos = rowTop / static_cast<float>(ContentPort->Height());
             break;
         }
 
         case 4:
         {
-            application->RemoveTimer(this, 6);
+            Application->RemoveTimer(this, 6);
 
-            if (application->grabbedObject() != nullptr)
+            if (Application->GrabbedObject() != nullptr)
             {
-                application->release();
-                draggingSlider = 0;
-                dragY = -1;
+                Application->Release();
+                DraggingSlider = 0;
+                DragY = -1;
             }
 
             // OB-131 (fixed): the original let go of the arrow only on a release over the column. Let go elsewhere, it
             // stayed pressed on screen and the slider could not be dragged until an arrow was released on the column.
-            const int32_t released = arrowPressed;
-            arrowPressed = 0;
+            const int32_t released = ArrowPressed;
+            ArrowPressed = 0;
 
-            if (globalX() - 14 + winWidth <= event->x)
+            if (GlobalX() - 14 + WinWidth <= event->X)
             {
                 if (released != 0)
                 {
-                    setScrollPos(scrollPos);
+                    SetScrollPos(ScrollPos);
                 }
 
                 return;
             }
 
-            forwardToChildren(this, event);
+            ForwardToChildren(this, event);
             return;
         }
 
         case 7:
         {
-            if (application->grabbedObject() != nullptr)
+            if (Application->GrabbedObject() != nullptr)
             {
-                if (arrowPressed != 0 || draggingSlider == 0)
+                if (ArrowPressed != 0 || DraggingSlider == 0)
                 {
                     return;
                 }
 
-                int32_t mouseY = event->y;
-                setSliderPos(sliderPos - dragY + mouseY);
-                dragY = mouseY;
+                int32_t mouseY = event->Y;
+                SetSliderPos(SliderPos - DragY + mouseY);
+                DragY = mouseY;
                 return;
             }
 
-            forwardToChildren(this, event);
+            ForwardToChildren(this, event);
             return;
         }
 
         case 8:
         case 9:
         {
-            parent->handleEvent(event);
+            Parent->HandleEvent(event);
             return;
         }
 
         case 0x13:
         {
             // The arrow timer repeats the step.
-            if (event->y < globalY() + 0x10)
+            if (event->Y < GlobalY() + 0x10)
             {
-                if (this->child(0) == nullptr)
+                if (this->Child(0) == nullptr)
                 {
-                    setSliderPos(sliderPos - blackFont->height());
+                    SetSliderPos(SliderPos - BlackFont->Height());
                     return;
                 }
 
-                int32_t rowHeight = this->child(0)->height();
-                int32_t offset = getScrollOffset();
-                int32_t step = (getScrollOffset() % this->child(0)->height() == 0) ? -1 : -2;
+                int32_t rowHeight = this->Child(0)->Height();
+                int32_t offset = GetScrollOffset();
+                int32_t step = (GetScrollOffset() % this->Child(0)->Height() == 0) ? -1 : -2;
                 int32_t row = offset / rowHeight + step;
 
                 if (row < 0)
@@ -687,56 +684,56 @@ auto ScrollPane::handleEvent(aEvent* event) -> void
                     row = 0;
                 }
 
-                float rowTop = static_cast<float>(this->child(0)->height() * row);
-                newScrollPos = rowTop / static_cast<float>(contentPort->height());
+                float rowTop = static_cast<float>(this->Child(0)->Height() * row);
+                newScrollPos = rowTop / static_cast<float>(ContentPort->Height());
             }
             else
             {
-                if (this->child(0) == nullptr)
+                if (this->Child(0) == nullptr)
                 {
-                    setSliderPos(blackFont->height() + sliderPos);
+                    SetSliderPos(BlackFont->Height() + SliderPos);
                     return;
                 }
 
-                int32_t rowHeight = this->child(0)->height();
-                int32_t offset = getScrollOffset();
-                int32_t row = (getScrollOffset() % this->child(0)->height() == 0) ? offset / rowHeight + 1
+                int32_t rowHeight = this->Child(0)->Height();
+                int32_t offset = GetScrollOffset();
+                int32_t row = (GetScrollOffset() % this->Child(0)->Height() == 0) ? offset / rowHeight + 1
                                                                                   : offset / rowHeight + 2;
-                float rowTop = static_cast<float>(this->child(0)->height() * row);
-                newScrollPos = rowTop / static_cast<float>(contentPort->height());
+                float rowTop = static_cast<float>(this->Child(0)->Height() * row);
+                newScrollPos = rowTop / static_cast<float>(ContentPort->Height());
             }
             break;
         }
 
         default:
         {
-            forwardToChildren(this, event);
+            ForwardToChildren(this, event);
             return;
         }
     }
 
-    setScrollPos(newScrollPos * 100.0f);
+    SetScrollPos(newScrollPos * 100.0f);
 }
 
-auto ScrollPane::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
+auto MCScrollPane::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
-    if (contentPort == nullptr || sliderHeight == 0)
+    if (ContentPort == nullptr || SliderHeight == 0)
     {
         return false;
     }
 
     for (; steps != 0; steps += steps < 0 ? 1 : -1)
     {
-        if (child(0) == nullptr)
+        if (Child(0) == nullptr)
         {
-            setSliderPos(sliderPos + (steps < 0 ? -blackFont->height() : blackFont->height()));
+            SetSliderPos(SliderPos + (steps < 0 ? -BlackFont->Height() : BlackFont->Height()));
             continue;
         }
 
         // To the row boundary above or below the top of the view. The percent position can leave the offset a pixel
         // short of a boundary, so going down counts that pixel as the boundary.
-        const int32_t rowHeight = child(0)->height();
-        const int32_t offset = getScrollOffset();
+        const int32_t rowHeight = Child(0)->Height();
+        const int32_t offset = GetScrollOffset();
         int32_t row;
 
         if (steps < 0)
@@ -748,18 +745,18 @@ auto ScrollPane::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
             row = (offset + 1) / rowHeight + 1;
         }
 
-        setScrollPos(static_cast<float>(rowHeight * row) / static_cast<float>(contentPort->height()) * 100.0f);
+        SetScrollPos(static_cast<float>(rowHeight * row) / static_cast<float>(ContentPort->Height()) * 100.0f);
     }
 
     return true;
 }
 
-auto ScrollPane::getScrollOffset() -> int32_t
+auto MCScrollPane::GetScrollOffset() -> int32_t
 {
-    return static_cast<int32_t>(static_cast<double>(scrollPos) * scrollUnit);
+    return static_cast<int32_t>(static_cast<double>(ScrollPos) * ScrollUnit);
 }
 
-auto ScrollPane::getScrollBottom() -> int32_t
+auto MCScrollPane::GetScrollBottom() -> int32_t
 {
-    return static_cast<int32_t>(height() + static_cast<double>(scrollPos) * scrollUnit);
+    return static_cast<int32_t>(Height() + static_cast<double>(ScrollPos) * ScrollUnit);
 }

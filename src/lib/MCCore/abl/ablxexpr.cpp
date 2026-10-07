@@ -10,278 +10,278 @@
 namespace
 {
     /// <summary>Converts the integer in <paramref name="item"/> to a real in place.</summary>
-    void promoteToReal(StackItem& item)
+    void PromoteToReal(MCStackItem& item)
     {
-        item.real = static_cast<float>(item.integer);
+        item.Real = static_cast<float>(item.Integer);
     }
 
     /// <summary>
     /// Brings both operands of an arithmetic operator to reals: the integer one(s) of the given base types are
     /// converted in place.
     /// </summary>
-    void promoteOperands(TypePtr operand1TypePtr, TypePtr operand2TypePtr)
+    void PromoteOperands(MCTypePtr operand1TypePtr, MCTypePtr operand2TypePtr)
     {
         if (operand1TypePtr == IntegerTypePtr)
         {
-            promoteToReal(tos[-1]);
+            PromoteToReal(Tos[-1]);
         }
 
         if (operand2TypePtr == IntegerTypePtr)
         {
-            promoteToReal(tos[0]);
+            PromoteToReal(Tos[0]);
         }
     }
 }
 
-auto execField() -> TypePtr
+auto ExecField() -> MCTypePtr
 {
-    getCodeToken();
-    SymTableNodePtr fieldIdPtr = getCodeSymTableNodePtr();
-    tos->address += fieldIdPtr->defn.info.data.offset;
-    getCodeToken();
-    return fieldIdPtr->typePtr;
+    GetCodeToken();
+    MCSymTableNodePtr fieldIdPtr = GetCodeSymTableNodePtr();
+    Tos->Address += fieldIdPtr->Defn.Info.Data.Offset;
+    GetCodeToken();
+    return fieldIdPtr->TypePtr;
 }
 
-auto execSubscripts(TypePtr typePtr) -> TypePtr
+auto ExecSubscripts(MCTypePtr typePtr) -> MCTypePtr
 {
     // Only called at a '['; otherwise the original steps into the element type without consuming anything.
-    if (codeToken != TKN_LBRACKET)
+    if (CodeToken != TKN_LBRACKET)
     {
-        return typePtr->info.array.elementTypePtr;
+        return typePtr->Info.Array.ElementTypePtr;
     }
 
-    while (codeToken == TKN_LBRACKET)
+    while (CodeToken == TKN_LBRACKET)
     {
         do
         {
-            getCodeToken();
-            execExpression();
-            int32_t subscriptValue = tos->integer;
-            pop();
+            GetCodeToken();
+            ExecExpression();
+            int32_t subscriptValue = Tos->Integer;
+            Pop();
 
-            if (subscriptValue < 0 || subscriptValue >= typePtr->info.array.elementCount)
+            if (subscriptValue < 0 || subscriptValue >= typePtr->Info.Array.ElementCount)
             {
-                runtimeError(ABL_ERR_RUNTIME_VALUE_OUT_OF_RANGE);
+                RuntimeError(ABL_ERR_RUNTIME_VALUE_OUT_OF_RANGE);
             }
 
-            typePtr = typePtr->info.array.elementTypePtr;
-            tos->address += typePtr->size * subscriptValue;
-        } while (codeToken == TKN_COMMA);
+            typePtr = typePtr->Info.Array.ElementTypePtr;
+            Tos->Address += typePtr->Size * subscriptValue;
+        } while (CodeToken == TKN_COMMA);
 
-        getCodeToken();
+        GetCodeToken();
     }
 
     return typePtr;
 }
 
-auto execConstant(SymTableNodePtr idPtr) -> TypePtr
+auto ExecConstant(MCSymTableNodePtr idPtr) -> MCTypePtr
 {
-    TypePtr typePtr = idPtr->typePtr;
+    MCTypePtr typePtr = idPtr->TypePtr;
 
-    if (baseType(typePtr) == IntegerTypePtr || typePtr->form == FRM_ENUM)
+    if (BaseType(typePtr) == IntegerTypePtr || typePtr->Form == FRM_ENUM)
     {
-        pushInteger(idPtr->defn.info.constant.value.integer);
+        PushInteger(idPtr->Defn.Info.Constant.Value.Integer);
     }
     else if (typePtr == RealTypePtr)
     {
-        pushReal(idPtr->defn.info.constant.value.real);
+        PushReal(idPtr->Defn.Info.Constant.Value.Real);
     }
     else if (typePtr == CharTypePtr)
     {
-        pushInteger(idPtr->defn.info.constant.value.character);
+        PushInteger(idPtr->Defn.Info.Constant.Value.Character);
     }
-    else if (typePtr->form == FRM_ARRAY)
+    else if (typePtr->Form == FRM_ARRAY)
     {
-        pushAddress(idPtr->defn.info.constant.value.stringPtr);
+        PushAddress(idPtr->Defn.Info.Constant.Value.StringPtr);
     }
 
-    if (debugger != nullptr)
+    if (Debugger != nullptr)
     {
-        debugger->traceDataFetch(idPtr, typePtr, tos);
+        Debugger->TraceDataFetch(idPtr, typePtr, Tos);
     }
 
-    getCodeToken();
+    GetCodeToken();
     return typePtr;
 }
 
-auto execVariable(SymTableNodePtr idPtr, UseType use) -> TypePtr
+auto ExecVariable(MCSymTableNodePtr idPtr, MCUseType use) -> MCTypePtr
 {
-    TypePtr typePtr = idPtr->typePtr;
-    StackItemPtr dataPtr;
+    MCTypePtr typePtr = idPtr->TypePtr;
+    MCStackItemPtr dataPtr;
 
-    switch (idPtr->defn.info.data.varType)
+    switch (idPtr->Defn.Info.Data.VarType)
     {
         case VAR_TYPE_NORMAL:
         {
             // Follow the static links out to the frame of the scope that declared it.
-            StackItemPtr framePtr = stackFrameBasePtr;
+            MCStackItemPtr framePtr = StackFrameBasePtr;
 
-            for (int32_t delta = level - idPtr->level; delta > 0; delta--)
+            for (int32_t delta = Level - idPtr->Level; delta > 0; delta--)
             {
-                framePtr =
-                    reinterpret_cast<StackItemPtr>(reinterpret_cast<StackFrameHeaderPtr>(framePtr)->staticLink.address);
+                framePtr = reinterpret_cast<MCStackItemPtr>(
+                    reinterpret_cast<MCStackFrameHeaderPtr>(framePtr)->StaticLink.Address);
             }
 
-            dataPtr = framePtr + idPtr->defn.info.data.offset;
+            dataPtr = framePtr + idPtr->Defn.Info.Data.Offset;
             break;
         }
 
         case VAR_TYPE_STATIC:
         {
             // A static of a library lives in that library's static data.
-            ABLModule* library = idPtr->library;
+            MCAblModule* library = idPtr->Library;
 
             if (library != nullptr && library != CurModule)
             {
-                StaticDataPtr = library->staticData;
+                StaticDataPtr = library->StaticData;
             }
 
-            dataPtr = StaticDataPtr + idPtr->defn.info.data.offset;
+            dataPtr = StaticDataPtr + idPtr->Defn.Info.Data.Offset;
 
             if (library != nullptr && library != CurModule)
             {
-                StaticDataPtr = CurModule->staticData;
+                StaticDataPtr = CurModule->StaticData;
             }
             break;
         }
 
         case VAR_TYPE_ETERNAL:
-            dataPtr = stack + idPtr->defn.info.data.offset;
+            dataPtr = Stack + idPtr->Defn.Info.Data.Offset;
             break;
         default:
             // Never happens: the original falls back to the symbol node itself.
-            dataPtr = reinterpret_cast<StackItemPtr>(idPtr);
+            dataPtr = reinterpret_cast<MCStackItemPtr>(idPtr);
             break;
     }
 
     // A reference parameter's slot holds the variable's address; an array's slot holds its memory.
-    if (idPtr->defn.key == DFN_REFPARAM || typePtr->form == FRM_ARRAY)
+    if (idPtr->Defn.Key == DFN_REFPARAM || typePtr->Form == FRM_ARRAY)
     {
-        dataPtr = reinterpret_cast<StackItemPtr>(dataPtr->address);
+        dataPtr = reinterpret_cast<MCStackItemPtr>(dataPtr->Address);
     }
 
-    pushAddress(reinterpret_cast<Address>(dataPtr));
+    PushAddress(reinterpret_cast<MCAddress>(dataPtr));
 
-    getCodeToken();
+    GetCodeToken();
 
-    while (codeToken == TKN_LBRACKET)
+    while (CodeToken == TKN_LBRACKET)
     {
-        typePtr = execSubscripts(typePtr);
+        typePtr = ExecSubscripts(typePtr);
     }
 
-    TypePtr baseTypePtr = baseType(typePtr);
-    StackItemPtr valuePtr = tos;
+    MCTypePtr baseTypePtr = BaseType(typePtr);
+    MCStackItemPtr valuePtr = Tos;
 
-    if (use != USE_TARGET && use != USE_REFPARAM && typePtr->form != FRM_ARRAY)
+    if (use != USE_TARGET && use != USE_REFPARAM && typePtr->Form != FRM_ARRAY)
     {
         // Replace the address with the value. Port fix: the slot is cleared first. The original overwrote only the
         // value's bytes (one for a char), leaving the rest of the address in the slot.
-        Address address = tos->address;
-        tos->address = nullptr;
+        MCAddress address = Tos->Address;
+        Tos->Address = nullptr;
 
         if (baseTypePtr == CharTypePtr)
         {
-            tos->byte = *reinterpret_cast<uint8_t*>(address);
+            Tos->Byte = *reinterpret_cast<uint8_t*>(address);
         }
         else
         {
-            tos->integer = *reinterpret_cast<int32_t*>(address);
+            Tos->Integer = *reinterpret_cast<int32_t*>(address);
         }
     }
 
-    if (debugger != nullptr && use != USE_TARGET && use != USE_REFPARAM)
+    if (Debugger != nullptr && use != USE_TARGET && use != USE_REFPARAM)
     {
-        if (typePtr->form == FRM_ARRAY)
+        if (typePtr->Form == FRM_ARRAY)
         {
-            debugger->traceDataFetch(idPtr, typePtr, reinterpret_cast<StackItemPtr>(valuePtr->address));
+            Debugger->TraceDataFetch(idPtr, typePtr, reinterpret_cast<MCStackItemPtr>(valuePtr->Address));
         }
         else
         {
-            debugger->traceDataFetch(idPtr, typePtr, valuePtr);
+            Debugger->TraceDataFetch(idPtr, typePtr, valuePtr);
         }
     }
 
     return typePtr;
 }
 
-auto execFactor() -> TypePtr
+auto ExecFactor() -> MCTypePtr
 {
-    switch (codeToken)
+    switch (CodeToken)
     {
         case TKN_IDENTIFIER:
         {
-            SymTableNodePtr idPtr = getCodeSymTableNodePtr();
+            MCSymTableNodePtr idPtr = GetCodeSymTableNodePtr();
 
-            if (idPtr->defn.key == DFN_FUNCTION)
+            if (idPtr->Defn.Key == DFN_FUNCTION)
             {
-                SymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
-                TypePtr resultTypePtr = execRoutineCall(idPtr);
+                MCSymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
+                MCTypePtr resultTypePtr = ExecRoutineCall(idPtr);
                 CurRoutineIdPtr = thisRoutineIdPtr;
                 return resultTypePtr;
             }
 
-            if (idPtr->defn.key == DFN_CONST)
+            if (idPtr->Defn.Key == DFN_CONST)
             {
-                return execConstant(idPtr);
+                return ExecConstant(idPtr);
             }
 
-            return execVariable(idPtr, USE_EXPR);
+            return ExecVariable(idPtr, USE_EXPR);
         }
 
         case TKN_NUMBER:
         {
-            SymTableNodePtr numberPtr = getCodeSymTableNodePtr();
-            TypePtr resultTypePtr;
+            MCSymTableNodePtr numberPtr = GetCodeSymTableNodePtr();
+            MCTypePtr resultTypePtr;
 
-            if (numberPtr->typePtr == IntegerTypePtr)
+            if (numberPtr->TypePtr == IntegerTypePtr)
             {
-                pushInteger(numberPtr->defn.info.constant.value.integer);
+                PushInteger(numberPtr->Defn.Info.Constant.Value.Integer);
                 resultTypePtr = IntegerTypePtr;
             }
             else
             {
-                pushReal(numberPtr->defn.info.constant.value.real);
+                PushReal(numberPtr->Defn.Info.Constant.Value.Real);
                 resultTypePtr = RealTypePtr;
             }
 
-            getCodeToken();
+            GetCodeToken();
             return resultTypePtr;
         }
 
         case TKN_STRING:
         {
             // Literals are named by their text: one character is a char, anything longer a string.
-            SymTableNodePtr literalIdPtr = getCodeSymTableNodePtr();
-            TypePtr resultTypePtr;
+            MCSymTableNodePtr literalIdPtr = GetCodeSymTableNodePtr();
+            MCTypePtr resultTypePtr;
 
-            if (static_cast<int32_t>(strlen(literalIdPtr->name)) > 1)
+            if (static_cast<int32_t>(strlen(literalIdPtr->Name)) > 1)
             {
-                pushAddress(literalIdPtr->literalString);
-                resultTypePtr = literalIdPtr->typePtr;
+                PushAddress(literalIdPtr->LiteralString);
+                resultTypePtr = literalIdPtr->TypePtr;
             }
             else
             {
-                pushByte(literalIdPtr->name[0]);
+                PushByte(literalIdPtr->Name[0]);
                 resultTypePtr = CharTypePtr;
             }
 
-            getCodeToken();
+            GetCodeToken();
             return resultTypePtr;
         }
 
         case TKN_LPAREN:
         {
-            getCodeToken();
-            TypePtr resultTypePtr = execExpression();
-            getCodeToken();
+            GetCodeToken();
+            MCTypePtr resultTypePtr = ExecExpression();
+            GetCodeToken();
             return resultTypePtr;
         }
 
         case TKN_NOT:
         {
-            getCodeToken();
-            TypePtr resultTypePtr = execFactor();
-            tos->integer = 1 - tos->integer;
+            GetCodeToken();
+            MCTypePtr resultTypePtr = ExecFactor();
+            Tos->Integer = 1 - Tos->Integer;
             return resultTypePtr;
         }
 
@@ -291,25 +291,25 @@ auto execFactor() -> TypePtr
     }
 }
 
-auto execTerm() -> TypePtr
+auto ExecTerm() -> MCTypePtr
 {
-    TypePtr resultTypePtr = execFactor();
+    MCTypePtr resultTypePtr = ExecFactor();
 
-    while (codeToken == TKN_STAR || codeToken == TKN_FSLASH || codeToken == TKN_DIV || codeToken == TKN_MOD ||
-           codeToken == TKN_AND)
+    while (CodeToken == TKN_STAR || CodeToken == TKN_FSLASH || CodeToken == TKN_DIV || CodeToken == TKN_MOD ||
+           CodeToken == TKN_AND)
     {
-        TokenCodeType op = codeToken;
-        TypePtr operand1TypePtr = baseType(resultTypePtr);
-        getCodeToken();
-        TypePtr operand2TypePtr = baseType(execFactor());
-        StackItemPtr operand2Ptr = tos;
-        StackItemPtr operand1Ptr = tos - 1;
+        MCTokenCodeType op = CodeToken;
+        MCTypePtr operand1TypePtr = BaseType(resultTypePtr);
+        GetCodeToken();
+        MCTypePtr operand2TypePtr = BaseType(ExecFactor());
+        MCStackItemPtr operand2Ptr = Tos;
+        MCStackItemPtr operand1Ptr = Tos - 1;
 
         switch (op)
         {
             case TKN_AND:
             {
-                operand1Ptr->integer = (operand1Ptr->integer != 0 && operand2Ptr->integer != 0) ? 1 : 0;
+                operand1Ptr->Integer = (operand1Ptr->Integer != 0 && operand2Ptr->Integer != 0) ? 1 : 0;
                 resultTypePtr = BooleanTypePtr;
                 break;
             }
@@ -317,13 +317,13 @@ auto execTerm() -> TypePtr
             {
                 if (operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr)
                 {
-                    operand1Ptr->integer = operand2Ptr->integer * operand1Ptr->integer;
+                    operand1Ptr->Integer = operand2Ptr->Integer * operand1Ptr->Integer;
                     resultTypePtr = IntegerTypePtr;
                 }
                 else
                 {
-                    promoteOperands(operand1TypePtr, operand2TypePtr);
-                    operand1Ptr->real = operand2Ptr->real * operand1Ptr->real;
+                    PromoteOperands(operand1TypePtr, operand2TypePtr);
+                    operand1Ptr->Real = operand2Ptr->Real * operand1Ptr->Real;
                     resultTypePtr = RealTypePtr;
                 }
                 break;
@@ -333,28 +333,28 @@ auto execTerm() -> TypePtr
                 // '/' on two integers divides as integers. Division by zero gives 0 (no runtime error).
                 if (operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr)
                 {
-                    if (operand2Ptr->integer == 0)
+                    if (operand2Ptr->Integer == 0)
                     {
-                        operand1Ptr->integer = 0;
+                        operand1Ptr->Integer = 0;
                     }
                     else
                     {
-                        operand1Ptr->integer = operand1Ptr->integer / operand2Ptr->integer;
+                        operand1Ptr->Integer = operand1Ptr->Integer / operand2Ptr->Integer;
                     }
 
                     resultTypePtr = IntegerTypePtr;
                 }
                 else
                 {
-                    promoteOperands(operand1TypePtr, operand2TypePtr);
+                    PromoteOperands(operand1TypePtr, operand2TypePtr);
 
-                    if (operand2Ptr->real == 0.0f)
+                    if (operand2Ptr->Real == 0.0f)
                     {
-                        operand1Ptr->integer = 0;
+                        operand1Ptr->Integer = 0;
                     }
                     else
                     {
-                        operand1Ptr->real = operand1Ptr->real / operand2Ptr->real;
+                        operand1Ptr->Real = operand1Ptr->Real / operand2Ptr->Real;
                     }
 
                     resultTypePtr = RealTypePtr;
@@ -364,17 +364,17 @@ auto execTerm() -> TypePtr
             case TKN_DIV:
             case TKN_MOD:
             {
-                if (operand2Ptr->integer == 0)
+                if (operand2Ptr->Integer == 0)
                 {
-                    operand1Ptr->integer = 0;
+                    operand1Ptr->Integer = 0;
                 }
                 else if (op == TKN_DIV)
                 {
-                    operand1Ptr->integer = operand1Ptr->integer / operand2Ptr->integer;
+                    operand1Ptr->Integer = operand1Ptr->Integer / operand2Ptr->Integer;
                 }
                 else
                 {
-                    operand1Ptr->integer = operand1Ptr->integer % operand2Ptr->integer;
+                    operand1Ptr->Integer = operand1Ptr->Integer % operand2Ptr->Integer;
                 }
 
                 resultTypePtr = IntegerTypePtr;
@@ -385,109 +385,109 @@ auto execTerm() -> TypePtr
                 break;
         }
 
-        pop();
+        Pop();
     }
 
     return resultTypePtr;
 }
 
-auto execSimpleExpression() -> TypePtr
+auto ExecSimpleExpression() -> MCTypePtr
 {
-    TokenCodeType unaryOp = TKN_PLUS;
+    MCTokenCodeType unaryOp = TKN_PLUS;
 
-    if (codeToken == TKN_PLUS || codeToken == TKN_MINUS)
+    if (CodeToken == TKN_PLUS || CodeToken == TKN_MINUS)
     {
-        unaryOp = codeToken;
-        getCodeToken();
+        unaryOp = CodeToken;
+        GetCodeToken();
     }
 
-    TypePtr resultTypePtr = execTerm();
+    MCTypePtr resultTypePtr = ExecTerm();
 
     if (unaryOp == TKN_MINUS)
     {
         if (resultTypePtr == IntegerTypePtr)
         {
-            tos->integer = -tos->integer;
+            Tos->Integer = -Tos->Integer;
         }
         else
         {
-            tos->real = -tos->real;
+            Tos->Real = -Tos->Real;
         }
     }
 
-    while (codeToken == TKN_PLUS || codeToken == TKN_MINUS || codeToken == TKN_OR)
+    while (CodeToken == TKN_PLUS || CodeToken == TKN_MINUS || CodeToken == TKN_OR)
     {
-        TokenCodeType op = codeToken;
-        TypePtr operand1TypePtr = baseType(resultTypePtr);
-        getCodeToken();
-        TypePtr operand2TypePtr = baseType(execTerm());
-        StackItemPtr operand2Ptr = tos;
-        StackItemPtr operand1Ptr = tos - 1;
+        MCTokenCodeType op = CodeToken;
+        MCTypePtr operand1TypePtr = BaseType(resultTypePtr);
+        GetCodeToken();
+        MCTypePtr operand2TypePtr = BaseType(ExecTerm());
+        MCStackItemPtr operand2Ptr = Tos;
+        MCStackItemPtr operand1Ptr = Tos - 1;
 
         if (op == TKN_OR)
         {
-            operand1Ptr->integer = (operand1Ptr->integer == 0 && operand2Ptr->integer == 0) ? 0 : 1;
+            operand1Ptr->Integer = (operand1Ptr->Integer == 0 && operand2Ptr->Integer == 0) ? 0 : 1;
             resultTypePtr = BooleanTypePtr;
         }
         else if (operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr)
         {
             if (op == TKN_PLUS)
             {
-                operand1Ptr->integer = operand1Ptr->integer + operand2Ptr->integer;
+                operand1Ptr->Integer = operand1Ptr->Integer + operand2Ptr->Integer;
             }
             else
             {
-                operand1Ptr->integer = operand1Ptr->integer - operand2Ptr->integer;
+                operand1Ptr->Integer = operand1Ptr->Integer - operand2Ptr->Integer;
             }
 
             resultTypePtr = IntegerTypePtr;
         }
         else
         {
-            promoteOperands(operand1TypePtr, operand2TypePtr);
+            PromoteOperands(operand1TypePtr, operand2TypePtr);
 
             if (op == TKN_PLUS)
             {
-                operand1Ptr->real = operand2Ptr->real + operand1Ptr->real;
+                operand1Ptr->Real = operand2Ptr->Real + operand1Ptr->Real;
             }
             else
             {
-                operand1Ptr->real = operand1Ptr->real - operand2Ptr->real;
+                operand1Ptr->Real = operand1Ptr->Real - operand2Ptr->Real;
             }
 
             resultTypePtr = RealTypePtr;
         }
 
-        pop();
+        Pop();
     }
 
     return resultTypePtr;
 }
 
-auto execExpression() -> TypePtr
+auto ExecExpression() -> MCTypePtr
 {
-    TypePtr resultTypePtr = execSimpleExpression();
-    TokenCodeType op = codeToken;
+    MCTypePtr resultTypePtr = ExecSimpleExpression();
+    MCTokenCodeType op = CodeToken;
 
     if (op != TKN_EQUALEQUAL && op != TKN_LT && op != TKN_GT && op != TKN_NE && op != TKN_LE && op != TKN_GE)
     {
         return resultTypePtr;
     }
 
-    TypePtr operand1TypePtr = baseType(resultTypePtr);
-    getCodeToken();
-    TypePtr operand2TypePtr = baseType(execSimpleExpression());
-    StackItemPtr operand2Ptr = tos;
-    StackItemPtr operand1Ptr = tos - 1;
+    MCTypePtr operand1TypePtr = BaseType(resultTypePtr);
+    GetCodeToken();
+    MCTypePtr operand2TypePtr = BaseType(ExecSimpleExpression());
+    MCStackItemPtr operand2Ptr = Tos;
+    MCStackItemPtr operand1Ptr = Tos - 1;
 
     // Anything unhandled (mismatched operand types, which the compiler rejects) reads an uninitialised local in the
     // original; the port gives false.
     bool result = false;
 
-    if ((operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr) || operand1TypePtr->form == FRM_ENUM)
+    if ((operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr) || operand1TypePtr->Form == FRM_ENUM)
     {
-        int32_t value1 = operand1Ptr->integer;
-        int32_t value2 = operand2Ptr->integer;
+        int32_t value1 = operand1Ptr->Integer;
+        int32_t value2 = operand2Ptr->Integer;
 
         switch (op)
         {
@@ -515,8 +515,8 @@ auto execExpression() -> TypePtr
     }
     else if (operand1TypePtr == CharTypePtr)
     {
-        uint8_t value1 = operand1Ptr->byte;
-        uint8_t value2 = operand2Ptr->byte;
+        uint8_t value1 = operand1Ptr->Byte;
+        uint8_t value2 = operand2Ptr->Byte;
 
         switch (op)
         {
@@ -542,16 +542,16 @@ auto execExpression() -> TypePtr
                 break;
         }
     }
-    else if (operand1TypePtr->form == FRM_ARRAY && operand1TypePtr->info.array.elementTypePtr == CharTypePtr)
+    else if (operand1TypePtr->Form == FRM_ARRAY && operand1TypePtr->Info.Array.ElementTypePtr == CharTypePtr)
     {
         // Original behaviour (OB-039): string comparisons are never evaluated; every one is true.
         result = true;
     }
     else if (operand1TypePtr == RealTypePtr || operand2TypePtr == RealTypePtr)
     {
-        promoteOperands(operand1TypePtr, operand2TypePtr);
-        float value1 = operand1Ptr->real;
-        float value2 = operand2Ptr->real;
+        PromoteOperands(operand1TypePtr, operand2TypePtr);
+        float value1 = operand1Ptr->Real;
+        float value2 = operand2Ptr->Real;
         const bool unordered = value1 != value1 || value2 != value2;
 
         switch (op)
@@ -579,7 +579,7 @@ auto execExpression() -> TypePtr
         }
     }
 
-    operand1Ptr->integer = result ? 1 : 0;
-    pop();
+    operand1Ptr->Integer = result ? 1 : 0;
+    Pop();
     return BooleanTypePtr;
 }

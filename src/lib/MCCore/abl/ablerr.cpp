@@ -8,7 +8,7 @@
 
 // The original's syntaxErrorMessages held 62 entries and runtimeErrorMessages followed it in memory, so syntax
 // errors 62 .. 69 read the runtime messages. The port spells those out (same text).
-const char* syntaxErrorMessages[NUM_ABL_SYNTAX_ERRORS] = {
+const char* SyntaxErrorMessages[NUM_ABL_SYNTAX_ERRORS] = {
     "No syntax error",
     "Syntax error",
     "Too many errors",
@@ -81,34 +81,34 @@ const char* syntaxErrorMessages[NUM_ABL_SYNTAX_ERRORS] = {
     "Invalid case value",
 };
 
-const char* runtimeErrorMessages[NUM_ABL_RUNTIME_ERRORS] = {
+const char* RuntimeErrorMessages[NUM_ABL_RUNTIME_ERRORS] = {
     "Runtime stack overflow",    "Infinite Loop",      "Nested function call",
     "Unimplemented feature",     "Value out of range", "Division by zero",
     "Invalid function argument", "Invalid case value", "Abort",
 };
 
-int32_t errorCount;
+int32_t ErrorCount;
 
-auto syntaxError(int32_t errCode) -> void
+auto SyntaxError(int32_t errCode) -> void
 {
     char message[256];
     snprintf(message, sizeof(message), "SYNTAX ERROR %s [line %d] - (type %d) %s\n", SourceFiles[FileNumber],
-             lineNumber, errCode, syntaxErrorMessages[errCode]);
+             LineNumber, errCode, SyntaxErrorMessages[errCode]);
     // Fatal does not return, so the first syntax error ends the game; the rest of the original function
     // (`*tokenp = '\0'; if (++errorCount > 1) Fatal(0, "Way too many syntax errors. ABL aborted.\n");`) never ran.
     Fatal(0, message);
 }
 
-auto runtimeError(int32_t errCode) -> void
+auto RuntimeError(int32_t errCode) -> void
 {
     char message[512];
 
-    if (debugger != nullptr)
+    if (Debugger != nullptr)
     {
-        snprintf(message, sizeof(message), "RUNTIME ERROR:  [%d] %s", errCode, runtimeErrorMessages[errCode]);
-        debugger->print(message);
-        snprintf(message, sizeof(message), "MODULE %s", CurModule->name);
-        debugger->print(message);
+        snprintf(message, sizeof(message), "RUNTIME ERROR:  [%d] %s", errCode, RuntimeErrorMessages[errCode]);
+        Debugger->Print(message);
+        snprintf(message, sizeof(message), "MODULE %s", CurModule->Name);
+        Debugger->Print(message);
 
         if (FileNumber < 0)
         {
@@ -117,17 +117,17 @@ auto runtimeError(int32_t errCode) -> void
         }
         else
         {
-            snprintf(message, sizeof(message), "FILE %s", CurModule->getSourceFile(FileNumber));
+            snprintf(message, sizeof(message), "FILE %s", CurModule->GetSourceFile(FileNumber));
         }
 
-        debugger->print(message);
-        snprintf(message, sizeof(message), "LINE %d", execLineNumber);
-        debugger->print(message);
-        debugger->debugMode();
+        Debugger->Print(message);
+        snprintf(message, sizeof(message), "LINE %d", ExecLineNumber);
+        Debugger->Print(message);
+        Debugger->DebugMode();
     }
 
-    const char* fileName = FileNumber < 0 ? "unavailable" : CurModule->getSourceFile(FileNumber);
-    snprintf(message, sizeof(message), "ABL RUNTIME ERROR %s [line %d] - (type %d) %s\n", fileName, execLineNumber,
-             errCode, runtimeErrorMessages[errCode]);
+    const char* fileName = FileNumber < 0 ? "unavailable" : CurModule->GetSourceFile(FileNumber);
+    snprintf(message, sizeof(message), "ABL RUNTIME ERROR %s [line %d] - (type %d) %s\n", fileName, ExecLineNumber,
+             errCode, RuntimeErrorMessages[errCode]);
     Fatal(-8, message);
 }

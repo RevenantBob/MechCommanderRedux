@@ -12,21 +12,21 @@ namespace MCScreenInput
 {
     uint32_t ScreenHash()
     {
-        const _window* screen = screenPort->bitmap();
-        const int32_t width = screen->x_max + 1;
-        const int32_t height = screen->y_max + 1;
+        const MCWindow* screen = ScreenPort->Bitmap();
+        const int32_t width = screen->XMax + 1;
+        const int32_t height = screen->YMax + 1;
         uint32_t hash = 0x811c9dc5;
         hash = (hash ^ static_cast<uint32_t>(width)) * 0x01000193;
         hash = (hash ^ static_cast<uint32_t>(height)) * 0x01000193;
         std::vector<uint8_t> shown;
 
-        if (MCInput::Display() != nullptr && MCInput::Display()->Screen()->buffer == screen->buffer)
+        if (MCInput::Display() != nullptr && MCInput::Display()->Screen()->Buffer == screen->Buffer)
         {
             shown = MCInput::Display()->ComposeScreen();
         }
         else
         {
-            shown.assign(screen->buffer, screen->buffer + static_cast<size_t>(width) * static_cast<size_t>(height));
+            shown.assign(screen->Buffer, screen->Buffer + static_cast<size_t>(width) * static_cast<size_t>(height));
         }
 
         const uint8_t* pixels = shown.data();
@@ -65,18 +65,18 @@ namespace MCScreenInput
             MCInput::HandleEvent(motion);
         }
 
-        mouseScreenX = x;
-        mouseScreenY = y;
-        oldMouseX = x;
-        oldMouseY = y;
-        aEvent event;
-        event.clear();
-        event.type = static_cast<uint8_t>(type);
-        event.x = x;
-        event.y = y;
-        event.leftButton = type == 1 ? 0xff : (leftHeld ? 1 : 0);
+        MouseScreenX = x;
+        MouseScreenY = y;
+        OldMouseX = x;
+        OldMouseY = y;
+        MCGuiEvent event;
+        event.Clear();
+        event.Type = static_cast<uint8_t>(type);
+        event.X = x;
+        event.Y = y;
+        event.LeftButton = type == 1 ? 0xff : (leftHeld ? 1 : 0);
         // CheckMouse, run each frame, sees no button held and no move, so it adds no events of its own.
-        handleEvent(&event);
+        HandleEvent(&event);
     }
 
     void Click(int32_t x, int32_t y)
@@ -104,11 +104,11 @@ namespace MCScreenInput
 
     void SendKey(uint8_t key)
     {
-        aEvent event;
-        event.clear();
-        event.type = 10;
-        event.key = key;
-        handleEvent(&event);
+        MCGuiEvent event;
+        event.Clear();
+        event.Type = 10;
+        event.Key = key;
+        HandleEvent(&event);
     }
 
     void RealMove(int32_t x, int32_t y)
@@ -134,7 +134,7 @@ namespace MCScreenInput
         button.button.button = SDL_BUTTON_LEFT;
         button.button.down = down;
         button.button.clicks = 1;
-        display->LogicalToWindow(static_cast<float>(mouseScreenX) + 0.5f, static_cast<float>(mouseScreenY) + 0.5f,
+        display->LogicalToWindow(static_cast<float>(MouseScreenX) + 0.5f, static_cast<float>(MouseScreenY) + 0.5f,
                                  button.button.x, button.button.y);
         MCInput::HandleEvent(button);
         MCTestGame::RunFrame(1.0f / 15.0f);
@@ -172,7 +172,7 @@ namespace MCScreenInput
         wheel.wheel.windowID = SDL_GetWindowID(display->Window());
         wheel.wheel.y = static_cast<float>(notches);
         wheel.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
-        display->LogicalToWindow(static_cast<float>(mouseScreenX) + 0.5f, static_cast<float>(mouseScreenY) + 0.5f,
+        display->LogicalToWindow(static_cast<float>(MouseScreenX) + 0.5f, static_cast<float>(MouseScreenY) + 0.5f,
                                  wheel.wheel.mouse_x, wheel.wheel.mouse_y);
         MCInput::HandleEvent(wheel);
         MCTestGame::RunFrame(1.0f / 15.0f);

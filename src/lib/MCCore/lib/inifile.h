@@ -45,186 +45,140 @@ inline constexpr int32_t TOO_MANY_ELEMENTS = static_cast<int32_t>(0xFADA000E);
 
 /// <summary>A block of a FIT file: its name and where its first entry starts.</summary>
 /// <remarks>0x38 bytes in the original.</remarks>
-struct IniBlockNode
+struct MCIniBlockNode
 {
     /// <summary>The block's name, between the brackets.</summary>
-    char blockId[50]; // +0x00
+    char BlockId[50];
     /// <summary>Offset of the line after the block's <c>[name]</c> line.</summary>
-    uint32_t blockOffset; // +0x34
+    uint32_t BlockOffset;
 };
 
 /// <summary>The first line of every FIT file.</summary>
-extern char fitIniHeader[];
+extern char FitIniHeader[];
 /// <summary>The last line of every FIT file.</summary>
-extern char fitIniFooter[];
+extern char FitIniFooter[];
 
 /// <summary>
-/// A FIT file: a <see cref="File"/> read as blocks of typed <c>name = value</c> entries. Open it, pick a block with
-/// <see cref="seekBlock"/>, then read entries with the readId* methods; or create one and write blocks and entries.
+/// A FIT file: a <see cref="MCFile"/> read as blocks of typed <c>name = value</c> entries. Open it, pick a block with
+/// <see cref="SeekBlock"/>, then read entries with the readId* methods; or create one and write blocks and entries.
 /// </summary>
 /// <remarks>Original source: <c>lib\inifile.cpp</c>, 0x60 bytes.</remarks>
-class FitIniFile : public File
+class MCFitIniFile : public MCFile
 {
 public:
-    /// <remarks>MCX.EXE @ 0x00649090</remarks>
-    FitIniFile();
-    /// <remarks>MCX.EXE @ 0x006490d0</remarks>
-    ~FitIniFile() override;
+    MCFitIniFile();
+    ~MCFitIniFile() override;
 
     /// <summary>What kind of file this is (<see cref="INIFILE"/>).</summary>
-    /// <remarks>MCX.EXE @ 0x006490c0</remarks>
-    FileClass getFileClass() override { return INIFILE; }
+    MCFileClass GetFileClass() override { return INIFILE; }
 
     /// <summary>Opens a FIT file and reads its block table (writes the header when creating).</summary>
     /// <returns>0, a File error, or a FIT error (NOT_A_FITINIFILE, ...).</returns>
-    /// <remarks>MCX.EXE @ 0x00649ed0</remarks>
-    int32_t open(const char* fName, FileMode _mode = READ, int32_t numChildren = 50) override;
+    int32_t Open(const char* fName, MCFileMode mode = READ, int32_t numChildren = 50) override;
 
-    /// <summary>Opens a FIT file stored inside <paramref name="_parent"/> (read into memory at once).</summary>
-    /// <remarks>MCX.EXE @ 0x00649f10</remarks>
-    int32_t open(File* _parent, uint32_t fileSize, int32_t numChildren = 50) override;
+    /// <summary>Opens a FIT file stored inside <paramref name="parent"/> (read into memory at once).</summary>
+    int32_t Open(MCFile* parent, uint32_t fileSize, int32_t numChildren = 50) override;
 
     /// <summary>Creates a FIT file for writing.</summary>
-    /// <remarks>MCX.EXE @ 0x00649f40</remarks>
-    int32_t create(const char* fName) override;
+    int32_t Create(const char* fName) override;
 
     /// <summary>Writes the footer when creating, frees the block table and closes the file.</summary>
-    /// <remarks>MCX.EXE @ 0x00649f50</remarks>
-    void close() override;
+    void Close() override;
 
     /// <summary>Makes the block named <paramref name="blockId"/> (case matters) the current one.</summary>
     /// <returns>0, or <see cref="BLOCK_NOT_FOUND"/>.</returns>
-    /// <remarks>MCX.EXE @ 0x00649f70</remarks>
-    int32_t seekBlock(const char* blockId);
+    int32_t SeekBlock(const char* blockId);
 
     /// <summary>Reads <c>f varName = value</c> from the current block (0 when missing).</summary>
-    /// <remarks>MCX.EXE @ 0x0064a050</remarks>
-    int32_t readIdFloat(const char* varName, float& value);
+    int32_t ReadIdFloat(const char* varName, float& value);
     /// <summary>Reads <c>l varName = value</c> (decimal, or hex with <c>0x</c>).</summary>
-    /// <remarks>MCX.EXE @ 0x0064a190</remarks>
-    int32_t readIdLong(const char* varName, int32_t& value);
+    int32_t ReadIdLong(const char* varName, int32_t& value);
     /// <summary>Reads <c>b varName = TRUE/FALSE</c> (a value starting with T is true, else a number).</summary>
-    /// <remarks>MCX.EXE @ 0x0064a2c0</remarks>
-    int32_t readIdBoolean(const char* varName, int& value);
+    int32_t ReadIdBoolean(const char* varName, int& value);
     /// <summary>Reads <c>s varName = value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064a3e0</remarks>
-    int32_t readIdShort(const char* varName, int16_t& value);
+    int32_t ReadIdShort(const char* varName, int16_t& value);
     /// <summary>Reads <c>c varName = value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064a510</remarks>
-    int32_t readIdChar(const char* varName, char& value);
+    int32_t ReadIdChar(const char* varName, char& value);
     /// <summary>Reads <c>ul varName = value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064a640</remarks>
-    int32_t readIdULong(const char* varName, uint32_t& value);
+    int32_t ReadIdULong(const char* varName, uint32_t& value);
     /// <summary>Reads <c>us varName = value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064a770</remarks>
-    int32_t readIdUShort(const char* varName, uint16_t& value);
+    int32_t ReadIdUShort(const char* varName, uint16_t& value);
     /// <summary>Reads <c>uc varName = value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064a8a0</remarks>
-    int32_t readIdUChar(const char* varName, uint8_t& value);
+    int32_t ReadIdUChar(const char* varName, uint8_t& value);
 
     /// <summary>Reads <c>st varName = "text"</c> into <paramref name="result"/> (at most maxLength - 1 characters).</summary>
-    /// <remarks>MCX.EXE @ 0x0064aa30</remarks>
-    int32_t readIdString(const char* varName, char* result, uint32_t maxLength);
+    int32_t ReadIdString(const char* varName, char* result, uint32_t maxLength);
 
     /// <summary>The length of <c>st varName</c>'s text plus one, or an error.</summary>
-    /// <remarks>MCX.EXE @ 0x0064ab50</remarks>
-    int32_t getIdStringLength(const char* varName);
+    int32_t GetIdStringLength(const char* varName);
 
     /// <summary>Reads <c>f[n] varName = v1, v2, ...</c> (the elements may continue on the following lines).</summary>
-    /// <remarks>MCX.EXE @ 0x0064ac70</remarks>
-    int32_t readIdFloatArray(const char* varName, float* result, uint32_t numElements);
+    int32_t ReadIdFloatArray(const char* varName, float* result, uint32_t numElements);
     /// <summary>Reads <c>l[n] varName = ...</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064ae40</remarks>
-    int32_t readIdLongArray(const char* varName, int32_t* result, uint32_t numElements);
+    int32_t ReadIdLongArray(const char* varName, int32_t* result, uint32_t numElements);
     /// <summary>Reads <c>ul[n] varName = ...</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064b010</remarks>
-    int32_t readIdULongArray(const char* varName, uint32_t* result, uint32_t numElements);
+    int32_t ReadIdULongArray(const char* varName, uint32_t* result, uint32_t numElements);
     /// <summary>Reads <c>s[n] varName = ...</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064b1e0</remarks>
-    int32_t readIdShortArray(const char* varName, int16_t* result, uint32_t numElements);
+    int32_t ReadIdShortArray(const char* varName, int16_t* result, uint32_t numElements);
     /// <summary>Reads <c>us[n] varName = ...</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064b3c0</remarks>
-    int32_t readIdUShortArray(const char* varName, uint16_t* result, uint32_t numElements);
+    int32_t ReadIdUShortArray(const char* varName, uint16_t* result, uint32_t numElements);
     /// <summary>Reads <c>c[n] varName = ...</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064b590</remarks>
-    int32_t readIdCharArray(const char* varName, char* result, uint32_t numElements);
+    int32_t ReadIdCharArray(const char* varName, char* result, uint32_t numElements);
     /// <summary>Reads <c>uc[n] varName = ...</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064b760</remarks>
-    int32_t readIdUCharArray(const char* varName, uint8_t* result, uint32_t numElements);
+    int32_t ReadIdUCharArray(const char* varName, uint8_t* result, uint32_t numElements);
 
     /// <summary>The n of <c>f[n] varName</c>, or an error code (as an unsigned value).</summary>
-    /// <remarks>MCX.EXE @ 0x0064b930</remarks>
-    uint32_t getIdFloatArrayElements(const char* varName);
+    uint32_t GetIdFloatArrayElements(const char* varName);
     /// <summary>The n of <c>l[n] varName</c>, or an error code.</summary>
-    /// <remarks>MCX.EXE @ 0x0064ba20</remarks>
-    uint32_t getIdLongArrayElements(const char* varName);
+    uint32_t GetIdLongArrayElements(const char* varName);
     /// <summary>The n of <c>ul[n] varName</c>, or an error code.</summary>
-    /// <remarks>MCX.EXE @ 0x0064bb10</remarks>
-    uint32_t getIdULongArrayElements(const char* varName);
+    uint32_t GetIdULongArrayElements(const char* varName);
     /// <summary>The n of <c>s[n] varName</c>, or an error code.</summary>
-    /// <remarks>MCX.EXE @ 0x0064bc00</remarks>
-    uint32_t getIdShortArrayElements(const char* varName);
+    uint32_t GetIdShortArrayElements(const char* varName);
     /// <summary>The n of <c>us[n] varName</c>, or an error code.</summary>
-    /// <remarks>MCX.EXE @ 0x0064bcf0</remarks>
-    uint32_t getIdUShortArrayElements(const char* varName);
+    uint32_t GetIdUShortArrayElements(const char* varName);
     /// <summary>The n of <c>c[n] varName</c>, or an error code.</summary>
-    /// <remarks>MCX.EXE @ 0x0064bde0</remarks>
-    uint32_t getIdCharArrayElements(const char* varName);
+    uint32_t GetIdCharArrayElements(const char* varName);
     /// <summary>The n of <c>uc[n] varName</c>, or an error code.</summary>
-    /// <remarks>MCX.EXE @ 0x0064bed0</remarks>
-    uint32_t getIdUCharArrayElements(const char* varName);
+    uint32_t GetIdUCharArrayElements(const char* varName);
 
     /// <summary>Writes a <c>[blockId]</c> line (after an empty line).</summary>
     /// <returns>The bytes written.</returns>
-    /// <remarks>MCX.EXE @ 0x0064bfc0</remarks>
-    int32_t writeBlock(const char* blockId);
+    int32_t WriteBlock(const char* blockId);
     /// <summary>Writes <c>f varName=value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c010</remarks>
-    int32_t writeIdFloat(const char* varName, float value);
+    int32_t WriteIdFloat(const char* varName, float value);
     /// <summary>Writes <c>b varName=TRUE</c> or <c>FALSE</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c070</remarks>
-    int32_t writeIdBoolean(const char* varName, int value);
+    int32_t WriteIdBoolean(const char* varName, int value);
     /// <summary>Writes <c>l varName=value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c0e0</remarks>
-    int32_t writeIdLong(const char* varName, int32_t value);
+    int32_t WriteIdLong(const char* varName, int32_t value);
     /// <summary>Writes <c>s varName=value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c130</remarks>
-    int32_t writeIdShort(const char* varName, int16_t value);
+    int32_t WriteIdShort(const char* varName, int16_t value);
     /// <summary>Writes <c>c varName=value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c190</remarks>
-    int32_t writeIdChar(const char* varName, char value);
+    int32_t WriteIdChar(const char* varName, char value);
     /// <summary>Writes <c>ul varName=value</c> (printed signed, as the original's %d).</summary>
-    /// <remarks>MCX.EXE @ 0x0064c1f0</remarks>
-    int32_t writeIdULong(const char* varName, uint32_t value);
+    int32_t WriteIdULong(const char* varName, uint32_t value);
     /// <summary>Writes <c>us varName=value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c240</remarks>
-    int32_t writeIdUShort(const char* varName, uint16_t value);
+    int32_t WriteIdUShort(const char* varName, uint16_t value);
     /// <summary>Writes <c>uc varName=value</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c2a0</remarks>
-    int32_t writeIdUChar(const char* varName, uint8_t value);
+    int32_t WriteIdUChar(const char* varName, uint8_t value);
     /// <summary>Writes <c>st varName="text"</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c300</remarks>
-    int32_t writeIdString(const char* varName, const char* text);
+    int32_t WriteIdString(const char* varName, const char* text);
     /// <summary>Writes <c>us[n] varName=v1,v2,...,</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c350</remarks>
-    int32_t writeIdUShortArray(const char* varName, const uint16_t* array, uint32_t numElements);
+    int32_t WriteIdUShortArray(const char* varName, const uint16_t* array, uint32_t numElements);
     /// <summary>Writes <c>l[n] varName=v1,v2,...,</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c450</remarks>
-    int32_t writeIdLongArray(const char* varName, const int32_t* array, uint32_t numElements);
+    int32_t WriteIdLongArray(const char* varName, const int32_t* array, uint32_t numElements);
     /// <summary>Writes <c>f[n] varName=v1, v2, ...,</c> with two decimals.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c540</remarks>
-    int32_t writeIdFloatArray(const char* varName, const float* array, uint32_t numElements);
+    int32_t WriteIdFloatArray(const char* varName, const float* array, uint32_t numElements);
     /// <summary>Writes <c>uc[n] varName=v1, v2, ...,</c>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064c640</remarks>
-    int32_t writeIdUCharArray(const char* varName, const uint8_t* array, uint32_t numElements);
+    int32_t WriteIdUCharArray(const char* varName, const uint8_t* array, uint32_t numElements);
 
     /// <summary>The number of blocks.</summary>
-    int32_t getNumBlocks() const { return totalBlocks; }
+    int32_t GetNumBlocks() const { return _TotalBlocks; }
 
     /// <summary>The name of block <paramref name="index"/> (port helper, for tools and tests).</summary>
-    const char* getBlockName(int32_t index) const
+    const char* GetBlockName(int32_t index) const
     {
-        return index >= 0 && index < totalBlocks ? fileBlocks[index].blockId : nullptr;
+        return index >= 0 && index < _TotalBlocks ? _FileBlocks[index].BlockId : nullptr;
     }
 
 protected:
@@ -232,112 +186,84 @@ protected:
     /// Reads lines until one starts with <c>[</c> (into <paramref name="line"/> when given).
     /// </summary>
     /// <returns>0, or <see cref="NO_MORE_BLOCKS"/> when the end of the file was reached.</returns>
-    /// <remarks>MCX.EXE @ 0x006490f0</remarks>
-    int32_t findNextBlockStart(char* line = nullptr, uint32_t lineLen = 0);
+    int32_t FindNextBlockStart(char* line = nullptr, uint32_t lineLen = 0);
 
     /// <summary>Counts the blocks from the read position on, then returns to it.</summary>
-    /// <remarks>MCX.EXE @ 0x00649160</remarks>
-    int32_t countBlocks();
+    int32_t CountBlocks();
 
     /// <summary>
     /// Copies the next word of <paramref name="line"/> (words are separated by spaces, tabs and commas) and moves
     /// <paramref name="line"/> past it.
     /// </summary>
     /// <returns>0, <see cref="GET_NEXT_LINE"/> at the end or a <c>/</c>, or <see cref="BUFFER_TOO_SMALL"/>.</returns>
-    /// <remarks>MCX.EXE @ 0x006491a0</remarks>
-    int32_t getNextWord(char*& line, char* buffer, uint32_t bufLen);
+    int32_t GetNextWord(char*& line, char* buffer, uint32_t bufLen);
 
     /// <summary>Checks the header and builds the block table (or writes the header when creating).</summary>
-    /// <remarks>MCX.EXE @ 0x00649250</remarks>
-    int32_t afterOpen();
+    int32_t AfterOpen();
 
     /// <summary>Writes the footer when creating and frees the block table.</summary>
-    /// <remarks>MCX.EXE @ 0x00649400</remarks>
-    void atClose();
+    void AtClose();
 
     /// <summary>atof.</summary>
-    /// <remarks>MCX.EXE @ 0x00649490</remarks>
-    float textToFloat(char* num);
+    float TextToFloat(char* num);
     /// <summary>atol, or hex after <c>0x</c> (the text is cut at the first non-hex character).</summary>
-    /// <remarks>MCX.EXE @ 0x006494b0</remarks>
-    int32_t textToLong(char* num);
-    /// <summary>As <see cref="textToLong"/>, as a short.</summary>
-    /// <remarks>MCX.EXE @ 0x006495d0</remarks>
-    int16_t textToShort(char* num);
-    /// <summary>As <see cref="textToLong"/>, as a char.</summary>
-    /// <remarks>MCX.EXE @ 0x006496e0</remarks>
-    char textToChar(char* num);
-    /// <summary>As <see cref="textToLong"/>, unsigned.</summary>
-    /// <remarks>MCX.EXE @ 0x006497d0</remarks>
-    uint32_t textToULong(char* num);
-    /// <summary>As <see cref="textToLong"/>, as an unsigned short.</summary>
-    /// <remarks>MCX.EXE @ 0x006498f0</remarks>
-    uint16_t textToUShort(char* num);
-    /// <summary>As <see cref="textToLong"/>, as an unsigned char.</summary>
-    /// <remarks>MCX.EXE @ 0x00649a00</remarks>
-    uint8_t textToUChar(char* num);
-    /// <summary>1 for text starting with T (after spaces), else <see cref="textToLong"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x00649af0</remarks>
-    int32_t booleanToLong(char* num);
+    int32_t TextToLong(char* num);
+    /// <summary>As <see cref="TextToLong"/>, as a short.</summary>
+    int16_t TextToShort(char* num);
+    /// <summary>As <see cref="TextToLong"/>, as a char.</summary>
+    char TextToChar(char* num);
+    /// <summary>As <see cref="TextToLong"/>, unsigned.</summary>
+    uint32_t TextToULong(char* num);
+    /// <summary>As <see cref="TextToLong"/>, as an unsigned short.</summary>
+    uint16_t TextToUShort(char* num);
+    /// <summary>As <see cref="TextToLong"/>, as an unsigned char.</summary>
+    uint8_t TextToUChar(char* num);
+    /// <summary>1 for text starting with T (after spaces), else <see cref="TextToLong"/>.</summary>
+    int32_t BooleanToLong(char* num);
 
     /// <summary>Expression evaluation that was never written: always 0.</summary>
-    /// <remarks>MCX.EXE @ 0x00649b50</remarks>
-    float mathToFloat(char*) { return 0.0f; }
+    float MathToFloat(char*) { return 0.0f; }
     /// <summary>Always 0.</summary>
-    /// <remarks>MCX.EXE @ 0x00649b60</remarks>
-    int32_t mathToLong(char*) { return 0; }
+    int32_t MathToLong(char*) { return 0; }
     /// <summary>Always 0.</summary>
-    /// <remarks>MCX.EXE @ 0x00649b70</remarks>
-    uint32_t mathToULong(char*) { return 0; }
+    uint32_t MathToULong(char*) { return 0; }
     /// <summary>Always 0.</summary>
-    /// <remarks>MCX.EXE @ 0x00649b80</remarks>
-    int16_t mathToShort(char*) { return 0; }
+    int16_t MathToShort(char*) { return 0; }
     /// <summary>Always 0.</summary>
-    /// <remarks>MCX.EXE @ 0x00649b90</remarks>
-    uint16_t mathToUShort(char*) { return 0; }
+    uint16_t MathToUShort(char*) { return 0; }
     /// <summary>Always 0.</summary>
-    /// <remarks>MCX.EXE @ 0x00649ba0</remarks>
-    char mathToChar(char*) { return 0; }
+    char MathToChar(char*) { return 0; }
     /// <summary>Always 0.</summary>
-    /// <remarks>MCX.EXE @ 0x00649bb0</remarks>
-    uint8_t mathToUChar(char*) { return 0; }
+    uint8_t MathToUChar(char*) { return 0; }
 
     /// <summary>Formats a float ("%f4") into <paramref name="result"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x00649bc0</remarks>
-    int32_t floatToText(char* result, float num, uint32_t bufLen);
+    int32_t FloatToText(char* result, float num, uint32_t bufLen);
     /// <summary>Formats a long in decimal.</summary>
-    /// <remarks>MCX.EXE @ 0x00649c30</remarks>
-    int32_t longToTextDec(char* result, int32_t num, uint32_t bufLen);
+    int32_t LongToTextDec(char* result, int32_t num, uint32_t bufLen);
     /// <summary>Formats a long in hex ("0x%x").</summary>
-    /// <remarks>MCX.EXE @ 0x00649ca0</remarks>
-    int32_t longToTextHex(char* result, int32_t num, uint32_t bufLen);
+    int32_t LongToTextHex(char* result, int32_t num, uint32_t bufLen);
     /// <summary>Formats a short in decimal.</summary>
-    /// <remarks>MCX.EXE @ 0x00649d10</remarks>
-    int32_t shortToTextDec(char* result, int16_t num, uint32_t bufLen);
+    int32_t ShortToTextDec(char* result, int16_t num, uint32_t bufLen);
     /// <summary>Formats a short in hex.</summary>
-    /// <remarks>MCX.EXE @ 0x00649d80</remarks>
-    int32_t shortToTextHex(char* result, int16_t num, uint32_t bufLen);
+    int32_t ShortToTextHex(char* result, int16_t num, uint32_t bufLen);
     /// <summary>Formats a byte in decimal.</summary>
-    /// <remarks>MCX.EXE @ 0x00649df0</remarks>
-    int32_t byteToTextDec(char* result, uint8_t num, uint32_t bufLen);
+    int32_t ByteToTextDec(char* result, uint8_t num, uint32_t bufLen);
     /// <summary>Formats a byte in hex.</summary>
-    /// <remarks>MCX.EXE @ 0x00649e60</remarks>
-    int32_t byteToTextHex(char* result, uint8_t num, uint32_t bufLen);
+    int32_t ByteToTextHex(char* result, uint8_t num, uint32_t bufLen);
 
     /// <summary>Copies the text between the first two double quotes of <paramref name="line"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064a9d0</remarks>
-    int32_t copyString(char* dest, char* line, uint32_t bufLen);
+    int32_t CopyString(char* dest, char* line, uint32_t bufLen);
 
     /// <summary>Number of blocks.</summary>
-    int32_t totalBlocks = 0; // +0x4c
+    int32_t _TotalBlocks = 0;
     /// <summary>The block table.</summary>
-    std::vector<IniBlockNode> fileBlocks; // +0x50
-    /// <summary>The current block's name (points into <see cref="fileBlocks"/>).</summary>
-    char* currentBlockId = nullptr; // +0x54
+    std::vector<MCIniBlockNode> _FileBlocks;
+    /// <summary>The current block's name (points into <see cref="_FileBlocks"/>).</summary>
+    char* _CurrentBlockId = nullptr;
     /// <summary>Where the current block's entries start.</summary>
-    uint32_t currentBlockOffset = 0; // +0x58
+    uint32_t _CurrentBlockOffset = 0;
     /// <summary>The current block's length in bytes (to the next block's first entry, or the end of the file).</summary>
-    uint32_t currentBlockSize = 0; // +0x5c
+    uint32_t _CurrentBlockSize = 0;
 
 private:
     /// <summary>
@@ -345,14 +271,14 @@ private:
     /// <paramref name="prefix"/>, a space, <paramref name="varName"/>, then optional spaces and <c>=</c>.
     /// </summary>
     /// <returns>The text after the <c>=</c>, or null with <paramref name="error"/> set.</returns>
-    char* findIdLine(const char* prefix, const char* varName, char* line, int32_t& error);
+    char* FindIdLine(const char* prefix, const char* varName, char* line, int32_t& error);
 
     /// <summary>
     /// The search every array reader starts with: the line holding both <paramref name="typePrefix"/> ("l[") and
     /// "] varName"; reads the element count between them.
     /// </summary>
-    int32_t findArrayLine(const char* typePrefix, const char* varName, char* line, uint32_t& count, char*& values);
+    int32_t FindArrayLine(const char* typePrefix, const char* varName, char* line, uint32_t& count, char*& values);
 
     /// <summary>The element loop of the array readers; <paramref name="store"/> converts and stores element i.</summary>
-    template <typename Store> int32_t readArrayElements(char* line, char* values, uint32_t count, Store store);
+    template <typename Store> int32_t ReadArrayElements(char* line, char* values, uint32_t count, Store store);
 };

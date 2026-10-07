@@ -15,13 +15,13 @@ namespace
     /// Points <paramref name="window"/> and <paramref name="pane"/> at a <paramref name="width"/> x
     /// <paramref name="height"/> bitmap (the pane covers all of it).
     /// </summary>
-    void setExtent(_window* window, _pane* pane, int32_t width, int32_t height)
+    void SetExtent(MCWindow* window, MCPane* pane, int32_t width, int32_t height)
     {
-        window->x_max = width - 1;
-        window->y_max = height - 1;
-        pane->window = window;
-        pane->x1 = width - 1;
-        pane->y1 = height - 1;
+        window->XMax = width - 1;
+        window->YMax = height - 1;
+        pane->Window = window;
+        pane->X1 = width - 1;
+        pane->Y1 = height - 1;
     }
 
     /// <summary>
@@ -29,35 +29,35 @@ namespace
     /// come from (<paramref name="allocPixels"/>, <paramref name="freePixels"/>).
     /// </summary>
     template <typename Alloc, typename Free>
-    int32_t initPort(aPort* port, int32_t width, int32_t height, Alloc allocPixels, Free freePixels)
+    int32_t InitPort(MCGuiPort* port, int32_t width, int32_t height, Alloc allocPixels, Free freePixels)
     {
-        _window* window = port->portWindow;
+        MCWindow* window = port->PortWindow;
 
         if (window != nullptr)
         {
             MCRenderer::DestroyTexture(window);
 
-            if (window->buffer != nullptr)
+            if (window->Buffer != nullptr)
             {
-                freePixels(window->buffer);
+                freePixels(window->Buffer);
             }
 
             delete window;
         }
 
-        window = new _window{};
-        port->portWindow = window;
+        window = new MCWindow{};
+        port->PortWindow = window;
         window->View = nullptr;
         window->Texture = nullptr;
-        window->x_max = width - 1;
-        window->y_max = height - 1;
+        window->XMax = width - 1;
+        window->YMax = height - 1;
 
         // The original zeroes two more dwords past its 12-byte window (a 0x14-byte block).
-        if (port != screenPort)
+        if (port != ScreenPort)
         {
-            window->buffer = static_cast<uint8_t*>(allocPixels(static_cast<uint32_t>(width * height)));
+            window->Buffer = static_cast<uint8_t*>(allocPixels(static_cast<uint32_t>(width * height)));
 
-            if (window->buffer == nullptr)
+            if (window->Buffer == nullptr)
             {
                 return 3;
             }
@@ -65,19 +65,19 @@ namespace
         else
         {
             // Port fix: the original leaves the screen port's buffer uninitialised here (asystem sets it).
-            window->buffer = nullptr;
+            window->Buffer = nullptr;
         }
 
-        delete port->portPane;
-        _pane* pane = new _pane{};
-        port->portPane = pane;
-        pane->x0 = 0;
-        pane->y0 = 0;
-        setExtent(window, pane, width, height);
-        port->portWidth = width;
-        port->portHeight = height;
+        delete port->PortPane;
+        MCPane* pane = new MCPane{};
+        port->PortPane = pane;
+        pane->X0 = 0;
+        pane->Y0 = 0;
+        SetExtent(window, pane, width, height);
+        port->PortWidth = width;
+        port->PortHeight = height;
 
-        if (window->buffer != nullptr)
+        if (window->Buffer != nullptr)
         {
             MCRenderer::CreateTexture(window, MCTextureUse::Dynamic);
         }
@@ -87,46 +87,46 @@ namespace
 
     /// <summary>The body of <c>aPort::resize</c> and <c>aScrollPort::resize</c>.</summary>
     template <typename Alloc, typename Free>
-    int32_t resizePort(aPort* port, int32_t width, int32_t height, Alloc allocPixels, Free freePixels)
+    int32_t ResizePort(MCGuiPort* port, int32_t width, int32_t height, Alloc allocPixels, Free freePixels)
     {
         // Port: a view has no pixels to reallocate.
-        if (port != screenPort && !port->isView())
+        if (port != ScreenPort && !port->IsView())
         {
-            _window* window = port->portWindow;
+            MCWindow* window = port->PortWindow;
 
-            if (window->buffer != nullptr)
+            if (window->Buffer != nullptr)
             {
-                freePixels(window->buffer);
+                freePixels(window->Buffer);
             }
 
-            window->buffer = static_cast<uint8_t*>(allocPixels(static_cast<uint32_t>(width * height)));
+            window->Buffer = static_cast<uint8_t*>(allocPixels(static_cast<uint32_t>(width * height)));
         }
 
-        port->portHeight = height;
-        setExtent(port->portWindow, port->portPane, width, height);
-        port->portWidth = width;
-        MCRenderer::ResizeTexture(port->portWindow);
+        port->PortHeight = height;
+        SetExtent(port->PortWindow, port->PortPane, width, height);
+        port->PortWidth = width;
+        MCRenderer::ResizeTexture(port->PortWindow);
         return 0;
     }
 
     /// <summary>The body of <c>aPort::destroy</c> and <c>aScrollPort::destroy</c>.</summary>
-    template <typename Free> void destroyPort(aPort* port, Free freePixels)
+    template <typename Free> void DestroyPort(MCGuiPort* port, Free freePixels)
     {
-        if (port->portWindow != nullptr)
+        if (port->PortWindow != nullptr)
         {
-            MCRenderer::DestroyTexture(port->portWindow);
+            MCRenderer::DestroyTexture(port->PortWindow);
 
-            if (port->portWindow->buffer != nullptr)
+            if (port->PortWindow->Buffer != nullptr)
             {
-                freePixels(port->portWindow->buffer);
+                freePixels(port->PortWindow->Buffer);
             }
 
-            delete port->portWindow;
-            port->portWindow = nullptr;
+            delete port->PortWindow;
+            port->PortWindow = nullptr;
         }
 
-        delete port->portPane;
-        port->portPane = nullptr;
+        delete port->PortPane;
+        port->PortPane = nullptr;
     }
 
     /// <summary>
@@ -134,24 +134,24 @@ namespace
     /// port's is the screen, the fog port's the fog flags), and freeing one that isn't from here is ignored, as the
     /// heap did.
     /// </summary>
-    MCBlockStore pixelBlocks;
+    MCBlockStore PixelBlocks;
 
-    void* guiAlloc(uint32_t size)
+    void* GuiAlloc(uint32_t size)
     {
-        return pixelBlocks.Allocate(size);
+        return PixelBlocks.Allocate(size);
     }
 
-    void guiFree(void* block)
+    void GuiFree(void* block)
     {
-        pixelBlocks.Free(block);
+        PixelBlocks.Free(block);
     }
 
-    void* crtAlloc(uint32_t size)
+    void* CrtAlloc(uint32_t size)
     {
         return std::malloc(size);
     }
 
-    void crtFree(void* block)
+    void CrtFree(void* block)
     {
         std::free(block);
     }
@@ -159,41 +159,41 @@ namespace
 
 // aPort
 
-aPort::aPort()
+MCGuiPort::MCGuiPort()
 {
 }
 
-aPort::~aPort()
+MCGuiPort::~MCGuiPort()
 {
-    destroy();
+    Destroy();
 }
 
-auto aPort::init(int32_t width, int32_t height) -> int32_t
+auto MCGuiPort::Init(int32_t width, int32_t height) -> int32_t
 {
-    if (width == portWidth && height == portHeight)
+    if (width == PortWidth && height == PortHeight)
     {
         return 0;
     }
 
-    return initPort(this, width, height, guiAlloc, guiFree);
+    return InitPort(this, width, height, GuiAlloc, GuiFree);
 }
 
-auto aPort::init(int32_t artPacket) -> int32_t
+auto MCGuiPort::Init(int32_t artPacket) -> int32_t
 {
-    if (artFile->seekPacket(artPacket) != 0)
+    if (ArtFile->SeekPacket(artPacket) != 0)
     {
         Fatal(0, "Art packet not found");
         return -1;
     }
 
-    File file;
+    MCFile file;
 
-    if (file.open(artFile, static_cast<uint32_t>(artFile->getPacketSize()), 0x32) != 0)
+    if (file.Open(ArtFile, static_cast<uint32_t>(ArtFile->GetPacketSize()), 0x32) != 0)
     {
         Fatal(0, "Cant open child file.");
     }
 
-    const uint32_t size = file.fileSize();
+    const uint32_t size = file.FileSize();
 
     if (size == 0)
     {
@@ -201,43 +201,43 @@ auto aPort::init(int32_t artPacket) -> int32_t
     }
 
     std::vector<uint8_t> gif(size);
-    file.read(gif.data(), static_cast<int32_t>(size));
-    file.close();
+    file.Read(gif.data(), static_cast<int32_t>(size));
+    file.Close();
 
-    const uint32_t resolution = static_cast<uint32_t>(VFX_GIF_resolution(gif.data()));
+    const uint32_t resolution = static_cast<uint32_t>(VfxGifResolution(gif.data()));
     std::vector<uint8_t> decodeBuffer(0x502e);
-    const int32_t result = init(static_cast<int32_t>(resolution >> 16), static_cast<int32_t>(resolution & 0xffff));
+    const int32_t result = Init(static_cast<int32_t>(resolution >> 16), static_cast<int32_t>(resolution & 0xffff));
 
     if (result != 0)
     {
         return result;
     }
 
-    VFX_GIF_draw(portPane, gif.data(), decodeBuffer.data());
+    VfxGifDraw(PortPane, gif.data(), decodeBuffer.data());
     return 0;
 }
 
-auto aPort::init(char* fileName) -> int32_t
+auto MCGuiPort::Init(char* fileName) -> int32_t
 {
     char path[256];
-    File file;
+    MCFile file;
     bool opened = false;
 
     if (CurPlanet == 1)
     {
-        std::snprintf(path, sizeof(path), "%sx%s", artPath, fileName);
-        opened = file.open(path, READ, 0x32) == 0;
+        std::snprintf(path, sizeof(path), "%sx%s", ArtPath, fileName);
+        opened = file.Open(path, READ, 0x32) == 0;
     }
 
     if (!opened)
     {
-        std::snprintf(path, sizeof(path), "%s%s", artPath, fileName);
+        std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-        if (file.open(path, READ, 0x32) != 0)
+        if (file.Open(path, READ, 0x32) != 0)
         {
             std::snprintf(path, sizeof(path), "%s", fileName);
 
-            if (file.open(path, READ, 0x32) != 0)
+            if (file.Open(path, READ, 0x32) != 0)
             {
                 char message[256];
                 std::snprintf(message, sizeof(message), "Error reading '%s'", path);
@@ -247,7 +247,7 @@ auto aPort::init(char* fileName) -> int32_t
         }
     }
 
-    const uint32_t size = file.fileSize();
+    const uint32_t size = file.FileSize();
 
     if (size == 0)
     {
@@ -267,8 +267,8 @@ auto aPort::init(char* fileName) -> int32_t
         Fatal(0, message);
     }
 
-    file.read(data, static_cast<int32_t>(size));
-    file.close();
+    file.Read(data, static_cast<int32_t>(size));
+    file.Close();
 
     // A TGA header: the image width and height are the 16-bit values at +0x0c and +0x0e, and the 8-bit pixels follow
     // the 18-byte header and a 256-entry palette.
@@ -278,7 +278,7 @@ auto aPort::init(char* fileName) -> int32_t
     std::memcpy(&tgaHeight, data + 0x0e, sizeof(tgaHeight));
     const int32_t width = tgaWidth;
     const int32_t height = tgaHeight;
-    const int32_t result = init(width, height);
+    const int32_t result = Init(width, height);
 
     if (result != 0)
     {
@@ -288,61 +288,61 @@ auto aPort::init(char* fileName) -> int32_t
         Fatal(result, message);
     }
 
-    MCTexture* texture = portPane->window->Texture;
+    MCTexture* texture = PortPane->Window->Texture;
     std::memcpy(MCRenderer::LockTexture(texture), data + 0x312, static_cast<size_t>(height * width));
     MCRenderer::UnlockTexture(texture);
     std::free(data);
     return 0;
 }
 
-auto aPort::freePixels(uint8_t* pixels) -> void
+auto MCGuiPort::FreePixels(uint8_t* pixels) -> void
 {
-    guiFree(pixels);
+    GuiFree(pixels);
 }
 
-auto aPort::destroy() -> void
+auto MCGuiPort::Destroy() -> void
 {
-    portHeight = -1;
-    portWidth = -1;
-    destroyPort(this, guiFree);
+    PortHeight = -1;
+    PortWidth = -1;
+    DestroyPort(this, GuiFree);
 }
 
-auto aPort::resize(int32_t width, int32_t height) -> int32_t
+auto MCGuiPort::Resize(int32_t width, int32_t height) -> int32_t
 {
-    return resizePort(this, width, height, guiAlloc, guiFree);
+    return ResizePort(this, width, height, GuiAlloc, GuiFree);
 }
 
-auto aPort::initView(int32_t width, int32_t height) -> int32_t
+auto MCGuiPort::InitView(int32_t width, int32_t height) -> int32_t
 {
-    if (isView() && width == portWidth && height == portHeight)
+    if (IsView() && width == PortWidth && height == PortHeight)
     {
         return 0;
     }
 
-    destroyPort(this, guiFree);
-    auto* window = new _window{};
-    auto* pane = new _pane{};
-    portWindow = window;
-    portPane = pane;
-    window->buffer = nullptr;
+    DestroyPort(this, GuiFree);
+    auto* window = new MCWindow{};
+    auto* pane = new MCPane{};
+    PortWindow = window;
+    PortPane = pane;
+    window->Buffer = nullptr;
     window->Texture = nullptr;
-    window->View = &view;
-    view = MCView{};
-    pane->x0 = 0;
-    pane->y0 = 0;
-    setExtent(window, pane, width, height);
-    portWidth = width;
-    portHeight = height;
+    window->View = &View;
+    View = MCView{};
+    pane->X0 = 0;
+    pane->Y0 = 0;
+    SetExtent(window, pane, width, height);
+    PortWidth = width;
+    PortHeight = height;
     return 0;
 }
 
-auto aPort::openView(_window* target, int32_t x, int32_t y, const MCRect& scissor, bool keyTransparent) -> void
+auto MCGuiPort::OpenView(MCWindow* target, int32_t x, int32_t y, const MCRect& scissor, bool keyTransparent) -> void
 {
-    view.Target = target;
-    view.OriginX = x;
-    view.OriginY = y;
-    view.Scissor = scissor;
-    view.KeyTransparent = keyTransparent;
+    View.Target = target;
+    View.OriginX = x;
+    View.OriginY = y;
+    View.Scissor = scissor;
+    View.KeyTransparent = keyTransparent;
 
     // A view as the target (a block drawn in place, see lBlockPort): the view lands on that view's target, moved by
     // its origin and cut to its scissor; shut when it is.
@@ -350,91 +350,91 @@ auto aPort::openView(_window* target, int32_t x, int32_t y, const MCRect& scisso
     {
         if (outer->Target == nullptr || !outer->Open())
         {
-            view.Target = nullptr;
-            closeView();
+            View.Target = nullptr;
+            CloseView();
             return;
         }
 
-        view.Target = outer->Target;
-        view.OriginX += outer->OriginX;
-        view.OriginY += outer->OriginY;
-        view.Scissor.X0 = std::max({scissor.X0, 0}) + outer->OriginX;
-        view.Scissor.Y0 = std::max({scissor.Y0, 0}) + outer->OriginY;
-        view.Scissor.X1 = std::min(scissor.X1, target->x_max) + outer->OriginX;
-        view.Scissor.Y1 = std::min(scissor.Y1, target->y_max) + outer->OriginY;
-        view.Scissor.X0 = std::max(view.Scissor.X0, outer->Scissor.X0);
-        view.Scissor.Y0 = std::max(view.Scissor.Y0, outer->Scissor.Y0);
-        view.Scissor.X1 = std::min(view.Scissor.X1, outer->Scissor.X1);
-        view.Scissor.Y1 = std::min(view.Scissor.Y1, outer->Scissor.Y1);
-        view.KeyTransparent = keyTransparent || outer->KeyTransparent;
+        View.Target = outer->Target;
+        View.OriginX += outer->OriginX;
+        View.OriginY += outer->OriginY;
+        View.Scissor.X0 = std::max({scissor.X0, 0}) + outer->OriginX;
+        View.Scissor.Y0 = std::max({scissor.Y0, 0}) + outer->OriginY;
+        View.Scissor.X1 = std::min(scissor.X1, target->XMax) + outer->OriginX;
+        View.Scissor.Y1 = std::min(scissor.Y1, target->YMax) + outer->OriginY;
+        View.Scissor.X0 = std::max(View.Scissor.X0, outer->Scissor.X0);
+        View.Scissor.Y0 = std::max(View.Scissor.Y0, outer->Scissor.Y0);
+        View.Scissor.X1 = std::min(View.Scissor.X1, outer->Scissor.X1);
+        View.Scissor.Y1 = std::min(View.Scissor.Y1, outer->Scissor.Y1);
+        View.KeyTransparent = keyTransparent || outer->KeyTransparent;
     }
 }
 
-auto aPort::openViewOn(_pane* dest, int32_t xPos, int32_t yPos, bool keyTransparent) -> void
+auto MCGuiPort::OpenViewOn(MCPane* dest, int32_t xPos, int32_t yPos, bool keyTransparent) -> void
 {
     // The block in the destination window's coordinates: the pane cut to its window, and to the view's size.
-    _window* target = dest->window;
-    const int32_t originX = dest->x0 + xPos;
-    const int32_t originY = dest->y0 + yPos;
-    const MCRect scissor{std::max({dest->x0, 0, originX}), std::max({dest->y0, 0, originY}),
-                         std::min({dest->x1, target->x_max, originX + portWidth - 1}),
-                         std::min({dest->y1, target->y_max, originY + portHeight - 1})};
-    openView(target, originX, originY, scissor, keyTransparent);
+    MCWindow* target = dest->Window;
+    const int32_t originX = dest->X0 + xPos;
+    const int32_t originY = dest->Y0 + yPos;
+    const MCRect scissor{std::max({dest->X0, 0, originX}), std::max({dest->Y0, 0, originY}),
+                         std::min({dest->X1, target->XMax, originX + PortWidth - 1}),
+                         std::min({dest->Y1, target->YMax, originY + PortHeight - 1})};
+    OpenView(target, originX, originY, scissor, keyTransparent);
 }
 
-auto aPort::copyTo(_pane* dest, int32_t xPos, int32_t yPos, int transparent) -> void
+auto MCGuiPort::CopyTo(MCPane* dest, int32_t xPos, int32_t yPos, int transparent) -> void
 {
     // Port: a view has no picture to copy (its owner draws itself in the frame pass).
-    if (isView())
+    if (IsView())
     {
         return;
     }
 
     if (transparent != 0)
     {
-        _window* source = portPane->window;
-        DrawTransparent(dest, source, xPos, yPos, source->x_max + 1, source->y_max + 1);
+        MCWindow* source = PortPane->Window;
+        DrawTransparent(dest, source, xPos, yPos, source->XMax + 1, source->YMax + 1);
         return;
     }
 
-    VFX_pane_copy(portPane, 0, 0, dest, xPos, yPos, -1);
+    VfxPaneCopy(PortPane, 0, 0, dest, xPos, yPos, -1);
 }
 
-auto aPort::width() -> int32_t
+auto MCGuiPort::Width() -> int32_t
 {
-    return portWidth;
+    return PortWidth;
 }
 
-auto aPort::height() -> int32_t
+auto MCGuiPort::Height() -> int32_t
 {
-    return portHeight;
+    return PortHeight;
 }
 
-auto aPort::bitmap() -> _window*
+auto MCGuiPort::Bitmap() -> MCWindow*
 {
-    return portWindow;
+    return PortWindow;
 }
 
-auto aPort::frame() -> _pane*
+auto MCGuiPort::Frame() -> MCPane*
 {
-    return portPane;
+    return PortPane;
 }
 
 // aScrollPort
 
-auto aScrollPort::init(int32_t width, int32_t height) -> int32_t
+auto MCGuiScrollPort::Init(int32_t width, int32_t height) -> int32_t
 {
     // Unlike aPort::init, this always reallocates, even at the same size.
-    return initPort(this, width, height, crtAlloc, crtFree);
+    return InitPort(this, width, height, CrtAlloc, CrtFree);
 }
 
-auto aScrollPort::destroy() -> void
+auto MCGuiScrollPort::Destroy() -> void
 {
     // Unlike aPort::destroy, the size is left as it was.
-    destroyPort(this, crtFree);
+    DestroyPort(this, CrtFree);
 }
 
-auto aScrollPort::resize(int32_t width, int32_t height) -> int32_t
+auto MCGuiScrollPort::Resize(int32_t width, int32_t height) -> int32_t
 {
-    return resizePort(this, width, height, crtAlloc, crtFree);
+    return ResizePort(this, width, height, CrtAlloc, CrtFree);
 }

@@ -34,31 +34,31 @@
 
 MCOverlayTarget MCOverlay;
 float MCFixedZoomHeight = 0.0f;
-Camera* eye = nullptr;
-std::vector<uint8_t> scaleTable;
-aMainWindow* mainHolder = nullptr;
-int32_t leaveSwoopyOff = 0;
-int32_t drawCameraCircle = 0;
-uint8_t* pauseShape = nullptr;
-float currentScaleFactor = 0.0f;
-int32_t lastZoom = 0;
-CameraList* cameraList = nullptr;
-_pane* globalPane = nullptr;
-_window* globalWindow = nullptr;
-uint8_t* askedShape = nullptr;
+MCCamera* Eye = nullptr;
+std::vector<uint8_t> ScaleTable;
+MCMainWindow* MainHolder = nullptr;
+int32_t LeaveSwoopyOff = 0;
+int32_t DrawCameraCircle = 0;
+uint8_t* PauseShape = nullptr;
+float CurrentScaleFactor = 0.0f;
+int32_t LastZoom = 0;
+MCCameraList* CameraList = nullptr;
+MCPane* GlobalPane = nullptr;
+MCWindow* GlobalWindow = nullptr;
+uint8_t* AskedShape = nullptr;
 
 namespace
 {
     /// <summary>Set while a view window's status bar is on screen.</summary>
-    int32_t statusBarDrawn = 0;
+    int32_t StatusBarDrawn = 0;
     /// <summary>The corners of the status bar last drawn.</summary>
-    int32_t lastBarX0 = 0;
-    int32_t lastBarY0 = 0;
-    int32_t lastBarX1 = 0;
-    int32_t lastBarY1 = 0;
+    int32_t LastBarX0 = 0;
+    int32_t LastBarY0 = 0;
+    int32_t LastBarX1 = 0;
+    int32_t LastBarY1 = 0;
 
-    /// <summary>The divisors of the 7 rows of <see cref="scaleTable"/> (0x00793edc).</summary>
-    constexpr int32_t scaleDivisors[7] = {9, 4, 3, 2, 1, -2, -4};
+    /// <summary>The divisors of the 7 rows of <see cref="ScaleTable"/> (0x00793edc).</summary>
+    constexpr int32_t ScaleDivisors[7] = {9, 4, 3, 2, 1, -2, -4};
 
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
     constexpr double RADIANS_TO_DEGREES = 0x1.ca5dc1a6402aap+5;
@@ -67,13 +67,13 @@ namespace
 
     /// <summary>A font's line height: its height, scaled and rounded down when the font is scaled (an inline of the
     /// original's font.h).</summary>
-    auto lineHeight(Font* font) -> uint8_t
+    auto LineHeight(MCFont* font) -> uint8_t
     {
-        uint8_t height = font->fontHeight;
+        uint8_t height = font->FontHeight;
 
-        if (font->scaled != 0)
+        if (font->Scaled != 0)
         {
-            height = static_cast<uint8_t>(static_cast<int32_t>(std::floor(static_cast<float>(height) * font->scale)));
+            height = static_cast<uint8_t>(static_cast<int32_t>(std::floor(static_cast<float>(height) * font->Scale)));
         }
 
         return height;
@@ -81,29 +81,29 @@ namespace
 
     /// <summary>The view's size and the projection's sine and cosine (the same lines in Camera::init, render and
     /// viewWindow::resize).</summary>
-    auto setViewSize(Camera* camera, float width, float height) -> void
+    auto SetViewSize(MCCamera* camera, float width, float height) -> void
     {
-        camera->viewWidth = width;
-        camera->viewHeight = height;
-        const double angle = static_cast<double>(camera->projectionAngle) * DEGREES_TO_RADIANS;
-        camera->sinAngle = static_cast<float>(std::sin(angle));
-        camera->cosAngle = static_cast<float>(std::cos(angle));
-        camera->halfWidth = camera->viewWidth * 0.5f;
-        camera->halfHeight = camera->viewHeight * 0.5f;
+        camera->ViewWidth = width;
+        camera->ViewHeight = height;
+        const double angle = static_cast<double>(camera->ProjectionAngle) * DEGREES_TO_RADIANS;
+        camera->SinAngle = static_cast<float>(std::sin(angle));
+        camera->CosAngle = static_cast<float>(std::cos(angle));
+        camera->HalfWidth = camera->ViewWidth * 0.5f;
+        camera->HalfHeight = camera->ViewHeight * 0.5f;
     }
 
     /// <summary>Loads a shape file of artPath into the object cache (the pause and asked shapes).</summary>
-    auto loadShape(const char* name, const char* errorMessage) -> uint8_t*
+    auto LoadShape(const char* name, const char* errorMessage) -> uint8_t*
     {
-        FullPathFileName shapeName;
-        shapeName.init(artPath, name, ".shp");
-        File shapeFile;
-        const int32_t result = shapeFile.open(shapeName, READ, 50);
+        MCFullPathFileName shapeName;
+        shapeName.Init(ArtPath, name, ".shp");
+        MCFile shapeFile;
+        const int32_t result = shapeFile.Open(shapeName, READ, 50);
         Assert(result == 0, static_cast<uint32_t>(result), errorMessage);
-        const uint32_t size = shapeFile.fileSize();
-        auto* shape = static_cast<uint8_t*>(ObjectTypeManager::objectCache.Allocate(size));
-        shapeFile.read(shape, static_cast<int32_t>(size));
-        shapeFile.close();
+        const uint32_t size = shapeFile.FileSize();
+        auto* shape = static_cast<uint8_t*>(MCObjectTypeManager::ObjectCache.Allocate(size));
+        shapeFile.Read(shape, static_cast<int32_t>(size));
+        shapeFile.Close();
         MCRenderer::RegisterData(shape, size, MCDataKind::Shapes);
         return shape;
     }
@@ -116,31 +116,31 @@ namespace
     /// Port: keeps the tactical map's zoom button (pushed when zoomed out, as the original flipped it) in step with
     /// the main view's zoom.
     /// </summary>
-    auto syncZoomButton(viewWindow* view) -> void
+    auto SyncZoomButton(MCViewWindow* view) -> void
     {
-        TacticalMap* map = Terrain::terrainTacticalMap;
+        MCTacticalMap* map = MCTerrain::TerrainTacticalMap;
 
-        if (map == nullptr || view != MCMainView() || map->toolButtons[7] == nullptr)
+        if (map == nullptr || view != MCMainView() || map->ToolButtons[7] == nullptr)
         {
             return;
         }
 
-        if ((map->toolButtons[7]->pushed != 0) != view->ZoomedOut())
+        if ((map->ToolButtons[7]->Pushed != 0) != view->ZoomedOut())
         {
-            map->toggleZoom();
+            map->ToggleZoom();
         }
     }
 
     /// <summary>Darkens the whole screen for the pause and asked overlays.</summary>
-    auto darkenScreen() -> void
+    auto DarkenScreen() -> void
     {
-        uint8_t* hazePalette = gamePalette->getHazePalette(-7);
-        SCRNVERTEX vertices[4] = {};
-        vertices[1].x = application->width() - 1;
-        vertices[2].x = application->width() - 1;
-        vertices[2].y = application->height() - 1;
-        vertices[3].y = application->height() - 1;
-        VFX_translate_polygon(screenPort->frame(), 4, vertices, hazePalette);
+        uint8_t* hazePalette = GamePalette->GetHazePalette(-7);
+        MCScreenVertex vertices[4] = {};
+        vertices[1].X = Application->Width() - 1;
+        vertices[2].X = Application->Width() - 1;
+        vertices[2].Y = Application->Height() - 1;
+        vertices[3].Y = Application->Height() - 1;
+        VfxTranslatePolygon(ScreenPort->Frame(), 4, vertices, hazePalette);
     }
 }
 
@@ -148,39 +148,39 @@ namespace
 // viewWindow
 //---------------------------------------------------------------------------
 
-viewWindow::~viewWindow()
+MCViewWindow::~MCViewWindow()
 {
     // aTitleWindow's inline destructor.
     MCRenderer::RemoveUnderlay(this);
     MCRenderer::RemoveFrameSurface(&WorldWindow);
-    aTitleWindow::destroy();
+    MCGuiTitleWindow::Destroy();
 }
 
-auto viewWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCViewWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    const int32_t result = aObject::init(xPos, yPos, width, height, name);
+    const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    selectionBox[1] = 0.0f;
-    selectionBox[0] = 0.0f;
-    interfaceWindow = 0;
-    objectType = 5;
-    camera = nullptr;
-    selectionBox[3] = 0.0f;
-    selectionBox[2] = 0.0f;
-    lastEvent.target = nullptr;
+    SelectionBox[1] = 0.0f;
+    SelectionBox[0] = 0.0f;
+    InterfaceWindow = 0;
+    ObjectType = 5;
+    Camera = nullptr;
+    SelectionBox[3] = 0.0f;
+    SelectionBox[2] = 0.0f;
+    LastEvent.Target = nullptr;
     return 0;
 }
 
-auto viewWindow::destroy() -> void
+auto MCViewWindow::Destroy() -> void
 {
     if (GetCamera() != nullptr)
     {
-        cameraList->remove(GetCamera());
+        CameraList->Remove(GetCamera());
     }
 
     MCRenderer::RemoveUnderlay(this);
@@ -188,13 +188,13 @@ auto viewWindow::destroy() -> void
     WorldPixels = {};
     WorldWindow = {};
     WorldPane = {};
-    aObject::destroy();
+    MCGuiObject::Destroy();
 }
 
-auto viewWindow::handleEvent(aEvent* event) -> void
+auto MCViewWindow::HandleEvent(MCGuiEvent* event) -> void
 {
-    lastEvent = *event;
-    const int32_t type = event->type;
+    LastEvent = *event;
+    const int32_t type = event->Type;
 
     switch (type)
     {
@@ -202,26 +202,26 @@ auto viewWindow::handleEvent(aEvent* event) -> void
         {
             if (GetCamera() != nullptr)
             {
-                GetCamera()->deactivate();
+                GetCamera()->Deactivate();
             }
 
-            screenWindow->removeChild(this);
+            ScreenWindow->RemoveChild(this);
             return;
         }
         case 0x12:
         {
-            globalPane = screenPort->frame();
-            globalWindow = screenPort->frame()->window;
+            GlobalPane = ScreenPort->Frame();
+            GlobalWindow = ScreenPort->Frame()->Window;
             break;
         }
         case 0x1a:
         {
             // Port: the zoom toggle goes between the closest and the furthest zoom; the camera stays at scale 100
             // (the original flipped it between 100 and 1, and to 1 while paused or asked).
-            if (GetCamera() != nullptr && gamePaused == 0 && gameAsked == 0)
+            if (GetCamera() != nullptr && GamePaused == 0 && GameAsked == 0)
             {
-                GetCamera()->forceUpdate = 1;
-                Terrain::forceRedraw = 1;
+                GetCamera()->ForceUpdate = 1;
+                MCTerrain::ForceRedraw = 1;
                 ToggleZoom();
             }
             break;
@@ -230,63 +230,63 @@ auto viewWindow::handleEvent(aEvent* event) -> void
         {
             if (GetCamera() != nullptr)
             {
-                GetCamera()->changeTarget(static_cast<BaseObject*>(nullptr), 0);
+                GetCamera()->ChangeTarget(static_cast<MCBaseObject*>(nullptr), 0);
             }
             break;
         }
     }
 
-    if (interfaceWindow != 0 && theInterface != nullptr && type != 9 && type != 8)
+    if (InterfaceWindow != 0 && TheInterface != nullptr && type != 9 && type != 8)
     {
-        theInterface->handleEvent(event);
-        aObject::handleEvent(event);
+        TheInterface->HandleEvent(event);
+        MCGuiObject::HandleEvent(event);
         return;
     }
 
     // A click swaps this view's target (or position) with the active pane's.
-    if (type == 1 && mainHolder->GetActivePane() != nullptr)
+    if (type == 1 && MainHolder->GetActivePane() != nullptr)
     {
-        Camera* activeCamera = mainHolder->GetActivePane()->GetCamera();
-        Camera* thisCamera = GetCamera();
+        MCCamera* activeCamera = MainHolder->GetActivePane()->GetCamera();
+        MCCamera* thisCamera = GetCamera();
 
         if (activeCamera != nullptr && thisCamera != nullptr)
         {
-            vector_3d activePosition;
-            BaseObject* activeTarget = activeCamera->targetObject;
+            MCVector3D activePosition;
+            MCBaseObject* activeTarget = activeCamera->TargetObject;
 
             if (activeTarget == nullptr)
             {
-                activePosition = activeCamera->position;
+                activePosition = activeCamera->Position;
             }
 
-            if (thisCamera->targetObject == nullptr)
+            if (thisCamera->TargetObject == nullptr)
             {
-                activeCamera->changeTarget(static_cast<BaseObject*>(nullptr), 0);
-                activeCamera->setPosition(thisCamera->getPosition());
+                activeCamera->ChangeTarget(static_cast<MCBaseObject*>(nullptr), 0);
+                activeCamera->SetPosition(thisCamera->GetPosition());
             }
             else
             {
-                activeCamera->changeTarget(thisCamera->targetObject, 0);
+                activeCamera->ChangeTarget(thisCamera->TargetObject, 0);
             }
 
             if (activeTarget != nullptr)
             {
-                thisCamera->changeTarget(activeTarget, 0);
-                aObject::handleEvent(event);
+                thisCamera->ChangeTarget(activeTarget, 0);
+                MCGuiObject::HandleEvent(event);
                 return;
             }
 
-            thisCamera->changeTarget(static_cast<BaseObject*>(nullptr), 0);
-            thisCamera->setPosition(activePosition);
+            thisCamera->ChangeTarget(static_cast<MCBaseObject*>(nullptr), 0);
+            thisCamera->SetPosition(activePosition);
         }
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto viewWindow::resize(int32_t w, int32_t h) -> void
+auto MCViewWindow::Resize(int32_t w, int32_t h) -> void
 {
-    if (gridAligned != 0)
+    if (GridAligned != 0)
     {
         w -= w % 40;
 
@@ -303,34 +303,34 @@ auto viewWindow::resize(int32_t w, int32_t h) -> void
         }
     }
 
-    aObject::resize(w, h);
+    MCGuiObject::Resize(w, h);
 
     if (GetCamera() == nullptr)
     {
         return;
     }
 
-    if (leaveSwoopyOff == 0)
+    if (LeaveSwoopyOff == 0)
     {
-        if (width() < 250 || height() < 250)
+        if (Width() < 250 || Height() < 250)
         {
-            GetCamera()->swoopy = 0;
+            GetCamera()->Swoopy = 0;
         }
         else
         {
-            GetCamera()->swoopy = 1;
+            GetCamera()->Swoopy = 1;
         }
     }
 
-    Terrain::forceRedraw = 1;
+    MCTerrain::ForceRedraw = 1;
     // Port: the camera's view is the world surface, which keeps the zoom and takes the new aspect.
     UpdateWorldSurface();
-    setViewSize(camera, static_cast<float>(WorldWidth()), static_cast<float>(WorldHeight()));
+    SetViewSize(Camera, static_cast<float>(WorldWidth()), static_cast<float>(WorldHeight()));
 }
 
-auto viewWindow::display() -> void
+auto MCViewWindow::Display() -> void
 {
-    if (showWindow == 0 || (IsHidden() != 0 && hideOffset == 0))
+    if (ShowWindow == 0 || (IsHidden() != 0 && HideOffset == 0))
     {
         // Port: a view not shown shows no world.
         MCRenderer::RemoveUnderlay(this);
@@ -342,71 +342,71 @@ auto viewWindow::display() -> void
     StartZoom();
     ZoomShown = true;
     UpdateWorldSurface();
-    const _pane* shown = frame();
+    const MCPane* shown = Frame();
     MCRenderer::SetUnderlay(
-        MCUnderlay{this, shown->window, MCRect{shown->x0, shown->y0, shown->x1, shown->y1}, &WorldWindow});
-    VFX_pane_wipe(frame(), MCRenderer::UnderlayKey);
+        MCUnderlay{this, shown->Window, MCRect{shown->X0, shown->Y0, shown->X1, shown->Y1}, &WorldWindow});
+    VfxPaneWipe(Frame(), MCRenderer::UnderlayKey);
 
-    if (scenario != nullptr && (scenarioEndTurn == -1 || turn < scenarioEndTurn))
+    if (Scenario != nullptr && (ScenarioEndTurn == -1 || Turn < ScenarioEndTurn))
     {
-        scenario->render(this);
+        Scenario->Render(this);
 
-        if (GetCamera()->cameraId == 1 && MPlayer != nullptr && MPlayer->sessionManager != nullptr &&
-            displayProfileData == 2)
+        if (GetCamera()->CameraId == 1 && MPlayer != nullptr && MPlayer->SessionManager != nullptr &&
+            DisplayProfileData == 2)
         {
             char stats[256];
 
-            if (MPlayer->sessionManager->GetStats(stats) == 0)
+            if (MPlayer->SessionManager->GetStats(stats) == 0)
             {
-                lineFont->scaled = 0;
-                lineFont->scale = 1.0f;
-                lineFont->print(180, 72, stats, 0xfe, globalPane);
+                LineFont->Scaled = 0;
+                LineFont->Scale = 1.0f;
+                LineFont->Print(180, 72, stats, 0xfe, GlobalPane);
             }
         }
     }
 
-    if (winState != aSTATE_ICONIZED)
+    if (WinState != aSTATE_ICONIZED)
     {
-        for (int32_t i = 0; i < numChildren; i++)
+        for (int32_t i = 0; i < NumChildren; i++)
         {
-            childList[i]->display();
+            ChildList[i]->Display();
         }
     }
 
-    if (selectionBox[2] == 0.0f && selectionBox[3] == 0.0f)
+    if (SelectionBox[2] == 0.0f && SelectionBox[3] == 0.0f)
     {
         // Erase the last bar.
-        if (statusBarDrawn != 0)
+        if (StatusBarDrawn != 0)
         {
-            statusBarDrawn = 0;
-            AG_StatusBar(globalPane, lastBarX0, lastBarY0, lastBarX1, lastBarY1, 0x10a, lastBarX1 - lastBarX0);
+            StatusBarDrawn = 0;
+            AGStatusBar(GlobalPane, LastBarX0, LastBarY0, LastBarX1, LastBarY1, 0x10a, LastBarX1 - LastBarX0);
         }
     }
     else
     {
-        const int32_t y1 = static_cast<int32_t>(selectionBox[3]);
-        const int32_t x1 = static_cast<int32_t>(selectionBox[2]);
-        const int32_t y0 = static_cast<int32_t>(selectionBox[1]);
-        const int32_t x0 = static_cast<int32_t>(selectionBox[0]);
-        const int32_t length = static_cast<int32_t>(selectionBox[2] - selectionBox[0]);
-        AG_StatusBar(globalPane, x0, y0, x1, y1, 0x109, length);
-        lastBarX0 = x0;
-        lastBarY0 = y0;
-        lastBarX1 = x1;
-        lastBarY1 = y1;
-        statusBarDrawn = 1;
+        const int32_t y1 = static_cast<int32_t>(SelectionBox[3]);
+        const int32_t x1 = static_cast<int32_t>(SelectionBox[2]);
+        const int32_t y0 = static_cast<int32_t>(SelectionBox[1]);
+        const int32_t x0 = static_cast<int32_t>(SelectionBox[0]);
+        const int32_t length = static_cast<int32_t>(SelectionBox[2] - SelectionBox[0]);
+        AGStatusBar(GlobalPane, x0, y0, x1, y1, 0x109, length);
+        LastBarX0 = x0;
+        LastBarY0 = y0;
+        LastBarX1 = x1;
+        LastBarY1 = y1;
+        StatusBarDrawn = 1;
     }
 
-    drawBox(0x10, -1, -1, -1, -1);
+    DrawBox(0x10, -1, -1, -1, -1);
 }
 
-auto viewWindow::leave() -> void
+auto MCViewWindow::Leave() -> void
 {
-    theInterface->HideTags();
-    application->SetCurrentCursor(static_cast<CursorType>(0));
+    TheInterface->HideTags();
+    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
 }
 
-auto viewWindow::drawBox(uint8_t color, int32_t left, int32_t top, int32_t right, int32_t bottom) -> void
+auto MCViewWindow::DrawBox(uint8_t color, int32_t left, int32_t top, int32_t right, int32_t bottom) -> void
 {
     if (left == -1)
     {
@@ -420,46 +420,46 @@ auto viewWindow::drawBox(uint8_t color, int32_t left, int32_t top, int32_t right
 
     if (right == -1)
     {
-        right = width() - 1;
+        right = Width() - 1;
     }
 
     if (bottom == -1)
     {
-        bottom = height() - 1;
+        bottom = Height() - 1;
     }
 
-    VFX_line_draw(frame(), left, top, right, top, LD_DRAW, color);
-    VFX_line_draw(frame(), left, top, left, bottom, LD_DRAW, color);
-    VFX_line_draw(frame(), left, bottom, right, bottom, LD_DRAW, color);
-    VFX_line_draw(frame(), right, top, right, bottom, LD_DRAW, color);
+    VfxLineDraw(Frame(), left, top, right, top, LD_DRAW, color);
+    VfxLineDraw(Frame(), left, top, left, bottom, LD_DRAW, color);
+    VfxLineDraw(Frame(), left, bottom, right, bottom, LD_DRAW, color);
+    VfxLineDraw(Frame(), right, top, right, bottom, LD_DRAW, color);
 }
 
-auto viewWindow::setWindowCamera(Camera* newCamera) -> void
+auto MCViewWindow::SetWindowCamera(MCCamera* newCamera) -> void
 {
-    camera = newCamera;
+    Camera = newCamera;
 
     if (newCamera == nullptr)
     {
         return;
     }
 
-    if (newCamera->cameraId == 1)
+    if (newCamera->CameraId == 1)
     {
-        setBackColor(0xef);
+        SetBackColor(0xef);
     }
-    else if (newCamera->cameraId == 2)
+    else if (newCamera->CameraId == 2)
     {
-        setBackColor(0xf8);
+        SetBackColor(0xf8);
     }
 }
 
-auto viewWindow::WorldFrame() -> _pane*
+auto MCViewWindow::WorldFrame() -> MCPane*
 {
     UpdateWorldSurface();
     return &WorldPane;
 }
 
-auto viewWindow::ZoomLimits(float& closest, float& furthest) -> void
+auto MCViewWindow::ZoomLimits(float& closest, float& furthest) -> void
 {
     closest = ZoomClosest;
     furthest = ZoomFurthest;
@@ -473,9 +473,9 @@ auto viewWindow::ZoomLimits(float& closest, float& furthest) -> void
 
     // The terrain grid covers a surface as far as MCTerrainGridReach (width / cos + height / sin of the view angle):
     // a very wide view zooms out less.
-    if (MCTerrainGridReach > 0.0 && width() > 0 && height() > 0)
+    if (MCTerrainGridReach > 0.0 && Width() > 0 && Height() > 0)
     {
-        const double aspect = static_cast<double>(width()) / static_cast<double>(height());
+        const double aspect = static_cast<double>(Width()) / static_cast<double>(Height());
         const double reach =
             MCTerrainGridReach / (aspect / std::cos(MCTerrainViewAngle) + 1.0 / std::sin(MCTerrainViewAngle));
         furthest = static_cast<float>(std::min(static_cast<double>(furthest), reach));
@@ -483,16 +483,16 @@ auto viewWindow::ZoomLimits(float& closest, float& furthest) -> void
     }
 }
 
-auto viewWindow::ZoomInHeight() -> float
+auto MCViewWindow::ZoomInHeight() -> float
 {
     float closest = 0.0f;
     float furthest = 0.0f;
     ZoomLimits(closest, furthest);
-    const float oneToOne = std::clamp(static_cast<float>(height()), closest, furthest);
+    const float oneToOne = std::clamp(static_cast<float>(Height()), closest, furthest);
     return oneToOne < furthest ? oneToOne : closest;
 }
 
-auto viewWindow::StartZoom() -> void
+auto MCViewWindow::StartZoom() -> void
 {
     if (ZoomHeight > 0.0f)
     {
@@ -504,17 +504,17 @@ auto viewWindow::StartZoom() -> void
     float closest = 0.0f;
     float furthest = 0.0f;
     ZoomLimits(closest, furthest);
-    ZoomHeight = ZoomStartsOut ? furthest : std::clamp(static_cast<float>(height()), closest, furthest);
+    ZoomHeight = ZoomStartsOut ? furthest : std::clamp(static_cast<float>(Height()), closest, furthest);
     ZoomTarget = ZoomHeight;
     ZoomClock = MCPort::Milliseconds();
 }
 
-auto viewWindow::UpdateWorldSurface() -> void
+auto MCViewWindow::UpdateWorldSurface() -> void
 {
     float closest = 0.0f;
     float furthest = 0.0f;
     ZoomLimits(closest, furthest);
-    float shownHeight = ZoomStartsOut ? furthest : static_cast<float>(height());
+    float shownHeight = ZoomStartsOut ? furthest : static_cast<float>(Height());
 
     if (ZoomHeight > 0.0f)
     {
@@ -526,25 +526,25 @@ auto viewWindow::UpdateWorldSurface() -> void
     shownHeight = std::clamp(shownHeight, closest, furthest);
     const int32_t surfaceHeight = std::max(1, static_cast<int32_t>(std::lround(shownHeight)));
     const int32_t surfaceWidth = std::max(
-        1, static_cast<int32_t>(std::lround(static_cast<double>(width()) * surfaceHeight / std::max(1, height()))));
+        1, static_cast<int32_t>(std::lround(static_cast<double>(Width()) * surfaceHeight / std::max(1, Height()))));
 
     if (WorldPixels.empty() || surfaceWidth != WorldWidth() || surfaceHeight != WorldHeight())
     {
         WorldPixels.assign(static_cast<size_t>(surfaceWidth) * static_cast<size_t>(surfaceHeight), 0);
-        WorldWindow.buffer = WorldPixels.data();
-        WorldWindow.x_max = surfaceWidth - 1;
-        WorldWindow.y_max = surfaceHeight - 1;
-        WorldPane.window = &WorldWindow;
-        WorldPane.x0 = 0;
-        WorldPane.y0 = 0;
-        WorldPane.x1 = surfaceWidth - 1;
-        WorldPane.y1 = surfaceHeight - 1;
-        Terrain::forceRedraw = 1;
+        WorldWindow.Buffer = WorldPixels.data();
+        WorldWindow.XMax = surfaceWidth - 1;
+        WorldWindow.YMax = surfaceHeight - 1;
+        WorldPane.Window = &WorldWindow;
+        WorldPane.X0 = 0;
+        WorldPane.Y0 = 0;
+        WorldPane.X1 = surfaceWidth - 1;
+        WorldPane.Y1 = surfaceHeight - 1;
+        MCTerrain::ForceRedraw = 1;
         MCRenderer::AddFrameSurface(&WorldWindow);
     }
 }
 
-auto viewWindow::ZoomTo(float height) -> bool
+auto MCViewWindow::ZoomTo(float height) -> bool
 {
     float closest = 0.0f;
     float furthest = 0.0f;
@@ -571,17 +571,17 @@ auto viewWindow::ZoomTo(float height) -> bool
         ZoomHeight = target;
     }
 
-    syncZoomButton(this);
+    SyncZoomButton(this);
     return true;
 }
 
-auto viewWindow::ZoomBy(float factor) -> bool
+auto MCViewWindow::ZoomBy(float factor) -> bool
 {
     StartZoom();
     return ZoomTo(ZoomTarget * factor);
 }
 
-auto viewWindow::ZoomedOut() -> bool
+auto MCViewWindow::ZoomedOut() -> bool
 {
     StartZoom();
     float closest = 0.0f;
@@ -590,7 +590,7 @@ auto viewWindow::ZoomedOut() -> bool
     return ZoomTarget > (ZoomInHeight() + furthest) * 0.5f;
 }
 
-auto viewWindow::ToggleZoom() -> void
+auto MCViewWindow::ToggleZoom() -> void
 {
     float closest = 0.0f;
     float furthest = 0.0f;
@@ -598,7 +598,7 @@ auto viewWindow::ToggleZoom() -> void
     ZoomTo(ZoomedOut() ? ZoomInHeight() : furthest);
 }
 
-auto viewWindow::EaseZoom() -> void
+auto MCViewWindow::EaseZoom() -> void
 {
     StartZoom();
     const uint32_t now = MCPort::Milliseconds();
@@ -618,27 +618,27 @@ auto viewWindow::EaseZoom() -> void
     }
 }
 
-auto viewWindow::WorldScaleX() -> float
+auto MCViewWindow::WorldScaleX() -> float
 {
     if (WorldPixels.empty())
     {
         UpdateWorldSurface();
     }
 
-    return static_cast<float>(width()) / static_cast<float>(WorldWidth());
+    return static_cast<float>(Width()) / static_cast<float>(WorldWidth());
 }
 
-auto viewWindow::WorldScaleY() -> float
+auto MCViewWindow::WorldScaleY() -> float
 {
     if (WorldPixels.empty())
     {
         UpdateWorldSurface();
     }
 
-    return static_cast<float>(height()) / static_cast<float>(WorldHeight());
+    return static_cast<float>(Height()) / static_cast<float>(WorldHeight());
 }
 
-auto viewWindow::ScreenToWorld(int32_t screenX, int32_t screenY) -> vector_2d
+auto MCViewWindow::ScreenToWorld(int32_t screenX, int32_t screenY) -> MCVector2D
 {
     if (WorldPixels.empty())
     {
@@ -646,25 +646,25 @@ auto viewWindow::ScreenToWorld(int32_t screenX, int32_t screenY) -> vector_2d
     }
 
     // The world pixel shown at the screen pixel's centre, as the display samples it.
-    const float x = (static_cast<float>(screenX - globalX()) + 0.5f) / WorldScaleX();
-    const float y = (static_cast<float>(screenY - globalY()) + 0.5f) / WorldScaleY();
-    return vector_2d(std::floor(x), std::floor(y));
+    const float x = (static_cast<float>(screenX - GlobalX()) + 0.5f) / WorldScaleX();
+    const float y = (static_cast<float>(screenY - GlobalY()) + 0.5f) / WorldScaleY();
+    return MCVector2D(std::floor(x), std::floor(y));
 }
 
-auto viewWindow::WorldToWindow(vector_2d point) -> vector_2d
+auto MCViewWindow::WorldToWindow(MCVector2D point) -> MCVector2D
 {
     if (WorldPixels.empty())
     {
         UpdateWorldSurface();
     }
 
-    return vector_2d(point.x * WorldScaleX(), point.y * WorldScaleY());
+    return MCVector2D(point.X * WorldScaleX(), point.Y * WorldScaleY());
 }
 
-auto viewWindow::WorldToScreen(vector_2d point) -> vector_2d
+auto MCViewWindow::WorldToScreen(MCVector2D point) -> MCVector2D
 {
-    const vector_2d window = WorldToWindow(point);
-    return vector_2d(window.x + static_cast<float>(globalX()), window.y + static_cast<float>(globalY()));
+    const MCVector2D window = WorldToWindow(point);
+    return MCVector2D(window.X + static_cast<float>(GlobalX()), window.Y + static_cast<float>(GlobalY()));
 }
 
 auto MCIsOverlayDepth(float depth) -> bool
@@ -672,9 +672,9 @@ auto MCIsOverlayDepth(float depth) -> bool
     return depth == -50000.0f || depth == -40000.0f;
 }
 
-auto MCOverlayPoint(vector_2d point) -> vector_2d
+auto MCOverlayPoint(MCVector2D point) -> MCVector2D
 {
-    return vector_2d(MCOverlayX(point.x), MCOverlayY(point.y));
+    return MCVector2D(MCOverlayX(point.X), MCOverlayY(point.Y));
 }
 
 auto MCOverlayX(float x) -> float
@@ -687,137 +687,137 @@ auto MCOverlayY(float y) -> float
     return y * MCOverlay.ScaleY;
 }
 
-auto MCMainView() -> viewWindow*
+auto MCMainView() -> MCViewWindow*
 {
-    if (cameraList == nullptr)
+    if (CameraList == nullptr)
     {
         return nullptr;
     }
 
-    Camera* main = cameraList->findCameraFromIDNumber(1);
-    return main != nullptr ? main->window : nullptr;
+    MCCamera* main = CameraList->FindCameraFromIDNumber(1);
+    return main != nullptr ? main->Window : nullptr;
 }
 
-auto MCWindowPoint(aObject* window, int32_t screenX, int32_t screenY) -> vector_2d
+auto MCWindowPoint(MCGuiObject* window, int32_t screenX, int32_t screenY) -> MCVector2D
 {
-    Camera* camera = window->GetCamera();
+    MCCamera* camera = window->GetCamera();
 
-    if (camera != nullptr && camera->window == window)
+    if (camera != nullptr && camera->Window == window)
     {
-        return camera->window->ScreenToWorld(screenX, screenY);
+        return camera->Window->ScreenToWorld(screenX, screenY);
     }
 
-    return vector_2d(static_cast<float>(screenX - window->globalX()), static_cast<float>(screenY - window->globalY()));
+    return MCVector2D(static_cast<float>(screenX - window->GlobalX()), static_cast<float>(screenY - window->GlobalY()));
 }
 
 auto ToggleZoom() -> void
 {
-    mainHolder->ZoomActivePane();
+    MainHolder->ZoomActivePane();
 }
 
 //---------------------------------------------------------------------------
 // aMainWindow
 //---------------------------------------------------------------------------
 
-aMainWindow::~aMainWindow() = default;
+MCMainWindow::~MCMainWindow() = default;
 
-auto aMainWindow::init() -> int32_t
+auto MCMainWindow::Init() -> int32_t
 {
-    lastClockTime = -1.0f;
-    return init(0, 0, application->width(), application->height(), nullptr);
+    LastClockTime = -1.0f;
+    return Init(0, 0, Application->Width(), Application->Height(), nullptr);
 }
 
-auto aMainWindow::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCMainWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
 {
-    const int32_t result = aHolderObject::init(xPos, yPos, width, height, name);
+    const int32_t result = MCGuiHolderObject::Init(xPos, yPos, width, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    clockPane = new aObject;
+    ClockPane = new MCGuiObject;
 
-    if (clockPane == nullptr)
+    if (ClockPane == nullptr)
     {
         Fatal(0, "Not enough memory to allocate clock.");
     }
 
-    lineFont->scale = 1.5f;
-    lineFont->scaled = 1;
+    LineFont->Scale = 1.5f;
+    LineFont->Scaled = 1;
     int32_t clockHeight;
 
-    if (whiteFont == nullptr)
+    if (WhiteFont == nullptr)
     {
         clockHeight = 24;
     }
     else
     {
-        clockHeight = lineHeight(lineFont) + 4;
+        clockHeight = LineHeight(LineFont) + 4;
     }
 
-    clockPane->init(0, 0, 40, clockHeight, nullptr);
-    clockPane->setBackColor(0x10);
+    ClockPane->Init(0, 0, 40, clockHeight, nullptr);
+    ClockPane->SetBackColor(0x10);
     Retile();
-    setDepth(-50);
+    SetDepth(-50);
     return 0;
 }
 
-auto aMainWindow::destroy() -> void
+auto MCMainWindow::Destroy() -> void
 {
-    if (clockPane != nullptr)
+    if (ClockPane != nullptr)
     {
-        clockPane->destroy();
-        delete clockPane;
-        clockPane = nullptr;
+        ClockPane->Destroy();
+        delete ClockPane;
+        ClockPane = nullptr;
     }
 
-    aHolderObject::destroy();
+    MCGuiHolderObject::Destroy();
 }
 
-auto aMainWindow::handleEvent(aEvent* event) -> void
+auto MCMainWindow::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 0x12)
+    if (event->Type == 0x12)
     {
-        resize(application->width(), application->height());
+        Resize(Application->Width(), Application->Height());
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto aMainWindow::display() -> void
+auto MCMainWindow::Display() -> void
 {
-    if (showWindow == 0)
+    if (ShowWindow == 0)
     {
         return;
     }
 
-    if (IsHidden() != 0 && hideOffset == 0)
+    if (IsHidden() != 0 && HideOffset == 0)
     {
         return;
     }
 
-    aHolderObject::display();
+    MCGuiHolderObject::Display();
 
-    if (scenario->timeLimit == 0 || lastClockTime == actualTime)
+    if (Scenario->TimeLimit == 0 || LastClockTime == ActualTime)
     {
         return;
     }
 
     // The mission clock, once per time step.
-    lastClockTime = actualTime;
-    aObject* pane = clockPane;
-    const int32_t color = pane->backColor();
-    VFX_pane_wipe(pane->port()->frame(), color);
-    pane->drawBox(0x1f, -1, -1, -1, -1);
-    lineFont->scaled = 1;
-    lineFont->scale = 1.5f;
-    const uint8_t fontHeight = lineHeight(lineFont);
-    const int32_t paneHeight = pane->height();
+    LastClockTime = ActualTime;
+    MCGuiObject* pane = ClockPane;
+    const int32_t color = pane->BackColor();
+    VfxPaneWipe(pane->Port()->Frame(), color);
+    pane->DrawBox(0x1f, -1, -1, -1, -1);
+    LineFont->Scaled = 1;
+    LineFont->Scale = 1.5f;
+    const uint8_t fontHeight = LineHeight(LineFont);
+    const int32_t paneHeight = pane->Height();
 
     char clock[12];
     int32_t textColor;
-    const float timeLeft = static_cast<float>(scenario->timeLimit) - actualTime;
+    const float timeLeft = static_cast<float>(Scenario->TimeLimit) - ActualTime;
 
     if (timeLeft < 0.0f)
     {
@@ -833,54 +833,54 @@ auto aMainWindow::display() -> void
         textColor = 0x1f;
     }
 
-    const int32_t textWidth = lineFont->printWidth(clock, 0);
-    const int32_t x = (pane->width() - textWidth) / 2 + 1;
-    lineFont->print(x, (paneHeight - fontHeight) / 2 + 2, clock, textColor, pane->port()->frame());
+    const int32_t textWidth = LineFont->PrintWidth(clock, 0);
+    const int32_t x = (pane->Width() - textWidth) / 2 + 1;
+    LineFont->Print(x, (paneHeight - fontHeight) / 2 + 2, clock, textColor, pane->Port()->Frame());
 }
 
-auto aMainWindow::Retile() -> void
+auto MCMainWindow::Retile() -> void
 {
-    aHolderObject::Retile();
-    aObject* pane = GetActivePane();
+    MCGuiHolderObject::Retile();
+    MCGuiObject* pane = GetActivePane();
 
     if (pane == nullptr)
     {
         return;
     }
 
-    const int32_t clockWidth = clockPane->width();
-    clockPane->moveTo(-2 - clockWidth + pane->right(), 2, 0);
+    const int32_t clockWidth = ClockPane->Width();
+    ClockPane->MoveTo(-2 - clockWidth + pane->Right(), 2, 0);
 }
 
-auto aMainWindow::SetVertical(int on) -> void
+auto MCMainWindow::SetVertical(int on) -> void
 {
-    vertical = on;
+    Vertical = on;
     Retile();
 }
 
-auto aMainWindow::SetTiled(int tiled) -> void
+auto MCMainWindow::SetTiled(int tiled) -> void
 {
     if (tiled != 0 && GetInactivePane() != nullptr)
     {
-        GetInactivePane()->GetCamera()->activate();
+        GetInactivePane()->GetCamera()->Activate();
     }
 
-    aHolderObject::SetTiled(tiled);
+    MCGuiHolderObject::SetTiled(tiled);
 
     if (tiled == 0 && GetInactivePane() != nullptr)
     {
-        GetInactivePane()->GetCamera()->deactivate();
+        GetInactivePane()->GetCamera()->Deactivate();
     }
 }
 
-auto aMainWindow::ZoomActivePane() -> void
+auto MCMainWindow::ZoomActivePane() -> void
 {
-    if (activePane < 0)
+    if (ActivePane < 0)
     {
         return;
     }
 
-    Camera* view = panes[activePane]->GetCamera();
+    MCCamera* view = Panes[ActivePane]->GetCamera();
 
     if (view == nullptr)
     {
@@ -889,18 +889,18 @@ auto aMainWindow::ZoomActivePane() -> void
 
     // Port: between the closest and the furthest zoom, not paused or asked; the camera stays at scale 100 (the
     // original flipped it between 100 and 1, and to 1 while paused or asked).
-    if (gamePaused == 0 && gameAsked == 0 && view->window != nullptr)
+    if (GamePaused == 0 && GameAsked == 0 && view->Window != nullptr)
     {
-        view->window->ToggleZoom();
+        view->Window->ToggleZoom();
     }
 
-    view->forceUpdate = 1;
-    Terrain::forceRedraw = 1;
+    view->ForceUpdate = 1;
+    MCTerrain::ForceRedraw = 1;
 }
 
-auto aMainWindow::SetActivePane(aObject* pane) -> void
+auto MCMainWindow::SetActivePane(MCGuiObject* pane) -> void
 {
-    aHolderObject::SetActivePane(pane);
+    MCGuiHolderObject::SetActivePane(pane);
     GetActivePane();
 }
 
@@ -908,9 +908,9 @@ auto aMainWindow::SetActivePane(aObject* pane) -> void
 // Camera
 //---------------------------------------------------------------------------
 
-auto Camera::getScaleFactor() -> float
+auto MCCamera::GetScaleFactor() -> float
 {
-    if (cameraScale != 1)
+    if (CameraScale != 1)
     {
         return 1.0f;
     }
@@ -918,17 +918,17 @@ auto Camera::getScaleFactor() -> float
     return 0.5f;
 }
 
-auto Camera::getPosition() -> vector_3d
+auto MCCamera::GetPosition() -> MCVector3D
 {
-    return position;
+    return Position;
 }
 
-auto Camera::buildScaleTable() -> int32_t
+auto MCCamera::BuildScaleTable() -> int32_t
 {
-    scaleTable.assign(0x700, 0);
-    uint8_t* entry = scaleTable.data();
+    ScaleTable.assign(0x700, 0);
+    uint8_t* entry = ScaleTable.data();
 
-    for (const int32_t divisor : scaleDivisors)
+    for (const int32_t divisor : ScaleDivisors)
     {
         for (int32_t i = 0; i < 256; i++)
         {
@@ -939,71 +939,71 @@ auto Camera::buildScaleTable() -> int32_t
     return 0;
 }
 
-auto Camera::init(FitIniFile* cameraFile, int objectCamera, int32_t newCameraId) -> int32_t
+auto MCCamera::Init(MCFitIniFile* cameraFile, int objectCamera, int32_t newCameraId) -> int32_t
 {
     int32_t result;
 
-    if (scaleTable.empty() && (result = buildScaleTable()) != 0)
+    if (ScaleTable.empty() && (result = BuildScaleTable()) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdFloat("PixelScalar", pixelScalar)) != 0)
+    if ((result = cameraFile->ReadIdFloat("PixelScalar", PixelScalar)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdFloat("ProjectionAngle", projectionAngle)) != 0)
+    if ((result = cameraFile->ReadIdFloat("ProjectionAngle", ProjectionAngle)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdFloat("PositionX", position.x)) != 0)
+    if ((result = cameraFile->ReadIdFloat("PositionX", Position.X)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdFloat("PositionY", position.y)) != 0)
+    if ((result = cameraFile->ReadIdFloat("PositionY", Position.Y)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdFloat("PositionZ", position.z)) != 0)
+    if ((result = cameraFile->ReadIdFloat("PositionZ", Position.Z)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdUChar("BackgroundColor", backgroundColor)) != 0)
+    if ((result = cameraFile->ReadIdUChar("BackgroundColor", BackgroundColor)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdUChar("Ready", ready)) != 0)
+    if ((result = cameraFile->ReadIdUChar("Ready", Ready)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdLong("HazeLevel", hazeLevel)) != 0)
+    if ((result = cameraFile->ReadIdLong("HazeLevel", HazeLevel)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdLong("HazeInc", hazeInc)) != 0)
+    if ((result = cameraFile->ReadIdLong("HazeInc", HazeInc)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdLong("CameraScale", cameraScale)) != 0)
+    if ((result = cameraFile->ReadIdLong("CameraScale", CameraScale)) != 0)
     {
         return result;
     }
 
     // Port: always the full-size (1x) art and layout; the zoom is the world surface's size (viewWindow), which starts
     // zoomed out where the camera started at scale 1.
-    const bool startsZoomedOut = cameraScale == 1;
-    cameraScale = 100;
+    const bool startsZoomedOut = CameraScale == 1;
+    CameraScale = 100;
     uint32_t windowLeft = 0;
-    result = cameraFile->readIdULong("WindowLeft", windowLeft);
+    result = cameraFile->ReadIdULong("WindowLeft", windowLeft);
 
     if (result == 0)
     {
@@ -1011,34 +1011,34 @@ auto Camera::init(FitIniFile* cameraFile, int objectCamera, int32_t newCameraId)
         uint32_t windowRight = 0;
         uint32_t windowBottom = 0;
 
-        if ((result = cameraFile->readIdULong("WindowTop", windowTop)) != 0)
+        if ((result = cameraFile->ReadIdULong("WindowTop", windowTop)) != 0)
         {
             return result;
         }
 
-        if ((result = cameraFile->readIdULong("WindowRight", windowRight)) != 0)
+        if ((result = cameraFile->ReadIdULong("WindowRight", windowRight)) != 0)
         {
             return result;
         }
 
-        if ((result = cameraFile->readIdULong("WindowBottom", windowBottom)) != 0)
+        if ((result = cameraFile->ReadIdULong("WindowBottom", windowBottom)) != 0)
         {
             return result;
         }
 
         int32_t isMainWindow = 0;
 
-        if (cameraFile->readIdLong("MainWindow", isMainWindow) == 0)
+        if (cameraFile->ReadIdLong("MainWindow", isMainWindow) == 0)
         {
-            mainWindow = isMainWindow;
+            MainWindow = isMainWindow;
         }
         else
         {
-            mainWindow = 0;
+            MainWindow = 0;
         }
 
-        auto* view = new viewWindow;
-        window = view;
+        auto* view = new MCViewWindow;
+        Window = view;
 
         if (view == nullptr)
         {
@@ -1047,318 +1047,318 @@ auto Camera::init(FitIniFile* cameraFile, int objectCamera, int32_t newCameraId)
 
         const auto paneWidth = static_cast<int32_t>(windowRight - windowLeft);
         const auto paneHeight = static_cast<int32_t>(windowBottom - windowTop);
-        aHolderObject* holder = nullptr;
+        MCGuiHolderObject* holder = nullptr;
 
-        if (mainWindow == 0)
+        if (MainWindow == 0)
         {
             // Its own titled window holding the view.
-            auto* titleWindow = new aEmptyTitleWindow;
+            auto* titleWindow = new MCGuiEmptyTitleWindow;
 
             if (titleWindow == nullptr)
             {
                 return -0x303fffe;
             }
 
-            if ((result = titleWindow->init(static_cast<int32_t>(windowLeft), static_cast<int32_t>(windowTop),
+            if ((result = titleWindow->Init(static_cast<int32_t>(windowLeft), static_cast<int32_t>(windowTop),
                                             paneWidth, paneHeight, nullptr)) != 0)
             {
                 return result;
             }
 
-            if (titleWindow->titleBar != nullptr)
+            if (titleWindow->TitleBar != nullptr)
             {
-                titleWindow->titleBar->showZoomButton(1);
+                titleWindow->TitleBar->ShowZoomButton(1);
             }
 
-            if (titleWindow->resizeButton != nullptr)
+            if (titleWindow->ResizeButton != nullptr)
             {
-                titleWindow->resizeButton->ShowGUIWindow(1);
+                titleWindow->ResizeButton->ShowGuiWindow(1);
             }
 
-            if (titleWindow->titleBar != nullptr)
+            if (titleWindow->TitleBar != nullptr)
             {
-                titleWindow->titleBar->showCloseButton(1);
+                titleWindow->TitleBar->ShowCloseButton(1);
             }
 
             holder = titleWindow;
         }
-        else if (mainHolder == nullptr)
+        else if (MainHolder == nullptr)
         {
-            mainHolder = new aMainWindow;
+            MainHolder = new MCMainWindow;
 
-            if (mainHolder == nullptr)
+            if (MainHolder == nullptr)
             {
                 return -0x303fffe;
             }
 
-            if ((result = mainHolder->init()) != 0)
+            if ((result = MainHolder->Init()) != 0)
             {
                 return result;
             }
         }
 
-        if ((result = view->init(static_cast<int32_t>(windowLeft), static_cast<int32_t>(windowTop), paneWidth,
+        if ((result = view->Init(static_cast<int32_t>(windowLeft), static_cast<int32_t>(windowTop), paneWidth,
                                  paneHeight, nullptr)) != 0)
         {
             return result;
         }
 
-        view->objectType = 4;
+        view->ObjectType = 4;
 
-        if (mainWindow == 0)
+        if (MainWindow == 0)
         {
             holder->AddPane(view);
-            view->moveTo(0, 0, 0);
+            view->MoveTo(0, 0, 0);
         }
         else
         {
-            if (ready != 0)
+            if (Ready != 0)
             {
-                mainHolder->AddPane(view);
+                MainHolder->AddPane(view);
             }
 
-            view->interfaceWindow = 1;
-            view->objectType = 4;
+            view->InterfaceWindow = 1;
+            view->ObjectType = 4;
         }
 
-        cameraId = newCameraId;
-        view->setWindowCamera(this);
+        CameraId = newCameraId;
+        view->SetWindowCamera(this);
         // Port: the view is the world surface.
         view->ZoomStartsOut = startsZoomedOut;
         view->UpdateWorldSurface();
-        setViewSize(this, static_cast<float>(view->WorldWidth()), static_cast<float>(view->WorldHeight()));
+        SetViewSize(this, static_cast<float>(view->WorldWidth()), static_cast<float>(view->WorldHeight()));
     }
     else
     {
         // No window: the camera covers the global pane.
-        window = nullptr;
-        setViewSize(this, static_cast<float>(globalPane->x1 - globalPane->x0),
-                    static_cast<float>(globalPane->y1 - globalPane->y0));
+        Window = nullptr;
+        SetViewSize(this, static_cast<float>(GlobalPane->X1 - GlobalPane->X0),
+                    static_cast<float>(GlobalPane->Y1 - GlobalPane->Y0));
     }
 
     if (objectCamera == 0)
     {
-        cameraClass = POSITION_CAMERA;
-        swoopDone = 0;
+        CameraClass = POSITION_CAMERA;
+        SwoopDone = 0;
         return 0;
     }
 
-    if ((result = cameraFile->readIdLong("ObjectClassId", objectClassId)) != 0)
+    if ((result = cameraFile->ReadIdLong("ObjectClassId", ObjectClassId)) != 0)
     {
         return result;
     }
 
-    if ((result = cameraFile->readIdLong("partNumber", partNumber)) != 0)
+    if ((result = cameraFile->ReadIdLong("partNumber", PartNumber)) != 0)
     {
         return result;
     }
 
-    if (cameraFile->readIdLong("SwoopyCamOff", leaveSwoopyOff) != 0)
+    if (cameraFile->ReadIdLong("SwoopyCamOff", LeaveSwoopyOff) != 0)
     {
-        leaveSwoopyOff = 0;
+        LeaveSwoopyOff = 0;
     }
 
-    if (cameraFile->readIdLong("ScrollyCam", scrollyCam) != 0)
+    if (cameraFile->ReadIdLong("ScrollyCam", ScrollyCam) != 0)
     {
-        scrollyCam = 0;
+        ScrollyCam = 0;
     }
 
-    if (cameraFile->readIdFloat("DistanceThreshold", distanceThreshold) != 0)
+    if (cameraFile->ReadIdFloat("DistanceThreshold", DistanceThreshold) != 0)
     {
-        distanceThreshold = 10.0f;
+        DistanceThreshold = 10.0f;
     }
 
     // Original behaviour (OB-034): a missing MinScrollSpeed sets DistanceThreshold to 90 instead.
-    if (cameraFile->readIdFloat("MinScrollSpeed", minScrollSpeed) != 0)
+    if (cameraFile->ReadIdFloat("MinScrollSpeed", MinScrollSpeed) != 0)
     {
-        distanceThreshold = 90.0f;
+        DistanceThreshold = 90.0f;
     }
 
-    if (cameraFile->readIdFloat("SpeedFactor", speedFactor) != 0)
+    if (cameraFile->ReadIdFloat("SpeedFactor", SpeedFactor) != 0)
     {
-        speedFactor = 50.0f;
+        SpeedFactor = 50.0f;
     }
 
-    if (cameraFile->readIdFloat("CamDistance", camDistance) != 0)
+    if (cameraFile->ReadIdFloat("CamDistance", CamDistance) != 0)
     {
-        camDistance = 50.0f;
+        CamDistance = 50.0f;
     }
 
-    if (cameraFile->readIdFloat("DistanceFactor", distanceFactor) != 0)
+    if (cameraFile->ReadIdFloat("DistanceFactor", DistanceFactor) != 0)
     {
-        distanceFactor = 25.0f;
+        DistanceFactor = 25.0f;
     }
 
-    if (cameraFile->readIdFloat("CamSpeed", camSpeed) != 0)
+    if (cameraFile->ReadIdFloat("CamSpeed", CamSpeed) != 0)
     {
-        camSpeed = 50.0f;
+        CamSpeed = 50.0f;
     }
 
-    if (cameraFile->readIdFloat("JumpThreshold", jumpThreshold) != 0)
+    if (cameraFile->ReadIdFloat("JumpThreshold", JumpThreshold) != 0)
     {
-        jumpThreshold = 250.0f;
+        JumpThreshold = 250.0f;
     }
 
-    cameraClass = OBJECT_CAMERA;
-    swoopDone = 0;
+    CameraClass = OBJECT_CAMERA;
+    SwoopDone = 0;
     return 0;
 }
 
-auto Camera::init(CamData* data, int objectCamera) -> int32_t
+auto MCCamera::Init(MCCamData* data, int objectCamera) -> int32_t
 {
     int32_t result;
 
-    if (scaleTable.empty() && (result = buildScaleTable()) != 0)
+    if (ScaleTable.empty() && (result = BuildScaleTable()) != 0)
     {
         return result;
     }
 
-    pixelScalar = data->pixelScalar;
-    position.y = data->position[1];
-    ready = data->ready;
-    projectionAngle = data->projectionAngle;
-    position.x = data->position[0];
-    position.z = data->position[2];
-    backgroundColor = data->backgroundColor;
-    hazeLevel = data->hazeLevel;
+    PixelScalar = data->PixelScalar;
+    Position.Y = data->Position[1];
+    Ready = data->Ready;
+    ProjectionAngle = data->ProjectionAngle;
+    Position.X = data->Position[0];
+    Position.Z = data->Position[2];
+    BackgroundColor = data->BackgroundColor;
+    HazeLevel = data->HazeLevel;
     // Port: always the full-size (1x) art and layout; the zoom is the world surface's size (viewWindow), which starts
     // zoomed out where the camera started at scale 1.
-    const bool startsZoomedOut = data->cameraScale == 1;
-    cameraScale = 100;
+    const bool startsZoomedOut = data->CameraScale == 1;
+    CameraScale = 100;
     const auto windowBottom =
-        static_cast<int32_t>(static_cast<double>(data->windowTop) + static_cast<double>(data->windowHeight));
+        static_cast<int32_t>(static_cast<double>(data->WindowTop) + static_cast<double>(data->WindowHeight));
     const auto windowRight =
-        static_cast<int32_t>(static_cast<double>(data->windowLeft) + static_cast<double>(data->windowWidth));
+        static_cast<int32_t>(static_cast<double>(data->WindowLeft) + static_cast<double>(data->WindowWidth));
 
-    auto* view = new viewWindow;
-    const auto paneWidth = static_cast<uint32_t>(windowRight - static_cast<int32_t>(data->windowLeft));
-    const auto paneHeight = static_cast<uint32_t>(windowBottom - static_cast<int32_t>(data->windowTop));
-    window = view;
+    auto* view = new MCViewWindow;
+    const auto paneWidth = static_cast<uint32_t>(windowRight - static_cast<int32_t>(data->WindowLeft));
+    const auto paneHeight = static_cast<uint32_t>(windowBottom - static_cast<int32_t>(data->WindowTop));
+    Window = view;
 
-    if ((result = view->init(static_cast<int32_t>(data->windowLeft), static_cast<int32_t>(data->windowTop),
+    if ((result = view->Init(static_cast<int32_t>(data->WindowLeft), static_cast<int32_t>(data->WindowTop),
                              static_cast<int32_t>(paneWidth), static_cast<int32_t>(paneHeight), nullptr)) != 0)
     {
         return result;
     }
 
-    view->setWindowCamera(this);
+    view->SetWindowCamera(this);
 
-    if (leaveSwoopyOff == 0)
+    if (LeaveSwoopyOff == 0)
     {
-        if (window->width() < 150 || window->height() < 150)
+        if (Window->Width() < 150 || Window->Height() < 150)
         {
-            swoopy = 0;
+            Swoopy = 0;
         }
         else
         {
-            swoopy = 1;
+            Swoopy = 1;
         }
     }
 
     // Port: the view is the world surface.
     view->ZoomStartsOut = startsZoomedOut;
     view->UpdateWorldSurface();
-    setViewSize(this, static_cast<float>(view->WorldWidth()), static_cast<float>(view->WorldHeight()));
-    terrainWindow = land->newWindow(this);
+    SetViewSize(this, static_cast<float>(view->WorldWidth()), static_cast<float>(view->WorldHeight()));
+    TerrainWindow = Land->NewWindow(this);
 
-    if (terrainWindow == nullptr)
+    if (TerrainWindow == nullptr)
     {
         return 0;
     }
 
     if (objectCamera == 0)
     {
-        cameraClass = POSITION_CAMERA;
+        CameraClass = POSITION_CAMERA;
     }
     else
     {
-        partNumber = data->partNumber;
-        objectClassId = data->objectClassId;
-        cameraClass = OBJECT_CAMERA;
+        PartNumber = data->PartNumber;
+        ObjectClassId = data->ObjectClassId;
+        CameraClass = OBJECT_CAMERA;
         // Follow the last mover of the home side that has a network player.
-        ObjectQueueNode* mechList = homeTeam->alignment == 1 ? innerSphereMechList : clanMechList;
-        BaseObject* current = nullptr;
+        MCObjectQueueNode* mechList = HomeTeam->Alignment == 1 ? InnerSphereMechList : ClanMechList;
+        MCBaseObject* current = nullptr;
 
         while (mechList->Traverse(current) != nullptr)
         {
-            const ObjectClass objectClass = current->objectClass;
+            const MCObjectClass objectClass = current->ObjectClass;
 
             if ((objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
                  objectClass == MOVER) &&
-                static_cast<Mover*>(current)->netPlayerId != -1)
+                static_cast<MCMover*>(current)->NetPlayerId != -1)
             {
-                partNumber = current->partId;
+                PartNumber = current->PartId;
             }
         }
     }
 
-    swoopDone = 0;
+    SwoopDone = 0;
     return 0;
 }
 
-auto Camera::init() -> void
+auto MCCamera::Init() -> void
 {
-    pixelScalar = 1.0f;
-    viewWidth = 400.0f;
-    viewHeight = 400.0f;
-    position.y = 0.0f;
-    position.x = 0.0f;
-    projectionAngle = 30.0f;
-    screenUL.y = 0.0f;
-    screenUL.x = 0.0f;
-    camSpeed = 50.0f;
-    camDistance = 50.0f;
-    position.z = 0.0f;
-    screenUL50.y = 0.0f;
-    screenUL50.x = 0.0f;
-    lastTargetFacing.z = 0.0f;
-    lastTargetFacing.y = 0.0f;
-    lastTargetFacing.x = 0.0f;
-    active = 0;
-    ready = 0;
-    cameraClass = NO_CAMERA;
-    hazeLevel = 4;
-    hazeInc = -2;
-    window = nullptr;
-    cameraScale = 100;
-    targetObject = nullptr;
-    defaultTarget = nullptr;
-    targetChanged = 1;
-    distanceFactor = 25.0f;
-    terrainWindow = nullptr;
-    swoopy = 0;
-    swoopDone = 0;
-    scrollyCam = 0;
-    scrolling = 0;
-    speedFactor = 10.0f;
-    distanceThreshold = 10.0f;
-    minScrollSpeed = 90.0f;
-    forceUpdate = 0;
-    scrollJumped = 0;
-    jumpThreshold = 250.0f;
+    PixelScalar = 1.0f;
+    ViewWidth = 400.0f;
+    ViewHeight = 400.0f;
+    Position.Y = 0.0f;
+    Position.X = 0.0f;
+    ProjectionAngle = 30.0f;
+    ScreenUL.Y = 0.0f;
+    ScreenUL.X = 0.0f;
+    CamSpeed = 50.0f;
+    CamDistance = 50.0f;
+    Position.Z = 0.0f;
+    ScreenUL50.Y = 0.0f;
+    ScreenUL50.X = 0.0f;
+    LastTargetFacing.Z = 0.0f;
+    LastTargetFacing.Y = 0.0f;
+    LastTargetFacing.X = 0.0f;
+    Active = 0;
+    Ready = 0;
+    CameraClass = NO_CAMERA;
+    HazeLevel = 4;
+    HazeInc = -2;
+    Window = nullptr;
+    CameraScale = 100;
+    TargetObject = nullptr;
+    DefaultTarget = nullptr;
+    TargetChanged = 1;
+    DistanceFactor = 25.0f;
+    TerrainWindow = nullptr;
+    Swoopy = 0;
+    SwoopDone = 0;
+    ScrollyCam = 0;
+    Scrolling = 0;
+    SpeedFactor = 10.0f;
+    DistanceThreshold = 10.0f;
+    MinScrollSpeed = 90.0f;
+    ForceUpdate = 0;
+    ScrollJumped = 0;
+    JumpThreshold = 250.0f;
 }
 
-auto Camera::prepareBackground() -> void
+auto MCCamera::PrepareBackground() -> void
 {
 }
 
-auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
+auto MCCamera::InverseProject(MCVector2D& screenPos, MCVector3D& point) -> uint32_t
 {
-    TerrainWindow* terrain = terrainWindow;
-    Vertex* vertex = terrain->vertexList;
-    Vertex* closestVertex = nullptr;
+    MCTerrainWindow* terrain = TerrainWindow;
+    MCVertex* vertex = terrain->VertexList;
+    MCVertex* closestVertex = nullptr;
     float distance = 1e7f;
     int32_t vertexIndex = 0;
-    const int32_t screenX = static_cast<int16_t>(static_cast<int32_t>(std::floor(screenPos.x)));
-    const int32_t screenY = static_cast<int16_t>(static_cast<int32_t>(std::floor(screenPos.y)));
+    const int32_t screenX = static_cast<int16_t>(static_cast<int32_t>(std::floor(screenPos.X)));
+    const int32_t screenY = static_cast<int16_t>(static_cast<int32_t>(std::floor(screenPos.Y)));
 
     // The vertex nearest the point on screen.
     int32_t closest = 0x40000000;
 
-    for (int32_t i = 0; i < terrain->numVertices; i++, vertex++)
+    for (int32_t i = 0; i < terrain->NumVertices; i++, vertex++)
     {
-        const int32_t dx = screenX - vertex->px;
-        const int32_t dy = screenY - vertex->py;
+        const int32_t dx = screenX - vertex->Px;
+        const int32_t dy = screenY - vertex->Py;
         const int32_t distanceSquared = dy * dy + dx * dx;
 
         if (distanceSquared < closest)
@@ -1372,13 +1372,13 @@ auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
     // The block around it that holds the point: the corners' angles from the point turn by at most 180 degrees
     // between neighbours. Measure from its first corner.
     float angle = 0.0f;
-    TerrainBlock* foundBlock = nullptr;
-    TerrainBlock* block = terrain->blockList;
+    MCTerrainBlock* foundBlock = nullptr;
+    MCTerrainBlock* block = terrain->BlockList;
 
-    for (int32_t i = 0; i < terrain->numBlocks; i++, block++)
+    for (int32_t i = 0; i < terrain->NumBlocks; i++, block++)
     {
-        if (block->vertices[0] != closestVertex && block->vertices[1] != closestVertex &&
-            block->vertices[2] != closestVertex && block->vertices[3] != closestVertex)
+        if (block->Vertices[0] != closestVertex && block->Vertices[1] != closestVertex &&
+            block->Vertices[2] != closestVertex && block->Vertices[3] != closestVertex)
         {
             continue;
         }
@@ -1387,23 +1387,23 @@ auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
 
         for (int32_t corner = 0; corner < 4; corner++)
         {
-            vector_3d toCorner;
-            toCorner.x = screenPos.x - static_cast<float>(block->vertices[corner]->px);
-            toCorner.y = screenPos.y - static_cast<float>(block->vertices[corner]->py);
-            toCorner.z = 0.0f;
-            const float length = std::sqrt(toCorner.x * toCorner.x + toCorner.y * toCorner.y + toCorner.z * toCorner.z);
+            MCVector3D toCorner;
+            toCorner.X = screenPos.X - static_cast<float>(block->Vertices[corner]->Px);
+            toCorner.Y = screenPos.Y - static_cast<float>(block->Vertices[corner]->Py);
+            toCorner.Z = 0.0f;
+            const float length = std::sqrt(toCorner.X * toCorner.X + toCorner.Y * toCorner.Y + toCorner.Z * toCorner.Z);
 
             if (length != 0.0f)
             {
-                toCorner.x /= length;
-                toCorner.y /= length;
-                toCorner.z /= length;
+                toCorner.X /= length;
+                toCorner.Y /= length;
+                toCorner.Z /= length;
             }
 
-            const double degrees = acosMatherr(static_cast<double>(toCorner.x)) * RADIANS_TO_DEGREES;
+            const double degrees = AcosMatherr(static_cast<double>(toCorner.X)) * RADIANS_TO_DEGREES;
             cornerAngle[corner] = static_cast<float>(degrees);
 
-            if (toCorner.y < 0.0f)
+            if (toCorner.Y < 0.0f)
             {
                 cornerAngle[corner] = static_cast<float>(360.0 - degrees);
             }
@@ -1443,12 +1443,12 @@ auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
         }
 
         foundBlock = block;
-        Vertex* corner = block->vertices[0];
-        vertexIndex = static_cast<int32_t>(corner - terrain->vertexList);
-        float dx = screenPos.x - static_cast<float>(corner->px);
-        float dy = screenPos.y - static_cast<float>(corner->py);
+        MCVertex* corner = block->Vertices[0];
+        vertexIndex = static_cast<int32_t>(corner - terrain->VertexList);
+        float dx = screenPos.X - static_cast<float>(corner->Px);
+        float dy = screenPos.Y - static_cast<float>(corner->Py);
 
-        if (cameraScale == 1)
+        if (CameraScale == 1)
         {
             dx += dx;
             dy += dy;
@@ -1470,138 +1470,138 @@ auto Camera::inverseProject(vector_2d& screenPos, vector_3d& point) -> uint32_t
     // Back from the corner's screen offset to the world, on the corner's row and column of the window's grid.
     // Original behaviour (OB-103): with no block found, the distance is still 1e7, far off the map.
     const double turn = (60.0 - static_cast<double>(angle)) * DEGREES_TO_RADIANS;
-    const int32_t row = vertexIndex / Terrain::visibleVerticesPerSide;
-    const int32_t col = vertexIndex % Terrain::visibleVerticesPerSide;
+    const int32_t row = vertexIndex / MCTerrain::VisibleVerticesPerSide;
+    const int32_t col = vertexIndex % MCTerrain::VisibleVerticesPerSide;
     const auto side = static_cast<float>(std::sin(turn) * distance / std::sin(SIXTY_DEGREES));
-    point.x = static_cast<float>(std::cos(turn) * distance + std::cos(SIXTY_DEGREES) * side +
-                                 static_cast<double>(col) * Terrain::metersPerVertex + terrain->topLeftX);
-    point.y = static_cast<float>(static_cast<double>(terrain->topLeftY) -
-                                 static_cast<double>(row) * Terrain::metersPerVertex - side);
+    point.X = static_cast<float>(std::cos(turn) * distance + std::cos(SIXTY_DEGREES) * side +
+                                 static_cast<double>(col) * MCTerrain::MetersPerVertex + terrain->TopLeftX);
+    point.Y = static_cast<float>(static_cast<double>(terrain->TopLeftY) -
+                                 static_cast<double>(row) * MCTerrain::MetersPerVertex - side);
 
     if (foundBlock == nullptr)
     {
-        point.z = 0.0f;
+        point.Z = 0.0f;
         return 0;
     }
 
-    point.z = static_cast<float>(foundBlock->vertices[0]->pVertex->elevation) * Terrain::metersPerElevLevel;
+    point.Z = static_cast<float>(foundBlock->Vertices[0]->PVertex->Elevation) * MCTerrain::MetersPerElevLevel;
     return 0;
 }
 
-auto Camera::update() -> int32_t
+auto MCCamera::Update() -> int32_t
 {
     // Port: the zoom eases here, before the objects update: they place themselves on screen from the view's size
     // (screenPos, onScreen), so it must be this frame's size by then, as the terrain drawn later uses.
-    if (window != nullptr)
+    if (Window != nullptr)
     {
-        window->EaseZoom();
-        const _pane* surface = window->WorldFrame();
-        const auto surfaceWidth = static_cast<float>(surface->x1 - surface->x0);
-        const auto surfaceHeight = static_cast<float>(surface->y1 - surface->y0);
+        Window->EaseZoom();
+        const MCPane* surface = Window->WorldFrame();
+        const auto surfaceWidth = static_cast<float>(surface->X1 - surface->X0);
+        const auto surfaceHeight = static_cast<float>(surface->Y1 - surface->Y0);
 
-        if (surfaceWidth != viewWidth || surfaceHeight != viewHeight)
+        if (surfaceWidth != ViewWidth || surfaceHeight != ViewHeight)
         {
-            setViewSize(this, surfaceWidth, surfaceHeight);
+            SetViewSize(this, surfaceWidth, surfaceHeight);
         }
     }
 
-    vector_3d newPosition = position;
+    MCVector3D newPosition = Position;
 
-    if (cameraClass == POSITION_CAMERA)
+    if (CameraClass == POSITION_CAMERA)
     {
         goto finish;
     }
 
-    if (cameraClass != OBJECT_CAMERA)
+    if (CameraClass != OBJECT_CAMERA)
     {
         return -1;
     }
 
-    if (targetObject == nullptr)
+    if (TargetObject == nullptr)
     {
         goto finish;
     }
 
     {
-        auto* target = static_cast<GameObject*>(targetObject);
-        const vector_3d targetPosition = target->getPosition();
-        frame_of_ref targetFrame = target->getFrame();
-        vector_3d velocity = target->getVelocity();
+        auto* target = static_cast<MCGameObject*>(TargetObject);
+        const MCVector3D targetPosition = target->GetPosition();
+        MCFrameOfRef targetFrame = target->GetFrame();
+        MCVector3D velocity = target->GetVelocity();
 
-        if (target->isRevealed() == 0)
+        if (target->IsRevealed() == 0)
         {
-            changeTarget(static_cast<BaseObject*>(nullptr), 0);
+            ChangeTarget(static_cast<MCBaseObject*>(nullptr), 0);
             return 0;
         }
 
         // The target's facing: its frame turned by the torso (a mech) plus 45 degrees.
         float torso = 0.0f;
 
-        if (target->objectClass == BATTLEMECH)
+        if (target->ObjectClass == BATTLEMECH)
         {
-            torso = static_cast<BattleMech*>(target)->torsoRotation;
+            torso = static_cast<MCBattleMech*>(target)->TorsoRotation;
         }
 
         const double radians = (static_cast<double>(torso) + 45.0) * DEGREES_TO_RADIANS;
         const float s = static_cast<float>(std::sin(radians));
         const float c = static_cast<float>(std::cos(radians));
-        const vector_3d oldI = targetFrame.i;
-        targetFrame.i = targetFrame.i * c + targetFrame.j * s;
-        targetFrame.j = targetFrame.j * c - oldI * s;
+        const MCVector3D oldI = targetFrame.I;
+        targetFrame.I = targetFrame.I * c + targetFrame.J * s;
+        targetFrame.J = targetFrame.J * c - oldI * s;
 
-        vector_3d step;
+        MCVector3D step;
 
-        if (targetChanged != 0)
+        if (TargetChanged != 0)
         {
-            if (scrollyCam == 0)
+            if (ScrollyCam == 0)
             {
                 newPosition = targetPosition;
                 goto moved;
             }
 
             // Start scrolling toward the new target.
-            scrollStart = newPosition;
-            scrollJumped = 0;
+            ScrollStart = newPosition;
+            ScrollJumped = 0;
             step = targetPosition - newPosition;
-            const auto length = static_cast<float>(step.magnitude());
+            const auto length = static_cast<float>(step.Magnitude());
 
             if (length != 0.0f)
             {
-                step.x /= length;
-                step.y /= length;
-                step.z /= length;
+                step.X /= length;
+                step.Y /= length;
+                step.Z /= length;
             }
 
-            scrolling = 1;
-            newPosition.x += step.x * camSpeed * frameLength;
-            newPosition.y += step.y * camSpeed * frameLength;
-            newPosition.z += step.z * camSpeed * frameLength;
-            targetChanged = 0;
+            Scrolling = 1;
+            newPosition.X += step.X * CamSpeed * FrameLength;
+            newPosition.Y += step.Y * CamSpeed * FrameLength;
+            newPosition.Z += step.Z * CamSpeed * FrameLength;
+            TargetChanged = 0;
             goto finish;
         }
 
-        if (forceUpdate != 0 || (swoopy == 0 && (scrollyCam == 0 || scrolling == 0)))
+        if (ForceUpdate != 0 || (Swoopy == 0 && (ScrollyCam == 0 || Scrolling == 0)))
         {
             newPosition = targetPosition;
             goto moved;
         }
 
-        if (scrollyCam != 0 && scrolling != 0)
+        if (ScrollyCam != 0 && Scrolling != 0)
         {
             float speed;
 
-            if (scrollJumped == 0)
+            if (ScrollJumped == 0)
             {
-                const vector_3d toStart = scrollStart - newPosition;
+                const MCVector3D toStart = ScrollStart - newPosition;
                 const float distanceToStart =
-                    std::sqrt(toStart.x * toStart.x + toStart.z * toStart.z + toStart.y * toStart.y);
-                const vector_3d toTarget = targetPosition - newPosition;
+                    std::sqrt(toStart.X * toStart.X + toStart.Z * toStart.Z + toStart.Y * toStart.Y);
+                const MCVector3D toTarget = targetPosition - newPosition;
                 step = toTarget;
 
-                if (distanceToStart > jumpThreshold)
+                if (distanceToStart > JumpThreshold)
                 {
                     // Too far: jump the rest.
-                    if (std::sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z + toTarget.y * toTarget.y) <=
+                    if (std::sqrt(toTarget.X * toTarget.X + toTarget.Z * toTarget.Z + toTarget.Y * toTarget.Y) <=
                         distanceToStart)
                     {
                         newPosition = targetPosition;
@@ -1611,385 +1611,385 @@ auto Camera::update() -> int32_t
                         newPosition = toStart + targetPosition;
                     }
 
-                    scrollJumped = 1;
+                    ScrollJumped = 1;
                     goto finish;
                 }
 
-                speed = distanceToStart / jumpThreshold * speedFactor + camSpeed;
+                speed = distanceToStart / JumpThreshold * SpeedFactor + CamSpeed;
             }
             else
             {
-                if (0.0f < distanceThreshold)
+                if (0.0f < DistanceThreshold)
                 {
-                    scrolling = 0;
+                    Scrolling = 0;
                     newPosition = targetPosition;
                     goto finish;
                 }
 
                 // Port fix: MCX.EXE steps along a direction left unset on this path (reachable only with a
                 // DistanceThreshold of 0 or less); the port steps along none.
-                step = vector_3d();
-                speed = 0.0f / jumpThreshold * speedFactor + camSpeed;
+                step = MCVector3D();
+                speed = 0.0f / JumpThreshold * SpeedFactor + CamSpeed;
             }
 
-            const auto length = static_cast<float>(step.magnitude());
+            const auto length = static_cast<float>(step.Magnitude());
 
             if (length != 0.0f)
             {
-                step.x /= length;
-                step.y /= length;
-                step.z /= length;
+                step.X /= length;
+                step.Y /= length;
+                step.Z /= length;
             }
 
-            step.x = step.x * speed * frameLength;
-            step.y = step.y * speed * frameLength;
-            step.z = step.z * speed * frameLength;
-            const vector_3d toTarget = targetPosition - newPosition;
+            step.X = step.X * speed * FrameLength;
+            step.Y = step.Y * speed * FrameLength;
+            step.Z = step.Z * speed * FrameLength;
+            const MCVector3D toTarget = targetPosition - newPosition;
 
-            if (std::sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z + toTarget.y * toTarget.y) <
-                std::sqrt(step.x * step.x + step.y * step.y + step.z * step.z))
+            if (std::sqrt(toTarget.X * toTarget.X + toTarget.Z * toTarget.Z + toTarget.Y * toTarget.Y) <
+                std::sqrt(step.X * step.X + step.Y * step.Y + step.Z * step.Z))
             {
                 newPosition = targetPosition;
                 goto finish;
             }
 
-            newPosition.x += step.x;
-            newPosition.y += step.y;
-            newPosition.z += step.z;
+            newPosition.X += step.X;
+            newPosition.Y += step.Y;
+            newPosition.Z += step.Z;
             goto finish;
         }
 
         // Swoop: close in on a point camDistance behind the target, slowing as it nears.
-        if (std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z) == 0.0f &&
-            swoopDone != 0)
+        if (std::sqrt(velocity.X * velocity.X + velocity.Y * velocity.Y + velocity.Z * velocity.Z) == 0.0f &&
+            SwoopDone != 0)
         {
             goto finish;
         }
 
         {
-            if (lastTargetFacing.x != targetFrame.j.x || lastTargetFacing.y != targetFrame.j.y ||
-                lastTargetFacing.z != targetFrame.j.z)
+            if (LastTargetFacing.X != targetFrame.J.X || LastTargetFacing.Y != targetFrame.J.Y ||
+                LastTargetFacing.Z != targetFrame.J.Z)
             {
-                lastTargetFacing = targetFrame.j;
+                LastTargetFacing = targetFrame.J;
             }
 
-            const float behind = -camDistance;
-            vector_3d offset;
-            offset.x = behind * lastTargetFacing.x;
-            offset.y = behind * lastTargetFacing.y;
-            offset.z = behind * lastTargetFacing.z;
-            const vector_3d goal = targetPosition + offset;
+            const float behind = -CamDistance;
+            MCVector3D offset;
+            offset.X = behind * LastTargetFacing.X;
+            offset.Y = behind * LastTargetFacing.Y;
+            offset.Z = behind * LastTargetFacing.Z;
+            const MCVector3D goal = targetPosition + offset;
             velocity = goal - newPosition;
-            const auto rate = static_cast<float>(velocity.magnitude() / distanceFactor);
-            velocity.normalize();
-            velocity *= camSpeed;
+            const auto rate = static_cast<float>(velocity.Magnitude() / DistanceFactor);
+            velocity.Normalize();
+            velocity *= CamSpeed;
             velocity *= rate;
-            velocity *= frameLength;
+            velocity *= FrameLength;
             newPosition += velocity;
 
-            if (velocity.magnitude() < 0.5)
+            if (velocity.Magnitude() < 0.5)
             {
-                swoopDone = 1;
+                SwoopDone = 1;
             }
         }
 
         goto finish;
 
     moved:
-        if (terrainWindow != nullptr && (targetChanged != 0 || forceUpdate != 0))
+        if (TerrainWindow != nullptr && (TargetChanged != 0 || ForceUpdate != 0))
         {
-            terrainWindow->update(1);
+            TerrainWindow->Update(1);
         }
 
-        targetChanged = 0;
+        TargetChanged = 0;
     }
 
 finish:
-    lastScreenUL = screenUL;
-    lastScreenUL50 = screenUL50;
-    setPosition(newPosition);
+    LastScreenUL = ScreenUL;
+    LastScreenUL50 = ScreenUL50;
+    SetPosition(newPosition);
 
-    if (terrainWindow != nullptr && (targetChanged != 0 || forceUpdate != 0 || gamePaused != 0))
+    if (TerrainWindow != nullptr && (TargetChanged != 0 || ForceUpdate != 0 || GamePaused != 0))
     {
-        terrainWindow->update(1);
+        TerrainWindow->Update(1);
     }
 
-    if (land != nullptr)
+    if (Land != nullptr)
     {
-        land->projectTerrain(position, screenUL, screenUL50);
+        Land->ProjectTerrain(Position, ScreenUL, ScreenUL50);
     }
 
-    targetChanged = 0;
-    forceUpdate = 0;
+    TargetChanged = 0;
+    ForceUpdate = 0;
     return 0;
 }
 
-auto Camera::render() -> void
+auto MCCamera::Render() -> void
 {
     MaxObjectsDrawn = 0;
-    _pane* savedPane = globalPane;
-    _window* savedWindow = globalWindow;
+    MCPane* savedPane = GlobalPane;
+    MCWindow* savedWindow = GlobalWindow;
 
     // Port: the world goes into the view's world surface; the unit overlays onto the screen over the view (they are
     // drawn there at the screen's scale).
     const MCOverlayTarget savedOverlay = MCOverlay;
-    MCOverlay = MCOverlayTarget{globalPane, 1.0f, 1.0f};
+    MCOverlay = MCOverlayTarget{GlobalPane, 1.0f, 1.0f};
 
-    if (window != nullptr)
+    if (Window != nullptr)
     {
-        globalPane = window->WorldFrame();
-        globalWindow = globalPane->window;
-        MCOverlay = MCOverlayTarget{window->frame(), window->WorldScaleX(), window->WorldScaleY()};
+        GlobalPane = Window->WorldFrame();
+        GlobalWindow = GlobalPane->Window;
+        MCOverlay = MCOverlayTarget{Window->Frame(), Window->WorldScaleX(), Window->WorldScaleY()};
     }
 
-    prepareBackground();
+    PrepareBackground();
 
-    const auto paneWidth = static_cast<float>(globalPane->x1 - globalPane->x0);
+    const auto paneWidth = static_cast<float>(GlobalPane->X1 - GlobalPane->X0);
 
-    if (paneWidth != viewWidth || static_cast<float>(globalPane->y1 - globalPane->y0) != viewHeight)
+    if (paneWidth != ViewWidth || static_cast<float>(GlobalPane->Y1 - GlobalPane->Y0) != ViewHeight)
     {
-        setViewSize(this, static_cast<float>(globalPane->x1 - globalPane->x0),
-                    static_cast<float>(globalPane->y1 - globalPane->y0));
+        SetViewSize(this, static_cast<float>(GlobalPane->X1 - GlobalPane->X0),
+                    static_cast<float>(GlobalPane->Y1 - GlobalPane->Y0));
     }
 
-    const int32_t scale = cameraScale;
+    const int32_t scale = CameraScale;
     const int32_t zoomedIn = scale != 1 ? 1 : 0;
 
-    if (zoomedIn != lastZoom)
+    if (zoomedIn != LastZoom)
     {
-        spriteManager->dumpALL();
+        SpriteManager->DumpAll();
     }
 
-    lastZoom = zoomedIn;
+    LastZoom = zoomedIn;
 
-    ElementPool::reset();
-    ElementList->reset();
-    terrainWindow->render(hazeLevel, 1);
+    MCElementPool::Reset();
+    ElementList->Reset();
+    TerrainWindow->Render(HazeLevel, 1);
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
-        land->drawLines();
+        Land->DrawLines();
     }
 
-    craterManager->render();
-    objectList->render();
+    CraterManager->Render();
+    ObjectList->Render();
 
-    if (gRestartRender != 0)
+    if (GRestartRender != 0)
     {
-        gRestartRender = 0;
-        ElementPool::reset();
-        ElementList->reset();
-        craterManager->render();
-        objectList->render();
+        GRestartRender = 0;
+        MCElementPool::Reset();
+        ElementList->Reset();
+        CraterManager->Render();
+        ObjectList->Render();
     }
 
-    ElementList->sort();
-    ElementList->draw();
+    ElementList->Sort();
+    ElementList->Draw();
 
-    if (drawCameraCircle != 0)
+    if (DrawCameraCircle != 0)
     {
         // A dot on the terrain under the last mouse event.
-        vector_2d mouse;
-        aObject* eventTarget = window->lastEvent.target;
+        MCVector2D mouse;
+        MCGuiObject* eventTarget = Window->LastEvent.Target;
 
         if (eventTarget == nullptr)
         {
-            mouse.y = 0.0f;
-            mouse.x = 0.0f;
+            mouse.Y = 0.0f;
+            mouse.X = 0.0f;
         }
         else
         {
             // Port: through the zoom, into the world surface.
-            mouse = window->ScreenToWorld(window->lastEvent.x, window->lastEvent.y);
+            mouse = Window->ScreenToWorld(Window->LastEvent.X, Window->LastEvent.Y);
         }
 
-        vector_3d ground;
-        inverseProject(mouse, ground);
-        const float zoom = cameraScale == 1 ? 0.5f : 1.0f;
-        const vector_3d fromEye = ground - position;
-        const float dx = fromEye.x * zoom;
-        const float dy = fromEye.y * zoom;
-        const float dz = fromEye.z * zoom;
-        const float circleX = dy * cosAngle + dx * cosAngle + halfWidth;
-        const float circleY = dx * sinAngle + halfHeight - dy * sinAngle - dz;
+        MCVector3D ground;
+        InverseProject(mouse, ground);
+        const float zoom = CameraScale == 1 ? 0.5f : 1.0f;
+        const MCVector3D fromEye = ground - Position;
+        const float dx = fromEye.X * zoom;
+        const float dy = fromEye.Y * zoom;
+        const float dz = fromEye.Z * zoom;
+        const float circleX = dy * CosAngle + dx * CosAngle + HalfWidth;
+        const float circleY = dx * SinAngle + HalfHeight - dy * SinAngle - dz;
         const auto centerX = static_cast<int16_t>(static_cast<int32_t>(std::floor(circleX)));
         const auto centerY = static_cast<int16_t>(static_cast<int32_t>(std::floor(circleY)));
-        AG_ellipse_fill(globalPane, centerX, centerY, 3, 3, 0xfe);
+        AGEllipseFill(GlobalPane, centerX, centerY, 3, 3, 0xfe);
     }
 
     // Port: the pause and asked shapes are drawn on the screen over the view, at its scale (centred as the original
     // centred them in the view).
-    _pane* overlayPane = MCOverlay.Pane;
-    const auto overlayHalfWidth = static_cast<float>(overlayPane->x1 - overlayPane->x0) * 0.5f;
-    const auto overlayHalfHeight = static_cast<float>(overlayPane->y1 - overlayPane->y0) * 0.5f;
+    MCPane* overlayPane = MCOverlay.Pane;
+    const auto overlayHalfWidth = static_cast<float>(overlayPane->X1 - overlayPane->X0) * 0.5f;
+    const auto overlayHalfHeight = static_cast<float>(overlayPane->Y1 - overlayPane->Y0) * 0.5f;
 
-    if (gamePaused != 0)
+    if (GamePaused != 0)
     {
-        darkenScreen();
+        DarkenScreen();
 
-        if (pauseShape == nullptr)
+        if (PauseShape == nullptr)
         {
-            pauseShape = loadShape("pause", " Could not find Pause Shape ");
+            PauseShape = LoadShape("pause", " Could not find Pause Shape ");
         }
 
-        AG_shape_draw(overlayPane, pauseShape, 0, static_cast<int32_t>(overlayHalfWidth), 60);
+        AGShapeDraw(overlayPane, PauseShape, 0, static_cast<int32_t>(overlayHalfWidth), 60);
     }
 
-    if (gameAsked != 0)
+    if (GameAsked != 0)
     {
-        darkenScreen();
+        DarkenScreen();
 
-        if (askedShape == nullptr)
+        if (AskedShape == nullptr)
         {
-            askedShape = loadShape("asked", " Could not find Asked Shape ");
+            AskedShape = LoadShape("asked", " Could not find Asked Shape ");
         }
 
         const auto y = static_cast<int32_t>(overlayHalfHeight);
-        AG_shape_draw(overlayPane, askedShape, 0, static_cast<int32_t>(overlayHalfWidth), y);
+        AGShapeDraw(overlayPane, AskedShape, 0, static_cast<int32_t>(overlayHalfWidth), y);
     }
 
-    if (window != nullptr)
+    if (Window != nullptr)
     {
-        globalPane = savedPane;
-        globalWindow = savedWindow;
+        GlobalPane = savedPane;
+        GlobalWindow = savedWindow;
     }
 
     MCOverlay = savedOverlay;
 
-    currentScaleFactor = scale != 1 ? 1.0f : 0.5f;
+    CurrentScaleFactor = scale != 1 ? 1.0f : 0.5f;
 }
 
-auto Camera::activate() -> int32_t
+auto MCCamera::Activate() -> int32_t
 {
-    if (ready != 0)
+    if (Ready != 0)
     {
-        if (active != 0)
+        if (Active != 0)
         {
             return 0;
         }
 
-        if (ready != 0)
+        if (Ready != 0)
         {
-            active = 1;
+            Active = 1;
         }
     }
 
-    if (window != nullptr && window->parent != nullptr)
+    if (Window != nullptr && Window->Parent != nullptr)
     {
-        screenWindow->addChild(window->parent);
+        ScreenWindow->AddChild(Window->Parent);
     }
 
     // Port fix: MCX.EXE draws the window unguarded; a camera without one ("WindowLeft" missing) would crash.
-    if (window != nullptr)
+    if (Window != nullptr)
     {
-        window->draw();
+        Window->Draw();
     }
 
-    if (land != nullptr && terrainWindow == nullptr)
+    if (Land != nullptr && TerrainWindow == nullptr)
     {
-        terrainWindow = land->newWindow(this);
+        TerrainWindow = Land->NewWindow(this);
 
-        if (terrainWindow == nullptr)
+        if (TerrainWindow == nullptr)
         {
             return -1;
         }
 
-        terrainWindow->update(0);
+        TerrainWindow->Update(0);
     }
 
-    if (active != 0 && cameraClass == OBJECT_CAMERA)
+    if (Active != 0 && CameraClass == OBJECT_CAMERA)
     {
-        changeTarget(partNumber, objectClassId, 1);
+        ChangeTarget(PartNumber, ObjectClassId, 1);
     }
 
     return 0;
 }
 
-auto Camera::deactivate() -> void
+auto MCCamera::Deactivate() -> void
 {
-    active = 0;
-    targetObject = nullptr;
+    Active = 0;
+    TargetObject = nullptr;
 }
 
-auto Camera::changeTarget(BaseObject* target, int jumpTo) -> int32_t
+auto MCCamera::ChangeTarget(MCBaseObject* target, int jumpTo) -> int32_t
 {
-    targetObject = target;
+    TargetObject = target;
 
-    if (target == nullptr && (target = defaultTarget) == nullptr)
+    if (target == nullptr && (target = DefaultTarget) == nullptr)
     {
-        cameraClass = POSITION_CAMERA;
+        CameraClass = POSITION_CAMERA;
     }
     else
     {
-        cameraClass = OBJECT_CAMERA;
+        CameraClass = OBJECT_CAMERA;
     }
 
-    targetChanged = 1;
-    Terrain::forceRedraw = 1;
+    TargetChanged = 1;
+    MCTerrain::ForceRedraw = 1;
 
     if (jumpTo == 0)
     {
-        update();
+        Update();
     }
     else if (target != nullptr)
     {
-        position = static_cast<GameObject*>(target)->getPosition();
+        Position = static_cast<MCGameObject*>(target)->GetPosition();
     }
 
-    if (terrainWindow != nullptr)
+    if (TerrainWindow != nullptr)
     {
-        terrainWindow->update(1);
+        TerrainWindow->Update(1);
     }
 
     return 0;
 }
 
-auto Camera::changeTarget(int32_t newPartNumber, int32_t objectId, int jumpTo) -> int32_t
+auto MCCamera::ChangeTarget(int32_t newPartNumber, int32_t objectId, int jumpTo) -> int32_t
 {
     if (newPartNumber == 0)
     {
         if (objectId != -1)
         {
-            targetObject = objectList->findObjectId(objectId);
+            TargetObject = ObjectList->FindObjectId(objectId);
         }
     }
-    else if (scenario != nullptr)
+    else if (Scenario != nullptr)
     {
-        targetObject = objectList->findObjectFromPart(newPartNumber);
+        TargetObject = ObjectList->FindObjectFromPart(newPartNumber);
     }
 
-    BaseObject* target = targetObject;
-    cameraClass = target != nullptr ? OBJECT_CAMERA : POSITION_CAMERA;
-    targetChanged = 1;
-    Terrain::forceRedraw = 1;
+    MCBaseObject* target = TargetObject;
+    CameraClass = target != nullptr ? OBJECT_CAMERA : POSITION_CAMERA;
+    TargetChanged = 1;
+    MCTerrain::ForceRedraw = 1;
 
     if (jumpTo == 0)
     {
-        update();
+        Update();
     }
     else if (target != nullptr)
     {
-        position = static_cast<GameObject*>(target)->getPosition();
+        Position = static_cast<MCGameObject*>(target)->GetPosition();
     }
 
-    if (terrainWindow != nullptr)
+    if (TerrainWindow != nullptr)
     {
-        terrainWindow->update(1);
+        TerrainWindow->Update(1);
     }
 
     return 0;
 }
 
-auto Camera::vertexProject(int32_t blockNum, int32_t vertexNum, vector_2d& screenPos) -> int
+auto MCCamera::VertexProject(int32_t blockNum, int32_t vertexNum, MCVector2D& screenPos) -> int
 {
     if (blockNum < 0)
     {
         blockNum = 0;
     }
 
-    if (blockNum >= Terrain::totalBlocks)
+    if (blockNum >= MCTerrain::TotalBlocks)
     {
-        blockNum = Terrain::totalBlocks - 1;
+        blockNum = MCTerrain::TotalBlocks - 1;
     }
 
     if (vertexNum < 0)
@@ -1997,51 +1997,51 @@ auto Camera::vertexProject(int32_t blockNum, int32_t vertexNum, vector_2d& scree
         vertexNum = 0;
     }
 
-    if (vertexNum >= verticesPerBlock)
+    if (vertexNum >= VerticesPerBlock)
     {
-        vertexNum = verticesPerBlock - 1;
+        vertexNum = VerticesPerBlock - 1;
     }
 
-    const int32_t index = Terrain::blockOffsets[blockNum] + vertexNum;
+    const int32_t index = MCTerrain::BlockOffsets[blockNum] + vertexNum;
 
-    if (Terrain::screenPosX[index] == 0x11111111)
+    if (MCTerrain::ScreenPosX[index] == 0x11111111)
     {
-        screenPos.y = 10000.0f;
-        screenPos.x = 10000.0f;
+        screenPos.Y = 10000.0f;
+        screenPos.X = 10000.0f;
         return 0;
     }
 
-    screenPos.x = static_cast<float>(Terrain::screenPosX[index]);
-    screenPos.y = static_cast<float>(Terrain::screenPosY[index]);
+    screenPos.X = static_cast<float>(MCTerrain::ScreenPosX[index]);
+    screenPos.Y = static_cast<float>(MCTerrain::ScreenPosY[index]);
     return 1;
 }
 
-auto Camera::scrollCamera(int32_t dx, int32_t dy) -> void
+auto MCCamera::ScrollCamera(int32_t dx, int32_t dy) -> void
 {
-    const vector_3d oldPosition = position;
+    const MCVector3D oldPosition = Position;
 
-    if (targetObject != nullptr)
+    if (TargetObject != nullptr)
     {
-        changeTarget(static_cast<BaseObject*>(nullptr), 0);
+        ChangeTarget(static_cast<MCBaseObject*>(nullptr), 0);
     }
 
-    vector_3d newPosition;
-    newPosition.x = static_cast<float>(dy) + static_cast<float>(dx) + oldPosition.x;
-    newPosition.y = (static_cast<float>(dx) + oldPosition.y) - static_cast<float>(dy);
-    newPosition.z = oldPosition.z;
-    setPosition(newPosition);
+    MCVector3D newPosition;
+    newPosition.X = static_cast<float>(dy) + static_cast<float>(dx) + oldPosition.X;
+    newPosition.Y = (static_cast<float>(dx) + oldPosition.Y) - static_cast<float>(dy);
+    newPosition.Z = oldPosition.Z;
+    SetPosition(newPosition);
 }
 
-auto Camera::setPosition(vector_3d newPosition) -> void
+auto MCCamera::SetPosition(MCVector3D newPosition) -> void
 {
     // The map is a diamond on screen: keep the camera inside it, a margin (smaller toward the corners) from the
     // edges.
     const float halfMap =
-        static_cast<float>(Terrain::verticesBlockSide * Terrain::blocksMapSide) * Terrain::metersPerVertex * 0.5f;
-    position = newPosition;
-    const float x = newPosition.x;
-    const float y = newPosition.y;
-    const float z = newPosition.z;
+        static_cast<float>(MCTerrain::VerticesBlockSide * MCTerrain::BlocksMapSide) * MCTerrain::MetersPerVertex * 0.5f;
+    Position = newPosition;
+    const float x = newPosition.X;
+    const float y = newPosition.Y;
+    const float z = newPosition.Z;
     const float toRight = std::sqrt(z * z + y * y + (x - halfMap) * (x - halfMap));
     const float toTop = std::sqrt(z * z + (y - halfMap) * (y - halfMap) + x * x);
     const float toLeft = std::sqrt(z * z + y * y + (x + halfMap) * (x + halfMap));
@@ -2050,7 +2050,7 @@ auto Camera::setPosition(vector_3d newPosition) -> void
     // Near a corner the margin shrinks with the distance to it.
     float margin;
 
-    if (cameraScale == 1)
+    if (CameraScale == 1)
     {
         float cornerOffset = 550.0f;
 
@@ -2125,18 +2125,18 @@ auto Camera::setPosition(vector_3d newPosition) -> void
     {
         if (alongBelow)
         {
-            position.y = 0.0f;
-            position.x = -limit;
+            Position.Y = 0.0f;
+            Position.X = -limit;
         }
         else if (alongAbove)
         {
-            position.y = limit;
-            position.x = 0.0f;
+            Position.Y = limit;
+            Position.X = 0.0f;
         }
         else
         {
-            position.x = static_cast<float>((along - limit) * 0.5);
-            position.y = position.x + limit;
+            Position.X = static_cast<float>((along - limit) * 0.5);
+            Position.Y = Position.X + limit;
         }
 
         return;
@@ -2146,18 +2146,18 @@ auto Camera::setPosition(vector_3d newPosition) -> void
     {
         if (alongBelow)
         {
-            position.y = -limit;
-            position.x = 0.0f;
+            Position.Y = -limit;
+            Position.X = 0.0f;
         }
         else if (alongAbove)
         {
-            position.x = limit;
-            position.y = 0.0f;
+            Position.X = limit;
+            Position.Y = 0.0f;
         }
         else
         {
-            position.x = static_cast<float>((along + limit) * 0.5);
-            position.y = position.x - limit;
+            Position.X = static_cast<float>((along + limit) * 0.5);
+            Position.Y = Position.X - limit;
         }
 
         return;
@@ -2165,22 +2165,22 @@ auto Camera::setPosition(vector_3d newPosition) -> void
 
     if (alongAbove)
     {
-        position.x = static_cast<float>(((x - y) + limit) * 0.5);
-        position.y = limit - position.x;
+        Position.X = static_cast<float>(((x - y) + limit) * 0.5);
+        Position.Y = limit - Position.X;
         return;
     }
 
     if (alongBelow)
     {
-        position.x = static_cast<float>(((x - y) - limit) * 0.5);
-        position.y = -position.x - limit;
+        Position.X = static_cast<float>(((x - y) - limit) * 0.5);
+        Position.Y = -Position.X - limit;
         return;
     }
 
     // Inside: sit on the ground. (MCX.EXE also has an unreachable " Impossible Camera Clip Situation " Fatal.)
-    if (land != nullptr)
+    if (Land != nullptr)
     {
-        position.z = land->getTerrainElevation(position);
+        Position.Z = Land->GetTerrainElevation(Position);
     }
 }
 
@@ -2188,7 +2188,7 @@ auto Camera::setPosition(vector_3d newPosition) -> void
 // TerrainCamera
 //---------------------------------------------------------------------------
 
-auto TerrainCamera::init(FitIniFile* cameraFile) -> int32_t
+auto MCTerrainCamera::Init(MCFitIniFile* cameraFile) -> int32_t
 {
-    return Camera::init(cameraFile, 0, 0);
+    return MCCamera::Init(cameraFile, 0, 0);
 }

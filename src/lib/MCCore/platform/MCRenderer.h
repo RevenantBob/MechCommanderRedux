@@ -111,7 +111,7 @@ struct MCTexture
 struct MCView
 {
     /// <summary>The window drawn on (a picture, not another view).</summary>
-    _window* Target = nullptr;
+    MCWindow* Target = nullptr;
     /// <summary>Where the view's pixel (0, 0) lies on the target.</summary>
     int32_t OriginX = 0;
     int32_t OriginY = 0;
@@ -131,7 +131,7 @@ struct MCView
 /// Narrows a clip rectangle in <paramref name="window"/>'s coordinates to its view's scissor (nothing happens for a
 /// window with pixels of its own). The vfx front end calls it wherever it clips a draw to its pane and window.
 /// </summary>
-inline void MCClipToView(const _window* window, int32_t& x0, int32_t& y0, int32_t& x1, int32_t& y1)
+inline void MCClipToView(const MCWindow* window, int32_t& x0, int32_t& y0, int32_t& x1, int32_t& y1)
 {
     const MCView* view = window->View;
 
@@ -253,13 +253,13 @@ struct MCPolygonCommand
     int32_t XMax;
     int32_t YMax;
     int32_t VertexCount;
-    const SCRNVERTEX* Vertices;
+    const MCScreenVertex* Vertices;
     /// <summary>The dithered kinds' amount (16.16).</summary>
     int32_t DitherAmount;
     /// <summary>Translate: the destination table. Map: the lookaside table MP_XLAT maps texels through.</summary>
     const uint8_t* Table;
     /// <summary>Map: the texture and the MP_* flags.</summary>
-    const _window* Texture;
+    const MCWindow* Texture;
     uint32_t MapFlags;
 };
 
@@ -280,7 +280,7 @@ struct MCMapQuadCommand
 {
     MCMapQuadVertex Corners[4];
     MCRect Clip;
-    const _window* Texture;
+    const MCWindow* Texture;
 };
 
 /// <summary>
@@ -330,7 +330,7 @@ struct MCEllipseCommand
 /// </summary>
 struct MCCopyCommand
 {
-    const _window* Source;
+    const MCWindow* Source;
     MCRect SourceRect;
     int32_t X;
     int32_t Y;
@@ -408,7 +408,7 @@ struct MCTerrainFrame
     int32_t PaneY = 0;
     MCRect Clip{0, 0, -1, -1};
     /// <summary>The fog of war's flags (a ByteFlag's window, a byte per map vertex), as the home side sees.</summary>
-    const _window* Fog = nullptr;
+    const MCWindow* Fog = nullptr;
     /// <summary>Every tile filled with colour 0x10 (the haze factor's "all black").</summary>
     bool AllFilled = false;
     /// <summary>The haze tables for one, two and three corners seen.</summary>
@@ -491,11 +491,11 @@ struct MCUnderlay
     /// <summary>Who set it (a view window), to replace or remove it by.</summary>
     const void* Owner;
     /// <summary>The window it lies under (the screen).</summary>
-    const _window* Target;
+    const MCWindow* Target;
     /// <summary>Where it is shown, in target coordinates (may reach past the target).</summary>
     MCRect Rect;
     /// <summary>The picture, shown whole.</summary>
-    const _window* Source;
+    const MCWindow* Source;
 };
 
 /// <summary>Who draws the frame surfaces (<see cref="MCRenderer::AddFrameSurface"/>).</summary>
@@ -526,7 +526,7 @@ public:
     /// one and it draws (or both, mirrored); for any other picture, the software renderer; for a view, one that moves
     /// each command by the view's origin and hands it to its target's renderer (valid until the next call).
     /// </summary>
-    static MCRenderer& For(const _window* window);
+    static MCRenderer& For(const MCWindow* window);
 
     // Textures ----------------------------------------------------------------------------------------------------
 
@@ -534,19 +534,19 @@ public:
     static MCTexture* CreateTexture(uint8_t* pixels, int32_t width, int32_t height, MCTextureUse use);
 
     /// <summary>Makes a texture over <paramref name="window"/>'s pixels and hands it to the window.</summary>
-    static MCTexture* CreateTexture(_window* window, MCTextureUse use);
+    static MCTexture* CreateTexture(MCWindow* window, MCTextureUse use);
 
     /// <summary>Points <paramref name="texture"/> at new pixels or a new size (they count as changed).</summary>
     static void ResizeTexture(MCTexture* texture, uint8_t* pixels, int32_t width, int32_t height);
 
     /// <summary>Makes <paramref name="window"/>'s texture follow its pixels and size again.</summary>
-    static void ResizeTexture(_window* window);
+    static void ResizeTexture(MCWindow* window);
 
     /// <summary>Destroys <paramref name="texture"/> (null is ignored) and clears the pointer.</summary>
     static void DestroyTexture(MCTexture*& texture);
 
     /// <summary>Destroys <paramref name="window"/>'s texture, if it has one.</summary>
-    static void DestroyTexture(_window* window);
+    static void DestroyTexture(MCWindow* window);
 
     /// <summary>Where to write a texture's new pixels (its <c>Pixels</c>); <see cref="UnlockTexture"/> when done.</summary>
     static uint8_t* LockTexture(MCTexture* texture);
@@ -620,16 +620,16 @@ public:
     /// A <paramref name="kept"/> surface is one the game also reads (the fog of war's flags): while the GPU draws, the
     /// software renderer draws its memory too, and the GPU's copy starts from the pixels it has when added.
     /// </summary>
-    static void AddFrameSurface(const _window* window, bool kept = false);
+    static void AddFrameSurface(const MCWindow* window, bool kept = false);
 
     /// <summary>Whether <paramref name="window"/> is (or lies over) a kept frame surface.</summary>
-    static bool KeptSurface(const _window* window);
+    static bool KeptSurface(const MCWindow* window);
 
     /// <summary>Makes <paramref name="window"/> an ordinary picture again (before its pixels go).</summary>
-    static void RemoveFrameSurface(const _window* window);
+    static void RemoveFrameSurface(const MCWindow* window);
 
     /// <summary>The frame surface <paramref name="window"/> is (or lies over the pixels of), or null.</summary>
-    static const _window* FrameSurfaceOf(const _window* window);
+    static const MCWindow* FrameSurfaceOf(const MCWindow* window);
 
     /// <summary>
     /// Sets the hardware renderer (the Vulkan presenter's, or null) and who draws the frame surfaces; the drawing is
@@ -663,7 +663,7 @@ public:
     /// While the GPU draws the frame surfaces alone, a frame surface's memory is never drawn, so such a read sees stale
     /// pixels: it is logged (once per command) and counted.
     /// </summary>
-    static void NoteCpuRead(const _window* source, const char* command);
+    static void NoteCpuRead(const MCWindow* source, const char* command);
 
     /// <summary>
     /// How many stale CPU reads <see cref="NoteCpuRead"/> found, plus software draws into a stream texture whose pixels
@@ -674,55 +674,55 @@ public:
     // Commands --------------------------------------------------------------------------------------------------
 
     /// <summary>Fills <paramref name="rect"/> with <paramref name="color"/>.</summary>
-    virtual void Clear(_window* target, const MCRect& rect, uint8_t color) = 0;
+    virtual void Clear(MCWindow* target, const MCRect& rect, uint8_t color) = 0;
 
     /// <summary>
     /// VFX_rectangle_hash's pattern over <paramref name="rect"/>: every other pixel, rows an even distance above its
     /// bottom row starting at its left column, the others one pixel in.
     /// </summary>
-    virtual void Hash(_window* target, const MCRect& rect, uint8_t color) = 0;
+    virtual void Hash(MCWindow* target, const MCRect& rect, uint8_t color) = 0;
 
     /// <summary>Copies a rectangle of one window into another (or the same).</summary>
-    virtual void Copy(_window* target, const MCCopyCommand& command) = 0;
+    virtual void Copy(MCWindow* target, const MCCopyCommand& command) = 0;
 
     /// <summary>Blends a bitmap onto the target (CopySprite).</summary>
-    virtual void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) = 0;
+    virtual void AlphaBlit(MCWindow* target, const MCAlphaBlitCommand& command) = 0;
 
     /// <summary>Fills a shape into a picture and blends that onto the target (a shape transform).</summary>
-    virtual void ShapeBlit(_window* target, const MCShapeBlitCommand& command) = 0;
+    virtual void ShapeBlit(MCWindow* target, const MCShapeBlitCommand& command) = 0;
 
     /// <summary>Writes <paramref name="count"/> pixels as they are from (x, y) (the image decoders' rows).</summary>
-    virtual void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) = 0;
+    virtual void Write(MCWindow* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) = 0;
 
     /// <summary>One pixel.</summary>
-    virtual void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) = 0;
+    virtual void Pixel(MCWindow* target, int32_t x, int32_t y, uint8_t color) = 0;
 
     /// <summary>A run-length shape.</summary>
-    virtual void Shape(_window* target, const MCShapeCommand& command) = 0;
+    virtual void Shape(MCWindow* target, const MCShapeCommand& command) = 0;
 
     /// <summary>A fast shape.</summary>
-    virtual void FastShape(_window* target, const MCFastShapeCommand& command) = 0;
+    virtual void FastShape(MCWindow* target, const MCFastShapeCommand& command) = 0;
 
     /// <summary>A terrain tile.</summary>
-    virtual void Tile(_window* target, const MCTileCommand& command) = 0;
+    virtual void Tile(MCWindow* target, const MCTileCommand& command) = 0;
 
     /// <summary>A convex polygon.</summary>
-    virtual void Polygon(_window* target, const MCPolygonCommand& command) = 0;
+    virtual void Polygon(MCWindow* target, const MCPolygonCommand& command) = 0;
 
     /// <summary>A textured quadrilateral (a rotated or scaled shape).</summary>
-    virtual void MapQuad(_window* target, const MCMapQuadCommand& command) = 0;
+    virtual void MapQuad(MCWindow* target, const MCMapQuadCommand& command) = 0;
 
     /// <summary>A line.</summary>
-    virtual void Line(_window* target, const MCLineCommand& command) = 0;
+    virtual void Line(MCWindow* target, const MCLineCommand& command) = 0;
 
     /// <summary>An ellipse outline or fill.</summary>
-    virtual void Ellipse(_window* target, const MCEllipseCommand& command) = 0;
+    virtual void Ellipse(MCWindow* target, const MCEllipseCommand& command) = 0;
 
     /// <summary>A status bar.</summary>
-    virtual void StatusBar(_window* target, const MCStatusBarCommand& command) = 0;
+    virtual void StatusBar(MCWindow* target, const MCStatusBarCommand& command) = 0;
 
     /// <summary>A font character.</summary>
-    virtual void Glyph(_window* target, const MCGlyphCommand& command) = 0;
+    virtual void Glyph(MCWindow* target, const MCGlyphCommand& command) = 0;
 
     /// <summary>
     /// Draws a frame's terrain tiles from the map's mesh. A hardware renderer always does (the terrain pass asks it
@@ -730,10 +730,10 @@ public:
     /// renderer draws none. Until <see cref="EndTerrainLayer"/>, the tiles of the pass (VFX_nTile_draw) still come as
     /// commands, for the software renderer (mirror mode, or alone); one that drew the layer leaves them.
     /// </summary>
-    virtual std::expected<void, std::string> TerrainLayer(_window* target, const MCTerrainFrame& frame);
+    virtual std::expected<void, std::string> TerrainLayer(MCWindow* target, const MCTerrainFrame& frame);
 
     /// <summary>Ends the terrain pass <see cref="TerrainLayer"/> began.</summary>
-    virtual void EndTerrainLayer(_window* target);
+    virtual void EndTerrainLayer(MCWindow* target);
 
     // Shared state ----------------------------------------------------------------------------------------------
 
@@ -758,10 +758,10 @@ public:
     /// Gives <paramref name="target"/> an op plane: one byte per pixel, laid out as its pixels (null removes it).
     /// Clearing the target clears its ops too.
     /// </summary>
-    static void SetOpPlane(const _window* target, uint8_t* ops);
+    static void SetOpPlane(const MCWindow* target, uint8_t* ops);
 
     /// <summary>The op plane of <paramref name="target"/>, or null.</summary>
-    static uint8_t* OpPlane(const _window* target);
+    static uint8_t* OpPlane(const MCWindow* target);
 
     /// <summary>The op tables: 256 rows of 256 bytes, row 0 the identity; <see cref="OpTableCount"/> rows in use.</summary>
     static const uint8_t* OpTables();
@@ -787,7 +787,7 @@ public:
     /// pixels with its layout, each key pixel of <paramref name="rect"/> over an underlay becomes the underlay's pixel,
     /// mapped through its op (the composite shader's rule, for screenshots, tests and a display without shaders).
     /// </summary>
-    static void ComposeUnderlays(const _window* target, uint8_t* pixels, const MCRect& rect);
+    static void ComposeUnderlays(const MCWindow* target, uint8_t* pixels, const MCRect& rect);
 
 private:
     /// <summary>Logs <paramref name="what"/> (once) and counts it in <see cref="StaleCpuReads"/>.</summary>
@@ -801,7 +801,7 @@ protected:
     virtual void OnDataChanged(const void*, size_t) {}
 
     /// <summary>A frame surface became an ordinary picture (its pixels are going): drop what was kept for it.</summary>
-    virtual void OnFrameSurfaceRemoved(const _window*) {}
+    virtual void OnFrameSurfaceRemoved(const MCWindow*) {}
 
     /// <summary>A texture is going (or its size changed): drop what is kept in its <c>Hardware</c>.</summary>
     virtual void OnTextureReleased(MCTexture*) {}

@@ -40,15 +40,15 @@
 #include "vfx/vfx.h"
 #include "vfx/vfxfuncs.h"
 
-int32_t buttonActions[8] = {15, 14, 13, 12, 19, 17, 3, 53};
+int32_t ButtonActions[8] = {15, 14, 13, 12, 19, 17, 3, 53};
 int16_t RangeColorArray[4] = {0x0e, 0xe5, 0xee, 0x14};
-char callingText[64] = {};
-std::string statusString[4];
-std::string typeString[5];
-vector_3d tacMapCenter;
-int32_t realSalvageCount = 0;
-float tacFrameLength = 0.0f;
-int onNow = 0;
+char CallingText[64] = {};
+std::string StatusString[4];
+std::string TypeString[5];
+MCVector3D TacMapCenter;
+int32_t RealSalvageCount = 0;
+float TacFrameLength = 0.0f;
+int OnNow = 0;
 
 namespace
 {
@@ -95,42 +95,42 @@ namespace
     constexpr float MAP_TOP = 34.0f;
 
     /// <summary>Draws the map page: the timer, the map, the fog of war, the camera views and the objects.</summary>
-    /// <remarks>Part of TacticalMap::display (MCX.EXE @ 0x00742e36..0x743549).</remarks>
-    void drawMapPage(TacticalMap* map);
+    /// <remarks>Part of TacticalMap::display.</remarks>
+    void DrawMapPage(MCTacticalMap* map);
 
     /// <summary>A weapon of the info page's list (drawWeapons builds an array of them; 4 bytes).</summary>
-    struct WeaponEntry
+    struct MCWeaponEntry
     {
         /// <summary>The weapon's MasterComponentList index.</summary>
-        uint8_t masterID; // +0x0
+        uint8_t MasterID;
         /// <summary>0xff damaged, 0 no shots left, 1 ready.</summary>
-        uint8_t state; // +0x1
+        uint8_t State;
         /// <summary>The range bracket (0, 10000, 20000) plus the damage: the sort key.</summary>
-        int16_t sortKey; // +0x2
+        int16_t SortKey;
     };
 
     /// <summary>The contacts drawObjects fetches from the home team (the unnamed 0x00809f78, 0x400 bytes).</summary>
-    GameObject* contactList[256] = {};
+    MCGameObject* ContactList[256] = {};
 
     /// <summary>A mech, vehicle, elemental or other mover (the classes that have a pilot and a sensor).</summary>
-    bool isMoverClass(GameObject* obj)
+    bool IsMoverClass(MCGameObject* obj)
     {
-        return obj->objectClass == BATTLEMECH || obj->objectClass == GROUNDVEHICLE || obj->objectClass == ELEMENTAL ||
-               obj->objectClass == MOVER;
+        return obj->ObjectClass == BATTLEMECH || obj->ObjectClass == GROUNDVEHICLE || obj->ObjectClass == ELEMENTAL ||
+               obj->ObjectClass == MOVER;
     }
 
     /// <summary>
     /// Draws a contact's sensor range around its dot: red, or white for the home side's alignment, or yellow while
     /// the sensor is weakened.
     /// </summary>
-    void drawSensorRange(TacticalMap* map, GameObject* obj, int32_t xPos, int32_t yPos, int32_t homeAlignment)
+    void DrawSensorRange(MCTacticalMap* map, MCGameObject* obj, int32_t xPos, int32_t yPos, int32_t homeAlignment)
     {
-        SensorSystem* sensor = static_cast<Mover*>(obj)->sensorSystem;
+        MCSensorSystem* sensor = static_cast<MCMover*>(obj)->SensorSystem;
         float range = -1.0f;
 
-        if (sensor != nullptr && sensor->enabled() != 0)
+        if (sensor != nullptr && sensor->Enabled() != 0)
         {
-            range = (sensor->getSkilledRange() * worldUnitsPerMeter) / map->metersPerPixel;
+            range = (sensor->GetSkilledRange() * WorldUnitsPerMeter) / map->MetersPerPixel;
         }
 
         if (range <= 0.0)
@@ -140,25 +140,25 @@ namespace
 
         uint8_t color = 0xef;
 
-        if (obj->getAlignment() == homeAlignment)
+        if (obj->GetAlignment() == homeAlignment)
         {
             color = 0x1f;
         }
 
-        if (sensor->multiplier < 1.0)
+        if (sensor->Multiplier < 1.0)
         {
             color = 0xf2;
         }
 
         const auto radius = static_cast<int32_t>(range);
-        AG_ellipse_draw(&map->mapPane, xPos, yPos, radius, radius, color);
+        AGEllipseDraw(&map->MapPane, xPos, yPos, radius, radius, color);
     }
 
     /// <summary>
     /// Whether a scroll position keeps the zoomed view's both edges on the map picture (<paramref name="side"/>
     /// pixels along that axis).
     /// </summary>
-    bool scrollInPicture(int32_t scroll, int32_t side, int32_t zoom)
+    bool ScrollInPicture(int32_t scroll, int32_t side, int32_t zoom)
     {
         const int32_t half = side >> 1;
         const int32_t zoomedHalf = half / zoom;
@@ -171,19 +171,19 @@ namespace
     /// Places a text page's click areas along the right edge (the scroll-up button from <paramref name="upTop"/>,
     /// the scroll-down one from <paramref name="downTop"/>, the track between) and moves the markers there.
     /// </summary>
-    void setPageRects(TacticalMap* map, int32_t upTop, int32_t upBottom, int32_t downTop, int32_t downBottom)
+    void SetPageRects(MCTacticalMap* map, int32_t upTop, int32_t upBottom, int32_t downTop, int32_t downBottom)
     {
-        int32_t (&rects)[3][4] = map->pageRects;
+        int32_t (&rects)[3][4] = map->PageRects;
         rects[0][0] = 0x7d;
         rects[0][1] = upTop;
         rects[0][2] = 0x88;
         rects[0][3] = upBottom;
-        map->scrollUpMarker->moveTo(0x7d, upTop, 0);
+        map->ScrollUpMarker->MoveTo(0x7d, upTop, 0);
         rects[1][0] = 0x7d;
         rects[1][1] = downTop;
         rects[1][2] = 0x88;
         rects[1][3] = downBottom;
-        map->scrollDownMarker->moveTo(0x7d, downTop, 0);
+        map->ScrollDownMarker->MoveTo(0x7d, downTop, 0);
         rects[2][0] = 0x7d;
         rects[2][1] = upBottom;
         rects[2][2] = 0x88;
@@ -191,7 +191,7 @@ namespace
     }
 
     /// <summary>The part diagram's colour of a location from what is left of it: green, yellow, orange or red.</summary>
-    uint8_t damageColor(float current, uint8_t maximum)
+    uint8_t DamageColor(float current, uint8_t maximum)
     {
         const auto percent = static_cast<int16_t>(std::floor((current / static_cast<float>(maximum)) * 100.0f));
 
@@ -214,20 +214,20 @@ namespace
     }
 
     /// <summary>
-    /// The table the part diagram's shape is drawn through for a <see cref="damageColor"/> colour: rows of the fade
+    /// The table the part diagram's shape is drawn through for a <see cref="DamageColor"/> colour: rows of the fade
     /// palettes past the haze levels, or for a destroyed location (0x19) the map's colour remap.
     /// </summary>
-    uint8_t* partColorTable(TacticalMap* map, uint8_t color)
+    uint8_t* PartColorTable(MCTacticalMap* map, uint8_t color)
     {
-        const int32_t row = gamePalette->numBitmapHazeLevels;
-        uint8_t* fades = gamePalette->fadePalettes.get();
+        const int32_t row = GamePalette->NumBitmapHazeLevels;
+        uint8_t* fades = GamePalette->FadePalettes.get();
 
         switch (color)
         {
             case 0xb:
                 return fades + (row + 10) * 0x200;
             case 0x19:
-                return map->colorRemap;
+                return map->ColorRemap;
             case 0xeb:
                 return fades + row * 0x200 + 0x1500;
             case 0xef:
@@ -240,57 +240,57 @@ namespace
     }
 
     /// <summary>Destroys and deletes a child object, and clears the pointer.</summary>
-    template <typename Object> void destroyChild(Object*& obj)
+    template <typename Object> void DestroyChild(Object*& obj)
     {
         if (obj == nullptr)
         {
             return;
         }
 
-        obj->destroy();
+        obj->Destroy();
         delete obj;
         obj = nullptr;
     }
 
     /// <summary>Destroys and deletes a port, and clears the pointer.</summary>
-    void destroyPort(aPort*& port)
+    void DestroyPort(MCGuiPort*& port)
     {
         if (port == nullptr)
         {
             return;
         }
 
-        port->destroy();
+        port->Destroy();
         delete port;
         port = nullptr;
     }
 
-    TacticalMap* tacMap()
+    MCTacticalMap* TacMap()
     {
-        return Terrain::terrainTacticalMap;
+        return MCTerrain::TerrainTacticalMap;
     }
 
     /// <summary>A command palette mode button, or null out of range (the binary checks each index).</summary>
-    ToolPalButton* modeButton(int32_t index)
+    MCToolPalButton* ModeButton(int32_t index)
     {
-        return (index < 0 || index > 7) ? nullptr : tacMap()->toolButtons[index];
+        return (index < 0 || index > 7) ? nullptr : TacMap()->ToolButtons[index];
     }
 
     /// <summary>The support button's commander strike count.</summary>
-    int32_t strikesLeft(int32_t commandId, bool& known)
+    int32_t StrikesLeft(int32_t commandId, bool& known)
     {
         known = true;
 
         switch (commandId)
         {
             case STRIKE_SENSOR:
-                return HomeCommander->numSensorStrikes;
+                return HomeCommander->NumSensorStrikes;
             case STRIKE_LARGE:
-                return HomeCommander->numLargeStrikes;
+                return HomeCommander->NumLargeStrikes;
             case STRIKE_SMALL:
-                return HomeCommander->numSmallStrikes;
+                return HomeCommander->NumSmallStrikes;
             case STRIKE_CAMERA_DRONE:
-                return HomeCommander->numCameraDrones;
+                return HomeCommander->NumCameraDrones;
             default:
             {
                 known = false;
@@ -300,108 +300,108 @@ namespace
     }
 
     /// <summary>Lets a support button give up the status line and the targeting cursor.</summary>
-    void releaseStatusLine()
+    void ReleaseStatusLine()
     {
-        TacticalMap* map = tacMap();
-        map->statusLocked = 0;
-        map->statusDirty = -1;
-        map->statusText = nullptr;
-        application->cursorHidden = 0;
-        application->SetCurrentCursor(static_cast<CursorType>(0));
+        MCTacticalMap* map = TacMap();
+        map->StatusLocked = 0;
+        map->StatusDirty = -1;
+        map->StatusText = nullptr;
+        Application->CursorHidden = 0;
+        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
     }
 
     /// <summary>
     /// Shared by the four scroll buttons: scroll once on press, then after the interface's scrollStart delay
     /// repeat five times as fast until release.
     /// </summary>
-    void scrollButtonEvent(aObject* obj, aEvent* event, int32_t dx, int32_t dy)
+    void ScrollButtonEvent(MCGuiObject* obj, MCGuiEvent* event, int32_t dx, int32_t dy)
     {
-        if (event->type == EVENT_LEFT_DOWN)
+        if (event->Type == EVENT_LEFT_DOWN)
         {
-            application->AddTimer(obj, SCROLL_START_TIMER, theInterface->scrollStart, 0, 0, 0);
-            tacMap()->scrollMap(dx, dy);
+            Application->AddTimer(obj, SCROLL_START_TIMER, TheInterface->ScrollStart, 0, 0, 0);
+            TacMap()->ScrollMap(dx, dy);
         }
-        else if (event->type == EVENT_LEFT_UP)
+        else if (event->Type == EVENT_LEFT_UP)
         {
-            application->RemoveTimer(obj, SCROLL_START_TIMER);
-            application->RemoveTimer(obj, SCROLL_REPEAT_TIMER);
+            Application->RemoveTimer(obj, SCROLL_START_TIMER);
+            Application->RemoveTimer(obj, SCROLL_REPEAT_TIMER);
         }
-        else if (event->type == EVENT_TIMER)
+        else if (event->Type == EVENT_TIMER)
         {
-            tacMap()->scrollMap(dx, dy);
+            TacMap()->ScrollMap(dx, dy);
 
-            if (event->data == SCROLL_START_TIMER)
+            if (event->Data == SCROLL_START_TIMER)
             {
-                application->RemoveTimer(obj, SCROLL_START_TIMER);
-                application->AddTimer(obj, SCROLL_REPEAT_TIMER, theInterface->scrollStart / 5, 0, 0, 0);
+                Application->RemoveTimer(obj, SCROLL_START_TIMER);
+                Application->AddTimer(obj, SCROLL_REPEAT_TIMER, TheInterface->ScrollStart / 5, 0, 0, 0);
             }
         }
     }
 
     /// <summary>After a zoom, recentres the map on the main camera (unless at 1x) and redraws.</summary>
-    void recentreAfterZoom(TacticalMap* map)
+    void RecentreAfterZoom(MCTacticalMap* map)
     {
-        map->metersPerPixel = (map->mapDiagonal * DIAGONAL_TO_PIXELS) / static_cast<float>(map->zoom);
+        map->MetersPerPixel = (map->MapDiagonal * DIAGONAL_TO_PIXELS) / static_cast<float>(map->Zoom);
 
-        if (eye == nullptr)
+        if (Eye == nullptr)
         {
             return;
         }
 
-        vector_3d center = eye->position;
-        map->scrollY = 0;
-        map->scrollX = 0;
-        const float zoom = static_cast<float>(map->zoom);
-        const float scaleX = (static_cast<float>(map->mapWidth) * PICTURE_TO_PIXELS) / zoom;
-        const float scaleY = (static_cast<float>(map->mapHeight) * PICTURE_TO_PIXELS) / zoom;
+        MCVector3D center = Eye->Position;
+        map->ScrollY = 0;
+        map->ScrollX = 0;
+        const float zoom = static_cast<float>(map->Zoom);
+        const float scaleX = (static_cast<float>(map->MapWidth) * PICTURE_TO_PIXELS) / zoom;
+        const float scaleY = (static_cast<float>(map->MapHeight) * PICTURE_TO_PIXELS) / zoom;
 
-        if (map->zoom == 1)
+        if (map->Zoom == 1)
         {
-            map->scrollY = 0;
-            map->scrollX = 0;
+            map->ScrollY = 0;
+            map->ScrollX = 0;
             return;
         }
 
-        map->worldToTacMap(center, -1);
-        center.x = (center.x - MAP_CENTER_X) * scaleX;
-        center.y = (center.y - MAP_CENTER_Y) * scaleY;
-        tacMap()->setScrollMapPosition(static_cast<int32_t>(center.x), static_cast<int32_t>(center.y));
+        map->WorldToTacMap(center, -1);
+        center.X = (center.X - MAP_CENTER_X) * scaleX;
+        center.Y = (center.Y - MAP_CENTER_Y) * scaleY;
+        TacMap()->SetScrollMapPosition(static_cast<int32_t>(center.X), static_cast<int32_t>(center.Y));
     }
 
     /// <summary>Stops the pilot video (and its radio movie) when switching away from the map page.</summary>
-    void stopVideo()
+    void StopVideo()
     {
-        if (tacMap()->videoWindow->star == nullptr)
+        if (TacMap()->VideoWindow->Star == nullptr)
         {
             return;
         }
 
-        RadioData* message = soundSystem->currentMessage;
+        MCRadioData* message = SoundSystem->CurrentMessage;
 
-        if (message->movieWindow != nullptr)
+        if (message->MovieWindow != nullptr)
         {
-            message->movieWindow->endSmackerMovie();
-            delete message->movieWindow;
-            message->movieWindow = nullptr;
-            message->movie = nullptr;
+            message->MovieWindow->EndSmackerMovie();
+            delete message->MovieWindow;
+            message->MovieWindow = nullptr;
+            message->Movie = nullptr;
         }
 
-        tacMap()->videoWindow->SetStar(nullptr);
+        TacMap()->VideoWindow->SetStar(nullptr);
     }
 
     /// <summary>String <paramref name="id"/> of the string table.</summary>
-    std::string loadHeapString(uint32_t id)
+    std::string LoadHeapString(uint32_t id)
     {
         char buffer[256];
-        cLoadString(thisInstance, id, buffer, 0xfe);
+        CLoadString(ThisInstance, id, buffer, 0xfe);
         return buffer;
     }
 
     /// <summary>Loads string <paramref name="id"/> into a help text (0x31 characters, as strncpy).</summary>
-    void loadHelpText(char* helpText, uint32_t id)
+    void LoadHelpText(char* helpText, uint32_t id)
     {
         char buffer[256];
-        cLoadString(thisInstance, id, buffer, 0xfe);
+        CLoadString(ThisInstance, id, buffer, 0xfe);
         std::strncpy(helpText, buffer, 0x31);
     }
 
@@ -409,37 +409,37 @@ namespace
     /// A plain aObject child showing a picture. (The original loaded the picture into the object's own port; it is
     /// the object's background now, and the object draws itself.)
     /// </summary>
-    aObject* makePicture(aObject* parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* picture)
+    MCGuiObject* MakePicture(MCGuiObject* parent, int32_t x, int32_t y, int32_t w, int32_t h, const char* picture)
     {
-        auto* obj = new aObject;
+        auto* obj = new MCGuiObject;
         obj->SetDrawsLive();
-        obj->init(x, y, w, h, nullptr);
-        obj->setBackground(const_cast<char*>(picture));
+        obj->Init(x, y, w, h, nullptr);
+        obj->SetBackground(const_cast<char*>(picture));
         return obj;
     }
 
     /// <summary>A button with its up, down and gray pictures.</summary>
     template <typename Button>
-    Button* makeButton(int32_t x, int32_t y, int32_t w, int32_t h, const char* up, const char* down, const char* gray)
+    Button* MakeButton(int32_t x, int32_t y, int32_t w, int32_t h, const char* up, const char* down, const char* gray)
     {
         auto* button = new Button;
-        button->init(x, y, w, h, nullptr);
-        button->setUpPicture(const_cast<char*>(up));
-        button->setDownPicture(const_cast<char*>(down));
+        button->Init(x, y, w, h, nullptr);
+        button->SetUpPicture(const_cast<char*>(up));
+        button->SetDownPicture(const_cast<char*>(down));
 
         if (gray != nullptr)
         {
-            button->setGrayPicture(const_cast<char*>(gray));
+            button->SetGrayPicture(const_cast<char*>(gray));
         }
 
         return button;
     }
 
     /// <summary>Loads a background port for one of the MFD pages.</summary>
-    aPort* loadBackground(const char* fileName, const char* error)
+    MCGuiPort* LoadBackground(const char* fileName, const char* error)
     {
-        auto* background = new aPort;
-        const int32_t result = background->init(const_cast<char*>(fileName));
+        auto* background = new MCGuiPort;
+        const int32_t result = background->Init(const_cast<char*>(fileName));
         Assert(result == 0, static_cast<uint32_t>(result), error);
         return background;
     }
@@ -447,328 +447,328 @@ namespace
 
 auto TogglePalette() -> void
 {
-    TacticalMap* map = tacMap();
+    MCTacticalMap* map = TacMap();
 
     if (map->IsShowing() == 0)
     {
         return;
     }
 
-    aObject* frame = map->paletteFrame;
-    frame->ShowGUIWindow(frame->IsShowing() == 0);
+    MCGuiObject* frame = map->PaletteFrame;
+    frame->ShowGuiWindow(frame->IsShowing() == 0);
 
-    if (map->paletteFrame->IsShowing() == 0)
+    if (map->PaletteFrame->IsShowing() == 0)
     {
-        soundSystem->playDigitalSample(0x41, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x41, 1, nullptr, 0, 0);
     }
     else
     {
         // Opening the palette drops the chosen mode.
         for (int32_t i = 0; i < NUM_MODE_BUTTONS; i++)
         {
-            if (modeButton(i)->pushed != 0)
+            if (ModeButton(i)->Pushed != 0)
             {
-                modeButton(i)->pushed = 0;
-                theInterface->currentCommand = 0;
-                theInterface->commandOneShot = 0;
+                ModeButton(i)->Pushed = 0;
+                TheInterface->CurrentCommand = 0;
+                TheInterface->CommandOneShot = 0;
             }
         }
 
-        soundSystem->playDigitalSample(0x40, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x40, 1, nullptr, 0, 0);
     }
 
-    tacMap()->paletteButton->pushed = tacMap()->paletteFrame->IsShowing();
+    TacMap()->PaletteButton->Pushed = TacMap()->PaletteFrame->IsShowing();
 }
 
-auto BlinkerHandleEvent(aObject* obj, aEvent* event) -> void
+auto BlinkerHandleEvent(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
     // The port's resize broadcast (0x12, see MCFollowWindowSize) already reaches every object, and has no position:
     // passed to what lies under (0, 0), the tactical map, it would come back here forever.
-    if (event->type == 0x12)
+    if (event->Type == 0x12)
     {
         return;
     }
 
     // Hides itself to find what lies under it, and passes the event there.
-    obj->ShowGUIWindow(0);
-    aObject* under = screenWindow->findObject(event->x, event->y);
-    obj->ShowGUIWindow(-1);
-    under->handleEvent(event);
+    obj->ShowGuiWindow(0);
+    MCGuiObject* under = ScreenWindow->FindObject(event->X, event->Y);
+    obj->ShowGuiWindow(-1);
+    under->HandleEvent(event);
 }
 
-auto TMCUp(aObject* obj, aEvent* event) -> void
+auto TmcUp(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    scrollButtonEvent(obj, event, 0, -theInterface->tacScrollSpeed);
+    ScrollButtonEvent(obj, event, 0, -TheInterface->TacScrollSpeed);
 }
 
-auto TMCLeft(aObject* obj, aEvent* event) -> void
+auto TmcLeft(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    scrollButtonEvent(obj, event, theInterface->tacScrollSpeed, 0);
+    ScrollButtonEvent(obj, event, TheInterface->TacScrollSpeed, 0);
 }
 
-auto TMCDown(aObject* obj, aEvent* event) -> void
+auto TmcDown(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    scrollButtonEvent(obj, event, 0, theInterface->tacScrollSpeed);
+    ScrollButtonEvent(obj, event, 0, TheInterface->TacScrollSpeed);
 }
 
-auto TMCRight(aObject* obj, aEvent* event) -> void
+auto TmcRight(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    scrollButtonEvent(obj, event, -theInterface->tacScrollSpeed, 0);
+    ScrollButtonEvent(obj, event, -TheInterface->TacScrollSpeed, 0);
 }
 
-auto TMCZoomIn() -> void
+auto TmcZoomIn() -> void
 {
-    TacticalMap* map = tacMap();
-    const int32_t oldZoom = map->zoom;
-    const int32_t mapSide = map->mapVertexSide;
-    map->zoom = oldZoom * 2;
+    MCTacticalMap* map = TacMap();
+    const int32_t oldZoom = map->Zoom;
+    const int32_t mapSide = map->MapVertexSide;
+    map->Zoom = oldZoom * 2;
 
     if (oldZoom * 2 < 9)
     {
-        soundSystem->playDigitalSample(0x44, 1, nullptr, 0, 0);
-        map = tacMap();
-        map->zoomOffset += (mapSide >> 1) / map->zoom;
+        SoundSystem->PlayDigitalSample(0x44, 1, nullptr, 0, 0);
+        map = TacMap();
+        map->ZoomOffset += (mapSide >> 1) / map->Zoom;
     }
     else
     {
-        map->zoom = 8;
+        map->Zoom = 8;
     }
 
-    recentreAfterZoom(map);
-    map = tacMap();
+    RecentreAfterZoom(map);
+    map = TacMap();
 
-    if (map->zoom == 8)
+    if (map->Zoom == 8)
     {
-        aButton* zoomIn = map->scrollButtons[4];
-        zoomIn->disabled = -1;
-        map = tacMap();
+        MCGuiButton* zoomIn = map->ScrollButtons[4];
+        zoomIn->Disabled = -1;
+        map = TacMap();
     }
 
-    aButton* zoomOut = map->scrollButtons[5];
-    zoomOut->disabled = 0;
+    MCGuiButton* zoomOut = map->ScrollButtons[5];
+    zoomOut->Disabled = 0;
 
     // Zoomed in, the map can scroll.
     for (int32_t i = 0; i < 4; i++)
     {
-        aButton* scroll = tacMap()->scrollButtons[i];
-        scroll->disabled = 0;
+        MCGuiButton* scroll = TacMap()->ScrollButtons[i];
+        scroll->Disabled = 0;
     }
 
-    tacMap()->RefreshPage();
+    TacMap()->RefreshPage();
 }
 
-auto TMCZoomOut() -> void
+auto TmcZoomOut() -> void
 {
-    TacticalMap* map = tacMap();
-    map->zoomOffset -= (map->mapVertexSide >> 1) / map->zoom;
+    MCTacticalMap* map = TacMap();
+    map->ZoomOffset -= (map->MapVertexSide >> 1) / map->Zoom;
 
-    if (map->zoomOffset < 0)
+    if (map->ZoomOffset < 0)
     {
-        map->zoomOffset = 0;
+        map->ZoomOffset = 0;
     }
 
-    const int32_t oldZoom = map->zoom;
-    map->zoom = oldZoom >> 1;
+    const int32_t oldZoom = map->Zoom;
+    map->Zoom = oldZoom >> 1;
 
     if ((oldZoom >> 1) == 0)
     {
-        map->zoom = 1;
+        map->Zoom = 1;
     }
     else
     {
-        soundSystem->playDigitalSample(0x45, 1, nullptr, 0, 0);
-        map = tacMap();
+        SoundSystem->PlayDigitalSample(0x45, 1, nullptr, 0, 0);
+        map = TacMap();
     }
 
-    if (map->zoom == 1)
+    if (map->Zoom == 1)
     {
         // At 1x the whole map shows: no zooming out or scrolling.
-        aButton* zoomOut = map->scrollButtons[5];
-        zoomOut->disabled = -1;
+        MCGuiButton* zoomOut = map->ScrollButtons[5];
+        zoomOut->Disabled = -1;
 
         for (int32_t i = 0; i < 4; i++)
         {
-            aButton* scroll = tacMap()->scrollButtons[i];
-            scroll->disabled = -1;
-            map = tacMap();
+            MCGuiButton* scroll = TacMap()->ScrollButtons[i];
+            scroll->Disabled = -1;
+            map = TacMap();
         }
     }
 
-    aButton* zoomIn = map->scrollButtons[4];
-    zoomIn->disabled = 0;
-    map = tacMap();
-    recentreAfterZoom(map);
+    MCGuiButton* zoomIn = map->ScrollButtons[4];
+    zoomIn->Disabled = 0;
+    map = TacMap();
+    RecentreAfterZoom(map);
     map->RefreshPage();
 }
 
 auto ArmorFrontButton() -> void
 {
-    tacMap()->SetDataDisplayMode(0, 0);
+    TacMap()->SetDataDisplayMode(0, 0);
 }
 
 auto PayloadButton() -> void
 {
-    tacMap()->SetDataDisplayMode(2, 0);
+    TacMap()->SetDataDisplayMode(2, 0);
 }
 
 auto RearButton() -> void
 {
-    tacMap()->SetDataDisplayMode(1, 0);
+    TacMap()->SetDataDisplayMode(1, 0);
 }
 
-auto ToolPalButton::enter() -> void
+auto MCToolPalButton::Enter() -> void
 {
-    TacticalMap* map = tacMap();
+    MCTacticalMap* map = TacMap();
 
-    if (map->statusLocked == 0)
+    if (map->StatusLocked == 0)
     {
-        map->statusDirty = -1;
-        map->statusText = helpText;
+        map->StatusDirty = -1;
+        map->StatusText = HelpText;
     }
 }
 
-auto ToolPalButton::leave() -> void
+auto MCToolPalButton::Leave() -> void
 {
-    TacticalMap* map = tacMap();
+    MCTacticalMap* map = TacMap();
 
-    if (map->statusLocked == 0)
+    if (map->StatusLocked == 0)
     {
-        map->statusDirty = -1;
-        map->statusText = nullptr;
+        map->StatusDirty = -1;
+        map->StatusText = nullptr;
     }
 }
 
-auto ArtilleryButton::init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) -> int32_t
+auto MCArtilleryButton::Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) -> int32_t
 {
-    const int32_t result = aButton::init(xPos, yPos, w, h, fileName);
-    armed = 0;
-    keyArmed = 0;
-    disabled = 0;
+    const int32_t result = MCGuiButton::Init(xPos, yPos, w, h, fileName);
+    Armed = 0;
+    KeyArmed = 0;
+    Disabled = 0;
     return result;
 }
 
-auto ArtilleryButton::draw() -> void
+auto MCArtilleryButton::Draw() -> void
 {
     bool known = false;
-    const int32_t before = strikesLeft(commandId, known);
+    const int32_t before = StrikesLeft(CommandId, known);
 
     if (known)
     {
-        disabled = before < 1 ? -1 : 0;
+        Disabled = before < 1 ? -1 : 0;
     }
 
-    aButton::draw();
+    MCGuiButton::Draw();
 
     // The count, in the button's corner (the buffer is the original's 4-byte local).
     char count[16] = {};
-    const int32_t left = strikesLeft(commandId, known);
+    const int32_t left = StrikesLeft(CommandId, known);
 
     if (known)
     {
         std::snprintf(count, sizeof(count), "%02i", left);
     }
 
-    if (disabled != 0)
+    if (Disabled != 0)
     {
-        greyFont->writeString(displayPort->frame(), 0x13, 9, reinterpret_cast<uint8_t*>(count), -1);
+        GreyFont->WriteString(DisplayPort->Frame(), 0x13, 9, reinterpret_cast<uint8_t*>(count), -1);
         return;
     }
 
-    if (application->grabbedObject() == this && application->currentObject() == this)
+    if (Application->GrabbedObject() == this && Application->CurrentObject() == this)
     {
-        whiteFont->writeString(displayPort->frame(), 0x13, 9, reinterpret_cast<uint8_t*>(count), -1);
+        WhiteFont->WriteString(DisplayPort->Frame(), 0x13, 9, reinterpret_cast<uint8_t*>(count), -1);
         return;
     }
 
-    blueFont->writeString(displayPort->frame(), 0x13, 9, reinterpret_cast<uint8_t*>(count), -1);
+    BlueFont->WriteString(DisplayPort->Frame(), 0x13, 9, reinterpret_cast<uint8_t*>(count), -1);
 }
 
-auto ArtilleryButton::handleEvent(aEvent* event) -> void
+auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (disabled != 0)
+    if (Disabled != 0)
     {
-        if (application->grabbedObject() == this)
+        if (Application->GrabbedObject() == this)
         {
-            application->release();
+            Application->Release();
         }
 
-        if (event->type == EVENT_LEFT_DOWN)
+        if (event->Type == EVENT_LEFT_DOWN)
         {
-            soundSystem->playDigitalSample(0x46, 1, nullptr, 0, 0);
-        }
-
-        return;
-    }
-
-    if (event->type == EVENT_LEFT_DOWN)
-    {
-        if (armed == 0)
-        {
-            application->grab(this);
-            draw();
+            SoundSystem->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
         }
 
         return;
     }
 
-    if (event->type == EVENT_LEFT_UP)
+    if (event->Type == EVENT_LEFT_DOWN)
     {
-        if (armed == 0)
+        if (Armed == 0)
+        {
+            Application->Grab(this);
+            Draw();
+        }
+
+        return;
+    }
+
+    if (event->Type == EVENT_LEFT_UP)
+    {
+        if (Armed == 0)
         {
             // Armed: "Calling <strike>..." holds the status line until the target click.
             char format[256];
-            cLoadString(thisInstance, 0x98, format, 0xfe);
-            std::snprintf(callingText, sizeof(callingText), format, helpText);
-            TacticalMap* map = tacMap();
+            CLoadString(ThisInstance, 0x98, format, 0xfe);
+            std::snprintf(CallingText, sizeof(CallingText), format, HelpText);
+            MCTacticalMap* map = TacMap();
 
-            if (map->statusLocked == 0)
+            if (map->StatusLocked == 0)
             {
-                map->statusDirty = -1;
-                map->statusText = callingText;
+                map->StatusDirty = -1;
+                map->StatusText = CallingText;
             }
 
-            map->statusLocked = -1;
-            armed = -1;
-            application->SetCurrentCursor(static_cast<CursorType>(9));
-            application->cursorHidden = -1;
-            draw();
+            map->StatusLocked = -1;
+            Armed = -1;
+            Application->SetCurrentCursor(static_cast<MCCursorType>(9));
+            Application->CursorHidden = -1;
+            Draw();
             return;
         }
 
-        const int32_t screenX = event->x;
-        const int32_t screenY = event->y;
+        const int32_t screenX = event->X;
+        const int32_t screenY = event->Y;
         POINT inMap;
-        inMap.x = screenX - tacMap()->globalX();
-        inMap.y = screenY - tacMap()->globalY();
-        armed = 0;
-        application->release();
-        draw();
-        const RECT* mapArea = reinterpret_cast<const RECT*>(tacMap()->mapRect);
+        inMap.x = screenX - TacMap()->GlobalX();
+        inMap.y = screenY - TacMap()->GlobalY();
+        Armed = 0;
+        Application->Release();
+        Draw();
+        const RECT* mapArea = reinterpret_cast<const RECT*>(TacMap()->MapRect);
 
-        if (PtInRect(mapArea, inMap) == 0 || tacMap()->displayType != TACMAP_MAP)
+        if (PtInRect(mapArea, inMap) == 0 || TacMap()->DisplayType != TACMAP_MAP)
         {
             // Outside the tactical map: the click must land in the active view.
-            aObject* target = screenWindow->findObject(screenX, screenY);
+            MCGuiObject* target = ScreenWindow->FindObject(screenX, screenY);
 
-            if (target != mainHolder->GetActivePane() && target != theInterface->mechBar)
+            if (target != MainHolder->GetActivePane() && target != TheInterface->MechBar)
             {
-                armed = 0;
-                application->release();
-                releaseStatusLine();
-                draw();
+                Armed = 0;
+                Application->Release();
+                ReleaseStatusLine();
+                Draw();
                 return;
             }
 
-            aObject* pane = mainHolder->GetActivePane()->pointInside(screenX, screenY) == 0
-                                ? mainHolder->GetInactivePane()
-                                : mainHolder->GetActivePane();
+            MCGuiObject* pane = MainHolder->GetActivePane()->PointInside(screenX, screenY) == 0
+                                    ? MainHolder->GetInactivePane()
+                                    : MainHolder->GetActivePane();
 
             if (pane == nullptr)
             {
                 return;
             }
 
-            Camera* camera = pane->GetCamera();
+            MCCamera* camera = pane->GetCamera();
 
             if (camera == nullptr)
             {
@@ -776,37 +776,37 @@ auto ArtilleryButton::handleEvent(aEvent* event) -> void
             }
 
             // Port: on the view's world surface, through the zoom.
-            vector_2d screenPos = MCWindowPoint(pane, screenX, screenY);
-            vector_3d target3d;
-            camera->inverseProject(screenPos, target3d);
-            theInterface->CallStrike(commandId, &target3d, nullptr, -1, 0, -1.0f);
+            MCVector2D screenPos = MCWindowPoint(pane, screenX, screenY);
+            MCVector3D target3d;
+            camera->InverseProject(screenPos, target3d);
+            TheInterface->CallStrike(CommandId, &target3d, nullptr, -1, 0, -1.0f);
         }
         else
         {
-            vector_3d target3d(static_cast<float>(screenX - tacMap()->globalX()),
-                               static_cast<float>(screenY - tacMap()->globalY()), 0.0f);
-            tacMap()->tacMapToWorld(target3d, -1);
-            theInterface->CallStrike(commandId, &target3d, nullptr, -1, 0, -1.0f);
+            MCVector3D target3d(static_cast<float>(screenX - TacMap()->GlobalX()),
+                                static_cast<float>(screenY - TacMap()->GlobalY()), 0.0f);
+            TacMap()->TacMapToWorld(target3d, -1);
+            TheInterface->CallStrike(CommandId, &target3d, nullptr, -1, 0, -1.0f);
         }
 
-        TacticalMap* map = tacMap();
-        map->statusLocked = 0;
-        map->statusDirty = -1;
-        map->statusText = nullptr;
-        application->cursorHidden = 0;
-        application->SetCurrentCursor(static_cast<CursorType>(0));
+        MCTacticalMap* map = TacMap();
+        map->StatusLocked = 0;
+        map->StatusDirty = -1;
+        map->StatusText = nullptr;
+        Application->CursorHidden = 0;
+        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
         return;
     }
 
-    if (event->type == EVENT_KEY_UP)
+    if (event->Type == EVENT_KEY_UP)
     {
         // Backspace or Escape disarms.
-        if (event->key == 8 || event->key == 0x1b)
+        if (event->Key == 8 || event->Key == 0x1b)
         {
-            application->release();
-            armed = 0;
-            releaseStatusLine();
-            draw();
+            Application->Release();
+            Armed = 0;
+            ReleaseStatusLine();
+            Draw();
         }
 
         return;
@@ -814,140 +814,140 @@ auto ArtilleryButton::handleEvent(aEvent* event) -> void
 
     // The port's resize broadcast (0x12) has no position: passed to the tactical map under (0, 0), it would come back
     // here forever (see BlinkerHandleEvent).
-    if (event->type == 0x12)
+    if (event->Type == 0x12)
     {
         return;
     }
 
     // Anything else goes to what lies under the mouse.
-    aObject* under = screenWindow->findObject(event->x, event->y);
+    MCGuiObject* under = ScreenWindow->FindObject(event->X, event->Y);
 
     if (under != this && under != nullptr)
     {
-        event->target = under;
-        under->handleEvent(event);
+        event->Target = under;
+        under->HandleEvent(event);
     }
 }
 
-auto ArtilleryButton::enter() -> void
+auto MCArtilleryButton::Enter() -> void
 {
-    TacticalMap* map = tacMap();
+    MCTacticalMap* map = TacMap();
 
-    if (map->statusLocked == 0)
+    if (map->StatusLocked == 0)
     {
-        map->statusDirty = -1;
-        map->statusText = helpText;
+        map->StatusDirty = -1;
+        map->StatusText = HelpText;
     }
 }
 
-auto ArtilleryButton::leave() -> void
+auto MCArtilleryButton::Leave() -> void
 {
-    TacticalMap* map = tacMap();
+    MCTacticalMap* map = TacMap();
 
-    if (map->statusLocked == 0)
+    if (map->StatusLocked == 0)
     {
-        map->statusDirty = -1;
-        map->statusText = nullptr;
+        map->StatusDirty = -1;
+        map->StatusText = nullptr;
     }
 }
 
 auto MapSwitch() -> void
 {
-    tacMap()->HideMe(0);
+    TacMap()->HideMe(0);
 
-    if (tacMap()->displayType != TACMAP_MAP)
+    if (TacMap()->DisplayType != TACMAP_MAP)
     {
-        tacMap()->SetDisplayType(TACMAP_MAP);
+        TacMap()->SetDisplayType(TACMAP_MAP);
     }
 }
 
 auto SalvageSwitch() -> void
 {
-    tacMap()->HideMe(0);
+    TacMap()->HideMe(0);
 
-    if (tacMap()->displayType != TACMAP_SALVAGE)
+    if (TacMap()->DisplayType != TACMAP_SALVAGE)
     {
-        tacMap()->SetDisplayType(TACMAP_SALVAGE);
-        stopVideo();
+        TacMap()->SetDisplayType(TACMAP_SALVAGE);
+        StopVideo();
     }
 }
 
 auto InfoSwitch() -> void
 {
-    tacMap()->HideMe(0);
+    TacMap()->HideMe(0);
 
-    if (tacMap()->displayType != TACMAP_INFO)
+    if (TacMap()->DisplayType != TACMAP_INFO)
     {
-        tacMap()->SetDisplayType(TACMAP_INFO);
-        stopVideo();
+        TacMap()->SetDisplayType(TACMAP_INFO);
+        StopVideo();
     }
 }
 
 auto MissionSwitch() -> void
 {
-    tacMap()->HideMe(0);
+    TacMap()->HideMe(0);
 
-    if (tacMap()->displayType != TACMAP_MISSION)
+    if (TacMap()->DisplayType != TACMAP_MISSION)
     {
-        tacMap()->SetDisplayType(TACMAP_MISSION);
-        stopVideo();
+        TacMap()->SetDisplayType(TACMAP_MISSION);
+        StopVideo();
     }
 }
 
-auto ToolPaletteButtonEvent(aObject* obj, aEvent* event) -> void
+auto ToolPaletteButtonEvent(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    if (event->type != EVENT_CALLBACK)
+    if (event->Type != EVENT_CALLBACK)
     {
         return;
     }
 
-    auto* button = static_cast<ToolPalButton*>(obj);
-    const int32_t action = button->action;
+    auto* button = static_cast<MCToolPalButton*>(obj);
+    const int32_t action = button->Action;
 
     if (action == ACTION_TOGGLE_ZOOM)
     {
-        soundSystem->playDigitalSample(0x2f, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x2f, 1, nullptr, 0, 0);
         ToggleZoom();
         return;
     }
 
-    if (button->pushed != 0)
+    if (button->Pushed != 0)
     {
         // One mode at a time.
-        soundSystem->playDigitalSample(0x35, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x35, 1, nullptr, 0, 0);
 
         for (int32_t i = 0; i < NUM_MODE_BUTTONS; i++)
         {
-            ToolPalButton* other = modeButton(i);
+            MCToolPalButton* other = ModeButton(i);
 
-            if (other != button && other->pushed != 0)
+            if (other != button && other->Pushed != 0)
             {
-                other->pushed = 0;
+                other->Pushed = 0;
             }
         }
 
-        theInterface->currentCommand = action;
-        theInterface->commandOneShot = -1;
+        TheInterface->CurrentCommand = action;
+        TheInterface->CommandOneShot = -1;
         return;
     }
 
-    soundSystem->playDigitalSample(0x34, 1, nullptr, 0, 0);
-    theInterface->currentCommand = 0;
-    theInterface->commandOneShot = 0;
+    SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+    TheInterface->CurrentCommand = 0;
+    TheInterface->CommandOneShot = 0;
 }
 
-auto TabStripEvent(aObject* obj, aEvent* event) -> void
+auto TabStripEvent(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    if (event->type == EVENT_LEFT_DOWN)
+    if (event->Type == EVENT_LEFT_DOWN)
     {
         // The strip's four tabs, top to bottom; clicking the open page's tab while shown does nothing.
-        const int32_t offset = event->y - obj->globalY();
+        const int32_t offset = event->Y - obj->GlobalY();
 
         if (offset > 0x1b)
         {
             if (offset < 0x4c)
             {
-                if (tacMap()->displayType == TACMAP_MAP && tacMap()->IsHidden() == 0)
+                if (TacMap()->DisplayType == TACMAP_MAP && TacMap()->IsHidden() == 0)
                 {
                     return;
                 }
@@ -956,7 +956,7 @@ auto TabStripEvent(aObject* obj, aEvent* event) -> void
             }
             else if (offset < 0x74)
             {
-                if (tacMap()->displayType == TACMAP_INFO && tacMap()->IsHidden() == 0)
+                if (TacMap()->DisplayType == TACMAP_INFO && TacMap()->IsHidden() == 0)
                 {
                     return;
                 }
@@ -965,7 +965,7 @@ auto TabStripEvent(aObject* obj, aEvent* event) -> void
             }
             else if (offset < 0xae)
             {
-                if (tacMap()->displayType == TACMAP_MISSION && tacMap()->IsHidden() == 0)
+                if (TacMap()->DisplayType == TACMAP_MISSION && TacMap()->IsHidden() == 0)
                 {
                     return;
                 }
@@ -979,7 +979,7 @@ auto TabStripEvent(aObject* obj, aEvent* event) -> void
                     return;
                 }
 
-                if (tacMap()->displayType == TACMAP_SALVAGE && tacMap()->IsHidden() == 0)
+                if (TacMap()->DisplayType == TACMAP_SALVAGE && TacMap()->IsHidden() == 0)
                 {
                     return;
                 }
@@ -987,194 +987,194 @@ auto TabStripEvent(aObject* obj, aEvent* event) -> void
                 SalvageSwitch();
             }
 
-            soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
             return;
         }
 
         // The strip's top toggles the MFD.
-        application->grab(obj);
-        tacMap()->HideMe(tacMap()->IsHidden() == 0);
+        Application->Grab(obj);
+        TacMap()->HideMe(TacMap()->IsHidden() == 0);
     }
-    else if (event->type == EVENT_LEFT_UP)
+    else if (event->Type == EVENT_LEFT_UP)
     {
-        application->release();
+        Application->Release();
     }
-    else if (event->type == EVENT_MOUSE_MOVE)
+    else if (event->Type == EVENT_MOUSE_MOVE)
     {
-        application->SetCurrentCursor(static_cast<CursorType>(0));
-    }
-}
-
-auto TabTopEvent(aObject* /*obj*/, aEvent* event) -> void
-{
-    if (event->type == EVENT_LEFT_DOWN)
-    {
-        tacMap()->HideMe(tacMap()->IsHidden() == 0);
-    }
-    else if (event->type == EVENT_MOUSE_MOVE)
-    {
-        application->SetCurrentCursor(static_cast<CursorType>(0));
+        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
     }
 }
 
-auto TabBottomEvent(aObject* /*obj*/, aEvent* event) -> void
+auto TabTopEvent(MCGuiObject* /*obj*/, MCGuiEvent* event) -> void
 {
-    if (event->type == EVENT_LEFT_DOWN)
+    if (event->Type == EVENT_LEFT_DOWN)
     {
-        if (tacMap()->displayType != TACMAP_SALVAGE)
+        TacMap()->HideMe(TacMap()->IsHidden() == 0);
+    }
+    else if (event->Type == EVENT_MOUSE_MOVE)
+    {
+        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+    }
+}
+
+auto TabBottomEvent(MCGuiObject* /*obj*/, MCGuiEvent* event) -> void
+{
+    if (event->Type == EVENT_LEFT_DOWN)
+    {
+        if (TacMap()->DisplayType != TACMAP_SALVAGE)
         {
-            soundSystem->playDigitalSample(0x36, 1, nullptr, 0, 0);
+            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
             SalvageSwitch();
         }
     }
-    else if (event->type == EVENT_MOUSE_MOVE)
+    else if (event->Type == EVENT_MOUSE_MOVE)
     {
-        application->SetCurrentCursor(static_cast<CursorType>(0));
+        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
     }
 }
 
-auto VideoWindow::init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) -> int32_t
+auto MCVideoWindow::Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) -> int32_t
 {
-    star = nullptr;
-    return aObject::init(xPos, yPos, w, h, fileName);
+    Star = nullptr;
+    return MCGuiObject::Init(xPos, yPos, w, h, fileName);
 }
 
-auto VideoWindow::draw() -> void
+auto MCVideoWindow::Draw() -> void
 {
     // The picture (the original painted it when no pilot spoke, and a name stayed over it until then).
-    if (backgroundPort != nullptr)
+    if (BackgroundPort != nullptr)
     {
-        backgroundPort->copyTo(displayPort->frame(), 0, 0, -1);
+        BackgroundPort->CopyTo(DisplayPort->Frame(), 0, 0, -1);
     }
 
-    if (star == nullptr)
+    if (Star == nullptr)
     {
         return;
     }
 
     // The pilot's name.
-    lineFont->scaled = 0;
-    lineFont->scale = 1.0f;
-    FillBox(1, 1, static_cast<int16_t>(width() - 2), 0xb, 0x10);
-    lineFont->print(3, 3, star->callsign, 0xe3, displayPort->frame());
-    lineFont->scale = 2.0f;
-    lineFont->scaled = 1;
+    LineFont->Scaled = 0;
+    LineFont->Scale = 1.0f;
+    FillBox(1, 1, static_cast<int16_t>(Width() - 2), 0xb, 0x10);
+    LineFont->Print(3, 3, Star->Callsign, 0xe3, DisplayPort->Frame());
+    LineFont->Scale = 2.0f;
+    LineFont->Scaled = 1;
 }
 
-auto VideoWindow::Update() -> void
+auto MCVideoWindow::Update() -> void
 {
-    if (star == nullptr)
+    if (Star == nullptr)
     {
         return;
     }
 
     // Blink the pilot's unit on the mech bar every half second.
-    if (blinkTime + 0.5 < scenarioTime)
+    if (BlinkTime + 0.5 < ScenarioTime)
     {
-        if (blinkOn == 0)
+        if (BlinkOn == 0)
         {
-            blinkOn = -1;
-            theInterface->mechBar->layout.videoId = star->vehicle->partId;
+            BlinkOn = -1;
+            TheInterface->MechBar->Layout.VideoId = Star->Vehicle->PartId;
         }
         else
         {
-            blinkOn = 0;
-            theInterface->mechBar->layout.videoId = -1;
+            BlinkOn = 0;
+            TheInterface->MechBar->Layout.VideoId = -1;
         }
     }
 
     // Track the unit on the tactical map.
-    TrackStar(starMapX, starMapY);
-    anchorX = static_cast<float>(width() / 2 + globalX());
-    anchorY = static_cast<float>(globalY());
+    TrackStar(StarMapX, StarMapY);
+    AnchorX = static_cast<float>(Width() / 2 + GlobalX());
+    AnchorY = static_cast<float>(GlobalY());
 }
 
-auto VideoWindow::TrackStar(float& mapX, float& mapY) -> void
+auto MCVideoWindow::TrackStar(float& mapX, float& mapY) -> void
 {
     // The unit on the tactical map, or the window's anchor (its bottom centre) when it is off the map area.
-    vector_3d position = star->vehicle->getPosition();
-    tacMap()->worldToTacMap(position, -1);
-    mapX = static_cast<float>(tacMap()->globalX()) + position.x;
-    mapY = static_cast<float>(tacMap()->globalY()) + position.y;
+    MCVector3D position = Star->Vehicle->GetPosition();
+    TacMap()->WorldToTacMap(position, -1);
+    mapX = static_cast<float>(TacMap()->GlobalX()) + position.X;
+    mapY = static_cast<float>(TacMap()->GlobalY()) + position.Y;
 
     if (mapX < 6.0f || mapX > 136.0f || mapY < 34.0f || mapY > 164.0f)
     {
-        mapX = static_cast<float>(width() / 2 + globalX());
-        mapY = static_cast<float>(globalY());
+        mapX = static_cast<float>(Width() / 2 + GlobalX());
+        mapY = static_cast<float>(GlobalY());
     }
 }
 
-auto VideoWindow::display() -> void
+auto MCVideoWindow::Display() -> void
 {
     // The line from the window to the unit, which it follows. (The original's line ran to where the unit was when
     // the window last painted, and from where the window was the paint before.)
-    if (star != nullptr)
+    if (Star != nullptr)
     {
         float mapX = 0.0f;
         float mapY = 0.0f;
         TrackStar(mapX, mapY);
-        VFX_line_draw(tacMap()->frame(), width() / 2 + globalX(), globalY(), static_cast<int32_t>(mapX),
-                      static_cast<int32_t>(mapY), 0, 0x1f);
+        VfxLineDraw(TacMap()->Frame(), Width() / 2 + GlobalX(), GlobalY(), static_cast<int32_t>(mapX),
+                    static_cast<int32_t>(mapY), 0, 0x1f);
     }
 
-    aObject::display();
+    MCGuiObject::Display();
 }
 
-auto VideoWindow::SetStar(MechWarrior* newStar) -> void
+auto MCVideoWindow::SetStar(MCMechWarrior* newStar) -> void
 {
     if (newStar != nullptr)
     {
-        blinkOn = 0;
-        star = newStar;
-        blinkTime = static_cast<float>(scenarioTime - 0.5);
-        theInterface->mechBar->layout.videoId = newStar->vehicle->partId;
+        BlinkOn = 0;
+        Star = newStar;
+        BlinkTime = static_cast<float>(ScenarioTime - 0.5);
+        TheInterface->MechBar->Layout.VideoId = newStar->Vehicle->PartId;
         Update();
         return;
     }
 
-    if (star != nullptr)
+    if (Star != nullptr)
     {
-        theInterface->mechBar->layout.videoId = -1;
-        GameObject* vehicle = star->vehicle;
+        TheInterface->MechBar->Layout.VideoId = -1;
+        MCGameObject* vehicle = Star->Vehicle;
 
-        if (theInterface->IsSelected(vehicle->partId) != 0)
+        if (TheInterface->IsSelected(vehicle->PartId) != 0)
         {
-            vehicle->setSelected(1);
-            star = nullptr;
+            vehicle->SetSelected(1);
+            Star = nullptr;
             Update();
             return;
         }
 
-        vehicle->setSelected(0);
+        vehicle->SetSelected(0);
     }
 
-    star = nullptr;
+    Star = nullptr;
     Update();
 }
 
-TacticalMap::TacticalMap()
+MCTacticalMap::MCTacticalMap()
 {
-    infoWatcher = {};
+    InfoWatcher = {};
 }
 
-TacticalMap::~TacticalMap()
+MCTacticalMap::~MCTacticalMap()
 {
-    infoWatcher.free();
+    InfoWatcher.Free();
 }
 
-auto TacticalMap::setRevealedBitmap(char* fileName) -> void
+auto MCTacticalMap::SetRevealedBitmap(char* fileName) -> void
 {
-    File gifFile;
-    FullPathFileName gifName;
-    gifName.init(terrainPath, fileName, ".gif");
+    MCFile gifFile;
+    MCFullPathFileName gifName;
+    gifName.Init(TerrainPath, fileName, ".gif");
 
-    if (fileExists(gifName) == 0)
+    if (FileExists(gifName) == 0)
     {
         return;
     }
 
-    gifFile.open(gifName, READ, 50);
-    const uint32_t size = gifFile.fileSize();
+    gifFile.Open(gifName, READ, 50);
+    const uint32_t size = gifFile.FileSize();
 
     if (size == 0)
     {
@@ -1188,70 +1188,70 @@ auto TacticalMap::setRevealedBitmap(char* fileName) -> void
         return;
     }
 
-    gifFile.read(gif, size);
-    gifFile.close();
-    VFX_GIF_resolution(gif);
+    gifFile.Read(gif, size);
+    gifFile.Close();
+    VfxGifResolution(gif);
     void* work = std::malloc(VFX_GIF_BUFFER_SIZE);
-    VFX_GIF_draw(visibilityPort->frame(), gif, work);
+    VfxGifDraw(VisibilityPort->Frame(), gif, work);
     std::free(gif);
     std::free(work);
 }
 
-auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
+auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
 {
-    zoom = 1;
-    infoObject = nullptr;
-    zoomOffset = 0;
-    objectivesRevealed = 0;
-    freePartShapes();
-    tacMapCenter = vector_3d(0.0f, 0.0f, 0.0f);
-    mapVertexSide = Terrain::verticesBlockSide * Terrain::blocksMapSide;
+    Zoom = 1;
+    InfoObject = nullptr;
+    ZoomOffset = 0;
+    ObjectivesRevealed = 0;
+    FreePartShapes();
+    TacMapCenter = MCVector3D(0.0f, 0.0f, 0.0f);
+    MapVertexSide = MCTerrain::VerticesBlockSide * MCTerrain::BlocksMapSide;
 
     // The map picture.
-    mapPort = new aPort;
+    MapPort = new MCGuiPort;
 
-    if (mapPort == nullptr)
+    if (MapPort == nullptr)
     {
         Fatal(-1, "No RAM for TacMap");
     }
 
-    FullPathFileName pictureName;
-    pictureName.init(terrainPath, Terrain::terrainName, ".tga");
-    int32_t result = mapPort->init(pictureName);
+    MCFullPathFileName pictureName;
+    pictureName.Init(TerrainPath, MCTerrain::TerrainName, ".tga");
+    int32_t result = MapPort->Init(pictureName);
     Assert(result == 0, static_cast<uint32_t>(result), " could not start tacticalMap ");
-    mapWidth = mapPort->frame()->window->x_max;
-    mapHeight = mapPort->frame()->window->y_max;
+    MapWidth = MapPort->Frame()->Window->XMax;
+    MapHeight = MapPort->Frame()->Window->YMax;
 
     // The fog of war: a port whose pixels are the home side's visible bits.
-    visibilityPort = new aPort;
+    VisibilityPort = new MCGuiPort;
 
-    if (mapPort == nullptr)
+    if (MapPort == nullptr)
     {
         Fatal(-1, "No RAM for TacMap");
     }
 
-    visibilityPort->init(mapVertexSide, mapVertexSide);
+    VisibilityPort->Init(MapVertexSide, MapVertexSide);
 
     if (result != 0)
     {
         Fatal(result, " Unable to create Port for TacMap ");
     }
 
-    MCRenderer::DestroyTexture(visibilityPort->frame()->window);
-    aPort::freePixels(visibilityPort->frame()->window->buffer);
-    ByteFlag* visibleBits = homeTeam->alignment == -1 ? Terrain::ClanVisibleBits : Terrain::terrainVisibleBits;
-    visibilityPort->frame()->window->buffer = visibleBits->flagData.data();
+    MCRenderer::DestroyTexture(VisibilityPort->Frame()->Window);
+    MCGuiPort::FreePixels(VisibilityPort->Frame()->Window->Buffer);
+    MCByteFlag* visibleBits = HomeTeam->Alignment == -1 ? MCTerrain::ClanVisibleBits : MCTerrain::TerrainVisibleBits;
+    VisibilityPort->Frame()->Window->Buffer = visibleBits->FlagData.data();
     // Port: the fog of war is a kept frame surface: the reveals draw it on the GPU as well as in the flags the game
     // reads, and the map page samples the GPU's copy instead of uploading the flags whenever they change.
-    MCRenderer::AddFrameSurface(visibilityPort->frame()->window, true);
+    MCRenderer::AddFrameSurface(VisibilityPort->Frame()->Window, true);
 
-    const float side = static_cast<float>(mapVertexSide) * static_cast<float>(mapVertexSide);
-    mapDiagonal = std::sqrt(side + side) * Terrain::metersPerVertex;
-    metersPerPixel = (mapDiagonal * DIAGONAL_TO_PIXELS) / static_cast<float>(zoom);
+    const float side = static_cast<float>(MapVertexSide) * static_cast<float>(MapVertexSide);
+    MapDiagonal = std::sqrt(side + side) * MCTerrain::MetersPerVertex;
+    MetersPerPixel = (MapDiagonal * DIAGONAL_TO_PIXELS) / static_cast<float>(Zoom);
 
-    mapBackground = loadBackground("mfdmwn00.tga", "Error reading tacmap MFD background");
-    infoBackground = loadBackground("mfddwn00.tga", "Error reading info MFD background");
-    missionBackground = loadBackground("mfdbwn00.tga", "Error reading mission MFD background");
+    MapBackground = LoadBackground("mfdmwn00.tga", "Error reading tacmap MFD background");
+    InfoBackground = LoadBackground("mfddwn00.tga", "Error reading info MFD background");
+    MissionBackground = LoadBackground("mfdbwn00.tga", "Error reading mission MFD background");
 
     // Port: the info page's data view backgrounds, which the original loaded each time it drew one (and skipped
     // when one failed to load).
@@ -1259,15 +1259,15 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
 
     for (int32_t i = 0; i < 3; i++)
     {
-        infoViewBackgrounds[i] = new aPort;
+        InfoViewBackgrounds[i] = new MCGuiPort;
 
-        if (infoViewBackgrounds[i]->init(const_cast<char*>(viewBackgroundNames[i])) != 0)
+        if (InfoViewBackgrounds[i]->Init(const_cast<char*>(viewBackgroundNames[i])) != 0)
         {
-            destroyPort(infoViewBackgrounds[i]);
+            DestroyPort(InfoViewBackgrounds[i]);
         }
     }
 
-    result = aObject::init(xPos, yPos, 0x8c, 0xef, nullptr);
+    result = MCGuiObject::Init(xPos, yPos, 0x8c, 0xef, nullptr);
 
     if (result != 0)
     {
@@ -1276,80 +1276,80 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
 
     if (MPlayer == nullptr)
     {
-        salvageBackground = missionBackground;
+        SalvageBackground = MissionBackground;
         result = 0;
     }
     else
     {
-        salvageBackground = loadBackground("mfdswn01.tga", "Error reading salvage MFD background");
-        chatWindow = new aChatWindow;
-        result = chatWindow->init(6, 0x22, 0x82, 0x99, nullptr);
-        addChild(chatWindow);
+        SalvageBackground = LoadBackground("mfdswn01.tga", "Error reading salvage MFD background");
+        ChatWindow = new MCGuiChatWindow;
+        result = ChatWindow->Init(6, 0x22, 0x82, 0x99, nullptr);
+        AddChild(ChatWindow);
         Assert(result == 0, static_cast<uint32_t>(result), "Error initing chat object");
     }
 
-    chatPending = 0;
+    ChatPending = 0;
 
     // The tabs along the MFD's right edge.
-    tabTop = makePicture(this, width(), 0, 0xc, 4, "mfdmts00.tga");
-    tabTop->setEventRoutine(TabTopEvent);
-    tabTop->SetTransparent(-1);
-    addChild(tabTop);
+    TabTop = MakePicture(this, Width(), 0, 0xc, 4, "mfdmts00.tga");
+    TabTop->SetEventRoutine(TabTopEvent);
+    TabTop->SetTransparent(-1);
+    AddChild(TabTop);
 
-    tabStrip = new aObject;
-    tabStrip->SetDrawsLive();
-    tabStrip->init(width(), 4, 0xc, 0xe7, nullptr);
+    TabStrip = new MCGuiObject;
+    TabStrip->SetDrawsLive();
+    TabStrip->Init(Width(), 4, 0xc, 0xe7, nullptr);
 
     if (MPlayer == nullptr)
     {
-        tabStrip->setBackground(const_cast<char*>("mfdmts01.tga"));
+        TabStrip->SetBackground(const_cast<char*>("mfdmts01.tga"));
     }
     else
     {
-        const int32_t blinkerTop = tabStrip->bottom() - 0x3a;
-        tabStrip->setBackground(const_cast<char*>("mfdmts03.tga"));
+        const int32_t blinkerTop = TabStrip->Bottom() - 0x3a;
+        TabStrip->SetBackground(const_cast<char*>("mfdmts03.tga"));
 
-        chatBlinkerOff = new aObject;
-        chatBlinkerOff->SetDrawsLive();
-        result = chatBlinkerOff->init(width() + 2, blinkerTop, 10, 0x3a, nullptr);
+        ChatBlinkerOff = new MCGuiObject;
+        ChatBlinkerOff->SetDrawsLive();
+        result = ChatBlinkerOff->Init(Width() + 2, blinkerTop, 10, 0x3a, nullptr);
         Assert(result == 0, static_cast<uint32_t>(result), "Error initing chat blinker object");
-        chatBlinkerOff->setBackground(const_cast<char*>("mfdsts05.tga"));
-        chatBlinkerOff->setDepth(10);
-        addChild(chatBlinkerOff);
-        chatBlinkerOff->ShowGUIWindow(0);
-        chatBlinkerOff->setEventRoutine(BlinkerHandleEvent);
+        ChatBlinkerOff->SetBackground(const_cast<char*>("mfdsts05.tga"));
+        ChatBlinkerOff->SetDepth(10);
+        AddChild(ChatBlinkerOff);
+        ChatBlinkerOff->ShowGuiWindow(0);
+        ChatBlinkerOff->SetEventRoutine(BlinkerHandleEvent);
 
-        chatBlinkerOn = new aObject;
-        chatBlinkerOn->SetDrawsLive();
-        result = chatBlinkerOn->init(width(), blinkerTop, 10, 0x3a, nullptr);
+        ChatBlinkerOn = new MCGuiObject;
+        ChatBlinkerOn->SetDrawsLive();
+        result = ChatBlinkerOn->Init(Width(), blinkerTop, 10, 0x3a, nullptr);
         Assert(result == 0, static_cast<uint32_t>(result), "Error initing chat blinker object");
-        chatBlinkerOn->setBackground(const_cast<char*>("mfdsts04.tga"));
-        chatBlinkerOn->setDepth(10);
-        addChild(chatBlinkerOn);
-        chatBlinkerOn->ShowGUIWindow(0);
-        chatBlinkerOn->setEventRoutine(BlinkerHandleEvent);
+        ChatBlinkerOn->SetBackground(const_cast<char*>("mfdsts04.tga"));
+        ChatBlinkerOn->SetDepth(10);
+        AddChild(ChatBlinkerOn);
+        ChatBlinkerOn->ShowGuiWindow(0);
+        ChatBlinkerOn->SetEventRoutine(BlinkerHandleEvent);
     }
 
-    tabStrip->setEventRoutine(TabStripEvent);
-    addChild(tabStrip);
+    TabStrip->SetEventRoutine(TabStripEvent);
+    AddChild(TabStrip);
 
-    tabBottom = makePicture(this, width(), 0xeb, 0xc, 4, "mfdmts02.tga");
-    tabBottom->setEventRoutine(TabBottomEvent);
-    tabBottom->SetTransparent(-1);
-    addChild(tabBottom);
+    TabBottom = MakePicture(this, Width(), 0xeb, 0xc, 4, "mfdmts02.tga");
+    TabBottom->SetEventRoutine(TabBottomEvent);
+    TabBottom->SetTransparent(-1);
+    AddChild(TabBottom);
 
-    objectType = 6;
-    ShowGUIWindow(0);
-    setBackColor(0x10);
-    SetHideDirection(static_cast<DIRECTION>(0));
+    ObjectType = 6;
+    ShowGuiWindow(0);
+    SetBackColor(0x10);
+    SetHideDirection(static_cast<MCDirection>(0));
 
     // The support buttons.
     struct SupportButton
     {
-        int32_t x;
-        int32_t commandId;
-        uint32_t helpId;
-        const char* pictures[3];
+        int32_t X;
+        int32_t CommandId;
+        uint32_t HelpId;
+        const char* Pictures[3];
     };
 
     static const SupportButton supportButtons[4] = {
@@ -1362,21 +1362,21 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     for (int32_t i = 0; i < 4; i++)
     {
         const SupportButton& spec = supportButtons[i];
-        ArtilleryButton* button =
-            makeButton<ArtilleryButton>(spec.x, 6, 0x1f, 0x16, spec.pictures[0], spec.pictures[1], spec.pictures[2]);
-        artilleryButtons[i] = button;
-        button->commandId = spec.commandId;
-        loadHelpText(button->helpText, spec.helpId);
-        addChild(button);
+        MCArtilleryButton* button =
+            MakeButton<MCArtilleryButton>(spec.X, 6, 0x1f, 0x16, spec.Pictures[0], spec.Pictures[1], spec.Pictures[2]);
+        ArtilleryButtons[i] = button;
+        button->CommandId = spec.CommandId;
+        LoadHelpText(button->HelpText, spec.HelpId);
+        AddChild(button);
     }
 
     // The info page's data buttons.
     struct DataButton
     {
-        int32_t index;
-        int32_t x;
-        void (*callback)();
-        const char* pictures[3];
+        int32_t Index;
+        int32_t X;
+        void (*Callback)();
+        const char* Pictures[3];
     };
 
     static const DataButton dataButtonSpecs[3] = {
@@ -1387,84 +1387,86 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
 
     for (const DataButton& spec : dataButtonSpecs)
     {
-        aToolButton* button =
-            makeButton<aToolButton>(spec.x, 0xcc, 0x20, 0xc, spec.pictures[0], spec.pictures[1], spec.pictures[2]);
-        dataButtons[spec.index] = button;
-        button->framed = 0;
-        button->callback()->setExec(spec.callback);
-        addChild(button);
+        MCGuiToolButton* button =
+            MakeButton<MCGuiToolButton>(spec.X, 0xcc, 0x20, 0xc, spec.Pictures[0], spec.Pictures[1], spec.Pictures[2]);
+        DataButtons[spec.Index] = button;
+        button->Framed = 0;
+        button->Callback()->SetExec(spec.Callback);
+        AddChild(button);
     }
 
     // The scroll buttons (disabled at 1x) and the zoom buttons.
     struct ScrollButton
     {
-        int32_t x;
-        int32_t y;
-        void (*routine)(aObject*, aEvent*);
-        const char* pictures[3];
+        int32_t X;
+        int32_t Y;
+        void (*Routine)(MCGuiObject*, MCGuiEvent*);
+        const char* Pictures[3];
     };
 
     static const ScrollButton scrollSpecs[4] = {
-        {0x4b, 0xb5, TMCUp, {"mfdmbh00.tga", "mfdmbg00.tga", "mfdmbn00.tga"}},
-        {0x59, 0xc0, TMCLeft, {"mfdmbh01.tga", "mfdmbg01.tga", "mfdmbn01.tga"}},
-        {0x4b, 0xcd, TMCDown, {"mfdmbh02.tga", "mfdmbg02.tga", "mfdmbn02.tga"}},
-        {0x3f, 0xc0, TMCRight, {"mfdmbh03.tga", "mfdmbg03.tga", "mfdmbn03.tga"}},
+        {0x4b, 0xb5, TmcUp, {"mfdmbh00.tga", "mfdmbg00.tga", "mfdmbn00.tga"}},
+        {0x59, 0xc0, TmcLeft, {"mfdmbh01.tga", "mfdmbg01.tga", "mfdmbn01.tga"}},
+        {0x4b, 0xcd, TmcDown, {"mfdmbh02.tga", "mfdmbg02.tga", "mfdmbn02.tga"}},
+        {0x3f, 0xc0, TmcRight, {"mfdmbh03.tga", "mfdmbg03.tga", "mfdmbn03.tga"}},
     };
 
     for (int32_t i = 0; i < 4; i++)
     {
         const ScrollButton& spec = scrollSpecs[i];
-        aButton* button =
-            makeButton<aButton>(spec.x, spec.y, 0xd, 0xb, spec.pictures[0], spec.pictures[1], spec.pictures[2]);
-        scrollButtons[i] = button;
-        button->setEventRoutine(spec.routine);
-        addChild(button);
+        MCGuiButton* button =
+            MakeButton<MCGuiButton>(spec.X, spec.Y, 0xd, 0xb, spec.Pictures[0], spec.Pictures[1], spec.Pictures[2]);
+        ScrollButtons[i] = button;
+        button->SetEventRoutine(spec.Routine);
+        AddChild(button);
     }
 
-    aButton* zoomOutButton = makeButton<aButton>(0x74, 0xca, 0xd, 0xd, "mfdmbh04.tga", "mfdmbg04.tga", "mfdmbn04.tga");
-    scrollButtons[5] = zoomOutButton;
-    zoomOutButton->callback()->setExec(TMCZoomOut);
-    zoomOutButton->disabled = -1;
-    addChild(zoomOutButton);
-    aButton* zoomInButton = makeButton<aButton>(0x74, 0xb6, 0xd, 0xd, "mfdmbh05.tga", "mfdmbg05.tga", "mfdmbn05.tga");
-    scrollButtons[4] = zoomInButton;
-    zoomInButton->callback()->setExec(TMCZoomIn);
-    addChild(zoomInButton);
+    MCGuiButton* zoomOutButton =
+        MakeButton<MCGuiButton>(0x74, 0xca, 0xd, 0xd, "mfdmbh04.tga", "mfdmbg04.tga", "mfdmbn04.tga");
+    ScrollButtons[5] = zoomOutButton;
+    zoomOutButton->Callback()->SetExec(TmcZoomOut);
+    zoomOutButton->Disabled = -1;
+    AddChild(zoomOutButton);
+    MCGuiButton* zoomInButton =
+        MakeButton<MCGuiButton>(0x74, 0xb6, 0xd, 0xd, "mfdmbh05.tga", "mfdmbg05.tga", "mfdmbn05.tga");
+    ScrollButtons[4] = zoomInButton;
+    zoomInButton->Callback()->SetExec(TmcZoomIn);
+    AddChild(zoomInButton);
 
     for (int32_t i = 0; i < 4; i++)
     {
-        aButton* button = tacMap()->scrollButtons[i];
-        button->disabled = -1;
+        MCGuiButton* button = TacMap()->ScrollButtons[i];
+        button->Disabled = -1;
     }
 
     // The command palette, hidden until the palette button opens it.
-    paletteFrame = new aObject;
-    paletteFrame->SetDrawsLive();
-    paletteFrame->init(0, 0xe9, 0x8c, 0x35, nullptr);
-    paletteFrame->setDepth(10);
-    paletteFrame->setBackground(const_cast<char*>("mfdcwn00.tga"));
-    addChild(paletteFrame);
-    paletteFrame->ShowGUIWindow(0);
-    paletteBottom = new aObject;
-    paletteBottom->SetDrawsLive();
-    paletteBottom->init(paletteFrame->width(), 0, 2, 0x35, nullptr);
-    paletteBottom->setBackground(const_cast<char*>("mfdcwn01.tga"));
-    paletteBottom->SetTransparent(-1);
-    paletteFrame->addChild(paletteBottom);
+    PaletteFrame = new MCGuiObject;
+    PaletteFrame->SetDrawsLive();
+    PaletteFrame->Init(0, 0xe9, 0x8c, 0x35, nullptr);
+    PaletteFrame->SetDepth(10);
+    PaletteFrame->SetBackground(const_cast<char*>("mfdcwn00.tga"));
+    AddChild(PaletteFrame);
+    PaletteFrame->ShowGuiWindow(0);
+    PaletteBottom = new MCGuiObject;
+    PaletteBottom->SetDrawsLive();
+    PaletteBottom->Init(PaletteFrame->Width(), 0, 2, 0x35, nullptr);
+    PaletteBottom->SetBackground(const_cast<char*>("mfdcwn01.tga"));
+    PaletteBottom->SetTransparent(-1);
+    PaletteFrame->AddChild(PaletteBottom);
 
-    paletteButton = makeButton<aToolButton>(6, 0xe0, 9, 9, "mfdcwn02.tga", "mfdcwn03.tga", nullptr);
-    paletteButton->framed = 0;
-    paletteButton->callback()->setExec(TogglePalette);
-    addChild(paletteButton);
+    PaletteButton = MakeButton<MCGuiToolButton>(6, 0xe0, 9, 9, "mfdcwn02.tga", "mfdcwn03.tga", nullptr);
+    PaletteButton->Framed = 0;
+    PaletteButton->Callback()->SetExec(TogglePalette);
+    AddChild(PaletteButton);
 
-    scrollUpMarker = makePicture(this, 0, 0, 0xb, 0xb, "mfddbg04.tga");
-    scrollUpMarker->ShowGUIWindow(0);
-    addChild(scrollUpMarker);
-    scrollDownMarker = makePicture(this, 0, 0, 0xb, 0xb, "mfddbg05.tga");
-    scrollDownMarker->ShowGUIWindow(0);
-    addChild(scrollDownMarker);
+    ScrollUpMarker = MakePicture(this, 0, 0, 0xb, 0xb, "mfddbg04.tga");
+    ScrollUpMarker->ShowGuiWindow(0);
+    AddChild(ScrollUpMarker);
+    ScrollDownMarker = MakePicture(this, 0, 0, 0xb, 0xb, "mfddbg05.tga");
+    ScrollDownMarker->ShowGuiWindow(0);
+    AddChild(ScrollDownMarker);
 
-    lastMapTime = -999.0f;
+    LastMapTime = -999.0f;
 
     // The palette's mode buttons, two rows of four.
     int32_t buttonX = 6;
@@ -1472,44 +1474,44 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
 
     for (int16_t i = 0; i < 8; i++)
     {
-        auto* button = new ToolPalButton;
-        toolButtons[i] = button;
-        button->init(buttonX, buttonY, 0x1f, 0x16, nullptr);
-        button->callback()->setMessage(button, EVENT_CALLBACK);
-        button->setEventRoutine(ToolPaletteButtonEvent);
+        auto* button = new MCToolPalButton;
+        ToolButtons[i] = button;
+        button->Init(buttonX, buttonY, 0x1f, 0x16, nullptr);
+        button->Callback()->SetMessage(button, EVENT_CALLBACK);
+        button->SetEventRoutine(ToolPaletteButtonEvent);
         char pictureName[32];
         std::snprintf(pictureName, sizeof(pictureName), i == 7 ? "mfdcbn%02i.tga" : "mfdcbh%02i.tga", i);
-        button->setUpPicture(pictureName);
+        button->SetUpPicture(pictureName);
         std::snprintf(pictureName, sizeof(pictureName), i == 7 ? "mfdcbh%02i.tga" : "mfdcbg%02i.tga", i);
-        button->setDownPicture(pictureName);
+        button->SetDownPicture(pictureName);
         std::snprintf(pictureName, sizeof(pictureName), "mfdcbn%02i.tga", i);
-        button->setGrayPicture(pictureName);
-        button->framed = 0;
+        button->SetGrayPicture(pictureName);
+        button->Framed = 0;
 
         if (i == 7)
         {
             // The original also disabled zoom in multiplayer; the port allows it.
-            if (only45Pixel == 0)
+            if (Only45Pixel == 0)
             {
-                button->action = ACTION_TOGGLE_ZOOM;
-                loadHelpText(button->helpText, 0x91);
+                button->Action = ACTION_TOGGLE_ZOOM;
+                LoadHelpText(button->HelpText, 0x91);
             }
             else
             {
                 // No zoom: only the 45-pixel art is loaded.
-                button->setGrayPicture(const_cast<char*>("mfdcbn07a.tga"));
-                button->disabled = -1;
-                loadHelpText(button->helpText, 0x92);
+                button->SetGrayPicture(const_cast<char*>("mfdcbn07a.tga"));
+                button->Disabled = -1;
+                LoadHelpText(button->HelpText, 0x92);
             }
         }
         else
         {
-            button->action = buttonActions[i];
-            loadHelpText(button->helpText, 0x8a + static_cast<uint32_t>(i));
+            button->Action = ButtonActions[i];
+            LoadHelpText(button->HelpText, 0x8a + static_cast<uint32_t>(i));
         }
 
-        paletteFrame->addChild(button);
-        buttonX += 1 + button->width();
+        PaletteFrame->AddChild(button);
+        buttonX += 1 + button->Width();
 
         if (i == 3)
         {
@@ -1518,71 +1520,71 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
         }
     }
 
-    videoWindow = new VideoWindow;
-    videoWindow->init(6, 0xaa, 0x30, 0x30, nullptr);
-    videoWindow->setBackground(const_cast<char*>("mfdmwn01.tga"));
-    addChild(videoWindow);
+    VideoWindow = new MCVideoWindow;
+    VideoWindow->Init(6, 0xaa, 0x30, 0x30, nullptr);
+    VideoWindow->SetBackground(const_cast<char*>("mfdmwn01.tga"));
+    AddChild(VideoWindow);
 
-    infoText = new aScrollTextObject;
-    Assert(infoText != nullptr, 0, "Not enough memory for text view object");
-    infoText->init(5, 0x22, 0x76, 0xb8, nullptr);
-    addChild(infoText);
-    infoText->ShowGUIWindow(0);
-    salvageText = new aScrollTextObject;
-    Assert(salvageText != nullptr, 0, "Not enough memory for salvage view object");
-    salvageText->init(5, 0x22, 0x76, 0xb8, nullptr);
-    addChild(salvageText);
-    salvageText->ShowGUIWindow(0);
+    InfoText = new MCGuiScrollTextObject;
+    Assert(InfoText != nullptr, 0, "Not enough memory for text view object");
+    InfoText->Init(5, 0x22, 0x76, 0xb8, nullptr);
+    AddChild(InfoText);
+    InfoText->ShowGuiWindow(0);
+    SalvageText = new MCGuiScrollTextObject;
+    Assert(SalvageText != nullptr, 0, "Not enough memory for salvage view object");
+    SalvageText->Init(5, 0x22, 0x76, 0xb8, nullptr);
+    AddChild(SalvageText);
+    SalvageText->ShowGuiWindow(0);
 
-    numSalvage = 0;
-    scrollX = 0;
-    scrollY = 0;
+    NumSalvage = 0;
+    ScrollX = 0;
+    ScrollY = 0;
     SetDisplayType(TACMAP_MAP);
 
     // The map area, as rectangles and as a pane on the MFD's window.
-    mapPane.window = displayPort->frame()->window;
-    mapRect[0] = 6;
-    mapPane.x0 = 6;
-    mapRect[1] = 0x22;
-    mapPane.y0 = 0x22;
-    zoomInRect[0] = 0x70;
-    mapRect[2] = 0x87;
-    mapPane.x1 = 0x87;
-    zoomInRect[1] = 0xb2;
-    mapRect[3] = 0xa3;
-    mapPane.y1 = 0xa3;
-    zoomInRect[2] = 0x89;
-    zoomInRect[3] = 199;
-    zoomOutRect[0] = 0x70;
-    zoomOutRect[1] = 199;
-    zoomOutRect[2] = 0xb2;
-    zoomOutRect[3] = 0xdb;
+    MapPane.Window = DisplayPort->Frame()->Window;
+    MapRect[0] = 6;
+    MapPane.X0 = 6;
+    MapRect[1] = 0x22;
+    MapPane.Y0 = 0x22;
+    ZoomInRect[0] = 0x70;
+    MapRect[2] = 0x87;
+    MapPane.X1 = 0x87;
+    ZoomInRect[1] = 0xb2;
+    MapRect[3] = 0xa3;
+    MapPane.Y1 = 0xa3;
+    ZoomInRect[2] = 0x89;
+    ZoomInRect[3] = 199;
+    ZoomOutRect[0] = 0x70;
+    ZoomOutRect[1] = 199;
+    ZoomOutRect[2] = 0xb2;
+    ZoomOutRect[3] = 0xdb;
 
-    for (aPort*& port : infoPorts)
+    for (MCGuiPort*& port : InfoPorts)
     {
-        port = new aPort;
+        port = new MCGuiPort;
     }
 
     SetDataDisplayMode(0, -1);
-    lastRefreshTime = 0;
+    LastRefreshTime = 0;
     RefreshPage();
 
-    typeString[0] = loadHeapString(0x7c);
-    typeString[1] = loadHeapString(0x7d);
-    typeString[2] = loadHeapString(0x7e);
-    typeString[3] = loadHeapString(0x7f);
-    typeString[4] = loadHeapString(0x80);
-    statusString[0] = loadHeapString(0x78);
-    statusString[1] = loadHeapString(0x79);
-    statusString[2] = loadHeapString(0x7a);
-    statusString[3] = loadHeapString(0x7b);
+    TypeString[0] = LoadHeapString(0x7c);
+    TypeString[1] = LoadHeapString(0x7d);
+    TypeString[2] = LoadHeapString(0x7e);
+    TypeString[3] = LoadHeapString(0x7f);
+    TypeString[4] = LoadHeapString(0x80);
+    StatusString[0] = LoadHeapString(0x78);
+    StatusString[1] = LoadHeapString(0x79);
+    StatusString[2] = LoadHeapString(0x7a);
+    StatusString[3] = LoadHeapString(0x7b);
 
-    std::memset(colorRemap, 0xff, sizeof(colorRemap));
-    colorRemap[0xe6] = 0x13;
-    colorRemap[0xe8] = 0x13;
-    MCRenderer::RegisterData(colorRemap, sizeof(colorRemap), MCDataKind::Tables);
+    std::memset(ColorRemap, 0xff, sizeof(ColorRemap));
+    ColorRemap[0xe6] = 0x13;
+    ColorRemap[0xe8] = 0x13;
+    MCRenderer::RegisterData(ColorRemap, sizeof(ColorRemap), MCDataKind::Tables);
 
-    for (GameObject*& item : salvage)
+    for (MCGameObject*& item : Salvage)
     {
         item = nullptr;
     }
@@ -1590,206 +1592,206 @@ auto TacticalMap::init(int32_t xPos, int32_t yPos) -> int32_t
     return result;
 }
 
-auto TacticalMap::freePartShapes() -> void
+auto MCTacticalMap::FreePartShapes() -> void
 {
-    if (partShapes != nullptr)
+    if (PartShapes != nullptr)
     {
-        MCRenderer::UnregisterData(partShapes.get());
-        partShapes.reset();
+        MCRenderer::UnregisterData(PartShapes.get());
+        PartShapes.reset();
     }
 }
 
-auto TacticalMap::destroy() -> void
+auto MCTacticalMap::Destroy() -> void
 {
-    if (mapPort != nullptr)
+    if (MapPort != nullptr)
     {
-        mapPort->destroy();
-        delete mapPort;
-        mapPort = nullptr;
+        MapPort->Destroy();
+        delete MapPort;
+        MapPort = nullptr;
     }
 
-    if (visibilityPort != nullptr)
+    if (VisibilityPort != nullptr)
     {
         // The bitmap's pixels are the visible bits' heap; the original clears the pane's window first.
-        MCRenderer::RemoveFrameSurface(visibilityPort->frame()->window);
-        visibilityPort->frame()->window = nullptr;
-        visibilityPort->destroy();
-        delete visibilityPort;
-        visibilityPort = nullptr;
+        MCRenderer::RemoveFrameSurface(VisibilityPort->Frame()->Window);
+        VisibilityPort->Frame()->Window = nullptr;
+        VisibilityPort->Destroy();
+        delete VisibilityPort;
+        VisibilityPort = nullptr;
     }
 
-    theInterface->tacticalMap = nullptr;
+    TheInterface->TacticalMap = nullptr;
 
-    for (ArtilleryButton*& button : artilleryButtons)
+    for (MCArtilleryButton*& button : ArtilleryButtons)
     {
-        destroyChild(button);
+        DestroyChild(button);
     }
 
-    for (aButton*& button : scrollButtons)
+    for (MCGuiButton*& button : ScrollButtons)
     {
-        destroyChild(button);
+        DestroyChild(button);
     }
 
-    for (ToolPalButton*& button : toolButtons)
+    for (MCToolPalButton*& button : ToolButtons)
     {
-        destroyChild(button);
+        DestroyChild(button);
     }
 
-    for (aToolButton*& button : dataButtons)
+    for (MCGuiToolButton*& button : DataButtons)
     {
-        destroyChild(button);
+        DestroyChild(button);
     }
 
-    destroyChild(paletteButton);
-    destroyChild(paletteBottom);
-    destroyChild(paletteFrame);
-    destroyChild(salvageText);
-    destroyChild(infoText);
-    destroyChild(videoWindow);
+    DestroyChild(PaletteButton);
+    DestroyChild(PaletteBottom);
+    DestroyChild(PaletteFrame);
+    DestroyChild(SalvageText);
+    DestroyChild(InfoText);
+    DestroyChild(VideoWindow);
 
-    for (aPort*& port : infoPorts)
+    for (MCGuiPort*& port : InfoPorts)
     {
-        destroyPort(port);
+        DestroyPort(port);
     }
 
-    destroyPort(mapBackground);
-    destroyPort(infoBackground);
+    DestroyPort(MapBackground);
+    DestroyPort(InfoBackground);
 
-    for (aPort*& background : infoViewBackgrounds)
+    for (MCGuiPort*& background : InfoViewBackgrounds)
     {
-        destroyPort(background);
+        DestroyPort(background);
     }
 
-    if (missionBackground != nullptr)
+    if (MissionBackground != nullptr)
     {
-        missionBackground->destroy();
-        delete missionBackground;
-        missionBackground = nullptr;
+        MissionBackground->Destroy();
+        delete MissionBackground;
+        MissionBackground = nullptr;
 
         // In single player the salvage page shares it.
         if (MPlayer == nullptr)
         {
-            salvageBackground = nullptr;
+            SalvageBackground = nullptr;
         }
     }
 
-    destroyPort(salvageBackground);
-    destroyChild(tabTop);
-    destroyChild(tabStrip);
-    destroyChild(tabBottom);
-    destroyChild(scrollUpMarker);
-    destroyChild(scrollDownMarker);
-    destroyChild(chatWindow);
-    destroyChild(chatBlinkerOff);
-    destroyChild(chatBlinkerOn);
-    freePartShapes();
-    mouseInside = 0;
-    aObject::destroy();
+    DestroyPort(SalvageBackground);
+    DestroyChild(TabTop);
+    DestroyChild(TabStrip);
+    DestroyChild(TabBottom);
+    DestroyChild(ScrollUpMarker);
+    DestroyChild(ScrollDownMarker);
+    DestroyChild(ChatWindow);
+    DestroyChild(ChatBlinkerOff);
+    DestroyChild(ChatBlinkerOn);
+    FreePartShapes();
+    MouseInside = 0;
+    MCGuiObject::Destroy();
 
-    for (std::string& text : typeString)
+    for (std::string& text : TypeString)
     {
         text.clear();
     }
 
-    for (std::string& text : statusString)
+    for (std::string& text : StatusString)
     {
         text.clear();
     }
 }
 
-auto TacticalMap::RefreshPage() -> void
+auto MCTacticalMap::RefreshPage() -> void
 {
     if (IsShowing() == 0)
     {
         return;
     }
 
-    if (displayType == TACMAP_INFO)
+    if (DisplayType == TACMAP_INFO)
     {
-        aScrollTextObject* text = infoText;
-        GameObject* obj = infoObject;
-        const int32_t firstPixel = text->firstPixel;
+        MCGuiScrollTextObject* text = InfoText;
+        MCGameObject* obj = InfoObject;
+        const int32_t firstPixel = text->FirstPixel;
 
-        if (obj == nullptr || (obj->objectClass != BATTLEMECH && obj->objectClass != GROUNDVEHICLE &&
-                               obj->objectClass != ELEMENTAL && obj->objectClass != MOVER))
+        if (obj == nullptr || (obj->ObjectClass != BATTLEMECH && obj->ObjectClass != GROUNDVEHICLE &&
+                               obj->ObjectClass != ELEMENTAL && obj->ObjectClass != MOVER))
         {
-            infoText->ShowGUIWindow(0);
+            InfoText->ShowGuiWindow(0);
             return;
         }
 
-        if (dataDisplayMode == 2)
+        if (DataDisplayMode == 2)
         {
             // Payload: the weapon list.
-            infoDirty = 0;
-            text->ShowGUIWindow(-1);
-            drawWeapons();
+            InfoDirty = 0;
+            text->ShowGuiWindow(-1);
+            DrawWeapons();
         }
         else
         {
             // Armor: the part diagram's colours.
             GetColors();
-            infoDirty = 0;
-            infoText->ShowGUIWindow(0);
+            InfoDirty = 0;
+            InfoText->ShowGuiWindow(0);
         }
 
-        if (obj->objectClass == BATTLEMECH)
+        if (obj->ObjectClass == BATTLEMECH)
         {
-            aScrollTextObject* list = infoText;
-            list->firstPixel = firstPixel;
+            MCGuiScrollTextObject* list = InfoText;
+            list->FirstPixel = firstPixel;
             list->PositionScrollTab();
         }
-        else if (obj->objectClass == GROUNDVEHICLE)
+        else if (obj->ObjectClass == GROUNDVEHICLE)
         {
-            if (dataDisplayMode == 1)
+            if (DataDisplayMode == 1)
             {
                 SetDataDisplayMode(0, 0);
             }
 
-            aScrollTextObject* list = infoText;
-            list->firstPixel = firstPixel;
+            MCGuiScrollTextObject* list = InfoText;
+            list->FirstPixel = firstPixel;
             list->PositionScrollTab();
         }
 
         return;
     }
 
-    if (displayType == TACMAP_MISSION)
+    if (DisplayType == TACMAP_MISSION)
     {
         // The home side's objectives, each with its type and its timer or status.
-        aScrollTextObject* text = infoText;
-        const int32_t firstPixel = text->firstPixel;
+        MCGuiScrollTextObject* text = InfoText;
+        const int32_t firstPixel = text->FirstPixel;
         text->Clear();
 
-        if (turn > 1)
+        if (Turn > 1)
         {
-            const int32_t count = static_cast<int32_t>(homeTeam->numObjectives);
-            int32_t objectiveNum = homeTeam->firstObjective;
+            const int32_t count = static_cast<int32_t>(HomeTeam->NumObjectives);
+            int32_t objectiveNum = HomeTeam->FirstObjective;
             char line[256];
 
             for (int32_t i = 0; i < count; i++, objectiveNum++)
             {
-                ScenarioObjective* objective = &scenario->objectives[objectiveNum];
+                MCScenarioObjective* objective = &Scenario->Objectives[objectiveNum];
                 uint8_t color = 0;
 
-                if (objective->status == 0)
+                if (objective->Status == 0)
                 {
                     color = 0xf2;
                 }
-                else if (objective->status == 1)
+                else if (objective->Status == 1)
                 {
                     color = 0xb;
                 }
-                else if (objective->status == 2)
+                else if (objective->Status == 2)
                 {
                     color = 0xef;
                 }
 
-                std::snprintf(line, sizeof(line), "%d--%s", i + 1, objective->name);
+                std::snprintf(line, sizeof(line), "%d--%s", i + 1, objective->Name);
                 text->PrintWrapped(line, color, -1);
-                const uint32_t type = objective->type + 1 > 3 ? 4 : objective->type + 1;
-                std::snprintf(line, sizeof(line), "      %s", typeString[type].c_str());
+                const uint32_t type = objective->Type + 1 > 3 ? 4 : objective->Type + 1;
+                std::snprintf(line, sizeof(line), "      %s", TypeString[type].c_str());
                 text->PrintWrapped(line, color, -1);
-                const float timeLeft = scenario->checkObjectiveTimer(objectiveNum);
+                const float timeLeft = Scenario->CheckObjectiveTimer(objectiveNum);
 
                 if (timeLeft > 0.0)
                 {
@@ -1800,8 +1802,8 @@ auto TacticalMap::RefreshPage() -> void
                 }
                 else
                 {
-                    const uint32_t status = objective->status > 2 ? 3 : objective->status;
-                    std::snprintf(line, sizeof(line), "      %s", statusString[status].c_str());
+                    const uint32_t status = objective->Status > 2 ? 3 : objective->Status;
+                    std::snprintf(line, sizeof(line), "      %s", StatusString[status].c_str());
                 }
 
                 text->PrintWrapped(line, color, -1);
@@ -1809,13 +1811,13 @@ auto TacticalMap::RefreshPage() -> void
             }
         }
 
-        text->firstPixel = firstPixel;
+        text->FirstPixel = firstPixel;
         text->ResetPortSize();
         text->PositionScrollTab();
     }
 }
 
-auto TacticalMap::draw() -> void
+auto MCTacticalMap::Draw() -> void
 {
     if (IsShowing() == 0)
     {
@@ -1823,33 +1825,33 @@ auto TacticalMap::draw() -> void
     }
 
     // The page's background, drawn with its holes (colour 0xff) open.
-    switch (displayType)
+    switch (DisplayType)
     {
         case TACMAP_MAP:
         {
-            mapBackground->copyTo(displayPort->frame(), 0, 0, -1);
-            drawMapPage(this);
+            MapBackground->CopyTo(DisplayPort->Frame(), 0, 0, -1);
+            DrawMapPage(this);
             break;
         }
         case TACMAP_INFO:
         {
-            if (infoObject == nullptr)
+            if (InfoObject == nullptr)
             {
-                VFX_pane_wipe(displayPort->frame(), 0x10);
+                VfxPaneWipe(DisplayPort->Frame(), 0x10);
             }
 
-            infoBackground->copyTo(displayPort->frame(), 0, 0, -1);
+            InfoBackground->CopyTo(DisplayPort->Frame(), 0, 0, -1);
             DrawInfoPage();
             break;
         }
         case TACMAP_MISSION:
         {
-            missionBackground->copyTo(displayPort->frame(), 0, 0, -1);
+            MissionBackground->CopyTo(DisplayPort->Frame(), 0, 0, -1);
             break;
         }
         case TACMAP_SALVAGE:
         {
-            salvageBackground->copyTo(displayPort->frame(), 0, 0, -1);
+            SalvageBackground->CopyTo(DisplayPort->Frame(), 0, 0, -1);
             break;
         }
     }
@@ -1857,65 +1859,65 @@ auto TacticalMap::draw() -> void
     // The status line: a button's help, or the default text.
     FillBox(0x15, 0xe2, 0x87, 0xe8, 0x10);
     char buffer[256];
-    char* text = statusText;
+    char* text = StatusText;
 
     if (text == nullptr)
     {
-        cLoadString(thisInstance, 0x97, buffer, 0xfe);
+        CLoadString(ThisInstance, 0x97, buffer, 0xfe);
         text = buffer;
     }
 
-    blueFont->writeString(port()->frame(), 0x15, 0xe2, reinterpret_cast<uint8_t*>(text), -1);
-    aObject::draw();
+    BlueFont->WriteString(Port()->Frame(), 0x15, 0xe2, reinterpret_cast<uint8_t*>(text), -1);
+    MCGuiObject::Draw();
 }
 
-auto TacticalMap::DrawInfoPage() -> void
+auto MCTacticalMap::DrawInfoPage() -> void
 {
-    GameObject* obj = infoObject;
+    MCGameObject* obj = InfoObject;
 
-    if (obj == nullptr || (obj->objectClass != BATTLEMECH && obj->objectClass != GROUNDVEHICLE &&
-                           obj->objectClass != ELEMENTAL && obj->objectClass != MOVER))
+    if (obj == nullptr || (obj->ObjectClass != BATTLEMECH && obj->ObjectClass != GROUNDVEHICLE &&
+                           obj->ObjectClass != ELEMENTAL && obj->ObjectClass != MOVER))
     {
         FillBox(0xe, 0x2a, 0x2c, 0x4c, 0x10);
         return;
     }
 
-    MechWarrior* pilot = obj->getPilot();
-    auto* mover = static_cast<Mover*>(obj);
-    const bool showPilot = mover->netPlayerId >= 0;
+    MCMechWarrior* pilot = obj->GetPilot();
+    auto* mover = static_cast<MCMover*>(obj);
+    const bool showPilot = mover->NetPlayerId >= 0;
 
-    if (dataDisplayMode == 2)
+    if (DataDisplayMode == 2)
     {
         // Payload: the weapon list's background (the list is the info text).
-        if (infoViewBackgrounds[1] != nullptr)
+        if (InfoViewBackgrounds[1] != nullptr)
         {
-            VFX_pane_copy(infoViewBackgrounds[1]->frame(), 0, 0, displayPort->frame(), 6, 0x5d, -1);
+            VfxPaneCopy(InfoViewBackgrounds[1]->Frame(), 0, 0, DisplayPort->Frame(), 6, 0x5d, -1);
         }
     }
     else
     {
         // Armor: the part diagram, over the home side's or the enemy's background.
-        aPort* background = infoViewBackgrounds[obj->getTeam() == homeTeam ? 0 : 2];
+        MCGuiPort* background = InfoViewBackgrounds[obj->GetTeam() == HomeTeam ? 0 : 2];
 
         if (background != nullptr)
         {
-            VFX_pane_copy(background->frame(), 0, 0, displayPort->frame(), 6, 0x5d, -1);
+            VfxPaneCopy(background->Frame(), 0, 0, DisplayPort->Frame(), 6, 0x5d, -1);
         }
 
-        const int32_t shape = obj->objectClass == BATTLEMECH ? mover->numArmorLocations + 1 + mover->numBodyLocations
-                                                             : mover->numBodyLocations;
-        AG_shape_draw(port()->frame(), partShapes.get(), shape, 0x22, 0x65);
+        const int32_t shape = obj->ObjectClass == BATTLEMECH ? mover->NumArmorLocations + 1 + mover->NumBodyLocations
+                                                             : mover->NumBodyLocations;
+        AGShapeDraw(Port()->Frame(), PartShapes.get(), shape, 0x22, 0x65);
         DrawParts();
     }
 
     DrawBar();
     char line[64];
 
-    if (obj->objectClass == BATTLEMECH)
+    if (obj->ObjectClass == BATTLEMECH)
     {
         if (showPilot)
         {
-            drawPilot(pilot);
+            DrawPilot(pilot);
         }
         else
         {
@@ -1923,7 +1925,7 @@ auto TacticalMap::DrawInfoPage() -> void
         }
 
         // "<name> <weight class> <tons>".
-        const int32_t tonnage = static_cast<int32_t>(obj->getTonnage());
+        const int32_t tonnage = static_cast<int32_t>(obj->GetTonnage());
         uint32_t classId = 0x85;
 
         if (tonnage < 0x28)
@@ -1940,81 +1942,81 @@ auto TacticalMap::DrawInfoPage() -> void
         }
 
         char buffer[256];
-        cLoadString(thisInstance, classId, buffer, 0xfe);
+        CLoadString(ThisInstance, classId, buffer, 0xfe);
         char weightClass[12];
         std::strncpy(weightClass, buffer, 9);
         weightClass[9] = 0;
-        cLoadString(thisInstance, 0x81, buffer, 0xfe);
-        std::snprintf(line, sizeof(line), buffer, mover->getIfaceName(), weightClass, tonnage);
-        const int32_t lineWidth = blueFont->width(reinterpret_cast<uint8_t*>(line));
-        blueFont->writeString(port()->frame(), 0x47 - lineWidth / 2, 0x54, reinterpret_cast<uint8_t*>(line), -1);
+        CLoadString(ThisInstance, 0x81, buffer, 0xfe);
+        std::snprintf(line, sizeof(line), buffer, mover->GetIfaceName(), weightClass, tonnage);
+        const int32_t lineWidth = BlueFont->Width(reinterpret_cast<uint8_t*>(line));
+        BlueFont->WriteString(Port()->Frame(), 0x47 - lineWidth / 2, 0x54, reinterpret_cast<uint8_t*>(line), -1);
     }
-    else if (obj->objectClass == GROUNDVEHICLE)
+    else if (obj->ObjectClass == GROUNDVEHICLE)
     {
         FillBox(6, 0x2a, 0x88, 0x4c, 0x10);
-        std::snprintf(line, sizeof(line), "%s", mover->getIfaceName());
+        std::snprintf(line, sizeof(line), "%s", mover->GetIfaceName());
         // Measured in greenFont, written in blueFont (as the original).
-        const int32_t lineWidth = greenFont->width(reinterpret_cast<uint8_t*>(line));
-        blueFont->writeString(port()->frame(), 0x47 - lineWidth / 2, 0x54, reinterpret_cast<uint8_t*>(line), -1);
+        const int32_t lineWidth = GreenFont->Width(reinterpret_cast<uint8_t*>(line));
+        BlueFont->WriteString(Port()->Frame(), 0x47 - lineWidth / 2, 0x54, reinterpret_cast<uint8_t*>(line), -1);
 
         // The passengers, with their pictures.
-        auto* vehicle = static_cast<GroundVehicle*>(infoObject);
+        auto* vehicle = static_cast<MCGroundVehicle*>(InfoObject);
         int32_t shown = 0;
         int32_t xPos = 10;
 
-        for (int32_t seat = 0; seat < vehicle->seats; seat++)
+        for (int32_t seat = 0; seat < vehicle->Seats; seat++)
         {
-            MechWarrior* passenger = vehicle->passengers[seat];
+            MCMechWarrior* passenger = vehicle->Passengers[seat];
 
             if (passenger == nullptr)
             {
                 continue;
             }
 
-            VFX_pane_copy(infoPorts[shown]->frame(), 0, 0, displayPort->frame(), xPos, 0xc4, 0xfff);
-            const int32_t yPos = 0xa6 - (greenFont->height() + 2) * shown;
-            greenFont->writeString(port()->frame(), xPos, yPos, reinterpret_cast<uint8_t*>(passenger->name), -1);
+            VfxPaneCopy(InfoPorts[shown]->Frame(), 0, 0, DisplayPort->Frame(), xPos, 0xc4, 0xfff);
+            const int32_t yPos = 0xa6 - (GreenFont->Height() + 2) * shown;
+            GreenFont->WriteString(Port()->Frame(), xPos, yPos, reinterpret_cast<uint8_t*>(passenger->Name), -1);
             shown++;
             xPos += 0x23;
         }
     }
 }
 
-auto TacticalMap::handleEvent(aEvent* event) -> void
+auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
 {
-    const int32_t screenX = event->x;
-    const int32_t screenY = event->y;
+    const int32_t screenX = event->X;
+    const int32_t screenY = event->Y;
     POINT local;
-    local.x = screenX - globalX();
-    local.y = screenY - globalY();
+    local.x = screenX - GlobalX();
+    local.y = screenY - GlobalY();
 
     // The zoom buttons' areas take the event whole.
-    if (displayType == TACMAP_MAP)
+    if (DisplayType == TACMAP_MAP)
     {
-        if (PtInRect(reinterpret_cast<const RECT*>(zoomInRect), local) != 0)
+        if (PtInRect(reinterpret_cast<const RECT*>(ZoomInRect), local) != 0)
         {
-            scrollButtons[4]->handleEvent(event);
+            ScrollButtons[4]->HandleEvent(event);
             return;
         }
 
-        if (displayType == TACMAP_MAP && PtInRect(reinterpret_cast<const RECT*>(zoomOutRect), local) != 0)
+        if (DisplayType == TACMAP_MAP && PtInRect(reinterpret_cast<const RECT*>(ZoomOutRect), local) != 0)
         {
-            scrollButtons[5]->handleEvent(event);
+            ScrollButtons[5]->HandleEvent(event);
             return;
         }
     }
 
-    const RECT* upArea = reinterpret_cast<const RECT*>(pageRects[0]);
-    const RECT* downArea = reinterpret_cast<const RECT*>(pageRects[1]);
-    const RECT* trackArea = reinterpret_cast<const RECT*>(pageRects[2]);
+    const RECT* upArea = reinterpret_cast<const RECT*>(PageRects[0]);
+    const RECT* downArea = reinterpret_cast<const RECT*>(PageRects[1]);
+    const RECT* trackArea = reinterpret_cast<const RECT*>(PageRects[2]);
 
-    switch (event->type)
+    switch (event->Type)
     {
         case EVENT_LEFT_DOWN:
         {
-            if (displayType == TACMAP_MAP && PtInRect(reinterpret_cast<const RECT*>(mapRect), local) != 0)
+            if (DisplayType == TACMAP_MAP && PtInRect(reinterpret_cast<const RECT*>(MapRect), local) != 0)
             {
-                mapDragging = -1;
+                MapDragging = -1;
             }
 
             if (local.y > 0xe0)
@@ -2024,30 +2026,30 @@ auto TacticalMap::handleEvent(aEvent* event) -> void
                 break;
             }
 
-            if (displayType > TACMAP_MAP && displayType <= TACMAP_SALVAGE)
+            if (DisplayType > TACMAP_MAP && DisplayType <= TACMAP_SALVAGE)
             {
                 // The info/mission pages scroll infoText, the salvage page salvageText; press and hold repeats.
-                aScrollTextObject* text = displayType == TACMAP_SALVAGE ? salvageText : infoText;
+                MCGuiScrollTextObject* text = DisplayType == TACMAP_SALVAGE ? SalvageText : InfoText;
 
                 if (PtInRect(upArea, local) != 0)
                 {
-                    application->grab(this);
-                    scrollUpMarker->ShowGUIWindow(-1);
-                    application->AddTimer(this, SCROLL_START_TIMER, theInterface->scrollStart, 0, 0, 0);
+                    Application->Grab(this);
+                    ScrollUpMarker->ShowGuiWindow(-1);
+                    Application->AddTimer(this, SCROLL_START_TIMER, TheInterface->ScrollStart, 0, 0, 0);
                     text->ReceiveClick(-1, 0);
                 }
                 else if (PtInRect(downArea, local) != 0)
                 {
-                    application->grab(this);
-                    scrollDownMarker->ShowGUIWindow(-1);
-                    application->AddTimer(this, SCROLL_START_TIMER, theInterface->scrollStart, 0, 0, 0);
+                    Application->Grab(this);
+                    ScrollDownMarker->ShowGuiWindow(-1);
+                    Application->AddTimer(this, SCROLL_START_TIMER, TheInterface->ScrollStart, 0, 0, 0);
                     text->ReceiveClick(1, 0);
                 }
                 else if (PtInRect(trackArea, local) != 0)
                 {
                     // The info pages measure the click from infoText's screen top, the salvage page from the track.
                     const int32_t yPos =
-                        displayType == TACMAP_SALVAGE ? local.y - pageRects[2][1] : local.y - text->globalY();
+                        DisplayType == TACMAP_SALVAGE ? local.y - PageRects[2][1] : local.y - text->GlobalY();
                     text->ReceiveClick(0, yPos);
                 }
             }
@@ -2056,92 +2058,92 @@ auto TacticalMap::handleEvent(aEvent* event) -> void
 
         case EVENT_LEFT_UP:
         {
-            if (displayType == TACMAP_MAP && mapDragging != 0)
+            if (DisplayType == TACMAP_MAP && MapDragging != 0)
             {
                 // A click on the map moves the active camera there.
-                mapDragging = 0;
+                MapDragging = 0;
 
-                if (PtInRect(reinterpret_cast<const RECT*>(mapRect), local) != 0)
+                if (PtInRect(reinterpret_cast<const RECT*>(MapRect), local) != 0)
                 {
-                    vector_3d target(static_cast<float>(local.x), static_cast<float>(local.y), 0.0f);
-                    tacMapToWorld(target, -1);
-                    mainHolder->GetActivePane()->GetCamera()->changeTarget(nullptr, 0);
-                    mainHolder->GetActivePane()->GetCamera()->setPosition(target);
+                    MCVector3D target(static_cast<float>(local.x), static_cast<float>(local.y), 0.0f);
+                    TacMapToWorld(target, -1);
+                    MainHolder->GetActivePane()->GetCamera()->ChangeTarget(nullptr, 0);
+                    MainHolder->GetActivePane()->GetCamera()->SetPosition(target);
                 }
             }
 
-            application->RemoveTimer(this, SCROLL_START_TIMER);
-            application->RemoveTimer(this, SCROLL_REPEAT_TIMER);
+            Application->RemoveTimer(this, SCROLL_START_TIMER);
+            Application->RemoveTimer(this, SCROLL_REPEAT_TIMER);
 
-            if (application->grabbedObject() == this)
+            if (Application->GrabbedObject() == this)
             {
                 // Released on the top-right corner: toggles the MFD.
-                const int32_t xPos = screenX - globalX();
-                const int32_t yPos = screenY - globalY();
+                const int32_t xPos = screenX - GlobalX();
+                const int32_t yPos = screenY - GlobalY();
 
                 if (xPos > 0x8c && yPos < 0x1c)
                 {
-                    HideMe(Terrain::terrainTacticalMap->IsHidden() == 0);
+                    HideMe(MCTerrain::TerrainTacticalMap->IsHidden() == 0);
                 }
             }
 
-            application->release();
-            scrollUpMarker->ShowGUIWindow(0);
-            scrollDownMarker->ShowGUIWindow(0);
+            Application->Release();
+            ScrollUpMarker->ShowGuiWindow(0);
+            ScrollDownMarker->ShowGuiWindow(0);
             break;
         }
 
         case EVENT_TIMER:
         {
-            if (event->data == 1)
+            if (event->Data == 1)
             {
                 // The chat tab blinks while a message is unread.
-                if (chatPending == 0)
+                if (ChatPending == 0)
                 {
-                    if (displayType == TACMAP_SALVAGE)
+                    if (DisplayType == TACMAP_SALVAGE)
                     {
-                        if (chatBlinkerOn != nullptr)
+                        if (ChatBlinkerOn != nullptr)
                         {
-                            chatBlinkerOn->ShowGUIWindow(-1);
+                            ChatBlinkerOn->ShowGuiWindow(-1);
                         }
                     }
-                    else if (chatBlinkerOff != nullptr)
+                    else if (ChatBlinkerOff != nullptr)
                     {
-                        chatBlinkerOff->ShowGUIWindow(-1);
+                        ChatBlinkerOff->ShowGuiWindow(-1);
                     }
 
-                    chatPending = -1;
+                    ChatPending = -1;
                 }
                 else
                 {
-                    if (chatBlinkerOff != nullptr)
+                    if (ChatBlinkerOff != nullptr)
                     {
-                        chatBlinkerOff->ShowGUIWindow(0);
+                        ChatBlinkerOff->ShowGuiWindow(0);
                     }
 
-                    if (chatBlinkerOn != nullptr)
+                    if (ChatBlinkerOn != nullptr)
                     {
-                        chatBlinkerOn->ShowGUIWindow(0);
+                        ChatBlinkerOn->ShowGuiWindow(0);
                     }
 
-                    chatPending = 0;
+                    ChatPending = 0;
                 }
                 break;
             }
 
-            if (event->data == SCROLL_START_TIMER)
+            if (event->Data == SCROLL_START_TIMER)
             {
-                application->RemoveTimer(this, SCROLL_START_TIMER);
-                application->AddTimer(this, SCROLL_REPEAT_TIMER, theInterface->scrollStart / 5, 0, 0, 0);
+                Application->RemoveTimer(this, SCROLL_START_TIMER);
+                Application->AddTimer(this, SCROLL_REPEAT_TIMER, TheInterface->ScrollStart / 5, 0, 0, 0);
             }
-            else if (event->data != SCROLL_REPEAT_TIMER)
+            else if (event->Data != SCROLL_REPEAT_TIMER)
             {
                 break;
             }
 
-            if (displayType > TACMAP_MAP && displayType <= TACMAP_SALVAGE)
+            if (DisplayType > TACMAP_MAP && DisplayType <= TACMAP_SALVAGE)
             {
-                aScrollTextObject* text = displayType == TACMAP_SALVAGE ? salvageText : infoText;
+                MCGuiScrollTextObject* text = DisplayType == TACMAP_SALVAGE ? SalvageText : InfoText;
 
                 if (PtInRect(upArea, local) != 0)
                 {
@@ -2156,44 +2158,44 @@ auto TacticalMap::handleEvent(aEvent* event) -> void
         }
 
         case EVENT_ZOOM_IN:
-            TMCZoomIn();
+            TmcZoomIn();
             break;
 
         case EVENT_ZOOM_OUT:
-            TMCZoomOut();
+            TmcZoomOut();
             break;
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto TacticalMap::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
+auto MCTacticalMap::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
-    if (displayType > TACMAP_MAP && displayType <= TACMAP_SALVAGE)
+    if (DisplayType > TACMAP_MAP && DisplayType <= TACMAP_SALVAGE)
     {
-        aScrollTextObject* text = displayType == TACMAP_SALVAGE ? salvageText : infoText;
+        MCGuiScrollTextObject* text = DisplayType == TACMAP_SALVAGE ? SalvageText : InfoText;
         return text->MouseWheel(steps, xPos, yPos);
     }
 
-    if (displayType == TACMAP_MAP)
+    if (DisplayType == TACMAP_MAP)
     {
         // As clicking the zoom buttons (up in, down out), which are disabled at the ends.
         for (; steps != 0; steps += steps < 0 ? 1 : -1)
         {
-            aButton* button = scrollButtons[steps < 0 ? 4 : 5];
+            MCGuiButton* button = ScrollButtons[steps < 0 ? 4 : 5];
 
-            if (button->disabled != 0)
+            if (button->Disabled != 0)
             {
                 break;
             }
 
             if (steps < 0)
             {
-                TMCZoomIn();
+                TmcZoomIn();
             }
             else
             {
-                TMCZoomOut();
+                TmcZoomOut();
             }
         }
 
@@ -2203,7 +2205,7 @@ auto TacticalMap::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
     return false;
 }
 
-auto TacticalMap::display() -> void
+auto MCTacticalMap::Display() -> void
 {
     if (IsShowing() == 0)
     {
@@ -2212,40 +2214,40 @@ auto TacticalMap::display() -> void
 
     // Hidden and at rest the MFD lies off the screen (but for its tabs); the original showed its picture as it was,
     // without updating it.
-    const bool atRest = IsHidden() != 0 && hideOffset == 0;
+    const bool atRest = IsHidden() != 0 && HideOffset == 0;
 
-    if (!atRest && hideOffset != 0)
+    if (!atRest && HideOffset != 0)
     {
         // Sliding: step, then stop once off screen (hiding) or back home (showing).
-        moveTo(x() + hideOffset, y(), -1);
+        MoveTo(X() + HideOffset, Y(), -1);
 
-        if (hidden != 0)
+        if (Hidden != 0)
         {
-            const tagRECT screen = {2, 0, application->width(), application->height()};
+            const tagRECT screen = {2, 0, Application->Width(), Application->Height()};
 
-            if (rectIntersect(screen) == 0)
+            if (RectIntersect(screen) == 0)
             {
-                hideOffset = 0;
+                HideOffset = 0;
             }
         }
         else
         {
-            const bool home = hideOffset < 0 ? (homeX >= globalX() && homeY >= globalY())
-                                             : (homeX <= globalX() && homeY <= globalY());
+            const bool home = HideOffset < 0 ? (HomeX >= GlobalX() && HomeY >= GlobalY())
+                                             : (HomeX <= GlobalX() && HomeY <= GlobalY());
 
             if (home)
             {
-                moveTo(homeX - parent->globalX(), homeY - parent->globalY(), -1);
-                hideOffset = 0;
+                MoveTo(HomeX - Parent->GlobalX(), HomeY - Parent->GlobalY(), -1);
+                HideOffset = 0;
             }
         }
     }
 
-    const bool updating = !atRest && (IsHidden() == 0 || hideOffset != 0);
+    const bool updating = !atRest && (IsHidden() == 0 || HideOffset != 0);
 
     if (updating)
     {
-        switch (displayType)
+        switch (DisplayType)
         {
             case TACMAP_MAP:
                 UpdateMapPage();
@@ -2253,18 +2255,18 @@ auto TacticalMap::display() -> void
             case TACMAP_INFO:
             case TACMAP_MISSION:
             {
-                if (MCPort::Milliseconds() > lastRefreshTime + 500)
+                if (MCPort::Milliseconds() > LastRefreshTime + 500)
                 {
-                    lastRefreshTime = MCPort::Milliseconds();
+                    LastRefreshTime = MCPort::Milliseconds();
                     RefreshPage();
                 }
                 break;
             }
             case TACMAP_SALVAGE:
             {
-                if (MPlayer == nullptr && MCPort::Milliseconds() > lastRefreshTime + 500)
+                if (MPlayer == nullptr && MCPort::Milliseconds() > LastRefreshTime + 500)
                 {
-                    lastRefreshTime = MCPort::Milliseconds();
+                    LastRefreshTime = MCPort::Milliseconds();
                     UpdateSalvage();
                 }
                 break;
@@ -2272,147 +2274,147 @@ auto TacticalMap::display() -> void
         }
 
         // The status line is drawn each frame now.
-        statusDirty = 0;
+        StatusDirty = 0;
     }
 
-    if (mouseInside != 0)
+    if (MouseInside != 0)
     {
-        application->SetCurrentCursor(static_cast<CursorType>(0));
+        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
     }
 
     // Port: the MFD draws itself, then its children (the original copied its picture, then displayed them).
-    DrawInFramePass(displayPort);
+    DrawInFramePass(DisplayPort);
 
     // The original revealed the objectives' areas as it drew the map's units, after the fog of war.
-    if (updating && displayType == TACMAP_MAP)
+    if (updating && DisplayType == TACMAP_MAP)
     {
         RevealObjectives();
     }
 }
 
-auto TacticalMap::UpdateMapPage() -> void
+auto MCTacticalMap::UpdateMapPage() -> void
 {
     // The mission timer, rewritten once a second.
-    if (scenario->timeLimit >= 0 && lastMapTime + 1.0f < actualTime)
+    if (Scenario->TimeLimit >= 0 && LastMapTime + 1.0f < ActualTime)
     {
-        lastMapTime = actualTime;
-        const float remaining = static_cast<float>(scenario->timeLimit) - actualTime;
+        LastMapTime = ActualTime;
+        const float remaining = static_cast<float>(Scenario->TimeLimit) - ActualTime;
 
         if (remaining >= 0.0f)
         {
             const auto seconds = static_cast<int32_t>(std::fmod(static_cast<double>(remaining), 60.0));
             const auto minutes = static_cast<int32_t>(remaining * (1.0f / 60.0f));
-            std::snprintf(mapTimeText, sizeof(mapTimeText), "%02i:%02i", minutes, seconds);
-            mapTimeRed = false;
+            std::snprintf(MapTimeText, sizeof(MapTimeText), "%02i:%02i", minutes, seconds);
+            MapTimeRed = false;
         }
         else
         {
-            std::snprintf(mapTimeText, sizeof(mapTimeText), "00:00");
-            mapTimeRed = true;
+            std::snprintf(MapTimeText, sizeof(MapTimeText), "00:00");
+            MapTimeRed = true;
         }
 
-        mapTimeShown = true;
+        MapTimeShown = true;
     }
 
     // Markers blink five times a second.
-    tacFrameLength = frameLength + tacFrameLength;
+    TacFrameLength = FrameLength + TacFrameLength;
 
-    if (tacFrameLength > 0.2)
+    if (TacFrameLength > 0.2)
     {
-        tacFrameLength = 0.0f;
-        onNow = ~onNow;
+        TacFrameLength = 0.0f;
+        OnNow = ~OnNow;
     }
 }
 
-auto TacticalMap::RevealObjectives() -> void
+auto MCTacticalMap::RevealObjectives() -> void
 {
-    if (objectivesRevealed != 0)
+    if (ObjectivesRevealed != 0)
     {
         return;
     }
 
     // Once a pending objective with a position is found, every objective's area is revealed in the fog of war.
-    const int32_t numObjectives = static_cast<int32_t>(homeTeam->numObjectives);
+    const int32_t numObjectives = static_cast<int32_t>(HomeTeam->NumObjectives);
 
     for (int32_t i = 0; i < numObjectives; i++)
     {
-        ScenarioObjective* objective = &scenario->objectives[homeTeam->firstObjective + i];
+        MCScenarioObjective* objective = &Scenario->Objectives[HomeTeam->FirstObjective + i];
 
-        if (objective->position[0] == -99.0f || objective->position[1] == -99.0f || objective->position[2] == -99.0f ||
-            objective->status != 0)
+        if (objective->Position[0] == -99.0f || objective->Position[1] == -99.0f || objective->Position[2] == -99.0f ||
+            objective->Status != 0)
         {
             continue;
         }
 
         for (int32_t j = 0; j < numObjectives; j++)
         {
-            ScenarioObjective* area = &scenario->objectives[homeTeam->firstObjective + j];
+            MCScenarioObjective* area = &Scenario->Objectives[HomeTeam->FirstObjective + j];
 
-            if (area->radius <= 0.0)
+            if (area->Radius <= 0.0)
             {
                 continue;
             }
 
             const float column = static_cast<float>(std::floor(static_cast<double>(
-                Terrain::OneOvermetersPerVertex * (area->position[0] - Terrain::mapTopLeft3d100.x))));
+                MCTerrain::OneOvermetersPerVertex * (area->Position[0] - MCTerrain::MapTopLeft3d100.X))));
             const float row = static_cast<float>(std::floor(static_cast<double>(
-                Terrain::OneOvermetersPerVertex * (Terrain::mapTopLeft3d100.y - area->position[1]))));
+                MCTerrain::OneOvermetersPerVertex * (MCTerrain::MapTopLeft3d100.Y - area->Position[1]))));
             const auto xc = static_cast<int32_t>(std::floor(static_cast<double>(column)));
             const auto yc = static_cast<int32_t>(std::floor(static_cast<double>(row)));
-            const auto radius = static_cast<int32_t>(area->radius / metersPerPixel * worldUnitsPerMeter);
-            VFX_ellipse_fill(visibilityPort->frame(), xc, yc, radius, radius, 0x14);
+            const auto radius = static_cast<int32_t>(area->Radius / MetersPerPixel * WorldUnitsPerMeter);
+            VfxEllipseFill(VisibilityPort->Frame(), xc, yc, radius, radius, 0x14);
         }
 
-        objectivesRevealed = -1;
+        ObjectivesRevealed = -1;
         return;
     }
 }
 
 namespace
 {
-    void drawMapPage(TacticalMap* map)
+    void DrawMapPage(MCTacticalMap* map)
     {
         // The mission timer (or the "no time limit" text), as UpdateMapPage last wrote it.
         char buffer[256];
-        _pane* page = map->port()->frame();
+        MCPane* page = map->Port()->Frame();
 
-        if (scenario->timeLimit < 0)
+        if (Scenario->TimeLimit < 0)
         {
-            cLoadString(thisInstance, 0xbc, buffer, 0xfe);
-            whiteFont->writeString(page, 0x3c, 0xab, reinterpret_cast<uint8_t*>(buffer), -1);
+            CLoadString(ThisInstance, 0xbc, buffer, 0xfe);
+            WhiteFont->WriteString(page, 0x3c, 0xab, reinterpret_cast<uint8_t*>(buffer), -1);
         }
-        else if (map->mapTimeShown)
+        else if (map->MapTimeShown)
         {
             map->FillBox(0x37, 0xaa, 0x88, 0xb2, 0x12);
-            aFont* font = map->mapTimeRed ? redFont : whiteFont;
-            font->writeString(page, 0x3c, 0xab, reinterpret_cast<uint8_t*>(map->mapTimeText), -1);
+            MCGuiFont* font = map->MapTimeRed ? RedFont : WhiteFont;
+            font->WriteString(page, 0x3c, 0xab, reinterpret_cast<uint8_t*>(map->MapTimeText), -1);
         }
 
         // The map picture, scrolled and zoomed, mapped onto the map area.
-        const int32_t halfWidth = map->mapWidth >> 1;
-        const int32_t halfHeight = map->mapHeight >> 1;
-        const int32_t zoomedHalfWidth = halfWidth / map->zoom;
-        const int32_t zoomedHalfHeight = halfHeight / map->zoom;
-        const int32_t left = ((map->scrollX - zoomedHalfWidth) + halfWidth) * 0x10000;
-        const int32_t right = ((map->scrollX - halfWidth) + zoomedHalfWidth + map->mapWidth) * 0x10000;
-        const int32_t top = ((map->scrollY - zoomedHalfHeight) + halfHeight) * 0x10000;
-        const int32_t bottom = ((map->scrollY - halfHeight) + zoomedHalfHeight + map->mapHeight) * 0x10000;
-        SCRNVERTEX vertices[4] = {};
+        const int32_t halfWidth = map->MapWidth >> 1;
+        const int32_t halfHeight = map->MapHeight >> 1;
+        const int32_t zoomedHalfWidth = halfWidth / map->Zoom;
+        const int32_t zoomedHalfHeight = halfHeight / map->Zoom;
+        const int32_t left = ((map->ScrollX - zoomedHalfWidth) + halfWidth) * 0x10000;
+        const int32_t right = ((map->ScrollX - halfWidth) + zoomedHalfWidth + map->MapWidth) * 0x10000;
+        const int32_t top = ((map->ScrollY - zoomedHalfHeight) + halfHeight) * 0x10000;
+        const int32_t bottom = ((map->ScrollY - halfHeight) + zoomedHalfHeight + map->MapHeight) * 0x10000;
+        MCScreenVertex vertices[4] = {};
         vertices[0] = {6, 0x22, 0, left, top, 0};
         vertices[1] = {0x88, 0x22, 0, right, top, 0};
         vertices[2] = {0x88, 0xa4, 0, right, bottom, 0};
         vertices[3] = {6, 0xa4, 0, left, bottom, 0};
-        VFX_map_polygon(map->displayPort->frame(), 4, vertices, map->mapPort->frame()->window, MP_XP);
+        VfxMapPolygon(map->DisplayPort->Frame(), 4, vertices, map->MapPort->Frame()->Window, MP_XP);
 
-        if (drawRevealedTacMap == 0)
+        if (DrawRevealedTacMap == 0)
         {
             // The fog of war: the visible bits, one texel per vertex, over the same area.
-            vector_3d corners[4] = {vector_3d(6.0f, 34.0f, 0.0f), vector_3d(136.0f, 34.0f, 0.0f),
-                                    vector_3d(136.0f, 164.0f, 0.0f), vector_3d(6.0f, 164.0f, 0.0f)};
+            MCVector3D corners[4] = {MCVector3D(6.0f, 34.0f, 0.0f), MCVector3D(136.0f, 34.0f, 0.0f),
+                                     MCVector3D(136.0f, 164.0f, 0.0f), MCVector3D(6.0f, 164.0f, 0.0f)};
 
-            for (vector_3d& corner : corners)
+            for (MCVector3D& corner : corners)
             {
-                map->tacMapToWorld(corner, -1);
+                map->TacMapToWorld(corner, -1);
             }
 
             int32_t u[4];
@@ -2420,8 +2422,8 @@ namespace
 
             for (int32_t i = 0; i < 4; i++)
             {
-                const float column = (corners[i].x - Terrain::mapTopLeft3d100.x) * Terrain::OneOvermetersPerVertex;
-                const float row = (Terrain::mapTopLeft3d100.y - corners[i].y) * Terrain::OneOvermetersPerVertex;
+                const float column = (corners[i].X - MCTerrain::MapTopLeft3d100.X) * MCTerrain::OneOvermetersPerVertex;
+                const float row = (MCTerrain::MapTopLeft3d100.Y - corners[i].Y) * MCTerrain::OneOvermetersPerVertex;
                 u[i] = static_cast<int32_t>(column * 65536.0 + 0.5);
                 v[i] = static_cast<int32_t>(row * 65536.0 + 0.5);
             }
@@ -2431,37 +2433,37 @@ namespace
             vertices[2] = {0x88, 0xa4, 0, u[2] - 0x10000, v[2] - 0x10000, 0};
             vertices[3] = {6, 0xa4, 0, u[3] + 0x10000, v[3] - 0x20000, 0};
 
-            if (drawRevealedTacMap == 0)
+            if (DrawRevealedTacMap == 0)
             {
-                VFX_map_polygon(map->displayPort->frame(), 4, vertices, map->visibilityPort->frame()->window, MP_XP);
+                VfxMapPolygon(map->DisplayPort->Frame(), 4, vertices, map->VisibilityPort->Frame()->Window, MP_XP);
             }
         }
 
         // What each camera window sees, as a rectangle in its colour.
         for (int32_t windowNum = 0; windowNum < 4; windowNum++)
         {
-            TerrainWindow* window = land->getTerrainWindow(windowNum);
+            MCTerrainWindow* window = Land->GetTerrainWindow(windowNum);
 
-            if (window == nullptr || window->camera == nullptr || window->camera->active == 0)
+            if (window == nullptr || window->Camera == nullptr || window->Camera->Active == 0)
             {
                 continue;
             }
 
-            Camera* camera = window->camera;
-            viewWindow* view = camera->window;
-            vector_2d screenTopLeft(0.0f, 0.0f);
+            MCCamera* camera = window->Camera;
+            MCViewWindow* view = camera->Window;
+            MCVector2D screenTopLeft(0.0f, 0.0f);
             // Port: the corners of the world surface the view shows (its size follows the zoom).
-            vector_2d screenBottomRight(static_cast<float>(view->WorldWidth()),
-                                        static_cast<float>(view->WorldHeight()));
-            vector_3d topLeft;
-            vector_3d bottomRight;
-            camera->inverseProject(screenTopLeft, topLeft);
-            camera->inverseProject(screenBottomRight, bottomRight);
-            map->worldToTacMap(topLeft, -1);
-            map->worldToTacMap(bottomRight, -1);
+            MCVector2D screenBottomRight(static_cast<float>(view->WorldWidth()),
+                                         static_cast<float>(view->WorldHeight()));
+            MCVector3D topLeft;
+            MCVector3D bottomRight;
+            camera->InverseProject(screenTopLeft, topLeft);
+            camera->InverseProject(screenBottomRight, bottomRight);
+            map->WorldToTacMap(topLeft, -1);
+            map->WorldToTacMap(bottomRight, -1);
             uint8_t color = 0x1f;
 
-            switch (camera->cameraId)
+            switch (camera->CameraId)
             {
                 case 1:
                     color = 0xef;
@@ -2477,26 +2479,26 @@ namespace
                     break;
             }
 
-            _pane* pane = &map->mapPane;
-            const auto paneLeft = static_cast<float>(pane->x0);
-            const auto paneTop = static_cast<float>(pane->y0);
-            const auto x0 = static_cast<int32_t>(topLeft.x - paneLeft);
-            const auto y0 = static_cast<int32_t>(topLeft.y - paneTop);
-            const auto x1 = static_cast<int32_t>(bottomRight.x - paneLeft);
-            const auto y1 = static_cast<int32_t>(bottomRight.y - paneTop);
-            VFX_line_draw(pane, x0, y1, x1, y1, LD_DRAW, color);
-            VFX_line_draw(pane, x1, y0, x1, y1, LD_DRAW, color);
-            VFX_line_draw(pane, x1, y0, x0, y0, LD_DRAW, color);
-            VFX_line_draw(pane, x0, y0, x0, y1, LD_DRAW, color);
+            MCPane* pane = &map->MapPane;
+            const auto paneLeft = static_cast<float>(pane->X0);
+            const auto paneTop = static_cast<float>(pane->Y0);
+            const auto x0 = static_cast<int32_t>(topLeft.X - paneLeft);
+            const auto y0 = static_cast<int32_t>(topLeft.Y - paneTop);
+            const auto x1 = static_cast<int32_t>(bottomRight.X - paneLeft);
+            const auto y1 = static_cast<int32_t>(bottomRight.Y - paneTop);
+            VfxLineDraw(pane, x0, y1, x1, y1, LD_DRAW, color);
+            VfxLineDraw(pane, x1, y0, x1, y1, LD_DRAW, color);
+            VfxLineDraw(pane, x1, y0, x0, y0, LD_DRAW, color);
+            VfxLineDraw(pane, x0, y0, x0, y1, LD_DRAW, color);
         }
 
-        map->drawObjects();
+        map->DrawObjects();
     }
 }
 
-auto TacticalMap::HideMe(int hide) -> void
+auto MCTacticalMap::HideMe(int hide) -> void
 {
-    if (hideOffset != 0)
+    if (HideOffset != 0)
     {
         return;
     }
@@ -2504,150 +2506,150 @@ auto TacticalMap::HideMe(int hide) -> void
     if (hide == 0)
     {
         // Shown: the chat tab stops blinking.
-        application->RemoveTimer(this, 1);
+        Application->RemoveTimer(this, 1);
 
-        if (chatBlinkerOn != nullptr)
+        if (ChatBlinkerOn != nullptr)
         {
-            chatBlinkerOn->ShowGUIWindow(0);
+            ChatBlinkerOn->ShowGuiWindow(0);
         }
 
-        if (chatBlinkerOff != nullptr)
+        if (ChatBlinkerOff != nullptr)
         {
-            chatBlinkerOff->ShowGUIWindow(0);
+            ChatBlinkerOff->ShowGuiWindow(0);
         }
     }
     else
     {
         // Port fix: stopVideo checks the movie window, which the original ends without checking.
-        stopVideo();
+        StopVideo();
     }
 
-    if (hidden == hide)
+    if (Hidden == hide)
     {
         return;
     }
 
-    if (turn > 1)
+    if (Turn > 1)
     {
-        soundSystem->playDigitalSample(0x3b, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x3b, 1, nullptr, 0, 0);
     }
 
     if (hide != 0)
     {
         // Slide off the left edge, from here.
-        homeX = globalX();
-        homeY = globalY();
-        hideOffset = (2 - globalX()) - width();
-        hidden = hide;
+        HomeX = GlobalX();
+        HomeY = GlobalY();
+        HideOffset = (2 - GlobalX()) - Width();
+        Hidden = hide;
         return;
     }
 
     // Slide back home.
-    if (homeX != globalX())
+    if (HomeX != GlobalX())
     {
-        hidden = 0;
-        hideOffset = homeX - globalX();
+        Hidden = 0;
+        HideOffset = HomeX - GlobalX();
         return;
     }
 
-    hidden = 0;
-    hideOffset = homeY - globalY();
+    Hidden = 0;
+    HideOffset = HomeY - GlobalY();
 }
 
-auto TacticalMap::worldToTacMap(vector_3d& pos, int scrolled) -> void
+auto MCTacticalMap::WorldToTacMap(MCVector3D& pos, int scrolled) -> void
 {
     // Rotate 45 degrees (the map is drawn diamond-wise), then scale to pixels about the map's centre.
-    const float worldX = pos.x;
-    const float worldY = pos.y;
-    pos.x = worldX * MAP_ROTATION + worldY * MAP_ROTATION;
+    const float worldX = pos.X;
+    const float worldY = pos.Y;
+    pos.X = worldX * MAP_ROTATION + worldY * MAP_ROTATION;
     const float rotatedY = worldY * MAP_ROTATION - worldX * MAP_ROTATION;
-    pos.y = rotatedY;
+    pos.Y = rotatedY;
 
     if (scrolled != 0)
     {
-        pos.x = pos.x / metersPerPixel;
-        pos.y = rotatedY / metersPerPixel;
-        pos.z = pos.z / metersPerPixel;
-        const auto zoomF = static_cast<float>(zoom);
-        pos.x = (pos.x + MAP_CENTER_X) -
-                (MAP_PICTURE_SIDE / static_cast<float>(mapWidth)) * zoomF * static_cast<float>(scrollX);
-        pos.y = ((MAP_HALF_SIDE - pos.y) + MAP_TOP) -
-                (MAP_PICTURE_SIDE / static_cast<float>(mapHeight)) * zoomF * static_cast<float>(scrollY);
+        pos.X = pos.X / MetersPerPixel;
+        pos.Y = rotatedY / MetersPerPixel;
+        pos.Z = pos.Z / MetersPerPixel;
+        const auto zoomF = static_cast<float>(Zoom);
+        pos.X = (pos.X + MAP_CENTER_X) -
+                (MAP_PICTURE_SIDE / static_cast<float>(MapWidth)) * zoomF * static_cast<float>(ScrollX);
+        pos.Y = ((MAP_HALF_SIDE - pos.Y) + MAP_TOP) -
+                (MAP_PICTURE_SIDE / static_cast<float>(MapHeight)) * zoomF * static_cast<float>(ScrollY);
         return;
     }
 
-    const float scale = static_cast<float>(zoom) * metersPerPixel;
-    const float pixelX = pos.x / scale;
+    const float scale = static_cast<float>(Zoom) * MetersPerPixel;
+    const float pixelX = pos.X / scale;
     const float pixelY = rotatedY / scale;
-    pos.z = pos.z / scale;
-    pos.x = pixelX + MAP_HALF_SIDE;
-    pos.y = MAP_HALF_SIDE - pixelY;
+    pos.Z = pos.Z / scale;
+    pos.X = pixelX + MAP_HALF_SIDE;
+    pos.Y = MAP_HALF_SIDE - pixelY;
 }
 
-auto TacticalMap::tacMapToWorld(vector_3d& pos, int scrolled) -> void
+auto MCTacticalMap::TacMapToWorld(MCVector3D& pos, int scrolled) -> void
 {
-    pos.z = 0.0f;
+    pos.Z = 0.0f;
 
     if (scrolled != 0)
     {
-        const auto zoomF = static_cast<float>(zoom);
-        pos.x = ((MAP_PICTURE_SIDE / static_cast<float>(mapWidth)) * zoomF * static_cast<float>(scrollX) + pos.x) -
+        const auto zoomF = static_cast<float>(Zoom);
+        pos.X = ((MAP_PICTURE_SIDE / static_cast<float>(MapWidth)) * zoomF * static_cast<float>(ScrollX) + pos.X) -
                 MAP_LEFT;
-        pos.y = ((MAP_PICTURE_SIDE / static_cast<float>(mapHeight)) * zoomF * static_cast<float>(scrollY) + pos.y) -
+        pos.Y = ((MAP_PICTURE_SIDE / static_cast<float>(MapHeight)) * zoomF * static_cast<float>(ScrollY) + pos.Y) -
                 MAP_TOP;
     }
 
-    const float pixelX = pos.x - MAP_HALF_SIDE;
-    const float pixelY = MAP_HALF_SIDE - pos.y;
+    const float pixelX = pos.X - MAP_HALF_SIDE;
+    const float pixelY = MAP_HALF_SIDE - pos.Y;
 
     if (scrolled != 0)
     {
-        pos.x = pixelX * metersPerPixel;
-        pos.y = pixelY * metersPerPixel;
+        pos.X = pixelX * MetersPerPixel;
+        pos.Y = pixelY * MetersPerPixel;
     }
     else
     {
-        const float scale = static_cast<float>(zoom) * metersPerPixel;
-        pos.x = pixelX * scale;
-        pos.y = pixelY * scale;
+        const float scale = static_cast<float>(Zoom) * MetersPerPixel;
+        pos.X = pixelX * scale;
+        pos.Y = pixelY * scale;
     }
 
     // Rotate back, and stand the point on the ground.
-    const float rotatedX = pos.x;
-    const float rotatedY = pos.y;
-    pos.x = rotatedX * MAP_ROTATION + rotatedY * -MAP_ROTATION;
-    pos.y = rotatedY * MAP_ROTATION - rotatedX * -MAP_ROTATION;
-    pos.z = land->getTerrainElevation(pos);
+    const float rotatedX = pos.X;
+    const float rotatedY = pos.Y;
+    pos.X = rotatedX * MAP_ROTATION + rotatedY * -MAP_ROTATION;
+    pos.Y = rotatedY * MAP_ROTATION - rotatedX * -MAP_ROTATION;
+    pos.Z = Land->GetTerrainElevation(pos);
 }
 
-auto TacticalMap::drawObjects() -> void
+auto MCTacticalMap::DrawObjects() -> void
 {
     // (The markers' blink is stepped by UpdateMapPage, and the objectives' areas revealed by RevealObjectives: the
     // original did both here.)
 
     // The home side's pending objectives that have a position: a numbered dot.
-    const int32_t numObjectives = static_cast<int32_t>(homeTeam->numObjectives);
+    const int32_t numObjectives = static_cast<int32_t>(HomeTeam->NumObjectives);
 
     if (numObjectives != 0)
     {
         for (int32_t i = 0; i < numObjectives; i++)
         {
-            ScenarioObjective* objective = &scenario->objectives[homeTeam->firstObjective + i];
+            MCScenarioObjective* objective = &Scenario->Objectives[HomeTeam->FirstObjective + i];
 
-            if (objective->position[0] == -99.0f || objective->position[1] == -99.0f ||
-                objective->position[2] == -99.0f || objective->status != 0)
+            if (objective->Position[0] == -99.0f || objective->Position[1] == -99.0f ||
+                objective->Position[2] == -99.0f || objective->Status != 0)
             {
                 continue;
             }
 
-            if (onNow != 0)
+            if (OnNow != 0)
             {
-                vector_3d pos(objective->position[0], objective->position[1], 0.0f);
-                worldToTacMap(pos, -1);
-                const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.x))) - mapPane.x0;
-                const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.y))) - mapPane.y0;
-                AG_ellipse_fill(&mapPane, xPos, yPos, 2, 2, 0x1f);
-                const uint32_t status = scenario->objectives[homeTeam->firstObjective + i].status;
+                MCVector3D pos(objective->Position[0], objective->Position[1], 0.0f);
+                WorldToTacMap(pos, -1);
+                const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.X))) - MapPane.X0;
+                const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.Y))) - MapPane.Y0;
+                AGEllipseFill(&MapPane, xPos, yPos, 2, 2, 0x1f);
+                const uint32_t status = Scenario->Objectives[HomeTeam->FirstObjective + i].Status;
                 uint8_t color = 0;
 
                 if (status == 0)
@@ -2665,152 +2667,152 @@ auto TacticalMap::drawObjects() -> void
 
                 char number[8];
                 std::snprintf(number, sizeof(number), "%d", i + 1);
-                lineFont->print(xPos, yPos, number, color, &mapPane);
+                LineFont->Print(xPos, yPos, number, color, &MapPane);
             }
         }
     }
 
     // The sensor contacts: a dot (dark when not identified), and with the ranges on, the unit's sensor range.
-    const int32_t homeAlignment = homeTeam->alignment;
-    int32_t numContacts = homeTeam->getSensorContacts(contactList);
+    const int32_t homeAlignment = HomeTeam->Alignment;
+    int32_t numContacts = HomeTeam->GetSensorContacts(ContactList);
 
     for (int32_t i = 0; i < numContacts; i++)
     {
-        GameObject* obj = contactList[i];
+        MCGameObject* obj = ContactList[i];
         int tagged = 0;
-        obj->getContactType(homeTeam->id, tagged);
+        obj->GetContactType(HomeTeam->Id, tagged);
 
-        if (obj->getAwake() == 0 || obj->isDisabled() != 0 || obj->inTransport() != 0)
+        if (obj->GetAwake() == 0 || obj->IsDisabled() != 0 || obj->InTransport() != 0)
         {
             continue;
         }
 
-        const bool mover = isMoverClass(obj);
+        const bool mover = IsMoverClass(obj);
 
-        if (mover && obj->getPilot()->status == 2)
+        if (mover && obj->GetPilot()->Status == 2)
         {
             continue;
         }
 
-        const vector_3d position = obj->getPosition();
-        vector_3d pos(position.x, obj->getPosition().y, 0.0f);
-        worldToTacMap(pos, -1);
-        const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.x))) - mapPane.x0;
-        const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.y))) - mapPane.y0;
-        AG_ellipse_fill(&mapPane, xPos, yPos, 2, 2, tagged == 0 ? 10 : 0xcf);
+        const MCVector3D position = obj->GetPosition();
+        MCVector3D pos(position.X, obj->GetPosition().Y, 0.0f);
+        WorldToTacMap(pos, -1);
+        const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.X))) - MapPane.X0;
+        const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.Y))) - MapPane.Y0;
+        AGEllipseFill(&MapPane, xPos, yPos, 2, 2, tagged == 0 ? 10 : 0xcf);
 
-        if (showRanges != 0 && mover)
+        if (ShowRanges != 0 && mover)
         {
-            drawSensorRange(this, obj, xPos, yPos, homeAlignment);
+            DrawSensorRange(this, obj, xPos, yPos, homeAlignment);
         }
     }
 
     // The contacts in line of sight (mechs and vehicles).
-    numContacts = homeTeam->getLOSContacts(contactList);
+    numContacts = HomeTeam->GetLosContacts(ContactList);
 
     for (int32_t i = 0; i < numContacts; i++)
     {
-        GameObject* obj = contactList[i];
+        MCGameObject* obj = ContactList[i];
 
-        if (obj->objectClass <= 1 || obj->objectClass >= 4 || obj->getAwake() == 0 || obj->isDisabled() != 0 ||
-            obj->inTransport() != 0 || obj->getPilot()->status == 2)
+        if (obj->ObjectClass <= 1 || obj->ObjectClass >= 4 || obj->GetAwake() == 0 || obj->IsDisabled() != 0 ||
+            obj->InTransport() != 0 || obj->GetPilot()->Status == 2)
         {
             continue;
         }
 
-        const vector_3d position = obj->getPosition();
-        vector_3d pos(position.x, position.y, 0.0f);
-        worldToTacMap(pos, -1);
-        const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.x))) - mapPane.x0;
-        const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.y))) - mapPane.y0;
-        AG_ellipse_fill(&mapPane, xPos, yPos, 2, 2, 0xcf);
+        const MCVector3D position = obj->GetPosition();
+        MCVector3D pos(position.X, position.Y, 0.0f);
+        WorldToTacMap(pos, -1);
+        const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.X))) - MapPane.X0;
+        const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.Y))) - MapPane.Y0;
+        AGEllipseFill(&MapPane, xPos, yPos, 2, 2, 0xcf);
 
-        if (showRanges != 0)
+        if (ShowRanges != 0)
         {
-            drawSensorRange(this, obj, xPos, yPos, homeAlignment);
+            DrawSensorRange(this, obj, xPos, yPos, homeAlignment);
         }
     }
 
-    if (showRanges != 0)
+    if (ShowRanges != 0)
     {
         // The home side's other sensors (not artillery's), then the enemy's revealed sensor buildings.
-        for (int32_t i = 0; i < homeTeam->numSensors; i++)
+        for (int32_t i = 0; i < HomeTeam->NumSensors; i++)
         {
-            SensorSystem* sensor = homeTeam->sensors[i];
+            MCSensorSystem* sensor = HomeTeam->Sensors[i];
 
-            if (sensor->enabled() == 0 || sensor->owner->objectClass == ARTILLERY)
+            if (sensor->Enabled() == 0 || sensor->Owner->ObjectClass == ARTILLERY)
             {
                 continue;
             }
 
-            const float range = (sensor->getSkilledRange() / metersPerPixel) * worldUnitsPerMeter;
+            const float range = (sensor->GetSkilledRange() / MetersPerPixel) * WorldUnitsPerMeter;
 
             if (range <= 0.0)
             {
                 continue;
             }
 
-            const vector_3d position = sensor->owner->getPosition();
-            vector_3d pos(position.x, position.y, 0.0f);
-            const uint8_t color = sensor->multiplier < 1.0 ? 0xec : 0x1f;
-            worldToTacMap(pos, -1);
-            const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.x))) - mapPane.x0;
-            const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.y))) - mapPane.y0;
+            const MCVector3D position = sensor->Owner->GetPosition();
+            MCVector3D pos(position.X, position.Y, 0.0f);
+            const uint8_t color = sensor->Multiplier < 1.0 ? 0xec : 0x1f;
+            WorldToTacMap(pos, -1);
+            const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.X))) - MapPane.X0;
+            const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.Y))) - MapPane.Y0;
             const auto radius = static_cast<int32_t>(range);
-            AG_ellipse_draw(&mapPane, xPos, yPos, radius, radius, color);
+            AGEllipseDraw(&MapPane, xPos, yPos, radius, radius, color);
         }
 
-        Team* enemy = homeTeam == innerSphereTeam ? clanTeam : innerSphereTeam;
+        MCTeam* enemy = HomeTeam == InnerSphereTeam ? ClanTeam : InnerSphereTeam;
 
-        for (int32_t i = 0; i < enemy->numSensors; i++)
+        for (int32_t i = 0; i < enemy->NumSensors; i++)
         {
-            SensorSystem* sensor = enemy->sensors[i];
+            MCSensorSystem* sensor = enemy->Sensors[i];
 
-            if (sensor->owner->isBuilding() == 0 || sensor->enabled() == 0 || sensor->owner->isRevealed() == 0)
+            if (sensor->Owner->IsBuilding() == 0 || sensor->Enabled() == 0 || sensor->Owner->IsRevealed() == 0)
             {
                 continue;
             }
 
-            const float range = (sensor->getSkilledRange() / metersPerPixel) * worldUnitsPerMeter;
+            const float range = (sensor->GetSkilledRange() / MetersPerPixel) * WorldUnitsPerMeter;
 
             if (range <= 0.0)
             {
                 continue;
             }
 
-            const vector_3d position = sensor->owner->getPosition();
-            vector_3d pos(position.x, position.y, 0.0f);
-            worldToTacMap(pos, -1);
-            const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.x))) - mapPane.x0;
-            const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.y))) - mapPane.y0;
-            const uint8_t color = sensor->multiplier < 1.0 ? 0xf2 : 0xef;
+            const MCVector3D position = sensor->Owner->GetPosition();
+            MCVector3D pos(position.X, position.Y, 0.0f);
+            WorldToTacMap(pos, -1);
+            const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.X))) - MapPane.X0;
+            const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.Y))) - MapPane.Y0;
+            const uint8_t color = sensor->Multiplier < 1.0 ? 0xf2 : 0xef;
             const auto radius = static_cast<int32_t>(range);
-            AG_ellipse_draw(&mapPane, xPos, yPos, radius, radius, color);
+            AGEllipseDraw(&MapPane, xPos, yPos, radius, radius, color);
         }
     }
 
     // The home side's mechs; the selected ones last, on top.
-    ObjectQueueNode* mechList = homeTeam == innerSphereTeam ? innerSphereMechList : clanMechList;
+    MCObjectQueueNode* mechList = HomeTeam == InnerSphereTeam ? InnerSphereMechList : ClanMechList;
     std::vector<std::pair<int32_t, int32_t>> selected;
 
-    for (BaseObject* node = mechList->head; node != nullptr; node = node->next)
+    for (MCBaseObject* node = mechList->Head; node != nullptr; node = node->Next)
     {
-        auto* obj = static_cast<GameObject*>(node);
+        auto* obj = static_cast<MCGameObject*>(node);
 
-        if (obj->getAwake() == 0 || obj->isDisabled() != 0)
+        if (obj->GetAwake() == 0 || obj->IsDisabled() != 0)
         {
             continue;
         }
 
-        const vector_3d position = obj->getPosition();
-        vector_3d pos(position.x, obj->getPosition().y, 0.0f);
-        worldToTacMap(pos, -1);
-        const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.x))) - mapPane.x0;
-        const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.y))) - mapPane.y0;
+        const MCVector3D position = obj->GetPosition();
+        MCVector3D pos(position.X, obj->GetPosition().Y, 0.0f);
+        WorldToTacMap(pos, -1);
+        const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.X))) - MapPane.X0;
+        const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.Y))) - MapPane.Y0;
 
-        if (theInterface->IsSelected(obj->partId) == 0)
+        if (TheInterface->IsSelected(obj->PartId) == 0)
         {
-            AG_ellipse_fill(&mapPane, xPos, yPos, 2, 2, 0xf);
+            AGEllipseFill(&MapPane, xPos, yPos, 2, 2, 0xf);
         }
         else
         {
@@ -2820,40 +2822,40 @@ auto TacticalMap::drawObjects() -> void
 
     for (const auto& [xPos, yPos] : selected)
     {
-        AG_ellipse_fill(&mapPane, xPos, yPos, 2, 2, 0xb);
+        AGEllipseFill(&MapPane, xPos, yPos, 2, 2, 0xb);
     }
 
     // Artillery strikes: the home side's, and the enemy's in their last 4 seconds, blinking.
-    ObjectQueueNode* defaultList = objectList->findList(DEFAULT_LIST_ID);
+    MCObjectQueueNode* defaultList = ObjectList->FindList(DefaultListId);
 
     if (defaultList == nullptr)
     {
         return;
     }
 
-    for (BaseObject* node = defaultList->head; node != nullptr; node = node->next)
+    for (MCBaseObject* node = defaultList->Head; node != nullptr; node = node->Next)
     {
-        if (node->objectClass != ARTILLERY)
+        if (node->ObjectClass != ARTILLERY)
         {
             continue;
         }
 
-        auto* strike = static_cast<Artillery*>(node);
-        const bool ours = strike->getAlignment() == homeTeam->alignment;
+        auto* strike = static_cast<MCArtillery*>(node);
+        const bool ours = strike->GetAlignment() == HomeTeam->Alignment;
 
-        if (!ours && strike->timeToImpact >= 4.0)
+        if (!ours && strike->TimeToImpact >= 4.0)
         {
             continue;
         }
 
-        const vector_3d position = strike->getPosition();
-        vector_3d pos(position.x, position.y, 0.0f);
-        worldToTacMap(pos, -1);
-        const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.x))) - mapPane.x0;
-        const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.y))) - mapPane.y0;
-        auto* type = static_cast<ArtilleryType*>(strike->getObjectType());
-        const auto diameter = static_cast<int32_t>(static_cast<int32_t>(type->nominalMinorRange) * 2);
-        int32_t dotSize = static_cast<int32_t>(static_cast<float>(diameter) / metersPerPixel);
+        const MCVector3D position = strike->GetPosition();
+        MCVector3D pos(position.X, position.Y, 0.0f);
+        WorldToTacMap(pos, -1);
+        const int32_t xPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.X))) - MapPane.X0;
+        const int32_t yPos = static_cast<int32_t>(std::floor(static_cast<double>(pos.Y))) - MapPane.Y0;
+        auto* type = static_cast<MCArtilleryType*>(strike->GetObjectType());
+        const auto diameter = static_cast<int32_t>(static_cast<int32_t>(type->NominalMinorRange) * 2);
+        int32_t dotSize = static_cast<int32_t>(static_cast<float>(diameter) / MetersPerPixel);
         int32_t ring = 0;
 
         if (dotSize == 0)
@@ -2861,32 +2863,32 @@ auto TacticalMap::drawObjects() -> void
             // Too small to see: a dot, and while the strike is live, its sensor range.
             dotSize = 2;
 
-            if (strike->timeToImpact < 0.0)
+            if (strike->TimeToImpact < 0.0)
             {
                 int32_t range = 0;
 
-                if (strike->sensorSystem != nullptr)
+                if (strike->SensorSystem != nullptr)
                 {
-                    range = static_cast<int32_t>(strike->sensorSystem->getSkilledRange());
+                    range = static_cast<int32_t>(strike->SensorSystem->GetSkilledRange());
                 }
 
-                range = static_cast<int32_t>(static_cast<float>(range) / metersPerPixel);
-                ring = static_cast<int32_t>(static_cast<float>(range) * worldUnitsPerMeter);
+                range = static_cast<int32_t>(static_cast<float>(range) / MetersPerPixel);
+                ring = static_cast<int32_t>(static_cast<float>(range) * WorldUnitsPerMeter);
             }
         }
 
-        if (onNow != 0)
+        if (OnNow != 0)
         {
             continue;
         }
 
         uint8_t fill;
 
-        if (strike->getAlignment() == homeTeam->alignment)
+        if (strike->GetAlignment() == HomeTeam->Alignment)
         {
             if (ring > 0)
             {
-                AG_ellipse_draw(&mapPane, xPos, yPos, ring, ring, strike->sensorSystem->multiplier < 1.0 ? 0xec : 0x1f);
+                AGEllipseDraw(&MapPane, xPos, yPos, ring, ring, strike->SensorSystem->Multiplier < 1.0 ? 0xec : 0x1f);
             }
 
             fill = 0xf;
@@ -2895,151 +2897,151 @@ auto TacticalMap::drawObjects() -> void
         {
             if (ring > 0)
             {
-                AG_ellipse_draw(&mapPane, xPos, yPos, ring, ring, strike->sensorSystem->multiplier < 1.0 ? 0xf2 : 0xef);
+                AGEllipseDraw(&MapPane, xPos, yPos, ring, ring, strike->SensorSystem->Multiplier < 1.0 ? 0xf2 : 0xef);
             }
 
             fill = 0xcf;
         }
 
-        AG_ellipse_fill(&mapPane, xPos, yPos, dotSize, dotSize, fill);
+        AGEllipseFill(&MapPane, xPos, yPos, dotSize, dotSize, fill);
     }
 }
 
-auto TacticalMap::SetDisplayType(TacmapDisplayTypes type) -> void
+auto MCTacticalMap::SetDisplayType(MCTacmapDisplayTypes type) -> void
 {
-    statusDirty = -1;
-    infoDirty = -1;
-    displayType = type;
+    StatusDirty = -1;
+    InfoDirty = -1;
+    DisplayType = type;
 
     // Hide every page's parts, then show the new page's.
-    salvageText->ShowGUIWindow(0);
+    SalvageText->ShowGuiWindow(0);
 
     if (MPlayer != nullptr)
     {
-        chatWindow->ShowGUIWindow(0);
+        ChatWindow->ShowGuiWindow(0);
 
-        if (application->textObject() == chatWindow->chatInput)
+        if (Application->TextObject() == ChatWindow->ChatInput)
         {
-            application->releaseText();
+            Application->ReleaseText();
         }
     }
 
-    infoText->ShowGUIWindow(0);
-    infoText->Clear();
+    InfoText->ShowGuiWindow(0);
+    InfoText->Clear();
 
-    for (aButton* button : scrollButtons)
+    for (MCGuiButton* button : ScrollButtons)
     {
-        button->ShowGUIWindow(0);
+        button->ShowGuiWindow(0);
     }
 
-    videoWindow->ShowGUIWindow(0);
-    stopVideo();
+    VideoWindow->ShowGuiWindow(0);
+    StopVideo();
 
-    for (aToolButton* button : dataButtons)
+    for (MCGuiToolButton* button : DataButtons)
     {
-        button->ShowGUIWindow(0);
+        button->ShowGuiWindow(0);
     }
 
     switch (type)
     {
         case TACMAP_MAP:
         {
-            if (tabHighlighted != 0)
+            if (TabHighlighted != 0)
             {
-                tabBottom->setBackground(const_cast<char*>("mfdmts02.tga"));
+                TabBottom->SetBackground(const_cast<char*>("mfdmts02.tga"));
             }
 
-            tabStrip->setBackground(const_cast<char*>(MPlayer == nullptr ? "mfdmts01.tga" : "mfdmts03.tga"));
-            tabHighlighted = 0;
+            TabStrip->SetBackground(const_cast<char*>(MPlayer == nullptr ? "mfdmts01.tga" : "mfdmts03.tga"));
+            TabHighlighted = 0;
             // (The original copied the page's background into the MFD's picture here; draw shows it each frame.)
 
-            for (aButton* button : scrollButtons)
+            for (MCGuiButton* button : ScrollButtons)
             {
-                button->ShowGUIWindow(-1);
+                button->ShowGuiWindow(-1);
             }
 
-            videoWindow->ShowGUIWindow(-1);
+            VideoWindow->ShowGuiWindow(-1);
             break;
         }
 
         case TACMAP_INFO:
         {
-            for (aToolButton* button : dataButtons)
+            for (MCGuiToolButton* button : DataButtons)
             {
-                button->ShowGUIWindow(-1);
+                button->ShowGuiWindow(-1);
             }
 
-            if (tabHighlighted != 0)
+            if (TabHighlighted != 0)
             {
-                tabBottom->setBackground(const_cast<char*>("mfddts02.tga"));
+                TabBottom->SetBackground(const_cast<char*>("mfddts02.tga"));
             }
 
-            tabStrip->setBackground(const_cast<char*>(MPlayer == nullptr ? "mfddts01.tga" : "mfddts03.tga"));
-            tabHighlighted = 0;
+            TabStrip->SetBackground(const_cast<char*>(MPlayer == nullptr ? "mfddts01.tga" : "mfddts03.tga"));
+            TabHighlighted = 0;
 
             // (The original wiped the picture without a unit, and copied the page's background; draw does both.)
-            if (infoObject != nullptr)
+            if (InfoObject != nullptr)
             {
-                SetID(infoObject->partId);
+                SetID(InfoObject->PartId);
             }
 
-            infoText->moveTo(7, 0x5e, 0);
-            infoText->resize(0x74, 0x69);
-            infoText->ShowGUIWindow(-1);
-            setPageRects(this, 0x5d, 0x68, 0xbe, 0xc9);
-            infoText->firstPixel = 0;
+            InfoText->MoveTo(7, 0x5e, 0);
+            InfoText->Resize(0x74, 0x69);
+            InfoText->ShowGuiWindow(-1);
+            SetPageRects(this, 0x5d, 0x68, 0xbe, 0xc9);
+            InfoText->FirstPixel = 0;
             RefreshPage();
             return;
         }
 
         case TACMAP_MISSION:
         {
-            if (tabHighlighted != 0)
+            if (TabHighlighted != 0)
             {
-                tabBottom->setBackground(const_cast<char*>("mfdbts02.tga"));
+                TabBottom->SetBackground(const_cast<char*>("mfdbts02.tga"));
             }
 
-            tabStrip->setBackground(const_cast<char*>(MPlayer == nullptr ? "mfdbts01.tga" : "mfdbts03.tga"));
-            tabHighlighted = 0;
-            infoText->moveTo(5, 0x22, 0);
-            infoText->resize(0x76, 0xb8);
-            infoText->ShowGUIWindow(-1);
-            setPageRects(this, 0x22, 0x2d, 0xcf, 0xda);
-            pageRects[2][3] = 0xce;
+            TabStrip->SetBackground(const_cast<char*>(MPlayer == nullptr ? "mfdbts01.tga" : "mfdbts03.tga"));
+            TabHighlighted = 0;
+            InfoText->MoveTo(5, 0x22, 0);
+            InfoText->Resize(0x76, 0xb8);
+            InfoText->ShowGuiWindow(-1);
+            SetPageRects(this, 0x22, 0x2d, 0xcf, 0xda);
+            PageRects[2][3] = 0xce;
             RefreshPage();
             return;
         }
 
         case TACMAP_SALVAGE:
         {
-            tabBottom->setBackground(const_cast<char*>("mfdsts02.tga"));
-            tabStrip->setBackground(const_cast<char*>(MPlayer == nullptr ? "mfdsts01.tga" : "mfdsts03.tga"));
-            tabHighlighted = -1;
+            TabBottom->SetBackground(const_cast<char*>("mfdsts02.tga"));
+            TabStrip->SetBackground(const_cast<char*>(MPlayer == nullptr ? "mfdsts01.tga" : "mfdsts03.tga"));
+            TabHighlighted = -1;
 
             if (MPlayer == nullptr)
             {
-                salvageText->ShowGUIWindow(-1);
-                refreshSalvageList();
-                setPageRects(this, 0x22, 0x2d, 0xcf, 0xda);
-                pageRects[2][3] = 0xce;
+                SalvageText->ShowGuiWindow(-1);
+                RefreshSalvageList();
+                SetPageRects(this, 0x22, 0x2d, 0xcf, 0xda);
+                PageRects[2][3] = 0xce;
                 RefreshPage();
                 return;
             }
 
             // Multiplayer: the chat window, and the tab stops blinking.
-            application->RemoveTimer(this, 1);
+            Application->RemoveTimer(this, 1);
 
-            if (chatBlinkerOn != nullptr)
+            if (ChatBlinkerOn != nullptr)
             {
-                chatBlinkerOn->ShowGUIWindow(0);
+                ChatBlinkerOn->ShowGuiWindow(0);
             }
 
-            if (chatBlinkerOff != nullptr)
+            if (ChatBlinkerOff != nullptr)
             {
-                chatBlinkerOff->ShowGUIWindow(0);
+                ChatBlinkerOff->ShowGuiWindow(0);
             }
 
-            chatWindow->ShowGUIWindow(-1);
+            ChatWindow->ShowGuiWindow(-1);
             break;
         }
     }
@@ -3047,40 +3049,40 @@ auto TacticalMap::SetDisplayType(TacmapDisplayTypes type) -> void
     RefreshPage();
 }
 
-auto TacticalMap::centerOnObject(GameObject* obj) -> void
+auto MCTacticalMap::CenterOnObject(MCGameObject* obj) -> void
 {
-    ObjectPosition* position = obj->getObjPosition();
-    scrollX = position->tileC - mapVertexSide;
-    scrollY = position->tileR - mapVertexSide;
+    MCObjectPosition* position = obj->GetObjPosition();
+    ScrollX = position->TileC - MapVertexSide;
+    ScrollY = position->TileR - MapVertexSide;
 }
 
-auto TacticalMap::scrollMap(int32_t dx, int32_t dy) -> void
+auto MCTacticalMap::ScrollMap(int32_t dx, int32_t dy) -> void
 {
     // Each axis only moves if the view stays on the picture.
-    const int32_t oldX = scrollX;
-    const int32_t oldY = scrollY;
-    scrollX = oldX + dx;
-    scrollY = dy + oldY;
+    const int32_t oldX = ScrollX;
+    const int32_t oldY = ScrollY;
+    ScrollX = oldX + dx;
+    ScrollY = dy + oldY;
 
-    if (!scrollInPicture(scrollX, mapWidth, zoom))
+    if (!ScrollInPicture(ScrollX, MapWidth, Zoom))
     {
-        scrollX = oldX;
+        ScrollX = oldX;
     }
 
-    if (!scrollInPicture(scrollY, mapHeight, zoom))
+    if (!ScrollInPicture(ScrollY, MapHeight, Zoom))
     {
-        scrollY = oldY;
+        ScrollY = oldY;
     }
 }
 
-auto TacticalMap::setScrollMapPosition(int32_t x, int32_t y) -> void
+auto MCTacticalMap::SetScrollMapPosition(int32_t x, int32_t y) -> void
 {
     // Jump there, then step back towards the old position (by the scroll speed) until the view is on the picture.
-    const int32_t oldX = scrollX;
-    const int32_t oldY = scrollY;
-    scrollY = y;
-    scrollX = x;
-    int32_t stepY = theInterface->tacScrollSpeed;
+    const int32_t oldX = ScrollX;
+    const int32_t oldY = ScrollY;
+    ScrollY = y;
+    ScrollX = x;
+    int32_t stepY = TheInterface->TacScrollSpeed;
     const int32_t stepX = oldX < x ? -stepY : stepY;
 
     if (oldY < y)
@@ -3093,18 +3095,18 @@ auto TacticalMap::setScrollMapPosition(int32_t x, int32_t y) -> void
 
     while (doneX == 0 || doneY == 0)
     {
-        if (!scrollInPicture(scrollX, mapWidth, zoom))
+        if (!ScrollInPicture(ScrollX, MapWidth, Zoom))
         {
-            scrollX += stepX;
+            ScrollX += stepX;
         }
         else
         {
             doneX = -1;
         }
 
-        if (!scrollInPicture(scrollY, mapHeight, zoom))
+        if (!ScrollInPicture(ScrollY, MapHeight, Zoom))
         {
-            scrollY += stepY;
+            ScrollY += stepY;
         }
         else
         {
@@ -3113,157 +3115,157 @@ auto TacticalMap::setScrollMapPosition(int32_t x, int32_t y) -> void
     }
 }
 
-auto TacticalMap::GetVideoRect() -> tagRECT
+auto MCTacticalMap::GetVideoRect() -> tagRECT
 {
     // The name line's height (unscaled), then lineFont back to its double scale.
-    lineFont->scaled = 0;
-    lineFont->scale = 1.0f;
-    uint8_t lineHeight = lineFont->fontHeight;
+    LineFont->Scaled = 0;
+    LineFont->Scale = 1.0f;
+    uint8_t lineHeight = LineFont->FontHeight;
 
-    if (lineFont->scaled != 0)
+    if (LineFont->Scaled != 0)
     {
-        lineHeight = static_cast<uint8_t>(std::floor(static_cast<float>(lineHeight) * lineFont->scale));
+        lineHeight = static_cast<uint8_t>(std::floor(static_cast<float>(lineHeight) * LineFont->Scale));
     }
 
-    lineFont->scale = 2.0f;
-    lineFont->scaled = 1;
+    LineFont->Scale = 2.0f;
+    LineFont->Scaled = 1;
     tagRECT rect;
-    rect.left = videoWindow->globalX();
-    rect.top = videoWindow->globalY() + lineHeight + 4;
-    rect.right = videoWindow->width();
-    rect.bottom = videoWindow->height() - (lineHeight + 4);
+    rect.left = VideoWindow->GlobalX();
+    rect.top = VideoWindow->GlobalY() + lineHeight + 4;
+    rect.right = VideoWindow->Width();
+    rect.bottom = VideoWindow->Height() - (lineHeight + 4);
     return rect;
 }
 
-auto TacticalMap::AddSalvage(GameObject* obj) -> int
+auto MCTacticalMap::AddSalvage(MCGameObject* obj) -> int
 {
-    const int32_t count = numSalvage;
+    const int32_t count = NumSalvage;
 
     if (count > 99)
     {
         // Original behaviour (OB-052): full, the count drops back to 99, forgetting the last entry.
-        numSalvage = 99;
+        NumSalvage = 99;
         return 0;
     }
 
-    if (obj->objectClass != BATTLEMECH && obj->objectClass != GROUNDVEHICLE && obj->isBuilding() == 0)
+    if (obj->ObjectClass != BATTLEMECH && obj->ObjectClass != GROUNDVEHICLE && obj->IsBuilding() == 0)
     {
         return 0;
     }
 
     // A mech whose status byte is 2 isn't salvage.
-    if (static_cast<uint8_t>(obj->status) == 2 && obj->objectClass == BATTLEMECH)
+    if (static_cast<uint8_t>(obj->Status) == 2 && obj->ObjectClass == BATTLEMECH)
     {
         return 0;
     }
 
     for (int32_t i = 0; i < count; i++)
     {
-        if (salvage[i] == obj)
+        if (Salvage[i] == obj)
         {
             return -1;
         }
     }
 
-    if (MPlayer == nullptr && obj->isBuilding() != 0)
+    if (MPlayer == nullptr && obj->IsBuilding() != 0)
     {
-        soundSystem->playBettySample(2);
+        SoundSystem->PlayBettySample(2);
     }
 
-    salvage[count] = obj;
-    realSalvageCount = numSalvage + 1;
-    numSalvage = realSalvageCount;
+    Salvage[count] = obj;
+    RealSalvageCount = NumSalvage + 1;
+    NumSalvage = RealSalvageCount;
     AddSalvageString(obj);
     return -1;
 }
 
-auto TacticalMap::RemoveSalvage(GameObject* obj, int refresh) -> int
+auto MCTacticalMap::RemoveSalvage(MCGameObject* obj, int refresh) -> int
 {
-    const int32_t count = numSalvage;
+    const int32_t count = NumSalvage;
     int32_t i = 0;
 
-    while (i < count && salvage[i] != obj)
+    while (i < count && Salvage[i] != obj)
     {
         i++;
     }
 
     // Original behaviour (OB-051): not found, it still tests the entry just past the end, which after an earlier
     // removal holds a stale copy of the last one. (At 100 entries the original read the next field; never a match.)
-    if (i >= 100 || salvage[i] != obj)
+    if (i >= 100 || Salvage[i] != obj)
     {
         return 0;
     }
 
-    realSalvageCount = count - 1;
-    numSalvage = realSalvageCount;
+    RealSalvageCount = count - 1;
+    NumSalvage = RealSalvageCount;
 
-    for (; i < numSalvage; i++)
+    for (; i < NumSalvage; i++)
     {
-        salvage[i] = salvage[i + 1];
+        Salvage[i] = Salvage[i + 1];
     }
 
     if (refresh != 0)
     {
-        refreshSalvageList();
+        RefreshSalvageList();
     }
 
     return -1;
 }
 
-auto TacticalMap::UpdateSalvage() -> void
+auto MCTacticalMap::UpdateSalvage() -> void
 {
     // Drop destroyed units, starting over after each.
-    for (int32_t i = 0; i < numSalvage; i++)
+    for (int32_t i = 0; i < NumSalvage; i++)
     {
-        GameObject* obj = salvage[i];
+        MCGameObject* obj = Salvage[i];
 
-        if (obj != nullptr && isMoverClass(obj) && obj->isDestroyed() != 0)
+        if (obj != nullptr && IsMoverClass(obj) && obj->IsDestroyed() != 0)
         {
             RemoveSalvage(obj, -1);
             i = -1;
         }
     }
 
-    refreshSalvageList();
+    RefreshSalvageList();
 }
 
-auto TacticalMap::refreshSalvageList() -> void
+auto MCTacticalMap::RefreshSalvageList() -> void
 {
-    const int32_t firstPixel = salvageText->firstPixel;
-    salvageText->Clear();
+    const int32_t firstPixel = SalvageText->FirstPixel;
+    SalvageText->Clear();
 
-    for (int32_t i = 0; i < numSalvage; i++)
+    for (int32_t i = 0; i < NumSalvage; i++)
     {
-        AddSalvageString(salvage[i]);
+        AddSalvageString(Salvage[i]);
     }
 
-    aScrollTextObject* text = salvageText;
-    text->firstPixel = firstPixel;
+    MCGuiScrollTextObject* text = SalvageText;
+    text->FirstPixel = firstPixel;
     text->ResetPortSize();
     text->PositionScrollTab();
 }
 
-auto TacticalMap::SetID(int32_t partId) -> void
+auto MCTacticalMap::SetID(int32_t partId) -> void
 {
-    auto* obj = static_cast<GameObject*>(objectList->findObjectFromPart(partId));
+    auto* obj = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(partId));
 
-    if (displayType != TACMAP_INFO)
+    if (DisplayType != TACMAP_INFO)
     {
-        infoObject = obj;
+        InfoObject = obj;
         return;
     }
 
-    infoDirty = -1;
+    InfoDirty = -1;
 
-    for (aPort* port : infoPorts)
+    for (MCGuiPort* port : InfoPorts)
     {
         if (port != nullptr)
         {
-            port->destroy();
+            port->Destroy();
         }
     }
 
-    if (obj == nullptr || !isMoverClass(obj))
+    if (obj == nullptr || !IsMoverClass(obj))
     {
         return;
     }
@@ -3271,120 +3273,120 @@ auto TacticalMap::SetID(int32_t partId) -> void
     // Port fix: the original leaves the shape file's name unset for elementals and other movers (whatever the stack
     // held); the port keeps the last one, starting with the generic vehicle's.
     static char shapeName[32] = "vr106";
-    File shapeFile;
+    MCFile shapeFile;
     // (The original copied the info page's background into the MFD's picture here; draw shows it each frame.)
-    statusDirty = -1;
+    StatusDirty = -1;
 
-    if (obj->objectClass == BATTLEMECH)
+    if (obj->ObjectClass == BATTLEMECH)
     {
         // A mech: front, rear and payload views, and the pilot's picture.
-        aToolButton* front = dataButtons[0];
-        front->setUpPicture(const_cast<char*>("mfddbh01.tga"));
-        front->setDownPicture(const_cast<char*>("mfddbg01.tga"));
-        front->setGrayPicture(const_cast<char*>("mfddbn01.tga"));
-        front->moveTo(0xf, 0xcc, 0);
-        dataButtons[2]->moveTo(0x56, 0xcc, 0);
-        dataButtons[1]->ShowGUIWindow(-1);
-        std::snprintf(shapeName, sizeof(shapeName), "mechrep%02i", obj->getObjectType()->iconNumber);
-        infoPorts[0]->init(obj->getPilot()->picture);
+        MCGuiToolButton* front = DataButtons[0];
+        front->SetUpPicture(const_cast<char*>("mfddbh01.tga"));
+        front->SetDownPicture(const_cast<char*>("mfddbg01.tga"));
+        front->SetGrayPicture(const_cast<char*>("mfddbn01.tga"));
+        front->MoveTo(0xf, 0xcc, 0);
+        DataButtons[2]->MoveTo(0x56, 0xcc, 0);
+        DataButtons[1]->ShowGuiWindow(-1);
+        std::snprintf(shapeName, sizeof(shapeName), "mechrep%02i", obj->GetObjectType()->IconNumber);
+        InfoPorts[0]->Init(obj->GetPilot()->Picture);
     }
-    else if (obj->objectClass == GROUNDVEHICLE)
+    else if (obj->ObjectClass == GROUNDVEHICLE)
     {
         // A vehicle: no rear view; its passengers' pictures.
-        aToolButton* front = dataButtons[0];
-        front->setUpPicture(const_cast<char*>("mfddbh00.tga"));
-        front->setDownPicture(const_cast<char*>("mfddbg00.tga"));
-        front->setGrayPicture(const_cast<char*>("mfddbn00.tga"));
-        front->moveTo(0x21, 0xcc, 0);
-        dataButtons[2]->moveTo(0x4b, 0xcc, 0);
-        dataButtons[1]->ShowGUIWindow(0);
+        MCGuiToolButton* front = DataButtons[0];
+        front->SetUpPicture(const_cast<char*>("mfddbh00.tga"));
+        front->SetDownPicture(const_cast<char*>("mfddbg00.tga"));
+        front->SetGrayPicture(const_cast<char*>("mfddbn00.tga"));
+        front->MoveTo(0x21, 0xcc, 0);
+        DataButtons[2]->MoveTo(0x4b, 0xcc, 0);
+        DataButtons[1]->ShowGuiWindow(0);
 
-        if (dataDisplayMode == 1)
+        if (DataDisplayMode == 1)
         {
             SetDataDisplayMode(0, 0);
         }
 
-        auto* vehicle = static_cast<GroundVehicle*>(obj);
+        auto* vehicle = static_cast<MCGroundVehicle*>(obj);
 
         // Original behaviour: the pictures go by seat, while draw shows the passengers packed (see draw).
-        for (int32_t seat = 0; seat < vehicle->seats; seat++)
+        for (int32_t seat = 0; seat < vehicle->Seats; seat++)
         {
-            if (vehicle->passengers[seat] != nullptr)
+            if (vehicle->Passengers[seat] != nullptr)
             {
-                infoPorts[seat]->init(vehicle->passengers[seat]->picture);
+                InfoPorts[seat]->Init(vehicle->Passengers[seat]->Picture);
             }
         }
 
-        if (obj->getObjectType()->iconNumber == 0)
+        if (obj->GetObjectType()->IconNumber == 0)
         {
             std::snprintf(shapeName, sizeof(shapeName), "vr106");
         }
         else
         {
-            std::snprintf(shapeName, sizeof(shapeName), "vr%i", obj->getObjectType()->iconNumber);
+            std::snprintf(shapeName, sizeof(shapeName), "vr%i", obj->GetObjectType()->IconNumber);
         }
     }
 
     // The part diagram's shapes.
-    FullPathFileName shapePath;
-    shapePath.init(artPath, shapeName, ".shp");
+    MCFullPathFileName shapePath;
+    shapePath.Init(ArtPath, shapeName, ".shp");
 
-    if (shapeFile.open(shapePath, READ, 0x32) != 0)
+    if (shapeFile.Open(shapePath, READ, 0x32) != 0)
     {
         Fatal(0, "Unable to open damage display shape file");
     }
 
-    freePartShapes();
-    partShapes = std::make_unique<uint8_t[]>(shapeFile.getLength());
-    shapeFile.read(partShapes.get(), static_cast<int32_t>(shapeFile.getLength()));
-    MCRenderer::RegisterData(partShapes.get(), shapeFile.getLength(), MCDataKind::Shapes);
-    shapeFile.close();
-    infoObject = obj;
+    FreePartShapes();
+    PartShapes = std::make_unique<uint8_t[]>(shapeFile.GetLength());
+    shapeFile.Read(PartShapes.get(), static_cast<int32_t>(shapeFile.GetLength()));
+    MCRenderer::RegisterData(PartShapes.get(), shapeFile.GetLength(), MCDataKind::Shapes);
+    shapeFile.Close();
+    InfoObject = obj;
     RefreshPage();
 }
 
-auto TacticalMap::updateOrderPalette() -> void
+auto MCTacticalMap::UpdateOrderPalette() -> void
 {
     // A mode chosen: only its button pushed.
-    const int32_t command = theInterface->currentCommand;
+    const int32_t command = TheInterface->CurrentCommand;
 
     if (command != 0)
     {
-        for (ToolPalButton* button : toolButtons)
+        for (MCToolPalButton* button : ToolButtons)
         {
-            if (button->action == command)
+            if (button->Action == command)
             {
-                if (button->pushed == 0)
+                if (button->Pushed == 0)
                 {
-                    button->pushed = -1;
+                    button->Pushed = -1;
                 }
             }
-            else if (button->pushed != 0)
+            else if (button->Pushed != 0)
             {
-                button->pushed = 0;
+                button->Pushed = 0;
             }
         }
 
         return;
     }
 
-    if (theInterface->AnySelected(0) == 0)
+    if (TheInterface->AnySelected(0) == 0)
     {
         // Nothing selected: every mode button released and grayed.
         for (int32_t i = 0; i < NUM_MODE_BUTTONS; i++)
         {
-            ToolPalButton* button = toolButtons[i];
+            MCToolPalButton* button = ToolButtons[i];
 
-            if (button->pushed != 0)
+            if (button->Pushed != 0)
             {
-                button->pushed = 0;
-                theInterface->currentCommand = 0;
-                theInterface->commandOneShot = 0;
+                button->Pushed = 0;
+                TheInterface->CurrentCommand = 0;
+                TheInterface->CommandOneShot = 0;
             }
 
-            if (button->disabled == 0)
+            if (button->Disabled == 0)
             {
-                button->disabled = -1;
+                button->Disabled = -1;
             }
         }
 
@@ -3394,220 +3396,220 @@ auto TacticalMap::updateOrderPalette() -> void
     // A selection: released and enabled, the jump button only if every selected unit can jump.
     for (int32_t i = 0; i < NUM_MODE_BUTTONS; i++)
     {
-        ToolPalButton* button = toolButtons[i];
+        MCToolPalButton* button = ToolButtons[i];
 
-        if (button->pushed != 0)
+        if (button->Pushed != 0)
         {
-            button->pushed = 0;
+            button->Pushed = 0;
         }
 
-        if (button->action == 0x11)
+        if (button->Action == 0x11)
         {
-            const int cannotJump = theInterface->canSelectionJump() == 0 ? 1 : 0;
+            const int cannotJump = TheInterface->CanSelectionJump() == 0 ? 1 : 0;
 
-            if (button->disabled != cannotJump)
+            if (button->Disabled != cannotJump)
             {
-                button->disabled = cannotJump;
+                button->Disabled = cannotJump;
             }
         }
-        else if (button->disabled != 0)
+        else if (button->Disabled != 0)
         {
-            button->disabled = 0;
+            button->Disabled = 0;
         }
     }
 }
 
-auto TacticalMap::SetDataDisplayMode(char mode, int silent) -> void
+auto MCTacticalMap::SetDataDisplayMode(char mode, int silent) -> void
 {
-    if (dataDisplayMode == mode)
+    if (DataDisplayMode == mode)
     {
         return;
     }
 
-    dataDisplayMode = mode;
-    infoDirty = -1;
+    DataDisplayMode = mode;
+    InfoDirty = -1;
 
     for (int32_t i = 0; i < 3; i++)
     {
-        dataButtons[i]->pushed = mode == i ? 1 : 0;
+        DataButtons[i]->Pushed = mode == i ? 1 : 0;
     }
 
     if (silent == 0)
     {
-        soundSystem->playDigitalSample(0x47, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
     }
 }
 
-auto TacticalMap::toggleZoom() -> void
+auto MCTacticalMap::ToggleZoom() -> void
 {
-    ToolPalButton* button = toolButtons[7];
-    button->pushed = button->pushed == 0 ? 1 : 0;
+    MCToolPalButton* button = ToolButtons[7];
+    button->Pushed = button->Pushed == 0 ? 1 : 0;
 }
 
-auto TacticalMap::positionOnMap(vector_3d pos) -> vector_3d
+auto MCTacticalMap::PositionOnMap(MCVector3D pos) -> MCVector3D
 {
     // Clamp the unscrolled map position to the 130-pixel map; unclamped, the point is on it.
-    vector_3d onMap = pos;
-    worldToTacMap(onMap, 0);
+    MCVector3D onMap = pos;
+    WorldToTacMap(onMap, 0);
     int clamped = 0;
 
-    if (onMap.x < 0.0)
+    if (onMap.X < 0.0)
     {
-        onMap.x = 0.0f;
+        onMap.X = 0.0f;
         clamped = -1;
     }
-    else if (onMap.x > MAP_PICTURE_SIDE)
+    else if (onMap.X > MAP_PICTURE_SIDE)
     {
-        onMap.x = MAP_PICTURE_SIDE;
+        onMap.X = MAP_PICTURE_SIDE;
         clamped = -1;
     }
 
-    if (onMap.y < 0.0)
+    if (onMap.Y < 0.0)
     {
-        onMap.y = 0.0f;
+        onMap.Y = 0.0f;
     }
-    else if (onMap.y > MAP_PICTURE_SIDE)
+    else if (onMap.Y > MAP_PICTURE_SIDE)
     {
-        onMap.y = MAP_PICTURE_SIDE;
+        onMap.Y = MAP_PICTURE_SIDE;
     }
     else if (clamped == 0)
     {
-        return vector_3d(0.0f, 0.0f, 0.0f);
+        return MCVector3D(0.0f, 0.0f, 0.0f);
     }
 
-    tacMapToWorld(onMap, 0);
-    return vector_3d(pos.x - onMap.x, pos.y - onMap.y, 0.0f);
+    TacMapToWorld(onMap, 0);
+    return MCVector3D(pos.X - onMap.X, pos.Y - onMap.Y, 0.0f);
 }
 
-auto TacticalMap::handleChatMessage(uint32_t fromID, const void* message) -> void
+auto MCTacticalMap::HandleChatMessage(uint32_t fromID, const void* message) -> void
 {
-    chatWindow->handleNetworkMessage(fromID, const_cast<void*>(message));
+    ChatWindow->HandleNetworkMessage(fromID, const_cast<void*>(message));
 
-    if (IsHidden() != 0 || displayType != TACMAP_SALVAGE)
+    if (IsHidden() != 0 || DisplayType != TACMAP_SALVAGE)
     {
         // Not on show: blink the chat tab.
-        chatPending = -1;
-        application->AddTimer(this, 1, 500, 0, 0, 0);
+        ChatPending = -1;
+        Application->AddTimer(this, 1, 500, 0, 0, 0);
 
-        if (displayType == TACMAP_SALVAGE)
+        if (DisplayType == TACMAP_SALVAGE)
         {
-            if (chatBlinkerOn != nullptr)
+            if (ChatBlinkerOn != nullptr)
             {
-                chatBlinkerOn->ShowGUIWindow(-1);
+                ChatBlinkerOn->ShowGuiWindow(-1);
             }
         }
-        else if (chatBlinkerOff != nullptr)
+        else if (ChatBlinkerOff != nullptr)
         {
-            chatBlinkerOff->ShowGUIWindow(-1);
+            ChatBlinkerOff->ShowGuiWindow(-1);
         }
     }
 
-    if (soundSystem != nullptr)
+    if (SoundSystem != nullptr)
     {
-        soundSystem->playDigitalSample(0x11, 1, nullptr, 0, 0);
+        SoundSystem->PlayDigitalSample(0x11, 1, nullptr, 0, 0);
     }
 }
 
-auto TacticalMap::activateArtillery(int32_t button, int arm) -> void
+auto MCTacticalMap::ActivateArtillery(int32_t button, int arm) -> void
 {
     if (button < 0 || button >= 4)
     {
         return;
     }
 
-    ArtilleryButton* strike = artilleryButtons[button];
-    aEvent event;
+    MCArtilleryButton* strike = ArtilleryButtons[button];
+    MCGuiEvent event;
 
     if (arm == 0)
     {
         // Disarm as if Escape were pressed.
-        strike->keyArmed = 0;
-        event.clear();
-        event.type = EVENT_KEY_UP;
-        event.key = 0x1b;
+        strike->KeyArmed = 0;
+        event.Clear();
+        event.Type = EVENT_KEY_UP;
+        event.Key = 0x1b;
     }
     else
     {
         // Arm as if clicked (pressed, then released).
-        if (strike->keyArmed != 0)
+        if (strike->KeyArmed != 0)
         {
             return;
         }
 
-        strike->keyArmed = -1;
-        event.clear();
-        event.type = EVENT_LEFT_DOWN;
-        strike->handleEvent(&event);
-        event.type = EVENT_LEFT_UP;
+        strike->KeyArmed = -1;
+        event.Clear();
+        event.Type = EVENT_LEFT_DOWN;
+        strike->HandleEvent(&event);
+        event.Type = EVENT_LEFT_UP;
     }
 
-    strike->handleEvent(&event);
+    strike->HandleEvent(&event);
 }
 
-auto TacticalMap::AddSalvageString(GameObject* obj) -> void
+auto MCTacticalMap::AddSalvageString(MCGameObject* obj) -> void
 {
     char line[64];
-    aScrollTextObject* text = salvageText;
+    MCGuiScrollTextObject* text = SalvageText;
 
-    if (obj->objectClass == BATTLEMECH)
+    if (obj->ObjectClass == BATTLEMECH)
     {
         // A mech: its name, its undamaged weapons, and its sensor if undamaged.
-        auto* mech = static_cast<Mover*>(obj);
-        std::snprintf(line, sizeof(line), "%s", mech->getIfaceName());
+        auto* mech = static_cast<MCMover*>(obj);
+        std::snprintf(line, sizeof(line), "%s", mech->GetIfaceName());
         text->Print(line, 0xb);
-        const uint32_t first = mech->numOther;
-        const uint32_t end = mech->numWeapons + first;
+        const uint32_t first = mech->NumOther;
+        const uint32_t end = mech->NumWeapons + first;
 
         for (uint32_t i = first; i < end; i++)
         {
-            const InventoryItem& item = mech->inventory[i];
+            const MCInventoryItem& item = mech->Inventory[i];
 
-            if (item.health == static_cast<int8_t>(MasterComponentList[item.masterID].health))
+            if (item.Health == static_cast<int8_t>(MasterComponentList[item.MasterID].Health))
             {
-                std::snprintf(line, sizeof(line), "    %s", MasterComponentList[item.masterID].abbreviation);
+                std::snprintf(line, sizeof(line), "    %s", MasterComponentList[item.MasterID].Abbreviation);
                 text->Print(line, 0xc);
             }
         }
 
-        const InventoryItem& sensor = mech->inventory[mech->sensor];
+        const MCInventoryItem& sensor = mech->Inventory[mech->Sensor];
 
-        if (sensor.health == static_cast<int8_t>(MasterComponentList[sensor.masterID].health))
+        if (sensor.Health == static_cast<int8_t>(MasterComponentList[sensor.MasterID].Health))
         {
-            std::snprintf(line, sizeof(line), "    %s", MasterComponentList[sensor.masterID].abbreviation);
+            std::snprintf(line, sizeof(line), "    %s", MasterComponentList[sensor.MasterID].Abbreviation);
             text->Print(line, 0x1f);
         }
     }
-    else if (obj->objectClass == GROUNDVEHICLE)
+    else if (obj->ObjectClass == GROUNDVEHICLE)
     {
         // A vehicle: its name and its salvage.
-        std::snprintf(line, sizeof(line), "%s", static_cast<Mover*>(obj)->getIfaceName());
+        std::snprintf(line, sizeof(line), "%s", static_cast<MCMover*>(obj)->GetIfaceName());
         text->Print(line, 0xb);
 
-        for (SalvageItem* item = obj->getSalvage(); item != nullptr; item = item->next)
+        for (MCSalvageItem* item = obj->GetSalvage(); item != nullptr; item = item->Next)
         {
-            std::snprintf(line, sizeof(line), "    %i %s", item->numItems,
-                          MasterComponentList[item->itemId].abbreviation);
+            std::snprintf(line, sizeof(line), "    %i %s", item->NumItems,
+                          MasterComponentList[item->ItemId].Abbreviation);
             text->Print(line, 0x1f);
         }
     }
     else
     {
-        if (obj->isBuilding() == 0)
+        if (obj->IsBuilding() == 0)
         {
-            salvageText->ResetPortSize();
+            SalvageText->ResetPortSize();
             return;
         }
 
         // A building or tree building: its name, its salvage.
-        SalvageItem* item = obj->getSalvage();
+        MCSalvageItem* item = obj->GetSalvage();
 
-        if (obj->objectClass == BUILDING)
+        if (obj->ObjectClass == BUILDING)
         {
-            std::snprintf(line, sizeof(line), "%s", static_cast<Building*>(obj)->name.c_str());
+            std::snprintf(line, sizeof(line), "%s", static_cast<MCBuilding*>(obj)->Name.c_str());
         }
-        else if (obj->objectClass == TREEBUILDING)
+        else if (obj->ObjectClass == TREEBUILDING)
         {
-            std::snprintf(line, sizeof(line), "%s", static_cast<TreeBuilding*>(obj)->name.c_str());
+            std::snprintf(line, sizeof(line), "%s", static_cast<MCTreeBuilding*>(obj)->Name.c_str());
         }
         else
         {
@@ -3616,27 +3618,27 @@ auto TacticalMap::AddSalvageString(GameObject* obj) -> void
 
         text->Print(line, 0xb);
 
-        for (; item != nullptr; item = item->next)
+        for (; item != nullptr; item = item->Next)
         {
-            std::snprintf(line, sizeof(line), "    %i %s", item->numItems,
-                          MasterComponentList[item->itemId].abbreviation);
+            std::snprintf(line, sizeof(line), "    %i %s", item->NumItems,
+                          MasterComponentList[item->ItemId].Abbreviation);
             text->Print(line, 0x1f);
         }
     }
 
     text->Print(nullptr, 0x1f);
-    salvageText->ResetPortSize();
+    SalvageText->ResetPortSize();
 }
 
-auto TacticalMap::DrawBar() -> void
+auto MCTacticalMap::DrawBar() -> void
 {
     // The unit's effectiveness: green, yellow below half, red at a fifth.
-    if (infoObject == nullptr)
+    if (InfoObject == nullptr)
     {
         return;
     }
 
-    const float effectiveness = static_cast<Mover*>(infoObject)->getTotalEffectiveness();
+    const float effectiveness = static_cast<MCMover*>(InfoObject)->GetTotalEffectiveness();
     uint8_t color;
 
     if (effectiveness >= 0.5)
@@ -3657,9 +3659,9 @@ auto TacticalMap::DrawBar() -> void
     }
 }
 
-auto TacticalMap::DrawParts() -> void
+auto MCTacticalMap::DrawParts() -> void
 {
-    auto* mover = static_cast<Mover*>(infoObject);
+    auto* mover = static_cast<MCMover*>(InfoObject);
 
     if (mover == nullptr)
     {
@@ -3671,84 +3673,83 @@ auto TacticalMap::DrawParts() -> void
     int16_t first;
     int16_t end;
 
-    if (dataDisplayMode == 1)
+    if (DataDisplayMode == 1)
     {
-        AG_shape_draw(port()->frame(), partShapes.get(), mover->numBodyLocations + mover->numArmorLocations, 0x22,
-                      0x65);
+        AGShapeDraw(Port()->Frame(), PartShapes.get(), mover->NumBodyLocations + mover->NumArmorLocations, 0x22, 0x65);
         first = 8;
-        end = mover->numArmorLocations;
+        end = mover->NumArmorLocations;
     }
     else
     {
         first = 0;
-        end = mover->objectClass == BATTLEMECH ? 8 : mover->numArmorLocations;
+        end = mover->ObjectClass == BATTLEMECH ? 8 : mover->NumArmorLocations;
     }
 
     for (int32_t i = first; i < end; i++)
     {
-        AG_shape_lookaside(partColorTable(this, armorColors[i]));
-        AG_shape_translate_draw(port()->frame(), partShapes.get(), i, 0x22, 0x65);
+        AGShapeLookaside(PartColorTable(this, ArmorColors[i]));
+        AGShapeTranslateDraw(Port()->Frame(), PartShapes.get(), i, 0x22, 0x65);
     }
 
     // A mech's front view also shows its internal structure.
-    if (mover->objectClass == BATTLEMECH && dataDisplayMode == 0)
+    if (mover->ObjectClass == BATTLEMECH && DataDisplayMode == 0)
     {
-        for (int16_t i = 0; i < mover->numBodyLocations; i++)
+        for (int16_t i = 0; i < mover->NumBodyLocations; i++)
         {
-            const int8_t numArmor = mover->numArmorLocations;
-            AG_shape_lookaside(partColorTable(this, bodyColors[i]));
-            AG_shape_translate_draw(port()->frame(), partShapes.get(), static_cast<int16_t>(numArmor + i), 0x22, 0x65);
+            const int8_t numArmor = mover->NumArmorLocations;
+            AGShapeLookaside(PartColorTable(this, BodyColors[i]));
+            AGShapeTranslateDraw(Port()->Frame(), PartShapes.get(), static_cast<int16_t>(numArmor + i), 0x22, 0x65);
         }
     }
 }
 
-auto TacticalMap::GetColors() -> void
+auto MCTacticalMap::GetColors() -> void
 {
-    auto* mover = static_cast<Mover*>(infoObject);
+    auto* mover = static_cast<MCMover*>(InfoObject);
 
     if (mover == nullptr)
     {
         return;
     }
 
-    for (int32_t i = 0; i < mover->numBodyLocations; i++)
+    for (int32_t i = 0; i < mover->NumBodyLocations; i++)
     {
-        const BodyLocation& location = mover->bodyAt(i);
+        const MCBodyLocation& location = mover->BodyAt(i);
 
-        if (location.damageState == 2)
+        if (location.DamageState == 2)
         {
-            bodyColors[i] = 0x19;
+            BodyColors[i] = 0x19;
         }
         else
         {
-            bodyColors[i] = damageColor(location.curInternalStructure, location.maxInternalStructure);
+            BodyColors[i] = DamageColor(location.CurInternalStructure, location.MaxInternalStructure);
         }
     }
 
-    for (int32_t i = 0; i < mover->numArmorLocations; i++)
+    for (int32_t i = 0; i < mover->NumArmorLocations; i++)
     {
-        const ArmorLocation& location = mover->armor[i];
+        const MCArmorLocation& location = mover->Armor[i];
 
-        if (location.curArmor == 0.0)
+        if (location.CurArmor == 0.0)
         {
-            armorColors[i] = 0x19;
+            ArmorColors[i] = 0x19;
         }
         else
         {
-            armorColors[i] = damageColor(location.curArmor, location.maxArmor);
+            ArmorColors[i] = DamageColor(location.CurArmor, location.MaxArmor);
         }
     }
 }
 
-auto TacticalMap::drawPilot(MechWarrior* pilot) -> void
+auto MCTacticalMap::DrawPilot(MCMechWarrior* pilot) -> void
 {
     // The picture.
     static const int32_t skillOrder[4] = {3, 0, 1, 2};
     FillBox(10, 0x2e, 0x21, 0x4c, 0x10);
 
-    if (static_cast<Mover*>(pilot->vehicle)->netPlayerId >= 0)
+    if (static_cast<MCMover*>(pilot->Vehicle)->NetPlayerId >= 0)
     {
-        VFX_pane_copy(infoPorts[0]->frame(), 0, 0, displayPort->frame(), 10, 0x2e, 0xfff);
+        VfxPaneCopy(InfoPorts[0]->Frame(), 0, 0, DisplayPort->Frame(), 10, 0x2e, 0xfff);
     }
 
     // Four skill bars, 55 pixels at the best skill, each an outlined, shaded bar.
@@ -3756,18 +3757,18 @@ auto TacticalMap::drawPilot(MechWarrior* pilot) -> void
 
     for (const int32_t skill : skillOrder)
     {
-        const auto value = static_cast<float>(pilot->skills[skill]);
+        const auto value = static_cast<float>(pilot->Skills[skill]);
         const auto length = static_cast<int32_t>(((value - MinPilotSkill) * 55.0f) / (MaxPilotSkill - MinPilotSkill));
         const int32_t barEnd = length + 0x4c;
-        VFX_line_draw(port()->frame(), 0x4e, yPos, 0x4e, yPos + 1, LD_DRAW, 0xe3);
-        VFX_line_draw(port()->frame(), 0x4f, yPos - 1, barEnd, yPos - 1, LD_DRAW, 0xe3);
-        AG_pixel_write(port()->frame(), length + 0x4d, yPos - 1, 0x10);
-        VFX_line_draw(port()->frame(), length + 0x4e, yPos - 1, length + 0x4e, yPos + 2, LD_DRAW, 0x10);
-        AG_pixel_write(port()->frame(), length + 0x4d, yPos + 2, 0x10);
-        VFX_line_draw(port()->frame(), length + 0x4d, yPos, length + 0x4d, yPos + 1, LD_DRAW, 0xe3);
-        VFX_line_draw(port()->frame(), 0x4f, yPos + 2, barEnd, yPos + 2, LD_DRAW, 0xe5);
-        VFX_line_draw(port()->frame(), 0x4f, yPos, barEnd, yPos, LD_DRAW, 0xe4);
-        VFX_line_draw(port()->frame(), 0x4f, yPos + 1, barEnd, yPos + 1, LD_DRAW, 0xe4);
+        VfxLineDraw(Port()->Frame(), 0x4e, yPos, 0x4e, yPos + 1, LD_DRAW, 0xe3);
+        VfxLineDraw(Port()->Frame(), 0x4f, yPos - 1, barEnd, yPos - 1, LD_DRAW, 0xe3);
+        AGPixelWrite(Port()->Frame(), length + 0x4d, yPos - 1, 0x10);
+        VfxLineDraw(Port()->Frame(), length + 0x4e, yPos - 1, length + 0x4e, yPos + 2, LD_DRAW, 0x10);
+        AGPixelWrite(Port()->Frame(), length + 0x4d, yPos + 2, 0x10);
+        VfxLineDraw(Port()->Frame(), length + 0x4d, yPos, length + 0x4d, yPos + 1, LD_DRAW, 0xe3);
+        VfxLineDraw(Port()->Frame(), 0x4f, yPos + 2, barEnd, yPos + 2, LD_DRAW, 0xe5);
+        VfxLineDraw(Port()->Frame(), 0x4f, yPos, barEnd, yPos, LD_DRAW, 0xe4);
+        VfxLineDraw(Port()->Frame(), 0x4f, yPos + 1, barEnd, yPos + 1, LD_DRAW, 0xe4);
         yPos += 8;
     }
 
@@ -3776,7 +3777,7 @@ auto TacticalMap::drawPilot(MechWarrior* pilot) -> void
 
     for (int32_t i = 0; i < 6; i++)
     {
-        if (pilot->wounds <= static_cast<float>(i))
+        if (pilot->Wounds <= static_cast<float>(i))
         {
             break;
         }
@@ -3786,68 +3787,68 @@ auto TacticalMap::drawPilot(MechWarrior* pilot) -> void
     }
 
     // The callsign and the rank.
-    whiteFont->writeString(port()->frame(), 10, 0x23, reinterpret_cast<uint8_t*>(pilot->callsign), -1);
+    WhiteFont->WriteString(Port()->Frame(), 10, 0x23, reinterpret_cast<uint8_t*>(pilot->Callsign), -1);
     char rank[256] = {}; // Port fix: a rank above 3 printed the uninitialised buffer.
-    if (pilot->rank <= 3)
+    if (pilot->Rank <= 3)
     {
-        cLoadString(thisInstance, 0x86 + pilot->rank, rank, 0xfe);
+        CLoadString(ThisInstance, 0x86 + pilot->Rank, rank, 0xfe);
     }
 
-    whiteFont->writeString(port()->frame(), 0x33, 0x23, reinterpret_cast<uint8_t*>(rank), -1);
+    WhiteFont->WriteString(Port()->Frame(), 0x33, 0x23, reinterpret_cast<uint8_t*>(rank), -1);
 }
 
-auto TacticalMap::drawWeapons() -> void
+auto MCTacticalMap::DrawWeapons() -> void
 {
-    aScrollTextObject* text = infoText;
-    const int32_t firstPixel = text->firstPixel;
+    MCGuiScrollTextObject* text = InfoText;
+    const int32_t firstPixel = text->FirstPixel;
     text->Clear();
-    auto* mover = static_cast<Mover*>(infoObject);
+    auto* mover = static_cast<MCMover*>(InfoObject);
 
-    if (mover == nullptr || !isMoverClass(mover))
+    if (mover == nullptr || !IsMoverClass(mover))
     {
         return;
     }
 
     // The weapons, sorted by range bracket (up to 75, 150, beyond) and then damage.
-    const int32_t numWeapons = mover->numWeapons;
-    std::vector<WeaponEntry> weapons(static_cast<size_t>(std::max(numWeapons, 0)));
+    const int32_t numWeapons = mover->NumWeapons;
+    std::vector<MCWeaponEntry> weapons(static_cast<size_t>(std::max(numWeapons, 0)));
 
-    const int32_t firstWeapon = mover->numOther;
+    const int32_t firstWeapon = mover->NumOther;
 
-    for (int32_t i = firstWeapon; i < mover->numWeapons + firstWeapon; i++)
+    for (int32_t i = firstWeapon; i < mover->NumWeapons + firstWeapon; i++)
     {
-        const InventoryItem& item = mover->inventory[i];
-        WeaponEntry& entry = weapons[i - firstWeapon];
-        entry.masterID = item.masterID;
-        const MasterComponent& component = MasterComponentList[item.masterID];
-        const float longRange = component.weaponRange[3];
+        const MCInventoryItem& item = mover->Inventory[i];
+        MCWeaponEntry& entry = weapons[i - firstWeapon];
+        entry.MasterID = item.MasterID;
+        const MCMasterComponent& component = MasterComponentList[item.MasterID];
+        const float longRange = component.WeaponRange[3];
 
         if (longRange > 150.0f)
         {
-            entry.sortKey = 20000;
+            entry.SortKey = 20000;
         }
         else if (longRange > 75.0f)
         {
-            entry.sortKey = 10000;
+            entry.SortKey = 10000;
         }
         else
         {
-            entry.sortKey = 0;
+            entry.SortKey = 0;
         }
 
-        entry.sortKey = static_cast<int16_t>(component.damage + static_cast<float>(entry.sortKey));
+        entry.SortKey = static_cast<int16_t>(component.Damage + static_cast<float>(entry.SortKey));
 
-        if (static_cast<int32_t>(item.health) < static_cast<int8_t>(component.health))
+        if (static_cast<int32_t>(item.Health) < static_cast<int8_t>(component.Health))
         {
-            entry.state = 0xff;
+            entry.State = 0xff;
         }
         else
         {
-            entry.state = mover->getWeaponShots(i) == 0 ? 0 : 1;
+            entry.State = mover->GetWeaponShots(i) == 0 ? 0 : 1;
         }
     }
 
-    std::qsort(weapons.data(), static_cast<size_t>(numWeapons), sizeof(WeaponEntry), CompareWeapons);
+    std::qsort(weapons.data(), static_cast<size_t>(numWeapons), sizeof(MCWeaponEntry), CompareWeapons);
 
     // Three sections under their headers: red when damaged, yellow without ammo, green ready. Clan weapons get the
     // bracket's clan icon.
@@ -3863,36 +3864,36 @@ auto TacticalMap::drawWeapons() -> void
     for (int32_t bracket = 0; bracket < 3; bracket++)
     {
         sectionCounts[bracket] = 0;
-        cLoadString(thisInstance, headerIds[bracket], header, 0xfe);
+        CLoadString(ThisInstance, headerIds[bracket], header, 0xfe);
         text->Print(header, 0x1f);
         const auto limit = static_cast<float>(bracketLimits[bracket]);
 
         for (; next < numWeapons; next++)
         {
-            const WeaponEntry& entry = weapons[next];
-            const MasterComponent& component = MasterComponentList[entry.masterID];
+            const MCWeaponEntry& entry = weapons[next];
+            const MCMasterComponent& component = MasterComponentList[entry.MasterID];
 
-            if (component.weaponRange[3] > limit && bracket != 2)
+            if (component.WeaponRange[3] > limit && bracket != 2)
             {
                 break;
             }
 
-            if (entry.state == 0xff)
+            if (entry.State == 0xff)
             {
                 color = 0xef;
             }
-            else if (entry.state == 0)
+            else if (entry.State == 0)
             {
                 color = 0xf2;
             }
-            else if (entry.state == 1)
+            else if (entry.State == 1)
             {
                 color = 0xc;
             }
 
-            std::snprintf(line, sizeof(line), bracketFormats[bracket], component.abbreviation);
+            std::snprintf(line, sizeof(line), bracketFormats[bracket], component.Abbreviation);
 
-            if (component.techBase == 1)
+            if (component.TechBase == 1)
             {
                 line[0] = static_cast<char>(0x1d + bracket);
             }
@@ -3903,9 +3904,9 @@ auto TacticalMap::drawWeapons() -> void
     }
 
     // The equipment: sensor, ECM, jammer, probe; red when disabled or destroyed.
-    cLoadString(thisInstance, 0x37e, header, 0xfe);
+    CLoadString(ThisInstance, 0x37e, header, 0xfe);
     text->Print(header, 0x1f);
-    const uint8_t equipment[4] = {mover->sensor, mover->ecm, mover->jammer, mover->probe};
+    const uint8_t equipment[4] = {mover->Sensor, mover->Ecm, mover->Jammer, mover->Probe};
 
     for (const uint8_t index : equipment)
     {
@@ -3914,17 +3915,17 @@ auto TacticalMap::drawWeapons() -> void
             continue;
         }
 
-        const InventoryItem& item = mover->inventory[index];
-        color = (item.disabled != 0 || item.health == 0) ? 0xef : 0xc;
-        std::snprintf(line, sizeof(line), "    %s", MasterComponentList[item.masterID].abbreviation);
+        const MCInventoryItem& item = mover->Inventory[index];
+        color = (item.Disabled != 0 || item.Health == 0) ? 0xef : 0xc;
+        std::snprintf(line, sizeof(line), "    %s", MasterComponentList[item.MasterID].Abbreviation);
         text->Print(line, color);
     }
 
     // The ammo: red when out, yellow under half.
-    for (int32_t i = 0; i < mover->numAmmoTypes; i++)
+    for (int32_t i = 0; i < mover->NumAmmoTypes; i++)
     {
-        const AmmoTally& ammo = mover->ammoTypeTotal[i];
-        const int32_t amount = ammo.curAmount;
+        const MCAmmoTally& ammo = mover->AmmoTypeTotal[i];
+        const int32_t amount = ammo.CurAmount;
 
         if (amount == 9999)
         {
@@ -3937,12 +3938,12 @@ auto TacticalMap::drawWeapons() -> void
         }
         else
         {
-            color = ammo.startAmount / 2 <= amount ? 0xc : 0xf2;
+            color = ammo.StartAmount / 2 <= amount ? 0xc : 0xf2;
         }
 
-        std::snprintf(line, sizeof(line), "  %s", MasterComponentList[ammo.masterId].abbreviation);
+        std::snprintf(line, sizeof(line), "  %s", MasterComponentList[ammo.MasterId].Abbreviation);
         text->Print(line, color);
-        cLoadString(thisInstance, 0x380, header, 0xfe);
+        CLoadString(ThisInstance, 0x380, header, 0xfe);
         std::snprintf(line, sizeof(line), header, amount);
         text->Print(line, color);
     }
@@ -3952,20 +3953,20 @@ auto TacticalMap::drawWeapons() -> void
 
     for (int32_t i = 0; i < 4; i++)
     {
-        text->sectionStarts[i] = start;
+        text->SectionStarts[i] = start;
         start += 1 + sectionCounts[i];
-        text->sectionColors[i] = static_cast<uint8_t>(RangeColorArray[i]);
+        text->SectionColors[i] = static_cast<uint8_t>(RangeColorArray[i]);
     }
 
-    text->firstPixel = firstPixel;
+    text->FirstPixel = firstPixel;
     text->ResetPortSize();
     text->PositionScrollTab();
 }
 
 auto CompareWeapons(const void* a, const void* b) -> int
 {
-    const auto keyA = static_cast<float>(static_cast<const WeaponEntry*>(a)->sortKey);
-    const auto keyB = static_cast<float>(static_cast<const WeaponEntry*>(b)->sortKey);
+    const auto keyA = static_cast<float>(static_cast<const MCWeaponEntry*>(a)->SortKey);
+    const auto keyB = static_cast<float>(static_cast<const MCWeaponEntry*>(b)->SortKey);
 
     if (keyA == keyB)
     {

@@ -4,39 +4,39 @@
 #include "sprite/sprtmgr.h"
 #include "vfx/vfxfuncs.h"
 
-auto Shape::destroy() -> void
+auto MCShape::Destroy() -> void
 {
-    if (owner != nullptr)
+    if (Owner != nullptr)
     {
-        owner->removeShape(this);
+        Owner->RemoveShape(this);
     }
 
-    if (stupidHeader != nullptr)
+    if (StupidHeader != nullptr)
     {
-        spriteManager->freeShapeRAM(stupidHeader);
-        frameList = nullptr;
+        SpriteManager->FreeShapeRam(StupidHeader);
+        FrameList = nullptr;
         return;
     }
 
-    spriteManager->freeShapeRAM(frameList);
-    frameList = nullptr;
+    SpriteManager->FreeShapeRam(FrameList);
+    FrameList = nullptr;
 }
 
-auto Shape::init(uint8_t* shapeData, AppearanceType* shapeOwner, int32_t dataSize) -> int32_t
+auto MCShape::Init(uint8_t* shapeData, MCAppearanceType* shapeOwner, int32_t dataSize) -> int32_t
 {
     // A bare VFX shape table starts with its "1.10" version tag; anything else has a gesture header in front.
     if (std::memcmp(shapeData, "1.10", 4) == 0)
     {
-        stupidHeader = nullptr;
+        StupidHeader = nullptr;
     }
     else
     {
-        stupidHeader = shapeData;
+        StupidHeader = shapeData;
         shapeData += 6;
     }
 
-    frameList = shapeData;
-    const int32_t numFrames = VFX_shape_count(shapeData);
+    FrameList = shapeData;
+    const int32_t numFrames = VfxShapeCount(shapeData);
 
     if (numFrames == 0)
     {
@@ -45,17 +45,17 @@ auto Shape::init(uint8_t* shapeData, AppearanceType* shapeOwner, int32_t dataSiz
 
     int32_t firstFrame;
     std::memcpy(&firstFrame, shapeData + 8, sizeof(firstFrame));
-    owner = shapeOwner;
+    Owner = shapeOwner;
 
     if (dataSize <= firstFrame)
     {
-        frameList = nullptr;
+        FrameList = nullptr;
         return -3;
     }
 
     if (numFrames * 8 + 8 != firstFrame)
     {
-        frameList = nullptr;
+        FrameList = nullptr;
         return -4;
     }
 

@@ -10,15 +10,15 @@
 // slots; the port gives them their pointer types, so a node is larger than the original 0x4c bytes. Offsets in the
 // comments are the original's. Nothing here is ever written to a file.
 
-class ABLModule;
-struct _Watch;
-struct _SymTableNode;
-struct _Type;
+class MCAblModule;
+struct MCWatch;
+struct MCSymTableNode;
+struct MCType;
 
 /// <summary>An address in ABL data or code (the original's <c>Address</c>, a <c>char*</c>).</summary>
-typedef char* Address;
-typedef _SymTableNode* SymTableNodePtr;
-typedef _Type* TypePtr;
+typedef char* MCAddress;
+typedef MCSymTableNode* MCSymTableNodePtr;
+typedef MCType* MCTypePtr;
 
 /// <summary>How many scopes can be open at once (SymTableDisplay): global, module, function.</summary>
 inline constexpr int32_t MAX_NESTING_LEVEL = 3;
@@ -26,7 +26,7 @@ inline constexpr int32_t MAX_NESTING_LEVEL = 3;
 inline constexpr int32_t MAX_LIBRARIES_USED = 26;
 
 /// <summary>What a symbol is (_SymTableNode::defn.key).</summary>
-enum DefinitionType
+enum MCDefinitionType
 {
     DFN_UNDEFINED = 0,
     DFN_CONST = 1,
@@ -49,7 +49,7 @@ enum DefinitionType
 /// initSymTable; the names are the port's, after the ABL names in the comments. Values 65, 66, 82 and 96 are not
 /// registered.
 /// </summary>
-enum RoutineKey
+enum MCRoutineKey
 {
     RTN_DECLARED = 0,
     RTN_FORWARD = 1,
@@ -256,7 +256,7 @@ enum RoutineKey
 };
 
 /// <summary>Where a variable lives (_SymTableNode::defn.info.data.varType).</summary>
-enum VariableType
+enum MCVariableType
 {
     /// <summary>A local (or module-level) variable: a slot of the stack frame, data.offset items past its base.</summary>
     VAR_TYPE_NORMAL = 0,
@@ -267,7 +267,7 @@ enum VariableType
 };
 
 /// <summary>The shape of a type (_Type::form).</summary>
-enum FormType
+enum MCFormType
 {
     FRM_NONE = 0,
     /// <summary>integer, real, char.</summary>
@@ -280,13 +280,13 @@ enum FormType
 
 /// <summary>The value of a DFN_CONST symbol.</summary>
 /// <remarks>4 bytes in the original; the port's is pointer-sized because of stringPtr.</remarks>
-union Value
+union MCValue
 {
-    int32_t integer;
-    float real;
-    char character;
+    int32_t Integer;
+    float Real;
+    char Character;
     /// <summary>A string constant (a char-array type from makeStringType).</summary>
-    char* stringPtr;
+    char* StringPtr;
 };
 
 /// <summary>An ABL type. Refcounted: setType adds a user, clearType drops one and frees it at zero.</summary>
@@ -295,106 +295,106 @@ union Value
 /// and enums, 1 for char, elementCount * element size for arrays). ABL arrays are stored with those sizes in heap
 /// memory, not as StackItems, so they keep the original layout in the port.
 /// </remarks>
-struct _Type
+struct MCType
 {
     /// <summary>How many symbols share this type.</summary>
-    int32_t numInstances = 0; // +0x0
-    FormType form{};          // +0x4
-    int32_t size = 0;         // +0x8
+    int32_t NumInstances = 0;
+    MCFormType Form{};
+    int32_t Size = 0;
     /// <summary>The type's name, if it has one.</summary>
-    SymTableNodePtr typeIdPtr = nullptr; // +0xc
+    MCSymTableNodePtr TypeIdPtr = nullptr;
     union
     {
         struct
         {
             /// <summary>The first value; the rest follow through _SymTableNode::next.</summary>
-            SymTableNodePtr constIdPtr; // +0x10
+            MCSymTableNodePtr ConstIdPtr;
             /// <summary>The largest value.</summary>
-            int32_t max; // +0x14
-        } enumeration;
+            int32_t Max;
+        } Enumeration;
         struct
         {
-            TypePtr indexTypePtr;   // +0x10
-            TypePtr elementTypePtr; // +0x14
-            int32_t elementCount;   // +0x18
-        } array;
-    } info{};
+            MCTypePtr IndexTypePtr;
+            MCTypePtr ElementTypePtr;
+            int32_t ElementCount;
+        } Array;
+    } Info{};
 };
 
 /// <summary>What a symbol stands for, by DefinitionType (the original's <c>Definition</c>).</summary>
 /// <remarks>0x24 bytes in the original (+0x18 .. +0x3c of _SymTableNode; extractSymTable copies it as 9 words).</remarks>
-struct Definition
+struct MCDefinition
 {
-    DefinitionType key{}; // +0x18
+    MCDefinitionType Key{};
     union
     {
         /// <summary>DFN_CONST.</summary>
         struct
         {
-            Value value; // +0x1c
-        } constant;
+            MCValue Value;
+        } Constant;
         /// <summary>DFN_FUNCTION and DFN_MODULE.</summary>
         struct
         {
-            RoutineKey key;     // +0x1c
-            int32_t paramCount; // +0x20
+            MCRoutineKey Key;
+            int32_t ParamCount;
             /// <summary>Stack items the parameters take (paramCount; the first is item 4, after the frame header).</summary>
-            int32_t totalParamSize; // +0x24
+            int32_t TotalParamSize;
             /// <summary>Bytes of ABL data the locals take (bookkeeping only).</summary>
-            int32_t totalLocalSize; // +0x28
+            int32_t TotalLocalSize;
             /// <summary>The parameters, linked through next.</summary>
-            SymTableNodePtr params; // +0x2c
+            MCSymTableNodePtr Params;
             /// <summary>The local variables, linked through next.</summary>
-            SymTableNodePtr locals; // +0x30
+            MCSymTableNodePtr Locals;
             /// <summary>The scope's symbol tree (for a module, its globals and functions).</summary>
-            SymTableNodePtr localSymTable; // +0x34
+            MCSymTableNodePtr LocalSymTable;
             /// <summary>The crunched code (createCodeSegment).</summary>
-            Address codeSegment; // +0x38
-        } routine;
+            MCAddress CodeSegment;
+        } Routine;
         /// <summary>DFN_VAR, DFN_VALPARAM, DFN_REFPARAM.</summary>
         struct
         {
-            VariableType varType; // +0x1c
+            MCVariableType VarType;
             /// <summary>Slot index: in the stack frame, the static data, or the eternal area (by varType).</summary>
-            int32_t offset; // +0x20
-        } data;
-    } info{};
+            int32_t Offset;
+        } Data;
+    } Info{};
 };
 
 /// <summary>A symbol: a node of a scope's binary tree (ordered by strcmp of the name).</summary>
 /// <remarks>0x4c bytes in the original (enterSymTable).</remarks>
-struct _SymTableNode
+struct MCSymTableNode
 {
-    SymTableNodePtr left = nullptr;   // +0x0
-    SymTableNodePtr parent = nullptr; // +0x4
-    SymTableNodePtr right = nullptr;  // +0x8
+    MCSymTableNodePtr Left = nullptr;
+    MCSymTableNodePtr Parent = nullptr;
+    MCSymTableNodePtr Right = nullptr;
     /// <summary>The next symbol of a list (parameters, locals, enumeration values).</summary>
-    SymTableNodePtr next = nullptr; // +0xc
-    char* name = nullptr;           // +0x10
+    MCSymTableNodePtr Next = nullptr;
+    char* Name = nullptr;
     union
     {
         /// <summary>The debugger's watch on this symbol (WatchManager), or null.</summary>
-        _Watch* info; // +0x14
+        MCWatch* Info;
         /// <summary>
         /// A string literal's text (a copy of the name), for literals of two or more characters. factor enters every
         /// literal as a symbol of the module scope, named by its text.
         /// </summary>
-        char* literalString; // +0x14
+        char* LiteralString;
     };
 
-    Definition defn{};         // +0x18
-    TypePtr typePtr = nullptr; // +0x3c
+    MCDefinition Defn{};
+    MCTypePtr TypePtr = nullptr;
     /// <summary>The library that defines this symbol, or null for the module being compiled.</summary>
-    ABLModule* library = nullptr; // +0x40
+    MCAblModule* Library = nullptr;
     /// <summary>The scope level it was declared at (0 global, 1 module, 2 function).</summary>
-    int32_t level = 0;      // +0x44
-    int32_t labelIndex = 0; // +0x48
+    int32_t Level = 0;
+    int32_t LabelIndex = 0;
 };
 
 /// <summary>The open scopes (0 .. level), each the root of a symbol tree.</summary>
-extern SymTableNodePtr SymTableDisplay[MAX_NESTING_LEVEL];
+extern MCSymTableNodePtr SymTableDisplay[MAX_NESTING_LEVEL];
 /// <summary>The innermost open scope while compiling; the current routine's level while executing.</summary>
-extern int32_t level;
+extern int32_t Level;
 
 /// <summary>
 /// The memory ABL owns between ABLi_init and ABLi_close: symbol nodes, types, names and string literals, the code
@@ -407,109 +407,87 @@ extern int32_t level;
 /// </remarks>
 extern MCBlockStore AblMemory;
 /// <summary>The predefined types.</summary>
-extern TypePtr IntegerTypePtr;
-extern TypePtr CharTypePtr;
-extern TypePtr RealTypePtr;
-extern TypePtr BooleanTypePtr;
+extern MCTypePtr IntegerTypePtr;
+extern MCTypePtr CharTypePtr;
+extern MCTypePtr RealTypePtr;
+extern MCTypePtr BooleanTypePtr;
 /// <summary>The type given to symbols after an error, so compiling can go on.</summary>
-extern _Type DummyType;
+extern MCType DummyType;
 /// <summary>The libraries the module being compiled uses (recordLibraryUsed).</summary>
-extern ABLModule* LibrariesUsed[MAX_LIBRARIES_USED];
+extern MCAblModule* LibrariesUsed[MAX_LIBRARIES_USED];
 extern int32_t NumLibrariesUsed;
 
 /// <summary>Looks wordString up in the innermost scope.</summary>
-/// <remarks>MCX.EXE @ 0x0062ce70</remarks>
-void searchLocalSymTable(SymTableNodePtr& idPtr);
+void SearchLocalSymTable(MCSymTableNodePtr& idPtr);
 
 /// <summary>Looks wordString up in all open scopes (and the libraries).</summary>
-/// <remarks>MCX.EXE @ 0x0062cea0</remarks>
-void searchAllSymTables(SymTableNodePtr& idPtr);
+void SearchAllSymTables(MCSymTableNodePtr& idPtr);
 
 /// <summary>Enters wordString in the innermost scope.</summary>
-/// <remarks>MCX.EXE @ 0x0062cec0</remarks>
-void enterLocalSymTable(SymTableNodePtr& idPtr);
+void EnterLocalSymTable(MCSymTableNodePtr& idPtr);
 
 /// <summary>Looks wordString up in all scopes; if it is undefined, reports it and enters it as an undefined symbol.</summary>
-/// <remarks>MCX.EXE @ 0x0062cef0</remarks>
-void searchAndFindAllSymTables(SymTableNodePtr& idPtr);
+void SearchAndFindAllSymTables(MCSymTableNodePtr& idPtr);
 
 /// <summary>Enters wordString in the innermost scope, reporting it if it is already there.</summary>
-/// <remarks>MCX.EXE @ 0x0062cf40</remarks>
-void searchAndEnterLocalSymTable(SymTableNodePtr& idPtr);
+void SearchAndEnterLocalSymTable(MCSymTableNodePtr& idPtr);
 
 /// <summary>Enters wordString in <paramref name="root"/>'s tree, reporting it if it is already there.</summary>
-/// <remarks>MCX.EXE @ 0x0062cfa0</remarks>
-void searchAndEnterThisTable(SymTableNodePtr& idPtr, SymTableNodePtr root);
+void SearchAndEnterThisTable(MCSymTableNodePtr& idPtr, MCSymTableNodePtr root);
 
 /// <summary>A new, empty type with one user.</summary>
-/// <remarks>MCX.EXE @ 0x0062cff0</remarks>
-TypePtr createType();
+MCTypePtr CreateType();
 
 /// <summary>Adds a user to <paramref name="type"/>.</summary>
 /// <returns>The type.</returns>
-/// <remarks>MCX.EXE @ 0x0062d040</remarks>
-TypePtr setType(TypePtr type);
+MCTypePtr SetType(MCTypePtr type);
 
 /// <summary>Drops a user from <paramref name="type"/>, freeing it (and nulling the pointer) at zero.</summary>
-/// <remarks>MCX.EXE @ 0x0062d050</remarks>
-void clearType(TypePtr& type);
+void ClearType(MCTypePtr& type);
 
 /// <summary>Adds the library defining <paramref name="idPtr"/> to LibrariesUsed.</summary>
-/// <remarks>MCX.EXE @ 0x0062d080</remarks>
-void recordLibraryUsed(SymTableNodePtr idPtr);
+void RecordLibraryUsed(MCSymTableNodePtr idPtr);
 
 /// <summary>Finds <paramref name="name"/> in the tree at <paramref name="nodePtr"/>.</summary>
-/// <remarks>MCX.EXE @ 0x0062d0e0</remarks>
-SymTableNodePtr searchSymTable(char* name, SymTableNodePtr nodePtr);
+MCSymTableNodePtr SearchSymTable(char* name, MCSymTableNodePtr nodePtr);
 
 /// <summary>Finds <paramref name="name"/> in the tree or in any library module in it.</summary>
-/// <remarks>MCX.EXE @ 0x0062d140</remarks>
-SymTableNodePtr searchLibrarySymTable(char* name, SymTableNodePtr nodePtr);
+MCSymTableNodePtr SearchLibrarySymTable(char* name, MCSymTableNodePtr nodePtr);
 
 /// <summary>Finds <paramref name="name"/> in the libraries of the global scope.</summary>
-/// <remarks>MCX.EXE @ 0x0062d1d0</remarks>
-SymTableNodePtr searchLibrarySymTableDisplay(char* name);
+MCSymTableNodePtr SearchLibrarySymTableDisplay(char* name);
 
 /// <summary>
 /// Finds <paramref name="name"/> in the open scopes, innermost first, then the libraries; <c>library.name</c> looks in
 /// that library only. A library symbol found is recorded in LibrariesUsed.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x0062d1f0</remarks>
-SymTableNodePtr searchSymTableDisplay(char* name);
+MCSymTableNodePtr SearchSymTableDisplay(char* name);
 
 /// <summary>Adds a new symbol <paramref name="name"/> to the tree at <paramref name="ptrToNodePtr"/>.</summary>
-/// <remarks>MCX.EXE @ 0x0062d2a0</remarks>
-SymTableNodePtr enterSymTable(char* name, SymTableNodePtr* ptrToNodePtr);
+MCSymTableNodePtr EnterSymTable(char* name, MCSymTableNodePtr* ptrToNodePtr);
 
 /// <summary>Links an existing node into the tree at <paramref name="tableRoot"/>.</summary>
-/// <remarks>MCX.EXE @ 0x0062d3a0</remarks>
-SymTableNodePtr insertSymTable(SymTableNodePtr* tableRoot, SymTableNodePtr newNode);
+MCSymTableNodePtr InsertSymTable(MCSymTableNodePtr* tableRoot, MCSymTableNodePtr newNode);
 
 /// <summary>Unlinks <paramref name="nodeKill"/> from the tree at <paramref name="tableRoot"/>.</summary>
 /// <returns>The node actually removed (its contents moved into nodeKill when it had two children).</returns>
-/// <remarks>MCX.EXE @ 0x0062d410</remarks>
-SymTableNodePtr extractSymTable(SymTableNodePtr* tableRoot, SymTableNodePtr nodeKill);
+MCSymTableNodePtr ExtractSymTable(MCSymTableNodePtr* tableRoot, MCSymTableNodePtr nodeKill);
 
 /// <summary>
 /// Enters a standard routine in the innermost scope. <paramref name="isOrder"/> (1 for the tactical-order routines)
 /// isn't stored.
 /// </summary>
-/// <remarks>MCX.EXE @ 0x0062d4c0</remarks>
-void enterStandardRoutine(char* name, RoutineKey routineKey, DefinitionType definitionType, int isOrder);
+void EnterStandardRoutine(char* name, MCRoutineKey routineKey, MCDefinitionType definitionType, int isOrder);
 
 /// <summary>Opens a scope rooted at <paramref name="symTableRoot"/> (fatal past MAX_NESTING_LEVEL).</summary>
-/// <remarks>MCX.EXE @ 0x0062d500</remarks>
-void enterScope(SymTableNodePtr symTableRoot);
+void EnterScope(MCSymTableNodePtr symTableRoot);
 
 /// <summary>Closes the innermost scope.</summary>
 /// <returns>Its symbol tree.</returns>
-/// <remarks>MCX.EXE @ 0x0062d530</remarks>
-SymTableNodePtr exitScope();
+MCSymTableNodePtr ExitScope();
 
 /// <summary>Builds the global scope: the predefined types and constants and every standard routine.</summary>
-/// <remarks>MCX.EXE @ 0x0062d550</remarks>
-void initSymTable();
+void InitSymTable();
 
 /// <summary>Frees a symbol tree (does nothing in MCX.EXE: the heap is dropped whole).</summary>
-/// <remarks>MCX.EXE @ 0x0062e4d0</remarks>
-void freeSymTable(SymTableNodePtr tableRoot);
+void FreeSymTable(MCSymTableNodePtr tableRoot);

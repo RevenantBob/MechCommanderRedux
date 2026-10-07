@@ -7,29 +7,29 @@
 #include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
 
-aFont::aFont()
+MCGuiFont::MCGuiFont()
 {
 }
 
-aFont::~aFont()
+MCGuiFont::~MCGuiFont()
 {
-    destroy();
-    MCRenderer::UnregisterData(colorTable, sizeof(colorTable));
+    Destroy();
+    MCRenderer::UnregisterData(ColorTable, sizeof(ColorTable));
 }
 
-auto aFont::init(char* fileName) -> int32_t
+auto MCGuiFont::Init(char* fileName) -> int32_t
 {
-    File file;
+    MCFile file;
 
-    if (fontData != nullptr)
+    if (FontData != nullptr)
     {
-        destroy();
+        Destroy();
     }
 
     char path[128];
-    std::snprintf(path, sizeof(path), "%s%s", fontPath, fileName);
+    std::snprintf(path, sizeof(path), "%s%s", FontPath, fileName);
 
-    if (file.open(path, READ, 0x32) != 0)
+    if (file.Open(path, READ, 0x32) != 0)
     {
         char message[256];
         std::snprintf(message, sizeof(message), "Unable to find '%s'", path);
@@ -37,55 +37,55 @@ auto aFont::init(char* fileName) -> int32_t
         return -1;
     }
 
-    const uint32_t size = file.fileSize();
+    const uint32_t size = file.FileSize();
 
     if (size == 0)
     {
         return -2;
     }
 
-    fontData = std::make_unique<uint8_t[]>(size);
-    file.read(fontData.get(), static_cast<int32_t>(size));
-    file.close();
-    MCRenderer::RegisterData(fontData.get(), size, MCDataKind::Shapes);
+    FontData = std::make_unique<uint8_t[]>(size);
+    file.Read(FontData.get(), static_cast<int32_t>(size));
+    file.Close();
+    MCRenderer::RegisterData(FontData.get(), size, MCDataKind::Shapes);
 
     for (int32_t i = 0; i < 0x100; i++)
     {
-        colorTable[i] = static_cast<uint8_t>(i);
+        ColorTable[i] = static_cast<uint8_t>(i);
     }
 
-    MCRenderer::RegisterData(colorTable, sizeof(colorTable), MCDataKind::Tables);
+    MCRenderer::RegisterData(ColorTable, sizeof(ColorTable), MCDataKind::Tables);
     return 0;
 }
 
-auto aFont::destroy() -> void
+auto MCGuiFont::Destroy() -> void
 {
-    if (fontData != nullptr)
+    if (FontData != nullptr)
     {
-        MCRenderer::UnregisterData(fontData.get());
-        fontData.reset();
+        MCRenderer::UnregisterData(FontData.get());
+        FontData.reset();
     }
 }
 
-auto aFont::load(char* fileName) -> int32_t
+auto MCGuiFont::Load(char* fileName) -> int32_t
 {
-    destroy();
-    return init(fileName);
+    Destroy();
+    return Init(fileName);
 }
 
-auto aFont::height() -> int32_t
+auto MCGuiFont::Height() -> int32_t
 {
-    if (fontData == nullptr)
+    if (FontData == nullptr)
     {
         return 0;
     }
 
-    return VFX_font_height(fontData.get());
+    return VfxFontHeight(FontData.get());
 }
 
-auto aFont::width(uint8_t* text) -> int32_t
+auto MCGuiFont::Width(uint8_t* text) -> int32_t
 {
-    if (text == nullptr || *text == 0 || fontData == nullptr)
+    if (text == nullptr || *text == 0 || FontData == nullptr)
     {
         return 0;
     }
@@ -95,45 +95,45 @@ auto aFont::width(uint8_t* text) -> int32_t
 
     for (int32_t i = 0; i < length; i++)
     {
-        total += VFX_character_width(fontData.get(), text[i]);
+        total += VfxCharacterWidth(FontData.get(), text[i]);
     }
 
     return total;
 }
 
-auto aFont::width(uint8_t c) -> int32_t
+auto MCGuiFont::Width(uint8_t c) -> int32_t
 {
     if (c == 0)
     {
         return 0;
     }
 
-    if (fontData == nullptr)
+    if (FontData == nullptr)
     {
         return 0;
     }
 
-    return VFX_character_width(fontData.get(), c);
+    return VfxCharacterWidth(FontData.get(), c);
 }
 
-auto aFont::writeChar(_pane* pane, int32_t xPos, int32_t yPos, char c) -> int32_t
+auto MCGuiFont::WriteChar(MCPane* pane, int32_t xPos, int32_t yPos, char c) -> int32_t
 {
-    if (this == nullptr || fontData == nullptr)
+    if (this == nullptr || FontData == nullptr)
     {
         return -3;
     }
 
     if (c != 0)
     {
-        VFX_character_draw(pane, xPos, yPos, fontData.get(), static_cast<uint8_t>(c), colorTable);
+        VfxCharacterDraw(pane, xPos, yPos, FontData.get(), static_cast<uint8_t>(c), ColorTable);
     }
 
     return 0;
 }
 
-auto aFont::writeString(_pane* pane, int32_t xPos, int32_t yPos, uint8_t* text, int32_t maxWidth) -> int32_t
+auto MCGuiFont::WriteString(MCPane* pane, int32_t xPos, int32_t yPos, uint8_t* text, int32_t maxWidth) -> int32_t
 {
-    if (this == nullptr || fontData == nullptr)
+    if (this == nullptr || FontData == nullptr)
     {
         return -3;
     }
@@ -151,7 +151,7 @@ auto aFont::writeString(_pane* pane, int32_t xPos, int32_t yPos, uint8_t* text, 
     if (maxWidth != -1)
     {
         end = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(text)));
-        int32_t textWidth = width(text);
+        int32_t textWidth = Width(text);
 
         while (maxWidth < textWidth && end > 0)
         {
@@ -159,11 +159,11 @@ auto aFont::writeString(_pane* pane, int32_t xPos, int32_t yPos, uint8_t* text, 
             saved = text[end - 1];
             end--;
             text[end] = 0;
-            textWidth = width(text);
+            textWidth = Width(text);
         }
     }
 
-    VFX_string_draw(pane, xPos, yPos, fontData.get(), reinterpret_cast<char*>(text), colorTable);
+    VfxStringDraw(pane, xPos, yPos, FontData.get(), reinterpret_cast<char*>(text), ColorTable);
 
     if (maxWidth != -1)
     {
@@ -173,9 +173,9 @@ auto aFont::writeString(_pane* pane, int32_t xPos, int32_t yPos, uint8_t* text, 
     return 0;
 }
 
-auto aFont::writeStringToNewline(_pane* pane, int32_t xPos, int32_t yPos, uint8_t* text) -> int32_t
+auto MCGuiFont::WriteStringToNewline(MCPane* pane, int32_t xPos, int32_t yPos, uint8_t* text) -> int32_t
 {
-    if (this == nullptr || fontData == nullptr)
+    if (this == nullptr || FontData == nullptr)
     {
         return -3;
     }
@@ -191,7 +191,7 @@ auto aFont::writeStringToNewline(_pane* pane, int32_t xPos, int32_t yPos, uint8_
                 *newline = 0;
             }
 
-            VFX_string_draw(pane, xPos, yPos, fontData.get(), reinterpret_cast<char*>(text), colorTable);
+            VfxStringDraw(pane, xPos, yPos, FontData.get(), reinterpret_cast<char*>(text), ColorTable);
 
             if (newline != nullptr)
             {
@@ -203,7 +203,7 @@ auto aFont::writeStringToNewline(_pane* pane, int32_t xPos, int32_t yPos, uint8_
     return 0;
 }
 
-auto aFont::charactersToWidth(uint8_t* text, int32_t maxWidth, int wordWrap) -> int32_t
+auto MCGuiFont::CharactersToWidth(uint8_t* text, int32_t maxWidth, int wordWrap) -> int32_t
 {
     char* string = reinterpret_cast<char*>(text);
 
@@ -215,7 +215,7 @@ auto aFont::charactersToWidth(uint8_t* text, int32_t maxWidth, int wordWrap) -> 
 
         while (text < end)
         {
-            if (width(text) <= maxWidth)
+            if (Width(text) <= maxWidth)
             {
                 break;
             }
@@ -230,7 +230,7 @@ auto aFont::charactersToWidth(uint8_t* text, int32_t maxWidth, int wordWrap) -> 
         return static_cast<int32_t>(end - text);
     }
 
-    if (width(text) <= maxWidth)
+    if (Width(text) <= maxWidth)
     {
         return static_cast<int32_t>(std::strlen(string));
     }
@@ -244,7 +244,7 @@ auto aFont::charactersToWidth(uint8_t* text, int32_t maxWidth, int wordWrap) -> 
     }
 
     *space = 0;
-    while (maxWidth < width(text))
+    while (maxWidth < Width(text))
     {
         char* previous = std::strrchr(string, ' ');
 

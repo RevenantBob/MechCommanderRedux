@@ -65,9 +65,9 @@ namespace
     template <int N> struct Edge
     {
         /// <summary>The vertex the edge starts at (0x007a9aec / 0x007a9af0).</summary>
-        const SCRNVERTEX* Start;
+        const MCScreenVertex* Start;
         /// <summary>The vertex it runs to (0x007a9af4 / 0x007a9af8).</summary>
-        const SCRNVERTEX* Next;
+        const MCScreenVertex* Next;
         /// <summary>Rows left on the edge.</summary>
         int32_t Count;
         int32_t X;
@@ -77,18 +77,18 @@ namespace
     };
 
     /// <summary>The value at byte offset <paramref name="offset"/> of a vertex (8 colour, 12 u, 16 v).</summary>
-    int32_t VertexValue(const SCRNVERTEX* v, int offset)
+    int32_t VertexValue(const MCScreenVertex* v, int offset)
     {
         switch (offset)
         {
             case 8:
-                return v->c;
+                return v->C;
             case 12:
-                return v->u;
+                return v->U;
             case 16:
-                return v->v;
+                return v->V;
             default:
-                return v->w;
+                return v->W;
         }
     }
 
@@ -98,7 +98,7 @@ namespace
     /// </summary>
     /// <typeparam name="N">The number of interpolated values (0 to 2).</typeparam>
     template <int N, typename Span>
-    void WalkPolygon(const PolyTarget& target, int32_t vcnt, const SCRNVERTEX* vlist,
+    void WalkPolygon(const PolyTarget& target, int32_t vcnt, const MCScreenVertex* vlist,
                      const int (&offsets)[N > 0 ? N : 1], Span&& span)
     {
         // Port fix: the asm loops forever on an empty vertex list.
@@ -107,31 +107,31 @@ namespace
             return;
         }
 
-        const SCRNVERTEX* first = vlist;
-        const SCRNVERTEX* end = vlist + vcnt;
+        const MCScreenVertex* first = vlist;
+        const MCScreenVertex* end = vlist + vcnt;
 
         uint32_t allOut = 0xf;
         int32_t minY = 0x7fff;
         int32_t maxY = -0x8000;
-        const SCRNVERTEX* top = nullptr;
+        const MCScreenVertex* top = nullptr;
 
-        for (const SCRNVERTEX* v = first; v != end; ++v)
+        for (const MCScreenVertex* v = first; v != end; ++v)
         {
             uint32_t code = 0;
-            code = code << 1 | static_cast<uint32_t>(v->x) >> 31;
-            code = code << 1 | static_cast<uint32_t>(target.XMax - v->x) >> 31;
-            code = code << 1 | static_cast<uint32_t>(v->y) >> 31;
-            code = code << 1 | static_cast<uint32_t>(target.YMax - v->y) >> 31;
+            code = code << 1 | static_cast<uint32_t>(v->X) >> 31;
+            code = code << 1 | static_cast<uint32_t>(target.XMax - v->X) >> 31;
+            code = code << 1 | static_cast<uint32_t>(v->Y) >> 31;
+            code = code << 1 | static_cast<uint32_t>(target.YMax - v->Y) >> 31;
 
-            if (v->y <= minY)
+            if (v->Y <= minY)
             {
-                minY = v->y;
+                minY = v->Y;
                 top = v;
             }
 
-            if (v->y >= maxY)
+            if (v->Y >= maxY)
             {
-                maxY = v->y;
+                maxY = v->Y;
             }
 
             allOut &= code;
@@ -153,17 +153,17 @@ namespace
             return;
         }
 
-        auto setupEdge = [&](Edge<N>& edge, const SCRNVERTEX* start, const SCRNVERTEX* next, int32_t dy)
+        auto setupEdge = [&](Edge<N>& edge, const MCScreenVertex* start, const MCScreenVertex* next, int32_t dy)
         {
             edge.Count = dy;
-            edge.DX = EdgeXSlope(next->x - start->x, dy);
+            edge.DX = EdgeXSlope(next->X - start->X, dy);
 
             for (int i = 0; i < N; ++i)
             {
                 edge.DA[i] = ValueSlope(VertexValue(next, offsets[i]) - VertexValue(start, offsets[i]), dy);
             }
 
-            edge.X = Shl16(start->x) + 0x8000;
+            edge.X = Shl16(start->X) + 0x8000;
 
             for (int i = 0; i < N; ++i)
             {
@@ -171,8 +171,8 @@ namespace
             }
         };
 
-        auto stepBack = [&](const SCRNVERTEX* v) { return v - 1 < first ? end - 1 : v - 1; };
-        auto stepForward = [&](const SCRNVERTEX* v) { return v + 1 >= end ? first : v + 1; };
+        auto stepBack = [&](const MCScreenVertex* v) { return v - 1 < first ? end - 1 : v - 1; };
+        auto stepForward = [&](const MCScreenVertex* v) { return v + 1 >= end ? first : v + 1; };
 
         // The first edges: skip those wholly above the pane and the horizontal ones. The guard is the port's: the asm
         // relies on the polygon reaching y >= 0, which the outcodes guarantee, to end these loops.
@@ -191,8 +191,8 @@ namespace
 
             left.Start = left.Next;
             left.Next = stepBack(left.Start);
-            const int32_t y0 = left.Start->y;
-            const int32_t y1 = left.Next->y;
+            const int32_t y0 = left.Start->Y;
+            const int32_t y1 = left.Next->Y;
 
             if (y0 < 0 && y1 <= 0)
             {
@@ -228,8 +228,8 @@ namespace
 
             right.Start = right.Next;
             right.Next = stepForward(right.Start);
-            const int32_t y0 = right.Start->y;
-            const int32_t y1 = right.Next->y;
+            const int32_t y0 = right.Start->Y;
+            const int32_t y1 = right.Next->Y;
 
             if (y0 < 0 && y1 <= 0)
             {
@@ -269,7 +269,7 @@ namespace
 
             for (Edge<N>* edge : {&left, &right})
             {
-                const int32_t n = 0 - edge->Start->y;
+                const int32_t n = 0 - edge->Start->Y;
                 edge->Count -= n;
                 edge->X += MulShift16(Shl16(n), edge->DX);
 
@@ -285,7 +285,7 @@ namespace
         {
             edge.Start = edge.Next;
             edge.Next = backwards ? stepBack(edge.Start) : stepForward(edge.Start);
-            int32_t dy = edge.Next->y - edge.Start->y;
+            int32_t dy = edge.Next->Y - edge.Start->Y;
 
             if (dy < 0)
             {
@@ -561,7 +561,7 @@ namespace
     void MapSpans(const PolyTarget& target, const MCPolygonCommand& command, MCSpanState& state,
                   const std::function<void(const MCSpan&)>& emit)
     {
-        const int32_t texStride = command.Texture->x_max + 1;
+        const int32_t texStride = command.Texture->XMax + 1;
         int32_t (&stepTable)[4] = state.MapSteps;
         int32_t& duSpan = state.MapDu;
         int32_t& dvSpan = state.MapDv;
@@ -681,7 +681,7 @@ void MCPolygonSpans(const MCPolygonCommand& command, MCSpanState& state, const s
 {
     PolyTarget poly{nullptr, 0, command.XMax, command.YMax};
     const int32_t vcnt = command.VertexCount;
-    const SCRNVERTEX* vlist = command.Vertices;
+    const MCScreenVertex* vlist = command.Vertices;
 
     switch (command.Kind)
     {
@@ -841,10 +841,10 @@ void MCPolygonSpans(const MCPolygonCommand& command, MCSpanState& state, const s
     }
 }
 
-void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& command)
+void MCSoftwareRenderer::Polygon(MCWindow* target, const MCPolygonCommand& command)
 {
-    const int32_t stride = target->x_max + 1;
-    const auto at = [&](int32_t x, int32_t y) { return target->buffer + static_cast<intptr_t>(y) * stride + x; };
+    const int32_t stride = target->XMax + 1;
+    const auto at = [&](int32_t x, int32_t y) { return target->Buffer + static_cast<intptr_t>(y) * stride + x; };
 
     switch (command.Kind)
     {
@@ -858,7 +858,7 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
             // Original behaviour: the asm builds a dword of the colour from (c + 0x8000) >> 16 and fills with it, so
             // colours above 255 leak their high bits into some pixels of the dword stores; the port fills with the
             // low byte.
-            const uint8_t color = static_cast<uint8_t>((static_cast<uint32_t>(command.Vertices[0].c) + 0x8000) >> 16);
+            const uint8_t color = static_cast<uint8_t>((static_cast<uint32_t>(command.Vertices[0].C) + 0x8000) >> 16);
             MCPolygonSpans(command, _Spans, [&](const MCSpan& span)
                            { std::memset(at(span.X0, span.Y), color, static_cast<size_t>(span.X1 - span.X0 + 1)); });
             break;
@@ -925,10 +925,10 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
 
         case MCPolygonKind::Map:
         {
-            const _window* texture = command.Texture;
+            const MCWindow* texture = command.Texture;
             NoteCpuRead(texture, "Polygon (map)");
-            const uint8_t* texels = texture->buffer;
-            const int64_t texSize = static_cast<int64_t>(texture->x_max + 1) * (texture->y_max + 1);
+            const uint8_t* texels = texture->Buffer;
+            const int64_t texSize = static_cast<int64_t>(texture->XMax + 1) * (texture->YMax + 1);
             const bool xlat = (command.MapFlags & MP_XLAT) != 0;
             const bool transparent = (command.MapFlags & MP_XP) != 0;
             const uint8_t* lookaside = command.Table;
@@ -1060,7 +1060,7 @@ void MCMapQuadSpans(const MCMapQuadCommand& command, MCSpanState& state, const s
 {
     const MCMapQuadVertex(&corners)[4] = command.Corners;
     const MCRect& clip = command.Clip;
-    const int32_t textureStride = command.Texture->x_max + 1;
+    const int32_t textureStride = command.Texture->XMax + 1;
 
     // Outcodes, and the top (the last corner with the smallest y) and bottom.
     int32_t yTop = 0x7fff;
@@ -1334,20 +1334,20 @@ void MCMapQuadSpans(const MCMapQuadCommand& command, MCSpanState& state, const s
     }
 }
 
-void MCSoftwareRenderer::MapQuad(_window* target, const MCMapQuadCommand& command)
+void MCSoftwareRenderer::MapQuad(MCWindow* target, const MCMapQuadCommand& command)
 {
     NoteCpuRead(command.Texture, "MapQuad");
-    const int32_t stride = target->x_max + 1;
-    const uint8_t* texture = command.Texture->buffer;
-    const int32_t textureStride = command.Texture->x_max + 1;
+    const int32_t stride = target->XMax + 1;
+    const uint8_t* texture = command.Texture->Buffer;
+    const int32_t textureStride = command.Texture->XMax + 1;
     // Port fix: texel reads outside the work buffer (the original read whatever lay there) count as transparent.
     const int64_t textureSize =
-        static_cast<int64_t>(std::max(textureStride, 0)) * std::max(command.Texture->y_max + 1, 0);
+        static_cast<int64_t>(std::max(textureStride, 0)) * std::max(command.Texture->YMax + 1, 0);
 
     MCMapQuadSpans(command, _Spans,
                    [&](const MCSpan& span)
                    {
-                       uint8_t* out = target->buffer + static_cast<intptr_t>(span.Y) * stride + span.X0;
+                       uint8_t* out = target->Buffer + static_cast<intptr_t>(span.Y) * stride + span.X0;
 
                        for (int32_t j = 0; j <= span.X1 - span.X0; ++j, ++out)
                        {

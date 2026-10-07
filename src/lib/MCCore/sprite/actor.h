@@ -3,13 +3,13 @@
 #include "appear/appear.h"
 #include "appear/apprtype.h"
 
-class Shape;
+class MCShape;
 
 /// <summary>
 /// The animation states of a VFX appearance (the FIT's "State%d" blocks). The names are those of MechCommander 2's
 /// <c>actor.h</c>, which descends from this code; the values match MCX.EXE's use.
 /// </summary>
-enum ActorState : int32_t
+enum MCActorState : int32_t
 {
     ACTOR_STATE_INVALID = -1,
     ACTOR_STATE_NORMAL = 0,
@@ -24,168 +24,151 @@ enum ActorState : int32_t
 };
 
 /// <summary>One animation state (or sub-state) of a VFX appearance type, from its FIT (0x14 bytes).</summary>
-struct ActorData
+struct MCActorData
 {
     /// <summary>FIT "State".</summary>
-    ActorState state; // +0x00
+    MCActorState State;
     /// <summary>FIT "Symmetrical": the second half of the rotations are the first half mirrored.</summary>
-    uint8_t symmetrical; // +0x04
+    uint8_t Symmetrical;
     /// <summary>FIT "NumRotations".</summary>
-    uint8_t numRotations; // +0x05
+    uint8_t NumRotations;
     /// <summary>FIT "Sub" (sub-states only).</summary>
-    uint8_t subState; // +0x06
+    uint8_t SubState;
     /// <summary>FIT "Loop" (sub-states only; states always loop).</summary>
-    uint8_t loop; // +0x07
+    uint8_t Loop;
     /// <summary>FIT "NumFrames" (0: the state doesn't exist).</summary>
-    uint32_t numFrames; // +0x08
+    uint32_t NumFrames;
     /// <summary>FIT "BasePacketNumber": the state's first packet in the appearance's PAK.</summary>
-    uint32_t basePacketNumber; // +0x0c
+    uint32_t BasePacketNumber;
     /// <summary>FIT "FrameRate", frames per second.</summary>
-    float frameRate; // +0x10
+    float FrameRate;
 };
 
 /// <summary>
-/// The type of a <see cref="VFXAppearance"/>: an object drawn from one VFX shape per state and facing (effects,
+/// The type of a <see cref="MCVfxAppearance"/>: an object drawn from one VFX shape per state and facing (effects,
 /// terrain objects, trees...).
 /// </summary>
 /// <remarks>
 /// Original source: <c>sprite\actor.cpp</c>, 0x40 bytes (class 2 of the sprite PAK). Its FIT: "Main Info"
 /// (delta), "States" (NumStates, Scaled), "State%d" and "Sub%dState%d" blocks.
 /// </remarks>
-class VFXAppearanceType : public AppearanceType
+class MCVfxAppearanceType : public MCAppearanceType
 {
 public:
-    VFXAppearanceType() = default;
-    /// <remarks>MCX.EXE @ 0x006ac8c0 (vector deleting destructor); slot 2</remarks>
-    ~VFXAppearanceType() override { VFXAppearanceType::destroy(); }
+    MCVfxAppearanceType() = default;
+    ~MCVfxAppearanceType() override { MCVfxAppearanceType::Destroy(); }
 
     /// <summary>
     /// Loads the FIT and makes the shape list; with <paramref name="loadFlags"/> the first shape is loaded at once
     /// and the type is kept loaded.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00637fa0; slot 0</remarks>
-    int32_t init(File* apprFile, uint32_t fileSize, uint32_t loadFlags) override;
+    int32_t Init(MCFile* apprFile, uint32_t fileSize, uint32_t loadFlags) override;
 
     /// <summary>Frees the shapes' ownership, the user list, the shape list and the state table.</summary>
-    /// <remarks>MCX.EXE @ 0x00638670; slot 1</remarks>
-    void destroy() override;
+    void Destroy() override;
 
     /// <summary>Forgets <paramref name="shape"/> in the shape list and in every user.</summary>
-    /// <remarks>MCX.EXE @ 0x00638040; slot 3</remarks>
-    void removeShape(Shape* shape) override;
+    void RemoveShape(MCShape* shape) override;
 
     /// <summary>Reads the type's FIT.</summary>
-    /// <remarks>MCX.EXE @ 0x00638090</remarks>
-    int32_t loadIniFile(File* apprFile, uint32_t fileSize);
+    int32_t LoadIniFile(MCFile* apprFile, uint32_t fileSize);
 
     /// <summary>
     /// The shape for <paramref name="state"/> (sub-state <paramref name="subState"/>, 0xFF for none) facing
     /// <paramref name="rotation"/> degrees, loading it if needed. <paramref name="frameRate"/> gets the state's
     /// frame rate, <paramref name="reverse"/> whether the shape must be mirrored. <paramref name="frame"/> is unused.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x006384e0</remarks>
-    Shape* getShape(ActorState state, uint8_t subState, int32_t rotation, int32_t frame, float& frameRate,
-                    int& reverse);
+    MCShape* GetShape(MCActorState state, uint8_t subState, int32_t rotation, int32_t frame, float& frameRate,
+                      int& reverse);
 
     /// <summary>The states (MAX_ACTOR_STATES entries).</summary>
-    ActorData* actorStateData = nullptr; // +0x2c
+    MCActorData* ActorStateData = nullptr;
     /// <summary>The sub-states of state 0, or null.</summary>
-    ActorData* actorSubStateData = nullptr; // +0x30
+    MCActorData* ActorSubStateData = nullptr;
     /// <summary>The loaded shape of each packet of the appearance's PAK.</summary>
-    Shape** shapeList = nullptr; // +0x34
+    MCShape** ShapeList = nullptr;
     /// <summary>FIT "NumStates".</summary>
-    uint8_t numStates = 0; // +0x38
+    uint8_t NumStates = 0;
     /// <summary>FIT "Scaled": packets alternate full size and zoomed out.</summary>
-    uint8_t scaled = 0; // +0x39
+    uint8_t Scaled = 0;
     /// <summary>The number of packets (shapes) in the appearance's PAK.</summary>
-    int16_t numPackets = 0; // +0x3a
+    int16_t NumPackets = 0;
     /// <summary>FIT "delta": the appearance starts at frame 0 rather than a random one.</summary>
-    int32_t delta = 0; // +0x3c
+    int32_t Delta = 0;
 };
 
 /// <summary>An object drawn from its type's shapes, animated through its states and facings.</summary>
 /// <remarks>Original source: <c>sprite\actor.cpp</c>, <c>sprite\actor.h</c>; 0x84 bytes.</remarks>
-class VFXAppearance : public Appearance
+class MCVfxAppearance : public MCAppearance
 {
 public:
-    VFXAppearance() = default;
-    /// <remarks>MCX.EXE @ 0x00653170 (vector deleting destructor); slot 2</remarks>
-    ~VFXAppearance() override { VFXAppearance::destroy(); }
+    MCVfxAppearance() = default;
+    ~MCVfxAppearance() override { MCVfxAppearance::Destroy(); }
 
     /// <summary>Binds to <paramref name="tree"/> (registering as a user) and resets the animation.</summary>
-    /// <remarks>MCX.EXE @ 0x006386d0; slot 0</remarks>
-    int32_t init(AppearanceType* tree = nullptr, GameObject* obj = nullptr) override;
+    int32_t Init(MCAppearanceType* tree = nullptr, MCGameObject* obj = nullptr) override;
 
     /// <summary>Unregisters from the type and releases it.</summary>
-    /// <remarks>MCX.EXE @ 0x00638ff0; slot 1</remarks>
-    void destroy() override;
+    void Destroy() override;
 
     /// <summary>Advances the animation by the frame time.</summary>
-    /// <remarks>MCX.EXE @ 0x00638e50; slot 3</remarks>
-    int32_t update() override;
+    int32_t Update() override;
 
     /// <summary>Adds the current shape (and the selection box, bars) to the element list.</summary>
-    /// <remarks>MCX.EXE @ 0x00638980; slot 4</remarks>
-    int32_t render(int32_t depthFixup = 0) override;
+    int32_t Render(int32_t depthFixup = 0) override;
 
-    /// <remarks>MCX.EXE @ 0x00653100; slot 5</remarks>
-    AppearanceType* getAppearanceType() override { return appearType; }
+    MCAppearanceType* GetAppearanceType() override { return AppearType; }
 
     /// <summary>Draws the damage bar over the object.</summary>
-    /// <remarks>MCX.EXE @ 0x00639040; slot 6</remarks>
-    void drawBars() override;
+    void DrawBars() override;
 
     /// <summary>Takes the shape's bounds and projects the owner; nonzero when on screen.</summary>
-    /// <remarks>MCX.EXE @ 0x00638750; slot 7</remarks>
-    int recalcBounds(Camera* cam) override;
+    int RecalcBounds(MCCamera* cam) override;
 
     /// <summary>
     /// Switches to <paramref name="state"/> (restarting it) and, in state 0, to sub-state
     /// <paramref name="subState"/> (0xFF for none).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00653110 (actor.h); slot 13</remarks>
-    virtual void setTypeId(ActorState state, uint8_t subState);
+    virtual void SetTypeId(MCActorState state, uint8_t subState);
 
     /// <summary>Shows damage level <paramref name="damageLevel"/>: normal, blowing up 1 or 2, or destroyed.</summary>
-    /// <remarks>MCX.EXE @ 0x00638dc0; slot 14</remarks>
-    virtual void setDamageLvl(uint32_t damageLevel);
+    virtual void SetDamageLvl(uint32_t damageLevel);
 
     /// <summary>The number of frames of <paramref name="state"/> (0 when it doesn't exist).</summary>
-    /// <remarks>MCX.EXE @ 0x00639010</remarks>
-    int32_t stateExists(ActorState state);
+    int32_t StateExists(MCActorState state);
 
     /// <summary>The type.</summary>
-    VFXAppearanceType* appearType = nullptr; // +0x38
+    MCVfxAppearanceType* AppearType = nullptr;
     /// <summary>The shape drawn.</summary>
-    Shape* currentShape = nullptr; // +0x3c
+    MCShape* CurrentShape = nullptr;
     /// <summary>The frame drawn (-1: not started).</summary>
-    int32_t currentFrame = -1; // +0x40
+    int32_t CurrentFrame = -1;
     /// <summary>Seconds into the current state.</summary>
-    float currentTime = 0.0f; // +0x4c
+    float CurrentTime = 0.0f;
     /// <summary>Frames advanced by the last update.</summary>
-    float framesAdvanced = 0.0f; // +0x50
+    float FramesAdvanced = 0.0f;
     /// <summary>Frames played so far in the current state.</summary>
-    int32_t lastFrame = 0; // +0x54
-    /// <summary>The frame the animation loops back to at <see cref="loopEnd"/>.</summary>
-    int32_t loopStart = -1; // +0x58
-    /// <summary>The frame at which the animation goes back to <see cref="loopStart"/> (-1: loop the whole state).</summary>
-    int32_t loopEnd = -1; // +0x5c
+    int32_t LastFrame = 0;
+    /// <summary>The frame the animation loops back to at <see cref="LoopEnd"/>.</summary>
+    int32_t LoopStart = -1;
+    /// <summary>The frame at which the animation goes back to <see cref="LoopStart"/> (-1: loop the whole state).</summary>
+    int32_t LoopEnd = -1;
     /// <summary>The current state.</summary>
-    ActorState currentState = ACTOR_STATE_NORMAL; // +0x60
+    MCActorState CurrentState = ACTOR_STATE_NORMAL;
     /// <summary>The current sub-state of state 0, 0xFF for none.</summary>
-    uint8_t currentSubState = 0xff; // +0x64
+    uint8_t CurrentSubState = 0xff;
     /// <summary>The fade table the shape is drawn through, or null.</summary>
-    uint8_t* fadeTable = nullptr; // +0x68
-    /// <summary>Set by <see cref="setDamageLvl"/>.</summary>
-    int32_t damageSet = 0; // +0x6c
-    /// <summary>Set by <see cref="setTypeId"/> and init.</summary>
-    int32_t typeChanged = 1; // +0x70
+    uint8_t* FadeTable = nullptr;
+    /// <summary>Set by <see cref="SetDamageLvl"/>.</summary>
+    int32_t DamageSet = 0;
+    /// <summary>Set by <see cref="SetTypeId"/> and init.</summary>
+    int32_t TypeChanged = 1;
     /// <summary>The shape's top-left offset from its hotspot (from VFX_shape_minxy; -15 before a shape).</summary>
-    float shapeMinX = -15.0f; // +0x74
-    float shapeMinY = -15.0f; // +0x78
+    float ShapeMinX = -15.0f;
+    float ShapeMinY = -15.0f;
     /// <summary>The shape's size (VFX_shape_resolution; 15 before a shape).</summary>
-    float shapeMaxX = 15.0f; // +0x7c
-    float shapeMaxY = 15.0f; // +0x80
+    float ShapeMaxX = 15.0f;
+    float ShapeMaxY = 15.0f;
 };
 
 /// <summary>
@@ -194,7 +177,7 @@ public:
 /// has none. Nothing when <paramref name="obj"/> is null.
 /// </summary>
 /// <remarks>
-/// Port helper: the body of <c>VFXAppearance::drawBars</c> (MCX.EXE @ 0x00639040) and
+/// Port helper: the body of <c>VFXAppearance::drawBars</c> and
 /// <c>VFXBuildingAppearance::drawBars</c> (0x0063a960), which the original repeats.
 /// </remarks>
-void MCDrawDamageBar(Appearance* appearance, AppearanceType* type, GameObject* obj);
+void MCDrawDamageBar(MCAppearance* appearance, MCAppearanceType* type, MCGameObject* obj);

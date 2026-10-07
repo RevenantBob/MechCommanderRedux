@@ -20,45 +20,45 @@
 #include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
 
-int AG_oldMouseX = -1;
-int AG_oldMouseY = -1;
-int AG_oldMouseXh = -1;
-int AG_oldMouseYh = -1;
-int AG_oldMouse = -1;
-int AG_oldMouseW = 0;
-int AG_oldMouseH = 0;
-int AG_MouseBuffer = 0;
-int AG_locked = 0;
+int AGOldMouseX = -1;
+int AGOldMouseY = -1;
+int AGOldMouseXh = -1;
+int AGOldMouseYh = -1;
+int AGOldMouse = -1;
+int AGOldMouseW = 0;
+int AGOldMouseH = 0;
+int AGMouseBuffer = 0;
+int AGLocked = 0;
 char MouseBuffer[0x10000];
 float FrameRateArray[512];
-int frPointer = 0;
+int FrPointer = 0;
 uint32_t HTimer = 0;
-int gSoundTimer = 0;
-int keepScreenBlack = 0;
-volatile int inTimerThread = 0;
-int32_t shotNum = 0;
-char gifName[20];
-uint8_t* connectShape = nullptr;
-uint8_t** cursorShapes = nullptr;
-int gWinWidth = 0;
-int gWinHeight = 0;
-_window tempWINDOW = {};
-_pane tempPANE = {};
+int GSoundTimer = 0;
+int KeepScreenBlack = 0;
+volatile int InTimerThread = 0;
+int32_t ShotNum = 0;
+char GifName[20];
+uint8_t* ConnectShape = nullptr;
+uint8_t** CursorShapes = nullptr;
+int GWinWidth = 0;
+int GWinHeight = 0;
+MCWindow TempWindow = {};
+MCPane TempPane = {};
 uint32_t MouseTicks = 0;
-int mouseScreenX = 320;
-int mouseScreenY = 240;
-int pageFlipping = 0;
-uint8_t displayFrozen = 0;
+int MouseScreenX = 320;
+int MouseScreenY = 240;
+int PageFlipping = 0;
+uint8_t DisplayFrozen = 0;
 
 namespace
 {
     /// <summary>The mouse timer's thread (timeSetEvent's periodic callback).</summary>
-    std::jthread mouseTimerThread;
+    std::jthread MouseTimerThread;
 
     /// <summary>The screen's window: the 8-bit buffer the game draws and the display shows.</summary>
-    _window* screenBuffer()
+    MCWindow* ScreenBuffer()
     {
-        return screenPort->frame()->window;
+        return ScreenPort->Frame()->Window;
     }
 
     /// <summary>
@@ -66,14 +66,14 @@ namespace
     /// frame time over the last half second of real time, on a black box that only grows (so shorter text leaves no
     /// digits behind where nothing else redraws the screen).
     /// </summary>
-    void drawFrameCounter()
+    void DrawFrameCounter()
     {
         static std::chrono::steady_clock::time_point periodStart = std::chrono::steady_clock::now();
         static int32_t periodFrames = 0;
         static char text[48] = "-- fps";
         static int32_t boxWidth = 0;
         MCDisplay* display = MCInput::Display();
-        aFont* font = medWhiteFont;
+        MCGuiFont* font = MedWhiteFont;
 
         if (display == nullptr || font == nullptr)
         {
@@ -93,14 +93,14 @@ namespace
         }
 
         uint8_t* characters = reinterpret_cast<uint8_t*>(text);
-        const int32_t textWidth = font->width(characters);
+        const int32_t textWidth = font->Width(characters);
         boxWidth = std::max(boxWidth, textWidth + 8);
         const SDL_Rect view = display->View();
         const int32_t right = view.x + view.w - 1;
         const int32_t top = view.y;
-        _window* screen = screenBuffer();
-        MCRenderer::For(screen).Clear(screen, MCRect{right - boxWidth + 1, top, right, top + font->height() + 3}, 0);
-        font->writeString(screenPort->frame(), right - 3 - textWidth, top + 2, characters, -1);
+        MCWindow* screen = ScreenBuffer();
+        MCRenderer::For(screen).Clear(screen, MCRect{right - boxWidth + 1, top, right, top + font->Height() + 3}, 0);
+        font->WriteString(ScreenPort->Frame(), right - 3 - textWidth, top + 2, characters, -1);
     }
 
     /// <summary>
@@ -109,27 +109,27 @@ namespace
     /// one, so the display shows just that corner, scaled to the window. A full-screen movie is centred on the
     /// screen, so the view is a 640x480 (or the movie's size, if larger) centred on it.
     /// </summary>
-    void updateDisplayView(MCDisplay* display)
+    void UpdateDisplayView(MCDisplay* display)
     {
-        constexpr int32_t InterfaceWidth = 640;
-        constexpr int32_t InterfaceHeight = 480;
+        constexpr int32_t interfaceWidth = 640;
+        constexpr int32_t interfaceHeight = 480;
         int32_t x = 0;
         int32_t y = 0;
         int32_t width = display->Width();
         int32_t height = display->Height();
-        aObject* movie = application != nullptr ? application->smackerWindow : nullptr;
+        MCGuiObject* movie = Application != nullptr ? Application->SmackerWindow : nullptr;
 
         if (movie != nullptr)
         {
-            width = std::max(InterfaceWidth, movie->width());
-            height = std::max(InterfaceHeight, movie->height());
-            x = movie->globalX() + movie->width() / 2 - width / 2;
-            y = movie->globalY() + movie->height() / 2 - height / 2;
+            width = std::max(interfaceWidth, movie->Width());
+            height = std::max(interfaceHeight, movie->Height());
+            x = movie->GlobalX() + movie->Width() / 2 - width / 2;
+            y = movie->GlobalY() + movie->Height() / 2 - height / 2;
         }
-        else if (mission == nullptr || mission->missionState != 7)
+        else if (Mission == nullptr || Mission->MissionState != 7)
         {
-            width = InterfaceWidth;
-            height = InterfaceHeight;
+            width = interfaceWidth;
+            height = interfaceHeight;
         }
 
         if (display->SetView(x, y, width, height))
@@ -142,84 +142,84 @@ namespace
     /// Shows the screen buffer: the original's flip (DirectDraw Blt/Flip full screen, BitBlt in a window, with the
     /// lost-surface retries and display resets) is the port's present.
     /// </summary>
-    void presentScreen()
+    void PresentScreen()
     {
         MCDisplay* display = MCInput::Display();
 
         if (display != nullptr)
         {
             MCFrameLog::Scope present("present");
-            updateDisplayView(display);
+            UpdateDisplayView(display);
             (void)display->Present();
         }
     }
 
     /// <summary>Where the cursor is on the screen, kept inside it.</summary>
-    void readCursorPosition()
+    void ReadCursorPosition()
     {
         MCPoint cursor = MCInput::GetCursorPos();
-        mouseScreenX = cursor.x;
-        mouseScreenY = cursor.y;
+        MouseScreenX = cursor.x;
+        MouseScreenY = cursor.y;
 
-        if (gWidth <= cursor.x)
+        if (GWidth <= cursor.x)
         {
-            mouseScreenX = gWidth - 1;
+            MouseScreenX = GWidth - 1;
         }
 
-        if (gHeight <= cursor.y)
+        if (GHeight <= cursor.y)
         {
-            mouseScreenY = gHeight - 1;
+            MouseScreenY = GHeight - 1;
         }
     }
 
     /// <summary>Saves the screen under the cursor and draws the cursor into the screen buffer.</summary>
-    void drawCursorInBuffer()
+    void DrawCursorInBuffer()
     {
         // Port fix: the cursor is the system's, which follows the mouse between frames; the original drew it here.
-        if (gSoftwareCursor == 0)
+        if (GSoftwareCursor == 0)
         {
             MCFrameLog::Scope cursor("cursor");
             MCHardwareCursorUpdate();
             return;
         }
 
-        if (application->cursorShape == -1)
+        if (Application->CursorShape == -1)
         {
             return;
         }
 
         SaveMouseBackBuffer();
-        AG_shape_draw(screenPort->frame(), cursorShapes[application->cursorShape], 0, mouseScreenX, mouseScreenY);
+        AGShapeDraw(ScreenPort->Frame(), CursorShapes[Application->CursorShape], 0, MouseScreenX, MouseScreenY);
     }
 
     /// <summary>Ends a finished movie window: stops the movie, destroys and deletes the window.</summary>
-    void closeMovieWindow(aObject*& window)
+    void CloseMovieWindow(MCGuiObject*& window)
     {
-        static_cast<aSmackerWindow*>(window)->endSmackerMovie();
-        window->destroy();
+        static_cast<MCGuiSmackerWindow*>(window)->EndSmackerMovie();
+        window->Destroy();
         delete window;
         window = nullptr;
     }
 
     /// <summary>Copies the cursor rectangle between <see cref="MouseBuffer"/> and a screen of rows
     /// <paramref name="pitch"/> bytes.</summary>
-    void copyMouseRect(uint8_t* screen, int pitch, bool toScreen)
+    void CopyMouseRect(uint8_t* screen, int pitch, bool toScreen)
     {
         uint8_t* saved = reinterpret_cast<uint8_t*>(MouseBuffer);
-        uint8_t* row = screen + pitch * AG_oldMouseY + AG_oldMouseX;
+        uint8_t* row = screen + pitch * AGOldMouseY + AGOldMouseX;
 
-        for (int y = 0; y < AG_oldMouseH; y++)
+        for (int y = 0; y < AGOldMouseH; y++)
         {
             if (toScreen)
             {
-                std::memcpy(row, saved, AG_oldMouseW);
+                std::memcpy(row, saved, AGOldMouseW);
             }
             else
             {
-                std::memcpy(saved, row, AG_oldMouseW);
+                std::memcpy(saved, row, AGOldMouseW);
             }
 
-            saved += AG_oldMouseW;
+            saved += AGOldMouseW;
             row += pitch;
         }
     }
@@ -227,81 +227,81 @@ namespace
 
 void SaveMouseBackBuffer()
 {
-    AG_MouseBuffer = 1;
-    int32_t resolution = VFX_shape_resolution(cursorShapes[application->cursorShape], 0);
-    AG_oldMouseW = resolution >> 16;
-    AG_oldMouseH = resolution & 0xffff;
-    int32_t minXY = VFX_shape_minxy(cursorShapes[application->cursorShape], 0);
-    AG_oldMouse = application->cursorShape;
-    AG_oldMouseXh = mouseScreenX;
-    AG_oldMouseX = (minXY >> 16) + mouseScreenX;
-    AG_oldMouseY = static_cast<int16_t>(minXY) + mouseScreenY;
-    AG_oldMouseYh = mouseScreenY;
+    AGMouseBuffer = 1;
+    int32_t resolution = VfxShapeResolution(CursorShapes[Application->CursorShape], 0);
+    AGOldMouseW = resolution >> 16;
+    AGOldMouseH = resolution & 0xffff;
+    int32_t minXY = VfxShapeMinxy(CursorShapes[Application->CursorShape], 0);
+    AGOldMouse = Application->CursorShape;
+    AGOldMouseXh = MouseScreenX;
+    AGOldMouseX = (minXY >> 16) + MouseScreenX;
+    AGOldMouseY = static_cast<int16_t>(minXY) + MouseScreenY;
+    AGOldMouseYh = MouseScreenY;
 
-    if (AG_oldMouseX < 0)
+    if (AGOldMouseX < 0)
     {
-        AG_oldMouseW += AG_oldMouseX;
-        AG_oldMouseX = 0;
+        AGOldMouseW += AGOldMouseX;
+        AGOldMouseX = 0;
     }
 
-    if (AG_oldMouseY < 0)
+    if (AGOldMouseY < 0)
     {
-        AG_oldMouseH += AG_oldMouseY;
-        AG_oldMouseY = 0;
+        AGOldMouseH += AGOldMouseY;
+        AGOldMouseY = 0;
     }
 
-    if (gWidth < AG_oldMouseX + AG_oldMouseW)
+    if (GWidth < AGOldMouseX + AGOldMouseW)
     {
-        AG_oldMouseW = gWidth - AG_oldMouseX;
+        AGOldMouseW = GWidth - AGOldMouseX;
     }
 
-    if (gHeight < AG_oldMouseY + AG_oldMouseH)
+    if (GHeight < AGOldMouseY + AGOldMouseH)
     {
-        AG_oldMouseH = gHeight - AG_oldMouseY;
+        AGOldMouseH = GHeight - AGOldMouseY;
     }
 
-    int height = AG_oldMouseH;
+    int height = AGOldMouseH;
 
-    if (AG_oldMouseW < 0)
+    if (AGOldMouseW < 0)
     {
-        AG_oldMouseW = 0;
+        AGOldMouseW = 0;
     }
 
-    if (AG_oldMouseH < 0)
+    if (AGOldMouseH < 0)
     {
-        AG_oldMouseH = 0;
+        AGOldMouseH = 0;
     }
 
     if (height > 0)
     {
-        copyMouseRect(screenBuffer()->buffer, gWidth, false);
+        CopyMouseRect(ScreenBuffer()->Buffer, GWidth, false);
     }
 }
 
-void blankScreen()
+void BlankScreen()
 {
-    aLockScreen();
-    VFX_pane_wipe(screenPort->frame(), 0);
-    aUnlockScreen();
-    readCursorPosition();
-    drawCursorInBuffer();
-    presentScreen();
+    ALockScreen();
+    VfxPaneWipe(ScreenPort->Frame(), 0);
+    AUnlockScreen();
+    ReadCursorPosition();
+    DrawCursorInBuffer();
+    PresentScreen();
 }
 
 int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int showProgress, int32_t progress)
 {
-    if (displayFrozen != 0)
+    if (DisplayFrozen != 0)
     {
         return 0;
     }
 
-    if (application->smackerWindow2 != nullptr)
+    if (Application->SmackerWindow2 != nullptr)
     {
-        application->smackerWindow2->display();
+        Application->SmackerWindow2->Display();
 
-        if (movieOver != 0)
+        if (MovieOver != 0)
         {
-            closeMovieWindow(application->smackerWindow2);
+            CloseMovieWindow(Application->SmackerWindow2);
         }
 
         return 0;
@@ -312,9 +312,9 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
         return 0;
     }
 
-    if (paletteRgb != nullptr)
+    if (PaletteRgb != nullptr)
     {
-        application->fadeDownCurrentPalette();
+        Application->FadeDownCurrentPalette();
     }
 
     std::lock_guard<std::recursive_mutex> lock(MouseCritSec);
@@ -324,35 +324,35 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
     // Port: a new frame's op tables (translucent UI over the world view; see MCUnderlay).
     MCRenderer::ResetOpTables();
 
-    if (application->smackerWindow == nullptr)
+    if (Application->SmackerWindow == nullptr)
     {
-        if (globalLogPtr != nullptr && screenWindow->frame()->window->buffer != nullptr)
+        if (GlobalLogPtr != nullptr && ScreenWindow->Frame()->Window->Buffer != nullptr)
         {
-            VFX_pane_wipe(screenWindow->frame(), 0);
+            VfxPaneWipe(ScreenWindow->Frame(), 0);
         }
 
         MCFrameLog::Scope draw("draw");
 
-        for (int32_t i = 0; i < screenWindow->numberOfChildren(); i++)
+        for (int32_t i = 0; i < ScreenWindow->NumberOfChildren(); i++)
         {
-            screenWindow->child(i)->display();
+            ScreenWindow->Child(i)->Display();
         }
     }
     else
     {
         // Full screen with page flipping, the original first copied the front page to the back one.
-        aLockScreen();
-        application->smackerWindow->display();
-        aUnlockScreen();
+        ALockScreen();
+        Application->SmackerWindow->Display();
+        AUnlockScreen();
     }
 
-    AG_MouseBuffer = 0;
-    aLockScreen();
+    AGMouseBuffer = 0;
+    ALockScreen();
 
     if (screenShot != 0)
     {
-        shotNum++;
-        std::snprintf(gifName, sizeof(gifName), "scrn%04d.tga", shotNum);
+        ShotNum++;
+        std::snprintf(GifName, sizeof(GifName), "scrn%04d.tga", ShotNum);
         // Port: the screen as shown (the world view under the key, read back when the GPU draws the frame), not its
         // memory.
         MCDisplay* display = MCInput::Display();
@@ -360,7 +360,7 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
         if (display != nullptr)
         {
             std::vector<uint8_t> shown = display->ComposeScreen();
-            writeTGA8Bit(gifName, shown.data(), static_cast<uint32_t>(display->Width()),
+            WriteTga8Bit(GifName, shown.data(), static_cast<uint32_t>(display->Width()),
                          static_cast<uint32_t>(display->Height()));
         }
     }
@@ -368,16 +368,16 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
     if (staticNoise != 0 && noiseChance != 0)
     {
         // Port: the original wrote the noise into the screen's memory; the row goes to the renderer.
-        std::vector<uint8_t> line(static_cast<size_t>(application->width() >> 1) * 2);
+        std::vector<uint8_t> line(static_cast<size_t>(Application->Width() >> 1) * 2);
 
-        for (int32_t row = 0; row < application->height(); row++)
+        for (int32_t row = 0; row < Application->Height(); row++)
         {
             if (RollDice(noiseChance) != 0)
             {
-                _window* screen = screenBuffer();
+                MCWindow* screen = ScreenBuffer();
                 uint8_t* pixel = line.data();
 
-                for (int32_t i = 0; i < application->width() >> 1; i++)
+                for (int32_t i = 0; i < Application->Width() >> 1; i++)
                 {
                     int32_t noise = MCPort::Rand();
                     pixel[0] = static_cast<uint8_t>(noise & 0x1f);
@@ -390,108 +390,108 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
         }
     }
 
-    if (connectShape != nullptr && showProgress != 0)
+    if (ConnectShape != nullptr && showProgress != 0)
     {
-        int32_t centerY = application->height() >> 1;
-        int32_t centerX = application->width() >> 1;
-        AG_shape_draw(screenPort->frame(), connectShape, 0, centerX, centerY);
+        int32_t centerY = Application->Height() >> 1;
+        int32_t centerX = Application->Width() >> 1;
+        AGShapeDraw(ScreenPort->Frame(), ConnectShape, 0, centerX, centerY);
         int32_t left = centerX - 0x5f;
         int32_t right = static_cast<int32_t>(progress * 0.01 * 188.0 + left);
-        SCRNVERTEX bar[4] = {};
-        bar[0].x = left;
-        bar[0].y = centerY + 3;
-        bar[1].x = right;
-        bar[1].y = centerY + 3;
-        bar[2].x = right;
-        bar[2].y = centerY + 10;
-        bar[3].x = left;
-        bar[3].y = centerY + 10;
+        MCScreenVertex bar[4] = {};
+        bar[0].X = left;
+        bar[0].Y = centerY + 3;
+        bar[1].X = right;
+        bar[1].Y = centerY + 3;
+        bar[2].X = right;
+        bar[2].Y = centerY + 10;
+        bar[3].X = left;
+        bar[3].Y = centerY + 10;
 
-        for (SCRNVERTEX& vertex : bar)
+        for (MCScreenVertex& vertex : bar)
         {
-            vertex.c = 0xe40000;
+            vertex.C = 0xe40000;
         }
 
-        VFX_flat_polygon(screenPort->frame(), 4, bar);
+        VfxFlatPolygon(ScreenPort->Frame(), 4, bar);
     }
 
-    FrameRateArray[frPointer] = frameRate > 60.0f ? 60.0f : frameRate;
-    frPointer = (frPointer + 1) & 0x1ff;
+    FrameRateArray[FrPointer] = FrameRate > 60.0f ? 60.0f : FrameRate;
+    FrPointer = (FrPointer + 1) & 0x1ff;
 
     if (AndyFramerate != 0)
     {
         // The frame graph: 512 frames, 3 pixels per frame a second, 60 at the top.
-        whiteFont->writeString(screenWindow->frame(), 0x20, 7, reinterpret_cast<uint8_t*>(const_cast<char*>("60+ f/s")),
+        WhiteFont->WriteString(ScreenWindow->Frame(), 0x20, 7, reinterpret_cast<uint8_t*>(const_cast<char*>("60+ f/s")),
                                -1);
-        whiteFont->writeString(screenWindow->frame(), 0x20, 0xbb,
+        WhiteFont->WriteString(ScreenWindow->Frame(), 0x20, 0xbb,
                                reinterpret_cast<uint8_t*>(const_cast<char*>("0   f/s")), -1);
         // Port: the original set the two lines in the screen's memory.
-        _window* screen = screenBuffer();
+        MCWindow* screen = ScreenBuffer();
         MCRenderer::For(screen).Clear(screen, MCRect{0x40, 9, 0x40 + 0x1ff, 9}, 0xff);
         MCRenderer::For(screen).Clear(screen, MCRect{0x40, 0xbf, 0x40 + 0x1ff, 0xbf}, 0xff);
 
         for (int32_t y = 0xaf; y > 10; y -= 0xf)
         {
-            AG_pixel_write(screenPort->frame(), 0x240, y, 0xff);
+            AGPixelWrite(ScreenPort->Frame(), 0x240, y, 0xff);
         }
 
-        int32_t frame = frPointer;
+        int32_t frame = FrPointer;
 
         for (int32_t x = 0; x < 0x200; x++)
         {
             int32_t height = static_cast<int32_t>(FrameRateArray[frame] * 3.0f);
-            AG_pixel_write(screenPort->frame(), x + 0x40, 0xbe - height, 0xf9);
+            AGPixelWrite(ScreenPort->Frame(), x + 0x40, 0xbe - height, 0xf9);
             frame = (frame + 1) & 0x1ff;
         }
     }
 
-    if (keepScreenBlack != 0)
+    if (KeepScreenBlack != 0)
     {
-        VFX_pane_wipe(screenPort->frame(), 0);
+        VfxPaneWipe(ScreenPort->Frame(), 0);
     }
 
-    if (gShowFps != 0)
+    if (GShowFps != 0)
     {
-        drawFrameCounter();
+        DrawFrameCounter();
     }
 
-    aUnlockScreen();
+    AUnlockScreen();
 
-    if (application->smackerWindow2 != nullptr && movieOver != 0)
+    if (Application->SmackerWindow2 != nullptr && MovieOver != 0)
     {
-        closeMovieWindow(application->smackerWindow2);
+        CloseMovieWindow(Application->SmackerWindow2);
     }
 
-    if (application->smackerWindow != nullptr)
+    if (Application->SmackerWindow != nullptr)
     {
-        if (movieOver == 0)
+        if (MovieOver == 0)
         {
-            application->smackerWindow->checkSmackerPalette();
-            presentScreen();
+            Application->SmackerWindow->CheckSmackerPalette();
+            PresentScreen();
         }
         else
         {
-            closeMovieWindow(application->smackerWindow);
+            CloseMovieWindow(Application->SmackerWindow);
         }
     }
 
-    readCursorPosition();
-    drawCursorInBuffer();
-    presentScreen();
+    ReadCursorPosition();
+    DrawCursorInBuffer();
+    PresentScreen();
 
-    if (paletteRgb != nullptr)
+    if (PaletteRgb != nullptr)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(17));
 
-        if (gBitDepth != 16)
+        if (GBitDepth != 16)
         {
-            application->tweakDDPalette(globalFirst, globalEntries, paletteRgb, 1);
+            Application->TweakDDPalette(GlobalFirst, GlobalEntries, PaletteRgb, 1);
         }
 
-        globalFirst = 0;
-        globalEntries = 0;
-        delete[] paletteRgb;
-        paletteRgb = nullptr;
+        GlobalFirst = 0;
+        GlobalEntries = 0;
+        delete[] PaletteRgb;
+        PaletteRgb = nullptr;
     }
 
     InMouseCritSec = 0;
@@ -500,11 +500,11 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
 
 void MouseTimerInit()
 {
-    g_SRData = _srdata{};
+    SRData = MCSoundRendererData{};
     // timeGetDevCaps / timeBeginPeriod ("No Mouse Timer available") have no counterpart.
     InMouseCritSec = 0;
-    uint32_t period = 1000 / resultsStepTicks;
-    mouseTimerThread = std::jthread(
+    uint32_t period = 1000 / ResultsStepTicks;
+    MouseTimerThread = std::jthread(
         [period](std::stop_token stop)
         {
             auto next = std::chrono::steady_clock::now();
@@ -529,12 +529,12 @@ void MouseTimerInit()
         rate = 0.0f;
     }
 
-    mouseThreadStarted = 1;
+    MouseThreadStarted = 1;
 }
 
 void MouseTimerKill()
 {
-    mouseThreadStarted = 0;
+    MouseThreadStarted = 0;
 
     if (HTimer == 0)
     {
@@ -547,18 +547,18 @@ void MouseTimerKill()
         MouseCritSec.unlock();
         InMouseCritSec = 0;
     }
-    while (inTimerThread != 0)
+    while (InTimerThread != 0)
     {
         std::this_thread::yield();
     }
 
-    mouseTimerThread.request_stop();
+    MouseTimerThread.request_stop();
 
-    if (mouseTimerThread.joinable() && mouseTimerThread.get_id() != std::this_thread::get_id())
+    if (MouseTimerThread.joinable() && MouseTimerThread.get_id() != std::this_thread::get_id())
     {
-        mouseTimerThread.join();
+        MouseTimerThread.join();
     }
-    while (inTimerThread != 0)
+    while (InTimerThread != 0)
     {
         std::this_thread::yield();
     }
@@ -568,20 +568,20 @@ void MouseTimerKill()
 
 void MouseTimer(uint32_t timerId, uint32_t msg, uintptr_t user, uintptr_t dw1, uintptr_t dw2)
 {
-    inTimerThread = 1;
+    InTimerThread = 1;
     {
         std::lock_guard<std::recursive_mutex> lock(MouseCritSec);
         bool unlockScreen = true;
 
-        if (application->smackerWindow2 == nullptr)
+        if (Application->SmackerWindow2 == nullptr)
         {
-            if (gFullScreen == 0 || pageFlipping == 0 || gBitDepth != 8)
+            if (GFullScreen == 0 || PageFlipping == 0 || GBitDepth != 8)
             {
                 unlockScreen = false;
             }
-            else if (application->cursorShape == -1)
+            else if (Application->CursorShape == -1)
             {
-                if (AG_MouseBuffer != 0)
+                if (AGMouseBuffer != 0)
                 {
                     EraseMouse();
                 }
@@ -589,14 +589,13 @@ void MouseTimer(uint32_t timerId, uint32_t msg, uintptr_t user, uintptr_t dw1, u
             else
             {
                 MCPoint cursor = MCInput::GetCursorPos();
-                mouseScreenX = cursor.x;
-                mouseScreenY = cursor.y;
+                MouseScreenX = cursor.x;
+                MouseScreenY = cursor.y;
                 bool moved = true;
 
-                if (AG_MouseBuffer != 0)
+                if (AGMouseBuffer != 0)
                 {
-                    if (application->cursorShape == AG_oldMouse && cursor.x == AG_oldMouseXh &&
-                        cursor.y == AG_oldMouseYh)
+                    if (Application->CursorShape == AGOldMouse && cursor.x == AGOldMouseXh && cursor.y == AGOldMouseYh)
                     {
                         moved = false;
                     }
@@ -621,26 +620,26 @@ void MouseTimer(uint32_t timerId, uint32_t msg, uintptr_t user, uintptr_t dw1, u
         MouseTicks++;
     }
 
-    gSoundTimer++;
+    GSoundTimer++;
 
-    if (static_cast<int>(resultsStepTicks / 2) < gSoundTimer)
+    if (static_cast<int>(ResultsStepTicks / 2) < GSoundTimer)
     {
-        gSoundTimer = 0;
+        GSoundTimer = 0;
         std::lock_guard<std::recursive_mutex> soundLock(SoundCritSec);
 
-        for (int32_t i = 0; i < g_SRData.numChannels; i++)
+        for (int32_t i = 0; i < SRData.NumChannels; i++)
         {
-            SoundChannel* channel = g_SRData.channels[i];
+            MCSoundChannel* channel = SRData.Channels[i];
 
-            if (channel != nullptr && channel->resource != nullptr &&
-                channel->resource->type == SOUND_RESOURCE_STREAM && channel->streaming != 0)
+            if (channel != nullptr && channel->Resource != nullptr &&
+                channel->Resource->Type == SOUND_RESOURCE_STREAM && channel->Streaming != 0)
             {
                 channel->ServiceBuffer();
             }
         }
     }
 
-    inTimerThread = 0;
+    InTimerThread = 0;
 }
 
 void EraseMouse()
@@ -650,27 +649,27 @@ void EraseMouse()
         return;
     }
 
-    if (AG_oldMouseH != 0)
+    if (AGOldMouseH != 0)
     {
-        copyMouseRect(tempWINDOW.buffer, tempWINDOW.x_max + 1, true);
+        CopyMouseRect(TempWindow.Buffer, TempWindow.XMax + 1, true);
     }
 
-    AG_MouseBuffer = 0;
+    AGMouseBuffer = 0;
 }
 
 void EraseMouseInBuffer()
 {
-    if (AG_MouseBuffer == 0)
+    if (AGMouseBuffer == 0)
     {
         return;
     }
 
-    if (AG_oldMouseH != 0)
+    if (AGOldMouseH != 0)
     {
-        copyMouseRect(screenBuffer()->buffer, gWidth, true);
+        CopyMouseRect(ScreenBuffer()->Buffer, GWidth, true);
     }
 
-    AG_MouseBuffer = 0;
+    AGMouseBuffer = 0;
 }
 
 void DrawMouse()
@@ -680,91 +679,91 @@ void DrawMouse()
         return;
     }
 
-    int32_t shape = application->cursorShape;
+    int32_t shape = Application->CursorShape;
 
     if (shape < 0 || shape > 0x7f)
     {
         return;
     }
 
-    int32_t resolution = VFX_shape_resolution(cursorShapes[shape], 0);
-    AG_oldMouseW = resolution >> 16;
-    AG_oldMouseH = resolution & 0xffff;
-    int32_t minXY = VFX_shape_minxy(cursorShapes[application->cursorShape], 0);
-    AG_oldMouseY = static_cast<int16_t>(minXY) + mouseScreenY;
-    AG_oldMouse = application->cursorShape;
-    AG_oldMouseX = (minXY >> 16) + mouseScreenX;
-    AG_oldMouseXh = mouseScreenX;
-    AG_oldMouseYh = mouseScreenY;
+    int32_t resolution = VfxShapeResolution(CursorShapes[shape], 0);
+    AGOldMouseW = resolution >> 16;
+    AGOldMouseH = resolution & 0xffff;
+    int32_t minXY = VfxShapeMinxy(CursorShapes[Application->CursorShape], 0);
+    AGOldMouseY = static_cast<int16_t>(minXY) + MouseScreenY;
+    AGOldMouse = Application->CursorShape;
+    AGOldMouseX = (minXY >> 16) + MouseScreenX;
+    AGOldMouseXh = MouseScreenX;
+    AGOldMouseYh = MouseScreenY;
 
-    if (AG_oldMouseX < 0)
+    if (AGOldMouseX < 0)
     {
-        AG_oldMouseW += AG_oldMouseX;
-        AG_oldMouseX = 0;
+        AGOldMouseW += AGOldMouseX;
+        AGOldMouseX = 0;
     }
 
-    if (AG_oldMouseY < 0)
+    if (AGOldMouseY < 0)
     {
-        AG_oldMouseH += AG_oldMouseY;
-        AG_oldMouseY = 0;
+        AGOldMouseH += AGOldMouseY;
+        AGOldMouseY = 0;
     }
 
-    if (tempPANE.x1 + 1 < AG_oldMouseX + AG_oldMouseW)
+    if (TempPane.X1 + 1 < AGOldMouseX + AGOldMouseW)
     {
-        AG_oldMouseW = tempPANE.x1 - AG_oldMouseX + 1;
+        AGOldMouseW = TempPane.X1 - AGOldMouseX + 1;
     }
 
-    if (tempPANE.y1 + 1 < AG_oldMouseY + AG_oldMouseH)
+    if (TempPane.Y1 + 1 < AGOldMouseY + AGOldMouseH)
     {
-        AG_oldMouseH = tempPANE.y1 - AG_oldMouseY + 1;
+        AGOldMouseH = TempPane.Y1 - AGOldMouseY + 1;
     }
 
-    if (AG_oldMouseH != 0)
+    if (AGOldMouseH != 0)
     {
-        copyMouseRect(tempWINDOW.buffer, tempWINDOW.x_max + 1, false);
+        CopyMouseRect(TempWindow.Buffer, TempWindow.XMax + 1, false);
     }
 
     // Cursor 0x12 (the wait cursor) is animated.
-    if (application->cursorShape == 0x12)
+    if (Application->CursorShape == 0x12)
     {
-        AG_mouseFrame++;
+        AGMouseFrame++;
 
-        if (AG_mouseFrame >= VFX_shape_count(cursorShapes[0x12]))
+        if (AGMouseFrame >= VfxShapeCount(CursorShapes[0x12]))
         {
-            AG_mouseFrame = 0;
+            AGMouseFrame = 0;
         }
     }
     else
     {
-        AG_mouseFrame = 0;
+        AGMouseFrame = 0;
     }
 
-    VFX_shape_draw(&tempPANE, cursorShapes[application->cursorShape], AG_mouseFrame, mouseScreenX, mouseScreenY);
-    AG_MouseBuffer = 1;
+    VfxShapeDraw(&TempPane, CursorShapes[Application->CursorShape], AGMouseFrame, MouseScreenX, MouseScreenY);
+    AGMouseBuffer = 1;
 }
 
 int LockScreen()
 {
-    if (AG_locked != 0)
+    if (AGLocked != 0)
     {
         return 1;
     }
 
     // The original locked the primary surface; the port's "surface" is the screen buffer itself.
-    _window* screen = screenBuffer();
-    tempWINDOW.buffer = screen->buffer;
-    tempPANE.window = &tempWINDOW;
-    tempWINDOW.x_max = screen->x_max;
-    tempWINDOW.y_max = gHeight - 1;
-    tempPANE.x0 = 0;
-    tempPANE.y0 = 0;
-    tempPANE.x1 = gWidth - 1;
-    tempPANE.y1 = gHeight - 1;
-    AG_locked = 1;
+    MCWindow* screen = ScreenBuffer();
+    TempWindow.Buffer = screen->Buffer;
+    TempPane.Window = &TempWindow;
+    TempWindow.XMax = screen->XMax;
+    TempWindow.YMax = GHeight - 1;
+    TempPane.X0 = 0;
+    TempPane.Y0 = 0;
+    TempPane.X1 = GWidth - 1;
+    TempPane.Y1 = GHeight - 1;
+    AGLocked = 1;
     return 1;
 }
 
 void UnLockScreen()
 {
-    AG_locked = 0;
+    AGLocked = 0;
 }

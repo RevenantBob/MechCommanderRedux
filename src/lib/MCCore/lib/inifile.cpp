@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "lib/inifile.h"
 
-char fitIniHeader[] = "FITini";
-char fitIniFooter[] = "FITend";
+char FitIniHeader[] = "FITini";
+char FitIniFooter[] = "FITend";
 
 namespace
 {
@@ -110,14 +110,14 @@ namespace
     }
 }
 
-FitIniFile::FitIniFile() = default;
+MCFitIniFile::MCFitIniFile() = default;
 
-FitIniFile::~FitIniFile()
+MCFitIniFile::~MCFitIniFile()
 {
-    close();
+    Close();
 }
 
-int32_t FitIniFile::findNextBlockStart(char* line, uint32_t lineLen)
+int32_t MCFitIniFile::FindNextBlockStart(char* line, uint32_t lineLen)
 {
     char buffer[256];
     char* read;
@@ -126,34 +126,34 @@ int32_t FitIniFile::findNextBlockStart(char* line, uint32_t lineLen)
     {
         if (line == nullptr)
         {
-            readLine(reinterpret_cast<uint8_t*>(buffer), 0xfe);
+            ReadLine(reinterpret_cast<uint8_t*>(buffer), 0xfe);
             read = buffer;
         }
         else
         {
-            readLine(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(lineLen));
+            ReadLine(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(lineLen));
             read = line;
         }
-    } while (!eof() && *read != '[');
+    } while (!Eof() && *read != '[');
 
-    return eof() ? NO_MORE_BLOCKS : 0;
+    return Eof() ? NO_MORE_BLOCKS : 0;
 }
 
-int32_t FitIniFile::countBlocks()
+int32_t MCFitIniFile::CountBlocks()
 {
     int32_t count = 0;
-    const uint32_t start = logicalPosition;
+    const uint32_t start = _LogicalPosition;
 
-    while (findNextBlockStart() != NO_MORE_BLOCKS)
+    while (FindNextBlockStart() != NO_MORE_BLOCKS)
     {
         ++count;
     }
 
-    seek(static_cast<int32_t>(start), SEEK_SET);
+    Seek(static_cast<int32_t>(start), SEEK_SET);
     return count;
 }
 
-int32_t FitIniFile::getNextWord(char*& line, char* buffer, uint32_t bufLen)
+int32_t MCFitIniFile::GetNextWord(char*& line, char* buffer, uint32_t bufLen)
 {
     if (*line == 0 || *line == '/')
     {
@@ -205,47 +205,47 @@ int32_t FitIniFile::getNextWord(char*& line, char* buffer, uint32_t bufLen)
     return 0;
 }
 
-int32_t FitIniFile::afterOpen()
+int32_t MCFitIniFile::AfterOpen()
 {
     char line[256];
 
-    if (fileMode == CREATE && parent == nullptr)
+    if (_FileMode == CREATE && _Parent == nullptr)
     {
-        std::snprintf(line, sizeof(line), "%s \r\n", fitIniHeader);
-        write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
-        totalBlocks = 0;
+        std::snprintf(line, sizeof(line), "%s \r\n", FitIniHeader);
+        Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+        _TotalBlocks = 0;
         return 0;
     }
 
     char header[12] = {};
-    readLine(reinterpret_cast<uint8_t*>(header), 0xb);
+    ReadLine(reinterpret_cast<uint8_t*>(header), 0xb);
 
-    if (std::strstr(header, fitIniHeader) == nullptr)
+    if (std::strstr(header, FitIniHeader) == nullptr)
     {
         return NOT_A_FITINIFILE;
     }
 
-    totalBlocks = countBlocks();
+    _TotalBlocks = CountBlocks();
 
     // Original behaviour: a file without blocks fails here (systemHeap's malloc(0) returned null).
-    if (totalBlocks <= 0)
+    if (_TotalBlocks <= 0)
     {
         return NO_RAM_FOR_INI_BLOCKS;
     }
 
-    fileBlocks.assign(static_cast<size_t>(totalBlocks), IniBlockNode{});
+    _FileBlocks.assign(static_cast<size_t>(_TotalBlocks), MCIniBlockNode{});
 
     int32_t blocksFound = 0;
 
-    while (findNextBlockStart(line, 0xfe) != NO_MORE_BLOCKS)
+    while (FindNextBlockStart(line, 0xfe) != NO_MORE_BLOCKS)
     {
-        if (blocksFound == totalBlocks)
+        if (blocksFound == _TotalBlocks)
         {
             return TOO_MANY_BLOCKS;
         }
 
         // Copy the name between '[' and ']'.
-        char* blockId = fileBlocks[blocksFound].blockId;
+        char* blockId = _FileBlocks[blocksFound].BlockId;
         int32_t i = 1;
 
         while (line[i] != ']' && line[i] != '\n')
@@ -256,7 +256,7 @@ int32_t FitIniFile::afterOpen()
                 return SYNTAX_ERROR;
             }
 
-            if (i - 1 < static_cast<int32_t>(sizeof(IniBlockNode::blockId)) - 1)
+            if (i - 1 < static_cast<int32_t>(sizeof(MCIniBlockNode::BlockId)) - 1)
             {
                 blockId[i - 1] = line[i];
             }
@@ -269,12 +269,12 @@ int32_t FitIniFile::afterOpen()
             return SYNTAX_ERROR;
         }
 
-        blockId[std::min<int32_t>(i - 1, static_cast<int32_t>(sizeof(IniBlockNode::blockId)) - 1)] = 0;
-        fileBlocks[blocksFound].blockOffset = logicalPosition;
+        blockId[std::min<int32_t>(i - 1, static_cast<int32_t>(sizeof(MCIniBlockNode::BlockId)) - 1)] = 0;
+        _FileBlocks[blocksFound].BlockOffset = _LogicalPosition;
         ++blocksFound;
     }
 
-    if (blocksFound != totalBlocks)
+    if (blocksFound != _TotalBlocks)
     {
         return NOT_ENOUGH_BLOCKS;
     }
@@ -282,25 +282,25 @@ int32_t FitIniFile::afterOpen()
     return 0;
 }
 
-void FitIniFile::atClose()
+void MCFitIniFile::AtClose()
 {
-    if (fileMode == CREATE)
+    if (_FileMode == CREATE)
     {
-        seek(0, SEEK_END);
+        Seek(0, SEEK_END);
         char line[200];
-        std::snprintf(line, sizeof(line), "%s \r\n", fitIniFooter);
-        write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+        std::snprintf(line, sizeof(line), "%s \r\n", FitIniFooter);
+        Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
     }
 
-    fileBlocks.clear();
+    _FileBlocks.clear();
 }
 
-float FitIniFile::textToFloat(char* num)
+float MCFitIniFile::TextToFloat(char* num)
 {
     return static_cast<float>(std::atof(num));
 }
 
-int32_t FitIniFile::textToLong(char* num)
+int32_t MCFitIniFile::TextToLong(char* num)
 {
     uint32_t value;
 
@@ -312,7 +312,7 @@ int32_t FitIniFile::textToLong(char* num)
     return static_cast<int32_t>(value);
 }
 
-int16_t FitIniFile::textToShort(char* num)
+int16_t MCFitIniFile::TextToShort(char* num)
 {
     uint32_t value;
 
@@ -324,7 +324,7 @@ int16_t FitIniFile::textToShort(char* num)
     return static_cast<int16_t>(value);
 }
 
-char FitIniFile::textToChar(char* num)
+char MCFitIniFile::TextToChar(char* num)
 {
     uint32_t value;
 
@@ -336,7 +336,7 @@ char FitIniFile::textToChar(char* num)
     return static_cast<char>(value);
 }
 
-uint32_t FitIniFile::textToULong(char* num)
+uint32_t MCFitIniFile::TextToULong(char* num)
 {
     uint32_t value;
 
@@ -348,7 +348,7 @@ uint32_t FitIniFile::textToULong(char* num)
     return value;
 }
 
-uint16_t FitIniFile::textToUShort(char* num)
+uint16_t MCFitIniFile::TextToUShort(char* num)
 {
     uint32_t value;
 
@@ -360,7 +360,7 @@ uint16_t FitIniFile::textToUShort(char* num)
     return static_cast<uint16_t>(value);
 }
 
-uint8_t FitIniFile::textToUChar(char* num)
+uint8_t MCFitIniFile::TextToUChar(char* num)
 {
     uint32_t value;
 
@@ -372,7 +372,7 @@ uint8_t FitIniFile::textToUChar(char* num)
     return static_cast<uint8_t>(value);
 }
 
-int32_t FitIniFile::booleanToLong(char* num)
+int32_t MCFitIniFile::BooleanToLong(char* num)
 {
     int32_t i = 0;
 
@@ -386,130 +386,130 @@ int32_t FitIniFile::booleanToLong(char* num)
         return 1;
     }
 
-    return textToLong(num);
+    return TextToLong(num);
 }
 
-int32_t FitIniFile::floatToText(char* result, float num, uint32_t bufLen)
+int32_t MCFitIniFile::FloatToText(char* result, float num, uint32_t bufLen)
 {
     char text[252];
     std::snprintf(text, sizeof(text), "%f4", static_cast<double>(num));
     return CopyIfFits(result, text, bufLen);
 }
 
-int32_t FitIniFile::longToTextDec(char* result, int32_t num, uint32_t bufLen)
+int32_t MCFitIniFile::LongToTextDec(char* result, int32_t num, uint32_t bufLen)
 {
     char text[252];
     std::snprintf(text, sizeof(text), "%d", num);
     return CopyIfFits(result, text, bufLen);
 }
 
-int32_t FitIniFile::longToTextHex(char* result, int32_t num, uint32_t bufLen)
+int32_t MCFitIniFile::LongToTextHex(char* result, int32_t num, uint32_t bufLen)
 {
     char text[252];
     std::snprintf(text, sizeof(text), "0x%x", static_cast<uint32_t>(num));
     return CopyIfFits(result, text, bufLen);
 }
 
-int32_t FitIniFile::shortToTextDec(char* result, int16_t num, uint32_t bufLen)
+int32_t MCFitIniFile::ShortToTextDec(char* result, int16_t num, uint32_t bufLen)
 {
     char text[252];
     std::snprintf(text, sizeof(text), "%d", static_cast<int>(num));
     return CopyIfFits(result, text, bufLen);
 }
 
-int32_t FitIniFile::shortToTextHex(char* result, int16_t num, uint32_t bufLen)
+int32_t MCFitIniFile::ShortToTextHex(char* result, int16_t num, uint32_t bufLen)
 {
     char text[252];
     std::snprintf(text, sizeof(text), "0x%x", static_cast<uint32_t>(static_cast<int>(num)));
     return CopyIfFits(result, text, bufLen);
 }
 
-int32_t FitIniFile::byteToTextDec(char* result, uint8_t num, uint32_t bufLen)
+int32_t MCFitIniFile::ByteToTextDec(char* result, uint8_t num, uint32_t bufLen)
 {
     char text[252];
     std::snprintf(text, sizeof(text), "%d", static_cast<int>(num));
     return CopyIfFits(result, text, bufLen);
 }
 
-int32_t FitIniFile::byteToTextHex(char* result, uint8_t num, uint32_t bufLen)
+int32_t MCFitIniFile::ByteToTextHex(char* result, uint8_t num, uint32_t bufLen)
 {
     char text[252];
     std::snprintf(text, sizeof(text), "0x%x", static_cast<uint32_t>(num));
     return CopyIfFits(result, text, bufLen);
 }
 
-int32_t FitIniFile::open(const char* fName, FileMode _mode, int32_t numChildren)
+int32_t MCFitIniFile::Open(const char* fName, MCFileMode mode, int32_t numChildren)
 {
-    const int32_t result = File::open(fName, _mode, numChildren);
+    const int32_t result = MCFile::Open(fName, mode, numChildren);
 
     if (result != 0)
     {
         return result;
     }
 
-    seek(0, SEEK_SET);
-    return afterOpen();
+    Seek(0, SEEK_SET);
+    return AfterOpen();
 }
 
-int32_t FitIniFile::open(File* _parent, uint32_t fileSize, int32_t)
+int32_t MCFitIniFile::Open(MCFile* parent, uint32_t fileSize, int32_t)
 {
     // The child's bytes are always read into memory at once.
-    const int32_t result = File::open(_parent, fileSize, -1);
+    const int32_t result = MCFile::Open(parent, fileSize, -1);
 
     if (result != 0)
     {
         return result;
     }
 
-    return afterOpen();
+    return AfterOpen();
 }
 
-int32_t FitIniFile::create(const char* fName)
+int32_t MCFitIniFile::Create(const char* fName)
 {
     // File::create opens through the virtual open, which writes the header.
-    return File::create(fName);
+    return MCFile::Create(fName);
 }
 
-void FitIniFile::close()
+void MCFitIniFile::Close()
 {
-    atClose();
-    File::close();
+    AtClose();
+    MCFile::Close();
 }
 
-int32_t FitIniFile::seekBlock(const char* blockId)
+int32_t MCFitIniFile::SeekBlock(const char* blockId)
 {
     int32_t blockNum = 0;
 
-    while (blockNum < totalBlocks && std::strcmp(fileBlocks[blockNum].blockId, blockId) != 0)
+    while (blockNum < _TotalBlocks && std::strcmp(_FileBlocks[blockNum].BlockId, blockId) != 0)
     {
         ++blockNum;
     }
 
-    if (blockNum == totalBlocks)
+    if (blockNum == _TotalBlocks)
     {
         return BLOCK_NOT_FOUND;
     }
 
-    seek(static_cast<int32_t>(fileBlocks[blockNum].blockOffset), SEEK_SET);
-    currentBlockId = fileBlocks[blockNum].blockId;
-    currentBlockOffset = fileBlocks[blockNum].blockOffset;
+    Seek(static_cast<int32_t>(_FileBlocks[blockNum].BlockOffset), SEEK_SET);
+    _CurrentBlockId = _FileBlocks[blockNum].BlockId;
+    _CurrentBlockOffset = _FileBlocks[blockNum].BlockOffset;
 
-    if (blockNum + 1 != totalBlocks)
+    if (blockNum + 1 != _TotalBlocks)
     {
-        currentBlockSize = fileBlocks[blockNum + 1].blockOffset - currentBlockOffset;
+        _CurrentBlockSize = _FileBlocks[blockNum + 1].BlockOffset - _CurrentBlockOffset;
     }
     else
     {
-        currentBlockSize = getLength() - currentBlockOffset;
+        _CurrentBlockSize = GetLength() - _CurrentBlockOffset;
     }
 
     return 0;
 }
 
-char* FitIniFile::findIdLine(const char* prefix, const char* varName, char* line, int32_t& error)
+char* MCFitIniFile::FindIdLine(const char* prefix, const char* varName, char* line, int32_t& error)
 {
-    seek(static_cast<int32_t>(currentBlockOffset), SEEK_SET);
-    const uint32_t blockEnd = currentBlockSize + currentBlockOffset;
+    Seek(static_cast<int32_t>(_CurrentBlockOffset), SEEK_SET);
+    const uint32_t blockEnd = _CurrentBlockSize + _CurrentBlockOffset;
 
     char search[256];
     std::snprintf(search, sizeof(search), "%s %s", prefix, varName);
@@ -517,7 +517,7 @@ char* FitIniFile::findIdLine(const char* prefix, const char* varName, char* line
 
     do
     {
-        readLine(reinterpret_cast<uint8_t*>(line), 0xfe);
+        ReadLine(reinterpret_cast<uint8_t*>(line), 0xfe);
 
         if (MCPort::StrNICmp(line, search, searchLength) == 0)
         {
@@ -533,10 +533,10 @@ char* FitIniFile::findIdLine(const char* prefix, const char* varName, char* line
                 break;
             }
         }
-    } while (logicalPosition < blockEnd);
+    } while (_LogicalPosition < blockEnd);
 
     // Original behaviour: a match on the block's last line (the position then being at its end) is reported missing.
-    if (blockEnd <= logicalPosition)
+    if (blockEnd <= _LogicalPosition)
     {
         error = VARIABLE_NOT_FOUND;
         return nullptr;
@@ -554,11 +554,11 @@ char* FitIniFile::findIdLine(const char* prefix, const char* varName, char* line
     return equals + 1;
 }
 
-int32_t FitIniFile::readIdFloat(const char* varName, float& value)
+int32_t MCFitIniFile::ReadIdFloat(const char* varName, float& value)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("f", varName, line, error);
+    char* text = FindIdLine("f", varName, line, error);
 
     if (text == nullptr)
     {
@@ -570,21 +570,21 @@ int32_t FitIniFile::readIdFloat(const char* varName, float& value)
         return error;
     }
 
-    value = textToFloat(text);
+    value = TextToFloat(text);
 
     if (value == 0.0f)
     {
-        value = mathToFloat(text);
+        value = MathToFloat(text);
     }
 
     return 0;
 }
 
-int32_t FitIniFile::readIdLong(const char* varName, int32_t& value)
+int32_t MCFitIniFile::ReadIdLong(const char* varName, int32_t& value)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("l", varName, line, error);
+    char* text = FindIdLine("l", varName, line, error);
 
     if (text == nullptr)
     {
@@ -596,21 +596,21 @@ int32_t FitIniFile::readIdLong(const char* varName, int32_t& value)
         return error;
     }
 
-    value = textToLong(text);
+    value = TextToLong(text);
 
     if (value == 0)
     {
-        value = mathToLong(text);
+        value = MathToLong(text);
     }
 
     return 0;
 }
 
-int32_t FitIniFile::readIdBoolean(const char* varName, int& value)
+int32_t MCFitIniFile::ReadIdBoolean(const char* varName, int& value)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("b", varName, line, error);
+    char* text = FindIdLine("b", varName, line, error);
 
     if (text == nullptr)
     {
@@ -622,15 +622,15 @@ int32_t FitIniFile::readIdBoolean(const char* varName, int& value)
         return error;
     }
 
-    value = booleanToLong(text);
+    value = BooleanToLong(text);
     return 0;
 }
 
-int32_t FitIniFile::readIdShort(const char* varName, int16_t& value)
+int32_t MCFitIniFile::ReadIdShort(const char* varName, int16_t& value)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("s", varName, line, error);
+    char* text = FindIdLine("s", varName, line, error);
 
     if (text == nullptr)
     {
@@ -642,21 +642,21 @@ int32_t FitIniFile::readIdShort(const char* varName, int16_t& value)
         return error;
     }
 
-    value = textToShort(text);
+    value = TextToShort(text);
 
     if (value == 0)
     {
-        value = mathToShort(text);
+        value = MathToShort(text);
     }
 
     return 0;
 }
 
-int32_t FitIniFile::readIdChar(const char* varName, char& value)
+int32_t MCFitIniFile::ReadIdChar(const char* varName, char& value)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("c", varName, line, error);
+    char* text = FindIdLine("c", varName, line, error);
 
     if (text == nullptr)
     {
@@ -668,21 +668,21 @@ int32_t FitIniFile::readIdChar(const char* varName, char& value)
         return error;
     }
 
-    value = textToChar(text);
+    value = TextToChar(text);
 
     if (value == 0)
     {
-        value = mathToChar(text);
+        value = MathToChar(text);
     }
 
     return 0;
 }
 
-int32_t FitIniFile::readIdULong(const char* varName, uint32_t& value)
+int32_t MCFitIniFile::ReadIdULong(const char* varName, uint32_t& value)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("ul", varName, line, error);
+    char* text = FindIdLine("ul", varName, line, error);
 
     if (text == nullptr)
     {
@@ -694,21 +694,21 @@ int32_t FitIniFile::readIdULong(const char* varName, uint32_t& value)
         return error;
     }
 
-    value = textToULong(text);
+    value = TextToULong(text);
 
     if (value == 0)
     {
-        value = mathToULong(text);
+        value = MathToULong(text);
     }
 
     return 0;
 }
 
-int32_t FitIniFile::readIdUShort(const char* varName, uint16_t& value)
+int32_t MCFitIniFile::ReadIdUShort(const char* varName, uint16_t& value)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("us", varName, line, error);
+    char* text = FindIdLine("us", varName, line, error);
 
     if (text == nullptr)
     {
@@ -720,21 +720,21 @@ int32_t FitIniFile::readIdUShort(const char* varName, uint16_t& value)
         return error;
     }
 
-    value = textToUShort(text);
+    value = TextToUShort(text);
 
     if (value == 0)
     {
-        value = mathToUShort(text);
+        value = MathToUShort(text);
     }
 
     return 0;
 }
 
-int32_t FitIniFile::readIdUChar(const char* varName, uint8_t& value)
+int32_t MCFitIniFile::ReadIdUChar(const char* varName, uint8_t& value)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("uc", varName, line, error);
+    char* text = FindIdLine("uc", varName, line, error);
 
     if (text == nullptr)
     {
@@ -746,17 +746,17 @@ int32_t FitIniFile::readIdUChar(const char* varName, uint8_t& value)
         return error;
     }
 
-    value = textToUChar(text);
+    value = TextToUChar(text);
 
     if (value == 0)
     {
-        value = mathToUChar(text);
+        value = MathToUChar(text);
     }
 
     return 0;
 }
 
-int32_t FitIniFile::copyString(char* dest, char* line, uint32_t bufLen)
+int32_t MCFitIniFile::CopyString(char* dest, char* line, uint32_t bufLen)
 {
     // Port fix: the original scanned for the quotes without stopping at the end of the line.
     while (*line != '"')
@@ -787,25 +787,25 @@ int32_t FitIniFile::copyString(char* dest, char* line, uint32_t bufLen)
     return 0;
 }
 
-int32_t FitIniFile::readIdString(const char* varName, char* result, uint32_t maxLength)
+int32_t MCFitIniFile::ReadIdString(const char* varName, char* result, uint32_t maxLength)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("st", varName, line, error);
+    char* text = FindIdLine("st", varName, line, error);
 
     if (text == nullptr)
     {
         return error;
     }
 
-    return copyString(result, text, maxLength);
+    return CopyString(result, text, maxLength);
 }
 
-int32_t FitIniFile::getIdStringLength(const char* varName)
+int32_t MCFitIniFile::GetIdStringLength(const char* varName)
 {
     char line[256];
     int32_t error;
-    char* text = findIdLine("st", varName, line, error);
+    char* text = FindIdLine("st", varName, line, error);
 
     // The quotes are looked for from the start of the line.
     if (text == nullptr)
@@ -833,11 +833,11 @@ int32_t FitIniFile::getIdStringLength(const char* varName)
     return SYNTAX_ERROR;
 }
 
-int32_t FitIniFile::findArrayLine(const char* typePrefix, const char* varName, char* line, uint32_t& count,
-                                  char*& values)
+int32_t MCFitIniFile::FindArrayLine(const char* typePrefix, const char* varName, char* line, uint32_t& count,
+                                    char*& values)
 {
-    seek(static_cast<int32_t>(currentBlockOffset), SEEK_SET);
-    const uint32_t blockEnd = currentBlockSize + currentBlockOffset;
+    Seek(static_cast<int32_t>(_CurrentBlockOffset), SEEK_SET);
+    const uint32_t blockEnd = _CurrentBlockSize + _CurrentBlockOffset;
 
     char nameText[256];
     std::snprintf(nameText, sizeof(nameText), "] %s", varName);
@@ -846,7 +846,7 @@ int32_t FitIniFile::findArrayLine(const char* typePrefix, const char* varName, c
 
     do
     {
-        readLine(reinterpret_cast<uint8_t*>(line), 0xfe);
+        ReadLine(reinterpret_cast<uint8_t*>(line), 0xfe);
         typeAt = std::strstr(line, typePrefix);
         nameAt = std::strstr(line, nameText);
 
@@ -854,9 +854,9 @@ int32_t FitIniFile::findArrayLine(const char* typePrefix, const char* varName, c
         {
             break;
         }
-    } while (logicalPosition < blockEnd);
+    } while (_LogicalPosition < blockEnd);
 
-    if (blockEnd <= logicalPosition)
+    if (blockEnd <= _LogicalPosition)
     {
         return VARIABLE_NOT_FOUND;
     }
@@ -879,24 +879,24 @@ int32_t FitIniFile::findArrayLine(const char* typePrefix, const char* varName, c
     char number[12];
     std::memcpy(number, countText, static_cast<size_t>(countLength));
     number[countLength] = 0;
-    count = textToULong(number);
+    count = TextToULong(number);
     values = nullptr;
     return 0;
 }
 
-template <typename Store> int32_t FitIniFile::readArrayElements(char* line, char* values, uint32_t count, Store store)
+template <typename Store> int32_t MCFitIniFile::ReadArrayElements(char* line, char* values, uint32_t count, Store store)
 {
-    const uint32_t blockEnd = currentBlockSize + currentBlockOffset;
+    const uint32_t blockEnd = _CurrentBlockSize + _CurrentBlockOffset;
     char word[12];
     uint32_t i = 0;
 
-    while (logicalPosition < blockEnd && i < count)
+    while (_LogicalPosition < blockEnd && i < count)
     {
-        const int32_t result = getNextWord(values, word, 9);
+        const int32_t result = GetNextWord(values, word, 9);
 
         if (result == GET_NEXT_LINE)
         {
-            readLine(reinterpret_cast<uint8_t*>(line), 0xfe);
+            ReadLine(reinterpret_cast<uint8_t*>(line), 0xfe);
             values = line;
         }
         else
@@ -912,7 +912,7 @@ template <typename Store> int32_t FitIniFile::readArrayElements(char* line, char
     }
 
     // Original behaviour: elements on the block's last line aren't read (the loop tests the position first).
-    if (blockEnd <= logicalPosition && i < count)
+    if (blockEnd <= _LogicalPosition && i < count)
     {
         return NOT_ENOUGH_ELEMENTS_FOR_ARRAY;
     }
@@ -920,12 +920,12 @@ template <typename Store> int32_t FitIniFile::readArrayElements(char* line, char
     return 0;
 }
 
-int32_t FitIniFile::readIdFloatArray(const char* varName, float* result, uint32_t numElements)
+int32_t MCFitIniFile::ReadIdFloatArray(const char* varName, float* result, uint32_t numElements)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("f[", varName, line, count, values);
+    const int32_t error = FindArrayLine("f[", varName, line, count, values);
 
     if (error != 0)
     {
@@ -944,24 +944,24 @@ int32_t FitIniFile::readIdFloatArray(const char* varName, float* result, uint32_
         return SYNTAX_ERROR;
     }
 
-    return readArrayElements(line, values + 1, count,
+    return ReadArrayElements(line, values + 1, count,
                              [&](uint32_t i, char* word)
                              {
-                                 result[i] = textToFloat(word);
+                                 result[i] = TextToFloat(word);
 
                                  if (result[i] == 0.0f)
                                  {
-                                     result[i] = mathToFloat(word);
+                                     result[i] = MathToFloat(word);
                                  }
                              });
 }
 
-int32_t FitIniFile::readIdLongArray(const char* varName, int32_t* result, uint32_t numElements)
+int32_t MCFitIniFile::ReadIdLongArray(const char* varName, int32_t* result, uint32_t numElements)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("l[", varName, line, count, values);
+    const int32_t error = FindArrayLine("l[", varName, line, count, values);
 
     if (error != 0)
     {
@@ -980,24 +980,24 @@ int32_t FitIniFile::readIdLongArray(const char* varName, int32_t* result, uint32
         return SYNTAX_ERROR;
     }
 
-    return readArrayElements(line, values + 1, count,
+    return ReadArrayElements(line, values + 1, count,
                              [&](uint32_t i, char* word)
                              {
-                                 result[i] = textToLong(word);
+                                 result[i] = TextToLong(word);
 
                                  if (result[i] == 0)
                                  {
-                                     result[i] = mathToLong(word);
+                                     result[i] = MathToLong(word);
                                  }
                              });
 }
 
-int32_t FitIniFile::readIdULongArray(const char* varName, uint32_t* result, uint32_t numElements)
+int32_t MCFitIniFile::ReadIdULongArray(const char* varName, uint32_t* result, uint32_t numElements)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("ul[", varName, line, count, values);
+    const int32_t error = FindArrayLine("ul[", varName, line, count, values);
 
     if (error != 0)
     {
@@ -1016,24 +1016,24 @@ int32_t FitIniFile::readIdULongArray(const char* varName, uint32_t* result, uint
         return SYNTAX_ERROR;
     }
 
-    return readArrayElements(line, values + 1, count,
+    return ReadArrayElements(line, values + 1, count,
                              [&](uint32_t i, char* word)
                              {
-                                 result[i] = textToULong(word);
+                                 result[i] = TextToULong(word);
 
                                  if (result[i] == 0)
                                  {
-                                     result[i] = mathToULong(word);
+                                     result[i] = MathToULong(word);
                                  }
                              });
 }
 
-int32_t FitIniFile::readIdShortArray(const char* varName, int16_t* result, uint32_t numElements)
+int32_t MCFitIniFile::ReadIdShortArray(const char* varName, int16_t* result, uint32_t numElements)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("s[", varName, line, count, values);
+    const int32_t error = FindArrayLine("s[", varName, line, count, values);
 
     if (error != 0)
     {
@@ -1052,24 +1052,24 @@ int32_t FitIniFile::readIdShortArray(const char* varName, int16_t* result, uint3
         return SYNTAX_ERROR;
     }
 
-    return readArrayElements(line, values + 1, count,
+    return ReadArrayElements(line, values + 1, count,
                              [&](uint32_t i, char* word)
                              {
-                                 result[i] = textToShort(word);
+                                 result[i] = TextToShort(word);
 
                                  if (result[i] == 0)
                                  {
-                                     result[i] = mathToShort(word);
+                                     result[i] = MathToShort(word);
                                  }
                              });
 }
 
-int32_t FitIniFile::readIdUShortArray(const char* varName, uint16_t* result, uint32_t numElements)
+int32_t MCFitIniFile::ReadIdUShortArray(const char* varName, uint16_t* result, uint32_t numElements)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("us[", varName, line, count, values);
+    const int32_t error = FindArrayLine("us[", varName, line, count, values);
 
     if (error != 0)
     {
@@ -1088,24 +1088,24 @@ int32_t FitIniFile::readIdUShortArray(const char* varName, uint16_t* result, uin
         return SYNTAX_ERROR;
     }
 
-    return readArrayElements(line, values + 1, count,
+    return ReadArrayElements(line, values + 1, count,
                              [&](uint32_t i, char* word)
                              {
-                                 result[i] = textToUShort(word);
+                                 result[i] = TextToUShort(word);
 
                                  if (result[i] == 0)
                                  {
-                                     result[i] = mathToUShort(word);
+                                     result[i] = MathToUShort(word);
                                  }
                              });
 }
 
-int32_t FitIniFile::readIdCharArray(const char* varName, char* result, uint32_t numElements)
+int32_t MCFitIniFile::ReadIdCharArray(const char* varName, char* result, uint32_t numElements)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("c[", varName, line, count, values);
+    const int32_t error = FindArrayLine("c[", varName, line, count, values);
 
     if (error != 0)
     {
@@ -1124,24 +1124,24 @@ int32_t FitIniFile::readIdCharArray(const char* varName, char* result, uint32_t 
         return SYNTAX_ERROR;
     }
 
-    return readArrayElements(line, values + 1, count,
+    return ReadArrayElements(line, values + 1, count,
                              [&](uint32_t i, char* word)
                              {
-                                 result[i] = textToChar(word);
+                                 result[i] = TextToChar(word);
 
                                  if (result[i] == 0)
                                  {
-                                     result[i] = mathToChar(word);
+                                     result[i] = MathToChar(word);
                                  }
                              });
 }
 
-int32_t FitIniFile::readIdUCharArray(const char* varName, uint8_t* result, uint32_t numElements)
+int32_t MCFitIniFile::ReadIdUCharArray(const char* varName, uint8_t* result, uint32_t numElements)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("uc[", varName, line, count, values);
+    const int32_t error = FindArrayLine("uc[", varName, line, count, values);
 
     if (error != 0)
     {
@@ -1160,214 +1160,214 @@ int32_t FitIniFile::readIdUCharArray(const char* varName, uint8_t* result, uint3
         return SYNTAX_ERROR;
     }
 
-    return readArrayElements(line, values + 1, count,
+    return ReadArrayElements(line, values + 1, count,
                              [&](uint32_t i, char* word)
                              {
-                                 result[i] = textToUChar(word);
+                                 result[i] = TextToUChar(word);
 
                                  if (result[i] == 0)
                                  {
-                                     result[i] = mathToUChar(word);
+                                     result[i] = MathToUChar(word);
                                  }
                              });
 }
 
-uint32_t FitIniFile::getIdFloatArrayElements(const char* varName)
+uint32_t MCFitIniFile::GetIdFloatArrayElements(const char* varName)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("f[", varName, line, count, values);
+    const int32_t error = FindArrayLine("f[", varName, line, count, values);
     return error != 0 ? static_cast<uint32_t>(error) : count;
 }
 
-uint32_t FitIniFile::getIdLongArrayElements(const char* varName)
+uint32_t MCFitIniFile::GetIdLongArrayElements(const char* varName)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("l[", varName, line, count, values);
+    const int32_t error = FindArrayLine("l[", varName, line, count, values);
     return error != 0 ? static_cast<uint32_t>(error) : count;
 }
 
-uint32_t FitIniFile::getIdULongArrayElements(const char* varName)
+uint32_t MCFitIniFile::GetIdULongArrayElements(const char* varName)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("ul[", varName, line, count, values);
+    const int32_t error = FindArrayLine("ul[", varName, line, count, values);
     return error != 0 ? static_cast<uint32_t>(error) : count;
 }
 
-uint32_t FitIniFile::getIdShortArrayElements(const char* varName)
+uint32_t MCFitIniFile::GetIdShortArrayElements(const char* varName)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("s[", varName, line, count, values);
+    const int32_t error = FindArrayLine("s[", varName, line, count, values);
     return error != 0 ? static_cast<uint32_t>(error) : count;
 }
 
-uint32_t FitIniFile::getIdUShortArrayElements(const char* varName)
+uint32_t MCFitIniFile::GetIdUShortArrayElements(const char* varName)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("us[", varName, line, count, values);
+    const int32_t error = FindArrayLine("us[", varName, line, count, values);
     return error != 0 ? static_cast<uint32_t>(error) : count;
 }
 
-uint32_t FitIniFile::getIdCharArrayElements(const char* varName)
+uint32_t MCFitIniFile::GetIdCharArrayElements(const char* varName)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("c[", varName, line, count, values);
+    const int32_t error = FindArrayLine("c[", varName, line, count, values);
     return error != 0 ? static_cast<uint32_t>(error) : count;
 }
 
-uint32_t FitIniFile::getIdUCharArrayElements(const char* varName)
+uint32_t MCFitIniFile::GetIdUCharArrayElements(const char* varName)
 {
     char line[256];
     uint32_t count;
     char* values;
-    const int32_t error = findArrayLine("uc[", varName, line, count, values);
+    const int32_t error = FindArrayLine("uc[", varName, line, count, values);
     return error != 0 ? static_cast<uint32_t>(error) : count;
 }
 
-int32_t FitIniFile::writeBlock(const char* blockId)
+int32_t MCFitIniFile::WriteBlock(const char* blockId)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "\r\n[%s]\r\n", blockId);
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdFloat(const char* varName, float value)
+int32_t MCFitIniFile::WriteIdFloat(const char* varName, float value)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "f %s=%f\r\n", varName, static_cast<double>(value));
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdBoolean(const char* varName, int value)
+int32_t MCFitIniFile::WriteIdBoolean(const char* varName, int value)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "b %s=%s\r\n", varName, value ? "TRUE" : "FALSE");
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdLong(const char* varName, int32_t value)
+int32_t MCFitIniFile::WriteIdLong(const char* varName, int32_t value)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "l %s=%d\r\n", varName, value);
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdShort(const char* varName, int16_t value)
+int32_t MCFitIniFile::WriteIdShort(const char* varName, int16_t value)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "s %s=%d\r\n", varName, static_cast<int>(value));
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdChar(const char* varName, char value)
+int32_t MCFitIniFile::WriteIdChar(const char* varName, char value)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "c %s=%d\r\n", varName, static_cast<int>(value));
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdULong(const char* varName, uint32_t value)
+int32_t MCFitIniFile::WriteIdULong(const char* varName, uint32_t value)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "ul %s=%d\r\n", varName, static_cast<int32_t>(value));
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdUShort(const char* varName, uint16_t value)
+int32_t MCFitIniFile::WriteIdUShort(const char* varName, uint16_t value)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "us %s=%d\r\n", varName, static_cast<int>(value));
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdUChar(const char* varName, uint8_t value)
+int32_t MCFitIniFile::WriteIdUChar(const char* varName, uint8_t value)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "uc %s=%d\r\n", varName, static_cast<int>(value));
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdString(const char* varName, const char* text)
+int32_t MCFitIniFile::WriteIdString(const char* varName, const char* text)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "st %s=\"%s\"\r\n", varName, text);
-    return write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdUShortArray(const char* varName, const uint16_t* array, uint32_t numElements)
+int32_t MCFitIniFile::WriteIdUShortArray(const char* varName, const uint16_t* array, uint32_t numElements)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "us[%d] %s=%d,", static_cast<int32_t>(numElements), varName,
                   static_cast<int>(array[0]));
-    int32_t written = write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    int32_t written = Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 
     for (int32_t i = 1; i < static_cast<int32_t>(numElements); ++i)
     {
         std::snprintf(line, sizeof(line), "%d,", static_cast<int>(array[i]));
-        written += write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+        written += Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
     }
 
     std::snprintf(line, sizeof(line), "\r\n");
-    return written + write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return written + Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdLongArray(const char* varName, const int32_t* array, uint32_t numElements)
+int32_t MCFitIniFile::WriteIdLongArray(const char* varName, const int32_t* array, uint32_t numElements)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "l[%d] %s=%d,", static_cast<int32_t>(numElements), varName, array[0]);
-    int32_t written = write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    int32_t written = Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 
     for (int32_t i = 1; i < static_cast<int32_t>(numElements); ++i)
     {
         std::snprintf(line, sizeof(line), "%d,", array[i]);
-        written += write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+        written += Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
     }
 
     std::snprintf(line, sizeof(line), "\r\n");
-    return written + write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return written + Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdFloatArray(const char* varName, const float* array, uint32_t numElements)
+int32_t MCFitIniFile::WriteIdFloatArray(const char* varName, const float* array, uint32_t numElements)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "f[%d] %s=%.2f,", static_cast<int32_t>(numElements), varName,
                   static_cast<double>(array[0]));
-    int32_t written = write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    int32_t written = Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 
     for (int32_t i = 1; i < static_cast<int32_t>(numElements); ++i)
     {
         std::snprintf(line, sizeof(line), " %.2f,", static_cast<double>(array[i]));
-        written += write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+        written += Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
     }
 
     std::snprintf(line, sizeof(line), "\r\n");
-    return written + write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return written + Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }
 
-int32_t FitIniFile::writeIdUCharArray(const char* varName, const uint8_t* array, uint32_t numElements)
+int32_t MCFitIniFile::WriteIdUCharArray(const char* varName, const uint8_t* array, uint32_t numElements)
 {
     char line[256];
     std::snprintf(line, sizeof(line), "uc[%d] %s=%d,", static_cast<int32_t>(numElements), varName,
                   static_cast<int>(array[0]));
-    int32_t written = write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    int32_t written = Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 
     for (int32_t i = 1; i < static_cast<int32_t>(numElements); ++i)
     {
         std::snprintf(line, sizeof(line), " %d,", static_cast<int>(array[i]));
-        written += write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+        written += Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
     }
 
     std::snprintf(line, sizeof(line), "\r\n");
-    return written + write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
+    return written + Write(reinterpret_cast<uint8_t*>(line), static_cast<int32_t>(std::strlen(line)));
 }

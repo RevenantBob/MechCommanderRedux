@@ -3,7 +3,7 @@
 #include "lib/file.h"
 
 /// <summary>How a packet is stored (the top 3 bits of its offset in the packet table).</summary>
-enum PacketStorage : uint8_t
+enum MCPacketStorage : uint8_t
 {
     STORAGE_TYPE_RAW = 0,
     STORAGE_TYPE_FWF = 1,
@@ -22,115 +22,89 @@ enum PacketStorage : uint8_t
 /// unchecked), <c>int32 firstPacketOffset</c> (so the table has <c>firstPacketOffset / 4 - 2</c> entries), the table,
 /// then the data.
 /// </remarks>
-class PacketFile : public File
+class MCPacketFile : public MCFile
 {
 public:
     /// <summary>The first word of a packet file whose checksum isn't checked.</summary>
     static constexpr int32_t PACKET_FILE_MAGIC = static_cast<int32_t>(0xFEEDFACE);
 
-    /// <remarks>MCX.EXE @ 0x0064d110</remarks>
-    PacketFile();
-    /// <remarks>MCX.EXE @ 0x0064d150</remarks>
-    ~PacketFile() override;
+    MCPacketFile();
+    ~MCPacketFile() override;
 
-    /// <remarks>MCX.EXE @ 0x0064d170</remarks>
-    int32_t open(const char* fName, FileMode _mode = READ, int32_t numChildren = 50) override;
-    /// <remarks>MCX.EXE @ 0x0064d1a0</remarks>
-    int32_t open(File* _parent, uint32_t fileSize, int32_t numChildren = 50) override;
-    /// <remarks>MCX.EXE @ 0x0064d1d0</remarks>
-    int32_t create(const char* fName) override;
+    int32_t Open(const char* fName, MCFileMode mode = READ, int32_t numChildren = 50) override;
+    int32_t Open(MCFile* parent, uint32_t fileSize, int32_t numChildren = 50) override;
+    int32_t Create(const char* fName) override;
     /// <summary>Finishes the packet table (when writing) and closes.</summary>
-    /// <remarks>MCX.EXE @ 0x0064d1f0</remarks>
-    void close() override;
-    /// <remarks>MCX.EXE @ 0x0064d140</remarks>
-    FileClass getFileClass() override { return PACKETFILE; }
+    void Close() override;
+    MCFileClass GetFileClass() override { return PACKETFILE; }
 
     /// <summary>
     /// The offset of packet <paramref name="packet"/>, and its storage in <paramref name="packetType"/>; -1 past the
     /// end.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0064d210</remarks>
-    int32_t readPacketOffset(int32_t packet, int32_t* packetType = nullptr);
+    int32_t ReadPacketOffset(int32_t packet, int32_t* packetType = nullptr);
 
     /// <summary>Reads (and unpacks) packet <paramref name="packet"/> into <paramref name="buffer"/>; -1 = the current one.</summary>
     /// <returns>Its unpacked size, or 0 on failure.</returns>
-    /// <remarks>MCX.EXE @ 0x0064d250</remarks>
-    int32_t readPacket(int32_t packet, uint8_t* buffer);
+    int32_t ReadPacket(int32_t packet, uint8_t* buffer);
 
     /// <summary>Reads a packet as it is stored, without unpacking it.</summary>
-    /// <remarks>MCX.EXE @ 0x0064d3a0</remarks>
-    int32_t readPackedPacket(int32_t packet, uint8_t* buffer);
+    int32_t ReadPackedPacket(int32_t packet, uint8_t* buffer);
 
     /// <summary>Makes <paramref name="packet"/> current and moves to its data.</summary>
-    /// <remarks>MCX.EXE @ 0x0064d430</remarks>
-    int32_t seekPacket(int32_t packet);
+    int32_t SeekPacket(int32_t packet);
 
     /// <summary>The next packet (stays on the last).</summary>
-    /// <remarks>MCX.EXE @ 0x0064d4e0</remarks>
     void operator++();
 
     /// <summary>The previous packet (stays on the first).</summary>
-    /// <remarks>MCX.EXE @ 0x0064d500</remarks>
     void operator--();
 
-    /// <remarks>MCX.EXE @ 0x0064d520</remarks>
-    int32_t getNumPackets() const { return numPackets; }
-    /// <remarks>MCX.EXE @ 0x0064d530</remarks>
-    int32_t getCurrentPacket() const { return currentPacket; }
+    int32_t GetNumPackets() const { return _NumPackets; }
+    int32_t GetCurrentPacket() const { return _CurrentPacket; }
     /// <summary>The current packet's unpacked size.</summary>
-    /// <remarks>MCX.EXE @ 0x0064d540</remarks>
-    int32_t getPacketSize() const { return packetUnpackedSize; }
+    int32_t GetPacketSize() const { return _PacketUnpackedSize; }
     /// <summary>The current packet's stored size.</summary>
-    /// <remarks>MCX.EXE @ 0x0064d550</remarks>
-    int32_t getPackedPacketSize() const { return packetSize; }
-    /// <summary>The current packet's storage (<see cref="PacketStorage"/>).</summary>
-    /// <remarks>MCX.EXE @ 0x0064d560</remarks>
-    int32_t getStorageType() const { return packetType; }
+    int32_t GetPackedPacketSize() const { return _PacketSize; }
+    /// <summary>The current packet's storage (<see cref="MCPacketStorage"/>).</summary>
+    int32_t GetStorageType() const { return _PacketType; }
 
     /// <summary>
     /// Starts a new file of <paramref name="count"/> packets: writes the header and an empty table.
-    /// <paramref name="useCheckSum"/> makes <see cref="close"/> write a checksum instead of the magic.
+    /// <paramref name="useCheckSum"/> makes <see cref="Close"/> write a checksum instead of the magic.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0064d570</remarks>
-    void reserve(int32_t count, int useCheckSum = 0);
+    void Reserve(int32_t count, int useCheckSum = 0);
 
     /// <summary>
     /// Appends packet <paramref name="packet"/> with <paramref name="storageType"/> (LZD packs it; NUL means raw).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x0064d620</remarks>
-    int32_t writePacket(int32_t packet, uint8_t* buffer, int32_t nbytes, uint8_t storageType);
+    int32_t WritePacket(int32_t packet, uint8_t* buffer, int32_t nbytes, uint8_t storageType);
 
     /// <summary>Rewrites the file with a packet inserted (or replaced) at <paramref name="packet"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0064d7f0</remarks>
-    int32_t insertPacket(int32_t packet, uint8_t* buffer, int32_t nbytes, uint8_t storageType);
+    int32_t InsertPacket(int32_t packet, uint8_t* buffer, int32_t nbytes, uint8_t storageType);
 
     /// <summary>Overwrites a raw packet in place.</summary>
-    /// <remarks>MCX.EXE @ 0x0064d980</remarks>
-    int32_t writePacket(int32_t packet, uint8_t* buffer);
+    int32_t WritePacket(int32_t packet, uint8_t* buffer);
 
 protected:
-    /// <remarks>MCX.EXE @ 0x0064ce50</remarks>
-    void clear();
+    void Clear();
     /// <summary>Resolves the table's forward references and writes the checksum, if the file was written.</summary>
-    /// <remarks>MCX.EXE @ 0x0064ce80</remarks>
-    void atClose();
+    void AtClose();
     /// <summary>Checks the header and reads the packet table.</summary>
-    /// <remarks>MCX.EXE @ 0x0064d050</remarks>
-    int32_t afterOpen();
+    int32_t AfterOpen();
     /// <summary>The sum of every byte after the first word.</summary>
-    /// <remarks>MCX.EXE @ 0x0064cfb0</remarks>
-    int32_t checkSumFile();
+    int32_t CheckSumFile();
 
-    int32_t numPackets = 0;     // +0x4c
-    int32_t currentPacket = -1; // +0x50
+    int32_t _NumPackets = 0;
+    int32_t _CurrentPacket = -1;
     /// <summary>The current packet's stored size.</summary>
-    int32_t packetSize = 0; // +0x54
+    int32_t _PacketSize = 0;
     /// <summary>The current packet's offset.</summary>
-    int32_t packetBase = 0;         // +0x58
-    int32_t packetType = 0;         // +0x5c
-    int32_t packetUnpackedSize = 0; // +0x60
+    int32_t _PacketBase = 0;
+    int32_t _PacketType = 0;
+    int32_t _PacketUnpackedSize = 0;
     /// <summary>The packet table, read into memory.</summary>
-    int32_t* seekTable = nullptr; // +0x64
+    int32_t* _SeekTable = nullptr;
     /// <summary>Nonzero when the header holds a checksum.</summary>
-    int32_t usesCheckSum = 0; // +0x68
+    int32_t _UsesCheckSum = 0;
 };

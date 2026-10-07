@@ -4,9 +4,7 @@
 // stores by the global Processor type, which only changed speed.
 
 /// <summary>Sets <paramref name="length"/> bytes at <paramref name="buffer"/> to 0.</summary>
-/// <remarks>MCX.EXE @ 0x0064d9e0</remarks>
-void memclear(void* buffer, int length);
+void Memclear(void* buffer, int length);
 
 /// <summary>Sets <paramref name="length"/> bytes at <paramref name="buffer"/> to 0xff.</summary>
-/// <remarks>MCX.EXE @ 0x0064da60</remarks>
-void memfill(void* buffer, int length);
+void Memfill(void* buffer, int length);

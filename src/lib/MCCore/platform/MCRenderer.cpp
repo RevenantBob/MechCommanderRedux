@@ -28,7 +28,7 @@ namespace
     /// <summary>A frame surface, and whether its memory is kept drawn too.</summary>
     struct FrameSurface
     {
-        const _window* Window;
+        const MCWindow* Window;
         bool Kept;
     };
 
@@ -40,7 +40,7 @@ namespace
     }
 
     /// <summary>The frame surface <paramref name="window"/> is (or lies over the pixels of), or null.</summary>
-    const FrameSurface* FrameSurfaceEntry(const _window* window)
+    const FrameSurface* FrameSurfaceEntry(const MCWindow* window)
     {
         if (window == nullptr)
         {
@@ -49,7 +49,7 @@ namespace
 
         for (const FrameSurface& surface : FrameSurfaces())
         {
-            if (surface.Window == window || (window->buffer != nullptr && window->buffer == surface.Window->buffer))
+            if (surface.Window == window || (window->Buffer != nullptr && window->Buffer == surface.Window->Buffer))
             {
                 return &surface;
             }
@@ -66,9 +66,9 @@ namespace
     }
 
     /// <summary>The windows with an op plane, and their planes.</summary>
-    std::vector<std::pair<const _window*, uint8_t*>>& OpPlanes()
+    std::vector<std::pair<const MCWindow*, uint8_t*>>& OpPlanes()
     {
-        static auto* planes = new std::vector<std::pair<const _window*, uint8_t*>>();
+        static auto* planes = new std::vector<std::pair<const MCWindow*, uint8_t*>>();
         return *planes;
     }
 
@@ -123,7 +123,7 @@ namespace
             return *this;
         }
 
-        void Clear(_window*, const MCRect& rect, uint8_t color) override
+        void Clear(MCWindow*, const MCRect& rect, uint8_t color) override
         {
             if (!Drops(color))
             {
@@ -131,7 +131,7 @@ namespace
             }
         }
 
-        void Hash(_window*, const MCRect& rect, uint8_t color) override
+        void Hash(MCWindow*, const MCRect& rect, uint8_t color) override
         {
             if (!Drops(color))
             {
@@ -139,7 +139,7 @@ namespace
             }
         }
 
-        void Copy(_window*, const MCCopyCommand& command) override
+        void Copy(MCWindow*, const MCCopyCommand& command) override
         {
             // A view has no pixels to copy from.
             SDL_assert(command.Source->View == nullptr);
@@ -162,7 +162,7 @@ namespace
             Target().Copy(_View->Target, moved);
         }
 
-        void AlphaBlit(_window*, const MCAlphaBlitCommand& command) override
+        void AlphaBlit(MCWindow*, const MCAlphaBlitCommand& command) override
         {
             MCAlphaBlitCommand moved = command;
             moved.Left += _X;
@@ -170,7 +170,7 @@ namespace
             Target().AlphaBlit(_View->Target, moved);
         }
 
-        void ShapeBlit(_window*, const MCShapeBlitCommand& command) override
+        void ShapeBlit(MCWindow*, const MCShapeBlitCommand& command) override
         {
             MCShapeBlitCommand moved = command;
             moved.Blit.Left += _X;
@@ -178,7 +178,7 @@ namespace
             Target().ShapeBlit(_View->Target, moved);
         }
 
-        void Write(_window*, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override
+        void Write(MCWindow*, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override
         {
             if (!_View->KeyTransparent)
             {
@@ -212,7 +212,7 @@ namespace
             }
         }
 
-        void Pixel(_window*, int32_t x, int32_t y, uint8_t color) override
+        void Pixel(MCWindow*, int32_t x, int32_t y, uint8_t color) override
         {
             if (!Drops(color))
             {
@@ -220,7 +220,7 @@ namespace
             }
         }
 
-        void Shape(_window*, const MCShapeCommand& command) override
+        void Shape(MCWindow*, const MCShapeCommand& command) override
         {
             MCShapeCommand moved = command;
             moved.Top += _Y;
@@ -230,7 +230,7 @@ namespace
             Target().Shape(_View->Target, moved);
         }
 
-        void FastShape(_window*, const MCFastShapeCommand& command) override
+        void FastShape(MCWindow*, const MCFastShapeCommand& command) override
         {
             MCFastShapeCommand moved = command;
             moved.Top += _Y;
@@ -239,7 +239,7 @@ namespace
             Target().FastShape(_View->Target, moved);
         }
 
-        void Tile(_window*, const MCTileCommand& command) override
+        void Tile(MCWindow*, const MCTileCommand& command) override
         {
             MCTileCommand moved = command;
             moved.Left += _X;
@@ -249,7 +249,7 @@ namespace
             Target().Tile(_View->Target, moved);
         }
 
-        void Polygon(_window*, const MCPolygonCommand& command) override
+        void Polygon(MCWindow*, const MCPolygonCommand& command) override
         {
             MCPolygonCommand moved = command;
             moved.OriginX += _X;
@@ -257,7 +257,7 @@ namespace
             Target().Polygon(_View->Target, moved);
         }
 
-        void MapQuad(_window*, const MCMapQuadCommand& command) override
+        void MapQuad(MCWindow*, const MCMapQuadCommand& command) override
         {
             MCMapQuadCommand moved = command;
 
@@ -271,7 +271,7 @@ namespace
             Target().MapQuad(_View->Target, moved);
         }
 
-        void Line(_window*, const MCLineCommand& command) override
+        void Line(MCWindow*, const MCLineCommand& command) override
         {
             if (command.Table == nullptr && Drops(command.Color))
             {
@@ -284,7 +284,7 @@ namespace
             Target().Line(_View->Target, moved);
         }
 
-        void Ellipse(_window*, const MCEllipseCommand& command) override
+        void Ellipse(MCWindow*, const MCEllipseCommand& command) override
         {
             if (!command.Alpha && Drops(command.Color))
             {
@@ -298,7 +298,7 @@ namespace
             Target().Ellipse(_View->Target, moved);
         }
 
-        void StatusBar(_window*, const MCStatusBarCommand& command) override
+        void StatusBar(MCWindow*, const MCStatusBarCommand& command) override
         {
             MCStatusBarCommand moved = command;
             moved.Box = Move(command.Box);
@@ -307,7 +307,7 @@ namespace
             Target().StatusBar(_View->Target, moved);
         }
 
-        void Glyph(_window*, const MCGlyphCommand& command) override
+        void Glyph(MCWindow*, const MCGlyphCommand& command) override
         {
             MCGlyphCommand moved = command;
             moved.X += _X;
@@ -336,109 +336,109 @@ namespace
     class MCMirrorRenderer final : public MCRenderer
     {
     public:
-        void Clear(_window* target, const MCRect& rect, uint8_t color) override
+        void Clear(MCWindow* target, const MCRect& rect, uint8_t color) override
         {
             Gpu().Clear(target, rect, color);
             Cpu().Clear(target, rect, color);
         }
 
-        void Hash(_window* target, const MCRect& rect, uint8_t color) override
+        void Hash(MCWindow* target, const MCRect& rect, uint8_t color) override
         {
             Gpu().Hash(target, rect, color);
             Cpu().Hash(target, rect, color);
         }
 
-        void Copy(_window* target, const MCCopyCommand& command) override
+        void Copy(MCWindow* target, const MCCopyCommand& command) override
         {
             Gpu().Copy(target, command);
             Cpu().Copy(target, command);
         }
 
-        void AlphaBlit(_window* target, const MCAlphaBlitCommand& command) override
+        void AlphaBlit(MCWindow* target, const MCAlphaBlitCommand& command) override
         {
             Gpu().AlphaBlit(target, command);
             Cpu().AlphaBlit(target, command);
         }
 
-        void ShapeBlit(_window* target, const MCShapeBlitCommand& command) override
+        void ShapeBlit(MCWindow* target, const MCShapeBlitCommand& command) override
         {
             Gpu().ShapeBlit(target, command);
             Cpu().ShapeBlit(target, command);
         }
 
-        void Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override
+        void Write(MCWindow* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count) override
         {
             Gpu().Write(target, x, y, pixels, count);
             Cpu().Write(target, x, y, pixels, count);
         }
 
-        void Pixel(_window* target, int32_t x, int32_t y, uint8_t color) override
+        void Pixel(MCWindow* target, int32_t x, int32_t y, uint8_t color) override
         {
             Gpu().Pixel(target, x, y, color);
             Cpu().Pixel(target, x, y, color);
         }
 
-        void Shape(_window* target, const MCShapeCommand& command) override
+        void Shape(MCWindow* target, const MCShapeCommand& command) override
         {
             Gpu().Shape(target, command);
             Cpu().Shape(target, command);
         }
 
-        void FastShape(_window* target, const MCFastShapeCommand& command) override
+        void FastShape(MCWindow* target, const MCFastShapeCommand& command) override
         {
             Gpu().FastShape(target, command);
             Cpu().FastShape(target, command);
         }
 
-        void Tile(_window* target, const MCTileCommand& command) override
+        void Tile(MCWindow* target, const MCTileCommand& command) override
         {
             Gpu().Tile(target, command);
             Cpu().Tile(target, command);
         }
 
-        void Polygon(_window* target, const MCPolygonCommand& command) override
+        void Polygon(MCWindow* target, const MCPolygonCommand& command) override
         {
             Gpu().Polygon(target, command);
             Cpu().Polygon(target, command);
         }
 
-        void MapQuad(_window* target, const MCMapQuadCommand& command) override
+        void MapQuad(MCWindow* target, const MCMapQuadCommand& command) override
         {
             Gpu().MapQuad(target, command);
             Cpu().MapQuad(target, command);
         }
 
-        void Line(_window* target, const MCLineCommand& command) override
+        void Line(MCWindow* target, const MCLineCommand& command) override
         {
             Gpu().Line(target, command);
             Cpu().Line(target, command);
         }
 
-        void Ellipse(_window* target, const MCEllipseCommand& command) override
+        void Ellipse(MCWindow* target, const MCEllipseCommand& command) override
         {
             Gpu().Ellipse(target, command);
             Cpu().Ellipse(target, command);
         }
 
-        void StatusBar(_window* target, const MCStatusBarCommand& command) override
+        void StatusBar(MCWindow* target, const MCStatusBarCommand& command) override
         {
             Gpu().StatusBar(target, command);
             Cpu().StatusBar(target, command);
         }
 
-        void Glyph(_window* target, const MCGlyphCommand& command) override
+        void Glyph(MCWindow* target, const MCGlyphCommand& command) override
         {
             Gpu().Glyph(target, command);
             Cpu().Glyph(target, command);
         }
 
         // The GPU draws the layer from its mesh; the software renderer draws the pass's tiles, which still come.
-        std::expected<void, std::string> TerrainLayer(_window* target, const MCTerrainFrame& frame) override
+        std::expected<void, std::string> TerrainLayer(MCWindow* target, const MCTerrainFrame& frame) override
         {
             return Gpu().TerrainLayer(target, frame);
         }
 
-        void EndTerrainLayer(_window* target) override { Gpu().EndTerrainLayer(target); }
+        void EndTerrainLayer(MCWindow* target) override { Gpu().EndTerrainLayer(target); }
 
     protected:
         void OnAlphaTableChanged() override {}
@@ -449,16 +449,16 @@ namespace
     };
 }
 
-std::expected<void, std::string> MCRenderer::TerrainLayer(_window* /*target*/, const MCTerrainFrame& /*frame*/)
+std::expected<void, std::string> MCRenderer::TerrainLayer(MCWindow* /*target*/, const MCTerrainFrame& /*frame*/)
 {
     return std::unexpected("this renderer draws no terrain layer");
 }
 
-void MCRenderer::EndTerrainLayer(_window* /*target*/)
+void MCRenderer::EndTerrainLayer(MCWindow* /*target*/)
 {
 }
 
-MCRenderer& MCRenderer::For(const _window* window)
+MCRenderer& MCRenderer::For(const MCWindow* window)
 {
     if (window != nullptr && window->View != nullptr)
     {
@@ -518,10 +518,10 @@ MCTexture* MCRenderer::CreateTexture(uint8_t* pixels, int32_t width, int32_t hei
     return texture;
 }
 
-MCTexture* MCRenderer::CreateTexture(_window* window, MCTextureUse use)
+MCTexture* MCRenderer::CreateTexture(MCWindow* window, MCTextureUse use)
 {
     DestroyTexture(window);
-    window->Texture = CreateTexture(window->buffer, window->x_max + 1, window->y_max + 1, use);
+    window->Texture = CreateTexture(window->Buffer, window->XMax + 1, window->YMax + 1, use);
     return window->Texture;
 }
 
@@ -542,11 +542,11 @@ void MCRenderer::ResizeTexture(MCTexture* texture, uint8_t* pixels, int32_t widt
     texture->Dirty = true;
 }
 
-void MCRenderer::ResizeTexture(_window* window)
+void MCRenderer::ResizeTexture(MCWindow* window)
 {
     if (window->Texture != nullptr)
     {
-        ResizeTexture(window->Texture, window->buffer, window->x_max + 1, window->y_max + 1);
+        ResizeTexture(window->Texture, window->Buffer, window->XMax + 1, window->YMax + 1);
     }
 }
 
@@ -570,7 +570,7 @@ void MCRenderer::DestroyTexture(MCTexture*& texture)
     texture = nullptr;
 }
 
-void MCRenderer::DestroyTexture(_window* window)
+void MCRenderer::DestroyTexture(MCWindow* window)
 {
     if (window != nullptr)
     {
@@ -658,7 +658,7 @@ MCRenderer::ExpectUnregistered::~ExpectUnregistered()
     --UnregisteredExpected;
 }
 
-void MCRenderer::AddFrameSurface(const _window* window, bool kept)
+void MCRenderer::AddFrameSurface(const MCWindow* window, bool kept)
 {
     auto& surfaces = FrameSurfaces();
 
@@ -670,19 +670,19 @@ void MCRenderer::AddFrameSurface(const _window* window, bool kept)
     surfaces.push_back(FrameSurface{window, kept});
 
     // A kept surface may hold pixels already: the GPU's copy starts from them.
-    if (kept && Drawing != MCGpuDrawing::Off && window->buffer != nullptr)
+    if (kept && Drawing != MCGpuDrawing::Off && window->Buffer != nullptr)
     {
-        auto* target = const_cast<_window*>(window);
-        const int32_t width = window->x_max + 1;
+        auto* target = const_cast<MCWindow*>(window);
+        const int32_t width = window->XMax + 1;
 
-        for (int32_t y = 0; y <= window->y_max; ++y)
+        for (int32_t y = 0; y <= window->YMax; ++y)
         {
-            HardwareRenderer->Write(target, 0, y, window->buffer + static_cast<size_t>(y) * width, width);
+            HardwareRenderer->Write(target, 0, y, window->Buffer + static_cast<size_t>(y) * width, width);
         }
     }
 }
 
-void MCRenderer::RemoveFrameSurface(const _window* window)
+void MCRenderer::RemoveFrameSurface(const MCWindow* window)
 {
     if (std::erase_if(FrameSurfaces(), [window](const FrameSurface& surface) { return surface.Window == window; }) !=
             0 &&
@@ -692,13 +692,13 @@ void MCRenderer::RemoveFrameSurface(const _window* window)
     }
 }
 
-const _window* MCRenderer::FrameSurfaceOf(const _window* window)
+const MCWindow* MCRenderer::FrameSurfaceOf(const MCWindow* window)
 {
     const FrameSurface* surface = FrameSurfaceEntry(window);
     return surface != nullptr ? surface->Window : nullptr;
 }
 
-bool MCRenderer::KeptSurface(const _window* window)
+bool MCRenderer::KeptSurface(const MCWindow* window)
 {
     const FrameSurface* surface = FrameSurfaceEntry(window);
     return surface != nullptr && surface->Kept;
@@ -780,7 +780,7 @@ void MCRenderer::NoteStale(const char* what)
     ++StaleReads;
 }
 
-void MCRenderer::NoteCpuRead(const _window* source, const char* command)
+void MCRenderer::NoteCpuRead(const MCWindow* source, const char* command)
 {
     if (source != nullptr && source->Texture != nullptr && source->Texture->CpuStale)
     {
@@ -936,7 +936,7 @@ std::span<const MCUnderlay> MCRenderer::Underlays()
     return UnderlayList();
 }
 
-void MCRenderer::SetOpPlane(const _window* target, uint8_t* ops)
+void MCRenderer::SetOpPlane(const MCWindow* target, uint8_t* ops)
 {
     auto& planes = OpPlanes();
     std::erase_if(planes, [target](const auto& plane) { return plane.first == target; });
@@ -947,11 +947,11 @@ void MCRenderer::SetOpPlane(const _window* target, uint8_t* ops)
     }
 }
 
-uint8_t* MCRenderer::OpPlane(const _window* target)
+uint8_t* MCRenderer::OpPlane(const MCWindow* target)
 {
     for (const auto& [window, ops] : OpPlanes())
     {
-        if (window == target || (window->buffer != nullptr && window->buffer == target->buffer))
+        if (window == target || (window->Buffer != nullptr && window->Buffer == target->Buffer))
         {
             return ops;
         }
@@ -1041,16 +1041,16 @@ void MCRenderer::ResetOpTables()
     Tables().Reset();
 }
 
-void MCRenderer::ComposeUnderlays(const _window* target, uint8_t* pixels, const MCRect& rect)
+void MCRenderer::ComposeUnderlays(const MCWindow* target, uint8_t* pixels, const MCRect& rect)
 {
-    const int32_t stride = target->x_max + 1;
+    const int32_t stride = target->XMax + 1;
     const uint8_t* ops = OpPlane(target);
     const uint8_t* tables = OpTables();
 
     for (const MCUnderlay& underlay : UnderlayList())
     {
-        if (underlay.Target == nullptr || underlay.Target->buffer != target->buffer || underlay.Source == nullptr ||
-            underlay.Source->buffer == nullptr)
+        if (underlay.Target == nullptr || underlay.Target->Buffer != target->Buffer || underlay.Source == nullptr ||
+            underlay.Source->Buffer == nullptr)
         {
             continue;
         }
@@ -1058,8 +1058,8 @@ void MCRenderer::ComposeUnderlays(const _window* target, uint8_t* pixels, const 
         const MCRect& shown = underlay.Rect;
         const int32_t x0 = std::max({rect.X0, shown.X0, 0});
         const int32_t y0 = std::max({rect.Y0, shown.Y0, 0});
-        const int32_t x1 = std::min({rect.X1, shown.X1, target->x_max});
-        const int32_t y1 = std::min({rect.Y1, shown.Y1, target->y_max});
+        const int32_t x1 = std::min({rect.X1, shown.X1, target->XMax});
+        const int32_t y1 = std::min({rect.Y1, shown.Y1, target->YMax});
 
         if (x1 < x0 || y1 < y0)
         {
@@ -1070,15 +1070,15 @@ void MCRenderer::ComposeUnderlays(const _window* target, uint8_t* pixels, const 
         // nearest sampling picks it.
         const int64_t shownWidth = shown.X1 - shown.X0 + 1;
         const int64_t shownHeight = shown.Y1 - shown.Y0 + 1;
-        const int64_t sourceWidth = underlay.Source->x_max + 1;
-        const int64_t sourceHeight = underlay.Source->y_max + 1;
-        const int32_t sourceStride = underlay.Source->x_max + 1;
+        const int64_t sourceWidth = underlay.Source->XMax + 1;
+        const int64_t sourceHeight = underlay.Source->YMax + 1;
+        const int32_t sourceStride = underlay.Source->XMax + 1;
 
         for (int32_t y = y0; y <= y1; ++y)
         {
             uint8_t* row = pixels + static_cast<intptr_t>(y) * stride;
             const auto sourceY = static_cast<int32_t>((2 * (y - shown.Y0) + 1) * sourceHeight / (2 * shownHeight));
-            const uint8_t* sourceRow = underlay.Source->buffer + static_cast<intptr_t>(sourceY) * sourceStride;
+            const uint8_t* sourceRow = underlay.Source->Buffer + static_cast<intptr_t>(sourceY) * sourceStride;
 
             const uint8_t* opRow = ops != nullptr ? ops + static_cast<intptr_t>(y) * stride : nullptr;
 

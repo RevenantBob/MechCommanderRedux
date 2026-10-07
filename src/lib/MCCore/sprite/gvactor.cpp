@@ -23,10 +23,10 @@ namespace
     constexpr int32_t NO_DATA_RAM = static_cast<int32_t>(0xeada000c);
 
     /// <summary>The facing of <paramref name="obj"/> in degrees, negative to the right.</summary>
-    auto objectFacing(GameObject* obj) -> double
+    auto ObjectFacing(MCGameObject* obj) -> double
     {
-        const frame_of_ref frame = obj->getFrame();
-        float cosFacing = UnitX.z * frame.i.z + UnitX.x * frame.i.x + UnitX.y * frame.i.y;
+        const MCFrameOfRef frame = obj->GetFrame();
+        float cosFacing = UnitX.Z * frame.I.Z + UnitX.X * frame.I.X + UnitX.Y * frame.I.Y;
 
         if (cosFacing < -1.0)
         {
@@ -38,9 +38,9 @@ namespace
             cosFacing = 1.0f;
         }
 
-        double facing = acosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
+        double facing = AcosMatherr(static_cast<double>(cosFacing)) * 0x1.ca5dc1a6402aap+5;
 
-        if (frame.i.y < 0.0)
+        if (frame.I.Y < 0.0)
         {
             facing = -facing;
         }
@@ -49,9 +49,9 @@ namespace
     }
 
     /// <summary>0.5 when the eye is zoomed out, else 1.</summary>
-    auto eyeScale() -> float
+    auto EyeScale() -> float
     {
-        return eye->cameraScale == 1 ? 0.5f : 1.0f;
+        return Eye->CameraScale == 1 ? 0.5f : 1.0f;
     }
 }
 
@@ -59,100 +59,101 @@ namespace
 // GVAppearanceType
 //---------------------------------------------------------------------------
 
-auto GVAppearanceType::init(File* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
+auto MCGVAppearanceType::Init(MCFile* apprFile, uint32_t fileSize, uint32_t loadFlags) -> int32_t
 {
-    const int32_t result = loadIniFile(apprFile, fileSize);
+    const int32_t result = LoadIniFile(apprFile, fileSize);
 
     if (result != 0)
     {
         return result;
     }
 
-    keepLoaded = static_cast<int32_t>(loadFlags);
-    numPackets = spriteManager->getNumShapes(appearanceNum & 0xffffff);
+    KeepLoaded = static_cast<int32_t>(loadFlags);
+    NumPackets = SpriteManager->GetNumShapes(AppearanceNum & 0xffffff);
     // Port fix: sized by the port's pointer size (the original: count * 4).
-    shapeList = static_cast<Shape**>(
-        spriteManager->mallocDataRAM(static_cast<uint32_t>(numPackets) * static_cast<uint32_t>(sizeof(Shape*))));
+    ShapeList = static_cast<MCShape**>(
+        SpriteManager->MallocDataRam(static_cast<uint32_t>(NumPackets) * static_cast<uint32_t>(sizeof(MCShape*))));
 
-    if (shapeList == nullptr)
+    if (ShapeList == nullptr)
     {
         return NO_DATA_RAM;
     }
 
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        shapeList[i] = nullptr;
+        ShapeList[i] = nullptr;
     }
 
     return 0;
 }
 
-auto GVAppearanceType::removeShape(Shape* shape) -> void
+auto MCGVAppearanceType::RemoveShape(MCShape* shape) -> void
 {
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        if (shapeList[i] == shape)
+        if (ShapeList[i] == shape)
         {
-            shapeList[i] = nullptr;
+            ShapeList[i] = nullptr;
         }
     }
 
-    for (AppearanceUser* user = userList; user != nullptr; user = user->next)
+    for (MCAppearanceUser* user = UserList; user != nullptr; user = user->Next)
     {
-        auto* appearance = static_cast<GVAppearance*>(user->user);
+        auto* appearance = static_cast<MCGVAppearance*>(user->User);
 
-        if (appearance->currentShape[0] == shape)
+        if (appearance->CurrentShape[0] == shape)
         {
-            appearance->currentShape[0] = nullptr;
+            appearance->CurrentShape[0] = nullptr;
         }
 
-        if (appearance->currentShape[1] == shape)
+        if (appearance->CurrentShape[1] == shape)
         {
-            appearance->currentShape[1] = nullptr;
+            appearance->CurrentShape[1] = nullptr;
         }
     }
 }
 
-auto GVAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
+auto MCGVAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile iniFile;
-    int32_t result = iniFile.open(apprFile, fileSize, 50);
+    MCFitIniFile iniFile;
+    int32_t result = iniFile.Open(apprFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.seekBlock("Main Info")) != 0)
+    if ((result = iniFile.SeekBlock("Main Info")) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdULong("NumParts", numParts)) != 0)
+    if ((result = iniFile.ReadIdULong("NumParts", NumParts)) != 0)
     {
         return result;
     }
 
-    if ((result = iniFile.readIdFloat("TurretOffset", turretOffset)) != 0)
+    if ((result = iniFile.ReadIdFloat("TurretOffset", TurretOffset)) != 0)
     {
         return result;
     }
 
-    actorStateData = static_cast<GVActorData*>(spriteManager->mallocDataRAM(MAX_GV_ACTOR_STATES * sizeof(GVActorData)));
+    ActorStateData =
+        static_cast<MCGVActorData*>(SpriteManager->MallocDataRam(MAX_GV_ACTOR_STATES * sizeof(MCGVActorData)));
 
-    if (actorStateData == nullptr)
+    if (ActorStateData == nullptr)
     {
         return NO_DATA_RAM;
     }
 
-    if ((result = iniFile.seekBlock("States")) != 0)
+    if ((result = iniFile.SeekBlock("States")) != 0)
     {
         return result;
     }
 
     uint8_t numStates = 0;
 
-    if ((result = iniFile.readIdUChar("NumStates", numStates)) != 0)
+    if ((result = iniFile.ReadIdUChar("NumStates", numStates)) != 0)
     {
         return result;
     }
@@ -160,11 +161,11 @@ auto GVAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
     // Normal, damaged and destroyed, and optionally an extra state.
     if (numStates == 4)
     {
-        hasExtraState = 1;
+        HasExtraState = 1;
     }
     else if (numStates == 3)
     {
-        hasExtraState = 0;
+        HasExtraState = 0;
     }
     else
     {
@@ -176,56 +177,56 @@ auto GVAppearanceType::loadIniFile(File* apprFile, uint32_t fileSize) -> int32_t
         char blockName[20];
         sprintf(blockName, "State%d", i);
 
-        if ((result = iniFile.seekBlock(blockName)) != 0)
+        if ((result = iniFile.SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        GVActorData& data = actorStateData[i];
+        MCGVActorData& data = ActorStateData[i];
         uint8_t state = 0;
 
-        if ((result = iniFile.readIdUChar("State", state)) != 0)
+        if ((result = iniFile.ReadIdUChar("State", state)) != 0)
         {
             return result;
         }
 
-        data.state = static_cast<GVActorState>(state);
+        data.State = static_cast<MCGVActorState>(state);
 
-        if ((result = iniFile.readIdULong("NumFrames", data.numFrames)) != 0)
+        if ((result = iniFile.ReadIdULong("NumFrames", data.NumFrames)) != 0)
         {
             return result;
         }
 
-        if ((result = iniFile.readIdFloat("FrameRate", data.frameRate)) != 0)
+        if ((result = iniFile.ReadIdFloat("FrameRate", data.FrameRate)) != 0)
         {
             return result;
         }
 
-        if ((result = iniFile.readIdULong("BasePacketNumber", data.basePacketNumber)) != 0)
+        if ((result = iniFile.ReadIdULong("BasePacketNumber", data.BasePacketNumber)) != 0)
         {
             return result;
         }
 
-        if ((result = iniFile.readIdUChar("NumRotations", data.numRotations)) != 0)
+        if ((result = iniFile.ReadIdUChar("NumRotations", data.NumRotations)) != 0)
         {
             return result;
         }
     }
 
-    iniFile.close();
+    iniFile.Close();
     return 0;
 }
 
-auto GVAppearanceType::getShape(GVActorState state, int32_t rotation, int32_t part, float& frameRate) -> Shape*
+auto MCGVAppearanceType::GetShape(MCGVActorState state, int32_t rotation, int32_t part, float& frameRate) -> MCShape*
 {
-    if (static_cast<int32_t>(numParts) <= part)
+    if (static_cast<int32_t>(NumParts) <= part)
     {
         return nullptr;
     }
 
-    const GVActorData& data = actorStateData[state];
+    const MCGVActorData& data = ActorStateData[state];
 
-    if (data.numFrames == 0)
+    if (data.NumFrames == 0)
     {
         return nullptr;
     }
@@ -246,12 +247,12 @@ auto GVAppearanceType::getShape(GVActorState state, int32_t rotation, int32_t pa
         rotation += 360;
     }
 
-    const uint32_t numRotations = data.numRotations;
-    frameRate = data.frameRate;
+    const uint32_t numRotations = data.NumRotations;
+    frameRate = data.FrameRate;
     const int32_t rotationIndex = static_cast<int16_t>(static_cast<int32_t>(std::floor(
         static_cast<double>(static_cast<int32_t>(numRotations * static_cast<uint32_t>(rotation))) * (1.0 / 360.0))));
     // The turret's rotations follow the body's.
-    uint32_t basePacket = data.basePacketNumber;
+    uint32_t basePacket = data.BasePacketNumber;
 
     if (part > 0)
     {
@@ -260,111 +261,111 @@ auto GVAppearanceType::getShape(GVActorState state, int32_t rotation, int32_t pa
 
     const uint32_t packet = basePacket + static_cast<uint32_t>(rotationIndex);
 
-    if (numPackets <= static_cast<int32_t>(packet))
+    if (NumPackets <= static_cast<int32_t>(packet))
     {
         return nullptr;
     }
 
-    Shape* shape = shapeList[packet];
+    MCShape* shape = ShapeList[packet];
 
     if (shape != nullptr)
     {
-        shape->lastTurnUsed = turn;
+        shape->LastTurnUsed = Turn;
         return shape;
     }
 
-    dynamicFrameTiming = 0;
+    DynamicFrameTiming = 0;
     // Faithful: always asks for the zoomed out version (the sprite manager ignores it).
-    shape = spriteManager->getShapeData(appearanceNum & 0xffffff, packet, turn, this, 1);
-    shapeList[packet] = shape;
+    shape = SpriteManager->GetShapeData(AppearanceNum & 0xffffff, packet, Turn, this, 1);
+    ShapeList[packet] = shape;
     return shape;
 }
 
-auto GVAppearanceType::destroy() -> void
+auto MCGVAppearanceType::Destroy() -> void
 {
     // The shapes stay in the sprite manager's cache, ownerless.
-    for (int32_t i = 0; i < numPackets; i++)
+    for (int32_t i = 0; i < NumPackets; i++)
     {
-        if (shapeList[i] != nullptr)
+        if (ShapeList[i] != nullptr)
         {
-            shapeList[i]->owner = nullptr;
+            ShapeList[i]->Owner = nullptr;
         }
     }
 
-    spriteManager->freeDataRAM(shapeList);
-    shapeList = nullptr;
-    spriteManager->freeDataRAM(actorStateData);
-    actorStateData = nullptr;
+    SpriteManager->FreeDataRam(ShapeList);
+    ShapeList = nullptr;
+    SpriteManager->FreeDataRam(ActorStateData);
+    ActorStateData = nullptr;
 }
 
 //---------------------------------------------------------------------------
 // GVAppearance
 //---------------------------------------------------------------------------
 
-auto GVAppearance::init(AppearanceType* tree, GameObject* obj) -> int32_t
+auto MCGVAppearance::Init(MCAppearanceType* tree, MCGameObject* obj) -> int32_t
 {
-    visible = 0;
-    owner = obj;
-    appearType = static_cast<GVAppearanceType*>(tree);
+    Visible = 0;
+    Owner = obj;
+    AppearType = static_cast<MCGVAppearanceType*>(tree);
 
     if (tree != nullptr)
     {
-        numParts = static_cast<int32_t>(appearType->numParts);
-        turretOffset = appearType->turretOffset;
-        tree->addUsers(this);
+        NumParts = static_cast<int32_t>(AppearType->NumParts);
+        TurretOffset = AppearType->TurretOffset;
+        tree->AddUsers(this);
     }
 
     for (int32_t i = 0; i < 2; i++)
     {
-        currentShape[i] = nullptr;
-        currentFrame[i] = -1;
+        CurrentShape[i] = nullptr;
+        CurrentFrame[i] = -1;
     }
 
-    visible = 0;
-    shapeMinY = -25.0f;
-    shapeMinX = -25.0f;
-    currentTime = 0.0f;
-    lastFrame = 0;
-    currentState = GV_ACTOR_STATE_NORMAL;
-    inView = 0;
-    bodyRotation = 0.0f;
-    shapeMaxY = 50.0f;
-    shapeMaxX = 50.0f;
-    frameRate = 15.0f;
-    fadeTableIndex = -1;
+    Visible = 0;
+    ShapeMinY = -25.0f;
+    ShapeMinX = -25.0f;
+    CurrentTime = 0.0f;
+    LastFrame = 0;
+    CurrentState = GV_ACTOR_STATE_NORMAL;
+    InView = 0;
+    BodyRotation = 0.0f;
+    ShapeMaxY = 50.0f;
+    ShapeMaxX = 50.0f;
+    FrameRate = 15.0f;
+    FadeTableIndex = -1;
     return 0;
 }
 
-auto GVAppearance::recalcBounds(Camera* cam) -> int
+auto MCGVAppearance::RecalcBounds(MCCamera* cam) -> int
 {
     if (cam == nullptr)
     {
         return 0;
     }
 
-    GameObject* obj = owner;
-    const vector_2d pos = obj->getScreenPos(cam->cameraId - 1);
-    float x = pos.x;
-    float y = pos.y;
+    MCGameObject* obj = Owner;
+    const MCVector2D pos = obj->GetScreenPos(cam->CameraId - 1);
+    float x = pos.X;
+    float y = pos.Y;
 
-    if (obj->objectClass == TURRET)
+    if (obj->ObjectClass == TURRET)
     {
-        const float camScale = cam->cameraScale == 1 ? 0.5f : 1.0f;
-        x = static_cast<float>(static_cast<Turret*>(obj)->tileOffsetX) * camScale + x;
-        y = static_cast<float>(static_cast<Turret*>(obj)->tileOffsetY) * camScale + y;
+        const float camScale = cam->CameraScale == 1 ? 0.5f : 1.0f;
+        x = static_cast<float>(static_cast<MCTurret*>(obj)->TileOffsetX) * camScale + x;
+        y = static_cast<float>(static_cast<MCTurret*>(obj)->TileOffsetY) * camScale + y;
     }
 
-    upperLeft.x = x;
-    upperLeft.y = y;
-    lowerRight.y = y;
-    lowerRight.x = x;
+    UpperLeft.X = x;
+    UpperLeft.Y = y;
+    LowerRight.Y = y;
+    LowerRight.X = x;
 
-    if (currentShape[0] != nullptr && currentShape[0]->frameList != nullptr)
+    if (CurrentShape[0] != nullptr && CurrentShape[0]->FrameList != nullptr)
     {
         // The bounds only ever grow: they cover every body frame drawn so far.
-        uint8_t* shapeTable = currentShape[0]->frameList;
-        const int32_t numShapeFrames = VFX_shape_count(shapeTable);
-        int32_t frame = currentFrame[0];
+        uint8_t* shapeTable = CurrentShape[0]->FrameList;
+        const int32_t numShapeFrames = VfxShapeCount(shapeTable);
+        int32_t frame = CurrentFrame[0];
 
         if (frame < 0)
         {
@@ -376,41 +377,41 @@ auto GVAppearance::recalcBounds(Camera* cam) -> int
             frame = numShapeFrames - 1;
         }
 
-        const int32_t minXY = VFX_shape_minxy(shapeTable, frame);
+        const int32_t minXY = VfxShapeMinxy(shapeTable, frame);
 
-        if (static_cast<float>(minXY >> 16) < shapeMinX)
+        if (static_cast<float>(minXY >> 16) < ShapeMinX)
         {
-            shapeMinX = static_cast<float>(minXY >> 16);
+            ShapeMinX = static_cast<float>(minXY >> 16);
         }
 
-        if (static_cast<float>(static_cast<int16_t>(minXY)) < shapeMinY)
+        if (static_cast<float>(static_cast<int16_t>(minXY)) < ShapeMinY)
         {
-            shapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
+            ShapeMinY = static_cast<float>(static_cast<int16_t>(minXY));
         }
 
-        const int32_t size = VFX_shape_resolution(shapeTable, frame);
+        const int32_t size = VfxShapeResolution(shapeTable, frame);
 
-        if (shapeMaxX < static_cast<float>(size >> 16))
+        if (ShapeMaxX < static_cast<float>(size >> 16))
         {
-            shapeMaxX = static_cast<float>(size >> 16);
+            ShapeMaxX = static_cast<float>(size >> 16);
         }
 
-        if (shapeMaxY < static_cast<float>(static_cast<int16_t>(size)))
+        if (ShapeMaxY < static_cast<float>(static_cast<int16_t>(size)))
         {
-            shapeMaxY = static_cast<float>(static_cast<int16_t>(size));
+            ShapeMaxY = static_cast<float>(static_cast<int16_t>(size));
         }
 
-        inView = 1;
+        InView = 1;
     }
 
     // Faithful: the zoom is the eye's, the screen limits the camera's (not rounded down here).
-    const float scale = eyeScale();
-    upperLeft.x = scale * shapeMinX + x;
-    upperLeft.y = scale * shapeMinY + y;
-    lowerRight.x = scale * shapeMaxX + upperLeft.x;
-    lowerRight.y = scale * shapeMaxY + upperLeft.y;
+    const float scale = EyeScale();
+    UpperLeft.X = scale * ShapeMinX + x;
+    UpperLeft.Y = scale * ShapeMinY + y;
+    LowerRight.X = scale * ShapeMaxX + UpperLeft.X;
+    LowerRight.Y = scale * ShapeMaxY + UpperLeft.Y;
 
-    if (0.0f <= lowerRight.x && 0.0f <= lowerRight.y && upperLeft.x <= cam->viewWidth && upperLeft.y <= cam->viewHeight)
+    if (0.0f <= LowerRight.X && 0.0f <= LowerRight.Y && UpperLeft.X <= cam->ViewWidth && UpperLeft.Y <= cam->ViewHeight)
     {
         return 1;
     }
@@ -418,42 +419,42 @@ auto GVAppearance::recalcBounds(Camera* cam) -> int
     return 0;
 }
 
-auto GVAppearance::render(int32_t depthFixup) -> int32_t
+auto MCGVAppearance::Render(int32_t depthFixup) -> int32_t
 {
-    GameObject* obj = owner;
-    screenPos = obj->getScreenPos(eye->cameraId - 1);
-    const int32_t objectClass = obj->objectClass;
-    const float scale = eyeScale();
+    MCGameObject* obj = Owner;
+    ScreenPos = obj->GetScreenPos(Eye->CameraId - 1);
+    const int32_t objectClass = obj->ObjectClass;
+    const float scale = EyeScale();
 
     if (objectClass == TURRET)
     {
-        screenPos.x = static_cast<float>(static_cast<Turret*>(obj)->tileOffsetX) * scale + screenPos.x;
-        screenPos.y = static_cast<float>(static_cast<Turret*>(obj)->tileOffsetY) * scale + screenPos.y;
+        ScreenPos.X = static_cast<float>(static_cast<MCTurret*>(obj)->TileOffsetX) * scale + ScreenPos.X;
+        ScreenPos.Y = static_cast<float>(static_cast<MCTurret*>(obj)->TileOffsetY) * scale + ScreenPos.Y;
     }
 
     // The body's and the turret's facings.
     if (objectClass == GROUNDVEHICLE)
     {
-        const double body = objectFacing(obj) + 5.0;
-        bodyRotation = static_cast<float>(body);
-        turretRotation = static_cast<float>(body + static_cast<GroundVehicle*>(obj)->turretRotation);
+        const double body = ObjectFacing(obj) + 5.0;
+        BodyRotation = static_cast<float>(body);
+        TurretRotation = static_cast<float>(body + static_cast<MCGroundVehicle*>(obj)->TurretRotation);
     }
     else if (objectClass == TURRET)
     {
-        const float rotation = static_cast<Turret*>(obj)->turretRotation;
-        turretRotation = rotation;
-        bodyRotation = rotation;
+        const float rotation = static_cast<MCTurret*>(obj)->TurretRotation;
+        TurretRotation = rotation;
+        BodyRotation = rotation;
     }
     else if (objectClass == TRAINCAR)
     {
-        bodyRotation = static_cast<float>(objectFacing(obj) + 10.0);
-        turretRotation = 0.0f;
+        BodyRotation = static_cast<float>(ObjectFacing(obj) + 10.0);
+        TurretRotation = 0.0f;
     }
     else if (objectClass == CAMERADRONE)
     {
-        const double facing = objectFacing(obj);
-        bodyRotation = static_cast<float>(facing);
-        turretRotation = 0.0f;
+        const double facing = ObjectFacing(obj);
+        BodyRotation = static_cast<float>(facing);
+        TurretRotation = 0.0f;
         // Faithful: 45 and -134 swap (-135 is left as it is).
         int32_t whole = static_cast<int32_t>(facing);
 
@@ -466,48 +467,48 @@ auto GVAppearance::render(int32_t depthFixup) -> int32_t
             whole = 45;
         }
 
-        bodyRotation = static_cast<float>(whole);
+        BodyRotation = static_cast<float>(whole);
     }
-    while (turretRotation > 180.0f)
+    while (TurretRotation > 180.0f)
     {
-        turretRotation -= 360.0f;
+        TurretRotation -= 360.0f;
     }
-    while (turretRotation < -180.0f)
+    while (TurretRotation < -180.0f)
     {
-        turretRotation += 360.0f;
+        TurretRotation += 360.0f;
     }
 
-    if (turretRotation < 0.0f)
+    if (TurretRotation < 0.0f)
     {
-        turretRotation += 360.0f;
+        TurretRotation += 360.0f;
     }
 
     // The body snaps to its nearest drawn rotation.
-    const GVActorState state = currentState;
-    const int32_t numRotations = appearType->actorStateData[state].numRotations + 1;
+    const MCGVActorState state = CurrentState;
+    const int32_t numRotations = AppearType->ActorStateData[state].NumRotations + 1;
     const int32_t rotationIndex = static_cast<int16_t>(
-        static_cast<int32_t>(std::floor(static_cast<double>(numRotations) * bodyRotation * (1.0 / 360.0))));
-    bodyRotation = static_cast<float>(360.0 / numRotations * rotationIndex);
-    currentShape[0] = appearType->getShape(state, static_cast<int32_t>(bodyRotation), 0, frameRate);
+        static_cast<int32_t>(std::floor(static_cast<double>(numRotations) * BodyRotation * (1.0 / 360.0))));
+    BodyRotation = static_cast<float>(360.0 / numRotations * rotationIndex);
+    CurrentShape[0] = AppearType->GetShape(state, static_cast<int32_t>(BodyRotation), 0, FrameRate);
 
-    if (static_cast<uint32_t>(numParts) < 2 || currentState == GV_ACTOR_STATE_DESTROYED)
+    if (static_cast<uint32_t>(NumParts) < 2 || CurrentState == GV_ACTOR_STATE_DESTROYED)
     {
-        currentShape[1] = nullptr;
+        CurrentShape[1] = nullptr;
     }
     else
     {
-        currentShape[1] = appearType->getShape(currentState, static_cast<int32_t>(turretRotation), 1, frameRate);
+        CurrentShape[1] = AppearType->GetShape(CurrentState, static_cast<int32_t>(TurretRotation), 1, FrameRate);
     }
 
-    ElementList->openGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - screenPos.y), 0);
-    partOrder[0] = 0;
-    partOrder[1] = 1;
+    ElementList->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 0);
+    PartOrder[0] = 0;
+    PartOrder[1] = 1;
 
-    for (int32_t i = 0; i < numParts; i++)
+    for (int32_t i = 0; i < NumParts; i++)
     {
-        const int32_t part = partOrder[i];
+        const int32_t part = PartOrder[i];
 
-        if (currentShape[part] == nullptr || currentShape[part]->frameList == nullptr)
+        if (CurrentShape[part] == nullptr || CurrentShape[part]->FrameList == nullptr)
         {
             continue;
         }
@@ -518,184 +519,185 @@ auto GVAppearance::render(int32_t depthFixup) -> int32_t
         if (part == 1)
         {
             // The turret sits turretOffset meters forward of the body's centre.
-            const double distance = static_cast<double>(eyeScale()) * turretOffset * worldUnitsPerMeter;
-            offsetX = static_cast<float>(distance * std::sin(bodyRotation * 0x1.1df46a2526c7ap-6));
-            offsetY = static_cast<float>(distance * std::cos(bodyRotation * 0x1.1df46a2526c7ap-6) * 0.5);
+            const double distance = static_cast<double>(EyeScale()) * TurretOffset * WorldUnitsPerMeter;
+            offsetX = static_cast<float>(distance * std::sin(BodyRotation * 0x1.1df46a2526c7ap-6));
+            offsetY = static_cast<float>(distance * std::cos(BodyRotation * 0x1.1df46a2526c7ap-6) * 0.5);
         }
 
         uint8_t* fadeTable = nullptr;
 
-        if (fadeTableIndex != -1 && fadeTableIndex >= 0)
+        if (FadeTableIndex != -1 && FadeTableIndex >= 0)
         {
             fadeTable =
-                gamePalette->fadePalettes.get() + (fadeTableIndex + gamePalette->numBitmapHazeLevels * 2) * 0x100;
+                GamePalette->FadePalettes.get() + (FadeTableIndex + GamePalette->NumBitmapHazeLevels * 2) * 0x100;
         }
 
-        auto* element = ElementPool::Make<VFXElement>(currentShape[part]->frameList, screenPos.x - offsetX,
-                                                      screenPos.y - offsetY, currentFrame[part], 0, fadeTable, 0, 0);
+        auto* element =
+            MCElementPool::Make<MCVfxElement>(CurrentShape[part]->FrameList, ScreenPos.X - offsetX,
+                                              ScreenPos.Y - offsetY, CurrentFrame[part], 0, fadeTable, 0, 0);
 
         // Port fix: the original copies the debug name through a null element too.
         if (element != nullptr)
         {
-            strcpy(element->name, "gvactor");
+            strcpy(element->Name, "gvactor");
         }
 
-        ElementList->add(element);
+        ElementList->Add(element);
     }
 
-    const int32_t selected = owner->selected;
+    const int32_t selected = Owner->Selected;
 
     if (selected == -1 || selected == 1)
     {
-        recalcBounds(eye);
-        drawBars();
+        RecalcBounds(Eye);
+        DrawBars();
     }
     else
     {
         if (selected == 2)
         {
-            recalcBounds(eye);
-            GameObject* selectedObj = owner;
-            const int32_t alignment = selectedObj->getAlignment();
+            RecalcBounds(Eye);
+            MCGameObject* selectedObj = Owner;
+            const int32_t alignment = selectedObj->GetAlignment();
 
             if (alignment == -1)
             {
-                drawSelectBrackets(0xfd);
+                DrawSelectBrackets(0xfd);
             }
             else if (alignment == 0)
             {
-                drawSelectBrackets(0xfe);
+                DrawSelectBrackets(0xfe);
             }
             else if (alignment == 1)
             {
-                drawSelectBrackets(selectedObj->getAlignment() == homeTeam->alignment ? 0xfc : 0xfb);
+                DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam->Alignment ? 0xfc : 0xfb);
             }
         }
 
-        if (owner->getNumAttackers() >= 1)
+        if (Owner->GetNumAttackers() >= 1)
         {
-            recalcBounds(eye);
-            drawBars();
+            RecalcBounds(Eye);
+            DrawBars();
         }
     }
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
-        recalcBounds(eye);
-        drawSelectBox(0xfd);
+        RecalcBounds(Eye);
+        DrawSelectBox(0xfd);
     }
 
-    if (highlighting != 0)
+    if (Highlighting != 0)
     {
-        if (highlightTime > 0.0f)
+        if (HighlightTime > 0.0f)
         {
-            highlightTime -= frameLength;
-            drawSelectBox(0xfc);
+            HighlightTime -= FrameLength;
+            DrawSelectBox(0xfc);
             return 0;
         }
 
-        highlighted = 1;
+        Highlighted = 1;
     }
 
     return 0;
 }
 
-auto GVAppearance::update() -> int32_t
+auto MCGVAppearance::Update() -> int32_t
 {
-    for (int32_t i = 0; i < numParts; i++)
+    for (int32_t i = 0; i < NumParts; i++)
     {
-        if (currentFrame[i] == -1)
+        if (CurrentFrame[i] == -1)
         {
-            currentFrame[i] = 0;
+            CurrentFrame[i] = 0;
         }
     }
 
-    if (visible != 0 && owner->isCaptured() != 0 && highlighted == 0 && highlighting == 0)
+    if (Visible != 0 && Owner->IsCaptured() != 0 && Highlighted == 0 && Highlighting == 0)
     {
-        highlighting = 1;
-        highlightTime = 3.0f;
+        Highlighting = 1;
+        HighlightTime = 3.0f;
     }
 
-    currentTime = frameLength + currentTime;
-    const int32_t wholeFrames = static_cast<int32_t>(std::floor(static_cast<double>(currentTime * frameRate)));
+    CurrentTime = FrameLength + CurrentTime;
+    const int32_t wholeFrames = static_cast<int32_t>(std::floor(static_cast<double>(CurrentTime * FrameRate)));
 
-    if (lastFrame < wholeFrames)
+    if (LastFrame < wholeFrames)
     {
-        const int32_t played = lastFrame;
-        lastFrame = wholeFrames;
+        const int32_t played = LastFrame;
+        LastFrame = wholeFrames;
         const int32_t advanced = wholeFrames - played;
 
         if (advanced != 0)
         {
             // The turret shows the body's frame.
-            const uint32_t frame = static_cast<uint32_t>(currentFrame[0] + advanced);
-            currentFrame[0] = static_cast<int32_t>(frame);
-            const uint32_t numFrames = appearType->actorStateData[currentState].numFrames;
+            const uint32_t frame = static_cast<uint32_t>(CurrentFrame[0] + advanced);
+            CurrentFrame[0] = static_cast<int32_t>(frame);
+            const uint32_t numFrames = AppearType->ActorStateData[CurrentState].NumFrames;
 
             if (numFrames <= frame)
             {
-                currentFrame[0] = static_cast<int32_t>(frame % numFrames);
+                CurrentFrame[0] = static_cast<int32_t>(frame % numFrames);
                 return 0;
             }
 
-            currentFrame[1] = static_cast<int32_t>(frame);
+            CurrentFrame[1] = static_cast<int32_t>(frame);
         }
     }
 
     return 1;
 }
 
-auto GVAppearance::destroy() -> void
+auto MCGVAppearance::Destroy() -> void
 {
-    appearType->removeUsers(this);
-    appearanceTypeList->removeAppearance(appearType);
+    AppearType->RemoveUsers(this);
+    AppearanceTypeList->RemoveAppearance(AppearType);
 }
 
-auto GVAppearance::stateExists(GVActorState state) -> int32_t
+auto MCGVAppearance::StateExists(MCGVActorState state) -> int32_t
 {
-    const int32_t numStates = (appearType->hasExtraState != 0 ? 1 : 0) + 3;
+    const int32_t numStates = (AppearType->HasExtraState != 0 ? 1 : 0) + 3;
 
     if (static_cast<int32_t>(state) < numStates && state >= 0)
     {
-        return static_cast<int32_t>(appearType->actorStateData[state].numFrames);
+        return static_cast<int32_t>(AppearType->ActorStateData[state].NumFrames);
     }
 
     return 0;
 }
 
-auto GVAppearance::drawBars() -> void
+auto MCGVAppearance::DrawBars() -> void
 {
     // Port: the bar is an overlay, on the screen over the view: it follows the sprite through the zoom, its size
     // doesn't change.
-    const float scale = eyeScale();
+    const float scale = EyeScale();
     const float barWidth = scale * 38.0f;
     const float barHeight = scale * 4.0f;
-    const float barY = (MCOverlayY(upperLeft.y) - scale * 6.0f) - barHeight;
-    const float barX = static_cast<float>(std::floor(static_cast<double>(MCOverlayX(screenPos.x) - barWidth * 0.5f)));
+    const float barY = (MCOverlayY(UpperLeft.Y) - scale * 6.0f) - barHeight;
+    const float barX = static_cast<float>(std::floor(static_cast<double>(MCOverlayX(ScreenPos.X) - barWidth * 0.5f)));
 
     // How much of the unit is left, per class.
-    GameObject* obj = owner;
+    MCGameObject* obj = Owner;
     float health = 0.0f; // Port fix: the original leaves this unset for other classes.
-    const int32_t objectClass = obj->objectClass;
+    const int32_t objectClass = obj->ObjectClass;
 
     if (objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL || objectClass == MOVER)
     {
-        health = static_cast<Mover*>(obj)->getTotalEffectiveness();
-        auto* vehicle = static_cast<GroundVehicle*>(obj);
+        health = static_cast<MCMover*>(obj)->GetTotalEffectiveness();
+        auto* vehicle = static_cast<MCGroundVehicle*>(obj);
 
-        if (obj->objectClass == GROUNDVEHICLE && vehicle->refitter != 0)
+        if (obj->ObjectClass == GROUNDVEHICLE && vehicle->Refitter != 0)
         {
             // A refit vehicle shows the refit points left against the turret's full armor.
-            const float capacity = vehicle->refitter == 0
+            const float capacity = vehicle->Refitter == 0
                                        ? 0.0f
-                                       : static_cast<float>(vehicle->armor[GROUNDVEHICLE_LOCATION_TURRET].maxArmor);
-            health = static_cast<float>(vehicle->getRefitPoints() / capacity * health);
+                                       : static_cast<float>(vehicle->Armor[GROUNDVEHICLE_LOCATION_TURRET].MaxArmor);
+            health = static_cast<float>(vehicle->GetRefitPoints() / capacity * health);
         }
     }
     else if (objectClass == TURRET)
     {
-        int32_t damage = static_cast<int32_t>(obj->getDamage());
-        const int32_t dmgLevel = static_cast<int32_t>(static_cast<TurretType*>(obj->getObjectType())->dmgLevel);
+        int32_t damage = static_cast<int32_t>(obj->GetDamage());
+        const int32_t dmgLevel = static_cast<int32_t>(static_cast<MCTurretType*>(obj->GetObjectType())->DmgLevel);
 
         if (dmgLevel < damage)
         {
@@ -706,8 +708,8 @@ auto GVAppearance::drawBars() -> void
     }
     else if (objectClass == TRAINCAR)
     {
-        int32_t damage = static_cast<int32_t>(obj->getDamage());
-        const int32_t dmgLevel = static_cast<TrainCarType*>(obj->getObjectType())->damage;
+        int32_t damage = static_cast<int32_t>(obj->GetDamage());
+        const int32_t dmgLevel = static_cast<MCTrainCarType*>(obj->GetObjectType())->Damage;
 
         if (dmgLevel < damage)
         {
@@ -721,7 +723,7 @@ auto GVAppearance::drawBars() -> void
     {
         health = 1.0f;
 
-        if (static_cast<CameraDrone*>(obj)->hitPoints < 1)
+        if (static_cast<MCCameraDrone*>(obj)->HitPoints < 1)
         {
             health = 0.0f;
         }
@@ -739,21 +741,21 @@ auto GVAppearance::drawBars() -> void
         barColor = 0x101;
     }
 
-    ElementList->openGroup(-50000, 1);
-    PolyElementData data;
-    data.numVertices = 0;
-    data.textureMapOff = 0;
-    data.texture = nullptr;
-    data.textureWidth = 0;
-    data.textureHeight = 0;
-    data.fadeTable = nullptr;
-    data.translate = 0;
-    data.statusBar = 1;
-    data.barColor = barColor;
-    data.vertices[0].x = static_cast<int32_t>(barX - 1.0f);
-    data.vertices[0].y = static_cast<int32_t>(barY - 1.0f);
-    data.vertices[1].x = static_cast<int32_t>(barX + barWidth + 1.0f);
-    data.vertices[1].y = static_cast<int32_t>(barY + barHeight + 1.0f);
+    ElementList->OpenGroup(-50000, 1);
+    MCPolyElementData data;
+    data.NumVertices = 0;
+    data.TextureMapOff = 0;
+    data.Texture = nullptr;
+    data.TextureWidth = 0;
+    data.TextureHeight = 0;
+    data.FadeTable = nullptr;
+    data.Translate = 0;
+    data.StatusBar = 1;
+    data.BarColor = barColor;
+    data.Vertices[0].X = static_cast<int32_t>(barX - 1.0f);
+    data.Vertices[0].Y = static_cast<int32_t>(barY - 1.0f);
+    data.Vertices[1].X = static_cast<int32_t>(barX + barWidth + 1.0f);
+    data.Vertices[1].Y = static_cast<int32_t>(barY + barHeight + 1.0f);
     float barLength = health * barWidth;
 
     // A unit that isn't quite dead shows at least one pixel.
@@ -762,10 +764,10 @@ auto GVAppearance::drawBars() -> void
         barLength = 1.0f;
     }
 
-    data.barPercent = static_cast<int32_t>(barLength);
+    data.BarPercent = static_cast<int32_t>(barLength);
 
-    if (data.barPercent > 0)
+    if (data.BarPercent > 0)
     {
-        ElementList->add(ElementPool::Make<PolygonElement>(&data, -50000));
+        ElementList->Add(MCElementPool::Make<MCPolygonElement>(&data, -50000));
     }
 }

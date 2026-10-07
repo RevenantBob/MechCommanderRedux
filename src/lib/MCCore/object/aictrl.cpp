@@ -10,47 +10,47 @@
 // MechAIControl
 //---------------------------------------------------------------------------
 
-auto MechAIControl::init(GameObject* object) -> int32_t
+auto MCMechAIControl::Init(MCGameObject* object) -> int32_t
 {
-    Control::init(object, 0);
-    pilot = object->getPilot();
-    dynamicsType = static_cast<BattleMechType*>(object->getObjectType())->dynamicsType;
+    MCControl::Init(object, 0);
+    Pilot = object->GetPilot();
+    DynamicsType = static_cast<MCBattleMechType*>(object->GetObjectType())->DynamicsType;
     return 0;
 }
 
-auto MechAIControl::update() -> int32_t
+auto MCMechAIControl::Update() -> int32_t
 {
-    auto* data = static_cast<MechControlData*>(controlData);
-    data->reset();
-    auto* mech = static_cast<BattleMech*>(me);
+    auto* data = static_cast<MCMechControlData*>(ControlData);
+    data->Reset();
+    auto* mech = static_cast<MCBattleMech*>(Me);
 
-    if (mech->getAwake())
+    if (mech->GetAwake())
     {
-        if (mech->leftArmBlownThisFrame != 0)
+        if (mech->LeftArmBlownThisFrame != 0)
         {
-            mech->leftArmBlownThisFrame = 0;
-            data->blowLeftArm = 1;
+            mech->LeftArmBlownThisFrame = 0;
+            data->BlowLeftArm = 1;
         }
 
-        if (mech->rightArmBlownThisFrame != 0)
+        if (mech->RightArmBlownThisFrame != 0)
         {
-            mech->rightArmBlownThisFrame = 0;
-            data->blowRightArm = 1;
+            mech->RightArmBlownThisFrame = 0;
+            data->BlowRightArm = 1;
         }
 
-        mech->updateDamageTakenRate();
+        mech->UpdateDamageTakenRate();
 
-        if (!mech->isDisabled() && pilot->wounds < 6.0f && pilot->status != 3 && pilot->status != 5 &&
-            pilot->status != 6)
+        if (!mech->IsDisabled() && Pilot->Wounds < 6.0f && Pilot->Status != 3 && Pilot->Status != 5 &&
+            Pilot->Status != 6)
         {
-            pilot->mainDecisionTree();
-            mech->updateMovement();
+            Pilot->MainDecisionTree();
+            mech->UpdateMovement();
             return 1;
         }
 
-        if (mech->shutDownThisFrame != 0 || mech->disableThisFrame != 0)
+        if (mech->ShutDownThisFrame != 0 || mech->DisableThisFrame != 0)
         {
-            mech->updateMovement();
+            mech->UpdateMovement();
         }
     }
 
@@ -61,33 +61,33 @@ auto MechAIControl::update() -> int32_t
 // GroundVehicleAIControl
 //---------------------------------------------------------------------------
 
-auto GroundVehicleAIControl::init(GameObject* object) -> int32_t
+auto MCGroundVehicleAIControl::Init(MCGameObject* object) -> int32_t
 {
-    Control::init(object, 0);
-    pilot = object->getPilot();
-    dynamicsType = static_cast<GroundVehicleType*>(object->getObjectType())->dynamicsType;
+    MCControl::Init(object, 0);
+    Pilot = object->GetPilot();
+    DynamicsType = static_cast<MCGroundVehicleType*>(object->GetObjectType())->DynamicsType;
     return 0;
 }
 
-auto GroundVehicleAIControl::update() -> int32_t
+auto MCGroundVehicleAIControl::Update() -> int32_t
 {
-    controlData->reset();
-    auto* vehicle = static_cast<GroundVehicle*>(me);
+    ControlData->Reset();
+    auto* vehicle = static_cast<MCGroundVehicle*>(Me);
 
-    if (vehicle->getAwake())
+    if (vehicle->GetAwake())
     {
-        vehicle->updateDamageTakenRate();
+        vehicle->UpdateDamageTakenRate();
 
-        if (!vehicle->isDisabled() && pilot->wounds < 6.0f)
+        if (!vehicle->IsDisabled() && Pilot->Wounds < 6.0f)
         {
-            pilot->mainDecisionTree();
-            vehicle->updateMovement();
+            Pilot->MainDecisionTree();
+            vehicle->UpdateMovement();
             return 1;
         }
 
-        if (vehicle->shutDownThisFrame != 0 || vehicle->disableThisFrame != 0)
+        if (vehicle->ShutDownThisFrame != 0 || vehicle->DisableThisFrame != 0)
         {
-            vehicle->updateMovement();
+            vehicle->UpdateMovement();
         }
     }
 
@@ -98,33 +98,33 @@ auto GroundVehicleAIControl::update() -> int32_t
 // ElementalAIControl
 //---------------------------------------------------------------------------
 
-auto ElementalAIControl::init(GameObject* object) -> int32_t
+auto MCElementalAIControl::Init(MCGameObject* object) -> int32_t
 {
-    Control::init(object, 0);
-    pilot = object->getPilot();
-    dynamicsType = static_cast<ElementalType*>(object->getObjectType())->dynamicsType;
+    MCControl::Init(object, 0);
+    Pilot = object->GetPilot();
+    DynamicsType = static_cast<MCElementalType*>(object->GetObjectType())->DynamicsType;
     return 0;
 }
 
-auto ElementalAIControl::update() -> int32_t
+auto MCElementalAIControl::Update() -> int32_t
 {
-    controlData->reset();
-    auto* elemental = static_cast<Elemental*>(me);
+    ControlData->Reset();
+    auto* elemental = static_cast<MCElemental*>(Me);
 
-    if (elemental->getAwake())
+    if (elemental->GetAwake())
     {
-        elemental->updateDamageTakenRate();
+        elemental->UpdateDamageTakenRate();
 
-        if (!elemental->isDisabled() && pilot->wounds < 6.0f)
+        if (!elemental->IsDisabled() && Pilot->Wounds < 6.0f)
         {
-            pilot->mainDecisionTree();
-            elemental->updateMovement();
+            Pilot->MainDecisionTree();
+            elemental->UpdateMovement();
             return 1;
         }
 
-        if (elemental->shutDownThisFrame != 0 || elemental->disableThisFrame != 0)
+        if (elemental->ShutDownThisFrame != 0 || elemental->DisableThisFrame != 0)
         {
-            elemental->updateMovement();
+            elemental->UpdateMovement();
         }
     }
 

@@ -56,12 +56,12 @@
 #include "terrain/terrain.h"
 #include "sprite/mactor.h"
 
-char mechSpeedStateArray[32] = {0, 0, 0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,  1,  1,  1,
+char MechSpeedStateArray[32] = {0, 0, 0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,  1,  1,  1,
                                 2, 2, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1};
 char MechStateByGesture[28] = {0, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 5, 2, 2, 8, 7, 8, 7, 8, 7, 6, 7, 7, 7, 8, 0, 0, 0};
 int32_t NumLocationCriticalSpaces[NUM_MECH_BODY_LOCATIONS] = {6, 12, 12, 12, 12, 12, 6, 6};
 int32_t MechHitSectionTable[5] = {1, 1, 0, 2, 1};
-int32_t adjClippedCell[8][2] = {{0, 0}, {0, 2}, {2, 2}, {2, 4}, {4, 4}, {4, 6}, {6, 6}, {6, 0}};
+int32_t AdjClippedCell[8][2] = {{0, 0}, {0, 2}, {2, 2}, {2, 4}, {4, 4}, {4, 6}, {6, 6}, {6, 0}};
 float RankVersusChassisCombatModifier[4][5] = {{0.0f, 0.0f, -5.0f, -15.0f, -25.0f},
                                                {0.0f, 5.0f, 0.0f, -5.0f, -15.0f},
                                                {0.0f, 10.0f, 5.0f, 0.0f, -5.0f},
@@ -82,7 +82,7 @@ char MechHitLocationTable[0x84] = {
     0x2d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2d, 0x2d, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00};
 char MechTransferHitTable[8] = {1, -1, 1, 1, 2, 3, 2, 3};
-// MCX.EXE @ 0x00790e20: each armor location's body location (the rear torso ones map to the torso).
+// Each armor location's body location (the rear torso ones map to the torso).
 char MechArmorToBodyLocation[12] = {0, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 0};
 int32_t MechPilotCheckConditions[2] = {25, 25};
 float MoveMarginOfError[2] = {5.0f, 10.0f};
@@ -95,275 +95,275 @@ float DefaultMechCrashYieldTime = 2.0f;
 int32_t DefaultMechJumpCost = 5000;
 int32_t MechJumpOffsets[7] = {8, 16, 40, 56, 72, 88, 104};
 int32_t MechPilotCheckTerrainEffect[0x40] = {};
-float mechCollisionThreshold = 0.0f;
-float objectCollisionThreshold = 0.0f;
-float tonnageCollisionThreshold = 0.0f;
-float treeDeflection = 0.0f;
-float mechPivotAngle = 0.0f;
-float mechPivotThrottle = 0.0f;
-GameObject* BadGuy = nullptr;
-uint8_t footPrints = 1;
+float MechCollisionThreshold = 0.0f;
+float ObjectCollisionThreshold = 0.0f;
+float TonnageCollisionThreshold = 0.0f;
+float TreeDeflection = 0.0f;
+float MechPivotAngle = 0.0f;
+float MechPivotThrottle = 0.0f;
+MCGameObject* BadGuy = nullptr;
+uint8_t FootPrints = 1;
 float MineSplashRange = 0.0f;
 float MineSplashDamage = 0.0f;
 int32_t MineExplosion = 0;
 float MineBaseDamage = 0.0f;
-int friendlyDestroyed = 0;
-int enemyDestroyed = 0;
+int FriendlyDestroyed = 0;
+int EnemyDestroyed = 0;
 
 namespace
 {
-    /// <summary>Half pi, as MCX.EXE stores it (MCX.EXE @ 0x0077cb50).</summary>
+    /// <summary>Half pi, as MCX.EXE stores it.</summary>
     constexpr double HALF_PI = 0x1.921fb5443e88cp+0;
-    /// <summary>Degrees to radians, as MCX.EXE stores it (MCX.EXE @ 0x0077c2a0; a hair under pi / 180).</summary>
+    /// <summary>Degrees to radians, as MCX.EXE stores it (a hair under pi / 180).</summary>
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
 
     /// <summary>Turns a frame about its k axis (MC2's inline frame_of_ref::rotate_about_k).</summary>
-    void rotateAboutK(frame_of_ref& frame, float s, float c)
+    void RotateAboutK(MCFrameOfRef& frame, float s, float c)
     {
-        const vector_3d oldI = frame.i;
-        frame.i = frame.i * c + frame.j * s;
-        frame.j = frame.j * c - oldI * s;
+        const MCVector3D oldI = frame.I;
+        frame.I = frame.I * c + frame.J * s;
+        frame.J = frame.J * c - oldI * s;
     }
 
-    void rotateAboutKUnroundedCos(frame_of_ref& frame, float s, double c)
+    void RotateAboutKUnroundedCos(MCFrameOfRef& frame, float s, double c)
     {
-        const vector_3d oldI = frame.i;
-        const vector_3d oldJ = frame.j;
+        const MCVector3D oldI = frame.I;
+        const MCVector3D oldJ = frame.J;
         const double sd = static_cast<double>(s);
-        frame.i.x = static_cast<float>(c * oldI.x + sd * oldJ.x);
-        frame.i.y = static_cast<float>(c * oldI.y) + s * oldJ.y;
-        frame.i.z = static_cast<float>(c * oldI.z) + s * oldJ.z;
-        frame.j.x = static_cast<float>(c * oldJ.x) - s * oldI.x;
-        frame.j.y = static_cast<float>(c * oldJ.y) - s * oldI.y;
-        frame.j.z = static_cast<float>(c * oldJ.z - static_cast<double>(s * oldI.z));
+        frame.I.X = static_cast<float>(c * oldI.X + sd * oldJ.X);
+        frame.I.Y = static_cast<float>(c * oldI.Y) + s * oldJ.Y;
+        frame.I.Z = static_cast<float>(c * oldI.Z) + s * oldJ.Z;
+        frame.J.X = static_cast<float>(c * oldJ.X) - s * oldI.X;
+        frame.J.Y = static_cast<float>(c * oldJ.Y) - s * oldI.Y;
+        frame.J.Z = static_cast<float>(c * oldJ.Z - static_cast<double>(s * oldI.Z));
     }
 
     /// <summary>
     /// Damage from bumping into <paramref name="other"/>: tonnage / 10 + 1/2 (an enemy) or tonnage / 100 + 1/2 (a
     /// friend), hitting <paramref name="victim"/> from <paramref name="other"/>'s side.
     /// </summary>
-    void collisionHit(GameObject* victim, GameObject* shooter, GameObject* tonnageOf, int32_t attackSource,
+    void CollisionHit(MCGameObject* victim, MCGameObject* shooter, MCGameObject* tonnageOf, int32_t attackSource,
                       int friendly)
     {
-        const int32_t hitLocation = victim->calcHitLocation(shooter, -1, attackSource, 0);
-        const float entryAngle = victim->relFacingTo(shooter->getPosition(), -1);
+        const int32_t hitLocation = victim->CalcHitLocation(shooter, -1, attackSource, 0);
+        const float entryAngle = victim->RelFacingTo(shooter->GetPosition(), -1);
         const double scale = friendly == 0 ? 0.1 : 0.01;
-        _WeaponShotInfo shotInfo;
-        shotInfo.init(shooter, -1, static_cast<float>(tonnageOf->getTonnage() * scale + 0.5), hitLocation, entryAngle);
-        victim->handleWeaponHit(&shotInfo, MPlayer != nullptr);
+        MCWeaponShotInfo shotInfo;
+        shotInfo.Init(shooter, -1, static_cast<float>(tonnageOf->GetTonnage() * scale + 0.5), hitLocation, entryAngle);
+        victim->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
     }
 }
 
-auto loadMechGameSystem(FitIniFile* sysFile) -> int32_t
+auto LoadMechGameSystem(MCFitIniFile* sysFile) -> int32_t
 {
-    int32_t result = sysFile->seekBlock("Mech:Class");
+    int32_t result = sysFile->SeekBlock("Mech:Class");
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("MaxLightMech", MechClassWeights[1])) != 0)
+    if ((result = sysFile->ReadIdFloat("MaxLightMech", MechClassWeights[1])) != 0)
     {
         return result;
     }
 
     // The original reads "MaxHeavyMech" for both the medium and the heavy bound.
-    if ((result = sysFile->readIdFloat("MaxHeavyMech", MechClassWeights[2])) != 0)
+    if ((result = sysFile->ReadIdFloat("MaxHeavyMech", MechClassWeights[2])) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("MaxHeavyMech", MechClassWeights[3])) != 0)
+    if ((result = sysFile->ReadIdFloat("MaxHeavyMech", MechClassWeights[3])) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->seekBlock("Mech:Movement")) != 0)
+    if ((result = sysFile->SeekBlock("Mech:Movement")) != 0)
     {
         return result;
     }
 
     int32_t jumpCost = 0;
 
-    if (sysFile->readIdLong("JumpCost", jumpCost) == 0)
+    if (sysFile->ReadIdLong("JumpCost", jumpCost) == 0)
     {
         DefaultMechJumpCost = jumpCost;
     }
 
     int32_t value = 0;
 
-    if (sysFile->readIdLong("CrashAvoidSelf", value) == 0)
+    if (sysFile->ReadIdLong("CrashAvoidSelf", value) == 0)
     {
         DefaultMechCrashAvoidSelf = value;
     }
 
-    if (sysFile->readIdLong("CrashAvoidPath", value) == 0)
+    if (sysFile->ReadIdLong("CrashAvoidPath", value) == 0)
     {
         DefaultMechCrashAvoidPath = value;
     }
 
-    if (sysFile->readIdLong("CrashBlockSelf", value) == 0)
+    if (sysFile->ReadIdLong("CrashBlockSelf", value) == 0)
     {
         DefaultMechCrashBlockSelf = value;
     }
 
-    if (sysFile->readIdLong("CrashBlockPath", value) == 0)
+    if (sysFile->ReadIdLong("CrashBlockPath", value) == 0)
     {
         DefaultMechCrashBlockPath = value;
     }
 
     float yieldTime = 0.0f;
 
-    if (sysFile->readIdFloat("CrashYieldTime", yieldTime) == 0)
+    if (sysFile->ReadIdFloat("CrashYieldTime", yieldTime) == 0)
     {
         DefaultMechCrashYieldTime = yieldTime;
     }
 
-    if ((result = sysFile->readIdLongArray("PilotCheckConditions", MechPilotCheckConditions, 2)) != 0)
+    if ((result = sysFile->ReadIdLongArray("PilotCheckConditions", MechPilotCheckConditions, 2)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdLongArray("PilotCheckTerrainEffect", MechPilotCheckTerrainEffect, 0x40)) != 0)
+    if ((result = sysFile->ReadIdLongArray("PilotCheckTerrainEffect", MechPilotCheckTerrainEffect, 0x40)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->seekBlock("Mech:FireWeapon")) != 0)
+    if ((result = sysFile->SeekBlock("Mech:FireWeapon")) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdLongArray("AttackerMoveModifier", AttackerMoveModifier, 9)) != 0)
+    if ((result = sysFile->ReadIdLongArray("AttackerMoveModifier", AttackerMoveModifier, 9)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdCharArray("HitLocationTable", MechHitLocationTable, 0x84)) != 0)
+    if ((result = sysFile->ReadIdCharArray("HitLocationTable", MechHitLocationTable, 0x84)) != 0)
     {
         return result;
     }
 
     int32_t targetMoveModifiers[10];
 
-    if ((result = sysFile->readIdLongArray("TargetMoveModifierTable", targetMoveModifiers, 10)) != 0)
+    if ((result = sysFile->ReadIdLongArray("TargetMoveModifierTable", targetMoveModifiers, 10)) != 0)
     {
         return result;
     }
 
     std::memcpy(TargetMoveModifierTable, targetMoveModifiers, sizeof(TargetMoveModifierTable));
 
-    if ((result = sysFile->seekBlock("Mech:Damage")) != 0)
+    if ((result = sysFile->SeekBlock("Mech:Damage")) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdCharArray("CriticalHitTable", CriticalHitTable, 4)) != 0)
+    if ((result = sysFile->ReadIdCharArray("CriticalHitTable", CriticalHitTable, 4)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdCharArray("MechTransferHitTable", MechTransferHitTable, 8)) != 0)
+    if ((result = sysFile->ReadIdCharArray("MechTransferHitTable", MechTransferHitTable, 8)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdLong("MechSalvageChance", MechSalvageChance)) != 0)
+    if ((result = sysFile->ReadIdLong("MechSalvageChance", MechSalvageChance)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->seekBlock("Mech:Collision")) != 0)
+    if ((result = sysFile->SeekBlock("Mech:Collision")) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("collisionThreshold", mechCollisionThreshold)) != 0)
+    if ((result = sysFile->ReadIdFloat("collisionThreshold", MechCollisionThreshold)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("objectThreshold", objectCollisionThreshold)) != 0)
+    if ((result = sysFile->ReadIdFloat("objectThreshold", ObjectCollisionThreshold)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("tonnageThreshold", tonnageCollisionThreshold)) != 0)
+    if ((result = sysFile->ReadIdFloat("tonnageThreshold", TonnageCollisionThreshold)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("treeDeflection", treeDeflection)) != 0)
+    if ((result = sysFile->ReadIdFloat("treeDeflection", TreeDeflection)) != 0)
     {
         return result;
     }
 
-    if ((result = sysFile->readIdFloat("pivotAngle", mechPivotAngle)) != 0)
+    if ((result = sysFile->ReadIdFloat("pivotAngle", MechPivotAngle)) != 0)
     {
         return result;
     }
 
-    return sysFile->readIdFloat("pivotThrottle", mechPivotThrottle);
+    return sysFile->ReadIdFloat("pivotThrottle", MechPivotThrottle);
 }
 
 //---------------------------------------------------------------------------
 // BattleMechType
 //---------------------------------------------------------------------------
 
-auto BattleMechType::init() -> void
+auto MCBattleMechType::Init() -> void
 {
-    rightArmDebrisId = 0xffffffff;
-    leftArmDebrisId = 0xffffffff;
-    destroyedPiece = 0xffffffff;
-    crashAvoidSelf = DefaultMechCrashAvoidSelf;
-    crashAvoidPath = DefaultMechCrashAvoidPath;
-    crashBlockSelf = DefaultMechCrashBlockSelf;
-    crashBlockPath = DefaultMechCrashBlockPath;
-    mechId = 0;
-    name.clear();
-    mechType = 0;
-    chassis = 0;
-    tonnageClass = 0.0f;
-    endoSteel = 0;
-    internalStructureTonnage = 0.0f;
-    hotSpotData = nullptr;
-    gestureHotSpots = nullptr;
-    jumpData = nullptr;
-    footprintType = 1;
-    gestureOutlines = nullptr;
-    weaponHotSpots = nullptr;
-    numFramesPerHotSpot = nullptr;
-    numWeapons = 0;
-    numOthers = 0;
-    numHotSpotPackets = 0;
-    dynamicsType = nullptr;
-    crashYieldTime = DefaultMechCrashYieldTime;
-    explDmg = 0.0f;
-    explRad = 0.0f;
+    RightArmDebrisId = 0xffffffff;
+    LeftArmDebrisId = 0xffffffff;
+    DestroyedPiece = 0xffffffff;
+    CrashAvoidSelf = DefaultMechCrashAvoidSelf;
+    CrashAvoidPath = DefaultMechCrashAvoidPath;
+    CrashBlockSelf = DefaultMechCrashBlockSelf;
+    CrashBlockPath = DefaultMechCrashBlockPath;
+    MechId = 0;
+    Name.clear();
+    MechType = 0;
+    Chassis = 0;
+    TonnageClass = 0.0f;
+    EndoSteel = 0;
+    InternalStructureTonnage = 0.0f;
+    HotSpotData = nullptr;
+    GestureHotSpots = nullptr;
+    JumpData = nullptr;
+    FootprintType = 1;
+    GestureOutlines = nullptr;
+    WeaponHotSpots = nullptr;
+    NumFramesPerHotSpot = nullptr;
+    NumWeapons = 0;
+    NumOthers = 0;
+    NumHotSpotPackets = 0;
+    DynamicsType = nullptr;
+    CrashYieldTime = DefaultMechCrashYieldTime;
+    ExplDmg = 0.0f;
+    ExplRad = 0.0f;
 }
 
-auto BattleMechType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCBattleMechType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     static const char* const bodyLocationNames[NUM_MECH_BODY_LOCATIONS] = {
         "Head", "CenterTorso", "LeftTorso", "RightTorso", "LeftArm", "RightArm", "LeftLeg", "RightLeg"};
 
-    FitIniFile mechFile;
-    int32_t result = mechFile.open(objFile, fileSize);
+    MCFitIniFile mechFile;
+    int32_t result = mechFile.Open(objFile, fileSize);
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = mechFile.seekBlock("Header")) != 0)
+    if ((result = mechFile.SeekBlock("Header")) != 0)
     {
         return result;
     }
 
     char fileType[128];
 
-    if ((result = mechFile.readIdString("FileType", fileType, 127)) != 0)
+    if ((result = mechFile.ReadIdString("FileType", fileType, 127)) != 0)
     {
         return result;
     }
@@ -373,12 +373,12 @@ auto BattleMechType::init(File* objFile, uint32_t fileSize) -> int32_t
         return -1;
     }
 
-    if ((result = mechFile.seekBlock("General")) != 0)
+    if ((result = mechFile.SeekBlock("General")) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile.readIdULong("ID", mechId)) != 0)
+    if ((result = mechFile.ReadIdULong("ID", MechId)) != 0)
     {
         return result;
     }
@@ -387,92 +387,92 @@ auto BattleMechType::init(File* objFile, uint32_t fileSize) -> int32_t
     static constexpr uint8_t typeMap[2] = {1, 0xff};
     uint8_t type = 0;
 
-    if ((result = mechFile.readIdUChar("Type", type)) != 0)
+    if ((result = mechFile.ReadIdUChar("Type", type)) != 0)
     {
         return result;
     }
 
     // Port fix: the original reads other values from past its two-entry table on the stack.
-    mechType = type < 2 ? typeMap[type] : 0;
+    MechType = type < 2 ? typeMap[type] : 0;
     char nameBuffer[128];
-    mechFile.readIdString("Name", nameBuffer, 127);
-    name = nameBuffer;
+    mechFile.ReadIdString("Name", nameBuffer, 127);
+    Name = nameBuffer;
 
-    if ((result = mechFile.readIdUChar("Chassis", chassis)) != 0)
+    if ((result = mechFile.ReadIdUChar("Chassis", Chassis)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile.readIdFloat("TonnageClass", tonnageClass)) != 0)
+    if ((result = mechFile.ReadIdFloat("TonnageClass", TonnageClass)) != 0)
     {
         return result;
     }
 
-    if (mechFile.readIdFloat("ExplosionRadius", explRad) != 0)
+    if (mechFile.ReadIdFloat("ExplosionRadius", ExplRad) != 0)
     {
-        explRad = 0.0f;
+        ExplRad = 0.0f;
     }
 
-    if (mechFile.readIdFloat("ExplosionDamage", explDmg) != 0)
+    if (mechFile.ReadIdFloat("ExplosionDamage", ExplDmg) != 0)
     {
-        explDmg = 0.0f;
+        ExplDmg = 0.0f;
     }
 
     uint8_t endo = 0;
 
-    if ((result = mechFile.readIdUChar("EndoSteel", endo)) != 0)
+    if ((result = mechFile.ReadIdUChar("EndoSteel", endo)) != 0)
     {
         return result;
     }
 
-    endoSteel = endo;
+    EndoSteel = endo;
 
-    if ((result = mechFile.readIdFloat("InternalStructureTonnage", internalStructureTonnage)) != 0)
+    if ((result = mechFile.ReadIdFloat("InternalStructureTonnage", InternalStructureTonnage)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile.seekBlock("InternalStructure")) != 0)
+    if ((result = mechFile.SeekBlock("InternalStructure")) != 0)
     {
         return result;
     }
 
     for (int32_t location = 0; location < NUM_MECH_BODY_LOCATIONS; location++)
     {
-        if ((result = mechFile.readIdUChar(bodyLocationNames[location], internalStructure[location])) != 0)
+        if ((result = mechFile.ReadIdUChar(bodyLocationNames[location], InternalStructure[location])) != 0)
         {
             return result;
         }
     }
 
-    if ((result = mechFile.seekBlock("Debris")) != 0)
+    if ((result = mechFile.SeekBlock("Debris")) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile.readIdULong("RightArmPiece", rightArmDebrisId)) != 0)
+    if ((result = mechFile.ReadIdULong("RightArmPiece", RightArmDebrisId)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile.readIdULong("LeftArmPiece", leftArmDebrisId)) != 0)
+    if ((result = mechFile.ReadIdULong("LeftArmPiece", LeftArmDebrisId)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile.readIdULong("DestroyedPiece", destroyedPiece)) != 0)
+    if ((result = mechFile.ReadIdULong("DestroyedPiece", DestroyedPiece)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile.seekBlock("Dynamics")) != 0)
+    if ((result = mechFile.SeekBlock("Dynamics")) != 0)
     {
         return result;
     }
 
     uint32_t dynamicsTypeId = 0;
 
-    if ((result = mechFile.readIdULong("Type", dynamicsTypeId)) != 0)
+    if ((result = mechFile.ReadIdULong("Type", dynamicsTypeId)) != 0)
     {
         return result;
     }
@@ -482,104 +482,104 @@ auto BattleMechType::init(File* objFile, uint32_t fileSize) -> int32_t
         return -0x5fffd;
     }
 
-    dynamicsType = new MechDynamicsType;
+    DynamicsType = new MCMechDynamicsType;
 
-    if (dynamicsType == nullptr)
+    if (DynamicsType == nullptr)
     {
         return -0x5fffe;
     }
 
-    if ((result = dynamicsType->init(&mechFile)) != 0)
+    if ((result = DynamicsType->Init(&mechFile)) != 0)
     {
         return result;
     }
 
-    if (mechFile.seekBlock("MovementSystem") == 0)
+    if (mechFile.SeekBlock("MovementSystem") == 0)
     {
         int32_t value = 0;
 
-        if (mechFile.readIdLong("CrashAvoidSelf", value) == 0)
+        if (mechFile.ReadIdLong("CrashAvoidSelf", value) == 0)
         {
-            crashAvoidSelf = value;
+            CrashAvoidSelf = value;
         }
 
-        if (mechFile.readIdLong("CrashAvoidPath", value) == 0)
+        if (mechFile.ReadIdLong("CrashAvoidPath", value) == 0)
         {
-            crashAvoidPath = value;
+            CrashAvoidPath = value;
         }
 
-        if (mechFile.readIdLong("CrashBlockSelf", value) == 0)
+        if (mechFile.ReadIdLong("CrashBlockSelf", value) == 0)
         {
-            crashBlockSelf = value;
+            CrashBlockSelf = value;
         }
 
-        if (mechFile.readIdLong("CrashBlockPath", value) == 0)
+        if (mechFile.ReadIdLong("CrashBlockPath", value) == 0)
         {
-            crashBlockPath = value;
+            CrashBlockPath = value;
         }
 
         float yieldTime = 0.0f;
 
         // The original stores the last long read ("CrashBlockPath"), not the yield time it just read.
-        if (mechFile.readIdFloat("CrashYieldTime", yieldTime) == 0)
+        if (mechFile.ReadIdFloat("CrashYieldTime", yieldTime) == 0)
         {
-            crashYieldTime = static_cast<float>(value);
+            CrashYieldTime = static_cast<float>(value);
         }
     }
 
-    if ((result = loadHotSpots(&mechFile)) != 0)
+    if ((result = LoadHotSpots(&mechFile)) != 0)
     {
         return result;
     }
 
-    return ObjectType::init(&mechFile);
+    return MCObjectType::Init(&mechFile);
 }
 
-auto BattleMechType::destroy() -> void
+auto MCBattleMechType::Destroy() -> void
 {
-    name.clear();
-    delete dynamicsType;
-    dynamicsType = nullptr;
-    ObjectType::destroy();
+    Name.clear();
+    delete DynamicsType;
+    DynamicsType = nullptr;
+    MCObjectType::Destroy();
 }
 
-auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider) -> int
+auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 0;
     }
 
     int friendly = 0;
-    int collideeJumping = static_cast<Mover*>(collidee)->isJumping(nullptr);
+    int collideeJumping = static_cast<MCMover*>(collidee)->IsJumping(nullptr);
     int colliderJumping = 0;
     uint32_t sampleId = 4;
 
-    switch (collider->objectClass)
+    switch (collider->ObjectClass)
     {
         case BATTLEMECH:
         {
-            if (collidee->getPilot()->alignment != collider->getPilot()->alignment)
+            if (collidee->GetPilot()->Alignment != collider->GetPilot()->Alignment)
             {
-                MechWarrior* attackerPilot = collider->getPilot();
+                MCMechWarrior* attackerPilot = collider->GetPilot();
 
-                if (attackerPilot->curTacOrder.code == TACTICAL_ORDER_ATTACK_OBJECT)
+                if (attackerPilot->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_OBJECT)
                 {
-                    attackerPilot->numRams++;
+                    attackerPilot->NumRams++;
                 }
-                else if (attackerPilot->curTacOrder.code == TACTICAL_ORDER_JUMPTO_POINT &&
-                         collidee->getPilot()->curTacOrder.getJumpTarget() == collidee)
+                else if (attackerPilot->CurTacOrder.Code == TACTICAL_ORDER_JUMPTO_POINT &&
+                         collidee->GetPilot()->CurTacOrder.GetJumpTarget() == collidee)
                 {
-                    collidee->getPilot()->numJumpAttacks++;
+                    collidee->GetPilot()->NumJumpAttacks++;
                 }
             }
 
-            colliderJumping = static_cast<Mover*>(collider)->isJumping(nullptr);
-            auto* colliderMech = static_cast<BattleMech*>(collider);
+            colliderJumping = static_cast<MCMover*>(collider)->IsJumping(nullptr);
+            auto* colliderMech = static_cast<MCBattleMech*>(collider);
 
-            if (colliderJumping == 0 && colliderMech->jumpTime >= 0.0f)
+            if (colliderJumping == 0 && colliderMech->JumpTime >= 0.0f)
             {
-                colliderJumping = scenarioTime - colliderMech->jumpTime < 0.5f ? 1 : 0;
+                colliderJumping = ScenarioTime - colliderMech->JumpTime < 0.5f ? 1 : 0;
             }
 
             [[fallthrough]];
@@ -591,13 +591,13 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
 
             if (collideeJumping == 0)
             {
-                auto* collideeMech = static_cast<BattleMech*>(collidee);
+                auto* collideeMech = static_cast<MCBattleMech*>(collidee);
                 bool landing = false;
 
-                if (collideeMech->jumpTime >= 0.0f)
+                if (collideeMech->JumpTime >= 0.0f)
                 {
-                    const float sinceJump = scenarioTime - collideeMech->jumpTime;
-                    collideeMech->jumpTime = -1.0f;
+                    const float sinceJump = ScenarioTime - collideeMech->JumpTime;
+                    collideeMech->JumpTime = -1.0f;
 
                     if (sinceJump < 0.5f)
                     {
@@ -616,7 +616,7 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
                 }
             }
 
-            if (collidee->getPilot()->alignment == collider->getPilot()->alignment)
+            if (collidee->GetPilot()->Alignment == collider->GetPilot()->Alignment)
             {
                 friendly = 1;
 
@@ -627,8 +627,8 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
             }
             else if (!jumpHit)
             {
-                GameObject* collideeRamTarget = collidee->getPilot()->curTacOrder.getRamTarget();
-                GameObject* colliderRamTarget = collider->getPilot()->curTacOrder.getRamTarget();
+                MCGameObject* collideeRamTarget = collidee->GetPilot()->CurTacOrder.GetRamTarget();
+                MCGameObject* colliderRamTarget = collider->GetPilot()->CurTacOrder.GetRamTarget();
 
                 if (collideeRamTarget != collider && colliderRamTarget != collidee)
                 {
@@ -636,47 +636,47 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
                 }
             }
 
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
 
-            frame_of_ref frame = collidee->getFrame();
-            rotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
-            collidee->setFrame(frame);
-            collidee->getVelocity();
+            MCFrameOfRef frame = collidee->GetFrame();
+            RotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
+            collidee->SetFrame(frame);
+            collidee->GetVelocity();
 
             if (jumpHit)
             {
                 if (collideeJumping != 0)
                 {
                     // The jumper lands on the other: both take the other's weight (the collider's, twice).
-                    const int32_t hitLocation = collidee->calcHitLocation(collider, -1, 3, 0);
-                    const float entryAngle = collidee->relFacingTo(collider->getPosition(), -1);
-                    _WeaponShotInfo shotInfo;
-                    shotInfo.init(collider, -1,
-                                  static_cast<float>(collider->getTonnage() * (friendly == 0 ? 0.1 : 0.01) + 0.5),
+                    const int32_t hitLocation = collidee->CalcHitLocation(collider, -1, 3, 0);
+                    const float entryAngle = collidee->RelFacingTo(collider->GetPosition(), -1);
+                    MCWeaponShotInfo shotInfo;
+                    shotInfo.Init(collider, -1,
+                                  static_cast<float>(collider->GetTonnage() * (friendly == 0 ? 0.1 : 0.01) + 0.5),
                                   hitLocation, entryAngle);
-                    collidee->handleWeaponHit(&shotInfo, MPlayer != nullptr);
-                    const int32_t otherHitLocation = collider->calcHitLocation(collidee, -1, 2, 0);
-                    const float otherEntryAngle = collider->relFacingTo(collidee->getPosition(), -1);
-                    shotInfo.init(collidee, -1,
-                                  static_cast<float>(collider->getTonnage() * (friendly == 0 ? 0.1 : 0.01) + 0.5),
+                    collidee->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+                    const int32_t otherHitLocation = collider->CalcHitLocation(collidee, -1, 2, 0);
+                    const float otherEntryAngle = collider->RelFacingTo(collidee->GetPosition(), -1);
+                    shotInfo.Init(collidee, -1,
+                                  static_cast<float>(collider->GetTonnage() * (friendly == 0 ? 0.1 : 0.01) + 0.5),
                                   otherHitLocation, otherEntryAngle);
-                    collider->handleWeaponHit(&shotInfo, MPlayer != nullptr);
-                    vector_3d position = collider->getPosition();
-                    CreateExplosion(0x290, position, 0.0f, 0.0f);
+                    collider->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+                    MCVector3D position = collider->GetPosition();
+                    ::CreateExplosion(0x290, position, 0.0f, 0.0f);
                 }
             }
             else
             {
-                collisionHit(collidee, collider, collider, 1, friendly);
+                CollisionHit(collidee, collider, collider, 1, friendly);
             }
 
-            static_cast<Mover*>(collidee)->bounceToAdjCell();
+            static_cast<MCMover*>(collidee)->BounceToAdjCell();
 
             if (friendly != 0)
             {
@@ -687,37 +687,37 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
 
         case ELEMENTAL:
         {
-            if (collidee->getPilot()->alignment == collider->getPilot()->alignment)
+            if (collidee->GetPilot()->Alignment == collider->GetPilot()->Alignment)
             {
                 return 0;
             }
 
-            GameObject* collideeRamTarget = collidee->getPilot()->curTacOrder.getRamTarget();
-            GameObject* colliderRamTarget = collider->getPilot()->curTacOrder.getRamTarget();
+            MCGameObject* collideeRamTarget = collidee->GetPilot()->CurTacOrder.GetRamTarget();
+            MCGameObject* colliderRamTarget = collider->GetPilot()->CurTacOrder.GetRamTarget();
 
             if (collideeRamTarget != collider && colliderRamTarget != collidee)
             {
                 return 0;
             }
 
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            if (collider->isMarine() != 0)
+            if (collider->IsMarine() != 0)
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
-            collidee->getVelocity();
-            const int32_t hitLocation = collidee->calcHitLocation(collider, -1, 1, 0);
-            const float entryAngle = collidee->relFacingTo(collider->getPosition(), -1);
-            _WeaponShotInfo shotInfo;
-            shotInfo.init(collider, -1, elmDamageOnImpact, hitLocation, entryAngle);
-            collidee->handleWeaponHit(&shotInfo, MPlayer != nullptr);
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
+            collidee->GetVelocity();
+            const int32_t hitLocation = collidee->CalcHitLocation(collider, -1, 1, 0);
+            const float entryAngle = collidee->RelFacingTo(collider->GetPosition(), -1);
+            MCWeaponShotInfo shotInfo;
+            shotInfo.Init(collider, -1, ElmDamageOnImpact, hitLocation, entryAngle);
+            collidee->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
             sampleId = 0x1e;
             break;
         }
@@ -725,75 +725,75 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
         case BUILDING:
         case TREEBUILDING:
         {
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
-            const vector_3d velocity = collidee->getVelocity();
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
+            const MCVector3D velocity = collidee->GetVelocity();
 
             const double speed = std::sqrt(
-                (static_cast<double>(velocity.x) * velocity.x + static_cast<double>(velocity.z) * velocity.z) +
-                static_cast<double>(velocity.y) * velocity.y);
+                (static_cast<double>(velocity.X) * velocity.X + static_cast<double>(velocity.Z) * velocity.Z) +
+                static_cast<double>(velocity.Y) * velocity.Y);
 
-            if (!(speed > mechCollisionThreshold))
+            if (!(speed > MechCollisionThreshold))
             {
-                static_cast<Mover*>(collidee)->bounceToAdjCell();
+                static_cast<MCMover*>(collidee)->BounceToAdjCell();
             }
 
-            const int32_t hitLocation = collidee->calcHitLocation(collider, -1, 1, 0);
-            const float entryAngle = collidee->relFacingTo(collider->getPosition(), -1);
-            _WeaponShotInfo shotInfo;
-            shotInfo.init(collider, -1, static_cast<float>(collider->getTonnage() * 0.1 + 0.5), hitLocation,
+            const int32_t hitLocation = collidee->CalcHitLocation(collider, -1, 1, 0);
+            const float entryAngle = collidee->RelFacingTo(collider->GetPosition(), -1);
+            MCWeaponShotInfo shotInfo;
+            shotInfo.Init(collider, -1, static_cast<float>(collider->GetTonnage() * 0.1 + 0.5), hitLocation,
                           entryAngle);
-            collidee->handleWeaponHit(&shotInfo, MPlayer != nullptr);
-            collider->handleWeaponHit(&shotInfo, MPlayer != nullptr);
+            collidee->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+            collider->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
             break;
         }
 
         case TREE:
         {
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
-            frame_of_ref frame = collidee->getFrame();
-            collider->getObjectType();
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
+            MCFrameOfRef frame = collidee->GetFrame();
+            collider->GetObjectType();
             double deflection = 0.0;
 
-            if (tonnageClass < tonnageCollisionThreshold)
+            if (TonnageClass < TonnageCollisionThreshold)
             {
-                deflection = static_cast<double>(tonnageCollisionThreshold) / tonnageClass * treeDeflection;
+                deflection = static_cast<double>(TonnageCollisionThreshold) / TonnageClass * TreeDeflection;
             }
 
             if (deflection > 0.0)
             {
-                rotateAboutKUnroundedCos(frame, static_cast<float>(std::sin(deflection * DEGREES_TO_RADIANS)),
+                RotateAboutKUnroundedCos(frame, static_cast<float>(std::sin(deflection * DEGREES_TO_RADIANS)),
                                          std::cos(deflection * DEGREES_TO_RADIANS));
-                collidee->setFrame(frame);
+                collidee->SetFrame(frame);
             }
             break;
         }
 
         case TRAINCAR:
         {
-            if (collidee->getCollisionFreeFrom() == collider && scenarioTime <= collidee->getCollisionFreeTime())
+            if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
                 return 0;
             }
 
-            collidee->setCollisionFreeFrom(collider);
-            collidee->setCollisionFreeTime(scenarioTime + 2.0f);
-            frame_of_ref frame = collidee->getFrame();
-            rotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
-            collidee->setFrame(frame);
-            collidee->getVelocity();
-            static_cast<Mover*>(collidee)->bounceToAdjCell();
+            collidee->SetCollisionFreeFrom(collider);
+            collidee->SetCollisionFreeTime(ScenarioTime + 2.0f);
+            MCFrameOfRef frame = collidee->GetFrame();
+            RotateAboutK(frame, static_cast<float>(std::sin(HALF_PI)), static_cast<float>(std::cos(HALF_PI)));
+            collidee->SetFrame(frame);
+            collidee->GetVelocity();
+            static_cast<MCMover*>(collidee)->BounceToAdjCell();
             break;
         }
 
@@ -801,66 +801,66 @@ auto BattleMechType::handleCollision(GameObject* collidee, GameObject* collider)
             return 0;
     }
 
-    soundSystem->playDigitalSample(sampleId, 1, collidee, 0, 0);
+    SoundSystem->PlayDigitalSample(sampleId, 1, collidee, 0, 0);
     return 0;
 }
 
-auto BattleMechType::handleDestruction(GameObject* collidee, GameObject* collider) -> int
+auto MCBattleMechType::HandleDestruction(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    auto* mech = static_cast<BattleMech*>(collidee);
+    auto* mech = static_cast<MCBattleMech*>(collidee);
 
-    if (mech->getPilot() == nullptr)
+    if (mech->GetPilot() == nullptr)
     {
         Fatal(0, " No Pilot in this mech! ");
     }
 
-    if (mech->getPoint() == mech)
+    if (mech->GetPoint() == mech)
     {
-        mech->group->setPoint(nullptr);
+        mech->Group->SetPoint(nullptr);
     }
 
-    if (mech->sensorSystem != nullptr)
+    if (mech->SensorSystem != nullptr)
     {
-        mech->sensorSystem->disable();
+        mech->SensorSystem->Disable();
     }
 
-    mech->deathTimer = 0.8f;
+    mech->DeathTimer = 0.8f;
 
-    if (mech->withdrawing != 0)
+    if (mech->Withdrawing != 0)
     {
-        mech->getPilot()->handleAlarm(8, 0);
-        theInterface->RemoveMech(mech->partId);
+        mech->GetPilot()->HandleAlarm(8, 0);
+        TheInterface->RemoveMech(mech->PartId);
         return 1;
     }
 
-    mech->getPilot()->handleAlarm(7, collider == nullptr ? 0 : collider->idNumber);
-    mech->status = 2;
-    mech->lyingDead = 0;
-    mech->deathExplosionDone = 0;
+    mech->GetPilot()->HandleAlarm(7, collider == nullptr ? 0 : collider->IdNumber);
+    mech->Status = 2;
+    mech->LyingDead = 0;
+    mech->DeathExplosionDone = 0;
 
-    for (int32_t location = 0; location < mech->numBodyLocations; location++)
+    for (int32_t location = 0; location < mech->NumBodyLocations; location++)
     {
-        mech->destroyBodyLocation(location);
+        mech->DestroyBodyLocation(location);
     }
 
-    if (mech->getAlignment() == homeTeam->alignment)
+    if (mech->GetAlignment() == HomeTeam->Alignment)
     {
-        friendlyDestroyed = 1;
+        FriendlyDestroyed = 1;
         return 1;
     }
 
-    enemyDestroyed = 1;
+    EnemyDestroyed = 1;
     return 1;
 }
 
-auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
+auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
 {
     if (mechFile == nullptr)
     {
         return 0;
     }
 
-    int32_t result = mechFile->seekBlock("HotSpots");
+    int32_t result = mechFile->SeekBlock("HotSpots");
 
     if (result != 0)
     {
@@ -869,82 +869,82 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
 
     char hotSpotFileName[80];
 
-    if ((result = mechFile->readIdString("HotSpotFileName", hotSpotFileName, 79)) != 0)
+    if ((result = mechFile->ReadIdString("HotSpotFileName", hotSpotFileName, 79)) != 0)
     {
         return result;
     }
 
     int32_t footprint = 0;
 
-    if ((result = mechFile->readIdLong("FootprintType", footprint)) != 0)
+    if ((result = mechFile->ReadIdLong("FootprintType", footprint)) != 0)
     {
         return result;
     }
 
-    footprintType = footprint;
+    FootprintType = footprint;
 
-    FullPathFileName hotSpotPath;
-    hotSpotPath.init(shapesPath, hotSpotFileName, ".hsp");
-    FullPathFileName outlinePath;
-    outlinePath.init(shapesPath, hotSpotFileName, ".out");
-    FullPathFileName infoPath;
-    infoPath.init(shapesPath, hotSpotFileName, ".inf");
-    FullPathFileName jumpPath;
-    jumpPath.init(shapesPath, hotSpotFileName, ".jmp");
+    MCFullPathFileName hotSpotPath;
+    hotSpotPath.Init(ShapesPath, hotSpotFileName, ".hsp");
+    MCFullPathFileName outlinePath;
+    outlinePath.Init(ShapesPath, hotSpotFileName, ".out");
+    MCFullPathFileName infoPath;
+    infoPath.Init(ShapesPath, hotSpotFileName, ".inf");
+    MCFullPathFileName jumpPath;
+    jumpPath.Init(ShapesPath, hotSpotFileName, ".jmp");
 
-    PacketFile hotSpotFile;
+    MCPacketFile hotSpotFile;
 
-    if ((result = hotSpotFile.open(hotSpotPath, READ, 50)) != 0)
+    if ((result = hotSpotFile.Open(hotSpotPath, READ, 50)) != 0)
     {
         return result;
     }
 
-    PacketFile outlineFile;
+    MCPacketFile outlineFile;
 
-    if ((result = outlineFile.open(outlinePath, READ, 50)) != 0)
+    if ((result = outlineFile.Open(outlinePath, READ, 50)) != 0)
     {
         return result;
     }
 
-    FitIniFile infoFile;
+    MCFitIniFile infoFile;
 
-    if ((result = infoFile.open(infoPath, READ, 50)) != 0)
+    if ((result = infoFile.Open(infoPath, READ, 50)) != 0)
     {
         return result;
     }
 
-    File jumpFile;
+    MCFile jumpFile;
 
-    if ((result = jumpFile.open(jumpPath, READ, 50)) != 0)
+    if ((result = jumpFile.Open(jumpPath, READ, 50)) != 0)
     {
         return result;
     }
 
-    if ((result = infoFile.seekBlock("Info")) != 0)
+    if ((result = infoFile.SeekBlock("Info")) != 0)
     {
         return result;
     }
 
-    if ((result = infoFile.readIdULong("numHotSpotPackets", numHotSpotPackets)) != 0)
+    if ((result = infoFile.ReadIdULong("numHotSpotPackets", NumHotSpotPackets)) != 0)
     {
         return result;
     }
 
-    if ((result = infoFile.readIdULong("numWeapons", numWeapons)) != 0)
+    if ((result = infoFile.ReadIdULong("numWeapons", NumWeapons)) != 0)
     {
         return result;
     }
 
-    if ((result = infoFile.readIdULong("numOthers", numOthers)) != 0)
+    if ((result = infoFile.ReadIdULong("numOthers", NumOthers)) != 0)
     {
         return result;
     }
 
-    const uint32_t weaponCount = numWeapons;
-    weaponHotSpots =
-        static_cast<uint32_t*>(ObjectTypeManager::objectTypeCache.Allocate(weaponCount * sizeof(uint32_t)));
+    const uint32_t weaponCount = NumWeapons;
+    WeaponHotSpots =
+        static_cast<uint32_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(weaponCount * sizeof(uint32_t)));
 
-    if (weaponHotSpots == nullptr)
+    if (WeaponHotSpots == nullptr)
     {
         return -0x5fff4;
     }
@@ -954,58 +954,58 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
         char entryName[20];
         std::sprintf(entryName, "weapon%d", weapon);
 
-        if ((result = mechFile->readIdULong(entryName, weaponHotSpots[weapon])) != 0)
+        if ((result = mechFile->ReadIdULong(entryName, WeaponHotSpots[weapon])) != 0)
         {
             return result;
         }
     }
 
-    const uint32_t hotSpotDataSize = numHotSpotPackets * 32;
-    hotSpotData = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(hotSpotDataSize));
+    const uint32_t hotSpotDataSize = NumHotSpotPackets * 32;
+    HotSpotData = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(hotSpotDataSize));
 
-    if (hotSpotData == nullptr)
+    if (HotSpotData == nullptr)
     {
         return -0x5fff5;
     }
 
-    std::memset(hotSpotData, 0, hotSpotDataSize);
-    const int32_t dataPacket = static_cast<int32_t>(numHotSpotPackets);
+    std::memset(HotSpotData, 0, hotSpotDataSize);
+    const int32_t dataPacket = static_cast<int32_t>(NumHotSpotPackets);
 
-    if (hotSpotFile.seekPacket(dataPacket) == 0)
+    if (hotSpotFile.SeekPacket(dataPacket) == 0)
     {
-        if (static_cast<uint32_t>(hotSpotFile.getPacketSize()) != hotSpotDataSize)
+        if (static_cast<uint32_t>(hotSpotFile.GetPacketSize()) != hotSpotDataSize)
         {
             return -0x5fff3;
         }
 
-        hotSpotFile.readPacket(dataPacket, hotSpotData);
+        hotSpotFile.ReadPacket(dataPacket, HotSpotData);
     }
 
     // Port fix: pointer tables sized by the pointer, not the original's 4 bytes.
     const size_t tableSize = (static_cast<size_t>(dataPacket) + 1) * sizeof(uint8_t*);
-    gestureHotSpots =
-        static_cast<uint8_t**>(ObjectTypeManager::objectTypeCache.Allocate(static_cast<uint32_t>(tableSize)));
+    GestureHotSpots =
+        static_cast<uint8_t**>(MCObjectTypeManager::ObjectTypeCache.Allocate(static_cast<uint32_t>(tableSize)));
 
-    if (gestureHotSpots == nullptr)
+    if (GestureHotSpots == nullptr)
     {
         return -0x5fff4;
     }
 
-    std::memset(gestureHotSpots, 0, tableSize);
-    const size_t outlineTableSize = (static_cast<size_t>(numHotSpotPackets) + 1) * sizeof(uint8_t*);
-    gestureOutlines =
-        static_cast<uint8_t**>(ObjectTypeManager::objectTypeCache.Allocate(static_cast<uint32_t>(outlineTableSize)));
+    std::memset(GestureHotSpots, 0, tableSize);
+    const size_t outlineTableSize = (static_cast<size_t>(NumHotSpotPackets) + 1) * sizeof(uint8_t*);
+    GestureOutlines =
+        static_cast<uint8_t**>(MCObjectTypeManager::ObjectTypeCache.Allocate(static_cast<uint32_t>(outlineTableSize)));
 
-    if (gestureOutlines == nullptr)
+    if (GestureOutlines == nullptr)
     {
         return -0x5fff1;
     }
 
-    std::memset(gestureOutlines, 0, outlineTableSize);
+    std::memset(GestureOutlines, 0, outlineTableSize);
 
-    const int32_t numGestures = static_cast<int32_t>(numHotSpotPackets);
-    numFramesPerHotSpot =
-        static_cast<uint32_t*>(ObjectTypeManager::objectTypeCache.Allocate((numGestures + 1) * sizeof(uint32_t)));
+    const int32_t numGestures = static_cast<int32_t>(NumHotSpotPackets);
+    NumFramesPerHotSpot =
+        static_cast<uint32_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate((numGestures + 1) * sizeof(uint32_t)));
     std::vector<uint32_t> packetSizes(static_cast<size_t>(numGestures), 0);
     std::vector<uint32_t> outlineSizes(static_cast<size_t>(numGestures), 0);
 
@@ -1014,72 +1014,72 @@ auto BattleMechType::loadHotSpots(FitIniFile* mechFile) -> int32_t
         char blockName[20];
         std::sprintf(blockName, "Gesture%d", gesture);
 
-        if ((result = infoFile.seekBlock(blockName)) != 0 ||
-            (result = infoFile.readIdULong("numFramesPerHotSpot", numFramesPerHotSpot[gesture])) != 0)
+        if ((result = infoFile.SeekBlock(blockName)) != 0 ||
+            (result = infoFile.ReadIdULong("numFramesPerHotSpot", NumFramesPerHotSpot[gesture])) != 0)
         {
             return result;
         }
 
-        if (hotSpotFile.seekPacket(gesture) != 0)
+        if (hotSpotFile.SeekPacket(gesture) != 0)
         {
             return -0x5fff2;
         }
 
-        gestureHotSpots[gesture] =
-            static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(hotSpotFile.getPacketSize()));
+        GestureHotSpots[gesture] =
+            static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(hotSpotFile.GetPacketSize()));
 
-        if (gestureHotSpots[gesture] == nullptr)
+        if (GestureHotSpots[gesture] == nullptr)
         {
             return -0x5fff4;
         }
 
-        hotSpotFile.readPacket(gesture, gestureHotSpots[gesture]);
-        packetSizes[gesture] = static_cast<uint32_t>(hotSpotFile.getPacketSize());
+        hotSpotFile.ReadPacket(gesture, GestureHotSpots[gesture]);
+        packetSizes[gesture] = static_cast<uint32_t>(hotSpotFile.GetPacketSize());
 
-        if (outlineFile.seekPacket(gesture) == 0 && outlineFile.getPacketSize() != 0)
+        if (outlineFile.SeekPacket(gesture) == 0 && outlineFile.GetPacketSize() != 0)
         {
-            gestureOutlines[gesture] =
-                static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(outlineFile.getPacketSize()));
+            GestureOutlines[gesture] =
+                static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(outlineFile.GetPacketSize()));
 
-            if (gestureOutlines[gesture] == nullptr)
+            if (GestureOutlines[gesture] == nullptr)
             {
                 return -0x5fff1;
             }
 
-            outlineFile.readPacket(gesture, gestureOutlines[gesture]);
-            outlineSizes[gesture] = static_cast<uint32_t>(outlineFile.getPacketSize());
+            outlineFile.ReadPacket(gesture, GestureOutlines[gesture]);
+            outlineSizes[gesture] = static_cast<uint32_t>(outlineFile.GetPacketSize());
         }
     }
 
-    layOutHotSpotPackets(packetSizes, outlineSizes);
+    LayOutHotSpotPackets(packetSizes, outlineSizes);
 
-    jumpData = static_cast<uint8_t*>(ObjectTypeManager::objectTypeCache.Allocate(jumpFile.fileSize()));
+    JumpData = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(jumpFile.FileSize()));
 
-    if (jumpData == nullptr)
+    if (JumpData == nullptr)
     {
         return -0x5fff4;
     }
 
-    std::memset(jumpData, 0, jumpFile.fileSize());
-    jumpFile.read(jumpData, static_cast<int32_t>(jumpFile.fileSize()));
+    std::memset(JumpData, 0, jumpFile.FileSize());
+    jumpFile.Read(JumpData, static_cast<int32_t>(jumpFile.FileSize()));
     return 0;
 }
 
-auto BattleMechType::createInstance() -> BaseObject*
+auto MCBattleMechType::CreateInstance() -> MCBaseObject*
 {
-    auto* newMech = new BattleMech;
+    auto* newMech = new MCBattleMech;
 
     if (newMech == nullptr)
     {
         return nullptr;
     }
 
-    if (newMech->init(this) != 0)
+    if (newMech->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newMech->idNumber = NextIdNumber++;
+    newMech->IdNumber = NextIdNumber++;
     return newMech;
 }
 
@@ -1087,38 +1087,38 @@ auto BattleMechType::createInstance() -> BaseObject*
 // BattleMech
 //---------------------------------------------------------------------------
 
-auto BattleMech::isCrippled() -> int
+auto MCBattleMech::IsCrippled() -> int
 {
-    return legStatus == 2 || legStatus == 3 ? 1 : 0;
+    return LegStatus == 2 || LegStatus == 3 ? 1 : 0;
 }
 
-auto BattleMech::getWeaponHeat(int32_t weaponIndex) -> float
+auto MCBattleMech::GetWeaponHeat(int32_t weaponIndex) -> float
 {
-    return MasterComponentList[inventory[weaponIndex].masterID].rangeOrHeat;
+    return MasterComponentList[Inventory[weaponIndex].MasterID].RangeOrHeat;
 }
 
-auto BattleMech::relViewFacingTo(vector_3d goal) -> float
+auto MCBattleMech::RelViewFacingTo(MCVector3D goal) -> float
 {
-    return relFacingTo(goal, -1);
+    return RelFacingTo(goal, -1);
 }
 
-auto BattleMech::canMove() -> int
+auto MCBattleMech::CanMove() -> int
 {
-    return legStatus != 3 ? 1 : 0;
+    return LegStatus != 3 ? 1 : 0;
 }
 
-auto BattleMech::canJump() -> int
+auto MCBattleMech::CanJump() -> int
 {
-    return numJumpJets != 0 ? 1 : 0;
+    return NumJumpJets != 0 ? 1 : 0;
 }
 
-auto BattleMech::handleStaticCollision() -> void
+auto MCBattleMech::HandleStaticCollision() -> void
 {
     const bool jumpFXOn =
-        static_cast<MechActor*>(appearance)->currentGesture != 0x14 && (jumpFX[0] != nullptr || jumpFX[1] != nullptr);
+        static_cast<MCMechActor*>(Appearance)->CurrentGesture != 0x14 && (JumpFX[0] != nullptr || JumpFX[1] != nullptr);
 
-    if (!((collisionsOn != 0 &&
-           std::sqrt(velocity.z * velocity.z + velocity.y * velocity.y + velocity.x * velocity.x) > 0.0f) ||
+    if (!((CollisionsOn != 0 &&
+           std::sqrt(Velocity.Z * Velocity.Z + Velocity.Y * Velocity.Y + Velocity.X * Velocity.X) > 0.0f) ||
           jumpFXOn))
     {
         return;
@@ -1126,14 +1126,14 @@ auto BattleMech::handleStaticCollision() -> void
 
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
-    getBlockAndVertexNumber(blockNumber, vertexNumber);
+    GetBlockAndVertexNumber(blockNumber, vertexNumber);
     char listName[12];
     std::sprintf(listName, "TBlk%d", blockNumber);
-    ObjectQueueNode* list = objectList->head;
+    MCObjectQueueNode* list = ObjectList->Head;
 
     while (list != nullptr && list->operator==(listName) == 0)
     {
-        list = list->next;
+        list = list->Next;
     }
 
     // Port fix: the original reads the objects of a missing list through null.
@@ -1142,11 +1142,11 @@ auto BattleMech::handleStaticCollision() -> void
         return;
     }
 
-    for (BaseObject* object = list->head; object != nullptr; object = object->next)
+    for (MCBaseObject* object = list->Head; object != nullptr; object = object->Next)
     {
-        auto* other = static_cast<GameObject*>(object);
+        auto* other = static_cast<MCGameObject*>(object);
 
-        if (other->getObjectType() == nullptr)
+        if (other->GetObjectType() == nullptr)
         {
             continue;
         }
@@ -1155,22 +1155,22 @@ auto BattleMech::handleStaticCollision() -> void
         int32_t otherBlock = -1;
         int32_t otherVertex = -1;
 
-        switch (other->objectClass)
+        switch (other->ObjectClass)
         {
             case BUILDING:
             case TREE:
             case TERRAINOBJECT:
             case TREEBUILDING:
             {
-                other->getBlockAndVertexNumber(otherBlock, otherVertex);
-                collides = other->collisionsOn;
+                other->GetBlockAndVertexNumber(otherBlock, otherVertex);
+                collides = other->CollisionsOn;
                 break;
             }
             case MISCTERRAINOBJECT:
             {
-                getBlockAndVertexNumber(otherBlock, otherVertex);
+                GetBlockAndVertexNumber(otherBlock, otherVertex);
 
-                if (static_cast<uint32_t>(static_cast<MiscTerrainObject*>(other)->terrainObjectKind) > 6)
+                if (static_cast<uint32_t>(static_cast<MCMiscTerrainObject*>(other)->TerrainObjectKind) > 6)
                 {
                     collides = 1;
                 }
@@ -1182,139 +1182,139 @@ auto BattleMech::handleStaticCollision() -> void
 
         if (vertexNumber == otherVertex && collides != 0)
         {
-            collisionSystem->detectStaticCollision(this, other);
+            CollisionSystem->DetectStaticCollision(this, other);
         }
     }
 }
 
-auto BattleMech::init() -> void
+auto MCBattleMech::Init() -> void
 {
-    objectClass = BATTLEMECH;
-    body = std::make_unique<BodyLocation[]>(8);
-    numBodyLocations = 8;
+    ObjectClass = BATTLEMECH;
+    Body = std::make_unique<MCBodyLocation[]>(8);
+    NumBodyLocations = 8;
 
     for (int32_t location = 0; location < 8; location++)
     {
-        bodyAt(location).hasCASE = 0;
-        bodyAt(location).totalSpaces = 0;
-        bodyAt(location).criticalSpaces = nullptr;
-        bodyAt(location).curInternalStructure = 0.0f;
-        bodyAt(location).hotSpotNumber = 0;
-        bodyAt(location).maxInternalStructure = 0;
-        bodyAt(location).damageState = 0;
+        BodyAt(location).HasCase = 0;
+        BodyAt(location).TotalSpaces = 0;
+        BodyAt(location).CriticalSpaces = nullptr;
+        BodyAt(location).CurInternalStructure = 0.0f;
+        BodyAt(location).HotSpotNumber = 0;
+        BodyAt(location).MaxInternalStructure = 0;
+        BodyAt(location).DamageState = 0;
     }
 
-    armor = std::make_unique<ArmorLocation[]>(11);
-    numArmorLocations = 11;
-    mechClass = 1;
-    legStatus = 0;
-    torsoStatus = 0;
-    numJumpJets = 0;
-    jumpTime = -100.0f;
-    inJump = 0;
-    jumpGoal = vector_3d(0.0f, 0.0f, 0.0f);
-    centerTorsoInjuredTime = -1.0f;
-    hitFromBehindThisFrame = 0;
-    hitFromFrontThisFrame = 0;
-    torsoRotation = 0.0f;
-    leftArmRotation = 0.0f;
-    rightArmRotation = 0.0f;
-    leftArmBlownThisFrame = 0;
-    rightArmBlownThisFrame = 0;
-    secondStepPrinted = 0;
-    firstStepPrinted = 0;
-    lyingDead = 0;
-    wreckDone = 0;
-    statusWindow = nullptr;
-    blipFrame = 0;
-    overlayWeightClass = 1;
-    captureable = 0;
-    steppedOnMine = 0;
+    Armor = std::make_unique<MCArmorLocation[]>(11);
+    NumArmorLocations = 11;
+    MechClass = 1;
+    LegStatus = 0;
+    TorsoStatus = 0;
+    NumJumpJets = 0;
+    JumpTime = -100.0f;
+    InJump = 0;
+    JumpGoal = MCVector3D(0.0f, 0.0f, 0.0f);
+    CenterTorsoInjuredTime = -1.0f;
+    HitFromBehindThisFrame = 0;
+    HitFromFrontThisFrame = 0;
+    TorsoRotation = 0.0f;
+    LeftArmRotation = 0.0f;
+    RightArmRotation = 0.0f;
+    LeftArmBlownThisFrame = 0;
+    RightArmBlownThisFrame = 0;
+    SecondStepPrinted = 0;
+    FirstStepPrinted = 0;
+    LyingDead = 0;
+    WreckDone = 0;
+    StatusWindow = nullptr;
+    BlipFrame = 0;
+    OverlayWeightClass = 1;
+    Captureable = 0;
+    SteppedOnMine = 0;
 }
 
-auto BattleMech::init(ObjectType* objType) -> int32_t
+auto MCBattleMech::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    auto* mechType = static_cast<BattleMechType*>(objType);
-    collisionsOn = 1;
+    auto* mechType = static_cast<MCBattleMechType*>(objType);
+    CollisionsOn = 1;
 
     for (int32_t location = 0; location < 8; location++)
     {
-        bodyAt(location).maxInternalStructure = mechType->internalStructure[location];
+        BodyAt(location).MaxInternalStructure = mechType->InternalStructure[location];
     }
 
-    chassis = mechType->chassis;
-    alignment = mechType->mechType;
-    endoSteel = static_cast<int32_t>(mechType->endoSteel);
-    internalStructureTonnage = mechType->internalStructureTonnage;
-    tonnageClass = mechType->tonnageClass;
-    crashAvoidSelf = mechType->crashAvoidSelf;
-    pathLockLevel = mechType->crashBlockSelf;
-    crashAvoidPath = mechType->crashAvoidPath;
-    pathLockRange = mechType->crashBlockPath;
-    crashYieldTime = mechType->crashYieldTime;
-    control = nullptr;
-    dynamics = mechType->dynamicsType->createInstance();
+    Chassis = mechType->Chassis;
+    Alignment = mechType->MechType;
+    EndoSteel = static_cast<int32_t>(mechType->EndoSteel);
+    InternalStructureTonnage = mechType->InternalStructureTonnage;
+    TonnageClass = mechType->TonnageClass;
+    CrashAvoidSelf = mechType->CrashAvoidSelf;
+    PathLockLevel = mechType->CrashBlockSelf;
+    CrashAvoidPath = mechType->CrashAvoidPath;
+    PathLockRange = mechType->CrashBlockPath;
+    CrashYieldTime = mechType->CrashYieldTime;
+    Control = nullptr;
+    Dynamics = mechType->DynamicsType->CreateInstance();
 
-    if (dynamics == nullptr)
+    if (Dynamics == nullptr)
     {
         return -0x5fff8;
     }
 
-    if ((result = dynamics->init(mechType->dynamicsType, this)) != 0)
+    if ((result = Dynamics->Init(mechType->DynamicsType, this)) != 0)
     {
         return result;
     }
 
-    AppearanceType* apprType = appearanceTypeList->getAppearance(mechType->appearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(mechType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return -0x5fff7;
     }
 
-    auto* actor = new MechActor;
-    appearance = actor;
+    auto* actor = new MCMechActor;
+    Appearance = actor;
 
     if (actor == nullptr)
     {
         return -0x5ffff;
     }
 
-    actor->ownerMech = this;
+    actor->OwnerMech = this;
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x1000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x1000000)
     {
         return -0x5fff6;
     }
 
-    if ((result = actor->init(apprType, this)) != 0)
+    if ((result = actor->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    objectClass = BATTLEMECH;
+    ObjectClass = BATTLEMECH;
 
     for (int32_t i = 0; i < 4; i++)
     {
-        smoke[i] = nullptr;
-        smokeHotSpot[i] = 0;
-        smokeTime[i] = 0.0f;
+        Smoke[i] = nullptr;
+        SmokeHotSpot[i] = 0;
+        SmokeTime[i] = 0.0f;
     }
 
-    jumpFX[1] = nullptr;
-    jumpFX[0] = nullptr;
-    distanceSinceMarkSeen = 1000.0f;
+    JumpFX[1] = nullptr;
+    JumpFX[0] = nullptr;
+    DistanceSinceMarkSeen = 1000.0f;
     return 0;
 }
 
-auto BattleMech::setControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) -> int32_t
+auto MCBattleMech::SetControl(uint32_t controlType, uint32_t controlData, int32_t controlParam) -> int32_t
 {
     int32_t result = 0;
 
@@ -1322,16 +1322,16 @@ auto BattleMech::setControl(uint32_t controlType, uint32_t controlData, int32_t 
     {
         case 1:
         {
-            delete control;
-            auto* playerControl = new PlayerControl;
-            control = playerControl;
+            delete Control;
+            auto* playerControl = new MCPlayerControl;
+            Control = playerControl;
 
             if (playerControl == nullptr)
             {
                 return -0x5fffc;
             }
 
-            if ((result = playerControl->init(this, 0)) != 0)
+            if ((result = playerControl->Init(this, 0)) != 0)
             {
                 return result;
             }
@@ -1340,16 +1340,16 @@ auto BattleMech::setControl(uint32_t controlType, uint32_t controlData, int32_t 
 
         case 2:
         {
-            delete control;
-            auto* aiControl = new MechAIControl;
-            control = aiControl;
+            delete Control;
+            auto* aiControl = new MCMechAIControl;
+            Control = aiControl;
 
             if (aiControl == nullptr)
             {
                 return -0x5fffc;
             }
 
-            if ((result = aiControl->init(this)) != 0)
+            if ((result = aiControl->Init(this)) != 0)
             {
                 return result;
             }
@@ -1358,16 +1358,16 @@ auto BattleMech::setControl(uint32_t controlType, uint32_t controlData, int32_t 
 
         case 3:
         {
-            delete control;
-            auto* netControl = new MechNetControl;
-            control = netControl;
+            delete Control;
+            auto* netControl = new MCMechNetControl;
+            Control = netControl;
 
             if (netControl == nullptr)
             {
                 return -0x5fffc;
             }
 
-            if ((result = netControl->init(this)) != 0)
+            if ((result = netControl->Init(this)) != 0)
             {
                 return result;
             }
@@ -1383,18 +1383,18 @@ auto BattleMech::setControl(uint32_t controlType, uint32_t controlData, int32_t 
         return -0x5fff9;
     }
 
-    auto* mechControlData = new MechControlData;
-    control->controlData = mechControlData;
+    auto* mechControlData = new MCMechControlData;
+    Control->ControlData = mechControlData;
 
     if (mechControlData == nullptr)
     {
         return -0x5fffa;
     }
 
-    return mechControlData->init(0);
+    return mechControlData->Init(0);
 }
 
-auto BattleMech::init(FitIniFile* mechFile) -> int32_t
+auto MCBattleMech::Init(MCFitIniFile* mechFile) -> int32_t
 {
     static const char* const bodyLocationNames[NUM_MECH_BODY_LOCATIONS] = {
         "Head", "CenterTorso", "LeftTorso", "RightTorso", "LeftArm", "RightArm", "LeftLeg", "RightLeg"};
@@ -1402,7 +1402,7 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
         "Head",    "CenterTorso", "LeftTorso",       "RightTorso",    "LeftArm",       "RightArm",
         "LeftLeg", "RightLeg",    "RearCenterTorso", "RearLeftTorso", "RearRightTorso"};
 
-    int32_t result = mechFile->seekBlock("Header");
+    int32_t result = mechFile->SeekBlock("Header");
 
     if (result != 0)
     {
@@ -1411,7 +1411,7 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
 
     char fileType[128];
 
-    if ((result = mechFile->readIdString("FileType", fileType, 127)) != 0)
+    if ((result = mechFile->ReadIdString("FileType", fileType, 127)) != 0)
     {
         return result;
     }
@@ -1421,146 +1421,146 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
         return -1;
     }
 
-    if ((result = mechFile->seekBlock("General")) != 0)
+    if ((result = mechFile->SeekBlock("General")) != 0)
     {
         return result;
     }
 
     char nameBuffer[128];
-    mechFile->readIdString("Name", nameBuffer, 127);
-    debugStatus = nameBuffer;
-    if (mechFile->readIdLong("ChassisBR", chassisBR) != 0)
+    mechFile->ReadIdString("Name", nameBuffer, 127);
+    DebugStatus = nameBuffer;
+    if (mechFile->ReadIdLong("ChassisBR", ChassisBR) != 0)
     {
-        chassisBR = 100;
+        ChassisBR = 100;
     }
 
-    if ((result = mechFile->readIdFloat("CurTonnage", tonnage)) != 0)
+    if ((result = mechFile->ReadIdFloat("CurTonnage", Tonnage)) != 0)
     {
         return result;
     }
 
-    if (mechFile->readIdLong("DescIndex", descIndex) != 0)
+    if (mechFile->ReadIdLong("DescIndex", DescIndex) != 0)
     {
-        descIndex = -1;
+        DescIndex = -1;
     }
 
     char ifaceNameBuffer[256];
-    cLoadString(thisInstance, descIndex + 300, ifaceNameBuffer, 0xfe);
-    ifaceName = ifaceNameBuffer;
+    CLoadString(ThisInstance, DescIndex + 300, ifaceNameBuffer, 0xfe);
+    IfaceName = ifaceNameBuffer;
 
-    if ((result = mechFile->readIdLong("NameIndex", nameIndex)) != 0)
+    if ((result = mechFile->ReadIdLong("NameIndex", NameIndex)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->readIdLong("NameVariant", nameVariant)) != 0)
+    if ((result = mechFile->ReadIdLong("NameVariant", NameVariant)) != 0)
     {
         return result;
     }
 
-    if (mechFile->readIdLong("Pilot", pilotId) != 0)
+    if (mechFile->ReadIdLong("Pilot", PilotId) != 0)
     {
-        pilotId = -1;
+        PilotId = -1;
     }
 
-    status = 0;
+    Status = 0;
 
-    if ((result = mechFile->readIdString("icon", iconName, 0x13)) != 0)
-    {
-        return result;
-    }
-
-    if (mechFile->readIdBoolean("NotMineYet", notMineYet) != 0)
-    {
-        notMineYet = 1;
-    }
-
-    if ((result = mechFile->seekBlock("Engine")) != 0)
+    if ((result = mechFile->ReadIdString("icon", IconName, 0x13)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->readIdFloat("Tonnage", engineTonnage)) != 0)
+    if (mechFile->ReadIdBoolean("NotMineYet", NotMineYet) != 0)
+    {
+        NotMineYet = 1;
+    }
+
+    if ((result = mechFile->SeekBlock("Engine")) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->readIdULong("Rating", engineRating)) != 0)
+    if ((result = mechFile->ReadIdFloat("Tonnage", EngineTonnage)) != 0)
+    {
+        return result;
+    }
+
+    if ((result = mechFile->ReadIdULong("Rating", EngineRating)) != 0)
     {
         return result;
     }
 
     uint8_t runSpeed = 0;
 
-    if ((result = mechFile->readIdUChar("MaxRunSpeed", runSpeed)) != 0)
+    if ((result = mechFile->ReadIdUChar("MaxRunSpeed", runSpeed)) != 0)
     {
         return result;
     }
 
-    maxRunSpeed = static_cast<float>(runSpeed);
+    MaxRunSpeed = static_cast<float>(runSpeed);
 
-    if (mechFile->seekBlock("MovementSystem") == 0)
+    if (mechFile->SeekBlock("MovementSystem") == 0)
     {
         int32_t value = 0;
 
-        if (mechFile->readIdLong("CrashAvoidSelf", value) == 0)
+        if (mechFile->ReadIdLong("CrashAvoidSelf", value) == 0)
         {
-            crashAvoidSelf = value;
+            CrashAvoidSelf = value;
         }
 
-        if (mechFile->readIdLong("CrashAvoidPath", value) == 0)
+        if (mechFile->ReadIdLong("CrashAvoidPath", value) == 0)
         {
-            crashAvoidPath = value;
+            CrashAvoidPath = value;
         }
 
-        if (mechFile->readIdLong("CrashBlockSelf", value) == 0)
+        if (mechFile->ReadIdLong("CrashBlockSelf", value) == 0)
         {
-            pathLockLevel = value;
+            PathLockLevel = value;
         }
 
-        if (mechFile->readIdLong("CrashBlockPath", value) == 0)
+        if (mechFile->ReadIdLong("CrashBlockPath", value) == 0)
         {
-            pathLockRange = value;
+            PathLockRange = value;
         }
 
         float yieldTime = 0.0f;
 
         // As BattleMechType::init: the last long read is stored, not the yield time.
-        if (mechFile->readIdFloat("CrashYieldTime", yieldTime) == 0)
+        if (mechFile->ReadIdFloat("CrashYieldTime", yieldTime) == 0)
         {
-            crashYieldTime = static_cast<float>(value);
+            CrashYieldTime = static_cast<float>(value);
         }
     }
 
-    if ((result = mechFile->seekBlock("Armor")) != 0)
+    if ((result = mechFile->SeekBlock("Armor")) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->readIdUChar("Type", armorType)) != 0)
+    if ((result = mechFile->ReadIdUChar("Type", ArmorType)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->readIdFloat("Tonnage", armorTonnage)) != 0)
+    if ((result = mechFile->ReadIdFloat("Tonnage", ArmorTonnage)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->seekBlock("MaxArmorPoints")) != 0)
+    if ((result = mechFile->SeekBlock("MaxArmorPoints")) != 0)
     {
         return result;
     }
 
     for (int32_t location = 0; location < NUM_MECH_ARMOR_LOCATIONS; location++)
     {
-        if ((result = mechFile->readIdUChar(armorLocationNames[location], armor[location].maxArmor)) != 0)
+        if ((result = mechFile->ReadIdUChar(armorLocationNames[location], Armor[location].MaxArmor)) != 0)
         {
             return result;
         }
     }
 
-    if ((result = mechFile->seekBlock("CurArmorPoints")) != 0)
+    if ((result = mechFile->SeekBlock("CurArmorPoints")) != 0)
     {
         return result;
     }
@@ -1569,69 +1569,69 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
     {
         uint8_t points = 0;
 
-        if ((result = mechFile->readIdUChar(armorLocationNames[location], points)) != 0)
+        if ((result = mechFile->ReadIdUChar(armorLocationNames[location], points)) != 0)
         {
             return result;
         }
 
-        armor[location].curArmor = static_cast<float>(points);
+        Armor[location].CurArmor = static_cast<float>(points);
     }
 
-    if ((result = mechFile->seekBlock("InventoryInfo")) != 0)
+    if ((result = mechFile->SeekBlock("InventoryInfo")) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->readIdUChar("NumOther", numOther)) != 0)
+    if ((result = mechFile->ReadIdUChar("NumOther", NumOther)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->readIdUChar("NumWeapons", numWeapons)) != 0)
+    if ((result = mechFile->ReadIdUChar("NumWeapons", NumWeapons)) != 0)
     {
         return result;
     }
 
-    if ((result = mechFile->readIdUChar("NumAmmo", numAmmos)) != 0)
+    if ((result = mechFile->ReadIdUChar("NumAmmo", NumAmmos)) != 0)
     {
         return result;
     }
 
-    const int32_t firstWeapon = numOther;
-    const int32_t firstAmmo = numOther + numWeapons;
-    const int32_t numItems = numAmmos + numOther + numWeapons;
-    inventory = std::make_unique<InventoryItem[]>(static_cast<size_t>(numItems));
+    const int32_t firstWeapon = NumOther;
+    const int32_t firstAmmo = NumOther + NumWeapons;
+    const int32_t numItems = NumAmmos + NumOther + NumWeapons;
+    Inventory = std::make_unique<MCInventoryItem[]>(static_cast<size_t>(numItems));
 
-    numAntiMissileSystems = 0;
+    NumAntiMissileSystems = 0;
     char blockName[32];
 
     for (int32_t item = 0; item < firstWeapon; item++)
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = mechFile->seekBlock(blockName)) != 0)
+        if ((result = mechFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& other = inventory[item];
+        MCInventoryItem& other = Inventory[item];
 
-        if ((result = mechFile->readIdUChar("MasterID", other.masterID)) != 0)
+        if ((result = mechFile->ReadIdUChar("MasterID", other.MasterID)) != 0)
         {
             return result;
         }
 
-        other.health = MasterComponentList[other.masterID].health;
-        other.disabled = 0;
-        other.amount = 1;
-        other.ammoIndex = -1;
-        other.readyTime = 0.0f;
-        other.bodyLocation = 0xff;
-        other.rangeRatings = nullptr;
+        other.Health = MasterComponentList[other.MasterID].Health;
+        other.Disabled = 0;
+        other.Amount = 1;
+        other.AmmoIndex = -1;
+        other.ReadyTime = 0.0f;
+        other.BodyLocation = 0xff;
+        other.RangeRatings = nullptr;
 
-        if (MasterComponentList[other.masterID].form == COMPONENT_FORM_JUMPJET)
+        if (MasterComponentList[other.MasterID].Form == COMPONENT_FORM_JUMPJET)
         {
-            numJumpJets++;
+            NumJumpJets++;
         }
     }
 
@@ -1639,39 +1639,39 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = mechFile->seekBlock(blockName)) != 0)
+        if ((result = mechFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& weapon = inventory[item];
+        MCInventoryItem& weapon = Inventory[item];
 
-        if ((result = mechFile->readIdUChar("MasterID", weapon.masterID)) != 0)
+        if ((result = mechFile->ReadIdUChar("MasterID", weapon.MasterID)) != 0)
         {
             return result;
         }
 
-        if ((result = mechFile->readIdUChar("FacesForward", weapon.facesForward)) != 0)
+        if ((result = mechFile->ReadIdUChar("FacesForward", weapon.FacesForward)) != 0)
         {
             return result;
         }
 
-        const MasterComponent& component = MasterComponentList[weapon.masterID];
-        weapon.health = component.health;
-        weapon.disabled = 0;
-        weapon.amount = 1;
-        weapon.ammoIndex = -1;
-        weapon.readyTime = 0.0f;
-        weapon.bodyLocation = 0xff;
+        const MCMasterComponent& component = MasterComponentList[weapon.MasterID];
+        weapon.Health = component.Health;
+        weapon.Disabled = 0;
+        weapon.Amount = 1;
+        weapon.AmmoIndex = -1;
+        weapon.ReadyTime = 0.0f;
+        weapon.BodyLocation = 0xff;
         // Damage per ten seconds, then scaled by the long range over 24.
-        weapon.effectiveness =
-            static_cast<int16_t>(static_cast<int32_t>(component.damage * 10.0 / component.recycleTime));
-        weapon.effectiveness = static_cast<int16_t>(static_cast<int32_t>(
-            static_cast<double>(component.weaponRange[3]) * weapon.effectiveness * static_cast<double>(1.0f / 24.0f)));
-        weapon.rangeRatings = new float[NumRangeRatings * 2]();
-        objectTypeManager->load(
+        weapon.Effectiveness =
+            static_cast<int16_t>(static_cast<int32_t>(component.Damage * 10.0 / component.RecycleTime));
+        weapon.Effectiveness = static_cast<int16_t>(static_cast<int32_t>(
+            static_cast<double>(component.WeaponRange[3]) * weapon.Effectiveness * static_cast<double>(1.0f / 24.0f)));
+        weapon.RangeRatings = new float[NumRangeRatings * 2]();
+        ObjectTypeManager->Load(
             static_cast<int32_t>(
-                weaponFXTable[static_cast<int8_t>(MasterComponentList[inventory[item].masterID].weaponEffect)]),
+                WeaponFXTable[static_cast<int8_t>(MasterComponentList[Inventory[item].MasterID].WeaponEffect)]),
             1);
     }
 
@@ -1679,25 +1679,25 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
     {
         std::sprintf(blockName, "Item:%d", item);
 
-        if ((result = mechFile->seekBlock(blockName)) != 0)
+        if ((result = mechFile->SeekBlock(blockName)) != 0)
         {
             return result;
         }
 
-        InventoryItem& ammo = inventory[item];
+        MCInventoryItem& ammo = Inventory[item];
 
-        if ((result = mechFile->readIdUChar("MasterID", ammo.masterID)) != 0)
+        if ((result = mechFile->ReadIdUChar("MasterID", ammo.MasterID)) != 0)
         {
             return result;
         }
 
         int32_t amount = 0;
 
-        if (mechFile->readIdLong("Amount", amount) != 0)
+        if (mechFile->ReadIdLong("Amount", amount) != 0)
         {
             uint8_t smallAmount = 0;
 
-            if ((result = mechFile->readIdUChar("Amount", smallAmount)) != 0)
+            if ((result = mechFile->ReadIdUChar("Amount", smallAmount)) != 0)
             {
                 return result;
             }
@@ -1707,68 +1707,68 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
 
         if (amount == -1)
         {
-            amount = MasterComponentList[ammo.masterID].longValue;
+            amount = MasterComponentList[ammo.MasterID].LongValue;
         }
 
-        ammo.amount = static_cast<int16_t>(amount);
-        ammo.ammoIndex = -1;
-        ammo.startAmount = ammo.amount;
-        ammo.health = MasterComponentList[ammo.masterID].health;
-        ammo.disabled = 0;
-        ammo.readyTime = 0.0f;
-        ammo.bodyLocation = 0xff;
-        ammo.rangeRatings = nullptr;
+        ammo.Amount = static_cast<int16_t>(amount);
+        ammo.AmmoIndex = -1;
+        ammo.StartAmount = ammo.Amount;
+        ammo.Health = MasterComponentList[ammo.MasterID].Health;
+        ammo.Disabled = 0;
+        ammo.ReadyTime = 0.0f;
+        ammo.BodyLocation = 0xff;
+        ammo.RangeRatings = nullptr;
     }
 
     for (int32_t location = 0; location < NUM_MECH_BODY_LOCATIONS; location++)
     {
-        if ((result = mechFile->seekBlock(bodyLocationNames[location])) != 0)
+        if ((result = mechFile->SeekBlock(bodyLocationNames[location])) != 0)
         {
             return result;
         }
 
         uint8_t hasCase = 0;
 
-        if ((result = mechFile->readIdUChar("CASE", hasCase)) != 0)
+        if ((result = mechFile->ReadIdUChar("CASE", hasCase)) != 0)
         {
             return result;
         }
 
-        BodyLocation& bodyLocation = bodyAt(location);
-        bodyLocation.hasCASE = hasCase;
+        MCBodyLocation& bodyLocation = BodyAt(location);
+        bodyLocation.HasCase = hasCase;
         uint8_t internalStructure = 0;
 
-        if ((result = mechFile->readIdUChar("CurInternalStructure", internalStructure)) != 0)
+        if ((result = mechFile->ReadIdUChar("CurInternalStructure", internalStructure)) != 0)
         {
             return result;
         }
 
-        bodyLocation.curInternalStructure = static_cast<float>(internalStructure);
+        bodyLocation.CurInternalStructure = static_cast<float>(internalStructure);
 
-        if ((result = mechFile->readIdUChar("HotSpotNumber", bodyLocation.hotSpotNumber)) != 0)
+        if ((result = mechFile->ReadIdUChar("HotSpotNumber", bodyLocation.HotSpotNumber)) != 0)
         {
             return result;
         }
 
         const float structureLeft =
-            bodyLocation.curInternalStructure / static_cast<float>(bodyLocation.maxInternalStructure);
+            bodyLocation.CurInternalStructure / static_cast<float>(bodyLocation.MaxInternalStructure);
 
         if (structureLeft == 0.0f)
         {
-            bodyLocation.damageState = 2;
+            bodyLocation.DamageState = 2;
         }
         else if (structureLeft > 0.5f)
         {
-            bodyLocation.damageState = 0;
+            bodyLocation.DamageState = 0;
         }
         else
         {
-            bodyLocation.damageState = 1;
+            bodyLocation.DamageState = 1;
         }
 
         const int32_t numSpaces = NumLocationCriticalSpaces[location];
-        bodyLocation.criticalSpaces = new CriticalSpace[static_cast<size_t>(numSpaces)]();
-        bodyLocation.totalSpaces = 0;
+        bodyLocation.CriticalSpaces = new MCCriticalSpace[static_cast<size_t>(numSpaces)]();
+        bodyLocation.TotalSpaces = 0;
 
         for (int32_t space = 0; space < numSpaces; space++)
         {
@@ -1776,36 +1776,36 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
             std::sprintf(entryName, "Component:%d", space);
             uint8_t entry[2];
 
-            if ((result = mechFile->readIdUCharArray(entryName, entry, 2)) != 0)
+            if ((result = mechFile->ReadIdUCharArray(entryName, entry, 2)) != 0)
             {
                 return result;
             }
 
-            CriticalSpace& criticalSpace = bodyAt(location).criticalSpaces[space];
-            criticalSpace.inventoryID = entry[0];
-            criticalSpace.hit = entry[1];
+            MCCriticalSpace& criticalSpace = BodyAt(location).CriticalSpaces[space];
+            criticalSpace.InventoryID = entry[0];
+            criticalSpace.Hit = entry[1];
 
             if (entry[0] == 0xff)
             {
                 continue;
             }
 
-            InventoryItem& item = inventory[entry[0]];
-            item.bodyLocation = static_cast<uint8_t>(location);
-            bodyAt(location).totalSpaces += static_cast<int8_t>(MasterComponentList[item.masterID].criticalSpacesReq);
-            const uint32_t masterID = item.masterID;
+            MCInventoryItem& item = Inventory[entry[0]];
+            item.BodyLocation = static_cast<uint8_t>(location);
+            BodyAt(location).TotalSpaces += static_cast<int8_t>(MasterComponentList[item.MasterID].CriticalSpacesReq);
+            const uint32_t masterID = item.MasterID;
 
-            switch (MasterComponentList[masterID].form)
+            switch (MasterComponentList[masterID].Form)
             {
                 case COMPONENT_FORM_COCKPIT:
-                    cockpit = entry[0];
+                    Cockpit = entry[0];
                     break;
                 case COMPONENT_FORM_SENSOR:
                 {
-                    sensor = entry[0];
-                    sensorSystem = sensorSystemManager->newSensor();
-                    sensorSystem->owner = this;
-                    sensorSystem->setRange(MasterComponentList[inventory[sensor].masterID].rangeOrHeat);
+                    Sensor = entry[0];
+                    SensorSystem = SensorSystemManager->NewSensor();
+                    SensorSystem->Owner = this;
+                    SensorSystem->SetRange(MasterComponentList[Inventory[Sensor].MasterID].RangeOrHeat);
                     break;
                 }
                 case COMPONENT_FORM_ACTUATOR:
@@ -1814,69 +1814,69 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
                     {
                         if (location == MECH_BODY_LOCATION_LARM)
                         {
-                            leftArmActuator = entry[0];
+                            LeftArmActuator = entry[0];
                         }
                         else if (location == MECH_BODY_LOCATION_RARM)
                         {
-                            rightArmActuator = entry[0];
+                            RightArmActuator = entry[0];
                         }
                     }
                     else if (static_cast<int32_t>(masterID) == MasterLegActuatorID)
                     {
                         if (location == MECH_BODY_LOCATION_LLEG)
                         {
-                            leftLegActuator = entry[0];
+                            LeftLegActuator = entry[0];
                         }
                         else if (location == MECH_BODY_LOCATION_RLEG)
                         {
-                            rightLegActuator = entry[0];
+                            RightLegActuator = entry[0];
                         }
                     }
                     break;
                 }
                 case COMPONENT_FORM_ENGINE:
-                    engine = entry[0];
+                    Engine = entry[0];
                     break;
                 case COMPONENT_FORM_HEATSINK:
                 case COMPONENT_FORM_WEAPON:
                 case COMPONENT_FORM_WEAPON_ENERGY:
                 case COMPONENT_FORM_WEAPON_MISSILE:
-                    item.bodyLocation = static_cast<uint8_t>(location);
+                    item.BodyLocation = static_cast<uint8_t>(location);
                     break;
                 case COMPONENT_FORM_WEAPON_BALLISTIC:
                 {
-                    item.bodyLocation = static_cast<uint8_t>(location);
+                    item.BodyLocation = static_cast<uint8_t>(location);
 
                     if (static_cast<int32_t>(masterID) == MasterClanAntiMissileSystemID ||
                         static_cast<int32_t>(masterID) == MasterInnerSphereAntiMissileSystemID)
                     {
-                        if (numAntiMissileSystems == 16)
+                        if (NumAntiMissileSystems == 16)
                         {
                             Fatal(0, "Too many Anti-Missile Systems");
                         }
 
-                        antiMissileSystem[numAntiMissileSystems] = entry[0];
-                        numAntiMissileSystems++;
+                        AntiMissileSystem[NumAntiMissileSystems] = entry[0];
+                        NumAntiMissileSystems++;
                     }
                     break;
                 }
                 case COMPONENT_FORM_AMMO:
-                    item.bodyLocation = static_cast<uint8_t>(location);
+                    item.BodyLocation = static_cast<uint8_t>(location);
                     break;
                 case COMPONENT_FORM_LIFESUPPORT:
-                    lifeSupport = entry[0];
+                    LifeSupport = entry[0];
                     break;
                 case COMPONENT_FORM_GYROSCOPE:
-                    gyro = entry[0];
+                    Gyro = entry[0];
                     break;
                 case COMPONENT_FORM_ECM:
-                    ecm = entry[0];
+                    Ecm = entry[0];
                     break;
                 case COMPONENT_FORM_PROBE:
-                    probe = entry[0];
+                    Probe = entry[0];
                     break;
                 case COMPONENT_FORM_JAMMER:
-                    jammer = entry[0];
+                    Jammer = entry[0];
                     break;
                 default:
                     break;
@@ -1884,16 +1884,16 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
         }
     }
 
-    calcAmmoTotals();
+    CalcAmmoTotals();
 
     for (int32_t item = firstWeapon; item < firstAmmo; item++)
     {
-        for (int32_t ammoType = 0; ammoType < numAmmoTypes; ammoType++)
+        for (int32_t ammoType = 0; ammoType < NumAmmoTypes; ammoType++)
         {
-            if (static_cast<int32_t>(MasterComponentList[inventory[item].masterID].ammoMasterId) ==
-                ammoTypeTotal[ammoType].masterId)
+            if (static_cast<int32_t>(MasterComponentList[Inventory[item].MasterID].AmmoMasterId) ==
+                AmmoTypeTotal[ammoType].MasterId)
             {
-                inventory[item].ammoIndex = static_cast<int16_t>(ammoType);
+                Inventory[item].AmmoIndex = static_cast<int16_t>(ammoType);
                 break;
             }
         }
@@ -1901,11 +1901,11 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
 
     for (int32_t item = firstAmmo; item < numItems; item++)
     {
-        for (int32_t ammoType = 0; ammoType < numAmmoTypes; ammoType++)
+        for (int32_t ammoType = 0; ammoType < NumAmmoTypes; ammoType++)
         {
-            if (static_cast<int32_t>(inventory[item].masterID) == ammoTypeTotal[ammoType].masterId)
+            if (static_cast<int32_t>(Inventory[item].MasterID) == AmmoTypeTotal[ammoType].MasterId)
             {
-                inventory[item].ammoIndex = static_cast<int16_t>(ammoType);
+                Inventory[item].AmmoIndex = static_cast<int16_t>(ammoType);
                 break;
             }
         }
@@ -1913,165 +1913,165 @@ auto BattleMech::init(FitIniFile* mechFile) -> int32_t
 
     for (int32_t item = 0; item < firstWeapon; item++)
     {
-        const int32_t masterID = inventory[item].masterID;
+        const int32_t masterID = Inventory[item].MasterID;
 
         if (masterID != MasterClanAntiMissileSystemID && masterID != MasterInnerSphereAntiMissileSystemID)
         {
             continue;
         }
 
-        for (int32_t ammoType = 0; ammoType < numAmmoTypes; ammoType++)
+        for (int32_t ammoType = 0; ammoType < NumAmmoTypes; ammoType++)
         {
-            if (static_cast<int32_t>(MasterComponentList[masterID].ammoMasterId) == ammoTypeTotal[ammoType].masterId)
+            if (static_cast<int32_t>(MasterComponentList[masterID].AmmoMasterId) == AmmoTypeTotal[ammoType].MasterId)
             {
-                inventory[item].ammoIndex = static_cast<int16_t>(ammoType);
+                Inventory[item].AmmoIndex = static_cast<int16_t>(ammoType);
                 break;
             }
         }
     }
 
-    calcLongestRangeWeapon();
-    calcLegStatus();
-    calcTorsoStatus();
-    maxCV = calcCV(1);
-    curCV = calcCV(0);
-    maxTargetDamage = calcMaxTargetDamage();
+    CalcLongestRangeWeapon();
+    CalcLegStatus();
+    CalcTorsoStatus();
+    MaxCV = CalcCV(1);
+    CurCV = CalcCV(0);
+    MaxTargetDamage = CalcMaxTargetDamage();
 
-    if (objType->explosionObject > 0)
+    if (ObjType->ExplosionObject > 0)
     {
-        objectTypeManager->load(objType->explosionObject, 1);
+        ObjectTypeManager->Load(ObjType->ExplosionObject, 1);
     }
 
-    mechClass = static_cast<uint8_t>(getMechClass());
+    MechClass = static_cast<uint8_t>(GetMechClass());
     return 0;
 }
 
-auto BattleMech::write(File* objFile) -> int32_t
+auto MCBattleMech::Write(MCFile* objFile) -> int32_t
 {
-    BigGameObject::write(objFile);
-    objFile->writeString(debugStatus.c_str());
-    objFile->writeString(iconName);
-    objFile->writeByte(chassis);
-    objFile->writeLong(endoSteel);
-    objFile->writeFloat(tonnageClass);
-    objFile->writeFloat(internalStructureTonnage);
+    MCBigGameObject::Write(objFile);
+    objFile->WriteString(DebugStatus.c_str());
+    objFile->WriteString(IconName);
+    objFile->WriteByte(Chassis);
+    objFile->WriteLong(EndoSteel);
+    objFile->WriteFloat(TonnageClass);
+    objFile->WriteFloat(InternalStructureTonnage);
 
     for (int32_t location = 0; location < NUM_MECH_BODY_LOCATIONS; location++)
     {
-        const BodyLocation& bodyLocation = bodyAt(location);
-        objFile->writeLong(bodyLocation.hasCASE);
-        objFile->write(reinterpret_cast<const uint8_t*>(bodyLocation.criticalSpaces),
+        const MCBodyLocation& bodyLocation = BodyAt(location);
+        objFile->WriteLong(bodyLocation.HasCase);
+        objFile->Write(reinterpret_cast<const uint8_t*>(bodyLocation.CriticalSpaces),
                        NumLocationCriticalSpaces[location] * 8);
-        objFile->writeFloat(bodyLocation.curInternalStructure);
-        objFile->writeByte(bodyLocation.maxInternalStructure);
-        objFile->writeByte(bodyLocation.hotSpotNumber);
+        objFile->WriteFloat(bodyLocation.CurInternalStructure);
+        objFile->WriteByte(bodyLocation.MaxInternalStructure);
+        objFile->WriteByte(bodyLocation.HotSpotNumber);
     }
 
-    objFile->writeByte(armorType);
-    objFile->writeFloat(armorTonnage);
-    objFile->write(reinterpret_cast<const uint8_t*>(armor.get()), 0x58);
-    const int32_t otherCount = numOther;
-    const int32_t weaponCount = numWeapons;
-    const int32_t ammoCount = numAmmos;
-    objFile->writeLong(otherCount);
-    objFile->writeLong(weaponCount);
-    objFile->writeLong(ammoCount);
+    objFile->WriteByte(ArmorType);
+    objFile->WriteFloat(ArmorTonnage);
+    objFile->Write(reinterpret_cast<const uint8_t*>(Armor.get()), 0x58);
+    const int32_t otherCount = NumOther;
+    const int32_t weaponCount = NumWeapons;
+    const int32_t ammoCount = NumAmmos;
+    objFile->WriteLong(otherCount);
+    objFile->WriteLong(weaponCount);
+    objFile->WriteLong(ammoCount);
     // Original behaviour (OB-007): each list is written from the start of the inventory (the pointer isn't advanced).
     const auto writeItems = [&](int32_t count)
     {
         for (int32_t i = 0; i < count; i++)
         {
-            const InventoryItem& item = inventory[i];
-            objFile->writeByte(item.masterID);
-            objFile->writeByte(item.health);
-            objFile->writeByte(item.disabled == 1 ? 1 : 0);
-            objFile->writeByte(item.facesForward);
-            objFile->writeShort(item.amount);
-            objFile->writeByte(item.bodyLocation);
+            const MCInventoryItem& item = Inventory[i];
+            objFile->WriteByte(item.MasterID);
+            objFile->WriteByte(item.Health);
+            objFile->WriteByte(item.Disabled == 1 ? 1 : 0);
+            objFile->WriteByte(item.FacesForward);
+            objFile->WriteShort(item.Amount);
+            objFile->WriteByte(item.BodyLocation);
         }
     };
 
     writeItems(otherCount);
     writeItems(weaponCount);
     writeItems(ammoCount);
-    objFile->writeByte(cockpit);
-    objFile->writeByte(engine);
-    objFile->writeByte(lifeSupport);
-    objFile->writeByte(sensor);
-    objFile->writeByte(ecm);
-    objFile->writeByte(probe);
-    objFile->writeByte(jammer);
-    objFile->writeByte(static_cast<uint8_t>(numAntiMissileSystems));
-    objFile->write(antiMissileSystem, 0x10);
-    return objFile->writeFloat(maxRunSpeed);
+    objFile->WriteByte(Cockpit);
+    objFile->WriteByte(Engine);
+    objFile->WriteByte(LifeSupport);
+    objFile->WriteByte(Sensor);
+    objFile->WriteByte(Ecm);
+    objFile->WriteByte(Probe);
+    objFile->WriteByte(Jammer);
+    objFile->WriteByte(static_cast<uint8_t>(NumAntiMissileSystems));
+    objFile->Write(AntiMissileSystem, 0x10);
+    return objFile->WriteFloat(MaxRunSpeed);
 }
 
-auto BattleMech::calcCV(int calcMax) -> int32_t
+auto MCBattleMech::CalcCV(int calcMax) -> int32_t
 {
-    double cv = chassisBR;
-    const int32_t numItems = numAmmos + numWeapons + numOther;
+    double cv = ChassisBR;
+    const int32_t numItems = NumAmmos + NumWeapons + NumOther;
 
     for (int32_t i = 0; i < numItems; i++)
     {
-        if (calcMax != 0 || inventory[i].disabled == 0)
+        if (calcMax != 0 || Inventory[i].Disabled == 0)
         {
-            cv += MasterComponentList[inventory[i].masterID].battleRating;
+            cv += MasterComponentList[Inventory[i].MasterID].BattleRating;
         }
     }
 
     return static_cast<int32_t>(cv);
 }
 
-auto BattleMech::calcLegStatus() -> int32_t
+auto MCBattleMech::CalcLegStatus() -> int32_t
 {
-    const uint8_t leftLeg = bodyAt(MECH_BODY_LOCATION_LLEG).damageState;
+    const uint8_t leftLeg = BodyAt(MECH_BODY_LOCATION_LLEG).DamageState;
 
-    if (bodyAt(MECH_BODY_LOCATION_RLEG).damageState == 2)
+    if (BodyAt(MECH_BODY_LOCATION_RLEG).DamageState == 2)
     {
         if (leftLeg == 2)
         {
-            legStatus = 3;
+            LegStatus = 3;
 
-            if (pilot != nullptr)
+            if (Pilot != nullptr)
             {
-                pilot->triggerAlarm(6, 0x42);
-                return legStatus;
+                Pilot->TriggerAlarm(6, 0x42);
+                return LegStatus;
             }
 
-            return legStatus;
+            return LegStatus;
         }
 
-        if (legStatus == 2)
+        if (LegStatus == 2)
         {
-            return legStatus;
+            return LegStatus;
         }
     }
     else if (leftLeg != 2)
     {
-        legStatus = 0;
-        return legStatus;
+        LegStatus = 0;
+        return LegStatus;
     }
 
-    pilot->radioMessage(0x1e, 0);
-    legStatus = 2;
+    Pilot->RadioMessage(0x1e, 0);
+    LegStatus = 2;
     return 2;
 }
 
-auto BattleMech::calcTorsoStatus() -> int32_t
+auto MCBattleMech::CalcTorsoStatus() -> int32_t
 {
-    if (bodyAt(MECH_BODY_LOCATION_CTORSO).damageState == 1)
+    if (BodyAt(MECH_BODY_LOCATION_CTORSO).DamageState == 1)
     {
-        torsoStatus = 1;
+        TorsoStatus = 1;
         return 1;
     }
 
-    torsoStatus = 0;
-    return torsoStatus;
+    TorsoStatus = 0;
+    return TorsoStatus;
 }
 
-auto BattleMech::pilotingCheck(uint32_t situation, float modifier) -> void
+auto MCBattleMech::PilotingCheck(uint32_t situation, float modifier) -> void
 {
-    if ((MPlayer != nullptr && MPlayer->isServer == 0) || pilotingCheckPending != 0)
+    if ((MPlayer != nullptr && MPlayer->IsServer == 0) || PilotingCheckPending != 0)
     {
         return;
     }
@@ -2083,124 +2083,124 @@ auto BattleMech::pilotingCheck(uint32_t situation, float modifier) -> void
         roll += 20.0;
     }
 
-    if (bodyAt(MECH_BODY_LOCATION_RLEG).curInternalStructure == 0.0f ||
-        bodyAt(MECH_BODY_LOCATION_LLEG).curInternalStructure == 0.0f)
+    if (BodyAt(MECH_BODY_LOCATION_RLEG).CurInternalStructure == 0.0f ||
+        BodyAt(MECH_BODY_LOCATION_LLEG).CurInternalStructure == 0.0f)
     {
         roll += 100.0;
     }
 
-    const InventoryItem& gyroItem = inventory[gyro];
+    const MCInventoryItem& gyroItem = Inventory[Gyro];
 
-    if (gyroItem.health == 0)
+    if (gyroItem.Health == 0)
     {
         roll += 100.0;
     }
-    else if (static_cast<int32_t>(gyroItem.health) < static_cast<int8_t>(MasterComponentList[gyroItem.masterID].health))
+    else if (static_cast<int32_t>(gyroItem.Health) < static_cast<int8_t>(MasterComponentList[gyroItem.MasterID].Health))
     {
         roll += 30.0;
     }
 
-    if (inventory[leftLegActuator].health == 0)
+    if (Inventory[LeftLegActuator].Health == 0)
     {
         roll += 10.0;
     }
 
-    if (inventory[rightLegActuator].health == 0)
+    if (Inventory[RightLegActuator].Health == 0)
     {
         roll += 10.0;
     }
 
     if ((situation & 1) == 0)
     {
-        const int failed = static_cast<double>(pilot->skills[MWS_PILOTING]) <= roll ? 1 : 0;
-        pilotingCheckPending = failed;
-        pilot->skillPoints[MWS_PILOTING] += SkillTry[0];
+        const int failed = static_cast<double>(Pilot->Skills[MWS_PILOTING]) <= roll ? 1 : 0;
+        PilotingCheckPending = failed;
+        Pilot->SkillPoints[MWS_PILOTING] += SkillTry[0];
 
         if (failed == 0)
         {
-            pilot->skillPoints[MWS_PILOTING] += SkillSuccess[0];
+            Pilot->SkillPoints[MWS_PILOTING] += SkillSuccess[0];
         }
     }
     else
     {
-        const int failed = static_cast<double>(pilot->skills[MWS_JUMPING] + PilotJumpMod) <= roll ? 1 : 0;
-        pilotingCheckPending = failed;
-        pilot->skillPoints[MWS_JUMPING] += SkillTry[1];
+        const int failed = static_cast<double>(Pilot->Skills[MWS_JUMPING] + PilotJumpMod) <= roll ? 1 : 0;
+        PilotingCheckPending = failed;
+        Pilot->SkillPoints[MWS_JUMPING] += SkillTry[1];
 
         if (failed == 0)
         {
-            pilot->skillPoints[MWS_JUMPING] += SkillSuccess[1];
+            Pilot->SkillPoints[MWS_JUMPING] += SkillSuccess[1];
         }
     }
 }
 
-auto BattleMech::canPowerUp() -> int
+auto MCBattleMech::CanPowerUp() -> int
 {
     return 1;
 }
 
-auto BattleMech::destroy() -> void
+auto MCBattleMech::Destroy() -> void
 {
-    ifaceName.clear();
+    IfaceName.clear();
 
-    if (statusWindow != nullptr)
+    if (StatusWindow != nullptr)
     {
-        closeStatusWindow();
-        statusWindow = nullptr;
+        CloseStatusWindow();
+        StatusWindow = nullptr;
     }
 }
 
-auto BattleMech::mineCheck() -> void
+auto MCBattleMech::MineCheck() -> void
 {
-    if ((MPlayer != nullptr && MPlayer->isServer == 0) || isJumping(nullptr) != 0)
+    if ((MPlayer != nullptr && MPlayer->IsServer == 0) || IsJumping(nullptr) != 0)
     {
         return;
     }
 
-    ScenarioMap* map = GameMap;
+    MCScenarioMap* map = GameMap;
 
     // The mine state bits of a tile's overlay: Inner Sphere 11..12, Clan 13..14; the spread counts 25..26, 27..28.
-    if (steppedOnMine != 0)
+    if (SteppedOnMine != 0)
     {
-        const MapTile& tile = map->map[objPosition->tileR * map->width + objPosition->tileC];
-        const uint32_t state = alignment == -1 ? tile.overlay >> 11 : tile.overlay >> 13;
+        const MCMapTile& tile = map->Map[ObjPosition->TileR * map->Width + ObjPosition->TileC];
+        const uint32_t state = Alignment == -1 ? tile.Overlay >> 11 : tile.Overlay >> 13;
 
         if ((state & 3) == 0)
         {
-            steppedOnMine = 0;
-            const int32_t tileR = objPosition->tileR;
-            const int32_t tileC = objPosition->tileC;
-            MapTile& here = map->map[map->width * tileR + tileC];
+            SteppedOnMine = 0;
+            const int32_t tileR = ObjPosition->TileR;
+            const int32_t tileC = ObjPosition->TileC;
+            MCMapTile& here = map->Map[map->Width * tileR + tileC];
 
-            if (getAlignment() == -1)
+            if (GetAlignment() == -1)
             {
-                here.overlay = (here.overlay & 0xffffefff) | 0x800;
+                here.Overlay = (here.Overlay & 0xffffefff) | 0x800;
             }
             else
             {
-                here.overlay = (here.overlay & 0xffffbfff) | 0x2000;
+                here.Overlay = (here.Overlay & 0xffffbfff) | 0x2000;
             }
 
             if (MPlayer != nullptr)
             {
-                MPlayer->addMineChunk(tileR * 3, tileC * 3, alignment != -1 ? 1 : 0, 1, 0);
+                MPlayer->AddMineChunk(tileR * 3, tileC * 3, Alignment != -1 ? 1 : 0, 1, 0);
                 map = GameMap;
             }
         }
     }
 
     const uint32_t mine =
-        alignment == -1
-            ? map->getInnerSphereMine(objPosition->tileR, objPosition->tileC, objPosition->cellR, objPosition->cellC)
-            : map->getClanMine(objPosition->tileR, objPosition->tileC, objPosition->cellR, objPosition->cellC);
+        Alignment == -1
+            ? map->GetInnerSphereMine(ObjPosition->TileR, ObjPosition->TileC, ObjPosition->CellR, ObjPosition->CellC)
+            : map->GetClanMine(ObjPosition->TileR, ObjPosition->TileC, ObjPosition->CellR, ObjPosition->CellC);
 
     if (mine == 0)
     {
         return;
     }
 
-    int32_t firstRow = objPosition->tileR - 1;
-    int32_t firstCol = objPosition->tileC - 1;
+    int32_t firstRow = ObjPosition->TileR - 1;
+    int32_t firstCol = ObjPosition->TileC - 1;
 
     if (firstRow < 0)
     {
@@ -2212,7 +2212,7 @@ auto BattleMech::mineCheck() -> void
         firstCol = 0;
     }
 
-    const int32_t mapSide = Terrain::verticesBlockSide * Terrain::blocksMapSide;
+    const int32_t mapSide = MCTerrain::VerticesBlockSide * MCTerrain::BlocksMapSide;
 
     if (mapSide <= firstCol + 3)
     {
@@ -2228,7 +2228,7 @@ auto BattleMech::mineCheck() -> void
     {
         for (int32_t col = firstCol; col < firstCol + 3; col++)
         {
-            const bool inMap = row >= 0 && row < GameMap->height && col >= 0 && col < GameMap->width;
+            const bool inMap = row >= 0 && row < GameMap->Height && col >= 0 && col < GameMap->Width;
             Assert(inMap ? 1 : 0, 0, " Map Tile out of bounds ");
 
             // Port fix: the original goes on to touch the tile past the map's edge.
@@ -2237,103 +2237,103 @@ auto BattleMech::mineCheck() -> void
                 continue;
             }
 
-            MapTile& tile = GameMap->map[GameMap->width * row + col];
-            const bool innerSphere = getAlignment() == -1;
-            uint32_t count = ((innerSphere ? tile.overlay >> 25 : tile.overlay >> 27) & 3) + 1;
+            MCMapTile& tile = GameMap->Map[GameMap->Width * row + col];
+            const bool innerSphere = GetAlignment() == -1;
+            uint32_t count = ((innerSphere ? tile.Overlay >> 25 : tile.Overlay >> 27) & 3) + 1;
 
             if (count > 3)
             {
                 count = 3;
             }
 
-            if (getAlignment() == -1)
+            if (GetAlignment() == -1)
             {
-                tile.overlay = (tile.overlay & 0xf9ffffff) | (count << 25);
+                tile.Overlay = (tile.Overlay & 0xf9ffffff) | (count << 25);
             }
             else
             {
-                tile.overlay = (tile.overlay & 0xe7ffffff) | (count << 27);
+                tile.Overlay = (tile.Overlay & 0xe7ffffff) | (count << 27);
             }
         }
     }
 
-    const int32_t tileR = objPosition->tileR;
-    const int32_t tileC = objPosition->tileC;
-    MapTile& here = GameMap->map[GameMap->width * tileR + tileC];
+    const int32_t tileR = ObjPosition->TileR;
+    const int32_t tileC = ObjPosition->TileC;
+    MCMapTile& here = GameMap->Map[GameMap->Width * tileR + tileC];
 
-    if (getAlignment() == -1)
+    if (GetAlignment() == -1)
     {
-        here.overlay |= 0x1800;
+        here.Overlay |= 0x1800;
     }
     else
     {
-        here.overlay |= 0x6000;
+        here.Overlay |= 0x6000;
     }
 
     if (MPlayer != nullptr)
     {
-        MPlayer->addMineChunk(tileR * 3 + objPosition->cellR, tileC * 3 + objPosition->cellC, alignment != -1 ? 1 : 0,
+        MPlayer->AddMineChunk(tileR * 3 + ObjPosition->CellR, tileC * 3 + ObjPosition->CellC, Alignment != -1 ? 1 : 0,
                               3, 2);
     }
 
-    pilot->pausePath();
-    vector_3d position = getPosition();
-    CreateExplosion(MineExplosion, position, MineSplashDamage, worldUnitsPerMeter * MineSplashRange);
-    const int32_t hitLocation = calcHitLocation(nullptr, -1, 3, 0);
-    _WeaponShotInfo shotInfo;
-    shotInfo.init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
-    handleWeaponHit(&shotInfo, MPlayer != nullptr);
+    Pilot->PausePath();
+    MCVector3D position = GetPosition();
+    CreateExplosion(MineExplosion, position, MineSplashDamage, WorldUnitsPerMeter * MineSplashRange);
+    const int32_t hitLocation = CalcHitLocation(nullptr, -1, 3, 0);
+    MCWeaponShotInfo shotInfo;
+    shotInfo.Init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
+    HandleWeaponHit(&shotInfo, MPlayer != nullptr);
 
-    if (getPilot() != nullptr)
+    if (GetPilot() != nullptr)
     {
-        getPilot()->radioMessage(0x16, 1);
+        GetPilot()->RadioMessage(0x16, 1);
     }
 
-    steppedOnMine = 1;
+    SteppedOnMine = 1;
 }
 
-auto BattleMech::updateJump() -> int
+auto MCBattleMech::UpdateJump() -> int
 {
-    if (isJumping(nullptr) == 0)
+    if (IsJumping(nullptr) == 0)
     {
         return 0;
     }
 
-    auto* actor = static_cast<MechActor*>(appearance);
-    auto* controlData = static_cast<MechControlData*>(control->controlData);
+    auto* actor = static_cast<MCMechActor*>(Appearance);
+    auto* controlData = static_cast<MCMechControlData*>(Control->ControlData);
 
-    if (actor->inJump == 0 && actor->jumpSetup == 0)
+    if (actor->InJump == 0 && actor->JumpSetup == 0)
     {
         // Landed.
-        inJump = 0;
-        jumpTime = scenarioTime;
-        MovePath* path = pilot->getMovePath();
-        pilot->resumePath();
-        lastValidPosition = position;
-        path->curStep++;
-        pilotingCheck(1, 0.0f);
+        InJump = 0;
+        JumpTime = ScenarioTime;
+        MCMovePath* path = Pilot->GetMovePath();
+        Pilot->ResumePath();
+        LastValidPosition = Position;
+        path->CurStep++;
+        PilotingCheck(1, 0.0f);
     }
 
-    if (actor->airborne == 0)
+    if (actor->Airborne == 0)
     {
-        if (MPlayer == nullptr || MPlayer->isServer != 0)
+        if (MPlayer == nullptr || MPlayer->IsServer != 0)
         {
-            actor->setJumpParameters(jumpGoal, 0);
+            actor->SetJumpParameters(JumpGoal, 0);
 
-            if (static_cast<MechActor*>(appearance)->inTransition == 0)
+            if (static_cast<MCMechActor*>(Appearance)->InTransition == 0)
             {
-                appearance->setGestureGoal(6);
-                controlData->throttle = 100;
+                Appearance->SetGestureGoal(6);
+                controlData->Throttle = 100;
             }
         }
-        else if (distanceFrom(jumpGoal) > 8.0f)
+        else if (DistanceFrom(JumpGoal) > 8.0f)
         {
-            actor->setJumpParameters(jumpGoal, 0);
+            actor->SetJumpParameters(JumpGoal, 0);
 
-            if (static_cast<MechActor*>(appearance)->inTransition == 0)
+            if (static_cast<MCMechActor*>(Appearance)->InTransition == 0)
             {
-                appearance->setGestureGoal(6);
-                controlData->throttle = 100;
+                Appearance->SetGestureGoal(6);
+                controlData->Throttle = 100;
                 return 1;
             }
         }
@@ -2342,16 +2342,16 @@ auto BattleMech::updateJump() -> int
     }
 
     // Turn toward the landing point: within two degrees, pivot by the pivot angle.
-    float turn = relFacingTo(jumpGoal, -1);
+    float turn = RelFacingTo(JumpGoal, -1);
 
     if (turn >= -2.0f && turn <= 2.0f)
     {
-        turn = turn < 0.0f ? -mechPivotAngle : mechPivotAngle;
+        turn = turn < 0.0f ? -MechPivotAngle : MechPivotAngle;
     }
 
     const float maxRate = static_cast<float>(
-        static_cast<MechDynamicsType*>(static_cast<BattleMechType*>(objType)->dynamicsType)->maxMechYawRate);
-    double rate = -(static_cast<double>(turn) / frameLength);
+        static_cast<MCMechDynamicsType*>(static_cast<MCBattleMechType*>(ObjType)->DynamicsType)->MaxMechYawRate);
+    double rate = -(static_cast<double>(turn) / FrameLength);
 
     if (rate > maxRate)
     {
@@ -2362,36 +2362,36 @@ auto BattleMech::updateJump() -> int
         rate = -maxRate;
     }
 
-    controlData->rotate = static_cast<int8_t>(static_cast<int32_t>(rate / maxRate * 64.0f));
+    controlData->Rotate = static_cast<int8_t>(static_cast<int32_t>(rate / maxRate * 64.0f));
     return 1;
 }
 
-auto BattleMech::pivotTo() -> int
+auto MCBattleMech::PivotTo() -> int
 {
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
-    const int32_t moveStateGoal = warrior->moveOrders.moveStateGoal;
-    const int32_t moveState = warrior->moveOrders.moveState;
-    const int32_t run = MPlayer == nullptr || MPlayer->isServer != 0 ? warrior->moveOrders.run : moveChunk.run;
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
+    const int32_t moveStateGoal = warrior->MoveOrders.MoveStateGoal;
+    const int32_t moveState = warrior->MoveOrders.MoveState;
+    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
     int hasTarget = 0;
-    GameObject* target = warrior->getLastTarget();
+    MCGameObject* target = warrior->GetLastTarget();
     float targetFacing = 0.0f;
     const float maxPivot =
         static_cast<float>(
-            static_cast<MechDynamicsType*>(static_cast<BattleMechType*>(objType)->dynamicsType)->maxMechPivotRate) *
-        frameLength;
+            static_cast<MCMechDynamicsType*>(static_cast<MCBattleMechType*>(ObjType)->DynamicsType)->MaxMechPivotRate) *
+        FrameLength;
 
     if (target == nullptr)
     {
-        if (warrior->curTacOrder.code == TACTICAL_ORDER_ATTACK_POINT)
+        if (warrior->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
         {
-            targetFacing = relFacingTo(warrior->attackOrders.targetPoint, -1);
+            targetFacing = RelFacingTo(warrior->AttackOrders.TargetPoint, -1);
             hasTarget = 1;
         }
     }
     else
     {
-        targetFacing = relFacingTo(target->getPosition(), -1);
+        targetFacing = RelFacingTo(target->GetPosition(), -1);
         hasTarget = 1;
     }
 
@@ -2403,23 +2403,23 @@ auto BattleMech::pivotTo() -> int
             turn = turn <= 0.0f ? -maxPivot : maxPivot;
         }
 
-        auto* controlData = static_cast<MechControlData*>(control->controlData);
-        controlData->rotate = static_cast<int8_t>(static_cast<int32_t>(static_cast<double>(turn) / maxPivot * 64.0f));
-        controlData->pivot = 1;
-        updateTorso(turn);
+        auto* controlData = static_cast<MCMechControlData*>(Control->ControlData);
+        controlData->Rotate = static_cast<int8_t>(static_cast<int32_t>(static_cast<double>(turn) / maxPivot * 64.0f));
+        controlData->Pivot = 1;
+        UpdateTorso(turn);
         return 1;
     };
 
     const auto choosePivotDirection = [&]()
     {
-        if (pivotDirection == 0xff)
+        if (PivotDirection == 0xff)
         {
-            pivotDirection = targetFacing >= 0.0f ? 1 : 0;
+            PivotDirection = targetFacing >= 0.0f ? 1 : 0;
         }
     };
 
     const auto hasNextStep = [&]()
-    { return path->numStepsWhenNotPaused >= 1 && path->curStep < path->numStepsWhenNotPaused; };
+    { return path->NumStepsWhenNotPaused >= 1 && path->CurStep < path->NumStepsWhenNotPaused; };
 
     if (moveState == MOVESTATE_PIVOT_FORWARD)
     {
@@ -2427,14 +2427,14 @@ auto BattleMech::pivotTo() -> int
         {
             if (!hasNextStep())
             {
-                pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+                Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
             }
             else
             {
-                const vector_3d destination = path->stepList[path->curStep].destination;
-                appearance->setGestureGoal(1);
-                static_cast<MechControlData*>(control->controlData)->throttle = 100;
-                const float stepFacing = relFacingTo(destination, -1);
+                const MCVector3D destination = path->StepList[path->CurStep].Destination;
+                Appearance->SetGestureGoal(1);
+                static_cast<MCMechControlData*>(Control->ControlData)->Throttle = 100;
+                const float stepFacing = RelFacingTo(destination, -1);
 
                 if (stepFacing < -15.0f || stepFacing > 15.0f)
                 {
@@ -2444,7 +2444,7 @@ auto BattleMech::pivotTo() -> int
                     {
                         choosePivotDirection();
 
-                        if (pivotDirection == 0)
+                        if (PivotDirection == 0)
                         {
                             if (stepFacing >= 0.0f)
                             {
@@ -2460,17 +2460,17 @@ auto BattleMech::pivotTo() -> int
                     return pivot(turn);
                 }
 
-                pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+                Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
 
-                if (pilot->moveOrders.moveStateGoalChanged != 0)
+                if (Pilot->MoveOrders.MoveStateGoalChanged != 0)
                 {
-                    pilot->moveOrders.moveStateGoalChanged = 0;
+                    Pilot->MoveOrders.MoveStateGoalChanged = 0;
                 }
             }
         }
         else
         {
-            pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+            Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
         }
     }
     else if (moveState == MOVESTATE_PIVOT_REVERSE)
@@ -2479,14 +2479,14 @@ auto BattleMech::pivotTo() -> int
         {
             if (!hasNextStep())
             {
-                pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+                Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
             }
             else
             {
-                const vector_3d destination = path->stepList[path->curStep].destination;
-                appearance->setGestureGoal(1);
-                static_cast<MechControlData*>(control->controlData)->throttle = 100;
-                const float stepFacing = relFacingTo(destination, -1);
+                const MCVector3D destination = path->StepList[path->CurStep].Destination;
+                Appearance->SetGestureGoal(1);
+                static_cast<MCMechControlData*>(Control->ControlData)->Throttle = 100;
+                const float stepFacing = RelFacingTo(destination, -1);
 
                 if (stepFacing > -165.0f && stepFacing < 165.0f)
                 {
@@ -2499,32 +2499,32 @@ auto BattleMech::pivotTo() -> int
                     else
                     {
                         choosePivotDirection();
-                        turnLeft = pivotDirection != 0;
+                        turnLeft = PivotDirection != 0;
                     }
 
                     return pivot(turnLeft ? -180.0f - stepFacing : 180.0f - stepFacing);
                 }
 
-                MechWarrior* orders = pilot;
+                MCMechWarrior* orders = Pilot;
 
-                if (orders->moveOrders.moveStateGoalChanged != 0)
+                if (orders->MoveOrders.MoveStateGoalChanged != 0)
                 {
-                    orders->moveOrders.moveStateGoalChanged = 0;
+                    orders->MoveOrders.MoveStateGoalChanged = 0;
                 }
 
                 if (moveStateGoal == MOVESTATE_REVERSE)
                 {
-                    orders->moveOrders.moveState = MOVESTATE_REVERSE;
+                    orders->MoveOrders.MoveState = MOVESTATE_REVERSE;
                 }
                 else
                 {
-                    orders->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+                    orders->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
                 }
             }
         }
         else
         {
-            pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+            Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
         }
     }
     else if (moveState != MOVESTATE_PIVOT_TARGET)
@@ -2532,217 +2532,217 @@ auto BattleMech::pivotTo() -> int
         if (moveStateGoal == MOVESTATE_PIVOT_TARGET || moveStateGoal == MOVESTATE_PIVOT_FORWARD ||
             moveStateGoal == MOVESTATE_PIVOT_REVERSE)
         {
-            pilot->moveOrders.moveState = moveStateGoal;
+            Pilot->MoveOrders.MoveState = moveStateGoal;
         }
     }
     else if (moveStateGoal != MOVESTATE_PIVOT_TARGET)
     {
-        pilot->moveOrders.moveState = MOVESTATE_FORWARD;
+        Pilot->MoveOrders.MoveState = MOVESTATE_FORWARD;
     }
     else if (run == 0 && hasTarget != 0)
     {
-        appearance->setGestureGoal(1);
-        static_cast<MechControlData*>(control->controlData)->throttle = 100;
-        const float fireArc = getFireArc();
+        Appearance->SetGestureGoal(1);
+        static_cast<MCMechControlData*>(Control->ControlData)->Throttle = 100;
+        const float fireArc = GetFireArc();
 
         if (targetFacing < -fireArc || fireArc < targetFacing)
         {
             return pivot(-targetFacing);
         }
 
-        pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
     }
     else
     {
-        pilot->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        Pilot->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
     }
 
-    MechWarrior* orders = pilot;
+    MCMechWarrior* orders = Pilot;
 
-    if (!(orders->moveOrders.yieldTime > -1.0f || orders->moveOrders.waitForPointTime > -1.0f))
+    if (!(orders->MoveOrders.YieldTime > -1.0f || orders->MoveOrders.WaitForPointTime > -1.0f))
     {
-        orders->resumePath();
+        orders->ResumePath();
     }
 
-    pivotDirection = 0xff;
+    PivotDirection = 0xff;
     return 0;
 }
 
-auto BattleMech::getSpeedState() -> int32_t
+auto MCBattleMech::GetSpeedState() -> int32_t
 {
-    return mechSpeedStateArray[static_cast<MechActor*>(appearance)->currentGesture];
+    return MechSpeedStateArray[static_cast<MCMechActor*>(Appearance)->CurrentGesture];
 }
 
-auto BattleMech::updateMoveStateGoal() -> void
+auto MCBattleMech::UpdateMoveStateGoal() -> void
 {
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
-    const int32_t moveStateGoal = warrior->moveOrders.moveStateGoal;
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
+    const int32_t moveStateGoal = warrior->MoveOrders.MoveStateGoal;
 
-    if (path->numSteps < 1)
+    if (path->NumSteps < 1)
     {
         if (moveStateGoal != MOVESTATE_PIVOT_TARGET && moveStateGoal != MOVESTATE_PIVOT_FORWARD &&
             moveStateGoal != MOVESTATE_PIVOT_REVERSE)
         {
-            warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
         }
 
         return;
     }
 
-    const int32_t run = MPlayer == nullptr || MPlayer->isServer != 0 ? warrior->moveOrders.run : moveChunk.run;
+    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
 
-    if (run != 0 || legStatus == 2)
+    if (run != 0 || LegStatus == 2)
     {
-        warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
         return;
     }
 
-    vector_3d targetPosition;
-    GameObject* target = warrior->getLastTarget();
+    MCVector3D targetPosition;
+    MCGameObject* target = warrior->GetLastTarget();
 
     if (target == nullptr)
     {
-        if (warrior->curTacOrder.code != TACTICAL_ORDER_ATTACK_POINT)
+        if (warrior->CurTacOrder.Code != TACTICAL_ORDER_ATTACK_POINT)
         {
-            warrior->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+            warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
             return;
         }
 
-        targetPosition = warrior->attackOrders.targetPoint;
+        targetPosition = warrior->AttackOrders.TargetPoint;
     }
     else
     {
-        targetPosition = target->getPosition();
+        targetPosition = target->GetPosition();
     }
 
-    if (path->numStepsWhenNotPaused <= 0 || path->curStep >= path->numStepsWhenNotPaused)
+    if (path->NumStepsWhenNotPaused <= 0 || path->CurStep >= path->NumStepsWhenNotPaused)
     {
         return;
     }
 
-    const double delta = relFacingDelta(path->stepList[path->curStep].destination, targetPosition);
-    MechWarrior* orders = pilot;
+    const double delta = RelFacingDelta(path->StepList[path->CurStep].Destination, targetPosition);
+    MCMechWarrior* orders = Pilot;
     const double torsoArc =
-        static_cast<MechDynamicsType*>(static_cast<BattleMechType*>(objType)->dynamicsType)->maxTorsoYaw;
+        static_cast<MCMechDynamicsType*>(static_cast<MCBattleMechType*>(ObjType)->DynamicsType)->MaxTorsoYaw;
 
-    if (orders->moveOrders.moveStateGoal == MOVESTATE_FORWARD)
+    if (orders->MoveOrders.MoveStateGoal == MOVESTATE_FORWARD)
     {
         // The target is behind: walk backward.
-        if (torsoArc < delta && 180.0 - delta <= torsoArc && orders->moveOrders.moveStateGoalChanged == 0)
+        if (torsoArc < delta && 180.0 - delta <= torsoArc && orders->MoveOrders.MoveStateGoalChanged == 0)
         {
-            orders->moveOrders.moveStateGoalChanged = 1;
-            orders->moveOrders.moveStateGoal = MOVESTATE_REVERSE;
+            orders->MoveOrders.MoveStateGoalChanged = 1;
+            orders->MoveOrders.MoveStateGoal = MOVESTATE_REVERSE;
         }
     }
-    else if (torsoArc < 180.0 - delta && delta <= torsoArc && orders->moveOrders.moveStateGoalChanged == 0)
+    else if (torsoArc < 180.0 - delta && delta <= torsoArc && orders->MoveOrders.MoveStateGoalChanged == 0)
     {
-        orders->moveOrders.moveStateGoalChanged = 1;
-        orders->moveOrders.moveStateGoal = MOVESTATE_FORWARD;
+        orders->MoveOrders.MoveStateGoalChanged = 1;
+        orders->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
     }
 }
 
-auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                                int32_t& newGestureStateGoal, int32_t& newMoveState, int32_t& minThrottle,
-                                int32_t& maxThrottle) -> int
+auto MCBattleMech::UpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+                                  int32_t& newGestureStateGoal, int32_t& newMoveState, int32_t& minThrottle,
+                                  int32_t& maxThrottle) -> int
 {
-    MechWarrior* warrior = pilot;
-    auto* controlData = static_cast<MechControlData*>(control->controlData);
-    auto* dynType = static_cast<MechDynamicsType*>(static_cast<BattleMechType*>(objType)->dynamicsType);
-    MovePath* path = warrior->getMovePath();
-    int running = legStatus == 0 && warrior->moveOrders.run != 0 ? 1 : 0;
-    newThrottleSetting = static_cast<char>(controlData->throttle);
+    MCMechWarrior* warrior = Pilot;
+    auto* controlData = static_cast<MCMechControlData*>(Control->ControlData);
+    auto* dynType = static_cast<MCMechDynamicsType*>(static_cast<MCBattleMechType*>(ObjType)->DynamicsType);
+    MCMovePath* path = warrior->GetMovePath();
+    int running = LegStatus == 0 && warrior->MoveOrders.Run != 0 ? 1 : 0;
+    newThrottleSetting = static_cast<char>(controlData->Throttle);
     newRotatePerSec = 0.0f;
-    updateHustleTime();
-    const bool hustling = static_cast<double>(scenarioTime) < static_cast<double>(lastHustleTime) + 2.0;
-    warrior = pilot;
-    Mover* point = warrior->getPoint();
-    const bool groupMove = warrior->curTacOrder.isGroupOrder() != 0 && warrior->curTacOrder.isMoveOrder() != 0;
+    UpdateHustleTime();
+    const bool hustling = static_cast<double>(ScenarioTime) < static_cast<double>(LastHustleTime) + 2.0;
+    warrior = Pilot;
+    MCMover* point = warrior->GetPoint();
+    const bool groupMove = warrior->CurTacOrder.IsGroupOrder() != 0 && warrior->CurTacOrder.IsMoveOrder() != 0;
 
-    if (running == 0 && !hustling && point != nullptr && point->isDisabled() == 0 && point != this && groupMove)
+    if (running == 0 && !hustling && point != nullptr && point->IsDisabled() == 0 && point != this && groupMove)
     {
         // Keep pace with the group's point: wait (at most five seconds while walking) when ahead of it.
-        MechWarrior* pointPilot = point->getPilot();
-        pointPilot->getMovePath();
-        const float pointDistanceLeft = pointPilot->getMoveDistanceLeft();
+        MCMechWarrior* pointPilot = point->GetPilot();
+        pointPilot->GetMovePath();
+        const float pointDistanceLeft = pointPilot->GetMoveDistanceLeft();
 
-        if (pointDistanceLeft <= warrior->getMoveDistanceLeft())
+        if (pointDistanceLeft <= warrior->GetMoveDistanceLeft())
         {
-            warrior->moveOrders.waitForPointTime = -1.0f;
+            warrior->MoveOrders.WaitForPointTime = -1.0f;
 
-            if (warrior->moveOrders.yieldTime <= -1.0f)
+            if (warrior->MoveOrders.YieldTime <= -1.0f)
             {
-                warrior->resumePath();
+                warrior->ResumePath();
             }
         }
         else
         {
             running = 0;
-            const int32_t speedState = getSpeedState();
-            warrior = pilot;
+            const int32_t speedState = GetSpeedState();
+            warrior = Pilot;
 
             if (speedState == 2)
             {
-                if (warrior->moveOrders.waitForPointTime <= -1.0f)
+                if (warrior->MoveOrders.WaitForPointTime <= -1.0f)
                 {
-                    warrior->moveOrders.waitForPointTime = scenarioTime + 5.0f;
+                    warrior->MoveOrders.WaitForPointTime = ScenarioTime + 5.0f;
                 }
             }
-            else if (warrior->moveOrders.waitForPointTime < scenarioTime)
+            else if (warrior->MoveOrders.WaitForPointTime < ScenarioTime)
             {
-                warrior->pausePath();
-                warrior->moveOrders.waitForPointTime = 999999.0f;
+                warrior->PausePath();
+                warrior->MoveOrders.WaitForPointTime = 999999.0f;
             }
         }
     }
     else
     {
-        warrior->moveOrders.waitForPointTime = -1.0f;
+        warrior->MoveOrders.WaitForPointTime = -1.0f;
     }
 
     int result = 0;
 
-    if (legStatus != 0 && legStatus != 1 && legStatus != 2)
+    if (LegStatus != 0 && LegStatus != 1 && LegStatus != 2)
     {
         newGestureStateGoal = 1;
         return 0;
     }
 
-    if (path->numSteps < 1)
+    if (path->NumSteps < 1)
     {
         newGestureStateGoal = 1;
         return 0;
     }
 
-    int32_t step = path->curStep;
+    int32_t step = path->CurStep;
 
-    if (step == path->numSteps)
+    if (step == path->NumSteps)
     {
         result = 1;
 
-        if (warrior->moveOrders.pathType == 2 &&
-            warrior->moveOrders.path[0]->globalStep < warrior->moveOrders.numGlobalSteps - 1)
+        if (warrior->MoveOrders.PathType == 2 &&
+            warrior->MoveOrders.Path[0]->GlobalStep < warrior->MoveOrders.NumGlobalSteps - 1)
         {
             result = 0;
         }
 
-        if (warrior->moveOrders.path[0] != nullptr)
+        if (warrior->MoveOrders.Path[0] != nullptr)
         {
-            warrior->moveOrders.path[0]->clear();
+            warrior->MoveOrders.Path[0]->Clear();
         }
 
         return result;
     }
 
-    vector_3d destination = path->stepList[step].destination;
-    lastValidPosition = destination;
-    const auto distance = static_cast<float>(distanceFrom(destination));
-    const int32_t numSteps = path->numSteps;
+    MCVector3D destination = path->StepList[step].Destination;
+    LastValidPosition = destination;
+    const auto distance = static_cast<float>(DistanceFrom(destination));
+    const int32_t numSteps = path->NumSteps;
     const float margin = step == numSteps - 1 ? MoveMarginOfError[1] : MoveMarginOfError[0];
 
     if (margin <= distance)
     {
-        if (static_cast<int8_t>(path->stepList[step].direction) > 7)
+        if (static_cast<int8_t>(path->StepList[step].Direction) > 7)
         {
             newGestureStateGoal = 6;
             return 0;
@@ -2752,52 +2752,52 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
     {
         // Reached the step: on to the next.
         step++;
-        pilot->moveOrders.timeOfLastStep = scenarioTime;
-        path->curStep = step;
+        Pilot->MoveOrders.TimeOfLastStep = ScenarioTime;
+        path->CurStep = step;
 
         if (numSteps <= step)
         {
-            warrior = pilot;
+            warrior = Pilot;
             result = 1;
 
-            if (warrior->moveOrders.pathType == 2 &&
-                warrior->moveOrders.path[0]->globalStep < warrior->moveOrders.numGlobalSteps - 1)
+            if (warrior->MoveOrders.PathType == 2 &&
+                warrior->MoveOrders.Path[0]->GlobalStep < warrior->MoveOrders.NumGlobalSteps - 1)
             {
                 result = 0;
             }
 
-            if (warrior->moveOrders.path[0] != nullptr)
+            if (warrior->MoveOrders.Path[0] != nullptr)
             {
-                warrior->moveOrders.path[0]->clear();
+                warrior->MoveOrders.Path[0]->Clear();
             }
 
             return result;
         }
 
-        if (static_cast<int8_t>(path->stepList[step].direction) > 7)
+        if (static_cast<int8_t>(path->StepList[step].Direction) > 7)
         {
             newGestureStateGoal = 6;
             return 0;
         }
 
-        destination = path->stepList[step].destination;
+        destination = path->StepList[step].Destination;
     }
 
-    const float facing = relFacingTo(destination, -1);
-    warrior = pilot;
-    const int32_t moveState = warrior->moveOrders.moveState;
-    const int32_t moveStateGoal = warrior->moveOrders.moveStateGoal;
+    const float facing = RelFacingTo(destination, -1);
+    warrior = Pilot;
+    const int32_t moveState = warrior->MoveOrders.MoveState;
+    const int32_t moveStateGoal = warrior->MoveOrders.MoveStateGoal;
     // Walking, the throttle creeps toward the ordered speed by tens.
     const auto walkThrottle = [&]() -> char
     {
-        const char throttle = static_cast<char>(controlData->throttle);
+        const char throttle = static_cast<char>(controlData->Throttle);
 
-        if (getBodyState() != 2)
+        if (GetBodyState() != 2)
         {
             return 100;
         }
 
-        const char speed = static_cast<char>(pilot->moveOrders.speedThrottle);
+        const char speed = static_cast<char>(Pilot->MoveOrders.SpeedThrottle);
 
         if (throttle < speed - 10)
         {
@@ -2816,7 +2816,7 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
     {
         if (moveStateGoal != MOVESTATE_FORWARD)
         {
-            warrior->pausePath();
+            warrior->PausePath();
 
             if (moveStateGoal == MOVESTATE_REVERSE || moveStateGoal == MOVESTATE_PIVOT_REVERSE)
             {
@@ -2834,7 +2834,7 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
             return result;
         }
 
-        if (legStatus == 2)
+        if (LegStatus == 2)
         {
             newGestureStateGoal = 5;
             newThrottleSetting = 100;
@@ -2853,7 +2853,7 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
         {
             const float turn = -facing;
             newRotatePerSec = turn;
-            const float maxTurn = static_cast<float>(dynType->maxMechYawRate) * frameLength;
+            const float maxTurn = static_cast<float>(dynType->MaxMechYawRate) * FrameLength;
 
             if (std::fabs(turn) <= maxTurn)
             {
@@ -2881,7 +2881,7 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
             newGestureStateGoal = 4;
             const float turn = facing >= 0.0f ? facing - 180.0f : facing + 180.0f;
             newRotatePerSec = -turn;
-            const float maxTurn = static_cast<float>(dynType->maxMechYawRate) * frameLength;
+            const float maxTurn = static_cast<float>(dynType->MaxMechYawRate) * FrameLength;
             char throttle;
 
             if (std::fabs(newRotatePerSec) <= maxTurn)
@@ -2891,7 +2891,7 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
             else
             {
                 newRotatePerSec = newRotatePerSec <= 0.0f ? -maxTurn : maxTurn;
-                throttle = static_cast<char>(controlData->throttle - 10);
+                throttle = static_cast<char>(controlData->Throttle - 10);
             }
 
             newThrottleSetting = throttle;
@@ -2899,7 +2899,7 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
             return result;
         }
 
-        warrior->pausePath();
+        warrior->PausePath();
 
         if (moveStateGoal == MOVESTATE_FORWARD || moveStateGoal == MOVESTATE_PIVOT_FORWARD)
         {
@@ -2919,54 +2919,54 @@ auto BattleMech::updateMovePath(char& newRotate, char& newThrottleSetting, float
 
     if (moveStateGoal == MOVESTATE_FORWARD || moveStateGoal == MOVESTATE_PIVOT_FORWARD)
     {
-        warrior->pausePath();
+        warrior->PausePath();
         newMoveState = MOVESTATE_PIVOT_FORWARD;
     }
     else if (moveStateGoal == MOVESTATE_REVERSE || moveStateGoal == MOVESTATE_PIVOT_REVERSE)
     {
-        warrior->pausePath();
+        warrior->PausePath();
         newMoveState = MOVESTATE_PIVOT_REVERSE;
     }
 
     return result;
 }
 
-auto BattleMech::setNextMovePath(char& newThrottleSetting, int32_t& newGestureStateGoal) -> void
+auto MCBattleMech::SetNextMovePath(char& newThrottleSetting, int32_t& newGestureStateGoal) -> void
 {
-    MechWarrior* warrior = pilot;
+    MCMechWarrior* warrior = Pilot;
 
-    if (warrior->playerOrderFromQueue != 0 && warrior->curTacOrder.isMoveOrder() != 0)
+    if (warrior->PlayerOrderFromQueue != 0 && warrior->CurTacOrder.IsMoveOrder() != 0)
     {
-        if (warrior->moveOrders.path[0] != nullptr)
+        if (warrior->MoveOrders.Path[0] != nullptr)
         {
-            warrior->moveOrders.path[0]->clear();
+            warrior->MoveOrders.Path[0]->Clear();
         }
 
         return;
     }
 
-    warrior->clearMoveOrders();
+    warrior->ClearMoveOrders();
     newGestureStateGoal = 1;
 }
 
-auto BattleMech::updateTorso(float newRotatePerSec) -> void
+auto MCBattleMech::UpdateTorso(float newRotatePerSec) -> void
 {
-    MechWarrior* warrior = pilot;
-    GameObject* target = warrior->getLastTarget();
+    MCMechWarrior* warrior = Pilot;
+    MCGameObject* target = warrior->GetLastTarget();
     double facing;
 
     if (target != nullptr)
     {
-        facing = static_cast<double>(relFacingTo(target->getPosition(), -1)) + torsoRotation + newRotatePerSec;
+        facing = static_cast<double>(RelFacingTo(target->GetPosition(), -1)) + TorsoRotation + newRotatePerSec;
     }
-    else if (warrior->curTacOrder.code == TACTICAL_ORDER_ATTACK_POINT)
+    else if (warrior->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
     {
         facing =
-            static_cast<double>(relFacingTo(warrior->getAttackTargetPoint(), -1)) + torsoRotation + newRotatePerSec;
+            static_cast<double>(RelFacingTo(warrior->GetAttackTargetPoint(), -1)) + TorsoRotation + newRotatePerSec;
     }
     else
     {
-        facing = torsoRotation;
+        facing = TorsoRotation;
     }
 
     if (facing < -180.0)
@@ -2984,58 +2984,58 @@ auto BattleMech::updateTorso(float newRotatePerSec) -> void
     }
 
     double turn = -facing;
-    auto* dynType = static_cast<MechDynamicsType*>(static_cast<BattleMechType*>(objType)->dynamicsType);
-    const float maxTurn = static_cast<float>(dynType->maxTorsoYawRate) * frameLength;
+    auto* dynType = static_cast<MCMechDynamicsType*>(static_cast<MCBattleMechType*>(ObjType)->DynamicsType);
+    const float maxTurn = static_cast<float>(dynType->MaxTorsoYawRate) * FrameLength;
 
     if (maxTurn < std::fabs(turn))
     {
         turn = turn < 0.0 ? -maxTurn : maxTurn;
     }
 
-    static_cast<MechControlData*>(control->controlData)->torsoRotate =
+    static_cast<MCMechControlData*>(Control->ControlData)->TorsoRotate =
         static_cast<int8_t>(static_cast<int32_t>(turn / maxTurn * 64.0f));
 }
 
-auto BattleMech::setControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                                    int32_t& newGestureStateGoal, int32_t& minThrottle, int32_t& maxThrottle) -> void
+auto MCBattleMech::SetControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+                                      int32_t& newGestureStateGoal, int32_t& minThrottle, int32_t& maxThrottle) -> void
 {
-    auto* actor = static_cast<MechActor*>(appearance);
+    auto* actor = static_cast<MCMechActor*>(Appearance);
 
-    if (inJump != 0 && actor->inJump == 0)
+    if (InJump != 0 && actor->InJump == 0)
     {
-        inJump = 0;
-        pilot->resumePath();
+        InJump = 0;
+        Pilot->ResumePath();
     }
 
     if (newGestureStateGoal == 6)
     {
         // The path's step is a jump.
-        MechWarrior* warrior = pilot;
-        MovePath* path = warrior->getMovePath();
-        warrior->pausePath();
-        jumpGoal = path->stepList[path->curStep].destination;
-        actor->setJumpParameters(jumpGoal, 0);
+        MCMechWarrior* warrior = Pilot;
+        MCMovePath* path = warrior->GetMovePath();
+        warrior->PausePath();
+        JumpGoal = path->StepList[path->CurStep].Destination;
+        actor->SetJumpParameters(JumpGoal, 0);
     }
 
     bool startJump = false;
 
-    if (MPlayer == nullptr || MPlayer->isServer != 0)
+    if (MPlayer == nullptr || MPlayer->IsServer != 0)
     {
-        MechWarrior* warrior = pilot;
+        MCMechWarrior* warrior = Pilot;
 
-        if (warrior->curTacOrder.isJumpOrder() != 0 && inJump == 0)
+        if (warrior->CurTacOrder.IsJumpOrder() != 0 && InJump == 0)
         {
-            const float* point = warrior->curTacOrder.moveParams.wayPath.points;
-            jumpGoal = vector_3d(point[0], point[1], point[2]);
+            const float* point = warrior->CurTacOrder.MoveParams.WayPath.Points;
+            JumpGoal = MCVector3D(point[0], point[1], point[2]);
             newGestureStateGoal = 6;
             startJump = true;
         }
     }
-    else if (statusChunk.jumpOrder != 0 && inJump == 0)
+    else if (StatusChunk.JumpOrder != 0 && InJump == 0)
     {
-        mapCellToWorldPos(statusChunk.targetCellRC[0], statusChunk.targetCellRC[1], jumpGoal);
+        MapCellToWorldPos(StatusChunk.TargetCellRC[0], StatusChunk.TargetCellRC[1], JumpGoal);
 
-        if (distanceFrom(jumpGoal) > 8.0f)
+        if (DistanceFrom(JumpGoal) > 8.0f)
         {
             newGestureStateGoal = 6;
             startJump = true;
@@ -3044,29 +3044,29 @@ auto BattleMech::setControlSettings(char& newRotate, char& newThrottleSetting, f
 
     if (startJump)
     {
-        actor->setJumpParameters(jumpGoal, 0);
+        actor->SetJumpParameters(JumpGoal, 0);
     }
 
     const int32_t gestureGoal = newGestureStateGoal;
-    auto* controlData = static_cast<MechControlData*>(control->controlData);
+    auto* controlData = static_cast<MCMechControlData*>(Control->ControlData);
 
-    if (gestureGoal != -1 && static_cast<MechActor*>(appearance)->inTransition == 0)
+    if (gestureGoal != -1 && static_cast<MCMechActor*>(Appearance)->InTransition == 0)
     {
-        auto* mechActor = static_cast<MechActor*>(appearance);
+        auto* mechActor = static_cast<MCMechActor*>(Appearance);
 
-        if (mechActor->setGestureGoal(gestureGoal) == 0)
+        if (mechActor->SetGestureGoal(gestureGoal) == 0)
         {
             if (gestureGoal == 6)
             {
-                inJump = 1;
+                InJump = 1;
             }
 
             if (gestureGoal != 2)
             {
-                controlData->throttle = 100;
+                controlData->Throttle = 100;
             }
         }
-        else if (mechActor->inTransition == 0 && mechActor->currentStateGesture == 2)
+        else if (mechActor->InTransition == 0 && mechActor->CurrentStateGesture == 2)
         {
             // Walking: the throttle stays within the limits.
             if (newThrottleSetting != -1)
@@ -3080,20 +3080,20 @@ auto BattleMech::setControlSettings(char& newRotate, char& newThrottleSetting, f
                     newThrottleSetting = static_cast<char>(maxThrottle);
                 }
 
-                controlData->throttle = newThrottleSetting;
+                controlData->Throttle = newThrottleSetting;
             }
         }
     }
 
     if (newRotate != 0)
     {
-        controlData->rotate = newRotate;
+        controlData->Rotate = newRotate;
     }
 }
 
-auto BattleMech::updateMovement() -> void
+auto MCBattleMech::UpdateMovement() -> void
 {
-    auto* controlData = static_cast<MechControlData*>(control->controlData);
+    auto* controlData = static_cast<MCMechControlData*>(Control->ControlData);
     int32_t minThrottle = 0x23;
     int32_t maxThrottle = 100;
     // A fall: gesture 7 or 8 (at random unless forced).
@@ -3101,11 +3101,11 @@ auto BattleMech::updateMovement() -> void
     {
         int32_t gesture = 8 - (RandomNumber(2) != 0 ? 1 : 0);
 
-        if (hitFromBehindThisFrame != 0)
+        if (HitFromBehindThisFrame != 0)
         {
             gesture = 7;
         }
-        else if (hitFromFrontThisFrame != 0)
+        else if (HitFromFrontThisFrame != 0)
         {
             gesture = 8;
         }
@@ -3113,90 +3113,90 @@ auto BattleMech::updateMovement() -> void
         return gesture;
     };
 
-    if (disableThisFrame != 0)
+    if (DisableThisFrame != 0)
     {
-        if (appearance->setGestureGoal(fallGesture()) == 0)
+        if (Appearance->SetGestureGoal(fallGesture()) == 0)
         {
-            disableThisFrame = 0;
-            shutDownThisFrame = 0;
-            startUpThisFrame = 0;
-            hitFromFrontThisFrame = 0;
-            hitFromBehindThisFrame = 0;
+            DisableThisFrame = 0;
+            ShutDownThisFrame = 0;
+            StartUpThisFrame = 0;
+            HitFromFrontThisFrame = 0;
+            HitFromBehindThisFrame = 0;
         }
 
-        controlData->throttle = static_cast<int8_t>(maxThrottle);
+        controlData->Throttle = static_cast<int8_t>(maxThrottle);
         return;
     }
 
-    if (shutDownThisFrame != 0)
+    if (ShutDownThisFrame != 0)
     {
-        const int32_t result = appearance->setGestureGoal(0);
-        soundSystem->playDigitalSample(0x3c, 1, this, 0, 0);
+        const int32_t result = Appearance->SetGestureGoal(0);
+        SoundSystem->PlayDigitalSample(0x3c, 1, this, 0, 0);
 
         if (result == 0 || result == -0x1521ffff)
         {
-            shutDownThisFrame = 0;
-            startUpThisFrame = 0;
+            ShutDownThisFrame = 0;
+            StartUpThisFrame = 0;
 
             if (result == -0x1521ffff)
             {
-                status = 5;
+                Status = 5;
             }
         }
 
-        controlData->throttle = static_cast<int8_t>(maxThrottle);
+        controlData->Throttle = static_cast<int8_t>(maxThrottle);
         return;
     }
 
-    if (startUpThisFrame != 0)
+    if (StartUpThisFrame != 0)
     {
-        const int32_t result = appearance->setGestureGoal(1);
-        soundSystem->playDigitalSample(0x3d, 1, this, 0, 0);
+        const int32_t result = Appearance->SetGestureGoal(1);
+        SoundSystem->PlayDigitalSample(0x3d, 1, this, 0, 0);
 
         if (result == 0 || result == -0x1521ffff)
         {
-            startUpThisFrame = 0;
-            shutDownThisFrame = 0;
+            StartUpThisFrame = 0;
+            ShutDownThisFrame = 0;
 
             if (result == -0x1521ffff)
             {
-                status = 0;
+                Status = 0;
             }
         }
 
-        controlData->throttle = static_cast<int8_t>(maxThrottle);
+        controlData->Throttle = static_cast<int8_t>(maxThrottle);
         return;
     }
 
-    if (status == 4 || status == 5 || status == 1)
+    if (Status == 4 || Status == 5 || Status == 1)
     {
         return;
     }
 
-    if (isCaptured() != 0 || engineBlowTime > -1.0f)
+    if (IsCaptured() != 0 || EngineBlowTime > -1.0f)
     {
         return;
     }
 
-    if (pilotingCheckPending != 0)
+    if (PilotingCheckPending != 0)
     {
-        const int32_t result = appearance->setGestureGoal(fallGesture());
+        const int32_t result = Appearance->SetGestureGoal(fallGesture());
 
         if (result == 0 || result == -0x1521ffff)
         {
-            pilotingCheckPending = 0;
+            PilotingCheckPending = 0;
         }
 
-        controlData->throttle = static_cast<int8_t>(maxThrottle);
+        controlData->Throttle = static_cast<int8_t>(maxThrottle);
         return;
     }
 
-    if (updateJump() != 0)
+    if (UpdateJump() != 0)
     {
         return;
     }
 
-    float newRotatePerSec = static_cast<float>(pivotTo());
+    float newRotatePerSec = static_cast<float>(PivotTo());
 
     if (newRotatePerSec != 0.0f)
     {
@@ -3207,21 +3207,21 @@ auto BattleMech::updateMovement() -> void
     char newThrottleSetting = -1;
     int32_t newGestureStateGoal = -1;
     int32_t newMoveState = -1;
-    updateMoveStateGoal();
+    UpdateMoveStateGoal();
 
-    if (updateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, newMoveState, minThrottle,
+    if (UpdateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, newMoveState, minThrottle,
                        maxThrottle) != 0)
     {
-        setNextMovePath(newThrottleSetting, newGestureStateGoal);
+        SetNextMovePath(newThrottleSetting, newGestureStateGoal);
     }
 
     if (newMoveState != -1)
     {
-        pilot->moveOrders.moveState = newMoveState;
+        Pilot->MoveOrders.MoveState = newMoveState;
     }
 
-    setControlSettings(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, minThrottle, maxThrottle);
-    updateTorso(newRotatePerSec);
+    SetControlSettings(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, minThrottle, maxThrottle);
+    UpdateTorso(newRotatePerSec);
 }
 
 namespace
@@ -3230,7 +3230,7 @@ namespace
     /// The sine and cosine of a facing snapped to the sprites' 32 directions (-45 and 45 are exact), as
     /// getPositionFromHS and getJumpPosition turn their offsets.
     /// </summary>
-    void snappedFacing(double facing, double& s, double& c)
+    void SnappedFacing(double facing, double& s, double& c)
     {
         const float rotation = -(static_cast<float>(static_cast<int32_t>(facing * (1.0 / 11.25))) * 11.25f);
 
@@ -3251,15 +3251,15 @@ namespace
         }
     }
 
-    /// <summary>Radians to degrees, as MCX.EXE stores it (MCX.EXE @ 0x0077c278).</summary>
+    /// <summary>Radians to degrees, as MCX.EXE stores it.</summary>
     constexpr double RADIANS_TO_DEGREES = 0x1.ca5dc1a6402aap+5;
 
-    double exactFrameFacing(const frame_of_ref& frame)
+    double ExactFrameFacing(const MCFrameOfRef& frame)
     {
-        const float cosine = UnitX.z * frame.i.z + UnitX.y * frame.i.y + UnitX.x * frame.i.x;
-        double facing = frame.my_acos(cosine) * RADIANS_TO_DEGREES;
+        const float cosine = UnitX.Z * frame.I.Z + UnitX.Y * frame.I.Y + UnitX.X * frame.I.X;
+        double facing = frame.MyAcos(cosine) * RADIANS_TO_DEGREES;
 
-        if (frame.i.y < 0.0f)
+        if (frame.I.Y < 0.0f)
         {
             facing = -facing;
         }
@@ -3268,13 +3268,13 @@ namespace
     }
 }
 
-auto BattleMechType::layOutHotSpotPackets(const std::vector<uint32_t>& packetSizes,
-                                          const std::vector<uint32_t>& outlineSizes) -> void
+auto MCBattleMechType::LayOutHotSpotPackets(const std::vector<uint32_t>& packetSizes,
+                                            const std::vector<uint32_t>& outlineSizes) -> void
 {
     struct Block
     {
-        size_t size = 0;
-        const uint8_t* bytes = nullptr;
+        size_t Size = 0;
+        const uint8_t* Bytes = nullptr;
     };
 
     const auto blockTotal = [](size_t size)
@@ -3283,11 +3283,11 @@ auto BattleMechType::layOutHotSpotPackets(const std::vector<uint32_t>& packetSiz
         return total < 0x10 ? static_cast<size_t>(0x10) : total;
     };
 
-    const int32_t numGestures = static_cast<int32_t>(numHotSpotPackets);
+    const int32_t numGestures = static_cast<int32_t>(NumHotSpotPackets);
     const size_t pointerTable = static_cast<size_t>(numGestures) * 4 + 4;
     std::vector<Block> blocks;
-    blocks.push_back({static_cast<size_t>(numWeapons) * 4, nullptr});
-    blocks.push_back({static_cast<size_t>(numGestures) * 32, hotSpotData});
+    blocks.push_back({static_cast<size_t>(NumWeapons) * 4, nullptr});
+    blocks.push_back({static_cast<size_t>(numGestures) * 32, HotSpotData});
     blocks.push_back({pointerTable, nullptr});
     blocks.push_back({pointerTable, nullptr});
     blocks.push_back({pointerTable, nullptr});
@@ -3296,36 +3296,36 @@ auto BattleMechType::layOutHotSpotPackets(const std::vector<uint32_t>& packetSiz
     for (int32_t gesture = 0; gesture < numGestures; gesture++)
     {
         packetBlock[gesture] = blocks.size();
-        blocks.push_back({packetSizes[gesture], gestureHotSpots[gesture]});
+        blocks.push_back({packetSizes[gesture], GestureHotSpots[gesture]});
 
         if (outlineSizes[gesture] != 0)
         {
-            blocks.push_back({outlineSizes[gesture], gestureOutlines[gesture]});
+            blocks.push_back({outlineSizes[gesture], GestureOutlines[gesture]});
         }
     }
 
-    const size_t declared = static_cast<size_t>(numWeapons) + numOthers;
-    hotSpotPackets.assign(static_cast<size_t>(numGestures), {});
-    hotSpotPacketShippedFloats.assign(static_cast<size_t>(numGestures), 0);
+    const size_t declared = static_cast<size_t>(NumWeapons) + NumOthers;
+    HotSpotPackets.assign(static_cast<size_t>(numGestures), {});
+    HotSpotPacketShippedFloats.assign(static_cast<size_t>(numGestures), 0);
 
     for (int32_t gesture = 0; gesture < numGestures; gesture++)
     {
         const size_t self = packetBlock[gesture];
         const Block& own = blocks[self];
-        const size_t shipped = own.size / sizeof(float);
-        hotSpotPacketShippedFloats[gesture] = static_cast<uint32_t>(shipped);
-        const size_t wanted = std::max(shipped, static_cast<size_t>(numFramesPerHotSpot[gesture]) * declared * 3);
-        std::vector<float>& packet = hotSpotPackets[gesture];
+        const size_t shipped = own.Size / sizeof(float);
+        HotSpotPacketShippedFloats[gesture] = static_cast<uint32_t>(shipped);
+        const size_t wanted = std::max(shipped, static_cast<size_t>(NumFramesPerHotSpot[gesture]) * declared * 3);
+        std::vector<float>& packet = HotSpotPackets[gesture];
         packet.assign(3 + wanted, 0.0f);
 
-        if (self + 1 < blocks.size() && blocks[self + 1].bytes != nullptr && blocks[self + 1].size >= sizeof(float))
+        if (self + 1 < blocks.size() && blocks[self + 1].Bytes != nullptr && blocks[self + 1].Size >= sizeof(float))
         {
-            std::memcpy(&packet[0], blocks[self + 1].bytes + blocks[self + 1].size - sizeof(float), sizeof(float));
+            std::memcpy(&packet[0], blocks[self + 1].Bytes + blocks[self + 1].Size - sizeof(float), sizeof(float));
         }
 
-        std::memcpy(&packet[3], own.bytes, shipped * sizeof(float));
+        std::memcpy(&packet[3], own.Bytes, shipped * sizeof(float));
 
-        std::vector<uint8_t> tail(blockTotal(own.size) - 8 - own.size, 0);
+        std::vector<uint8_t> tail(blockTotal(own.Size) - 8 - own.Size, 0);
         const size_t tailBytes = (wanted - shipped) * sizeof(float);
 
         for (size_t above = self; above-- > 0 && tail.size() < tailBytes;)
@@ -3333,16 +3333,16 @@ auto BattleMechType::layOutHotSpotPackets(const std::vector<uint32_t>& packetSiz
             const Block& block = blocks[above];
             tail.insert(tail.end(), 8, 0);
 
-            if (block.bytes != nullptr)
+            if (block.Bytes != nullptr)
             {
-                tail.insert(tail.end(), block.bytes, block.bytes + block.size);
+                tail.insert(tail.end(), block.Bytes, block.Bytes + block.Size);
             }
             else
             {
-                tail.insert(tail.end(), block.size, 0);
+                tail.insert(tail.end(), block.Size, 0);
             }
 
-            tail.insert(tail.end(), blockTotal(block.size) - 8 - block.size, 0);
+            tail.insert(tail.end(), blockTotal(block.Size) - 8 - block.Size, 0);
         }
 
         tail.resize(tailBytes, 0);
@@ -3352,24 +3352,24 @@ auto BattleMechType::layOutHotSpotPackets(const std::vector<uint32_t>& packetSiz
             std::memcpy(&packet[3 + shipped], tail.data(), tailBytes);
         }
 
-        gestureHotSpots[gesture] = reinterpret_cast<uint8_t*>(&packet[3]);
+        GestureHotSpots[gesture] = reinterpret_cast<uint8_t*>(&packet[3]);
     }
 }
 
-auto BattleMech::getPositionFromHS(uint32_t hotSpot) -> vector_3d
+auto MCBattleMech::GetPositionFromHS(uint32_t hotSpot) -> MCVector3D
 {
-    auto* mechType = static_cast<BattleMechType*>(objType);
+    auto* mechType = static_cast<MCBattleMechType*>(ObjType);
 
-    if (mechType->numOthers + mechType->numWeapons <= hotSpot)
+    if (mechType->NumOthers + mechType->NumWeapons <= hotSpot)
     {
         hotSpot = 0;
     }
 
-    auto* actor = static_cast<MechActor*>(appearance);
-    const uint32_t gesture = actor->getHotSpotIndex(static_cast<uint32_t>(actor->currentGesture));
-    int32_t frameNumber = actor->currentFrame[0];
-    const auto* offsets = reinterpret_cast<const float*>(mechType->gestureHotSpots[gesture]);
-    const int32_t numFrames = static_cast<int32_t>(mechType->numFramesPerHotSpot[gesture]);
+    auto* actor = static_cast<MCMechActor*>(Appearance);
+    const uint32_t gesture = actor->GetHotSpotIndex(static_cast<uint32_t>(actor->CurrentGesture));
+    int32_t frameNumber = actor->CurrentFrame[0];
+    const auto* offsets = reinterpret_cast<const float*>(mechType->GestureHotSpots[gesture]);
+    const int32_t numFrames = static_cast<int32_t>(mechType->NumFramesPerHotSpot[gesture]);
 
     if (numFrames <= frameNumber)
     {
@@ -3382,8 +3382,8 @@ auto BattleMech::getPositionFromHS(uint32_t hotSpot) -> vector_3d
     uint32_t dataHotSpot = hotSpot;
 
 #if MCREDUX_FIX_SHORT_HOTSPOT_PACKETS
-    if (numFrames > 0 && gesture < mechType->hotSpotPacketShippedFloats.size() &&
-        mechType->hotSpotPacketShippedFloats[gesture] / (static_cast<uint32_t>(numFrames) * 3) <= dataHotSpot)
+    if (numFrames > 0 && gesture < mechType->HotSpotPacketShippedFloats.size() &&
+        mechType->HotSpotPacketShippedFloats[gesture] / (static_cast<uint32_t>(numFrames) * 3) <= dataHotSpot)
     {
         dataHotSpot = 0;
     }
@@ -3395,228 +3395,228 @@ auto BattleMech::getPositionFromHS(uint32_t hotSpot) -> vector_3d
     const float offsetZ = offsets[index * 3 + 2];
 
     // The body's facing, plus the torso's (and an arm's) for the weapons mounted on them.
-    const double exactFacing = exactFrameFacing(frame);
+    const double exactFacing = ExactFrameFacing(Frame);
     const float facing = static_cast<float>(exactFacing);
     double turned = exactFacing;
 
-    if (hotSpot < mechType->numWeapons)
+    if (hotSpot < mechType->NumWeapons)
     {
-        switch (mechType->weaponHotSpots[hotSpot])
+        switch (mechType->WeaponHotSpots[hotSpot])
         {
             case 1:
-                turned = static_cast<double>(facing) + torsoRotation;
+                turned = static_cast<double>(facing) + TorsoRotation;
                 break;
             case 2:
-                turned = static_cast<double>(leftArmRotation) + torsoRotation + facing;
+                turned = static_cast<double>(LeftArmRotation) + TorsoRotation + facing;
                 break;
             case 3:
-                turned = static_cast<double>(rightArmRotation) + torsoRotation + facing;
+                turned = static_cast<double>(RightArmRotation) + TorsoRotation + facing;
                 break;
             default:
                 break;
         }
     }
-    else if (hotSpot < mechType->numWeapons + 3)
+    else if (hotSpot < mechType->NumWeapons + 3)
     {
-        turned = static_cast<double>(facing) + torsoRotation;
+        turned = static_cast<double>(facing) + TorsoRotation;
     }
 
     double s;
     double c;
-    snappedFacing(turned, s, c);
-    vector_3d result;
-    result.x = static_cast<float>(c * offsetX + s * offsetY) * 20.0f + position.x;
-    result.z = offsetZ * 20.0f + position.z;
-    result.y = static_cast<float>((c * offsetY - s * offsetX) * 20.0f + position.y);
+    SnappedFacing(turned, s, c);
+    MCVector3D result;
+    result.X = static_cast<float>(c * offsetX + s * offsetY) * 20.0f + Position.X;
+    result.Z = offsetZ * 20.0f + Position.Z;
+    result.Y = static_cast<float>((c * offsetY - s * offsetX) * 20.0f + Position.Y);
     return result;
 }
 
-auto BattleMech::onScreen() -> int
+auto MCBattleMech::OnScreen() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
-    screenPos.y = 0.0f;
-    screenPos.x = 0.0f;
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
+    ScreenPos.Y = 0.0f;
+    ScreenPos.X = 0.0f;
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
     float screenY;
 
-    if (useOldProject == 0)
+    if (UseOldProject == 0)
     {
-        vector_2d screen100;
-        vector_2d screen50;
+        MCVector2D screen100;
+        MCVector2D screen50;
 
-        if (land != nullptr)
+        if (Land != nullptr)
         {
-            land->projectTerrain(position, screen100, screen50);
+            Land->ProjectTerrain(Position, screen100, screen50);
         }
 
-        if (camera->cameraScale == 1)
+        if (camera->CameraScale == 1)
         {
-            screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-            screenY = screen50.y - camera->screenUL50.y;
+            ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+            screenY = screen50.Y - camera->ScreenUL50.Y;
         }
         else
         {
-            screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-            screenY = screen100.y - camera->screenUL.y;
+            ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+            screenY = screen100.Y - camera->ScreenUL.Y;
         }
 
-        screenY += camera->halfHeight;
+        screenY += camera->HalfHeight;
     }
     else
     {
-        const float scale = camera->cameraScale != 1 ? 1.0f : 0.5f;
-        vector_3d relative(position.x - camera->position.x, position.y - camera->position.y,
-                           position.z - camera->position.z);
+        const float scale = camera->CameraScale != 1 ? 1.0f : 0.5f;
+        MCVector3D relative(Position.X - camera->Position.X, Position.Y - camera->Position.Y,
+                            Position.Z - camera->Position.Z);
         relative *= scale;
-        screenPos.x = relative.y * camera->cosAngle + relative.x * camera->cosAngle + camera->halfWidth;
-        screenY = ((relative.x * camera->sinAngle + camera->halfHeight) - relative.y * camera->sinAngle) - relative.z;
+        ScreenPos.X = relative.Y * camera->CosAngle + relative.X * camera->CosAngle + camera->HalfWidth;
+        screenY = ((relative.X * camera->SinAngle + camera->HalfHeight) - relative.Y * camera->SinAngle) - relative.Z;
     }
 
-    screenPos.y = screenY;
+    ScreenPos.Y = screenY;
 
-    if (appearance != nullptr && appearance->recalcBounds(camera) != 0)
+    if (Appearance != nullptr && Appearance->RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto BattleMech::createJumpFX() -> void
+auto MCBattleMech::CreateJumpFX() -> void
 {
-    if (jumpFX[0] != nullptr || jumpFX[1] != nullptr)
+    if (JumpFX[0] != nullptr || JumpFX[1] != nullptr)
     {
         return;
     }
 
-    jumpFX[0] = createObject(0x1c6);
-    static_cast<Jet*>(jumpFX[0])->setOwner(this);
-    jumpFX[1] = createObject(0x1c6);
-    static_cast<Jet*>(jumpFX[1])->setOwner(this);
-    craterManager->addCrater(7, position, 0);
+    JumpFX[0] = CreateObject(0x1c6);
+    static_cast<MCJet*>(JumpFX[0])->SetOwner(this);
+    JumpFX[1] = CreateObject(0x1c6);
+    static_cast<MCJet*>(JumpFX[1])->SetOwner(this);
+    CraterManager->AddCrater(7, Position, 0);
 }
 
-auto BattleMech::endJumpFX() -> void
+auto MCBattleMech::EndJumpFX() -> void
 {
-    if (jumpFX[0] == nullptr && jumpFX[1] == nullptr)
+    if (JumpFX[0] == nullptr && JumpFX[1] == nullptr)
     {
         return;
     }
 
-    delete jumpFX[0];
-    jumpFX[0] = nullptr;
-    delete jumpFX[1];
-    jumpFX[1] = nullptr;
+    delete JumpFX[0];
+    JumpFX[0] = nullptr;
+    delete JumpFX[1];
+    JumpFX[1] = nullptr;
 }
 
-auto BattleMech::getJumpPosition(int32_t jet) -> vector_3d
+auto MCBattleMech::GetJumpPosition(int32_t jet) -> MCVector3D
 {
     if (jet < 0 || jet > 1)
     {
         jet = 0;
     }
 
-    auto* actor = static_cast<MechActor*>(appearance);
-    const int32_t frameNumber = actor->currentFrame[0];
-    const int32_t numFrames = static_cast<int32_t>(actor->getNumFramesInGesture(0x14));
+    auto* actor = static_cast<MCMechActor*>(Appearance);
+    const int32_t frameNumber = actor->CurrentFrame[0];
+    const int32_t numFrames = static_cast<int32_t>(actor->GetNumFramesInGesture(0x14));
     const int32_t index = numFrames * jet + frameNumber;
-    const auto* offsets = reinterpret_cast<const float*>(static_cast<BattleMechType*>(objType)->jumpData);
+    const auto* offsets = reinterpret_cast<const float*>(static_cast<MCBattleMechType*>(ObjType)->JumpData);
     const float offsetX = offsets[index * 3];
     const float offsetY = offsets[index * 3 + 1];
     const float offsetZ = offsets[index * 3 + 2];
-    const double facing = exactFrameFacing(frame);
+    const double facing = ExactFrameFacing(Frame);
     double s;
     double c;
-    snappedFacing(facing, s, c);
-    vector_3d base = position;
+    SnappedFacing(facing, s, c);
+    MCVector3D base = Position;
 
-    if (actor->frameHeights != nullptr)
+    if (actor->FrameHeights != nullptr)
     {
         // Lifted along the mech's up axis by the jump's height this frame.
-        const float height = actor->frameHeights[frameNumber] * 30.0f;
-        base.x = frame.k.x * height + base.x;
-        base.y = base.y + frame.k.y * height;
-        base.z = base.z + height * frame.k.z;
+        const float height = actor->FrameHeights[frameNumber] * 30.0f;
+        base.X = Frame.K.X * height + base.X;
+        base.Y = base.Y + Frame.K.Y * height;
+        base.Z = base.Z + height * Frame.K.Z;
     }
 
-    vector_3d result;
-    result.x = base.x + static_cast<float>(c * offsetX + offsetY * s) * 20.0f;
-    result.z = offsetZ * 20.0f + base.z;
-    result.y = static_cast<float>((offsetY * c - s * offsetX) * 20.0f) + base.y;
+    MCVector3D result;
+    result.X = base.X + static_cast<float>(c * offsetX + offsetY * s) * 20.0f;
+    result.Z = offsetZ * 20.0f + base.Z;
+    result.Y = static_cast<float>((offsetY * c - s * offsetX) * 20.0f) + base.Y;
     return result;
 }
 
-auto BattleMech::crashAvoidanceSystem() -> int
+auto MCBattleMech::CrashAvoidanceSystem() -> int
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return 0;
     }
 
-    MechWarrior* warrior = pilot;
-    MovePath* path = warrior->getMovePath();
+    MCMechWarrior* warrior = Pilot;
+    MCMovePath* path = warrior->GetMovePath();
 
-    if (path->numStepsWhenNotPaused == 0)
+    if (path->NumStepsWhenNotPaused == 0)
     {
         return 0;
     }
 
-    if (static_cast<double>(warrior->moveOrders.waitForPointTime) > 999990.0)
+    if (static_cast<double>(warrior->MoveOrders.WaitForPointTime) > 999990.0)
     {
         return 0;
     }
 
     // A look a frame ahead along the frame turned by a quarter pi (its result is unused).
-    const float speed = -static_cast<MechActor*>(appearance)->getVelocityMagnitude();
-    frame_of_ref ahead = frame;
-    rotateAboutK(ahead, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
-    vector_3d lookAhead(ahead.j.x * speed * frameLength * worldUnitsPerMeter + position.x,
-                        ahead.j.y * speed * frameLength * worldUnitsPerMeter + position.y,
-                        worldUnitsPerMeter * 0.0f + position.z);
+    const float speed = -static_cast<MCMechActor*>(Appearance)->GetVelocityMagnitude();
+    MCFrameOfRef ahead = Frame;
+    RotateAboutK(ahead, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
+    MCVector3D lookAhead(ahead.J.X * speed * FrameLength * WorldUnitsPerMeter + Position.X,
+                         ahead.J.Y * speed * FrameLength * WorldUnitsPerMeter + Position.Y,
+                         WorldUnitsPerMeter * 0.0f + Position.Z);
     int32_t tileR;
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->worldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
+    GameMap->WorldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
 
     int cornerBlocked = 0;
-    const int32_t direction = static_cast<int8_t>(path->stepList[path->curStep].direction);
+    const int32_t direction = static_cast<int8_t>(path->StepList[path->CurStep].Direction);
 
     if (direction == 1 || direction == 3 || direction == 5 || direction == 7)
     {
         // A diagonal step: blocked when both cells beside it are locked.
-        const int first = getAdjacentCellPathLocked(objPosition->tileR, objPosition->tileC, objPosition->cellR,
-                                                    objPosition->cellC, adjClippedCell[direction][0]);
-        const int second = getAdjacentCellPathLocked(objPosition->tileR, objPosition->tileC, objPosition->cellR,
-                                                     objPosition->cellC, adjClippedCell[direction][1]);
+        const int first = GetAdjacentCellPathLocked(ObjPosition->TileR, ObjPosition->TileC, ObjPosition->CellR,
+                                                    ObjPosition->CellC, AdjClippedCell[direction][0]);
+        const int second = GetAdjacentCellPathLocked(ObjPosition->TileR, ObjPosition->TileC, ObjPosition->CellR,
+                                                     ObjPosition->CellC, AdjClippedCell[direction][1]);
         cornerBlocked = first != 0 && second != 0 ? 1 : 0;
     }
 
     int lockReachedEnd = 0;
     int blockReachedEnd = 0;
-    const int locked = getPathRangeLock(crashAvoidPath, &lockReachedEnd);
-    const int blocked = getPathRangeBlocked(crashAvoidPath, &blockReachedEnd);
-    const int32_t closedGates = path->crossesClosedGate(-1, 2);
-    warrior = pilot;
+    const int locked = GetPathRangeLock(CrashAvoidPath, &lockReachedEnd);
+    const int blocked = GetPathRangeBlocked(CrashAvoidPath, &blockReachedEnd);
+    const int32_t closedGates = path->CrossesClosedGate(-1, 2);
+    warrior = Pilot;
     const bool clear = locked == 0 && blocked == 0 && cornerBlocked == 0 && closedGates < 1;
 
-    if (warrior->moveOrders.yieldTime > -1.0f)
+    if (warrior->MoveOrders.YieldTime > -1.0f)
     {
         // Yielding: go on once the way is clear.
         if (clear)
         {
-            warrior->resumePath();
-            warrior->moveOrders.yieldTime = -1.0f;
+            warrior->ResumePath();
+            warrior->MoveOrders.YieldTime = -1.0f;
             return 0;
         }
 
-        warrior->pausePath();
+        warrior->PausePath();
         return 1;
     }
 
@@ -3627,50 +3627,50 @@ auto BattleMech::crashAvoidanceSystem() -> int
 
     if (lockReachedEnd == 0 && blockReachedEnd == 0)
     {
-        warrior->pausePath();
-        warrior->moveOrders.yieldTime = scenarioTime + crashYieldTime;
-        control->controlData->brake();
+        warrior->PausePath();
+        warrior->MoveOrders.YieldTime = ScenarioTime + CrashYieldTime;
+        Control->ControlData->Brake();
         return 1;
     }
 
-    warrior->reachedPathEnd();
-    control->controlData->brake();
+    warrior->ReachedPathEnd();
+    Control->ControlData->Brake();
     return 1;
 }
 
-auto BattleMech::netUpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
-                                   int32_t& newGestureStateGoal, int32_t& newMoveState, int32_t& minThrottle,
-                                   int32_t& maxThrottle) -> int
+auto MCBattleMech::NetUpdateMovePath(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
+                                     int32_t& newGestureStateGoal, int32_t& newMoveState, int32_t& minThrottle,
+                                     int32_t& maxThrottle) -> int
 {
-    auto* dynType = static_cast<MechDynamicsType*>(static_cast<BattleMechType*>(objType)->dynamicsType);
-    auto* controlData = static_cast<MechControlData*>(control->controlData);
-    MovePath* path = pilot->getMovePath();
-    const int running = legStatus == 0 && moveChunk.run != 0 ? 1 : 0;
-    newThrottleSetting = static_cast<char>(controlData->throttle);
+    auto* dynType = static_cast<MCMechDynamicsType*>(static_cast<MCBattleMechType*>(ObjType)->DynamicsType);
+    auto* controlData = static_cast<MCMechControlData*>(Control->ControlData);
+    MCMovePath* path = Pilot->GetMovePath();
+    const int running = LegStatus == 0 && MoveChunk.Run != 0 ? 1 : 0;
+    newThrottleSetting = static_cast<char>(controlData->Throttle);
     newRotatePerSec = 0.0f;
 
-    if ((legStatus != 0 && legStatus != 1 && legStatus != 2) || path->numSteps < 1)
+    if ((LegStatus != 0 && LegStatus != 1 && LegStatus != 2) || path->NumSteps < 1)
     {
         newGestureStateGoal = 1;
         return 0;
     }
 
-    int32_t step = path->curStep;
+    int32_t step = path->CurStep;
 
-    if (step == path->numSteps)
+    if (step == path->NumSteps)
     {
         return 1;
     }
 
-    vector_3d destination = path->stepList[step].destination;
-    lastValidPosition = destination;
-    const auto distance = static_cast<float>(distanceFrom(destination));
-    const int32_t numSteps = path->numSteps;
+    MCVector3D destination = path->StepList[step].Destination;
+    LastValidPosition = destination;
+    const auto distance = static_cast<float>(DistanceFrom(destination));
+    const int32_t numSteps = path->NumSteps;
     const float margin = step == numSteps - 1 ? MoveMarginOfError[1] : MoveMarginOfError[0];
 
     if (margin <= distance)
     {
-        if (static_cast<int8_t>(path->stepList[step].direction) > 7)
+        if (static_cast<int8_t>(path->StepList[step].Direction) > 7)
         {
             newGestureStateGoal = 6;
             return 0;
@@ -3679,37 +3679,37 @@ auto BattleMech::netUpdateMovePath(char& newRotate, char& newThrottleSetting, fl
     else
     {
         step++;
-        pilot->moveOrders.timeOfLastStep = scenarioTime;
-        path->curStep = step;
+        Pilot->MoveOrders.TimeOfLastStep = ScenarioTime;
+        path->CurStep = step;
 
         if (numSteps <= step)
         {
             return 1;
         }
 
-        if (static_cast<int8_t>(path->stepList[step].direction) > 7)
+        if (static_cast<int8_t>(path->StepList[step].Direction) > 7)
         {
             newGestureStateGoal = 6;
             return 0;
         }
 
-        destination = path->stepList[step].destination;
+        destination = path->StepList[step].Destination;
     }
 
-    const float facing = relFacingTo(destination, -1);
-    MechWarrior* warrior = pilot;
-    const int32_t moveState = warrior->moveOrders.moveState;
-    const int32_t moveStateGoal = warrior->moveOrders.moveStateGoal;
+    const float facing = RelFacingTo(destination, -1);
+    MCMechWarrior* warrior = Pilot;
+    const int32_t moveState = warrior->MoveOrders.MoveState;
+    const int32_t moveStateGoal = warrior->MoveOrders.MoveStateGoal;
     const auto walkThrottle = [&]() -> char
     {
-        const char throttle = static_cast<char>(controlData->throttle);
+        const char throttle = static_cast<char>(controlData->Throttle);
 
-        if (getBodyState() != 2)
+        if (GetBodyState() != 2)
         {
             return 100;
         }
 
-        const char speed = static_cast<char>(pilot->moveOrders.speedThrottle);
+        const char speed = static_cast<char>(Pilot->MoveOrders.SpeedThrottle);
 
         if (throttle < speed - 10)
         {
@@ -3725,11 +3725,11 @@ auto BattleMech::netUpdateMovePath(char& newRotate, char& newThrottleSetting, fl
     };
 
     // The turn per second is limited to the yaw rate (not scaled by the frame here).
-    const float maxRate = static_cast<float>(dynType->maxMechYawRate);
+    const float maxRate = static_cast<float>(dynType->MaxMechYawRate);
 
     if (moveState == MOVESTATE_FORWARD && moveStateGoal == MOVESTATE_FORWARD)
     {
-        if (legStatus == 2)
+        if (LegStatus == 2)
         {
             newGestureStateGoal = 5;
             newThrottleSetting = 100;
@@ -3749,7 +3749,7 @@ auto BattleMech::netUpdateMovePath(char& newRotate, char& newThrottleSetting, fl
             return 0;
         }
 
-        newRotatePerSec = -(facing / frameLength);
+        newRotatePerSec = -(facing / FrameLength);
 
         if (newRotatePerSec > maxRate)
         {
@@ -3771,17 +3771,17 @@ auto BattleMech::netUpdateMovePath(char& newRotate, char& newThrottleSetting, fl
     if (moveState == MOVESTATE_REVERSE && moveStateGoal == MOVESTATE_REVERSE)
     {
         newGestureStateGoal = 4;
-        newRotatePerSec = facing >= 0.0f ? -((facing - 180.0f) / frameLength) : -((facing + 180.0f) / frameLength);
+        newRotatePerSec = facing >= 0.0f ? -((facing - 180.0f) / FrameLength) : -((facing + 180.0f) / FrameLength);
 
         if (newRotatePerSec > maxRate)
         {
             newRotatePerSec = maxRate;
-            newThrottleSetting = static_cast<char>(controlData->throttle - 10);
+            newThrottleSetting = static_cast<char>(controlData->Throttle - 10);
         }
         else if (newRotatePerSec < -maxRate)
         {
             newRotatePerSec = -maxRate;
-            newThrottleSetting = static_cast<char>(controlData->throttle - 10);
+            newThrottleSetting = static_cast<char>(controlData->Throttle - 10);
         }
         else
         {
@@ -3813,33 +3813,33 @@ auto BattleMech::netUpdateMovePath(char& newRotate, char& newThrottleSetting, fl
         return 0;
     }
 
-    warrior->pausePath();
+    warrior->PausePath();
     newMoveState = pivotState;
     return 0;
 }
 
-auto BattleMech::netUpdateMovement() -> void
+auto MCBattleMech::NetUpdateMovement() -> void
 {
-    auto* controlData = static_cast<MechControlData*>(control->controlData);
+    auto* controlData = static_cast<MCMechControlData*>(Control->ControlData);
     int32_t minThrottle = 0x23;
     int32_t maxThrottle = 100;
-    const int32_t bodyState = getBodyState();
-    MovePath* path = pilot->getMovePath();
-    vector_3d destination = path->stepList[path->curStep].destination;
-    const auto distance = static_cast<float>(distanceFrom(destination));
+    const int32_t bodyState = GetBodyState();
+    MCMovePath* path = Pilot->GetMovePath();
+    MCVector3D destination = path->StepList[path->CurStep].Destination;
+    const auto distance = static_cast<float>(DistanceFrom(destination));
 
-    if (path->numStepsWhenNotPaused > 0 && bodyState == 0)
+    if (path->NumStepsWhenNotPaused > 0 && bodyState == 0)
     {
-        startUpThisFrame = 1;
+        StartUpThisFrame = 1;
     }
 
-    if (path->numSteps - 1 <= path->curStep && distance < MoveMarginOfError[1])
+    if (path->NumSteps - 1 <= path->CurStep && distance < MoveMarginOfError[1])
     {
         // At the end of the path: take up the body state the server sent.
-        startUpThisFrame = 0;
+        StartUpThisFrame = 0;
         int32_t gesture = -1;
 
-        switch (statusChunk.bodyState)
+        switch (StatusChunk.BodyState)
         {
             case 1:
             {
@@ -3847,7 +3847,7 @@ auto BattleMech::netUpdateMovement() -> void
                 {
                     if (bodyState == 0)
                     {
-                        soundSystem->playDigitalSample(0x3d, 1, this, 0, 0);
+                        SoundSystem->PlayDigitalSample(0x3d, 1, this, 0, 0);
                     }
 
                     gesture = 1;
@@ -3858,7 +3858,7 @@ auto BattleMech::netUpdateMovement() -> void
             {
                 if (bodyState != 0)
                 {
-                    soundSystem->playDigitalSample(0x3c, 1, this, 0, 0);
+                    SoundSystem->PlayDigitalSample(0x3c, 1, this, 0, 0);
                     gesture = 0;
                 }
                 break;
@@ -3885,88 +3885,88 @@ auto BattleMech::netUpdateMovement() -> void
 
         if (gesture != -1)
         {
-            pilot->clearMoveOrders();
-            appearance->setGestureGoal(gesture);
-            controlData->throttle = static_cast<int8_t>(maxThrottle);
+            Pilot->ClearMoveOrders();
+            Appearance->SetGestureGoal(gesture);
+            controlData->Throttle = static_cast<int8_t>(maxThrottle);
             return;
         }
     }
 
-    if (disableThisFrame != 0)
+    if (DisableThisFrame != 0)
     {
         int32_t gesture = 8 - (RandomNumber(2) != 0 ? 1 : 0);
 
-        if (hitFromBehindThisFrame != 0)
+        if (HitFromBehindThisFrame != 0)
         {
             gesture = 7;
         }
-        else if (hitFromFrontThisFrame != 0)
+        else if (HitFromFrontThisFrame != 0)
         {
             gesture = 8;
         }
 
-        if (appearance->setGestureGoal(gesture) == 0)
+        if (Appearance->SetGestureGoal(gesture) == 0)
         {
-            disableThisFrame = 0;
-            shutDownThisFrame = 0;
-            startUpThisFrame = 0;
-            hitFromFrontThisFrame = 0;
-            hitFromBehindThisFrame = 0;
+            DisableThisFrame = 0;
+            ShutDownThisFrame = 0;
+            StartUpThisFrame = 0;
+            HitFromFrontThisFrame = 0;
+            HitFromBehindThisFrame = 0;
         }
 
-        controlData->throttle = static_cast<int8_t>(maxThrottle);
+        controlData->Throttle = static_cast<int8_t>(maxThrottle);
         return;
     }
 
-    if (shutDownThisFrame != 0)
+    if (ShutDownThisFrame != 0)
     {
-        const int32_t result = appearance->setGestureGoal(0);
+        const int32_t result = Appearance->SetGestureGoal(0);
 
         if (result == 0 || result == -0x1521ffff)
         {
-            shutDownThisFrame = 0;
-            startUpThisFrame = 0;
+            ShutDownThisFrame = 0;
+            StartUpThisFrame = 0;
 
             if (result == -0x1521ffff)
             {
-                status = 5;
+                Status = 5;
             }
         }
 
-        controlData->throttle = static_cast<int8_t>(maxThrottle);
+        controlData->Throttle = static_cast<int8_t>(maxThrottle);
         return;
     }
 
-    if (startUpThisFrame != 0)
+    if (StartUpThisFrame != 0)
     {
-        const int32_t result = appearance->setGestureGoal(1);
+        const int32_t result = Appearance->SetGestureGoal(1);
 
         if (result == 0 || result == -0x1521ffff)
         {
-            startUpThisFrame = 0;
-            shutDownThisFrame = 0;
+            StartUpThisFrame = 0;
+            ShutDownThisFrame = 0;
 
             if (result == -0x1521ffff)
             {
-                status = 0;
+                Status = 0;
             }
         }
 
-        controlData->throttle = static_cast<int8_t>(maxThrottle);
+        controlData->Throttle = static_cast<int8_t>(maxThrottle);
         return;
     }
 
-    if (status == 4 || status == 5 || status == 1 || isCaptured() != 0 || engineBlowTime > -1.0f)
+    if (Status == 4 || Status == 5 || Status == 1 || IsCaptured() != 0 || EngineBlowTime > -1.0f)
     {
         return;
     }
 
-    if (updateJump() != 0)
+    if (UpdateJump() != 0)
     {
         return;
     }
 
-    float newRotatePerSec = static_cast<float>(pivotTo());
+    float newRotatePerSec = static_cast<float>(PivotTo());
 
     if (newRotatePerSec != 0.0f)
     {
@@ -3977,17 +3977,17 @@ auto BattleMech::netUpdateMovement() -> void
     char newThrottleSetting = -1;
     int32_t newGestureStateGoal = -1;
     int32_t newMoveState = -1;
-    updateMoveStateGoal();
-    netUpdateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, newMoveState, minThrottle,
+    UpdateMoveStateGoal();
+    NetUpdateMovePath(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, newMoveState, minThrottle,
                       maxThrottle);
 
     if (newMoveState != -1)
     {
-        pilot->moveOrders.moveState = newMoveState;
+        Pilot->MoveOrders.MoveState = newMoveState;
     }
 
-    setControlSettings(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, minThrottle, maxThrottle);
-    updateTorso(newRotatePerSec);
+    SetControlSettings(newRotate, newThrottleSetting, newRotatePerSec, newGestureStateGoal, minThrottle, maxThrottle);
+    UpdateTorso(newRotatePerSec);
 }
 
 namespace
@@ -3999,7 +3999,7 @@ namespace
     /// Turns (<paramref name="x"/>, <paramref name="y"/>) by <paramref name="degrees"/> (MC2's inline Rotate): 45 and
     /// -45 exactly, otherwise the sine at full precision and the cosine through a float angle.
     /// </summary>
-    void rotateXY(float& x, float& y, float degrees)
+    void RotateXY(float& x, float& y, float degrees)
     {
         double s;
         double c;
@@ -4026,7 +4026,7 @@ namespace
     }
 
     /// <summary>Turns (<paramref name="x"/>, <paramref name="y"/>) half a circle, by MCX.EXE's pi.</summary>
-    void rotateXYHalf(float& x, float& y)
+    void RotateXYHalf(float& x, float& y)
     {
         const double s = std::sin(MCX_PI);
         const double c = std::cos(MCX_PI);
@@ -4036,54 +4036,54 @@ namespace
     }
 
     /// <summary>A frame's facing in degrees from the world's x axis, negative when its i axis points to -y.</summary>
-    float frameFacing(frame_of_ref& frame)
+    float FrameFacing(MCFrameOfRef& frame)
     {
-        return static_cast<float>(exactFrameFacing(frame));
+        return static_cast<float>(ExactFrameFacing(frame));
     }
 
     /// <summary>
     /// Throws off an arm (debris type <paramref name="debrisId"/>): framed the torso's way, flying sideways at a
     /// random angle from <paramref name="angle"/>, painted as the mech.
     /// </summary>
-    void throwArm(BattleMech* mech, uint32_t debrisId, float angle)
+    void ThrowArm(MCBattleMech* mech, uint32_t debrisId, float angle)
     {
-        GameObject* piece = createObject(static_cast<int32_t>(debrisId));
+        MCGameObject* piece = CreateObject(static_cast<int32_t>(debrisId));
 
         if (piece == nullptr)
         {
             return;
         }
 
-        frame_of_ref armFrame = mech->frame;
-        const double torso = static_cast<double>(mech->torsoRotation) * DEGREES_TO_RADIANS;
-        rotateAboutK(armFrame, static_cast<float>(std::sin(torso)), static_cast<float>(std::cos(torso)));
-        piece->setFrame(armFrame);
-        vector_3d flight = mech->frame.j;
-        const float length = std::sqrt(flight.x * flight.x + flight.y * flight.y + flight.z * flight.z);
+        MCFrameOfRef armFrame = mech->Frame;
+        const double torso = static_cast<double>(mech->TorsoRotation) * DEGREES_TO_RADIANS;
+        RotateAboutK(armFrame, static_cast<float>(std::sin(torso)), static_cast<float>(std::cos(torso)));
+        piece->SetFrame(armFrame);
+        MCVector3D flight = mech->Frame.J;
+        const float length = std::sqrt(flight.X * flight.X + flight.Y * flight.Y + flight.Z * flight.Z);
 
         if (length != 0.0f)
         {
-            flight.x = flight.x / length;
-            flight.y = flight.y / length;
-            flight.z = flight.z / length;
+            flight.X = flight.X / length;
+            flight.Y = flight.Y / length;
+            flight.Z = flight.Z / length;
         }
 
-        auto* debris = static_cast<Debris*>(piece);
-        debris->randomAngle(angle);
-        rotateXY(flight.x, flight.y, angle);
+        auto* debris = static_cast<MCDebris*>(piece);
+        debris->RandomAngle(angle);
+        RotateXY(flight.X, flight.Y, angle);
 
-        if (frameFacing(armFrame) >= 0.0f)
+        if (FrameFacing(armFrame) >= 0.0f)
         {
-            rotateXYHalf(flight.x, flight.y);
+            RotateXYHalf(flight.X, flight.Y);
         }
 
-        piece->setVelocity(flight);
-        piece->setPosition(mech->position);
-        debris->setPaintScheme(static_cast<MechActor*>(mech->appearance)->fadeTableIndex);
+        piece->SetVelocity(flight);
+        piece->SetPosition(mech->Position);
+        debris->SetPaintScheme(static_cast<MCMechActor*>(mech->Appearance)->FadeTableIndex);
 
-        if (objectList->head != nullptr)
+        if (ObjectList->Head != nullptr)
         {
-            objectList->head->addNode(piece);
+            ObjectList->Head->AddNode(piece);
         }
     }
 
@@ -4091,19 +4091,19 @@ namespace
     /// Leaves a footprint at hot spot offset (<paramref name="offsetX"/>, <paramref name="offsetY"/>) turned by
     /// -<paramref name="angle"/> degrees, rotation <paramref name="direction"/> (of 16), with a step sound.
     /// </summary>
-    void makeFootprint(BattleMech* mech, float offsetX, float offsetY, float angle, int32_t direction)
+    void MakeFootprint(MCBattleMech* mech, float offsetX, float offsetY, float angle, int32_t direction)
     {
-        rotateXY(offsetX, offsetY, -angle);
-        vector_3d printPos;
-        printPos.z = mech->position.z;
-        printPos.x = offsetX * 20.0f + mech->position.x;
-        printPos.y = offsetY * 20.0f + mech->position.y;
-        craterManager->addCrater(static_cast<BattleMechType*>(mech->objType)->footprintType, printPos, direction);
-        soundSystem->playDigitalSample(0xd, 1, mech, 0, 0);
+        RotateXY(offsetX, offsetY, -angle);
+        MCVector3D printPos;
+        printPos.Z = mech->Position.Z;
+        printPos.X = offsetX * 20.0f + mech->Position.X;
+        printPos.Y = offsetY * 20.0f + mech->Position.Y;
+        CraterManager->AddCrater(static_cast<MCBattleMechType*>(mech->ObjType)->FootprintType, printPos, direction);
+        SoundSystem->PlayDigitalSample(0xd, 1, mech, 0, 0);
     }
 
     /// <summary>A footprint's rotation (of 16) for <paramref name="degrees"/>.</summary>
-    int32_t footprintDirection(float degrees)
+    int32_t FootprintDirection(float degrees)
     {
         auto direction = static_cast<int32_t>(std::floor(static_cast<double>(degrees * (1.0f / 22.5f))));
 
@@ -4116,32 +4116,32 @@ namespace
     }
 }
 
-auto BattleMech::update() -> int32_t
+auto MCBattleMech::Update() -> int32_t
 {
-    terrainNormal = land->getTerrainNormal(position);
-    updatePathLock(0);
+    TerrainNormal = Land->GetTerrainNormal(Position);
+    UpdatePathLock(0);
 
-    if (isDestroyed() != 0 || isDisabled() != 0)
+    if (IsDestroyed() != 0 || IsDisabled() != 0)
     {
-        collisionsOn = 0;
+        CollisionsOn = 0;
     }
 
-    if (withdrawing != 0 && pilot->status == 2)
+    if (Withdrawing != 0 && Pilot->Status == 2)
     {
-        collisionsOn = 0;
+        CollisionsOn = 0;
         return 1;
     }
 
-    auto* actor = static_cast<MechActor*>(appearance);
+    auto* actor = static_cast<MCMechActor*>(Appearance);
 
-    if (isDestroyed() != 0)
+    if (IsDestroyed() != 0)
     {
-        if (jumpFX[0] != nullptr || jumpFX[1] != nullptr)
+        if (JumpFX[0] != nullptr || JumpFX[1] != nullptr)
         {
-            endJumpFX();
+            EndJumpFX();
         }
 
-        int32_t result = dynamics->update();
+        int32_t result = Dynamics->Update();
 
         if (result != 1)
         {
@@ -4149,26 +4149,26 @@ auto BattleMech::update() -> int32_t
         }
 
         // The wreck keeps sliding along its frame's j axis turned an eighth of a circle.
-        const float speed = -actor->getVelocityMagnitude();
-        frame_of_ref turned = frame;
-        rotateAboutK(turned, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
-        velocity.x = speed * turned.j.x;
-        velocity.y = speed * turned.j.y;
-        velocity.z = speed * turned.j.z;
-        vector_3d newPosition;
-        newPosition.x =
-            static_cast<float>(static_cast<double>(velocity.x) * frameLength * worldUnitsPerMeter + position.x);
-        newPosition.y = velocity.y * frameLength * worldUnitsPerMeter + position.y;
-        newPosition.z = velocity.z * frameLength * worldUnitsPerMeter + position.z;
-        setPosition(newPosition);
-        const int visibleNow = onScreen();
+        const float speed = -actor->GetVelocityMagnitude();
+        MCFrameOfRef turned = Frame;
+        RotateAboutK(turned, static_cast<float>(std::sin(HALF_PI / 2.0)), static_cast<float>(std::cos(HALF_PI / 2.0)));
+        Velocity.X = speed * turned.J.X;
+        Velocity.Y = speed * turned.J.Y;
+        Velocity.Z = speed * turned.J.Z;
+        MCVector3D newPosition;
+        newPosition.X =
+            static_cast<float>(static_cast<double>(Velocity.X) * FrameLength * WorldUnitsPerMeter + Position.X);
+        newPosition.Y = Velocity.Y * FrameLength * WorldUnitsPerMeter + Position.Y;
+        newPosition.Z = Velocity.Z * FrameLength * WorldUnitsPerMeter + Position.Z;
+        SetPosition(newPosition);
+        const int visibleNow = OnScreen();
 
         if (actor != nullptr)
         {
-            actor->setGestureGoal(8);
-            actor->visible = visibleNow;
-            actor->setCombatMode(0);
-            result = actor->update();
+            actor->SetGestureGoal(8);
+            actor->Visible = visibleNow;
+            actor->SetCombatMode(0);
+            result = actor->Update();
 
             if (result != 1)
             {
@@ -4177,65 +4177,65 @@ auto BattleMech::update() -> int32_t
         }
 
         // Once the death animation is done, it blows up and leaves a crater.
-        if (lyingDead != 0 || (lyingDead = actor->lyingStill) != 0)
+        if (LyingDead != 0 || (LyingDead = actor->LyingStill) != 0)
         {
-            deathTimer -= frameLength;
+            DeathTimer -= FrameLength;
 
-            if (deathTimer < 0.4 && deathExplosionDone == 0)
+            if (DeathTimer < 0.4 && DeathExplosionDone == 0)
             {
-                auto* mechType = static_cast<BattleMechType*>(objType);
-                mechType->createExplosion(position, mechType->explDmg, mechType->explRad);
-                deathExplosionDone = 1;
+                auto* mechType = static_cast<MCBattleMechType*>(ObjType);
+                mechType->CreateExplosion(Position, mechType->ExplDmg, mechType->ExplRad);
+                DeathExplosionDone = 1;
                 return 1;
             }
 
-            if (deathTimer < 0.0 && wreckDone == 0)
+            if (DeathTimer < 0.0 && WreckDone == 0)
             {
-                actor->wrecked = 1;
-                craterManager->addCrater(6, position, 0);
-                theInterface->RemoveMech(partId);
-                wreckDone = 1;
+                actor->Wrecked = 1;
+                CraterManager->AddCrater(6, Position, 0);
+                TheInterface->RemoveMech(PartId);
+                WreckDone = 1;
                 return 1;
             }
         }
     }
     else
     {
-        if (getAwake() != 0 && isDisabled() == 0 && scenario->godMode == 0 &&
-            Terrain::metersPerVertex <= distanceSinceMarkSeen)
+        if (GetAwake() != 0 && IsDisabled() == 0 && Scenario->GodMode == 0 &&
+            MCTerrain::MetersPerVertex <= DistanceSinceMarkSeen)
         {
             // Every vertex travelled, the mech marks what it sees.
-            if (alignment == 1)
+            if (Alignment == 1)
             {
-                land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 1);
+                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
             }
-            else if (alignment == -1)
+            else if (Alignment == -1)
             {
-                land->markSeen(position, frame.j, 360.0f, getProbeEffect() + scenario->maxVisualRange, 2);
+                Land->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
             }
 
-            distanceSinceMarkSeen = 0.0f;
+            DistanceSinceMarkSeen = 0.0f;
         }
 
-        if (deselectTime != 0.0f && deselectTime < scenarioTime)
+        if (DeselectTime != 0.0f && DeselectTime < ScenarioTime)
         {
-            deselectTime = 0.0f;
-            selected = 0;
+            DeselectTime = 0.0f;
+            Selected = 0;
         }
 
-        int32_t result = control->update();
+        int32_t result = Control->Update();
 
         if (result != 1)
         {
             return result;
         }
 
-        if (getAwake() == 0 && actor->setGestureGoal(0) == 0)
+        if (GetAwake() == 0 && actor->SetGestureGoal(0) == 0)
         {
-            shutDownThisFrame = 0;
+            ShutDownThisFrame = 0;
         }
 
-        result = dynamics->update();
+        result = Dynamics->Update();
 
         if (result != 1)
         {
@@ -4244,27 +4244,27 @@ auto BattleMech::update() -> int32_t
 
         int avoiding = 0;
 
-        if (isDisabled() == 0)
+        if (IsDisabled() == 0)
         {
             // The original looks at the pilot's attack order here and does nothing with it.
-            if (getPilot()->curTacOrder.code == TACTICAL_ORDER_ATTACK_OBJECT &&
-                getPilot()->curTacOrder.attackParams.method == 2)
+            if (GetPilot()->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_OBJECT &&
+                GetPilot()->CurTacOrder.AttackParams.Method == 2)
             {
-                getPilot();
+                GetPilot();
             }
 
-            avoiding = crashAvoidanceSystem();
+            avoiding = CrashAvoidanceSystem();
         }
 
         float speed = 0.0f;
 
         if (avoiding == 0)
         {
-            speed = actor->getVelocityMagnitude();
+            speed = actor->GetVelocityMagnitude();
         }
 
-        const int32_t gesture = actor->currentGesture;
-        frame_of_ref turned = frame;
+        const int32_t gesture = actor->CurrentGesture;
+        MCFrameOfRef turned = Frame;
         speed = -speed;
 
         if (gesture == 20)
@@ -4272,169 +4272,169 @@ auto BattleMech::update() -> int32_t
             // Jumping: the actor's jump velocity.
             float jumpSpeed = 0.0f;
 
-            if (actor->airborne != 0)
+            if (actor->Airborne != 0)
             {
-                jumpSpeed = actor->getVelocityMagnitude();
+                jumpSpeed = actor->GetVelocityMagnitude();
             }
 
-            velocity.x = jumpSpeed * actor->jumpDirection.x;
-            velocity.y = jumpSpeed * actor->jumpDirection.y;
-            velocity.z = jumpSpeed * actor->jumpDirection.z;
+            Velocity.X = jumpSpeed * actor->JumpDirection.X;
+            Velocity.Y = jumpSpeed * actor->JumpDirection.Y;
+            Velocity.Z = jumpSpeed * actor->JumpDirection.Z;
         }
         else
         {
-            rotateAboutK(turned, static_cast<float>(std::sin(HALF_PI / 2.0)),
+            RotateAboutK(turned, static_cast<float>(std::sin(HALF_PI / 2.0)),
                          static_cast<float>(std::cos(HALF_PI / 2.0)));
-            velocity.y = turned.j.y * speed;
-            velocity.x = turned.j.x * speed;
-            velocity.z = turned.j.z * speed;
+            Velocity.Y = turned.J.Y * speed;
+            Velocity.X = turned.J.X * speed;
+            Velocity.Z = turned.J.Z * speed;
 
-            if (jumpFX[0] != nullptr || jumpFX[1] != nullptr)
+            if (JumpFX[0] != nullptr || JumpFX[1] != nullptr)
             {
-                endJumpFX();
+                EndJumpFX();
             }
         }
 
-        const float velocityZ = velocity.z;
-        vector_3d move;
-        move.x = static_cast<float>(static_cast<double>(velocity.x) * frameLength * worldUnitsPerMeter);
-        move.y = velocity.y * frameLength * worldUnitsPerMeter;
-        velocity.z = 0.0f;
-        move.z = velocityZ * frameLength * worldUnitsPerMeter;
+        const float velocityZ = Velocity.Z;
+        MCVector3D move;
+        move.X = static_cast<float>(static_cast<double>(Velocity.X) * FrameLength * WorldUnitsPerMeter);
+        move.Y = Velocity.Y * FrameLength * WorldUnitsPerMeter;
+        Velocity.Z = 0.0f;
+        move.Z = velocityZ * FrameLength * WorldUnitsPerMeter;
 
-        if (newMoveChunk != 0)
+        if (NewMoveChunk != 0)
         {
             // A new move chunk: warp to its first step when too far off.
-            if (statusChunk.jumpOrder == 0)
+            if (StatusChunk.JumpOrder == 0)
             {
-                const int32_t tileR = moveChunk.stepPos[0][0];
-                vector_3d stepPos;
-                mapTileCellToWorldPos(tileR, moveChunk.stepPos[0][1], moveChunk.stepPos[0][2], moveChunk.stepPos[0][3],
+                const int32_t tileR = MoveChunk.StepPos[0][0];
+                MCVector3D stepPos;
+                MapTileCellToWorldPos(tileR, MoveChunk.StepPos[0][1], MoveChunk.StepPos[0][2], MoveChunk.StepPos[0][3],
                                       stepPos);
                 // Original behaviour (OB-006): measures z against 0, not the mech's elevation.
-                const float dx = position.x - stepPos.x;
-                const float dz = -stepPos.z;
-                const float dy = position.y - stepPos.y;
+                const float dx = Position.X - stepPos.X;
+                const float dz = -stepPos.Z;
+                const float dy = Position.Y - stepPos.Y;
 
                 if (WarpFactor < std::sqrt(dx * dx + dz * dz + dy * dy))
                 {
-                    move.x = stepPos.x - position.x;
-                    move.y = stepPos.y - position.y;
-                    move.z = stepPos.z;
+                    move.X = stepPos.X - Position.X;
+                    move.Y = stepPos.Y - Position.Y;
+                    move.Z = stepPos.Z;
                 }
 
-                if (tileR < 0 || GameMap->height <= tileR || moveChunk.stepPos[0][1] < 0 ||
-                    GameMap->width <= moveChunk.stepPos[0][1])
+                if (tileR < 0 || GameMap->Height <= tileR || MoveChunk.StepPos[0][1] < 0 ||
+                    GameMap->Width <= MoveChunk.StepPos[0][1])
                 {
                     Fatal(0, " mech.update: newMoveChunk stepPos not on map! ", nullptr);
                 }
             }
 
-            newMoveChunk = 0;
+            NewMoveChunk = 0;
         }
 
-        vector_3d newPosition;
-        newPosition.x = move.x + position.x;
-        newPosition.y = move.y + position.y;
-        newPosition.z = move.z + position.z;
-        setPosition(newPosition);
-        distanceSinceMarkSeen =
-            static_cast<float>(std::sqrt((static_cast<double>(move.y) * move.y + static_cast<double>(move.z) * move.z) +
-                                         static_cast<double>(move.x) * move.x) +
-                               distanceSinceMarkSeen);
+        MCVector3D newPosition;
+        newPosition.X = move.X + Position.X;
+        newPosition.Y = move.Y + Position.Y;
+        newPosition.Z = move.Z + Position.Z;
+        SetPosition(newPosition);
+        DistanceSinceMarkSeen =
+            static_cast<float>(std::sqrt((static_cast<double>(move.Y) * move.Y + static_cast<double>(move.Z) * move.Z) +
+                                         static_cast<double>(move.X) * move.X) +
+                               DistanceSinceMarkSeen);
 
-        if (isDisabled() == 0)
+        if (IsDisabled() == 0)
         {
-            updatePathLock(1);
+            UpdatePathLock(1);
         }
 
-        mineCheck();
-        position.z = land->getTerrainElevation(position);
+        MineCheck();
+        Position.Z = Land->GetTerrainElevation(Position);
 
         // Arms blown off this frame fly off to the side they were on.
-        const float facing = frameFacing(frame);
-        auto* controlData = static_cast<MechControlData*>(control->controlData);
-        auto* mechType = static_cast<BattleMechType*>(objType);
+        const float facing = FrameFacing(Frame);
+        auto* controlData = static_cast<MCMechControlData*>(Control->ControlData);
+        auto* mechType = static_cast<MCBattleMechType*>(ObjType);
 
-        if (controlData->blowRightArm != 0)
+        if (controlData->BlowRightArm != 0)
         {
-            if (0.0f <= facing + torsoRotation)
+            if (0.0f <= facing + TorsoRotation)
             {
-                throwArm(this, mechType->leftArmDebrisId, -180.0f);
+                ThrowArm(this, mechType->LeftArmDebrisId, -180.0f);
             }
             else
             {
-                throwArm(this, mechType->rightArmDebrisId, 0.0f);
+                ThrowArm(this, mechType->RightArmDebrisId, 0.0f);
             }
 
-            actor->rightArmGone = 1;
+            actor->RightArmGone = 1;
         }
 
-        if (controlData->blowLeftArm != 0)
+        if (controlData->BlowLeftArm != 0)
         {
-            if (0.0f <= facing + torsoRotation)
+            if (0.0f <= facing + TorsoRotation)
             {
-                throwArm(this, mechType->rightArmDebrisId, 0.0f);
+                ThrowArm(this, mechType->RightArmDebrisId, 0.0f);
             }
             else
             {
-                throwArm(this, mechType->leftArmDebrisId, -180.0f);
+                ThrowArm(this, mechType->LeftArmDebrisId, -180.0f);
             }
 
-            actor->leftArmGone = 1;
+            actor->LeftArmGone = 1;
         }
 
-        const int visibleNow = onScreen();
+        const int visibleNow = OnScreen();
 
-        if (withdrawing != 0 && visibleNow == 0 && pilot->status != 2)
+        if (Withdrawing != 0 && visibleNow == 0 && Pilot->Status != 2)
         {
-            objType->handleDestruction(this, nullptr);
+            ObjType->HandleDestruction(this, nullptr);
         }
 
         if (actor != nullptr)
         {
-            actor->visible = visibleNow;
-            actor->setMovePath(pilot->getMovePath());
+            actor->Visible = visibleNow;
+            actor->SetMovePath(Pilot->GetMovePath());
             int combat = 1;
 
-            if (pilot->getLastTarget() == nullptr && pilot->curTacOrder.code != TACTICAL_ORDER_ATTACK_OBJECT &&
-                pilot->curTacOrder.code != TACTICAL_ORDER_ATTACK_POINT)
+            if (Pilot->GetLastTarget() == nullptr && Pilot->CurTacOrder.Code != TACTICAL_ORDER_ATTACK_OBJECT &&
+                Pilot->CurTacOrder.Code != TACTICAL_ORDER_ATTACK_POINT)
             {
                 combat = 0;
             }
 
-            actor->setCombatMode(combat);
-            actor->update();
+            actor->SetCombatMode(combat);
+            actor->Update();
 
-            if (isJumping(nullptr) == 0)
+            if (IsJumping(nullptr) == 0)
             {
-                if (isDestroyed() == 0 && isDisabled() == 0)
+                if (IsDestroyed() == 0 && IsDisabled() == 0)
                 {
-                    collisionsOn = 1;
+                    CollisionsOn = 1;
                 }
             }
             else
             {
-                collisionsOn = 0;
+                CollisionsOn = 0;
             }
         }
 
         // Footprints: each foot prints once when its hot spot packet's frame comes round (within two frames), and
         // is re-armed by the walking gestures once past it.
-        if (visibleNow != 0 && footPrints != 0 && gesture != 20 && isRevealed() != 0)
+        if (visibleNow != 0 && FootPrints != 0 && gesture != 20 && IsRevealed() != 0)
         {
-            const int32_t gestureNow = actor->currentGesture;
-            const uint32_t packetIndex = actor->getHotSpotIndex(static_cast<uint32_t>(gestureNow));
-            const int32_t frameNow = actor->currentFrame[0];
+            const int32_t gestureNow = actor->CurrentGesture;
+            const uint32_t packetIndex = actor->GetHotSpotIndex(static_cast<uint32_t>(gestureNow));
+            const int32_t frameNow = actor->CurrentFrame[0];
 
-            if (static_cast<int32_t>(packetIndex) <= static_cast<int32_t>(mechType->numHotSpotPackets) &&
-                mechType->hotSpotData != nullptr)
+            if (static_cast<int32_t>(packetIndex) <= static_cast<int32_t>(mechType->NumHotSpotPackets) &&
+                mechType->HotSpotData != nullptr)
             {
-                const auto* packet = reinterpret_cast<const int32_t*>(mechType->hotSpotData + packetIndex * 0x20);
+                const auto* packet = reinterpret_cast<const int32_t*>(mechType->HotSpotData + packetIndex * 0x20);
                 const auto* offsets = reinterpret_cast<const float*>(packet);
                 const int walking = gestureNow == 4 || gestureNow == 7 || gestureNow == 11;
                 // A mirrored actor swaps the feet's offsets. (The original also checks, dead, for a half turn.)
-                const int mirrored = actor->reverse[0] != 0;
+                const int mirrored = actor->Reverse[0] != 0;
                 const float* firstOffset = mirrored ? offsets + 1 : offsets + 5;
                 const float* secondOffset = mirrored ? offsets + 5 : offsets + 1;
 
@@ -4442,160 +4442,160 @@ auto BattleMech::update() -> int32_t
                 {
                     if (walking)
                     {
-                        secondStepPrinted = 0;
+                        SecondStepPrinted = 0;
                     }
                 }
-                else if (secondStepPrinted == 0)
+                else if (SecondStepPrinted == 0)
                 {
-                    secondStepPrinted = 1;
-                    const float stepFacing = frameFacing(frame);
+                    SecondStepPrinted = 1;
+                    const float stepFacing = FrameFacing(Frame);
                     const auto snapped = static_cast<int32_t>(std::floor(static_cast<double>(stepFacing * 0.025f)));
                     const float angle = static_cast<float>(snapped) * 40.0f;
-                    makeFootprint(this, firstOffset[0], firstOffset[1], angle, footprintDirection(angle));
+                    MakeFootprint(this, firstOffset[0], firstOffset[1], angle, FootprintDirection(angle));
                 }
 
                 if (packet[0] + 2 < frameNow || frameNow < packet[0] - 2)
                 {
                     if (walking)
                     {
-                        firstStepPrinted = 0;
+                        FirstStepPrinted = 0;
                     }
                 }
-                else if (firstStepPrinted == 0)
+                else if (FirstStepPrinted == 0)
                 {
-                    firstStepPrinted = 1;
-                    const float stepFacing = frameFacing(frame);
-                    const int32_t direction = footprintDirection(stepFacing);
+                    FirstStepPrinted = 1;
+                    const float stepFacing = FrameFacing(Frame);
+                    const int32_t direction = FootprintDirection(stepFacing);
                     const auto snapped = static_cast<int32_t>(std::floor(static_cast<double>(stepFacing * 0.025f)));
-                    makeFootprint(this, secondOffset[0], secondOffset[1], static_cast<float>(snapped) * 40.0f,
+                    MakeFootprint(this, secondOffset[0], secondOffset[1], static_cast<float>(snapped) * 40.0f,
                                   direction);
                 }
             }
         }
 
-        if (jumpFX[0] != nullptr)
+        if (JumpFX[0] != nullptr)
         {
-            jumpFX[0]->update();
+            JumpFX[0]->Update();
         }
 
-        if (jumpFX[1] != nullptr)
+        if (JumpFX[1] != nullptr)
         {
-            jumpFX[1]->update();
+            JumpFX[1]->Update();
         }
     }
 
     for (int32_t i = 0; i < 4; i++)
     {
-        if (smoke[i] == nullptr)
+        if (Smoke[i] == nullptr)
         {
             continue;
         }
 
-        smokeTime[i] -= frameLength;
+        SmokeTime[i] -= FrameLength;
 
-        if (0.0 <= smokeTime[i])
+        if (0.0 <= SmokeTime[i])
         {
-            smoke[i]->setOwner(this);
-            smoke[i]->setOwnerPosition(getPositionFromHS(static_cast<uint32_t>(smokeHotSpot[i])));
-            smoke[i]->ownerHotSpot = static_cast<uint32_t>(smokeHotSpot[i]);
-            smoke[i]->setOwnerVelocity(velocity);
-            smoke[i]->depthBias = -50;
-            smoke[i]->update();
+            Smoke[i]->SetOwner(this);
+            Smoke[i]->SetOwnerPosition(GetPositionFromHS(static_cast<uint32_t>(SmokeHotSpot[i])));
+            Smoke[i]->OwnerHotSpot = static_cast<uint32_t>(SmokeHotSpot[i]);
+            Smoke[i]->SetOwnerVelocity(Velocity);
+            Smoke[i]->DepthBias = -50;
+            Smoke[i]->Update();
         }
         else
         {
-            delete smoke[i];
-            smoke[i] = nullptr;
+            delete Smoke[i];
+            Smoke[i] = nullptr;
         }
     }
 
     // Original behaviour (OB-005): adds the map's top edge to y here rather than subtracting.
-    const float blockSize = static_cast<float>(Terrain::verticesBlockSide) * Terrain::metersPerVertex;
-    const float blockColumn = (position.x - Terrain::mapTopLeft3d100.x) / blockSize;
+    const float blockSize = static_cast<float>(MCTerrain::VerticesBlockSide) * MCTerrain::MetersPerVertex;
+    const float blockColumn = (Position.X - MCTerrain::MapTopLeft3d100.X) / blockSize;
     const auto blockRow =
-        static_cast<int32_t>(std::floor(static_cast<double>((Terrain::mapTopLeft3d100.y + position.y) / blockSize)));
+        static_cast<int32_t>(std::floor(static_cast<double>((MCTerrain::MapTopLeft3d100.Y + Position.Y) / blockSize)));
     const auto column = static_cast<int32_t>(std::floor(static_cast<double>(blockColumn)));
-    addMoverToList(column + blockRow * Terrain::blocksMapSide);
+    AddMoverToList(column + blockRow * MCTerrain::BlocksMapSide);
     return 1;
 }
 
 namespace
 {
-    /// <summary>A world point on <see cref="eye"/>'s screen (the camera's inline projection).</summary>
-    vector_2d eyeProject(const vector_3d& point)
+    /// <summary>A world point on <see cref="Eye"/>'s screen (the camera's inline projection).</summary>
+    MCVector2D EyeProject(const MCVector3D& point)
     {
-        const float scale = eye->cameraScale != 1 ? 1.0f : 0.5f;
-        const float dy = point.y - eye->position.y;
-        const float dz = point.z - eye->position.z;
-        const float sx = (point.x - eye->position.x) * scale;
+        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float dy = point.Y - Eye->Position.Y;
+        const float dz = point.Z - Eye->Position.Z;
+        const float sx = (point.X - Eye->Position.X) * scale;
         const float sy = dy * scale;
-        vector_2d screen;
-        screen.x = sx * eye->cosAngle + sy * eye->cosAngle + eye->halfWidth;
-        screen.y = ((sx * eye->sinAngle + eye->halfHeight) - sy * eye->sinAngle) - scale * dz;
+        MCVector2D screen;
+        screen.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
+        screen.Y = ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * dz;
         return screen;
     }
 }
 
-auto BattleMech::render() -> void
+auto MCBattleMech::Render() -> void
 {
-    if (gamePaused != 0)
+    if (GamePaused != 0)
     {
-        onScreen();
+        OnScreen();
     }
 
-    if (withdrawing != 0 && pilot->status == 2)
+    if (Withdrawing != 0 && Pilot->Status == 2)
     {
         return;
     }
 
-    auto* actor = static_cast<MechActor*>(appearance);
+    auto* actor = static_cast<MCMechActor*>(Appearance);
     int tagged = 0;
     int drawMech = 0;
 
-    if (alignment == homeTeam->alignment)
+    if (Alignment == HomeTeam->Alignment)
     {
-        if (windowsVisible == turn)
+        if (WindowsVisible == Turn)
         {
-            if (getAwake() == 0)
+            if (GetAwake() == 0)
             {
-                if (isRevealed() != 0)
+                if (IsRevealed() != 0)
                 {
-                    actor->render(0);
+                    actor->Render(0);
                     drawMech = 1;
                 }
             }
             else
             {
-                actor->render(inJump != 0 ? -150 : 0);
+                actor->Render(InJump != 0 ? -150 : 0);
                 drawMech = 1;
             }
         }
     }
     else
     {
-        const int32_t contactType = getContactType(homeTeam->id, tagged);
+        const int32_t contactType = GetContactType(HomeTeam->Id, tagged);
 
         if (contactType == 1)
         {
-            if (windowsVisible == turn)
+            if (WindowsVisible == Turn)
             {
-                actor->render(inJump != 0 ? -150 : 0);
+                actor->Render(InJump != 0 ? -150 : 0);
                 drawMech = 1;
             }
         }
         else if (contactType == 2)
         {
             // A sensor contact: a blip sized by tonnage, at the zoom's scale.
-            const int zoomedOut = eye->cameraScale == 1;
+            const int zoomedOut = Eye->CameraScale == 1;
             int32_t shapeIndex;
             const char* shapeName;
 
-            if (50.0f < getTonnage())
+            if (50.0f < GetTonnage())
             {
                 shapeIndex = zoomedOut ? 1 : 0;
                 shapeName = zoomedOut ? "mblip1" : "mblip2";
             }
-            else if (35.0f < getTonnage())
+            else if (35.0f < GetTonnage())
             {
                 shapeIndex = zoomedOut ? 3 : 2;
                 shapeName = zoomedOut ? "mblip3" : "mblip4";
@@ -4606,31 +4606,31 @@ auto BattleMech::render() -> void
                 shapeName = zoomedOut ? "mblip5" : "mblip6";
             }
 
-            uint8_t* shape = scenario->sensorContactShapes[shapeIndex];
+            uint8_t* shape = Scenario->SensorContactShapes[shapeIndex];
 
             if (shape != nullptr)
             {
-                if (VFX_shape_count(shape) <= blipFrame)
+                if (VfxShapeCount(shape) <= BlipFrame)
                 {
-                    if (soundSystem != nullptr && useSound != 0)
+                    if (SoundSystem != nullptr && UseSound != 0)
                     {
-                        soundSystem->playDigitalSample(0x14, 1, this, 0, 1);
+                        SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
                     }
 
-                    blipFrame = 0;
+                    BlipFrame = 0;
                 }
 
-                ElementList->openGroup(-100000, 1);
+                ElementList->OpenGroup(-100000, 1);
                 auto* element =
-                    ElementPool::Make<VFXElement>(shape, screenPos.x, screenPos.y, blipFrame, 0, nullptr, 0, 1);
-                std::strcpy(element->name, shapeName);
-                ElementList->add(element);
-                blipTime = frameLength + blipTime;
+                    MCElementPool::Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0, 1);
+                std::strcpy(element->Name, shapeName);
+                ElementList->Add(element);
+                BlipTime = FrameLength + BlipTime;
 
-                if (0.067 < blipTime)
+                if (0.067 < BlipTime)
                 {
-                    blipFrame = static_cast<int32_t>(blipTime * (1.0 / 0.067) + blipFrame + 0.5);
-                    blipTime = 0.0f;
+                    BlipFrame = static_cast<int32_t>(BlipTime * (1.0 / 0.067) + BlipFrame + 0.5);
+                    BlipTime = 0.0f;
                 }
             }
         }
@@ -4640,29 +4640,29 @@ auto BattleMech::render() -> void
     {
         for (int32_t i = 0; i < 4; i++)
         {
-            if (smoke[i] != nullptr)
+            if (Smoke[i] != nullptr)
             {
-                smoke[i]->render();
+                Smoke[i]->Render();
             }
         }
 
-        if (jumpFX[0] != nullptr)
+        if (JumpFX[0] != nullptr)
         {
-            jumpFX[0]->render();
+            JumpFX[0]->Render();
         }
 
-        if (jumpFX[1] != nullptr)
+        if (JumpFX[1] != nullptr)
         {
-            jumpFX[1]->render();
+            JumpFX[1]->Render();
         }
     }
 
-    if (drawTerrainGrid != 0)
+    if (DrawTerrainGrid != 0)
     {
         // Debug: the move path's steps as lines.
-        MovePath* path = pilot->getMovePath();
+        MCMovePath* path = Pilot->GetMovePath();
         Assert(path != nullptr, 0, " NULL move path--bad thing ", nullptr);
-        const int32_t numSteps = path->numSteps;
+        const int32_t numSteps = path->NumSteps;
 
         for (int32_t i = 0; i < numSteps; i++)
         {
@@ -4671,69 +4671,69 @@ auto BattleMech::render() -> void
                 continue;
             }
 
-            vector_3d from = path->stepList[i].destination;
-            vector_3d to = path->stepList[i + 1].destination;
-            from.z = land->getTerrainElevation(from);
-            to.z = land->getTerrainElevation(to);
-            vector_2d fromScreen = eyeProject(from);
-            vector_2d toScreen = eyeProject(to);
-            ElementList->openGroup(-100000, 1);
-            ElementList->add(ElementPool::Make<LineElement>(fromScreen, toScreen, 0xfc, nullptr, -100000, -1));
+            MCVector3D from = path->StepList[i].Destination;
+            MCVector3D to = path->StepList[i + 1].Destination;
+            from.Z = Land->GetTerrainElevation(from);
+            to.Z = Land->GetTerrainElevation(to);
+            MCVector2D fromScreen = EyeProject(from);
+            MCVector2D toScreen = EyeProject(to);
+            ElementList->OpenGroup(-100000, 1);
+            ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xfc, nullptr, -100000, -1));
         }
     }
 
     // The selected mech's queued orders: waypoint markers, joined by lines when the queue is drawn as a path.
-    if (getCommanderId() == HomeCommander->getId() && waypointMarkers != nullptr && selected != 0 && pilot != nullptr &&
-        pilot->getTacOrderQueue(nullptr) > 0)
+    if (GetCommanderId() == HomeCommander->GetId() && WaypointMarkers != nullptr && Selected != 0 && Pilot != nullptr &&
+        Pilot->GetTacOrderQueue(nullptr) > 0)
     {
-        TacticalOrder tacOrder;
-        tacOrder.init();
-        _QueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
-        const int32_t numOrders = pilot->getTacOrderQueue(queue);
-        vector_2d fromScreen = eyeProject(position);
-        const int32_t drawLines = drawOrderLines;
+        MCTacticalOrder tacOrder;
+        tacOrder.Init();
+        MCQueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
+        const int32_t numOrders = Pilot->GetTacOrderQueue(queue);
+        MCVector2D fromScreen = EyeProject(Position);
+        const int32_t drawLines = DrawOrderLines;
 
         for (int32_t i = 0; i < numOrders; i++)
         {
-            vector_2d toScreen = eyeProject(queue[i].point);
-            tacOrder.data[0] = queue[i].packedData[0];
-            tacOrder.data[1] = queue[i].packedData[1];
-            tacOrder.unpack();
+            MCVector2D toScreen = EyeProject(queue[i].Point);
+            tacOrder.Data[0] = queue[i].PackedData[0];
+            tacOrder.Data[1] = queue[i].PackedData[1];
+            tacOrder.Unpack();
             int32_t marker;
 
-            if (tacOrder.code == TACTICAL_ORDER_JUMPTO_POINT || tacOrder.code == TACTICAL_ORDER_JUMPTO_OBJECT)
+            if (tacOrder.Code == TACTICAL_ORDER_JUMPTO_POINT || tacOrder.Code == TACTICAL_ORDER_JUMPTO_OBJECT)
             {
                 marker = 4;
             }
             else
             {
-                marker = tacOrder.moveParams.wayPath.mode[0] << 1;
+                marker = tacOrder.MoveParams.WayPath.Mode[0] << 1;
             }
 
             if (drawLines != 0)
             {
-                ElementList->openGroup(-99999, 1);
-                ElementList->add(ElementPool::Make<LineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
+                ElementList->OpenGroup(-99999, 1);
+                ElementList->Add(MCElementPool::Make<MCLineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
                 fromScreen = toScreen;
                 marker++;
             }
 
-            const int32_t bounds = VFX_shape_bounds(waypointMarkers, marker);
-            ElementList->openGroup(-100000, 1);
-            auto* element = ElementPool::Make<VFXElement>(
-                waypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.x,
-                toScreen.y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1, 0);
-            std::strcpy(element->name, "mwp");
-            ElementList->add(element);
+            const int32_t bounds = VfxShapeBounds(WaypointMarkers, marker);
+            ElementList->OpenGroup(-100000, 1);
+            auto* element = MCElementPool::Make<MCVfxElement>(
+                WaypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.X,
+                toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1, 0);
+            std::strcpy(element->Name, "mwp");
+            ElementList->Add(element);
         }
 
-        tacOrder.destroy();
+        tacOrder.Destroy();
     }
 }
 
-auto BattleMech::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
+auto MCBattleMech::RelFacingTo(MCVector3D goal, int32_t bodyPart) -> float
 {
-    double facing = Mover::relFacingTo(goal, -1);
+    double facing = MCMover::RelFacingTo(goal, -1);
 
     switch (bodyPart)
     {
@@ -4744,13 +4744,13 @@ auto BattleMech::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
         case 8:
         case 9:
         case 10:
-            facing += torsoRotation;
+            facing += TorsoRotation;
             break;
         case 4:
-            facing += static_cast<double>(leftArmRotation) + torsoRotation;
+            facing += static_cast<double>(LeftArmRotation) + TorsoRotation;
             break;
         case 5:
-            facing += static_cast<double>(rightArmRotation) + torsoRotation;
+            facing += static_cast<double>(RightArmRotation) + TorsoRotation;
             break;
         default:
             break;
@@ -4769,19 +4769,19 @@ auto BattleMech::relFacingTo(vector_3d goal, int32_t bodyPart) -> float
     return static_cast<float>(facing);
 }
 
-auto BattleMech::getBodyState() -> int32_t
+auto MCBattleMech::GetBodyState() -> int32_t
 {
-    return MechStateByGesture[static_cast<MechActor*>(appearance)->currentGesture];
+    return MechStateByGesture[static_cast<MCMechActor*>(Appearance)->CurrentGesture];
 }
 
-auto BattleMech::isWeaponReady(int32_t weaponIndex) -> int
+auto MCBattleMech::IsWeaponReady(int32_t weaponIndex) -> int
 {
-    if (inventory[weaponIndex].disabled != 0)
+    if (Inventory[weaponIndex].Disabled != 0)
     {
         return 0;
     }
 
-    if (scenarioTime < inventory[weaponIndex].readyTime)
+    if (ScenarioTime < Inventory[weaponIndex].ReadyTime)
     {
         return 0;
     }
@@ -4789,24 +4789,24 @@ auto BattleMech::isWeaponReady(int32_t weaponIndex) -> int
     return 1;
 }
 
-auto BattleMech::calcAttackChance(GameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
-                                  float modifiers, int32_t* range, vector_3d* targetPoint) -> float
+auto MCBattleMech::CalcAttackChance(MCGameObject* target, int32_t aimLocation, float targetTime, int32_t weaponIndex,
+                                    float modifiers, int32_t* range, MCVector3D* targetPoint) -> float
 {
-    if (weaponIndex < numOther || numOther + numWeapons <= weaponIndex)
+    if (weaponIndex < NumOther || NumOther + NumWeapons <= weaponIndex)
     {
         return -1000.0f;
     }
 
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        modifiers += RankVersusChassisCombatModifier[static_cast<int8_t>(pilot->rank)][static_cast<int8_t>(mechClass)];
+        modifiers += RankVersusChassisCombatModifier[static_cast<int8_t>(Pilot->Rank)][static_cast<int8_t>(MechClass)];
     }
 
-    return Mover::calcAttackChance(target, aimLocation, targetTime, weaponIndex, modifiers, range, targetPoint);
+    return MCMover::CalcAttackChance(target, aimLocation, targetTime, weaponIndex, modifiers, range, targetPoint);
 }
 
-auto BattleMech::calcHitLocation(GameObject* attacker, int32_t weaponIndex, int32_t attackSource, int32_t attackType)
-    -> int32_t
+auto MCBattleMech::CalcHitLocation(MCGameObject* attacker, int32_t weaponIndex, int32_t attackSource,
+                                   int32_t attackType) -> int32_t
 {
     int32_t row = MechHitSectionTable[attackSource];
     double angle;
@@ -4817,7 +4817,7 @@ auto BattleMech::calcHitLocation(GameObject* attacker, int32_t weaponIndex, int3
     }
     else
     {
-        angle = relFacingTo(attacker->getPosition(), -1);
+        angle = RelFacingTo(attacker->GetPosition(), -1);
     }
 
     // The side the shot comes from: front, rear, left, right.
@@ -4843,13 +4843,13 @@ auto BattleMech::calcHitLocation(GameObject* attacker, int32_t weaponIndex, int3
     if (attackSource == 3)
     {
         // A mech lying down is hit from above or below.
-        if (static_cast<MechActor*>(getAppearance())->currentStateGesture == 7)
+        if (static_cast<MCMechActor*>(GetAppearance())->CurrentStateGesture == 7)
         {
             side = 0;
             row = 1;
         }
 
-        if (static_cast<MechActor*>(getAppearance())->currentStateGesture == 8)
+        if (static_cast<MCMechActor*>(GetAppearance())->CurrentStateGesture == 8)
         {
             side = 1;
             row = 1;
@@ -4875,7 +4875,7 @@ auto BattleMech::calcHitLocation(GameObject* attacker, int32_t weaponIndex, int3
     return location;
 }
 
-auto BattleMech::transferHitLocation(int32_t hitLocation) -> int32_t
+auto MCBattleMech::TransferHitLocation(int32_t hitLocation) -> int32_t
 {
     if (hitLocation < 0 || hitLocation >= NUM_MECH_BODY_LOCATIONS)
     {
@@ -4885,91 +4885,91 @@ auto BattleMech::transferHitLocation(int32_t hitLocation) -> int32_t
     return MechTransferHitTable[hitLocation];
 }
 
-auto BattleMech::startJump(vector_3d jumpGoal) -> int32_t
+auto MCBattleMech::StartJump(MCVector3D jumpGoal) -> int32_t
 {
-    this->jumpGoal.x = jumpGoal.x;
-    this->jumpGoal.z = jumpGoal.z;
-    inJump = 1;
-    this->jumpGoal.y = jumpGoal.y;
+    this->JumpGoal.X = jumpGoal.X;
+    this->JumpGoal.Z = jumpGoal.Z;
+    InJump = 1;
+    this->JumpGoal.Y = jumpGoal.Y;
     return 0;
 }
 
-auto BattleMech::isJumping(vector_3d* jumpGoal) -> int
+auto MCBattleMech::IsJumping(MCVector3D* jumpGoal) -> int
 {
     if (jumpGoal != nullptr)
     {
-        *jumpGoal = this->jumpGoal;
+        *jumpGoal = this->JumpGoal;
     }
 
-    return inJump;
+    return InJump;
 }
 
-auto BattleMech::getJumpRange(int32_t* numOffsets, int32_t* jumpCost) -> float
+auto MCBattleMech::GetJumpRange(int32_t* numOffsets, int32_t* jumpCost) -> float
 {
     if (numOffsets != nullptr)
     {
-        *numOffsets = MechJumpOffsets[numJumpJets < 7 ? numJumpJets : 6];
+        *numOffsets = MechJumpOffsets[NumJumpJets < 7 ? NumJumpJets : 6];
     }
 
     if (jumpCost != nullptr)
     {
-        *jumpCost = numJumpJets != 0 ? DefaultMechJumpCost : 0;
+        *jumpCost = NumJumpJets != 0 ? DefaultMechJumpCost : 0;
     }
 
-    return static_cast<float>(static_cast<double>(numJumpJets) * Terrain::metersPerVertex * (2.0 / 3.0));
+    return static_cast<float>(static_cast<double>(NumJumpJets) * MCTerrain::MetersPerVertex * (2.0 / 3.0));
 }
 
-auto BattleMech::handleEjection() -> int
+auto MCBattleMech::HandleEjection() -> int
 {
-    if (pilot == nullptr || (pilot->status != 0 && pilot->status != 1))
+    if (Pilot == nullptr || (Pilot->Status != 0 && Pilot->Status != 1))
     {
         return 1;
     }
 
-    getPilot()->eject();
-    ejectOrderGiven = 1;
-    destroyBodyLocation(MECH_BODY_LOCATION_HEAD);
+    GetPilot()->Eject();
+    EjectOrderGiven = 1;
+    DestroyBodyLocation(MECH_BODY_LOCATION_HEAD);
     // The ejection seat's beam, from the cockpit hot spot up and away.
-    GameObject* beam = createObject(0x1e4);
+    MCGameObject* beam = CreateObject(0x1e4);
 
     if (beam != nullptr)
     {
-        auto* mechType = static_cast<BattleMechType*>(objType);
-        vector_3d cockpit = getPositionFromHS(mechType->numWeapons + 1);
-        beam->setPosition(cockpit);
-        cockpit.x = static_cast<float>(cockpit.x - 1000.0);
-        cockpit.y = static_cast<float>(cockpit.y + 1000.0);
-        cockpit.z = static_cast<float>(cockpit.z + 300.0);
-        static_cast<ProjectileLaser*>(beam)->connect(this, cockpit, nullptr,
-                                                     static_cast<int32_t>(mechType->numWeapons + 1));
+        auto* mechType = static_cast<MCBattleMechType*>(ObjType);
+        MCVector3D cockpit = GetPositionFromHS(mechType->NumWeapons + 1);
+        beam->SetPosition(cockpit);
+        cockpit.X = static_cast<float>(cockpit.X - 1000.0);
+        cockpit.Y = static_cast<float>(cockpit.Y + 1000.0);
+        cockpit.Z = static_cast<float>(cockpit.Z + 300.0);
+        static_cast<MCProjectileLaser*>(beam)->Connect(this, cockpit, nullptr,
+                                                       static_cast<int32_t>(mechType->NumWeapons + 1));
 
-        if (objectList->head != nullptr)
+        if (ObjectList->Head != nullptr)
         {
-            objectList->head->addNode(beam);
+            ObjectList->Head->AddNode(beam);
         }
     }
 
-    disable(3);
-    theInterface->RemoveMech(partId);
+    Disable(3);
+    TheInterface->RemoveMech(PartId);
 
-    if (alignment == homeTeam->alignment)
+    if (Alignment == HomeTeam->Alignment)
     {
-        friendlyDestroyed = 1;
+        FriendlyDestroyed = 1;
         return 1;
     }
 
-    enemyDestroyed = 1;
+    EnemyDestroyed = 1;
     return 1;
 }
 
-auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
+auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
 {
     static const char* const locationNames[NUM_MECH_BODY_LOCATIONS] = {"HEAD", "CTORSO", "LTORSO", "RTORSO",
                                                                        "LARM", "RARM",   "LLEG",   "RLEG"};
-    InventoryItem& item = inventory[itemIndex];
-    item.health--;
-    const uint32_t masterId = item.masterID;
-    const uint32_t location = item.bodyLocation;
+    MCInventoryItem& item = Inventory[itemIndex];
+    item.Health--;
+    const uint32_t masterId = item.MasterID;
+    const uint32_t location = item.BodyLocation;
 
     if (GameSystemWindow != nullptr && setupOnly == 0 && location <= 7)
     {
@@ -4979,49 +4979,49 @@ auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
         switch (location)
         {
             case 1:
-                report = armor[1].curArmor > 0.0f && armor[8].curArmor > 0.0f;
+                report = Armor[1].CurArmor > 0.0f && Armor[8].CurArmor > 0.0f;
                 break;
             case 2:
-                report = armor[2].curArmor > 0.0f && armor[9].curArmor > 0.0f;
+                report = Armor[2].CurArmor > 0.0f && Armor[9].CurArmor > 0.0f;
                 break;
             case 3:
-                report = armor[3].curArmor > 0.0f && armor[10].curArmor > 0.0f;
+                report = Armor[3].CurArmor > 0.0f && Armor[10].CurArmor > 0.0f;
                 break;
             default:
-                report = armor[location].curArmor > 0.0f;
+                report = Armor[location].CurArmor > 0.0f;
                 break;
         }
 
         if (report != 0)
         {
             char line[200];
-            GameSystemWindow->print(const_cast<char*>(""));
-            GameSystemWindow->print(const_cast<char*>("***********************************"));
-            std::snprintf(line, sizeof(line), "INTERNAL COMPONENT HIT: %s (%s)", debugStatus.c_str(), pilot->name);
-            GameSystemWindow->print(line);
-            const char* attackerName = BadGuy != nullptr ? static_cast<Mover*>(BadGuy)->debugStatus.c_str() : "???";
-            std::snprintf(line, sizeof(line), "%s in %s by %s", MasterComponentList[masterId].name,
+            GameSystemWindow->Print(const_cast<char*>(""));
+            GameSystemWindow->Print(const_cast<char*>("***********************************"));
+            std::snprintf(line, sizeof(line), "INTERNAL COMPONENT HIT: %s (%s)", DebugStatus.c_str(), Pilot->Name);
+            GameSystemWindow->Print(line);
+            const char* attackerName = BadGuy != nullptr ? static_cast<MCMover*>(BadGuy)->DebugStatus.c_str() : "???";
+            std::snprintf(line, sizeof(line), "%s in %s by %s", MasterComponentList[masterId].Name,
                           locationNames[location], attackerName);
-            GameSystemWindow->print(line);
+            GameSystemWindow->Print(line);
         }
     }
 
-    const MasterComponent& component = MasterComponentList[masterId];
+    const MCMasterComponent& component = MasterComponentList[masterId];
 
-    if (component.form == 3 || component.form == 0xe)
+    if (component.Form == 3 || component.Form == 0xe)
     {
-        pilotingCheck(0, 0.0f);
+        PilotingCheck(0, 0.0f);
     }
 
-    const auto disableLevel = static_cast<int8_t>(component.disableLevel);
+    const auto disableLevel = static_cast<int8_t>(component.DisableLevel);
 
-    if (getInventoryDamage(itemIndex) == disableLevel)
+    if (GetInventoryDamage(itemIndex) == disableLevel)
     {
         // Disabled: the component stops working; smoke from the hot spot above the weapons it sits nearest.
         int32_t smokeSpot = 1;
-        item.disabled = 1;
+        item.Disabled = 1;
 
-        switch (component.form)
+        switch (component.Form)
         {
             case 0:
             case 1:
@@ -5029,17 +5029,17 @@ auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
                 break;
             case 2:
             {
-                if (sensorSystem != nullptr)
+                if (SensorSystem != nullptr)
                 {
-                    sensorSystem->disable();
+                    SensorSystem->Disable();
                 }
                 break;
             }
             case 4:
             {
                 smokeSpot = 1;
-                engineBlowTime = static_cast<float>(scenarioTime + 5.0);
-                disable(1);
+                EngineBlowTime = static_cast<float>(ScenarioTime + 5.0);
+                Disable(1);
                 break;
             }
             case 6:
@@ -5047,22 +5047,22 @@ auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
             case 8:
             case 9:
             {
-                calcWeaponEffectiveness(0);
+                CalcWeaponEffectiveness(0);
 
-                if (longestRangeWeapon == static_cast<uint32_t>(itemIndex) ||
-                    shortestRangeWeapon == static_cast<uint32_t>(itemIndex))
+                if (LongestRangeWeapon == static_cast<uint32_t>(itemIndex) ||
+                    ShortestRangeWeapon == static_cast<uint32_t>(itemIndex))
                 {
-                    calcLongestRangeWeapon();
+                    CalcLongestRangeWeapon();
                 }
 
-                calcOptimalRange(nullptr);
+                CalcOptimalRange(nullptr);
                 [[fallthrough]];
             }
             case 3:
                 smokeSpot = 0;
                 break;
             case 0xc:
-                bodyAt(item.bodyLocation).hasCASE = 0;
+                BodyAt(item.BodyLocation).HasCase = 0;
                 break;
             case 0xf:
             case 0x13:
@@ -5070,14 +5070,14 @@ auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
                 break;
             case 0x10:
             {
-                team->removeECM(ecmTracker);
-                ecmTracker = nullptr;
+                Team->RemoveEcm(EcmTracker);
+                EcmTracker = nullptr;
                 break;
             }
             case 0x12:
             {
-                team->removeJammer(jammerTracker);
-                jammerTracker = nullptr;
+                Team->RemoveJammer(JammerTracker);
+                JammerTracker = nullptr;
                 break;
             }
             default:
@@ -5086,58 +5086,59 @@ auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
 
         if (setupOnly == 0)
         {
-            if (useSound != 0)
+            if (UseSound != 0)
             {
-                soundSystem->playDigitalSample(0x13, 1, this, 0, 0);
+                SoundSystem->PlayDigitalSample(0x13, 1, this, 0, 0);
             }
 
-            GameObject* sparks = createObject(0x3f);
+            MCGameObject* sparks = CreateObject(0x3f);
 
             if (sparks != nullptr)
             {
-                vector_3d sparkPos = getPositionFromHS(static_cast<BattleMechType*>(objType)->numWeapons + smokeSpot);
-                sparks->setPosition(sparkPos);
+                MCVector3D sparkPos =
+                    GetPositionFromHS(static_cast<MCBattleMechType*>(ObjType)->NumWeapons + smokeSpot);
+                sparks->SetPosition(sparkPos);
 
-                if (objectList->head != nullptr)
+                if (ObjectList->Head != nullptr)
                 {
-                    objectList->head->addNode(sparks);
+                    ObjectList->Head->AddNode(sparks);
                 }
             }
 
             for (int32_t i = 0; i < 4; i++)
             {
-                if (smoke[i] == nullptr)
+                if (Smoke[i] == nullptr)
                 {
-                    smoke[i] = static_cast<Smoke*>(createObject(0x1c2));
-                    smokeHotSpot[i] =
-                        RandomNumber(static_cast<int32_t>(static_cast<BattleMechType*>(objType)->numWeapons));
-                    smokeTime[i] = 15.0f;
+                    Smoke[i] = static_cast<MCSmoke*>(CreateObject(0x1c2));
+                    SmokeHotSpot[i] =
+                        RandomNumber(static_cast<int32_t>(static_cast<MCBattleMechType*>(ObjType)->NumWeapons));
+                    SmokeTime[i] = 15.0f;
                     break;
                 }
             }
         }
     }
 
-    if (inventory[itemIndex].health == 0)
+    if (Inventory[itemIndex].Health == 0)
     {
         // Destroyed: the cockpit hurts the pilot, a leg actuator trips the mech, ammunition explodes.
-        switch (component.form)
+        switch (component.Form)
         {
             case 1:
-                pilot->injure(6.0f, 0);
+                Pilot->Injure(6.0f, 0);
                 break;
             case 3:
             {
                 if (location == MECH_BODY_LOCATION_LLEG || location == MECH_BODY_LOCATION_RLEG)
                 {
-                    pilotingCheck(0, 100.0f);
+                    PilotingCheck(0, 100.0f);
                     return 0;
                 }
                 break;
             }
             case 10:
             {
-                ammoExplosion(itemIndex);
+                AmmoExplosion(itemIndex);
                 return 0;
             }
             default:
@@ -5148,37 +5149,37 @@ auto BattleMech::hitInventoryItem(int32_t itemIndex, int setupOnly) -> int
     return 0;
 }
 
-auto BattleMech::destroyBodyLocation(int32_t location) -> void
+auto MCBattleMech::DestroyBodyLocation(int32_t location) -> void
 {
-    BodyLocation& bodyLocation = bodyAt(location);
+    MCBodyLocation& bodyLocation = BodyAt(location);
 
-    if (bodyLocation.damageState == 2)
+    if (bodyLocation.DamageState == 2)
     {
         return;
     }
 
-    bodyLocation.curInternalStructure = 0.0f;
-    bodyLocation.damageState = 2;
+    bodyLocation.CurInternalStructure = 0.0f;
+    bodyLocation.DamageState = 2;
 
     if (location == MECH_BODY_LOCATION_LLEG || location == MECH_BODY_LOCATION_RLEG)
     {
-        calcLegStatus();
-        pilotingCheck(0, 100.0f);
+        CalcLegStatus();
+        PilotingCheck(0, 100.0f);
     }
     else if (location == MECH_BODY_LOCATION_CTORSO)
     {
-        calcTorsoStatus();
+        CalcTorsoStatus();
     }
 
     // Everything in it is lost.
     for (int32_t i = 0; i < NumLocationCriticalSpaces[location]; i++)
     {
-        CriticalSpace& space = bodyAt(location).criticalSpaces[i];
+        MCCriticalSpace& space = BodyAt(location).CriticalSpaces[i];
 
-        if (space.hit == 0 && static_cast<int8_t>(space.inventoryID) != -1)
+        if (space.Hit == 0 && static_cast<int8_t>(space.InventoryID) != -1)
         {
-            space.hit = 1;
-            hitInventoryItem(static_cast<int8_t>(space.inventoryID), 0);
+            space.Hit = 1;
+            HitInventoryItem(static_cast<int8_t>(space.InventoryID), 0);
         }
     }
 
@@ -5187,34 +5188,34 @@ auto BattleMech::destroyBodyLocation(int32_t location) -> void
         case MECH_BODY_LOCATION_CTORSO:
         {
             // The center torso gone destroys the mech, unless it was already ruled dead.
-            if (centerTorsoInjuredTime < scenarioTime && (engineBlowTime <= -1.0f || engineBlowTime < scenarioTime))
+            if (CenterTorsoInjuredTime < ScenarioTime && (EngineBlowTime <= -1.0f || EngineBlowTime < ScenarioTime))
             {
-                disable(0);
+                Disable(0);
                 return;
             }
 
-            pilot->handleAlarm(6, 0);
-            objType->handleDestruction(this, nullptr);
+            Pilot->HandleAlarm(6, 0);
+            ObjType->HandleDestruction(this, nullptr);
             return;
         }
         case MECH_BODY_LOCATION_RTORSO:
         {
-            destroyBodyLocation(MECH_BODY_LOCATION_RARM);
+            DestroyBodyLocation(MECH_BODY_LOCATION_RARM);
             return;
         }
         case MECH_BODY_LOCATION_LTORSO:
         {
-            destroyBodyLocation(MECH_BODY_LOCATION_LARM);
+            DestroyBodyLocation(MECH_BODY_LOCATION_LARM);
             return;
         }
         case MECH_BODY_LOCATION_LARM:
         {
-            leftArmBlownThisFrame = 1;
+            LeftArmBlownThisFrame = 1;
             return;
         }
         case MECH_BODY_LOCATION_RARM:
         {
-            rightArmBlownThisFrame = 1;
+            RightArmBlownThisFrame = 1;
             return;
         }
         default:
@@ -5222,9 +5223,9 @@ auto BattleMech::destroyBodyLocation(int32_t location) -> void
     }
 }
 
-auto BattleMech::calcCriticalHit(int32_t hitLocation) -> void
+auto MCBattleMech::CalcCriticalHit(int32_t hitLocation) -> void
 {
-    if (MPlayer != nullptr && MPlayer->isServer == 0)
+    if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
         return;
     }
@@ -5233,7 +5234,7 @@ auto BattleMech::calcCriticalHit(int32_t hitLocation) -> void
 
     // Port fix: the original tests body[hitLocation].totalSpaces, reading past the eight body locations for a rear
     // torso hit (8..10); the body location the hit maps to is tested instead.
-    if (bodyAt(location).totalSpaces == 0)
+    if (BodyAt(location).TotalSpaces == 0)
     {
         return;
     }
@@ -5261,11 +5262,11 @@ auto BattleMech::calcCriticalHit(int32_t hitLocation) -> void
         // The worst roll blows a head, arm or leg clean off; a torso takes three hits.
         if (location < MECH_BODY_LOCATION_CTORSO || MECH_BODY_LOCATION_RTORSO < location)
         {
-            destroyBodyLocation(location);
+            DestroyBodyLocation(location);
 
             if (MPlayer != nullptr)
             {
-                addCriticalHitChunk(0, location, 15);
+                AddCriticalHitChunk(0, location, 15);
             }
 
             return;
@@ -5276,18 +5277,18 @@ auto BattleMech::calcCriticalHit(int32_t hitLocation) -> void
 
     do
     {
-        BodyLocation& bodyLocation = bodyAt(location);
-        int32_t spaceRoll = RandomNumber(bodyLocation.totalSpaces);
+        MCBodyLocation& bodyLocation = BodyAt(location);
+        int32_t spaceRoll = RandomNumber(bodyLocation.TotalSpaces);
         int32_t space = 0;
 
         for (; space < numSpaces; space++)
         {
-            const uint8_t item = bodyLocation.criticalSpaces[space].inventoryID;
+            const uint8_t item = bodyLocation.CriticalSpaces[space].InventoryID;
             int32_t size = 0;
 
             if (item != 0xff)
             {
-                size = static_cast<int8_t>(MasterComponentList[inventory[item].masterID].criticalSpacesReq);
+                size = static_cast<int8_t>(MasterComponentList[Inventory[item].MasterID].CriticalSpacesReq);
             }
 
             if (spaceRoll < size)
@@ -5302,96 +5303,96 @@ auto BattleMech::calcCriticalHit(int32_t hitLocation) -> void
                nullptr);
         Assert(space >= 0 && space < NumLocationCriticalSpaces[location], static_cast<uint32_t>(space),
                " Bad Critical Hit Space ", nullptr);
-        CriticalSpace& criticalSpace = bodyLocation.criticalSpaces[space];
-        criticalSpace.hit = 1;
-        hitInventoryItem(static_cast<int8_t>(criticalSpace.inventoryID), 0);
+        MCCriticalSpace& criticalSpace = bodyLocation.CriticalSpaces[space];
+        criticalSpace.Hit = 1;
+        HitInventoryItem(static_cast<int8_t>(criticalSpace.InventoryID), 0);
 
         if (MPlayer != nullptr)
         {
-            addCriticalHitChunk(0, location, space);
+            AddCriticalHitChunk(0, location, space);
         }
     } while (--numCriticalHits != 0);
 }
 
-auto BattleMech::handleCriticalHit(int32_t bodyLocation, int32_t criticalSpace) -> void
+auto MCBattleMech::HandleCriticalHit(int32_t bodyLocation, int32_t criticalSpace) -> void
 {
     if (criticalSpace == 15)
     {
-        destroyBodyLocation(bodyLocation);
+        DestroyBodyLocation(bodyLocation);
         return;
     }
 
-    hitInventoryItem(static_cast<int8_t>(bodyAt(bodyLocation).criticalSpaces[criticalSpace].inventoryID), 0);
+    HitInventoryItem(static_cast<int8_t>(BodyAt(bodyLocation).CriticalSpaces[criticalSpace].InventoryID), 0);
 }
 
-auto BattleMech::updateCriticalHitChunks(int32_t which) -> int32_t
+auto MCBattleMech::UpdateCriticalHitChunks(int32_t which) -> int32_t
 {
-    for (int32_t i = 0; i < numCriticalHitChunks[which]; i++)
+    for (int32_t i = 0; i < NumCriticalHitChunks[which]; i++)
     {
-        const uint8_t chunk = criticalHitChunks[which][i];
-        handleCriticalHit(chunk >> 4, chunk & 0xf);
+        const uint8_t chunk = CriticalHitChunks[which][i];
+        HandleCriticalHit(chunk >> 4, chunk & 0xf);
     }
 
-    numCriticalHitChunks[which] = 0;
+    NumCriticalHitChunks[which] = 0;
     return 0;
 }
 
-auto BattleMech::buildStatusChunk() -> int32_t
+auto MCBattleMech::BuildStatusChunk() -> int32_t
 {
-    statusChunk.targetCellRC[0] = -1;
-    statusChunk.targetCellRC[1] = -1;
-    statusChunk.bodyState = 0;
-    statusChunk.targetType = 0;
-    statusChunk.targetId = 0;
-    statusChunk.targetBlockOrTrainNumber = 0;
-    statusChunk.targetVertexOrCarNumber = 0;
-    statusChunk.targetItemNumber = 0;
-    statusChunk.ejectOrderGiven = 0;
-    statusChunk.jumpOrder = 0;
-    statusChunk.data = 0;
+    StatusChunk.TargetCellRC[0] = -1;
+    StatusChunk.TargetCellRC[1] = -1;
+    StatusChunk.BodyState = 0;
+    StatusChunk.TargetType = 0;
+    StatusChunk.TargetId = 0;
+    StatusChunk.TargetBlockOrTrainNumber = 0;
+    StatusChunk.TargetVertexOrCarNumber = 0;
+    StatusChunk.TargetItemNumber = 0;
+    StatusChunk.EjectOrderGiven = 0;
+    StatusChunk.JumpOrder = 0;
+    StatusChunk.Data = 0;
 
     // The body state: 1 standing up, 2 standing, 3 and 4 fallen, 0 otherwise.
-    const uint32_t bodyState = static_cast<uint32_t>(getBodyState());
+    const uint32_t bodyState = static_cast<uint32_t>(GetBodyState());
 
-    if (static_cast<MechActor*>(appearance)->currentGesture == 1 || bodyState < 9)
+    if (static_cast<MCMechActor*>(Appearance)->CurrentGesture == 1 || bodyState < 9)
     {
         switch (bodyState)
         {
             case 1:
-                statusChunk.bodyState = 1;
+                StatusChunk.BodyState = 1;
                 break;
             case 2:
             case 3:
             case 4:
             case 5:
             case 6:
-                statusChunk.bodyState = 0;
+                StatusChunk.BodyState = 0;
                 break;
             case 7:
-                statusChunk.bodyState = 4;
+                StatusChunk.BodyState = 4;
                 break;
             case 8:
-                statusChunk.bodyState = 3;
+                StatusChunk.BodyState = 3;
                 break;
             default:
-                statusChunk.bodyState = 2;
+                StatusChunk.BodyState = 2;
                 break;
         }
     }
     else
     {
-        statusChunk.bodyState = 0;
+        StatusChunk.BodyState = 0;
     }
 
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        if (inJump == 0)
+        if (InJump == 0)
         {
-            GameObject* target = pilot->getLastTarget();
+            MCGameObject* target = Pilot->GetLastTarget();
 
             if (target != nullptr)
             {
-                const int32_t targetClass = target->objectClass;
+                const int32_t targetClass = target->ObjectClass;
 
                 switch (targetClass)
                 {
@@ -5409,13 +5410,13 @@ auto BattleMech::buildStatusChunk() -> int32_t
                     case LIGHT:
                     {
                         // A terrain object: its block, vertex and item from the part id.
-                        statusChunk.targetType = 2;
-                        statusChunk.targetId = target->partId;
-                        const int32_t terrainPart = target->partId - 0x1000;
-                        statusChunk.targetBlockOrTrainNumber = terrainPart / 0xc80;
+                        StatusChunk.TargetType = 2;
+                        StatusChunk.TargetId = target->PartId;
+                        const int32_t terrainPart = target->PartId - 0x1000;
+                        StatusChunk.TargetBlockOrTrainNumber = terrainPart / 0xc80;
                         const int32_t inBlock = terrainPart % 0xc80;
-                        statusChunk.targetVertexOrCarNumber = inBlock / 8;
-                        statusChunk.targetItemNumber = static_cast<uint8_t>(inBlock % 8);
+                        StatusChunk.TargetVertexOrCarNumber = inBlock / 8;
+                        StatusChunk.TargetItemNumber = static_cast<uint8_t>(inBlock % 8);
                         break;
                     }
 
@@ -5423,25 +5424,25 @@ auto BattleMech::buildStatusChunk() -> int32_t
                     case GROUNDVEHICLE:
                     case ELEMENTAL:
                     {
-                        statusChunk.targetType = 1;
-                        statusChunk.targetId = static_cast<Mover*>(target)->netRosterIndex;
+                        StatusChunk.TargetType = 1;
+                        StatusChunk.TargetId = static_cast<MCMover*>(target)->NetRosterIndex;
                         break;
                     }
                     case CAMERADRONE:
                     {
-                        statusChunk.targetType = 3;
-                        statusChunk.targetId = target->partId;
-                        statusChunk.targetBlockOrTrainNumber = 0x80;
-                        statusChunk.targetVertexOrCarNumber = target->partId - 0x802c8;
+                        StatusChunk.TargetType = 3;
+                        StatusChunk.TargetId = target->PartId;
+                        StatusChunk.TargetBlockOrTrainNumber = 0x80;
+                        StatusChunk.TargetVertexOrCarNumber = target->PartId - 0x802c8;
                         break;
                     }
                     case TRAINCAR:
                     {
-                        statusChunk.targetType = 3;
-                        statusChunk.targetId = target->partId;
-                        const int32_t trainPart = target->partId - 0x7d000;
-                        statusChunk.targetBlockOrTrainNumber = trainPart / 100;
-                        statusChunk.targetVertexOrCarNumber = trainPart % 100;
+                        StatusChunk.TargetType = 3;
+                        StatusChunk.TargetId = target->PartId;
+                        const int32_t trainPart = target->PartId - 0x7d000;
+                        StatusChunk.TargetBlockOrTrainNumber = trainPart / 100;
+                        StatusChunk.TargetVertexOrCarNumber = trainPart % 100;
                         break;
                     }
 
@@ -5452,24 +5453,24 @@ auto BattleMech::buildStatusChunk() -> int32_t
         }
         else
         {
-            statusChunk.jumpOrder = 1;
+            StatusChunk.JumpOrder = 1;
             int32_t cellR = 0;
             int32_t cellC = 0;
-            worldCoordToMapCell(jumpGoal, cellR, cellC);
-            statusChunk.targetCellRC[0] = static_cast<int16_t>(cellR);
-            statusChunk.targetCellRC[1] = static_cast<int16_t>(cellC);
+            WorldCoordToMapCell(JumpGoal, cellR, cellC);
+            StatusChunk.TargetCellRC[0] = static_cast<int16_t>(cellR);
+            StatusChunk.TargetCellRC[1] = static_cast<int16_t>(cellC);
         }
     }
 
-    statusChunk.ejectOrderGiven = ejectOrderGiven;
-    statusChunk.pack(this);
+    StatusChunk.EjectOrderGiven = EjectOrderGiven;
+    StatusChunk.Pack(this);
 
     // Checks the chunk unpacks to what was packed.
-    StatusChunk check;
-    check.data = statusChunk.data;
-    check.StatusChunk::unpack(this);
+    MCStatusChunk check;
+    check.Data = StatusChunk.Data;
+    check.MCStatusChunk::Unpack(this);
 
-    if (statusChunk.equalTo(&check) == 0)
+    if (StatusChunk.EqualTo(&check) == 0)
     {
         Fatal(0, " BAD status chunk in mech: save stchunk.dbg file! ", nullptr);
     }
@@ -5477,21 +5478,21 @@ auto BattleMech::buildStatusChunk() -> int32_t
     return 0;
 }
 
-auto BattleMech::handleStatusChunk(int32_t updateAge, uint32_t chunk) -> int32_t
+auto MCBattleMech::HandleStatusChunk(int32_t updateAge, uint32_t chunk) -> int32_t
 {
-    statusChunk.targetCellRC[0] = -1;
-    statusChunk.targetCellRC[1] = -1;
-    statusChunk.data = 0;
-    statusChunk.bodyState = 0;
-    statusChunk.targetType = 0;
-    statusChunk.targetId = 0;
-    statusChunk.targetBlockOrTrainNumber = 0;
-    statusChunk.targetVertexOrCarNumber = 0;
-    statusChunk.targetItemNumber = 0;
-    statusChunk.ejectOrderGiven = 0;
-    statusChunk.jumpOrder = 0;
-    statusChunk.data = chunk;
-    statusChunk.unpack(this);
+    StatusChunk.TargetCellRC[0] = -1;
+    StatusChunk.TargetCellRC[1] = -1;
+    StatusChunk.Data = 0;
+    StatusChunk.BodyState = 0;
+    StatusChunk.TargetType = 0;
+    StatusChunk.TargetId = 0;
+    StatusChunk.TargetBlockOrTrainNumber = 0;
+    StatusChunk.TargetVertexOrCarNumber = 0;
+    StatusChunk.TargetItemNumber = 0;
+    StatusChunk.EjectOrderGiven = 0;
+    StatusChunk.JumpOrder = 0;
+    StatusChunk.Data = chunk;
+    StatusChunk.Unpack(this);
 
     if (StatusChunkUnpackErr != 0)
     {
@@ -5500,107 +5501,107 @@ auto BattleMech::handleStatusChunk(int32_t updateAge, uint32_t chunk) -> int32_t
 
     int32_t targetPartId = 0;
 
-    if (statusChunk.jumpOrder == 0 && static_cast<int8_t>(statusChunk.targetType) > 0)
+    if (StatusChunk.JumpOrder == 0 && static_cast<int8_t>(StatusChunk.TargetType) > 0)
     {
-        if (statusChunk.targetType == 1)
+        if (StatusChunk.TargetType == 1)
         {
-            targetPartId = MPlayer->moverRoster[statusChunk.targetId]->partId;
+            targetPartId = MPlayer->MoverRoster[StatusChunk.TargetId]->PartId;
         }
-        else if (statusChunk.targetType < 4)
+        else if (StatusChunk.TargetType < 4)
         {
-            targetPartId = statusChunk.targetId;
+            targetPartId = StatusChunk.TargetId;
         }
     }
 
-    if (pilot == nullptr)
+    if (Pilot == nullptr)
     {
         return 0;
     }
 
-    GameObject* target = nullptr;
+    MCGameObject* target = nullptr;
     int keepTarget = 0;
 
     if (targetPartId != 0)
     {
-        GameObject* lastTarget = pilot->getLastTarget();
+        MCGameObject* lastTarget = Pilot->GetLastTarget();
 
-        if (lastTarget != nullptr && lastTarget->partId == targetPartId)
+        if (lastTarget != nullptr && lastTarget->PartId == targetPartId)
         {
             keepTarget = 1;
         }
         else
         {
-            target = static_cast<GameObject*>(objectList->findObjectFromPart(targetPartId));
+            target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(targetPartId));
         }
     }
 
     if (keepTarget == 0)
     {
-        pilot->setLastTarget(target, 0, 0);
+        Pilot->SetLastTarget(target, 0, 0);
     }
 
-    if (ejectOrderGiven == 0 && statusChunk.ejectOrderGiven != 0)
+    if (EjectOrderGiven == 0 && StatusChunk.EjectOrderGiven != 0)
     {
-        ejectOrderGiven = 1;
-        handleEjection();
+        EjectOrderGiven = 1;
+        HandleEjection();
     }
 
     return 0;
 }
 
-auto BattleMech::buildMoveChunk() -> int32_t
+auto MCBattleMech::BuildMoveChunk() -> int32_t
 {
-    moveChunk.init();
+    MoveChunk.Init();
 
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        pilot->getMovePath();
-        moveChunk.build(this, pilot->moveOrders.path[0], pilot->moveOrders.path[1]);
+        Pilot->GetMovePath();
+        MoveChunk.Build(this, Pilot->MoveOrders.Path[0], Pilot->MoveOrders.Path[1]);
     }
 
-    moveChunk.pack(this);
+    MoveChunk.Pack(this);
 
     // Checks the chunk unpacks to what was packed; a chunk that can't is replaced by an empty one.
-    MoveChunk check;
-    check.stepPos[0][0] = -1;
-    check.stepPos[0][1] = -1;
-    check.run = 0;
-    check.numSteps = 0;
-    check.data = moveChunk.data;
-    check.unpack(this);
+    MCMoveChunk check;
+    check.StepPos[0][0] = -1;
+    check.StepPos[0][1] = -1;
+    check.Run = 0;
+    check.NumSteps = 0;
+    check.Data = MoveChunk.Data;
+    check.Unpack(this);
 
     if (MoveChunkUnpackErr == 0)
     {
-        if (moveChunk.equalTo(this, &check) == 0)
+        if (MoveChunk.EqualTo(this, &check) == 0)
         {
             Fatal(0, " Bad mech movechunk: save mvchunk.dbg file! ", nullptr);
         }
     }
     else
     {
-        moveChunk.init();
-        moveChunk.build(this, nullptr, nullptr);
-        moveChunk.pack(this);
+        MoveChunk.Init();
+        MoveChunk.Build(this, nullptr, nullptr);
+        MoveChunk.Pack(this);
     }
 
     return 0;
 }
 
-auto BattleMech::handleMoveChunk(uint32_t chunk) -> int32_t
+auto MCBattleMech::HandleMoveChunk(uint32_t chunk) -> int32_t
 {
-    moveChunk.init();
-    moveChunk.data = chunk;
-    moveChunk.unpack(this);
+    MoveChunk.Init();
+    MoveChunk.Data = chunk;
+    MoveChunk.Unpack(this);
 
     if (MoveChunkUnpackErr == 0)
     {
-        MovePath* path = getPilot()->getMovePath();
-        path->setMoveChunk(&moveChunk);
+        MCMovePath* path = GetPilot()->GetMovePath();
+        path->SetMoveChunk(&MoveChunk);
 
         // Skip ahead to the step nearest the mech.
-        if (path->numStepsWhenNotPaused > 1)
+        if (path->NumStepsWhenNotPaused > 1)
         {
-            int32_t step = path->numStepsWhenNotPaused;
+            int32_t step = path->NumStepsWhenNotPaused;
 
             do
             {
@@ -5610,68 +5611,68 @@ auto BattleMech::handleMoveChunk(uint32_t chunk) -> int32_t
                 {
                     break;
                 }
-            } while (MapCellDiagonal < distanceFrom(path->stepList[step].destination));
+            } while (MapCellDiagonal < DistanceFrom(path->StepList[step].Destination));
 
-            path->curStep = step;
+            path->CurStep = step;
         }
 
-        newMoveChunk = 1;
+        NewMoveChunk = 1;
     }
 
     return 0;
 }
 
-auto BattleMech::injureBodyLocation(int32_t bodyLocation, float damage) -> int
+auto MCBattleMech::InjureBodyLocation(int32_t bodyLocation, float damage) -> int
 {
-    BodyLocation& location = bodyAt(bodyLocation);
+    MCBodyLocation& location = BodyAt(bodyLocation);
 
-    if (bodyLocation == MECH_BODY_LOCATION_CTORSO && centerTorsoInjuredTime < 0.0)
+    if (bodyLocation == MECH_BODY_LOCATION_CTORSO && CenterTorsoInjuredTime < 0.0)
     {
-        centerTorsoInjuredTime = scenarioTime;
+        CenterTorsoInjuredTime = ScenarioTime;
     }
 
-    if (damage <= location.curInternalStructure)
+    if (damage <= location.CurInternalStructure)
     {
-        location.curInternalStructure -= damage;
+        location.CurInternalStructure -= damage;
     }
     else
     {
-        location.curInternalStructure = 0.0f;
+        location.CurInternalStructure = 0.0f;
     }
 
-    if (0.0f < location.curInternalStructure)
+    if (0.0f < location.CurInternalStructure)
     {
-        location.damageState =
-            0.5 < location.curInternalStructure / static_cast<float>(location.maxInternalStructure) ? 0 : 1;
+        location.DamageState =
+            0.5 < location.CurInternalStructure / static_cast<float>(location.MaxInternalStructure) ? 0 : 1;
 
         if (bodyLocation == MECH_BODY_LOCATION_LLEG || bodyLocation == MECH_BODY_LOCATION_RLEG)
         {
-            calcLegStatus();
+            CalcLegStatus();
         }
         else if (bodyLocation == MECH_BODY_LOCATION_CTORSO)
         {
-            calcTorsoStatus();
-            calcCriticalHit(MECH_BODY_LOCATION_CTORSO);
+            CalcTorsoStatus();
+            CalcCriticalHit(MECH_BODY_LOCATION_CTORSO);
             return 0;
         }
 
-        calcCriticalHit(bodyLocation);
+        CalcCriticalHit(bodyLocation);
         return 0;
     }
 
-    destroyBodyLocation(bodyLocation);
+    DestroyBodyLocation(bodyLocation);
     return 1;
 }
 
-auto BattleMech::weaponLocked(int32_t weaponIndex, vector_3d targetPosition) -> float
+auto MCBattleMech::WeaponLocked(int32_t weaponIndex, MCVector3D targetPosition) -> float
 {
-    return relFacingTo(targetPosition, inventory[weaponIndex].bodyLocation);
+    return RelFacingTo(targetPosition, Inventory[weaponIndex].BodyLocation);
 }
 
 namespace
 {
     /// <summary>The rear armor location behind a body location (the centre's, the left side's or the right's).</summary>
-    int32_t rearArmorLocation(int32_t bodyLocation)
+    int32_t RearArmorLocation(int32_t bodyLocation)
     {
         switch (bodyLocation)
         {
@@ -5689,96 +5690,96 @@ namespace
     }
 
     /// <summary>Passes what is left of a shot on to the location a destroyed one transfers to.</summary>
-    void transferHit(BattleMech* mech, _WeaponShotInfo* shotInfo, int32_t bodyLocation)
+    void TransferHit(MCBattleMech* mech, MCWeaponShotInfo* shotInfo, int32_t bodyLocation)
     {
-        _WeaponShotInfo transferInfo = *shotInfo;
-        transferInfo.hitLocation = mech->transferHitLocation(bodyLocation);
+        MCWeaponShotInfo transferInfo = *shotInfo;
+        transferInfo.HitLocation = mech->TransferHitLocation(bodyLocation);
 
         if (MPlayer == nullptr)
         {
-            mech->handleWeaponHit(&transferInfo, 0);
+            mech->HandleWeaponHit(&transferInfo, 0);
         }
-        else if (MPlayer->isServer != 0)
+        else if (MPlayer->IsServer != 0)
         {
-            mech->handleWeaponHit(&transferInfo, 1);
+            mech->HandleWeaponHit(&transferInfo, 1);
         }
     }
 }
 
-auto BattleMech::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
+auto MCBattleMech::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
-    if ((MPlayer == nullptr && CantHitMe != 0 && pilot->onHomeTeam() != 0) || shotInfo == nullptr)
+    if ((MPlayer == nullptr && CantHitMe != 0 && Pilot->OnHomeTeam() != 0) || shotInfo == nullptr)
     {
         return 0;
     }
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->addWeaponHitChunk(this, shotInfo, 0);
+        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
-    BadGuy = shotInfo->attacker;
+    BadGuy = shotInfo->Attacker;
 
-    if (shotInfo->damage <= 0.0f)
+    if (shotInfo->Damage <= 0.0f)
     {
         return 0;
     }
 
-    const int32_t hitLocation = shotInfo->hitLocation;
+    const int32_t hitLocation = shotInfo->HitLocation;
 
     if (hitLocation == -1)
     {
         return 0;
     }
 
-    if (isDestroyed() != 0)
+    if (IsDestroyed() != 0)
     {
         return 0;
     }
 
-    const _WeaponShotInfo originalShot = *shotInfo;
-    const int wasDisabled = isDisabled();
+    const MCWeaponShotInfo originalShot = *shotInfo;
+    const int wasDisabled = IsDisabled();
     // Ammunition hits (and cause -4) go straight for the internal structure.
-    int internalHit = shotInfo->masterId == -4;
+    int internalHit = shotInfo->MasterId == -4;
 
-    if (shotInfo->masterId > 0)
+    if (shotInfo->MasterId > 0)
     {
-        internalHit = MasterComponentList[shotInfo->masterId].form == 10;
+        internalHit = MasterComponentList[shotInfo->MasterId].Form == 10;
     }
 
-    damageRateTally = shotInfo->damage + damageRateTally;
-    totalDamageTaken = shotInfo->damage + totalDamageTaken;
+    DamageRateTally = shotInfo->Damage + DamageRateTally;
+    TotalDamageTaken = shotInfo->Damage + TotalDamageTaken;
     // Which way the mech would fall.
-    const float angle = torsoRotation + shotInfo->entryAngle;
+    const float angle = TorsoRotation + shotInfo->EntryAngle;
 
     if (!(angle < -90.0 || 90.0 < angle))
     {
-        hitFromFrontThisFrame = 1;
+        HitFromFrontThisFrame = 1;
     }
     else if (angle <= -91.0 || 91.0 <= angle)
     {
-        hitFromBehindThisFrame = 1;
+        HitFromBehindThisFrame = 1;
     }
 
     const int32_t bodyLocation = MechArmorToBodyLocation[hitLocation];
 
-    if (bodyLocation == MECH_BODY_LOCATION_HEAD && 2.0f <= shotInfo->damage)
+    if (bodyLocation == MECH_BODY_LOCATION_HEAD && 2.0f <= shotInfo->Damage)
     {
-        pilot->injure(1.0f, 1);
+        Pilot->Injure(1.0f, 1);
     }
 
-    if (armor[hitLocation].curArmor <= 0.0f || internalHit != 0)
+    if (Armor[hitLocation].CurArmor <= 0.0f || internalHit != 0)
     {
-        BodyLocation& location = bodyAt(bodyLocation);
+        MCBodyLocation& location = BodyAt(bodyLocation);
         int caseHit = 0;
 
-        if (location.curInternalStructure <= 0.0f)
+        if (location.CurInternalStructure <= 0.0f)
         {
-            if (internalHit == 0 || location.hasCASE == 0)
+            if (internalHit == 0 || location.HasCase == 0)
             {
                 if (bodyLocation != MECH_BODY_LOCATION_CTORSO && bodyLocation != MECH_BODY_LOCATION_HEAD)
                 {
-                    transferHit(this, shotInfo, bodyLocation);
+                    TransferHit(this, shotInfo, bodyLocation);
                 }
             }
             else
@@ -5786,25 +5787,25 @@ auto BattleMech::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChun
                 caseHit = 1;
             }
         }
-        else if (shotInfo->damage < location.curInternalStructure)
+        else if (shotInfo->Damage < location.CurInternalStructure)
         {
-            injureBodyLocation(bodyLocation, shotInfo->damage);
+            InjureBodyLocation(bodyLocation, shotInfo->Damage);
         }
         else
         {
-            const float internalStructure = location.curInternalStructure;
-            shotInfo->setDamage(shotInfo->damage - internalStructure);
-            injureBodyLocation(bodyLocation, internalStructure);
+            const float internalStructure = location.CurInternalStructure;
+            shotInfo->SetDamage(shotInfo->Damage - internalStructure);
+            InjureBodyLocation(bodyLocation, internalStructure);
 
-            if (0.0f < shotInfo->damage)
+            if (0.0f < shotInfo->Damage)
             {
-                if (internalHit != 0 && bodyAt(bodyLocation).hasCASE != 0)
+                if (internalHit != 0 && BodyAt(bodyLocation).HasCase != 0)
                 {
                     caseHit = 1;
                 }
                 else if (bodyLocation != MECH_BODY_LOCATION_CTORSO && bodyLocation != MECH_BODY_LOCATION_HEAD)
                 {
-                    transferHit(this, shotInfo, bodyLocation);
+                    TransferHit(this, shotInfo, bodyLocation);
                 }
             }
         }
@@ -5812,90 +5813,90 @@ auto BattleMech::handleWeaponHit(_WeaponShotInfo* shotInfo, int addMultiplayChun
         if (caseHit != 0)
         {
             // CASE vents the rest out the back.
-            const int32_t rear = rearArmorLocation(bodyLocation);
+            const int32_t rear = RearArmorLocation(bodyLocation);
             int holed = 0;
 
-            if (shotInfo->damage <= armor[rear].curArmor)
+            if (shotInfo->Damage <= Armor[rear].CurArmor)
             {
-                armor[rear].curArmor -= shotInfo->damage;
+                Armor[rear].CurArmor -= shotInfo->Damage;
             }
             else
             {
-                armor[rear].curArmor = 0.0f;
+                Armor[rear].CurArmor = 0.0f;
                 holed = 1;
             }
 
-            shotInfo->setDamage(0.0f);
+            shotInfo->SetDamage(0.0f);
 
             if (holed != 0)
             {
-                playMessage(RADIO_ARMOR_HOLED, 0);
+                PlayMessage(RADIO_ARMOR_HOLED, 0);
             }
         }
     }
-    else if (shotInfo->damage <= armor[hitLocation].curArmor)
+    else if (shotInfo->Damage <= Armor[hitLocation].CurArmor)
     {
-        armor[hitLocation].curArmor -= shotInfo->damage;
+        Armor[hitLocation].CurArmor -= shotInfo->Damage;
     }
     else
     {
         // Through the armor.
-        shotInfo->setDamage(shotInfo->damage - armor[hitLocation].curArmor);
-        armor[shotInfo->hitLocation].curArmor = 0.0f;
-        const float internalStructure = bodyAt(bodyLocation).curInternalStructure;
+        shotInfo->SetDamage(shotInfo->Damage - Armor[hitLocation].CurArmor);
+        Armor[shotInfo->HitLocation].CurArmor = 0.0f;
+        const float internalStructure = BodyAt(bodyLocation).CurInternalStructure;
 
-        if (shotInfo->damage < internalStructure)
+        if (shotInfo->Damage < internalStructure)
         {
-            injureBodyLocation(bodyLocation, shotInfo->damage);
+            InjureBodyLocation(bodyLocation, shotInfo->Damage);
         }
         else
         {
-            shotInfo->setDamage(shotInfo->damage - internalStructure);
-            injureBodyLocation(bodyLocation, internalStructure);
+            shotInfo->SetDamage(shotInfo->Damage - internalStructure);
+            InjureBodyLocation(bodyLocation, internalStructure);
 
-            if (0.0f < shotInfo->damage && bodyLocation != MECH_BODY_LOCATION_CTORSO &&
+            if (0.0f < shotInfo->Damage && bodyLocation != MECH_BODY_LOCATION_CTORSO &&
                 bodyLocation != MECH_BODY_LOCATION_HEAD)
             {
-                transferHit(this, shotInfo, bodyLocation);
+                TransferHit(this, shotInfo, bodyLocation);
             }
         }
 
-        playMessage(RADIO_ARMOR_HOLED, 0);
+        PlayMessage(RADIO_ARMOR_HOLED, 0);
     }
 
-    GameObject* attacker = shotInfo->attacker;
-    auto triggerId = static_cast<uint32_t>(shotInfo->masterId);
+    MCGameObject* attacker = shotInfo->Attacker;
+    auto triggerId = static_cast<uint32_t>(shotInfo->MasterId);
     int32_t alarm = 1;
 
     if (attacker == nullptr)
     {
-        if (shotInfo->masterId == -4 || shotInfo->masterId >= 0)
+        if (shotInfo->MasterId == -4 || shotInfo->MasterId >= 0)
         {
             triggerId = 0;
         }
     }
     else
     {
-        triggerId = static_cast<uint32_t>(attacker->partId);
+        triggerId = static_cast<uint32_t>(attacker->PartId);
 
-        if (shotInfo->masterId < 0 && shotInfo->masterId != -4)
+        if (shotInfo->MasterId < 0 && shotInfo->MasterId != -4)
         {
             alarm = 10;
         }
     }
 
-    pilot->triggerAlarm(alarm, triggerId);
-    curCV = calcCV(0);
+    Pilot->TriggerAlarm(alarm, triggerId);
+    CurCV = CalcCV(0);
 
-    if (wasDisabled == 0 && isDisabled() != 0 && attacker != nullptr &&
-        (attacker->objectClass == BATTLEMECH || attacker->objectClass == GROUNDVEHICLE ||
-         attacker->objectClass == ELEMENTAL || attacker->objectClass == MOVER))
+    if (wasDisabled == 0 && IsDisabled() != 0 && attacker != nullptr &&
+        (attacker->ObjectClass == BATTLEMECH || attacker->ObjectClass == GROUNDVEHICLE ||
+         attacker->ObjectClass == ELEMENTAL || attacker->ObjectClass == MOVER))
     {
-        attacker->getPilot()->triggerAlarm(12, static_cast<uint32_t>(partId));
+        attacker->GetPilot()->TriggerAlarm(12, static_cast<uint32_t>(PartId));
     }
 
-    shotInfo->init(originalShot.attacker, originalShot.masterId, originalShot.damage, originalShot.hitLocation,
-                   originalShot.entryAngle);
+    shotInfo->Init(originalShot.Attacker, originalShot.MasterId, originalShot.Damage, originalShot.HitLocation,
+                   originalShot.EntryAngle);
     return 0;
 }
 
@@ -5905,20 +5906,20 @@ namespace
     constexpr int32_t UNLIMITED_SHOTS = 9999;
 
     /// <summary>Packs a weapon fire chunk, checks that it unpacks the same, queues it and logs it.</summary>
-    void sendWeaponFireChunk(BattleMech* mech, WeaponFireChunk& chunk, GameObject* target)
+    void SendWeaponFireChunk(MCBattleMech* mech, MCWeaponFireChunk& chunk, MCGameObject* target)
     {
-        chunk.pack();
-        WeaponFireChunk check;
-        check.init();
-        check.data = chunk.data;
-        check.unpack(mech);
+        chunk.Pack();
+        MCWeaponFireChunk check;
+        check.Init();
+        check.Data = chunk.Data;
+        check.Unpack(mech);
 
-        if (chunk.equalTo(&check) == 0)
+        if (chunk.EqualTo(&check) == 0)
         {
             Fatal(0, " Mech.fireWeapon: Bad WeaponFireChunk (save wfchunk.dbg file now) ", nullptr);
         }
 
-        mech->addWeaponFireChunk(0, &chunk);
+        mech->AddWeaponFireChunk(0, &chunk);
         LogWeaponFireChunk(&chunk, mech, target);
     }
 
@@ -5926,69 +5927,69 @@ namespace
     /// Builds and sends the chunk for a shot at <paramref name="target"/> (a mover, train car, camera drone or
     /// terrain object) or, when it is null, at <paramref name="point"/>.
     /// </summary>
-    void sendTargetFireChunk(BattleMech* mech, GameObject* target, vector_3d* point, int32_t weapon, int hit,
+    void SendTargetFireChunk(MCBattleMech* mech, MCGameObject* target, MCVector3D* point, int32_t weapon, int hit,
                              float entryAngle, int32_t missiles, int32_t missilesPastAMS, int32_t antiMissileShots,
                              int32_t hitLocation)
     {
-        WeaponFireChunk chunk;
-        chunk.init();
-        auto* bigTarget = static_cast<BigGameObject*>(target);
+        MCWeaponFireChunk chunk;
+        chunk.Init();
+        auto* bigTarget = static_cast<MCBigGameObject*>(target);
 
         if (target == nullptr)
         {
-            chunk.buildLocationTarget(*point, weapon, hit, missiles);
+            chunk.BuildLocationTarget(*point, weapon, hit, missiles);
         }
-        else if (target->objectClass == BATTLEMECH || target->objectClass == GROUNDVEHICLE ||
-                 target->objectClass == ELEMENTAL || target->objectClass == MOVER)
+        else if (target->ObjectClass == BATTLEMECH || target->ObjectClass == GROUNDVEHICLE ||
+                 target->ObjectClass == ELEMENTAL || target->ObjectClass == MOVER)
         {
-            chunk.buildMoverTarget(bigTarget, weapon, hit, entryAngle, missiles, missilesPastAMS, antiMissileShots,
+            chunk.BuildMoverTarget(bigTarget, weapon, hit, entryAngle, missiles, missilesPastAMS, antiMissileShots,
                                    hitLocation);
         }
-        else if (target->objectClass == TRAINCAR)
+        else if (target->ObjectClass == TRAINCAR)
         {
-            chunk.buildTrainTarget(bigTarget, weapon, hit, entryAngle, missiles);
+            chunk.BuildTrainTarget(bigTarget, weapon, hit, entryAngle, missiles);
         }
-        else if (target->objectClass == CAMERADRONE)
+        else if (target->ObjectClass == CAMERADRONE)
         {
-            chunk.buildCameraDroneTarget(bigTarget, weapon, hit, entryAngle, missiles);
+            chunk.BuildCameraDroneTarget(bigTarget, weapon, hit, entryAngle, missiles);
         }
         else
         {
-            chunk.buildTerrainTarget(bigTarget, weapon, hit, missiles);
+            chunk.BuildTerrainTarget(bigTarget, weapon, hit, missiles);
         }
 
-        sendWeaponFireChunk(mech, chunk, target);
+        SendWeaponFireChunk(mech, chunk, target);
     }
 
     /// <summary>A shot's damage must survive the chunk's quarter-point rounding.</summary>
-    void checkDamageRound(const _WeaponShotInfo& shot)
+    void CheckDamageRound(const MCWeaponShotInfo& shot)
     {
-        const auto quarters = static_cast<int32_t>(shot.damage * 4.0);
-        Assert(shot.damage == quarters * 0.25 ? 1 : 0, 0, " WeaponHitChunk.build: damage round error ", nullptr);
+        const auto quarters = static_cast<int32_t>(shot.Damage * 4.0);
+        Assert(shot.Damage == quarters * 0.25 ? 1 : 0, 0, " WeaponHitChunk.build: damage round error ", nullptr);
     }
 
     /// <summary>A shot with no effect object sets off a live mine where it lands.</summary>
-    void checkMineAt(vector_3d& point)
+    void CheckMineAt(MCVector3D& point)
     {
         int32_t tileR = 0;
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->worldToMapPos(point, tileR, tileC, cellR, cellC);
+        GameMap->WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: a miss can land off the map, where the original reads (and writes) outside it.
-        if (!GameMap->onMap(tileR, tileC))
+        if (!GameMap->OnMap(tileR, tileC))
         {
             return;
         }
 
-        MapTile& tile = GameMap->map[GameMap->width * tileR + tileC];
+        MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
 
-        if ((tile.overlay & 0x1800) == 0x1000 || (tile.overlay & 0x6000) == 0x4000)
+        if ((tile.Overlay & 0x1800) == 0x1000 || (tile.Overlay & 0x6000) == 0x4000)
         {
-            CreateExplosion(MineExplosion, point, MineSplashDamage, worldUnitsPerMeter * MineSplashRange);
-            tile.overlay |= 0x1800;
-            tile.overlay |= 0x6000;
+            CreateExplosion(MineExplosion, point, MineSplashDamage, WorldUnitsPerMeter * MineSplashRange);
+            tile.Overlay |= 0x1800;
+            tile.Overlay |= 0x6000;
         }
     }
 
@@ -5996,83 +5997,83 @@ namespace
     /// Sends a weapon effect on its way, at <paramref name="target"/> (from hot spot to hot spot) or, when it is
     /// null, at <paramref name="point"/>, carrying <paramref name="shot"/>; then adds it to the weapon list.
     /// </summary>
-    void launchWeaponFX(BattleMech* mech, GameObject* fx, GameObject* target, vector_3d* point, _WeaponShotInfo& shot,
-                        int32_t sourceHotSpot, int32_t targetHotSpot)
+    void LaunchWeaponFX(MCBattleMech* mech, MCGameObject* fx, MCGameObject* target, MCVector3D* point,
+                        MCWeaponShotInfo& shot, int32_t sourceHotSpot, int32_t targetHotSpot)
     {
-        if (fx->objectClass == BULLET)
+        if (fx->ObjectClass == BULLET)
         {
-            auto* bullet = static_cast<Bullet*>(fx);
+            auto* bullet = static_cast<MCBullet*>(fx);
 
-            if (bullet->numShots != 5)
+            if (bullet->NumShots != 5)
             {
-                bullet->shotInfo[bullet->numShots++].init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation,
-                                                          shot.entryAngle);
+                bullet->ShotInfo[bullet->NumShots++].Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation,
+                                                          shot.EntryAngle);
             }
 
             if (target == nullptr)
             {
-                bullet->connect(mech, *point, sourceHotSpot);
+                bullet->Connect(mech, *point, sourceHotSpot);
             }
             else
             {
-                bullet->owner = mech;
-                bullet->target = target;
-                bullet->ownerHotSpot = sourceHotSpot;
-                bullet->targetHotSpot = targetHotSpot;
+                bullet->Owner = mech;
+                bullet->Target = target;
+                bullet->OwnerHotSpot = sourceHotSpot;
+                bullet->TargetHotSpot = targetHotSpot;
             }
         }
-        else if (fx->objectClass == LASER)
+        else if (fx->ObjectClass == LASER)
         {
-            auto* laser = static_cast<Laser*>(fx);
+            auto* laser = static_cast<MCLaser*>(fx);
 
             if (target == nullptr)
             {
-                laser->connect(mech, *point, &shot, sourceHotSpot);
+                laser->Connect(mech, *point, &shot, sourceHotSpot);
             }
             else
             {
-                laser->source.setWatcher(mech);
-                laser->target.setWatcher(target);
-                laser->sourceHotSpot = sourceHotSpot;
-                laser->targetHotSpot = targetHotSpot;
-                laser->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
+                laser->Source.SetWatcher(mech);
+                laser->Target.SetWatcher(target);
+                laser->SourceHotSpot = sourceHotSpot;
+                laser->TargetHotSpot = targetHotSpot;
+                laser->ShotInfo.Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
             }
         }
         else
         {
-            auto* projectile = static_cast<ProjectileLaser*>(fx);
+            auto* projectile = static_cast<MCProjectileLaser*>(fx);
 
             if (target == nullptr)
             {
-                projectile->connect(mech, *point, &shot, sourceHotSpot);
+                projectile->Connect(mech, *point, &shot, sourceHotSpot);
             }
             else
             {
-                projectile->owner = mech;
-                projectile->target = target;
-                projectile->ownerHotSpot = sourceHotSpot;
-                projectile->targetHotSpot = targetHotSpot;
-                projectile->shotInfo.init(shot.attacker, shot.masterId, shot.damage, shot.hitLocation, shot.entryAngle);
+                projectile->Owner = mech;
+                projectile->Target = target;
+                projectile->OwnerHotSpot = sourceHotSpot;
+                projectile->TargetHotSpot = targetHotSpot;
+                projectile->ShotInfo.Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
             }
         }
 
-        weaponList->addNode(fx);
+        WeaponList->AddNode(fx);
     }
 
     /// <summary>Firing gives a mech away to the other side's mechs within visual range.</summary>
-    void revealFiring(BattleMech* mech)
+    void RevealFiring(MCBattleMech* mech)
     {
-        ObjectQueueNode* enemies = nullptr;
+        MCObjectQueueNode* enemies = nullptr;
         uint8_t seenBy = 0;
 
-        if (mech->alignment == 1)
+        if (mech->Alignment == 1)
         {
-            enemies = clanMechList;
+            enemies = ClanMechList;
             seenBy = 2;
         }
-        else if (mech->alignment == -1)
+        else if (mech->Alignment == -1)
         {
-            enemies = innerSphereMechList;
+            enemies = InnerSphereMechList;
             seenBy = 1;
         }
 
@@ -6081,13 +6082,13 @@ namespace
             return;
         }
 
-        for (BaseObject* enemy = enemies->head; enemy != nullptr; enemy = enemy->next)
+        for (MCBaseObject* enemy = enemies->Head; enemy != nullptr; enemy = enemy->Next)
         {
-            vector_3d enemyPosition = static_cast<GameObject*>(enemy)->getPosition();
+            MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 
-            if (mech->distanceFrom(enemyPosition) < scenario->maxVisualRange)
+            if (mech->DistanceFrom(enemyPosition) < Scenario->MaxVisualRange)
             {
-                land->markRadiusSeen(mech->position, mech->frame.j, 360.0f, scenario->fireVisualRange, seenBy);
+                Land->MarkRadiusSeen(mech->Position, mech->Frame.J, 360.0f, Scenario->FireVisualRange, seenBy);
                 return;
             }
         }
@@ -6095,46 +6096,46 @@ namespace
 
     /// <summary>Where a missed shot lands: scattered up to <paramref name="scatter"/> about the aim point.</summary>
     /// <param name="centred">Missiles scatter both ways; other shots (as the original computes them) only one.</param>
-    vector_3d missPoint(GameObject* target, vector_3d* targetPoint, float scatter, int centred)
+    MCVector3D MissPoint(MCGameObject* target, MCVector3D* targetPoint, float scatter, int centred)
     {
-        vector_3d miss;
-        miss.x = scatter;
-        miss.y = scatter;
-        miss.z = 0.0f;
-        const auto offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.x + miss.x)) - miss.x);
-        const auto offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.y + miss.y)) - miss.y);
-        const auto offsetZ = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.z + miss.z)) - miss.z);
+        MCVector3D miss;
+        miss.X = scatter;
+        miss.Y = scatter;
+        miss.Z = 0.0f;
+        const auto offsetX = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.X + miss.X)) - miss.X);
+        const auto offsetY = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.Y + miss.Y)) - miss.Y);
+        const auto offsetZ = static_cast<float>(RandomNumber(static_cast<int32_t>(miss.Z + miss.Z)) - miss.Z);
 
         if (centred != 0)
         {
-            miss.x = offsetX;
-            miss.y = offsetY;
+            miss.X = offsetX;
+            miss.Y = offsetY;
         }
         else
         {
-            miss.x = miss.x + offsetX;
-            miss.y = miss.y + offsetY;
+            miss.X = miss.X + offsetX;
+            miss.Y = miss.Y + offsetY;
         }
 
-        miss.z = miss.z + offsetZ;
-        const vector_3d base = target != nullptr ? target->getPosition() : *targetPoint;
-        miss.x += base.x;
-        miss.y += base.y;
-        miss.z += base.z;
+        miss.Z = miss.Z + offsetZ;
+        const MCVector3D base = target != nullptr ? target->GetPosition() : *targetPoint;
+        miss.X += base.X;
+        miss.Y += base.Y;
+        miss.Z += base.Z;
         return miss;
     }
 }
 
-auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
-                            int32_t aimLocation, vector_3d* targetPoint) -> int32_t
+auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t weaponIndex, int32_t attackType,
+                              int32_t aimLocation, MCVector3D* targetPoint) -> int32_t
 {
-    if (status == 5 || status == 4 || status == 1 || status == 2 || getBodyState() == 0 || getBodyState() == 7 ||
-        getBodyState() == 8)
+    if (Status == 5 || Status == 4 || Status == 1 || Status == 2 || GetBodyState() == 0 || GetBodyState() == 7 ||
+        GetBodyState() == 8)
     {
         return 1;
     }
 
-    if (isWeaponReady(weaponIndex) == 0)
+    if (IsWeaponReady(weaponIndex) == 0)
     {
         return 3;
     }
@@ -6143,61 +6144,61 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
 
     if (target == nullptr)
     {
-        if (targetPoint == nullptr || lineOfSight(*targetPoint) == 0)
+        if (targetPoint == nullptr || LineOfSight(*targetPoint) == 0)
         {
             return 4;
         }
 
-        distance = static_cast<float>(distanceFrom(*targetPoint));
+        distance = static_cast<float>(DistanceFrom(*targetPoint));
     }
     else
     {
         // A camera drone can't be shot for two seconds after launch.
-        if (target->objectClass == CAMERADRONE && scenarioTime < static_cast<CameraDrone*>(target)->launchTime + 2.0)
+        if (target->ObjectClass == CAMERADRONE && ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
         {
             return 4;
         }
 
-        if (target->isDestroyed() != 0)
+        if (target->IsDestroyed() != 0)
         {
             return 4;
         }
 
-        if (lineOfSight(target) == 0)
+        if (LineOfSight(target) == 0)
         {
             return 4;
         }
 
-        vector_3d targetPosition = target->getPosition();
-        distance = static_cast<float>(distanceFrom(targetPosition));
+        MCVector3D targetPosition = target->GetPosition();
+        distance = static_cast<float>(DistanceFrom(targetPosition));
     }
 
-    const int32_t inRange = weaponInRange(weaponIndex, distance);
+    const int32_t inRange = WeaponInRange(weaponIndex, distance);
 
-    if ((MPlayer == nullptr || MPlayer->isServer != 0) && inRange == 0)
+    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && inRange == 0)
     {
         return 4;
     }
 
-    const MasterComponent& weapon = MasterComponentList[inventory[weaponIndex].masterID];
+    const MCMasterComponent& weapon = MasterComponentList[Inventory[weaponIndex].MasterID];
 
-    if (weapon.missileType != 2 && weapon.missileType != 1 && weapon.missileType != 3)
+    if (weapon.MissileType != 2 && weapon.MissileType != 1 && weapon.MissileType != 3)
     {
         // Direct fire needs a clear line.
         if (target == nullptr)
         {
-            if (targetPoint == nullptr || lineOfFire(*targetPoint) == 0)
+            if (targetPoint == nullptr || LineOfFire(*targetPoint) == 0)
             {
                 return 4;
             }
         }
-        else if (lineOfFire(target) == 0)
+        else if (LineOfFire(target) == 0)
         {
             return 4;
         }
     }
 
-    const int32_t numShots = getWeaponShots(weaponIndex);
+    const int32_t numShots = GetWeaponShots(weaponIndex);
 
     if (numShots == 0)
     {
@@ -6208,33 +6209,33 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
 
     if (target != nullptr)
     {
-        entryAngle = target->relFacingTo(position, -1);
+        entryAngle = target->RelFacingTo(Position, -1);
     }
 
-    const int isStreak = weapon.weaponFlags & 1;
+    const int isStreak = weapon.WeaponFlags & 1;
     int32_t range = 0;
     int32_t hitChance =
-        static_cast<int32_t>(calcAttackChance(target, aimLocation, targetTime, weaponIndex, 0.0f, &range, targetPoint));
+        static_cast<int32_t>(CalcAttackChance(target, aimLocation, targetTime, weaponIndex, 0.0f, &range, targetPoint));
     const int32_t hitRoll = RandomNumber(100);
 
     if (target != nullptr)
     {
         float points = SkillTry[MWS_GUNNERY];
 
-        if (target->getAlignment() == -1)
+        if (target->GetAlignment() == -1)
         {
-            pilot->numSkillUses[MWS_GUNNERY][1]++;
+            Pilot->NumSkillUses[MWS_GUNNERY][1]++;
         }
         else
         {
             points = SkillTry[MWS_GUNNERY] * 0.1f;
         }
 
-        pilot->skillPoints[MWS_GUNNERY] = points + pilot->skillPoints[MWS_GUNNERY];
+        Pilot->SkillPoints[MWS_GUNNERY] = points + Pilot->SkillPoints[MWS_GUNNERY];
     }
 
     // Aimed shots only from a standing mech.
-    if (aimLocation != -1 && 0.0 < getVelocity().magnitude())
+    if (aimLocation != -1 && 0.0 < GetVelocity().Magnitude())
     {
         hitChance = 0;
     }
@@ -6245,16 +6246,16 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
     {
         float points = SkillSuccess[MWS_GUNNERY];
 
-        if (target->getAlignment() == -1)
+        if (target->GetAlignment() == -1)
         {
-            pilot->numSkillSuccesses[MWS_GUNNERY][1]++;
+            Pilot->NumSkillSuccesses[MWS_GUNNERY][1]++;
         }
         else
         {
             points = SkillSuccess[MWS_GUNNERY] * 0.1f;
         }
 
-        pilot->skillPoints[MWS_GUNNERY] = points + pilot->skillPoints[MWS_GUNNERY];
+        Pilot->SkillPoints[MWS_GUNNERY] = points + Pilot->SkillPoints[MWS_GUNNERY];
 
         if (aimLocation != -1)
         {
@@ -6262,33 +6263,33 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
         }
     }
 
-    MechWarrior* targetPilot = nullptr;
+    MCMechWarrior* targetPilot = nullptr;
 
-    if (target != nullptr && (target->objectClass == BATTLEMECH || target->objectClass == GROUNDVEHICLE ||
-                              target->objectClass == ELEMENTAL || target->objectClass == MOVER))
+    if (target != nullptr && (target->ObjectClass == BATTLEMECH || target->ObjectClass == GROUNDVEHICLE ||
+                              target->ObjectClass == ELEMENTAL || target->ObjectClass == MOVER))
     {
-        targetPilot = target->getPilot();
-        targetPilot->updateAttackerStatus(static_cast<uint32_t>(partId), scenarioTime);
+        targetPilot = target->GetPilot();
+        targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
     }
 
-    startWeaponRecycle(weaponIndex);
+    StartWeaponRecycle(weaponIndex);
 
-    const int32_t chunkWeapon = weaponIndex - numOther;
+    const int32_t chunkWeapon = weaponIndex - NumOther;
 
     if (hitRoll < hitChance)
     {
         if (numShots != UNLIMITED_SHOTS)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        InventoryItem& item = inventory[weaponIndex];
-        const MasterComponent& fired = MasterComponentList[item.masterID];
+        MCInventoryItem& item = Inventory[weaponIndex];
+        const MCMasterComponent& fired = MasterComponentList[item.MasterID];
 
-        if (fired.form == 9)
+        if (fired.Form == 9)
         {
             // Missiles: a streak fires them all, anything else about half; anti-missile systems take some out.
-            const int32_t rackSize = fired.numMissiles;
+            const int32_t rackSize = fired.NumMissiles;
             int32_t missiles = rackSize;
 
             if (isStreak == 0)
@@ -6311,17 +6312,17 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
 
             if (target != nullptr)
             {
-                missilesLeft = target->fireAntiMissileSystem(missiles, antiMissileShots);
+                missilesLeft = target->FireAntiMissileSystem(missiles, antiMissileShots);
 
                 if (antiMissileShots > 0)
                 {
-                    target->reduceAntiMissileAmmo(antiMissileShots);
+                    target->ReduceAntiMissileAmmo(antiMissileShots);
                 }
             }
 
             int32_t targetHotSpot = 0;
-            const uint8_t weaponEffect = fired.weaponEffect;
-            const int32_t sourceHotSpot = bodyAt(item.bodyLocation).hotSpotNumber;
+            const uint8_t weaponEffect = fired.WeaponEffect;
+            const int32_t sourceHotSpot = BodyAt(item.BodyLocation).HotSpotNumber;
 
             if (missilesLeft > 0)
             {
@@ -6333,47 +6334,47 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
                 {
                     if (aimLocation == -1)
                     {
-                        hitLocation = target->calcHitLocation(this, weaponIndex, 0, attackType);
+                        hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
                     }
 
-                    if (target->objectClass == BATTLEMECH)
+                    if (target->ObjectClass == BATTLEMECH)
                     {
                         // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
                         // (8..10); the torso it maps to is read instead.
-                        targetHotSpot = static_cast<BattleMech*>(target)
-                                            ->bodyAt(MechArmorToBodyLocation[hitLocation])
-                                            .hotSpotNumber;
+                        targetHotSpot = static_cast<MCBattleMech*>(target)
+                                            ->BodyAt(MechArmorToBodyLocation[hitLocation])
+                                            .HotSpotNumber;
                     }
                 }
 
                 Assert(hitLocation != -2 ? 1 : 0, 0, " Mech.FireWeapon: Bad Hit Location ", nullptr);
-                _WeaponShotInfo shot;
-                shot.init(this, item.masterID, fired.damage * static_cast<float>(missilesLeft), hitLocation,
+                MCWeaponShotInfo shot;
+                shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
-                checkDamageRound(shot);
+                CheckDamageRound(shot);
 
-                if (MPlayer != nullptr && MPlayer->isServer != 0)
+                if (MPlayer != nullptr && MPlayer->IsServer != 0)
                 {
-                    sendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, missiles, missilesLeft,
+                    SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, missiles, missilesLeft,
                                         antiMissileShots, hitLocation);
                 }
 
-                GameObject* fx = createObject(static_cast<int32_t>(weaponFXTable[weaponEffect]));
+                MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[weaponEffect]));
 
                 if (fx == nullptr)
                 {
                     if (targetPoint != nullptr)
                     {
-                        checkMineAt(*targetPoint);
+                        CheckMineAt(*targetPoint);
                     }
                 }
                 else
                 {
-                    launchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
+                    LaunchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
 
                     if (target == nullptr)
                     {
-                        pilot->clearCurTacOrder(1, 0);
+                        Pilot->ClearCurTacOrder(1, 0);
                     }
                 }
             }
@@ -6386,46 +6387,46 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
             }
             else if (aimLocation == -1)
             {
-                hitLocation = target->calcHitLocation(this, weaponIndex, 0, attackType);
+                hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
             }
 
             Assert(hitLocation != -2 ? 1 : 0, 1, " Mech.FireWeapon: Bad Hit Location ", nullptr);
-            _WeaponShotInfo shot;
-            shot.init(this, item.masterID, fired.damage, hitLocation, entryAngle);
+            MCWeaponShotInfo shot;
+            shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
 
-            if (MPlayer != nullptr && MPlayer->isServer != 0)
+            if (MPlayer != nullptr && MPlayer->IsServer != 0)
             {
-                sendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, 0, 0, 0, hitLocation);
+                SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, 0, 0, 0, hitLocation);
             }
 
-            GameObject* fx = createObject(static_cast<int32_t>(weaponFXTable[fired.weaponEffect]));
+            MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
 
             if (fx == nullptr)
             {
                 if (targetPoint != nullptr)
                 {
-                    checkMineAt(*targetPoint);
+                    CheckMineAt(*targetPoint);
                 }
             }
             else
             {
-                const int32_t sourceHotSpot = bodyAt(item.bodyLocation).hotSpotNumber;
+                const int32_t sourceHotSpot = BodyAt(item.BodyLocation).HotSpotNumber;
                 int32_t targetHotSpot = 0;
 
-                if (target != nullptr && target->objectClass == BATTLEMECH)
+                if (target != nullptr && target->ObjectClass == BATTLEMECH)
                 {
                     // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
                     // (8..10); the torso it maps to is read instead.
                     targetHotSpot =
-                        static_cast<BattleMech*>(target)->bodyAt(MechArmorToBodyLocation[hitLocation]).hotSpotNumber;
+                        static_cast<MCBattleMech*>(target)->BodyAt(MechArmorToBodyLocation[hitLocation]).HotSpotNumber;
                 }
 
-                launchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
+                LaunchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
             }
 
             if (target == nullptr)
             {
-                pilot->clearCurTacOrder(1, 0);
+                Pilot->ClearCurTacOrder(1, 0);
             }
         }
     }
@@ -6434,19 +6435,19 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
         // A miss (a streak doesn't fire without a lock): the shot lands somewhere near.
         if (numShots != UNLIMITED_SHOTS)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        InventoryItem& item = inventory[weaponIndex];
-        const MasterComponent& fired = MasterComponentList[item.masterID];
+        MCInventoryItem& item = Inventory[weaponIndex];
+        const MCMasterComponent& fired = MasterComponentList[item.MasterID];
         const float scatter = target != nullptr ? 25.0f : 5.0f;
-        _WeaponShotInfo shot;
-        vector_3d landing;
+        MCWeaponShotInfo shot;
+        MCVector3D landing;
         int launch = 1;
 
-        if (fired.form == 9)
+        if (fired.Form == 9)
         {
-            const int32_t rackSize = fired.numMissiles;
+            const int32_t rackSize = fired.NumMissiles;
             int32_t missiles = static_cast<int32_t>(rackSize * 0.5 + 0.5);
 
             if (missiles < 1)
@@ -6461,13 +6462,13 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
 
             if (missiles > 0)
             {
-                shot.init(this, item.masterID, fired.damage * static_cast<float>(missiles), -1, entryAngle);
-                checkDamageRound(shot);
-                landing = missPoint(target, targetPoint, scatter, 1);
+                shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missiles), -1, entryAngle);
+                CheckDamageRound(shot);
+                landing = MissPoint(target, targetPoint, scatter, 1);
 
-                if (MPlayer != nullptr && MPlayer->isServer != 0)
+                if (MPlayer != nullptr && MPlayer->IsServer != 0)
                 {
-                    sendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, missiles, 0, 0, 0);
+                    SendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, missiles, 0, 0, 0);
                 }
             }
             else
@@ -6477,40 +6478,40 @@ auto BattleMech::fireWeapon(GameObject* target, float targetTime, int32_t weapon
         }
         else
         {
-            shot.init(this, item.masterID, fired.damage, -1, entryAngle);
-            landing = missPoint(target, targetPoint, scatter, 0);
+            shot.Init(this, item.MasterID, fired.Damage, -1, entryAngle);
+            landing = MissPoint(target, targetPoint, scatter, 0);
 
-            if (MPlayer != nullptr && MPlayer->isServer != 0)
+            if (MPlayer != nullptr && MPlayer->IsServer != 0)
             {
-                sendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, 0, 0, 0, 0);
+                SendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, 0, 0, 0, 0);
             }
         }
 
         if (launch != 0)
         {
-            GameObject* fx = createObject(static_cast<int32_t>(weaponFXTable[fired.weaponEffect]));
+            MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
 
             if (fx != nullptr)
             {
-                launchWeaponFX(this, fx, nullptr, &landing, shot, bodyAt(item.bodyLocation).hotSpotNumber, 0);
+                LaunchWeaponFX(this, fx, nullptr, &landing, shot, BodyAt(item.BodyLocation).HotSpotNumber, 0);
             }
             else
             {
-                checkMineAt(landing);
+                CheckMineAt(landing);
             }
         }
     }
 
     if (targetPilot != nullptr)
     {
-        targetPilot->triggerAlarm(0, static_cast<uint32_t>(partId));
+        targetPilot->TriggerAlarm(0, static_cast<uint32_t>(PartId));
     }
 
-    revealFiring(this);
+    RevealFiring(this);
 
-    if (group != nullptr)
+    if (Group != nullptr)
     {
-        group->handleMateFiredWeapon(static_cast<uint32_t>(partId));
+        Group->HandleMateFiredWeapon(static_cast<uint32_t>(PartId));
     }
 
     return 0;
@@ -6522,11 +6523,11 @@ namespace
     constexpr int32_t MAX_NETWORK_WEAPON_FX = 200;
 
     /// <summary>How many weapon effects are in flight.</summary>
-    int32_t countWeaponFX()
+    int32_t CountWeaponFX()
     {
         int32_t count = 0;
 
-        for (BaseObject* fx = weaponList->head; fx != nullptr; fx = fx->next)
+        for (MCBaseObject* fx = WeaponList->Head; fx != nullptr; fx = fx->Next)
         {
             count++;
         }
@@ -6535,16 +6536,16 @@ namespace
     }
 }
 
-auto BattleMech::handleWeaponFire(int32_t weaponIndex, GameObject* target, vector_3d* targetPoint, int hit,
-                                  float entryAngle, int32_t numMissiles, int32_t missilesPastAMS,
-                                  int32_t antiMissileShots, int32_t hitLocation) -> int32_t
+auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, MCVector3D* targetPoint, int hit,
+                                    float entryAngle, int32_t numMissiles, int32_t missilesPastAMS,
+                                    int32_t antiMissileShots, int32_t hitLocation) -> int32_t
 {
-    const int32_t numShots = getWeaponShots(weaponIndex);
-    startWeaponRecycle(weaponIndex);
-    InventoryItem& item = inventory[weaponIndex];
-    const int isStreak = MasterComponentList[item.masterID].weaponFlags & 1;
-    const MasterComponent& fired = MasterComponentList[item.masterID];
-    _WeaponShotInfo shot;
+    const int32_t numShots = GetWeaponShots(weaponIndex);
+    StartWeaponRecycle(weaponIndex);
+    MCInventoryItem& item = Inventory[weaponIndex];
+    const int isStreak = MasterComponentList[item.MasterID].WeaponFlags & 1;
+    const MCMasterComponent& fired = MasterComponentList[item.MasterID];
+    MCWeaponShotInfo shot;
 
     if (hit == 0)
     {
@@ -6555,57 +6556,57 @@ auto BattleMech::handleWeaponFire(int32_t weaponIndex, GameObject* target, vecto
 
         if (isStreak != 0)
         {
-            CurMoverWeaponFireChunk.unpack(this);
+            CurMoverWeaponFireChunk.Unpack(this);
             DebugWeaponFireChunk(&CurMoverWeaponFireChunk, nullptr, this);
             Assert(0, 0, " Mech.handleWeaponFire: streaks shouldn't miss! ", nullptr);
         }
 
         if (numShots != 9999)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        if (fired.form == 9)
+        if (fired.Form == 9)
         {
             if (numMissiles != 0)
             {
-                GameObject* fx = nullptr;
+                MCGameObject* fx = nullptr;
 
-                if (countWeaponFX() < MAX_NETWORK_WEAPON_FX)
+                if (CountWeaponFX() < MAX_NETWORK_WEAPON_FX)
                 {
-                    fx = createObject(static_cast<int32_t>(weaponFXTable[fired.weaponEffect]));
+                    fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
                 }
 
                 if (fx != nullptr)
                 {
-                    const int32_t sourceHotSpot = bodyAt(item.bodyLocation).hotSpotNumber;
-                    shot.init(this, item.masterID, fired.damage * static_cast<float>(numMissiles), -1, entryAngle);
-                    checkDamageRound(shot);
-                    launchWeaponFX(this, fx, nullptr, targetPoint, shot, sourceHotSpot, 0);
+                    const int32_t sourceHotSpot = BodyAt(item.BodyLocation).HotSpotNumber;
+                    shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(numMissiles), -1, entryAngle);
+                    CheckDamageRound(shot);
+                    LaunchWeaponFX(this, fx, nullptr, targetPoint, shot, sourceHotSpot, 0);
                 }
                 else if (targetPoint != nullptr)
                 {
-                    checkMineAt(*targetPoint);
+                    CheckMineAt(*targetPoint);
                 }
             }
         }
         else
         {
-            shot.init(this, item.masterID, fired.damage, -1, entryAngle);
-            GameObject* fx = nullptr;
+            shot.Init(this, item.MasterID, fired.Damage, -1, entryAngle);
+            MCGameObject* fx = nullptr;
 
-            if (countWeaponFX() < MAX_NETWORK_WEAPON_FX)
+            if (CountWeaponFX() < MAX_NETWORK_WEAPON_FX)
             {
-                fx = createObject(static_cast<int32_t>(weaponFXTable[fired.weaponEffect]));
+                fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
             }
 
             if (fx != nullptr)
             {
-                launchWeaponFX(this, fx, nullptr, targetPoint, shot, bodyAt(item.bodyLocation).hotSpotNumber, 0);
+                LaunchWeaponFX(this, fx, nullptr, targetPoint, shot, BodyAt(item.BodyLocation).HotSpotNumber, 0);
             }
             else if (targetPoint != nullptr)
             {
-                checkMineAt(*targetPoint);
+                CheckMineAt(*targetPoint);
             }
         }
     }
@@ -6613,26 +6614,26 @@ auto BattleMech::handleWeaponFire(int32_t weaponIndex, GameObject* target, vecto
     {
         if (numShots != 9999)
         {
-            deductWeaponShot(weaponIndex, 1);
+            DeductWeaponShot(weaponIndex, 1);
         }
 
-        if (fired.form == 9)
+        if (fired.Form == 9)
         {
             if (antiMissileShots > 0)
             {
-                target->reduceAntiMissileAmmo(antiMissileShots);
+                target->ReduceAntiMissileAmmo(antiMissileShots);
             }
 
             int32_t targetHotSpot = 0;
-            const int32_t sourceHotSpot = bodyAt(item.bodyLocation).hotSpotNumber;
+            const int32_t sourceHotSpot = BodyAt(item.BodyLocation).HotSpotNumber;
 
             if (missilesPastAMS > 0)
             {
-                GameObject* fx = nullptr;
+                MCGameObject* fx = nullptr;
 
-                if (countWeaponFX() < MAX_NETWORK_WEAPON_FX)
+                if (CountWeaponFX() < MAX_NETWORK_WEAPON_FX)
                 {
-                    fx = createObject(static_cast<int32_t>(weaponFXTable[fired.weaponEffect]));
+                    fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
                 }
 
                 if (fx != nullptr)
@@ -6640,145 +6641,145 @@ auto BattleMech::handleWeaponFire(int32_t weaponIndex, GameObject* target, vecto
                     Assert(hitLocation != -2 ? 1 : 0, static_cast<uint32_t>(TargetRolo),
                            " Mech.handleWeaponFire: Bad Hit Location ", nullptr);
 
-                    if (target != nullptr && target->objectClass == BATTLEMECH)
+                    if (target != nullptr && target->ObjectClass == BATTLEMECH)
                     {
                         // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
                         // (8..10); the torso it maps to is read instead.
-                        targetHotSpot = static_cast<BattleMech*>(target)
-                                            ->bodyAt(MechArmorToBodyLocation[hitLocation])
-                                            .hotSpotNumber;
+                        targetHotSpot = static_cast<MCBattleMech*>(target)
+                                            ->BodyAt(MechArmorToBodyLocation[hitLocation])
+                                            .HotSpotNumber;
                     }
 
-                    shot.init(this, item.masterID, fired.damage * static_cast<float>(missilesPastAMS), hitLocation,
+                    shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesPastAMS), hitLocation,
                               entryAngle);
-                    checkDamageRound(shot);
-                    launchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
+                    CheckDamageRound(shot);
+                    LaunchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
 
                     if (target == nullptr)
                     {
-                        pilot->clearCurTacOrder(1, 0);
+                        Pilot->ClearCurTacOrder(1, 0);
                     }
                 }
                 else if (targetPoint != nullptr)
                 {
-                    checkMineAt(*targetPoint);
+                    CheckMineAt(*targetPoint);
                 }
             }
         }
         else
         {
-            shot.init(this, item.masterID, fired.damage, hitLocation, entryAngle);
-            GameObject* fx = nullptr;
+            shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
+            MCGameObject* fx = nullptr;
 
-            if (countWeaponFX() < MAX_NETWORK_WEAPON_FX)
+            if (CountWeaponFX() < MAX_NETWORK_WEAPON_FX)
             {
-                fx = createObject(static_cast<int32_t>(weaponFXTable[fired.weaponEffect]));
+                fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
             }
 
             if (fx != nullptr)
             {
-                const int32_t sourceHotSpot = bodyAt(item.bodyLocation).hotSpotNumber;
+                const int32_t sourceHotSpot = BodyAt(item.BodyLocation).HotSpotNumber;
                 int32_t targetHotSpot = 0;
 
-                if (target != nullptr && target->objectClass == BATTLEMECH)
+                if (target != nullptr && target->ObjectClass == BATTLEMECH)
                 {
                     // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
                     // (8..10); the torso it maps to is read instead.
                     targetHotSpot =
-                        static_cast<BattleMech*>(target)->bodyAt(MechArmorToBodyLocation[hitLocation]).hotSpotNumber;
+                        static_cast<MCBattleMech*>(target)->BodyAt(MechArmorToBodyLocation[hitLocation]).HotSpotNumber;
                 }
 
-                launchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
+                LaunchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
 
                 if (target == nullptr)
                 {
-                    pilot->clearCurTacOrder(1, 0);
+                    Pilot->ClearCurTacOrder(1, 0);
                 }
             }
             else if (targetPoint != nullptr)
             {
-                checkMineAt(*targetPoint);
+                CheckMineAt(*targetPoint);
             }
         }
     }
 
-    if (target != nullptr && (target->objectClass == BATTLEMECH || target->objectClass == GROUNDVEHICLE ||
-                              target->objectClass == ELEMENTAL || target->objectClass == MOVER))
+    if (target != nullptr && (target->ObjectClass == BATTLEMECH || target->ObjectClass == GROUNDVEHICLE ||
+                              target->ObjectClass == ELEMENTAL || target->ObjectClass == MOVER))
     {
-        MechWarrior* targetPilot = target->getPilot();
-        targetPilot->updateAttackerStatus(static_cast<uint32_t>(partId), scenarioTime);
-        targetPilot->triggerAlarm(0, static_cast<uint32_t>(partId));
+        MCMechWarrior* targetPilot = target->GetPilot();
+        targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
+        targetPilot->TriggerAlarm(0, static_cast<uint32_t>(PartId));
     }
 
-    revealFiring(this);
+    RevealFiring(this);
 
-    if (group != nullptr)
+    if (Group != nullptr)
     {
-        group->handleMateFiredWeapon(static_cast<uint32_t>(partId));
+        Group->HandleMateFiredWeapon(static_cast<uint32_t>(PartId));
     }
 
     return 0;
 }
 
-auto BattleMech::calcMaxSpeed() -> float
+auto MCBattleMech::CalcMaxSpeed() -> float
 {
-    auto* actor = static_cast<MechActor*>(appearance);
+    auto* actor = static_cast<MCMechActor*>(Appearance);
 
-    if (legStatus == 0)
+    if (LegStatus == 0)
     {
-        return actor->getVelocityOfGesture(7);
+        return actor->GetVelocityOfGesture(7);
     }
 
-    if (legStatus < 2)
+    if (LegStatus < 2)
     {
-        return actor->getVelocityOfGesture(4);
+        return actor->GetVelocityOfGesture(4);
     }
 
-    if (legStatus == 2)
+    if (LegStatus == 2)
     {
-        return actor->getVelocityOfGesture(11);
+        return actor->GetVelocityOfGesture(11);
     }
 
     return 0.0f;
 }
 
-auto BattleMech::calcSlowSpeed() -> float
+auto MCBattleMech::CalcSlowSpeed() -> float
 {
-    if (legStatus < 2)
+    if (LegStatus < 2)
     {
-        return static_cast<float>(maxRunSpeed * 0.25);
+        return static_cast<float>(MaxRunSpeed * 0.25);
     }
 
-    if (legStatus == 2)
+    if (LegStatus == 2)
     {
-        return static_cast<float>(maxRunSpeed * 0.2);
+        return static_cast<float>(MaxRunSpeed * 0.2);
     }
 
     return 0.0f;
 }
 
-auto BattleMech::calcModerateSpeed() -> float
+auto MCBattleMech::CalcModerateSpeed() -> float
 {
-    if (legStatus < 2)
+    if (LegStatus < 2)
     {
-        return static_cast<float>(maxRunSpeed * 0.4);
+        return static_cast<float>(MaxRunSpeed * 0.4);
     }
 
-    if (legStatus == 2)
+    if (LegStatus == 2)
     {
-        return static_cast<float>(maxRunSpeed * 0.3);
+        return static_cast<float>(MaxRunSpeed * 0.3);
     }
 
     return 0.0f;
 }
 
-auto BattleMech::calcSpriteSpeed(float speed, uint32_t flags, int32_t& state, int32_t& throttle) -> int32_t
+auto MCBattleMech::CalcSpriteSpeed(float speed, uint32_t flags, int32_t& state, int32_t& throttle) -> int32_t
 {
-    auto* actor = static_cast<MechActor*>(appearance);
+    auto* actor = static_cast<MCMechActor*>(Appearance);
     state = 3;
     throttle = 100;
-    const float walkSpeed = actor->getVelocityOfGesture(4);
-    const float runSpeed = actor->getVelocityOfGesture(7);
+    const float walkSpeed = actor->GetVelocityOfGesture(4);
+    const float runSpeed = actor->GetVelocityOfGesture(7);
 
     if (speed == 0.0)
     {
@@ -6822,57 +6823,57 @@ auto BattleMech::calcSpriteSpeed(float speed, uint32_t flags, int32_t& state, in
     return 0;
 }
 
-auto BattleMech::openStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) -> int32_t
+auto MCBattleMech::OpenStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) -> int32_t
 {
-    auto* window = new MechStatusWindow;
-    statusWindow = window;
-    window->init(left, top, right, bottom, this);
-    statusWindow->setBackColor(0);
-    statusWindow->draw();
-    screenWindow->addChild(statusWindow);
+    auto* window = new MCMechStatusWindow;
+    StatusWindow = window;
+    window->Init(left, top, right, bottom, this);
+    StatusWindow->SetBackColor(0);
+    StatusWindow->Draw();
+    ScreenWindow->AddChild(StatusWindow);
 
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        pilot->openStatusWindow(left + 30, top + 30, right, bottom);
+        Pilot->OpenStatusWindow(left + 30, top + 30, right, bottom);
     }
 
     return 0;
 }
 
-MechStatusWindow::~MechStatusWindow()
+MCMechStatusWindow::~MCMechStatusWindow()
 {
     // The inline ~aTitleWindow.
-    aTitleWindow::destroy();
+    MCGuiTitleWindow::Destroy();
 }
 
-auto BattleMech::closeStatusWindow() -> int32_t
+auto MCBattleMech::CloseStatusWindow() -> int32_t
 {
-    if (pilot != nullptr)
+    if (Pilot != nullptr)
     {
-        pilot->closeStatusWindow();
+        Pilot->CloseStatusWindow();
     }
 
     // The window is destroyed, not deleted.
-    statusWindow->destroy();
-    statusWindow = nullptr;
+    StatusWindow->Destroy();
+    StatusWindow = nullptr;
     return 0;
 }
 
-auto BattleMech::getVitalInfo(void* vitalInfo) -> int32_t
+auto MCBattleMech::GetVitalInfo(void* vitalInfo) -> int32_t
 {
-    const int32_t size = Mover::getVitalInfo(nullptr);
+    const int32_t size = MCMover::GetVitalInfo(nullptr);
 
     if (vitalInfo != nullptr)
     {
-        Mover::getVitalInfo(vitalInfo);
+        MCMover::GetVitalInfo(vitalInfo);
     }
 
     return size + 6;
 }
 
-auto BattleMech::isCaptureable() -> int
+auto MCBattleMech::IsCaptureable() -> int
 {
-    if (captureable != 0 && alignment == homeTeam->alignment && isDestroyed() == 0)
+    if (Captureable != 0 && Alignment == HomeTeam->Alignment && IsDestroyed() == 0)
     {
         return 1;
     }
@@ -6886,33 +6887,33 @@ namespace
     /// A weapon's damage per ten seconds: its damage times the missiles that land (in whole clusters for SRMs and
     /// LRMs, half the rack), over its recycle time.
     /// </summary>
-    float weaponDamageRate(const MasterComponent& weapon)
+    float WeaponDamageRate(const MCMasterComponent& weapon)
     {
         int32_t clusterSize = 1;
         int32_t numClusters = 1;
 
-        if (weapon.form == 9 && (weapon.missileType == 1 || weapon.missileType == 2))
+        if (weapon.Form == 9 && (weapon.MissileType == 1 || weapon.MissileType == 2))
         {
-            clusterSize = weapon.missileType == 1 ? ClusterSizeSRM : ClusterSizeLRM;
-            numClusters = weapon.numMissiles / 2 / clusterSize;
+            clusterSize = weapon.MissileType == 1 ? ClusterSizeSrm : ClusterSizeLrm;
+            numClusters = weapon.NumMissiles / 2 / clusterSize;
 
-            if (weapon.numMissiles / 2 % clusterSize != 0)
+            if (weapon.NumMissiles / 2 % clusterSize != 0)
             {
                 numClusters++;
             }
         }
 
-        return static_cast<float>(clusterSize * numClusters) * weapon.damage * 10.0f / weapon.recycleTime;
+        return static_cast<float>(clusterSize * numClusters) * weapon.Damage * 10.0f / weapon.RecycleTime;
     }
 }
 
-auto BattleMech::calcMaxTargetDamage() -> float
+auto MCBattleMech::CalcMaxTargetDamage() -> float
 {
     float total = 0.0f;
 
-    for (int32_t i = numOther; i < numOther + numWeapons; i++)
+    for (int32_t i = NumOther; i < NumOther + NumWeapons; i++)
     {
-        const float damage = weaponDamageRate(MasterComponentList[inventory[i].masterID]) * 100.0f;
+        const float damage = WeaponDamageRate(MasterComponentList[Inventory[i].MasterID]) * 100.0f;
 
         if (0.0f < damage)
         {
@@ -6920,65 +6921,65 @@ auto BattleMech::calcMaxTargetDamage() -> float
         }
     }
 
-    maxTargetDamage = total;
+    MaxTargetDamage = total;
     return total;
 }
 
-auto BattleMech::calcExpectedTargetDamage(GameObject* target) -> float
+auto MCBattleMech::CalcExpectedTargetDamage(MCGameObject* target) -> float
 {
     float total = 0.0f;
 
-    if (getPilot() == nullptr)
+    if (GetPilot() == nullptr)
     {
         return 0.0f;
     }
 
-    GameObject* aimTarget;
+    MCGameObject* aimTarget;
     float targetTime;
 
     if (target == nullptr)
     {
-        aimTarget = getPilot()->getLastTarget();
+        aimTarget = GetPilot()->GetLastTarget();
 
         if (aimTarget == nullptr)
         {
             return 0.0f;
         }
 
-        targetTime = getPilot()->lastTargetTime;
+        targetTime = GetPilot()->LastTargetTime;
     }
     else
     {
-        targetTime = getPilot()->getLastTarget() == target ? getPilot()->lastTargetTime : 0.0f;
+        targetTime = GetPilot()->GetLastTarget() == target ? GetPilot()->LastTargetTime : 0.0f;
         aimTarget = target;
     }
 
-    vector_3d targetPosition = aimTarget->getPosition();
-    const auto distance = static_cast<float>(distanceFrom(targetPosition));
+    MCVector3D targetPosition = aimTarget->GetPosition();
+    const auto distance = static_cast<float>(DistanceFrom(targetPosition));
 
-    if (getFireRange(-2) < distance)
+    if (GetFireRange(-2) < distance)
     {
         return 0.0f;
     }
 
-    for (int32_t i = numOther; i < numOther + numWeapons; i++)
+    for (int32_t i = NumOther; i < NumOther + NumWeapons; i++)
     {
-        if (isWeaponWorking(i) == 0)
+        if (IsWeaponWorking(i) == 0)
         {
             continue;
         }
 
-        const float damageRate = weaponDamageRate(MasterComponentList[inventory[i].masterID]);
+        const float damageRate = WeaponDamageRate(MasterComponentList[Inventory[i].MasterID]);
         int32_t aimLocation = -1;
 
-        if (pilot != nullptr && pilot->curTacOrder.isCombatOrder() != 0)
+        if (Pilot != nullptr && Pilot->CurTacOrder.IsCombatOrder() != 0)
         {
-            aimLocation = pilot->curTacOrder.attackParams.aimLocation;
+            aimLocation = Pilot->CurTacOrder.AttackParams.AimLocation;
         }
 
         int32_t range = 0;
         const double expected =
-            static_cast<double>(calcAttackChance(aimTarget, aimLocation, targetTime, i, 0.0f, &range, nullptr)) *
+            static_cast<double>(CalcAttackChance(aimTarget, aimLocation, targetTime, i, 0.0f, &range, nullptr)) *
             damageRate;
 
         if (0.0 < expected)
@@ -6987,59 +6988,59 @@ auto BattleMech::calcExpectedTargetDamage(GameObject* target) -> float
         }
     }
 
-    maxTargetDamage = total;
+    MaxTargetDamage = total;
     return total;
 }
 
-auto BattleMech::isWeaponWorking(int32_t weaponIndex) -> int
+auto MCBattleMech::IsWeaponWorking(int32_t weaponIndex) -> int
 {
-    if (inventory[weaponIndex].disabled != 0)
+    if (Inventory[weaponIndex].Disabled != 0)
     {
         return 0;
     }
 
-    return getWeaponShots(weaponIndex) != 0 ? 1 : 0;
+    return GetWeaponShots(weaponIndex) != 0 ? 1 : 0;
 }
 
-auto BattleMech::getTotalEffectiveness() -> float
+auto MCBattleMech::GetTotalEffectiveness() -> float
 {
-    const float weaponRatio = weaponEffectiveness / maxWeaponEffectiveness;
+    const float weaponRatio = WeaponEffectiveness / MaxWeaponEffectiveness;
     float armorFactor = 0.0f;
 
-    if (isDestroyed() == 0 && isDisabled() == 0)
+    if (IsDestroyed() == 0 && IsDisabled() == 0)
     {
         // Head, arms, centre torso (the worse of front and back) and side torsos (front and back), each as a share
         // of its full armor.
-        const ArmorLocation* locations = armor.get();
-        const float head = locations[MECH_BODY_LOCATION_HEAD].curArmor /
-                               static_cast<float>(locations[MECH_BODY_LOCATION_HEAD].maxArmor) * 0.6f +
+        const MCArmorLocation* locations = Armor.get();
+        const float head = locations[MECH_BODY_LOCATION_HEAD].CurArmor /
+                               static_cast<float>(locations[MECH_BODY_LOCATION_HEAD].MaxArmor) * 0.6f +
                            0.4f;
-        float centre = locations[MECH_BODY_LOCATION_CTORSO].curArmor;
-        uint8_t centreMax = locations[MECH_BODY_LOCATION_CTORSO].maxArmor;
+        float centre = locations[MECH_BODY_LOCATION_CTORSO].CurArmor;
+        uint8_t centreMax = locations[MECH_BODY_LOCATION_CTORSO].MaxArmor;
 
-        if (locations[8].curArmor < centre)
+        if (locations[8].CurArmor < centre)
         {
-            centreMax = locations[8].maxArmor;
-            centre = locations[8].curArmor;
+            centreMax = locations[8].MaxArmor;
+            centre = locations[8].CurArmor;
         }
 
-        const float arms = (locations[MECH_BODY_LOCATION_RARM].curArmor + locations[MECH_BODY_LOCATION_LARM].curArmor) /
-                           static_cast<float>(locations[MECH_BODY_LOCATION_RARM].maxArmor +
-                                              locations[MECH_BODY_LOCATION_LARM].maxArmor);
+        const float arms = (locations[MECH_BODY_LOCATION_RARM].CurArmor + locations[MECH_BODY_LOCATION_LARM].CurArmor) /
+                           static_cast<float>(locations[MECH_BODY_LOCATION_RARM].MaxArmor +
+                                              locations[MECH_BODY_LOCATION_LARM].MaxArmor);
         const float armFactor = arms * 0.25f + 0.75f;
         const float sides =
-            (locations[10].curArmor + locations[9].curArmor + locations[MECH_BODY_LOCATION_RTORSO].curArmor +
-             locations[MECH_BODY_LOCATION_LTORSO].curArmor) /
-            static_cast<float>(locations[10].maxArmor + locations[9].maxArmor +
-                               locations[MECH_BODY_LOCATION_RTORSO].maxArmor +
-                               locations[MECH_BODY_LOCATION_LTORSO].maxArmor);
+            (locations[10].CurArmor + locations[9].CurArmor + locations[MECH_BODY_LOCATION_RTORSO].CurArmor +
+             locations[MECH_BODY_LOCATION_LTORSO].CurArmor) /
+            static_cast<float>(locations[10].MaxArmor + locations[9].MaxArmor +
+                               locations[MECH_BODY_LOCATION_RTORSO].MaxArmor +
+                               locations[MECH_BODY_LOCATION_LTORSO].MaxArmor);
         armorFactor = armFactor * (arms * 0.4f + 0.6f) * (centre / static_cast<float>(centreMax) + 1.0f) * 0.5f *
                       (sides * 0.25f + 0.75f) * head;
     }
 
     // Wounds wear the pilot down.
     const float woundFactor[7] = {1.0f, 0.95f, 0.85f, 0.75f, 0.5f, 0.3f, 0.0f};
-    auto wounds = static_cast<uint32_t>(static_cast<int32_t>(std::floor(getPilot()->wounds)));
+    auto wounds = static_cast<uint32_t>(static_cast<int32_t>(std::floor(GetPilot()->Wounds)));
 
     if (6 < wounds)
     {
@@ -7049,47 +7050,47 @@ auto BattleMech::getTotalEffectiveness() -> float
     return woundFactor[wounds] * armorFactor * weaponRatio;
 }
 
-auto BattleMech::damageLoadedComponents() -> void
+auto MCBattleMech::DamageLoadedComponents() -> void
 {
     for (int32_t location = 0; location < NUM_MECH_BODY_LOCATIONS; location++)
     {
         for (int32_t i = 0; i < NumLocationCriticalSpaces[location]; i++)
         {
-            const CriticalSpace& space = bodyAt(location).criticalSpaces[i];
+            const MCCriticalSpace& space = BodyAt(location).CriticalSpaces[i];
 
-            if (space.hit != 0)
+            if (space.Hit != 0)
             {
-                hitInventoryItem(static_cast<int8_t>(space.inventoryID), 1);
+                HitInventoryItem(static_cast<int8_t>(space.InventoryID), 1);
             }
         }
     }
 }
 
-auto MechStatusWindow::init(int32_t x, int32_t y, int32_t w, int32_t h, BattleMech* newMech) -> void
+auto MCMechStatusWindow::Init(int32_t x, int32_t y, int32_t w, int32_t h, MCBattleMech* newMech) -> void
 {
-    aTitleWindow::init(x, y, w, h, nullptr);
+    MCGuiTitleWindow::Init(x, y, w, h, nullptr);
 
-    if (titleBar != nullptr)
+    if (TitleBar != nullptr)
     {
-        titleBar->showCloseButton(1);
+        TitleBar->ShowCloseButton(1);
     }
 
-    mech = newMech;
+    Mech = newMech;
 }
 
-auto MechStatusWindow::handleEvent(aEvent* event) -> void
+auto MCMechStatusWindow::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (event->type == 0xd)
+    if (event->Type == 0xd)
     {
-        mech->closeStatusWindow();
+        Mech->CloseStatusWindow();
     }
 
-    aObject::handleEvent(event);
+    MCGuiObject::HandleEvent(event);
 }
 
-auto MechStatusWindow::resize(int32_t w, int32_t h) -> void
+auto MCMechStatusWindow::Resize(int32_t w, int32_t h) -> void
 {
-    aTitleWindow::resize(w, h);
+    MCGuiTitleWindow::Resize(w, h);
 }
 
 namespace
@@ -7098,7 +7099,7 @@ namespace
     const char* const AlignmentNames[3] = {"Clan", "Neutral", "Inner Sphere"};
 }
 
-auto MechStatusWindow::display() -> void
+auto MCMechStatusWindow::Display() -> void
 {
     static const char* const statusNames[6] = {"Normal",      "Disabled",      "Destroyed",
                                                "Starting Up", "Shutting Down", "Shut Down"};
@@ -7107,102 +7108,102 @@ auto MechStatusWindow::display() -> void
         "Left Leg:", "Right Leg:",    "Rear Center Torso:", "Rear Left Torso:", "Rear Right torso:"};
     static const char* const locationNames[8] = {"HEAD", "CTORSO", "LTORSO", "RTORSO", "LARM", "RARM", "LLEG", "RLEG"};
     static const char* const damageNames[3] = {"No Damage", "Partial Damage", "Destroyed"};
-    VFX_pane_wipe(displayPort->frame(), backgroundColor);
-    BattleMech* shown = mech;
+    VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
+    MCBattleMech* shown = Mech;
 
     if (shown != nullptr)
     {
         char line[256];
-        std::snprintf(line, sizeof(line), "%s %s (%s)", AlignmentNames[shown->getAlignment() + 1],
-                      shown->debugStatus.c_str(), shown->getPilot()->callsign);
-        setTitle(line);
-        aPort* port = displayPort;
-        systemFont->writeString(port->frame(), 2, 10, reinterpret_cast<uint8_t*>(const_cast<char*>("Status:")), -1);
-        std::snprintf(line, sizeof(line), "%s", statusNames[static_cast<uint8_t>(shown->status)]);
-        systemFont->writeString(port->frame(), 100, 10, reinterpret_cast<uint8_t*>(line), -1);
-        systemFont->writeString(port->frame(), 2, 0x14, reinterpret_cast<uint8_t*>(const_cast<char*>("Combat Value:")),
+        std::snprintf(line, sizeof(line), "%s %s (%s)", AlignmentNames[shown->GetAlignment() + 1],
+                      shown->DebugStatus.c_str(), shown->GetPilot()->Callsign);
+        SetTitle(line);
+        MCGuiPort* port = DisplayPort;
+        SystemFont->WriteString(port->Frame(), 2, 10, reinterpret_cast<uint8_t*>(const_cast<char*>("Status:")), -1);
+        std::snprintf(line, sizeof(line), "%s", statusNames[static_cast<uint8_t>(shown->Status)]);
+        SystemFont->WriteString(port->Frame(), 100, 10, reinterpret_cast<uint8_t*>(line), -1);
+        SystemFont->WriteString(port->Frame(), 2, 0x14, reinterpret_cast<uint8_t*>(const_cast<char*>("Combat Value:")),
                                 -1);
-        const int32_t maxCV = shown->getMaxCV();
-        std::snprintf(line, sizeof(line), "%d/%d", shown->getCurCV(), maxCV);
-        systemFont->writeString(port->frame(), 100, 0x14, reinterpret_cast<uint8_t*>(line), -1);
+        const int32_t maxCV = shown->GetMaxCV();
+        std::snprintf(line, sizeof(line), "%d/%d", shown->GetCurCV(), maxCV);
+        SystemFont->WriteString(port->Frame(), 100, 0x14, reinterpret_cast<uint8_t*>(line), -1);
 
         for (int32_t i = 0; i < NUM_MECH_BODY_LOCATIONS; i++)
         {
             const int32_t y = 0x50 + i * 10;
-            const ArmorLocation& armorLocation = shown->armor[i];
-            const BodyLocation& bodyLocation = shown->bodyAt(i);
-            systemFont->writeString(port->frame(), 2, y, reinterpret_cast<uint8_t*>(const_cast<char*>(armorNames[i])),
+            const MCArmorLocation& armorLocation = shown->Armor[i];
+            const MCBodyLocation& bodyLocation = shown->BodyAt(i);
+            SystemFont->WriteString(port->Frame(), 2, y, reinterpret_cast<uint8_t*>(const_cast<char*>(armorNames[i])),
                                     -1);
             // Port fix: the original passes the armor and structure as doubles to %d.
-            std::snprintf(line, sizeof(line), "A(%d/%d), IS(%d/%d), %s%s", static_cast<int32_t>(armorLocation.curArmor),
-                          armorLocation.maxArmor, static_cast<int32_t>(bodyLocation.curInternalStructure),
-                          bodyLocation.maxInternalStructure, damageNames[bodyLocation.damageState],
-                          bodyLocation.hasCASE != 0 ? " [CASE]" : "");
-            systemFont->writeString(port->frame(), 100, y, reinterpret_cast<uint8_t*>(line), -1);
+            std::snprintf(line, sizeof(line), "A(%d/%d), IS(%d/%d), %s%s", static_cast<int32_t>(armorLocation.CurArmor),
+                          armorLocation.MaxArmor, static_cast<int32_t>(bodyLocation.CurInternalStructure),
+                          bodyLocation.MaxInternalStructure, damageNames[bodyLocation.DamageState],
+                          bodyLocation.HasCase != 0 ? " [CASE]" : "");
+            SystemFont->WriteString(port->Frame(), 100, y, reinterpret_cast<uint8_t*>(line), -1);
         }
 
         for (int32_t i = 0; i < 3; i++)
         {
             const int32_t y = 0xa0 + i * 10;
-            const ArmorLocation& armorLocation = shown->armor[NUM_MECH_BODY_LOCATIONS + i];
-            systemFont->writeString(
-                port->frame(), 2, y,
+            const MCArmorLocation& armorLocation = shown->Armor[NUM_MECH_BODY_LOCATIONS + i];
+            SystemFont->WriteString(
+                port->Frame(), 2, y,
                 reinterpret_cast<uint8_t*>(const_cast<char*>(armorNames[NUM_MECH_BODY_LOCATIONS + i])), -1);
             // Port fix: as above.
-            std::snprintf(line, sizeof(line), "A(%d/%d)", static_cast<int32_t>(armorLocation.curArmor),
-                          armorLocation.maxArmor);
-            systemFont->writeString(port->frame(), 100, y, reinterpret_cast<uint8_t*>(line), -1);
+            std::snprintf(line, sizeof(line), "A(%d/%d)", static_cast<int32_t>(armorLocation.CurArmor),
+                          armorLocation.MaxArmor);
+            SystemFont->WriteString(port->Frame(), 100, y, reinterpret_cast<uint8_t*>(line), -1);
         }
 
-        systemFont->writeString(port->frame(), 2, 200, reinterpret_cast<uint8_t*>(const_cast<char*>("Inventory:")), -1);
-        systemFont->writeString(port->frame(), 0xc, 0xd2, reinterpret_cast<uint8_t*>(const_cast<char*>("Weapons:")),
+        SystemFont->WriteString(port->Frame(), 2, 200, reinterpret_cast<uint8_t*>(const_cast<char*>("Inventory:")), -1);
+        SystemFont->WriteString(port->Frame(), 0xc, 0xd2, reinterpret_cast<uint8_t*>(const_cast<char*>("Weapons:")),
                                 -1);
-        const int32_t numOther = shown->numOther;
-        const int32_t numWeapons = shown->numWeapons;
+        const int32_t numOther = shown->NumOther;
+        const int32_t numWeapons = shown->NumWeapons;
 
         for (int32_t i = numOther; i < numOther + numWeapons; i++)
         {
-            const InventoryItem& item = shown->inventory[i];
-            const double ready = item.readyTime <= scenarioTime ? 0.0 : item.readyTime - scenarioTime;
-            const MasterComponent& component = MasterComponentList[item.masterID];
+            const MCInventoryItem& item = shown->Inventory[i];
+            const double ready = item.ReadyTime <= ScenarioTime ? 0.0 : item.ReadyTime - ScenarioTime;
+            const MCMasterComponent& component = MasterComponentList[item.MasterID];
             // Port fix: the original passes the whole ammo tally by value to AMMO(%d), which misaligns RDY too.
-            std::snprintf(line, sizeof(line), "%s: [%s] ID(%d), H(%d/%d), AMMO(%d), RDY(%.2f)%s", component.name,
-                          locationNames[item.bodyLocation], item.masterID, item.health,
-                          static_cast<int8_t>(component.criticalSpacesReq),
-                          shown->ammoTypeTotal[item.ammoIndex + 1].curAmount, ready,
-                          item.disabled != 0 ? " DISABLED" : "");
-            systemFont->writeString(port->frame(), 0x16, 0xdc + (i - numOther) * 10, reinterpret_cast<uint8_t*>(line),
+            std::snprintf(line, sizeof(line), "%s: [%s] ID(%d), H(%d/%d), AMMO(%d), RDY(%.2f)%s", component.Name,
+                          locationNames[item.BodyLocation], item.MasterID, item.Health,
+                          static_cast<int8_t>(component.CriticalSpacesReq),
+                          shown->AmmoTypeTotal[item.AmmoIndex + 1].CurAmount, ready,
+                          item.Disabled != 0 ? " DISABLED" : "");
+            SystemFont->WriteString(port->Frame(), 0x16, 0xdc + (i - numOther) * 10, reinterpret_cast<uint8_t*>(line),
                                     -1);
         }
 
-        systemFont->writeString(port->frame(), 0xc, (numWeapons * 5 + 0x6e) * 2,
+        SystemFont->WriteString(port->Frame(), 0xc, (numWeapons * 5 + 0x6e) * 2,
                                 reinterpret_cast<uint8_t*>(const_cast<char*>("Misc:")), -1);
         int32_t y = (numWeapons * 5 + 0x73) * 2;
 
         for (int32_t i = 0; i < numOther; i++)
         {
-            const InventoryItem& item = shown->inventory[i];
-            const MasterComponent& component = MasterComponentList[item.masterID];
-            std::snprintf(line, sizeof(line), "%s: [%s] ID(%d), H(%d/%d)%s", component.name,
-                          locationNames[item.bodyLocation], item.masterID, item.health,
-                          static_cast<int8_t>(component.criticalSpacesReq), item.disabled != 0 ? " DISABLED" : "");
-            systemFont->writeString(port->frame(), 0x16, y, reinterpret_cast<uint8_t*>(line), -1);
+            const MCInventoryItem& item = shown->Inventory[i];
+            const MCMasterComponent& component = MasterComponentList[item.MasterID];
+            std::snprintf(line, sizeof(line), "%s: [%s] ID(%d), H(%d/%d)%s", component.Name,
+                          locationNames[item.BodyLocation], item.MasterID, item.Health,
+                          static_cast<int8_t>(component.CriticalSpacesReq), item.Disabled != 0 ? " DISABLED" : "");
+            SystemFont->WriteString(port->Frame(), 0x16, y, reinterpret_cast<uint8_t*>(line), -1);
             y += 10;
         }
     }
 
-    aObject::display();
+    MCGuiObject::Display();
 }
 
-auto MechStatusWindow::draw() -> void
+auto MCMechStatusWindow::Draw() -> void
 {
-    if (mech != nullptr)
+    if (Mech != nullptr)
     {
         char title[256];
-        std::snprintf(title, sizeof(title), "%s %s (%s)", AlignmentNames[mech->getAlignment() + 1],
-                      mech->debugStatus.c_str(), mech->getPilot()->callsign);
-        setTitle(title);
+        std::snprintf(title, sizeof(title), "%s %s (%s)", AlignmentNames[Mech->GetAlignment() + 1],
+                      Mech->DebugStatus.c_str(), Mech->GetPilot()->Callsign);
+        SetTitle(title);
     }
 
-    aTitleWindow::draw();
+    MCGuiTitleWindow::Draw();
 }

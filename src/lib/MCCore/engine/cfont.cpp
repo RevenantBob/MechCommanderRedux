@@ -3,19 +3,19 @@
 #include "camera/camera.h"
 #include "gui/afont.h"
 
-FontElement::FontElement(aFont* _font, vector_2d& pos, char* _text, int32_t _depth) : Element(_depth)
+MCFontElement::MCFontElement(MCGuiFont* font, MCVector2D& pos, char* text, int32_t depth) : MCElement(depth)
 {
-    position.x = pos.x;
-    text = _text;
-    position.y = pos.y;
-    font = _font;
+    Position.X = pos.X;
+    Text = text;
+    Position.Y = pos.Y;
+    Font = font;
 }
 
-auto FontElement::draw() -> void
+auto MCFontElement::Draw() -> void
 {
-    if (font != nullptr && text != nullptr)
+    if (Font != nullptr && Text != nullptr)
     {
-        font->writeString(globalPane, static_cast<int32_t>(position.x), static_cast<int32_t>(position.y),
-                          reinterpret_cast<uint8_t*>(text), -1);
+        Font->WriteString(GlobalPane, static_cast<int32_t>(Position.X), static_cast<int32_t>(Position.Y),
+                          reinterpret_cast<uint8_t*>(Text), -1);
     }
 }

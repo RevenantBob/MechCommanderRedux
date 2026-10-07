@@ -9,13 +9,13 @@
 #include "abl/ablsymt.h"
 #include "lib/aerror.h"
 
-TokenCodeType statementStartList[] = {TKN_FOR, TKN_IF, TKN_REPEAT, TKN_WHILE, TKN_SWITCH, TKN_IDENTIFIER, TKN_NONE};
-TokenCodeType statementEndList[] = {TKN_SEMICOLON,  TKN_END_IF,       TKN_END_WHILE, TKN_END_FOR,
-                                    TKN_END_SWITCH, TKN_END_FUNCTION, TKN_ELSE,      TKN_ELSIF,
-                                    TKN_UNTIL,      TKN_EOF,          TKN_NONE};
-TokenCodeType FollowSwitchExpressionList[] = {TKN_CASE, TKN_SEMICOLON, TKN_NONE};
-TokenCodeType FollowCaseLabelList[] = {TKN_COLON, TKN_SEMICOLON, TKN_NONE};
-TokenCodeType CaseLabelStartList[] = {TKN_IDENTIFIER, TKN_NUMBER, TKN_PLUS, TKN_MINUS, TKN_STRING, TKN_NONE};
+MCTokenCodeType StatementStartList[] = {TKN_FOR, TKN_IF, TKN_REPEAT, TKN_WHILE, TKN_SWITCH, TKN_IDENTIFIER, TKN_NONE};
+MCTokenCodeType StatementEndList[] = {TKN_SEMICOLON,  TKN_END_IF,       TKN_END_WHILE, TKN_END_FOR,
+                                      TKN_END_SWITCH, TKN_END_FUNCTION, TKN_ELSE,      TKN_ELSIF,
+                                      TKN_UNTIL,      TKN_EOF,          TKN_NONE};
+MCTokenCodeType FollowSwitchExpressionList[] = {TKN_CASE, TKN_SEMICOLON, TKN_NONE};
+MCTokenCodeType FollowCaseLabelList[] = {TKN_COLON, TKN_SEMICOLON, TKN_NONE};
+MCTokenCodeType CaseLabelStartList[] = {TKN_IDENTIFIER, TKN_NUMBER, TKN_PLUS, TKN_MINUS, TKN_STRING, TKN_NONE};
 
 namespace
 {
@@ -23,158 +23,158 @@ namespace
     /// Compiles statements (each followed by any number of semicolons) until <paramref name="endToken1"/> or
     /// <paramref name="endToken2"/>, or a token that can't start a statement.
     /// </summary>
-    auto statementList(TokenCodeType endToken1, TokenCodeType endToken2) -> void
+    auto StatementList(MCTokenCodeType endToken1, MCTokenCodeType endToken2) -> void
     {
-        if (curToken == endToken1 || curToken == endToken2)
+        if (CurToken == endToken1 || CurToken == endToken2)
         {
             return;
         }
 
         do
         {
-            statement();
+            Statement();
 
-            while (curToken == TKN_SEMICOLON)
+            while (CurToken == TKN_SEMICOLON)
             {
-                getToken();
+                GetToken();
             }
-        } while (curToken != endToken1 && curToken != endToken2 && tokenIn(statementStartList));
+        } while (CurToken != endToken1 && CurToken != endToken2 && TokenIn(StatementStartList));
     }
 
     /// <summary>statementList with a single end token.</summary>
-    auto statementList(TokenCodeType endToken) -> void
+    auto StatementList(MCTokenCodeType endToken) -> void
     {
-        statementList(endToken, endToken);
+        StatementList(endToken, endToken);
     }
 }
 
-auto assignmentStatement(SymTableNodePtr varIdPtr) -> void
+auto AssignmentStatement(MCSymTableNodePtr varIdPtr) -> void
 {
-    TypePtr varType = variable(varIdPtr, USE_TARGET);
-    ifTokenGetElseError(TKN_EQUAL, ABL_ERR_SYNTAX_MISSING_EQUAL);
-    TypePtr exprType = expression();
+    MCTypePtr varType = Variable(varIdPtr, USE_TARGET);
+    IfTokenGetElseError(TKN_EQUAL, ABL_ERR_SYNTAX_MISSING_EQUAL);
+    MCTypePtr exprType = Expression();
 
-    if (isAssignTypeCompatible(varType, exprType) == 0)
+    if (IsAssignTypeCompatible(varType, exprType) == 0)
     {
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_ASSIGNMENT);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_ASSIGNMENT);
     }
 }
 
-auto repeatStatement() -> void
+auto RepeatStatement() -> void
 {
-    getToken();
-    statementList(TKN_UNTIL);
-    ifTokenGetElseError(TKN_UNTIL, ABL_ERR_SYNTAX_MISSING_UNTIL);
+    GetToken();
+    StatementList(TKN_UNTIL);
+    IfTokenGetElseError(TKN_UNTIL, ABL_ERR_SYNTAX_MISSING_UNTIL);
 
-    if (expression() != BooleanTypePtr)
+    if (Expression() != BooleanTypePtr)
     {
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
     }
 }
 
-auto whileStatement() -> void
+auto WhileStatement() -> void
 {
-    getToken();
-    char* loopEndLocation = crunchAddressMarker(nullptr);
+    GetToken();
+    char* loopEndLocation = CrunchAddressMarker(nullptr);
 
-    if (expression() != BooleanTypePtr)
+    if (Expression() != BooleanTypePtr)
     {
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
     }
 
-    ifTokenGetElseError(TKN_DO, ABL_ERR_SYNTAX_MISSING_DO);
-    statementList(TKN_END_WHILE);
-    ifTokenGetElseError(TKN_END_WHILE, ABL_ERR_SYNTAX_MISSING_END_WHILE);
-    fixupAddressMarker(loopEndLocation);
+    IfTokenGetElseError(TKN_DO, ABL_ERR_SYNTAX_MISSING_DO);
+    StatementList(TKN_END_WHILE);
+    IfTokenGetElseError(TKN_END_WHILE, ABL_ERR_SYNTAX_MISSING_END_WHILE);
+    FixupAddressMarker(loopEndLocation);
 }
 
-auto ifStatement() -> void
+auto IfStatement() -> void
 {
-    getToken();
-    char* falseLocation = crunchAddressMarker(nullptr);
+    GetToken();
+    char* falseLocation = CrunchAddressMarker(nullptr);
 
-    if (expression() != BooleanTypePtr)
+    if (Expression() != BooleanTypePtr)
     {
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
     }
 
-    ifTokenGetElseError(TKN_THEN, ABL_ERR_SYNTAX_MISSING_THEN);
-    statementList(TKN_END_IF, TKN_ELSE);
-    fixupAddressMarker(falseLocation);
+    IfTokenGetElseError(TKN_THEN, ABL_ERR_SYNTAX_MISSING_THEN);
+    StatementList(TKN_END_IF, TKN_ELSE);
+    FixupAddressMarker(falseLocation);
 
-    if (curToken == TKN_ELSE)
+    if (CurToken == TKN_ELSE)
     {
-        getToken();
-        char* ifEndLocation = crunchAddressMarker(nullptr);
-        statementList(TKN_END_IF);
-        fixupAddressMarker(ifEndLocation);
+        GetToken();
+        char* ifEndLocation = CrunchAddressMarker(nullptr);
+        StatementList(TKN_END_IF);
+        FixupAddressMarker(ifEndLocation);
     }
 
-    ifTokenGetElseError(TKN_END_IF, ABL_ERR_SYNTAX_MISSING_END_IF);
+    IfTokenGetElseError(TKN_END_IF, ABL_ERR_SYNTAX_MISSING_END_IF);
 }
 
-auto forStatement() -> void
+auto ForStatement() -> void
 {
-    getToken();
-    char* loopEndLocation = crunchAddressMarker(nullptr);
+    GetToken();
+    char* loopEndLocation = CrunchAddressMarker(nullptr);
 
-    TypePtr controlType;
+    MCTypePtr controlType;
 
-    if (curToken == TKN_IDENTIFIER)
+    if (CurToken == TKN_IDENTIFIER)
     {
-        SymTableNodePtr controlIdPtr = nullptr;
-        searchAndFindAllSymTables(controlIdPtr);
-        crunchSymTableNodePtr(controlIdPtr);
+        MCSymTableNodePtr controlIdPtr = nullptr;
+        SearchAndFindAllSymTables(controlIdPtr);
+        CrunchSymTableNodePtr(controlIdPtr);
 
-        if (controlIdPtr->defn.key != DFN_VAR)
+        if (controlIdPtr->Defn.Key != DFN_VAR)
         {
-            syntaxError(ABL_ERR_SYNTAX_INVALID_FOR_CONTROL);
+            SyntaxError(ABL_ERR_SYNTAX_INVALID_FOR_CONTROL);
         }
 
-        controlType = baseType(controlIdPtr->typePtr);
-        getToken();
+        controlType = BaseType(controlIdPtr->TypePtr);
+        GetToken();
 
-        if (controlType != IntegerTypePtr && controlType->form != FRM_ENUM)
+        if (controlType != IntegerTypePtr && controlType->Form != FRM_ENUM)
         {
-            syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+            SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
         }
     }
     else
     {
-        syntaxError(ABL_ERR_SYNTAX_MISSING_IDENTIFIER);
+        SyntaxError(ABL_ERR_SYNTAX_MISSING_IDENTIFIER);
         controlType = &DummyType;
     }
 
-    ifTokenGetElseError(TKN_EQUAL, ABL_ERR_SYNTAX_MISSING_EQUAL);
+    IfTokenGetElseError(TKN_EQUAL, ABL_ERR_SYNTAX_MISSING_EQUAL);
 
-    if (isAssignTypeCompatible(controlType, expression()) == 0)
+    if (IsAssignTypeCompatible(controlType, Expression()) == 0)
     {
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
     }
 
-    if (curToken == TKN_TO)
+    if (CurToken == TKN_TO)
     {
-        getToken();
+        GetToken();
     }
     else
     {
-        syntaxError(ABL_ERR_SYNTAX_MISSING_TO);
+        SyntaxError(ABL_ERR_SYNTAX_MISSING_TO);
     }
 
-    if (isAssignTypeCompatible(controlType, expression()) == 0)
+    if (IsAssignTypeCompatible(controlType, Expression()) == 0)
     {
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
     }
 
-    ifTokenGetElseError(TKN_DO, ABL_ERR_SYNTAX_MISSING_DO);
-    statementList(TKN_END_FOR);
-    ifTokenGetElseError(TKN_END_FOR, ABL_ERR_SYNTAX_MISSING_END_FOR);
-    fixupAddressMarker(loopEndLocation);
+    IfTokenGetElseError(TKN_DO, ABL_ERR_SYNTAX_MISSING_DO);
+    StatementList(TKN_END_FOR);
+    IfTokenGetElseError(TKN_END_FOR, ABL_ERR_SYNTAX_MISSING_END_FOR);
+    FixupAddressMarker(loopEndLocation);
 }
 
-auto caseLabel(CaseItemPtr& caseItemHead, CaseItemPtr& caseItemTail, int32_t& caseLabelCount) -> TypePtr
+auto CaseLabel(MCCaseItemPtr& caseItemHead, MCCaseItemPtr& caseItemTail, int32_t& caseLabelCount) -> MCTypePtr
 {
-    CaseItemPtr newCaseItem = AblMemory.Make<CaseItem>();
+    MCCaseItemPtr newCaseItem = AblMemory.Make<MCCaseItem>();
 
     if (caseItemHead == nullptr)
     {
@@ -182,270 +182,270 @@ auto caseLabel(CaseItemPtr& caseItemHead, CaseItemPtr& caseItemTail, int32_t& ca
     }
     else
     {
-        caseItemTail->next = newCaseItem;
+        caseItemTail->Next = newCaseItem;
     }
 
     caseItemTail = newCaseItem;
-    newCaseItem->next = nullptr;
+    newCaseItem->Next = nullptr;
     // Port fix: the original left labelValue as the heap had it when the label sets none (see the end).
-    newCaseItem->labelValue = 0;
+    newCaseItem->LabelValue = 0;
     caseLabelCount++;
 
-    TokenCodeType sign = TKN_PLUS;
+    MCTokenCodeType sign = TKN_PLUS;
     bool sawSign = false;
 
-    if (curToken == TKN_PLUS || curToken == TKN_MINUS)
+    if (CurToken == TKN_PLUS || CurToken == TKN_MINUS)
     {
-        sign = curToken;
+        sign = CurToken;
         sawSign = true;
-        getToken();
+        GetToken();
     }
 
-    if (curToken == TKN_NUMBER)
+    if (CurToken == TKN_NUMBER)
     {
         // Entered as a literal symbol like factor's, and crunched (the executor skips it).
-        SymTableNodePtr literalIdPtr = searchSymTable(tokenString, SymTableDisplay[1]);
+        MCSymTableNodePtr literalIdPtr = SearchSymTable(TokenString, SymTableDisplay[1]);
 
         if (literalIdPtr == nullptr)
         {
-            literalIdPtr = enterSymTable(tokenString, &SymTableDisplay[1]);
+            literalIdPtr = EnterSymTable(TokenString, &SymTableDisplay[1]);
         }
 
-        crunchSymTableNodePtr(literalIdPtr);
+        CrunchSymTableNodePtr(literalIdPtr);
 
-        if (curLiteral.type == LIT_INTEGER)
+        if (CurLiteral.Type == LIT_INTEGER)
         {
-            newCaseItem->labelValue = sign == TKN_PLUS ? curLiteral.value.integer : -curLiteral.value.integer;
+            newCaseItem->LabelValue = sign == TKN_PLUS ? CurLiteral.Value.Integer : -CurLiteral.Value.Integer;
         }
         else
         {
-            syntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
+            SyntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
         }
 
         return IntegerTypePtr;
     }
 
-    if (curToken == TKN_IDENTIFIER)
+    if (CurToken == TKN_IDENTIFIER)
     {
-        SymTableNodePtr labelIdPtr = nullptr;
-        searchAllSymTables(labelIdPtr);
-        crunchSymTableNodePtr(labelIdPtr);
+        MCSymTableNodePtr labelIdPtr = nullptr;
+        SearchAllSymTables(labelIdPtr);
+        CrunchSymTableNodePtr(labelIdPtr);
 
         if (labelIdPtr == nullptr)
         {
-            syntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
+            SyntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
             return &DummyType;
         }
 
-        if (labelIdPtr->defn.key != DFN_CONST)
+        if (labelIdPtr->Defn.Key != DFN_CONST)
         {
-            syntaxError(ABL_ERR_SYNTAX_NOT_A_CONSTANT_IDENTIFIER);
+            SyntaxError(ABL_ERR_SYNTAX_NOT_A_CONSTANT_IDENTIFIER);
             return &DummyType;
         }
 
-        const Value& value = labelIdPtr->defn.info.constant.value;
+        const MCValue& value = labelIdPtr->Defn.Info.Constant.Value;
 
-        if (labelIdPtr->typePtr == IntegerTypePtr)
+        if (labelIdPtr->TypePtr == IntegerTypePtr)
         {
-            newCaseItem->labelValue = sign == TKN_PLUS ? value.integer : -value.integer;
+            newCaseItem->LabelValue = sign == TKN_PLUS ? value.Integer : -value.Integer;
             return IntegerTypePtr;
         }
 
-        if (labelIdPtr->typePtr == CharTypePtr)
+        if (labelIdPtr->TypePtr == CharTypePtr)
         {
             if (sawSign)
             {
-                syntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
+                SyntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
             }
 
-            newCaseItem->labelValue = value.character;
+            newCaseItem->LabelValue = value.Character;
             return CharTypePtr;
         }
 
-        if (labelIdPtr->typePtr->form == FRM_ENUM)
+        if (labelIdPtr->TypePtr->Form == FRM_ENUM)
         {
             if (sawSign)
             {
-                syntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
+                SyntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
             }
 
-            newCaseItem->labelValue = value.integer;
-            return labelIdPtr->typePtr;
+            newCaseItem->LabelValue = value.Integer;
+            return labelIdPtr->TypePtr;
         }
 
         return &DummyType;
     }
 
     // A string label sets no value; anything else is an error.
-    if (curToken != TKN_STRING)
+    if (CurToken != TKN_STRING)
     {
-        syntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
+        SyntaxError(ABL_ERR_SYNTAX_INVALID_CONSTANT);
     }
 
     return &DummyType;
 }
 
-auto caseBranch(CaseItemPtr& caseItemHead, CaseItemPtr& caseItemTail, int32_t& caseLabelCount, TypePtr expressionType)
-    -> void
+auto CaseBranch(MCCaseItemPtr& caseItemHead, MCCaseItemPtr& caseItemTail, int32_t& caseLabelCount,
+                MCTypePtr expressionType) -> void
 {
-    CaseItemPtr oldCaseItemTail = caseItemTail;
+    MCCaseItemPtr oldCaseItemTail = caseItemTail;
 
     while (true)
     {
-        if (caseLabel(caseItemHead, caseItemTail, caseLabelCount) != expressionType)
+        if (CaseLabel(caseItemHead, caseItemTail, caseLabelCount) != expressionType)
         {
-            syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+            SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
         }
 
-        getToken();
+        GetToken();
 
-        if (curToken != TKN_COMMA)
+        if (CurToken != TKN_COMMA)
         {
             break;
         }
 
-        getToken();
+        GetToken();
 
-        if (tokenIn(CaseLabelStartList) == 0)
+        if (TokenIn(CaseLabelStartList) == 0)
         {
-            syntaxError(ABL_ERR_SYNTAX_MISSING_CONSTANT);
+            SyntaxError(ABL_ERR_SYNTAX_MISSING_CONSTANT);
             break;
         }
     }
 
-    synchronize(FollowCaseLabelList, statementStartList, nullptr);
-    ifTokenGetElseError(TKN_COLON, ABL_ERR_SYNTAX_MISSING_COLON);
+    Synchronize(FollowCaseLabelList, StatementStartList, nullptr);
+    IfTokenGetElseError(TKN_COLON, ABL_ERR_SYNTAX_MISSING_COLON);
 
     // This branch's labels all jump here.
-    char* branchLocation = codeBufferPtr;
-    CaseItemPtr caseItem = oldCaseItemTail == nullptr ? caseItemHead : oldCaseItemTail->next;
+    char* branchLocation = CodeBufferPtr;
+    MCCaseItemPtr caseItem = oldCaseItemTail == nullptr ? caseItemHead : oldCaseItemTail->Next;
 
-    for (; caseItem != nullptr; caseItem = caseItem->next)
+    for (; caseItem != nullptr; caseItem = caseItem->Next)
     {
-        caseItem->branchLocation = branchLocation;
+        caseItem->BranchLocation = branchLocation;
     }
 
-    statementList(TKN_END_CASE);
-    ifTokenGetElseError(TKN_END_CASE, ABL_ERR_SYNTAX_MISSING_END_CASE);
-    ifTokenGetElseError(TKN_SEMICOLON, ABL_ERR_SYNTAX_MISSING_SEMICOLON);
+    StatementList(TKN_END_CASE);
+    IfTokenGetElseError(TKN_END_CASE, ABL_ERR_SYNTAX_MISSING_END_CASE);
+    IfTokenGetElseError(TKN_SEMICOLON, ABL_ERR_SYNTAX_MISSING_SEMICOLON);
 }
 
-auto switchStatement() -> void
+auto SwitchStatement() -> void
 {
-    CaseItemPtr caseItemHead = nullptr;
-    CaseItemPtr caseItemTail = nullptr;
+    MCCaseItemPtr caseItemHead = nullptr;
+    MCCaseItemPtr caseItemTail = nullptr;
     int32_t caseLabelCount = 0;
 
-    getToken();
-    char* caseTableLocation = crunchAddressMarker(nullptr);
-    TypePtr expressionType = expression();
+    GetToken();
+    char* caseTableLocation = CrunchAddressMarker(nullptr);
+    MCTypePtr expressionType = Expression();
 
-    if ((expressionType->form != FRM_SCALAR && expressionType->form != FRM_ENUM) || expressionType == RealTypePtr)
+    if ((expressionType->Form != FRM_SCALAR && expressionType->Form != FRM_ENUM) || expressionType == RealTypePtr)
     {
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
     }
 
-    synchronize(FollowSwitchExpressionList, nullptr, nullptr);
+    Synchronize(FollowSwitchExpressionList, nullptr, nullptr);
 
     // Each branch ends with a marker jumping past the switch; the markers chain until fixed up at the end.
     char* branchEndChain = nullptr;
 
-    while (curToken == TKN_CASE)
+    while (CurToken == TKN_CASE)
     {
-        getToken();
+        GetToken();
 
-        if (tokenIn(CaseLabelStartList))
+        if (TokenIn(CaseLabelStartList))
         {
-            caseBranch(caseItemHead, caseItemTail, caseLabelCount, expressionType);
+            CaseBranch(caseItemHead, caseItemTail, caseLabelCount, expressionType);
         }
 
-        branchEndChain = crunchAddressMarker(branchEndChain);
+        branchEndChain = CrunchAddressMarker(branchEndChain);
     }
 
     // The case table: the label count, then each label's value and branch offset.
-    fixupAddressMarker(caseTableLocation);
-    crunchInteger(caseLabelCount);
-    CaseItemPtr caseItem = caseItemHead;
+    FixupAddressMarker(caseTableLocation);
+    CrunchInteger(caseLabelCount);
+    MCCaseItemPtr caseItem = caseItemHead;
 
     while (caseItem != nullptr)
     {
-        crunchInteger(caseItem->labelValue);
-        crunchOffset(caseItem->branchLocation);
-        CaseItemPtr nextCaseItem = caseItem->next;
+        CrunchInteger(caseItem->LabelValue);
+        CrunchOffset(caseItem->BranchLocation);
+        MCCaseItemPtr nextCaseItem = caseItem->Next;
         AblMemory.Free(caseItem);
         caseItem = nextCaseItem;
     }
 
-    ifTokenGetElseError(TKN_END_SWITCH, ABL_ERR_SYNTAX_MISSING_END_SWITCH);
+    IfTokenGetElseError(TKN_END_SWITCH, ABL_ERR_SYNTAX_MISSING_END_SWITCH);
 
     while (branchEndChain != nullptr)
     {
-        branchEndChain = fixupAddressMarker(branchEndChain);
+        branchEndChain = FixupAddressMarker(branchEndChain);
     }
 }
 
-auto statement() -> void
+auto Statement() -> void
 {
-    if (curToken != TKN_CODE)
+    if (CurToken != TKN_CODE)
     {
-        crunchStatementMarker();
+        CrunchStatementMarker();
     }
 
-    switch (curToken)
+    switch (CurToken)
     {
         case TKN_IDENTIFIER:
         {
-            SymTableNodePtr idPtr = nullptr;
-            searchAndFindAllSymTables(idPtr);
+            MCSymTableNodePtr idPtr = nullptr;
+            SearchAndFindAllSymTables(idPtr);
 
-            if (idPtr->defn.key != DFN_FUNCTION)
+            if (idPtr->Defn.Key != DFN_FUNCTION)
             {
-                assignmentStatement(idPtr);
+                AssignmentStatement(idPtr);
                 break;
             }
 
             // assert, print and concat calls compile to nothing while their directive is off.
-            RoutineKey routineKey = idPtr->defn.info.routine.key;
+            MCRoutineKey routineKey = idPtr->Defn.Info.Routine.Key;
 
             if ((routineKey == RTN_ASSERT && AssertEnabled == 0) || (routineKey == RTN_PRINT && PrintEnabled == 0) ||
                 (routineKey == RTN_CONCAT && StringFunctionsEnabled == 0))
             {
-                uncrunchStatementMarker();
+                UncrunchStatementMarker();
                 Crunch = 0;
             }
 
-            crunchSymTableNodePtr(idPtr);
-            getToken();
-            SymTableNodePtr saveRoutineIdPtr = CurRoutineIdPtr;
-            routineCall(idPtr, 1);
+            CrunchSymTableNodePtr(idPtr);
+            GetToken();
+            MCSymTableNodePtr saveRoutineIdPtr = CurRoutineIdPtr;
+            RoutineCall(idPtr, 1);
             Crunch = 1;
             CurRoutineIdPtr = saveRoutineIdPtr;
             break;
         }
 
         case TKN_SWITCH:
-            switchStatement();
+            SwitchStatement();
             break;
         case TKN_FOR:
-            forStatement();
+            ForStatement();
             break;
         case TKN_IF:
-            ifStatement();
+            IfStatement();
             break;
         case TKN_REPEAT:
-            repeatStatement();
+            RepeatStatement();
             break;
         case TKN_WHILE:
-            whileStatement();
+            WhileStatement();
             break;
         default:
             break;
     }
 
-    synchronize(statementEndList, nullptr, nullptr);
+    Synchronize(StatementEndList, nullptr, nullptr);
 
-    if (tokenIn(statementStartList))
+    if (TokenIn(StatementStartList))
     {
-        syntaxError(ABL_ERR_SYNTAX_MISSING_SEMICOLON);
+        SyntaxError(ABL_ERR_SYNTAX_MISSING_SEMICOLON);
     }
 }

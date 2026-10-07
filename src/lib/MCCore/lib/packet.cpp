@@ -18,45 +18,45 @@ namespace
     constexpr int32_t PACKET_WRONG_SIZE = static_cast<int32_t>(0xBADF0005);
 }
 
-PacketFile::PacketFile()
+MCPacketFile::MCPacketFile()
 {
-    clear();
+    Clear();
 }
 
-PacketFile::~PacketFile()
+MCPacketFile::~MCPacketFile()
 {
-    close();
+    Close();
 }
 
-void PacketFile::clear()
+void MCPacketFile::Clear()
 {
-    currentPacket = -1;
-    numPackets = 0;
-    packetBase = 0;
-    packetSize = 0;
-    delete[] seekTable;
-    seekTable = nullptr;
+    _CurrentPacket = -1;
+    _NumPackets = 0;
+    _PacketBase = 0;
+    _PacketSize = 0;
+    delete[] _SeekTable;
+    _SeekTable = nullptr;
 }
 
-void PacketFile::atClose()
+void MCPacketFile::AtClose()
 {
-    if (isOpen() && fileMode != READ)
+    if (IsOpen() && _FileMode != READ)
     {
         // Packets written as "pending" (never written) point at the next written packet, or at the end.
-        uint32_t next = getLength();
-        currentPacket = numPackets;
+        uint32_t next = GetLength();
+        _CurrentPacket = _NumPackets;
 
-        if (seekTable == nullptr)
+        if (_SeekTable == nullptr)
         {
-            for (currentPacket = numPackets - 1; currentPacket >= 0; --currentPacket)
+            for (_CurrentPacket = _NumPackets - 1; _CurrentPacket >= 0; --_CurrentPacket)
             {
-                seek(currentPacket * 4 + 8);
-                const uint32_t entry = static_cast<uint32_t>(readLong());
+                Seek(_CurrentPacket * 4 + 8);
+                const uint32_t entry = static_cast<uint32_t>(ReadLong());
 
                 if ((entry & PendingMark) == PendingMark)
                 {
-                    seek(currentPacket * 4 + 8);
-                    writeLong(static_cast<int32_t>(next + PendingMark));
+                    Seek(_CurrentPacket * 4 + 8);
+                    WriteLong(static_cast<int32_t>(next + PendingMark));
                 }
                 else
                 {
@@ -66,9 +66,9 @@ void PacketFile::atClose()
         }
         else
         {
-            for (currentPacket = numPackets - 1; currentPacket >= 0; --currentPacket)
+            for (_CurrentPacket = _NumPackets - 1; _CurrentPacket >= 0; --_CurrentPacket)
             {
-                uint32_t& entry = reinterpret_cast<uint32_t&>(seekTable[currentPacket]);
+                uint32_t& entry = reinterpret_cast<uint32_t&>(_SeekTable[_CurrentPacket]);
 
                 if ((entry & PendingMark) == PendingMark)
                 {
@@ -80,28 +80,28 @@ void PacketFile::atClose()
                 }
             }
 
-            seek(8);
-            write(reinterpret_cast<const uint8_t*>(seekTable), numPackets * 4);
+            Seek(8);
+            Write(reinterpret_cast<const uint8_t*>(_SeekTable), _NumPackets * 4);
         }
 
-        if (usesCheckSum)
+        if (_UsesCheckSum)
         {
-            const int32_t sum = checkSumFile();
-            seek(0);
-            writeLong(sum);
+            const int32_t sum = CheckSumFile();
+            Seek(0);
+            WriteLong(sum);
         }
     }
 
-    clear();
+    Clear();
 }
 
-int32_t PacketFile::checkSumFile()
+int32_t MCPacketFile::CheckSumFile()
 {
-    const uint32_t saved = logicalPosition;
-    seek(4);
-    const uint32_t size = fileSize();
+    const uint32_t saved = _LogicalPosition;
+    Seek(4);
+    const uint32_t size = FileSize();
     std::vector<uint8_t> bytes(size);
-    read(bytes.data(), static_cast<int32_t>(size));
+    Read(bytes.data(), static_cast<int32_t>(size));
     int32_t sum = 0;
 
     for (uint32_t i = 0; i + 4 < size; ++i)
@@ -109,88 +109,88 @@ int32_t PacketFile::checkSumFile()
         sum += bytes[i];
     }
 
-    seek(static_cast<int32_t>(saved));
+    Seek(static_cast<int32_t>(saved));
     return sum;
 }
 
-int32_t PacketFile::afterOpen()
+int32_t MCPacketFile::AfterOpen()
 {
-    if (numPackets == 0 && getLength() >= 12)
+    if (_NumPackets == 0 && GetLength() >= 12)
     {
-        const int32_t firstWord = readLong();
+        const int32_t firstWord = ReadLong();
 
-        if ((firstWord != PACKET_FILE_MAGIC || usesCheckSum) && checkSumFile() != firstWord)
+        if ((firstWord != PACKET_FILE_MAGIC || _UsesCheckSum) && CheckSumFile() != firstWord)
         {
             return BAD_PACKET_VERSION;
         }
 
-        const uint32_t firstPacket = static_cast<uint32_t>(readLong());
-        numPackets = static_cast<int32_t>(firstPacket / 4) - 2;
+        const uint32_t firstPacket = static_cast<uint32_t>(ReadLong());
+        _NumPackets = static_cast<int32_t>(firstPacket / 4) - 2;
     }
 
-    currentPacket = -1;
+    _CurrentPacket = -1;
 
-    if ((fileMode == READ || fileMode == RDWRITE) && numPackets != 0 && seekTable == nullptr)
+    if ((_FileMode == READ || _FileMode == RDWRITE) && _NumPackets != 0 && _SeekTable == nullptr)
     {
-        seekTable = new int32_t[static_cast<size_t>(numPackets)];
-        seek(8);
-        read(reinterpret_cast<uint8_t*>(seekTable), numPackets * 4);
+        _SeekTable = new int32_t[static_cast<size_t>(_NumPackets)];
+        Seek(8);
+        Read(reinterpret_cast<uint8_t*>(_SeekTable), _NumPackets * 4);
     }
 
     return NO_ERR;
 }
 
-int32_t PacketFile::open(const char* fName, FileMode _mode, int32_t numChild)
+int32_t MCPacketFile::Open(const char* fName, MCFileMode mode, int32_t numChild)
 {
-    int32_t result = File::open(fName, _mode, numChild);
+    int32_t result = MCFile::Open(fName, mode, numChild);
 
     if (result == NO_ERR)
     {
-        result = afterOpen();
+        result = AfterOpen();
     }
 
     return result;
 }
 
-int32_t PacketFile::open(File* _parent, uint32_t fileSize, int32_t numChild)
+int32_t MCPacketFile::Open(MCFile* parent, uint32_t fileSize, int32_t numChild)
 {
-    int32_t result = File::open(_parent, fileSize, numChild);
+    int32_t result = MCFile::Open(parent, fileSize, numChild);
 
     if (result == NO_ERR)
     {
-        result = afterOpen();
+        result = AfterOpen();
     }
 
     return result;
 }
 
-int32_t PacketFile::create(const char* fName)
+int32_t MCPacketFile::Create(const char* fName)
 {
-    int32_t result = File::create(fName);
+    int32_t result = MCFile::Create(fName);
 
     if (result == NO_ERR)
     {
-        result = afterOpen();
+        result = AfterOpen();
     }
 
     return result;
 }
 
-void PacketFile::close()
+void MCPacketFile::Close()
 {
-    atClose();
-    File::close();
+    AtClose();
+    MCFile::Close();
 }
 
-int32_t PacketFile::readPacketOffset(int32_t packet, int32_t* type)
+int32_t MCPacketFile::ReadPacketOffset(int32_t packet, int32_t* type)
 {
     uint32_t offset = 0xffffffff;
 
-    if (packet < numPackets)
+    if (packet < _NumPackets)
     {
-        if (seekTable != nullptr)
+        if (_SeekTable != nullptr)
         {
-            offset = static_cast<uint32_t>(seekTable[packet]);
+            offset = static_cast<uint32_t>(_SeekTable[packet]);
         }
 
         if (type != nullptr)
@@ -204,24 +204,24 @@ int32_t PacketFile::readPacketOffset(int32_t packet, int32_t* type)
     return static_cast<int32_t>(offset);
 }
 
-int32_t PacketFile::readPacket(int32_t packet, uint8_t* buffer)
+int32_t MCPacketFile::ReadPacket(int32_t packet, uint8_t* buffer)
 {
-    if (packet != -1 && packet != currentPacket && seekPacket(packet) != NO_ERR)
+    if (packet != -1 && packet != _CurrentPacket && SeekPacket(packet) != NO_ERR)
     {
         return 0;
     }
 
-    const int32_t storage = getStorageType();
+    const int32_t storage = GetStorageType();
 
     if (storage == STORAGE_TYPE_RAW || storage == STORAGE_TYPE_FWF)
     {
-        seek(packetBase);
-        return read(buffer, packetSize);
+        Seek(_PacketBase);
+        return Read(buffer, _PacketSize);
     }
 
     if (storage == STORAGE_TYPE_LZD)
     {
-        seek(packetBase + 4);
+        Seek(_PacketBase + 4);
 
         if (LZPacketBuffer == nullptr)
         {
@@ -233,9 +233,9 @@ int32_t PacketFile::readPacket(int32_t packet, uint8_t* buffer)
             }
         }
 
-        if (static_cast<int32_t>(LZPacketBufferSize) < packetSize)
+        if (static_cast<int32_t>(LZPacketBufferSize) < _PacketSize)
         {
-            LZPacketBufferSize = static_cast<uint32_t>(packetSize);
+            LZPacketBufferSize = static_cast<uint32_t>(_PacketSize);
             std::free(LZPacketBuffer);
             LZPacketBuffer = static_cast<uint8_t*>(std::malloc(LZPacketBufferSize));
 
@@ -245,63 +245,63 @@ int32_t PacketFile::readPacket(int32_t packet, uint8_t* buffer)
             }
         }
 
-        const int32_t got = read(LZPacketBuffer, packetSize - 4);
+        const int32_t got = Read(LZPacketBuffer, _PacketSize - 4);
         const int32_t unpacked = LZDecomp(buffer, LZPacketBuffer, static_cast<uint32_t>(std::max(got, 0)),
-                                          static_cast<uint32_t>(packetUnpackedSize));
-        return unpacked == packetUnpackedSize ? unpacked : 0;
+                                          static_cast<uint32_t>(_PacketUnpackedSize));
+        return unpacked == _PacketUnpackedSize ? unpacked : 0;
     }
 
     return 0;
 }
 
-int32_t PacketFile::readPackedPacket(int32_t packet, uint8_t* buffer)
+int32_t MCPacketFile::ReadPackedPacket(int32_t packet, uint8_t* buffer)
 {
-    if (packet != -1 && packet != currentPacket && seekPacket(packet) != NO_ERR)
+    if (packet != -1 && packet != _CurrentPacket && SeekPacket(packet) != NO_ERR)
     {
         return 0;
     }
 
-    const int32_t storage = getStorageType();
+    const int32_t storage = GetStorageType();
 
     if (storage == STORAGE_TYPE_RAW || storage == STORAGE_TYPE_FWF)
     {
-        seek(packetBase);
-        return read(buffer, packetSize);
+        Seek(_PacketBase);
+        return Read(buffer, _PacketSize);
     }
 
     if (storage == STORAGE_TYPE_LZD)
     {
-        seek(packetBase + 4);
-        read(buffer, packetSize);
+        Seek(_PacketBase + 4);
+        Read(buffer, _PacketSize);
     }
 
     return 0;
 }
 
-int32_t PacketFile::seekPacket(int32_t packet)
+int32_t MCPacketFile::SeekPacket(int32_t packet)
 {
     if (packet < 0)
     {
         return PACKET_OUT_OF_RANGE;
     }
 
-    const int32_t offset = readPacketOffset(packet, &packetType);
-    currentPacket = packet;
-    const int32_t next = packet + 1 == numPackets ? static_cast<int32_t>(getLength()) : readPacketOffset(packet + 1);
-    packetSize = next - offset;
-    packetBase = offset;
-    seek(offset);
+    const int32_t offset = ReadPacketOffset(packet, &_PacketType);
+    _CurrentPacket = packet;
+    const int32_t next = packet + 1 == _NumPackets ? static_cast<int32_t>(GetLength()) : ReadPacketOffset(packet + 1);
+    _PacketSize = next - offset;
+    _PacketBase = offset;
+    Seek(offset);
 
-    switch (getStorageType())
+    switch (GetStorageType())
     {
         case STORAGE_TYPE_RAW:
-            packetUnpackedSize = packetSize;
+            _PacketUnpackedSize = _PacketSize;
             break;
         case STORAGE_TYPE_LZD:
-            packetUnpackedSize = readLong();
+            _PacketUnpackedSize = ReadLong();
             break;
         case STORAGE_TYPE_NUL:
-            packetUnpackedSize = 0;
+            _PacketUnpackedSize = 0;
             break;
         default:
             return PACKET_WRONG_STORAGE;
@@ -310,53 +310,53 @@ int32_t PacketFile::seekPacket(int32_t packet)
     return offset > 0 ? NO_ERR : PACKET_OUT_OF_RANGE;
 }
 
-void PacketFile::operator++()
+void MCPacketFile::operator++()
 {
-    if (++currentPacket >= numPackets)
+    if (++_CurrentPacket >= _NumPackets)
     {
-        currentPacket = numPackets - 1;
+        _CurrentPacket = _NumPackets - 1;
     }
 
-    seekPacket(currentPacket);
+    SeekPacket(_CurrentPacket);
 }
 
-void PacketFile::operator--()
+void MCPacketFile::operator--()
 {
-    if (currentPacket-- <= 0)
+    if (_CurrentPacket-- <= 0)
     {
-        currentPacket = 0;
+        _CurrentPacket = 0;
     }
 
-    seekPacket(currentPacket);
+    SeekPacket(_CurrentPacket);
 }
 
-void PacketFile::reserve(int32_t count, int useCheckSum)
+void MCPacketFile::Reserve(int32_t count, int useCheckSum)
 {
-    if (numPackets != 0)
+    if (_NumPackets != 0)
     {
         return;
     }
 
-    usesCheckSum = useCheckSum;
-    numPackets = count;
+    _UsesCheckSum = useCheckSum;
+    _NumPackets = count;
     const int32_t firstPacket = count * 4 + 8;
-    writeLong(PACKET_FILE_MAGIC);
-    writeLong(firstPacket);
+    WriteLong(PACKET_FILE_MAGIC);
+    WriteLong(firstPacket);
 
     for (int32_t i = 0; i < count; ++i)
     {
-        writeLong(static_cast<int32_t>(static_cast<uint32_t>(firstPacket) + PendingMark));
+        WriteLong(static_cast<int32_t>(static_cast<uint32_t>(firstPacket) + PendingMark));
     }
 
-    if (seekTable == nullptr)
+    if (_SeekTable == nullptr)
     {
-        seekTable = new int32_t[static_cast<size_t>(std::max(numPackets, 1))];
-        seek(8);
-        read(reinterpret_cast<uint8_t*>(seekTable), numPackets * 4);
+        _SeekTable = new int32_t[static_cast<size_t>(std::max(_NumPackets, 1))];
+        Seek(8);
+        Read(reinterpret_cast<uint8_t*>(_SeekTable), _NumPackets * 4);
     }
 }
 
-int32_t PacketFile::writePacket(int32_t packet, uint8_t* buffer, int32_t nbytes, uint8_t storageType)
+int32_t MCPacketFile::WritePacket(int32_t packet, uint8_t* buffer, int32_t nbytes, uint8_t storageType)
 {
     std::vector<uint8_t> packed;
 
@@ -365,16 +365,16 @@ int32_t PacketFile::writePacket(int32_t packet, uint8_t* buffer, int32_t nbytes,
         packed.resize(static_cast<size_t>(nbytes) * 2 + 16);
     }
 
-    if (packet < 0 || packet >= numPackets)
+    if (packet < 0 || packet >= _NumPackets)
     {
         return 0;
     }
 
-    const uint32_t end = getLength();
-    packetBase = static_cast<int32_t>(end);
-    currentPacket = packet;
-    packetUnpackedSize = nbytes;
-    packetSize = nbytes;
+    const uint32_t end = GetLength();
+    _PacketBase = static_cast<int32_t>(end);
+    _CurrentPacket = packet;
+    _PacketUnpackedSize = nbytes;
+    _PacketSize = nbytes;
 
     uint8_t type = storageType;
 
@@ -404,60 +404,60 @@ int32_t PacketFile::writePacket(int32_t packet, uint8_t* buffer, int32_t nbytes,
         if (storageType == STORAGE_TYPE_LZD || packedSize < nbytes)
         {
             type = STORAGE_TYPE_LZD;
-            packetSize = packedSize;
+            _PacketSize = packedSize;
         }
     }
 
-    packetType = type;
+    _PacketType = type;
 
-    seek(static_cast<int32_t>(end));
+    Seek(static_cast<int32_t>(end));
     int32_t written;
 
-    if (packetType == STORAGE_TYPE_LZD)
+    if (_PacketType == STORAGE_TYPE_LZD)
     {
-        writeLong(packetUnpackedSize);
-        written = write(packed.data(), packetSize);
+        WriteLong(_PacketUnpackedSize);
+        written = Write(packed.data(), _PacketSize);
     }
     else
     {
-        written = write(buffer, packetSize);
+        written = Write(buffer, _PacketSize);
     }
 
-    const int32_t entry = packetType * 0x20000000 + packetBase;
+    const int32_t entry = _PacketType * 0x20000000 + _PacketBase;
 
-    if (seekTable == nullptr)
+    if (_SeekTable == nullptr)
     {
-        seek(packet * 4 + 8);
-        writeLong(entry);
+        Seek(packet * 4 + 8);
+        WriteLong(entry);
     }
     else
     {
-        seekTable[packet] = entry;
+        _SeekTable[packet] = entry;
     }
 
     // Later packets not written yet point at the new end. Original behaviour: on disk this rewrites entries
     // packet+1 .. numPackets-1, in the table packet+1 .. numPackets-2.
-    const uint32_t newEnd = getLength();
+    const uint32_t newEnd = GetLength();
 
-    if (seekTable == nullptr)
+    if (_SeekTable == nullptr)
     {
-        for (int32_t i = packet; i < numPackets - 1; ++i)
+        for (int32_t i = packet; i < _NumPackets - 1; ++i)
         {
-            writeLong(static_cast<int32_t>(newEnd + PendingMark));
+            WriteLong(static_cast<int32_t>(newEnd + PendingMark));
         }
     }
     else
     {
-        for (int32_t i = packet + 1; i < numPackets - 1; ++i)
+        for (int32_t i = packet + 1; i < _NumPackets - 1; ++i)
         {
-            seekTable[i] = static_cast<int32_t>(newEnd + PendingMark);
+            _SeekTable[i] = static_cast<int32_t>(newEnd + PendingMark);
         }
     }
 
     return written;
 }
 
-int32_t PacketFile::insertPacket(int32_t packet, uint8_t* buffer, int32_t nbytes, uint8_t storageType)
+int32_t MCPacketFile::InsertPacket(int32_t packet, uint8_t* buffer, int32_t nbytes, uint8_t storageType)
 {
     if (packet < 0)
     {
@@ -467,64 +467,64 @@ int32_t PacketFile::insertPacket(int32_t packet, uint8_t* buffer, int32_t nbytes
     static const char* tempName = "AF3456AF.788";
 
     std::vector<uint8_t> scratch(0xffff);
-    PacketFile temp;
-    const int32_t result = temp.create(tempName);
+    MCPacketFile temp;
+    const int32_t result = temp.Create(tempName);
 
-    if (packet >= numPackets)
+    if (packet >= _NumPackets)
     {
-        ++numPackets;
+        ++_NumPackets;
     }
 
-    temp.reserve(numPackets);
+    temp.Reserve(_NumPackets);
 
-    for (int32_t i = 0; i < numPackets; ++i)
+    for (int32_t i = 0; i < _NumPackets; ++i)
     {
         if (i == packet)
         {
-            temp.writePacket(i, buffer, nbytes, storageType);
+            temp.WritePacket(i, buffer, nbytes, storageType);
             continue;
         }
 
-        seekPacket(i);
-        const int32_t type = getStorageType();
-        const int32_t size = getPacketSize();
+        SeekPacket(i);
+        const int32_t type = GetStorageType();
+        const int32_t size = GetPacketSize();
 
         if (static_cast<size_t>(size) > scratch.size())
         {
             scratch.resize(static_cast<size_t>(size));
         }
 
-        readPacket(i, scratch.data());
-        temp.writePacket(i, scratch.data(), size, static_cast<uint8_t>(type));
+        ReadPacket(i, scratch.data());
+        temp.WritePacket(i, scratch.data(), size, static_cast<uint8_t>(type));
     }
 
-    const std::string name = getFilename();
-    const FileMode mode = fileMode;
-    temp.close();
-    close();
+    const std::string name = GetFilename();
+    const MCFileMode mode = _FileMode;
+    temp.Close();
+    Close();
     std::error_code error;
     std::filesystem::copy_file(MCFileSystem::Resolve(tempName), MCFileSystem::ResolveWrite(name),
                                std::filesystem::copy_options::overwrite_existing, error);
     std::filesystem::remove(MCFileSystem::ResolveWrite(tempName), error);
-    open(name.c_str(), mode, 50);
-    seekPacket(packet);
+    Open(name.c_str(), mode, 50);
+    SeekPacket(packet);
     return result;
 }
 
-int32_t PacketFile::writePacket(int32_t packet, uint8_t* buffer)
+int32_t MCPacketFile::WritePacket(int32_t packet, uint8_t* buffer)
 {
-    if (packet < 0 || packet >= numPackets)
+    if (packet < 0 || packet >= _NumPackets)
     {
         return 0;
     }
 
-    seekPacket(packet);
+    SeekPacket(packet);
 
-    if (packetType == STORAGE_TYPE_LZD || packetType == STORAGE_TYPE_HF)
+    if (_PacketType == STORAGE_TYPE_LZD || _PacketType == STORAGE_TYPE_HF)
     {
         return PACKET_WRONG_STORAGE;
     }
 
-    const int32_t written = write(buffer, packetSize);
-    return written != packetUnpackedSize ? WRITE_ERR : NO_ERR;
+    const int32_t written = Write(buffer, _PacketSize);
+    return written != _PacketUnpackedSize ? WRITE_ERR : NO_ERR;
 }

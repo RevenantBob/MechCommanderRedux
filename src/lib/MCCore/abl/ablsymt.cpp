@@ -4,29 +4,29 @@
 #include "abl/ablscan.h"
 #include "lib/aerror.h"
 
-SymTableNodePtr SymTableDisplay[MAX_NESTING_LEVEL];
-int32_t level;
+MCSymTableNodePtr SymTableDisplay[MAX_NESTING_LEVEL];
+int32_t Level;
 MCBlockStore AblMemory;
-TypePtr IntegerTypePtr;
-TypePtr CharTypePtr;
-TypePtr RealTypePtr;
-TypePtr BooleanTypePtr;
-_Type DummyType;
-ABLModule* LibrariesUsed[MAX_LIBRARIES_USED];
+MCTypePtr IntegerTypePtr;
+MCTypePtr CharTypePtr;
+MCTypePtr RealTypePtr;
+MCTypePtr BooleanTypePtr;
+MCType DummyType;
+MCAblModule* LibrariesUsed[MAX_LIBRARIES_USED];
 int32_t NumLibrariesUsed;
 
 namespace
 {
     /// <summary>A standard routine: its ABL name, key and whether it is a tactical order.</summary>
-    struct StandardRoutine
+    struct MCStandardRoutine
     {
-        const char* name = nullptr;
-        RoutineKey key{};
-        int isOrder = 0;
+        const char* Name = nullptr;
+        MCRoutineKey Key{};
+        int IsOrder = 0;
     };
 
     /// <summary>The standard routines in initSymTable's order.</summary>
-    const StandardRoutine StandardRoutines[] = {
+    const MCStandardRoutine StandardRoutines[] = {
         {"return", RTN_RETURN, 0},
         {"print", RTN_PRINT, 0},
         {"concat", RTN_CONCAT, 0},
@@ -226,96 +226,96 @@ namespace
     };
 }
 
-auto searchLocalSymTable(SymTableNodePtr& idPtr) -> void
+auto SearchLocalSymTable(MCSymTableNodePtr& idPtr) -> void
 {
-    idPtr = searchSymTable(wordString, SymTableDisplay[level]);
+    idPtr = SearchSymTable(WordString, SymTableDisplay[Level]);
 }
 
-auto searchAllSymTables(SymTableNodePtr& idPtr) -> void
+auto SearchAllSymTables(MCSymTableNodePtr& idPtr) -> void
 {
-    idPtr = searchSymTableDisplay(wordString);
+    idPtr = SearchSymTableDisplay(WordString);
 }
 
-auto enterLocalSymTable(SymTableNodePtr& idPtr) -> void
+auto EnterLocalSymTable(MCSymTableNodePtr& idPtr) -> void
 {
-    idPtr = enterSymTable(wordString, &SymTableDisplay[level]);
+    idPtr = EnterSymTable(WordString, &SymTableDisplay[Level]);
 }
 
-auto searchAndFindAllSymTables(SymTableNodePtr& idPtr) -> void
+auto SearchAndFindAllSymTables(MCSymTableNodePtr& idPtr) -> void
 {
-    idPtr = searchSymTableDisplay(wordString);
+    idPtr = SearchSymTableDisplay(WordString);
 
     if (idPtr == nullptr)
     {
-        syntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
-        idPtr = enterSymTable(wordString, &SymTableDisplay[level]);
-        idPtr->defn.key = DFN_UNDEFINED;
-        idPtr->typePtr = &DummyType;
+        SyntaxError(ABL_ERR_SYNTAX_UNDEFINED_IDENTIFIER);
+        idPtr = EnterSymTable(WordString, &SymTableDisplay[Level]);
+        idPtr->Defn.Key = DFN_UNDEFINED;
+        idPtr->TypePtr = &DummyType;
     }
 }
 
-auto searchAndEnterLocalSymTable(SymTableNodePtr& idPtr) -> void
+auto SearchAndEnterLocalSymTable(MCSymTableNodePtr& idPtr) -> void
 {
-    idPtr = searchSymTable(wordString, SymTableDisplay[level]);
+    idPtr = SearchSymTable(WordString, SymTableDisplay[Level]);
 
     if (idPtr == nullptr)
     {
-        idPtr = enterSymTable(wordString, &SymTableDisplay[level]);
+        idPtr = EnterSymTable(WordString, &SymTableDisplay[Level]);
     }
     else
     {
-        syntaxError(ABL_ERR_SYNTAX_REDEFINED_IDENTIFIER);
+        SyntaxError(ABL_ERR_SYNTAX_REDEFINED_IDENTIFIER);
     }
 }
 
-auto searchAndEnterThisTable(SymTableNodePtr& idPtr, SymTableNodePtr root) -> void
+auto SearchAndEnterThisTable(MCSymTableNodePtr& idPtr, MCSymTableNodePtr root) -> void
 {
-    idPtr = searchSymTable(wordString, root);
+    idPtr = SearchSymTable(WordString, root);
 
     if (idPtr == nullptr)
     {
         // Original behaviour: entered through the local copy of root, so into an empty tree the new node is lost.
-        idPtr = enterSymTable(wordString, &root);
+        idPtr = EnterSymTable(WordString, &root);
     }
     else
     {
-        syntaxError(ABL_ERR_SYNTAX_REDEFINED_IDENTIFIER);
+        SyntaxError(ABL_ERR_SYNTAX_REDEFINED_IDENTIFIER);
     }
 }
 
-auto createType() -> TypePtr
+auto CreateType() -> MCTypePtr
 {
     // The original set only numInstances, form, size and typeIdPtr; the port clears the whole record.
-    TypePtr type = AblMemory.Make<_Type>();
-    type->numInstances = 1;
-    type->form = FRM_NONE;
-    type->size = 0;
-    type->typeIdPtr = nullptr;
+    MCTypePtr type = AblMemory.Make<MCType>();
+    type->NumInstances = 1;
+    type->Form = FRM_NONE;
+    type->Size = 0;
+    type->TypeIdPtr = nullptr;
     return type;
 }
 
-auto setType(TypePtr type) -> TypePtr
+auto SetType(MCTypePtr type) -> MCTypePtr
 {
     if (type != nullptr)
     {
-        type->numInstances++;
+        type->NumInstances++;
     }
 
     return type;
 }
 
-auto clearType(TypePtr& type) -> void
+auto ClearType(MCTypePtr& type) -> void
 {
-    if (type != nullptr && --type->numInstances == 0)
+    if (type != nullptr && --type->NumInstances == 0)
     {
         AblMemory.Free(type);
         type = nullptr;
     }
 }
 
-auto recordLibraryUsed(SymTableNodePtr idPtr) -> void
+auto RecordLibraryUsed(MCSymTableNodePtr idPtr) -> void
 {
-    ABLModule* library = idPtr->library;
+    MCAblModule* library = idPtr->Library;
 
     for (int32_t i = 0; i < NumLibrariesUsed; i++)
     {
@@ -333,38 +333,38 @@ auto recordLibraryUsed(SymTableNodePtr idPtr) -> void
     LibrariesUsed[NumLibrariesUsed++] = library;
 }
 
-auto searchSymTable(char* name, SymTableNodePtr nodePtr) -> SymTableNodePtr
+auto SearchSymTable(char* name, MCSymTableNodePtr nodePtr) -> MCSymTableNodePtr
 {
     while (nodePtr != nullptr)
     {
-        int compareResult = strcmp(name, nodePtr->name);
+        int compareResult = strcmp(name, nodePtr->Name);
 
         if (compareResult == 0)
         {
             return nodePtr;
         }
 
-        nodePtr = compareResult < 0 ? nodePtr->left : nodePtr->right;
+        nodePtr = compareResult < 0 ? nodePtr->Left : nodePtr->Right;
     }
 
     return nullptr;
 }
 
-auto searchLibrarySymTable(char* name, SymTableNodePtr nodePtr) -> SymTableNodePtr
+auto SearchLibrarySymTable(char* name, MCSymTableNodePtr nodePtr) -> MCSymTableNodePtr
 {
     if (nodePtr == nullptr)
     {
         return nullptr;
     }
 
-    if (strcmp(name, nodePtr->name) == 0)
+    if (strcmp(name, nodePtr->Name) == 0)
     {
         return nodePtr;
     }
 
-    if (nodePtr->library != nullptr && nodePtr->defn.key == DFN_MODULE)
+    if (nodePtr->Library != nullptr && nodePtr->Defn.Key == DFN_MODULE)
     {
-        SymTableNodePtr found = searchSymTable(name, nodePtr->defn.info.routine.localSymTable);
+        MCSymTableNodePtr found = SearchSymTable(name, nodePtr->Defn.Info.Routine.LocalSymTable);
 
         if (found != nullptr)
         {
@@ -372,30 +372,30 @@ auto searchLibrarySymTable(char* name, SymTableNodePtr nodePtr) -> SymTableNodeP
         }
     }
 
-    SymTableNodePtr found = searchLibrarySymTable(name, nodePtr->left);
+    MCSymTableNodePtr found = SearchLibrarySymTable(name, nodePtr->Left);
 
     if (found != nullptr)
     {
         return found;
     }
 
-    return searchLibrarySymTable(name, nodePtr->right);
+    return SearchLibrarySymTable(name, nodePtr->Right);
 }
 
-auto searchLibrarySymTableDisplay(char* name) -> SymTableNodePtr
+auto SearchLibrarySymTableDisplay(char* name) -> MCSymTableNodePtr
 {
-    return searchLibrarySymTable(name, SymTableDisplay[0]);
+    return SearchLibrarySymTable(name, SymTableDisplay[0]);
 }
 
-auto searchSymTableDisplay(char* name) -> SymTableNodePtr
+auto SearchSymTableDisplay(char* name) -> MCSymTableNodePtr
 {
     char* separator = strchr(name, '.');
 
     if (separator == nullptr)
     {
-        for (int32_t i = level; i >= 0; i--)
+        for (int32_t i = Level; i >= 0; i--)
         {
-            SymTableNodePtr found = searchSymTable(name, SymTableDisplay[i]);
+            MCSymTableNodePtr found = SearchSymTable(name, SymTableDisplay[i]);
 
             if (found != nullptr)
             {
@@ -403,11 +403,11 @@ auto searchSymTableDisplay(char* name) -> SymTableNodePtr
             }
         }
 
-        SymTableNodePtr found = searchLibrarySymTableDisplay(name);
+        MCSymTableNodePtr found = SearchLibrarySymTableDisplay(name);
 
         if (found != nullptr)
         {
-            recordLibraryUsed(found);
+            RecordLibraryUsed(found);
         }
 
         return found;
@@ -415,199 +415,199 @@ auto searchSymTableDisplay(char* name) -> SymTableNodePtr
 
     // library.name: the name is split in place (the '.' stays a NUL).
     *separator = '\0';
-    SymTableNodePtr libraryIdPtr = searchSymTable(name, SymTableDisplay[0]);
+    MCSymTableNodePtr libraryIdPtr = SearchSymTable(name, SymTableDisplay[0]);
 
     if (libraryIdPtr == nullptr)
     {
         return nullptr;
     }
 
-    SymTableNodePtr found = searchSymTable(separator + 1, libraryIdPtr->defn.info.routine.localSymTable);
+    MCSymTableNodePtr found = SearchSymTable(separator + 1, libraryIdPtr->Defn.Info.Routine.LocalSymTable);
 
     if (found == nullptr)
     {
         return nullptr;
     }
 
-    recordLibraryUsed(found);
+    RecordLibraryUsed(found);
     return found;
 }
 
-auto enterSymTable(char* name, SymTableNodePtr* ptrToNodePtr) -> SymTableNodePtr
+auto EnterSymTable(char* name, MCSymTableNodePtr* ptrToNodePtr) -> MCSymTableNodePtr
 {
     // The original cleared the links, info, defn.key, the first two words of defn.info, typePtr and labelIndex,
     // leaving the rest as the heap had it; the port clears the whole node.
-    SymTableNodePtr newNode = AblMemory.Make<_SymTableNode>();
-    newNode->name = AblMemory.CopyString(name);
-    newNode->level = level;
+    MCSymTableNodePtr newNode = AblMemory.Make<MCSymTableNode>();
+    newNode->Name = AblMemory.CopyString(name);
+    newNode->Level = Level;
 
-    SymTableNodePtr parent = nullptr;
+    MCSymTableNodePtr parent = nullptr;
 
     while (*ptrToNodePtr != nullptr)
     {
         parent = *ptrToNodePtr;
-        ptrToNodePtr = strcmp(name, parent->name) < 0 ? &parent->left : &parent->right;
+        ptrToNodePtr = strcmp(name, parent->Name) < 0 ? &parent->Left : &parent->Right;
     }
 
     *ptrToNodePtr = newNode;
-    newNode->parent = parent;
+    newNode->Parent = parent;
     return newNode;
 }
 
-auto insertSymTable(SymTableNodePtr* tableRoot, SymTableNodePtr newNode) -> SymTableNodePtr
+auto InsertSymTable(MCSymTableNodePtr* tableRoot, MCSymTableNodePtr newNode) -> MCSymTableNodePtr
 {
-    newNode->left = nullptr;
-    newNode->parent = nullptr;
-    newNode->right = nullptr;
-    SymTableNodePtr parent = nullptr;
+    newNode->Left = nullptr;
+    newNode->Parent = nullptr;
+    newNode->Right = nullptr;
+    MCSymTableNodePtr parent = nullptr;
 
     while (*tableRoot != nullptr)
     {
         parent = *tableRoot;
-        tableRoot = strcmp(newNode->name, parent->name) < 0 ? &parent->left : &parent->right;
+        tableRoot = strcmp(newNode->Name, parent->Name) < 0 ? &parent->Left : &parent->Right;
     }
 
-    newNode->parent = parent;
+    newNode->Parent = parent;
     *tableRoot = newNode;
     return newNode;
 }
 
-auto extractSymTable(SymTableNodePtr* tableRoot, SymTableNodePtr nodeKill) -> SymTableNodePtr
+auto ExtractSymTable(MCSymTableNodePtr* tableRoot, MCSymTableNodePtr nodeKill) -> MCSymTableNodePtr
 {
     // The node to unlink: nodeKill itself, or with two children a stand-in whose contents move into nodeKill.
-    SymTableNodePtr y = nodeKill;
+    MCSymTableNodePtr y = nodeKill;
 
-    if (nodeKill->left != nullptr && nodeKill->right != nullptr)
+    if (nodeKill->Left != nullptr && nodeKill->Right != nullptr)
     {
         // Original behaviour (OB-038): the stand-in should be the in-order successor (leftmost of the right
         // subtree); the original takes the leftmost of the LEFT subtree, which breaks the tree's order.
-        y = nodeKill->left;
+        y = nodeKill->Left;
 
-        while (y->left != nullptr)
+        while (y->Left != nullptr)
         {
-            y = y->left;
+            y = y->Left;
         }
     }
 
-    SymTableNodePtr x = y->left != nullptr ? y->left : y->right;
+    MCSymTableNodePtr x = y->Left != nullptr ? y->Left : y->Right;
 
     if (x != nullptr)
     {
-        x->parent = y->parent;
+        x->Parent = y->Parent;
     }
 
-    if (y->parent == nullptr)
+    if (y->Parent == nullptr)
     {
         *tableRoot = x;
     }
-    else if (y == y->parent->left)
+    else if (y == y->Parent->Left)
     {
-        y->parent->left = x;
+        y->Parent->Left = x;
     }
     else
     {
-        y->parent->right = x;
+        y->Parent->Right = x;
     }
 
     if (y != nodeKill)
     {
         // Everything but the links and the library.
-        nodeKill->next = y->next;
-        nodeKill->name = y->name;
-        nodeKill->info = y->info;
-        nodeKill->defn = y->defn;
-        nodeKill->typePtr = y->typePtr;
-        nodeKill->level = y->level;
-        nodeKill->labelIndex = y->labelIndex;
+        nodeKill->Next = y->Next;
+        nodeKill->Name = y->Name;
+        nodeKill->Info = y->Info;
+        nodeKill->Defn = y->Defn;
+        nodeKill->TypePtr = y->TypePtr;
+        nodeKill->Level = y->Level;
+        nodeKill->LabelIndex = y->LabelIndex;
     }
 
     return y;
 }
 
-auto enterStandardRoutine(char* name, RoutineKey routineKey, DefinitionType definitionType, int) -> void
+auto EnterStandardRoutine(char* name, MCRoutineKey routineKey, MCDefinitionType definitionType, int) -> void
 {
-    SymTableNodePtr routineIdPtr = enterSymTable(name, &SymTableDisplay[level]);
-    routineIdPtr->defn.key = definitionType;
-    routineIdPtr->defn.info.routine.key = routineKey;
-    routineIdPtr->defn.info.routine.params = nullptr;
-    routineIdPtr->defn.info.routine.localSymTable = nullptr;
-    routineIdPtr->library = nullptr;
-    routineIdPtr->typePtr = nullptr;
+    MCSymTableNodePtr routineIdPtr = EnterSymTable(name, &SymTableDisplay[Level]);
+    routineIdPtr->Defn.Key = definitionType;
+    routineIdPtr->Defn.Info.Routine.Key = routineKey;
+    routineIdPtr->Defn.Info.Routine.Params = nullptr;
+    routineIdPtr->Defn.Info.Routine.LocalSymTable = nullptr;
+    routineIdPtr->Library = nullptr;
+    routineIdPtr->TypePtr = nullptr;
 }
 
-auto enterScope(SymTableNodePtr symTableRoot) -> void
+auto EnterScope(MCSymTableNodePtr symTableRoot) -> void
 {
-    if (++level >= MAX_NESTING_LEVEL)
+    if (++Level >= MAX_NESTING_LEVEL)
     {
-        syntaxError(ABL_ERR_SYNTAX_NESTING_TOO_DEEP);
+        SyntaxError(ABL_ERR_SYNTAX_NESTING_TOO_DEEP);
         exit(-ABL_ERR_SYNTAX_NESTING_TOO_DEEP);
     }
 
-    SymTableDisplay[level] = symTableRoot;
+    SymTableDisplay[Level] = symTableRoot;
 }
 
-auto exitScope() -> SymTableNodePtr
+auto ExitScope() -> MCSymTableNodePtr
 {
-    return SymTableDisplay[level--];
+    return SymTableDisplay[Level--];
 }
 
-auto initSymTable() -> void
+auto InitSymTable() -> void
 {
     SymTableDisplay[0] = nullptr;
 
-    SymTableNodePtr integerIdPtr = enterSymTable(const_cast<char*>("integer"), &SymTableDisplay[level]);
-    SymTableNodePtr charIdPtr = enterSymTable(const_cast<char*>("char"), &SymTableDisplay[level]);
-    SymTableNodePtr realIdPtr = enterSymTable(const_cast<char*>("real"), &SymTableDisplay[level]);
-    SymTableNodePtr booleanIdPtr = enterSymTable(const_cast<char*>("boolean"), &SymTableDisplay[level]);
-    SymTableNodePtr falseIdPtr = enterSymTable(const_cast<char*>("false"), &SymTableDisplay[level]);
-    SymTableNodePtr trueIdPtr = enterSymTable(const_cast<char*>("true"), &SymTableDisplay[level]);
+    MCSymTableNodePtr integerIdPtr = EnterSymTable(const_cast<char*>("integer"), &SymTableDisplay[Level]);
+    MCSymTableNodePtr charIdPtr = EnterSymTable(const_cast<char*>("char"), &SymTableDisplay[Level]);
+    MCSymTableNodePtr realIdPtr = EnterSymTable(const_cast<char*>("real"), &SymTableDisplay[Level]);
+    MCSymTableNodePtr booleanIdPtr = EnterSymTable(const_cast<char*>("boolean"), &SymTableDisplay[Level]);
+    MCSymTableNodePtr falseIdPtr = EnterSymTable(const_cast<char*>("false"), &SymTableDisplay[Level]);
+    MCSymTableNodePtr trueIdPtr = EnterSymTable(const_cast<char*>("true"), &SymTableDisplay[Level]);
 
-    IntegerTypePtr = createType();
-    CharTypePtr = createType();
-    RealTypePtr = createType();
-    BooleanTypePtr = createType();
+    IntegerTypePtr = CreateType();
+    CharTypePtr = CreateType();
+    RealTypePtr = CreateType();
+    BooleanTypePtr = CreateType();
 
-    integerIdPtr->defn.key = DFN_TYPE;
-    integerIdPtr->typePtr = IntegerTypePtr;
-    IntegerTypePtr->form = FRM_SCALAR;
-    IntegerTypePtr->size = 4;
-    IntegerTypePtr->typeIdPtr = integerIdPtr;
+    integerIdPtr->Defn.Key = DFN_TYPE;
+    integerIdPtr->TypePtr = IntegerTypePtr;
+    IntegerTypePtr->Form = FRM_SCALAR;
+    IntegerTypePtr->Size = 4;
+    IntegerTypePtr->TypeIdPtr = integerIdPtr;
 
-    charIdPtr->defn.key = DFN_TYPE;
-    charIdPtr->typePtr = CharTypePtr;
-    CharTypePtr->form = FRM_SCALAR;
-    CharTypePtr->size = 1;
-    CharTypePtr->typeIdPtr = charIdPtr;
+    charIdPtr->Defn.Key = DFN_TYPE;
+    charIdPtr->TypePtr = CharTypePtr;
+    CharTypePtr->Form = FRM_SCALAR;
+    CharTypePtr->Size = 1;
+    CharTypePtr->TypeIdPtr = charIdPtr;
 
-    realIdPtr->defn.key = DFN_TYPE;
-    realIdPtr->typePtr = RealTypePtr;
-    RealTypePtr->form = FRM_SCALAR;
-    RealTypePtr->size = 4;
-    RealTypePtr->typeIdPtr = realIdPtr;
+    realIdPtr->Defn.Key = DFN_TYPE;
+    realIdPtr->TypePtr = RealTypePtr;
+    RealTypePtr->Form = FRM_SCALAR;
+    RealTypePtr->Size = 4;
+    RealTypePtr->TypeIdPtr = realIdPtr;
 
-    booleanIdPtr->defn.key = DFN_TYPE;
-    booleanIdPtr->typePtr = BooleanTypePtr;
-    BooleanTypePtr->form = FRM_ENUM;
-    BooleanTypePtr->size = 4;
-    BooleanTypePtr->typeIdPtr = booleanIdPtr;
-    BooleanTypePtr->info.enumeration.max = 1;
-    BooleanTypePtr->info.enumeration.constIdPtr = falseIdPtr;
+    booleanIdPtr->Defn.Key = DFN_TYPE;
+    booleanIdPtr->TypePtr = BooleanTypePtr;
+    BooleanTypePtr->Form = FRM_ENUM;
+    BooleanTypePtr->Size = 4;
+    BooleanTypePtr->TypeIdPtr = booleanIdPtr;
+    BooleanTypePtr->Info.Enumeration.Max = 1;
+    BooleanTypePtr->Info.Enumeration.ConstIdPtr = falseIdPtr;
 
-    falseIdPtr->defn.key = DFN_CONST;
-    falseIdPtr->defn.info.constant.value.integer = 0;
-    falseIdPtr->typePtr = BooleanTypePtr;
-    falseIdPtr->next = trueIdPtr;
+    falseIdPtr->Defn.Key = DFN_CONST;
+    falseIdPtr->Defn.Info.Constant.Value.Integer = 0;
+    falseIdPtr->TypePtr = BooleanTypePtr;
+    falseIdPtr->Next = trueIdPtr;
 
-    trueIdPtr->defn.key = DFN_CONST;
-    trueIdPtr->defn.info.constant.value.integer = 1;
-    trueIdPtr->typePtr = BooleanTypePtr;
+    trueIdPtr->Defn.Key = DFN_CONST;
+    trueIdPtr->Defn.Info.Constant.Value.Integer = 1;
+    trueIdPtr->TypePtr = BooleanTypePtr;
 
-    for (const StandardRoutine& routine : StandardRoutines)
+    for (const MCStandardRoutine& routine : StandardRoutines)
     {
-        enterStandardRoutine(const_cast<char*>(routine.name), routine.key, DFN_FUNCTION, routine.isOrder);
+        EnterStandardRoutine(const_cast<char*>(routine.Name), routine.Key, DFN_FUNCTION, routine.IsOrder);
     }
 }
 
-auto freeSymTable(SymTableNodePtr) -> void
+auto FreeSymTable(MCSymTableNodePtr) -> void
 {
 }

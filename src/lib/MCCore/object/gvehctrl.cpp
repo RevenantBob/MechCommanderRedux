@@ -1,25 +1,25 @@
 #include "stdafx.h"
 #include "object/gvehctrl.h"
 
-auto GroundVehicleControlData::init(int32_t) -> int32_t
+auto MCGroundVehicleControlData::Init(int32_t) -> int32_t
 {
     return 0;
 }
 
-auto GroundVehicleControlData::destroy() -> void
+auto MCGroundVehicleControlData::Destroy() -> void
 {
 }
 
-auto GroundVehicleControlData::reset() -> void
+auto MCGroundVehicleControlData::Reset() -> void
 {
-    buttonState &= 0xfffffff8;
-    turretRotate = 0;
-    rotate = 0;
-    pivot = 0;
+    ButtonState &= 0xfffffff8;
+    TurretRotate = 0;
+    Rotate = 0;
+    Pivot = 0;
 }
 
-auto GroundVehicleControlData::brake() -> int32_t
+auto MCGroundVehicleControlData::Brake() -> int32_t
 {
-    throttle = 0;
+    Throttle = 0;
     return 0;
 }

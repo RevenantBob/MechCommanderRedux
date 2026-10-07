@@ -104,7 +104,7 @@ public:
     /// The screen as a VFX window. The pointer stays the same for the display's life; after
     /// <see cref="SetLogicalSize"/> its buffer and extents are the new ones.
     /// </summary>
-    _window* Screen() { return &_Screen; }
+    MCWindow* Screen() { return &_Screen; }
 
     /// <summary>The screen's pixels, <see cref="Width"/> bytes per row.</summary>
     uint8_t* Pixels() { return _Pixels.data(); }
@@ -134,13 +134,13 @@ public:
     /// and <c>AnimatePalette</c>, GDI's <c>SetDIBColorTable</c>). 8 bits per channel. Takes effect at the next
     /// <see cref="Present"/>; calling it every frame is cheap (palette animation).
     /// </summary>
-    void SetPalette(int first, int count, const VFX_RGB* entries);
+    void SetPalette(int first, int count, const MCVfxRgb* entries);
 
     /// <summary>As the other overload, from packed r, g, b bytes.</summary>
     void SetPalette(int first, int count, const uint8_t* rgb);
 
     /// <summary>Reads <paramref name="count"/> palette entries from <paramref name="first"/> (as set, without gamma).</summary>
-    void GetPalette(int first, int count, VFX_RGB* out) const;
+    void GetPalette(int first, int count, MCVfxRgb* out) const;
 
     /// <summary>
     /// A display gamma applied to the palette on its way to the GPU (1 = none; above 1 brightens the midtones), and a
@@ -278,10 +278,10 @@ private:
     int _MinHeight = 0;
     bool _FollowWindow = false;
     std::vector<uint8_t> _Pixels;
-    _window _Screen{};
+    MCWindow _Screen{};
 
     mutable std::mutex _PaletteLock;
-    std::array<VFX_RGB, 256> _Palette{};
+    std::array<MCVfxRgb, 256> _Palette{};
     bool _PaletteDirty = true;
     MCColorCycle _Cycle;
     bool _CycleDirty = false;

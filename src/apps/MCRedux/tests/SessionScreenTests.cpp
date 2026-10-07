@@ -75,7 +75,7 @@ namespace
             {
                 DPSESSIONDESC2 desc{};
                 desc.dwSize = sizeof(desc);
-                desc.guidApplication = thisAppGUID;
+                desc.guidApplication = ThisAppGuid;
                 struct Context
                 {
                     DPSESSIONDESC2* Found;
@@ -204,24 +204,24 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
     ConnectScreen();
     Settle();
     REQUIRE(MPlayer != nullptr);
-    SessionManager* manager = MPlayer->sessionManager;
-    manager->ConnectTCP(const_cast<char*>(HostAddress));
-    MCSplashScreen* lanScreen = globalLogPtr->lanScreen;
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(0);
-    lanScreen->ShowGUIWindow(1);
-    lanScreen->showBlock(0);
-    globalLogPtr->currentScreen = lanScreen;
-    globalLogPtr->logisticsState = 0xb;
-    static_cast<lTextObject*>(lanScreen->elements[4])->setStringBuffer(const_cast<char*>("Commander"));
-    static_cast<lTextObject*>(lanScreen->elements[10])->setStringBuffer(const_cast<char*>("Test game"));
-    static_cast<lTextObject*>(lanScreen->elements[11])->setStringBuffer(const_cast<char*>("6"));
+    MCSessionManager* manager = MPlayer->SessionManager;
+    manager->ConnectTcp(const_cast<char*>(HostAddress));
+    MCSplashScreen* lanScreen = GlobalLogPtr->LanScreen;
+    GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(0);
+    lanScreen->ShowGuiWindow(1);
+    lanScreen->ShowBlock(0);
+    GlobalLogPtr->CurrentScreen = lanScreen;
+    GlobalLogPtr->LogisticsState = 0xb;
+    static_cast<MCLogTextObject*>(lanScreen->Elements[4])->SetStringBuffer(const_cast<char*>("Commander"));
+    static_cast<MCLogTextObject*>(lanScreen->Elements[10])->SetStringBuffer(const_cast<char*>("Test game"));
+    static_cast<MCLogTextObject*>(lanScreen->Elements[11])->SetStringBuffer(const_cast<char*>("6"));
     CreateSession();
     Settle();
-    REQUIRE(manager->currentSession != nullptr);
-    REQUIRE(manager->directPlay != nullptr);
+    REQUIRE(manager->CurrentSession != nullptr);
+    REQUIRE(manager->DirectPlay != nullptr);
 
     Guest guest;
-    REQUIRE(guest.Join(*manager->directPlay));
+    REQUIRE(guest.Join(*manager->DirectPlay));
     Settle();
 
     // Every frame presented from here on is folded into one more hash.
@@ -238,7 +238,7 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
     // The cursor hasn't moved yet in the first step: at (0, 0) the original's over test (OB-129, fixed) took it as over
     // every tool button, so its frame was 0x3d56c0c0 before the fix.
     const Step steps[] = {
-        {"session", [] { GO(); }, 0xa6b1053fu},
+        {"session", [] { Go(); }, 0xa6b1053fu},
         {"first name to team 1", [] { Drag(0x15, 0x16a, 0x100, 0x13a); }, 0x7548a837u},
         {"next name to team 2", [] { Drag(0x15, 0x16a, 0x1c4, 0x13a); }, 0xf143dbb4u},
         {"team 1 points up", [] { Click(0x106, 0x186); }, 0x1a793ae4u},

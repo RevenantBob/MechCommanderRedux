@@ -2,98 +2,98 @@
 #include "lib/pqueue.h"
 #include "lib/aerror.h"
 
-int32_t PriorityQueue::init(int32_t maxQueueItems, int32_t keyMinimum)
+int32_t MCPriorityQueue::Init(int32_t maxQueueItems, int32_t keyMinimum)
 {
     // Port fix: one slot more than the original's maxItems + 2, since insert can fill slot maxItems + 2 (see insert).
-    pqList.assign(static_cast<size_t>(maxQueueItems + 3), PQNode{});
-    maxItems = maxQueueItems + 2;
-    keyMin = keyMinimum;
+    _PqList.assign(static_cast<size_t>(maxQueueItems + 3), MCPQNode{});
+    _MaxItems = maxQueueItems + 2;
+    _KeyMin = keyMinimum;
     return 0;
 }
 
-void PriorityQueue::upHeap(int32_t curIndex)
+void MCPriorityQueue::UpHeap(int32_t curIndex)
 {
-    const PQNode startNode = pqList[curIndex];
+    const MCPQNode startNode = _PqList[curIndex];
     // The sentinel in slot 0 stops the climb.
-    pqList[0].key = keyMin;
-    pqList[0].id = -1;
+    _PqList[0].Key = _KeyMin;
+    _PqList[0].Id = -1;
     int32_t parentIndex = curIndex / 2;
 
-    while (startNode.key <= pqList[parentIndex].key)
+    while (startNode.Key <= _PqList[parentIndex].Key)
     {
-        pqList[curIndex] = pqList[parentIndex];
+        _PqList[curIndex] = _PqList[parentIndex];
         curIndex = parentIndex;
         parentIndex = curIndex / 2;
     }
 
-    pqList[curIndex] = startNode;
+    _PqList[curIndex] = startNode;
 }
 
-int32_t PriorityQueue::insert(PQNode& item)
+int32_t MCPriorityQueue::Insert(MCPQNode& item)
 {
     // Original behaviour: the capacity check compares with the slot count (items + 2), so the last insert lands one
     // slot past the original's allocation.
-    if (numItems == maxItems)
+    if (_NumItems == _MaxItems)
     {
         return 1;
     }
 
-    pqList[++numItems] = item;
-    upHeap(numItems);
+    _PqList[++_NumItems] = item;
+    UpHeap(_NumItems);
     return 0;
 }
 
-void PriorityQueue::downHeap(int32_t curIndex)
+void MCPriorityQueue::DownHeap(int32_t curIndex)
 {
-    const PQNode startNode = pqList[curIndex];
+    const MCPQNode startNode = _PqList[curIndex];
 
-    while (curIndex <= numItems / 2)
+    while (curIndex <= _NumItems / 2)
     {
         int32_t childIndex = curIndex * 2;
 
-        if (childIndex < numItems && pqList[childIndex + 1].key < pqList[childIndex].key)
+        if (childIndex < _NumItems && _PqList[childIndex + 1].Key < _PqList[childIndex].Key)
         {
             ++childIndex;
         }
 
-        if (startNode.key <= pqList[childIndex].key)
+        if (startNode.Key <= _PqList[childIndex].Key)
         {
             break;
         }
 
-        pqList[curIndex] = pqList[childIndex];
+        _PqList[curIndex] = _PqList[childIndex];
         curIndex = childIndex;
     }
 
-    pqList[curIndex] = startNode;
+    _PqList[curIndex] = startNode;
 }
 
-void PriorityQueue::remove(PQNode& item)
+void MCPriorityQueue::Remove(MCPQNode& item)
 {
-    item = pqList[1];
-    pqList[1] = pqList[numItems--];
-    downHeap(1);
+    item = _PqList[1];
+    _PqList[1] = _PqList[_NumItems--];
+    DownHeap(1);
 }
 
-void PriorityQueue::change(int32_t itemIndex, int32_t newValue)
+void MCPriorityQueue::Change(int32_t itemIndex, int32_t newValue)
 {
-    if (pqList[itemIndex].key < newValue)
+    if (_PqList[itemIndex].Key < newValue)
     {
-        pqList[itemIndex].key = newValue;
-        downHeap(itemIndex);
+        _PqList[itemIndex].Key = newValue;
+        DownHeap(itemIndex);
     }
-    else if (newValue < pqList[itemIndex].key)
+    else if (newValue < _PqList[itemIndex].Key)
     {
-        pqList[itemIndex].key = newValue;
-        upHeap(itemIndex);
+        _PqList[itemIndex].Key = newValue;
+        UpHeap(itemIndex);
     }
 }
 
-int32_t PriorityQueue::find(int32_t id)
+int32_t MCPriorityQueue::Find(int32_t id)
 {
-    for (int32_t index = 0; index <= numItems; ++index)
+    for (int32_t index = 0; index <= _NumItems; ++index)
     {
-        if (pqList[index].id == id)
+        if (_PqList[index].Id == id)
         {
             return index;
         }
@@ -102,9 +102,9 @@ int32_t PriorityQueue::find(int32_t id)
     return 0;
 }
 
-void PriorityQueue::destroy()
+void MCPriorityQueue::Destroy()
 {
-    pqList.clear();
-    maxItems = 0;
-    numItems = 0;
+    _PqList.clear();
+    _MaxItems = 0;
+    _NumItems = 0;
 }

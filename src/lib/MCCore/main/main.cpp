@@ -7,17 +7,17 @@
 #include "logistics/logmain.h"
 #include "main/logistics.h"
 
-float scenarioTime = 0.0f;
-int32_t turn = 0;
-float frameLength = 0.05f;
-float worldUnitsPerMeter = 3.34f;
-float metersPerWorldUnit = 0.2994f;
+float ScenarioTime = 0.0f;
+int32_t Turn = 0;
+float FrameLength = 0.05f;
+float WorldUnitsPerMeter = 3.34f;
+float MetersPerWorldUnit = 0.2994f;
 char* ExceptionGameMsg = nullptr;
-uint32_t ulOldAutoRunValue = 0x95;
+uint32_t UlOldAutoRunValue = 0x95;
 
-int32_t cLoadString(void* instance, uint32_t id, char* buffer, int bufferSize)
+int32_t CLoadString(void* instance, uint32_t id, char* buffer, int bufferSize)
 {
-    uint32_t stringId = id + static_cast<uint32_t>(languageOffset);
+    uint32_t stringId = id + static_cast<uint32_t>(LanguageOffset);
     std::memset(buffer, 0, static_cast<size_t>(bufferSize));
     // LoadStringA of the executable's string table: the port reads MCX.EXE's resources itself.
     return MCStringTable::Game().LoadString(stringId, buffer, bufferSize);
@@ -26,7 +26,7 @@ int32_t cLoadString(void* instance, uint32_t id, char* buffer, int bufferSize)
 namespace
 {
     /// <summary>Set on entry to AssertTest: a second error while reporting one can only quit (0x0080bb1a).</summary>
-    bool inAssertTest = false;
+    bool InAssertTest = false;
 }
 
 int AssertTest(int errorCode, char* text)
@@ -35,18 +35,18 @@ int AssertTest(int errorCode, char* text)
     // message to default.1st, gathered the machine, DLL and game details, the log files and a screen grab, and showed
     // a report dialog that could mail it all to FASA (MAPI) before breaking into the debugger or exiting. There is
     // nowhere to send a report now, so the port logs the error and asks whether to carry on, break or quit.
-    if (inAssertTest)
+    if (InAssertTest)
     {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fatal Error", "Unable to continue execution.", nullptr);
         std::exit(1);
     }
 
-    inAssertTest = true;
+    InAssertTest = true;
 
-    if (globalLogPtr != nullptr && globalLogPtr->briefingScreen != nullptr &&
-        globalLogPtr->briefingScreen->smackerWindow != nullptr)
+    if (GlobalLogPtr != nullptr && GlobalLogPtr->BriefingScreen != nullptr &&
+        GlobalLogPtr->BriefingScreen->SmackerWindow != nullptr)
     {
-        globalLogPtr->briefingScreen->StopSmackerMovies();
+        GlobalLogPtr->BriefingScreen->StopSmackerMovies();
     }
 
     const char* message = text != nullptr ? text : "";
@@ -73,11 +73,11 @@ int AssertTest(int errorCode, char* text)
         choice = 0;
     }
 
-    inAssertTest = false;
+    InAssertTest = false;
 
     if (choice == 2)
     {
-        killTheGame();
+        KillTheGame();
     }
 
     return choice == 1 ? 1 : 0;

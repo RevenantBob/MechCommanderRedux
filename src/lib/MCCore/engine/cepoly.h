@@ -3,70 +3,67 @@
 #include "engine/celement.h"
 
 /// <summary>
-/// What a <see cref="PolygonElement"/> draws: up to 6 screen vertices, filled in one colour, through a fade table,
+/// What a <see cref="MCPolygonElement"/> draws: up to 6 screen vertices, filled in one colour, through a fade table,
 /// texture-mapped from a bitmap, or (as a special case) a status bar.
 /// </summary>
 /// <remarks>Original source: <c>engine\cepoly.h</c>, 0xbc bytes.</remarks>
-struct PolyElementData
+struct MCPolyElementData
 {
     /// <summary>Clears the flags and pointers (the vertices are left alone).</summary>
-    /// <remarks>MCX.EXE @ 0x00654610</remarks>
-    void init()
+    void Init()
     {
-        numVertices = 0;
-        textureMapOff = 0;
-        statusBar = 0;
-        texture = nullptr;
-        textureWidth = 0;
-        textureHeight = 0;
-        fadeTable = nullptr;
-        translate = 0;
-        textureHandle = nullptr;
+        NumVertices = 0;
+        TextureMapOff = 0;
+        StatusBar = 0;
+        Texture = nullptr;
+        TextureWidth = 0;
+        TextureHeight = 0;
+        FadeTable = nullptr;
+        Translate = 0;
+        TextureHandle = nullptr;
     }
 
-    PolyElementData() { init(); }
+    MCPolyElementData() { Init(); }
 
     /// <summary>The number of vertices used (0 draws nothing).</summary>
-    int32_t numVertices; // +0x00
+    int32_t NumVertices;
     /// <summary>The vertices, in pane coordinates (u, v are texture coordinates when mapped).</summary>
-    SCRNVERTEX vertices[6]; // +0x04
+    MCScreenVertex Vertices[6];
     /// <summary>When nonzero a textured polygon isn't drawn.</summary>
-    int32_t textureMapOff; // +0x94
+    int32_t TextureMapOff;
     /// <summary>When set (with a fade table) a textured polygon is drawn translated instead.</summary>
-    int32_t translate; // +0x9c
+    int32_t Translate;
     /// <summary>When set the element draws a status bar from vertex 0 to vertex 1 instead.</summary>
-    int32_t statusBar; // +0xa0
+    int32_t StatusBar;
     /// <summary>The status bar's second argument (the last one of <c>AG_StatusBar</c>).</summary>
-    int32_t barPercent; // +0xa4
+    int32_t BarPercent;
     /// <summary>The status bar's colour.</summary>
-    int32_t barColor; // +0xa8
+    int32_t BarColor;
     /// <summary>The texture's pixels, or null for a flat polygon (colour in the vertices).</summary>
-    uint8_t* texture; // +0xac
+    uint8_t* Texture;
     /// <summary>The texture's width.</summary>
-    int32_t textureWidth; // +0xb0
+    int32_t TextureWidth;
     /// <summary>The texture's height.</summary>
-    int32_t textureHeight; // +0xb4
+    int32_t TextureHeight;
     /// <summary>The fade table the polygon is translated through, or null.</summary>
-    uint8_t* fadeTable; // +0xb8
+    uint8_t* FadeTable;
     /// <summary>Port: the texture's handle (<see cref="MCTexture"/>, the renderers read the texture through it).</summary>
-    MCTexture* textureHandle;
+    MCTexture* TextureHandle;
 };
 
-/// <summary>A polygon (see <see cref="PolyElementData"/>).</summary>
+/// <summary>A polygon (see <see cref="MCPolyElementData"/>).</summary>
 /// <remarks>Original source: <c>engine\cepoly.cpp</c>, 0xc8 bytes.</remarks>
-class PolygonElement : public Element
+class MCPolygonElement : public MCElement
 {
 public:
-    /// <summary>A copy of <paramref name="_data"/> at depth <paramref name="_depth"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x006b1d40</remarks>
-    PolygonElement(PolyElementData* _data, int32_t _depth);
+    /// <summary>A copy of <paramref name="data"/> at depth <paramref name="depth"/>.</summary>
+    MCPolygonElement(MCPolyElementData* data, int32_t depth);
 
-    /// <remarks>MCX.EXE @ 0x006b1db0; slot 0</remarks>
-    void draw() override;
+    void Draw() override;
 
     /// <summary>What to draw.</summary>
-    PolyElementData data; // +0x0c
+    MCPolyElementData Data;
 };
 
-/// <summary>The window <see cref="PolygonElement::draw"/> hands the texture mapper (the texture, its size - 1).</summary>
-extern _window textureWindow;
+/// <summary>The window <see cref="MCPolygonElement::Draw"/> hands the texture mapper (the texture, its size - 1).</summary>
+extern MCWindow TextureWindow;

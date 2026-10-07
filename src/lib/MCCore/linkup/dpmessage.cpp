@@ -3,55 +3,55 @@
 #include "linkup/sessionmanager.h"
 #include "lib/aerror.h"
 
-FIDPMessage::FIDPMessage(uint32_t toID, uint32_t bufferSize)
+MCFidpMessage::MCFidpMessage(uint32_t toID, uint32_t bufferSize)
 {
-    messageSize = 0;
-    fromID = 0;
-    firstSendTime = 0;
-    sendTime = 0;
-    timesSent = 0;
+    MessageSize = 0;
+    FromID = 0;
+    FirstSendTime = 0;
+    SendTime = 0;
+    TimesSent = 0;
     Clear();
-    messageBuffer = static_cast<uint8_t*>(linkUpBlocks->Allocate(bufferSize));
-    Assert(messageBuffer != nullptr, 0, "Message buffer is null: malloc failed");
-    this->bufferSize = bufferSize;
-    this->toID = toID;
-    wasResent = 0;
+    MessageBuffer = static_cast<uint8_t*>(LinkUpBlocks->Allocate(bufferSize));
+    Assert(MessageBuffer != nullptr, 0, "Message buffer is null: malloc failed");
+    this->BufferSize = bufferSize;
+    this->ToID = toID;
+    WasResent = 0;
 }
 
-FIDPMessage::~FIDPMessage()
+MCFidpMessage::~MCFidpMessage()
 {
-    if (messageBuffer != nullptr)
+    if (MessageBuffer != nullptr)
     {
-        linkUpBlocks->Free(messageBuffer);
+        LinkUpBlocks->Free(MessageBuffer);
     }
 }
 
-uint32_t FIDPMessage::SetMessageBuffer(void* data, uint32_t size)
+uint32_t MCFidpMessage::SetMessageBuffer(void* data, uint32_t size)
 {
-    messageSize = size < bufferSize ? size : bufferSize;
-    std::memcpy(messageBuffer, data, messageSize);
-    return messageSize;
+    MessageSize = size < BufferSize ? size : BufferSize;
+    std::memcpy(MessageBuffer, data, MessageSize);
+    return MessageSize;
 }
 
-void FIDPMessage::Clear()
+void MCFidpMessage::Clear()
 {
-    fromID = 0;
-    sendTime = 0;
-    timesSent = 0;
-    wasResent = 0;
+    FromID = 0;
+    SendTime = 0;
+    TimesSent = 0;
+    WasResent = 0;
 }
 
-int32_t FIDPMessage::ReceiveMessage(MCDirectPlay* directPlay)
+int32_t MCFidpMessage::ReceiveMessage(MCDirectPlay* directPlay)
 {
-    fromID = 0;
+    FromID = 0;
     uint32_t to;
-    uint32_t size = bufferSize;
-    const uint32_t result = directPlay->Receive(&fromID, &to, DPRECEIVE_ALL, messageBuffer, &size);
-    Assert(result != DPERR_BUFFERTOOSMALL, bufferSize, " DP Buffer too small ");
+    uint32_t size = BufferSize;
+    const uint32_t result = directPlay->Receive(&FromID, &to, DPRECEIVE_ALL, MessageBuffer, &size);
+    Assert(result != DPERR_BUFFERTOOSMALL, BufferSize, " DP Buffer too small ");
 
     if (result == DP_OK)
     {
-        messageSize = size;
+        MessageSize = size;
     }
 
     return static_cast<int32_t>(result);

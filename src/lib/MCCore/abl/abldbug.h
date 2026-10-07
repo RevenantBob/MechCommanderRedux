@@ -16,367 +16,315 @@
 #define ABL_DEBUGGER_WINDOWS 0
 #endif
 
-class aEvent;
-class aTextObject;
-class ScrollingTextWindow;
-class DebuggerWindow;
+class MCGuiEvent;
+class MCGuiTextObject;
+class MCScrollingTextWindow;
+class MCDebuggerWindow;
 
 /// <summary>Size of Debugger::message.</summary>
 inline constexpr int32_t MAXLEN_DEBUGGER_MESSAGE = 512;
 
 /// <summary>A watch on a variable (_SymTableNode::info points to it).</summary>
 /// <remarks>0x14 bytes in the original.</remarks>
-struct _Watch
+struct MCWatch
 {
-    SymTableNodePtr idPtr = nullptr; // +0x0
+    MCSymTableNodePtr IdPtr = nullptr;
     /// <summary>Report stores to it.</summary>
-    int32_t store = 0; // +0x4
+    int32_t Store = 0;
     /// <summary>Break into the debugger on a store.</summary>
-    int32_t breakOnStore = 0; // +0x8
+    int32_t BreakOnStore = 0;
     /// <summary>Report fetches of it.</summary>
-    int32_t fetch = 0; // +0xc
+    int32_t Fetch = 0;
     /// <summary>Break into the debugger on a fetch.</summary>
-    int32_t breakOnFetch = 0; // +0x10
+    int32_t BreakOnFetch = 0;
 };
 
-typedef _Watch Watch;
-typedef _Watch* WatchPtr;
+typedef MCWatch MCWatch;
+typedef MCWatch* MCWatchPtr;
 
 /// <summary>A module's watches.</summary>
 /// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0xc bytes.</remarks>
-class WatchManager
+class MCWatchManager
 {
 public:
-    WatchManager()
+    MCWatchManager()
     {
-        maxWatches = 0;
-        watches = nullptr;
+        MaxWatches = 0;
+        Watches = nullptr;
     }
 
     /// <summary>Allocates room for <paramref name="max"/> watches.</summary>
     /// <returns>0, or -1 if out of memory.</returns>
-    /// <remarks>MCX.EXE @ 0x0061f470</remarks>
-    int32_t init(int32_t max);
+    int32_t Init(int32_t max);
 
-    /// <remarks>MCX.EXE @ 0x0061f4b0</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>The watch on <paramref name="idPtr"/>, new if it has none (constants, variables and parameters only).</summary>
     /// <returns>The watch, or null if the symbol can't be watched or the table is full.</returns>
-    /// <remarks>MCX.EXE @ 0x0061f4e0</remarks>
-    WatchPtr add(SymTableNodePtr idPtr);
+    MCWatchPtr Add(MCSymTableNodePtr idPtr);
 
     /// <summary>Removes the watch on <paramref name="idPtr"/>.</summary>
     /// <returns>0, 1 (no symbol) or 2 (not watched).</returns>
-    /// <remarks>MCX.EXE @ 0x0061f570</remarks>
-    int32_t remove(SymTableNodePtr idPtr);
+    int32_t Remove(MCSymTableNodePtr idPtr);
 
     /// <summary>Removes every watch.</summary>
     /// <returns>How many there were.</returns>
-    /// <remarks>MCX.EXE @ 0x0061f610</remarks>
-    int32_t removeAll();
+    int32_t RemoveAll();
 
     /// <summary>Turns reporting of stores to <paramref name="idPtr"/> on or off (<paramref name="breakOnStore"/> to also break).</summary>
     /// <returns>0, 1 (no symbol) or 2 (table full).</returns>
-    /// <remarks>MCX.EXE @ 0x0061f650</remarks>
-    int32_t setStore(SymTableNodePtr idPtr, int on, int breakOnStore = 0);
+    int32_t SetStore(MCSymTableNodePtr idPtr, int on, int breakOnStore = 0);
 
     /// <summary>Turns reporting of fetches of <paramref name="idPtr"/> on or off (<paramref name="breakOnFetch"/> to also break).</summary>
     /// <returns>0, 1 (no symbol) or 2 (table full).</returns>
-    /// <remarks>MCX.EXE @ 0x0061f6d0</remarks>
-    int32_t setFetch(SymTableNodePtr idPtr, int on, int breakOnFetch = 0);
+    int32_t SetFetch(MCSymTableNodePtr idPtr, int on, int breakOnFetch = 0);
 
     /// <summary>Whether stores to <paramref name="idPtr"/> are reported.</summary>
-    /// <remarks>MCX.EXE @ 0x0061f750</remarks>
-    int32_t getStore(SymTableNodePtr idPtr);
+    int32_t GetStore(MCSymTableNodePtr idPtr);
 
     /// <summary>Whether fetches of <paramref name="idPtr"/> are reported.</summary>
-    /// <remarks>MCX.EXE @ 0x0061f770</remarks>
-    int32_t getFetch(SymTableNodePtr idPtr);
+    int32_t GetFetch(MCSymTableNodePtr idPtr);
 
     /// <summary>Lists the watches (empty in MCX.EXE).</summary>
-    /// <remarks>MCX.EXE @ 0x0061f790</remarks>
-    void print();
+    void Print();
 
-    int32_t maxWatches = 0;     // +0x0
-    int32_t numWatches = 0;     // +0x4
-    WatchPtr watches = nullptr; // +0x8
+    int32_t MaxWatches = 0;
+    int32_t NumWatches = 0;
+    MCWatchPtr Watches = nullptr;
 };
 
-typedef WatchManager* WatchManagerPtr;
+typedef MCWatchManager* MCWatchManagerPtr;
 
 /// <summary>A module's break points: source line numbers, kept sorted.</summary>
 /// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0xc bytes.</remarks>
-class BreakPointManager
+class MCBreakPointManager
 {
 public:
-    BreakPointManager()
+    MCBreakPointManager()
     {
-        maxBreakPoints = 0;
-        numBreakPoints = 0;
-        breakPoints = nullptr;
+        MaxBreakPoints = 0;
+        NumBreakPoints = 0;
+        BreakPoints = nullptr;
     }
 
     /// <summary>Allocates room for <paramref name="max"/> break points.</summary>
     /// <returns>0, or -1 if out of memory.</returns>
-    /// <remarks>MCX.EXE @ 0x0061f7e0</remarks>
-    int32_t init(int32_t max);
+    int32_t Init(int32_t max);
 
-    /// <remarks>MCX.EXE @ 0x0061f810</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>Adds a break point at <paramref name="lineNumber"/>.</summary>
     /// <returns>0, 1 (full) or 2 (bad line).</returns>
-    /// <remarks>MCX.EXE @ 0x0061f840</remarks>
-    int32_t add(int32_t lineNumber);
+    int32_t Add(int32_t lineNumber);
 
     /// <summary>Removes the break point at <paramref name="lineNumber"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0061f8c0</remarks>
-    int32_t remove(int32_t lineNumber);
+    int32_t Remove(int32_t lineNumber);
 
     /// <summary>Removes every break point.</summary>
     /// <returns>How many there were.</returns>
-    /// <remarks>MCX.EXE @ 0x0061f910</remarks>
-    int32_t removeAll();
+    int32_t RemoveAll();
 
     /// <summary>Whether there is a break point at <paramref name="lineNumber"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0061f920</remarks>
-    int isBreakPoint(int32_t lineNumber);
+    int IsBreakPoint(int32_t lineNumber);
 
     /// <summary>Lists the break points (empty in MCX.EXE).</summary>
-    /// <remarks>MCX.EXE @ 0x0061f960 (unnamed in the symbols; called where the watch list is printed)</remarks>
-    void print();
+    void Print();
 
-    int32_t maxBreakPoints = 0;     // +0x0
-    int32_t numBreakPoints = 0;     // +0x4
-    int32_t* breakPoints = nullptr; // +0x8
+    int32_t MaxBreakPoints = 0;
+    int32_t NumBreakPoints = 0;
+    int32_t* BreakPoints = nullptr;
 };
 
-typedef BreakPointManager* BreakPointManagerPtr;
+typedef MCBreakPointManager* MCBreakPointManagerPtr;
 
 /// <summary>
 /// The ABL debugger: traces execution of the current module, reports watched variables and breaks into debugMode,
 /// which runs the game's message loop until a command resumes.
 /// </summary>
 /// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0x30 bytes.</remarks>
-class Debugger
+class MCDebugger
 {
 public:
     /// <summary>A zeroed debugger.</summary>
     /// <remarks>Inline in the original (ABLi_init).</remarks>
-    Debugger()
+    MCDebugger()
     {
-        module = nullptr;
-        watchManager = nullptr;
-        breakPointManager = nullptr;
-        debugModule = nullptr;
-        enabled = 0;
-        debugCommand = 0;
-        halt = 0;
-        trace = 0;
-        step = 0;
-        traceEntry = 0;
-        traceExit = 0;
-        printCallback = nullptr;
+        Module = nullptr;
+        WatchManager = nullptr;
+        BreakPointManager = nullptr;
+        DebugModule = nullptr;
+        Enabled = 0;
+        DebugCommand = 0;
+        Halt = 0;
+        Trace = 0;
+        Step = 0;
+        TraceEntry = 0;
+        TraceExit = 0;
+        PrintCallback = nullptr;
     }
 
     /// <summary>Sets the output routine and the module to debug.</summary>
     /// <returns>0.</returns>
-    /// <remarks>MCX.EXE @ 0x0061f9b0</remarks>
-    int32_t init(void (*callback)(char* s), ABLModule* _module);
+    int32_t Init(void (*callback)(char* s), MCAblModule* ablModule);
 
     /// <summary>Does nothing in MCX.EXE.</summary>
-    /// <remarks>MCX.EXE @ 0x0061f9e0</remarks>
-    void destroy();
+    void Destroy();
 
     /// <summary>Writes a line through the print callback.</summary>
     /// <returns>0.</returns>
-    /// <remarks>MCX.EXE @ 0x0061f9f0</remarks>
-    int32_t print(char* s);
+    int32_t Print(char* s);
 
-    /// <summary>Makes <paramref name="_module"/> the module being executed: its managers and debug modes.</summary>
-    /// <remarks>MCX.EXE @ 0x0061fa10</remarks>
-    void setModule(ABLModule* _module);
+    /// <summary>Makes <paramref name="ablModule"/> the module being executed: its managers and debug modes.</summary>
+    void SetModule(MCAblModule* ablModule);
 
     /// <summary>Parses a variable from the command line and sets its watch by <paramref name="states"/> (bit flags).</summary>
-    /// <remarks>MCX.EXE @ 0x0061fa40</remarks>
-    int32_t setWatch(int32_t states);
+    int32_t SetWatch(int32_t states);
 
     /// <summary>Parses a line number and adds a break point.</summary>
-    /// <remarks>MCX.EXE @ 0x0061fb10</remarks>
-    int32_t addBreakPoint();
+    int32_t AddBreakPoint();
 
     /// <summary>Parses a line number and removes its break point (or all of them).</summary>
-    /// <remarks>MCX.EXE @ 0x0061fb60</remarks>
-    int32_t removeBreakPoint();
+    int32_t RemoveBreakPoint();
 
     /// <summary>Decompiles the statement at statementStartPtr into <paramref name="dest"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0061fbb0</remarks>
-    void sprintStatement(char* dest);
+    void SprintStatement(char* dest);
 
     /// <summary>Writes the current line label.</summary>
-    /// <remarks>MCX.EXE @ 0x0061fd80</remarks>
-    void sprintLineNumber(char* dest);
+    void SprintLineNumber(char* dest);
 
     /// <summary>Writes the value at <paramref name="data"/> as type <paramref name="dataType"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0061fda0</remarks>
-    void sprintDataValue(char* dest, StackItemPtr data, TypePtr dataType);
+    void SprintDataValue(char* dest, MCStackItemPtr data, MCTypePtr dataType);
 
     /// <summary>Writes the value of scalar symbol <paramref name="symbol"/>.</summary>
-    /// <remarks>MCX.EXE @ 0x0061fea0</remarks>
-    int32_t sprintSimpleValue(char* dest, SymTableNodePtr symbol);
+    int32_t SprintSimpleValue(char* dest, MCSymTableNodePtr symbol);
 
     /// <summary>Writes an element of array <paramref name="symbol"/>; <paramref name="subscriptString"/> is <c>[i][j]...</c>.</summary>
     /// <returns>0, or 1 for a subscript out of range.</returns>
-    /// <remarks>MCX.EXE @ 0x00620030</remarks>
-    int32_t sprintArrayValue(char* dest, SymTableNodePtr symbol, char* subscriptString);
+    int32_t SprintArrayValue(char* dest, MCSymTableNodePtr symbol, char* subscriptString);
 
     /// <summary>Writes the value of variable expression <paramref name="exprString"/> (a name, maybe subscripted).</summary>
     /// <returns>0, or 1 when the name isn't in the symbol table.</returns>
-    /// <remarks>MCX.EXE @ 0x006201d0</remarks>
-    int32_t sprintValue(char* dest, char* exprString);
+    int32_t SprintValue(char* dest, char* exprString);
 
     /// <summary>Called before each statement: breaks on a break point or when stepping.</summary>
-    /// <remarks>MCX.EXE @ 0x006202f0</remarks>
-    int32_t traceStatementExecution();
+    int32_t TraceStatementExecution();
 
     /// <summary>Called on entering a routine: reports it when tracing entries.</summary>
-    /// <remarks>MCX.EXE @ 0x00620360</remarks>
-    int32_t traceRoutineEntry(SymTableNodePtr idPtr);
+    int32_t TraceRoutineEntry(MCSymTableNodePtr idPtr);
 
     /// <summary>Called on leaving a routine: reports it when tracing exits.</summary>
-    /// <remarks>MCX.EXE @ 0x006203b0</remarks>
-    int32_t traceRoutineExit(SymTableNodePtr idPtr);
+    int32_t TraceRoutineExit(MCSymTableNodePtr idPtr);
 
     /// <summary>Called after a store to a variable: reports it if watched (and breaks if asked).</summary>
-    /// <remarks>MCX.EXE @ 0x00620400 (unnamed in the symbols)</remarks>
-    int32_t traceDataStore(SymTableNodePtr id, TypePtr idType, StackItemPtr target, TypePtr targetType);
+    int32_t TraceDataStore(MCSymTableNodePtr id, MCTypePtr idType, MCStackItemPtr target, MCTypePtr targetType);
 
     /// <summary>Called after a fetch of a variable: reports it if watched (and breaks if asked).</summary>
-    /// <remarks>MCX.EXE @ 0x006204a0 (unnamed in the symbols)</remarks>
-    int32_t traceDataFetch(SymTableNodePtr id, TypePtr idType, StackItemPtr data);
+    int32_t TraceDataFetch(MCSymTableNodePtr id, MCTypePtr idType, MCStackItemPtr data);
 
     /// <summary>Compiles and runs an expression from the command line and prints its value.</summary>
-    /// <remarks>MCX.EXE @ 0x00620540</remarks>
-    void showValue();
+    void ShowValue();
 
     /// <summary>Unfinished in MCX.EXE: reads a token and stops.</summary>
-    /// <remarks>MCX.EXE @ 0x00620620</remarks>
-    void assignVariable();
+    void AssignVariable();
 
     /// <summary>Prints the module instances, two per line.</summary>
-    /// <remarks>MCX.EXE @ 0x00620630</remarks>
-    void displayModuleInstanceRegistry(int32_t numCols);
+    void DisplayModuleInstanceRegistry(int32_t numCols);
 
     /// <summary>
     /// Runs a debugger window command: 0 select module, 1 trace, 2 step, 3/4 add/remove break point, 5 watch, 6 clear
     /// watches, 7 print a value, 8 resume, 9 help, 10 module info.
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00620720</remarks>
-    void processCommand(int32_t commandId, char* strParam1, int32_t numParam1, ABLModule* moduleParam1);
+    void ProcessCommand(int32_t commandId, char* strParam1, int32_t numParam1, MCAblModule* moduleParam1);
 
     /// <summary>
     /// Shows the current statement and runs the game's message loop and display until a command resumes (or the
     /// window is closed).
     /// </summary>
-    /// <remarks>MCX.EXE @ 0x00620c50</remarks>
-    void debugMode();
+    void DebugMode();
 
     /// <summary>The module being executed.</summary>
-    ABLModule* module = nullptr;                      // +0x0
-    WatchManagerPtr watchManager = nullptr;           // +0x4
-    BreakPointManagerPtr breakPointManager = nullptr; // +0x8
+    MCAblModule* Module = nullptr;
+    MCWatchManagerPtr WatchManager = nullptr;
+    MCBreakPointManagerPtr BreakPointManager = nullptr;
     /// <summary>The module the debugger's commands apply to.</summary>
-    ABLModule* debugModule = nullptr; // +0xc
+    MCAblModule* DebugModule = nullptr;
     /// <summary>Never set in MCX.EXE.</summary>
-    int32_t enabled = 0; // +0x10
+    int32_t Enabled = 0;
     /// <summary>Nonzero while debugMode waits for a command.</summary>
-    int32_t debugCommand = 0;                 // +0x14
-    int32_t halt = 0;                         // +0x18
-    int32_t trace = 0;                        // +0x1c
-    int32_t step = 0;                         // +0x20
-    int32_t traceEntry = 0;                   // +0x24
-    int32_t traceExit = 0;                    // +0x28
-    void (*printCallback)(char* s) = nullptr; // +0x2c
+    int32_t DebugCommand = 0;
+    int32_t Halt = 0;
+    int32_t Trace = 0;
+    int32_t Step = 0;
+    int32_t TraceEntry = 0;
+    int32_t TraceExit = 0;
+    void (*PrintCallback)(char* s) = nullptr;
 
     /// <summary>The line being built for print.</summary>
-    static char message[MAXLEN_DEBUGGER_MESSAGE];
+    static char Message[MAXLEN_DEBUGGER_MESSAGE];
 };
 
-typedef Debugger* DebuggerPtr;
+typedef MCDebugger* MCDebuggerPtr;
 
 #if ABL_DEBUGGER_WINDOWS
 
 /// <summary>The debugger's output pane: lines of text scrolling up in a VFX pane.</summary>
 /// <remarks>Original source: <c>abl\abldbug.cpp</c>, 0x4b4 bytes.</remarks>
-class ScrollingTextWindow : public aObject
+class MCScrollingTextWindow : public MCGuiObject
 {
 public:
     /// <summary>Inline in the original (DebuggerWindow::init).</summary>
-    ScrollingTextWindow() { clear(); }
+    MCScrollingTextWindow() { Clear(); }
 
-    /// <remarks>MCX.EXE @ 0x00620ef0 (the deleting destructor; the body is aObject::destroy)</remarks>
-    ~ScrollingTextWindow() override;
+    ~MCScrollingTextWindow() override;
 
     /// <summary>Creates the pane and sizes the text grid (10-pixel cells).</summary>
-    /// <remarks>MCX.EXE @ 0x00620ff0</remarks>
-    int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
 
-    /// <remarks>MCX.EXE @ 0x00621090</remarks>
-    void resize(int32_t width, int32_t height) override;
+    void Resize(int32_t width, int32_t height) override;
 
-    /// <remarks>MCX.EXE @ 0x00621160</remarks>
-    void draw() override;
+    void Draw() override;
 
-    /// <remarks>MCX.EXE @ 0x00621080</remarks>
-    void handleEvent(aEvent* event) override;
+    void HandleEvent(MCGuiEvent* event) override;
 
     /// <summary>Zeroes the text grid size.</summary>
-    /// <remarks>MCX.EXE @ 0x00620fe0 (vtable slot 77; unnamed in the symbols)</remarks>
-    virtual void clear();
+    virtual void Clear();
 
     /// <summary>Scrolls up a line and writes <paramref name="s"/> at the bottom.</summary>
-    /// <remarks>MCX.EXE @ 0x00621100 (vtable slot 78)</remarks>
-    virtual void print(char* s);
+    virtual void Print(char* s);
 
     /// <summary>Columns and lines of 10-pixel cells.</summary>
-    int32_t numColumns = 0; // +0x4ac
-    int32_t numLines = 0;   // +0x4b0
+    int32_t NumColumns = 0;
+    int32_t NumLines = 0;
 };
 
 /// <summary>The ABL debugger window: the output pane over a one-line command box.</summary>
 /// <remarks>Original source: <c>abl\abldbug.cpp</c> (created by honorb.cpp), 0x4c0 bytes (no fields of its own).</remarks>
-class DebuggerWindow : public aTitleWindow
+class MCDebuggerWindow : public MCGuiTitleWindow
 {
 public:
     /// <summary>Port: its output window scrolls its picture, so it keeps one.</summary>
     bool DrawsLive() override { return false; }
-    /// <remarks>MCX.EXE @ 0x0075a850 (the deleting destructor)</remarks>
-    ~DebuggerWindow() override;
+    ~MCDebuggerWindow() override;
 
     /// <summary>Creates the window, ABLDebuggerOut and ABLDebuggerIn.</summary>
-    /// <remarks>MCX.EXE @ 0x00620da0</remarks>
-    int32_t init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
 
     /// <summary>Destroys ABLDebuggerIn and ABLDebuggerOut, then the window.</summary>
-    /// <remarks>MCX.EXE @ 0x00620f20</remarks>
-    void destroy() override;
+    void Destroy() override;
 
     /// <summary>Resizes the output pane and moves the command box to the bottom.</summary>
-    /// <remarks>MCX.EXE @ 0x00620f80</remarks>
-    void resize(int32_t width, int32_t height) override;
+    void Resize(int32_t width, int32_t height) override;
 };
 
 #endif
 
 /// <summary>The debugger, or null when ABL runs without one.</summary>
-extern Debugger* debugger;
+extern MCDebugger* Debugger;
 /// <summary>The debugger window's output pane and command box.</summary>
-extern ScrollingTextWindow* ABLDebuggerOut;
-extern aTextObject* ABLDebuggerIn;
+extern MCScrollingTextWindow* AblDebuggerOut;
+extern MCGuiTextObject* AblDebuggerIn;
 /// <summary>Text of each token, for decompiling statements.</summary>
 extern const char* TokenStrings[NUM_TOKENS];
 
 /// <summary>The debugger.</summary>
-/// <remarks>MCX.EXE @ 0x00620d90</remarks>
-Debugger* ABLi_getDebugger();
+MCDebugger* AblGetDebugger();

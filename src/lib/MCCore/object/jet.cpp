@@ -25,67 +25,67 @@ namespace
 // JetType
 //---------------------------------------------------------------------------
 
-JetType::JetType()
+MCJetType::MCJetType()
 {
-    soundEffectId = 0xffffffff;
-    smokeObjectId = 0xffffffff;
-    groundObjectId = 0xffffffff;
+    SoundEffectId = 0xffffffff;
+    SmokeObjectId = 0xffffffff;
+    GroundObjectId = 0xffffffff;
 }
 
-auto JetType::createInstance() -> BaseObject*
+auto MCJetType::CreateInstance() -> MCBaseObject*
 {
-    auto* newJet = new Jet;
+    auto* newJet = new MCJet;
 
     if (newJet == nullptr)
     {
         return nullptr;
     }
 
-    if (newJet->init(this) != 0)
+    if (newJet->Init(this) != 0)
     {
         return nullptr;
     }
 
-    newJet->idNumber = NextIdNumber++;
+    newJet->IdNumber = NextIdNumber++;
     return newJet;
 }
 
-auto JetType::destroy() -> void
+auto MCJetType::Destroy() -> void
 {
 }
 
-auto JetType::init(File* objFile, uint32_t fileSize) -> int32_t
+auto MCJetType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
-    FitIniFile jetFile;
-    int32_t result = jetFile.open(objFile, fileSize, 50);
+    MCFitIniFile jetFile;
+    int32_t result = jetFile.Open(objFile, fileSize, 50);
 
     if (result != 0)
     {
         return result;
     }
 
-    if (jetFile.seekBlock("JetData") == 0)
+    if (jetFile.SeekBlock("JetData") == 0)
     {
-        if ((result = jetFile.readIdULong("SoundEffectId", soundEffectId)) != 0)
+        if ((result = jetFile.ReadIdULong("SoundEffectId", SoundEffectId)) != 0)
         {
             return result;
         }
 
-        if ((result = jetFile.readIdULong("SmokeObjectId", smokeObjectId)) != 0)
+        if ((result = jetFile.ReadIdULong("SmokeObjectId", SmokeObjectId)) != 0)
         {
             return result;
         }
     }
 
-    return ObjectType::init(&jetFile);
+    return MCObjectType::Init(&jetFile);
 }
 
-auto JetType::handleCollision(GameObject*, GameObject*) -> int
+auto MCJetType::HandleCollision(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
 
-auto JetType::handleDestruction(GameObject*, GameObject*) -> int
+auto MCJetType::HandleDestruction(MCGameObject*, MCGameObject*) -> int
 {
     return 0;
 }
@@ -94,84 +94,84 @@ auto JetType::handleDestruction(GameObject*, GameObject*) -> int
 // Jet
 //---------------------------------------------------------------------------
 
-Jet::Jet()
+MCJet::MCJet()
 {
-    jetNumber = 0;
-    justCreated = 1;
-    appearance = nullptr;
-    smoke = nullptr;
-    owner = nullptr;
-    groundObject = nullptr;
-    drawRotation = 0;
+    JetNumber = 0;
+    JustCreated = 1;
+    Appearance = nullptr;
+    Smoke = nullptr;
+    Owner = nullptr;
+    GroundObject = nullptr;
+    DrawRotation = 0;
 }
 
-auto Jet::init() -> void
+auto MCJet::Init() -> void
 {
 }
 
-auto Jet::isVisible() -> int
+auto MCJet::IsVisible() -> int
 {
-    Camera* camera = cameraList->findCameraFromIDNumber(1);
+    MCCamera* camera = CameraList->FindCameraFromIDNumber(1);
 
-    if (camera == nullptr || camera->active == 0)
+    if (camera == nullptr || camera->Active == 0)
     {
         return 0;
     }
 
-    vector_2d screen100;
-    vector_2d screen50;
+    MCVector2D screen100;
+    MCVector2D screen50;
 
-    if (land != nullptr)
+    if (Land != nullptr)
     {
-        land->projectTerrain(position, screen100, screen50);
+        Land->ProjectTerrain(Position, screen100, screen50);
     }
 
     float screenY;
 
-    if (camera->cameraScale == 1)
+    if (camera->CameraScale == 1)
     {
-        screenPos.x = (screen50.x - camera->screenUL50.x) + camera->halfWidth;
-        screenY = screen50.y - camera->screenUL50.y;
+        ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
+        screenY = screen50.Y - camera->ScreenUL50.Y;
     }
     else
     {
-        screenPos.x = (screen100.x - camera->screenUL.x) + camera->halfWidth;
-        screenY = screen100.y - camera->screenUL.y;
+        ScreenPos.X = (screen100.X - camera->ScreenUL.X) + camera->HalfWidth;
+        screenY = screen100.Y - camera->ScreenUL.Y;
     }
 
-    screenPos.y = screenY + camera->halfHeight;
+    ScreenPos.Y = screenY + camera->HalfHeight;
 
-    if (appearance != nullptr && appearance->recalcBounds(camera) != 0)
+    if (Appearance != nullptr && Appearance->RecalcBounds(camera) != 0)
     {
-        windowsVisible = turn;
+        WindowsVisible = Turn;
         return 1;
     }
 
     return 0;
 }
 
-auto Jet::update() -> int32_t
+auto MCJet::Update() -> int32_t
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
-        justCreated = 0;
-        collisionsOn = 0;
+        JustCreated = 0;
+        CollisionsOn = 0;
 
-        if (owner != nullptr)
+        if (Owner != nullptr)
         {
-            position = owner->getJumpPosition(jetNumber);
+            Position = Owner->GetJumpPosition(JetNumber);
         }
 
-        lastAltitude = position.z;
-        const uint32_t soundId = static_cast<JetType*>(objType)->soundEffectId;
+        LastAltitude = Position.Z;
+        const uint32_t soundId = static_cast<MCJetType*>(ObjType)->SoundEffectId;
 
         if (soundId != 0xffffffff)
         {
-            soundSystem->playDigitalSample(soundId, 1, this, 0, 0);
+            SoundSystem->PlayDigitalSample(soundId, 1, this, 0, 0);
         }
     }
 
-    BattleMech* mech = owner;
+    MCBattleMech* mech = Owner;
 
     // Port fix: the original reads the owner's appearance and frame without checking it for null.
     if (mech == nullptr)
@@ -179,23 +179,23 @@ auto Jet::update() -> int32_t
         return 1;
     }
 
-    position = mech->getJumpPosition(jetNumber);
+    Position = mech->GetJumpPosition(JetNumber);
 
     // Coming down: the jets cut out and the smoke stops.
-    if (static_cast<MechActor*>(mech->appearance)->airborne != 0 && position.z < lastAltitude)
+    if (static_cast<MCMechActor*>(mech->Appearance)->Airborne != 0 && Position.Z < LastAltitude)
     {
-        landing = 1;
+        Landing = 1;
     }
 
-    lastAltitude = position.z;
-    const vector_3d velocity = mech->getVelocity();
-    const int visibleNow = isVisible();
-    appearance->visible = visibleNow;
-    appearance->update();
+    LastAltitude = Position.Z;
+    const MCVector3D velocity = mech->GetVelocity();
+    const int visibleNow = IsVisible();
+    Appearance->Visible = visibleNow;
+    Appearance->Update();
 
     // The flame points away from the mech's facing.
-    const frame_of_ref frame = mech->getFrame();
-    float cosFacing = UnitX.x * frame.i.x + UnitX.y * frame.i.y + UnitX.z * frame.i.z;
+    const MCFrameOfRef frame = mech->GetFrame();
+    float cosFacing = UnitX.X * frame.I.X + UnitX.Y * frame.I.Y + UnitX.Z * frame.I.Z;
 
     if (cosFacing < -1.0f)
     {
@@ -207,135 +207,135 @@ auto Jet::update() -> int32_t
         cosFacing = 1.0f;
     }
 
-    double facing = acosMatherr(static_cast<double>(cosFacing)) * RADIANS_TO_DEGREES;
+    double facing = AcosMatherr(static_cast<double>(cosFacing)) * RADIANS_TO_DEGREES;
 
-    if (frame.i.y < 0.0f)
+    if (frame.I.Y < 0.0f)
     {
         facing = -facing;
     }
 
-    drawRotation = std::abs(facing) <= 90.0 ? 150 : -150;
+    DrawRotation = std::abs(facing) <= 90.0 ? 150 : -150;
 
-    if (smoke != nullptr)
+    if (Smoke != nullptr)
     {
-        smoke->setOwnerPosition(position);
-        smoke->setOwnerVelocity(velocity);
+        Smoke->SetOwnerPosition(Position);
+        Smoke->SetOwnerVelocity(velocity);
 
-        if (landing != 0)
+        if (Landing != 0)
         {
-            smoke->stopSmoking();
+            Smoke->StopSmoking();
         }
 
-        smoke->update();
+        Smoke->Update();
     }
 
-    if (groundObject != nullptr)
+    if (GroundObject != nullptr)
     {
-        vector_3d groundPos = position;
-        groundPos.z = land->getTerrainElevation(position);
-        groundObject->setPosition(groundPos);
-        groundObject->update();
+        MCVector3D groundPos = Position;
+        groundPos.Z = Land->GetTerrainElevation(Position);
+        GroundObject->SetPosition(groundPos);
+        GroundObject->Update();
     }
 
     return 1;
 }
 
-auto Jet::render() -> void
+auto MCJet::Render() -> void
 {
-    if (justCreated != 0)
+    if (JustCreated != 0)
     {
         return;
     }
 
-    if (landing == 0)
+    if (Landing == 0)
     {
-        appearance->render(drawRotation);
+        Appearance->Render(DrawRotation);
     }
 
-    if (smoke != nullptr)
+    if (Smoke != nullptr)
     {
         // Faithful: the smoke's depth bias takes the flame's draw rotation.
-        smoke->depthBias = drawRotation;
-        smoke->render();
+        Smoke->DepthBias = DrawRotation;
+        Smoke->Render();
     }
 
-    if (groundObject != nullptr)
+    if (GroundObject != nullptr)
     {
-        groundObject->render();
+        GroundObject->Render();
     }
 }
 
-auto Jet::destroy() -> void
+auto MCJet::Destroy() -> void
 {
-    delete appearance;
-    appearance = nullptr;
+    delete Appearance;
+    Appearance = nullptr;
 
-    if (smoke != nullptr)
+    if (Smoke != nullptr)
     {
-        delete smoke;
-        smoke = nullptr;
+        delete Smoke;
+        Smoke = nullptr;
     }
 
-    delete groundObject;
-    groundObject = nullptr;
+    delete GroundObject;
+    GroundObject = nullptr;
 }
 
-auto Jet::init(ObjectType* objType) -> int32_t
+auto MCJet::Init(MCObjectType* objType) -> int32_t
 {
-    int32_t result = GameObject::init(objType);
+    int32_t result = MCGameObject::Init(objType);
 
     if (result != 0)
     {
         return result;
     }
 
-    justCreated = 1;
-    AppearanceType* apprType = appearanceTypeList->getAppearance(objType->appearName, 0);
+    JustCreated = 1;
+    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
 
     if (apprType == nullptr)
     {
         return static_cast<int32_t>(0xdcdc005e);
     }
 
-    if ((apprType->appearanceNum & 0xff000000) != 0x6000000)
+    if ((apprType->AppearanceNum & 0xff000000) != 0x6000000)
     {
         return static_cast<int32_t>(0xdcdc0050);
     }
 
-    auto* armAppearance = new ArmAppearance;
-    appearance = armAppearance;
+    auto* armAppearance = new MCArmAppearance;
+    Appearance = armAppearance;
 
     if (armAppearance == nullptr)
     {
         return static_cast<int32_t>(0xdcdc005f);
     }
 
-    armAppearance->init(nullptr, nullptr);
-    armAppearance->ownerObject = nullptr;
+    armAppearance->Init(nullptr, nullptr);
+    armAppearance->OwnerObject = nullptr;
 
-    if ((result = armAppearance->init(apprType, this)) != 0)
+    if ((result = armAppearance->Init(apprType, this)) != 0)
     {
         return result;
     }
 
-    const auto* jetType = static_cast<JetType*>(objType);
+    const auto* jetType = static_cast<MCJetType*>(objType);
 
-    if (static_cast<int32_t>(jetType->smokeObjectId) != -1)
+    if (static_cast<int32_t>(jetType->SmokeObjectId) != -1)
     {
-        smoke = static_cast<Smoke*>(createObject(static_cast<int32_t>(jetType->smokeObjectId)));
+        Smoke = static_cast<MCSmoke*>(CreateObject(static_cast<int32_t>(jetType->SmokeObjectId)));
     }
 
-    if (static_cast<int32_t>(jetType->groundObjectId) != -1)
+    if (static_cast<int32_t>(jetType->GroundObjectId) != -1)
     {
-        groundObject = createObject(static_cast<int32_t>(jetType->groundObjectId));
+        GroundObject = CreateObject(static_cast<int32_t>(jetType->GroundObjectId));
     }
 
-    objectClass = JET;
-    landing = 0;
+    ObjectClass = JET;
+    Landing = 0;
     return 0;
 }
 
-auto Jet::setOwner(BaseObject* newOwner) -> void
+auto MCJet::SetOwner(MCBaseObject* newOwner) -> void
 {
-    owner = static_cast<BattleMech*>(newOwner);
+    Owner = static_cast<MCBattleMech*>(newOwner);
 }

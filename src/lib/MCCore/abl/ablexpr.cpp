@@ -9,9 +9,9 @@
 #include "abl/ablsymt.h"
 #include "lib/aerror.h"
 
-TokenCodeType relationalOperatorList[] = {TKN_LT, TKN_LE, TKN_EQUALEQUAL, TKN_NE, TKN_GE, TKN_GT, TKN_NONE};
-TokenCodeType addOperatorList[] = {TKN_PLUS, TKN_MINUS, TKN_OR, TKN_NONE};
-TokenCodeType multiplyOperatorList[] = {TKN_STAR, TKN_FSLASH, TKN_DIV, TKN_MOD, TKN_AND, TKN_NONE};
+MCTokenCodeType RelationalOperatorList[] = {TKN_LT, TKN_LE, TKN_EQUALEQUAL, TKN_NE, TKN_GE, TKN_GT, TKN_NONE};
+MCTokenCodeType AddOperatorList[] = {TKN_PLUS, TKN_MINUS, TKN_OR, TKN_NONE};
+MCTokenCodeType MultiplyOperatorList[] = {TKN_STAR, TKN_FSLASH, TKN_DIV, TKN_MOD, TKN_AND, TKN_NONE};
 
 namespace
 {
@@ -19,7 +19,7 @@ namespace
     /// The result type of an arithmetic operator (+ - * /): integer for two integers, real for any mix of integer
     /// and real, otherwise an INCOMPATIBLE_TYPES error and DummyType.
     /// </summary>
-    auto arithmeticResultType(TypePtr type1, TypePtr type2) -> TypePtr
+    auto ArithmeticResultType(MCTypePtr type1, MCTypePtr type2) -> MCTypePtr
     {
         if (type1 == IntegerTypePtr && type2 == IntegerTypePtr)
         {
@@ -34,7 +34,7 @@ namespace
             return RealTypePtr;
         }
 
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
         return &DummyType;
     }
 
@@ -42,48 +42,48 @@ namespace
     /// The result type of an operator that takes and gives <paramref name="requiredType"/> (and, or, div, mod): an
     /// INCOMPATIBLE_TYPES error when either operand is anything else, with the result type all the same.
     /// </summary>
-    auto sameTypeResultType(TypePtr type1, TypePtr type2, TypePtr requiredType) -> TypePtr
+    auto SameTypeResultType(MCTypePtr type1, MCTypePtr type2, MCTypePtr requiredType) -> MCTypePtr
     {
         if (type1 != requiredType || type2 != requiredType)
         {
-            syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+            SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
         }
 
         return requiredType;
     }
 
     /// <summary>Whether <paramref name="typePtr"/> is an array of char (a string).</summary>
-    auto isCharArray(TypePtr typePtr) -> bool
+    auto IsCharArray(MCTypePtr typePtr) -> bool
     {
-        return typePtr->form == FRM_ARRAY && typePtr->info.array.elementTypePtr == CharTypePtr;
+        return typePtr->Form == FRM_ARRAY && typePtr->Info.Array.ElementTypePtr == CharTypePtr;
     }
 
     /// <summary>
     /// The symbol of a number or string literal: every literal is a symbol of the module scope (SymTableDisplay[1])
     /// named by its text, entered the first time it appears.
     /// </summary>
-    auto literalSymbol() -> SymTableNodePtr
+    auto LiteralSymbol() -> MCSymTableNodePtr
     {
-        SymTableNodePtr literalIdPtr = searchSymTable(tokenString, SymTableDisplay[1]);
+        MCSymTableNodePtr literalIdPtr = SearchSymTable(TokenString, SymTableDisplay[1]);
 
         if (literalIdPtr == nullptr)
         {
-            literalIdPtr = enterSymTable(tokenString, &SymTableDisplay[1]);
+            literalIdPtr = EnterSymTable(TokenString, &SymTableDisplay[1]);
         }
 
         return literalIdPtr;
     }
 }
 
-auto baseType(TypePtr typePtr) -> TypePtr
+auto BaseType(MCTypePtr typePtr) -> MCTypePtr
 {
     return typePtr;
 }
 
-auto checkRelationalOpTypes(TypePtr type1, TypePtr type2) -> void
+auto CheckRelationalOpTypes(MCTypePtr type1, MCTypePtr type2) -> void
 {
     // The same scalar or enumeration type, integer with real, or two strings of the same length.
-    if (type1 == type2 && (type1->form == FRM_SCALAR || type1->form == FRM_ENUM))
+    if (type1 == type2 && (type1->Form == FRM_SCALAR || type1->Form == FRM_ENUM))
     {
         return;
     }
@@ -93,18 +93,18 @@ auto checkRelationalOpTypes(TypePtr type1, TypePtr type2) -> void
         return;
     }
 
-    if (isCharArray(type1) && isCharArray(type2) && type1->info.array.elementCount == type2->info.array.elementCount)
+    if (IsCharArray(type1) && IsCharArray(type2) && type1->Info.Array.ElementCount == type2->Info.Array.ElementCount)
     {
         return;
     }
 
-    syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+    SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
 }
 
-auto isAssignTypeCompatible(TypePtr targetType, TypePtr valueType) -> int
+auto IsAssignTypeCompatible(MCTypePtr targetType, MCTypePtr valueType) -> int
 {
-    targetType = baseType(targetType);
-    valueType = baseType(valueType);
+    targetType = BaseType(targetType);
+    valueType = BaseType(valueType);
 
     if (targetType == valueType)
     {
@@ -117,8 +117,8 @@ auto isAssignTypeCompatible(TypePtr targetType, TypePtr valueType) -> int
     }
 
     // A string fits in a string target at least as long.
-    if (isCharArray(targetType) && isCharArray(valueType) &&
-        valueType->info.array.elementCount <= targetType->info.array.elementCount)
+    if (IsCharArray(targetType) && IsCharArray(valueType) &&
+        valueType->Info.Array.ElementCount <= targetType->Info.Array.ElementCount)
     {
         return 1;
     }
@@ -126,11 +126,11 @@ auto isAssignTypeCompatible(TypePtr targetType, TypePtr valueType) -> int
     return 0;
 }
 
-auto variable(SymTableNodePtr variableIdPtr, UseType) -> TypePtr
+auto Variable(MCSymTableNodePtr variableIdPtr, MCUseType) -> MCTypePtr
 {
-    TypePtr typePtr = variableIdPtr->typePtr;
-    DefinitionType defnKey = variableIdPtr->defn.key;
-    crunchSymTableNodePtr(variableIdPtr);
+    MCTypePtr typePtr = variableIdPtr->TypePtr;
+    MCDefinitionType defnKey = variableIdPtr->Defn.Key;
+    CrunchSymTableNodePtr(variableIdPtr);
 
     switch (defnKey)
     {
@@ -143,25 +143,25 @@ auto variable(SymTableNodePtr variableIdPtr, UseType) -> TypePtr
         default:
         {
             typePtr = &DummyType;
-            syntaxError(ABL_ERR_SYNTAX_INVALID_IDENTIFIER_USAGE);
+            SyntaxError(ABL_ERR_SYNTAX_INVALID_IDENTIFIER_USAGE);
             break;
         }
     }
 
-    getToken();
+    GetToken();
 
-    if (curToken == TKN_LPAREN)
+    if (CurToken == TKN_LPAREN)
     {
-        syntaxError(ABL_ERR_SYNTAX_UNEXPECTED_TOKEN);
-        actualParamList(variableIdPtr, 0);
+        SyntaxError(ABL_ERR_SYNTAX_UNEXPECTED_TOKEN);
+        ActualParamList(variableIdPtr, 0);
         return typePtr;
     }
-    while (curToken == TKN_LBRACKET)
+    while (CurToken == TKN_LBRACKET)
     {
-        typePtr = arraySubscriptList(typePtr);
+        typePtr = ArraySubscriptList(typePtr);
     }
 
-    if (curToken == TKN_PERIOD)
+    if (CurToken == TKN_PERIOD)
     {
         // Record fields: never supported.
         exit(666);
@@ -170,153 +170,153 @@ auto variable(SymTableNodePtr variableIdPtr, UseType) -> TypePtr
     return typePtr;
 }
 
-auto arraySubscriptList(TypePtr typePtr) -> TypePtr
+auto ArraySubscriptList(MCTypePtr typePtr) -> MCTypePtr
 {
     do
     {
-        if (typePtr->form == FRM_ARRAY)
+        if (typePtr->Form == FRM_ARRAY)
         {
-            TypePtr elementTypePtr = typePtr->info.array.elementTypePtr;
-            getToken();
-            TypePtr indexTypePtr = expression();
+            MCTypePtr elementTypePtr = typePtr->Info.Array.ElementTypePtr;
+            GetToken();
+            MCTypePtr indexTypePtr = Expression();
 
-            if (isAssignTypeCompatible(typePtr->info.array.indexTypePtr, indexTypePtr) == 0)
+            if (IsAssignTypeCompatible(typePtr->Info.Array.IndexTypePtr, indexTypePtr) == 0)
             {
-                syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+                SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
             }
 
             typePtr = elementTypePtr;
         }
         else
         {
-            syntaxError(ABL_ERR_SYNTAX_TOO_MANY_SUBSCRIPTS);
+            SyntaxError(ABL_ERR_SYNTAX_TOO_MANY_SUBSCRIPTS);
 
-            while (curToken != TKN_RBRACKET && tokenIn(statementEndList) == 0)
+            while (CurToken != TKN_RBRACKET && TokenIn(StatementEndList) == 0)
             {
-                getToken();
+                GetToken();
             }
         }
-    } while (curToken == TKN_COMMA);
+    } while (CurToken == TKN_COMMA);
 
-    ifTokenGetElseError(TKN_RBRACKET, ABL_ERR_SYNTAX_MISSING_RBRACKET);
+    IfTokenGetElseError(TKN_RBRACKET, ABL_ERR_SYNTAX_MISSING_RBRACKET);
     return typePtr;
 }
 
-auto factor() -> TypePtr
+auto Factor() -> MCTypePtr
 {
-    switch (curToken)
+    switch (CurToken)
     {
         case TKN_IDENTIFIER:
         {
-            SymTableNodePtr idPtr = nullptr;
-            searchAndFindAllSymTables(idPtr);
+            MCSymTableNodePtr idPtr = nullptr;
+            SearchAndFindAllSymTables(idPtr);
 
-            if (idPtr->defn.key == DFN_CONST)
+            if (idPtr->Defn.Key == DFN_CONST)
             {
-                crunchSymTableNodePtr(idPtr);
-                getToken();
-                return idPtr->typePtr;
+                CrunchSymTableNodePtr(idPtr);
+                GetToken();
+                return idPtr->TypePtr;
             }
 
-            if (idPtr->defn.key != DFN_FUNCTION)
+            if (idPtr->Defn.Key != DFN_FUNCTION)
             {
-                return variable(idPtr, USE_EXPR);
+                return Variable(idPtr, USE_EXPR);
             }
 
-            crunchSymTableNodePtr(idPtr);
-            getToken();
-            return routineCall(idPtr, 1);
+            CrunchSymTableNodePtr(idPtr);
+            GetToken();
+            return RoutineCall(idPtr, 1);
         }
 
         case TKN_NUMBER:
         {
-            SymTableNodePtr literalIdPtr = literalSymbol();
-            TypePtr typePtr;
+            MCSymTableNodePtr literalIdPtr = LiteralSymbol();
+            MCTypePtr typePtr;
 
-            if (curLiteral.type == LIT_INTEGER)
+            if (CurLiteral.Type == LIT_INTEGER)
             {
                 typePtr = IntegerTypePtr;
-                literalIdPtr->defn.info.constant.value.integer = curLiteral.value.integer;
+                literalIdPtr->Defn.Info.Constant.Value.Integer = CurLiteral.Value.Integer;
             }
             else
             {
                 typePtr = RealTypePtr;
-                literalIdPtr->defn.info.constant.value.real = curLiteral.value.real;
+                literalIdPtr->Defn.Info.Constant.Value.Real = CurLiteral.Value.Real;
             }
 
-            literalIdPtr->typePtr = typePtr;
-            crunchSymTableNodePtr(literalIdPtr);
-            getToken();
+            literalIdPtr->TypePtr = typePtr;
+            CrunchSymTableNodePtr(literalIdPtr);
+            GetToken();
             return typePtr;
         }
 
         case TKN_STRING:
         {
-            auto length = static_cast<int32_t>(strlen(curLiteral.value.string));
-            SymTableNodePtr literalIdPtr = literalSymbol();
-            TypePtr typePtr = CharTypePtr;
+            auto length = static_cast<int32_t>(strlen(CurLiteral.Value.String));
+            MCSymTableNodePtr literalIdPtr = LiteralSymbol();
+            MCTypePtr typePtr = CharTypePtr;
 
             if (length == 1)
             {
                 // A one-character literal is a char; its typePtr is left as it was (execFactor goes by the name).
-                literalIdPtr->defn.info.constant.value.character = curLiteral.value.string[0];
+                literalIdPtr->Defn.Info.Constant.Value.Character = CurLiteral.Value.String[0];
             }
             else
             {
-                typePtr = makeStringType(length);
-                literalIdPtr->typePtr = typePtr;
-                literalIdPtr->literalString = AblMemory.CopyString(curLiteral.value.string);
+                typePtr = MakeStringType(length);
+                literalIdPtr->TypePtr = typePtr;
+                literalIdPtr->LiteralString = AblMemory.CopyString(CurLiteral.Value.String);
             }
 
-            crunchSymTableNodePtr(literalIdPtr);
-            getToken();
+            CrunchSymTableNodePtr(literalIdPtr);
+            GetToken();
             return typePtr;
         }
 
         case TKN_NOT:
         {
-            getToken();
-            return factor();
+            GetToken();
+            return Factor();
         }
         case TKN_LPAREN:
         {
-            getToken();
-            TypePtr typePtr = expression();
-            ifTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+            GetToken();
+            MCTypePtr typePtr = Expression();
+            IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
             return typePtr;
         }
 
         default:
         {
-            syntaxError(ABL_ERR_SYNTAX_INVALID_EXPRESSION);
+            SyntaxError(ABL_ERR_SYNTAX_INVALID_EXPRESSION);
             return &DummyType;
         }
     }
 }
 
-auto term() -> TypePtr
+auto Term() -> MCTypePtr
 {
-    TypePtr resultType = factor();
+    MCTypePtr resultType = Factor();
 
-    while (tokenIn(multiplyOperatorList))
+    while (TokenIn(MultiplyOperatorList))
     {
-        TokenCodeType op = curToken;
-        TypePtr operandType1 = baseType(resultType);
-        getToken();
-        TypePtr operandType2 = baseType(factor());
+        MCTokenCodeType op = CurToken;
+        MCTypePtr operandType1 = BaseType(resultType);
+        GetToken();
+        MCTypePtr operandType2 = BaseType(Factor());
 
         switch (op)
         {
             case TKN_STAR:
             case TKN_FSLASH:
-                resultType = arithmeticResultType(operandType1, operandType2);
+                resultType = ArithmeticResultType(operandType1, operandType2);
                 break;
             case TKN_AND:
-                resultType = sameTypeResultType(operandType1, operandType2, BooleanTypePtr);
+                resultType = SameTypeResultType(operandType1, operandType2, BooleanTypePtr);
                 break;
             case TKN_DIV:
             case TKN_MOD:
-                resultType = sameTypeResultType(operandType1, operandType2, IntegerTypePtr);
+                resultType = SameTypeResultType(operandType1, operandType2, IntegerTypePtr);
                 break;
             default:
                 resultType = operandType1;
@@ -327,37 +327,37 @@ auto term() -> TypePtr
     return resultType;
 }
 
-auto simpleExpression() -> TypePtr
+auto SimpleExpression() -> MCTypePtr
 {
     bool sawSign = false;
 
-    if (curToken == TKN_PLUS || curToken == TKN_MINUS)
+    if (CurToken == TKN_PLUS || CurToken == TKN_MINUS)
     {
         sawSign = true;
-        getToken();
+        GetToken();
     }
 
-    TypePtr resultType = term();
+    MCTypePtr resultType = Term();
 
-    if (sawSign && baseType(resultType) != IntegerTypePtr && resultType != RealTypePtr)
+    if (sawSign && BaseType(resultType) != IntegerTypePtr && resultType != RealTypePtr)
     {
-        syntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+        SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
     }
 
-    while (tokenIn(addOperatorList))
+    while (TokenIn(AddOperatorList))
     {
-        TokenCodeType op = curToken;
-        TypePtr operandType1 = baseType(resultType);
-        getToken();
-        TypePtr operandType2 = baseType(term());
+        MCTokenCodeType op = CurToken;
+        MCTypePtr operandType1 = BaseType(resultType);
+        GetToken();
+        MCTypePtr operandType2 = BaseType(Term());
 
         if (op == TKN_PLUS || op == TKN_MINUS)
         {
-            resultType = arithmeticResultType(operandType1, operandType2);
+            resultType = ArithmeticResultType(operandType1, operandType2);
         }
         else if (op == TKN_OR)
         {
-            resultType = sameTypeResultType(operandType1, operandType2, BooleanTypePtr);
+            resultType = SameTypeResultType(operandType1, operandType2, BooleanTypePtr);
         }
         else
         {
@@ -368,18 +368,18 @@ auto simpleExpression() -> TypePtr
     return resultType;
 }
 
-auto expression() -> TypePtr
+auto Expression() -> MCTypePtr
 {
-    TypePtr resultType = simpleExpression();
+    MCTypePtr resultType = SimpleExpression();
 
-    if (tokenIn(relationalOperatorList) == 0)
+    if (TokenIn(RelationalOperatorList) == 0)
     {
         return resultType;
     }
 
-    TypePtr operandType1 = baseType(resultType);
-    getToken();
-    TypePtr operandType2 = baseType(simpleExpression());
-    checkRelationalOpTypes(operandType1, operandType2);
+    MCTypePtr operandType1 = BaseType(resultType);
+    GetToken();
+    MCTypePtr operandType2 = BaseType(SimpleExpression());
+    CheckRelationalOpTypes(operandType1, operandType2);
     return BooleanTypePtr;
 }

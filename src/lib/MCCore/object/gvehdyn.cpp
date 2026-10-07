@@ -9,104 +9,104 @@
 
 // The original turns on the x87 stack: the values it keeps at extended precision are doubles here.
 
-float gvWalkSpeed = 0.0f;
+float GvWalkSpeed = 0.0f;
 
 namespace
 {
-    /// <summary>Degrees to radians, as MCX.EXE stores it (MCX.EXE @ 0x0077c2a0; a hair under pi / 180).</summary>
+    /// <summary>Degrees to radians, as MCX.EXE stores it (a hair under pi / 180).</summary>
     constexpr double DEGREES_TO_RADIANS = 0x1.1df46a2526c7ap-6;
 
-    /// <summary>A control's signed 1/64 steps (MCX.EXE @ 0x0077d3f8).</summary>
+    /// <summary>A control's signed 1/64 steps.</summary>
     constexpr float CONTROL_STEP = 0.015625f;
 }
 
-auto GroundVehicleDynamicsType::destroy() -> void
+auto MCGroundVehicleDynamicsType::Destroy() -> void
 {
 }
 
-auto GroundVehicleDynamicsType::init(FitIniFile* objFile) -> int32_t
+auto MCGroundVehicleDynamicsType::Init(MCFitIniFile* objFile) -> int32_t
 {
-    int32_t result = objFile->seekBlock("VehicleDynamics");
+    int32_t result = objFile->SeekBlock("VehicleDynamics");
 
     if (result != 0)
     {
         return result;
     }
 
-    if ((result = objFile->readIdLong("maxTurretYawRate", maxTurretYawRate)) != 0)
+    if ((result = objFile->ReadIdLong("maxTurretYawRate", MaxTurretYawRate)) != 0)
     {
         return result;
     }
 
-    if ((result = objFile->readIdLong("maxTurretYaw", maxTurretYaw)) != 0)
+    if ((result = objFile->ReadIdLong("maxTurretYaw", MaxTurretYaw)) != 0)
     {
         return result;
     }
 
-    if ((result = objFile->readIdLong("maxVehicleYawRate", maxVehicleYawRate)) != 0)
+    if ((result = objFile->ReadIdLong("maxVehicleYawRate", MaxVehicleYawRate)) != 0)
     {
         return result;
     }
 
-    if (maxVehicleYawRate < 720)
+    if (MaxVehicleYawRate < 720)
     {
-        maxVehicleYawRate = 720;
+        MaxVehicleYawRate = 720;
     }
 
-    if (objFile->readIdLong("maxVehiclePivotRate", maxVehiclePivotRate) != 0)
+    if (objFile->ReadIdLong("maxVehiclePivotRate", MaxVehiclePivotRate) != 0)
     {
-        maxVehiclePivotRate = static_cast<int32_t>(static_cast<float>(maxVehicleYawRate) * 0.25f);
+        MaxVehiclePivotRate = static_cast<int32_t>(static_cast<float>(MaxVehicleYawRate) * 0.25f);
     }
 
-    if ((result = objFile->readIdFloat("maxAccel", maxAccel)) != 0)
-    {
-        return result;
-    }
-
-    if ((result = objFile->readIdFloat("maxVelocity", maxVelocity)) != 0)
+    if ((result = objFile->ReadIdFloat("maxAccel", MaxAccel)) != 0)
     {
         return result;
     }
 
-    maxAccel = maxVelocity * 5.0f;
+    if ((result = objFile->ReadIdFloat("maxVelocity", MaxVelocity)) != 0)
+    {
+        return result;
+    }
+
+    MaxAccel = MaxVelocity * 5.0f;
     return 0;
 }
 
-auto GroundVehicleDynamicsType::createInstance() -> Dynamics*
+auto MCGroundVehicleDynamicsType::CreateInstance() -> MCDynamics*
 {
-    return new GroundVehicleDynamics;
+    return new MCGroundVehicleDynamics;
 }
 
-auto GroundVehicleDynamics::destroy() -> void
+auto MCGroundVehicleDynamics::Destroy() -> void
 {
 }
 
-auto GroundVehicleDynamics::init(DynamicsType* dynType, GameObject* object) -> int32_t
+auto MCGroundVehicleDynamics::Init(MCDynamicsType* dynType, MCGameObject* object) -> int32_t
 {
-    const int32_t result = Dynamics::init(dynType, object);
-    accel = static_cast<GroundVehicleDynamicsType*>(type)->maxAccel;
+    const int32_t result = MCDynamics::Init(dynType, object);
+    Accel = static_cast<MCGroundVehicleDynamicsType*>(Type)->MaxAccel;
     return result;
 }
 
-auto GroundVehicleDynamics::update() -> int32_t
+auto MCGroundVehicleDynamics::Update() -> int32_t
 {
-    auto* vehicle = static_cast<GroundVehicle*>(me);
-    const auto* dynType = static_cast<GroundVehicleDynamicsType*>(type);
-    auto* controlData = static_cast<GroundVehicleControlData*>(vehicle->control->controlData);
+    auto* vehicle = static_cast<MCGroundVehicle*>(Me);
+    const auto* dynType = static_cast<MCGroundVehicleDynamicsType*>(Type);
+    auto* controlData = static_cast<MCGroundVehicleControlData*>(vehicle->Control->ControlData);
 
     // This frame's turns, in degrees.
-    const int32_t yawRate = controlData->pivot != 0 ? dynType->maxVehiclePivotRate : dynType->maxVehicleYawRate;
-    const float bodyTurn = static_cast<float>(static_cast<double>(frameLength) *
-                                              (static_cast<double>(controlData->rotate) * CONTROL_STEP * yawRate));
+    const int32_t yawRate = controlData->Pivot != 0 ? dynType->MaxVehiclePivotRate : dynType->MaxVehicleYawRate;
+    const float bodyTurn = static_cast<float>(static_cast<double>(FrameLength) *
+                                              (static_cast<double>(controlData->Rotate) * CONTROL_STEP * yawRate));
     double turretTurn =
-        static_cast<double>(controlData->turretRotate) * CONTROL_STEP * dynType->maxTurretYawRate * frameLength;
+        static_cast<double>(controlData->TurretRotate) * CONTROL_STEP * dynType->MaxTurretYawRate * FrameLength;
 
     // The turret turns up to its limit either way.
     if (turretTurn != 0.0)
     {
-        const float limit = static_cast<float>(dynType->maxTurretYaw);
-        const float negLimit = static_cast<float>(-dynType->maxTurretYaw);
-        float current = vehicle->turretRotation;
+        const float limit = static_cast<float>(dynType->MaxTurretYaw);
+        const float negLimit = static_cast<float>(-dynType->MaxTurretYaw);
+        float current = vehicle->TurretRotation;
 
         if (current > limit)
         {
@@ -130,61 +130,61 @@ auto GroundVehicleDynamics::update() -> int32_t
             turretTurn = static_cast<double>(negLimit) - current;
         }
 
-        vehicle->turretRotation = static_cast<float>(current + turretTurn);
+        vehicle->TurretRotation = static_cast<float>(current + turretTurn);
     }
 
     // The body turns about its up axis (the sine is stored as a float, the cosine isn't).
-    const frame_of_ref frame = vehicle->getFrame();
+    const MCFrameOfRef frame = vehicle->GetFrame();
     const double angle = static_cast<double>(bodyTurn) * DEGREES_TO_RADIANS;
     const float s = static_cast<float>(std::sin(angle));
     const double c = std::cos(angle);
-    frame_of_ref turned = frame;
-    turned.i.x = static_cast<float>(c * frame.i.x + static_cast<double>(frame.j.x) * s);
-    turned.i.y = static_cast<float>(frame.i.y * c) + frame.j.y * s;
-    turned.i.z = static_cast<float>(frame.i.z * c) + frame.j.z * s;
-    turned.j.x = static_cast<float>(frame.j.x * c) - frame.i.x * s;
-    turned.j.y = static_cast<float>(frame.j.y * c) - frame.i.y * s;
-    turned.j.z = static_cast<float>(c * frame.j.z - static_cast<double>(frame.i.z * s));
-    vehicle->setFrame(turned);
+    MCFrameOfRef turned = frame;
+    turned.I.X = static_cast<float>(c * frame.I.X + static_cast<double>(frame.J.X) * s);
+    turned.I.Y = static_cast<float>(frame.I.Y * c) + frame.J.Y * s;
+    turned.I.Z = static_cast<float>(frame.I.Z * c) + frame.J.Z * s;
+    turned.J.X = static_cast<float>(frame.J.X * c) - frame.I.X * s;
+    turned.J.Y = static_cast<float>(frame.J.Y * c) - frame.I.Y * s;
+    turned.J.Z = static_cast<float>(c * frame.J.Z - static_cast<double>(frame.I.Z * s));
+    vehicle->SetFrame(turned);
 
     // Moving: the appearance animates.
-    auto* appearance = static_cast<GVAppearance*>(vehicle->getAppearance());
-    const float throttle = static_cast<float>(static_cast<float>(controlData->throttle) * 0.01);
+    auto* appearance = static_cast<MCGVAppearance*>(vehicle->GetAppearance());
+    const float throttle = static_cast<float>(static_cast<float>(controlData->Throttle) * 0.01);
 
-    if (appearance != nullptr && throttle != 0.0f && dynType->maxVelocity != 0.0f)
+    if (appearance != nullptr && throttle != 0.0f && dynType->MaxVelocity != 0.0f)
     {
-        appearance->setTypeId(GV_ACTOR_STATE_DAMAGED);
-        appearance->update();
+        appearance->SetTypeId(GV_ACTOR_STATE_DAMAGED);
+        appearance->Update();
     }
 
     // Accelerate toward the throttle's share of the top (or walking) speed.
-    float topSpeed = dynType->maxVelocity;
+    float topSpeed = dynType->MaxVelocity;
 
-    if (controlData->walk != 0)
+    if (controlData->Walk != 0)
     {
-        topSpeed = gvWalkSpeed;
+        topSpeed = GvWalkSpeed;
     }
 
-    const float speedChange = static_cast<float>(static_cast<double>(topSpeed) * throttle - velocity);
+    const float speedChange = static_cast<float>(static_cast<double>(topSpeed) * throttle - Velocity);
 
-    if ((speedChange < 0.0f && 0.0f < accel) || (0.0f < speedChange && accel < 0.0f))
+    if ((speedChange < 0.0f && 0.0f < Accel) || (0.0f < speedChange && Accel < 0.0f))
     {
-        accel = -accel;
+        Accel = -Accel;
     }
 
-    double step = static_cast<double>(frameLength) * accel;
+    double step = static_cast<double>(FrameLength) * Accel;
 
     if (std::fabs(speedChange) < std::fabs(step))
     {
         step = speedChange;
     }
 
-    velocity = static_cast<float>(step + velocity);
+    Velocity = static_cast<float>(step + Velocity);
     return 1;
 }
 
-auto GroundVehicleDynamics::brake() -> int32_t
+auto MCGroundVehicleDynamics::Brake() -> int32_t
 {
-    velocity = 0.0f;
+    Velocity = 0.0f;
     return 0;
 }

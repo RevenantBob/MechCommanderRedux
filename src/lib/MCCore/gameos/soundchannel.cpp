@@ -9,20 +9,20 @@
 namespace
 {
     /// <summary>The DirectSound volume a channel volume gives: -2000 - ftol(volume * -2000).</summary>
-    int32_t bufferVolume(float volume)
+    int32_t BufferVolume(float volume)
     {
         return -2000 - static_cast<int32_t>(volume * -2000.0f);
     }
 
     /// <summary>The DirectSound pan a channel pan gives: ftol(pan) * 10000, so only -1, 0 and 1 are heard (OB-059).
     /// </summary>
-    int32_t bufferPan(float panning)
+    int32_t BufferPan(float panning)
     {
         return static_cast<int32_t>(panning) * 10000;
     }
 
     /// <summary>A resource's format as the port's mixer takes it.</summary>
-    MCSoundFormat soundFormat(const tWAVEFORMATEX* format)
+    MCSoundFormat SoundFormat(const tWAVEFORMATEX* format)
     {
         MCSoundFormat result;
         result.Rate = format->nSamplesPerSec;
@@ -33,87 +33,87 @@ namespace
 
     /// <summary>Makes a buffer of <paramref name="bytes"/> for the channel's resource (CreateSoundBuffer).</summary>
     /// <returns>Whether it could.</returns>
-    bool createSoundBuffer(SoundChannel* channel, uint32_t bytes)
+    bool CreateSoundBuffer(MCSoundChannel* channel, uint32_t bytes)
     {
         // Port fix: the channel's property bits only pick DirectSound's control flags; the port's buffers have
         // every control.
-        auto buffer = g_SRData.directSound->CreateBuffer(soundFormat(channel->resource->format), bytes);
+        auto buffer = SRData.DirectSound->CreateBuffer(SoundFormat(channel->Resource->Format), bytes);
 
         if (!buffer)
         {
             return false;
         }
 
-        channel->buffer = std::move(*buffer);
+        channel->Buffer = std::move(*buffer);
         return true;
     }
 
     /// <summary>Applies the channel's volume, frequency and pan to its new buffer, as its properties allow.</summary>
-    void applyControls(SoundChannel* channel)
+    void ApplyControls(MCSoundChannel* channel)
     {
-        MCSoundBuffer* buffer = channel->buffer.get();
+        MCSoundBuffer* buffer = channel->Buffer.get();
 
-        if ((channel->properties & CHANNEL_VOLUME) != 0)
+        if ((channel->Properties & CHANNEL_VOLUME) != 0)
         {
-            buffer->SetVolume(bufferVolume(channel->volume));
+            buffer->SetVolume(BufferVolume(channel->Volume));
         }
 
-        if ((channel->properties & CHANNEL_FREQUENCY) != 0)
+        if ((channel->Properties & CHANNEL_FREQUENCY) != 0)
         {
             uint32_t rate = buffer->GetFrequency();
             buffer->SetFrequency(
-                static_cast<uint32_t>(static_cast<int64_t>(rate * static_cast<double>(channel->frequency))));
+                static_cast<uint32_t>(static_cast<int64_t>(rate * static_cast<double>(channel->Frequency))));
         }
 
-        if ((channel->properties & CHANNEL_PANNING) != 0)
+        if ((channel->Properties & CHANNEL_PANNING) != 0)
         {
-            buffer->SetPan(bufferPan(channel->panning));
+            buffer->SetPan(BufferPan(channel->Panning));
         }
     }
 }
 
-float gos_GetChannelVolume(int channel)
+float GosGetChannelVolume(int channel)
 {
-    return g_SRData.channels[channel]->volume;
+    return SRData.Channels[channel]->Volume;
 }
 
-void gos_SetChannelVolume(int channel, float volume)
+void GosSetChannelVolume(int channel, float volume)
 {
-    MCSoundBuffer* buffer = g_SRData.channels[channel]->buffer.get();
+    MCSoundBuffer* buffer = SRData.Channels[channel]->Buffer.get();
 
     if (buffer != nullptr)
     {
-        buffer->SetVolume(bufferVolume(volume));
+        buffer->SetVolume(BufferVolume(volume));
     }
 
-    g_SRData.channels[channel]->volume = volume;
+    SRData.Channels[channel]->Volume = volume;
 }
 
-float gos_GetChannelPanning(int channel)
+float GosGetChannelPanning(int channel)
 {
-    return g_SRData.channels[channel]->panning;
+    return SRData.Channels[channel]->Panning;
 }
 
-void gos_SetChannelPanning(int channel, float panning)
+void GosSetChannelPanning(int channel, float panning)
 {
-    MCSoundBuffer* buffer = g_SRData.channels[channel]->buffer.get();
+    MCSoundBuffer* buffer = SRData.Channels[channel]->Buffer.get();
 
     if (buffer != nullptr)
     {
-        buffer->SetPan(bufferPan(panning));
+        buffer->SetPan(BufferPan(panning));
     }
 
-    g_SRData.channels[channel]->panning = panning;
+    SRData.Channels[channel]->Panning = panning;
 }
 
-float gos_GetChannelFrequency(int channel)
+float GosGetChannelFrequency(int channel)
 {
-    return g_SRData.channels[channel]->frequency;
+    return SRData.Channels[channel]->Frequency;
 }
 
-void gos_SetChannelFrequency(int channel, float frequency)
+void GosSetChannelFrequency(int channel, float frequency)
 {
-    MCSoundBuffer* buffer = g_SRData.channels[channel]->buffer.get();
+    MCSoundBuffer* buffer = SRData.Channels[channel]->Buffer.get();
 
     if (buffer != nullptr)
     {
@@ -128,79 +128,79 @@ void gos_SetChannelFrequency(int channel, float frequency)
         buffer->SetFrequency(newRate);
     }
 
-    g_SRData.channels[channel]->frequency = frequency;
+    SRData.Channels[channel]->Frequency = frequency;
 }
 
-void gos_SetChannelProperties(int channel, uint32_t properties)
+void GosSetChannelProperties(int channel, uint32_t properties)
 {
-    g_SRData.channels[channel]->properties = properties;
+    SRData.Channels[channel]->Properties = properties;
 }
 
-uint32_t gos_GetChannelProperties(int channel)
+uint32_t GosGetChannelProperties(int channel)
 {
-    return g_SRData.channels[channel]->properties;
+    return SRData.Channels[channel]->Properties;
 }
 
-void gos_SetChannelVolumeOverTime(int channel, float startVolume, float endVolume, int time)
-{
-}
-
-void gos_SetChannelPanningOverTime(int channel, float startPanning, float endPanning, int time)
+void GosSetChannelVolumeOverTime(int channel, float startVolume, float endVolume, int time)
 {
 }
 
-void gos_SetChannelFrequencyOverTime(int channel, int startFrequency, int endFrequency, int time)
+void GosSetChannelPanningOverTime(int channel, float startPanning, float endPanning, int time)
 {
 }
 
-int gos_GetChannelPosition(int channel)
+void GosSetChannelFrequencyOverTime(int channel, int startFrequency, int endFrequency, int time)
+{
+}
+
+int GosGetChannelPosition(int channel)
 {
     return 0;
 }
 
-void gos_SetChannelPosition(int channel, int position)
+void GosSetChannelPosition(int channel, int position)
 {
 }
 
-void gos_SetChannelLooping(int channel, bool looping)
+void GosSetChannelLooping(int channel, bool looping)
 {
-    g_SRData.channels[channel]->looping = looping;
+    SRData.Channels[channel]->Looping = looping;
 }
 
-bool gos_GetChannelLooping(int channel)
+bool GosGetChannelLooping(int channel)
 {
-    return g_SRData.channels[channel]->looping;
+    return SRData.Channels[channel]->Looping;
 }
 
-int gos_PlayChannel(int channel, void* resource)
+int GosPlayChannel(int channel, void* resource)
 {
     if (resource == nullptr)
     {
         return 0;
     }
 
-    SoundResource* soundResource = static_cast<SoundResource*>(resource);
-    SoundChannel* soundChannel = g_SRData.channels[channel];
+    MCSoundResource* soundResource = static_cast<MCSoundResource*>(resource);
+    MCSoundChannel* soundChannel = SRData.Channels[channel];
 
-    if (soundChannel->paused == 0)
+    if (soundChannel->Paused == 0)
     {
-        if (soundResource->type != SOUND_RESOURCE_STREAM)
+        if (soundResource->Type != SOUND_RESOURCE_STREAM)
         {
             soundChannel->CreateAndLoadBuffer(soundResource);
-            g_SRData.channels[channel]->Play();
+            SRData.Channels[channel]->Play();
             return 0;
         }
 
-        if (soundChannel->streaming != 0)
+        if (soundChannel->Streaming != 0)
         {
             soundChannel->StopStream();
         }
 
-        g_SRData.channels[channel]->CreateStreamBuffer(soundResource);
+        SRData.Channels[channel]->CreateStreamBuffer(soundResource);
         soundResource->Rewind();
-        soundChannel = g_SRData.channels[channel];
+        soundChannel = SRData.Channels[channel];
     }
-    else if (soundResource->type != SOUND_RESOURCE_STREAM)
+    else if (soundResource->Type != SOUND_RESOURCE_STREAM)
     {
         soundChannel->Play();
         return 0;
@@ -210,14 +210,14 @@ int gos_PlayChannel(int channel, void* resource)
     return 0;
 }
 
-void gos_StopChannel(int channel)
+void GosStopChannel(int channel)
 {
-    SoundChannel* soundChannel = g_SRData.channels[channel];
+    MCSoundChannel* soundChannel = SRData.Channels[channel];
 
-    if (soundChannel->resource != nullptr)
+    if (soundChannel->Resource != nullptr)
     {
-        gosEnum_SoundResourceType type = soundChannel->resource->type;
-        soundChannel->paused = 0;
+        MCSoundResourceType type = soundChannel->Resource->Type;
+        soundChannel->Paused = 0;
 
         if (type != SOUND_RESOURCE_STREAM)
         {
@@ -229,13 +229,13 @@ void gos_StopChannel(int channel)
     }
 }
 
-void gos_PauseChannel(int channel)
+void GosPauseChannel(int channel)
 {
-    SoundChannel* soundChannel = g_SRData.channels[channel];
+    MCSoundChannel* soundChannel = SRData.Channels[channel];
 
-    if (soundChannel->resource != nullptr)
+    if (soundChannel->Resource != nullptr)
     {
-        if (soundChannel->resource->type != SOUND_RESOURCE_STREAM)
+        if (soundChannel->Resource->Type != SOUND_RESOURCE_STREAM)
         {
             soundChannel->Pause();
             return;
@@ -245,23 +245,23 @@ void gos_PauseChannel(int channel)
     }
 }
 
-int gos_GetChannelStatus(int channel)
+int GosGetChannelStatus(int channel)
 {
-    SoundChannel* soundChannel = g_SRData.channels[channel];
+    MCSoundChannel* soundChannel = SRData.Channels[channel];
 
-    if (soundChannel->resource == nullptr)
+    if (soundChannel->Resource == nullptr)
     {
         return 2;
     }
 
-    if (soundChannel->paused != 0)
+    if (soundChannel->Paused != 0)
     {
         return 1;
     }
 
-    uint32_t status = soundChannel->buffer->GetStatus();
+    uint32_t status = soundChannel->Buffer->GetStatus();
 
-    if ((status & MCSoundBuffer::StatusPlaying) == 0 && g_SRData.channels[channel]->streaming == 0)
+    if ((status & MCSoundBuffer::StatusPlaying) == 0 && SRData.Channels[channel]->Streaming == 0)
     {
         return 2;
     }
@@ -269,62 +269,62 @@ int gos_GetChannelStatus(int channel)
     return 0;
 }
 
-SoundChannel::SoundChannel()
+MCSoundChannel::MCSoundChannel()
 {
 }
 
-SoundChannel::~SoundChannel()
+MCSoundChannel::~MCSoundChannel()
 {
-    if (timer != nullptr)
+    if (Timer != nullptr)
     {
-        delete timer;
-        timer = nullptr;
+        delete Timer;
+        Timer = nullptr;
     }
 
-    if (buffer != nullptr)
+    if (Buffer != nullptr)
     {
-        buffer.reset();
+        Buffer.reset();
     }
 }
 
-void SoundChannel::CreateAndLoadBuffer(SoundResource* newResource)
+void MCSoundChannel::CreateAndLoadBuffer(MCSoundResource* newResource)
 {
-    if (buffer != nullptr)
+    if (Buffer != nullptr)
     {
-        buffer.reset();
+        Buffer.reset();
     }
 
-    resource = newResource;
+    Resource = newResource;
 
-    if (g_SRData.directSound == nullptr)
+    if (SRData.DirectSound == nullptr)
     {
         Fatal(-1, "DirectSound isn't initialized!");
     }
 
     CreateBuffer();
-    MCSoundBuffer::MCLockedRegion region = buffer->Lock(0, newResource->waveSize);
-    std::memcpy(region.Data1, newResource->waveData, region.Size1);
+    MCSoundBuffer::MCLockedRegion region = Buffer->Lock(0, newResource->WaveSize);
+    std::memcpy(region.Data1, newResource->WaveData, region.Size1);
 
     if (region.Size2 != 0)
     {
-        std::memcpy(region.Data2, newResource->waveData + region.Size1, region.Size2);
+        std::memcpy(region.Data2, newResource->WaveData + region.Size1, region.Size2);
     }
 
-    buffer->Unlock(region);
-    applyControls(this);
+    Buffer->Unlock(region);
+    ApplyControls(this);
 }
 
-void SoundChannel::CreateBuffer()
+void MCSoundChannel::CreateBuffer()
 {
-    if (!createSoundBuffer(this, resource->waveSize))
+    if (!CreateSoundBuffer(this, Resource->WaveSize))
     {
         Fatal(-1, "CreateSoundBuffer failed!");
     }
 }
 
-void SoundChannel::Stop()
+void MCSoundChannel::Stop()
 {
-    MCSoundBuffer* soundBuffer = buffer.get();
+    MCSoundBuffer* soundBuffer = Buffer.get();
 
     if ((soundBuffer->GetStatus() & MCSoundBuffer::StatusPlaying) != 0)
     {
@@ -333,91 +333,91 @@ void SoundChannel::Stop()
     }
 }
 
-void SoundChannel::Play()
+void MCSoundChannel::Play()
 {
-    MCSoundBuffer* soundBuffer = buffer.get();
+    MCSoundBuffer* soundBuffer = Buffer.get();
 
     if ((soundBuffer->GetStatus() & MCSoundBuffer::StatusPlaying) != 0)
     {
         soundBuffer->Stop();
     }
 
-    if (paused == 0)
+    if (Paused == 0)
     {
         soundBuffer->SetCurrentPosition(0);
     }
 
-    paused = 0;
-    soundBuffer->Play(looping);
+    Paused = 0;
+    soundBuffer->Play(Looping);
 }
 
-void SoundChannel::PlayStream()
+void MCSoundChannel::PlayStream()
 {
-    if (buffer == nullptr)
+    if (Buffer == nullptr)
     {
         return;
     }
 
-    if (streaming != 0)
+    if (Streaming != 0)
     {
         StopStream();
     }
 
-    if (streamPrimed == 0 && paused == 0)
+    if (StreamPrimed == 0 && Paused == 0)
     {
         PrimeStream();
     }
 
-    paused = 0;
+    Paused = 0;
     // DirectSound's Play could fail (Fatal "Error: playstream failed!"); the port's cannot.
-    buffer->Play(true);
-    startTime = MCPort::Milliseconds();
-    streaming = 1;
-    streamPrimed = 0;
+    Buffer->Play(true);
+    StartTime = MCPort::Milliseconds();
+    Streaming = 1;
+    StreamPrimed = 0;
 }
 
-void SoundChannel::CreateStreamBuffer(SoundResource* newResource)
+void MCSoundChannel::CreateStreamBuffer(MCSoundResource* newResource)
 {
-    if (buffer != nullptr)
+    if (Buffer != nullptr)
     {
-        buffer.reset();
+        Buffer.reset();
     }
 
-    resource = newResource;
-    uint32_t dataBytes = newResource->waveSize;
-    bufferSize = newResource->format->nAvgBytesPerSec * bufferMs / 1000;
+    Resource = newResource;
+    uint32_t dataBytes = newResource->WaveSize;
+    BufferSize = newResource->Format->nAvgBytesPerSec * BufferMs / 1000;
 
-    if (bufferSize < dataBytes)
+    if (BufferSize < dataBytes)
     {
-        bufferSize = dataBytes;
+        BufferSize = dataBytes;
     }
 
-    durationMs = newResource->durationMs;
+    DurationMs = newResource->DurationMs;
     // The original ignored CreateSoundBuffer's result here.
-    createSoundBuffer(this, bufferSize);
-    applyControls(this);
+    CreateSoundBuffer(this, BufferSize);
+    ApplyControls(this);
 }
 
-void SoundChannel::PrimeStream()
+void MCSoundChannel::PrimeStream()
 {
-    if (streamPrimed != 0)
+    if (StreamPrimed != 0)
     {
         return;
     }
 
-    writePos = 0;
-    resource->Rewind();
-    buffer->SetCurrentPosition(0);
-    WriteWaveData(bufferSize);
-    streamPrimed = 1;
+    WritePos = 0;
+    Resource->Rewind();
+    Buffer->SetCurrentPosition(0);
+    WriteWaveData(BufferSize);
+    StreamPrimed = 1;
 }
 
-void SoundChannel::WriteWaveData(uint32_t bytes)
+void MCSoundChannel::WriteWaveData(uint32_t bytes)
 {
-    MCSoundBuffer* soundBuffer = buffer.get();
-    MCSoundBuffer::MCLockedRegion region = soundBuffer->Lock(writePos, bytes);
+    MCSoundBuffer* soundBuffer = Buffer.get();
+    MCSoundBuffer::MCLockedRegion region = soundBuffer->Lock(WritePos, bytes);
     uint32_t read2 = 0;
-    uint32_t read1 = resource->Read(region.Data1, region.Size1, looping);
+    uint32_t read1 = Resource->Read(region.Data1, region.Size1, Looping);
 
     if (read1 != region.Size1)
     {
@@ -426,7 +426,7 @@ void SoundChannel::WriteWaveData(uint32_t bytes)
 
     if (region.Data2 != nullptr)
     {
-        read2 = resource->Read(region.Data2, region.Size2, looping);
+        read2 = Resource->Read(region.Data2, region.Size2, Looping);
 
         if (read2 != region.Size2)
         {
@@ -434,33 +434,33 @@ void SoundChannel::WriteWaveData(uint32_t bytes)
         }
     }
 
-    writePos = (writePos + read2 + read1) % bufferSize;
+    WritePos = (WritePos + read2 + read1) % BufferSize;
     soundBuffer->Unlock(region);
 }
 
-void SoundChannel::StopStream()
+void MCSoundChannel::StopStream()
 {
-    if (streaming == 0)
+    if (Streaming == 0)
     {
         return;
     }
 
-    buffer->Stop();
+    Buffer->Stop();
 
-    if (timer != nullptr)
+    if (Timer != nullptr)
     {
-        delete timer;
+        delete Timer;
     }
 
-    timer = nullptr;
-    streaming = 0;
+    Timer = nullptr;
+    Streaming = 0;
 }
 
-int SoundChannel::TimerCallback(uintptr_t channel)
+int MCSoundChannel::TimerCallback(uintptr_t channel)
 {
-    SoundChannel* soundChannel = reinterpret_cast<SoundChannel*>(channel);
+    MCSoundChannel* soundChannel = reinterpret_cast<MCSoundChannel*>(channel);
 
-    if (soundChannel->streaming != 0)
+    if (soundChannel->Streaming != 0)
     {
         return soundChannel->ServiceBuffer();
     }
@@ -468,14 +468,14 @@ int SoundChannel::TimerCallback(uintptr_t channel)
     return 1;
 }
 
-int SoundChannel::ServiceBuffer()
+int MCSoundChannel::ServiceBuffer()
 {
-    if (serviceLock.exchange(1) != 0)
+    if (ServiceLock.exchange(1) != 0)
     {
         return 0;
     }
 
-    elapsed = MCPort::Milliseconds() - startTime;
+    Elapsed = MCPort::Milliseconds() - StartTime;
     uint32_t bytes = GetMaxWriteSize();
 
     if (bytes != 0)
@@ -483,18 +483,18 @@ int SoundChannel::ServiceBuffer()
         WriteWaveData(bytes);
     }
 
-    if (durationMs <= elapsed && !looping)
+    if (DurationMs <= Elapsed && !Looping)
     {
         StopStream();
     }
 
-    serviceLock.exchange(0);
+    ServiceLock.exchange(0);
     return 1;
 }
 
-void SoundChannel::WriteSilence(uint32_t bytes)
+void MCSoundChannel::WriteSilence(uint32_t bytes)
 {
-    MCSoundBuffer::MCLockedRegion region = buffer->Lock(writePos, bytes);
+    MCSoundBuffer::MCLockedRegion region = Buffer->Lock(WritePos, bytes);
     uint8_t silence = GetSilenceData();
     // OB-060: the second piece of a wrapped region is never filled; the first is filled twice.
     std::memset(region.Data1, silence, region.Size1);
@@ -506,27 +506,27 @@ void SoundChannel::WriteSilence(uint32_t bytes)
         size2 = region.Size2;
     }
 
-    writePos = (size2 + region.Size1 + writePos) % bufferSize;
-    buffer->Unlock(region);
+    WritePos = (size2 + region.Size1 + WritePos) % BufferSize;
+    Buffer->Unlock(region);
 }
 
-uint32_t SoundChannel::GetMaxWriteSize()
+uint32_t MCSoundChannel::GetMaxWriteSize()
 {
     uint32_t play = 0;
     uint32_t write = 0;
-    buffer->GetCurrentPosition(&play, &write);
+    Buffer->GetCurrentPosition(&play, &write);
 
-    if (writePos <= play)
+    if (WritePos <= play)
     {
-        return play - writePos;
+        return play - WritePos;
     }
 
-    return (bufferSize - writePos) + play;
+    return (BufferSize - WritePos) + play;
 }
 
-uint8_t SoundChannel::GetSilenceData()
+uint8_t MCSoundChannel::GetSilenceData()
 {
-    int16_t bits = static_cast<int16_t>(resource->format->wBitsPerSample);
+    int16_t bits = static_cast<int16_t>(Resource->Format->wBitsPerSample);
 
     if (bits == 8)
     {
@@ -541,14 +541,14 @@ uint8_t SoundChannel::GetSilenceData()
     Fatal(-1, "Unsupported BitsPerSample");
 }
 
-void SoundChannel::Pause()
+void MCSoundChannel::Pause()
 {
-    paused = 1;
-    buffer->Stop();
+    Paused = 1;
+    Buffer->Stop();
 }
 
-void SoundChannel::PauseStream()
+void MCSoundChannel::PauseStream()
 {
-    paused = 1;
+    Paused = 1;
     StopStream();
 }

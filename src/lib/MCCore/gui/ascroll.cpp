@@ -20,37 +20,36 @@ namespace
     constexpr int32_t ScrollChanged = 0x6c;
 }
 
-/// <remarks>MCX.EXE @ 0x0060cda0</remarks>
-auto ScrollEventHandler(aObject* obj, aEvent* event) -> void
+auto ScrollEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
     // aScrollButton and aScrollArea both keep their id byte at +0x4ac.
-    const uint8_t id = static_cast<aScrollButton*>(obj)->buttonId;
+    const uint8_t id = static_cast<MCGuiScrollButton*>(obj)->ButtonId;
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
-            application->grab(obj);
-            application->AddTimer(obj, RepeatDelayTimer, 1000, 0, 0, 0);
-            aPostMessage(obj->parent, id);
+            Application->Grab(obj);
+            Application->AddTimer(obj, RepeatDelayTimer, 1000, 0, 0, 0);
+            APostMessage(obj->Parent, id);
             break;
         }
         case 4:
         {
-            application->release();
-            application->RemoveTimer(obj, RepeatDelayTimer);
-            application->RemoveTimer(obj, RepeatTimer);
+            Application->Release();
+            Application->RemoveTimer(obj, RepeatDelayTimer);
+            Application->RemoveTimer(obj, RepeatTimer);
             break;
         }
         case TimerEvent:
         {
-            if (event->data == RepeatDelayTimer)
+            if (event->Data == RepeatDelayTimer)
             {
-                application->RemoveTimer(obj, RepeatDelayTimer);
-                application->AddTimer(obj, RepeatTimer, 200, 0, 0, 0);
+                Application->RemoveTimer(obj, RepeatDelayTimer);
+                Application->AddTimer(obj, RepeatTimer, 200, 0, 0, 0);
             }
 
-            aPostMessage(obj->parent, id);
+            APostMessage(obj->Parent, id);
             break;
         }
         default:
@@ -58,41 +57,40 @@ auto ScrollEventHandler(aObject* obj, aEvent* event) -> void
     }
 }
 
-/// <remarks>MCX.EXE @ 0x0060ce80</remarks>
-auto ScrollTabHandler(aObject* obj, aEvent* event) -> void
+auto ScrollTabHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    auto* bar = static_cast<aScrollBar*>(obj->parent);
+    auto* bar = static_cast<MCGuiScrollBar*>(obj->Parent);
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 1:
         {
             // Centre the cursor on the thumb, then drag it.
-            const int32_t cursorX = obj->width() / 2 + obj->globalX();
-            const int32_t cursorY = obj->height() / 2 + obj->globalY();
+            const int32_t cursorX = obj->Width() / 2 + obj->GlobalX();
+            const int32_t cursorY = obj->Height() / 2 + obj->GlobalY();
             MCInput::SetCursorPos(cursorX, cursorY);
-            application->grab(obj);
+            Application->Grab(obj);
             break;
         }
 
         case 4:
-            application->release();
+            Application->Release();
             break;
         case 7:
         {
-            if (application->grabbedObject() == obj)
+            if (Application->GrabbedObject() == obj)
             {
-                const int32_t offset = event->y - bar->globalY();
-                const int32_t steps = (bar->scrollMax * offset) / (bar->height() - 0x12);
+                const int32_t offset = event->Y - bar->GlobalY();
+                const int32_t steps = (bar->ScrollMax * offset) / (bar->Height() - 0x12);
                 const float newPos = static_cast<float>(static_cast<double>(steps) + 0.5);
 
-                if (static_cast<int16_t>(static_cast<int32_t>(newPos)) != bar->scrollPos)
+                if (static_cast<int16_t>(static_cast<int32_t>(newPos)) != bar->ScrollPos)
                 {
-                    aEvent dragEvent;
-                    dragEvent.clear();
-                    dragEvent.type = ThumbDragged;
-                    dragEvent.lParam = static_cast<int32_t>(newPos);
-                    bar->handleEvent(&dragEvent);
+                    MCGuiEvent dragEvent;
+                    dragEvent.Clear();
+                    dragEvent.Type = ThumbDragged;
+                    dragEvent.LParam = static_cast<int32_t>(newPos);
+                    bar->HandleEvent(&dragEvent);
                 }
             }
             break;
@@ -102,214 +100,209 @@ auto ScrollTabHandler(aObject* obj, aEvent* event) -> void
     }
 }
 
-/// <remarks>MCX.EXE @ 0x0060cfc0</remarks>
-auto ScrollTabPaint(aObject* obj) -> void
+auto ScrollTabPaint(MCGuiObject* obj) -> void
 {
-    const int32_t width = obj->width();
-    const int32_t height = obj->height();
-    PANE* pane = obj->port()->frame();
-    VFX_pane_wipe(pane, 0x39);
+    const int32_t width = obj->Width();
+    const int32_t height = obj->Height();
+    MCPane* pane = obj->Port()->Frame();
+    VfxPaneWipe(pane, 0x39);
 
     // A black outline, a light bevel top and left, a dark one bottom and right.
-    VFX_line_draw(pane, 0, height - 1, width, height - 1, LD_DRAW, 0);
-    VFX_line_draw(pane, 0, 0, width, 0, LD_DRAW, 0);
-    VFX_line_draw(pane, 0, 0, 0, height - 1, LD_DRAW, 0);
-    VFX_line_draw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0);
-    VFX_line_draw(pane, 1, 1, width - 2, 1, LD_DRAW, 0x3d);
-    VFX_line_draw(pane, 2, 2, width - 3, 2, LD_DRAW, 0x3b);
-    VFX_line_draw(pane, 1, 1, 1, height - 2, LD_DRAW, 0x3d);
-    VFX_line_draw(pane, 2, 2, 2, height - 3, LD_DRAW, 0x3b);
-    VFX_line_draw(pane, width - 2, 1, width - 2, height - 2, LD_DRAW, 0x35);
-    VFX_line_draw(pane, width - 3, 2, width - 3, height - 3, LD_DRAW, 0x37);
-    VFX_line_draw(pane, 1, height - 2, width - 2, height - 2, LD_DRAW, 0x35);
-    VFX_line_draw(pane, 2, height - 3, width - 3, height - 3, LD_DRAW, 0x37);
+    VfxLineDraw(pane, 0, height - 1, width, height - 1, LD_DRAW, 0);
+    VfxLineDraw(pane, 0, 0, width, 0, LD_DRAW, 0);
+    VfxLineDraw(pane, 0, 0, 0, height - 1, LD_DRAW, 0);
+    VfxLineDraw(pane, width - 1, 0, width - 1, height - 1, LD_DRAW, 0);
+    VfxLineDraw(pane, 1, 1, width - 2, 1, LD_DRAW, 0x3d);
+    VfxLineDraw(pane, 2, 2, width - 3, 2, LD_DRAW, 0x3b);
+    VfxLineDraw(pane, 1, 1, 1, height - 2, LD_DRAW, 0x3d);
+    VfxLineDraw(pane, 2, 2, 2, height - 3, LD_DRAW, 0x3b);
+    VfxLineDraw(pane, width - 2, 1, width - 2, height - 2, LD_DRAW, 0x35);
+    VfxLineDraw(pane, width - 3, 2, width - 3, height - 3, LD_DRAW, 0x37);
+    VfxLineDraw(pane, 1, height - 2, width - 2, height - 2, LD_DRAW, 0x35);
+    VfxLineDraw(pane, 2, height - 3, width - 3, height - 3, LD_DRAW, 0x37);
 }
 
-/// <remarks>MCX.EXE @ 0x0060d100</remarks>
-aScrollBar::aScrollBar() = default;
+MCGuiScrollBar::MCGuiScrollBar() = default;
 
-/// <remarks>MCX.EXE @ 0x0060d160</remarks>
-auto aScrollBar::init(int32_t xPos, int32_t yPos, int32_t, int32_t height, char* name) -> int32_t
+auto MCGuiScrollBar::Init(int32_t xPos, int32_t yPos, int32_t, int32_t height, char* name) -> int32_t
 {
-    constexpr int32_t OutOfMemory = -0x1111fffe;
+    constexpr int32_t outOfMemory = -0x1111fffe;
 
-    int32_t result = aObject::init(xPos, yPos, 0x12, height, name);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    upButton = new aScrollButton;
-
-    if (upButton == nullptr)
-    {
-        return OutOfMemory;
-    }
-
-    result = upButton->init(0, 0, 0x10, 8, nullptr);
+    int32_t result = MCGuiObject::Init(xPos, yPos, 0x12, height, name);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = upButton->setBackground(0x27);
+    UpButton = new MCGuiScrollButton;
+
+    if (UpButton == nullptr)
+    {
+        return outOfMemory;
+    }
+
+    result = UpButton->Init(0, 0, 0x10, 8, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    addChild(upButton);
-    upButton->moveTo(1, 1, 0);
-    upButton->buttonId = 0x65;
-    upButton->setEventRoutine(ScrollEventHandler);
-
-    downButton = new aScrollButton;
-
-    if (downButton == nullptr)
-    {
-        return OutOfMemory;
-    }
-
-    result = downButton->init(0, 0, 0x10, 8, nullptr);
+    result = UpButton->SetBackground(0x27);
 
     if (result != 0)
     {
         return result;
     }
 
-    result = downButton->setBackground(0x28);
+    AddChild(UpButton);
+    UpButton->MoveTo(1, 1, 0);
+    UpButton->ButtonId = 0x65;
+    UpButton->SetEventRoutine(ScrollEventHandler);
+
+    DownButton = new MCGuiScrollButton;
+
+    if (DownButton == nullptr)
+    {
+        return outOfMemory;
+    }
+
+    result = DownButton->Init(0, 0, 0x10, 8, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    addChild(downButton);
-    downButton->moveTo(1, height - 9, 0);
-    downButton->buttonId = 0x66;
-    downButton->setEventRoutine(ScrollEventHandler);
-
-    upArea = new aScrollArea;
-
-    if (upArea == nullptr)
-    {
-        return OutOfMemory;
-    }
-
-    result = upArea->init(0, 0, 0x10, 1, nullptr);
+    result = DownButton->SetBackground(0x28);
 
     if (result != 0)
     {
         return result;
     }
 
-    addChild(upArea);
-    upArea->moveTo(1, 9, 0);
-    upArea->areaId = 0x67;
-    upArea->setEventRoutine(ScrollEventHandler);
+    AddChild(DownButton);
+    DownButton->MoveTo(1, height - 9, 0);
+    DownButton->ButtonId = 0x66;
+    DownButton->SetEventRoutine(ScrollEventHandler);
 
-    downArea = new aScrollArea;
+    UpArea = new MCGuiScrollArea;
 
-    if (downArea == nullptr)
+    if (UpArea == nullptr)
     {
-        return OutOfMemory;
+        return outOfMemory;
     }
 
-    result = downArea->init(0, 0, 0x10, 1, nullptr);
+    result = UpArea->Init(0, 0, 0x10, 1, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    downArea->moveTo(1, this->height() - 1, 0);
-    addChild(downArea);
-    downArea->areaId = 0x68;
-    downArea->setEventRoutine(ScrollEventHandler);
+    AddChild(UpArea);
+    UpArea->MoveTo(1, 9, 0);
+    UpArea->AreaId = 0x67;
+    UpArea->SetEventRoutine(ScrollEventHandler);
 
-    scrollTab = new aObject;
+    DownArea = new MCGuiScrollArea;
 
-    if (scrollTab == nullptr)
+    if (DownArea == nullptr)
     {
-        return OutOfMemory;
+        return outOfMemory;
     }
 
-    scrollTab->SetDrawsLive();
-    result = scrollTab->init(0, 0, 0x10, 0x10, nullptr);
+    result = DownArea->Init(0, 0, 0x10, 1, nullptr);
 
     if (result != 0)
     {
         return result;
     }
 
-    addChild(scrollTab);
-    scrollTab->moveTo(1, 8, 0);
-    scrollTab->setBackColor(6);
-    scrollTab->setEventRoutine(ScrollTabHandler);
-    scrollTab->setPaintRoutine(ScrollTabPaint);
+    DownArea->MoveTo(1, this->Height() - 1, 0);
+    AddChild(DownArea);
+    DownArea->AreaId = 0x68;
+    DownArea->SetEventRoutine(ScrollEventHandler);
 
-    setBackColor(0xb);
-    moveTo(xPos, yPos, 0);
-    setDepth(10);
-    upArea->setDepth(0xb);
-    downArea->setDepth(0xb);
-    upButton->setDepth(0xb);
-    downButton->setDepth(0xb);
-    scrollTab->setDepth(-0xc);
+    ScrollTab = new MCGuiObject;
+
+    if (ScrollTab == nullptr)
+    {
+        return outOfMemory;
+    }
+
+    ScrollTab->SetDrawsLive();
+    result = ScrollTab->Init(0, 0, 0x10, 0x10, nullptr);
+
+    if (result != 0)
+    {
+        return result;
+    }
+
+    AddChild(ScrollTab);
+    ScrollTab->MoveTo(1, 8, 0);
+    ScrollTab->SetBackColor(6);
+    ScrollTab->SetEventRoutine(ScrollTabHandler);
+    ScrollTab->SetPaintRoutine(ScrollTabPaint);
+
+    SetBackColor(0xb);
+    MoveTo(xPos, yPos, 0);
+    SetDepth(10);
+    UpArea->SetDepth(0xb);
+    DownArea->SetDepth(0xb);
+    UpButton->SetDepth(0xb);
+    DownButton->SetDepth(0xb);
+    ScrollTab->SetDepth(-0xc);
     SetScrollMax(0);
     SetScrollPos(0);
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060d560</remarks>
-auto aScrollBar::destroy() -> void
+auto MCGuiScrollBar::Destroy() -> void
 {
     auto release = [](auto*& child)
     {
         if (child != nullptr)
         {
-            child->destroy();
+            child->Destroy();
             delete child;
             child = nullptr;
         }
     };
 
-    release(upArea);
-    release(downArea);
-    release(upButton);
-    release(downButton);
-    release(scrollTab);
-    aObject::destroy();
+    release(UpArea);
+    release(DownArea);
+    release(UpButton);
+    release(DownButton);
+    release(ScrollTab);
+    MCGuiObject::Destroy();
 }
 
-/// <remarks>MCX.EXE @ 0x0060d630</remarks>
-auto aScrollBar::handleEvent(aEvent* event) -> void
+auto MCGuiScrollBar::HandleEvent(MCGuiEvent* event) -> void
 {
     int16_t newPos;
 
-    switch (event->type)
+    switch (event->Type)
     {
         case 0x65:
-            newPos = static_cast<int16_t>(scrollPos - 1);
+            newPos = static_cast<int16_t>(ScrollPos - 1);
             break;
         case 0x66:
-            newPos = static_cast<int16_t>(scrollPos + 1);
+            newPos = static_cast<int16_t>(ScrollPos + 1);
             break;
         case 0x67:
-            newPos = static_cast<int16_t>(scrollPos - 10);
+            newPos = static_cast<int16_t>(ScrollPos - 10);
             break;
         case 0x68:
-            newPos = static_cast<int16_t>(scrollPos + 10);
+            newPos = static_cast<int16_t>(ScrollPos + 10);
             break;
         case ThumbDragged:
-            newPos = static_cast<int16_t>(event->lParam);
+            newPos = static_cast<int16_t>(event->LParam);
             break;
         case SetPositionQuietly:
         {
-            SetScrollPos(static_cast<int16_t>(event->lParam));
+            SetScrollPos(static_cast<int16_t>(event->LParam));
             return;
         }
         default:
@@ -318,139 +311,131 @@ auto aScrollBar::handleEvent(aEvent* event) -> void
 
     SetScrollPos(newPos);
 
-    if (parent != nullptr)
+    if (Parent != nullptr)
     {
-        aPostMessage(parent, ScrollChanged);
+        APostMessage(Parent, ScrollChanged);
     }
 }
 
-/// <remarks>MCX.EXE @ 0x0060d6d0</remarks>
-auto aScrollBar::draw() -> void
+auto MCGuiScrollBar::Draw() -> void
 {
-    VFX_pane_wipe(displayPort->frame(), backgroundColor);
-    VFX_line_draw(displayPort->frame(), 0, 0, width() - 1, 0, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), width() - 1, 0, width() - 1, height() - 1, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), 0, height() - 1, width() - 1, height() - 1, LD_DRAW, 0xf);
-    VFX_line_draw(displayPort->frame(), 0, 0, 0, height() - 1, LD_DRAW, 0xf);
-    aObject::draw();
+    VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, LD_DRAW, 0xf);
+    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, LD_DRAW, 0xf);
+    MCGuiObject::Draw();
 }
 
-/// <remarks>MCX.EXE @ 0x0060d7b0</remarks>
-auto aScrollBar::SetScrollMax(int16_t newMax) -> void
+auto MCGuiScrollBar::SetScrollMax(int16_t newMax) -> void
 {
-    scrollMax = newMax;
-    scrollTab->ShowGUIWindow(newMax != 0);
+    ScrollMax = newMax;
+    ScrollTab->ShowGuiWindow(newMax != 0);
     ResizeAreas();
 }
 
-/// <remarks>MCX.EXE @ 0x0060d7f0</remarks>
-auto aScrollBar::SetScrollPos(int16_t newPos) -> void
+auto MCGuiScrollBar::SetScrollPos(int16_t newPos) -> void
 {
     if (newPos < 0)
     {
         newPos = 0;
     }
 
-    if (newPos > scrollMax)
+    if (newPos > ScrollMax)
     {
-        newPos = scrollMax;
+        newPos = ScrollMax;
     }
 
-    scrollPos = newPos;
+    ScrollPos = newPos;
     ResizeAreas();
 }
 
-/// <remarks>MCX.EXE @ 0x0060d820</remarks>
-auto aScrollBar::ResizeAreas() -> void
+auto MCGuiScrollBar::ResizeAreas() -> void
 {
-    if (scrollMax == 0)
+    if (ScrollMax == 0)
     {
         return;
     }
 
     // The thumb (16 high) travels between the arrows (9 each) and a 1-pixel border.
-    const int32_t tabTop = (scrollPos * (height() - 0x22)) / scrollMax;
-    scrollTab->moveTo(1, tabTop + 9, 0);
-    upArea->resize(0x10, tabTop);
-    downArea->resize(0x10, height() + (-0x11 - (tabTop + 0x10)));
-    downArea->moveTo(1, tabTop + 0x19, 0);
+    const int32_t tabTop = (ScrollPos * (Height() - 0x22)) / ScrollMax;
+    ScrollTab->MoveTo(1, tabTop + 9, 0);
+    UpArea->Resize(0x10, tabTop);
+    DownArea->Resize(0x10, Height() + (-0x11 - (tabTop + 0x10)));
+    DownArea->MoveTo(1, tabTop + 0x19, 0);
 }
 
-/// <remarks>MCX.EXE @ 0x0060d8d0</remarks>
-auto aScrollArea::init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char*) -> int32_t
+auto MCGuiScrollArea::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char*) -> int32_t
 {
-    winWidth = width;
-    winY = yPos;
-    winHeight = height;
-    winX = xPos;
-    winState = 0;
-    showWindow = 1;
-    dragOn = 0;
-    displayPort = nullptr;
+    WinWidth = width;
+    WinY = yPos;
+    WinHeight = height;
+    WinX = xPos;
+    WinState = 0;
+    ShowWindow = 1;
+    DragOn = 0;
+    DisplayPort = nullptr;
 
-    if (framePane != nullptr)
+    if (FramePane != nullptr)
     {
-        delete framePane;
-        framePane = nullptr;
+        delete FramePane;
+        FramePane = nullptr;
     }
 
-    framePane = new (std::nothrow) _pane;
+    FramePane = new (std::nothrow) MCPane;
 
-    if (framePane == nullptr)
+    if (FramePane == nullptr)
     {
         return -0x1111fffe;
     }
 
-    framePane->window = screenPort->bitmap();
-    framePane->x0 = xPos;
-    framePane->y0 = yPos;
-    framePane->x1 = xPos + width;
-    framePane->y1 = yPos + height;
-    paintRoutine = nullptr;
-    eventRoutine = nullptr;
-    numChildren = 0;
-    parent = nullptr;
-    winDepth = 0;
-    windowAnimation = nullptr;
-    animating = 0;
-    iconAnimation = nullptr;
+    FramePane->Window = ScreenPort->Bitmap();
+    FramePane->X0 = xPos;
+    FramePane->Y0 = yPos;
+    FramePane->X1 = xPos + width;
+    FramePane->Y1 = yPos + height;
+    PaintRoutine = nullptr;
+    EventRoutine = nullptr;
+    NumChildren = 0;
+    Parent = nullptr;
+    WinDepth = 0;
+    WindowAnimation = nullptr;
+    Animating = 0;
+    IconAnimation = nullptr;
     return 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060d9b0</remarks>
-auto aScrollArea::destroy() -> void
+auto MCGuiScrollArea::Destroy() -> void
 {
-    if (framePane != nullptr)
+    if (FramePane != nullptr)
     {
-        delete framePane;
-        framePane = nullptr;
+        delete FramePane;
+        FramePane = nullptr;
     }
 
-    numChildren = 0;
+    NumChildren = 0;
 
-    if (parent != nullptr)
+    if (Parent != nullptr)
     {
-        parent->removeChild(this);
+        Parent->RemoveChild(this);
     }
 
-    parent = nullptr;
-    animating = 0;
+    Parent = nullptr;
+    Animating = 0;
 }
 
-/// <remarks>MCX.EXE @ 0x0060d9f0</remarks>
-auto aScrollArea::handleEvent(aEvent* event) -> void
+auto MCGuiScrollArea::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (eventRoutine != nullptr)
+    if (EventRoutine != nullptr)
     {
-        eventRoutine(this, event);
+        EventRoutine(this, event);
     }
 }
 
-/// <remarks>MCX.EXE @ 0x0060da10</remarks>
-auto aScrollArea::resize(int32_t newWidth, int32_t newHeight) -> void
+auto MCGuiScrollArea::Resize(int32_t newWidth, int32_t newHeight) -> void
 {
-    winWidth = newWidth;
-    framePane->x1 = framePane->x0 - 1 + newWidth;
-    winHeight = newHeight;
-    framePane->y1 = framePane->y0 - 1 + newHeight;
+    WinWidth = newWidth;
+    FramePane->X1 = FramePane->X0 - 1 + newWidth;
+    WinHeight = newHeight;
+    FramePane->Y1 = FramePane->Y0 - 1 + newHeight;
 }
