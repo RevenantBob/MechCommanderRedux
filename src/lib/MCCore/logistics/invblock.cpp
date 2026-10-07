@@ -364,18 +364,29 @@ namespace
             return;
         }
 
-        static uint8_t recolor[4][256];
-        uint8_t* table = recolor[state];
-
-        for (int32_t color = 0; color < 256; ++color)
+        // Built once and registered: a renderer reads translate tables only from registered blocks (the GPU drew an
+        // unregistered one as the identity, so no damage showed).
+        static uint8_t (*recolor)[256] = []
         {
-            table[color] = static_cast<uint8_t>(color);
-        }
+            static uint8_t tables[4][256];
 
-        table[0xe7] = static_cast<uint8_t>(iconFade[state][2]);
-        table[0xe8] = static_cast<uint8_t>(iconFade[state][1]);
-        table[0xea] = static_cast<uint8_t>(iconFade[state][0]);
-        MCAgDrawShape(diagram.frame(), shapes, location, 0, 0, MCShapeOp::Xlat, table);
+            for (int32_t fade = 0; fade < 4; ++fade)
+            {
+                for (int32_t color = 0; color < 256; ++color)
+                {
+                    tables[fade][color] = static_cast<uint8_t>(color);
+                }
+
+                tables[fade][0xe7] = static_cast<uint8_t>(iconFade[fade][2]);
+                tables[fade][0xe8] = static_cast<uint8_t>(iconFade[fade][1]);
+                tables[fade][0xea] = static_cast<uint8_t>(iconFade[fade][0]);
+            }
+
+            MCRenderer::RegisterData(tables, sizeof(tables), MCDataKind::Tables);
+            return tables;
+        }();
+
+        MCAgDrawShape(diagram.frame(), shapes, location, 0, 0, MCShapeOp::Xlat, recolor[state]);
     }
 
     /// <summary>

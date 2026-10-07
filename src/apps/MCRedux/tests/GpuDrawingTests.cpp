@@ -640,6 +640,61 @@ TEST_CASE_ISOLATED("game: the GPU draws the logistics screens as the software re
 }
 
 /// <summary>
+/// Mirror mode on the small damage diagrams of the briefing's deploy pane, the purchase screen's inventory and the
+/// repair screen, with every mech's left arm shot off and its right arm and torsos damaged: each location is recoloured
+/// for its damage through the diagram's translate tables, which the GPU must take as the software renderer does (it
+/// once drew them as the identity, so a mech showed undamaged).
+/// </summary>
+TEST_CASE_ISOLATED("game: the GPU draws damaged mechs' diagrams as the software renderer does")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    MCRenderer::RequestGpuDrawing(MCGpuDrawing::Mirror);
+    REQUIRE(MCTestGame::StartLogistics());
+    MCVulkanRenderer* renderer = MirrorRenderer();
+
+    if (renderer == nullptr)
+    {
+        return;
+    }
+
+    NewCampaign();
+    int32_t mechs = 0;
+
+    for (LogMech* mech = globalLogPtr->forceMechList->mechs; mech != nullptr; mech = mech->next, mechs++)
+    {
+        // Left arm (5) gone: no armor, no internals. Right arm (4) and the torsos at the other damage states.
+        mech->armor[5].curArmor = 0;
+        mech->internals[5].curArmor = 0;
+        mech->armor[4].curArmor = 0;
+        mech->armor[1].curArmor = static_cast<uint8_t>(mech->armor[1].maxArmor / 5);
+        mech->armor[2].curArmor = static_cast<uint8_t>(mech->armor[2].maxArmor * 2 / 5);
+        mech->armor[3].curArmor = static_cast<uint8_t>(mech->armor[3].maxArmor * 3 / 5);
+        mech->calcStatus();
+    }
+
+    REQUIRE(mechs > 0);
+    const auto run = []
+    {
+        for (int32_t frame = 0; frame < 20; frame++)
+        {
+            MCTestGame::RunFrame(1.0f / 15.0f);
+        }
+    };
+
+    globalLogPtr->setUpBriefingScreen(-1);
+    run();
+    globalLogPtr->setUpPurchaseScreen(-1);
+    run();
+    globalLogPtr->setUpRepairScreen(-1);
+    run();
+    CheckMirror(*renderer);
+}
+
+/// <summary>
 /// The briefing's operation movie with the GPU drawing alone: each decoded frame is decoded straight into the movie
 /// texture's upload memory and sent up once (its rectangle only), a frame with no new movie frame sends nothing, the
 /// movie's memory on the CPU is never written (nor read), and its pixels are never uploaded whole again.

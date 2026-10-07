@@ -89,8 +89,11 @@ namespace
             const uint32_t packet =
                 static_cast<uint32_t>(static_cast<int32_t>(packetFinderArray[gesture]) * numRotations + i);
             // The original only read ahead (touchMechShapeData) once its shape heap was half full; the port's cache
-            // has no fill, so the shapes are always loaded.
-            tree->shapeList[listStart + packet] = manager->getMechShapeData(fileNumber, packet, part, 1, tree, 0);
+            // has no fill, so the shapes are always loaded. They load as the large (90-pixel) art, which
+            // MechActor::render asks for: cameraScale is pinned to 100. The original loaded the small art here (it
+            // started zoomed out), and the cached shape then stood in for the large one, so a preloaded gesture drew at
+            // half size.
+            tree->shapeList[listStart + packet] = manager->getMechShapeData(fileNumber, packet, part, 1, tree, 1);
         }
     }
 }

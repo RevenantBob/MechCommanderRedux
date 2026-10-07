@@ -12,7 +12,11 @@
 #include "object/objtype.h"
 #include "object/warrior.h"
 #include "sprite/mactor.h"
+#include "sprite/sprtmgr.h"
+#include "sprite/spritree.h"
+#include "sprite/vfxshape.h"
 #include "terrain/terrain.h"
+#include "vfx/vfxint.h"
 
 namespace
 {
@@ -395,4 +399,93 @@ TEST_CASE_ISOLATED("game: a mech whose pilot is wounded but alive keeps followin
     CHECK(arrived);
     CHECK(std::hypot(position.x - goal.x, position.y - goal.y) < 64.0f);
     CHECK(longestRun < 2);
+}
+
+/// <summary>
+/// The stand, walk and run shapes a mission preloads for the player's mechs are the large (90-pixel) art the view
+/// draws. (The preload once took the small art, which then stood in for the large shapes in the mech's cache, so
+/// those gestures drew at half size, as the Raven did on mission 3.)
+/// </summary>
+TEST_CASE_ISOLATED("game: mission 3's mechs preload full-size part shapes")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartMission(3));
+    // The shape list's part ranges (spritree.cpp): legs, torso, right arm, left arm, and each one's part PAK.
+    constexpr int32_t partStarts[5] = {0, 0x33c / 4, 0xebc / 4, 0x1a3c / 4, 0x96f};
+    constexpr int32_t fileParts[4] = {0, 1, 2, 3};
+    std::set<SpriteTree*> trees;
+
+    for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
+    {
+        Mover* mover = getMoverFromPartId(partId);
+
+        if (mover != nullptr && mover->objectClass == BATTLEMECH)
+        {
+            trees.insert(static_cast<MechActor*>(mover->appearance)->mechTree);
+        }
+    }
+
+    REQUIRE(!trees.empty());
+    int32_t shapes = 0;
+
+    for (SpriteTree* tree : trees)
+    {
+        // Preload again into an empty cache (the shapes stay in the sprite manager, ownerless, as on a tree's end).
+        for (int32_t i = 0; i < tree->numShapes; i++)
+        {
+            if (tree->shapeList[i] != nullptr)
+            {
+                tree->shapeList[i]->owner = nullptr;
+                tree->shapeList[i] = nullptr;
+            }
+        }
+
+        tree->gesturesPreloaded = 0;
+        tree->preloadGestures(0, 0.0f);
+
+        // Frame 0's bounds (XMin, YMin, XMax, YMax) tell the two sizes apart. Taken before loading anything else,
+        // which may push preloaded shapes out of the cache.
+        struct Preloaded
+        {
+            int32_t part;
+            uint32_t packet;
+            std::array<uint8_t, 16> bounds;
+        };
+
+        std::vector<Preloaded> preloaded;
+
+        for (int32_t part = 0; part < 4; part++)
+        {
+            for (int32_t i = partStarts[part]; i < partStarts[part + 1]; i++)
+            {
+                if (const Shape* shape = tree->shapeList[i])
+                {
+                    Preloaded entry{part, static_cast<uint32_t>(i - partStarts[part]), {}};
+                    std::memcpy(entry.bounds.data(), MCVfxShape(shape->frameList, 0) + 8, 16);
+                    preloaded.push_back(entry);
+                }
+            }
+        }
+
+        const uint32_t fileNumbers[4] = {tree->legFileNumber, tree->torsoFileNumber, tree->rightArmFileNumber,
+                                         tree->leftArmFileNumber};
+
+        for (const Preloaded& entry : preloaded)
+        {
+            MCTest::Scope scope(
+                std::format("leg file {}, part {}, packet {}", tree->legFileNumber, entry.part, entry.packet));
+            const Shape* large = spriteManager->getMechShapeData(fileNumbers[entry.part], entry.packet,
+                                                                 fileParts[entry.part], turn, nullptr, 1);
+            REQUIRE(large != nullptr);
+            CHECK(std::memcmp(entry.bounds.data(), MCVfxShape(large->frameList, 0) + 8, 16) == 0);
+            shapes++;
+        }
+    }
+
+    std::cout << std::format("  {} mech types, {} preloaded part shapes\n", trees.size(), shapes);
+    CHECK(shapes > 0);
 }
