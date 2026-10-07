@@ -2,9 +2,9 @@
 #include "abl/ablxstd.h"
 #include "abl/abldbug.h"
 #include "abl/ablenv.h"
-#include "abl/ablerr.h"
+#include "abl/MCAblErrors.h"
 #include "abl/ablexec.h"
-#include "abl/ablexpr.h"
+#include "abl/MCAblCompiler.h"
 #include "abl/ablrtn.h"
 #include "abl/ablxexpr.h"
 #include "abl/ablxstmt.h"
@@ -53,8 +53,8 @@
 // between them, and ")". Most pop their arguments and leave the last slot on the stack holding the result.
 
 int TacOrderOrigin = 1;
-MCTokenCodeType ExitRoutineCodeSegment[2] = {TKN_END_FUNCTION, TKN_SEMICOLON};
-MCTokenCodeType ExitOrderCodeSegment[2] = {TKN_END_FUNCTION, TKN_SEMICOLON};
+MCAblToken ExitRoutineCodeSegment[2] = {MCAblToken::EndFunction, MCAblToken::Semicolon};
+MCAblToken ExitOrderCodeSegment[2] = {MCAblToken::EndFunction, MCAblToken::Semicolon};
 int16_t MissionScriptMessageLog[1000][3] = {};
 int32_t NumMissionScriptMessages = 0;
 MCMover* MoverList[256] = {};
@@ -105,8 +105,8 @@ namespace
     /// <summary>Evaluates the next by-reference argument: the variable's address, left on the stack.</summary>
     auto NextReference() -> MCAddress
     {
-        MCSymTableNodePtr idPtr = GetCodeSymTableNodePtr();
-        BaseType(ExecVariable(idPtr, USE_REFPARAM));
+        MCAblSymbol* idPtr = GetCodeSymTableNodePtr();
+        ExecVariable(idPtr, MCAblUse::RefParam);
         return Tos->Address;
     }
 
@@ -199,7 +199,7 @@ namespace
     /// Formats the value on top of the stack for print and concat: an integer, char or real into
     /// <paramref name="buffer"/>, a string as itself.
     /// </summary>
-    auto FormatValue(MCTypePtr typePtr, char* buffer, size_t bufferSize) -> char*
+    auto FormatValue(MCAblType* typePtr, char* buffer, size_t bufferSize) -> char*
     {
         if (typePtr == IntegerTypePtr)
         {
@@ -213,7 +213,7 @@ namespace
         {
             std::snprintf(buffer, bufferSize, "%.4f", static_cast<double>(Tos->Real));
         }
-        else if (typePtr->Form == FRM_ARRAY && typePtr->Info.Array.ElementTypePtr == CharTypePtr)
+        else if (typePtr->Form == MCAblTypeForm::Array && typePtr->Array.ElementTypePtr == CharTypePtr)
         {
             return reinterpret_cast<char*>(Tos->Address);
         }
@@ -228,9 +228,9 @@ namespace
     }
 }
 
-auto ExecOrderReturn(MCSymTableNodePtr routineIdPtr, int32_t returnValue) -> void
+auto ExecOrderReturn(MCAblSymbol* routineIdPtr, int32_t returnValue) -> void
 {
-    MCSymTableNodePtr curRoutineIdPtr = CurRoutineIdPtr;
+    MCAblSymbol* curRoutineIdPtr = CurRoutineIdPtr;
     MCStackItemPtr framePtr = CurrentRoutineFrame();
     framePtr->Integer = returnValue;
     ::ReturnValue = {};
@@ -251,29 +251,29 @@ auto ExecOrderReturn(MCSymTableNodePtr routineIdPtr, int32_t returnValue) -> voi
     }
 }
 
-auto ExecStdReturn(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecStdReturn(MCAblSymbol* routineIdPtr) -> void
 {
     ReturnValue = {};
-    MCTypePtr returnTypePtr = CurRoutineIdPtr->TypePtr;
+    MCAblType* returnTypePtr = CurRoutineIdPtr->TypePtr;
 
     if (returnTypePtr)
     {
         MCStackItemPtr framePtr = CurrentRoutineFrame();
         GetCodeToken();
-        MCTypePtr returnBaseTypePtr = BaseType(returnTypePtr);
+        MCAblType* returnBaseTypePtr = returnTypePtr;
         GetCodeToken();
-        MCTypePtr expressionTypePtr = ExecExpression();
+        MCAblType* expressionTypePtr = ExecExpression();
 
-        if (returnTypePtr == RealTypePtr && BaseType(expressionTypePtr) == IntegerTypePtr)
+        if (returnTypePtr == RealTypePtr && expressionTypePtr == IntegerTypePtr)
         {
             framePtr->Real = static_cast<float>(Tos->Integer);
         }
-        else if (returnTypePtr->Form == FRM_ARRAY)
+        else if (returnTypePtr->Form == MCAblTypeForm::Array)
         {
             // Original behaviour: the array is copied over the frame's function value slot (and past it).
             std::memcpy(framePtr, Tos->Address, static_cast<size_t>(returnTypePtr->Size));
         }
-        else if (returnBaseTypePtr == IntegerTypePtr || returnTypePtr->Form == FRM_ENUM)
+        else if (returnBaseTypePtr == IntegerTypePtr || returnTypePtr->Form == MCAblTypeForm::Enum)
         {
             framePtr->Integer = Tos->Integer;
         }
@@ -297,11 +297,11 @@ auto ExecStdReturn(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecStdPrint(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecStdPrint(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
-    MCTypePtr typePtr = BaseType(ExecExpression());
+    MCAblType* typePtr = ExecExpression();
     char buffer[20];
     char* text = FormatValue(typePtr, buffer, sizeof(buffer));
     Pop();
@@ -311,9 +311,9 @@ auto ExecStdPrint(MCSymTableNodePtr routineIdPtr) -> void
         char message[512];
         std::snprintf(message, sizeof(message), "PRINT:  \"%s\"", text);
         PrintLocation(message);
-        std::snprintf(message, sizeof(message), "   MODULE %s", CurModule->GetName());
+        std::snprintf(message, sizeof(message), "   MODULE %s", CurModule->GetName().c_str());
         PrintLocation(message);
-        std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(FileNumber));
+        std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(ExecFileNumber));
         PrintLocation(message);
         std::snprintf(message, sizeof(message), "   LINE %d", ExecLineNumber);
         PrintLocation(message);
@@ -329,7 +329,7 @@ auto ExecStdPrint(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecStdConcat(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdConcat(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -337,7 +337,7 @@ auto ExecStdConcat(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     char* destination = reinterpret_cast<char*>(Tos->Address);
     Pop();
     GetCodeToken();
-    MCTypePtr typePtr = BaseType(ExecExpression());
+    MCAblType* typePtr = ExecExpression();
     char buffer[20];
     char* text = FormatValue(typePtr, buffer, sizeof(buffer));
     std::strcat(destination, text);
@@ -346,13 +346,13 @@ auto ExecStdConcat(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecStdAbs(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdAbs(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
-    MCTypePtr resultTypePtr = IntegerTypePtr;
+    MCAblType* resultTypePtr = IntegerTypePtr;
 
-    if (BaseType(ExecExpression()) == IntegerTypePtr)
+    if (ExecExpression() == IntegerTypePtr)
     {
         if (Tos->Integer < 0)
         {
@@ -373,7 +373,7 @@ auto ExecStdAbs(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return resultTypePtr;
 }
 
-auto ExecStdRound(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdRound(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -392,19 +392,19 @@ auto ExecStdRound(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecStdSqrt(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdSqrt(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
 
-    if (BaseType(ExecExpression()) == IntegerTypePtr)
+    if (ExecExpression() == IntegerTypePtr)
     {
         Tos->Real = static_cast<float>(Tos->Integer);
     }
 
     if (Tos->Real < 0.0f)
     {
-        RuntimeError(ABL_ERR_RUNTIME_INVALID_FUNCTION_ARGUMENT);
+        RuntimeError(MCAblRuntimeError::InvalidFunctionArgument);
     }
     else
     {
@@ -415,12 +415,12 @@ auto ExecStdSqrt(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecStdTrunc(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdTrunc(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
 
-    if (BaseType(ExecExpression()) == RealTypePtr)
+    if (ExecExpression() == RealTypePtr)
     {
         Tos->Integer = static_cast<int32_t>(Tos->Real);
     }
@@ -429,7 +429,7 @@ auto ExecStdTrunc(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecStdRandom(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdRandom(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -439,34 +439,34 @@ auto ExecStdRandom(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecStdGetModHandle(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdGetModHandle(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushInteger(CurModuleHandle);
     GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto ExecStdGetModName(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdGetModName(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     return nullptr;
 }
 
-auto ExecStdSetModName(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecStdSetModName(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
-    MCTypePtr typePtr = BaseType(ExecExpression());
+    MCAblType* typePtr = ExecExpression();
 
-    if (typePtr->Form != FRM_ARRAY || typePtr->Info.Array.ElementTypePtr != CharTypePtr)
+    if (typePtr->Form != MCAblTypeForm::Array || typePtr->Array.ElementTypePtr != CharTypePtr)
     {
-        RuntimeError(ABL_ERR_RUNTIME_INVALID_FUNCTION_ARGUMENT);
+        RuntimeError(MCAblRuntimeError::InvalidFunctionArgument);
     }
 
     // Original behaviour: the name is left on the stack and never used.
     GetCodeToken();
 }
 
-auto ExecStdSetMaxLoops(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdSetMaxLoops(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -477,7 +477,7 @@ auto ExecStdSetMaxLoops(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return nullptr;
 }
 
-auto ExecStdFatal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdFatal(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -492,9 +492,9 @@ auto ExecStdFatal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     {
         std::snprintf(message, sizeof(message), "FATAL:  [%d] \"%s\"", code, text);
         PrintLocation(message);
-        std::snprintf(message, sizeof(message), "   MODULE (%d) %s", CurModule->GetId(), CurModule->GetName());
+        std::snprintf(message, sizeof(message), "   MODULE (%d) %s", CurModule->GetId(), CurModule->GetName().c_str());
         PrintLocation(message);
-        std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(FileNumber));
+        std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(ExecFileNumber));
         PrintLocation(message);
         std::snprintf(message, sizeof(message), "   LINE %d", ExecLineNumber);
         PrintLocation(message);
@@ -508,7 +508,7 @@ auto ExecStdFatal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     Fatal(0, text);
 }
 
-auto ExecStdAssert(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStdAssert(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -526,9 +526,10 @@ auto ExecStdAssert(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
         {
             std::snprintf(message, sizeof(message), "ASSERT:  [%d] \"%s\"", code, text);
             PrintLocation(message);
-            std::snprintf(message, sizeof(message), "   MODULE (%d) %s", CurModule->GetId(), CurModule->GetName());
+            std::snprintf(message, sizeof(message), "   MODULE (%d) %s", CurModule->GetId(),
+                          CurModule->GetName().c_str());
             PrintLocation(message);
-            std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(FileNumber));
+            std::snprintf(message, sizeof(message), "   FILE %s", CurModule->GetSourceFile(ExecFileNumber));
             PrintLocation(message);
             std::snprintf(message, sizeof(message), "   LINE %d", ExecLineNumber);
             PrintLocation(message);
@@ -545,7 +546,7 @@ auto ExecStdAssert(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return nullptr;
 }
 
-auto ExecHbGetId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetId(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushInteger(0);
 
@@ -558,14 +559,14 @@ auto ExecHbGetId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetTime(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetTime(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushReal(ActualTime);
     GetCodeToken();
     return RealTypePtr;
 }
 
-auto ExecHbGetTimeLeft(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetTimeLeft(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     float timeLeft;
 
@@ -588,7 +589,7 @@ auto ExecHbGetTimeLeft(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbGetTarget(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetTarget(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -630,7 +631,7 @@ auto ExecHbGetTarget(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetTarget(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetTarget(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -674,7 +675,7 @@ auto ExecHbSetTarget(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSelectUnit(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSelectUnit(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -684,7 +685,7 @@ auto ExecHbSelectUnit(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSelectObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSelectObject(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -712,7 +713,7 @@ auto ExecHbSelectObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSelectWarrior(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSelectWarrior(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -741,7 +742,7 @@ auto ExecHbSelectWarrior(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetWarriorStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetWarriorStatus(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -763,7 +764,7 @@ auto ExecHbGetWarriorStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetContacts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetContacts(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -784,7 +785,7 @@ auto ExecHbGetContacts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetEnemyCount(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetEnemyCount(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -835,7 +836,7 @@ auto ExecHbGetEnemyCount(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSelectContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSelectContact(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -865,7 +866,7 @@ auto ExecHbSelectContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbIsContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbIsContact(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -901,14 +902,14 @@ auto ExecHbIsContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetContactId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetContactId(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushInteger(CurContact ? CurContact->PartId : 0);
     GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto ExecHbGetContactStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetContactStatus(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -927,7 +928,7 @@ auto ExecHbGetContactStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetContactRelativePosition(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetContactRelativePosition(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -951,7 +952,7 @@ auto ExecHbGetContactRelativePosition(MCSymTableNodePtr routineIdPtr) -> MCTypeP
     return IntegerTypePtr;
 }
 
-auto ExecHbSetPotentialContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetPotentialContact(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -986,7 +987,7 @@ auto ExecHbSetPotentialContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetWeapons(MCSymTableNodePtr routineIdPtr, int32_t key) -> MCTypePtr
+auto ExecHbGetWeapons(MCAblSymbol* routineIdPtr, MCAblRoutineKey key) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1002,11 +1003,11 @@ auto ExecHbGetWeapons(MCSymTableNodePtr routineIdPtr, int32_t key) -> MCTypePtr
     {
         MCMover* mover = static_cast<MCMover*>(CurObject);
 
-        if (key == RTN_GET_WEAPONS_READY)
+        if (key == MCAblRoutineKey::GetWeaponsReady)
         {
             Tos->Integer = mover->GetWeaponsReady(weaponList, listSize);
         }
-        else if (key == RTN_GET_WEAPONS_IN_RANGE && target)
+        else if (key == MCAblRoutineKey::GetWeaponsInRange && target)
         {
             MCVector3D targetPosition = target->GetPosition();
             Tos->Integer =
@@ -1022,7 +1023,7 @@ auto ExecHbGetWeapons(MCSymTableNodePtr routineIdPtr, int32_t key) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetWeaponShots(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetWeaponShots(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1039,7 +1040,7 @@ auto ExecHbGetWeaponShots(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetWeaponRanges(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbGetWeaponRanges(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -1084,7 +1085,7 @@ auto ExecHbGetWeaponRanges(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetMoveGoal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetMoveGoal(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1112,7 +1113,7 @@ auto ExecHbSetMoveGoal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetChallenger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetChallenger(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1139,7 +1140,7 @@ auto ExecHbGetChallenger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetFireRanges(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetFireRanges(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1153,7 +1154,7 @@ auto ExecHbGetFireRanges(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return nullptr;
 }
 
-auto ExecHbGetAttackers(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetAttackers(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1173,7 +1174,7 @@ auto ExecHbGetAttackers(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetAttackerInfo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetAttackerInfo(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1195,7 +1196,7 @@ auto ExecHbGetAttackerInfo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbGetTimeWithoutOrders(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetTimeWithoutOrders(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushReal(0.0f);
 
@@ -1208,7 +1209,7 @@ auto ExecHbGetTimeWithoutOrders(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbSetChallenger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetChallenger(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1243,7 +1244,7 @@ auto ExecHbSetChallenger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetMemoryInteger(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetMemoryInteger(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -1255,7 +1256,7 @@ auto ExecHbSetMemoryInteger(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetMemoryReal(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetMemoryReal(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -1267,7 +1268,7 @@ auto ExecHbSetMemoryReal(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbHasMoveGoal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbHasMoveGoal(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     if (CurWarrior && CurWarrior->MoveOrders.ScriptGoal != 0 && CurWarrior->MoveOrders.GoalType != -1)
     {
@@ -1282,7 +1283,7 @@ auto ExecHbHasMoveGoal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return BooleanTypePtr;
 }
 
-auto ExecHbHasMovePath(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbHasMovePath(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     if (CurWarrior && CurWarrior->GetMovePath() && CurWarrior->MoveOrders.ScriptGoal == 0)
     {
@@ -1297,7 +1298,7 @@ auto ExecHbHasMovePath(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return BooleanTypePtr;
 }
 
-auto ExecHbSortWeapons(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSortWeapons(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -1315,7 +1316,7 @@ auto ExecHbSortWeapons(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbGetObjectPosition(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetObjectPosition(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1350,7 +1351,7 @@ auto ExecHbGetObjectPosition(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetVisualRange(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetVisualRange(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1376,7 +1377,7 @@ auto ExecHbGetVisualRange(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbGetMemoryInteger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetMemoryInteger(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1386,7 +1387,7 @@ auto ExecHbGetMemoryInteger(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetMemoryReal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetMemoryReal(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1396,7 +1397,7 @@ auto ExecHbGetMemoryReal(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbGetAlarmTriggers(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetAlarmTriggers(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1406,7 +1407,7 @@ auto ExecHbGetAlarmTriggers(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetUnitMates(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetUnitMates(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1480,19 +1481,19 @@ namespace
     }
 }
 
-auto ExecHbGetTacOrder(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetTacOrder(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetTacOrderData(false);
     return IntegerTypePtr;
 }
 
-auto ExecHbGetLastTacOrder(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetLastTacOrder(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetTacOrderData(true);
     return IntegerTypePtr;
 }
 
-auto ExecHbSetOrderMode(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetOrderMode(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1505,7 +1506,7 @@ auto ExecHbSetOrderMode(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbWait(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbWait(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1532,7 +1533,7 @@ auto ExecHbWait(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetAttackRadius(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetAttackRadius(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1544,7 +1545,7 @@ auto ExecHbSetAttackRadius(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbMoveToPoint(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbMoveToPoint(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1573,7 +1574,7 @@ auto ExecHbMoveToPoint(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbMoveToObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbMoveToObject(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1609,7 +1610,7 @@ auto ExecHbMoveToObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbMoveToContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbMoveToContact(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1633,7 +1634,7 @@ auto ExecHbMoveToContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbOrderPowerDown(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbOrderPowerDown(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushInteger(0);
 
@@ -1650,7 +1651,7 @@ auto ExecHbOrderPowerDown(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbOrderPowerUp(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbOrderPowerUp(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushInteger(0);
 
@@ -1667,7 +1668,7 @@ auto ExecHbOrderPowerUp(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbOrderAttackObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbOrderAttackObject(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1709,7 +1710,7 @@ auto ExecHbOrderAttackObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbOrderAttackContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbOrderAttackContact(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1733,7 +1734,7 @@ auto ExecHbOrderAttackContact(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbOrderTest(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbOrderTest(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1742,7 +1743,7 @@ auto ExecHbOrderTest(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbPlaySmacker(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbPlaySmacker(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1752,7 +1753,7 @@ auto ExecHbPlaySmacker(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjectChangeSides(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbObjectChangeSides(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -1857,7 +1858,7 @@ namespace
     }
 }
 
-auto ExecHbDistanceToObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbDistanceToObject(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1880,7 +1881,7 @@ auto ExecHbDistanceToObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbDistanceToPosition(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbDistanceToPosition(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1896,7 +1897,7 @@ auto ExecHbDistanceToPosition(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbObjectSuicide(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbObjectSuicide(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -1926,7 +1927,7 @@ auto ExecHbObjectSuicide(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbObjectCreate(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjectCreate(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1958,7 +1959,7 @@ auto ExecHbObjectCreate(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjectExists(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjectExists(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -1982,7 +1983,7 @@ auto ExecHbObjectExists(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjectStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjectStatus(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2029,7 +2030,7 @@ auto ExecHbObjectStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjectStatusCount(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjectStatusCount(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2081,7 +2082,7 @@ auto ExecHbObjectStatusCount(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return nullptr;
 }
 
-auto ExecHbObjectVisible(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjectVisible(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2122,7 +2123,7 @@ auto ExecHbObjectVisible(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjectSide(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjectSide(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2142,7 +2143,7 @@ auto ExecHbObjectSide(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjectCommander(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjectCommander(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2164,7 +2165,7 @@ auto ExecHbObjectCommander(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjectClass(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjectClass(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2175,7 +2176,7 @@ auto ExecHbObjectClass(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbInArea(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbInArea(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2271,7 +2272,7 @@ auto ExecHbInArea(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return BooleanTypePtr;
 }
 
-auto ExecHbSetTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetTimer(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2297,7 +2298,7 @@ auto ExecHbSetTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbChkTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbChkTimer(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2315,7 +2316,7 @@ auto ExecHbChkTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbEndTimer(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbEndTimer(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -2331,7 +2332,7 @@ auto ExecHbEndTimer(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetObjectiveTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetObjectiveTimer(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2345,7 +2346,7 @@ auto ExecHbSetObjectiveTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbCheckObjectiveTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbCheckObjectiveTimer(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2355,7 +2356,7 @@ auto ExecHbCheckObjectiveTimer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbSetObjectiveStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetObjectiveStatus(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2369,7 +2370,7 @@ auto ExecHbSetObjectiveStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbCheckObjectiveStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbCheckObjectiveStatus(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2379,7 +2380,7 @@ auto ExecHbCheckObjectiveStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetObjectiveType(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetObjectiveType(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2393,7 +2394,7 @@ auto ExecHbSetObjectiveType(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbCheckObjectiveType(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbCheckObjectiveType(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2403,7 +2404,7 @@ auto ExecHbCheckObjectiveType(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbPlayDigitalMusic(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbPlayDigitalMusic(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2419,7 +2420,7 @@ auto ExecHbPlayDigitalMusic(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbStopMusic(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbStopMusic(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
 
@@ -2434,7 +2435,7 @@ auto ExecHbStopMusic(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbPlaySoundEffect(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbPlaySoundEffect(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2450,7 +2451,7 @@ auto ExecHbPlaySoundEffect(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbPlayVideo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbPlayVideo(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2466,7 +2467,7 @@ auto ExecHbPlayVideo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetRadio(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetRadio(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -2484,7 +2485,7 @@ auto ExecHbSetRadio(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbPlaySpeech(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbPlaySpeech(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2505,7 +2506,7 @@ auto ExecHbPlaySpeech(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbPlayBetty(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbPlayBetty(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2517,7 +2518,7 @@ auto ExecHbPlayBetty(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetObjActive(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetObjActive(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2559,7 +2560,7 @@ auto ExecHbSetObjActive(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjWithdraw(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjWithdraw(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     // Original behaviour (OB-043): two items are pushed for the one result, so every call leaves one behind.
     PushInteger(0);
@@ -2593,7 +2594,7 @@ auto ExecHbObjWithdraw(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjInWithdraw(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjInWithdraw(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2626,7 +2627,7 @@ auto ExecHbObjInWithdraw(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbObjTypeId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbObjTypeId(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2644,7 +2645,7 @@ auto ExecHbObjTypeId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbTerrainObjectId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbTerrainObjectId(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2658,7 +2659,7 @@ auto ExecHbTerrainObjectId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbVehicleId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbVehicleId(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2671,7 +2672,7 @@ auto ExecHbVehicleId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetWeaponAmmo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetWeaponAmmo(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2697,7 +2698,7 @@ auto ExecHbGetWeaponAmmo(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetSensors(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetSensors(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2717,7 +2718,7 @@ auto ExecHbGetSensors(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetBRValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetBRValue(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2728,7 +2729,7 @@ auto ExecHbGetBRValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetBRValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetBRValue(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2748,7 +2749,7 @@ auto ExecHbSetBRValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetArmorPts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetArmorPts(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2776,7 +2777,7 @@ auto ExecHbGetArmorPts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetMaxArmor(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetMaxArmor(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2804,7 +2805,7 @@ auto ExecHbGetMaxArmor(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetPilotId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetPilotId(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2824,7 +2825,7 @@ auto ExecHbGetPilotId(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetPilotWounds(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetPilotWounds(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2844,7 +2845,7 @@ auto ExecHbGetPilotWounds(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbSetPilotWounds(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetPilotWounds(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -2870,7 +2871,7 @@ auto ExecHbSetPilotWounds(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbGetObjActive(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetObjActive(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3016,7 +3017,7 @@ namespace
     }
 }
 
-auto ExecHbGetObjDamage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetObjDamage(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3045,7 +3046,7 @@ auto ExecHbGetObjDamage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetObjDmgPts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetObjDmgPts(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3065,7 +3066,7 @@ auto ExecHbGetObjDmgPts(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetMaxDmg(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetMaxDmg(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3083,7 +3084,7 @@ auto ExecHbGetMaxDmg(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetObjDamage(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetObjDamage(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3124,7 +3125,7 @@ auto ExecHbSetObjDamage(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbDamageObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbDamageObject(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3187,7 +3188,7 @@ auto ExecHbDamageObject(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetGlobalValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetGlobalValue(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3204,7 +3205,7 @@ auto ExecHbGetGlobalValue(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetGlobalValue(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetGlobalValue(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3222,7 +3223,7 @@ auto ExecHbSetGlobalValue(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetObjectivePos(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetObjectivePos(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3236,7 +3237,7 @@ auto ExecHbSetObjectivePos(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetTonnage(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetTonnage(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3258,7 +3259,7 @@ auto ExecHbSetTonnage(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetSensorRange(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetSensorRange(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3315,7 +3316,7 @@ auto ExecHbSetSensorRange(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetExplDmg(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetExplDmg(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3337,7 +3338,7 @@ auto ExecHbSetExplDmg(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetExplRad(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetExplRad(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3359,7 +3360,7 @@ auto ExecHbSetExplRad(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetSalvage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetSalvage(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3410,7 +3411,7 @@ auto ExecHbSetSalvage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return BooleanTypePtr;
 }
 
-auto ExecHbSetSalvageStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbSetSalvageStatus(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3444,7 +3445,7 @@ auto ExecHbSetSalvageStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return BooleanTypePtr;
 }
 
-auto ExecHbSetAnimation(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetAnimation(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3487,7 +3488,7 @@ auto ExecHbSetAnimation(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbPlayWave(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbPlayWave(MCAblSymbol* routineIdPtr) -> void
 {
     // Original behaviour (OB-045): only the first of the two arguments is read; the code pointer is left on the
     // comma before the second.
@@ -3498,7 +3499,7 @@ auto ExecHbPlayWave(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetRevealed(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetRevealed(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3537,7 +3538,7 @@ auto ExecHbSetRevealed(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbGetSalvage(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbGetSalvage(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3575,7 +3576,7 @@ auto ExecHbGetSalvage(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbRefit(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbRefit(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3602,7 +3603,7 @@ auto ExecHbRefit(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetCaptured(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetCaptured(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3619,7 +3620,7 @@ auto ExecHbSetCaptured(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbCaptureObject(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbCaptureObject(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3644,7 +3645,7 @@ auto ExecHbCaptureObject(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbSetCaptureable(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetCaptureable(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3685,7 +3686,7 @@ auto ExecHbSetCaptureable(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbIsCaptured(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbIsCaptured(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3720,7 +3721,7 @@ auto ExecHbIsCaptured(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbIsCapturable(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbIsCapturable(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3738,7 +3739,7 @@ auto ExecHbIsCapturable(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return BooleanTypePtr;
 }
 
-auto ExecHbWasEverCapturable(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbWasEverCapturable(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -3795,7 +3796,7 @@ namespace
     }
 }
 
-auto ExecHbSetBuildingName(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetBuildingName(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3846,7 +3847,7 @@ namespace
     }
 }
 
-auto ExecHbCallStrike(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbCallStrike(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
 
@@ -3870,7 +3871,7 @@ auto ExecHbCallStrike(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbCallStrikeEx(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbCallStrikeEx(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
 
@@ -3900,7 +3901,7 @@ auto ExecHbCallStrikeEx(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbLoadElementals(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbLoadElementals(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3922,7 +3923,7 @@ auto ExecHbLoadElementals(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbDeployElementals(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbDeployElementals(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -3939,7 +3940,7 @@ auto ExecHbDeployElementals(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbAddPrisoner(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbAddPrisoner(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -4001,7 +4002,7 @@ auto ExecHbAddPrisoner(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbSetTrainSpeed(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetTrainSpeed(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -4048,22 +4049,22 @@ namespace
     }
 }
 
-auto ExecHbLockGateOpen(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbLockGateOpen(MCAblSymbol* routineIdPtr) -> void
 {
     SetGateLocks(1, 0);
 }
 
-auto ExecHbLockGateClosed(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbLockGateClosed(MCAblSymbol* routineIdPtr) -> void
 {
     SetGateLocks(0, 1);
 }
 
-auto ExecHbReleaseGateLock(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbReleaseGateLock(MCAblSymbol* routineIdPtr) -> void
 {
     SetGateLocks(0, 0);
 }
 
-auto ExecHbIsGateOpen(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbIsGateOpen(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -4167,7 +4168,7 @@ namespace
     }
 }
 
-auto ExecHbGetUnitStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetUnitStatus(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -4256,7 +4257,7 @@ auto ExecHbGetUnitStatus(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return RealTypePtr;
 }
 
-auto ExecHbRelPosPoint(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbRelPosPoint(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -4279,7 +4280,7 @@ auto ExecHbRelPosPoint(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbRelPosObject(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbRelPosObject(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -4320,7 +4321,7 @@ namespace
     }
 }
 
-auto ExecHbRepair(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbRepair(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -4376,7 +4377,7 @@ auto ExecHbRepair(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbGetRepairState(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetRepairState(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -4426,7 +4427,7 @@ auto ExecHbGetRepairState(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbIsTeamTargeting(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbIsTeamTargeting(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -4462,7 +4463,7 @@ auto ExecHbIsTeamTargeting(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return BooleanTypePtr;
 }
 
-auto ExecHbGetFixed(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetFixed(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -4565,7 +4566,7 @@ auto DebugMissionScriptMessages() -> void
     ExceptionGameMsg = ChunkDebugMsg;
 }
 
-auto ExecHbSendMessage(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSendMessage(MCAblSymbol* routineIdPtr) -> void
 {
     GetCodeToken();
     GetCodeToken();
@@ -4593,7 +4594,7 @@ auto ExecHbSendMessage(MCSymTableNodePtr routineIdPtr) -> void
     GetCodeToken();
 }
 
-auto ExecHbGetMessage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetMessage(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -4605,7 +4606,7 @@ auto ExecHbGetMessage(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return IntegerTypePtr;
 }
 
-auto ExecHbGetStrikes(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetStrikes(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     GetCodeToken();
     GetCodeToken();
@@ -4685,488 +4686,488 @@ namespace
     }
 }
 
-auto ExecHbSetStrikes(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbSetStrikes(MCAblSymbol* routineIdPtr) -> void
 {
     ChangeStrikes(false);
 }
 
-auto ExecHbAddStrikes(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecHbAddStrikes(MCAblSymbol* routineIdPtr) -> void
 {
     ChangeStrikes(true);
 }
 
-auto ExecHbIsServer(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbIsServer(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushInteger(MPlayer && MPlayer->IsServer ? 1 : 0);
     GetCodeToken();
     return BooleanTypePtr;
 }
 
-auto ExecHbGetHomeTeam(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecHbGetHomeTeam(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     PushInteger(HomeTeam->Id + 500);
     GetCodeToken();
     return IntegerTypePtr;
 }
 
-auto ExecStandardRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecStandardRoutineCall(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
-    int32_t key = routineIdPtr->Defn.Info.Routine.Key;
+    const MCAblRoutineKey key = routineIdPtr->Defn.Info.Routine.Key;
 
     switch (key)
     {
-        case RTN_RETURN:
+        case MCAblRoutineKey::Return:
         {
             ExecStdReturn(routineIdPtr);
             return nullptr;
         }
-        case RTN_PRINT:
+        case MCAblRoutineKey::Print:
         {
             ExecStdPrint(routineIdPtr);
             return nullptr;
         }
-        case RTN_CONCAT:
+        case MCAblRoutineKey::Concat:
             return ExecStdConcat(routineIdPtr);
-        case RTN_ABS:
+        case MCAblRoutineKey::Abs:
             return ExecStdAbs(routineIdPtr);
-        case RTN_ROUND:
+        case MCAblRoutineKey::Round:
             return ExecStdRound(routineIdPtr);
-        case RTN_SQRT:
+        case MCAblRoutineKey::Sqrt:
             return ExecStdSqrt(routineIdPtr);
-        case RTN_TRUNC:
+        case MCAblRoutineKey::Trunc:
             return ExecStdTrunc(routineIdPtr);
-        case RTN_RANDOM:
+        case MCAblRoutineKey::Random:
             return ExecStdRandom(routineIdPtr);
-        case RTN_SET_MAX_LOOPS:
+        case MCAblRoutineKey::SetMaxLoops:
             return ExecStdSetMaxLoops(routineIdPtr);
-        case RTN_FATAL:
+        case MCAblRoutineKey::Fatal:
             return ExecStdFatal(routineIdPtr);
-        case RTN_ASSERT:
+        case MCAblRoutineKey::Assert:
             return ExecStdAssert(routineIdPtr);
-        case RTN_GET_MODULE_HANDLE:
+        case MCAblRoutineKey::GetModuleHandle:
             return ExecStdGetModHandle(routineIdPtr);
-        case RTN_GET_ID:
+        case MCAblRoutineKey::GetId:
             return ExecHbGetId(routineIdPtr);
-        case RTN_GET_TIME:
+        case MCAblRoutineKey::GetTime:
             return ExecHbGetTime(routineIdPtr);
-        case RTN_GET_TIME_LEFT:
+        case MCAblRoutineKey::GetTimeLeft:
             return ExecHbGetTimeLeft(routineIdPtr);
-        case RTN_GET_WARRIOR_STATUS:
+        case MCAblRoutineKey::GetWarriorStatus:
             return ExecHbGetWarriorStatus(routineIdPtr);
-        case RTN_SELECT_UNIT:
+        case MCAblRoutineKey::SelectUnit:
             return ExecHbSelectUnit(routineIdPtr);
-        case RTN_SELECT_WARRIOR:
+        case MCAblRoutineKey::SelectWarrior:
             return ExecHbSelectWarrior(routineIdPtr);
-        case RTN_SELECT_OBJECT:
+        case MCAblRoutineKey::SelectObject:
             return ExecHbSelectObject(routineIdPtr);
-        case RTN_GET_CONTACTS:
+        case MCAblRoutineKey::GetContacts:
             return ExecHbGetContacts(routineIdPtr);
-        case RTN_GET_ENEMY_COUNT:
+        case MCAblRoutineKey::GetEnemyCount:
             return ExecHbGetEnemyCount(routineIdPtr);
-        case RTN_SELECT_CONTACT:
+        case MCAblRoutineKey::SelectContact:
             return ExecHbSelectContact(routineIdPtr);
-        case RTN_GET_CONTACT_ID:
+        case MCAblRoutineKey::GetContactId:
             return ExecHbGetContactId(routineIdPtr);
-        case RTN_IS_CONTACT:
+        case MCAblRoutineKey::IsContact:
             return ExecHbIsContact(routineIdPtr);
-        case RTN_GET_CONTACT_STATUS:
+        case MCAblRoutineKey::GetContactStatus:
             return ExecHbGetContactStatus(routineIdPtr);
-        case RTN_GET_CONTACT_RELATIVE_POSITION:
+        case MCAblRoutineKey::GetContactRelativePosition:
             return ExecHbGetContactRelativePosition(routineIdPtr);
-        case RTN_GET_TARGET:
+        case MCAblRoutineKey::GetTarget:
             return ExecHbGetTarget(routineIdPtr);
-        case RTN_SET_TARGET:
+        case MCAblRoutineKey::SetTarget:
         {
             ExecHbSetTarget(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_WEAPONS_READY:
-        case RTN_GET_WEAPONS_LOCKED:
-        case RTN_GET_WEAPONS_IN_RANGE:
+        case MCAblRoutineKey::GetWeaponsReady:
+        case MCAblRoutineKey::GetWeaponsLocked:
+        case MCAblRoutineKey::GetWeaponsInRange:
             return ExecHbGetWeapons(routineIdPtr, key);
-        case RTN_GET_WEAPON_SHOTS:
+        case MCAblRoutineKey::GetWeaponShots:
             return ExecHbGetWeaponShots(routineIdPtr);
-        case RTN_GET_WEAPON_RANGES:
+        case MCAblRoutineKey::GetWeaponRanges:
         {
             ExecHbGetWeaponRanges(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_OBJECT_POSITION:
+        case MCAblRoutineKey::GetObjectPosition:
             return ExecHbGetObjectPosition(routineIdPtr);
-        case RTN_GET_INTEGER_MEMORY:
+        case MCAblRoutineKey::GetIntegerMemory:
             return ExecHbGetMemoryInteger(routineIdPtr);
-        case RTN_GET_REAL_MEMORY:
+        case MCAblRoutineKey::GetRealMemory:
             return ExecHbGetMemoryReal(routineIdPtr);
-        case RTN_GET_ALARM_TRIGGERS:
+        case MCAblRoutineKey::GetAlarmTriggers:
             return ExecHbGetAlarmTriggers(routineIdPtr);
-        case RTN_GET_CHALLENGER:
+        case MCAblRoutineKey::GetChallenger:
             return ExecHbGetChallenger(routineIdPtr);
-        case RTN_GET_FIRE_RANGES:
+        case MCAblRoutineKey::GetFireRanges:
             return ExecHbGetFireRanges(routineIdPtr);
-        case RTN_GET_ATTACKERS:
+        case MCAblRoutineKey::GetAttackers:
             return ExecHbGetAttackers(routineIdPtr);
-        case RTN_GET_ATTACKER_INFO:
+        case MCAblRoutineKey::GetAttackerInfo:
             return ExecHbGetAttackerInfo(routineIdPtr);
-        case RTN_SET_CHALLENGER:
+        case MCAblRoutineKey::SetChallenger:
             return ExecHbSetChallenger(routineIdPtr);
-        case RTN_GET_TIME_WITHOUT_ORDERS:
+        case MCAblRoutineKey::GetTimeWithoutOrders:
             return ExecHbGetTimeWithoutOrders(routineIdPtr);
-        case RTN_SET_RADIO:
+        case MCAblRoutineKey::SetRadio:
         {
             ExecHbSetRadio(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_MOVE_GOAL:
+        case MCAblRoutineKey::SetMoveGoal:
             return ExecHbSetMoveGoal(routineIdPtr);
-        case RTN_SET_INTEGER_MEMORY:
+        case MCAblRoutineKey::SetIntegerMemory:
         {
             ExecHbSetMemoryInteger(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_REAL_MEMORY:
+        case MCAblRoutineKey::SetRealMemory:
         {
             ExecHbSetMemoryReal(routineIdPtr);
             return nullptr;
         }
-        case RTN_HAS_MOVE_GOAL:
+        case MCAblRoutineKey::HasMoveGoal:
             return ExecHbHasMoveGoal(routineIdPtr);
-        case RTN_HAS_MOVE_PATH:
+        case MCAblRoutineKey::HasMovePath:
             return ExecHbHasMovePath(routineIdPtr);
-        case RTN_SORT_WEAPONS:
+        case MCAblRoutineKey::SortWeapons:
         {
             ExecHbSortWeapons(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_VISUAL_RANGE:
+        case MCAblRoutineKey::GetVisualRange:
             return ExecHbGetVisualRange(routineIdPtr);
-        case RTN_GET_UNIT_MATES:
+        case MCAblRoutineKey::GetUnitMates:
             return ExecHbGetUnitMates(routineIdPtr);
-        case RTN_GET_TAC_ORDER:
+        case MCAblRoutineKey::GetTacOrder:
             return ExecHbGetTacOrder(routineIdPtr);
-        case RTN_GET_LAST_TAC_ORDER:
+        case MCAblRoutineKey::GetLastTacOrder:
             return ExecHbGetLastTacOrder(routineIdPtr);
-        case RTN_SET_ORDER_MODE:
+        case MCAblRoutineKey::SetOrderMode:
             return ExecHbSetOrderMode(routineIdPtr);
-        case RTN_ORDER_WAIT:
+        case MCAblRoutineKey::OrderWait:
             return ExecHbWait(routineIdPtr);
-        case RTN_ORDER_MOVE_TO:
+        case MCAblRoutineKey::OrderMoveTo:
             return ExecHbMoveToPoint(routineIdPtr);
-        case RTN_ORDER_MOVE_TO_OBJECT:
+        case MCAblRoutineKey::OrderMoveToObject:
             return ExecHbMoveToObject(routineIdPtr);
-        case RTN_ORDER_MOVE_TO_CONTACT:
+        case MCAblRoutineKey::OrderMoveToContact:
             return ExecHbMoveToContact(routineIdPtr);
-        case RTN_ORDER_TRAVERSE_PATH:
-        case RTN_ORDER_PATROL_PATH:
-        case RTN_ATTACK_CLOSEST_TARGET:
-        case RTN_ATTACK_PER_ORDERS:
-        case RTN_RETREAT:
-        case RTN_FIRE_UPON_ENEMY_FIRE_ONLY:
+        case MCAblRoutineKey::OrderTraversePath:
+        case MCAblRoutineKey::OrderPatrolPath:
+        case MCAblRoutineKey::AttackClosestTarget:
+        case MCAblRoutineKey::AttackPerOrders:
+        case MCAblRoutineKey::Retreat:
+        case MCAblRoutineKey::FireUponEnemyFireOnly:
             // Original behaviour: these do nothing, not even read their call's tokens.
             return nullptr;
-        case RTN_ORDER_POWER_UP:
+        case MCAblRoutineKey::OrderPowerUp:
             return ExecHbOrderPowerUp(routineIdPtr);
-        case RTN_ORDER_POWER_DOWN:
+        case MCAblRoutineKey::OrderPowerDown:
             return ExecHbOrderPowerDown(routineIdPtr);
-        case RTN_ORDER_ATTACK_OBJECT:
+        case MCAblRoutineKey::OrderAttackObject:
             return ExecHbOrderAttackObject(routineIdPtr);
-        case RTN_ORDER_ATTACK_CONTACT:
+        case MCAblRoutineKey::OrderAttackContact:
             return ExecHbOrderAttackContact(routineIdPtr);
-        case RTN_ORDER_WITHDRAW:
+        case MCAblRoutineKey::OrderWithdraw:
             return ExecHbObjWithdraw(routineIdPtr);
-        case RTN_DAMAGE_OBJECT:
+        case MCAblRoutineKey::DamageObject:
             return ExecHbDamageObject(routineIdPtr);
-        case RTN_SET_ATTACK_RADIUS:
+        case MCAblRoutineKey::SetAttackRadius:
             return ExecHbSetAttackRadius(routineIdPtr);
-        case RTN_ORDER_TEST:
+        case MCAblRoutineKey::OrderTest:
             return ExecHbOrderTest(routineIdPtr);
-        case RTN_PLAY_SMACKER:
+        case MCAblRoutineKey::PlaySmacker:
             return ExecHbPlaySmacker(routineIdPtr);
-        case RTN_OBJECT_CHANGE_SIDES:
+        case MCAblRoutineKey::ObjectChangeSides:
         {
             ExecHbObjectChangeSides(routineIdPtr);
             return nullptr;
         }
-        case RTN_DISTANCE_TO_OBJECT:
+        case MCAblRoutineKey::DistanceToObject:
             return ExecHbDistanceToObject(routineIdPtr);
-        case RTN_DISTANCE_TO_POSITION:
+        case MCAblRoutineKey::DistanceToPosition:
             return ExecHbDistanceToPosition(routineIdPtr);
-        case RTN_OBJECT_SUICIDE:
+        case MCAblRoutineKey::ObjectSuicide:
         {
             ExecHbObjectSuicide(routineIdPtr);
             return nullptr;
         }
-        case RTN_OBJECT_CREATE:
+        case MCAblRoutineKey::ObjectCreate:
             return ExecHbObjectCreate(routineIdPtr);
-        case RTN_OBJECT_EXISTS:
+        case MCAblRoutineKey::ObjectExists:
             return ExecHbObjectExists(routineIdPtr);
-        case RTN_OBJECT_STATUS:
+        case MCAblRoutineKey::ObjectStatus:
             return ExecHbObjectStatus(routineIdPtr);
-        case RTN_OBJECT_VISIBLE:
+        case MCAblRoutineKey::ObjectVisible:
             return ExecHbObjectVisible(routineIdPtr);
-        case RTN_OBJECT_CLASS:
+        case MCAblRoutineKey::ObjectClass:
             return ExecHbObjectClass(routineIdPtr);
-        case RTN_OBJECT_SIDE:
+        case MCAblRoutineKey::ObjectSide:
             return ExecHbObjectSide(routineIdPtr);
-        case RTN_OBJECT_COMMANDER:
+        case MCAblRoutineKey::ObjectCommander:
             return ExecHbObjectCommander(routineIdPtr);
-        case RTN_SET_TIMER:
+        case MCAblRoutineKey::SetTimer:
             return ExecHbSetTimer(routineIdPtr);
-        case RTN_CHECK_TIMER:
+        case MCAblRoutineKey::CheckTimer:
             return ExecHbChkTimer(routineIdPtr);
-        case RTN_END_TIMER:
+        case MCAblRoutineKey::EndTimer:
         {
             ExecHbEndTimer(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_OBJECTIVE_TIMER:
+        case MCAblRoutineKey::SetObjectiveTimer:
             return ExecHbSetObjectiveTimer(routineIdPtr);
-        case RTN_CHECK_OBJECTIVE_TIMER:
+        case MCAblRoutineKey::CheckObjectiveTimer:
             return ExecHbCheckObjectiveTimer(routineIdPtr);
-        case RTN_SET_OBJECTIVE_STATUS:
+        case MCAblRoutineKey::SetObjectiveStatus:
             return ExecHbSetObjectiveStatus(routineIdPtr);
-        case RTN_CHECK_OBJECTIVE_STATUS:
+        case MCAblRoutineKey::CheckObjectiveStatus:
             return ExecHbCheckObjectiveStatus(routineIdPtr);
-        case RTN_SET_OBJECTIVE_TYPE:
+        case MCAblRoutineKey::SetObjectiveType:
             return ExecHbSetObjectiveType(routineIdPtr);
-        case RTN_CHECK_OBJECTIVE_TYPE:
+        case MCAblRoutineKey::CheckObjectiveType:
             return ExecHbCheckObjectiveType(routineIdPtr);
-        case RTN_PLAY_DIGITAL_MUSIC:
+        case MCAblRoutineKey::PlayDigitalMusic:
             return ExecHbPlayDigitalMusic(routineIdPtr);
-        case RTN_STOP_MUSIC:
+        case MCAblRoutineKey::StopMusic:
             return ExecHbStopMusic(routineIdPtr);
-        case RTN_PLAY_SOUND_EFFECT:
+        case MCAblRoutineKey::PlaySoundEffect:
             return ExecHbPlaySoundEffect(routineIdPtr);
-        case RTN_PLAY_VIDEO:
+        case MCAblRoutineKey::PlayVideo:
             return ExecHbPlayVideo(routineIdPtr);
-        case RTN_PLAY_SPEECH:
+        case MCAblRoutineKey::PlaySpeech:
             return ExecHbPlaySpeech(routineIdPtr);
-        case RTN_PLAY_BETTY:
+        case MCAblRoutineKey::PlayBetty:
             return ExecHbPlayBetty(routineIdPtr);
-        case RTN_SET_OBJECT_ACTIVE:
+        case MCAblRoutineKey::SetObjectActive:
             return ExecHbSetObjActive(routineIdPtr);
-        case RTN_OBJECT_IN_WITHDRAWAL:
+        case MCAblRoutineKey::ObjectInWithdrawal:
             return ExecHbObjInWithdraw(routineIdPtr);
-        case RTN_OBJECT_TYPE_ID:
+        case MCAblRoutineKey::ObjectTypeId:
             return ExecHbObjTypeId(routineIdPtr);
-        case RTN_GET_TERRAIN_OBJECT_PART_ID:
+        case MCAblRoutineKey::GetTerrainObjectPartId:
             return ExecHbTerrainObjectId(routineIdPtr);
-        case RTN_GET_VEHICLE_PART_ID:
+        case MCAblRoutineKey::GetVehiclePartId:
             return ExecHbVehicleId(routineIdPtr);
-        case RTN_GET_WEAPON_AMMO:
+        case MCAblRoutineKey::GetWeaponAmmo:
             return ExecHbGetWeaponAmmo(routineIdPtr);
-        case RTN_OBJECT_STATUS_COUNT:
+        case MCAblRoutineKey::ObjectStatusCount:
             return ExecHbObjectStatusCount(routineIdPtr);
-        case RTN_IN_AREA:
+        case MCAblRoutineKey::InArea:
             return ExecHbInArea(routineIdPtr);
-        case RTN_GET_RELATIVE_POSITION_TO_POINT:
+        case MCAblRoutineKey::GetRelativePositionToPoint:
         {
             ExecHbRelPosPoint(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_RELATIVE_POSITION_TO_OBJECT:
+        case MCAblRoutineKey::GetRelativePositionToObject:
         {
             ExecHbRelPosObject(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_SENSORS_WORKING:
+        case MCAblRoutineKey::GetSensorsWorking:
             return ExecHbGetSensors(routineIdPtr);
-        case RTN_GET_CURRENT_BR_VALUE:
+        case MCAblRoutineKey::GetCurrentBRValue:
             return ExecHbGetBRValue(routineIdPtr);
-        case RTN_GET_ARMOR_PTS:
+        case MCAblRoutineKey::GetArmorPts:
             return ExecHbGetArmorPts(routineIdPtr);
-        case RTN_GET_PILOT_ID:
+        case MCAblRoutineKey::GetPilotId:
             return ExecHbGetPilotId(routineIdPtr);
-        case RTN_GET_PILOT_WOUNDS:
+        case MCAblRoutineKey::GetPilotWounds:
             return ExecHbGetPilotWounds(routineIdPtr);
-        case RTN_SET_PILOT_WOUNDS:
+        case MCAblRoutineKey::SetPilotWounds:
         {
             ExecHbSetPilotWounds(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_OBJECT_ACTIVE:
+        case MCAblRoutineKey::GetObjectActive:
             return ExecHbGetObjActive(routineIdPtr);
-        case RTN_GET_OBJECT_MAX_DMG:
+        case MCAblRoutineKey::GetObjectMaxDmg:
             // Original behaviour (OB-050): getobjectmaxdmg runs the damage points routine.
             return ExecHbGetObjDmgPts(routineIdPtr);
-        case RTN_GET_OBJECT_DAMAGE:
+        case MCAblRoutineKey::GetObjectDamage:
             return ExecHbGetObjDamage(routineIdPtr);
-        case RTN_SET_OBJECT_DAMAGE:
+        case MCAblRoutineKey::SetObjectDamage:
         {
             ExecHbSetObjDamage(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_GLOBAL_VALUE:
+        case MCAblRoutineKey::GetGlobalValue:
             return ExecHbGetGlobalValue(routineIdPtr);
-        case RTN_SET_GLOBAL_VALUE:
+        case MCAblRoutineKey::SetGlobalValue:
         {
             ExecHbSetGlobalValue(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_OBJECTIVE_POS:
+        case MCAblRoutineKey::SetObjectivePos:
         {
             ExecHbSetObjectivePos(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_POTENTIAL_CONTACT:
+        case MCAblRoutineKey::SetPotentialContact:
             return ExecHbSetPotentialContact(routineIdPtr);
-        case RTN_SET_SENSOR_RANGE:
+        case MCAblRoutineKey::SetSensorRange:
         {
             ExecHbSetSensorRange(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_TONNAGE:
+        case MCAblRoutineKey::SetTonnage:
         {
             ExecHbSetTonnage(routineIdPtr);
             return nullptr;
         }
-        case RTN_PLAY_WAVE_FILE:
+        case MCAblRoutineKey::PlayWaveFile:
         {
             ExecHbPlayWave(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_EXPLOSION_DAMAGE:
+        case MCAblRoutineKey::SetExplosionDamage:
         {
             ExecHbSetExplDmg(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_EXPLOSION_RADIUS:
+        case MCAblRoutineKey::SetExplosionRadius:
         {
             ExecHbSetExplRad(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_SALVAGE:
+        case MCAblRoutineKey::GetSalvage:
         {
             ExecHbGetSalvage(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_SALVAGE:
+        case MCAblRoutineKey::SetSalvage:
         {
             // Original behaviour: the boolean result type is dropped.
             ExecHbSetSalvage(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_SALVAGE_STATUS:
+        case MCAblRoutineKey::SetSalvageStatus:
         {
             ExecHbSetSalvageStatus(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_ANIMATION:
+        case MCAblRoutineKey::SetAnimation:
         {
             ExecHbSetAnimation(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_REVEALED:
+        case MCAblRoutineKey::SetRevealed:
         {
             ExecHbSetRevealed(routineIdPtr);
             return nullptr;
         }
-        case RTN_ORDER_REFIT:
+        case MCAblRoutineKey::OrderRefit:
         {
             ExecHbRefit(routineIdPtr);
             return nullptr;
         }
-        case RTN_ORDER_CAPTURE:
+        case MCAblRoutineKey::OrderCapture:
         {
             ExecHbCaptureObject(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_CAPTURED:
+        case MCAblRoutineKey::SetCaptured:
         {
             ExecHbSetCaptured(routineIdPtr);
             return nullptr;
         }
-        case RTN_SET_CAPTUREABLE:
+        case MCAblRoutineKey::SetCaptureable:
         {
             ExecHbSetCaptureable(routineIdPtr);
             return nullptr;
         }
-        case RTN_IS_CAPTURED:
+        case MCAblRoutineKey::IsCaptured:
             return ExecHbIsCaptured(routineIdPtr);
-        case RTN_IS_CAPTURABLE:
+        case MCAblRoutineKey::IsCapturable:
             return ExecHbIsCapturable(routineIdPtr);
-        case RTN_WAS_EVER_CAPTURABLE:
+        case MCAblRoutineKey::WasEverCapturable:
             return ExecHbWasEverCapturable(routineIdPtr);
-        case RTN_SET_BUILDING_NAME:
+        case MCAblRoutineKey::SetBuildingName:
         {
             ExecHbSetBuildingName(routineIdPtr);
             return nullptr;
         }
-        case RTN_CALL_STRIKE:
+        case MCAblRoutineKey::CallStrike:
         {
             ExecHbCallStrike(routineIdPtr);
             return nullptr;
         }
-        case RTN_ORDER_LOAD_ELEMENTALS:
+        case MCAblRoutineKey::OrderLoadElementals:
         {
             ExecHbLoadElementals(routineIdPtr);
             return nullptr;
         }
-        case RTN_ORDER_DEPLOY_ELEMENTALS:
+        case MCAblRoutineKey::OrderDeployElementals:
         {
             ExecHbDeployElementals(routineIdPtr);
             return nullptr;
         }
-        case RTN_ADD_PRISONER:
+        case MCAblRoutineKey::AddPrisoner:
             return ExecHbAddPrisoner(routineIdPtr);
-        case RTN_SET_TRAIN_SPEED:
+        case MCAblRoutineKey::SetTrainSpeed:
         {
             ExecHbSetTrainSpeed(routineIdPtr);
             return nullptr;
         }
-        case RTN_LOCK_GATE_OPEN:
+        case MCAblRoutineKey::LockGateOpen:
         {
             ExecHbLockGateOpen(routineIdPtr);
             return nullptr;
         }
-        case RTN_LOCK_GATE_CLOSED:
+        case MCAblRoutineKey::LockGateClosed:
         {
             ExecHbLockGateClosed(routineIdPtr);
             return nullptr;
         }
-        case RTN_RELEASE_GATE_LOCK:
+        case MCAblRoutineKey::ReleaseGateLock:
         {
             ExecHbReleaseGateLock(routineIdPtr);
             return nullptr;
         }
-        case RTN_IS_GATE_OPEN:
+        case MCAblRoutineKey::IsGateOpen:
             return ExecHbIsGateOpen(routineIdPtr);
-        case RTN_CALL_STRIKE_EX:
+        case MCAblRoutineKey::CallStrikeEx:
         {
             ExecHbCallStrikeEx(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_UNIT_STATUS:
+        case MCAblRoutineKey::GetUnitStatus:
             return ExecHbGetUnitStatus(routineIdPtr);
-        case RTN_REPAIR:
+        case MCAblRoutineKey::Repair:
         {
             ExecHbRepair(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_FIXED:
+        case MCAblRoutineKey::GetFixed:
             return ExecHbGetFixed(routineIdPtr);
-        case RTN_GET_REPAIR_STATE:
+        case MCAblRoutineKey::GetRepairState:
             return ExecHbGetRepairState(routineIdPtr);
-        case RTN_IS_TEAM_TARGETING:
+        case MCAblRoutineKey::IsTeamTargeting:
             return ExecHbIsTeamTargeting(routineIdPtr);
-        case RTN_SEND_MESSAGE:
+        case MCAblRoutineKey::SendMessage:
         {
             ExecHbSendMessage(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_MESSAGE:
+        case MCAblRoutineKey::GetMessage:
             return ExecHbGetMessage(routineIdPtr);
-        case RTN_GET_HOME_TEAM:
+        case MCAblRoutineKey::GetHomeTeam:
             return ExecHbGetHomeTeam(routineIdPtr);
-        case RTN_SET_STRIKES:
+        case MCAblRoutineKey::SetStrikes:
         {
             ExecHbSetStrikes(routineIdPtr);
             return nullptr;
         }
-        case RTN_GET_STRIKES:
+        case MCAblRoutineKey::GetStrikes:
             return ExecHbGetStrikes(routineIdPtr);
-        case RTN_IS_SERVER:
+        case MCAblRoutineKey::IsServer:
             return ExecHbIsServer(routineIdPtr);
-        case RTN_ADD_STRIKES:
+        case MCAblRoutineKey::AddStrikes:
         {
             ExecHbAddStrikes(routineIdPtr);
             return nullptr;
@@ -5176,8 +5177,8 @@ auto ExecStandardRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
             // Original behaviour (OB-050): among others the module name and mode routines, the guard routines, the scans, getmaxarmor,
             // getobjectdmgpts and setcurrentbrvalue compile but have no runtime routine.
             char message[256];
-            std::snprintf(message, sizeof(message), " ABL: Undefined ABL RoutineKey in %s:%d", CurModule->GetName(),
-                          ExecLineNumber);
+            std::snprintf(message, sizeof(message), " ABL: Undefined ABL RoutineKey in %s:%d",
+                          CurModule->GetName().c_str(), ExecLineNumber);
             Fatal(0, message);
         }
     }

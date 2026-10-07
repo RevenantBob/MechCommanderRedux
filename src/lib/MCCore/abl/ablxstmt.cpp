@@ -2,7 +2,7 @@
 #include "abl/ablxstmt.h"
 #include "abl/abldbug.h"
 #include "abl/ablenv.h"
-#include "abl/ablerr.h"
+#include "abl/MCAblErrors.h"
 #include "abl/ablexec.h"
 #include "abl/ablrtn.h"
 #include "abl/ablxexpr.h"
@@ -15,7 +15,7 @@ int ExitWithReturn = 0;
 
 auto ExecStatement() -> void
 {
-    if (CodeToken == TKN_STATEMENT_MARKER)
+    if (CodeToken == MCAblToken::StatementMarker)
     {
         ExecLineNumber = GetCodeStatementMarker();
         ExecStatementCount++;
@@ -33,11 +33,11 @@ auto ExecStatement() -> void
 
     switch (CodeToken)
     {
-        case TKN_IDENTIFIER:
+        case MCAblToken::Identifier:
         {
-            MCSymTableNodePtr idPtr = GetCodeSymTableNodePtr();
+            MCAblSymbol* idPtr = GetCodeSymTableNodePtr();
 
-            if (idPtr->Defn.Key == DFN_FUNCTION)
+            if (idPtr->Defn.Key == MCAblSymbolKind::Function)
             {
                 // A function called as a statement: drop its result.
                 if (ExecRoutineCall(idPtr))
@@ -52,13 +52,14 @@ auto ExecStatement() -> void
             break;
         }
 
-        case TKN_CODE:
+        case MCAblToken::Code:
         {
             InOrdersBlock = 0;
             GetCodeToken();
-            MCTokenCodeType endToken = CurLibrary ? TKN_END_LIBRARY : TKN_END_MODULE;
 
-            while (CodeToken != TKN_END_FUNCTION && CodeToken != endToken)
+            // Original behaviour: the end token was chosen by curLibrary, which is only set while a library compiles,
+            // so a block always ends at endfunction or endmodule.
+            while (CodeToken != MCAblToken::EndFunction && CodeToken != MCAblToken::EndModule)
             {
                 ExecStatement();
             }
@@ -68,57 +69,57 @@ auto ExecStatement() -> void
             break;
         }
 
-        case TKN_SWITCH:
+        case MCAblToken::Switch:
             ExecSwitchStatement();
             break;
-        case TKN_FOR:
+        case MCAblToken::For:
             ExecForStatement();
             break;
-        case TKN_IF:
+        case MCAblToken::If:
             ExecIfStatement();
             break;
-        case TKN_REPEAT:
+        case MCAblToken::Repeat:
             ExecRepeatStatement();
             break;
-        case TKN_WHILE:
+        case MCAblToken::While:
             ExecWhileStatement();
             break;
-        case TKN_SEMICOLON:
-        case TKN_ELSE:
-        case TKN_UNTIL:
+        case MCAblToken::Semicolon:
+        case MCAblToken::Else:
+        case MCAblToken::Until:
             break;
         default:
-            RuntimeError(ABL_ERR_RUNTIME_UNIMPLEMENTED_FEATURE);
+            RuntimeError(MCAblRuntimeError::UnimplementedFeature);
             break;
     }
 
-    while (CodeToken == TKN_SEMICOLON)
+    while (CodeToken == MCAblToken::Semicolon)
     {
         GetCodeToken();
     }
 }
 
-auto ExecAssignmentStatement(MCSymTableNodePtr idPtr) -> void
+auto ExecAssignmentStatement(MCAblSymbol* idPtr) -> void
 {
-    MCTypePtr targetTypePtr = ExecVariable(idPtr, USE_TARGET);
+    MCAblType* targetTypePtr = ExecVariable(idPtr, MCAblUse::Target);
     MCStackItemPtr targetPtr = reinterpret_cast<MCStackItemPtr>(Tos->Address);
     Pop();
-    MCTypePtr targetBaseTypePtr = BaseType(targetTypePtr);
+    MCAblType* targetBaseTypePtr = targetTypePtr;
 
     GetCodeToken();
-    MCTypePtr expressionTypePtr = ExecExpression();
+    MCAblType* expressionTypePtr = ExecExpression();
 
     // The target is a stack slot or an element in array memory: stores go through 4-byte integers and reals (1
     // byte for a char), as in the original.
-    if (targetTypePtr == RealTypePtr && BaseType(expressionTypePtr) == IntegerTypePtr)
+    if (targetTypePtr == RealTypePtr && expressionTypePtr == IntegerTypePtr)
     {
         *reinterpret_cast<float*>(targetPtr) = static_cast<float>(Tos->Integer);
     }
-    else if (targetTypePtr->Form == FRM_ARRAY)
+    else if (targetTypePtr->Form == MCAblTypeForm::Array)
     {
         std::memcpy(targetPtr, Tos->Address, static_cast<size_t>(targetTypePtr->Size));
     }
-    else if (targetBaseTypePtr == IntegerTypePtr || targetTypePtr->Form == FRM_ENUM)
+    else if (targetBaseTypePtr == IntegerTypePtr || targetTypePtr->Form == MCAblTypeForm::Enum)
     {
         *reinterpret_cast<int32_t*>(targetPtr) = Tos->Integer;
     }
@@ -139,9 +140,9 @@ auto ExecAssignmentStatement(MCSymTableNodePtr idPtr) -> void
     }
 }
 
-auto ExecRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecRoutineCall(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
-    if (routineIdPtr->Defn.Info.Routine.Key == RTN_DECLARED)
+    if (routineIdPtr->Defn.Info.Routine.Key == MCAblRoutineKey::Declared)
     {
         return ExecDeclaredRoutineCall(routineIdPtr);
     }
@@ -149,7 +150,7 @@ auto ExecRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return ExecStandardRoutineCall(routineIdPtr);
 }
 
-auto ExecDeclaredRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto ExecDeclaredRoutineCall(MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     int32_t oldLevel = Level;
     int32_t newLevel = routineIdPtr->Level + 1;
@@ -170,7 +171,7 @@ auto ExecDeclaredRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
 
     GetCodeToken();
 
-    if (CodeToken == TKN_LPAREN)
+    if (CodeToken == MCAblToken::LParen)
     {
         ExecActualParams(routineIdPtr);
         GetCodeToken();
@@ -221,7 +222,7 @@ auto ExecDeclaredRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
             }
 
             char routineEntry[512];
-            std::snprintf(routineEntry, sizeof(routineEntry), "%s (%d)\n", routineIdPtr->Name, runTime);
+            std::snprintf(routineEntry, sizeof(routineEntry), "%s (%d)\n", routineIdPtr->Name.c_str(), runTime);
             std::strcat(profileEntry, routineEntry);
             AblAddToProfileLog(profileEntry);
         }
@@ -246,40 +247,40 @@ auto ExecDeclaredRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
     return routineIdPtr->TypePtr;
 }
 
-auto SetOpenArray(MCTypePtr arrayTypePtr, int32_t size) -> void
+auto SetOpenArray(MCAblType* arrayTypePtr, int32_t size) -> void
 {
     // Faithful: the element count is the new size over the OLD total size, not over the element size.
     int32_t oldSize = arrayTypePtr->Size;
     arrayTypePtr->Size = size;
-    MCTypePtr lastDimensionTypePtr = arrayTypePtr;
+    MCAblType* lastDimensionTypePtr = arrayTypePtr;
 
-    while (lastDimensionTypePtr->Info.Array.ElementTypePtr->Form == FRM_ARRAY)
+    while (lastDimensionTypePtr->Array.ElementTypePtr->Form == MCAblTypeForm::Array)
     {
-        lastDimensionTypePtr = lastDimensionTypePtr->Info.Array.ElementTypePtr;
+        lastDimensionTypePtr = lastDimensionTypePtr->Array.ElementTypePtr;
     }
 
-    lastDimensionTypePtr->Info.Array.ElementCount = size / oldSize;
+    lastDimensionTypePtr->Array.ElementCount = size / oldSize;
 }
 
-auto ExecActualParams(MCSymTableNodePtr routineIdPtr) -> void
+auto ExecActualParams(MCAblSymbol* routineIdPtr) -> void
 {
-    for (MCSymTableNodePtr formalIdPtr = routineIdPtr->Defn.Info.Routine.Params; formalIdPtr;
+    for (MCAblSymbol* formalIdPtr = routineIdPtr->Defn.Info.Routine.Params; formalIdPtr;
          formalIdPtr = formalIdPtr->Next)
     {
-        MCTypePtr formalTypePtr = formalIdPtr->TypePtr;
+        MCAblType* formalTypePtr = formalIdPtr->TypePtr;
         GetCodeToken();
 
-        if (formalIdPtr->Defn.Key == DFN_VALPARAM)
+        if (formalIdPtr->Defn.Key == MCAblSymbolKind::ValueParam)
         {
-            MCTypePtr actualTypePtr = ExecExpression();
+            MCAblType* actualTypePtr = ExecExpression();
 
-            if (formalTypePtr == RealTypePtr && BaseType(actualTypePtr) == IntegerTypePtr)
+            if (formalTypePtr == RealTypePtr && actualTypePtr == IntegerTypePtr)
             {
                 Tos->Real = static_cast<float>(Tos->Integer);
             }
 
             // An array passed by value gets its own copy.
-            if (formalTypePtr->Form == FRM_ARRAY)
+            if (formalTypePtr->Form == MCAblTypeForm::Array)
             {
                 int32_t size = formalTypePtr->Size;
                 MCAddress source = Tos->Address;
@@ -290,7 +291,7 @@ auto ExecActualParams(MCSymTableNodePtr routineIdPtr) -> void
                     char err[256];
                     std::snprintf(err, sizeof(err),
                                   " ABL: Unable to AblStackHeap->malloc actual array param in module %s)",
-                                  CurModule->Name);
+                                  CurModule->Name.c_str());
                     Fatal(0, err);
                 }
 
@@ -300,8 +301,8 @@ auto ExecActualParams(MCSymTableNodePtr routineIdPtr) -> void
         }
         else
         {
-            MCSymTableNodePtr actualIdPtr = GetCodeSymTableNodePtr();
-            ExecVariable(actualIdPtr, USE_REFPARAM);
+            MCAblSymbol* actualIdPtr = GetCodeSymTableNodePtr();
+            ExecVariable(actualIdPtr, MCAblUse::RefParam);
         }
     }
 }
@@ -312,10 +313,10 @@ auto ExecSwitchStatement() -> void
     char* branchTableLocation = GetCodeAddressMarker();
 
     GetCodeToken();
-    MCTypePtr switchExpressionTypePtr = ExecExpression();
+    MCAblType* switchExpressionTypePtr = ExecExpression();
     int32_t switchExpressionValue;
 
-    if (switchExpressionTypePtr == IntegerTypePtr || switchExpressionTypePtr->Form == FRM_ENUM)
+    if (switchExpressionTypePtr == IntegerTypePtr || switchExpressionTypePtr->Form == MCAblTypeForm::Enum)
     {
         switchExpressionValue = Tos->Integer;
     }
@@ -363,7 +364,7 @@ auto ExecSwitchStatement() -> void
     CodeSegmentPtr = caseLocation;
     GetCodeToken();
 
-    while (CodeToken != TKN_END_CASE)
+    while (CodeToken != MCAblToken::EndCase)
     {
         ExecStatement();
 
@@ -385,8 +386,8 @@ auto ExecForStatement() -> void
     char* loopEndLocation = GetCodeAddressMarker();
 
     GetCodeToken();
-    MCSymTableNodePtr controlIdPtr = GetCodeSymTableNodePtr();
-    MCTypePtr controlTypePtr = ExecVariable(controlIdPtr, USE_TARGET);
+    MCAblSymbol* controlIdPtr = GetCodeSymTableNodePtr();
+    MCAblType* controlTypePtr = ExecVariable(controlIdPtr, MCAblUse::Target);
     MCAddress controlAddress = Tos->Address;
     Pop();
 
@@ -395,7 +396,7 @@ auto ExecForStatement() -> void
     uint32_t initialValue = controlTypePtr == IntegerTypePtr ? static_cast<uint32_t>(Tos->Integer) : Tos->Byte;
     Pop();
 
-    bool countUp = CodeToken == TKN_TO;
+    bool countUp = CodeToken == MCAblToken::To;
     GetCodeToken();
     ExecExpression();
     uint32_t finalValue = controlTypePtr == IntegerTypePtr ? static_cast<uint32_t>(Tos->Integer) : Tos->Byte;
@@ -421,7 +422,7 @@ auto ExecForStatement() -> void
 
         GetCodeToken();
 
-        while (CodeToken != TKN_END_FOR)
+        while (CodeToken != MCAblToken::EndFor)
         {
             ExecStatement();
 
@@ -435,7 +436,7 @@ auto ExecForStatement() -> void
 
         if (iterations == MaxLoopIterations)
         {
-            RuntimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
+            RuntimeError(MCAblRuntimeError::InfiniteLoop);
         }
 
         controlValue += countUp ? 1 : static_cast<uint32_t>(-1);
@@ -460,9 +461,9 @@ auto ExecIfStatement() -> void
         // The THEN part, up to END_IF or ELSE (then jump past the ELSE part).
         GetCodeToken();
 
-        while (CodeToken != TKN_END_IF)
+        while (CodeToken != MCAblToken::EndIf)
         {
-            if (CodeToken == TKN_ELSE)
+            if (CodeToken == MCAblToken::Else)
             {
                 GetCodeToken();
                 CodeSegmentPtr = GetCodeAddressMarker();
@@ -483,13 +484,13 @@ auto ExecIfStatement() -> void
         CodeSegmentPtr = falseLocation;
         GetCodeToken();
 
-        if (CodeToken == TKN_ELSE)
+        if (CodeToken == MCAblToken::Else)
         {
             GetCodeToken();
             GetCodeAddressMarker();
             GetCodeToken();
 
-            while (CodeToken != TKN_END_IF)
+            while (CodeToken != MCAblToken::EndIf)
             {
                 ExecStatement();
 
@@ -513,7 +514,7 @@ auto ExecRepeatStatement() -> void
     {
         GetCodeToken();
 
-        while (CodeToken != TKN_UNTIL)
+        while (CodeToken != MCAblToken::Until)
         {
             ExecStatement();
 
@@ -527,7 +528,7 @@ auto ExecRepeatStatement() -> void
 
         if (iterations == MaxLoopIterations)
         {
-            RuntimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
+            RuntimeError(MCAblRuntimeError::InfiniteLoop);
         }
 
         GetCodeToken();
@@ -569,7 +570,7 @@ auto ExecWhileStatement() -> void
 
         GetCodeToken();
 
-        while (CodeToken != TKN_END_WHILE)
+        while (CodeToken != MCAblToken::EndWhile)
         {
             ExecStatement();
 
@@ -584,7 +585,7 @@ auto ExecWhileStatement() -> void
 
         if (iterations == MaxLoopIterations)
         {
-            RuntimeError(ABL_ERR_RUNTIME_INFINITE_LOOP);
+            RuntimeError(MCAblRuntimeError::InfiniteLoop);
         }
     }
 

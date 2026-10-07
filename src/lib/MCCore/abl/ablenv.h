@@ -9,8 +9,6 @@ class MCFile;
 class MCWatchManager;
 class MCBreakPointManager;
 
-/// <summary>Longest module instance name (ABLModule::name, with its terminator).</summary>
-inline constexpr int32_t MAX_ABLMODULE_NAME = 26;
 /// <summary>Lines the profile log buffers before writing them out.</summary>
 inline constexpr int32_t MAX_PROFILE_LOG_LINES = 256;
 /// <summary>Length of a profile log line.</summary>
@@ -45,7 +43,7 @@ struct MCModuleEntry
     /// <summary>The main source file's name.</summary>
     char* FileName = nullptr;
     /// <summary>The module symbol: its code, parameters and symbol tree.</summary>
-    MCSymTableNodePtr ModuleIdPtr = nullptr;
+    MCAblSymbol* ModuleIdPtr = nullptr;
     int32_t NumSourceFiles = 0;
     /// <summary>Every source file compiled into it (the index is a statement marker's file number).</summary>
     char** SourceFiles = nullptr;
@@ -77,7 +75,6 @@ public:
     MCAblModule()
     {
         Id = -1;
-        Name[0] = '\0';
         Handle = -1;
         StaticData = nullptr;
         InitCalled = 0;
@@ -97,8 +94,8 @@ public:
     /// <returns>0.</returns>
     int32_t Init(int32_t moduleHandle);
 
-    /// <summary>Names the instance (at most 25 characters).</summary>
-    void SetName(char* name);
+    /// <summary>Names the instance (the original cut the name to 25 characters).</summary>
+    void SetName(std::string_view name) { Name = name; }
 
     /// <summary>Runs the module's main code with <paramref name="paramList"/> for its parameters.</summary>
     /// <returns>The number of statements executed (0 if a parameter doesn't match).</returns>
@@ -106,16 +103,16 @@ public:
 
     /// <summary>Runs only function <paramref name="function"/> of the module, in the module's frame.</summary>
     /// <returns>The number of statements executed.</returns>
-    int32_t Execute(MCAblParam* moduleParamList, MCSymTableNodePtr function, MCAblParam* functionParamList);
+    int32_t Execute(MCAblParam* moduleParamList, MCAblSymbol* function, MCAblParam* functionParamList);
 
     /// <summary>
     /// Finds a symbol: in <paramref name="function"/>'s scope, then the module's, then (with
     /// <paramref name="searchLibraries"/>) the libraries it uses. Lower-cases <paramref name="symbolName"/> in place.
     /// </summary>
-    MCSymTableNodePtr FindSymbol(char* symbolName, MCSymTableNodePtr function = nullptr, int searchLibraries = 0);
+    MCAblSymbol* FindSymbol(char* symbolName, MCAblSymbol* function = nullptr, int searchLibraries = 0);
 
     /// <summary>Finds a function of the module (or, with <paramref name="searchLibraries"/>, of its libraries).</summary>
-    MCSymTableNodePtr FindFunction(char* functionName, int searchLibraries = 0);
+    MCAblSymbol* FindFunction(char* functionName, int searchLibraries = 0);
 
     /// <summary>Sets static integer <paramref name="staticName"/>.</summary>
     /// <returns>0, 1 (no such symbol), 2 (not an integer) or 3 (not static).</returns>
@@ -148,12 +145,12 @@ public:
 
     int32_t GetId() const { return Id; }
     int32_t GetHandle() const { return Handle; }
-    char* GetName() { return Name; }
+    const std::string& GetName() const { return Name; }
     int32_t GetReturnValue() const { return ReturnVal; }
 
     /// <summary>Instance number (the order of init calls), or -1.</summary>
     int32_t Id = 0;
-    char Name[MAX_ABLMODULE_NAME]{};
+    std::string Name;
     /// <summary>Index of its compiled module in ModuleRegistry, or -1.</summary>
     int32_t Handle = 0;
     /// <summary>The instance's static variables, one StackItem each (arrays as pointers to their blocks).</summary>
@@ -192,8 +189,6 @@ extern int32_t NumLibrariesLoaded;
 /// <summary>The instance executing, and its handle.</summary>
 extern MCAblModule* CurModule;
 extern int32_t CurModuleHandle;
-/// <summary>The library being compiled (ABLi_loadLibrary), or null for a module.</summary>
-extern MCAblModule* CurLibrary;
 /// <summary>Nesting depth of declared-routine calls.</summary>
 extern int32_t CallStackLevel;
 /// <summary>Nonzero when the executing module's <c>init</c> must run first.</summary>

@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "main/MCGameContext.h"
 #include "appear/MCAppearanceTypeList.h"
+#include "abl/MCAblSymbolTable.h"
 #include "camera/MCCameraList.h"
 #include "color/MCPalette.h"
 #include "engine/MCCraterManager.h"
@@ -143,6 +144,16 @@ MCTerrain* MCGameContext::Terrain() const
 MCCameraList* MCGameContext::CameraList() const
 {
     return FindSystem(_CameraList, _Parent, &MCGameContext::CameraList);
+}
+
+MCAblSymbolTable* MCGameContext::AblSymbols() const
+{
+    return FindSystem(_AblSymbols, _Parent, &MCGameContext::AblSymbols);
+}
+
+std::unique_ptr<MCAblSymbolTable> MCGameContext::SetAblSymbols(std::unique_ptr<MCAblSymbolTable> symbols)
+{
+    return std::exchange(_AblSymbols, std::move(symbols));
 }
 
 std::unique_ptr<MCTerrain> MCGameContext::SetTerrain(std::unique_ptr<MCTerrain> terrain)

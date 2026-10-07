@@ -5,7 +5,7 @@
 #include "abl/ablenv.h"
 #include "abl/ablexec.h"
 #include "abl/ablrtn.h"
-#include "abl/ablscan.h"
+#include "abl/MCAblScanner.h"
 #include "abl/ablxstmt.h"
 #include "main/rmain.h"
 #include "platform/MCAllocator.h"
@@ -153,15 +153,14 @@ namespace
     /// <summary>Crash reporter: where the ABL interpreter was (module, routine, source line, code pointer).</summary>
     void ReportAblState()
     {
-        std::fprintf(stderr, "ABL: module %s (handle %d), library %s\n",
-                     CurModule != nullptr ? CurModule->GetName() : "(none)", CurModuleHandle,
-                     CurLibrary != nullptr ? CurLibrary->GetName() : "(none)");
+        std::fprintf(stderr, "ABL: module %s (handle %d)\n",
+                     CurModule != nullptr ? CurModule->GetName().c_str() : "(none)", CurModuleHandle);
 
         if (CurRoutineIdPtr != nullptr)
         {
             const char* segment = CurRoutineIdPtr->Defn.Info.Routine.CodeSegment;
             std::fprintf(stderr, "ABL: routine %s, code segment %p, codeSegmentPtr %p (+%lld), statement start +%lld\n",
-                         CurRoutineIdPtr->Name, static_cast<const void*>(segment),
+                         CurRoutineIdPtr->Name.c_str(), static_cast<const void*>(segment),
                          static_cast<const void*>(CodeSegmentPtr), static_cast<long long>(CodeSegmentPtr - segment),
                          static_cast<long long>(StatementStartPtr - segment));
         }
@@ -172,9 +171,9 @@ namespace
         {
             const MCModuleEntry& entry = ModuleRegistry[CurModuleHandle];
 
-            if (entry.SourceFiles != nullptr && FileNumber >= 0 && FileNumber < entry.NumSourceFiles)
+            if (entry.SourceFiles != nullptr && ExecFileNumber >= 0 && ExecFileNumber < entry.NumSourceFiles)
             {
-                sourceFile = entry.SourceFiles[FileNumber];
+                sourceFile = entry.SourceFiles[ExecFileNumber];
             }
         }
 

@@ -2,20 +2,15 @@
 #include "abl/ablexec.h"
 #include "abl/abldbug.h"
 #include "abl/ablenv.h"
-#include "abl/ablerr.h"
+#include "abl/MCAblErrors.h"
 #include "abl/ablrtn.h"
 #include "abl/ablxstmt.h"
 #include "lib/MCFatal.h"
 
 int IncludeDebugInfo = 1;
-int Crunch = 1;
-char* CodeBuffer = nullptr;
-char* CodeBufferPtr = nullptr;
-int32_t MaxCodeBufferSize = 0;
 char* CodeSegmentPtr = nullptr;
-char* CodeSegmentLimit = nullptr;
 char* StatementStartPtr = nullptr;
-MCTokenCodeType CodeToken{};
+MCAblToken CodeToken{};
 MCStackItemPtr Stack = nullptr;
 MCStackItemPtr Tos = nullptr;
 MCStackItemPtr StackFrameBasePtr = nullptr;
@@ -24,18 +19,12 @@ MCStackItem ReturnValue{};
 int32_t ExecStatementCount = 0;
 int32_t ExecLineNumber = 0;
 int ExitFromTacOrder = 0;
+int32_t Level = 0;
+int32_t ExecFileNumber = 0;
+MCBlockStore AblMemory;
 
 namespace
 {
-    /// <summary>Reports a code buffer overflow (fatal) when fewer than 100 bytes are left.</summary>
-    void CheckCodeBufferSpace()
-    {
-        if (CodeBufferPtr >= CodeBuffer + MaxCodeBufferSize - 100)
-        {
-            SyntaxError(ABL_ERR_SYNTAX_CODE_SEGMENT_OVERFLOW);
-        }
-    }
-
     /// <summary>Advances tos to a new item, cleared (stack overflow is a runtime error).</summary>
     MCStackItemPtr PushItem()
     {
@@ -43,7 +32,7 @@ namespace
 
         if (item >= Stack + MAXSIZE_STACK)
         {
-            RuntimeError(ABL_ERR_RUNTIME_STACK_OVERFLOW);
+            RuntimeError(MCAblRuntimeError::StackOverflow);
         }
 
         // Port fix: the original stored only the value's own bytes; the whole 8-byte slot is cleared first.
@@ -52,131 +41,9 @@ namespace
     }
 }
 
-auto CrunchToken() -> void
+auto GetCodeSymTableNodePtr() -> MCAblSymbol*
 {
-    if (Crunch)
-    {
-        CheckCodeBufferSpace();
-        *CodeBufferPtr++ = static_cast<char>(CurToken);
-    }
-}
-
-auto CrunchSymTableNodePtr(MCSymTableNodePtr nodePtr) -> void
-{
-    if (Crunch)
-    {
-        CheckCodeBufferSpace();
-        std::memcpy(CodeBufferPtr, &nodePtr, CODE_SYMBOL_PTR_SIZE);
-        CodeBufferPtr += CODE_SYMBOL_PTR_SIZE;
-    }
-}
-
-auto CrunchStatementMarker() -> void
-{
-    if (Crunch)
-    {
-        CheckCodeBufferSpace();
-        char saveCode = CodeBufferPtr[-1];
-        CodeBufferPtr[-1] = static_cast<char>(TKN_STATEMENT_MARKER);
-
-        if (IncludeDebugInfo)
-        {
-            *CodeBufferPtr = static_cast<char>(FileNumber);
-            int32_t line = LineNumber;
-            std::memcpy(CodeBufferPtr + 1, &line, sizeof(line));
-            CodeBufferPtr += CODE_STATEMENT_MARKER_SIZE;
-        }
-
-        *CodeBufferPtr++ = saveCode;
-    }
-}
-
-auto UncrunchStatementMarker() -> void
-{
-    // The marker, its debug info and the displaced token.
-    if (IncludeDebugInfo)
-    {
-        CodeBufferPtr -= CODE_STATEMENT_MARKER_SIZE + 2;
-    }
-    else
-    {
-        CodeBufferPtr -= 2;
-    }
-}
-
-auto CrunchAddressMarker(MCAddress address) -> char*
-{
-    if (!Crunch)
-    {
-        return nullptr;
-    }
-
-    CheckCodeBufferSpace();
-    char saveCode = CodeBufferPtr[-1];
-    CodeBufferPtr[-1] = static_cast<char>(TKN_ADDRESS_MARKER);
-    char* slot = CodeBufferPtr;
-    // Port: the chain is an offset from codeBuffer (the original stored the 4-byte pointer).
-    int32_t chain = address ? static_cast<int32_t>(address - CodeBuffer) : CODE_ADDRESS_CHAIN_NULL;
-    std::memcpy(slot, &chain, CODE_ADDRESS_SIZE);
-    slot[CODE_ADDRESS_SIZE] = saveCode;
-    CodeBufferPtr += CODE_ADDRESS_SIZE + 1;
-    return slot;
-}
-
-auto FixupAddressMarker(MCAddress address) -> char*
-{
-    if (!Crunch)
-    {
-        return nullptr;
-    }
-
-    int32_t chain;
-    std::memcpy(&chain, address, CODE_ADDRESS_SIZE);
-    char* oldAddress = chain == CODE_ADDRESS_CHAIN_NULL ? nullptr : CodeBuffer + chain;
-    int32_t offset = static_cast<int32_t>(CodeBufferPtr - address);
-    std::memcpy(address, &offset, CODE_ADDRESS_SIZE);
-    return oldAddress;
-}
-
-auto CrunchInteger(int32_t value) -> void
-{
-    if (Crunch)
-    {
-        CheckCodeBufferSpace();
-        std::memcpy(CodeBufferPtr, &value, CODE_INTEGER_SIZE);
-        CodeBufferPtr += CODE_INTEGER_SIZE;
-    }
-}
-
-auto CrunchOffset(MCAddress address) -> void
-{
-    if (Crunch)
-    {
-        CheckCodeBufferSpace();
-        int32_t offset = static_cast<int32_t>(address - CodeBufferPtr);
-        std::memcpy(CodeBufferPtr, &offset, CODE_INTEGER_SIZE);
-        CodeBufferPtr += CODE_INTEGER_SIZE;
-    }
-}
-
-auto CreateCodeSegment() -> char*
-{
-    uint32_t codeSize = static_cast<uint32_t>(CodeBufferPtr - CodeBuffer);
-    // Port fix: one more byte, a TKN_NONE after the code. execStatement's semicolon loop reads the token after a
-    // routine's final ";", one byte past its segment (OB-108). The original's heap always had bytes there; an
-    // exact-size block can end on a page boundary, and the read faults.
-    char* codeSegment = AblMemory.AllocateArray<char>(codeSize + 1);
-    CodeSegmentLimit = codeSegment + codeSize;
-    std::memcpy(codeSegment, CodeBuffer, codeSize);
-    codeSegment[codeSize] = TKN_NONE;
-    CodeSegmentPtr = CodeSegmentLimit;
-    CodeBufferPtr = CodeBuffer;
-    return codeSegment;
-}
-
-auto GetCodeSymTableNodePtr() -> MCSymTableNodePtr
-{
-    MCSymTableNodePtr nodePtr;
+    MCAblSymbol* nodePtr;
     std::memcpy(&nodePtr, CodeSegmentPtr, CODE_SYMBOL_PTR_SIZE);
     CodeSegmentPtr += CODE_SYMBOL_PTR_SIZE;
     return nodePtr;
@@ -186,9 +53,9 @@ auto GetCodeStatementMarker() -> int32_t
 {
     int32_t line = -1;
 
-    if (CodeToken == TKN_STATEMENT_MARKER && IncludeDebugInfo)
+    if (CodeToken == MCAblToken::StatementMarker && IncludeDebugInfo)
     {
-        FileNumber = static_cast<uint8_t>(*CodeSegmentPtr);
+        ExecFileNumber = static_cast<uint8_t>(*CodeSegmentPtr);
         std::memcpy(&line, CodeSegmentPtr + 1, sizeof(line));
         CodeSegmentPtr += CODE_STATEMENT_MARKER_SIZE;
     }
@@ -200,7 +67,7 @@ auto GetCodeAddressMarker() -> char*
 {
     char* address = nullptr;
 
-    if (CodeToken == TKN_ADDRESS_MARKER)
+    if (CodeToken == MCAblToken::AddressMarker)
     {
         int32_t offset;
         std::memcpy(&offset, CodeSegmentPtr, CODE_ADDRESS_SIZE);
@@ -235,7 +102,7 @@ auto Pop() -> void
 
 auto GetCodeToken() -> void
 {
-    CodeToken = static_cast<MCTokenCodeType>(*CodeSegmentPtr++);
+    CodeToken = static_cast<MCAblToken>(*CodeSegmentPtr++);
 }
 
 auto PushInteger(int32_t value) -> void
@@ -281,7 +148,7 @@ auto PushStackFrameHeader(int32_t oldLevel, int32_t newLevel) -> void
     }
     else
     {
-        RuntimeError(ABL_ERR_RUNTIME_NESTED_FUNCTION_CALL);
+        RuntimeError(MCAblRuntimeError::NestedFunctionCall);
         return;
     }
 
@@ -292,7 +159,7 @@ auto PushStackFrameHeader(int32_t oldLevel, int32_t newLevel) -> void
     PushAddress(nullptr);
 }
 
-auto AllocLocal(MCTypePtr typePtr) -> void
+auto AllocLocal(MCAblType* typePtr) -> void
 {
     if (typePtr == IntegerTypePtr)
     {
@@ -314,10 +181,10 @@ auto AllocLocal(MCTypePtr typePtr) -> void
     {
         switch (typePtr->Form)
         {
-            case FRM_ENUM:
+            case MCAblTypeForm::Enum:
                 PushInteger(0);
                 break;
-            case FRM_ARRAY:
+            case MCAblTypeForm::Array:
             {
                 char* localArray = AblMemory.AllocateArray<char>(static_cast<size_t>(typePtr->Size));
 
@@ -336,16 +203,16 @@ auto AllocLocal(MCTypePtr typePtr) -> void
     }
 }
 
-auto FreeLocal(MCSymTableNodePtr idPtr) -> void
+auto FreeLocal(MCAblSymbol* idPtr) -> void
 {
     // Only local arrays own memory; a reference parameter's array belongs to the caller.
-    if (idPtr->TypePtr->Form == FRM_ARRAY && idPtr->Defn.Key != DFN_REFPARAM)
+    if (idPtr->TypePtr->Form == MCAblTypeForm::Array && idPtr->Defn.Key != MCAblSymbolKind::RefParam)
     {
         MCStackItemPtr dataPtr = StackFrameBasePtr + idPtr->Defn.Info.Data.Offset;
 
-        if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_NORMAL || !dataPtr)
+        if (idPtr->Defn.Info.Data.VarType != MCAblStorage::Normal || !dataPtr)
         {
-            RuntimeError(ABL_ERR_RUNTIME_STACK_OVERFLOW);
+            RuntimeError(MCAblRuntimeError::StackOverflow);
             return;
         }
 
@@ -353,7 +220,7 @@ auto FreeLocal(MCSymTableNodePtr idPtr) -> void
     }
 }
 
-auto RoutineEntry(MCSymTableNodePtr routineIdPtr) -> void
+auto RoutineEntry(MCAblSymbol* routineIdPtr) -> void
 {
     if (Debugger)
     {
@@ -364,30 +231,30 @@ auto RoutineEntry(MCSymTableNodePtr routineIdPtr) -> void
     ReturnValue = MCStackItem{};
 
     // Static and eternal locals live elsewhere.
-    for (MCSymTableNodePtr varIdPtr = routineIdPtr->Defn.Info.Routine.Locals; varIdPtr; varIdPtr = varIdPtr->Next)
+    for (MCAblSymbol* varIdPtr = routineIdPtr->Defn.Info.Routine.Locals; varIdPtr; varIdPtr = varIdPtr->Next)
     {
-        if (varIdPtr->Defn.Info.Data.VarType == VAR_TYPE_NORMAL)
+        if (varIdPtr->Defn.Info.Data.VarType == MCAblStorage::Normal)
         {
             AllocLocal(varIdPtr->TypePtr);
         }
     }
 }
 
-auto RoutineExit(MCSymTableNodePtr routineIdPtr) -> void
+auto RoutineExit(MCAblSymbol* routineIdPtr) -> void
 {
     if (Debugger)
     {
         Debugger->TraceRoutineExit(routineIdPtr);
     }
 
-    for (MCSymTableNodePtr idPtr = routineIdPtr->Defn.Info.Routine.Params; idPtr; idPtr = idPtr->Next)
+    for (MCAblSymbol* idPtr = routineIdPtr->Defn.Info.Routine.Params; idPtr; idPtr = idPtr->Next)
     {
         FreeLocal(idPtr);
     }
 
-    for (MCSymTableNodePtr idPtr = routineIdPtr->Defn.Info.Routine.Locals; idPtr; idPtr = idPtr->Next)
+    for (MCAblSymbol* idPtr = routineIdPtr->Defn.Info.Routine.Locals; idPtr; idPtr = idPtr->Next)
     {
-        if (idPtr->Defn.Info.Data.VarType == VAR_TYPE_NORMAL)
+        if (idPtr->Defn.Info.Data.VarType == MCAblStorage::Normal)
         {
             FreeLocal(idPtr);
         }
@@ -409,17 +276,17 @@ auto RoutineExit(MCSymTableNodePtr routineIdPtr) -> void
     StackFrameBasePtr = reinterpret_cast<MCStackItemPtr>(headerPtr->DynamicLink.Address);
 }
 
-auto Execute(MCSymTableNodePtr routineIdPtr) -> void
+auto Execute(MCAblSymbol* routineIdPtr) -> void
 {
-    MCSymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
+    MCAblSymbol* thisRoutineIdPtr = CurRoutineIdPtr;
     CurRoutineIdPtr = routineIdPtr;
     RoutineEntry(routineIdPtr);
 
     if (CallModuleInit)
     {
         CallModuleInit = 0;
-        MCSymTableNodePtr moduleIdPtr = ModuleRegistry[CurModule->Handle].ModuleIdPtr;
-        MCSymTableNodePtr initIdPtr =
+        MCAblSymbol* moduleIdPtr = ModuleRegistry[CurModule->Handle].ModuleIdPtr;
+        MCAblSymbol* initIdPtr =
             SearchSymTable(const_cast<char*>("init"), moduleIdPtr->Defn.Info.Routine.LocalSymTable);
 
         if (initIdPtr)
@@ -438,13 +305,13 @@ auto Execute(MCSymTableNodePtr routineIdPtr) -> void
     CurRoutineIdPtr = thisRoutineIdPtr;
 }
 
-auto ExecuteChild(MCSymTableNodePtr moduleIdPtr, MCSymTableNodePtr childRoutineIdPtr, MCAblParam* /*paramList*/) -> void
+auto ExecuteChild(MCAblSymbol* moduleIdPtr, MCAblSymbol* childRoutineIdPtr, MCAblParam* /*paramList*/) -> void
 {
     // paramList is unused in MCX.EXE.
-    MCSymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
+    MCAblSymbol* thisRoutineIdPtr = CurRoutineIdPtr;
     CurRoutineIdPtr = moduleIdPtr;
     RoutineEntry(moduleIdPtr);
-    MCSymTableNodePtr initIdPtr = nullptr;
+    MCAblSymbol* initIdPtr = nullptr;
 
     if (CallModuleInit)
     {

@@ -28,7 +28,7 @@ inline constexpr int32_t MAXLEN_DEBUGGER_MESSAGE = 512;
 /// <remarks>0x14 bytes in the original.</remarks>
 struct MCWatch
 {
-    MCSymTableNodePtr IdPtr = nullptr;
+    MCAblSymbol* IdPtr = nullptr;
     /// <summary>Report stores to it.</summary>
     int32_t Store = 0;
     /// <summary>Break into the debugger on a store.</summary>
@@ -61,11 +61,11 @@ public:
 
     /// <summary>The watch on <paramref name="idPtr"/>, new if it has none (constants, variables and parameters only).</summary>
     /// <returns>The watch, or null if the symbol can't be watched or the table is full.</returns>
-    MCWatchPtr Add(MCSymTableNodePtr idPtr);
+    MCWatchPtr Add(MCAblSymbol* idPtr);
 
     /// <summary>Removes the watch on <paramref name="idPtr"/>.</summary>
     /// <returns>0, 1 (no symbol) or 2 (not watched).</returns>
-    int32_t Remove(MCSymTableNodePtr idPtr);
+    int32_t Remove(MCAblSymbol* idPtr);
 
     /// <summary>Removes every watch.</summary>
     /// <returns>How many there were.</returns>
@@ -73,17 +73,17 @@ public:
 
     /// <summary>Turns reporting of stores to <paramref name="idPtr"/> on or off (<paramref name="breakOnStore"/> to also break).</summary>
     /// <returns>0, 1 (no symbol) or 2 (table full).</returns>
-    int32_t SetStore(MCSymTableNodePtr idPtr, int on, int breakOnStore = 0);
+    int32_t SetStore(MCAblSymbol* idPtr, int on, int breakOnStore = 0);
 
     /// <summary>Turns reporting of fetches of <paramref name="idPtr"/> on or off (<paramref name="breakOnFetch"/> to also break).</summary>
     /// <returns>0, 1 (no symbol) or 2 (table full).</returns>
-    int32_t SetFetch(MCSymTableNodePtr idPtr, int on, int breakOnFetch = 0);
+    int32_t SetFetch(MCAblSymbol* idPtr, int on, int breakOnFetch = 0);
 
     /// <summary>Whether stores to <paramref name="idPtr"/> are reported.</summary>
-    int32_t GetStore(MCSymTableNodePtr idPtr);
+    int32_t GetStore(MCAblSymbol* idPtr);
 
     /// <summary>Whether fetches of <paramref name="idPtr"/> are reported.</summary>
-    int32_t GetFetch(MCSymTableNodePtr idPtr);
+    int32_t GetFetch(MCAblSymbol* idPtr);
 
     /// <summary>Lists the watches (empty in MCX.EXE).</summary>
     void Print();
@@ -177,15 +177,6 @@ public:
     /// <summary>Makes <paramref name="ablModule"/> the module being executed: its managers and debug modes.</summary>
     void SetModule(MCAblModule* ablModule);
 
-    /// <summary>Parses a variable from the command line and sets its watch by <paramref name="states"/> (bit flags).</summary>
-    int32_t SetWatch(int32_t states);
-
-    /// <summary>Parses a line number and adds a break point.</summary>
-    int32_t AddBreakPoint();
-
-    /// <summary>Parses a line number and removes its break point (or all of them).</summary>
-    int32_t RemoveBreakPoint();
-
     /// <summary>Decompiles the statement at statementStartPtr into <paramref name="dest"/>.</summary>
     void SprintStatement(char* dest);
 
@@ -193,14 +184,14 @@ public:
     void SprintLineNumber(char* dest);
 
     /// <summary>Writes the value at <paramref name="data"/> as type <paramref name="dataType"/>.</summary>
-    void SprintDataValue(char* dest, MCStackItemPtr data, MCTypePtr dataType);
+    void SprintDataValue(char* dest, MCStackItemPtr data, MCAblType* dataType);
 
     /// <summary>Writes the value of scalar symbol <paramref name="symbol"/>.</summary>
-    int32_t SprintSimpleValue(char* dest, MCSymTableNodePtr symbol);
+    int32_t SprintSimpleValue(char* dest, MCAblSymbol* symbol);
 
     /// <summary>Writes an element of array <paramref name="symbol"/>; <paramref name="subscriptString"/> is <c>[i][j]...</c>.</summary>
     /// <returns>0, or 1 for a subscript out of range.</returns>
-    int32_t SprintArrayValue(char* dest, MCSymTableNodePtr symbol, char* subscriptString);
+    int32_t SprintArrayValue(char* dest, MCAblSymbol* symbol, char* subscriptString);
 
     /// <summary>Writes the value of variable expression <paramref name="exprString"/> (a name, maybe subscripted).</summary>
     /// <returns>0, or 1 when the name isn't in the symbol table.</returns>
@@ -210,22 +201,16 @@ public:
     int32_t TraceStatementExecution();
 
     /// <summary>Called on entering a routine: reports it when tracing entries.</summary>
-    int32_t TraceRoutineEntry(MCSymTableNodePtr idPtr);
+    int32_t TraceRoutineEntry(MCAblSymbol* idPtr);
 
     /// <summary>Called on leaving a routine: reports it when tracing exits.</summary>
-    int32_t TraceRoutineExit(MCSymTableNodePtr idPtr);
+    int32_t TraceRoutineExit(MCAblSymbol* idPtr);
 
     /// <summary>Called after a store to a variable: reports it if watched (and breaks if asked).</summary>
-    int32_t TraceDataStore(MCSymTableNodePtr id, MCTypePtr idType, MCStackItemPtr target, MCTypePtr targetType);
+    int32_t TraceDataStore(MCAblSymbol* id, MCAblType* idType, MCStackItemPtr target, MCAblType* targetType);
 
     /// <summary>Called after a fetch of a variable: reports it if watched (and breaks if asked).</summary>
-    int32_t TraceDataFetch(MCSymTableNodePtr id, MCTypePtr idType, MCStackItemPtr data);
-
-    /// <summary>Compiles and runs an expression from the command line and prints its value.</summary>
-    void ShowValue();
-
-    /// <summary>Unfinished in MCX.EXE: reads a token and stops.</summary>
-    void AssignVariable();
+    int32_t TraceDataFetch(MCAblSymbol* id, MCAblType* idType, MCStackItemPtr data);
 
     /// <summary>Prints the module instances, two per line.</summary>
     void DisplayModuleInstanceRegistry(int32_t numCols);
@@ -323,8 +308,6 @@ extern MCDebugger* Debugger;
 /// <summary>The debugger window's output pane and command box.</summary>
 extern MCScrollingTextWindow* AblDebuggerOut;
 extern MCGuiTextObject* AblDebuggerIn;
-/// <summary>Text of each token, for decompiling statements.</summary>
-extern const char* TokenStrings[NUM_TOKENS];
 
 /// <summary>The debugger.</summary>
 MCDebugger* AblGetDebugger();

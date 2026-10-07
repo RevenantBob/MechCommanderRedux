@@ -19,7 +19,7 @@ class MCTeam;
 class MCCollisionSystem;
 class MCTrainManager;
 class MCObjectMap;
-struct MCSymTableNode;
+struct MCAblSymbol;
 
 /// <summary>
 /// One part of the scenario FIT (<c>Part%d</c>): an object placed at the scenario's start, with its team, pilot and
@@ -233,7 +233,7 @@ public:
     /// <summary>The parameters passed to the brain each frame.</summary>
     MCAblParam* ScenarioBrainParams = nullptr;
     /// <summary>The brain's <c>handlemessage</c> function, if it has one.</summary>
-    MCSymTableNode* ScenarioBrainHandleMessage = nullptr;
+    MCAblSymbol* ScenarioBrainHandleMessage = nullptr;
     /// <summary><c>PaletteSystem</c>: the palette file.</summary>
     char PaletteSystem[80] = {};
     /// <summary>The palette before the scenario's (the interface's), shown again by <see cref="Destroy"/>.</summary>

@@ -2,12 +2,12 @@
 #include "abl/ablenv.h"
 #include "main/fixes.h"
 #include "abl/abldbug.h"
-#include "abl/ablerr.h"
+#include "abl/MCAblErrors.h"
 #include "abl/ablexec.h"
-#include "abl/ablexpr.h"
+#include "abl/MCAblCompiler.h"
 #include "abl/ablrtn.h"
-#include "abl/ablscan.h"
-#include "abl/ablsymt.h"
+#include "abl/MCAblScanner.h"
+#include "abl/MCAblSymbolTable.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 
@@ -24,7 +24,6 @@ int32_t MaxLibraries = 0;
 int32_t NumLibrariesLoaded = 0;
 MCAblModule* CurModule = nullptr;
 int32_t CurModuleHandle = 0;
-MCAblModule* CurLibrary = nullptr;
 int32_t CallStackLevel = 0;
 int CallModuleInit = 0;
 int32_t EternalOffset = 0;
@@ -42,7 +41,7 @@ namespace
     /// </summary>
     /// <returns>The module symbol, or null when a parameter doesn't match its type (the execution is abandoned).</returns>
     /// <remarks>Both ABLModule::execute overloads start with this (inline in the original).</remarks>
-    auto BeginModuleExecution(MCAblModule* module, MCAblParam* paramList) -> MCSymTableNodePtr
+    auto BeginModuleExecution(MCAblModule* module, MCAblParam* paramList) -> MCAblSymbol*
     {
         CurModule = module;
 
@@ -52,13 +51,11 @@ namespace
         }
 
         StaticDataPtr = module->StaticData;
-        CurModuleIdPtr = nullptr;
         CurRoutineIdPtr = nullptr;
-        MCSymTableNodePtr moduleIdPtr = ModuleRegistry[module->Handle].ModuleIdPtr;
+        MCAblSymbol* moduleIdPtr = ModuleRegistry[module->Handle].ModuleIdPtr;
         NumExecutions++;
-        FileNumber = -1;
+        ExecFileNumber = -1;
         Tos = Stack + EternalOffset;
-        ErrorCount = 0;
         StackFrameBasePtr = Tos + 1;
         ExecStatementCount = 0;
         Level = 1;
@@ -73,12 +70,12 @@ namespace
         {
             MCAblParam* param = paramList;
 
-            for (MCSymTableNodePtr formalIdPtr = moduleIdPtr->Defn.Info.Routine.Params; formalIdPtr;
+            for (MCAblSymbol* formalIdPtr = moduleIdPtr->Defn.Info.Routine.Params; formalIdPtr;
                  formalIdPtr = formalIdPtr->Next, param++)
             {
-                MCTypePtr formalTypePtr = formalIdPtr->TypePtr;
+                MCAblType* formalTypePtr = formalIdPtr->TypePtr;
 
-                if (formalIdPtr->Defn.Key == DFN_VALPARAM)
+                if (formalIdPtr->Defn.Key == MCAblSymbolKind::ValueParam)
                 {
                     if (formalTypePtr == RealTypePtr)
                     {
@@ -103,7 +100,7 @@ namespace
 
                     // Faithful: nothing was pushed for an array parameter, so this copies the block the top item
                     // points to.
-                    if (formalTypePtr->Form == FRM_ARRAY)
+                    if (formalTypePtr->Form == MCAblTypeForm::Array)
                     {
                         int32_t size = formalTypePtr->Size;
                         MCAddress copy = static_cast<MCAddress>(AblMemory.Allocate(static_cast<size_t>(size)));
@@ -161,14 +158,14 @@ namespace
     }
 
     /// <summary>Finds <paramref name="name"/> (lower-cased) among the globals of the libraries <paramref name="entry"/> uses.</summary>
-    auto SearchLibrariesUsed(const MCModuleEntry& entry, char* name) -> MCSymTableNodePtr
+    auto SearchLibrariesUsed(const MCModuleEntry& entry, char* name) -> MCAblSymbol*
     {
         std::string lower = LowerCaseName(name);
 
         for (int32_t i = 0; i < entry.NumLibrariesUsed; i++)
         {
-            MCSymTableNodePtr libraryIdPtr = ModuleRegistry[entry.LibrariesUsed[i]->Handle].ModuleIdPtr;
-            MCSymTableNodePtr symbol = SearchSymTable(lower.data(), libraryIdPtr->Defn.Info.Routine.LocalSymTable);
+            MCAblSymbol* libraryIdPtr = ModuleRegistry[entry.LibrariesUsed[i]->Handle].ModuleIdPtr;
+            MCAblSymbol* symbol = SearchSymTable(lower.data(), libraryIdPtr->Defn.Info.Routine.LocalSymTable);
 
             if (symbol)
             {
@@ -361,15 +358,9 @@ auto MCAblModule::Init(int32_t moduleHandle) -> int32_t
     return 0;
 }
 
-auto MCAblModule::SetName(char* name) -> void
-{
-    std::strncpy(Name, name, MAX_ABLMODULE_NAME - 1);
-    Name[MAX_ABLMODULE_NAME - 1] = '\0';
-}
-
 auto MCAblModule::Execute(MCAblParam* paramList) -> int32_t
 {
-    MCSymTableNodePtr moduleIdPtr = BeginModuleExecution(this, paramList);
+    MCAblSymbol* moduleIdPtr = BeginModuleExecution(this, paramList);
 
     if (!moduleIdPtr)
     {
@@ -384,10 +375,9 @@ auto MCAblModule::Execute(MCAblParam* paramList) -> int32_t
     return ExecStatementCount;
 }
 
-auto MCAblModule::Execute(MCAblParam* moduleParamList, MCSymTableNodePtr function, MCAblParam* functionParamList)
-    -> int32_t
+auto MCAblModule::Execute(MCAblParam* moduleParamList, MCAblSymbol* function, MCAblParam* functionParamList) -> int32_t
 {
-    MCSymTableNodePtr moduleIdPtr = BeginModuleExecution(this, moduleParamList);
+    MCAblSymbol* moduleIdPtr = BeginModuleExecution(this, moduleParamList);
 
     if (!moduleIdPtr)
     {
@@ -403,13 +393,13 @@ auto MCAblModule::Execute(MCAblParam* moduleParamList, MCSymTableNodePtr functio
     return ExecStatementCount;
 }
 
-auto MCAblModule::FindSymbol(char* symbolName, MCSymTableNodePtr function, int searchLibraries) -> MCSymTableNodePtr
+auto MCAblModule::FindSymbol(char* symbolName, MCAblSymbol* function, int searchLibraries) -> MCAblSymbol*
 {
     std::string lower = LowerCaseName(symbolName);
 
     if (function)
     {
-        MCSymTableNodePtr symbol = SearchSymTable(lower.data(), function->Defn.Info.Routine.LocalSymTable);
+        MCAblSymbol* symbol = SearchSymTable(lower.data(), function->Defn.Info.Routine.LocalSymTable);
 
         if (symbol)
         {
@@ -418,7 +408,7 @@ auto MCAblModule::FindSymbol(char* symbolName, MCSymTableNodePtr function, int s
     }
 
     const MCModuleEntry& entry = ModuleRegistry[Handle];
-    MCSymTableNodePtr symbol = SearchSymTable(lower.data(), entry.ModuleIdPtr->Defn.Info.Routine.LocalSymTable);
+    MCAblSymbol* symbol = SearchSymTable(lower.data(), entry.ModuleIdPtr->Defn.Info.Routine.LocalSymTable);
 
     if (!symbol && searchLibraries)
     {
@@ -428,11 +418,11 @@ auto MCAblModule::FindSymbol(char* symbolName, MCSymTableNodePtr function, int s
     return symbol;
 }
 
-auto MCAblModule::FindFunction(char* functionName, int searchLibraries) -> MCSymTableNodePtr
+auto MCAblModule::FindFunction(char* functionName, int searchLibraries) -> MCAblSymbol*
 {
     // The module's own table is searched with the name as given (not lower-cased).
     const MCModuleEntry& entry = ModuleRegistry[Handle];
-    MCSymTableNodePtr symbol = SearchSymTable(functionName, entry.ModuleIdPtr->Defn.Info.Routine.LocalSymTable);
+    MCAblSymbol* symbol = SearchSymTable(functionName, entry.ModuleIdPtr->Defn.Info.Routine.LocalSymTable);
 
     if (!symbol && searchLibraries)
     {
@@ -444,19 +434,19 @@ auto MCAblModule::FindFunction(char* functionName, int searchLibraries) -> MCSym
 
 auto MCAblModule::SetStaticInteger(char* staticName, int32_t value) -> int32_t
 {
-    MCSymTableNodePtr idPtr = FindSymbol(staticName);
+    MCAblSymbol* idPtr = FindSymbol(staticName);
 
     if (!idPtr)
     {
         return 1;
     }
 
-    if (BaseType(idPtr->TypePtr) != IntegerTypePtr)
+    if (idPtr->TypePtr != IntegerTypePtr)
     {
         return 2;
     }
 
-    if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_STATIC)
+    if (idPtr->Defn.Info.Data.VarType != MCAblStorage::Static)
     {
         return 3;
     }
@@ -467,19 +457,19 @@ auto MCAblModule::SetStaticInteger(char* staticName, int32_t value) -> int32_t
 
 auto MCAblModule::SetStaticReal(char* staticName, float value) -> int32_t
 {
-    MCSymTableNodePtr idPtr = FindSymbol(staticName);
+    MCAblSymbol* idPtr = FindSymbol(staticName);
 
     if (!idPtr)
     {
         return 1;
     }
 
-    if (BaseType(idPtr->TypePtr) != RealTypePtr)
+    if (idPtr->TypePtr != RealTypePtr)
     {
         return 2;
     }
 
-    if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_STATIC)
+    if (idPtr->Defn.Info.Data.VarType != MCAblStorage::Static)
     {
         return 3;
     }
@@ -490,14 +480,14 @@ auto MCAblModule::SetStaticReal(char* staticName, float value) -> int32_t
 
 auto MCAblModule::SetStaticIntegerArray(char* staticName, int32_t size, int32_t* values) -> int32_t
 {
-    MCSymTableNodePtr idPtr = FindSymbol(staticName);
+    MCAblSymbol* idPtr = FindSymbol(staticName);
 
     if (!idPtr)
     {
         return 1;
     }
 
-    if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_STATIC)
+    if (idPtr->Defn.Info.Data.VarType != MCAblStorage::Static)
     {
         return 3;
     }
@@ -508,14 +498,14 @@ auto MCAblModule::SetStaticIntegerArray(char* staticName, int32_t size, int32_t*
 
 auto MCAblModule::SetStaticRealArray(char* staticName, int32_t size, float* values) -> int32_t
 {
-    MCSymTableNodePtr idPtr = FindSymbol(staticName);
+    MCAblSymbol* idPtr = FindSymbol(staticName);
 
     if (!idPtr)
     {
         return 1;
     }
 
-    if (idPtr->Defn.Info.Data.VarType != VAR_TYPE_STATIC)
+    if (idPtr->Defn.Info.Data.VarType != MCAblStorage::Static)
     {
         return 3;
     }

@@ -2,7 +2,7 @@
 #include "abl/ablxexpr.h"
 #include "abl/abldbug.h"
 #include "abl/ablenv.h"
-#include "abl/ablerr.h"
+#include "abl/MCAblErrors.h"
 #include "abl/ablexec.h"
 #include "abl/ablrtn.h"
 #include "abl/ablxstmt.h"
@@ -19,7 +19,7 @@ namespace
     /// Brings both operands of an arithmetic operator to reals: the integer one(s) of the given base types are
     /// converted in place.
     /// </summary>
-    void PromoteOperands(MCTypePtr operand1TypePtr, MCTypePtr operand2TypePtr)
+    void PromoteOperands(MCAblType* operand1TypePtr, MCAblType* operand2TypePtr)
     {
         if (operand1TypePtr == IntegerTypePtr)
         {
@@ -33,24 +33,24 @@ namespace
     }
 }
 
-auto ExecField() -> MCTypePtr
+auto ExecField() -> MCAblType*
 {
     GetCodeToken();
-    MCSymTableNodePtr fieldIdPtr = GetCodeSymTableNodePtr();
+    MCAblSymbol* fieldIdPtr = GetCodeSymTableNodePtr();
     Tos->Address += fieldIdPtr->Defn.Info.Data.Offset;
     GetCodeToken();
     return fieldIdPtr->TypePtr;
 }
 
-auto ExecSubscripts(MCTypePtr typePtr) -> MCTypePtr
+auto ExecSubscripts(MCAblType* typePtr) -> MCAblType*
 {
     // Only called at a '['; otherwise the original steps into the element type without consuming anything.
-    if (CodeToken != TKN_LBRACKET)
+    if (CodeToken != MCAblToken::LBracket)
     {
-        return typePtr->Info.Array.ElementTypePtr;
+        return typePtr->Array.ElementTypePtr;
     }
 
-    while (CodeToken == TKN_LBRACKET)
+    while (CodeToken == MCAblToken::LBracket)
     {
         do
         {
@@ -59,14 +59,14 @@ auto ExecSubscripts(MCTypePtr typePtr) -> MCTypePtr
             int32_t subscriptValue = Tos->Integer;
             Pop();
 
-            if (subscriptValue < 0 || subscriptValue >= typePtr->Info.Array.ElementCount)
+            if (subscriptValue < 0 || subscriptValue >= typePtr->Array.ElementCount)
             {
-                RuntimeError(ABL_ERR_RUNTIME_VALUE_OUT_OF_RANGE);
+                RuntimeError(MCAblRuntimeError::ValueOutOfRange);
             }
 
-            typePtr = typePtr->Info.Array.ElementTypePtr;
+            typePtr = typePtr->Array.ElementTypePtr;
             Tos->Address += typePtr->Size * subscriptValue;
-        } while (CodeToken == TKN_COMMA);
+        } while (CodeToken == MCAblToken::Comma);
 
         GetCodeToken();
     }
@@ -74,11 +74,11 @@ auto ExecSubscripts(MCTypePtr typePtr) -> MCTypePtr
     return typePtr;
 }
 
-auto ExecConstant(MCSymTableNodePtr idPtr) -> MCTypePtr
+auto ExecConstant(MCAblSymbol* idPtr) -> MCAblType*
 {
-    MCTypePtr typePtr = idPtr->TypePtr;
+    MCAblType* typePtr = idPtr->TypePtr;
 
-    if (BaseType(typePtr) == IntegerTypePtr || typePtr->Form == FRM_ENUM)
+    if (typePtr == IntegerTypePtr || typePtr->Form == MCAblTypeForm::Enum)
     {
         PushInteger(idPtr->Defn.Info.Constant.Value.Integer);
     }
@@ -90,7 +90,7 @@ auto ExecConstant(MCSymTableNodePtr idPtr) -> MCTypePtr
     {
         PushInteger(idPtr->Defn.Info.Constant.Value.Character);
     }
-    else if (typePtr->Form == FRM_ARRAY)
+    else if (typePtr->Form == MCAblTypeForm::Array)
     {
         PushAddress(idPtr->Defn.Info.Constant.Value.StringPtr);
     }
@@ -104,14 +104,14 @@ auto ExecConstant(MCSymTableNodePtr idPtr) -> MCTypePtr
     return typePtr;
 }
 
-auto ExecVariable(MCSymTableNodePtr idPtr, MCUseType use) -> MCTypePtr
+auto ExecVariable(MCAblSymbol* idPtr, MCAblUse use) -> MCAblType*
 {
-    MCTypePtr typePtr = idPtr->TypePtr;
+    MCAblType* typePtr = idPtr->TypePtr;
     MCStackItemPtr dataPtr;
 
     switch (idPtr->Defn.Info.Data.VarType)
     {
-        case VAR_TYPE_NORMAL:
+        case MCAblStorage::Normal:
         {
             // Follow the static links out to the frame of the scope that declared it.
             MCStackItemPtr framePtr = StackFrameBasePtr;
@@ -126,7 +126,7 @@ auto ExecVariable(MCSymTableNodePtr idPtr, MCUseType use) -> MCTypePtr
             break;
         }
 
-        case VAR_TYPE_STATIC:
+        case MCAblStorage::Static:
         {
             // A static of a library lives in that library's static data.
             MCAblModule* library = idPtr->Library;
@@ -145,7 +145,7 @@ auto ExecVariable(MCSymTableNodePtr idPtr, MCUseType use) -> MCTypePtr
             break;
         }
 
-        case VAR_TYPE_ETERNAL:
+        case MCAblStorage::Eternal:
             dataPtr = Stack + idPtr->Defn.Info.Data.Offset;
             break;
         default:
@@ -155,7 +155,7 @@ auto ExecVariable(MCSymTableNodePtr idPtr, MCUseType use) -> MCTypePtr
     }
 
     // A reference parameter's slot holds the variable's address; an array's slot holds its memory.
-    if (idPtr->Defn.Key == DFN_REFPARAM || typePtr->Form == FRM_ARRAY)
+    if (idPtr->Defn.Key == MCAblSymbolKind::RefParam || typePtr->Form == MCAblTypeForm::Array)
     {
         dataPtr = reinterpret_cast<MCStackItemPtr>(dataPtr->Address);
     }
@@ -164,15 +164,15 @@ auto ExecVariable(MCSymTableNodePtr idPtr, MCUseType use) -> MCTypePtr
 
     GetCodeToken();
 
-    while (CodeToken == TKN_LBRACKET)
+    while (CodeToken == MCAblToken::LBracket)
     {
         typePtr = ExecSubscripts(typePtr);
     }
 
-    MCTypePtr baseTypePtr = BaseType(typePtr);
+    MCAblType* baseTypePtr = typePtr;
     MCStackItemPtr valuePtr = Tos;
 
-    if (use != USE_TARGET && use != USE_REFPARAM && typePtr->Form != FRM_ARRAY)
+    if (use != MCAblUse::Target && use != MCAblUse::RefParam && typePtr->Form != MCAblTypeForm::Array)
     {
         // Replace the address with the value. Port fix: the slot is cleared first. The original overwrote only the
         // value's bytes (one for a char), leaving the rest of the address in the slot.
@@ -189,9 +189,9 @@ auto ExecVariable(MCSymTableNodePtr idPtr, MCUseType use) -> MCTypePtr
         }
     }
 
-    if (Debugger != nullptr && use != USE_TARGET && use != USE_REFPARAM)
+    if (Debugger != nullptr && use != MCAblUse::Target && use != MCAblUse::RefParam)
     {
-        if (typePtr->Form == FRM_ARRAY)
+        if (typePtr->Form == MCAblTypeForm::Array)
         {
             Debugger->TraceDataFetch(idPtr, typePtr, reinterpret_cast<MCStackItemPtr>(valuePtr->Address));
         }
@@ -204,34 +204,34 @@ auto ExecVariable(MCSymTableNodePtr idPtr, MCUseType use) -> MCTypePtr
     return typePtr;
 }
 
-auto ExecFactor() -> MCTypePtr
+auto ExecFactor() -> MCAblType*
 {
     switch (CodeToken)
     {
-        case TKN_IDENTIFIER:
+        case MCAblToken::Identifier:
         {
-            MCSymTableNodePtr idPtr = GetCodeSymTableNodePtr();
+            MCAblSymbol* idPtr = GetCodeSymTableNodePtr();
 
-            if (idPtr->Defn.Key == DFN_FUNCTION)
+            if (idPtr->Defn.Key == MCAblSymbolKind::Function)
             {
-                MCSymTableNodePtr thisRoutineIdPtr = CurRoutineIdPtr;
-                MCTypePtr resultTypePtr = ExecRoutineCall(idPtr);
+                MCAblSymbol* thisRoutineIdPtr = CurRoutineIdPtr;
+                MCAblType* resultTypePtr = ExecRoutineCall(idPtr);
                 CurRoutineIdPtr = thisRoutineIdPtr;
                 return resultTypePtr;
             }
 
-            if (idPtr->Defn.Key == DFN_CONST)
+            if (idPtr->Defn.Key == MCAblSymbolKind::Const)
             {
                 return ExecConstant(idPtr);
             }
 
-            return ExecVariable(idPtr, USE_EXPR);
+            return ExecVariable(idPtr, MCAblUse::Expression);
         }
 
-        case TKN_NUMBER:
+        case MCAblToken::Number:
         {
-            MCSymTableNodePtr numberPtr = GetCodeSymTableNodePtr();
-            MCTypePtr resultTypePtr;
+            MCAblSymbol* numberPtr = GetCodeSymTableNodePtr();
+            MCAblType* resultTypePtr;
 
             if (numberPtr->TypePtr == IntegerTypePtr)
             {
@@ -248,15 +248,15 @@ auto ExecFactor() -> MCTypePtr
             return resultTypePtr;
         }
 
-        case TKN_STRING:
+        case MCAblToken::String:
         {
             // Literals are named by their text: one character is a char, anything longer a string.
-            MCSymTableNodePtr literalIdPtr = GetCodeSymTableNodePtr();
-            MCTypePtr resultTypePtr;
+            MCAblSymbol* literalIdPtr = GetCodeSymTableNodePtr();
+            MCAblType* resultTypePtr;
 
-            if (static_cast<int32_t>(strlen(literalIdPtr->Name)) > 1)
+            if (literalIdPtr->Name.size() > 1)
             {
-                PushAddress(literalIdPtr->LiteralString);
+                PushAddress(literalIdPtr->LiteralText.data());
                 resultTypePtr = literalIdPtr->TypePtr;
             }
             else
@@ -269,18 +269,18 @@ auto ExecFactor() -> MCTypePtr
             return resultTypePtr;
         }
 
-        case TKN_LPAREN:
+        case MCAblToken::LParen:
         {
             GetCodeToken();
-            MCTypePtr resultTypePtr = ExecExpression();
+            MCAblType* resultTypePtr = ExecExpression();
             GetCodeToken();
             return resultTypePtr;
         }
 
-        case TKN_NOT:
+        case MCAblToken::Not:
         {
             GetCodeToken();
-            MCTypePtr resultTypePtr = ExecFactor();
+            MCAblType* resultTypePtr = ExecFactor();
             Tos->Integer = 1 - Tos->Integer;
             return resultTypePtr;
         }
@@ -291,29 +291,29 @@ auto ExecFactor() -> MCTypePtr
     }
 }
 
-auto ExecTerm() -> MCTypePtr
+auto ExecTerm() -> MCAblType*
 {
-    MCTypePtr resultTypePtr = ExecFactor();
+    MCAblType* resultTypePtr = ExecFactor();
 
-    while (CodeToken == TKN_STAR || CodeToken == TKN_FSLASH || CodeToken == TKN_DIV || CodeToken == TKN_MOD ||
-           CodeToken == TKN_AND)
+    while (CodeToken == MCAblToken::Star || CodeToken == MCAblToken::Slash || CodeToken == MCAblToken::Div ||
+           CodeToken == MCAblToken::Mod || CodeToken == MCAblToken::And)
     {
-        MCTokenCodeType op = CodeToken;
-        MCTypePtr operand1TypePtr = BaseType(resultTypePtr);
+        MCAblToken op = CodeToken;
+        MCAblType* operand1TypePtr = resultTypePtr;
         GetCodeToken();
-        MCTypePtr operand2TypePtr = BaseType(ExecFactor());
+        MCAblType* operand2TypePtr = ExecFactor();
         MCStackItemPtr operand2Ptr = Tos;
         MCStackItemPtr operand1Ptr = Tos - 1;
 
         switch (op)
         {
-            case TKN_AND:
+            case MCAblToken::And:
             {
                 operand1Ptr->Integer = (operand1Ptr->Integer != 0 && operand2Ptr->Integer != 0) ? 1 : 0;
                 resultTypePtr = BooleanTypePtr;
                 break;
             }
-            case TKN_STAR:
+            case MCAblToken::Star:
             {
                 if (operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr)
                 {
@@ -328,7 +328,7 @@ auto ExecTerm() -> MCTypePtr
                 }
                 break;
             }
-            case TKN_FSLASH:
+            case MCAblToken::Slash:
             {
                 // '/' on two integers divides as integers. Division by zero gives 0 (no runtime error).
                 if (operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr)
@@ -361,14 +361,14 @@ auto ExecTerm() -> MCTypePtr
                 }
                 break;
             }
-            case TKN_DIV:
-            case TKN_MOD:
+            case MCAblToken::Div:
+            case MCAblToken::Mod:
             {
                 if (operand2Ptr->Integer == 0)
                 {
                     operand1Ptr->Integer = 0;
                 }
-                else if (op == TKN_DIV)
+                else if (op == MCAblToken::Div)
                 {
                     operand1Ptr->Integer = operand1Ptr->Integer / operand2Ptr->Integer;
                 }
@@ -391,19 +391,19 @@ auto ExecTerm() -> MCTypePtr
     return resultTypePtr;
 }
 
-auto ExecSimpleExpression() -> MCTypePtr
+auto ExecSimpleExpression() -> MCAblType*
 {
-    MCTokenCodeType unaryOp = TKN_PLUS;
+    MCAblToken unaryOp = MCAblToken::Plus;
 
-    if (CodeToken == TKN_PLUS || CodeToken == TKN_MINUS)
+    if (CodeToken == MCAblToken::Plus || CodeToken == MCAblToken::Minus)
     {
         unaryOp = CodeToken;
         GetCodeToken();
     }
 
-    MCTypePtr resultTypePtr = ExecTerm();
+    MCAblType* resultTypePtr = ExecTerm();
 
-    if (unaryOp == TKN_MINUS)
+    if (unaryOp == MCAblToken::Minus)
     {
         if (resultTypePtr == IntegerTypePtr)
         {
@@ -415,23 +415,23 @@ auto ExecSimpleExpression() -> MCTypePtr
         }
     }
 
-    while (CodeToken == TKN_PLUS || CodeToken == TKN_MINUS || CodeToken == TKN_OR)
+    while (CodeToken == MCAblToken::Plus || CodeToken == MCAblToken::Minus || CodeToken == MCAblToken::Or)
     {
-        MCTokenCodeType op = CodeToken;
-        MCTypePtr operand1TypePtr = BaseType(resultTypePtr);
+        MCAblToken op = CodeToken;
+        MCAblType* operand1TypePtr = resultTypePtr;
         GetCodeToken();
-        MCTypePtr operand2TypePtr = BaseType(ExecTerm());
+        MCAblType* operand2TypePtr = ExecTerm();
         MCStackItemPtr operand2Ptr = Tos;
         MCStackItemPtr operand1Ptr = Tos - 1;
 
-        if (op == TKN_OR)
+        if (op == MCAblToken::Or)
         {
             operand1Ptr->Integer = (operand1Ptr->Integer == 0 && operand2Ptr->Integer == 0) ? 0 : 1;
             resultTypePtr = BooleanTypePtr;
         }
         else if (operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr)
         {
-            if (op == TKN_PLUS)
+            if (op == MCAblToken::Plus)
             {
                 operand1Ptr->Integer = operand1Ptr->Integer + operand2Ptr->Integer;
             }
@@ -446,7 +446,7 @@ auto ExecSimpleExpression() -> MCTypePtr
         {
             PromoteOperands(operand1TypePtr, operand2TypePtr);
 
-            if (op == TKN_PLUS)
+            if (op == MCAblToken::Plus)
             {
                 operand1Ptr->Real = operand2Ptr->Real + operand1Ptr->Real;
             }
@@ -464,19 +464,20 @@ auto ExecSimpleExpression() -> MCTypePtr
     return resultTypePtr;
 }
 
-auto ExecExpression() -> MCTypePtr
+auto ExecExpression() -> MCAblType*
 {
-    MCTypePtr resultTypePtr = ExecSimpleExpression();
-    MCTokenCodeType op = CodeToken;
+    MCAblType* resultTypePtr = ExecSimpleExpression();
+    MCAblToken op = CodeToken;
 
-    if (op != TKN_EQUALEQUAL && op != TKN_LT && op != TKN_GT && op != TKN_NE && op != TKN_LE && op != TKN_GE)
+    if (op != MCAblToken::EqualEqual && op != MCAblToken::Less && op != MCAblToken::Greater &&
+        op != MCAblToken::NotEqual && op != MCAblToken::LessEqual && op != MCAblToken::GreaterEqual)
     {
         return resultTypePtr;
     }
 
-    MCTypePtr operand1TypePtr = BaseType(resultTypePtr);
+    MCAblType* operand1TypePtr = resultTypePtr;
     GetCodeToken();
-    MCTypePtr operand2TypePtr = BaseType(ExecSimpleExpression());
+    MCAblType* operand2TypePtr = ExecSimpleExpression();
     MCStackItemPtr operand2Ptr = Tos;
     MCStackItemPtr operand1Ptr = Tos - 1;
 
@@ -484,29 +485,30 @@ auto ExecExpression() -> MCTypePtr
     // original; the port gives false.
     bool result = false;
 
-    if ((operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr) || operand1TypePtr->Form == FRM_ENUM)
+    if ((operand1TypePtr == IntegerTypePtr && operand2TypePtr == IntegerTypePtr) ||
+        operand1TypePtr->Form == MCAblTypeForm::Enum)
     {
         int32_t value1 = operand1Ptr->Integer;
         int32_t value2 = operand2Ptr->Integer;
 
         switch (op)
         {
-            case TKN_LT:
+            case MCAblToken::Less:
                 result = value1 < value2;
                 break;
-            case TKN_GT:
+            case MCAblToken::Greater:
                 result = value1 > value2;
                 break;
-            case TKN_EQUALEQUAL:
+            case MCAblToken::EqualEqual:
                 result = value1 == value2;
                 break;
-            case TKN_LE:
+            case MCAblToken::LessEqual:
                 result = value1 <= value2;
                 break;
-            case TKN_GE:
+            case MCAblToken::GreaterEqual:
                 result = value1 >= value2;
                 break;
-            case TKN_NE:
+            case MCAblToken::NotEqual:
                 result = value1 != value2;
                 break;
             default:
@@ -520,29 +522,29 @@ auto ExecExpression() -> MCTypePtr
 
         switch (op)
         {
-            case TKN_LT:
+            case MCAblToken::Less:
                 result = value1 < value2;
                 break;
-            case TKN_GT:
+            case MCAblToken::Greater:
                 result = value1 > value2;
                 break;
-            case TKN_EQUALEQUAL:
+            case MCAblToken::EqualEqual:
                 result = value1 == value2;
                 break;
-            case TKN_LE:
+            case MCAblToken::LessEqual:
                 result = value1 <= value2;
                 break;
-            case TKN_GE:
+            case MCAblToken::GreaterEqual:
                 result = value1 >= value2;
                 break;
-            case TKN_NE:
+            case MCAblToken::NotEqual:
                 result = value1 != value2;
                 break;
             default:
                 break;
         }
     }
-    else if (operand1TypePtr->Form == FRM_ARRAY && operand1TypePtr->Info.Array.ElementTypePtr == CharTypePtr)
+    else if (operand1TypePtr->Form == MCAblTypeForm::Array && operand1TypePtr->Array.ElementTypePtr == CharTypePtr)
     {
         // Original behaviour (OB-039): string comparisons are never evaluated; every one is true.
         result = true;
@@ -556,22 +558,22 @@ auto ExecExpression() -> MCTypePtr
 
         switch (op)
         {
-            case TKN_LT:
+            case MCAblToken::Less:
                 result = unordered || value1 < value2;
                 break;
-            case TKN_GT:
+            case MCAblToken::Greater:
                 result = !unordered && value1 > value2;
                 break;
-            case TKN_EQUALEQUAL:
+            case MCAblToken::EqualEqual:
                 result = unordered || value1 == value2;
                 break;
-            case TKN_LE:
+            case MCAblToken::LessEqual:
                 result = unordered || value1 <= value2;
                 break;
-            case TKN_GE:
+            case MCAblToken::GreaterEqual:
                 result = !unordered && value1 >= value2;
                 break;
-            case TKN_NE:
+            case MCAblToken::NotEqual:
                 result = !unordered && value1 != value2;
                 break;
             default:

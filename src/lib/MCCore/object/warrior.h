@@ -20,7 +20,7 @@ class MCScrollingTextWindow;
 class MCSortList;
 class MCTeam;
 struct MCPathQueueRec;
-struct MCSymTableNode;
+struct MCAblSymbol;
 
 /// <summary>Pilot skills (<see cref="SkillsTable"/> order).</summary>
 constexpr int32_t NUM_SKILLS = 4;
@@ -535,7 +535,7 @@ public:
     /// <summary>The ABL brain.</summary>
     MCAblModule* Brain = nullptr;
     /// <summary>The brain's alarm handlers (<see cref="PilotAlarmFunctionName"/>).</summary>
-    MCSymTableNode* BrainAlarmCallback[NUM_PILOT_ALARMS] = {};
+    MCAblSymbol* BrainAlarmCallback[NUM_PILOT_ALARMS] = {};
     /// <summary>Next brain run (staggered by warrior count, then every BrainUpdateFrequency).</summary>
     float BrainUpdateTime = 0.0f;
     /// <summary>Next combat update time.</summary>

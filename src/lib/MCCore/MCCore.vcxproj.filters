@@ -69,34 +69,16 @@
     <ClCompile Include="abl\abldbug.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\abldecl.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
     <ClCompile Include="abl\ablenv.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablerr.cpp">
       <Filter>abl</Filter>
     </ClCompile>
     <ClCompile Include="abl\ablexec.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablexpr.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
     <ClCompile Include="abl\ablrtn.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="abl\ablscan.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
     <ClCompile Include="abl\ablstd.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablstmt.cpp">
-      <Filter>abl</Filter>
-    </ClCompile>
-    <ClCompile Include="abl\ablsymt.cpp">
       <Filter>abl</Filter>
     </ClCompile>
     <ClCompile Include="abl\ablxexpr.cpp">
@@ -106,6 +88,30 @@
       <Filter>abl</Filter>
     </ClCompile>
     <ClCompile Include="abl\ablxstmt.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblCodeWriter.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblCompiler.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblDeclarations.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblErrors.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblExpressions.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblScanner.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblStatements.cpp">
+      <Filter>abl</Filter>
+    </ClCompile>
+    <ClCompile Include="abl\MCAblSymbolTable.cpp">
       <Filter>abl</Filter>
     </ClCompile>
     <ClCompile Include="ai\genordr.cpp">
@@ -739,34 +745,16 @@
     <ClInclude Include="abl\abldbug.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\abldecl.h">
-      <Filter>abl</Filter>
-    </ClInclude>
     <ClInclude Include="abl\ablenv.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablerr.h">
       <Filter>abl</Filter>
     </ClInclude>
     <ClInclude Include="abl\ablexec.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablexpr.h">
-      <Filter>abl</Filter>
-    </ClInclude>
     <ClInclude Include="abl\ablrtn.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="abl\ablscan.h">
-      <Filter>abl</Filter>
-    </ClInclude>
     <ClInclude Include="abl\ablstd.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablstmt.h">
-      <Filter>abl</Filter>
-    </ClInclude>
-    <ClInclude Include="abl\ablsymt.h">
       <Filter>abl</Filter>
     </ClInclude>
     <ClInclude Include="abl\ablxexpr.h">
@@ -776,6 +764,30 @@
       <Filter>abl</Filter>
     </ClInclude>
     <ClInclude Include="abl\ablxstmt.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblCodeWriter.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblCompiler.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblErrors.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblScanner.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblSymbol.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblSymbolTable.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblToken.h">
+      <Filter>abl</Filter>
+    </ClInclude>
+    <ClInclude Include="abl\MCAblTokenLists.h">
       <Filter>abl</Filter>
     </ClInclude>
     <ClInclude Include="ai\genordr.h">

@@ -2,6 +2,7 @@
 
 #include "platform/MCServices.h"
 
+class MCAblSymbolTable;
 class MCAppearanceTypeList;
 class MCCameraList;
 class MCCraterManager;
@@ -75,6 +76,9 @@ public:
     /// <summary>The mission's cameras (null outside a mission).</summary>
     MCCameraList* CameraList() const;
 
+    /// <summary>ABL's symbols and types (null outside AblInit .. AblClose).</summary>
+    MCAblSymbolTable* AblSymbols() const;
+
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
     template <std::derived_from<MCClock> T> T& SetClock(std::unique_ptr<T> clock)
@@ -137,6 +141,10 @@ public:
     /// <returns>The cameras this context had.</returns>
     std::unique_ptr<MCCameraList> SetCameraList(std::unique_ptr<MCCameraList> cameraList);
 
+    /// <summary>Gives this context its own ABL symbol table (null: the one it was installed over, if any).</summary>
+    /// <returns>The symbol table this context had.</returns>
+    std::unique_ptr<MCAblSymbolTable> SetAblSymbols(std::unique_ptr<MCAblSymbolTable> symbols);
+
 private:
     friend class MCTestContextScope;
 
@@ -166,6 +174,7 @@ private:
     std::unique_ptr<MCAppearanceTypeList> _AppearanceTypeList;
     std::unique_ptr<MCTerrain> _Terrain;
     std::unique_ptr<MCCameraList> _CameraList;
+    std::unique_ptr<MCAblSymbolTable> _AblSymbols;
 };
 
 /// <summary>

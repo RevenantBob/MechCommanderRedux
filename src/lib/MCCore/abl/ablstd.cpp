@@ -1,11 +1,6 @@
 #include "stdafx.h"
 #include "abl/ablstd.h"
-#include "abl/abldecl.h"
-#include "abl/ablerr.h"
-#include "abl/ablexpr.h"
-#include "abl/ablrtn.h"
-#include "abl/ablscan.h"
-#include "abl/ablsymt.h"
+#include "abl/MCAblCompiler.h"
 
 // Every routine below is the same shape in MCX.EXE: with arguments, "(" then each argument expression checked
 // against its type and separated by ",", then ")"; without, a "(" is an error. The per-type checks are inlined in
@@ -35,15 +30,15 @@ namespace
     };
 
     /// <summary>Whether <paramref name="typePtr"/> is an array of <paramref name="elementTypePtr"/>.</summary>
-    auto IsArrayOf(MCTypePtr typePtr, MCTypePtr elementTypePtr) -> bool
+    auto IsArrayOf(MCAblType* typePtr, MCAblType* elementTypePtr) -> bool
     {
-        return typePtr->Form == FRM_ARRAY && typePtr->Info.Array.ElementTypePtr == elementTypePtr;
+        return typePtr->Form == MCAblTypeForm::Array && typePtr->Array.ElementTypePtr == elementTypePtr;
     }
 
     /// <summary>Compiles one argument expression and checks its base type against <paramref name="kind"/>.</summary>
-    auto Argument(MCArgumentKind kind) -> void
+    auto Argument(MCAblCompiler& compiler, MCArgumentKind kind) -> void
     {
-        MCTypePtr argType = BaseType(Expression());
+        MCAblType* argType = compiler.Expression();
         bool ok = false;
 
         switch (kind)
@@ -77,1704 +72,1704 @@ namespace
 
         if (!ok)
         {
-            SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+            compiler.SyntaxError(MCAblSyntaxError::IncompatibleTypes);
         }
     }
 
     /// <summary>Compiles "(" arguments ")", each checked against its kind, separated by commas.</summary>
-    auto Arguments(std::initializer_list<MCArgumentKind> kinds) -> void
+    auto Arguments(MCAblCompiler& compiler, std::initializer_list<MCArgumentKind> kinds) -> void
     {
-        if (CurToken != TKN_LPAREN)
+        if (compiler.Token() != MCAblToken::LParen)
         {
-            SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+            compiler.SyntaxError(MCAblSyntaxError::WrongNumberOfParams);
             return;
         }
 
-        GetToken();
+        compiler.NextToken();
         bool first = true;
 
         for (MCArgumentKind kind : kinds)
         {
             if (!first)
             {
-                IfTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
+                compiler.IfTokenGetElseError(MCAblToken::Comma, MCAblSyntaxError::MissingComma);
             }
 
             first = false;
-            Argument(kind);
+            Argument(compiler, kind);
         }
 
-        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        compiler.IfTokenGetElseError(MCAblToken::RParen, MCAblSyntaxError::MissingRParen);
     }
 
     /// <summary>A routine without arguments: "(" is an error.</summary>
-    auto NoArguments() -> void
+    auto NoArguments(MCAblCompiler& compiler) -> void
     {
-        if (CurToken == TKN_LPAREN)
+        if (compiler.Token() == MCAblToken::LParen)
         {
-            SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+            compiler.SyntaxError(MCAblSyntaxError::WrongNumberOfParams);
         }
     }
 
     /// <summary>A routine called as a bare statement: anything but ";" after its name is an error.</summary>
-    auto StatementOnly() -> void
+    auto StatementOnly(MCAblCompiler& compiler) -> void
     {
-        if (CurToken != TKN_SEMICOLON)
+        if (compiler.Token() != MCAblToken::Semicolon)
         {
-            SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+            compiler.SyntaxError(MCAblSyntaxError::WrongNumberOfParams);
         }
     }
 }
 
-auto StdReturn() -> void
+auto StdReturn(MCAblCompiler& compiler) -> void
 {
-    if (CurToken == TKN_LPAREN)
+    if (compiler.Token() == MCAblToken::LParen)
     {
-        GetToken();
-        MCTypePtr returnType = BaseType(Expression());
+        compiler.NextToken();
+        MCAblType* returnType = compiler.Expression();
 
-        if (returnType != BaseType(CurRoutineIdPtr->TypePtr))
+        if (returnType != compiler.CurrentRoutine()->TypePtr)
         {
-            SyntaxError(ABL_ERR_SYNTAX_INCOMPATIBLE_TYPES);
+            compiler.SyntaxError(MCAblSyntaxError::IncompatibleTypes);
         }
 
-        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        compiler.IfTokenGetElseError(MCAblToken::RParen, MCAblSyntaxError::MissingRParen);
         return;
     }
 
-    if (CurRoutineIdPtr->TypePtr != nullptr)
+    if (compiler.CurrentRoutine()->TypePtr != nullptr)
     {
-        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        compiler.SyntaxError(MCAblSyntaxError::WrongNumberOfParams);
     }
 }
 
-auto StdPrint() -> void
+auto StdPrint(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_PRINTABLE});
+    Arguments(compiler, {ARG_PRINTABLE});
 }
 
-auto StdConcat() -> MCTypePtr
+auto StdConcat(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_STRING, ARG_PRINTABLE});
+    Arguments(compiler, {ARG_STRING, ARG_PRINTABLE});
     return IntegerTypePtr;
 }
 
-auto StdAbs() -> MCTypePtr
+auto StdAbs(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL});
+    Arguments(compiler, {ARG_REAL});
     return RealTypePtr;
 }
 
-auto StdRound() -> MCTypePtr
+auto StdRound(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL});
+    Arguments(compiler, {ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto StdTrunc() -> MCTypePtr
+auto StdTrunc(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_NUMBER});
+    Arguments(compiler, {ARG_NUMBER});
     return IntegerTypePtr;
 }
 
-auto StdSqrt() -> MCTypePtr
+auto StdSqrt(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_NUMBER});
+    Arguments(compiler, {ARG_NUMBER});
     return RealTypePtr;
 }
 
-auto StdRandom() -> MCTypePtr
+auto StdRandom(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto StdGetModHandle() -> MCTypePtr
+auto StdGetModHandle(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return IntegerTypePtr;
 }
 
-auto StdGetModName() -> MCTypePtr
+auto StdGetModName(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return nullptr;
 }
 
-auto StdSetModName() -> void
+auto StdSetModName(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_STRING});
+    Arguments(compiler, {ARG_STRING});
 }
 
-auto StdSetMaxLoops() -> MCTypePtr
+auto StdSetMaxLoops(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return nullptr;
 }
 
-auto StdFatal() -> MCTypePtr
+auto StdFatal(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_STRING});
+    Arguments(compiler, {ARG_INTEGER, ARG_STRING});
     return nullptr;
 }
 
-auto StdAssert() -> MCTypePtr
+auto StdAssert(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_BOOLEAN, ARG_INTEGER, ARG_STRING});
+    Arguments(compiler, {ARG_BOOLEAN, ARG_INTEGER, ARG_STRING});
     return nullptr;
 }
 
-auto StdHandle() -> MCTypePtr
+auto StdHandle(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return IntegerTypePtr;
 }
 
-auto HbSetMode() -> void
+auto HbSetMode(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbSetUpdateTime() -> void
+auto HbSetUpdateTime(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_REAL});
+    Arguments(compiler, {ARG_REAL});
 }
 
-auto HbGetId() -> MCTypePtr
+auto HbGetId(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return IntegerTypePtr;
 }
 
-auto HbGetTime() -> MCTypePtr
+auto HbGetTime(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return RealTypePtr;
 }
 
-auto HbGetTimeLeft() -> MCTypePtr
+auto HbGetTimeLeft(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return RealTypePtr;
 }
 
-auto HbGetTarget() -> MCTypePtr
+auto HbGetTarget(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetTarget() -> void
+auto HbSetTarget(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbGetContacts() -> MCTypePtr
+auto HbGetContacts(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER_ARRAY, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER_ARRAY, ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetEnemyCount() -> MCTypePtr
+auto HbGetEnemyCount(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetWeapons() -> MCTypePtr
+auto HbGetWeapons(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER_ARRAY, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER_ARRAY, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetWeaponShots() -> MCTypePtr
+auto HbGetWeaponShots(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetWeaponRanges() -> MCTypePtr
+auto HbGetWeaponRanges(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL_ARRAY});
     return nullptr;
 }
 
-auto HbGetMemoryInteger() -> MCTypePtr
+auto HbGetMemoryInteger(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetMemoryReal() -> MCTypePtr
+auto HbGetMemoryReal(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbGetAlarmTriggers() -> MCTypePtr
+auto HbGetAlarmTriggers(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER_ARRAY});
+    Arguments(compiler, {ARG_INTEGER_ARRAY});
     return IntegerTypePtr;
 }
 
-auto HbStartFieldScan() -> MCTypePtr
+auto HbStartFieldScan(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbStartVehicleScan() -> MCTypePtr
+auto HbStartVehicleScan(MCAblCompiler& compiler) -> MCAblType*
 {
-    StatementOnly();
+    StatementOnly(compiler);
     return IntegerTypePtr;
 }
 
-auto HbStartContactScan() -> MCTypePtr
+auto HbStartContactScan(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbStartMovePath() -> MCTypePtr
+auto HbStartMovePath(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetMoveGoal() -> void
+auto HbSetMoveGoal(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL_ARRAY});
 }
 
-auto HbSetMemoryInteger() -> void
+auto HbSetMemoryInteger(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbSetMemoryReal() -> void
+auto HbSetMemoryReal(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL});
 }
 
-auto HbGetChallenger() -> MCTypePtr
+auto HbGetChallenger(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetFireRanges() -> void
+auto HbGetFireRanges(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_REAL_ARRAY});
 }
 
-auto HbGetAttackers() -> MCTypePtr
+auto HbGetAttackers(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER_ARRAY, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER_ARRAY, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto HbGetAttackerInfo() -> MCTypePtr
+auto HbGetAttackerInfo(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbGetTimeWithoutOrders() -> MCTypePtr
+auto HbGetTimeWithoutOrders(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return RealTypePtr;
 }
 
-auto HbSetChallenger() -> MCTypePtr
+auto HbSetChallenger(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSelectUnit() -> MCTypePtr
+auto HbSelectUnit(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSelectObject() -> MCTypePtr
+auto HbSelectObject(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSelectWarrior() -> MCTypePtr
+auto HbSelectWarrior(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetWarriorStatus() -> MCTypePtr
+auto HbGetWarriorStatus(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSelectContact() -> MCTypePtr
+auto HbSelectContact(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbIsContact() -> MCTypePtr
+auto HbIsContact(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto HbGetContactStatus() -> MCTypePtr
+auto HbGetContactStatus(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetContactId() -> MCTypePtr
+auto HbGetContactId(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return IntegerTypePtr;
 }
 
-auto HbGetContactRelativePosition() -> MCTypePtr
+auto HbGetContactRelativePosition(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL, ARG_REAL});
+    Arguments(compiler, {ARG_REAL, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto HbSetPotentialContact() -> MCTypePtr
+auto HbSetPotentialContact(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetGuardObjective() -> MCTypePtr
+auto HbSetGuardObjective(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetGuardPoint() -> MCTypePtr
+auto HbSetGuardPoint(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_REAL_ARRAY});
     return IntegerTypePtr;
 }
 
-auto HbSetGuardRadii() -> MCTypePtr
+auto HbSetGuardRadii(MCAblCompiler& compiler) -> MCAblType*
 {
     // Original behaviour: the second argument is preceded by getToken(), not a comma check, so any token separates
     // the two radii.
-    if (CurToken == TKN_LPAREN)
+    if (compiler.Token() == MCAblToken::LParen)
     {
-        GetToken();
-        Argument(ARG_REAL);
-        GetToken();
-        Argument(ARG_REAL);
-        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        compiler.NextToken();
+        Argument(compiler, ARG_REAL);
+        compiler.NextToken();
+        Argument(compiler, ARG_REAL);
+        compiler.IfTokenGetElseError(MCAblToken::RParen, MCAblSyntaxError::MissingRParen);
     }
     else
     {
-        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        compiler.SyntaxError(MCAblSyntaxError::WrongNumberOfParams);
     }
 
     return IntegerTypePtr;
 }
 
-auto HbGetGuardObjective() -> MCTypePtr
+auto HbGetGuardObjective(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return IntegerTypePtr;
 }
 
-auto HbGetGuardPoint() -> MCTypePtr
+auto HbGetGuardPoint(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_REAL_ARRAY});
     return IntegerTypePtr;
 }
 
-auto HbGetGuardRadii() -> MCTypePtr
+auto HbGetGuardRadii(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL, ARG_REAL});
+    Arguments(compiler, {ARG_REAL, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto HbGetGuardDistanceTo() -> MCTypePtr
+auto HbGetGuardDistanceTo(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbHasMoveGoal() -> MCTypePtr
+auto HbHasMoveGoal(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return BooleanTypePtr;
 }
 
-auto HbHasMovePath() -> MCTypePtr
+auto HbHasMovePath(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return BooleanTypePtr;
 }
 
-auto HbSortWeapons() -> void
+auto HbSortWeapons(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER_ARRAY, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER_ARRAY, ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbTimeToImpact() -> MCTypePtr
+auto HbTimeToImpact(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbFireWeapon() -> MCTypePtr
+auto HbFireWeapon(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetObjectPosition() -> MCTypePtr
+auto HbGetObjectPosition(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL_ARRAY});
     return IntegerTypePtr;
 }
 
-auto HbGetMoveOrder() -> MCTypePtr
+auto HbGetMoveOrder(MCAblCompiler& compiler) -> MCAblType*
 {
-    StatementOnly();
+    StatementOnly(compiler);
     return IntegerTypePtr;
 }
 
-auto HbGetAttackOrder() -> MCTypePtr
+auto HbGetAttackOrder(MCAblCompiler& compiler) -> MCAblType*
 {
-    StatementOnly();
+    StatementOnly(compiler);
     return IntegerTypePtr;
 }
 
-auto HbGetVisualRange() -> MCTypePtr
+auto HbGetVisualRange(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbGetTacOrder() -> MCTypePtr
+auto HbGetTacOrder(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_REAL, ARG_INTEGER_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL, ARG_INTEGER_ARRAY});
     return IntegerTypePtr;
 }
 
-auto HbGetLastTacOrder() -> MCTypePtr
+auto HbGetLastTacOrder(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_REAL, ARG_INTEGER_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL, ARG_INTEGER_ARRAY});
     return IntegerTypePtr;
 }
 
-auto HbGetUnitMates() -> MCTypePtr
+auto HbGetUnitMates(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER_ARRAY});
     return IntegerTypePtr;
 }
 
-auto HbSetOrderMode() -> MCTypePtr
+auto HbSetOrderMode(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbWait() -> MCTypePtr
+auto HbWait(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_REAL, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto HbMoveToPoint() -> MCTypePtr
+auto HbMoveToPoint(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL_ARRAY, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_REAL_ARRAY, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto HbMoveToObject() -> MCTypePtr
+auto HbMoveToObject(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto HbMoveToContact() -> MCTypePtr
+auto HbMoveToContact(MCAblCompiler& compiler) -> MCAblType*
 {
-    if (CurToken == TKN_LPAREN)
+    if (compiler.Token() == MCAblToken::LParen)
     {
-        GetToken();
-        Argument(ARG_BOOLEAN);
+        compiler.NextToken();
+        Argument(compiler, ARG_BOOLEAN);
         // Original behaviour: a missing ")" reports a missing comma.
-        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_COMMA);
+        compiler.IfTokenGetElseError(MCAblToken::RParen, MCAblSyntaxError::MissingComma);
     }
     else
     {
-        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        compiler.SyntaxError(MCAblSyntaxError::WrongNumberOfParams);
     }
 
     return IntegerTypePtr;
 }
 
-auto HbOrderPowerUp() -> MCTypePtr
+auto HbOrderPowerUp(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return IntegerTypePtr;
 }
 
-auto HbOrderPowerDown() -> MCTypePtr
+auto HbOrderPowerDown(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return IntegerTypePtr;
 }
 
-auto HbOrderFormation() -> MCTypePtr
+auto HbOrderFormation(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetFormation() -> MCTypePtr
+auto HbGetFormation(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbUseSpeed() -> MCTypePtr
+auto HbUseSpeed(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbOrderAttackObject() -> MCTypePtr
+auto HbOrderAttackObject(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto HbOrderAttackContact() -> MCTypePtr
+auto HbOrderAttackContact(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto HbAttackThreat() -> MCTypePtr
+auto HbAttackThreat(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_BOOLEAN, ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbOpenFire() -> MCTypePtr
+auto HbOpenFire(MCAblCompiler& compiler) -> MCAblType*
 {
-    StatementOnly();
+    StatementOnly(compiler);
     return IntegerTypePtr;
 }
 
-auto HbUseFireRange() -> MCTypePtr
+auto HbUseFireRange(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbUseFireOdds() -> MCTypePtr
+auto HbUseFireOdds(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbDamageObject() -> MCTypePtr
+auto HbDamageObject(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_INTEGER, ARG_REAL, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_INTEGER, ARG_REAL, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto HbSetAttackRadius() -> MCTypePtr
+auto HbSetAttackRadius(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_REAL});
+    Arguments(compiler, {ARG_REAL});
     return RealTypePtr;
 }
 
-auto HbOrderTest() -> MCTypePtr
+auto HbOrderTest(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbPlaySmacker() -> MCTypePtr
+auto HbPlaySmacker(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbObjectChangeSides() -> void
+auto HbObjectChangeSides(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbDistanceToObject() -> MCTypePtr
+auto HbDistanceToObject(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbDistanceToPosition() -> MCTypePtr
+auto HbDistanceToPosition(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL_ARRAY});
     return RealTypePtr;
 }
 
-auto HbObjectSuicide() -> void
+auto HbObjectSuicide(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbObjectCreate() -> MCTypePtr
+auto HbObjectCreate(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbObjectExists() -> MCTypePtr
+auto HbObjectExists(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbObjectStatus() -> MCTypePtr
+auto HbObjectStatus(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbObjectStatusCount() -> MCTypePtr
+auto HbObjectStatusCount(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER_ARRAY});
     return nullptr;
 }
 
-auto HbObjectVisible() -> MCTypePtr
+auto HbObjectVisible(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbObjectSide() -> MCTypePtr
+auto HbObjectSide(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbObjectCommander() -> MCTypePtr
+auto HbObjectCommander(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbObjectClass() -> MCTypePtr
+auto HbObjectClass(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbInArea() -> MCTypePtr
+auto HbInArea(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_REAL_ARRAY, ARG_REAL, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL_ARRAY, ARG_REAL, ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto HbSetTimer() -> MCTypePtr
+auto HbSetTimer(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_NUMBER});
+    Arguments(compiler, {ARG_INTEGER, ARG_NUMBER});
     return IntegerTypePtr;
 }
 
-auto HbChkTimer() -> MCTypePtr
+auto HbChkTimer(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbEndTimer() -> void
+auto HbEndTimer(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbSetObjectiveTimer() -> MCTypePtr
+auto HbSetObjectiveTimer(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_NUMBER});
+    Arguments(compiler, {ARG_INTEGER, ARG_NUMBER});
     return IntegerTypePtr;
 }
 
-auto HbCheckObjectiveTimer() -> MCTypePtr
+auto HbCheckObjectiveTimer(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbSetObjectiveStatus() -> MCTypePtr
+auto HbSetObjectiveStatus(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbCheckObjectiveStatus() -> MCTypePtr
+auto HbCheckObjectiveStatus(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetObjectiveType() -> MCTypePtr
+auto HbSetObjectiveType(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbCheckObjectiveType() -> MCTypePtr
+auto HbCheckObjectiveType(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbPlayDigitalMusic() -> MCTypePtr
+auto HbPlayDigitalMusic(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbStopMusic() -> MCTypePtr
+auto HbStopMusic(MCAblCompiler& compiler) -> MCAblType*
 {
     // Original behaviour (OB-049): no getToken() after "(", so "stopmusic()" fails on the "(" as a missing ")".
-    if (CurToken == TKN_LPAREN)
+    if (compiler.Token() == MCAblToken::LParen)
     {
-        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        compiler.IfTokenGetElseError(MCAblToken::RParen, MCAblSyntaxError::MissingRParen);
     }
     else
     {
-        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        compiler.SyntaxError(MCAblSyntaxError::WrongNumberOfParams);
     }
 
     return IntegerTypePtr;
 }
 
-auto HbPlaySoundEffect() -> MCTypePtr
+auto HbPlaySoundEffect(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbPlayVideo() -> MCTypePtr
+auto HbPlayVideo(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbFileExists() -> MCTypePtr
+auto HbFileExists(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_STRING});
+    Arguments(compiler, {ARG_STRING});
     return BooleanTypePtr;
 }
 
-auto HbPlaySpeech() -> MCTypePtr
+auto HbPlaySpeech(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbPlayBetty() -> MCTypePtr
+auto HbPlayBetty(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetRadio() -> MCTypePtr
+auto HbSetRadio(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto HbSetObjActive() -> MCTypePtr
+auto HbSetObjActive(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_BOOLEAN});
     return IntegerTypePtr;
 }
 
-auto HbObjWithdraw() -> MCTypePtr
+auto HbObjWithdraw(MCAblCompiler& compiler) -> MCAblType*
 {
-    StatementOnly();
+    StatementOnly(compiler);
     return IntegerTypePtr;
 }
 
-auto HbObjInWithdraw() -> MCTypePtr
+auto HbObjInWithdraw(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbObjTypeId() -> MCTypePtr
+auto HbObjTypeId(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbTerrainObjectId() -> MCTypePtr
+auto HbTerrainObjectId(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbVehicleId() -> MCTypePtr
+auto HbVehicleId(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetWeaponAmmo() -> MCTypePtr
+auto HbGetWeaponAmmo(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetSensors() -> MCTypePtr
+auto HbGetSensors(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetBRValue() -> MCTypePtr
+auto HbGetBRValue(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetBRValue() -> void
+auto HbSetBRValue(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbGetArmor() -> MCTypePtr
+auto HbGetArmor(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetMaxArmor() -> MCTypePtr
+auto HbGetMaxArmor(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetPilotId() -> MCTypePtr
+auto HbGetPilotId(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetPilotWounds() -> MCTypePtr
+auto HbGetPilotWounds(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbSetPilotWounds() -> void
+auto HbSetPilotWounds(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbGetObjActive() -> MCTypePtr
+auto HbGetObjActive(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetObjDamage() -> MCTypePtr
+auto HbGetObjDamage(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetObjDmgPts() -> MCTypePtr
+auto HbGetObjDmgPts(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetObjMaxDmg() -> MCTypePtr
+auto HbGetObjMaxDmg(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetObjDamage() -> void
+auto HbSetObjDamage(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbSetObjectivePos() -> void
+auto HbSetObjectivePos(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_NUMBER, ARG_NUMBER, ARG_NUMBER});
+    Arguments(compiler, {ARG_INTEGER, ARG_NUMBER, ARG_NUMBER, ARG_NUMBER});
 }
 
-auto HbGetGlobalValue() -> MCTypePtr
+auto HbGetGlobalValue(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbSetGlobalValue() -> void
+auto HbSetGlobalValue(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_NUMBER});
+    Arguments(compiler, {ARG_INTEGER, ARG_NUMBER});
 }
 
-auto HbSetSensorRange() -> MCTypePtr
+auto HbSetSensorRange(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL});
     return IntegerTypePtr;
 }
 
-auto HbSetTonnage() -> void
+auto HbSetTonnage(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL});
 }
 
-auto HbSetExplDmg() -> void
+auto HbSetExplDmg(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL});
 }
 
-auto HbSetExplRad() -> void
+auto HbSetExplRad(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL});
 }
 
-auto HbSetSalvage() -> MCTypePtr
+auto HbSetSalvage(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto HbSetSalvageStatus() -> MCTypePtr
+auto HbSetSalvageStatus(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_BOOLEAN});
     return BooleanTypePtr;
 }
 
-auto HbSetAnimation() -> void
+auto HbSetAnimation(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbPlayWave() -> void
+auto HbPlayWave(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL});
 }
 
-auto HbSetRevealed() -> void
+auto HbSetRevealed(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_NUMBER, ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_NUMBER, ARG_REAL_ARRAY});
 }
 
-auto HbGetSalvage() -> void
+auto HbGetSalvage(MCAblCompiler& compiler) -> void
 {
     // Original behaviour: the third argument is preceded by getToken(), not a comma check.
-    if (CurToken == TKN_LPAREN)
+    if (compiler.Token() == MCAblToken::LParen)
     {
-        GetToken();
-        Argument(ARG_INTEGER);
-        IfTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
-        Argument(ARG_INTEGER);
-        IfTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
-        GetToken();
-        Argument(ARG_INTEGER_ARRAY);
-        IfTokenGetElseError(TKN_COMMA, ABL_ERR_SYNTAX_MISSING_COMMA);
-        Argument(ARG_INTEGER_ARRAY);
-        IfTokenGetElseError(TKN_RPAREN, ABL_ERR_SYNTAX_MISSING_RPAREN);
+        compiler.NextToken();
+        Argument(compiler, ARG_INTEGER);
+        compiler.IfTokenGetElseError(MCAblToken::Comma, MCAblSyntaxError::MissingComma);
+        Argument(compiler, ARG_INTEGER);
+        compiler.IfTokenGetElseError(MCAblToken::Comma, MCAblSyntaxError::MissingComma);
+        compiler.NextToken();
+        Argument(compiler, ARG_INTEGER_ARRAY);
+        compiler.IfTokenGetElseError(MCAblToken::Comma, MCAblSyntaxError::MissingComma);
+        Argument(compiler, ARG_INTEGER_ARRAY);
+        compiler.IfTokenGetElseError(MCAblToken::RParen, MCAblSyntaxError::MissingRParen);
     }
     else
     {
-        SyntaxError(ABL_ERR_SYNTAX_WRONG_NUMBER_OF_PARAMS);
+        compiler.SyntaxError(MCAblSyntaxError::WrongNumberOfParams);
     }
 }
 
-auto HbRefit() -> void
+auto HbRefit(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbCaptureObject() -> void
+auto HbCaptureObject(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbSetCaptured() -> void
+auto HbSetCaptured(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbSetCaptureable() -> void
+auto HbSetCaptureable(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_BOOLEAN});
 }
 
-auto HbIsCaptured() -> MCTypePtr
+auto HbIsCaptured(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbIsCapturable() -> MCTypePtr
+auto HbIsCapturable(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto HbWasEverCapturable() -> MCTypePtr
+auto HbWasEverCapturable(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto HbSetBuildingName() -> void
+auto HbSetBuildingName(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbCallStrike() -> void
+auto HbCallStrike(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_REAL, ARG_BOOLEAN});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_REAL, ARG_BOOLEAN});
 }
 
-auto HbCallStrikeEx() -> void
+auto HbCallStrikeEx(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_REAL, ARG_BOOLEAN, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_REAL, ARG_BOOLEAN, ARG_REAL});
 }
 
-auto HbLoadElementals() -> void
+auto HbLoadElementals(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbDeployElementals() -> void
+auto HbDeployElementals(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbAddPrisoner() -> MCTypePtr
+auto HbAddPrisoner(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetTrainSpeed() -> void
+auto HbSetTrainSpeed(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL});
 }
 
-auto HbLockGateOpen() -> void
+auto HbLockGateOpen(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbLockGateClosed() -> void
+auto HbLockGateClosed(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbReleaseGateLock() -> void
+auto HbReleaseGateLock(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
 }
 
-auto HbIsGateOpen() -> MCTypePtr
+auto HbIsGateOpen(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto HbGetRelPosPoint() -> void
+auto HbGetRelPosPoint(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_REAL_ARRAY, ARG_REAL, ARG_REAL, ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_REAL_ARRAY, ARG_REAL, ARG_REAL, ARG_INTEGER, ARG_REAL_ARRAY});
 }
 
-auto HbGetUnitStatus() -> MCTypePtr
+auto HbGetUnitStatus(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return RealTypePtr;
 }
 
-auto HbGetRelPosObject() -> void
+auto HbGetRelPosObject(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_INTEGER, ARG_REAL_ARRAY});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL, ARG_REAL, ARG_INTEGER, ARG_REAL_ARRAY});
 }
 
-auto HbRepair() -> void
+auto HbRepair(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_REAL});
+    Arguments(compiler, {ARG_INTEGER, ARG_REAL});
 }
 
-auto HbGetFixed() -> MCTypePtr
+auto HbGetFixed(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetRepairState() -> MCTypePtr
+auto HbGetRepairState(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbIsTeamTargeting() -> MCTypePtr
+auto HbIsTeamTargeting(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
     return BooleanTypePtr;
 }
 
-auto HbSendMessage() -> MCTypePtr
+auto HbSendMessage(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return nullptr;
 }
 
-auto HbGetMessage() -> MCTypePtr
+auto HbGetMessage(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbGetHomeTeam() -> MCTypePtr
+auto HbGetHomeTeam(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return IntegerTypePtr;
 }
 
-auto HbGetStrikes() -> MCTypePtr
+auto HbGetStrikes(MCAblCompiler& compiler) -> MCAblType*
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER});
     return IntegerTypePtr;
 }
 
-auto HbSetStrikes() -> void
+auto HbSetStrikes(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbAddStrikes() -> void
+auto HbAddStrikes(MCAblCompiler& compiler) -> void
 {
-    Arguments({ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
+    Arguments(compiler, {ARG_INTEGER, ARG_INTEGER, ARG_INTEGER});
 }
 
-auto HbIsServer() -> MCTypePtr
+auto HbIsServer(MCAblCompiler& compiler) -> MCAblType*
 {
-    NoArguments();
+    NoArguments(compiler);
     return BooleanTypePtr;
 }
 
-auto StandardRoutineCall(MCSymTableNodePtr routineIdPtr) -> MCTypePtr
+auto StandardRoutineCall(MCAblCompiler& compiler, MCAblSymbol* routineIdPtr) -> MCAblType*
 {
     switch (routineIdPtr->Defn.Info.Routine.Key)
     {
-        case RTN_RETURN:
+        case MCAblRoutineKey::Return:
         {
-            StdReturn();
+            StdReturn(compiler);
             return nullptr;
         }
-        case RTN_PRINT:
+        case MCAblRoutineKey::Print:
         {
-            StdPrint();
+            StdPrint(compiler);
             return nullptr;
         }
-        case RTN_CONCAT:
-            return StdConcat();
-        case RTN_ABS:
-            return StdAbs();
-        case RTN_ROUND:
-            return StdRound();
-        case RTN_SQRT:
-            return StdSqrt();
-        case RTN_TRUNC:
-            return StdTrunc();
-        case RTN_RANDOM:
-            return StdRandom();
-        case RTN_SET_MAX_LOOPS:
-            return StdSetMaxLoops();
-        case RTN_FATAL:
-            return StdFatal();
-        case RTN_ASSERT:
-            return StdAssert();
-        case RTN_GET_MODULE_HANDLE:
-        case RTN_GET_MODE:
-        case RTN_GET_ACTION:
-        case RTN_GET_PHASE:
-            return StdGetModHandle();
-        case RTN_GET_MODULE_NAME:
-            return StdGetModName();
-        case RTN_SET_MODULE_NAME:
+        case MCAblRoutineKey::Concat:
+            return StdConcat(compiler);
+        case MCAblRoutineKey::Abs:
+            return StdAbs(compiler);
+        case MCAblRoutineKey::Round:
+            return StdRound(compiler);
+        case MCAblRoutineKey::Sqrt:
+            return StdSqrt(compiler);
+        case MCAblRoutineKey::Trunc:
+            return StdTrunc(compiler);
+        case MCAblRoutineKey::Random:
+            return StdRandom(compiler);
+        case MCAblRoutineKey::SetMaxLoops:
+            return StdSetMaxLoops(compiler);
+        case MCAblRoutineKey::Fatal:
+            return StdFatal(compiler);
+        case MCAblRoutineKey::Assert:
+            return StdAssert(compiler);
+        case MCAblRoutineKey::GetModuleHandle:
+        case MCAblRoutineKey::GetMode:
+        case MCAblRoutineKey::GetAction:
+        case MCAblRoutineKey::GetPhase:
+            return StdGetModHandle(compiler);
+        case MCAblRoutineKey::GetModuleName:
+            return StdGetModName(compiler);
+        case MCAblRoutineKey::SetModuleName:
         {
-            StdSetModName();
+            StdSetModName(compiler);
             return nullptr;
         }
-        case RTN_GET_ID:
-            return HbGetId();
-        case RTN_GET_TIME:
-            return HbGetTime();
-        case RTN_GET_TIME_LEFT:
-            return HbGetTimeLeft();
-        case RTN_GET_WARRIOR_STATUS:
-            return HbGetWarriorStatus();
-        case RTN_SELECT_WARRIOR:
-            return HbSelectWarrior();
-        case RTN_SELECT_OBJECT:
-            return HbSelectObject();
-        case RTN_GET_CONTACTS:
-            return HbGetContacts();
-        case RTN_GET_ENEMY_COUNT:
-            return HbGetEnemyCount();
-        case RTN_SELECT_CONTACT:
-            return HbSelectContact();
-        case RTN_GET_CONTACT_ID:
-            return HbGetContactId();
-        case RTN_IS_CONTACT:
-            return HbIsContact();
-        case RTN_GET_CONTACT_STATUS:
-            return HbGetContactStatus();
-        case RTN_GET_CONTACT_RELATIVE_POSITION:
-            return HbGetContactRelativePosition();
-        case RTN_SET_GUARD_OBJECTIVE:
-            return HbSetGuardObjective();
-        case RTN_SET_GUARD_POINT:
-            return HbSetGuardPoint();
-        case RTN_SET_GUARD_RADII:
-            return HbSetGuardRadii();
-        case RTN_GET_GUARD_OBJECTIVE:
-            return HbGetGuardObjective();
-        case RTN_GET_GUARD_POINT:
-            return HbGetGuardPoint();
-        case RTN_GET_GUARD_RADII:
-            return HbGetGuardRadii();
-        case RTN_GET_GUARD_DISTANCE_TO:
-            return HbGetGuardDistanceTo();
-        case RTN_GET_TARGET:
-            return HbGetTarget();
-        case RTN_SET_TARGET:
+        case MCAblRoutineKey::GetId:
+            return HbGetId(compiler);
+        case MCAblRoutineKey::GetTime:
+            return HbGetTime(compiler);
+        case MCAblRoutineKey::GetTimeLeft:
+            return HbGetTimeLeft(compiler);
+        case MCAblRoutineKey::GetWarriorStatus:
+            return HbGetWarriorStatus(compiler);
+        case MCAblRoutineKey::SelectWarrior:
+            return HbSelectWarrior(compiler);
+        case MCAblRoutineKey::SelectObject:
+            return HbSelectObject(compiler);
+        case MCAblRoutineKey::GetContacts:
+            return HbGetContacts(compiler);
+        case MCAblRoutineKey::GetEnemyCount:
+            return HbGetEnemyCount(compiler);
+        case MCAblRoutineKey::SelectContact:
+            return HbSelectContact(compiler);
+        case MCAblRoutineKey::GetContactId:
+            return HbGetContactId(compiler);
+        case MCAblRoutineKey::IsContact:
+            return HbIsContact(compiler);
+        case MCAblRoutineKey::GetContactStatus:
+            return HbGetContactStatus(compiler);
+        case MCAblRoutineKey::GetContactRelativePosition:
+            return HbGetContactRelativePosition(compiler);
+        case MCAblRoutineKey::SetGuardObjective:
+            return HbSetGuardObjective(compiler);
+        case MCAblRoutineKey::SetGuardPoint:
+            return HbSetGuardPoint(compiler);
+        case MCAblRoutineKey::SetGuardRadii:
+            return HbSetGuardRadii(compiler);
+        case MCAblRoutineKey::GetGuardObjective:
+            return HbGetGuardObjective(compiler);
+        case MCAblRoutineKey::GetGuardPoint:
+            return HbGetGuardPoint(compiler);
+        case MCAblRoutineKey::GetGuardRadii:
+            return HbGetGuardRadii(compiler);
+        case MCAblRoutineKey::GetGuardDistanceTo:
+            return HbGetGuardDistanceTo(compiler);
+        case MCAblRoutineKey::GetTarget:
+            return HbGetTarget(compiler);
+        case MCAblRoutineKey::SetTarget:
         {
-            HbSetTarget();
+            HbSetTarget(compiler);
             return nullptr;
         }
-        case RTN_GET_WEAPONS_READY:
-        case RTN_GET_WEAPONS_LOCKED:
-        case RTN_GET_WEAPONS_IN_RANGE:
-            return HbGetWeapons();
-        case RTN_GET_WEAPON_SHOTS:
-            return HbGetWeaponShots();
-        case RTN_GET_WEAPON_RANGES:
-            return HbGetWeaponRanges();
-        case RTN_GET_OBJECT_POSITION:
-            return HbGetObjectPosition();
-        case RTN_GET_INTEGER_MEMORY:
-            return HbGetMemoryInteger();
-        case RTN_GET_REAL_MEMORY:
-            return HbGetMemoryReal();
-        case RTN_GET_ALARM_TRIGGERS:
-            return HbGetAlarmTriggers();
-        case RTN_GET_CHALLENGER:
-            return HbGetChallenger();
-        case RTN_GET_FIRE_RANGES:
+        case MCAblRoutineKey::GetWeaponsReady:
+        case MCAblRoutineKey::GetWeaponsLocked:
+        case MCAblRoutineKey::GetWeaponsInRange:
+            return HbGetWeapons(compiler);
+        case MCAblRoutineKey::GetWeaponShots:
+            return HbGetWeaponShots(compiler);
+        case MCAblRoutineKey::GetWeaponRanges:
+            return HbGetWeaponRanges(compiler);
+        case MCAblRoutineKey::GetObjectPosition:
+            return HbGetObjectPosition(compiler);
+        case MCAblRoutineKey::GetIntegerMemory:
+            return HbGetMemoryInteger(compiler);
+        case MCAblRoutineKey::GetRealMemory:
+            return HbGetMemoryReal(compiler);
+        case MCAblRoutineKey::GetAlarmTriggers:
+            return HbGetAlarmTriggers(compiler);
+        case MCAblRoutineKey::GetChallenger:
+            return HbGetChallenger(compiler);
+        case MCAblRoutineKey::GetFireRanges:
         {
-            HbGetFireRanges();
+            HbGetFireRanges(compiler);
             return nullptr;
         }
-        case RTN_GET_ATTACKERS:
-            return HbGetAttackers();
-        case RTN_GET_ATTACKER_INFO:
-            return HbGetAttackerInfo();
-        case RTN_SET_CHALLENGER:
-            return HbSetChallenger();
-        case RTN_GET_TIME_WITHOUT_ORDERS:
-            return HbGetTimeWithoutOrders();
-        case RTN_SET_RADIO:
-            return HbSetRadio();
-        case RTN_SET_MODE:
-        case RTN_SET_ACTION:
-        case RTN_SET_PHASE:
+        case MCAblRoutineKey::GetAttackers:
+            return HbGetAttackers(compiler);
+        case MCAblRoutineKey::GetAttackerInfo:
+            return HbGetAttackerInfo(compiler);
+        case MCAblRoutineKey::SetChallenger:
+            return HbSetChallenger(compiler);
+        case MCAblRoutineKey::GetTimeWithoutOrders:
+            return HbGetTimeWithoutOrders(compiler);
+        case MCAblRoutineKey::SetRadio:
+            return HbSetRadio(compiler);
+        case MCAblRoutineKey::SetMode:
+        case MCAblRoutineKey::SetAction:
+        case MCAblRoutineKey::SetPhase:
         {
-            HbSetMode();
+            HbSetMode(compiler);
             return nullptr;
         }
-        case RTN_SET_UPDATE_TIME:
+        case MCAblRoutineKey::SetUpdateTime:
         {
-            HbSetUpdateTime();
+            HbSetUpdateTime(compiler);
             return nullptr;
         }
-        case RTN_SET_MOVE_GOAL:
+        case MCAblRoutineKey::SetMoveGoal:
         {
-            HbSetMoveGoal();
+            HbSetMoveGoal(compiler);
             return nullptr;
         }
-        case RTN_SET_INTEGER_MEMORY:
+        case MCAblRoutineKey::SetIntegerMemory:
         {
-            HbSetMemoryInteger();
+            HbSetMemoryInteger(compiler);
             return nullptr;
         }
-        case RTN_SET_REAL_MEMORY:
+        case MCAblRoutineKey::SetRealMemory:
         {
-            HbSetMemoryReal();
+            HbSetMemoryReal(compiler);
             return nullptr;
         }
-        case RTN_START_FIELD_SCAN:
-            return HbStartFieldScan();
-        case RTN_START_ENEMY_SCAN:
-        case RTN_START_FRIENDLY_SCAN:
-            return HbStartContactScan();
-        case RTN_START_MOVE_PATH:
-            return HbStartMovePath();
-        case RTN_START_VEHICLE_SCAN:
-            return HbStartVehicleScan();
-        case RTN_HAS_MOVE_GOAL:
-            return HbHasMoveGoal();
-        case RTN_HAS_MOVE_PATH:
-            return HbHasMovePath();
-        case RTN_SORT_WEAPONS:
+        case MCAblRoutineKey::StartFieldScan:
+            return HbStartFieldScan(compiler);
+        case MCAblRoutineKey::StartEnemyScan:
+        case MCAblRoutineKey::StartFriendlyScan:
+            return HbStartContactScan(compiler);
+        case MCAblRoutineKey::StartMovePath:
+            return HbStartMovePath(compiler);
+        case MCAblRoutineKey::StartVehicleScan:
+            return HbStartVehicleScan(compiler);
+        case MCAblRoutineKey::HasMoveGoal:
+            return HbHasMoveGoal(compiler);
+        case MCAblRoutineKey::HasMovePath:
+            return HbHasMovePath(compiler);
+        case MCAblRoutineKey::SortWeapons:
         {
-            HbSortWeapons();
+            HbSortWeapons(compiler);
             return nullptr;
         }
-        case RTN_TIME_TO_IMPACT:
-            return HbTimeToImpact();
-        case RTN_FIRE_WEAPON:
-            return HbFireWeapon();
-        case RTN_GET_VISUAL_RANGE:
-            return HbGetVisualRange();
-        case RTN_GET_UNIT_MATES:
-            return HbGetUnitMates();
-        case RTN_GET_TAC_ORDER:
-            return HbGetTacOrder();
-        case RTN_GET_LAST_TAC_ORDER:
-            return HbGetLastTacOrder();
-        case RTN_SET_ORDER_MODE:
-            return HbSetOrderMode();
-        case RTN_ORDER_WAIT:
-            return HbWait();
-        case RTN_ORDER_MOVE_TO:
-            return HbMoveToPoint();
-        case RTN_ORDER_MOVE_TO_OBJECT:
-            return HbMoveToObject();
-        case RTN_ORDER_MOVE_TO_CONTACT:
-            return HbMoveToContact();
-        case RTN_ORDER_POWER_UP:
-            return HbOrderPowerUp();
-        case RTN_ORDER_POWER_DOWN:
-            return HbOrderPowerDown();
-        case RTN_ORDER_ATTACK_OBJECT:
-            return HbOrderAttackObject();
-        case RTN_ORDER_ATTACK_CONTACT:
-            return HbOrderAttackContact();
-        case RTN_ATTACK_THREAT:
-            return HbAttackThreat();
-        case RTN_ORDER_WITHDRAW:
-            return HbObjWithdraw();
-        case RTN_OPEN_FIRE:
-            return HbOpenFire();
-        case RTN_DAMAGE_OBJECT:
-            return HbDamageObject();
-        case RTN_SET_ATTACK_RADIUS:
-            return HbSetAttackRadius();
-        case RTN_ORDER_TEST:
-            return HbOrderTest();
-        case RTN_PLAY_SMACKER:
-            return HbPlaySmacker();
-        case RTN_FILE_EXISTS:
-            return HbFileExists();
-        case RTN_OBJECT_CHANGE_SIDES:
+        case MCAblRoutineKey::TimeToImpact:
+            return HbTimeToImpact(compiler);
+        case MCAblRoutineKey::FireWeapon:
+            return HbFireWeapon(compiler);
+        case MCAblRoutineKey::GetVisualRange:
+            return HbGetVisualRange(compiler);
+        case MCAblRoutineKey::GetUnitMates:
+            return HbGetUnitMates(compiler);
+        case MCAblRoutineKey::GetTacOrder:
+            return HbGetTacOrder(compiler);
+        case MCAblRoutineKey::GetLastTacOrder:
+            return HbGetLastTacOrder(compiler);
+        case MCAblRoutineKey::SetOrderMode:
+            return HbSetOrderMode(compiler);
+        case MCAblRoutineKey::OrderWait:
+            return HbWait(compiler);
+        case MCAblRoutineKey::OrderMoveTo:
+            return HbMoveToPoint(compiler);
+        case MCAblRoutineKey::OrderMoveToObject:
+            return HbMoveToObject(compiler);
+        case MCAblRoutineKey::OrderMoveToContact:
+            return HbMoveToContact(compiler);
+        case MCAblRoutineKey::OrderPowerUp:
+            return HbOrderPowerUp(compiler);
+        case MCAblRoutineKey::OrderPowerDown:
+            return HbOrderPowerDown(compiler);
+        case MCAblRoutineKey::OrderAttackObject:
+            return HbOrderAttackObject(compiler);
+        case MCAblRoutineKey::OrderAttackContact:
+            return HbOrderAttackContact(compiler);
+        case MCAblRoutineKey::AttackThreat:
+            return HbAttackThreat(compiler);
+        case MCAblRoutineKey::OrderWithdraw:
+            return HbObjWithdraw(compiler);
+        case MCAblRoutineKey::OpenFire:
+            return HbOpenFire(compiler);
+        case MCAblRoutineKey::DamageObject:
+            return HbDamageObject(compiler);
+        case MCAblRoutineKey::SetAttackRadius:
+            return HbSetAttackRadius(compiler);
+        case MCAblRoutineKey::OrderTest:
+            return HbOrderTest(compiler);
+        case MCAblRoutineKey::PlaySmacker:
+            return HbPlaySmacker(compiler);
+        case MCAblRoutineKey::FileExists:
+            return HbFileExists(compiler);
+        case MCAblRoutineKey::ObjectChangeSides:
         {
-            HbObjectChangeSides();
+            HbObjectChangeSides(compiler);
             return nullptr;
         }
-        case RTN_DISTANCE_TO_OBJECT:
-            return HbDistanceToObject();
-        case RTN_DISTANCE_TO_POSITION:
-            return HbDistanceToPosition();
-        case RTN_OBJECT_SUICIDE:
+        case MCAblRoutineKey::DistanceToObject:
+            return HbDistanceToObject(compiler);
+        case MCAblRoutineKey::DistanceToPosition:
+            return HbDistanceToPosition(compiler);
+        case MCAblRoutineKey::ObjectSuicide:
         {
-            HbObjectSuicide();
+            HbObjectSuicide(compiler);
             return nullptr;
         }
-        case RTN_OBJECT_CREATE:
-            return HbObjectCreate();
-        case RTN_OBJECT_EXISTS:
-            return HbObjectExists();
-        case RTN_OBJECT_STATUS:
-            return HbObjectStatus();
-        case RTN_OBJECT_VISIBLE:
-            return HbObjectVisible();
-        case RTN_OBJECT_CLASS:
-            return HbObjectClass();
-        case RTN_OBJECT_SIDE:
-            return HbObjectSide();
-        case RTN_OBJECT_COMMANDER:
-            return HbObjectCommander();
-        case RTN_SET_TIMER:
-            return HbSetTimer();
-        case RTN_CHECK_TIMER:
-            return HbChkTimer();
-        case RTN_END_TIMER:
+        case MCAblRoutineKey::ObjectCreate:
+            return HbObjectCreate(compiler);
+        case MCAblRoutineKey::ObjectExists:
+            return HbObjectExists(compiler);
+        case MCAblRoutineKey::ObjectStatus:
+            return HbObjectStatus(compiler);
+        case MCAblRoutineKey::ObjectVisible:
+            return HbObjectVisible(compiler);
+        case MCAblRoutineKey::ObjectClass:
+            return HbObjectClass(compiler);
+        case MCAblRoutineKey::ObjectSide:
+            return HbObjectSide(compiler);
+        case MCAblRoutineKey::ObjectCommander:
+            return HbObjectCommander(compiler);
+        case MCAblRoutineKey::SetTimer:
+            return HbSetTimer(compiler);
+        case MCAblRoutineKey::CheckTimer:
+            return HbChkTimer(compiler);
+        case MCAblRoutineKey::EndTimer:
         {
-            HbEndTimer();
+            HbEndTimer(compiler);
             return nullptr;
         }
-        case RTN_SET_OBJECTIVE_TIMER:
-            return HbSetObjectiveTimer();
-        case RTN_CHECK_OBJECTIVE_TIMER:
-            return HbCheckObjectiveTimer();
-        case RTN_SET_OBJECTIVE_STATUS:
-            return HbSetObjectiveStatus();
-        case RTN_CHECK_OBJECTIVE_STATUS:
-            return HbCheckObjectiveStatus();
-        case RTN_SET_OBJECTIVE_TYPE:
-            return HbSetObjectiveType();
-        case RTN_CHECK_OBJECTIVE_TYPE:
-            return HbCheckObjectiveType();
-        case RTN_PLAY_DIGITAL_MUSIC:
-            return HbPlayDigitalMusic();
-        case RTN_STOP_MUSIC:
-            return HbStopMusic();
-        case RTN_PLAY_SOUND_EFFECT:
-            return HbPlaySoundEffect();
-        case RTN_PLAY_VIDEO:
-            return HbPlayVideo();
-        case RTN_PLAY_SPEECH:
-            return HbPlaySpeech();
-        case RTN_PLAY_BETTY:
-            return HbPlayBetty();
-        case RTN_SET_OBJECT_ACTIVE:
-            return HbSetObjActive();
-        case RTN_OBJECT_IN_WITHDRAWAL:
-            return HbObjInWithdraw();
-        case RTN_OBJECT_TYPE_ID:
-            return HbObjTypeId();
-        case RTN_GET_TERRAIN_OBJECT_PART_ID:
-            return HbTerrainObjectId();
-        case RTN_GET_VEHICLE_PART_ID:
-            return HbVehicleId();
-        case RTN_GET_WEAPON_AMMO:
-            return HbGetWeaponAmmo();
-        case RTN_OBJECT_STATUS_COUNT:
-            return HbObjectStatusCount();
-        case RTN_IN_AREA:
-            return HbInArea();
-        case RTN_GET_RELATIVE_POSITION_TO_POINT:
+        case MCAblRoutineKey::SetObjectiveTimer:
+            return HbSetObjectiveTimer(compiler);
+        case MCAblRoutineKey::CheckObjectiveTimer:
+            return HbCheckObjectiveTimer(compiler);
+        case MCAblRoutineKey::SetObjectiveStatus:
+            return HbSetObjectiveStatus(compiler);
+        case MCAblRoutineKey::CheckObjectiveStatus:
+            return HbCheckObjectiveStatus(compiler);
+        case MCAblRoutineKey::SetObjectiveType:
+            return HbSetObjectiveType(compiler);
+        case MCAblRoutineKey::CheckObjectiveType:
+            return HbCheckObjectiveType(compiler);
+        case MCAblRoutineKey::PlayDigitalMusic:
+            return HbPlayDigitalMusic(compiler);
+        case MCAblRoutineKey::StopMusic:
+            return HbStopMusic(compiler);
+        case MCAblRoutineKey::PlaySoundEffect:
+            return HbPlaySoundEffect(compiler);
+        case MCAblRoutineKey::PlayVideo:
+            return HbPlayVideo(compiler);
+        case MCAblRoutineKey::PlaySpeech:
+            return HbPlaySpeech(compiler);
+        case MCAblRoutineKey::PlayBetty:
+            return HbPlayBetty(compiler);
+        case MCAblRoutineKey::SetObjectActive:
+            return HbSetObjActive(compiler);
+        case MCAblRoutineKey::ObjectInWithdrawal:
+            return HbObjInWithdraw(compiler);
+        case MCAblRoutineKey::ObjectTypeId:
+            return HbObjTypeId(compiler);
+        case MCAblRoutineKey::GetTerrainObjectPartId:
+            return HbTerrainObjectId(compiler);
+        case MCAblRoutineKey::GetVehiclePartId:
+            return HbVehicleId(compiler);
+        case MCAblRoutineKey::GetWeaponAmmo:
+            return HbGetWeaponAmmo(compiler);
+        case MCAblRoutineKey::ObjectStatusCount:
+            return HbObjectStatusCount(compiler);
+        case MCAblRoutineKey::InArea:
+            return HbInArea(compiler);
+        case MCAblRoutineKey::GetRelativePositionToPoint:
         {
-            HbGetRelPosPoint();
+            HbGetRelPosPoint(compiler);
             return nullptr;
         }
-        case RTN_GET_RELATIVE_POSITION_TO_OBJECT:
+        case MCAblRoutineKey::GetRelativePositionToObject:
         {
-            HbGetRelPosObject();
+            HbGetRelPosObject(compiler);
             return nullptr;
         }
-        case RTN_GET_SENSORS_WORKING:
-            return HbGetSensors();
-        case RTN_GET_CURRENT_BR_VALUE:
-            return HbGetBRValue();
-        case RTN_SET_CURRENT_BR_VALUE:
+        case MCAblRoutineKey::GetSensorsWorking:
+            return HbGetSensors(compiler);
+        case MCAblRoutineKey::GetCurrentBRValue:
+            return HbGetBRValue(compiler);
+        case MCAblRoutineKey::SetCurrentBRValue:
         {
             // Original behaviour: compiled by the getter (one argument), not hbSetBRValue.
-            HbGetBRValue();
+            HbGetBRValue(compiler);
             return nullptr;
         }
-        case RTN_GET_ARMOR_PTS:
-            return HbGetArmor();
-        case RTN_GET_MAX_ARMOR:
-            return HbGetMaxArmor();
-        case RTN_GET_PILOT_ID:
-            return HbGetPilotId();
-        case RTN_GET_PILOT_WOUNDS:
-            return HbGetPilotWounds();
-        case RTN_SET_PILOT_WOUNDS:
+        case MCAblRoutineKey::GetArmorPts:
+            return HbGetArmor(compiler);
+        case MCAblRoutineKey::GetMaxArmor:
+            return HbGetMaxArmor(compiler);
+        case MCAblRoutineKey::GetPilotId:
+            return HbGetPilotId(compiler);
+        case MCAblRoutineKey::GetPilotWounds:
+            return HbGetPilotWounds(compiler);
+        case MCAblRoutineKey::SetPilotWounds:
         {
-            HbSetPilotWounds();
+            HbSetPilotWounds(compiler);
             return nullptr;
         }
-        case RTN_GET_OBJECT_ACTIVE:
-            return HbGetObjActive();
-        case RTN_GET_OBJECT_DMG_PTS:
-            return HbGetObjDmgPts();
-        case RTN_GET_OBJECT_MAX_DMG:
-            return HbGetObjMaxDmg();
-        case RTN_GET_OBJECT_DAMAGE:
-            return HbGetObjDamage();
-        case RTN_SET_OBJECT_DAMAGE:
+        case MCAblRoutineKey::GetObjectActive:
+            return HbGetObjActive(compiler);
+        case MCAblRoutineKey::GetObjectDmgPts:
+            return HbGetObjDmgPts(compiler);
+        case MCAblRoutineKey::GetObjectMaxDmg:
+            return HbGetObjMaxDmg(compiler);
+        case MCAblRoutineKey::GetObjectDamage:
+            return HbGetObjDamage(compiler);
+        case MCAblRoutineKey::SetObjectDamage:
         {
-            HbSetObjDamage();
+            HbSetObjDamage(compiler);
             return nullptr;
         }
-        case RTN_GET_GLOBAL_VALUE:
-            return HbGetGlobalValue();
-        case RTN_SET_GLOBAL_VALUE:
+        case MCAblRoutineKey::GetGlobalValue:
+            return HbGetGlobalValue(compiler);
+        case MCAblRoutineKey::SetGlobalValue:
         {
-            HbSetGlobalValue();
+            HbSetGlobalValue(compiler);
             return nullptr;
         }
-        case RTN_SET_OBJECTIVE_POS:
+        case MCAblRoutineKey::SetObjectivePos:
         {
-            HbSetObjectivePos();
+            HbSetObjectivePos(compiler);
             return nullptr;
         }
-        case RTN_SET_POTENTIAL_CONTACT:
-            return HbSetPotentialContact();
-        case RTN_SET_SENSOR_RANGE:
-            return HbSetSensorRange();
-        case RTN_SET_TONNAGE:
+        case MCAblRoutineKey::SetPotentialContact:
+            return HbSetPotentialContact(compiler);
+        case MCAblRoutineKey::SetSensorRange:
+            return HbSetSensorRange(compiler);
+        case MCAblRoutineKey::SetTonnage:
         {
-            HbSetTonnage();
+            HbSetTonnage(compiler);
             return nullptr;
         }
-        case RTN_PLAY_WAVE_FILE:
+        case MCAblRoutineKey::PlayWaveFile:
         {
-            HbPlayWave();
+            HbPlayWave(compiler);
             return nullptr;
         }
-        case RTN_SET_EXPLOSION_DAMAGE:
+        case MCAblRoutineKey::SetExplosionDamage:
         {
-            HbSetExplDmg();
+            HbSetExplDmg(compiler);
             return nullptr;
         }
-        case RTN_SET_EXPLOSION_RADIUS:
+        case MCAblRoutineKey::SetExplosionRadius:
         {
-            HbSetExplRad();
+            HbSetExplRad(compiler);
             return nullptr;
         }
-        case RTN_GET_SALVAGE:
+        case MCAblRoutineKey::GetSalvage:
         {
-            HbGetSalvage();
+            HbGetSalvage(compiler);
             return nullptr;
         }
-        case RTN_SET_SALVAGE:
-            return HbSetSalvage();
-        case RTN_SET_SALVAGE_STATUS:
-            return HbSetSalvageStatus();
-        case RTN_SET_ANIMATION:
+        case MCAblRoutineKey::SetSalvage:
+            return HbSetSalvage(compiler);
+        case MCAblRoutineKey::SetSalvageStatus:
+            return HbSetSalvageStatus(compiler);
+        case MCAblRoutineKey::SetAnimation:
         {
-            HbSetAnimation();
+            HbSetAnimation(compiler);
             return nullptr;
         }
-        case RTN_SET_REVEALED:
+        case MCAblRoutineKey::SetRevealed:
         {
-            HbSetRevealed();
+            HbSetRevealed(compiler);
             return nullptr;
         }
-        case RTN_ORDER_REFIT:
+        case MCAblRoutineKey::OrderRefit:
         {
-            HbRefit();
+            HbRefit(compiler);
             return nullptr;
         }
-        case RTN_ORDER_CAPTURE:
+        case MCAblRoutineKey::OrderCapture:
         {
-            HbCaptureObject();
+            HbCaptureObject(compiler);
             return nullptr;
         }
-        case RTN_SET_CAPTURED:
+        case MCAblRoutineKey::SetCaptured:
         {
-            HbSetCaptured();
+            HbSetCaptured(compiler);
             return nullptr;
         }
-        case RTN_SET_CAPTUREABLE:
+        case MCAblRoutineKey::SetCaptureable:
         {
-            HbSetCaptureable();
+            HbSetCaptureable(compiler);
             return nullptr;
         }
-        case RTN_IS_CAPTURED:
-            return HbIsCaptured();
-        case RTN_IS_CAPTURABLE:
-            return HbIsCapturable();
-        case RTN_WAS_EVER_CAPTURABLE:
-            return HbWasEverCapturable();
-        case RTN_SET_BUILDING_NAME:
+        case MCAblRoutineKey::IsCaptured:
+            return HbIsCaptured(compiler);
+        case MCAblRoutineKey::IsCapturable:
+            return HbIsCapturable(compiler);
+        case MCAblRoutineKey::WasEverCapturable:
+            return HbWasEverCapturable(compiler);
+        case MCAblRoutineKey::SetBuildingName:
         {
-            HbSetBuildingName();
+            HbSetBuildingName(compiler);
             return nullptr;
         }
-        case RTN_CALL_STRIKE:
+        case MCAblRoutineKey::CallStrike:
         {
-            HbCallStrike();
+            HbCallStrike(compiler);
             return nullptr;
         }
-        case RTN_ORDER_LOAD_ELEMENTALS:
+        case MCAblRoutineKey::OrderLoadElementals:
         {
-            HbLoadElementals();
+            HbLoadElementals(compiler);
             return nullptr;
         }
-        case RTN_ORDER_DEPLOY_ELEMENTALS:
+        case MCAblRoutineKey::OrderDeployElementals:
         {
-            HbDeployElementals();
+            HbDeployElementals(compiler);
             return nullptr;
         }
-        case RTN_ADD_PRISONER:
+        case MCAblRoutineKey::AddPrisoner:
         {
             // Original behaviour: the integer result type is dropped, so the call compiles as a statement.
-            HbAddPrisoner();
+            HbAddPrisoner(compiler);
             return nullptr;
         }
-        case RTN_SET_TRAIN_SPEED:
+        case MCAblRoutineKey::SetTrainSpeed:
         {
-            HbSetTrainSpeed();
+            HbSetTrainSpeed(compiler);
             return nullptr;
         }
-        case RTN_LOCK_GATE_OPEN:
+        case MCAblRoutineKey::LockGateOpen:
         {
-            HbLockGateOpen();
+            HbLockGateOpen(compiler);
             return nullptr;
         }
-        case RTN_LOCK_GATE_CLOSED:
+        case MCAblRoutineKey::LockGateClosed:
         {
-            HbLockGateClosed();
+            HbLockGateClosed(compiler);
             return nullptr;
         }
-        case RTN_RELEASE_GATE_LOCK:
+        case MCAblRoutineKey::ReleaseGateLock:
         {
-            HbReleaseGateLock();
+            HbReleaseGateLock(compiler);
             return nullptr;
         }
-        case RTN_IS_GATE_OPEN:
-            return HbIsGateOpen();
-        case RTN_CALL_STRIKE_EX:
+        case MCAblRoutineKey::IsGateOpen:
+            return HbIsGateOpen(compiler);
+        case MCAblRoutineKey::CallStrikeEx:
         {
-            HbCallStrikeEx();
+            HbCallStrikeEx(compiler);
             return nullptr;
         }
-        case RTN_GET_UNIT_STATUS:
-            return HbGetUnitStatus();
-        case RTN_REPAIR:
+        case MCAblRoutineKey::GetUnitStatus:
+            return HbGetUnitStatus(compiler);
+        case MCAblRoutineKey::Repair:
         {
-            HbRepair();
+            HbRepair(compiler);
             return nullptr;
         }
-        case RTN_GET_FIXED:
-            return HbGetFixed();
-        case RTN_GET_REPAIR_STATE:
-            return HbGetRepairState();
-        case RTN_IS_TEAM_TARGETING:
-            return HbIsTeamTargeting();
-        case RTN_SEND_MESSAGE:
-            return HbSendMessage();
-        case RTN_GET_MESSAGE:
-            return HbGetMessage();
-        case RTN_GET_HOME_TEAM:
-            return HbGetHomeTeam();
-        case RTN_SET_STRIKES:
+        case MCAblRoutineKey::GetFixed:
+            return HbGetFixed(compiler);
+        case MCAblRoutineKey::GetRepairState:
+            return HbGetRepairState(compiler);
+        case MCAblRoutineKey::IsTeamTargeting:
+            return HbIsTeamTargeting(compiler);
+        case MCAblRoutineKey::SendMessage:
+            return HbSendMessage(compiler);
+        case MCAblRoutineKey::GetMessage:
+            return HbGetMessage(compiler);
+        case MCAblRoutineKey::GetHomeTeam:
+            return HbGetHomeTeam(compiler);
+        case MCAblRoutineKey::SetStrikes:
         {
-            HbSetStrikes();
+            HbSetStrikes(compiler);
             return nullptr;
         }
-        case RTN_GET_STRIKES:
-            return HbGetStrikes();
-        case RTN_IS_SERVER:
-            return HbIsServer();
-        case RTN_ADD_STRIKES:
+        case MCAblRoutineKey::GetStrikes:
+            return HbGetStrikes(compiler);
+        case MCAblRoutineKey::IsServer:
+            return HbIsServer(compiler);
+        case MCAblRoutineKey::AddStrikes:
         {
-            HbAddStrikes();
+            HbAddStrikes(compiler);
             return nullptr;
         }
         default:

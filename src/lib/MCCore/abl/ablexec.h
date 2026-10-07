@@ -1,6 +1,6 @@
 #pragma once
 
-// ABL code generation ("crunching") and the interpreter's runtime stack.
+// The ABL interpreter's crunched code and runtime stack.
 //
 // ---- The runtime stack (64-bit design) -------------------------------------------------------------------------
 //
@@ -25,35 +25,34 @@
 //    items, whatever byte size ABLi_init is given. Eternal variables occupy items 0 .. eternalOffset - 1.
 //  - Static variables live in each ABLModule's staticData, an array of StackItems (arrays again as pointers).
 //
-// ---- The code buffer (64-bit design) ---------------------------------------------------------------------------
+// ---- The crunched code (64-bit design) -------------------------------------------------------------------------
 //
-// The compiler crunches each routine into a byte stream in codeBuffer, then createCodeSegment copies it to a heap
-// block (_SymTableNode::defn.info.routine.codeSegment). The stream is:
+// MCAblCodeWriter crunches each routine into a byte stream, then makes it a segment in AblMemory
+// (MCAblDefinition's Routine.CodeSegment). The stream is:
 //
-//  - token             1 byte (a TokenCodeType), crunched by getToken while blockFlag is set.
-//  - symbol operand    after TKN_IDENTIFIER, TKN_NUMBER, TKN_STRING and function-call tokens: a SymTableNodePtr.
-//                      The original stored the 4-byte pointer; the port stores the 8-byte pointer
-//                      (CODE_SYMBOL_PTR_SIZE), written and read with memcpy since it is unaligned. Code segments
-//                      live only in memory for the run (they are rebuilt from source at load), so raw pointers
-//                      are safe.
-//  - statement marker  TKN_STATEMENT_MARKER ('C') inserted before a statement's first token: with
+//  - token             1 byte (an MCAblToken), written by MCAblCompiler::NextToken inside a code block.
+//  - symbol operand    after an identifier, number, string or function-call token: an MCAblSymbol*. The original
+//                      stored the 4-byte pointer; the port stores the 8-byte pointer (CODE_SYMBOL_PTR_SIZE), written
+//                      and read with memcpy since it is unaligned. Code segments live only in memory for the run
+//                      (they are rebuilt from source at load), so raw pointers are safe.
+//  - statement marker  MCAblToken::StatementMarker ('C') inserted before a statement's first token: with
 //                      IncludeDebugInfo, a uint8 file number and an int32 line number follow (5 bytes), then the
 //                      displaced token. No pointer: same size as the original.
-//  - address marker    TKN_ADDRESS_MARKER ('D') inserted before a token: an int32 then the displaced token. Once
-//                      fixed up (fixupAddressMarker), the int32 is the offset from the marker's slot to the jump
-//                      target (getCodeAddress returns slot + offset - 1). Relative, so segments can be copied.
-//                      Before fixup the slot chains to the previous unfixed marker (switch statements chain their
-//                      case exits); the original stored that char* in the 4 bytes. The port stores it as an int32
-//                      offset from codeBuffer, or -1 for null (CODE_ADDRESS_CHAIN_NULL), and fixupAddressMarker
-//                      decodes it.
-//  - integer operand   crunchInteger: an int32 (4 bytes).
-//  - offset operand    crunchOffset: an int32, the target minus the operand's own position.
+//  - address marker    MCAblToken::AddressMarker ('D') inserted before a token: an int32 then the displaced token.
+//                      Once fixed up, the int32 is the offset from the marker's slot to the jump target
+//                      (getCodeAddress returns slot + offset - 1). Relative, so segments can be copied. Before fixup
+//                      the slot chains to the previous unfixed marker (switch statements chain their case exits); the
+//                      original stored that char* in the 4 bytes. The port stores the marker's offset in the code,
+//                      or -1 for none (CODE_ADDRESS_CHAIN_NULL).
+//  - integer operand   an int32 (4 bytes).
+//  - offset operand    an int32, the target minus the operand's own position.
 //
 // Debugger::sprintStatement walks this stream, so it skips symbol operands by CODE_SYMBOL_PTR_SIZE and address
 // markers by CODE_ADDRESS_SIZE.
 
-#include "abl/ablscan.h"
-#include "abl/ablsymt.h"
+#include "abl/MCAblToken.h"
+#include "abl/MCAblSymbolTable.h"
+#include "platform/MCBlockStore.h"
 
 struct MCAblParam;
 
@@ -89,7 +88,7 @@ typedef MCStackFrameHeader* MCStackFrameHeaderPtr;
 /// <summary>Items in the ABL stack (the original's limit: 0xa000 bytes of 4-byte items).</summary>
 inline constexpr int32_t MAXSIZE_STACK = 0xa000 / 4;
 /// <summary>Bytes of a symbol operand in crunched code (4 in the original).</summary>
-inline constexpr int32_t CODE_SYMBOL_PTR_SIZE = static_cast<int32_t>(sizeof(MCSymTableNodePtr));
+inline constexpr int32_t CODE_SYMBOL_PTR_SIZE = static_cast<int32_t>(sizeof(MCAblSymbol*));
 /// <summary>Bytes of an address marker's operand in crunched code.</summary>
 inline constexpr int32_t CODE_ADDRESS_SIZE = 4;
 /// <summary>Bytes of an integer or offset operand in crunched code.</summary>
@@ -101,19 +100,12 @@ inline constexpr int32_t CODE_ADDRESS_CHAIN_NULL = -1;
 
 /// <summary>Nonzero to put file and line numbers in statement markers.</summary>
 extern int IncludeDebugInfo;
-/// <summary>Nonzero while tokens are crunched (statement() turns it off for disabled print/assert/string calls).</summary>
-extern int Crunch;
-/// <summary>The compile buffer and the next free byte in it.</summary>
-extern char* CodeBuffer;
-extern char* CodeBufferPtr;
-extern int32_t MaxCodeBufferSize;
-/// <summary>The next code byte to execute, and the end of the segment last created.</summary>
+/// <summary>The next code byte to execute.</summary>
 extern char* CodeSegmentPtr;
-extern char* CodeSegmentLimit;
 /// <summary>Where the statement being executed starts (for the debugger).</summary>
 extern char* StatementStartPtr;
 /// <summary>The code token being executed.</summary>
-extern MCTokenCodeType CodeToken;
+extern MCAblToken CodeToken;
 /// <summary>The ABL stack (an unnamed global of the original, @ 0x007c3e44).</summary>
 extern MCStackItemPtr Stack;
 /// <summary>Top of stack.</summary>
@@ -130,44 +122,25 @@ extern int32_t ExecStatementCount;
 extern int32_t ExecLineNumber;
 /// <summary>Set by a tactical-order routine to leave the running routine at once.</summary>
 extern int ExitFromTacOrder;
-
-/// <summary>Appends curToken to the code buffer.</summary>
-void CrunchToken();
-
-/// <summary>Appends a symbol operand (CODE_SYMBOL_PTR_SIZE bytes).</summary>
-void CrunchSymTableNodePtr(MCSymTableNodePtr nodePtr);
-
-/// <summary>Inserts a statement marker before the token just crunched.</summary>
-void CrunchStatementMarker();
-
-/// <summary>Removes the statement marker just inserted (with its token).</summary>
-void UncrunchStatementMarker();
-
+/// <summary>The current routine's scope level while executing (1 for a module's code).</summary>
+extern int32_t Level;
+/// <summary>The source file of the statement being executed (from its marker), or -1.</summary>
+extern int32_t ExecFileNumber;
 /// <summary>
-/// Inserts an address marker before the token just crunched; its slot keeps <paramref name="address"/> (a chain to
-/// another unfixed marker) until fixupAddressMarker.
+/// The memory ABL owns between ABLi_init and ABLi_close: the stack, the registries, code segments, static data and
+/// array blocks. ABLi_close clears it; many blocks (static arrays) are only ever freed that way.
 /// </summary>
-/// <returns>The marker's slot (to fix up later), or null when not crunching.</returns>
-char* CrunchAddressMarker(MCAddress address);
-
-/// <summary>Points the marker at <paramref name="address"/> to the current code position.</summary>
-/// <returns>The marker it chained to.</returns>
-char* FixupAddressMarker(MCAddress address);
-
-/// <summary>Appends an int32 operand.</summary>
-void CrunchInteger(int32_t value);
-
-/// <summary>Appends <paramref name="address"/> as an int32 offset from the operand's position.</summary>
-void CrunchOffset(MCAddress address);
-
-/// <summary>Copies the compiled code to a new segment in AblMemory and empties the buffer.</summary>
-/// <returns>The segment.</returns>
-char* CreateCodeSegment();
+/// <remarks>
+/// Port: replaces the original's three ABL heaps (AblSymbolTableHeap, AblStackHeap, AblCodeHeap, sized from the
+/// mission files). Nothing runs out, so the "unable to malloc" paths are gone. The symbols and types are
+/// MCAblSymbolTable's.
+/// </remarks>
+extern MCBlockStore AblMemory;
 
 /// <summary>Reads a symbol operand.</summary>
-MCSymTableNodePtr GetCodeSymTableNodePtr();
+MCAblSymbol* GetCodeSymTableNodePtr();
 
-/// <summary>At a statement marker with debug info, reads its file (into FileNumber) and line.</summary>
+/// <summary>At a statement marker with debug info, reads its file (into ExecFileNumber) and line.</summary>
 /// <returns>The line, or -1.</returns>
 int32_t GetCodeStatementMarker();
 
@@ -206,22 +179,22 @@ void PushAddress(MCAddress address);
 void PushStackFrameHeader(int32_t oldLevel, int32_t newLevel);
 
 /// <summary>Pushes a local of <paramref name="typePtr"/>: zero, or a new, zeroed array block in AblMemory.</summary>
-void AllocLocal(MCTypePtr typePtr);
+void AllocLocal(MCAblType* typePtr);
 
 /// <summary>Frees a local array's block (reference parameters are left alone).</summary>
-void FreeLocal(MCSymTableNodePtr idPtr);
+void FreeLocal(MCAblSymbol* idPtr);
 
 /// <summary>Enters a routine: traces it, jumps to its code and allocates its locals.</summary>
-void RoutineEntry(MCSymTableNodePtr routineIdPtr);
+void RoutineEntry(MCAblSymbol* routineIdPtr);
 
 /// <summary>Leaves a routine: frees its array parameters and locals, pops its frame and returns to the caller's code.</summary>
-void RoutineExit(MCSymTableNodePtr routineIdPtr);
+void RoutineExit(MCAblSymbol* routineIdPtr);
 
 /// <summary>Runs a routine (a module's main code): its <c>init</c> function first if the module wasn't initialised.</summary>
-void Execute(MCSymTableNodePtr routineIdPtr);
+void Execute(MCAblSymbol* routineIdPtr);
 
 /// <summary>
 /// Enters module <paramref name="moduleIdPtr"/>'s frame and runs only its function <paramref name="childRoutineIdPtr"/>
 /// (after <c>init</c> on the first execution).
 /// </summary>
-void ExecuteChild(MCSymTableNodePtr moduleIdPtr, MCSymTableNodePtr childRoutineIdPtr, MCAblParam* paramList);
+void ExecuteChild(MCAblSymbol* moduleIdPtr, MCAblSymbol* childRoutineIdPtr, MCAblParam* paramList);

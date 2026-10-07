@@ -1063,10 +1063,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             {
                 std::string libraryFileName;
                 libraryFileName = GamePath(MissionPath, libraryName, ".abx");
-                int32_t numErrors = 0;
-                int32_t numLines = 0;
 
-                if (AblLoadLibrary(libraryFileName.data(), &numErrors, &numLines, nullptr, 0) != 0)
+                if (AblLoadLibrary(libraryFileName) != 0)
                 {
                     char message[512];
                     std::snprintf(message, sizeof(message), " Cannot load ABL Library %s ", libraryName);
@@ -1096,9 +1094,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     std::string scriptFileName;
     scriptFileName = GamePath(MissionPath, ScenarioScript, ".abl");
-    int32_t numErrors = 0;
-    int32_t numLines = 0;
-    ScenarioScriptHandle = AblPreProcess(scriptFileName.data(), &numErrors, &numLines, nullptr, 0);
+    ScenarioScriptHandle = AblPreProcess(scriptFileName);
     Assert(-1 < ScenarioScriptHandle, static_cast<uint32_t>(ScenarioScriptHandle), " Bad Scenario Script ");
     ScenarioBrain = new MCAblModule;
 
@@ -1193,9 +1189,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             Warriors[i]->SetBrainName(brainName);
             std::string brainFileName;
             brainFileName = GamePath(WarriorPath, brainName, ".abl");
-            int32_t brainErrors = 0;
-            int32_t brainLines = 0;
-            const int32_t brainHandle = AblPreProcess(brainFileName.data(), &brainErrors, &brainLines, nullptr, 0);
+            const int32_t brainHandle = AblPreProcess(brainFileName);
             Assert(-1 < brainHandle, static_cast<uint32_t>(brainHandle), " Could not start Warrior Brain ");
             const int32_t setBrainResult = Warriors[i]->SetBrain(brainHandle);
             Assert(setBrainResult == 0, static_cast<uint32_t>(setBrainResult), " Could Not Set Brain ");
