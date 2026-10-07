@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "object/debris.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "gui/asystem.h"
@@ -10,7 +11,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "sprite/armactor.h"
+#include "sprite/MCArmAppearance.h"
 #include "terrain/terrain.h"
 
 //---------------------------------------------------------------------------
@@ -283,7 +284,7 @@ auto MCDebris::Init(MCObjectType* objType) -> int32_t
 
     JustCreated = 1;
     CollisionsOn = 0;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {

@@ -2,6 +2,7 @@
 
 #include "object/gameobj.h"
 #include "object/objtype.h"
+#include "platform/MCRegisteredBlock.h"
 
 class MCAppearance;
 class MCBaseObject;
@@ -83,7 +84,7 @@ public:
     int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
 
     /// <summary>The countdown sprite (a VFX shape file), in the sprite manager's shape RAM.</summary>
-    uint8_t* ShapeData = nullptr;
+    MCRegisteredBlock ShapeData;
     /// <summary>FIT "FrameCount".</summary>
     uint32_t FrameCount = 0;
     /// <summary>FIT "StartFrame".</summary>

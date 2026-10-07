@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "object/bullet.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "engine/MCCraterManager.h"
@@ -18,7 +19,7 @@
 #include "object/objque.h"
 #include "object/smoke.h"
 #include "sound/soundsys.h"
-#include "sprite/armactor.h"
+#include "sprite/MCArmAppearance.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 
@@ -474,7 +475,7 @@ auto MCBullet::Init(MCObjectType* objType) -> int32_t
     }
 
     JustCreated = 1;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType != nullptr)
     {

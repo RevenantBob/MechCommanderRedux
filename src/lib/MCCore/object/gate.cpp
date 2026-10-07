@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "object/gate.h"
 #include "ai/move.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
@@ -25,7 +26,7 @@
 #include "object/objque.h"
 #include "object/team.h"
 #include "sound/soundsys.h"
-#include "sprite/puactor.h"
+#include "sprite/MCPUAppearance.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 
@@ -822,7 +823,7 @@ auto MCGate::Init(MCObjectType* objType) -> int32_t
     }
 
     JustCreated = 1;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {

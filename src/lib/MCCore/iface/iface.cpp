@@ -2,7 +2,7 @@
 #include "iface/iface.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
-#include "appear/appear.h"
+#include "appear/MCAppearance.h"
 #include "camera/camera.h"
 #include "color/MCPalette.h"
 #include "gui/afont.h"

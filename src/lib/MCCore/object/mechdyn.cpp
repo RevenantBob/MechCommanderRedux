@@ -5,7 +5,7 @@
 #include "object/control.h"
 #include "object/mech.h"
 #include "object/mechctrl.h"
-#include "sprite/mactor.h"
+#include "sprite/MCMechActor.h"
 
 // The original turns on the x87 stack: the sums below that it keeps at extended precision are done in double.
 

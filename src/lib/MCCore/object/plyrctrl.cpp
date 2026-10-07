@@ -6,7 +6,7 @@
 #include "object/gvehctrl.h"
 #include "object/mech.h"
 #include "object/mechctrl.h"
-#include "sprite/mactor.h"
+#include "sprite/MCMechActor.h"
 
 namespace
 {
@@ -109,7 +109,7 @@ namespace
                 jumpGoal.X += position.X;
                 jumpGoal.Y += position.Y;
                 jumpGoal.Z += position.Z;
-                actor->SetJumpParameters(jumpGoal, 0);
+                actor->SetJumpParameters(jumpGoal);
                 actor->SetGestureGoal(6);
                 break;
             }

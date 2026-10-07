@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "object/train.h"
 #include "ai/move.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "engine/MCByteFlag.h"
@@ -27,7 +28,7 @@
 #include "object/objque.h"
 #include "object/team.h"
 #include "sound/soundsys.h"
-#include "sprite/gvactor.h"
+#include "sprite/MCGVAppearance.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -829,7 +830,7 @@ auto MCTrainCar::Init(MCObjectType* objType) -> int32_t
     }
 
     Derailed = 0;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {
@@ -1014,7 +1015,7 @@ auto MCTrainCar::Update() -> int32_t
 
         if (IsDestroyed() != 0)
         {
-            static_cast<MCGVAppearance*>(Appearance)->SetTypeId(GV_ACTOR_STATE_DESTROYED);
+            static_cast<MCGVAppearance*>(Appearance)->SetTypeId(MCGVActorState::Destroyed);
         }
     }
 

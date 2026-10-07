@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "object/tbldng.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
@@ -28,8 +29,8 @@
 #include "object/team.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "sprite/actor.h"
-#include "sprite/lactor.h"
+#include "sprite/MCVfxAppearance.h"
+#include "sprite/MCElementalActor.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -486,7 +487,7 @@ auto MCTreeBuilding::Update() -> int32_t
 
     if (CanRefit != 0)
     {
-        treeAppearance->SetTypeId(ACTOR_STATE_NORMAL, 0);
+        treeAppearance->SetTypeId(MCActorState::Normal, 0);
     }
 
     return 1;
@@ -663,13 +664,13 @@ auto MCTreeBuilding::Render() -> void
             Collapsing = 0;
             Collapsed = 1;
 
-            if (state == ACTOR_STATE_BLOWING_UP1)
+            if (state == MCActorState::BlowingUp1)
             {
-                treeAppearance->SetTypeId(ACTOR_STATE_DAMAGED, 0xff);
+                treeAppearance->SetTypeId(MCActorState::Damaged, 0xff);
             }
-            else if (state == ACTOR_STATE_DESTROYED)
+            else if (state == MCActorState::Destroyed)
             {
-                treeAppearance->SetTypeId(ACTOR_STATE_FALLEN_DMG, 0xff);
+                treeAppearance->SetTypeId(MCActorState::FallenDamaged, 0xff);
             }
 
             treeAppearance->Update();
@@ -790,7 +791,7 @@ auto MCTreeBuilding::Render() -> void
     else
     {
         // Standing, it sorts with the terrain; fallen or burning down, by its screen row.
-        const bool standing = treeAppearance->CurrentState == ACTOR_STATE_NORMAL;
+        const bool standing = treeAppearance->CurrentState == MCActorState::Normal;
         treeAppearance->Render(standing ? 0 : static_cast<int32_t>(ScreenPos.Y));
         uint8_t* shadow = standing ? type->NormalShadow : type->DestroyedShadow;
 
@@ -887,7 +888,7 @@ auto MCTreeBuilding::Init(MCObjectType* objType) -> int32_t
     SetExists(1);
     const uint32_t appearId = objType->AppearName;
     JustCreated = 1;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(appearId);
 
     if (apprType == nullptr)
     {
@@ -1172,7 +1173,7 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
 
     // Original behaviour: hitOnce was set just above, so the collapse always plays the destroyed state (4), never 1.
     auto* treeAppearance = static_cast<MCVfxAppearance*>(Appearance);
-    treeAppearance->SetTypeId(HitOnce == 0 ? ACTOR_STATE_BLOWING_UP1 : ACTOR_STATE_DESTROYED, 0xff);
+    treeAppearance->SetTypeId(HitOnce == 0 ? MCActorState::BlowingUp1 : MCActorState::Destroyed, 0xff);
 
     if (Burning == 0)
     {

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/mover.h"
 #include "ai/move.h"
-#include "appear/appear.h"
+#include "appear/MCAppearance.h"
 #include "engine/MCByteFlag.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"

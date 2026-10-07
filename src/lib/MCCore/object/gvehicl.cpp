@@ -2,7 +2,8 @@
 #include "object/gvehicl.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "engine/MCElementBuffer.h"
@@ -45,9 +46,9 @@
 #include "object/team.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "sprite/gvactor.h"
-#include "sprite/lactor.h"
-#include "sprite/puactor.h"
+#include "sprite/MCGVAppearance.h"
+#include "sprite/MCElementalActor.h"
+#include "sprite/MCPUAppearance.h"
 #include "terrain/terrain.h"
 
 int32_t GroundVehicleAttackerMoveModifier[4] = {};
@@ -618,7 +619,7 @@ auto MCGroundVehicle::GetBodyState() -> int32_t
         return std::bit_cast<int32_t>(static_cast<MCPUAppearance*>(Appearance)->ShapeMaxY);
     }
 
-    return static_cast<MCGVAppearance*>(Appearance)->CurrentState;
+    return static_cast<int32_t>(static_cast<MCGVAppearance*>(Appearance)->CurrentState);
 }
 
 auto MCGroundVehicle::CanMove() -> int
@@ -835,7 +836,7 @@ auto MCGroundVehicle::Init(MCObjectType* objType) -> int32_t
     }
 
     const uint32_t appearanceId = vehicleType->AppearName;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearanceId, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(appearanceId);
 
     if (apprType == nullptr)
     {
@@ -2799,7 +2800,7 @@ auto MCGroundVehicle::Update() -> int32_t
             }
             else
             {
-                static_cast<MCGVAppearance*>(Appearance)->SetTypeId(GV_ACTOR_STATE_DESTROYED);
+                static_cast<MCGVAppearance*>(Appearance)->SetTypeId(MCGVActorState::Destroyed);
             }
 
             if (Appearance != nullptr)
@@ -2863,15 +2864,15 @@ auto MCGroundVehicle::Update() -> int32_t
 
         if (speed != 0.0)
         {
-            vehicleAppearance->SetTypeId(GV_ACTOR_STATE_DAMAGED);
+            vehicleAppearance->SetTypeId(MCGVActorState::Damaged);
         }
         else if (Refitting == 0)
         {
-            vehicleAppearance->SetTypeId(GV_ACTOR_STATE_NORMAL);
+            vehicleAppearance->SetTypeId(MCGVActorState::Normal);
         }
         else
         {
-            vehicleAppearance->SetTypeId(GV_ACTOR_STATE_EXTRA);
+            vehicleAppearance->SetTypeId(MCGVActorState::Extra);
         }
     }
 

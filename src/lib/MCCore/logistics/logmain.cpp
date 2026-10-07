@@ -26,7 +26,7 @@
 #include "platform/MCRegistry.h"
 #include "platform/MCRenderer.h"
 #include "sound/soundsys.h"
-#include "sprite/sprtmgr.h"
+#include "sprite/MCSpriteManager.h"
 #include "vfx/MCVfxFunctions.h"
 
 int32_t GameDifficulty = 1;

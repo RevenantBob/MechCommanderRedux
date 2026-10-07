@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "object/terrobj.h"
 #include "ai/move.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
@@ -21,7 +22,7 @@
 #include "object/object.h"
 #include "object/objevnt.h"
 #include "object/team.h"
-#include "sprite/actor.h"
+#include "sprite/MCVfxAppearance.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 
@@ -486,7 +487,7 @@ auto MCTerrainObject::Init(MCObjectType* objType) -> int32_t
     }
 
     JustCreated = 1;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {

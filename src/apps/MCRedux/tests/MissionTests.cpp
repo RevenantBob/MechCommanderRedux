@@ -11,10 +11,10 @@
 #include "object/mover.h"
 #include "object/objtype.h"
 #include "object/warrior.h"
-#include "sprite/mactor.h"
-#include "sprite/sprtmgr.h"
-#include "sprite/spritree.h"
-#include "sprite/vfxshape.h"
+#include "sprite/MCMechActor.h"
+#include "sprite/MCSpriteManager.h"
+#include "sprite/MCSpriteTree.h"
+#include "sprite/MCShape.h"
 #include "terrain/terrain.h"
 #include "vfx/MCVfxClip.h"
 
@@ -415,9 +415,9 @@ TEST_CASE_ISOLATED("game: mission 3's mechs preload full-size part shapes")
     }
 
     REQUIRE(MCTestGame::StartMission(3));
-    // The shape list's part ranges (spritree.cpp): legs, torso, right arm, left arm, and each one's part PAK.
-    constexpr int32_t partStarts[5] = {0, 0x33c / 4, 0xebc / 4, 0x1a3c / 4, 0x96f};
-    constexpr int32_t fileParts[4] = {0, 1, 2, 3};
+    // The shape list's part ranges: legs, torso, right arm, left arm (in the part PAKs' order).
+    constexpr std::array<uint32_t, 5> partStarts = {PartShapeStart[0], PartShapeStart[1], PartShapeStart[2],
+                                                    PartShapeStart[3], TreeShapeCount};
     std::set<MCSpriteTree*> trees;
 
     for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
@@ -436,17 +436,17 @@ TEST_CASE_ISOLATED("game: mission 3's mechs preload full-size part shapes")
     for (MCSpriteTree* tree : trees)
     {
         // Preload again into an empty cache (the shapes stay in the sprite manager, ownerless, as on a tree's end).
-        for (int32_t i = 0; i < tree->NumShapes; i++)
+        for (MCShape*& shape : tree->ShapeList)
         {
-            if (tree->ShapeList[i] != nullptr)
+            if (shape != nullptr)
             {
-                tree->ShapeList[i]->Owner = nullptr;
-                tree->ShapeList[i] = nullptr;
+                shape->Owner = nullptr;
+                shape = nullptr;
             }
         }
 
-        tree->GesturesPreloaded = 0;
-        tree->PreloadGestures(0, 0.0f);
+        tree->GesturesPreloaded = false;
+        tree->PreloadGestures();
 
         // Frame 0's bounds (XMin, YMin, XMax, YMax) tell the two sizes apart. Taken before loading anything else,
         // which may push preloaded shapes out of the cache.
@@ -461,26 +461,24 @@ TEST_CASE_ISOLATED("game: mission 3's mechs preload full-size part shapes")
 
         for (int32_t part = 0; part < 4; part++)
         {
-            for (int32_t i = partStarts[part]; i < partStarts[part + 1]; i++)
+            for (uint32_t i = partStarts[part]; i < partStarts[part + 1]; i++)
             {
                 if (const MCShape* shape = tree->ShapeList[i])
                 {
-                    Preloaded entry{part, static_cast<uint32_t>(i - partStarts[part]), {}};
+                    Preloaded entry{part, i - partStarts[part], {}};
                     std::memcpy(entry.bounds.data(), MCVfxShape(shape->FrameList, 0) + 8, 16);
                     preloaded.push_back(entry);
                 }
             }
         }
 
-        const uint32_t fileNumbers[4] = {tree->LegFileNumber, tree->TorsoFileNumber, tree->RightArmFileNumber,
-                                         tree->LeftArmFileNumber};
-
         for (const Preloaded& entry : preloaded)
         {
-            MCTest::Scope scope(
-                std::format("leg file {}, part {}, packet {}", tree->LegFileNumber, entry.part, entry.packet));
-            const MCShape* large = SpriteManager->GetMechShapeData(fileNumbers[entry.part], entry.packet,
-                                                                   fileParts[entry.part], Turn, nullptr, 1);
+            MCTest::Scope scope(std::format("leg file {}, part {}, packet {}", tree->FileNumbers[MCMechPart::Legs],
+                                            entry.part, entry.packet));
+            const auto part = static_cast<MCMechPart>(entry.part);
+            const MCShape* large =
+                SpriteManager()->GetMechShapeData(tree->FileNumbers[part], entry.packet, part, Turn, nullptr, true);
             REQUIRE(large != nullptr);
             CHECK(std::memcmp(entry.bounds.data(), MCVfxShape(large->FrameList, 0) + 8, 16) == 0);
             shapes++;

@@ -7,7 +7,8 @@
 #include "abl/ablxstd.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "color/MCPalette.h"
@@ -50,11 +51,11 @@
 #include "object/train.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "sprite/bactor.h"
-#include "sprite/gvactor.h"
-#include "sprite/lactor.h"
-#include "sprite/mactor.h"
-#include "sprite/sprtmgr.h"
+#include "sprite/MCVfxBuildingAppearance.h"
+#include "sprite/MCGVAppearance.h"
+#include "sprite/MCElementalActor.h"
+#include "sprite/MCMechActor.h"
+#include "sprite/MCSpriteManager.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -256,11 +257,6 @@ auto MCScenario::Update() -> int32_t
     if (MinFrameLength < FrameLength)
     {
         FrameLength = MinFrameLength;
-    }
-
-    if (DynamicFrameTiming == 0)
-    {
-        DynamicFrameTiming = 1;
     }
 
     ScenarioTime = ScenarioTime + FrameLength;
@@ -890,8 +886,6 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     char shapeFileName[80];
     result = ScenarioFile->ReadIdString("ShapeFileName", shapeFileName, 79);
     RequireOk(result, " could not Find ShapeFileName in SpriteSystem Block ");
-    SpriteManager = new MCSpriteManager;
-    Assert(SpriteManager != nullptr, static_cast<uint32_t>(result), " no RAM for SpriteManager ");
 
     uint32_t legHeapSize = 0;
     uint32_t torsoHeapSize = 0;
@@ -912,14 +906,26 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     RequireOk(result, " could not Find TotalMechs in SpriteManager Block ");
 
     // The original sized the sprite manager's heaps from the sizes above (still read, then ignored).
-    result = SpriteManager->Init(shapeFileName);
-    RequireOk(result, " could not Start SpriteManager ");
+    std::expected<std::unique_ptr<MCSpriteManager>, std::string> spriteManager =
+        MCSpriteManager::Create(shapeFileName, Use90PixelSprite != 0);
 
-    AppearanceTypeList = new MCAppearanceTypeList;
-    Assert(AppearanceTypeList != nullptr, static_cast<uint32_t>(result), " no RAM for AppearanceList ");
-    result = AppearanceTypeList->Init(SpriteFileName);
-    // Faithful: tests the list, not the result.
-    Assert(AppearanceTypeList != nullptr, static_cast<uint32_t>(result), " could not start AppearanceList ");
+    if (!spriteManager.has_value())
+    {
+        Fatal(0, std::format(" could not Start SpriteManager: {} ", spriteManager.error()));
+    }
+
+    MCGameContext::Current().SetSpriteManager(std::move(*spriteManager));
+
+    // The original went on without the sprite PAK (it tested the list, not the result); the port stops.
+    std::expected<std::unique_ptr<MCAppearanceTypeList>, std::string> typeList =
+        MCAppearanceTypeList::Create(SpriteFileName);
+
+    if (!typeList.has_value())
+    {
+        Fatal(0, std::format(" could not start AppearanceList: {} ", typeList.error()));
+    }
+
+    MCGameContext::Current().SetAppearanceTypeList(std::move(*typeList));
 
     SensorSystemManager = new MCSensorSystemManager;
     Assert(SensorSystemManager != nullptr, 0, " Unable to init sensor system manager ");
@@ -1898,8 +1904,6 @@ auto MCScenario::Destroy() -> void
         TrainManager = nullptr;
     }
 
-    DestroyMechShadows();
-
     Assert(Parts != nullptr, 0, " parts already NULL ");
     Parts.reset();
     Assert(Objectives != nullptr, 0, " parts already NULL ");
@@ -1943,24 +1947,10 @@ auto MCScenario::Destroy() -> void
         SmokeManager = nullptr;
     }
 
-    Assert(AppearanceTypeList != nullptr, 0, " appearanceTypeList already NULL ");
-
-    if (AppearanceTypeList != nullptr)
-    {
-        AppearanceTypeList->Destroy();
-        delete AppearanceTypeList;
-    }
-
-    AppearanceTypeList = nullptr;
-    Assert(SpriteManager != nullptr, 0, " spriteManager already NULL ");
-
-    if (SpriteManager != nullptr)
-    {
-        SpriteManager->Destroy();
-        delete SpriteManager;
-    }
-
-    SpriteManager = nullptr;
+    Assert(AppearanceTypeList() != nullptr, 0, " appearanceTypeList already NULL ");
+    MCGameContext::Current().SetAppearanceTypeList(nullptr);
+    Assert(SpriteManager() != nullptr, 0, " spriteManager already NULL ");
+    MCGameContext::Current().SetSpriteManager(nullptr);
     Assert(CameraList != nullptr, 0, " cameraList already NULL ");
     delete CameraList;
     CameraList = nullptr;
@@ -2186,7 +2176,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
 
         if (part.Alignment == HomeTeam->Alignment)
         {
-            actor->PreloadGestures(static_cast<int32_t>(part.GestureId), part.Rotation);
+            actor->PreloadGestures();
         }
     }
     else if (objectClass == ELEMENTAL)
@@ -2197,8 +2187,6 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
         {
             actor->SetGesture(part.GestureId);
         }
-
-        actor->PreloadGestures(static_cast<int32_t>(part.GestureId), part.Rotation);
     }
 
     // The part number is kept in the object's id.

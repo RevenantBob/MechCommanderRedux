@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "object/fire.h"
 #include "ai/move.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "engine/MCByteFlag.h"
@@ -26,7 +27,7 @@
 #include "object/team.h"
 #include "object/tree.h"
 #include "sound/soundsys.h"
-#include "sprite/actor.h"
+#include "sprite/MCVfxAppearance.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -572,7 +573,7 @@ auto MCFire::Update() -> int32_t
                 TimeLeftToBurn[i] = timeLeft;
 
                 if (0.0f < timeLeft || static_cast<uint32_t>(LoopsLeft[i]) < 3 ||
-                    static_cast<MCVfxAppearance*>(Appearances[i])->CurrentState == ACTOR_STATE_DAMAGED)
+                    static_cast<MCVfxAppearance*>(Appearances[i])->CurrentState == MCActorState::Damaged)
                 {
                     if (0.0f < timeLeft)
                     {
@@ -681,16 +682,16 @@ auto MCFire::Render() -> void
 
             if (shapeAppearance->Update() == 0)
             {
-                if (shapeAppearance->CurrentState == ACTOR_STATE_DAMAGED)
+                if (shapeAppearance->CurrentState == MCActorState::Damaged)
                 {
                     finished = 1;
                     LoopsLeft[i] = 0;
                 }
                 else
                 {
-                    if (shapeAppearance->CurrentState == ACTOR_STATE_NORMAL)
+                    if (shapeAppearance->CurrentState == MCActorState::Normal)
                     {
-                        shapeAppearance->SetTypeId(ACTOR_STATE_BLOWING_UP1, 0xff);
+                        shapeAppearance->SetTypeId(MCActorState::BlowingUp1, 0xff);
                         shapeAppearance->Update();
                     }
 
@@ -699,7 +700,7 @@ auto MCFire::Render() -> void
                     if (LoopsLeft[i] == 1)
                     {
                         auto* endAppearance = static_cast<MCVfxAppearance*>(Appearances[i]);
-                        endAppearance->SetTypeId(ACTOR_STATE_DAMAGED, 0xff);
+                        endAppearance->SetTypeId(MCActorState::Damaged, 0xff);
                         endAppearance->Update();
                     }
                 }
@@ -821,7 +822,7 @@ auto MCFire::Init(MCObjectType* objType) -> int32_t
         StartDelays[i] = 0.0f;
         LoopsLeft[i] = static_cast<int32_t>(static_cast<MCFireType*>(this->ObjType)->NumLoops);
         TimeLeftToBurn[i] = MaxFireBurnTime;
-        MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
+        MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(appearId);
 
         if (apprType == nullptr)
         {
@@ -850,7 +851,7 @@ auto MCFire::Init(MCObjectType* objType) -> int32_t
             return result;
         }
 
-        static_cast<MCVfxAppearance*>(Appearances[i])->SetTypeId(ACTOR_STATE_NORMAL, 0xff);
+        static_cast<MCVfxAppearance*>(Appearances[i])->SetTypeId(MCActorState::Normal, 0xff);
 
         // Place the shape at its offset, scattered, and delay its start (tenths of a second).
         offset.X = fireType->FireOffsetX[i] + offset.X;

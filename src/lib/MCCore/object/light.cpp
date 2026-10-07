@@ -1,13 +1,14 @@
 #include "stdafx.h"
 #include "object/light.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "gui/asystem.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "sprite/actor.h"
+#include "sprite/MCVfxAppearance.h"
 #include "terrain/terrain.h"
 
 //---------------------------------------------------------------------------
@@ -183,7 +184,7 @@ auto MCLight::Init(MCObjectType* objType) -> int32_t
 
     JustCreated = 1;
     CollisionsOn = 0;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {

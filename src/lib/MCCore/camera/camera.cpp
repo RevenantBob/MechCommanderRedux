@@ -25,7 +25,7 @@
 #include "object/objtype.h"
 #include "object/team.h"
 #include "platform/MCRenderer.h"
-#include "sprite/sprtmgr.h"
+#include "sprite/MCSpriteManager.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "terrain/vertex.h"
@@ -1755,7 +1755,7 @@ auto MCCamera::Render() -> void
 
     if (zoomedIn != LastZoom)
     {
-        SpriteManager->DumpAll();
+        SpriteManager()->DumpAll();
     }
 
     LastZoom = zoomedIn;
@@ -1770,14 +1770,6 @@ auto MCCamera::Render() -> void
 
     CraterManager()->Render();
     ObjectList->Render();
-
-    if (GRestartRender != 0)
-    {
-        GRestartRender = 0;
-        ElementList()->Reset();
-        CraterManager()->Render();
-        ObjectList->Render();
-    }
 
     ElementList()->Sort();
     ElementList()->Draw();

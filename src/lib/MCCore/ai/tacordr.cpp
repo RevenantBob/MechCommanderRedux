@@ -22,7 +22,7 @@
 #include "object/tbldng.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "sprite/mactor.h"
+#include "sprite/MCMechActor.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 

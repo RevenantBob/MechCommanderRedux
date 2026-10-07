@@ -18,7 +18,7 @@
 #include "object/tbldng.h"
 #include "object/terrobj.h"
 #include "object/turret.h"
-#include "sprite/actor.h"
+#include "sprite/MCVfxAppearance.h"
 #include "terrain/terrain.h"
 
 namespace

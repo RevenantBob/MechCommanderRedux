@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "object/tree.h"
 #include "ai/move.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
@@ -25,7 +26,7 @@
 #include "object/objevnt.h"
 #include "object/team.h"
 #include "sound/soundsys.h"
-#include "sprite/actor.h"
+#include "sprite/MCVfxAppearance.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -194,20 +195,20 @@ auto MCTreeType::HandleCollision(MCGameObject* collidee, MCGameObject* collider)
 
     if (tree->Burnt == 0)
     {
-        treeAppearance->SetTypeId(ACTOR_STATE_BLOWING_UP1, 0xff);
+        treeAppearance->SetTypeId(MCActorState::BlowingUp1, 0xff);
 
         if (1 < treeAppearance->AppearType->NumStates)
         {
-            numFrames = treeAppearance->AppearType->ActorStateData[1].NumFrames;
+            numFrames = treeAppearance->AppearType->States[1].NumFrames;
         }
     }
     else
     {
-        treeAppearance->SetTypeId(static_cast<MCActorState>(4), 0xff);
+        treeAppearance->SetTypeId(MCActorState::Destroyed, NoSubState);
 
         if (4 < treeAppearance->AppearType->NumStates)
         {
-            numFrames = treeAppearance->AppearType->ActorStateData[4].NumFrames;
+            numFrames = treeAppearance->AppearType->States[4].NumFrames;
         }
     }
 
@@ -464,9 +465,9 @@ auto MCTree::Render() -> void
             CollisionsOn = 0;
             Fallen = 1;
 
-            if (treeAppearance->CurrentState == ACTOR_STATE_BLOWING_UP1)
+            if (treeAppearance->CurrentState == MCActorState::BlowingUp1)
             {
-                treeAppearance->SetTypeId(ACTOR_STATE_DAMAGED, 0xff);
+                treeAppearance->SetTypeId(MCActorState::Damaged, 0xff);
             }
             else if (treeAppearance->CurrentState == static_cast<MCActorState>(4))
             {
@@ -535,10 +536,10 @@ auto MCTree::Render() -> void
     {
         // Standing, it sorts with the terrain; fallen, by its screen row.
         const auto* type = static_cast<MCTreeType*>(ObjType);
-        treeAppearance->Render(treeAppearance->CurrentState != ACTOR_STATE_NORMAL ? static_cast<int32_t>(ScreenPos.Y)
-                                                                                  : 0);
+        treeAppearance->Render(treeAppearance->CurrentState != MCActorState::Normal ? static_cast<int32_t>(ScreenPos.Y)
+                                                                                    : 0);
 
-        if (treeAppearance->CurrentState != ACTOR_STATE_NORMAL)
+        if (treeAppearance->CurrentState != MCActorState::Normal)
         {
             if (type->DestroyedShadow != nullptr)
             {
@@ -598,7 +599,7 @@ auto MCTree::Init(MCObjectType* objType) -> int32_t
     }
 
     JustCreated = 1;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {
@@ -650,11 +651,11 @@ auto MCTree::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) 
     {
         auto* treeAppearance = static_cast<MCVfxAppearance*>(Appearance);
 
-        if (treeAppearance->CurrentState == ACTOR_STATE_NORMAL)
+        if (treeAppearance->CurrentState == MCActorState::Normal)
         {
-            treeAppearance->SetTypeId(ACTOR_STATE_BLOWING_UP2, 0xff);
+            treeAppearance->SetTypeId(MCActorState::BlowingUp2, 0xff);
         }
-        else if (treeAppearance->CurrentState == ACTOR_STATE_DAMAGED)
+        else if (treeAppearance->CurrentState == MCActorState::Damaged)
         {
             treeAppearance->SetTypeId(static_cast<MCActorState>(5), 0xff);
         }

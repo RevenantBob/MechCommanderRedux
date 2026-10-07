@@ -5,7 +5,7 @@
 #include "object/control.h"
 #include "object/gvehctrl.h"
 #include "object/gvehicl.h"
-#include "sprite/gvactor.h"
+#include "sprite/MCGVAppearance.h"
 
 // The original turns on the x87 stack: the values it keeps at extended precision are doubles here.
 
@@ -153,7 +153,7 @@ auto MCGroundVehicleDynamics::Update() -> int32_t
 
     if (appearance != nullptr && throttle != 0.0f && dynType->MaxVelocity != 0.0f)
     {
-        appearance->SetTypeId(GV_ACTOR_STATE_DAMAGED);
+        appearance->SetTypeId(MCGVActorState::Damaged);
         appearance->Update();
     }
 

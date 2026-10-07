@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "object/jet.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "lib/MCFrameOfRef.h"
@@ -13,8 +14,8 @@
 #include "object/object.h"
 #include "object/smoke.h"
 #include "sound/soundsys.h"
-#include "sprite/armactor.h"
-#include "sprite/mactor.h"
+#include "sprite/MCArmAppearance.h"
+#include "sprite/MCMechActor.h"
 #include "terrain/terrain.h"
 
 namespace
@@ -292,7 +293,7 @@ auto MCJet::Init(MCObjectType* objType) -> int32_t
     }
 
     JustCreated = 1;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {

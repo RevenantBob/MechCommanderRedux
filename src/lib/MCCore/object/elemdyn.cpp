@@ -5,7 +5,7 @@
 #include "object/control.h"
 #include "object/elemctrl.h"
 #include "object/elemntl.h"
-#include "sprite/lactor.h"
+#include "sprite/MCElementalActor.h"
 
 namespace
 {

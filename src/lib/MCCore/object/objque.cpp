@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "object/objque.h"
-#include "appear/appear.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearance.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "gui/asystem.h"
 #include "main/main.h"
@@ -13,7 +14,7 @@
 #include "object/mover.h"
 #include "object/objtype.h"
 #include "object/team.h"
-#include "sprite/sprtmgr.h"
+#include "sprite/MCSpriteManager.h"
 #include "terrain/terrain.h"
 
 int32_t MCObjectQueue::ObjectsInList = 0;
@@ -176,11 +177,6 @@ auto MCObjectQueueNode::Render() -> void
     for (MCBaseObject* object = Head; object != nullptr; object = object->Next)
     {
         object->Render();
-
-        if (GRestartRender != 0)
-        {
-            return;
-        }
     }
 }
 
@@ -477,11 +473,6 @@ auto MCObjectQueue::Render() -> void
         if (node->Head != nullptr)
         {
             node->Render();
-        }
-
-        if (GRestartRender != 0)
-        {
-            return;
         }
     }
 }

@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "object/artlry.h"
 #include "ai/move.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "engine/MCElementBuffer.h"
@@ -32,8 +33,8 @@
 #include "object/team.h"
 #include "object/turret.h"
 #include "sound/soundsys.h"
-#include "sprite/gvactor.h"
-#include "sprite/sprtmgr.h"
+#include "sprite/MCGVAppearance.h"
+#include "sprite/MCSpriteManager.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -388,8 +389,7 @@ auto MCArtilleryType::CreateInstance() -> MCBaseObject*
 
 auto MCArtilleryType::Destroy() -> void
 {
-    SpriteManager->FreeShapeRam(ShapeData);
-    ShapeData = nullptr;
+    ShapeData = {};
     ExplosionOffsetX.reset();
     ExplosionOffsetY.reset();
     ExplosionDelay.reset();
@@ -571,20 +571,16 @@ auto MCArtilleryType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
     }
 
     const uint32_t spriteSize = spriteFile.FileSize();
-    ShapeData = static_cast<uint8_t*>(SpriteManager->MallocShapeRam(spriteSize));
 
-    if (ShapeData == nullptr)
+    // Faithful: an empty shape file fails (the original's shape heap had no zero-byte blocks), after a dump.
+    if (spriteSize == 0)
     {
-        SpriteManager->DumpLru(static_cast<int32_t>(spriteSize));
-        ShapeData = static_cast<uint8_t*>(SpriteManager->MallocShapeRam(spriteSize));
-
-        if (ShapeData == nullptr)
-        {
-            return -0x2102ffff;
-        }
+        SpriteManager()->DumpLru();
+        return -0x2102ffff;
     }
 
-    spriteFile.Read(ShapeData, static_cast<int32_t>(spriteSize));
+    ShapeData = MCRegisteredBlock(spriteSize, MCDataKind::Shapes);
+    spriteFile.Read(ShapeData.Bytes());
     spriteFile.Close();
     return MCObjectType::Init(&artFile);
 }
@@ -734,7 +730,7 @@ auto MCArtillery::Update() -> int32_t
 
     auto* type = static_cast<MCArtilleryType*>(ObjType);
 
-    if (type != nullptr && type->ShapeData != nullptr)
+    if (type != nullptr && !type->ShapeData.Empty())
     {
         FrameTime += FrameLength;
         const double frames = static_cast<double>(FrameTime * type->FrameRate);
@@ -867,7 +863,7 @@ auto MCArtillery::Render() -> void
     }
 
     auto* type = static_cast<MCArtilleryType*>(ObjType);
-    uint8_t* shape = type->ShapeData;
+    uint8_t* shape = type->ShapeData.Data();
 
     if (JustCreated != 0)
     {
@@ -1083,7 +1079,7 @@ auto MCArtillery::RecalcBounds(MCCamera* camera) -> int
     BoundsTop = top;
     BoundsRight = left;
     BoundsBottom = top;
-    uint8_t* shape = static_cast<MCArtilleryType*>(ObjType)->ShapeData;
+    uint8_t* shape = static_cast<MCArtilleryType*>(ObjType)->ShapeData.Data();
 
     if (shape != nullptr)
     {
@@ -1234,7 +1230,7 @@ auto MCCameraDrone::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {
@@ -1455,7 +1451,7 @@ auto MCCameraDrone::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplay
         {
             ObjType->HandleDestruction(this, nullptr);
             ObjType->CreateExplosion(Position, 0.0f, 0.0f);
-            static_cast<MCGVAppearance*>(Appearance)->SetTypeId(GV_ACTOR_STATE_DESTROYED);
+            static_cast<MCGVAppearance*>(Appearance)->SetTypeId(MCGVActorState::Destroyed);
         }
     }
 

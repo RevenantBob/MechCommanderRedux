@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "object/prjlase.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "engine/MCElementBuffer.h"
@@ -21,7 +22,7 @@
 #include "object/objque.h"
 #include "object/smoke.h"
 #include "sound/soundsys.h"
-#include "sprite/armactor.h"
+#include "sprite/MCArmAppearance.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/MCVfx.h"
@@ -684,7 +685,7 @@ auto MCProjectileLaser::Init(MCObjectType* objType) -> int32_t
 
     if (appearId != 0)
     {
-        MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
+        MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(appearId);
 
         if (apprType == nullptr)
         {

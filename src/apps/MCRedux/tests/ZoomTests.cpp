@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "appear/appear.h"
+#include "appear/MCAppearance.h"
 #include "camera/camera.h"
 #include "object/mover.h"
 

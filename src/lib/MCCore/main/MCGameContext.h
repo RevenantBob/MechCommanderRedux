@@ -2,10 +2,12 @@
 
 #include "platform/MCServices.h"
 
+class MCAppearanceTypeList;
 class MCCraterManager;
 class MCElementBuffer;
 class MCFastFileSet;
 class MCPalette;
+class MCSpriteManager;
 
 /// <summary>
 /// Everything the game reaches for that a test may want to replace: the port services (clock, dice, files, sound
@@ -59,6 +61,12 @@ public:
     /// <summary>The mission's craters (null outside a mission).</summary>
     MCCraterManager* CraterManager() const;
 
+    /// <summary>The mission's sprite cache (null outside a mission).</summary>
+    MCSpriteManager* SpriteManager() const;
+
+    /// <summary>The mission's appearance types (null outside a mission).</summary>
+    MCAppearanceTypeList* AppearanceTypeList() const;
+
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
     template <std::derived_from<MCClock> T> T& SetClock(std::unique_ptr<T> clock)
@@ -105,6 +113,14 @@ public:
     /// <returns>The craters this context had.</returns>
     std::unique_ptr<MCCraterManager> SetCraterManager(std::unique_ptr<MCCraterManager> craterManager);
 
+    /// <summary>Gives this context its own sprite cache (null: the one it was installed over, if any).</summary>
+    /// <returns>The sprite cache this context had.</returns>
+    std::unique_ptr<MCSpriteManager> SetSpriteManager(std::unique_ptr<MCSpriteManager> spriteManager);
+
+    /// <summary>Gives this context its own appearance types (null: the ones it was installed over, if any).</summary>
+    /// <returns>The appearance types this context had.</returns>
+    std::unique_ptr<MCAppearanceTypeList> SetAppearanceTypeList(std::unique_ptr<MCAppearanceTypeList> typeList);
+
 private:
     friend class MCTestContextScope;
 
@@ -130,6 +146,8 @@ private:
     std::unique_ptr<MCPalette> _Palette;
     std::unique_ptr<MCElementBuffer> _ElementList;
     std::unique_ptr<MCCraterManager> _CraterManager;
+    std::unique_ptr<MCSpriteManager> _SpriteManager;
+    std::unique_ptr<MCAppearanceTypeList> _AppearanceTypeList;
 };
 
 /// <summary>

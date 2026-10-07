@@ -1,0 +1,38 @@
+#pragma once
+
+#include "platform/MCRegisteredBlock.h"
+
+class MCAppearanceType;
+
+/// <summary>
+/// A shape table in the sprite manager's cache: one packet of a sprite PAK, owned by the cache and handed to the
+/// appearance type that asked for it, which keeps a non-owning pointer until the cache drops the shape.
+/// </summary>
+/// <remarks>
+/// Original source: <c>sprite\vfxshape.cpp</c>. A packet is either a VFX shape table (it starts with the "1.10"
+/// version tag) or a 6-byte gesture header followed by one.
+/// </remarks>
+class MCShape
+{
+public:
+    /// <summary>
+    /// Takes the packet <paramref name="packet"/> for <paramref name="owner"/>, checking its shape table: a table whose
+    /// first frame lies past the packet, or whose offset table doesn't match its frame count, gives a null
+    /// <see cref="FrameList"/>.
+    /// </summary>
+    MCShape(MCRegisteredBlock packet, MCAppearanceType* owner, int32_t lastTurnUsed);
+
+    MCShape(const MCShape&) = delete;
+    MCShape& operator=(const MCShape&) = delete;
+
+    /// <summary>The VFX shape table (in the packet, after the gesture header if any), or null when it is bad.</summary>
+    uint8_t* FrameList = nullptr;
+    /// <summary>The turn the shape was last used (the cache keeps shapes used this turn or the last).</summary>
+    int32_t LastTurnUsed = 0;
+    /// <summary>The type that uses the shape (told by <c>RemoveShape</c> when it goes); null once the type is gone.</summary>
+    MCAppearanceType* Owner = nullptr;
+
+private:
+    /// <summary>The packet.</summary>
+    MCRegisteredBlock _Packet;
+};

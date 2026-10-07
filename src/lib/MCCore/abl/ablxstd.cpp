@@ -43,8 +43,8 @@
 #include "object/warrior.h"
 #include "sound/radio.h"
 #include "sound/soundsys.h"
-#include "sprite/actor.h"
-#include "sprite/bactor.h"
+#include "sprite/MCVfxAppearance.h"
+#include "sprite/MCVfxBuildingAppearance.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 
@@ -3465,7 +3465,7 @@ auto ExecHbSetAnimation(MCSymTableNodePtr routineIdPtr) -> void
                 auto* buildingAppearance =
                     static_cast<MCVfxBuildingAppearance*>(static_cast<MCBuilding*>(object)->Appearance);
 
-                if (state >= buildingAppearance->BuildType->NumAnimStates)
+                if (state >= buildingAppearance->BuildType->AnimStates.size())
                 {
                     buildingAppearance->AnimState = -1;
                 }

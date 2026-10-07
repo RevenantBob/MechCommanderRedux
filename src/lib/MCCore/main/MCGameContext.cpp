@@ -1,9 +1,11 @@
 #include "stdafx.h"
 #include "main/MCGameContext.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "color/MCPalette.h"
 #include "engine/MCCraterManager.h"
 #include "engine/MCElementBuffer.h"
 #include "lib/MCFastFileSet.h"
+#include "sprite/MCSpriteManager.h"
 
 namespace
 {
@@ -119,6 +121,27 @@ MCElementBuffer* MCGameContext::ElementList() const
 MCCraterManager* MCGameContext::CraterManager() const
 {
     return FindSystem(_CraterManager, _Parent, &MCGameContext::CraterManager);
+}
+
+MCSpriteManager* MCGameContext::SpriteManager() const
+{
+    return FindSystem(_SpriteManager, _Parent, &MCGameContext::SpriteManager);
+}
+
+MCAppearanceTypeList* MCGameContext::AppearanceTypeList() const
+{
+    return FindSystem(_AppearanceTypeList, _Parent, &MCGameContext::AppearanceTypeList);
+}
+
+std::unique_ptr<MCSpriteManager> MCGameContext::SetSpriteManager(std::unique_ptr<MCSpriteManager> spriteManager)
+{
+    return std::exchange(_SpriteManager, std::move(spriteManager));
+}
+
+std::unique_ptr<MCAppearanceTypeList> MCGameContext::SetAppearanceTypeList(
+    std::unique_ptr<MCAppearanceTypeList> typeList)
+{
+    return std::exchange(_AppearanceTypeList, std::move(typeList));
 }
 
 std::unique_ptr<MCPalette> MCGameContext::SetPalette(std::unique_ptr<MCPalette> palette)

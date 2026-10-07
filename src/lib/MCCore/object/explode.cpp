@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "object/explode.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "gui/asystem.h"
@@ -19,7 +20,7 @@
 #include "object/objque.h"
 #include "object/turret.h"
 #include "sound/soundsys.h"
-#include "sprite/actor.h"
+#include "sprite/MCVfxAppearance.h"
 #include "terrain/terrain.h"
 
 namespace
@@ -440,7 +441,7 @@ auto MCExplosion::Init(MCObjectType* objType) -> int32_t
     CollisionsOn = 0;
     CollisionChecked = 0;
     TimeAlive = 0.0f;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(objType->AppearName);
 
     if (apprType == nullptr)
     {

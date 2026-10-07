@@ -32,7 +32,7 @@
 #include "platform/MCInput.h"
 #include "platform/MCPresenter.h"
 #include "sound/soundsys.h"
-#include "sprite/sprtmgr.h"
+#include "sprite/MCSpriteManager.h"
 #include "terrain/terrtxm.h"
 
 char CampaignFile[20] = "campaign";

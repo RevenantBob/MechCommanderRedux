@@ -2,7 +2,8 @@
 #include "object/elemntl.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "engine/MCElementBuffer.h"
@@ -37,7 +38,7 @@
 #include "object/team.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "sprite/lactor.h"
+#include "sprite/MCElementalActor.h"
 #include "terrain/terrain.h"
 
 float ElmDamageOnImpact = 0.0f;
@@ -585,7 +586,7 @@ auto MCElemental::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(elementalType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(elementalType->AppearName);
 
     if (apprType == nullptr)
     {

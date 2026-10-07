@@ -18,7 +18,6 @@ class MCObjectQueue;
 class MCTeam;
 class MCCollisionSystem;
 class MCTrainManager;
-class MCAppearanceTypeList;
 class MCObjectMap;
 struct MCSymTableNode;
 
@@ -356,7 +355,6 @@ extern float MineWaitTime;
 /// <summary>The teams: [1] the clan team, [2] the allied team (set in <see cref="MCScenario::Init"/>).</summary>
 extern MCTeam* TeamTable[3];
 extern MCTrainManager* TrainManager;
-extern MCAppearanceTypeList* AppearanceTypeList;
 /// <summary>The scenario's frame (turn) counter.</summary>
 extern int32_t Turn;
 extern MCObjectMap* GameObjectMap;

@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "object/objtype.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFitIniFile.h"
@@ -30,7 +31,7 @@
 #include "object/train.h"
 #include "object/tree.h"
 #include "object/turret.h"
-#include "sprite/bactor.h"
+#include "sprite/MCVfxBuildingAppearance.h"
 
 uint32_t NextIdNumber = 0x30000001;
 char ObjectPath[80] = "data\\objects\\";
@@ -323,8 +324,6 @@ auto MCObjectTypeManager::Get(int32_t objTypeNum) -> MCBaseObject*
 
 auto MCObjectTypeManager::Load(int32_t objTypeNum, int keepMe) -> MCObjectType*
 {
-    DynamicFrameTiming = 0;
-
     // Original behaviour: a type already loaded isn't returned; the caller gets null.
     if (objTypeNum < 1 || Find(objTypeNum) != nullptr || ObjectFile->SeekPacket(objTypeNum) != 0)
     {
@@ -470,7 +469,7 @@ auto MCObjectTypeManager::Load(int32_t objTypeNum, int keepMe) -> MCObjectType*
     {
         // A kept type preloads its appearance and explosion.
         objType->KeepMe = 1;
-        AppearanceTypeList->GetAppearance(objType->AppearName, 0);
+        AppearanceTypeList()->GetAppearance(objType->AppearName);
         Load(objType->ExplosionObject, 0);
     }
 

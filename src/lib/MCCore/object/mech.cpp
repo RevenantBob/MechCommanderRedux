@@ -4,7 +4,8 @@
 #include "abl/abldbug.h"
 #include "ai/move.h"
 #include "ai/tacordr.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "engine/MCLineElement.h"
@@ -54,7 +55,7 @@
 #include "sound/radio.h"
 #include "sound/soundsys.h"
 #include "terrain/terrain.h"
-#include "sprite/mactor.h"
+#include "sprite/MCMechActor.h"
 
 char MechSpeedStateArray[32] = {0, 0, 0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,  1,  1,  1,
                                 2, 2, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1};
@@ -1272,7 +1273,7 @@ auto MCBattleMech::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(mechType->AppearName, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(mechType->AppearName);
 
     if (apprType == nullptr)
     {
@@ -2318,7 +2319,7 @@ auto MCBattleMech::UpdateJump() -> int
     {
         if (MPlayer == nullptr || MPlayer->IsServer != 0)
         {
-            actor->SetJumpParameters(JumpGoal, 0);
+            actor->SetJumpParameters(JumpGoal);
 
             if (static_cast<MCMechActor*>(Appearance)->InTransition == 0)
             {
@@ -2328,7 +2329,7 @@ auto MCBattleMech::UpdateJump() -> int
         }
         else if (DistanceFrom(JumpGoal) > 8.0f)
         {
-            actor->SetJumpParameters(JumpGoal, 0);
+            actor->SetJumpParameters(JumpGoal);
 
             if (static_cast<MCMechActor*>(Appearance)->InTransition == 0)
             {
@@ -3014,7 +3015,7 @@ auto MCBattleMech::SetControlSettings(char& newRotate, char& newThrottleSetting,
         MCMovePath* path = warrior->GetMovePath();
         warrior->PausePath();
         JumpGoal = path->StepList[path->CurStep].Destination;
-        actor->SetJumpParameters(JumpGoal, 0);
+        actor->SetJumpParameters(JumpGoal);
     }
 
     bool startJump = false;
@@ -3044,7 +3045,7 @@ auto MCBattleMech::SetControlSettings(char& newRotate, char& newThrottleSetting,
 
     if (startJump)
     {
-        actor->SetJumpParameters(JumpGoal, 0);
+        actor->SetJumpParameters(JumpGoal);
     }
 
     const int32_t gestureGoal = newGestureStateGoal;

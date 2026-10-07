@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "object/turret.h"
 #include "ai/move.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
@@ -33,8 +34,8 @@
 #include "object/team.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "sprite/gvactor.h"
-#include "sprite/puactor.h"
+#include "sprite/MCGVAppearance.h"
+#include "sprite/MCPUAppearance.h"
 #include "terrain/terrain.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -1599,7 +1600,7 @@ auto MCTurret::Init(MCObjectType* objType) -> int32_t
 
     const uint32_t appearId = objType->AppearName;
     JustCreated = 1;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(appearId);
 
     if (apprType == nullptr)
     {
@@ -1725,7 +1726,7 @@ auto MCTurret::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk
     }
     else
     {
-        static_cast<MCGVAppearance*>(Appearance)->SetTypeId(GV_ACTOR_STATE_DESTROYED);
+        static_cast<MCGVAppearance*>(Appearance)->SetTypeId(MCGVActorState::Destroyed);
     }
 
     if (Appearance != nullptr)

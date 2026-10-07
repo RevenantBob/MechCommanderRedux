@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "object/bldng.h"
-#include "appear/apprtype.h"
+#include "appear/MCAppearanceType.h"
+#include "appear/MCAppearanceTypeList.h"
 #include "camera/camera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
@@ -27,8 +28,8 @@
 #include "object/team.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
-#include "sprite/bactor.h"
-#include "sprite/lactor.h"
+#include "sprite/MCVfxBuildingAppearance.h"
+#include "sprite/MCElementalActor.h"
 #include "terrain/terrain.h"
 #include "terrain/terrmap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -862,7 +863,7 @@ auto MCBuilding::Init(MCObjectType* objType) -> int32_t
     SetExists(1);
     const uint32_t appearId = objType->AppearName;
     JustCreated = 1;
-    MCAppearanceType* apprType = AppearanceTypeList->GetAppearance(appearId, 0);
+    MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(appearId);
 
     if (apprType == nullptr)
     {

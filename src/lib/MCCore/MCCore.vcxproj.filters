@@ -117,13 +117,13 @@
     <ClCompile Include="ai\tacordr.cpp">
       <Filter>ai</Filter>
     </ClCompile>
-    <ClCompile Include="appear\appear.cpp">
+    <ClCompile Include="appear\MCAppearance.cpp">
       <Filter>appear</Filter>
     </ClCompile>
-    <ClCompile Include="appear\apprtype.cpp">
+    <ClCompile Include="appear\MCAppearanceType.cpp">
       <Filter>appear</Filter>
     </ClCompile>
-    <ClCompile Include="appear\lineappr.cpp">
+    <ClCompile Include="appear\MCAppearanceTypeList.cpp">
       <Filter>appear</Filter>
     </ClCompile>
     <ClCompile Include="camera\camera.cpp">
@@ -550,6 +550,9 @@
     <ClCompile Include="platform\MCPresenter.cpp">
       <Filter>platform</Filter>
     </ClCompile>
+    <ClCompile Include="platform\MCRegisteredBlock.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
     <ClCompile Include="platform\MCRegistry.cpp">
       <Filter>platform</Filter>
     </ClCompile>
@@ -595,40 +598,55 @@
     <ClCompile Include="sound\soundsys.cpp">
       <Filter>sound</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\actor.cpp">
+    <ClCompile Include="sprite\MCArmAppearance.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\armactor.cpp">
+    <ClCompile Include="sprite\MCArmAppearanceType.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\bactor.cpp">
+    <ClCompile Include="sprite\MCElementalActor.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\elmtree.cpp">
+    <ClCompile Include="sprite\MCElementalTree.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\gvactor.cpp">
+    <ClCompile Include="sprite\MCGVAppearance.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\lactor.cpp">
+    <ClCompile Include="sprite\MCGVAppearanceType.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\mactor.cpp">
+    <ClCompile Include="sprite\MCMechActor.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\puactor.cpp">
+    <ClCompile Include="sprite\MCPUAppearance.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\sprite.cpp">
+    <ClCompile Include="sprite\MCPUAppearanceType.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\spritree.cpp">
+    <ClCompile Include="sprite\MCShape.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\sprtmgr.cpp">
+    <ClCompile Include="sprite\MCSpriteManager.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
-    <ClCompile Include="sprite\vfxshape.cpp">
+    <ClCompile Include="sprite\MCSpriteMath.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCSpriteTree.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCVfxAppearance.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCVfxAppearanceType.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCVfxBuildingAppearance.cpp">
+      <Filter>sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="sprite\MCVfxBuildingAppearanceType.cpp">
       <Filter>sprite</Filter>
     </ClCompile>
     <ClCompile Include="stdafx.cpp" />
@@ -742,13 +760,13 @@
     <ClInclude Include="ai\tacordr.h">
       <Filter>ai</Filter>
     </ClInclude>
-    <ClInclude Include="appear\appear.h">
+    <ClInclude Include="appear\MCAppearance.h">
       <Filter>appear</Filter>
     </ClInclude>
-    <ClInclude Include="appear\apprtype.h">
+    <ClInclude Include="appear\MCAppearanceType.h">
       <Filter>appear</Filter>
     </ClInclude>
-    <ClInclude Include="appear\lineappr.h">
+    <ClInclude Include="appear\MCAppearanceTypeList.h">
       <Filter>appear</Filter>
     </ClInclude>
     <ClInclude Include="camera\camera.h">
@@ -1194,6 +1212,9 @@
     <ClInclude Include="platform\MCPresenter.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCRegisteredBlock.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCRegistry.h">
       <Filter>platform</Filter>
     </ClInclude>
@@ -1236,40 +1257,55 @@
     <ClInclude Include="sound\soundsys.h">
       <Filter>sound</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\actor.h">
+    <ClInclude Include="sprite\MCArmAppearance.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\armactor.h">
+    <ClInclude Include="sprite\MCArmAppearanceType.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\bactor.h">
+    <ClInclude Include="sprite\MCElementalActor.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\elmtree.h">
+    <ClInclude Include="sprite\MCElementalTree.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\gvactor.h">
+    <ClInclude Include="sprite\MCGVAppearance.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\lactor.h">
+    <ClInclude Include="sprite\MCGVAppearanceType.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\mactor.h">
+    <ClInclude Include="sprite\MCMechActor.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\puactor.h">
+    <ClInclude Include="sprite\MCPUAppearance.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\sprite.h">
+    <ClInclude Include="sprite\MCPUAppearanceType.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\spritree.h">
+    <ClInclude Include="sprite\MCShape.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\sprtmgr.h">
+    <ClInclude Include="sprite\MCSpriteManager.h">
       <Filter>sprite</Filter>
     </ClInclude>
-    <ClInclude Include="sprite\vfxshape.h">
+    <ClInclude Include="sprite\MCSpriteMath.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCSpriteTree.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCVfxAppearance.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCVfxAppearanceType.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCVfxBuildingAppearance.h">
+      <Filter>sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="sprite\MCVfxBuildingAppearanceType.h">
       <Filter>sprite</Filter>
     </ClInclude>
     <ClInclude Include="stdafx.h" />
